@@ -28,10 +28,11 @@ class FourMobileScraper:
             "Accept-Language": "ru-RU,ru;q=0.9",
         }
 
-    async def scrape(self, category_name: str, category_url: str, max_pages: int = 1) -> List[Dict[str, Any]]:
+    async def scrape(self, category_name: str, category_url: str, max_pages=None) -> List[Dict[str, Any]]:
+        # У 4mobile один JSON со всем каталогом, постраничный обход не нужен
         return await asyncio.to_thread(self._scrape_sync, category_name, category_url, max_pages)
 
-    def _scrape_sync(self, category_name: str, category_url: str, max_pages: int) -> List[Dict[str, Any]]:
+    def _scrape_sync(self, category_name: str, category_url: str, max_pages=None) -> List[Dict[str, Any]]:
         products: List[Dict[str, Any]] = []
 
         try:

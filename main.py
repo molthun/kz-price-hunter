@@ -1,196 +1,38 @@
+"""Консольный режим мониторинга: тот же обход магазинов, что и в веб-панели.
+
+Веб-панель (`gui.py`) — основной режим. Этот скрипт удобен для разового прогона
+и отладки: он использует тот же реестр магазинов, детектор и рассылку уведомлений.
+"""
 import asyncio
 import argparse
 from datetime import datetime
 
-from config import (
-    DNS_CATEGORIES,
-    SHOPKZ_CATEGORIES,
-    TECHNODOM_CATEGORIES,
-    FORCECOM_CATEGORIES,
-    SULPAK_CATEGORIES,
-    MECHTA_CATEGORIES,
-    ALSER_CATEGORIES,
-    EVRIKA_CATEGORIES,
-    MOON_CATEGORIES,
-    FOURMOBILE_CATEGORIES,
-    CHECK_INTERVAL_SECONDS,
-    get_bot_token
-)
-from database import (
-    init_db,
-    save_or_update_product,
-    was_alert_sent_recently,
-    record_alert,
-    get_stats
-)
-from detector import check_anomaly
-from scrapers.dns import DNSScraper
-from scrapers.shopkz import ShopKzScraper
-from scrapers.technodom import TechnodomScraper
-from scrapers.forcecom import ForcecomScraper
-from scrapers.sulpak import SulpakScraper
-from scrapers.mechta import MechtaScraper
-from scrapers.alser import AlserScraper
-from scrapers.evrika import EvrikaScraper
-from scrapers.moon import MoonScraper
-from scrapers.fourmobile import FourMobileScraper
-from notifier import dispatch_alert
+from config import CHECK_INTERVAL_SECONDS, get_bot_token, load_settings
+from database import init_db, get_stats, get_shops_scan_report
+from web.server import SHOP_REGISTRY, enabled_shop_keys, _do_scan_task, scan_state
 
-async def scan_category_list(scraper, categories):
-    total = 0
-    anomalies = 0
-
-    for cat in categories:
-        name = cat["name"]
-        url = cat["url"]
-        max_pages = cat.get("max_pages", 1)
-
-        print(f"\n--- Сканирование: {name} ---")
-        try:
-            products = await scraper.scrape(name, url, max_pages=max_pages)
-            print(f"Собрано {len(products)} товаров")
-            total += len(products)
-
-            for p in products:
-                history = save_or_update_product(p)
-                anomaly = check_anomaly(p, history)
-
-                if anomaly:
-                    if not was_alert_sent_recently(p["id"], p["price"]):
-                        anomalies += 1
-                        dispatch_alert(p, anomaly)
-                        record_alert(
-                            product_id=p["id"],
-                            alert_type=anomaly["type"],
-                            old_price=anomaly["old_price"],
-                            new_price=anomaly["new_price"],
-                            discount_pct=anomaly["drop_pct"],
-                            savings_kzt=anomaly["savings"],
-                            shop=p.get("shop", "Неизвестно"),
-                            competitor_shop=anomaly.get("competitor_shop")
-                        )
-
-            await asyncio.sleep(1.0)
-
-        except Exception as e:
-            print(f"Ошибка при сканировании {name}: {e}")
-
-    return total, anomalies
-
-async def run_multi_scan_cycle(
-    dns_scraper,
-    shopkz_scraper,
-    technodom_scraper,
-    forcecom_scraper,
-    sulpak_scraper,
-    mechta_scraper,
-    alser_scraper,
-    evrika_scraper,
-    moon_scraper,
-    fourmobile_scraper
-):
-    print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 🚀 Старт мониторинга по 10 магазинам (Астана / Казахстан)...")
-
-    total_scanned = 0
-    total_anomalies = 0
-
-    # 1. Белый Ветер (shop.kz)
-    print("\n📦 [1/9] Белый Ветер (shop.kz)...")
-    scanned_shopkz, anom_shopkz = await scan_category_list(shopkz_scraper, SHOPKZ_CATEGORIES)
-    total_scanned += scanned_shopkz
-    total_anomalies += anom_shopkz
-
-    # 2. Forcecom (forcecom.kz)
-    print("\n📦 [2/9] Forcecom (forcecom.kz)...")
-    scanned_fc, anom_fc = await scan_category_list(forcecom_scraper, FORCECOM_CATEGORIES)
-    total_scanned += scanned_fc
-    total_anomalies += anom_fc
-
-    # 3. Мечта (mechta.kz)
-    print("\n📦 [3/9] Мечта (mechta.kz)...")
-    scanned_mechta, anom_mechta = await scan_category_list(mechta_scraper, MECHTA_CATEGORIES)
-    total_scanned += scanned_mechta
-    total_anomalies += anom_mechta
-
-    # 4. Sulpak (sulpak.kz)
-    print("\n📦 [4/9] Sulpak (sulpak.kz)...")
-    scanned_sulpak, anom_sulpak = await scan_category_list(sulpak_scraper, SULPAK_CATEGORIES)
-    total_scanned += scanned_sulpak
-    total_anomalies += anom_sulpak
-
-    # 5. Alser (alser.kz)
-    print("\n📦 [5/9] Alser (alser.kz)...")
-    scanned_alser, anom_alser = await scan_category_list(alser_scraper, ALSER_CATEGORIES)
-    total_scanned += scanned_alser
-    total_anomalies += anom_alser
-
-    # 6. Эврика (evrika.com)
-    print("\n📦 [6/9] Эврика (evrika.com)...")
-    scanned_evrika, anom_evrika = await scan_category_list(evrika_scraper, EVRIKA_CATEGORIES)
-    total_scanned += scanned_evrika
-    total_anomalies += anom_evrika
-
-    # 7. Moon.kz (moon.kz)
-    print("\n📦 [7/9] Moon.kz (moon.kz)...")
-    scanned_moon, anom_moon = await scan_category_list(moon_scraper, MOON_CATEGORIES)
-    total_scanned += scanned_moon
-    total_anomalies += anom_moon
-
-    # 8. DNS Казахстан (dns-shop.kz)
-    print("\n📦 [8/9] DNS Казахстан (dns-shop.kz)...")
-    scanned_dns, anom_dns = await scan_category_list(dns_scraper, DNS_CATEGORIES)
-    total_scanned += scanned_dns
-    total_anomalies += anom_dns
-
-    # 9. Технодом (technodom.kz)
-    print("\n📦 [9/10] Технодом (technodom.kz)...")
-    scanned_td, anom_td = await scan_category_list(technodom_scraper, TECHNODOM_CATEGORIES)
-    total_scanned += scanned_td
-    total_anomalies += anom_td
-
-    # 10. 4mobile (4mobile.pages.dev)
-    print("\n📦 [10/10] 4mobile (4mobile.pages.dev)...")
-    scanned_4m, anom_4m = await scan_category_list(fourmobile_scraper, FOURMOBILE_CATEGORIES)
-    total_scanned += scanned_4m
-    total_anomalies += anom_4m
+async def run_cycle():
+    keys = enabled_shop_keys()
+    print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 🚀 Старт обхода {len(keys)} магазинов...")
+    await _do_scan_task(keys)
 
     stats = get_stats()
     print("\n" + "=" * 60)
-    print("🏁 Полный цикл мониторинга 10 магазинов завершен!")
-    print(f"Товаров обработано за цикл: {total_scanned}")
-    print(f"Новых аномалий найдено: {total_anomalies}")
+    print("🏁 Цикл мониторинга завершен!")
+    print(f"Товаров обработано за цикл: {scan_state['total_scanned']}")
+    print(f"Новых аномалий найдено: {scan_state['anomalies_found']}")
     print(f"Всего товаров в базе: {stats['total_products']}")
-    print(f"Товары по магазинам: {stats['shops']}")
-    print(f"Всего алертов в истории: {stats['total_alerts']}")
+    for row in get_shops_scan_report(keys):
+        name = SHOP_REGISTRY[row["shop_key"]][2]
+        status = row["last_error"] or "ок"
+        print(f"  {name}: {row['last_items']} товаров, {row['last_duration_sec']}с — {status}")
     print("=" * 60 + "\n")
 
 async def main_loop(run_once: bool = False):
     init_db()
 
-    dns_scraper = DNSScraper()
-    shopkz_scraper = ShopKzScraper()
-    technodom_scraper = TechnodomScraper()
-    forcecom_scraper = ForcecomScraper()
-    sulpak_scraper = SulpakScraper()
-    mechta_scraper = MechtaScraper()
-    alser_scraper = AlserScraper()
-    evrika_scraper = EvrikaScraper()
-    moon_scraper = MoonScraper()
-    fourmobile_scraper = FourMobileScraper()
-
-    print("🤖 Multi-Store Price Glitch Monitor запущен!")
-    print("Подключенные магазины:")
-    print("  🟧 DNS Казахстан (dns-shop.kz)")
-    print("  🟦 Белый Ветер (shop.kz)")
-    print("  🔴 Технодом (technodom.kz)")
-    print("  ⚡️ Forcecom (forcecom.kz)")
-    print("  🟢 Sulpak (sulpak.kz)")
-    print("  🟣 Мечта (mechta.kz)")
-    print("  🟡 Alser (alser.kz)")
-    print("  🔷 Эврика (evrika.com)")
-    print("  🚀 Moon.kz (moon.kz)")
-    print("  📱 4mobile (4mobile.pages.dev)")
-
+    print("🤖 KZ Price Hunter — консольный мониторинг запущен!")
+    print("Магазины из настроек:", ", ".join(SHOP_REGISTRY[k][2] for k in enabled_shop_keys()))
     if get_bot_token():
         print("✅ Telegram-бот настроен: алерты рассылаются пользователям с включенными уведомлениями.")
     else:
@@ -198,18 +40,7 @@ async def main_loop(run_once: bool = False):
 
     while True:
         try:
-            await run_multi_scan_cycle(
-                dns_scraper,
-                shopkz_scraper,
-                technodom_scraper,
-                forcecom_scraper,
-                sulpak_scraper,
-                mechta_scraper,
-                alser_scraper,
-                evrika_scraper,
-                moon_scraper,
-                fourmobile_scraper
-            )
+            await run_cycle()
         except Exception as e:
             print(f"Непредвиденная ошибка в основном цикле: {e}")
 
@@ -217,11 +48,12 @@ async def main_loop(run_once: bool = False):
             print("Флаг --once установлен. Завершение работы.")
             break
 
-        print(f"Следующий круг через {CHECK_INTERVAL_SECONDS} секунд...\n")
-        await asyncio.sleep(CHECK_INTERVAL_SECONDS)
+        interval = load_settings().get("check_interval_seconds", CHECK_INTERVAL_SECONDS)
+        print(f"Следующий круг через {interval} секунд...\n")
+        await asyncio.sleep(interval)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Multi-Store KZ Price Glitch Monitor")
+    parser = argparse.ArgumentParser(description="KZ Price Hunter — консольный мониторинг цен")
     parser.add_argument("--once", action="store_true", help="Выполнить один цикл и завершить работу")
     args = parser.parse_args()
 

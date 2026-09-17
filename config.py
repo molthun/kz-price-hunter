@@ -340,133 +340,115 @@ DNS_CATEGORIES = [
 
 # 2. Белый Ветер (shop.kz)
 SHOPKZ_CATEGORIES = [
-    {"name": "Белый Ветер: 📦 Официальная YML выгрузка (16k+ товаров)", "url": "https://shop.kz/bitrix/catalog_export/yandex.php", "max_pages": 1},
-    {"name": "Белый Ветер: 💻 Ноутбуки", "url": "https://shop.kz/offers/noutbuki/", "max_pages": 4},
-    {"name": "Белый Ветер: 📱 Смартфоны", "url": "https://shop.kz/offers/smartfony/", "max_pages": 4},
-    {"name": "Белый Ветер: 🎮 Видеокарты", "url": "https://shop.kz/offers/videokarty/", "max_pages": 4},
-    {"name": "Белый Ветер: ⚙️ Процессоры", "url": "https://shop.kz/offers/protsessory/", "max_pages": 4},
-    {"name": "Белый Ветер: 🖥 Мониторы", "url": "https://shop.kz/offers/monitory/", "max_pages": 4},
-    {"name": "Белый Ветер: 🧩 Материнские платы", "url": "https://shop.kz/offers/materinskie-platy/", "max_pages": 3},
-    {"name": "Белый Ветер: 🧠 Оперативная память", "url": "https://shop.kz/offers/operativnaya-pamyat/", "max_pages": 3},
-    {"name": "Белый Ветер: 💾 SSD диски", "url": "https://shop.kz/offers/ssd-diski/", "max_pages": 3},
-    {"name": "Белый Ветер: ⚡️ Блоки питания", "url": "https://shop.kz/offers/bloki-pitaniya/", "max_pages": 3},
-    {"name": "Белый Ветер: 📦 Корпуса", "url": "https://shop.kz/offers/korpusa/", "max_pages": 3},
-    {"name": "Белый Ветер: ❄️ Кулеры процессоров", "url": "https://shop.kz/offers/kulery-dlya-protsessora/", "max_pages": 3},
-    {"name": "Белый Ветер: 📱 Планшеты", "url": "https://shop.kz/offers/planshety/", "max_pages": 3},
-    {"name": "Белый Ветер: 📺 Телевизоры", "url": "https://shop.kz/offers/televizory/", "max_pages": 3},
-    {"name": "Белый Ветер: 🎧 Наушники и гарнитуры", "url": "https://shop.kz/offers/naushniki-i-garnitury/", "max_pages": 3},
-    {"name": "Белый Ветер: ⌚️ Смарт-часы", "url": "https://shop.kz/offers/smart-chasy/", "max_pages": 3},
-    {"name": "Белый Ветер: ⌨️ Клавиатуры", "url": "https://shop.kz/offers/klaviatury/", "max_pages": 3},
-    {"name": "Белый Ветер: 🖱 Мыши", "url": "https://shop.kz/offers/myshi/", "max_pages": 3},
-    {"name": "Белый Ветер: 🌐 Роутеры и модемы", "url": "https://shop.kz/offers/routery-modemy/", "max_pages": 3},
-    {"name": "Белый Ветер: 🏷 Уценка Ноутбуки", "url": "https://shop.kz/offers/noutbuki/utsenennyy-tovar/", "max_pages": 3},
-    {"name": "Белый Ветер: 🏷 Уценка Смартфоны", "url": "https://shop.kz/offers/smartfony/utsenennyy-tovar/", "max_pages": 3}
+    # Официальная YML-выгрузка содержит весь каталог в наличии (~14 000 товаров) и грузится за пару секунд,
+    # поэтому обход HTML-категорий Белого Ветра не нужен.
+    {"name": "Белый Ветер: 📦 Официальная YML выгрузка", "url": "https://shop.kz/bitrix/catalog_export/yandex.php", "max_pages": 1},
 ]
 
 # 3. Технодом (technodom.kz)
 TECHNODOM_CATEGORIES = [
-    {"name": "Технодом: 💻 Ноутбуки", "url": "https://www.technodom.kz/catalog/noutbuki-i-komp-jutery/noutbuki/noutbuki", "max_pages": 3},
-    {"name": "Технодом: 📱 Смартфоны", "url": "https://www.technodom.kz/catalog/smartfony-i-gadzhety/smartfony-i-telefony/smartfony", "max_pages": 3},
-    {"name": "Технодом: 📺 Телевизоры", "url": "https://www.technodom.kz/catalog/tv-audio-foto-video/televizory/led-televizory", "max_pages": 3},
-    {"name": "Технодом: 📱 Планшеты", "url": "https://www.technodom.kz/catalog/smartfony-i-gadzhety/planshety-i-knigi/planshety", "max_pages": 2},
-    {"name": "Технодом: ⌚️ Смарт-часы", "url": "https://www.technodom.kz/catalog/smartfony-i-gadzhety/gadzhety/smart-chasy", "max_pages": 2},
-    {"name": "Технодом: 🎧 Наушники", "url": "https://www.technodom.kz/catalog/tv-audio-foto-video/audio-tehnika/naushniki", "max_pages": 2},
-    {"name": "Технодом: 🖥 Мониторы", "url": "https://www.technodom.kz/catalog/noutbuki-i-komp-jutery/komp-jutery-i-monobloki/monitory", "max_pages": 2},
-    {"name": "Технодом: 🎮 Игровые приставки", "url": "https://www.technodom.kz/catalog/noutbuki-i-komp-jutery/igrovye-pristavki-i-igry/igrovye-pristavki", "max_pages": 2},
-    {"name": "Технодом: 🧹 Пылесосы", "url": "https://www.technodom.kz/catalog/bytovaja-tehnika/tehnika-dlja-doma/pylesosy", "max_pages": 2}
+    {"name": "Технодом: 💻 Ноутбуки", "url": "https://www.technodom.kz/catalog/noutbuki-i-komp-jutery/noutbuki/noutbuki"},
+    {"name": "Технодом: 📱 Смартфоны", "url": "https://www.technodom.kz/catalog/smartfony-i-gadzhety/smartfony-i-telefony/smartfony"},
+    {"name": "Технодом: 📺 Телевизоры", "url": "https://www.technodom.kz/catalog/tv-audio-foto-video/televizory/led-televizory"},
+    {"name": "Технодом: 📱 Планшеты", "url": "https://www.technodom.kz/catalog/smartfony-i-gadzhety/planshety-i-knigi/planshety"},
+    {"name": "Технодом: ⌚️ Смарт-часы", "url": "https://www.technodom.kz/catalog/smartfony-i-gadzhety/gadzhety/smart-chasy"},
+    {"name": "Технодом: 🎧 Наушники", "url": "https://www.technodom.kz/catalog/tv-audio-foto-video/audio-tehnika/naushniki"},
+    {"name": "Технодом: 🖥 Мониторы", "url": "https://www.technodom.kz/catalog/noutbuki-i-komp-jutery/komp-jutery-i-monobloki/monitory"},
+    {"name": "Технодом: 🎮 Игровые приставки", "url": "https://www.technodom.kz/catalog/noutbuki-i-komp-jutery/igrovye-pristavki-i-igry/igrovye-pristavki"},
+    {"name": "Технодом: 🧹 Пылесосы", "url": "https://www.technodom.kz/catalog/bytovaja-tehnika/tehnika-dlja-doma/pylesosy"}
 ]
 
 # 4. Forcecom (forcecom.kz)
 FORCECOM_CATEGORIES = [
-    {"name": "Forcecom: 🔥 Распродажа", "url": "https://forcecom.kz/sale/rasprodazha/", "max_pages": 3},
-    {"name": "Forcecom: 💻 Ноутбуки", "url": "https://forcecom.kz/catalog/laptops/", "max_pages": 3},
-    {"name": "Forcecom: 🎮 Видеокарты", "url": "https://forcecom.kz/catalog/graphics-cards/", "max_pages": 3},
-    {"name": "Forcecom: 🧩 Материнские платы", "url": "https://forcecom.kz/catalog/motherboards/", "max_pages": 3},
-    {"name": "Forcecom: 🧠 Оперативная память", "url": "https://forcecom.kz/catalog/ram/", "max_pages": 3},
-    {"name": "Forcecom: 🖥 Мониторы", "url": "https://forcecom.kz/catalog/monitors/", "max_pages": 3},
-    {"name": "Forcecom: 💾 SSD диски", "url": "https://forcecom.kz/catalog/ssd/", "max_pages": 3},
-    {"name": "Forcecom: 💾 Жесткие диски", "url": "https://forcecom.kz/catalog/hdd/", "max_pages": 3},
-    {"name": "Forcecom: 📦 Корпуса", "url": "https://forcecom.kz/catalog/cases/", "max_pages": 3},
-    {"name": "Forcecom: 🎧 Наушники", "url": "https://forcecom.kz/catalog/headphones/", "max_pages": 3},
-    {"name": "Forcecom: ⌨️ Клавиатуры", "url": "https://forcecom.kz/catalog/keyboards/", "max_pages": 3},
-    {"name": "Forcecom: 🖱 Мыши", "url": "https://forcecom.kz/catalog/mice/", "max_pages": 3},
-    {"name": "Forcecom: 🖨 Принтеры", "url": "https://forcecom.kz/catalog/printers/", "max_pages": 2},
-    {"name": "Forcecom: 🌐 Роутеры", "url": "https://forcecom.kz/catalog/marshrutizatory/", "max_pages": 2}
+    {"name": "Forcecom: 🔥 Распродажа", "url": "https://forcecom.kz/sale/rasprodazha/"},
+    {"name": "Forcecom: 💻 Ноутбуки", "url": "https://forcecom.kz/catalog/laptops/"},
+    {"name": "Forcecom: 🎮 Видеокарты", "url": "https://forcecom.kz/catalog/graphics-cards/"},
+    {"name": "Forcecom: 🧩 Материнские платы", "url": "https://forcecom.kz/catalog/motherboards/"},
+    {"name": "Forcecom: 🧠 Оперативная память", "url": "https://forcecom.kz/catalog/ram/"},
+    {"name": "Forcecom: 🖥 Мониторы", "url": "https://forcecom.kz/catalog/monitors/"},
+    {"name": "Forcecom: 💾 SSD диски", "url": "https://forcecom.kz/catalog/ssd/"},
+    {"name": "Forcecom: 💾 Жесткие диски", "url": "https://forcecom.kz/catalog/hdd/"},
+    {"name": "Forcecom: 📦 Корпуса", "url": "https://forcecom.kz/catalog/cases/"},
+    {"name": "Forcecom: 🎧 Наушники", "url": "https://forcecom.kz/catalog/headphones/"},
+    {"name": "Forcecom: ⌨️ Клавиатуры", "url": "https://forcecom.kz/catalog/keyboards/"},
+    {"name": "Forcecom: 🖱 Мыши", "url": "https://forcecom.kz/catalog/mice/"},
+    {"name": "Forcecom: 🖨 Принтеры", "url": "https://forcecom.kz/catalog/printers/"},
+    {"name": "Forcecom: 🌐 Роутеры", "url": "https://forcecom.kz/catalog/marshrutizatory/"}
 ]
 
 # 5. Sulpak (sulpak.kz)
 SULPAK_CATEGORIES = [
-    {"name": "Sulpak: 💻 Ноутбуки", "url": "https://www.sulpak.kz/f/noutbuki", "max_pages": 3},
-    {"name": "Sulpak: 📱 Смартфоны", "url": "https://www.sulpak.kz/f/smartfoniy/", "max_pages": 3},
-    {"name": "Sulpak: 📺 Телевизоры", "url": "https://www.sulpak.kz/f/led_oled_televizoriy", "max_pages": 3},
-    {"name": "Sulpak: 📱 Планшеты", "url": "https://www.sulpak.kz/f/planshetiy", "max_pages": 3},
-    {"name": "Sulpak: ⌚️ Смарт-часы", "url": "https://www.sulpak.kz/f/smart_chasiy", "max_pages": 3},
-    {"name": "Sulpak: 🎧 Наушники", "url": "https://www.sulpak.kz/f/naushniki", "max_pages": 3},
-    {"name": "Sulpak: 🎮 Игровые приставки", "url": "https://www.sulpak.kz/f/igroviye_pristavki", "max_pages": 2},
-    {"name": "Sulpak: 🧺 Стиральные машины", "url": "https://www.sulpak.kz/f/stiralniye_mashiniy", "max_pages": 3},
-    {"name": "Sulpak: ❄️ Холодильники", "url": "https://www.sulpak.kz/f/holodilniki", "max_pages": 3},
-    {"name": "Sulpak: 🌬 Кондиционеры", "url": "https://www.sulpak.kz/f/kondicioneriy", "max_pages": 3},
-    {"name": "Sulpak: ☕️ Кофемашины", "url": "https://www.sulpak.kz/f/kofemashiniy", "max_pages": 2},
-    {"name": "Sulpak: ♨️ Микроволновые печи", "url": "https://www.sulpak.kz/f/mikrovolnoviye_pechi", "max_pages": 2},
-    {"name": "Sulpak: 🔥 Распродажа", "url": "https://www.sulpak.kz/sale/1", "max_pages": 3}
+    {"name": "Sulpak: 💻 Ноутбуки", "url": "https://www.sulpak.kz/f/noutbuki"},
+    {"name": "Sulpak: 📱 Смартфоны", "url": "https://www.sulpak.kz/f/smartfoniy/"},
+    {"name": "Sulpak: 📺 Телевизоры", "url": "https://www.sulpak.kz/f/led_oled_televizoriy"},
+    {"name": "Sulpak: 📱 Планшеты", "url": "https://www.sulpak.kz/f/planshetiy"},
+    {"name": "Sulpak: ⌚️ Смарт-часы", "url": "https://www.sulpak.kz/f/smart_chasiy"},
+    {"name": "Sulpak: 🎧 Наушники", "url": "https://www.sulpak.kz/f/naushniki"},
+    {"name": "Sulpak: 🎮 Игровые приставки", "url": "https://www.sulpak.kz/f/igroviye_pristavki"},
+    {"name": "Sulpak: 🧺 Стиральные машины", "url": "https://www.sulpak.kz/f/stiralniye_mashiniy"},
+    {"name": "Sulpak: ❄️ Холодильники", "url": "https://www.sulpak.kz/f/holodilniki"},
+    {"name": "Sulpak: 🌬 Кондиционеры", "url": "https://www.sulpak.kz/f/kondicioneriy"},
+    {"name": "Sulpak: ☕️ Кофемашины", "url": "https://www.sulpak.kz/f/kofemashiniy"},
+    {"name": "Sulpak: ♨️ Микроволновые печи", "url": "https://www.sulpak.kz/f/mikrovolnoviye_pechi"},
+    {"name": "Sulpak: 🔥 Распродажа", "url": "https://www.sulpak.kz/sale/1"}
 ]
 
 # 6. Мечта (mechta.kz)
 MECHTA_CATEGORIES = [
-    {"name": "Мечта: 💻 Ноутбуки", "url": "https://www.mechta.kz/section/noutbuki/", "max_pages": 4},
-    {"name": "Мечта: 📱 Смартфоны", "url": "https://www.mechta.kz/section/smartfony/", "max_pages": 4},
-    {"name": "Мечта: 📺 Телевизоры", "url": "https://www.mechta.kz/section/televizory/", "max_pages": 4},
-    {"name": "Мечта: 🖥 Мониторы", "url": "https://www.mechta.kz/section/monitory/", "max_pages": 3},
-    {"name": "Мечта: 📱 Планшеты", "url": "https://www.mechta.kz/section/planshety/", "max_pages": 3},
-    {"name": "Мечта: ⌚️ Смарт-часы", "url": "https://www.mechta.kz/section/smart-chasy/", "max_pages": 3},
-    {"name": "Мечта: 🎧 Наушники", "url": "https://www.mechta.kz/section/naushniki/", "max_pages": 3},
-    {"name": "Мечта: 🎮 Игровые приставки", "url": "https://www.mechta.kz/section/igrovye-pristavki/", "max_pages": 2},
-    {"name": "Мечта: 🧹 Пылесосы", "url": "https://www.mechta.kz/section/pylesosy/", "max_pages": 3},
-    {"name": "Мечта: ❄️ Холодильники", "url": "https://www.mechta.kz/section/holodilniki/", "max_pages": 3},
-    {"name": "Мечта: 🧺 Стиральные машины", "url": "https://www.mechta.kz/section/stiralnye-mashiny/", "max_pages": 3},
-    {"name": "Мечта: ☕️ Кофемашины", "url": "https://www.mechta.kz/section/kofemashiny/", "max_pages": 3},
-    {"name": "Мечта: 🌬 Кондиционеры", "url": "https://www.mechta.kz/section/kondicionery/", "max_pages": 2},
-    {"name": "Мечта: 💨 Утюги и отпариватели", "url": "https://www.mechta.kz/section/utyugi/", "max_pages": 2}
+    {"name": "Мечта: 💻 Ноутбуки", "url": "https://www.mechta.kz/section/noutbuki/"},
+    {"name": "Мечта: 📱 Смартфоны", "url": "https://www.mechta.kz/section/smartfony/"},
+    {"name": "Мечта: 📺 Телевизоры", "url": "https://www.mechta.kz/section/televizory/"},
+    {"name": "Мечта: 🖥 Мониторы", "url": "https://www.mechta.kz/section/monitory/"},
+    {"name": "Мечта: 📱 Планшеты", "url": "https://www.mechta.kz/section/planshety/"},
+    {"name": "Мечта: ⌚️ Смарт-часы", "url": "https://www.mechta.kz/section/smart-chasy/"},
+    {"name": "Мечта: 🎧 Наушники", "url": "https://www.mechta.kz/section/naushniki/"},
+    {"name": "Мечта: 🎮 Игровые приставки", "url": "https://www.mechta.kz/section/igrovye-pristavki/"},
+    {"name": "Мечта: 🧹 Пылесосы", "url": "https://www.mechta.kz/section/pylesosy/"},
+    {"name": "Мечта: ❄️ Холодильники", "url": "https://www.mechta.kz/section/holodilniki/"},
+    {"name": "Мечта: 🧺 Стиральные машины", "url": "https://www.mechta.kz/section/stiralnye-mashiny/"},
+    {"name": "Мечта: ☕️ Кофемашины", "url": "https://www.mechta.kz/section/kofemashiny/"},
+    {"name": "Мечта: 🌬 Кондиционеры", "url": "https://www.mechta.kz/section/kondicionery/"},
+    {"name": "Мечта: 💨 Утюги и отпариватели", "url": "https://www.mechta.kz/section/utyugi/"}
 ]
 
 # 7. Alser (alser.kz)
 ALSER_CATEGORIES = [
-    {"name": "Alser: 💻 Ноутбуки", "url": "https://alser.kz/astana/c/noutbuki", "max_pages": 3},
-    {"name": "Alser: 📱 Смартфоны", "url": "https://alser.kz/astana/c/smartfony", "max_pages": 3},
-    {"name": "Alser: 📺 Телевизоры", "url": "https://alser.kz/astana/c/televizory", "max_pages": 3},
-    {"name": "Alser: 🖥 Мониторы", "url": "https://alser.kz/astana/c/monitory", "max_pages": 3},
-    {"name": "Alser: 📱 Планшеты", "url": "https://alser.kz/astana/c/planshety", "max_pages": 2},
-    {"name": "Alser: 🧹 Пылесосы", "url": "https://alser.kz/astana/c/pylesosy", "max_pages": 2},
-    {"name": "Alser: ❄️ Холодильники", "url": "https://alser.kz/astana/c/vse-holodilniki", "max_pages": 2},
-    {"name": "Alser: 🌬 Кондиционеры", "url": "https://alser.kz/astana/c/vse-kondicioneri", "max_pages": 2}
+    {"name": "Alser: 💻 Ноутбуки", "url": "https://alser.kz/astana/c/noutbuki"},
+    {"name": "Alser: 📱 Смартфоны", "url": "https://alser.kz/astana/c/smartfony"},
+    {"name": "Alser: 📺 Телевизоры", "url": "https://alser.kz/astana/c/televizory"},
+    {"name": "Alser: 🖥 Мониторы", "url": "https://alser.kz/astana/c/monitory"},
+    {"name": "Alser: 📱 Планшеты", "url": "https://alser.kz/astana/c/planshety"},
+    {"name": "Alser: 🧹 Пылесосы", "url": "https://alser.kz/astana/c/pylesosy"},
+    {"name": "Alser: ❄️ Холодильники", "url": "https://alser.kz/astana/c/vse-holodilniki"},
+    {"name": "Alser: 🌬 Кондиционеры", "url": "https://alser.kz/astana/c/vse-kondicioneri"}
 ]
 
 # 8. Эврика (evrika.com)
 EVRIKA_CATEGORIES = [
-    {"name": "Эврика: 💻 Ноутбуки", "url": "https://evrika.com/catalog/nur-sultan-astana/noutbuki/c207", "max_pages": 3},
-    {"name": "Эврика: 📱 Смартфоны", "url": "https://evrika.com/catalog/nur-sultan-astana/smartfony/c234", "max_pages": 3},
-    {"name": "Эврика: 📺 Телевизоры", "url": "https://evrika.com/catalog/nur-sultan-astana/led-televizory/c228", "max_pages": 3},
-    {"name": "Эврика: 🖥 Мониторы", "url": "https://evrika.com/catalog/nur-sultan-astana/monitory/c300", "max_pages": 3},
-    {"name": "Эврика: 📱 Планшеты", "url": "https://evrika.com/catalog/nur-sultan-astana/planshety/c70", "max_pages": 2},
-    {"name": "Эврика: 🎧 Наушники", "url": "https://evrika.com/catalog/nur-sultan-astana/naushniki-1/c183", "max_pages": 3},
-    {"name": "Эврика: 🎮 Игровые приставки", "url": "https://evrika.com/catalog/nur-sultan-astana/igrovye-pristavki/c120", "max_pages": 2},
-    {"name": "Эврика: 🖨 Принтеры", "url": "https://evrika.com/catalog/nur-sultan-astana/printery/c65", "max_pages": 2},
-    {"name": "Эврика: 💨 Утюги", "url": "https://evrika.com/catalog/nur-sultan-astana/utyugi/c161", "max_pages": 2}
+    {"name": "Эврика: 💻 Ноутбуки", "url": "https://evrika.com/catalog/nur-sultan-astana/noutbuki/c207"},
+    {"name": "Эврика: 📱 Смартфоны", "url": "https://evrika.com/catalog/nur-sultan-astana/smartfony/c234"},
+    {"name": "Эврика: 📺 Телевизоры", "url": "https://evrika.com/catalog/nur-sultan-astana/led-televizory/c228"},
+    {"name": "Эврика: 🖥 Мониторы", "url": "https://evrika.com/catalog/nur-sultan-astana/monitory/c300"},
+    {"name": "Эврика: 📱 Планшеты", "url": "https://evrika.com/catalog/nur-sultan-astana/planshety/c70"},
+    {"name": "Эврика: 🎧 Наушники", "url": "https://evrika.com/catalog/nur-sultan-astana/naushniki-1/c183"},
+    {"name": "Эврика: 🎮 Игровые приставки", "url": "https://evrika.com/catalog/nur-sultan-astana/igrovye-pristavki/c120"},
+    {"name": "Эврика: 🖨 Принтеры", "url": "https://evrika.com/catalog/nur-sultan-astana/printery/c65"},
+    {"name": "Эврика: 💨 Утюги", "url": "https://evrika.com/catalog/nur-sultan-astana/utyugi/c161"}
 ]
 
 # 9. Moon.kz (moon.kz)
 MOON_CATEGORIES = [
-    {"name": "Moon: 💻 Ноутбуки", "url": "https://moon.kz/noutbuki-i-aksessuary/", "max_pages": 3},
-    {"name": "Moon: 🎮 Видеокарты", "url": "https://moon.kz/videokarty/", "max_pages": 3},
-    {"name": "Moon: ⚙️ Процессоры", "url": "https://moon.kz/protsessory/", "max_pages": 3},
-    {"name": "Moon: 🖥 Мониторы", "url": "https://moon.kz/monitory/", "max_pages": 3},
-    {"name": "Moon: 🧩 Материнские платы", "url": "https://moon.kz/materinskie-platy/", "max_pages": 3},
-    {"name": "Moon: 🧠 Оперативная память", "url": "https://moon.kz/moduli-pamyati/", "max_pages": 3},
-    {"name": "Moon: 💾 SSD диски", "url": "https://moon.kz/nakopiteli-ssd/", "max_pages": 3},
-    {"name": "Moon: ⚡️ Блоки питания", "url": "https://moon.kz/bloki-pitaniya/", "max_pages": 3},
-    {"name": "Moon: 📦 Корпуса", "url": "https://moon.kz/korpusa/", "max_pages": 3},
-    {"name": "Moon: ❄️ Системы охлаждения", "url": "https://moon.kz/kulery-i-sistemy-okhlazhdeniya/", "max_pages": 3},
-    {"name": "Moon: 🔥 Распродажа", "url": "https://moon.kz/rasprodazha/", "max_pages": 3}
+    {"name": "Moon: 💻 Ноутбуки", "url": "https://moon.kz/noutbuki-i-aksessuary/"},
+    {"name": "Moon: 🎮 Видеокарты", "url": "https://moon.kz/videokarty/"},
+    {"name": "Moon: ⚙️ Процессоры", "url": "https://moon.kz/protsessory/"},
+    {"name": "Moon: 🖥 Мониторы", "url": "https://moon.kz/monitory/"},
+    {"name": "Moon: 🧩 Материнские платы", "url": "https://moon.kz/materinskie-platy/"},
+    {"name": "Moon: 🧠 Оперативная память", "url": "https://moon.kz/moduli-pamyati/"},
+    {"name": "Moon: 💾 SSD диски", "url": "https://moon.kz/nakopiteli-ssd/"},
+    {"name": "Moon: ⚡️ Блоки питания", "url": "https://moon.kz/bloki-pitaniya/"},
+    {"name": "Moon: 📦 Корпуса", "url": "https://moon.kz/korpusa/"},
+    {"name": "Moon: ❄️ Системы охлаждения", "url": "https://moon.kz/kulery-i-sistemy-okhlazhdeniya/"},
+    {"name": "Moon: 🔥 Распродажа", "url": "https://moon.kz/rasprodazha/"}
 ]
 
 # 10. Kaspi Магазин (kaspi.kz)
@@ -483,13 +465,13 @@ KASPI_CATEGORIES = [
 
 # 11. 4mobile (4mobile.pages.dev)
 FOURMOBILE_CATEGORIES = [
-    {"name": "4mobile: 📱 iPhone (eSIM & Nano-SIM)", "url": "https://4mobile.pages.dev/api/data", "max_pages": 1},
-    {"name": "4mobile: ⌚️ Apple Watch & Garmin", "url": "https://4mobile.pages.dev/api/data", "max_pages": 1},
-    {"name": "4mobile: 🎧 AirPods & Наушники WiWU", "url": "https://4mobile.pages.dev/api/data", "max_pages": 1},
-    {"name": "4mobile: 💻 MacBook & iPad", "url": "https://4mobile.pages.dev/api/data", "max_pages": 1},
-    {"name": "4mobile: 💨 Dyson & Яндекс Станции", "url": "https://4mobile.pages.dev/api/data", "max_pages": 1},
-    {"name": "4mobile: 🎮 PS5, Игры & Дроны DJI", "url": "https://4mobile.pages.dev/api/data", "max_pages": 1},
-    {"name": "4mobile: ⚡️ Аксессуары Apple & WiWU", "url": "https://4mobile.pages.dev/api/data", "max_pages": 1}
+    {"name": "4mobile: 📱 iPhone (eSIM & Nano-SIM)", "url": "https://4mobile.pages.dev/api/data"},
+    {"name": "4mobile: ⌚️ Apple Watch & Garmin", "url": "https://4mobile.pages.dev/api/data"},
+    {"name": "4mobile: 🎧 AirPods & Наушники WiWU", "url": "https://4mobile.pages.dev/api/data"},
+    {"name": "4mobile: 💻 MacBook & iPad", "url": "https://4mobile.pages.dev/api/data"},
+    {"name": "4mobile: 💨 Dyson & Яндекс Станции", "url": "https://4mobile.pages.dev/api/data"},
+    {"name": "4mobile: 🎮 PS5, Игры & Дроны DJI", "url": "https://4mobile.pages.dev/api/data"},
+    {"name": "4mobile: ⚡️ Аксессуары Apple & WiWU", "url": "https://4mobile.pages.dev/api/data"}
 ]
 
 

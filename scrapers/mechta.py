@@ -3,8 +3,9 @@ import uuid
 import asyncio
 from typing import List, Dict, Any
 from curl_cffi import requests
+from scrapers.base import PagedScraper, parse_price
 
-class MechtaScraper:
+class MechtaScraper(PagedScraper):
     SHOP_NAME = "Мечта"
     SHOP_EMOJI = "🟣"
 
@@ -34,10 +35,7 @@ class MechtaScraper:
                 return parts[-1]
         return category_url
 
-    async def scrape(self, category_name: str, category_url: str, max_pages: int = 1) -> List[Dict[str, Any]]:
-        return await asyncio.to_thread(self._scrape_sync, category_name, category_url, max_pages)
-
-    def _scrape_sync(self, category_name: str, category_url: str, max_pages: int) -> List[Dict[str, Any]]:
+    def _fetch_page(self, category_name: str, category_url: str, page_num: int) -> List[Dict[str, Any]]:
         products: List[Dict[str, Any]] = []
         slug = self._extract_slug(category_url)
         session = self._get_session()
@@ -53,67 +51,70 @@ class MechtaScraper:
             "Accept-Language": "ru",
         }
 
-        for page_num in range(1, max_pages + 1):
-            params = {
-                "slug": slug,
-                "page": page_num,
-                "pageSize": 24,
-                "orderBy": "sort",
-                "direction": "desc"
-            }
+        params = {
+            "slug": slug,
+            "page": page_num,
+            "pageSize": 24,
+            "orderBy": "sort",
+            "direction": "desc"
+        }
 
-            try:
-                r = session.get(self.api_url, headers=headers, params=params, timeout=15)
+        try:
+            r = session.get(self.api_url, headers=headers, params=params, timeout=15)
+            if r.status_code == 204:
+                return products  # категория закончилась: API отдает 204 после последней страницы
+            if r.status_code != 200:
+                if r.status_code in (403, 422):
+                    self.session = None
+                    session = self._get_session()
+                    r = session.get(self.api_url, headers=headers, params=params, timeout=15)
+                if r.status_code == 204:
+                    return products
                 if r.status_code != 200:
-                    if r.status_code in (403, 422):
-                        self.session = None
-                        session = self._get_session()
-                        r = session.get(self.api_url, headers=headers, params=params, timeout=15)
-                    if r.status_code != 200:
-                        print(f"[{self.SHOP_NAME}] Ошибка HTTP {r.status_code} для категории {slug}")
-                        break
+                    print(f"[{self.SHOP_NAME}] Ошибка HTTP {r.status_code} для категории {slug}")
+                    return products
 
-                data = r.json()
-                raw_items = data.get("products", [])
-                if not raw_items:
-                    break
+            data = r.json()
+            raw_items = data.get("products", [])
+            if not raw_items:
+                return products
 
-                for item in raw_items:
-                    pid = item.get("id") or str(item.get("code", ""))
-                    name = item.get("name", "").strip()
-                    item_slug = item.get("slug", "")
-                    if not name or not pid:
-                        continue
+            for item in raw_items:
+                pid = item.get("id") or str(item.get("code", ""))
+                name = item.get("name", "").strip()
+                item_slug = item.get("slug", "")
+                if not name or not pid:
+                    continue
 
-                    # Цены
-                    prices = item.get("prices") or {}
-                    final_price = prices.get("finalPrice") or 0
-                    base_price = prices.get("basePrice") or 0
+                # Цены
+                prices = item.get("prices") or {}
+                final_price = prices.get("finalPrice") or 0
+                base_price = prices.get("basePrice") or 0
 
-                    if final_price <= 0:
-                        continue
+                if final_price <= 0:
+                    continue
 
-                    # Ссылка
-                    product_url = f"{self.base_url}/product/{item_slug}/" if item_slug else f"{self.base_url}/product/{pid}/"
+                # Ссылка
+                product_url = f"{self.base_url}/product/{item_slug}/" if item_slug else f"{self.base_url}/product/{pid}/"
 
-                    # Изображение
-                    images = item.get("images") or []
-                    image_url = images[0] if images else ""
+                # Изображение
+                images = item.get("images") or []
+                image_url = images[0] if images else ""
 
-                    products.append({
-                        "shop": self.SHOP_NAME,
-                        "id": f"mechta_{pid}",
-                        "title": name,
-                        "category": category_name,
-                        "url": product_url,
-                        "image_url": image_url,
-                        "price": int(final_price),
-                        "old_price_on_site": int(base_price) if base_price > final_price else 0,
-                        "city": "Астана"
-                    })
+                products.append({
+                    "shop": self.SHOP_NAME,
+                    "id": f"mechta_{pid}",
+                    "title": name,
+                    "category": category_name,
+                    "url": product_url,
+                    "image_url": image_url,
+                    "price": int(final_price),
+                    "old_price_on_site": int(base_price) if base_price > final_price else 0,
+                    "city": "Астана"
+                })
 
-            except Exception as e:
-                print(f"[{self.SHOP_NAME}] Ошибка при парсинге {slug} (стр. {page_num}): {e}")
-                break
+        except Exception as e:
+            print(f"[{self.SHOP_NAME}] Ошибка при парсинге {slug} (стр. {page_num}): {e}")
+            return products
 
         return products

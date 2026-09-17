@@ -110,6 +110,19 @@ def init_db():
         """)
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)")
 
+        # Состояние сканирования по каждому магазину: свежесть считается отдельно,
+        # поэтому прерванный цикл (например, из-за перезапуска контейнера) догоняется по отставшим магазинам
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS shop_scans (
+                shop_key TEXT PRIMARY KEY,
+                last_attempt_at TIMESTAMP,
+                last_success_at TIMESTAMP,
+                last_items INTEGER DEFAULT 0,
+                last_duration_sec REAL DEFAULT 0,
+                last_error TEXT
+            )
+        """)
+
         # Автоматическая миграция: исправление ссылок на картинки Белого Ветра
         try:
             cursor.execute("UPDATE products SET image_url = REPLACE(image_url, 'https://shop.kz//static.shop.kz', 'https://static.shop.kz') WHERE image_url LIKE 'https://shop.kz//static.shop.kz%'")
@@ -649,3 +662,78 @@ def delete_session(token: Optional[str]) -> None:
     with get_connection() as conn:
         conn.execute("DELETE FROM sessions WHERE token_hash = ?", (_hash_token(token),))
         conn.commit()
+
+
+# ===== Состояние сканирования по магазинам =====
+
+def record_shop_scan_start(shop_key: str) -> None:
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    with get_connection() as conn:
+        conn.execute("""
+            INSERT INTO shop_scans (shop_key, last_attempt_at) VALUES (?, ?)
+            ON CONFLICT(shop_key) DO UPDATE SET last_attempt_at = excluded.last_attempt_at
+        """, (shop_key, now))
+        conn.commit()
+
+def record_shop_scan_result(shop_key: str, items: int, duration_sec: float, error: Optional[str] = None) -> None:
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    with get_connection() as conn:
+        if error:
+            conn.execute("""
+                INSERT INTO shop_scans (shop_key, last_attempt_at, last_items, last_duration_sec, last_error)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(shop_key) DO UPDATE SET
+                    last_attempt_at = excluded.last_attempt_at, last_items = excluded.last_items,
+                    last_duration_sec = excluded.last_duration_sec, last_error = excluded.last_error
+            """, (shop_key, now, items, duration_sec, error[:500]))
+        else:
+            conn.execute("""
+                INSERT INTO shop_scans (shop_key, last_attempt_at, last_success_at, last_items, last_duration_sec, last_error)
+                VALUES (?, ?, ?, ?, ?, NULL)
+                ON CONFLICT(shop_key) DO UPDATE SET
+                    last_attempt_at = excluded.last_attempt_at, last_success_at = excluded.last_success_at,
+                    last_items = excluded.last_items, last_duration_sec = excluded.last_duration_sec, last_error = NULL
+            """, (shop_key, now, now, items, duration_sec))
+        conn.commit()
+
+def get_shop_scans() -> Dict[str, Dict[str, Any]]:
+    with get_connection() as conn:
+        rows = conn.execute("SELECT * FROM shop_scans").fetchall()
+    return {row["shop_key"]: dict(row) for row in rows}
+
+def _age_seconds(timestamp: Optional[str]) -> Optional[int]:
+    if not timestamp:
+        return None
+    try:
+        dt = datetime.datetime.fromisoformat(str(timestamp).replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=datetime.timezone.utc)
+        return max(0, int((datetime.datetime.now(datetime.timezone.utc) - dt).total_seconds()))
+    except Exception:
+        return None
+
+def get_stale_shops(shop_keys: List[str], max_age_seconds: int) -> List[str]:
+    """Магазины, которые пора обойти: сначала те, что дольше всех не обновлялись."""
+    scans = get_shop_scans()
+    stale = []
+    for key in shop_keys:
+        age = _age_seconds((scans.get(key) or {}).get("last_success_at"))
+        if age is None or age >= max_age_seconds:
+            stale.append((key, age if age is not None else 10**9))
+    return [key for key, _ in sorted(stale, key=lambda x: -x[1])]
+
+def get_shops_scan_report(shop_keys: List[str]) -> List[Dict[str, Any]]:
+    """Сводка по магазинам для админ-панели."""
+    scans = get_shop_scans()
+    report = []
+    for key in shop_keys:
+        row = scans.get(key) or {}
+        report.append({
+            "shop_key": key,
+            "last_success_at": row.get("last_success_at"),
+            "age_seconds": _age_seconds(row.get("last_success_at")),
+            "last_items": row.get("last_items") or 0,
+            "last_duration_sec": round(row.get("last_duration_sec") or 0, 1),
+            "last_error": row.get("last_error"),
+        })
+    return report
