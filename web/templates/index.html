@@ -561,32 +561,38 @@
           <div class="grid grid-cols-2 gap-3 pt-1">
             <div>
               <label class="block text-xs font-medium text-slate-300 mb-1">Мин. цена товара (₸)</label>
-              <input type="number" id="inputMinPrice" step="5000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
-              <span class="text-[10px] text-slate-500">Отсекает мелочь</span>
+              <input type="number" id="inputMinPrice" min="0" step="5000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+              <span class="text-[10px] text-slate-500">Для скидок и арбитража</span>
             </div>
 
             <div>
               <label class="block text-xs font-medium text-slate-300 mb-1">Макс. цена товара (₸)</label>
-              <input type="number" id="inputMaxPrice" step="50000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
-              <span class="text-[10px] text-slate-500">Отсекает серверы</span>
+              <input type="number" id="inputMaxPrice" min="0" step="50000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+              <span class="text-[10px] text-slate-500">Для всех типов аномалий</span>
             </div>
 
             <div>
               <label class="block text-xs font-medium text-slate-300 mb-1">Мин. скидка (%)</label>
-              <input type="number" id="inputDropPct" min="30" max="95" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
-              <span class="text-[10px] text-slate-500">Порог супер-скидки</span>
+              <input type="number" id="inputDropPct" min="1" max="99" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+              <span class="text-[10px] text-slate-500">Только для супер-скидок</span>
             </div>
 
             <div>
               <label class="block text-xs font-medium text-slate-300 mb-1">Мин. выгода (₸)</label>
-              <input type="number" id="inputMinSavings" step="5000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
-              <span class="text-[10px] text-slate-500">Экономия в деньгах</span>
+              <input type="number" id="inputMinSavings" min="0" step="5000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+              <span class="text-[10px] text-slate-500">Только для супер-скидок</span>
             </div>
 
-            <div class="col-span-2">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Мин. разница арбитража (%)</label>
+              <input type="number" id="inputArbitrageDiffPct" min="1" max="99" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+              <span class="text-[10px] text-slate-500">Дешевле самой низкой цены в других сетях</span>
+            </div>
+
+            <div>
               <label class="block text-xs font-medium text-slate-300 mb-1">Мин. разница арбитража (₸)</label>
-              <input type="number" id="inputArbitrageDiff" step="5000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
-              <span class="text-[10px] text-slate-500">Разница со средней ценой в других сетях</span>
+              <input type="number" id="inputArbitrageDiff" min="0" step="5000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+              <span class="text-[10px] text-slate-500">Дешевле самой низкой цены в других сетях</span>
             </div>
           </div>
         </div>
@@ -605,7 +611,7 @@
             <div>
               <label class="block text-xs font-medium text-slate-300 mb-1">Минус-слова (через запятую):</label>
               <textarea id="inputJunkKeywords" rows="4" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono"></textarea>
-              <span class="text-[10px] text-slate-500">Товары с этими словами в названии будут автоматически игнорироваться</span>
+              <span class="text-[10px] text-slate-500">Товары с этими словами в названии не попадают в алерты, а в поиске скрываются при включенном «Исключить аксессуары»</span>
             </div>
 
             <div class="pt-2">
@@ -678,7 +684,7 @@
                 <select id="selectTgNotifyLevel" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
                   <option value="ALL">Все найденные аномалии</option>
                   <option value="CRITICAL_ONLY">Только ошибки "Пропущенный ноль"</option>
-                  <option value="HIGH_SAVINGS">Скидки от 75% и баги</option>
+                  <option value="HIGH_SAVINGS">Баги, скидки от 75% или выгода от 100 000 ₸</option>
                 </select>
               </div>
 
@@ -785,7 +791,7 @@
           </div>
 
           <div class="pt-4 flex items-center justify-between">
-            <div id="saveResultToast" class="hidden text-xs text-emerald-400 font-medium">✅ Все настройки успешно сохранены и применены!</div>
+            <div id="saveResultToast" class="hidden text-xs font-medium"></div>
             <div class="ml-auto">
               <button onclick="saveSettings()" id="btnSaveSettings" class="flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-600 text-white font-medium px-6 py-2.5 rounded-xl text-sm shadow-lg shadow-emerald-500/25 transition cursor-pointer">
                 <i class="fa-solid fa-floppy-disk"></i>
@@ -1704,20 +1710,37 @@
       loadCatalog(currentCatalogOffset + catalogLimit);
     }
 
-    async function loadSettings() {
+    // Число из настроек: 0 — допустимое значение, подставляем дефолт только при отсутствии
+    function numOr(value, fallback) {
+      const n = Number(value);
+      return (value === null || value === undefined || value === '' || Number.isNaN(n)) ? fallback : n;
+    }
+
+    // Применяет настройки поиска по умолчанию к фильтрам вкладки поиска
+    function applySearchDefaults(s) {
+      document.getElementById('bestPriceSort').value = s.search_default_sort || 'price_asc';
+      document.getElementById('bestPriceExcludeAcc').checked = (s.search_exclude_accessories_default !== false);
+      const live = (s.search_auto_live === true);
+      document.getElementById('checkLiveSearch').checked = live;
+      onLiveSearchToggle(live);
+    }
+
+    async function loadSettings(withSearchDefaults = false) {
       try {
         const res = await fetch('/api/config');
         const s = await res.json();
+        if (withSearchDefaults) applySearchDefaults(s);
 
         // 1. Аномалии и пороги
         document.getElementById('checkDetectZero').checked = (s.detect_zero_glitch !== false);
         document.getElementById('checkDetectDiscount').checked = (s.detect_super_discount !== false);
         document.getElementById('checkDetectArbitrage').checked = (s.detect_market_arbitrage !== false);
-        document.getElementById('inputMinPrice').value = s.min_item_price_kzt || 30000;
-        document.getElementById('inputMaxPrice').value = s.max_item_price_kzt || 3000000;
-        document.getElementById('inputDropPct').value = s.price_glitch_drop_pct || 65;
-        document.getElementById('inputMinSavings').value = s.min_savings_kzt || 40000;
-        document.getElementById('inputArbitrageDiff').value = s.arbitrage_min_diff_kzt || 35000;
+        document.getElementById('inputMinPrice').value = numOr(s.min_item_price_kzt, 30000);
+        document.getElementById('inputMaxPrice').value = numOr(s.max_item_price_kzt, 3000000);
+        document.getElementById('inputDropPct').value = numOr(s.price_glitch_drop_pct, 65);
+        document.getElementById('inputMinSavings').value = numOr(s.min_savings_kzt, 40000);
+        document.getElementById('inputArbitrageDiffPct').value = numOr(s.arbitrage_min_drop_pct, 25);
+        document.getElementById('inputArbitrageDiff').value = numOr(s.arbitrage_min_diff_kzt, 25000);
 
         // 2. Стоп-слова и фильтрация хлама
         const junk = s.junk_keywords || [];
@@ -1727,13 +1750,19 @@
         // 3. Поиск по умолчанию
         document.getElementById('selectSearchDefaultSort').value = s.search_default_sort || 'price_asc';
         document.getElementById('checkSearchExcludeAccDefault').checked = (s.search_exclude_accessories_default !== false);
-        document.getElementById('checkSearchAutoLive').checked = (s.search_auto_live !== false);
+        document.getElementById('checkSearchAutoLive').checked = (s.search_auto_live === true);
 
         // 4. Telegram и периодичность
         document.getElementById('inputTgToken').value = s.telegram_bot_token || '';
         document.getElementById('inputTgChatId').value = s.telegram_chat_id || '';
         document.getElementById('selectTgNotifyLevel').value = s.telegram_notify_level || 'ALL';
-        document.getElementById('selectScanInterval').value = s.scan_interval_minutes || 180;
+                const scanSelect = document.getElementById('selectScanInterval');
+        const scanValue = String(numOr(s.scan_interval_minutes, 180));
+        if (![...scanSelect.options].some(o => o.value === scanValue)) {
+          // Значение из settings.json вне списка — показываем его, чтобы не потерять при сохранении
+          scanSelect.add(new Option(`Если база старше ${scanValue} мин`, scanValue));
+        }
+        scanSelect.value = scanValue;
 
         // 5. Магазины
         const shops = s.enabled_shops || {};
@@ -1757,6 +1786,14 @@
       }
     }
 
+    function showSaveResult(ok, text) {
+      const toast = document.getElementById('saveResultToast');
+      toast.innerText = text;
+      toast.className = `text-xs font-medium ${ok ? 'text-emerald-400' : 'text-rose-400'}`;
+      clearTimeout(toast._hideTimer);
+      toast._hideTimer = setTimeout(() => toast.classList.add('hidden'), ok ? 3500 : 8000);
+    }
+
     async function saveSettings() {
       const btn = document.getElementById('btnSaveSettings');
       btn.disabled = true;
@@ -1770,17 +1807,18 @@
         telegram_bot_token: document.getElementById('inputTgToken').value.trim(),
         telegram_chat_id: document.getElementById('inputTgChatId').value.trim(),
         telegram_notify_level: document.getElementById('selectTgNotifyLevel').value,
-        scan_interval_minutes: parseInt(document.getElementById('selectScanInterval').value) || 180,
+        scan_interval_minutes: numOr(parseInt(document.getElementById('selectScanInterval').value), 180),
 
         // Аномалии
         detect_zero_glitch: document.getElementById('checkDetectZero').checked,
         detect_super_discount: document.getElementById('checkDetectDiscount').checked,
         detect_market_arbitrage: document.getElementById('checkDetectArbitrage').checked,
-        min_item_price_kzt: parseInt(document.getElementById('inputMinPrice').value) || 30000,
-        max_item_price_kzt: parseInt(document.getElementById('inputMaxPrice').value) || 3000000,
-        price_glitch_drop_pct: parseFloat(document.getElementById('inputDropPct').value) || 65,
-        min_savings_kzt: parseInt(document.getElementById('inputMinSavings').value) || 40000,
-        arbitrage_min_diff_kzt: parseInt(document.getElementById('inputArbitrageDiff').value) || 35000,
+        min_item_price_kzt: numOr(parseInt(document.getElementById('inputMinPrice').value), 30000),
+        max_item_price_kzt: numOr(parseInt(document.getElementById('inputMaxPrice').value), 3000000),
+        price_glitch_drop_pct: numOr(parseFloat(document.getElementById('inputDropPct').value), 65),
+        min_savings_kzt: numOr(parseInt(document.getElementById('inputMinSavings').value), 40000),
+        arbitrage_min_drop_pct: numOr(parseFloat(document.getElementById('inputArbitrageDiffPct').value), 25),
+        arbitrage_min_diff_kzt: numOr(parseInt(document.getElementById('inputArbitrageDiff').value), 25000),
 
         // Стоп-слова
         junk_keywords: junkArr,
@@ -1814,14 +1852,15 @@
           body: JSON.stringify(payload)
         });
 
-        if (res.ok) {
-          const toast = document.getElementById('saveResultToast');
-          toast.classList.remove('hidden');
-          setTimeout(() => toast.classList.add('hidden'), 3500);
-          loadSettings();
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.status === 'ok') {
+          showSaveResult(true, '✅ Все настройки успешно сохранены и применены!');
+          loadSettings(true);
+        } else {
+          showSaveResult(false, `❌ Не удалось сохранить: ${data.message || 'HTTP ' + res.status}`);
         }
       } catch (e) {
-        alert('Ошибка при сохранении: ' + e);
+        showSaveResult(false, `❌ Не удалось сохранить: ${e}`);
       } finally {
         btn.disabled = false;
         btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i><span>Сохранить настройки</span>';
@@ -2114,7 +2153,7 @@
       loadVersionInfo();
       loadStats();
       loadAlerts();
-      loadSettings();
+      loadSettings(true);
       setInterval(loadStats, 3000);
     });
   </script>

@@ -146,7 +146,9 @@ def search_in_database(
     # 5. Исключение аксессуаров / чехлов / хлама
     from detector import is_junk_accessory
     if exclude_accessories:
-        results = [r for r in results if not is_junk_accessory(r["title"])]
+        from config import load_settings
+        junk_list = load_settings().get("junk_keywords", [])
+        results = [r for r in results if not is_junk_accessory(r["title"], custom_keywords=junk_list)]
 
     # 6. Исключение пользовательских минус-слов
     if negative_keywords:

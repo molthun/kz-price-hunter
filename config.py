@@ -22,9 +22,8 @@ DEFAULT_SETTINGS = {
     "detect_market_arbitrage": True,
     "min_item_price_kzt": 30000,
     "max_item_price_kzt": 3000000,
-    "price_glitch_drop_pct": 65,
+    "price_glitch_drop_pct": 65.0,
     "min_savings_kzt": 40000,
-    "arbitrage_min_diff_kzt": 35000,
 
     # Фильтры хлама / стоп-слова
     "junk_keywords": [
@@ -38,7 +37,6 @@ DEFAULT_SETTINGS = {
     "scan_interval_minutes": 180,
 
     # Межмагазинный арбитраж (глубокие скидки по сравнению с другими магазинами)
-    "detect_market_arbitrage": True,
     "arbitrage_min_drop_pct": 25.0,
     "arbitrage_min_diff_kzt": 25000,
 
@@ -79,9 +77,39 @@ def load_settings():
             pass
     return dict(DEFAULT_SETTINGS)
 
+def _validate_settings(new_settings):
+    """Оставляет только известные ключи и приводит значения к типам из DEFAULT_SETTINGS."""
+    if not isinstance(new_settings, dict):
+        raise ValueError("Настройки должны быть JSON-объектом")
+
+    clean = {}
+    for key, value in new_settings.items():
+        if key not in DEFAULT_SETTINGS:
+            continue
+        default = DEFAULT_SETTINGS[key]
+        try:
+            if isinstance(default, bool):
+                if not isinstance(value, bool):
+                    raise ValueError
+                clean[key] = value
+            elif isinstance(default, (int, float)):
+                num = float(value)
+                if num < 0:
+                    raise ValueError
+                clean[key] = int(num) if isinstance(default, int) else num
+            elif isinstance(default, list):
+                clean[key] = [str(v).strip() for v in value if str(v).strip()]
+            elif isinstance(default, dict):
+                clean[key] = {k: bool(v) for k, v in value.items() if k in default}
+            else:
+                clean[key] = str(value).strip()
+        except (TypeError, ValueError):
+            raise ValueError(f"Некорректное значение настройки «{key}»: {value!r}")
+    return clean
+
 def save_settings(new_settings):
     current = load_settings()
-    current.update(new_settings)
+    current.update(_validate_settings(new_settings))
     with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
         json.dump(current, f, indent=2, ensure_ascii=False)
     return current
@@ -101,12 +129,12 @@ MIN_ITEM_PRICE_KZT = _s.get("min_item_price_kzt", 30000)
 MAX_ITEM_PRICE_KZT = _s.get("max_item_price_kzt", 3000000)
 PRICE_GLITCH_DROP_PCT = _s.get("price_glitch_drop_pct", 65)
 MIN_SAVINGS_KZT = _s.get("min_savings_kzt", 40000)
-ARBITRAGE_MIN_DIFF_KZT = _s.get("arbitrage_min_diff_kzt", 35000)
+ARBITRAGE_MIN_DIFF_KZT = _s.get("arbitrage_min_diff_kzt", 25000)
 JUNK_KEYWORDS = _s.get("junk_keywords", DEFAULT_SETTINGS["junk_keywords"])
 EXCLUDE_USED_GOODS = _s.get("exclude_used_goods", True)
 
 CHECK_INTERVAL_SECONDS = _s.get("check_interval_seconds", 300)
-SCAN_INTERVAL_MINUTES = _s.get("scan_interval_minutes", 15)
+SCAN_INTERVAL_MINUTES = _s.get("scan_interval_minutes", 180)
 ENABLED_SHOPS = _s.get("enabled_shops", DEFAULT_SETTINGS["enabled_shops"])
 
 SEARCH_CACHE_TTL_SECONDS = 3600

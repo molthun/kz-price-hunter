@@ -121,5 +121,23 @@ class TestDNSMonitor(unittest.TestCase):
         self.assertIsNotNone(anomaly)
         self.assertEqual(anomaly["type"], "ZERO_GLITCH")
 
+    def test_settings_validation(self):
+        """Настройки: ноль допустим, неизвестные ключи отбрасываются, некорректные значения отклоняются."""
+        clean = config._validate_settings({
+            "min_item_price_kzt": "0",
+            "price_glitch_drop_pct": "70.5",
+            "unknown_key": 1,
+            "enabled_shops": {"dns": False, "unknown_shop": True}
+        })
+        self.assertEqual(clean["min_item_price_kzt"], 0)
+        self.assertEqual(clean["price_glitch_drop_pct"], 70.5)
+        self.assertNotIn("unknown_key", clean)
+        self.assertEqual(clean["enabled_shops"], {"dns": False})
+
+        with self.assertRaises(ValueError):
+            config._validate_settings({"min_item_price_kzt": -1})
+        with self.assertRaises(ValueError):
+            config._validate_settings({"detect_zero_glitch": "yes"})
+
 if __name__ == "__main__":
     unittest.main()

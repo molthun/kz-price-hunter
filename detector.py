@@ -123,6 +123,8 @@ def check_market_arbitrage(
     curr_price = int(product.get("price", 0) or product.get("current_price", 0))
     if curr_price <= 0:
         return None
+    if curr_price < int(s.get("min_item_price_kzt", 30000)) or curr_price > int(s.get("max_item_price_kzt", 3000000)):
+        return None
 
     min_pct = float(s.get("arbitrage_min_drop_pct", 25.0))
     min_diff = int(s.get("arbitrage_min_diff_kzt", 25000))
