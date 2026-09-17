@@ -1149,6 +1149,7 @@
           const discountPct = a.discount_pct || 0;
           const savings = fmtPrice(a.savings_kzt);
           const oldPrice = fmtPrice(a.old_price);
+          const newPrice = fmtPrice(a.new_price);
           const isZeroGlitch = a.alert_type === 'ZERO_GLITCH';
           const isArbitrage = a.alert_type === 'MARKET_ARBITRAGE' || a.alert_type === 'ARBITRAGE';
 
