@@ -322,26 +322,50 @@ def get_stats() -> Dict[str, Any]:
         cursor.execute("SELECT COUNT(*) FROM alerts")
         total_alerts = cursor.fetchone()[0]
 
+        cursor.execute("SELECT COUNT(*) FROM alerts WHERE alert_type = 'ZERO_GLITCH'")
+        total_anomalies = cursor.fetchone()[0]
+
+        cursor.execute("SELECT COUNT(*) FROM alerts WHERE alert_type IN ('SUPER_DISCOUNT', 'MARKET_ARBITRAGE')")
+        total_discounts = cursor.fetchone()[0]
+
         cursor.execute("SELECT shop, COUNT(*) as count FROM products GROUP BY shop")
         shops_stats = {row["shop"]: row["count"] for row in cursor.fetchall()}
 
         return {
             "total_products": total_products,
             "total_alerts": total_alerts,
+            "total_anomalies": total_anomalies,
+            "total_discounts": total_discounts,
             "shops": shops_stats,
             "db_freshness": get_db_freshness()
         }
 
-def get_alerts(limit: int = 50, city: Optional[str] = None) -> list:
+def get_alerts(limit: int = 150, city: Optional[str] = None, alert_type: Optional[str] = None) -> list:
     query = """
         SELECT a.*, p.title, p.url, p.image_url, p.category, a.shop
         FROM alerts a
         LEFT JOIN products p ON a.product_id = p.id
+        WHERE 1=1
     """
     params = []
     if city and city != "Все":
-        query += " WHERE (a.city = ? OR a.city IS NULL)"
+        query += " AND (a.city = ? OR a.city IS NULL)"
         params.append(city)
+
+    if alert_type:
+        at = alert_type.lower()
+        if at in ("anomaly", "anomalies", "glitch", "zero_glitch"):
+            query += " AND a.alert_type = 'ZERO_GLITCH'"
+        elif at in ("discount", "discounts"):
+            query += " AND a.alert_type IN ('SUPER_DISCOUNT', 'MARKET_ARBITRAGE')"
+        elif at in ("super", "super_discount"):
+            query += " AND a.alert_type = 'SUPER_DISCOUNT'"
+        elif at in ("arbitrage", "market_arbitrage"):
+            query += " AND a.alert_type = 'MARKET_ARBITRAGE'"
+        else:
+            query += " AND a.alert_type = ?"
+            params.append(alert_type)
+
     query += " ORDER BY a.id DESC LIMIT ?"
     params.append(limit)
 

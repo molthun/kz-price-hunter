@@ -93,7 +93,9 @@ async def stats_handler(request):
 @routes.get("/api/alerts")
 async def alerts_handler(request):
     city = request.query.get("city", None)
-    alerts = get_alerts(limit=50, city=city)
+    alert_type = request.query.get("type", None)
+    limit = int(request.query.get("limit", 150))
+    alerts = get_alerts(limit=limit, city=city, alert_type=alert_type)
     return web.json_response(alerts)
 
 @routes.get("/api/products")

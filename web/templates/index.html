@@ -103,8 +103,8 @@
       <div class="glass p-4 rounded-2xl border-amber-500/20 bg-amber-500/5">
         <div class="text-xs text-amber-300 font-medium mb-1">Найдено аномалий & скидок</div>
         <div id="metricTotalAlerts" class="text-2xl font-bold text-amber-400">...</div>
-        <div class="text-[11px] text-amber-400/80 mt-1 flex items-center gap-1">
-          <i class="fa-solid fa-triangle-exclamation"></i> Пропущенный ноль / Скидки
+        <div id="metricAlertsBreakdown" class="text-[11px] text-amber-400/80 mt-1 flex items-center gap-1">
+          <i class="fa-solid fa-triangle-exclamation"></i> <span>Пропущенный ноль / Скидки</span>
         </div>
       </div>
 
@@ -165,51 +165,105 @@
     </div>
 
     <!-- Вкладки (Tabs) -->
-    <div class="flex border-b border-slate-800 space-x-8 text-sm font-medium">
-      <button onclick="switchTab('alerts')" id="tabBtnAlerts" class="pb-3 text-emerald-400 border-b-2 border-emerald-400 flex items-center gap-2 cursor-pointer">
-        <i class="fa-solid fa-fire"></i>
-        <span>Аномалии и Супер-Скидки</span>
-        <span id="badgeAlertsCount" class="px-2 py-0.5 text-xs rounded-full bg-amber-500/20 text-amber-400 font-bold">0</span>
+    <div class="flex border-b border-slate-800 space-x-6 sm:space-x-8 text-sm font-medium overflow-x-auto pb-0.5">
+      <button onclick="switchTab('anomalies')" id="tabBtnAnomalies" class="pb-3 text-emerald-400 border-b-2 border-emerald-400 flex items-center gap-2 cursor-pointer whitespace-nowrap font-semibold">
+        <i class="fa-solid fa-triangle-exclamation text-amber-400"></i>
+        <span>Аномалии цен</span>
+        <span id="badgeAnomaliesCount" class="px-2 py-0.5 text-xs rounded-full bg-amber-500/20 text-amber-300 font-bold">0</span>
       </button>
 
-      <button onclick="switchTab('bestprice')" id="tabBtnBestprice" class="pb-3 text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center gap-2 cursor-pointer">
+      <button onclick="switchTab('discounts')" id="tabBtnDiscounts" class="pb-3 text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center gap-2 cursor-pointer whitespace-nowrap">
+        <i class="fa-solid fa-fire text-rose-400"></i>
+        <span>Супер-скидки</span>
+        <span id="badgeDiscountsCount" class="px-2 py-0.5 text-xs rounded-full bg-rose-500/20 text-rose-300 font-bold">0</span>
+      </button>
+
+      <button onclick="switchTab('bestprice')" id="tabBtnBestprice" class="pb-3 text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center gap-2 cursor-pointer whitespace-nowrap">
         <i class="fa-solid fa-magnifying-glass-dollar text-emerald-400"></i>
         <span>Поиск лучшей цены</span>
         <span class="px-1.5 py-0.5 text-[10px] rounded-full bg-emerald-500/20 text-emerald-400 font-semibold uppercase">New</span>
       </button>
 
-      <button onclick="switchTab('catalog')" id="tabBtnCatalog" class="pb-3 text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center gap-2 cursor-pointer">
+      <button onclick="switchTab('catalog')" id="tabBtnCatalog" class="pb-3 text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center gap-2 cursor-pointer whitespace-nowrap">
         <i class="fa-solid fa-boxes-stacked"></i>
         <span>База товаров</span>
       </button>
 
-      <button onclick="switchTab('settings')" id="tabBtnSettings" class="pb-3 text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center gap-2 cursor-pointer">
+      <button onclick="switchTab('settings')" id="tabBtnSettings" class="pb-3 text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center gap-2 cursor-pointer whitespace-nowrap">
         <i class="fa-solid fa-sliders"></i>
         <span>Настройки & Telegram</span>
       </button>
 
-      <button onclick="switchTab('logs')" id="tabBtnLogs" class="pb-3 text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center gap-2 cursor-pointer">
+      <button onclick="switchTab('logs')" id="tabBtnLogs" class="pb-3 text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center gap-2 cursor-pointer whitespace-nowrap">
         <i class="fa-solid fa-terminal text-sky-400"></i>
         <span>Логи (Live)</span>
         <span id="badgeLogsLive" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
       </button>
     </div>
 
-    <!-- Вкладка 1: Аномалии и Скидки -->
-    <section id="tabAlerts" class="space-y-4">
-      <div class="flex items-center justify-between">
-        <h2 class="text-base font-semibold text-white flex items-center gap-2">
-          <span>Свежие ценовые баги и глубокие скидки</span>
-        </h2>
-        <button onclick="loadAlerts()" class="text-xs text-slate-400 hover:text-emerald-400 flex items-center gap-1 cursor-pointer">
-          <i class="fa-solid fa-arrows-rotate"></i> Обновить
+    <!-- Вкладка 1: Ценовые аномалии (Сбои цен, пропущенный ноль) -->
+    <section id="tabAnomalies" class="space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-amber-500/5 border border-amber-500/20 p-4 rounded-2xl">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 text-lg shrink-0">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <div>
+            <h2 class="text-base font-semibold text-white flex items-center gap-2">
+              <span>Ценовые аномалии и сбои</span>
+              <span id="labelAnomaliesCount" class="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold">0 сбоев</span>
+            </h2>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Случайные ошибки сотрудников магазинов, пропущенные нули (падение цен в 10 раз) и аномальные баги на сайтах.
+            </p>
+          </div>
+        </div>
+        <button onclick="loadAnomalies()" class="text-xs text-slate-400 hover:text-amber-400 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 transition cursor-pointer shrink-0">
+          <i class="fa-solid fa-arrows-rotate"></i> <span>Обновить</span>
         </button>
       </div>
 
-      <div id="alertsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div id="anomaliesContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div class="col-span-full py-12 text-center text-slate-500">
           <i class="fa-solid fa-spinner fa-spin text-2xl mb-2"></i>
-          <p>Загрузка алертов...</p>
+          <p>Загрузка аномалий...</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Вкладка 2: Супер-скидки & Выгодный арбитраж -->
+    <section id="tabDiscounts" class="hidden space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-rose-500/5 border border-rose-500/20 p-4 rounded-2xl">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400 text-lg shrink-0">
+            <i class="fa-solid fa-fire"></i>
+          </div>
+          <div>
+            <h2 class="text-base font-semibold text-white flex items-center gap-2">
+              <span>Супер-скидки & Выгодный арбитраж</span>
+              <span id="labelDiscountsCount" class="text-xs px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-bold">0 предложений</span>
+            </h2>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Глубокие скидки от 50% и предложения, которые в одном магазине значительно дешевле, чем у конкурентов.
+            </p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <div class="inline-flex rounded-xl bg-slate-900 border border-slate-800 p-0.5 text-xs">
+            <button onclick="setDiscountsSubfilter('all')" id="btnDiscFilterAll" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 font-semibold cursor-pointer transition">Все</button>
+            <button onclick="setDiscountsSubfilter('super')" id="btnDiscFilterSuper" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-white cursor-pointer transition">💥 Распродажи</button>
+            <button onclick="setDiscountsSubfilter('arbitrage')" id="btnDiscFilterArbitrage" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-white cursor-pointer transition">⚖️ Арбитраж</button>
+          </div>
+          <button onclick="loadDiscounts()" class="text-xs text-slate-400 hover:text-emerald-400 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 transition cursor-pointer shrink-0">
+            <i class="fa-solid fa-arrows-rotate"></i> <span>Обновить</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="discountsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="col-span-full py-12 text-center text-slate-500">
+          <i class="fa-solid fa-spinner fa-spin text-2xl mb-2"></i>
+          <p>Загрузка скидок...</p>
         </div>
       </div>
     </section>
@@ -1065,18 +1119,21 @@
     }
 
     function switchTab(tab) {
-      ['Alerts', 'Bestprice', 'Catalog', 'Settings', 'Logs'].forEach(t => {
+      if (tab === 'alerts') tab = 'anomalies';
+      ['Anomalies', 'Discounts', 'Bestprice', 'Catalog', 'Settings', 'Logs'].forEach(t => {
         const btn = document.getElementById('tabBtn' + t);
         const sec = document.getElementById('tab' + t);
         if (!btn || !sec) return;
         if (t.toLowerCase() === tab.toLowerCase()) {
-          btn.className = 'pb-3 text-emerald-400 border-b-2 border-emerald-400 flex items-center gap-2 cursor-pointer font-semibold';
+          btn.className = 'pb-3 text-emerald-400 border-b-2 border-emerald-400 flex items-center gap-2 cursor-pointer font-semibold whitespace-nowrap';
           sec.classList.remove('hidden');
         } else {
-          btn.className = 'pb-3 text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center gap-2 cursor-pointer';
+          btn.className = 'pb-3 text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center gap-2 cursor-pointer whitespace-nowrap';
           sec.classList.add('hidden');
         }
       });
+      if (tab === 'anomalies') loadAnomalies();
+      if (tab === 'discounts') loadDiscounts();
       if (tab === 'catalog') loadCatalog(0);
       if (tab === 'settings') loadSettings();
       if (tab === 'logs') {
@@ -1093,7 +1150,17 @@
         const data = await res.json();
         document.getElementById('metricTotalProducts').innerText = (data.total_products || 0).toLocaleString();
         document.getElementById('metricTotalAlerts').innerText = (data.total_alerts || 0).toLocaleString();
-        document.getElementById('badgeAlertsCount').innerText = (data.total_alerts || 0).toString();
+        
+        const mb = document.getElementById('metricAlertsBreakdown');
+        if (mb) {
+          mb.innerHTML = `<span class="text-amber-300 font-bold">${data.total_anomalies || 0}</span> аномалий • <span class="text-rose-400 font-bold">${data.total_discounts || 0}</span> скидок`;
+        }
+
+        const bAno = document.getElementById('badgeAnomaliesCount');
+        if (bAno) bAno.innerText = (data.total_anomalies || 0).toString();
+
+        const bDisc = document.getElementById('badgeDiscountsCount');
+        if (bDisc) bDisc.innerText = (data.total_discounts || 0).toString();
 
         const state = data.scan_state || {};
         const freshness = data.db_freshness || {};
@@ -1160,114 +1227,195 @@
       }
     }
 
-    async function loadAlerts() {
-      const container = document.getElementById('alertsContainer');
+    function renderAlertCard(a) {
+      const discountPct = a.discount_pct || 0;
+      const savings = fmtPrice(a.savings_kzt);
+      const oldPrice = fmtPrice(a.old_price);
+      const newPrice = fmtPrice(a.new_price);
+      const isZeroGlitch = a.alert_type === 'ZERO_GLITCH';
+      const isArbitrage = a.alert_type === 'MARKET_ARBITRAGE' || a.alert_type === 'ARBITRAGE';
+
+      let cardBorder = 'border-emerald-500/30';
+      let badgeClass = 'bg-emerald-500/20 text-emerald-400';
+      let badgeLabel = `-${discountPct}%`;
+      let refLabel = 'Старая цена:';
+
+      if (isZeroGlitch) {
+        cardBorder = 'border-amber-500/40 bg-amber-500/5';
+        badgeClass = 'bg-amber-500/20 text-amber-300';
+        badgeLabel = `🚨 Сбой -${discountPct}%`;
+      } else if (isArbitrage) {
+        cardBorder = 'border-sky-500/40 bg-sky-500/5';
+        badgeClass = 'bg-sky-500/20 text-sky-300';
+        badgeLabel = a.competitor_shop ? `🎯 Арбитраж vs ${a.competitor_shop}` : `🎯 Арбитраж -${discountPct}%`;
+        refLabel = a.competitor_shop ? `В ${a.competitor_shop}:` : 'Рыночная цена:';
+      }
+
+      return `
+        <div class="glass rounded-2xl p-5 flex flex-col justify-between border ${cardBorder} hover:border-emerald-500/60 transition-all">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              ${getShopBadge(a.shop)}
+              <span class="px-2 py-0.5 rounded-full text-xs font-bold ${badgeClass}">
+                ${badgeLabel}
+              </span>
+            </div>
+
+            <div class="flex gap-3 items-start pt-1">
+              ${(() => {
+                const img = (a.image_url || '').replace('https://shop.kz//static.shop.kz', 'https://static.shop.kz');
+                return img ? `<img src="${img}" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'64\\' height=\\'64\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'%23475569\\' stroke-width=\\'1.5\\'><rect x=\\'3\\' y=\\'3\\' width=\\'18\\' height=\\'18\\' rx=\\'2\\'/><circle cx=\\'8.5\\' cy=\\'8.5\\' r=\\'1.5\\'/><path d=\\'m21 15-5-5L5 21\\'/></svg>';" class="w-16 h-16 object-contain rounded-lg bg-slate-900 p-1 border border-slate-800 shrink-0">` : `<div class="w-16 h-16 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0 text-slate-600"><i class="fa-regular fa-image text-xl"></i></div>`;
+              })()}
+              <div>
+                <h4 class="text-sm font-semibold text-white line-clamp-2 leading-snug">${a.title || 'Товар'}</h4>
+                <span class="text-[11px] text-slate-500">${a.category || ''}</span>
+              </div>
+            </div>
+
+            <div class="bg-slate-900/60 rounded-xl p-3 space-y-1.5">
+              ${isArbitrage ? `
+                <div class="flex items-center justify-between text-xs pb-2 mb-0.5 border-b border-slate-800/80 text-sky-300 font-medium">
+                  <span class="flex items-center gap-1.5">
+                    <i class="fa-solid fa-scale-balanced text-sky-400 text-xs"></i>
+                    <span>Дешевле, чем в <strong class="text-white font-semibold">${a.competitor_shop || 'других сетях'}</strong></span>
+                  </span>
+                  <span class="px-2 py-0.5 rounded-full bg-sky-500/25 text-sky-300 text-[11px] font-bold">-${discountPct}%</span>
+                </div>
+              ` : ''}
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-slate-400">${refLabel}</span>
+                <span class="line-through text-slate-500 font-medium">${oldPrice}</span>
+              </div>
+              <div class="flex items-center justify-between text-sm">
+                <span class="text-slate-300 font-medium">Новая цена:</span>
+                <span class="text-emerald-400 font-bold text-base">${newPrice}</span>
+              </div>
+              <div class="flex items-center justify-between text-xs pt-1 border-t border-slate-800">
+                <span class="text-amber-400/80 font-medium">Экономия:</span>
+                <span class="text-amber-400 font-bold">${savings}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="pt-4">
+            <a href="${a.url}" target="_blank" class="w-full flex items-center justify-center space-x-2 bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-2 rounded-xl text-xs shadow-md shadow-emerald-500/20 transition">
+              <span>⚡️ Купить в ${a.shop || 'магазине'}</span>
+              <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+            </a>
+          </div>
+        </div>
+      `;
+    }
+
+    async function loadAnomalies() {
+      const container = document.getElementById('anomaliesContainer');
+      if (!container) return;
       try {
-        let url = '/api/alerts';
+        let url = '/api/alerts?type=anomaly&limit=100';
         if (currentCity && currentCity !== 'Все') {
-          url += `?city=${encodeURIComponent(currentCity)}`;
+          url += `&city=${encodeURIComponent(currentCity)}`;
         }
         const res = await fetch(url);
         const alerts = await res.json();
 
+        const badge = document.getElementById('badgeAnomaliesCount');
+        const label = document.getElementById('labelAnomaliesCount');
+        const count = alerts ? alerts.length : 0;
+        if (badge) badge.innerText = count;
+        if (label) label.innerText = `${count} сбоев`;
+
         if (!alerts || alerts.length === 0) {
           container.innerHTML = `
             <div class="col-span-full py-16 text-center glass rounded-2xl">
-              <div class="text-4xl mb-3">🔍</div>
-              <h3 class="text-base font-semibold text-white">Пока нет обнаруженных ценовых аномалий</h3>
+              <div class="text-4xl mb-3">🚨</div>
+              <h3 class="text-base font-semibold text-white">Пока нет обнаруженных ценовых сбоев</h3>
               <p class="text-xs text-slate-400 mt-1 max-w-md mx-auto">
-                Бот автоматически сканирует каталоги. Как только контент-менеджеры допустят ошибку в цене или появится скидка от 65% — карточка появится здесь.
+                Бот автоматически сканирует каталоги. Как только контент-менеджеры допустят ошибку в цене (пропущен ноль или падение цены в 10 раз) — карточка сбоя появится здесь.
               </p>
-              <button onclick="startScan(true)" class="mt-4 px-4 py-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs hover:bg-emerald-500/30 transition cursor-pointer">
-                Запустить внеочередное обновление
+              <button onclick="startScan(true)" class="mt-4 px-4 py-2 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs hover:bg-amber-500/30 transition cursor-pointer">
+                Запустить внеочередное сканирование
               </button>
             </div>
           `;
           return;
         }
 
-        container.innerHTML = alerts.map(a => {
-          const discountPct = a.discount_pct || 0;
-          const savings = fmtPrice(a.savings_kzt);
-          const oldPrice = fmtPrice(a.old_price);
-          const newPrice = fmtPrice(a.new_price);
-          const isZeroGlitch = a.alert_type === 'ZERO_GLITCH';
-          const isArbitrage = a.alert_type === 'MARKET_ARBITRAGE' || a.alert_type === 'ARBITRAGE';
-
-          let cardBorder = 'border-emerald-500/30';
-          let badgeClass = 'bg-emerald-500/20 text-emerald-400';
-          let badgeLabel = `-${discountPct}%`;
-          let refLabel = 'Старая цена:';
-
-          if (isZeroGlitch) {
-            cardBorder = 'border-amber-500/40 bg-amber-500/5';
-            badgeClass = 'bg-amber-500/20 text-amber-300';
-            badgeLabel = `🚨 Сбой -${discountPct}%`;
-          } else if (isArbitrage) {
-            cardBorder = 'border-sky-500/40 bg-sky-500/5';
-            badgeClass = 'bg-sky-500/20 text-sky-300';
-            badgeLabel = a.competitor_shop ? `🎯 Арбитраж vs ${a.competitor_shop}` : `🎯 Арбитраж -${discountPct}%`;
-            refLabel = a.competitor_shop ? `В ${a.competitor_shop}:` : 'Рыночная цена:';
-          }
-
-          return `
-            <div class="glass rounded-2xl p-5 flex flex-col justify-between border ${cardBorder} hover:border-emerald-500/60 transition-all">
-              <div class="space-y-3">
-                <div class="flex items-center justify-between">
-                  ${getShopBadge(a.shop)}
-                  <span class="px-2 py-0.5 rounded-full text-xs font-bold ${badgeClass}">
-                    ${badgeLabel}
-                  </span>
-                </div>
-
-                <div class="flex gap-3 items-start pt-1">
-                  ${(() => {
-                    const img = (a.image_url || '').replace('https://shop.kz//static.shop.kz', 'https://static.shop.kz');
-                    return img ? `<img src="${img}" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'64\\' height=\\'64\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'%23475569\\' stroke-width=\\'1.5\\'><rect x=\\'3\\' y=\\'3\\' width=\\'18\\' height=\\'18\\' rx=\\'2\\'/><circle cx=\\'8.5\\' cy=\\'8.5\\' r=\\'1.5\\'/><path d=\\'m21 15-5-5L5 21\\'/></svg>';" class="w-16 h-16 object-contain rounded-lg bg-slate-900 p-1 border border-slate-800 shrink-0">` : `<div class="w-16 h-16 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0 text-slate-600"><i class="fa-regular fa-image text-xl"></i></div>`;
-                  })()}
-                  <div>
-                    <h4 class="text-sm font-semibold text-white line-clamp-2 leading-snug">${a.title || 'Товар'}</h4>
-                    <span class="text-[11px] text-slate-500">${a.category || ''}</span>
-                  </div>
-                </div>
-
-                <div class="bg-slate-900/60 rounded-xl p-3 space-y-1.5">
-                  ${isArbitrage ? `
-                    <div class="flex items-center justify-between text-xs pb-2 mb-0.5 border-b border-slate-800/80 text-sky-300 font-medium">
-                      <span class="flex items-center gap-1.5">
-                        <i class="fa-solid fa-scale-balanced text-sky-400 text-xs"></i>
-                        <span>Дешевле, чем в <strong class="text-white font-semibold">${a.competitor_shop || 'других сетях'}</strong></span>
-                      </span>
-                      <span class="px-2 py-0.5 rounded-full bg-sky-500/25 text-sky-300 text-[11px] font-bold">-${discountPct}%</span>
-                    </div>
-                  ` : ''}
-                  <div class="flex items-center justify-between text-xs">
-                    <span class="text-slate-400">${refLabel}</span>
-                    <span class="line-through text-slate-500 font-medium">${oldPrice}</span>
-                  </div>
-                  <div class="flex items-center justify-between text-sm">
-                    <span class="text-slate-300 font-medium">Новая цена:</span>
-                    <span class="text-emerald-400 font-bold text-base">${newPrice}</span>
-                  </div>
-                  <div class="flex items-center justify-between text-xs pt-1 border-t border-slate-800">
-                    <span class="text-amber-400/80 font-medium">Экономия:</span>
-                    <span class="text-amber-400 font-bold">${savings}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="pt-4">
-                <a href="${a.url}" target="_blank" class="w-full flex items-center justify-center space-x-2 bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-2 rounded-xl text-xs shadow-md shadow-emerald-500/20 transition">
-                  <span>⚡️ Купить в ${a.shop || 'магазине'}</span>
-                  <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
-                </a>
-              </div>
-            </div>
-          `;
-        }).join('');
+        container.innerHTML = alerts.map(renderAlertCard).join('');
       } catch (e) {
-        console.error('Ошибка alerts:', e);
+        console.error('Ошибка loadAnomalies:', e);
       }
+    }
+
+    let currentDiscountsFilter = 'all';
+    let cachedDiscounts = [];
+
+    function setDiscountsSubfilter(sub) {
+      currentDiscountsFilter = sub;
+      ['all', 'super', 'arbitrage'].forEach(s => {
+        const btn = document.getElementById('btnDiscFilter' + s.charAt(0).toUpperCase() + s.slice(1));
+        if (!btn) return;
+        if (s === sub) {
+          btn.className = 'px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 font-semibold cursor-pointer transition';
+        } else {
+          btn.className = 'px-2.5 py-1 rounded-lg text-slate-400 hover:text-white cursor-pointer transition';
+        }
+      });
+      renderDiscountsList();
+    }
+
+    function renderDiscountsList() {
+      const container = document.getElementById('discountsContainer');
+      if (!container) return;
+
+      let filtered = cachedDiscounts || [];
+      if (currentDiscountsFilter === 'super') {
+        filtered = filtered.filter(a => a.alert_type === 'SUPER_DISCOUNT');
+      } else if (currentDiscountsFilter === 'arbitrage') {
+        filtered = filtered.filter(a => a.alert_type === 'MARKET_ARBITRAGE' || a.alert_type === 'ARBITRAGE');
+      }
+
+      const label = document.getElementById('labelDiscountsCount');
+      if (label) label.innerText = `${filtered.length} предложений`;
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full py-16 text-center glass rounded-2xl">
+            <div class="text-4xl mb-3">🔥</div>
+            <h3 class="text-base font-semibold text-white">В этой категории пока нет предложений</h3>
+            <p class="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+              Попробуйте переключить фильтр на «Все» или запустите внеочередное сканирование.
+            </p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filtered.map(renderAlertCard).join('');
+    }
+
+    async function loadDiscounts() {
+      const container = document.getElementById('discountsContainer');
+      if (!container) return;
+      try {
+        let url = '/api/alerts?type=discount&limit=150';
+        if (currentCity && currentCity !== 'Все') {
+          url += `&city=${encodeURIComponent(currentCity)}`;
+        }
+        const res = await fetch(url);
+        cachedDiscounts = await res.json() || [];
+
+        const badge = document.getElementById('badgeDiscountsCount');
+        if (badge) badge.innerText = cachedDiscounts.length;
+
+        renderDiscountsList();
+      } catch (e) {
+        console.error('Ошибка loadDiscounts:', e);
+      }
+    }
+
+    function loadAlerts() {
+      loadAnomalies();
+      loadDiscounts();
     }
 
     // === Поиск лучшей цены ===
