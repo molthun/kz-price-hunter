@@ -7,8 +7,6 @@ _TMP_DIR = tempfile.TemporaryDirectory()
 os.environ["DATA_DIR"] = _TMP_DIR.name
 
 import config
-# Отключаем копирование seed-базы из корня проекта во временный каталог
-config.BASE_DIR = config.DATA_DIR
 
 from database import (
     init_db,

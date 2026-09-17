@@ -13,33 +13,6 @@ def get_connection():
 
 def init_db():
     """Создает таблицы, FTS5 индекс и выполняет миграции для поддержки поля shop и city."""
-    # Если запущен в Docker с примонтированным томом, а том содержит старую/пустую базу
-    try:
-        from config import BASE_DIR, DATA_DIR, DB_PATH
-        seed_db = BASE_DIR / "prices.db"
-        if DATA_DIR != BASE_DIR and seed_db.exists() and seed_db.resolve() != DB_PATH.resolve():
-            cur_count = 0
-            if DB_PATH.exists():
-                try:
-                    c = sqlite3.connect(DB_PATH)
-                    cur_count = c.cursor().execute("SELECT COUNT(*) FROM products").fetchone()[0]
-                    c.close()
-                except Exception:
-                    cur_count = 0
-
-            # Если на проде старая база (например, 2 000 товаров), а в образе полная (20k+)
-            if cur_count < 5000:
-                sc = sqlite3.connect(seed_db)
-                seed_count = sc.cursor().execute("SELECT COUNT(*) FROM products").fetchone()[0]
-                sc.close()
-                if seed_count > cur_count:
-                    print(f"[Database] 📦 Авто-синхронизация: копирование полной базы ({seed_count} товаров) в постоянный том {DATA_DIR}...")
-                    import shutil
-                    shutil.copy2(seed_db, DB_PATH)
-                    print(f"[Database] ✅ База данных тома успешно обновлена до {seed_count} товаров!")
-    except Exception as e:
-        print(f"[Database] Ошибка проверки seed-базы: {e}")
-
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
