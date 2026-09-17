@@ -42,7 +42,8 @@ def search_in_database(
     exclude_accessories: bool = False,
     match_mode: str = "AND",
     negative_keywords: Optional[List[str]] = None,
-    limit: int = 150
+    limit: int = 150,
+    junk_keywords: Optional[List[str]] = None
 ) -> List[Dict[str, Any]]:
     """Поиск по локальной базе данных всех магазинов с использованием FTS5 и гибкими фильтрами."""
     query_clean = query.strip()
@@ -146,9 +147,7 @@ def search_in_database(
     # 5. Исключение аксессуаров / чехлов / хлама
     from detector import is_junk_accessory
     if exclude_accessories:
-        from config import load_settings
-        junk_list = load_settings().get("junk_keywords", [])
-        results = [r for r in results if not is_junk_accessory(r["title"], custom_keywords=junk_list)]
+        results = [r for r in results if not is_junk_accessory(r["title"], custom_keywords=junk_keywords)]
 
     # 6. Исключение пользовательских минус-слов
     if negative_keywords:
@@ -253,7 +252,8 @@ async def get_best_price_summary(
     exclude_accessories: bool = True,
     match_mode: str = "AND",
     sort_by: str = "price_asc",
-    negative_keywords: Optional[List[str]] = None
+    negative_keywords: Optional[List[str]] = None,
+    junk_keywords: Optional[List[str]] = None
 ) -> Dict[str, Any]:
     """Комплексный поиск с выявлением минимальной цены, экономии и сравнением магазинов.
     По умолчанию (Cache-First) поиск осуществляется ИСКЛЮЧИТЕЛЬНО по локальной базе данных,
@@ -279,7 +279,8 @@ async def get_best_price_summary(
         max_price=max_price,
         exclude_accessories=exclude_accessories,
         match_mode=match_mode,
-        negative_keywords=negative_keywords
+        negative_keywords=negative_keywords,
+        junk_keywords=junk_keywords
     )
 
     # 2. Опрос внешних площадок ТОЛЬКО при явном запросе пользователя (Anti-DDoS защита)
@@ -293,7 +294,8 @@ async def get_best_price_summary(
             max_price=max_price,
             exclude_accessories=exclude_accessories,
             match_mode=match_mode,
-            negative_keywords=negative_keywords
+            negative_keywords=negative_keywords,
+            junk_keywords=junk_keywords
         )
 
     if not local_items:

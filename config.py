@@ -9,13 +9,42 @@ DB_PATH = DATA_DIR / "prices.db"
 SETTINGS_FILE = DATA_DIR / "settings.json"
 APP_URL = os.getenv("APP_URL", "https://shop.molthun.ru")
 
-# Дефолтные настройки
-DEFAULT_SETTINGS = {
-    "telegram_bot_token": os.getenv("DNS_BOT_TOKEN", ""),
-    "telegram_chat_id": os.getenv("DNS_CHAT_ID", ""),
-    "telegram_notify_level": "ALL",  # ALL, CRITICAL_ONLY, HIGH_SAVINGS
-    "city_name": "Астана",
+# Магазины: ключ настроек -> название магазина в базе (SHOP_NAME скраперов)
+SHOP_KEYS = {
+    "kaspi": "Kaspi Магазин",
+    "dns": "DNS Казахстан",
+    "shopkz": "Белый Ветер",
+    "technodom": "Технодом",
+    "forcecom": "Forcecom",
+    "sulpak": "Sulpak",
+    "mechta": "Мечта",
+    "alser": "Alser",
+    "evrika": "Эврика",
+    "moon": "Moon.kz",
+    "fourmobile": "4mobile",
+}
 
+def _all_shops_enabled():
+    return {key: True for key in SHOP_KEYS}
+
+# ===== Общие (системные) настройки — меняет только администратор, хранятся в settings.json =====
+SYSTEM_DEFAULTS = {
+    # Сканирование (авто-обновление, если база старше интервала)
+    "check_interval_seconds": 300,
+    "scan_interval_minutes": 180,
+    "enabled_shops": _all_shops_enabled(),
+
+    # Мягкие пороги записи «кандидатов» в аномалии. Сканер сохраняет всё, что их проходит,
+    # а лента и уведомления каждого пользователя фильтруются уже по его личным порогам.
+    "candidate_min_item_price_kzt": 10000,
+    "candidate_drop_pct": 30.0,
+    "candidate_min_savings_kzt": 10000,
+    "candidate_arbitrage_drop_pct": 15.0,
+    "candidate_arbitrage_diff_kzt": 10000,
+}
+
+# ===== Личные настройки пользователя (у гостей — значения по умолчанию) =====
+USER_DEFAULTS = {
     # Детекция аномалий
     "detect_zero_glitch": True,
     "detect_super_discount": True,
@@ -24,6 +53,8 @@ DEFAULT_SETTINGS = {
     "max_item_price_kzt": 3000000,
     "price_glitch_drop_pct": 65.0,
     "min_savings_kzt": 40000,
+    "arbitrage_min_drop_pct": 25.0,
+    "arbitrage_min_diff_kzt": 25000,
 
     # Фильтры хлама / стоп-слова
     "junk_keywords": [
@@ -32,49 +63,90 @@ DEFAULT_SETTINGS = {
     ],
     "exclude_used_goods": True,
 
-    # Сканирование (авто-обновление если база старше 3 часов)
-    "check_interval_seconds": 300,
-    "scan_interval_minutes": 180,
-
-    # Межмагазинный арбитраж (глубокие скидки по сравнению с другими магазинами)
-    "arbitrage_min_drop_pct": 25.0,
-    "arbitrage_min_diff_kzt": 25000,
-
-    # Поиск по умолчанию (Cache-First / Anti-DDoS)
+    # Поиск по умолчанию
     "search_exclude_accessories_default": True,
     "search_default_sort": "price_asc",
 
-    # Магазины
-    "enabled_shops": {
-        "dns": True,
-        "shopkz": True,
-        "technodom": True,
-        "forcecom": True,
-        "sulpak": True,
-        "mechta": True,
-        "alser": True,
-        "evrika": True,
-        "moon": True,
-        "kaspi": True,
-        "fourmobile": True
-    }
+    # Магазины в ленте алертов и уведомлениях
+    "alert_shops": _all_shops_enabled(),
+
+    # Telegram-уведомления (чат = Telegram-аккаунт пользователя)
+    "telegram_notify_enabled": False,
+    "telegram_notify_level": "ALL",  # ALL, CRITICAL_ONLY, HIGH_SAVINGS
 }
 
-def load_settings():
+ENUM_VALUES = {
+    "search_default_sort": ("price_asc", "price_desc", "savings_desc"),
+    "telegram_notify_level": ("ALL", "CRITICAL_ONLY", "HIGH_SAVINGS"),
+}
+
+# Обратная совместимость: объединенные значения по умолчанию
+DEFAULT_SETTINGS = {**SYSTEM_DEFAULTS, **USER_DEFAULTS}
+
+# Администраторы (Telegram ID через запятую) и токен бота — только из окружения
+ADMIN_TELEGRAM_IDS = {
+    int(x) for x in os.getenv("ADMIN_TELEGRAM_IDS", "").replace(" ", "").split(",") if x.isdigit()
+}
+ALLOW_DEV_LOGIN = os.getenv("ALLOW_DEV_LOGIN", "") == "1"
+
+def _read_settings_file():
     if SETTINGS_FILE.exists():
         try:
             with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                merged = dict(DEFAULT_SETTINGS)
-                merged.update(data)
-                merged_shops = dict(DEFAULT_SETTINGS["enabled_shops"])
-                if "enabled_shops" in data:
-                    merged_shops.update(data["enabled_shops"])
-                merged["enabled_shops"] = merged_shops
-                return merged
+                return data if isinstance(data, dict) else {}
         except Exception:
             pass
-    return dict(DEFAULT_SETTINGS)
+    return {}
+
+def _merge(defaults, data):
+    merged = {k: (dict(v) if isinstance(v, dict) else list(v) if isinstance(v, list) else v) for k, v in defaults.items()}
+    for key, value in data.items():
+        if key not in defaults:
+            continue
+        if isinstance(defaults[key], dict) and isinstance(value, dict):
+            merged[key].update({k: bool(v) for k, v in value.items() if k in defaults[key]})
+        else:
+            merged[key] = value
+    return merged
+
+def get_bot_token():
+    """Токен Telegram-бота: переменная окружения, для совместимости — старое поле settings.json."""
+    return (
+        os.getenv("TELEGRAM_BOT_TOKEN")
+        or os.getenv("DNS_BOT_TOKEN")
+        or str(_read_settings_file().get("telegram_bot_token", "")).strip()
+    )
+
+def load_settings():
+    """Общие (системные) настройки."""
+    return _merge(SYSTEM_DEFAULTS, _read_settings_file())
+
+def legacy_user_settings():
+    """Личные настройки из старого однопользовательского settings.json — переносятся администраторам при первом входе."""
+    return _merge(USER_DEFAULTS, _read_settings_file())
+
+def merge_user_settings(data):
+    return _merge(USER_DEFAULTS, data or {})
+
+def get_candidate_settings(system=None):
+    """Настройки детектора для записи кандидатов: мягкие системные пороги, все типы включены."""
+    s = system if system is not None else load_settings()
+    return {
+        **USER_DEFAULTS,
+        "detect_zero_glitch": True,
+        "detect_super_discount": True,
+        "detect_market_arbitrage": True,
+        "min_item_price_kzt": s["candidate_min_item_price_kzt"],
+        "max_item_price_kzt": 10**12,
+        "price_glitch_drop_pct": s["candidate_drop_pct"],
+        "min_savings_kzt": s["candidate_min_savings_kzt"],
+        "arbitrage_min_drop_pct": s["candidate_arbitrage_drop_pct"],
+        "arbitrage_min_diff_kzt": s["candidate_arbitrage_diff_kzt"],
+        # Встроенные стоп-слова аксессуаров применяются всегда; уценку каждый фильтрует сам
+        "junk_keywords": [],
+        "exclude_used_goods": False,
+    }
 
 # Допустимый диапазон интервала автообновления базы
 SCAN_INTERVAL_MIN_MINUTES = 5
@@ -84,75 +156,70 @@ def get_scan_interval_seconds(settings=None):
     """Порог устаревания базы (в секундах), после которого запускается автообновление."""
     s = settings if settings is not None else load_settings()
     try:
-        minutes = int(s.get("scan_interval_minutes", DEFAULT_SETTINGS["scan_interval_minutes"]))
+        minutes = int(s.get("scan_interval_minutes", SYSTEM_DEFAULTS["scan_interval_minutes"]))
     except (TypeError, ValueError):
-        minutes = DEFAULT_SETTINGS["scan_interval_minutes"]
+        minutes = SYSTEM_DEFAULTS["scan_interval_minutes"]
     minutes = min(max(minutes, SCAN_INTERVAL_MIN_MINUTES), SCAN_INTERVAL_MAX_MINUTES)
     return minutes * 60
 
-def _validate_settings(new_settings):
-    """Оставляет только известные ключи и приводит значения к типам из DEFAULT_SETTINGS."""
+def _validate(new_settings, defaults):
+    """Оставляет только известные ключи и приводит значения к типам из defaults."""
     if not isinstance(new_settings, dict):
         raise ValueError("Настройки должны быть JSON-объектом")
 
     clean = {}
     for key, value in new_settings.items():
-        if key not in DEFAULT_SETTINGS:
+        if key not in defaults:
             continue
-        default = DEFAULT_SETTINGS[key]
+        default = defaults[key]
         try:
             if isinstance(default, bool):
                 if not isinstance(value, bool):
                     raise ValueError
                 clean[key] = value
             elif isinstance(default, (int, float)):
+                if isinstance(value, bool):
+                    raise ValueError
                 num = float(value)
                 if num < 0:
                     raise ValueError
                 clean[key] = int(num) if isinstance(default, int) else num
             elif isinstance(default, list):
-                clean[key] = [str(v).strip() for v in value if str(v).strip()]
+                if not isinstance(value, list):
+                    raise ValueError
+                clean[key] = [str(v).strip()[:100] for v in value if str(v).strip()][:200]
             elif isinstance(default, dict):
+                if not isinstance(value, dict):
+                    raise ValueError
                 clean[key] = {k: bool(v) for k, v in value.items() if k in default}
             else:
-                clean[key] = str(value).strip()
+                value = str(value).strip()
+                if key in ENUM_VALUES and value not in ENUM_VALUES[key]:
+                    raise ValueError
+                clean[key] = value
         except (TypeError, ValueError):
             raise ValueError(f"Некорректное значение настройки «{key}»: {value!r}")
+    return clean
 
+def _validate_settings(new_settings):
+    clean = _validate(new_settings, SYSTEM_DEFAULTS)
     interval = clean.get("scan_interval_minutes")
     if interval is not None and not (SCAN_INTERVAL_MIN_MINUTES <= interval <= SCAN_INTERVAL_MAX_MINUTES):
         raise ValueError(f"Интервал автообновления должен быть от {SCAN_INTERVAL_MIN_MINUTES} минут до 30 дней")
     return clean
 
+def validate_user_settings(new_settings):
+    return _validate(new_settings, USER_DEFAULTS)
+
 def save_settings(new_settings):
-    current = load_settings()
-    current.update(_validate_settings(new_settings))
+    """Сохраняет общие настройки. Посторонние ключи старого формата в файле сохраняются как есть."""
+    raw = _read_settings_file()
+    raw.update(_validate_settings(new_settings))
     with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
-        json.dump(current, f, indent=2, ensure_ascii=False)
-    return current
+        json.dump(raw, f, indent=2, ensure_ascii=False)
+    return load_settings()
 
-# Инициализируем текущие значения
-_s = load_settings()
-
-TELEGRAM_BOT_TOKEN = _s.get("telegram_bot_token", "")
-TELEGRAM_CHAT_ID = _s.get("telegram_chat_id", "")
-TELEGRAM_NOTIFY_LEVEL = _s.get("telegram_notify_level", "ALL")
-CITY_NAME = _s.get("city_name", "Астана")
-
-DETECT_ZERO_GLITCH = _s.get("detect_zero_glitch", True)
-DETECT_SUPER_DISCOUNT = _s.get("detect_super_discount", True)
-DETECT_MARKET_ARBITRAGE = _s.get("detect_market_arbitrage", True)
-MIN_ITEM_PRICE_KZT = _s.get("min_item_price_kzt", 30000)
-MAX_ITEM_PRICE_KZT = _s.get("max_item_price_kzt", 3000000)
-PRICE_GLITCH_DROP_PCT = _s.get("price_glitch_drop_pct", 65)
-MIN_SAVINGS_KZT = _s.get("min_savings_kzt", 40000)
-ARBITRAGE_MIN_DIFF_KZT = _s.get("arbitrage_min_diff_kzt", 25000)
-JUNK_KEYWORDS = _s.get("junk_keywords", DEFAULT_SETTINGS["junk_keywords"])
-EXCLUDE_USED_GOODS = _s.get("exclude_used_goods", True)
-
-CHECK_INTERVAL_SECONDS = _s.get("check_interval_seconds", 300)
-SCAN_INTERVAL_MINUTES = _s.get("scan_interval_minutes", 180)
-ENABLED_SHOPS = _s.get("enabled_shops", DEFAULT_SETTINGS["enabled_shops"])
+CHECK_INTERVAL_SECONDS = load_settings()["check_interval_seconds"]
 
 SEARCH_CACHE_TTL_SECONDS = 3600
 

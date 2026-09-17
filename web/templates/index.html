@@ -29,8 +29,8 @@
 <body class="bg-dark-950 text-slate-100 min-h-screen flex flex-col">
 
   <!-- Навигация / Хэдер -->
-  <header class="glass sticky top-0 z-50 border-b border-slate-800">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+  <header class="glass md:sticky top-0 z-50 border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-16 py-2 flex flex-wrap items-center justify-between gap-2">
       <div class="flex items-center space-x-3">
         <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-cyan-500 flex items-center justify-center text-xl shadow-lg shadow-emerald-500/20">
           🎯
@@ -41,12 +41,12 @@
             <span id="appVersionBadge" class="text-xs font-mono px-2 py-0.5 rounded-full bg-slate-800 text-emerald-400 border border-emerald-500/30 font-semibold">v2.5.0</span>
             <span id="currentCityHeaderBadge" class="text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Астана</span>
           </h1>
-          <p class="text-xs text-slate-400">Мониторинг цен 11 сетей: Kaspi, DNS, Мечта, Белый Ветер, 4mobile, Технодом, Sulpak и др.</p>
+          <p class="hidden md:block text-xs text-slate-400">Мониторинг цен 11 сетей: Kaspi, DNS, Мечта, Белый Ветер, 4mobile, Технодом, Sulpak и др.</p>
         </div>
       </div>
 
       <!-- Кнопки управления, город и статус -->
-      <div class="flex items-center space-x-3">
+      <div class="flex flex-wrap items-center gap-2 sm:gap-3">
         <!-- Выбор города и геолокация -->
         <div class="flex items-center gap-1.5 bg-slate-900/90 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs shadow-inner">
           <i class="fa-solid fa-location-dot text-emerald-400"></i>
@@ -66,7 +66,7 @@
         </div>
 
         <!-- Автономный индикатор актуальности базы и фонового обновления -->
-        <div id="autoScanWidget" class="relative overflow-hidden min-w-[215px] h-10 bg-slate-900/90 border border-slate-700/80 rounded-xl px-3 flex items-center justify-between text-xs shadow-inner">
+        <div id="autoScanWidget" class="relative overflow-hidden min-w-0 sm:min-w-[215px] h-10 bg-slate-900/90 border border-slate-700/80 rounded-xl px-3 flex items-center justify-between text-xs shadow-inner">
           <!-- Фоновый прогресс-бар при активном авто-обновлении -->
           <div id="autoScanProgressFill" class="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-emerald-600/30 via-teal-500/30 to-emerald-500/30 transition-all duration-500 pointer-events-none" style="width: 0%;"></div>
           
@@ -79,10 +79,13 @@
           </div>
 
           <!-- Иконка принудительного обновления базы -->
-          <button type="button" id="btnForceScan" onclick="startScan(true)" title="Принудительно обновить базу сейчас" class="relative z-10 text-slate-400 hover:text-emerald-400 transition cursor-pointer p-1 ml-2 shrink-0">
+          <button type="button" id="btnForceScan" onclick="startScan(true)" title="Принудительно обновить базу сейчас" class="admin-only hidden relative z-10 text-slate-400 hover:text-emerald-400 transition cursor-pointer p-1 ml-2 shrink-0">
             <i id="btnScanIcon" class="fa-solid fa-arrows-rotate text-xs"></i>
           </button>
         </div>
+
+        <!-- Вход через Telegram / профиль пользователя -->
+        <div id="authArea" class="flex items-center min-h-10"></div>
       </div>
     </div>
   </header>
@@ -155,12 +158,12 @@
       </div>
 
       <div class="glass p-4 rounded-2xl">
-        <div class="text-xs text-slate-400 font-medium mb-1">Telegram оповещения</div>
+        <div class="text-xs text-slate-400 font-medium mb-1">Мои Telegram-уведомления</div>
         <div id="metricTgStatus" class="text-base font-bold text-slate-300 mt-1 flex items-center gap-2">
           <i class="fa-brands fa-telegram text-sky-400 text-xl"></i>
           <span id="tgStatusLabel">Проверка...</span>
         </div>
-        <div class="text-[11px] text-slate-400 mt-1">Моментальные алерты на телефон</div>
+        <div id="tgStatusHint" class="text-[11px] text-slate-400 mt-1">Моментальные алерты на телефон</div>
       </div>
     </div>
 
@@ -191,10 +194,10 @@
 
       <button onclick="switchTab('settings')" id="tabBtnSettings" class="pb-3 text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center gap-2 cursor-pointer whitespace-nowrap">
         <i class="fa-solid fa-sliders"></i>
-        <span>Настройки & Telegram</span>
+        <span>Настройки</span>
       </button>
 
-      <button onclick="switchTab('logs')" id="tabBtnLogs" class="pb-3 text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center gap-2 cursor-pointer whitespace-nowrap">
+      <button onclick="switchTab('logs')" id="tabBtnLogs" class="admin-only hidden pb-3 text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center gap-2 cursor-pointer whitespace-nowrap">
         <i class="fa-solid fa-terminal text-sky-400"></i>
         <span>Логи (Live)</span>
         <span id="badgeLogsLive" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -529,7 +532,20 @@
 
     <!-- Вкладка 3: Настройки & Telegram -->
     <section id="tabSettings" class="hidden space-y-6">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- Гостям: личные настройки доступны после входа -->
+      <div id="settingsGuestBanner" class="hidden flex items-start gap-3 bg-sky-500/10 border border-sky-500/30 rounded-2xl p-4 text-xs text-sky-200">
+        <i class="fa-brands fa-telegram text-sky-400 text-xl shrink-0"></i>
+        <div>
+          <div class="font-semibold text-sky-100 text-sm">Войдите через Telegram, чтобы настроить сервис под себя</div>
+          <div class="mt-1 text-sky-200/80">Личные пороги аномалий, минус-слова, магазины в ленте и уведомления в Telegram сохраняются в вашем аккаунте. Сейчас показаны значения по умолчанию.</div>
+        </div>
+      </div>
+
+      <div>
+        <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wide mb-3 flex items-center gap-2">
+          <i class="fa-solid fa-user-gear text-emerald-400"></i><span>Мои настройки</span>
+        </h2>
+        <fieldset id="personalSettingsFieldset" class="grid grid-cols-1 md:grid-cols-2 gap-6 disabled:opacity-60">
 
         <!-- Карточка 1: Детекция аномалий и ценовые пороги -->
         <div class="glass p-6 rounded-2xl space-y-4">
@@ -652,26 +668,21 @@
           </div>
         </div>
 
-        <!-- Карточка 4: Telegram-уведомления -->
+        <!-- Telegram-уведомления (личный чат пользователя) -->
         <div class="glass p-6 rounded-2xl space-y-4">
           <h3 class="text-base font-semibold text-white flex items-center gap-2">
             <i class="fa-brands fa-telegram text-sky-400 text-lg"></i>
             <span>Telegram-уведомления</span>
           </h3>
           <p class="text-xs text-slate-400">
-            Мгновенные уведомления о найденных аномалиях и скидках на телефон.
+            Уведомления о найденных аномалиях и скидках по вашим порогам приходят в ваш Telegram<span id="tgBotNameHint"></span>.
           </p>
 
           <div class="space-y-3">
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Telegram Bot Token</label>
-              <input type="password" id="inputTgToken" placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
-            </div>
-
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Telegram Chat ID</label>
-              <input type="text" id="inputTgChatId" placeholder="123456789" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
-            </div>
+            <label class="flex items-center space-x-2 text-xs text-slate-300 cursor-pointer">
+              <input type="checkbox" id="checkTgNotifyEnabled" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              <span><b>Присылать уведомления в Telegram</b></span>
+            </label>
 
             <div>
               <label class="block text-xs font-medium text-slate-300 mb-1">Уровень алертов:</label>
@@ -682,22 +693,105 @@
               </select>
             </div>
 
-            <button onclick="testTelegram()" id="btnTestTg" class="w-full flex items-center justify-center space-x-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sky-400 font-medium py-2 rounded-xl text-xs transition cursor-pointer">
+            <button type="button" onclick="testTelegram()" id="btnTestTg" class="w-full flex items-center justify-center space-x-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sky-400 font-medium py-2 rounded-xl text-xs transition cursor-pointer">
               <i class="fa-solid fa-paper-plane"></i>
               <span>Отправить тестовое сообщение</span>
             </button>
             <div id="tgTestResult" class="text-xs hidden"></div>
+            <p class="text-[10px] text-slate-500">Если сообщение не приходит — откройте бота в Telegram и нажмите «Start».</p>
           </div>
         </div>
 
-        <!-- Карточка 5: Сканирование магазинов -->
+        <!-- Магазины в ленте и уведомлениях -->
+        <div class="glass p-6 rounded-2xl space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-semibold text-white flex items-center gap-2">
+              <i class="fa-solid fa-store text-emerald-400"></i>
+              <span>Магазины в ленте</span>
+            </h3>
+            <div class="space-x-2 text-xs">
+              <button type="button" onclick="toggleAllUserShops(true)" class="text-emerald-400 hover:underline">Все</button>
+              <span class="text-slate-600">•</span>
+              <button type="button" onclick="toggleAllUserShops(false)" class="text-slate-400 hover:underline">Ни одного</button>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400">Аномалии и скидки каких магазинов показывать в ленте и присылать в Telegram.</p>
+          <div id="userShopsGrid" class="grid grid-cols-2 gap-2"></div>
+        </div>
+
+        </fieldset>
+
+        <div id="personalSaveBar" class="pt-4 flex items-center justify-between gap-4">
+          <div id="saveResultToast" class="hidden text-xs font-medium"></div>
+          <div class="ml-auto">
+            <button onclick="saveSettings()" id="btnSaveSettings" class="flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-medium px-6 py-2.5 rounded-xl text-sm shadow-lg shadow-emerald-500/25 transition cursor-pointer">
+              <i class="fa-solid fa-floppy-disk"></i>
+              <span>Сохранить мои настройки</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Администрирование (только для администраторов) ===== -->
+      <div id="adminSection" class="hidden">
+        <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wide mb-3 flex items-center gap-2">
+          <i class="fa-solid fa-shield-halved text-amber-400"></i><span>Администрирование</span>
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- Админ: пороги записи кандидатов -->
+        <div class="glass p-6 rounded-2xl space-y-4">
+          <h3 class="text-base font-semibold text-white flex items-center gap-2">
+            <i class="fa-solid fa-filter text-amber-400"></i>
+            <span>Пороги записи кандидатов</span>
+          </h3>
+          <p class="text-xs text-slate-400">
+            Сканер сохраняет всё, что проходит эти мягкие пороги, а лента и уведомления каждого пользователя фильтруются уже по его личным настройкам. Личные пороги ниже этих не действуют.
+          </p>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Мин. цена товара (₸)</label>
+              <input type="number" id="inputCandMinPrice" min="0" step="5000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Мин. скидка (%)</label>
+              <input type="number" id="inputCandDropPct" min="1" max="99" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Мин. выгода скидки (₸)</label>
+              <input type="number" id="inputCandMinSavings" min="0" step="5000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Арбитраж: мин. разница (%)</label>
+              <input type="number" id="inputCandArbPct" min="1" max="99" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Арбитраж: мин. разница (₸)</label>
+              <input type="number" id="inputCandArbDiff" min="0" step="5000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+            </div>
+          </div>
+        </div>
+
+        <!-- Админ: Telegram-бот -->
+        <div class="glass p-6 rounded-2xl space-y-4">
+          <h3 class="text-base font-semibold text-white flex items-center gap-2">
+            <i class="fa-brands fa-telegram text-sky-400 text-lg"></i>
+            <span>Telegram-бот</span>
+          </h3>
+          <div id="adminBotStatus" class="text-sm font-semibold text-slate-300">Проверка...</div>
+          <p class="text-xs text-slate-400">
+            Токен бота задается только переменной окружения <code class="text-sky-300">TELEGRAM_BOT_TOKEN</code> и не показывается в интерфейсе. Для входа на сайте домен должен быть указан у бота в BotFather (<code class="text-sky-300">/setdomain</code>).
+          </p>
+        </div>
+
+        <!-- Админ: сканирование магазинов -->
         <div class="glass p-6 rounded-2xl space-y-4 md:col-span-2">
           <h3 class="text-base font-semibold text-white flex items-center gap-2">
             <i class="fa-solid fa-store text-emerald-400"></i>
             <span>Сканирование магазинов</span>
           </h3>
           <p class="text-xs text-slate-400">
-            Периодичность автоматического обновления базы и магазины, которые участвуют в сканировании.
+            Общие для всех пользователей: периодичность автоматического обновления базы и магазины, которые участвуют в сканировании.
           </p>
 
           <!-- Периодичность обновления базы -->
@@ -716,7 +810,7 @@
 
           <!-- Отслеживаемые магазины -->
           <div class="flex items-center justify-between">
-            <div class="text-xs font-semibold text-slate-300">Отслеживаемые магазины (11 сетей Казахстана):</div>
+            <div class="text-xs font-semibold text-slate-300">Сканируемые магазины (11 сетей Казахстана):</div>
             <div class="space-x-2 text-xs">
               <button type="button" onclick="toggleAllShops(true)" class="text-emerald-400 hover:underline">Выбрать все</button>
               <span class="text-slate-600">•</span>
@@ -792,17 +886,36 @@
             </label>
           </div>
 
-          <div class="pt-4 flex items-center justify-between">
-            <div id="saveResultToast" class="hidden text-xs font-medium"></div>
-            <div class="ml-auto">
-              <button onclick="saveSettings()" id="btnSaveSettings" class="flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-600 text-white font-medium px-6 py-2.5 rounded-xl text-sm shadow-lg shadow-emerald-500/25 transition cursor-pointer">
-                <i class="fa-solid fa-floppy-disk"></i>
-                <span>Сохранить настройки</span>
-              </button>
-            </div>
+        </div>
+
+        <!-- Админ: пользователи -->
+        <div class="glass p-6 rounded-2xl space-y-4 md:col-span-2">
+          <h3 class="text-base font-semibold text-white flex items-center gap-2">
+            <i class="fa-solid fa-users text-emerald-400"></i>
+            <span>Пользователи</span>
+            <span id="adminUsersCount" class="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">0</span>
+          </h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+              <thead class="text-slate-400 text-left border-b border-slate-800">
+                <tr><th class="py-2 pr-3">Пользователь</th><th class="py-2 pr-3">Telegram ID</th><th class="py-2 pr-3">Уведомления</th><th class="py-2 pr-3">Последний вход</th><th class="py-2"></th></tr>
+              </thead>
+              <tbody id="adminUsersTable" class="divide-y divide-slate-800/70"></tbody>
+            </table>
           </div>
         </div>
 
+        </div>
+
+        <div class="pt-4 flex items-center justify-between gap-4">
+          <div id="adminSaveResultToast" class="hidden text-xs font-medium"></div>
+          <div class="ml-auto">
+            <button onclick="saveAdminSettings()" id="btnSaveAdminSettings" class="flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-medium px-6 py-2.5 rounded-xl text-sm shadow-lg shadow-emerald-500/25 transition cursor-pointer">
+              <i class="fa-solid fa-floppy-disk"></i>
+              <span>Сохранить общие настройки</span>
+            </button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -1005,6 +1118,11 @@
     }
 
     function onLiveSearchToggle(checked) {
+      if (checked && !isLoggedIn()) {
+        document.getElementById('checkLiveSearch').checked = false;
+        showToast('Прямой опрос магазинов доступен после входа через Telegram', true, 5000);
+        checked = false;
+      }
       const banner = document.getElementById('liveWarningBanner');
       if (banner) {
         if (checked) banner.classList.remove('hidden');
@@ -1156,11 +1274,13 @@
         const btn = document.getElementById('tabBtn' + t);
         const sec = document.getElementById('tab' + t);
         if (!btn || !sec) return;
+        // Кнопки только для администратора сохраняют признак и видимость
+        const roleClasses = btn.classList.contains('admin-only') ? ' admin-only' + (btn.classList.contains('hidden') ? ' hidden' : '') : '';
         if (t.toLowerCase() === tab.toLowerCase()) {
-          btn.className = 'pb-3 text-emerald-400 border-b-2 border-emerald-400 flex items-center gap-2 cursor-pointer font-semibold whitespace-nowrap';
+          btn.className = 'pb-3 text-emerald-400 border-b-2 border-emerald-400 flex items-center gap-2 cursor-pointer font-semibold whitespace-nowrap' + roleClasses;
           sec.classList.remove('hidden');
         } else {
-          btn.className = 'pb-3 text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center gap-2 cursor-pointer whitespace-nowrap';
+          btn.className = 'pb-3 text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center gap-2 cursor-pointer whitespace-nowrap' + roleClasses;
           sec.classList.add('hidden');
         }
       });
@@ -1363,7 +1483,7 @@
               <p class="text-xs text-slate-400 mt-1 max-w-md mx-auto">
                 Бот автоматически сканирует каталоги. Как только контент-менеджеры допустят ошибку в цене (пропущен ноль или падение цены в 10 раз) — карточка сбоя появится здесь.
               </p>
-              <button onclick="startScan(true)" class="mt-4 px-4 py-2 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs hover:bg-amber-500/30 transition cursor-pointer">
+              <button onclick="startScan(true)" class="${isAdminUser() ? '' : 'hidden'} mt-4 px-4 py-2 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs hover:bg-amber-500/30 transition cursor-pointer">
                 Запустить внеочередное сканирование
               </button>
             </div>
@@ -1614,10 +1734,7 @@
     }
 
     function toggleAllShops(checked) {
-      ['Kaspi', 'Dns', 'Bv', 'Td', 'Fc', 'Sulpak', 'Mechta', 'Alser', 'Evrika', 'Moon', 'FourMobile'].forEach(id => {
-        const el = document.getElementById('checkShop' + id);
-        if (el) el.checked = checked;
-      });
+      Object.values(ADMIN_SHOP_CHECKBOX_IDS).forEach(id => { document.getElementById(id).checked = checked; });
     }
 
     function setBestPriceTag(query) {
@@ -1667,6 +1784,15 @@
         const data = await res.json();
 
         loading.classList.add('hidden');
+
+        if (!res.ok) {
+          emptyState.classList.remove('hidden');
+          emptyState.innerHTML = `
+            <div class="text-4xl mb-3">⛔️</div>
+            <h3 class="text-base font-semibold text-white">${escapeHtml(data.error || 'Ошибка поиска')}</h3>
+          `;
+          return;
+        }
 
         if (!data || !data.items || data.items.length === 0) {
           emptyState.classList.remove('hidden');
@@ -1896,6 +2022,151 @@
       return (value === null || value === undefined || value === '' || Number.isNaN(n)) ? fallback : n;
     }
 
+    // ===== Пользователь, вход через Telegram и роли =====
+    let currentMe = { user: null, settings: {}, auth: {}, shops: {} };
+
+    const ADMIN_SHOP_CHECKBOX_IDS = {
+      kaspi: 'checkShopKaspi', dns: 'checkShopDns', shopkz: 'checkShopBv', technodom: 'checkShopTd',
+      forcecom: 'checkShopFc', sulpak: 'checkShopSulpak', mechta: 'checkShopMechta', alser: 'checkShopAlser',
+      evrika: 'checkShopEvrika', moon: 'checkShopMoon', fourmobile: 'checkShopFourMobile'
+    };
+
+    function isLoggedIn() { return Boolean(currentMe.user); }
+    function isAdminUser() { return Boolean(currentMe.user && currentMe.user.is_admin); }
+
+    async function loadMe() {
+      try {
+        const res = await fetch('/api/me');
+        currentMe = await res.json();
+      } catch (e) {
+        console.error('Ошибка loadMe:', e);
+      }
+      renderAuthArea();
+      applyRoleVisibility();
+      renderUserSettings(currentMe.settings || {});
+      renderTgStatus();
+      if (isAdminUser()) loadAdminSettings();
+    }
+
+    function applyRoleVisibility() {
+      const admin = isAdminUser();
+      const loggedIn = isLoggedIn();
+      document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', !admin));
+      document.getElementById('settingsGuestBanner').classList.toggle('hidden', loggedIn);
+      document.getElementById('personalSettingsFieldset').disabled = !loggedIn;
+      document.getElementById('personalSaveBar').classList.toggle('hidden', !loggedIn);
+      document.getElementById('adminSection').classList.toggle('hidden', !admin);
+      // Логи доступны только администратору
+      if (!admin && !document.getElementById('tabLogs').classList.contains('hidden')) switchTab('anomalies');
+    }
+
+    function renderAuthArea() {
+      const area = document.getElementById('authArea');
+      const u = currentMe.user;
+      if (u) {
+        const name = escapeHtml(u.first_name || u.username || `ID ${u.id}`);
+        const avatar = u.photo_url
+          ? `<img src="${escapeHtml(u.photo_url)}" alt="" class="w-7 h-7 rounded-full object-cover shrink-0">`
+          : `<span class="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-300 flex items-center justify-center text-xs font-bold shrink-0">${name.charAt(0)}</span>`;
+        const role = u.is_admin
+          ? '<span class="text-[10px] text-amber-400">Администратор</span>'
+          : `<span class="text-[10px] text-slate-400">${u.username ? '@' + escapeHtml(u.username) : 'Пользователь'}</span>`;
+        area.innerHTML = `
+          <div class="flex items-center gap-2 bg-slate-900/90 border border-slate-700 rounded-xl pl-1.5 pr-1 h-10">
+            ${avatar}
+            <div class="hidden sm:flex flex-col leading-tight min-w-0">
+              <span class="text-xs font-semibold text-slate-200 max-w-[120px] truncate">${name}</span>
+              ${role}
+            </div>
+            <button type="button" onclick="logout()" title="Выйти" class="text-slate-400 hover:text-rose-400 transition cursor-pointer p-1.5">
+              <i class="fa-solid fa-right-from-bracket text-xs"></i>
+            </button>
+          </div>`;
+        return;
+      }
+
+      area.innerHTML = '';
+      const auth = currentMe.auth || {};
+      if (auth.bot_username) {
+        // Официальный виджет входа Telegram; request-access=write разрешает боту писать пользователю
+        const script = document.createElement('script');
+        script.async = true;
+        script.src = 'https://telegram.org/js/telegram-widget.js?22';
+        script.setAttribute('data-telegram-login', auth.bot_username);
+        script.setAttribute('data-size', 'medium');
+        script.setAttribute('data-radius', '10');
+        script.setAttribute('data-request-access', 'write');
+        script.setAttribute('data-onauth', 'onTelegramAuth(user)');
+        area.appendChild(script);
+      }
+      if (auth.dev_login) {
+        area.insertAdjacentHTML('beforeend', `
+          <button type="button" onclick="devLogin()" title="Доступно только локально (ALLOW_DEV_LOGIN=1)" class="ml-2 h-10 px-3 rounded-xl bg-slate-900/90 border border-amber-500/40 text-amber-300 hover:bg-amber-500/10 text-xs font-semibold transition cursor-pointer">
+            <i class="fa-solid fa-code mr-1"></i>Вход разработчика
+          </button>`);
+      }
+      if (!auth.bot_username && !auth.dev_login) {
+        area.innerHTML = '<span class="text-[11px] text-slate-500" title="На сервере не задан TELEGRAM_BOT_TOKEN">Вход недоступен</span>';
+      }
+    }
+
+    async function postAuth(url, body) {
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body || {})
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          showToast(`❌ ${data.message || 'Ошибка входа'}`, true, 6000);
+          return false;
+        }
+        return true;
+      } catch (e) {
+        showToast(`❌ Ошибка сети: ${e}`, true, 6000);
+        return false;
+      }
+    }
+
+    async function onTelegramAuth(tgUser) {
+      if (await postAuth('/api/auth/telegram', tgUser)) location.reload();
+    }
+
+    async function devLogin() {
+      if (await postAuth('/api/auth/dev-login')) location.reload();
+    }
+
+    async function logout() {
+      await postAuth('/api/auth/logout');
+      location.reload();
+    }
+
+    function renderTgStatus() {
+      const label = document.getElementById('tgStatusLabel');
+      const hint = document.getElementById('tgStatusHint');
+      const botName = currentMe.auth && currentMe.auth.bot_username;
+      document.getElementById('tgBotNameHint').innerText = botName ? ` от бота @${botName}` : '';
+
+      if (!isLoggedIn()) {
+        label.innerText = 'Войдите';
+        label.className = 'text-slate-300';
+        hint.innerText = 'Вход через Telegram — справа вверху';
+        return;
+      }
+      const s = currentMe.settings || {};
+      const levels = { ALL: 'все аномалии', CRITICAL_ONLY: 'только «пропущенный ноль»', HIGH_SAVINGS: 'баги и крупные скидки' };
+      if (s.telegram_notify_enabled) {
+        label.innerText = 'Включены';
+        label.className = 'text-emerald-400';
+        hint.innerText = `Уровень: ${levels[s.telegram_notify_level] || levels.ALL}`;
+      } else {
+        label.innerText = 'Выключены';
+        label.className = 'text-slate-400';
+        hint.innerText = 'Включите во вкладке «Настройки»';
+      }
+    }
+
     // Применяет настройки поиска по умолчанию к фильтрам вкладки поиска
     function applySearchDefaults(s) {
       document.getElementById('bestPriceSort').value = s.search_default_sort || 'price_asc';
@@ -1905,93 +2176,95 @@
       onLiveSearchToggle(false);
     }
 
-    async function loadSettings(withSearchDefaults = false) {
-      try {
-        const res = await fetch('/api/config');
-        const s = await res.json();
-        if (withSearchDefaults) applySearchDefaults(s);
-
-        // 1. Аномалии и пороги
-        document.getElementById('checkDetectZero').checked = (s.detect_zero_glitch !== false);
-        document.getElementById('checkDetectDiscount').checked = (s.detect_super_discount !== false);
-        document.getElementById('checkDetectArbitrage').checked = (s.detect_market_arbitrage !== false);
-        document.getElementById('inputMinPrice').value = numOr(s.min_item_price_kzt, 30000);
-        document.getElementById('inputMaxPrice').value = numOr(s.max_item_price_kzt, 3000000);
-        document.getElementById('inputDropPct').value = numOr(s.price_glitch_drop_pct, 65);
-        document.getElementById('inputMinSavings').value = numOr(s.min_savings_kzt, 40000);
-        document.getElementById('inputArbitrageDiffPct').value = numOr(s.arbitrage_min_drop_pct, 25);
-        document.getElementById('inputArbitrageDiff').value = numOr(s.arbitrage_min_diff_kzt, 25000);
-
-        // 2. Стоп-слова и фильтрация хлама
-        const junk = s.junk_keywords || [];
-        document.getElementById('inputJunkKeywords').value = Array.isArray(junk) ? junk.join(', ') : junk;
-        document.getElementById('checkExcludeUsed').checked = (s.exclude_used_goods !== false);
-
-        // 3. Поиск по умолчанию
-        document.getElementById('selectSearchDefaultSort').value = s.search_default_sort || 'price_asc';
-        document.getElementById('checkSearchExcludeAccDefault').checked = (s.search_exclude_accessories_default !== false);
-
-        // 4. Telegram
-        document.getElementById('inputTgToken').value = s.telegram_bot_token || '';
-        document.getElementById('inputTgChatId').value = s.telegram_chat_id || '';
-        document.getElementById('selectTgNotifyLevel').value = s.telegram_notify_level || 'ALL';
-
-        // 5. Сканирование: интервал хранится в минутах, в форме показываем в самой крупной целой единице
-        const scanMinutes = numOr(s.scan_interval_minutes, 180);
-        const scanUnit = (scanMinutes % 1440 === 0) ? 1440 : (scanMinutes % 60 === 0) ? 60 : 1;
-        document.getElementById('inputScanIntervalValue').value = scanMinutes / scanUnit;
-        document.getElementById('selectScanIntervalUnit').value = String(scanUnit);
-
-        const shops = s.enabled_shops || {};
-        document.getElementById('checkShopKaspi').checked = (shops.kaspi !== false);
-        document.getElementById('checkShopDns').checked = (shops.dns !== false);
-        document.getElementById('checkShopBv').checked = (shops.shopkz !== false);
-        document.getElementById('checkShopTd').checked = (shops.technodom !== false);
-        document.getElementById('checkShopFc').checked = (shops.forcecom !== false);
-        document.getElementById('checkShopSulpak').checked = (shops.sulpak !== false);
-        document.getElementById('checkShopMechta').checked = (shops.mechta !== false);
-        document.getElementById('checkShopAlser').checked = (shops.alser !== false);
-        document.getElementById('checkShopEvrika').checked = (shops.evrika !== false);
-        document.getElementById('checkShopMoon').checked = (shops.moon !== false);
-        document.getElementById('checkShopFourMobile').checked = (shops.fourmobile !== false);
-
-        const hasTg = Boolean(s.telegram_bot_token && s.telegram_chat_id);
-        document.getElementById('tgStatusLabel').innerText = hasTg ? 'Подключен' : 'Не настроен';
-        document.getElementById('tgStatusLabel').className = hasTg ? 'text-emerald-400' : 'text-slate-400';
-      } catch (e) {
-        console.error('Ошибка loadSettings:', e);
-      }
+    function renderUserShopsGrid(alertShops) {
+      const grid = document.getElementById('userShopsGrid');
+      const shops = currentMe.shops || {};
+      grid.innerHTML = Object.entries(shops).map(([key, name]) => `
+        <label class="flex items-center gap-2 p-2 rounded-xl bg-slate-900/90 border border-slate-800 cursor-pointer hover:border-slate-700 hover:bg-slate-800/60 transition">
+          <input type="checkbox" id="userShop_${key}" data-shop-key="${key}" ${alertShops[key] !== false ? 'checked' : ''} class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+          ${shopLogoHtml(name)}
+          <span class="text-xs font-medium text-slate-200 truncate">${escapeHtml(name)}</span>
+        </label>`).join('');
     }
 
-    function showSaveResult(ok, text) {
-      const toast = document.getElementById('saveResultToast');
+    function toggleAllUserShops(checked) {
+      document.querySelectorAll('#userShopsGrid input[data-shop-key]').forEach(el => { el.checked = checked; });
+    }
+
+    function renderUserSettings(s) {
+      // 1. Аномалии и пороги
+      document.getElementById('checkDetectZero').checked = (s.detect_zero_glitch !== false);
+      document.getElementById('checkDetectDiscount').checked = (s.detect_super_discount !== false);
+      document.getElementById('checkDetectArbitrage').checked = (s.detect_market_arbitrage !== false);
+      document.getElementById('inputMinPrice').value = numOr(s.min_item_price_kzt, 30000);
+      document.getElementById('inputMaxPrice').value = numOr(s.max_item_price_kzt, 3000000);
+      document.getElementById('inputDropPct').value = numOr(s.price_glitch_drop_pct, 65);
+      document.getElementById('inputMinSavings').value = numOr(s.min_savings_kzt, 40000);
+      document.getElementById('inputArbitrageDiffPct').value = numOr(s.arbitrage_min_drop_pct, 25);
+      document.getElementById('inputArbitrageDiff').value = numOr(s.arbitrage_min_diff_kzt, 25000);
+
+      // 2. Стоп-слова и фильтрация хлама
+      const junk = s.junk_keywords || [];
+      document.getElementById('inputJunkKeywords').value = Array.isArray(junk) ? junk.join(', ') : junk;
+      document.getElementById('checkExcludeUsed').checked = (s.exclude_used_goods !== false);
+
+      // 3. Поиск по умолчанию
+      document.getElementById('selectSearchDefaultSort').value = s.search_default_sort || 'price_asc';
+      document.getElementById('checkSearchExcludeAccDefault').checked = (s.search_exclude_accessories_default !== false);
+
+      // 4. Telegram-уведомления
+      document.getElementById('checkTgNotifyEnabled').checked = (s.telegram_notify_enabled === true);
+      document.getElementById('selectTgNotifyLevel').value = s.telegram_notify_level || 'ALL';
+
+      // 5. Магазины в ленте
+      renderUserShopsGrid(s.alert_shops || {});
+    }
+
+    // Вкладка «Настройки»: показывает текущие значения (личные — из /api/me, общие — для админа)
+    function loadSettings() {
+      renderUserSettings(currentMe.settings || {});
+      if (isAdminUser()) loadAdminSettings();
+    }
+
+    function showSaveResult(ok, text, toastId = 'saveResultToast') {
+      const toast = document.getElementById(toastId);
       toast.innerText = text;
       toast.className = `text-xs font-medium ${ok ? 'text-emerald-400' : 'text-rose-400'}`;
       clearTimeout(toast._hideTimer);
       toast._hideTimer = setTimeout(() => toast.classList.add('hidden'), ok ? 3500 : 8000);
     }
 
-    async function saveSettings() {
-      const scanIntervalValue = parseInt(document.getElementById('inputScanIntervalValue').value);
-      if (!(scanIntervalValue > 0)) {
-        showSaveResult(false, '❌ Укажите интервал автообновления базы — целое число больше нуля');
-        return;
-      }
-
-      const btn = document.getElementById('btnSaveSettings');
+    async function postSettings(url, payload, btnId, toastId, btnLabel) {
+      const btn = document.getElementById(btnId);
       btn.disabled = true;
       btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Сохранение...</span>';
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.status === 'ok') {
+          showSaveResult(true, '✅ Настройки сохранены и применены!', toastId);
+          return data;
+        }
+        showSaveResult(false, `❌ Не удалось сохранить: ${data.message || 'HTTP ' + res.status}`, toastId);
+      } catch (e) {
+        showSaveResult(false, `❌ Не удалось сохранить: ${e}`, toastId);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i><span>${btnLabel}</span>`;
+      }
+      return null;
+    }
 
-      const junkStr = document.getElementById('inputJunkKeywords').value;
-      const junkArr = junkStr.split(',').map(k => k.trim()).filter(k => k.length > 0);
+    async function saveSettings() {
+      const junkArr = document.getElementById('inputJunkKeywords').value.split(',').map(k => k.trim()).filter(k => k.length > 0);
+      const alertShops = {};
+      document.querySelectorAll('#userShopsGrid input[data-shop-key]').forEach(el => { alertShops[el.dataset.shopKey] = el.checked; });
 
       const payload = {
-        // Telegram
-        telegram_bot_token: document.getElementById('inputTgToken').value.trim(),
-        telegram_chat_id: document.getElementById('inputTgChatId').value.trim(),
-        telegram_notify_level: document.getElementById('selectTgNotifyLevel').value,
-        scan_interval_minutes: scanIntervalValue * parseInt(document.getElementById('selectScanIntervalUnit').value),
-
         // Аномалии
         detect_zero_glitch: document.getElementById('checkDetectZero').checked,
         detect_super_discount: document.getElementById('checkDetectDiscount').checked,
@@ -2011,41 +2284,21 @@
         search_default_sort: document.getElementById('selectSearchDefaultSort').value,
         search_exclude_accessories_default: document.getElementById('checkSearchExcludeAccDefault').checked,
 
-        // Магазины
-        enabled_shops: {
-          kaspi: document.getElementById('checkShopKaspi').checked,
-          dns: document.getElementById('checkShopDns').checked,
-          shopkz: document.getElementById('checkShopBv').checked,
-          technodom: document.getElementById('checkShopTd').checked,
-          forcecom: document.getElementById('checkShopFc').checked,
-          sulpak: document.getElementById('checkShopSulpak').checked,
-          mechta: document.getElementById('checkShopMechta').checked,
-          alser: document.getElementById('checkShopAlser').checked,
-          evrika: document.getElementById('checkShopEvrika').checked,
-          moon: document.getElementById('checkShopMoon').checked,
-          fourmobile: document.getElementById('checkShopFourMobile').checked
-        }
+        // Магазины и Telegram
+        alert_shops: alertShops,
+        telegram_notify_enabled: document.getElementById('checkTgNotifyEnabled').checked,
+        telegram_notify_level: document.getElementById('selectTgNotifyLevel').value
       };
 
-      try {
-        const res = await fetch('/api/config', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        const data = await res.json().catch(() => ({}));
-        if (res.ok && data.status === 'ok') {
-          showSaveResult(true, '✅ Все настройки успешно сохранены и применены!');
-          loadSettings(true);
-        } else {
-          showSaveResult(false, `❌ Не удалось сохранить: ${data.message || 'HTTP ' + res.status}`);
-        }
-      } catch (e) {
-        showSaveResult(false, `❌ Не удалось сохранить: ${e}`);
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i><span>Сохранить настройки</span>';
+      const data = await postSettings('/api/me/settings', payload, 'btnSaveSettings', 'saveResultToast', 'Сохранить мои настройки');
+      if (data) {
+        currentMe.settings = data.settings;
+        renderUserSettings(data.settings);
+        applySearchDefaults(data.settings);
+        renderTgStatus();
+        // Пороги влияют на ленту и счетчики
+        loadStats();
+        loadAlerts();
       }
     }
 
@@ -2057,17 +2310,11 @@
       resBox.classList.add('hidden');
 
       try {
-        const res = await fetch('/api/test-telegram', { method: 'POST' });
-        const data = await res.json();
+        const res = await fetch('/api/me/test-telegram', { method: 'POST' });
+        const data = await res.json().catch(() => ({}));
         resBox.classList.remove('hidden');
-
-        if (res.ok) {
-          resBox.className = 'text-xs text-emerald-400';
-          resBox.innerText = '✅ ' + data.message;
-        } else {
-          resBox.className = 'text-xs text-red-400';
-          resBox.innerText = '❌ ' + (data.message || 'Ошибка отправки');
-        }
+        resBox.className = res.ok ? 'text-xs text-emerald-400' : 'text-xs text-red-400';
+        resBox.innerText = res.ok ? '✅ ' + data.message : '❌ ' + (data.message || 'Ошибка отправки');
       } catch (e) {
         resBox.classList.remove('hidden');
         resBox.className = 'text-xs text-red-400';
@@ -2075,6 +2322,109 @@
       } finally {
         btn.disabled = false;
         btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i><span>Отправить тестовое сообщение</span>';
+      }
+    }
+
+    // ===== Администрирование =====
+
+    async function loadAdminSettings() {
+      try {
+        const res = await fetch('/api/admin/config');
+        if (!res.ok) return;
+        const { settings: s, bot } = await res.json();
+
+        // Интервал хранится в минутах, в форме показываем в самой крупной целой единице
+        const scanMinutes = numOr(s.scan_interval_minutes, 180);
+        const scanUnit = (scanMinutes % 1440 === 0) ? 1440 : (scanMinutes % 60 === 0) ? 60 : 1;
+        document.getElementById('inputScanIntervalValue').value = scanMinutes / scanUnit;
+        document.getElementById('selectScanIntervalUnit').value = String(scanUnit);
+
+        const shops = s.enabled_shops || {};
+        Object.entries(ADMIN_SHOP_CHECKBOX_IDS).forEach(([key, id]) => {
+          document.getElementById(id).checked = (shops[key] !== false);
+        });
+
+        document.getElementById('inputCandMinPrice').value = numOr(s.candidate_min_item_price_kzt, 10000);
+        document.getElementById('inputCandDropPct').value = numOr(s.candidate_drop_pct, 30);
+        document.getElementById('inputCandMinSavings').value = numOr(s.candidate_min_savings_kzt, 10000);
+        document.getElementById('inputCandArbPct').value = numOr(s.candidate_arbitrage_drop_pct, 15);
+        document.getElementById('inputCandArbDiff').value = numOr(s.candidate_arbitrage_diff_kzt, 10000);
+
+        const botStatus = document.getElementById('adminBotStatus');
+        if (!bot.configured) {
+          botStatus.innerHTML = '<span class="text-rose-400"><i class="fa-solid fa-circle-xmark mr-1"></i>Токен не задан</span>';
+        } else if (bot.username) {
+          botStatus.innerHTML = `<span class="text-emerald-400"><i class="fa-solid fa-circle-check mr-1"></i>Подключен: @${escapeHtml(bot.username)}</span>`;
+        } else {
+          botStatus.innerHTML = '<span class="text-amber-400"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Токен задан, но Telegram его не принял</span>';
+        }
+      } catch (e) {
+        console.error('Ошибка loadAdminSettings:', e);
+      }
+      loadAdminUsers();
+    }
+
+    async function loadAdminUsers() {
+      try {
+        const res = await fetch('/api/admin/users');
+        if (!res.ok) return;
+        const users = await res.json();
+        document.getElementById('adminUsersCount').innerText = users.length;
+        document.getElementById('adminUsersTable').innerHTML = users.map(u => {
+          const name = escapeHtml([u.first_name, u.last_name].filter(Boolean).join(' ') || '—');
+          const username = u.username ? `<span class="text-slate-500">@${escapeHtml(u.username)}</span>` : '';
+          const action = u.is_admin
+            ? '<span class="text-amber-400">админ</span>'
+            : `<button type="button" onclick="setUserBlocked(${u.id}, ${!u.is_blocked})" class="px-2.5 py-1 rounded-lg border text-xs transition cursor-pointer ${u.is_blocked ? 'border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10' : 'border-rose-500/40 text-rose-400 hover:bg-rose-500/10'}">${u.is_blocked ? 'Разблокировать' : 'Заблокировать'}</button>`;
+          return `
+            <tr class="${u.is_blocked ? 'opacity-50' : ''}">
+              <td class="py-2 pr-3 text-slate-200">${name} ${username}</td>
+              <td class="py-2 pr-3 font-mono text-slate-400">${u.id}</td>
+              <td class="py-2 pr-3">${u.telegram_notify_enabled ? '<span class="text-emerald-400">вкл</span>' : '<span class="text-slate-500">выкл</span>'}</td>
+              <td class="py-2 pr-3 text-slate-400">${escapeHtml(u.last_login_at || '')}</td>
+              <td class="py-2 text-right">${action}</td>
+            </tr>`;
+        }).join('') || '<tr><td colspan="5" class="py-4 text-center text-slate-500">Пока никто не вошел</td></tr>';
+      } catch (e) {
+        console.error('Ошибка loadAdminUsers:', e);
+      }
+    }
+
+    async function setUserBlocked(userId, blocked) {
+      if (blocked && !confirm('Заблокировать пользователя? Его сессии будут завершены.')) return;
+      const res = await fetch(`/api/admin/users/${userId}/block`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blocked })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) showToast(`❌ ${data.message || 'Ошибка'}`, true, 6000);
+      loadAdminUsers();
+    }
+
+    async function saveAdminSettings() {
+      const scanIntervalValue = parseInt(document.getElementById('inputScanIntervalValue').value);
+      if (!(scanIntervalValue > 0)) {
+        showSaveResult(false, '❌ Укажите интервал автообновления базы — целое число больше нуля', 'adminSaveResultToast');
+        return;
+      }
+
+      const enabledShops = {};
+      Object.entries(ADMIN_SHOP_CHECKBOX_IDS).forEach(([key, id]) => { enabledShops[key] = document.getElementById(id).checked; });
+
+      const payload = {
+        scan_interval_minutes: scanIntervalValue * parseInt(document.getElementById('selectScanIntervalUnit').value),
+        enabled_shops: enabledShops,
+        candidate_min_item_price_kzt: numOr(parseInt(document.getElementById('inputCandMinPrice').value), 10000),
+        candidate_drop_pct: numOr(parseFloat(document.getElementById('inputCandDropPct').value), 30),
+        candidate_min_savings_kzt: numOr(parseInt(document.getElementById('inputCandMinSavings').value), 10000),
+        candidate_arbitrage_drop_pct: numOr(parseFloat(document.getElementById('inputCandArbPct').value), 15),
+        candidate_arbitrage_diff_kzt: numOr(parseInt(document.getElementById('inputCandArbDiff').value), 10000)
+      };
+
+      if (await postSettings('/api/admin/config', payload, 'btnSaveAdminSettings', 'adminSaveResultToast', 'Сохранить общие настройки')) {
+        loadAdminSettings();
+        loadStats();
       }
     }
 
@@ -2338,7 +2688,7 @@
       loadVersionInfo();
       loadStats();
       loadAlerts();
-      loadSettings(true);
+      loadMe().then(() => applySearchDefaults(currentMe.settings || {}));
       setInterval(loadStats, 3000);
     });
   </script>

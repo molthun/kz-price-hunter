@@ -38,11 +38,12 @@
 
 ```
 kz-price-hunter/
-├── config.py             # Настройки по умолчанию, города Казахстана, списки категорий 11 сетей
+├── auth.py               # Вход через Telegram Login Widget, сессии, роли, CSRF-проверка, лимиты
+├── config.py             # Общие (SYSTEM_DEFAULTS) и личные (USER_DEFAULTS) настройки, города, категории 11 сетей
 ├── database.py           # SQLite WAL, FTS5 таблица products_fts, триггеры, индексы, статистика
 ├── detector.py           # Детектор аномалий: ZERO_GLITCH, SUPER_DISCOUNT, MARKET_ARBITRAGE
 ├── search_engine.py      # Поисковый движок (FTS5 MATCH + fallback LIKE, фильтры, сортировка)
-├── notifier.py           # Telegram-бот уведомлений о скидках и ошибках цен
+├── notifier.py           # Рассылка уведомлений в Telegram каждому пользователю по его порогам
 ├── version.py            # Версионирование проекта (SemVer)
 ├── main.py               # Консольный раннер циклического мониторинга
 ├── gui.py                # Точка входа для Web Dashboard (запуск aiohttp на 8080)
@@ -95,8 +96,17 @@ kz-price-hunter/
 4. **Таблица `price_history`**:
    - История изменения цен для каждого товара с фиксацией даты и процента скидки.
 
-5. **Таблица `alerts_history`**:
-   - Лог найденных аномалий (`ZERO_GLITCH`, `SUPER_DISCOUNT`, `MARKET_ARBITRAGE`) с экономией и ссылкой.
+5. **Таблица `alerts`**:
+   - «Кандидаты» в аномалии (`ZERO_GLITCH`, `SUPER_DISCOUNT`, `MARKET_ARBITRAGE`), записанные по мягким общим порогам. Лента и уведомления фильтруются по личным порогам пользователя (`detector.alert_matches_user`).
+
+6. **Таблица `users`** (с v3.0.0):
+   - `id INTEGER PRIMARY KEY` — Telegram ID (он же чат для уведомлений)
+   - `username`, `first_name`, `last_name`, `photo_url` — профиль Telegram
+   - `settings TEXT` — личные настройки в JSON (ключи `USER_DEFAULTS`)
+   - `is_blocked`, `created_at`, `last_login_at`
+
+7. **Таблица `sessions`** (с v3.0.0):
+   - `token_hash TEXT PRIMARY KEY` — SHA-256 токена из HttpOnly-cookie `kzph_session`, `user_id`, `expires_at` (30 дней)
 
 ---
 

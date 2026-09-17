@@ -15,12 +15,23 @@ from database import (
     get_price_history_batch,
     was_alert_sent_recently,
     record_alert,
-    get_connection
+    get_connection,
+    upsert_telegram_user,
+    save_user_settings,
+    set_user_blocked,
+    create_session,
+    get_session_user,
+    delete_session,
+    get_notification_recipients
 )
-from detector import check_anomaly, is_junk_accessory
+import hmac
+import hashlib
+import time
+from auth import verify_telegram_auth
+from detector import check_anomaly, is_junk_accessory, alert_matches_user, notify_level_allows
 
 # Фиксированные пороги детекции, независимые от пользовательских настроек
-TEST_SETTINGS = dict(config.DEFAULT_SETTINGS)
+TEST_SETTINGS = config.merge_user_settings({})
 
 class TestDNSMonitor(unittest.TestCase):
     def setUp(self):
@@ -28,6 +39,8 @@ class TestDNSMonitor(unittest.TestCase):
         with get_connection() as conn:
             conn.execute("DELETE FROM products WHERE id LIKE 'test-%' OR id LIKE 'db-test-%'")
             conn.execute("DELETE FROM alerts WHERE product_id LIKE 'test-%' OR product_id LIKE 'db-test-%'")
+            conn.execute("DELETE FROM sessions")
+            conn.execute("DELETE FROM users")
             conn.commit()
 
     def test_junk_accessory_filter(self):
@@ -120,22 +133,29 @@ class TestDNSMonitor(unittest.TestCase):
         self.assertEqual(anomaly["type"], "ZERO_GLITCH")
 
     def test_settings_validation(self):
-        """Настройки: ноль допустим, неизвестные ключи отбрасываются, некорректные значения отклоняются."""
-        clean = config._validate_settings({
+        """Личные настройки: ноль допустим, неизвестные и системные ключи отбрасываются, некорректные значения отклоняются."""
+        clean = config.validate_user_settings({
             "min_item_price_kzt": "0",
             "price_glitch_drop_pct": "70.5",
             "unknown_key": 1,
-            "enabled_shops": {"dns": False, "unknown_shop": True}
+            "scan_interval_minutes": 5,
+            "alert_shops": {"dns": False, "unknown_shop": True}
         })
         self.assertEqual(clean["min_item_price_kzt"], 0)
         self.assertEqual(clean["price_glitch_drop_pct"], 70.5)
         self.assertNotIn("unknown_key", clean)
-        self.assertEqual(clean["enabled_shops"], {"dns": False})
+        self.assertNotIn("scan_interval_minutes", clean)
+        self.assertEqual(clean["alert_shops"], {"dns": False})
 
         with self.assertRaises(ValueError):
-            config._validate_settings({"min_item_price_kzt": -1})
+            config.validate_user_settings({"min_item_price_kzt": -1})
         with self.assertRaises(ValueError):
-            config._validate_settings({"detect_zero_glitch": "yes"})
+            config.validate_user_settings({"detect_zero_glitch": "yes"})
+        with self.assertRaises(ValueError):
+            config.validate_user_settings({"telegram_notify_level": "EVERYTHING"})
+
+        # Системные настройки не принимают личные ключи
+        self.assertEqual(config._validate_settings({"min_item_price_kzt": 1, "candidate_drop_pct": 40}), {"candidate_drop_pct": 40.0})
 
     def test_scan_interval_range(self):
         """Интервал автообновления: минуты/часы/дни в пределах 5 минут — 30 дней."""
@@ -148,6 +168,80 @@ class TestDNSMonitor(unittest.TestCase):
             config._validate_settings({"scan_interval_minutes": None})
         self.assertEqual(config.get_scan_interval_seconds({"scan_interval_minutes": 1}), 300)
         self.assertEqual(config.get_scan_interval_seconds({"scan_interval_minutes": 120}), 7200)
+
+    def test_telegram_auth_signature(self):
+        """Подпись Telegram Login Widget: верная принимается, подделка и устаревшие данные отклоняются."""
+        token = "123456:TEST-TOKEN"
+        data = {"id": 42, "first_name": "Иван", "username": "ivan", "auth_date": int(time.time())}
+        check_string = "\n".join(f"{k}={data[k]}" for k in sorted(data))
+        secret = hashlib.sha256(token.encode()).digest()
+        signed = dict(data, hash=hmac.new(secret, check_string.encode(), hashlib.sha256).hexdigest())
+
+        self.assertEqual(int(verify_telegram_auth(signed, token)["id"]), 42)
+        with self.assertRaises(ValueError):
+            verify_telegram_auth(dict(signed, id=43), token)
+        with self.assertRaises(ValueError):
+            verify_telegram_auth(signed, "999:OTHER")
+
+        old = dict(data, auth_date=int(time.time()) - 2 * 86400)
+        old_check = "\n".join(f"{k}={old[k]}" for k in sorted(old))
+        old["hash"] = hmac.new(secret, old_check.encode(), hashlib.sha256).hexdigest()
+        with self.assertRaises(ValueError):
+            verify_telegram_auth(old, token)
+
+    def test_user_sessions_and_blocking(self):
+        """Сессия находит пользователя; блокировка и выход завершают ее."""
+        user = upsert_telegram_user({"id": 777001, "username": "tester", "first_name": "Тест"})
+        self.assertFalse(user["is_blocked"])
+        self.assertEqual(user["settings"]["min_item_price_kzt"], config.USER_DEFAULTS["min_item_price_kzt"])
+
+        token = create_session(777001)
+        self.assertEqual(get_session_user(token)["id"], 777001)
+        self.assertIsNone(get_session_user("wrong-token"))
+
+        save_user_settings(777001, {"telegram_notify_enabled": True})
+        self.assertIn(777001, [u["id"] for u in get_notification_recipients()])
+
+        set_user_blocked(777001, True)
+        self.assertIsNone(get_session_user(token))
+        self.assertNotIn(777001, [u["id"] for u in get_notification_recipients()])
+
+        set_user_blocked(777001, False)
+        token2 = create_session(777001)
+        delete_session(token2)
+        self.assertIsNone(get_session_user(token2))
+
+    def test_alert_filtering_by_user_thresholds(self):
+        """Кандидат, записанный по мягким порогам, виден только пользователям, чьи личные пороги он проходит."""
+        alert = {
+            "alert_type": "SUPER_DISCOUNT", "new_price": 50000, "discount_pct": 50.0, "savings_kzt": 50000,
+            "shop": "Sulpak", "title": "Ноутбук ASUS", "category": "Ноутбуки", "url": "https://sulpak.kz/x"
+        }
+        strict = config.merge_user_settings({"price_glitch_drop_pct": 65})
+        relaxed = config.merge_user_settings({"price_glitch_drop_pct": 40})
+        self.assertFalse(alert_matches_user(alert, strict))
+        self.assertTrue(alert_matches_user(alert, relaxed))
+
+        no_sulpak = config.merge_user_settings({"price_glitch_drop_pct": 40, "alert_shops": {"sulpak": False}})
+        self.assertFalse(alert_matches_user(alert, no_sulpak))
+
+        used = dict(alert, title="Ноутбук ASUS (уцененный товар)")
+        self.assertFalse(alert_matches_user(used, relaxed))
+
+        glitch = {"type": "ZERO_GLITCH", "drop_pct": 90, "savings": 170000}
+        big = {"type": "SUPER_DISCOUNT", "drop_pct": 50, "savings": 150000}
+        self.assertTrue(notify_level_allows(glitch, "CRITICAL_ONLY"))
+        self.assertFalse(notify_level_allows(big, "CRITICAL_ONLY"))
+        self.assertTrue(notify_level_allows(big, "HIGH_SAVINGS"))
+
+    def test_candidate_settings_are_relaxed(self):
+        """Кандидаты записываются по мягким системным порогам, а не по личным."""
+        product = {"id": "test-cand", "title": "Смартфон Samsung Galaxy", "price": 60000, "url": "https://x", "city": "Астана"}
+        history = {"old_price": 100000, "first_seen_price": 100000}  # скидка 40% — ниже личного порога 65%
+        self.assertIsNone(check_anomaly(product, history, custom_settings=TEST_SETTINGS))
+        anomaly = check_anomaly(product, history, custom_settings=config.get_candidate_settings())
+        self.assertIsNotNone(anomaly)
+        self.assertEqual(anomaly["type"], "SUPER_DISCOUNT")
 
 if __name__ == "__main__":
     unittest.main()

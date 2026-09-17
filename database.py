@@ -1,8 +1,11 @@
 import re
+import json
 import sqlite3
+import hashlib
+import secrets
 import datetime
 from typing import Optional, Dict, Any, List
-from config import DB_PATH, get_scan_interval_seconds
+from config import DB_PATH, get_scan_interval_seconds, merge_user_settings
 
 def get_connection():
     conn = sqlite3.connect(DB_PATH)
@@ -80,6 +83,32 @@ def init_db():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_updated_at ON products(updated_at)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_shop_city_price ON products(shop, city, current_price)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_alerts_product ON alerts(product_id)")
+
+        # Пользователи (вход через Telegram) и их личные настройки
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY,
+                username TEXT,
+                first_name TEXT,
+                last_name TEXT,
+                photo_url TEXT,
+                settings TEXT NOT NULL DEFAULT '{}',
+                is_blocked INTEGER NOT NULL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_login_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        # Сессии: в базе хранится только SHA-256 токена из cookie
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS sessions (
+                token_hash TEXT PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)")
 
         # Автоматическая миграция: исправление ссылок на картинки Белого Ветра
         try:
@@ -313,66 +342,79 @@ def get_db_freshness(threshold_seconds: int = 10800) -> Dict[str, Any]:
         "total_products": total_count
     }
 
-def get_stats() -> Dict[str, Any]:
+# Сколько последних кандидатов просматривается при фильтрации ленты по личным порогам
+ALERTS_SCAN_WINDOW = 3000
+
+def _alert_type_clause(alert_type: Optional[str]):
+    if not alert_type:
+        return "", []
+    at = alert_type.lower()
+    if at in ("anomaly", "anomalies", "glitch", "zero_glitch"):
+        return " AND a.alert_type = 'ZERO_GLITCH'", []
+    if at in ("discount", "discounts"):
+        return " AND a.alert_type IN ('SUPER_DISCOUNT', 'MARKET_ARBITRAGE')", []
+    if at in ("super", "super_discount"):
+        return " AND a.alert_type = 'SUPER_DISCOUNT'", []
+    if at in ("arbitrage", "market_arbitrage"):
+        return " AND a.alert_type = 'MARKET_ARBITRAGE'", []
+    return " AND a.alert_type = ?", [alert_type]
+
+def _fetch_filtered_alerts(user_settings: Dict[str, Any], city: Optional[str] = None, alert_type: Optional[str] = None, limit: Optional[int] = None) -> list:
+    from detector import alert_matches_user
+
+    query = """
+        SELECT a.*, p.title, p.url, p.image_url, p.category
+        FROM alerts a
+        LEFT JOIN products p ON a.product_id = p.id
+        WHERE 1=1
+    """
+    params: List[Any] = []
+    if city and city != "Все":
+        query += " AND (a.city = ? OR a.city IS NULL)"
+        params.append(city)
+    clause, clause_params = _alert_type_clause(alert_type)
+    query += clause
+    params.extend(clause_params)
+    query += " ORDER BY a.id DESC LIMIT ?"
+    params.append(ALERTS_SCAN_WINDOW)
+
+    result = []
+    with get_connection() as conn:
+        for row in conn.execute(query, params):
+            item = dict(row)
+            if alert_matches_user(item, user_settings):
+                result.append(item)
+                if limit is not None and len(result) >= limit:
+                    break
+    return result
+
+def get_stats(user_settings: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    settings = user_settings if user_settings is not None else merge_user_settings({})
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM products")
         total_products = cursor.fetchone()[0]
 
-        cursor.execute("SELECT COUNT(*) FROM alerts")
-        total_alerts = cursor.fetchone()[0]
-
-        cursor.execute("SELECT COUNT(*) FROM alerts WHERE alert_type = 'ZERO_GLITCH'")
-        total_anomalies = cursor.fetchone()[0]
-
-        cursor.execute("SELECT COUNT(*) FROM alerts WHERE alert_type IN ('SUPER_DISCOUNT', 'MARKET_ARBITRAGE')")
-        total_discounts = cursor.fetchone()[0]
-
         cursor.execute("SELECT shop, COUNT(*) as count FROM products GROUP BY shop")
         shops_stats = {row["shop"]: row["count"] for row in cursor.fetchall()}
 
-        return {
-            "total_products": total_products,
-            "total_alerts": total_alerts,
-            "total_anomalies": total_anomalies,
-            "total_discounts": total_discounts,
-            "shops": shops_stats,
-            "db_freshness": get_db_freshness(threshold_seconds=get_scan_interval_seconds())
-        }
+    # Счетчики аномалий и скидок — по личным порогам пользователя (у гостей — по умолчанию)
+    visible = _fetch_filtered_alerts(settings)
+    total_anomalies = sum(1 for a in visible if a["alert_type"] == "ZERO_GLITCH")
+    total_discounts = len(visible) - total_anomalies
 
-def get_alerts(limit: int = 150, city: Optional[str] = None, alert_type: Optional[str] = None) -> list:
-    query = """
-        SELECT a.*, p.title, p.url, p.image_url, p.category, a.shop
-        FROM alerts a
-        LEFT JOIN products p ON a.product_id = p.id
-        WHERE 1=1
-    """
-    params = []
-    if city and city != "Все":
-        query += " AND (a.city = ? OR a.city IS NULL)"
-        params.append(city)
+    return {
+        "total_products": total_products,
+        "total_alerts": len(visible),
+        "total_anomalies": total_anomalies,
+        "total_discounts": total_discounts,
+        "shops": shops_stats,
+        "db_freshness": get_db_freshness(threshold_seconds=get_scan_interval_seconds())
+    }
 
-    if alert_type:
-        at = alert_type.lower()
-        if at in ("anomaly", "anomalies", "glitch", "zero_glitch"):
-            query += " AND a.alert_type = 'ZERO_GLITCH'"
-        elif at in ("discount", "discounts"):
-            query += " AND a.alert_type IN ('SUPER_DISCOUNT', 'MARKET_ARBITRAGE')"
-        elif at in ("super", "super_discount"):
-            query += " AND a.alert_type = 'SUPER_DISCOUNT'"
-        elif at in ("arbitrage", "market_arbitrage"):
-            query += " AND a.alert_type = 'MARKET_ARBITRAGE'"
-        else:
-            query += " AND a.alert_type = ?"
-            params.append(alert_type)
-
-    query += " ORDER BY a.id DESC LIMIT ?"
-    params.append(limit)
-
-    with get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(query, params)
-        return [dict(row) for row in cursor.fetchall()]
+def get_alerts(limit: int = 150, city: Optional[str] = None, alert_type: Optional[str] = None, user_settings: Optional[Dict[str, Any]] = None) -> list:
+    settings = user_settings if user_settings is not None else merge_user_settings({})
+    return _fetch_filtered_alerts(settings, city=city, alert_type=alert_type, limit=limit)
 
 def get_products_list(shop: Optional[str] = None, city: Optional[str] = None, search: Optional[str] = None, limit: int = 50, offset: int = 0) -> list:
     query = "SELECT * FROM products WHERE 1=1"
@@ -513,3 +555,97 @@ def find_market_comparisons(
         "competitors": valid_competitors
     }
 
+
+
+# ===== Пользователи и сессии =====
+
+SESSION_TTL_DAYS = 30
+
+def _user_row_to_dict(row) -> Dict[str, Any]:
+    user = dict(row)
+    try:
+        raw = json.loads(user.get("settings") or "{}")
+    except (TypeError, ValueError):
+        raw = {}
+    user["settings"] = merge_user_settings(raw)
+    user["is_blocked"] = bool(user["is_blocked"])
+    return user
+
+def upsert_telegram_user(tg: Dict[str, Any], initial_settings: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Создает пользователя при первом входе или обновляет его профиль Telegram."""
+    uid = int(tg["id"])
+    with get_connection() as conn:
+        exists = conn.execute("SELECT 1 FROM users WHERE id = ?", (uid,)).fetchone()
+        if exists:
+            conn.execute("""
+                UPDATE users SET username = ?, first_name = ?, last_name = ?, photo_url = ?, last_login_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (tg.get("username"), tg.get("first_name"), tg.get("last_name"), tg.get("photo_url"), uid))
+        else:
+            conn.execute("""
+                INSERT INTO users (id, username, first_name, last_name, photo_url, settings)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (uid, tg.get("username"), tg.get("first_name"), tg.get("last_name"), tg.get("photo_url"),
+                  json.dumps(initial_settings or {}, ensure_ascii=False)))
+        conn.commit()
+    return get_user(uid)
+
+def get_user(user_id: int) -> Optional[Dict[str, Any]]:
+    with get_connection() as conn:
+        row = conn.execute("SELECT * FROM users WHERE id = ?", (int(user_id),)).fetchone()
+    return _user_row_to_dict(row) if row else None
+
+def save_user_settings(user_id: int, clean_settings: Dict[str, Any]) -> Dict[str, Any]:
+    user = get_user(user_id)
+    merged = merge_user_settings({**user["settings"], **clean_settings})
+    with get_connection() as conn:
+        conn.execute("UPDATE users SET settings = ? WHERE id = ?", (json.dumps(merged, ensure_ascii=False), int(user_id)))
+        conn.commit()
+    return merged
+
+def list_users() -> List[Dict[str, Any]]:
+    with get_connection() as conn:
+        rows = conn.execute("SELECT * FROM users ORDER BY last_login_at DESC").fetchall()
+    return [_user_row_to_dict(r) for r in rows]
+
+def set_user_blocked(user_id: int, blocked: bool) -> None:
+    with get_connection() as conn:
+        conn.execute("UPDATE users SET is_blocked = ? WHERE id = ?", (1 if blocked else 0, int(user_id)))
+        if blocked:
+            conn.execute("DELETE FROM sessions WHERE user_id = ?", (int(user_id),))
+        conn.commit()
+
+def get_notification_recipients() -> List[Dict[str, Any]]:
+    """Незаблокированные пользователи с включенными Telegram-уведомлениями."""
+    return [u for u in list_users() if not u["is_blocked"] and u["settings"].get("telegram_notify_enabled")]
+
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+def create_session(user_id: int) -> str:
+    token = secrets.token_urlsafe(32)
+    expires = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=SESSION_TTL_DAYS)
+    with get_connection() as conn:
+        conn.execute("DELETE FROM sessions WHERE expires_at < ?", (datetime.datetime.now(datetime.timezone.utc).isoformat(),))
+        conn.execute("INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)",
+                     (_hash_token(token), int(user_id), expires.isoformat()))
+        conn.commit()
+    return token
+
+def get_session_user(token: Optional[str]) -> Optional[Dict[str, Any]]:
+    if not token:
+        return None
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    with get_connection() as conn:
+        row = conn.execute("""
+            SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id
+            WHERE s.token_hash = ? AND s.expires_at > ? AND u.is_blocked = 0
+        """, (_hash_token(token), now)).fetchone()
+    return _user_row_to_dict(row) if row else None
+
+def delete_session(token: Optional[str]) -> None:
+    if not token:
+        return
+    with get_connection() as conn:
+        conn.execute("DELETE FROM sessions WHERE token_hash = ?", (_hash_token(token),))
+        conn.commit()

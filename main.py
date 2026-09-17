@@ -14,8 +14,7 @@ from config import (
     MOON_CATEGORIES,
     FOURMOBILE_CATEGORIES,
     CHECK_INTERVAL_SECONDS,
-    TELEGRAM_BOT_TOKEN,
-    TELEGRAM_CHAT_ID
+    get_bot_token
 )
 from database import (
     init_db,
@@ -35,7 +34,7 @@ from scrapers.alser import AlserScraper
 from scrapers.evrika import EvrikaScraper
 from scrapers.moon import MoonScraper
 from scrapers.fourmobile import FourMobileScraper
-from notifier import send_alert
+from notifier import dispatch_alert
 
 async def scan_category_list(scraper, categories):
     total = 0
@@ -59,7 +58,7 @@ async def scan_category_list(scraper, categories):
                 if anomaly:
                     if not was_alert_sent_recently(p["id"], p["price"]):
                         anomalies += 1
-                        send_alert(p, anomaly)
+                        dispatch_alert(p, anomaly)
                         record_alert(
                             product_id=p["id"],
                             alert_type=anomaly["type"],
@@ -192,10 +191,10 @@ async def main_loop(run_once: bool = False):
     print("  🚀 Moon.kz (moon.kz)")
     print("  📱 4mobile (4mobile.pages.dev)")
 
-    if TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID:
-        print("✅ Telegram-уведомления ВКЛЮЧЕНЫ.")
+    if get_bot_token():
+        print("✅ Telegram-бот настроен: алерты рассылаются пользователям с включенными уведомлениями.")
     else:
-        print("ℹ️ Telegram не настроен. Алерты выводятся в консоль.")
+        print("ℹ️ TELEGRAM_BOT_TOKEN не задан. Алерты выводятся в консоль.")
 
     while True:
         try:
