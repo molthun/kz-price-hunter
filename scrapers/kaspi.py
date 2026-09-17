@@ -1,118 +1,112 @@
-import asyncio
+"""Kaspi Магазин: каталог берется из того же JSON, что использует сам сайт.
+
+Раньше страницы открывались через playwright и отдавали около 70 товаров на весь магазин.
+Эндпоинт `/yml/product-view/pl/results` листается как угодно глубоко (12 товаров на страницу)
+и отдает цену, ссылку, фото и остаток.
+"""
 import re
 import urllib.parse
-from typing import List, Dict, Any
-from playwright.async_api import async_playwright
+from typing import Any, Dict, List
 
-def parse_kaspi_price(price_str: str) -> int:
-    if not price_str:
-        return 0
-    # Отсекаем часть с рассрочкой, если она присутствует
-    main_part = re.split(r"рассроч|кредит", price_str, flags=re.IGNORECASE)[0]
-    digits = re.sub(r"[^\d]", "", main_part)
-    return int(digits) if digits else 0
+from curl_cffi import requests
+from scrapers.base import PagedScraper
 
-class KaspiScraper:
+class KaspiScraper(PagedScraper):
     SHOP_NAME = "Kaspi Магазин"
     SHOP_EMOJI = "🔴"
+    PAGE_DELAY_SECONDS = 0.4
+
+    API_URL = "https://kaspi.kz/yml/product-view/pl/results"
+    CITY_CODE = "710000000"  # Астана
 
     def __init__(self):
-        self.user_agent = (
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/124.0.0.0 Safari/537.36"
-        )
-        self.city_code = "710000000"  # Астана
+        self.base_url = "https://kaspi.kz"
+        self.headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/124.0.0.0 Safari/537.36"
+            ),
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "ru-RU,ru;q=0.9",
+            "X-KS-City": self.CITY_CODE,
+        }
 
-    async def scrape(self, category_name: str, category_url: str, max_pages: int = 1) -> List[Dict[str, Any]]:
+    @staticmethod
+    def _category_code(category_url: str) -> str:
+        """Код категории для запроса: /shop/c/smart%20watches/ -> smart watches."""
+        path = urllib.parse.urlparse(category_url).path if category_url.startswith("http") else category_url
+        slug = path.rstrip("/").split("/c/")[-1]
+        return urllib.parse.unquote(slug)
+
+    @staticmethod
+    def _cards(payload: Any) -> List[Dict[str, Any]]:
+        """Kaspi отдает карточки либо списком в `data`, либо внутри `data.cards`."""
+        data = payload.get("data") if isinstance(payload, dict) else payload
+        if isinstance(data, list):
+            return [c for c in data if isinstance(c, dict) and c.get("id")]
+        if isinstance(data, dict):
+            return [c for c in (data.get("cards") or []) if isinstance(c, dict) and c.get("id")]
+        return []
+
+    def _fetch_page(self, category_name: str, category_url: str, page_num: int) -> List[Dict[str, Any]]:
+        code = self._category_code(category_url)
+        params = {
+            "page": page_num - 1,  # у Kaspi нумерация страниц с нуля
+            "q": f":category:{code}",
+            "text": "",
+            "sort": "relevance",
+            "qs": "",
+            "ui": "d",
+            "i": "-1",
+            "c": self.CITY_CODE,
+        }
+        headers = dict(self.headers, Referer=category_url)
+        r = requests.get(self.API_URL, params=params, headers=headers, impersonate="chrome124", timeout=30)
+        if r.status_code != 200:
+            if page_num == 1:
+                print(f"[{self.SHOP_NAME}] Ошибка HTTP {r.status_code} для категории {code}")
+            return []
+
+        try:
+            cards = self._cards(r.json())
+        except Exception as e:
+            print(f"[{self.SHOP_NAME}] Не удалось разобрать ответ категории {code}: {e}")
+            return []
+
         products: List[Dict[str, Any]] = []
+        for card in cards:
+            title = (card.get("title") or "").strip()
+            price = int(card.get("unitSalePrice") or card.get("unitPrice") or 0)
+            if not title or price <= 0:
+                continue
 
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(
-                headless=True,
-                args=["--disable-blink-features=AutomationControlled", "--no-sandbox"]
-            )
-            context = await browser.new_context(
-                user_agent=self.user_agent,
-                locale="ru-RU",
-                viewport={"width": 1920, "height": 1080}
-            )
+            # Товары не в наличии в выбранном городе цены не показывают
+            if card.get("stock") is not None and int(card.get("stock") or 0) <= 0:
+                continue
 
-            await context.add_cookies([
-                {"name": "kaspi.storefront.cookie.city", "value": self.city_code, "domain": ".kaspi.kz", "path": "/"}
-            ])
+            base_price = int(card.get("unitPrice") or 0)
+            link = card.get("shopLink") or ""
+            if link.startswith("/"):
+                link = f"{self.base_url}{link}"
 
-            page = await context.new_page()
+            images = card.get("previewImages") or []
+            image_url = ""
+            if images and isinstance(images[0], dict):
+                image_url = images[0].get("medium") or images[0].get("large") or images[0].get("small") or ""
 
-            for page_num in range(1, max_pages + 1):
-                url = category_url
-                separator = "&" if "?" in url else "?"
-                if f"c={self.city_code}" not in url:
-                    url = f"{url}{separator}c={self.city_code}"
-                if page_num > 1:
-                    separator = "&" if "?" in url else "?"
-                    url = f"{url}{separator}page={page_num - 1}"
+            categories = card.get("categoryRu") or card.get("category") or []
+            category = categories[-1] if categories else category_name
 
-                try:
-                    await page.goto(url, wait_until="domcontentloaded", timeout=25000)
-                    try:
-                        await page.wait_for_selector(".item-card", timeout=10000)
-                    except Exception:
-                        pass
-
-                    await asyncio.sleep(2.5)
-
-                    raw_cards = await page.evaluate('''() => {
-                        const cards = document.querySelectorAll('.item-card');
-                        return Array.from(cards).map(c => {
-                            const titleEl = c.querySelector('.item-card__name-link, .item-card__name, [class*="name"]');
-                            const priceEl = c.querySelector('.item-card__prices-price, [class*="price"]');
-                            const linkEl = c.querySelector('a.item-card__name-link, a[href*="/shop/p/"]');
-                            const imgEl = c.querySelector('img.item-card__image, img');
-                            return {
-                                title: titleEl ? titleEl.innerText.trim() : '',
-                                price_text: priceEl ? priceEl.innerText.trim() : '',
-                                link: linkEl ? linkEl.href : '',
-                                img: imgEl ? imgEl.src : ''
-                            };
-                        });
-                    }''')
-
-                    for c in raw_cards:
-                        title = c.get("title", "")
-                        link = c.get("link", "")
-                        if not title or not link:
-                            continue
-
-                        price = parse_kaspi_price(c.get("price_text", ""))
-                        if price <= 0:
-                            continue
-
-                        # Извлекаем ID из ссылки (например, ...-129172890/?...)
-                        id_match = re.search(r"-(\d+)/", link)
-                        pid = id_match.group(1) if id_match else link.split("/")[-2]
-
-                        products.append({
-                            "shop": self.SHOP_NAME,
-                            "id": f"kaspi_{pid}",
-                            "title": title,
-                            "category": category_name,
-                            "url": link,
-                            "image_url": c.get("img", ""),
-                            "price": price,
-                            "old_price_on_site": 0,
-                            "city": "Астана"
-                        })
-
-                except Exception as e:
-                    print(f"[{self.SHOP_NAME}] Ошибка страницы {url}: {e}")
-                    break
-
-            await browser.close()
+            products.append({
+                "shop": self.SHOP_NAME,
+                "id": f"kaspi_{card['id']}",
+                "title": title,
+                "category": category or category_name,
+                "url": link or f"{self.base_url}/shop/search/?text={urllib.parse.quote(title)}",
+                "image_url": image_url,
+                "price": price,
+                "old_price_on_site": base_price if base_price > price else 0,
+                "city": "Астана"
+            })
         return products
-
-    async def search(self, query: str, max_items: int = 15) -> List[Dict[str, Any]]:
-        """Прямой поиск товаров в Kaspi по текстовому запросу."""
-        encoded = urllib.parse.quote(query)
-        search_url = f"https://kaspi.kz/shop/search/?text={encoded}&c={self.city_code}"
-        return await self.scrape(f"Поиск: {query}", search_url, max_pages=1)

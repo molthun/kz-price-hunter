@@ -453,14 +453,25 @@ MOON_CATEGORIES = [
 
 # 10. Kaspi Магазин (kaspi.kz)
 KASPI_CATEGORIES = [
-    {"name": "Kaspi: ⌚️ Смарт-часы", "url": "https://kaspi.kz/shop/c/smart%20watches/", "max_pages": 2},
-    {"name": "Kaspi: 📱 Смартфоны", "url": "https://kaspi.kz/shop/c/smartphones/", "max_pages": 2},
-    {"name": "Kaspi: 💻 Ноутбуки", "url": "https://kaspi.kz/shop/c/laptops/", "max_pages": 2},
-    {"name": "Kaspi: 🎧 Наушники", "url": "https://kaspi.kz/shop/c/headphones/", "max_pages": 2},
-    {"name": "Kaspi: 🎮 Видеокарты", "url": "https://kaspi.kz/shop/c/video%20cards/", "max_pages": 2},
-    {"name": "Kaspi: 📱 Планшеты", "url": "https://kaspi.kz/shop/c/tablets/", "max_pages": 2},
-    {"name": "Kaspi: 🖥 Мониторы", "url": "https://kaspi.kz/shop/c/monitors/", "max_pages": 2},
-    {"name": "Kaspi: 🎮 Игровые консоли", "url": "https://kaspi.kz/shop/c/game%20consoles/", "max_pages": 2}
+    {"name": "Kaspi: 📱 Смартфоны", "url": "https://kaspi.kz/shop/c/smartphones/", "max_pages": 30},
+    {"name": "Kaspi: 💻 Ноутбуки", "url": "https://kaspi.kz/shop/c/notebooks/", "max_pages": 30},
+    {"name": "Kaspi: ⌚️ Смарт-часы", "url": "https://kaspi.kz/shop/c/smart%20watches/", "max_pages": 30},
+    {"name": "Kaspi: 🎧 Наушники", "url": "https://kaspi.kz/shop/c/headphones/", "max_pages": 30},
+    {"name": "Kaspi: 📱 Планшеты", "url": "https://kaspi.kz/shop/c/tablets/", "max_pages": 30},
+    {"name": "Kaspi: 🖥 Мониторы", "url": "https://kaspi.kz/shop/c/monitors/", "max_pages": 30},
+    {"name": "Kaspi: 🎮 Видеокарты", "url": "https://kaspi.kz/shop/c/videocards/", "max_pages": 30},
+    {"name": "Kaspi: ⚙️ Процессоры", "url": "https://kaspi.kz/shop/c/cpus/", "max_pages": 30},
+    {"name": "Kaspi: 🔌 Материнские платы", "url": "https://kaspi.kz/shop/c/motherboards/", "max_pages": 30},
+    {"name": "Kaspi: 🎮 Игровые приставки", "url": "https://kaspi.kz/shop/c/game%20consoles/", "max_pages": 30},
+    {"name": "Kaspi: 📺 Телевизоры", "url": "https://kaspi.kz/shop/c/tvs/", "max_pages": 30},
+    {"name": "Kaspi: ❄️ Холодильники", "url": "https://kaspi.kz/shop/c/refrigerators/", "max_pages": 30},
+    {"name": "Kaspi: 🧺 Стиральные машины", "url": "https://kaspi.kz/shop/c/washers/", "max_pages": 30},
+    {"name": "Kaspi: 🧹 Пылесосы", "url": "https://kaspi.kz/shop/c/vacuum%20cleaners/", "max_pages": 30},
+    {"name": "Kaspi: 🤖 Роботы-пылесосы", "url": "https://kaspi.kz/shop/c/robot%20vacuum%20cleaners/", "max_pages": 30},
+    {"name": "Kaspi: ☕️ Кофемашины", "url": "https://kaspi.kz/shop/c/coffee%20machines%20and%20coffee%20makers/", "max_pages": 30},
+    {"name": "Kaspi: 💨 Кондиционеры", "url": "https://kaspi.kz/shop/c/air%20conditioners/", "max_pages": 30},
+    {"name": "Kaspi: 🖨 Принтеры и МФУ", "url": "https://kaspi.kz/shop/c/mf%20printers/", "max_pages": 30},
+    {"name": "Kaspi: 📽 Проекторы", "url": "https://kaspi.kz/shop/c/video%20projectors/", "max_pages": 30},
 ]
 
 # 11. 4mobile (4mobile.pages.dev)
