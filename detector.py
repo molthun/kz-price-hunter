@@ -8,48 +8,56 @@ PREMIUM_KEYWORDS = [
     "oled", "qled"
 ]
 
-USED_GOODS_KEYWORDS = [
-    "уценен", "уценка", "витрин", "б/у", "восстановлен", "refurbished", "б.у"
+DEFAULT_JUNK_KEYWORDS = [
+    "чехол", "пленка", "плёнка", "стекло", "кабель", "переходник",
+    "ремешок", "держатель", "подставка", "амбушюры", "накладка", "салфетки",
+    "зарядное", "зарядка", "блок питания", "адаптер", "пульт", "джойстик", "геймпад"
 ]
 
-def is_junk_accessory(title: str, custom_keywords: Optional[List[str]] = None) -> bool:
-    t = title.lower()
-    keywords = custom_keywords if custom_keywords is not None else [
-        "чехол", "пленка", "плёнка", "стекло", "кабель", "переходник",
-        "ремешок", "держатель", "подставка", "амбушюры", "накладка", "салфетки",
-        "зарядное", "зарядка", "блок питания", "адаптер"
-    ]
-    return any(k.lower() in t for k in keywords if k.strip())
+USED_GOODS_KEYWORDS = [
+    "уценен", "уценка", "уценён", "уцененный", "уценённый", "витрин", "витринный",
+    "б/у", "б.у", "б_у", "восстановлен", "refurbished", "после ремонта",
+    "(sn:", "sn:9", "sn:1", "sn:2", "sn:3", "sn:4", "sn:5", "sn:6", "sn:7", "sn:8", "sn:0"
+]
 
-def is_used_goods(title: str) -> bool:
-    t = title.lower()
+def is_junk_accessory(title: str, category: str = "", custom_keywords: Optional[List[str]] = None) -> bool:
+    t = f"{title} {category}".lower()
+    keywords = list(DEFAULT_JUNK_KEYWORDS)
+    if custom_keywords:
+        for k in custom_keywords:
+            if k.strip() and k.strip().lower() not in keywords:
+                keywords.append(k.strip().lower())
+    return any(k in t for k in keywords if k)
+
+def is_used_goods(title: str, category: str = "", url: str = "") -> bool:
+    t = f"{title} {category} {url}".lower()
     return any(k in t for k in USED_GOODS_KEYWORDS)
 
 def check_anomaly(product: Dict[str, Any], history_info: Dict[str, Any], custom_settings: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
     s = custom_settings if custom_settings is not None else load_settings()
     
-    title = product["title"]
-    curr_price = int(product["price"])
+    title = product.get("title", "")
+    category = product.get("category", "")
+    url = product.get("url", "")
+    curr_price = int(product.get("price", 0) or product.get("current_price", 0))
     old_price_history = int(history_info.get("old_price", curr_price))
     first_price = int(history_info.get("first_seen_price", curr_price))
     old_price_on_site = int(product.get("old_price_on_site", 0))
 
     # 1. Проверка стоп-слов хлама / аксессуаров
     junk_list = s.get("junk_keywords", [])
-    if is_junk_accessory(title, junk_list):
+    if is_junk_accessory(title, category, junk_list):
         return None
 
     # 2. Проверка уценки / б/у
-    if s.get("exclude_used_goods", True) and is_used_goods(title):
+    if s.get("exclude_used_goods", True) and is_used_goods(title, category, url):
         return None
 
     # 3. Проверка ценового диапазона
     min_price_cap = s.get("min_item_price_kzt", 30000)
     max_price_cap = s.get("max_item_price_kzt", 3000000)
     
-    # Для детекции пропущенного нуля цена может быть ниже min_price_cap (например, 18 990 ₸ вместо 189 990 ₸)
-    # Но если товар дороже max_price_cap, отсекаем
-    if curr_price > max_price_cap:
+    if curr_price > max_price_cap or curr_price <= 0:
         return None
 
     detect_zero = s.get("detect_zero_glitch", True)
@@ -57,7 +65,7 @@ def check_anomaly(product: Dict[str, Any], history_info: Dict[str, Any], custom_
     min_drop_pct = s.get("price_glitch_drop_pct", 65)
     min_savings = s.get("min_savings_kzt", 40000)
 
-    # Опорная цена — максимум из истории и зачеркнутой цены на сайте
+    # Опорная цена — максимум из РЕАЛЬНОЙ истории цен в базе и подтвержденной зачеркнутой цены на сайте
     reference_price = max(old_price_history, first_price, old_price_on_site)
 
     # 4. Анализ падения относительно опорной цены
@@ -66,7 +74,7 @@ def check_anomaly(product: Dict[str, Any], history_info: Dict[str, Any], custom_
         drop_pct = round((savings / reference_price) * 100, 1)
         ratio = reference_price / curr_price if curr_price > 0 else 0
 
-        # А) Пропущенный ноль (Drop в ~10 раз): 189 990 -> 18 990
+        # А) Пропущенный ноль (реальное падение в ~10 раз зафиксированной цены): 189 990 -> 18 990
         if detect_zero and ZERO_DROP_RATIO_MIN <= ratio <= ZERO_DROP_RATIO_MAX and reference_price >= 80_000:
             return {
                 "type": "ZERO_GLITCH",
@@ -75,7 +83,7 @@ def check_anomaly(product: Dict[str, Any], history_info: Dict[str, Any], custom_
                 "new_price": curr_price,
                 "drop_pct": drop_pct,
                 "savings": savings,
-                "reason": f"Цена упала в {round(ratio, 1)} раз (вероятно, пропущен ноль при переоценке!)"
+                "reason": f"Цена упала в {round(ratio, 1)} раз (с {reference_price:,} ₸ до {curr_price:,} ₸, вероятно, пропущен ноль!)".replace(",", " ")
             }
 
         # Б) Глубокий обвал цены (Супер-скидка)
@@ -90,22 +98,6 @@ def check_anomaly(product: Dict[str, Any], history_info: Dict[str, Any], custom_
                 "reason": f"Обвал цены на {drop_pct}% с экономией {savings:,} ₸".replace(",", " ")
             }
 
-    # 5. Эвристическая проверка для новых товаров без истории
-    if detect_zero:
-        title_lower = title.lower()
-        for kw in PREMIUM_KEYWORDS:
-            if kw in title_lower and curr_price < 80_000 and curr_price > 5000:
-                estimated_market_price = curr_price * 10
-                return {
-                    "type": "ZERO_GLITCH",
-                    "emoji": "🚨 ПОДОЗРЕНИЕ НА ОШИБОЧНУЮ ЦЕНУ",
-                    "old_price": estimated_market_price,
-                    "new_price": curr_price,
-                    "drop_pct": 90.0,
-                    "savings": estimated_market_price - curr_price,
-                    "reason": f"Флагманский товар ({kw.upper()}) выставлен всего за {curr_price:,} ₸!".replace(",", " ")
-                }
-
     return None
 
 def check_market_arbitrage(
@@ -116,6 +108,16 @@ def check_market_arbitrage(
     """Детекция аномалии межмагазинного арбитража / глубокой скидки по сравнению с другими магазинами."""
     s = custom_settings if custom_settings is not None else load_settings()
     if not s.get("detect_market_arbitrage", True):
+        return None
+
+    title = product.get("title", "")
+    category = product.get("category", "")
+    url = product.get("url", "")
+    junk_list = s.get("junk_keywords", [])
+
+    if is_junk_accessory(title, category, junk_list):
+        return None
+    if s.get("exclude_used_goods", True) and is_used_goods(title, category, url):
         return None
 
     curr_price = int(product.get("price", 0) or product.get("current_price", 0))
