@@ -1,7 +1,7 @@
 import urllib.parse
 import requests
 from typing import Dict, Any
-from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, APP_URL
 
 def format_price(amount: int) -> str:
     return f"{amount:,} ₸".replace(",", " ")
@@ -79,7 +79,8 @@ def send_alert(product: Dict[str, Any], anomaly: Dict[str, Any]):
                 "parse_mode": "HTML",
                 "reply_markup": {
                     "inline_keyboard": [
-                        [{"text": f"⚡️ Открыть товар в {shop}", "url": url}]
+                        [{"text": f"⚡️ Открыть товар в {shop}", "url": url}],
+                        [{"text": "📊 Дашборд цен (shop.molthun.ru)", "url": APP_URL}]
                     ]
                 }
             }
@@ -95,7 +96,8 @@ def send_alert(product: Dict[str, Any], anomaly: Dict[str, Any]):
                     "parse_mode": "HTML",
                     "reply_markup": {
                         "inline_keyboard": [
-                            [{"text": f"⚡️ Открыть товар в {shop}", "url": url}]
+                            [{"text": f"⚡️ Открыть товар в {shop}", "url": url}],
+                            [{"text": "📊 Дашборд цен (shop.molthun.ru)", "url": APP_URL}]
                         ]
                     }
                 }, timeout=10)

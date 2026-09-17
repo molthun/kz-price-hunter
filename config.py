@@ -7,6 +7,7 @@ DATA_DIR = Path(os.getenv("DATA_DIR", BASE_DIR))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 DB_PATH = DATA_DIR / "prices.db"
 SETTINGS_FILE = DATA_DIR / "settings.json"
+APP_URL = os.getenv("APP_URL", "https://shop.molthun.ru")
 
 # Дефолтные настройки
 DEFAULT_SETTINGS = {

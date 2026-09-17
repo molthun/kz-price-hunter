@@ -2,6 +2,7 @@ version: '3.8'
 
 services:
   kz-price-hunter:
+    build: .
     image: ghcr.io/molthun/kz-price-hunter:latest
     container_name: kz-price-hunter
     restart: unless-stopped
@@ -11,6 +12,8 @@ services:
       - DATA_DIR=/app/data
       - TZ=Asia/Almaty
       - PORT=35539
+      - DOMAIN=shop.molthun.ru
+      - APP_URL=https://shop.molthun.ru
     volumes:
       - ./data:/app/data
 
