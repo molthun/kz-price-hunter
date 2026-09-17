@@ -43,7 +43,6 @@ DEFAULT_SETTINGS = {
     # Поиск по умолчанию (Cache-First / Anti-DDoS)
     "search_exclude_accessories_default": True,
     "search_default_sort": "price_asc",
-    "search_auto_live": False,
 
     # Магазины
     "enabled_shops": {

@@ -289,7 +289,7 @@
               <span>Anti-DDoS: Поиск по базе данных</span>
             </span>
             <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 hover:border-slate-700 transition">
-              <input type="checkbox" id="checkLiveSearch" onchange="onLiveSearchToggle(this.checked)" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              <input type="checkbox" id="checkLiveSearch" autocomplete="off" onchange="onLiveSearchToggle(this.checked)" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
               <span>Прямой опрос магазинов (Live)</span>
             </label>
           </div>
@@ -647,11 +647,6 @@
               <label class="flex items-center space-x-2 text-xs text-slate-300 cursor-pointer">
                 <input type="checkbox" id="checkSearchExcludeAccDefault" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
                 <span>Всегда отсекать аксессуары (чехлы, пленки) при поиске</span>
-              </label>
-
-              <label class="flex items-center space-x-2 text-xs text-slate-300 cursor-pointer">
-                <input type="checkbox" id="checkSearchAutoLive" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
-                <span>Авто-опрос Kaspi и внешних сетей в реальном времени</span>
               </label>
             </div>
           </div>
@@ -1524,7 +1519,9 @@
       const menu = document.createElement('div');
       menu.setAttribute('role', 'listbox');
       menu.tabIndex = -1;
-      menu.className = 'hidden absolute left-0 right-0 mt-1 z-40 max-h-72 overflow-y-auto bg-slate-900 border border-slate-700 rounded-xl shadow-2xl py-1';
+      // Меню живет в <body> с position: fixed — иначе карточки с backdrop-filter (.glass)
+      // образуют свой контекст наложения, и соседняя карточка перекрывает список
+      menu.className = 'hidden fixed z-50 max-h-72 overflow-y-auto bg-slate-900 border border-slate-700 rounded-xl shadow-2xl py-1';
       [...select.options].forEach(option => {
         const item = document.createElement('div');
         item.setAttribute('role', 'option');
@@ -1543,9 +1540,26 @@
         list.forEach((el, i) => el.dataset.active = (i === activeIndex));
         list[activeIndex].scrollIntoView({ block: 'nearest' });
       };
+      const position = () => {
+        const rect = button.getBoundingClientRect();
+        const gap = 4;
+        menu.style.left = `${rect.left}px`;
+        menu.style.width = `${rect.width}px`;
+        // Если снизу не хватает места — открываем список вверх
+        const spaceBelow = window.innerHeight - rect.bottom - gap;
+        const menuHeight = Math.min(menu.scrollHeight, 288);
+        if (spaceBelow < menuHeight && rect.top > spaceBelow) {
+          menu.style.top = 'auto';
+          menu.style.bottom = `${window.innerHeight - rect.top + gap}px`;
+        } else {
+          menu.style.bottom = 'auto';
+          menu.style.top = `${rect.bottom + gap}px`;
+        }
+      };
       const open = () => {
         document.querySelectorAll('[role="listbox"]').forEach(m => { if (m !== menu) m.classList.add('hidden'); });
         menu.classList.remove('hidden');
+        position();
         button.setAttribute('aria-expanded', 'true');
         setActive(Math.max(0, select.selectedIndex));
       };
@@ -1575,11 +1589,15 @@
           close();
         }
       });
-      document.addEventListener('click', (e) => { if (!wrapper.contains(e.target)) close(); });
+      document.addEventListener('click', (e) => { if (!wrapper.contains(e.target) && !menu.contains(e.target)) close(); });
+      const reposition = () => { if (!menu.classList.contains('hidden')) position(); };
+      window.addEventListener('resize', reposition);
+      window.addEventListener('scroll', reposition, true);
 
       select.classList.add('hidden');
       select.parentNode.insertBefore(wrapper, select.nextSibling);
-      wrapper.append(button, menu);
+      wrapper.append(button);
+      document.body.appendChild(menu);
       select._shopDropdown = { button, menu };
       syncShopSelect(selectId);
     }
@@ -1882,9 +1900,9 @@
     function applySearchDefaults(s) {
       document.getElementById('bestPriceSort').value = s.search_default_sort || 'price_asc';
       document.getElementById('bestPriceExcludeAcc').checked = (s.search_exclude_accessories_default !== false);
-      const live = (s.search_auto_live === true);
-      document.getElementById('checkLiveSearch').checked = live;
-      onLiveSearchToggle(live);
+      // Прямой опрос магазинов всегда выключен по умолчанию и включается только вручную
+      document.getElementById('checkLiveSearch').checked = false;
+      onLiveSearchToggle(false);
     }
 
     async function loadSettings(withSearchDefaults = false) {
@@ -1912,7 +1930,6 @@
         // 3. Поиск по умолчанию
         document.getElementById('selectSearchDefaultSort').value = s.search_default_sort || 'price_asc';
         document.getElementById('checkSearchExcludeAccDefault').checked = (s.search_exclude_accessories_default !== false);
-        document.getElementById('checkSearchAutoLive').checked = (s.search_auto_live === true);
 
         // 4. Telegram
         document.getElementById('inputTgToken').value = s.telegram_bot_token || '';
@@ -1993,7 +2010,6 @@
         // Поиск по умолчанию
         search_default_sort: document.getElementById('selectSearchDefaultSort').value,
         search_exclude_accessories_default: document.getElementById('checkSearchExcludeAccDefault').checked,
-        search_auto_live: document.getElementById('checkSearchAutoLive').checked,
 
         // Магазины
         enabled_shops: {
