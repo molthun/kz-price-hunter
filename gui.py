@@ -6,7 +6,7 @@ import asyncio
 from aiohttp import web
 from web.server import create_app
 
-PORT = int(os.getenv("PORT", 35539))
+PORT = int(os.getenv("PORT", 8080))
 HOST = "0.0.0.0"
 
 def get_local_ip():

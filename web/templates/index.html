@@ -159,6 +159,12 @@
         <i class="fa-solid fa-sliders"></i>
         <span>Настройки & Telegram</span>
       </button>
+
+      <button onclick="switchTab('logs')" id="tabBtnLogs" class="pb-3 text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center gap-2 cursor-pointer">
+        <i class="fa-solid fa-terminal text-sky-400"></i>
+        <span>Логи (Live)</span>
+        <span id="badgeLogsLive" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+      </button>
     </div>
 
     <!-- Вкладка 1: Аномалии и Скидки -->
@@ -699,6 +705,68 @@
       </div>
     </section>
 
+    <!-- Вкладка 5: Логи в реальном времени (Live Console) -->
+    <section id="tabLogs" class="hidden space-y-4">
+      <div class="glass p-5 rounded-2xl border-slate-800 space-y-4">
+        <!-- Тулбар управления логами -->
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800">
+          <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700/60 text-xs font-semibold text-white">
+              <span id="logsLiveDot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span id="logsLiveStatusText">В эфире (Live)</span>
+            </div>
+            <div class="text-xs text-slate-400">
+              Строк в буфере: <span id="logsCountBadge" class="text-slate-200 font-mono font-bold">0</span>
+            </div>
+          </div>
+
+          <!-- Фильтры уровней -->
+          <div class="flex items-center flex-wrap gap-1 text-xs bg-slate-950/60 p-1 rounded-xl border border-slate-800">
+            <button onclick="setLogLevelFilter('ALL')" id="logFiltAll" class="px-2.5 py-1 rounded-lg font-medium transition cursor-pointer bg-slate-800 text-emerald-400 font-semibold">Все</button>
+            <button onclick="setLogLevelFilter('SCAN')" id="logFiltScan" class="px-2.5 py-1 rounded-lg font-medium transition cursor-pointer text-slate-400 hover:text-sky-400">⚡️ Сканирование</button>
+            <button onclick="setLogLevelFilter('SUCCESS')" id="logFiltSuccess" class="px-2.5 py-1 rounded-lg font-medium transition cursor-pointer text-slate-400 hover:text-emerald-400">✅ Успех</button>
+            <button onclick="setLogLevelFilter('WARN')" id="logFiltWarn" class="px-2.5 py-1 rounded-lg font-medium transition cursor-pointer text-slate-400 hover:text-amber-400">⚠️ Внимание</button>
+            <button onclick="setLogLevelFilter('ERROR')" id="logFiltError" class="px-2.5 py-1 rounded-lg font-medium transition cursor-pointer text-slate-400 hover:text-rose-400">❌ Ошибки</button>
+          </div>
+
+          <!-- Поиск, Автоскролл и Действия -->
+          <div class="flex items-center flex-wrap gap-2.5">
+            <div class="relative min-w-[170px]">
+              <i class="fa-solid fa-filter absolute left-3 top-2.5 text-slate-500 text-xs"></i>
+              <input type="text" id="logSearchInput" oninput="applyLogFilter()" placeholder="Фильтр (DNS, Kaspi...)" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 transition">
+            </div>
+
+            <label class="flex items-center space-x-1.5 text-xs text-slate-300 select-none cursor-pointer px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 transition">
+              <input type="checkbox" id="checkLogAutoscroll" checked class="w-3.5 h-3.5 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              <span>Автоскролл</span>
+            </label>
+
+            <button onclick="toggleLogPause()" id="btnLogPause" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition flex items-center gap-1.5 cursor-pointer">
+              <i id="iconLogPause" class="fa-solid fa-pause"></i>
+              <span id="textLogPause">Пауза</span>
+            </button>
+
+            <button onclick="clearLogsOnServer()" title="Очистить логи" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-rose-500/20 hover:text-rose-400 text-slate-400 text-xs transition cursor-pointer">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+
+            <a href="/api/logs/export" download="kz_price_hunter_logs.txt" title="Скачать полный лог в .txt" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-sky-500/20 hover:text-sky-400 text-slate-400 text-xs transition cursor-pointer">
+              <i class="fa-solid fa-download"></i>
+            </a>
+          </div>
+        </div>
+
+        <!-- Терминальное окно вывода логов -->
+        <div id="logsTerminalContainer" class="relative w-full h-[550px] bg-[#070b14] border border-slate-800/90 rounded-xl p-3.5 overflow-y-auto font-mono text-[11.5px] leading-relaxed select-text space-y-1 scroll-smooth">
+          <div id="logsEmptyState" class="h-full flex flex-col items-center justify-center text-slate-500 space-y-2">
+            <i class="fa-solid fa-terminal text-3xl opacity-30"></i>
+            <div>Ожидание системных событий...</div>
+          </div>
+          <div id="logsOutput" class="space-y-0.5"></div>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <footer class="border-t border-slate-800 py-4 px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
@@ -956,7 +1024,7 @@
     }
 
     function switchTab(tab) {
-      ['Alerts', 'Bestprice', 'Catalog', 'Settings'].forEach(t => {
+      ['Alerts', 'Bestprice', 'Catalog', 'Settings', 'Logs'].forEach(t => {
         const btn = document.getElementById('tabBtn' + t);
         const sec = document.getElementById('tab' + t);
         if (!btn || !sec) return;
@@ -970,6 +1038,11 @@
       });
       if (tab === 'catalog') loadCatalog(0);
       if (tab === 'settings') loadSettings();
+      if (tab === 'logs') {
+        startLogsPolling();
+      } else {
+        stopLogsPolling();
+      }
     }
 
     // Загрузка статистики и обновление автономного индикатора свежести базы
@@ -1645,6 +1718,185 @@
           if (fVer) fVer.innerText = verText;
         }
       } catch(e) {}
+    }
+
+    // === LIVE LOGS CONTROLLER ===
+    let lastLogId = 0;
+    let logsPollTimer = null;
+    let isLogPaused = false;
+    let currentLogLevelFilter = 'ALL';
+    let allLogsCache = [];
+
+    function setLogLevelFilter(lvl) {
+      currentLogLevelFilter = lvl;
+      ['All', 'Scan', 'Success', 'Warn', 'Error'].forEach(name => {
+        const btn = document.getElementById('logFilt' + name);
+        if (!btn) return;
+        if (name.toUpperCase() === lvl.toUpperCase()) {
+          btn.className = 'px-2.5 py-1 rounded-lg font-medium transition cursor-pointer bg-slate-800 text-emerald-400 font-semibold';
+        } else {
+          btn.className = 'px-2.5 py-1 rounded-lg font-medium transition cursor-pointer text-slate-400 hover:text-slate-200';
+        }
+      });
+      renderLogs();
+    }
+
+    function toggleLogPause() {
+      isLogPaused = !isLogPaused;
+      const btnText = document.getElementById('textLogPause');
+      const btnIcon = document.getElementById('iconLogPause');
+      const dot = document.getElementById('logsLiveDot');
+      const status = document.getElementById('logsLiveStatusText');
+
+      if (isLogPaused) {
+        if (btnText) btnText.innerText = 'Продолжить';
+        if (btnIcon) btnIcon.className = 'fa-solid fa-play text-emerald-400';
+        if (dot) dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400';
+        if (status) status.innerText = 'Пауза';
+      } else {
+        if (btnText) btnText.innerText = 'Пауза';
+        if (btnIcon) btnIcon.className = 'fa-solid fa-pause';
+        if (dot) dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse';
+        if (status) status.innerText = 'В эфире (Live)';
+        fetchLiveLogs();
+      }
+    }
+
+    async function clearLogsOnServer() {
+      try {
+        await fetch('/api/logs/clear', { method: 'POST' });
+        allLogsCache = [];
+        lastLogId = 0;
+        renderLogs();
+        showToast('🧹 Буфер логов очищен');
+      } catch(e) {
+        showToast('❌ Ошибка очистки логов: ' + e);
+      }
+    }
+
+    function applyLogFilter() {
+      renderLogs();
+    }
+
+    function getLevelBadge(level) {
+      const lvl = (level || 'INFO').toUpperCase();
+      if (lvl === 'ERROR') return '<span class="px-1.5 py-0.5 rounded text-[10px] bg-rose-500/20 text-rose-400 border border-rose-500/30 font-bold">ERROR</span>';
+      if (lvl === 'WARN') return '<span class="px-1.5 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30 font-semibold">WARN</span>';
+      if (lvl === 'SUCCESS') return '<span class="px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-semibold">OK</span>';
+      if (lvl === 'SCAN') return '<span class="px-1.5 py-0.5 rounded text-[10px] bg-sky-500/20 text-sky-400 border border-sky-500/30 font-semibold">SCAN</span>';
+      return '<span class="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400 border border-slate-700/50">INFO</span>';
+    }
+
+    function getSourceTag(source) {
+      const src = source || 'System';
+      let color = 'text-slate-400 border-slate-700 bg-slate-800/40';
+      const s = src.toLowerCase();
+      if (s.includes('kaspi')) color = 'text-rose-400 border-rose-500/30 bg-rose-500/10';
+      else if (s.includes('dns')) color = 'text-amber-400 border-amber-500/30 bg-amber-500/10';
+      else if (s.includes('shopkz') || s.includes('ветер')) color = 'text-sky-400 border-sky-500/30 bg-sky-500/10';
+      else if (s.includes('autoscan')) color = 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10';
+      else if (s.includes('4mobile')) color = 'text-indigo-400 border-indigo-500/30 bg-indigo-500/10';
+      else if (s.includes('sulpak')) color = 'text-teal-400 border-teal-500/30 bg-teal-500/10';
+      else if (s.includes('мечта')) color = 'text-fuchsia-400 border-fuchsia-500/30 bg-fuchsia-500/10';
+      return `<span class="px-1.5 py-0.5 rounded text-[10px] border ${color} font-medium">[${src}]</span>`;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.innerText = text;
+      return div.innerHTML;
+    }
+
+    function renderLogs() {
+      const output = document.getElementById('logsOutput');
+      const empty = document.getElementById('logsEmptyState');
+      const countBadge = document.getElementById('logsCountBadge');
+      if (!output) return;
+
+      const q = (document.getElementById('logSearchInput')?.value || '').toLowerCase().trim();
+      const filtered = allLogsCache.filter(l => {
+        if (currentLogLevelFilter !== 'ALL' && l.level.toUpperCase() !== currentLogLevelFilter) {
+          return false;
+        }
+        if (q) {
+          const matchMsg = (l.message || '').toLowerCase().includes(q);
+          const matchSrc = (l.source || '').toLowerCase().includes(q);
+          if (!matchMsg && !matchSrc) return false;
+        }
+        return true;
+      });
+
+      if (countBadge) {
+        countBadge.innerText = allLogsCache.length.toLocaleString();
+      }
+
+      if (filtered.length === 0) {
+        if (empty) empty.classList.remove('hidden');
+        output.innerHTML = '';
+        return;
+      }
+
+      if (empty) empty.classList.add('hidden');
+
+      const html = filtered.map(l => {
+        let msgColor = 'text-slate-300';
+        if (l.level === 'ERROR') msgColor = 'text-rose-300 font-semibold';
+        else if (l.level === 'WARN') msgColor = 'text-amber-300';
+        else if (l.level === 'SUCCESS') msgColor = 'text-emerald-300';
+        else if (l.level === 'SCAN') msgColor = 'text-sky-300';
+
+        return `<div class="flex items-start gap-2 py-0.5 hover:bg-slate-900/60 rounded px-1.5 transition">
+          <span class="text-slate-500 shrink-0 select-none">${l.timestamp}</span>
+          <span class="shrink-0">${getLevelBadge(l.level)}</span>
+          <span class="shrink-0">${getSourceTag(l.source)}</span>
+          <span class="${msgColor} break-all">${escapeHtml(l.message)}</span>
+        </div>`;
+      }).join('');
+
+      output.innerHTML = html;
+
+      // Автопрокрутка вниз
+      const autoscroll = document.getElementById('checkLogAutoscroll')?.checked;
+      if (autoscroll) {
+        const container = document.getElementById('logsTerminalContainer');
+        if (container) {
+          container.scrollTop = container.scrollHeight;
+        }
+      }
+    }
+
+    async function fetchLiveLogs() {
+      if (isLogPaused) return;
+      try {
+        const res = await fetch(`/api/logs?since=${lastLogId}&limit=250`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const newLogs = data.logs || [];
+        if (newLogs.length > 0) {
+          lastLogId = data.latest_id || newLogs[newLogs.length - 1].id;
+          allLogsCache.push(...newLogs);
+          if (allLogsCache.length > 2000) {
+            allLogsCache = allLogsCache.slice(-2000);
+          }
+          renderLogs();
+        }
+      } catch(e) {
+        // тихий отлов сетевых сбоев
+      }
+    }
+
+    function startLogsPolling() {
+      if (!logsPollTimer) {
+        fetchLiveLogs();
+        logsPollTimer = setInterval(fetchLiveLogs, 1200);
+      }
+    }
+
+    function stopLogsPolling() {
+      if (logsPollTimer) {
+        clearInterval(logsPollTimer);
+        logsPollTimer = null;
+      }
     }
 
     window.addEventListener('DOMContentLoaded', () => {

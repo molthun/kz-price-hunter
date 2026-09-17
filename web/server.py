@@ -46,7 +46,11 @@ from scrapers.kaspi import KaspiScraper
 from scrapers.fourmobile import FourMobileScraper
 from search_engine import get_best_price_summary
 from notifier import send_alert
+from log_manager import install_log_interceptor, log_buffer
 import requests
+
+# Инициализируем перехватчик консольного вывода для веб-логов
+install_log_interceptor()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 TEMPLATES_DIR = BASE_DIR / "web" / "templates"
@@ -327,6 +331,46 @@ async def sync_shopkz_yml_handler(request):
         "status": "started",
         "message": "Синхронизация официального YML каталога shop.kz (16k+ товаров) запущена в фоне"
     })
+
+@routes.get("/api/logs")
+async def logs_handler(request):
+    """Возвращает системные логи в реальном времени с поддержкой since_id для инкрементальной передачи."""
+    try:
+        since_id = int(request.query.get("since", 0))
+    except (ValueError, TypeError):
+        since_id = 0
+
+    try:
+        limit = int(request.query.get("limit", 250))
+    except (ValueError, TypeError):
+        limit = 250
+
+    level = request.query.get("level", None)
+    query = request.query.get("q", None)
+
+    logs = log_buffer.get_logs(since_id=since_id, limit=limit, level=level, query=query)
+    return web.json_response({
+        "logs": logs,
+        "latest_id": log_buffer._counter,
+        "total_buffer": len(log_buffer._buffer)
+    })
+
+@routes.post("/api/logs/clear")
+async def logs_clear_handler(request):
+    """Очищает кольцевой буфер логов."""
+    log_buffer.clear()
+    return web.json_response({"status": "ok", "message": "Буфер логов очищен"})
+
+@routes.get("/api/logs/export")
+async def logs_export_handler(request):
+    """Экспортирует логи в текстовый файл .txt для скачивания."""
+    text = log_buffer.export_text()
+    return web.Response(
+        text=text,
+        content_type="text/plain",
+        charset="utf-8",
+        headers={"Content-Disposition": 'attachment; filename="kz_price_hunter_logs.txt"'}
+    )
 
 async def auto_scan_background_worker(app):
     """Фоновый воркер: непрерывно следит за возрастом базы данных.
