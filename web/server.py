@@ -205,8 +205,42 @@ async def test_telegram_handler(request):
     except Exception as e:
         return web.json_response({"status": "error", "message": str(e)}, status=500)
 
+def _process_anomaly(p, anomaly, settings, shop_name):
+    """Записывает алерт (с защитой от дублей) и отправляет его в Telegram с учетом уровня уведомлений."""
+    if not anomaly or was_alert_sent_recently(p["id"], p["price"]):
+        return False
+
+    scan_state["anomalies_found"] += 1
+
+    # Фильтрация уровня уведомлений в Telegram
+    lvl = settings.get("telegram_notify_level", "ALL")
+    should_send_tg = True
+    if lvl == "CRITICAL_ONLY":
+        should_send_tg = (anomaly["type"] == "ZERO_GLITCH")
+    elif lvl == "HIGH_SAVINGS":
+        should_send_tg = (anomaly["type"] == "ZERO_GLITCH" or anomaly.get("drop_pct", 0) >= 75.0 or anomaly.get("savings", 0) >= 100000)
+
+    if should_send_tg:
+        send_alert(p, anomaly)
+
+    record_alert(
+        product_id=p["id"],
+        alert_type=anomaly["type"],
+        old_price=anomaly["old_price"],
+        new_price=anomaly["new_price"],
+        discount_pct=anomaly["drop_pct"],
+        savings_kzt=anomaly["savings"],
+        shop=p.get("shop", shop_name),
+        city=p.get("city", "Астана"),
+        competitor_shop=anomaly.get("competitor_shop")
+    )
+    return True
+
 async def _do_scan_task():
     global scan_state
+    # Проверка и установка флага до первого await — защита от параллельного запуска двух сканирований
+    if scan_state["is_running"]:
+        return
     scan_state["is_running"] = True
     scan_state["total_scanned"] = 0
     scan_state["anomalies_found"] = 0
@@ -258,59 +292,27 @@ async def _do_scan_task():
                     scan_state["total_scanned"] += len(prods)
 
                     if len(prods) > 200:
-                        from database import save_or_update_products_batch
+                        from database import save_or_update_products_batch, get_price_history_batch
+                        # История цен читается ДО пакетной перезаписи, иначе прежняя цена будет потеряна
+                        history_map = await asyncio.to_thread(get_price_history_batch, [p["id"] for p in prods])
                         await asyncio.to_thread(save_or_update_products_batch, prods)
-                        # Для детекции аномалий проверяем товары со скидками на сайте
-                        to_check = [p for p in prods if p.get("old_price_on_site", 0) > p.get("price", 0) or p.get("price", 0) >= 100000][:100]
-                        for p in to_check:
-                            anomaly = check_anomaly(p, {"old_price": p["price"], "first_seen_price": p["price"]}, custom_settings=settings)
-                            if not anomaly:
-                                anomaly = check_market_arbitrage(p, custom_settings=settings)
-                            if anomaly and not was_alert_sent_recently(p["id"], p["price"]):
-                                scan_state["anomalies_found"] += 1
-                                record_alert(
-                                    product_id=p["id"],
-                                    alert_type=anomaly["type"],
-                                    old_price=anomaly["old_price"],
-                                    new_price=anomaly["new_price"],
-                                    discount_pct=anomaly["drop_pct"],
-                                    savings_kzt=anomaly["savings"],
-                                    shop=p.get("shop", shop_name),
-                                    city=p.get("city", "Астана"),
-                                    competitor_shop=anomaly.get("competitor_shop")
-                                )
+
+                        for p in prods:
+                            history = history_map.get(str(p["id"]), {"old_price": p["price"], "first_seen_price": p["price"]})
+                            if history["old_price"] > p["price"] or history["first_seen_price"] > p["price"] or p.get("old_price_on_site", 0) > p["price"]:
+                                _process_anomaly(p, check_anomaly(p, history, custom_settings=settings), settings, shop_name)
+
+                        # Межмагазинный арбитраж (FTS-запрос на товар) — только для ограниченного набора кандидатов
+                        arbitrage_candidates = [p for p in prods if p.get("old_price_on_site", 0) > p.get("price", 0) or p.get("price", 0) >= 100000][:100]
+                        for p in arbitrage_candidates:
+                            _process_anomaly(p, check_market_arbitrage(p, custom_settings=settings), settings, shop_name)
                     else:
                         for p in prods:
                             history = save_or_update_product(p)
                             anomaly = check_anomaly(p, history, custom_settings=settings)
                             if not anomaly:
                                 anomaly = check_market_arbitrage(p, custom_settings=settings)
-
-                            if anomaly and not was_alert_sent_recently(p["id"], p["price"]):
-                                scan_state["anomalies_found"] += 1
-                                
-                                # Фильтрация уровня уведомлений в Telegram
-                                lvl = settings.get("telegram_notify_level", "ALL")
-                                should_send_tg = True
-                                if lvl == "CRITICAL_ONLY":
-                                    should_send_tg = (anomaly["type"] == "ZERO_GLITCH")
-                                elif lvl == "HIGH_SAVINGS":
-                                    should_send_tg = (anomaly["type"] == "ZERO_GLITCH" or anomaly.get("drop_pct", 0) >= 75.0 or anomaly.get("savings", 0) >= 100000)
-
-                                if should_send_tg:
-                                    send_alert(p, anomaly)
-
-                                record_alert(
-                                    product_id=p["id"],
-                                    alert_type=anomaly["type"],
-                                    old_price=anomaly["old_price"],
-                                    new_price=anomaly["new_price"],
-                                    discount_pct=anomaly["drop_pct"],
-                                    savings_kzt=anomaly["savings"],
-                                    shop=p.get("shop", shop_name),
-                                    city=p.get("city", "Астана"),
-                                    competitor_shop=anomaly.get("competitor_shop")
-                                )
+                            _process_anomaly(p, anomaly, settings, shop_name)
                     await asyncio.sleep(0.5)
                 except Exception as e:
                     print(f"Ошибка категории {cat['name']}: {e}")

@@ -8,3 +8,6 @@ __pycache__/
 *.db-shm
 .idea/
 .vscode/
+prices.db
+*.db
+settings.json

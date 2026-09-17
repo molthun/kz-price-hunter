@@ -1,7 +1,7 @@
 import urllib.parse
 import requests
 from typing import Dict, Any
-from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, APP_URL
+from config import load_settings, APP_URL
 
 def format_price(amount: int) -> str:
     return f"{amount:,} ₸".replace(",", " ")
@@ -69,12 +69,15 @@ def send_alert(product: Dict[str, Any], anomaly: Dict[str, Any]):
     print(f"Ссылка: {url}")
     print("=" * 65 + "\n")
 
-    # 2. Отправка в Telegram
-    if TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID:
+    # 2. Отправка в Telegram (настройки читаются при каждой отправке, чтобы изменения из веб-панели применялись без перезапуска)
+    settings = load_settings()
+    bot_token = settings.get("telegram_bot_token", "")
+    chat_id = settings.get("telegram_chat_id", "")
+    if bot_token and chat_id:
         try:
-            tg_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
+            tg_url = f"https://api.telegram.org/bot{bot_token}/sendPhoto"
             payload = {
-                "chat_id": TELEGRAM_CHAT_ID,
+                "chat_id": chat_id,
                 "caption": message_text,
                 "parse_mode": "HTML",
                 "reply_markup": {
@@ -89,9 +92,9 @@ def send_alert(product: Dict[str, Any], anomaly: Dict[str, Any]):
                 payload["photo"] = image_url
                 res = requests.post(tg_url, json=payload, timeout=10)
             else:
-                msg_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+                msg_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
                 res = requests.post(msg_url, json={
-                    "chat_id": TELEGRAM_CHAT_ID,
+                    "chat_id": chat_id,
                     "text": message_text,
                     "parse_mode": "HTML",
                     "reply_markup": {

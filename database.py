@@ -163,6 +163,7 @@ def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
     city = p.get("city", "Астана")
     title = p["title"]
     category = p.get("category", "")
+    url = p["url"]
     image_url = p.get("image_url", "")
     if image_url and "shop.kz//static.shop.kz" in image_url:
         image_url = image_url.replace("https://shop.kz//static.shop.kz", "https://static.shop.kz").replace("shop.kz//static.shop.kz", "static.shop.kz")
@@ -210,6 +211,30 @@ def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
                 "current_price": current_price,
                 "price_changed": price_changed
             }
+
+def get_price_history_batch(product_ids: List[str]) -> Dict[str, Dict[str, Any]]:
+    """Возвращает сохраненную историю цен для набора товаров (до пакетной перезаписи)."""
+    ids = [str(pid) for pid in product_ids]
+    history: Dict[str, Dict[str, Any]] = {}
+    if not ids:
+        return history
+
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        # Порциями, чтобы не упереться в лимит параметров SQLite
+        for i in range(0, len(ids), 500):
+            chunk = ids[i:i + 500]
+            placeholders = ",".join("?" * len(chunk))
+            cursor.execute(
+                f"SELECT id, current_price, first_seen_price FROM products WHERE id IN ({placeholders})",
+                chunk
+            )
+            for row in cursor.fetchall():
+                history[row["id"]] = {
+                    "old_price": row["current_price"],
+                    "first_seen_price": row["first_seen_price"]
+                }
+    return history
 
 def save_or_update_products_batch(products: List[Dict[str, Any]]) -> int:
     """Массовая вставка/обновление товаров в единой транзакции (для YML выгрузок и больших каталогов)."""
