@@ -1,4 +1,5 @@
 import re
+import hashlib
 import asyncio
 from typing import List, Dict, Any
 from curl_cffi import requests
@@ -104,9 +105,13 @@ class SulpakScraper:
                     old_price_el = c.select_one(".product__item-price-old, .old-price")
                     old_price = parse_price(old_price_el.text) if old_price_el else 0
 
+                    # ID товара
+                    clean_path = rel_link.split("?")[0].split("#")[0]
+                    safe_id = pid if pid else (re.search(r"[-_](\d+)$", clean_path).group(1) if re.search(r"[-_](\d+)$", clean_path) else hashlib.md5(clean_path.encode()).hexdigest()[:12])
+
                     products.append({
                         "shop": self.SHOP_NAME,
-                        "id": f"sulpak_{pid or rel_link[-15:]}",
+                        "id": f"sulpak_{safe_id}",
                         "title": title,
                         "category": category_name,
                         "url": full_link,

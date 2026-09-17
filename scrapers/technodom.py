@@ -1,4 +1,5 @@
 import re
+import hashlib
 import asyncio
 from typing import List, Dict, Any
 from playwright.async_api import async_playwright
@@ -50,63 +51,117 @@ class TechnodomScraper:
                         break
 
                     await asyncio.sleep(2.5)
-                    links = await page.query_selector_all("a[href*=\"/p/\"]")
-                    if not links:
-                        break
 
-                    seen_urls = set()
+                    # Извлекаем все карточки за один вызов внутри браузера (быстро и без рассинхронизации DOM)
+                    raw_cards = await page.evaluate(r"""() => {
+                        const results = [];
+                        const seen = new Set();
+                        
+                        const cardElements = document.querySelectorAll('[data-testid="product-card"], [class*="ProductCardV_card"], [class*="product-card"]');
+                        
+                        for (const el of cardElements) {
+                            const a = el.closest('a') || el.querySelector('a[href*="/p/"]');
+                            if (!a) continue;
+                            
+                            const rawHref = a.getAttribute('href') || a.href || '';
+                            if (!rawHref || !rawHref.includes('/p/')) continue;
+                            
+                            // Канонизируем ссылку: отсекаем query-параметры (?recommended_by=... и т.д.) и хэши
+                            const cleanHref = rawHref.split('?')[0].split('#')[0].replace(/\/+$/, '');
+                            if (seen.has(cleanHref)) continue;
+                            seen.add(cleanHref);
+                            
+                            // Название товара
+                            let title = '';
+                            const titleP = el.querySelector('p[class*="title__"], [class*="ProductCardV_title__"], [class*="ProductCard_title"]');
+                            if (titleP && titleP.innerText.trim().length > 5) {
+                                title = titleP.innerText.trim();
+                            } else {
+                                const ps = el.querySelectorAll('p');
+                                for (const p of ps) {
+                                    const txt = p.innerText.trim();
+                                    if (txt.length > 15 && !txt.includes('₸') && !txt.includes('бонусов') && !txt.includes('мес') && !txt.includes('В корзину') && !txt.includes('Самовывоз')) {
+                                        title = txt;
+                                        break;
+                                    }
+                                }
+                            }
+                            
+                            if (!title) {
+                                const slug = cleanHref.split('/').pop() || '';
+                                title = slug.replace(/-\d+$/, '').replace(/-/g, ' ');
+                            }
+                            
+                            // Картинка товара
+                            const img = el.querySelector('img');
+                            const image_url = img ? (img.getAttribute('src') || img.src || '') : '';
+                            
+                            // Текущая цена
+                            let current_price = 0;
+                            const priceEl = el.querySelector('p[class*="ProductCardPrices_price__"], [class*="price__oCsLy"]') || 
+                                            el.querySelector('[class*="ProductCardPrices_price"]:not([class*="pricesInfo"])');
+                            if (priceEl) {
+                                const digits = priceEl.innerText.replace(/[^\d]/g, '');
+                                if (digits) current_price = parseInt(digits, 10);
+                            }
+                            
+                            // Старая цена (зачёркнутая)
+                            let old_price = 0;
+                            const oldPriceEl = el.querySelector('p[class*="ProductCardPrices_oldPrice__"], [class*="oldPrice__"]') ||
+                                               el.querySelector('[class*="ProductCardPrices_oldPrice"]');
+                            if (oldPriceEl) {
+                                const digits = oldPriceEl.innerText.replace(/[^\d]/g, '');
+                                if (digits) old_price = parseInt(digits, 10);
+                            }
+                            
+                            // Фолбэк на случай изменения структуры стилей
+                            if (!current_price) {
+                                const priceNodes = Array.from(el.querySelectorAll('p, span')).filter(node => 
+                                    node.children.length === 0 && node.innerText && node.innerText.includes('₸') && !node.innerText.includes('мес') && !node.innerText.includes('бонус')
+                                );
+                                if (priceNodes.length > 0) {
+                                    const p0 = parseInt(priceNodes[0].innerText.replace(/[^\d]/g, ''), 10);
+                                    if (p0 >= 1000) current_price = p0;
+                                }
+                                if (priceNodes.length > 1) {
+                                    const p1 = parseInt(priceNodes[1].innerText.replace(/[^\d]/g, ''), 10);
+                                    if (p1 >= 1000 && p1 > current_price) old_price = p1;
+                                }
+                            }
+                            
+                            results.push({
+                                cleanHref,
+                                title,
+                                image_url,
+                                current_price,
+                                old_price
+                            });
+                        }
+                        return results;
+                    }""")
 
-                    for l in links:
-                        rel_link = await l.get_attribute("href") or ""
-                        if not rel_link or rel_link in seen_urls:
+                    for item in raw_cards:
+                        clean_path = item["cleanHref"]
+                        current_price = item["current_price"]
+                        old_price = item["old_price"]
+                        title = item["title"]
+                        image_url = item["image_url"]
+
+                        if not clean_path or current_price <= 0 or not title:
                             continue
-                        seen_urls.add(rel_link)
 
-                        full_link = f"{self.base_url}{rel_link}" if rel_link.startswith("/") else rel_link
+                        # Извлечение чистого числового ID артикула Technodom
+                        pid_match = re.search(r"[-_=](\d+)(?:[a-zA-Z]*)$", clean_path)
+                        if pid_match:
+                            pid = pid_match.group(1)
+                        else:
+                            skus = re.findall(r"\d{5,7}", clean_path)
+                            if skus:
+                                pid = skus[-1]
+                            else:
+                                pid = hashlib.md5(clean_path.encode()).hexdigest()[:12]
 
-                        # Получаем карточку (li или родитель)
-                        card = await l.evaluate_handle("el => el.closest('li') || el.parentElement")
-                        card_text = await card.inner_text()
-
-                        # Название товара
-                        title = ""
-                        p_titles = await card.query_selector_all("p, a")
-                        for pt in p_titles:
-                            t_text = (await pt.inner_text()).strip()
-                            if len(t_text) > 15 and not any(k in t_text.lower() for k in ["корзину", "бонусов", "доставим", "самовывоз"]):
-                                title = t_text
-                                break
-                        if not title:
-                            # Извлекаем из ссылки
-                            slug = rel_link.split("/")[-1]
-                            title = slug.replace("-", " ").title()
-
-                        # Картинка
-                        img_el = await card.query_selector("img")
-                        image_url = ""
-                        if img_el:
-                            image_url = await img_el.get_attribute("src") or ""
-
-                        # Поиск цен в тексте карточки
-                        # Цены идут как '299 990 ₸', а рассрочка как 'x 24 мес'
-                        price_matches = re.findall(r"(\d[\d\s]+)\s*(?:₸|тг)", card_text)
-                        valid_prices = []
-                        for pm in price_matches:
-                            val = parse_price(pm)
-                            # Отсекаем мелкие платежи рассрочки (< 25 000 ₸) и бонусы
-                            if val >= 25_000:
-                                valid_prices.append(val)
-
-                        if not valid_prices:
-                            continue
-
-                        # Текущая цена — наименьшая из основных цен
-                        current_price = valid_prices[0]
-                        old_price = valid_prices[1] if len(valid_prices) > 1 and valid_prices[1] > current_price else 0
-
-                        # ID из ссылки
-                        pid_match = re.search(r"-(\d+)$", rel_link)
-                        pid = pid_match.group(1) if pid_match else rel_link[-15:]
+                        full_link = f"{self.base_url}{clean_path}" if clean_path.startswith("/") else clean_path
 
                         products.append({
                             "shop": self.SHOP_NAME,
@@ -116,11 +171,11 @@ class TechnodomScraper:
                             "url": full_link,
                             "image_url": image_url,
                             "price": current_price,
-                            "old_price_on_site": old_price,
+                            "old_price_on_site": old_price if old_price > current_price else 0,
                             "city": "Астана"
                         })
 
-                    await asyncio.sleep(1.5)
+                    await asyncio.sleep(1.0)
 
                 except Exception as e:
                     print(f"[{self.SHOP_NAME}] Ошибка страницы {url}: {e}")

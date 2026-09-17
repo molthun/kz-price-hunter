@@ -1,4 +1,5 @@
 import re
+import hashlib
 import asyncio
 from typing import List, Dict, Any
 from curl_cffi import requests
@@ -69,8 +70,9 @@ class ForcecomScraper:
                         continue
 
                     # ID товара
-                    pid_match = re.search(r"/model/(\d+)/", rel_link)
-                    pid = pid_match.group(1) if pid_match else rel_link[-15:]
+                    clean_path = rel_link.split("?")[0].split("#")[0]
+                    pid_match = re.search(r"/model/(\d+)/", clean_path)
+                    pid = pid_match.group(1) if pid_match else hashlib.md5(clean_path.encode()).hexdigest()[:12]
                     if pid in seen_pids:
                         continue
                     seen_pids.add(pid)

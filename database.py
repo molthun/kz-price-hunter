@@ -441,23 +441,37 @@ def find_market_comparisons(
     if not competitors:
         return None
 
-    # Фильтрация нерелевантного хлама/аксессуаров
+    # Фильтрация нерелевантного хлама, несопоставимых по цене товаров и проверка схожести моделей
+    import difflib
     from detector import is_junk_accessory
-    competitors = [c for c in competitors if not is_junk_accessory(c["title"])]
-    if not competitors:
+
+    valid_competitors = []
+    for c in competitors:
+        c_price = c.get("current_price", 0)
+        # Отсекаем нереалистичные скачки цен: конкурент не может стоить в 2.5 раза дороже (другой класс устройства)
+        if c_price > current_price * 2.5 or c_price < current_price * 0.35:
+            continue
+        if is_junk_accessory(c["title"]):
+            continue
+        # Проверяем схожесть названий моделей
+        sim = difflib.SequenceMatcher(None, title.lower(), c["title"].lower()).ratio()
+        if sim >= 0.38:
+            valid_competitors.append(c)
+
+    if not valid_competitors:
         return None
 
-    prices = [c["current_price"] for c in competitors]
+    prices = [c["current_price"] for c in valid_competitors]
     min_comp_price = min(prices)
     avg_comp_price = int(sum(prices) / len(prices))
-    cheapest_comp = min(competitors, key=lambda x: x["current_price"])
+    cheapest_comp = min(valid_competitors, key=lambda x: x["current_price"])
 
     return {
-        "competitor_count": len(competitors),
+        "competitor_count": len(valid_competitors),
         "min_price": min_comp_price,
         "avg_price": avg_comp_price,
         "cheapest_shop": cheapest_comp["shop"],
         "cheapest_title": cheapest_comp["title"],
-        "competitors": competitors
+        "competitors": valid_competitors
     }
 
