@@ -274,7 +274,8 @@ async def _do_scan_task():
                                     discount_pct=anomaly["drop_pct"],
                                     savings_kzt=anomaly["savings"],
                                     shop=p.get("shop", shop_name),
-                                    city=p.get("city", "Астана")
+                                    city=p.get("city", "Астана"),
+                                    competitor_shop=anomaly.get("competitor_shop")
                                 )
                     else:
                         for p in prods:
@@ -305,7 +306,8 @@ async def _do_scan_task():
                                     discount_pct=anomaly["drop_pct"],
                                     savings_kzt=anomaly["savings"],
                                     shop=p.get("shop", shop_name),
-                                    city=p.get("city", "Астана")
+                                    city=p.get("city", "Астана"),
+                                    competitor_shop=anomaly.get("competitor_shop")
                                 )
                     await asyncio.sleep(0.5)
                 except Exception as e:

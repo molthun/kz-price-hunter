@@ -157,6 +157,7 @@ def check_market_arbitrage(
             "new_price": curr_price,
             "drop_pct": diff_pct,
             "savings": diff,
+            "competitor_shop": other_shop_name,
             "reason": f"В {shop} на {diff_pct}% дешевле, чем в {other_shop_name} ({benchmark_price:,} ₸)!".replace(",", " ")
         }
 

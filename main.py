@@ -67,7 +67,8 @@ async def scan_category_list(scraper, categories):
                             new_price=anomaly["new_price"],
                             discount_pct=anomaly["drop_pct"],
                             savings_kzt=anomaly["savings"],
-                            shop=p.get("shop", "Неизвестно")
+                            shop=p.get("shop", "Неизвестно"),
+                            competitor_shop=anomaly.get("competitor_shop")
                         )
 
             await asyncio.sleep(1.0)

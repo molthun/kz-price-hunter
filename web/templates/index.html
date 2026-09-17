@@ -1165,8 +1165,8 @@
           } else if (isArbitrage) {
             cardBorder = 'border-sky-500/40 bg-sky-500/5';
             badgeClass = 'bg-sky-500/20 text-sky-300';
-            badgeLabel = `🎯 Арбитраж -${discountPct}%`;
-            refLabel = 'Рыночная цена:';
+            badgeLabel = a.competitor_shop ? `🎯 Арбитраж vs ${a.competitor_shop}` : `🎯 Арбитраж -${discountPct}%`;
+            refLabel = a.competitor_shop ? `В ${a.competitor_shop}:` : 'Рыночная цена:';
           }
 
           return `
@@ -1190,7 +1190,16 @@
                   </div>
                 </div>
 
-                <div class="bg-slate-900/60 rounded-xl p-3 space-y-1">
+                <div class="bg-slate-900/60 rounded-xl p-3 space-y-1.5">
+                  ${isArbitrage ? `
+                    <div class="flex items-center justify-between text-xs pb-2 mb-0.5 border-b border-slate-800/80 text-sky-300 font-medium">
+                      <span class="flex items-center gap-1.5">
+                        <i class="fa-solid fa-scale-balanced text-sky-400 text-xs"></i>
+                        <span>Дешевле, чем в <strong class="text-white font-semibold">${a.competitor_shop || 'других сетях'}</strong></span>
+                      </span>
+                      <span class="px-2 py-0.5 rounded-full bg-sky-500/25 text-sky-300 text-[11px] font-bold">-${discountPct}%</span>
+                    </div>
+                  ` : ''}
                   <div class="flex items-center justify-between text-xs">
                     <span class="text-slate-400">${refLabel}</span>
                     <span class="line-through text-slate-500 font-medium">${oldPrice}</span>

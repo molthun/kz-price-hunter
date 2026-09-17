@@ -96,6 +96,11 @@ def init_db():
         except sqlite3.OperationalError:
             pass
 
+        try:
+            cursor.execute("ALTER TABLE alerts ADD COLUMN competitor_shop TEXT")
+        except sqlite3.OperationalError:
+            pass
+
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_id ON products(id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_shop ON products(shop)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_city ON products(city)")
@@ -260,13 +265,13 @@ def was_alert_sent_recently(product_id: str, new_price: int) -> bool:
         """, (str(product_id), new_price))
         return cursor.fetchone() is not None
 
-def record_alert(product_id: str, alert_type: str, old_price: int, new_price: int, discount_pct: float, savings_kzt: int, shop: str = "DNS Казахстан", city: str = "Астана"):
+def record_alert(product_id: str, alert_type: str, old_price: int, new_price: int, discount_pct: float, savings_kzt: int, shop: str = "DNS Казахстан", city: str = "Астана", competitor_shop: Optional[str] = None):
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO alerts (shop, city, product_id, alert_type, old_price, new_price, discount_pct, savings_kzt)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (shop, city, str(product_id), alert_type, old_price, new_price, discount_pct, savings_kzt))
+            INSERT INTO alerts (shop, city, product_id, alert_type, old_price, new_price, discount_pct, savings_kzt, competitor_shop)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (shop, city, str(product_id), alert_type, old_price, new_price, discount_pct, savings_kzt, competitor_shop))
         conn.commit()
 
 def get_db_freshness(threshold_seconds: int = 10800) -> Dict[str, Any]:
