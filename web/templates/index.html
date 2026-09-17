@@ -1021,8 +1021,13 @@
       const icon = document.getElementById('iconGeoLocate');
       if (icon) icon.className = 'fa-solid fa-spinner fa-spin text-emerald-400';
 
-      if (!navigator.geolocation) {
-        await fallbackIpLocation();
+      // Браузеры дают доступ к геолокации только в защищенном контексте (HTTPS или localhost):
+      // на http://<ip>:8080 запрос разрешения не показывается, ошибка возвращается сразу
+      if (!window.isSecureContext || !navigator.geolocation) {
+        const reason = !window.isSecureContext
+          ? 'Точная геолокация работает только по HTTPS или на localhost — откройте https://shop.molthun.ru'
+          : 'Браузер не поддерживает геолокацию';
+        await fallbackIpLocation(reason);
         if (icon) icon.className = 'fa-solid fa-crosshairs';
         return;
       }
@@ -1047,50 +1052,69 @@
           showToast(`🎯 Определен ваш город: ${closestCity} (~${Math.round(minDist)} км)`);
         },
         async (err) => {
-          console.warn('Geolocation denied or failed:', err.message);
-          await fallbackIpLocation();
+          console.warn('Geolocation denied or failed:', err.code, err.message);
+          const reasons = {
+            1: 'Доступ к геолокации запрещен — разрешите его для этого сайта в настройках браузера',
+            2: 'Не удалось определить местоположение — проверьте, включены ли службы геолокации в системе',
+            3: 'Истекло время ожидания геолокации — попробуйте еще раз'
+          };
+          await fallbackIpLocation(reasons[err.code] || 'Не удалось определить местоположение');
           if (icon) icon.className = 'fa-solid fa-crosshairs';
         },
         { timeout: 7000 }
       );
     }
 
-    async function fallbackIpLocation() {
-      try {
-        const res = await fetch('https://ipapi.co/json/');
-        if (res.ok) {
-          const data = await res.json();
-          const ipCity = (data.city || '').toLowerCase();
-          let matched = null;
-          if (ipCity.includes('astana') || ipCity.includes('nur-sultan')) matched = 'Астана';
-          else if (ipCity.includes('almat')) matched = 'Алматы';
-          else if (ipCity.includes('shymk')) matched = 'Шымкент';
-          else if (ipCity.includes('karagan')) matched = 'Караганда';
-          else if (ipCity.includes('aktobe')) matched = 'Актобе';
-          else if (ipCity.includes('pavlodar')) matched = 'Павлодар';
-          else if (ipCity.includes('ust') || ipCity.includes('oskemen')) matched = 'Усть-Каменогорск';
+    // Бесплатные сервисы определения города по IP — пробуются по очереди (у каждого свои лимиты)
+    const IP_GEO_SERVICES = [
+      'https://ipwho.is/',
+      'https://get.geojs.io/v1/ip/geo.json',
+      'https://ipapi.co/json/'
+    ];
 
+    function matchKzCity(ipCityRaw) {
+      const ipCity = (ipCityRaw || '').toLowerCase();
+      if (ipCity.includes('astana') || ipCity.includes('nur-sultan')) return 'Астана';
+      if (ipCity.includes('almat')) return 'Алматы';
+      if (ipCity.includes('shymk')) return 'Шымкент';
+      if (ipCity.includes('karagan')) return 'Караганда';
+      if (ipCity.includes('aktobe')) return 'Актобе';
+      if (ipCity.includes('pavlodar')) return 'Павлодар';
+      if (ipCity.includes('ust') || ipCity.includes('oskemen')) return 'Усть-Каменогорск';
+      return null;
+    }
+
+    async function fallbackIpLocation(reason) {
+      for (const url of IP_GEO_SERVICES) {
+        try {
+          const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+          if (!res.ok) continue;
+          const data = await res.json();
+          const matched = matchKzCity(data.city);
           if (matched) {
             setCity(matched, true);
             showToast(`📍 Город определен по IP: ${matched}`);
             return;
           }
+          if (data.city) break; // сервис ответил, но город не из списка — другие вернут то же самое
+        } catch (e) {
+          console.warn(`IP location error (${url}):`, e);
         }
-      } catch(e) {
-        console.warn('IP location error:', e);
       }
-      showToast('Геолокация недоступна, оставлен текущий город');
+      showToast(`${reason || 'Геолокация недоступна'}. Город по IP определить не удалось, оставлен текущий: ${currentCity}`, true, 8000);
     }
 
-    function showToast(message, isError = false) {
+    function showToast(message, isError = false, durationMs = 3500) {
       const toast = document.getElementById('globalToast');
       if (!toast) return;
       toast.innerText = message;
       toast.classList.remove('hidden');
-      toast.className = `fixed bottom-6 right-6 z-50 px-4 py-3 rounded-2xl text-xs font-semibold shadow-2xl transition-all duration-300 transform translate-y-0 opacity-100 ${isError ? 'bg-rose-950 border border-rose-500/50 text-rose-300' : 'bg-slate-900/95 border border-emerald-500/50 text-emerald-400 backdrop-blur-md'}`;
-      setTimeout(() => {
+      toast.className = `fixed bottom-6 right-6 left-6 sm:left-auto sm:max-w-sm z-50 px-4 py-3 rounded-2xl text-xs font-semibold shadow-2xl transition-all duration-300 transform translate-y-0 opacity-100 ${isError ? 'bg-rose-950 border border-rose-500/50 text-rose-300' : 'bg-slate-900/95 border border-emerald-500/50 text-emerald-400 backdrop-blur-md'}`;
+      // Новый тост отменяет таймер скрытия предыдущего, иначе он исчезнет раньше времени
+      clearTimeout(toast._hideTimer);
+      toast._hideTimer = setTimeout(() => {
         toast.className = 'fixed bottom-6 right-6 z-50 px-4 py-3 rounded-2xl text-xs font-semibold shadow-2xl transition-all duration-300 transform translate-y-10 opacity-0 pointer-events-none hidden';
-      }, 3500);
+      }, durationMs);
     }
 
     function openChangelogModal() {
@@ -1440,10 +1464,131 @@
       }
     }
 
+    // ===== Выпадающий список магазинов с логотипами =====
+    // Нативный <select> не умеет показывать картинки в пунктах, поэтому он остается скрытым
+    // источником значения (value / onchange), а поверх рисуется собственное меню.
+    const SHOP_LOGO_DOMAINS = {
+      'Kaspi Магазин': ['kaspi.kz', '🔴'],
+      'DNS Казахстан': ['dns-shop.kz', '🟧'],
+      'Белый Ветер': ['shop.kz', '🟦'],
+      'Технодом': ['technodom.kz', '🔴'],
+      'Forcecom': ['forcecom.kz', '⚡️'],
+      'Sulpak': ['sulpak.kz', '🟢'],
+      'Мечта': ['mechta.kz', '🟣'],
+      'Alser': ['alser.kz', '🟡'],
+      'Эврика': ['evrika.com', '🔷'],
+      'Moon.kz': ['moon.kz', '🚀'],
+      '4mobile': ['4mobile.pages.dev', '📱']
+    };
+
+    function shopLogoHtml(shopValue) {
+      const entry = SHOP_LOGO_DOMAINS[shopValue];
+      if (!entry) return '<i class="fa-solid fa-store text-slate-400 w-4 text-center shrink-0"></i>';
+      const [domain, emoji] = entry;
+      return `<img src="https://www.google.com/s2/favicons?domain=${domain}&sz=32" alt="" class="w-4 h-4 rounded-sm object-contain shrink-0" onerror="this.outerHTML='<span class=\\'text-xs\\'>${emoji}</span>'">`;
+    }
+
+    function shopOptionLabel(option) {
+      // Убираем эмодзи-префикс из текста пункта — вместо него показывается логотип
+      return option.text.replace(/^[^\p{L}\p{N}]+/u, '').trim();
+    }
+
+    function syncShopSelect(selectId) {
+      const select = document.getElementById(selectId);
+      const wrap = select && select._shopDropdown;
+      if (!wrap) return;
+      const option = select.options[select.selectedIndex];
+      wrap.button.querySelector('[data-role="label"]').innerHTML = `${shopLogoHtml(option.value)}<span class="truncate">${shopOptionLabel(option)}</span>`;
+      wrap.menu.querySelectorAll('[role="option"]').forEach(item => {
+        const selected = item.dataset.value === select.value;
+        item.setAttribute('aria-selected', selected);
+        item.classList.toggle('text-emerald-400', selected);
+        item.querySelector('[data-role="check"]').classList.toggle('invisible', !selected);
+      });
+    }
+
+    function enhanceShopSelect(selectId) {
+      const select = document.getElementById(selectId);
+      if (!select || select._shopDropdown) return;
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'relative ' + (select.classList.contains('w-full') ? 'w-full' : 'min-w-[12rem]');
+
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.setAttribute('aria-haspopup', 'listbox');
+      button.setAttribute('aria-expanded', 'false');
+      button.className = select.className.replace('w-full', '') + ' w-full flex items-center justify-between gap-2 text-left cursor-pointer';
+      button.innerHTML = '<span data-role="label" class="flex items-center gap-2 min-w-0"></span><i class="fa-solid fa-chevron-down text-[10px] text-slate-400 shrink-0"></i>';
+
+      const menu = document.createElement('div');
+      menu.setAttribute('role', 'listbox');
+      menu.tabIndex = -1;
+      menu.className = 'hidden absolute left-0 right-0 mt-1 z-40 max-h-72 overflow-y-auto bg-slate-900 border border-slate-700 rounded-xl shadow-2xl py-1';
+      [...select.options].forEach(option => {
+        const item = document.createElement('div');
+        item.setAttribute('role', 'option');
+        item.dataset.value = option.value;
+        item.className = 'flex items-center gap-2 px-3 py-2 text-xs text-slate-200 cursor-pointer hover:bg-slate-800 data-[active=true]:bg-slate-800';
+        item.innerHTML = `${shopLogoHtml(option.value)}<span class="flex-1 truncate">${shopOptionLabel(option)}</span><i data-role="check" class="fa-solid fa-check text-[10px] text-emerald-400 invisible"></i>`;
+        item.addEventListener('click', () => choose(option.value));
+        menu.appendChild(item);
+      });
+
+      const items = () => [...menu.querySelectorAll('[role="option"]')];
+      let activeIndex = -1;
+      const setActive = (index) => {
+        const list = items();
+        activeIndex = (index + list.length) % list.length;
+        list.forEach((el, i) => el.dataset.active = (i === activeIndex));
+        list[activeIndex].scrollIntoView({ block: 'nearest' });
+      };
+      const open = () => {
+        document.querySelectorAll('[role="listbox"]').forEach(m => { if (m !== menu) m.classList.add('hidden'); });
+        menu.classList.remove('hidden');
+        button.setAttribute('aria-expanded', 'true');
+        setActive(Math.max(0, select.selectedIndex));
+      };
+      const close = () => {
+        menu.classList.add('hidden');
+        button.setAttribute('aria-expanded', 'false');
+      };
+      const choose = (value) => {
+        close();
+        button.focus();
+        if (select.value === value) return;
+        select.value = value;
+        syncShopSelect(selectId);
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+      };
+
+      button.addEventListener('click', () => menu.classList.contains('hidden') ? open() : close());
+      button.addEventListener('keydown', (e) => {
+        const isOpen = !menu.classList.contains('hidden');
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (!isOpen) open(); else setActive(activeIndex + (e.key === 'ArrowDown' ? 1 : -1));
+        } else if ((e.key === 'Enter' || e.key === ' ') && isOpen) {
+          e.preventDefault();
+          choose(items()[activeIndex].dataset.value);
+        } else if (e.key === 'Escape' || e.key === 'Tab') {
+          close();
+        }
+      });
+      document.addEventListener('click', (e) => { if (!wrapper.contains(e.target)) close(); });
+
+      select.classList.add('hidden');
+      select.parentNode.insertBefore(wrapper, select.nextSibling);
+      wrapper.append(button, menu);
+      select._shopDropdown = { button, menu };
+      syncShopSelect(selectId);
+    }
+
     function resetSearchFilters() {
       document.getElementById('bestPriceMinPrice').value = '';
       document.getElementById('bestPriceMaxPrice').value = '';
       document.getElementById('bestPriceShopFilter').value = 'Все';
+      syncShopSelect('bestPriceShopFilter');
       document.getElementById('bestPriceMatchMode').value = 'AND';
       document.getElementById('bestPriceSort').value = 'price_asc';
       document.getElementById('bestPriceExcludeAcc').checked = true;
@@ -2162,6 +2307,9 @@
     }
 
     window.addEventListener('DOMContentLoaded', () => {
+      enhanceShopSelect('bestPriceShopFilter');
+      enhanceShopSelect('catalogShopFilter');
+
       // Синхронизируем сохраненный город без перезагрузки
       setCity(currentCity, false);
 
