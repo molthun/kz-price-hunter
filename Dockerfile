@@ -14,7 +14,7 @@ COPY . .
 
 RUN mkdir -p /app/data
 
-ENV PORT=8090
-EXPOSE 8090
+ENV PORT=35539
+EXPOSE 35539
 
 CMD ["python3", "gui.py"]
