@@ -18,6 +18,7 @@ SHOP_EMOJI = [
     (("kaspi", "каспи"), "🔴"),
     (("4mobile",), "📱"),
     (("flip",), "🛍"),
+    (("halyk", "халык"), "🏦"),
 ]
 
 def format_price(amount: int) -> str:

@@ -153,10 +153,13 @@
           <div title="Flip.kz (flip.kz)" class="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-900/90 border border-slate-700/80 hover:border-blue-400 hover:scale-110 transition shadow-sm cursor-pointer">
             <img src="https://www.google.com/s2/favicons?domain=flip.kz&sz=32" alt="Flip.kz" class="w-4 h-4 rounded-sm object-contain" onerror="this.outerHTML='<span class=\'text-xs\'>🛍</span>'">
           </div>
+          <div title="Halyk Market (halykmarket.kz)" class="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-900/90 border border-slate-700/80 hover:border-emerald-400 hover:scale-110 transition shadow-sm cursor-pointer">
+            <img src="https://www.google.com/s2/favicons?domain=halykmarket.kz&sz=32" alt="Halyk Market" class="w-4 h-4 rounded-sm object-contain" onerror="this.outerHTML='<span class=\'text-xs\'>🏦</span>'">
+          </div>
         </div>
         <div class="text-[11px] text-slate-400 mt-2 flex items-center gap-1.5">
           <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span>12 ключевых сетей Казахстана</span>
+          <span>13 ключевых сетей Казахстана</span>
         </div>
       </div>
 
@@ -373,6 +376,7 @@
                 <option value="Moon.kz">🚀 Moon.kz</option>
                 <option value="4mobile">📱 4mobile</option>
             <option value="Flip.kz">🛍 Flip.kz</option>
+            <option value="Halyk Market">🏦 Halyk Market</option>
               </select>
             </div>
 
@@ -499,6 +503,7 @@
             <option value="Moon.kz">🚀 Moon.kz</option>
             <option value="4mobile">📱 4mobile</option>
             <option value="Flip.kz">🛍 Flip.kz</option>
+            <option value="Halyk Market">🏦 Halyk Market</option>
           </select>
         </div>
       </div>
@@ -906,6 +911,11 @@
               <input type="checkbox" id="checkShopFlip" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
               <img src="https://www.google.com/s2/favicons?domain=flip.kz&sz=32" alt="Flip.kz" class="w-4 h-4 rounded-sm object-contain shrink-0" onerror="this.outerHTML='<span class=\'text-xs\'>🛍</span>'">
               <span class="text-xs font-medium text-slate-200">Flip.kz</span>
+            </label>
+            <label class="flex items-center space-x-2.5 p-3 rounded-xl bg-slate-900/90 border border-slate-800 cursor-pointer hover:border-slate-700 hover:bg-slate-800/60 transition">
+              <input type="checkbox" id="checkShopHalyk" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              <img src="https://www.google.com/s2/favicons?domain=halykmarket.kz&sz=32" alt="Halyk Market" class="w-4 h-4 rounded-sm object-contain shrink-0" onerror="this.outerHTML='<span class=\'text-xs\'>🏦</span>'">
+              <span class="text-xs font-medium text-slate-200">Halyk Market</span>
             </label>
             <p class="col-span-full text-xs text-slate-400 mt-1">💡 <strong>Flip.kz</strong>: выберите «Все города» для просмотра; город наличия на сайте не подтверждён, поэтому предложения доступны в общем каталоге и исключены из регионального арбитража.</p>
           </div>
@@ -1618,7 +1628,8 @@
       'Эврика': ['evrika.com', '🔷'],
       'Moon.kz': ['moon.kz', '🚀'],
       '4mobile': ['4mobile.pages.dev', '📱'],
-      'Flip.kz': ['flip.kz', '🛍']
+      'Flip.kz': ['flip.kz', '🛍'],
+      'Halyk Market': ['halykmarket.kz', '🏦']
     };
 
     function shopLogoHtml(shopValue) {
@@ -2053,7 +2064,8 @@
     const ADMIN_SHOP_CHECKBOX_IDS = {
       kaspi: 'checkShopKaspi', dns: 'checkShopDns', shopkz: 'checkShopBv', technodom: 'checkShopTd',
       forcecom: 'checkShopFc', sulpak: 'checkShopSulpak', mechta: 'checkShopMechta', alser: 'checkShopAlser',
-      evrika: 'checkShopEvrika', moon: 'checkShopMoon', fourmobile: 'checkShopFourMobile', flip: 'checkShopFlip'
+      evrika: 'checkShopEvrika', moon: 'checkShopMoon', fourmobile: 'checkShopFourMobile', flip: 'checkShopFlip',
+      halyk: 'checkShopHalyk'
     };
 
     function isLoggedIn() { return Boolean(currentMe.user); }

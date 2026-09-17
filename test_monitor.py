@@ -455,6 +455,65 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ValueError):
             FlipScraper.parse_page('<html>Challenge</html>','x','x',1)
 
+    def test_halyk_parse_response(self):
+        from scrapers.halyk import HalykScraper
+        raw_data = {
+            "products_total": 45,
+            "products": [
+                {
+                    "id": "12345",
+                    "name": "Смартфон Apple iPhone 15 128Gb Black",
+                    "price": 380000,
+                    "oldprice": 420000,
+                    "url": "/smartfony/smartfon-apple-iphone-15/128gb_black?sku=128gb_black",
+                    "picture": "https://cdn.halykmarket.kz/img1.jpg",
+                },
+                {
+                    "id": "67890",
+                    "name": "Ноутбук Acer Nitro 15",
+                    "price": 450000,
+                    "oldprice": 0,
+                    "url": "https://halykmarket.kz/category/noutbuki/acer-15",
+                    "picture": "",
+                },
+                {
+                    "id": "99999",
+                    "name": "Невалидный товар без цены",
+                    "price": 0,
+                    "oldprice": 100000,
+                }
+            ]
+        }
+        res = HalykScraper.parse_response(raw_data, "Смартфоны", page=1)
+        self.assertEqual(len(res), 2)
+        # First product with valid discount
+        p1 = res[0]
+        self.assertEqual(p1["id"], "halyk_12345")
+        self.assertEqual(p1["shop"], "Halyk Market")
+        self.assertEqual(p1["title"], "Смартфон Apple iPhone 15 128Gb Black")
+        self.assertEqual(p1["price"], 380000)
+        self.assertEqual(p1["old_price_on_site"], 420000)
+        self.assertEqual(p1["city"], "Алматы")
+        self.assertEqual(p1["url"], "https://halykmarket.kz/category/smartfony/smartfon-apple-iphone-15/128gb_black?sku=128gb_black")
+        self.assertEqual(p1["image_url"], "https://cdn.halykmarket.kz/img1.jpg")
+        
+        # Second product without discount
+        p2 = res[1]
+        self.assertEqual(p2["old_price_on_site"], 0)
+        self.assertEqual(p2["url"], "https://halykmarket.kz/category/noutbuki/acer-15")
+
+        # Page 1 has 3 items (< 24), so complete is True
+        self.assertTrue(res.complete)
+
+        # Incomplete page: 24 items with total 100 on page 1
+        full_page = {"products_total": 100, "products": [{"id": str(i), "name": f"P{i}", "price": 1000} for i in range(24)]}
+        res_full = HalykScraper.parse_response(full_page, "Смартфоны", page=1)
+        self.assertFalse(res_full.complete)
+
+        # Last page: page 5 * 24 >= 100
+        res_last = HalykScraper.parse_response(full_page, "Смартфоны", page=5)
+        self.assertTrue(res_last.complete)
+
     def test_outbox_and_alert_are_atomic(self):
         with self.assertRaises(TypeError):
             record_alert('audit','SUPER_DISCOUNT',300000,150000,50,150000,

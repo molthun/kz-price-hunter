@@ -23,6 +23,7 @@ SHOP_KEYS = {
     "moon": "Moon.kz",
     "fourmobile": "4mobile",
     "flip": "Flip.kz",
+    "halyk": "Halyk Market",
 }
 
 def _all_shops_enabled():
@@ -493,4 +494,16 @@ FOURMOBILE_CATEGORIES = [
 # Public catalog; regional stock is not confirmed, so offers appear under All cities.
 FLIP_CATEGORIES = [
     {"name": "Flip: Электроника", "url": "https://www.flip.kz/catalog?subsection=5319", "max_pages": 50},
+]
+
+# Halyk Market catalog (Almaty location=-2)
+HALYK_CATEGORIES = [
+    {"name": "Halyk: Смартфоны", "url": "https://halykmarket.kz/category/smartfony", "max_pages": 50},
+    {"name": "Halyk: Ноутбуки", "url": "https://halykmarket.kz/category/noutbuki", "max_pages": 50},
+    {"name": "Halyk: Телевизоры", "url": "https://halykmarket.kz/category/televizori", "max_pages": 50},
+    {"name": "Halyk: Наушники", "url": "https://halykmarket.kz/category/naushniki", "max_pages": 50},
+    {"name": "Halyk: Планшеты", "url": "https://halykmarket.kz/category/plansheti", "max_pages": 50},
+    {"name": "Halyk: Смарт-часы", "url": "https://halykmarket.kz/category/smart-chasi", "max_pages": 50},
+    {"name": "Halyk: Игровые приставки", "url": "https://halykmarket.kz/category/igrovie-pristavki", "max_pages": 50},
+    {"name": "Halyk: Мониторы", "url": "https://halykmarket.kz/category/monitori", "max_pages": 50},
 ]

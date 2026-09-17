@@ -27,7 +27,8 @@
 | <img src="https://www.google.com/s2/favicons?domain=moon.kz&sz=32" width="16"> | Moon.kz | `moon.kz` |
 | <img src="https://www.google.com/s2/favicons?domain=forcecom.kz&sz=32" width="16"> | Forcecom | `forcecom.kz` |
 | <img src="https://www.google.com/s2/favicons?domain=4mobile.pages.dev&sz=32" width="16"> | 4mobile | `4mobile.pages.dev` |
-| 🛍 | Flip.kz | `flip.kz` (электроника, регион не подтвержден) |
+| <img src="https://www.google.com/s2/favicons?domain=flip.kz&sz=32" width="16"> | Flip.kz | `flip.kz` (электроника, регион не подтвержден) |
+| <img src="https://www.google.com/s2/favicons?domain=halykmarket.kz&sz=32" width="16"> | Halyk Market | `halykmarket.kz` (внутренний JSON API, Алматы) |
 
 ## Возможности
 
