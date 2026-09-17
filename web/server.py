@@ -25,16 +25,18 @@ from config import (
     EVRIKA_CATEGORIES,
     MOON_CATEGORIES,
     KASPI_CATEGORIES,
-    FOURMOBILE_CATEGORIES
+    FOURMOBILE_CATEGORIES,
+    FLIP_CATEGORIES
 )
 from version import get_version_info
 from database import (
     init_db,
+    reconcile_source,
+    notification_stats,
     get_stats,
     get_alerts,
     get_products_list,
     get_products_count,
-    save_or_update_product,
     was_alert_sent_recently,
     record_alert,
     get_db_freshness,
@@ -51,6 +53,7 @@ from database import (
     delete_session
 )
 from detector import check_anomaly, check_market_arbitrage
+from scrapers.flip import FlipScraper
 from scrapers.dns import DNSScraper
 from scrapers.shopkz import ShopKzScraper
 from scrapers.technodom import TechnodomScraper
@@ -63,7 +66,7 @@ from scrapers.moon import MoonScraper
 from scrapers.kaspi import KaspiScraper
 from scrapers.fourmobile import FourMobileScraper
 from search_engine import get_best_price_summary
-from notifier import dispatch_alert, telegram_api
+from notifier import prepare_deliveries, notification_worker, telegram_api
 from log_manager import install_log_interceptor, log_buffer
 from auth import (
     SESSION_COOKIE,
@@ -402,9 +405,9 @@ async def _process_anomaly(p, anomaly, shop_name):
         savings_kzt=anomaly["savings"],
         shop=p.get("shop", shop_name),
         city=p.get("city", "Астана"),
-        competitor_shop=anomaly.get("competitor_shop")
+        competitor_shop=anomaly.get("competitor_shop"),
+        deliveries=prepare_deliveries(p, anomaly)
     )
-    await asyncio.to_thread(dispatch_alert, p, anomaly)
     return True
 
 # Реестр магазинов: ключ настроек -> (класс парсера, категории, название)
@@ -420,6 +423,7 @@ SHOP_REGISTRY = {
     "fourmobile": (FourMobileScraper, FOURMOBILE_CATEGORIES, "4mobile"),
     "kaspi": (KaspiScraper, KASPI_CATEGORIES, "Kaspi Магазин"),
     "dns": (DNSScraper, DNS_CATEGORIES, "DNS"),
+    "flip": (FlipScraper, FLIP_CATEGORIES, "Flip.kz"),
 }
 
 # Сколько магазинов обходить одновременно (у каждого свой сайт, поэтому нагрузка не суммируется)
@@ -431,29 +435,29 @@ def enabled_shop_keys(settings=None):
     return [key for key in SHOP_REGISTRY if enabled.get(key, True)]
 
 async def _save_and_detect(prods, shop_name, candidate_settings):
-    """Сохраняет товары категории и записывает кандидатов в аномалии."""
-    if len(prods) > 200:
-        from database import save_or_update_products_batch, get_price_history_batch
-        # История цен читается ДО пакетной перезаписи, иначе прежняя цена будет потеряна
-        history_map = await asyncio.to_thread(get_price_history_batch, [p["id"] for p in prods])
-        await asyncio.to_thread(save_or_update_products_batch, prods)
+    """Сохраняет товары категории одной транзакцией и записывает кандидатов в аномалии.
 
-        for p in prods:
-            history = history_map.get(str(p["id"]), {"old_price": p["price"], "first_seen_price": p["price"]})
-            if history["old_price"] > p["price"] or history["first_seen_price"] > p["price"] or p.get("old_price_on_site", 0) > p["price"]:
-                await _process_anomaly(p, check_anomaly(p, history, custom_settings=candidate_settings), shop_name)
+    Пакетная запись важна не только для скорости: магазины сканируются параллельно,
+    и отдельная транзакция на каждый товар создавала конкуренцию за блокировку базы.
+    """
+    if not prods:
+        return
 
-        # Межмагазинный арбитраж (FTS-запрос на товар) — только для ограниченного набора кандидатов
-        arbitrage_candidates = [p for p in prods if p.get("old_price_on_site", 0) > p.get("price", 0) or p.get("price", 0) >= 100000][:100]
-        for p in arbitrage_candidates:
-            await _process_anomaly(p, check_market_arbitrage(p, custom_settings=candidate_settings), shop_name)
-    else:
-        for p in prods:
-            history = await asyncio.to_thread(save_or_update_product, p)
-            anomaly = check_anomaly(p, history, custom_settings=candidate_settings)
-            if not anomaly:
-                anomaly = check_market_arbitrage(p, custom_settings=candidate_settings)
-            await _process_anomaly(p, anomaly, shop_name)
+    from database import save_or_update_products_batch, get_price_history_batch
+
+    # История цен читается ДО пакетной перезаписи, иначе прежняя цена будет потеряна
+    history_map = await asyncio.to_thread(get_price_history_batch, [p["id"] for p in prods])
+    await asyncio.to_thread(save_or_update_products_batch, prods)
+
+    for p in prods:
+        history = history_map.get(str(p["id"]), {"old_price": p["price"], "first_seen_price": p["price"]})
+        if history["old_price"] > p["price"] or history["first_seen_price"] > p["price"] or (p.get("old_price_on_site") or 0) > p["price"]:
+            await _process_anomaly(p, check_anomaly(p, history, custom_settings=candidate_settings), shop_name)
+
+    # Check every saved offer; blocking DB work runs outside the event loop.
+    for p in prods:
+        anomaly = await asyncio.to_thread(check_market_arbitrage, p, custom_settings=candidate_settings)
+        await _process_anomaly(p, anomaly, shop_name)
 
 async def _scan_shop(key, candidate_settings, semaphore):
     """Обходит все категории одного магазина и отмечает результат в базе."""
@@ -463,6 +467,7 @@ async def _scan_shop(key, candidate_settings, semaphore):
         started = time.monotonic()
         collected = 0
         failed_categories = []
+        limited = False
         record_shop_scan_start(key)
         scan_state["current_shop"] = shop_name
 
@@ -470,25 +475,31 @@ async def _scan_shop(key, candidate_settings, semaphore):
             scan_state["current_category"] = cat["name"]
             try:
                 prods = await scraper.scrape(cat["name"], cat["url"], max_pages=cat.get("max_pages"))
+                error = getattr(prods, "error", None)
+                complete = getattr(prods, "complete", False)
+                if not prods and not complete:
+                    error = error or "Пустая выдача: требуется проверка"
                 scan_state["total_scanned"] += len(prods)
                 collected += len(prods)
                 await _save_and_detect(prods, shop_name, candidate_settings)
+                await asyncio.to_thread(reconcile_source, key, cat["url"], prods, complete and not error)
+                if error:
+                    failed_categories.append(f"{cat['name']}: {error}")
+                elif not complete:
+                    limited = True
                 await asyncio.sleep(0.5)
             except Exception as e:
-                failed_categories.append(cat["name"])
-                print(f"[{shop_name}] Ошибка категории {cat['name']}: {e}")
+                failed_categories.append(f"{cat['name']}: {type(e).__name__}")
+                print(f"[{shop_name}] Ошибка категории {cat['name']}: {type(e).__name__}")
             finally:
                 scan_state["current_step"] += 1
                 scan_state["progress_pct"] = int((scan_state["current_step"] / max(1, scan_state["total_steps"])) * 100)
 
         duration = time.monotonic() - started
-        error = None
-        if failed_categories and not collected:
-            error = f"все категории с ошибкой ({len(failed_categories)})"
-        elif failed_categories:
-            error = f"категории с ошибкой: {', '.join(failed_categories[:3])}"
-        record_shop_scan_result(key, collected, duration, error)
-        print(f"[{shop_name}] Готово: {collected} товаров за {duration:.0f}с" + (f" ({error})" if error else ""))
+        error = "; ".join(failed_categories[:3]) or None
+        status = ("partial" if collected else "failed") if error else "limited" if limited else "complete"
+        record_shop_scan_result(key, collected, duration, error, status)
+        print(f"[{shop_name}] {status}: {collected} товаров за {duration:.0f}с")
         return collected
 
 async def _do_scan_task(shop_keys=None):
@@ -505,7 +516,7 @@ async def _do_scan_task(shop_keys=None):
 
     settings = load_settings()
     candidate_settings = get_candidate_settings(settings)
-    keys = [k for k in (shop_keys or enabled_shop_keys(settings)) if k in SHOP_REGISTRY]
+    keys = list(dict.fromkeys(k for k in (shop_keys if shop_keys is not None else enabled_shop_keys(settings)) if k in SHOP_REGISTRY))
 
     scan_state["total_steps"] = max(1, sum(len(SHOP_REGISTRY[k][1]) for k in keys))
     print(f"[Scan] Старт обхода {len(keys)} магазинов: {', '.join(SHOP_REGISTRY[k][2] for k in keys)}")
@@ -538,9 +549,13 @@ async def start_scan_handler(request):
     shops = None
     if request.can_read_body:
         try:
-            shops = (await request.json()).get("shops") or None
-        except Exception:
-            shops = None
+            payload = await request.json()
+            shops = payload.get("shops")
+            if shops is not None and (not isinstance(shops, list) or not shops
+                or any(not isinstance(k, str) or k not in SHOP_REGISTRY for k in shops)):
+                raise ValueError("Некорректный список магазинов")
+        except (ValueError, AttributeError, TypeError):
+            return web.json_response({"message": "Укажите непустой список известных магазинов"}, status=400)
 
     asyncio.create_task(_do_scan_task(shops))
     return web.json_response({"status": "started"})
@@ -555,6 +570,7 @@ async def admin_shops_handler(request):
             for row in get_shops_scan_report(list(SHOP_REGISTRY))
         ],
         "enabled": enabled_shop_keys(),
+        "notifications": notification_stats(),
         "scan_state": scan_state,
     })
 
@@ -562,21 +578,10 @@ async def admin_shops_handler(request):
 @require_admin
 async def sync_shopkz_yml_handler(request):
     """Сверхбыстрая выгрузка всего каталога shop.kz через официальный YML фид."""
-    async def _do_yml_sync():
-        try:
-            scraper = ShopKzScraper()
-            items = await asyncio.to_thread(scraper.scrape_yml)
-            from database import save_or_update_products_batch
-            saved_count = await asyncio.to_thread(save_or_update_products_batch, items)
-            print(f"[ShopKZ-YML] ✅ Загружено и сохранено {saved_count} товаров из официального YML!")
-        except Exception as e:
-            print(f"[ShopKZ-YML] Ошибка загрузки YML: {e}")
-
-    asyncio.create_task(_do_yml_sync())
-    return web.json_response({
-        "status": "started",
-        "message": "Синхронизация официального YML каталога shop.kz (16k+ товаров) запущена в фоне"
-    })
+    if scan_state["is_running"]:
+        return web.json_response({"status": "already_running", "message": "Сканирование уже выполняется"})
+    asyncio.create_task(_do_scan_task(["shopkz"]))
+    return web.json_response({"status": "started", "message": "Обход Белого Ветра запущен"})
 
 @routes.get("/api/logs")
 @require_admin
@@ -652,13 +657,12 @@ async def auto_scan_background_worker(app):
             await asyncio.sleep(15)
 
 async def background_tasks(app):
-    task = asyncio.create_task(auto_scan_background_worker(app))
+    tasks = [asyncio.create_task(auto_scan_background_worker(app)),
+             asyncio.create_task(notification_worker())]
     yield
-    task.cancel()
-    try:
-        await task
-    except asyncio.CancelledError:
-        pass
+    for task in tasks:
+        task.cancel()
+    await asyncio.gather(*tasks, return_exceptions=True)
 
 def create_app():
     init_db()

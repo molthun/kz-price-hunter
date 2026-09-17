@@ -2,6 +2,7 @@ import asyncio
 import re
 from typing import List, Dict, Any
 from playwright.async_api import async_playwright
+from scrapers.base import ScanResult
 
 def parse_price(price_str: str) -> int:
     digits = re.sub(r"[^\d]", "", price_str)
@@ -20,6 +21,7 @@ class DNSScraper:
 
     async def scrape(self, category_name: str, category_url: str, max_pages: int = 1) -> List[Dict[str, Any]]:
         products: List[Dict[str, Any]] = []
+        error = None
 
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
@@ -35,7 +37,7 @@ class DNSScraper:
 
             page = await context.new_page()
 
-            for page_num in range(1, max_pages + 1):
+            for page_num in range(1, (max_pages or 2) + 1):
                 url = category_url
                 if page_num > 1:
                     separator = "&" if "?" in url else "?"
@@ -44,12 +46,12 @@ class DNSScraper:
                 try:
                     resp = await page.goto(url, wait_until="domcontentloaded", timeout=25000)
                     if not resp or resp.status != 200:
-                        break
+                        raise RuntimeError("DNS: HTTP error")
 
                     try:
                         await page.wait_for_selector(".catalog-product", timeout=12000)
                     except Exception:
-                        break
+                        raise RuntimeError("DNS: карточки не найдены")
 
                     await asyncio.sleep(2)
                     product_elements = await page.query_selector_all(".catalog-product")
@@ -91,8 +93,8 @@ class DNSScraper:
 
                     await asyncio.sleep(1.5)
                 except Exception as e:
-                    print(f"[{self.SHOP_NAME}] Ошибка страницы {url}: {e}")
+                    error = f"Страница {page_num}: {type(e).__name__}"
                     break
 
             await browser.close()
-        return products
+        return ScanResult(products, error=error, limited=not error)

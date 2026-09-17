@@ -3,7 +3,7 @@ import uuid
 import asyncio
 from typing import List, Dict, Any
 from curl_cffi import requests
-from scrapers.base import PagedScraper, parse_price
+from scrapers.base import ScanResult, PagedScraper, parse_price
 
 class MechtaScraper(PagedScraper):
     SHOP_NAME = "Мечта"
@@ -62,22 +62,22 @@ class MechtaScraper(PagedScraper):
         try:
             r = session.get(self.api_url, headers=headers, params=params, timeout=15)
             if r.status_code == 204:
-                return products  # категория закончилась: API отдает 204 после последней страницы
+                return ScanResult(complete=True)  # категория закончилась: API отдает 204 после последней страницы
             if r.status_code != 200:
                 if r.status_code in (403, 422):
                     self.session = None
                     session = self._get_session()
                     r = session.get(self.api_url, headers=headers, params=params, timeout=15)
                 if r.status_code == 204:
-                    return products
+                    return ScanResult(complete=True)
                 if r.status_code != 200:
                     print(f"[{self.SHOP_NAME}] Ошибка HTTP {r.status_code} для категории {slug}")
-                    return products
+                    raise RuntimeError(f"HTTP {r.status_code}")
 
             data = r.json()
-            raw_items = data.get("products", [])
+            raw_items = data["products"]
             if not raw_items:
-                return products
+                return ScanResult(complete=True)
 
             for item in raw_items:
                 pid = item.get("id") or str(item.get("code", ""))
@@ -115,6 +115,6 @@ class MechtaScraper(PagedScraper):
 
         except Exception as e:
             print(f"[{self.SHOP_NAME}] Ошибка при парсинге {slug} (стр. {page_num}): {e}")
-            return products
+            raise
 
         return products

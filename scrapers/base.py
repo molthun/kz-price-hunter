@@ -11,6 +11,19 @@ def parse_price(price_str: str) -> int:
     digits = re.sub(r"[^\d]", "", price_str or "")
     return int(digits) if digits else 0
 
+class UnconfirmedEnd(RuntimeError):
+    """HTTP succeeded, but HTML cannot prove whether the catalog ended."""
+
+
+class ScanResult(list):
+    """List-compatible result with explicit coverage; partial data is still usable."""
+    def __init__(self, items=(), *, complete=False, error=None, limited=False):
+        super().__init__(items)
+        self.complete = complete
+        self.error = error
+        self.limited = limited
+
+
 class PagedScraper:
     """Листает категорию, пока страницы отдают новые товары.
 
@@ -46,19 +59,26 @@ class PagedScraper:
                 time.sleep(self.PAGE_DELAY_SECONDS)
             try:
                 items = self._fetch_page(category_name, category_url, page)
+            except UnconfirmedEnd:
+                return ScanResult(products, limited=bool(products),
+                                  error=None if products else "Карточки не найдены на первой странице")
             except Exception as e:
                 print(f"[{self.SHOP_NAME}] Ошибка страницы {page} категории {category_name}: {e}")
-                break
+                return ScanResult(products, error=f"Страница {page}: {type(e).__name__}")
 
             if not items:
-                break
+                complete = bool(products) and getattr(items, "complete", False)
+                return ScanResult(products, complete=complete,
+                                  error=None if complete else "Пустая выдача: полнота не подтверждена")
 
             fresh = [i for i in items if i.get("id") and i["id"] not in seen_ids]
             if not fresh:
                 # Страница повторяет уже собранные товары — каталог закончился
-                break
+                return ScanResult(products, limited=True)
 
             seen_ids.update(i["id"] for i in fresh)
             products.extend(fresh)
+            if getattr(items, "complete", False):
+                return ScanResult(products, complete=True)
 
-        return products
+        return ScanResult(products, limited=True)

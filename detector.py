@@ -42,7 +42,7 @@ def check_anomaly(product: Dict[str, Any], history_info: Dict[str, Any], custom_
     curr_price = int(product.get("price", 0) or product.get("current_price", 0))
     old_price_history = int(history_info.get("old_price", curr_price))
     first_price = int(history_info.get("first_seen_price", curr_price))
-    old_price_on_site = int(product.get("old_price_on_site", 0))
+    old_price_on_site = int(product.get("old_price_on_site") or 0)
 
     # 1. Проверка стоп-слов хлама / аксессуаров
     junk_list = s.get("junk_keywords", [])

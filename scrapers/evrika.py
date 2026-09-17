@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 
 from curl_cffi import requests
 from bs4 import BeautifulSoup
-from scrapers.base import PagedScraper, parse_price
+from scrapers.base import ScanResult, PagedScraper, parse_price
 
 class EvrikaScraper(PagedScraper):
     SHOP_NAME = "Эврика"
@@ -44,13 +44,10 @@ class EvrikaScraper(PagedScraper):
         url = self._api_url(category_url, page_num)
         r = requests.get(url, headers=self.headers, impersonate="chrome124", timeout=30, verify=False)
         if r.status_code != 200:
-            return []
-
-        try:
-            data = r.json()
-        except Exception:
-            print(f"[{self.SHOP_NAME}] Ответ не JSON: {url}")
-            return []
+            raise RuntimeError(f"HTTP {r.status_code}")
+        data = r.json()
+        if not isinstance(data, dict) or "products" not in data:
+            raise ValueError("Неожиданная структура каталога Эврика")
 
         soup = BeautifulSoup(data.get("products") or "", "html.parser")
         products: List[Dict[str, Any]] = []
@@ -97,4 +94,4 @@ class EvrikaScraper(PagedScraper):
                 "old_price_on_site": 0,
                 "city": "Астана"
             })
-        return products
+        return ScanResult(products, complete=not data["products"])

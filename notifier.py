@@ -1,4 +1,6 @@
 import html
+import json
+import asyncio
 import requests
 from typing import Dict, Any
 from config import get_bot_token, APP_URL
@@ -15,6 +17,7 @@ SHOP_EMOJI = [
     (("moon",), "🚀"),
     (("kaspi", "каспи"), "🔴"),
     (("4mobile",), "📱"),
+    (("flip",), "🛍"),
 ]
 
 def format_price(amount: int) -> str:
@@ -75,7 +78,7 @@ def send_telegram_alert(chat_id: int, product: Dict[str, Any], anomaly: Dict[str
             print(f"[Telegram Error] chat {chat_id}: статус {res.status_code}: {res.text}")
         return res.status_code == 200
     except Exception as e:
-        print(f"[Telegram Exception] chat {chat_id}: {e}")
+        print(f"[Telegram Exception] chat {chat_id}: {type(e).__name__}")
         return False
 
 def dispatch_alert(product: Dict[str, Any], anomaly: Dict[str, Any]) -> int:
@@ -119,3 +122,57 @@ def dispatch_alert(product: Dict[str, Any], anomaly: Dict[str, Any]) -> int:
         if send_telegram_alert(user["id"], product, anomaly):
             sent += 1
     return sent
+
+
+def prepare_deliveries(product, anomaly):
+    from database import get_notification_recipients
+    from detector import alert_matches_user, notify_level_allows
+    candidate = dict(product, alert_type=anomaly["type"], new_price=anomaly["new_price"],
+                     discount_pct=anomaly["drop_pct"], savings_kzt=anomaly["savings"])
+    return [(u["id"], {"product": product, "anomaly": anomaly})
+            for u in get_notification_recipients()
+            if alert_matches_user(candidate, u["settings"])
+            and notify_level_allows(anomaly, u["settings"].get("telegram_notify_level", "ALL"))]
+
+
+def deliver_pending(limit=10):
+    from database import claim_notification, finish_notification, get_user, get_connection, active_product_clause
+    from detector import alert_matches_user, notify_level_allows
+    if not get_bot_token():
+        return 0
+    sent = 0
+    for _ in range(limit):
+        item = claim_notification()
+        if not item:
+            break
+        try:
+            payload = json.loads(item["payload"])
+            product, anomaly = payload["product"], payload["anomaly"]
+            user = get_user(item["user_id"])
+            candidate = dict(product, alert_type=anomaly["type"], new_price=anomaly["new_price"],
+                             discount_pct=anomaly["drop_pct"], savings_kzt=anomaly["savings"])
+            with get_connection() as conn:
+                current = conn.execute("SELECT current_price FROM products WHERE id=? AND " + active_product_clause(),
+                                       (str(product["id"]),)).fetchone()
+            if (not user or user["is_blocked"] or not user["settings"].get("telegram_notify_enabled")
+                or not current or current[0] != anomaly["new_price"]
+                or not alert_matches_user(candidate, user["settings"])
+                or not notify_level_allows(anomaly, user["settings"].get("telegram_notify_level", "ALL"))):
+                finish_notification(item["id"], "cancelled")
+                continue
+            ok = send_telegram_alert(user["id"], product, anomaly)
+            finish_notification(item["id"], "sent" if ok else "pending", item["attempts"],
+                                None if ok else "Telegram delivery failed")
+            sent += int(ok)
+        except Exception as e:
+            finish_notification(item["id"], "pending", item["attempts"], type(e).__name__)
+    return sent
+
+
+async def notification_worker():
+    while True:
+        try:
+            await asyncio.to_thread(deliver_pending)
+        except Exception as e:
+            print(f"[Telegram Queue] {type(e).__name__}")
+        await asyncio.sleep(10)

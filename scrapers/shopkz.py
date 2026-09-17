@@ -3,6 +3,7 @@ import asyncio
 from typing import List, Dict, Any
 from curl_cffi import requests
 from bs4 import BeautifulSoup
+from scrapers.base import ScanResult
 
 def parse_price(price_str: str) -> int:
     digits = re.sub(r"[^\d]", "", price_str)
@@ -37,6 +38,7 @@ class ShopKzScraper:
         target_url = yml_url or self.yml_url
         products: List[Dict[str, Any]] = []
 
+        tmp_path = None
         try:
             r = requests.get(
                 target_url,
@@ -47,7 +49,7 @@ class ShopKzScraper:
             )
             if r.status_code != 200:
                 print(f"[{self.SHOP_NAME}] Ошибка скачивания YML: HTTP {r.status_code}")
-                return []
+                raise RuntimeError(f"HTTP {r.status_code}")
 
             with tempfile.NamedTemporaryFile(delete=False, suffix=".xml") as tmp:
                 tmp_path = tmp.name
@@ -94,12 +96,14 @@ class ShopKzScraper:
                         })
                     elem.clear()
 
-            os.remove(tmp_path)
             print(f"[{self.SHOP_NAME}] ✅ Успешно выгружено {len(products)} товаров из официального YML фида!")
         except Exception as e:
-            print(f"[{self.SHOP_NAME}] Ошибка при парсинге YML: {e}")
+            return ScanResult(products, error=type(e).__name__)
+        finally:
+            if tmp_path and os.path.exists(tmp_path):
+                os.remove(tmp_path)
 
-        return products
+        return ScanResult(products, complete=bool(products), error=None if products else "Пустая выгрузка")
 
     def _scrape_sync(self, category_name: str, category_url: str, max_pages: int) -> List[Dict[str, Any]]:
         # Если передан URL YML выгрузки

@@ -243,5 +243,261 @@ class TestDNSMonitor(unittest.TestCase):
         self.assertIsNotNone(anomaly)
         self.assertEqual(anomaly["type"], "SUPER_DISCOUNT")
 
+
+class TestReliability(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        init_db()
+        from database import invalidate_alerts_cache
+        with get_connection() as conn:
+            for table in ('notification_outbox', 'product_sources', 'alerts', 'products', 'shop_scans', 'users', 'sessions'):
+                conn.execute(f'DELETE FROM {table}')
+        invalidate_alerts_cache()
+
+    def product(self, pid='audit', **kwargs):
+        return dict(id=pid, title='Apple iPhone 16 256 ГБ', price=150000,
+                    shop='Shop A', city='Астана', url='https://example.invalid/p', **kwargs)
+
+    async def test_failed_and_partial_scan_do_not_advance_success(self):
+        import asyncio
+        from unittest.mock import patch
+        from scrapers.base import PagedScraper, ScanResult
+        from web import server
+        from database import get_shop_scans, get_stale_shops
+        product = self.product()
+        class Broken(PagedScraper):
+            PAGE_DELAY_SECONDS = 0
+            def _fetch_page(self, name, url, page):
+                raise RuntimeError('simulated failure')
+        registry = {'audit': (Broken, [{'name': 'Audit', 'url': 'https://example.invalid'}], 'Shop A')}
+        with patch.dict(server.SHOP_REGISTRY, registry):
+            await server._scan_shop('audit', {}, asyncio.Semaphore(1))
+        row = get_shop_scans()['audit']
+        self.assertEqual(row['status'], 'failed')
+        self.assertIsNone(row['last_success_at'])
+        self.assertNotIn('audit', get_stale_shops(['audit'], 10))
+        with get_connection() as conn:
+            conn.execute('UPDATE shop_scans SET next_retry_at=0')
+        self.assertIn('audit', get_stale_shops(['audit'], 10))
+        class Partial(Broken):
+            def _fetch_page(self, name, url, page):
+                if page == 1: return [product]
+                raise RuntimeError('second page failure')
+        with patch.dict(server.SHOP_REGISTRY, {'audit': (Partial, registry['audit'][1], 'Shop A')}):
+            await server._scan_shop('audit', config.get_candidate_settings(), asyncio.Semaphore(1))
+        row = get_shop_scans()['audit']
+        self.assertEqual(row['status'], 'partial')
+        self.assertEqual(row['last_items'], 1)
+        self.assertIsNone(row['last_success_at'])
+
+    async def test_arbitrage_is_checked_beyond_first_hundred_offers(self):
+        from web.server import _save_and_detect
+        competitor=dict(self.product('competitor'),shop='Shop B',price=200000)
+        save_or_update_product(competitor)
+        products=[dict(self.product(f'bulk-{i}'),title=f'Unknown Model {i}',price=12000) for i in range(100)]
+        products.append(self.product('target'))
+        await _save_and_detect(products,'Shop A',config.get_candidate_settings())
+        with get_connection() as conn:
+            rows=conn.execute("SELECT product_id FROM alerts WHERE alert_type='MARKET_ARBITRAGE'").fetchall()
+        self.assertEqual([r[0] for r in rows],['target'])
+
+    def test_pagination_limit_and_confirmed_end(self):
+        from scrapers.base import PagedScraper, ScanResult
+        p = self.product()
+        class Pages(PagedScraper):
+            PAGE_DELAY_SECONDS = 0
+            def _fetch_page(self, name, url, page):
+                return [p] if page == 1 else ScanResult(complete=True)
+        self.assertTrue(Pages()._scrape_sync('x','x', 3).complete)
+        self.assertTrue(Pages()._scrape_sync('x','x', 1).limited)
+        class UnknownEnd(Pages):
+            def _fetch_page(self, name, url, page):
+                return [p] if page == 1 else []
+        self.assertFalse(UnknownEnd()._scrape_sync('x','x',3).complete)
+        self.assertIsNotNone(UnknownEnd()._scrape_sync('x','x',3).error)
+
+    def test_html_404_after_data_is_limited_not_complete(self):
+        from unittest.mock import patch, Mock
+        from scrapers.forcecom import ForcecomScraper
+        from scrapers.base import ScanResult
+        scraper=ForcecomScraper()
+        scraper.PAGE_DELAY_SECONDS=0
+        original=scraper._fetch_page
+        def fetch(name,url,page):
+            if page==1: return [self.product()]
+            return original(name,url,page)
+        with patch.object(scraper,'_fetch_page',side_effect=fetch), patch('scrapers.forcecom.requests.get',return_value=Mock(status_code=404)):
+            result=scraper._scrape_sync('x','https://example.invalid',3)
+        self.assertTrue(result.limited)
+        self.assertFalse(result.complete)
+        self.assertIsNone(result.error)
+
+    def test_http_errors_are_not_catalog_end(self):
+        from unittest.mock import patch, Mock
+        from scrapers.kaspi import KaspiScraper
+        with patch('scrapers.kaspi.requests.get', return_value=Mock(status_code=503)):
+            result = KaspiScraper()._scrape_sync('x','https://kaspi.kz/shop/c/phones/',2)
+        self.assertTrue(result.error)
+        self.assertFalse(result.complete)
+
+    def test_retirement_only_after_full_source_and_reactivation(self):
+        from database import reconcile_source, get_products_count
+        a,b = self.product('a'), self.product('b')
+        save_or_update_products_batch([a,b])
+        reconcile_source('shop','category',[a,b],True)
+        reconcile_source('shop','category',[a],False)
+        self.assertEqual(get_products_count(),2)
+        reconcile_source('shop','category',[],True)
+        self.assertEqual(get_products_count(),2)  # whole-catalog collapse is suspicious
+        reconcile_source('shop','category',[a],True)
+        self.assertEqual(get_products_count(),1)
+        save_or_update_products_batch([b])
+        reconcile_source('shop','category',[b],False)
+        self.assertEqual(get_products_count(),2)
+
+    def test_other_source_keeps_product_active(self):
+        from database import reconcile_source, get_products_count
+        a,b=self.product('a'),self.product('b')
+        save_or_update_products_batch([a,b])
+        reconcile_source('shop','first',[a,b],True)
+        reconcile_source('shop','second',[b],True)
+        reconcile_source('shop','first',[a],True)
+        self.assertEqual(get_products_count(),2)
+
+    def test_stale_prices_excluded_everywhere(self):
+        from database import get_products_count, find_market_comparisons, get_alerts
+        from search_engine import search_in_database
+        p=self.product()
+        save_or_update_product(p)
+        record_alert(p['id'],'SUPER_DISCOUNT',300000,150000,50,150000)
+        with get_connection() as conn:
+            conn.execute("UPDATE products SET updated_at='2000-01-01'")
+        self.assertEqual(get_products_count(),0)
+        self.assertEqual(search_in_database('iPhone'),[])
+        self.assertEqual(get_alerts(),[])
+        self.assertIsNone(find_market_comparisons(p['title'],'Other',100000,'Астана'))
+
+    def test_variant_capacity_city_and_matching(self):
+        from database import find_market_comparisons
+        from model_matching import same_model
+        self.assertTrue(same_model('Смартфон Apple iPhone 16 Pro 256GB Black', 'Apple iPhone 16 Pro 256 ГБ Черный'))
+        for other in ('Apple iPhone 16 Pro Max 256 ГБ', 'Apple iPhone 16 128 ГБ', 'Apple iPhone 15 256 ГБ'):
+            self.assertFalse(same_model('Apple iPhone 16 256 ГБ', other))
+        self.assertTrue(same_model('Samsung Galaxy S24 Ultra 1TB', 'Samsung Galaxy S24 Ultra 1024 ГБ'))
+        p=self.product()
+        save_or_update_product(dict(p,city='Алматы'))
+        self.assertIsNone(find_market_comparisons(p['title'],'Other',100000,'Астана'))
+        save_or_update_product(p)
+        self.assertIsNotNone(find_market_comparisons(p['title'],'Other',100000,'Астана'))
+        save_or_update_product(dict(p,title='Apple iPhone 16 Pro Max 256 ГБ'))
+        self.assertIsNone(find_market_comparisons(p['title'],'Other',100000,'Астана'))
+
+    def enqueue(self):
+        from notifier import prepare_deliveries
+        p=self.product()
+        save_or_update_product(p)
+        upsert_telegram_user({'id':42,'first_name':'Audit'})
+        save_user_settings(42,{'telegram_notify_enabled':True,'price_glitch_drop_pct':30})
+        anomaly={'type':'SUPER_DISCOUNT','old_price':300000,'new_price':150000,'drop_pct':50,
+                 'savings':150000,'emoji':'Sale','reason':'Test'}
+        return record_alert(p['id'],'SUPER_DISCOUNT',300000,150000,50,150000,
+                            deliveries=prepare_deliveries(p,anomaly))
+
+    def test_notification_retry_survives_reinitialization(self):
+        from unittest.mock import patch
+        from notifier import deliver_pending
+        from database import notification_stats
+        self.enqueue()
+        with patch('notifier.get_bot_token',return_value='test'), patch('notifier.send_telegram_alert',return_value=False) as send:
+            self.assertEqual(deliver_pending(),0)
+            self.assertEqual(send.call_count,1)
+            deliver_pending()
+            self.assertEqual(send.call_count,1)
+        init_db()
+        with get_connection() as conn:
+            conn.execute('UPDATE notification_outbox SET next_attempt_at=0')
+        with patch('notifier.get_bot_token',return_value='test'), patch('notifier.send_telegram_alert',return_value=True) as send:
+            self.assertEqual(deliver_pending(),1)
+            deliver_pending()
+            self.assertEqual(send.call_count,1)
+        self.assertEqual(notification_stats(),{'sent':1})
+
+    def test_blocked_user_notification_cancelled(self):
+        from unittest.mock import patch
+        from notifier import deliver_pending
+        from database import notification_stats
+        self.enqueue()
+        set_user_blocked(42,True)
+        with patch('notifier.get_bot_token',return_value='test'), patch('notifier.send_telegram_alert') as send:
+            deliver_pending()
+            send.assert_not_called()
+        self.assertEqual(notification_stats(),{'cancelled':1})
+
+    def test_duplicate_window_expires(self):
+        self.enqueue()
+        self.assertTrue(was_alert_sent_recently('audit',150000))
+        with get_connection() as conn:
+            conn.execute("UPDATE alerts SET created_at=datetime('now','-2 days')")
+        self.assertFalse(was_alert_sent_recently('audit',150000))
+
+    def test_flip_prices_availability_pagination(self):
+        from scrapers.flip import FlipScraper
+        html = '<div class="new-product"><a class="product" href="/catalog?prod=123"><img class="image" src="//s.f.kz/test.jpg"><div class="product-data" data-available="1"><div class="title">Phone</div><div class="price"><span>150 000 ₸</span><span class="old">200 000 ₸</span></div></div></a></div>'
+        result=FlipScraper.parse_page(html,'Electronics','https://www.flip.kz/catalog?subsection=5319',1)
+        self.assertTrue(result.complete)
+        self.assertEqual(result[0]['price'],150000)
+        self.assertEqual(result[0]['old_price_on_site'],200000)
+        self.assertEqual(result[0]['image_url'],'https://s.f.kz/test.jpg')
+        paged=FlipScraper.parse_page(html+'<a href="/catalog?subsection=5319&page=2">2</a>','Electronics','https://www.flip.kz/catalog?subsection=5319',1)
+        self.assertFalse(paged.complete)
+        absent=FlipScraper.parse_page(html.replace('data-available="1"','data-available="0"'),'x','x',1)
+        self.assertEqual(len(absent),0)
+        self.assertFalse(absent.complete)
+        with self.assertRaises(ValueError):
+            FlipScraper.parse_page('<html>Challenge</html>','x','x',1)
+
+    def test_outbox_and_alert_are_atomic(self):
+        with self.assertRaises(TypeError):
+            record_alert('audit','SUPER_DISCOUNT',300000,150000,50,150000,
+                         deliveries=[(42,{'invalid': object()})])
+        with get_connection() as conn:
+            self.assertEqual(conn.execute('SELECT count(*) FROM alerts').fetchone()[0],0)
+            self.assertEqual(conn.execute('SELECT count(*) FROM notification_outbox').fetchone()[0],0)
+
+    def test_retry_lease_and_price_change(self):
+        from database import claim_notification, notification_stats
+        from notifier import deliver_pending
+        from unittest.mock import patch
+        self.enqueue()
+        self.assertIsNotNone(claim_notification())
+        self.assertIsNone(claim_notification())
+        with get_connection() as conn:
+            conn.execute('UPDATE notification_outbox SET next_attempt_at=0')
+        save_or_update_product(dict(self.product(),price=160000))
+        with patch('notifier.get_bot_token',return_value='test'), patch('notifier.send_telegram_alert') as send:
+            deliver_pending()
+            send.assert_not_called()
+        self.assertEqual(notification_stats(),{'cancelled':1})
+
+    async def test_admin_api_permissions_and_shop_validation(self):
+        from unittest.mock import patch
+        from aiohttp.test_utils import TestClient, TestServer
+        from web.server import create_app
+        upsert_telegram_user({'id':42,'first_name':'Audit'})
+        token=create_session(42)
+        app=create_app()
+        app.cleanup_ctx.clear()  # no external requests or scans during API tests
+        async with TestClient(TestServer(app)) as client:
+            self.assertEqual((await client.get('/api/admin/shops')).status,401)
+            client.session.cookie_jar.update_cookies({'kzph_session':token})
+            self.assertEqual((await client.get('/api/admin/shops')).status,403)
+            with patch('auth.ADMIN_TELEGRAM_IDS',{42}):
+                response=await client.get('/api/admin/shops')
+                self.assertEqual(response.status,200)
+                self.assertEqual(len((await response.json())['shops']),len(config.SHOP_KEYS))
+                for shops in ([],['unknown'],'kaspi',[{}]):
+                    response=await client.post('/api/scan/start',json={'shops':shops})
+                    self.assertEqual(response.status,400)
+
+
 if __name__ == "__main__":
     unittest.main()

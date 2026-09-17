@@ -22,6 +22,7 @@ SHOP_KEYS = {
     "evrika": "Эврика",
     "moon": "Moon.kz",
     "fourmobile": "4mobile",
+    "flip": "Flip.kz",
 }
 
 def _all_shops_enabled():
@@ -488,3 +489,8 @@ FOURMOBILE_CATEGORIES = [
 
 
 
+
+# Public catalog; regional stock is not confirmed, so offers appear under All cities.
+FLIP_CATEGORIES = [
+    {"name": "Flip: Электроника", "url": "https://www.flip.kz/catalog?subsection=5319", "max_pages": 50},
+]

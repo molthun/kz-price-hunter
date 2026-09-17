@@ -9,7 +9,7 @@ import json
 from typing import Any, Dict, List
 
 from curl_cffi import requests
-from scrapers.base import PagedScraper
+from scrapers.base import ScanResult, PagedScraper
 
 class TechnodomScraper(PagedScraper):
     SHOP_NAME = "Технодом"
@@ -40,22 +40,22 @@ class TechnodomScraper(PagedScraper):
         url = self.page_url(category_url, page_num)
         r = requests.get(url, headers=self.headers, cookies=self.cookies, impersonate="chrome124", timeout=30)
         if r.status_code != 200:
-            return []
+            raise RuntimeError(f"HTTP {r.status_code}")
 
         match = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', r.text, re.S)
         if not match:
             print(f"[{self.SHOP_NAME}] Данные каталога не найдены на странице {url}")
-            return []
+            raise ValueError("Не найдены данные каталога Технодом")
 
         try:
             data = json.loads(match.group(1))
             product_list = data["props"]["pageProps"]["initialState"]["productList"]
         except (KeyError, ValueError) as e:
             print(f"[{self.SHOP_NAME}] Неожиданная структура данных ({e}) на странице {url}")
-            return []
+            raise ValueError("Не найдены данные каталога Технодом")
 
         products: List[Dict[str, Any]] = []
-        for item in product_list.get("items") or []:
+        for item in product_list["items"] or []:
             sku = str(item.get("sku") or "").strip()
             title = (item.get("title") or "").strip()
             price = self._price(item.get("price") or item.get("default_price"))
@@ -77,4 +77,4 @@ class TechnodomScraper(PagedScraper):
                 "old_price_on_site": old_price if old_price > price else 0,
                 "city": "Астана"
             })
-        return products
+        return ScanResult(products, complete=not product_list["items"])

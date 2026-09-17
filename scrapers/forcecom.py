@@ -3,7 +3,7 @@ import hashlib
 import asyncio
 from typing import List, Dict, Any
 from curl_cffi import requests
-from scrapers.base import PagedScraper, parse_price
+from scrapers.base import UnconfirmedEnd, PagedScraper, parse_price
 from bs4 import BeautifulSoup
 
 class ForcecomScraper(PagedScraper):
@@ -36,13 +36,15 @@ class ForcecomScraper(PagedScraper):
                 impersonate="chrome124",
                 timeout=15
             )
+            if r.status_code == 404 and page_num > 1:
+                raise UnconfirmedEnd("HTTP 404 после последней доступной страницы")
             if r.status_code != 200:
-                return products
+                raise RuntimeError(f"HTTP {r.status_code}")
 
             soup = BeautifulSoup(r.text, "html.parser")
             cards = soup.select(".catalog-table__inner, .catalog-block__inner, .catalog-item")
             if not cards:
-                return products
+                raise UnconfirmedEnd("Не найдены карточки: конец выдачи не подтвержден")
 
             seen_pids = set()
 
@@ -119,8 +121,10 @@ class ForcecomScraper(PagedScraper):
                     "city": "Астана / Казахстан"
                 })
 
+        except UnconfirmedEnd:
+            raise
         except Exception as e:
             print(f"[{self.SHOP_NAME}] Ошибка страницы {url}: {e}")
-            return products
+            raise
 
         return products

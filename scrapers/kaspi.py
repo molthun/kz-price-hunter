@@ -9,7 +9,7 @@ import urllib.parse
 from typing import Any, Dict, List
 
 from curl_cffi import requests
-from scrapers.base import PagedScraper
+from scrapers.base import ScanResult, PagedScraper
 
 class KaspiScraper(PagedScraper):
     SHOP_NAME = "Kaspi Магазин"
@@ -64,15 +64,12 @@ class KaspiScraper(PagedScraper):
         headers = dict(self.headers, Referer=category_url)
         r = requests.get(self.API_URL, params=params, headers=headers, impersonate="chrome124", timeout=30)
         if r.status_code != 200:
-            if page_num == 1:
-                print(f"[{self.SHOP_NAME}] Ошибка HTTP {r.status_code} для категории {code}")
-            return []
-
-        try:
-            cards = self._cards(r.json())
-        except Exception as e:
-            print(f"[{self.SHOP_NAME}] Не удалось разобрать ответ категории {code}: {e}")
-            return []
+            raise RuntimeError(f"HTTP {r.status_code}")
+        payload = r.json()
+        data = payload.get("data") if isinstance(payload, dict) else payload
+        if not isinstance(data, list) and not (isinstance(data, dict) and isinstance(data.get("cards"), list)):
+            raise ValueError("Неожиданная структура каталога Kaspi")
+        cards = self._cards(payload)
 
         products: List[Dict[str, Any]] = []
         for card in cards:
@@ -109,4 +106,4 @@ class KaspiScraper(PagedScraper):
                 "old_price_on_site": base_price if base_price > price else 0,
                 "city": "Астана"
             })
-        return products
+        return ScanResult(products, complete=not cards)

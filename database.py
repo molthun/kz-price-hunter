@@ -1,5 +1,6 @@
 import re
 import json
+import time
 import sqlite3
 import hashlib
 import secrets
@@ -7,10 +8,45 @@ import datetime
 from typing import Optional, Dict, Any, List
 from config import DB_PATH, get_scan_interval_seconds, merge_user_settings
 
+def active_product_clause(alias=""):
+    prefix = f"{alias}." if alias else ""
+    seconds = max(86400, 2 * get_scan_interval_seconds())
+    return (f"{prefix}is_active = 1 AND julianday({prefix}updated_at) "
+            f">= julianday('now') - {seconds} / 86400.0")
+
+
+def reconcile_source(shop_key, source_url, products, complete=False):
+    """Only a verified complete source may retire its previously observed offers."""
+    ids = {str(p["id"]) for p in products}
+    with get_connection() as conn:
+        if complete and ids:
+            conn.execute("UPDATE product_sources SET active=0 WHERE shop_key=? AND source_url=?", (shop_key, source_url))
+        conn.executemany("""INSERT INTO product_sources(product_id,shop_key,source_url,active)
+            VALUES (?,?,?,1) ON CONFLICT(product_id,shop_key,source_url) DO UPDATE SET active=1""",
+            [(pid, shop_key, source_url) for pid in ids])
+        if complete and ids:
+            conn.execute("""UPDATE products SET is_active=0 WHERE id IN
+                (SELECT product_id FROM product_sources WHERE shop_key=? AND source_url=?)
+                AND NOT EXISTS (SELECT 1 FROM product_sources s WHERE s.product_id=products.id AND s.active=1)""",
+                (shop_key, source_url))
+        conn.commit()
+    invalidate_alerts_cache()
+
+
+class ClosingConnection(sqlite3.Connection):
+    def __exit__(self, exc_type, exc_value, traceback):
+        try:
+            return super().__exit__(exc_type, exc_value, traceback)
+        finally:
+            self.close()
+
+
 def get_connection():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=15, factory=ClosingConnection)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode = WAL;")
+    # Магазины сканируются параллельно: ждем освобождения блокировки вместо ошибки "database is locked"
+    conn.execute("PRAGMA busy_timeout = 15000;")
     conn.execute("PRAGMA synchronous = NORMAL;")
     return conn
 
@@ -123,6 +159,30 @@ def init_db():
             )
         """)
 
+        # Additive migrations preserve existing user data and can run repeatedly.
+        for table, column, declaration in (
+            ("products", "is_active", "INTEGER NOT NULL DEFAULT 1"),
+            ("shop_scans", "status", "TEXT NOT NULL DEFAULT 'unknown'"),
+            ("shop_scans", "failure_count", "INTEGER NOT NULL DEFAULT 0"),
+            ("shop_scans", "next_retry_at", "REAL"),
+        ):
+            columns = {row[1] for row in cursor.execute(f"PRAGMA table_info({table})")}
+            if column not in columns:
+                cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {declaration}")
+        cursor.execute("""CREATE TABLE IF NOT EXISTS product_sources (
+            product_id TEXT NOT NULL, shop_key TEXT NOT NULL, source_url TEXT NOT NULL,
+            active INTEGER NOT NULL DEFAULT 1,
+            PRIMARY KEY(product_id, shop_key, source_url)
+        )""")
+        cursor.execute("""CREATE TABLE IF NOT EXISTS notification_outbox (
+            id INTEGER PRIMARY KEY, alert_id INTEGER NOT NULL, user_id INTEGER NOT NULL,
+            payload TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
+            attempts INTEGER NOT NULL DEFAULT 0, next_attempt_at REAL NOT NULL DEFAULT 0,
+            created_at REAL NOT NULL, last_error TEXT,
+            UNIQUE(alert_id, user_id)
+        )""")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_outbox_due ON notification_outbox(status, next_attempt_at)")
+
         # Автоматическая миграция: исправление ссылок на картинки Белого Ветра
         try:
             cursor.execute("UPDATE products SET image_url = REPLACE(image_url, 'https://shop.kz//static.shop.kz', 'https://static.shop.kz') WHERE image_url LIKE 'https://shop.kz//static.shop.kz%'")
@@ -213,7 +273,7 @@ def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
 
             cursor.execute("""
                 UPDATE products
-                SET shop = ?, city = ?, title = ?, category = ?, url = ?, image_url = ?,
+                SET is_active = 1, shop = ?, city = ?, title = ?, category = ?, url = ?, image_url = ?,
                     current_price = ?, min_price = ?, max_price = ?, updated_at = ?
                 WHERE id = ?
             """, (shop, city, title, category, url, image_url, current_price, min_price, max_price, now, pid))
@@ -286,7 +346,7 @@ def save_or_update_products_batch(products: List[Dict[str, Any]]) -> int:
                 max_price = max(existing["max_price"], current_price)
                 cursor.execute("""
                     UPDATE products
-                    SET shop = ?, city = ?, title = ?, category = ?, url = ?, image_url = ?,
+                    SET is_active = 1, shop = ?, city = ?, title = ?, category = ?, url = ?, image_url = ?,
                         current_price = ?, min_price = ?, max_price = ?, updated_at = ?
                     WHERE id = ?
                 """, (shop, city, title, category, url, image_url, current_price, min_price, max_price, now, pid))
@@ -300,19 +360,25 @@ def was_alert_sent_recently(product_id: str, new_price: int) -> bool:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT id FROM alerts
-            WHERE product_id = ? AND new_price = ?
+            WHERE product_id = ? AND new_price = ? AND datetime(created_at) >= datetime('now', '-1 day')
             LIMIT 1
         """, (str(product_id), new_price))
         return cursor.fetchone() is not None
 
-def record_alert(product_id: str, alert_type: str, old_price: int, new_price: int, discount_pct: float, savings_kzt: int, shop: str = "DNS Казахстан", city: str = "Астана", competitor_shop: Optional[str] = None):
+def record_alert(product_id: str, alert_type: str, old_price: int, new_price: int, discount_pct: float, savings_kzt: int, shop: str = "DNS Казахстан", city: str = "Астана", competitor_shop: Optional[str] = None, deliveries=None):
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO alerts (shop, city, product_id, alert_type, old_price, new_price, discount_pct, savings_kzt, competitor_shop)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (shop, city, str(product_id), alert_type, old_price, new_price, discount_pct, savings_kzt, competitor_shop))
+        alert_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        for user_id, payload in deliveries or []:
+            conn.execute("""INSERT INTO notification_outbox(alert_id,user_id,payload,created_at)
+                VALUES (?,?,?,?)""", (alert_id, user_id, json.dumps(payload, ensure_ascii=False), time.time()))
         conn.commit()
+        invalidate_alerts_cache()
+        return alert_id
 
 def get_db_freshness(threshold_seconds: int = 10800) -> Dict[str, Any]:
     """Определяет свежесть базы данных на основе времени последнего обновления товаров.
@@ -324,7 +390,7 @@ def get_db_freshness(threshold_seconds: int = 10800) -> Dict[str, Any]:
         row = cursor.fetchone()
         latest_str = row[0] if row else None
 
-        cursor.execute("SELECT COUNT(*) FROM products")
+        cursor.execute("SELECT COUNT(*) FROM products WHERE " + active_product_clause())
         total_count = cursor.fetchone()[0]
 
     if not latest_str or total_count == 0:
@@ -356,7 +422,19 @@ def get_db_freshness(threshold_seconds: int = 10800) -> Dict[str, Any]:
     }
 
 # Сколько последних кандидатов просматривается при фильтрации ленты по личным порогам
-ALERTS_SCAN_WINDOW = 3000
+ALERTS_SCAN_WINDOW = 1500
+
+# Лента фильтруется в Python, а панель опрашивает статистику каждые 3 секунды,
+# поэтому результат ненадолго кэшируется: во время сканирования это снимает нагрузку с базы
+_ALERTS_CACHE: Dict[Any, Any] = {}
+_ALERTS_CACHE_TTL_SECONDS = 15
+
+def _alerts_cache_key(user_settings: Dict[str, Any], city, alert_type, limit):
+    fingerprint = json.dumps(user_settings, sort_keys=True, ensure_ascii=False)
+    return (fingerprint, city, alert_type, limit)
+
+def invalidate_alerts_cache() -> None:
+    _ALERTS_CACHE.clear()
 
 def _alert_type_clause(alert_type: Optional[str]):
     if not alert_type:
@@ -375,12 +453,17 @@ def _alert_type_clause(alert_type: Optional[str]):
 def _fetch_filtered_alerts(user_settings: Dict[str, Any], city: Optional[str] = None, alert_type: Optional[str] = None, limit: Optional[int] = None) -> list:
     from detector import alert_matches_user
 
+    key = _alerts_cache_key(user_settings, city, alert_type, limit)
+    cached = _ALERTS_CACHE.get(key)
+    now = time.monotonic()
+    if cached and now - cached[0] < _ALERTS_CACHE_TTL_SECONDS:
+        return cached[1]
+
     query = """
         SELECT a.*, p.title, p.url, p.image_url, p.category
         FROM alerts a
         LEFT JOIN products p ON a.product_id = p.id
-        WHERE 1=1
-    """
+        WHERE """ + active_product_clause("p") + " AND p.current_price = a.new_price"
     params: List[Any] = []
     if city and city != "Все":
         query += " AND (a.city = ? OR a.city IS NULL)"
@@ -399,16 +482,20 @@ def _fetch_filtered_alerts(user_settings: Dict[str, Any], city: Optional[str] = 
                 result.append(item)
                 if limit is not None and len(result) >= limit:
                     break
+
+    _ALERTS_CACHE[key] = (now, result)
+    if len(_ALERTS_CACHE) > 200:
+        _ALERTS_CACHE.clear()
     return result
 
 def get_stats(user_settings: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     settings = user_settings if user_settings is not None else merge_user_settings({})
     with get_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM products")
+        cursor.execute("SELECT COUNT(*) FROM products WHERE " + active_product_clause())
         total_products = cursor.fetchone()[0]
 
-        cursor.execute("SELECT shop, COUNT(*) as count FROM products GROUP BY shop")
+        cursor.execute("SELECT shop, COUNT(*) as count FROM products WHERE " + active_product_clause() + " GROUP BY shop")
         shops_stats = {row["shop"]: row["count"] for row in cursor.fetchall()}
 
     # Счетчики аномалий и скидок — по личным порогам пользователя (у гостей — по умолчанию)
@@ -430,7 +517,7 @@ def get_alerts(limit: int = 150, city: Optional[str] = None, alert_type: Optiona
     return _fetch_filtered_alerts(settings, city=city, alert_type=alert_type, limit=limit)
 
 def get_products_list(shop: Optional[str] = None, city: Optional[str] = None, search: Optional[str] = None, limit: int = 50, offset: int = 0) -> list:
-    query = "SELECT * FROM products WHERE 1=1"
+    query = "SELECT * FROM products WHERE " + active_product_clause()
     params = []
     if shop and shop != "Все":
         query += " AND shop = ?"
@@ -450,7 +537,7 @@ def get_products_list(shop: Optional[str] = None, city: Optional[str] = None, se
         return [dict(row) for row in cursor.fetchall()]
 
 def get_products_count(shop: Optional[str] = None, city: Optional[str] = None, search: Optional[str] = None) -> int:
-    query = "SELECT COUNT(*) FROM products WHERE 1=1"
+    query = "SELECT COUNT(*) FROM products WHERE " + active_product_clause()
     params = []
     if shop and shop != "Все":
         query += " AND shop = ?"
@@ -481,75 +568,27 @@ def find_market_comparisons(
     if current_price <= 0 or not title:
         return None
 
-    # Извлекаем очищенные поисковые токены модели
-    cleaned = re.sub(r"[^\w\s]", " ", title)
-    cleaned = re.sub(r"(\d+)([a-zA-Zа-яА-Я]+)", r"\1 \2", cleaned)
-    cleaned = re.sub(r"([a-zA-Zа-яА-Я]+)(\d+)", r"\1 \2", cleaned)
-    stop_words = {
-        "смартфон", "ноутбук", "процессор", "видеокарта", "телевизор", "монитор",
-        "пылесос", "планшет", "наушники", "часы", "стайлер", "выпрямитель",
-        "приставка", "консоль", "купить", "для", "чехол", "стекло", "пленка", "блок", "питания",
-        "черный", "белый", "серый", "black", "white", "silver", "gold", "blue", "green", "red",
-        "oem", "box", "nano", "esim", "sim", "игровая", "смарт", "cpu", "am4", "am5", "lga1700",
-        "led", "oled", "uhd", "smart", "wifi", "lte", "gadzhety", "offers", "offer",
-        "gb", "гб", "tb", "тб", "mb", "мб", "hz", "гц"
-    }
-    words = cleaned.split()
-    tokens = []
-    for w in words:
-        wl = w.lower()
-        if wl in stop_words:
-            continue
-        if len(wl) >= 2 and not (wl.isdigit() and len(wl) == 1):
-            tokens.append(wl)
-
-    if not tokens:
+    from model_matching import same_model, search_terms
+    from detector import is_junk_accessory, is_used_goods
+    tokens = search_terms(title)
+    from config import CITIES_KZ
+    known_cities = {c["name"] for c in CITIES_KZ.values()}
+    if not tokens or city not in known_cities:
         return None
-
-    # Приоритет токенам с цифрами/моделями
-    tokens.sort(key=lambda x: (not (any(c.isdigit() for c in x) and any(c.isalpha() for c in x)), not any(c.isdigit() for c in x)))
-    selected_tokens = tokens[:3]
-    fts_query = " AND ".join(selected_tokens)
-
-    competitors = []
+    fts_query = " AND ".join('"' + t + '"' for t in tokens)
     with get_connection() as conn:
-        cursor = conn.cursor()
-        try:
-            sql = """
-                SELECT shop, title, current_price, url, city
-                FROM products
-                WHERE shop != ? AND current_price > 0 AND rowid IN (
-                    SELECT rowid FROM products_fts WHERE products_fts MATCH ?
-                )
-                ORDER BY current_price ASC
-                LIMIT ?
-            """
-            cursor.execute(sql, (current_shop, fts_query, limit))
-            rows = cursor.fetchall()
-            for r in rows:
-                competitors.append(dict(r))
-        except Exception:
-            return None
-
-    if not competitors:
-        return None
-
-    # Фильтрация нерелевантного хлама, несопоставимых по цене товаров и проверка схожести моделей
-    import difflib
-    from detector import is_junk_accessory
-
-    valid_competitors = []
-    for c in competitors:
-        c_price = c.get("current_price", 0)
-        # Отсекаем нереалистичные скачки цен: конкурент не может стоить в 2.5 раза дороже (другой класс устройства)
-        if c_price > current_price * 2.5 or c_price < current_price * 0.35:
-            continue
-        if is_junk_accessory(c["title"]):
-            continue
-        # Проверяем схожесть названий моделей
-        sim = difflib.SequenceMatcher(None, title.lower(), c["title"].lower()).ratio()
-        if sim >= 0.38:
-            valid_competitors.append(c)
+        rows = conn.execute("""
+            SELECT shop, title, current_price, url, city, category FROM products
+            WHERE shop != ? AND city = ? AND current_price > 0 AND """
+            + active_product_clause() + """ AND rowid IN (
+                SELECT rowid FROM products_fts WHERE products_fts MATCH ?)
+            ORDER BY current_price ASC LIMIT 500
+        """, (current_shop, city, fts_query)).fetchall()
+    valid_competitors = [dict(r) for r in rows
+        if same_model(title, r["title"])
+        and not is_junk_accessory(r["title"], r["category"] or "")
+        and not is_used_goods(r["title"], r["category"] or "", r["url"])]
+    valid_competitors = valid_competitors[:limit]
 
     if not valid_competitors:
         return None
@@ -673,27 +712,26 @@ def record_shop_scan_start(shop_key: str) -> None:
             INSERT INTO shop_scans (shop_key, last_attempt_at) VALUES (?, ?)
             ON CONFLICT(shop_key) DO UPDATE SET last_attempt_at = excluded.last_attempt_at
         """, (shop_key, now))
+        conn.execute("UPDATE shop_scans SET status='running',next_retry_at=NULL WHERE shop_key=?", (shop_key,))
         conn.commit()
 
-def record_shop_scan_result(shop_key: str, items: int, duration_sec: float, error: Optional[str] = None) -> None:
+def record_shop_scan_result(shop_key, items, duration_sec, error=None, status=None):
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    status = status or ("partial" if error and items else "failed" if error else "complete")
     with get_connection() as conn:
-        if error:
-            conn.execute("""
-                INSERT INTO shop_scans (shop_key, last_attempt_at, last_items, last_duration_sec, last_error)
-                VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT(shop_key) DO UPDATE SET
-                    last_attempt_at = excluded.last_attempt_at, last_items = excluded.last_items,
-                    last_duration_sec = excluded.last_duration_sec, last_error = excluded.last_error
-            """, (shop_key, now, items, duration_sec, error[:500]))
-        else:
-            conn.execute("""
-                INSERT INTO shop_scans (shop_key, last_attempt_at, last_success_at, last_items, last_duration_sec, last_error)
-                VALUES (?, ?, ?, ?, ?, NULL)
-                ON CONFLICT(shop_key) DO UPDATE SET
-                    last_attempt_at = excluded.last_attempt_at, last_success_at = excluded.last_success_at,
-                    last_items = excluded.last_items, last_duration_sec = excluded.last_duration_sec, last_error = NULL
-            """, (shop_key, now, now, items, duration_sec))
+        row = conn.execute("SELECT failure_count FROM shop_scans WHERE shop_key=?", (shop_key,)).fetchone()
+        failures = (int(row[0]) if row else 0) + 1 if error else 0
+        retry = time.time() + min(3600, 300 * 2 ** min(failures - 1, 4)) if error else None
+        conn.execute("""INSERT INTO shop_scans
+            (shop_key,last_attempt_at,last_success_at,last_items,last_duration_sec,last_error,status,failure_count,next_retry_at)
+            VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(shop_key) DO UPDATE SET
+            last_attempt_at=excluded.last_attempt_at,
+            last_success_at=COALESCE(excluded.last_success_at,shop_scans.last_success_at),
+            last_items=excluded.last_items,last_duration_sec=excluded.last_duration_sec,
+            last_error=excluded.last_error,status=excluded.status,
+            failure_count=excluded.failure_count,next_retry_at=excluded.next_retry_at""",
+            (shop_key, now, now if status == "complete" else None, items, duration_sec,
+             error[:500] if error else None, status, failures, retry))
         conn.commit()
 
 def get_shop_scans() -> Dict[str, Dict[str, Any]]:
@@ -717,8 +755,12 @@ def get_stale_shops(shop_keys: List[str], max_age_seconds: int) -> List[str]:
     scans = get_shop_scans()
     stale = []
     for key in shop_keys:
-        age = _age_seconds((scans.get(key) or {}).get("last_success_at"))
-        if age is None or age >= max_age_seconds:
+        row = scans.get(key) or {}
+        if row.get("next_retry_at") and row["next_retry_at"] > time.time():
+            continue
+        timestamp = row.get("last_attempt_at") if row.get("status") == "limited" else row.get("last_success_at")
+        age = _age_seconds(timestamp)
+        if row.get("status") == "running" or row.get("last_error") or age is None or age >= max_age_seconds:
             stale.append((key, age if age is not None else 10**9))
     return [key for key, _ in sorted(stale, key=lambda x: -x[1])]
 
@@ -730,6 +772,9 @@ def get_shops_scan_report(shop_keys: List[str]) -> List[Dict[str, Any]]:
         row = scans.get(key) or {}
         report.append({
             "shop_key": key,
+            "status": row.get("status", "unknown"),
+            "last_attempt_at": row.get("last_attempt_at"),
+            "next_retry_at": row.get("next_retry_at"),
             "last_success_at": row.get("last_success_at"),
             "age_seconds": _age_seconds(row.get("last_success_at")),
             "last_items": row.get("last_items") or 0,
@@ -737,3 +782,31 @@ def get_shops_scan_report(shop_keys: List[str]) -> List[Dict[str, Any]]:
             "last_error": row.get("last_error"),
         })
     return report
+
+
+# Durable notification queue. A lease recovers interrupted deliveries after restart.
+def claim_notification():
+    now = time.time()
+    with get_connection() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute("""UPDATE notification_outbox SET status='expired'
+            WHERE status='pending' AND (created_at < ? OR attempts >= 8)""", (now - 86400,))
+        row = conn.execute("""SELECT * FROM notification_outbox
+            WHERE status='pending' AND next_attempt_at <= ? ORDER BY id LIMIT 1""", (now,)).fetchone()
+        if row:
+            conn.execute("UPDATE notification_outbox SET attempts=attempts+1,next_attempt_at=? WHERE id=?",
+                         (now + 120, row["id"]))
+        conn.commit()
+    return dict(row) if row else None
+
+
+def finish_notification(delivery_id, status, attempts=0, error=None):
+    with get_connection() as conn:
+        conn.execute("""UPDATE notification_outbox SET status=?,next_attempt_at=?,last_error=? WHERE id=?""",
+            (status, time.time() + min(3600, 60 * 2 ** min(attempts, 6)), error, delivery_id))
+        conn.commit()
+
+
+def notification_stats():
+    with get_connection() as conn:
+        return {r[0]: r[1] for r in conn.execute("SELECT status,COUNT(*) FROM notification_outbox GROUP BY status")}

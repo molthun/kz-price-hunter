@@ -3,6 +3,7 @@ import hashlib
 import asyncio
 from typing import List, Dict, Any
 from curl_cffi import requests
+from scrapers.base import ScanResult
 
 def parse_price(price_str: str) -> int:
     if not price_str or "нет в наличии" in price_str.lower():
@@ -63,8 +64,8 @@ class FourMobileScraper:
                     if m:
                         data = json.loads(m.group(1))
 
-            if not data:
-                return []
+            if not data or not any(isinstance(data.get(k), list) for k in ("price", "wiwu")):
+                raise ValueError("Каталог 4mobile недоступен или изменил формат")
 
             target_filter = category_name.lower().strip()
 
@@ -116,9 +117,9 @@ class FourMobileScraper:
                     })
 
         except Exception as e:
-            print(f"[{self.SHOP_NAME}] Ошибка при получении каталога: {e}")
+            return ScanResult(products, error=type(e).__name__)
 
-        return products
+        return ScanResult(products, complete=bool(products), error=None if products else "Пустой каталог")
 
     async def search_live(self, query: str) -> List[Dict[str, Any]]:
         return await asyncio.to_thread(self._search_live_sync, query)

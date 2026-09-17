@@ -11,3 +11,4 @@ __pycache__/
 prices.db
 *.db
 settings.json
+.claude/

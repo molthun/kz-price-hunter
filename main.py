@@ -7,8 +7,9 @@ import asyncio
 import argparse
 from datetime import datetime
 
-from config import CHECK_INTERVAL_SECONDS, get_bot_token, load_settings
+from config import get_scan_interval_seconds, get_bot_token, load_settings
 from database import init_db, get_stats, get_shops_scan_report
+from notifier import notification_worker
 from web.server import SHOP_REGISTRY, enabled_shop_keys, _do_scan_task, scan_state
 
 async def run_cycle():
@@ -38,6 +39,7 @@ async def main_loop(run_once: bool = False):
     else:
         print("ℹ️ TELEGRAM_BOT_TOKEN не задан. Алерты выводятся в консоль.")
 
+    worker = asyncio.create_task(notification_worker())
     while True:
         try:
             await run_cycle()
@@ -46,9 +48,13 @@ async def main_loop(run_once: bool = False):
 
         if run_once:
             print("Флаг --once установлен. Завершение работы.")
+            from notifier import deliver_pending
+            await asyncio.to_thread(deliver_pending)
+            worker.cancel()
+            await asyncio.gather(worker, return_exceptions=True)
             break
 
-        interval = load_settings().get("check_interval_seconds", CHECK_INTERVAL_SECONDS)
+        interval = get_scan_interval_seconds()
         print(f"Следующий круг через {interval} секунд...\n")
         await asyncio.sleep(interval)
 

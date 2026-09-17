@@ -1,3 +1,4 @@
+from database import active_product_clause
 import re
 import sqlite3
 import asyncio
@@ -61,7 +62,7 @@ def search_in_database(
     fts_expr = build_fts_query(tokens, mode) if query_clean else ""
     if fts_expr:
         try:
-            fts_conditions = ["products_fts MATCH ?", "p.current_price > 0"]
+            fts_conditions = ["products_fts MATCH ?", "p.current_price > 0", active_product_clause("p")]
             fts_params = [fts_expr]
 
             if shop and shop != "Все":
@@ -96,7 +97,7 @@ def search_in_database(
 
     # 2. Fallback на классический LIKE поиск, если FTS недоступен или выдал синтаксическую ошибку
     if not used_fts:
-        conditions = []
+        conditions = [active_product_clause()]
         params = []
 
         if mode == "EXACT":
