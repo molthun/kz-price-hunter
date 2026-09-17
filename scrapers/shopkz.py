@@ -152,7 +152,12 @@ class ShopKzScraper:
                     if img_el:
                         src = img_el.get("data-src") or img_el.get("src") or ""
                         if src and not src.endswith("1.gif"):
-                            image_url = f"{self.base_url}{src}" if src.startswith("/") else src
+                            if src.startswith("//"):
+                                image_url = f"https:{src}"
+                            elif src.startswith("/"):
+                                image_url = f"{self.base_url}{src}"
+                            else:
+                                image_url = src
 
                     # 4. Актуальная цена из .current_price
                     curr_price_el = c.select_one(".current_price span, .current_price")

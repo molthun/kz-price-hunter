@@ -103,6 +103,12 @@ def init_db():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_shop_city_price ON products(shop, city, current_price)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_alerts_product ON alerts(product_id)")
 
+        # Автоматическая миграция: исправление ссылок на картинки Белого Ветра
+        try:
+            cursor.execute("UPDATE products SET image_url = REPLACE(image_url, 'https://shop.kz//static.shop.kz', 'https://static.shop.kz') WHERE image_url LIKE 'https://shop.kz//static.shop.kz%'")
+        except Exception:
+            pass
+
         # Полнотекстовый индекс FTS5 для мгновенного поиска по миллионам товаров
         try:
             cursor.execute("""
@@ -152,8 +158,9 @@ def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
     city = p.get("city", "Астана")
     title = p["title"]
     category = p.get("category", "")
-    url = p["url"]
     image_url = p.get("image_url", "")
+    if image_url and "shop.kz//static.shop.kz" in image_url:
+        image_url = image_url.replace("https://shop.kz//static.shop.kz", "https://static.shop.kz").replace("shop.kz//static.shop.kz", "static.shop.kz")
     current_price = int(p["price"])
 
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -217,6 +224,8 @@ def save_or_update_products_batch(products: List[Dict[str, Any]]) -> int:
             category = p.get("category", "")
             url = p["url"]
             image_url = p.get("image_url", "")
+            if image_url and "shop.kz//static.shop.kz" in image_url:
+                image_url = image_url.replace("https://shop.kz//static.shop.kz", "https://static.shop.kz").replace("shop.kz//static.shop.kz", "static.shop.kz")
             current_price = int(p["price"])
 
             cursor.execute("SELECT current_price, min_price, max_price FROM products WHERE id = ?", (pid,))

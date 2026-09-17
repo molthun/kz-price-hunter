@@ -1180,7 +1180,10 @@
                 </div>
 
                 <div class="flex gap-3 items-start pt-1">
-                  ${a.image_url ? `<img src="${a.image_url}" class="w-16 h-16 object-contain rounded-lg bg-slate-900 p-1 border border-slate-800 shrink-0">` : ''}
+                  ${(() => {
+                    const img = (a.image_url || '').replace('https://shop.kz//static.shop.kz', 'https://static.shop.kz');
+                    return img ? `<img src="${img}" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'64\\' height=\\'64\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'%23475569\\' stroke-width=\\'1.5\\'><rect x=\\'3\\' y=\\'3\\' width=\\'18\\' height=\\'18\\' rx=\\'2\\'/><circle cx=\\'8.5\\' cy=\\'8.5\\' r=\\'1.5\\'/><path d=\\'m21 15-5-5L5 21\\'/></svg>';" class="w-16 h-16 object-contain rounded-lg bg-slate-900 p-1 border border-slate-800 shrink-0">` : `<div class="w-16 h-16 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0 text-slate-600"><i class="fa-regular fa-image text-xl"></i></div>`;
+                  })()}
                   <div>
                     <h4 class="text-sm font-semibold text-white line-clamp-2 leading-snug">${a.title || 'Товар'}</h4>
                     <span class="text-[11px] text-slate-500">${a.category || ''}</span>
@@ -1348,7 +1351,7 @@
 
             <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
               <div class="flex items-center gap-5">
-                ${best.image_url ? `<img src="${best.image_url}" class="w-24 h-24 sm:w-28 sm:h-28 object-contain rounded-xl bg-slate-900/80 p-2 border border-slate-700/80 shrink-0 shadow-lg">` : ''}
+                ${best.image_url ? `<img src="${best.image_url.replace('https://shop.kz//static.shop.kz', 'https://static.shop.kz')}" onerror="this.style.display='none';" class="w-24 h-24 sm:w-28 sm:h-28 object-contain rounded-xl bg-slate-900/80 p-2 border border-slate-700/80 shrink-0 shadow-lg">` : ''}
                 <div class="space-y-1.5">
                   <div class="flex items-center gap-2">
                     ${getShopBadge(best.shop)}
@@ -1424,7 +1427,7 @@
             <td class="px-4 py-3 whitespace-nowrap">${getShopBadge(it.shop)}</td>
             <td class="px-4 py-3">
               <div class="flex items-center gap-3">
-                ${it.image_url ? `<img src="${it.image_url}" class="w-10 h-10 object-contain rounded bg-slate-900 p-1 border border-slate-800 shrink-0">` : ''}
+                ${it.image_url ? `<img src="${it.image_url.replace('https://shop.kz//static.shop.kz', 'https://static.shop.kz')}" onerror="this.style.display='none';" class="w-10 h-10 object-contain rounded bg-slate-900 p-1 border border-slate-800 shrink-0">` : ''}
                 <div class="font-medium text-white line-clamp-1 max-w-md" title="${it.title}">${it.title}</div>
               </div>
             </td>

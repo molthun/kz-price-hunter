@@ -83,7 +83,12 @@ class ForcecomScraper:
                     if img_el:
                         src = img_el.get("data-src") or img_el.get("src") or ""
                         if src:
-                            image_url = f"{self.base_url}{src}" if src.startswith("/") else src
+                            if src.startswith("//"):
+                                image_url = f"https:{src}"
+                            elif src.startswith("/"):
+                                image_url = f"{self.base_url}{src}"
+                            else:
+                                image_url = src
 
                     # 3. Актуальная цена
                     new_price_el = c.select_one(".price__new-val, .price__new, .price_value")
