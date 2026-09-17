@@ -1,0 +1,1673 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KZ Price Hunter — Монитор цен и скидок (Астана)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { 500: '#10b981', 600: '#059669' },
+            dark: { 800: '#1e293b', 900: '#0f172a', 950: '#020617' }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
+    .pulse-dot { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .4; transform: scale(1.15); } }
+  </style>
+</head>
+<body class="bg-dark-950 text-slate-100 min-h-screen flex flex-col">
+
+  <!-- Навигация / Хэдер -->
+  <header class="glass sticky top-0 z-50 border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-cyan-500 flex items-center justify-center text-xl shadow-lg shadow-emerald-500/20">
+          🎯
+        </div>
+        <div>
+          <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+            KZ Price Hunter
+            <span id="appVersionBadge" class="text-xs font-mono px-2 py-0.5 rounded-full bg-slate-800 text-emerald-400 border border-emerald-500/30 font-semibold">v2.1.0</span>
+            <span id="currentCityHeaderBadge" class="text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Астана</span>
+          </h1>
+          <p class="text-xs text-slate-400">Мониторинг цен 10 сетей: Kaspi, DNS, Мечта, Белый Ветер, Технодом, Sulpak и др.</p>
+        </div>
+      </div>
+
+      <!-- Кнопки управления, город и статус -->
+      <div class="flex items-center space-x-3">
+        <!-- Выбор города и геолокация -->
+        <div class="flex items-center gap-1.5 bg-slate-900/90 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs shadow-inner">
+          <i class="fa-solid fa-location-dot text-emerald-400"></i>
+          <select id="headerCitySelect" onchange="setCity(this.value, true)" class="bg-transparent text-white text-xs font-semibold focus:outline-none cursor-pointer">
+            <option value="Астана" class="bg-slate-900 text-white">🇰🇿 Астана</option>
+            <option value="Алматы" class="bg-slate-900 text-white">🇰🇿 Алматы</option>
+            <option value="Шымкент" class="bg-slate-900 text-white">🇰🇿 Шымкент</option>
+            <option value="Караганда" class="bg-slate-900 text-white">🇰🇿 Караганда</option>
+            <option value="Актобе" class="bg-slate-900 text-white">🇰🇿 Актобе</option>
+            <option value="Павлодар" class="bg-slate-900 text-white">🇰🇿 Павлодар</option>
+            <option value="Усть-Каменогорск" class="bg-slate-900 text-white">🇰🇿 Усть-Каменогорск</option>
+            <option value="Все" class="bg-slate-900 text-white">🌐 Все города (РК)</option>
+          </select>
+          <button type="button" onclick="detectUserLocation()" title="Определить мой город по GPS / IP" class="hover:text-emerald-400 text-slate-400 pl-1 cursor-pointer transition">
+            <i id="iconGeoLocate" class="fa-solid fa-crosshairs"></i>
+          </button>
+        </div>
+
+        <!-- Автономный индикатор актуальности базы и фонового обновления -->
+        <div id="autoScanWidget" class="relative overflow-hidden min-w-[215px] h-10 bg-slate-900/90 border border-slate-700/80 rounded-xl px-3 flex items-center justify-between text-xs shadow-inner">
+          <!-- Фоновый прогресс-бар при активном авто-обновлении -->
+          <div id="autoScanProgressFill" class="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-emerald-600/30 via-teal-500/30 to-emerald-500/30 transition-all duration-500 pointer-events-none" style="width: 0%;"></div>
+          
+          <div class="relative z-10 flex items-center space-x-2.5 overflow-hidden">
+            <span id="autoScanPulseDot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0"></span>
+            <div class="flex flex-col text-left leading-tight truncate">
+              <span id="autoScanTitle" class="font-semibold text-slate-200 truncate">База актуальна</span>
+              <span id="autoScanDetail" class="text-[10px] text-slate-400 truncate">проверка возраста базы...</span>
+            </div>
+          </div>
+
+          <!-- Иконка принудительного обновления (тихий ручной запуск при необходимости) -->
+          <button type="button" id="btnForceScan" onclick="startScan(true)" title="Принудительно обновить базу сейчас" class="relative z-10 text-slate-400 hover:text-emerald-400 transition cursor-pointer p-1 ml-1.5 shrink-0">
+            <i id="btnScanIcon" class="fa-solid fa-arrows-rotate text-xs"></i>
+          </button>
+
+          <!-- Кнопка быстрой YML-выгрузки shop.kz -->
+          <button type="button" id="btnYmlSync" onclick="syncShopkzYml()" title="Мгновенно загрузить 16 000+ товаров shop.kz из официальной YML выгрузки" class="relative z-10 text-slate-400 hover:text-sky-400 transition cursor-pointer p-1 ml-1 shrink-0">
+            <i id="btnYmlIcon" class="fa-solid fa-file-code text-xs"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Основной контент -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full space-y-6">
+
+    <!-- Метрики / KPI Карточки -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="glass p-4 rounded-2xl">
+        <div class="text-xs text-slate-400 font-medium mb-1">Всего товаров в базе</div>
+        <div id="metricTotalProducts" class="text-2xl font-bold text-white">...</div>
+        <div class="text-[11px] text-emerald-400 mt-1 flex items-center gap-1">
+          <i class="fa-solid fa-database"></i> Пополняется авто-сканером
+        </div>
+      </div>
+
+      <div class="glass p-4 rounded-2xl border-amber-500/20 bg-amber-500/5">
+        <div class="text-xs text-amber-300 font-medium mb-1">Найдено аномалий & скидок</div>
+        <div id="metricTotalAlerts" class="text-2xl font-bold text-amber-400">...</div>
+        <div class="text-[11px] text-amber-400/80 mt-1 flex items-center gap-1">
+          <i class="fa-solid fa-triangle-exclamation"></i> Пропущенный ноль / Скидки
+        </div>
+      </div>
+
+      <div class="glass p-4 rounded-2xl">
+        <div class="text-xs text-slate-400 font-medium mb-1">Активные магазины</div>
+        <div class="text-base font-bold text-white flex flex-wrap items-center gap-1.5 mt-1">
+          <span title="Kaspi Магазин">🔴</span>
+          <span title="DNS">🟧</span>
+          <span title="Мечта">🟣</span>
+          <span title="Белый Ветер">🟦</span>
+          <span title="Технодом">🔴</span>
+          <span title="Sulpak">🟢</span>
+          <span title="Alser">🟡</span>
+          <span title="Эврика">🔷</span>
+          <span title="Moon.kz">🚀</span>
+          <span title="Forcecom">⚡️</span>
+          <span title="4mobile">📱</span>
+        </div>
+        <div class="text-[11px] text-slate-400 mt-1">11 ключевых сетей Казахстана</div>
+      </div>
+
+      <div class="glass p-4 rounded-2xl">
+        <div class="text-xs text-slate-400 font-medium mb-1">Telegram оповещения</div>
+        <div id="metricTgStatus" class="text-base font-bold text-slate-300 mt-1 flex items-center gap-2">
+          <i class="fa-brands fa-telegram text-sky-400 text-xl"></i>
+          <span id="tgStatusLabel">Проверка...</span>
+        </div>
+        <div class="text-[11px] text-slate-400 mt-1">Моментальные алерты на телефон</div>
+      </div>
+    </div>
+
+    <!-- Вкладки (Tabs) -->
+    <div class="flex border-b border-slate-800 space-x-8 text-sm font-medium">
+      <button onclick="switchTab('alerts')" id="tabBtnAlerts" class="pb-3 text-emerald-400 border-b-2 border-emerald-400 flex items-center gap-2 cursor-pointer">
+        <i class="fa-solid fa-fire"></i>
+        <span>Аномалии и Супер-Скидки</span>
+        <span id="badgeAlertsCount" class="px-2 py-0.5 text-xs rounded-full bg-amber-500/20 text-amber-400 font-bold">0</span>
+      </button>
+
+      <button onclick="switchTab('bestprice')" id="tabBtnBestprice" class="pb-3 text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center gap-2 cursor-pointer">
+        <i class="fa-solid fa-magnifying-glass-dollar text-emerald-400"></i>
+        <span>Поиск лучшей цены</span>
+        <span class="px-1.5 py-0.5 text-[10px] rounded-full bg-emerald-500/20 text-emerald-400 font-semibold uppercase">New</span>
+      </button>
+
+      <button onclick="switchTab('catalog')" id="tabBtnCatalog" class="pb-3 text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center gap-2 cursor-pointer">
+        <i class="fa-solid fa-boxes-stacked"></i>
+        <span>База товаров</span>
+      </button>
+
+      <button onclick="switchTab('settings')" id="tabBtnSettings" class="pb-3 text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center gap-2 cursor-pointer">
+        <i class="fa-solid fa-sliders"></i>
+        <span>Настройки & Telegram</span>
+      </button>
+    </div>
+
+    <!-- Вкладка 1: Аномалии и Скидки -->
+    <section id="tabAlerts" class="space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-base font-semibold text-white flex items-center gap-2">
+          <span>Свежие ценовые баги и глубокие скидки</span>
+        </h2>
+        <button onclick="loadAlerts()" class="text-xs text-slate-400 hover:text-emerald-400 flex items-center gap-1 cursor-pointer">
+          <i class="fa-solid fa-arrows-rotate"></i> Обновить
+        </button>
+      </div>
+
+      <div id="alertsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="col-span-full py-12 text-center text-slate-500">
+          <i class="fa-solid fa-spinner fa-spin text-2xl mb-2"></i>
+          <p>Загрузка алертов...</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Вкладка: Поиск лучшей цены (Мульти-магазинное сравнение) -->
+    <section id="tabBestprice" class="hidden space-y-6">
+      <!-- Блок поиска -->
+      <div class="glass p-6 rounded-2xl space-y-4">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-magnifying-glass-dollar text-emerald-400"></i>
+              <span>Кросс-поиск самой низкой цены</span>
+              <span id="searchCityBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Астана</span>
+            </h2>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Сравнение цен по 10 магазинам Казахстана: Kaspi, DNS, Мечта, Белый Ветер, Технодом, Sulpak и др.
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-[11px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1.5 rounded-xl font-medium flex items-center gap-1.5">
+              <i class="fa-solid fa-shield-halved"></i>
+              <span>Anti-DDoS: Поиск по базе данных</span>
+            </span>
+            <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 hover:border-slate-700 transition">
+              <input type="checkbox" id="checkLiveSearch" onchange="onLiveSearchToggle(this.checked)" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              <span>Прямой опрос магазинов (Live)</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Предупреждение при включении живого поиска -->
+        <div id="liveWarningBanner" class="hidden text-xs bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-amber-300 flex items-start gap-2.5">
+          <i class="fa-solid fa-triangle-exclamation text-amber-400 mt-0.5 shrink-0 text-sm"></i>
+          <div>
+            <span class="font-semibold text-amber-200">Внимание: включен прямой опрос онлайн-магазинов (Live-поиск)!</span>
+            <p class="text-[11px] text-amber-300/80 mt-0.5 leading-relaxed">
+              Прямой опрос выполняет сетевые запросы к сайтам ритейлеров и Kaspi Магазину. Во избежание блокировок вашего IP адреса и для мгновенного отклика (менее 15 мс) рекомендуется использовать поиск по локальной базе (чекбокс выключен).
+            </p>
+          </div>
+        </div>
+
+        <div class="flex gap-2">
+          <div class="relative flex-1">
+            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
+            <input type="text" id="inputBestPriceQuery" onkeydown="if(event.key==='Enter') executeBestPriceSearch()" placeholder="Введите название товара (например: Apple Watch, iPhone 16, RTX 4060, MacBook Air)..." class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 shadow-inner">
+          </div>
+          <button onclick="executeBestPriceSearch()" id="btnBestPriceSearch" class="bg-emerald-500 hover:bg-emerald-600 text-white font-medium px-6 py-3 rounded-xl text-sm shadow-lg shadow-emerald-500/25 transition cursor-pointer flex items-center gap-2 shrink-0">
+            <i class="fa-solid fa-search"></i>
+            <span>Найти лучшую цену</span>
+          </button>
+        </div>
+
+        <!-- Быстрые теги -->
+        <div class="flex flex-wrap items-center gap-2 pt-1 text-xs">
+          <span class="text-slate-500">Популярные запросы:</span>
+          <button onclick="setBestPriceTag('Apple Watch')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer">⌚️ Apple Watch</button>
+          <button onclick="setBestPriceTag('iPhone 16')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer">📱 iPhone 16</button>
+          <button onclick="setBestPriceTag('Galaxy S24')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer">📱 Galaxy S24</button>
+          <button onclick="setBestPriceTag('RTX 4060')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer">🎮 RTX 4060</button>
+          <button onclick="setBestPriceTag('MacBook Air')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer">💻 MacBook Air</button>
+          <button onclick="setBestPriceTag('AirPods Pro')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer">🎧 AirPods Pro</button>
+          <button onclick="setBestPriceTag('PlayStation 5')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer">🕹 PlayStation 5</button>
+        </div>
+
+        <!-- Панель гибких фильтров поиска -->
+        <div class="pt-3 border-t border-slate-800/80">
+          <div class="flex items-center justify-between">
+            <button type="button" onclick="toggleSearchFilters()" class="text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5 cursor-pointer select-none">
+              <i class="fa-solid fa-sliders"></i>
+              <span>Точные фильтры поиска (цена, режим, магазин, аксессуары)</span>
+              <i id="searchFiltersChevron" class="fa-solid fa-chevron-down text-[10px] transition-transform"></i>
+            </button>
+            <button type="button" onclick="resetSearchFilters()" class="text-[11px] text-slate-500 hover:text-slate-300 cursor-pointer">Сбросить фильтры</button>
+          </div>
+
+          <div id="searchFiltersPanel" class="hidden pt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">Цена от (₸):</label>
+              <input type="number" id="bestPriceMinPrice" placeholder="0" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
+            </div>
+
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">Цена до (₸):</label>
+              <input type="number" id="bestPriceMaxPrice" placeholder="Без ограничений" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
+            </div>
+
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">Магазин:</label>
+              <select id="bestPriceShopFilter" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
+                <option value="Все">Все магазины</option>
+                <option value="Kaspi Магазин">🔴 Kaspi Магазин</option>
+                <option value="DNS Казахстан">🟧 DNS Казахстан</option>
+                <option value="Белый Ветер">🟦 Белый Ветер</option>
+                <option value="Технодом">🔴 Технодом</option>
+                <option value="Forcecom">⚡️ Forcecom</option>
+                <option value="Sulpak">🟢 Sulpak</option>
+                <option value="Мечта">🟣 Мечта</option>
+                <option value="Alser">🟡 Alser</option>
+                <option value="Эврика">🔷 Эврика</option>
+                <option value="Moon.kz">🚀 Moon.kz</option>
+                <option value="4mobile">📱 4mobile</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">Режим поиска:</label>
+              <select id="bestPriceMatchMode" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
+                <option value="AND">Все слова (AND)</option>
+                <option value="EXACT">Точная фраза</option>
+                <option value="OR">Любое слово (OR)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">Сортировка:</label>
+              <select id="bestPriceSort" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
+                <option value="price_asc">Сначала дешевые</option>
+                <option value="price_desc">Сначала дорогие</option>
+                <option value="savings_desc">По наибольшей выгоде</option>
+              </select>
+            </div>
+
+            <div class="sm:col-span-2 md:col-span-3 flex items-center gap-4 pt-1">
+              <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" id="bestPriceExcludeAcc" checked class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+                <span>Исключить чехлы, ремешки, защитные стекла</span>
+              </label>
+            </div>
+
+            <div class="sm:col-span-2 md:col-span-2">
+              <input type="text" id="bestPriceNegWords" placeholder="Минус-слова (например: копия, б/у)..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Контейнер состояния поиска / Загрузка -->
+      <div id="bestPriceLoading" class="hidden py-16 text-center glass rounded-2xl">
+        <div class="inline-block p-4 rounded-full bg-emerald-500/10 mb-3 text-emerald-400">
+          <i class="fa-solid fa-spinner fa-spin text-3xl"></i>
+        </div>
+        <h3 class="text-base font-semibold text-white">Ищем лучшие предложения во всех магазинах...</h3>
+        <p class="text-xs text-slate-400 mt-1" id="bestPriceLoadingDetail">Опрашиваем Kaspi Магазин, базу цен и онлайн-каталоги Астаны...</p>
+      </div>
+
+      <!-- Контейнер начального состояния (до первого поиска) -->
+      <div id="bestPriceEmptyState" class="py-16 text-center glass rounded-2xl">
+        <div class="text-4xl mb-3">🔍</div>
+        <h3 class="text-base font-semibold text-white">Введите товар или выберите быстрый тег выше</h3>
+        <p class="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+          Система моментально проанализирует предложения во всех сетях электроники Астаны, покажет где дешевле всего и сколько вы сэкономите.
+        </p>
+      </div>
+
+      <!-- Контейнер результатов поиска -->
+      <div id="bestPriceResults" class="hidden space-y-6">
+
+        <!-- Топ-1 Победитель по цене: HERO КАРТОЧКА -->
+        <div id="bestDealHeroContainer"></div>
+
+        <!-- Сравнение по магазинам (Store Comparison Grid) -->
+        <div class="glass p-5 rounded-2xl space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+              <i class="fa-solid fa-chart-simple text-cyan-400"></i>
+              <span>Минимальные цены по магазинам</span>
+            </h3>
+            <span id="bestPriceStatsBadge" class="text-xs text-slate-400"></span>
+          </div>
+          <div id="storeComparisonGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3"></div>
+        </div>
+
+        <!-- Таблица всех найденных предложений -->
+        <div class="glass rounded-2xl overflow-hidden space-y-3 p-5">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+              <i class="fa-solid fa-list-ol text-emerald-400"></i>
+              <span>Все предложения, отсортированные по возрастанию цены</span>
+            </h3>
+            <span id="bestPriceTotalOffers" class="text-xs text-slate-400"></span>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-300">
+              <thead class="bg-slate-900/80 text-xs uppercase font-medium text-slate-400 border-b border-slate-800">
+                <tr>
+                  <th class="px-4 py-3 text-center w-12">#</th>
+                  <th class="px-4 py-3">Магазин</th>
+                  <th class="px-4 py-3">Товар</th>
+                  <th class="px-4 py-3">Цена</th>
+                  <th class="px-4 py-3">Разница с лучшей</th>
+                  <th class="px-4 py-3 text-right">Купить</th>
+                </tr>
+              </thead>
+              <tbody id="bestPriceTableBody" class="divide-y divide-slate-800/60"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Вкладка 2: База товаров -->
+    <section id="tabCatalog" class="hidden space-y-4">
+      <!-- Панель поиска и фильтров -->
+      <div class="glass p-4 rounded-2xl flex flex-wrap gap-4 items-center justify-between">
+        <div class="flex-1 min-w-[240px] relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-500 text-sm"></i>
+          <input type="text" id="catalogSearchInput" oninput="debounceCatalogSearch()" placeholder="Поиск по названию (например, RTX, MacBook, Samsung)..." class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500">
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <span class="text-xs text-slate-400">Магазин:</span>
+          <select id="catalogShopFilter" onchange="loadCatalog(0)" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+            <option value="Все">Все магазины</option>
+            <option value="Kaspi Магазин">🔴 Kaspi Магазин</option>
+            <option value="DNS Казахстан">🟧 DNS Казахстан</option>
+            <option value="Белый Ветер">🟦 Белый Ветер</option>
+            <option value="Технодом">🔴 Технодом</option>
+            <option value="Forcecom">⚡️ Forcecom</option>
+            <option value="Sulpak">🟢 Sulpak</option>
+            <option value="Мечта">🟣 Мечта</option>
+            <option value="Alser">🟡 Alser</option>
+            <option value="Эврика">🔷 Эврика</option>
+            <option value="Moon.kz">🚀 Moon.kz</option>
+            <option value="4mobile">📱 4mobile</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Таблица товаров -->
+      <div class="glass rounded-2xl overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-300">
+            <thead class="bg-slate-900/80 text-xs uppercase font-medium text-slate-400 border-b border-slate-800">
+              <tr>
+                <th class="px-4 py-3">Магазин</th>
+                <th class="px-4 py-3">Товар</th>
+                <th class="px-4 py-3">Категория</th>
+                <th class="px-4 py-3">Текущая цена</th>
+                <th class="px-4 py-3 text-right">Действие</th>
+              </tr>
+            </thead>
+            <tbody id="catalogTableBody" class="divide-y divide-slate-800/60">
+              <tr>
+                <td colspan="5" class="px-4 py-8 text-center text-slate-500">Загрузка каталога...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Пагинация -->
+      <div class="flex items-center justify-between text-xs text-slate-400 px-1">
+        <span id="catalogPaginationInfo">Показано 0 из 0</span>
+        <div class="flex items-center space-x-2">
+          <button id="btnPrevPage" onclick="prevCatalogPage()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white disabled:opacity-40 cursor-pointer" disabled>Назад</button>
+          <button id="btnNextPage" onclick="nextCatalogPage()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white disabled:opacity-40 cursor-pointer">Вперед</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Вкладка 3: Настройки & Telegram -->
+    <section id="tabSettings" class="hidden space-y-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- Карточка 1: Детекция аномалий и ценовые пороги -->
+        <div class="glass p-6 rounded-2xl space-y-4">
+          <h3 class="text-base font-semibold text-white flex items-center gap-2">
+            <i class="fa-solid fa-triangle-exclamation text-amber-400"></i>
+            <span>Детекция аномалий и ценовые пороги</span>
+          </h3>
+          <p class="text-xs text-slate-400">
+            Гибкая настройка типов ошибок и чувствительности сканера алертов.
+          </p>
+
+          <!-- Тумблеры типов аномалий -->
+          <div class="space-y-2 pt-1 border-b border-slate-800 pb-3">
+            <div class="text-xs font-semibold text-slate-300 mb-1">Отслеживаемые типы аномалий:</div>
+            <label class="flex items-center space-x-2 text-xs text-slate-300 cursor-pointer">
+              <input type="checkbox" id="checkDetectZero" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              <span>🚨 <b>Ошибки «Пропущенный ноль»</b> (обвал цены в ~10 раз при переоценке)</span>
+            </label>
+            <label class="flex items-center space-x-2 text-xs text-slate-300 cursor-pointer">
+              <input type="checkbox" id="checkDetectDiscount" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              <span>💥 <b>Глубокие распродажи</b> (скидки от заданного %)</span>
+            </label>
+            <label class="flex items-center space-x-2 text-xs text-slate-300 cursor-pointer">
+              <input type="checkbox" id="checkDetectArbitrage" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              <span>🎯 <b>Межмагазинный арбитраж</b> (цена намного ниже других сетей)</span>
+            </label>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 pt-1">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Мин. цена товара (₸)</label>
+              <input type="number" id="inputMinPrice" step="5000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+              <span class="text-[10px] text-slate-500">Отсекает мелочь</span>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Макс. цена товара (₸)</label>
+              <input type="number" id="inputMaxPrice" step="50000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+              <span class="text-[10px] text-slate-500">Отсекает серверы</span>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Мин. скидка (%)</label>
+              <input type="number" id="inputDropPct" min="30" max="95" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+              <span class="text-[10px] text-slate-500">Порог супер-скидки</span>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Мин. выгода (₸)</label>
+              <input type="number" id="inputMinSavings" step="5000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+              <span class="text-[10px] text-slate-500">Экономия в деньгах</span>
+            </div>
+
+            <div class="col-span-2">
+              <label class="block text-xs font-medium text-slate-300 mb-1">Мин. разница арбитража (₸)</label>
+              <input type="number" id="inputArbitrageDiff" step="5000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+              <span class="text-[10px] text-slate-500">Разница со средней ценой в других сетях</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Карточка 2: Стоп-слова и фильтрация хлама -->
+        <div class="glass p-6 rounded-2xl space-y-4">
+          <h3 class="text-base font-semibold text-white flex items-center gap-2">
+            <i class="fa-solid fa-ban text-rose-400"></i>
+            <span>Стоп-слова и фильтрация хлама</span>
+          </h3>
+          <p class="text-xs text-slate-400">
+            Исключайте дешевые чехлы, защитные пленки и кабели из мониторинга и поиска.
+          </p>
+
+          <div class="space-y-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Минус-слова (через запятую):</label>
+              <textarea id="inputJunkKeywords" rows="4" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono"></textarea>
+              <span class="text-[10px] text-slate-500">Товары с этими словами в названии будут автоматически игнорироваться</span>
+            </div>
+
+            <div class="pt-2">
+              <label class="flex items-center space-x-2 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" id="checkExcludeUsed" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+                <span>Игнорировать уцененные, витринные и б/у товары (уценка, витрин, б/у)</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Карточка 3: Настройки поиска по умолчанию -->
+        <div class="glass p-6 rounded-2xl space-y-4">
+          <h3 class="text-base font-semibold text-white flex items-center gap-2">
+            <i class="fa-solid fa-magnifying-glass-chart text-emerald-400"></i>
+            <span>Настройки поиска товаров по умолчанию</span>
+          </h3>
+          <p class="text-xs text-slate-400">
+            Определяет базовое поведение поискового движка при входе в систему.
+          </p>
+
+          <div class="space-y-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Сортировка выдачи по умолчанию:</label>
+              <select id="selectSearchDefaultSort" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+                <option value="price_asc">Сначала самые дешевые (по возрастанию цены)</option>
+                <option value="price_desc">Сначала самые дорогие (по убыванию цены)</option>
+                <option value="savings_desc">По наибольшей выгоде (экономии)</option>
+              </select>
+            </div>
+
+            <div class="space-y-2 pt-2">
+              <label class="flex items-center space-x-2 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" id="checkSearchExcludeAccDefault" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+                <span>Всегда отсекать аксессуары (чехлы, пленки) при поиске</span>
+              </label>
+
+              <label class="flex items-center space-x-2 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" id="checkSearchAutoLive" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+                <span>Авто-опрос Kaspi и внешних сетей в реальном времени</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Карточка 4: Telegram и периодичность -->
+        <div class="glass p-6 rounded-2xl space-y-4">
+          <h3 class="text-base font-semibold text-white flex items-center gap-2">
+            <i class="fa-brands fa-telegram text-sky-400 text-lg"></i>
+            <span>Telegram и периодичность сканирования</span>
+          </h3>
+          <p class="text-xs text-slate-400">
+            Уведомления на телефон и частота проверок цен в Астане.
+          </p>
+
+          <div class="space-y-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Telegram Bot Token</label>
+              <input type="password" id="inputTgToken" placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Telegram Chat ID</label>
+              <input type="text" id="inputTgChatId" placeholder="123456789" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Уровень алертов:</label>
+                <select id="selectTgNotifyLevel" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+                  <option value="ALL">Все найденные аномалии</option>
+                  <option value="CRITICAL_ONLY">Только ошибки "Пропущенный ноль"</option>
+                  <option value="HIGH_SAVINGS">Скидки от 75% и баги</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Авто-обновление базы:</label>
+                <select id="selectScanInterval" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+                  <option value="180" selected>Если база старше 3 часов (По умолчанию)</option>
+                  <option value="120">Если база старше 2 часов</option>
+                  <option value="60">Если база старше 1 часа</option>
+                  <option value="30">Если база старше 30 минут</option>
+                  <option value="15">Если база старше 15 минут</option>
+                </select>
+              </div>
+            </div>
+
+            <button onclick="testTelegram()" id="btnTestTg" class="w-full flex items-center justify-center space-x-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sky-400 font-medium py-2 rounded-xl text-xs transition cursor-pointer">
+              <i class="fa-solid fa-paper-plane"></i>
+              <span>Отправить тестовое сообщение</span>
+            </button>
+            <div id="tgTestResult" class="text-xs hidden"></div>
+          </div>
+        </div>
+
+        <!-- Карточка 5: Отслеживаемые магазины -->
+        <div class="glass p-6 rounded-2xl space-y-4 md:col-span-2">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-semibold text-white flex items-center gap-2">
+              <i class="fa-solid fa-store text-emerald-400"></i>
+              <span>Отслеживаемые магазины (10 сетей Астаны)</span>
+            </h3>
+            <div class="space-x-2 text-xs">
+              <button type="button" onclick="toggleAllShops(true)" class="text-emerald-400 hover:underline">Выбрать все</button>
+              <span class="text-slate-600">•</span>
+              <button type="button" onclick="toggleAllShops(false)" class="text-slate-400 hover:underline">Снять все</button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 pt-2">
+            <label class="flex items-center space-x-3 p-3 rounded-xl bg-slate-900 border border-slate-800 cursor-pointer hover:border-slate-700">
+              <input type="checkbox" id="checkShopKaspi" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              <span class="text-xs font-medium text-slate-200">🔴 Kaspi Магазин</span>
+            </label>
+
+            <label class="flex items-center space-x-3 p-3 rounded-xl bg-slate-900 border border-slate-800 cursor-pointer hover:border-slate-700">
+              <input type="checkbox" id="checkShopDns" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              <span class="text-xs font-medium text-slate-200">🟧 DNS KZ</span>
+            </label>
+
+            <label class="flex items-center space-x-3 p-3 rounded-xl bg-slate-900 border border-slate-800 cursor-pointer hover:border-slate-700">
+              <input type="checkbox" id="checkShopBv" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              <span class="text-xs font-medium text-slate-200">🟦 Белый Ветер</span>
+            </label>
+
+            <label class="flex items-center space-x-3 p-3 rounded-xl bg-slate-900 border border-slate-800 cursor-pointer hover:border-slate-700">
+              <input type="checkbox" id="checkShopTd" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              <span class="text-xs font-medium text-slate-200">🔴 Технодом</span>
+            </label>
+
+            <label class="flex items-center space-x-3 p-3 rounded-xl bg-slate-900 border border-slate-800 cursor-pointer hover:border-slate-700">
+              <input type="checkbox" id="checkShopFc" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              <span class="text-xs font-medium text-slate-200">⚡️ Forcecom</span>
+            </label>
+
+            <label class="flex items-center space-x-3 p-3 rounded-xl bg-slate-900 border border-slate-800 cursor-pointer hover:border-slate-700">
+              <input type="checkbox" id="checkShopSulpak" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              <span class="text-xs font-medium text-slate-200">🟢 Sulpak</span>
+            </label>
+
+            <label class="flex items-center space-x-3 p-3 rounded-xl bg-slate-900 border border-slate-800 cursor-pointer hover:border-slate-700">
+              <input type="checkbox" id="checkShopMechta" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              <span class="text-xs font-medium text-slate-200">🟣 Мечта</span>
+            </label>
+
+            <label class="flex items-center space-x-3 p-3 rounded-xl bg-slate-900 border border-slate-800 cursor-pointer hover:border-slate-700">
+              <input type="checkbox" id="checkShopAlser" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              <span class="text-xs font-medium text-slate-200">🟡 Alser</span>
+            </label>
+
+            <label class="flex items-center space-x-3 p-3 rounded-xl bg-slate-900 border border-slate-800 cursor-pointer hover:border-slate-700">
+              <input type="checkbox" id="checkShopEvrika" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              <span class="text-xs font-medium text-slate-200">🔷 Эврика</span>
+            </label>
+
+            <label class="flex items-center space-x-3 p-3 rounded-xl bg-slate-900 border border-slate-800 cursor-pointer hover:border-slate-700">
+              <input type="checkbox" id="checkShopMoon" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              <span class="text-xs font-medium text-slate-200">🚀 Moon.kz</span>
+            </label>
+
+            <label class="flex items-center space-x-3 p-3 rounded-xl bg-slate-900 border border-slate-800 cursor-pointer hover:border-slate-700">
+              <input type="checkbox" id="checkShopFourMobile" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              <span class="text-xs font-medium text-slate-200">📱 4mobile</span>
+            </label>
+          </div>
+
+          <div class="pt-4 flex items-center justify-between">
+            <div id="saveResultToast" class="hidden text-xs text-emerald-400 font-medium">✅ Все настройки успешно сохранены и применены!</div>
+            <div class="ml-auto">
+              <button onclick="saveSettings()" id="btnSaveSettings" class="flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-600 text-white font-medium px-6 py-2.5 rounded-xl text-sm shadow-lg shadow-emerald-500/25 transition cursor-pointer">
+                <i class="fa-solid fa-floppy-disk"></i>
+                <span>Сохранить настройки</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="border-t border-slate-800 py-4 px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
+    <div>
+      KZ Price Hunter &copy; 2026 • Версия <span id="footerVersion" class="text-emerald-400 font-mono font-semibold">v2.1.0</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <button onclick="openChangelogModal()" class="text-emerald-400 hover:text-emerald-300 hover:underline cursor-pointer flex items-center gap-1.5 transition">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        <span>История версий (Changelog)</span>
+      </button>
+      <span class="text-slate-700">•</span>
+      <span id="clientSessionBadge" class="text-[11px] text-slate-500 font-mono" title="Уникальный ID независимой сессии в этом браузере">Сессия: ...</span>
+    </div>
+  </footer>
+
+  <!-- Модальное окно истории версий (Changelog) -->
+  <div id="modalChangelog" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="glass max-w-2xl w-full rounded-2xl p-6 border border-slate-700 max-h-[85vh] flex flex-col shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+            <i class="fa-solid fa-code-commit"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white">История версий (Changelog)</h3>
+            <p class="text-[11px] text-slate-400">KZ Price Hunter — Система мониторинга и кросс-поиска цен</p>
+          </div>
+        </div>
+        <button onclick="closeChangelogModal()" class="text-slate-400 hover:text-white cursor-pointer text-lg p-1">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="py-4 text-xs text-slate-300 space-y-4 overflow-y-auto pr-2">
+        <div class="p-3.5 rounded-xl bg-slate-900/80 border border-emerald-500/30 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-emerald-400 text-sm">v2.1.0 (Текущая версия)</span>
+            <span class="text-[10px] text-slate-400 font-mono">2026-09-17</span>
+          </div>
+          <ul class="list-disc list-inside space-y-1 text-slate-300 text-[11px]">
+            <li><b>Выбор города:</b> Поддержка Астаны, Алматы, Шымкента, Караганды, Актобе, Павлодара, Усть-Каменогорска.</li>
+            <li><b>Авто-геолокация:</b> Определение города по GPS (HTML5 Geolocation) с расчетом кратчайшего расстояния или IP fallback.</li>
+            <li><b>Изоляция пользователей:</b> Полная независимость сессий пользователей через client-side localStorage.</li>
+            <li><b>Anti-DDoS & Cache-First:</b> Поиск по умолчанию обращается только к локальной БД (&lt; 15 мс) без сетевых запросов к сайтам магазинов.</li>
+            <li><b>TTL-кэширование:</b> Живые запросы к Kaspi и внешним ритейлерам кэшируются в памяти на 1 час.</li>
+          </ul>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-slate-200 text-sm">v2.0.0</span>
+            <span class="text-[10px] text-slate-500 font-mono">2026-09-17</span>
+          </div>
+          <ul class="list-disc list-inside space-y-1 text-slate-400 text-[11px]">
+            <li>Интеграция Kaspi Магазина (Playwright stealth headless) и Shop.kz.</li>
+            <li>Кросс-поиск самой низкой цены с выявлением лидера и экономии (₸).</li>
+            <li>Гибкие фильтры: диапазон цен, режим совпадения (AND/EXACT/OR), минус-слова.</li>
+          </ul>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-slate-900/40 border border-slate-800 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-slate-300 text-sm">v1.5.0</span>
+            <span class="text-[10px] text-slate-500 font-mono">2026-09-16</span>
+          </div>
+          <p class="text-slate-400 text-[11px]">Подключение 10 ритейлеров Казахстана: DNS, Мечта, Белый Ветер, Технодом, Sulpak, Alser, Эврика, Moon.kz, Forcecom.</p>
+        </div>
+      </div>
+
+      <div class="pt-3 border-t border-slate-800 text-right">
+        <button onclick="closeChangelogModal()" class="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white transition cursor-pointer">
+          Закрыть
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Плавающее уведомление (Toast) -->
+  <div id="globalToast" class="fixed bottom-6 right-6 z-50 px-4 py-3 rounded-2xl text-xs font-semibold shadow-2xl transition-all duration-300 transform translate-y-10 opacity-0 pointer-events-none hidden">
+  </div>
+
+  <script>
+    // === Мульти-пользовательская изоляция сессий (LocalStorage) ===
+    let clientSessionId = localStorage.getItem('kz_hunter_client_id');
+    if (!clientSessionId) {
+      clientSessionId = 'u_' + Math.random().toString(36).substring(2, 8) + Math.random().toString(36).substring(2, 6);
+      localStorage.setItem('kz_hunter_client_id', clientSessionId);
+    }
+
+    let currentCity = localStorage.getItem('kz_hunter_city') || 'Астана';
+
+    // Координаты основных городов Казахстана для GPS гео-таргетинга
+    const KZ_CITY_COORDS = [
+      { name: 'Астана', lat: 51.169392, lon: 71.449074 },
+      { name: 'Алматы', lat: 43.238949, lon: 76.889709 },
+      { name: 'Шымкент', lat: 42.3417, lon: 69.5901 },
+      { name: 'Караганда', lat: 49.8019, lon: 73.1021 },
+      { name: 'Актобе', lat: 50.2839, lon: 57.1670 },
+      { name: 'Павлодар', lat: 52.2873, lon: 76.9674 },
+      { name: 'Усть-Каменогорск', lat: 49.9482, lon: 82.6285 }
+    ];
+
+    function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+      const R = 6371;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    }
+
+    function setCity(city, reload = true) {
+      currentCity = city;
+      localStorage.setItem('kz_hunter_city', city);
+
+      // Синхронизация селектора в шапке
+      const sel = document.getElementById('headerCitySelect');
+      if (sel) sel.value = city;
+
+      // Обновление бейджей города в интерфейсе
+      const hBadge = document.getElementById('currentCityHeaderBadge');
+      if (hBadge) hBadge.innerText = city === 'Все' ? 'Все города' : city;
+
+      const sBadge = document.getElementById('searchCityBadge');
+      if (sBadge) sBadge.innerText = city === 'Все' ? 'Все города (РК)' : city;
+
+      if (reload) {
+        loadAlerts();
+        loadCatalog(0);
+        showToast(`📍 Выбран регион: ${city === 'Все' ? 'Все города Казахстана' : city}`);
+      }
+    }
+
+    function onLiveSearchToggle(checked) {
+      const banner = document.getElementById('liveWarningBanner');
+      if (banner) {
+        if (checked) banner.classList.remove('hidden');
+        else banner.classList.add('hidden');
+      }
+    }
+
+    async function detectUserLocation() {
+      const icon = document.getElementById('iconGeoLocate');
+      if (icon) icon.className = 'fa-solid fa-spinner fa-spin text-emerald-400';
+
+      if (!navigator.geolocation) {
+        await fallbackIpLocation();
+        if (icon) icon.className = 'fa-solid fa-crosshairs';
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const uLat = pos.coords.latitude;
+          const uLon = pos.coords.longitude;
+          
+          let closestCity = 'Астана';
+          let minDist = Infinity;
+          KZ_CITY_COORDS.forEach(c => {
+            const d = getDistanceFromLatLonInKm(uLat, uLon, c.lat, c.lon);
+            if (d < minDist) {
+              minDist = d;
+              closestCity = c.name;
+            }
+          });
+
+          setCity(closestCity, true);
+          if (icon) icon.className = 'fa-solid fa-crosshairs';
+          showToast(`🎯 Определен ваш город: ${closestCity} (~${Math.round(minDist)} км)`);
+        },
+        async (err) => {
+          console.warn('Geolocation denied or failed:', err.message);
+          await fallbackIpLocation();
+          if (icon) icon.className = 'fa-solid fa-crosshairs';
+        },
+        { timeout: 7000 }
+      );
+    }
+
+    async function fallbackIpLocation() {
+      try {
+        const res = await fetch('https://ipapi.co/json/');
+        if (res.ok) {
+          const data = await res.json();
+          const ipCity = (data.city || '').toLowerCase();
+          let matched = null;
+          if (ipCity.includes('astana') || ipCity.includes('nur-sultan')) matched = 'Астана';
+          else if (ipCity.includes('almat')) matched = 'Алматы';
+          else if (ipCity.includes('shymk')) matched = 'Шымкент';
+          else if (ipCity.includes('karagan')) matched = 'Караганда';
+          else if (ipCity.includes('aktobe')) matched = 'Актобе';
+          else if (ipCity.includes('pavlodar')) matched = 'Павлодар';
+          else if (ipCity.includes('ust') || ipCity.includes('oskemen')) matched = 'Усть-Каменогорск';
+
+          if (matched) {
+            setCity(matched, true);
+            showToast(`📍 Город определен по IP: ${matched}`);
+            return;
+          }
+        }
+      } catch(e) {
+        console.warn('IP location error:', e);
+      }
+      showToast('Геолокация недоступна, оставлен текущий город');
+    }
+
+    function showToast(message, isError = false) {
+      const toast = document.getElementById('globalToast');
+      if (!toast) return;
+      toast.innerText = message;
+      toast.classList.remove('hidden');
+      toast.className = `fixed bottom-6 right-6 z-50 px-4 py-3 rounded-2xl text-xs font-semibold shadow-2xl transition-all duration-300 transform translate-y-0 opacity-100 ${isError ? 'bg-rose-950 border border-rose-500/50 text-rose-300' : 'bg-slate-900/95 border border-emerald-500/50 text-emerald-400 backdrop-blur-md'}`;
+      setTimeout(() => {
+        toast.className = 'fixed bottom-6 right-6 z-50 px-4 py-3 rounded-2xl text-xs font-semibold shadow-2xl transition-all duration-300 transform translate-y-10 opacity-0 pointer-events-none hidden';
+      }, 3500);
+    }
+
+    function openChangelogModal() {
+      const m = document.getElementById('modalChangelog');
+      if (m) m.classList.remove('hidden');
+    }
+
+    function closeChangelogModal() {
+      const m = document.getElementById('modalChangelog');
+      if (m) m.classList.add('hidden');
+    }
+
+    let currentCatalogOffset = 0;
+    const catalogLimit = 30;
+    let catalogSearchTimeout = null;
+    let pollInterval = null;
+
+    function fmtPrice(val) {
+      if (!val) return '0 ₸';
+      return val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " ₸";
+    }
+
+    function getShopBadge(shop) {
+      const s = (shop || '').toLowerCase();
+      if (s.includes('kaspi')) return '<span class="px-2 py-0.5 rounded text-xs bg-rose-500/10 text-rose-400 border border-rose-500/20 font-medium">🔴 Kaspi</span>';
+      if (s.includes('dns')) return '<span class="px-2 py-0.5 rounded text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 font-medium">🟧 DNS KZ</span>';
+      if (s.includes('ветер') || s.includes('shopkz')) return '<span class="px-2 py-0.5 rounded text-xs bg-blue-500/10 text-blue-400 border border-blue-500/20 font-medium">🟦 Белый Ветер</span>';
+      if (s.includes('технодом')) return '<span class="px-2 py-0.5 rounded text-xs bg-red-500/10 text-red-400 border border-red-500/20 font-medium">🔴 Технодом</span>';
+      if (s.includes('forcecom')) return '<span class="px-2 py-0.5 rounded text-xs bg-purple-500/10 text-purple-400 border border-purple-500/20 font-medium">⚡️ Forcecom</span>';
+      if (s.includes('sulpak') || s.includes('сульпак')) return '<span class="px-2 py-0.5 rounded text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">🟢 Sulpak</span>';
+      if (s.includes('мечта') || s.includes('mechta')) return '<span class="px-2 py-0.5 rounded text-xs bg-fuchsia-500/10 text-fuchsia-400 border border-fuchsia-500/20 font-medium">🟣 Мечта</span>';
+      if (s.includes('alser')) return '<span class="px-2 py-0.5 rounded text-xs bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 font-medium">🟡 Alser</span>';
+      if (s.includes('эврика') || s.includes('evrika')) return '<span class="px-2 py-0.5 rounded text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-medium">🔷 Эврика</span>';
+      if (s.includes('moon')) return '<span class="px-2 py-0.5 rounded text-xs bg-rose-500/10 text-rose-400 border border-rose-500/20 font-medium">🚀 Moon.kz</span>';
+      if (s.includes('4mobile')) return '<span class="px-2 py-0.5 rounded text-xs bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-medium">📱 4mobile</span>';
+      return `<span class="px-2 py-0.5 rounded text-xs bg-slate-800 text-slate-300 font-medium">${shop}</span>`;
+    }
+
+    function switchTab(tab) {
+      ['Alerts', 'Bestprice', 'Catalog', 'Settings'].forEach(t => {
+        const btn = document.getElementById('tabBtn' + t);
+        const sec = document.getElementById('tab' + t);
+        if (!btn || !sec) return;
+        if (t.toLowerCase() === tab.toLowerCase()) {
+          btn.className = 'pb-3 text-emerald-400 border-b-2 border-emerald-400 flex items-center gap-2 cursor-pointer font-semibold';
+          sec.classList.remove('hidden');
+        } else {
+          btn.className = 'pb-3 text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center gap-2 cursor-pointer';
+          sec.classList.add('hidden');
+        }
+      });
+      if (tab === 'catalog') loadCatalog(0);
+      if (tab === 'settings') loadSettings();
+    }
+
+    // Загрузка статистики и обновление автономного индикатора свежести базы
+    async function loadStats() {
+      try {
+        const res = await fetch('/api/stats');
+        const data = await res.json();
+        document.getElementById('metricTotalProducts').innerText = (data.total_products || 0).toLocaleString();
+        document.getElementById('metricTotalAlerts').innerText = (data.total_alerts || 0).toLocaleString();
+        document.getElementById('badgeAlertsCount').innerText = (data.total_alerts || 0).toString();
+
+        const state = data.scan_state || {};
+        const freshness = data.db_freshness || {};
+
+        // Элементы автономного виджета в шапке
+        const dot = document.getElementById('autoScanPulseDot');
+        const title = document.getElementById('autoScanTitle');
+        const detail = document.getElementById('autoScanDetail');
+        const progressFill = document.getElementById('autoScanProgressFill');
+        const icon = document.getElementById('btnScanIcon');
+
+        if (state.is_running) {
+          if (dot) dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 pulse-dot shrink-0';
+          const pct = Math.min(100, Math.max(5, state.progress_pct || 0));
+          const shopName = state.current_shop || 'Сканирование';
+          const scanned = state.total_scanned || 0;
+
+          if (progressFill) progressFill.style.width = pct + '%';
+          if (icon) icon.className = 'fa-solid fa-spinner fa-spin text-emerald-400 text-xs';
+          if (title) title.innerHTML = `<span class="text-emerald-300 font-bold">Авто-обновление: ${pct}%</span>`;
+          if (detail) detail.innerText = `${shopName} (${scanned} тов.)`;
+
+          if (!pollInterval) {
+            pollInterval = setInterval(loadStats, 1000);
+          }
+        } else {
+          if (progressFill) {
+            if (progressFill.style.width !== '0%' && progressFill.style.width !== '') {
+              progressFill.style.width = '100%';
+              setTimeout(() => { if (progressFill) progressFill.style.width = '0%'; }, 1500);
+            } else {
+              progressFill.style.width = '0%';
+            }
+          }
+          if (icon) icon.className = 'fa-solid fa-arrows-rotate text-xs';
+
+          const ageSec = (freshness && freshness.age_seconds != null) ? freshness.age_seconds : null;
+          if (ageSec == null || freshness.total_products === 0) {
+            if (dot) dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0';
+            if (title) title.innerText = 'База пуста';
+            if (detail) detail.innerText = 'Запуск первого сканирования...';
+          } else if (ageSec < 3600) {
+            // База актуальна (моложе 1 часа)
+            if (dot) dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0';
+            const ageMin = Math.floor(ageSec / 60);
+            const nextMin = Math.max(1, 60 - ageMin);
+            if (title) title.innerText = 'База актуальна';
+            if (detail) detail.innerText = ageMin === 0 ? 'обновлена только что' : `обновлена ${ageMin} мин назад • авто через ${nextMin} мин`;
+          } else {
+            // База устарела (> 1 часа) — фоновый монитор скоро запустит обновление
+            if (dot) dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 pulse-dot shrink-0';
+            const ageMin = Math.floor(ageSec / 60);
+            if (title) title.innerText = 'База старше 1 ч';
+            if (detail) detail.innerText = `возраст ${ageMin} мин • авто-обновление...`;
+          }
+
+          if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+          }
+        }
+      } catch (e) {
+        console.error('Ошибка stats:', e);
+      }
+    }
+
+    async function loadAlerts() {
+      const container = document.getElementById('alertsContainer');
+      try {
+        let url = '/api/alerts';
+        if (currentCity && currentCity !== 'Все') {
+          url += `?city=${encodeURIComponent(currentCity)}`;
+        }
+        const res = await fetch(url);
+        const alerts = await res.json();
+
+        if (!alerts || alerts.length === 0) {
+          container.innerHTML = `
+            <div class="col-span-full py-16 text-center glass rounded-2xl">
+              <div class="text-4xl mb-3">🔍</div>
+              <h3 class="text-base font-semibold text-white">Пока нет обнаруженных ценовых аномалий</h3>
+              <p class="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+                Бот автоматически сканирует каталоги. Как только контент-менеджеры допустят ошибку в цене или появится скидка от 65% — карточка появится здесь.
+              </p>
+              <button onclick="startScan(true)" class="mt-4 px-4 py-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs hover:bg-emerald-500/30 transition cursor-pointer">
+                Запустить внеочередное обновление
+              </button>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = alerts.map(a => {
+          const discountPct = a.discount_pct || 0;
+          const savings = fmtPrice(a.savings_kzt);
+          const oldPrice = fmtPrice(a.old_price);
+          const isZeroGlitch = a.alert_type === 'ZERO_GLITCH';
+          const isArbitrage = a.alert_type === 'MARKET_ARBITRAGE' || a.alert_type === 'ARBITRAGE';
+
+          let cardBorder = 'border-emerald-500/30';
+          let badgeClass = 'bg-emerald-500/20 text-emerald-400';
+          let badgeLabel = `-${discountPct}%`;
+          let refLabel = 'Старая цена:';
+
+          if (isZeroGlitch) {
+            cardBorder = 'border-amber-500/40 bg-amber-500/5';
+            badgeClass = 'bg-amber-500/20 text-amber-300';
+            badgeLabel = `🚨 Сбой -${discountPct}%`;
+          } else if (isArbitrage) {
+            cardBorder = 'border-sky-500/40 bg-sky-500/5';
+            badgeClass = 'bg-sky-500/20 text-sky-300';
+            badgeLabel = `🎯 Арбитраж -${discountPct}%`;
+            refLabel = 'Рыночная цена:';
+          }
+
+          return `
+            <div class="glass rounded-2xl p-5 flex flex-col justify-between border ${cardBorder} hover:border-emerald-500/60 transition-all">
+              <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                  ${getShopBadge(a.shop)}
+                  <span class="px-2 py-0.5 rounded-full text-xs font-bold ${badgeClass}">
+                    ${badgeLabel}
+                  </span>
+                </div>
+
+                <div class="flex gap-3 items-start pt-1">
+                  ${a.image_url ? `<img src="${a.image_url}" class="w-16 h-16 object-contain rounded-lg bg-slate-900 p-1 border border-slate-800 shrink-0">` : ''}
+                  <div>
+                    <h4 class="text-sm font-semibold text-white line-clamp-2 leading-snug">${a.title || 'Товар'}</h4>
+                    <span class="text-[11px] text-slate-500">${a.category || ''}</span>
+                  </div>
+                </div>
+
+                <div class="bg-slate-900/60 rounded-xl p-3 space-y-1">
+                  <div class="flex items-center justify-between text-xs">
+                    <span class="text-slate-400">${refLabel}</span>
+                    <span class="line-through text-slate-500 font-medium">${oldPrice}</span>
+                  </div>
+                  <div class="flex items-center justify-between text-sm">
+                    <span class="text-slate-300 font-medium">Новая цена:</span>
+                    <span class="text-emerald-400 font-bold text-base">${newPrice}</span>
+                  </div>
+                  <div class="flex items-center justify-between text-xs pt-1 border-t border-slate-800">
+                    <span class="text-amber-400/80 font-medium">Экономия:</span>
+                    <span class="text-amber-400 font-bold">${savings}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="pt-4">
+                <a href="${a.url}" target="_blank" class="w-full flex items-center justify-center space-x-2 bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-2 rounded-xl text-xs shadow-md shadow-emerald-500/20 transition">
+                  <span>⚡️ Купить в ${a.shop || 'магазине'}</span>
+                  <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                </a>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        console.error('Ошибка alerts:', e);
+      }
+    }
+
+    // === Поиск лучшей цены ===
+    function toggleSearchFilters() {
+      const panel = document.getElementById('searchFiltersPanel');
+      const chevron = document.getElementById('searchFiltersChevron');
+      panel.classList.toggle('hidden');
+      if (chevron) {
+        chevron.style.transform = panel.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
+      }
+    }
+
+    function resetSearchFilters() {
+      document.getElementById('bestPriceMinPrice').value = '';
+      document.getElementById('bestPriceMaxPrice').value = '';
+      document.getElementById('bestPriceShopFilter').value = 'Все';
+      document.getElementById('bestPriceMatchMode').value = 'AND';
+      document.getElementById('bestPriceSort').value = 'price_asc';
+      document.getElementById('bestPriceExcludeAcc').checked = true;
+      document.getElementById('bestPriceNegWords').value = '';
+    }
+
+    function toggleAllShops(checked) {
+      ['Kaspi', 'Dns', 'Bv', 'Td', 'Fc', 'Sulpak', 'Mechta', 'Alser', 'Evrika', 'Moon', 'FourMobile'].forEach(id => {
+        const el = document.getElementById('checkShop' + id);
+        if (el) el.checked = checked;
+      });
+    }
+
+    function setBestPriceTag(query) {
+      document.getElementById('inputBestPriceQuery').value = query;
+      executeBestPriceSearch();
+    }
+
+    async function executeBestPriceSearch() {
+      const q = document.getElementById('inputBestPriceQuery').value.trim();
+      if (!q) return;
+
+      const live = document.getElementById('checkLiveSearch').checked;
+      const minPrice = document.getElementById('bestPriceMinPrice').value.trim();
+      const maxPrice = document.getElementById('bestPriceMaxPrice').value.trim();
+      const shop = document.getElementById('bestPriceShopFilter').value;
+      const matchMode = document.getElementById('bestPriceMatchMode').value;
+      const sort = document.getElementById('bestPriceSort').value;
+      const excludeAcc = document.getElementById('bestPriceExcludeAcc').checked ? '1' : '0';
+      const negWords = document.getElementById('bestPriceNegWords').value.trim();
+
+      const loading = document.getElementById('bestPriceLoading');
+      const emptyState = document.getElementById('bestPriceEmptyState');
+      const results = document.getElementById('bestPriceResults');
+      const btn = document.getElementById('btnBestPriceSearch');
+
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Поиск...</span>';
+      emptyState.classList.add('hidden');
+      results.classList.add('hidden');
+      loading.classList.remove('hidden');
+      document.getElementById('bestPriceLoadingDetail').innerText = live 
+        ? `Опрашиваем Kaspi Магазин и ритейлеров (${currentCity}) по запросу "${q}"...` 
+        : `Мгновенный поиск по локальной базе данных (${currentCity}) по запросу "${q}"...`;
+
+      try {
+        let url = `/api/best-price?q=${encodeURIComponent(q)}&live=${live ? '1' : '0'}`;
+        if (currentCity && currentCity !== 'Все') url += `&city=${encodeURIComponent(currentCity)}`;
+        if (minPrice) url += `&min_price=${encodeURIComponent(minPrice)}`;
+        if (maxPrice) url += `&max_price=${encodeURIComponent(maxPrice)}`;
+        if (shop && shop !== 'Все') url += `&shop=${encodeURIComponent(shop)}`;
+        if (matchMode) url += `&mode=${encodeURIComponent(matchMode)}`;
+        if (sort) url += `&sort=${encodeURIComponent(sort)}`;
+        if (excludeAcc) url += `&exclude_acc=${encodeURIComponent(excludeAcc)}`;
+        if (negWords) url += `&neg=${encodeURIComponent(negWords)}`;
+
+        const res = await fetch(url);
+        const data = await res.json();
+
+        loading.classList.add('hidden');
+
+        if (!data || !data.items || data.items.length === 0) {
+          emptyState.classList.remove('hidden');
+          emptyState.innerHTML = `
+            <div class="text-4xl mb-3">😕</div>
+            <h3 class="text-base font-semibold text-white">Ничего не найдено по запросу "${q}"</h3>
+            <p class="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+              Попробуйте изменить фильтры цены или сократить запрос (например: вместо "Apple Watch Ultra 2 49mm" введите "Apple Watch").
+            </p>
+          `;
+          return;
+        }
+
+        renderBestPriceResults(data);
+        results.classList.remove('hidden');
+      } catch (e) {
+        loading.classList.add('hidden');
+        emptyState.classList.remove('hidden');
+        emptyState.innerHTML = `
+          <div class="text-4xl mb-3">⚠️</div>
+          <h3 class="text-base font-semibold text-red-400">Ошибка при поиске</h3>
+          <p class="text-xs text-slate-400 mt-1">${e}</p>
+        `;
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-search"></i><span>Найти лучшую цену</span>';
+      }
+    }
+
+    function renderBestPriceResults(data) {
+      const best = data.best_deal;
+      const stats = data.price_stats || {};
+      const stores = data.store_comparison || [];
+      const items = data.items || [];
+
+      // 1. Hero Card
+      const heroContainer = document.getElementById('bestDealHeroContainer');
+      if (best) {
+        const savingsText = best.savings_vs_max > 0 
+          ? `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+               🔥 Экономия ${fmtPrice(best.savings_vs_max)} (-${best.savings_pct}%)
+             </span>` 
+          : '';
+
+        heroContainer.innerHTML = `
+          <div class="glass p-6 rounded-2xl border-2 border-emerald-500/50 bg-gradient-to-r from-emerald-950/40 via-slate-900 to-slate-900 shadow-2xl relative overflow-hidden">
+            <div class="absolute -right-8 -top-8 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+            
+            <div class="flex items-center gap-2 mb-3">
+              <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500 text-dark-950 flex items-center gap-1.5 shadow-md shadow-emerald-500/30">
+                <i class="fa-solid fa-crown text-amber-950"></i> САМАЯ НИЗКАЯ ЦЕНА (${(currentCity || 'Казахстан').toUpperCase()})
+              </span>
+              ${savingsText}
+            </div>
+
+            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+              <div class="flex items-center gap-5">
+                ${best.image_url ? `<img src="${best.image_url}" class="w-24 h-24 sm:w-28 sm:h-28 object-contain rounded-xl bg-slate-900/80 p-2 border border-slate-700/80 shrink-0 shadow-lg">` : ''}
+                <div class="space-y-1.5">
+                  <div class="flex items-center gap-2">
+                    ${getShopBadge(best.shop)}
+                    <span class="text-xs text-slate-400 font-mono">${best.source === 'live_kaspi' ? '⚡️ Онлайн Kaspi' : '📦 В каталоге'}</span>
+                  </div>
+                  <h3 class="text-base sm:text-lg font-bold text-white leading-snug line-clamp-2">${best.title}</h3>
+                  <div class="text-xs text-slate-400">
+                    Средняя цена (${currentCity}): <span class="text-slate-300 font-medium">${fmtPrice(stats.avg_price)}</span>
+                    ${stats.max_price ? ` • Дороже всего: <span class="line-through text-slate-500">${fmtPrice(stats.max_price)}</span>` : ''}
+                  </div>
+                </div>
+              </div>
+
+              <div class="w-full md:w-auto text-left md:text-right shrink-0 space-y-3 pt-2 md:pt-0 border-t md:border-t-0 border-slate-800">
+                <div>
+                  <div class="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">Лучшая цена:</div>
+                  <div class="text-3xl font-black text-emerald-400 tracking-tight">${fmtPrice(best.price)}</div>
+                </div>
+                <a href="${best.url}" target="_blank" class="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-dark-950 font-bold px-6 py-3 rounded-xl text-sm shadow-xl shadow-emerald-500/25 transition transform active:scale-95 w-full md:w-auto">
+                  <span>Купить по лучшей цене</span>
+                  <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+                </a>
+              </div>
+            </div>
+          </div>
+        `;
+      } else {
+        heroContainer.innerHTML = '';
+      }
+
+      // 2. Store Comparison Grid
+      const grid = document.getElementById('storeComparisonGrid');
+      const badgeStats = document.getElementById('bestPriceStatsBadge');
+      badgeStats.innerText = `Магазинов с товаром: ${stores.length} • Разброс цен: ${fmtPrice(stats.min_price)} — ${fmtPrice(stats.max_price)}`;
+
+      grid.innerHTML = stores.map(st => {
+        const diffVal = st.diff_from_best !== undefined ? st.diff_from_best : (st.diff_kzt || 0);
+        const isWinner = diffVal === 0;
+        const itemTitle = st.title || st.best_item_title || '';
+        const itemUrl = st.url || st.best_item_url || '#';
+        return `
+          <div class="p-3.5 rounded-xl border ${isWinner ? 'border-emerald-500/60 bg-emerald-500/10' : 'border-slate-800 bg-slate-900/60'} flex flex-col justify-between space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-xs text-white">${st.shop}</span>
+              ${isWinner ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/30 text-emerald-300 font-bold">🏆 Лидер</span>' : `<span class="text-[10px] text-amber-400 font-medium">+${fmtPrice(diffVal)}</span>`}
+            </div>
+            <div>
+              <div class="text-base font-bold ${isWinner ? 'text-emerald-400' : 'text-slate-200'}">${fmtPrice(st.min_price)}</div>
+              <div class="text-[10px] text-slate-400 line-clamp-1 mt-0.5" title="${itemTitle}">${itemTitle}</div>
+            </div>
+            <a href="${itemUrl}" target="_blank" class="text-[11px] text-emerald-400 hover:text-emerald-300 inline-flex items-center gap-1 pt-1 border-t border-slate-800/80">
+              <span>Смотреть</span>
+              <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+            </a>
+          </div>
+        `;
+      }).join('');
+
+      // 3. Offers Table
+      const tbody = document.getElementById('bestPriceTableBody');
+      document.getElementById('bestPriceTotalOffers').innerText = `Всего предложений: ${items.length}`;
+
+      tbody.innerHTML = items.map((it, idx) => {
+        const isFirst = idx === 0;
+        const diff = it.price - (stats.min_price || it.price);
+        const diffText = diff === 0 
+          ? '<span class="px-2 py-0.5 rounded text-xs bg-emerald-500/20 text-emerald-300 font-bold">👑 Лидер</span>'
+          : `<span class="text-xs text-slate-400 font-mono">+${fmtPrice(diff)}</span>`;
+
+        return `
+          <tr class="hover:bg-slate-900/40 transition ${isFirst ? 'bg-emerald-500/5' : ''}">
+            <td class="px-4 py-3 text-center text-xs font-bold ${isFirst ? 'text-emerald-400' : 'text-slate-500'}">${idx + 1}</td>
+            <td class="px-4 py-3 whitespace-nowrap">${getShopBadge(it.shop)}</td>
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-3">
+                ${it.image_url ? `<img src="${it.image_url}" class="w-10 h-10 object-contain rounded bg-slate-900 p-1 border border-slate-800 shrink-0">` : ''}
+                <div class="font-medium text-white line-clamp-1 max-w-md" title="${it.title}">${it.title}</div>
+              </div>
+            </td>
+            <td class="px-4 py-3 whitespace-nowrap font-bold ${isFirst ? 'text-emerald-400 text-base' : 'text-slate-200'}">${fmtPrice(it.price)}</td>
+            <td class="px-4 py-3 whitespace-nowrap">${diffText}</td>
+            <td class="px-4 py-3 whitespace-nowrap text-right">
+              <a href="${it.url}" target="_blank" class="px-3 py-1.5 rounded-lg ${isFirst ? 'bg-emerald-500 hover:bg-emerald-600 text-dark-950 font-bold' : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white'} text-xs inline-flex items-center gap-1.5 transition shadow-sm">
+                <span>В магазин</span>
+                <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+              </a>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    async function loadCatalog(offset = 0) {
+      currentCatalogOffset = offset;
+      const shop = document.getElementById('catalogShopFilter').value;
+      const search = document.getElementById('catalogSearchInput').value.trim();
+      const tbody = document.getElementById('catalogTableBody');
+
+      try {
+        const url = `/api/products?limit=${catalogLimit}&offset=${offset}` +
+                    (shop !== 'Все' ? `&shop=${encodeURIComponent(shop)}` : '') +
+                    (currentCity && currentCity !== 'Все' ? `&city=${encodeURIComponent(currentCity)}` : '') +
+                    (search ? `&search=${encodeURIComponent(search)}` : '');
+
+        const res = await fetch(url);
+        const data = await res.json();
+        const products = data.products || [];
+        const total = data.total || 0;
+
+        document.getElementById('catalogPaginationInfo').innerText = `Показано ${Math.min(offset + 1, total)}–${Math.min(offset + products.length, total)} из ${total}`;
+        document.getElementById('btnPrevPage').disabled = (offset === 0);
+        document.getElementById('btnNextPage').disabled = (offset + products.length >= total);
+
+        if (products.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">Товары не найдены</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = products.map(p => `
+          <tr class="hover:bg-slate-900/40 transition">
+            <td class="px-4 py-3 whitespace-nowrap">${getShopBadge(p.shop)}</td>
+            <td class="px-4 py-3">
+              <div class="font-medium text-white line-clamp-1 max-w-md">${p.title}</div>
+            </td>
+            <td class="px-4 py-3 whitespace-nowrap text-xs text-slate-400">${p.category || '-'}</td>
+            <td class="px-4 py-3 whitespace-nowrap font-bold text-emerald-400">${fmtPrice(p.current_price)}</td>
+            <td class="px-4 py-3 whitespace-nowrap text-right">
+              <a href="${p.url}" target="_blank" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs inline-flex items-center gap-1 transition">
+                <span>Открыть</span>
+                <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+              </a>
+            </td>
+          </tr>
+        `).join('');
+      } catch (e) {
+        console.error('Ошибка каталога:', e);
+      }
+    }
+
+    function debounceCatalogSearch() {
+      clearTimeout(catalogSearchTimeout);
+      catalogSearchTimeout = setTimeout(() => loadCatalog(0), 300);
+    }
+
+    function prevCatalogPage() {
+      if (currentCatalogOffset >= catalogLimit) {
+        loadCatalog(currentCatalogOffset - catalogLimit);
+      }
+    }
+
+    function nextCatalogPage() {
+      loadCatalog(currentCatalogOffset + catalogLimit);
+    }
+
+    async function loadSettings() {
+      try {
+        const res = await fetch('/api/config');
+        const s = await res.json();
+
+        // 1. Аномалии и пороги
+        document.getElementById('checkDetectZero').checked = (s.detect_zero_glitch !== false);
+        document.getElementById('checkDetectDiscount').checked = (s.detect_super_discount !== false);
+        document.getElementById('checkDetectArbitrage').checked = (s.detect_market_arbitrage !== false);
+        document.getElementById('inputMinPrice').value = s.min_item_price_kzt || 30000;
+        document.getElementById('inputMaxPrice').value = s.max_item_price_kzt || 3000000;
+        document.getElementById('inputDropPct').value = s.price_glitch_drop_pct || 65;
+        document.getElementById('inputMinSavings').value = s.min_savings_kzt || 40000;
+        document.getElementById('inputArbitrageDiff').value = s.arbitrage_min_diff_kzt || 35000;
+
+        // 2. Стоп-слова и фильтрация хлама
+        const junk = s.junk_keywords || [];
+        document.getElementById('inputJunkKeywords').value = Array.isArray(junk) ? junk.join(', ') : junk;
+        document.getElementById('checkExcludeUsed').checked = (s.exclude_used_goods !== false);
+
+        // 3. Поиск по умолчанию
+        document.getElementById('selectSearchDefaultSort').value = s.search_default_sort || 'price_asc';
+        document.getElementById('checkSearchExcludeAccDefault').checked = (s.search_exclude_accessories_default !== false);
+        document.getElementById('checkSearchAutoLive').checked = (s.search_auto_live !== false);
+
+        // 4. Telegram и периодичность
+        document.getElementById('inputTgToken').value = s.telegram_bot_token || '';
+        document.getElementById('inputTgChatId').value = s.telegram_chat_id || '';
+        document.getElementById('selectTgNotifyLevel').value = s.telegram_notify_level || 'ALL';
+        document.getElementById('selectScanInterval').value = s.scan_interval_minutes || 180;
+
+        // 5. Магазины
+        const shops = s.enabled_shops || {};
+        document.getElementById('checkShopKaspi').checked = (shops.kaspi !== false);
+        document.getElementById('checkShopDns').checked = (shops.dns !== false);
+        document.getElementById('checkShopBv').checked = (shops.shopkz !== false);
+        document.getElementById('checkShopTd').checked = (shops.technodom !== false);
+        document.getElementById('checkShopFc').checked = (shops.forcecom !== false);
+        document.getElementById('checkShopSulpak').checked = (shops.sulpak !== false);
+        document.getElementById('checkShopMechta').checked = (shops.mechta !== false);
+        document.getElementById('checkShopAlser').checked = (shops.alser !== false);
+        document.getElementById('checkShopEvrika').checked = (shops.evrika !== false);
+        document.getElementById('checkShopMoon').checked = (shops.moon !== false);
+        document.getElementById('checkShopFourMobile').checked = (shops.fourmobile !== false);
+
+        const hasTg = Boolean(s.telegram_bot_token && s.telegram_chat_id);
+        document.getElementById('tgStatusLabel').innerText = hasTg ? 'Подключен' : 'Не настроен';
+        document.getElementById('tgStatusLabel').className = hasTg ? 'text-emerald-400' : 'text-slate-400';
+      } catch (e) {
+        console.error('Ошибка loadSettings:', e);
+      }
+    }
+
+    async function saveSettings() {
+      const btn = document.getElementById('btnSaveSettings');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Сохранение...</span>';
+
+      const junkStr = document.getElementById('inputJunkKeywords').value;
+      const junkArr = junkStr.split(',').map(k => k.trim()).filter(k => k.length > 0);
+
+      const payload = {
+        // Telegram
+        telegram_bot_token: document.getElementById('inputTgToken').value.trim(),
+        telegram_chat_id: document.getElementById('inputTgChatId').value.trim(),
+        telegram_notify_level: document.getElementById('selectTgNotifyLevel').value,
+        scan_interval_minutes: parseInt(document.getElementById('selectScanInterval').value) || 180,
+
+        // Аномалии
+        detect_zero_glitch: document.getElementById('checkDetectZero').checked,
+        detect_super_discount: document.getElementById('checkDetectDiscount').checked,
+        detect_market_arbitrage: document.getElementById('checkDetectArbitrage').checked,
+        min_item_price_kzt: parseInt(document.getElementById('inputMinPrice').value) || 30000,
+        max_item_price_kzt: parseInt(document.getElementById('inputMaxPrice').value) || 3000000,
+        price_glitch_drop_pct: parseFloat(document.getElementById('inputDropPct').value) || 65,
+        min_savings_kzt: parseInt(document.getElementById('inputMinSavings').value) || 40000,
+        arbitrage_min_diff_kzt: parseInt(document.getElementById('inputArbitrageDiff').value) || 35000,
+
+        // Стоп-слова
+        junk_keywords: junkArr,
+        exclude_used_goods: document.getElementById('checkExcludeUsed').checked,
+
+        // Поиск по умолчанию
+        search_default_sort: document.getElementById('selectSearchDefaultSort').value,
+        search_exclude_accessories_default: document.getElementById('checkSearchExcludeAccDefault').checked,
+        search_auto_live: document.getElementById('checkSearchAutoLive').checked,
+
+        // Магазины
+        enabled_shops: {
+          kaspi: document.getElementById('checkShopKaspi').checked,
+          dns: document.getElementById('checkShopDns').checked,
+          shopkz: document.getElementById('checkShopBv').checked,
+          technodom: document.getElementById('checkShopTd').checked,
+          forcecom: document.getElementById('checkShopFc').checked,
+          sulpak: document.getElementById('checkShopSulpak').checked,
+          mechta: document.getElementById('checkShopMechta').checked,
+          alser: document.getElementById('checkShopAlser').checked,
+          evrika: document.getElementById('checkShopEvrika').checked,
+          moon: document.getElementById('checkShopMoon').checked,
+          fourmobile: document.getElementById('checkShopFourMobile').checked
+        }
+      };
+
+      try {
+        const res = await fetch('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          const toast = document.getElementById('saveResultToast');
+          toast.classList.remove('hidden');
+          setTimeout(() => toast.classList.add('hidden'), 3500);
+          loadSettings();
+        }
+      } catch (e) {
+        alert('Ошибка при сохранении: ' + e);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i><span>Сохранить настройки</span>';
+      }
+    }
+
+    async function testTelegram() {
+      const btn = document.getElementById('btnTestTg');
+      const resBox = document.getElementById('tgTestResult');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Отправка...</span>';
+      resBox.classList.add('hidden');
+
+      try {
+        const res = await fetch('/api/test-telegram', { method: 'POST' });
+        const data = await res.json();
+        resBox.classList.remove('hidden');
+
+        if (res.ok) {
+          resBox.className = 'text-xs text-emerald-400';
+          resBox.innerText = '✅ ' + data.message;
+        } else {
+          resBox.className = 'text-xs text-red-400';
+          resBox.innerText = '❌ ' + (data.message || 'Ошибка отправки');
+        }
+      } catch (e) {
+        resBox.classList.remove('hidden');
+        resBox.className = 'text-xs text-red-400';
+        resBox.innerText = '❌ Ошибка сети: ' + e;
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i><span>Отправить тестовое сообщение</span>';
+      }
+    }
+
+    // Запуск сканирования (ручной или авто)
+    async function startScan(manual = false) {
+      const icon = document.getElementById('btnScanIcon');
+      const progressFill = document.getElementById('autoScanProgressFill');
+      const title = document.getElementById('autoScanTitle');
+      const detail = document.getElementById('autoScanDetail');
+      const forceBtn = document.getElementById('btnForceScan');
+
+      if (forceBtn) forceBtn.disabled = true;
+      if (icon) icon.className = 'fa-solid fa-spinner fa-spin text-emerald-400 text-xs';
+      if (progressFill) progressFill.style.width = '10%';
+      if (title) title.innerHTML = '<span class="font-bold text-emerald-300">Старт...</span>';
+      if (detail) detail.innerText = 'Запуск фонового сканера...';
+
+      try {
+        await fetch('/api/scan/start', { method: 'POST' });
+        if (!pollInterval) {
+          pollInterval = setInterval(loadStats, 1000);
+        }
+        loadStats();
+        if (manual) {
+          showToast('⚡️ Запущено обновление каталога в фоновом режиме');
+        }
+      } catch (e) {
+        console.error('Ошибка startScan:', e);
+      } finally {
+        if (forceBtn) forceBtn.disabled = false;
+      }
+    }
+
+    async function syncShopkzYml() {
+      const icon = document.getElementById('btnYmlIcon');
+      if (icon) icon.className = 'fa-solid fa-spinner fa-spin text-xs text-sky-400';
+      showToast('📦 Запущена выгрузка официального YML каталога shop.kz (16 000+ товаров)...');
+      try {
+        const res = await fetch('/api/scan/shopkz-yml', { method: 'POST' });
+        const data = await res.json();
+        showToast('✅ ' + data.message);
+        if (!pollInterval) {
+          pollInterval = setInterval(loadStats, 1500);
+        }
+      } catch (e) {
+        showToast('❌ Ошибка YML выгрузки: ' + e);
+      } finally {
+        setTimeout(() => {
+          if (icon) icon.className = 'fa-solid fa-file-code text-xs';
+          loadStats();
+        }, 3000);
+      }
+    }
+
+    async function loadVersionInfo() {
+      try {
+        const res = await fetch('/api/version');
+        if (res.ok) {
+          const v = await res.json();
+          const verText = 'v' + v.version;
+          const badge = document.getElementById('appVersionBadge');
+          if (badge) badge.innerText = verText;
+          const fVer = document.getElementById('footerVersion');
+          if (fVer) fVer.innerText = verText;
+        }
+      } catch(e) {}
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      // Синхронизируем сохраненный город без перезагрузки
+      setCity(currentCity, false);
+
+      // Отображаем идентификатор независимой сессии
+      const sessEl = document.getElementById('clientSessionBadge');
+      if (sessEl) {
+        sessEl.innerText = `Сессия: ${clientSessionId}`;
+      }
+
+      loadVersionInfo();
+      loadStats();
+      loadAlerts();
+      loadSettings();
+      setInterval(loadStats, 3000);
+    });
+  </script>
+</body>
+</html>

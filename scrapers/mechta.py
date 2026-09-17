@@ -1,0 +1,119 @@
+import re
+import uuid
+import asyncio
+from typing import List, Dict, Any
+from curl_cffi import requests
+
+class MechtaScraper:
+    SHOP_NAME = "Мечта"
+    SHOP_EMOJI = "🟣"
+
+    def __init__(self):
+        self.base_url = "https://www.mechta.kz"
+        self.api_url = "https://www.mechta.kz/api/v3/catalog/products"
+        self.device_id = str(uuid.uuid4())
+        self.session = None
+
+    def _get_session(self) -> requests.Session:
+        if self.session is None:
+            self.session = requests.Session(impersonate="chrome124")
+            try:
+                self.session.get(self.base_url, timeout=10)
+            except Exception:
+                pass
+        return self.session
+
+    def _extract_slug(self, category_url: str) -> str:
+        """Извлекает slug категории из переданного URL или возвращает сам slug."""
+        if category_url.startswith("http"):
+            match = re.search(r"/(?:section|category)/([^/?#]+)", category_url)
+            if match:
+                return match.group(1)
+            parts = [p for p in category_url.split("/") if p and not p.startswith("http")]
+            if parts:
+                return parts[-1]
+        return category_url
+
+    async def scrape(self, category_name: str, category_url: str, max_pages: int = 1) -> List[Dict[str, Any]]:
+        return await asyncio.to_thread(self._scrape_sync, category_name, category_url, max_pages)
+
+    def _scrape_sync(self, category_name: str, category_url: str, max_pages: int) -> List[Dict[str, Any]]:
+        products: List[Dict[str, Any]] = []
+        slug = self._extract_slug(category_url)
+        session = self._get_session()
+
+        headers = {
+            "Accept": "application/json, text/plain, */*",
+            "Referer": f"{self.base_url}/section/{slug}/",
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-origin",
+            "X-Mechta-Device-Id": self.device_id,
+            "x-city-code": "astana",
+            "Accept-Language": "ru",
+        }
+
+        for page_num in range(1, max_pages + 1):
+            params = {
+                "slug": slug,
+                "page": page_num,
+                "pageSize": 24,
+                "orderBy": "sort",
+                "direction": "desc"
+            }
+
+            try:
+                r = session.get(self.api_url, headers=headers, params=params, timeout=15)
+                if r.status_code != 200:
+                    if r.status_code in (403, 422):
+                        self.session = None
+                        session = self._get_session()
+                        r = session.get(self.api_url, headers=headers, params=params, timeout=15)
+                    if r.status_code != 200:
+                        print(f"[{self.SHOP_NAME}] Ошибка HTTP {r.status_code} для категории {slug}")
+                        break
+
+                data = r.json()
+                raw_items = data.get("products", [])
+                if not raw_items:
+                    break
+
+                for item in raw_items:
+                    pid = item.get("id") or str(item.get("code", ""))
+                    name = item.get("name", "").strip()
+                    item_slug = item.get("slug", "")
+                    if not name or not pid:
+                        continue
+
+                    # Цены
+                    prices = item.get("prices") or {}
+                    final_price = prices.get("finalPrice") or 0
+                    base_price = prices.get("basePrice") or 0
+
+                    if final_price <= 0:
+                        continue
+
+                    # Ссылка
+                    product_url = f"{self.base_url}/product/{item_slug}/" if item_slug else f"{self.base_url}/product/{pid}/"
+
+                    # Изображение
+                    images = item.get("images") or []
+                    image_url = images[0] if images else ""
+
+                    products.append({
+                        "shop": self.SHOP_NAME,
+                        "id": f"mechta_{pid}",
+                        "title": name,
+                        "category": category_name,
+                        "url": product_url,
+                        "image_url": image_url,
+                        "price": int(final_price),
+                        "old_price_on_site": int(base_price) if base_price > final_price else 0,
+                        "city": "Астана"
+                    })
+
+            except Exception as e:
+                print(f"[{self.SHOP_NAME}] Ошибка при парсинге {slug} (стр. {page_num}): {e}")
+                break
+
+        return products
