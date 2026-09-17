@@ -2,7 +2,7 @@ import re
 import sqlite3
 import datetime
 from typing import Optional, Dict, Any, List
-from config import DB_PATH
+from config import DB_PATH, get_scan_interval_seconds
 
 def get_connection():
     conn = sqlite3.connect(DB_PATH)
@@ -317,6 +317,7 @@ def get_db_freshness(threshold_seconds: int = 10800) -> Dict[str, Any]:
             "latest_update": None,
             "age_seconds": None,
             "is_stale": True,
+            "threshold_seconds": threshold_seconds,
             "total_products": total_count
         }
 
@@ -335,6 +336,7 @@ def get_db_freshness(threshold_seconds: int = 10800) -> Dict[str, Any]:
         "latest_update": latest_str,
         "age_seconds": age_seconds,
         "is_stale": age_seconds >= threshold_seconds,
+        "threshold_seconds": threshold_seconds,
         "total_products": total_count
     }
 
@@ -362,7 +364,7 @@ def get_stats() -> Dict[str, Any]:
             "total_anomalies": total_anomalies,
             "total_discounts": total_discounts,
             "shops": shops_stats,
-            "db_freshness": get_db_freshness()
+            "db_freshness": get_db_freshness(threshold_seconds=get_scan_interval_seconds())
         }
 
 def get_alerts(limit: int = 150, city: Optional[str] = None, alert_type: Optional[str] = None) -> list:

@@ -77,6 +77,20 @@ def load_settings():
             pass
     return dict(DEFAULT_SETTINGS)
 
+# Допустимый диапазон интервала автообновления базы
+SCAN_INTERVAL_MIN_MINUTES = 5
+SCAN_INTERVAL_MAX_MINUTES = 30 * 24 * 60  # 30 дней
+
+def get_scan_interval_seconds(settings=None):
+    """Порог устаревания базы (в секундах), после которого запускается автообновление."""
+    s = settings if settings is not None else load_settings()
+    try:
+        minutes = int(s.get("scan_interval_minutes", DEFAULT_SETTINGS["scan_interval_minutes"]))
+    except (TypeError, ValueError):
+        minutes = DEFAULT_SETTINGS["scan_interval_minutes"]
+    minutes = min(max(minutes, SCAN_INTERVAL_MIN_MINUTES), SCAN_INTERVAL_MAX_MINUTES)
+    return minutes * 60
+
 def _validate_settings(new_settings):
     """Оставляет только известные ключи и приводит значения к типам из DEFAULT_SETTINGS."""
     if not isinstance(new_settings, dict):
@@ -105,6 +119,10 @@ def _validate_settings(new_settings):
                 clean[key] = str(value).strip()
         except (TypeError, ValueError):
             raise ValueError(f"Некорректное значение настройки «{key}»: {value!r}")
+
+    interval = clean.get("scan_interval_minutes")
+    if interval is not None and not (SCAN_INTERVAL_MIN_MINUTES <= interval <= SCAN_INTERVAL_MAX_MINUTES):
+        raise ValueError(f"Интервал автообновления должен быть от {SCAN_INTERVAL_MIN_MINUTES} минут до 30 дней")
     return clean
 
 def save_settings(new_settings):

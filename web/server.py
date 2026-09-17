@@ -7,6 +7,7 @@ from aiohttp import web
 from config import (
     load_settings,
     save_settings,
+    get_scan_interval_seconds,
     CITIES_KZ,
     DNS_CATEGORIES,
     SHOPKZ_CATEGORIES,
@@ -402,9 +403,9 @@ async def logs_export_handler(request):
 
 async def auto_scan_background_worker(app):
     """Фоновый воркер: непрерывно следит за возрастом базы данных.
-    Если база старше 3 часов (или порога в настройках), автономно запускает фоновое обновление.
+    Если база старше порога из настроек (scan_interval_minutes), автономно запускает фоновое обновление.
     """
-    print("[AutoScan] 🤖 Автономный фоновый монитор запущен (порог устаревания базы: 3 часа)...")
+    print(f"[AutoScan] 🤖 Автономный фоновый монитор запущен (порог устаревания базы: {get_scan_interval_seconds() // 60} мин)...")
     while True:
         try:
             await asyncio.sleep(20)
@@ -412,13 +413,13 @@ async def auto_scan_background_worker(app):
                 continue
 
             settings = load_settings()
-            max_age_minutes = int(settings.get("scan_interval_minutes", 180))
-            max_age_seconds = max(300, max_age_minutes * 60)
+            max_age_seconds = get_scan_interval_seconds(settings)
+            max_age_minutes = max_age_seconds // 60
 
             freshness = get_db_freshness(threshold_seconds=max_age_seconds)
             age = freshness.get("age_seconds")
 
-            # Если товаров нет вообще или данные старше порога (3 часа)
+            # Если товаров нет вообще или данные старше порога из настроек
             if age is None or age >= max_age_seconds:
                 age_desc = f"{age // 60} мин" if age is not None else "база пуста"
                 print(f"[AutoScan] ⏰ База требует обновления (возраст: {age_desc} >= {max_age_minutes} мин). Запуск автономного сканирования...")

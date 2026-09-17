@@ -689,14 +689,16 @@
               </div>
 
               <div>
-                <label class="block text-xs font-medium text-slate-300 mb-1">Авто-обновление базы:</label>
-                <select id="selectScanInterval" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
-                  <option value="180" selected>Если база старше 3 часов (По умолчанию)</option>
-                  <option value="120">Если база старше 2 часов</option>
-                  <option value="60">Если база старше 1 часа</option>
-                  <option value="30">Если база старше 30 минут</option>
-                  <option value="15">Если база старше 15 минут</option>
-                </select>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Авто-обновление базы, если старше:</label>
+                <div class="flex gap-2">
+                  <input type="number" id="inputScanIntervalValue" min="1" step="1" class="w-20 min-w-0 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+                  <select id="selectScanIntervalUnit" class="flex-1 min-w-0 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+                    <option value="1">минут</option>
+                    <option value="60">часов</option>
+                    <option value="1440">дней</option>
+                  </select>
+                </div>
+                <span class="text-[10px] text-slate-500">От 5 минут до 30 дней (по умолчанию 3 часа)</span>
               </div>
             </div>
 
@@ -1204,23 +1206,22 @@
           if (icon) icon.className = 'fa-solid fa-arrows-rotate text-xs';
 
           const ageSec = (freshness && freshness.age_seconds != null) ? freshness.age_seconds : null;
+          const thresholdSec = freshness.threshold_seconds || 10800;
           if (ageSec == null || freshness.total_products === 0) {
             if (dot) dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0';
             if (title) title.innerText = 'База пуста';
             if (detail) detail.innerText = 'Запуск первого сканирования...';
-          } else if (ageSec < 3600) {
-            // База актуальна (моложе 1 часа)
+          } else if (ageSec < thresholdSec) {
+            // База актуальна (моложе порога автообновления из настроек)
             if (dot) dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0';
-            const ageMin = Math.floor(ageSec / 60);
-            const nextMin = Math.max(1, 60 - ageMin);
+            const nextSec = Math.max(60, thresholdSec - ageSec);
             if (title) title.innerText = 'База актуальна';
-            if (detail) detail.innerText = ageMin === 0 ? 'обновлена только что' : `обновлена ${ageMin} мин назад • авто через ${nextMin} мин`;
+            if (detail) detail.innerText = ageSec < 60 ? 'обновлена только что' : `обновлена ${formatDuration(ageSec)} назад • авто через ${formatDuration(nextSec)}`;
           } else {
-            // База устарела (> 1 часа) — фоновый монитор скоро запустит обновление
+            // База старше порога — фоновый монитор скоро запустит обновление
             if (dot) dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 pulse-dot shrink-0';
-            const ageMin = Math.floor(ageSec / 60);
-            if (title) title.innerText = 'База старше 1 ч';
-            if (detail) detail.innerText = `возраст ${ageMin} мин • авто-обновление...`;
+            if (title) title.innerText = `База старше ${formatDuration(thresholdSec)}`;
+            if (detail) detail.innerText = `возраст ${formatDuration(ageSec)} • авто-обновление...`;
           }
 
           if (pollInterval) {
@@ -1710,6 +1711,17 @@
       loadCatalog(currentCatalogOffset + catalogLimit);
     }
 
+    // Длительность в секундах → «45 мин», «3 ч 20 мин», «2 дн 4 ч»
+    function formatDuration(sec) {
+      const totalMin = Math.floor(sec / 60);
+      const days = Math.floor(totalMin / 1440);
+      const hours = Math.floor((totalMin % 1440) / 60);
+      const mins = totalMin % 60;
+      if (days > 0) return hours > 0 ? `${days} дн ${hours} ч` : `${days} дн`;
+      if (hours > 0) return mins > 0 ? `${hours} ч ${mins} мин` : `${hours} ч`;
+      return `${Math.max(1, mins)} мин`;
+    }
+
     // Число из настроек: 0 — допустимое значение, подставляем дефолт только при отсутствии
     function numOr(value, fallback) {
       const n = Number(value);
@@ -1756,13 +1768,11 @@
         document.getElementById('inputTgToken').value = s.telegram_bot_token || '';
         document.getElementById('inputTgChatId').value = s.telegram_chat_id || '';
         document.getElementById('selectTgNotifyLevel').value = s.telegram_notify_level || 'ALL';
-                const scanSelect = document.getElementById('selectScanInterval');
-        const scanValue = String(numOr(s.scan_interval_minutes, 180));
-        if (![...scanSelect.options].some(o => o.value === scanValue)) {
-          // Значение из settings.json вне списка — показываем его, чтобы не потерять при сохранении
-          scanSelect.add(new Option(`Если база старше ${scanValue} мин`, scanValue));
-        }
-        scanSelect.value = scanValue;
+                // Интервал хранится в минутах, в форме показываем в самой крупной целой единице
+        const scanMinutes = numOr(s.scan_interval_minutes, 180);
+        const scanUnit = (scanMinutes % 1440 === 0) ? 1440 : (scanMinutes % 60 === 0) ? 60 : 1;
+        document.getElementById('inputScanIntervalValue').value = scanMinutes / scanUnit;
+        document.getElementById('selectScanIntervalUnit').value = String(scanUnit);
 
         // 5. Магазины
         const shops = s.enabled_shops || {};
@@ -1795,6 +1805,12 @@
     }
 
     async function saveSettings() {
+      const scanIntervalValue = parseInt(document.getElementById('inputScanIntervalValue').value);
+      if (!(scanIntervalValue > 0)) {
+        showSaveResult(false, '❌ Укажите интервал автообновления базы — целое число больше нуля');
+        return;
+      }
+
       const btn = document.getElementById('btnSaveSettings');
       btn.disabled = true;
       btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Сохранение...</span>';
@@ -1807,7 +1823,7 @@
         telegram_bot_token: document.getElementById('inputTgToken').value.trim(),
         telegram_chat_id: document.getElementById('inputTgChatId').value.trim(),
         telegram_notify_level: document.getElementById('selectTgNotifyLevel').value,
-        scan_interval_minutes: numOr(parseInt(document.getElementById('selectScanInterval').value), 180),
+        scan_interval_minutes: scanIntervalValue * parseInt(document.getElementById('selectScanIntervalUnit').value),
 
         // Аномалии
         detect_zero_glitch: document.getElementById('checkDetectZero').checked,

@@ -139,5 +139,17 @@ class TestDNSMonitor(unittest.TestCase):
         with self.assertRaises(ValueError):
             config._validate_settings({"detect_zero_glitch": "yes"})
 
+    def test_scan_interval_range(self):
+        """Интервал автообновления: минуты/часы/дни в пределах 5 минут — 30 дней."""
+        self.assertEqual(config._validate_settings({"scan_interval_minutes": 3 * 1440})["scan_interval_minutes"], 4320)
+        with self.assertRaises(ValueError):
+            config._validate_settings({"scan_interval_minutes": 4})
+        with self.assertRaises(ValueError):
+            config._validate_settings({"scan_interval_minutes": 31 * 1440})
+        with self.assertRaises(ValueError):
+            config._validate_settings({"scan_interval_minutes": None})
+        self.assertEqual(config.get_scan_interval_seconds({"scan_interval_minutes": 1}), 300)
+        self.assertEqual(config.get_scan_interval_seconds({"scan_interval_minutes": 120}), 7200)
+
 if __name__ == "__main__":
     unittest.main()
