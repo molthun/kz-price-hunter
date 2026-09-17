@@ -1,0 +1,16 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.git/
+.gitignore
+.dockerignore
+.DS_Store
+*.db
+*.db-wal
+*.db-shm
+settings.json
+*.png
+.idea/
+.vscode/

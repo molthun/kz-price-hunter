@@ -3,8 +3,10 @@ import json
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
-DB_PATH = BASE_DIR / "prices.db"
-SETTINGS_FILE = BASE_DIR / "settings.json"
+DATA_DIR = Path(os.getenv("DATA_DIR", BASE_DIR))
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+DB_PATH = DATA_DIR / "prices.db"
+SETTINGS_FILE = DATA_DIR / "settings.json"
 
 # Дефолтные настройки
 DEFAULT_SETTINGS = {

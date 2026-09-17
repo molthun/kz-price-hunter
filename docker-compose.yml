@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  kz-price-hunter:
+    image: ghcr.io/molthun/kz-price-hunter:latest
+    container_name: kz-price-hunter
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - DATA_DIR=/app/data
+      - TZ=Asia/Almaty
+    volumes:
+      - ./data:/app/data
+
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: kz-price-watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_POLL_INTERVAL=300
+    command: --interval 300 kz-price-hunter
