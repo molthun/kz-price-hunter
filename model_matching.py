@@ -72,8 +72,8 @@ def _family_key(title: str) -> Optional[str]:
             model = re.sub(r'\s+', ' ', model)
             return f'apple:{model}:{cap_val}' if cap_val else f'apple:{model}'
 
-    # 3.2. Samsung Galaxy
-    if 'galaxy' in tokens or ('samsung' in tokens and any(t.startswith('s') and len(t) > 1 and t[1:].isdigit() for t in tokens)):
+    # 3.2. Samsung Galaxy (только для смартфонов/планшетов, исключая мониторы и бытовую технику)
+    if ('galaxy' in tokens or ('samsung' in tokens and any(t.startswith('s') and len(t) > 1 and t[1:].isdigit() for t in tokens))) and not any(kw in title.lower() for kw in ('монитор', 'телевизор', 'пылесос', 'холодильник', 'стиральн', 'essential')):
         brand = 'samsung'
         m = re.search(r'(?:galaxy\s*)?([sazm]\d{1,2})(?:\s*(?:ultra|plus|fe|\+))?', cleaned)
         if m:
@@ -141,6 +141,11 @@ def identity_tokens(title):
 
 
 def extract_canonical_key(title: str) -> Optional[str]:
+    if not title:
+        return None
+    from detector import is_junk_accessory
+    if is_junk_accessory(title):
+        return None
     family = _family_key(title)
     if not family:
         return None

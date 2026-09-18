@@ -615,7 +615,10 @@ def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
     if image_url and "shop.kz//static.shop.kz" in image_url:
         image_url = image_url.replace("https://shop.kz//static.shop.kz", "https://static.shop.kz").replace("shop.kz//static.shop.kz", "static.shop.kz")
     description = p.get("description") or ""
-    current_price = int(p["price"])
+    try:
+        current_price = int(p.get("price", 0))
+    except (TypeError, ValueError):
+        current_price = 0
     if current_price > 10_000_000 or current_price <= 0:
         return {
             "is_new": False,
@@ -721,7 +724,10 @@ def save_or_update_products_batch(products: List[Dict[str, Any]]) -> int:
             if image_url and "shop.kz//static.shop.kz" in image_url:
                 image_url = image_url.replace("https://shop.kz//static.shop.kz", "https://static.shop.kz").replace("shop.kz//static.shop.kz", "static.shop.kz")
             description = p.get("description") or ""
-            current_price = int(p["price"])
+            try:
+                current_price = int(p.get("price", 0))
+            except (TypeError, ValueError):
+                current_price = 0
             if current_price > 10_000_000 or current_price <= 0:
                 continue
             canonical_key = p.get("canonical_key") or extract_canonical_key(title)
