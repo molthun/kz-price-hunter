@@ -1019,6 +1019,152 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
                     mock_send.assert_called_once()
                     self.assertIn("iPad 9", mock_send.call_args[0][3])
 
+    def test_canonical_key_extraction(self):
+        """Тест извлечения канонического ключа модели из разнородных названий магазинов."""
+        from model_matching import extract_canonical_key
+
+        # 1. Варианты iPhone 15 128GB из 6 разных торговых сетей
+        t1 = "Смартфон Apple iPhone 15 128Gb черный"
+        t2 = "Смартфон Apple iPhone 15 128GB Black Nano-Sim + eSim (MTP03RX/A)"
+        t3 = '6.1" Смартфон Apple iPhone 15 128 ГБ черный [2544256]'
+        t4 = "Смартфон Apple iPhone 15 128GB Black"
+        t5 = "Смартфон Apple iPhone 15 128GB, Черный (MTP03ZD/A)"
+        t6 = "Apple iPhone 15 128GB Black"
+
+        k1 = extract_canonical_key(t1)
+        self.assertEqual(k1, "apple:iphone 15:128gb")
+        for t in (t2, t3, t4, t5, t6):
+            self.assertEqual(extract_canonical_key(t), k1)
+
+        # 2. Samsung Galaxy S24 Ultra 1TB
+        s1 = "Samsung Galaxy S24 Ultra 1TB"
+        s2 = "Samsung Galaxy S24 Ultra 1024 ГБ"
+        s3 = "Смартфон Samsung Galaxy S24 Ultra 12/1024Gb Titanium Black (SM-S928B)"
+        k_s1 = extract_canonical_key(s1)
+        self.assertEqual(k_s1, "samsung:galaxy s24 ultra:1024gb")
+        self.assertEqual(extract_canonical_key(s2), k_s1)
+        self.assertEqual(extract_canonical_key(s3), k_s1)
+
+        # 3. Видеокарта RTX 4060
+        g1 = "Видеокарта Palit GeForce RTX 4060 Dual 8GB"
+        g2 = "Palit RTX 4060 Dual 8 ГБ (NE64060019P1-1070D)"
+        k_g1 = extract_canonical_key(g1)
+        self.assertEqual(k_g1, "palit:rtx 4060:8gb")
+        self.assertEqual(extract_canonical_key(g2), k_g1)
+
+        # 4. Негативные проверки: разные модели не должны давать один ключ
+        self.assertNotEqual(extract_canonical_key("Apple iPhone 15 128GB"), extract_canonical_key("Apple iPhone 15 Pro 128GB"))
+        self.assertNotEqual(extract_canonical_key("Apple iPhone 15 128GB"), extract_canonical_key("Apple iPhone 15 256GB"))
+
+    def test_same_model_cross_store_integration(self):
+        """Тест сопоставления моделей между разными магазинами с артикулами и тегами."""
+        from model_matching import same_model
+
+        # Ранее strict a == b не матчил эти названия из-за артикулов, теперь они матчатся 100%
+        self.assertTrue(same_model(
+            "Смартфон Apple iPhone 15 128Gb черный",
+            "Смартфон Apple iPhone 15 128GB Black Nano-Sim + eSim (MTP03RX/A)"
+        ))
+        self.assertTrue(same_model(
+            '6.1" Смартфон Apple iPhone 15 128 ГБ черный [2544256]',
+            "Смартфон Apple iPhone 15 128GB, Черный (MTP03ZD/A)"
+        ))
+        self.assertTrue(same_model(
+            "Игровая приставка Sony PlayStation 5 Slim 1TB",
+            "Sony PlayStation 5 Slim 1024 ГБ"
+        ))
+
+    async def test_ai_batch_normalization_and_cache(self):
+        """Тест пакетной AI-нормализации и персистентного кэширования в SQLite."""
+        import ai_service
+        from database import get_cached_canonical_key
+        from unittest.mock import patch, AsyncMock
+
+        title_mock = "Кастомный игровой ПК SuperPC Ultra Edition"
+        mock_creds = {
+            "gemini_api_key": "test_key",
+            "openai_api_key": "",
+            "ai_search_enabled": True,
+            "has_ai": True
+        }
+        mock_ai_resp = {
+            "items": [
+                {"title": title_mock, "canonical_key": "custom:superpc:ultra"}
+            ]
+        }
+
+        with patch.object(ai_service, '_get_api_credentials', return_value=mock_creds), \
+             patch.object(ai_service, 'call_gemini_api', new_callable=AsyncMock) as mock_gemini:
+            mock_gemini.return_value = mock_ai_resp
+
+            res = await ai_service.normalize_product_titles_batch([title_mock])
+            self.assertEqual(res.get(title_mock), "custom:superpc:ultra")
+
+            # Проверяем, что ключ сохранился в постоянный кэш SQLite
+            cached = get_cached_canonical_key(title_mock)
+            self.assertEqual(cached, "custom:superpc:ultra")
+
+            # Повторный вызов не обращается к API, а берет из кэша
+            mock_gemini.reset_mock()
+            res_cached = await ai_service.normalize_product_titles_batch([title_mock])
+            self.assertEqual(res_cached.get(title_mock), "custom:superpc:ultra")
+            mock_gemini.assert_not_called()
+
+    async def test_models_compare_endpoint_and_arbitrage(self):
+        """Тест кросс-магазинного сравнения цен и арбитража через /api/models/compare."""
+        from aiohttp.test_utils import TestClient, TestServer
+        from web.server import create_app
+        from database import save_or_update_products_batch
+        from detector import check_market_arbitrage
+        import config
+
+        # Создаем 2 предложения одного товара в разных магазинах с вилкой цен
+        p_cheap = {
+            "id": "comp-iphone-cheap",
+            "shop": "Kaspi",
+            "city": "Астана",
+            "title": "Смартфон Apple iPhone 15 128Gb черный",
+            "category": "Смартфоны",
+            "price": 350000,
+            "url": "https://kaspi.kz/cheap",
+            "image_url": "https://img/cheap"
+        }
+        p_expensive = {
+            "id": "comp-iphone-exp",
+            "shop": "Мечта",
+            "city": "Астана",
+            "title": "Смартфон Apple iPhone 15 128GB Black Nano-Sim (MTP03RX/A)",
+            "category": "Смартфоны",
+            "price": 460000,
+            "url": "https://mechta.kz/exp",
+            "image_url": "https://img/exp"
+        }
+
+        save_or_update_products_batch([p_cheap, p_expensive])
+
+        # 1. Проверяем обнаружение арбитража детектора
+        arb = check_market_arbitrage(p_cheap, custom_settings=config.get_candidate_settings())
+        self.assertIsNotNone(arb)
+        self.assertEqual(arb["type"], "MARKET_ARBITRAGE")
+        self.assertEqual(arb["new_price"], 350000)
+        self.assertEqual(arb["old_price"], 460000)
+        self.assertEqual(arb["competitor_shop"], "Мечта")
+        self.assertEqual(arb["canonical_key"], "apple:iphone 15:128gb")
+
+        # 2. Проверяем API эндпоинт сравнения цен /api/models/compare
+        app = create_app()
+        app.cleanup_ctx.clear()
+        async with TestClient(TestServer(app)) as client:
+            res = await client.get('/api/models/compare?canonical_key=apple:iphone 15:128gb&city=Астана')
+            self.assertEqual(res.status, 200)
+            data = await res.json()
+            self.assertEqual(data["status"], "ok")
+            self.assertEqual(data["total_offers"], 2)
+            self.assertEqual(data["min_price"], 350000)
+            self.assertEqual(data["max_price"], 460000)
+            self.assertEqual(data["arbitrage_savings"], 110000)
+            self.assertGreater(data["arbitrage_pct"], 20.0)
+
 
 if __name__ == "__main__":
     unittest.main()

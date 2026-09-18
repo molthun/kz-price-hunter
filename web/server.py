@@ -257,6 +257,48 @@ async def ai_consultant_handler(request):
             "products": []
         }, status=500)
 
+@routes.get("/api/models/compare")
+async def compare_model_offers_handler(request):
+    """Сравнение цен на каноническую модель между всеми подключенными магазинами."""
+    key = request.query.get("canonical_key", "").strip().lower()
+    title = request.query.get("title", "").strip()
+    city = request.query.get("city", "Все").strip()
+
+    if not key and title:
+        from model_matching import extract_canonical_key
+        key = extract_canonical_key(title) or ""
+
+    if not key:
+        return web.json_response({"status": "error", "message": "Параметр canonical_key или title обязателен"}, status=400)
+
+    from database import get_connection, active_product_clause
+    with get_connection() as conn:
+        city_clause = "AND (city = ? OR city = 'Все' OR city IS NULL)" if city != "Все" else ""
+        params = [key, city] if city != "Все" else [key]
+        rows = conn.execute(f"""
+            SELECT id, shop, title, current_price, old_price_on_site, url, image_url, city, canonical_key
+            FROM products
+            WHERE canonical_key = ? {city_clause} AND current_price > 0 AND """ + active_product_clause() + """
+            ORDER BY current_price ASC
+        """, params).fetchall()
+
+    items = [dict(r) for r in rows]
+    min_p = items[0]["current_price"] if items else 0
+    max_p = items[-1]["current_price"] if items else 0
+    diff = max_p - min_p if len(items) > 1 else 0
+    diff_pct = round((diff / max_p) * 100, 1) if max_p > 0 else 0
+
+    return web.json_response({
+        "status": "ok",
+        "canonical_key": key,
+        "total_offers": len(items),
+        "min_price": min_p,
+        "max_price": max_p,
+        "arbitrage_savings": diff,
+        "arbitrage_pct": diff_pct,
+        "offers": items
+    })
+
 @routes.get("/api/best-price")
 async def best_price_handler(request):
     query = request.query.get("q", "").strip()

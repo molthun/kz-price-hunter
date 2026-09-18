@@ -154,6 +154,7 @@ def check_market_arbitrage(
 
     if diff_pct >= min_pct and diff >= min_diff:
         shop = product.get("shop", "магазине")
+        c_key = market.get("canonical_key") if (market and isinstance(market, dict)) else None
         return {
             "type": "MARKET_ARBITRAGE",
             "emoji": "🎯 МЕЖМАГАЗИННЫЙ АРБИТРАЖ (СУПЕР-ЦЕНА)",
@@ -162,6 +163,7 @@ def check_market_arbitrage(
             "drop_pct": diff_pct,
             "savings": diff,
             "competitor_shop": other_shop_name,
+            "canonical_key": c_key,
             "reason": f"В {shop} на {diff_pct}% дешевле, чем в {other_shop_name} ({benchmark_price:,} ₸)!".replace(",", " ")
         }
 

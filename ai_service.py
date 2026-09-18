@@ -518,3 +518,100 @@ async def ask_ai_consultant(
         ],
         "query_used": search_query
     }
+
+
+async def normalize_product_titles_batch(titles: List[str]) -> Dict[str, str]:
+    """Пакетная AI-нормализация наименований товаров для 100% сопоставления между магазинами.
+    
+    Принимает список названий, проверяет кэш SQLite и эвристический парсер,
+    а сложные/неоднозначные отправляет в Gemini / OpenAI для извлечения канонического ключа.
+    Возвращает: { "Исходное название": "brand:model:spec" }
+    """
+    from model_matching import extract_canonical_key
+    from database import get_cached_canonical_key, save_cached_canonical_keys_batch
+
+    results: Dict[str, str] = {}
+    missing_for_ai: List[str] = []
+
+    for t in titles:
+        if not t or not t.strip():
+            continue
+        # 1. Проверяем локальный кэш
+        cached = get_cached_canonical_key(t)
+        if cached:
+            results[t] = cached
+            continue
+
+        # 2. Проверяем эвристический нормализатор
+        heur = extract_canonical_key(t)
+        if heur:
+            results[t] = heur
+            continue
+
+        # 3. Если эвристика не справилась, отправляем в очередь к AI
+        missing_for_ai.append(t)
+
+    if not missing_for_ai:
+        # Сохраняем найденные эвристикой в постоянный кэш
+        save_cached_canonical_keys_batch(results)
+        return results
+
+    # Проверяем доступность API ключа
+    creds = _get_api_credentials()
+    if not creds["has_ai"] or not creds["ai_search_enabled"]:
+        for t in missing_for_ai:
+            results[t] = ""
+        save_cached_canonical_keys_batch({k: v for k, v in results.items() if v})
+        return results
+
+    # Формируем компактный пакетный промпт (до 20 товаров)
+    system_prompt = (
+        "Ты эксперт по каталогам электроники и компьютерной техники в Казахстане. "
+        "Твоя задача — извлечь канонический идентификатор модели (canonical_key) для каждого товара.\n"
+        "Формат canonical_key: '<brand>:<model_or_family>:<capacity_or_spec>' (только латиница в нижнем регистре, цифры, дефисы и двоеточия).\n"
+        "Игнорируй артикулы магазинов в скобках, слова 'смартфон', 'ноутбук', цвета, тип сим-карты, маркетинг и гарантию.\n"
+        "Примеры:\n"
+        "- 'Смартфон Apple iPhone 15 128Gb черный' -> 'apple:iphone 15:128gb'\n"
+        "- 'Samsung Galaxy S24 Ultra 12/256GB' -> 'samsung:galaxy s24 ultra:256gb'\n"
+        "- 'Видеокарта Palit GeForce RTX 4060 Dual 8GB' -> 'palit:rtx 4060:8gb'\n"
+        "- 'Монитор 27\" LG UltraGear 27GP850-B' -> 'lg:27gp850:27'\n"
+        "- 'Телевизор Samsung 55CU7100 4K' -> 'samsung:55cu7100:55'\n\n"
+        "Ответь строго в формате JSON:\n"
+        "{\n"
+        "  \"items\": [\n"
+        "    {\"title\": \"исходное название\", \"canonical_key\": \"бренд:модель:память\"}\n"
+        "  ]\n"
+        "}"
+    )
+
+    for i in range(0, len(missing_for_ai), 20):
+        chunk = missing_for_ai[i:i + 20]
+        user_prompt = "Нормализуй следующие товары:\n" + "\n".join(f"- {t}" for t in chunk)
+
+        ai_res = None
+        if creds["gemini_api_key"]:
+            ai_res = await call_gemini_api(creds["gemini_api_key"], user_prompt, system_prompt)
+        elif creds["openai_api_key"]:
+            ai_res = await call_openai_api(creds["openai_api_key"], user_prompt, system_prompt, creds.get("openai_api_base"))
+
+        if ai_res and isinstance(ai_res, dict) and "items" in ai_res:
+            new_cached = {}
+            for item in ai_res["items"]:
+                orig = item.get("title")
+                ckey = item.get("canonical_key", "").strip().lower()
+                if orig and ckey:
+                    results[orig] = ckey
+                    new_cached[orig] = ckey
+            if new_cached:
+                save_cached_canonical_keys_batch(new_cached)
+
+    save_cached_canonical_keys_batch({k: v for k, v in results.items() if v})
+    return results
+
+
+async def get_or_normalize_title(title: str) -> Optional[str]:
+    """Быстрое получение канонического ключа для одного названия (кэш -> эвристика -> AI)."""
+    if not title:
+        return None
+    res = await normalize_product_titles_batch([title])
+    return res.get(title)

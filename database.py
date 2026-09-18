@@ -67,6 +67,7 @@ def init_db():
                 old_price_on_site INTEGER DEFAULT 0,
                 min_price INTEGER NOT NULL,
                 max_price INTEGER NOT NULL,
+                canonical_key TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -80,6 +81,11 @@ def init_db():
 
         try:
             cursor.execute("ALTER TABLE products ADD COLUMN city TEXT DEFAULT 'Астана'")
+        except sqlite3.OperationalError:
+            pass
+
+        try:
+            cursor.execute("ALTER TABLE products ADD COLUMN canonical_key TEXT")
         except sqlite3.OperationalError:
             pass
 
@@ -119,7 +125,19 @@ def init_db():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_city ON products(city)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_updated_at ON products(updated_at)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_shop_city_price ON products(shop, city, current_price)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_canonical_key ON products(canonical_key)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_alerts_product ON alerts(product_id)")
+
+        # Таблица постоянного кэша канонических ключей моделей (для предотвращения повторных обращений к AI)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS title_canonical_cache (
+                title_hash TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                canonical_key TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_canonical_cache_key ON title_canonical_cache(canonical_key)")
 
         # Пользователи (вход через Telegram) и их личные настройки
         cursor.execute("""
@@ -234,7 +252,47 @@ def init_db():
 
         conn.commit()
 
+def get_cached_canonical_key(title: str) -> Optional[str]:
+    """Возвращает сохраненный канонический ключ из постоянного кэша SQLite."""
+    if not title:
+        return None
+    th = hashlib.sha256(title.strip().encode("utf-8")).hexdigest()
+    with get_connection() as conn:
+        row = conn.execute("SELECT canonical_key FROM title_canonical_cache WHERE title_hash = ?", (th,)).fetchone()
+        return row[0] if row else None
+
+def save_cached_canonical_key(title: str, canonical_key: str):
+    """Сохраняет канонический ключ товара в постоянный кэш SQLite."""
+    if not title or not canonical_key:
+        return
+    th = hashlib.sha256(title.strip().encode("utf-8")).hexdigest()
+    with get_connection() as conn:
+        conn.execute("""
+            INSERT INTO title_canonical_cache (title_hash, title, canonical_key)
+            VALUES (?, ?, ?)
+            ON CONFLICT(title_hash) DO UPDATE SET canonical_key = excluded.canonical_key
+        """, (th, title.strip(), canonical_key.strip().lower()))
+        conn.commit()
+
+def save_cached_canonical_keys_batch(mapping: Dict[str, str]):
+    """Пакетное сохранение канонических ключей в постоянный кэш SQLite."""
+    if not mapping:
+        return
+    rows = [
+        (hashlib.sha256(t.strip().encode("utf-8")).hexdigest(), t.strip(), k.strip().lower())
+        for t, k in mapping.items() if t and k
+    ]
+    with get_connection() as conn:
+        conn.executemany("""
+            INSERT INTO title_canonical_cache (title_hash, title, canonical_key)
+            VALUES (?, ?, ?)
+            ON CONFLICT(title_hash) DO UPDATE SET canonical_key = excluded.canonical_key
+        """, rows)
+        conn.commit()
+
 def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
+    from model_matching import extract_canonical_key
+
     pid = str(p["id"])
     shop = p.get("shop", "DNS Казахстан")
     city = p.get("city", "Астана")
@@ -245,6 +303,7 @@ def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
     if image_url and "shop.kz//static.shop.kz" in image_url:
         image_url = image_url.replace("https://shop.kz//static.shop.kz", "https://static.shop.kz").replace("shop.kz//static.shop.kz", "static.shop.kz")
     current_price = int(p["price"])
+    canonical_key = p.get("canonical_key") or extract_canonical_key(title)
 
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
@@ -255,9 +314,9 @@ def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
 
         if existing is None:
             cursor.execute("""
-                INSERT INTO products (id, shop, city, title, category, url, image_url, current_price, first_seen_price, min_price, max_price, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (pid, shop, city, title, category, url, image_url, current_price, current_price, current_price, current_price, now, now))
+                INSERT INTO products (id, shop, city, title, category, url, image_url, current_price, first_seen_price, min_price, max_price, canonical_key, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (pid, shop, city, title, category, url, image_url, current_price, current_price, current_price, current_price, canonical_key, now, now))
             conn.commit()
             return {
                 "is_new": True,
@@ -276,9 +335,9 @@ def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
             cursor.execute("""
                 UPDATE products
                 SET is_active = 1, shop = ?, city = ?, title = ?, category = ?, url = ?, image_url = ?,
-                    current_price = ?, min_price = ?, max_price = ?, updated_at = ?
+                    current_price = ?, min_price = ?, max_price = ?, canonical_key = COALESCE(?, canonical_key), updated_at = ?
                 WHERE id = ?
-            """, (shop, city, title, category, url, image_url, current_price, min_price, max_price, now, pid))
+            """, (shop, city, title, category, url, image_url, current_price, min_price, max_price, canonical_key, now, pid))
             conn.commit()
 
             return {
@@ -318,6 +377,8 @@ def save_or_update_products_batch(products: List[Dict[str, Any]]) -> int:
     if not products:
         return 0
 
+    from model_matching import extract_canonical_key
+
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     updated_count = 0
 
@@ -334,24 +395,25 @@ def save_or_update_products_batch(products: List[Dict[str, Any]]) -> int:
             if image_url and "shop.kz//static.shop.kz" in image_url:
                 image_url = image_url.replace("https://shop.kz//static.shop.kz", "https://static.shop.kz").replace("shop.kz//static.shop.kz", "static.shop.kz")
             current_price = int(p["price"])
+            canonical_key = p.get("canonical_key") or extract_canonical_key(title)
 
             cursor.execute("SELECT current_price, min_price, max_price FROM products WHERE id = ?", (pid,))
             existing = cursor.fetchone()
 
             if existing is None:
                 cursor.execute("""
-                    INSERT INTO products (id, shop, city, title, category, url, image_url, current_price, first_seen_price, min_price, max_price, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (pid, shop, city, title, category, url, image_url, current_price, current_price, current_price, current_price, now, now))
+                    INSERT INTO products (id, shop, city, title, category, url, image_url, current_price, first_seen_price, min_price, max_price, canonical_key, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (pid, shop, city, title, category, url, image_url, current_price, current_price, current_price, current_price, canonical_key, now, now))
             else:
                 min_price = min(existing["min_price"], current_price)
                 max_price = max(existing["max_price"], current_price)
                 cursor.execute("""
                     UPDATE products
                     SET is_active = 1, shop = ?, city = ?, title = ?, category = ?, url = ?, image_url = ?,
-                        current_price = ?, min_price = ?, max_price = ?, updated_at = ?
+                        current_price = ?, min_price = ?, max_price = ?, canonical_key = COALESCE(?, canonical_key), updated_at = ?
                     WHERE id = ?
-                """, (shop, city, title, category, url, image_url, current_price, min_price, max_price, now, pid))
+                """, (shop, city, title, category, url, image_url, current_price, min_price, max_price, canonical_key, now, pid))
             updated_count += 1
         conn.commit()
 
@@ -563,31 +625,50 @@ def find_market_comparisons(
     city: Optional[str] = None,
     limit: int = 15
 ) -> Optional[Dict[str, Any]]:
-    """Ищет аналогичные товары в других магазинах через FTS5.
+    """Ищет аналогичные товары в других магазинах через канонический ключ или FTS5.
     Рассчитывает статистику цен конкурентов: минимальная цена, средняя цена,
     разница и процент экономии относительно рынка.
     """
     if current_price <= 0 or not title:
         return None
 
-    from model_matching import same_model, search_terms
+    from model_matching import same_model, search_terms, extract_canonical_key
     from detector import is_junk_accessory, is_used_goods
-    tokens = search_terms(title)
     from config import CITIES_KZ
     known_cities = {c["name"] for c in CITIES_KZ.values()}
-    if not tokens or city not in known_cities:
+    if city not in known_cities:
         return None
-    fts_query = " AND ".join('"' + t + '"' for t in tokens)
-    with get_connection() as conn:
-        rows = conn.execute("""
-            SELECT shop, title, current_price, url, city, category FROM products
-            WHERE shop != ? AND city = ? AND current_price > 0 AND """
-            + active_product_clause() + """ AND rowid IN (
-                SELECT rowid FROM products_fts WHERE products_fts MATCH ?)
-            ORDER BY current_price ASC LIMIT 500
-        """, (current_shop, city, fts_query)).fetchall()
+
+    c_key = extract_canonical_key(title)
+    rows = []
+
+    # 1. Быстрый и точный поиск по каноническому ключу
+    if c_key:
+        with get_connection() as conn:
+            rows = conn.execute("""
+                SELECT shop, title, current_price, url, city, category, canonical_key FROM products
+                WHERE shop != ? AND city = ? AND canonical_key = ? AND current_price > 0 AND """
+                + active_product_clause() + """
+                ORDER BY current_price ASC LIMIT 500
+            """, (current_shop, city, c_key)).fetchall()
+
+    # 2. Фолбэк на FTS5 полнотекстовый индекс
+    if not rows:
+        tokens = search_terms(title)
+        if not tokens:
+            return None
+        fts_query = " AND ".join('"' + t + '"' for t in tokens)
+        with get_connection() as conn:
+            rows = conn.execute("""
+                SELECT shop, title, current_price, url, city, category, canonical_key FROM products
+                WHERE shop != ? AND city = ? AND current_price > 0 AND """
+                + active_product_clause() + """ AND rowid IN (
+                    SELECT rowid FROM products_fts WHERE products_fts MATCH ?)
+                ORDER BY current_price ASC LIMIT 500
+            """, (current_shop, city, fts_query)).fetchall()
+
     valid_competitors = [dict(r) for r in rows
-        if same_model(title, r["title"])
+        if ((c_key and r["canonical_key"] == c_key) or same_model(title, r["title"]))
         and not is_junk_accessory(r["title"], r["category"] or "")
         and not is_used_goods(r["title"], r["category"] or "", r["url"])]
     valid_competitors = valid_competitors[:limit]
@@ -606,6 +687,7 @@ def find_market_comparisons(
         "avg_price": avg_comp_price,
         "cheapest_shop": cheapest_comp["shop"],
         "cheapest_title": cheapest_comp["title"],
+        "canonical_key": c_key,
         "competitors": valid_competitors
     }
 

@@ -1409,6 +1409,40 @@
     </div>
   </div>
 
+  <!-- Модальное окно кросс-магазинного сравнения цен по модели -->
+  <div id="modalModelCompare" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="glass max-w-2xl w-full rounded-2xl p-6 border border-slate-700 max-h-[85vh] flex flex-col shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold">
+            <i class="fa-solid fa-scale-balanced"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white" id="modalCompareTitle">Сравнение цен в 17 магазинах</h3>
+            <p class="text-[11px] text-slate-400" id="modalCompareSubtitle">Поиск предложений по канонической модели</p>
+          </div>
+        </div>
+        <button onclick="closeModelComparisonModal()" class="text-slate-400 hover:text-white cursor-pointer text-lg p-1">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div id="modalCompareBody" class="py-4 text-xs text-slate-300 space-y-3 overflow-y-auto pr-2">
+        <div class="flex items-center justify-center py-8 text-slate-400">
+          <i class="fa-solid fa-spinner fa-spin text-xl mr-2 text-sky-400"></i>
+          <span>Загрузка цен по магазинам...</span>
+        </div>
+      </div>
+
+      <div class="pt-3 border-t border-slate-800 flex items-center justify-between">
+        <span class="text-[11px] text-slate-500" id="modalCompareFooterInfo"></span>
+        <button onclick="closeModelComparisonModal()" class="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white transition cursor-pointer">
+          Закрыть
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Плавающее уведомление (Toast) -->
   <div id="globalToast" class="fixed bottom-6 right-6 z-50 px-4 py-3 rounded-2xl text-xs font-semibold shadow-2xl transition-all duration-300 transform translate-y-10 opacity-0 pointer-events-none hidden">
   </div>
@@ -1588,6 +1622,107 @@
     function closeChangelogModal() {
       const m = document.getElementById('modalChangelog');
       if (m) m.classList.add('hidden');
+    }
+
+    async function openModelComparison(encodedKey, encodedTitle) {
+      const modal = document.getElementById('modalModelCompare');
+      const body = document.getElementById('modalCompareBody');
+      const titleEl = document.getElementById('modalCompareTitle');
+      const subEl = document.getElementById('modalCompareSubtitle');
+      const footerEl = document.getElementById('modalCompareFooterInfo');
+
+      const title = decodeURIComponent(encodedTitle || '');
+      const key = decodeURIComponent(encodedKey || '');
+
+      titleEl.textContent = title ? title : 'Сравнение цен по модели';
+      subEl.textContent = key ? `Каноническая модель: ${key}` : 'Поиск по всем 17 магазинам';
+      modal.classList.remove('hidden');
+
+      body.innerHTML = `
+        <div class="flex items-center justify-center py-8 text-slate-400">
+          <i class="fa-solid fa-spinner fa-spin text-xl mr-2 text-sky-400"></i>
+          <span>Сравниваем цены в 17 торговых сетях...</span>
+        </div>
+      `;
+
+      try {
+        const cityParam = currentCity ? `&city=${encodeURIComponent(currentCity)}` : '';
+        const res = await fetch(`/api/models/compare?canonical_key=${encodeURIComponent(key)}&title=${encodeURIComponent(title)}${cityParam}`);
+        const data = await res.json();
+
+        if (data.status !== 'ok' || !data.offers || data.offers.length === 0) {
+          body.innerHTML = `
+            <div class="p-6 text-center text-slate-400 bg-slate-900/60 rounded-xl border border-slate-800">
+              <i class="fa-solid fa-circle-exclamation text-2xl text-amber-400 mb-2"></i>
+              <p>Других предложений этой модели прямо сейчас не найдено в базе.</p>
+            </div>
+          `;
+          return;
+        }
+
+        let html = '';
+        if (data.arbitrage_savings > 0) {
+          html += `
+            <div class="p-3.5 rounded-xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2">
+                <i class="fa-solid fa-circle-check text-sky-400 text-base"></i>
+                <div>
+                  <span class="text-white font-bold text-xs">Ценовая вилка: экономия до ${fmtPrice(data.arbitrage_savings)} (-${data.arbitrage_pct}%)</span>
+                  <p class="text-[11px] text-slate-400">Мин. цена: <b class="text-emerald-400">${fmtPrice(data.min_price)}</b> vs Макс: <span class="line-through text-slate-500">${fmtPrice(data.max_price)}</span></p>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+
+        html += '<div class="space-y-2">';
+        data.offers.forEach((it, idx) => {
+          const isBest = (idx === 0);
+          const border = isBest ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-slate-800 bg-slate-900/50';
+          const pStr = fmtPrice(it.current_price);
+          html += `
+            <div class="flex items-center justify-between p-3 rounded-xl border ${border} hover:border-slate-700 transition">
+              <div class="flex items-center gap-3">
+                <span class="w-6 h-6 rounded-full ${isBest ? 'bg-emerald-500 text-slate-950 font-bold' : 'bg-slate-800 text-slate-400'} flex items-center justify-center text-xs font-semibold shrink-0">
+                  ${idx + 1}
+                </span>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="font-bold text-white text-xs">${it.shop || 'Магазин'}</span>
+                    ${isBest ? '<span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">✨ Лучшая цена</span>' : ''}
+                    <span class="text-[10px] text-slate-500">${it.city || ''}</span>
+                  </div>
+                  <p class="text-[11px] text-slate-400 truncate max-w-xs md:max-w-md">${it.title}</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-3 shrink-0">
+                <div class="text-right">
+                  <div class="text-sm font-bold ${isBest ? 'text-emerald-400' : 'text-white'}">${pStr}</div>
+                </div>
+                <a href="${it.url}" target="_blank" class="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-medium text-xs flex items-center gap-1 transition">
+                  <span>В магазин</span>
+                  <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+                </a>
+              </div>
+            </div>
+          `;
+        });
+        html += '</div>';
+
+        body.innerHTML = html;
+        footerEl.textContent = `Найдено ${data.total_offers} предложений среди сетей Казахстана`;
+      } catch (err) {
+        body.innerHTML = `
+          <div class="p-4 text-center text-red-400 bg-red-500/10 rounded-xl border border-red-500/20">
+            Ошибка при загрузке сравнения цен: ${err.message}
+          </div>
+        `;
+      }
+    }
+
+    function closeModelComparisonModal() {
+      const modal = document.getElementById('modalModelCompare');
+      if (modal) modal.classList.add('hidden');
     }
 
     let currentCatalogOffset = 0;
@@ -1810,11 +1945,17 @@
             </div>
           </div>
 
-          <div class="pt-4">
+          <div class="pt-4 space-y-2">
             <a href="${a.url}" target="_blank" class="w-full flex items-center justify-center space-x-2 bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-2 rounded-xl text-xs shadow-md shadow-emerald-500/20 transition">
               <span>⚡️ Купить в ${a.shop || 'магазине'}</span>
               <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
             </a>
+            ${isArbitrage ? `
+              <button onclick="openModelComparison('${encodeURIComponent(a.canonical_key || a.title)}', '${encodeURIComponent(a.title || '')}')" class="w-full flex items-center justify-center space-x-1.5 bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/30 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer">
+                <i class="fa-solid fa-scale-balanced text-xs text-sky-400"></i>
+                <span>⚖️ Сравнить цены во всех сетях</span>
+              </button>
+            ` : ''}
           </div>
         </div>
       `;
