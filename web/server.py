@@ -43,6 +43,7 @@ from config import (
     FORTE_CATEGORIES,
     VKUSMART_CATEGORIES,
     TWELVE_MONTHS_CATEGORIES,
+    ZETA_CATEGORIES,
     MASTER_CATEGORIES,
     get_wave_plan,
     get_wave_interval_seconds,
@@ -101,6 +102,7 @@ from scrapers.fourmobile import FourMobileScraper
 from scrapers.fortemarket import ForteMarketScraper
 from scrapers.vkusmart import VkusmartScraper
 from scrapers.twelve_months import TwelveMonthsScraper
+from scrapers.zeta import ZetaScraper
 from search_engine import get_best_price_summary
 import ai_service
 from config import get_ai_config
@@ -794,6 +796,7 @@ SHOP_REGISTRY = {
     "fortemarket": (ForteMarketScraper, FORTE_CATEGORIES, "Forte Market"),
     "vkusmart": (VkusmartScraper, VKUSMART_CATEGORIES, "Вкусмарт"),
     "twelve_months": (TwelveMonthsScraper, TWELVE_MONTHS_CATEGORIES, "12 Месяцев"),
+    "zeta": (ZetaScraper, ZETA_CATEGORIES, "Zeta"),
 }
 
 # Сколько магазинов обходить одновременно (у каждого свой сайт, поэтому нагрузка не суммируется)

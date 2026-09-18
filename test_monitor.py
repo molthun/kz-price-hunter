@@ -274,7 +274,7 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
         config.ADMIN_TELEGRAM_IDS = {1}
         from database import invalidate_alerts_cache
         with get_connection() as conn:
-            for table in ('notification_outbox', 'product_sources', 'alerts', 'products', 'shop_scans', 'users', 'sessions'):
+            for table in ('notification_outbox', 'product_sources', 'alerts', 'products', 'shop_scans', 'users', 'sessions', 'title_ai_attempts', 'title_canonical_cache', 'scheduler_lease'):
                 conn.execute(f'DELETE FROM {table}')
         invalidate_alerts_cache()
 
@@ -2217,6 +2217,19 @@ class TestForteMarketScraper(unittest.TestCase):
             self.assertIn("url", c)
             self.assertTrue(c["master"] in config.MASTER_CATEGORIES)
 
+    def test_registry_contains_zeta(self):
+        from web.server import SHOP_REGISTRY
+        from config import SHOP_KEYS, ZETA_CATEGORIES
+        self.assertIn("zeta", SHOP_REGISTRY)
+        scraper_cls, cats, name = SHOP_REGISTRY["zeta"]
+        self.assertEqual(name, "Zeta")
+        self.assertEqual(cats, ZETA_CATEGORIES)
+        self.assertEqual(SHOP_KEYS.get("zeta"), "Zeta")
+        for c in ZETA_CATEGORIES:
+            self.assertIn("master", c)
+            self.assertIn("url", c)
+            self.assertTrue(c["master"] in config.MASTER_CATEGORIES)
+
     def test_parse_response_and_regional_pricing(self):
         from scrapers.fortemarket import ForteMarketScraper
 
@@ -2413,6 +2426,8 @@ class TestTrackedCategoriesEqualFunctionality(unittest.IsolatedAsyncioTestCase):
         import config
         auth.ADMIN_TELEGRAM_IDS = {1}
         config.ADMIN_TELEGRAM_IDS = {1}
+        with get_connection() as conn:
+            conn.execute("DELETE FROM scheduler_lease")
 
     async def test_tracked_category_hot_and_due_rotation(self):
         from database import (

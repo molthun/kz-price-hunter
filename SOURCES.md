@@ -42,6 +42,7 @@ A — feed/API владельца с документированным назн
 | `scrapers/ispace.py` / `ISpaceScraper` | D → B; ispace.kz HTML listing→JSON-LD Product на карточке | 45 с; listing 0.3 с; product workers=4 без pause | chrome124; ?page=N; без retry; отдельный ThreadPoolExecutor | sku→id/добавление к title; offers.price/availability/image; Астана hardcoded; old=0; JSON-LD missing и out-of-stock оба None; description нет |
 | `scrapers/vkusmart.py` / `VkusmartScraper` | D + B; vkusmart.vmv.kz Bitrix Aspro HTML + Schema.org | 15 с; 0.4 с | Session chrome124; PAGEN_1; 404/empty→complete | id/meta name/price/old_price/img; Астана; описание meta description |
 | `scrapers/twelve_months.py` / `TwelveMonthsScraper` | D; 12.kz AdvantShop HTML .products-view-item | 15 с; 0.4 с | Session chrome124; ?page=N; 404/empty→complete | id/title/price/old_price/img/sku; Казахстан; описание нет |
+| `scrapers/zeta.py` / `ZetaScraper` | A; back.zeta.kz Next.js JSON API /good/list | 15 с; 0.3 с | Session chrome124; page=N&limit=40; empty results→complete | id/name.ru/price/oldPrice/images/article; Казахстан; описание нет |
 
 ## Пути вне основного фонового scan
 
@@ -367,6 +368,19 @@ A — feed/API владельца с документированным назн
 | 12 Месяцев: 🧑‍🏭 Сварочные аппараты | diy | `https://12.kz/categories/svarochnye-apparaty` | 10 |
 | 12 Месяцев: 🌿 Садовая техника | diy | `https://12.kz/categories/sadovaya-tekhnika` | 15 |
 | 12 Месяцев: 🧼 Бытовая химия | household | `https://12.kz/categories/bytovaya-khimiya` | 15 |
+
+### ZetaScraper — 8 настроенных источников категории
+
+| Категория | Master | URL/query | max_pages |
+|---|---|---|---|
+| Zeta: 🪣 Емкости, баки и ведра | household | `6851938995dd04035cad42d6` | 10 |
+| Zeta: 👟 Обувницы и подставки | household | `6851938095dd04035cad42c5` | 10 |
+| Zeta: 🧥 Вешалки | household | `6851938395dd04035cad42cb` | 10 |
+| Zeta: 🪜 Стеллажи и этажерки | household | `6851937e95dd04035cad42c0` | 10 |
+| Zeta: 🌿 Садовый инвентарь | diy | `6851939795dd04035cad42f3` | 10 |
+| Zeta: 🪜 Стремянки | diy | `6851938d95dd04035cad42de` | 10 |
+| Zeta: 🥩 Гриль и мангалы | diy | `6851939d95dd04035cad42fe` | 10 |
+| Zeta: 🪑 Мебель для дачи и сада | diy | `6851938895dd04035cad42d5` | 10 |
 
 ## Перед подключением следующего магазина
 

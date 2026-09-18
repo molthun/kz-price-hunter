@@ -9,12 +9,13 @@ from scrapers.fourmobile import FourMobileScraper
 from scrapers.shopkz import ShopKzScraper
 from scrapers.vkusmart import VkusmartScraper
 from scrapers.twelve_months import TwelveMonthsScraper
+from scrapers.zeta import ZetaScraper
 
 
 class ScraperContractTest(unittest.TestCase):
     def test_scraper_classes_conform_to_contract(self):
         # Check standard scrapers
-        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper):
+        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper):
             self.assertTrue(hasattr(cls, "SHOP_NAME"), f"{cls} must define SHOP_NAME")
             self.assertTrue(callable(getattr(cls, "scrape", None)), f"{cls} must define scrape")
             self.assertTrue(callable(getattr(cls, "close", None)), f"{cls} must define close")
@@ -135,7 +136,50 @@ class ScraperContractTest(unittest.TestCase):
         scraper.close()
         self.assertIsNone(scraper.session)
 
+    def test_zeta_parsing_mock(self):
+        import json
+        from unittest.mock import MagicMock
+        scraper = ZetaScraper()
+        mock_payload = {
+            "results": [
+                {
+                    "id": "6816190cf545f61b54721d24",
+                    "name": {"ru": "Бак для воды (35 л.)"},
+                    "price": 2205,
+                    "oldPrice": 2500,
+                    "available": True,
+                    "article": "ПЛ-00309",
+                    "slug": "bak-35-l",
+                    "fullSlug": ["dacha-i-sad/emkosti/bak-35-l"],
+                    "images": ["/uploads/bak.jpg"]
+                }
+            ],
+            "resultCount": 1,
+            "page": 1
+        }
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = mock_payload
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        scraper.session = mock_session
+
+        items = scraper._fetch_page("Емкости", "6851938995dd04035cad42d6", 1)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["id"], "6816190cf545f61b54721d24")
+        self.assertEqual(items[0]["shop"], "Zeta")
+        self.assertEqual(items[0]["title"], "Бак для воды (35 л.)")
+        self.assertEqual(items[0]["price"], 2205)
+        self.assertEqual(items[0]["old_price_on_site"], 2500)
+        self.assertEqual(items[0]["url"], "https://zeta.kz/catalog/dacha-i-sad/emkosti/bak-35-l")
+        self.assertEqual(items[0]["image_url"], "https://zeta.kz/uploads/bak.jpg")
+        self.assertEqual(items[0]["sku"], "ПЛ-00309")
+        scraper.close()
+        self.assertIsNone(scraper.session)
+
 
 if __name__ == "__main__":
     unittest.main()
+
 

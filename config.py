@@ -37,6 +37,7 @@ SHOP_KEYS = {
     "fortemarket": "Forte Market",
     "vkusmart": "Вкусмарт",
     "twelve_months": "12 Месяцев",
+    "zeta": "Zeta",
 }
 
 
@@ -915,6 +916,19 @@ TWELVE_MONTHS_CATEGORIES = [
     {"name": "12 Месяцев: 🌿 Садовая техника", "url": "https://12.kz/categories/sadovaya-tekhnika", "master": "diy", "max_pages": 15},
     {"name": "12 Месяцев: 🧼 Бытовая химия", "url": "https://12.kz/categories/bytovaya-khimiya", "master": "household", "max_pages": 15},
 ]
+
+# Zeta (zeta.kz): производитель и ритейлер товаров для дома, быта, пластика и мебели
+ZETA_CATEGORIES = [
+    {"name": "Zeta: 🪣 Емкости, баки и ведра", "url": "6851938995dd04035cad42d6", "master": "household", "max_pages": 10},
+    {"name": "Zeta: 👟 Обувницы и подставки", "url": "6851938095dd04035cad42c5", "master": "household", "max_pages": 10},
+    {"name": "Zeta: 🧥 Вешалки", "url": "6851938395dd04035cad42cb", "master": "household", "max_pages": 10},
+    {"name": "Zeta: 🪜 Стеллажи и этажерки", "url": "6851937e95dd04035cad42c0", "master": "household", "max_pages": 10},
+    {"name": "Zeta: 🌿 Садовый инвентарь", "url": "6851939795dd04035cad42f3", "master": "diy", "max_pages": 10},
+    {"name": "Zeta: 🪜 Стремянки", "url": "6851938d95dd04035cad42de", "master": "diy", "max_pages": 10},
+    {"name": "Zeta: 🥩 Гриль и мангалы", "url": "6851939d95dd04035cad42fe", "master": "diy", "max_pages": 10},
+    {"name": "Zeta: 🪑 Мебель для дачи и сада", "url": "6851938895dd04035cad42d5", "master": "diy", "max_pages": 10},
+]
+
 
 
 
