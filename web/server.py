@@ -249,8 +249,10 @@ async def ai_consultant_handler(request):
 
     if (len(message) > 4000 or not isinstance(history, list) or len(history) > 8
             or any(not isinstance(t, dict) or t.get("role") not in ("user", "model", "assistant")
-                   or not isinstance(t.get("content"), str) or len(t["content"]) > 4000 for t in history)):
+                   or not isinstance(t.get("content"), str) for t in history)):
         return web.json_response({"error": "Слишком длинное сообщение или некорректная история"}, status=400)
+    # Длинные прошлые ответы не ломают диалог: реплики обрезаются, а не отклоняют запрос
+    history = ai_service.normalize_history(history)
     wait = consultant_limiter.retry_after(str(request["user"]["id"]))
     if wait:
         return web.json_response({"error": "Слишком много запросов. Попробуйте позже."}, status=429,

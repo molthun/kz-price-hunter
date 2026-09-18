@@ -14,6 +14,7 @@ telegram_bot.py - Интерактивный Telegram-бот для KZ Price Hun
 """
 
 import html
+import time
 import asyncio
 import re
 from typing import Dict, Any, List, Optional
@@ -100,7 +101,9 @@ async def handle_start_command(session: aiohttp.ClientSession, token: str, chat_
         "  <i>«Что выбрать: RTX 4060 или RX 7600?»</i>\n"
         "  Я проанализирую реальные цены в магазинах и дам совет эксперта!\n\n"
         "• <b>/search &lt;товар&gt;</b> — мгновенная проверка минимальной цены по магазинам Казахстана\n"
-        "• <b>/ai &lt;вопрос&gt;</b> — вызов AI-консультанта\n"
+        "• <b>/ai &lt;вопрос&gt;</b> — вызов AI-консультанта. Он помнит разговор 30 минут: можно уточнять "
+        "(<i>«а подешевле?»</i>, <i>«сравни первые два»</i>)\n"
+        "• <b>/new</b> — начать новый разговор с консультантом\n"
         "• <b>/status</b> — проверка статуса базы и нейросети\n\n"
         "🔔 Вы также автоматически получаете алерты о супер-скидках и обвалах цен!"
     )
@@ -158,6 +161,29 @@ async def handle_search_command(session: aiohttp.ClientSession, token: str, chat
     await send_tg_message(session, token, chat_id, "\n".join(lines), reply_markup)
 
 
+# Память диалога консультанта в Telegram: chat_id -> (время последней реплики, реплики)
+_chat_histories: Dict[int, tuple] = {}
+CHAT_HISTORY_TTL_SECONDS = 30 * 60
+
+
+def _get_chat_history(chat_id: int) -> List[Dict[str, str]]:
+    entry = _chat_histories.get(chat_id)
+    if not entry or time.monotonic() - entry[0] > CHAT_HISTORY_TTL_SECONDS:
+        _chat_histories.pop(chat_id, None)
+        return []
+    return list(entry[1])
+
+
+def _remember_turn(chat_id: int, question: str, history_turn: str) -> None:
+    turns = _get_chat_history(chat_id)
+    turns += [{"role": "user", "content": question}, {"role": "model", "content": history_turn}]
+    _chat_histories[chat_id] = (time.monotonic(), ai_service.normalize_history(turns))
+
+
+def reset_chat_history(chat_id: int) -> None:
+    _chat_histories.pop(chat_id, None)
+
+
 async def handle_ai_consultant_message(session: aiohttp.ClientSession, token: str, chat_id: int, query: str):
     """Обработка вопроса AI-консультанту с подбором товаров."""
     q = query.strip()
@@ -168,7 +194,7 @@ async def handle_ai_consultant_message(session: aiohttp.ClientSession, token: st
     await send_tg_chat_action(session, token, chat_id, "typing")
 
     try:
-        result = await ai_service.ask_ai_consultant(message=q, city="Все")
+        result = await ai_service.ask_ai_consultant(message=q, history=_get_chat_history(chat_id), city="Все")
     except Exception as e:
         print(f"[Telegram Bot] Ошибка AI-консультанта: {e}")
         await send_tg_message(session, token, chat_id, "⚠️ Не удалось получить ответ от AI. Пожалуйста, попробуйте еще раз.")
@@ -177,6 +203,8 @@ async def handle_ai_consultant_message(session: aiohttp.ClientSession, token: st
     answer_raw = result.get("answer", "")
     answer_html = _markdown_to_telegram_html(answer_raw)
     products = result.get("products") or []
+    if answer_raw:
+        _remember_turn(chat_id, q, result.get("history_turn") or answer_raw)
 
     keyboard = []
     # Добавляем до 4 кнопок со ссылками на рекомендованные товары
@@ -223,7 +251,8 @@ async def process_telegram_update(session: aiohttp.ClientSession, token: str, up
     # Команды
     cmd = text.split()[0].lower() if text.startswith("/") else ""
 
-    if cmd in ("/start", "/help"):
+    if cmd in ("/start", "/help", "/new"):
+        reset_chat_history(chat_id)
         await handle_start_command(session, token, chat_id, first_name)
     elif cmd in ("/status", "/info"):
         await handle_status_command(session, token, chat_id)

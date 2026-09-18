@@ -2509,10 +2509,13 @@
         const products = data.products || [];
         const suggestions = data.suggested_questions || [];
 
-        // Сохраняем в историю диалога
-        consultantHistory.push({ role: 'user', content: text });
-        consultantHistory.push({ role: 'model', content: answerText });
-        if (consultantHistory.length > 8) consultantHistory = consultantHistory.slice(-8);
+        // Сохраняем в историю диалога только успешные ответы. Сервер присылает краткую реплику
+        // с показанными товарами (history_turn), чтобы работали «а подешевле», «сравни первые два»
+        if (res.ok && data.answer) {
+          consultantHistory.push({ role: 'user', content: text });
+          consultantHistory.push({ role: 'model', content: (data.history_turn || data.answer).slice(0, 1500) });
+          if (consultantHistory.length > 8) consultantHistory = consultantHistory.slice(-8);
+        }
 
         // Карточки товаров
         let productsHtml = '';

@@ -1273,6 +1273,79 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
             self.assertIsNone(await ai_service._limited_provider_call(inner, scan=True))
             self.assertEqual(await ai_service._limited_provider_call(inner), {'ok': True})
 
+    async def test_consultant_keeps_conversation_context(self):
+        """Уточняющий вопрос разбирается с учетом прошлого диалога; ответ содержит реплику для истории с товарами."""
+        from unittest.mock import patch, AsyncMock
+        import ai_service
+        creds = {'has_ai': True, 'ai_search_enabled': True, 'gemini_api_key': 'fake', 'openai_api_key': '', 'openai_api_base': ''}
+        history = [
+            {'role': 'user', 'content': 'Посоветуй игровой ноутбук до 400к'},
+            {'role': 'model', 'content': 'Рекомендую ASUS TUF.\nПоказанные товары:\n1) ASUS TUF A15 — 389 990 ₸ (Kaspi Магазин)'},
+        ]
+        prompts = []
+        async def fake_gemini(prompt, key, **kwargs):
+            prompts.append(prompt)
+            if '"clean_query"' in prompt:
+                return {'clean_query': 'игровой ноутбук', 'max_price': 300000}
+            return {'answer': 'Дешевле подойдет Lenovo LOQ.', 'recommended_product_ids': [], 'suggested_questions': []}
+        items = [{'id': 'p1', 'title': 'Ноутбук Lenovo LOQ 15', 'shop': 'Sulpak', 'city': 'Астана', 'current_price': 289990, 'url': 'https://x'}]
+        with patch.object(ai_service, '_get_api_credentials', return_value=creds), \
+             patch.object(ai_service, 'call_gemini_api', side_effect=fake_gemini), \
+             patch('search_engine.search_in_database', return_value=items):
+            res = await ai_service.ask_ai_consultant('а подешевле?', history=history, city='Астана')
+        parse_prompt, answer_prompt = prompts[0], prompts[1]
+        # Разбор уточнения видит прошлый вопрос и показанный товар
+        self.assertIn('игровой ноутбук до 400к', parse_prompt)
+        self.assertIn('ASUS TUF A15', parse_prompt)
+        # Консультант получает прошлый диалог
+        self.assertIn('Посоветуй игровой ноутбук до 400к', answer_prompt)
+        # Реплика для истории: ответ + показанные товары
+        self.assertIn('Дешевле подойдет Lenovo LOQ.', res['history_turn'])
+        self.assertIn('Показанные товары', res['history_turn'])
+        self.assertIn('Lenovo LOQ 15', res['history_turn'])
+        self.assertLessEqual(len(res['history_turn']), ai_service.HISTORY_TURN_CHARS)
+
+    async def test_consultant_long_history_is_trimmed_not_rejected(self):
+        from unittest.mock import patch, AsyncMock
+        from aiohttp.test_utils import TestClient, TestServer
+        import web.server as server
+        app = server.create_app(); app.cleanup_ctx.clear()
+        upsert_telegram_user({'id': 4545, 'first_name': 'Buyer'})
+        long_answer = 'Очень подробный ответ. ' * 400   # > 4000 символов
+        with patch.object(server.ai_service, 'ask_ai_consultant', new_callable=AsyncMock,
+                          return_value={'answer': 'ok', 'products': []}) as ask:
+            async with TestClient(TestServer(app)) as client:
+                client.session.cookie_jar.update_cookies({'kzph_session': create_session(4545)})
+                res = await client.post('/api/ai/consultant', json={
+                    'message': 'а подешевле?',
+                    'history': [{'role': 'user', 'content': 'ноутбук'}, {'role': 'model', 'content': long_answer}]})
+                self.assertEqual(res.status, 200)
+        sent = ask.await_args.kwargs['history']
+        self.assertEqual(len(sent), 2)
+        self.assertLessEqual(len(sent[1]['content']), 1500)
+
+    async def test_telegram_consultant_remembers_dialog(self):
+        from unittest.mock import patch, AsyncMock
+        import telegram_bot as bot
+        bot._chat_histories.clear()
+        with patch.object(bot.ai_service, 'ask_ai_consultant', new_callable=AsyncMock,
+                          return_value={'answer': 'Берите ASUS TUF', 'history_turn': 'Берите ASUS TUF\nПоказанные товары:\n1) ASUS TUF', 'products': []}) as ask, \
+             patch.object(bot, 'send_tg_message', new_callable=AsyncMock), patch.object(bot, 'send_tg_chat_action', new_callable=AsyncMock):
+            await bot.handle_ai_consultant_message(None, 't', 777, 'игровой ноутбук до 400к')
+            self.assertEqual(ask.await_args.kwargs['history'], [])
+            await bot.handle_ai_consultant_message(None, 't', 777, 'а подешевле?')
+            second = ask.await_args.kwargs['history']
+            self.assertEqual([t['role'] for t in second], ['user', 'model'])
+            self.assertEqual(second[0]['content'], 'игровой ноутбук до 400к')
+            self.assertIn('ASUS TUF', second[1]['content'])
+            # Другой чат — своя история
+            await bot.handle_ai_consultant_message(None, 't', 888, 'телевизор')
+            self.assertEqual(ask.await_args.kwargs['history'], [])
+            # /new сбрасывает разговор
+            bot.reset_chat_history(777)
+            await bot.handle_ai_consultant_message(None, 't', 777, 'планшет')
+            self.assertEqual(ask.await_args.kwargs['history'], [])
+
     async def test_ai_consultant_error_hides_details(self):
         from unittest.mock import patch, AsyncMock
         from aiohttp.test_utils import TestClient, TestServer

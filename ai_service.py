@@ -75,7 +75,8 @@ def _get_api_credentials() -> Dict[str, Any]:
     return creds
 
 
-async def parse_natural_query(query: str, current_city: str = "Все", force: bool = False) -> Optional[Dict[str, Any]]:
+async def parse_natural_query(query: str, current_city: str = "Все", force: bool = False,
+                              dialog_context: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """
     Анализирует произвольный запрос пользователя с помощью Gemini Flash / OpenAI
     и возвращает структурированный фильтр для поиска по базе товаров.
@@ -101,7 +102,7 @@ async def parse_natural_query(query: str, current_city: str = "Все", force: b
         return None
     # Model/provider changes take effect immediately, without stale query responses.
     cache_key = (clean_q.lower(), current_city, creds.get("ai_provider", "auto"),
-                 creds.get("gemini_model"), creds.get("openai_model"))
+                 creds.get("gemini_model"), creds.get("openai_model"), dialog_context or "")
     now = time.time()
     if cache_key in _QUERY_CACHE:
         ts, cached_val = _QUERY_CACHE[cache_key]
@@ -124,7 +125,7 @@ async def parse_natural_query(query: str, current_city: str = "Все", force: b
 
 Запрос пользователя: "{clean_q}"
 Текущий город: "{current_city}"
-
+{_dialog_block(dialog_context)}
 Правила разбора:
 1. "clean_query": главное ключевое слово товара без цен и слов вежливости (например: "ноутбук", "робот-пылесос", "iPhone 15", "видеокарта RTX 4060").
 2. "category": выбери ТОЛЬКО одну из доступных категорий выше, если она однозначно ясна. Если не уверена, оставь null.
@@ -381,6 +382,53 @@ def _sanitize_parsed_result(data: Dict[str, Any], original_query: str) -> Dict[s
     }
 
 
+# Сколько истории учитывать и насколько сокращать реплики
+HISTORY_MAX_TURNS = 8
+HISTORY_TURN_CHARS = 1500
+PARSE_CONTEXT_TURN_CHARS = 400
+
+
+def _dialog_block(dialog_context: Optional[str]) -> str:
+    if not dialog_context:
+        return ""
+    return f"""
+Предыдущий диалог (последние реплики, включая показанные товары):
+{dialog_context}
+
+Если текущий запрос — уточнение предыдущего («а подешевле», «а от Samsung», «а с 256 ГБ», «а что-то тише»),
+сформируй САМОДОСТАТОЧНЫЙ запрос: сохрани товар, категорию и ограничения из диалога и примени изменения
+из текущего сообщения. «Подешевле» — max_price ниже цен уже показанных товаров. Если текущий запрос —
+новая тема, диалог не учитывай.
+"""
+
+
+def normalize_history(history: Any) -> List[Dict[str, str]]:
+    """Последние реплики диалога в едином виде: role user/model, текст не длиннее HISTORY_TURN_CHARS."""
+    turns = []
+    for turn in (history or [])[-HISTORY_MAX_TURNS:]:
+        if not isinstance(turn, dict) or not isinstance(turn.get("content"), str):
+            continue
+        role = "user" if turn.get("role") == "user" else "model"
+        content = turn["content"].strip()
+        if content:
+            turns.append({"role": role, "content": content[:HISTORY_TURN_CHARS]})
+    return turns
+
+
+def history_entry_for_answer(answer: str, products: List[Dict[str, Any]]) -> str:
+    """Реплика консультанта для истории: сокращенный ответ + показанные товары (для «первый», «сравни их»)."""
+    text = (answer or "").strip()
+    lines = []
+    for i, p in enumerate(products[:6], 1):
+        price = f"{int(p.get('price') or 0):,} ₸".replace(",", " ")
+        lines.append(f"{i}) {p.get('title', '')} — {price} ({p.get('shop', '')})")
+    tail = ("\nПоказанные товары:\n" + "\n".join(lines)) if lines else ""
+    budget = HISTORY_TURN_CHARS - len(tail)
+    if len(text) > budget:
+        text = text[:max(0, budget - 1)].rstrip() + "…"
+    return text + tail
+
+
 def _format_products_for_ui(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Форматирует найденные товары в чистую структуру для карточек в Web и Telegram."""
     formatted = []
@@ -445,8 +493,14 @@ async def ask_ai_consultant(
             "suggested_questions": []
         }
 
-    # 1. Извлекаем критерии поиска через parse_natural_query
-    parsed = await parse_natural_query(clean_msg, current_city=city, force=True)
+    turns = normalize_history(history)
+    parse_context = "\n".join(
+        f"{'Пользователь' if t['role'] == 'user' else 'Консультант'}: {t['content'][:PARSE_CONTEXT_TURN_CHARS]}"
+        for t in turns
+    ) or None
+
+    # 1. Извлекаем критерии поиска; уточняющий вопрос разбирается с учетом предыдущего диалога
+    parsed = await parse_natural_query(clean_msg, current_city=city, force=True, dialog_context=parse_context)
     search_query = parsed.get("clean_query", clean_msg) if parsed else clean_msg
     cat = parsed.get("category") if parsed else None
     min_p = parsed.get("min_price") if parsed else None
@@ -487,11 +541,9 @@ async def ask_ai_consultant(
     catalog_context = "\n".join(context_lines) if context_lines else "В базе данных пока нет точных совпадений по этому запросу."
 
     # 4. История диалога (если передана)
-    history_lines = []
-    if history:
-        for turn in history[-4:]:
-            role = "Пользователь" if turn.get("role") == "user" else "Консультант"
-            history_lines.append(f"{role}: {turn.get('content', '')}")
+    history_lines = [
+        f"{'Пользователь' if t['role'] == 'user' else 'Консультант'}: {t['content']}" for t in turns
+    ]
     dialog_context = "\n".join(history_lines) if history_lines else "Диалог только начат."
 
     # 5. Формирование промпта консультанта
@@ -509,6 +561,8 @@ async def ask_ai_consultant(
 ГОРОД ПОЛЬЗОВАТЕЛЯ: "{city}"
 
 ТРЕБОВАНИЯ К ОТВЕТУ:
+0. Это продолжение одного разговора. Если вопрос уточняет предыдущий («он», «первый вариант», «сравни их», «а подешевле»),
+   отвечай в контексте ПРЕДЫДУЩЕГО ДИАЛОГА и показанных там товаров, не начинай тему заново.
 1. Отвечай дружелюбно, профессионально и по делу. Используй Markdown (жирный шрифт, списки, выделения).
 2. Опирайся на реальные товары и цены из списка выше: называй точные цены в тенге (₸) и конкретный магазин с лучшим предложением.
 3. Если пользователь выбирает между несколькими устройствами, кратко сравни плюсы и минусы каждого.
@@ -539,9 +593,11 @@ async def ask_ai_consultant(
         if not rec_products:
             rec_products = top_items[:4]
         
+        ui_products = _format_products_for_ui(rec_products)
         return {
             "answer": res["answer"],
-            "products": _format_products_for_ui(rec_products),
+            "history_turn": history_entry_for_answer(res["answer"], ui_products),
+            "products": ui_products,
             "suggested_questions": res.get("suggested_questions") or [
                 "Где сейчас самая низкая цена?",
                 "Есть ли варианты со скидкой?",
@@ -559,9 +615,11 @@ async def ask_ai_consultant(
     else:
         answer_fallback += "К сожалению, по точному запросу сейчас нет предложений в наличии. Попробуйте уточнить модель или ценовой диапазон."
 
+    fallback_products = _format_products_for_ui(top_items[:4])
     return {
         "answer": answer_fallback,
-        "products": _format_products_for_ui(top_items[:4]),
+        "history_turn": history_entry_for_answer(answer_fallback, fallback_products),
+        "products": fallback_products,
         "suggested_questions": [
             "Покажи товары со скидкой",
             "Посоветуй альтернативы",
