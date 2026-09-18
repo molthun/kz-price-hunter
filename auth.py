@@ -187,6 +187,9 @@ async def auth_middleware(request: web.Request, handler):
     if request["user"] and int(request["user"]["id"]) == DEV_ADMIN_ID and not dev_login_allowed(request):
         request["user"] = None
     response = await handler(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     if request.path.startswith("/api/"):
         response.headers["Cache-Control"] = "no-store"
     return response

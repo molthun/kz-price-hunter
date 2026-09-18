@@ -1,6 +1,7 @@
 import html
 import json
 import asyncio
+from urllib.parse import urlsplit
 import requests
 from typing import Dict, Any
 from config import get_bot_token, APP_URL
@@ -41,10 +42,26 @@ def telegram_api(method: str, payload: Dict[str, Any], timeout: int = 10) -> req
         raise RuntimeError("Токен Telegram-бота не задан (переменная окружения TELEGRAM_BOT_TOKEN)")
     return requests.post(f"https://api.telegram.org/bot{token}/{method}", json=payload, timeout=timeout)
 
+def is_safe_image_url(url: str) -> bool:
+    """Проверяет безопасность URL изображения перед отправкой в Telegram API."""
+    if not url or not isinstance(url, str):
+        return False
+    try:
+        parsed = urlsplit(url.strip())
+        if parsed.scheme not in ("http", "https"):
+            return False
+        if not parsed.netloc or "@" in parsed.netloc:
+            return False
+        return True
+    except Exception:
+        return False
+
 def send_telegram_alert(chat_id: int, product: Dict[str, Any], anomaly: Dict[str, Any]) -> bool:
-    """Отправляет карточку аномалии в личный чат пользователя. Возвращает True при успехе."""
-    shop = product.get("shop", "магазин")
-    url = product["url"]
+    """Отправляет карточку аномалии в Telegram через Bot API.
+    Поддерживает отправку фото с fallback на обычное сообщение.
+    """
+    shop = product.get("shop", "Магазин")
+    url = product.get("url", "")
     image_url = product.get("image_url", "")
 
     # Названия товаров приходят с сайтов магазинов — экранируем для HTML-разметки Telegram
@@ -65,7 +82,7 @@ def send_telegram_alert(chat_id: int, product: Dict[str, Any], anomaly: Dict[str
     reply_markup = {"inline_keyboard": keyboard}
 
     try:
-        if image_url and image_url.startswith("http"):
+        if is_safe_image_url(image_url):
             res = telegram_api("sendPhoto", {
                 "chat_id": chat_id, "photo": image_url, "caption": message_text,
                 "parse_mode": "HTML", "reply_markup": reply_markup
