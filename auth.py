@@ -49,6 +49,7 @@ def verify_telegram_auth(data: Dict[str, Any], bot_token: str) -> Dict[str, Any]
 
     if not str(fields["id"]).isdigit() or int(fields["id"]) <= 0:
         raise ValueError("Некорректный ID Telegram")
+
     return fields
 
 def is_admin(user: Optional[Dict[str, Any]]) -> bool:

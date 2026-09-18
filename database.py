@@ -435,6 +435,7 @@ def init_db():
         _create_schema(conn.cursor())
         conn.commit()
     run_migrations()
+    cleanup_expired_sessions()
 
 def acquire_scheduler_lease(owner: str, ttl_seconds: float, name: str = "scan") -> bool:
     """Берёт или продлевает аренду; False — действующая аренда у другого процесса."""
@@ -1114,11 +1115,19 @@ def get_notification_recipients() -> List[Dict[str, Any]]:
 def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
+def cleanup_expired_sessions() -> int:
+    """Удаляет просроченные сессии из базы данных. Возвращает количество удалённых строк."""
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    with get_connection() as conn:
+        cur = conn.execute("DELETE FROM sessions WHERE expires_at < ?", (now,))
+        conn.commit()
+        return cur.rowcount
+
 def create_session(user_id: int) -> str:
     token = secrets.token_urlsafe(32)
     expires = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=SESSION_TTL_DAYS)
+    cleanup_expired_sessions()
     with get_connection() as conn:
-        conn.execute("DELETE FROM sessions WHERE expires_at < ?", (datetime.datetime.now(datetime.timezone.utc).isoformat(),))
         conn.execute("INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)",
                      (_hash_token(token), int(user_id), expires.isoformat()))
         conn.commit()
