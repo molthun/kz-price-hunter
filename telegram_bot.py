@@ -23,6 +23,10 @@ import config
 from config import get_bot_token, APP_URL
 from notifier import _shop_emoji, format_price
 import ai_service
+from auth import RateLimiter
+from database import get_user
+
+_message_limiter = RateLimiter(max_calls=10, period=60)
 from search_engine import search_in_database
 
 
@@ -205,6 +209,15 @@ async def process_telegram_update(session: aiohttp.ClientSession, token: str, up
     first_name = from_user.get("first_name", "")
 
     if not chat_id or not text:
+        return
+
+    user_id = from_user.get("id")
+    if not user_id:
+        return
+    user = get_user(user_id)
+    if user and user.get("is_blocked"):
+        return
+    if len(text) > 4000 or _message_limiter.retry_after(str(user_id)):
         return
 
     # Команды

@@ -43,7 +43,7 @@
             <span id="appVersionBadge" class="text-xs font-mono px-2 py-0.5 rounded-full bg-slate-800 text-emerald-400 border border-emerald-500/30 font-semibold">v2.5.0</span>
             <span id="currentCityHeaderBadge" class="text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Астана</span>
           </h1>
-          <p class="hidden md:block text-xs text-slate-400">Мониторинг цен 12 сетей: Kaspi, DNS, Мечта, Белый Ветер, 4mobile, Технодом, Sulpak и др.</p>
+          <p class="hidden md:block text-xs text-slate-400">Мониторинг цен 17 сетей: Kaspi, DNS, Мечта, Белый Ветер, 4mobile, Технодом, Sulpak и др.</p>
         </div>
       </div>
 
@@ -116,7 +116,7 @@
       <div class="glass p-4 rounded-2xl">
         <div class="flex items-center justify-between mb-2">
           <div class="text-xs text-slate-400 font-medium">Активные магазины</div>
-          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">12 сетей</span>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">17 сетей</span>
         </div>
         <div class="flex flex-wrap items-center gap-1.5 mt-1">
           <div title="Kaspi Магазин (kaspi.kz)" class="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-900/90 border border-slate-700/80 hover:border-rose-500 hover:scale-110 transition shadow-sm cursor-pointer">
@@ -206,7 +206,7 @@
         <span>Поиск лучшей цены</span>
       </button>
 
-      <button onclick="switchTab('consultant')" id="tabBtnConsultant" class="pb-3 text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center gap-2 cursor-pointer whitespace-nowrap">
+      <button onclick="switchTab('consultant')" id="tabBtnConsultant" class="auth-only hidden pb-3 text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center gap-2 cursor-pointer whitespace-nowrap">
         <i class="fa-solid fa-wand-magic-sparkles text-purple-400"></i>
         <span>AI-Консультант</span>
         <span class="px-1.5 py-0.5 text-[10px] rounded-full bg-gradient-to-r from-purple-500/30 to-emerald-500/30 text-purple-300 font-bold uppercase border border-purple-500/30">AI 2.0</span>
@@ -308,7 +308,7 @@
               <span id="searchCityBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Астана</span>
             </h2>
             <p class="text-xs text-slate-400 mt-0.5">
-              Сравнение цен по 10 магазинам Казахстана: Kaspi, DNS, Мечта, Белый Ветер, Технодом, Sulpak и др.
+              Сравнение цен по 17 магазинам Казахстана: Kaspi, DNS, Мечта, Белый Ветер, Технодом, Sulpak и др.
             </p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
@@ -1073,6 +1073,15 @@
               </label>
             </div>
 
+            <div class="md:col-span-3">
+              <label for="selectAiProvider" class="block text-xs font-medium text-slate-300 mb-1">Провайдер AI</label>
+              <select id="selectAiProvider" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
+                <option value="auto">Авто — Gemini, при сбое OpenAI</option>
+                <option value="gemini">Только Google Gemini</option>
+                <option value="openai">Только OpenAI / совместимый сервис</option>
+              </select>
+              <p class="text-[11px] text-slate-400 mt-1">Ручной выбор использует только выбранного провайдера. Для него должен быть задан ключ.</p>
+            </div>
             <div class="md:col-span-1">
               <label class="block text-xs font-medium text-slate-300 mb-1 flex items-center justify-between">
                 <span>Google Gemini API Key:</span>
@@ -1082,7 +1091,14 @@
                 </a>
               </label>
               <input type="password" id="inputGeminiApiKey" placeholder="AIzaSy..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500 font-mono">
-              <span class="text-[10px] text-slate-500 mt-1 block">Рекомендуется. Gemini 2.5 Flash / 1.5 Flash (бесплатно, отклик 200-400мс).</span>
+              <span class="text-[10px] text-slate-500 mt-1 block">Ключ Google Gemini. Модель выбирается ниже.</span>
+              <label for="selectGeminiModelMode" class="block text-xs text-slate-300 mt-3 mb-1">Модель Gemini</label>
+              <select id="selectGeminiModelMode" onchange="syncAiModelInputs()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
+                <option value="auto">Авто — gemini-2.5-flash</option>
+                <option value="manual">Указать вручную</option>
+              </select>
+              <input id="inputGeminiModel" aria-label="Имя модели gemini" placeholder="gemini-2.5-flash" maxlength="150" disabled class="w-full mt-2 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white disabled:opacity-40">
+              <p class="text-[10px] text-slate-400 mt-1">Авто использует стандартную модель проекта. Вручную — точное имя текстовой модели с поддержкой JSON.</p>
             </div>
 
             <div class="md:col-span-1">
@@ -1090,7 +1106,14 @@
                 <span>OpenAI API Key:</span>
               </label>
               <input type="password" id="inputOpenAiApiKey" placeholder="sk-..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500 font-mono">
-              <span class="text-[10px] text-slate-500 mt-1 block">Альтернативный провайдер (gpt-4o-mini / gpt-3.5-turbo).</span>
+              <span class="text-[10px] text-slate-500 mt-1 block">Ключ OpenAI или совместимого сервиса. Модель выбирается ниже.</span>
+              <label for="selectOpenAiModelMode" class="block text-xs text-slate-300 mt-3 mb-1">Модель OpenAI</label>
+              <select id="selectOpenAiModelMode" onchange="syncAiModelInputs()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
+                <option value="auto">Авто — gpt-4o-mini</option>
+                <option value="manual">Указать вручную</option>
+              </select>
+              <input id="inputOpenAiModel" aria-label="Имя модели openai" placeholder="gpt-4o-mini" maxlength="150" disabled class="w-full mt-2 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white disabled:opacity-40">
+              <p class="text-[10px] text-slate-400 mt-1">Авто использует стандартную модель проекта. Вручную — точное имя текстовой модели с поддержкой JSON.</p>
             </div>
 
             <div class="md:col-span-1">
@@ -1129,7 +1152,7 @@
 
           <!-- Отслеживаемые магазины -->
           <div class="flex items-center justify-between">
-            <div class="text-xs font-semibold text-slate-300">Сканируемые магазины (12 сетей Казахстана):</div>
+            <div class="text-xs font-semibold text-slate-300">Сканируемые магазины (17 сетей Казахстана):</div>
             <div class="space-x-2 text-xs">
               <button type="button" onclick="toggleAllShops(true)" class="text-emerald-400 hover:underline">Выбрать все</button>
               <span class="text-slate-600">•</span>
@@ -1761,12 +1784,14 @@
 
     function switchTab(tab) {
       if (tab === 'alerts') tab = 'anomalies';
+      if (tab.toLowerCase() === 'consultant' && !isLoggedIn()) tab = 'anomalies';
       ['Anomalies', 'Discounts', 'Bestprice', 'Consultant', 'Catalog', 'Settings', 'Logs'].forEach(t => {
         const btn = document.getElementById('tabBtn' + t);
         const sec = document.getElementById('tab' + t);
         if (!btn || !sec) return;
-        // Кнопки только для администратора сохраняют признак и видимость
-        const roleClasses = btn.classList.contains('admin-only') ? ' admin-only' + (btn.classList.contains('hidden') ? ' hidden' : '') : '';
+        // Сохраняем ограничения видимости при переключении вкладок.
+        const role = ['admin-only', 'auth-only'].filter(c => btn.classList.contains(c));
+        const roleClasses = role.length ? ' ' + role.join(' ') + (btn.classList.contains('hidden') ? ' hidden' : '') : '';
         if (t.toLowerCase() === tab.toLowerCase()) {
           btn.className = 'pb-3 text-emerald-400 border-b-2 border-emerald-400 flex items-center gap-2 cursor-pointer font-semibold whitespace-nowrap' + roleClasses;
           sec.classList.remove('hidden');
@@ -2288,6 +2313,11 @@
     function toggleAiSearchMode() {
       const btn = document.getElementById('btnToggleAiSearch');
       const label = document.getElementById('aiSearchButtonLabel');
+      // AI-разбор расходует квоту владельца и на сервере доступен только вошедшим
+      if (!isLoggedIn()) {
+        showToast('AI-поиск доступен после входа через Telegram. Сейчас работает обычный поиск по базе', true, 5000);
+        return;
+      }
       if (window.aiSearchUserPref === '0') {
         window.aiSearchUserPref = '1';
         if (btn) btn.className = 'px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1.5 transition cursor-pointer bg-gradient-to-r from-purple-500/30 to-emerald-500/30 text-emerald-300 border border-emerald-500/50 hover:border-emerald-400 shadow-sm';
@@ -2343,7 +2373,7 @@
             ${imgHtml}
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-1.5 flex-wrap">
-                ${renderShopBadge(p.shop)}
+                ${getShopBadge(p.shop)}
                 <span class="text-[10px] text-slate-400">📍 ${escapeHtml(p.city || 'Астана')}</span>
               </div>
               <a href="${escapeHtml(p.url || '#')}" target="_blank" class="text-xs font-semibold text-white hover:text-purple-300 line-clamp-2 mt-1 block" title="${escapeHtml(p.title)}">
@@ -2412,6 +2442,10 @@
 
     async function handleConsultantSubmit(event) {
       if (event) event.preventDefault();
+      if (!currentMe.user) {
+        showToast('Для обращения к консультанту войдите через Telegram', true, 5000);
+        return;
+      }
       const input = document.getElementById('inputConsultantMessage');
       const text = input ? input.value.trim() : '';
       if (!text) return;
@@ -2841,8 +2875,8 @@
                   </div>
                   <h3 class="text-base sm:text-lg font-bold text-white leading-snug line-clamp-2">${escapeHtml(best.title)}</h3>
                   <div class="text-xs text-slate-400">
-                    Средняя цена (${searchCityName}): <span class="text-slate-300 font-medium">${fmtPrice(stats.avg_price)}</span>
-                    ${stats.max_price ? ` • Дороже всего: <span class="line-through text-slate-500">${fmtPrice(stats.max_price)}</span>` : ''}
+                    Средняя цена результатов (${searchCityName}): <span class="text-slate-300 font-medium">${fmtPrice(stats.avg_price)}</span>
+                    ${stats.max_price ? ` • Максимум в результатах: <span class="text-slate-500">${fmtPrice(stats.max_price)}</span>` : ''}
                   </div>
                 </div>
               </div>
@@ -3010,6 +3044,15 @@
     function applyRoleVisibility() {
       const admin = isAdminUser();
       const loggedIn = isLoggedIn();
+      const aiLabel = document.getElementById('aiSearchButtonLabel');
+      const aiBtn = document.getElementById('btnToggleAiSearch');
+      if (aiLabel && !loggedIn) aiLabel.textContent = 'AI после входа';
+      if (aiLabel && loggedIn && aiLabel.textContent === 'AI после входа') aiLabel.textContent = 'AI Авто';
+      if (aiBtn) aiBtn.classList.toggle('opacity-60', !loggedIn);
+      document.querySelectorAll('.auth-only').forEach(el => el.classList.toggle('hidden', !loggedIn));
+      if (!loggedIn && !document.getElementById('tabConsultant').classList.contains('hidden')) {
+        switchTab('anomalies');
+      }
       document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', !admin));
       document.getElementById('settingsGuestBanner').classList.toggle('hidden', loggedIn);
       document.getElementById('personalSettingsFieldset').disabled = !loggedIn;
@@ -3286,12 +3329,24 @@
 
     // ===== Администрирование =====
 
+    function syncAiModelInputs() {
+      for (const name of ['Gemini', 'OpenAi']) {
+        document.getElementById(`input${name}Model`).disabled = document.getElementById(`select${name}ModelMode`).value !== 'manual';
+      }
+    }
+
     async function loadAdminSettings() {
       try {
         const res = await fetch('/api/admin/config');
         if (!res.ok) return;
         const { settings: s, bot, ai } = await res.json();
 
+        document.getElementById('selectAiProvider').value = s.ai_provider || 'auto';
+        for (const [key, name, fallback] of [['gemini', 'Gemini', 'gemini-2.5-flash'], ['openai', 'OpenAi', 'gpt-4o-mini']]) {
+          document.getElementById(`select${name}ModelMode`).value = s[`${key}_model_mode`] || 'auto';
+          document.getElementById(`input${name}Model`).value = s[`${key}_model`] || fallback;
+        }
+        syncAiModelInputs();
         // AI-настройки
         const aiCheck = document.getElementById('checkAiSearchEnabled');
         if (aiCheck) aiCheck.checked = (s.ai_search_enabled !== false);
@@ -3464,6 +3519,11 @@
         candidate_min_savings_kzt: numOr(parseInt(document.getElementById('inputCandMinSavings').value), 10000),
         candidate_arbitrage_drop_pct: numOr(parseFloat(document.getElementById('inputCandArbPct').value), 15),
         candidate_arbitrage_diff_kzt: numOr(parseInt(document.getElementById('inputCandArbDiff').value), 10000),
+        ai_provider: document.getElementById('selectAiProvider').value,
+        gemini_model_mode: document.getElementById('selectGeminiModelMode').value,
+        gemini_model: document.getElementById('inputGeminiModel').value.trim(),
+        openai_model_mode: document.getElementById('selectOpenAiModelMode').value,
+        openai_model: document.getElementById('inputOpenAiModel').value.trim(),
         ai_search_enabled: aiCheck ? aiCheck.checked : true,
         gemini_api_key: gKeyInput ? gKeyInput.value.trim() : '',
         openai_api_key: oKeyInput ? oKeyInput.value.trim() : '',

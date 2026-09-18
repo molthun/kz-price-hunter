@@ -10,7 +10,7 @@ PREMIUM_KEYWORDS = [
 
 DEFAULT_JUNK_KEYWORDS = [
     "чехол", "пленка", "плёнка", "стекло", "кабель", "переходник",
-    "ремешок", "держатель", "подставка", "амбушюры", "накладка", "салфетки",
+    "внешний аккумулятор", "power bank", "ремешок", "ремешки", "strap", "watch band", "аксессуар", "держатель", "подставка", "амбушюры", "накладка", "салфетки",
     "зарядное", "зарядка", "блок питания", "адаптер", "пульт", "джойстик", "геймпад"
 ]
 
@@ -21,7 +21,10 @@ USED_GOODS_KEYWORDS = [
 ]
 
 def is_junk_accessory(title: str, category: str = "", custom_keywords: Optional[List[str]] = None) -> bool:
+    import re
     t = f"{title} {category}".lower()
+    if re.search(r'\bбраслет\b.*\bдля\b', title.lower()):
+        return True
     keywords = list(DEFAULT_JUNK_KEYWORDS)
     if custom_keywords:
         for k in custom_keywords:

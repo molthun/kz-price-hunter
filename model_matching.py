@@ -34,7 +34,7 @@ RE_SIM_FLUFF = re.compile(r'\b(?:nano[\s-]*sim|dual[\s-]*sim|e[\s-]*sim|sim|wi-f
 RE_MARKETING_FLUFF = re.compile(r'\b(?:global[\s-]*version|глобальная\s*версия|роснефть|акция|скидка|новинка|оригинал|гарантия|ростест|евротест)\b', re.IGNORECASE)
 
 
-def extract_canonical_key(title: str) -> Optional[str]:
+def _family_key(title: str) -> Optional[str]:
     """Извлекает канонический ключ товара вида <brand>:<model_or_family>:<capacity>."""
     if not title:
         return None
@@ -123,6 +123,31 @@ def extract_canonical_key(title: str) -> Optional[str]:
             return f'{brand}:{digit_tokens[0]}:{cap_val}' if cap_val else f'{brand}:{digit_tokens[0]}'
 
     return None
+
+
+def identity_tokens(title):
+    """Keep specifications; discard only cosmetic words and recognizable SKU tags."""
+    text = unicodedata.normalize('NFKC', title).lower().replace('ё', 'е')
+    text = re.sub(r'\[\d+\]|[\[(][a-z0-9]*[a-z][a-z0-9]*[-/][a-z0-9/.-]+[\])]', ' ', text)
+    text = re.sub(r'(\d+)\s*/\s*(\d+)\s*(?:gb|гб)\b', r'\1gb \2gb', text)
+    text = re.sub(r'(\d+)\s*(?:tb|тб)\b', lambda m: f' {int(m[1]) * 1024}gb ', text)
+    text = re.sub(r'(\d+)\s*(?:gb|гб)\b', r' \1gb ', text)
+    text = re.sub(r'\b(?:geforce|radeon)\b', ' ', text)
+    text = re.sub(r'\bps([45])\b', r'playstation \1', text)
+    text = text.replace('wi-fi', 'wifi').replace('+', ' plus ')
+    ignored = IGNORED | {'приставка', 'консоль'}
+    return {BRAND_MAP.get(t, t) if t not in {'playstation'} else t
+            for t in re.findall(r'[a-zа-я0-9]+(?:\.[0-9]+)?', text) if t not in ignored}
+
+
+def extract_canonical_key(title: str) -> Optional[str]:
+    family = _family_key(title)
+    if not family:
+        return None
+    # Regular iPhones have fixed RAM per generation/storage; retain existing SKU aliases.
+    if family.startswith('apple:iphone ') and not family.startswith('apple:iphone se'):
+        return family
+    return family + '|spec:' + ' '.join(sorted(identity_tokens(title)))
 
 
 def model_tokens(title):

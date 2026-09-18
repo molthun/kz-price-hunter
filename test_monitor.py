@@ -870,7 +870,15 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
         app = create_app()
         app.cleanup_ctx.clear()
         async with TestClient(TestServer(app)) as client:
-            with patch.object(ai_service, 'parse_natural_query', return_value=mock_ai_meta):
+            with patch.object(ai_service, 'parse_natural_query', return_value=mock_ai_meta) as parser:
+                # Гость: AI-разбор не вызывается (расходует квоту владельца)
+                guest = await client.get('/api/best-price?q=айфон+15+со+скидкой+до+400к&ai=1')
+                self.assertEqual(guest.status, 200)
+                self.assertFalse((await guest.json()).get("ai_meta"))
+                parser.assert_not_called()
+
+                upsert_telegram_user({'id': 4242, 'first_name': 'Buyer'})
+                client.session.cookie_jar.update_cookies({'kzph_session': create_session(4242)})
                 res = await client.get('/api/best-price?q=айфон+15+со+скидкой+до+400к&ai=1')
                 self.assertEqual(res.status, 200)
                 data = await res.json()
@@ -910,7 +918,8 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
         }
 
         with patch.object(ai_service, '_get_api_credentials', return_value=mock_creds), \
-             patch.object(ai_service, 'call_gemini_api', new_callable=AsyncMock) as mock_gemini:
+             patch.object(ai_service, 'call_gemini_api', autospec=True) as mock_gemini, \
+             patch('search_engine.search_in_database', return_value=[{'id':'rag-test','title':'iPhone 15','shop':'Kaspi','current_price':300000}]):
             mock_gemini.return_value = mock_ai_response
             res = await ai_service.ask_ai_consultant(message="Посоветуй айфон 15", city="Все")
             self.assertIn("iPhone 15", res["answer"])
@@ -927,6 +936,8 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
         app = create_app()
         app.cleanup_ctx.clear()
         async with TestClient(TestServer(app)) as client:
+            upsert_telegram_user({'id': 765, 'first_name': 'Test'})
+            client.session.cookie_jar.update_cookies({'kzph_session': create_session(765)})
             mock_result = {
                 "answer": "Рекомендую монитор LG UltraGear.",
                 "products": [{"shop": "Kaspi", "title": "LG 27GP850", "price": 180000}],
@@ -967,7 +978,7 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
                     "update_id": 101,
                     "message": {
                         "chat": {"id": 12345},
-                        "from": {"first_name": "Тестер"},
+                        "from": {"id": 12345, "first_name": "Тестер"},
                         "text": "/start"
                     }
                 }
@@ -981,7 +992,7 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
                     "update_id": 102,
                     "message": {
                         "chat": {"id": 12345},
-                        "from": {"first_name": "Тестер"},
+                        "from": {"id": 12345, "first_name": "Тестер"},
                         "text": "/status"
                     }
                 }
@@ -995,7 +1006,7 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
                     "update_id": 103,
                     "message": {
                         "chat": {"id": 12345},
-                        "from": {"first_name": "Тестер"},
+                        "from": {"id": 12345, "first_name": "Тестер"},
                         "text": "/search iPhone 15"
                     }
                 }
@@ -1009,7 +1020,7 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
                     "update_id": 104,
                     "message": {
                         "chat": {"id": 12345},
-                        "from": {"first_name": "Тестер"},
+                        "from": {"id": 12345, "first_name": "Тестер"},
                         "text": "Какой планшет купить ребенку?"
                     }
                 }
@@ -1041,15 +1052,15 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
         s2 = "Samsung Galaxy S24 Ultra 1024 ГБ"
         s3 = "Смартфон Samsung Galaxy S24 Ultra 12/1024Gb Titanium Black (SM-S928B)"
         k_s1 = extract_canonical_key(s1)
-        self.assertEqual(k_s1, "samsung:galaxy s24 ultra:1024gb")
+        self.assertTrue(k_s1.startswith("samsung:galaxy s24 ultra:1024gb|spec:"))
         self.assertEqual(extract_canonical_key(s2), k_s1)
-        self.assertEqual(extract_canonical_key(s3), k_s1)
+        self.assertNotEqual(extract_canonical_key(s3), k_s1)  # RAM must be explicit on both offers
 
         # 3. Видеокарта RTX 4060
         g1 = "Видеокарта Palit GeForce RTX 4060 Dual 8GB"
         g2 = "Palit RTX 4060 Dual 8 ГБ (NE64060019P1-1070D)"
         k_g1 = extract_canonical_key(g1)
-        self.assertEqual(k_g1, "palit:rtx 4060:8gb")
+        self.assertTrue(k_g1.startswith("palit:rtx 4060:8gb|spec:"))
         self.assertEqual(extract_canonical_key(g2), k_g1)
 
         # 4. Негативные проверки: разные модели не должны давать один ключ
@@ -1094,7 +1105,7 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
         }
 
         with patch.object(ai_service, '_get_api_credentials', return_value=mock_creds), \
-             patch.object(ai_service, 'call_gemini_api', new_callable=AsyncMock) as mock_gemini:
+             patch.object(ai_service, 'call_gemini_api', autospec=True) as mock_gemini:
             mock_gemini.return_value = mock_ai_resp
 
             res = await ai_service.normalize_product_titles_batch([title_mock])
@@ -1164,6 +1175,315 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(data["max_price"], 460000)
             self.assertEqual(data["arbitrage_savings"], 110000)
             self.assertGreater(data["arbitrage_pct"], 20.0)
+
+    def test_distinct_specifications_never_match(self):
+        from model_matching import same_model, extract_canonical_key
+        pairs = [
+            ('Apple MacBook Air M2 8GB 256GB', 'Apple MacBook Air M2 16GB 256GB'),
+            ('Apple MacBook Pro M3 Pro 16GB 512GB', 'Apple MacBook Pro M3 Max 16GB 512GB'),
+            ('Sony PlayStation 5 Slim Digital 1TB', 'Sony PlayStation 5 Slim 1TB'),
+            ('Apple iPad Air M1 64GB', 'Apple iPad Air M2 64GB'),
+            ('Samsung Galaxy A15 4G 128GB', 'Samsung Galaxy A15 5G 128GB'),
+            ('Palit RTX 4070 Ti 12GB', 'Palit RTX 4070 Ti Super 12GB'),
+            ('Apple iPhone SE (2020) 64GB', 'Apple iPhone SE (2022) 64GB'),
+        ]
+        for a, b in pairs:
+            with self.subTest(a=a, b=b):
+                self.assertFalse(same_model(a, b))
+                self.assertNotEqual(extract_canonical_key(a), extract_canonical_key(b))
+
+    async def test_consultant_access_limits_and_validation(self):
+        from aiohttp.test_utils import TestClient, TestServer
+        from unittest.mock import patch, AsyncMock
+        import web.server as server
+        app = server.create_app(); app.cleanup_ctx.clear()
+        upsert_telegram_user({'id': 876, 'first_name': 'Test'})
+        with patch.object(server, 'consultant_limiter', server.RateLimiter(2, 60)), \
+             patch('ai_service.ask_ai_consultant', new_callable=AsyncMock, return_value={'answer':'ok'}) as ai:
+            async with TestClient(TestServer(app)) as client:
+                self.assertEqual((await client.post('/api/ai/consultant', json={'message':'test'})).status, 401)
+                ai.assert_not_called()
+                client.session.cookie_jar.update_cookies({'kzph_session': create_session(876)})
+                for body in ([], {'message':'test','history':'bad'}, {'message':'x'*4001}):
+                    self.assertEqual((await client.post('/api/ai/consultant', json=body)).status, 400)
+                for _ in range(2):
+                    self.assertEqual((await client.post('/api/ai/consultant', json={'message':'test'})).status, 200)
+                self.assertEqual((await client.post('/api/ai/consultant', json={'message':'test'})).status, 429)
+                self.assertEqual(ai.await_count, 2)
+                set_user_blocked(876, True)
+                self.assertEqual((await client.post('/api/ai/consultant', json={'message':'test'})).status, 401)
+
+    async def test_consultant_preserves_empty_search_constraints(self):
+        from unittest.mock import patch, AsyncMock
+        import ai_service
+        with patch.object(ai_service, '_get_api_credentials', return_value={'has_ai':True}), \
+             patch.object(ai_service, 'parse_natural_query', new_callable=AsyncMock, return_value={'clean_query':'iPad','max_price':100000,'category':'Планшеты','only_discount':True}), \
+             patch('search_engine.search_in_database', return_value=[]) as search, \
+             patch.object(ai_service, 'call_gemini_api', autospec=True) as api:
+            result = await ai_service.ask_ai_consultant('iPad до 100000', city='Астана')
+            self.assertEqual(result['products'], [])
+            search.assert_called_once_with(query='iPad', city='Астана', category='Планшеты', min_price=None, max_price=100000, only_discount=True, sort_by='price_asc')
+            api.assert_not_called()
+
+    async def test_normalization_openai_signature_and_scan_integration(self):
+        from unittest.mock import patch, AsyncMock
+        import ai_service
+        import web.server as server
+        title = 'Unknown custom device abc'
+        creds = {'has_ai':True, 'ai_search_enabled':True, 'gemini_api_key':'', 'openai_api_key':'fake', 'openai_api_base':'https://example.invalid/v1'}
+        with patch.object(ai_service, '_get_api_credentials', return_value=creds), \
+             patch.object(ai_service, 'call_openai_api', autospec=True, return_value={'items':[{'title':title,'canonical_key':'custom:abc'}]}) as api:
+            result = await ai_service.normalize_product_titles_batch([title])
+            self.assertEqual(result[title], 'custom:abc')
+            self.assertEqual(api.call_args.args[1:], ('fake','https://example.invalid/v1'))
+        product = {'id':'norm-scan','title':title,'shop':'Test','city':'Астана','price':100000,'url':'https://example.invalid'}
+        server._ai_pending.clear()
+        with patch.object(ai_service, 'normalize_product_titles_batch', new_callable=AsyncMock, return_value={title:'custom:abc'}) as normalizer, \
+             patch.object(server, '_process_anomaly', new_callable=AsyncMock):
+            # Сохранение категории не ждет AI: товар сохраняется сразу, название уходит в фоновую очередь
+            await server._save_and_detect([product], 'Test', TEST_SETTINGS)
+            normalizer.assert_not_awaited()
+            self.assertIn(title, server._ai_pending)
+            # Фоновый проход проставляет ключ
+            self.assertEqual(await server.process_ai_pending(), 1)
+            normalizer.assert_awaited_once_with([title], for_scan=True, max_ai_calls=1)
+        self.assertNotIn(title, server._ai_pending)
+        with get_connection() as conn:
+            self.assertEqual(conn.execute("SELECT canonical_key FROM products WHERE id='norm-scan'").fetchone()[0], 'custom:abc')
+
+    async def test_ai_normalization_budget_and_retry_memory(self):
+        """Неудачи не повторяются 7 дней, число вызовов за проход ограничено, пользователю остается резерв."""
+        from unittest.mock import patch, AsyncMock
+        import ai_service
+        creds = {'has_ai':True, 'ai_search_enabled':True, 'gemini_api_key':'fake', 'openai_api_key':'', 'openai_api_base':''}
+        titles = [f'Непонятный товар номер {i} без модели' for i in range(60)]  # 3 пакета по 20
+        with patch.object(ai_service, '_get_api_credentials', return_value=creds), \
+             patch.object(ai_service, 'call_gemini_api', new_callable=AsyncMock, return_value={'items': []}) as api:
+            first = await ai_service.normalize_product_titles_batch(titles, for_scan=True, max_ai_calls=2)
+            self.assertEqual(api.await_count, 2)                       # лимит вызовов за проход
+            self.assertEqual(sum(1 for t in titles if t in first), 40)  # третий пакет не тронут — вернется позже
+            self.assertTrue(all(api.call_args.kwargs.get('scan') for _ in [0]))
+            api.reset_mock()
+            second = await ai_service.normalize_product_titles_batch(titles[:40], for_scan=True)
+            api.assert_not_awaited()                                    # неудачи помнятся AI_RETRY_DAYS дней
+            self.assertTrue(all(second[t] == '' for t in titles[:40]))
+        # Резерв: при двух активных обращениях фоновой задаче отказано, пользовательский вызов проходит
+        inner = AsyncMock(return_value={'ok': True})
+        with patch.object(ai_service, '_provider_active', 2):
+            self.assertIsNone(await ai_service._limited_provider_call(inner, scan=True))
+            self.assertEqual(await ai_service._limited_provider_call(inner), {'ok': True})
+
+    async def test_ai_consultant_error_hides_details(self):
+        from unittest.mock import patch, AsyncMock
+        from aiohttp.test_utils import TestClient, TestServer
+        import web.server as server
+        app = server.create_app(); app.cleanup_ctx.clear()
+        upsert_telegram_user({'id': 4343, 'first_name': 'Buyer'})
+        with patch.object(server.ai_service, 'ask_ai_consultant', new_callable=AsyncMock, side_effect=RuntimeError('секретная-деталь')):
+            async with TestClient(TestServer(app)) as client:
+                client.session.cookie_jar.update_cookies({'kzph_session': create_session(4343)})
+                res = await client.post('/api/ai/consultant', json={'message': 'Посоветуй ноутбук'})
+                self.assertEqual(res.status, 500)
+                self.assertNotIn('секретная-деталь', await res.text())
+
+    async def test_admin_config_never_returns_raw_keys(self):
+        from unittest.mock import patch
+        from aiohttp.test_utils import TestClient, TestServer
+        import web.server as server
+        app=server.create_app(); app.cleanup_ctx.clear()
+        upsert_telegram_user({'id':987,'first_name':'Admin'})
+        keys={'gemini_api_key':'fake-gemini-secret', 'openai_api_key':'fake-openai-secret'}
+        with patch('auth.ADMIN_TELEGRAM_IDS',{987}), patch.object(server,'get_bot_username',return_value=None), \
+             patch.object(server,'load_settings',return_value=keys), patch.object(server,'get_ai_config',return_value=keys), \
+             patch.object(server,'save_settings',return_value=keys):
+            async with TestClient(TestServer(app)) as client:
+                client.session.cookie_jar.update_cookies({'kzph_session':create_session(987)})
+                for response in (await client.get('/api/admin/config'), await client.post('/api/admin/config',json={})):
+                    self.assertEqual(response.status,200)
+                    body=await response.text()
+                    for secret in keys.values(): self.assertNotIn(secret,body)
+
+    async def test_telegram_block_and_limit(self):
+        from unittest.mock import patch, AsyncMock
+        import telegram_bot as bot
+        from auth import RateLimiter
+        update={'message':{'chat':{'id':678},'from':{'id':678},'text':'test'}}
+        with patch.object(bot,'get_user',return_value={'is_blocked':True}), \
+             patch.object(bot,'handle_ai_consultant_message',new_callable=AsyncMock) as ai:
+            await bot.process_telegram_update(None,'fake',update)
+            ai.assert_not_called()
+        with patch.object(bot,'get_user',return_value=None), patch.object(bot,'_message_limiter',RateLimiter(1,60)), \
+             patch.object(bot,'handle_ai_consultant_message',new_callable=AsyncMock) as ai:
+            await bot.process_telegram_update(None,'fake',update)
+            await bot.process_telegram_update(None,'fake',update)
+            self.assertEqual(ai.await_count,1)
+
+    def test_identity_migration_preserves_prices(self):
+        from model_matching import extract_canonical_key
+        title='Apple MacBook Air M2 16GB 256GB'
+        save_or_update_product({'id':'migration-spec','title':title,'shop':'Test','price':123456,'url':'https://example.invalid'})
+        with get_connection() as conn:
+            conn.execute("UPDATE products SET canonical_key='old-collision' WHERE id='migration-spec'")
+            conn.execute("DELETE FROM schema_metadata WHERE name='identity_v2'")
+        init_db()
+        with get_connection() as conn:
+            row=conn.execute("SELECT canonical_key,current_price FROM products WHERE id='migration-spec'").fetchone()
+            self.assertEqual(row['canonical_key'],extract_canonical_key(title))
+            self.assertEqual(row['current_price'],123456)
+
+    async def test_provider_shared_budget_and_concurrency(self):
+        import asyncio
+        import ai_service as ai
+        from auth import RateLimiter
+        from unittest.mock import patch, AsyncMock
+        with patch.object(ai, '_provider_limiter', RateLimiter(1, 60)), \
+             patch.object(ai, '_call_gemini_api', new_callable=AsyncMock, return_value={'ok':True}) as gemini, \
+             patch.object(ai, '_call_openai_api', new_callable=AsyncMock) as openai:
+            self.assertEqual(await ai.call_gemini_api('prompt','fake'), {'ok':True})
+            self.assertIsNone(await ai.call_openai_api('prompt','fake','https://example.invalid'))
+            openai.assert_not_called()
+        entered=asyncio.Event(); release=asyncio.Event()
+        async def slow(*args):
+            entered.set()
+            await release.wait()
+        with patch.object(ai, '_provider_limiter', RateLimiter(60,60)), patch.object(ai, '_call_gemini_api', side_effect=slow):
+            tasks=[asyncio.create_task(ai.call_gemini_api('p','fake')) for _ in range(3)]
+            await entered.wait()
+            self.assertIsNone(await ai.call_gemini_api('p','fake'))
+            release.set()
+            await asyncio.gather(*tasks)
+            self.assertEqual(ai._provider_active,0)
+
+    async def test_scan_survives_normalization_failure(self):
+        import web.server as server
+        from unittest.mock import patch, AsyncMock
+        product={'id':'normalization-failure','title':'Device 99','shop':'Test','price':123000,'url':'https://example.invalid'}
+        with patch('ai_service.normalize_product_titles_batch', new_callable=AsyncMock, side_effect=RuntimeError('simulated')), \
+             patch.object(server,'_process_anomaly',new_callable=AsyncMock):
+            await server._save_and_detect([product],'Test',TEST_SETTINGS)
+        with get_connection() as conn:
+            self.assertEqual(conn.execute("SELECT current_price FROM products WHERE id='normalization-failure'").fetchone()[0],123000)
+
+    async def test_cached_collision_cannot_create_comparison(self):
+        from model_matching import extract_canonical_key
+        from database import find_market_comparisons
+        from aiohttp.test_utils import TestClient, TestServer
+        from web.server import create_app
+        title='Apple MacBook Air M2 8GB 256GB'
+        key=extract_canonical_key(title)
+        save_or_update_products_batch([
+            {'id':'collision-a','title':title,'shop':'Shop1','city':'Астана','price':250000,'url':'https://example.invalid/a','canonical_key':key},
+            {'id':'collision-b','title':'Apple MacBook Air M2 16GB 256GB','shop':'Shop2','city':'Астана','price':500000,'url':'https://example.invalid/b','canonical_key':key}])
+        self.assertIsNone(find_market_comparisons(title,'Shop1',250000,'Астана'))
+        app=create_app(); app.cleanup_ctx.clear()
+        async with TestClient(TestServer(app)) as client:
+            response=await client.get('/api/models/compare',params={'canonical_key':key,'title':title,'city':'Астана'})
+            data=await response.json()
+            self.assertEqual(data['total_offers'],1)
+
+    def test_watch_accessories_and_fitness_trackers(self):
+        from detector import is_junk_accessory
+        self.assertTrue(is_junk_accessory('Браслет S&M для Apple Watch сталь нержавеющая'))
+        self.assertTrue(is_junk_accessory('WiWU Comf Secur', 'WiWU Ремешки для Apple Watch'))
+        self.assertTrue(is_junk_accessory('Внешний аккумулятор для Apple Watch 2.5 Вт'))
+        self.assertFalse(is_junk_accessory('Фитнес-браслет Xiaomi Smart Band 9'))
+
+    async def test_broad_search_does_not_invent_savings(self):
+        from unittest.mock import patch
+        from search_engine import get_best_price_summary
+        items=[{'id':'watch-a','title':'Apple Watch SE 40mm','current_price':100000,'shop':'A','city':'Астана','url':'https://example.invalid/a'},
+               {'id':'watch-b','title':'Apple Watch Ultra 49mm','current_price':450000,'shop':'B','city':'Астана','url':'https://example.invalid/b'}]
+        with patch('search_engine.search_in_database',return_value=items):
+            result=await get_best_price_summary('Apple Watch')
+            self.assertEqual(result['best_deal']['savings_vs_max'],0)
+        items.append(dict(items[0],id='watch-c',shop='C',current_price=120000))
+        with patch('search_engine.search_in_database',return_value=items):
+            result=await get_best_price_summary('Apple Watch')
+            self.assertEqual(result['best_deal']['savings_vs_max'],20000)
+
+    async def test_kaspi_live_search_city_and_query(self):
+        from unittest.mock import patch, Mock
+        from scrapers.kaspi import KaspiScraper
+        scraper=KaspiScraper(city_code='750000000')
+        response=Mock(status_code=200)
+        response.json.return_value={'data':[{'id':777,'title':'Apple Watch SE','unitPrice':100000,'stock':1}]}
+        with patch('scrapers.kaspi.requests.get',return_value=response) as get:
+            products=await scraper.search('Apple Watch',max_items=1)
+            self.assertEqual(products[0]['city'],'Алматы')
+            self.assertEqual(get.call_args.kwargs['params']['text'],'Apple Watch')
+            self.assertEqual(get.call_args.kwargs['params']['c'],'750000000')
+            self.assertEqual(get.call_args.kwargs['params']['q'],'')
+
+    def test_sulpak_retries_timeout_once(self):
+        from unittest.mock import patch, Mock
+        from scrapers.sulpak import SulpakScraper, requests
+        from scrapers.base import UnconfirmedEnd
+        response=Mock(status_code=200,text='<html></html>')
+        with patch('scrapers.sulpak.requests.get',side_effect=[requests.exceptions.Timeout('simulated'),response]) as get, patch('scrapers.sulpak.time.sleep'):
+            with self.assertRaises(UnconfirmedEnd):
+                SulpakScraper()._fetch_page('Часы','https://www.sulpak.kz/f/smart_chasiy',1)
+            self.assertEqual(get.call_count,2)
+
+    async def test_provider_selection_and_fallback(self):
+        import ai_service as ai
+        from unittest.mock import patch, AsyncMock
+        for selection in ('auto', 'gemini', 'openai'):
+            settings={**config.SYSTEM_DEFAULTS,'ai_provider':selection}
+            with patch.object(config,'load_settings',return_value=settings), \
+                 patch.object(config,'GEMINI_API_KEY','fake-gemini'), patch.object(config,'OPENAI_API_KEY','fake-openai'), \
+                 patch.object(ai,'call_gemini_api',new_callable=AsyncMock,return_value=None) as gemini, \
+                 patch.object(ai,'call_openai_api',new_callable=AsyncMock,return_value={'clean_query':'iPhone'}) as openai:
+                ai._QUERY_CACHE.clear()
+                await ai.parse_natural_query('подбери iPhone',force=True)
+                self.assertEqual(gemini.await_count, 0 if selection=='openai' else 1)
+                self.assertEqual(openai.await_count, 0 if selection=='gemini' else 1)
+        with patch.object(config,'load_settings',return_value={**config.SYSTEM_DEFAULTS,'ai_provider':'gemini'}), \
+             patch.object(config,'GEMINI_API_KEY',''), patch.object(config,'OPENAI_API_KEY','fake'):
+            self.assertFalse(config.get_ai_config()['has_ai'])
+
+    async def test_manual_model_used_in_provider_request(self):
+        import ai_service as ai
+        from unittest.mock import patch
+        captured=[]
+        class Response:
+            status=200
+            async def __aenter__(self): return self
+            async def __aexit__(self,*args): pass
+            async def json(self):
+                return {'candidates':[{'content':{'parts':[{'text':'{"ok":true}'}]}}],
+                        'choices':[{'message':{'content':'{"ok":true}'}}]}
+        class Session:
+            def __init__(self,*args,**kwargs): pass
+            async def __aenter__(self): return self
+            async def __aexit__(self,*args): pass
+            def post(self,url,**kwargs):
+                captured.append((url,kwargs['json']))
+                return Response()
+        settings={**config.SYSTEM_DEFAULTS,'gemini_model_mode':'manual','gemini_model':'gemini-test',
+                  'openai_model_mode':'manual','openai_model':'custom-model'}
+        with patch.object(config,'load_settings',return_value=settings), patch.object(ai.aiohttp,'ClientSession',Session):
+            await ai._call_gemini_api('test','fake')
+            await ai._call_openai_api('test','fake','https://example.invalid/v1')
+        self.assertIn('/models/gemini-test:generateContent',captured[0][0])
+        self.assertEqual(captured[1][1]['model'],'custom-model')
+
+    def test_model_settings_validation_and_persistence(self):
+        from unittest.mock import patch
+        with patch.object(config,'load_settings',return_value=dict(config.SYSTEM_DEFAULTS)):
+            for invalid in ({'ai_provider':'unknown'},{'gemini_model_mode':'other'},
+                            {'openai_model_mode':'manual','openai_model':''}):
+                with self.assertRaises(ValueError): config._validate_settings(invalid)
+        old=config.load_settings()
+        try:
+            config.save_settings({'ai_provider':'openai','openai_model_mode':'manual','openai_model':'custom-model'})
+            current=config.load_settings()
+            self.assertEqual(current['ai_provider'],'openai')
+            self.assertEqual(current['openai_model'],'custom-model')
+            self.assertEqual(config.get_ai_config()['openai_model'],'custom-model')
+            config.save_settings({'openai_model_mode':'auto'})
+            self.assertEqual(config.get_ai_config()['openai_model'],'gpt-4o-mini')
+        finally:
+            config.save_settings(old)
 
 
 if __name__ == "__main__":

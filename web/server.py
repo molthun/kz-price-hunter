@@ -1,4 +1,5 @@
 import asyncio
+from typing import Dict
 import datetime
 import time
 from pathlib import Path
@@ -121,6 +122,7 @@ scan_state = {
 # Прямой опрос магазинов создает нагрузку на их сайты — ограничиваем частоту
 live_search_limiter = RateLimiter(max_calls=10, period=600)   # на пользователя
 search_limiter = RateLimiter(max_calls=60, period=60)         # на IP
+consultant_limiter = RateLimiter(max_calls=10, period=60)
 auth_limiter = RateLimiter(max_calls=20, period=600)          # на IP
 
 routes = web.RouteTableDef()
@@ -232,16 +234,27 @@ async def ai_status_handler(request):
     })
 
 @routes.post("/api/ai/consultant")
+@require_login
 async def ai_consultant_handler(request):
     try:
         data = await request.json()
     except Exception:
         return web.json_response({"error": "Некорректный JSON в теле запроса"}, status=400)
 
+    if not isinstance(data, dict):
+        return web.json_response({"error": "Ожидается объект JSON"}, status=400)
     message = str(data.get("message") or "").strip()
     history = data.get("history") or []
     city = str(data.get("city") or "Все").strip()
 
+    if (len(message) > 4000 or not isinstance(history, list) or len(history) > 8
+            or any(not isinstance(t, dict) or t.get("role") not in ("user", "model", "assistant")
+                   or not isinstance(t.get("content"), str) or len(t["content"]) > 4000 for t in history)):
+        return web.json_response({"error": "Слишком длинное сообщение или некорректная история"}, status=400)
+    wait = consultant_limiter.retry_after(str(request["user"]["id"]))
+    if wait:
+        return web.json_response({"error": "Слишком много запросов. Попробуйте позже."}, status=429,
+                                 headers={"Retry-After": str(int(wait) + 1)})
     if not message:
         return web.json_response({"error": "Поле message обязательно"}, status=400)
 
@@ -251,8 +264,9 @@ async def ai_consultant_handler(request):
             response["status"] = "ok"
         return web.json_response(response)
     except Exception as e:
+        print(f"[AI] Ошибка консультанта: {type(e).__name__}")
         return web.json_response({
-            "error": f"Ошибка обработки запроса AI-консультанта: {e}",
+            "error": "Ошибка обработки запроса AI-консультанта",
             "answer": "Произошла ошибка при обращении к AI-консультанту. Пожалуйста, попробуйте еще раз через несколько секунд.",
             "products": []
         }, status=500)
@@ -282,7 +296,9 @@ async def compare_model_offers_handler(request):
             ORDER BY current_price ASC
         """, params).fetchall()
 
-    items = [dict(r) for r in rows]
+    from model_matching import same_model
+    reference = title or (rows[0]["title"] if rows else "")
+    items = [dict(r) for r in rows if same_model(reference, r["title"])]
     min_p = items[0]["current_price"] if items else 0
     max_p = items[-1]["current_price"] if items else 0
     diff = max_p - min_p if len(items) > 1 else 0
@@ -310,7 +326,8 @@ async def best_price_handler(request):
 
     # AI-поиск
     ai_param = request.query.get("ai", "auto").lower()
-    use_ai = ai_param in ("1", "true", "yes") or (ai_param == "auto" and ai_service.should_use_ai_parsing(query))
+    # AI-разбор расходует квоту владельца, поэтому доступен только вошедшим пользователям
+    use_ai = bool(user) and (ai_param in ("1", "true", "yes") or (ai_param == "auto" and ai_service.should_use_ai_parsing(query)))
 
     # Расширенные гибкие фильтры
     min_price_param = request.query.get("min_price", None)
@@ -516,7 +533,7 @@ async def get_admin_config_handler(request):
     return web.json_response({
         "settings": settings_masked,
         "bot": {"configured": bool(get_bot_token()), "username": bot_username},
-        "ai": get_ai_config()
+        "ai": {k: v for k, v in get_ai_config().items() if k not in ("gemini_api_key", "openai_api_key")}
     })
 
 @routes.post("/api/admin/config")
@@ -529,7 +546,11 @@ async def post_admin_config_handler(request):
             if k in data and ("..." in str(data[k]) or "***" in str(data[k])):
                 data[k] = current.get(k, "")
         saved = save_settings(data)
-        return web.json_response({"status": "ok", "settings": saved})
+        public_settings = dict(saved)
+        for key in ("gemini_api_key", "openai_api_key"):
+            if public_settings.get(key):
+                public_settings[key] = "***"
+        return web.json_response({"status": "ok", "settings": public_settings})
     except ValueError as e:
         return web.json_response({"status": "error", "message": str(e)}, status=400)
     except Exception as e:
@@ -623,6 +644,10 @@ async def _save_and_detect(prods, shop_name, candidate_settings):
 
     from database import save_or_update_products_batch, get_price_history_batch
 
+    # AI-нормализация не задерживает сохранение: товары без ключа от эвристики уходят
+    # в фоновую очередь, ключи проставляются позже (см. ai_normalize_background_worker)
+    queue_titles_for_ai(prods)
+
     # История цен читается ДО пакетной перезаписи, иначе прежняя цена будет потеряна
     history_map = await asyncio.to_thread(get_price_history_batch, [p["id"] for p in prods])
     await asyncio.to_thread(save_or_update_products_batch, prods)
@@ -636,6 +661,59 @@ async def _save_and_detect(prods, shop_name, candidate_settings):
     for p in prods:
         anomaly = await asyncio.to_thread(check_market_arbitrage, p, custom_settings=candidate_settings)
         await _process_anomaly(p, anomaly, shop_name)
+
+# Очередь фоновой AI-нормализации: название -> ID товаров с этим названием
+_ai_pending: Dict[str, set] = {}
+AI_PENDING_MAX_TITLES = 20000
+AI_NORMALIZE_TITLES_PER_TICK = 200     # 10 вызовов AI по 20 названий
+AI_NORMALIZE_INTERVAL_SECONDS = 30
+
+def queue_titles_for_ai(prods) -> int:
+    """Ставит в очередь товары, для которых эвристика не нашла канонический ключ."""
+    from model_matching import extract_canonical_key
+    added = 0
+    for p in prods:
+        title = (p.get("title") or "").strip()
+        if not title or p.get("canonical_key") or extract_canonical_key(title):
+            continue
+        if title not in _ai_pending and len(_ai_pending) >= AI_PENDING_MAX_TITLES:
+            continue
+        _ai_pending.setdefault(title, set()).add(str(p["id"]))
+        added += 1
+    return added
+
+async def process_ai_pending(max_titles: int = AI_NORMALIZE_TITLES_PER_TICK) -> int:
+    """Один проход фоновой нормализации. Возвращает число товаров, получивших ключ."""
+    from database import update_products_canonical_keys
+    batch = list(_ai_pending)[:max_titles]
+    if not batch:
+        return 0
+    results = await ai_service.normalize_product_titles_batch(
+        batch, for_scan=True, max_ai_calls=-(-len(batch) // 20))
+    pairs = []
+    for title in batch:
+        if title not in results:
+            continue  # AI не дошел до названия (лимит) — остается в очереди
+        ids = _ai_pending.pop(title, set())
+        if results[title]:
+            pairs.extend((results[title], pid) for pid in ids)
+    if pairs:
+        await asyncio.to_thread(update_products_canonical_keys, pairs)
+    return len(pairs)
+
+async def ai_normalize_background_worker(app):
+    """Фоновая AI-нормализация названий с отдельным урезанным бюджетом (не мешает пользователям)."""
+    while True:
+        try:
+            await asyncio.sleep(AI_NORMALIZE_INTERVAL_SECONDS)
+            if _ai_pending:
+                updated = await process_ai_pending()
+                if updated:
+                    print(f"[AI] Канонические ключи проставлены {updated} товарам, в очереди {len(_ai_pending)} названий")
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            print(f"[AI] Ошибка фоновой нормализации: {type(e).__name__}")
 
 async def _scan_shop(key, candidate_settings, semaphore):
     """Обходит все категории одного магазина и отмечает результат в базе."""
@@ -837,6 +915,7 @@ async def auto_scan_background_worker(app):
 async def background_tasks(app):
     from telegram_bot import run_telegram_bot_task
     tasks = [asyncio.create_task(auto_scan_background_worker(app)),
+             asyncio.create_task(ai_normalize_background_worker(app)),
              asyncio.create_task(notification_worker()),
              asyncio.create_task(run_telegram_bot_task())]
     yield

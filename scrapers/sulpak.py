@@ -1,6 +1,7 @@
 import re
 import hashlib
 import asyncio
+import time
 from typing import List, Dict, Any
 from curl_cffi import requests
 from scrapers.base import UnconfirmedEnd, PagedScraper, parse_price
@@ -32,13 +33,16 @@ class SulpakScraper(PagedScraper):
             url = f"{url}{separator}page={page_num}"
 
         try:
-            r = requests.get(
-                url,
-                headers=self.headers,
-                cookies=self.cookies,
-                impersonate="chrome124",
-                timeout=15
-            )
+            for attempt in range(2):
+                try:
+                    r = requests.get(url, headers=self.headers, cookies=self.cookies,
+                                     impersonate="chrome124", timeout=15)
+                    break
+                except requests.exceptions.Timeout:
+                    if attempt:
+                        raise
+                    time.sleep(1)  # _fetch_page runs in a worker thread.
+
             if r.status_code == 404 and page_num > 1:
                 raise UnconfirmedEnd("HTTP 404 после последней доступной страницы")
             if r.status_code != 200:
@@ -119,7 +123,6 @@ class SulpakScraper(PagedScraper):
         except UnconfirmedEnd:
             raise
         except Exception as e:
-            print(f"[{self.SHOP_NAME}] Ошибка страницы {url}: {e}")
             raise
 
         return products

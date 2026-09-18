@@ -58,7 +58,7 @@ BRAND_SYNONYMS = {
 }
 
 ACCESSORY_KEYWORDS = [
-    "чехол", "стекло", "пленка", "плёнка", "ремешок", "кабель", "переходник",
+    "чехол", "стекло", "пленка", "плёнка", "ремешок", "ремешки", "браслет для", "strap", "watch band", "кабель", "переходник",
     "держатель", "подставка", "амбушюры", "накладка", "салфетки", "зарядное",
     "зарядка", "блок питания", "адаптер", "пульт", "джойстик", "геймпад"
 ]
@@ -305,6 +305,11 @@ def search_in_database(
     conn.close()
     results = [dict(r) for r in rows]
 
+    # A merchant category can be mislabeled (e.g. Fitbit under Apple Watch).
+    if {'apple', 'watch'}.issubset(set(query_clean.lower().split())):
+        results = [r for r in results if re.search(r'\b(?:apple|эппл|эпл)\b', r.get('title', '').lower())
+                   and re.search(r'\b(?:watch|вотч)\b', r.get('title', '').lower())]
+
     # 3. Умная фильтрация чехлов/аксессуаров:
     # Исключаем аксессуары ТОЛЬКО если пользователь сам их явно не искал
     if exclude_accessories and not is_accessory_query(query_clean):
@@ -342,7 +347,8 @@ async def search_live_stores(query: str, city: str = "Астана") -> List[Dic
 
     # 1. Kaspi
     try:
-        kaspi_city_code = CITIES_KZ.get(city_name, {}).get("kaspi_code", "710000000")
+        city_config = next((c for c in CITIES_KZ.values() if c["name"] == city_name or c["id"] == city_name), CITIES_KZ["astana"])
+        kaspi_city_code = city_config["kaspi_code"]
         kaspi = KaspiScraper(city_code=kaspi_city_code)
         kaspi_results = await kaspi.search(query, max_items=15)
         for item in kaspi_results:
@@ -358,7 +364,8 @@ async def search_live_stores(query: str, city: str = "Астана") -> List[Dic
         from bs4 import BeautifulSoup
         import urllib.parse
 
-        shopkz_city = CITIES_KZ.get(city_name, {}).get("shopkz_city", "astana")
+        city_config = next((c for c in CITIES_KZ.values() if c["name"] == city_name or c["id"] == city_name), CITIES_KZ["astana"])
+        shopkz_city = city_config["shopkz_city"]
         enc = urllib.parse.quote(query)
         url = f"https://shop.kz/search/?q={enc}"
         r = requests.get(url, impersonate="chrome124", cookies={"BITRIX_SM_CITY": shopkz_city}, timeout=10)
@@ -490,8 +497,14 @@ async def get_best_price_summary(
 
     cheapest_item = min(local_items, key=lambda x: x["current_price"])
 
-    savings = max_p - min_p
-    savings_pct = int(round((savings / max_p) * 100)) if max_p > min_p else 0
+    from model_matching import same_model
+    comparable = [item for item in local_items
+                  if item['shop'] != cheapest_item['shop']
+                  and item.get('city') == cheapest_item.get('city')
+                  and same_model(cheapest_item['title'], item['title'])]
+    comparable_max = max([min_p] + [item['current_price'] for item in comparable])
+    savings = comparable_max - min_p
+    savings_pct = int(round(savings / comparable_max * 100)) if savings else 0
 
     # Агрегация по магазинам
     store_map: Dict[str, Dict[str, Any]] = {}
@@ -522,7 +535,7 @@ async def get_best_price_summary(
         it_copy = dict(it)
         it_copy["price"] = it["current_price"]
         it_copy["diff_from_best"] = it["current_price"] - min_p
-        it_copy["savings_vs_max"] = max_p - it["current_price"]
+        it_copy["savings_vs_max"] = 0  # A broad query can contain different models.
         it_copy["old_price"] = it.get("old_price_on_site") or it.get("first_seen_price") or 0
         formatted_items.append(it_copy)
 
@@ -540,7 +553,7 @@ async def get_best_price_summary(
             "city": cheapest_item.get("city", ""),
             "savings_vs_max": savings,
             "savings_pct": savings_pct,
-            "max_market_price": max_p
+            "max_market_price": comparable_max
         },
         "price_stats": {
             "min": min_p,

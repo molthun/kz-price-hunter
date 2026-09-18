@@ -138,6 +138,22 @@ def init_db():
             )
         """)
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_canonical_cache_key ON title_canonical_cache(canonical_key)")
+        # Названия, которые уже отправлялись в AI: неудачи не повторяются при каждом обходе
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS title_ai_attempts (
+                title_hash TEXT PRIMARY KEY,
+                attempted_at TIMESTAMP NOT NULL
+            )
+        """)
+        cursor.execute("CREATE TABLE IF NOT EXISTS schema_metadata (name TEXT PRIMARY KEY, value TEXT)")
+        if not cursor.execute("SELECT 1 FROM schema_metadata WHERE name = 'identity_v2'").fetchone():
+            from model_matching import extract_canonical_key
+            rows = cursor.execute("SELECT id, title FROM products").fetchall()
+            cursor.executemany("UPDATE products SET canonical_key = ? WHERE id = ?",
+                               [(extract_canonical_key(r['title']), r['id']) for r in rows])
+            cursor.execute("DELETE FROM title_canonical_cache")
+            cursor.execute("INSERT INTO schema_metadata VALUES ('identity_v2', '1')")
+
 
         # Пользователи (вход через Telegram) и их личные настройки
         cursor.execute("""
@@ -289,6 +305,58 @@ def save_cached_canonical_keys_batch(mapping: Dict[str, str]):
             ON CONFLICT(title_hash) DO UPDATE SET canonical_key = excluded.canonical_key
         """, rows)
         conn.commit()
+
+def _title_hash(title: str) -> str:
+    return hashlib.sha256(title.strip().encode("utf-8")).hexdigest()
+
+def _chunks(items: List[Any], size: int = 500):
+    for i in range(0, len(items), size):
+        yield items[i:i + size]
+
+def get_cached_canonical_keys_batch(titles: List[str]) -> Dict[str, str]:
+    """Канонические ключи из кэша для набора названий одним запросом на 500 штук."""
+    by_hash = {_title_hash(t): t for t in titles if t and t.strip()}
+    found: Dict[str, str] = {}
+    with get_connection() as conn:
+        for chunk in _chunks(list(by_hash)):
+            marks = ",".join("?" * len(chunk))
+            for th, key in conn.execute(f"SELECT title_hash, canonical_key FROM title_canonical_cache WHERE title_hash IN ({marks})", chunk):
+                if key:
+                    found[by_hash[th]] = key
+    return found
+
+def get_recent_ai_attempts(titles: List[str], max_age_days: int) -> set:
+    """Названия, которые отправлялись в AI за последние max_age_days дней."""
+    by_hash = {_title_hash(t): t for t in titles if t and t.strip()}
+    since = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=max_age_days)).isoformat()
+    recent = set()
+    with get_connection() as conn:
+        for chunk in _chunks(list(by_hash)):
+            marks = ",".join("?" * len(chunk))
+            rows = conn.execute(f"SELECT title_hash FROM title_ai_attempts WHERE attempted_at >= ? AND title_hash IN ({marks})", [since, *chunk])
+            recent.update(by_hash[r[0]] for r in rows)
+    return recent
+
+def record_ai_attempts(titles: List[str]) -> None:
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    rows = [(_title_hash(t), now) for t in titles if t and t.strip()]
+    if not rows:
+        return
+    with get_connection() as conn:
+        conn.executemany("""
+            INSERT INTO title_ai_attempts (title_hash, attempted_at) VALUES (?, ?)
+            ON CONFLICT(title_hash) DO UPDATE SET attempted_at = excluded.attempted_at
+        """, rows)
+        conn.commit()
+
+def update_products_canonical_keys(pairs: List[tuple]) -> int:
+    """Проставляет канонические ключи товарам: [(canonical_key, product_id), ...]."""
+    if not pairs:
+        return 0
+    with get_connection() as conn:
+        conn.executemany("UPDATE products SET canonical_key = ? WHERE id = ?", pairs)
+        conn.commit()
+    return len(pairs)
 
 def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
     from model_matching import extract_canonical_key
@@ -639,7 +707,7 @@ def find_market_comparisons(
     if city not in known_cities:
         return None
 
-    c_key = extract_canonical_key(title)
+    c_key = extract_canonical_key(title) or get_cached_canonical_key(title)
     rows = []
 
     # 1. Быстрый и точный поиск по каноническому ключу
@@ -668,7 +736,7 @@ def find_market_comparisons(
             """, (current_shop, city, fts_query)).fetchall()
 
     valid_competitors = [dict(r) for r in rows
-        if ((c_key and r["canonical_key"] == c_key) or same_model(title, r["title"]))
+        if same_model(title, r["title"])
         and not is_junk_accessory(r["title"], r["category"] or "")
         and not is_used_goods(r["title"], r["category"] or "", r["url"])]
     valid_competitors = valid_competitors[:limit]

@@ -59,6 +59,11 @@ SYSTEM_DEFAULTS = {
     "openai_api_key": "",
     "openai_api_base": "https://api.openai.com/v1",
     "ai_search_enabled": True,
+    "ai_provider": "auto",
+    "gemini_model_mode": "auto",
+    "gemini_model": "gemini-2.5-flash",
+    "openai_model_mode": "auto",
+    "openai_model": "gpt-4o-mini",
 }
 
 # ===== Личные настройки пользователя (у гостей — значения по умолчанию) =====
@@ -158,14 +163,21 @@ def get_ai_config():
     openai_key = OPENAI_API_KEY or str(sys_settings.get("openai_api_key", "")).strip()
     openai_base = OPENAI_API_BASE or str(sys_settings.get("openai_api_base", "https://api.openai.com/v1")).strip()
     ai_enabled = bool(sys_settings.get("ai_search_enabled", True))
+    selection = sys_settings.get("ai_provider", "auto")
+    available = bool(gemini_key if selection == "gemini" else openai_key if selection == "openai" else gemini_key or openai_key)
     return {
+        "ai_provider": selection,
+        "gemini_model_mode": sys_settings.get("gemini_model_mode", "auto"),
+        "openai_model_mode": sys_settings.get("openai_model_mode", "auto"),
+        "gemini_model": sys_settings.get("gemini_model", "gemini-2.5-flash") if sys_settings.get("gemini_model_mode") == "manual" else "gemini-2.5-flash",
+        "openai_model": sys_settings.get("openai_model", "gpt-4o-mini") if sys_settings.get("openai_model_mode") == "manual" else "gpt-4o-mini",
         "gemini_api_key": gemini_key,
         "openai_api_key": openai_key,
         "openai_api_base": openai_base,
         "ai_search_enabled": ai_enabled,
-        "has_ai": bool(gemini_key or openai_key),
-        "configured": bool(gemini_key or openai_key),
-        "provider": "gemini" if gemini_key else ("openai" if openai_key else "none"),
+        "has_ai": available,
+        "configured": available,
+        "provider": selection if selection != "auto" else ("gemini" if gemini_key else ("openai" if openai_key else "none")),
         "enabled": ai_enabled
     }
 
@@ -250,6 +262,17 @@ def _validate(new_settings, defaults):
 
 def _validate_settings(new_settings):
     clean = _validate(new_settings, SYSTEM_DEFAULTS)
+    for name, choices in (("ai_provider", {"auto", "gemini", "openai"}),
+                          ("gemini_model_mode", {"auto", "manual"}),
+                          ("openai_model_mode", {"auto", "manual"})):
+        if name in clean and clean[name] not in choices:
+            raise ValueError(f"Некорректный режим: {name}")
+    merged = {**load_settings(), **clean}
+    import re
+    for provider in ("gemini", "openai"):
+        model = merged[f"{provider}_model"]
+        if merged[f"{provider}_model_mode"] == "manual" and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,149}", model):
+            raise ValueError(f"Укажите корректное имя модели {provider}")
     interval = clean.get("scan_interval_minutes")
     if interval is not None and not (SCAN_INTERVAL_MIN_MINUTES <= interval <= SCAN_INTERVAL_MAX_MINUTES):
         raise ValueError(f"Интервал автообновления должен быть от {SCAN_INTERVAL_MIN_MINUTES} минут до 30 дней")

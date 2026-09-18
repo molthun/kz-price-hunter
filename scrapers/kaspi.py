@@ -5,6 +5,7 @@
 и отдает цену, ссылку, фото и остаток.
 """
 import re
+import asyncio
 import urllib.parse
 from typing import Any, Dict, List
 
@@ -19,7 +20,10 @@ class KaspiScraper(PagedScraper):
     API_URL = "https://kaspi.kz/yml/product-view/pl/results"
     CITY_CODE = "710000000"  # Астана
 
-    def __init__(self):
+    def __init__(self, city_code="710000000"):
+        from config import CITIES_KZ
+        self.CITY_CODE = str(city_code)
+        self.city_name = next((c["name"] for c in CITIES_KZ.values() if c["kaspi_code"] == self.CITY_CODE), "Астана")
         self.base_url = "https://kaspi.kz"
         self.headers = {
             "User-Agent": (
@@ -51,10 +55,11 @@ class KaspiScraper(PagedScraper):
 
     def _fetch_page(self, category_name: str, category_url: str, page_num: int) -> List[Dict[str, Any]]:
         code = self._category_code(category_url)
+        query = urllib.parse.parse_qs(urllib.parse.urlparse(category_url).query).get("text", [""])[0]
         params = {
             "page": page_num - 1,  # у Kaspi нумерация страниц с нуля
-            "q": f":category:{code}",
-            "text": "",
+            "q": "" if query else f":category:{code}",
+            "text": query,
             "sort": "relevance",
             "qs": "",
             "ui": "d",
@@ -104,6 +109,24 @@ class KaspiScraper(PagedScraper):
                 "image_url": image_url,
                 "price": price,
                 "old_price_on_site": base_price if base_price > price else 0,
-                "city": "Астана"
+                "city": self.city_name
             })
         return ScanResult(products, complete=not cards)
+
+
+    async def search(self, query: str, max_items: int = 15):
+        if not query.strip() or max_items <= 0:
+            return []
+        url = f"{self.base_url}/shop/search/?text={urllib.parse.quote(query)}"
+        items, seen = [], set()
+        for page in range(1, (max_items + 11) // 12 + 1):
+            batch = await asyncio.to_thread(self._fetch_page, "Поиск", url, page)
+            fresh = [p for p in batch if p["id"] not in seen]
+            if not fresh:
+                break
+            items.extend(fresh)
+            seen.update(p["id"] for p in fresh)
+            if len(items) >= max_items or getattr(batch, "complete", False):
+                break
+            await asyncio.sleep(self.PAGE_DELAY_SECONDS)
+        return items[:max_items]

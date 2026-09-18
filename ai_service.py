@@ -66,7 +66,13 @@ def should_use_ai_parsing(query: str) -> bool:
 
 def _get_api_credentials() -> Dict[str, Any]:
     """Извлекает ключи API из переменных окружения или системных настроек settings.json."""
-    return config.get_ai_config()
+    creds = dict(config.get_ai_config())
+    selected = creds.get("ai_provider", "auto")
+    if selected == "gemini":
+        creds["openai_api_key"] = ""
+    elif selected == "openai":
+        creds["gemini_api_key"] = ""
+    return creds
 
 
 async def parse_natural_query(query: str, current_city: str = "Все", force: bool = False) -> Optional[Dict[str, Any]]:
@@ -90,8 +96,12 @@ async def parse_natural_query(query: str, current_city: str = "Все", force: b
     if not clean_q:
         return None
 
-    # Проверяем кэш
-    cache_key = f"{clean_q.lower()}:{current_city}"
+    creds = _get_api_credentials()
+    if not creds.get("has_ai") or not creds.get("ai_search_enabled", True):
+        return None
+    # Model/provider changes take effect immediately, without stale query responses.
+    cache_key = (clean_q.lower(), current_city, creds.get("ai_provider", "auto"),
+                 creds.get("gemini_model"), creds.get("openai_model"))
     now = time.time()
     if cache_key in _QUERY_CACHE:
         ts, cached_val = _QUERY_CACHE[cache_key]
@@ -145,11 +155,11 @@ async def parse_natural_query(query: str, current_city: str = "Все", force: b
 
     # 1. Попытка через Google Gemini REST API (основной быстрый бесплатный провайдер)
     if gemini_key:
-        parsed_result = await call_gemini_api(prompt, gemini_key)
+        parsed_result = await call_gemini_api(prompt, gemini_key, timeout=SEARCH_TIMEOUT_SECONDS)
 
     # 2. Fallback на OpenAI-совместимый API, если Gemini нет или не ответил
     if not parsed_result and openai_key:
-        parsed_result = await call_openai_api(prompt, openai_key, openai_base)
+        parsed_result = await call_openai_api(prompt, openai_key, openai_base, timeout=SEARCH_TIMEOUT_SECONDS)
 
     if parsed_result:
         # Валидация и очистка полей
@@ -160,9 +170,50 @@ async def parse_natural_query(query: str, current_city: str = "Все", force: b
     return None
 
 
-async def call_gemini_api(prompt: str, api_key: str) -> Optional[Dict[str, Any]]:
+# Shared process budget covers web search, consultant, bot and scanner.
+from auth import RateLimiter
+_provider_limiter = RateLimiter(max_calls=60, period=60)
+_provider_active = 0
+
+# Фоновая нормализация названий получает только часть общего бюджета, чтобы поиск
+# и консультант пользователей не упирались в лимит во время обхода магазинов
+SCAN_AI_CALLS_PER_MINUTE = 20
+_scan_limiter = RateLimiter(max_calls=SCAN_AI_CALLS_PER_MINUTE, period=60)
+# Одно из трех одновременных обращений всегда остается пользователям
+SCAN_MAX_ACTIVE = 2
+
+# Таймауты ответа: пользователь в поиске ждет недолго, фоновым задачам можно дольше
+SEARCH_TIMEOUT_SECONDS = 10
+DEFAULT_TIMEOUT_SECONDS = 30
+
+# Названия, для которых AI не вернул ключ (или вызов не удался), повторно не отправляются столько дней
+AI_RETRY_DAYS = 7
+
+
+async def _limited_provider_call(fn, *args, scan: bool = False):
+    global _provider_active
+    if scan and (_provider_active >= SCAN_MAX_ACTIVE or _scan_limiter.retry_after("scan")):
+        return None
+    if _provider_active >= 3 or _provider_limiter.retry_after("shared"):
+        return None
+    _provider_active += 1
+    try:
+        return await fn(*args)
+    finally:
+        _provider_active -= 1
+
+
+async def call_gemini_api(prompt: str, api_key: str, *, timeout: float = DEFAULT_TIMEOUT_SECONDS, scan: bool = False):
+    return await _limited_provider_call(_call_gemini_api, prompt, api_key, timeout, scan=scan)
+
+
+async def call_openai_api(prompt: str, api_key: str, api_base: str, *, timeout: float = DEFAULT_TIMEOUT_SECONDS, scan: bool = False):
+    return await _limited_provider_call(_call_openai_api, prompt, api_key, api_base, timeout, scan=scan)
+
+
+async def _call_gemini_api(prompt: str, api_key: str, timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS) -> Optional[Dict[str, Any]]:
     """Вызов Gemini Flash REST API через aiohttp."""
-    models_to_try = ["gemini-2.5-flash", "gemini-1.5-flash"]
+    models_to_try = [config.get_ai_config()["gemini_model"]]
     
     for model in models_to_try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
@@ -179,7 +230,7 @@ async def call_gemini_api(prompt: str, api_key: str) -> Optional[Dict[str, Any]]
         }
 
         try:
-            timeout = aiohttp.ClientTimeout(total=3.5)
+            timeout = aiohttp.ClientTimeout(total=timeout_seconds, connect=min(10, timeout_seconds))
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.post(url, json=payload) as resp:
                     if resp.status == 200:
@@ -198,17 +249,17 @@ async def call_gemini_api(prompt: str, api_key: str) -> Optional[Dict[str, Any]]
                         print(f"[AI Service] Ошибка Gemini API ({model}, HTTP {resp.status}): {err_text[:150]}")
                         return None
         except Exception as e:
-            print(f"[AI Service] Исключение при вызове Gemini API ({model}): {e}")
+            print(f"[AI Service] Исключение при вызове Gemini API ({model}): {type(e).__name__}")
             continue
 
     return None
 
 
-async def call_openai_api(prompt: str, api_key: str, api_base: str) -> Optional[Dict[str, Any]]:
+async def _call_openai_api(prompt: str, api_key: str, api_base: str, timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS) -> Optional[Dict[str, Any]]:
     """Вызов OpenAI-совместимого API через aiohttp."""
     url = f"{api_base.rstrip('/')}/chat/completions"
     payload = {
-        "model": "gpt-4o-mini",
+        "model": config.get_ai_config()["openai_model"],
         "messages": [
             {"role": "system", "content": "You are a helpful JSON parser for e-commerce search queries."},
             {"role": "user", "content": prompt}
@@ -222,7 +273,7 @@ async def call_openai_api(prompt: str, api_key: str, api_base: str) -> Optional[
     }
 
     try:
-        timeout = aiohttp.ClientTimeout(total=3.5)
+        timeout = aiohttp.ClientTimeout(total=timeout_seconds, connect=min(10, timeout_seconds))
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.post(url, json=payload, headers=headers) as resp:
                 if resp.status == 200:
@@ -235,7 +286,7 @@ async def call_openai_api(prompt: str, api_key: str, api_base: str) -> Optional[
                     err_text = await resp.text()
                     print(f"[AI Service] Ошибка OpenAI API (HTTP {resp.status}): {err_text[:150]}")
     except Exception as e:
-        print(f"[AI Service] Исключение при вызове OpenAI API: {e}")
+        print(f"[AI Service] Ошибка OpenAI API: {type(e).__name__} (лимит ответа {timeout_seconds:g} с)")
 
     return None
 
@@ -414,9 +465,9 @@ async def ask_ai_consultant(
         sort_by="price_asc"
     )
 
-    # Если ничего не нашлось с жесткими рамками, пробуем поиск без жестких ограничений цен
     if not db_items:
-        db_items = search_in_database(query=search_query, city="Все", sort_by="price_asc")
+        return {"answer": "По вашим условиям товары не найдены. Попробуйте изменить бюджет, город или категорию.",
+                "products": [], "suggested_questions": [], "query_used": search_query}
 
     top_items = db_items[:12]
 
@@ -520,48 +571,57 @@ async def ask_ai_consultant(
     }
 
 
-async def normalize_product_titles_batch(titles: List[str]) -> Dict[str, str]:
-    """Пакетная AI-нормализация наименований товаров для 100% сопоставления между магазинами.
-    
-    Принимает список названий, проверяет кэш SQLite и эвристический парсер,
-    а сложные/неоднозначные отправляет в Gemini / OpenAI для извлечения канонического ключа.
-    Возвращает: { "Исходное название": "brand:model:spec" }
+async def normalize_product_titles_batch(
+    titles: List[str],
+    *,
+    for_scan: bool = False,
+    max_ai_calls: Optional[int] = None,
+) -> Dict[str, str]:
+    """Пакетная AI-нормализация наименований товаров для консервативного сопоставления между магазинами.
+
+    Порядок: постоянный кэш SQLite → эвристика `extract_canonical_key` → AI (по 20 названий за вызов).
+    Возвращает { название: ключ } для распознанных, { название: "" } для отправленных в AI без результата.
+    Названия, до которых AI не дошел (лимит вызовов, бюджет), в ответе отсутствуют — их можно передать позже.
+
+    for_scan=True — фоновая нормализация при обходе: отдельный урезанный лимит вызовов и резерв
+    для пользовательских запросов. Названия, уже отправленные в AI за последние AI_RETRY_DAYS дней,
+    повторно не отправляются, поэтому неудачи не расходуют квоту при каждом обходе.
     """
     from model_matching import extract_canonical_key
-    from database import get_cached_canonical_key, save_cached_canonical_keys_batch
+    from database import (get_cached_canonical_keys_batch, save_cached_canonical_keys_batch,
+                          get_recent_ai_attempts, record_ai_attempts)
 
-    results: Dict[str, str] = {}
+    unique = list(dict.fromkeys(t for t in titles if t and t.strip()))
+    results: Dict[str, str] = dict(get_cached_canonical_keys_batch(unique))
+    heuristic: Dict[str, str] = {}
     missing_for_ai: List[str] = []
 
-    for t in titles:
-        if not t or not t.strip():
+    for t in unique:
+        if t in results:
             continue
-        # 1. Проверяем локальный кэш
-        cached = get_cached_canonical_key(t)
-        if cached:
-            results[t] = cached
-            continue
-
-        # 2. Проверяем эвристический нормализатор
         heur = extract_canonical_key(t)
         if heur:
             results[t] = heur
-            continue
+            heuristic[t] = heur
+        else:
+            missing_for_ai.append(t)
 
-        # 3. Если эвристика не справилась, отправляем в очередь к AI
-        missing_for_ai.append(t)
-
+    # Найденные эвристикой ключи сохраняются в постоянный кэш
+    save_cached_canonical_keys_batch(heuristic)
     if not missing_for_ai:
-        # Сохраняем найденные эвристикой в постоянный кэш
-        save_cached_canonical_keys_batch(results)
         return results
 
-    # Проверяем доступность API ключа
     creds = _get_api_credentials()
     if not creds["has_ai"] or not creds["ai_search_enabled"]:
-        for t in missing_for_ai:
+        return results
+
+    # Недавние неудачи не повторяем
+    recent = get_recent_ai_attempts(missing_for_ai, AI_RETRY_DAYS)
+    for t in missing_for_ai:
+        if t in recent:
             results[t] = ""
-        save_cached_canonical_keys_batch({k: v for k, v in results.items() if v})
+    missing_for_ai = [t for t in missing_for_ai if t not in recent]
+    if not missing_for_ai:
         return results
 
     # Формируем компактный пакетный промпт (до 20 товаров)
@@ -584,29 +644,56 @@ async def normalize_product_titles_batch(titles: List[str]) -> Dict[str, str]:
         "}"
     )
 
+    calls = 0
     for i in range(0, len(missing_for_ai), 20):
+        if max_ai_calls is not None and calls >= max_ai_calls:
+            break
         chunk = missing_for_ai[i:i + 20]
         user_prompt = "Нормализуй следующие товары:\n" + "\n".join(f"- {t}" for t in chunk)
+        full_prompt = system_prompt + "\n\n" + user_prompt
 
         ai_res = None
+        attempted = False
         if creds["gemini_api_key"]:
-            ai_res = await call_gemini_api(creds["gemini_api_key"], user_prompt, system_prompt)
-        elif creds["openai_api_key"]:
-            ai_res = await call_openai_api(creds["openai_api_key"], user_prompt, system_prompt, creds.get("openai_api_base"))
+            ai_res = await call_gemini_api(full_prompt, creds["gemini_api_key"], scan=for_scan)
+            attempted = True
+        if not ai_res and creds["openai_api_key"]:
+            ai_res = await call_openai_api(full_prompt, creds["openai_api_key"],
+                                           creds.get("openai_api_base") or "https://api.openai.com/v1", scan=for_scan)
+            attempted = True
+        calls += 1
 
-        if ai_res and isinstance(ai_res, dict) and "items" in ai_res:
-            new_cached = {}
+        if ai_res is None and attempted and for_scan and _budget_exhausted():
+            # Бюджет исчерпан — вызова по сути не было: оставляем названия на потом, не помечая попыткой
+            break
+
+        new_cached = {}
+        if isinstance(ai_res, dict) and isinstance(ai_res.get("items"), list):
             for item in ai_res["items"]:
+                if not isinstance(item, dict):
+                    continue
                 orig = item.get("title")
-                ckey = item.get("canonical_key", "").strip().lower()
-                if orig and ckey:
-                    results[orig] = ckey
+                raw_key = item.get("canonical_key")
+                ckey = raw_key.strip().lower() if isinstance(raw_key, str) else ""
+                if orig in chunk and ckey and len(ckey) <= 500:
                     new_cached[orig] = ckey
-            if new_cached:
-                save_cached_canonical_keys_batch(new_cached)
+        results.update(new_cached)
+        save_cached_canonical_keys_batch(new_cached)
 
-    save_cached_canonical_keys_batch({k: v for k, v in results.items() if v})
+        # Все названия пакета помечаются попыткой: без ключа они не уйдут в AI еще AI_RETRY_DAYS дней
+        record_ai_attempts(chunk)
+        for t in chunk:
+            results.setdefault(t, "")
+
     return results
+
+
+def _budget_exhausted() -> bool:
+    """Исчерпан ли бюджет фоновой нормализации (проверка без расхода лимита)."""
+    now = time.monotonic()
+    calls = _scan_limiter._calls.get("scan") or []
+    recent = [c for c in calls if now - c <= _scan_limiter.period]
+    return _provider_active >= SCAN_MAX_ACTIVE or len(recent) >= _scan_limiter.max_calls
 
 
 async def get_or_normalize_title(title: str) -> Optional[str]:
