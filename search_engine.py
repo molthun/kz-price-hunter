@@ -63,9 +63,7 @@ ACCESSORY_KEYWORDS = [
     "зарядка", "блок питания", "адаптер", "пульт", "джойстик", "геймпад"
 ]
 
-def parse_price(price_str: str) -> int:
-    digits = re.sub(r"[^\d]", "", str(price_str or ""))
-    return int(digits) if digits else 0
+from scrapers.base import parse_price
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)

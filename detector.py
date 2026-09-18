@@ -70,15 +70,19 @@ def check_anomaly(product: Dict[str, Any], history_info: Dict[str, Any], custom_
 
     # Опорная цена — максимум из РЕАЛЬНОЙ истории цен в базе и подтвержденной зачеркнутой цены на сайте
     reference_price = max(old_price_history, first_price, old_price_on_site)
+    if reference_price > 10_000_000 or reference_price <= 0:
+        return None
 
     # 4. Анализ падения относительно опорной цены
     if reference_price > 0 and curr_price < reference_price:
         savings = reference_price - curr_price
+        if savings > 10_000_000:
+            return None
         drop_pct = round((savings / reference_price) * 100, 1)
         ratio = reference_price / curr_price if curr_price > 0 else 0
 
         # А) Пропущенный ноль (реальное падение в ~10 раз зафиксированной цены): 189 990 -> 18 990
-        if detect_zero and ZERO_DROP_RATIO_MIN <= ratio <= ZERO_DROP_RATIO_MAX and reference_price >= 80_000:
+        if detect_zero and ZERO_DROP_RATIO_MIN <= ratio <= ZERO_DROP_RATIO_MAX and 80_000 <= reference_price <= 5_000_000:
             return {
                 "type": "ZERO_GLITCH",
                 "emoji": "🚨 ОШИБКА ЦЕНЫ (ПРОПУЩЕН НОЛЬ!)",

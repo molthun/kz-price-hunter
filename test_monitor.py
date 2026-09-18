@@ -1781,6 +1781,107 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(len(items), 1)
             self.assertEqual(items[0]["url"], "https://kaspi.kz/shop/p/lenovo-ideapad-3-102715483/?c=710000000")
 
+    def test_price_glitch_protection_and_alert_dismissal(self):
+        """Тест защиты от склейки цен, копеек, абсурдных выбросов и проверка скрытия алертов."""
+        from scrapers.base import parse_price
+        from database import dismiss_alert, get_alerts
+
+        # 1. Проверка надежного парсинга цен (parse_price)
+        self.assertEqual(parse_price("72 228 ₸"), 72228)
+        self.assertEqual(parse_price("72 228.00 ₸"), 72228)
+        self.assertEqual(parse_price("72 228,0 ₸"), 72228)
+        self.assertEqual(parse_price("72228.0"), 72228)
+        # Склейка двух цен (текущая и зачеркнутая в одном блоке, например DNS)
+        self.assertEqual(parse_price("179 990 ₸ 200 650 ₸"), 179990)
+        # Абсурдный выброс > 10 млн тенге отсекается
+        self.assertEqual(parse_price("179990200650"), 0)
+        self.assertEqual(parse_price("нет в наличии"), 0)
+
+        # 2. Проверка детектора аномалий: защита от абсурдных цен (179 млрд тенге)
+        glitched_product = {
+            "id": "test-glitch-tv",
+            "title": "Телевизор Xiaomi TV A 55",
+            "price": 179990,
+            "url": "https://dns-shop.kz/test/",
+            "city": "Астана"
+        }
+        corrupt_history = {
+            "old_price": 179990200650,
+            "first_seen_price": 179990200650
+        }
+        # Не должно считать падение с 179 миллиардов аномалией/скидкой!
+        anomaly = check_anomaly(glitched_product, corrupt_history, custom_settings=TEST_SETTINGS)
+        self.assertIsNone(anomaly)
+
+        # 3. Проверка защиты БД: save_or_update_product и record_alert отклоняют > 10 млн
+        bad_save = save_or_update_product({
+            "id": "test-bad-price-1",
+            "title": "Сбойный товар",
+            "price": 179990200650,
+            "url": "https://dns-shop.kz/test/"
+        })
+        self.assertEqual(bad_save["current_price"], 0)
+
+        bad_alert_id = record_alert("test-bad-price-1", "SUPER_DISCOUNT", 179990200650, 179990, 100.0, 179990020660)
+        self.assertEqual(bad_alert_id, 0)
+
+        # 4. Проверка скрытия алерта (dismiss_alert)
+        # Создаем валидный товар и алерт
+        save_or_update_product({
+            "id": "test-dismiss-prod",
+            "title": "Тестовый товар для скрытия",
+            "price": 60000,
+            "url": "https://dns-shop.kz/dismiss/"
+        })
+        valid_alert_id = record_alert("test-dismiss-prod", "SUPER_DISCOUNT", 200000, 60000, 70.0, 140000)
+        self.assertGreater(valid_alert_id, 0)
+
+        # Алерт виден в выдаче get_alerts
+        active_alerts = get_alerts(limit=50)
+        self.assertTrue(any(a["id"] == valid_alert_id for a in active_alerts))
+
+        # Скрываем алерт
+        dismiss_ok = dismiss_alert(valid_alert_id)
+        self.assertTrue(dismiss_ok)
+
+        # Алерт больше не возвращается в get_alerts
+        active_alerts_after = get_alerts(limit=50)
+        self.assertFalse(any(a["id"] == valid_alert_id for a in active_alerts_after))
+
+    async def test_alert_dismiss_http_api(self):
+        """Проверка HTTP API /api/alerts/dismiss и DELETE /api/alerts/{id}."""
+        from aiohttp.test_utils import TestClient, TestServer
+        from web.server import create_app
+
+        save_or_update_product({
+            "id": "test-http-dismiss",
+            "title": "Товар для проверки API скрытия",
+            "price": 60000,
+            "url": "https://dns-shop.kz/dismiss-api/"
+        })
+        a_id = record_alert("test-http-dismiss", "SUPER_DISCOUNT", 200000, 60000, 70.0, 140000)
+        self.assertGreater(a_id, 0)
+
+        app = create_app()
+        app.cleanup_ctx.clear()
+        async with TestClient(TestServer(app)) as client:
+            # 1. Проверка POST /api/alerts/dismiss с невалидным ID
+            bad_res = await client.post('/api/alerts/dismiss', json={"id": 0})
+            self.assertEqual(bad_res.status, 400)
+
+            # 2. Проверка успешного скрытия через POST /api/alerts/dismiss
+            ok_res = await client.post('/api/alerts/dismiss', json={"id": a_id})
+            self.assertEqual(ok_res.status, 200)
+            data = await ok_res.json()
+            self.assertEqual(data["status"], "ok")
+            self.assertEqual(data["dismissed_id"], a_id)
+
+            # Проверка, что алерт исчез из выдачи GET /api/alerts
+            get_res = await client.get('/api/alerts')
+            self.assertEqual(get_res.status, 200)
+            alerts_data = await get_res.json()
+            self.assertFalse(any(a["id"] == a_id for a in alerts_data))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -231,6 +231,29 @@ def init_db():
         except Exception:
             pass
 
+        # Автоматическая очистка испорченных аномалий и цен (глюки парсинга DNS/shopkz)
+        try:
+            cursor.execute("""
+                DELETE FROM alerts 
+                WHERE old_price > 10000000 
+                   OR new_price > 10000000 
+                   OR savings_kzt > 10000000
+                   OR old_price <= 0 
+                   OR new_price <= 0
+                   OR (alert_type = 'ZERO_GLITCH' AND (old_price = 722280 OR product_id LIKE '%9aeu789t40278%'))
+            """)
+            cursor.execute("UPDATE products SET max_price = current_price WHERE max_price > 10000000")
+            cursor.execute("UPDATE products SET first_seen_price = current_price WHERE first_seen_price > 10000000")
+            cursor.execute("DELETE FROM products WHERE current_price > 10000000")
+        except Exception:
+            pass
+
+        # Добавление флага is_dismissed для скрытия пользователем/админом
+        try:
+            cursor.execute("ALTER TABLE alerts ADD COLUMN is_dismissed INTEGER DEFAULT 0")
+        except Exception:
+            pass
+
         # Полнотекстовый индекс FTS5 для мгновенного поиска по миллионам товаров
         try:
             cursor.execute("""
@@ -379,6 +402,14 @@ def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
     if image_url and "shop.kz//static.shop.kz" in image_url:
         image_url = image_url.replace("https://shop.kz//static.shop.kz", "https://static.shop.kz").replace("shop.kz//static.shop.kz", "static.shop.kz")
     current_price = int(p["price"])
+    if current_price > 10_000_000 or current_price <= 0:
+        return {
+            "is_new": False,
+            "old_price": 0,
+            "first_seen_price": 0,
+            "current_price": 0,
+            "price_changed": False
+        }
     canonical_key = p.get("canonical_key") or extract_canonical_key(title)
 
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -473,6 +504,8 @@ def save_or_update_products_batch(products: List[Dict[str, Any]]) -> int:
             if image_url and "shop.kz//static.shop.kz" in image_url:
                 image_url = image_url.replace("https://shop.kz//static.shop.kz", "https://static.shop.kz").replace("shop.kz//static.shop.kz", "static.shop.kz")
             current_price = int(p["price"])
+            if current_price > 10_000_000 or current_price <= 0:
+                continue
             canonical_key = p.get("canonical_key") or extract_canonical_key(title)
 
             cursor.execute("SELECT current_price, min_price, max_price FROM products WHERE id = ?", (pid,))
@@ -508,6 +541,8 @@ def was_alert_sent_recently(product_id: str, new_price: int) -> bool:
         return cursor.fetchone() is not None
 
 def record_alert(product_id: str, alert_type: str, old_price: int, new_price: int, discount_pct: float, savings_kzt: int, shop: str = "DNS Казахстан", city: str = "Астана", competitor_shop: Optional[str] = None, deliveries=None):
+    if old_price > 10_000_000 or new_price > 10_000_000 or savings_kzt > 10_000_000 or old_price <= 0 or new_price <= 0:
+        return 0
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
@@ -592,6 +627,18 @@ def _alert_type_clause(alert_type: Optional[str]):
         return " AND a.alert_type = 'MARKET_ARBITRAGE'", []
     return " AND a.alert_type = ?", [alert_type]
 
+def dismiss_alert(alert_id: int) -> bool:
+    """Скрывает/удаляет алерт из ленты (пользователь нажал 'Скрыть' или алерт неактуален)."""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute("UPDATE alerts SET is_dismissed = 1 WHERE id = ?", (alert_id,))
+        except Exception:
+            cursor.execute("DELETE FROM alerts WHERE id = ?", (alert_id,))
+        conn.commit()
+    invalidate_alerts_cache()
+    return True
+
 def _fetch_filtered_alerts(user_settings: Dict[str, Any], city: Optional[str] = None, alert_type: Optional[str] = None, limit: Optional[int] = None) -> list:
     from detector import alert_matches_user
 
@@ -605,7 +652,10 @@ def _fetch_filtered_alerts(user_settings: Dict[str, Any], city: Optional[str] = 
         SELECT a.*, p.title, p.url, p.image_url, p.category
         FROM alerts a
         LEFT JOIN products p ON a.product_id = p.id
-        WHERE """ + active_product_clause("p") + " AND p.current_price = a.new_price"
+        WHERE (a.is_dismissed IS NULL OR a.is_dismissed = 0)
+          AND a.old_price <= 10000000 AND a.new_price <= 10000000
+          AND (julianday('now') - julianday(a.created_at)) <= 7.0
+          AND """ + active_product_clause("p") + " AND p.current_price = a.new_price"
     params: List[Any] = []
     if city and city != "Все":
         query += " AND (a.city = ? OR a.city IS NULL)"

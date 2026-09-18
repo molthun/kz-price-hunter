@@ -3,13 +3,7 @@ import hashlib
 import asyncio
 from typing import List, Dict, Any
 from curl_cffi import requests
-from scrapers.base import ScanResult
-
-def parse_price(price_str: str) -> int:
-    if not price_str or "нет в наличии" in price_str.lower():
-        return 0
-    digits = re.sub(r"[^\d]", "", price_str)
-    return int(digits) if digits else 0
+from scrapers.base import ScanResult, parse_price
 
 class FourMobileScraper:
     SHOP_NAME = "4mobile"

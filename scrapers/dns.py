@@ -2,11 +2,7 @@ import asyncio
 import re
 from typing import List, Dict, Any
 from playwright.async_api import async_playwright
-from scrapers.base import ScanResult
-
-def parse_price(price_str: str) -> int:
-    digits = re.sub(r"[^\d]", "", price_str)
-    return int(digits) if digits else 0
+from scrapers.base import ScanResult, parse_price
 
 class DNSScraper:
     SHOP_NAME = "DNS Казахстан"
@@ -73,12 +69,19 @@ class DNSScraper:
                         if img_el:
                             image_url = await img_el.get_attribute("data-src") or await img_el.get_attribute("src") or ""
 
-                        price_el = await el.query_selector(".product-buy__price")
-                        if not price_el:
-                            continue
-                        price = parse_price(await price_el.inner_text())
+                        price_active_el = await el.query_selector(".product-buy__price_active, .product-buy__price-current, [class*='price_active']")
+                        if price_active_el:
+                            price_text = await price_active_el.inner_text()
+                        else:
+                            price_el = await el.query_selector(".product-buy__price")
+                            price_text = await price_el.inner_text() if price_el else ""
+
+                        price = parse_price(price_text)
                         if price <= 0:
                             continue
+
+                        old_price_el = await el.query_selector(".product-buy__prev, .product-buy__price-sub, [class*='__prev']")
+                        old_price = parse_price(await old_price_el.inner_text()) if old_price_el else 0
 
                         products.append({
                             "shop": self.SHOP_NAME,
@@ -88,6 +91,7 @@ class DNSScraper:
                             "url": full_link,
                             "image_url": image_url,
                             "price": price,
+                            "old_price_on_site": old_price if old_price > price else 0,
                             "city": "Астана"
                         })
 

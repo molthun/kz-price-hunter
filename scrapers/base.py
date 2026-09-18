@@ -7,9 +7,38 @@ from typing import Any, Dict, List, Optional
 # Глубина обхода категории по умолчанию (страниц)
 DEFAULT_MAX_PAGES = 50
 
-def parse_price(price_str: str) -> int:
-    digits = re.sub(r"[^\d]", "", price_str or "")
-    return int(digits) if digits else 0
+def parse_price(price_str: Any) -> int:
+    """Извлекает целочисленную цену в тенге из строки любого формата.
+    Защищен от склейки нескольких цен (например '179 990 ₸ 200 650 ₸' -> 179990),
+    от копеек/десятичных дробей (например '72 228.00' или '72228.0' -> 72228),
+    и от абсурдных выбросов (> 10 000 000 ₸).
+    """
+    if not price_str:
+        return 0
+    text = str(price_str).strip()
+    if not text or "нет в наличии" in text.lower():
+        return 0
+
+    # 1. Отсекаем копейки/дробные части вида .00, ,00, .0, ,0 (чтобы 72228.00 или 72228.0 не превращались в 722280)
+    text = re.sub(r'[,.]\d{1,2}(?!\d)', '', text)
+
+    # 2. Поиск блоков чисел, разделенных пробелами (например '179 990 ₸ 200 650 ₸' -> '179 990' и '200 650')
+    # Берем первый валидный ценовой блок, а не склеиваем несколько цен в одну
+    blocks = re.findall(r'(?:\d{1,3}(?:[ \u00a0]\d{3})+|\d+)', text)
+    if blocks:
+        for block in blocks:
+            digits = re.sub(r'[^\d]', '', block)
+            if digits:
+                val = int(digits)
+                if 0 < val <= 10_000_000:
+                    return val
+
+    digits = re.sub(r'[^\d]', '', text)
+    if digits:
+        val = int(digits)
+        if 0 < val <= 10_000_000:
+            return val
+    return 0
 
 class UnconfirmedEnd(RuntimeError):
     """HTTP succeeded, but HTML cannot prove whether the catalog ended."""

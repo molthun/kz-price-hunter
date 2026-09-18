@@ -46,6 +46,7 @@ from database import (
     notification_stats,
     get_stats,
     get_alerts,
+    dismiss_alert,
     get_products_list,
     get_products_count,
     was_alert_sent_recently,
@@ -228,6 +229,30 @@ async def alerts_handler(request):
     limit = _int_param(request, "limit", 150, minimum=1, maximum=500)
     alerts = get_alerts(limit=limit, city=city, alert_type=alert_type, user_settings=user_settings_for(request))
     return web.json_response(alerts)
+
+@routes.post("/api/alerts/dismiss")
+async def dismiss_alert_handler(request):
+    try:
+        data = await request.json()
+        alert_id = int(data.get("id", 0))
+    except Exception:
+        return web.json_response({"error": "Некорректный JSON или ID"}, status=400)
+
+    if alert_id <= 0:
+        return web.json_response({"error": "ID должен быть положительным числом"}, status=400)
+
+    dismiss_alert(alert_id)
+    return web.json_response({"status": "ok", "dismissed_id": alert_id})
+
+@routes.delete("/api/alerts/{id}")
+async def delete_alert_handler(request):
+    try:
+        alert_id = int(request.match_info["id"])
+    except (KeyError, ValueError):
+        return web.json_response({"error": "Некорректный ID"}, status=400)
+
+    dismiss_alert(alert_id)
+    return web.json_response({"status": "ok", "dismissed_id": alert_id})
 
 @routes.get("/api/products")
 async def products_handler(request):

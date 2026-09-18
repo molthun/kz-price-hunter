@@ -3,11 +3,7 @@ import asyncio
 from typing import List, Dict, Any
 from curl_cffi import requests
 from bs4 import BeautifulSoup
-from scrapers.base import ScanResult
-
-def parse_price(price_str: str) -> int:
-    digits = re.sub(r"[^\d]", "", price_str)
-    return int(digits) if digits else 0
+from scrapers.base import ScanResult, parse_price
 
 class ShopKzScraper:
     SHOP_NAME = "Белый Ветер"
@@ -75,12 +71,8 @@ class ShopKzScraper:
                             cat = param.text or ""
                             break
 
-                    try:
-                        p_val = int(float(price_str))
-                        old_p_val = int(float(oldprice_str)) if oldprice_str else 0
-                    except Exception:
-                        p_val = 0
-                        old_p_val = 0
+                    p_val = parse_price(price_str)
+                    old_p_val = parse_price(oldprice_str)
 
                     if p_val > 0 and title:
                         products.append({
