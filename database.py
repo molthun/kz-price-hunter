@@ -68,6 +68,7 @@ def init_db():
                 min_price INTEGER NOT NULL,
                 max_price INTEGER NOT NULL,
                 canonical_key TEXT,
+                description TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -86,6 +87,11 @@ def init_db():
 
         try:
             cursor.execute("ALTER TABLE products ADD COLUMN canonical_key TEXT")
+        except sqlite3.OperationalError:
+            pass
+
+        try:
+            cursor.execute("ALTER TABLE products ADD COLUMN description TEXT")
         except sqlite3.OperationalError:
             pass
 
@@ -401,6 +407,7 @@ def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
     image_url = p.get("image_url", "")
     if image_url and "shop.kz//static.shop.kz" in image_url:
         image_url = image_url.replace("https://shop.kz//static.shop.kz", "https://static.shop.kz").replace("shop.kz//static.shop.kz", "static.shop.kz")
+    description = p.get("description") or ""
     current_price = int(p["price"])
     if current_price > 10_000_000 or current_price <= 0:
         return {
@@ -421,9 +428,9 @@ def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
 
         if existing is None:
             cursor.execute("""
-                INSERT INTO products (id, shop, city, title, category, url, image_url, current_price, first_seen_price, min_price, max_price, canonical_key, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (pid, shop, city, title, category, url, image_url, current_price, current_price, current_price, current_price, canonical_key, now, now))
+                INSERT INTO products (id, shop, city, title, category, url, image_url, description, current_price, first_seen_price, min_price, max_price, canonical_key, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (pid, shop, city, title, category, url, image_url, description, current_price, current_price, current_price, current_price, canonical_key, now, now))
             conn.commit()
             return {
                 "is_new": True,
@@ -442,9 +449,10 @@ def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
             cursor.execute("""
                 UPDATE products
                 SET is_active = 1, shop = ?, city = ?, title = ?, category = ?, url = ?, image_url = ?,
+                    description = CASE WHEN ? != '' THEN ? ELSE description END,
                     current_price = ?, min_price = ?, max_price = ?, canonical_key = COALESCE(?, canonical_key), updated_at = ?
                 WHERE id = ?
-            """, (shop, city, title, category, url, image_url, current_price, min_price, max_price, canonical_key, now, pid))
+            """, (shop, city, title, category, url, image_url, description, description, current_price, min_price, max_price, canonical_key, now, pid))
             conn.commit()
 
             return {
@@ -503,6 +511,7 @@ def save_or_update_products_batch(products: List[Dict[str, Any]]) -> int:
             image_url = p.get("image_url", "")
             if image_url and "shop.kz//static.shop.kz" in image_url:
                 image_url = image_url.replace("https://shop.kz//static.shop.kz", "https://static.shop.kz").replace("shop.kz//static.shop.kz", "static.shop.kz")
+            description = p.get("description") or ""
             current_price = int(p["price"])
             if current_price > 10_000_000 or current_price <= 0:
                 continue
@@ -513,18 +522,19 @@ def save_or_update_products_batch(products: List[Dict[str, Any]]) -> int:
 
             if existing is None:
                 cursor.execute("""
-                    INSERT INTO products (id, shop, city, title, category, url, image_url, current_price, first_seen_price, min_price, max_price, canonical_key, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (pid, shop, city, title, category, url, image_url, current_price, current_price, current_price, current_price, canonical_key, now, now))
+                    INSERT INTO products (id, shop, city, title, category, url, image_url, description, current_price, first_seen_price, min_price, max_price, canonical_key, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (pid, shop, city, title, category, url, image_url, description, current_price, current_price, current_price, current_price, canonical_key, now, now))
             else:
                 min_price = min(existing["min_price"], current_price)
                 max_price = max(existing["max_price"], current_price)
                 cursor.execute("""
                     UPDATE products
                     SET is_active = 1, shop = ?, city = ?, title = ?, category = ?, url = ?, image_url = ?,
+                        description = CASE WHEN ? != '' THEN ? ELSE description END,
                         current_price = ?, min_price = ?, max_price = ?, canonical_key = COALESCE(?, canonical_key), updated_at = ?
                     WHERE id = ?
-                """, (shop, city, title, category, url, image_url, current_price, min_price, max_price, canonical_key, now, pid))
+                """, (shop, city, title, category, url, image_url, description, description, current_price, min_price, max_price, canonical_key, now, pid))
             updated_count += 1
         conn.commit()
 
@@ -639,6 +649,14 @@ def dismiss_alert(alert_id: int) -> bool:
     invalidate_alerts_cache()
     return True
 
+def get_product_by_id(product_id: str) -> Optional[Dict[str, Any]]:
+    """Возвращает полную детальную информацию о товаре по его ID."""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM products WHERE id = ?", (str(product_id),))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
 def _fetch_filtered_alerts(user_settings: Dict[str, Any], city: Optional[str] = None, alert_type: Optional[str] = None, limit: Optional[int] = None) -> list:
     from detector import alert_matches_user
 
@@ -649,7 +667,7 @@ def _fetch_filtered_alerts(user_settings: Dict[str, Any], city: Optional[str] = 
         return cached[1]
 
     query = """
-        SELECT a.*, p.title, p.url, p.image_url, p.category
+        SELECT a.*, p.title, p.url, p.image_url, p.category, p.description
         FROM alerts a
         LEFT JOIN products p ON a.product_id = p.id
         WHERE (a.is_dismissed IS NULL OR a.is_dismissed = 0)

@@ -49,6 +49,7 @@ from database import (
     dismiss_alert,
     get_products_list,
     get_products_count,
+    get_product_by_id,
     was_alert_sent_recently,
     record_alert,
     get_db_freshness,
@@ -271,6 +272,16 @@ async def products_handler(request):
         "limit": limit,
         "offset": offset
     })
+
+@routes.get("/api/products/{id}")
+async def product_detail_handler(request):
+    pid = request.match_info.get("id")
+    if not pid:
+        return web.json_response({"error": "Product ID is required"}, status=400)
+    prod = get_product_by_id(pid)
+    if not prod:
+        return web.json_response({"error": "Product not found"}, status=404)
+    return web.json_response(prod)
 
 @routes.get("/api/ai/status")
 async def ai_status_handler(request):

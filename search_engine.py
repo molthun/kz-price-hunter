@@ -3,6 +3,7 @@ import re
 import sqlite3
 import asyncio
 import time
+import datetime
 from typing import List, Dict, Any, Optional, Tuple
 from config import DB_PATH, SEARCH_CACHE_TTL_SECONDS, CITIES_KZ
 from database import save_or_update_product
@@ -496,8 +497,36 @@ async def get_best_price_summary(
         product_nouns=product_nouns
     )
 
-    # 2. Опрос внешних площадок при запросе
-    if live:
+    # 2. Опрос внешних площадок при запросе Live или если данные устарели (> 12 часов)
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+    has_stale_items = False
+    if local_items:
+        for it in local_items:
+            upd_str = it.get("updated_at")
+            if not upd_str:
+                has_stale_items = True
+                break
+            try:
+                upd_clean = upd_str.replace("Z", "+00:00")
+                if " " in upd_clean and "T" not in upd_clean:
+                    dt = datetime.datetime.fromisoformat(upd_clean).replace(tzinfo=datetime.timezone.utc)
+                else:
+                    dt = datetime.datetime.fromisoformat(upd_clean)
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=datetime.timezone.utc)
+                if (now_utc - dt).total_seconds() > 12 * 3600:
+                    has_stale_items = True
+                    break
+            except Exception:
+                has_stale_items = True
+                break
+
+    should_live_search = live or has_stale_items or (not local_items)
+    if should_live_search:
+        if has_stale_items:
+            cache_k = f"{query_clean.lower()}:{(city or 'Астана').strip().lower()}"
+            _LIVE_CACHE.pop(cache_k, None)
+
         await search_live_stores(query_clean, city=city or "Астана")
         local_items = search_in_database(
             query_clean,

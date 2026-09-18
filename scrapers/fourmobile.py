@@ -98,13 +98,33 @@ class FourMobileScraper:
                     if "wiwu" in cat_title.lower() and "wiwu" not in full_title.lower():
                         full_title = f"WiWU {full_title}"
 
+                    image_url = ""
+                    if len(item) > 2 and item[2] and isinstance(item[2], str):
+                        img_path = item[2].strip()
+                        if img_path.startswith("http"):
+                            image_url = img_path
+                        elif img_path.startswith("/"):
+                            image_url = f"{self.base_url}{img_path}"
+                        elif img_path:
+                            image_url = f"{self.base_url}/{img_path}"
+
+                    description = ""
+                    if len(item) > 3 and item[3] and isinstance(item[3], str):
+                        description = item[3].strip()
+
+                    import urllib.parse
+                    wa_phone = "77007654321"  # WhatsApp Астана
+                    wa_msg = f"Здравствуйте! Интересует {full_title} за {price:,} ₸ в 4mobile".replace(",", " ")
+                    order_url = f"https://wa.me/{wa_phone}?text={urllib.parse.quote(wa_msg)}"
+
                     products.append({
                         "shop": self.SHOP_NAME,
                         "id": f"4mobile_{pid}",
                         "title": full_title,
                         "category": cat_title,
-                        "url": f"{self.base_url}/#catalog",
-                        "image_url": "https://4mobile.pages.dev/favicon.ico",
+                        "url": order_url,
+                        "image_url": image_url or "https://4mobile.pages.dev/favicon.ico",
+                        "description": description,
                         "price": price,
                         "old_price_on_site": 0,
                         "city": "Астана"

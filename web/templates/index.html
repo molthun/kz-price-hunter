@@ -1557,6 +1557,97 @@
     </div>
   </div>
 
+  <!-- Модальное окно детальной информации о товаре (с большим фото и описанием) -->
+  <div id="modalProductDetails" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 hidden" onclick="if(event.target === this) closeProductDetailsModal()">
+    <div class="glass max-w-2xl w-full rounded-2xl border border-slate-700 max-h-[92vh] flex flex-col shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
+      <!-- Header -->
+      <div class="flex items-center justify-between p-4 sm:p-5 border-b border-slate-800 bg-slate-900/50">
+        <div class="flex items-center gap-2 flex-wrap">
+          <div id="modalProductShopBadge"></div>
+          <span id="modalProductCityBadge" class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300 font-medium"></span>
+          <span id="modalProductCategoryBadge" class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800/60 text-slate-400 font-medium"></span>
+        </div>
+        <button onclick="closeProductDetailsModal()" class="text-slate-400 hover:text-white cursor-pointer text-lg p-1.5 rounded-lg hover:bg-slate-800 transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Body (Scrollable) -->
+      <div class="p-4 sm:p-6 overflow-y-auto space-y-4 text-slate-200">
+        <!-- Big photo container -->
+        <div class="w-full flex items-center justify-center bg-slate-950/90 rounded-2xl p-4 border border-slate-800/80 min-h-[220px] max-h-[340px] relative overflow-hidden group">
+          <img id="modalProductImg" src="" alt="Товар" class="max-h-[290px] w-auto max-w-full object-contain drop-shadow-xl transition duration-300 group-hover:scale-105"
+            onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'120\' height=\'120\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23475569\' stroke-width=\'1.5\'><rect x=\'3\' y=\'3\' width=\'18\' height=\'18\' rx=\'2\'/><circle cx=\'8.5\' cy=\'8.5\' r=\'1.5\'/><path d=\'m21 15-5-5L5 21\'/></svg>';" />
+          <div id="modalProductDiscountBadge" class="absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-bold shadow-lg"></div>
+        </div>
+
+        <!-- Title -->
+        <div>
+          <h3 id="modalProductTitle" class="text-base sm:text-lg font-bold text-white leading-snug"></h3>
+          <p id="modalProductCanonical" class="text-xs text-slate-400 mt-1"></p>
+        </div>
+
+        <!-- Price breakdown card -->
+        <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-2.5">
+          <div id="modalProductArbitrageRow" class="hidden flex items-center justify-between text-xs pb-2 border-b border-slate-800/80 text-sky-300 font-medium">
+            <span class="flex items-center gap-1.5">
+              <i class="fa-solid fa-scale-balanced text-sky-400"></i>
+              <span id="modalProductArbitrageText"></span>
+            </span>
+            <span id="modalProductArbitragePct" class="px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 font-bold"></span>
+          </div>
+
+          <div class="flex items-baseline justify-between">
+            <span id="modalProductRefLabel" class="text-xs text-slate-400">Базовая цена:</span>
+            <span id="modalProductOldPrice" class="line-through text-slate-500 font-medium text-sm"></span>
+          </div>
+
+          <div class="flex items-baseline justify-between">
+            <span class="text-sm font-semibold text-slate-300">Актуальная цена:</span>
+            <span id="modalProductNewPrice" class="text-xl sm:text-2xl font-black text-emerald-400"></span>
+          </div>
+
+          <div id="modalProductSavingsRow" class="flex items-center justify-between text-xs pt-2 border-t border-slate-800">
+            <span class="text-amber-400 font-medium">Экономия:</span>
+            <span id="modalProductSavings" class="text-amber-400 font-bold text-sm"></span>
+          </div>
+        </div>
+
+        <!-- Description section -->
+        <div class="space-y-2">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+            <i class="fa-solid fa-circle-info text-emerald-400"></i>
+            <span>Описание товара</span>
+          </h4>
+          <div id="modalProductDescription" class="text-xs sm:text-sm text-slate-300 bg-slate-900/50 p-4 rounded-xl border border-slate-800/60 leading-relaxed whitespace-pre-wrap max-h-48 overflow-y-auto">
+            <span class="text-slate-500 italic">Описание уточняется в каталоге магазина...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="p-4 sm:p-5 border-t border-slate-800 bg-slate-900/60 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2 flex-1 min-w-[200px]">
+          <a id="modalProductBuyLink" href="#" target="_blank" class="flex-1 flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-2.5 px-4 rounded-xl text-xs sm:text-sm shadow-md shadow-emerald-500/20 transition">
+            <span id="modalProductBuyLabel">⚡️ В магазин</span>
+            <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+          </a>
+          <a id="modalProductExtraLink" href="#" target="_blank" class="hidden flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 py-2.5 px-3 rounded-xl text-xs font-semibold transition">
+            <i class="fa-solid fa-globe text-xs"></i>
+            <span>Сайт</span>
+          </a>
+          <button id="modalProductCompareBtn" class="flex items-center justify-center gap-1.5 bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/30 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer">
+            <i class="fa-solid fa-scale-balanced text-sky-400"></i>
+            <span>Сравнить</span>
+          </button>
+        </div>
+        <button onclick="closeProductDetailsModal()" class="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 hover:text-white transition cursor-pointer">
+          Закрыть
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Плавающее уведомление (Toast) -->
   <div id="globalToast" class="fixed bottom-6 right-6 z-50 px-4 py-3 rounded-2xl text-xs font-semibold shadow-2xl transition-all duration-300 transform translate-y-10 opacity-0 pointer-events-none hidden">
   </div>
@@ -1839,6 +1930,191 @@
       if (modal) modal.classList.add('hidden');
     }
 
+    function openProductDetailsModalFromData(encodedStr) {
+      try {
+        const decoded = decodeURIComponent(encodedStr);
+        const data = JSON.parse(decoded);
+        openProductDetailsModal(data);
+      } catch (e) {
+        console.error('Ошибка открытия модалки товара:', e);
+      }
+    }
+
+    async function openProductDetailsModal(a) {
+      if (!a) return;
+      const modal = document.getElementById('modalProductDetails');
+      if (!modal) return;
+
+      // Badges
+      const shopBadgeEl = document.getElementById('modalProductShopBadge');
+      if (shopBadgeEl) shopBadgeEl.innerHTML = getShopBadge(a.shop);
+
+      const cityBadgeEl = document.getElementById('modalProductCityBadge');
+      if (cityBadgeEl) {
+        cityBadgeEl.innerText = a.city || 'Астана';
+        cityBadgeEl.classList.toggle('hidden', !a.city);
+      }
+
+      const catBadgeEl = document.getElementById('modalProductCategoryBadge');
+      if (catBadgeEl) {
+        catBadgeEl.innerText = a.category || 'Каталог';
+        catBadgeEl.classList.toggle('hidden', !a.category);
+      }
+
+      // Title & Model
+      const titleEl = document.getElementById('modalProductTitle');
+      if (titleEl) titleEl.innerText = a.title || 'Товар';
+
+      const canonEl = document.getElementById('modalProductCanonical');
+      if (canonEl) {
+        canonEl.innerText = a.canonical_key ? `Модель: ${a.canonical_key}` : '';
+        canonEl.classList.toggle('hidden', !a.canonical_key);
+      }
+
+      // Large photo
+      const imgEl = document.getElementById('modalProductImg');
+      let rawImg = (a.image_url || '').replace('https://shop.kz//static.shop.kz', 'https://static.shop.kz');
+      if (imgEl) {
+        imgEl.src = rawImg || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="%23475569" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>';
+      }
+
+      // Badges & Pricing
+      const discountPct = a.discount_pct || 0;
+      const isZeroGlitch = a.alert_type === 'ZERO_GLITCH';
+      const isArbitrage = a.alert_type === 'MARKET_ARBITRAGE' || a.alert_type === 'ARBITRAGE';
+
+      const discBadge = document.getElementById('modalProductDiscountBadge');
+      if (discBadge) {
+        if (isZeroGlitch) {
+          discBadge.className = 'absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-bold shadow-lg bg-amber-500/40 text-amber-200 border border-amber-500/50 backdrop-blur-xs';
+          discBadge.innerText = `🚨 Сбой -${discountPct}%`;
+          discBadge.classList.remove('hidden');
+        } else if (isArbitrage) {
+          discBadge.className = 'absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-bold shadow-lg bg-sky-500/40 text-sky-200 border border-sky-500/50 backdrop-blur-xs';
+          discBadge.innerText = a.competitor_shop ? `🎯 Арбитраж vs ${a.competitor_shop}` : `🎯 Арбитраж -${discountPct}%`;
+          discBadge.classList.remove('hidden');
+        } else if (discountPct > 0) {
+          discBadge.className = 'absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-bold shadow-lg bg-emerald-500/40 text-emerald-200 border border-emerald-500/50 backdrop-blur-xs';
+          discBadge.innerText = `-${discountPct}%`;
+          discBadge.classList.remove('hidden');
+        } else {
+          discBadge.classList.add('hidden');
+        }
+      }
+
+      // Arbitrage block
+      const arbRow = document.getElementById('modalProductArbitrageRow');
+      const arbText = document.getElementById('modalProductArbitrageText');
+      const arbPct = document.getElementById('modalProductArbitragePct');
+      if (arbRow) {
+        if (isArbitrage) {
+          arbRow.classList.remove('hidden');
+          if (arbText) arbText.innerHTML = `Дешевле, чем в <strong class="text-white font-semibold">${a.competitor_shop || 'других сетях'}</strong>`;
+          if (arbPct) arbPct.innerText = `-${discountPct}%`;
+        } else {
+          arbRow.classList.add('hidden');
+        }
+      }
+
+      const refLabel = document.getElementById('modalProductRefLabel');
+      if (refLabel) {
+        refLabel.innerText = isArbitrage ? (a.competitor_shop ? `В ${a.competitor_shop}:` : 'Рыночная цена:') : 'Старая цена:';
+      }
+
+      const oldPrice = a.old_price !== undefined ? a.old_price : (a.old_price_on_site || a.first_seen_price || 0);
+      const newPrice = a.new_price !== undefined ? a.new_price : (a.price || a.current_price || 0);
+      const savings = a.savings_kzt !== undefined ? a.savings_kzt : (oldPrice > newPrice ? oldPrice - newPrice : 0);
+
+      const oldPriceEl = document.getElementById('modalProductOldPrice');
+      if (oldPriceEl) oldPriceEl.innerText = oldPrice ? fmtPrice(oldPrice) : '—';
+
+      const newPriceEl = document.getElementById('modalProductNewPrice');
+      if (newPriceEl) newPriceEl.innerText = fmtPrice(newPrice);
+
+      const savingsRow = document.getElementById('modalProductSavingsRow');
+      const savingsEl = document.getElementById('modalProductSavings');
+      if (savingsRow && savingsEl) {
+        if (savings > 0) {
+          savingsRow.classList.remove('hidden');
+          savingsEl.innerText = fmtPrice(savings);
+        } else {
+          savingsRow.classList.add('hidden');
+        }
+      }
+
+      // Buttons
+      const buyLink = document.getElementById('modalProductBuyLink');
+      const buyLabel = document.getElementById('modalProductBuyLabel');
+      const extraLink = document.getElementById('modalProductExtraLink');
+
+      const is4mobile = a.shop === '4mobile' || (a.url && a.url.includes('wa.me'));
+      if (buyLink) {
+        buyLink.href = cleanUrl(a.url);
+        if (buyLabel) {
+          buyLabel.innerText = is4mobile ? '⚡️ Заказать в WhatsApp (4mobile)' : `⚡️ Купить в ${a.shop || 'магазине'}`;
+        }
+      }
+
+      if (extraLink) {
+        if (is4mobile) {
+          extraLink.href = 'https://4mobile.pages.dev';
+          extraLink.classList.remove('hidden');
+        } else {
+          extraLink.classList.add('hidden');
+        }
+      }
+
+      const compBtn = document.getElementById('modalProductCompareBtn');
+      if (compBtn) {
+        compBtn.onclick = () => {
+          closeProductDetailsModal();
+          openModelComparison(encodeURIComponent(a.canonical_key || a.title), encodeURIComponent(a.title || ''));
+        };
+      }
+
+      // Description handling
+      const descEl = document.getElementById('modalProductDescription');
+      if (descEl) {
+        if (a.description && a.description.trim()) {
+          descEl.innerText = a.description.trim();
+        } else {
+          descEl.innerHTML = '<span class="text-slate-500 italic">Описание уточняется в каталоге магазина...</span>';
+          const pId = a.product_id || a.id;
+          if (pId) {
+            fetch(`/api/products/${encodeURIComponent(pId)}`)
+              .then(r => r.ok ? r.json() : null)
+              .then(prod => {
+                if (prod && prod.description && prod.description.trim()) {
+                  descEl.innerText = prod.description.trim();
+                } else {
+                  descEl.innerHTML = '<span class="text-slate-500 italic">Подробное описание характеристик в каталоге отсутствует.</span>';
+                }
+                if (prod && prod.image_url && (!rawImg || rawImg.includes('favicon'))) {
+                  if (imgEl) imgEl.src = prod.image_url;
+                }
+              })
+              .catch(() => {});
+          }
+        }
+      }
+
+      modal.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeProductDetailsModal() {
+      const modal = document.getElementById('modalProductDetails');
+      if (modal) modal.classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeProductDetailsModal();
+        closeModelComparisonModal();
+      }
+    });
+
     let currentCatalogOffset = 0;
     const catalogLimit = 30;
     let catalogSearchTimeout = null;
@@ -2043,8 +2319,12 @@
         refLabel = a.competitor_shop ? `В ${a.competitor_shop}:` : 'Рыночная цена:';
       }
 
+      const is4mobile = a.shop === '4mobile' || (a.url && a.url.includes('wa.me'));
+      const buyBtnText = is4mobile ? '⚡️ Купить в 4mobile (WhatsApp)' : `⚡️ Купить в ${a.shop || 'магазине'}`;
+      const aJson = encodeURIComponent(JSON.stringify(a));
+
       return `
-        <div class="glass rounded-2xl p-5 flex flex-col justify-between border ${cardBorder} hover:border-emerald-500/60 transition-all">
+        <div onclick="openProductDetailsModalFromData('${aJson}')" class="glass rounded-2xl p-5 flex flex-col justify-between border ${cardBorder} hover:border-emerald-500/60 hover:shadow-lg hover:shadow-emerald-500/10 transition-all cursor-pointer group">
           <div class="space-y-3">
             <div class="flex items-center justify-between gap-2">
               <div class="flex items-center gap-2">
@@ -2062,10 +2342,10 @@
             <div class="flex gap-3 items-start pt-1">
               ${(() => {
                 const img = (a.image_url || '').replace('https://shop.kz//static.shop.kz', 'https://static.shop.kz');
-                return img ? `<img src="${img}" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'64\\' height=\\'64\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'%23475569\\' stroke-width=\\'1.5\\'><rect x=\\'3\\' y=\\'3\\' width=\\'18\\' height=\\'18\\' rx=\\'2\\'/><circle cx=\\'8.5\\' cy=\\'8.5\\' r=\\'1.5\\'/><path d=\\'m21 15-5-5L5 21\\'/></svg>';" class="w-16 h-16 object-contain rounded-lg bg-slate-900 p-1 border border-slate-800 shrink-0">` : `<div class="w-16 h-16 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0 text-slate-600"><i class="fa-regular fa-image text-xl"></i></div>`;
+                return img ? `<img src="${img}" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'64\\' height=\\'64\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'%23475569\\' stroke-width=\\'1.5\\'><rect x=\\'3\\' y=\\'3\\' width=\\'18\\' height=\\'18\\' rx=\\'2\\'/><circle cx=\\'8.5\\' cy=\\'8.5\\' r=\\'1.5\\'/><path d=\\'m21 15-5-5L5 21\\'/></svg>';" class="w-16 h-16 object-contain rounded-lg bg-slate-900 p-1 border border-slate-800 shrink-0 group-hover:scale-105 transition-transform duration-200">` : `<div class="w-16 h-16 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0 text-slate-600"><i class="fa-regular fa-image text-xl"></i></div>`;
               })()}
               <div>
-                <h4 class="text-sm font-semibold text-white line-clamp-2 leading-snug">${a.title || 'Товар'}</h4>
+                <h4 class="text-sm font-semibold text-white line-clamp-2 leading-snug group-hover:text-emerald-300 transition-colors">${a.title || 'Товар'}</h4>
                 <span class="text-[11px] text-slate-500">${a.category || ''}</span>
               </div>
             </div>
@@ -2096,12 +2376,12 @@
           </div>
 
           <div class="pt-4 space-y-2">
-            <a href="${cleanUrl(a.url)}" target="_blank" class="w-full flex items-center justify-center space-x-2 bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-2 rounded-xl text-xs shadow-md shadow-emerald-500/20 transition">
-              <span>⚡️ Купить в ${a.shop || 'магазине'}</span>
+            <a href="${cleanUrl(a.url)}" onclick="event.stopPropagation()" target="_blank" class="w-full flex items-center justify-center space-x-2 bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-2 rounded-xl text-xs shadow-md shadow-emerald-500/20 transition">
+              <span>${buyBtnText}</span>
               <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
             </a>
             ${isArbitrage ? `
-              <button onclick="openModelComparison('${encodeURIComponent(a.canonical_key || a.title)}', '${encodeURIComponent(a.title || '')}')" class="w-full flex items-center justify-center space-x-1.5 bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/30 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer">
+              <button onclick="event.stopPropagation(); openModelComparison('${encodeURIComponent(a.canonical_key || a.title)}', '${encodeURIComponent(a.title || '')}')" class="w-full flex items-center justify-center space-x-1.5 bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/30 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer">
                 <i class="fa-solid fa-scale-balanced text-xs text-sky-400"></i>
                 <span>⚖️ Сравнить цены во всех сетях</span>
               </button>
@@ -2973,7 +3253,7 @@
         }
 
         return `
-          <tr class="hover:bg-slate-900/40 transition ${isFirst ? 'bg-emerald-500/5' : ''}">
+          <tr onclick="openProductDetailsModalFromData('${encodeURIComponent(JSON.stringify(it))}')" class="hover:bg-slate-900/60 transition cursor-pointer ${isFirst ? 'bg-emerald-500/5' : ''}">
             <td class="px-4 py-3 text-center text-xs font-bold ${isFirst ? 'text-emerald-400' : 'text-slate-500'}">${idx + 1}</td>
             <td class="px-4 py-3 whitespace-nowrap">
               <div class="flex flex-col gap-0.5">
@@ -2996,7 +3276,7 @@
             </td>
             <td class="px-4 py-3 whitespace-nowrap">${diffText}</td>
             <td class="px-4 py-3 whitespace-nowrap text-right">
-              <a href="${cleanUrl(it.url)}" target="_blank" class="px-3 py-1.5 rounded-lg ${isFirst ? 'bg-emerald-500 hover:bg-emerald-600 text-dark-950 font-bold' : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white'} text-xs inline-flex items-center gap-1.5 transition shadow-sm">
+              <a href="${cleanUrl(it.url)}" onclick="event.stopPropagation()" target="_blank" class="px-3 py-1.5 rounded-lg ${isFirst ? 'bg-emerald-500 hover:bg-emerald-600 text-dark-950 font-bold' : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white'} text-xs inline-flex items-center gap-1.5 transition shadow-sm">
                 <span>В магазин</span>
                 <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
               </a>
@@ -3153,7 +3433,7 @@
         }
 
         tbody.innerHTML = products.map(p => `
-          <tr class="hover:bg-slate-900/40 transition">
+          <tr onclick="openProductDetailsModalFromData('${encodeURIComponent(JSON.stringify(p))}')" class="hover:bg-slate-900/60 transition cursor-pointer">
             <td class="px-4 py-3 whitespace-nowrap">${getShopBadge(p.shop)}</td>
             <td class="px-4 py-3">
               <div class="font-medium text-white line-clamp-1 max-w-md">${p.title}</div>
@@ -3161,7 +3441,7 @@
             <td class="px-4 py-3 whitespace-nowrap text-xs text-slate-400">${p.category || '-'}</td>
             <td class="px-4 py-3 whitespace-nowrap font-bold text-emerald-400">${fmtPrice(p.current_price)}</td>
             <td class="px-4 py-3 whitespace-nowrap text-right">
-              <a href="${cleanUrl(p.url)}" target="_blank" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs inline-flex items-center gap-1 transition">
+              <a href="${cleanUrl(p.url)}" onclick="event.stopPropagation()" target="_blank" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs inline-flex items-center gap-1 transition">
                 <span>Открыть</span>
                 <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
               </a>

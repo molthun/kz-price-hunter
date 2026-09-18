@@ -1882,6 +1882,135 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
             alerts_data = await get_res.json()
             self.assertFalse(any(a["id"] == a_id for a in alerts_data))
 
+    def test_fourmobile_scraper_image_description_and_url(self):
+        """Проверка парсинга изображений высокого разрешения, описания и ссылки заказа 4mobile."""
+        from scrapers.fourmobile import FourMobileScraper
+        from unittest.mock import patch, MagicMock
+
+        mock_data = {
+            "price": [
+                {
+                    "cat": "MacBook",
+                    "items": [
+                        [
+                            'MacBook Air 13.6" M5 16/512Gb',
+                            '680 000 ₸',
+                            '/api/img/c1af2d4610714201825849dd93d4dc36',
+                            'Apple MacBook Air M5 - ультратонкий и тихий ноутбук на базе мощного процессора M5.'
+                        ]
+                    ]
+                }
+            ]
+        }
+
+        scraper = FourMobileScraper()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = mock_data
+
+        with patch("scrapers.fourmobile.requests.get", return_value=mock_resp):
+            res = scraper._scrape_sync("4mobile: 🔥 Все товары", scraper.api_url, 1)
+
+        self.assertEqual(len(res), 1)
+        p = res[0]
+        self.assertEqual(p["title"], 'MacBook Air 13.6" M5 16/512Gb')
+        self.assertEqual(p["price"], 680000)
+        self.assertEqual(p["image_url"], "https://4mobile.pages.dev/api/img/c1af2d4610714201825849dd93d4dc36")
+        self.assertIn("ультратонкий", p["description"])
+        self.assertTrue(p["url"].startswith("https://wa.me/77007654321?text="))
+        self.assertIn("MacBook", p["url"])
+
+    async def test_product_description_storage_and_api(self):
+        """Проверка сохранения description в БД, получения через get_product_by_id и API /api/products/{id}."""
+        from database import get_product_by_id, _fetch_filtered_alerts
+        from aiohttp.test_utils import TestClient, TestServer
+        from web.server import create_app
+
+        prod_id = "test-prod-desc-440"
+        save_or_update_product({
+            "id": prod_id,
+            "title": "Ноутбук Тестовый Pro 16",
+            "price": 450000,
+            "url": "https://example.kz/item/1",
+            "image_url": "https://example.kz/img.jpg",
+            "description": "Полноразмерный ноутбук с 16-дюймовым OLED дисплеем и 32 ГБ ОЗУ.",
+            "category": "Ноутбуки",
+            "shop": "Kaspi Магазин",
+            "city": "Астана"
+        })
+
+        p = get_product_by_id(prod_id)
+        self.assertIsNotNone(p)
+        self.assertEqual(p["description"], "Полноразмерный ноутбук с 16-дюймовым OLED дисплеем и 32 ГБ ОЗУ.")
+
+        # Проверка включения description в выборку алертов
+        record_alert(prod_id, "SUPER_DISCOUNT", 1500000, 450000, 70.0, 1050000)
+        alerts = _fetch_filtered_alerts(config.SYSTEM_DEFAULTS)
+        alert_item = next((a for a in alerts if a.get("product_id") == prod_id), None)
+        self.assertIsNotNone(alert_item)
+        self.assertIn("OLED дисплеем", alert_item.get("description", ""))
+
+        # Проверка HTTP API GET /api/products/{id}
+        app = create_app()
+        app.cleanup_ctx.clear()
+        async with TestClient(TestServer(app)) as client:
+            res = await client.get(f'/api/products/{prod_id}')
+            self.assertEqual(res.status, 200)
+            data = await res.json()
+            self.assertEqual(data["id"], prod_id)
+            self.assertEqual(data["description"], "Полноразмерный ноутбук с 16-дюймовым OLED дисплеем и 32 ГБ ОЗУ.")
+
+            bad_res = await client.get('/api/products/non-existent-id')
+            self.assertEqual(bad_res.status, 404)
+
+    async def test_search_engine_12h_stale_refresh(self):
+        """Проверка автоматического live-обновления товаров старше 12 часов при обычном поиске (live=False)."""
+        import datetime
+        from database import get_connection
+        from search_engine import get_best_price_summary
+        from unittest.mock import patch
+
+        stale_id = "test-stale-laptop-12h"
+        save_or_update_product({
+            "id": stale_id,
+            "title": "Ультрабук Stale Refresh 14",
+            "price": 300000,
+            "url": "https://example.kz/stale",
+            "category": "Ноутбуки",
+            "shop": "Kaspi Магазин",
+            "city": "Астана"
+        })
+
+        # Искусственно сдвигаем updated_at на 15 часов назад
+        old_time = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=15)).isoformat()
+        with get_connection() as conn:
+            conn.execute("UPDATE products SET updated_at = ? WHERE id = ?", (old_time, stale_id))
+            conn.commit()
+
+        live_called = []
+
+        async def fake_live_search(q, city="Астана"):
+            live_called.append((q, city))
+            # Симулируем обновление товара в процессе live-поиска
+            save_or_update_product({
+                "id": stale_id,
+                "title": "Ультрабук Stale Refresh 14",
+                "price": 280000,
+                "url": "https://example.kz/stale",
+                "category": "Ноутбуки",
+                "shop": "Kaspi Магазин",
+                "city": "Астана"
+            })
+            return []
+
+        with patch("search_engine.search_live_stores", side_effect=fake_live_search):
+            # Поиск без флага live (live=False)
+            result = await get_best_price_summary("Ультрабук Stale Refresh 14", live=False)
+
+        # Проверяем, что live-поиск был вызван автоматически из-за устаревшего товара (> 12ч)
+        self.assertEqual(len(live_called), 1)
+        self.assertEqual(result["items"][0]["current_price"], 280000)
+
 
 if __name__ == "__main__":
     unittest.main()
