@@ -14,6 +14,11 @@ services:
       - PORT=35539
       # Адрес панели для кнопки в Telegram-уведомлениях (например, https://ваш-домен)
       - APP_URL=${APP_URL}
+      # Canonical browser origin; blank falls back to APP_URL in the application.
+      - PUBLIC_ORIGIN=${PUBLIC_ORIGIN:-}
+      # Exact observed proxy peer IP/CIDR, not the public NAT address.
+      - TRUSTED_PROXIES=${TRUSTED_PROXIES:-}
+      - ALLOW_DEV_LOGIN=0
       # Токен Telegram-бота (вход на сайте и уведомления) и администраторы (Telegram ID через запятую).
       # Значения берутся из .env рядом с docker-compose.yml — не храните их в git.
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
