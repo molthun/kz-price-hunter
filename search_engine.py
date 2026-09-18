@@ -479,7 +479,7 @@ async def search_live_stores(query: str, city: str = "Астана") -> List[Dic
     # 2. Белый Ветер (shop.kz)
     if "shopkz" in active_shops:
         try:
-            from curl_cffi import requests
+            from scrapers import http as requests
             from bs4 import BeautifulSoup
             import urllib.parse
 

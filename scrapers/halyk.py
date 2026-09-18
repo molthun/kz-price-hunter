@@ -1,8 +1,8 @@
 """Halyk Market catalog scraper via internal search-api/products JSON endpoint."""
 import re
 from urllib.parse import urlparse
-from curl_cffi import requests
-from scrapers.base import PagedScraper, ScanResult
+from scrapers import http as requests
+from scrapers.base import PagedScraper, ScanResult, price_value
 
 # Known category IDs on Halyk Market
 CATEGORY_ID_MAP = {
@@ -108,18 +108,20 @@ class HalykScraper(PagedScraper):
 
     @classmethod
     def parse_response(cls, data: dict, category_name: str, page: int) -> ScanResult:
-        raw_products = data.get('products') or []
-        total_products = data.get('products_total') or 0
+        if not isinstance(data, dict) or not isinstance(data.get('products'), list):
+            raise ValueError("Неожиданная структура ответа Halyk Market")
+        raw_products = data['products']
+        total_products = data.get('products_total')
         
         products = []
         for p in raw_products:
             pid = p.get('id')
             name = (p.get('name') or '').strip()
-            price = int(p.get('price') or 0)
+            price = price_value(p.get('price'))
             if not pid or not name or price <= 0:
                 continue
                 
-            old_price = int(p.get('oldprice') or 0)
+            old_price = price_value(p.get('oldprice'))
             url_path = p.get('url') or ''
             if url_path.startswith('http'):
                 full_url = url_path
@@ -142,6 +144,8 @@ class HalykScraper(PagedScraper):
                 'city': 'Алматы',
             })
 
-        # Complete when returned count is less than page limit or page * limit reached total
-        complete = len(raw_products) < PAGE_SIZE or (page * PAGE_SIZE >= total_products)
+        # Конец подтверждает только валидный products_total: без него короткая/пустая
+        # страница может быть сбоем или сменой схемы, а не концом каталога
+        total_known = isinstance(total_products, int) and not isinstance(total_products, bool) and total_products >= 0
+        complete = total_known and page * PAGE_SIZE >= total_products
         return ScanResult(products, complete=complete)

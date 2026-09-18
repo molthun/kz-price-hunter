@@ -1,8 +1,9 @@
 """iSpace (ispace.kz): официальный Apple Premium Partner.
 
 В сетке категорий цены не отдаются (подгружаются в браузере), поэтому обход идет в два шага:
-1. страницы категории `?page=N` дают ссылки на товары (карточки `.entity-card`), конец выдачи —
-   пустая страница;
+1. страницы категории `?page=N` дают ссылки на товары (карточки `.entity-card`). Конец выдачи
+   подтверждает пагинация: страница с наибольшим номером из ссылок `?page=N` этой категории.
+   Пустая страница раньше этого номера (блокировка, сбой вёрстки) — неполный обход;
 2. карточка товара содержит JSON-LD `Product` с названием, артикулом Apple (sku), ценой,
    наличием и фото. Карточки открываются в несколько потоков.
 """
@@ -11,13 +12,16 @@ import re
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional
-from urllib.parse import urljoin
+from urllib.parse import parse_qs, urljoin, urlsplit
 
 from bs4 import BeautifulSoup
-from curl_cffi import requests
+from scrapers import http as requests
 from scrapers.base import DEFAULT_MAX_PAGES, PagedScraper, ScanResult, parse_price
 
 BASE_URL = "https://ispace.kz"
+# Карточка открылась, но JSON-LD Product в ней нет (сбой, блокировка, смена вёрстки).
+# Это не «нет в наличии»: такой товар нельзя снимать с продажи по полному обходу.
+NO_PRODUCT_DATA = "no-product-data"
 
 class ISpaceScraper(PagedScraper):
     SHOP_NAME = "iSpace"
@@ -38,9 +42,24 @@ class ISpaceScraper(PagedScraper):
                 links.append(href)
         return links
 
+    @staticmethod
+    def last_page(html: str, category_url: str) -> int:
+        """Наибольший номер страницы этой категории в ссылках пагинации (1, если ссылок нет)."""
+        path = urlsplit(category_url).path.rstrip("/")
+        pages = [1]
+        for a in BeautifulSoup(html, "html.parser").select("a[href*='page=']"):
+            link = urlsplit(urljoin(BASE_URL, a["href"]))
+            if link.path.rstrip("/") != path:
+                continue
+            for value in parse_qs(link.query).get("page", []):
+                if value.isdigit():
+                    pages.append(int(value))
+        return max(pages)
+
     @classmethod
-    def parse_product(cls, html: str, url: str, category_name: str) -> Optional[Dict[str, Any]]:
-        """Товар из JSON-LD карточки; None, если его нет в наличии или нет цены."""
+    def parse_product(cls, html: str, url: str, category_name: str):
+        """Товар из JSON-LD карточки; None — нет в наличии или нет цены;
+        NO_PRODUCT_DATA — в карточке нет данных Product (не подтверждает отсутствие товара)."""
         for block in re.findall(r'<script[^>]*type="application/ld\+json"[^>]*>(.*?)</script>', html, re.S):
             try:
                 data = json.loads(block)
@@ -73,12 +92,13 @@ class ISpaceScraper(PagedScraper):
                     "old_price_on_site": 0,
                     "city": "Астана",
                 }
-        return None
+        return NO_PRODUCT_DATA
 
     def _scrape_sync(self, category_name: str, category_url: str, max_pages: Optional[int] = None) -> ScanResult:
         limit = max_pages if max_pages and max_pages > 0 else DEFAULT_MAX_PAGES
         links: List[str] = []
         listing_complete = False
+        last_page = 1
 
         for page in range(1, limit + 1):
             if page > 1:
@@ -93,12 +113,15 @@ class ISpaceScraper(PagedScraper):
                 break
             page_links = self.parse_listing(r.text)
             fresh = [l for l in page_links if l not in links]
-            if not page_links:
-                listing_complete = page > 1
-                break
-            if not fresh:
+            if not page_links or not fresh:
+                # Пустая/повторная страница до последней по пагинации — не конец каталога
+                listing_complete = page > last_page
                 break
             links.extend(fresh)
+            last_page = max(last_page, self.last_page(r.text, category_url))
+            if page >= last_page:
+                listing_complete = True
+                break
 
         def fetch(link):
             try:
@@ -113,7 +136,7 @@ class ISpaceScraper(PagedScraper):
             results = list(pool.map(fetch, links))
 
         products = [p for p in results if isinstance(p, dict)]
-        failed = sum(1 for p in results if p == "error")
+        failed = sum(1 for p in results if p in ("error", NO_PRODUCT_DATA))
         if failed:
             return ScanResult(products, error=f"Не открылись карточки: {failed} из {len(links)}")
         if not links:

@@ -3,8 +3,8 @@ import hashlib
 import asyncio
 import time
 from typing import List, Dict, Any
-from curl_cffi import requests
-from scrapers.base import UnconfirmedEnd, PagedScraper, parse_price
+from scrapers import http as requests
+from scrapers.base import UnconfirmedEnd, PagedScraper, parse_price, price_value
 from bs4 import BeautifulSoup
 
 class SulpakScraper(PagedScraper):
@@ -89,10 +89,7 @@ class SulpakScraper(PagedScraper):
 
                 # Текущая цена
                 if data_price:
-                    try:
-                        current_price = int(float(data_price))
-                    except ValueError:
-                        current_price = 0
+                    current_price = price_value(data_price)
                 else:
                     price_el = c.select_one(".product__item-price, .price")
                     current_price = parse_price(price_el.text) if price_el else 0

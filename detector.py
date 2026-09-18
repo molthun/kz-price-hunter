@@ -68,8 +68,11 @@ def check_anomaly(product: Dict[str, Any], history_info: Dict[str, Any], custom_
     min_drop_pct = s.get("price_glitch_drop_pct", 65)
     min_savings = s.get("min_savings_kzt", 40000)
 
-    # Опорная цена — максимум из РЕАЛЬНОЙ истории цен в базе и подтвержденной зачеркнутой цены на сайте
+    # Опорная цена — максимум из РЕАЛЬНОЙ истории цен в базе и зачеркнутой цены на сайте.
+    # Основание сохраняется в тексте: зачеркнутая цена — заявление магазина, а не наблюдение.
     reference_price = max(old_price_history, first_price, old_price_on_site)
+    basis = ("зачёркнутой цены на сайте" if old_price_on_site == reference_price
+             and old_price_on_site > max(old_price_history, first_price) else "прошлой цены в базе")
     if reference_price > 10_000_000 or reference_price <= 0:
         return None
 
@@ -85,12 +88,13 @@ def check_anomaly(product: Dict[str, Any], history_info: Dict[str, Any], custom_
         if detect_zero and ZERO_DROP_RATIO_MIN <= ratio <= ZERO_DROP_RATIO_MAX and 80_000 <= reference_price <= 5_000_000:
             return {
                 "type": "ZERO_GLITCH",
-                "emoji": "🚨 ОШИБКА ЦЕНЫ (ПРОПУЩЕН НОЛЬ!)",
+                "emoji": "🚨 ВОЗМОЖНАЯ ОШИБКА ЦЕНЫ (пропущен ноль?)",
                 "old_price": reference_price,
                 "new_price": curr_price,
                 "drop_pct": drop_pct,
                 "savings": savings,
-                "reason": f"Цена упала в {round(ratio, 1)} раз (с {reference_price:,} ₸ до {curr_price:,} ₸, вероятно, пропущен ноль!)".replace(",", " ")
+                "basis": basis,
+                "reason": f"Цена упала в {round(ratio, 1)} раз относительно {basis} (с {reference_price:,} ₸ до {curr_price:,} ₸), возможно, пропущен ноль — проверьте на сайте".replace(",", " ")
             }
 
         # Б) Глубокий обвал цены (Супер-скидка)
@@ -102,7 +106,8 @@ def check_anomaly(product: Dict[str, Any], history_info: Dict[str, Any], custom_
                 "new_price": curr_price,
                 "drop_pct": drop_pct,
                 "savings": savings,
-                "reason": f"Обвал цены на {drop_pct}% с экономией {savings:,} ₸".replace(",", " ")
+                "basis": basis,
+                "reason": f"Обвал цены на {drop_pct}% относительно {basis} с экономией {savings:,} ₸".replace(",", " ")
             }
 
     return None

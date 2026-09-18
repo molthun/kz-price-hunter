@@ -1,7 +1,7 @@
 import re
 import asyncio
 from typing import List, Dict, Any
-from curl_cffi import requests
+from scrapers import http as requests
 from scrapers.base import UnconfirmedEnd, PagedScraper, parse_price
 from bs4 import BeautifulSoup
 

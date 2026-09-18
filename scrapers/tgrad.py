@@ -3,14 +3,15 @@
 Сайт на Bitrix. Категории лежат в корне (`/stiralnye-mashiny/`), страницы — `/page-N/`.
 У каждой карточки есть кнопка корзины с JSON в `data-ga` (артикул, название, цена, бренд),
 поэтому цена и идентификатор берутся из него, а ссылка, фото и старая цена — из разметки.
-После последней страницы сайт отвечает редиректом 302 на первую.
+После последней страницы сайт отвечает редиректом 302 на первую; другой адрес редиректа
+(вход, блокировка, другой раздел) концом каталога не считается.
 """
 import json
 from typing import Any, Dict, List
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
-from curl_cffi import requests
+from scrapers import http as requests
 from scrapers.base import PagedScraper, ScanResult, parse_price
 
 BASE_URL = "https://tgrad.kz"
@@ -38,7 +39,11 @@ class TgradScraper(PagedScraper):
         # Редирект после последней страницы — признак конца, поэтому редиректы не выполняем
         r = self._get_session().get(url, timeout=45, allow_redirects=False)
         if r.status_code in (301, 302) and page_num > 1:
-            return ScanResult([], complete=True)
+            # Конец выдачи — только редирект на первую страницу этой же категории
+            target = urljoin(url, r.headers.get("Location") or "")
+            if target.rstrip("/") == self.page_url(category_url, 1).rstrip("/"):
+                return ScanResult([], complete=True)
+            raise RuntimeError(f"Неожиданный редирект HTTP {r.status_code}")
         if r.status_code != 200:
             raise RuntimeError(f"HTTP {r.status_code}")
         return self.parse_page(r.text, category_name, page_num)

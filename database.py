@@ -407,6 +407,13 @@ def update_products_canonical_keys(pairs: List[tuple]) -> int:
         conn.commit()
     return len(pairs)
 
+def site_old_price(value: Any, current_price: int) -> int:
+    """Зачёркнутая цена текущего наблюдения: только больше текущей, иначе 0 (скидка снята)."""
+    from scrapers.base import price_value
+    old = price_value(value)
+    return old if old > current_price else 0
+
+
 def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
     from model_matching import extract_canonical_key
 
@@ -432,6 +439,7 @@ def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
             "price_changed": False
         }
     canonical_key = p.get("canonical_key") or extract_canonical_key(title)
+    old_on_site = site_old_price(p.get("old_price_on_site"), current_price)
 
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
@@ -442,9 +450,9 @@ def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
 
         if existing is None:
             cursor.execute("""
-                INSERT INTO products (id, shop, city, title, category, url, image_url, description, current_price, first_seen_price, min_price, max_price, canonical_key, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (pid, shop, city, title, category, url, image_url, description, current_price, current_price, current_price, current_price, canonical_key, now, now))
+                INSERT INTO products (id, shop, city, title, category, url, image_url, description, current_price, old_price_on_site, first_seen_price, min_price, max_price, canonical_key, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (pid, shop, city, title, category, url, image_url, description, current_price, old_on_site, current_price, current_price, current_price, canonical_key, now, now))
             conn.commit()
             return {
                 "is_new": True,
@@ -464,9 +472,9 @@ def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
                 UPDATE products
                 SET is_active = 1, shop = ?, city = ?, title = ?, category = ?, url = ?, image_url = ?,
                     description = CASE WHEN ? != '' THEN ? ELSE description END,
-                    current_price = ?, min_price = ?, max_price = ?, canonical_key = COALESCE(?, canonical_key), updated_at = ?
+                    current_price = ?, old_price_on_site = ?, min_price = ?, max_price = ?, canonical_key = COALESCE(?, canonical_key), updated_at = ?
                 WHERE id = ?
-            """, (shop, city, title, category, url, image_url, description, description, current_price, min_price, max_price, canonical_key, now, pid))
+            """, (shop, city, title, category, url, image_url, description, description, current_price, old_on_site, min_price, max_price, canonical_key, now, pid))
             conn.commit()
 
             return {
@@ -530,15 +538,16 @@ def save_or_update_products_batch(products: List[Dict[str, Any]]) -> int:
             if current_price > 10_000_000 or current_price <= 0:
                 continue
             canonical_key = p.get("canonical_key") or extract_canonical_key(title)
+            old_on_site = site_old_price(p.get("old_price_on_site"), current_price)
 
             cursor.execute("SELECT current_price, min_price, max_price FROM products WHERE id = ?", (pid,))
             existing = cursor.fetchone()
 
             if existing is None:
                 cursor.execute("""
-                    INSERT INTO products (id, shop, city, title, category, url, image_url, description, current_price, first_seen_price, min_price, max_price, canonical_key, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (pid, shop, city, title, category, url, image_url, description, current_price, current_price, current_price, current_price, canonical_key, now, now))
+                    INSERT INTO products (id, shop, city, title, category, url, image_url, description, current_price, old_price_on_site, first_seen_price, min_price, max_price, canonical_key, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (pid, shop, city, title, category, url, image_url, description, current_price, old_on_site, current_price, current_price, current_price, canonical_key, now, now))
             else:
                 min_price = min(existing["min_price"], current_price)
                 max_price = max(existing["max_price"], current_price)
@@ -546,9 +555,9 @@ def save_or_update_products_batch(products: List[Dict[str, Any]]) -> int:
                     UPDATE products
                     SET is_active = 1, shop = ?, city = ?, title = ?, category = ?, url = ?, image_url = ?,
                         description = CASE WHEN ? != '' THEN ? ELSE description END,
-                        current_price = ?, min_price = ?, max_price = ?, canonical_key = COALESCE(?, canonical_key), updated_at = ?
+                        current_price = ?, old_price_on_site = ?, min_price = ?, max_price = ?, canonical_key = COALESCE(?, canonical_key), updated_at = ?
                     WHERE id = ?
-                """, (shop, city, title, category, url, image_url, description, description, current_price, min_price, max_price, canonical_key, now, pid))
+                """, (shop, city, title, category, url, image_url, description, description, current_price, old_on_site, min_price, max_price, canonical_key, now, pid))
             updated_count += 1
         conn.commit()
 

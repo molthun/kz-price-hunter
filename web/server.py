@@ -286,96 +286,9 @@ async def products_handler(request):
     })
 
 async def fetch_product_description_live(prod: Dict[str, Any]) -> str:
-    """Извлекает подробное описание товара в реальном времени со страницы магазина, если оно не было сохранено ранее."""
-    url = prod.get("url") or ""
-    shop = prod.get("shop") or ""
-    if not url or not url.startswith("http"):
-        return ""
-
-    def _sync_fetch():
-        try:
-            from curl_cffi import requests
-            from bs4 import BeautifulSoup
-            import re
-
-            r = requests.get(url, impersonate="chrome124", timeout=10, headers={"User-Agent": "Mozilla/5.0"})
-            if r.status_code != 200:
-                return ""
-            soup = BeautifulSoup(r.text, "html.parser")
-
-            # 1. Белый Ветер (shop.kz)
-            if "shop.kz" in url or "Белый Ветер" in shop:
-                desc_el = soup.select_one(".bx_item_description")
-                if desc_el:
-                    lines = [line.strip() for line in desc_el.get_text(separator="\n").splitlines()]
-                    lines = [l for l in lines if l and l.lower() != "описание"]
-                    text = "\n".join(lines)
-                    text = re.sub(r"\n{3,}", "\n\n", text).strip()
-                    if text:
-                        return text
-                spec_items = []
-                for item in soup.select(".dotted-item"):
-                    n_el = item.select_one(".dotted-item__name")
-                    v_el = item.select_one(".dotted-item__value")
-                    if n_el and v_el:
-                        n, v = n_el.get_text().strip(), v_el.get_text().strip()
-                        if n and v:
-                            spec_items.append(f"• {n}: {v}")
-                if spec_items:
-                    return "\n".join(spec_items)
-
-            # 2. Kaspi Магазин
-            if "kaspi.kz" in url or "Kaspi" in shop:
-                spec_el = soup.select_one(".specifications-list")
-                if spec_el:
-                    specs = []
-                    for li in spec_el.select(".specifications-list__spec"):
-                        term = li.select_one(".specifications-list__spec-term-translation, .specifications-list__spec-term")
-                        val = li.select_one(".specifications-list__spec-definition-translation, .specifications-list__spec-definition")
-                        if term and val:
-                            specs.append(f"• {term.get_text().strip()}: {val.get_text().strip()}")
-            # 3. Forte Market
-            if "market.forte.kz" in url or "Forte" in shop:
-                try:
-                    from scrapers.fortemarket import build_description_from_params, API_SEARCH_URL
-                    search_title = prod.get("title") or ""
-                    if not search_title:
-                        slug = url.strip("/").split("/")[-1]
-                        search_title = slug.rsplit("-", 1)[0].replace("-", " ")
-                    r_fm = requests.post(API_SEARCH_URL, json={"query": search_title, "hitsPerPage": 1}, timeout=5)
-                    if r_fm.status_code in (200, 201):
-                        fm_data = r_fm.json()
-                        if fm_data.get("hits"):
-                            fm_desc = build_description_from_params(fm_data["hits"][0])
-                            if fm_desc:
-                                return fm_desc
-                except Exception:
-                    pass
-
-            # 4. Общие популярные селекторы описания
-            for sel in [
-                ".product-card-description", ".product-about__text", ".product-detail__description",
-                ".item-description", "#description", ".description-text", ".product-features",
-                "[itemprop='description']", ".product-view__description"
-            ]:
-                el = soup.select_one(sel)
-                if el:
-                    t = el.get_text(separator="\n").strip()
-                    if len(t) > 30:
-                        lines = [line.strip() for line in t.splitlines() if line.strip()]
-                        return re.sub(r"\n{3,}", "\n\n", "\n".join(lines))
-
-            # 4. Fallback к мета-тегу description
-            meta = soup.select_one("meta[name='description'], meta[property='og:description']")
-            if meta and meta.get("content"):
-                c = meta["content"].strip()
-                if len(c) > 40 and not c.startswith("Купить "):
-                    return c
-        except Exception:
-            pass
-        return ""
-
-    return await asyncio.to_thread(_sync_fetch)
+    """Описание со страницы магазина: белый список доменов, проверка редиректов, лимиты (product_details)."""
+    from product_details import get_description
+    return await get_description(prod)
 
 @routes.get("/api/products/{id}")
 async def product_detail_handler(request):

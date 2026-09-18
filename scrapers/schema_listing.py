@@ -10,7 +10,7 @@ from typing import Any, Dict, List
 from urllib.parse import parse_qs, urljoin, urlparse
 
 from bs4 import BeautifulSoup
-from curl_cffi import requests
+from scrapers import http as requests
 from scrapers.base import PagedScraper, ScanResult, parse_price
 
 class SchemaListingScraper(PagedScraper):

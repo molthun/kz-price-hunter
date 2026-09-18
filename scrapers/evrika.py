@@ -7,7 +7,7 @@ import re
 from typing import Any, Dict, List
 from urllib.parse import urlparse
 
-from curl_cffi import requests
+from scrapers import http as requests
 from bs4 import BeautifulSoup
 from scrapers.base import ScanResult, PagedScraper, parse_price
 
@@ -42,7 +42,7 @@ class EvrikaScraper(PagedScraper):
 
     def _fetch_page(self, category_name: str, category_url: str, page_num: int) -> List[Dict[str, Any]]:
         url = self._api_url(category_url, page_num)
-        r = requests.get(url, headers=self.headers, impersonate="chrome124", timeout=30, verify=False)
+        r = requests.get(url, headers=self.headers, impersonate="chrome124", timeout=30)
         if r.status_code != 200:
             raise RuntimeError(f"HTTP {r.status_code}")
         data = r.json()

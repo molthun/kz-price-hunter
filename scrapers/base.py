@@ -2,21 +2,36 @@
 import re
 import time
 import asyncio
+from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional
 
 # Глубина обхода категории по умолчанию (страниц)
 DEFAULT_MAX_PAGES = 50
+
+MAX_PRICE_KZT = 10_000_000
+# Явная иная валюта: такую цену не выдаём за тенге
+_FOREIGN_CURRENCY = re.compile(r"[$€₽]|\b(?:usd|eur|rub|руб)\b", re.I)
+_PRICE_BLOCK = re.compile(r"(?:\d{1,3}(?:[ \u00a0]\d{3})+|\d+)")
+
+
+def _in_range(value: int) -> int:
+    return value if 0 < value <= MAX_PRICE_KZT else 0
+
 
 def parse_price(price_str: Any) -> int:
     """Извлекает целочисленную цену в тенге из строки любого формата.
     Защищен от склейки нескольких цен (например '179 990 ₸ 200 650 ₸' -> 179990),
     от копеек/десятичных дробей (например '72 228.00' или '72228.0' -> 72228),
     и от абсурдных выбросов (> 10 000 000 ₸).
+    Пропускает блоки, которые не являются полной ценой: скидку «-20 000 ₸», процент «15%»,
+    платёж рассрочки «5 990 ₸/мес». Явная иная валюта ($, €, ₽, USD…) даёт 0.
     """
-    if not price_str:
+    if price_str is None or isinstance(price_str, bool):
         return 0
+    if isinstance(price_str, (int, float, Decimal)):
+        return price_value(price_str)
     text = str(price_str).strip()
-    if not text or "нет в наличии" in text.lower():
+    if not text or "нет в наличии" in text.lower() or _FOREIGN_CURRENCY.search(text):
         return 0
 
     # 1. Отсекаем копейки/дробные части вида .00, ,00, .0, ,0 (чтобы 72228.00 или 72228.0 не превращались в 722280)
@@ -24,21 +39,43 @@ def parse_price(price_str: Any) -> int:
 
     # 2. Поиск блоков чисел, разделенных пробелами (например '179 990 ₸ 200 650 ₸' -> '179 990' и '200 650')
     # Берем первый валидный ценовой блок, а не склеиваем несколько цен в одну
-    blocks = re.findall(r'(?:\d{1,3}(?:[ \u00a0]\d{3})+|\d+)', text)
-    if blocks:
-        for block in blocks:
-            digits = re.sub(r'[^\d]', '', block)
-            if digits:
-                val = int(digits)
-                if 0 < val <= 10_000_000:
-                    return val
-
-    digits = re.sub(r'[^\d]', '', text)
-    if digits:
-        val = int(digits)
-        if 0 < val <= 10_000_000:
+    for match in _PRICE_BLOCK.finditer(text):
+        before = text[:match.start()].rstrip()
+        after = text[match.end():].lstrip()
+        if before.endswith(("-", "−", "–")) or after.startswith("%"):
+            continue
+        if re.match(r"(?:₸|тг\.?|тенге)?\s*(?:/|в)\s*мес", after, re.I):
+            continue
+        val = _in_range(int(re.sub(r"[^\d]", "", match.group())))
+        if val:
             return val
     return 0
+
+
+def price_value(value: Any) -> int:
+    """Цена из числового поля JSON/атрибута: 199990, 199990.0, "199990.50", "199 990".
+
+    Дробная часть — тиыны, отбрасывается (а не приписывается к цене). Отрицательное,
+    нечисловое, бесконечное или вне диапазона значение даёт 0.
+    """
+    if value is None or isinstance(value, bool):
+        return 0
+    if isinstance(value, int):
+        return _in_range(value)
+    if isinstance(value, (float, Decimal)):
+        try:
+            number = Decimal(str(value))
+        except InvalidOperation:
+            return 0
+    else:
+        text = str(value).strip().replace("\u00a0", "").replace(" ", "")
+        if not re.fullmatch(r"\d+(?:[.,]\d+)?", text):
+            return parse_price(value)
+        number = Decimal(text.replace(",", "."))
+    if not number.is_finite() or number <= 0:
+        return 0
+    return _in_range(int(number))
+
 
 class UnconfirmedEnd(RuntimeError):
     """HTTP succeeded, but HTML cannot prove whether the catalog ended."""

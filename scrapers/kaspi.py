@@ -9,8 +9,8 @@ import asyncio
 import urllib.parse
 from typing import Any, Dict, List
 
-from curl_cffi import requests
-from scrapers.base import ScanResult, PagedScraper
+from scrapers import http as requests
+from scrapers.base import ScanResult, PagedScraper, price_value
 
 class KaspiScraper(PagedScraper):
     SHOP_NAME = "Kaspi Магазин"
@@ -79,7 +79,7 @@ class KaspiScraper(PagedScraper):
         products: List[Dict[str, Any]] = []
         for card in cards:
             title = (card.get("title") or "").strip()
-            price = int(card.get("unitSalePrice") or card.get("unitPrice") or 0)
+            price = price_value(card.get("unitSalePrice") or card.get("unitPrice"))
             if not title or price <= 0:
                 continue
 
@@ -87,7 +87,7 @@ class KaspiScraper(PagedScraper):
             if card.get("stock") is not None and int(card.get("stock") or 0) <= 0:
                 continue
 
-            base_price = int(card.get("unitPrice") or 0)
+            base_price = price_value(card.get("unitPrice"))
             link = card.get("shopLink") or ""
             if link:
                 if link.startswith("/p/"):

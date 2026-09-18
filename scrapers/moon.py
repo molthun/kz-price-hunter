@@ -1,9 +1,11 @@
 import re
 import asyncio
 from typing import List, Dict, Any
-from curl_cffi import requests
+from scrapers import http as requests
 from scrapers.base import UnconfirmedEnd, PagedScraper, parse_price
 from bs4 import BeautifulSoup
+
+MOON_INTERMEDIATE_CA = "gogetssl-rsa-dv-ssl-ca-2.crt"
 
 class MoonScraper(PagedScraper):
     SHOP_NAME = "Moon.kz"
@@ -36,7 +38,8 @@ class MoonScraper(PagedScraper):
                 url,
                 headers=self.headers,
                 impersonate="chrome124",
-                verify=False,
+                # Сервер не отдаёт промежуточный сертификат; проверка TLS включена
+                verify=requests.ca_bundle_with(MOON_INTERMEDIATE_CA),
                 timeout=15
             )
             if r.status_code == 404 and page_num > 1:

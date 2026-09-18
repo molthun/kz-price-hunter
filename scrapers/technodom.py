@@ -8,8 +8,8 @@ import re
 import json
 from typing import Any, Dict, List
 
-from curl_cffi import requests
-from scrapers.base import ScanResult, PagedScraper
+from scrapers import http as requests
+from scrapers.base import ScanResult, PagedScraper, price_value
 
 class TechnodomScraper(PagedScraper):
     SHOP_NAME = "Технодом"
@@ -33,8 +33,8 @@ class TechnodomScraper(PagedScraper):
 
     @staticmethod
     def _price(value: Any) -> int:
-        digits = re.sub(r"[^\d]", "", str(value or ""))
-        return int(digits) if digits else 0
+        # 199990.0 — тенге с тиынами, а не 1999900
+        return price_value(value)
 
     def _fetch_page(self, category_name: str, category_url: str, page_num: int) -> List[Dict[str, Any]]:
         url = self.page_url(category_url, page_num)

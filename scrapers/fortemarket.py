@@ -2,8 +2,8 @@
 import asyncio
 import urllib.parse
 from typing import Any, Dict, List, Optional
-from curl_cffi import requests
-from scrapers.base import PagedScraper, ScanResult
+from scrapers import http as requests
+from scrapers.base import PagedScraper, ScanResult, price_value
 
 API_SEARCH_URL = "https://apigw.forte.kz/fm/v1/algolia/search/text"
 PAGE_SIZE = 20
@@ -34,19 +34,19 @@ def resolve_price_for_city(hit: Dict[str, Any], city: str = "Астана") -> i
             lid = str(loc.get("ID") or "")
             for prefix in city_prefixes:
                 if prefix in lid:
-                    p = int(loc.get("Price") or 0)
+                    p = price_value(loc.get("Price"))
                     if p > 0:
                         return p
 
         # Fallback: общая цена по KZ
         for loc in locs:
             if loc.get("ID") == "KZ":
-                p = int(loc.get("Price") or 0)
+                p = price_value(loc.get("Price"))
                 if p > 0:
                     return p
 
     # Главное поле Price
-    return int(hit.get("Price") or 0)
+    return price_value(hit.get("Price"))
 
 
 def build_description_from_params(hit: Dict[str, Any]) -> str:
@@ -135,8 +135,10 @@ class ForteMarketScraper(PagedScraper):
     def parse_response(
         cls, data: Dict[str, Any], category_name: str, page: int, city: str = "Астана"
     ) -> ScanResult:
-        hits = data.get("hits") or []
-        nb_hits = int(data.get("nbHits") or 0)
+        if not isinstance(data, dict) or not isinstance(data.get("hits"), list):
+            raise ValueError("Неожиданная структура ответа Forte Market")
+        hits = data["hits"]
+        nb_hits = data.get("nbHits")
 
         products = []
         for hit in hits:
@@ -167,7 +169,9 @@ class ForteMarketScraper(PagedScraper):
 
             products.append(product)
 
-        complete = len(hits) < PAGE_SIZE or (page * PAGE_SIZE >= nb_hits)
+        # Конец подтверждает только валидный nbHits (Algolia); без него — partial
+        total_known = isinstance(nb_hits, int) and not isinstance(nb_hits, bool) and nb_hits >= 0
+        complete = total_known and page * PAGE_SIZE >= nb_hits
         return ScanResult(products, complete=complete)
 
     async def search_live(self, query: str, city: str = "Астана") -> List[Dict[str, Any]]:

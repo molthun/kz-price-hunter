@@ -644,8 +644,9 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(p2["old_price_on_site"], 0)
         self.assertEqual(p2["url"], "https://halykmarket.kz/category/noutbuki/acer-15")
 
-        # Page 1 has 3 items (< 24), so complete is True
-        self.assertTrue(res.complete)
+        # products_total=45 при трёх товарах на странице 1 — конец не подтверждён
+        self.assertFalse(res.complete)
+        self.assertTrue(HalykScraper.parse_response(dict(raw_data, products_total=3), "Смартфоны", page=1).complete)
 
         # Incomplete page: 24 items with total 100 on page 1
         full_page = {"products_total": 100, "products": [{"id": str(i), "name": f"P{i}", "price": 1000} for i in range(24)]}
@@ -2073,9 +2074,15 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
         """
         class FakeResponse:
             status_code = 200
-            text = fake_html
+            headers = {"Content-Type": "text/html; charset=utf-8"}
+            encoding = "utf-8"
+            def iter_content(self):
+                yield fake_html.encode()
+            def close(self):
+                pass
 
-        with patch("curl_cffi.requests.get", return_value=FakeResponse()):
+        with patch("curl_cffi.requests.get", return_value=FakeResponse()), \
+             patch("product_details._resolve_public"):
             app = create_app()
             app.cleanup_ctx.clear()
             async with TestClient(TestServer(app)) as client:

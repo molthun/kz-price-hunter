@@ -1,7 +1,7 @@
 """Public Flip catalog; no inferred city or installment prices."""
 from urllib.parse import urljoin, urlparse, parse_qs
 from bs4 import BeautifulSoup
-from curl_cffi import requests
+from scrapers import http as requests
 from scrapers.base import PagedScraper, ScanResult, parse_price
 
 

@@ -2,8 +2,8 @@ import re
 import uuid
 import asyncio
 from typing import List, Dict, Any
-from curl_cffi import requests
-from scrapers.base import ScanResult, PagedScraper, parse_price
+from scrapers import http as requests
+from scrapers.base import ScanResult, PagedScraper, parse_price, price_value
 
 class MechtaScraper(PagedScraper):
     SHOP_NAME = "Мечта"
@@ -88,8 +88,8 @@ class MechtaScraper(PagedScraper):
 
                 # Цены
                 prices = item.get("prices") or {}
-                final_price = prices.get("finalPrice") or 0
-                base_price = prices.get("basePrice") or 0
+                final_price = price_value(prices.get("finalPrice"))
+                base_price = price_value(prices.get("basePrice"))
 
                 if final_price <= 0:
                     continue
@@ -108,8 +108,8 @@ class MechtaScraper(PagedScraper):
                     "category": category_name,
                     "url": product_url,
                     "image_url": image_url,
-                    "price": int(final_price),
-                    "old_price_on_site": int(base_price) if base_price > final_price else 0,
+                    "price": final_price,
+                    "old_price_on_site": base_price if base_price > final_price else 0,
                     "city": "Астана"
                 })
 
