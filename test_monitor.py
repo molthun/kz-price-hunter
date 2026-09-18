@@ -1632,8 +1632,8 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
             config.save_settings(old)
 
     def test_master_categories_definition_and_coverage(self):
-        """Проверка целостности 12 мастер-категорий и их охвата по всем 17 магазинам."""
-        self.assertEqual(len(config.MASTER_CATEGORIES), 12)
+        """Проверка целостности мастер-категорий и их охвата по всем магазинам."""
+        self.assertEqual(len(config.MASTER_CATEGORIES), 14)
         required_keys = {"name", "icon", "description"}
         for cat_id, meta in config.MASTER_CATEGORIES.items():
             self.assertTrue(required_keys.issubset(meta.keys()))
@@ -1712,7 +1712,7 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
                 data = await res.json()
                 self.assertIn("categories", data)
                 self.assertIn("wave_plan", data)
-                self.assertEqual(len(data["categories"]), 12)
+                self.assertEqual(len(data["categories"]), len(config.MASTER_CATEGORIES))
 
                 # 2. POST /api/admin/categories (сохранение настроек)
                 res = await client.post('/api/admin/categories', json={

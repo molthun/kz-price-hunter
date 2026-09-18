@@ -35,6 +35,7 @@ SHOP_KEYS = {
     "itmag": "ITMag",
     "ispace": "iSpace",
     "fortemarket": "Forte Market",
+    "vkusmart": "Вкусмарт",
 }
 
 
@@ -110,6 +111,18 @@ MASTER_CATEGORIES = {
         "name": "Акции и распродажи",
         "icon": "🔥",
         "description": "Специальные разделы распродаж и скидок магазинов"
+    },
+    "grocery": {
+        "id": "grocery",
+        "name": "Продукты и бакалея",
+        "icon": "🥫",
+        "description": "Продукты питания, напитки, чай, кофе, сладости"
+    },
+    "household": {
+        "id": "household",
+        "name": "Бытовые товары и химия",
+        "icon": "🧼",
+        "description": "Бытовая химия, стирка, уборка, гигиена, хозтовары"
     },
 }
 
@@ -875,5 +888,14 @@ FORTE_CATEGORIES = [
     {"name": "Forte: 🛠 Строительство и ремонт", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl1:Строительство и ремонт", "master": "all", "max_pages": 25},
     {"name": "Forte: 🏡 Товары для дома и дачи", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl1:Товары для дома и дачи", "master": "all", "max_pages": 25},
 ]
+
+# Вкусмарт (vkusmart.vmv.kz): онлайн-супермаркет продуктов и бытовой химии
+VKUSMART_CATEGORIES = [
+    {"name": "Вкусмарт: 🔥 Акции супермаркета", "url": "https://vkusmart.vmv.kz/catalog/aktsii/", "master": "actions", "max_pages": 10},
+    {"name": "Вкусмарт: 🥫 Бакалея", "url": "https://vkusmart.vmv.kz/catalog/bakaleya/", "master": "grocery", "max_pages": 15},
+    {"name": "Вкусмарт: ☕️ Чай, кофе, какао", "url": "https://vkusmart.vmv.kz/catalog/chay-kofe-kakao/", "master": "grocery", "max_pages": 15},
+    {"name": "Вкусмарт: 🧼 Чистота и порядок", "url": "https://vkusmart.vmv.kz/catalog/chistota-i-poryadok/", "master": "household", "max_pages": 15},
+]
+
 
 

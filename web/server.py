@@ -41,6 +41,7 @@ from config import (
     ITMAG_CATEGORIES,
     ISPACE_CATEGORIES,
     FORTE_CATEGORIES,
+    VKUSMART_CATEGORIES,
     MASTER_CATEGORIES,
     get_wave_plan,
     get_wave_interval_seconds,
@@ -97,6 +98,7 @@ from scrapers.moon import MoonScraper
 from scrapers.kaspi import KaspiScraper
 from scrapers.fourmobile import FourMobileScraper
 from scrapers.fortemarket import ForteMarketScraper
+from scrapers.vkusmart import VkusmartScraper
 from search_engine import get_best_price_summary
 import ai_service
 from config import get_ai_config
@@ -788,6 +790,7 @@ SHOP_REGISTRY = {
     "itmag": (ItmagScraper, ITMAG_CATEGORIES, "ITMag"),
     "ispace": (ISpaceScraper, ISPACE_CATEGORIES, "iSpace"),
     "fortemarket": (ForteMarketScraper, FORTE_CATEGORIES, "Forte Market"),
+    "vkusmart": (VkusmartScraper, VKUSMART_CATEGORIES, "Вкусмарт"),
 }
 
 # Сколько магазинов обходить одновременно (у каждого свой сайт, поэтому нагрузка не суммируется)

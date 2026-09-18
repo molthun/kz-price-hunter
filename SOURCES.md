@@ -1,6 +1,6 @@
 # Источники KZ Price Hunter
 
-Дата: 18.09.2026; HEAD e7ebcdc + исходный diff database.py. **Статический инвентарь кода, не акт живой проверки доступности магазинов.** Все 18 зарегистрированных источников включены, независимо от enabled flags.
+Дата: 19.09.2026. **Статический инвентарь кода, не акт живой проверки доступности магазинов.** Все 19 зарегистрированных источников включены, независимо от enabled flags.
 
 ## Классификация
 
@@ -18,7 +18,7 @@ A — feed/API владельца с документированным назн
 
 Изображения сохраняются ссылками, server image proxy/cache не обнаружен. Browser и Telegram могут получать их с внешнего источника. Description используется в UI и может дополнительно сохраняться через guest product-detail GET для любого магазина. Его отсутствие в конкретном parser не означает отсутствие копирования текста в целом.
 
-## Матрица 18 источников
+## Матрица 19 источников
 
 | Модуль / класс | Тип / механизм | Timeout / pacing | Session, pagination, retry | Поля и ограничения |
 |---|---|---|---|---|
@@ -40,6 +40,7 @@ A — feed/API владельца с документированным назн
 | `scrapers/ants.py` / `AntsScraper` | B + D; ants.kz schema.org microdata через SchemaListingScraper | 45 с; 0.4 с | Session chrome124; PAGEN_1; no retry; IN_STOCK_FIRST=True | itemprop name/url/image/price/availability; old HTML; ID /tovar-N или title hash; Алматы; первый OutOfStock завершает обход по предположению порядка |
 | `scrapers/itmag.py` / `ItmagScraper` | B + D; itmag.kz schema.org microdata через SchemaListingScraper | 45 с; 0.4 с | Session chrome124; PAGEN_1; no retry; IN_STOCK_FIRST=False | itemprops + old HTML; ID /p/N или title hash; Алматы; description нет; конец по отсутствию next-link |
 | `scrapers/ispace.py` / `ISpaceScraper` | D → B; ispace.kz HTML listing→JSON-LD Product на карточке | 45 с; listing 0.3 с; product workers=4 без pause | chrome124; ?page=N; без retry; отдельный ThreadPoolExecutor | sku→id/добавление к title; offers.price/availability/image; Астана hardcoded; old=0; JSON-LD missing и out-of-stock оба None; description нет |
+| `scrapers/vkusmart.py` / `VkusmartScraper` | D + B; vkusmart.vmv.kz Bitrix Aspro HTML + Schema.org | 15 с; 0.4 с | Session chrome124; PAGEN_1; 404/empty→complete | id/meta name/price/old_price/img; Астана; описание meta description |
 
 ## Пути вне основного фонового scan
 
