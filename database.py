@@ -436,6 +436,7 @@ def init_db():
         conn.commit()
     run_migrations()
     cleanup_expired_sessions()
+    reset_stale_running_scans()
 
 def acquire_scheduler_lease(owner: str, ttl_seconds: float, name: str = "scan") -> bool:
     """Берёт или продлевает аренду; False — действующая аренда у другого процесса."""
@@ -1159,6 +1160,17 @@ def delete_session(token: Optional[str]) -> None:
 
 
 # ===== Состояние сканирования по магазинам =====
+
+def reset_stale_running_scans() -> int:
+    """Сбрасывает статус 'running' у магазинов, прерванных падением или перезапуском процесса."""
+    with get_connection() as conn:
+        cur = conn.execute("""
+            UPDATE shop_scans
+            SET status = 'failed', last_error = 'Прервано перезапуском сервиса'
+            WHERE status = 'running'
+        """)
+        conn.commit()
+        return cur.rowcount
 
 def record_shop_scan_start(shop_key: str) -> None:
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
