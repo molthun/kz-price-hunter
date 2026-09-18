@@ -2327,15 +2327,14 @@
         <div onclick="openProductDetailsModalFromData('${aJson}')" class="glass rounded-2xl p-5 flex flex-col justify-between border ${cardBorder} hover:border-emerald-500/60 hover:shadow-lg hover:shadow-emerald-500/10 transition-all cursor-pointer group">
           <div class="space-y-3">
             <div class="flex items-center justify-between gap-2">
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-1.5 flex-wrap min-w-0">
                 ${getShopBadge(a.shop)}
-                <span class="px-2 py-0.5 rounded-full text-xs font-bold ${badgeClass}">
+                <span class="px-2 py-0.5 rounded-full text-xs font-bold whitespace-nowrap ${badgeClass}">
                   ${badgeLabel}
                 </span>
               </div>
-              <button onclick="dismissAlert(${a.id}, event)" title="Скрыть этот сбой / Неактуально" class="text-slate-500 hover:text-red-400 p-1 rounded-lg hover:bg-slate-800/80 transition text-xs flex items-center gap-1 cursor-pointer">
+              <button onclick="dismissAlert(${a.id}, event)" title="Скрыть этот сбой / Неактуально" class="text-slate-500 hover:text-red-400 w-6 h-6 rounded-lg hover:bg-slate-800 transition flex items-center justify-center cursor-pointer shrink-0 ml-auto">
                 <i class="fa-solid fa-xmark text-sm"></i>
-                <span class="text-[10px] text-slate-500 hover:text-red-300">Скрыть</span>
               </button>
             </div>
 
