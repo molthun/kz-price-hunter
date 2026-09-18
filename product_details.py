@@ -76,31 +76,35 @@ def check_url(url: str, resolve=None) -> str:
 
 
 def fetch_html(url: str, resolve=None) -> Optional[str]:
-    """GET с ручными редиректами (каждый проверяется) и пределом размера тела."""
+    """GET с ручными редиректами (каждый проверяется) и пределом размера тела.
+
+    Своя сессия живёт, пока тело читается потоком: модульный `get` закрывает её сразу.
+    """
     current = check_url(url, resolve)
-    for _ in range(MAX_REDIRECTS + 1):
-        response = http.get(current, impersonate="chrome124", timeout=REQUEST_TIMEOUT_SECONDS,
-                            allow_redirects=False, stream=True)
-        try:
-            if response.status_code in (301, 302, 303, 307, 308):
-                location = response.headers.get("Location") or ""
-                current = check_url(urljoin(current, location), resolve)
-                continue
-            if response.status_code != 200:
-                return None
-            if "html" not in (response.headers.get("Content-Type") or "text/html").lower():
-                return None
-            declared = response.headers.get("Content-Length")
-            if declared and declared.isdigit() and int(declared) > MAX_RESPONSE_BYTES:
-                return None
-            body = bytearray()
-            for chunk in response.iter_content():
-                body.extend(chunk)
-                if len(body) > MAX_RESPONSE_BYTES:
+    with http.Session() as session:
+        for _ in range(MAX_REDIRECTS + 1):
+            response = session.get(current, impersonate="chrome124", timeout=REQUEST_TIMEOUT_SECONDS,
+                                   allow_redirects=False, stream=True)
+            try:
+                if response.status_code in (301, 302, 303, 307, 308):
+                    location = response.headers.get("Location") or ""
+                    current = check_url(urljoin(current, location), resolve)
+                    continue
+                if response.status_code != 200:
                     return None
-            return bytes(body).decode(response.encoding or "utf-8", errors="replace")
-        finally:
-            response.close()
+                if "html" not in (response.headers.get("Content-Type") or "text/html").lower():
+                    return None
+                declared = response.headers.get("Content-Length")
+                if declared and declared.isdigit() and int(declared) > MAX_RESPONSE_BYTES:
+                    return None
+                body = bytearray()
+                for chunk in response.iter_content():
+                    body.extend(chunk)
+                    if len(body) > MAX_RESPONSE_BYTES:
+                        return None
+                return bytes(body).decode(response.encoding or "utf-8", errors="replace")
+            finally:
+                response.close()
     return None
 
 

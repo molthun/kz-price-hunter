@@ -8,13 +8,22 @@
 """
 import json
 from typing import Any, Dict, List
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 from bs4 import BeautifulSoup
 from scrapers import http as requests
 from scrapers.base import PagedScraper, ScanResult, parse_price
 
 BASE_URL = "https://tgrad.kz"
+
+
+def same_page(a: str, b: str) -> bool:
+    """Один адрес страницы: сравниваются схема, хост, порт (443/80 по умолчанию) и путь."""
+    def key(url):
+        parts = urlsplit(url)
+        port = parts.port or {"https": 443, "http": 80}.get(parts.scheme)
+        return parts.scheme, (parts.hostname or "").lower(), port, parts.path.rstrip("/"), parts.query
+    return key(a) == key(b)
 
 class TgradScraper(PagedScraper):
     SHOP_NAME = "Tgrad"
@@ -41,7 +50,7 @@ class TgradScraper(PagedScraper):
         if r.status_code in (301, 302) and page_num > 1:
             # Конец выдачи — только редирект на первую страницу этой же категории
             target = urljoin(url, r.headers.get("Location") or "")
-            if target.rstrip("/") == self.page_url(category_url, 1).rstrip("/"):
+            if r.headers.get("Location") and same_page(target, self.page_url(category_url, 1)):
                 return ScanResult([], complete=True)
             raise RuntimeError(f"Неожиданный редирект HTTP {r.status_code}")
         if r.status_code != 200:

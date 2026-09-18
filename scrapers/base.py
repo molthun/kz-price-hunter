@@ -11,7 +11,9 @@ DEFAULT_MAX_PAGES = 50
 MAX_PRICE_KZT = 10_000_000
 # Явная иная валюта: такую цену не выдаём за тенге
 _FOREIGN_CURRENCY = re.compile(r"[$€₽]|\b(?:usd|eur|rub|руб)\b", re.I)
-_PRICE_BLOCK = re.compile(r"(?:\d{1,3}(?:[ \u00a0]\d{3})+|\d+)")
+# Разделители разрядов: пробел, неразрывный (U+00A0), узкий неразрывный (U+202F, Flip), тонкий (U+2009)
+_THOUSANDS_SEPARATORS = " \u00a0\u202f\u2009"
+_PRICE_BLOCK = re.compile(r"(?:\d{1,3}(?:[ \u00a0\u202f\u2009]\d{3})+|\d+)")
 
 
 def _in_range(value: int) -> int:
@@ -68,7 +70,9 @@ def price_value(value: Any) -> int:
         except InvalidOperation:
             return 0
     else:
-        text = str(value).strip().replace("\u00a0", "").replace(" ", "")
+        text = str(value).strip()
+        for separator in _THOUSANDS_SEPARATORS:
+            text = text.replace(separator, "")
         if not re.fullmatch(r"\d+(?:[.,]\d+)?", text):
             return parse_price(value)
         number = Decimal(text.replace(",", "."))

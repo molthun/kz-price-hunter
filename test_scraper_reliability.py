@@ -43,6 +43,15 @@ class LimiterTest(unittest.TestCase):
             p.stop()
         http.reset_limiter()
 
+    def test_default_limits_are_minimal(self):
+        # Решение владельца: без пауз лимитера, потолок 4 запроса на домен, пауза только по 429
+        self.assertEqual((http.MAX_CONCURRENCY_PER_HOST, http.MIN_INTERVAL_SECONDS, http.JITTER_SECONDS), (4, 0.0, 0.0))
+        ok = Mock(status_code=200, headers={})
+        for _ in range(3):
+            http._limited("GET", "https://fast.example/", lambda: ok)
+        self.assertEqual(self.clock.sleeps, [])
+
+    @patch.object(http, "MIN_INTERVAL_SECONDS", 0.5)
     def test_min_interval_between_requests_to_same_host(self):
         ok = Mock(status_code=200, headers={})
         for _ in range(3):
@@ -142,13 +151,15 @@ class PriceParsingTest(unittest.TestCase):
             "5 990 ₸/мес": 0, "от 199 990 ₸ или 16 666 ₸/мес": 199990, "9 990 тг в мес": 0,
             "$1 200": 0, "1 200 USD": 0, "Нет в наличии": 0, "": 0, None: 0,
             "20 000 000": 0, "Цена: 45 000 тг": 45000,
+            # Flip: узкий неразрывный пробел U+202F между разрядами
+            "1\u202f080\u202f₸": 1080, "1\u202f310\u202f₸ 1\u202f872\u202f₸ 4.8 12": 1310, "12\u2009990 ₸": 12990,
         }
         for raw, expected in cases.items():
             self.assertEqual(parse_price(raw), expected, raw)
 
     def test_price_value_from_json_numbers(self):
         cases = [(199990, 199990), (199990.0, 199990), (199990.99, 199990), ("199990.50", 199990),
-                 ("199 990", 199990), ("199990,5", 199990), (0, 0), (-5, 0), ("-5", 0),
+                 ("199 990", 199990), ("199\u202f990", 199990), ("199990,5", 199990), (0, 0), (-5, 0), ("-5", 0),
                  (float("inf"), 0), (float("nan"), 0), ("abc", 0), (True, 0), (None, 0), (10_000_001, 0)]
         for raw, expected in cases:
             self.assertEqual(price_value(raw), expected, repr(raw))
@@ -204,8 +215,12 @@ class CompletenessTest(unittest.TestCase):
         category = "https://tgrad.kz/smartfony/"
         session = Mock()
         with patch.object(scraper, "_get_session", return_value=session):
-            session.get.return_value = Mock(status_code=302, headers={"Location": "/smartfony/"})
-            self.assertTrue(scraper._fetch_page("C", category, 3).complete)
+            for location in ("/smartfony/", "https://tgrad.kz:443/smartfony/", "https://TGRAD.kz/smartfony"):
+                session.get.return_value = Mock(status_code=302, headers={"Location": location})
+                self.assertTrue(scraper._fetch_page("C", category, 3).complete, location)
+            session.get.return_value = Mock(status_code=302, headers={"Location": "http://tgrad.kz/smartfony/"})
+            with self.assertRaises(RuntimeError):
+                scraper._fetch_page("C", category, 3)
             session.get.return_value = Mock(status_code=302, headers={"Location": "https://tgrad.kz/auth/"})
             with self.assertRaises(RuntimeError):
                 scraper._fetch_page("C", category, 3)
@@ -319,6 +334,27 @@ class FakeStream:
         self.closed = True
 
 
+class FakeSession:
+    """Подмена http.Session: отдаёт заранее заданные ответы."""
+    def __init__(self, responses):
+        self.responses = list(responses)
+        self.calls = 0
+        self.closed = False
+
+    def __call__(self):
+        return self
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.closed = True
+
+    def get(self, url, **kwargs):
+        self.calls += 1
+        return self.responses.pop(0)
+
+
 class ProductDetailsTest(unittest.TestCase):
     def setUp(self):
         import product_details
@@ -341,21 +377,28 @@ class ProductDetailsTest(unittest.TestCase):
             self.pd.check_url("https://kaspi.kz/shop/p/x")
 
     def test_redirect_to_foreign_domain_is_not_followed(self):
-        responses = [FakeStream(302, {"Location": "http://169.254.169.254/latest/"})]
-        with patch.object(self.pd.http, "get", side_effect=responses) as get:
+        redirect = FakeStream(302, {"Location": "http://169.254.169.254/latest/"})
+        session = FakeSession([redirect])
+        with patch.object(self.pd.http, "Session", session):
             with self.assertRaises(self.pd.UnsafeUrl):
                 self.pd.fetch_html("https://kaspi.kz/shop/p/x", self.public)
-        self.assertEqual(get.call_count, 1)
-        self.assertTrue(responses[0].closed)
+        self.assertEqual(session.calls, 1)
+        self.assertTrue(redirect.closed)
+        self.assertTrue(session.closed)
 
     def test_redirect_within_store_and_size_limit(self):
         ok = FakeStream(chunks=(b"<html>ok</html>",))
-        with patch.object(self.pd.http, "get", side_effect=[FakeStream(301, {"Location": "/shop/p/y"}), ok]):
+        with patch.object(self.pd.http, "Session", FakeSession([FakeStream(301, {"Location": "/shop/p/y"}), ok])):
             self.assertEqual(self.pd.fetch_html("https://kaspi.kz/shop/p/x", self.public), "<html>ok</html>")
         huge = FakeStream(chunks=(b"x" * (self.pd.MAX_RESPONSE_BYTES // 2 + 1),) * 3)
-        with patch.object(self.pd.http, "get", return_value=huge):
+        with patch.object(self.pd.http, "Session", FakeSession([huge])):
             self.assertIsNone(self.pd.fetch_html("https://kaspi.kz/shop/p/x", self.public))
-        with patch.object(self.pd.http, "get", return_value=FakeStream(headers={"Content-Type": "application/pdf"})):
+        self.assertTrue(huge.closed)
+        pdf = FakeStream(headers={"Content-Type": "application/pdf"})
+        with patch.object(self.pd.http, "Session", FakeSession([pdf])):
+            self.assertIsNone(self.pd.fetch_html("https://kaspi.kz/shop/p/x", self.public))
+        loop = [FakeStream(302, {"Location": "/shop/p/x"}) for _ in range(self.pd.MAX_REDIRECTS + 1)]
+        with patch.object(self.pd.http, "Session", FakeSession(loop)):
             self.assertIsNone(self.pd.fetch_html("https://kaspi.kz/shop/p/x", self.public))
 
     def test_kaspi_specs_are_returned(self):

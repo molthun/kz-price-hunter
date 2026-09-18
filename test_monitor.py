@@ -2081,7 +2081,7 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
             def close(self):
                 pass
 
-        with patch("curl_cffi.requests.get", return_value=FakeResponse()), \
+        with patch("curl_cffi.requests.Session.request", return_value=FakeResponse()), \
              patch("product_details._resolve_public"):
             app = create_app()
             app.cleanup_ctx.clear()

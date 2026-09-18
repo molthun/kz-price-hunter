@@ -18,10 +18,13 @@ from curl_cffi import requests as _curl
 from curl_cffi.requests import Response, exceptions  # noqa: F401 — совместимость с `curl_cffi.requests`
 from curl_cffi.requests.exceptions import *  # noqa: F401,F403
 
-# Умеренные стартовые параметры (согласованы 18.09.2026); не лимит, согласованный с магазинами
-MAX_CONCURRENCY_PER_HOST = 2
-MIN_INTERVAL_SECONDS = 0.5
-JITTER_SECONDS = 0.25
+# Минимальные ограничения (решение владельца 18.09.2026): скорость обхода как до лимитера —
+# паузы между страницами задают сами адаптеры, здесь только общий потолок одновременных
+# запросов на домен (4 = потоки карточек iSpace) и общая пауза по 429/Retry-After.
+# Не лимит, согласованный с магазинами; ужесточается этими константами.
+MAX_CONCURRENCY_PER_HOST = 4
+MIN_INTERVAL_SECONDS = 0.0
+JITTER_SECONDS = 0.0
 DEFAULT_COOLDOWN_SECONDS = 60
 MAX_COOLDOWN_SECONDS = 900
 # Короткий cooldown выжидаем; длинный — быстрый отказ, обход завершается как partial
@@ -104,7 +107,7 @@ def _acquire(host: str) -> _HostState:
         with state.lock:
             now = _clock()
             start = max(now, state.next_start)
-            state.next_start = start + MIN_INTERVAL_SECONDS + _random(0, JITTER_SECONDS)
+            state.next_start = start + MIN_INTERVAL_SECONDS + (_random(0, JITTER_SECONDS) if JITTER_SECONDS else 0.0)
         if start > now:
             _sleep(start - now)
     except BaseException:
