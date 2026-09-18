@@ -45,7 +45,7 @@ class HalykScraper(PagedScraper):
                 'Accept': 'application/json, text/plain, */*',
                 'Referer': 'https://halykmarket.kz/',
             })
-            # Establish DDoS-Guard session cookies
+            # Инициализация начальной сессии и cookies магазина
             try:
                 self._session.get('https://halykmarket.kz/', impersonate='chrome120', timeout=15)
             except Exception:

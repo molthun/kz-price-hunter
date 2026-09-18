@@ -19,7 +19,10 @@ class DNSScraper:
         products: List[Dict[str, Any]] = []
 
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
+            browser = await p.chromium.launch(
+                headless=True,
+                args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]
+            )
             try:
                 return await self._scrape_with_browser(browser, category_name, category_url, max_pages, products)
             finally:
