@@ -120,9 +120,15 @@ def _all_categories_enabled():
     return {key: True for key in MASTER_CATEGORIES}
 
 DEFAULT_HOT_CATEGORIES = ["smartphones", "laptops", "pc_components"]
+CYCLE_BUDGET_HOURS = 24
+CYCLE_BUDGET_SECONDS = 24 * 3600  # 86400 секунд в сутках
 
 def get_wave_plan(enabled_categories=None, hot_categories=None, wave_index=0, wave_size=2, wave_mode="rolling"):
-    """Рассчитывает состав текущей волны сканирования: Hot-категории + порция второстепенных категорий."""
+    """Рассчитывает состав текущей волны сканирования: Hot-категории + порция второстепенных категорий.
+    
+    Гарантирует, что полный круг ротации всех не-Hot категорий укладывается в 24 часа.
+    Hot-категории включаются в каждую волну без ожидания очереди.
+    """
     if enabled_categories is None:
         enabled_set = set(MASTER_CATEGORIES.keys())
     elif isinstance(enabled_categories, dict):
@@ -146,7 +152,12 @@ def get_wave_plan(enabled_categories=None, hot_categories=None, wave_index=0, wa
             "wave_index": 0,
             "total_waves": 1,
             "next_wave_index": 0,
-            "next_wave_categories": enabled_list
+            "next_wave_categories": enabled_list,
+            "cycle_budget_hours": CYCLE_BUDGET_HOURS,
+            "wave_interval_minutes": CYCLE_BUDGET_HOURS * 60,
+            "wave_interval_seconds": CYCLE_BUDGET_SECONDS,
+            "estimated_cycle_hours": CYCLE_BUDGET_HOURS,
+            "is_last_wave_of_cycle": True,
         }
 
     rotating = [c for c in MASTER_CATEGORIES if c in enabled_set and c not in active_hot]
@@ -159,7 +170,12 @@ def get_wave_plan(enabled_categories=None, hot_categories=None, wave_index=0, wa
             "wave_index": 0,
             "total_waves": 1,
             "next_wave_index": 0,
-            "next_wave_categories": []
+            "next_wave_categories": [],
+            "cycle_budget_hours": CYCLE_BUDGET_HOURS,
+            "wave_interval_minutes": CYCLE_BUDGET_HOURS * 60,
+            "wave_interval_seconds": CYCLE_BUDGET_SECONDS,
+            "estimated_cycle_hours": CYCLE_BUDGET_HOURS,
+            "is_last_wave_of_cycle": True,
         }
 
     wave_size = max(1, wave_size)
@@ -174,6 +190,10 @@ def get_wave_plan(enabled_categories=None, hot_categories=None, wave_index=0, wa
     next_wave_cats = rotating[next_start : next_start + wave_size]
 
     active_combined = list(dict.fromkeys(active_hot + current_wave_cats))
+    is_last_wave_of_cycle = (safe_wave_idx == total_waves - 1)
+    wave_interval_sec = CYCLE_BUDGET_SECONDS // total_waves
+    wave_interval_minutes = wave_interval_sec // 60
+    estimated_cycle_hours = round((wave_interval_sec * total_waves) / 3600, 1)
 
     return {
         "active_categories": active_combined,
@@ -182,7 +202,12 @@ def get_wave_plan(enabled_categories=None, hot_categories=None, wave_index=0, wa
         "wave_index": safe_wave_idx,
         "total_waves": total_waves,
         "next_wave_index": next_wave_idx,
-        "next_wave_categories": next_wave_cats
+        "next_wave_categories": next_wave_cats,
+        "cycle_budget_hours": CYCLE_BUDGET_HOURS,
+        "wave_interval_minutes": wave_interval_minutes,
+        "wave_interval_seconds": wave_interval_sec,
+        "estimated_cycle_hours": estimated_cycle_hours,
+        "is_last_wave_of_cycle": is_last_wave_of_cycle,
     }
 
 # ===== Общие (системные) настройки — меняет только администратор, хранятся в settings.json =====
@@ -370,6 +395,30 @@ def get_scan_interval_seconds(settings=None):
         minutes = SYSTEM_DEFAULTS["scan_interval_minutes"]
     minutes = min(max(minutes, SCAN_INTERVAL_MIN_MINUTES), SCAN_INTERVAL_MAX_MINUTES)
     return minutes * 60
+
+def get_wave_interval_seconds(settings=None, total_waves=None):
+    """Рассчитывает интервал между волнами так, чтобы полный круг гарантированно укладывался в 24 часа.
+
+    Если в настройках задан scan_interval_minutes, интервал волны берется как минимум
+    между пользовательским интервалом и максимально допустимым шагом (24ч / total_waves).
+    """
+    s = settings if settings is not None else load_settings()
+    user_interval = get_scan_interval_seconds(s)
+
+    if total_waves is None:
+        plan = get_wave_plan(
+            enabled_categories=s.get("enabled_categories"),
+            hot_categories=s.get("hot_categories", DEFAULT_HOT_CATEGORIES),
+            wave_size=s.get("wave_size", 2),
+            wave_mode=s.get("wave_mode", "rolling")
+        )
+        total_waves = plan.get("total_waves", 1)
+
+    waves = max(1, int(total_waves))
+    # Лимит 24 часов на полный круг всех волн (86400 секунд)
+    max_interval_sec = CYCLE_BUDGET_SECONDS // waves
+    return max(SCAN_INTERVAL_MIN_MINUTES * 60, min(user_interval, max_interval_sec))
+
 
 def _validate(new_settings, defaults):
     """Оставляет только известные ключи и приводит значения к типам из defaults."""

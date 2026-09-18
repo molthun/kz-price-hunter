@@ -43,6 +43,8 @@ from config import (
     FORTE_CATEGORIES,
     MASTER_CATEGORIES,
     get_wave_plan,
+    get_wave_interval_seconds,
+    CYCLE_BUDGET_HOURS,
     DEFAULT_HOT_CATEGORIES
 )
 from version import get_version_info
@@ -144,8 +146,10 @@ scan_state = {
 # Состояние ротации волн
 wave_state = {
     "current_wave_index": 0,
+    "current_cycle": 1,
     "last_wave_categories": [],
-    "next_wave_categories": []
+    "next_wave_categories": [],
+    "cycle_budget_hours": CYCLE_BUDGET_HOURS,
 }
 
 # Прямой опрос магазинов создает нагрузку на их сайты — ограничиваем частоту
@@ -226,16 +230,26 @@ async def stats_handler(request):
     stats = get_stats(user_settings_for(request))
     stats["scan_state"] = scan_state
     settings = load_settings()
+    try:
+        wave_state["current_wave_index"] = int(get_metadata("wave_index", wave_state["current_wave_index"]))
+        wave_state["current_cycle"] = int(get_metadata("wave_cycle", wave_state.get("current_cycle", 1)))
+    except (TypeError, ValueError):
+        pass
+
     plan = get_wave_plan(
         enabled_categories=settings.get("enabled_categories"),
         hot_categories=settings.get("hot_categories", DEFAULT_HOT_CATEGORIES),
         wave_index=wave_state["current_wave_index"],
         wave_size=settings.get("wave_size", 2)
     )
+    wave_interval_sec = get_wave_interval_seconds(settings, plan["total_waves"])
     stats["wave_info"] = {
         "wave_mode": settings.get("wave_mode", "rolling"),
+        "current_cycle": wave_state.get("current_cycle", 1),
         "wave_index": plan["wave_index"],
         "total_waves": plan["total_waves"],
+        "cycle_budget_hours": CYCLE_BUDGET_HOURS,
+        "wave_interval_minutes": wave_interval_sec // 60,
         "hot_categories": [MASTER_CATEGORIES[c]["name"] for c in plan["hot_categories"] if c in MASTER_CATEGORIES],
         "wave_categories": [MASTER_CATEGORIES[c]["name"] for c in plan["wave_categories"] if c in MASTER_CATEGORIES],
         "next_wave_categories": [MASTER_CATEGORIES[c]["name"] for c in plan["next_wave_categories"] if c in MASTER_CATEGORIES],
@@ -926,7 +940,18 @@ def get_categories_overview():
             if m in counts:
                 counts[m] += r[1]
 
+    try:
+        wave_state["current_wave_index"] = int(get_metadata("wave_index", wave_state["current_wave_index"]))
+        wave_state["current_cycle"] = int(get_metadata("wave_cycle", wave_state.get("current_cycle", 1)))
+    except (TypeError, ValueError):
+        pass
+
     plan = get_wave_plan(enabled_categories=enabled_cats, hot_categories=list(hot_cats), wave_index=wave_state["current_wave_index"], wave_size=wave_size)
+    wave_interval_sec = get_wave_interval_seconds(settings, plan["total_waves"])
+    plan["current_cycle"] = wave_state.get("current_cycle", 1)
+    plan["wave_interval_minutes"] = wave_interval_sec // 60
+    wave_state["current_cycle"] = wave_state.get("current_cycle", 1)
+    wave_state["wave_interval_minutes"] = wave_interval_sec // 60
 
     categories_list = []
     for cat_id, meta in MASTER_CATEGORIES.items():
@@ -1080,11 +1105,16 @@ async def _do_scan_task(shop_keys=None, target_categories=None, scan_type="manua
     if scan_type == "auto" and target_categories is None:
         wave_mode = settings.get("wave_mode", "rolling")
         if wave_mode == "rolling":
-            # Номер волны хранится в БД: перезапуск (выкат) не возвращает обход к волне №1
+            # Номер волны и круга хранятся в БД: перезапуск (выкат) не сбивает ротацию
             try:
                 wave_state["current_wave_index"] = int(get_metadata("wave_index", wave_state["current_wave_index"]))
             except (TypeError, ValueError):
                 pass
+            try:
+                wave_state["current_cycle"] = int(get_metadata("wave_cycle", wave_state.get("current_cycle", 1)))
+            except (TypeError, ValueError):
+                pass
+
             plan = get_wave_plan(
                 enabled_categories=settings.get("enabled_categories"),
                 hot_categories=settings.get("hot_categories", DEFAULT_HOT_CATEGORIES),
@@ -1094,16 +1124,38 @@ async def _do_scan_task(shop_keys=None, target_categories=None, scan_type="manua
             target_categories = plan["active_categories"]
             wave_state["last_wave_categories"] = plan["wave_categories"]
             wave_state["next_wave_categories"] = plan["next_wave_categories"]
-            wave_state["current_wave_index"] = plan["next_wave_index"]
-            set_metadata("wave_index", plan["next_wave_index"])
+            wave_interval_sec = get_wave_interval_seconds(settings, plan["total_waves"])
+
+            current_idx = plan["wave_index"]
+            next_idx = plan["next_wave_index"]
+            is_circle_finished = plan["is_last_wave_of_cycle"]
+
+            wave_state["current_wave_index"] = next_idx
+            set_metadata("wave_index", next_idx)
+            set_metadata("wave_last_run_at", str(time.time()))
+
+            current_cycle_val = wave_state.get("current_cycle", 1)
+            if is_circle_finished:
+                # Полный круг завершен! Все категории каталога обновлены ровно 1 раз.
+                # Новый круг начинается только после завершения всех волн.
+                next_cycle = current_cycle_val + 1
+                wave_state["current_cycle"] = next_cycle
+                set_metadata("wave_cycle", next_cycle)
+                set_metadata("wave_last_cycle_completed_at", str(time.time()))
+                print(f"[Wave] 🏁 Полный круг #{current_cycle_val} завершен (все {plan['total_waves']} волн уложились в 24ч)! Старт круга #{next_cycle}")
+
             scan_state["wave_info"] = {
+                "current_cycle": current_cycle_val,
                 "wave_index": plan["wave_index"],
                 "total_waves": plan["total_waves"],
+                "cycle_budget_hours": CYCLE_BUDGET_HOURS,
+                "wave_interval_minutes": wave_interval_sec // 60,
                 "hot_categories": plan["hot_categories"],
                 "wave_categories": plan["wave_categories"],
-                "next_wave_categories": plan["next_wave_categories"]
+                "next_wave_categories": plan["next_wave_categories"],
+                "is_last_wave": is_circle_finished
             }
-            print(f"[Wave] 🌊 Волна #{plan['wave_index'] + 1}/{plan['total_waves']}: Hot={plan['hot_categories']}, Wave={plan['wave_categories']}")
+            print(f"[Wave] 🌊 Круг #{current_cycle_val} | Волна #{plan['wave_index'] + 1}/{plan['total_waves']} (интервал: {wave_interval_sec // 60}м, лимит круга: 24ч): Hot={plan['hot_categories']}, Wave={plan['wave_categories']}")
         else:
             enabled_cats = settings.get("enabled_categories")
             if enabled_cats:
@@ -1140,8 +1192,12 @@ async def _do_scan_task(shop_keys=None, target_categories=None, scan_type="manua
 
         # Дополнительный этап волны: фоновое обновление порции отслеживаемых категорий из поиска
         try:
-            from database import get_due_tracked_categories, mark_tracked_category_scanned
-            due_tracked = await asyncio.to_thread(get_due_tracked_categories, 3)
+            from database import get_due_tracked_categories, mark_tracked_category_scanned, get_tracked_categories_counts
+            tracked_counts = await asyncio.to_thread(get_tracked_categories_counts)
+            rolling_tracked_count = tracked_counts.get("rolling", 0)
+            total_waves_count = max(1, scan_state.get("wave_info", {}).get("total_waves", 1) if scan_state.get("wave_info") else 1)
+            tracked_rolling_batch_size = max(1, -(-rolling_tracked_count // total_waves_count)) if rolling_tracked_count > 0 else 3
+            due_tracked = await asyncio.to_thread(get_due_tracked_categories, tracked_rolling_batch_size, True)
             if due_tracked:
                 print(f"[Wave] 🔍 Обновление {len(due_tracked)} категорий из поиска в текущей волне: {', '.join(c['name'] for c in due_tracked)}")
                 from search_engine import search_live_stores
@@ -1474,13 +1530,16 @@ async def logs_export_handler(request):
     )
 
 async def auto_scan_background_worker(app):
-    """Фоновый монитор: следит за свежестью КАЖДОГО магазина и догоняет отставшие.
-
-    Раньше свежесть считалась по всей базе (`MAX(updated_at)`), поэтому прерванный цикл
-    (например, перезапуск контейнера при деплое) оставлял часть магазинов необойденной:
-    база выглядела свежей и новый цикл не запускался.
-    """
-    print(f"[AutoScan] 🤖 Автономный фоновый монитор запущен (порог устаревания магазина: {get_scan_interval_seconds() // 60} мин)...")
+    """Фоновый монитор: строгое поочередное волновое сканирование за 24 часа + контроль свежести магазинов."""
+    settings = load_settings()
+    init_plan = get_wave_plan(
+        enabled_categories=settings.get("enabled_categories"),
+        hot_categories=settings.get("hot_categories", DEFAULT_HOT_CATEGORIES),
+        wave_size=settings.get("wave_size", 2),
+        wave_mode="rolling"
+    )
+    init_wave_interval = get_wave_interval_seconds(settings, init_plan["total_waves"])
+    print(f"[AutoScan] 🤖 Автономный фоновый монитор запущен (интервал волны: {init_wave_interval // 60} мин, лимит полного круга: 24ч)...")
     while True:
         try:
             await asyncio.sleep(20)
@@ -1488,14 +1547,43 @@ async def auto_scan_background_worker(app):
                 continue
 
             settings = load_settings()
-            max_age_seconds = get_scan_interval_seconds(settings)
-            stale = get_stale_shops(enabled_shop_keys(settings), max_age_seconds)
-            if not stale:
+            wave_mode = settings.get("wave_mode", "rolling")
+            enabled_keys = enabled_shop_keys(settings)
+            if not enabled_keys:
                 continue
 
-            names = ", ".join(SHOP_REGISTRY[k][2] for k in stale[:4]) + ("..." if len(stale) > 4 else "")
-            print(f"[AutoScan] ⏰ Требуют обновления {len(stale)} магазинов (порог {max_age_seconds // 60} мин): {names}")
-            spawn_scan(stale, scan_type="auto")
+            if wave_mode == "rolling":
+                plan = get_wave_plan(
+                    enabled_categories=settings.get("enabled_categories"),
+                    hot_categories=settings.get("hot_categories", DEFAULT_HOT_CATEGORIES),
+                    wave_size=settings.get("wave_size", 2),
+                    wave_mode="rolling"
+                )
+                total_waves = max(1, plan.get("total_waves", 1))
+                wave_interval_sec = get_wave_interval_seconds(settings, total_waves)
+
+                last_run_raw = get_metadata("wave_last_run_at")
+                now = time.time()
+                try:
+                    last_run_time = float(last_run_raw) if last_run_raw else None
+                except (ValueError, TypeError):
+                    last_run_time = None
+
+                is_wave_due = (last_run_time is None) or ((now - last_run_time) >= wave_interval_sec)
+                stale = get_stale_shops(enabled_keys, wave_interval_sec)
+
+                if is_wave_due or stale:
+                    target_shops = enabled_keys if is_wave_due else stale
+                    reason = f"время очередной волны (шаг: {wave_interval_sec // 60}м, круговой лимит: 24ч)" if is_wave_due else f"устарели {len(stale)} магазинов"
+                    print(f"[AutoScan] 🌊 Запуск волны: {reason}")
+                    spawn_scan(target_shops, scan_type="auto")
+            else:
+                max_age_seconds = get_scan_interval_seconds(settings)
+                stale = get_stale_shops(enabled_keys, max_age_seconds)
+                if stale:
+                    names = ", ".join(SHOP_REGISTRY[k][2] for k in stale[:4]) + ("..." if len(stale) > 4 else "")
+                    print(f"[AutoScan] ⏰ Требуют обновления {len(stale)} магазинов (порог {max_age_seconds // 60} мин): {names}")
+                    spawn_scan(stale, scan_type="auto")
         except asyncio.CancelledError:
             print("[AutoScan] Фоновый монитор остановлен.")
             break

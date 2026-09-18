@@ -1302,23 +1302,42 @@ def get_tracked_categories(active_only: bool = False, limit: int = 100) -> List[
         cursor.execute(query, params)
         return [dict(row) for row in cursor.fetchall()]
 
-def get_due_tracked_categories(limit: int = 3) -> List[Dict[str, Any]]:
+def get_tracked_categories_counts() -> Dict[str, int]:
+    """Возвращает количество активных Hot и ротируемых отслеживаемых категорий."""
+    with get_connection() as conn:
+        hot_cnt = conn.execute("SELECT COUNT(*) FROM tracked_categories WHERE is_active = 1 AND is_hot = 1").fetchone()[0]
+        rolling_cnt = conn.execute("SELECT COUNT(*) FROM tracked_categories WHERE is_active = 1 AND (is_hot = 0 OR is_hot IS NULL)").fetchone()[0]
+    return {"hot": hot_cnt, "rolling": rolling_cnt, "total": hot_cnt + rolling_cnt}
+
+
+def get_due_tracked_categories(limit: int = 3, include_all_hot: bool = False) -> List[Dict[str, Any]]:
     """Категории для текущей волны: сначала «горячие» (is_hot), затем ротируемые.
 
-    Горячие занимают не больше limit-1 мест, поэтому очередь остальных категорий
-    всегда продвигается; внутри каждой группы — давно не сканировавшиеся первыми.
-    Если ротируемых не хватает, свободные места добирают горячие.
+    Если include_all_hot=True: все активные Hot-категории включаются в текущую волну гарантированно,
+    плюс до `limit` ротируемых категорий строго по очереди (наиболее давно не сканировавшиеся первыми).
+    Если include_all_hot=False: сохраняется квота на общий размер выдачи (для обратной совместимости).
     """
-    if limit <= 0:
+    if limit <= 0 and not include_all_hot:
         return []
     order = """ORDER BY CASE WHEN last_scanned_at IS NULL THEN 0 ELSE 1 END,
-                        last_scanned_at ASC, search_count DESC"""
+                        last_scanned_at ASC, search_count DESC, id ASC"""
     with get_connection() as conn:
-        hot = [dict(r) for r in conn.execute(
-            f"SELECT * FROM tracked_categories WHERE is_active = 1 AND is_hot = 1 {order} LIMIT ?", (limit,))]
+        hot_query = f"SELECT * FROM tracked_categories WHERE is_active = 1 AND is_hot = 1 {order}"
+        hot = [dict(r) for r in (conn.execute(hot_query) if include_all_hot else conn.execute(hot_query + " LIMIT ?", (limit,)))]
         rolling = [dict(r) for r in conn.execute(
             f"SELECT * FROM tracked_categories WHERE is_active = 1 AND (is_hot = 0 OR is_hot IS NULL) {order} LIMIT ?",
             (limit,))]
+
+    if include_all_hot:
+        # Все hot категории + порция ротируемых без вытеснения
+        seen = set()
+        res = []
+        for c in hot + rolling[:limit]:
+            if c["id"] not in seen:
+                seen.add(c["id"])
+                res.append(c)
+        return res
+
     hot_quota = limit - 1 if limit > 1 and rolling else limit
     used_hot = min(len(hot), hot_quota)
     chosen = hot[:used_hot]

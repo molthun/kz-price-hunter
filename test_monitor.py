@@ -268,6 +268,10 @@ class TestDNSMonitor(unittest.TestCase):
 class TestReliability(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         init_db()
+        import auth
+        import config
+        auth.ADMIN_TELEGRAM_IDS = {1}
+        config.ADMIN_TELEGRAM_IDS = {1}
         from database import invalidate_alerts_cache
         with get_connection() as conn:
             for table in ('notification_outbox', 'product_sources', 'alerts', 'products', 'shop_scans', 'users', 'sessions'):
@@ -2390,6 +2394,13 @@ class TestStageOneSecurity(unittest.IsolatedAsyncioTestCase):
 class TestTrackedCategoriesEqualFunctionality(unittest.IsolatedAsyncioTestCase):
     """Тесты равноправия функционала отслеживаемых категорий из поиска с мастер-группами."""
 
+    def setUp(self):
+        init_db()
+        import auth
+        import config
+        auth.ADMIN_TELEGRAM_IDS = {1}
+        config.ADMIN_TELEGRAM_IDS = {1}
+
     async def test_tracked_category_hot_and_due_rotation(self):
         from database import (
             save_tracked_category,
@@ -2470,6 +2481,109 @@ class TestTrackedCategoriesEqualFunctionality(unittest.IsolatedAsyncioTestCase):
             with get_connection() as conn:
                 conn.execute("DELETE FROM tracked_categories WHERE name = 'Автомасла'")
                 conn.commit()
+
+
+    async def test_strict_wave_cycle_and_24h_budget(self):
+        """Проверка строгой очередности волн, завершения полного круга, 24-часового лимита и Hot-исключения."""
+        import config
+        from database import (
+            save_tracked_category,
+            toggle_tracked_category_hot,
+            mark_tracked_category_scanned,
+            delete_tracked_category,
+            get_due_tracked_categories,
+            get_metadata,
+            set_metadata,
+            get_connection
+        )
+        import web.server as server
+
+        # 1. Проверка математики 24-часового лимита для разных размеров волн
+        for wave_size in [1, 2, 3, 4, 6]:
+            plan = config.get_wave_plan(wave_size=wave_size, wave_mode="rolling")
+            total_waves = plan["total_waves"]
+            interval_sec = config.get_wave_interval_seconds(settings={"scan_interval_minutes": 500}, total_waves=total_waves)
+            # Суммарное время всех волн круга не должно превышать 24 часа (86400 сек)
+            total_cycle_sec = total_waves * interval_sec
+            self.assertLessEqual(total_cycle_sec, 24 * 3600, f"Круг из {total_waves} волн превысил 24 часа: {total_cycle_sec}с")
+
+        # 2. Проверка строгой поочередной ротации без повторов до завершения круга
+        hot_cats = ["smartphones", "laptops"]
+        plan0 = config.get_wave_plan(hot_categories=hot_cats, wave_index=0, wave_size=2, wave_mode="rolling")
+        total_waves = plan0["total_waves"]
+
+        seen_rotating = []
+        for w in range(total_waves):
+            p = config.get_wave_plan(hot_categories=hot_cats, wave_index=w, wave_size=2, wave_mode="rolling")
+            # Hot-категории обязаны быть в каждой волне
+            self.assertEqual(p["hot_categories"], hot_cats)
+            for h in hot_cats:
+                self.assertIn(h, p["active_categories"])
+            # Внутри одного круга ни одна не-Hot категория не должна повторяться
+            for c in p["wave_categories"]:
+                self.assertNotIn(c, seen_rotating, f"Категория {c} повторилась до окончания круга!")
+                seen_rotating.append(c)
+
+        # Все не-Hot категории должны быть обойдены ровно 1 раз
+        all_expected_rotating = [k for k in config.MASTER_CATEGORIES if k not in hot_cats]
+        self.assertEqual(sorted(seen_rotating), sorted(all_expected_rotating))
+
+        # На шаге total_waves начинается новый круг (wave_index сбрасывается в 0)
+        p_next_cycle = config.get_wave_plan(hot_categories=hot_cats, wave_index=total_waves, wave_size=2, wave_mode="rolling")
+        self.assertEqual(p_next_cycle["wave_index"], 0)
+        self.assertEqual(p_next_cycle["wave_categories"], plan0["wave_categories"])
+
+        # 3. Проверка отслеживаемых поисковых категорий: Hot каждую волну, остальные по очереди
+        t_hot = save_tracked_category("Тест Hot Запрос", "запрос_hot", "smartphones")
+        t_rot1 = save_tracked_category("Тест Ротация 1", "запрос_rot1", "audio")
+        t_rot2 = save_tracked_category("Тест Ротация 2", "запрос_rot2", "audio")
+        t_rot3 = save_tracked_category("Тест Ротация 3", "запрос_rot3", "tvs")
+        toggle_tracked_category_hot(t_hot["id"], True)
+
+        try:
+            # Волна 1: берем Hot + порцию из 2 ротируемых
+            wave1_due = get_due_tracked_categories(limit=2, include_all_hot=True)
+            wave1_ids = [c["id"] for c in wave1_due]
+            self.assertIn(t_hot["id"], wave1_ids, "Hot-категория должна быть включена в волну")
+            # Фиксируем сканирование категорий волны 1
+            for cid in wave1_ids:
+                mark_tracked_category_scanned(cid)
+
+            # Волна 2: Hot снова присутствует, а ротируемые берутся следующие из очереди!
+            wave2_due = get_due_tracked_categories(limit=2, include_all_hot=True)
+            wave2_ids = [c["id"] for c in wave2_due]
+            self.assertIn(t_hot["id"], wave2_ids, "Hot-категория обязана быть и во второй волне!")
+            # Ни одна ротируемая категория волны 1 не должна попасть в волну 2, пока очередь не исчерпана
+            for cid in wave1_ids:
+                if cid != t_hot["id"]:
+                    self.assertNotIn(cid, wave2_ids, "Не-Hot категория повторилась раньше завершения круга!")
+        finally:
+            for item in [t_hot, t_rot1, t_rot2, t_rot3]:
+                if item and item.get("id"):
+                    delete_tracked_category(item["id"])
+
+        # 4. Проверка инкремента номера круга (wave_cycle) в _do_scan_task
+        set_metadata("wave_index", str(total_waves - 1))  # устанавливаем последнюю волну круга
+        set_metadata("wave_cycle", "1")
+        server.wave_state["current_wave_index"] = total_waves - 1
+        server.wave_state["current_cycle"] = 1
+
+        from unittest.mock import patch, MagicMock, AsyncMock
+        dummy_scraper_cls = MagicMock()
+        dummy_instance = dummy_scraper_cls.return_value
+        dummy_instance.scrape = AsyncMock(return_value=[])
+        fake_registry = {"test_shop": (dummy_scraper_cls, [{"name": "Phones", "url": "https://test.kz", "master": "smartphones"}], "ТестШоп")}
+
+        with patch.dict(server.SHOP_REGISTRY, fake_registry, clear=True), \
+             patch.object(server, "load_settings", return_value={**config.SYSTEM_DEFAULTS, "enabled_categories": config._all_categories_enabled(), "hot_categories": hot_cats, "wave_size": 2, "wave_mode": "rolling", "scan_interval_minutes": 180}), \
+             patch.object(server, "queue_titles_for_ai"):
+            await server._do_scan_task(["test_shop"], scan_type="auto")
+
+        # После завершения последней волны текущего круга:
+        # wave_index сбрасывается в 0, а wave_cycle увеличивается до 2
+        self.assertEqual(int(get_metadata("wave_index")), 0)
+        self.assertEqual(int(get_metadata("wave_cycle")), 2)
+        self.assertEqual(server.wave_state["current_cycle"], 2)
 
 
 if __name__ == "__main__":
