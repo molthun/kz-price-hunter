@@ -24,6 +24,7 @@ SHOP_KEYS = {
     "fourmobile": "4mobile",
     "flip": "Flip.kz",
     "halyk": "Halyk Market",
+    "tgrad": "Tgrad",
 }
 
 def _all_shops_enabled():
@@ -502,3 +503,35 @@ HALYK_CATEGORIES = [
     {"name": "Halyk: Игровые приставки", "url": "https://halykmarket.kz/category/igrovie-pristavki", "max_pages": 50},
     {"name": "Halyk: Мониторы", "url": "https://halykmarket.kz/category/monitori", "max_pages": 50},
 ]
+# ТехноGRAD (tgrad.kz): склад в Алматы, страницы категорий /page-N/, конец выдачи — редирект 302
+TGRAD_CATEGORIES = [
+    {"name": "Tgrad: 📺 Телевизоры", "url": "https://tgrad.kz/televizory/"},
+    {"name": "Tgrad: 🔊 Портативная акустика", "url": "https://tgrad.kz/portativnaya-akustika/"},
+    {"name": "Tgrad: 🔈 Акустические системы", "url": "https://tgrad.kz/akusticheskie-sistemy/"},
+    {"name": "Tgrad: 📱 Смартфоны", "url": "https://tgrad.kz/smartfony/"},
+    {"name": "Tgrad: ⌚️ Смарт-часы", "url": "https://tgrad.kz/umnye-chasy/"},
+    {"name": "Tgrad: 📱 Планшеты", "url": "https://tgrad.kz/planshety/"},
+    {"name": "Tgrad: 🎧 Беспроводные наушники", "url": "https://tgrad.kz/besprovodnye-naushniki/"},
+    {"name": "Tgrad: 💻 Ноутбуки", "url": "https://tgrad.kz/noutbuki/"},
+    {"name": "Tgrad: 🖥 Мониторы", "url": "https://tgrad.kz/monitory/"},
+    {"name": "Tgrad: 🎧 Игровые наушники", "url": "https://tgrad.kz/igrovye-naushniki/"},
+    {"name": "Tgrad: 📡 Роутеры", "url": "https://tgrad.kz/routery/"},
+    {"name": "Tgrad: 🧹 Пылесосы", "url": "https://tgrad.kz/pylesosy/"},
+    {"name": "Tgrad: 🧹 Вертикальные пылесосы", "url": "https://tgrad.kz/vertikalnye-pylesosy/"},
+    {"name": "Tgrad: 🤖 Роботы-пылесосы", "url": "https://tgrad.kz/roboty-pylesosy/"},
+    {"name": "Tgrad: 👕 Утюги", "url": "https://tgrad.kz/utyugi/"},
+    {"name": "Tgrad: 💨 Отпариватели", "url": "https://tgrad.kz/otparivateli/"},
+    {"name": "Tgrad: 🚿 Водонагреватели", "url": "https://tgrad.kz/vodonagrevateli/"},
+    {"name": "Tgrad: ❄️ Кондиционеры", "url": "https://tgrad.kz/konditsionery/"},
+    {"name": "Tgrad: 🌬 Воздухоочистители", "url": "https://tgrad.kz/vozdukhoochistiteli/"},
+    {"name": "Tgrad: 🧺 Стиральные машины", "url": "https://tgrad.kz/stiralnye-mashiny/"},
+    {"name": "Tgrad: 🧺 Сушильные машины", "url": "https://tgrad.kz/sushilnye-mashiny/"},
+    {"name": "Tgrad: 🍽 Посудомоечные машины", "url": "https://tgrad.kz/posudomoechnye-mashiny/"},
+    {"name": "Tgrad: 🔥 Вытяжки", "url": "https://tgrad.kz/vytyazhki/"},
+    {"name": "Tgrad: 📦 Микроволновые печи", "url": "https://tgrad.kz/mikrovolnovye-pechi/"},
+    {"name": "Tgrad: 🍲 Мультиварки", "url": "https://tgrad.kz/multivarki/"},
+    {"name": "Tgrad: 🥤 Блендеры", "url": "https://tgrad.kz/blendery/"},
+    {"name": "Tgrad: 💇 Фены", "url": "https://tgrad.kz/feny-i-fen-shhetki/"},
+    {"name": "Tgrad: 🪒 Электробритвы", "url": "https://tgrad.kz/elektrobritvy/"},
+]
+

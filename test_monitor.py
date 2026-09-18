@@ -481,6 +481,33 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ValueError):
             FlipScraper.parse_page('<html>Challenge</html>','x','x',1)
 
+    def test_tgrad_parse_page(self):
+        from scrapers.tgrad import TgradScraper
+        ga = lambda pid, name, price: ('[{&quot;id&quot;:&quot;%s&quot;,&quot;name&quot;:&quot;%s&quot;,&quot;price&quot;:&quot;%s&quot;,&quot;brand&quot;:&quot;X&quot;}]' % (pid, name, price))
+        card = lambda pid, name, price, old, href: (
+            '<div class="product__block"><div class="product__img"><img src="/upload/%s.jpg"></div>'
+            '<a href="%s" class="product__name">%s</a><div class="product__block_inf-bottom">'
+            '<a href="%s" class="product__block_price">%s<span class="new__price">%s ₸</span></a>'
+            '<button class="btn btn__cart catalog-item-button" data-ga="%s"></button></div></div>'
+            % (pid, href, name, href, ('<span class="old__price">%s ₸</span>' % old) if old else '', price, ga(pid, name, price)))
+        menu = ('<div class="menu-right__product"><div class="product__block">'
+                '<button class="btn catalog-item-button" data-ga="%s"></button></div></div>' % ga("999", "Чужой товар", "1000"))
+        html = menu + card("43011", "Смартфон Blackview A85", "74890", "89 990", "/smartfon-blackview-a85/") \
+            + card("46705", "Стиральная машина Samsung", "239990", None, "/stiralnaya-mashina-samsung/") \
+            + '<a href="/smartfony/page-2/">2</a>'
+        res = TgradScraper.parse_page(html, "Tgrad: Смартфоны", 1)
+        self.assertEqual([p["id"] for p in res], ["tgrad_43011", "tgrad_46705"])  # блок меню пропущен
+        first = res[0]
+        self.assertEqual(first["price"], 74890)
+        self.assertEqual(first["old_price_on_site"], 89990)
+        self.assertEqual(first["url"], "https://tgrad.kz/smartfon-blackview-a85/")
+        self.assertEqual(first["image_url"], "https://tgrad.kz/upload/43011.jpg")
+        self.assertEqual(first["city"], "Алматы")
+        self.assertEqual(res[1]["old_price_on_site"], 0)
+        self.assertFalse(res.complete)  # есть ссылка на следующую страницу
+        last = TgradScraper.parse_page(html.replace('/smartfony/page-2/', '/smartfony/'), "Tgrad: Смартфоны", 1)
+        self.assertTrue(last.complete)
+
     def test_halyk_parse_response(self):
         from scrapers.halyk import HalykScraper
         raw_data = {

@@ -29,6 +29,7 @@
 | <img src="https://www.google.com/s2/favicons?domain=4mobile.pages.dev&sz=32" width="16"> | 4mobile | `4mobile.pages.dev` |
 | <img src="https://www.google.com/s2/favicons?domain=flip.kz&sz=32" width="16"> | Flip.kz | `flip.kz` (электроника, регион не подтвержден) |
 | <img src="https://www.google.com/s2/favicons?domain=halykmarket.kz&sz=32" width="16"> | Halyk Market | `halykmarket.kz` (внутренний JSON API, Алматы) |
+| <img src="https://www.google.com/s2/favicons?domain=tgrad.kz&sz=32" width="16"> | Tgrad (ТехноGRAD) | `tgrad.kz` (склад в Алматы) |
 
 ## Возможности
 

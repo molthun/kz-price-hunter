@@ -27,7 +27,8 @@ from config import (
     KASPI_CATEGORIES,
     FOURMOBILE_CATEGORIES,
     FLIP_CATEGORIES,
-    HALYK_CATEGORIES
+    HALYK_CATEGORIES,
+    TGRAD_CATEGORIES
 )
 from version import get_version_info
 from database import (
@@ -56,6 +57,7 @@ from database import (
 from detector import check_anomaly, check_market_arbitrage
 from scrapers.flip import FlipScraper
 from scrapers.halyk import HalykScraper
+from scrapers.tgrad import TgradScraper
 from scrapers.dns import DNSScraper
 from scrapers.shopkz import ShopKzScraper
 from scrapers.technodom import TechnodomScraper
@@ -427,6 +429,7 @@ SHOP_REGISTRY = {
     "dns": (DNSScraper, DNS_CATEGORIES, "DNS"),
     "flip": (FlipScraper, FLIP_CATEGORIES, "Flip.kz"),
     "halyk": (HalykScraper, HALYK_CATEGORIES, "Halyk Market"),
+    "tgrad": (TgradScraper, TGRAD_CATEGORIES, "Tgrad"),
 }
 
 # Сколько магазинов обходить одновременно (у каждого свой сайт, поэтому нагрузка не суммируется)
