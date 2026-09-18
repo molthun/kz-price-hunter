@@ -1,7 +1,8 @@
 """Forte Market (market.forte.kz) scraper via Algolia search gateway."""
 import asyncio
 import urllib.parse
-from typing import Any, Dict, List, Optional
+from offer_identity import NATIONWIDE
+from typing import Any, Dict, List, Optional, Tuple
 from scrapers import http as requests
 from scrapers.base import PagedScraper, ScanResult, price_value
 
@@ -25,8 +26,12 @@ CITY_LOCATION_MAP = {
 }
 
 
-def resolve_price_for_city(hit: Dict[str, Any], city: str = "Астана") -> int:
-    """Извлекает цену для указанного города из массива Locations.Location или базового Price."""
+def resolve_offer_for_city(hit: Dict[str, Any], city: str = "Астана") -> Tuple[int, str]:
+    """Цена и подтверждённое место продажи: цена города, иначе общая по Казахстану.
+
+    Если у товара нет цены для запрошенного города, берётся общая цена (KZ или поле Price)
+    с меткой «Казахстан», а не с названием запрошенного города.
+    """
     locs = (hit.get("Locations") or {}).get("Location")
     if isinstance(locs, list) and city:
         city_prefixes = CITY_LOCATION_MAP.get(city) or [city]
@@ -36,17 +41,22 @@ def resolve_price_for_city(hit: Dict[str, Any], city: str = "Астана") -> i
                 if prefix in lid:
                     p = price_value(loc.get("Price"))
                     if p > 0:
-                        return p
+                        return p, city
 
         # Fallback: общая цена по KZ
         for loc in locs:
             if loc.get("ID") == "KZ":
                 p = price_value(loc.get("Price"))
                 if p > 0:
-                    return p
+                    return p, NATIONWIDE
 
-    # Главное поле Price
-    return price_value(hit.get("Price"))
+    # Главное поле Price — тоже общая цена без привязки к городу
+    return price_value(hit.get("Price")), NATIONWIDE
+
+
+def resolve_price_for_city(hit: Dict[str, Any], city: str = "Астана") -> int:
+    """Извлекает цену для указанного города из массива Locations.Location или базового Price."""
+    return resolve_offer_for_city(hit, city)[0]
 
 
 def build_description_from_params(hit: Dict[str, Any]) -> str:
@@ -144,7 +154,7 @@ class ForteMarketScraper(PagedScraper):
         for hit in hits:
             obj_id = hit.get("objectID") or hit.get("ID")
             name = (hit.get("Name") or "").strip()
-            price = resolve_price_for_city(hit, city)
+            price, offer_city = resolve_offer_for_city(hit, city)
 
             if not obj_id or not name or price <= 0:
                 continue
@@ -162,7 +172,7 @@ class ForteMarketScraper(PagedScraper):
                 "image_url": image,
                 "price": price,
                 "old_price_on_site": 0,
-                "city": city,
+                "city": offer_city,
             }
             if desc:
                 product["description"] = desc

@@ -2206,6 +2206,7 @@
         case 'category': scanCategoryNow(args[0], args[1]); break;
         case 'tracked-scan': scanTrackedCatNow(args[0], args[1]); break;
         case 'tracked-delete': deleteTrackedCat(args[0], args[1]); break;
+        case 'tracked-hot': toggleTrackedHot(args[0], args[1]); break;
         case 'user-block': setUserBlocked(args[0], args[1]); break;
       }
     });
@@ -4113,6 +4114,7 @@
           trackedContainer.innerHTML = trackedList.map(tc => {
             const timeAgo = tc.last_scanned_at ? formatTrackedTime(tc.last_scanned_at) : 'В очереди';
             const isActive = tc.is_active !== 0;
+            const isHot = Number(tc.is_hot) === 1;
             return `
               <div class="p-3 rounded-xl bg-slate-900/80 border ${isActive ? 'border-slate-800' : 'border-slate-800/40 opacity-50'} hover:border-slate-700 transition flex items-center justify-between gap-2">
                 <div class="min-w-0 flex-1">
@@ -4130,6 +4132,9 @@
                 </div>
 
                 <div class="flex items-center gap-1.5 shrink-0">
+                  <button type="button" ${actionAttrs('tracked-hot', [tc.id, !isHot])} class="w-7 h-7 rounded-lg ${isHot ? 'bg-amber-500/25 text-amber-300 border border-amber-500/40' : 'bg-slate-800 text-slate-500 hover:text-amber-300'} transition flex items-center justify-center cursor-pointer" title="${isHot ? 'Горячая: обновляется в каждой волне (снять)' : 'Сделать горячей: обновлять в каждой волне'}">
+                    <i class="fa-solid fa-fire text-[11px]"></i>
+                  </button>
                   <button type="button" ${actionAttrs('tracked-scan', [tc.id, tc.name])} class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-cyan-900/40 text-slate-300 hover:text-cyan-300 transition flex items-center justify-center cursor-pointer" title="Обновить цены в этой категории прямо сейчас">
                     <i class="fa-solid fa-arrows-rotate text-[11px]"></i>
                   </button>
@@ -4173,6 +4178,21 @@
         loadAdminCategories();
       } catch (e) {
         console.error('Ошибка переключения категории:', e);
+      }
+    }
+
+    async function toggleTrackedHot(id, isHot) {
+      try {
+        const res = await fetch(`/api/categories/tracked/${encodeURIComponent(id)}/hot`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ is_hot: !!isHot })
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        loadAdminCategories();
+      } catch (e) {
+        console.error('Ошибка переключения горячей категории:', e);
+        showToast('Не удалось изменить горячую категорию', true);
       }
     }
 

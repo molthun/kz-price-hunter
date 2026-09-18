@@ -27,7 +27,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run tests
-        run: python -m unittest test_monitor test_auth_privacy test_bot_privacy test_security_logging test_scraper_reliability
+        run: python -m unittest test_monitor test_auth_privacy test_bot_privacy test_security_logging test_scraper_reliability test_offer_identity
 
   build-and-push:
     needs: test

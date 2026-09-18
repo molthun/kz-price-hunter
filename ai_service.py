@@ -11,6 +11,7 @@ ai_service.py - Универсальный сервис искусственно
 
 import os
 import re
+from model_matching import valid_ai_canonical_key
 import json
 import time
 import asyncio
@@ -685,7 +686,7 @@ async def normalize_product_titles_batch(
         "Ты эксперт по каталогам электроники и компьютерной техники в Казахстане. "
         "Твоя задача — извлечь канонический идентификатор модели (canonical_key) для каждого товара.\n"
         "Формат canonical_key: '<brand>:<model_or_family>:<capacity_or_spec>' (только латиница в нижнем регистре, цифры, дефисы и двоеточия).\n"
-        "Игнорируй артикулы магазинов в скобках, слова 'смартфон', 'ноутбук', цвета, тип сим-карты, маркетинг и гарантию.\n"
+        "Игнорируй артикулы магазинов в скобках, слова 'смартфон', 'ноутбук', цвета, маркетинг и гарантию.\n"
         "Примеры:\n"
         "- 'Смартфон Apple iPhone 15 128Gb черный' -> 'apple:iphone 15:128gb'\n"
         "- 'Samsung Galaxy S24 Ultra 12/256GB' -> 'samsung:galaxy s24 ultra:256gb'\n"
@@ -730,8 +731,9 @@ async def normalize_product_titles_batch(
                     continue
                 orig = item.get("title")
                 raw_key = item.get("canonical_key")
-                ckey = raw_key.strip().lower() if isinstance(raw_key, str) else ""
-                if orig in chunk and ckey and len(ckey) <= 500:
+                ckey = re.sub(r"\s+", " ", raw_key.strip().lower()) if isinstance(raw_key, str) else ""
+                # Ответ AI — недоверенные данные: принимается только ключ строгого формата
+                if orig in chunk and valid_ai_canonical_key(ckey):
                     new_cached[orig] = ckey
         results.update(new_cached)
         save_cached_canonical_keys_batch(new_cached)

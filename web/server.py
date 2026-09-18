@@ -46,6 +46,7 @@ from version import get_version_info
 from database import (
     init_db,
     reconcile_source,
+    notifications_muted,
     notification_stats,
     get_stats,
     get_alerts,
@@ -69,6 +70,7 @@ from database import (
     delete_session
 )
 from detector import check_anomaly, check_market_arbitrage
+from offer_identity import assign_offer_ids
 from scrapers.flip import FlipScraper
 from scrapers.halyk import HalykScraper
 from scrapers.tgrad import TgradScraper
@@ -312,6 +314,8 @@ async def product_detail_handler(request):
             except Exception:
                 pass
 
+    from database import get_price_observations
+    prod["price_history"] = await asyncio.to_thread(get_price_observations, pid, 50)
     return web.json_response(prod)
 
 @routes.get("/api/ai/status")
@@ -729,7 +733,8 @@ async def _process_anomaly(p, anomaly, shop_name):
         shop=p.get("shop", shop_name),
         city=p.get("city", "Астана"),
         competitor_shop=anomaly.get("competitor_shop"),
-        deliveries=prepare_deliveries(p, anomaly)
+        # После пересборки каталога первый цикл не рассылает уже известные скидки повторно
+        deliveries=[] if notifications_muted() else prepare_deliveries(p, anomaly)
     )
     return True
 
@@ -949,6 +954,8 @@ async def _scan_shop(key, candidate_settings, semaphore, target_categories=None)
             scan_state["current_category"] = cat["name"]
             try:
                 prods = await scraper.scrape(cat["name"], cat["url"], max_pages=cat.get("max_pages"))
+                # Предложение = товар магазина + подтверждённый город (id вида kaspi_1@astana)
+                assign_offer_ids(prods)
                 error = getattr(prods, "error", None)
                 complete = getattr(prods, "complete", False)
                 if not prods and not complete:
@@ -1065,6 +1072,15 @@ async def _do_scan_task(shop_keys=None, target_categories=None, scan_type="manua
                         print(f"[Wave] Ошибка обновления категории {cat['name']}: {ex}")
         except Exception as e:
             print(f"[Wave] Ошибка обновления tracked categories: {e}")
+
+        # История цен хранится ограниченный срок (180 дней)
+        try:
+            from database import prune_price_observations
+            pruned = await asyncio.to_thread(prune_price_observations)
+            if pruned:
+                print(f"[DB] Удалено старых наблюдений цен: {pruned}")
+        except Exception as e:
+            print(f"[DB] Ошибка очистки истории цен: {type(e).__name__}")
 
         scan_state["progress_pct"] = 100
         scan_state["last_completed"] = datetime.datetime.now().strftime("%H:%M:%S")
@@ -1209,6 +1225,19 @@ async def toggle_tracked_category_handler(request):
         return web.json_response({"status": "ok", "id": cid, "is_active": is_active})
     except Exception as e:
         return web.json_response({"error": redact_secrets(str(e))}, status=400)
+
+@routes.post("/api/categories/tracked/{id}/hot")
+@require_admin
+async def toggle_tracked_category_hot_handler(request):
+    """«Горячая» отслеживаемая категория: обновляется в каждой волне (не больше limit-1 мест)."""
+    try:
+        cid = int(request.match_info["id"])
+        is_hot = bool((await request.json()).get("is_hot", True))
+    except Exception:
+        return web.json_response({"error": "Некорректный запрос"}, status=400)
+    from database import toggle_tracked_category_hot
+    await asyncio.to_thread(toggle_tracked_category_hot, cid, is_hot)
+    return web.json_response({"status": "ok", "id": cid, "is_hot": is_hot})
 
 @routes.delete("/api/categories/tracked/{id}")
 @require_admin

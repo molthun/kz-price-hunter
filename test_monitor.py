@@ -1463,7 +1463,10 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
         with get_connection() as conn:
             conn.execute("UPDATE products SET canonical_key='old-collision' WHERE id='migration-spec'")
             conn.execute("DELETE FROM schema_metadata WHERE name='identity_v2'")
-        init_db()
+            # Миграция 1 (identity_v2) — разовая: вызывается напрямую, как для старой базы
+            from database import _migration_legacy_identity_v2
+            _migration_legacy_identity_v2(conn)
+            conn.commit()
         with get_connection() as conn:
             row=conn.execute("SELECT canonical_key,current_price FROM products WHERE id='migration-spec'").fetchone()
             self.assertEqual(row['canonical_key'],extract_canonical_key(title))
@@ -1769,8 +1772,11 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
             check_bad = conn.execute("SELECT url FROM products WHERE id = 'test-kaspi-1'").fetchone()
             self.assertEqual(check_bad["url"], "https://kaspi.kz/p/raw-bad-url-123")
 
-        # Запуск init_db выполняет миграцию
-        init_db()
+        # Разовая миграция чисток (раньше выполнялась при каждом старте init_db)
+        from database import _migration_legacy_cleanups
+        with get_connection() as conn:
+            _migration_legacy_cleanups(conn)
+            conn.commit()
         with get_connection() as conn:
             check_fixed = conn.execute("SELECT url FROM products WHERE id = 'test-kaspi-1'").fetchone()
             self.assertEqual(check_fixed["url"], "https://kaspi.kz/shop/p/raw-bad-url-123")
@@ -2239,9 +2245,10 @@ class TestForteMarketScraper(unittest.TestCase):
         self.assertEqual(res_ala[0]["price"], 480000)
         self.assertEqual(res_ala[0]["city"], "Алматы")
 
-        # 3. Неизвестный город -> fallback к KZ
+        # 3. Неизвестный город -> fallback к KZ с честной меткой «Казахстан», а не запрошенного города
         res_other = ForteMarketScraper.parse_response(sample_data, "Смартфоны", 1, city="Кокшетау")
         self.assertEqual(res_other[0]["price"], 510000)
+        self.assertEqual(res_other[0]["city"], "Казахстан")
 
     def test_search_live_mocked(self):
         import asyncio

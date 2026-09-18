@@ -50,272 +50,383 @@ def get_connection():
     conn.execute("PRAGMA synchronous = NORMAL;")
     return conn
 
-def init_db():
-    """Создает таблицы, FTS5 индекс и выполняет миграции для поддержки поля shop и city."""
+def _columns(cursor, table: str) -> set:
+    return {row[1] for row in cursor.execute(f"PRAGMA table_info({table})")}
+
+
+def _add_column(cursor, table: str, column: str, declaration: str) -> None:
+    """Аддитивная колонка: добавляется, только если её нет (ошибки не скрываются)."""
+    if column not in _columns(cursor, table):
+        cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {declaration}")
+
+
+def _create_schema(cursor) -> None:
+    """Таблицы, колонки, индексы и триггеры. Идемпотентно и без изменения данных."""
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS products (
+            id TEXT PRIMARY KEY,
+            shop TEXT DEFAULT 'DNS Казахстан',
+            title TEXT NOT NULL,
+            category TEXT,
+            url TEXT NOT NULL,
+            image_url TEXT,
+            current_price INTEGER NOT NULL,
+            first_seen_price INTEGER NOT NULL,
+            old_price_on_site INTEGER DEFAULT 0,
+            min_price INTEGER NOT NULL,
+            max_price INTEGER NOT NULL,
+            canonical_key TEXT,
+            description TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS alerts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            shop TEXT DEFAULT 'DNS Казахстан',
+            city TEXT DEFAULT 'Астана',
+            product_id TEXT NOT NULL,
+            alert_type TEXT NOT NULL,
+            old_price INTEGER,
+            new_price INTEGER NOT NULL,
+            discount_pct REAL,
+            savings_kzt INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (product_id) REFERENCES products(id)
+        )
+    """)
+    # Таблица постоянного кэша канонических ключей моделей (для предотвращения повторных обращений к AI)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS title_canonical_cache (
+            title_hash TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            canonical_key TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    # Названия, которые уже отправлялись в AI: неудачи не повторяются при каждом обходе
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS title_ai_attempts (
+            title_hash TEXT PRIMARY KEY,
+            attempted_at TIMESTAMP NOT NULL
+        )
+    """)
+    cursor.execute("CREATE TABLE IF NOT EXISTS schema_metadata (name TEXT PRIMARY KEY, value TEXT)")
+    # Пользователи (вход через Telegram) и их личные настройки
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY,
+            username TEXT,
+            first_name TEXT,
+            last_name TEXT,
+            photo_url TEXT,
+            settings TEXT NOT NULL DEFAULT '{}',
+            is_blocked INTEGER NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_login_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    # Сессии: в базе хранится только SHA-256 токена из cookie
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS sessions (
+            token_hash TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expires_at TIMESTAMP NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    """)
+    # Состояние сканирования по каждому магазину: свежесть считается отдельно,
+    # поэтому прерванный цикл (например, из-за перезапуска контейнера) догоняется по отставшим магазинам
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS shop_scans (
+            shop_key TEXT PRIMARY KEY,
+            last_attempt_at TIMESTAMP,
+            last_success_at TIMESTAMP,
+            last_items INTEGER DEFAULT 0,
+            last_duration_sec REAL DEFAULT 0,
+            last_error TEXT
+        )
+    """)
+    cursor.execute("""CREATE TABLE IF NOT EXISTS product_sources (
+        product_id TEXT NOT NULL, shop_key TEXT NOT NULL, source_url TEXT NOT NULL,
+        active INTEGER NOT NULL DEFAULT 1,
+        PRIMARY KEY(product_id, shop_key, source_url)
+    )""")
+    cursor.execute("""CREATE TABLE IF NOT EXISTS notification_outbox (
+        id INTEGER PRIMARY KEY, alert_id INTEGER NOT NULL, user_id INTEGER NOT NULL,
+        payload TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
+        attempts INTEGER NOT NULL DEFAULT 0, next_attempt_at REAL NOT NULL DEFAULT 0,
+        created_at REAL NOT NULL, last_error TEXT,
+        UNIQUE(alert_id, user_id)
+    )""")
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS tracked_categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            query TEXT NOT NULL,
+            master_category TEXT,
+            search_count INTEGER DEFAULT 1,
+            last_searched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_scanned_at TIMESTAMP,
+            is_active INTEGER DEFAULT 1,
+            is_hot INTEGER DEFAULT 0
+        )
+    """)
+    # История наблюдений: строка пишется только при изменении цены или зачёркнутой цены
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS price_observations (
+            product_id TEXT NOT NULL,
+            price INTEGER NOT NULL,
+            old_price_on_site INTEGER NOT NULL DEFAULT 0,
+            observed_at TEXT NOT NULL
+        )
+    """)
+
+    # Аддитивные колонки старых баз: сохраняют данные и безопасны при повторе
+    for table, column, declaration in (
+        ("products", "shop", "TEXT DEFAULT 'DNS Казахстан'"),
+        ("products", "city", "TEXT DEFAULT 'Астана'"),
+        ("products", "canonical_key", "TEXT"),
+        ("products", "description", "TEXT"),
+        ("products", "is_active", "INTEGER NOT NULL DEFAULT 1"),
+        ("products", "old_price_on_site", "INTEGER DEFAULT 0"),
+        ("alerts", "shop", "TEXT DEFAULT 'DNS Казахстан'"),
+        ("alerts", "city", "TEXT DEFAULT 'Астана'"),
+        ("alerts", "competitor_shop", "TEXT"),
+        ("alerts", "is_dismissed", "INTEGER DEFAULT 0"),
+        ("shop_scans", "status", "TEXT NOT NULL DEFAULT 'unknown'"),
+        ("shop_scans", "failure_count", "INTEGER NOT NULL DEFAULT 0"),
+        ("shop_scans", "next_retry_at", "REAL"),
+        ("tracked_categories", "is_hot", "INTEGER DEFAULT 0"),
+    ):
+        _add_column(cursor, table, column, declaration)
+
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_id ON products(id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_shop ON products(shop)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_city ON products(city)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_updated_at ON products(updated_at)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_shop_city_price ON products(shop, city, current_price)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_canonical_key ON products(canonical_key)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_alerts_product ON alerts(product_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_canonical_cache_key ON title_canonical_cache(canonical_key)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_outbox_due ON notification_outbox(status, next_attempt_at)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_tracked_cat_active ON tracked_categories(is_active, last_scanned_at)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_price_obs_product ON price_observations(product_id, observed_at)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_price_obs_time ON price_observations(observed_at)")
+
+    # Полнотекстовый индекс FTS5; перестраивается миграцией, а не при каждом старте
+    cursor.execute("""
+        CREATE VIRTUAL TABLE IF NOT EXISTS products_fts USING fts5(
+            id UNINDEXED,
+            title,
+            shop,
+            city,
+            category,
+            content='products',
+            content_rowid='rowid'
+        )
+    """)
+    cursor.execute("""
+        CREATE TRIGGER IF NOT EXISTS products_ai AFTER INSERT ON products BEGIN
+            INSERT INTO products_fts(rowid, id, title, shop, city, category)
+            VALUES (new.rowid, new.id, new.title, new.shop, new.city, new.category);
+        END;
+    """)
+    cursor.execute("""
+        CREATE TRIGGER IF NOT EXISTS products_ad AFTER DELETE ON products BEGIN
+            INSERT INTO products_fts(products_fts, rowid, id, title, shop, city, category)
+            VALUES('delete', old.rowid, old.id, old.title, old.shop, old.city, old.category);
+        END;
+    """)
+    # Только при изменении индексируемых полей: обновление цены не переписывает индекс
+    cursor.execute("""
+        CREATE TRIGGER IF NOT EXISTS products_au AFTER UPDATE OF id, title, shop, city, category ON products BEGIN
+            INSERT INTO products_fts(products_fts, rowid, id, title, shop, city, category)
+            VALUES('delete', old.rowid, old.id, old.title, old.shop, old.city, old.category);
+            INSERT INTO products_fts(rowid, id, title, shop, city, category)
+            VALUES (new.rowid, new.id, new.title, new.shop, new.city, new.category);
+        END;
+    """)
+
+
+# ---------------------------------------------------------------------------
+# Пронумерованные миграции данных. Каждая выполняется один раз, в своей транзакции;
+# номер последней применённой хранится в schema_metadata.schema_version.
+# Перед применением ожидающих миграций к непустой базе создаётся бэкап (SQLite backup API).
+# ---------------------------------------------------------------------------
+
+def _migration_legacy_identity_v2(conn) -> None:
+    """Прежний шаг identity_v2 (пересчёт canonical_key), если он ещё не выполнялся."""
+    if conn.execute("SELECT 1 FROM schema_metadata WHERE name = 'identity_v2'").fetchone():
+        return
+    from model_matching import extract_canonical_key
+    rows = conn.execute("SELECT id, title FROM products").fetchall()
+    conn.executemany("UPDATE products SET canonical_key = ? WHERE id = ?",
+                     [(extract_canonical_key(r['title']), r['id']) for r in rows])
+    conn.execute("DELETE FROM title_canonical_cache")
+    conn.execute("INSERT INTO schema_metadata VALUES ('identity_v2', '1')")
+
+
+def _migration_legacy_cleanups(conn) -> None:
+    """Разовые чистки, которые раньше выполнялись при каждом старте."""
+    # Ссылки на картинки Белого Ветра и товары Kaspi Магазина (kaspi.kz/p/ -> kaspi.kz/shop/p/)
+    conn.execute("UPDATE products SET image_url = REPLACE(image_url, 'https://shop.kz//static.shop.kz', 'https://static.shop.kz') WHERE image_url LIKE 'https://shop.kz//static.shop.kz%'")
+    conn.execute("UPDATE products SET url = REPLACE(url, 'https://kaspi.kz/p/', 'https://kaspi.kz/shop/p/') WHERE url LIKE '%kaspi.kz/p/%'")
+    # Испорченные аномалии и цены (глюки парсинга DNS/shopkz)
+    conn.execute("""
+        DELETE FROM alerts
+        WHERE old_price > 10000000
+           OR new_price > 10000000
+           OR savings_kzt > 10000000
+           OR old_price <= 0
+           OR new_price <= 0
+           OR (alert_type = 'ZERO_GLITCH' AND (old_price = 722280 OR product_id LIKE '%9aeu789t40278%'))
+    """)
+    conn.execute("UPDATE products SET max_price = current_price WHERE max_price > 10000000")
+    conn.execute("UPDATE products SET first_seen_price = current_price WHERE first_seen_price > 10000000")
+    conn.execute("DELETE FROM products WHERE current_price > 10000000")
+
+
+def _migration_offer_identity_reset(conn) -> None:
+    """Аудит H05: id предложения включает город (kaspi_1@astana). Каталог пересобирается с нуля.
+
+    Решение владельца 18.09.2026: старый каталог не переносится (в нём цены разных городов
+    перезаписывали друг друга, цены Flip были занижены в ~1000 раз). Удаляются товары, алерты,
+    источники, очередь уведомлений и история цен; сбрасывается состояние обходов, чтобы все
+    магазины обошлись сразу. Пользователи, сессии, личные настройки, отслеживаемые категории
+    и кэш AI-ключей сохраняются. Бэкап до миграции создаёт run_migrations().
+    """
+    conn.execute("DELETE FROM notification_outbox")
+    conn.execute("DELETE FROM alerts")
+    conn.execute("DELETE FROM product_sources")
+    conn.execute("DELETE FROM price_observations")
+    conn.execute("DELETE FROM products")
+    conn.execute("INSERT INTO products_fts(products_fts) VALUES('delete-all')")
+    conn.execute("DELETE FROM shop_scans")
+    conn.execute("UPDATE tracked_categories SET last_scanned_at = NULL")
+    conn.execute("INSERT OR REPLACE INTO schema_metadata VALUES ('identity_version', '3')")
+    # Первый обход пересобранного каталога заново найдёт все текущие скидки: пользователи их уже
+    # получали, поэтому на время полного цикла алерты пишутся в ленту без рассылки в Telegram
+    muted_until = time.time() + CATALOG_REBUILD_MUTE_SECONDS
+    conn.execute("INSERT OR REPLACE INTO schema_metadata VALUES ('notifications_muted_until', ?)", (str(muted_until),))
+
+
+def _migration_fts_update_trigger(conn) -> None:
+    """Триггер FTS только на индексируемые поля (старый срабатывал на каждое обновление цены) + rebuild."""
+    conn.execute("DROP TRIGGER IF EXISTS products_au")
+    conn.execute("""
+        CREATE TRIGGER products_au AFTER UPDATE OF id, title, shop, city, category ON products BEGIN
+            INSERT INTO products_fts(products_fts, rowid, id, title, shop, city, category)
+            VALUES('delete', old.rowid, old.id, old.title, old.shop, old.city, old.category);
+            INSERT INTO products_fts(rowid, id, title, shop, city, category)
+            VALUES (new.rowid, new.id, new.title, new.shop, new.city, new.category);
+        END;
+    """)
+    conn.execute("INSERT INTO products_fts(products_fts) VALUES('rebuild')")
+
+
+CATALOG_REBUILD_MUTE_SECONDS = 6 * 3600
+
+
+def notifications_muted() -> bool:
+    """Тихий режим после пересборки каталога: алерты без рассылки (см. миграцию 3)."""
     with get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS products (
-                id TEXT PRIMARY KEY,
-                shop TEXT DEFAULT 'DNS Казахстан',
-                title TEXT NOT NULL,
-                category TEXT,
-                url TEXT NOT NULL,
-                image_url TEXT,
-                current_price INTEGER NOT NULL,
-                first_seen_price INTEGER NOT NULL,
-                old_price_on_site INTEGER DEFAULT 0,
-                min_price INTEGER NOT NULL,
-                max_price INTEGER NOT NULL,
-                canonical_key TEXT,
-                description TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+        row = conn.execute("SELECT value FROM schema_metadata WHERE name = 'notifications_muted_until'").fetchone()
+    try:
+        return bool(row) and float(row[0]) > time.time()
+    except (TypeError, ValueError):
+        return False
 
-        # Миграция: если поле shop отсутствует в старой БД, добавляем его
+
+MIGRATIONS = (
+    (1, "legacy_identity_v2", _migration_legacy_identity_v2),
+    (2, "legacy_cleanups", _migration_legacy_cleanups),
+    (3, "offer_identity_reset", _migration_offer_identity_reset),
+    (4, "fts_update_trigger", _migration_fts_update_trigger),
+)
+SCHEMA_VERSION = MIGRATIONS[-1][0]
+
+
+def get_schema_version(conn) -> int:
+    row = conn.execute("SELECT value FROM schema_metadata WHERE name = 'schema_version'").fetchone()
+    return int(row[0]) if row and str(row[0]).isdigit() else 0
+
+
+def backup_database(label: str) -> Optional[str]:
+    """Консистентная копия через SQLite backup API в DATA_DIR/backups; проверяется quick_check."""
+    from config import DATA_DIR
+    if not DB_PATH.exists():
+        return None
+    backup_dir = DATA_DIR / "backups"
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    dest = backup_dir / f"prices-{label}-{stamp}.db"
+    src = sqlite3.connect(DB_PATH, timeout=30)
+    dst = sqlite3.connect(dest)
+    try:
+        src.backup(dst)
+        result = dst.execute("PRAGMA quick_check").fetchone()[0]
+        if result != "ok":
+            raise RuntimeError(f"Бэкап не прошёл quick_check: {result}")
+    finally:
+        dst.close()
+        src.close()
+    return str(dest)
+
+
+def run_migrations() -> List[int]:
+    """Применяет ожидающие миграции по порядку; ошибка останавливает старт, транзакция откатывается."""
+    with get_connection() as conn:
+        current = get_schema_version(conn)
+        has_data = any(conn.execute(f"SELECT 1 FROM {t} LIMIT 1").fetchone()
+                       for t in ("products", "alerts", "users"))
+    pending = [m for m in MIGRATIONS if m[0] > current]
+    if not pending:
+        return []
+    if has_data:
+        path = backup_database(f"pre-v{pending[-1][0]}")
+        print(f"[DB] Бэкап перед миграциями {current}→{pending[-1][0]}: {path}")
+
+    applied = []
+    conn = sqlite3.connect(DB_PATH, timeout=30, isolation_level=None)
+    conn.row_factory = sqlite3.Row
+    try:
+        conn.execute("PRAGMA busy_timeout = 30000")
+        for version, name, migrate in pending:
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                # Повторная проверка под блокировкой: второй процесс не применит миграцию дважды
+                if get_schema_version(conn) >= version:
+                    conn.execute("ROLLBACK")
+                    continue
+                migrate(conn)
+                conn.execute("INSERT OR REPLACE INTO schema_metadata VALUES ('schema_version', ?)", (str(version),))
+                conn.execute("COMMIT")
+            except BaseException:
+                conn.execute("ROLLBACK")
+                raise
+            applied.append(version)
+            print(f"[DB] Миграция {version} ({name}) применена")
+    finally:
+        conn.close()
+    if 3 in applied and has_data:
+        # Вернуть место после удаления каталога (вне транзакции)
+        vacuum_conn = sqlite3.connect(DB_PATH, timeout=30, isolation_level=None)
         try:
-            cursor.execute("ALTER TABLE products ADD COLUMN shop TEXT DEFAULT 'DNS Казахстан'")
-        except sqlite3.OperationalError:
-            pass  # Колонка уже существует
-
-        try:
-            cursor.execute("ALTER TABLE products ADD COLUMN city TEXT DEFAULT 'Астана'")
-        except sqlite3.OperationalError:
-            pass
-
-        try:
-            cursor.execute("ALTER TABLE products ADD COLUMN canonical_key TEXT")
-        except sqlite3.OperationalError:
-            pass
-
-        try:
-            cursor.execute("ALTER TABLE products ADD COLUMN description TEXT")
-        except sqlite3.OperationalError:
-            pass
-
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS alerts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                shop TEXT DEFAULT 'DNS Казахстан',
-                city TEXT DEFAULT 'Астана',
-                product_id TEXT NOT NULL,
-                alert_type TEXT NOT NULL,
-                old_price INTEGER,
-                new_price INTEGER NOT NULL,
-                discount_pct REAL,
-                savings_kzt INTEGER,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (product_id) REFERENCES products(id)
-            )
-        """)
-
-        try:
-            cursor.execute("ALTER TABLE alerts ADD COLUMN shop TEXT DEFAULT 'DNS Казахстан'")
-        except sqlite3.OperationalError:
-            pass
-
-        try:
-            cursor.execute("ALTER TABLE alerts ADD COLUMN city TEXT DEFAULT 'Астана'")
-        except sqlite3.OperationalError:
-            pass
-
-        try:
-            cursor.execute("ALTER TABLE alerts ADD COLUMN competitor_shop TEXT")
-        except sqlite3.OperationalError:
-            pass
-
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_id ON products(id)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_shop ON products(shop)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_city ON products(city)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_updated_at ON products(updated_at)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_shop_city_price ON products(shop, city, current_price)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_products_canonical_key ON products(canonical_key)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_alerts_product ON alerts(product_id)")
-
-        # Таблица постоянного кэша канонических ключей моделей (для предотвращения повторных обращений к AI)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS title_canonical_cache (
-                title_hash TEXT PRIMARY KEY,
-                title TEXT NOT NULL,
-                canonical_key TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_canonical_cache_key ON title_canonical_cache(canonical_key)")
-        # Названия, которые уже отправлялись в AI: неудачи не повторяются при каждом обходе
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS title_ai_attempts (
-                title_hash TEXT PRIMARY KEY,
-                attempted_at TIMESTAMP NOT NULL
-            )
-        """)
-        cursor.execute("CREATE TABLE IF NOT EXISTS schema_metadata (name TEXT PRIMARY KEY, value TEXT)")
-        if not cursor.execute("SELECT 1 FROM schema_metadata WHERE name = 'identity_v2'").fetchone():
-            from model_matching import extract_canonical_key
-            rows = cursor.execute("SELECT id, title FROM products").fetchall()
-            cursor.executemany("UPDATE products SET canonical_key = ? WHERE id = ?",
-                               [(extract_canonical_key(r['title']), r['id']) for r in rows])
-            cursor.execute("DELETE FROM title_canonical_cache")
-            cursor.execute("INSERT INTO schema_metadata VALUES ('identity_v2', '1')")
+            vacuum_conn.execute("VACUUM")
+        finally:
+            vacuum_conn.close()
+    return applied
 
 
-        # Пользователи (вход через Telegram) и их личные настройки
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY,
-                username TEXT,
-                first_name TEXT,
-                last_name TEXT,
-                photo_url TEXT,
-                settings TEXT NOT NULL DEFAULT '{}',
-                is_blocked INTEGER NOT NULL DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                last_login_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        # Сессии: в базе хранится только SHA-256 токена из cookie
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS sessions (
-                token_hash TEXT PRIMARY KEY,
-                user_id INTEGER NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                expires_at TIMESTAMP NOT NULL,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-            )
-        """)
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)")
-
-        # Состояние сканирования по каждому магазину: свежесть считается отдельно,
-        # поэтому прерванный цикл (например, из-за перезапуска контейнера) догоняется по отставшим магазинам
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS shop_scans (
-                shop_key TEXT PRIMARY KEY,
-                last_attempt_at TIMESTAMP,
-                last_success_at TIMESTAMP,
-                last_items INTEGER DEFAULT 0,
-                last_duration_sec REAL DEFAULT 0,
-                last_error TEXT
-            )
-        """)
-
-        # Additive migrations preserve existing user data and can run repeatedly.
-        for table, column, declaration in (
-            ("products", "is_active", "INTEGER NOT NULL DEFAULT 1"),
-            ("products", "old_price_on_site", "INTEGER DEFAULT 0"),
-            ("shop_scans", "status", "TEXT NOT NULL DEFAULT 'unknown'"),
-            ("shop_scans", "failure_count", "INTEGER NOT NULL DEFAULT 0"),
-            ("shop_scans", "next_retry_at", "REAL"),
-        ):
-            columns = {row[1] for row in cursor.execute(f"PRAGMA table_info({table})")}
-            if column not in columns:
-                cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {declaration}")
-        cursor.execute("""CREATE TABLE IF NOT EXISTS product_sources (
-            product_id TEXT NOT NULL, shop_key TEXT NOT NULL, source_url TEXT NOT NULL,
-            active INTEGER NOT NULL DEFAULT 1,
-            PRIMARY KEY(product_id, shop_key, source_url)
-        )""")
-        cursor.execute("""CREATE TABLE IF NOT EXISTS notification_outbox (
-            id INTEGER PRIMARY KEY, alert_id INTEGER NOT NULL, user_id INTEGER NOT NULL,
-            payload TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
-            attempts INTEGER NOT NULL DEFAULT 0, next_attempt_at REAL NOT NULL DEFAULT 0,
-            created_at REAL NOT NULL, last_error TEXT,
-            UNIQUE(alert_id, user_id)
-        )""")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_outbox_due ON notification_outbox(status, next_attempt_at)")
-
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS tracked_categories (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT UNIQUE NOT NULL,
-                query TEXT NOT NULL,
-                master_category TEXT,
-                search_count INTEGER DEFAULT 1,
-                last_searched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                last_scanned_at TIMESTAMP,
-                is_active INTEGER DEFAULT 1
-            )
-        """)
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_tracked_cat_active ON tracked_categories(is_active, last_scanned_at)")
-
-        # Автоматическая миграция: исправление ссылок на картинки Белого Ветра
-        try:
-            cursor.execute("UPDATE products SET image_url = REPLACE(image_url, 'https://shop.kz//static.shop.kz', 'https://static.shop.kz') WHERE image_url LIKE 'https://shop.kz//static.shop.kz%'")
-        except Exception:
-            pass
-
-        # Автоматическая миграция: исправление ссылок на товары Kaspi Магазина (kaspi.kz/p/ -> kaspi.kz/shop/p/)
-        try:
-            cursor.execute("UPDATE products SET url = REPLACE(url, 'https://kaspi.kz/p/', 'https://kaspi.kz/shop/p/') WHERE url LIKE '%kaspi.kz/p/%'")
-        except Exception:
-            pass
-
-        # Автоматическая очистка испорченных аномалий и цен (глюки парсинга DNS/shopkz)
-        try:
-            cursor.execute("""
-                DELETE FROM alerts 
-                WHERE old_price > 10000000 
-                   OR new_price > 10000000 
-                   OR savings_kzt > 10000000
-                   OR old_price <= 0 
-                   OR new_price <= 0
-                   OR (alert_type = 'ZERO_GLITCH' AND (old_price = 722280 OR product_id LIKE '%9aeu789t40278%'))
-            """)
-            cursor.execute("UPDATE products SET max_price = current_price WHERE max_price > 10000000")
-            cursor.execute("UPDATE products SET first_seen_price = current_price WHERE first_seen_price > 10000000")
-            cursor.execute("DELETE FROM products WHERE current_price > 10000000")
-        except Exception:
-            pass
-
-        # Добавление флага is_dismissed для скрытия пользователем/админом
-        try:
-            cursor.execute("ALTER TABLE alerts ADD COLUMN is_dismissed INTEGER DEFAULT 0")
-        except Exception:
-            pass
-
-        # Полнотекстовый индекс FTS5 для мгновенного поиска по миллионам товаров
-        try:
-            cursor.execute("""
-                CREATE VIRTUAL TABLE IF NOT EXISTS products_fts USING fts5(
-                    id UNINDEXED,
-                    title,
-                    shop,
-                    city,
-                    category,
-                    content='products',
-                    content_rowid='rowid'
-                )
-            """)
-
-            # Триггеры авто-синхронизации products -> products_fts
-            cursor.execute("""
-                CREATE TRIGGER IF NOT EXISTS products_ai AFTER INSERT ON products BEGIN
-                    INSERT INTO products_fts(rowid, id, title, shop, city, category)
-                    VALUES (new.rowid, new.id, new.title, new.shop, new.city, new.category);
-                END;
-            """)
-            cursor.execute("""
-                CREATE TRIGGER IF NOT EXISTS products_ad AFTER DELETE ON products BEGIN
-                    INSERT INTO products_fts(products_fts, rowid, id, title, shop, city, category)
-                    VALUES('delete', old.rowid, old.id, old.title, old.shop, old.city, old.category);
-                END;
-            """)
-            cursor.execute("""
-                CREATE TRIGGER IF NOT EXISTS products_au AFTER UPDATE ON products BEGIN
-                    INSERT INTO products_fts(products_fts, rowid, id, title, shop, city, category)
-                    VALUES('delete', old.rowid, old.id, old.title, old.shop, old.city, old.category);
-                    INSERT INTO products_fts(rowid, id, title, shop, city, category)
-                    VALUES (new.rowid, new.id, new.title, new.shop, new.city, new.category);
-                END;
-            """)
-
-            # Построение FTS5 индекса из таблицы products
-            cursor.execute("INSERT INTO products_fts(products_fts) VALUES('rebuild')")
-        except sqlite3.OperationalError as e:
-            print(f"[DB] Предупреждение инициализации FTS5: {e}")
-
+def init_db():
+    with get_connection() as conn:
+        _create_schema(conn.cursor())
         conn.commit()
+    run_migrations()
 
 def get_cached_canonical_key(title: str) -> Optional[str]:
     """Возвращает сохраненный канонический ключ из постоянного кэша SQLite."""
@@ -407,6 +518,35 @@ def update_products_canonical_keys(pairs: List[tuple]) -> int:
         conn.commit()
     return len(pairs)
 
+PRICE_HISTORY_RETENTION_DAYS = 180
+
+
+def _record_observation(cursor, pid: str, existing, price: int, old_on_site: int, now: str) -> None:
+    """Наблюдение пишется для нового предложения и при изменении цены или зачёркнутой цены."""
+    if existing is not None and existing["current_price"] == price and (existing["old_price_on_site"] or 0) == old_on_site:
+        return
+    cursor.execute("INSERT INTO price_observations (product_id, price, old_price_on_site, observed_at) VALUES (?, ?, ?, ?)",
+                   (pid, price, old_on_site, now))
+
+
+def get_price_observations(product_id: str, limit: int = 100) -> List[Dict[str, Any]]:
+    """Изменения цены предложения, новые первыми."""
+    with get_connection() as conn:
+        rows = conn.execute("""SELECT price, old_price_on_site, observed_at FROM price_observations
+                               WHERE product_id = ? ORDER BY observed_at DESC LIMIT ?""",
+                            (str(product_id), limit)).fetchall()
+        return [dict(r) for r in rows]
+
+
+def prune_price_observations(days: int = PRICE_HISTORY_RETENTION_DAYS) -> int:
+    """Удаляет наблюдения старше срока хранения; возвращает число удалённых строк."""
+    cutoff = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)).isoformat()
+    with get_connection() as conn:
+        deleted = conn.execute("DELETE FROM price_observations WHERE observed_at < ?", (cutoff,)).rowcount
+        conn.commit()
+        return deleted
+
+
 def site_old_price(value: Any, current_price: int) -> int:
     """Зачёркнутая цена текущего наблюдения: только больше текущей, иначе 0 (скидка снята)."""
     from scrapers.base import price_value
@@ -445,8 +585,9 @@ def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
 
     with get_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT current_price, first_seen_price, min_price, max_price FROM products WHERE id = ?", (pid,))
+        cursor.execute("SELECT current_price, first_seen_price, min_price, max_price, old_price_on_site FROM products WHERE id = ?", (pid,))
         existing = cursor.fetchone()
+        _record_observation(cursor, pid, existing, current_price, old_on_site, now)
 
         if existing is None:
             cursor.execute("""
@@ -540,8 +681,9 @@ def save_or_update_products_batch(products: List[Dict[str, Any]]) -> int:
             canonical_key = p.get("canonical_key") or extract_canonical_key(title)
             old_on_site = site_old_price(p.get("old_price_on_site"), current_price)
 
-            cursor.execute("SELECT current_price, min_price, max_price FROM products WHERE id = ?", (pid,))
+            cursor.execute("SELECT current_price, min_price, max_price, old_price_on_site FROM products WHERE id = ?", (pid,))
             existing = cursor.fetchone()
+            _record_observation(cursor, pid, existing, current_price, old_on_site, now)
 
             if existing is None:
                 cursor.execute("""
@@ -816,7 +958,7 @@ def find_market_comparisons(
         with get_connection() as conn:
             rows = conn.execute("""
                 SELECT shop, title, current_price, url, city, category, canonical_key FROM products
-                WHERE shop != ? AND city = ? AND canonical_key = ? AND current_price > 0 AND """
+                WHERE shop != ? AND (city = ? OR city = 'Казахстан') AND canonical_key = ? AND current_price > 0 AND """
                 + active_product_clause() + """
                 ORDER BY current_price ASC LIMIT 500
             """, (current_shop, city, c_key)).fetchall()
@@ -830,7 +972,7 @@ def find_market_comparisons(
         with get_connection() as conn:
             rows = conn.execute("""
                 SELECT shop, title, current_price, url, city, category, canonical_key FROM products
-                WHERE shop != ? AND city = ? AND current_price > 0 AND """
+                WHERE shop != ? AND (city = ? OR city = 'Казахстан') AND current_price > 0 AND """
                 + active_product_clause() + """ AND rowid IN (
                     SELECT rowid FROM products_fts WHERE products_fts MATCH ?)
                 ORDER BY current_price ASC LIMIT 500
@@ -1099,33 +1241,52 @@ def save_tracked_category(name: str, query: str, master_category: Optional[str] 
             return {"id": cat_id, "name": clean_name, "query": clean_query, "search_count": 1, "master_category": master_category}
 
 def get_tracked_categories(active_only: bool = False, limit: int = 100) -> List[Dict[str, Any]]:
-    """Возвращает список отслеживаемых категорий."""
-    query = "SELECT * FROM tracked_categories"
-    params: List[Any] = []
-    if active_only:
-        query += " WHERE is_active = 1"
-    query += " ORDER BY search_count DESC, last_searched_at DESC LIMIT ?"
-    params.append(limit)
-
+    """Возвращает список отслеживаемых категорий с подсчетом товаров в базе."""
     with get_connection() as conn:
         cursor = conn.cursor()
+        query = """
+            SELECT c.*, 
+                   (SELECT count(*) FROM products p WHERE (p.category = c.name OR p.title LIKE '%' || c.query || '%') AND p.is_active = 1) AS products_count
+            FROM tracked_categories c
+        """
+        params: List[Any] = []
+        if active_only:
+            query += " WHERE c.is_active = 1"
+        query += " ORDER BY c.is_hot DESC, c.search_count DESC, c.last_searched_at DESC LIMIT ?"
+        params.append(limit)
         cursor.execute(query, params)
         return [dict(row) for row in cursor.fetchall()]
 
-def get_due_tracked_categories(limit: int = 2) -> List[Dict[str, Any]]:
-    """Возвращает категории, которые пора обновить в текущей волне (самые популярные и давно не сканировавшиеся)."""
+def get_due_tracked_categories(limit: int = 3) -> List[Dict[str, Any]]:
+    """Категории для текущей волны: сначала «горячие» (is_hot), затем ротируемые.
+
+    Горячие занимают не больше limit-1 мест, поэтому очередь остальных категорий
+    всегда продвигается; внутри каждой группы — давно не сканировавшиеся первыми.
+    Если ротируемых не хватает, свободные места добирают горячие.
+    """
+    if limit <= 0:
+        return []
+    order = """ORDER BY CASE WHEN last_scanned_at IS NULL THEN 0 ELSE 1 END,
+                        last_scanned_at ASC, search_count DESC"""
     with get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT * FROM tracked_categories
-            WHERE is_active = 1
-            ORDER BY 
-                CASE WHEN last_scanned_at IS NULL THEN 0 ELSE 1 END,
-                last_scanned_at ASC,
-                search_count DESC
-            LIMIT ?
-        """, (limit,))
-        return [dict(row) for row in cursor.fetchall()]
+        hot = [dict(r) for r in conn.execute(
+            f"SELECT * FROM tracked_categories WHERE is_active = 1 AND is_hot = 1 {order} LIMIT ?", (limit,))]
+        rolling = [dict(r) for r in conn.execute(
+            f"SELECT * FROM tracked_categories WHERE is_active = 1 AND (is_hot = 0 OR is_hot IS NULL) {order} LIMIT ?",
+            (limit,))]
+    hot_quota = limit - 1 if limit > 1 and rolling else limit
+    used_hot = min(len(hot), hot_quota)
+    chosen = hot[:used_hot]
+    chosen += rolling[:limit - len(chosen)]
+    remaining = limit - len(chosen)
+    chosen += hot[used_hot:used_hot + remaining]
+    return chosen
+
+def toggle_tracked_category_hot(category_id: int, is_hot: bool):
+    """Устанавливает или снимает Hot-статус с отслеживаемой категории."""
+    with get_connection() as conn:
+        conn.execute("UPDATE tracked_categories SET is_hot = ? WHERE id = ?", (1 if is_hot else 0, category_id))
+        conn.commit()
 
 def mark_tracked_category_scanned(category_id: int):
     """Фиксирует факт сканирования категории в волне."""

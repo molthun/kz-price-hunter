@@ -159,8 +159,46 @@ def model_tokens(title):
     return {t for t in re.findall(r'[a-zа-я0-9]+', text) if t not in IGNORED}
 
 
+_RE_DUAL_SIM = re.compile(r'dual[\s-]*sim|\b2\s*[-x]?\s*sim\b|две\s*sim', re.IGNORECASE)
+_RE_ESIM = re.compile(r'\be[\s-]*sim\b', re.IGNORECASE)
+_RE_NANO_SIM = re.compile(r'nano[\s-]*sim|\bsim\s*\+\s*e[\s-]*sim|physical\s*sim|физическ\w*\s*sim', re.IGNORECASE)
+
+
+def sim_variant(title: str) -> str:
+    """Вариант SIM, если он явно указан: 'dual', 'nano+esim', 'esim'; иначе ''.
+
+    Для iPhone это разные артикулы с разной ценой (Dual SIM, nano-SIM + eSIM, только eSIM).
+    """
+    text = unicodedata.normalize('NFKC', title or '')
+    if _RE_DUAL_SIM.search(text):
+        return 'dual'
+    has_esim = bool(_RE_ESIM.search(text))
+    if has_esim and _RE_NANO_SIM.search(text):
+        return 'nano+esim'
+    return 'esim' if has_esim else ''
+
+
+def variants_compatible(left: str, right: str) -> bool:
+    """Явно указанные разные варианты SIM — разные товары; неуказанный вариант не противоречит."""
+    a, b = sim_variant(left), sim_variant(right)
+    return not (a and b and a != b)
+
+
+# Формат ключа от AI: <brand>:<model>[:<spec>] — латиница, цифры, пробелы и .-+
+_RE_AI_KEY = re.compile(r'^[a-z0-9][a-z0-9-]{0,30}:[a-z0-9][a-z0-9 .+-]{0,60}(?::[a-z0-9][a-z0-9 .+-]{0,30})?$')
+
+
+def valid_ai_canonical_key(key: str) -> bool:
+    return bool(isinstance(key, str) and _RE_AI_KEY.match(key))
+
+
 def same_model(left, right):
-    """Сравнивает две модели: сначала по каноническому ключу, затем консервативно по токенам."""
+    """Сравнивает две модели: сначала по каноническому ключу, затем консервативно по токенам.
+
+    Разные явно указанные варианты SIM (eSIM / Dual SIM / nano-SIM + eSIM) — не одна модель.
+    """
+    if not variants_compatible(left, right):
+        return False
     k_left = extract_canonical_key(left)
     k_right = extract_canonical_key(right)
     if k_left and k_right:
