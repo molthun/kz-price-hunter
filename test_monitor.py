@@ -885,6 +885,140 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(status_data["status"], "ok")
             self.assertIn("configured", status_data)
 
+    async def test_ai_consultant_rag_mock(self):
+        """Тест RAG-пайплайна AI-консультанта."""
+        import ai_service
+        from unittest.mock import patch, AsyncMock
+
+        # Тест 1: Режим без ключа API возвращает вежливое предупреждение
+        with patch.object(ai_service, '_get_api_credentials', return_value={"has_ai": False}):
+            res = await ai_service.ask_ai_consultant(message="Посоветуй ноутбук")
+            self.assertIn("AI-сервис не настроен", res["answer"])
+            self.assertEqual(res["products"], [])
+
+        # Тест 2: Режим с настроенным AI и извлечением контекста из базы
+        mock_creds = {
+            "gemini_api_key": "test_ai_key",
+            "openai_api_key": "",
+            "ai_search_enabled": True,
+            "has_ai": True,
+            "provider": "gemini"
+        }
+        mock_ai_response = {
+            "answer": "Для ваших задач отлично подойдет **iPhone 15** в магазине Kaspi!",
+            "suggested_questions": ["Какая гарантия?", "Есть ли чехлы в наличии?"]
+        }
+
+        with patch.object(ai_service, '_get_api_credentials', return_value=mock_creds), \
+             patch.object(ai_service, 'call_gemini_api', new_callable=AsyncMock) as mock_gemini:
+            mock_gemini.return_value = mock_ai_response
+            res = await ai_service.ask_ai_consultant(message="Посоветуй айфон 15", city="Все")
+            self.assertIn("iPhone 15", res["answer"])
+            self.assertEqual(len(res["suggested_questions"]), 2)
+            self.assertTrue(isinstance(res["products"], list))
+
+    async def test_ai_consultant_endpoint(self):
+        """Тест HTTP эндпоинта /api/ai/consultant."""
+        from unittest.mock import patch, AsyncMock
+        from aiohttp.test_utils import TestClient, TestServer
+        from web.server import create_app
+        import ai_service
+
+        app = create_app()
+        app.cleanup_ctx.clear()
+        async with TestClient(TestServer(app)) as client:
+            mock_result = {
+                "answer": "Рекомендую монитор LG UltraGear.",
+                "products": [{"shop": "Kaspi", "title": "LG 27GP850", "price": 180000}],
+                "suggested_questions": ["Есть ли в Алматы?"]
+            }
+            with patch.object(ai_service, 'ask_ai_consultant', new_callable=AsyncMock, return_value=mock_result):
+                # Успешный запрос
+                res = await client.post('/api/ai/consultant', json={"message": "Какой игровой монитор выбрать?"})
+                self.assertEqual(res.status, 200)
+                data = await res.json()
+                self.assertEqual(data["status"], "ok")
+                self.assertEqual(data["answer"], "Рекомендую монитор LG UltraGear.")
+                self.assertEqual(len(data["products"]), 1)
+
+            # Ошибка при пустом сообщении
+            res_bad = await client.post('/api/ai/consultant', json={"message": ""})
+            self.assertEqual(res_bad.status, 400)
+
+    async def test_telegram_bot_process_update(self):
+        """Тест интерактивного Telegram-бота: Markdown конвертация, команды и сообщения."""
+        from unittest.mock import patch, AsyncMock
+        import aiohttp
+        import telegram_bot
+
+        # 1. Проверка конвертации Markdown в Telegram HTML
+        md_text = "### Лучший выбор\n**iPhone 15** и *AirPods* с `код`"
+        html_text = telegram_bot._markdown_to_telegram_html(md_text)
+        self.assertIn("<b>Лучший выбор</b>", html_text)
+        self.assertIn("<b>iPhone 15</b>", html_text)
+        self.assertIn("<i>AirPods</i>", html_text)
+        self.assertIn("<code>код</code>", html_text)
+
+        # 2. Обработка команд бота
+        async with aiohttp.ClientSession() as session:
+            with patch.object(telegram_bot, 'send_tg_message', new_callable=AsyncMock) as mock_send:
+                # Команда /start
+                upd_start = {
+                    "update_id": 101,
+                    "message": {
+                        "chat": {"id": 12345},
+                        "from": {"first_name": "Тестер"},
+                        "text": "/start"
+                    }
+                }
+                await telegram_bot.process_telegram_update(session, "dummy_token", upd_start)
+                mock_send.assert_called_once()
+                self.assertIn("KZ Price Hunter", mock_send.call_args[0][3])
+                mock_send.reset_mock()
+
+                # Команда /status
+                upd_status = {
+                    "update_id": 102,
+                    "message": {
+                        "chat": {"id": 12345},
+                        "from": {"first_name": "Тестер"},
+                        "text": "/status"
+                    }
+                }
+                await telegram_bot.process_telegram_update(session, "dummy_token", upd_status)
+                mock_send.assert_called_once()
+                self.assertIn("Статус системы", mock_send.call_args[0][3])
+                mock_send.reset_mock()
+
+                # Команда /search
+                upd_search = {
+                    "update_id": 103,
+                    "message": {
+                        "chat": {"id": 12345},
+                        "from": {"first_name": "Тестер"},
+                        "text": "/search iPhone 15"
+                    }
+                }
+                await telegram_bot.process_telegram_update(session, "dummy_token", upd_search)
+                mock_send.assert_called_once()
+                self.assertIn("iPhone 15", mock_send.call_args[0][3])
+                mock_send.reset_mock()
+
+                # Обычное текстовое сообщение (AI-консультант)
+                upd_ai = {
+                    "update_id": 104,
+                    "message": {
+                        "chat": {"id": 12345},
+                        "from": {"first_name": "Тестер"},
+                        "text": "Какой планшет купить ребенку?"
+                    }
+                }
+                mock_ai_ans = {"answer": "Советую iPad 9", "products": []}
+                with patch('ai_service.ask_ai_consultant', new_callable=AsyncMock, return_value=mock_ai_ans):
+                    await telegram_bot.process_telegram_update(session, "dummy_token", upd_ai)
+                    mock_send.assert_called_once()
+                    self.assertIn("iPad 9", mock_send.call_args[0][3])
+
 
 if __name__ == "__main__":
     unittest.main()

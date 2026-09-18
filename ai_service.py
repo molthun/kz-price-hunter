@@ -328,3 +328,193 @@ def _sanitize_parsed_result(data: Dict[str, Any], original_query: str) -> Dict[s
         "sort": sort,
         "explanation": explanation
     }
+
+
+def _format_products_for_ui(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Форматирует найденные товары в чистую структуру для карточек в Web и Telegram."""
+    formatted = []
+    for it in items:
+        p = it.get("current_price", it.get("price", 0))
+        old_p = it.get("old_price_on_site") or it.get("first_seen_price") or 0
+        drop_pct = 0
+        if old_p > p and p > 0:
+            drop_pct = int(round((1 - p / old_p) * 100))
+        formatted.append({
+            "id": str(it.get("id", "")),
+            "shop": it.get("shop", "Магазин"),
+            "city": it.get("city", "Астана"),
+            "title": it.get("title", ""),
+            "category": it.get("category", ""),
+            "price": p,
+            "old_price": old_p if drop_pct > 0 else 0,
+            "drop_pct": drop_pct,
+            "url": it.get("url", "#"),
+            "image_url": it.get("image_url", "")
+        })
+    return formatted
+
+
+async def ask_ai_consultant(
+    message: str,
+    history: Optional[List[Dict[str, str]]] = None,
+    city: str = "Все"
+) -> Dict[str, Any]:
+    """
+    Интерактивный AI-консультант по покупкам (RAG) на базе Gemini Flash / OpenAI:
+    1. Распознает потребность пользователя и ищет в локальной базе 17 магазинов лучшие товары.
+    2. Инжектирует актуальные цены, скидки и магазины в контекст LLM.
+    3. Генерирует аргументированный ответ эксперта с подборкой конкретных товаров.
+    """
+    clean_msg = message.strip()
+    if not clean_msg:
+        return {
+            "answer": "Пожалуйста, задайте вопрос о товаре или покупке (например: *«Посоветуй игровой ноутбук до 350к»* или *«Какой iPhone сейчас выгоднее купить?»*).",
+            "products": [],
+            "suggested_questions": [
+                "Подбери игровой ноутбук до 400 000 ₸",
+                "Какой iPhone сейчас выгоднее брать?",
+                "Посоветуй хороший телевизор 55 дюймов",
+                "Что лучше: RTX 4060 или RX 7600?"
+            ]
+        }
+
+    creds = _get_api_credentials()
+    if not creds.get("has_ai") or not creds.get("ai_search_enabled", True):
+        # Fallback без ключа: ищем напрямую в базе и даем простой ответ
+        from search_engine import search_in_database
+        found = search_in_database(clean_msg, city=city)
+        return {
+            "answer": (
+                "⚠️ **AI-сервис не настроен** (не задан `GEMINI_API_KEY` в Настройках).\n\n"
+                "Вот что нашлось в базе данных по вашему запросу:"
+                if found else
+                "⚠️ **AI-сервис не настроен**. Перейдите в раздел **Настройки** и укажите бесплатный Google Gemini API Key."
+            ),
+            "products": _format_products_for_ui(found[:6]),
+            "suggested_questions": []
+        }
+
+    # 1. Извлекаем критерии поиска через parse_natural_query
+    parsed = await parse_natural_query(clean_msg, current_city=city, force=True)
+    search_query = parsed.get("clean_query", clean_msg) if parsed else clean_msg
+    cat = parsed.get("category") if parsed else None
+    min_p = parsed.get("min_price") if parsed else None
+    max_p = parsed.get("max_price") if parsed else None
+    only_disc = parsed.get("only_discount", False) if parsed else False
+
+    # 2. Выборка товаров из базы данных
+    from search_engine import search_in_database
+    db_items = search_in_database(
+        query=search_query,
+        city=city,
+        category=cat or "Все",
+        min_price=min_p,
+        max_price=max_p,
+        only_discount=only_disc,
+        sort_by="price_asc"
+    )
+
+    # Если ничего не нашлось с жесткими рамками, пробуем поиск без жестких ограничений цен
+    if not db_items:
+        db_items = search_in_database(query=search_query, city="Все", sort_by="price_asc")
+
+    top_items = db_items[:12]
+
+    # 3. Подготовка контекста товаров для промпта
+    context_lines = []
+    for idx, it in enumerate(top_items, 1):
+        price_val = it.get('current_price', 0)
+        price_str = f"{price_val:,} ₸".replace(',', ' ')
+        old_price = it.get('old_price_on_site') or it.get('first_seen_price') or 0
+        discount_str = ""
+        if old_price > price_val:
+            pct = int((1 - price_val / old_price) * 100)
+            discount_str = f" (Скидка -{pct}%, была {old_price:,} ₸)".replace(',', ' ')
+        context_lines.append(
+            f"[{idx}] ID: {it['id']} | Товар: {it['title']} | Магазин: {it['shop']} | Город: {it.get('city', 'Астана')} | Цена: {price_str}{discount_str}"
+        )
+    catalog_context = "\n".join(context_lines) if context_lines else "В базе данных пока нет точных совпадений по этому запросу."
+
+    # 4. История диалога (если передана)
+    history_lines = []
+    if history:
+        for turn in history[-4:]:
+            role = "Пользователь" if turn.get("role") == "user" else "Консультант"
+            history_lines.append(f"{role}: {turn.get('content', '')}")
+    dialog_context = "\n".join(history_lines) if history_lines else "Диалог только начат."
+
+    # 5. Формирование промпта консультанта
+    prompt = f"""
+Ты — персональный AI-консультант и эксперт по электронике сервиса KZ Price Hunter (Казахстан).
+Твоя цель — помочь пользователю выбрать оптимальную технику, сравнить модели, указать на подводные камни и посоветовать, где купить выгоднее всего.
+
+АКТУАЛЬНЫЕ ДАННЫЕ ИЗ МАГАЗИНОВ КАЗАХСТАНА (Kaspi, DNS, Белый Ветер, Технодом, Мечта, Sulpak и др.):
+{catalog_context}
+
+ПРЕДЫДУЩИЙ ДИАЛОГ:
+{dialog_context}
+
+ТЕКУЩИЙ ВОПРОС ПОЛЬЗОВАТЕЛЯ: "{clean_msg}"
+ГОРОД ПОЛЬЗОВАТЕЛЯ: "{city}"
+
+ТРЕБОВАНИЯ К ОТВЕТУ:
+1. Отвечай дружелюбно, профессионально и по делу. Используй Markdown (жирный шрифт, списки, выделения).
+2. Опирайся на реальные товары и цены из списка выше: называй точные цены в тенге (₸) и конкретный магазин с лучшим предложением.
+3. Если пользователь выбирает между несколькими устройствами, кратко сравни плюсы и минусы каждого.
+4. В поле "recommended_product_ids" укажи ID от 1 до 5 лучших товаров из списка выше, которые ты рекомендуешь рассмотреть.
+5. В поле "suggested_questions" предложи 2-3 логичных коротких вопроса, которые пользователь может задать дальше.
+
+СТРОГО ОТВЕТЬ В ФОРМАТЕ JSON:
+{{
+  "answer": "Подробный структурированный ответ консультанта в Markdown...",
+  "recommended_product_ids": ["...", "..."],
+  "suggested_questions": ["...", "..."]
+}}
+"""
+
+    gemini_key = creds.get("gemini_api_key")
+    openai_key = creds.get("openai_api_key")
+    openai_base = creds.get("openai_api_base", "https://api.openai.com/v1")
+
+    res = None
+    if gemini_key:
+        res = await call_gemini_api(prompt, gemini_key)
+    if not res and openai_key:
+        res = await call_openai_api(prompt, openai_key, openai_base)
+
+    if res and isinstance(res, dict) and "answer" in res:
+        rec_ids = set(str(x) for x in (res.get("recommended_product_ids") or []))
+        rec_products = [it for it in top_items if str(it["id"]) in rec_ids]
+        if not rec_products:
+            rec_products = top_items[:4]
+        
+        return {
+            "answer": res["answer"],
+            "products": _format_products_for_ui(rec_products),
+            "suggested_questions": res.get("suggested_questions") or [
+                "Где сейчас самая низкая цена?",
+                "Есть ли варианты со скидкой?",
+                "Какие главные минусы у этой модели?"
+            ],
+            "query_used": search_query
+        }
+
+    # Fallback при сбое генерации
+    answer_fallback = "Я проанализировал ваш запрос по каталогу электроники Казахстана.\n\n"
+    if top_items:
+        best = top_items[0]
+        p_val = best.get('current_price', 0)
+        answer_fallback += f"Лучшее предложение в базе: **{best['title']}** в магазине **{best['shop']}** за **{p_val:,} ₸**.\n\nНиже представлена подборка подходящих вариантов:".replace(',', ' ')
+    else:
+        answer_fallback += "К сожалению, по точному запросу сейчас нет предложений в наличии. Попробуйте уточнить модель или ценовой диапазон."
+
+    return {
+        "answer": answer_fallback,
+        "products": _format_products_for_ui(top_items[:4]),
+        "suggested_questions": [
+            "Покажи товары со скидкой",
+            "Посоветуй альтернативы",
+            "Поиск по всем городам"
+        ],
+        "query_used": search_query
+    }

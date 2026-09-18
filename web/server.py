@@ -231,6 +231,32 @@ async def ai_status_handler(request):
         "has_openai": bool(creds["openai_api_key"])
     })
 
+@routes.post("/api/ai/consultant")
+async def ai_consultant_handler(request):
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"error": "Некорректный JSON в теле запроса"}, status=400)
+
+    message = str(data.get("message") or "").strip()
+    history = data.get("history") or []
+    city = str(data.get("city") or "Все").strip()
+
+    if not message:
+        return web.json_response({"error": "Поле message обязательно"}, status=400)
+
+    try:
+        response = await ai_service.ask_ai_consultant(message=message, history=history, city=city)
+        if isinstance(response, dict) and "status" not in response:
+            response["status"] = "ok"
+        return web.json_response(response)
+    except Exception as e:
+        return web.json_response({
+            "error": f"Ошибка обработки запроса AI-консультанта: {e}",
+            "answer": "Произошла ошибка при обращении к AI-консультанту. Пожалуйста, попробуйте еще раз через несколько секунд.",
+            "products": []
+        }, status=500)
+
 @routes.get("/api/best-price")
 async def best_price_handler(request):
     query = request.query.get("q", "").strip()
@@ -767,8 +793,10 @@ async def auto_scan_background_worker(app):
             await asyncio.sleep(15)
 
 async def background_tasks(app):
+    from telegram_bot import run_telegram_bot_task
     tasks = [asyncio.create_task(auto_scan_background_worker(app)),
-             asyncio.create_task(notification_worker())]
+             asyncio.create_task(notification_worker()),
+             asyncio.create_task(run_telegram_bot_task())]
     yield
     for task in tasks:
         task.cancel()

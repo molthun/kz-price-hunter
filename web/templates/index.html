@@ -204,7 +204,12 @@
       <button onclick="switchTab('bestprice')" id="tabBtnBestprice" class="pb-3 text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center gap-2 cursor-pointer whitespace-nowrap">
         <i class="fa-solid fa-magnifying-glass-dollar text-emerald-400"></i>
         <span>Поиск лучшей цены</span>
-        <span class="px-1.5 py-0.5 text-[10px] rounded-full bg-emerald-500/20 text-emerald-400 font-semibold uppercase">New</span>
+      </button>
+
+      <button onclick="switchTab('consultant')" id="tabBtnConsultant" class="pb-3 text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center gap-2 cursor-pointer whitespace-nowrap">
+        <i class="fa-solid fa-wand-magic-sparkles text-purple-400"></i>
+        <span>AI-Консультант</span>
+        <span class="px-1.5 py-0.5 text-[10px] rounded-full bg-gradient-to-r from-purple-500/30 to-emerald-500/30 text-purple-300 font-bold uppercase border border-purple-500/30">AI 2.0</span>
       </button>
 
       <button onclick="switchTab('catalog')" id="tabBtnCatalog" class="pb-3 text-slate-400 hover:text-slate-200 border-b-2 border-transparent flex items-center gap-2 cursor-pointer whitespace-nowrap">
@@ -599,6 +604,115 @@
           </div>
         </div>
 
+      </div>
+    </section>
+
+    <!-- Вкладка: AI-Консультант (Ассистент по покупкам с RAG) -->
+    <section id="tabConsultant" class="hidden space-y-4">
+      <!-- Шапка консультанта -->
+      <div class="glass p-5 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-purple-500/20 bg-gradient-to-r from-purple-950/20 via-slate-900/60 to-emerald-950/20">
+        <div class="flex items-center gap-3.5">
+          <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-600 to-emerald-500 flex items-center justify-center text-white text-xl shadow-lg shadow-purple-500/20 shrink-0">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <h2 class="text-base font-bold text-white">AI-Консультант по покупкам</h2>
+              <span class="px-2 py-0.5 text-[11px] rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-300 font-semibold flex items-center gap-1">
+                <i class="fa-solid fa-bolt text-amber-400 text-[10px]"></i>
+                <span>RAG • 17 магазинов РК</span>
+              </span>
+            </div>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Персональный эксперт: сравнивает цены, анализирует характеристики и находит самое выгодное предложение в Казахстане.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-1.5 text-xs text-slate-400">
+            <i class="fa-solid fa-location-dot text-emerald-400"></i>
+            <select id="consultantCityFilter" class="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500">
+              <option value="Все">🇰🇿 Все города РК</option>
+              <option value="Астана">📍 Астана</option>
+              <option value="Алматы">📍 Алматы</option>
+              <option value="Шымкент">📍 Шымкент</option>
+              <option value="Караганда">📍 Караганда</option>
+              <option value="Актобе">📍 Актобе</option>
+            </select>
+          </div>
+
+          <button onclick="clearConsultantChat()" type="button" class="px-3 py-1.5 rounded-xl border border-slate-700 text-xs text-slate-300 hover:text-white hover:bg-slate-800 transition cursor-pointer flex items-center gap-1.5">
+            <i class="fa-solid fa-rotate-left text-slate-400"></i>
+            <span>Новый диалог</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Основная область чата -->
+      <div class="glass rounded-2xl flex flex-col h-[650px] border border-slate-800 overflow-hidden shadow-xl">
+        <!-- Лента сообщений -->
+        <div id="consultantChatFeed" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 scrollbar-thin">
+          
+          <!-- Приветственное сообщение от бота -->
+          <div class="flex items-start gap-3.5 max-w-3xl">
+            <div class="w-9 h-9 rounded-xl bg-purple-600/30 border border-purple-500/40 flex items-center justify-center text-purple-300 text-sm shrink-0">
+              <i class="fa-solid fa-robot"></i>
+            </div>
+            <div class="space-y-3">
+              <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 text-slate-200 text-sm leading-relaxed space-y-2 shadow-sm">
+                <p class="font-semibold text-white">Здравствуйте! Чем я могу помочь вам сегодня?</p>
+                <p class="text-xs text-slate-400 leading-relaxed">
+                  Я знаю актуальные цены и скидки в <b>17 торговых сетях Казахстана</b> (Kaspi, DNS, Белый Ветер, Технодом, Мечта, Sulpak, Forcecom, Halyk Market и др.). Спросите меня о подборе техники под ваш бюджет, сравнении моделей или поиске лучшей цены.
+                </p>
+              </div>
+
+              <!-- Быстрые вопросы-подсказки -->
+              <div class="space-y-1.5">
+                <span class="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Популярные вопросы:</span>
+                <div class="flex flex-wrap gap-2">
+                  <button type="button" onclick="sendConsultantSuggestion('Подбери хороший игровой ноутбук до 400 000 ₸')" class="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-purple-950/40 border border-slate-700/80 hover:border-purple-500/50 text-xs text-slate-300 hover:text-purple-200 transition cursor-pointer text-left flex items-center gap-1.5">
+                    <i class="fa-regular fa-lightbulb text-amber-400 text-xs"></i>
+                    <span>Игровой ноутбук до 400 000 ₸</span>
+                  </button>
+                  <button type="button" onclick="sendConsultantSuggestion('Какой iPhone сейчас выгоднее всего купить со скидкой?')" class="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-purple-950/40 border border-slate-700/80 hover:border-purple-500/50 text-xs text-slate-300 hover:text-purple-200 transition cursor-pointer text-left flex items-center gap-1.5">
+                    <i class="fa-regular fa-lightbulb text-amber-400 text-xs"></i>
+                    <span>Какой iPhone выгоднее всего?</span>
+                  </button>
+                  <button type="button" onclick="sendConsultantSuggestion('Что лучше для работы: MacBook Air M2 или ультрабук на Windows?')" class="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-purple-950/40 border border-slate-700/80 hover:border-purple-500/50 text-xs text-slate-300 hover:text-purple-200 transition cursor-pointer text-left flex items-center gap-1.5">
+                    <i class="fa-regular fa-lightbulb text-amber-400 text-xs"></i>
+                    <span>MacBook Air M2 или Windows-ноут?</span>
+                  </button>
+                  <button type="button" onclick="sendConsultantSuggestion('Посоветуй хороший 55-дюймовый 4K телевизор')" class="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-purple-950/40 border border-slate-700/80 hover:border-purple-500/50 text-xs text-slate-300 hover:text-purple-200 transition cursor-pointer text-left flex items-center gap-1.5">
+                    <i class="fa-regular fa-lightbulb text-amber-400 text-xs"></i>
+                    <span>Телевизор 55 дюймов 4K</span>
+                  </button>
+                  <button type="button" onclick="sendConsultantSuggestion('Какая видеокарта сейчас выгоднее: RTX 4060 или RX 7600?')" class="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-purple-950/40 border border-slate-700/80 hover:border-purple-500/50 text-xs text-slate-300 hover:text-purple-200 transition cursor-pointer text-left flex items-center gap-1.5">
+                    <i class="fa-regular fa-lightbulb text-amber-400 text-xs"></i>
+                    <span>RTX 4060 против RX 7600</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Поле ввода вопроса -->
+        <div class="p-3.5 bg-slate-950/80 border-t border-slate-800">
+          <form onsubmit="handleConsultantSubmit(event)" class="flex items-center gap-2">
+            <div class="relative flex-1">
+              <input type="text" id="inputConsultantMessage" placeholder="Задайте вопрос ассистенту (например: 'посоветуй смартфон с хорошей камерой до 250к')..." class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-4 pr-10 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 shadow-inner">
+              <span id="consultantTypingIndicator" class="hidden absolute right-3 top-3 text-purple-400 text-xs flex items-center gap-1">
+                <i class="fa-solid fa-spinner fa-spin"></i>
+              </span>
+            </div>
+            <button type="submit" id="btnConsultantSend" class="bg-gradient-to-r from-purple-600 to-emerald-500 hover:from-purple-500 hover:to-emerald-400 text-white font-medium px-5 py-3 rounded-xl text-sm shadow-lg shadow-purple-500/20 transition cursor-pointer flex items-center gap-2 shrink-0 disabled:opacity-50">
+              <i class="fa-solid fa-paper-plane"></i>
+              <span class="hidden sm:inline">Спросить</span>
+            </button>
+          </form>
+        </div>
       </div>
     </section>
 
@@ -1512,7 +1626,7 @@
 
     function switchTab(tab) {
       if (tab === 'alerts') tab = 'anomalies';
-      ['Anomalies', 'Discounts', 'Bestprice', 'Catalog', 'Settings', 'Logs'].forEach(t => {
+      ['Anomalies', 'Discounts', 'Bestprice', 'Consultant', 'Catalog', 'Settings', 'Logs'].forEach(t => {
         const btn = document.getElementById('tabBtn' + t);
         const sec = document.getElementById('tab' + t);
         if (!btn || !sec) return;
@@ -1528,6 +1642,12 @@
       });
       if (tab === 'anomalies') loadAnomalies();
       if (tab === 'discounts') loadDiscounts();
+      if (tab === 'consultant') {
+        setTimeout(() => {
+          const inp = document.getElementById('inputConsultantMessage');
+          if (inp) inp.focus();
+        }, 100);
+      }
       if (tab === 'catalog') loadCatalog(0);
       if (tab === 'settings') loadSettings();
       if (tab === 'logs') {
@@ -2048,6 +2168,246 @@
     function dismissAiInsight() {
       const banner = document.getElementById('aiInsightBanner');
       if (banner) banner.classList.add('hidden');
+    }
+
+    // ===== AI-Консультант (RAG Ассистент) =====
+    let consultantHistory = [];
+
+    function formatConsultantMarkdown(text) {
+      if (!text) return '';
+      let s = escapeHtml(text);
+      s = s.replace(/^###\s*(.+)$/gm, '<h4 class="font-bold text-white text-sm mt-3 mb-1">$1</h4>');
+      s = s.replace(/^##\s*(.+)$/gm, '<h3 class="font-bold text-white text-base mt-4 mb-2">$1</h3>');
+      s = s.replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold text-white">$1</strong>');
+      s = s.replace(/(?<!\*)\*([^*]+?)\*(?!\*)/g, '<em class="text-purple-200">$1</em>');
+      s = s.replace(/^[-*•]\s+(.+)$/gm, '<li class="ml-4 list-disc text-slate-300 text-xs my-0.5">$1</li>');
+      s = s.replace(/^\d+\.\s+(.+)$/gm, '<li class="ml-4 list-decimal text-slate-300 text-xs my-0.5">$1</li>');
+      s = s.replace(/`([^`]+?)`/g, '<code class="px-1.5 py-0.5 rounded bg-slate-800 text-purple-300 font-mono text-[11px]">$1</code>');
+      s = s.replace(/\n\n/g, '</p><p class="mt-2 text-xs leading-relaxed">');
+      return `<div class="text-xs leading-relaxed space-y-1.5">${s}</div>`;
+    }
+
+    function renderConsultantProductCard(p) {
+      const dropBadge = (p.old_price && p.drop_pct > 0)
+        ? `<span class="line-through text-[10px] text-slate-500 ml-1.5">${fmtPrice(p.old_price)}</span> <span class="text-[10px] text-rose-400 font-bold">-${p.drop_pct}%</span>`
+        : '';
+
+      const imgHtml = p.image_url
+        ? `<img src="${escapeHtml(p.image_url)}" class="w-12 h-12 object-contain rounded-lg bg-slate-950 p-1 shrink-0" onerror="this.outerHTML='<div class=\\'w-12 h-12 rounded-lg bg-slate-800 flex items-center justify-center text-xs shrink-0\\'>📦</div>'">`
+        : `<div class="w-12 h-12 rounded-lg bg-slate-800 flex items-center justify-center text-xs shrink-0">📦</div>`;
+
+      return `
+        <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-700/60 hover:border-purple-500/50 transition flex flex-col justify-between gap-2 shadow-sm">
+          <div class="flex items-start gap-2.5">
+            ${imgHtml}
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                ${renderShopBadge(p.shop)}
+                <span class="text-[10px] text-slate-400">📍 ${escapeHtml(p.city || 'Астана')}</span>
+              </div>
+              <a href="${escapeHtml(p.url || '#')}" target="_blank" class="text-xs font-semibold text-white hover:text-purple-300 line-clamp-2 mt-1 block" title="${escapeHtml(p.title)}">
+                ${escapeHtml(p.title)}
+              </a>
+            </div>
+          </div>
+          <div class="flex items-center justify-between pt-2 border-t border-slate-800/80 gap-2">
+            <div>
+              <span class="text-sm font-bold text-emerald-400">${fmtPrice(p.price)}</span>
+              ${dropBadge}
+            </div>
+            <a href="${escapeHtml(p.url || '#')}" target="_blank" class="px-2.5 py-1 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-[11px] text-purple-300 hover:text-white transition flex items-center gap-1 shrink-0">
+              <span>Купить</span>
+              <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+            </a>
+          </div>
+        </div>
+      `;
+    }
+
+    function sendConsultantSuggestion(text) {
+      const input = document.getElementById('inputConsultantMessage');
+      if (!input) return;
+      input.value = text;
+      handleConsultantSubmit(new Event('submit'));
+    }
+
+    function clearConsultantChat() {
+      consultantHistory = [];
+      const feed = document.getElementById('consultantChatFeed');
+      if (!feed) return;
+      feed.innerHTML = `
+        <div class="flex items-start gap-3.5 max-w-3xl">
+          <div class="w-9 h-9 rounded-xl bg-purple-600/30 border border-purple-500/40 flex items-center justify-center text-purple-300 text-sm shrink-0">
+            <i class="fa-solid fa-robot"></i>
+          </div>
+          <div class="space-y-3">
+            <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 text-slate-200 text-sm leading-relaxed space-y-2 shadow-sm">
+              <p class="font-semibold text-white">Здравствуйте! Диалог очищен. Чем я могу помочь?</p>
+              <p class="text-xs text-slate-400 leading-relaxed">
+                Спросите меня о подборе техники под ваш бюджет, сравнении моделей или поиске лучшей цены по 17 магазинам Казахстана.
+              </p>
+            </div>
+            <div class="space-y-1.5">
+              <span class="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Популярные вопросы:</span>
+              <div class="flex flex-wrap gap-2">
+                <button type="button" onclick="sendConsultantSuggestion('Подбери хороший игровой ноутбук до 400 000 ₸')" class="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-purple-950/40 border border-slate-700/80 hover:border-purple-500/50 text-xs text-slate-300 hover:text-purple-200 transition cursor-pointer text-left flex items-center gap-1.5">
+                  <i class="fa-regular fa-lightbulb text-amber-400 text-xs"></i>
+                  <span>Игровой ноутбук до 400 000 ₸</span>
+                </button>
+                <button type="button" onclick="sendConsultantSuggestion('Какой iPhone сейчас выгоднее всего купить со скидкой?')" class="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-purple-950/40 border border-slate-700/80 hover:border-purple-500/50 text-xs text-slate-300 hover:text-purple-200 transition cursor-pointer text-left flex items-center gap-1.5">
+                  <i class="fa-regular fa-lightbulb text-amber-400 text-xs"></i>
+                  <span>Какой iPhone выгоднее всего?</span>
+                </button>
+                <button type="button" onclick="sendConsultantSuggestion('Что лучше для работы: MacBook Air M2 или ультрабук на Windows?')" class="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-purple-950/40 border border-slate-700/80 hover:border-purple-500/50 text-xs text-slate-300 hover:text-purple-200 transition cursor-pointer text-left flex items-center gap-1.5">
+                  <i class="fa-regular fa-lightbulb text-amber-400 text-xs"></i>
+                  <span>MacBook Air M2 или Windows-ноут?</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function handleConsultantSubmit(event) {
+      if (event) event.preventDefault();
+      const input = document.getElementById('inputConsultantMessage');
+      const text = input ? input.value.trim() : '';
+      if (!text) return;
+
+      const feed = document.getElementById('consultantChatFeed');
+      const btn = document.getElementById('btnConsultantSend');
+      const typing = document.getElementById('consultantTypingIndicator');
+      const cityEl = document.getElementById('consultantCityFilter');
+      const city = cityEl ? cityEl.value : 'Все';
+
+      // Очищаем инпут и показываем индикатор загрузки
+      input.value = '';
+      input.disabled = true;
+      if (btn) btn.disabled = true;
+      if (typing) typing.classList.remove('hidden');
+
+      // 1. Отображаем сообщение пользователя
+      const userBubble = document.createElement('div');
+      userBubble.className = 'flex items-start justify-end gap-3';
+      userBubble.innerHTML = `
+        <div class="p-3.5 rounded-2xl bg-gradient-to-r from-purple-700 to-emerald-600 text-white text-sm max-w-xl shadow-md">
+          <p class="leading-relaxed">${escapeHtml(text)}</p>
+        </div>
+        <div class="w-8 h-8 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 text-xs shrink-0">
+          <i class="fa-solid fa-user"></i>
+        </div>
+      `;
+      feed.appendChild(userBubble);
+      feed.scrollTop = feed.scrollHeight;
+
+      // 2. Отображаем временный пузырь "Консультант думает..."
+      const loadingBubble = document.createElement('div');
+      loadingBubble.className = 'flex items-start gap-3.5 max-w-3xl';
+      loadingBubble.innerHTML = `
+        <div class="w-9 h-9 rounded-xl bg-purple-600/30 border border-purple-500/40 flex items-center justify-center text-purple-300 text-sm shrink-0">
+          <i class="fa-solid fa-robot"></i>
+        </div>
+        <div class="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 text-slate-400 text-xs flex items-center gap-2">
+          <i class="fa-solid fa-spinner fa-spin text-purple-400"></i>
+          <span>Анализирую цены и предложения в 17 магазинах Казахстана...</span>
+        </div>
+      `;
+      feed.appendChild(loadingBubble);
+      feed.scrollTop = feed.scrollHeight;
+
+      try {
+        const res = await fetch('/api/ai/consultant', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: text,
+            history: consultantHistory,
+            city: city
+          })
+        });
+
+        const data = await res.json();
+        loadingBubble.remove();
+
+        const answerText = data.answer || data.error || 'Не удалось получить ответ.';
+        const products = data.products || [];
+        const suggestions = data.suggested_questions || [];
+
+        // Сохраняем в историю диалога
+        consultantHistory.push({ role: 'user', content: text });
+        consultantHistory.push({ role: 'model', content: answerText });
+        if (consultantHistory.length > 8) consultantHistory = consultantHistory.slice(-8);
+
+        // Карточки товаров
+        let productsHtml = '';
+        if (products.length > 0) {
+          const cards = products.map(renderConsultantProductCard).join('');
+          productsHtml = `
+            <div class="pt-2">
+              <div class="text-xs font-semibold text-white mb-2 flex items-center gap-1.5">
+                <i class="fa-solid fa-bag-shopping text-emerald-400"></i>
+                <span>Рекомендованные товары в магазинах:</span>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                ${cards}
+              </div>
+            </div>
+          `;
+        }
+
+        // Подсказки для продолжения
+        let suggestionsHtml = '';
+        if (suggestions.length > 0) {
+          const chips = suggestions.map(q => `
+            <button type="button" onclick="sendConsultantSuggestion('${escapeHtml(q).replace(/'/g, "\\'")}')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-purple-950/40 border border-slate-700/80 hover:border-purple-500/50 text-[11px] text-slate-300 hover:text-purple-200 transition cursor-pointer flex items-center gap-1">
+              <i class="fa-regular fa-comment-dots text-purple-400 text-[10px]"></i>
+              <span>${escapeHtml(q)}</span>
+            </button>
+          `).join('');
+          suggestionsHtml = `
+            <div class="pt-1 flex flex-wrap gap-1.5">
+              ${chips}
+            </div>
+          `;
+        }
+
+        // Рендерим итоговый ответ
+        const aiBubble = document.createElement('div');
+        aiBubble.className = 'flex items-start gap-3.5 max-w-3xl';
+        aiBubble.innerHTML = `
+          <div class="w-9 h-9 rounded-xl bg-purple-600/30 border border-purple-500/40 flex items-center justify-center text-purple-300 text-sm shrink-0">
+            <i class="fa-solid fa-robot"></i>
+          </div>
+          <div class="space-y-3 flex-1 min-w-0">
+            <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 text-slate-200 text-sm leading-relaxed shadow-sm space-y-2">
+              ${formatConsultantMarkdown(answerText)}
+              ${productsHtml}
+            </div>
+            ${suggestionsHtml}
+          </div>
+        `;
+        feed.appendChild(aiBubble);
+      } catch (err) {
+        loadingBubble.remove();
+        const errBubble = document.createElement('div');
+        errBubble.className = 'flex items-start gap-3.5 max-w-3xl';
+        errBubble.innerHTML = `
+          <div class="w-9 h-9 rounded-xl bg-rose-600/30 border border-rose-500/40 flex items-center justify-center text-rose-300 text-sm shrink-0">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <div class="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 text-rose-400 text-xs">
+            Ошибка связи с AI-консультантом: ${escapeHtml(String(err))}. Пожалуйста, повторите запрос.
+          </div>
+        `;
+        feed.appendChild(errBubble);
+      } finally {
+        input.disabled = false;
+        if (btn) btn.disabled = false;
+        if (typing) typing.classList.add('hidden');
+        feed.scrollTop = feed.scrollHeight;
+        input.focus();
+      }
     }
 
     async function executeBestPriceSearch() {
