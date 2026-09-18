@@ -789,6 +789,102 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(res_cat), 1)
         self.assertEqual(res_cat[0]["id"], "test-se-2")
 
+    def test_ai_service_heuristics(self):
+        from ai_service import should_use_ai_parsing, clean_ai_json_response
+
+        # 1. Простые точные запросы НЕ требуют AI
+        self.assertFalse(should_use_ai_parsing("RTX 4060"))
+        self.assertFalse(should_use_ai_parsing("iPhone 16"))
+        self.assertFalse(should_use_ai_parsing("PS5 Slim"))
+        self.assertFalse(should_use_ai_parsing("MacBook Air"))
+
+        # 2. Естественные фразы с ценовыми рамками или намерениями требуют AI
+        self.assertTrue(should_use_ai_parsing("ноутбук для учебы до 300к"))
+        self.assertTrue(should_use_ai_parsing("посоветуй смартфон до 200000"))
+        self.assertTrue(should_use_ai_parsing("видеокарта дешевле 150 000"))
+        self.assertTrue(should_use_ai_parsing("айфон со скидкой"))
+        self.assertTrue(should_use_ai_parsing("игровой комп в пределах 500 тыс"))
+
+        # 3. Очистка JSON ответа с markdown блоками
+        raw_md = "```json\n{\"clean_query\": \"ноутбук asus\", \"max_price\": 300000}\n```"
+        cleaned = clean_ai_json_response(raw_md)
+        self.assertIn('"clean_query"', cleaned)
+        self.assertNotIn("```", cleaned)
+
+    async def test_ai_service_parsing_mock(self):
+        import ai_service
+        from unittest.mock import patch
+
+        mock_payload = {
+            "clean_query": "ноутбук ASUS",
+            "category": "Ноутбуки",
+            "brand": "ASUS",
+            "min_price": None,
+            "max_price": 300000,
+            "only_discount": False,
+            "keywords": ["ноутбук", "asus"],
+            "negative_keywords": ["чехол", "сумка"],
+            "sort": "price_asc",
+            "explanation": "Поиск ноутбуков ASUS до 300 000 ₸"
+        }
+
+        mock_creds = {
+            "gemini_api_key": "test_ai_key_mock",
+            "openai_api_key": "",
+            "ai_search_enabled": True,
+            "has_ai": True
+        }
+
+        from unittest.mock import AsyncMock
+        # Mock direct REST call in call_gemini_api and credentials
+        with patch.object(ai_service, '_get_api_credentials', return_value=mock_creds), \
+             patch.object(ai_service, 'call_gemini_api', new_callable=AsyncMock) as mock_gemini:
+            mock_gemini.return_value = mock_payload
+            parsed = await ai_service.parse_natural_query("подбери ноутбук asus до 300к без чехлов")
+            self.assertIsNotNone(parsed)
+            self.assertEqual(parsed["clean_query"], "ноутбук ASUS")
+            self.assertEqual(parsed["category"], "Ноутбуки")
+            self.assertEqual(parsed["brand"], "ASUS")
+            self.assertEqual(parsed["max_price"], 300000)
+            self.assertEqual(parsed["negative_keywords"], ["чехол", "сумка"])
+
+    async def test_ai_best_price_endpoint_integration(self):
+        from unittest.mock import patch
+        from aiohttp.test_utils import TestClient, TestServer
+        from web.server import create_app
+        import ai_service
+
+        mock_ai_meta = {
+            "clean_query": "iPhone 15",
+            "category": "Смартфоны",
+            "brand": "Apple",
+            "min_price": None,
+            "max_price": 400000,
+            "only_discount": True,
+            "keywords": ["iphone", "15"],
+            "negative_keywords": [],
+            "sort": "price_asc",
+            "explanation": "Поиск iPhone 15 со скидкой до 400 000 ₸"
+        }
+
+        app = create_app()
+        app.cleanup_ctx.clear()
+        async with TestClient(TestServer(app)) as client:
+            with patch.object(ai_service, 'parse_natural_query', return_value=mock_ai_meta):
+                res = await client.get('/api/best-price?q=айфон+15+со+скидкой+до+400к&ai=1')
+                self.assertEqual(res.status, 200)
+                data = await res.json()
+                self.assertIn("ai_meta", data)
+                self.assertEqual(data["ai_meta"]["clean_query"], "iPhone 15")
+                self.assertEqual(data["ai_meta"]["max_price"], 400000)
+
+            # Проверка статуса AI
+            status_res = await client.get('/api/ai/status')
+            self.assertEqual(status_res.status, 200)
+            status_data = await status_res.json()
+            self.assertEqual(status_data["status"], "ok")
+            self.assertIn("configured", status_data)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -10,6 +10,11 @@ SETTINGS_FILE = DATA_DIR / "settings.json"
 # Адрес панели для кнопки в Telegram-уведомлениях; задается на сервере, в репозитории не хранится
 APP_URL = os.getenv("APP_URL", "").strip()
 
+# Настройки AI (Google Gemini API / OpenAI API)
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
+OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1").strip()
+
 # Магазины: ключ настроек -> название магазина в базе (SHOP_NAME скраперов)
 SHOP_KEYS = {
     "kaspi": "Kaspi Магазин",
@@ -48,6 +53,12 @@ SYSTEM_DEFAULTS = {
     "candidate_min_savings_kzt": 10000,
     "candidate_arbitrage_drop_pct": 15.0,
     "candidate_arbitrage_diff_kzt": 10000,
+
+    # AI интеграция
+    "gemini_api_key": "",
+    "openai_api_key": "",
+    "openai_api_base": "https://api.openai.com/v1",
+    "ai_search_enabled": True,
 }
 
 # ===== Личные настройки пользователя (у гостей — значения по умолчанию) =====
@@ -139,6 +150,24 @@ def get_bot_token():
 def load_settings():
     """Общие (системные) настройки."""
     return _merge(SYSTEM_DEFAULTS, _read_settings_file())
+
+def get_ai_config():
+    """Параметры AI-сервиса (Gemini/OpenAI): переменные окружения имеют приоритет над settings.json."""
+    sys_settings = load_settings()
+    gemini_key = GEMINI_API_KEY or str(sys_settings.get("gemini_api_key", "")).strip()
+    openai_key = OPENAI_API_KEY or str(sys_settings.get("openai_api_key", "")).strip()
+    openai_base = OPENAI_API_BASE or str(sys_settings.get("openai_api_base", "https://api.openai.com/v1")).strip()
+    ai_enabled = bool(sys_settings.get("ai_search_enabled", True))
+    return {
+        "gemini_api_key": gemini_key,
+        "openai_api_key": openai_key,
+        "openai_api_base": openai_base,
+        "ai_search_enabled": ai_enabled,
+        "has_ai": bool(gemini_key or openai_key),
+        "configured": bool(gemini_key or openai_key),
+        "provider": "gemini" if gemini_key else ("openai" if openai_key else "none"),
+        "enabled": ai_enabled
+    }
 
 def legacy_user_settings():
     """Личные настройки из старого однопользовательского settings.json — переносятся администраторам при первом входе."""

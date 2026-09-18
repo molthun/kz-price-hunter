@@ -78,6 +78,8 @@ from scrapers.moon import MoonScraper
 from scrapers.kaspi import KaspiScraper
 from scrapers.fourmobile import FourMobileScraper
 from search_engine import get_best_price_summary
+import ai_service
+from config import get_ai_config
 from notifier import prepare_deliveries, notification_worker, telegram_api
 from log_manager import install_log_interceptor, log_buffer
 from auth import (
@@ -215,6 +217,20 @@ async def products_handler(request):
         "offset": offset
     })
 
+@routes.get("/api/ai/status")
+async def ai_status_handler(request):
+    creds = get_ai_config()
+    provider = "gemini" if creds["gemini_api_key"] else ("openai" if creds["openai_api_key"] else None)
+    return web.json_response({
+        "status": "ok",
+        "configured": bool(creds.get("has_ai")),
+        "available": bool(provider and creds["ai_search_enabled"]),
+        "provider": provider,
+        "enabled": creds["ai_search_enabled"],
+        "has_gemini": bool(creds["gemini_api_key"]),
+        "has_openai": bool(creds["openai_api_key"])
+    })
+
 @routes.get("/api/best-price")
 async def best_price_handler(request):
     query = request.query.get("q", "").strip()
@@ -223,6 +239,10 @@ async def best_price_handler(request):
     city = request.query.get("city", None)
     category = request.query.get("category", None)
     user = request.get("user")
+
+    # AI-поиск
+    ai_param = request.query.get("ai", "auto").lower()
+    use_ai = ai_param in ("1", "true", "yes") or (ai_param == "auto" and ai_service.should_use_ai_parsing(query))
 
     # Расширенные гибкие фильтры
     min_price_param = request.query.get("min_price", None)
@@ -264,9 +284,33 @@ async def best_price_handler(request):
         if wait:
             return web.json_response({"error": f"Лимит прямого опроса магазинов исчерпан, повторите через {int(wait // 60) + 1} мин"}, status=429)
 
+    # Интеллектуальный разбор запроса через AI
+    ai_meta = None
+    search_query = query
+    if use_ai and query:
+        try:
+            ai_meta = await ai_service.parse_natural_query(query, current_city=city or "Все")
+            if ai_meta:
+                if ai_meta.get("clean_query"):
+                    search_query = ai_meta["clean_query"]
+                if (not category or category == "Все") and ai_meta.get("category"):
+                    category = ai_meta["category"]
+                if min_price is None and ai_meta.get("min_price"):
+                    min_price = ai_meta["min_price"]
+                if max_price is None and ai_meta.get("max_price"):
+                    max_price = ai_meta["max_price"]
+                if not only_discount and ai_meta.get("only_discount"):
+                    only_discount = True
+                if not negative_keywords and ai_meta.get("negative_keywords"):
+                    negative_keywords = ai_meta["negative_keywords"]
+                if sort_by == "price_asc" and ai_meta.get("sort"):
+                    sort_by = ai_meta["sort"]
+        except Exception as e:
+            print(f"[AI BestPrice] Ошибка парсинга запроса: {e}")
+
     try:
         data = await get_best_price_summary(
-            query=query,
+            query=search_query,
             live=live,
             shop=shop,
             city=city,
@@ -280,6 +324,8 @@ async def best_price_handler(request):
             negative_keywords=negative_keywords,
             junk_keywords=user_settings_for(request).get("junk_keywords", [])
         )
+        data["original_query"] = query
+        data["ai_meta"] = ai_meta
         return web.json_response(data)
     except Exception as e:
         print(f"[API best-price] Ошибка: {e}")
@@ -391,9 +437,18 @@ async def test_my_telegram_handler(request):
 @require_admin
 async def get_admin_config_handler(request):
     bot_username = await asyncio.to_thread(get_bot_username)
+    settings = load_settings()
+    settings_masked = dict(settings)
+    if settings_masked.get("gemini_api_key"):
+        k = settings_masked["gemini_api_key"]
+        settings_masked["gemini_api_key"] = k[:4] + "..." + k[-4:] if len(k) > 8 else "***"
+    if settings_masked.get("openai_api_key"):
+        k = settings_masked["openai_api_key"]
+        settings_masked["openai_api_key"] = k[:4] + "..." + k[-4:] if len(k) > 8 else "***"
     return web.json_response({
-        "settings": load_settings(),
+        "settings": settings_masked,
         "bot": {"configured": bool(get_bot_token()), "username": bot_username},
+        "ai": get_ai_config()
     })
 
 @routes.post("/api/admin/config")
@@ -401,12 +456,16 @@ async def get_admin_config_handler(request):
 async def post_admin_config_handler(request):
     try:
         data = await request.json()
+        current = load_settings()
+        for k in ("gemini_api_key", "openai_api_key"):
+            if k in data and ("..." in str(data[k]) or "***" in str(data[k])):
+                data[k] = current.get(k, "")
         saved = save_settings(data)
         return web.json_response({"status": "ok", "settings": saved})
     except ValueError as e:
         return web.json_response({"status": "error", "message": str(e)}, status=400)
-    except Exception:
-        return web.json_response({"status": "error", "message": "Некорректный запрос"}, status=400)
+    except Exception as e:
+        return web.json_response({"status": "error", "message": f"Ошибка сохранения: {e}"}, status=400)
 
 @routes.get("/api/admin/users")
 @require_admin

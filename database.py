@@ -64,6 +64,7 @@ def init_db():
                 image_url TEXT,
                 current_price INTEGER NOT NULL,
                 first_seen_price INTEGER NOT NULL,
+                old_price_on_site INTEGER DEFAULT 0,
                 min_price INTEGER NOT NULL,
                 max_price INTEGER NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -162,6 +163,7 @@ def init_db():
         # Additive migrations preserve existing user data and can run repeatedly.
         for table, column, declaration in (
             ("products", "is_active", "INTEGER NOT NULL DEFAULT 1"),
+            ("products", "old_price_on_site", "INTEGER DEFAULT 0"),
             ("shop_scans", "status", "TEXT NOT NULL DEFAULT 'unknown'"),
             ("shop_scans", "failure_count", "INTEGER NOT NULL DEFAULT 0"),
             ("shop_scans", "next_retry_at", "REAL"),
