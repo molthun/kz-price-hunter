@@ -41,6 +41,7 @@ A — feed/API владельца с документированным назн
 | `scrapers/itmag.py` / `ItmagScraper` | B + D; itmag.kz schema.org microdata через SchemaListingScraper | 45 с; 0.4 с | Session chrome124; PAGEN_1; no retry; IN_STOCK_FIRST=False | itemprops + old HTML; ID /p/N или title hash; Алматы; description нет; конец по отсутствию next-link |
 | `scrapers/ispace.py` / `ISpaceScraper` | D → B; ispace.kz HTML listing→JSON-LD Product на карточке | 45 с; listing 0.3 с; product workers=4 без pause | chrome124; ?page=N; без retry; отдельный ThreadPoolExecutor | sku→id/добавление к title; offers.price/availability/image; Астана hardcoded; old=0; JSON-LD missing и out-of-stock оба None; description нет |
 | `scrapers/vkusmart.py` / `VkusmartScraper` | D + B; vkusmart.vmv.kz Bitrix Aspro HTML + Schema.org | 15 с; 0.4 с | Session chrome124; PAGEN_1; 404/empty→complete | id/meta name/price/old_price/img; Астана; описание meta description |
+| `scrapers/twelve_months.py` / `TwelveMonthsScraper` | D; 12.kz AdvantShop HTML .products-view-item | 15 с; 0.4 с | Session chrome124; ?page=N; 404/empty→complete | id/title/price/old_price/img/sku; Казахстан; описание нет |
 
 ## Пути вне основного фонового scan
 
@@ -353,6 +354,19 @@ A — feed/API владельца с документированным назн
 | iSpace: 🎧 AirPods | audio | `https://ispace.kz/category/apple-airpods` | не задан |
 | iSpace: 🎧 Наушники | audio | `https://ispace.kz/category/headsets` | не задан |
 | iSpace: 🔊 Колонки | audio | `https://ispace.kz/category/speakers` | не задан |
+
+### TwelveMonthsScraper — 8 настроенных источников категории
+
+| Категория | Master | URL/query | max_pages |
+|---|---|---|---|
+| 12 Месяцев: 🔌 Электроинструменты | diy | `https://12.kz/categories/elektroinstrumenty` | 15 |
+| 12 Месяцев: 🪛 Дрели и шуруповерты | diy | `https://12.kz/categories/dreli-shurupoverty` | 15 |
+| 12 Месяцев: 🔨 Перфораторы | diy | `https://12.kz/categories/perforatory` | 10 |
+| 12 Месяцев: 🔧 Ручной инструмент | diy | `https://12.kz/categories/ruchnoi-instrument` | 15 |
+| 12 Месяцев: 🚰 Смесители и сантехника | diy | `https://12.kz/categories/smesiteli` | 15 |
+| 12 Месяцев: 🧑‍🏭 Сварочные аппараты | diy | `https://12.kz/categories/svarochnye-apparaty` | 10 |
+| 12 Месяцев: 🌿 Садовая техника | diy | `https://12.kz/categories/sadovaya-tekhnika` | 15 |
+| 12 Месяцев: 🧼 Бытовая химия | household | `https://12.kz/categories/bytovaya-khimiya` | 15 |
 
 ## Перед подключением следующего магазина
 

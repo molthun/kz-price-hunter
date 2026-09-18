@@ -42,6 +42,7 @@ from config import (
     ISPACE_CATEGORIES,
     FORTE_CATEGORIES,
     VKUSMART_CATEGORIES,
+    TWELVE_MONTHS_CATEGORIES,
     MASTER_CATEGORIES,
     get_wave_plan,
     get_wave_interval_seconds,
@@ -99,6 +100,7 @@ from scrapers.kaspi import KaspiScraper
 from scrapers.fourmobile import FourMobileScraper
 from scrapers.fortemarket import ForteMarketScraper
 from scrapers.vkusmart import VkusmartScraper
+from scrapers.twelve_months import TwelveMonthsScraper
 from search_engine import get_best_price_summary
 import ai_service
 from config import get_ai_config
@@ -791,6 +793,7 @@ SHOP_REGISTRY = {
     "ispace": (ISpaceScraper, ISPACE_CATEGORIES, "iSpace"),
     "fortemarket": (ForteMarketScraper, FORTE_CATEGORIES, "Forte Market"),
     "vkusmart": (VkusmartScraper, VKUSMART_CATEGORIES, "Вкусмарт"),
+    "twelve_months": (TwelveMonthsScraper, TWELVE_MONTHS_CATEGORIES, "12 Месяцев"),
 }
 
 # Сколько магазинов обходить одновременно (у каждого свой сайт, поэтому нагрузка не суммируется)
@@ -932,6 +935,9 @@ def get_categories_overview():
         if any(k in cl for k in ["пылесос", "утюг", "кофе", "микроволн", "мультиварк", "блендер", "фен", "бритв"]): return "appliances_small"
         if any(k in cl for k in ["принтер", "мфу", "роутер", "маршрутизатор"]): return "office_network"
         if "акци" in cl or "распродаж" in cl: return "actions"
+        if any(k in cl for k in ["продукт", "бакале", "чай", "кофе", "сладост"]): return "grocery"
+        if any(k in cl for k in ["бытов", "хими", "чистот", "стирк", "уборк", "гигиен"]): return "household"
+        if any(k in cl for k in ["инструмент", "дрел", "перфорат", "шуруповерт", "пила", "сварк", "сантехник", "смесител", "строй"]): return "diy"
         return "other"
 
     counts = {k: 0 for k in MASTER_CATEGORIES}

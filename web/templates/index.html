@@ -3970,7 +3970,10 @@
       appliances_large: { name: 'Крупная бытовая техника', icon: '❄️' },
       appliances_small: { name: 'Мелкая бытовая техника', icon: '☕️' },
       office_network: { name: 'Офис, принтеры и сеть', icon: '🖨' },
-      actions: { name: 'Акции и распродажи', icon: '🔥' }
+      actions: { name: 'Акции и распродажи', icon: '🔥' },
+      grocery: { name: 'Продукты и бакалея', icon: '🥫' },
+      household: { name: 'Бытовые товары и химия', icon: '🧼' },
+      diy: { name: 'Стройка и ремонт', icon: '🛠' }
     };
 
     let cachedCategoriesData = null;
@@ -3994,6 +3997,9 @@
       if (q.includes('пылесос') || q.includes('утюг') || q.includes('чайник') || q.includes('кофе') || q.includes('микроволн') || q.includes('блендер') || q.includes('фен') || q.includes('робот-пылесос')) return 'appliances_small';
       if (q.includes('принтер') || q.includes('мфу') || q.includes('роутер') || q.includes('маршрутизатор') || q.includes('сканер')) return 'office_network';
       if (q.includes('акци') || q.includes('распродаж') || q.includes('скидк')) return 'actions';
+      if (q.includes('продукт') || q.includes('бакале') || q.includes('чай') || q.includes('кофе') || q.includes('шоколад') || q.includes('макарон')) return 'grocery';
+      if (q.includes('порошок') || q.includes('мыло') || q.includes('шампунь') || q.includes('бытов') || q.includes('хими') || q.includes('чистот') || q.includes('уборк') || q.includes('гигиен')) return 'household';
+      if (q.includes('инструмент') || q.includes('дрел') || q.includes('перфорат') || q.includes('шуруповерт') || q.includes('пила') || q.includes('сварк') || q.includes('сантехник') || q.includes('смесител') || q.includes('строй')) return 'diy';
       return 'smartphones';
     }
 

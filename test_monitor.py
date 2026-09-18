@@ -1633,7 +1633,7 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
 
     def test_master_categories_definition_and_coverage(self):
         """Проверка целостности мастер-категорий и их охвата по всем магазинам."""
-        self.assertEqual(len(config.MASTER_CATEGORIES), 14)
+        self.assertEqual(len(config.MASTER_CATEGORIES), 15)
         required_keys = {"name", "icon", "description"}
         for cat_id, meta in config.MASTER_CATEGORIES.items():
             self.assertTrue(required_keys.issubset(meta.keys()))
@@ -2203,6 +2203,19 @@ class TestForteMarketScraper(unittest.TestCase):
         for c in FORTE_CATEGORIES:
             self.assertIn("master", c)
             self.assertIn("url", c)
+
+    def test_registry_contains_twelve_months(self):
+        from web.server import SHOP_REGISTRY
+        from config import SHOP_KEYS, TWELVE_MONTHS_CATEGORIES
+        self.assertIn("twelve_months", SHOP_REGISTRY)
+        scraper_cls, cats, name = SHOP_REGISTRY["twelve_months"]
+        self.assertEqual(name, "12 Месяцев")
+        self.assertEqual(cats, TWELVE_MONTHS_CATEGORIES)
+        self.assertEqual(SHOP_KEYS.get("twelve_months"), "12 Месяцев")
+        for c in TWELVE_MONTHS_CATEGORIES:
+            self.assertIn("master", c)
+            self.assertIn("url", c)
+            self.assertTrue(c["master"] in config.MASTER_CATEGORIES)
 
     def test_parse_response_and_regional_pricing(self):
         from scrapers.fortemarket import ForteMarketScraper

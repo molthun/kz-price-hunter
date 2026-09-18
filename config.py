@@ -36,6 +36,7 @@ SHOP_KEYS = {
     "ispace": "iSpace",
     "fortemarket": "Forte Market",
     "vkusmart": "Вкусмарт",
+    "twelve_months": "12 Месяцев",
 }
 
 
@@ -123,6 +124,12 @@ MASTER_CATEGORIES = {
         "name": "Бытовые товары и химия",
         "icon": "🧼",
         "description": "Бытовая химия, стирка, уборка, гигиена, хозтовары"
+    },
+    "diy": {
+        "id": "diy",
+        "name": "Стройка и ремонт",
+        "icon": "🛠",
+        "description": "Электроинструменты, ручной инструмент, сантехника, стройматериалы, садовая техника"
     },
 }
 
@@ -885,7 +892,7 @@ FORTE_CATEGORIES = [
     {"name": "Forte: ❄️ Холодильники", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Холодильники", "master": "appliances_large", "max_pages": 20},
     {"name": "Forte: 🧺 Стиральные машины", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Стиральные машины", "master": "appliances_large", "max_pages": 20},
     {"name": "Forte: 🚗 Автотовары", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl1:Автотовары", "master": "all", "max_pages": 25},
-    {"name": "Forte: 🛠 Строительство и ремонт", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl1:Строительство и ремонт", "master": "all", "max_pages": 25},
+    {"name": "Forte: 🛠 Строительство и ремонт", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl1:Строительство и ремонт", "master": "diy", "max_pages": 25},
     {"name": "Forte: 🏡 Товары для дома и дачи", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl1:Товары для дома и дачи", "master": "all", "max_pages": 25},
 ]
 
@@ -896,6 +903,19 @@ VKUSMART_CATEGORIES = [
     {"name": "Вкусмарт: ☕️ Чай, кофе, какао", "url": "https://vkusmart.vmv.kz/catalog/chay-kofe-kakao/", "master": "grocery", "max_pages": 15},
     {"name": "Вкусмарт: 🧼 Чистота и порядок", "url": "https://vkusmart.vmv.kz/catalog/chistota-i-poryadok/", "master": "household", "max_pages": 15},
 ]
+
+# 12 Месяцев (12.kz): гипермаркет стройматериалов, инструментов и ремонта
+TWELVE_MONTHS_CATEGORIES = [
+    {"name": "12 Месяцев: 🔌 Электроинструменты", "url": "https://12.kz/categories/elektroinstrumenty", "master": "diy", "max_pages": 15},
+    {"name": "12 Месяцев: 🪛 Дрели и шуруповерты", "url": "https://12.kz/categories/dreli-shurupoverty", "master": "diy", "max_pages": 15},
+    {"name": "12 Месяцев: 🔨 Перфораторы", "url": "https://12.kz/categories/perforatory", "master": "diy", "max_pages": 10},
+    {"name": "12 Месяцев: 🔧 Ручной инструмент", "url": "https://12.kz/categories/ruchnoi-instrument", "master": "diy", "max_pages": 15},
+    {"name": "12 Месяцев: 🚰 Смесители и сантехника", "url": "https://12.kz/categories/smesiteli", "master": "diy", "max_pages": 15},
+    {"name": "12 Месяцев: 🧑‍🏭 Сварочные аппараты", "url": "https://12.kz/categories/svarochnye-apparaty", "master": "diy", "max_pages": 10},
+    {"name": "12 Месяцев: 🌿 Садовая техника", "url": "https://12.kz/categories/sadovaya-tekhnika", "master": "diy", "max_pages": 15},
+    {"name": "12 Месяцев: 🧼 Бытовая химия", "url": "https://12.kz/categories/bytovaya-khimiya", "master": "household", "max_pages": 15},
+]
+
 
 
 

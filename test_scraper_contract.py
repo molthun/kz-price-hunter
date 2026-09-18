@@ -8,12 +8,13 @@ from scrapers.fortemarket import ForteMarketScraper
 from scrapers.fourmobile import FourMobileScraper
 from scrapers.shopkz import ShopKzScraper
 from scrapers.vkusmart import VkusmartScraper
+from scrapers.twelve_months import TwelveMonthsScraper
 
 
 class ScraperContractTest(unittest.TestCase):
     def test_scraper_classes_conform_to_contract(self):
         # Check standard scrapers
-        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper):
+        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper):
             self.assertTrue(hasattr(cls, "SHOP_NAME"), f"{cls} must define SHOP_NAME")
             self.assertTrue(callable(getattr(cls, "scrape", None)), f"{cls} must define scrape")
             self.assertTrue(callable(getattr(cls, "close", None)), f"{cls} must define close")
@@ -91,6 +92,50 @@ class ScraperContractTest(unittest.TestCase):
         scraper.close()
         self.assertIsNone(scraper.session)
 
+    def test_twelve_months_parsing_mock(self):
+        from unittest.mock import MagicMock
+        scraper = TwelveMonthsScraper()
+        mock_html = '''
+        <div class="products-view-item js-products-view-item" data-product-id="55543" data-offer-id="78816">
+            <div class="products-view-name">
+                <a href="/products/0434357" class="products-view-name-link">Дрель ударная ALTECO DP 800</a>
+            </div>
+            <div class="products-view-price">
+                <div class="price">
+                    <div class="price-old cs-t-3">
+                        <div class="price-number">28 990</div>
+                    </div>
+                    <div class="price-new cs-t-1">
+                        <div class="price-number">22 500</div>
+                    </div>
+                </div>
+            </div>
+            <img class="products-view-picture" src="/pictures/product/small/48261_small.png" alt="Дрель" />
+            <div class="info">Артикул: 0434357 Есть в наличии</div>
+        </div>
+        '''
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = mock_html
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        scraper.session = mock_session
+
+        items = scraper._fetch_page("Дрели", "https://12.kz/categories/dreli/", 1)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["id"], "55543")
+        self.assertEqual(items[0]["shop"], "12 Месяцев")
+        self.assertEqual(items[0]["title"], "Дрель ударная ALTECO DP 800")
+        self.assertEqual(items[0]["price"], 22500)
+        self.assertEqual(items[0]["old_price_on_site"], 28990)
+        self.assertEqual(items[0]["url"], "https://12.kz/products/0434357")
+        self.assertEqual(items[0]["image_url"], "https://12.kz/pictures/product/small/48261_small.png")
+        self.assertEqual(items[0]["sku"], "0434357")
+        scraper.close()
+        self.assertIsNone(scraper.session)
+
 
 if __name__ == "__main__":
     unittest.main()
+
