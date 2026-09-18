@@ -2329,5 +2329,24 @@ class TestStageOneSecurity(unittest.IsolatedAsyncioTestCase):
         se._LIVE_CACHE.clear()
 
 
+    async def test_telegram_errors_do_not_expose_transport_or_provider_body(self):
+        from unittest.mock import patch, Mock
+        from aiohttp.test_utils import TestClient, TestServer
+        import web.server as server
+        app = server.create_app(); app.cleanup_ctx.clear()
+        upsert_telegram_user({'id': 90004, 'first_name': 'Test'})
+        secret = 'synthetic-private-token'
+        async with TestClient(TestServer(app)) as client:
+            client.session.cookie_jar.update_cookies({'kzph_session': create_session(90004)})
+            with patch.object(server, 'telegram_api', side_effect=RuntimeError('https://api.telegram.org/bot' + secret)):
+                response = await client.post('/api/me/test-telegram')
+                self.assertEqual(response.status, 500)
+                self.assertNotIn(secret, await response.text())
+            with patch.object(server, 'telegram_api', return_value=Mock(status_code=400, text=secret)):
+                response = await client.post('/api/me/test-telegram')
+                self.assertEqual(response.status, 400)
+                self.assertNotIn(secret, await response.text())
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -246,8 +246,7 @@ async def _call_gemini_api(prompt: str, api_key: str, timeout_seconds: float = D
                         # Модель может быть недоступна в этой версии, пробуем следующую
                         continue
                     else:
-                        err_text = await resp.text()
-                        print(f"[AI Service] Ошибка Gemini API ({model}, HTTP {resp.status}): {err_text[:150]}")
+                        print(f"[AI Service] Ошибка Gemini API ({model}, HTTP {resp.status})")
                         return None
         except Exception as e:
             print(f"[AI Service] Исключение при вызове Gemini API ({model}): {type(e).__name__}")
@@ -284,8 +283,7 @@ async def _call_openai_api(prompt: str, api_key: str, api_base: str, timeout_sec
                         content = choices[0].get("message", {}).get("content", "")
                         return _extract_json_from_text(content)
                 else:
-                    err_text = await resp.text()
-                    print(f"[AI Service] Ошибка OpenAI API (HTTP {resp.status}): {err_text[:150]}")
+                    print(f"[AI Service] Ошибка OpenAI API (HTTP {resp.status})")
     except Exception as e:
         print(f"[AI Service] Ошибка OpenAI API: {type(e).__name__} (лимит ответа {timeout_seconds:g} с)")
 

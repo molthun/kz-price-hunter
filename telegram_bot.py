@@ -75,7 +75,7 @@ async def send_tg_message(session: aiohttp.ClientSession, token: str, chat_id: i
                 payload.pop("parse_mode", None)
                 await session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=10))
     except Exception as e:
-        print(f"[Telegram Bot] Ошибка отправки сообщения chat {chat_id}: {e}")
+        print(f"[Telegram Bot] Ошибка отправки сообщения chat {chat_id}: {type(e).__name__}")
 
 
 async def send_tg_chat_action(session: aiohttp.ClientSession, token: str, chat_id: int, action: str = "typing"):
@@ -196,7 +196,7 @@ async def handle_ai_consultant_message(session: aiohttp.ClientSession, token: st
     try:
         result = await ai_service.ask_ai_consultant(message=q, history=_get_chat_history(chat_id), city="Все")
     except Exception as e:
-        print(f"[Telegram Bot] Ошибка AI-консультанта: {e}")
+        print(f"[Telegram Bot] Ошибка AI-консультанта: {type(e).__name__}")
         await send_tg_message(session, token, chat_id, "⚠️ Не удалось получить ответ от AI. Пожалуйста, попробуйте еще раз.")
         return
 

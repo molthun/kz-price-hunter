@@ -157,7 +157,7 @@ def get_bot_username() -> Optional[str]:
             username = res.json().get("result", {}).get("username")
             _bot_username_cache.update(token=token, username=username)
             return username
-        print(f"[Auth] getMe вернул {res.status_code}: {res.text}")
+        print(f"[Auth] getMe вернул {res.status_code}")
     except Exception as e:
-        print(f"[Auth] Не удалось получить имя бота: {e}")
+        print(f"[Auth] Не удалось получить имя бота: {type(e).__name__}")
     return None

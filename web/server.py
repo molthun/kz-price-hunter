@@ -5,6 +5,7 @@ import datetime
 import time
 from pathlib import Path
 from aiohttp import web
+from security_logging import redact_secrets
 
 from config import (
     load_settings,
@@ -650,7 +651,7 @@ async def telegram_login_handler(request):
         data = await request.json()
         tg = verify_telegram_auth(data, get_bot_token())
     except ValueError as e:
-        return web.json_response({"status": "error", "message": str(e)}, status=401)
+        return web.json_response({"status": "error", "message": redact_secrets(str(e))}, status=401)
     except Exception:
         return web.json_response({"status": "error", "message": "Некорректный запрос"}, status=400)
 
@@ -689,7 +690,7 @@ async def save_my_settings_handler(request):
         data = await request.json()
         clean = validate_user_settings(data)
     except ValueError as e:
-        return web.json_response({"status": "error", "message": str(e)}, status=400)
+        return web.json_response({"status": "error", "message": redact_secrets(str(e))}, status=400)
     except Exception:
         return web.json_response({"status": "error", "message": "Некорректный запрос"}, status=400)
     saved = save_user_settings(request["user"]["id"], clean)
@@ -706,12 +707,12 @@ async def test_my_telegram_handler(request):
     try:
         res = await asyncio.to_thread(telegram_api, "sendMessage", {"chat_id": user["id"], "text": text, "parse_mode": "HTML"})
     except Exception as e:
-        return web.json_response({"status": "error", "message": str(e)}, status=500)
+        return web.json_response({"status": "error", "message": "Не удалось связаться с Telegram. Повторите позже."}, status=500)
     if res.status_code == 200:
         return web.json_response({"status": "ok", "message": "Тестовое сообщение отправлено в ваш Telegram"})
     if res.status_code == 403:
         return web.json_response({"status": "error", "message": "Бот не может написать вам: откройте бота в Telegram и нажмите «Start»"}, status=400)
-    return web.json_response({"status": "error", "message": f"Ошибка Telegram: {res.text}"}, status=400)
+    return web.json_response({"status": "error", "message": f"Telegram отклонил запрос (HTTP {res.status_code})"}, status=400)
 
 # ===== Администрирование =====
 
@@ -749,9 +750,9 @@ async def post_admin_config_handler(request):
                 public_settings[key] = "***"
         return web.json_response({"status": "ok", "settings": public_settings})
     except ValueError as e:
-        return web.json_response({"status": "error", "message": str(e)}, status=400)
+        return web.json_response({"status": "error", "message": redact_secrets(str(e))}, status=400)
     except Exception as e:
-        return web.json_response({"status": "error", "message": f"Ошибка сохранения: {e}"}, status=400)
+        return web.json_response({"status": "error", "message": "Не удалось сохранить настройки"}, status=400)
 
 @routes.get("/api/admin/users")
 @require_admin
@@ -1138,7 +1139,7 @@ async def _do_scan_task(shop_keys=None, target_categories=None, scan_type="manua
         scan_state["last_completed"] = datetime.datetime.now().strftime("%H:%M:%S")
         print(f"[Scan] Цикл завершен: {scan_state['total_scanned']} товаров, {scan_state['anomalies_found']} новых аномалий")
     except Exception as e:
-        scan_state["error"] = str(e)
+        scan_state["error"] = f"Ошибка сканирования ({type(e).__name__})"
     finally:
         await asyncio.sleep(1.0)
         scan_state["is_running"] = False
@@ -1205,9 +1206,9 @@ async def admin_save_categories_handler(request):
         overview = await asyncio.to_thread(get_categories_overview)
         return web.json_response({"status": "ok", "settings": saved, "overview": overview})
     except ValueError as e:
-        return web.json_response({"status": "error", "message": str(e)}, status=400)
+        return web.json_response({"status": "error", "message": redact_secrets(str(e))}, status=400)
     except Exception as e:
-        return web.json_response({"status": "error", "message": f"Ошибка сохранения: {e}"}, status=400)
+        return web.json_response({"status": "error", "message": "Не удалось сохранить настройки"}, status=400)
 
 @routes.post("/api/scan/category")
 @require_admin
@@ -1262,7 +1263,7 @@ async def add_tracked_category_handler(request):
         res = await asyncio.to_thread(save_tracked_category, name, query, master)
         return web.json_response(res)
     except Exception as e:
-        return web.json_response({"error": str(e)}, status=400)
+        return web.json_response({"error": redact_secrets(str(e))}, status=400)
 
 @routes.post("/api/categories/tracked/{id}/toggle")
 @require_admin
@@ -1276,7 +1277,7 @@ async def toggle_tracked_category_handler(request):
         await asyncio.to_thread(toggle_tracked_category, cid, is_active)
         return web.json_response({"status": "ok", "id": cid, "is_active": is_active})
     except Exception as e:
-        return web.json_response({"error": str(e)}, status=400)
+        return web.json_response({"error": redact_secrets(str(e))}, status=400)
 
 @routes.delete("/api/categories/tracked/{id}")
 @require_admin
@@ -1288,7 +1289,7 @@ async def delete_tracked_category_handler(request):
         await asyncio.to_thread(delete_tracked_category, cid)
         return web.json_response({"status": "ok", "id": cid})
     except Exception as e:
-        return web.json_response({"error": str(e)}, status=400)
+        return web.json_response({"error": redact_secrets(str(e))}, status=400)
 
 @routes.post("/api/categories/tracked/{id}/scan")
 @require_admin
@@ -1306,7 +1307,7 @@ async def scan_single_tracked_category_handler(request):
         await asyncio.to_thread(mark_tracked_category_scanned, cid)
         return web.json_response({"status": "ok", "id": cid, "name": target["name"], "items_found": len(found)})
     except Exception as e:
-        return web.json_response({"error": str(e)}, status=400)
+        return web.json_response({"error": redact_secrets(str(e))}, status=400)
 
 @routes.get("/api/admin/shops")
 @require_admin

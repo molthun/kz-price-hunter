@@ -78,7 +78,7 @@ def send_telegram_alert(chat_id: int, product: Dict[str, Any], anomaly: Dict[str
             "parse_mode": "HTML", "reply_markup": reply_markup
         })
         if res.status_code != 200:
-            print(f"[Telegram Error] chat {chat_id}: статус {res.status_code}: {res.text}")
+            print(f"[Telegram Error] chat {chat_id}: статус {res.status_code}")
         return res.status_code == 200
     except Exception as e:
         print(f"[Telegram Exception] chat {chat_id}: {type(e).__name__}")

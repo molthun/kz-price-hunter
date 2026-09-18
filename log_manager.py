@@ -1,3 +1,5 @@
+from security_logging import redact_secrets
+
 import sys
 import time
 import re
@@ -30,7 +32,7 @@ class LogBuffer:
         self._lock = threading.Lock()
 
     def add(self, message: str, level: Optional[str] = None, source: Optional[str] = None) -> LogEntry:
-        clean_msg = message.rstrip("\r\n")
+        clean_msg = redact_secrets(message).rstrip("\r\n")
         if not clean_msg.strip():
             return None
 
@@ -42,7 +44,7 @@ class LogBuffer:
             extracted_source = bracket_match.group(1).strip()
             display_msg = bracket_match.group(2).strip()
 
-        final_source = source or extracted_source
+        final_source = redact_secrets(source or extracted_source)
 
         # Определение уровня лога
         final_level = level
@@ -107,28 +109,35 @@ class StreamInterceptor:
         self.original_stream = original_stream
         self.default_level = default_level
         self._line_buffer = ""
+        self._lock = threading.RLock()
+
+    def _emit(self, line: str):
+        safe = redact_secrets(line.rstrip("\r"))
+        try:
+            self.original_stream.write(safe + "\n")
+            self.original_stream.flush()
+        except Exception:
+            pass
+        if safe:
+            log_buffer.add(safe, level=self.default_level if self.default_level == "ERROR" else None)
 
     def write(self, text: str):
-        # Всегда передаем вывод в оригинальный терминал
-        try:
-            self.original_stream.write(text)
-            self.original_stream.flush()
-        except Exception:
-            pass
-
-        # Накопление строк и отправка законченных сообщений в кольцевой буфер
-        self._line_buffer += text
-        while "\n" in self._line_buffer:
-            line, self._line_buffer = self._line_buffer.split("\n", 1)
-            line = line.strip("\r")
-            if line:
-                log_buffer.add(line, level=self.default_level if self.default_level == "ERROR" else None)
+        # Buffer before forwarding: tokens often arrive in multiple write calls.
+        with self._lock:
+            self._line_buffer += text
+            while "\n" in self._line_buffer:
+                line, self._line_buffer = self._line_buffer.split("\n", 1)
+                self._emit(line)
+        return len(text)
 
     def flush(self):
-        try:
-            self.original_stream.flush()
-        except Exception:
-            pass
+        with self._lock:
+            # Keep unfinished lines private, even across flush calls: a token
+            # can be split at any character. Application logs end with newline.
+            try:
+                self.original_stream.flush()
+            except Exception:
+                pass
 
 _interceptor_installed = False
 
