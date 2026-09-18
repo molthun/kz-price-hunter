@@ -150,6 +150,18 @@ def build_fts_query(query: str, mode: str = "AND") -> str:
     joiner = " OR " if mode.upper() == "OR" else " AND "
     return joiner.join([f"{{title category}}: {c}" for c in clauses])
 
+# Названия, начинающиеся с этих слов, — аксессуары, а не сам товар
+_ACCESSORY_LEADS = ("сумка", "рюкзак", "чехол", "кейс", "кронштейн", "крепление", "подставка", "держатель",
+                    "пленка", "плёнка", "стекло", "кабель", "адаптер", "переходник", "зарядное", "блок питания",
+                    "аккумулятор для", "фильтр", "пылесборник", "мешок", "мешки", "щетка", "насадка", "пульт",
+                    "наклейка", "шлейф", "клавиатура для", "матрица", "петли", "вентилятор для", "кулер для")
+
+def _is_accessory_for(title: str, nouns: List[str]) -> bool:
+    t = " ".join(title.lower().replace("ё", "е").split())
+    if t.startswith(_ACCESSORY_LEADS):
+        return True
+    return any(re.search(rf"\bдля\s+(?:\S+\s+){{0,2}}{re.escape(n)}", t) for n in nouns)
+
 def score_relevance(product: Dict[str, Any], query_clean: str, query_tokens: List[str]) -> float:
     """Вычисляет релевантность товара для сортировки результатов."""
     title_lower = product.get("title", "").lower()
@@ -187,9 +199,19 @@ def search_in_database(
     sort_by: str = "price_asc",
     negative_keywords: Optional[List[str]] = None,
     limit: int = 250,
-    junk_keywords: Optional[List[str]] = None
+    junk_keywords: Optional[List[str]] = None,
+    prefer_keywords: Optional[List[str]] = None,
+    product_nouns: Optional[List[str]] = None
 ) -> List[Dict[str, Any]]:
-    """Полнофункциональный поиск по базе данных с FTS5, поддержкой синонимов, категорий и городов."""
+    """Полнофункциональный поиск по базе данных с FTS5, поддержкой синонимов, категорий и городов.
+
+    prefer_keywords — мягкое предпочтение (например, игровые модели), product_nouns — основы названий
+    товара из запроса: аксессуары «для <товара>» убираются. С этими фильтрами кандидатов берется
+    с запасом, иначе 250 самых дешевых совпадений оказываются сумками и креплениями.
+    """
+    result_limit = limit
+    if prefer_keywords or product_nouns:
+        limit = max(limit, 3000)
     query_clean = query.strip().lower()
     raw_tokens = [t.strip().lower() for t in query.split() if t.strip()]
 
@@ -322,6 +344,17 @@ def search_in_database(
         if negs:
             results = [r for r in results if not any(nk in r.get("title", "").lower() for nk in negs)]
 
+    # 4.0. Аксессуары к искомому товару: «Сумка для ноутбука», «Кронштейн для двух мониторов»
+    if product_nouns:
+        results = [r for r in results if not _is_accessory_for(r.get("title", ""), product_nouns)]
+
+    # 4.1. Мягкий фильтр по назначению («для игр»): оставляем подходящие модели, если такие нашлись
+    if prefer_keywords:
+        prefs = [pk.lower() for pk in prefer_keywords if pk]
+        preferred = [r for r in results if any(pk in f"{r.get('title', '')} {r.get('category', '')}".lower() for pk in prefs)]
+        if preferred:
+            results = preferred
+
     # 5. Сортировка выдачи
     if sort_by == "price_desc":
         results.sort(key=lambda x: x["current_price"], reverse=True)
@@ -330,7 +363,7 @@ def search_in_database(
     else:  # price_asc
         results.sort(key=lambda x: x["current_price"], reverse=False)
 
-    return results
+    return results[:result_limit]
 
 async def search_live_stores(query: str, city: str = "Астана") -> List[Dict[str, Any]]:
     """Живой опрос площадок (Kaspi, shop.kz, 4mobile) с кэшированием."""
@@ -430,7 +463,9 @@ async def get_best_price_summary(
     match_mode: str = "AND",
     sort_by: str = "price_asc",
     negative_keywords: Optional[List[str]] = None,
-    junk_keywords: Optional[List[str]] = None
+    junk_keywords: Optional[List[str]] = None,
+    prefer_keywords: Optional[List[str]] = None,
+    product_nouns: Optional[List[str]] = None
 ) -> Dict[str, Any]:
     """Комплексный поиск с агрегацией лучшей цены, экономии, распределением по магазинам и категориям."""
     query_clean = query.strip()
@@ -458,7 +493,9 @@ async def get_best_price_summary(
         match_mode=match_mode,
         sort_by=sort_by,
         negative_keywords=negative_keywords,
-        junk_keywords=junk_keywords
+        junk_keywords=junk_keywords,
+        prefer_keywords=prefer_keywords,
+        product_nouns=product_nouns
     )
 
     # 2. Опрос внешних площадок при запросе
@@ -476,7 +513,9 @@ async def get_best_price_summary(
             match_mode=match_mode,
             sort_by=sort_by,
             negative_keywords=negative_keywords,
-            junk_keywords=junk_keywords
+            junk_keywords=junk_keywords,
+            prefer_keywords=prefer_keywords,
+            product_nouns=product_nouns
         )
 
     if not local_items:

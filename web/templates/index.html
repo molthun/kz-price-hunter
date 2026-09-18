@@ -357,7 +357,7 @@
             <i class="fa-solid fa-brain text-purple-400 mt-0.5 shrink-0 text-sm"></i>
             <div>
               <div class="flex items-center gap-2 flex-wrap">
-                <span class="font-semibold text-white">✨ Умный AI-разбор:</span>
+                <span id="aiInsightTitle" class="font-semibold text-white">✨ Умный AI-разбор:</span>
                 <span id="aiInsightExplanation" class="text-purple-200"></span>
               </div>
               <div id="aiInsightDetails" class="text-[11px] text-slate-400 mt-1.5 flex flex-wrap gap-1.5"></div>
@@ -2649,6 +2649,9 @@
           const explEl = document.getElementById('aiInsightExplanation');
           const detailsEl = document.getElementById('aiInsightDetails');
           if (explEl) explEl.textContent = meta.explanation || 'Запрос успешно оптимизирован нейросетью';
+          // Разбор по правилам (гости, AI недоступен) не выдается за работу нейросети
+          const titleEl = document.getElementById('aiInsightTitle');
+          if (titleEl) titleEl.textContent = meta.source === 'rules' ? '🔎 Разбор запроса (без AI):' : '✨ Умный AI-разбор:';
           if (detailsEl) {
             const chips = [];
             if (meta.clean_query && meta.clean_query.toLowerCase() !== q.toLowerCase()) {

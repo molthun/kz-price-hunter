@@ -395,6 +395,24 @@ async def best_price_handler(request):
         except Exception as e:
             print(f"[AI BestPrice] Ошибка парсинга запроса: {e}")
 
+    # Разбор по правилам без AI: гости, AI выключен или не ответил. Фраза «ноутбук для игр до 400к»
+    # иначе ищется целиком и ничего не находит. При ai=0 (явно выключено) запрос не трогаем.
+    prefer_keywords = product_nouns = None
+    if ai_meta is None and query and ai_param != "0":
+        from query_parser import parse_query_rules
+        rules_meta = parse_query_rules(query)
+        if rules_meta:
+            ai_meta = rules_meta
+            search_query = rules_meta["clean_query"]
+            if min_price is None and rules_meta.get("min_price"):
+                min_price = rules_meta["min_price"]
+            if max_price is None and rules_meta.get("max_price"):
+                max_price = rules_meta["max_price"]
+            if not only_discount and rules_meta.get("only_discount"):
+                only_discount = True
+            prefer_keywords = rules_meta.get("prefer_keywords") or None
+            product_nouns = rules_meta.get("product_nouns") or None
+
     try:
         data = await get_best_price_summary(
             query=search_query,
@@ -409,7 +427,9 @@ async def best_price_handler(request):
             match_mode=match_mode,
             sort_by=sort_by,
             negative_keywords=negative_keywords,
-            junk_keywords=user_settings_for(request).get("junk_keywords", [])
+            junk_keywords=user_settings_for(request).get("junk_keywords", []),
+            prefer_keywords=prefer_keywords,
+            product_nouns=product_nouns
         )
         data["original_query"] = query
         data["ai_meta"] = ai_meta

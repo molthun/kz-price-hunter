@@ -874,8 +874,13 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
                 # Гость: AI-разбор не вызывается (расходует квоту владельца)
                 guest = await client.get('/api/best-price?q=айфон+15+со+скидкой+до+400к&ai=1')
                 self.assertEqual(guest.status, 200)
-                self.assertFalse((await guest.json()).get("ai_meta"))
+                guest_meta = (await guest.json()).get("ai_meta")
                 parser.assert_not_called()
+                # Гостю — разбор по правилам, без обращения к AI
+                self.assertEqual(guest_meta["source"], "rules")
+                self.assertEqual(guest_meta["clean_query"], "iphone 15")
+                self.assertEqual(guest_meta["max_price"], 400000)
+                self.assertTrue(guest_meta["only_discount"])
 
                 upsert_telegram_user({'id': 4242, 'first_name': 'Buyer'})
                 client.session.cookie_jar.update_cookies({'kzph_session': create_session(4242)})
@@ -1345,6 +1350,51 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
             bot.reset_chat_history(777)
             await bot.handle_ai_consultant_message(None, 't', 777, 'планшет')
             self.assertEqual(ask.await_args.kwargs['history'], [])
+
+    def test_query_rules_parser(self):
+        """Разбор фраз без AI: цена, скидка, назначение, синонимы; обычные запросы не трогаются."""
+        from query_parser import parse_query_rules as parse
+        r = parse('ноутбук для игр до 400к')
+        self.assertEqual((r['clean_query'], r['min_price'], r['max_price']), ('ноутбук', None, 400000))
+        self.assertIn('rtx', r['prefer_keywords'])
+        self.assertEqual(parse('игровой ноут до 400')['max_price'], 400000)          # «до 400» — тысячи
+        self.assertEqual(parse('видеокарта rtx 4060 дешевле 200000 тенге')['max_price'], 200000)
+        r = parse('телевизор 55 от 150 до 300 тыс')
+        self.assertEqual((r['clean_query'], r['min_price'], r['max_price']), ('телевизор 55', 150000, 300000))
+        self.assertEqual(parse('холодильник 100-200к')['min_price'], 100000)
+        self.assertEqual(parse('стиралка до 1,5 млн')['max_price'], 1500000)
+        self.assertEqual(parse('монитор 27 дюймов до 150т')['clean_query'], 'монитор 27')
+        r = parse('айфон 15 со скидкой')
+        self.assertEqual((r['clean_query'], r['only_discount']), ('iphone 15', True))
+        self.assertEqual(parse('посоветуй недорогой пылесос')['clean_query'], 'пылесос')
+        for plain in ('SSD 512', 'RTX 4060', 'iPhone 15 Pro 256'):
+            self.assertIsNone(parse(plain), plain)                                  # характеристики — не цена
+
+    def test_guest_natural_phrase_search_finds_products(self):
+        """Гость ищет фразой: цена и назначение применяются, игровые модели предпочитаются."""
+        from search_engine import search_in_database
+        from query_parser import parse_query_rules
+        items = [
+            {'id': 'nb-office', 'title': 'Ноутбук Lenovo IdeaPad 3 15', 'price': 250000},
+            {'id': 'nb-gaming', 'title': 'Ноутбук ASUS TUF Gaming A15 RTX 4050', 'price': 390000},
+            {'id': 'nb-expensive', 'title': 'Ноутбук ASUS ROG Strix G16 RTX 4070', 'price': 900000},
+            {'id': 'nb-bag', 'title': 'Сумка для игрового ноутбука ASUS ROG 15.6"', 'price': 9990},
+        ]
+        for it in items:
+            save_or_update_product(dict(it, shop='Sulpak', city='Астана', category='Ноутбуки', url='https://x/' + it['id']))
+        self.assertEqual(search_in_database('ноутбук для игр до 400к'), [])          # фраза целиком не находится
+        meta = parse_query_rules('ноутбук для игр до 400к')
+        found = search_in_database(meta['clean_query'], max_price=meta['max_price'],
+                                   prefer_keywords=meta['prefer_keywords'], product_nouns=meta['product_nouns'])
+        self.assertEqual([r['id'] for r in found], ['nb-gaming'])      # сумка «для ноутбука» отсечена
+        # Без игровых моделей в бюджете выдача не сужается
+        found_all = search_in_database('ноутбук', max_price=300000, prefer_keywords=meta['prefer_keywords'],
+                                       product_nouns=meta['product_nouns'])
+        self.assertEqual([r['id'] for r in found_all], ['nb-office'])
+        from search_engine import _is_accessory_for
+        self.assertTrue(_is_accessory_for('Кронштейн для двух мониторов 17-27"', ['монитор']))
+        self.assertTrue(_is_accessory_for('Сумка для документов и ноутбука 13.3"', ['ноутбук']))
+        self.assertFalse(_is_accessory_for('Монитор Samsung 27" для работы', ['монитор']))
 
     async def test_ai_consultant_error_hides_details(self):
         from unittest.mock import patch, AsyncMock
