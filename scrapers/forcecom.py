@@ -1,6 +1,5 @@
 import re
 import hashlib
-import asyncio
 from typing import List, Dict, Any
 from scrapers import http as requests
 from scrapers.base import UnconfirmedEnd, PagedScraper, parse_price

@@ -1,7 +1,6 @@
 from security_logging import redact_secrets
 
 import sys
-import time
 import re
 import threading
 from collections import deque

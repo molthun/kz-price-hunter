@@ -65,7 +65,6 @@ from database import (
     get_product_by_id,
     was_alert_sent_recently,
     record_alert,
-    get_db_freshness,
     record_shop_scan_start,
     record_shop_scan_result,
     get_stale_shops,

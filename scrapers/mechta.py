@@ -1,9 +1,8 @@
 import re
 import uuid
-import asyncio
 from typing import List, Dict, Any
 from scrapers import http as requests
-from scrapers.base import ScanResult, PagedScraper, parse_price, price_value
+from scrapers.base import ScanResult, PagedScraper, price_value
 
 class MechtaScraper(PagedScraper):
     SHOP_NAME = "Мечта"

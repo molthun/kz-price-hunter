@@ -3,11 +3,10 @@ import re
 import sqlite3
 import asyncio
 import time
-import datetime
 from typing import List, Dict, Any, Optional, Tuple
-from config import DB_PATH, SEARCH_CACHE_TTL_SECONDS, CITIES_KZ, load_settings
+from config import DB_PATH, SEARCH_CACHE_TTL_SECONDS, load_settings
 from bounded_cache import BoundedTTLCache
-from database import save_or_update_product, save_or_update_products_batch
+from database import save_or_update_products_batch
 from scrapers.kaspi import KaspiScraper
 
 # In-memory кэш для внешних живых запросов: { "query:city": (timestamp, [items]) }

@@ -1,7 +1,7 @@
 """Model matching and canonical identity extraction for KZ Price Hunter."""
 import re
 import unicodedata
-from typing import Optional, Set, Dict
+from typing import Optional
 
 IGNORED = set('''смартфон телефон мобильный ноутбук планшет телевизор монитор процессор
 видеокарта наушники часы пылесос игровой игровая игровое smart smartphone laptop

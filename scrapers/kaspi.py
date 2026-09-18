@@ -4,7 +4,6 @@
 Эндпоинт `/yml/product-view/pl/results` листается как угодно глубоко (12 товаров на страницу)
 и отдает цену, ссылку, фото и остаток.
 """
-import re
 import asyncio
 import urllib.parse
 from typing import Any, Dict, List, Optional

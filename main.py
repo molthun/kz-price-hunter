@@ -7,7 +7,7 @@ import asyncio
 import argparse
 from datetime import datetime
 
-from config import get_scan_interval_seconds, get_bot_token, load_settings
+from config import get_scan_interval_seconds, get_bot_token
 from database import init_db, get_stats, get_shops_scan_report
 from notifier import notification_worker
 from web.server import SHOP_REGISTRY, enabled_shop_keys, _do_scan_task, scan_state

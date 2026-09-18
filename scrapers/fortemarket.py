@@ -2,7 +2,7 @@
 import asyncio
 import urllib.parse
 from offer_identity import NATIONWIDE
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 from scrapers import http as requests
 from scrapers.base import PagedScraper, ScanResult, price_value
 

@@ -1,5 +1,4 @@
 import asyncio
-import re
 from typing import List, Dict, Any
 from playwright.async_api import async_playwright
 from scrapers.base import ScanResult, parse_price

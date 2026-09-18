@@ -1,6 +1,5 @@
 import re
 import hashlib
-import asyncio
 import time
 from typing import List, Dict, Any
 from scrapers import http as requests
