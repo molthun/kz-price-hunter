@@ -1,4 +1,5 @@
 import unittest
+import json
 import os
 import tempfile
 
@@ -507,6 +508,74 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(res.complete)  # есть ссылка на следующую страницу
         last = TgradScraper.parse_page(html.replace('/smartfony/page-2/', '/smartfony/'), "Tgrad: Смартфоны", 1)
         self.assertTrue(last.complete)
+
+    def test_schema_listing_ants_itmag(self):
+        from scrapers.ants import AntsScraper
+        from scrapers.itmag import ItmagScraper
+        def block(name, url, price, avail="InStock"):
+            return ('<div itemscope itemtype="http://schema.org/Product">'
+                    f'<meta itemprop="name" content="{name}"><a itemprop="url" href="{url}"></a>'
+                    f'<img itemprop="image" src="/upload/{price}.webp">'
+                    f'<div itemprop="offers"><meta itemprop="price" content="{price}">'
+                    f'<link itemprop="availability" href="http://schema.org/{avail}"></div></div>')
+        html = (block("Видеокарта A", "https://itmag.kz/p/108707-gpu/", 86554)
+                + block("Видеокарта B", "https://itmag.kz/p/129111-rx570/", 92087, "OutOfStock")
+                + '<a href="/catalog/videokarty/?PAGEN_1=2">2</a>')
+        res = ItmagScraper.parse_page(html, "ITMag: Видеокарты", 1)
+        self.assertEqual([p["id"] for p in res], ["itmag_108707"])   # нет в наличии — пропущен
+        self.assertEqual(res[0]["price"], 86554)
+        self.assertEqual(res[0]["image_url"], "https://itmag.kz/upload/86554.webp")
+        self.assertEqual(res[0]["city"], "Алматы")
+        self.assertFalse(res.complete)                                 # есть следующая страница
+        # ANTS сортирует «сначала в наличии»: первый отсутствующий товар завершает обход
+        ants_html = (block("Смартфон A", "https://ants.kz/catalog/smartfony/tovar-113105/", 64631)
+                     + block("Смартфон B", "https://ants.kz/catalog/smartfony/tovar-113106/", 70000, "OutOfStock")
+                     + '<a href="/catalog/smartfony/?PAGEN_1=6">6</a>')
+        ants = AntsScraper.parse_page(ants_html, "ANTS: Смартфоны", 5)
+        self.assertEqual([p["id"] for p in ants], ["ants_113105"])
+        self.assertTrue(ants.complete)
+
+    def test_schema_listing_unlinked_items_and_last_page(self):
+        from scrapers.ants import AntsScraper
+        from scrapers.itmag import ItmagScraper
+        # Товар без своей страницы (ссылка на категорию) сохраняется со стабильным ID и ссылкой на страницу выдачи
+        unlinked = ('<div itemscope itemtype="http://schema.org/Product"><meta itemprop="name" content="Ноутбук Asus ROG">'
+                    '<a itemprop="url" href="https://ants.kz/catalog/noutbuki/"></a><div itemprop="offers">'
+                    '<meta itemprop="price" content="2834660"><link itemprop="availability" href="http://schema.org/InStock"></div></div>'
+                    '<a href="/catalog/noutbuki/?PAGEN_1=12">12</a>')
+        page_url = "https://ants.kz/catalog/noutbuki/?PAGEN_1=11"
+        res = AntsScraper.parse_page(unlinked, "ANTS: Ноутбуки", 11, page_url=page_url)
+        again = AntsScraper.parse_page(unlinked, "ANTS: Ноутбуки", 11, page_url=page_url)
+        self.assertEqual(len(res), 1)
+        self.assertTrue(res[0]["id"].startswith("ants_u"))
+        self.assertEqual(res[0]["id"], again[0]["id"])
+        self.assertEqual(res[0]["url"], page_url)
+        self.assertFalse(res.complete)
+        # Последняя страница ITMag: служебный блок без цены и без ссылки дальше — конец выдачи подтвержден
+        last = ItmagScraper.parse_page('<div itemscope itemtype="http://schema.org/Product"><meta itemprop="name" content="x"></div>',
+                                       "ITMag: Планшеты", 3)
+        self.assertEqual(len(last), 0)
+        self.assertTrue(last.complete)
+        # Страница-заглушка без карточек (например, антибот) концом не считается
+        self.assertFalse(ItmagScraper.parse_page("<html>Проверка браузера</html>", "ITMag: Планшеты", 3).complete)
+
+    def test_ispace_listing_and_product(self):
+        from scrapers.ispace import ISpaceScraper
+        listing = ('<div class="entity-card"><a class="entity-card_name" href="/product/iphone-15-128-gb-cernyi-mtp03hx-a">iPhone 15</a></div>'
+                   '<div class="entity-card"><a class="entity-card_name" href="/product/iphone-15-128-gb-cernyi-mtp03hx-a?x=1">iPhone 15</a></div>')
+        self.assertEqual(ISpaceScraper.parse_listing(listing), ["https://ispace.kz/product/iphone-15-128-gb-cernyi-mtp03hx-a"])
+        ld = {"@context": "https://schema.org", "@type": "Product", "name": "iPhone 15, 128 ГБ, Чёрный", "sku": "MTP03HX/A",
+              "image": ["https://cdn/img.webp"],
+              "offers": {"@type": "Offer", "price": "430990", "availability": "https://schema.org/InStock"}}
+        page = '<script type="application/ld+json">%s</script>' % json.dumps(ld, ensure_ascii=False)
+        p = ISpaceScraper.parse_product(page, "https://ispace.kz/product/x", "iSpace: iPhone")
+        self.assertEqual(p["id"], "ispace_MTP03HXA")
+        self.assertEqual(p["title"], "iPhone 15, 128 ГБ, Чёрный (MTP03HX/A)")
+        self.assertEqual(p["price"], 430990)
+        self.assertEqual(p["image_url"], "https://cdn/img.webp")
+        ld["offers"]["availability"] = "https://schema.org/OutOfStock"
+        page_oos = '<script type="application/ld+json">%s</script>' % json.dumps(ld, ensure_ascii=False)
+        self.assertIsNone(ISpaceScraper.parse_product(page_oos, "https://ispace.kz/product/x", "iSpace: iPhone"))
 
     def test_halyk_parse_response(self):
         from scrapers.halyk import HalykScraper

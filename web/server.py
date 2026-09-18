@@ -28,7 +28,10 @@ from config import (
     FOURMOBILE_CATEGORIES,
     FLIP_CATEGORIES,
     HALYK_CATEGORIES,
-    TGRAD_CATEGORIES
+    TGRAD_CATEGORIES,
+    ANTS_CATEGORIES,
+    ITMAG_CATEGORIES,
+    ISPACE_CATEGORIES
 )
 from version import get_version_info
 from database import (
@@ -58,6 +61,9 @@ from detector import check_anomaly, check_market_arbitrage
 from scrapers.flip import FlipScraper
 from scrapers.halyk import HalykScraper
 from scrapers.tgrad import TgradScraper
+from scrapers.ants import AntsScraper
+from scrapers.itmag import ItmagScraper
+from scrapers.ispace import ISpaceScraper
 from scrapers.dns import DNSScraper
 from scrapers.shopkz import ShopKzScraper
 from scrapers.technodom import TechnodomScraper
@@ -430,6 +436,9 @@ SHOP_REGISTRY = {
     "flip": (FlipScraper, FLIP_CATEGORIES, "Flip.kz"),
     "halyk": (HalykScraper, HALYK_CATEGORIES, "Halyk Market"),
     "tgrad": (TgradScraper, TGRAD_CATEGORIES, "Tgrad"),
+    "ants": (AntsScraper, ANTS_CATEGORIES, "ANTS"),
+    "itmag": (ItmagScraper, ITMAG_CATEGORIES, "ITMag"),
+    "ispace": (ISpaceScraper, ISPACE_CATEGORIES, "iSpace"),
 }
 
 # Сколько магазинов обходить одновременно (у каждого свой сайт, поэтому нагрузка не суммируется)

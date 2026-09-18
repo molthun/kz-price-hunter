@@ -25,6 +25,9 @@ SHOP_KEYS = {
     "flip": "Flip.kz",
     "halyk": "Halyk Market",
     "tgrad": "Tgrad",
+    "ants": "ANTS",
+    "itmag": "ITMag",
+    "ispace": "iSpace",
 }
 
 def _all_shops_enabled():
@@ -534,4 +537,62 @@ TGRAD_CATEGORIES = [
     {"name": "Tgrad: 💇 Фены", "url": "https://tgrad.kz/feny-i-fen-shhetki/"},
     {"name": "Tgrad: 🪒 Электробритвы", "url": "https://tgrad.kz/elektrobritvy/"},
 ]
+# ANTS (ants.kz): Bitrix/Aspro, микроразметка schema.org, выдача «сначала в наличии».
+# Каталог большой (в «Ноутбуках» больше 12 страниц в наличии), поэтому глубина ограничена 25 страницами.
+ANTS_CATEGORIES = [
+    {"name": "ANTS: 💻 Ноутбуки", "url": "https://ants.kz/catalog/noutbuki/", "max_pages": 25},
+    {"name": "ANTS: 🖥 Моноблоки", "url": "https://ants.kz/catalog/monobloki/", "max_pages": 25},
+    {"name": "ANTS: 🖥 Системные блоки", "url": "https://ants.kz/catalog/sistemnye-bloki/", "max_pages": 25},
+    {"name": "ANTS: ⚙️ Процессоры", "url": "https://ants.kz/catalog/protsessory/", "max_pages": 25},
+    {"name": "ANTS: 🔌 Материнские платы", "url": "https://ants.kz/catalog/materinskie-platy/", "max_pages": 25},
+    {"name": "ANTS: 🧠 Оперативная память", "url": "https://ants.kz/catalog/operativnaya-pamyat/", "max_pages": 25},
+    {"name": "ANTS: 🎮 Видеокарты", "url": "https://ants.kz/catalog/videokarty/", "max_pages": 25},
+    {"name": "ANTS: 💾 SSD-накопители", "url": "https://ants.kz/catalog/ssd-nakopiteli/", "max_pages": 25},
+    {"name": "ANTS: 🗄 Корпуса", "url": "https://ants.kz/catalog/korpusa-dlya-kompyuterov/", "max_pages": 25},
+    {"name": "ANTS: 🖥 Мониторы", "url": "https://ants.kz/catalog/monitory/", "max_pages": 25},
+    {"name": "ANTS: 🎧 Наушники и гарнитуры", "url": "https://ants.kz/catalog/naushniki-i-garnitury/", "max_pages": 25},
+    {"name": "ANTS: 📡 Wi-Fi роутеры", "url": "https://ants.kz/catalog/wi-fi-routery/", "max_pages": 25},
+    {"name": "ANTS: 🖨 Принтеры", "url": "https://ants.kz/catalog/printery/", "max_pages": 25},
+    {"name": "ANTS: 🖨 МФУ", "url": "https://ants.kz/catalog/mnogofunktsionalnye-ustroystva-mfu/", "max_pages": 25},
+    {"name": "ANTS: 📽 Проекторы", "url": "https://ants.kz/catalog/proektory/", "max_pages": 25},
+    {"name": "ANTS: 📱 Смартфоны", "url": "https://ants.kz/catalog/smartfony/", "max_pages": 25},
+    {"name": "ANTS: 📱 Планшеты", "url": "https://ants.kz/catalog/planshety/", "max_pages": 25},
+    {"name": "ANTS: ⌚️ Смарт-часы", "url": "https://ants.kz/catalog/smart-chasy/", "max_pages": 25},
+    {"name": "ANTS: 📺 Телевизоры", "url": "https://ants.kz/catalog/televizory/", "max_pages": 25},
+]
+
+# ITMag (itmag.kz): Bitrix/Aspro, микроразметка schema.org, конец выдачи — нет ссылки на следующую страницу
+ITMAG_CATEGORIES = [
+    {"name": "ITMag: 💻 Ноутбуки", "url": "https://itmag.kz/catalog/noutbuki/"},
+    {"name": "ITMag: 🖥 Моноблоки", "url": "https://itmag.kz/catalog/monobloki/"},
+    {"name": "ITMag: 🖥 Системные блоки", "url": "https://itmag.kz/catalog/personal-nye-komp-yutery/"},
+    {"name": "ITMag: ⚙️ Процессоры", "url": "https://itmag.kz/catalog/protsessory/"},
+    {"name": "ITMag: 🔌 Материнские платы", "url": "https://itmag.kz/catalog/materinskie_platy/"},
+    {"name": "ITMag: 🧠 Оперативная память", "url": "https://itmag.kz/catalog/operativnaya_pamyat/"},
+    {"name": "ITMag: 🎮 Видеокарты", "url": "https://itmag.kz/catalog/videokarty/"},
+    {"name": "ITMag: 💾 Жесткие диски и SSD", "url": "https://itmag.kz/catalog/zhestkie_diski/"},
+    {"name": "ITMag: 🗄 Корпуса", "url": "https://itmag.kz/catalog/korpusa/"},
+    {"name": "ITMag: 🔋 Блоки питания", "url": "https://itmag.kz/catalog/bloki-pitaniya-k-korpusam/"},
+    {"name": "ITMag: 🖥 Мониторы", "url": "https://itmag.kz/catalog/monitory/"},
+    {"name": "ITMag: 🎧 Наушники и гарнитуры", "url": "https://itmag.kz/catalog/naushniki-garnitury-i-mikrofony/"},
+    {"name": "ITMag: 📡 Wi-Fi роутеры", "url": "https://itmag.kz/catalog/besprovod_marshrutizatory_wifi_routery/"},
+    {"name": "ITMag: 🖨 Принтеры", "url": "https://itmag.kz/catalog/printery/"},
+    {"name": "ITMag: 🖨 МФУ", "url": "https://itmag.kz/catalog/mnogofunktsionalnye_ustroystva_mfu/"},
+    {"name": "ITMag: 📽 Проекторы", "url": "https://itmag.kz/catalog/proektory/"},
+    {"name": "ITMag: 📱 Смартфоны", "url": "https://itmag.kz/catalog/smartfony-i-mobilnye-telefony/"},
+    {"name": "ITMag: 📱 Планшеты", "url": "https://itmag.kz/catalog/planshety/"},
+    {"name": "ITMag: 📺 Телевизоры", "url": "https://itmag.kz/catalog/televizory/"},
+]
+
+# iSpace (ispace.kz): ссылки из сетки категории + JSON-LD карточки товара (цены в сетке не отдаются)
+ISPACE_CATEGORIES = [
+    {"name": "iSpace: 💻 Mac", "url": "https://ispace.kz/category/mac"},
+    {"name": "iSpace: 📱 iPad", "url": "https://ispace.kz/category/ipad"},
+    {"name": "iSpace: 📱 iPhone", "url": "https://ispace.kz/category/iphone"},
+    {"name": "iSpace: ⌚️ Apple Watch", "url": "https://ispace.kz/category/apple-watch"},
+    {"name": "iSpace: 🎧 AirPods", "url": "https://ispace.kz/category/apple-airpods"},
+    {"name": "iSpace: 🎧 Наушники", "url": "https://ispace.kz/category/headsets"},
+    {"name": "iSpace: 🔊 Колонки", "url": "https://ispace.kz/category/speakers"},
+]
+
 

@@ -30,6 +30,9 @@
 | <img src="https://www.google.com/s2/favicons?domain=flip.kz&sz=32" width="16"> | Flip.kz | `flip.kz` (электроника, регион не подтвержден) |
 | <img src="https://www.google.com/s2/favicons?domain=halykmarket.kz&sz=32" width="16"> | Halyk Market | `halykmarket.kz` (внутренний JSON API, Алматы) |
 | <img src="https://www.google.com/s2/favicons?domain=tgrad.kz&sz=32" width="16"> | Tgrad (ТехноGRAD) | `tgrad.kz` (склад в Алматы) |
+| <img src="https://www.google.com/s2/favicons?domain=ants.kz&sz=32" width="16"> | ANTS | `ants.kz` (компьютерная техника, Алматы) |
+| <img src="https://www.google.com/s2/favicons?domain=itmag.kz&sz=32" width="16"> | ITMag | `itmag.kz` (компьютерная техника, Алматы) |
+| <img src="https://www.google.com/s2/favicons?domain=ispace.kz&sz=32" width="16"> | iSpace | `ispace.kz` (Apple Premium Partner) |
 
 ## Возможности
 
