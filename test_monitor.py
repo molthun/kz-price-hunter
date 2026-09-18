@@ -1608,6 +1608,111 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
         finally:
             config.save_settings(old)
 
+    def test_master_categories_definition_and_coverage(self):
+        """Проверка целостности 12 мастер-категорий и их охвата по всем 17 магазинам."""
+        self.assertEqual(len(config.MASTER_CATEGORIES), 12)
+        required_keys = {"name", "icon", "description"}
+        for cat_id, meta in config.MASTER_CATEGORIES.items():
+            self.assertTrue(required_keys.issubset(meta.keys()))
+            self.assertTrue(len(meta["name"]) > 0)
+            self.assertTrue(len(meta["icon"]) > 0)
+
+        for hot_cat in config.DEFAULT_HOT_CATEGORIES:
+            self.assertIn(hot_cat, config.MASTER_CATEGORIES)
+
+        # Проверяем все 17 магазинов: каждая категория должна иметь "master"
+        from web.server import SHOP_REGISTRY
+        for shop_key, (scraper_cls, categories, shop_name) in SHOP_REGISTRY.items():
+            for c in categories:
+                self.assertIn("master", c, f"Магазин {shop_key}, категория {c.get('name')} не имеет поля 'master'")
+                m = c["master"]
+                self.assertTrue(m == "all" or m in config.MASTER_CATEGORIES,
+                                f"Некорректный master '{m}' в магазине {shop_key}, категория {c.get('name')}")
+
+    def test_wave_plan_rotation_and_modes(self):
+        """Проверка работы волнового планировщика: Hot-категории, размер волны, ротация."""
+        enabled = {k: True for k in config.MASTER_CATEGORIES}
+        hot = ["smartphones", "laptops"]
+
+        # 1. Режим all
+        plan_all = config.get_wave_plan(enabled_categories=enabled, hot_categories=hot, wave_index=0, wave_size=2, wave_mode="all")
+        self.assertEqual(len(plan_all["wave_categories"]), len(config.MASTER_CATEGORIES))
+        self.assertEqual(plan_all["total_waves"], 1)
+
+        # 2. Волновой режим rolling
+        plan0 = config.get_wave_plan(enabled_categories=enabled, hot_categories=hot, wave_index=0, wave_size=2, wave_mode="rolling")
+        self.assertEqual(plan0["hot_categories"], hot)
+        self.assertEqual(len(plan0["wave_categories"]), 2)
+        # Hot-категории не дублируются в ротируемых волнах
+        for c in plan0["wave_categories"]:
+            self.assertNotIn(c, hot)
+
+        # 3. Ротация на следующую волну
+        plan1 = config.get_wave_plan(enabled_categories=enabled, hot_categories=hot, wave_index=1, wave_size=2, wave_mode="rolling")
+        self.assertNotEqual(plan0["wave_categories"], plan1["wave_categories"])
+        self.assertEqual(plan0["next_wave_categories"], plan1["wave_categories"])
+
+        # 4. Круговая ротация (цикличность)
+        total_waves = plan0["total_waves"]
+        plan_wrap = config.get_wave_plan(enabled_categories=enabled, hot_categories=hot, wave_index=total_waves, wave_size=2, wave_mode="rolling")
+        self.assertEqual(plan_wrap["wave_categories"], plan0["wave_categories"])
+
+        # 5. Исключение выключенных категорий
+        enabled_partial = dict(enabled)
+        enabled_partial["monitors"] = False
+        plan_partial = config.get_wave_plan(enabled_categories=enabled_partial, hot_categories=hot, wave_index=0, wave_size=10, wave_mode="rolling")
+        self.assertNotIn("monitors", plan_partial["wave_categories"])
+
+    async def test_admin_category_endpoints(self):
+        """Проверка API категорий: обзор, сохранение настроек волн и точечный on-demand запуск."""
+        from unittest.mock import patch
+        from aiohttp.test_utils import TestClient, TestServer
+        from web.server import create_app
+
+        upsert_telegram_user({'id': 100, 'first_name': 'CategoryAdmin'})
+        token = create_session(100)
+        app = create_app()
+        app.cleanup_ctx.clear()
+
+        async with TestClient(TestServer(app)) as client:
+            client.session.cookie_jar.update_cookies({'kzph_session': token})
+
+            # Без прав админа доступ запрещен (403)
+            res = await client.get('/api/admin/categories')
+            self.assertEqual(res.status, 403)
+
+            with patch('auth.ADMIN_TELEGRAM_IDS', {100}):
+                # 1. GET /api/admin/categories
+                res = await client.get('/api/admin/categories')
+                self.assertEqual(res.status, 200)
+                data = await res.json()
+                self.assertIn("categories", data)
+                self.assertIn("wave_plan", data)
+                self.assertEqual(len(data["categories"]), 12)
+
+                # 2. POST /api/admin/categories (сохранение настроек)
+                res = await client.post('/api/admin/categories', json={
+                    "enabled_categories": {"smartphones": True, "laptops": False},
+                    "hot_categories": ["smartphones"],
+                    "wave_mode": "rolling",
+                    "wave_size": 3
+                })
+                self.assertEqual(res.status, 200)
+                save_data = await res.json()
+                self.assertEqual(save_data["status"], "ok")
+
+                # 3. POST /api/scan/category валидация
+                res_err = await client.post('/api/scan/category', json={"category": "invalid_cat"})
+                self.assertEqual(res_err.status, 400)
+
+                # 4. POST /api/scan/category успешный запуск
+                with patch('web.server._do_scan_task'):
+                    res_ok = await client.post('/api/scan/category', json={"category": "smartphones"})
+                    self.assertEqual(res_ok.status, 200)
+                    resp_json = await res_ok.json()
+                    self.assertEqual(resp_json["status"], "started")
+                    self.assertEqual(resp_json["category"], "smartphones")
+
 
 if __name__ == "__main__":
     unittest.main()

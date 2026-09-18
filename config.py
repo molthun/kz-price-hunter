@@ -36,8 +36,153 @@ SHOP_KEYS = {
     "ispace": "iSpace",
 }
 
+
+MASTER_CATEGORIES = {
+    "smartphones": {
+        "id": "smartphones",
+        "name": "Смартфоны",
+        "icon": "📱",
+        "description": "Смартфоны, мобильные телефоны и аксессуары связи"
+    },
+    "laptops": {
+        "id": "laptops",
+        "name": "Ноутбуки и ПК",
+        "icon": "💻",
+        "description": "Ноутбуки, ультрабуки, моноблоки и системные блоки"
+    },
+    "pc_components": {
+        "id": "pc_components",
+        "name": "ПК Комплектующие",
+        "icon": "⚙️",
+        "description": "Видеокарты, процессоры, материнские платы, ОЗУ, SSD, БП, корпуса"
+    },
+    "monitors": {
+        "id": "monitors",
+        "name": "Мониторы",
+        "icon": "🖥",
+        "description": "Компьютерные мониторы, игровые дисплеи"
+    },
+    "tvs": {
+        "id": "tvs",
+        "name": "Телевизоры и проекторы",
+        "icon": "📺",
+        "description": "Телевизоры, LED/OLED панели, проекторы"
+    },
+    "audio": {
+        "id": "audio",
+        "name": "Наушники и Аудио",
+        "icon": "🎧",
+        "description": "Беспроводные и проводные наушники, гарнитуры, колонки, акустика"
+    },
+    "tablets_watches": {
+        "id": "tablets_watches",
+        "name": "Планшеты и смарт-часы",
+        "icon": "⌚️",
+        "description": "Планшеты, электронные книги, умные часы и фитнес-браслеты"
+    },
+    "consoles": {
+        "id": "consoles",
+        "name": "Игровые приставки",
+        "icon": "🎮",
+        "description": "PlayStation, Xbox, Nintendo Switch, геймпады"
+    },
+    "appliances_large": {
+        "id": "appliances_large",
+        "name": "Крупная бытовая техника",
+        "icon": "❄️",
+        "description": "Холодильники, стиральные и сушильные машины, кондиционеры, плиты"
+    },
+    "appliances_small": {
+        "id": "appliances_small",
+        "name": "Мелкая бытовая техника",
+        "icon": "🧹",
+        "description": "Пылесосы, роботы-пылесосы, кофемашины, СВЧ, утюги, блендеры, фены"
+    },
+    "office_network": {
+        "id": "office_network",
+        "name": "Оргтехника и Сеть",
+        "icon": "🖨",
+        "description": "Принтеры, МФУ, сканеры, Wi-Fi роутеры и маршрутизаторы"
+    },
+    "actions": {
+        "id": "actions",
+        "name": "Акции и распродажи",
+        "icon": "🔥",
+        "description": "Специальные разделы распродаж и скидок магазинов"
+    },
+}
+
 def _all_shops_enabled():
     return {key: True for key in SHOP_KEYS}
+
+def _all_categories_enabled():
+    return {key: True for key in MASTER_CATEGORIES}
+
+DEFAULT_HOT_CATEGORIES = ["smartphones", "laptops", "pc_components"]
+
+def get_wave_plan(enabled_categories=None, hot_categories=None, wave_index=0, wave_size=2, wave_mode="rolling"):
+    """Рассчитывает состав текущей волны сканирования: Hot-категории + порция второстепенных категорий."""
+    if enabled_categories is None:
+        enabled_set = set(MASTER_CATEGORIES.keys())
+    elif isinstance(enabled_categories, dict):
+        enabled_set = {k for k, v in enabled_categories.items() if v and k in MASTER_CATEGORIES}
+    else:
+        enabled_set = set(enabled_categories) & set(MASTER_CATEGORIES.keys())
+
+    if hot_categories is None:
+        hot_list = list(DEFAULT_HOT_CATEGORIES)
+    else:
+        hot_list = [c for c in hot_categories if c in MASTER_CATEGORIES]
+
+    active_hot = [c for c in hot_list if c in enabled_set]
+
+    if wave_mode == "all":
+        enabled_list = [c for c in MASTER_CATEGORIES if c in enabled_set]
+        return {
+            "active_categories": enabled_list,
+            "hot_categories": active_hot,
+            "wave_categories": enabled_list,
+            "wave_index": 0,
+            "total_waves": 1,
+            "next_wave_index": 0,
+            "next_wave_categories": enabled_list
+        }
+
+    rotating = [c for c in MASTER_CATEGORIES if c in enabled_set and c not in active_hot]
+
+    if not rotating:
+        return {
+            "active_categories": active_hot,
+            "hot_categories": active_hot,
+            "wave_categories": [],
+            "wave_index": 0,
+            "total_waves": 1,
+            "next_wave_index": 0,
+            "next_wave_categories": []
+        }
+
+    wave_size = max(1, wave_size)
+    total_waves = -(-len(rotating) // wave_size)
+    safe_wave_idx = wave_index % total_waves
+
+    start = safe_wave_idx * wave_size
+    current_wave_cats = rotating[start : start + wave_size]
+
+    next_wave_idx = (safe_wave_idx + 1) % total_waves
+    next_start = next_wave_idx * wave_size
+    next_wave_cats = rotating[next_start : next_start + wave_size]
+
+    active_combined = list(dict.fromkeys(active_hot + current_wave_cats))
+
+    return {
+        "active_categories": active_combined,
+        "hot_categories": active_hot,
+        "wave_categories": current_wave_cats,
+        "wave_index": safe_wave_idx,
+        "total_waves": total_waves,
+        "next_wave_index": next_wave_idx,
+        "next_wave_categories": next_wave_cats
+    }
 
 # ===== Общие (системные) настройки — меняет только администратор, хранятся в settings.json =====
 SYSTEM_DEFAULTS = {
@@ -45,6 +190,12 @@ SYSTEM_DEFAULTS = {
     "check_interval_seconds": 300,
     "scan_interval_minutes": 180,
     "enabled_shops": _all_shops_enabled(),
+
+    # Управление категориями и волнами
+    "enabled_categories": _all_categories_enabled(),
+    "hot_categories": list(DEFAULT_HOT_CATEGORIES),
+    "wave_size": 2,
+    "wave_mode": "rolling",  # "rolling" (Hot + ротация волн) или "all" (все включенные каждый цикл)
 
     # Мягкие пороги записи «кандидатов» в аномалии. Сканер сохраняет всё, что их проходит,
     # а лента и уведомления каждого пользователя фильтруются уже по его личным порогам.
@@ -65,6 +216,7 @@ SYSTEM_DEFAULTS = {
     "openai_model_mode": "auto",
     "openai_model": "gpt-4o-mini",
 }
+
 
 # ===== Личные настройки пользователя (у гостей — значения по умолчанию) =====
 USER_DEFAULTS = {
@@ -101,6 +253,7 @@ USER_DEFAULTS = {
 ENUM_VALUES = {
     "search_default_sort": ("price_asc", "price_desc", "savings_desc"),
     "telegram_notify_level": ("ALL", "CRITICAL_ONLY", "HIGH_SAVINGS"),
+    "wave_mode": ("rolling", "all"),
 }
 
 # Обратная совместимость: объединенные значения по умолчанию
@@ -276,6 +429,10 @@ def _validate_settings(new_settings):
     interval = clean.get("scan_interval_minutes")
     if interval is not None and not (SCAN_INTERVAL_MIN_MINUTES <= interval <= SCAN_INTERVAL_MAX_MINUTES):
         raise ValueError(f"Интервал автообновления должен быть от {SCAN_INTERVAL_MIN_MINUTES} минут до 30 дней")
+    if "hot_categories" in clean:
+        clean["hot_categories"] = [c for c in clean["hot_categories"] if c in MASTER_CATEGORIES]
+    if "wave_size" in clean:
+        clean["wave_size"] = max(1, min(int(clean["wave_size"]), len(MASTER_CATEGORIES)))
     return clean
 
 def validate_user_settings(new_settings):
@@ -393,270 +550,266 @@ ZERO_DROP_RATIO_MAX = 12.0
 
 # 1. DNS Казахстан (dns-shop.kz)
 DNS_CATEGORIES = [
-    {"name": "DNS: 🔥 Все акции и распродажи", "url": "https://www.dns-shop.kz/catalog/actions/", "max_pages": 3},
-    {"name": "DNS: 💻 Ноутбуки", "url": "https://www.dns-shop.kz/catalog/17a892f816404e77/noutbuki/", "max_pages": 3},
-    {"name": "DNS: 📱 Смартфоны", "url": "https://www.dns-shop.kz/catalog/17a8a01d16404e77/smartfony/", "max_pages": 3},
-    {"name": "DNS: 🎮 Видеокарты", "url": "https://www.dns-shop.kz/catalog/17a89aab16404e77/videokarty/", "max_pages": 3},
-    {"name": "DNS: ⚙️ Процессоры", "url": "https://www.dns-shop.kz/catalog/17a899cd16404e77/processory/", "max_pages": 3},
-    {"name": "DNS: 🖥 Мониторы", "url": "https://www.dns-shop.kz/catalog/17a8943716404e77/monitory/", "max_pages": 3},
-    {"name": "DNS: 📺 Телевизоры", "url": "https://www.dns-shop.kz/catalog/17a8ae4916404e77/televizory/", "max_pages": 3},
-    {"name": "DNS: 📱 Планшеты", "url": "https://www.dns-shop.kz/catalog/17a890dc16404e77/planshety/", "max_pages": 2},
-    {"name": "DNS: 💾 SSD накопители", "url": "https://www.dns-shop.kz/catalog/8a9ddbe317404e77/nakopiteli-ssd/", "max_pages": 2},
-    {"name": "DNS: 🧠 Оперативная память", "url": "https://www.dns-shop.kz/catalog/17a89a3916404e77/operativnaya-pamyat-dimm/", "max_pages": 2},
-    {"name": "DNS: 🎧 Наушники и гарнитуры", "url": "https://www.dns-shop.kz/catalog/17a8f3cd16404e77/naushniki-i-garnitury/", "max_pages": 2},
-    {"name": "DNS: ⌚️ Смарт-часы", "url": "https://www.dns-shop.kz/catalog/17a9e70116404e77/smart-chasy-i-braslety/", "max_pages": 2},
-    {"name": "DNS: 🎮 Игровые консоли", "url": "https://www.dns-shop.kz/catalog/17a8a65f16404e77/igrovye-konsoli/", "max_pages": 2}
+    {"name": "DNS: 🔥 Все акции и распродажи", "url": "https://www.dns-shop.kz/catalog/actions/", "max_pages": 3, "master": "actions"},
+    {"name": "DNS: 💻 Ноутбуки", "url": "https://www.dns-shop.kz/catalog/17a892f816404e77/noutbuki/", "max_pages": 3, "master": "laptops"},
+    {"name": "DNS: 📱 Смартфоны", "url": "https://www.dns-shop.kz/catalog/17a8a01d16404e77/smartfony/", "max_pages": 3, "master": "smartphones"},
+    {"name": "DNS: 🎮 Видеокарты", "url": "https://www.dns-shop.kz/catalog/17a89aab16404e77/videokarty/", "max_pages": 3, "master": "pc_components"},
+    {"name": "DNS: ⚙️ Процессоры", "url": "https://www.dns-shop.kz/catalog/17a899cd16404e77/processory/", "max_pages": 3, "master": "pc_components"},
+    {"name": "DNS: 🖥 Мониторы", "url": "https://www.dns-shop.kz/catalog/17a8943716404e77/monitory/", "max_pages": 3, "master": "monitors"},
+    {"name": "DNS: 📺 Телевизоры", "url": "https://www.dns-shop.kz/catalog/17a8ae4916404e77/televizory/", "max_pages": 3, "master": "tvs"},
+    {"name": "DNS: 📱 Планшеты", "url": "https://www.dns-shop.kz/catalog/17a890dc16404e77/planshety/", "max_pages": 2, "master": "tablets_watches"},
+    {"name": "DNS: 💾 SSD накопители", "url": "https://www.dns-shop.kz/catalog/8a9ddbe317404e77/nakopiteli-ssd/", "max_pages": 2, "master": "pc_components"},
+    {"name": "DNS: 🧠 Оперативная память", "url": "https://www.dns-shop.kz/catalog/17a89a3916404e77/operativnaya-pamyat-dimm/", "max_pages": 2, "master": "pc_components"},
+    {"name": "DNS: 🎧 Наушники и гарнитуры", "url": "https://www.dns-shop.kz/catalog/17a8f3cd16404e77/naushniki-i-garnitury/", "max_pages": 2, "master": "audio"},
+    {"name": "DNS: ⌚️ Смарт-часы", "url": "https://www.dns-shop.kz/catalog/17a9e70116404e77/smart-chasy-i-braslety/", "max_pages": 2, "master": "tablets_watches"},
+    {"name": "DNS: 🎮 Игровые консоли", "url": "https://www.dns-shop.kz/catalog/17a8a65f16404e77/igrovye-konsoli/", "max_pages": 2, "master": "consoles"}
 ]
 
 # 2. Белый Ветер (shop.kz)
 SHOPKZ_CATEGORIES = [
     # Официальная YML-выгрузка содержит весь каталог в наличии (~14 000 товаров) и грузится за пару секунд,
     # поэтому обход HTML-категорий Белого Ветра не нужен.
-    {"name": "Белый Ветер: 📦 Официальная YML выгрузка", "url": "https://shop.kz/bitrix/catalog_export/yandex.php", "max_pages": 1},
+    {"name": "Белый Ветер: 📦 Официальная YML выгрузка", "url": "https://shop.kz/bitrix/catalog_export/yandex.php", "max_pages": 1, "master": "all"},
 ]
 
 # 3. Технодом (technodom.kz)
 TECHNODOM_CATEGORIES = [
-    {"name": "Технодом: 💻 Ноутбуки", "url": "https://www.technodom.kz/catalog/noutbuki-i-komp-jutery/noutbuki/noutbuki"},
-    {"name": "Технодом: 📱 Смартфоны", "url": "https://www.technodom.kz/catalog/smartfony-i-gadzhety/smartfony-i-telefony/smartfony"},
-    {"name": "Технодом: 📺 Телевизоры", "url": "https://www.technodom.kz/catalog/tv-audio-foto-video/televizory/led-televizory"},
-    {"name": "Технодом: 📱 Планшеты", "url": "https://www.technodom.kz/catalog/smartfony-i-gadzhety/planshety-i-knigi/planshety"},
-    {"name": "Технодом: ⌚️ Смарт-часы", "url": "https://www.technodom.kz/catalog/smartfony-i-gadzhety/gadzhety/smart-chasy"},
-    {"name": "Технодом: 🎧 Наушники", "url": "https://www.technodom.kz/catalog/tv-audio-foto-video/audio-tehnika/naushniki"},
-    {"name": "Технодом: 🖥 Мониторы", "url": "https://www.technodom.kz/catalog/noutbuki-i-komp-jutery/komp-jutery-i-monobloki/monitory"},
-    {"name": "Технодом: 🎮 Игровые приставки", "url": "https://www.technodom.kz/catalog/noutbuki-i-komp-jutery/igrovye-pristavki-i-igry/igrovye-pristavki"},
-    {"name": "Технодом: 🧹 Пылесосы", "url": "https://www.technodom.kz/catalog/bytovaja-tehnika/tehnika-dlja-doma/pylesosy"}
+    {"name": "Технодом: 💻 Ноутбуки", "url": "https://www.technodom.kz/catalog/noutbuki-i-komp-jutery/noutbuki/noutbuki", "master": "laptops"},
+    {"name": "Технодом: 📱 Смартфоны", "url": "https://www.technodom.kz/catalog/smartfony-i-gadzhety/smartfony-i-telefony/smartfony", "master": "smartphones"},
+    {"name": "Технодом: 📺 Телевизоры", "url": "https://www.technodom.kz/catalog/tv-audio-foto-video/televizory/led-televizory", "master": "tvs"},
+    {"name": "Технодом: 📱 Планшеты", "url": "https://www.technodom.kz/catalog/smartfony-i-gadzhety/planshety-i-knigi/planshety", "master": "tablets_watches"},
+    {"name": "Технодом: ⌚️ Смарт-часы", "url": "https://www.technodom.kz/catalog/smartfony-i-gadzhety/gadzhety/smart-chasy", "master": "tablets_watches"},
+    {"name": "Технодом: 🎧 Наушники", "url": "https://www.technodom.kz/catalog/tv-audio-foto-video/audio-tehnika/naushniki", "master": "audio"},
+    {"name": "Технодом: 🖥 Мониторы", "url": "https://www.technodom.kz/catalog/noutbuki-i-komp-jutery/komp-jutery-i-monobloki/monitory", "master": "monitors"},
+    {"name": "Технодом: 🎮 Игровые приставки", "url": "https://www.technodom.kz/catalog/noutbuki-i-komp-jutery/igrovye-pristavki-i-igry/igrovye-pristavki", "master": "consoles"},
+    {"name": "Технодом: 🧹 Пылесосы", "url": "https://www.technodom.kz/catalog/bytovaja-tehnika/tehnika-dlja-doma/pylesosy", "master": "appliances_small"}
 ]
 
 # 4. Forcecom (forcecom.kz)
 FORCECOM_CATEGORIES = [
-    {"name": "Forcecom: 🔥 Распродажа", "url": "https://forcecom.kz/sale/rasprodazha/"},
-    {"name": "Forcecom: 💻 Ноутбуки", "url": "https://forcecom.kz/catalog/laptops/"},
-    {"name": "Forcecom: 🎮 Видеокарты", "url": "https://forcecom.kz/catalog/graphics-cards/"},
-    {"name": "Forcecom: 🧩 Материнские платы", "url": "https://forcecom.kz/catalog/motherboards/"},
-    {"name": "Forcecom: 🧠 Оперативная память", "url": "https://forcecom.kz/catalog/ram/"},
-    {"name": "Forcecom: 🖥 Мониторы", "url": "https://forcecom.kz/catalog/monitors/"},
-    {"name": "Forcecom: 💾 SSD диски", "url": "https://forcecom.kz/catalog/ssd/"},
-    {"name": "Forcecom: 💾 Жесткие диски", "url": "https://forcecom.kz/catalog/hdd/"},
-    {"name": "Forcecom: 📦 Корпуса", "url": "https://forcecom.kz/catalog/cases/"},
-    {"name": "Forcecom: 🎧 Наушники", "url": "https://forcecom.kz/catalog/headphones/"},
-    {"name": "Forcecom: ⌨️ Клавиатуры", "url": "https://forcecom.kz/catalog/keyboards/"},
-    {"name": "Forcecom: 🖱 Мыши", "url": "https://forcecom.kz/catalog/mice/"},
-    {"name": "Forcecom: 🖨 Принтеры", "url": "https://forcecom.kz/catalog/printers/"},
-    {"name": "Forcecom: 🌐 Роутеры", "url": "https://forcecom.kz/catalog/marshrutizatory/"}
+    {"name": "Forcecom: 🔥 Распродажа", "url": "https://forcecom.kz/sale/rasprodazha/", "master": "actions"},
+    {"name": "Forcecom: 💻 Ноутбуки", "url": "https://forcecom.kz/catalog/laptops/", "master": "laptops"},
+    {"name": "Forcecom: 🎮 Видеокарты", "url": "https://forcecom.kz/catalog/graphics-cards/", "master": "pc_components"},
+    {"name": "Forcecom: 🧩 Материнские платы", "url": "https://forcecom.kz/catalog/motherboards/", "master": "pc_components"},
+    {"name": "Forcecom: 🧠 Оперативная память", "url": "https://forcecom.kz/catalog/ram/", "master": "pc_components"},
+    {"name": "Forcecom: 🖥 Мониторы", "url": "https://forcecom.kz/catalog/monitors/", "master": "monitors"},
+    {"name": "Forcecom: 💾 SSD диски", "url": "https://forcecom.kz/catalog/ssd/", "master": "pc_components"},
+    {"name": "Forcecom: 💾 Жесткие диски", "url": "https://forcecom.kz/catalog/hdd/", "master": "pc_components"},
+    {"name": "Forcecom: 📦 Корпуса", "url": "https://forcecom.kz/catalog/cases/", "master": "pc_components"},
+    {"name": "Forcecom: 🎧 Наушники", "url": "https://forcecom.kz/catalog/headphones/", "master": "audio"},
+    {"name": "Forcecom: ⌨️ Клавиатуры", "url": "https://forcecom.kz/catalog/keyboards/", "master": "pc_components"},
+    {"name": "Forcecom: 🖱 Мыши", "url": "https://forcecom.kz/catalog/mice/", "master": "pc_components"},
+    {"name": "Forcecom: 🖨 Принтеры", "url": "https://forcecom.kz/catalog/printers/", "master": "office_network"},
+    {"name": "Forcecom: 🌐 Роутеры", "url": "https://forcecom.kz/catalog/marshrutizatory/", "master": "office_network"}
 ]
 
 # 5. Sulpak (sulpak.kz)
 SULPAK_CATEGORIES = [
-    {"name": "Sulpak: 💻 Ноутбуки", "url": "https://www.sulpak.kz/f/noutbuki"},
-    {"name": "Sulpak: 📱 Смартфоны", "url": "https://www.sulpak.kz/f/smartfoniy/"},
-    {"name": "Sulpak: 📺 Телевизоры", "url": "https://www.sulpak.kz/f/led_oled_televizoriy"},
-    {"name": "Sulpak: 📱 Планшеты", "url": "https://www.sulpak.kz/f/planshetiy"},
-    {"name": "Sulpak: ⌚️ Смарт-часы", "url": "https://www.sulpak.kz/f/smart_chasiy"},
-    {"name": "Sulpak: 🎧 Наушники", "url": "https://www.sulpak.kz/f/naushniki"},
-    {"name": "Sulpak: 🎮 Игровые приставки", "url": "https://www.sulpak.kz/f/igroviye_pristavki"},
-    {"name": "Sulpak: 🧺 Стиральные машины", "url": "https://www.sulpak.kz/f/stiralniye_mashiniy"},
-    {"name": "Sulpak: ❄️ Холодильники", "url": "https://www.sulpak.kz/f/holodilniki"},
-    {"name": "Sulpak: 🌬 Кондиционеры", "url": "https://www.sulpak.kz/f/kondicioneriy"},
-    {"name": "Sulpak: ☕️ Кофемашины", "url": "https://www.sulpak.kz/f/kofemashiniy"},
-    {"name": "Sulpak: ♨️ Микроволновые печи", "url": "https://www.sulpak.kz/f/mikrovolnoviye_pechi"},
-    {"name": "Sulpak: 🔥 Распродажа", "url": "https://www.sulpak.kz/sale/1"}
+    {"name": "Sulpak: 💻 Ноутбуки", "url": "https://www.sulpak.kz/f/noutbuki", "master": "laptops"},
+    {"name": "Sulpak: 📱 Смартфоны", "url": "https://www.sulpak.kz/f/smartfoniy/", "master": "smartphones"},
+    {"name": "Sulpak: 📺 Телевизоры", "url": "https://www.sulpak.kz/f/led_oled_televizoriy", "master": "tvs"},
+    {"name": "Sulpak: 📱 Планшеты", "url": "https://www.sulpak.kz/f/planshetiy", "master": "tablets_watches"},
+    {"name": "Sulpak: ⌚️ Смарт-часы", "url": "https://www.sulpak.kz/f/smart_chasiy", "master": "tablets_watches"},
+    {"name": "Sulpak: 🎧 Наушники", "url": "https://www.sulpak.kz/f/naushniki", "master": "audio"},
+    {"name": "Sulpak: 🎮 Игровые приставки", "url": "https://www.sulpak.kz/f/igroviye_pristavki", "master": "consoles"},
+    {"name": "Sulpak: 🧺 Стиральные машины", "url": "https://www.sulpak.kz/f/stiralniye_mashiniy", "master": "appliances_large"},
+    {"name": "Sulpak: ❄️ Холодильники", "url": "https://www.sulpak.kz/f/holodilniki", "master": "appliances_large"},
+    {"name": "Sulpak: 🌬 Кондиционеры", "url": "https://www.sulpak.kz/f/kondicioneriy", "master": "appliances_large"},
+    {"name": "Sulpak: ☕️ Кофемашины", "url": "https://www.sulpak.kz/f/kofemashiniy", "master": "appliances_small"},
+    {"name": "Sulpak: ♨️ Микроволновые печи", "url": "https://www.sulpak.kz/f/mikrovolnoviye_pechi", "master": "appliances_small"},
+    {"name": "Sulpak: 🔥 Распродажа", "url": "https://www.sulpak.kz/sale/1", "master": "actions"}
 ]
 
 # 6. Мечта (mechta.kz)
 MECHTA_CATEGORIES = [
-    {"name": "Мечта: 💻 Ноутбуки", "url": "https://www.mechta.kz/section/noutbuki/"},
-    {"name": "Мечта: 📱 Смартфоны", "url": "https://www.mechta.kz/section/smartfony/"},
-    {"name": "Мечта: 📺 Телевизоры", "url": "https://www.mechta.kz/section/televizory/"},
-    {"name": "Мечта: 🖥 Мониторы", "url": "https://www.mechta.kz/section/monitory/"},
-    {"name": "Мечта: 📱 Планшеты", "url": "https://www.mechta.kz/section/planshety/"},
-    {"name": "Мечта: ⌚️ Смарт-часы", "url": "https://www.mechta.kz/section/smart-chasy/"},
-    {"name": "Мечта: 🎧 Наушники", "url": "https://www.mechta.kz/section/naushniki/"},
-    {"name": "Мечта: 🎮 Игровые приставки", "url": "https://www.mechta.kz/section/igrovye-pristavki/"},
-    {"name": "Мечта: 🧹 Пылесосы", "url": "https://www.mechta.kz/section/pylesosy/"},
-    {"name": "Мечта: ❄️ Холодильники", "url": "https://www.mechta.kz/section/holodilniki/"},
-    {"name": "Мечта: 🧺 Стиральные машины", "url": "https://www.mechta.kz/section/stiralnye-mashiny/"},
-    {"name": "Мечта: ☕️ Кофемашины", "url": "https://www.mechta.kz/section/kofemashiny/"},
-    {"name": "Мечта: 🌬 Кондиционеры", "url": "https://www.mechta.kz/section/kondicionery/"},
-    {"name": "Мечта: 💨 Утюги и отпариватели", "url": "https://www.mechta.kz/section/utyugi/"}
+    {"name": "Мечта: 💻 Ноутбуки", "url": "https://www.mechta.kz/section/noutbuki/", "master": "laptops"},
+    {"name": "Мечта: 📱 Смартфоны", "url": "https://www.mechta.kz/section/smartfony/", "master": "smartphones"},
+    {"name": "Мечта: 📺 Телевизоры", "url": "https://www.mechta.kz/section/televizory/", "master": "tvs"},
+    {"name": "Мечта: 🖥 Мониторы", "url": "https://www.mechta.kz/section/monitory/", "master": "monitors"},
+    {"name": "Мечта: 📱 Планшеты", "url": "https://www.mechta.kz/section/planshety/", "master": "tablets_watches"},
+    {"name": "Мечта: ⌚️ Смарт-часы", "url": "https://www.mechta.kz/section/smart-chasy/", "master": "tablets_watches"},
+    {"name": "Мечта: 🎧 Наушники", "url": "https://www.mechta.kz/section/naushniki/", "master": "audio"},
+    {"name": "Мечта: 🎮 Игровые приставки", "url": "https://www.mechta.kz/section/igrovye-pristavki/", "master": "consoles"},
+    {"name": "Мечта: 🧹 Пылесосы", "url": "https://www.mechta.kz/section/pylesosy/", "master": "appliances_small"},
+    {"name": "Мечта: ❄️ Холодильники", "url": "https://www.mechta.kz/section/holodilniki/", "master": "appliances_large"},
+    {"name": "Мечта: 🧺 Стиральные машины", "url": "https://www.mechta.kz/section/stiralnye-mashiny/", "master": "appliances_large"},
+    {"name": "Мечта: ☕️ Кофемашины", "url": "https://www.mechta.kz/section/kofemashiny/", "master": "appliances_small"},
+    {"name": "Мечта: 🌬 Кондиционеры", "url": "https://www.mechta.kz/section/kondicionery/", "master": "appliances_large"},
+    {"name": "Мечта: 💨 Утюги и отпариватели", "url": "https://www.mechta.kz/section/utyugi/", "master": "appliances_small"}
 ]
 
 # 7. Alser (alser.kz)
 ALSER_CATEGORIES = [
-    {"name": "Alser: 💻 Ноутбуки", "url": "https://alser.kz/astana/c/noutbuki"},
-    {"name": "Alser: 📱 Смартфоны", "url": "https://alser.kz/astana/c/smartfony"},
-    {"name": "Alser: 📺 Телевизоры", "url": "https://alser.kz/astana/c/televizory"},
-    {"name": "Alser: 🖥 Мониторы", "url": "https://alser.kz/astana/c/monitory"},
-    {"name": "Alser: 📱 Планшеты", "url": "https://alser.kz/astana/c/planshety"},
-    {"name": "Alser: 🧹 Пылесосы", "url": "https://alser.kz/astana/c/pylesosy"},
-    {"name": "Alser: ❄️ Холодильники", "url": "https://alser.kz/astana/c/vse-holodilniki"},
-    {"name": "Alser: 🌬 Кондиционеры", "url": "https://alser.kz/astana/c/vse-kondicioneri"}
+    {"name": "Alser: 💻 Ноутбуки", "url": "https://alser.kz/astana/c/noutbuki", "master": "laptops"},
+    {"name": "Alser: 📱 Смартфоны", "url": "https://alser.kz/astana/c/smartfony", "master": "smartphones"},
+    {"name": "Alser: 📺 Телевизоры", "url": "https://alser.kz/astana/c/televizory", "master": "tvs"},
+    {"name": "Alser: 🖥 Мониторы", "url": "https://alser.kz/astana/c/monitory", "master": "monitors"},
+    {"name": "Alser: 📱 Планшеты", "url": "https://alser.kz/astana/c/planshety", "master": "tablets_watches"},
+    {"name": "Alser: 🧹 Пылесосы", "url": "https://alser.kz/astana/c/pylesosy", "master": "appliances_small"},
+    {"name": "Alser: ❄️ Холодильники", "url": "https://alser.kz/astana/c/vse-holodilniki", "master": "appliances_large"},
+    {"name": "Alser: 🌬 Кондиционеры", "url": "https://alser.kz/astana/c/vse-kondicioneri", "master": "appliances_large"}
 ]
 
 # 8. Эврика (evrika.com)
 EVRIKA_CATEGORIES = [
-    {"name": "Эврика: 💻 Ноутбуки", "url": "https://evrika.com/catalog/nur-sultan-astana/noutbuki/c207"},
-    {"name": "Эврика: 📱 Смартфоны", "url": "https://evrika.com/catalog/nur-sultan-astana/smartfony/c234"},
-    {"name": "Эврика: 📺 Телевизоры", "url": "https://evrika.com/catalog/nur-sultan-astana/led-televizory/c228"},
-    {"name": "Эврика: 🖥 Мониторы", "url": "https://evrika.com/catalog/nur-sultan-astana/monitory/c300"},
-    {"name": "Эврика: 📱 Планшеты", "url": "https://evrika.com/catalog/nur-sultan-astana/planshety/c70"},
-    {"name": "Эврика: 🎧 Наушники", "url": "https://evrika.com/catalog/nur-sultan-astana/naushniki-1/c183"},
-    {"name": "Эврика: 🎮 Игровые приставки", "url": "https://evrika.com/catalog/nur-sultan-astana/igrovye-pristavki/c120"},
-    {"name": "Эврика: 🖨 Принтеры", "url": "https://evrika.com/catalog/nur-sultan-astana/printery/c65"},
-    {"name": "Эврика: 💨 Утюги", "url": "https://evrika.com/catalog/nur-sultan-astana/utyugi/c161"}
+    {"name": "Эврика: 💻 Ноутбуки", "url": "https://evrika.com/catalog/nur-sultan-astana/noutbuki/c207", "master": "laptops"},
+    {"name": "Эврика: 📱 Смартфоны", "url": "https://evrika.com/catalog/nur-sultan-astana/smartfony/c234", "master": "smartphones"},
+    {"name": "Эврика: 📺 Телевизоры", "url": "https://evrika.com/catalog/nur-sultan-astana/led-televizory/c228", "master": "tvs"},
+    {"name": "Эврика: 🖥 Мониторы", "url": "https://evrika.com/catalog/nur-sultan-astana/monitory/c300", "master": "monitors"},
+    {"name": "Эврика: 📱 Планшеты", "url": "https://evrika.com/catalog/nur-sultan-astana/planshety/c70", "master": "tablets_watches"},
+    {"name": "Эврика: 🎧 Наушники", "url": "https://evrika.com/catalog/nur-sultan-astana/naushniki-1/c183", "master": "audio"},
+    {"name": "Эврика: 🎮 Игровые приставки", "url": "https://evrika.com/catalog/nur-sultan-astana/igrovye-pristavki/c120", "master": "consoles"},
+    {"name": "Эврика: 🖨 Принтеры", "url": "https://evrika.com/catalog/nur-sultan-astana/printery/c65", "master": "office_network"},
+    {"name": "Эврика: 💨 Утюги", "url": "https://evrika.com/catalog/nur-sultan-astana/utyugi/c161", "master": "appliances_small"}
 ]
 
 # 9. Moon.kz (moon.kz)
 MOON_CATEGORIES = [
-    {"name": "Moon: 💻 Ноутбуки", "url": "https://moon.kz/noutbuki-i-aksessuary/"},
-    {"name": "Moon: 🎮 Видеокарты", "url": "https://moon.kz/videokarty/"},
-    {"name": "Moon: ⚙️ Процессоры", "url": "https://moon.kz/protsessory/"},
-    {"name": "Moon: 🖥 Мониторы", "url": "https://moon.kz/monitory/"},
-    {"name": "Moon: 🧩 Материнские платы", "url": "https://moon.kz/materinskie-platy/"},
-    {"name": "Moon: 🧠 Оперативная память", "url": "https://moon.kz/moduli-pamyati/"},
-    {"name": "Moon: 💾 SSD диски", "url": "https://moon.kz/nakopiteli-ssd/"},
-    {"name": "Moon: ⚡️ Блоки питания", "url": "https://moon.kz/bloki-pitaniya/"},
-    {"name": "Moon: 📦 Корпуса", "url": "https://moon.kz/korpusa/"},
-    {"name": "Moon: ❄️ Системы охлаждения", "url": "https://moon.kz/kulery-i-sistemy-okhlazhdeniya/"},
-    {"name": "Moon: 🔥 Распродажа", "url": "https://moon.kz/rasprodazha/"}
+    {"name": "Moon: 💻 Ноутбуки", "url": "https://moon.kz/noutbuki-i-aksessuary/", "master": "laptops"},
+    {"name": "Moon: 🎮 Видеокарты", "url": "https://moon.kz/videokarty/", "master": "pc_components"},
+    {"name": "Moon: ⚙️ Процессоры", "url": "https://moon.kz/protsessory/", "master": "pc_components"},
+    {"name": "Moon: 🖥 Мониторы", "url": "https://moon.kz/monitory/", "master": "monitors"},
+    {"name": "Moon: 🧩 Материнские платы", "url": "https://moon.kz/materinskie-platy/", "master": "pc_components"},
+    {"name": "Moon: 🧠 Оперативная память", "url": "https://moon.kz/moduli-pamyati/", "master": "pc_components"},
+    {"name": "Moon: 💾 SSD диски", "url": "https://moon.kz/nakopiteli-ssd/", "master": "pc_components"},
+    {"name": "Moon: ⚡️ Блоки питания", "url": "https://moon.kz/bloki-pitaniya/", "master": "pc_components"},
+    {"name": "Moon: 📦 Корпуса", "url": "https://moon.kz/korpusa/", "master": "pc_components"},
+    {"name": "Moon: ❄️ Системы охлаждения", "url": "https://moon.kz/kulery-i-sistemy-okhlazhdeniya/", "master": "pc_components"},
+    {"name": "Moon: 🔥 Распродажа", "url": "https://moon.kz/rasprodazha/", "master": "actions"}
 ]
 
 # 10. Kaspi Магазин (kaspi.kz)
 KASPI_CATEGORIES = [
-    {"name": "Kaspi: 📱 Смартфоны", "url": "https://kaspi.kz/shop/c/smartphones/", "max_pages": 30},
-    {"name": "Kaspi: 💻 Ноутбуки", "url": "https://kaspi.kz/shop/c/notebooks/", "max_pages": 30},
-    {"name": "Kaspi: ⌚️ Смарт-часы", "url": "https://kaspi.kz/shop/c/smart%20watches/", "max_pages": 30},
-    {"name": "Kaspi: 🎧 Наушники", "url": "https://kaspi.kz/shop/c/headphones/", "max_pages": 30},
-    {"name": "Kaspi: 📱 Планшеты", "url": "https://kaspi.kz/shop/c/tablets/", "max_pages": 30},
-    {"name": "Kaspi: 🖥 Мониторы", "url": "https://kaspi.kz/shop/c/monitors/", "max_pages": 30},
-    {"name": "Kaspi: 🎮 Видеокарты", "url": "https://kaspi.kz/shop/c/videocards/", "max_pages": 30},
-    {"name": "Kaspi: ⚙️ Процессоры", "url": "https://kaspi.kz/shop/c/cpus/", "max_pages": 30},
-    {"name": "Kaspi: 🔌 Материнские платы", "url": "https://kaspi.kz/shop/c/motherboards/", "max_pages": 30},
-    {"name": "Kaspi: 🎮 Игровые приставки", "url": "https://kaspi.kz/shop/c/game%20consoles/", "max_pages": 30},
-    {"name": "Kaspi: 📺 Телевизоры", "url": "https://kaspi.kz/shop/c/tvs/", "max_pages": 30},
-    {"name": "Kaspi: ❄️ Холодильники", "url": "https://kaspi.kz/shop/c/refrigerators/", "max_pages": 30},
-    {"name": "Kaspi: 🧺 Стиральные машины", "url": "https://kaspi.kz/shop/c/washers/", "max_pages": 30},
-    {"name": "Kaspi: 🧹 Пылесосы", "url": "https://kaspi.kz/shop/c/vacuum%20cleaners/", "max_pages": 30},
-    {"name": "Kaspi: 🤖 Роботы-пылесосы", "url": "https://kaspi.kz/shop/c/robot%20vacuum%20cleaners/", "max_pages": 30},
-    {"name": "Kaspi: ☕️ Кофемашины", "url": "https://kaspi.kz/shop/c/coffee%20machines%20and%20coffee%20makers/", "max_pages": 30},
-    {"name": "Kaspi: 💨 Кондиционеры", "url": "https://kaspi.kz/shop/c/air%20conditioners/", "max_pages": 30},
-    {"name": "Kaspi: 🖨 Принтеры и МФУ", "url": "https://kaspi.kz/shop/c/mf%20printers/", "max_pages": 30},
-    {"name": "Kaspi: 📽 Проекторы", "url": "https://kaspi.kz/shop/c/video%20projectors/", "max_pages": 30},
+    {"name": "Kaspi: 📱 Смартфоны", "url": "https://kaspi.kz/shop/c/smartphones/", "max_pages": 30, "master": "smartphones"},
+    {"name": "Kaspi: 💻 Ноутбуки", "url": "https://kaspi.kz/shop/c/notebooks/", "max_pages": 30, "master": "laptops"},
+    {"name": "Kaspi: ⌚️ Смарт-часы", "url": "https://kaspi.kz/shop/c/smart%20watches/", "max_pages": 30, "master": "tablets_watches"},
+    {"name": "Kaspi: 🎧 Наушники", "url": "https://kaspi.kz/shop/c/headphones/", "max_pages": 30, "master": "audio"},
+    {"name": "Kaspi: 📱 Планшеты", "url": "https://kaspi.kz/shop/c/tablets/", "max_pages": 30, "master": "tablets_watches"},
+    {"name": "Kaspi: 🖥 Мониторы", "url": "https://kaspi.kz/shop/c/monitors/", "max_pages": 30, "master": "monitors"},
+    {"name": "Kaspi: 🎮 Видеокарты", "url": "https://kaspi.kz/shop/c/videocards/", "max_pages": 30, "master": "pc_components"},
+    {"name": "Kaspi: ⚙️ Процессоры", "url": "https://kaspi.kz/shop/c/cpus/", "max_pages": 30, "master": "pc_components"},
+    {"name": "Kaspi: 🔌 Материнские платы", "url": "https://kaspi.kz/shop/c/motherboards/", "max_pages": 30, "master": "pc_components"},
+    {"name": "Kaspi: 🎮 Игровые приставки", "url": "https://kaspi.kz/shop/c/game%20consoles/", "max_pages": 30, "master": "consoles"},
+    {"name": "Kaspi: 📺 Телевизоры", "url": "https://kaspi.kz/shop/c/tvs/", "max_pages": 30, "master": "tvs"},
+    {"name": "Kaspi: ❄️ Холодильники", "url": "https://kaspi.kz/shop/c/refrigerators/", "max_pages": 30, "master": "appliances_large"},
+    {"name": "Kaspi: 🧺 Стиральные машины", "url": "https://kaspi.kz/shop/c/washers/", "max_pages": 30, "master": "appliances_large"},
+    {"name": "Kaspi: 🧹 Пылесосы", "url": "https://kaspi.kz/shop/c/vacuum%20cleaners/", "max_pages": 30, "master": "appliances_small"},
+    {"name": "Kaspi: 🤖 Роботы-пылесосы", "url": "https://kaspi.kz/shop/c/robot%20vacuum%20cleaners/", "max_pages": 30, "master": "appliances_small"},
+    {"name": "Kaspi: ☕️ Кофемашины", "url": "https://kaspi.kz/shop/c/coffee%20machines%20and%20coffee%20makers/", "max_pages": 30, "master": "appliances_small"},
+    {"name": "Kaspi: 💨 Кондиционеры", "url": "https://kaspi.kz/shop/c/air%20conditioners/", "max_pages": 30, "master": "appliances_large"},
+    {"name": "Kaspi: 🖨 Принтеры и МФУ", "url": "https://kaspi.kz/shop/c/mf%20printers/", "max_pages": 30, "master": "office_network"},
+    {"name": "Kaspi: 📽 Проекторы", "url": "https://kaspi.kz/shop/c/video%20projectors/", "max_pages": 30, "master": "tvs"},
 ]
 
 # 11. 4mobile (4mobile.pages.dev)
 FOURMOBILE_CATEGORIES = [
     # The endpoint already contains every group: fetch once and reconcile as one source.
-    {"name": "4mobile: Все товары", "url": "https://4mobile.pages.dev/api/data"}
+    {"name": "4mobile: Все товары", "url": "https://4mobile.pages.dev/api/data", "master": "all"}
 ]
-
-
-
-
 
 # Public catalog; regional stock is not confirmed, so offers appear under All cities.
 FLIP_CATEGORIES = [
-    {"name": "Flip: Электроника", "url": "https://www.flip.kz/catalog?subsection=5319", "max_pages": 50},
+    {"name": "Flip: Электроника", "url": "https://www.flip.kz/catalog?subsection=5319", "max_pages": 50, "master": "all"},
 ]
 
 # Halyk Market catalog (Almaty location=-2)
 HALYK_CATEGORIES = [
-    {"name": "Halyk: Смартфоны", "url": "https://halykmarket.kz/category/smartfony", "max_pages": 50},
-    {"name": "Halyk: Ноутбуки", "url": "https://halykmarket.kz/category/noutbuki", "max_pages": 50},
-    {"name": "Halyk: Телевизоры", "url": "https://halykmarket.kz/category/televizori", "max_pages": 50},
-    {"name": "Halyk: Наушники", "url": "https://halykmarket.kz/category/naushniki", "max_pages": 50},
-    {"name": "Halyk: Планшеты", "url": "https://halykmarket.kz/category/plansheti", "max_pages": 50},
-    {"name": "Halyk: Смарт-часы", "url": "https://halykmarket.kz/category/smart-chasi", "max_pages": 50},
-    {"name": "Halyk: Игровые приставки", "url": "https://halykmarket.kz/category/igrovie-pristavki", "max_pages": 50},
-    {"name": "Halyk: Мониторы", "url": "https://halykmarket.kz/category/monitori", "max_pages": 50},
+    {"name": "Halyk: Смартфоны", "url": "https://halykmarket.kz/category/smartfony", "max_pages": 50, "master": "smartphones"},
+    {"name": "Halyk: Ноутбуки", "url": "https://halykmarket.kz/category/noutbuki", "max_pages": 50, "master": "laptops"},
+    {"name": "Halyk: Телевизоры", "url": "https://halykmarket.kz/category/televizori", "max_pages": 50, "master": "tvs"},
+    {"name": "Halyk: Наушники", "url": "https://halykmarket.kz/category/naushniki", "max_pages": 50, "master": "audio"},
+    {"name": "Halyk: Планшеты", "url": "https://halykmarket.kz/category/plansheti", "max_pages": 50, "master": "tablets_watches"},
+    {"name": "Halyk: Смарт-часы", "url": "https://halykmarket.kz/category/smart-chasi", "max_pages": 50, "master": "tablets_watches"},
+    {"name": "Halyk: Игровые приставки", "url": "https://halykmarket.kz/category/igrovie-pristavki", "max_pages": 50, "master": "consoles"},
+    {"name": "Halyk: Мониторы", "url": "https://halykmarket.kz/category/monitori", "max_pages": 50, "master": "monitors"},
 ]
 # ТехноGRAD (tgrad.kz): склад в Алматы, страницы категорий /page-N/, конец выдачи — редирект 302
 TGRAD_CATEGORIES = [
-    {"name": "Tgrad: 📺 Телевизоры", "url": "https://tgrad.kz/televizory/"},
-    {"name": "Tgrad: 🔊 Портативная акустика", "url": "https://tgrad.kz/portativnaya-akustika/"},
-    {"name": "Tgrad: 🔈 Акустические системы", "url": "https://tgrad.kz/akusticheskie-sistemy/"},
-    {"name": "Tgrad: 📱 Смартфоны", "url": "https://tgrad.kz/smartfony/"},
-    {"name": "Tgrad: ⌚️ Смарт-часы", "url": "https://tgrad.kz/umnye-chasy/"},
-    {"name": "Tgrad: 📱 Планшеты", "url": "https://tgrad.kz/planshety/"},
-    {"name": "Tgrad: 🎧 Беспроводные наушники", "url": "https://tgrad.kz/besprovodnye-naushniki/"},
-    {"name": "Tgrad: 💻 Ноутбуки", "url": "https://tgrad.kz/noutbuki/"},
-    {"name": "Tgrad: 🖥 Мониторы", "url": "https://tgrad.kz/monitory/"},
-    {"name": "Tgrad: 🎧 Игровые наушники", "url": "https://tgrad.kz/igrovye-naushniki/"},
-    {"name": "Tgrad: 📡 Роутеры", "url": "https://tgrad.kz/routery/"},
-    {"name": "Tgrad: 🧹 Пылесосы", "url": "https://tgrad.kz/pylesosy/"},
-    {"name": "Tgrad: 🧹 Вертикальные пылесосы", "url": "https://tgrad.kz/vertikalnye-pylesosy/"},
-    {"name": "Tgrad: 🤖 Роботы-пылесосы", "url": "https://tgrad.kz/roboty-pylesosy/"},
-    {"name": "Tgrad: 👕 Утюги", "url": "https://tgrad.kz/utyugi/"},
-    {"name": "Tgrad: 💨 Отпариватели", "url": "https://tgrad.kz/otparivateli/"},
-    {"name": "Tgrad: 🚿 Водонагреватели", "url": "https://tgrad.kz/vodonagrevateli/"},
-    {"name": "Tgrad: ❄️ Кондиционеры", "url": "https://tgrad.kz/konditsionery/"},
-    {"name": "Tgrad: 🌬 Воздухоочистители", "url": "https://tgrad.kz/vozdukhoochistiteli/"},
-    {"name": "Tgrad: 🧺 Стиральные машины", "url": "https://tgrad.kz/stiralnye-mashiny/"},
-    {"name": "Tgrad: 🧺 Сушильные машины", "url": "https://tgrad.kz/sushilnye-mashiny/"},
-    {"name": "Tgrad: 🍽 Посудомоечные машины", "url": "https://tgrad.kz/posudomoechnye-mashiny/"},
-    {"name": "Tgrad: 🔥 Вытяжки", "url": "https://tgrad.kz/vytyazhki/"},
-    {"name": "Tgrad: 📦 Микроволновые печи", "url": "https://tgrad.kz/mikrovolnovye-pechi/"},
-    {"name": "Tgrad: 🍲 Мультиварки", "url": "https://tgrad.kz/multivarki/"},
-    {"name": "Tgrad: 🥤 Блендеры", "url": "https://tgrad.kz/blendery/"},
-    {"name": "Tgrad: 💇 Фены", "url": "https://tgrad.kz/feny-i-fen-shhetki/"},
-    {"name": "Tgrad: 🪒 Электробритвы", "url": "https://tgrad.kz/elektrobritvy/"},
+    {"name": "Tgrad: 📺 Телевизоры", "url": "https://tgrad.kz/televizory/", "master": "tvs"},
+    {"name": "Tgrad: 🔊 Портативная акустика", "url": "https://tgrad.kz/portativnaya-akustika/", "master": "audio"},
+    {"name": "Tgrad: 🔈 Акустические системы", "url": "https://tgrad.kz/akusticheskie-sistemy/", "master": "audio"},
+    {"name": "Tgrad: 📱 Смартфоны", "url": "https://tgrad.kz/smartfony/", "master": "smartphones"},
+    {"name": "Tgrad: ⌚️ Смарт-часы", "url": "https://tgrad.kz/umnye-chasy/", "master": "tablets_watches"},
+    {"name": "Tgrad: 📱 Планшеты", "url": "https://tgrad.kz/planshety/", "master": "tablets_watches"},
+    {"name": "Tgrad: 🎧 Беспроводные наушники", "url": "https://tgrad.kz/besprovodnye-naushniki/", "master": "audio"},
+    {"name": "Tgrad: 💻 Ноутбуки", "url": "https://tgrad.kz/noutbuki/", "master": "laptops"},
+    {"name": "Tgrad: 🖥 Мониторы", "url": "https://tgrad.kz/monitory/", "master": "monitors"},
+    {"name": "Tgrad: 🎧 Игровые наушники", "url": "https://tgrad.kz/igrovye-naushniki/", "master": "audio"},
+    {"name": "Tgrad: 📡 Роутеры", "url": "https://tgrad.kz/routery/", "master": "office_network"},
+    {"name": "Tgrad: 🧹 Пылесосы", "url": "https://tgrad.kz/pylesosy/", "master": "appliances_small"},
+    {"name": "Tgrad: 🧹 Вертикальные пылесосы", "url": "https://tgrad.kz/vertikalnye-pylesosy/", "master": "appliances_small"},
+    {"name": "Tgrad: 🤖 Роботы-пылесосы", "url": "https://tgrad.kz/roboty-pylesosy/", "master": "appliances_small"},
+    {"name": "Tgrad: 👕 Утюги", "url": "https://tgrad.kz/utyugi/", "master": "appliances_small"},
+    {"name": "Tgrad: 💨 Отпариватели", "url": "https://tgrad.kz/otparivateli/", "master": "appliances_small"},
+    {"name": "Tgrad: 🚿 Водонагреватели", "url": "https://tgrad.kz/vodonagrevateli/", "master": "appliances_large"},
+    {"name": "Tgrad: ❄️ Кондиционеры", "url": "https://tgrad.kz/konditsionery/", "master": "appliances_large"},
+    {"name": "Tgrad: 🌬 Воздухоочистители", "url": "https://tgrad.kz/vozdukhoochistiteli/", "master": "appliances_large"},
+    {"name": "Tgrad: 🧺 Стиральные машины", "url": "https://tgrad.kz/stiralnye-mashiny/", "master": "appliances_large"},
+    {"name": "Tgrad: 🧺 Сушильные машины", "url": "https://tgrad.kz/sushilnye-mashiny/", "master": "appliances_large"},
+    {"name": "Tgrad: 🍽 Посудомоечные машины", "url": "https://tgrad.kz/posudomoechnye-mashiny/", "master": "appliances_large"},
+    {"name": "Tgrad: 🔥 Вытяжки", "url": "https://tgrad.kz/vytyazhki/", "master": "appliances_large"},
+    {"name": "Tgrad: 📦 Микроволновые печи", "url": "https://tgrad.kz/mikrovolnovye-pechi/", "master": "appliances_small"},
+    {"name": "Tgrad: 🍲 Мультиварки", "url": "https://tgrad.kz/multivarki/", "master": "appliances_small"},
+    {"name": "Tgrad: 🥤 Блендеры", "url": "https://tgrad.kz/blendery/", "master": "appliances_small"},
+    {"name": "Tgrad: 💇 Фены", "url": "https://tgrad.kz/feny-i-fen-shhetki/", "master": "appliances_small"},
+    {"name": "Tgrad: 🪒 Электробритвы", "url": "https://tgrad.kz/elektrobritvy/", "master": "appliances_small"},
 ]
 # ANTS (ants.kz): Bitrix/Aspro, микроразметка schema.org, выдача «сначала в наличии».
 # Каталог большой (в «Ноутбуках» больше 12 страниц в наличии), поэтому глубина ограничена 25 страницами.
 ANTS_CATEGORIES = [
-    {"name": "ANTS: 💻 Ноутбуки", "url": "https://ants.kz/catalog/noutbuki/", "max_pages": 25},
-    {"name": "ANTS: 🖥 Моноблоки", "url": "https://ants.kz/catalog/monobloki/", "max_pages": 25},
-    {"name": "ANTS: 🖥 Системные блоки", "url": "https://ants.kz/catalog/sistemnye-bloki/", "max_pages": 25},
-    {"name": "ANTS: ⚙️ Процессоры", "url": "https://ants.kz/catalog/protsessory/", "max_pages": 25},
-    {"name": "ANTS: 🔌 Материнские платы", "url": "https://ants.kz/catalog/materinskie-platy/", "max_pages": 25},
-    {"name": "ANTS: 🧠 Оперативная память", "url": "https://ants.kz/catalog/operativnaya-pamyat/", "max_pages": 25},
-    {"name": "ANTS: 🎮 Видеокарты", "url": "https://ants.kz/catalog/videokarty/", "max_pages": 25},
-    {"name": "ANTS: 💾 SSD-накопители", "url": "https://ants.kz/catalog/ssd-nakopiteli/", "max_pages": 25},
-    {"name": "ANTS: 🗄 Корпуса", "url": "https://ants.kz/catalog/korpusa-dlya-kompyuterov/", "max_pages": 25},
-    {"name": "ANTS: 🖥 Мониторы", "url": "https://ants.kz/catalog/monitory/", "max_pages": 25},
-    {"name": "ANTS: 🎧 Наушники и гарнитуры", "url": "https://ants.kz/catalog/naushniki-i-garnitury/", "max_pages": 25},
-    {"name": "ANTS: 📡 Wi-Fi роутеры", "url": "https://ants.kz/catalog/wi-fi-routery/", "max_pages": 25},
-    {"name": "ANTS: 🖨 Принтеры", "url": "https://ants.kz/catalog/printery/", "max_pages": 25},
-    {"name": "ANTS: 🖨 МФУ", "url": "https://ants.kz/catalog/mnogofunktsionalnye-ustroystva-mfu/", "max_pages": 25},
-    {"name": "ANTS: 📽 Проекторы", "url": "https://ants.kz/catalog/proektory/", "max_pages": 25},
-    {"name": "ANTS: 📱 Смартфоны", "url": "https://ants.kz/catalog/smartfony/", "max_pages": 25},
-    {"name": "ANTS: 📱 Планшеты", "url": "https://ants.kz/catalog/planshety/", "max_pages": 25},
-    {"name": "ANTS: ⌚️ Смарт-часы", "url": "https://ants.kz/catalog/smart-chasy/", "max_pages": 25},
-    {"name": "ANTS: 📺 Телевизоры", "url": "https://ants.kz/catalog/televizory/", "max_pages": 25},
+    {"name": "ANTS: 💻 Ноутбуки", "url": "https://ants.kz/catalog/noutbuki/", "max_pages": 25, "master": "laptops"},
+    {"name": "ANTS: 🖥 Моноблоки", "url": "https://ants.kz/catalog/monobloki/", "max_pages": 25, "master": "monitors"},
+    {"name": "ANTS: 🖥 Системные блоки", "url": "https://ants.kz/catalog/sistemnye-bloki/", "max_pages": 25, "master": "pc_components"},
+    {"name": "ANTS: ⚙️ Процессоры", "url": "https://ants.kz/catalog/protsessory/", "max_pages": 25, "master": "pc_components"},
+    {"name": "ANTS: 🔌 Материнские платы", "url": "https://ants.kz/catalog/materinskie-platy/", "max_pages": 25, "master": "pc_components"},
+    {"name": "ANTS: 🧠 Оперативная память", "url": "https://ants.kz/catalog/operativnaya-pamyat/", "max_pages": 25, "master": "pc_components"},
+    {"name": "ANTS: 🎮 Видеокарты", "url": "https://ants.kz/catalog/videokarty/", "max_pages": 25, "master": "pc_components"},
+    {"name": "ANTS: 💾 SSD-накопители", "url": "https://ants.kz/catalog/ssd-nakopiteli/", "max_pages": 25, "master": "pc_components"},
+    {"name": "ANTS: 🗄 Корпуса", "url": "https://ants.kz/catalog/korpusa-dlya-kompyuterov/", "max_pages": 25, "master": "pc_components"},
+    {"name": "ANTS: 🖥 Мониторы", "url": "https://ants.kz/catalog/monitory/", "max_pages": 25, "master": "monitors"},
+    {"name": "ANTS: 🎧 Наушники и гарнитуры", "url": "https://ants.kz/catalog/naushniki-i-garnitury/", "max_pages": 25, "master": "audio"},
+    {"name": "ANTS: 📡 Wi-Fi роутеры", "url": "https://ants.kz/catalog/wi-fi-routery/", "max_pages": 25, "master": "office_network"},
+    {"name": "ANTS: 🖨 Принтеры", "url": "https://ants.kz/catalog/printery/", "max_pages": 25, "master": "office_network"},
+    {"name": "ANTS: 🖨 МФУ", "url": "https://ants.kz/catalog/mnogofunktsionalnye-ustroystva-mfu/", "max_pages": 25, "master": "office_network"},
+    {"name": "ANTS: 📽 Проекторы", "url": "https://ants.kz/catalog/proektory/", "max_pages": 25, "master": "tvs"},
+    {"name": "ANTS: 📱 Смартфоны", "url": "https://ants.kz/catalog/smartfony/", "max_pages": 25, "master": "smartphones"},
+    {"name": "ANTS: 📱 Планшеты", "url": "https://ants.kz/catalog/planshety/", "max_pages": 25, "master": "tablets_watches"},
+    {"name": "ANTS: ⌚️ Смарт-часы", "url": "https://ants.kz/catalog/smart-chasy/", "max_pages": 25, "master": "tablets_watches"},
+    {"name": "ANTS: 📺 Телевизоры", "url": "https://ants.kz/catalog/televizory/", "max_pages": 25, "master": "tvs"},
 ]
 
 # ITMag (itmag.kz): Bitrix/Aspro, микроразметка schema.org, конец выдачи — нет ссылки на следующую страницу
 ITMAG_CATEGORIES = [
-    {"name": "ITMag: 💻 Ноутбуки", "url": "https://itmag.kz/catalog/noutbuki/"},
-    {"name": "ITMag: 🖥 Моноблоки", "url": "https://itmag.kz/catalog/monobloki/"},
-    {"name": "ITMag: 🖥 Системные блоки", "url": "https://itmag.kz/catalog/personal-nye-komp-yutery/"},
-    {"name": "ITMag: ⚙️ Процессоры", "url": "https://itmag.kz/catalog/protsessory/"},
-    {"name": "ITMag: 🔌 Материнские платы", "url": "https://itmag.kz/catalog/materinskie_platy/"},
-    {"name": "ITMag: 🧠 Оперативная память", "url": "https://itmag.kz/catalog/operativnaya_pamyat/"},
-    {"name": "ITMag: 🎮 Видеокарты", "url": "https://itmag.kz/catalog/videokarty/"},
-    {"name": "ITMag: 💾 Жесткие диски и SSD", "url": "https://itmag.kz/catalog/zhestkie_diski/"},
-    {"name": "ITMag: 🗄 Корпуса", "url": "https://itmag.kz/catalog/korpusa/"},
-    {"name": "ITMag: 🔋 Блоки питания", "url": "https://itmag.kz/catalog/bloki-pitaniya-k-korpusam/"},
-    {"name": "ITMag: 🖥 Мониторы", "url": "https://itmag.kz/catalog/monitory/"},
-    {"name": "ITMag: 🎧 Наушники и гарнитуры", "url": "https://itmag.kz/catalog/naushniki-garnitury-i-mikrofony/"},
-    {"name": "ITMag: 📡 Wi-Fi роутеры", "url": "https://itmag.kz/catalog/besprovod_marshrutizatory_wifi_routery/"},
-    {"name": "ITMag: 🖨 Принтеры", "url": "https://itmag.kz/catalog/printery/"},
-    {"name": "ITMag: 🖨 МФУ", "url": "https://itmag.kz/catalog/mnogofunktsionalnye_ustroystva_mfu/"},
-    {"name": "ITMag: 📽 Проекторы", "url": "https://itmag.kz/catalog/proektory/"},
-    {"name": "ITMag: 📱 Смартфоны", "url": "https://itmag.kz/catalog/smartfony-i-mobilnye-telefony/"},
-    {"name": "ITMag: 📱 Планшеты", "url": "https://itmag.kz/catalog/planshety/"},
-    {"name": "ITMag: 📺 Телевизоры", "url": "https://itmag.kz/catalog/televizory/"},
+    {"name": "ITMag: 💻 Ноутбуки", "url": "https://itmag.kz/catalog/noutbuki/", "master": "laptops"},
+    {"name": "ITMag: 🖥 Моноблоки", "url": "https://itmag.kz/catalog/monobloki/", "master": "monitors"},
+    {"name": "ITMag: 🖥 Системные блоки", "url": "https://itmag.kz/catalog/personal-nye-komp-yutery/", "master": "pc_components"},
+    {"name": "ITMag: ⚙️ Процессоры", "url": "https://itmag.kz/catalog/protsessory/", "master": "pc_components"},
+    {"name": "ITMag: 🔌 Материнские платы", "url": "https://itmag.kz/catalog/materinskie_platy/", "master": "pc_components"},
+    {"name": "ITMag: 🧠 Оперативная память", "url": "https://itmag.kz/catalog/operativnaya_pamyat/", "master": "pc_components"},
+    {"name": "ITMag: 🎮 Видеокарты", "url": "https://itmag.kz/catalog/videokarty/", "master": "pc_components"},
+    {"name": "ITMag: 💾 Жесткие диски и SSD", "url": "https://itmag.kz/catalog/zhestkie_diski/", "master": "pc_components"},
+    {"name": "ITMag: 🗄 Корпуса", "url": "https://itmag.kz/catalog/korpusa/", "master": "pc_components"},
+    {"name": "ITMag: 🔋 Блоки питания", "url": "https://itmag.kz/catalog/bloki-pitaniya-k-korpusam/", "master": "pc_components"},
+    {"name": "ITMag: 🖥 Мониторы", "url": "https://itmag.kz/catalog/monitory/", "master": "monitors"},
+    {"name": "ITMag: 🎧 Наушники и гарнитуры", "url": "https://itmag.kz/catalog/naushniki-garnitury-i-mikrofony/", "master": "audio"},
+    {"name": "ITMag: 📡 Wi-Fi роутеры", "url": "https://itmag.kz/catalog/besprovod_marshrutizatory_wifi_routery/", "master": "office_network"},
+    {"name": "ITMag: 🖨 Принтеры", "url": "https://itmag.kz/catalog/printery/", "master": "office_network"},
+    {"name": "ITMag: 🖨 МФУ", "url": "https://itmag.kz/catalog/mnogofunktsionalnye_ustroystva_mfu/", "master": "office_network"},
+    {"name": "ITMag: 📽 Проекторы", "url": "https://itmag.kz/catalog/proektory/", "master": "tvs"},
+    {"name": "ITMag: 📱 Смартфоны", "url": "https://itmag.kz/catalog/smartfony-i-mobilnye-telefony/", "master": "smartphones"},
+    {"name": "ITMag: 📱 Планшеты", "url": "https://itmag.kz/catalog/planshety/", "master": "tablets_watches"},
+    {"name": "ITMag: 📺 Телевизоры", "url": "https://itmag.kz/catalog/televizory/", "master": "tvs"},
 ]
 
 # iSpace (ispace.kz): ссылки из сетки категории + JSON-LD карточки товара (цены в сетке не отдаются)
 ISPACE_CATEGORIES = [
-    {"name": "iSpace: 💻 Mac", "url": "https://ispace.kz/category/mac"},
-    {"name": "iSpace: 📱 iPad", "url": "https://ispace.kz/category/ipad"},
-    {"name": "iSpace: 📱 iPhone", "url": "https://ispace.kz/category/iphone"},
-    {"name": "iSpace: ⌚️ Apple Watch", "url": "https://ispace.kz/category/apple-watch"},
-    {"name": "iSpace: 🎧 AirPods", "url": "https://ispace.kz/category/apple-airpods"},
-    {"name": "iSpace: 🎧 Наушники", "url": "https://ispace.kz/category/headsets"},
-    {"name": "iSpace: 🔊 Колонки", "url": "https://ispace.kz/category/speakers"},
+    {"name": "iSpace: 💻 Mac", "url": "https://ispace.kz/category/mac", "master": "laptops"},
+    {"name": "iSpace: 📱 iPad", "url": "https://ispace.kz/category/ipad", "master": "tablets_watches"},
+    {"name": "iSpace: 📱 iPhone", "url": "https://ispace.kz/category/iphone", "master": "smartphones"},
+    {"name": "iSpace: ⌚️ Apple Watch", "url": "https://ispace.kz/category/apple-watch", "master": "tablets_watches"},
+    {"name": "iSpace: 🎧 AirPods", "url": "https://ispace.kz/category/apple-airpods", "master": "audio"},
+    {"name": "iSpace: 🎧 Наушники", "url": "https://ispace.kz/category/headsets", "master": "audio"},
+    {"name": "iSpace: 🔊 Колонки", "url": "https://ispace.kz/category/speakers", "master": "audio"},
 ]
 
 

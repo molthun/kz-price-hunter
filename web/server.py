@@ -34,7 +34,10 @@ from config import (
     TGRAD_CATEGORIES,
     ANTS_CATEGORIES,
     ITMAG_CATEGORIES,
-    ISPACE_CATEGORIES
+    ISPACE_CATEGORIES,
+    MASTER_CATEGORIES,
+    get_wave_plan,
+    DEFAULT_HOT_CATEGORIES
 )
 from version import get_version_info
 from database import (
@@ -116,7 +119,17 @@ scan_state = {
     "total_scanned": 0,
     "anomalies_found": 0,
     "last_completed": None,
-    "error": None
+    "error": None,
+    "scan_type": "manual",  # "manual", "auto", "category"
+    "target_categories": None,
+    "wave_info": None,
+}
+
+# Состояние ротации волн
+wave_state = {
+    "current_wave_index": 0,
+    "last_wave_categories": [],
+    "next_wave_categories": []
 }
 
 # Прямой опрос магазинов создает нагрузку на их сайты — ограничиваем частоту
@@ -191,6 +204,21 @@ async def categories_handler(request):
 async def stats_handler(request):
     stats = get_stats(user_settings_for(request))
     stats["scan_state"] = scan_state
+    settings = load_settings()
+    plan = get_wave_plan(
+        enabled_categories=settings.get("enabled_categories"),
+        hot_categories=settings.get("hot_categories", DEFAULT_HOT_CATEGORIES),
+        wave_index=wave_state["current_wave_index"],
+        wave_size=settings.get("wave_size", 2)
+    )
+    stats["wave_info"] = {
+        "wave_mode": settings.get("wave_mode", "rolling"),
+        "wave_index": plan["wave_index"],
+        "total_waves": plan["total_waves"],
+        "hot_categories": [MASTER_CATEGORIES[c]["name"] for c in plan["hot_categories"] if c in MASTER_CATEGORIES],
+        "wave_categories": [MASTER_CATEGORIES[c]["name"] for c in plan["wave_categories"] if c in MASTER_CATEGORIES],
+        "next_wave_categories": [MASTER_CATEGORIES[c]["name"] for c in plan["next_wave_categories"] if c in MASTER_CATEGORIES],
+    }
     return web.json_response(stats)
 
 @routes.get("/api/alerts")
@@ -737,9 +765,93 @@ async def ai_normalize_background_worker(app):
         except Exception as e:
             print(f"[AI] Ошибка фоновой нормализации: {type(e).__name__}")
 
-async def _scan_shop(key, candidate_settings, semaphore):
-    """Обходит все категории одного магазина и отмечает результат в базе."""
-    scraper_cls, categories, shop_name = SHOP_REGISTRY[key]
+def get_categories_overview():
+    """Возвращает информацию обо всех мастер-категориях: количество товаров в базе, статус волн, магазины."""
+    from database import get_connection
+    settings = load_settings()
+    enabled_cats = settings.get("enabled_categories") or {k: True for k in MASTER_CATEGORIES}
+    hot_cats = set(settings.get("hot_categories", DEFAULT_HOT_CATEGORIES))
+    wave_mode = settings.get("wave_mode", "rolling")
+    wave_size = settings.get("wave_size", 2)
+
+    name_to_master = {}
+    master_to_shops = {k: set() for k in MASTER_CATEGORIES}
+    for shop_key, (cls, cats, shop_name) in SHOP_REGISTRY.items():
+        for c in cats:
+            m = c.get("master")
+            if m and m in MASTER_CATEGORIES:
+                name_to_master[c["name"]] = m
+                master_to_shops[m].add(shop_name)
+            elif m == "all":
+                for mk in MASTER_CATEGORIES:
+                    master_to_shops[mk].add(shop_name)
+
+    def classify(c_name: str) -> str:
+        if c_name in name_to_master:
+            return name_to_master[c_name]
+        cl = (c_name or "").lower()
+        if "ноутбук" in cl: return "laptops"
+        if "смартфон" in cl or "телефон" in cl or "iphone" in cl: return "smartphones"
+        if "телевизор" in cl or "led" in cl or "oled" in cl: return "tvs"
+        if "монитор" in cl or "моноблок" in cl: return "monitors"
+        if any(k in cl for k in ["наушник", "гарнитур", "акустик", "колонк", "airpods"]): return "audio"
+        if any(k in cl for k in ["видеокарт", "процессор", "материнск", "памят", "ssd", "hdd", "диск", "корпус", "блок питания", "охлажден"]): return "pc_components"
+        if "планшет" in cl or "ipad" in cl or "час" in cl or "watch" in cl: return "tablets_watches"
+        if any(k in cl for k in ["приставк", "консол", "ps5", "xbox"]): return "consoles"
+        if any(k in cl for k in ["холодильник", "стиральн", "кондиционер", "посудомоечн", "вытяжк", "плит"]): return "appliances_large"
+        if any(k in cl for k in ["пылесос", "утюг", "кофе", "микроволн", "мультиварк", "блендер", "фен", "бритв"]): return "appliances_small"
+        if any(k in cl for k in ["принтер", "мфу", "роутер", "маршрутизатор"]): return "office_network"
+        if "акци" in cl or "распродаж" in cl: return "actions"
+        return "other"
+
+    counts = {k: 0 for k in MASTER_CATEGORIES}
+    with get_connection() as conn:
+        rows = conn.execute("SELECT category, count(*) FROM products WHERE is_active = 1 GROUP BY category").fetchall()
+        for r in rows:
+            m = classify(r[0] or "")
+            if m in counts:
+                counts[m] += r[1]
+
+    plan = get_wave_plan(enabled_categories=enabled_cats, hot_categories=list(hot_cats), wave_index=wave_state["current_wave_index"], wave_size=wave_size)
+
+    categories_list = []
+    for cat_id, meta in MASTER_CATEGORIES.items():
+        is_enabled = bool(enabled_cats.get(cat_id, True))
+        is_hot = cat_id in hot_cats
+        is_in_wave = cat_id in plan.get("wave_categories", [])
+        is_in_next_wave = cat_id in plan.get("next_wave_categories", [])
+        categories_list.append({
+            "id": cat_id,
+            "name": meta["name"],
+            "icon": meta["icon"],
+            "description": meta["description"],
+            "enabled": is_enabled,
+            "is_hot": is_hot,
+            "is_in_wave": is_in_wave,
+            "is_in_next_wave": is_in_next_wave,
+            "products_count": counts.get(cat_id, 0),
+            "shops_count": len(master_to_shops.get(cat_id, set())),
+        })
+
+    return {
+        "categories": categories_list,
+        "wave_mode": wave_mode,
+        "wave_size": wave_size,
+        "wave_plan": plan,
+        "wave_state": wave_state
+    }
+
+async def _scan_shop(key, candidate_settings, semaphore, target_categories=None):
+    """Обходит категории одного магазина (с фильтрацией по target_categories при наличии)."""
+    scraper_cls, all_categories, shop_name = SHOP_REGISTRY[key]
+    if target_categories is not None:
+        categories = [cat for cat in all_categories if cat.get("master") == "all" or cat.get("master") in target_categories]
+    else:
+        categories = all_categories
+
+    if not categories:
+        return 0
+
     async with semaphore:
         scraper = scraper_cls()
         started = time.monotonic()
@@ -780,8 +892,8 @@ async def _scan_shop(key, candidate_settings, semaphore):
         print(f"[{shop_name}] {status}: {collected} товаров за {duration:.0f}с")
         return collected
 
-async def _do_scan_task(shop_keys=None):
-    global scan_state
+async def _do_scan_task(shop_keys=None, target_categories=None, scan_type="manual"):
+    global scan_state, wave_state
     # Проверка и установка флага до первого await — защита от параллельного запуска двух сканирований
     if scan_state["is_running"]:
         return
@@ -791,17 +903,64 @@ async def _do_scan_task(shop_keys=None):
     scan_state["current_step"] = 0
     scan_state["progress_pct"] = 0
     scan_state["error"] = None
+    scan_state["scan_type"] = scan_type
+    scan_state["target_categories"] = list(target_categories) if target_categories else None
 
     settings = load_settings()
     candidate_settings = get_candidate_settings(settings)
     keys = list(dict.fromkeys(k for k in (shop_keys if shop_keys is not None else enabled_shop_keys(settings)) if k in SHOP_REGISTRY))
 
-    scan_state["total_steps"] = max(1, sum(len(SHOP_REGISTRY[k][1]) for k in keys))
-    print(f"[Scan] Старт обхода {len(keys)} магазинов: {', '.join(SHOP_REGISTRY[k][2] for k in keys)}")
+    # Если плановый авто-запуск: рассчитываем волну категорий
+    if scan_type == "auto" and target_categories is None:
+        wave_mode = settings.get("wave_mode", "rolling")
+        if wave_mode == "rolling":
+            plan = get_wave_plan(
+                enabled_categories=settings.get("enabled_categories"),
+                hot_categories=settings.get("hot_categories", DEFAULT_HOT_CATEGORIES),
+                wave_index=wave_state["current_wave_index"],
+                wave_size=settings.get("wave_size", 2)
+            )
+            target_categories = plan["active_categories"]
+            wave_state["last_wave_categories"] = plan["wave_categories"]
+            wave_state["next_wave_categories"] = plan["next_wave_categories"]
+            wave_state["current_wave_index"] = plan["next_wave_index"]
+            scan_state["wave_info"] = {
+                "wave_index": plan["wave_index"],
+                "total_waves": plan["total_waves"],
+                "hot_categories": plan["hot_categories"],
+                "wave_categories": plan["wave_categories"],
+                "next_wave_categories": plan["next_wave_categories"]
+            }
+            print(f"[Wave] 🌊 Волна #{plan['wave_index'] + 1}/{plan['total_waves']}: Hot={plan['hot_categories']}, Wave={plan['wave_categories']}")
+        else:
+            enabled_cats = settings.get("enabled_categories")
+            if enabled_cats:
+                target_categories = {k for k, v in enabled_cats.items() if v and k in MASTER_CATEGORIES}
+            scan_state["wave_info"] = None
+    elif scan_type == "category":
+        cat_names = [MASTER_CATEGORIES[c]["name"] for c in target_categories if c in MASTER_CATEGORIES]
+        print(f"[Scan] ⚡️ On-Demand сбор категории: {', '.join(cat_names) or target_categories}")
+
+    # Подсчитываем точное количество шагов с учетом фильтрации категорий
+    total_steps = 0
+    for k in keys:
+        all_cats = SHOP_REGISTRY[k][1]
+        if target_categories is not None:
+            filtered = [c for c in all_cats if c.get("master") == "all" or c.get("master") in target_categories]
+        else:
+            filtered = all_cats
+        total_steps += len(filtered)
+    scan_state["total_steps"] = max(1, total_steps)
+
+    cat_desc = f" [{len(target_categories)} категорий]" if target_categories else ""
+    print(f"[Scan] Старт обхода {len(keys)} магазинов{cat_desc}: {', '.join(SHOP_REGISTRY[k][2] for k in keys)}")
 
     try:
         semaphore = asyncio.Semaphore(SHOP_CONCURRENCY)
-        results = await asyncio.gather(*[_scan_shop(k, candidate_settings, semaphore) for k in keys], return_exceptions=True)
+        results = await asyncio.gather(
+            *[_scan_shop(k, candidate_settings, semaphore, target_categories=target_categories) for k in keys],
+            return_exceptions=True
+        )
         for key, res in zip(keys, results):
             if isinstance(res, Exception):
                 print(f"[Scan] Магазин {SHOP_REGISTRY[key][2]} упал: {res}")
@@ -817,6 +976,8 @@ async def _do_scan_task(shop_keys=None):
         scan_state["is_running"] = False
         scan_state["current_shop"] = ""
         scan_state["current_category"] = ""
+        scan_state["scan_type"] = "manual"
+        scan_state["target_categories"] = None
 
 @routes.post("/api/scan/start")
 @require_admin
@@ -835,8 +996,80 @@ async def start_scan_handler(request):
         except (ValueError, AttributeError, TypeError):
             return web.json_response({"message": "Укажите непустой список известных магазинов"}, status=400)
 
-    asyncio.create_task(_do_scan_task(shops))
+    asyncio.create_task(_do_scan_task(shops, scan_type="manual"))
     return web.json_response({"status": "started"})
+
+@routes.get("/api/admin/categories")
+@require_admin
+async def admin_categories_handler(request):
+    """Справочник мастер-категорий со статистикой по базе, активным волнам и магазинам."""
+    overview = await asyncio.to_thread(get_categories_overview)
+    return web.json_response(overview)
+
+@routes.post("/api/admin/categories")
+@require_admin
+async def admin_save_categories_handler(request):
+    """Сохранение включенных категорий, hot-категорий и параметров волн."""
+    try:
+        payload = await request.json()
+        if not isinstance(payload, dict):
+            raise ValueError("Ожидается JSON объект")
+        current = load_settings()
+        updates = {}
+        if "enabled_categories" in payload:
+            if not isinstance(payload["enabled_categories"], dict):
+                raise ValueError("enabled_categories должен быть объектом {category_id: bool}")
+            updates["enabled_categories"] = {
+                k: bool(v) for k, v in payload["enabled_categories"].items() if k in MASTER_CATEGORIES
+            }
+        if "hot_categories" in payload:
+            if not isinstance(payload["hot_categories"], list):
+                raise ValueError("hot_categories должен быть массивом")
+            updates["hot_categories"] = [c for c in payload["hot_categories"] if c in MASTER_CATEGORIES]
+        if "wave_mode" in payload:
+            if payload["wave_mode"] not in ("rolling", "all"):
+                raise ValueError("Некорректный wave_mode (допустимо: rolling, all)")
+            updates["wave_mode"] = payload["wave_mode"]
+        if "wave_size" in payload:
+            updates["wave_size"] = max(1, min(int(payload["wave_size"]), len(MASTER_CATEGORIES)))
+
+        saved = save_settings({**current, **updates})
+        overview = await asyncio.to_thread(get_categories_overview)
+        return web.json_response({"status": "ok", "settings": saved, "overview": overview})
+    except ValueError as e:
+        return web.json_response({"status": "error", "message": str(e)}, status=400)
+    except Exception as e:
+        return web.json_response({"status": "error", "message": f"Ошибка сохранения: {e}"}, status=400)
+
+@routes.post("/api/scan/category")
+@require_admin
+async def start_category_scan_handler(request):
+    """On-Demand точечный запуск сканирования конкретной мастер-категории."""
+    if scan_state["is_running"]:
+        return web.json_response({"status": "already_running", "message": "Сканирование уже выполняется"}, status=409)
+
+    category = None
+    shops = None
+    if request.can_read_body:
+        try:
+            payload = await request.json()
+            category = payload.get("category")
+            shops = payload.get("shops")
+        except Exception:
+            pass
+
+    if not category or category not in MASTER_CATEGORIES:
+        return web.json_response({"status": "error", "message": f"Укажите корректный category_id из списка {list(MASTER_CATEGORIES.keys())}"}, status=400)
+
+    if shops is not None and (not isinstance(shops, list) or any(not isinstance(k, str) or k not in SHOP_REGISTRY for k in shops)):
+        return web.json_response({"status": "error", "message": "Некорректный список магазинов"}, status=400)
+
+    asyncio.create_task(_do_scan_task(shops, target_categories={category}, scan_type="category"))
+    return web.json_response({
+        "status": "started",
+        "category": category,
+        "category_name": MASTER_CATEGORIES[category]["name"]
+    })
 
 @routes.get("/api/admin/shops")
 @require_admin
@@ -926,7 +1159,7 @@ async def auto_scan_background_worker(app):
 
             names = ", ".join(SHOP_REGISTRY[k][2] for k in stale[:4]) + ("..." if len(stale) > 4 else "")
             print(f"[AutoScan] ⏰ Требуют обновления {len(stale)} магазинов (порог {max_age_seconds // 60} мин): {names}")
-            asyncio.create_task(_do_scan_task(stale))
+            asyncio.create_task(_do_scan_task(stale, scan_type="auto"))
         except asyncio.CancelledError:
             print("[AutoScan] Фоновый монитор остановлен.")
             break

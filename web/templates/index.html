@@ -559,6 +559,26 @@
       <!-- Контейнер результатов поиска -->
       <div id="bestPriceResults" class="hidden space-y-6">
 
+        <!-- Баннер при малом количестве результатов (On-Demand парсинг категории) -->
+        <div id="bestPriceFewResultsNotice" class="hidden p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-slate-900 to-cyan-500/10 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+          <div class="space-y-0.5">
+            <div class="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+              <i class="fa-solid fa-bolt text-amber-400"></i>
+              <span>Мало предложений в базе?</span>
+            </div>
+            <div id="bestPriceFewResultsText" class="text-xs text-slate-300">
+              Найдено мало результатов. Вы можете точечно обновить предложения по нужной категории по всем 17 магазинам.
+            </div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+            <select id="bestPriceCategorySelect" class="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500"></select>
+            <button type="button" onclick="triggerCategoryScanFromSearch()" id="btnTriggerCategoryScan" class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shrink-0 shadow-md">
+              <i class="fa-solid fa-arrows-rotate"></i>
+              <span>Обновить сейчас</span>
+            </button>
+          </div>
+        </div>
+
         <!-- Топ-1 Победитель по цене: HERO КАРТОЧКА -->
         <div id="bestDealHeroContainer"></div>
 
@@ -1261,6 +1281,77 @@
 
         </div>
 
+        <!-- Админ: Волновое расписание и категории каталога (3-в-1) -->
+        <div class="glass p-6 rounded-2xl space-y-5 md:col-span-2">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 class="text-base font-semibold text-white flex items-center gap-2">
+                <span>🌊 Волновое расписание и категории каталога</span>
+                <span id="waveCurrentBadge" class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">Волна...</span>
+              </h3>
+              <p class="text-xs text-slate-400 mt-1">
+                Система «3-в-1»: 1) Чекбоксы отслеживания категорий; 2) Ротация по волнам (Hot-категории сканируются каждый цикл, а второстепенные сменяются кругами); 3) Мгновенный On-Demand запуск парсинга нужной категории.
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="loadAdminCategories()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 transition flex items-center gap-1.5 cursor-pointer">
+                <i class="fa-solid fa-rotate text-slate-400"></i>
+                <span>Обновить данные</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Настройки параметров волнового режима -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-xl bg-slate-900/80 border border-slate-800">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Режим сканирования:</label>
+              <select id="selectWaveMode" onchange="markCategoriesDirty()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500">
+                <option value="rolling">🌊 Волновой (рекомендуется — защита от банов)</option>
+                <option value="all">⚡️ Все активные категории каждый раз</option>
+              </select>
+              <span class="text-[10px] text-slate-500 mt-1 block">Hot-категории проверяются всегда, остальные — частями</span>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Размер волны (категорий за обход):</label>
+              <input type="number" id="inputWaveSize" min="1" max="10" value="2" onchange="markCategoriesDirty()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500">
+              <span class="text-[10px] text-slate-500 mt-1 block">Количество категорий в ротации одной волны</span>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Текущее состояние волн:</label>
+              <div id="wavePlanSummary" class="text-xs text-slate-300 py-1 space-y-1">
+                <div class="truncate">🔥 Hot: <span id="waveHotCatsSummary" class="text-amber-400 font-medium">...</span></div>
+                <div class="truncate">🌊 В этой волне: <span id="waveActiveCatsSummary" class="text-cyan-400 font-medium">...</span></div>
+                <div class="truncate text-[11px] text-slate-400">⏳ След. волна: <span id="waveNextCatsSummary" class="text-slate-300">...</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Сетка 12 мастер-категорий -->
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <div class="text-xs font-semibold text-slate-300">Категории каталога (12 мастер-групп по 17 магазинам РК):</div>
+              <div class="space-x-2 text-xs">
+                <button type="button" onclick="toggleAllCategories(true)" class="text-emerald-400 hover:underline">Включить все</button>
+                <span class="text-slate-600">•</span>
+                <button type="button" onclick="toggleAllCategories(false)" class="text-slate-400 hover:underline">Отключить все</button>
+              </div>
+            </div>
+            <div id="adminCategoriesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-400">Загрузка категорий...</div>
+            </div>
+          </div>
+
+          <div class="pt-3 flex items-center justify-between gap-4 border-t border-slate-800">
+            <div id="categorySaveResultToast" class="hidden text-xs font-medium"></div>
+            <button type="button" onclick="saveAdminCategories()" id="btnSaveCategories" class="ml-auto flex items-center space-x-2 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 disabled:opacity-50 text-white font-medium px-5 py-2.5 rounded-xl text-xs shadow-lg shadow-cyan-600/20 transition cursor-pointer">
+              <i class="fa-solid fa-floppy-disk"></i>
+              <span>Сохранить настройки категорий</span>
+            </button>
+          </div>
+        </div>
+
         <!-- Админ: пользователи -->
         <div class="glass p-6 rounded-2xl space-y-4 md:col-span-2">
           <h3 class="text-base font-semibold text-white flex items-center gap-2">
@@ -1854,8 +1945,20 @@
 
           if (progressFill) progressFill.style.width = pct + '%';
           if (icon) icon.className = 'fa-solid fa-spinner fa-spin text-emerald-400 text-xs';
-          if (title) title.innerHTML = `<span class="text-emerald-300 font-bold">Авто-обновление: ${pct}%</span>`;
-          if (detail) detail.innerText = `${shopName} (${scanned} тов.)`;
+
+          const scanType = state.scan_type || 'auto';
+          if (scanType === 'category') {
+            const catLabel = state.target_categories && state.target_categories.length ? state.target_categories.join(', ') : 'Категория';
+            if (title) title.innerHTML = `<span class="text-amber-300 font-bold">Точечный сбор: ${pct}%</span>`;
+            if (detail) detail.innerText = `${catLabel} • ${shopName} (${scanned} тов.)`;
+          } else if (scanType === 'auto' && data.wave_info && data.wave_info.mode === 'rolling') {
+            const step = data.wave_info.wave_step ? ` [${data.wave_info.wave_step}]` : '';
+            if (title) title.innerHTML = `<span class="text-cyan-300 font-bold">Волна${step}: ${pct}%</span>`;
+            if (detail) detail.innerText = `${shopName} (${scanned} тов.)`;
+          } else {
+            if (title) title.innerHTML = `<span class="text-emerald-300 font-bold">Авто-обновление: ${pct}%</span>`;
+            if (detail) detail.innerText = `${shopName} (${scanned} тов.)`;
+          }
 
           if (!pollInterval) {
             pollInterval = setInterval(loadStats, 1000);
@@ -1881,8 +1984,11 @@
             // База актуальна (моложе порога автообновления из настроек)
             if (dot) dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0';
             const nextSec = Math.max(60, thresholdSec - ageSec);
+            const waveSuffix = (data.wave_info && data.wave_info.mode === 'rolling' && data.wave_info.next_wave_categories && data.wave_info.next_wave_categories.length)
+              ? ` • след: ${data.wave_info.next_wave_categories.slice(0, 2).join(', ')}`
+              : '';
             if (title) title.innerText = 'База актуальна';
-            if (detail) detail.innerText = ageSec < 60 ? 'обновлена только что' : `обновлена ${formatDuration(ageSec)} назад • авто через ${formatDuration(nextSec)}`;
+            if (detail) detail.innerText = ageSec < 60 ? 'обновлена только что' : `обновлена ${formatDuration(ageSec)} назад • авто через ${formatDuration(nextSec)}${waveSuffix}`;
           } else {
             // База старше порога — фоновый монитор скоро запустит обновление
             if (dot) dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 pulse-dot shrink-0';
@@ -2693,12 +2799,23 @@
 
         if (!data || !data.items || data.items.length === 0) {
           emptyState.classList.remove('hidden');
+          const detectedCat = detectMasterCategory(q, '');
           emptyState.innerHTML = `
             <div class="text-4xl mb-3">😕</div>
             <h3 class="text-base font-semibold text-white">Ничего не найдено по запросу "${escapeHtml(q)}"</h3>
             <p class="text-xs text-slate-400 mt-1 max-w-md mx-auto">
-              Попробуйте выбрать город «Все города», изменить категорию, диапазон цен или сократить запрос (например: вместо "Apple Watch Ultra 2 49mm" введите "Apple Watch").
+              Попробуйте выбрать город «Все города», изменить категорию, диапазон цен или сократить запрос.
             </p>
+            <div class="mt-5 inline-flex flex-col sm:flex-row items-center gap-2.5 p-3.5 rounded-2xl bg-slate-900/90 border border-slate-700/80 shadow-xl">
+              <span class="text-xs text-slate-300 font-medium">⚡️ Запустить точечный сбор по всем 17 магазинам для категории:</span>
+              <select id="emptyStateCategorySelect" class="bg-slate-800 border border-slate-600 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500">
+                ${renderMasterCategoryOptions(detectedCat)}
+              </select>
+              <button type="button" onclick="triggerCategoryScanFromEmpty()" class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shrink-0 shadow-md">
+                <i class="fa-solid fa-bolt"></i>
+                <span>Собрать сейчас</span>
+              </button>
+            </div>
           `;
           return;
         }
@@ -2938,6 +3055,25 @@
       // 3. Shop Chips & Offers Table
       renderShopFilterChips(data);
       renderBestPriceTable(items, stats);
+
+      // 4. Баннер при малом количестве предложений (<= 3 товаров)
+      const fewNotice = document.getElementById('bestPriceFewResultsNotice');
+      if (fewNotice) {
+        if (items.length > 0 && items.length <= 3) {
+          const q = (document.getElementById('bestPriceSearchInput')?.value || '').trim();
+          const cat = detectMasterCategory(q, items[0]?.category || '');
+          fewNotice.classList.remove('hidden');
+          const sel = document.getElementById('bestPriceCategorySelect');
+          if (sel) sel.innerHTML = renderMasterCategoryOptions(cat);
+          const txt = document.getElementById('bestPriceFewResultsText');
+          if (txt) {
+            const catName = MASTER_CATEGORIES_INFO[cat]?.name || 'этой категории';
+            txt.innerHTML = `В каталоге найдено всего <b>${items.length}</b> предложений. Вы можете точечно обновить категорию <b>«${escapeHtml(catName)}»</b> по всем 17 магазинам:`;
+          }
+        } else {
+          fewNotice.classList.add('hidden');
+        }
+      }
     }
 
     async function loadCatalog(offset = 0) {
@@ -3407,6 +3543,246 @@
       }
       loadAdminUsers();
       loadAdminShops();
+      loadAdminCategories();
+    }
+
+    const MASTER_CATEGORIES_INFO = {
+      smartphones: { name: 'Смартфоны и телефоны', icon: '📱' },
+      laptops: { name: 'Ноутбуки и ультрабуки', icon: '💻' },
+      pc_components: { name: 'Комплектующие для ПК', icon: '⚙️' },
+      monitors: { name: 'Мониторы', icon: '🖥' },
+      tvs: { name: 'Телевизоры', icon: '📺' },
+      audio: { name: 'Наушники и аудио', icon: '🎧' },
+      tablets_watches: { name: 'Планшеты и смарт-часы', icon: '⌚️' },
+      consoles: { name: 'Игровые приставки и гейминг', icon: '🎮' },
+      appliances_large: { name: 'Крупная бытовая техника', icon: '❄️' },
+      appliances_small: { name: 'Мелкая бытовая техника', icon: '☕️' },
+      office_network: { name: 'Офис, принтеры и сеть', icon: '🖨' },
+      actions: { name: 'Акции и распродажи', icon: '🔥' }
+    };
+
+    let cachedCategoriesData = null;
+    let categoriesDirty = false;
+
+    function markCategoriesDirty() {
+      categoriesDirty = true;
+    }
+
+    function detectMasterCategory(query, itemCategory) {
+      const q = (query + ' ' + (itemCategory || '')).toLowerCase();
+      if (q.includes('ноут') || q.includes('macbook') || q.includes('лэптоп')) return 'laptops';
+      if (q.includes('смартфон') || q.includes('телефон') || q.includes('iphone') || q.includes('galaxy s') || q.includes('redmi') || q.includes('pixel')) return 'smartphones';
+      if (q.includes('телевизор') || q.includes('oled') || q.includes('qled') || q.includes('led tv')) return 'tvs';
+      if (q.includes('монитор')) return 'monitors';
+      if (q.includes('наушник') || q.includes('airpods') || q.includes('колонк') || q.includes('гарнитур') || q.includes('акустик')) return 'audio';
+      if (q.includes('видеокарт') || q.includes('rtx') || q.includes('gtx') || q.includes('radeon') || q.includes('ryzen') || q.includes('процессор') || q.includes('материнск') || q.includes('ssd') || q.includes('блок питания') || q.includes('корпус') || q.includes('ddr4') || q.includes('ddr5')) return 'pc_components';
+      if (q.includes('планшет') || q.includes('ipad') || q.includes('часы') || q.includes('watch')) return 'tablets_watches';
+      if (q.includes('ps5') || q.includes('playstation') || q.includes('xbox') || q.includes('switch') || q.includes('геймпад') || q.includes('приставк')) return 'consoles';
+      if (q.includes('холодильник') || q.includes('стирал') || q.includes('кондиционер') || q.includes('посудомоеч') || q.includes('плит') || q.includes('духовк')) return 'appliances_large';
+      if (q.includes('пылесос') || q.includes('утюг') || q.includes('чайник') || q.includes('кофе') || q.includes('микроволн') || q.includes('блендер') || q.includes('фен') || q.includes('робот-пылесос')) return 'appliances_small';
+      if (q.includes('принтер') || q.includes('мфу') || q.includes('роутер') || q.includes('маршрутизатор') || q.includes('сканер')) return 'office_network';
+      if (q.includes('акци') || q.includes('распродаж') || q.includes('скидк')) return 'actions';
+      return 'smartphones';
+    }
+
+    function renderMasterCategoryOptions(selectedCat) {
+      return Object.entries(MASTER_CATEGORIES_INFO).map(([id, meta]) => {
+        const isSel = id === selectedCat ? 'selected' : '';
+        return `<option value="${id}" ${isSel}>${meta.icon} ${escapeHtml(meta.name)}</option>`;
+      }).join('');
+    }
+
+    async function loadAdminCategories() {
+      if (!isAdminUser()) return;
+      try {
+        const res = await fetch('/api/admin/categories');
+        if (!res.ok) return;
+        const data = await res.json();
+        cachedCategoriesData = data;
+        renderAdminCategories(data);
+      } catch (e) {
+        console.error('Ошибка loadAdminCategories:', e);
+      }
+    }
+
+    function renderAdminCategories(data) {
+      if (!data) return;
+      const cats = data.categories || [];
+      const plan = data.wave_plan || {};
+
+      const badge = document.getElementById('waveCurrentBadge');
+      if (badge) {
+        badge.innerText = `Волна ${plan.wave_index != null ? plan.wave_index + 1 : 1} из ${plan.total_waves || 1}`;
+      }
+
+      const modeEl = document.getElementById('selectWaveMode');
+      if (modeEl && data.wave_mode) modeEl.value = data.wave_mode;
+
+      const sizeEl = document.getElementById('inputWaveSize');
+      if (sizeEl && data.wave_size) sizeEl.value = data.wave_size;
+
+      const hotSummary = document.getElementById('waveHotCatsSummary');
+      if (hotSummary) {
+        const names = (plan.hot_categories || []).map(id => MASTER_CATEGORIES_INFO[id]?.name || id);
+        hotSummary.innerText = names.join(', ') || 'Нет';
+      }
+
+      const activeSummary = document.getElementById('waveActiveCatsSummary');
+      if (activeSummary) {
+        const names = (plan.wave_categories || []).map(id => MASTER_CATEGORIES_INFO[id]?.name || id);
+        activeSummary.innerText = names.join(', ') || 'Все';
+      }
+
+      const nextSummary = document.getElementById('waveNextCatsSummary');
+      if (nextSummary) {
+        const names = (plan.next_wave_categories || []).map(id => MASTER_CATEGORIES_INFO[id]?.name || id);
+        nextSummary.innerText = names.join(', ') || '—';
+      }
+
+      const grid = document.getElementById('adminCategoriesGrid');
+      if (!grid) return;
+
+      grid.innerHTML = cats.map(c => {
+        let statusBadge = '';
+        if (c.is_hot) {
+          statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0">🔥 Hot</span>';
+        } else if (c.is_in_wave) {
+          statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 shrink-0">🌊 Волна</span>';
+        } else if (c.is_in_next_wave) {
+          statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-500/15 text-blue-300 border border-blue-500/30 shrink-0">⏳ След.</span>';
+        } else {
+          statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] text-slate-500 bg-slate-800 shrink-0">В очереди</span>';
+        }
+
+        const countStr = (c.products_count || 0).toLocaleString('ru-RU');
+        const checkedEnabled = c.enabled ? 'checked' : '';
+        const checkedHot = c.is_hot ? 'checked' : '';
+
+        return `
+          <div class="p-3.5 rounded-xl bg-slate-900/90 border ${c.enabled ? 'border-slate-800' : 'border-slate-800/50 opacity-60'} hover:border-slate-700 transition flex flex-col justify-between space-y-3">
+            <div class="flex items-start justify-between gap-2">
+              <label class="flex items-center gap-2.5 cursor-pointer select-none">
+                <input type="checkbox" id="catCheck_${c.id}" ${checkedEnabled} onchange="markCategoriesDirty()" class="w-4 h-4 rounded text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-900">
+                <span class="text-base">${c.icon || '📦'}</span>
+                <div>
+                  <div class="text-xs font-bold text-white leading-snug">${escapeHtml(c.name)}</div>
+                  <div class="text-[10px] text-slate-400 font-mono">${countStr} тов. • ${c.shops_count} сетей</div>
+                </div>
+              </label>
+              ${statusBadge}
+            </div>
+
+            <div class="flex items-center justify-between pt-2 border-t border-slate-800/80 text-xs">
+              <label class="flex items-center gap-1.5 cursor-pointer text-[11px] text-slate-300 hover:text-amber-300 transition select-none" title="Сканировать в каждом цикле">
+                <input type="checkbox" id="catHot_${c.id}" ${checkedHot} onchange="markCategoriesDirty()" class="w-3.5 h-3.5 rounded text-amber-500 focus:ring-amber-500 focus:ring-offset-slate-900">
+                <span>🔥 Hot</span>
+              </label>
+              <button type="button" onclick="scanCategoryNow('${c.id}', '${escapeHtml(c.name).replace(/'/g, "\\'")}')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-cyan-950/40 hover:text-cyan-300 border border-slate-700/80 hover:border-cyan-500/40 text-[11px] text-slate-300 transition flex items-center gap-1 cursor-pointer" title="Запустить точечный сбор по этой категории прямо сейчас">
+                <i class="fa-solid fa-bolt text-amber-400 text-[10px]"></i>
+                <span>Обновить</span>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function toggleAllCategories(enable) {
+      if (!cachedCategoriesData) return;
+      (cachedCategoriesData.categories || []).forEach(c => {
+        const el = document.getElementById(`catCheck_${c.id}`);
+        if (el) el.checked = Boolean(enable);
+      });
+      markCategoriesDirty();
+    }
+
+    async function saveAdminCategories() {
+      if (!cachedCategoriesData) return;
+      const btn = document.getElementById('btnSaveCategories');
+      if (btn) btn.disabled = true;
+
+      const enabled_categories = {};
+      const hot_categories = [];
+
+      (cachedCategoriesData.categories || []).forEach(c => {
+        const chk = document.getElementById(`catCheck_${c.id}`);
+        const hot = document.getElementById(`catHot_${c.id}`);
+        enabled_categories[c.id] = chk ? chk.checked : true;
+        if (hot && hot.checked) {
+          hot_categories.push(c.id);
+        }
+      });
+
+      const wave_mode = document.getElementById('selectWaveMode')?.value || 'rolling';
+      const wave_size = parseInt(document.getElementById('inputWaveSize')?.value) || 2;
+
+      try {
+        const res = await fetch('/api/admin/categories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            enabled_categories,
+            hot_categories,
+            wave_mode,
+            wave_size
+          })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showSaveResult(true, '✅ Настройки категорий сохранены', 'categorySaveResultToast');
+          categoriesDirty = false;
+          cachedCategoriesData = data.overview;
+          renderAdminCategories(data.overview);
+          loadStats();
+        } else {
+          showSaveResult(false, '❌ ' + (data.message || 'Ошибка'), 'categorySaveResultToast');
+        }
+      } catch (e) {
+        showSaveResult(false, '❌ Ошибка сети: ' + e, 'categorySaveResultToast');
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    async function scanCategoryNow(catId, catName) {
+      if (!isAdminUser()) {
+        showToast('⚠️ Точечный запуск сканера доступен только администратору');
+        return;
+      }
+      showToast(`⚡️ Запущен точечный сбор категории «${catName}» по 17 магазинам...`);
+      try {
+        const res = await fetch('/api/scan/category', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ category: catId })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showToast(`🚀 Сканирование категории «${catName}» началось!`);
+          if (!pollInterval) {
+            pollInterval = setInterval(loadStats, 1000);
+          }
+          loadStats();
+        } else {
+          showToast(`❌ ${data.message || 'Не удалось запустить сбор'}`);
+        }
+      } catch (e) {
+        showToast('❌ Ошибка запроса: ' + e);
+      }
+    }
+
+    function triggerCategoryScanFromSearch() {
+      const sel = document.getElementById('bestPriceCategorySelect');
+      const catId = sel?.value || 'smartphones';
+      const catName = MASTER_CATEGORIES_INFO[catId]?.name || catId;
+      scanCategoryNow(catId, catName);
+    }
+
+    function triggerCategoryScanFromEmpty() {
+      const sel = document.getElementById('emptyStateCategorySelect');
+      const catId = sel?.value || 'smartphones';
+      const catName = MASTER_CATEGORIES_INFO[catId]?.name || catId;
+      scanCategoryNow(catId, catName);
     }
 
     async function loadAdminShops() {
@@ -3537,6 +3913,9 @@
       };
 
       if (await postSettings('/api/admin/config', payload, 'btnSaveAdminSettings', 'adminSaveResultToast', 'Сохранить общие настройки')) {
+        if (categoriesDirty) {
+          await saveAdminCategories();
+        }
         loadAdminSettings();
         loadStats();
       }
