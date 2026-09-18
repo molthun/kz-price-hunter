@@ -10,12 +10,13 @@ from scrapers.shopkz import ShopKzScraper
 from scrapers.vkusmart import VkusmartScraper
 from scrapers.twelve_months import TwelveMonthsScraper
 from scrapers.zeta import ZetaScraper
+from scrapers.komfort import KomfortScraper
 
 
 class ScraperContractTest(unittest.TestCase):
     def test_scraper_classes_conform_to_contract(self):
         # Check standard scrapers
-        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper):
+        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper):
             self.assertTrue(hasattr(cls, "SHOP_NAME"), f"{cls} must define SHOP_NAME")
             self.assertTrue(callable(getattr(cls, "scrape", None)), f"{cls} must define scrape")
             self.assertTrue(callable(getattr(cls, "close", None)), f"{cls} must define close")
@@ -178,8 +179,51 @@ class ScraperContractTest(unittest.TestCase):
         scraper.close()
         self.assertIsNone(scraper.session)
 
+    def test_komfort_parsing_mock(self):
+        from unittest.mock import MagicMock
+        scraper = KomfortScraper()
+        mock_html = '''
+        <div class="catalog-block-view__item" data-id="145568">
+            <div class="item-title">
+                <a class="dark_link" href="/catalog/instrumenty/elektroistrumenty/dreli_shurupoverty/145568/">
+                    Дрель ЗУБР "ПРОФЕССИОНАЛ" безударная реверсивная
+                </a>
+            </div>
+            <div class="cost prices">
+                <div class="price" data-value="21990">
+                    <span class="price_value">21 990₸/шт</span>
+                </div>
+                <div class="price_old" data-value-old="25990">25 990₸/шт</div>
+            </div>
+            <div class="thumb">
+                <img data-src="/upload/zubr.webp" alt="Дрель ЗУБР" />
+            </div>
+        </div>
+        '''
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = mock_html
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        scraper.session = mock_session
+
+        items = scraper._fetch_page("Дрели", "https://komfort.kz/catalog/dreli/", 1)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["id"], "145568")
+        self.assertEqual(items[0]["shop"], "Комфорт")
+        self.assertEqual(items[0]["title"], 'Дрель ЗУБР "ПРОФЕССИОНАЛ" безударная реверсивная')
+        self.assertEqual(items[0]["price"], 21990)
+        self.assertEqual(items[0]["old_price_on_site"], 25990)
+        self.assertEqual(items[0]["url"], "https://komfort.kz/catalog/instrumenty/elektroistrumenty/dreli_shurupoverty/145568/")
+        self.assertEqual(items[0]["image_url"], "https://komfort.kz/upload/zubr.webp")
+        self.assertEqual(items[0]["city"], "Алматы")
+        scraper.close()
+        self.assertIsNone(scraper.session)
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
 

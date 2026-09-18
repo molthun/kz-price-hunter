@@ -38,6 +38,7 @@ SHOP_KEYS = {
     "vkusmart": "Вкусмарт",
     "twelve_months": "12 Месяцев",
     "zeta": "Zeta",
+    "komfort": "Комфорт",
 }
 
 
@@ -928,6 +929,22 @@ ZETA_CATEGORIES = [
     {"name": "Zeta: 🥩 Гриль и мангалы", "url": "6851939d95dd04035cad42fe", "master": "diy", "max_pages": 10},
     {"name": "Zeta: 🪑 Мебель для дачи и сада", "url": "6851938895dd04035cad42d5", "master": "diy", "max_pages": 10},
 ]
+
+# Комфорт (komfort.kz): гипермаркет товаров для дома, ремонта и стройки
+KOMFORT_CATEGORIES = [
+    {"name": "Комфорт: 🪛 Дрели и шуруповерты", "url": "https://komfort.kz/catalog/instrumenty/elektroistrumenty/dreli_shurupoverty/", "master": "diy", "max_pages": 15},
+    {"name": "Комфорт: 🔨 Перфораторы", "url": "https://komfort.kz/catalog/instrumenty/elektroistrumenty/perforatory/", "master": "diy", "max_pages": 10},
+    {"name": "Комфорт: 🪜 Стремянки", "url": "https://komfort.kz/catalog/instrumenty/lestnitsy_pomosty/stremyanki/", "master": "diy", "max_pages": 10},
+    {"name": "Комфорт: 🧱 Стройматериалы", "url": "https://komfort.kz/catalog/stroymaterialy/", "master": "diy", "max_pages": 15},
+    {"name": "Комфорт: 🎨 Отделочные материалы", "url": "https://komfort.kz/catalog/otdelochnye_materialy/", "master": "diy", "max_pages": 15},
+    {"name": "Комфорт: 🚰 Сантехника и отопление", "url": "https://komfort.kz/catalog/santekhnika_i_otoplenie/", "master": "diy", "max_pages": 15},
+    {"name": "Комфорт: 🌿 Сад, огород и дача", "url": "https://komfort.kz/catalog/sad_ogorod_i_dacha/", "master": "diy", "max_pages": 15},
+    {"name": "Комфорт: 💡 Электротовары, свет и климат", "url": "https://komfort.kz/catalog/elektrotovary_svet_i_klimat/", "master": "diy", "max_pages": 15},
+    {"name": "Комфорт: 📦 Хранение и порядок", "url": "https://komfort.kz/catalog/khranenie_1/", "master": "household", "max_pages": 15},
+    {"name": "Комфорт: 🏡 Товары для дома", "url": "https://komfort.kz/catalog/tovary_dlya_doma/", "master": "household", "max_pages": 15},
+    {"name": "Комфорт: 🧹 Мелкая бытовая техника", "url": "https://komfort.kz/catalog/bytovaya_tekhnika/melkobytovaya_tekhnika/", "master": "appliances_small", "max_pages": 15},
+]
+
 
 
 

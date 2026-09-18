@@ -44,6 +44,7 @@ from config import (
     VKUSMART_CATEGORIES,
     TWELVE_MONTHS_CATEGORIES,
     ZETA_CATEGORIES,
+    KOMFORT_CATEGORIES,
     MASTER_CATEGORIES,
     get_wave_plan,
     get_wave_interval_seconds,
@@ -103,6 +104,7 @@ from scrapers.fortemarket import ForteMarketScraper
 from scrapers.vkusmart import VkusmartScraper
 from scrapers.twelve_months import TwelveMonthsScraper
 from scrapers.zeta import ZetaScraper
+from scrapers.komfort import KomfortScraper
 from search_engine import get_best_price_summary
 import ai_service
 from config import get_ai_config
@@ -797,6 +799,7 @@ SHOP_REGISTRY = {
     "vkusmart": (VkusmartScraper, VKUSMART_CATEGORIES, "Вкусмарт"),
     "twelve_months": (TwelveMonthsScraper, TWELVE_MONTHS_CATEGORIES, "12 Месяцев"),
     "zeta": (ZetaScraper, ZETA_CATEGORIES, "Zeta"),
+    "komfort": (KomfortScraper, KOMFORT_CATEGORIES, "Комфорт"),
 }
 
 # Сколько магазинов обходить одновременно (у каждого свой сайт, поэтому нагрузка не суммируется)
@@ -939,8 +942,8 @@ def get_categories_overview():
         if any(k in cl for k in ["принтер", "мфу", "роутер", "маршрутизатор"]): return "office_network"
         if "акци" in cl or "распродаж" in cl: return "actions"
         if any(k in cl for k in ["продукт", "бакале", "чай", "кофе", "сладост"]): return "grocery"
-        if any(k in cl for k in ["бытов", "хими", "чистот", "стирк", "уборк", "гигиен"]): return "household"
-        if any(k in cl for k in ["инструмент", "дрел", "перфорат", "шуруповерт", "пила", "сварк", "сантехник", "смесител", "строй"]): return "diy"
+        if any(k in cl for k in ["бытов", "хими", "чистот", "стирк", "уборк", "гигиен", "хранен", "вешалк", "обувниц", "стеллаж"]): return "household"
+        if any(k in cl for k in ["инструмент", "дрел", "перфорат", "шуруповерт", "пила", "сварк", "сантехник", "смесител", "строй", "стремянк", "отделочн", "садов", "электротовар"]): return "diy"
         return "other"
 
     counts = {k: 0 for k in MASTER_CATEGORIES}

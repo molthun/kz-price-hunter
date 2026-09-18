@@ -18,7 +18,7 @@ A — feed/API владельца с документированным назн
 
 Изображения сохраняются ссылками, server image proxy/cache не обнаружен. Browser и Telegram могут получать их с внешнего источника. Description используется в UI и может дополнительно сохраняться через guest product-detail GET для любого магазина. Его отсутствие в конкретном parser не означает отсутствие копирования текста в целом.
 
-## Матрица 19 источников
+## Матрица 22 источников
 
 | Модуль / класс | Тип / механизм | Timeout / pacing | Session, pagination, retry | Поля и ограничения |
 |---|---|---|---|---|
@@ -43,6 +43,7 @@ A — feed/API владельца с документированным назн
 | `scrapers/vkusmart.py` / `VkusmartScraper` | D + B; vkusmart.vmv.kz Bitrix Aspro HTML + Schema.org | 15 с; 0.4 с | Session chrome124; PAGEN_1; 404/empty→complete | id/meta name/price/old_price/img; Астана; описание meta description |
 | `scrapers/twelve_months.py` / `TwelveMonthsScraper` | D; 12.kz AdvantShop HTML .products-view-item | 15 с; 0.4 с | Session chrome124; ?page=N; 404/empty→complete | id/title/price/old_price/img/sku; Казахстан; описание нет |
 | `scrapers/zeta.py` / `ZetaScraper` | A; back.zeta.kz Next.js JSON API /good/list | 15 с; 0.3 с | Session chrome124; page=N&limit=40; empty results→complete | id/name.ru/price/oldPrice/images/article; Казахстан; описание нет |
+| `scrapers/komfort.py` / `KomfortScraper` | D; komfort.kz Bitrix Aspro HTML .catalog-block-view__item | 20 с; 0.4 с | Session chrome124; PAGEN_1; 404/empty→complete | id/title/price/old_price/image_url; Алматы; описание нет |
 
 ## Пути вне основного фонового scan
 

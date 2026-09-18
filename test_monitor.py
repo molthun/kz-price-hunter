@@ -2230,6 +2230,19 @@ class TestForteMarketScraper(unittest.TestCase):
             self.assertIn("url", c)
             self.assertTrue(c["master"] in config.MASTER_CATEGORIES)
 
+    def test_registry_contains_komfort(self):
+        from web.server import SHOP_REGISTRY
+        from config import SHOP_KEYS, KOMFORT_CATEGORIES
+        self.assertIn("komfort", SHOP_REGISTRY)
+        scraper_cls, cats, name = SHOP_REGISTRY["komfort"]
+        self.assertEqual(name, "Комфорт")
+        self.assertEqual(cats, KOMFORT_CATEGORIES)
+        self.assertEqual(SHOP_KEYS.get("komfort"), "Комфорт")
+        for c in KOMFORT_CATEGORIES:
+            self.assertIn("master", c)
+            self.assertIn("url", c)
+            self.assertTrue(c["master"] in config.MASTER_CATEGORIES)
+
     def test_parse_response_and_regional_pricing(self):
         from scrapers.fortemarket import ForteMarketScraper
 
