@@ -213,14 +213,25 @@ def require_admin(handler):
 class RateLimiter:
     """Простое скользящее окно в памяти процесса: не больше max_calls за period секунд на ключ."""
 
+    SWEEP_EVERY = 1024
+
     def __init__(self, max_calls: int, period: float):
         self.max_calls = max_calls
         self.period = period
         self._calls = defaultdict(deque)
+        self._ops = 0
+
+    def _sweep(self, now: float) -> None:
+        """Удаляет ключи без вызовов в текущем окне: IP/пользователи не копятся бесконечно (M03)."""
+        for key in [k for k, calls in self._calls.items() if not calls or now - calls[-1] > self.period]:
+            del self._calls[key]
 
     def retry_after(self, key: str) -> float:
         """0 — запрос разрешен (и учтен), иначе — сколько секунд подождать."""
         now = time.monotonic()
+        self._ops += 1
+        if self._ops % self.SWEEP_EVERY == 0:
+            self._sweep(now)
         calls = self._calls[key]
         while calls and now - calls[0] > self.period:
             calls.popleft()

@@ -1,5 +1,8 @@
 from __future__ import annotations
 import asyncio
+import os
+import socket
+import uuid
 from typing import Dict, Any, List, Optional, Tuple, Set
 import datetime
 import time
@@ -47,6 +50,10 @@ from database import (
     init_db,
     reconcile_source,
     notifications_muted,
+    acquire_scheduler_lease,
+    release_scheduler_lease,
+    get_metadata,
+    set_metadata,
     notification_stats,
     get_stats,
     get_alerts,
@@ -307,12 +314,15 @@ async def product_detail_handler(request):
         if fetched_desc:
             prod["description"] = fetched_desc
             from database import get_connection
-            try:
+
+            def _save_description():
                 with get_connection() as conn:
                     conn.execute("UPDATE products SET description = ? WHERE id = ?", (fetched_desc, pid))
                     conn.commit()
-            except Exception:
-                pass
+            try:
+                await asyncio.to_thread(_save_description)
+            except Exception as e:
+                print(f"[Details] Описание не сохранено: {type(e).__name__}")
 
     from database import get_price_observations
     prod["price_history"] = await asyncio.to_thread(get_price_observations, pid, 50)
@@ -718,6 +728,13 @@ async def admin_block_user_handler(request):
 
 async def _process_anomaly(p, anomaly, shop_name):
     """Записывает кандидата (с защитой от дублей) и рассылает его пользователям по их личным порогам."""
+    if not anomaly:
+        return False
+    # Проверка дублей, запись алерта и подбор получателей — запросы к БД, выполняются вне event loop
+    return await asyncio.to_thread(_process_anomaly_sync, p, anomaly, shop_name)
+
+
+def _process_anomaly_sync(p, anomaly, shop_name):
     if not anomaly or was_alert_sent_recently(p["id"], p["price"]):
         return False
 
@@ -792,14 +809,23 @@ async def _save_and_detect(prods, shop_name, candidate_settings):
         if history["old_price"] > p["price"] or history["first_seen_price"] > p["price"] or (p.get("old_price_on_site") or 0) > p["price"]:
             await _process_anomaly(p, check_anomaly(p, history, custom_settings=candidate_settings), shop_name)
 
-    # Check every saved offer; blocking DB work runs outside the event loop.
-    for p in prods:
-        anomaly = await asyncio.to_thread(check_market_arbitrage, p, custom_settings=candidate_settings)
+    # Сравнение с рынком для всей пачки — одна задача вне event loop, а не переключение
+    # потока на каждый товар (у Белого Ветра ~14 тыс. за обход) (M06)
+    def _arbitrage_batch():
+        found = []
+        for p in prods:
+            anomaly = check_market_arbitrage(p, custom_settings=candidate_settings)
+            if anomaly:
+                found.append((p, anomaly))
+        return found
+
+    for p, anomaly in await asyncio.to_thread(_arbitrage_batch):
         await _process_anomaly(p, anomaly, shop_name)
 
 # Очередь фоновой AI-нормализации: название -> ID товаров с этим названием
 _ai_pending: Dict[str, set] = {}
 AI_PENDING_MAX_TITLES = 20000
+AI_PENDING_MAX_IDS_PER_TITLE = 200
 AI_NORMALIZE_TITLES_PER_TICK = 200     # 10 вызовов AI по 20 названий
 AI_NORMALIZE_INTERVAL_SECONDS = 30
 
@@ -813,7 +839,10 @@ def queue_titles_for_ai(prods) -> int:
             continue
         if title not in _ai_pending and len(_ai_pending) >= AI_PENDING_MAX_TITLES:
             continue
-        _ai_pending.setdefault(title, set()).add(str(p["id"]))
+        ids = _ai_pending.setdefault(title, set())
+        if len(ids) >= AI_PENDING_MAX_IDS_PER_TITLE:
+            continue  # у одного названия может быть много предложений (города) — число id ограничено
+        ids.add(str(p["id"]))
         added += 1
     return added
 
@@ -943,45 +972,79 @@ async def _scan_shop(key, candidate_settings, semaphore, target_categories=None)
 
     async with semaphore:
         scraper = scraper_cls()
-        started = time.monotonic()
-        collected = 0
-        failed_categories = []
-        limited = False
-        record_shop_scan_start(key)
-        scan_state["current_shop"] = shop_name
+        try:
+            return await _scan_shop_categories(key, scraper, categories, shop_name, candidate_settings)
+        finally:
+            close = getattr(scraper, "close", None)
+            if close:
+                close()
 
-        for cat in categories:
-            scan_state["current_category"] = cat["name"]
-            try:
-                prods = await scraper.scrape(cat["name"], cat["url"], max_pages=cat.get("max_pages"))
-                # Предложение = товар магазина + подтверждённый город (id вида kaspi_1@astana)
-                assign_offer_ids(prods)
-                error = getattr(prods, "error", None)
-                complete = getattr(prods, "complete", False)
-                if not prods and not complete:
-                    error = error or "Пустая выдача: требуется проверка"
-                scan_state["total_scanned"] += len(prods)
-                collected += len(prods)
-                await _save_and_detect(prods, shop_name, candidate_settings)
-                await asyncio.to_thread(reconcile_source, key, cat["url"], prods, complete and not error)
-                if error:
-                    failed_categories.append(f"{cat['name']}: {error}")
-                elif not complete:
-                    limited = True
-                await asyncio.sleep(0.5)
-            except Exception as e:
-                failed_categories.append(f"{cat['name']}: {type(e).__name__}")
-                print(f"[{shop_name}] Ошибка категории {cat['name']}: {type(e).__name__}")
-            finally:
-                scan_state["current_step"] += 1
-                scan_state["progress_pct"] = int((scan_state["current_step"] / max(1, scan_state["total_steps"])) * 100)
 
-        duration = time.monotonic() - started
-        error = "; ".join(failed_categories[:3]) or None
-        status = ("partial" if collected else "failed") if error else "limited" if limited else "complete"
-        record_shop_scan_result(key, collected, duration, error, status)
-        print(f"[{shop_name}] {status}: {collected} товаров за {duration:.0f}с")
-        return collected
+async def _scan_shop_categories(key, scraper, categories, shop_name, candidate_settings):
+    started = time.monotonic()
+    collected = 0
+    failed_categories = []
+    limited = False
+    record_shop_scan_start(key)
+    scan_state["current_shop"] = shop_name
+
+    for cat in categories:
+        scan_state["current_category"] = cat["name"]
+        try:
+            prods = await scraper.scrape(cat["name"], cat["url"], max_pages=cat.get("max_pages"))
+            # Предложение = товар магазина + подтверждённый город (id вида kaspi_1@astana)
+            assign_offer_ids(prods)
+            error = getattr(prods, "error", None)
+            complete = getattr(prods, "complete", False)
+            if not prods and not complete:
+                error = error or "Пустая выдача: требуется проверка"
+            scan_state["total_scanned"] += len(prods)
+            collected += len(prods)
+            await _save_and_detect(prods, shop_name, candidate_settings)
+            await asyncio.to_thread(reconcile_source, key, cat["url"], prods, complete and not error)
+            if error:
+                failed_categories.append(f"{cat['name']}: {error}")
+            elif not complete:
+                limited = True
+            await asyncio.sleep(0.5)
+        except Exception as e:
+            failed_categories.append(f"{cat['name']}: {type(e).__name__}")
+            print(f"[{shop_name}] Ошибка категории {cat['name']}: {type(e).__name__}")
+        finally:
+            scan_state["current_step"] += 1
+            scan_state["progress_pct"] = int((scan_state["current_step"] / max(1, scan_state["total_steps"])) * 100)
+
+    duration = time.monotonic() - started
+    error = "; ".join(failed_categories[:3]) or None
+    status = ("partial" if collected else "failed") if error else "limited" if limited else "complete"
+    record_shop_scan_result(key, collected, duration, error, status)
+    print(f"[{shop_name}] {status}: {collected} товаров за {duration:.0f}с")
+    return collected
+
+# Аренда планировщика продлевается во время обхода; упавший процесс теряет её через TTL
+SCHEDULER_OWNER = f"{socket.gethostname()}:{os.getpid()}:{uuid.uuid4().hex[:8]}"
+SCHEDULER_LEASE_SECONDS = 180
+SCHEDULER_LEASE_RENEW_SECONDS = 60
+
+# Запущенные задачи обхода удерживаются, чтобы при остановке их отменить (не «висят» без владельца)
+_scan_tasks: Set[asyncio.Task] = set()
+
+
+def spawn_scan(*args, **kwargs) -> asyncio.Task:
+    task = asyncio.create_task(_do_scan_task(*args, **kwargs))
+    _scan_tasks.add(task)
+    task.add_done_callback(_scan_tasks.discard)
+    return task
+
+
+async def _keep_scheduler_lease():
+    while True:
+        await asyncio.sleep(SCHEDULER_LEASE_RENEW_SECONDS)
+        try:
+            await asyncio.to_thread(acquire_scheduler_lease, SCHEDULER_OWNER, SCHEDULER_LEASE_SECONDS)
+        except Exception as e:
+            print(f"[Scan] Аренда не продлена: {type(e).__name__}")
+
 
 async def _do_scan_task(shop_keys=None, target_categories=None, scan_type="manual"):
     global scan_state, wave_state
@@ -989,6 +1052,18 @@ async def _do_scan_task(shop_keys=None, target_categories=None, scan_type="manua
     if scan_state["is_running"]:
         return
     scan_state["is_running"] = True
+    # Один планировщик на базу: второй процесс (main.py рядом с gui.py, второй контейнер) не обходит.
+    # Вызов синхронный и без await до установки флага — гонки внутри процесса нет.
+    try:
+        leased = acquire_scheduler_lease(SCHEDULER_OWNER, SCHEDULER_LEASE_SECONDS)
+    except Exception as e:
+        leased = False
+        print(f"[Scan] Аренда планировщика недоступна: {type(e).__name__}")
+    if not leased:
+        scan_state["is_running"] = False
+        print("[Scan] Обход уже выполняет другой процесс (аренда планировщика) — пропуск")
+        return
+    lease_keeper = asyncio.create_task(_keep_scheduler_lease())
     scan_state["total_scanned"] = 0
     scan_state["anomalies_found"] = 0
     scan_state["current_step"] = 0
@@ -1005,6 +1080,11 @@ async def _do_scan_task(shop_keys=None, target_categories=None, scan_type="manua
     if scan_type == "auto" and target_categories is None:
         wave_mode = settings.get("wave_mode", "rolling")
         if wave_mode == "rolling":
+            # Номер волны хранится в БД: перезапуск (выкат) не возвращает обход к волне №1
+            try:
+                wave_state["current_wave_index"] = int(get_metadata("wave_index", wave_state["current_wave_index"]))
+            except (TypeError, ValueError):
+                pass
             plan = get_wave_plan(
                 enabled_categories=settings.get("enabled_categories"),
                 hot_categories=settings.get("hot_categories", DEFAULT_HOT_CATEGORIES),
@@ -1015,6 +1095,7 @@ async def _do_scan_task(shop_keys=None, target_categories=None, scan_type="manua
             wave_state["last_wave_categories"] = plan["wave_categories"]
             wave_state["next_wave_categories"] = plan["next_wave_categories"]
             wave_state["current_wave_index"] = plan["next_wave_index"]
+            set_metadata("wave_index", plan["next_wave_index"])
             scan_state["wave_info"] = {
                 "wave_index": plan["wave_index"],
                 "total_waves": plan["total_waves"],
@@ -1088,6 +1169,11 @@ async def _do_scan_task(shop_keys=None, target_categories=None, scan_type="manua
     except Exception as e:
         scan_state["error"] = f"Ошибка сканирования ({type(e).__name__})"
     finally:
+        lease_keeper.cancel()
+        try:
+            release_scheduler_lease(SCHEDULER_OWNER)
+        except Exception as e:
+            print(f"[Scan] Аренда не освобождена: {type(e).__name__}")
         await asyncio.sleep(1.0)
         scan_state["is_running"] = False
         scan_state["current_shop"] = ""
@@ -1112,7 +1198,7 @@ async def start_scan_handler(request):
         except (ValueError, AttributeError, TypeError):
             return web.json_response({"message": "Укажите непустой список известных магазинов"}, status=400)
 
-    asyncio.create_task(_do_scan_task(shops, scan_type="manual"))
+    spawn_scan(shops, scan_type="manual")
     return web.json_response({"status": "started"})
 
 @routes.get("/api/admin/categories")
@@ -1180,7 +1266,7 @@ async def start_category_scan_handler(request):
     if shops is not None and (not isinstance(shops, list) or any(not isinstance(k, str) or k not in SHOP_REGISTRY for k in shops)):
         return web.json_response({"status": "error", "message": "Некорректный список магазинов"}, status=400)
 
-    asyncio.create_task(_do_scan_task(shops, target_categories={category}, scan_type="category"))
+    spawn_scan(shops, target_categories={category}, scan_type="category")
     return web.json_response({
         "status": "started",
         "category": category,
@@ -1289,7 +1375,7 @@ async def sync_shopkz_yml_handler(request):
     """Сверхбыстрая выгрузка всего каталога shop.kz через официальный YML фид."""
     if scan_state["is_running"]:
         return web.json_response({"status": "already_running", "message": "Сканирование уже выполняется"})
-    asyncio.create_task(_do_scan_task(["shopkz"]))
+    spawn_scan(["shopkz"])
     return web.json_response({"status": "started", "message": "Обход Белого Ветра запущен"})
 
 @routes.get("/api/logs")
@@ -1357,7 +1443,7 @@ async def auto_scan_background_worker(app):
 
             names = ", ".join(SHOP_REGISTRY[k][2] for k in stale[:4]) + ("..." if len(stale) > 4 else "")
             print(f"[AutoScan] ⏰ Требуют обновления {len(stale)} магазинов (порог {max_age_seconds // 60} мин): {names}")
-            asyncio.create_task(_do_scan_task(stale, scan_type="auto"))
+            spawn_scan(stale, scan_type="auto")
         except asyncio.CancelledError:
             print("[AutoScan] Фоновый монитор остановлен.")
             break
@@ -1372,9 +1458,9 @@ async def background_tasks(app):
              asyncio.create_task(notification_worker()),
              asyncio.create_task(run_telegram_bot_task())]
     yield
-    for task in tasks:
+    for task in tasks + list(_scan_tasks):
         task.cancel()
-    await asyncio.gather(*tasks, return_exceptions=True)
+    await asyncio.gather(*tasks, *list(_scan_tasks), return_exceptions=True)
 
 def create_app():
     init_db()

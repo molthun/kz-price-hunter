@@ -174,6 +174,14 @@ def _create_schema(cursor) -> None:
             is_hot INTEGER DEFAULT 0
         )
     """)
+    # Аренда планировщика: обходит только один процесс (gui.py, main.py, второй контейнер)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS scheduler_lease (
+            name TEXT PRIMARY KEY,
+            owner TEXT NOT NULL,
+            expires_at REAL NOT NULL
+        )
+    """)
     # История наблюдений: строка пишется только при изменении цены или зачёркнутой цены
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS price_observations (
@@ -427,6 +435,43 @@ def init_db():
         _create_schema(conn.cursor())
         conn.commit()
     run_migrations()
+
+def acquire_scheduler_lease(owner: str, ttl_seconds: float, name: str = "scan") -> bool:
+    """Берёт или продлевает аренду; False — действующая аренда у другого процесса."""
+    now = time.time()
+    conn = sqlite3.connect(DB_PATH, timeout=15, isolation_level=None)
+    try:
+        conn.execute("PRAGMA busy_timeout = 15000")
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute("SELECT owner, expires_at FROM scheduler_lease WHERE name = ?", (name,)).fetchone()
+        if row and row[0] != owner and row[1] > now:
+            conn.execute("ROLLBACK")
+            return False
+        conn.execute("INSERT OR REPLACE INTO scheduler_lease (name, owner, expires_at) VALUES (?, ?, ?)",
+                     (name, owner, now + ttl_seconds))
+        conn.execute("COMMIT")
+        return True
+    finally:
+        conn.close()
+
+
+def release_scheduler_lease(owner: str, name: str = "scan") -> None:
+    with get_connection() as conn:
+        conn.execute("DELETE FROM scheduler_lease WHERE name = ? AND owner = ?", (name, owner))
+        conn.commit()
+
+
+def get_metadata(name: str, default: Optional[str] = None) -> Optional[str]:
+    with get_connection() as conn:
+        row = conn.execute("SELECT value FROM schema_metadata WHERE name = ?", (name,)).fetchone()
+        return row[0] if row else default
+
+
+def set_metadata(name: str, value: str) -> None:
+    with get_connection() as conn:
+        conn.execute("INSERT OR REPLACE INTO schema_metadata (name, value) VALUES (?, ?)", (name, str(value)))
+        conn.commit()
+
 
 def get_cached_canonical_key(title: str) -> Optional[str]:
     """Возвращает сохраненный канонический ключ из постоянного кэша SQLite."""

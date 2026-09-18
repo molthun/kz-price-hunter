@@ -5,6 +5,10 @@ from scrapers import http as requests
 from bs4 import BeautifulSoup
 from scrapers.base import ScanResult, parse_price
 
+# Официальная выгрузка ~40 МБ (сентябрь 2026); предел с запасом против бесконечного ответа
+MAX_FEED_BYTES = 256 * 1024 * 1024
+
+
 class ShopKzScraper:
     SHOP_NAME = "Белый Ветер"
     SHOP_EMOJI = "🟦"
@@ -36,21 +40,30 @@ class ShopKzScraper:
 
         tmp_path = None
         try:
-            r = requests.get(
-                target_url,
-                headers=self.headers,
-                impersonate="chrome124",
-                timeout=90,
-                stream=True
-            )
-            if r.status_code != 200:
-                print(f"[{self.SHOP_NAME}] Ошибка скачивания YML: HTTP {r.status_code}")
-                raise RuntimeError(f"HTTP {r.status_code}")
+            # Своя сессия живёт, пока выгрузка читается потоком; размер ограничен (M09)
+            with requests.Session() as session:
+                r = session.get(
+                    target_url,
+                    headers=self.headers,
+                    impersonate="chrome124",
+                    timeout=90,
+                    stream=True
+                )
+                try:
+                    if r.status_code != 200:
+                        print(f"[{self.SHOP_NAME}] Ошибка скачивания YML: HTTP {r.status_code}")
+                        raise RuntimeError(f"HTTP {r.status_code}")
 
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".xml") as tmp:
-                tmp_path = tmp.name
-                for chunk in r.iter_content(chunk_size=1024 * 1024):
-                    tmp.write(chunk)
+                    received = 0
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".xml") as tmp:
+                        tmp_path = tmp.name
+                        for chunk in r.iter_content(chunk_size=1024 * 1024):
+                            received += len(chunk)
+                            if received > MAX_FEED_BYTES:
+                                raise RuntimeError(f"Выгрузка больше {MAX_FEED_BYTES // (1024 * 1024)} МБ")
+                            tmp.write(chunk)
+                finally:
+                    r.close()
 
             for event, elem in ET.iterparse(tmp_path, events=("end",)):
                 if elem.tag == "offer":

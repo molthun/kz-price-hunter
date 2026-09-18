@@ -24,6 +24,7 @@ import config
 from config import get_bot_token, APP_URL
 from notifier import _shop_emoji, format_price
 import ai_service
+from bounded_cache import BoundedTTLCache
 from auth import RateLimiter
 from database import get_user
 
@@ -164,8 +165,9 @@ async def handle_search_command(session: aiohttp.ClientSession, token: str, chat
 
 
 # Память диалога консультанта в Telegram: chat_id -> (время последней реплики, реплики)
-_chat_histories: Dict[int, tuple] = {}
 CHAT_HISTORY_TTL_SECONDS = 30 * 60
+# Истёкшие диалоги удаляются сами, а не при следующем сообщении того же чата (M03)
+_chat_histories = BoundedTTLCache(maxsize=5000, ttl=CHAT_HISTORY_TTL_SECONDS)
 
 
 def _get_chat_history(chat_id: int) -> List[Dict[str, str]]:

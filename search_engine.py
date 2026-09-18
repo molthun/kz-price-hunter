@@ -6,11 +6,13 @@ import time
 import datetime
 from typing import List, Dict, Any, Optional, Tuple
 from config import DB_PATH, SEARCH_CACHE_TTL_SECONDS, CITIES_KZ, load_settings
-from database import save_or_update_product
+from bounded_cache import BoundedTTLCache
+from database import save_or_update_product, save_or_update_products_batch
 from scrapers.kaspi import KaspiScraper
 
 # In-memory кэш для внешних живых запросов: { "query:city": (timestamp, [items]) }
-_LIVE_CACHE: Dict[tuple, Tuple[float, List[Dict[str, Any]]]] = {}
+# Ограничен по числу записей и сроку: уникальные live-запросы не копятся до перезапуска (M03)
+_LIVE_CACHE = BoundedTTLCache(maxsize=500, ttl=SEARCH_CACHE_TTL_SECONDS)
 
 LAYOUT_RU_TO_EN = str.maketrans(
     "йцукенгшщзхъфывапролджэячсмитьбю.ёЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭЯЧСМИТЬБЮ,Ё",
@@ -211,6 +213,8 @@ def search_in_database(
     result_limit = limit
     if prefer_keywords or product_nouns:
         limit = max(limit, 3000)
+    # Порядок задаётся до LIMIT: иначе «дороже»/«релевантнее» сортировали только самых дешёвых (M06)
+    order_sql = "current_price DESC" if sort_by == "price_desc" else "current_price ASC"
     query_clean = query.strip().lower()
     raw_tokens = [t.strip().lower() for t in query.split() if t.strip()]
 
@@ -255,7 +259,7 @@ def search_in_database(
                 SELECT p.* FROM products_fts f
                 JOIN products p ON f.rowid = p.rowid
                 WHERE {" AND ".join(fts_conditions)}
-                ORDER BY p.current_price ASC
+                ORDER BY {"bm25(products_fts)" if sort_by == "relevance" else "p." + order_sql}
                 LIMIT ?
             """
             fts_params.append(limit)
@@ -314,7 +318,7 @@ def search_in_database(
         sql = f"""
             SELECT * FROM products
             WHERE {where_sql} AND current_price > 0
-            ORDER BY current_price ASC
+            ORDER BY {order_sql}
             LIMIT ?
         """
         params.append(limit)
@@ -444,6 +448,12 @@ def determine_category_and_master(title: str, query: str = "", raw_category: str
         return query.strip().capitalize(), None
     return "Электроника", None
 
+def _close_scraper(scraper) -> None:
+    close = getattr(scraper, "close", None)
+    if close:
+        close()
+
+
 async def search_live_stores(query: str, city: str = "Астана") -> List[Dict[str, Any]]:
     """Живой опрос площадок (Kaspi, 4mobile, Forte Market) с кэшированием.
 
@@ -467,19 +477,24 @@ async def search_live_stores(query: str, city: str = "Астана") -> List[Dic
 
     all_found = []
 
-    def _store(items):
-        for item in assign_offer_ids(items):
+    async def _store(items):
+        items = list(assign_offer_ids(items))
+        for item in items:
             cat_name, _ = determine_category_and_master(item.get("title", ""), query, item.get("category", ""))
             if cat_name:
                 item["category"] = cat_name
-            save_or_update_product(item)
-            all_found.append(item)
+        # Одна транзакция вне event loop вместо записи по товару в основном потоке (M06)
+        await asyncio.to_thread(save_or_update_products_batch, items)
+        all_found.extend(items)
 
     # 1. Kaspi: цены выбранного города (код города Kaspi)
     if "kaspi" in active_shops:
         try:
             kaspi = KaspiScraper(city_code=polled_city["kaspi_code"])
-            _store(await kaspi.search(query, max_items=15))
+            try:
+                await _store(await kaspi.search(query, max_items=15))
+            finally:
+                _close_scraper(kaspi)
         except Exception as e:
             print(f"[SearchEngine] Ошибка live-поиска в Kaspi: {type(e).__name__}")
 
@@ -487,7 +502,11 @@ async def search_live_stores(query: str, city: str = "Астана") -> List[Dic
     if "fourmobile" in active_shops:
         try:
             from scrapers.fourmobile import FourMobileScraper
-            _store(await FourMobileScraper().search_live(query))
+            four_mobile = FourMobileScraper()
+            try:
+                await _store(await four_mobile.search_live(query))
+            finally:
+                _close_scraper(four_mobile)
         except Exception as e:
             print(f"[SearchEngine] Ошибка live-поиска в 4mobile: {type(e).__name__}")
 
@@ -495,7 +514,11 @@ async def search_live_stores(query: str, city: str = "Астана") -> List[Dic
     if "fortemarket" in active_shops:
         try:
             from scrapers.fortemarket import ForteMarketScraper
-            _store(await ForteMarketScraper(city=city_name).search_live(query, city=city_name))
+            forte = ForteMarketScraper(city=city_name)
+            try:
+                await _store(await forte.search_live(query, city=city_name))
+            finally:
+                _close_scraper(forte)
         except Exception as e:
             print(f"[SearchEngine] Ошибка live-поиска в Forte Market: {type(e).__name__}")
 

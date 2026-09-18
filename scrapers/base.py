@@ -107,6 +107,17 @@ class PagedScraper:
     PAGE_PARAM = "page"
     PAGE_DELAY_SECONDS = 0.3
 
+    def close(self) -> None:
+        """Закрывает HTTP-сессию адаптера (curl-хэндлы не ждут сборки мусора) (M09)."""
+        for attr in ("_session", "session"):
+            session = getattr(self, attr, None)
+            if session is not None and hasattr(session, "close"):
+                try:
+                    session.close()
+                except Exception:
+                    pass
+                setattr(self, attr, None)
+
     async def scrape(self, category_name: str, category_url: str, max_pages: Optional[int] = None) -> List[Dict[str, Any]]:
         return await asyncio.to_thread(self._scrape_sync, category_name, category_url, max_pages)
 

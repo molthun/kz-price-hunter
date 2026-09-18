@@ -79,6 +79,8 @@ push в main ──► GitHub Actions: тесты ──► сборка обр�
 - `latest` публикуется **только из `main`**. Теги `vX.Y.Z` собирают образы с номером версии (`:2.9.0`) — на них можно откатить прод.
 - Контейнер описан в [`docker-compose.yml`](docker-compose.yml): порт `35539`, данные (база и `settings.json`) в томе `./data` → `/app/data`.
 - GitHub не запускает сборки, если за один пуш отправлено больше трех тегов — пушьте теги по одному.
+- **Зависимости** зафиксированы: `pip install -r requirements.txt -c constraints.txt`. Обновление версии — правка этих файлов, прогон тестов и новый релиз. GitHub Actions закреплены по SHA; браузерные тесты (`test_frontend*.cjs`) идут в CI перед сборкой образа.
+- **AI**: дневной лимит вызовов `AI_DAILY_CALL_LIMIT` (по умолчанию 1500), фоновой нормализации — до 70% лимита.
 - **Миграции базы** пронумерованы (`schema_metadata.schema_version`, список `MIGRATIONS` в `database.py`) и выполняются при старте один раз, каждая в своей транзакции. Если есть ожидающие миграции, перед ними автоматически создаётся бэкап `DATA_DIR/backups/prices-pre-vN-<время>.db` (SQLite backup API + `quick_check`). Ошибка миграции откатывает её и останавливает запуск.
 - **Откат после миграции**: остановить контейнер, вернуть `prices.db` из `data/backups/prices-pre-vN-*.db` и запустить образ предыдущей версии (`:X.Y.Z`). Только смена образа без восстановления базы не откатывает данные.
 
@@ -125,7 +127,7 @@ python3 -m venv venv
 ### Тесты
 
 ```bash
-./venv/bin/python3 -m unittest test_monitor test_auth_privacy test_bot_privacy test_security_logging test_scraper_reliability test_offer_identity
+./venv/bin/python3 -m unittest test_monitor test_auth_privacy test_bot_privacy test_security_logging test_scraper_reliability test_offer_identity test_scaling
 ```
 
 Тесты работают на временной базе и не трогают `prices.db` и `settings.json`.

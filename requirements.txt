@@ -1,6 +1,9 @@
-curl_cffi>=0.16.0
-beautifulsoup4>=4.12.0
-playwright>=1.40.0
-requests>=2.31.0
-python-telegram-bot>=20.0
-aiohttp>=3.9.0
+# Прямые зависимости с точными версиями (проверены тестами CI, Python 3.12, 18.09.2026).
+# Транзитивные зафиксированы в constraints.txt: pip install -r requirements.txt -c constraints.txt
+# Обновление: поменять версию здесь/в constraints.txt, прогнать тесты, выпустить новую версию.
+curl_cffi==0.16.3
+beautifulsoup4==4.15.0
+playwright==1.63.0
+requests==2.34.2
+aiohttp==3.14.3
+certifi==2026.7.22

@@ -19,10 +19,12 @@ from typing import Optional, Dict, Any, List
 import aiohttp
 
 import config
+from bounded_cache import BoundedTTLCache
 
 # Кэш в памяти: query_key -> (timestamp, parsed_dict)
-_QUERY_CACHE: Dict[str, tuple[float, Dict[str, Any]]] = {}
 _CACHE_TTL_SECONDS = 3600 * 4  # 4 часа
+# Ограничен по числу записей и сроку: уникальные запросы не копятся до перезапуска (M03)
+_QUERY_CACHE = BoundedTTLCache(maxsize=2000, ttl=_CACHE_TTL_SECONDS)
 
 # Список стандартных категорий каталога для точной привязки AI
 CATALOG_CATEGORIES = [
@@ -188,8 +190,49 @@ SCAN_MAX_ACTIVE = 2
 SEARCH_TIMEOUT_SECONDS = 10
 DEFAULT_TIMEOUT_SECONDS = 30
 
+# Пределы ответа консультанта, который показывается пользователю
+MAX_ANSWER_CHARS = 4000
+MAX_SUGGESTIONS = 4
+MAX_SUGGESTION_CHARS = 120
+
 # Названия, для которых AI не вернул ключ (или вызов не удался), повторно не отправляются столько дней
 AI_RETRY_DAYS = 7
+
+
+# Дневной бюджет вызовов провайдера (все пути: поиск, консультант, бот, нормализация).
+# Счётчик в БД по UTC-дню — перезапуск его не сбрасывает. Фоновой нормализации — не больше доли (M10).
+DAILY_AI_CALL_LIMIT = int(os.getenv("AI_DAILY_CALL_LIMIT", "1500"))
+SCAN_DAILY_SHARE = 0.7
+# Предел длины ответа модели (у Gemini 2.5 сюда входят и токены размышления)
+MAX_OUTPUT_TOKENS = 8192
+
+
+def _daily_key() -> str:
+    return "ai_calls:" + time.strftime("%Y-%m-%d", time.gmtime())
+
+
+def ai_calls_today() -> int:
+    from database import get_metadata
+    try:
+        return int(get_metadata(_daily_key(), "0") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _count_ai_call() -> None:
+    from database import get_connection
+    with get_connection() as conn:
+        conn.execute("""INSERT INTO schema_metadata (name, value) VALUES (?, '1')
+                        ON CONFLICT(name) DO UPDATE SET value = CAST(value AS INTEGER) + 1""", (_daily_key(),))
+        # Счётчики старше 30 дней не нужны
+        oldest = "ai_calls:" + time.strftime("%Y-%m-%d", time.gmtime(time.time() - 30 * 86400))
+        conn.execute("DELETE FROM schema_metadata WHERE name LIKE 'ai_calls:%' AND name < ?", (oldest,))
+        conn.commit()
+
+
+def daily_budget_allows(scan: bool = False) -> bool:
+    limit = DAILY_AI_CALL_LIMIT * (SCAN_DAILY_SHARE if scan else 1)
+    return ai_calls_today() < limit
 
 
 async def _limited_provider_call(fn, *args, scan: bool = False):
@@ -198,6 +241,10 @@ async def _limited_provider_call(fn, *args, scan: bool = False):
         return None
     if _provider_active >= 3 or _provider_limiter.retry_after("shared"):
         return None
+    if not daily_budget_allows(scan):
+        print(f"[AI] Дневной бюджет исчерпан ({'нормализация' if scan else 'все вызовы'}), лимит {DAILY_AI_CALL_LIMIT}")
+        return None
+    _count_ai_call()
     _provider_active += 1
     try:
         return await fn(*args)
@@ -227,7 +274,8 @@ async def _call_gemini_api(prompt: str, api_key: str, timeout_seconds: float = D
             ],
             "generationConfig": {
                 "responseMimeType": "application/json",
-                "temperature": 0.1
+                "temperature": 0.1,
+                "maxOutputTokens": MAX_OUTPUT_TOKENS
             }
         }
 
@@ -266,7 +314,8 @@ async def _call_openai_api(prompt: str, api_key: str, api_base: str, timeout_sec
             {"role": "user", "content": prompt}
         ],
         "response_format": {"type": "json_object"},
-        "temperature": 0.1
+        "temperature": 0.1,
+        "max_tokens": MAX_OUTPUT_TOKENS
     }
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -586,18 +635,24 @@ async def ask_ai_consultant(
     if not res and openai_key:
         res = await call_openai_api(prompt, openai_key, openai_base)
 
-    if res and isinstance(res, dict) and "answer" in res:
-        rec_ids = set(str(x) for x in (res.get("recommended_product_ids") or []))
+    if res and isinstance(res, dict) and isinstance(res.get("answer"), str) and res["answer"].strip():
+        # Ответ AI — недоверенные данные: строгая форма и длина; карточки только из БД (M10)
+        answer = res["answer"].strip()[:MAX_ANSWER_CHARS]
+        raw_ids = res.get("recommended_product_ids")
+        rec_ids = {str(x) for x in raw_ids[:10]} if isinstance(raw_ids, list) else set()
         rec_products = [it for it in top_items if str(it["id"]) in rec_ids]
         if not rec_products:
             rec_products = top_items[:4]
-        
+        raw_questions = res.get("suggested_questions")
+        questions = [q.strip()[:MAX_SUGGESTION_CHARS] for q in (raw_questions if isinstance(raw_questions, list) else [])
+                     if isinstance(q, str) and q.strip()][:MAX_SUGGESTIONS]
+
         ui_products = _format_products_for_ui(rec_products)
         return {
-            "answer": res["answer"],
-            "history_turn": history_entry_for_answer(res["answer"], ui_products),
+            "answer": answer,
+            "history_turn": history_entry_for_answer(answer, ui_products),
             "products": ui_products,
-            "suggested_questions": res.get("suggested_questions") or [
+            "suggested_questions": questions or [
                 "Где сейчас самая низкая цена?",
                 "Есть ли варианты со скидкой?",
                 "Какие главные минусы у этой модели?"
@@ -751,7 +806,8 @@ def _budget_exhausted() -> bool:
     now = time.monotonic()
     calls = _scan_limiter._calls.get("scan") or []
     recent = [c for c in calls if now - c <= _scan_limiter.period]
-    return _provider_active >= SCAN_MAX_ACTIVE or len(recent) >= _scan_limiter.max_calls
+    return (_provider_active >= SCAN_MAX_ACTIVE or len(recent) >= _scan_limiter.max_calls
+            or not daily_budget_allows(scan=True))
 
 
 async def get_or_normalize_title(title: str) -> Optional[str]:
