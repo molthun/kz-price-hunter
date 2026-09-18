@@ -1865,6 +1865,8 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
         app = create_app()
         app.cleanup_ctx.clear()
         async with TestClient(TestServer(app)) as client:
+            upsert_telegram_user({'id': 1, 'first_name': 'Admin'})
+            client.session.cookie_jar.update_cookies({'kzph_session': create_session(1)})
             # 1. Проверка POST /api/alerts/dismiss с невалидным ID
             bad_res = await client.post('/api/alerts/dismiss', json={"id": 0})
             self.assertEqual(bad_res.status, 400)
@@ -1963,8 +1965,8 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
             bad_res = await client.get('/api/products/non-existent-id')
             self.assertEqual(bad_res.status, 404)
 
-    async def test_search_engine_12h_stale_refresh(self):
-        """Проверка автоматического live-обновления товаров старше 12 часов при обычном поиске (live=False)."""
+    async def test_search_engine_stale_refresh_requires_explicit_live(self):
+        """Старые данные не запускают сеть без явного live=True."""
         import datetime
         from database import get_connection
         from search_engine import get_best_price_summary
@@ -2007,7 +2009,10 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
             # Поиск без флага live (live=False)
             result = await get_best_price_summary("Ультрабук Stale Refresh 14", live=False)
 
-        # Проверяем, что live-поиск был вызван автоматически из-за устаревшего товара (> 12ч)
+        self.assertEqual(live_called, [])
+        self.assertEqual(result["items"][0]["current_price"], 300000)
+        with patch("search_engine.search_live_stores", side_effect=fake_live_search):
+            result = await get_best_price_summary("Ультрабук Stale Refresh 14", live=True)
         self.assertEqual(len(live_called), 1)
         self.assertEqual(result["items"][0]["current_price"], 280000)
 
@@ -2083,7 +2088,8 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
 
         with patch("scrapers.kaspi.KaspiScraper.search", return_value=[fake_kaspi_item]), \
              patch("curl_cffi.requests.get", side_effect=Exception("skip shopkz")), \
-             patch("scrapers.fourmobile.FourMobileScraper.search_live", return_value=[]):
+             patch("scrapers.fourmobile.FourMobileScraper.search_live", return_value=[]), \
+             patch("scrapers.fortemarket.ForteMarketScraper.search_live", return_value=[]):
             
             # Первый поиск
             await search_live_stores("rtx 5070", city="Астана")
@@ -2235,6 +2241,92 @@ class TestForteMarketScraper(unittest.TestCase):
             self.assertEqual(items[0]["title"], "iPhone 15 128GB Black")
             self.assertEqual(items[0]["shop"], "Forte Market")
             self.assertEqual(items[0]["price"], 380000)
+
+
+
+class TestStageOneSecurity(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        init_db()
+
+    async def test_admin_only_global_dismiss_and_tracked_queries(self):
+        from aiohttp.test_utils import TestClient, TestServer
+        from unittest.mock import patch
+        from web.server import create_app
+        from database import save_tracked_category
+        product = dict(id="stage1-permissions", title="Test", price=100, url="https://example.invalid")
+        save_or_update_product(product)
+        alert_id = record_alert(product['id'], 'SUPER_DISCOUNT', 200, 100, 50, 100)
+        save_tracked_category("Stage1", "private-test-query")
+        app = create_app(); app.cleanup_ctx.clear()
+        with patch('auth.ADMIN_TELEGRAM_IDS', {90001}), patch('auth.ALLOW_DEV_LOGIN', False):
+            async with TestClient(TestServer(app)) as client:
+                for uid, expected in [(None, 401), (90002, 403), (90001, 200)]:
+                    client.session.cookie_jar.clear()
+                    if uid:
+                        upsert_telegram_user({'id': uid, 'first_name': 'Test'})
+                        client.session.cookie_jar.update_cookies({'kzph_session': create_session(uid)})
+                    tracked = await client.get('/api/categories/tracked')
+                    self.assertEqual(tracked.status, expected)
+                    if uid != 90001:
+                        self.assertNotIn('private-test-query', await tracked.text())
+                    else:
+                        self.assertIn('private-test-query', await tracked.text())
+                    for method, path, kwargs in [
+                        ('post', '/api/alerts/dismiss', {'json': {'id': alert_id}}),
+                        ('delete', f'/api/alerts/{alert_id}', {}),
+                    ]:
+                        with get_connection() as conn:
+                            conn.execute('UPDATE alerts SET is_dismissed=0 WHERE id=?', (alert_id,));conn.commit()
+                        response = await getattr(client, method)(path, **kwargs)
+                        self.assertEqual(response.status, expected)
+                        with get_connection() as conn:
+                            self.assertEqual(conn.execute('SELECT is_dismissed FROM alerts WHERE id=?', (alert_id,)).fetchone()[0], int(uid == 90001))
+
+    async def test_guest_empty_and_stale_search_never_calls_sources(self):
+        from aiohttp.test_utils import TestClient, TestServer
+        from unittest.mock import patch, AsyncMock
+        import web.server as server
+        from auth import RateLimiter
+        app = server.create_app(); app.cleanup_ctx.clear()
+        stale = dict(id='stage1-stale', title='Test', shop='Test', city='Астана', url='https://example.invalid', current_price=100, updated_at='2000-01-01')
+        with patch.object(server, 'search_limiter', RateLimiter(100, 60)), patch('search_engine.search_live_stores', new_callable=AsyncMock) as live:
+            async with TestClient(TestServer(app)) as client:
+                for rows in ([], [stale]):
+                    with patch('search_engine.search_in_database', return_value=rows):
+                        response = await client.get('/api/best-price?q=test&live=false&ai=0')
+                        self.assertEqual(response.status, 200)
+                response = await client.get('/api/best-price?q=test&live=true&ai=0')
+                self.assertEqual(response.status, 401)
+                live.assert_not_awaited()
+
+    async def test_explicit_live_requires_user_and_obeys_user_limit(self):
+        from aiohttp.test_utils import TestClient, TestServer
+        from unittest.mock import patch, AsyncMock
+        import web.server as server
+        from auth import RateLimiter
+        app = server.create_app();app.cleanup_ctx.clear()
+        upsert_telegram_user({'id': 90003, 'first_name': 'Test'})
+        with patch.object(server, 'live_search_limiter', RateLimiter(1, 600)), patch.object(server, 'search_limiter', RateLimiter(100, 60)), patch('search_engine.search_in_database', return_value=[]), patch('search_engine.search_live_stores', new_callable=AsyncMock) as live:
+            async with TestClient(TestServer(app)) as client:
+                client.session.cookie_jar.update_cookies({'kzph_session': create_session(90003)})
+                self.assertEqual((await client.get('/api/best-price?q=test&live=1&ai=0')).status, 200)
+                self.assertEqual((await client.get('/api/best-price?q=test2&live=1&ai=0')).status, 429)
+                live.assert_awaited_once()
+
+    async def test_disabled_live_sources_are_not_called_or_served_from_old_cache(self):
+        from unittest.mock import patch, AsyncMock
+        import search_engine as se
+        from scrapers.fourmobile import FourMobileScraper
+        from scrapers.fortemarket import ForteMarketScraper
+        se._LIVE_CACHE.clear()
+        product = dict(id='stage1-live', title='Test', price=100, shop='Kaspi Магазин', url='https://example.invalid')
+        enabled = dict(kaspi=True, shopkz=False, fourmobile=False, fortemarket=False)
+        with patch.object(se, 'load_settings', return_value={'enabled_shops': enabled}), patch.object(se.KaspiScraper, 'search', new_callable=AsyncMock, return_value=[product]) as kaspi, patch('curl_cffi.requests.get') as http, patch.object(FourMobileScraper, 'search_live', new_callable=AsyncMock) as mobile, patch.object(ForteMarketScraper, 'search_live', new_callable=AsyncMock) as forte:
+            self.assertEqual(len(await se.search_live_stores('stage1-disabled')), 1)
+            enabled['kaspi'] = False
+            self.assertEqual(await se.search_live_stores('stage1-disabled'), [])
+            kaspi.assert_awaited_once();http.assert_not_called();mobile.assert_not_awaited();forte.assert_not_awaited()
+        se._LIVE_CACHE.clear()
 
 
 if __name__ == "__main__":

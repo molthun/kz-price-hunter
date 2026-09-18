@@ -5,12 +5,12 @@ import asyncio
 import time
 import datetime
 from typing import List, Dict, Any, Optional, Tuple
-from config import DB_PATH, SEARCH_CACHE_TTL_SECONDS, CITIES_KZ
+from config import DB_PATH, SEARCH_CACHE_TTL_SECONDS, CITIES_KZ, load_settings
 from database import save_or_update_product
 from scrapers.kaspi import KaspiScraper
 
 # In-memory кэш для внешних живых запросов: { "query:city": (timestamp, [items]) }
-_LIVE_CACHE: Dict[str, Tuple[float, List[Dict[str, Any]]]] = {}
+_LIVE_CACHE: Dict[tuple, Tuple[float, List[Dict[str, Any]]]] = {}
 
 LAYOUT_RU_TO_EN = str.maketrans(
     "йцукенгшщзхъфывапролджэячсмитьбю.ёЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭЯЧСМИТЬБЮ,Ё",
@@ -447,7 +447,9 @@ def determine_category_and_master(title: str, query: str = "", raw_category: str
 async def search_live_stores(query: str, city: str = "Астана") -> List[Dict[str, Any]]:
     """Живой опрос площадок (Kaspi, shop.kz, 4mobile) с кэшированием."""
     city_name = city or "Астана"
-    cache_key = f"{query.strip().lower()}:{city_name.strip().lower()}"
+    enabled = load_settings().get("enabled_shops", {})
+    active_shops = tuple(k for k in ("kaspi", "shopkz", "fourmobile", "fortemarket") if enabled.get(k, True))
+    cache_key = (query.strip().lower(), city_name.strip().lower(), active_shops)
     now_ts = time.time()
 
     if cache_key in _LIVE_CACHE:
@@ -458,95 +460,99 @@ async def search_live_stores(query: str, city: str = "Астана") -> List[Dic
     all_found = []
 
     # 1. Kaspi
-    try:
-        city_config = next((c for c in CITIES_KZ.values() if c["name"] == city_name or c["id"] == city_name), CITIES_KZ["astana"])
-        kaspi_city_code = city_config["kaspi_code"]
-        kaspi = KaspiScraper(city_code=kaspi_city_code)
-        kaspi_results = await kaspi.search(query, max_items=15)
-        for item in kaspi_results:
-            item["city"] = city_name
-            cat_name, _ = determine_category_and_master(item.get("title", ""), query, item.get("category", ""))
-            if cat_name:
-                item["category"] = cat_name
-            save_or_update_product(item)
-            all_found.append(item)
-    except Exception as e:
-        print(f"[SearchEngine] Ошибка live-поиска в Kaspi: {e}")
+    if "kaspi" in active_shops:
+        try:
+            city_config = next((c for c in CITIES_KZ.values() if c["name"] == city_name or c["id"] == city_name), CITIES_KZ["astana"])
+            kaspi_city_code = city_config["kaspi_code"]
+            kaspi = KaspiScraper(city_code=kaspi_city_code)
+            kaspi_results = await kaspi.search(query, max_items=15)
+            for item in kaspi_results:
+                item["city"] = city_name
+                cat_name, _ = determine_category_and_master(item.get("title", ""), query, item.get("category", ""))
+                if cat_name:
+                    item["category"] = cat_name
+                save_or_update_product(item)
+                all_found.append(item)
+        except Exception as e:
+            print(f"[SearchEngine] Ошибка live-поиска в Kaspi: {e}")
 
     # 2. Белый Ветер (shop.kz)
-    try:
-        from curl_cffi import requests
-        from bs4 import BeautifulSoup
-        import urllib.parse
+    if "shopkz" in active_shops:
+        try:
+            from curl_cffi import requests
+            from bs4 import BeautifulSoup
+            import urllib.parse
 
-        city_config = next((c for c in CITIES_KZ.values() if c["name"] == city_name or c["id"] == city_name), CITIES_KZ["astana"])
-        shopkz_city = city_config["shopkz_city"]
-        enc = urllib.parse.quote(query)
-        url = f"https://shop.kz/search/?q={enc}"
-        r = requests.get(url, impersonate="chrome124", cookies={"BITRIX_SM_CITY": shopkz_city}, timeout=10)
-        if r.status_code == 200:
-            soup = BeautifulSoup(r.text, "html.parser")
-            cards = soup.select(".bx_catalog_item")
-            for c in cards[:10]:
-                title_el = c.select_one(".bx_catalog_item_title a")
-                price_el = c.select_one(".current_price span, .current_price")
-                if not title_el or not price_el:
-                    continue
-                title = title_el.text.strip()
-                p_val = parse_price(price_el.text)
-                if p_val <= 0:
-                    continue
-                rel_link = title_el.get("href", "")
-                full_link = f"https://shop.kz{rel_link}" if rel_link.startswith("/") else rel_link
-                img_el = c.select_one("img")
-                img_src = img_el.get("data-src") or img_el.get("src") or "" if img_el else ""
+            city_config = next((c for c in CITIES_KZ.values() if c["name"] == city_name or c["id"] == city_name), CITIES_KZ["astana"])
+            shopkz_city = city_config["shopkz_city"]
+            enc = urllib.parse.quote(query)
+            url = f"https://shop.kz/search/?q={enc}"
+            r = await asyncio.to_thread(requests.get, url, impersonate="chrome124", cookies={"BITRIX_SM_CITY": shopkz_city}, timeout=10)
+            if r.status_code == 200:
+                soup = BeautifulSoup(r.text, "html.parser")
+                cards = soup.select(".bx_catalog_item")
+                for c in cards[:10]:
+                    title_el = c.select_one(".bx_catalog_item_title a")
+                    price_el = c.select_one(".current_price span, .current_price")
+                    if not title_el or not price_el:
+                        continue
+                    title = title_el.text.strip()
+                    p_val = parse_price(price_el.text)
+                    if p_val <= 0:
+                        continue
+                    rel_link = title_el.get("href", "")
+                    full_link = f"https://shop.kz{rel_link}" if rel_link.startswith("/") else rel_link
+                    img_el = c.select_one("img")
+                    img_src = img_el.get("data-src") or img_el.get("src") or "" if img_el else ""
 
-                cat_name, _ = determine_category_and_master(title, query)
-                item_data = {
-                    "shop": "Белый Ветер",
-                    "id": f"shopkz_{rel_link[-20:]}",
-                    "title": title,
-                    "category": cat_name,
-                    "url": full_link,
-                    "image_url": img_src if img_src.startswith("http") else f"https://shop.kz{img_src}",
-                    "price": p_val,
-                    "old_price_on_site": 0,
-                    "city": city_name
-                }
-                save_or_update_product(item_data)
-                all_found.append(item_data)
-    except Exception as e:
-        print(f"[SearchEngine] Ошибка live-поиска в Shop.kz: {e}")
+                    cat_name, _ = determine_category_and_master(title, query)
+                    item_data = {
+                        "shop": "Белый Ветер",
+                        "id": f"shopkz_{rel_link[-20:]}",
+                        "title": title,
+                        "category": cat_name,
+                        "url": full_link,
+                        "image_url": img_src if img_src.startswith("http") else f"https://shop.kz{img_src}",
+                        "price": p_val,
+                        "old_price_on_site": 0,
+                        "city": city_name
+                    }
+                    save_or_update_product(item_data)
+                    all_found.append(item_data)
+        except Exception as e:
+            print(f"[SearchEngine] Ошибка live-поиска в Shop.kz: {e}")
 
     # 3. 4mobile
-    try:
-        from scrapers.fourmobile import FourMobileScraper
-        four_mobile = FourMobileScraper()
-        fm_results = await four_mobile.search_live(query)
-        for item in fm_results:
-            item["city"] = city_name
-            cat_name, _ = determine_category_and_master(item.get("title", ""), query, item.get("category", ""))
-            if cat_name:
-                item["category"] = cat_name
-            save_or_update_product(item)
-            all_found.append(item)
-    except Exception as e:
-        print(f"[SearchEngine] Ошибка live-поиска в 4mobile: {e}")
+    if "fourmobile" in active_shops:
+        try:
+            from scrapers.fourmobile import FourMobileScraper
+            four_mobile = FourMobileScraper()
+            fm_results = await four_mobile.search_live(query)
+            for item in fm_results:
+                item["city"] = city_name
+                cat_name, _ = determine_category_and_master(item.get("title", ""), query, item.get("category", ""))
+                if cat_name:
+                    item["category"] = cat_name
+                save_or_update_product(item)
+                all_found.append(item)
+        except Exception as e:
+            print(f"[SearchEngine] Ошибка live-поиска в 4mobile: {e}")
 
     # 4. Forte Market
-    try:
-        from scrapers.fortemarket import ForteMarketScraper
-        forte = ForteMarketScraper(city=city_name)
-        forte_results = await forte.search_live(query, city=city_name)
-        for item in forte_results:
-            item["city"] = city_name
-            cat_name, _ = determine_category_and_master(item.get("title", ""), query, item.get("category", ""))
-            if cat_name:
-                item["category"] = cat_name
-            save_or_update_product(item)
-            all_found.append(item)
-    except Exception as e:
-        print(f"[SearchEngine] Ошибка live-поиска в Forte Market: {e}")
+    if "fortemarket" in active_shops:
+        try:
+            from scrapers.fortemarket import ForteMarketScraper
+            forte = ForteMarketScraper(city=city_name)
+            forte_results = await forte.search_live(query, city=city_name)
+            for item in forte_results:
+                item["city"] = city_name
+                cat_name, _ = determine_category_and_master(item.get("title", ""), query, item.get("category", ""))
+                if cat_name:
+                    item["category"] = cat_name
+                save_or_update_product(item)
+                all_found.append(item)
+        except Exception as e:
+            print(f"[SearchEngine] Ошибка live-поиска в Forte Market: {e}")
 
     # Авто-регистрация категории для ротации в волнах обновлений
     if all_found:
@@ -612,36 +618,9 @@ async def get_best_price_summary(
         product_nouns=product_nouns
     )
 
-    # 2. Опрос внешних площадок при запросе Live или если данные устарели (> 12 часов)
-    now_utc = datetime.datetime.now(datetime.timezone.utc)
-    has_stale_items = False
-    if local_items:
-        for it in local_items:
-            upd_str = it.get("updated_at")
-            if not upd_str:
-                has_stale_items = True
-                break
-            try:
-                upd_clean = upd_str.replace("Z", "+00:00")
-                if " " in upd_clean and "T" not in upd_clean:
-                    dt = datetime.datetime.fromisoformat(upd_clean).replace(tzinfo=datetime.timezone.utc)
-                else:
-                    dt = datetime.datetime.fromisoformat(upd_clean)
-                    if dt.tzinfo is None:
-                        dt = dt.replace(tzinfo=datetime.timezone.utc)
-                if (now_utc - dt).total_seconds() > 12 * 3600:
-                    has_stale_items = True
-                    break
-            except Exception:
-                has_stale_items = True
-                break
-
-    should_live_search = live or has_stale_items or (not local_items)
-    if should_live_search:
-        if has_stale_items:
-            cache_k = f"{query_clean.lower()}:{(city or 'Астана').strip().lower()}"
-            _LIVE_CACHE.pop(cache_k, None)
-
+    # Refresh is explicit. The HTTP entrypoint authorizes and limits live=True;
+    # empty/stale local results must never silently start outbound requests.
+    if live:
         await search_live_stores(query_clean, city=city or "Астана")
         local_items = search_in_database(
             query_clean,

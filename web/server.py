@@ -235,6 +235,7 @@ async def alerts_handler(request):
     return web.json_response(alerts)
 
 @routes.post("/api/alerts/dismiss")
+@require_admin
 async def dismiss_alert_handler(request):
     try:
         data = await request.json()
@@ -249,6 +250,7 @@ async def dismiss_alert_handler(request):
     return web.json_response({"status": "ok", "dismissed_id": alert_id})
 
 @routes.delete("/api/alerts/{id}")
+@require_admin
 async def delete_alert_handler(request):
     try:
         alert_id = int(request.match_info["id"])
@@ -1238,6 +1240,7 @@ async def start_category_scan_handler(request):
     })
 
 @routes.get("/api/categories/tracked")
+@require_admin
 async def get_tracked_categories_handler(request):
     """Возвращает список отслеживаемых категорий из поисковых запросов."""
     from database import get_tracked_categories
