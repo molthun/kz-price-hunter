@@ -264,18 +264,14 @@ DEFAULT_SETTINGS = {**SYSTEM_DEFAULTS, **USER_DEFAULTS}
 ADMIN_TELEGRAM_IDS = {
     int(x) for x in os.getenv("ADMIN_TELEGRAM_IDS", "").replace(" ", "").split(",") if x.isdigit()
 }
-# Вход разработчика для локального запуска (виджет Telegram работает только на домене бота).
-# ALLOW_DEV_LOGIN=1 — включить, =0 — выключить; без переменной включается автоматически,
-# если приложение запущено не в Docker (на проде контейнер, там вход разработчика выключен).
-def _in_container() -> bool:
-    return Path("/.dockerenv").exists() or Path("/run/.containerenv").exists()
+# Local developer login is explicitly opt-in and never impersonates Telegram IDs.
+ALLOW_DEV_LOGIN = os.getenv("ALLOW_DEV_LOGIN", "0").strip() == "1"
+DEV_ADMIN_ID = -1  # Reserved local principal; Telegram user IDs are positive.
 
-_dev_login_env = os.getenv("ALLOW_DEV_LOGIN", "").strip()
-ALLOW_DEV_LOGIN = _dev_login_env == "1" if _dev_login_env in ("0", "1") else not _in_container()
-
-# ID пользователя «Разработчик». Если администраторы не заданы, он считается администратором —
-# только при включенном входе разработчика, то есть локально
-DEV_ADMIN_ID = 1
+# Empty means no forwarded headers are trusted. Use exact proxy IPs where possible.
+TRUSTED_PROXIES = tuple(x.strip() for x in os.getenv("TRUSTED_PROXIES", "").split(",") if x.strip())
+# APP_URL remains a compatible default for existing single-origin deployments.
+PUBLIC_ORIGIN = (os.getenv("PUBLIC_ORIGIN", "").strip() or APP_URL).rstrip("/")
 
 def _read_settings_file():
     if SETTINGS_FILE.exists():

@@ -103,6 +103,7 @@ from auth import (
     set_session_cookie,
     clear_session_cookie,
     dev_login_allowed,
+    browser_read_action_allowed,
     client_ip,
     get_bot_username,
     RateLimiter
@@ -142,6 +143,7 @@ wave_state = {
 live_search_limiter = RateLimiter(max_calls=10, period=600)   # на пользователя
 search_limiter = RateLimiter(max_calls=60, period=60)         # на IP
 consultant_limiter = RateLimiter(max_calls=10, period=60)
+telegram_test_limiter = RateLimiter(max_calls=3, period=60)
 auth_limiter = RateLimiter(max_calls=20, period=600)          # на IP
 
 routes = web.RouteTableDef()
@@ -170,6 +172,10 @@ def _public_user(user):
 async def index_handler(request):
     html_file = TEMPLATES_DIR / "index.html"
     return web.FileResponse(html_file)
+
+@routes.get("/privacy")
+async def privacy_handler(request):
+    return web.FileResponse(TEMPLATES_DIR / "privacy.html")
 
 @routes.get("/api/version")
 async def version_handler(request):
@@ -536,13 +542,16 @@ async def best_price_handler(request):
             "items": []
         })
 
+    if live and not user:
+        return web.json_response({"error": "Прямой опрос магазинов доступен после входа через Telegram"}, status=401)
+    if (live or use_ai) and not browser_read_action_allowed(request):
+        return web.json_response({"error": "Запустите обновление или AI-поиск со страницы сайта"}, status=403)
+
     wait = search_limiter.retry_after(f"ip:{client_ip(request)}")
     if wait:
         return web.json_response({"error": f"Слишком много запросов, повторите через {int(wait) + 1} сек"}, status=429)
 
     if live:
-        if not user:
-            return web.json_response({"error": "Прямой опрос магазинов доступен после входа через Telegram"}, status=401)
         wait = live_search_limiter.retry_after(f"user:{user['id']}")
         if wait:
             return web.json_response({"error": f"Лимит прямого опроса магазинов исчерпан, повторите через {int(wait // 60) + 1} мин"}, status=429)
@@ -635,7 +644,7 @@ def _login_response(request, user):
     token = create_session(user["id"])
     response = web.json_response({"status": "ok", "user": _public_user(user)})
     set_session_cookie(response, request, token)
-    print(f"[Auth] Вход пользователя {user['id']} (@{user.get('username') or '-'})")
+    print("[Auth] Пользователь вошёл в систему")
     return response
 
 def _initial_settings_for(user_id):
@@ -666,11 +675,13 @@ async def telegram_login_handler(request):
 async def dev_login_handler(request):
     if not dev_login_allowed(request):
         return web.json_response({"status": "error", "message": "Вход разработчика отключен"}, status=403)
-    uid = min(ADMIN_TELEGRAM_IDS) if ADMIN_TELEGRAM_IDS else DEV_ADMIN_ID
+    uid = DEV_ADMIN_ID
     existing = get_user(uid)
+    if existing and existing.get("is_blocked"):
+        return web.json_response({"status": "error", "message": "Локальная учётная запись заблокирована"}, status=403)
     user = upsert_telegram_user(
         {"id": uid, "username": "dev", "first_name": "Разработчик"},
-        initial_settings=None if existing else _initial_settings_for(uid)
+        initial_settings=None if existing else {**_initial_settings_for(uid), "telegram_notify_enabled": False}
     )
     return _login_response(request, user)
 
@@ -689,6 +700,8 @@ async def save_my_settings_handler(request):
     try:
         data = await request.json()
         clean = validate_user_settings(data)
+        if int(request["user"]["id"]) == DEV_ADMIN_ID:
+            clean["telegram_notify_enabled"] = False
     except ValueError as e:
         return web.json_response({"status": "error", "message": redact_secrets(str(e))}, status=400)
     except Exception:
@@ -700,6 +713,11 @@ async def save_my_settings_handler(request):
 @require_login
 async def test_my_telegram_handler(request):
     user = request["user"]
+    if int(user["id"]) <= 0:
+        return web.json_response({"status": "error", "message": "Для уведомлений войдите через Telegram"}, status=400)
+    retry = telegram_test_limiter.retry_after(str(user["id"]))
+    if retry:
+        return web.json_response({"status": "error", "message": "Подождите перед повторной проверкой"}, status=429, headers={"Retry-After": str(max(1, int(retry) + 1))})
     text = (
         "🎯 <b>KZ Price Hunter</b>\n\n"
         "✅ Уведомления настроены! Сюда будут приходить ценовые ошибки и скидки по вашим порогам."

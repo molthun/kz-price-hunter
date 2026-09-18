@@ -351,6 +351,7 @@
           </button>
         </div>
 
+        <p class="text-xs text-slate-500 mt-2">В режиме AI запрос может передаваться внешнему провайдеру. Выберите «AI Выкл», чтобы искать без AI. <a href="/privacy" target="_blank" rel="noopener noreferrer" class="underline">Как используются данные</a></p>
         <!-- AI Insight Banner (показывается, когда запрос был распарсен AI) -->
         <div id="aiInsightBanner" class="hidden text-xs bg-gradient-to-r from-purple-950/40 via-slate-900/60 to-emerald-950/40 border border-purple-500/30 rounded-xl p-3 text-purple-200 flex items-start justify-between gap-3 shadow-lg">
           <div class="flex items-start gap-2.5">
@@ -672,6 +673,7 @@
       <!-- Основная область чата -->
       <div class="glass rounded-2xl flex flex-col h-[650px] border border-slate-800 overflow-hidden shadow-xl">
         <!-- Лента сообщений -->
+        <p class="px-4 text-xs text-slate-400">Вопрос и контекст диалога передаются настроенному AI-провайдеру (Gemini, OpenAI или совместимому сервису). Для поиска без AI используйте каталог. <a href="/privacy" target="_blank" rel="noopener noreferrer" class="text-emerald-400 underline">Подробнее</a></p>
         <div id="consultantChatFeed" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 scrollbar-thin">
           
           <!-- Приветственное сообщение от бота -->
@@ -1474,6 +1476,7 @@
       KZ Price Hunter &copy; 2026 • Версия <span id="footerVersion" class="text-emerald-400 font-mono font-semibold">v2.5.0</span>
     </div>
     <div class="flex items-center gap-3">
+      <a href="/privacy" target="_blank" rel="noopener noreferrer" class="text-emerald-400 hover:underline">Как используются данные</a>
       <button onclick="openChangelogModal()" class="text-emerald-400 hover:text-emerald-300 hover:underline cursor-pointer flex items-center gap-1.5 transition">
         <i class="fa-solid fa-clock-rotate-left"></i>
         <span>История версий (Changelog)</span>
@@ -3146,7 +3149,7 @@
         if (excludeAcc) url += `&exclude_acc=${encodeURIComponent(excludeAcc)}`;
         if (negWords) url += `&neg=${encodeURIComponent(negWords)}`;
 
-        const res = await fetch(url);
+        const res = await fetch(url, { headers: { 'X-KZPH-Request': '1' } });
         const data = await res.json();
 
         loading.classList.add('hidden');

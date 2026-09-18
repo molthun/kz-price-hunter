@@ -3,6 +3,12 @@ import json
 import os
 import tempfile
 
+# Explicit test identities; production defaults must stay fail-closed.
+os.environ["ALLOW_DEV_LOGIN"] = "0"
+os.environ["ADMIN_TELEGRAM_IDS"] = "1"
+os.environ["PUBLIC_ORIGIN"] = ""
+os.environ["TRUSTED_PROXIES"] = ""
+
 # Тесты работают с временной базой и настройками, не трогая рабочую prices.db / settings.json
 _TMP_DIR = tempfile.TemporaryDirectory()
 os.environ["DATA_DIR"] = _TMP_DIR.name
@@ -675,7 +681,8 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
 
     async def test_admin_api_permissions_and_shop_validation(self):
         from unittest.mock import patch
-        from aiohttp.test_utils import TestClient, TestServer
+        from aiohttp.test_utils import TestServer
+        from test_support import BrowserTestClient as TestClient
         from web.server import create_app
         upsert_telegram_user({'id':42,'first_name':'Audit'})
         token=create_session(42)
@@ -850,7 +857,8 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
 
     async def test_ai_best_price_endpoint_integration(self):
         from unittest.mock import patch
-        from aiohttp.test_utils import TestClient, TestServer
+        from aiohttp.test_utils import TestServer
+        from test_support import BrowserTestClient as TestClient
         from web.server import create_app
         import ai_service
 
@@ -934,7 +942,8 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
     async def test_ai_consultant_endpoint(self):
         """Тест HTTP эндпоинта /api/ai/consultant."""
         from unittest.mock import patch, AsyncMock
-        from aiohttp.test_utils import TestClient, TestServer
+        from aiohttp.test_utils import TestServer
+        from test_support import BrowserTestClient as TestClient
         from web.server import create_app
         import ai_service
 
@@ -982,7 +991,7 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
                 upd_start = {
                     "update_id": 101,
                     "message": {
-                        "chat": {"id": 12345},
+                        "chat": {"id": 12345, "type": "private"},
                         "from": {"id": 12345, "first_name": "Тестер"},
                         "text": "/start"
                     }
@@ -996,7 +1005,7 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
                 upd_status = {
                     "update_id": 102,
                     "message": {
-                        "chat": {"id": 12345},
+                        "chat": {"id": 12345, "type": "private"},
                         "from": {"id": 12345, "first_name": "Тестер"},
                         "text": "/status"
                     }
@@ -1010,7 +1019,7 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
                 upd_search = {
                     "update_id": 103,
                     "message": {
-                        "chat": {"id": 12345},
+                        "chat": {"id": 12345, "type": "private"},
                         "from": {"id": 12345, "first_name": "Тестер"},
                         "text": "/search iPhone 15"
                     }
@@ -1024,7 +1033,7 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
                 upd_ai = {
                     "update_id": 104,
                     "message": {
-                        "chat": {"id": 12345},
+                        "chat": {"id": 12345, "type": "private"},
                         "from": {"id": 12345, "first_name": "Тестер"},
                         "text": "Какой планшет купить ребенку?"
                     }
@@ -1128,7 +1137,8 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
 
     async def test_models_compare_endpoint_and_arbitrage(self):
         """Тест кросс-магазинного сравнения цен и арбитража через /api/models/compare."""
-        from aiohttp.test_utils import TestClient, TestServer
+        from aiohttp.test_utils import TestServer
+        from test_support import BrowserTestClient as TestClient
         from web.server import create_app
         from database import save_or_update_products_batch
         from detector import check_market_arbitrage
@@ -1198,7 +1208,8 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
                 self.assertNotEqual(extract_canonical_key(a), extract_canonical_key(b))
 
     async def test_consultant_access_limits_and_validation(self):
-        from aiohttp.test_utils import TestClient, TestServer
+        from aiohttp.test_utils import TestServer
+        from test_support import BrowserTestClient as TestClient
         from unittest.mock import patch, AsyncMock
         import web.server as server
         app = server.create_app(); app.cleanup_ctx.clear()
@@ -1312,7 +1323,8 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
 
     async def test_consultant_long_history_is_trimmed_not_rejected(self):
         from unittest.mock import patch, AsyncMock
-        from aiohttp.test_utils import TestClient, TestServer
+        from aiohttp.test_utils import TestServer
+        from test_support import BrowserTestClient as TestClient
         import web.server as server
         app = server.create_app(); app.cleanup_ctx.clear()
         upsert_telegram_user({'id': 4545, 'first_name': 'Buyer'})
@@ -1398,7 +1410,8 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
 
     async def test_ai_consultant_error_hides_details(self):
         from unittest.mock import patch, AsyncMock
-        from aiohttp.test_utils import TestClient, TestServer
+        from aiohttp.test_utils import TestServer
+        from test_support import BrowserTestClient as TestClient
         import web.server as server
         app = server.create_app(); app.cleanup_ctx.clear()
         upsert_telegram_user({'id': 4343, 'first_name': 'Buyer'})
@@ -1411,7 +1424,8 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
 
     async def test_admin_config_never_returns_raw_keys(self):
         from unittest.mock import patch
-        from aiohttp.test_utils import TestClient, TestServer
+        from aiohttp.test_utils import TestServer
+        from test_support import BrowserTestClient as TestClient
         import web.server as server
         app=server.create_app(); app.cleanup_ctx.clear()
         upsert_telegram_user({'id':987,'first_name':'Admin'})
@@ -1430,7 +1444,7 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
         from unittest.mock import patch, AsyncMock
         import telegram_bot as bot
         from auth import RateLimiter
-        update={'message':{'chat':{'id':678},'from':{'id':678},'text':'test'}}
+        update={'message':{'chat':{'id':678,'type':'private'},'from':{'id':678},'text':'test'}}
         with patch.object(bot,'get_user',return_value={'is_blocked':True}), \
              patch.object(bot,'handle_ai_consultant_message',new_callable=AsyncMock) as ai:
             await bot.process_telegram_update(None,'fake',update)
@@ -1490,7 +1504,8 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
     async def test_cached_collision_cannot_create_comparison(self):
         from model_matching import extract_canonical_key
         from database import find_market_comparisons
-        from aiohttp.test_utils import TestClient, TestServer
+        from aiohttp.test_utils import TestServer
+        from test_support import BrowserTestClient as TestClient
         from web.server import create_app
         title='Apple MacBook Air M2 8GB 256GB'
         key=extract_canonical_key(title)
@@ -1666,7 +1681,8 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
     async def test_admin_category_endpoints(self):
         """Проверка API категорий: обзор, сохранение настроек волн и точечный on-demand запуск."""
         from unittest.mock import patch
-        from aiohttp.test_utils import TestClient, TestServer
+        from aiohttp.test_utils import TestServer
+        from test_support import BrowserTestClient as TestClient
         from web.server import create_app
 
         upsert_telegram_user({'id': 100, 'first_name': 'CategoryAdmin'})
@@ -1850,7 +1866,8 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
 
     async def test_alert_dismiss_http_api(self):
         """Проверка HTTP API /api/alerts/dismiss и DELETE /api/alerts/{id}."""
-        from aiohttp.test_utils import TestClient, TestServer
+        from aiohttp.test_utils import TestServer
+        from test_support import BrowserTestClient as TestClient
         from web.server import create_app
 
         save_or_update_product({
@@ -1925,7 +1942,8 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
     async def test_product_description_storage_and_api(self):
         """Проверка сохранения description в БД, получения через get_product_by_id и API /api/products/{id}."""
         from database import get_product_by_id, _fetch_filtered_alerts
-        from aiohttp.test_utils import TestClient, TestServer
+        from aiohttp.test_utils import TestServer
+        from test_support import BrowserTestClient as TestClient
         from web.server import create_app
 
         prod_id = "test-prod-desc-440"
@@ -2020,7 +2038,8 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
         """Проверка живого извлечения и кэширования описания товара при запросе к API."""
         from unittest.mock import patch
         from web.server import create_app
-        from aiohttp.test_utils import TestClient, TestServer
+        from aiohttp.test_utils import TestServer
+        from test_support import BrowserTestClient as TestClient
         from database import save_or_update_product, get_product_by_id
 
         # Сохраняем тестовый товар без описания
@@ -2109,7 +2128,8 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
     async def test_tracked_categories_api_and_wave_refresh(self):
         """Проверка API эндпоинтов управления отслеживаемыми категориями и их готовности к волне."""
         from web.server import create_app
-        from aiohttp.test_utils import TestClient, TestServer
+        from aiohttp.test_utils import TestServer
+        from test_support import BrowserTestClient as TestClient
         from database import save_tracked_category, get_due_tracked_categories, mark_tracked_category_scanned, delete_tracked_category
 
         cat = save_tracked_category("Роботы-пылесосы", "робот пылесос", "appliances_small")
@@ -2249,7 +2269,8 @@ class TestStageOneSecurity(unittest.IsolatedAsyncioTestCase):
         init_db()
 
     async def test_admin_only_global_dismiss_and_tracked_queries(self):
-        from aiohttp.test_utils import TestClient, TestServer
+        from aiohttp.test_utils import TestServer
+        from test_support import BrowserTestClient as TestClient
         from unittest.mock import patch
         from web.server import create_app
         from database import save_tracked_category
@@ -2283,7 +2304,8 @@ class TestStageOneSecurity(unittest.IsolatedAsyncioTestCase):
                             self.assertEqual(conn.execute('SELECT is_dismissed FROM alerts WHERE id=?', (alert_id,)).fetchone()[0], int(uid == 90001))
 
     async def test_guest_empty_and_stale_search_never_calls_sources(self):
-        from aiohttp.test_utils import TestClient, TestServer
+        from aiohttp.test_utils import TestServer
+        from test_support import BrowserTestClient as TestClient
         from unittest.mock import patch, AsyncMock
         import web.server as server
         from auth import RateLimiter
@@ -2300,7 +2322,8 @@ class TestStageOneSecurity(unittest.IsolatedAsyncioTestCase):
                 live.assert_not_awaited()
 
     async def test_explicit_live_requires_user_and_obeys_user_limit(self):
-        from aiohttp.test_utils import TestClient, TestServer
+        from aiohttp.test_utils import TestServer
+        from test_support import BrowserTestClient as TestClient
         from unittest.mock import patch, AsyncMock
         import web.server as server
         from auth import RateLimiter
@@ -2331,7 +2354,8 @@ class TestStageOneSecurity(unittest.IsolatedAsyncioTestCase):
 
     async def test_telegram_errors_do_not_expose_transport_or_provider_body(self):
         from unittest.mock import patch, Mock
-        from aiohttp.test_utils import TestClient, TestServer
+        from aiohttp.test_utils import TestServer
+        from test_support import BrowserTestClient as TestClient
         import web.server as server
         app = server.create_app(); app.cleanup_ctx.clear()
         upsert_telegram_user({'id': 90004, 'first_name': 'Test'})
