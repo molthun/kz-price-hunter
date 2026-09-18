@@ -2078,7 +2078,7 @@
         if (a.description && a.description.trim()) {
           descEl.innerText = a.description.trim();
         } else {
-          descEl.innerHTML = '<span class="text-slate-500 italic">Описание уточняется в каталоге магазина...</span>';
+          descEl.innerHTML = '<span class="text-slate-500 italic"><i class="fa-solid fa-spinner fa-spin mr-1.5 text-emerald-400"></i>Загрузка описания...</span>';
           const pId = a.product_id || a.id;
           if (pId) {
             fetch(`/api/products/${encodeURIComponent(pId)}`)
@@ -2086,6 +2086,7 @@
               .then(prod => {
                 if (prod && prod.description && prod.description.trim()) {
                   descEl.innerText = prod.description.trim();
+                  a.description = prod.description;
                 } else {
                   descEl.innerHTML = '<span class="text-slate-500 italic">Подробное описание характеристик в каталоге отсутствует.</span>';
                 }
@@ -2093,7 +2094,11 @@
                   if (imgEl) imgEl.src = prod.image_url;
                 }
               })
-              .catch(() => {});
+              .catch(() => {
+                descEl.innerHTML = '<span class="text-slate-500 italic">Подробное описание характеристик в каталоге отсутствует.</span>';
+              });
+          } else {
+            descEl.innerHTML = '<span class="text-slate-500 italic">Подробное описание характеристик в каталоге отсутствует.</span>';
           }
         }
       }
@@ -2324,18 +2329,16 @@
       const aJson = encodeURIComponent(JSON.stringify(a));
 
       return `
-        <div onclick="openProductDetailsModalFromData('${aJson}')" class="glass rounded-2xl p-5 flex flex-col justify-between border ${cardBorder} hover:border-emerald-500/60 hover:shadow-lg hover:shadow-emerald-500/10 transition-all cursor-pointer group">
+        <div onclick="openProductDetailsModalFromData('${aJson}')" class="glass rounded-2xl p-5 flex flex-col justify-between border ${cardBorder} hover:border-emerald-500/60 hover:shadow-lg hover:shadow-emerald-500/10 transition-all cursor-pointer group relative">
+          <button onclick="dismissAlert(${a.id}, event)" title="Скрыть этот сбой / Неактуально" class="absolute top-3 right-3 text-slate-500 hover:text-red-400 w-7 h-7 rounded-lg hover:bg-slate-800/90 transition flex items-center justify-center cursor-pointer z-10">
+            <i class="fa-solid fa-xmark text-sm"></i>
+          </button>
           <div class="space-y-3">
-            <div class="flex items-center justify-between gap-2">
-              <div class="flex items-center gap-1.5 flex-wrap min-w-0">
-                ${getShopBadge(a.shop)}
-                <span class="px-2 py-0.5 rounded-full text-xs font-bold whitespace-nowrap ${badgeClass}">
-                  ${badgeLabel}
-                </span>
-              </div>
-              <button onclick="dismissAlert(${a.id}, event)" title="Скрыть этот сбой / Неактуально" class="text-slate-500 hover:text-red-400 w-6 h-6 rounded-lg hover:bg-slate-800 transition flex items-center justify-center cursor-pointer shrink-0 ml-auto">
-                <i class="fa-solid fa-xmark text-sm"></i>
-              </button>
+            <div class="flex items-center gap-1.5 flex-wrap pr-8">
+              ${getShopBadge(a.shop)}
+              <span class="px-2 py-0.5 rounded-full text-xs font-bold whitespace-nowrap ${badgeClass}">
+                ${badgeLabel}
+              </span>
             </div>
 
             <div class="flex gap-3 items-start pt-1">

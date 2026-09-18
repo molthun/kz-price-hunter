@@ -2011,6 +2011,58 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(live_called), 1)
         self.assertEqual(result["items"][0]["current_price"], 280000)
 
+    async def test_product_description_live_enrichment(self):
+        """Проверка живого извлечения и кэширования описания товара при запросе к API."""
+        from unittest.mock import patch
+        from web.server import create_app
+        from aiohttp.test_utils import TestClient, TestServer
+        from database import save_or_update_product, get_product_by_id
+
+        # Сохраняем тестовый товар без описания
+        test_prod_id = "test_desc_live_99"
+        save_or_update_product({
+            "id": test_prod_id,
+            "title": "Тестовая видеокарта Pro 16GB",
+            "price": 250000,
+            "shop": "Белый Ветер",
+            "url": "https://shop.kz/offer/test-videokarta-pro-16gb/",
+            "category": "Видеокарты",
+            "city": "Астана"
+        })
+
+        p_before = get_product_by_id(test_prod_id)
+        self.assertFalse(p_before.get("description"))
+
+        fake_html = """
+        <html>
+            <body>
+                <div class="bx_item_description">
+                    <h2>Описание</h2>
+                    <p>Высокопроизводительная видеокарта нового поколения с 16 ГБ GDDR7 памяти.</p>
+                </div>
+                <div class="dotted-item">
+                    <span class="dotted-item__name">Частота GPU</span>
+                    <span class="dotted-item__value">2500 МГц</span>
+                </div>
+            </body>
+        </html>
+        """
+        class FakeResponse:
+            status_code = 200
+            text = fake_html
+
+        with patch("curl_cffi.requests.get", return_value=FakeResponse()):
+            app = create_app()
+            app.cleanup_ctx.clear()
+            async with TestClient(TestServer(app)) as client:
+                resp = await client.get(f"/api/products/{test_prod_id}")
+                self.assertEqual(resp.status, 200)
+                data = await resp.json()
+                self.assertIn("Высокопроизводительная видеокарта нового поколения", data.get("description", ""))
+                # Проверяем, что в БД описание также сохранилось
+                p_after = get_product_by_id(test_prod_id)
+                self.assertIn("Высокопроизводительная видеокарта нового поколения", p_after.get("description", ""))
+
 
 if __name__ == "__main__":
     unittest.main()

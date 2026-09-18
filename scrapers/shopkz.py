@@ -71,6 +71,13 @@ class ShopKzScraper:
                             cat = param.text or ""
                             break
 
+                    desc_raw = elem.findtext("description") or ""
+                    if "<" in desc_raw and ">" in desc_raw:
+                        desc_clean = re.sub(r"<[^>]+>", " ", desc_raw)
+                        desc_clean = re.sub(r"[ \t]+", " ", desc_clean).strip()
+                    else:
+                        desc_clean = desc_raw.strip()
+
                     p_val = parse_price(price_str)
                     old_p_val = parse_price(oldprice_str)
 
@@ -82,6 +89,7 @@ class ShopKzScraper:
                             "category": cat or "Комплектующие и электроника",
                             "url": url.strip(),
                             "image_url": pic.strip(),
+                            "description": desc_clean,
                             "price": p_val,
                             "old_price_on_site": old_p_val,
                             "city": "Астана"
