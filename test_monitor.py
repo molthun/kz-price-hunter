@@ -2386,5 +2386,92 @@ class TestStageOneSecurity(unittest.IsolatedAsyncioTestCase):
                 self.assertNotIn(secret, await response.text())
 
 
+
+class TestTrackedCategoriesEqualFunctionality(unittest.IsolatedAsyncioTestCase):
+    """Тесты равноправия функционала отслеживаемых категорий из поиска с мастер-группами."""
+
+    async def test_tracked_category_hot_and_due_rotation(self):
+        from database import (
+            save_tracked_category,
+            toggle_tracked_category_hot,
+            get_tracked_categories,
+            get_due_tracked_categories,
+            delete_tracked_category,
+        )
+
+        cat1 = save_tracked_category("Тестовый чайный сервиз", "чайный сервиз")
+        cat2 = save_tracked_category("Тестовые подгузники", "подгузники")
+        cid1, cid2 = cat1["id"], cat2["id"]
+
+        try:
+            # 1. Помечаем cat1 как Hot
+            toggle_tracked_category_hot(cid1, True)
+
+            cats = get_tracked_categories(active_only=True)
+            t1 = next(c for c in cats if c["id"] == cid1)
+            t2 = next(c for c in cats if c["id"] == cid2)
+            self.assertEqual(t1["is_hot"], 1)
+            self.assertEqual(t2["is_hot"], 0)
+            self.assertIn("products_count", t1)
+
+            # 2. get_due_tracked_categories должен отдавать Hot-категорию первой
+            due = get_due_tracked_categories(limit=5)
+            due_ids = [c["id"] for c in due]
+            self.assertIn(cid1, due_ids)
+            self.assertEqual(due[0]["id"], cid1)
+        finally:
+            delete_tracked_category(cid1)
+            delete_tracked_category(cid2)
+
+    async def test_scan_category_endpoint_with_tracked_and_create_query(self):
+        from unittest.mock import patch, AsyncMock
+        from aiohttp.test_utils import TestServer
+        from test_support import BrowserTestClient as TestClient
+        import web.server as server
+        from database import save_tracked_category, delete_tracked_category
+
+        app = server.create_app(); app.cleanup_ctx.clear()
+        upsert_telegram_user({'id': 1, 'first_name': 'Admin'})
+        token = create_session(1)
+
+        cat = save_tracked_category("Тестовая посуда", "посуда")
+        cid = cat["id"]
+
+        fake_products = [
+            {"id": "test_1", "shop": "Kaspi Магазин", "title": "Чайный сервиз фарфор", "price": 15000, "city": "Астана"}
+        ]
+
+        try:
+            async with TestClient(TestServer(app)) as client:
+                client.session.cookie_jar.update_cookies({"kzph_session": token})
+
+                with patch("search_engine.search_live_stores", new_callable=AsyncMock, return_value=fake_products):
+                    # 1. Запуск сбора по существующей tracked категории
+                    resp1 = await client.post("/api/scan/category", json={"category": f"tracked:{cid}"})
+                    self.assertEqual(resp1.status, 200)
+                    data1 = await resp1.json()
+                    self.assertEqual(data1["status"], "completed")
+                    self.assertEqual(data1["items_found"], 1)
+
+                    # 2. Запуск сбора с мгновенным созданием новой категории по запросу
+                    resp2 = await client.post("/api/scan/category", json={
+                        "category": "create_query:автомасла",
+                        "query": "автомасла",
+                        "name": "Автомасла"
+                    })
+                    self.assertEqual(resp2.status, 200)
+                    data2 = await resp2.json()
+                    self.assertEqual(data2["status"], "completed")
+                    self.assertEqual(data2["category_name"], "Автомасла")
+                    self.assertEqual(data2["items_found"], 1)
+        finally:
+            delete_tracked_category(cid)
+            from database import get_connection
+            with get_connection() as conn:
+                conn.execute("DELETE FROM tracked_categories WHERE name = 'Автомасла'")
+                conn.commit()
+
+
 if __name__ == "__main__":
     unittest.main()
+

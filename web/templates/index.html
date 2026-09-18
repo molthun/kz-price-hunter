@@ -308,7 +308,7 @@
               <span id="searchCityBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Астана</span>
             </h2>
             <p class="text-xs text-slate-400 mt-0.5">
-              Сравнение цен по 17 магазинам Казахстана: Kaspi, DNS, Мечта, Белый Ветер, Технодом, Sulpak и др.
+              Сравнение цен по 18 магазинам Казахстана: Kaspi, DNS, Мечта, Белый Ветер, Технодом, Sulpak, Forte Market и др.
             </p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
@@ -568,7 +568,7 @@
               <span>Мало предложений в базе?</span>
             </div>
             <div id="bestPriceFewResultsText" class="text-xs text-slate-300">
-              Найдено мало результатов. Вы можете точечно обновить предложения по нужной категории по всем 17 магазинам.
+              Найдено мало результатов. Вы можете точечно обновить предложения по нужной категории по всем 18 магазинам.
             </div>
           </div>
           <div class="flex items-center gap-2 shrink-0 w-full sm:w-auto">
@@ -1333,7 +1333,7 @@
           <!-- Сетка 12 мастер-категорий -->
           <div>
             <div class="flex items-center justify-between mb-3">
-              <div class="text-xs font-semibold text-slate-300">Категории каталога (12 мастер-групп по 17 магазинам РК):</div>
+              <div class="text-xs font-semibold text-slate-300">Категории каталога (12 мастер-групп по 18 магазинам РК):</div>
               <div class="space-x-2 text-xs">
                 <button type="button" onclick="toggleAllCategories(true)" class="text-emerald-400 hover:underline">Включить все</button>
                 <span class="text-slate-600">•</span>
@@ -1864,7 +1864,7 @@
       const key = decodeURIComponent(encodedKey || '');
 
       titleEl.textContent = title ? title : 'Сравнение цен по модели';
-      subEl.textContent = key ? `Каноническая модель: ${key}` : 'Поиск по всем 17 магазинам';
+      subEl.textContent = key ? `Каноническая модель: ${key}` : 'Поиск по всем 18 магазинам';
       modal.classList.remove('hidden');
 
       body.innerHTML = `
@@ -2932,7 +2932,7 @@
             <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 text-slate-200 text-sm leading-relaxed space-y-2 shadow-sm">
               <p class="font-semibold text-white">Здравствуйте! Диалог очищен. Чем я могу помочь?</p>
               <p class="text-xs text-slate-400 leading-relaxed">
-                Спросите меня о подборе техники под ваш бюджет, сравнении моделей или поиске лучшей цены по 17 магазинам Казахстана.
+                Спросите меня о подборе техники под ваш бюджет, сравнении моделей или поиске лучшей цены по 18 магазинам Казахстана.
               </p>
             </div>
             <div class="space-y-1.5">
@@ -3218,9 +3218,9 @@
               Попробуйте выбрать город «Все города», изменить категорию, диапазон цен или сократить запрос.
             </p>
             <div class="mt-5 inline-flex flex-col sm:flex-row items-center gap-2.5 p-3.5 rounded-2xl bg-slate-900/90 border border-slate-700/80 shadow-xl">
-              <span class="text-xs text-slate-300 font-medium">⚡️ Запустить точечный сбор по всем 17 магазинам для категории:</span>
+              <span class="text-xs text-slate-300 font-medium">⚡️ Запустить точечный сбор по всем 18 магазинам для категории:</span>
               <select id="emptyStateCategorySelect" class="bg-slate-800 border border-slate-600 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500">
-                ${renderMasterCategoryOptions(detectedCat)}
+                ${renderMasterCategoryOptions(detectedCat, q)}
               </select>
               <button type="button" onclick="triggerCategoryScanFromEmpty()" class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shrink-0 shadow-md">
                 <i class="fa-solid fa-bolt"></i>
@@ -3475,11 +3475,11 @@
           const cat = detectMasterCategory(q, items[0]?.category || '');
           fewNotice.classList.remove('hidden');
           const sel = document.getElementById('bestPriceCategorySelect');
-          if (sel) sel.innerHTML = renderMasterCategoryOptions(cat);
+          if (sel) sel.innerHTML = renderMasterCategoryOptions(cat, q);
           const txt = document.getElementById('bestPriceFewResultsText');
           if (txt) {
             const catName = MASTER_CATEGORIES_INFO[cat]?.name || 'этой категории';
-            txt.innerHTML = `В каталоге найдено всего <b>${items.length}</b> предложений. Вы можете точечно обновить категорию <b>«${escapeHtml(catName)}»</b> по всем 17 магазинам:`;
+            txt.innerHTML = `В каталоге найдено всего <b>${items.length}</b> предложений. Вы можете точечно обновить категорию <b>«${escapeHtml(catName)}»</b> по всем 18 магазинам:`;
           }
         } else {
           fewNotice.classList.add('hidden');
@@ -3996,11 +3996,77 @@
       return 'smartphones';
     }
 
-    function renderMasterCategoryOptions(selectedCat) {
-      return Object.entries(MASTER_CATEGORIES_INFO).map(([id, meta]) => {
+    let cachedTrackedCategories = [];
+
+    async function loadTrackedCategoriesList() {
+      try {
+        const res = await fetch('/api/categories/tracked');
+        if (res.ok) {
+          cachedTrackedCategories = await res.json();
+          updateCategoryFilterDropdowns();
+        }
+      } catch (e) {
+        console.error('Ошибка loadTrackedCategoriesList:', e);
+      }
+    }
+
+    function updateCategoryFilterDropdowns() {
+      const filterSel = document.getElementById('bestPriceCategoryFilter');
+      if (!filterSel) return;
+      let optGroup = filterSel.querySelector('optgroup[data-tracked-optgroup]');
+      if (!optGroup) {
+        optGroup = document.createElement('optgroup');
+        optGroup.setAttribute('data-tracked-optgroup', 'true');
+        optGroup.label = 'Отслеживаемые категории (из поиска)';
+        filterSel.appendChild(optGroup);
+      }
+      optGroup.innerHTML = (cachedTrackedCategories || []).map(c => {
+        const pCount = c.products_count != null ? ` (${c.products_count} тов.)` : '';
+        const icon = c.is_hot ? '🔥' : '🏷️';
+        return `<option value="${escapeHtml(c.name)}">${icon} ${escapeHtml(c.name)}${pCount}</option>`;
+      }).join('');
+    }
+
+    function renderMasterCategoryOptions(selectedCat, currentQuery = '') {
+      let html = '';
+      const trimmedQ = (currentQuery || '').trim();
+
+      // 1. Опция быстрого создания категории прямо из текущего поискового запроса пользователя
+      if (trimmedQ) {
+        const hasExact = (cachedTrackedCategories || []).some(c => 
+          (c.name || '').toLowerCase() === trimmedQ.toLowerCase() || (c.query || '').toLowerCase() === trimmedQ.toLowerCase()
+        );
+        if (!hasExact) {
+          const createVal = `create_query:${encodeURIComponent(trimmedQ)}`;
+          const isSel = selectedCat === createVal || !selectedCat ? 'selected' : '';
+          html += `<optgroup label="⚡ Новая категория из вашего поиска">
+            <option value="${escapeHtml(createVal)}" ${isSel}>✨ Создать «${escapeHtml(trimmedQ)}» и собрать по магазинам</option>
+          </optgroup>`;
+        }
+      }
+
+      // 2. Блок базовых мастер-категорий (12 групп)
+      html += '<optgroup label="Базовые мастер-категории (12 групп)">';
+      html += Object.entries(MASTER_CATEGORIES_INFO).map(([id, meta]) => {
         const isSel = id === selectedCat ? 'selected' : '';
         return `<option value="${escapeHtml(id)}" ${isSel}>${escapeHtml(meta.icon)} ${escapeHtml(meta.name)}</option>`;
       }).join('');
+      html += '</optgroup>';
+
+      // 3. Отдельный блок: Отслеживаемые категории из поиска (полноправные)
+      if (cachedTrackedCategories && cachedTrackedCategories.length > 0) {
+        html += '<optgroup label="Отслеживаемые категории (из поиска)">';
+        html += cachedTrackedCategories.map(c => {
+          const val = `tracked:${c.id}`;
+          const isSel = (selectedCat === val || selectedCat === c.name || selectedCat === c.query) ? 'selected' : '';
+          const pCount = c.products_count != null ? ` (${c.products_count} тов.)` : '';
+          const icon = c.is_hot ? '🔥' : '🏷️';
+          return `<option value="${escapeHtml(val)}" ${isSel}>${icon} ${escapeHtml(c.name)}${pCount}</option>`;
+        }).join('');
+        html += '</optgroup>';
+      }
+
+      return html;
     }
 
     async function loadAdminCategories() {
@@ -4280,25 +4346,41 @@
       }
     }
 
-    async function scanCategoryNow(catId, catName) {
+    async function scanCategoryNow(catId, catName, customQuery = '') {
       if (!isAdminUser()) {
         showToast('⚠️ Точечный запуск сканера доступен только администратору');
         return;
       }
-      showToast(`⚡️ Запущен точечный сбор категории «${catName}» по 17 магазинам...`);
+      showToast(`⚡️ Запущен сбор по всем 18 магазинам для «${catName}»...`);
       try {
+        let payload = { category: catId };
+        if (catId.startsWith('create_query:')) {
+          const rawQ = decodeURIComponent(catId.replace('create_query:', ''));
+          payload = { category: catId, query: rawQ, name: rawQ.charAt(0).toUpperCase() + rawQ.slice(1) };
+        } else if (catId.startsWith('tracked:')) {
+          payload = { category: catId };
+        } else if (customQuery) {
+          payload.query = customQuery;
+        }
+
         const res = await fetch('/api/scan/category', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ category: catId })
+          body: JSON.stringify(payload)
         });
         const data = await res.json();
         if (res.ok) {
-          showToast(`🚀 Сканирование категории «${catName}» началось!`);
-          if (!pollInterval) {
-            pollInterval = setInterval(loadStats, 1000);
+          if (data.status === 'completed') {
+            showToast(`✅ Сбор завершен: найдено ${data.items_found} предложений по «${data.category_name || catName}»!`);
+            await loadTrackedCategoriesList();
+            executeBestPriceSearch();
+          } else {
+            showToast(`🚀 Сканирование категории «${catName}» началось!`);
+            if (!pollInterval) {
+              pollInterval = setInterval(loadStats, 1000);
+            }
+            loadStats();
           }
-          loadStats();
         } else {
           showToast(`❌ ${data.message || 'Не удалось запустить сбор'}`);
         }
@@ -4310,15 +4392,19 @@
     function triggerCategoryScanFromSearch() {
       const sel = document.getElementById('bestPriceCategorySelect');
       const catId = sel?.value || 'smartphones';
-      const catName = MASTER_CATEGORIES_INFO[catId]?.name || catId;
-      scanCategoryNow(catId, catName);
+      const qInput = document.getElementById('bestPriceSearchInput');
+      const currentQuery = qInput ? qInput.value.trim() : '';
+      const catName = sel?.options[sel.selectedIndex]?.text || catId;
+      scanCategoryNow(catId, catName, currentQuery);
     }
 
     function triggerCategoryScanFromEmpty() {
       const sel = document.getElementById('emptyStateCategorySelect');
       const catId = sel?.value || 'smartphones';
-      const catName = MASTER_CATEGORIES_INFO[catId]?.name || catId;
-      scanCategoryNow(catId, catName);
+      const qInput = document.getElementById('bestPriceSearchInput');
+      const currentQuery = qInput ? qInput.value.trim() : '';
+      const catName = sel?.options[sel.selectedIndex]?.text || catId;
+      scanCategoryNow(catId, catName, currentQuery);
     }
 
     async function loadAdminShops() {
@@ -4717,6 +4803,7 @@
       loadVersionInfo();
       loadStats();
       loadAlerts();
+      loadTrackedCategoriesList();
       loadMe().then(() => applySearchDefaults(currentMe.settings || {}));
       setInterval(loadStats, 3000);
     });

@@ -1246,21 +1246,73 @@ async def admin_save_categories_handler(request):
 @routes.post("/api/scan/category")
 @require_admin
 async def start_category_scan_handler(request):
-    """On-Demand точечный запуск сканирования конкретной мастер-категории."""
+    """On-Demand точечный запуск сканирования мастер-категории или отслеживаемой категории."""
     if scan_state["is_running"]:
         return web.json_response({"status": "already_running", "message": "Сканирование уже выполняется"}, status=409)
 
     category = None
     shops = None
+    query_str = None
+    cat_name = None
     if request.can_read_body:
         try:
             payload = await request.json()
-            category = payload.get("category")
+            category = str(payload.get("category") or "").strip()
             shops = payload.get("shops")
+            query_str = payload.get("query")
+            cat_name = payload.get("name")
         except Exception:
             pass
 
-    if not category or category not in MASTER_CATEGORIES:
+    if not category:
+        return web.json_response({"status": "error", "message": "Параметр category обязателен"}, status=400)
+
+    # 1. Если это отслеживаемая категория (tracked:ID или tracked_ID)
+    if category.startswith("tracked:") or category.startswith("tracked_"):
+        raw_id = category.split(":", 1)[-1] if ":" in category else category.split("_", 1)[-1]
+        try:
+            cid = int(raw_id)
+            from database import get_tracked_categories, mark_tracked_category_scanned
+            cats = await asyncio.to_thread(get_tracked_categories, False, 200)
+            target = next((c for c in cats if c["id"] == cid), None)
+            if not target:
+                return web.json_response({"status": "error", "message": "Отслеживаемая категория не найдена"}, status=404)
+
+            from search_engine import search_live_stores
+            found = await search_live_stores(target["query"], city="Астана")
+            await asyncio.to_thread(mark_tracked_category_scanned, cid)
+            return web.json_response({
+                "status": "completed",
+                "category": target["name"],
+                "category_name": target["name"],
+                "items_found": len(found)
+            })
+        except Exception as ex:
+            return web.json_response({"status": "error", "message": f"Ошибка сбора: {ex}"}, status=400)
+
+    # 2. Если это создание новой категории по запросу (create_query:...)
+    if category.startswith("create_query:") or category.startswith("new:"):
+        q = query_str or (category.split(":", 1)[1] if ":" in category else "")
+        q = q.strip()
+        if not q:
+            return web.json_response({"status": "error", "message": "Запрос не может быть пустым"}, status=400)
+        from database import save_tracked_category, mark_tracked_category_scanned
+        from search_engine import determine_category_and_master, search_live_stores
+        name = cat_name or q.capitalize()
+        det_name, master_id = determine_category_and_master("", q)
+        saved = await asyncio.to_thread(save_tracked_category, name, q, master_id)
+        found = await search_live_stores(q, city="Астана")
+        if saved and saved.get("id"):
+            await asyncio.to_thread(mark_tracked_category_scanned, saved["id"])
+        return web.json_response({
+            "status": "completed",
+            "category": name,
+            "category_name": name,
+            "items_found": len(found)
+        })
+
+    # 3. Стандартная мастер-категория (12 групп)
+    if category not in MASTER_CATEGORIES:
         return web.json_response({"status": "error", "message": f"Укажите корректный category_id из списка {list(MASTER_CATEGORIES.keys())}"}, status=400)
 
     if shops is not None and (not isinstance(shops, list) or any(not isinstance(k, str) or k not in SHOP_REGISTRY for k in shops)):
