@@ -13,6 +13,8 @@ from config import (
     legacy_user_settings,
     validate_user_settings,
     ADMIN_TELEGRAM_IDS,
+    DEV_ADMIN_ID,
+    ALLOW_DEV_LOGIN,
     SHOP_KEYS,
     CITIES_KZ,
     DNS_CATEGORIES,
@@ -276,7 +278,8 @@ def _login_response(request, user):
 
 def _initial_settings_for(user_id):
     # Администраторы получают личные пороги из старого однопользовательского settings.json
-    return legacy_user_settings() if int(user_id) in ADMIN_TELEGRAM_IDS else {}
+    dev_admin = ALLOW_DEV_LOGIN and not ADMIN_TELEGRAM_IDS and int(user_id) == DEV_ADMIN_ID
+    return legacy_user_settings() if int(user_id) in ADMIN_TELEGRAM_IDS or dev_admin else {}
 
 @routes.post("/api/auth/telegram")
 async def telegram_login_handler(request):
@@ -301,7 +304,7 @@ async def telegram_login_handler(request):
 async def dev_login_handler(request):
     if not dev_login_allowed(request):
         return web.json_response({"status": "error", "message": "Вход разработчика отключен"}, status=403)
-    uid = min(ADMIN_TELEGRAM_IDS) if ADMIN_TELEGRAM_IDS else 1
+    uid = min(ADMIN_TELEGRAM_IDS) if ADMIN_TELEGRAM_IDS else DEV_ADMIN_ID
     existing = get_user(uid)
     user = upsert_telegram_user(
         {"id": uid, "username": "dev", "first_name": "Разработчик"},
@@ -682,7 +685,9 @@ async def background_tasks(app):
 def create_app():
     init_db()
     app = web.Application(middlewares=[auth_middleware])
-    if not ADMIN_TELEGRAM_IDS:
+    if ALLOW_DEV_LOGIN:
+        print("[Auth] 🧑‍💻 Вход разработчика включен (локальный запуск): кнопка «Вход разработчика» в шапке, права администратора")
+    elif not ADMIN_TELEGRAM_IDS:
         print("[Auth] ⚠️ ADMIN_TELEGRAM_IDS не задан — администраторов нет, общие настройки и логи недоступны")
     if not get_bot_token():
         print("[Auth] ⚠️ TELEGRAM_BOT_TOKEN не задан — вход через Telegram и уведомления отключены")

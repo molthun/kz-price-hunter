@@ -59,12 +59,10 @@ def send_telegram_alert(chat_id: int, product: Dict[str, Any], anomaly: Dict[str
         f"💰 <b>Выгода:</b> <b>{format_price(anomaly['savings'])}</b>\n\n"
         f"ℹ️ {html.escape(anomaly['reason'])}"
     )
-    reply_markup = {
-        "inline_keyboard": [
-            [{"text": f"⚡️ Открыть товар в {shop}", "url": url}],
-            [{"text": "📊 Дашборд цен", "url": APP_URL}]
-        ]
-    }
+    keyboard = [[{"text": f"⚡️ Открыть товар в {shop}", "url": url}]]
+    if APP_URL:
+        keyboard.append([{"text": "📊 Дашборд цен", "url": APP_URL}])
+    reply_markup = {"inline_keyboard": keyboard}
 
     try:
         if image_url and image_url.startswith("http"):

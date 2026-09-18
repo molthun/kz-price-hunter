@@ -190,6 +190,20 @@ class TestDNSMonitor(unittest.TestCase):
         with self.assertRaises(ValueError):
             verify_telegram_auth(old, token)
 
+    def test_dev_login_admin_only_locally(self):
+        """Локально без ADMIN_TELEGRAM_IDS «Разработчик» — администратор; в контейнере (прод) — нет."""
+        from unittest.mock import patch
+        import auth
+        dev = {"id": config.DEV_ADMIN_ID}
+        with patch.object(auth, "ALLOW_DEV_LOGIN", True), patch.object(auth, "ADMIN_TELEGRAM_IDS", set()):
+            self.assertTrue(auth.is_admin(dev))
+            self.assertFalse(auth.is_admin({"id": 42}))
+        with patch.object(auth, "ALLOW_DEV_LOGIN", False), patch.object(auth, "ADMIN_TELEGRAM_IDS", set()):
+            self.assertFalse(auth.is_admin(dev))
+        with patch.object(auth, "ALLOW_DEV_LOGIN", True), patch.object(auth, "ADMIN_TELEGRAM_IDS", {555}):
+            self.assertFalse(auth.is_admin(dev))   # заданы настоящие администраторы — разработчик не админ
+            self.assertTrue(auth.is_admin({"id": 555}))
+
     def test_user_sessions_and_blocking(self):
         """Сессия находит пользователя; блокировка и выход завершают ее."""
         user = upsert_telegram_user({"id": 777001, "username": "tester", "first_name": "Тест"})

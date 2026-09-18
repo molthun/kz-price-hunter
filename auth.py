@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 
 from aiohttp import web
 
-from config import ADMIN_TELEGRAM_IDS, ALLOW_DEV_LOGIN, get_bot_token, merge_user_settings
+from config import ADMIN_TELEGRAM_IDS, ALLOW_DEV_LOGIN, DEV_ADMIN_ID, get_bot_token, merge_user_settings
 from database import get_session_user, SESSION_TTL_DAYS
 
 SESSION_COOKIE = "kzph_session"
@@ -46,7 +46,12 @@ def verify_telegram_auth(data: Dict[str, Any], bot_token: str) -> Dict[str, Any]
     return fields
 
 def is_admin(user: Optional[Dict[str, Any]]) -> bool:
-    return bool(user) and int(user["id"]) in ADMIN_TELEGRAM_IDS
+    if not user:
+        return False
+    if int(user["id"]) in ADMIN_TELEGRAM_IDS:
+        return True
+    # Локальный запуск без ADMIN_TELEGRAM_IDS: «Разработчик» — администратор
+    return ALLOW_DEV_LOGIN and not ADMIN_TELEGRAM_IDS and int(user["id"]) == DEV_ADMIN_ID
 
 def user_settings_for(request: web.Request) -> Dict[str, Any]:
     """Личные настройки текущего пользователя, у гостей — значения по умолчанию."""
@@ -76,7 +81,7 @@ def client_ip(request: web.Request) -> str:
     return request.remote or ""
 
 def dev_login_allowed(request: web.Request) -> bool:
-    """Вход разработчика: только при ALLOW_DEV_LOGIN=1, без reverse proxy и из локальной сети."""
+    """Вход разработчика: только локальный запуск (не Docker или ALLOW_DEV_LOGIN=1), без reverse proxy и из локальной сети."""
     if not ALLOW_DEV_LOGIN or "X-Forwarded-For" in request.headers:
         return False
     try:

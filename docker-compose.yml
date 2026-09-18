@@ -12,8 +12,8 @@ services:
       - DATA_DIR=/app/data
       - TZ=Asia/Almaty
       - PORT=35539
-      - DOMAIN=shop.molthun.ru
-      - APP_URL=https://shop.molthun.ru
+      # Адрес панели для кнопки в Telegram-уведомлениях (например, https://ваш-домен)
+      - APP_URL=${APP_URL}
       # Токен Telegram-бота (вход на сайте и уведомления) и администраторы (Telegram ID через запятую).
       # Значения берутся из .env рядом с docker-compose.yml — не храните их в git.
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}

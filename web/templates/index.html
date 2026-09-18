@@ -1212,7 +1212,7 @@
       // на http://<ip>:8080 запрос разрешения не показывается, ошибка возвращается сразу
       if (!window.isSecureContext || !navigator.geolocation) {
         const reason = !window.isSecureContext
-          ? 'Точная геолокация работает только по HTTPS или на localhost — откройте https://shop.molthun.ru'
+          ? 'Точная геолокация работает только по HTTPS или на localhost — откройте сайт по его HTTPS-адресу'
           : 'Браузер не поддерживает геолокацию';
         await fallbackIpLocation(reason);
         if (icon) icon.className = 'fa-solid fa-crosshairs';

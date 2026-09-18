@@ -7,7 +7,8 @@ DATA_DIR = Path(os.getenv("DATA_DIR", BASE_DIR))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 DB_PATH = DATA_DIR / "prices.db"
 SETTINGS_FILE = DATA_DIR / "settings.json"
-APP_URL = os.getenv("APP_URL", "https://shop.molthun.ru")
+# Адрес панели для кнопки в Telegram-уведомлениях; задается на сервере, в репозитории не хранится
+APP_URL = os.getenv("APP_URL", "").strip()
 
 # Магазины: ключ настроек -> название магазина в базе (SHOP_NAME скраперов)
 SHOP_KEYS = {
@@ -93,7 +94,18 @@ DEFAULT_SETTINGS = {**SYSTEM_DEFAULTS, **USER_DEFAULTS}
 ADMIN_TELEGRAM_IDS = {
     int(x) for x in os.getenv("ADMIN_TELEGRAM_IDS", "").replace(" ", "").split(",") if x.isdigit()
 }
-ALLOW_DEV_LOGIN = os.getenv("ALLOW_DEV_LOGIN", "") == "1"
+# Вход разработчика для локального запуска (виджет Telegram работает только на домене бота).
+# ALLOW_DEV_LOGIN=1 — включить, =0 — выключить; без переменной включается автоматически,
+# если приложение запущено не в Docker (на проде контейнер, там вход разработчика выключен).
+def _in_container() -> bool:
+    return Path("/.dockerenv").exists() or Path("/run/.containerenv").exists()
+
+_dev_login_env = os.getenv("ALLOW_DEV_LOGIN", "").strip()
+ALLOW_DEV_LOGIN = _dev_login_env == "1" if _dev_login_env in ("0", "1") else not _in_container()
+
+# ID пользователя «Разработчик». Если администраторы не заданы, он считается администратором —
+# только при включенном входе разработчика, то есть локально
+DEV_ADMIN_ID = 1
 
 def _read_settings_file():
     if SETTINGS_FILE.exists():
