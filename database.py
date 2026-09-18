@@ -225,6 +225,20 @@ def init_db():
         )""")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_outbox_due ON notification_outbox(status, next_attempt_at)")
 
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS tracked_categories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL,
+                query TEXT NOT NULL,
+                master_category TEXT,
+                search_count INTEGER DEFAULT 1,
+                last_searched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_scanned_at TIMESTAMP,
+                is_active INTEGER DEFAULT 1
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_tracked_cat_active ON tracked_categories(is_active, last_scanned_at)")
+
         # Автоматическая миграция: исправление ссылок на картинки Белого Ветра
         try:
             cursor.execute("UPDATE products SET image_url = REPLACE(image_url, 'https://shop.kz//static.shop.kz', 'https://static.shop.kz') WHERE image_url LIKE 'https://shop.kz//static.shop.kz%'")
@@ -1040,3 +1054,85 @@ def finish_notification(delivery_id, status, attempts=0, error=None):
 def notification_stats():
     with get_connection() as conn:
         return {r[0]: r[1] for r in conn.execute("SELECT status,COUNT(*) FROM notification_outbox GROUP BY status")}
+
+
+# ===== Отслеживаемые категории (сохраненные из поисковых запросов пользователей) =====
+
+def save_tracked_category(name: str, query: str, master_category: Optional[str] = None) -> Dict[str, Any]:
+    """Сохраняет категорию из поискового запроса или обновляет ее счетчик популярности."""
+    clean_name = (name or "").strip()
+    clean_query = (query or "").strip()
+    if not clean_name or not clean_query:
+        return {}
+
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, search_count, master_category FROM tracked_categories WHERE name = ?", (clean_name,))
+        row = cursor.fetchone()
+        if row:
+            cat_id = row[0]
+            new_count = (row[1] or 1) + 1
+            m_cat = master_category or row[2]
+            cursor.execute("""
+                UPDATE tracked_categories
+                SET search_count = ?, last_searched_at = CURRENT_TIMESTAMP, master_category = COALESCE(?, master_category), is_active = 1
+                WHERE id = ?
+            """, (new_count, m_cat, cat_id))
+            conn.commit()
+            return {"id": cat_id, "name": clean_name, "query": clean_query, "search_count": new_count, "master_category": m_cat}
+        else:
+            cursor.execute("""
+                INSERT INTO tracked_categories (name, query, master_category, search_count, last_searched_at, is_active)
+                VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP, 1)
+            """, (clean_name, clean_query, master_category))
+            cat_id = cursor.lastrowid
+            conn.commit()
+            return {"id": cat_id, "name": clean_name, "query": clean_query, "search_count": 1, "master_category": master_category}
+
+def get_tracked_categories(active_only: bool = False, limit: int = 100) -> List[Dict[str, Any]]:
+    """Возвращает список отслеживаемых категорий."""
+    query = "SELECT * FROM tracked_categories"
+    params: List[Any] = []
+    if active_only:
+        query += " WHERE is_active = 1"
+    query += " ORDER BY search_count DESC, last_searched_at DESC LIMIT ?"
+    params.append(limit)
+
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(query, params)
+        return [dict(row) for row in cursor.fetchall()]
+
+def get_due_tracked_categories(limit: int = 2) -> List[Dict[str, Any]]:
+    """Возвращает категории, которые пора обновить в текущей волне (самые популярные и давно не сканировавшиеся)."""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM tracked_categories
+            WHERE is_active = 1
+            ORDER BY 
+                CASE WHEN last_scanned_at IS NULL THEN 0 ELSE 1 END,
+                last_scanned_at ASC,
+                search_count DESC
+            LIMIT ?
+        """, (limit,))
+        return [dict(row) for row in cursor.fetchall()]
+
+def mark_tracked_category_scanned(category_id: int):
+    """Фиксирует факт сканирования категории в волне."""
+    with get_connection() as conn:
+        conn.execute("UPDATE tracked_categories SET last_scanned_at = CURRENT_TIMESTAMP WHERE id = ?", (category_id,))
+        conn.commit()
+
+def toggle_tracked_category(category_id: int, is_active: bool):
+    """Включает или выключает категорию из ротации волн."""
+    with get_connection() as conn:
+        conn.execute("UPDATE tracked_categories SET is_active = ? WHERE id = ?", (1 if is_active else 0, category_id))
+        conn.commit()
+
+def delete_tracked_category(category_id: int):
+    """Удаляет категорию из отслеживаемых."""
+    with get_connection() as conn:
+        conn.execute("DELETE FROM tracked_categories WHERE id = ?", (category_id,))
+        conn.commit()
+

@@ -960,12 +960,16 @@ def get_categories_overview():
             "shops_count": len(master_to_shops.get(cat_id, set())),
         })
 
+    from database import get_tracked_categories
+    tracked = get_tracked_categories(active_only=False, limit=50)
+
     return {
         "categories": categories_list,
         "wave_mode": wave_mode,
         "wave_size": wave_size,
         "wave_plan": plan,
-        "wave_state": wave_state
+        "wave_state": wave_state,
+        "tracked_categories": tracked
     }
 
 async def _scan_shop(key, candidate_settings, semaphore, target_categories=None):
@@ -1093,6 +1097,22 @@ async def _do_scan_task(shop_keys=None, target_categories=None, scan_type="manua
                 print(f"[Scan] Магазин {SHOP_REGISTRY[key][2]} упал: {res}")
                 record_shop_scan_result(key, 0, 0, str(res))
 
+        # Дополнительный этап волны: фоновое обновление порции отслеживаемых категорий из поиска
+        try:
+            from database import get_due_tracked_categories, mark_tracked_category_scanned
+            due_tracked = await asyncio.to_thread(get_due_tracked_categories, 3)
+            if due_tracked:
+                print(f"[Wave] 🔍 Обновление {len(due_tracked)} категорий из поиска в текущей волне: {', '.join(c['name'] for c in due_tracked)}")
+                from search_engine import search_live_stores
+                for cat in due_tracked:
+                    try:
+                        await search_live_stores(cat["query"], city="Астана")
+                        await asyncio.to_thread(mark_tracked_category_scanned, cat["id"])
+                    except Exception as ex:
+                        print(f"[Wave] Ошибка обновления категории {cat['name']}: {ex}")
+        except Exception as e:
+            print(f"[Wave] Ошибка обновления tracked categories: {e}")
+
         scan_state["progress_pct"] = 100
         scan_state["last_completed"] = datetime.datetime.now().strftime("%H:%M:%S")
         print(f"[Scan] Цикл завершен: {scan_state['total_scanned']} товаров, {scan_state['anomalies_found']} новых аномалий")
@@ -1197,6 +1217,74 @@ async def start_category_scan_handler(request):
         "category": category,
         "category_name": MASTER_CATEGORIES[category]["name"]
     })
+
+@routes.get("/api/categories/tracked")
+async def get_tracked_categories_handler(request):
+    """Возвращает список отслеживаемых категорий из поисковых запросов."""
+    from database import get_tracked_categories
+    cats = await asyncio.to_thread(get_tracked_categories, False, 100)
+    return web.json_response(cats)
+
+@routes.post("/api/categories/tracked")
+@require_admin
+async def add_tracked_category_handler(request):
+    """Ручное добавление категории/запроса в отслеживаемые волнами."""
+    try:
+        data = await request.json()
+        name = (data.get("name") or "").strip()
+        query = (data.get("query") or "").strip()
+        master = data.get("master_category") or None
+        if not name or not query:
+            return web.json_response({"error": "Имя и поисковый запрос обязательны"}, status=400)
+        from database import save_tracked_category
+        res = await asyncio.to_thread(save_tracked_category, name, query, master)
+        return web.json_response(res)
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=400)
+
+@routes.post("/api/categories/tracked/{id}/toggle")
+@require_admin
+async def toggle_tracked_category_handler(request):
+    """Включение или выключение отслеживаемой категории из волн."""
+    try:
+        cid = int(request.match_info["id"])
+        data = await request.json()
+        is_active = bool(data.get("is_active", True))
+        from database import toggle_tracked_category
+        await asyncio.to_thread(toggle_tracked_category, cid, is_active)
+        return web.json_response({"status": "ok", "id": cid, "is_active": is_active})
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=400)
+
+@routes.delete("/api/categories/tracked/{id}")
+@require_admin
+async def delete_tracked_category_handler(request):
+    """Удаление категории из отслеживаемых."""
+    try:
+        cid = int(request.match_info["id"])
+        from database import delete_tracked_category
+        await asyncio.to_thread(delete_tracked_category, cid)
+        return web.json_response({"status": "ok", "id": cid})
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=400)
+
+@routes.post("/api/categories/tracked/{id}/scan")
+@require_admin
+async def scan_single_tracked_category_handler(request):
+    """Мгновенное обновление товаров конкретной отслеживаемой категории."""
+    try:
+        cid = int(request.match_info["id"])
+        from database import get_tracked_categories, mark_tracked_category_scanned
+        cats = await asyncio.to_thread(get_tracked_categories, False, 200)
+        target = next((c for c in cats if c["id"] == cid), None)
+        if not target:
+            return web.json_response({"error": "Категория не найдена"}, status=404)
+        from search_engine import search_live_stores
+        found = await search_live_stores(target["query"], city="Астана")
+        await asyncio.to_thread(mark_tracked_category_scanned, cid)
+        return web.json_response({"status": "ok", "id": cid, "name": target["name"], "items_found": len(found)})
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=400)
 
 @routes.get("/api/admin/shops")
 @require_admin

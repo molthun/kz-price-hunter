@@ -364,6 +364,86 @@ def search_in_database(
 
     return results[:result_limit]
 
+def determine_category_and_master(title: str, query: str = "", raw_category: str = "") -> Tuple[str, Optional[str]]:
+    """Определяет понятное название категории и ее master_id на основе названия товара, поискового запроса или исходной категории."""
+    text = f"{raw_category} {query} {title}".lower()
+
+    if any(k in text for k in ["видеокарт", "geforce", "radeon", "rtx ", "gtx ", "rx 7", "rx 6"]):
+        return "Видеокарты", "pc_components"
+    if any(k in text for k in ["процессор", "ryzen", "core i3", "core i5", "core i7", "core i9", "intel core"]):
+        return "Процессоры", "pc_components"
+    if any(k in text for k in ["материнск", "motherboard"]):
+        return "Материнские платы", "pc_components"
+    if any(k in text for k in ["оперативн", "памят", "ddr4", "ddr5", "dimm"]):
+        return "Оперативная память", "pc_components"
+    if any(k in text for k in ["ssd", "накопител", "жесткий диск", "hdd", "nvme"]):
+        return "Накопители SSD/HDD", "pc_components"
+    if any(k in text for k in ["блок питания", "power supply"]):
+        return "Блоки питания", "pc_components"
+    if any(k in text for k in ["корпус", "case"]):
+        return "Корпуса для ПК", "pc_components"
+    if any(k in text for k in ["кулер", "охлажден", "водяное охлаждение"]):
+        return "Охлаждение ПК", "pc_components"
+
+    if any(k in text for k in ["ноутбук", "laptop", "macbook", "ultrabook", "ультрабук"]):
+        return "Ноутбуки", "laptops"
+    if any(k in text for k in ["моноблок", "системный блок", "компьютер", "пк", "pc"]):
+        return "Компьютеры и моноблоки", "laptops"
+
+    if any(k in text for k in ["монитор", "дисплей"]):
+        return "Мониторы", "monitors"
+    if any(k in text for k in ["телевизор", "тв", "oled", "qled"]):
+        return "Телевизоры", "tvs"
+    if any(k in text for k in ["проектор"]):
+        return "Проекторы", "tvs"
+
+    if any(k in text for k in ["наушник", "гарнитур", "airpods", "tws"]):
+        return "Наушники", "audio"
+    if any(k in text for k in ["колонк", "акустик", "саундбар"]):
+        return "Акустика и колонки", "audio"
+
+    if any(k in text for k in ["пылесос", "робот-пылесос"]):
+        return "Пылесосы", "appliances_small"
+    if any(k in text for k in ["кофемашин", "кофеварк"]):
+        return "Кофемашины", "appliances_small"
+    if any(k in text for k in ["микроволнов", "свч"]):
+        return "Микроволновые печи", "appliances_small"
+    if any(k in text for k in ["чайник", "блендер", "утюг", "фен"]):
+        return "Мелкая бытовая техника", "appliances_small"
+
+    if any(k in text for k in ["холодильник"]):
+        return "Холодильники", "appliances_large"
+    if any(k in text for k in ["стиральн"]):
+        return "Стиральные машины", "appliances_large"
+    if any(k in text for k in ["кондиционер", "сплит"]):
+        return "Кондиционеры", "appliances_large"
+    if any(k in text for k in ["посудомоечн"]):
+        return "Посудомоечные машины", "appliances_large"
+    if any(k in text for k in ["плита", "варочн", "духов"]):
+        return "Плиты и духовки", "appliances_large"
+
+    if any(k in text for k in ["playstation", "ps5", "ps4", "xbox", "nintendo", "приставк", "геймпад"]):
+        return "Игровые консоли", "consoles"
+
+    if any(k in text for k in ["принтер", "мфу", "сканер"]):
+        return "Оргтехника", "office_network"
+    if any(k in text for k in ["роутер", "маршрутизатор", "wi-fi"]):
+        return "Сетевое оборудование", "office_network"
+
+    if any(k in text for k in ["планшет", "ipad", "tablet"]):
+        return "Планшеты", "tablets_watches"
+    if any(k in text for k in ["часы", "смарт-часы", "watch", "браслет"]):
+        return "Смарт-часы и браслеты", "tablets_watches"
+
+    if any(k in text for k in ["смартфон", "телефон", "iphone", "айфон", "galaxy", "xiaomi", "redmi", "poco", "pixel"]):
+        return "Смартфоны", "smartphones"
+
+    if raw_category and not raw_category.startswith("Поиск:"):
+        return raw_category, None
+    if query:
+        return query.strip().capitalize(), None
+    return "Электроника", None
+
 async def search_live_stores(query: str, city: str = "Астана") -> List[Dict[str, Any]]:
     """Живой опрос площадок (Kaspi, shop.kz, 4mobile) с кэшированием."""
     city_name = city or "Астана"
@@ -385,6 +465,9 @@ async def search_live_stores(query: str, city: str = "Астана") -> List[Dic
         kaspi_results = await kaspi.search(query, max_items=15)
         for item in kaspi_results:
             item["city"] = city_name
+            cat_name, _ = determine_category_and_master(item.get("title", ""), query, item.get("category", ""))
+            if cat_name:
+                item["category"] = cat_name
             save_or_update_product(item)
             all_found.append(item)
     except Exception as e:
@@ -418,11 +501,12 @@ async def search_live_stores(query: str, city: str = "Астана") -> List[Dic
                 img_el = c.select_one("img")
                 img_src = img_el.get("data-src") or img_el.get("src") or "" if img_el else ""
 
+                cat_name, _ = determine_category_and_master(title, query)
                 item_data = {
                     "shop": "Белый Ветер",
                     "id": f"shopkz_{rel_link[-20:]}",
                     "title": title,
-                    "category": f"Поиск: {query}",
+                    "category": cat_name,
                     "url": full_link,
                     "image_url": img_src if img_src.startswith("http") else f"https://shop.kz{img_src}",
                     "price": p_val,
@@ -441,10 +525,26 @@ async def search_live_stores(query: str, city: str = "Астана") -> List[Dic
         fm_results = await four_mobile.search_live(query)
         for item in fm_results:
             item["city"] = city_name
+            cat_name, _ = determine_category_and_master(item.get("title", ""), query, item.get("category", ""))
+            if cat_name:
+                item["category"] = cat_name
             save_or_update_product(item)
             all_found.append(item)
     except Exception as e:
         print(f"[SearchEngine] Ошибка live-поиска в 4mobile: {e}")
+
+    # Авто-регистрация категории для ротации в волнах обновлений
+    if all_found:
+        from database import save_tracked_category
+        seen_cats = set()
+        for it in all_found:
+            c_name, m_id = determine_category_and_master(it.get("title", ""), query, it.get("category", ""))
+            if c_name and c_name not in seen_cats:
+                seen_cats.add(c_name)
+                try:
+                    save_tracked_category(name=c_name, query=query.strip(), master_category=m_id)
+                except Exception:
+                    pass
 
     _LIVE_CACHE[cache_key] = (now_ts, all_found)
     return all_found

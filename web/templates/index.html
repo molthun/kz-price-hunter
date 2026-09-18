@@ -1343,6 +1343,28 @@
             </div>
           </div>
 
+          <!-- Отслеживаемые категории из поисковых запросов пользователей -->
+          <div class="mt-6 pt-5 border-t border-slate-800/80 space-y-3">
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="text-xs font-semibold text-white flex items-center gap-2">
+                  <i class="fa-solid fa-fire text-amber-400"></i>
+                  <span>Отслеживаемые категории из поиска (подтягиваются волнами)</span>
+                  <span id="trackedCatsCount" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-cyan-300">0</span>
+                </div>
+                <div class="text-[11px] text-slate-400 mt-0.5">
+                  Категории, которые искали пользователи. Система автоматически включает их в фоновые волны обновлений (каждые N часов).
+                </div>
+              </div>
+            </div>
+
+            <div id="trackedCategoriesContainer" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800/60 text-xs text-slate-500 italic col-span-full">
+                Пока нет сохраненных категорий из поиска. Выполните поиск или они добавятся автоматически при живом поиске товаров.
+              </div>
+            </div>
+          </div>
+
           <div class="pt-3 flex items-center justify-between gap-4 border-t border-slate-800">
             <div id="categorySaveResultToast" class="hidden text-xs font-medium"></div>
             <button type="button" onclick="saveAdminCategories()" id="btnSaveCategories" class="ml-auto flex items-center space-x-2 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 disabled:opacity-50 text-white font-medium px-5 py-2.5 rounded-xl text-xs shadow-lg shadow-cyan-600/20 transition cursor-pointer">
@@ -4017,6 +4039,112 @@
           </div>
         `;
       }).join('');
+
+      // Render tracked categories from user search
+      const trackedList = data.tracked_categories || [];
+      const trackedCountEl = document.getElementById('trackedCatsCount');
+      if (trackedCountEl) trackedCountEl.innerText = trackedList.length;
+
+      const trackedContainer = document.getElementById('trackedCategoriesContainer');
+      if (trackedContainer) {
+        if (trackedList.length === 0) {
+          trackedContainer.innerHTML = `
+            <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800/60 text-xs text-slate-500 italic col-span-full">
+              Пока нет сохраненных категорий из поиска. Они появятся здесь автоматически при живом поиске товаров.
+            </div>
+          `;
+        } else {
+          trackedContainer.innerHTML = trackedList.map(tc => {
+            const timeAgo = tc.last_scanned_at ? formatTrackedTime(tc.last_scanned_at) : 'В очереди';
+            const isActive = tc.is_active !== 0;
+            return `
+              <div class="p-3 rounded-xl bg-slate-900/80 border ${isActive ? 'border-slate-800' : 'border-slate-800/40 opacity-50'} hover:border-slate-700 transition flex items-center justify-between gap-2">
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-white truncate" title="${escapeHtml(tc.name)}">${escapeHtml(tc.name)}</span>
+                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0" title="Сколько раз искали пользователи">
+                      🔥 ${tc.search_count}
+                    </span>
+                  </div>
+                  <div class="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                    <span>Запрос: <code class="text-slate-300">${escapeHtml(tc.query)}</code></span>
+                    <span>•</span>
+                    <span class="text-cyan-400">🌊 ${timeAgo}</span>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <button type="button" onclick="scanTrackedCatNow(${tc.id}, '${escapeHtml(tc.name).replace(/'/g, "\\'")}')" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-cyan-900/40 text-slate-300 hover:text-cyan-300 transition flex items-center justify-center cursor-pointer" title="Обновить цены в этой категории прямо сейчас">
+                    <i class="fa-solid fa-arrows-rotate text-[11px]"></i>
+                  </button>
+                  <label class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 transition flex items-center justify-center cursor-pointer" title="${isActive ? 'Включена в волны' : 'Выключена из волн'}">
+                    <input type="checkbox" ${isActive ? 'checked' : ''} onchange="toggleTrackedCat(${tc.id}, this.checked)" class="w-3.5 h-3.5 rounded text-cyan-500 focus:ring-0">
+                  </label>
+                  <button type="button" onclick="deleteTrackedCat(${tc.id}, '${escapeHtml(tc.name).replace(/'/g, "\\'")}')" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-red-900/40 text-slate-400 hover:text-red-400 transition flex items-center justify-center cursor-pointer" title="Удалить категорию">
+                    <i class="fa-solid fa-trash text-[11px]"></i>
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+      }
+    }
+
+    function formatTrackedTime(isoStr) {
+      if (!isoStr) return 'В очереди волн';
+      try {
+        const d = new Date(isoStr.endsWith('Z') ? isoStr : isoStr + 'Z');
+        if (isNaN(d.getTime())) return isoStr;
+        const now = new Date();
+        const diffSec = Math.floor((now - d) / 1000);
+        if (diffSec < 60) return 'только что';
+        if (diffSec < 3600) return `${Math.floor(diffSec / 60)} мин назад`;
+        if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} ч назад`;
+        return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+      } catch (e) {
+        return isoStr;
+      }
+    }
+
+    async function toggleTrackedCat(id, isChecked) {
+      try {
+        await fetch(`/api/categories/tracked/${id}/toggle`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ is_active: isChecked })
+        });
+        loadAdminCategories();
+      } catch (e) {
+        console.error('Ошибка переключения категории:', e);
+      }
+    }
+
+    async function scanTrackedCatNow(id, name) {
+      showToast(`🔄 Запущен опрос магазинов по категории «${name}»...`, false);
+      try {
+        const res = await fetch(`/api/categories/tracked/${id}/scan`, { method: 'POST' });
+        const data = await res.json();
+        if (data.status === 'ok') {
+          showToast(`✅ Обновлено товаров: ${data.items_found}`, false);
+          loadAdminCategories();
+        } else {
+          showToast(`Ошибка: ${data.error || 'Не удалось обновить'}`, true);
+        }
+      } catch (e) {
+        showToast('Ошибка сети при обновлении категории', true);
+      }
+    }
+
+    async function deleteTrackedCat(id, name) {
+      if (!confirm(`Удалить категорию «${name}» из отслеживаемых волнами?`)) return;
+      try {
+        await fetch(`/api/categories/tracked/${id}`, { method: 'DELETE' });
+        showToast(`Категория «${name}» удалена`, false);
+        loadAdminCategories();
+      } catch (e) {
+        console.error('Ошибка удаления категории:', e);
+      }
     }
 
     function toggleAllCategories(enable) {

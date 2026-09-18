@@ -2063,6 +2063,84 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
                 p_after = get_product_by_id(test_prod_id)
                 self.assertIn("Высокопроизводительная видеокарта нового поколения", p_after.get("description", ""))
 
+    async def test_search_saves_tracked_category(self):
+        """Проверка, что поиск лучшей цены определяет и сохраняет категорию в tracked_categories."""
+        from unittest.mock import patch
+        from search_engine import search_live_stores, _LIVE_CACHE
+        from database import get_tracked_categories, delete_tracked_category
+        _LIVE_CACHE.clear()
+
+        # Мокаем KaspiScraper.search так, чтобы он возвращал найденный товар
+        fake_kaspi_item = {
+            "id": "test_rtx_live_1",
+            "title": "Видеокарта Gigabyte GeForce RTX 5070 12GB",
+            "price": 380000,
+            "shop": "Kaspi Магазин",
+            "category": "Видеокарты",
+            "url": "https://kaspi.kz/shop/p/test-5070",
+            "city": "Астана"
+        }
+
+        with patch("scrapers.kaspi.KaspiScraper.search", return_value=[fake_kaspi_item]), \
+             patch("curl_cffi.requests.get", side_effect=Exception("skip shopkz")), \
+             patch("scrapers.fourmobile.FourMobileScraper.search_live", return_value=[]):
+            
+            # Первый поиск
+            await search_live_stores("rtx 5070", city="Астана")
+            _LIVE_CACHE.clear()
+            # Второй поиск того же товара
+            await search_live_stores("rtx 5070", city="Астана")
+
+        cats = get_tracked_categories(active_only=False, limit=50)
+        found = next((c for c in cats if c["name"] == "Видеокарты"), None)
+        self.assertIsNotNone(found)
+        self.assertEqual(found["master_category"], "pc_components")
+        self.assertGreaterEqual(found["search_count"], 2)
+
+        # Очистка
+        delete_tracked_category(found["id"])
+
+    async def test_tracked_categories_api_and_wave_refresh(self):
+        """Проверка API эндпоинтов управления отслеживаемыми категориями и их готовности к волне."""
+        from web.server import create_app
+        from aiohttp.test_utils import TestClient, TestServer
+        from database import save_tracked_category, get_due_tracked_categories, mark_tracked_category_scanned, delete_tracked_category
+
+        cat = save_tracked_category("Роботы-пылесосы", "робот пылесос", "appliances_small")
+        cat_id = cat["id"]
+
+        try:
+            # Проверяем get_due_tracked_categories
+            due = get_due_tracked_categories(limit=10)
+            self.assertTrue(any(c["id"] == cat_id for c in due))
+            mark_tracked_category_scanned(cat_id)
+
+            # Проверяем API
+            upsert_telegram_user({"id": 1, "first_name": "Admin"})
+            token = create_session(1)
+
+            app = create_app()
+            app.cleanup_ctx.clear()
+            async with TestClient(TestServer(app)) as client:
+                client.session.cookie_jar.update_cookies({"kzph_session": token})
+
+                # GET
+                resp = await client.get("/api/categories/tracked")
+                self.assertEqual(resp.status, 200)
+                items = await resp.json()
+                self.assertTrue(any(it["id"] == cat_id for it in items))
+
+                # TOGGLE
+                resp_toggle = await client.post(f"/api/categories/tracked/{cat_id}/toggle", json={"is_active": False})
+                self.assertEqual(resp_toggle.status, 200)
+
+                # DELETE
+                resp_del = await client.delete(f"/api/categories/tracked/{cat_id}")
+                self.assertEqual(resp_del.status, 200)
+
+        finally:
+            delete_tracked_category(cat_id)
+
 
 if __name__ == "__main__":
     unittest.main()
