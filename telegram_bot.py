@@ -75,7 +75,7 @@ async def send_tg_message(session: aiohttp.ClientSession, token: str, chat_id: i
                 payload.pop("parse_mode", None)
                 await session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=10))
     except Exception as e:
-        print(f"[Telegram Bot] Ошибка отправки сообщения chat {chat_id}: {type(e).__name__}")
+        print(f"[Telegram Bot] Ошибка отправки сообщения: {type(e).__name__}")
 
 
 async def send_tg_chat_action(session: aiohttp.ClientSession, token: str, chat_id: int, action: str = "typing"):
@@ -105,7 +105,9 @@ async def handle_start_command(session: aiohttp.ClientSession, token: str, chat_
         "(<i>«а подешевле?»</i>, <i>«сравни первые два»</i>)\n"
         "• <b>/new</b> — начать новый разговор с консультантом\n"
         "• <b>/status</b> — проверка статуса базы и нейросети\n\n"
-        "🔔 Вы также автоматически получаете алерты о супер-скидках и обвалах цен!"
+        "🔒 Я отвечаю только в личном чате. Вопрос и контекст диалога передаются настроенному AI-провайдеру. "
+        "Для поиска без AI используйте /search; /new очищает текущий контекст.\n\n"
+        "🔔 Уведомления включаются в личных настройках сайта."
     )
     keyboard = []
     if APP_URL:
@@ -236,11 +238,11 @@ async def process_telegram_update(session: aiohttp.ClientSession, token: str, up
     from_user = msg.get("from", {})
     first_name = from_user.get("first_name", "")
 
-    if not chat_id or not text:
-        return
-
+    # Never share a group/channel context or accept sender_chat on behalf of a user.
     user_id = from_user.get("id")
-    if not user_id:
+    if chat.get("type") != "private" or not isinstance(user_id, int) or isinstance(user_id, bool) or user_id <= 0 or chat_id != user_id or from_user.get("is_bot"):
+        return
+    if not text:
         return
     user = get_user(user_id)
     if user and user.get("is_blocked"):
@@ -267,44 +269,80 @@ async def process_telegram_update(session: aiohttp.ClientSession, token: str, up
         await handle_ai_consultant_message(session, token, chat_id, text)
 
 
+class TelegramDispatcher:
+    """Bounded work and ordered turns per private chat; all workers owned by polling."""
+    def __init__(self, session, token, workers=4, capacity=64):
+        self.session, self.token = session, token
+        self.queue = asyncio.Queue(maxsize=capacity)
+        self.chat_locks = {}
+        self.tasks = [asyncio.create_task(self._worker()) for _ in range(workers)]
+
+    async def submit(self, update):
+        await self.queue.put(update)  # backpressure instead of unbounded create_task
+
+    async def _worker(self):
+        while True:
+            update = await self.queue.get()
+            chat_id = (update.get("message") or {}).get("chat", {}).get("id")
+            lock, count = self.chat_locks.get(chat_id, (asyncio.Lock(), 0))
+            self.chat_locks[chat_id] = (lock, count + 1)
+            try:
+                async with lock:
+                    await process_telegram_update(self.session, self.token, update)
+            except asyncio.CancelledError:
+                raise
+            except Exception as error:
+                print(f"[Telegram Bot] Ошибка обработки сообщения: {type(error).__name__}")
+            finally:
+                lock, count = self.chat_locks[chat_id]
+                if count == 1:
+                    del self.chat_locks[chat_id]
+                else:
+                    self.chat_locks[chat_id] = (lock, count - 1)
+                self.queue.task_done()
+
+    async def close(self):
+        for task in self.tasks:
+            task.cancel()
+        await asyncio.gather(*self.tasks, return_exceptions=True)
+        while not self.queue.empty():
+            self.queue.get_nowait()
+            self.queue.task_done()
+        self.chat_locks.clear()
+
+
 async def run_telegram_bot_task():
-    """
-    Фоновый цикл Long Polling для обработки сообщений Telegram бота.
-    Корректно останавливается при отмене таска.
-    """
+    """One polling owner; cancel/await message workers before closing HTTP session."""
     token = get_bot_token()
     if not token:
         print("[Telegram Bot] ⚠️ TELEGRAM_BOT_TOKEN не задан — интерактивный бот отключен")
         return
-
-    print("[Telegram Bot] 🤖 Интерактивный Telegram-бот запущен (Long Polling активен)")
+    print("[Telegram Bot] 🤖 Интерактивный Telegram-бот запущен (личные чаты)")
     offset = 0
     timeout = aiohttp.ClientTimeout(total=45)
-
     async with aiohttp.ClientSession(timeout=timeout) as session:
-        while True:
-            try:
-                poll_url = f"https://api.telegram.org/bot{token}/getUpdates?offset={offset}&timeout=30"
-                async with session.get(poll_url) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        updates = data.get("result", [])
-                        for upd in updates:
-                            upd_id = upd.get("update_id", 0)
-                            offset = max(offset, upd_id + 1)
-                            # Обрабатываем асинхронно каждое сообщение
-                            asyncio.create_task(process_telegram_update(session, token, upd))
-                    elif resp.status in (401, 404):
-                        print("[Telegram Bot] ❌ Ошибка токена Telegram бота (HTTP 401/404). Бот остановлен.")
-                        break
-                    elif resp.status == 409:
-                        print("[Telegram Bot] ⚠️ Конфликт 409: запущен другой экземпляр бота (webhook или polling). Ожидание 15с...")
-                        await asyncio.sleep(15)
-                    else:
-                        await asyncio.sleep(5)
-            except asyncio.CancelledError:
-                print("[Telegram Bot] 🛑 Фоновый таск Telegram-бота остановлен")
-                break
-            except Exception as e:
-                # Ошибки сети, таймауты
-                await asyncio.sleep(5)
+        dispatcher = TelegramDispatcher(session, token)
+        try:
+            while True:
+                try:
+                    poll_url = f"https://api.telegram.org/bot{token}/getUpdates?offset={offset}&timeout=30"
+                    async with session.get(poll_url) as resp:
+                        if resp.status == 200:
+                            data = await resp.json()
+                            for update in data.get("result", []):
+                                await dispatcher.submit(update)
+                                offset = max(offset, update.get("update_id", 0) + 1)
+                        elif resp.status in (401, 404):
+                            print("[Telegram Bot] Ошибка токена Telegram (HTTP 401/404). Бот остановлен.")
+                            break
+                        elif resp.status == 409:
+                            print("[Telegram Bot] Конфликт polling/webhook (HTTP 409), ожидание 15 с")
+                            await asyncio.sleep(15)
+                        else:
+                            await asyncio.sleep(5)
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    await asyncio.sleep(5)
+        finally:
+            await dispatcher.close()
