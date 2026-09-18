@@ -1601,8 +1601,7 @@
       <div class="p-4 sm:p-6 overflow-y-auto space-y-4 text-slate-200">
         <!-- Big photo container -->
         <div class="w-full flex items-center justify-center bg-slate-950/90 rounded-2xl p-4 border border-slate-800/80 min-h-[220px] max-h-[340px] relative overflow-hidden group">
-          <img id="modalProductImg" src="" alt="Товар" class="max-h-[290px] w-auto max-w-full object-contain drop-shadow-xl transition duration-300 group-hover:scale-105"
-            onerror="this.style.display='none'" />
+          <img id="modalProductImg" src="" alt="Товар" referrerpolicy="no-referrer" class="max-h-[290px] w-auto max-w-full object-contain drop-shadow-xl transition duration-300 group-hover:scale-105" />
           <div id="modalProductDiscountBadge" class="absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-bold shadow-lg"></div>
         </div>
 
@@ -1997,10 +1996,15 @@
       }
 
       // Large photo
+      // Битое фото заменяется заглушкой, а не скрывается: иначе скрытие переживало
+      // открытие следующего товара и его фото тоже не было видно
       const imgEl = document.getElementById('modalProductImg');
       let rawImg = imageUrl(a.image_url);
       if (imgEl) {
-        imgEl.src = rawImg || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="%23475569" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>';
+        const placeholder = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="%23475569" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>';
+        imgEl.style.display = '';
+        imgEl.onerror = () => { imgEl.onerror = null; imgEl.src = placeholder; };
+        imgEl.src = rawImg || placeholder;
       }
 
       // Badges & Pricing
