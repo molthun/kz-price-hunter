@@ -24,6 +24,8 @@
     .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
     .pulse-dot { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
     @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .4; transform: scale(1.15); } }
+    .best-price-pill.active { background-color: rgba(16, 185, 129, 0.2) !important; border-color: #10b981 !important; color: #6ee7b7 !important; font-weight: 600; }
+    .shop-chip.active { background-color: rgba(16, 185, 129, 0.2) !important; border-color: #10b981 !important; color: #6ee7b7 !important; font-weight: 600; }
   </style>
 </head>
 <body class="bg-dark-950 text-slate-100 min-h-screen flex flex-col">
@@ -350,32 +352,36 @@
           <button onclick="setBestPriceTag('PlayStation 5')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer">🕹 PlayStation 5</button>
         </div>
 
-        <!-- Панель гибких фильтров поиска -->
-        <div class="pt-3 border-t border-slate-800/80">
-          <div class="flex items-center justify-between">
-            <button type="button" onclick="toggleSearchFilters()" class="text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5 cursor-pointer select-none">
-              <i class="fa-solid fa-sliders"></i>
-              <span>Точные фильтры поиска (цена, режим, магазин, аксессуары)</span>
-              <i id="searchFiltersChevron" class="fa-solid fa-chevron-down text-[10px] transition-transform"></i>
-            </button>
-            <button type="button" onclick="resetSearchFilters()" class="text-[11px] text-slate-500 hover:text-slate-300 cursor-pointer">Сбросить фильтры</button>
-          </div>
-
-          <div id="searchFiltersPanel" class="hidden pt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+        <!-- Панель быстрых фильтров поиска -->
+        <div class="pt-4 border-t border-slate-800/80 space-y-3">
+          <!-- Ряд 1: Основные селекторы (Город, Магазин, Категория, Сортировка) -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
             <div>
-              <label class="block text-[11px] text-slate-400 mb-1">Цена от (₸):</label>
-              <input type="number" id="bestPriceMinPrice" placeholder="0" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
+              <label class="block text-[11px] font-medium text-slate-400 mb-1 flex items-center gap-1.5">
+                <i class="fa-solid fa-location-dot text-emerald-400"></i>
+                <span>Город поиска:</span>
+              </label>
+              <select id="bestPriceCityFilter" onchange="executeBestPriceSearch()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500 transition">
+                <option value="Все">🇰🇿 Все города (Доставка по РК)</option>
+                <option value="Астана">📍 Астана</option>
+                <option value="Алматы">📍 Алматы</option>
+                <option value="Шымкент">📍 Шымкент</option>
+                <option value="Караганда">📍 Караганда</option>
+                <option value="Актобе">📍 Актобе</option>
+                <option value="Павлодар">📍 Павлодар</option>
+                <option value="Усть-Каменогорск">📍 Усть-Каменогорск</option>
+                <option value="Костанай">📍 Костанай</option>
+                <option value="Атырау">📍 Атырау</option>
+              </select>
             </div>
 
             <div>
-              <label class="block text-[11px] text-slate-400 mb-1">Цена до (₸):</label>
-              <input type="number" id="bestPriceMaxPrice" placeholder="Без ограничений" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
-            </div>
-
-            <div>
-              <label class="block text-[11px] text-slate-400 mb-1">Магазин:</label>
-              <select id="bestPriceShopFilter" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
-                <option value="Все">Все магазины</option>
+              <label class="block text-[11px] font-medium text-slate-400 mb-1 flex items-center gap-1.5">
+                <i class="fa-solid fa-store text-cyan-400"></i>
+                <span>Магазин:</span>
+              </label>
+              <select id="bestPriceShopFilter" onchange="executeBestPriceSearch()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500 transition">
+                <option value="Все">Все магазины (17)</option>
                 <option value="Kaspi Магазин">🔴 Kaspi Магазин</option>
                 <option value="DNS Казахстан">🟧 DNS Казахстан</option>
                 <option value="Белый Ветер">🟦 Белый Ветер</option>
@@ -387,42 +393,118 @@
                 <option value="Эврика">🔷 Эврика</option>
                 <option value="Moon.kz">🚀 Moon.kz</option>
                 <option value="4mobile">📱 4mobile</option>
-            <option value="Flip.kz">🛍 Flip.kz</option>
-            <option value="Halyk Market">🏦 Halyk Market</option>
-            <option value="Tgrad">🟪 Tgrad</option>
-            <option value="ANTS">🐜 ANTS</option>
-            <option value="ITMag">💾 ITMag</option>
-            <option value="iSpace">🍏 iSpace</option>
+                <option value="Flip.kz">🛍 Flip.kz</option>
+                <option value="Halyk Market">🏦 Halyk Market</option>
+                <option value="Tgrad">🟪 Tgrad</option>
+                <option value="ANTS">🐜 ANTS</option>
+                <option value="ITMag">💾 ITMag</option>
+                <option value="iSpace">🍏 iSpace</option>
               </select>
             </div>
 
             <div>
-              <label class="block text-[11px] text-slate-400 mb-1">Режим поиска:</label>
-              <select id="bestPriceMatchMode" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
-                <option value="AND">Все слова (AND)</option>
+              <label class="block text-[11px] font-medium text-slate-400 mb-1 flex items-center gap-1.5">
+                <i class="fa-solid fa-layer-group text-amber-400"></i>
+                <span>Категория товара:</span>
+              </label>
+              <select id="bestPriceCategoryFilter" onchange="executeBestPriceSearch()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500 transition">
+                <option value="Все">📦 Все категории</option>
+                <option value="Смартфоны">📱 Смартфоны</option>
+                <option value="Ноутбуки">💻 Ноутбуки</option>
+                <option value="Видеокарты">🎮 Видеокарты</option>
+                <option value="Мониторы">🖥 Мониторы</option>
+                <option value="Наушники">🎧 Наушники</option>
+                <option value="Планшеты">📲 Планшеты</option>
+                <option value="Телевизоры">📺 Телевизоры</option>
+                <option value="Игровые приставки">🕹 Игровые приставки</option>
+                <option value="Процессоры">⚙️ Процессоры</option>
+                <option value="Материнские платы">🔌 Материнские платы</option>
+                <option value="SSD">💾 SSD накопители</option>
+                <option value="Корпуса">🗄 Корпуса ПК</option>
+                <option value="Блоки питания">🔋 Блоки питания</option>
+                <option value="Клавиатуры">⌨️ Клавиатуры</option>
+                <option value="Мыши">🖱 Мыши</option>
+                <option value="Смарт-часы">⌚️ Смарт-часы</option>
+                <option value="Пылесосы">🧹 Пылесосы</option>
+                <option value="Стиральные машины">🧺 Стиральные машины</option>
+                <option value="Холодильники">❄️ Холодильники</option>
+                <option value="Кондиционеры">🌬 Кондиционеры</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-medium text-slate-400 mb-1 flex items-center gap-1.5">
+                <i class="fa-solid fa-arrow-down-short-wide text-rose-400"></i>
+                <span>Сортировка:</span>
+              </label>
+              <select id="bestPriceSort" onchange="executeBestPriceSearch()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500 transition">
+                <option value="price_asc">📉 Сначала дешевые</option>
+                <option value="price_desc">📈 Сначала дорогие</option>
+                <option value="savings_desc">🔥 По выгоде (скидке)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Ряд 2: Ценовые чипсы + Быстрые тумблеры + кнопка Расширенные настройки -->
+          <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
+            <!-- Быстрые диапазоны цен -->
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span class="text-[11px] text-slate-500 mr-0.5">Цена:</span>
+              <button type="button" onclick="setBestPricePreset(0, 0, this)" class="best-price-pill active px-2.5 py-1 text-xs rounded-lg border border-slate-700 bg-slate-900/90 text-slate-300 hover:text-white transition cursor-pointer">Любая</button>
+              <button type="button" onclick="setBestPricePreset(0, 50000, this)" class="best-price-pill px-2.5 py-1 text-xs rounded-lg border border-slate-700 bg-slate-900/90 text-slate-300 hover:text-white transition cursor-pointer">&lt; 50 тыс</button>
+              <button type="button" onclick="setBestPricePreset(50000, 200000, this)" class="best-price-pill px-2.5 py-1 text-xs rounded-lg border border-slate-700 bg-slate-900/90 text-slate-300 hover:text-white transition cursor-pointer">50k – 200k</button>
+              <button type="button" onclick="setBestPricePreset(200000, 500000, this)" class="best-price-pill px-2.5 py-1 text-xs rounded-lg border border-slate-700 bg-slate-900/90 text-slate-300 hover:text-white transition cursor-pointer">200k – 500k</button>
+              <button type="button" onclick="setBestPricePreset(500000, 0, this)" class="best-price-pill px-2.5 py-1 text-xs rounded-lg border border-slate-700 bg-slate-900/90 text-slate-300 hover:text-white transition cursor-pointer">500k+</button>
+            </div>
+
+            <!-- Тумблеры чекбоксов -->
+            <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+              <label class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-xs text-slate-300 cursor-pointer hover:border-slate-600 transition select-none">
+                <input type="checkbox" id="bestPriceOnlyDiscount" onchange="executeBestPriceSearch()" class="w-3.5 h-3.5 rounded text-rose-500 focus:ring-rose-500 focus:ring-offset-slate-900">
+                <span>🔥 Только со скидкой</span>
+              </label>
+
+              <label class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-xs text-slate-300 cursor-pointer hover:border-slate-600 transition select-none">
+                <input type="checkbox" id="bestPriceExcludeAcc" checked onchange="executeBestPriceSearch()" class="w-3.5 h-3.5 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+                <span>🛡 Без аксессуаров</span>
+              </label>
+
+              <button type="button" onclick="toggleSearchFilters()" class="text-xs text-slate-400 hover:text-emerald-400 flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-slate-900 transition cursor-pointer select-none">
+                <i class="fa-solid fa-sliders text-[10px]"></i>
+                <span>Ещё</span>
+                <i id="searchFiltersChevron" class="fa-solid fa-chevron-down text-[9px] transition-transform"></i>
+              </button>
+
+              <button type="button" onclick="resetSearchFilters()" class="text-[11px] text-slate-500 hover:text-rose-400 transition cursor-pointer" title="Сбросить все фильтры">
+                <i class="fa-solid fa-rotate-left mr-1"></i>Сброс
+              </button>
+            </div>
+          </div>
+
+          <!-- Ряд 3: Расширенная панель (точная цена, режим поиска, минус-слова) -->
+          <div id="searchFiltersPanel" class="hidden pt-3 border-t border-slate-800/60 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 bg-slate-950/40 p-3 rounded-xl">
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">Точная цена от (₸):</label>
+              <input type="number" id="bestPriceMinPrice" onchange="executeBestPriceSearch()" placeholder="0" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
+            </div>
+
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">Точная цена до (₸):</label>
+              <input type="number" id="bestPriceMaxPrice" onchange="executeBestPriceSearch()" placeholder="Без ограничений" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
+            </div>
+
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">Режим поиска слов:</label>
+              <select id="bestPriceMatchMode" onchange="executeBestPriceSearch()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
+                <option value="AND">Все слова (AND) — по умолчанию</option>
                 <option value="EXACT">Точная фраза</option>
                 <option value="OR">Любое слово (OR)</option>
               </select>
             </div>
 
             <div>
-              <label class="block text-[11px] text-slate-400 mb-1">Сортировка:</label>
-              <select id="bestPriceSort" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
-                <option value="price_asc">Сначала дешевые</option>
-                <option value="price_desc">Сначала дорогие</option>
-                <option value="savings_desc">По наибольшей выгоде</option>
-              </select>
-            </div>
-
-            <div class="sm:col-span-2 md:col-span-3 flex items-center gap-4 pt-1">
-              <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-                <input type="checkbox" id="bestPriceExcludeAcc" checked class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
-                <span>Исключить чехлы, ремешки, защитные стекла</span>
-              </label>
-            </div>
-
-            <div class="sm:col-span-2 md:col-span-2">
-              <input type="text" id="bestPriceNegWords" placeholder="Минус-слова (например: копия, б/у)..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500">
+              <label class="block text-[11px] text-slate-400 mb-1">Минус-слова (исключить):</label>
+              <input type="text" id="bestPriceNegWords" onkeydown="if(event.key==='Enter') executeBestPriceSearch()" placeholder="например: копия, б/у, реплика..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500">
             </div>
           </div>
         </div>
@@ -466,7 +548,7 @@
 
         <!-- Таблица всех найденных предложений -->
         <div class="glass rounded-2xl overflow-hidden space-y-3 p-5">
-          <div class="flex items-center justify-between">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <h3 class="text-sm font-semibold text-white flex items-center gap-2">
               <i class="fa-solid fa-list-ol text-emerald-400"></i>
               <span>Все предложения, отсортированные по возрастанию цены</span>
@@ -474,13 +556,16 @@
             <span id="bestPriceTotalOffers" class="text-xs text-slate-400"></span>
           </div>
 
+          <!-- Интерактивные чипсы магазинов для быстрой фильтрации таблицы -->
+          <div id="bestPriceShopChips" class="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-800/60"></div>
+
           <div class="overflow-x-auto">
             <table class="w-full text-left text-sm text-slate-300">
               <thead class="bg-slate-900/80 text-xs uppercase font-medium text-slate-400 border-b border-slate-800">
                 <tr>
                   <th class="px-4 py-3 text-center w-12">#</th>
-                  <th class="px-4 py-3">Магазин</th>
-                  <th class="px-4 py-3">Товар</th>
+                  <th class="px-4 py-3">Магазин и город</th>
+                  <th class="px-4 py-3">Товар и категория</th>
                   <th class="px-4 py-3">Цена</th>
                   <th class="px-4 py-3">Разница с лучшей</th>
                   <th class="px-4 py-3 text-right">Купить</th>
@@ -1339,6 +1424,12 @@
       if (s.includes('эврика') || s.includes('evrika')) return `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 font-medium">${logo('evrika.com', '🔷')} <span>Эврика</span></span>`;
       if (s.includes('moon')) return `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs bg-purple-500/10 text-purple-300 border border-purple-500/20 font-medium">${logo('moon.kz', '🚀')} <span>Moon.kz</span></span>`;
       if (s.includes('4mobile')) return `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-medium">${logo('4mobile.pages.dev', '📱')} <span>4mobile</span></span>`;
+      if (s.includes('flip')) return `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs bg-pink-500/10 text-pink-300 border border-pink-500/20 font-medium">${logo('flip.kz', '🛍')} <span>Flip.kz</span></span>`;
+      if (s.includes('halyk')) return `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-medium">${logo('halykmarket.kz', '🏦')} <span>Halyk Market</span></span>`;
+      if (s.includes('tgrad')) return `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs bg-violet-500/10 text-violet-300 border border-violet-500/20 font-medium">${logo('tgrad.kz', '🟪')} <span>Tgrad</span></span>`;
+      if (s.includes('ants')) return `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs bg-lime-500/10 text-lime-300 border border-lime-500/20 font-medium">${logo('ants.kz', '🐜')} <span>ANTS</span></span>`;
+      if (s.includes('itmag')) return `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs bg-sky-500/10 text-sky-300 border border-sky-500/20 font-medium">${logo('itmag.kz', '💾')} <span>ITMag</span></span>`;
+      if (s.includes('ispace')) return `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs bg-slate-500/10 text-slate-200 border border-slate-500/20 font-medium">${logo('ispace.kz', '🍏')} <span>iSpace</span></span>`;
       return `<span class="px-2 py-0.5 rounded-lg text-xs bg-slate-800 text-slate-300 font-medium">${shop}</span>`;
     }
 
@@ -1802,15 +1893,47 @@
       syncShopSelect(selectId);
     }
 
+    let lastBestPriceData = null;
+    let activeShopFilterChip = 'Все';
+
+    function setBestPricePreset(minP, maxP, btn) {
+      const minEl = document.getElementById('bestPriceMinPrice');
+      const maxEl = document.getElementById('bestPriceMaxPrice');
+      if (minEl) minEl.value = minP > 0 ? minP : '';
+      if (maxEl) maxEl.value = maxP > 0 ? maxP : '';
+      document.querySelectorAll('.best-price-pill').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      executeBestPriceSearch();
+    }
+
     function resetSearchFilters() {
-      document.getElementById('bestPriceMinPrice').value = '';
-      document.getElementById('bestPriceMaxPrice').value = '';
-      document.getElementById('bestPriceShopFilter').value = 'Все';
-      syncShopSelect('bestPriceShopFilter');
-      document.getElementById('bestPriceMatchMode').value = 'AND';
-      document.getElementById('bestPriceSort').value = 'price_asc';
-      document.getElementById('bestPriceExcludeAcc').checked = true;
-      document.getElementById('bestPriceNegWords').value = '';
+      const minEl = document.getElementById('bestPriceMinPrice');
+      const maxEl = document.getElementById('bestPriceMaxPrice');
+      const shopEl = document.getElementById('bestPriceShopFilter');
+      const cityEl = document.getElementById('bestPriceCityFilter');
+      const catEl = document.getElementById('bestPriceCategoryFilter');
+      const modeEl = document.getElementById('bestPriceMatchMode');
+      const sortEl = document.getElementById('bestPriceSort');
+      const accEl = document.getElementById('bestPriceExcludeAcc');
+      const discEl = document.getElementById('bestPriceOnlyDiscount');
+      const negEl = document.getElementById('bestPriceNegWords');
+
+      if (minEl) minEl.value = '';
+      if (maxEl) maxEl.value = '';
+      if (shopEl) { shopEl.value = 'Все'; syncShopSelect('bestPriceShopFilter'); }
+      if (cityEl) cityEl.value = 'Все';
+      if (catEl) catEl.value = 'Все';
+      if (modeEl) modeEl.value = 'AND';
+      if (sortEl) sortEl.value = 'price_asc';
+      if (accEl) accEl.checked = true;
+      if (discEl) discEl.checked = false;
+      if (negEl) negEl.value = '';
+
+      document.querySelectorAll('.best-price-pill').forEach((b, idx) => {
+        b.classList.toggle('active', idx === 0);
+      });
+
+      executeBestPriceSearch();
     }
 
     function toggleAllShops(checked) {
@@ -1827,9 +1950,15 @@
       if (!q) return;
 
       const live = document.getElementById('checkLiveSearch').checked;
+      const cityEl = document.getElementById('bestPriceCityFilter');
+      const searchCity = cityEl ? cityEl.value : (currentCity || 'Все');
+      const catEl = document.getElementById('bestPriceCategoryFilter');
+      const category = catEl ? catEl.value : 'Все';
+      const onlyDiscEl = document.getElementById('bestPriceOnlyDiscount');
+      const onlyDiscount = onlyDiscEl && onlyDiscEl.checked;
+      const shop = document.getElementById('bestPriceShopFilter').value;
       const minPrice = document.getElementById('bestPriceMinPrice').value.trim();
       const maxPrice = document.getElementById('bestPriceMaxPrice').value.trim();
-      const shop = document.getElementById('bestPriceShopFilter').value;
       const matchMode = document.getElementById('bestPriceMatchMode').value;
       const sort = document.getElementById('bestPriceSort').value;
       const excludeAcc = document.getElementById('bestPriceExcludeAcc').checked ? '1' : '0';
@@ -1845,16 +1974,20 @@
       emptyState.classList.add('hidden');
       results.classList.add('hidden');
       loading.classList.remove('hidden');
+
+      const cityLabel = (searchCity && searchCity !== 'Все') ? searchCity : 'Казахстан';
       document.getElementById('bestPriceLoadingDetail').innerText = live 
-        ? `Опрашиваем Kaspi Магазин и ритейлеров (${currentCity}) по запросу "${q}"...` 
-        : `Мгновенный поиск по локальной базе данных (${currentCity}) по запросу "${q}"...`;
+        ? `Опрашиваем Kaspi Магазин и ритейлеров (${cityLabel}) по запросу "${q}"...` 
+        : `Мгновенный поиск по локальной базе данных (${cityLabel}) по запросу "${q}"...`;
 
       try {
         let url = `/api/best-price?q=${encodeURIComponent(q)}&live=${live ? '1' : '0'}`;
-        if (currentCity && currentCity !== 'Все') url += `&city=${encodeURIComponent(currentCity)}`;
+        if (searchCity && searchCity !== 'Все') url += `&city=${encodeURIComponent(searchCity)}`;
+        if (shop && shop !== 'Все') url += `&shop=${encodeURIComponent(shop)}`;
+        if (category && category !== 'Все') url += `&category=${encodeURIComponent(category)}`;
+        if (onlyDiscount) url += `&only_discount=1`;
         if (minPrice) url += `&min_price=${encodeURIComponent(minPrice)}`;
         if (maxPrice) url += `&max_price=${encodeURIComponent(maxPrice)}`;
-        if (shop && shop !== 'Все') url += `&shop=${encodeURIComponent(shop)}`;
         if (matchMode) url += `&mode=${encodeURIComponent(matchMode)}`;
         if (sort) url += `&sort=${encodeURIComponent(sort)}`;
         if (excludeAcc) url += `&exclude_acc=${encodeURIComponent(excludeAcc)}`;
@@ -1878,9 +2011,9 @@
           emptyState.classList.remove('hidden');
           emptyState.innerHTML = `
             <div class="text-4xl mb-3">😕</div>
-            <h3 class="text-base font-semibold text-white">Ничего не найдено по запросу "${q}"</h3>
+            <h3 class="text-base font-semibold text-white">Ничего не найдено по запросу "${escapeHtml(q)}"</h3>
             <p class="text-xs text-slate-400 mt-1 max-w-md mx-auto">
-              Попробуйте изменить фильтры цены или сократить запрос (например: вместо "Apple Watch Ultra 2 49mm" введите "Apple Watch").
+              Попробуйте выбрать город «Все города», изменить категорию, диапазон цен или сократить запрос (например: вместо "Apple Watch Ultra 2 49mm" введите "Apple Watch").
             </p>
           `;
           return;
@@ -1894,7 +2027,7 @@
         emptyState.innerHTML = `
           <div class="text-4xl mb-3">⚠️</div>
           <h3 class="text-base font-semibold text-red-400">Ошибка при поиске</h3>
-          <p class="text-xs text-slate-400 mt-1">${e}</p>
+          <p class="text-xs text-slate-400 mt-1">${escapeHtml(String(e))}</p>
         `;
       } finally {
         btn.disabled = false;
@@ -1902,7 +2035,130 @@
       }
     }
 
+    function renderShopFilterChips(data) {
+      const container = document.getElementById('bestPriceShopChips');
+      if (!container) return;
+      const items = data.items || [];
+      const shopCounts = data.shop_counts || {};
+
+      if (Object.keys(shopCounts).length === 0) {
+        items.forEach(it => {
+          shopCounts[it.shop] = (shopCounts[it.shop] || 0) + 1;
+        });
+      }
+
+      const shops = Object.entries(shopCounts).sort((a, b) => b[1] - a[1]);
+      if (shops.length <= 1) {
+        container.innerHTML = '';
+        return;
+      }
+
+      let html = `
+        <span class="text-xs text-slate-400 font-medium mr-1 py-1">Магазин:</span>
+        <button type="button" onclick="filterResultsByShop('Все')" class="shop-chip px-2.5 py-1 text-xs rounded-lg border transition cursor-pointer flex items-center gap-1.5 ${activeShopFilterChip === 'Все' ? 'active' : 'border-slate-700/80 bg-slate-900/80 text-slate-300 hover:text-white'}">
+          <span>Все магазины</span>
+          <span class="text-[10px] px-1.5 py-0.2 rounded-full ${activeShopFilterChip === 'Все' ? 'bg-emerald-500/30 text-emerald-200' : 'bg-slate-800 text-slate-400'}">${items.length}</span>
+        </button>
+      `;
+
+      shops.forEach(([shopName, cnt]) => {
+        const isAct = activeShopFilterChip === shopName;
+        html += `
+          <button type="button" onclick="filterResultsByShop('${escapeHtml(shopName).replace(/'/g, "\\'")}')" class="shop-chip px-2.5 py-1 text-xs rounded-lg border transition cursor-pointer flex items-center gap-1.5 ${isAct ? 'active' : 'border-slate-700/80 bg-slate-900/80 text-slate-300 hover:text-white'}">
+            ${shopLogoHtml(shopName)}
+            <span>${escapeHtml(shopName)}</span>
+            <span class="text-[10px] px-1.5 py-0.2 rounded-full ${isAct ? 'bg-emerald-500/30 text-emerald-200' : 'bg-slate-800 text-slate-400'}">${cnt}</span>
+          </button>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    function filterResultsByShop(shopName) {
+      if (!lastBestPriceData) return;
+      activeShopFilterChip = shopName;
+      renderShopFilterChips(lastBestPriceData);
+      const items = lastBestPriceData.items || [];
+      const filtered = (shopName === 'Все') ? items : items.filter(i => i.shop === shopName);
+      renderBestPriceTable(filtered, lastBestPriceData.price_stats);
+    }
+
+    function renderBestPriceTable(items, stats) {
+      const tbody = document.getElementById('bestPriceTableBody');
+      const counter = document.getElementById('bestPriceTotalOffers');
+      if (counter) {
+        const filterSuffix = (activeShopFilterChip && activeShopFilterChip !== 'Все') ? ` (фильтр: ${escapeHtml(activeShopFilterChip)})` : '';
+        counter.innerText = `Показано предложений: ${items.length}${filterSuffix}`;
+      }
+
+      if (items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-slate-500">Нет предложений по выбранному магазину</td></tr>';
+        return;
+      }
+
+      const minPrice = stats ? (stats.min_price || items[0].price) : items[0].price;
+
+      tbody.innerHTML = items.map((it, idx) => {
+        const isFirst = idx === 0 && (activeShopFilterChip === 'Все');
+        const diff = it.price - minPrice;
+        const diffText = diff <= 0 
+          ? '<span class="px-2 py-0.5 rounded text-xs bg-emerald-500/20 text-emerald-300 font-bold">👑 Лидер</span>'
+          : `<span class="text-xs text-slate-400 font-mono">+${fmtPrice(diff)}</span>`;
+
+        const cityDisplay = (it.city && it.city !== 'Все' && !it.city.includes('не подтвержд')) 
+          ? `<span class="text-[10px] text-slate-400 flex items-center gap-1"><i class="fa-solid fa-location-dot text-[9px] text-emerald-400"></i> ${escapeHtml(it.city)}</span>` 
+          : '<span class="text-[10px] text-slate-500 flex items-center gap-1"><i class="fa-solid fa-truck text-[9px]"></i> Доставка по РК</span>';
+
+        let oldPriceDisplay = '';
+        if (it.old_price_on_site && it.old_price_on_site > it.price) {
+          const pct = Math.round((1 - it.price / it.old_price_on_site) * 100);
+          oldPriceDisplay = `<div class="flex items-center gap-1 text-[11px]"><span class="line-through text-slate-500">${fmtPrice(it.old_price_on_site)}</span><span class="text-rose-400 font-bold">-${pct}%</span></div>`;
+        } else if (it.first_seen_price && it.first_seen_price > it.price) {
+          const pct = Math.round((1 - it.price / it.first_seen_price) * 100);
+          if (pct >= 5) {
+            oldPriceDisplay = `<div class="flex items-center gap-1 text-[11px]"><span class="line-through text-slate-500">${fmtPrice(it.first_seen_price)}</span><span class="text-amber-400 font-semibold">-${pct}%</span></div>`;
+          }
+        }
+
+        return `
+          <tr class="hover:bg-slate-900/40 transition ${isFirst ? 'bg-emerald-500/5' : ''}">
+            <td class="px-4 py-3 text-center text-xs font-bold ${isFirst ? 'text-emerald-400' : 'text-slate-500'}">${idx + 1}</td>
+            <td class="px-4 py-3 whitespace-nowrap">
+              <div class="flex flex-col gap-0.5">
+                ${getShopBadge(it.shop)}
+                ${cityDisplay}
+              </div>
+            </td>
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-3">
+                ${it.image_url ? `<img src="${it.image_url.replace('https://shop.kz//static.shop.kz', 'https://static.shop.kz')}" onerror="this.style.display='none';" class="w-10 h-10 object-contain rounded bg-slate-900 p-1 border border-slate-800 shrink-0">` : ''}
+                <div>
+                  <div class="font-medium text-white line-clamp-1 max-w-md" title="${escapeHtml(it.title)}">${escapeHtml(it.title)}</div>
+                  ${it.category ? `<div class="text-[10px] text-slate-500 line-clamp-1">${escapeHtml(it.category)}</div>` : ''}
+                </div>
+              </div>
+            </td>
+            <td class="px-4 py-3 whitespace-nowrap">
+              <div class="font-bold ${isFirst ? 'text-emerald-400 text-base' : 'text-slate-200'}">${fmtPrice(it.price)}</div>
+              ${oldPriceDisplay}
+            </td>
+            <td class="px-4 py-3 whitespace-nowrap">${diffText}</td>
+            <td class="px-4 py-3 whitespace-nowrap text-right">
+              <a href="${it.url}" target="_blank" class="px-3 py-1.5 rounded-lg ${isFirst ? 'bg-emerald-500 hover:bg-emerald-600 text-dark-950 font-bold' : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white'} text-xs inline-flex items-center gap-1.5 transition shadow-sm">
+                <span>В магазин</span>
+                <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+              </a>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
     function renderBestPriceResults(data) {
+      lastBestPriceData = data;
+      activeShopFilterChip = 'Все';
+
       const best = data.best_deal;
       const stats = data.price_stats || {};
       const stores = data.store_comparison || [];
@@ -1917,13 +2173,16 @@
              </span>` 
           : '';
 
+        const cityFilterEl = document.getElementById('bestPriceCityFilter');
+        const searchCityName = (cityFilterEl && cityFilterEl.value !== 'Все') ? cityFilterEl.value : (currentCity || 'Казахстан');
+
         heroContainer.innerHTML = `
           <div class="glass p-6 rounded-2xl border-2 border-emerald-500/50 bg-gradient-to-r from-emerald-950/40 via-slate-900 to-slate-900 shadow-2xl relative overflow-hidden">
             <div class="absolute -right-8 -top-8 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
             
             <div class="flex items-center gap-2 mb-3">
               <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500 text-dark-950 flex items-center gap-1.5 shadow-md shadow-emerald-500/30">
-                <i class="fa-solid fa-crown text-amber-950"></i> САМАЯ НИЗКАЯ ЦЕНА (${(currentCity || 'Казахстан').toUpperCase()})
+                <i class="fa-solid fa-crown text-amber-950"></i> САМАЯ НИЗКАЯ ЦЕНА (${searchCityName.toUpperCase()})
               </span>
               ${savingsText}
             </div>
@@ -1936,9 +2195,9 @@
                     ${getShopBadge(best.shop)}
                     <span class="text-xs text-slate-400 font-mono">${best.source === 'live_kaspi' ? '⚡️ Онлайн Kaspi' : '📦 В каталоге'}</span>
                   </div>
-                  <h3 class="text-base sm:text-lg font-bold text-white leading-snug line-clamp-2">${best.title}</h3>
+                  <h3 class="text-base sm:text-lg font-bold text-white leading-snug line-clamp-2">${escapeHtml(best.title)}</h3>
                   <div class="text-xs text-slate-400">
-                    Средняя цена (${currentCity}): <span class="text-slate-300 font-medium">${fmtPrice(stats.avg_price)}</span>
+                    Средняя цена (${searchCityName}): <span class="text-slate-300 font-medium">${fmtPrice(stats.avg_price)}</span>
                     ${stats.max_price ? ` • Дороже всего: <span class="line-through text-slate-500">${fmtPrice(stats.max_price)}</span>` : ''}
                   </div>
                 </div>
@@ -1972,55 +2231,29 @@
         const itemTitle = st.title || st.best_item_title || '';
         const itemUrl = st.url || st.best_item_url || '#';
         return `
-          <div class="p-3.5 rounded-xl border ${isWinner ? 'border-emerald-500/60 bg-emerald-500/10' : 'border-slate-800 bg-slate-900/60'} flex flex-col justify-between space-y-2">
+          <div onclick="filterResultsByShop('${escapeHtml(st.shop).replace(/'/g, "\\'")}')" class="p-3.5 rounded-xl border ${isWinner ? 'border-emerald-500/60 bg-emerald-500/10' : 'border-slate-800 bg-slate-900/60'} flex flex-col justify-between space-y-2 cursor-pointer hover:border-slate-700 transition" title="Нажмите, чтобы отфильтровать таблицу по магазину ${escapeHtml(st.shop)}">
             <div class="flex items-center justify-between">
-              <span class="font-bold text-xs text-white">${st.shop}</span>
+              <span class="font-bold text-xs text-white">${escapeHtml(st.shop)}</span>
               ${isWinner ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/30 text-emerald-300 font-bold">🏆 Лидер</span>' : `<span class="text-[10px] text-amber-400 font-medium">+${fmtPrice(diffVal)}</span>`}
             </div>
             <div>
               <div class="text-base font-bold ${isWinner ? 'text-emerald-400' : 'text-slate-200'}">${fmtPrice(st.min_price)}</div>
-              <div class="text-[10px] text-slate-400 line-clamp-1 mt-0.5" title="${itemTitle}">${itemTitle}</div>
+              <div class="text-[10px] text-slate-400 line-clamp-1 mt-0.5" title="${escapeHtml(itemTitle)}">${escapeHtml(itemTitle)}</div>
             </div>
-            <a href="${itemUrl}" target="_blank" class="text-[11px] text-emerald-400 hover:text-emerald-300 inline-flex items-center gap-1 pt-1 border-t border-slate-800/80">
-              <span>Смотреть</span>
-              <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
-            </a>
+            <div class="flex items-center justify-between pt-1 border-t border-slate-800/80 text-[11px]">
+              <span class="text-slate-400 hover:text-slate-200 text-[10px]"><i class="fa-solid fa-filter text-[9px] mr-1"></i>Фильтр</span>
+              <a href="${itemUrl}" target="_blank" onclick="event.stopPropagation()" class="text-emerald-400 hover:text-emerald-300 inline-flex items-center gap-1">
+                <span>В магазин</span>
+                <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+              </a>
+            </div>
           </div>
         `;
       }).join('');
 
-      // 3. Offers Table
-      const tbody = document.getElementById('bestPriceTableBody');
-      document.getElementById('bestPriceTotalOffers').innerText = `Всего предложений: ${items.length}`;
-
-      tbody.innerHTML = items.map((it, idx) => {
-        const isFirst = idx === 0;
-        const diff = it.price - (stats.min_price || it.price);
-        const diffText = diff === 0 
-          ? '<span class="px-2 py-0.5 rounded text-xs bg-emerald-500/20 text-emerald-300 font-bold">👑 Лидер</span>'
-          : `<span class="text-xs text-slate-400 font-mono">+${fmtPrice(diff)}</span>`;
-
-        return `
-          <tr class="hover:bg-slate-900/40 transition ${isFirst ? 'bg-emerald-500/5' : ''}">
-            <td class="px-4 py-3 text-center text-xs font-bold ${isFirst ? 'text-emerald-400' : 'text-slate-500'}">${idx + 1}</td>
-            <td class="px-4 py-3 whitespace-nowrap">${getShopBadge(it.shop)}</td>
-            <td class="px-4 py-3">
-              <div class="flex items-center gap-3">
-                ${it.image_url ? `<img src="${it.image_url.replace('https://shop.kz//static.shop.kz', 'https://static.shop.kz')}" onerror="this.style.display='none';" class="w-10 h-10 object-contain rounded bg-slate-900 p-1 border border-slate-800 shrink-0">` : ''}
-                <div class="font-medium text-white line-clamp-1 max-w-md" title="${it.title}">${it.title}</div>
-              </div>
-            </td>
-            <td class="px-4 py-3 whitespace-nowrap font-bold ${isFirst ? 'text-emerald-400 text-base' : 'text-slate-200'}">${fmtPrice(it.price)}</td>
-            <td class="px-4 py-3 whitespace-nowrap">${diffText}</td>
-            <td class="px-4 py-3 whitespace-nowrap text-right">
-              <a href="${it.url}" target="_blank" class="px-3 py-1.5 rounded-lg ${isFirst ? 'bg-emerald-500 hover:bg-emerald-600 text-dark-950 font-bold' : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white'} text-xs inline-flex items-center gap-1.5 transition shadow-sm">
-                <span>В магазин</span>
-                <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
-              </a>
-            </td>
-          </tr>
-        `;
-      }).join('');
+      // 3. Shop Chips & Offers Table
+      renderShopFilterChips(data);
+      renderBestPriceTable(items, stats);
     }
 
     async function loadCatalog(offset = 0) {

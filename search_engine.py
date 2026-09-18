@@ -11,8 +11,60 @@ from scrapers.kaspi import KaspiScraper
 # In-memory кэш для внешних живых запросов: { "query:city": (timestamp, [items]) }
 _LIVE_CACHE: Dict[str, Tuple[float, List[Dict[str, Any]]]] = {}
 
+LAYOUT_RU_TO_EN = str.maketrans(
+    "йцукенгшщзхъфывапролджэячсмитьбю.ёЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭЯЧСМИТЬБЮ,Ё",
+    "qwertyuiop[]asdfghjkl;'zxcvbnm,./`QWERTYUIOP{}ASDFGHJKL:\"ZXCVBNM<>?~"
+)
+
+LAYOUT_EN_TO_RU = str.maketrans(
+    "qwertyuiop[]asdfghjkl;'zxcvbnm,./`QWERTYUIOP{}ASDFGHJKL:\"ZXCVBNM<>?~",
+    "йцукенгшщзхъфывапролджэячсмитьбю.ёЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭЯЧСМИТЬБЮ,Ё"
+)
+
+BRAND_SYNONYMS = {
+    'айфон': 'iphone',
+    'самсунг': 'samsung',
+    'сяоми': 'xiaomi',
+    'ксиоми': 'xiaomi',
+    'хиаоми': 'xiaomi',
+    'редми': 'redmi',
+    'эппл': 'apple',
+    'эпл': 'apple',
+    'хуавей': 'huawei',
+    'хонор': 'honor',
+    'макбук': 'macbook',
+    'айпад': 'ipad',
+    'сони': 'sony',
+    'асус': 'asus',
+    'леново': 'lenovo',
+    'эйсер': 'acer',
+    'асер': 'acer',
+    'хп': 'hp',
+    'делл': 'dell',
+    'дел': 'dell',
+    'хбокс': 'xbox',
+    'иксбокс': 'xbox',
+    'плейстейшн': 'playstation',
+    'плейстейшен': 'playstation',
+    'стиралка': 'стиральная',
+    'телик': 'телевизор',
+    'комп': 'компьютер',
+    'видюха': 'видеокарта',
+    'проц': 'процессор',
+    'ноут': 'ноутбук',
+    'лэптоп': 'ноутбук',
+    'уши': 'наушники',
+    'часы': 'watch',
+}
+
+ACCESSORY_KEYWORDS = [
+    "чехол", "стекло", "пленка", "плёнка", "ремешок", "кабель", "переходник",
+    "держатель", "подставка", "амбушюры", "накладка", "салфетки", "зарядное",
+    "зарядка", "блок питания", "адаптер", "пульт", "джойстик", "геймпад"
+]
+
 def parse_price(price_str: str) -> int:
-    digits = re.sub(r"[^\d]", "", price_str)
+    digits = re.sub(r"[^\d]", "", str(price_str or ""))
     return int(digits) if digits else 0
 
 def get_db():
@@ -20,37 +72,126 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
-def build_fts_query(tokens: List[str], mode: str) -> str:
-    clean = [re.sub(r"[\"\*\:\(\)\^\-\+]", "", t).strip() for t in tokens]
-    clean = [t for t in clean if t]
+def is_accessory_query(query: str) -> bool:
+    """Проверяет, ищет ли пользователь явно аксессуар."""
+    q = query.lower()
+    return any(k in q for k in ACCESSORY_KEYWORDS)
+
+def stem_russian_word(word: str) -> str:
+    """Усечение падежных и грамматических окончаний русских слов."""
+    if not re.search(r'[а-яё]', word):
+        return word
+    stem = re.sub(r'(ами|ями|ов|ев|ей|ом|ем|ой|ых|их|ого|его|ому|ему|ая|яя|ое|ее|ые|ие|[аяоеыиуюьеэ])$', '', word)
+    return stem if len(stem) >= 3 else word
+
+def expand_token_fts(token: str) -> str:
+    """Преобразует токен в безопасную FTS5 конструкцию с поддержкой синонимов и морфологии."""
+    clean = re.sub(r'[^\w\-]', '', token).strip()
     if not clean:
         return ""
-    joined = " ".join(clean)
+
+    # Числа (5, 15, 24, 4060) ищем строго без префиксного wildcard, чтобы 5 не матчила 500
+    if clean.isdigit():
+        return f'"{clean}"'
+
+    lower = clean.lower()
+
+    # Специфические модели с цифрами
+    if lower in ('ps5', 'пс5'):
+        return '(ps5* OR (playstation* AND "5"))'
+    if lower in ('ps4', 'пс4'):
+        return '(ps4* OR (playstation* AND "4"))'
+
+    candidates = [lower]
+
+    # Синонимы брендов
+    if lower in BRAND_SYNONYMS:
+        candidates.append(BRAND_SYNONYMS[lower])
+
+    # Исправление раскладки клавиатуры (только если результат алфавитно-цифровой)
+    ru_trans = clean.translate(LAYOUT_EN_TO_RU).lower()
+    if ru_trans != lower and re.match(r'^[а-яё0-9]+$', ru_trans):
+        candidates.append(ru_trans)
+
+    en_trans = clean.translate(LAYOUT_RU_TO_EN).lower()
+    if en_trans != lower and re.match(r'^[a-z0-9]+$', en_trans):
+        candidates.append(en_trans)
+
+    parts = []
+    seen = set()
+    for c in candidates:
+        if c in seen:
+            continue
+        seen.add(c)
+        stemmed = stem_russian_word(c)
+        clause = f'{stemmed}*' if len(stemmed) >= 2 else f'"{stemmed}"'
+        parts.append(clause)
+
+    if len(parts) == 1:
+        return parts[0]
+    return f'({" OR ".join(parts)})'
+
+def build_fts_query(query: str, mode: str = "AND") -> str:
+    """Генерирует полнотекстовый запрос FTS5 по полям {title category}."""
+    raw_tokens = [t.strip() for t in query.split() if t.strip()]
+    if not raw_tokens:
+        return ""
+
     if mode == "EXACT":
-        return f'title: "{joined}"'
-    elif mode == "OR":
-        terms = " OR ".join([f'"{t}"*' for t in clean])
-        return f'title: ({terms})'
-    terms = " ".join([f'"{t}"*' for t in clean])
-    return f'title: ({terms})'
+        clean = re.sub(r'[\"\*\:\(\)\^\-\+]', ' ', query).strip()
+        clean = " ".join(clean.split())
+        return f'{{title category}}: "{clean}"' if clean else ""
+
+    clauses = [expand_token_fts(t) for t in raw_tokens]
+    clauses = [c for c in clauses if c]
+    if not clauses:
+        return ""
+
+    joiner = " OR " if mode.upper() == "OR" else " AND "
+    return joiner.join([f"{{title category}}: {c}" for c in clauses])
+
+def score_relevance(product: Dict[str, Any], query_clean: str, query_tokens: List[str]) -> float:
+    """Вычисляет релевантность товара для сортировки результатов."""
+    title_lower = product.get("title", "").lower()
+    category_lower = product.get("category", "").lower()
+    score = 0.0
+
+    # Точное совпадение поисковой фразы в заголовке
+    if query_clean in title_lower:
+        score += 100.0
+        if title_lower.startswith(query_clean):
+            score += 50.0
+
+    # Наличие каждого токена запроса в заголовке
+    for t in query_tokens:
+        t_low = t.lower()
+        if t_low in title_lower:
+            score += 15.0
+        elif t_low in category_lower:
+            score += 5.0
+
+    # Небольшой штраф за избыточную длину заголовка (фокус на целевой модели)
+    score -= len(title_lower) * 0.05
+    return score
 
 def search_in_database(
     query: str,
     shop: Optional[str] = None,
     city: Optional[str] = None,
+    category: Optional[str] = None,
     min_price: Optional[int] = None,
     max_price: Optional[int] = None,
-    exclude_accessories: bool = False,
+    only_discount: bool = False,
+    exclude_accessories: bool = True,
     match_mode: str = "AND",
+    sort_by: str = "price_asc",
     negative_keywords: Optional[List[str]] = None,
-    limit: int = 150,
+    limit: int = 250,
     junk_keywords: Optional[List[str]] = None
 ) -> List[Dict[str, Any]]:
-    """Поиск по локальной базе данных всех магазинов с использованием FTS5 и гибкими фильтрами."""
-    query_clean = query.strip()
-    tokens = [t.strip().lower() for t in query_clean.split() if len(t.strip()) > 1]
-    if not tokens:
-        tokens = [query_clean.lower()]
+    """Полнофункциональный поиск по базе данных с FTS5, поддержкой синонимов, категорий и городов."""
+    query_clean = query.strip().lower()
+    raw_tokens = [t.strip().lower() for t in query.split() if t.strip()]
 
     mode = match_mode.upper() if match_mode else "AND"
     conn = get_db()
@@ -58,8 +199,8 @@ def search_in_database(
     rows = []
     used_fts = False
 
-    # 1. Попытка высокоскоростного поиска через полнотекстовый индекс SQLite FTS5
-    fts_expr = build_fts_query(tokens, mode) if query_clean else ""
+    # 1. Попытка высокоскоростного поиска через FTS5
+    fts_expr = build_fts_query(query, mode) if query_clean else ""
     if fts_expr:
         try:
             fts_conditions = ["products_fts MATCH ?", "p.current_price > 0", active_product_clause("p")]
@@ -69,9 +210,14 @@ def search_in_database(
                 fts_conditions.append("p.shop = ?")
                 fts_params.append(shop)
 
+            # Гибкая обработка городов: Астана матчит и "Астана / Казахстан", и пустые (общенациональные)
             if city and city != "Все":
-                fts_conditions.append("(p.city = ? OR p.city IS NULL)")
-                fts_params.append(city)
+                fts_conditions.append("(p.city = ? OR p.city LIKE ? OR p.city IS NULL OR p.city = 'Все' OR p.city LIKE '%Казахстан%')")
+                fts_params.extend([city, f"%{city}%"])
+
+            if category and category != "Все":
+                fts_conditions.append("p.category LIKE ?")
+                fts_params.append(f"%{category}%")
 
             if min_price is not None and min_price > 0:
                 fts_conditions.append("p.current_price >= ?")
@@ -80,6 +226,9 @@ def search_in_database(
             if max_price is not None and max_price > 0:
                 fts_conditions.append("p.current_price <= ?")
                 fts_params.append(int(max_price))
+
+            if only_discount:
+                fts_conditions.append("(p.first_seen_price > p.current_price OR (p.old_price_on_site IS NOT NULL AND p.old_price_on_site > p.current_price))")
 
             fts_sql = f"""
                 SELECT p.* FROM products_fts f
@@ -95,33 +244,39 @@ def search_in_database(
         except sqlite3.OperationalError:
             used_fts = False
 
-    # 2. Fallback на классический LIKE поиск, если FTS недоступен или выдал синтаксическую ошибку
-    if not used_fts:
+    # 2. Fallback на многофакторный LIKE поиск (если FTS недоступен или выдал ошибку)
+    if not used_fts or (len(rows) == 0 and mode == "AND"):
         conditions = [active_product_clause()]
         params = []
 
-        if mode == "EXACT":
-            conditions.append("LOWER(title) LIKE ?")
-            params.append(f"%{query_clean.lower()}%")
-        elif mode == "OR":
-            or_conds = []
-            for t in tokens:
-                or_conds.append("LOWER(title) LIKE ?")
-                params.append(f"%{t}%")
-            if or_conds:
-                conditions.append(f"({' OR '.join(or_conds)})")
-        else:  # AND
-            for t in tokens:
-                conditions.append("LOWER(title) LIKE ?")
-                params.append(f"%{t}%")
+        if query_clean:
+            if mode == "EXACT":
+                conditions.append("(LOWER(title) LIKE ? OR LOWER(category) LIKE ?)")
+                params.extend([f"%{query_clean}%", f"%{query_clean}%"])
+            else:
+                token_conds = []
+                for t in raw_tokens:
+                    syn = BRAND_SYNONYMS.get(t, t)
+                    stem = stem_russian_word(t)
+                    sub = "(LOWER(title) LIKE ? OR LOWER(title) LIKE ? OR LOWER(category) LIKE ?)"
+                    token_conds.append(sub)
+                    params.extend([f"%{t}%", f"%{syn}%", f"%{stem}%"])
+                
+                joiner = " OR " if mode == "OR" else " AND "
+                if token_conds:
+                    conditions.append(f"({joiner.join(token_conds)})")
 
         if shop and shop != "Все":
             conditions.append("shop = ?")
             params.append(shop)
 
         if city and city != "Все":
-            conditions.append("(city = ? OR city IS NULL)")
-            params.append(city)
+            conditions.append("(city = ? OR city LIKE ? OR city IS NULL OR city = 'Все' OR city LIKE '%Казахстан%')")
+            params.extend([city, f"%{city}%"])
+
+        if category and category != "Все":
+            conditions.append("category LIKE ?")
+            params.append(f"%{category}%")
 
         if min_price is not None and min_price > 0:
             conditions.append("current_price >= ?")
@@ -130,6 +285,9 @@ def search_in_database(
         if max_price is not None and max_price > 0:
             conditions.append("current_price <= ?")
             params.append(int(max_price))
+
+        if only_discount:
+            conditions.append("(first_seen_price > current_price OR (old_price_on_site IS NOT NULL AND old_price_on_site > current_price))")
 
         where_sql = " AND ".join(conditions) if conditions else "1=1"
         sql = f"""
@@ -140,31 +298,41 @@ def search_in_database(
         """
         params.append(limit)
         cursor.execute(sql, params)
-        rows = cursor.fetchall()
+        like_rows = cursor.fetchall()
+        if not rows:
+            rows = like_rows
 
     conn.close()
     results = [dict(r) for r in rows]
 
-    # 5. Исключение аксессуаров / чехлов / хлама
-    from detector import is_junk_accessory
-    if exclude_accessories:
-        results = [r for r in results if not is_junk_accessory(r["title"], custom_keywords=junk_keywords)]
+    # 3. Умная фильтрация чехлов/аксессуаров:
+    # Исключаем аксессуары ТОЛЬКО если пользователь сам их явно не искал
+    if exclude_accessories and not is_accessory_query(query_clean):
+        from detector import is_junk_accessory
+        results = [r for r in results if not is_junk_accessory(r.get("title", ""), r.get("category", ""), custom_keywords=junk_keywords)]
 
-    # 6. Исключение пользовательских минус-слов
+    # 4. Исключение минус-слов
     if negative_keywords:
         negs = [nk.strip().lower() for nk in negative_keywords if nk.strip()]
         if negs:
-            results = [r for r in results if not any(nk in r["title"].lower() for nk in negs)]
+            results = [r for r in results if not any(nk in r.get("title", "").lower() for nk in negs)]
+
+    # 5. Сортировка выдачи
+    if sort_by == "price_desc":
+        results.sort(key=lambda x: x["current_price"], reverse=True)
+    elif sort_by == "relevance" and raw_tokens:
+        results.sort(key=lambda x: score_relevance(x, query_clean, raw_tokens), reverse=True)
+    else:  # price_asc
+        results.sort(key=lambda x: x["current_price"], reverse=False)
 
     return results
 
 async def search_live_stores(query: str, city: str = "Астана") -> List[Dict[str, Any]]:
-    """Живой опрос площадок (включая Kaspi) по поисковому запросу с кэшированием."""
+    """Живой опрос площадок (Kaspi, shop.kz, 4mobile) с кэшированием."""
     city_name = city or "Астана"
     cache_key = f"{query.strip().lower()}:{city_name.strip().lower()}"
     now_ts = time.time()
 
-    # Anti-DDoS: проверка in-memory кэша
     if cache_key in _LIVE_CACHE:
         cached_ts, cached_items = _LIVE_CACHE[cache_key]
         if (now_ts - cached_ts) < SEARCH_CACHE_TTL_SECONDS:
@@ -172,7 +340,7 @@ async def search_live_stores(query: str, city: str = "Астана") -> List[Dic
 
     all_found = []
 
-    # 1. Поиск в Kaspi Магазине
+    # 1. Kaspi
     try:
         kaspi_city_code = CITIES_KZ.get(city_name, {}).get("kaspi_code", "710000000")
         kaspi = KaspiScraper(city_code=kaspi_city_code)
@@ -184,7 +352,7 @@ async def search_live_stores(query: str, city: str = "Астана") -> List[Dic
     except Exception as e:
         print(f"[SearchEngine] Ошибка live-поиска в Kaspi: {e}")
 
-    # 2. Поиск в Белом Ветре (shop.kz) через HTTP
+    # 2. Белый Ветер (shop.kz)
     try:
         from curl_cffi import requests
         from bs4 import BeautifulSoup
@@ -227,7 +395,7 @@ async def search_live_stores(query: str, city: str = "Астана") -> List[Dic
     except Exception as e:
         print(f"[SearchEngine] Ошибка live-поиска в Shop.kz: {e}")
 
-    # 3. Поиск в 4mobile (4mobile.pages.dev)
+    # 3. 4mobile
     try:
         from scrapers.fourmobile import FourMobileScraper
         four_mobile = FourMobileScraper()
@@ -239,7 +407,6 @@ async def search_live_stores(query: str, city: str = "Астана") -> List[Dic
     except Exception as e:
         print(f"[SearchEngine] Ошибка live-поиска в 4mobile: {e}")
 
-    # Сохраняем результат в кэш
     _LIVE_CACHE[cache_key] = (now_ts, all_found)
     return all_found
 
@@ -248,18 +415,17 @@ async def get_best_price_summary(
     live: bool = False,
     shop: Optional[str] = None,
     city: Optional[str] = None,
+    category: Optional[str] = None,
     min_price: Optional[int] = None,
     max_price: Optional[int] = None,
+    only_discount: bool = False,
     exclude_accessories: bool = True,
     match_mode: str = "AND",
     sort_by: str = "price_asc",
     negative_keywords: Optional[List[str]] = None,
     junk_keywords: Optional[List[str]] = None
 ) -> Dict[str, Any]:
-    """Комплексный поиск с выявлением минимальной цены, экономии и сравнением магазинов.
-    По умолчанию (Cache-First) поиск осуществляется ИСКЛЮЧИТЕЛЬНО по локальной базе данных,
-    не создавая сетевой нагрузки на сайты магазинов.
-    """
+    """Комплексный поиск с агрегацией лучшей цены, экономии, распределением по магазинам и категориям."""
     query_clean = query.strip()
     if not query_clean:
         return {
@@ -268,33 +434,40 @@ async def get_best_price_summary(
             "best_deal": None,
             "price_stats": None,
             "store_comparison": [],
+            "shop_counts": {},
             "items": []
         }
 
-    # 1. Поиск по локальной базе данных (Cache-First)
+    # 1. Поиск по локальной базе данных
     local_items = search_in_database(
         query_clean,
         shop=shop,
         city=city,
+        category=category,
         min_price=min_price,
         max_price=max_price,
+        only_discount=only_discount,
         exclude_accessories=exclude_accessories,
         match_mode=match_mode,
+        sort_by=sort_by,
         negative_keywords=negative_keywords,
         junk_keywords=junk_keywords
     )
 
-    # 2. Опрос внешних площадок ТОЛЬКО при явном запросе пользователя (Anti-DDoS защита)
+    # 2. Опрос внешних площадок при запросе
     if live:
         await search_live_stores(query_clean, city=city or "Астана")
         local_items = search_in_database(
             query_clean,
             shop=shop,
             city=city,
+            category=category,
             min_price=min_price,
             max_price=max_price,
+            only_discount=only_discount,
             exclude_accessories=exclude_accessories,
             match_mode=match_mode,
+            sort_by=sort_by,
             negative_keywords=negative_keywords,
             junk_keywords=junk_keywords
         )
@@ -306,25 +479,26 @@ async def get_best_price_summary(
             "best_deal": None,
             "price_stats": None,
             "store_comparison": [],
+            "shop_counts": {},
             "items": []
         }
 
-    # Анализ цен
     prices = [item["current_price"] for item in local_items if item["current_price"] > 0]
     min_p = min(prices)
     max_p = max(prices)
     avg_p = int(sum(prices) / len(prices))
 
-    # Победитель по минимальной цене
     cheapest_item = min(local_items, key=lambda x: x["current_price"])
 
     savings = max_p - min_p
     savings_pct = int(round((savings / max_p) * 100)) if max_p > min_p else 0
 
-    # Лучшая цена в каждом магазине
+    # Агрегация по магазинам
     store_map: Dict[str, Dict[str, Any]] = {}
+    shop_counts: Dict[str, int] = {}
     for item in local_items:
         s_name = item["shop"]
+        shop_counts[s_name] = shop_counts.get(s_name, 0) + 1
         if s_name not in store_map or item["current_price"] < store_map[s_name]["current_price"]:
             store_map[s_name] = item
 
@@ -337,25 +511,20 @@ async def get_best_price_summary(
             "title": item["title"],
             "url": item["url"],
             "image_url": item.get("image_url", ""),
+            "city": item.get("city", ""),
             "diff_from_best": diff,
-            "diff_kzt": diff
+            "diff_kzt": diff,
+            "count": shop_counts.get(s_name, 1)
         })
 
-    # Сортировка итоговой выдачи
     formatted_items = []
     for it in local_items:
         it_copy = dict(it)
         it_copy["price"] = it["current_price"]
         it_copy["diff_from_best"] = it["current_price"] - min_p
         it_copy["savings_vs_max"] = max_p - it["current_price"]
+        it_copy["old_price"] = it.get("old_price_on_site") or it.get("first_seen_price") or 0
         formatted_items.append(it_copy)
-
-    if sort_by == "price_desc":
-        formatted_items.sort(key=lambda x: x["current_price"], reverse=True)
-    elif sort_by == "savings_desc":
-        formatted_items.sort(key=lambda x: x["savings_vs_max"], reverse=True)
-    else:  # price_asc
-        formatted_items.sort(key=lambda x: x["current_price"], reverse=False)
 
     return {
         "query": query_clean,
@@ -368,6 +537,7 @@ async def get_best_price_summary(
             "current_price": cheapest_item["current_price"],
             "url": cheapest_item["url"],
             "image_url": cheapest_item.get("image_url", ""),
+            "city": cheapest_item.get("city", ""),
             "savings_vs_max": savings,
             "savings_pct": savings_pct,
             "max_market_price": max_p
@@ -382,5 +552,6 @@ async def get_best_price_summary(
             "stores_count": len(store_map)
         },
         "store_comparison": store_comparison,
+        "shop_counts": shop_counts,
         "items": formatted_items
     }

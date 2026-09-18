@@ -693,6 +693,102 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
                     response=await client.post('/api/scan/start',json={'shops':shops})
                     self.assertEqual(response.status,400)
 
+    def test_smart_search_engine(self):
+        """Тест умного поиска цен: синонимы, опечатки, категории, цифры и фильтры."""
+        from search_engine import (
+            search_in_database,
+            is_accessory_query,
+            stem_russian_word,
+            expand_token_fts
+        )
+
+        # 1. Проверка вспомогательных функций
+        self.assertTrue(is_accessory_query("чехол для iphone 15"))
+        self.assertTrue(is_accessory_query("защитное стекло samsung"))
+        self.assertFalse(is_accessory_query("iphone 15 pro max"))
+        self.assertFalse(is_accessory_query("ноутбук asus"))
+
+        self.assertEqual(stem_russian_word("видеокарты"), "видеокарт")
+        self.assertEqual(stem_russian_word("смартфона"), "смартфон")
+
+        # 2. Проверка токенизации цифр (не обрезаются и не добавляют wildcard для точных цифр)
+        tokens = expand_token_fts("5")
+        self.assertIn('"5"', tokens)
+
+        # 3. Наполнение базы тестовыми товарами
+        save_or_update_products_batch([
+            {
+                "id": "test-se-1",
+                "shop": "Kaspi Магазин",
+                "city": "Астана",
+                "title": "Смартфон Apple iPhone 15 128Gb Black",
+                "category": "Смартфоны",
+                "price": 380000,
+                "url": "https://kaspi.kz/1",
+                "image_url": "https://img.kz/1"
+            },
+            {
+                "id": "test-se-2",
+                "shop": "Белый Ветер",
+                "city": "Алматы",
+                "title": "Видеокарта Palit GeForce RTX 4060 Dual 8GB",
+                "category": "Видеокарты",
+                "price": 165000,
+                "url": "https://shop.kz/2",
+                "image_url": "https://img.kz/2"
+            },
+            {
+                "id": "test-se-3",
+                "shop": "DNS Казахстан",
+                "city": "Астана / Казахстан",
+                "title": "Игровая консоль Sony PlayStation 5 Slim 1TB",
+                "category": "Игровые приставки",
+                "price": 270000,
+                "url": "https://dns-shop.kz/3",
+                "image_url": "https://img.kz/3"
+            },
+            {
+                "id": "test-se-4",
+                "shop": "Forcecom",
+                "city": "Все",
+                "title": "Чехол силиконовый для Apple iPhone 15 прозрачный",
+                "category": "Чехлы для телефонов",
+                "price": 2500,
+                "url": "https://forcecom.kz/4",
+                "image_url": "https://img.kz/4"
+            }
+        ])
+
+        # 4. Поиск по кириллическому синониму: "айфон 15" должен найти iPhone 15
+        res_iphone = search_in_database("айфон 15", exclude_accessories=True)
+        self.assertGreaterEqual(len(res_iphone), 1)
+        self.assertEqual(res_iphone[0]["id"], "test-se-1")
+
+        # 5. Поиск с категорией в запросе: "видеокарта 4060" находит RTX 4060
+        res_gpu = search_in_database("видеокарта 4060")
+        self.assertGreaterEqual(len(res_gpu), 1)
+        self.assertEqual(res_gpu[0]["id"], "test-se-2")
+
+        # 6. Поиск консоли: "ps5 slim" находит PlayStation 5 Slim
+        res_ps5 = search_in_database("ps5 slim")
+        self.assertGreaterEqual(len(res_ps5), 1)
+        self.assertEqual(res_ps5[0]["id"], "test-se-3")
+
+        # 7. Запрос на аксессуар: "чехол iphone 15" НЕ должен быть заблокирован фильтром аксессуаров
+        res_case = search_in_database("чехол iphone 15", exclude_accessories=True)
+        self.assertGreaterEqual(len(res_case), 1)
+        self.assertEqual(res_case[0]["id"], "test-se-4")
+
+        # 8. Раскладка клавиатуры: "шзрщту" (iphone) находит iPhone 15
+        res_typo = search_in_database("шзрщту 15")
+        self.assertGreaterEqual(len(res_typo), 1)
+        self.assertEqual(res_typo[0]["id"], "test-se-1")
+
+        # 9. Фильтр по категории: category="Видеокарты"
+        res_cat = search_in_database("4060", category="Видеокарты")
+        self.assertEqual(len(res_cat), 1)
+        self.assertEqual(res_cat[0]["id"], "test-se-2")
+
 
 if __name__ == "__main__":
     unittest.main()

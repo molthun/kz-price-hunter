@@ -156,6 +156,33 @@ async def version_handler(request):
 async def cities_handler(request):
     return web.json_response(CITIES_KZ)
 
+POPULAR_CATEGORIES = [
+    {"id": "Смартфоны", "name": "Смартфоны", "icon": "📱"},
+    {"id": "Ноутбуки", "name": "Ноутбуки", "icon": "💻"},
+    {"id": "Видеокарты", "name": "Видеокарты", "icon": "🎮"},
+    {"id": "Мониторы", "name": "Мониторы", "icon": "🖥"},
+    {"id": "Наушники", "name": "Наушники", "icon": "🎧"},
+    {"id": "Планшеты", "name": "Планшеты", "icon": "📲"},
+    {"id": "Телевизоры", "name": "Телевизоры", "icon": "📺"},
+    {"id": "Игровые приставки", "name": "Игровые приставки", "icon": "🕹"},
+    {"id": "Процессоры", "name": "Процессоры", "icon": "⚙️"},
+    {"id": "Материнские платы", "name": "Материнские платы", "icon": "🔌"},
+    {"id": "SSD", "name": "SSD накопители", "icon": "💾"},
+    {"id": "Корпуса", "name": "Корпуса ПК", "icon": "🗄"},
+    {"id": "Блоки питания", "name": "Блоки питания", "icon": "🔋"},
+    {"id": "Клавиатуры", "name": "Клавиатуры", "icon": "⌨️"},
+    {"id": "Мыши", "name": "Мыши", "icon": "🖱"},
+    {"id": "Смарт-часы", "name": "Смарт-часы", "icon": "⌚️"},
+    {"id": "Пылесосы", "name": "Пылесосы", "icon": "🧹"},
+    {"id": "Стиральные машины", "name": "Стиральные машины", "icon": "🧺"},
+    {"id": "Холодильники", "name": "Холодильники", "icon": "❄️"},
+    {"id": "Кондиционеры", "name": "Кондиционеры", "icon": "🌬"},
+]
+
+@routes.get("/api/categories")
+async def categories_handler(request):
+    return web.json_response(POPULAR_CATEGORIES)
+
 @routes.get("/api/stats")
 async def stats_handler(request):
     stats = get_stats(user_settings_for(request))
@@ -194,6 +221,7 @@ async def best_price_handler(request):
     live = request.query.get("live", "false").lower() in ("true", "1", "yes")
     shop = request.query.get("shop", None)
     city = request.query.get("city", None)
+    category = request.query.get("category", None)
     user = request.get("user")
 
     # Расширенные гибкие фильтры
@@ -205,6 +233,9 @@ async def best_price_handler(request):
 
     exclude_acc_param = request.query.get("exclude_acc", "1")
     exclude_accessories = exclude_acc_param in ("1", "true", "yes")
+
+    only_discount_param = request.query.get("only_discount", "0")
+    only_discount = only_discount_param in ("1", "true", "yes")
 
     match_mode = request.query.get("mode", "AND").upper()
     sort_by = request.query.get("sort", "price_asc")
@@ -239,6 +270,8 @@ async def best_price_handler(request):
             live=live,
             shop=shop,
             city=city,
+            category=category,
+            only_discount=only_discount,
             min_price=min_price,
             max_price=max_price,
             exclude_accessories=exclude_accessories,
