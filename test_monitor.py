@@ -2142,5 +2142,100 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
             delete_tracked_category(cat_id)
 
 
+class TestForteMarketScraper(unittest.TestCase):
+    """Тесты интеграции магазина Forte Market."""
+
+    def setUp(self):
+        from scrapers.fortemarket import ForteMarketScraper
+        self.scraper = ForteMarketScraper(city="Астана")
+
+    def test_registry_contains_fortemarket(self):
+        from web.server import SHOP_REGISTRY
+        from config import SHOP_KEYS, FORTE_CATEGORIES
+        self.assertIn("fortemarket", SHOP_REGISTRY)
+        scraper_cls, cats, name = SHOP_REGISTRY["fortemarket"]
+        self.assertEqual(name, "Forte Market")
+        self.assertEqual(cats, FORTE_CATEGORIES)
+        self.assertEqual(SHOP_KEYS.get("fortemarket"), "Forte Market")
+        for c in FORTE_CATEGORIES:
+            self.assertIn("master", c)
+            self.assertIn("url", c)
+
+    def test_parse_response_and_regional_pricing(self):
+        from scrapers.fortemarket import ForteMarketScraper
+
+        sample_data = {
+            "nbHits": 1,
+            "hits": [
+                {
+                    "objectID": "test-uuid-123",
+                    "Name": "Смартфон Тестовый 256GB",
+                    "Price": 500000,
+                    "Picture": "https://img.test/pic.jpg",
+                    "URL": "https://market.forte.kz/items/test-item",
+                    "Locations": {
+                        "Location": [
+                            {"ID": "KZ", "Price": 510000},
+                            {"ID": "KZ-AST", "Price": 490000},
+                            {"ID": "KZ-ALA", "Price": 480000},
+                        ]
+                    },
+                    "ParamMap": {
+                        "NFC": "Есть",
+                        "Объём_памяти": "256 ГБ",
+                        "Мерчант": "secret_merchant_id",
+                    }
+                }
+            ]
+        }
+
+        # 1. Астана
+        res_ast = ForteMarketScraper.parse_response(sample_data, "Смартфоны", 1, city="Астана")
+        self.assertEqual(len(res_ast), 1)
+        item_ast = res_ast[0]
+        self.assertEqual(item_ast["id"], "forte_test-uuid-123")
+        self.assertEqual(item_ast["shop"], "Forte Market")
+        self.assertEqual(item_ast["price"], 490000)
+        self.assertEqual(item_ast["city"], "Астана")
+        self.assertIn("• NFC: Есть", item_ast["description"])
+        self.assertIn("• Объём памяти: 256 ГБ", item_ast["description"])
+        self.assertNotIn("secret_merchant_id", item_ast["description"])
+
+        # 2. Алматы
+        res_ala = ForteMarketScraper.parse_response(sample_data, "Смартфоны", 1, city="Алматы")
+        self.assertEqual(res_ala[0]["price"], 480000)
+        self.assertEqual(res_ala[0]["city"], "Алматы")
+
+        # 3. Неизвестный город -> fallback к KZ
+        res_other = ForteMarketScraper.parse_response(sample_data, "Смартфоны", 1, city="Кокшетау")
+        self.assertEqual(res_other[0]["price"], 510000)
+
+    def test_search_live_mocked(self):
+        import asyncio
+        from unittest.mock import patch, MagicMock
+
+        sample_resp = MagicMock()
+        sample_resp.status_code = 201
+        sample_resp.json.return_value = {
+            "nbHits": 1,
+            "hits": [
+                {
+                    "objectID": "live-hit-1",
+                    "Name": "iPhone 15 128GB Black",
+                    "Price": 380000,
+                    "Picture": "https://img.test/iphone.jpg",
+                    "URL": "https://market.forte.kz/items/iphone-15",
+                }
+            ]
+        }
+
+        with patch("curl_cffi.requests.Session.post", return_value=sample_resp):
+            items = asyncio.run(self.scraper.search_live("iPhone 15", city="Астана"))
+            self.assertEqual(len(items), 1)
+            self.assertEqual(items[0]["title"], "iPhone 15 128GB Black")
+            self.assertEqual(items[0]["shop"], "Forte Market")
+            self.assertEqual(items[0]["price"], 380000)
+
+
 if __name__ == "__main__":
     unittest.main()

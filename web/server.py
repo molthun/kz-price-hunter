@@ -36,6 +36,7 @@ from config import (
     ANTS_CATEGORIES,
     ITMAG_CATEGORIES,
     ISPACE_CATEGORIES,
+    FORTE_CATEGORIES,
     MASTER_CATEGORIES,
     get_wave_plan,
     DEFAULT_HOT_CATEGORIES
@@ -84,6 +85,7 @@ from scrapers.evrika import EvrikaScraper
 from scrapers.moon import MoonScraper
 from scrapers.kaspi import KaspiScraper
 from scrapers.fourmobile import FourMobileScraper
+from scrapers.fortemarket import ForteMarketScraper
 from search_engine import get_best_price_summary
 import ai_service
 from config import get_ai_config
@@ -323,10 +325,25 @@ async def fetch_product_description_live(prod: Dict[str, Any]) -> str:
                         val = li.select_one(".specifications-list__spec-definition-translation, .specifications-list__spec-definition")
                         if term and val:
                             specs.append(f"• {term.get_text().strip()}: {val.get_text().strip()}")
-                    if specs:
-                        return "\n".join(specs)
+            # 3. Forte Market
+            if "market.forte.kz" in url or "Forte" in shop:
+                try:
+                    from scrapers.fortemarket import build_description_from_params, API_SEARCH_URL
+                    search_title = prod.get("title") or ""
+                    if not search_title:
+                        slug = url.strip("/").split("/")[-1]
+                        search_title = slug.rsplit("-", 1)[0].replace("-", " ")
+                    r_fm = requests.post(API_SEARCH_URL, json={"query": search_title, "hitsPerPage": 1}, timeout=5)
+                    if r_fm.status_code in (200, 201):
+                        fm_data = r_fm.json()
+                        if fm_data.get("hits"):
+                            fm_desc = build_description_from_params(fm_data["hits"][0])
+                            if fm_desc:
+                                return fm_desc
+                except Exception:
+                    pass
 
-            # 3. Общие популярные селекторы описания
+            # 4. Общие популярные селекторы описания
             for sel in [
                 ".product-card-description", ".product-about__text", ".product-detail__description",
                 ".item-description", "#description", ".description-text", ".product-features",
@@ -801,6 +818,7 @@ SHOP_REGISTRY = {
     "ants": (AntsScraper, ANTS_CATEGORIES, "ANTS"),
     "itmag": (ItmagScraper, ITMAG_CATEGORIES, "ITMag"),
     "ispace": (ISpaceScraper, ISPACE_CATEGORIES, "iSpace"),
+    "fortemarket": (ForteMarketScraper, FORTE_CATEGORIES, "Forte Market"),
 }
 
 # Сколько магазинов обходить одновременно (у каждого свой сайт, поэтому нагрузка не суммируется)

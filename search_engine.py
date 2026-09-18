@@ -533,6 +533,21 @@ async def search_live_stores(query: str, city: str = "Астана") -> List[Dic
     except Exception as e:
         print(f"[SearchEngine] Ошибка live-поиска в 4mobile: {e}")
 
+    # 4. Forte Market
+    try:
+        from scrapers.fortemarket import ForteMarketScraper
+        forte = ForteMarketScraper(city=city_name)
+        forte_results = await forte.search_live(query, city=city_name)
+        for item in forte_results:
+            item["city"] = city_name
+            cat_name, _ = determine_category_and_master(item.get("title", ""), query, item.get("category", ""))
+            if cat_name:
+                item["category"] = cat_name
+            save_or_update_product(item)
+            all_found.append(item)
+    except Exception as e:
+        print(f"[SearchEngine] Ошибка live-поиска в Forte Market: {e}")
+
     # Авто-регистрация категории для ротации в волнах обновлений
     if all_found:
         from database import save_tracked_category

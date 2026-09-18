@@ -34,6 +34,7 @@ SHOP_KEYS = {
     "ants": "ANTS",
     "itmag": "ITMag",
     "ispace": "iSpace",
+    "fortemarket": "Forte Market",
 }
 
 
@@ -810,6 +811,24 @@ ISPACE_CATEGORIES = [
     {"name": "iSpace: 🎧 AirPods", "url": "https://ispace.kz/category/apple-airpods", "master": "audio"},
     {"name": "iSpace: 🎧 Наушники", "url": "https://ispace.kz/category/headsets", "master": "audio"},
     {"name": "iSpace: 🔊 Колонки", "url": "https://ispace.kz/category/speakers", "master": "audio"},
+]
+
+# Forte Market (market.forte.kz): универсальный маркетплейс, фасеты Algolia API
+FORTE_CATEGORIES = [
+    {"name": "Forte: 📱 Смартфоны", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Смартфоны", "master": "smartphones", "max_pages": 30},
+    {"name": "Forte: 💻 Ноутбуки", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Ноутбуки", "master": "laptops", "max_pages": 30},
+    {"name": "Forte: 🖥 Мониторы", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Мониторы", "master": "monitors", "max_pages": 20},
+    {"name": "Forte: 🎧 Наушники и гарнитуры", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Наушники и гарнитуры", "master": "audio", "max_pages": 25},
+    {"name": "Forte: 📱 Планшеты", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Планшеты", "master": "tablets_watches", "max_pages": 20},
+    {"name": "Forte: ⌚️ Смарт-часы", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Смарт-часы", "master": "tablets_watches", "max_pages": 20},
+    {"name": "Forte: 📺 Телевизоры", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Телевизоры", "master": "tvs", "max_pages": 25},
+    {"name": "Forte: 🎮 Игровые приставки", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Игровые приставки", "master": "consoles", "max_pages": 15},
+    {"name": "Forte: 🧹 Пылесосы", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Пылесосы", "master": "appliances_small", "max_pages": 20},
+    {"name": "Forte: ❄️ Холодильники", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Холодильники", "master": "appliances_large", "max_pages": 20},
+    {"name": "Forte: 🧺 Стиральные машины", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Стиральные машины", "master": "appliances_large", "max_pages": 20},
+    {"name": "Forte: 🚗 Автотовары", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl1:Автотовары", "master": "all", "max_pages": 25},
+    {"name": "Forte: 🛠 Строительство и ремонт", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl1:Строительство и ремонт", "master": "all", "max_pages": 25},
+    {"name": "Forte: 🏡 Товары для дома и дачи", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl1:Товары для дома и дачи", "master": "all", "max_pages": 25},
 ]
 
 
