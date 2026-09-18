@@ -3,7 +3,7 @@ import re
 import time
 import asyncio
 from decimal import Decimal, InvalidOperation
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
 
 # Глубина обхода категории по умолчанию (страниц)
 DEFAULT_MAX_PAGES = 50
@@ -92,6 +92,43 @@ class ScanResult(list):
         self.complete = complete
         self.error = error
         self.limited = limited
+
+
+@runtime_checkable
+class Scraper(Protocol):
+    """Формальный контракт парсера магазина для KZ Price Hunter."""
+    SHOP_NAME: str
+
+    async def scrape(self, category_name: str, category_url: str, max_pages: Optional[int] = None) -> List[Dict[str, Any]]:
+        ...
+
+    def close(self) -> None:
+        ...
+
+
+def validate_product_item(item: Dict[str, Any], default_shop: str = "") -> Optional[Dict[str, Any]]:
+    """Проверяет соответствие карточки товара контракту данных.
+
+    Возвращает очищенный словарь или None, если позиция невалидна (нет id, названия,
+    некорректная цена <= 0 или битая ссылка).
+    """
+    if not isinstance(item, dict):
+        return None
+    raw_id = str(item.get("id") or "").strip()
+    title = str(item.get("title") or "").strip()
+    url = str(item.get("url") or "").strip()
+    price = price_value(item.get("price"))
+
+    if not raw_id or not title or price <= 0 or not url.startswith("http"):
+        return None
+
+    item["id"] = raw_id
+    item["title"] = title
+    item["price"] = price
+    item["url"] = url
+    if not item.get("shop") and default_shop:
+        item["shop"] = default_shop
+    return item
 
 
 class PagedScraper:

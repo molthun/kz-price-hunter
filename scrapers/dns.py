@@ -109,3 +109,7 @@ class DNSScraper:
 
         await context.close()
         return ScanResult(products, error=error, limited=not error)
+
+    def close(self) -> None:
+        """Освобождает ресурсы адаптера."""
+        pass

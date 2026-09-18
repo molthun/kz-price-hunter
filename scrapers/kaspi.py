@@ -7,7 +7,7 @@
 import re
 import asyncio
 import urllib.parse
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from scrapers import http as requests
 from scrapers.base import ScanResult, PagedScraper, price_value
@@ -139,3 +139,7 @@ class KaspiScraper(PagedScraper):
                 break
             await asyncio.sleep(self.PAGE_DELAY_SECONDS)
         return items[:max_items]
+
+    async def search_live(self, query: str, city: Optional[str] = None, max_items: int = 15):
+        """Unified live-search contract alias for search_engine."""
+        return await self.search(query, max_items=max_items)

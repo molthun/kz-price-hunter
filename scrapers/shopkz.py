@@ -207,3 +207,7 @@ class ShopKzScraper:
                 break
 
         return products
+
+    def close(self) -> None:
+        """Освобождает ресурсы адаптера."""
+        pass

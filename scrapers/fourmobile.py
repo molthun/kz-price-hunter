@@ -147,3 +147,7 @@ class FourMobileScraper:
             if all(tok in t for tok in tokens):
                 matches.append(p)
         return matches
+
+    def close(self) -> None:
+        """Освобождает ресурсы адаптера."""
+        pass
