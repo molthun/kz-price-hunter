@@ -225,6 +225,12 @@ def init_db():
         except Exception:
             pass
 
+        # Автоматическая миграция: исправление ссылок на товары Kaspi Магазина (kaspi.kz/p/ -> kaspi.kz/shop/p/)
+        try:
+            cursor.execute("UPDATE products SET url = REPLACE(url, 'https://kaspi.kz/p/', 'https://kaspi.kz/shop/p/') WHERE url LIKE '%kaspi.kz/p/%'")
+        except Exception:
+            pass
+
         # Полнотекстовый индекс FTS5 для мгновенного поиска по миллионам товаров
         try:
             cursor.execute("""
@@ -367,6 +373,8 @@ def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
     title = p["title"]
     category = p.get("category", "")
     url = p["url"]
+    if url and "kaspi.kz/p/" in url and "kaspi.kz/shop/p/" not in url:
+        url = url.replace("kaspi.kz/p/", "kaspi.kz/shop/p/")
     image_url = p.get("image_url", "")
     if image_url and "shop.kz//static.shop.kz" in image_url:
         image_url = image_url.replace("https://shop.kz//static.shop.kz", "https://static.shop.kz").replace("shop.kz//static.shop.kz", "static.shop.kz")
@@ -459,6 +467,8 @@ def save_or_update_products_batch(products: List[Dict[str, Any]]) -> int:
             title = p["title"]
             category = p.get("category", "")
             url = p["url"]
+            if url and "kaspi.kz/p/" in url and "kaspi.kz/shop/p/" not in url:
+                url = url.replace("kaspi.kz/p/", "kaspi.kz/shop/p/")
             image_url = p.get("image_url", "")
             if image_url and "shop.kz//static.shop.kz" in image_url:
                 image_url = image_url.replace("https://shop.kz//static.shop.kz", "https://static.shop.kz").replace("shop.kz//static.shop.kz", "static.shop.kz")

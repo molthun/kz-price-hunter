@@ -89,8 +89,17 @@ class KaspiScraper(PagedScraper):
 
             base_price = int(card.get("unitPrice") or 0)
             link = card.get("shopLink") or ""
-            if link.startswith("/"):
-                link = f"{self.base_url}{link}"
+            if link:
+                if link.startswith("/p/"):
+                    link = f"{self.base_url}/shop{link}"
+                elif link.startswith("/shop/"):
+                    link = f"{self.base_url}{link}"
+                elif link.startswith("/"):
+                    link = f"{self.base_url}/shop{link}"
+                elif "kaspi.kz/p/" in link and "kaspi.kz/shop/p/" not in link:
+                    link = link.replace("kaspi.kz/p/", "kaspi.kz/shop/p/")
+                elif not link.startswith("http"):
+                    link = f"{self.base_url}/shop/{link.lstrip('/')}"
 
             images = card.get("previewImages") or []
             image_url = ""

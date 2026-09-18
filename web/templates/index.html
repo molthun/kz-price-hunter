@@ -1813,7 +1813,7 @@
                 <div class="text-right">
                   <div class="text-sm font-bold ${isBest ? 'text-emerald-400' : 'text-white'}">${pStr}</div>
                 </div>
-                <a href="${it.url}" target="_blank" class="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-medium text-xs flex items-center gap-1 transition">
+                <a href="${cleanUrl(it.url)}" target="_blank" class="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-medium text-xs flex items-center gap-1 transition">
                   <span>В магазин</span>
                   <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
                 </a>
@@ -1847,6 +1847,19 @@
     function fmtPrice(val) {
       if (!val) return '0 ₸';
       return val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " ₸";
+    }
+
+    function cleanUrl(u) {
+      if (!u) return '#';
+      let url = String(u).trim();
+      if (url.startsWith('/p/')) {
+        url = 'https://kaspi.kz/shop' + url;
+      } else if (url.startsWith('/shop/p/')) {
+        url = 'https://kaspi.kz' + url;
+      } else if (url.includes('kaspi.kz/p/') && !url.includes('kaspi.kz/shop/p/')) {
+        url = url.replace('kaspi.kz/p/', 'kaspi.kz/shop/p/');
+      }
+      return url;
     }
 
     function getShopBadge(shop) {
@@ -2077,7 +2090,7 @@
           </div>
 
           <div class="pt-4 space-y-2">
-            <a href="${a.url}" target="_blank" class="w-full flex items-center justify-center space-x-2 bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-2 rounded-xl text-xs shadow-md shadow-emerald-500/20 transition">
+            <a href="${cleanUrl(a.url)}" target="_blank" class="w-full flex items-center justify-center space-x-2 bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-2 rounded-xl text-xs shadow-md shadow-emerald-500/20 transition">
               <span>⚡️ Купить в ${a.shop || 'магазине'}</span>
               <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
             </a>
@@ -2482,7 +2495,7 @@
                 ${getShopBadge(p.shop)}
                 <span class="text-[10px] text-slate-400">📍 ${escapeHtml(p.city || 'Астана')}</span>
               </div>
-              <a href="${escapeHtml(p.url || '#')}" target="_blank" class="text-xs font-semibold text-white hover:text-purple-300 line-clamp-2 mt-1 block" title="${escapeHtml(p.title)}">
+              <a href="${escapeHtml(cleanUrl(p.url))}" target="_blank" class="text-xs font-semibold text-white hover:text-purple-300 line-clamp-2 mt-1 block" title="${escapeHtml(p.title)}">
                 ${escapeHtml(p.title)}
               </a>
             </div>
@@ -2492,7 +2505,7 @@
               <span class="text-sm font-bold text-emerald-400">${fmtPrice(p.price)}</span>
               ${dropBadge}
             </div>
-            <a href="${escapeHtml(p.url || '#')}" target="_blank" class="px-2.5 py-1 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-[11px] text-purple-300 hover:text-white transition flex items-center gap-1 shrink-0">
+            <a href="${escapeHtml(cleanUrl(p.url))}" target="_blank" class="px-2.5 py-1 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-[11px] text-purple-300 hover:text-white transition flex items-center gap-1 shrink-0">
               <span>Купить</span>
               <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
             </a>
@@ -2946,7 +2959,7 @@
             </td>
             <td class="px-4 py-3 whitespace-nowrap">${diffText}</td>
             <td class="px-4 py-3 whitespace-nowrap text-right">
-              <a href="${it.url}" target="_blank" class="px-3 py-1.5 rounded-lg ${isFirst ? 'bg-emerald-500 hover:bg-emerald-600 text-dark-950 font-bold' : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white'} text-xs inline-flex items-center gap-1.5 transition shadow-sm">
+              <a href="${cleanUrl(it.url)}" target="_blank" class="px-3 py-1.5 rounded-lg ${isFirst ? 'bg-emerald-500 hover:bg-emerald-600 text-dark-950 font-bold' : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white'} text-xs inline-flex items-center gap-1.5 transition shadow-sm">
                 <span>В магазин</span>
                 <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
               </a>
@@ -3009,7 +3022,7 @@
                   <div class="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">Лучшая цена:</div>
                   <div class="text-3xl font-black text-emerald-400 tracking-tight">${fmtPrice(best.price)}</div>
                 </div>
-                <a href="${best.url}" target="_blank" class="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-dark-950 font-bold px-6 py-3 rounded-xl text-sm shadow-xl shadow-emerald-500/25 transition transform active:scale-95 w-full md:w-auto">
+                <a href="${cleanUrl(best.url)}" target="_blank" class="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-dark-950 font-bold px-6 py-3 rounded-xl text-sm shadow-xl shadow-emerald-500/25 transition transform active:scale-95 w-full md:w-auto">
                   <span>Купить по лучшей цене</span>
                   <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
                 </a>
@@ -3030,7 +3043,7 @@
         const diffVal = st.diff_from_best !== undefined ? st.diff_from_best : (st.diff_kzt || 0);
         const isWinner = diffVal === 0;
         const itemTitle = st.title || st.best_item_title || '';
-        const itemUrl = st.url || st.best_item_url || '#';
+        const itemUrl = cleanUrl(st.url || st.best_item_url || '#');
         return `
           <div onclick="filterResultsByShop('${escapeHtml(st.shop).replace(/'/g, "\\'")}')" class="p-3.5 rounded-xl border ${isWinner ? 'border-emerald-500/60 bg-emerald-500/10' : 'border-slate-800 bg-slate-900/60'} flex flex-col justify-between space-y-2 cursor-pointer hover:border-slate-700 transition" title="Нажмите, чтобы отфильтровать таблицу по магазину ${escapeHtml(st.shop)}">
             <div class="flex items-center justify-between">
@@ -3111,7 +3124,7 @@
             <td class="px-4 py-3 whitespace-nowrap text-xs text-slate-400">${p.category || '-'}</td>
             <td class="px-4 py-3 whitespace-nowrap font-bold text-emerald-400">${fmtPrice(p.current_price)}</td>
             <td class="px-4 py-3 whitespace-nowrap text-right">
-              <a href="${p.url}" target="_blank" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs inline-flex items-center gap-1 transition">
+              <a href="${cleanUrl(p.url)}" target="_blank" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs inline-flex items-center gap-1 transition">
                 <span>Открыть</span>
                 <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
               </a>

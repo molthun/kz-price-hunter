@@ -1713,6 +1713,74 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(resp_json["status"], "started")
                     self.assertEqual(resp_json["category"], "smartphones")
 
+    def test_kaspi_url_normalization_and_scraping(self):
+        """Проверка исправления ссылок Kaspi: kaspi.kz/p/ -> kaspi.kz/shop/p/ в БД и скрапере."""
+        # 1. Проверка save_or_update_product
+        p1 = {
+            "id": "test-kaspi-1",
+            "title": "Тестовый Kaspi Товар 1",
+            "price": 100000,
+            "url": "https://kaspi.kz/p/test-laptop-102715483/?c=710000000",
+            "shop": "Kaspi",
+            "city": "Астана"
+        }
+        save_or_update_product(p1)
+
+        with get_connection() as conn:
+            row = conn.execute("SELECT url FROM products WHERE id = 'test-kaspi-1'").fetchone()
+            self.assertEqual(row["url"], "https://kaspi.kz/shop/p/test-laptop-102715483/?c=710000000")
+
+        # 2. Проверка save_or_update_products_batch
+        p2 = {
+            "id": "test-kaspi-2",
+            "title": "Тестовый Kaspi Товар 2",
+            "price": 120000,
+            "url": "https://kaspi.kz/p/test-phone-99999/?c=710000000",
+            "shop": "Kaspi",
+            "city": "Астана"
+        }
+        save_or_update_products_batch([p2])
+        with get_connection() as conn:
+            row = conn.execute("SELECT url FROM products WHERE id = 'test-kaspi-2'").fetchone()
+            self.assertEqual(row["url"], "https://kaspi.kz/shop/p/test-phone-99999/?c=710000000")
+
+        # 3. Проверка автоматической миграции в init_db
+        with get_connection() as conn:
+            # Насильно вставляем некорректный URL в обход методов
+            conn.execute("UPDATE products SET url = 'https://kaspi.kz/p/raw-bad-url-123' WHERE id = 'test-kaspi-1'")
+            conn.commit()
+            check_bad = conn.execute("SELECT url FROM products WHERE id = 'test-kaspi-1'").fetchone()
+            self.assertEqual(check_bad["url"], "https://kaspi.kz/p/raw-bad-url-123")
+
+        # Запуск init_db выполняет миграцию
+        init_db()
+        with get_connection() as conn:
+            check_fixed = conn.execute("SELECT url FROM products WHERE id = 'test-kaspi-1'").fetchone()
+            self.assertEqual(check_fixed["url"], "https://kaspi.kz/shop/p/raw-bad-url-123")
+
+        # 4. Проверка скрапера KaspiScraper
+        from scrapers.kaspi import KaspiScraper
+        from unittest.mock import Mock, patch
+        scraper = KaspiScraper()
+        fake_data = {
+            "data": {
+                "cards": [
+                    {
+                        "id": "102715483",
+                        "title": "Lenovo IdeaPad 3",
+                        "unitPrice": 150000,
+                        "shopLink": "/p/lenovo-ideapad-3-102715483/?c=710000000",
+                        "category": ["Ноутбуки"]
+                    }
+                ]
+            }
+        }
+        mock_resp = Mock(status_code=200, json=lambda: fake_data)
+        with patch('scrapers.kaspi.requests.get', return_value=mock_resp):
+            items = scraper._fetch_page("Ноутбуки", "https://kaspi.kz/shop/c/notebooks/", 1)
+            self.assertEqual(len(items), 1)
+            self.assertEqual(items[0]["url"], "https://kaspi.kz/shop/p/lenovo-ideapad-3-102715483/?c=710000000")
+
 
 if __name__ == "__main__":
     unittest.main()
