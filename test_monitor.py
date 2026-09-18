@@ -300,6 +300,32 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
             rows=conn.execute("SELECT product_id FROM alerts WHERE alert_type='MARKET_ARBITRAGE'").fetchall()
         self.assertEqual([r[0] for r in rows],['target'])
 
+    def test_fourmobile_missing_old_price_does_not_crash_detector(self):
+        p=dict(self.product(),old_price_on_site=None)
+        history={'old_price':300000,'first_seen_price':300000}
+        anomaly=check_anomaly(p,history,custom_settings=config.get_candidate_settings())
+        self.assertIsNotNone(anomaly)
+        self.assertEqual(anomaly['type'],'SUPER_DISCOUNT')
+        self.assertEqual(anomaly['new_price'],150000)
+
+    async def test_fourmobile_all_groups_scanned_once(self):
+        import asyncio
+        from unittest.mock import patch, Mock
+        from web import server
+        from database import get_shop_scans, get_products_count
+        payload={'price':[{'cat':'iPhone','items':[['iPhone 16 256GB','150 000 ₸']]},
+                          {'cat':'Apple Watch','items':[['Watch Series 10','200 000 ₸']]}],
+                 'wiwu':[{'cat':'WiWU','items':[['Wireless Keyboard','30 000 ₸']]}]}
+        response=Mock(status_code=200)
+        response.json.return_value=payload
+        with patch('scrapers.fourmobile.requests.get',return_value=response) as request:
+            await server._scan_shop('fourmobile',config.get_candidate_settings(),asyncio.Semaphore(1))
+            self.assertEqual(request.call_count,1)
+        self.assertEqual(get_products_count(),3)
+        row=get_shop_scans()['fourmobile']
+        self.assertEqual(row['status'],'complete')
+        self.assertIsNone(row['last_error'])
+
     def test_pagination_limit_and_confirmed_end(self):
         from scrapers.base import PagedScraper, ScanResult
         p = self.product()

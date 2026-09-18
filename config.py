@@ -478,13 +478,8 @@ KASPI_CATEGORIES = [
 
 # 11. 4mobile (4mobile.pages.dev)
 FOURMOBILE_CATEGORIES = [
-    {"name": "4mobile: 📱 iPhone (eSIM & Nano-SIM)", "url": "https://4mobile.pages.dev/api/data"},
-    {"name": "4mobile: ⌚️ Apple Watch & Garmin", "url": "https://4mobile.pages.dev/api/data"},
-    {"name": "4mobile: 🎧 AirPods & Наушники WiWU", "url": "https://4mobile.pages.dev/api/data"},
-    {"name": "4mobile: 💻 MacBook & iPad", "url": "https://4mobile.pages.dev/api/data"},
-    {"name": "4mobile: 💨 Dyson & Яндекс Станции", "url": "https://4mobile.pages.dev/api/data"},
-    {"name": "4mobile: 🎮 PS5, Игры & Дроны DJI", "url": "https://4mobile.pages.dev/api/data"},
-    {"name": "4mobile: ⚡️ Аксессуары Apple & WiWU", "url": "https://4mobile.pages.dev/api/data"}
+    # The endpoint already contains every group: fetch once and reconcile as one source.
+    {"name": "4mobile: Все товары", "url": "https://4mobile.pages.dev/api/data"}
 ]
 
 

@@ -112,7 +112,7 @@ class FourMobileScraper:
                         "url": f"{self.base_url}/#catalog",
                         "image_url": "https://4mobile.pages.dev/favicon.ico",
                         "price": price,
-                        "old_price_on_site": None,
+                        "old_price_on_site": 0,
                         "city": "Астана"
                     })
 
