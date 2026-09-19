@@ -11,12 +11,13 @@ from scrapers.vkusmart import VkusmartScraper
 from scrapers.twelve_months import TwelveMonthsScraper
 from scrapers.zeta import ZetaScraper
 from scrapers.komfort import KomfortScraper
+from scrapers.lemanapro import LemanaProScraper
 
 
 class ScraperContractTest(unittest.TestCase):
     def test_scraper_classes_conform_to_contract(self):
         # Check standard scrapers
-        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper):
+        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper, LemanaProScraper):
             self.assertTrue(hasattr(cls, "SHOP_NAME"), f"{cls} must define SHOP_NAME")
             self.assertTrue(callable(getattr(cls, "scrape", None)), f"{cls} must define scrape")
             self.assertTrue(callable(getattr(cls, "close", None)), f"{cls} must define close")
@@ -221,9 +222,46 @@ class ScraperContractTest(unittest.TestCase):
         scraper.close()
         self.assertIsNone(scraper.session)
 
+    def test_lemanapro_parsing_mock(self):
+        from unittest.mock import MagicMock
+        scraper = LemanaProScraper()
+        mock_html = '''
+        <div class="largeCard" data-qa-product="" data-qa="product">
+            <span data-qa="product-article">Арт. 89426501</span>
+            <a data-qa="product-name" href="/product/drel-shurupovert-alteco-89426501/">
+                <span class="product-card-name-link">Дрель-шуруповерт аккумуляторная Alteco CD 12-23</span>
+            </a>
+            <div data-testid="price-block-oldprice" value="15670">15 670 ₸</div>
+            <div data-testid="price-block-price" value="14150">14 150 ₸/шт.</div>
+            <img src="https://cdn.lemanapro.ru/lmru/image/upload/alteco.png" alt="Дрель Alteco" />
+        </div>
+        '''
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = mock_html
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        scraper.session = mock_session
+
+        items = scraper._fetch_page("Дрели", "https://lemanapro.kz/catalogue/dreli/", 1)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["id"], "89426501")
+        self.assertEqual(items[0]["sku"], "89426501")
+        self.assertEqual(items[0]["shop"], "Лемана ПРО")
+        self.assertEqual(items[0]["title"], "Дрель-шуруповерт аккумуляторная Alteco CD 12-23")
+        self.assertEqual(items[0]["price"], 14150)
+        self.assertEqual(items[0]["old_price_on_site"], 15670)
+        self.assertEqual(items[0]["url"], "https://lemanapro.kz/product/drel-shurupovert-alteco-89426501/")
+        self.assertEqual(items[0]["image_url"], "https://cdn.lemanapro.ru/lmru/image/upload/alteco.png")
+        self.assertEqual(items[0]["city"], "Казахстан")
+        scraper.close()
+        self.assertIsNone(scraper.session)
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
 
 

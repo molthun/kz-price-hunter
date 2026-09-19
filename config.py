@@ -39,6 +39,7 @@ SHOP_KEYS = {
     "twelve_months": "12 Месяцев",
     "zeta": "Zeta",
     "komfort": "Комфорт",
+    "lemanapro": "Лемана ПРО",
 }
 
 
@@ -944,6 +945,22 @@ KOMFORT_CATEGORIES = [
     {"name": "Комфорт: 🏡 Товары для дома", "url": "https://komfort.kz/catalog/tovary_dlya_doma/", "master": "household", "max_pages": 15},
     {"name": "Комфорт: 🧹 Мелкая бытовая техника", "url": "https://komfort.kz/catalog/bytovaya_tekhnika/melkobytovaya_tekhnika/", "master": "appliances_small", "max_pages": 15},
 ]
+
+# Лемана ПРО (lemanapro.kz, ex-Leroy Merlin): гипермаркет товаров для строительства, ремонта и сада
+LEMANA_PRO_CATEGORIES = [
+    {"name": "Лемана ПРО: 🔌 Электроинструменты", "url": "https://lemanapro.kz/catalogue/elektroinstrumenty/", "master": "diy", "max_pages": 15},
+    {"name": "Лемана ПРО: 🪛 Дрели и шуруповерты", "url": "https://lemanapro.kz/catalogue/dreli-shurupoverty/", "master": "diy", "max_pages": 15},
+    {"name": "Лемана ПРО: 🔨 Перфораторы", "url": "https://lemanapro.kz/catalogue/perforatory/", "master": "diy", "max_pages": 10},
+    {"name": "Лемана ПРО: 🔧 Ручной инструмент", "url": "https://lemanapro.kz/catalogue/ruchnoy-instrument/", "master": "diy", "max_pages": 15},
+    {"name": "Лемана ПРО: 🚰 Сантехника", "url": "https://lemanapro.kz/catalogue/santehnika/", "master": "diy", "max_pages": 15},
+    {"name": "Лемана ПРО: 🧱 Стройматериалы", "url": "https://lemanapro.kz/catalogue/stroymaterialy/", "master": "diy", "max_pages": 15},
+    {"name": "Лемана ПРО: 🌿 Садовая техника", "url": "https://lemanapro.kz/catalogue/sadovaya-tehnika/", "master": "diy", "max_pages": 15},
+    {"name": "Лемана ПРО: 🪜 Стремянки", "url": "https://lemanapro.kz/catalogue/stremyanki/", "master": "diy", "max_pages": 10},
+    {"name": "Лемана ПРО: 🧑‍🏭 Сварочное оборудование", "url": "https://lemanapro.kz/catalogue/svarochnoe-oborudovanie/", "master": "diy", "max_pages": 10},
+    {"name": "Лемана ПРО: 🧼 Бытовая химия", "url": "https://lemanapro.kz/catalogue/bytovaya-himiya/", "master": "household", "max_pages": 15},
+    {"name": "Лемана ПРО: 📦 Аксессуары для хранения", "url": "https://lemanapro.kz/catalogue/aksessuary-dlya-hraneniya/", "master": "household", "max_pages": 15},
+]
+
 
 
 

@@ -18,7 +18,7 @@ A — feed/API владельца с документированным назн
 
 Изображения сохраняются ссылками, server image proxy/cache не обнаружен. Browser и Telegram могут получать их с внешнего источника. Description используется в UI и может дополнительно сохраняться через guest product-detail GET для любого магазина. Его отсутствие в конкретном parser не означает отсутствие копирования текста в целом.
 
-## Матрица 22 источников
+## Матрица 23 источников
 
 | Модуль / класс | Тип / механизм | Timeout / pacing | Session, pagination, retry | Поля и ограничения |
 |---|---|---|---|---|
@@ -44,6 +44,7 @@ A — feed/API владельца с документированным назн
 | `scrapers/twelve_months.py` / `TwelveMonthsScraper` | D; 12.kz AdvantShop HTML .products-view-item | 15 с; 0.4 с | Session chrome124; ?page=N; 404/empty→complete | id/title/price/old_price/img/sku; Казахстан; описание нет |
 | `scrapers/zeta.py` / `ZetaScraper` | A; back.zeta.kz Next.js JSON API /good/list | 15 с; 0.3 с | Session chrome124; page=N&limit=40; empty results→complete | id/name.ru/price/oldPrice/images/article; Казахстан; описание нет |
 | `scrapers/komfort.py` / `KomfortScraper` | D; komfort.kz Bitrix Aspro HTML .catalog-block-view__item | 20 с; 0.4 с | Session chrome124; PAGEN_1; 404/empty→complete | id/title/price/old_price/image_url; Алматы; описание нет |
+| `scrapers/lemanapro.py` / `LemanaProScraper` | D; lemanapro.kz SSR HTML div[data-qa-product] | 20 с; 0.4 с | Session chrome124; ?page=N; 404/empty→complete | id/sku/title/price/old_price/image_url; Казахстан; описание нет |
 
 ## Пути вне основного фонового scan
 
@@ -382,6 +383,37 @@ A — feed/API владельца с документированным назн
 | Zeta: 🪜 Стремянки | diy | `6851938d95dd04035cad42de` | 10 |
 | Zeta: 🥩 Гриль и мангалы | diy | `6851939d95dd04035cad42fe` | 10 |
 | Zeta: 🪑 Мебель для дачи и сада | diy | `6851938895dd04035cad42d5` | 10 |
+
+### KomfortScraper — 10 настроенных источников категории
+
+| Категория | Master | URL/query | max_pages |
+|---|---|---|---|
+| Комфорт: 🪚 Электроинструменты | diy | `https://komfort.kz/instrumenty/elektroinstrumenty/` | 15 |
+| Комфорт: 🪛 Шуруповерты и дрели | diy | `https://komfort.kz/instrumenty/elektroinstrumenty/dreli-shurupoverty/` | 15 |
+| Комфорт: 🔨 Перфораторы | diy | `https://komfort.kz/instrumenty/elektroinstrumenty/perforatory/` | 10 |
+| Комфорт: 🔧 Ручной инструмент | diy | `https://komfort.kz/instrumenty/ruchnoy-instrument/` | 15 |
+| Комфорт: 🚰 Сантехника | diy | `https://komfort.kz/santekhnika/` | 15 |
+| Комфорт: 🧑‍🏭 Сварочные аппараты | diy | `https://komfort.kz/instrumenty/silovaya-tekhnika/svarochnoe-oborudovanie/` | 10 |
+| Комфорт: 🌿 Садовая техника | diy | `https://komfort.kz/tovary-dlya-sada-i-otdykha/sadovaya-tekhnika/` | 15 |
+| Комфорт: 🧼 Бытовая химия | household | `https://komfort.kz/khozyaystvennye-tovary/bytovaya-khimiya/` | 15 |
+| Комфорт: 🧹 Уборочный инвентарь | household | `https://komfort.kz/khozyaystvennye-tovary/uborochnyy-inventar/` | 15 |
+| Комфорт: ☕️ Мелкая техника для кухни | appliances_small | `https://komfort.kz/bytovaya-tekhnika/melkaya-tekhnika-dlya-kukhni/` | 15 |
+
+### LemanaProScraper — 11 настроенных источников категории
+
+| Категория | Master | URL/query | max_pages |
+|---|---|---|---|
+| Лемана ПРО: 🔌 Электроинструменты | diy | `https://lemanapro.kz/catalogue/elektroinstrumenty/` | 15 |
+| Лемана ПРО: 🪛 Дрели и шуруповерты | diy | `https://lemanapro.kz/catalogue/dreli-shurupoverty/` | 15 |
+| Лемана ПРО: 🔨 Перфораторы | diy | `https://lemanapro.kz/catalogue/perforatory/` | 10 |
+| Лемана ПРО: 🔧 Ручной инструмент | diy | `https://lemanapro.kz/catalogue/ruchnoy-instrument/` | 15 |
+| Лемана ПРО: 🚰 Сантехника | diy | `https://lemanapro.kz/catalogue/santehnika/` | 15 |
+| Лемана ПРО: 🧱 Стройматериалы | diy | `https://lemanapro.kz/catalogue/stroymaterialy/` | 15 |
+| Лемана ПРО: 🌿 Садовая техника | diy | `https://lemanapro.kz/catalogue/sadovaya-tehnika/` | 15 |
+| Лемана ПРО: 🪜 Стремянки | diy | `https://lemanapro.kz/catalogue/stremyanki/` | 10 |
+| Лемана ПРО: 🧑‍🏭 Сварочное оборудование | diy | `https://lemanapro.kz/catalogue/svarochnoe-oborudovanie/` | 10 |
+| Лемана ПРО: 🧼 Бытовая химия | household | `https://lemanapro.kz/catalogue/bytovaya-himiya/` | 15 |
+| Лемана ПРО: 📦 Аксессуары для хранения | household | `https://lemanapro.kz/catalogue/aksessuary-dlya-hraneniya/` | 15 |
 
 ## Перед подключением следующего магазина
 

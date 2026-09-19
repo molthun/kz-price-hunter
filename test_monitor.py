@@ -2243,6 +2243,19 @@ class TestForteMarketScraper(unittest.TestCase):
             self.assertIn("url", c)
             self.assertTrue(c["master"] in config.MASTER_CATEGORIES)
 
+    def test_registry_contains_lemanapro(self):
+        from web.server import SHOP_REGISTRY
+        from config import SHOP_KEYS, LEMANA_PRO_CATEGORIES
+        self.assertIn("lemanapro", SHOP_REGISTRY)
+        scraper_cls, cats, name = SHOP_REGISTRY["lemanapro"]
+        self.assertEqual(name, "Лемана ПРО")
+        self.assertEqual(cats, LEMANA_PRO_CATEGORIES)
+        self.assertEqual(SHOP_KEYS.get("lemanapro"), "Лемана ПРО")
+        for c in LEMANA_PRO_CATEGORIES:
+            self.assertIn("master", c)
+            self.assertIn("url", c)
+            self.assertTrue(c["master"] in config.MASTER_CATEGORIES)
+
     def test_parse_response_and_regional_pricing(self):
         from scrapers.fortemarket import ForteMarketScraper
 
