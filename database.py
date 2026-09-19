@@ -19,6 +19,17 @@ def active_product_clause(alias=""):
             f">= julianday('now') - {int(HIDE_AFTER_DAYS)}")
 
 
+def fresh_benchmark_clause(alias="a"):
+    """Арбитражный алерт актуален, пока цена конкурента-основания не устарела (≤ 72 ч; P02 C02).
+
+    Для алертов без competitor_seen_at (созданных до P02) берётся время создания алерта.
+    """
+    from data_quality import AGING_HOURS
+    prefix = f"{alias}." if alias else ""
+    return (f"({prefix}alert_type NOT IN ('MARKET_ARBITRAGE', 'ARBITRAGE') OR "
+            f"julianday(COALESCE({prefix}competitor_seen_at, {prefix}created_at)) >= julianday('now') - {int(AGING_HOURS)} / 24.0)")
+
+
 def fresh_price_clause(alias=""):
     """Предложения с неустаревшей ценой (не Stale): только они дают алерты, скидки и лучшую цену (P02)."""
     from data_quality import AGING_HOURS
@@ -68,10 +79,10 @@ def record_source_scan(shop_key, source_url, category, scan_id, started_at, kind
     reason = "; ".join(assessment["reasons"] + assessment["warnings"])[:500] or None
     with get_connection() as conn:
         conn.execute("""INSERT INTO source_scans (shop_key, source_url, category, scan_id, started_at, finished_at, kind,
-                quality, reason, received, valid, rejected, with_image, baseline, baseline_basis, accepted)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                quality, reason, received, valid, rejected, duplicates, with_image, baseline, baseline_basis, accepted)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (shop_key, source_url, category, scan_id, started_at, now, kind, assessment["quality"], reason,
-             metrics["received"], metrics["valid"], metrics["rejected"], metrics["with_image"],
+             metrics["received"], metrics["valid"], metrics["rejected"], metrics.get("duplicates", 0), metrics["with_image"],
              assessment["baseline"], assessment["basis"], int(bool(assessment["learn"]))))
         conn.commit()
 
@@ -284,6 +295,8 @@ def _create_schema(cursor) -> None:
         ("alerts", "city", "TEXT DEFAULT 'Астана'"),
         ("alerts", "competitor_shop", "TEXT"),
         ("alerts", "is_dismissed", "INTEGER DEFAULT 0"),
+        # P02 (C02): когда в последний раз наблюдалась цена конкурента — основание арбитражного алерта
+        ("alerts", "competitor_seen_at", "TEXT"),
         ("shop_scans", "status", "TEXT NOT NULL DEFAULT 'unknown'"),
         ("shop_scans", "failure_count", "INTEGER NOT NULL DEFAULT 0"),
         ("shop_scans", "next_retry_at", "REAL"),
@@ -362,6 +375,7 @@ def _create_schema(cursor) -> None:
             accepted INTEGER NOT NULL DEFAULT 0
         )
     """)
+    _add_column(cursor, "source_scans", "duplicates", "INTEGER NOT NULL DEFAULT 0")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_source_scans_source ON source_scans(shop_key, source_url, kind, accepted, finished_at)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_source_scans_time ON source_scans(finished_at)")
 
@@ -1091,7 +1105,7 @@ def was_alert_sent_recently(product_id: str, new_price: int) -> bool:
         """, (str(product_id), new_price))
         return cursor.fetchone() is not None
 
-def record_alert(product_id: str, alert_type: str, old_price: int, new_price: int, discount_pct: float, savings_kzt: int, shop: str = "DNS Казахстан", city: str = "Астана", competitor_shop: Optional[str] = None, deliveries=None):
+def record_alert(product_id: str, alert_type: str, old_price: int, new_price: int, discount_pct: float, savings_kzt: int, shop: str = "DNS Казахстан", city: str = "Астана", competitor_shop: Optional[str] = None, deliveries=None, competitor_seen_at: Optional[str] = None):
     if old_price > 10_000_000 or new_price > 10_000_000 or savings_kzt > 10_000_000 or old_price <= 0 or new_price <= 0:
         return 0
     with get_connection() as conn:
@@ -1108,9 +1122,9 @@ def record_alert(product_id: str, alert_type: str, old_price: int, new_price: in
             conn.rollback()
             return 0
         cursor.execute("""
-            INSERT INTO alerts (shop, city, product_id, alert_type, old_price, new_price, discount_pct, savings_kzt, competitor_shop)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (shop, city, str(product_id), alert_type, old_price, new_price, discount_pct, savings_kzt, competitor_shop))
+            INSERT INTO alerts (shop, city, product_id, alert_type, old_price, new_price, discount_pct, savings_kzt, competitor_shop, competitor_seen_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (shop, city, str(product_id), alert_type, old_price, new_price, discount_pct, savings_kzt, competitor_shop, competitor_seen_at))
         alert_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
         for user_id, payload in deliveries or []:
             conn.execute("""INSERT INTO notification_outbox(alert_id,user_id,payload,created_at)
@@ -1225,7 +1239,7 @@ def _fetch_filtered_alerts(user_settings: Dict[str, Any], city: Optional[str] = 
         WHERE (a.is_dismissed IS NULL OR a.is_dismissed = 0)
           AND a.old_price <= 10000000 AND a.new_price <= 10000000
           AND (julianday('now') - julianday(a.created_at)) <= 7.0
-          AND """ + fresh_price_clause("p") + " AND p.current_price = a.new_price"
+          AND """ + fresh_price_clause("p") + " AND " + fresh_benchmark_clause("a") + " AND p.current_price = a.new_price"
     params: List[Any] = []
     if city and city != "Все":
         query += " AND (a.city = ? OR a.city IS NULL)"
@@ -1354,6 +1368,9 @@ def find_market_comparisons(
     """Ищет аналогичные товары в других магазинах через канонический ключ или FTS5.
     Рассчитывает статистику цен конкурентов: минимальная цена, средняя цена,
     разница и процент экономии относительно рынка.
+
+    Конкуренты — только с неустаревшей ценой (fresh_price_clause, ≤ 72 ч; P02 C02): устаревшая цена конкурента
+    не может быть основанием арбитража. benchmark_seen_at — когда наблюдалась цена самого дешёвого конкурента.
     """
     if current_price <= 0 or not title:
         return None
@@ -1372,9 +1389,9 @@ def find_market_comparisons(
     if c_key:
         with get_connection() as conn:
             rows = conn.execute("""
-                SELECT shop, title, current_price, url, city, category, canonical_key FROM products
+                SELECT shop, title, current_price, url, city, category, canonical_key, updated_at FROM products
                 WHERE shop != ? AND (city = ? OR city = 'Казахстан') AND canonical_key = ? AND current_price > 0 AND """
-                + active_product_clause() + """
+                + fresh_price_clause() + """
                 ORDER BY current_price ASC LIMIT 500
             """, (current_shop, city, c_key)).fetchall()
 
@@ -1386,9 +1403,9 @@ def find_market_comparisons(
         fts_query = " AND ".join('"' + t + '"' for t in tokens)
         with get_connection() as conn:
             rows = conn.execute("""
-                SELECT shop, title, current_price, url, city, category, canonical_key FROM products
+                SELECT shop, title, current_price, url, city, category, canonical_key, updated_at FROM products
                 WHERE shop != ? AND (city = ? OR city = 'Казахстан') AND current_price > 0 AND """
-                + active_product_clause() + """ AND rowid IN (
+                + fresh_price_clause() + """ AND rowid IN (
                     SELECT rowid FROM products_fts WHERE products_fts MATCH ?)
                 ORDER BY current_price ASC LIMIT 500
             """, (current_shop, city, fts_query)).fetchall()
@@ -1413,6 +1430,7 @@ def find_market_comparisons(
         "avg_price": avg_comp_price,
         "cheapest_shop": cheapest_comp["shop"],
         "cheapest_title": cheapest_comp["title"],
+        "benchmark_seen_at": cheapest_comp.get("updated_at"),
         "canonical_key": c_key,
         "competitors": valid_competitors
     }
@@ -2011,6 +2029,7 @@ def get_store_deals(
             WHERE (a.is_dismissed IS NULL OR a.is_dismissed = 0)
               AND a.alert_type IN ('MARKET_ARBITRAGE', 'ARBITRAGE', 'SUPER_DISCOUNT')
               AND {fresh_price_clause("p")}
+              AND {fresh_benchmark_clause("a")}
         """
         a_params: List[Any] = []
         if city and city != "Все":

@@ -181,6 +181,8 @@ def check_market_arbitrage(
             "drop_pct": diff_pct,
             "savings": diff,
             "competitor_shop": other_shop_name,
+            # Когда наблюдалась цена конкурента-основания: алерт не показывается и не доставляется, когда она устареет
+            "competitor_seen_at": market.get("benchmark_seen_at") if (market and isinstance(market, dict)) else None,
             "canonical_key": c_key,
             "reason": f"В {shop} на {diff_pct}% дешевле, чем в {other_shop_name} ({_kzt(benchmark_price)})!"
         }

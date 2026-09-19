@@ -3840,6 +3840,13 @@
             </div>
           </div>
         `;
+      } else if (data.all_stale) {
+        // Все найденные цены устарели (P02): лучшей цены и сравнения нет, предложения — в таблице с бейджем
+        heroContainer.innerHTML = `
+          <div class="glass p-5 rounded-2xl border border-rose-500/40 bg-rose-950/20 text-sm text-rose-200">
+            ⚠️ Нет актуальных цен для сравнения: магазины давно не отдавали найденные товары.
+            Устаревшие предложения показаны ниже с датой последней цены.
+          </div>`;
       } else {
         heroContainer.innerHTML = '';
       }
@@ -3847,6 +3854,13 @@
       // 2. Store Comparison Grid
       const grid = document.getElementById('storeComparisonGrid');
       const badgeStats = document.getElementById('bestPriceStatsBadge');
+      if (data.all_stale || !stats.min_price) {
+        badgeStats.innerText = 'Нет актуальных цен для сравнения';
+        grid.innerHTML = '<div class="col-span-full text-xs text-slate-500 py-2">Сравнение магазинов строится только по ценам не старше 72 часов.</div>';
+        renderShopFilterChips(data);
+        renderBestPriceTable(items, null);
+        return;
+      }
       badgeStats.innerText = `Магазинов с товаром: ${stores.length} • Разброс цен: ${fmtPrice(stats.min_price)} — ${fmtPrice(stats.max_price)}`;
 
       grid.innerHTML = stores.map(st => {
@@ -3862,6 +3876,7 @@
             </div>
             <div>
               <div class="text-base font-bold ${isWinner ? 'text-emerald-400' : 'text-slate-200'}">${fmtPrice(st.min_price)}</div>
+              ${freshnessBadge(st)}
               <div class="text-[10px] text-slate-400 line-clamp-1 mt-0.5" title="${escapeHtml(itemTitle)}">${escapeHtml(itemTitle)}</div>
             </div>
             <div class="flex items-center justify-between pt-1 border-t border-slate-800/80 text-[11px]">

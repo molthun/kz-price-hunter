@@ -132,8 +132,8 @@ class DbCase(unittest.TestCase):
         self.sql("UPDATE products SET updated_at = ? WHERE id = ?", ts, product_id)
 
 
-class ScanPipelineTest(DbCase):
-    """Сквозной путь _scan_shop_categories: качество до снятия товаров, baseline, FAILED сохраняет каталог."""
+class PipelineCase(DbCase):
+    """Сквозной путь _scan_shop_categories на временной БД (адаптер и детектор алертов подменены, без сети)."""
     URL = "https://shop.example/c"
 
     def scan(self, result):
@@ -161,6 +161,10 @@ class ScanPipelineTest(DbCase):
 
     def history(self):
         return self.sql("SELECT quality, valid, accepted FROM source_scans ORDER BY id")
+
+
+class ScanPipelineTest(PipelineCase):
+    """Качество до снятия товаров, baseline, FAILED сохраняет каталог."""
 
     def test_silent_breakage_detected_catalog_kept(self):
         for _ in range(3):
@@ -213,15 +217,17 @@ class ScanPipelineTest(DbCase):
         self.assertEqual(report["freshness"], "fresh")  # последний полный обход был недавно
 
 
-class VisibilityTest(DbCase):
-    """Решение владельца: устаревшие видны с бейджем, скрываются снятые и не виденные > 30 дней;
-    Stale не даёт лучшую цену, алерты и скидки."""
-
+class VisibilityCase(DbCase):
     def add(self, pid, price, hours_ago, old_price=0, shop="S"):
         database.save_or_update_products_batch([{"id": pid, "title": "Смартфон Test X 128GB", "url": f"https://s.example/{pid}",
                                                  "price": price, "shop": shop, "city": "Астана",
                                                  "old_price_on_site": old_price}])
         self.age(pid, hours_ago)
+
+
+class VisibilityTest(VisibilityCase):
+    """Решение владельца: устаревшие видны с бейджем, скрываются снятые и не виденные > 30 дней;
+    Stale не даёт лучшую цену, алерты и скидки."""
 
     def test_catalog_search_and_best_price(self):
         import search_engine
@@ -258,6 +264,151 @@ class VisibilityTest(DbCase):
         with conn:
             row = conn.execute("SELECT current_price FROM products WHERE id='n1' AND " + database.fresh_price_clause()).fetchone()
         self.assertIsNone(row)
+
+
+class DuplicatesTest(PipelineCase):
+    """C01: объём и брак — по уникальным id; повторы не снимают каталог и не обучают норму."""
+
+    def dup_result(self, n_rows, prefix="p", complete=True):
+        from scrapers.base import ScanResult
+        one = dict(offers(1, prefix)[0], shop="Синтетика", city="Астана")
+        return ScanResult([dict(one) for _ in range(n_rows)], complete=complete)
+
+    def test_codex_repro_200_copies_of_one_id(self):
+        for _ in range(3):
+            self.scan(self.result(200))
+        self.scan(self.dup_result(200))
+        self.assertEqual(self.active(), 200)
+        quality, valid, accepted = self.history()[-1]
+        self.assertEqual((quality, valid, accepted), ("degraded", 1, 0))
+        reason = self.sql("SELECT reason, duplicates FROM source_scans ORDER BY id DESC LIMIT 1")[0]
+        self.assertEqual(reason[1], 199)
+        self.assertIn("повторов 199", reason[0])
+        self.assertEqual(database.get_source_baseline("syn", self.URL, "complete")["valid"], 200.0)
+
+    def test_duplicates_do_not_inflate_baseline(self):
+        from scrapers.base import ScanResult
+        for _ in range(3):
+            rows = [dict(o, shop="Синтетика", city="Астана") for o in offers(100)]
+            self.scan(ScanResult(rows + rows[:20], complete=True))  # 20 % повторов — ниже порога брака
+        self.assertEqual([v for _, v, _ in self.history()], [100, 100, 100])
+        self.assertEqual(database.get_source_baseline("syn", self.URL, "complete")["valid"], 100.0)
+        self.assertEqual(self.active(), 100)
+
+    def test_first_row_wins_on_conflicting_price(self):
+        from scrapers.base import ScanResult
+        rows = [dict(o, shop="Синтетика", city="Астана") for o in offers(30)]
+        self.scan(ScanResult(rows + [dict(rows[0], price=1)], complete=True))
+        price = self.sql("SELECT current_price FROM products WHERE id = 'p0@astana'")[0][0]
+        self.assertEqual(price, 100)
+        self.assertIn("другой ценой", self.sql("SELECT reason FROM source_scans ORDER BY id DESC LIMIT 1")[0][0])
+
+    def test_same_item_other_city_or_shop_not_merged(self):
+        from offer_identity import assign_offer_ids
+        from scrapers.base import ScanResult
+        rows = ScanResult([dict(offers(1)[0], shop="Синтетика", city="Астана"),
+                           dict(offers(1)[0], shop="Синтетика", city="Алматы")])
+        assign_offer_ids(rows)
+        self.assertEqual(dq.measure(rows)["duplicates"], 0)
+        self.assertEqual(len(dq.dedupe(rows)), 2)
+
+
+class StaleBenchmarkTest(DbCase):
+    """C02: устаревшая цена конкурента не основание арбитража; алерт гаснет, когда основание устарело."""
+    TITLE = "Apple iPhone 15 128GB Black"
+
+    def add(self, pid, shop, price, hours_ago, title=None):
+        database.save_or_update_products_batch([{"id": pid, "title": title or self.TITLE, "price": price, "shop": shop,
+                                                 "city": "Астана", "url": f"https://{shop.lower()}.example/{pid}"}])
+        self.age(pid, hours_ago)
+
+    def arbitrage(self, price=200000):
+        from detector import check_market_arbitrage
+        return check_market_arbitrage({"id": "new", "title": self.TITLE, "price": price, "shop": "Current",
+                                       "city": "Астана", "url": "https://cur.example/new"},
+                                      custom_settings={"detect_market_arbitrage": True})
+
+    def test_codex_repro_single_stale_competitor(self):
+        self.add("old", "Other", 400000, 96)
+        self.assertIsNone(self.arbitrage())
+
+    def test_mixed_competitors_use_only_fresh_and_aging(self):
+        self.add("stale", "S1", 900000, 80)
+        self.add("aging", "S2", 400000, 48)
+        self.add("fresh", "S3", 420000, 1)
+        a = self.arbitrage()
+        self.assertEqual((a["old_price"], a["competitor_shop"]), (400000, "S2"))
+        self.assertEqual(dq.freshness(a["competitor_seen_at"])["freshness"], "aging")
+        m = database.find_market_comparisons(self.TITLE, "Current", 200000, "Астана")
+        self.assertEqual(sorted(c["shop"] for c in m["competitors"]), ["S2", "S3"])
+
+    def test_fts_branch_without_canonical_key(self):
+        title = "Кофемашина Delonghi Magnifica Evo ECAM290"
+        with patch("model_matching.extract_canonical_key", return_value=None), \
+             patch.object(database, "get_cached_canonical_key", return_value=None):
+            self.add("fts_old", "Other", 400000, 80, title=title)
+            self.assertIsNone(database.find_market_comparisons(title, "Current", 200000, "Астана"))
+            self.add("fts_new", "Other2", 390000, 2, title=title)
+            m = database.find_market_comparisons(title, "Current", 200000, "Астана")
+        self.assertEqual([c["shop"] for c in m["competitors"]], ["Other2"])
+
+    def test_boundary_72h(self):
+        self.add("edge", "Other", 400000, 71.5)
+        self.assertIsNotNone(self.arbitrage())
+        self.age("edge", 72.5)
+        self.assertIsNone(self.arbitrage())
+
+    def test_existing_alert_hidden_and_not_delivered_when_benchmark_stale(self):
+        self.add("cur", "Current", 200000, 0)
+        seen_fresh = datetime.datetime.now(UTC).isoformat()
+        seen_stale = (datetime.datetime.now(UTC) - datetime.timedelta(hours=80)).isoformat()
+        for seen in (seen_fresh, seen_stale):
+            database.record_alert("cur", "MARKET_ARBITRAGE", 400000, 200000, 50.0, 200000,
+                                  shop="Current", competitor_shop="Other", competitor_seen_at=seen)
+            self.sql("UPDATE alerts SET created_at = datetime('now', '-1 hour')")
+            database.invalidate_alerts_cache()
+            visible = database._fetch_filtered_alerts({})
+            self.assertEqual(len(visible), 1 if seen == seen_fresh else 0, seen)
+            self.sql("DELETE FROM alerts")
+        # Старые алерты без competitor_seen_at — по времени создания
+        database.record_alert("cur", "MARKET_ARBITRAGE", 400000, 200000, 50.0, 200000, shop="Current")
+        self.sql("UPDATE alerts SET created_at = datetime('now', '-4 days')")
+        database.invalidate_alerts_cache()
+        self.assertEqual(database._fetch_filtered_alerts({}), [])
+        import notifier
+        self.assertTrue(notifier._stale_benchmark({"type": "MARKET_ARBITRAGE", "competitor_seen_at": seen_stale}))
+        self.assertFalse(notifier._stale_benchmark({"type": "MARKET_ARBITRAGE", "competitor_seen_at": seen_fresh}))
+        self.assertFalse(notifier._stale_benchmark({"type": "ZERO_GLITCH", "competitor_seen_at": seen_stale}))
+
+
+class AllStaleComparisonTest(VisibilityCase):
+    """C03: без актуальных цен нет статистики, сравнения магазинов и разницы с лучшей."""
+
+    def summary(self, q="Смартфон Test"):
+        import search_engine
+        with patch.object(search_engine, "DB_PATH", type(DB_PATH)(self.db)):
+            return asyncio.run(search_engine.get_best_price_summary(q))
+
+    def test_all_stale_single_and_multiple_shops(self):
+        self.add("s1", 500, 100, shop="A")
+        r = self.summary()
+        self.assertEqual((r["all_stale"], r["best_deal"], r["price_stats"], r["store_comparison"]), (True, None, None, []))
+        self.assertEqual([(i["id"], i["diff_from_best"], i["freshness"]) for i in r["items"]], [("s1", None, "stale")])
+        self.add("s2", 700, 90, shop="B")
+        r = self.summary()
+        self.assertEqual((r["total_found"], r["store_comparison"], r["shop_counts"]), (2, [], {"A": 1, "B": 1}))
+
+    def test_mixed_stale_rows_have_no_diff(self):
+        self.add("s1", 500, 100, shop="A")
+        self.add("f1", 800, 1, shop="B")
+        r = self.summary()
+        diffs = {i["id"]: i["diff_from_best"] for i in r["items"]}
+        self.assertEqual(diffs, {"s1": None, "f1": 0})
+        self.assertEqual(r["price_stats"]["min"], 800)
+
+    def test_empty(self):
+        r = self.summary("ничего такого нет")
+        self.assertEqual((r["total_found"], r["best_deal"]), (0, None))
 
 
 CHALLENGE_HTML = ("<html><head><title>Just a moment...</title></head><body><div id='challenge-form'>"

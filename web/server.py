@@ -838,6 +838,7 @@ def _process_anomaly_sync(p, anomaly, shop_name):
         shop=p.get("shop", shop_name),
         city=p.get("city", "Астана"),
         competitor_shop=anomaly.get("competitor_shop"),
+        competitor_seen_at=anomaly.get("competitor_seen_at"),
         # После пересборки каталога первый цикл не рассылает уже известные скидки повторно
         deliveries=[] if notifications_muted() else prepare_deliveries(p, anomaly)
     )
@@ -1165,9 +1166,11 @@ async def _scan_shop_categories(key, scraper, categories, shop_name, candidate_s
                 complete = getattr(prods, "complete", False)
                 if not prods and not complete:
                     error = error or "Пустая выдача: требуется проверка"
-                # Качество до снятия товаров (P02): «тихая поломка» с complete не снимает каталог и не обучает норму
+                # Качество до снятия товаров (P02): «тихая поломка» с complete не снимает каталог и не обучает норму.
+                # Метрики — по всей выдаче (дубли видны), дальше — только первая строка каждого id (C01)
                 kind = "complete" if complete else "limited"
                 metrics = data_quality.measure(prods)
+                prods = data_quality.dedupe(prods)
                 baseline = None if error else await asyncio.to_thread(get_source_baseline, key, cat["url"], kind)
                 assessment = data_quality.assess(metrics, complete=complete, error=error, baseline=baseline)
                 if assessment["quality"] == data_quality.DEGRADED:

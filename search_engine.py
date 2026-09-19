@@ -696,7 +696,35 @@ async def _get_best_price_summary(
     priced = [item for item in local_items if item["current_price"] > 0]
     pool = [item for item in priced if item["freshness"] != data_quality.STALE]
     stale_count = len(priced) - len(pool)
-    basis = pool or priced
+    shop_counts: Dict[str, int] = {}
+    for item in local_items:
+        shop_counts[item["shop"]] = shop_counts.get(item["shop"], 0) + 1
+
+    def as_item(it: Dict[str, Any], min_price: Optional[int]) -> Dict[str, Any]:
+        it_copy = dict(it)
+        it_copy["price"] = it["current_price"]
+        # Устаревшее предложение не сравнивается с лучшей ценой (C03)
+        stale = it["freshness"] == data_quality.STALE
+        it_copy["diff_from_best"] = None if stale or min_price is None else it["current_price"] - min_price
+        it_copy["savings_vs_max"] = 0  # A broad query can contain different models.
+        it_copy["old_price"] = it.get("old_price_on_site") or it.get("first_seen_price") or 0
+        return it_copy
+
+    if not pool:
+        # Нет ни одной актуальной цены: предложения видны с бейджем, но сравнения, лидера и статистики нет (C03)
+        return {
+            "query": query_clean,
+            "total_found": len(local_items),
+            "stale_count": stale_count,
+            "all_stale": True,
+            "best_deal": None,
+            "price_stats": None,
+            "store_comparison": [],
+            "shop_counts": shop_counts,
+            "items": [as_item(it, None) for it in local_items],
+        }
+
+    basis = pool
     prices = [item["current_price"] for item in basis]
     min_p = min(prices)
     max_p = max(prices)
@@ -715,10 +743,6 @@ async def _get_best_price_summary(
 
     # Агрегация по магазинам
     store_map: Dict[str, Dict[str, Any]] = {}
-    shop_counts: Dict[str, int] = {}
-    for item in local_items:
-        s_name = item["shop"]
-        shop_counts[s_name] = shop_counts.get(s_name, 0) + 1
     for item in basis:
         s_name = item["shop"]
         if s_name not in store_map or item["current_price"] < store_map[s_name]["current_price"]:
@@ -741,21 +765,14 @@ async def _get_best_price_summary(
             "last_seen_at": item["last_seen_at"],
         })
 
-    formatted_items = []
-    for it in local_items:
-        it_copy = dict(it)
-        it_copy["price"] = it["current_price"]
-        it_copy["diff_from_best"] = it["current_price"] - min_p
-        it_copy["savings_vs_max"] = 0  # A broad query can contain different models.
-        it_copy["old_price"] = it.get("old_price_on_site") or it.get("first_seen_price") or 0
-        formatted_items.append(it_copy)
+    formatted_items = [as_item(it, min_p) for it in local_items]
 
     return {
         "query": query_clean,
         "total_found": len(local_items),
         "stale_count": stale_count,
-        "all_stale": not pool,
-        "best_deal": None if not pool else {
+        "all_stale": False,
+        "best_deal": {
             "id": cheapest_item["id"],
             "shop": cheapest_item["shop"],
             "title": cheapest_item["title"],

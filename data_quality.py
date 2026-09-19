@@ -51,13 +51,46 @@ def is_valid_offer(item: Any) -> bool:
             and 0 < price <= MAX_PRICE and parts.scheme in ("http", "https") and bool(parts.hostname))
 
 
+def dedupe(items: Iterable[Any]) -> List[Any]:
+    """Первая строка каждого id (C01): повторы не увеличивают объём и не переопределяют цену последней строкой.
+
+    id к этому моменту уже нормализован assign_offer_ids (магазин + город), поэтому одинаковые товары разных
+    магазинов и городов не склеиваются.
+    """
+    seen = set()
+    out = []
+    for item in items:
+        key = str(item.get("id") or "") if isinstance(item, dict) else None
+        if key and key in seen:
+            continue
+        if key:
+            seen.add(key)
+        out.append(item)
+    return out
+
+
 def measure(items: Iterable[Any]) -> Dict[str, int]:
+    """received — строк от адаптера; duplicates — повторы уже встреченного id (conflicts — из них с другой ценой);
+    valid — уникальные пригодные предложения; rejected — непригодные строки (дубли учитываются отдельно)."""
     items = list(items)
-    valid = [i for i in items if is_valid_offer(i)]
+    first: Dict[str, Any] = {}
+    duplicates = conflicts = 0
+    for item in items:
+        key = str(item.get("id") or "") if isinstance(item, dict) else ""
+        if key and key in first:
+            duplicates += 1
+            if first[key].get("price") != item.get("price"):
+                conflicts += 1
+        elif key:
+            first[key] = item
+    unique = dedupe(items)
+    valid = [i for i in unique if is_valid_offer(i)]
     return {
         "received": len(items),
         "valid": len(valid),
-        "rejected": len(items) - len(valid),
+        "rejected": len(unique) - len(valid),
+        "duplicates": duplicates,
+        "conflicts": conflicts,
         "with_image": sum(1 for i in valid if str(i.get("image_url") or "").strip()),
     }
 
@@ -87,9 +120,14 @@ def assess(metrics: Dict[str, int], *, complete: bool, error: Optional[str],
                 "may_retire": False, "baseline": baseline and baseline.get("valid"),
                 "basis": baseline and baseline.get("basis")}
 
-    received, valid, rejected = metrics["received"], metrics["valid"], metrics["rejected"]
+    received, valid = metrics["received"], metrics["valid"]
+    # Непригодные строки и повторы одного id — брак выдачи (порог Q2); объём — только уникальные валидные (C01)
+    rejected = metrics["rejected"] + metrics.get("duplicates", 0)
     if received >= MIN_RECEIVED_FOR_SHARE and rejected / received > REJECTED_DEGRADED_SHARE:
-        reasons.append(f"отброшено {rejected} из {received} карточек ({rejected / received:.0%})")
+        detail = f", из них повторов {metrics['duplicates']}" if metrics.get("duplicates") else ""
+        reasons.append(f"отброшено {rejected} из {received} карточек ({rejected / received:.0%}{detail})")
+    elif metrics.get("conflicts"):
+        warnings.append(f"{metrics['conflicts']} повторов с другой ценой (взята первая)")
 
     base = baseline.get("valid") if baseline else None
     if base is not None and base >= MIN_BASELINE_ITEMS:
