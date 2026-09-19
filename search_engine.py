@@ -445,7 +445,7 @@ def determine_category_and_master(title: str, query: str = "", raw_category: str
         return raw_category, None
     if query:
         return query.strip().capitalize(), None
-    return "Электроника", None
+    return "Каталог", None
 
 def _close_scraper(scraper) -> None:
     close = getattr(scraper, "close", None)

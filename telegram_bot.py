@@ -92,8 +92,8 @@ async def handle_start_command(session: aiohttp.ClientSession, token: str, chat_
     greeting = f"Привет, {html.escape(user_first_name)}! " if user_first_name else "Привет! "
     text = (
         f"👋 {greeting}Я умный бот-ассистент <b>KZ Price Hunter</b> 🇰🇿\n\n"
-        f"Я отслеживаю цены на технику и электронику в магазинах Казахстана (подключено: <b>{len(config.SHOP_KEYS)}</b>) "
-        "(Kaspi, DNS, Белый Ветер, Технодом, Мечта, Sulpak, Forcecom, Halyk Market и др.) "
+        f"Я отслеживаю цены, скидки и ошибки в крупнейших магазинах Казахстана (подключено: <b>{len(config.SHOP_KEYS)}</b>) "
+        "(электроника, продукты, стройка, товары для дома: Kaspi, DNS, Белый Ветер, Лемана ПРО, Arbuz, 12 Месяцев, Мечта и др.) "
         "и помогаю сделать самую выгодную покупку с помощью AI!\n\n"
         "📌 <b>Что я умею:</b>\n"
         "• <b>Задайте любой вопрос</b> — напишите, например:\n"

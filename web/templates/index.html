@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KZ Price Hunter — Монитор цен и скидок (Астана)</title>
+  <title>KZ Price Hunter — Монитор цен, скидок и арбитража в Казахстане</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -308,7 +308,7 @@
               <span id="searchCityBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Астана</span>
             </h2>
             <p class="text-xs text-slate-400 mt-0.5">
-              Сравнение цен по магазинам Казахстана: Kaspi, DNS, Мечта, Белый Ветер, Технодом, Sulpak, Forte Market и др.
+              Сравнение цен по магазинам Казахстана: Kaspi, DNS, Белый Ветер, Лемана ПРО, Arbuz, 12 Месяцев, Мечта, Технодом и др.
             </p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
@@ -337,7 +337,7 @@
         <div class="flex flex-col sm:flex-row gap-2">
           <div class="relative flex-1">
             <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
-            <input type="text" id="inputBestPriceQuery" onkeydown="if(event.key==='Enter') executeBestPriceSearch()" placeholder="Введите название товара (например: Apple Watch, iPhone 16) или естественный запрос: 'ноутбук для учебы до 300к'..." class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-28 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 shadow-inner">
+            <input type="text" id="inputBestPriceQuery" onkeydown="if(event.key==='Enter') executeBestPriceSearch()" placeholder="Введите название товара (например: iPhone 16, перфоратор Bosch, кофе в зернах, стиральный порошок)..." class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-28 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 shadow-inner">
             <div class="absolute right-2.5 top-2.5 flex items-center">
               <button type="button" id="btnToggleAiSearch" onclick="toggleAiSearchMode()" title="Режим умного AI-поиска (Gemini): распознает естественный язык, бюджет, категорию и бренд" class="px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1.5 transition cursor-pointer bg-gradient-to-r from-purple-500/20 to-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:border-emerald-400">
                 <i class="fa-solid fa-wand-magic-sparkles text-emerald-400 text-xs"></i>
@@ -372,13 +372,14 @@
         <!-- Быстрые теги -->
         <div class="flex flex-wrap items-center gap-2 pt-1 text-xs">
           <span class="text-slate-500">Популярные запросы:</span>
-          <button onclick="setBestPriceTag('Apple Watch')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer">⌚️ Apple Watch</button>
           <button onclick="setBestPriceTag('iPhone 16')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer">📱 iPhone 16</button>
           <button onclick="setBestPriceTag('Galaxy S24')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer">📱 Galaxy S24</button>
-          <button onclick="setBestPriceTag('RTX 4060')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer">🎮 RTX 4060</button>
-          <button onclick="setBestPriceTag('MacBook Air')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer">💻 MacBook Air</button>
           <button onclick="setBestPriceTag('ноутбук для учебы до 300к')" class="px-2.5 py-1 rounded-lg bg-purple-950/40 hover:bg-purple-900/50 border border-purple-700/50 text-purple-300 hover:text-purple-200 transition cursor-pointer flex items-center gap-1.5"><i class="fa-solid fa-wand-magic-sparkles text-[10px]"></i> <span>ноутбук до 300к</span></button>
+          <button onclick="setBestPriceTag('перфоратор Bosch')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer">🛠 Перфоратор Bosch</button>
+          <button onclick="setBestPriceTag('кофе в зернах 1 кг')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer">🥫 Кофе в зернах</button>
+          <button onclick="setBestPriceTag('стиральный порошок Ariel')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer">🧼 Стиральный порошок</button>
           <button onclick="setBestPriceTag('PlayStation 5')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer">🕹 PlayStation 5</button>
+          <button onclick="setBestPriceTag('робот-пылесос')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer">🧹 Робот-пылесос</button>
         </div>
 
         <!-- Панель быстрых фильтров поиска -->
@@ -410,24 +411,42 @@
                 <span>Магазин:</span>
               </label>
               <select id="bestPriceShopFilter" onchange="executeBestPriceSearch()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500 transition">
-                <option value="Все">Все магазины (17)</option>
-                <option value="Kaspi Магазин">🔴 Kaspi Магазин</option>
-                <option value="DNS Казахстан">🟧 DNS Казахстан</option>
-                <option value="Белый Ветер">🟦 Белый Ветер</option>
-                <option value="Технодом">🔴 Технодом</option>
-                <option value="Forcecom">⚡️ Forcecom</option>
-                <option value="Sulpak">🟢 Sulpak</option>
-                <option value="Мечта">🟣 Мечта</option>
-                <option value="Alser">🟡 Alser</option>
-                <option value="Эврика">🔷 Эврика</option>
-                <option value="Moon.kz">🚀 Moon.kz</option>
-                <option value="4mobile">📱 4mobile</option>
-                <option value="Flip.kz">🛍 Flip.kz</option>
-                <option value="Halyk Market">🏦 Halyk Market</option>
-                <option value="Tgrad">🟪 Tgrad</option>
-                <option value="ANTS">🐜 ANTS</option>
-                <option value="ITMag">💾 ITMag</option>
-                <option value="iSpace">🍏 iSpace</option>
+                <option value="Все">Все магазины (25)</option>
+                <optgroup label="Электроника и компьютеры">
+                  <option value="Kaspi Магазин">🔴 Kaspi Магазин</option>
+                  <option value="DNS Казахстан">🟧 DNS Казахстан</option>
+                  <option value="Белый Ветер">🟦 Белый Ветер</option>
+                  <option value="Технодом">🔴 Технодом</option>
+                  <option value="Мечта">🟣 Мечта</option>
+                  <option value="Sulpak">🟢 Sulpak</option>
+                  <option value="Alser">🟡 Alser</option>
+                  <option value="Эврика">🔷 Эврика</option>
+                  <option value="Moon.kz">🚀 Moon.kz</option>
+                  <option value="Forcecom">⚡️ Forcecom</option>
+                  <option value="4mobile">📱 4mobile</option>
+                  <option value="Tgrad">🟪 Tgrad</option>
+                  <option value="ANTS">🐜 ANTS</option>
+                  <option value="ITMag">💾 ITMag</option>
+                  <option value="iSpace">🍏 iSpace</option>
+                </optgroup>
+                <optgroup label="Маркетплейсы">
+                  <option value="Halyk Market">🏦 Halyk Market</option>
+                  <option value="Forte Market">🟣 Forte Market</option>
+                  <option value="Flip.kz">🛍 Flip.kz</option>
+                </optgroup>
+                <optgroup label="Супермаркеты и продукты">
+                  <option value="Вкусмарт">🍎 Вкусмарт</option>
+                  <option value="Arbuz">🍉 Arbuz</option>
+                </optgroup>
+                <optgroup label="Стройка, ремонт и инструмент">
+                  <option value="Лемана ПРО">🟩 Лемана ПРО</option>
+                  <option value="12 Месяцев">🔨 12 Месяцев</option>
+                  <option value="MasterOK">🔧 MasterOK</option>
+                </optgroup>
+                <optgroup label="Дом и мебель">
+                  <option value="Zeta">🛋 Zeta</option>
+                  <option value="Комфорт">🏡 Комфорт</option>
+                </optgroup>
               </select>
             </div>
 
@@ -438,26 +457,43 @@
               </label>
               <select id="bestPriceCategoryFilter" onchange="executeBestPriceSearch()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500 transition">
                 <option value="Все">📦 Все категории</option>
-                <option value="Смартфоны">📱 Смартфоны</option>
-                <option value="Ноутбуки">💻 Ноутбуки</option>
-                <option value="Видеокарты">🎮 Видеокарты</option>
-                <option value="Мониторы">🖥 Мониторы</option>
-                <option value="Наушники">🎧 Наушники</option>
-                <option value="Планшеты">📲 Планшеты</option>
-                <option value="Телевизоры">📺 Телевизоры</option>
-                <option value="Игровые приставки">🕹 Игровые приставки</option>
-                <option value="Процессоры">⚙️ Процессоры</option>
-                <option value="Материнские платы">🔌 Материнские платы</option>
-                <option value="SSD">💾 SSD накопители</option>
-                <option value="Корпуса">🗄 Корпуса ПК</option>
-                <option value="Блоки питания">🔋 Блоки питания</option>
-                <option value="Клавиатуры">⌨️ Клавиатуры</option>
-                <option value="Мыши">🖱 Мыши</option>
-                <option value="Смарт-часы">⌚️ Смарт-часы</option>
-                <option value="Пылесосы">🧹 Пылесосы</option>
-                <option value="Стиральные машины">🧺 Стиральные машины</option>
-                <option value="Холодильники">❄️ Холодильники</option>
-                <option value="Кондиционеры">🌬 Кондиционеры</option>
+                <optgroup label="📱 Электроника и гаджеты">
+                  <option value="Смартфоны">📱 Смартфоны</option>
+                  <option value="Ноутбуки">💻 Ноутбуки</option>
+                  <option value="Планшеты">📲 Планшеты</option>
+                  <option value="Смарт-часы">⌚️ Смарт-часы</option>
+                  <option value="Наушники">🎧 Наушники и аудио</option>
+                  <option value="Телевизоры">📺 Телевизоры</option>
+                  <option value="Игровые приставки">🕹 Игровые приставки</option>
+                  <option value="Комплектующие для ПК">⚙️ Комплектующие для ПК</option>
+                  <option value="Мониторы">🖥 Мониторы</option>
+                </optgroup>
+                <optgroup label="❄️ Бытовая техника">
+                  <option value="Крупная бытовая техника">❄️ Крупная бытовая техника</option>
+                  <option value="Мелкая бытовая техника">☕️ Мелкая бытовая техника</option>
+                  <option value="Пылесосы">🧹 Пылесосы</option>
+                  <option value="Стиральные машины">🧺 Стиральные машины</option>
+                  <option value="Холодильники">🧊 Холодильники</option>
+                  <option value="Кондиционеры">🌬 Кондиционеры</option>
+                </optgroup>
+                <optgroup label="🥫 Продукты и супермаркет">
+                  <option value="Продукты и бакалея">🥫 Продукты и бакалея</option>
+                  <option value="Чай и кофе">☕️ Чай и кофе</option>
+                  <option value="Напитки">🧃 Напитки</option>
+                  <option value="Сладости и снеки">🍫 Сладости и снеки</option>
+                </optgroup>
+                <optgroup label="🛠 Стройка, ремонт и инструмент">
+                  <option value="Стройка и ремонт">🛠 Стройка и ремонт</option>
+                  <option value="Электроинструменты">🪚 Электроинструменты</option>
+                  <option value="Ручной инструмент">🔧 Ручной инструмент</option>
+                  <option value="Сантехника">🚿 Сантехника</option>
+                  <option value="Садовая техника">🌱 Садовая техника</option>
+                </optgroup>
+                <optgroup label="🧼 Бытовая химия и дом">
+                  <option value="Бытовые товары и химия">🧼 Бытовая химия и чистота</option>
+                  <option value="Мебель">🛋 Мебель</option>
+                  <option value="Товары для дома">🏡 Товары для дома и уюта</option>
+                </optgroup>
               </select>
             </div>
 
@@ -545,7 +581,7 @@
           <i class="fa-solid fa-spinner fa-spin text-3xl"></i>
         </div>
         <h3 class="text-base font-semibold text-white">Ищем лучшие предложения во всех магазинах...</h3>
-        <p class="text-xs text-slate-400 mt-1" id="bestPriceLoadingDetail">Опрашиваем Kaspi Магазин, базу цен и онлайн-каталоги Астаны...</p>
+        <p class="text-xs text-slate-400 mt-1" id="bestPriceLoadingDetail">Опрашиваем базу цен, онлайн-каталоги и подключенные магазины...</p>
       </div>
 
       <!-- Контейнер начального состояния (до первого поиска) -->
@@ -553,7 +589,7 @@
         <div class="text-4xl mb-3">🔍</div>
         <h3 class="text-base font-semibold text-white">Введите товар или выберите быстрый тег выше</h3>
         <p class="text-xs text-slate-400 mt-1 max-w-md mx-auto">
-          Система моментально проанализирует предложения во всех сетях электроники Астаны, покажет где дешевле всего и сколько вы сэкономите.
+          Система моментально сопоставит предложения по всем сетям Казахстана (электроника, супермаркеты, стройка, товары для дома), покажет лучшую цену и выгоду.
         </p>
       </div>
 
@@ -685,7 +721,7 @@
               <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 text-slate-200 text-sm leading-relaxed space-y-2 shadow-sm">
                 <p class="font-semibold text-white">Здравствуйте! Чем я могу помочь вам сегодня?</p>
                 <p class="text-xs text-slate-400 leading-relaxed">
-                  Я знаю актуальные цены и скидки в <b>торговых сетях Казахстана</b> (Kaspi, DNS, Белый Ветер, Технодом, Мечта, Sulpak, Forcecom, Halyk Market и др.). Спросите меня о подборе техники под ваш бюджет, сравнении моделей или поиске лучшей цены.
+                  Я знаю актуальные цены и скидки в <b>торговых сетях Казахстана</b> (Kaspi, DNS, Белый Ветер, Лемана ПРО, Arbuz, 12 Месяцев, Мечта, Технодом и др.). Спросите меня о подборе товаров под ваш бюджет, сравнении моделей или поиске лучшей цены.
                 </p>
               </div>
 
@@ -701,9 +737,9 @@
                     <i class="fa-regular fa-lightbulb text-amber-400 text-xs"></i>
                     <span>Какой iPhone выгоднее всего?</span>
                   </button>
-                  <button type="button" onclick="sendConsultantSuggestion('Что лучше для работы: MacBook Air M2 или ультрабук на Windows?')" class="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-purple-950/40 border border-slate-700/80 hover:border-purple-500/50 text-xs text-slate-300 hover:text-purple-200 transition cursor-pointer text-left flex items-center gap-1.5">
+                  <button type="button" onclick="sendConsultantSuggestion('Посоветуй надежный шуруповерт или дрель для дома')" class="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-purple-950/40 border border-slate-700/80 hover:border-purple-500/50 text-xs text-slate-300 hover:text-purple-200 transition cursor-pointer text-left flex items-center gap-1.5">
                     <i class="fa-regular fa-lightbulb text-amber-400 text-xs"></i>
-                    <span>MacBook Air M2 или Windows-ноут?</span>
+                    <span>Шуруповерт для дома</span>
                   </button>
                   <button type="button" onclick="sendConsultantSuggestion('Посоветуй хороший 55-дюймовый 4K телевизор')" class="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-purple-950/40 border border-slate-700/80 hover:border-purple-500/50 text-xs text-slate-300 hover:text-purple-200 transition cursor-pointer text-left flex items-center gap-1.5">
                     <i class="fa-regular fa-lightbulb text-amber-400 text-xs"></i>
@@ -724,7 +760,7 @@
         <div class="p-3.5 bg-slate-950/80 border-t border-slate-800">
           <form onsubmit="handleConsultantSubmit(event)" class="flex items-center gap-2">
             <div class="relative flex-1">
-              <input type="text" id="inputConsultantMessage" placeholder="Задайте вопрос ассистенту (например: 'посоветуй смартфон с хорошей камерой до 250к')..." class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-4 pr-10 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 shadow-inner">
+              <input type="text" id="inputConsultantMessage" placeholder="Задайте вопрос ассистенту (например: 'посоветуй перфоратор для дома' или 'смартфон до 250к')..." class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-4 pr-10 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 shadow-inner">
               <span id="consultantTypingIndicator" class="hidden absolute right-3 top-3 text-purple-400 text-xs flex items-center gap-1">
                 <i class="fa-solid fa-spinner fa-spin"></i>
               </span>
@@ -744,30 +780,48 @@
       <div class="glass p-4 rounded-2xl flex flex-wrap gap-4 items-center justify-between">
         <div class="flex-1 min-w-[240px] relative">
           <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-500 text-sm"></i>
-          <input type="text" id="catalogSearchInput" oninput="debounceCatalogSearch()" placeholder="Поиск по названию (например, RTX, MacBook, Samsung)..." class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500">
+          <input type="text" id="catalogSearchInput" oninput="debounceCatalogSearch()" placeholder="Поиск по названию (например, дрель, кофемашина, MacBook, смеситель)..." class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500">
         </div>
 
         <div class="flex items-center space-x-2">
           <span class="text-xs text-slate-400">Магазин:</span>
           <select id="catalogShopFilter" onchange="loadCatalog(0)" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
-            <option value="Все">Все магазины</option>
-            <option value="Kaspi Магазин">🔴 Kaspi Магазин</option>
-            <option value="DNS Казахстан">🟧 DNS Казахстан</option>
-            <option value="Белый Ветер">🟦 Белый Ветер</option>
-            <option value="Технодом">🔴 Технодом</option>
-            <option value="Forcecom">⚡️ Forcecom</option>
-            <option value="Sulpak">🟢 Sulpak</option>
-            <option value="Мечта">🟣 Мечта</option>
-            <option value="Alser">🟡 Alser</option>
-            <option value="Эврика">🔷 Эврика</option>
-            <option value="Moon.kz">🚀 Moon.kz</option>
-            <option value="4mobile">📱 4mobile</option>
-            <option value="Flip.kz">🛍 Flip.kz</option>
-            <option value="Halyk Market">🏦 Halyk Market</option>
-            <option value="Tgrad">🟪 Tgrad</option>
-            <option value="ANTS">🐜 ANTS</option>
-            <option value="ITMag">💾 ITMag</option>
-            <option value="iSpace">🍏 iSpace</option>
+            <option value="Все">Все магазины (25)</option>
+            <optgroup label="Электроника и компьютеры">
+              <option value="Kaspi Магазин">🔴 Kaspi Магазин</option>
+              <option value="DNS Казахстан">🟧 DNS Казахстан</option>
+              <option value="Белый Ветер">🟦 Белый Ветер</option>
+              <option value="Технодом">🔴 Технодом</option>
+              <option value="Мечта">🟣 Мечта</option>
+              <option value="Sulpak">🟢 Sulpak</option>
+              <option value="Alser">🟡 Alser</option>
+              <option value="Эврика">🔷 Эврика</option>
+              <option value="Moon.kz">🚀 Moon.kz</option>
+              <option value="Forcecom">⚡️ Forcecom</option>
+              <option value="4mobile">📱 4mobile</option>
+              <option value="Tgrad">🟪 Tgrad</option>
+              <option value="ANTS">🐜 ANTS</option>
+              <option value="ITMag">💾 ITMag</option>
+              <option value="iSpace">🍏 iSpace</option>
+            </optgroup>
+            <optgroup label="Маркетплейсы">
+              <option value="Halyk Market">🏦 Halyk Market</option>
+              <option value="Forte Market">🟣 Forte Market</option>
+              <option value="Flip.kz">🛍 Flip.kz</option>
+            </optgroup>
+            <optgroup label="Супермаркеты и продукты">
+              <option value="Вкусмарт">🍎 Вкусмарт</option>
+              <option value="Arbuz">🍉 Arbuz</option>
+            </optgroup>
+            <optgroup label="Стройка, ремонт и инструмент">
+              <option value="Лемана ПРО">🟩 Лемана ПРО</option>
+              <option value="12 Месяцев">🔨 12 Месяцев</option>
+              <option value="MasterOK">🔧 MasterOK</option>
+            </optgroup>
+            <optgroup label="Дом и мебель">
+              <option value="Zeta">🛋 Zeta</option>
+              <option value="Комфорт">🏡 Комфорт</option>
+            </optgroup>
           </select>
         </div>
       </div>
@@ -806,6 +860,34 @@
 
     <!-- Вкладка 3: Настройки & Telegram -->
     <section id="tabSettings" class="hidden space-y-6">
+      <!-- Быстрая навигация по разделам настроек -->
+      <div class="flex flex-wrap items-center gap-2 pb-1 border-b border-slate-800">
+        <button type="button" onclick="scrollSettingsTo('sec-tg')" class="px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-xs text-slate-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer">
+          <i class="fa-brands fa-telegram text-sky-400"></i>
+          <span>Уведомления</span>
+        </button>
+        <button type="button" onclick="scrollSettingsTo('sec-shops')" class="px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-xs text-slate-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer">
+          <i class="fa-solid fa-store text-emerald-400"></i>
+          <span>Магазины (<span data-shop-count>25</span>)</span>
+        </button>
+        <button type="button" onclick="scrollSettingsTo('sec-thresholds')" class="px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-xs text-slate-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer">
+          <i class="fa-solid fa-sliders text-amber-400"></i>
+          <span>Пороги и скидки</span>
+        </button>
+        <button type="button" onclick="scrollSettingsTo('sec-search')" class="px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-xs text-slate-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer">
+          <i class="fa-solid fa-magnifying-glass text-purple-400"></i>
+          <span>Поиск и стоп-слова</span>
+        </button>
+        <button type="button" onclick="scrollSettingsTo('myDataSection')" class="auth-only hidden px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-xs text-slate-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer">
+          <i class="fa-solid fa-user-shield text-cyan-400"></i>
+          <span>Мои данные</span>
+        </button>
+        <button type="button" onclick="scrollSettingsTo('adminSection')" class="admin-only hidden px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-amber-500/40 text-xs text-amber-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer">
+          <i class="fa-solid fa-shield-halved text-amber-400"></i>
+          <span>Панель админа</span>
+        </button>
+      </div>
+
       <!-- Гостям: личные настройки доступны после входа -->
       <div id="settingsGuestBanner" class="hidden flex items-start gap-3 bg-sky-500/10 border border-sky-500/30 rounded-2xl p-4 text-xs text-sky-200">
         <i class="fa-brands fa-telegram text-sky-400 text-xl shrink-0"></i>
@@ -816,185 +898,242 @@
       </div>
 
       <div>
-        <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wide mb-3 flex items-center gap-2">
-          <i class="fa-solid fa-user-gear text-emerald-400"></i><span>Мои настройки</span>
-        </h2>
-        <fieldset id="personalSettingsFieldset" class="grid grid-cols-1 md:grid-cols-2 gap-6 disabled:opacity-60">
+        <fieldset id="personalSettingsFieldset" class="space-y-6 disabled:opacity-60">
 
-        <!-- Карточка 1: Детекция аномалий и ценовые пороги -->
-        <div class="glass p-6 rounded-2xl space-y-4">
-          <h3 class="text-base font-semibold text-white flex items-center gap-2">
-            <i class="fa-solid fa-triangle-exclamation text-amber-400"></i>
-            <span>Детекция аномалий и ценовые пороги</span>
-          </h3>
-          <p class="text-xs text-slate-400">
-            Гибкая настройка типов ошибок и чувствительности сканера алертов.
-          </p>
-
-          <!-- Тумблеры типов аномалий -->
-          <div class="space-y-2 pt-1 border-b border-slate-800 pb-3">
-            <div class="text-xs font-semibold text-slate-300 mb-1">Отслеживаемые типы аномалий:</div>
-            <label class="flex items-center space-x-2 text-xs text-slate-300 cursor-pointer">
-              <input type="checkbox" id="checkDetectZero" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
-              <span>🚨 <b>Ошибки «Пропущенный ноль»</b> (обвал цены в ~10 раз при переоценке)</span>
-            </label>
-            <label class="flex items-center space-x-2 text-xs text-slate-300 cursor-pointer">
-              <input type="checkbox" id="checkDetectDiscount" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
-              <span>💥 <b>Глубокие распродажи</b> (скидки от заданного %)</span>
-            </label>
-            <label class="flex items-center space-x-2 text-xs text-slate-300 cursor-pointer">
-              <input type="checkbox" id="checkDetectArbitrage" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
-              <span>🎯 <b>Межмагазинный арбитраж</b> (цена намного ниже других сетей)</span>
-            </label>
-          </div>
-
-          <div class="grid grid-cols-2 gap-3 pt-1">
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Мин. цена товара (₸)</label>
-              <input type="number" id="inputMinPrice" min="0" step="5000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
-              <span class="text-[10px] text-slate-500">Для скидок и арбитража</span>
+          <!-- Блок 1: Telegram-уведомления -->
+          <div id="sec-tg" class="glass p-6 rounded-2xl space-y-4 transition">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <h3 class="text-base font-semibold text-white flex items-center gap-2">
+                <i class="fa-brands fa-telegram text-sky-400 text-lg"></i>
+                <span>Уведомления в Telegram</span>
+              </h3>
+              <span id="tgBotNameHint" class="text-xs text-slate-400 font-mono"></span>
             </div>
+            <p class="text-xs text-slate-400">
+              Бот присылает проверенные скидки, баги переоценки и арбитраж напрямую в ваш личный Telegram-чат сразу после их обнаружения.
+            </p>
 
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Макс. цена товара (₸)</label>
-              <input type="number" id="inputMaxPrice" min="0" step="50000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
-              <span class="text-[10px] text-slate-500">Для всех типов аномалий</span>
-            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+              <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-3">
+                <div>
+                  <span class="text-xs font-semibold text-white block">Отправка алертов</span>
+                  <span class="text-[11px] text-slate-400">Включить оповещения в бот</span>
+                </div>
+                <input type="checkbox" id="checkTgNotifyEnabled" class="w-5 h-5 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              </div>
 
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Мин. скидка (%)</label>
-              <input type="number" id="inputDropPct" min="1" max="99" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
-              <span class="text-[10px] text-slate-500">Только для супер-скидок</span>
-            </div>
+              <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800">
+                <label class="block text-xs font-semibold text-white mb-1">Уровень чувствительности:</label>
+                <select id="selectTgNotifyLevel" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
+                  <option value="ALL">🟢 Все найденные скидки и аномалии</option>
+                  <option value="HIGH_SAVINGS">🔥 Только горячее (скидки от 75% или экономия от 100 000 ₸)</option>
+                  <option value="CRITICAL_ONLY">🚨 Только критические баги («Пропущенный ноль»)</option>
+                </select>
+              </div>
 
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Мин. выгода (₸)</label>
-              <input type="number" id="inputMinSavings" min="0" step="5000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
-              <span class="text-[10px] text-slate-500">Только для супер-скидок</span>
-            </div>
-
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Мин. разница арбитража (%)</label>
-              <input type="number" id="inputArbitrageDiffPct" min="1" max="99" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
-              <span class="text-[10px] text-slate-500">Дешевле самой низкой цены в других сетях</span>
-            </div>
-
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Мин. разница арбитража (₸)</label>
-              <input type="number" id="inputArbitrageDiff" min="0" step="5000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
-              <span class="text-[10px] text-slate-500">Дешевле самой низкой цены в других сетях</span>
+              <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-col justify-between">
+                <button type="button" onclick="testTelegram()" id="btnTestTg" class="w-full flex items-center justify-center space-x-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sky-400 font-medium py-2 rounded-xl text-xs transition cursor-pointer">
+                  <i class="fa-solid fa-paper-plane"></i>
+                  <span>Отправить тестовое сообщение</span>
+                </button>
+                <div id="tgTestResult" class="text-xs hidden mt-1.5 text-center font-medium"></div>
+                <p class="text-[10px] text-slate-500 mt-1 text-center">Если не приходит — нажмите «Start» в боте</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- Карточка 2: Стоп-слова и фильтрация хлама -->
-        <div class="glass p-6 rounded-2xl space-y-4">
-          <h3 class="text-base font-semibold text-white flex items-center gap-2">
-            <i class="fa-solid fa-ban text-rose-400"></i>
-            <span>Стоп-слова и фильтрация хлама</span>
-          </h3>
-          <p class="text-xs text-slate-400">
-            Исключайте дешевые чехлы, защитные пленки и кабели из мониторинга и поиска.
-          </p>
-
-          <div class="space-y-3">
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Минус-слова (через запятую):</label>
-              <textarea id="inputJunkKeywords" rows="4" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono"></textarea>
-              <span class="text-[10px] text-slate-500">Товары с этими словами в названии не попадают в алерты, а в поиске скрываются при включенном «Исключить аксессуары»</span>
+          <!-- Блок 2: Отслеживаемые магазины по категориям -->
+          <div id="sec-shops" class="glass p-6 rounded-2xl space-y-4 transition">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 class="text-base font-semibold text-white flex items-center gap-2">
+                  <i class="fa-solid fa-store text-emerald-400"></i>
+                  <span>Магазины в ленте и уведомлениях</span>
+                </h3>
+                <p class="text-xs text-slate-400 mt-0.5">
+                  В ленте и боте отображаются только выбранные вами торговые сети Казахстана.
+                </p>
+              </div>
+              <div class="flex items-center gap-2 text-xs">
+                <button type="button" onclick="toggleAllUserShops(true)" class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-emerald-400 hover:bg-slate-800 transition cursor-pointer">Включить все</button>
+                <button type="button" onclick="toggleAllUserShops(false)" class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-400 hover:bg-slate-800 transition cursor-pointer">Снять все</button>
+              </div>
             </div>
 
-            <div class="pt-2">
-              <label class="flex items-center space-x-2 text-xs text-slate-300 cursor-pointer">
-                <input type="checkbox" id="checkExcludeUsed" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
-                <span>Игнорировать уцененные, витринные и б/у товары (уценка, витрин, б/у)</span>
+            <!-- Вкладки категорий для фильтрации магазинов -->
+            <div class="flex flex-wrap items-center gap-1.5 pt-1 border-b border-slate-800/80 pb-2">
+              <button type="button" onclick="filterUserShopsView('all', this)" class="shop-cat-pill active px-3 py-1 rounded-xl text-xs font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 transition cursor-pointer">Все сети (25)</button>
+              <button type="button" onclick="filterUserShopsView('electronics', this)" class="shop-cat-pill px-3 py-1 rounded-xl text-xs font-medium bg-slate-900 text-slate-300 border border-slate-700 hover:text-white transition cursor-pointer">📱 Электроника и ПК (15)</button>
+              <button type="button" onclick="filterUserShopsView('marketplaces', this)" class="shop-cat-pill px-3 py-1 rounded-xl text-xs font-medium bg-slate-900 text-slate-300 border border-slate-700 hover:text-white transition cursor-pointer">🛍 Маркетплейсы (3)</button>
+              <button type="button" onclick="filterUserShopsView('grocery', this)" class="shop-cat-pill px-3 py-1 rounded-xl text-xs font-medium bg-slate-900 text-slate-300 border border-slate-700 hover:text-white transition cursor-pointer">🥫 Продукты (2)</button>
+              <button type="button" onclick="filterUserShopsView('diy', this)" class="shop-cat-pill px-3 py-1 rounded-xl text-xs font-medium bg-slate-900 text-slate-300 border border-slate-700 hover:text-white transition cursor-pointer">🛠 Стройка и инструмент (3)</button>
+              <button type="button" onclick="filterUserShopsView('home', this)" class="shop-cat-pill px-3 py-1 rounded-xl text-xs font-medium bg-slate-900 text-slate-300 border border-slate-700 hover:text-white transition cursor-pointer">🛋 Дом и мебель (2)</button>
+            </div>
+
+            <!-- Сетка магазинов -->
+            <div id="userShopsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5"></div>
+          </div>
+
+          <!-- Блок 3: Чувствительность, пресеты и пороги скидок -->
+          <div id="sec-thresholds" class="glass p-6 rounded-2xl space-y-4 transition">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 class="text-base font-semibold text-white flex items-center gap-2">
+                  <i class="fa-solid fa-sliders text-amber-400"></i>
+                  <span>Чувствительность поиска аномалий и скидок</span>
+                </h3>
+                <p class="text-xs text-slate-400 mt-0.5">
+                  Настройте типы ошибок и критерии выгоды. Выберите готовый пресет или задайте точные числа.
+                </p>
+              </div>
+
+              <!-- Пресеты в 1 клик -->
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span class="text-[11px] text-slate-500">Пресеты:</span>
+                <button type="button" onclick="applySettingsPreset('universal')" class="px-2.5 py-1 text-xs rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer" title="Подходит для супермаркетов, ремонта и электроники">🛒 Универсальный (от 2 000 ₸)</button>
+                <button type="button" onclick="applySettingsPreset('electronics')" class="px-2.5 py-1 text-xs rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer" title="Оптимально для гаджетов, ПК и бытовой техники">📱 Техника (от 25 000 ₸)</button>
+                <button type="button" onclick="applySettingsPreset('maximum')" class="px-2.5 py-1 text-xs rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer" title="Только самые крупные покупки с огромной выгодой">💎 Супер-выгода (от 50 000 ₸)</button>
+              </div>
+            </div>
+
+            <!-- Типы аномалий: 3 карточки с тумблерами -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+              <label class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 cursor-pointer flex flex-col justify-between space-y-2 transition">
+                <div class="flex items-start justify-between gap-2">
+                  <div class="text-xs font-semibold text-rose-300 flex items-center gap-1.5">
+                    <span>🚨 Пропущенный ноль</span>
+                  </div>
+                  <input type="checkbox" id="checkDetectZero" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Опечатки ритейлеров при переоценке (падение цены в ~10 раз, например товар за 45 000 ₸ вместо 450 000 ₸).
+                </p>
+              </label>
+
+              <label class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 cursor-pointer flex flex-col justify-between space-y-2 transition">
+                <div class="flex items-start justify-between gap-2">
+                  <div class="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
+                    <span>💥 Глубокие распродажи</span>
+                  </div>
+                  <input type="checkbox" id="checkDetectDiscount" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Реальные скидки магазинов выше заданного % от зачеркнутой цены с гарантированной экономией в тенге.
+                </p>
+              </label>
+
+              <label class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 cursor-pointer flex flex-col justify-between space-y-2 transition">
+                <div class="flex items-start justify-between gap-2">
+                  <div class="text-xs font-semibold text-cyan-300 flex items-center gap-1.5">
+                    <span>🎯 Межмагазинный арбитраж</span>
+                  </div>
+                  <input type="checkbox" id="checkDetectArbitrage" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Товар в одном магазине стоит значительно дешевле, чем во всех остальных сетях в тот же момент.
+                </p>
               </label>
             </div>
-          </div>
-        </div>
 
-        <!-- Карточка 3: Настройки поиска по умолчанию -->
-        <div class="glass p-6 rounded-2xl space-y-4">
-          <h3 class="text-base font-semibold text-white flex items-center gap-2">
-            <i class="fa-solid fa-magnifying-glass-chart text-emerald-400"></i>
-            <span>Настройки поиска товаров по умолчанию</span>
-          </h3>
-          <p class="text-xs text-slate-400">
-            Определяет базовое поведение поискового движка при входе в систему.
-          </p>
+            <!-- Числовые пороги цен и процентов -->
+            <div class="pt-2 border-t border-slate-800/70">
+              <div class="text-xs font-semibold text-slate-300 mb-2">Точные параметры фильтрации:</div>
+              <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                <div>
+                  <label class="block text-[11px] text-slate-400 mb-1">Мин. цена товара (₸)</label>
+                  <input type="number" id="inputMinPrice" min="0" step="1000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
+                  <span class="text-[10px] text-slate-500 block mt-0.5">Отсекает мелочь</span>
+                </div>
 
-          <div class="space-y-3">
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Сортировка выдачи по умолчанию:</label>
-              <select id="selectSearchDefaultSort" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
-                <option value="price_asc">Сначала самые дешевые (по возрастанию цены)</option>
-                <option value="price_desc">Сначала самые дорогие (по убыванию цены)</option>
-                <option value="savings_desc">По наибольшей выгоде (экономии)</option>
-              </select>
-            </div>
+                <div>
+                  <label class="block text-[11px] text-slate-400 mb-1">Макс. цена (₸)</label>
+                  <input type="number" id="inputMaxPrice" min="0" step="50000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
+                  <span class="text-[10px] text-slate-500 block mt-0.5">Верхний лимит</span>
+                </div>
 
-            <div class="space-y-2 pt-2">
-              <label class="flex items-center space-x-2 text-xs text-slate-300 cursor-pointer">
-                <input type="checkbox" id="checkSearchExcludeAccDefault" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
-                <span>Всегда отсекать аксессуары (чехлы, пленки) при поиске</span>
-              </label>
-            </div>
-          </div>
-        </div>
+                <div>
+                  <label class="block text-[11px] text-slate-400 mb-1">Мин. скидка (%)</label>
+                  <input type="number" id="inputDropPct" min="1" max="99" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
+                  <span class="text-[10px] text-slate-500 block mt-0.5">Для распродаж</span>
+                </div>
 
-        <!-- Telegram-уведомления (личный чат пользователя) -->
-        <div class="glass p-6 rounded-2xl space-y-4">
-          <h3 class="text-base font-semibold text-white flex items-center gap-2">
-            <i class="fa-brands fa-telegram text-sky-400 text-lg"></i>
-            <span>Telegram-уведомления</span>
-          </h3>
-          <p class="text-xs text-slate-400">
-            Уведомления о найденных аномалиях и скидках по вашим порогам приходят в ваш Telegram<span id="tgBotNameHint"></span>.
-          </p>
+                <div>
+                  <label class="block text-[11px] text-slate-400 mb-1">Мин. выгода (₸)</label>
+                  <input type="number" id="inputMinSavings" min="0" step="1000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
+                  <span class="text-[10px] text-slate-500 block mt-0.5">Экономия в тенге</span>
+                </div>
 
-          <div class="space-y-3">
-            <label class="flex items-center space-x-2 text-xs text-slate-300 cursor-pointer">
-              <input type="checkbox" id="checkTgNotifyEnabled" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
-              <span><b>Присылать уведомления в Telegram</b></span>
-            </label>
+                <div>
+                  <label class="block text-[11px] text-slate-400 mb-1">Арбитраж: разница (%)</label>
+                  <input type="number" id="inputArbitrageDiffPct" min="1" max="99" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
+                  <span class="text-[10px] text-slate-500 block mt-0.5">% дешевле других</span>
+                </div>
 
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Уровень алертов:</label>
-              <select id="selectTgNotifyLevel" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
-                <option value="ALL">Все найденные аномалии</option>
-                <option value="CRITICAL_ONLY">Только ошибки "Пропущенный ноль"</option>
-                <option value="HIGH_SAVINGS">Баги, скидки от 75% или выгода от 100 000 ₸</option>
-              </select>
-            </div>
-
-            <button type="button" onclick="testTelegram()" id="btnTestTg" class="w-full flex items-center justify-center space-x-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sky-400 font-medium py-2 rounded-xl text-xs transition cursor-pointer">
-              <i class="fa-solid fa-paper-plane"></i>
-              <span>Отправить тестовое сообщение</span>
-            </button>
-            <div id="tgTestResult" class="text-xs hidden"></div>
-            <p class="text-[10px] text-slate-500">Если сообщение не приходит — откройте бота в Telegram и нажмите «Start».</p>
-          </div>
-        </div>
-
-        <!-- Магазины в ленте и уведомлениях -->
-        <div class="glass p-6 rounded-2xl space-y-4">
-          <div class="flex items-center justify-between">
-            <h3 class="text-base font-semibold text-white flex items-center gap-2">
-              <i class="fa-solid fa-store text-emerald-400"></i>
-              <span>Магазины в ленте</span>
-            </h3>
-            <div class="space-x-2 text-xs">
-              <button type="button" onclick="toggleAllUserShops(true)" class="text-emerald-400 hover:underline">Все</button>
-              <span class="text-slate-600">•</span>
-              <button type="button" onclick="toggleAllUserShops(false)" class="text-slate-400 hover:underline">Ни одного</button>
+                <div>
+                  <label class="block text-[11px] text-slate-400 mb-1">Арбитраж: выгода (₸)</label>
+                  <input type="number" id="inputArbitrageDiff" min="0" step="1000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
+                  <span class="text-[10px] text-slate-500 block mt-0.5">₸ дешевле других</span>
+                </div>
+              </div>
             </div>
           </div>
-          <p class="text-xs text-slate-400">Аномалии и скидки каких магазинов показывать в ленте и присылать в Telegram.</p>
-          <div id="userShopsGrid" class="grid grid-cols-2 gap-2"></div>
-        </div>
+
+          <!-- Блок 4: Поиск по умолчанию и минус-слова -->
+          <div id="sec-search" class="grid grid-cols-1 md:grid-cols-2 gap-6 transition">
+            <!-- Поиск по умолчанию -->
+            <div class="glass p-6 rounded-2xl space-y-4">
+              <h3 class="text-base font-semibold text-white flex items-center gap-2">
+                <i class="fa-solid fa-magnifying-glass-chart text-purple-400"></i>
+                <span>Настройки поиска по умолчанию</span>
+              </h3>
+              <p class="text-xs text-slate-400">
+                Определяет базовое поведение поискового движка при входе в систему.
+              </p>
+
+              <div class="space-y-3">
+                <div>
+                  <label class="block text-xs font-medium text-slate-300 mb-1">Сортировка выдачи по умолчанию:</label>
+                  <select id="selectSearchDefaultSort" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+                    <option value="price_asc">Сначала самые дешевые (по возрастанию цены)</option>
+                    <option value="price_desc">Сначала самые дорогие (по убыванию цены)</option>
+                    <option value="savings_desc">По наибольшей выгоде (экономии)</option>
+                  </select>
+                </div>
+
+                <div class="space-y-2 pt-2">
+                  <label class="flex items-center space-x-2 text-xs text-slate-300 cursor-pointer">
+                    <input type="checkbox" id="checkSearchExcludeAccDefault" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+                    <span>Всегда отсекать мелкие аксессуары и расходники при поиске</span>
+                  </label>
+                  <label class="flex items-center space-x-2 text-xs text-slate-300 cursor-pointer">
+                    <input type="checkbox" id="checkExcludeUsed" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+                    <span>Игнорировать уцененные, витринные и б/у товары (уценка, витрин, б/у)</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Стоп-слова -->
+            <div class="glass p-6 rounded-2xl space-y-4">
+              <h3 class="text-base font-semibold text-white flex items-center gap-2">
+                <i class="fa-solid fa-ban text-rose-400"></i>
+                <span>Стоп-слова и фильтрация хлама</span>
+              </h3>
+              <p class="text-xs text-slate-400">
+                Исключайте нежелательные категории, чехлы, кабели, упаковку и крепеж из мониторинга и поиска.
+              </p>
+
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Минус-слова (через запятую):</label>
+                <textarea id="inputJunkKeywords" rows="4" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono"></textarea>
+                <span class="text-[10px] text-slate-500 block mt-1">Товары с этими словами не попадают в алерты и скрываются при включенном «Без аксессуаров»</span>
+              </div>
+            </div>
+          </div>
 
         </fieldset>
 
+        <!-- Кнопка сохранения личных настроек -->
         <div id="personalSaveBar" class="pt-4 flex items-center justify-between gap-4">
           <div id="saveResultToast" class="hidden text-xs font-medium"></div>
           <div class="ml-auto">
@@ -1036,7 +1175,7 @@
             <h3 class="text-base font-semibold text-white">Состояние магазинов</h3>
             <button type="button" onclick="loadAdminShops()" class="px-3 py-2 rounded-lg bg-slate-800 text-xs">Обновить</button>
           </div>
-          <p class="text-xs text-slate-400">Полный обход подтверждает наличие товаров. При ошибке или ограничении страниц исчезновение товара не подтверждается. Основной регион сбора — Астана.</p>
+          <p class="text-xs text-slate-400">Полный обход подтверждает наличие товаров. При ошибке или ограничении страниц исчезновение товара не подтверждается. Сбор цен ведется по городам Казахстана (Астана, Алматы, Шымкент и др.).</p>
           <div class="overflow-x-auto"><table class="w-full text-xs text-left">
             <thead class="text-slate-400"><tr><th class="py-2">Магазин</th><th>Результат</th><th>Товаров</th><th>Последняя попытка</th><th>Подробности</th><th></th></tr></thead>
             <tbody id="adminShopsTable"><tr><td colspan="6" class="py-3">Загрузка…</td></tr></tbody>
@@ -1295,6 +1434,54 @@
               <input type="checkbox" id="checkShopIspace" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
               <img src="https://www.google.com/s2/favicons?domain=ispace.kz&sz=32" alt="iSpace" class="w-4 h-4 rounded-sm object-contain shrink-0" onerror="this.style.display='none'">
               <span class="text-xs font-medium text-slate-200">iSpace</span>
+            </label>
+
+            <label class="flex items-center space-x-2.5 p-3 rounded-xl bg-slate-900/90 border border-slate-800 cursor-pointer hover:border-slate-700 hover:bg-slate-800/60 transition">
+              <input type="checkbox" id="checkShopForte" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              <img src="https://www.google.com/s2/favicons?domain=market.forte.kz&sz=32" alt="Forte Market" class="w-4 h-4 rounded-sm object-contain shrink-0" onerror="this.style.display='none'">
+              <span class="text-xs font-medium text-slate-200">Forte Market</span>
+            </label>
+
+            <label class="flex items-center space-x-2.5 p-3 rounded-xl bg-slate-900/90 border border-slate-800 cursor-pointer hover:border-slate-700 hover:bg-slate-800/60 transition">
+              <input type="checkbox" id="checkShopVkusmart" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              <img src="https://www.google.com/s2/favicons?domain=vkusmart.kz&sz=32" alt="Вкусмарт" class="w-4 h-4 rounded-sm object-contain shrink-0" onerror="this.style.display='none'">
+              <span class="text-xs font-medium text-slate-200">Вкусмарт</span>
+            </label>
+
+            <label class="flex items-center space-x-2.5 p-3 rounded-xl bg-slate-900/90 border border-slate-800 cursor-pointer hover:border-slate-700 hover:bg-slate-800/60 transition">
+              <input type="checkbox" id="checkShopTwelveMonths" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              <img src="https://www.google.com/s2/favicons?domain=12mesyacev.kz&sz=32" alt="12 Месяцев" class="w-4 h-4 rounded-sm object-contain shrink-0" onerror="this.style.display='none'">
+              <span class="text-xs font-medium text-slate-200">12 Месяцев</span>
+            </label>
+
+            <label class="flex items-center space-x-2.5 p-3 rounded-xl bg-slate-900/90 border border-slate-800 cursor-pointer hover:border-slate-700 hover:bg-slate-800/60 transition">
+              <input type="checkbox" id="checkShopZeta" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              <img src="https://www.google.com/s2/favicons?domain=zeta.kz&sz=32" alt="Zeta" class="w-4 h-4 rounded-sm object-contain shrink-0" onerror="this.style.display='none'">
+              <span class="text-xs font-medium text-slate-200">Zeta</span>
+            </label>
+
+            <label class="flex items-center space-x-2.5 p-3 rounded-xl bg-slate-900/90 border border-slate-800 cursor-pointer hover:border-slate-700 hover:bg-slate-800/60 transition">
+              <input type="checkbox" id="checkShopKomfort" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              <img src="https://www.google.com/s2/favicons?domain=komfort.kz&sz=32" alt="Комфорт" class="w-4 h-4 rounded-sm object-contain shrink-0" onerror="this.style.display='none'">
+              <span class="text-xs font-medium text-slate-200">Комфорт</span>
+            </label>
+
+            <label class="flex items-center space-x-2.5 p-3 rounded-xl bg-slate-900/90 border border-slate-800 cursor-pointer hover:border-slate-700 hover:bg-slate-800/60 transition">
+              <input type="checkbox" id="checkShopLemanaPro" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              <img src="https://www.google.com/s2/favicons?domain=lemanapro.kz&sz=32" alt="Лемана ПРО" class="w-4 h-4 rounded-sm object-contain shrink-0" onerror="this.style.display='none'">
+              <span class="text-xs font-medium text-slate-200">Лемана ПРО</span>
+            </label>
+
+            <label class="flex items-center space-x-2.5 p-3 rounded-xl bg-slate-900/90 border border-slate-800 cursor-pointer hover:border-slate-700 hover:bg-slate-800/60 transition">
+              <input type="checkbox" id="checkShopArbuz" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              <img src="https://www.google.com/s2/favicons?domain=arbuz.kz&sz=32" alt="Arbuz" class="w-4 h-4 rounded-sm object-contain shrink-0" onerror="this.style.display='none'">
+              <span class="text-xs font-medium text-slate-200">Arbuz</span>
+            </label>
+
+            <label class="flex items-center space-x-2.5 p-3 rounded-xl bg-slate-900/90 border border-slate-800 cursor-pointer hover:border-slate-700 hover:bg-slate-800/60 transition">
+              <input type="checkbox" id="checkShopMasterok" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              <img src="https://www.google.com/s2/favicons?domain=masterok.kz&sz=32" alt="MasterOK" class="w-4 h-4 rounded-sm object-contain shrink-0" onerror="this.style.display='none'">
+              <span class="text-xs font-medium text-slate-200">MasterOK</span>
             </label>
             <p class="col-span-full text-xs text-slate-400 mt-1">💡 <strong>Flip.kz</strong>: выберите «Все города» для просмотра; город наличия на сайте не подтверждён, поэтому предложения доступны в общем каталоге и исключены из регионального арбитража.</p>
           </div>
@@ -2643,31 +2830,51 @@
       }
     }
 
-    // ===== Выпадающий список магазинов с логотипами =====
-    // Нативный <select> не умеет показывать картинки в пунктах, поэтому он остается скрытым
-    // источником значения (value / onchange), а поверх рисуется собственное меню.
-    const SHOP_LOGO_DOMAINS = {
-      'Kaspi Магазин': ['kaspi.kz', '🔴'],
-      'DNS Казахстан': ['dns-shop.kz', '🟧'],
-      'Белый Ветер': ['shop.kz', '🟦'],
-      'Технодом': ['technodom.kz', '🔴'],
-      'Forcecom': ['forcecom.kz', '⚡️'],
-      'Sulpak': ['sulpak.kz', '🟢'],
-      'Мечта': ['mechta.kz', '🟣'],
-      'Alser': ['alser.kz', '🟡'],
-      'Эврика': ['evrika.com', '🔷'],
-      'Moon.kz': ['moon.kz', '🚀'],
-      '4mobile': ['4mobile.pages.dev', '📱'],
-      'Flip.kz': ['flip.kz', '🛍'],
-      'Halyk Market': ['halykmarket.kz', '🏦'],
-      'Tgrad': ['tgrad.kz', '🟪'],
-      'ANTS': ['ants.kz', '🐜'],
-      'ITMag': ['itmag.kz', '💾'],
-      'iSpace': ['ispace.kz', '🍏']
+    // ===== Справочник магазинов Казахстана (метаданные, логотипы, категории) =====
+    const SHOP_METADATA = {
+      'Kaspi Магазин': { domain: 'kaspi.kz', emoji: '🔴', category: 'marketplaces', catLabel: 'Маркетплейс' },
+      'DNS Казахстан': { domain: 'dns-shop.kz', emoji: '🟧', category: 'electronics', catLabel: 'Электроника' },
+      'Белый Ветер': { domain: 'shop.kz', emoji: '🟦', category: 'electronics', catLabel: 'Электроника' },
+      'Технодом': { domain: 'technodom.kz', emoji: '🔴', category: 'electronics', catLabel: 'Электроника' },
+      'Forcecom': { domain: 'forcecom.kz', emoji: '⚡️', category: 'electronics', catLabel: 'Компьютеры' },
+      'Sulpak': { domain: 'sulpak.kz', emoji: '🟢', category: 'electronics', catLabel: 'Электроника' },
+      'Мечта': { domain: 'mechta.kz', emoji: '🟣', category: 'electronics', catLabel: 'Электроника' },
+      'Alser': { domain: 'alser.kz', emoji: '🟡', category: 'electronics', catLabel: 'Электроника' },
+      'Эврика': { domain: 'evrika.com', emoji: '🔷', category: 'electronics', catLabel: 'Электроника' },
+      'Moon.kz': { domain: 'moon.kz', emoji: '🚀', category: 'electronics', catLabel: 'Компьютеры' },
+      '4mobile': { domain: '4mobile.pages.dev', emoji: '📱', category: 'electronics', catLabel: 'Смартфоны' },
+      'Flip.kz': { domain: 'flip.kz', emoji: '🛍', category: 'marketplaces', catLabel: 'Маркетплейс' },
+      'Halyk Market': { domain: 'halykmarket.kz', emoji: '🏦', category: 'marketplaces', catLabel: 'Маркетплейс' },
+      'Tgrad': { domain: 'tgrad.kz', emoji: '🟪', category: 'electronics', catLabel: 'Электроника' },
+      'ANTS': { domain: 'ants.kz', emoji: '🐜', category: 'electronics', catLabel: 'Компьютеры' },
+      'ITMag': { domain: 'itmag.kz', emoji: '💾', category: 'electronics', catLabel: 'Компьютеры' },
+      'iSpace': { domain: 'ispace.kz', emoji: '🍏', category: 'electronics', catLabel: 'Apple Premium Reseller' },
+      'ForteMarket': { domain: 'market.forte.kz', emoji: '🟣', category: 'marketplaces', catLabel: 'Маркетплейс' },
+      'Вкусмарт': { domain: 'vkusmart.kz', emoji: '🛒', category: 'grocery', catLabel: 'Супермаркет' },
+      '12 Месяцев': { domain: '12mesyacev.kz', emoji: '🧱', category: 'diy', catLabel: 'Стройматериалы' },
+      'Zeta': { domain: 'zeta.kz', emoji: '🪑', category: 'home', catLabel: 'Мебель и дом' },
+      'Комфорт': { domain: 'komfort.kz', emoji: '🛋', category: 'home', catLabel: 'Товары для дома' },
+      'Лемана ПРО': { domain: 'lemanapro.kz', emoji: '🏠', category: 'diy', catLabel: 'Гипермаркет ремонта' },
+      'Arbuz.kz': { domain: 'arbuz.kz', emoji: '🍉', category: 'grocery', catLabel: 'Супермаркет' },
+      'MasterOK': { domain: 'masterok.kz', emoji: '🔨', category: 'diy', catLabel: 'Инструмент и крепеж' }
+    };
+
+    const SHOP_LOGO_DOMAINS = Object.fromEntries(
+      Object.entries(SHOP_METADATA).map(([k, v]) => [k, [v.domain, v.emoji]])
+    );
+
+    const ADMIN_SHOP_CHECKBOX_IDS = {
+      kaspi: 'checkShopKaspi', dns: 'checkShopDns', shopkz: 'checkShopBv', technodom: 'checkShopTd',
+      forcecom: 'checkShopFc', sulpak: 'checkShopSulpak', mechta: 'checkShopMechta', alser: 'checkShopAlser',
+      evrika: 'checkShopEvrika', moon: 'checkShopMoon', fourmobile: 'checkShopFourMobile', flip: 'checkShopFlip',
+      halyk: 'checkShopHalyk', tgrad: 'checkShopTgrad', ants: 'checkShopAnts', itmag: 'checkShopItmag',
+      ispace: 'checkShopIspace', fortemarket: 'checkShopForte', vkusmart: 'checkShopVkusmart',
+      twelve_months: 'checkShopTwelveMonths', zeta: 'checkShopZeta', komfort: 'checkShopKomfort',
+      lemanapro: 'checkShopLemanaPro', arbuz: 'checkShopArbuz', masterok: 'checkShopMasterok'
     };
 
     function shopLogoHtml(shopValue) {
-      const entry = SHOP_LOGO_DOMAINS[shopValue];
+      const entry = SHOP_LOGO_DOMAINS[shopValue] || (SHOP_METADATA[shopValue] && [SHOP_METADATA[shopValue].domain, SHOP_METADATA[shopValue].emoji]);
       if (!entry) return '<i class="fa-solid fa-store text-slate-400 w-4 text-center shrink-0"></i>';
       const [domain, emoji] = entry;
       return `<img src="https://www.google.com/s2/favicons?domain=${domain}&sz=32" alt="" class="w-4 h-4 rounded-sm object-contain shrink-0" onerror="this.style.display='none'">`;
@@ -2711,8 +2918,19 @@
       menu.tabIndex = -1;
       // Меню живет в <body> с position: fixed — иначе карточки с backdrop-filter (.glass)
       // образуют свой контекст наложения, и соседняя карточка перекрывает список
-      menu.className = 'hidden fixed z-50 max-h-72 overflow-y-auto bg-slate-900 border border-slate-700 rounded-xl shadow-2xl py-1';
+      menu.className = 'hidden fixed z-50 max-h-80 overflow-y-auto bg-slate-900 border border-slate-700 rounded-xl shadow-2xl py-1';
+
+      let lastGroupName = null;
       [...select.options].forEach(option => {
+        const optgroup = option.closest('optgroup');
+        if (optgroup && optgroup.label && optgroup.label !== lastGroupName) {
+          lastGroupName = optgroup.label;
+          const groupHeader = document.createElement('div');
+          groupHeader.className = 'px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-950/90 sticky top-0 border-b border-slate-800/80 select-none';
+          groupHeader.textContent = lastGroupName;
+          menu.appendChild(groupHeader);
+        }
+
         const item = document.createElement('div');
         item.setAttribute('role', 'option');
         item.dataset.value = option.value;
@@ -2836,7 +3054,10 @@
     }
 
     function toggleAllShops(checked) {
-      Object.values(ADMIN_SHOP_CHECKBOX_IDS).forEach(id => { document.getElementById(id).checked = checked; });
+      Object.values(ADMIN_SHOP_CHECKBOX_IDS).forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.checked = checked;
+      });
     }
 
     function setBestPriceTag(query) {
@@ -3588,13 +3809,15 @@
     // ===== Пользователь, вход через Telegram и роли =====
     let currentMe = { user: null, settings: {}, auth: {}, shops: {} };
 
-    const ADMIN_SHOP_CHECKBOX_IDS = {
-      kaspi: 'checkShopKaspi', dns: 'checkShopDns', shopkz: 'checkShopBv', technodom: 'checkShopTd',
-      forcecom: 'checkShopFc', sulpak: 'checkShopSulpak', mechta: 'checkShopMechta', alser: 'checkShopAlser',
-      evrika: 'checkShopEvrika', moon: 'checkShopMoon', fourmobile: 'checkShopFourMobile', flip: 'checkShopFlip',
-      halyk: 'checkShopHalyk', tgrad: 'checkShopTgrad', ants: 'checkShopAnts', itmag: 'checkShopItmag',
-      ispace: 'checkShopIspace'
-    };
+    function scrollSettingsTo(targetId) {
+      const el = document.getElementById(targetId);
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      el.classList.add('ring-2', 'ring-emerald-500/50');
+      setTimeout(() => {
+        el.classList.remove('ring-2', 'ring-emerald-500/50');
+      }, 1500);
+    }
 
     function isLoggedIn() { return Boolean(currentMe.user); }
     function isAdminUser() { return Boolean(currentMe.user && currentMe.user.is_admin); }
@@ -3776,19 +3999,91 @@
       onLiveSearchToggle(false);
     }
 
+    let currentUserShopsCategory = 'all';
+
+    function filterUserShopsView(category, btn) {
+      currentUserShopsCategory = category;
+      document.querySelectorAll('.shop-cat-pill').forEach(el => {
+        el.classList.remove('active', 'bg-emerald-500/20', 'text-emerald-300', 'border-emerald-500/40');
+        el.classList.add('bg-slate-900', 'text-slate-300', 'border-slate-700');
+      });
+      if (btn) {
+        btn.classList.add('active', 'bg-emerald-500/20', 'text-emerald-300', 'border-emerald-500/40');
+        btn.classList.remove('bg-slate-900', 'text-slate-300', 'border-slate-700');
+      }
+      document.querySelectorAll('#userShopsGrid [data-shop-cat]').forEach(card => {
+        const match = (category === 'all' || card.dataset.shopCat === category);
+        card.classList.toggle('hidden', !match);
+      });
+    }
+
     function renderUserShopsGrid(alertShops) {
       const grid = document.getElementById('userShopsGrid');
+      if (!grid) return;
       const shops = currentMe.shops || {};
-      grid.innerHTML = Object.entries(shops).map(([key, name]) => `
-        <label class="flex items-center gap-2 p-2 rounded-xl bg-slate-900/90 border border-slate-800 cursor-pointer hover:border-slate-700 hover:bg-slate-800/60 transition">
-          <input type="checkbox" id="userShop_${escapeHtml(key)}" data-shop-key="${escapeHtml(key)}" ${alertShops[key] !== false ? 'checked' : ''} class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
-          ${shopLogoHtml(name)}
-          <span class="text-xs font-medium text-slate-200 truncate">${escapeHtml(name)}</span>
-        </label>`).join('');
+      grid.innerHTML = Object.entries(shops).map(([key, name]) => {
+        const meta = SHOP_METADATA[name] || { category: 'other', catLabel: 'Магазин', domain: '' };
+        const isChecked = alertShops[key] !== false;
+        const domain = meta.domain ? `https://${meta.domain}` : '';
+        return `
+        <div data-shop-cat="${escapeHtml(meta.category)}" class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 hover:bg-slate-800/60 transition select-none">
+          <label class="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer">
+            <input type="checkbox" id="userShop_${escapeHtml(key)}" data-shop-key="${escapeHtml(key)}" ${isChecked ? 'checked' : ''} class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900 shrink-0">
+            ${shopLogoHtml(name)}
+            <div class="min-w-0 flex-1">
+              <div class="text-xs font-medium text-slate-200 truncate" title="${escapeHtml(name)}">${escapeHtml(name)}</div>
+              <div class="text-[10px] text-slate-400 truncate">${escapeHtml(meta.catLabel || '')}</div>
+            </div>
+          </label>
+          ${domain ? `<a href="${escapeHtml(domain)}" target="_blank" rel="noopener" class="text-slate-500 hover:text-slate-300 text-[10px] p-1 shrink-0 ml-1" title="Открыть сайт магазина"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>` : ''}
+        </div>`;
+      }).join('');
+      if (currentUserShopsCategory !== 'all') {
+        filterUserShopsView(currentUserShopsCategory, null);
+      }
     }
 
     function toggleAllUserShops(checked) {
-      document.querySelectorAll('#userShopsGrid input[data-shop-key]').forEach(el => { el.checked = checked; });
+      const selector = currentUserShopsCategory === 'all'
+        ? '#userShopsGrid input[data-shop-key]'
+        : `#userShopsGrid [data-shop-cat="${currentUserShopsCategory}"] input[data-shop-key]`;
+      document.querySelectorAll(selector).forEach(el => { el.checked = checked; });
+    }
+
+    function applySettingsPreset(presetName) {
+      const presets = {
+        universal: {
+          minPrice: 2000, maxPrice: 5000000, dropPct: 60, minSavings: 2500,
+          arbPct: 20, arbDiff: 2000,
+          zero: true, discount: true, arbitrage: true,
+          label: 'Универсальный (от 2 000 ₸)'
+        },
+        electronics: {
+          minPrice: 25000, maxPrice: 3000000, dropPct: 65, minSavings: 30000,
+          arbPct: 25, arbDiff: 20000,
+          zero: true, discount: true, arbitrage: true,
+          label: 'Техника и гаджеты (от 25 000 ₸)'
+        },
+        maximum: {
+          minPrice: 50000, maxPrice: 5000000, dropPct: 70, minSavings: 60000,
+          arbPct: 30, arbDiff: 40000,
+          zero: true, discount: true, arbitrage: true,
+          label: 'Супер-выгода (от 50 000 ₸)'
+        }
+      };
+      const p = presets[presetName];
+      if (!p) return;
+      document.getElementById('inputMinPrice').value = p.minPrice;
+      document.getElementById('inputMaxPrice').value = p.maxPrice;
+      document.getElementById('inputDropPct').value = p.dropPct;
+      document.getElementById('inputMinSavings').value = p.minSavings;
+      document.getElementById('inputArbitrageDiffPct').value = p.arbPct;
+      document.getElementById('inputArbitrageDiff').value = p.arbDiff;
+      document.getElementById('checkDetectZero').checked = p.zero;
+      document.getElementById('checkDetectDiscount').checked = p.discount;
+      document.getElementById('checkDetectArbitrage').checked = p.arbitrage;
+
+      showToast(`⚡️ Применен пресет «${p.label}». Сохраните настройки.`);
     }
 
     function renderUserSettings(s) {
@@ -3977,7 +4272,8 @@
 
         const shops = s.enabled_shops || {};
         Object.entries(ADMIN_SHOP_CHECKBOX_IDS).forEach(([key, id]) => {
-          document.getElementById(id).checked = (shops[key] !== false);
+          const el = document.getElementById(id);
+          if (el) el.checked = (shops[key] !== false);
         });
 
         document.getElementById('inputCandMinPrice').value = numOr(s.candidate_min_item_price_kzt, 10000);
@@ -4568,7 +4864,10 @@
       }
 
       const enabledShops = {};
-      Object.entries(ADMIN_SHOP_CHECKBOX_IDS).forEach(([key, id]) => { enabledShops[key] = document.getElementById(id).checked; });
+      Object.entries(ADMIN_SHOP_CHECKBOX_IDS).forEach(([key, id]) => {
+        const el = document.getElementById(id);
+        if (el) enabledShops[key] = el.checked;
+      });
 
       const aiCheck = document.getElementById('checkAiSearchEnabled');
       const gKeyInput = document.getElementById('inputGeminiApiKey');
