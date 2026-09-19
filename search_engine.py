@@ -501,7 +501,9 @@ async def search_live_stores(query: str, city: str = "Астана") -> List[Dic
         outcome = "found" if items else "not_found"
         return items
     finally:
-        _record_search("live", query, started, outcome, len(items), city=city, cached=cached)
+        from offer_identity import city_config
+        _record_search("live", query, started, outcome, len(items), requested_city=city,
+                       city=city_config(city)["id"], cached=cached)
 
 
 async def _search_live_stores(query: str, city: str = "Астана"):

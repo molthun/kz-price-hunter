@@ -1506,10 +1506,9 @@ def record_shop_scan_result(shop_key, items, duration_sec, error=None, status=No
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     status = status or ("partial" if error and items else "failed" if error else "complete")
     with get_connection() as conn:
-        row = conn.execute("SELECT failure_count, last_success_at FROM shop_scans WHERE shop_key=?", (shop_key,)).fetchone()
-        previous_failures = int(row[0] or 0) if row else 0
-        had_success = bool(row and row[1])
-        failures = previous_failures + 1 if error else 0
+        row = conn.execute("SELECT failure_count FROM shop_scans WHERE shop_key=?", (shop_key,)).fetchone()
+        failures = (int(row[0]) if row else 0) + 1 if error else 0
+        health_before, health_after = _update_shop_health(conn, shop_key, status)
         retry = time.time() + min(3600, 300 * 2 ** min(failures - 1, 4)) if error else None
         conn.execute("""INSERT INTO shop_scans
             (shop_key,last_attempt_at,last_success_at,last_items,last_duration_sec,last_error,status,failure_count,next_retry_at)
@@ -1522,27 +1521,61 @@ def record_shop_scan_result(shop_key, items, duration_sec, error=None, status=No
             (shop_key, now, now if status == "complete" else None, items, duration_sec,
              error[:500] if error else None, status, failures, retry))
         conn.commit()
-    _record_shop_transition(shop_key, status, error, items, previous_failures, had_success)
+    _record_shop_transition(shop_key, health_before, health_after, items, error)
 
 
-def _record_shop_transition(shop_key, status, error, items, previous_failures, had_success) -> None:
-    """Деградация: первый неуспешный обход после успешной работы; восстановление: успех после сбоев (P01).
+# Полнота итога обхода магазина: чем больше, тем лучше. running — не итог и сюда не попадает.
+SHOP_HEALTH_RANK = {"failed": 0, "partial": 1, "limited": 2, "complete": 3}
 
-    Статус running между обходами не влияет: переход определяется по failure_count, который он не сбрасывает.
+
+def _update_shop_health(conn, shop_key, status):
+    """Состояние здоровья источника для событий деградации/восстановления (P01, B01).
+
+    Хранится отдельно от shop_scans.status (его перезаписывает running) и failure_count (его сбрасывает limited,
+    он управляет повторами). degraded — была деградация, не закрытая полным (complete) обходом.
+    Возвращает (до, после); до = None для источника без истории.
     """
+    if status not in SHOP_HEALTH_RANK:
+        return None, None
+    name = f"shop_health:{shop_key}"
+    row = conn.execute("SELECT value FROM schema_metadata WHERE name = ?", (name,)).fetchone()
     try:
-        from telemetry import (telemetry, EVENT_DEGRADATION, EVENT_RECOVERY, SEVERITY_ERROR,
-                               SEVERITY_WARNING, SEVERITY_INFO, COMPONENT_SCRAPER, safe_error_name)
-        if error and previous_failures == 0 and had_success:
+        before = json.loads(row[0]) if row else None
+    except (TypeError, ValueError):
+        before = None
+    if before and before.get("status") not in SHOP_HEALTH_RANK:
+        before = None
+    degraded = bool(before and before.get("degraded"))
+    if before and SHOP_HEALTH_RANK[status] < SHOP_HEALTH_RANK[before["status"]]:
+        degraded = True
+    if status == "complete":
+        degraded = False
+    after = {"status": status, "degraded": degraded}
+    conn.execute("INSERT INTO schema_metadata (name, value) VALUES (?, ?) "
+                 "ON CONFLICT(name) DO UPDATE SET value = excluded.value", (name, json.dumps(after)))
+    return before, after
+
+
+def _record_shop_transition(shop_key, before, after, items, error) -> None:
+    """degradation — итог хуже предыдущего; recovery — complete после деградации; partial_recovery —
+    улучшение без полного восстановления (например failed → limited). Без истории событий нет."""
+    if not before or not after or before["status"] == after["status"]:
+        return
+    try:
+        from telemetry import (telemetry, EVENT_DEGRADATION, EVENT_RECOVERY, EVENT_PARTIAL_RECOVERY,
+                               SEVERITY_ERROR, SEVERITY_WARNING, SEVERITY_INFO, COMPONENT_SCRAPER)
+        old, new = before["status"], after["status"]
+        data = {"shop_key": shop_key, "from": old, "to": new, "items": items}
+        if SHOP_HEALTH_RANK[new] < SHOP_HEALTH_RANK[old]:
             telemetry.record_event(
-                EVENT_DEGRADATION, SEVERITY_ERROR if status == "failed" else SEVERITY_WARNING, COMPONENT_SCRAPER,
-                f"Магазин {shop_key}: {status} после успешных обходов",
-                data={"shop_key": shop_key, "status": status, "items": items, "error": str(error)[:300]})
-        elif not error and previous_failures > 0:
-            telemetry.record_event(
-                EVENT_RECOVERY, SEVERITY_INFO, COMPONENT_SCRAPER,
-                f"Магазин {shop_key}: восстановлен после {previous_failures} неуспешных обходов",
-                data={"shop_key": shop_key, "status": status, "items": items, "failed_before": previous_failures})
+                EVENT_DEGRADATION, SEVERITY_ERROR if new == "failed" else SEVERITY_WARNING, COMPONENT_SCRAPER,
+                f"Магазин {shop_key}: {old} → {new}", data={**data, "error": str(error)[:300] if error else None})
+        elif new == "complete" and before.get("degraded"):
+            telemetry.record_event(EVENT_RECOVERY, SEVERITY_INFO, COMPONENT_SCRAPER,
+                                   f"Магазин {shop_key}: восстановлен ({old} → complete)", data=data)
+        elif before.get("degraded"):
+            telemetry.record_event(EVENT_PARTIAL_RECOVERY, SEVERITY_INFO, COMPONENT_SCRAPER,
+                                   f"Магазин {shop_key}: частичное улучшение ({old} → {new})", data=data)
     except Exception:
         pass
 

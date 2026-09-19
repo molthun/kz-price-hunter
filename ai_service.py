@@ -338,6 +338,7 @@ async def _call_gemini_api(prompt: str, api_key: str, timeout_seconds: float = D
                                 return _extract_json_from_text(text)
                     elif resp.status in (400, 404):
                         # Модель может быть недоступна в этой версии, пробуем следующую
+                        _note_call(failure=f"http_{resp.status}")
                         continue
                     else:
                         print(f"[AI Service] Ошибка Gemini API ({model}, HTTP {resp.status})")

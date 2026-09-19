@@ -53,6 +53,7 @@ EVENT_SCAN_CATEGORY = "scan_category"
 EVENT_SCAN_ERROR = "scan_error"
 EVENT_DEGRADATION = "degradation"
 EVENT_RECOVERY = "recovery"
+EVENT_PARTIAL_RECOVERY = "partial_recovery"
 EVENT_ANOMALY_DETECTED = "anomaly_detected"
 EVENT_PRICE_CHANGED = "price_changed"
 EVENT_SEARCH_QUERY = "search_query"
@@ -248,6 +249,31 @@ def sanitize_payload(data: Any, max_bytes: int = MAX_DATA_JSON_BYTES) -> str:
         return json.dumps({"_serialization_error": type(e).__name__})
 
 
+def canonical_city(value: Any) -> Optional[str]:
+    """Город для телеметрии: id поддерживаемого города, all, kz или unknown (B02).
+
+    Исходный текст из запроса не сохраняется: в параметр city можно передать что угодно, включая ПДн.
+    """
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    low = text.lower()
+    if low in ("все", "all", "*"):
+        return "all"
+    if low in ("казахстан", "kz", "kazakhstan"):
+        return "kz"
+    try:
+        from config import CITIES_KZ
+        for city in CITIES_KZ.values():
+            if low in (str(city["id"]).lower(), str(city["name"]).lower()):
+                return city["id"]
+    except Exception:
+        pass
+    return "unknown"
+
+
 def query_shape(query: Any) -> Dict[str, int]:
     """Форма поискового запроса без текста и хеша: текст может содержать персональные данные (P06)."""
     text = str(query or "").strip()
@@ -372,12 +398,15 @@ class TelemetryService:
                 "severity": str(severity).upper(),
                 "component": str(component),
                 "shop": shop or current_shop.get(),
-                "city": city or current_city.get(),
+                "city": canonical_city(city or current_city.get()),
                 "category": category or current_category.get(),
                 "scan_id": scan_id or current_scan_id.get(),
                 "request_id": request_id or current_request_id.get(),
                 "message": sanitize_text(message)[:1000],
-                "data_json": sanitize_payload(data) if data else None,
+                # Поле city в данных — тоже только канонический город (B02), на границе телеметрии
+                "data_json": sanitize_payload(
+                    {**data, **{k: canonical_city(data[k]) for k in ("city", "requested_city") if k in data}}
+                    if isinstance(data, dict) else data) if data else None,
             }
             with self._lock:
                 self._buffer.append(event)

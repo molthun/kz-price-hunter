@@ -637,20 +637,113 @@ class P0102Case(TelemetryDbCase):
 
 
 class ShopTransitionTest(P0102Case):
-    def test_degradation_and_recovery(self):
+    """B01: переходы по полноте итога (failed < partial < limited < complete), не по наличию error."""
+
+    def run_sequence(self, key, steps):
+        for step in steps:
+            if step == "running":
+                database.record_shop_scan_start(key)
+            else:
+                error = {"failed": "HTTP 403", "partial": "Не открылись карточки"}.get(step)
+                items = {"failed": 0}.get(step, 5)
+                database.record_shop_scan_result(key, items, 1.0, error, step)
+        return [(e["type"], e["data"]["from"], e["data"]["to"])
+                for e in self.events() if e["type"] in (tm.EVENT_DEGRADATION, tm.EVENT_RECOVERY, tm.EVENT_PARTIAL_RECOVERY)
+                and e["data"]["shop_key"] == key]
+
+    def test_codex_repro_failed_then_limited_is_not_recovery(self):
+        self.assertEqual(self.run_sequence("s1", ["complete", "failed", "limited"]),
+                         [("degradation", "complete", "failed"), ("partial_recovery", "failed", "limited")])
+
+    def test_complete_to_limited_is_degradation(self):
+        self.assertEqual(self.run_sequence("s2", ["complete", "limited"]), [("degradation", "complete", "limited")])
+
+    def test_single_recovery_after_full_restore_with_running_and_repeats(self):
+        steps = ["complete", "running", "failed", "running", "failed", "limited", "running", "limited",
+                 "complete", "running", "complete"]
+        self.assertEqual(self.run_sequence("s3", steps), [
+            ("degradation", "complete", "failed"),
+            ("partial_recovery", "failed", "limited"),
+            ("recovery", "limited", "complete"),
+        ])
+
+    def test_start_without_history(self):
+        # Первый итог — точка отсчёта; улучшение без предшествующей деградации — не восстановление
+        self.assertEqual(self.run_sequence("s4", ["failed"]), [])
+        self.assertEqual(self.run_sequence("s5", ["limited", "complete"]), [])
+        self.assertEqual(self.run_sequence("s6", ["failed", "complete", "partial"]),
+                         [("degradation", "complete", "partial")])
+
+    def test_retry_policy_unchanged(self):
         record = database.record_shop_scan_result
-        record("shopx", 0, 1.0, error="HTTP 500")          # первый обход без истории успеха — не деградация
-        self.assertEqual(self.events(tm.EVENT_DEGRADATION), [])
-        record("shopx", 10, 1.0)                           # успех после сбоя — восстановление
-        record("shopx", 12, 1.0)                           # обычный успех
-        database.record_shop_scan_start("shopx")           # running не сбрасывает историю
-        record("shopx", 3, 1.0, error="Не открылись карточки")  # partial после успеха
-        record("shopx", 0, 1.0, error="HTTP 403")          # повторный сбой — без нового события
-        record("shopx", 9, 1.0)
-        deg = self.events(tm.EVENT_DEGRADATION)
-        rec = self.events(tm.EVENT_RECOVERY)
-        self.assertEqual([(e["data"]["status"], e["severity"]) for e in deg], [("partial", "WARNING")])
-        self.assertEqual([e["data"]["failed_before"] for e in rec], [1, 2])
+        record("s7", 5, 1.0, None, "complete")
+        record("s7", 0, 1.0, "HTTP 403", "failed")
+        record("s7", 0, 1.0, "HTTP 403", "failed")
+        record("s7", 2, 1.0, None, "limited")
+        self.assertEqual(database.get_shop_scans()["s7"]["failure_count"], 0)  # limited сбрасывает, как и раньше
+        record("s7", 0, 1.0, "HTTP 403")
+        row = database.get_shop_scans()["s7"]
+        self.assertEqual((row["status"], row["failure_count"]), ("failed", 1))
+        self.assertIsNotNone(row["next_retry_at"])
+
+
+class CityPrivacyTest(P0102Case):
+    """B02: в телеметрию попадает только канонический город."""
+    PII = "FAKE_PERSON +77010000000 fake@example.com"
+
+    def assert_no_pii(self):
+        mem = json.dumps(self.t.get_recent_events(limit=500), ensure_ascii=False)
+        self.t.flush()
+        db = json.dumps(self.rows("SELECT * FROM telemetry_events"), ensure_ascii=False)
+        for text in (mem, db):
+            for marker in ("FAKE_PERSON", "77010000000", "fake@example.com"):
+                self.assertNotIn(marker, text)
+
+    def test_canonical_values(self):
+        self.assertEqual([tm.canonical_city(v) for v in ("Астана", "almaty", "Все", "Казахстан", None, "", self.PII)],
+                         ["astana", "almaty", "all", "kz", None, None, "unknown"])
+
+    def test_codex_repro_summary_real_search(self):
+        import search_engine
+        with patch.object(search_engine, "DB_PATH", type(DB_PATH)(self.db)):  # настоящий поиск по временной БД
+            result = asyncio.run(search_engine.get_best_price_summary("x", city=self.PII))
+        self.assertEqual(result["total_found"], 0)
+        (e,) = self.events(tm.EVENT_SEARCH_QUERY)
+        self.assertEqual(e["data"]["city"], "unknown")
+        self.assert_no_pii()
+
+    def test_live_cached_and_error_paths(self):
+        import search_engine
+
+        async def found(query, city):
+            return [{"id": 1}], True
+
+        async def boom(query, city):
+            raise RuntimeError("down")
+
+        with patch.object(search_engine, "_search_live_stores", found):
+            asyncio.run(search_engine.search_live_stores("x", city=self.PII))
+            asyncio.run(search_engine.search_live_stores("x", city="Алматы"))
+        with patch.object(search_engine, "_search_live_stores", boom), self.assertRaises(RuntimeError):
+            asyncio.run(search_engine.search_live_stores("x", city=self.PII))
+        got = [(e["data"]["requested_city"], e["data"]["city"], e["data"]["outcome"], e["data"]["cached"])
+               for e in self.events(tm.EVENT_SEARCH_QUERY)]
+        # Неизвестный город опрашивается как Астана (city_config) — это и пишется как фактический
+        self.assertEqual(got, [("unknown", "astana", "found", True), ("almaty", "almaty", "found", True),
+                               ("unknown", "astana", "error", False)])
+        self.assert_no_pii()
+
+    def test_event_city_column_and_context(self):
+        token = tm.current_city.set(self.PII)
+        try:
+            self.t.record_event("x", "INFO", "system", "m", data={"city": self.PII})
+            self.t.record_event("x", "INFO", "system", "m", city="Шымкент")
+        finally:
+            tm.current_city.reset(token)
+        cities = [e["city"] for e in self.t.get_recent_events()]
+        self.assertEqual(cities[0], "unknown")
+        self.assertIn(cities[1], ("shymkent", "unknown"))
+        self.assert_no_pii()
 
 
 class BackupEventTest(P0102Case):
