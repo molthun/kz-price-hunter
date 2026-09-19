@@ -278,6 +278,31 @@ async def alerts_handler(request):
     alerts = get_alerts(limit=limit, city=city, alert_type=alert_type, user_settings=user_settings_for(request))
     return web.json_response(alerts)
 
+@routes.get("/api/deals")
+async def deals_handler(request):
+    shop = request.query.get("shop", None)
+    city = request.query.get("city", None)
+    category = request.query.get("category", None)
+    search = request.query.get("search", None)
+    deal_type = request.query.get("type", "all")
+    sort_by = request.query.get("sort", "discount_desc")
+    limit = _int_param(request, "limit", 60, minimum=1, maximum=300)
+    offset = _int_param(request, "offset", 0, minimum=0, maximum=10000)
+
+    from database import get_store_deals
+    data = await asyncio.to_thread(
+        get_store_deals,
+        shop=shop,
+        city=city,
+        category=category,
+        search=search,
+        deal_type=deal_type,
+        sort_by=sort_by,
+        limit=limit,
+        offset=offset
+    )
+    return web.json_response(data)
+
 @routes.post("/api/alerts/dismiss")
 @require_admin
 async def dismiss_alert_handler(request):

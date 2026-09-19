@@ -1670,3 +1670,152 @@ def get_hierarchical_categories() -> Dict[str, Any]:
     }
 
 
+def get_store_deals(
+    shop: Optional[str] = None,
+    city: Optional[str] = None,
+    category: Optional[str] = None,
+    search: Optional[str] = None,
+    deal_type: Optional[str] = "all",
+    sort_by: str = "discount_desc",
+    limit: int = 60,
+    offset: int = 0
+) -> Dict[str, Any]:
+    """Возвращает агрегированную витрину акций и супер-скидок по всем магазинам Казахстана.
+    Объединяет скидки сайтов магазинов (products) и межмагазинный арбитраж (alerts).
+    """
+    raw_deals: List[Dict[str, Any]] = []
+    with get_connection() as conn:
+        # 1. Каталожные скидки из products
+        p_query = f"""
+            SELECT p.id, p.shop, p.title, p.category, p.city, p.url, p.image_url,
+                   p.current_price AS new_price,
+                   CASE 
+                       WHEN p.old_price_on_site > p.current_price THEN p.old_price_on_site
+                       ELSE p.first_seen_price
+                   END AS old_price,
+                   p.canonical_key
+            FROM products p
+            WHERE ((p.old_price_on_site > p.current_price AND p.current_price > 0)
+               OR (p.category IN ('actions', 'Акции и распродажи') AND p.first_seen_price > p.current_price AND p.current_price > 0))
+              AND {active_product_clause("p")}
+        """
+        p_params: List[Any] = []
+        if city and city != "Все":
+            p_query += " AND (p.city = ? OR p.city IS NULL)"
+            p_params.append(city)
+
+        for r in conn.execute(p_query, p_params):
+            old_p = r["old_price"] or r["new_price"]
+            new_p = r["new_price"]
+            if old_p <= new_p or old_p <= 0:
+                continue
+            sav = old_p - new_p
+            pct = round(sav * 100.0 / old_p)
+            raw_deals.append({
+                "id": f"p_{r['id']}",
+                "product_id": r["id"],
+                "shop": r["shop"],
+                "title": r["title"],
+                "category": r["category"] or "",
+                "city": r["city"],
+                "url": r["url"],
+                "image_url": r["image_url"],
+                "old_price": old_p,
+                "new_price": new_p,
+                "discount_pct": pct,
+                "savings_kzt": sav,
+                "alert_type": "SUPER_DISCOUNT" if pct >= 30 else "STORE_DISCOUNT",
+                "competitor_shop": None,
+                "canonical_key": r["canonical_key"]
+            })
+
+        # 2. Арбитраж цен и обнаруженные аномалии из alerts
+        a_query = f"""
+            SELECT a.id, a.shop, a.city, a.product_id, a.alert_type, a.old_price, a.new_price,
+                   a.discount_pct, a.savings_kzt, a.competitor_shop,
+                   p.title, p.category, p.url, p.image_url, p.canonical_key
+            FROM alerts a
+            JOIN products p ON a.product_id = p.id
+            WHERE (a.is_dismissed IS NULL OR a.is_dismissed = 0)
+              AND a.alert_type IN ('MARKET_ARBITRAGE', 'ARBITRAGE', 'SUPER_DISCOUNT')
+              AND {active_product_clause("p")}
+        """
+        a_params: List[Any] = []
+        if city and city != "Все":
+            a_query += " AND (a.city = ? OR a.city IS NULL)"
+            a_params.append(city)
+
+        for r in conn.execute(a_query, a_params):
+            raw_deals.append({
+                "id": f"a_{r['id']}",
+                "product_id": r["product_id"],
+                "shop": r["shop"],
+                "title": r["title"],
+                "category": r["category"] or "",
+                "city": r["city"],
+                "url": r["url"],
+                "image_url": r["image_url"],
+                "old_price": r["old_price"],
+                "new_price": r["new_price"],
+                "discount_pct": r["discount_pct"],
+                "savings_kzt": r["savings_kzt"],
+                "alert_type": r["alert_type"],
+                "competitor_shop": r["competitor_shop"],
+                "canonical_key": r["canonical_key"]
+            })
+
+    # Дедупликация: если товар представлен и в каталоге, и в алертах, берём запись с большей выгодой
+    dedup: Dict[tuple, Dict[str, Any]] = {}
+    for d in raw_deals:
+        k = (str(d.get("canonical_key") or d.get("product_id") or d["title"]).lower(), str(d["shop"]))
+        if k not in dedup or (d["savings_kzt"] > dedup[k]["savings_kzt"]):
+            dedup[k] = d
+
+    all_deals = list(dedup.values())
+
+    # Подсчёт магазинов ДО фильтрации по конкретному магазину (чтобы пользователь видел счётчики всех сетей)
+    from collections import Counter
+    shops_counter = Counter(d["shop"] for d in all_deals if d["shop"])
+    shops_summary = [{"shop": "Все", "count": len(all_deals)}]
+    for s_name, count in shops_counter.most_common():
+        shops_summary.append({"shop": s_name, "count": count})
+
+    # Применение фильтров
+    filtered = all_deals
+    if shop and shop != "Все":
+        filtered = [d for d in filtered if d["shop"] == shop]
+
+    if category and category != "Все":
+        cat_lower = category.lower()
+        filtered = [d for d in filtered if cat_lower in (d["category"] or "").lower()]
+
+    if search:
+        s_lower = search.lower()
+        filtered = [d for d in filtered if s_lower in (d["title"] or "").lower()]
+
+    if deal_type == "super":
+        filtered = [d for d in filtered if (d["discount_pct"] >= 30 or d["alert_type"] == "SUPER_DISCOUNT")]
+    elif deal_type == "arbitrage":
+        filtered = [d for d in filtered if d["alert_type"] in ("MARKET_ARBITRAGE", "ARBITRAGE")]
+
+    # Сортировка
+    if sort_by == "savings_desc":
+        filtered.sort(key=lambda x: (x["savings_kzt"], x["discount_pct"]), reverse=True)
+    elif sort_by == "price_asc":
+        filtered.sort(key=lambda x: (x["new_price"], -x["discount_pct"]))
+    else:  # discount_desc
+        filtered.sort(key=lambda x: (x["discount_pct"], x["savings_kzt"]), reverse=True)
+
+    total_count = len(filtered)
+    page_items = filtered[offset : offset + limit]
+
+    return {
+        "deals": page_items,
+        "total": total_count,
+        "shops_summary": shops_summary,
+        "offset": offset,
+        "limit": limit
+    }
+
+
+

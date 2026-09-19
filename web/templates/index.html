@@ -292,18 +292,18 @@
           </div>
           <div>
             <h2 class="text-base font-semibold text-white flex items-center gap-2">
-              <span>Супер-скидки & Выгодный арбитраж</span>
+              <span>Акции & Супер-скидки по магазинам</span>
               <span id="labelDiscountsCount" class="text-xs px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-bold">0 предложений</span>
             </h2>
             <p class="text-xs text-slate-400 mt-0.5">
-              Глубокие скидки от 50% и предложения, которые в одном магазине значительно дешевле, чем у конкурентов.
+              Реальные промо-акции и скидки из каталогов всех сетей Казахстана, а также межмагазинный арбитраж выгодных цен.
             </p>
           </div>
         </div>
         <div class="flex items-center gap-2 flex-wrap">
           <div class="inline-flex rounded-xl bg-slate-900 border border-slate-800 p-0.5 text-xs">
-            <button onclick="setDiscountsSubfilter('all')" id="btnDiscFilterAll" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 font-semibold cursor-pointer transition">Все</button>
-            <button onclick="setDiscountsSubfilter('super')" id="btnDiscFilterSuper" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-white cursor-pointer transition">💥 Распродажи</button>
+            <button onclick="setDiscountsSubfilter('all')" id="btnDiscFilterAll" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 font-semibold cursor-pointer transition">🔥 Все акции</button>
+            <button onclick="setDiscountsSubfilter('super')" id="btnDiscFilterSuper" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-white cursor-pointer transition">💥 Скидки от 30%</button>
             <button onclick="setDiscountsSubfilter('arbitrage')" id="btnDiscFilterArbitrage" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-white cursor-pointer transition">⚖️ Арбитраж</button>
           </div>
           <button onclick="loadDiscounts()" class="text-xs text-slate-400 hover:text-emerald-400 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 transition cursor-pointer shrink-0">
@@ -312,10 +312,63 @@
         </div>
       </div>
 
+      <!-- Панель фильтров: Магазины, Категории и Сортировка -->
+      <div class="glass p-4 rounded-2xl space-y-3">
+        <!-- Чипсы магазинов -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[11px] font-semibold text-slate-300 flex items-center gap-1.5">
+              <i class="fa-solid fa-store text-emerald-400"></i>
+              <span>Магазины Казахстана (нажмите на сеть для фильтрации):</span>
+            </span>
+            <span id="discountsActiveShopLabel" class="text-[11px] text-emerald-400 font-medium">Все магазины</span>
+          </div>
+          <div id="discountsShopsBar" class="flex items-center gap-1.5 flex-wrap">
+            <span class="text-xs text-slate-500 italic">Загрузка сетей...</span>
+          </div>
+        </div>
+
+        <!-- Дополнительные фильтры: Поиск, Категория, Сортировка -->
+        <div class="pt-2 border-t border-slate-800/80 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div class="flex-1 flex items-center gap-2">
+            <div class="relative flex-1">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+              <input type="text" id="inputDiscountsSearch" oninput="debounceDiscountsSearch()" placeholder="Поиск среди акций и скидок..." class="w-full bg-slate-900/80 border border-slate-700/80 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500">
+            </div>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap shrink-0">
+            <div class="flex items-center gap-1 text-xs">
+              <span class="text-slate-400 text-[11px]">Группа:</span>
+              <select id="selectDiscountsCategory" onchange="loadDiscounts()" class="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 cursor-pointer">
+                <option value="Все">Все группы</option>
+                <option value="actions">🔥 Акции и распродажи</option>
+                <option value="smartphones">📱 Смартфоны и гаджеты</option>
+                <option value="laptops">💻 Ноутбуки и компьютеры</option>
+                <option value="appliances">❄️ Бытовая техника</option>
+                <option value="diy">🛠 Инструменты и стройка</option>
+                <option value="grocery">🥫 Продукты и бакалея</option>
+                <option value="household">🧼 Бытовая химия и дом</option>
+                <option value="audio">🎧 Наушники и аудио</option>
+                <option value="tvs">📺 Телевизоры</option>
+              </select>
+            </div>
+
+            <div class="flex items-center gap-1 text-xs">
+              <span class="text-slate-400 text-[11px]">Сортировка:</span>
+              <select id="selectDiscountsSort" onchange="loadDiscounts()" class="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 cursor-pointer">
+                <option value="discount_desc">По скидке % (максимальные)</option>
+                <option value="savings_desc">По выгоде ₸ (наибольшая экономия)</option>
+                <option value="price_asc">По цене (сначала дешёвые)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div id="discountsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div class="col-span-full py-12 text-center text-slate-500">
           <i class="fa-solid fa-spinner fa-spin text-2xl mb-2"></i>
-          <p>Загрузка скидок...</p>
+          <p>Загрузка предложений...</p>
         </div>
       </div>
     </section>
@@ -2444,6 +2497,7 @@
         case 'tracked-hot': toggleTrackedHot(args[0], args[1]); break;
         case 'user-block': setUserBlocked(args[0], args[1]); break;
         case 'group-accordion': toggleGroupAccordion(args[0]); break;
+        case 'discount-shop': setDiscountsShop(args[0]); break;
       }
     });
     document.addEventListener('change', event => {
@@ -2783,8 +2837,22 @@
       }
     }
 
+    let currentDiscountsShop = 'Все';
     let currentDiscountsFilter = 'all';
     let cachedDiscounts = [];
+    let discountsSearchTimer = null;
+
+    function debounceDiscountsSearch() {
+      clearTimeout(discountsSearchTimer);
+      discountsSearchTimer = setTimeout(loadDiscounts, 300);
+    }
+
+    function setDiscountsShop(shop) {
+      currentDiscountsShop = shop;
+      const label = document.getElementById('discountsActiveShopLabel');
+      if (label) label.innerText = shop === 'Все' ? 'Все магазины' : shop;
+      loadDiscounts();
+    }
 
     function setDiscountsSubfilter(sub) {
       currentDiscountsFilter = sub;
@@ -2797,20 +2865,32 @@
           btn.className = 'px-2.5 py-1 rounded-lg text-slate-400 hover:text-white cursor-pointer transition';
         }
       });
-      renderDiscountsList();
+      loadDiscounts();
+    }
+
+    function renderDiscountsShopsBar(shopsSummary) {
+      const bar = document.getElementById('discountsShopsBar');
+      if (!bar) return;
+      if (!shopsSummary || shopsSummary.length === 0) {
+        bar.innerHTML = '<span class="text-xs text-slate-500 italic">Сбор предложений по магазинам...</span>';
+        return;
+      }
+      bar.innerHTML = shopsSummary.map(s => {
+        const isAct = currentDiscountsShop === s.shop;
+        return `
+          <button type="button" ${actionAttrs('discount-shop', [s.shop])} class="px-2.5 py-1 text-xs rounded-lg border transition cursor-pointer flex items-center gap-1.5 ${isAct ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300 font-semibold' : 'border-slate-800 bg-slate-900/80 text-slate-400 hover:text-white hover:border-slate-700'}">
+            <span>${escapeHtml(s.shop)}</span>
+            <span class="text-[10px] px-1.5 py-0.2 rounded-full ${isAct ? 'bg-emerald-500/30 text-emerald-200' : 'bg-slate-800 text-slate-500'} font-mono">${escapeHtml(s.count)}</span>
+          </button>
+        `;
+      }).join('');
     }
 
     function renderDiscountsList() {
       const container = document.getElementById('discountsContainer');
       if (!container) return;
 
-      let filtered = cachedDiscounts || [];
-      if (currentDiscountsFilter === 'super') {
-        filtered = filtered.filter(a => a.alert_type === 'SUPER_DISCOUNT');
-      } else if (currentDiscountsFilter === 'arbitrage') {
-        filtered = filtered.filter(a => a.alert_type === 'MARKET_ARBITRAGE' || a.alert_type === 'ARBITRAGE');
-      }
-
+      const filtered = cachedDiscounts || [];
       const label = document.getElementById('labelDiscountsCount');
       if (label) label.innerText = `${filtered.length} предложений`;
 
@@ -2818,10 +2898,14 @@
         container.innerHTML = `
           <div class="col-span-full py-16 text-center glass rounded-2xl">
             <div class="text-4xl mb-3">🔥</div>
-            <h3 class="text-base font-semibold text-white">В этой категории пока нет предложений</h3>
+            <h3 class="text-base font-semibold text-white">В этой выборке пока нет акций</h3>
             <p class="text-xs text-slate-400 mt-1 max-w-md mx-auto">
-              Попробуйте переключить фильтр на «Все» или запустите внеочередное сканирование.
+              Попробуйте выбрать «Все магазины» или запустите мгновенный сбор по разделу «🔥 Акции и распродажи».
             </p>
+            <button type="button" ${actionAttrs('category', ['actions', '🔥 Акции и распродажи'])} class="mt-4 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition inline-flex items-center gap-1.5 cursor-pointer shadow-lg shadow-amber-500/20">
+              <i class="fa-solid fa-bolt text-xs"></i>
+              <span>Собрать свежие акции по всем магазинам</span>
+            </button>
           </div>
         `;
         return;
@@ -2834,15 +2918,37 @@
       const container = document.getElementById('discountsContainer');
       if (!container) return;
       try {
-        let url = '/api/alerts?type=discount&limit=150';
+        const sortVal = document.getElementById('selectDiscountsSort')?.value || 'discount_desc';
+        const catVal = document.getElementById('selectDiscountsCategory')?.value || 'Все';
+        const searchVal = document.getElementById('inputDiscountsSearch')?.value?.trim() || '';
+
+        let url = `/api/deals?type=${encodeURIComponent(currentDiscountsFilter)}&sort=${encodeURIComponent(sortVal)}&limit=150`;
+        if (currentDiscountsShop && currentDiscountsShop !== 'Все') {
+          url += `&shop=${encodeURIComponent(currentDiscountsShop)}`;
+        }
+        if (catVal && catVal !== 'Все') {
+          url += `&category=${encodeURIComponent(catVal)}`;
+        }
+        if (searchVal) {
+          url += `&search=${encodeURIComponent(searchVal)}`;
+        }
         if (currentCity && currentCity !== 'Все') {
           url += `&city=${encodeURIComponent(currentCity)}`;
         }
+
         const res = await fetch(url);
-        cachedDiscounts = await res.json() || [];
+        let data = await res.json();
+        if (Array.isArray(data)) {
+          cachedDiscounts = data;
+          renderDiscountsShopsBar([]);
+        } else {
+          cachedDiscounts = data.deals || [];
+          renderDiscountsShopsBar(data.shops_summary || []);
+        }
 
         const badge = document.getElementById('badgeDiscountsCount');
-        if (badge) badge.innerText = cachedDiscounts.length;
+        const count = data.total != null ? data.total : cachedDiscounts.length;
+        if (badge) badge.innerText = count;
 
         renderDiscountsList();
       } catch (e) {
