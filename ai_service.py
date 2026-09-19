@@ -815,3 +815,98 @@ async def get_or_normalize_title(title: str) -> Optional[str]:
         return None
     res = await normalize_product_titles_batch([title])
     return res.get(title)
+
+
+async def classify_categories_batch_ai(categories: List[Dict[str, Any]]) -> Dict[int, str]:
+    """Пакетная классификация списка неразобранных категорий в родительские мастер-группы каталога.
+    Использует:
+    1. Расширенную эвристику (determine_category_and_master) для мгновенного и бесплатного сопоставления.
+    2. AI (Gemini / OpenAI) для оставшихся неразобранных категорий.
+    3. Детерминированный fallback.
+    """
+    if not categories:
+        return {}
+
+    from config import MASTER_CATEGORIES
+    from search_engine import determine_category_and_master
+
+    results: Dict[int, str] = {}
+    remaining_for_ai: List[Dict[str, Any]] = []
+
+    # 1. Быстрая эвристика по названиям и запросам
+    for cat in categories:
+        cid = cat.get("id")
+        if not cid:
+            continue
+        cname = cat.get("name", "")
+        cquery = cat.get("query", "")
+        _, m_id = determine_category_and_master(title="", query=cquery, raw_category=cname)
+        if m_id and m_id in MASTER_CATEGORIES:
+            results[cid] = m_id
+        else:
+            remaining_for_ai.append(cat)
+
+    if not remaining_for_ai:
+        return results
+
+    # 2. Попытка классификации через AI
+    creds = _get_api_credentials()
+    gemini_key = creds.get("gemini_api_key")
+    openai_key = creds.get("openai_api_key")
+    openai_base = creds.get("openai_api_base")
+
+    if (gemini_key or openai_key) and daily_budget_allows(scan=False):
+        valid_groups_info = "\n".join(
+            [f"- \"{gid}\": {g['name']} ({g.get('description', '')})" for gid, g in MASTER_CATEGORIES.items()]
+        )
+        cats_to_classify = "\n".join(
+            [f"- ID {c['id']}: Название: \"{c.get('name', '')}\", Исходный запрос: \"{c.get('query', '')}\"" for c in remaining_for_ai]
+        )
+
+        prompt = f"""Ты эксперт по категоризации товаров в маркетплейсах Казахстана (Kaspi, Arbuz, Zeta, DNS, MasterOK).
+Твоя задача — сопоставить каждую подкатегорию с ОДНИМ наиболее подходящим идентификатором родительской мастер-группы (master_category).
+
+Список доступных master_category:
+{valid_groups_info}
+
+Список категорий для распределения:
+{cats_to_classify}
+
+Ответь СТРОГО в формате JSON без markdown и пояснений:
+{{
+  "mappings": [
+    {{"id": 1, "master_category": "smartphones"}}
+  ]
+}}
+"""
+        parsed = None
+        try:
+            if gemini_key:
+                parsed = await call_gemini_api(prompt, gemini_key, timeout=10.0, scan=False)
+            elif openai_key and openai_base:
+                parsed = await call_openai_api(prompt, openai_key, openai_base, timeout=10.0, scan=False)
+        except Exception as e:
+            print(f"[AI Service] Ошибка при AI-классификации категорий: {type(e).__name__}")
+
+        if parsed and isinstance(parsed, dict) and "mappings" in parsed:
+            for item in parsed["mappings"]:
+                try:
+                    c_id = int(item.get("id"))
+                    m_cat = str(item.get("master_category", "")).strip()
+                    if m_cat in MASTER_CATEGORIES:
+                        results[c_id] = m_cat
+                except Exception:
+                    pass
+
+    # 3. Fallback для тех, кто так и остался не классифицирован
+    for cat in remaining_for_ai:
+        cid = cat.get("id")
+        if cid not in results:
+            q_lower = (cat.get("query", "") + " " + cat.get("name", "")).lower()
+            if "акци" in q_lower or "скидк" in q_lower:
+                results[cid] = "actions"
+            else:
+                results[cid] = "household"
+
+    return results
+

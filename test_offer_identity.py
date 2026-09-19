@@ -110,6 +110,16 @@ class LiveSearchCityTest(unittest.IsolatedAsyncioTestCase):
 class PriceHistoryTest(unittest.TestCase):
     def setUp(self):
         init_db()
+        with get_connection() as conn:
+            conn.execute("DELETE FROM price_observations WHERE product_id IN ('hist_1@astana', 'prune@astana')")
+            conn.execute("DELETE FROM products WHERE id IN ('hist_1@astana', 'prune@astana')")
+            conn.commit()
+
+    def tearDown(self):
+        with get_connection() as conn:
+            conn.execute("DELETE FROM price_observations WHERE product_id IN ('hist_1@astana', 'prune@astana')")
+            conn.execute("DELETE FROM products WHERE id IN ('hist_1@astana', 'prune@astana')")
+            conn.commit()
 
     def test_observations_only_on_change(self):
         from database import get_price_observations, save_or_update_product, save_or_update_products_batch

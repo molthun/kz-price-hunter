@@ -1633,7 +1633,7 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
 
     def test_master_categories_definition_and_coverage(self):
         """Проверка целостности мастер-категорий и их охвата по всем магазинам."""
-        self.assertEqual(len(config.MASTER_CATEGORIES), 15)
+        self.assertEqual(len(config.MASTER_CATEGORIES), 19)
         required_keys = {"name", "icon", "description"}
         for cat_id, meta in config.MASTER_CATEGORIES.items():
             self.assertTrue(required_keys.issubset(meta.keys()))
@@ -2634,8 +2634,9 @@ class TestTrackedCategoriesEqualFunctionality(unittest.IsolatedAsyncioTestCase):
             wave2_ids = [c["id"] for c in wave2_due]
             self.assertIn(t_hot["id"], wave2_ids, "Hot-категория обязана быть и во второй волне!")
             # Ни одна ротируемая категория волны 1 не должна попасть в волну 2, пока очередь не исчерпана
+            hot_ids = {c["id"] for c in wave1_due if c.get("is_hot")}
             for cid in wave1_ids:
-                if cid != t_hot["id"]:
+                if cid not in hot_ids:
                     self.assertNotIn(cid, wave2_ids, "Не-Hot категория повторилась раньше завершения круга!")
         finally:
             for item in [t_hot, t_rot1, t_rot2, t_rot3]:

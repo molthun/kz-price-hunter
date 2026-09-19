@@ -2498,6 +2498,7 @@
         case 'user-block': setUserBlocked(args[0], args[1]); break;
         case 'group-accordion': toggleGroupAccordion(args[0]); break;
         case 'discount-shop': setDiscountsShop(args[0]); break;
+        case 'ai-classify-categories': aiClassifyCategories(); break;
       }
     });
     document.addEventListener('change', event => {
@@ -4656,7 +4657,7 @@
       if (unassigned.length > 0) {
         html += `
           <div class="rounded-xl bg-amber-950/25 border border-amber-500/40 p-4 space-y-3">
-            <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center justify-between gap-2 flex-wrap">
               <div class="flex items-center gap-2">
                 <span class="text-lg">⚠️</span>
                 <div>
@@ -4664,6 +4665,9 @@
                   <div class="text-[10px] text-slate-400">Назначьте родительскую группу для объединения в общем каталоге</div>
                 </div>
               </div>
+              <button id="btnAiClassifyCats" type="button" ${actionAttrs('ai-classify-categories', [])} class="px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-purple-900/30 transition shrink-0 cursor-pointer" title="Автоматически распределить категории по группам через AI">
+                <span>✨</span> Распределить через AI
+              </button>
             </div>
             <div class="space-y-2">
               ${unassigned.map(tc => renderSubcategoryRow(tc, null)).join('')}
@@ -4838,6 +4842,35 @@
         }
       } catch (e) {
         showToast('Ошибка сети при обновлении группы', true);
+      }
+    }
+
+    async function aiClassifyCategories() {
+      const btn = document.getElementById('btnAiClassifyCats');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span>⏳</span> Анализирую через AI...';
+      }
+      showToast('✨ AI анализирует и распределяет неразобранные категории...', false);
+      try {
+        const res = await fetch('/api/admin/categories/ai-classify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await res.json();
+        if (res.ok && data.status === 'ok') {
+          showToast(`✨ AI успешно распределил ${data.count} категорий по группам каталога!`, false);
+          await loadAdminCategories();
+        } else {
+          showToast(data.message || 'Ошибка AI-классификации', true);
+        }
+      } catch (e) {
+        showToast('Ошибка сети при вызове AI-классификации', true);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<span>✨</span> Распределить через AI';
+        }
       }
     }
 

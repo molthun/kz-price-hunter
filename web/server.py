@@ -1639,6 +1639,34 @@ async def set_category_parent_handler(request):
     except Exception as e:
         return web.json_response({"error": redact_secrets(str(e))}, status=400)
 
+@routes.post("/api/admin/categories/ai-classify")
+@require_admin
+async def admin_categories_ai_classify_handler(request):
+    """Интеллектуальная AI-классификация неразобранных категорий каталога."""
+    try:
+        from database import get_hierarchical_categories, set_tracked_category_parent
+        from ai_service import classify_categories_batch_ai
+
+        tree = await asyncio.to_thread(get_hierarchical_categories)
+        unassigned = tree.get("unassigned", [])
+        if not unassigned:
+            return web.json_response({"status": "ok", "message": "Нет неразобранных категорий", "count": 0, "assigned": []})
+
+        assigned_map = await classify_categories_batch_ai(unassigned)
+        updated = []
+        for cid, master_id in assigned_map.items():
+            if master_id:
+                await asyncio.to_thread(set_tracked_category_parent, cid, master_id)
+                updated.append({"id": cid, "master_category": master_id})
+
+        return web.json_response({
+            "status": "ok",
+            "count": len(updated),
+            "assigned": updated
+        })
+    except Exception as e:
+        return web.json_response({"status": "error", "message": redact_secrets(str(e))}, status=500)
+
 @routes.post("/api/admin/catalog/reset")
 @require_admin
 async def admin_catalog_reset_handler(request):
