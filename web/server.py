@@ -1832,6 +1832,63 @@ async def admin_shops_handler(request):
         "scan_state": scan_state,
     })
 
+# ===== Monitoring Center V1 (P03): только чтение, только администратор =====
+
+def _monitoring_registry():
+    return {key: (SHOP_REGISTRY[key][2], len(SHOP_REGISTRY[key][1])) for key in SHOP_REGISTRY}
+
+
+@routes.get("/monitoring")
+async def monitoring_page_handler(request):
+    # Сама страница не содержит данных; данные отдаёт /api/admin/monitoring только администратору
+    return web.FileResponse(TEMPLATES_DIR / "monitoring.html")
+
+
+@routes.get("/api/admin/monitoring")
+@require_admin
+async def monitoring_overview_handler(request):
+    import monitoring
+    settings = load_settings()
+    data = await asyncio.to_thread(monitoring.overview, _monitoring_registry(), enabled_shop_keys(settings),
+                                   dict(scan_state), get_wave_interval_seconds(settings))
+    return web.json_response(data, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
+@routes.get("/api/admin/monitoring/shop/{key}")
+@require_admin
+async def monitoring_shop_handler(request):
+    import monitoring
+    key = request.match_info["key"]
+    if key not in SHOP_REGISTRY:
+        return web.json_response({"status": "error", "message": "Неизвестный магазин"}, status=404)
+    _cls, categories, name = SHOP_REGISTRY[key]
+    data = await asyncio.to_thread(monitoring.shop_detail, key, name, categories, key in enabled_shop_keys())
+    return web.json_response(data, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
+@routes.get("/api/admin/monitoring/events")
+@require_admin
+async def monitoring_events_handler(request):
+    import monitoring
+    q = request.query
+    try:
+        limit = int(q.get("limit", 200))
+    except ValueError:
+        limit = 200
+    rows = await asyncio.to_thread(monitoring.events, q.get("component") or None, q.get("severity") or None,
+                                   q.get("type") or None, q.get("shop") or None, q.get("scan_id") or None,
+                                   limit, q.get("before") or None)
+    return web.json_response({"events": rows}, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
+@routes.get("/api/admin/monitoring/incidents")
+@require_admin
+async def monitoring_incidents_handler(request):
+    import monitoring
+    rows = await asyncio.to_thread(monitoring.incidents)
+    return web.json_response({"incidents": rows}, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
 @routes.post("/api/scan/shopkz-yml")
 @require_admin
 async def sync_shopkz_yml_handler(request):
