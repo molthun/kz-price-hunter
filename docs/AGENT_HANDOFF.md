@@ -4,14 +4,12 @@
 
 ## Текущая контрольная точка
 
-- Дата: 2026-09-19, Asia/Almaty.
-- Последнее действие: Antigravity выполнил этап P00 (Стабильная база) по поручению владельца.
-- Зафиксирована базовая точка проекта: ветка `dev/p00-baseline`, базовый HEAD `ebf36cc`, версия `5.7.1`, `schema_version = 5`.
-- Набор из 278 hermetic Python тестов успешно пройден (`OK`, 28.5s). Scraper contracts и matching precision подтверждены.
-- Дефект нестабильного `hash()` в `scrapers/arbuz.py` воспроизведён и задокументирован.
-- Доступ к проду отсутствует локально; свойства прода подтверждены только по доступным бэкапам `prices.db.backup_1789811567` (33.3k товаров) и рабочей `prices.db` (303 товара).
-- Активный исполнитель разработки: **Claude** (подхват P01 у Antigravity по команде владельца, 2026-09-19 18:36 Asia/Almaty). Незакоммиченные правки Antigravity (последнее изменение файлов 18:20) приняты как основа.
-- 18:55: P01 реализован и закоммичен на `dev/p00-baseline`, статус REVIEW. 19:00: по решению владельца таблицы телеметрии без повышения schema_version (остаётся 5), 300 тестов OK. Следующий шаг — независимый аудит P01.
+- Дата: 2026-09-19 18:56, Asia/Almaty.
+- Последнее действие: Claude завершил P01 (Telemetry Foundation) после Antigravity и передал его на **независимый аудит Codex** (статус HANDOFF → аудит).
+- Ветка `dev/p00-baseline`, HEAD — коммит этой передачи (см. `git log`), база P01 `12672ec`. Версия приложения `5.7.1` (не повышалась), `schema_version = 5` (не повышалась).
+- Полный suite: 300 тестов OK (с временным `DATA_DIR`). Прод не проверялся (нет доступа), выпуск не выполнялся, push не делался.
+- Пишущих исполнителей в этом checkout сейчас нет: Claude закончил. Параллельно в отдельном worktree `.claude/worktrees/affectionate-lehmann-490dc0` (ветка `claude/affectionate-lehmann-490dc0`) идёт независимая задача владельца — изоляция тестов от `prices.db`; файлы P01 она не затрагивает по поручению, но при интеграции сверить `test_*.py`.
+- P00 — READY, независимый аудит также не проведён.
 
 ## Реестр этапов
 
@@ -21,7 +19,7 @@
 | Этап | Статус | Исполнитель | Аудит | Прод |
 |---|---|---|---|---|
 | P00 | READY | Antigravity | Самопроверка (требует review) | Не проверен (нет прямого доступа) |
-| P01 | REVIEW | Antigravity → Claude | Не проведён (ожидает Codex) | Не проверен |
+| P01 | HANDOFF (аудит) | Antigravity → Claude | Передан Codex, не начат | Не проверен |
 | P02 | TODO | — | Не проведён | Не проверен |
 | P03 | TODO | — | Не проведён | Не проверен |
 | P04 | TODO | — | Не проведён | Не проверен |
@@ -52,14 +50,14 @@ ID / этап: P01. Telemetry Foundation
   - Автотесты: p95, fake-источники 200->200->429, 200->403, timeout, retention, отсутствие регрессий.
 Основание/поручение владельца: Утверждённый implementation_plan.md (в репозитории отсутствует), поручение: «перейти к этапу P01»;
   подхват Claude по команде владельца «Подхвати текущую задачу по AGENTS.md и docs/AGENT_HANDOFF.md».
-Статус: REVIEW (реализация завершена, ожидает независимого аудита Codex/Antigravity)
-Исполнитель / предыдущий исполнитель / следующий: Claude / Antigravity / аудит Codex
-Начало и checkpoint: 2026-09-19 18:18 (Antigravity), подхват Claude 18:36, checkpoint 19:00 (Asia/Almaty)
+Статус: HANDOFF на аудит (реализация завершена; Claude больше не пишет в файлы P01)
+Исполнитель / предыдущий исполнитель / следующий: Claude (завершил) / Antigravity / Codex — независимый аудит
+Начало и checkpoint: 2026-09-19 18:18 (Antigravity), подхват Claude 18:36, передача на аудит 18:56 (Asia/Almaty)
 Checkout / ветка / базовый HEAD / текущий HEAD:
   - Checkout: /Users/molthun/Documents/kz-price-hunter
   - Ветка: dev/p00-baseline
   - Базовый HEAD: 12672ec
-  - Текущий HEAD: 6fc7e04 (P01: feeff43 + без повышения схемы 6fc7e04)
+  - Текущий HEAD: коммит передачи на аудит (код P01: feeff43 + 6fc7e04; документация: d3d3fde, 8d87d0c, 93e6d8f)
 Зависимости: P00 (READY, ожидает аудита)
 Область изменений (файлы):
   telemetry.py (новый), test_telemetry.py (новый), database.py, scrapers/http.py, scrapers/arbuz.py,
@@ -125,9 +123,53 @@ Checkout / ветка / базовый HEAD / текущий HEAD:
     часть модулей не задаёт DATA_DIR). В 18:40 первый прогон мигрировал локальную prices.db до v6 (бэкап
     backups/prices-pre-v6-20260919T134030705461Z-259c27.db). Существовало до P01 (303→725 тестовых товаров). Отдельная задача.
 Следующий точный шаг:
-  - Независимый аудит P01 (Codex): проверить diff коммита, особенно scrapers/http.py (семантика лимитера) и schema-стратегию
-    (таблицы телеметрии без повышения schema_version). Затем решение владельца о P01-02 (остальные источники событий) и выпуске.
-Автор реализации / независимый аудитор / замечания: Antigravity (черновик) + Claude (доработка) / не проведён.
+  - Codex: независимый аудит P01 по брифу ниже; выводы и рекомендации записать в эту карточку (раздел «Аудит»),
+    статус: READY при отсутствии блокирующих замечаний, иначе IN_PROGRESS с перечнем исправлений (исполнитель — Claude
+    по порядку подхвата или по назначению владельца). Код без поручения не менять.
+  - Затем владельцу: решение о P01-02 (остальные источники событий) и о выпуске (версия, CHANGELOG, тег).
+
+Бриф аудита P01 (для Codex):
+  Объём: git diff 12672ec..HEAD -- . ':!docs' ':!ROADMAP_AND_LOG.md'
+    (9 файлов, ~+1185/-38: telemetry.py, test_telemetry.py, database.py, scrapers/http.py, scrapers/arbuz.py,
+    web/server.py, main.py, test_offer_identity.py, test_offer_namespace.py).
+  Воспроизведение (не на рабочей prices.db):
+    DATA_DIR=$(mktemp -d) ./venv/bin/python -m unittest discover -s . -p "test_*.py"   # ожидается Ran 300, OK
+    DATA_DIR=$(mktemp -d) ./venv/bin/python -m unittest test_telemetry -v              # 22 теста P01
+    Без DATA_DIR полный прогон пишет в prices.db репозитория (давняя проблема, отдельная задача в worktree).
+  Приоритетные точки риска:
+  1. scrapers/http.py::_limited — семантика лимитера не должна измениться: слот освобождается ровно один раз при
+     успехе, исключении send() и исключении _observe; HostCooldown из _acquire пробрасывается как прежде;
+     429 учитывается _observe до освобождения слота. Существующие LimiterTest в test_scraper_reliability проходят.
+  2. Потоковые ответы (shop.kz YML, stream=True): тело не читается, bytes = Content-Length. Проверить, что все
+     пути (request/get/post/Session.request) передают stream. На 18:56 stream=True есть только в scrapers/shopkz.py:51.
+  3. Fail-open: record_* только память под threading.Lock; сброс в фоновом потоке (telemetry.start в
+     web/server.py::background_tasks и main.py), busy_timeout 2 с; при ошибке сброса данные теряются (stats.failed_flushes),
+     не повторяются. Оценить: приемлема ли потеря; ограничены ли буферы (MAX_PENDING_*) и память _pending_http
+     (ключ = бакет×host×shop, очищается каждым flush).
+  4. p95: Algorithm R поверх telemetry_http_samples при flush (MAX_SAMPLES_PER_BUCKET=500); p95 материализуется в
+     агрегат и переживает удаление samples. Проверить корректность счёта seen (= total_requests до flush) и что
+     cooldown_rejections не попадают в выборку.
+  5. Счётчики: total_requests = фактически отправленные; HostCooldown → cooldown_rejections; 429 отдельно от 4xx;
+     errors ⊇ timeouts ∪ connection_errors (классификация по тексту исключения — эвристика, classify_error).
+  6. scan_id: _do_scan_task задаёт contextvar до create_task, reset в finally; scan_end пишется и при ошибке/отмене.
+     Проверить путь отмены (потеря аренды, остановка приложения): не нарушен ли сброс scan_state и release lease
+     из-за добавленного await asyncio.to_thread(telemetry.flush) в finally.
+  7. Схема: таблицы аддитивны, создаются _create_schema без повышения schema_version (решение владельца);
+     образ 5.7.1 должен стартовать на такой базе. shop NOT NULL DEFAULT '' (NULL ломал UNIQUE/upsert).
+  8. Секреты: sanitize_url (query-ключи token/key/secret/..., userinfo), redact_secrets для message/data_json,
+     data_json ≤ 4 КБ. Проверить, что в события не попадают cookies/заголовки.
+  9. Retention: events 30, samples 7, minute 7, hour 90, day 365 дней; prune раз в 6 ч в фоновом потоке.
+     Сверить с политикой P15 (ориентиры плана) — не удаляет ли больше принятого.
+  10. scrapers/arbuz.py: fallback-ID sha256[:12] — формат/длина совместимы с offer id и matching.
+  Известные ограничения (не дефекты аудита, решение владельца):
+  - Нет точек записи событий поиска, Telegram, AI, backup, деградации/восстановления (константы есть) → P01-02?
+  - iSpace: ThreadPoolExecutor без copy_context → HTTP-метрики карточек с shop=''.
+  - Нет API/UI просмотра телеметрии (P03).
+  - Реальный обход с сетью, frontend-, docker-проверки и прод не выполнялись.
+Команда для Codex:
+  «Прочитай AGENTS.md, docs/DEVELOPMENT_PLAN.md и docs/AGENT_HANDOFF.md. Проведи независимый аудит P01 по брифу
+  в карточке P01 на ветке dev/p00-baseline, не меняя код. Запиши выводы, замечания с приоритетом и рекомендации
+  в карточку, обнови статус P01 в реестре.»
 Готовность к выпуску: не выпускать до аудита; версия не повышалась.
 ```
 
