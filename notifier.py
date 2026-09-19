@@ -1,6 +1,7 @@
 import html
 import json
 import asyncio
+import time
 from urllib.parse import urlsplit
 import requests
 from typing import Dict, Any, Optional
@@ -198,11 +199,34 @@ def prepare_deliveries(product, anomaly):
             and notify_level_allows(anomaly, u["settings"].get("telegram_notify_level", "ALL"))]
 
 
+# Пауза Telegram по 429 действует на весь бот (R-M03): хранится в БД, переживает перезапуск
+# и соблюдается всеми следующими циклами доставки, а не только для одного сообщения.
+TELEGRAM_PAUSE_KEY = "telegram_pause_until"
+MAX_TELEGRAM_PAUSE_SECONDS = 24 * 3600
+
+
+def telegram_paused_for() -> float:
+    from database import get_metadata
+    try:
+        until = float(get_metadata(TELEGRAM_PAUSE_KEY, "0") or 0)
+    except (TypeError, ValueError):
+        return 0.0
+    return max(0.0, until - time.time())
+
+
+def pause_telegram(seconds: float) -> None:
+    from database import set_metadata
+    seconds = max(1.0, min(float(seconds), MAX_TELEGRAM_PAUSE_SECONDS))
+    set_metadata(TELEGRAM_PAUSE_KEY, str(time.time() + seconds))
+
+
 def deliver_pending(limit=10):
     from database import claim_notification, finish_notification, get_user, get_connection, active_product_clause
     from detector import alert_matches_user, notify_level_allows
     if not get_bot_token():
         return 0
+    if telegram_paused_for() > 0:
+        return 0  # Telegram просил подождать: ни одно сообщение не отправляется до конца паузы
     sent = 0
     for _ in range(limit):
         item = claim_notification()
@@ -236,7 +260,8 @@ def deliver_pending(limit=10):
             else:
                 finish_notification(item["id"], "pending", item["attempts"], result.error, retry_after=result.retry_after)
                 if result.retry_after is not None:
-                    break  # 429 — лимит на весь бот: остальные сообщения ждут следующего цикла
+                    pause_telegram(result.retry_after)  # 429 — лимит на весь бот
+                    break
         except Exception as e:
             finish_notification(item["id"], "pending", item["attempts"], type(e).__name__)
     return sent

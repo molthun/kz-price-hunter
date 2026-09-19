@@ -73,6 +73,7 @@ class DeliveryTest(unittest.TestCase):
         with get_connection() as conn:
             for table in ("notification_outbox", "alerts", "products"):
                 conn.execute(f"DELETE FROM {table}")
+            conn.execute("DELETE FROM schema_metadata WHERE name = ?", (notifier.TELEGRAM_PAUSE_KEY,))
             conn.commit()
         upsert_telegram_user({"id": 42, "first_name": "Audit"})
         save_user_settings(42, {"telegram_notify_enabled": True, "price_glitch_drop_pct": 30})
@@ -135,6 +136,35 @@ class DeliveryTest(unittest.TestCase):
         self.assertEqual(first["status"], "pending")
         self.assertGreaterEqual(first["next_attempt_at"], before + 39)
         self.assertEqual(second["attempts"], 0)
+
+    def test_rate_limit_pauses_whole_bot_across_cycles(self):
+        """R-M03: после 429 следующие циклы не отправляют ничего до конца паузы Telegram."""
+        for n in range(3):
+            self.enqueue(f"p{n}@astana")
+        with patch.object(notifier, "send_telegram_alert", return_value=DeliveryResult("retry", 120, "Telegram 429")) as send:
+            notifier.deliver_pending()
+        self.assertEqual(send.call_count, 1)
+        self.assertGreater(notifier.telegram_paused_for(), 110)
+        with patch.object(notifier, "send_telegram_alert", return_value=DeliveryResult("sent")) as send:
+            for _ in range(3):  # несколько циклов worker'а во время паузы
+                self.assertEqual(notifier.deliver_pending(), 0)
+        send.assert_not_called()
+        self.assertEqual([r["attempts"] for r in self.outbox()], [1, 0, 0])
+        # Пауза закончилась — рассылка продолжается
+        with get_connection() as conn:
+            conn.execute("UPDATE schema_metadata SET value = '0' WHERE name = ?", (notifier.TELEGRAM_PAUSE_KEY,))
+            conn.execute("UPDATE notification_outbox SET next_attempt_at = 0")
+            conn.commit()
+        with patch.object(notifier, "send_telegram_alert", return_value=DeliveryResult("sent")):
+            self.assertEqual(notifier.deliver_pending(), 3)
+
+    def test_long_retry_after_is_not_truncated(self):
+        self.enqueue()
+        before = time.time()
+        with patch.object(notifier, "send_telegram_alert", return_value=DeliveryResult("retry", 7200, "Telegram 429")):
+            notifier.deliver_pending()
+        self.assertGreaterEqual(self.outbox()[0]["next_attempt_at"], before + 7199)
+        self.assertGreater(notifier.telegram_paused_for(), 7190)
 
     def test_success_still_counts(self):
         self.enqueue()

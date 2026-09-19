@@ -1430,10 +1430,14 @@ def claim_notification():
 
 def finish_notification(delivery_id, status, attempts=0, error=None, retry_after=None):
     """retry_after — пауза, которую назвал Telegram (429); иначе экспоненциальная задержка."""
-    delay = float(retry_after) if retry_after is not None else min(3600, 60 * 2 ** min(attempts, 6))
+    # Пауза, названная Telegram, соблюдается полностью (до суток); своя задержка — до часа
+    if retry_after is not None:
+        delay = max(1.0, min(float(retry_after), 24 * 3600))
+    else:
+        delay = max(1.0, min(3600, 60 * 2 ** min(attempts, 6)))
     with get_connection() as conn:
         conn.execute("""UPDATE notification_outbox SET status=?,next_attempt_at=?,last_error=? WHERE id=?""",
-            (status, time.time() + max(1.0, min(delay, 3600)), error, delivery_id))
+            (status, time.time() + delay, error, delivery_id))
         conn.commit()
 
 
