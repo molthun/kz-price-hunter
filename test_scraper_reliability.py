@@ -487,3 +487,28 @@ class DnsCloudflareTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Cloudflare", result.error)
         self.assertEqual(page.goto.await_count, 1)  # ни повторов, ни обходных запросов
         browser.close.assert_awaited_once()
+
+
+class ArbitrageBenchmarkTest(unittest.TestCase):
+    """R-L02: явно переданный ориентир рынка не роняет проверку; запятые текста не теряются."""
+
+    SETTINGS = {"detect_market_arbitrage": True, "junk_keywords": [], "exclude_used_goods": True,
+                "arbitrage_min_drop_pct": 25, "arbitrage_min_diff_kzt": 25000}
+
+    def test_explicit_benchmark(self):
+        from detector import check_market_arbitrage
+        res = check_market_arbitrage({"title": "Телевизор Samsung QE55", "price": 100000, "shop": "Sulpak"},
+                                     other_stores_avg=200000, custom_settings=self.SETTINGS)
+        self.assertEqual((res["old_price"], res["new_price"], res["canonical_key"]), (200000, 100000, None))
+        self.assertIn("дешевле, чем", res["reason"])
+        self.assertIn("200 000 ₸", res["reason"])
+
+    def test_zero_glitch_reason_keeps_punctuation(self):
+        from detector import check_anomaly
+        settings = {"junk_keywords": [], "exclude_used_goods": True, "min_item_price_kzt": 30000,
+                    "max_item_price_kzt": 3000000, "detect_zero_glitch": True, "detect_super_discount": True,
+                    "price_glitch_drop_pct": 50, "min_savings_kzt": 40000}
+        res = check_anomaly({"title": "Телевизор", "price": 30000}, {"old_price": 300000, "first_seen_price": 300000},
+                            custom_settings=settings)
+        self.assertIn("300 000 ₸", res["reason"])
+        self.assertIn("), возможно, пропущен ноль", res["reason"])

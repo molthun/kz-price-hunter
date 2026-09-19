@@ -825,7 +825,7 @@ SHOP_REGISTRY = {
     "alser": (AlserScraper, ALSER_CATEGORIES, "Alser"),
     "fourmobile": (FourMobileScraper, FOURMOBILE_CATEGORIES, "4mobile"),
     "kaspi": (KaspiScraper, KASPI_CATEGORIES, "Kaspi Магазин"),
-    "dns": (DNSScraper, DNS_CATEGORIES, "DNS"),
+    "dns": (DNSScraper, DNS_CATEGORIES, "DNS Казахстан"),
     "flip": (FlipScraper, FLIP_CATEGORIES, "Flip.kz"),
     "halyk": (HalykScraper, HALYK_CATEGORIES, "Halyk Market"),
     "tgrad": (TgradScraper, TGRAD_CATEGORIES, "Tgrad"),

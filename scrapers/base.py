@@ -4,6 +4,7 @@ import re
 import time
 import asyncio
 from decimal import Decimal, InvalidOperation
+from urllib.parse import urlsplit
 from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
 
 # Глубина обхода категории по умолчанию (страниц)
@@ -130,7 +131,8 @@ def validate_product_item(item: Dict[str, Any], default_shop: str = "") -> Optio
     url = str(item.get("url") or "").strip()
     price = price_value(item.get("price"))
 
-    if not raw_id or not title or price <= 0 or not url.startswith("http"):
+    parts = urlsplit(url)
+    if not raw_id or not title or price <= 0 or parts.scheme not in ("http", "https") or not parts.hostname:
         return None
 
     item["id"] = raw_id

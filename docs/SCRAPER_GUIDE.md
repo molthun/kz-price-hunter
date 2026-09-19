@@ -6,68 +6,51 @@
 
 ## 1. Единый контракт скрапера (`Scraper Protocol`)
 
-Каждый скрапер в директории `scrapers/` обязан реализовывать протокол `Scraper` из `scrapers/base.py`:
+Контракт — протокол `Scraper` в `scrapers/base.py` (здесь описан существующий код, а не план):
 
 ```python
-from typing import Protocol, List, Dict, Any, Optional
-from scrapers.base import ScanResult
-
 class Scraper(Protocol):
-    SHOP_NAME: str
+    SHOP_NAME: str   # отображаемое название магазина, например "Forte Market"
 
-    def scrape(
-        self,
-        categories: Optional[List[Dict[str, Any]]] = None,
-        max_pages: Optional[int] = None
-    ) -> ScanResult:
-        """Сбор данных по переданным категориям (синхронный или асинхронный)."""
-        ...
+    async def scrape(self, category_name: str, category_url: str,
+                     max_pages: Optional[int] = None) -> List[Dict[str, Any]]:
+        ...          # одна категория за вызов; возвращает ScanResult (подкласс list)
 
     def close(self) -> None:
-        """Освобождение сетевых сессий, пулов соединений или процессов браузера."""
-        ...
+        ...          # закрыть сессии/браузер; безопасно при повторном вызове
 ```
 
-### Требования к контракту:
-1. **`SHOP_NAME`**: Уникальное строковое имя магазина, совпадающее с ключом в `SHOP_REGISTRY`.
-2. **`scrape(...)`**: Возвращает объект `ScanResult(items, pages_scanned, errors, status, duration_sec)`.
-3. **`close()`**: Метод гарантированного закрытия ресурсов (`client.close()`, `session.close()`, `browser.close()`). Метод обязан быть безопасным при повторном вызове (`idempotent`).
+- **`SHOP_NAME`** — название для интерфейса и алертов. Ключ магазина (`"fortemarket"`) задаётся в реестре `SHOP_REGISTRY` в `web/server.py` и в `config.SHOP_KEYS`; с `SHOP_NAME` он не обязан совпадать.
+- **`scrape()`** возвращает `ScanResult(items, complete=False, error=None, limited=False)` — список товаров с признаками охвата:
+  - `complete=True` — **доказан** конец каталога категории (валидное общее число товаров, проверенная последняя страница пагинации, редирект на первую страницу и т. п.). Только такой обход снимает с продажи товары, которых больше нет в выдаче;
+  - `limited=True` — обход остановлен по `max_pages` или источник не даёт доказать конец;
+  - `error="..."` — сбой (HTTP-ошибка, блокировка, смена разметки); собранные товары сохраняются, но ничего не снимается.
+  Пустой список, HTTP 200 без карточек, 403/429, неожиданный редирект — **не** доказательство конца. Проще всего наследоваться от `PagedScraper` и реализовать `_fetch_page()`; он сам ведёт пагинацию и возвращает `ScanResult`.
+- **`close()`** вызывается после обхода каждого магазина и после live-поиска. `PagedScraper.close()` закрывает атрибуты `_session`/`session`.
 
 ---
 
-## 2. Структура возвращаемых данных (`Offer Snapshot`)
-
-Каждый товар в `items` должен быть словарем и **обязательно** проходить валидацию через вспомогательную функцию `validate_product_item(item)`:
+## 2. Структура товара (`Offer Snapshot`)
 
 ```python
-from scrapers.base import validate_product_item
-
-raw_item = {
-    "id": str(item_id),              # Уникальный строковый ID товара внутри магазина
-    "shop": self.SHOP_NAME,          # Имя магазина
-    "title": title.strip(),          # Полное наименование товара
-    "price": int(current_price),     # Текущая цена продажи (целое положительное число > 0)
-    "old_price_on_site": old_price,  # Старая/зачеркнутая цена сайта (int или None)
-    "url": product_url,              # Прямая ссылка на страницу товара (начинается с http/https)
-    "image_url": image_url or "",    # Ссылка на изображение товара
-    "category": category_name,       # Категория товара
-    "city": city_name or "Астана",   # Город (по умолчанию "Астана")
-    "description": description or "" # Описание характеристик (опционально)
+{
+    "id": f"myshop_{source_id}",   # префикс магазина + устойчивый id источника (не название, если есть id)
+    "shop": self.SHOP_NAME,
+    "title": title.strip(),
+    "price": price_value(raw_price),        # целое > 0, тенге; из JSON — price_value(), из текста — parse_price()
+    "old_price_on_site": old_price or 0,    # зачёркнутая цена, только если больше текущей
+    "url": product_url,                     # http/https
+    "image_url": image_url or "",
+    "category": category_name,
+    "city": confirmed_city,                 # см. ниже
+    "description": description or "",      # опционально
 }
-
-# Проверка корректности:
-if validate_product_item(raw_item):
-    items.append(raw_item)
-else:
-    # Запись предупреждения о невалидной структуре
-    logger.warning(f"[{self.SHOP_NAME}] Отклонен невалидный товар: {raw_item}")
 ```
 
-### Правила валидации:
-- `price` обязан быть строго больше `0`. Товар с нулевой или отрицательной ценой **не сохраняется** в базу.
-- `title` не должен быть пустым.
-- `url` обязан быть валидным веб-адресом (`http://` или `https://`).
-- Рассрочка (installment, Kaspi Red/Рассрочка) не должна подменяться вместо полной цены товара.
+- **`id`** должен быть уникален среди **всех** магазинов: всегда с префиксом магазина. Город в `id` добавляется автоматически при записи (`offer_identity.assign_offer_ids` → `kaspi_1@astana`), вручную его не добавлять.
+- **`city`** — только подтверждённое место цены: название города из `config.CITIES_KZ`, `offer_identity.NATIONWIDE` («Казахстан») для общей цены по стране или `offer_identity.UNKNOWN_LOCATION`, если регион не подтверждён. Не подставлять «Астану» по умолчанию.
+- Проверка формы товара — `validate_product_item(item)`: непустые id и название, цена > 0, ссылка с разобранной схемой http/https и хостом.
+- Рассрочка и платёж в месяц не подменяют полную цену; цены в другой валюте не принимаются.
 
 ---
 
@@ -91,9 +74,9 @@ else:
    - Максимальный таймаут на один HTTP-запрос — не более 15–30 секунд (до 90 секунд для больших YML-фидов).
 2. **Паузы (Rate Limiting & Jitter)**:
    - Пауза между страницами: от 0.3 до 1.0 секунды с добавлением случайного джиттера (`random.uniform(0.1, 0.4)`).
-3. **Обработка ошибок**:
-   - При получении HTTP 429 (Too Many Requests) учитывайте заголовок `Retry-After`.
-   - При фатальных ошибках (403 Forbidden, блокировка) завершайте парсинг со статусом `ScanResult.status = "blocked"` или `"failed"`, не входя в бесконечный цикл повторов.
+3. **Транспорт и ошибки**:
+   - Все HTTP-запросы — через `from scrapers import http as requests` (тот же интерфейс, что `curl_cffi.requests`): общий лимит одновременных запросов на домен и пауза по `Retry-After` для всех путей (обход, live-поиск, описания).
+   - При 403/блокировке/проверке на бота — вернуть `ScanResult(items, error="...")` с понятной причиной и остановиться. **Защиту не обходить** (никаких CAPTCHA-решателей, смены прокси/отпечатков).
 4. **Ограничение глубины**:
    - Всегда соблюдайте параметр `max_pages` (по умолчанию не более 30–50 страниц на категорию за волну).
 
@@ -103,13 +86,13 @@ else:
 
 1. **Создайте модуль скрапера**: `scrapers/<shop_code>.py`.
 2. **Реализуйте класс**: унаследуйте от `PagedScraper`, `SchemaListingScraper` или напишите класс, реализующий `Scraper Protocol`.
-3. **Зарегистрируйте в `scrapers/__init__.py`**:
-   - Импортируйте класс скрапера.
-   - Добавьте в словарь `SHOP_REGISTRY`: `"<shop_code>": MyNewScraper`.
-4. **Настройте категории в `config.py`**:
-   - Добавьте список категорий магазина в `CATEGORIES` или специальный маппинг мастер-категорий.
+3. **Зарегистрируйте магазин**:
+   - `config.py`: ключ и название в `SHOP_KEYS`, список категорий `MYSHOP_CATEGORIES` (`name`, `url`, `master`, `max_pages`).
+   - `web/server.py`: импорт класса и запись `"myshop": (MyShopScraper, MYSHOP_CATEGORIES, "Название")` в `SHOP_REGISTRY`.
+4. **Описания товаров** (если нужны): домен магазина в `product_details.STORE_DOMAINS`, иначе догрузка описания для него не выполняется.
 5. **Добавьте документацию в `SOURCES.md`**:
    - Опишите тип транспорта, эндпоинты, таймауты и формат отдачи данных.
 6. **Напишите модульный тест**:
-   - Создайте тест с мок-ответами в `tests/` или добавьте в `test_scraper_reliability.py`.
-   - Запустите проверку контракта: `python3 -m unittest test_scraper_contract.py`.
+   - Тест с фикстурами ответа: обычная страница, последняя страница (конец доказан), пустая первая, блокировка/смена разметки, цена с копейками и зачёркнутой ценой.
+   - Контрактный тест `test_registry_contract.py` автоматически проверяет каждый магазин реестра (протокол, `close`, категории, префикс id).
+   - Все тесты: `python -m unittest discover -s . -p "test_*.py"`.

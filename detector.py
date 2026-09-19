@@ -36,6 +36,11 @@ def is_used_goods(title: str, category: str = "", url: str = "") -> bool:
     t = f"{title} {category} {url}".lower()
     return any(k in t for k in USED_GOODS_KEYWORDS)
 
+def _kzt(amount: int) -> str:
+    """Сумма с пробелами между разрядами: заменяются только разделители числа, не запятые текста."""
+    return f"{int(amount):,} ₸".replace(",", " ")
+
+
 def check_anomaly(product: Dict[str, Any], history_info: Dict[str, Any], custom_settings: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
     s = custom_settings if custom_settings is not None else get_candidate_settings()
     
@@ -94,7 +99,7 @@ def check_anomaly(product: Dict[str, Any], history_info: Dict[str, Any], custom_
                 "drop_pct": drop_pct,
                 "savings": savings,
                 "basis": basis,
-                "reason": f"Цена упала в {round(ratio, 1)} раз относительно {basis} (с {reference_price:,} ₸ до {curr_price:,} ₸), возможно, пропущен ноль — проверьте на сайте".replace(",", " ")
+                "reason": f"Цена упала в {round(ratio, 1)} раз относительно {basis} (с {_kzt(reference_price)} до {_kzt(curr_price)}), возможно, пропущен ноль — проверьте на сайте"
             }
 
         # Б) Глубокий обвал цены (Супер-скидка)
@@ -107,7 +112,7 @@ def check_anomaly(product: Dict[str, Any], history_info: Dict[str, Any], custom_
                 "drop_pct": drop_pct,
                 "savings": savings,
                 "basis": basis,
-                "reason": f"Обвал цены на {drop_pct}% относительно {basis} с экономией {savings:,} ₸".replace(",", " ")
+                "reason": f"Обвал цены на {drop_pct}% относительно {basis} с экономией {_kzt(savings)}"
             }
 
     return None
@@ -141,6 +146,7 @@ def check_market_arbitrage(
     min_pct = float(s.get("arbitrage_min_drop_pct", 25.0))
     min_diff = int(s.get("arbitrage_min_diff_kzt", 25000))
 
+    market = None  # результат поиска аналогов; при явно переданном benchmark его нет (R-L02)
     if other_stores_avg is not None and other_stores_avg > 0:
         benchmark_price = other_stores_avg
         other_shop_name = "других магазинов"
@@ -176,7 +182,7 @@ def check_market_arbitrage(
             "savings": diff,
             "competitor_shop": other_shop_name,
             "canonical_key": c_key,
-            "reason": f"В {shop} на {diff_pct}% дешевле, чем в {other_shop_name} ({benchmark_price:,} ₸)!".replace(",", " ")
+            "reason": f"В {shop} на {diff_pct}% дешевле, чем в {other_shop_name} ({_kzt(benchmark_price)})!"
         }
 
     return None

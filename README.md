@@ -117,7 +117,7 @@ python3 -m venv venv
 | `OPENAI_API_KEY` | — | Ключ OpenAI API (альтернативный AI-провайдер) |
 | `OPENAI_API_BASE` | — | Кастомный endpoint для OpenAI-совместимых шлюзов |
 | `ALLOW_DEV_LOGIN` | `0` | Явное включение только для прямого loopback и отдельной локальной учётной записи; отключён при заданном публичном origin или реальных admin IDs. Docker: всегда 0 |
-| `PUBLIC_ORIGIN` | `APP_URL` | Канонический origin для CSRF/cookies, без пути: для рабочего сайта `https://shop.molthun.ru`. Без него изменение данных доступно только при прямом локальном подключении |
+| `PUBLIC_ORIGIN` | `APP_URL` | Канонический origin для CSRF/cookies, без пути, например `https://shop.example.kz`. Без него изменение данных доступно только при прямом локальном подключении |
 | `TRUSTED_PROXIES` | пусто | IP/CIDR непосредственного доверенного reverse proxy. Пока не подтверждён, forwarded headers игнорируются |
 
 Подробная настройка границы proxy/CSRF: [SECURITY_CONFIG.md](SECURITY_CONFIG.md). Пример без секретов: [.env.example](.env.example). Карта данных: [PRIVACY_DATA_MAP.md](PRIVACY_DATA_MAP.md); пользовательская страница доступна по `/privacy`.
