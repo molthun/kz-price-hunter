@@ -524,16 +524,17 @@ def hypothesis(text: str, event_type: str = "", signature: str = "") -> str:
     return "Причина не классифицирована — см. события инцидента"
 
 
-# Явные успешные исходы компонентов (D01): произвольный INFO не доказывает восстановления
+# Явные успешные исходы операций (D01): произвольный INFO и успех другой операции того же компонента не
+# доказывают восстановления. Область — конкретная операция, а не компонент целиком.
 def _component_success(e: Dict[str, Any]) -> Optional[str]:
-    """Какую область подтверждает успешное событие: ключ компонента или None."""
+    """Какую операцию подтверждает успешное событие: ключ области или None."""
     d, t = e["data"], e["type"]
     if t == "ai_query" and d.get("outcome") == "ok" and d.get("provider_called"):
-        return "ai"
+        return f"ai:{d.get('purpose') or 'user'}"
     if t == "search_query" and d.get("outcome") in ("found", "not_found"):
         return "search"
     if t == "telegram_alert" and int(d.get("sent") or 0) > 0:
-        return "telegram"
+        return "telegram_delivery"
     if t == "scan_end" and d.get("outcome") == "completed":
         return "scheduler"
     if t == "backup_run" and d.get("outcome") == "ok":
@@ -541,11 +542,24 @@ def _component_success(e: Dict[str, Any]) -> Optional[str]:
     return None
 
 
-# Где проявляется успех для ошибок воркеров (system_error.where) и компонентных инцидентов
-_WHERE_SCOPE = {"ai_normalize_worker": "ai", "notification_worker": "telegram", "telegram_polling": "telegram",
+# Ошибки воркеров (system_error.where) → операция, успех которой подтверждает их восстановление.
+# Только прямые связи: ai_normalize_worker вызывает AI с purpose=normalize, notification_worker — deliver_pending
+# (сводка telegram_alert), auto_scan_worker запускает обходы (scan_end). У telegram_polling, http_handler и прочих
+# сигнала успеха в V1 нет — такие инциденты не восстанавливаются, а только затихают (quiet).
+_WHERE_SCOPE = {"ai_normalize_worker": "ai:normalize", "notification_worker": "telegram_delivery",
                 "auto_scan_worker": "scheduler"}
-_COMPONENT_SCOPE = {"ai": "ai", "search": "search", "telegram": "telegram", "scheduler": "scheduler",
-                    "backup": "backup"}
+
+
+def _incident_scope(event_type: str, data: Dict[str, Any]) -> Optional[str]:
+    """Область успеха для компонентного инцидента по типу проблемного события; None — сигнала нет."""
+    if event_type == "system_error":
+        return _WHERE_SCOPE.get(data.get("where") or "")   # без запасного перехода на компонент
+    if event_type == "ai_query":
+        return f"ai:{data.get('purpose') or 'user'}"
+    return {"search_query": "search", "telegram_alert": "telegram_delivery", "scan_end": "scheduler",
+            "backup_run": "backup"}.get(event_type)
+
+
 _SUCCESS_TYPES = ("scan_category", "recovery", "ai_query", "search_query", "telegram_alert", "scan_end", "backup_run")
 QUIET_UNCONFIRMED_HOURS = 24
 
@@ -580,8 +594,8 @@ def incidents(days: int = INCIDENT_WINDOW_DAYS, now: Optional[datetime.datetime]
       (_category_success), либо магазин получил recovery (полный обход после деградации, P02);
     - HTTP без категории — у каждого затронутого хоста после последней проблемы есть минута с 2xx, либо recovery;
     - магазин без категории и хоста (degradation, падение магазина) — только recovery;
-    - компонент — явный успешный исход своего компонента (_component_success) и час без повторов; если успешного
-      исхода у области нет, после QUIET_UNCONFIRMED_HOURS без повторов — состояние «quiet» (не подтверждено).
+    - компонент — явный успешный исход той же операции (_incident_scope / _component_success) и час без повторов;
+      если у операции нет сигнала успеха, после QUIET_UNCONFIRMED_HOURS без повторов — «quiet» (не подтверждено).
     Состояния: open, recovered, quiet (quiet не считается открытым, но и восстановленным не называется).
     shop_keys — {название магазина: ключ}: проблемные события пишут название, recovery (P02) — ключ магазина.
     """
@@ -626,7 +640,7 @@ def incidents(days: int = INCIDENT_WINDOW_DAYS, now: Optional[datetime.datetime]
                     "shop_key": e["data"].get("shop_key"), "signature": key[3],
                     "severity": e["severity"], "first_seen": e["timestamp"], "count": 0,
                     "cat_last": {}, "host_last": {}, "scan_ids": set(), "sample": e["message"],
-                    "where": e["data"].get("where"),
+                    "scope": _incident_scope(e["type"], e["data"]),
                 }
             inc["count"] += 1
             inc["last_seen"] = e["timestamp"]
@@ -663,7 +677,7 @@ def incidents(days: int = INCIDENT_WINDOW_DAYS, now: Optional[datetime.datetime]
                     if all(fixed.values()):
                         recovered_at = max(fixed.values())
             else:
-                scope = _WHERE_SCOPE.get(inc["where"] or "") or _COMPONENT_SCOPE.get(component)
+                scope = inc["scope"]
                 ok_at = comp_ok.get(scope) if scope else None
                 if ok_at and ok_at > inc["last_seen"] and quiet_h >= INCIDENT_QUIET_HOURS:
                     recovered_at = ok_at
@@ -672,7 +686,7 @@ def incidents(days: int = INCIDENT_WINDOW_DAYS, now: Optional[datetime.datetime]
             if recovered_at:
                 state = "recovered"
             out.append({
-                **{k: v for k, v in inc.items() if k not in ("cat_last", "host_last", "scan_ids", "where")},
+                **{k: v for k, v in inc.items() if k not in ("cat_last", "host_last", "scan_ids")},
                 "scale": {"events": inc["count"], "categories": sorted(inc["cat_last"])[:20],
                           "categories_count": len(inc["cat_last"]), "hosts": sorted(inc["host_last"]),
                           "scans": len(inc["scan_ids"])},

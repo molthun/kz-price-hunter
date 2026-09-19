@@ -290,12 +290,47 @@ class IncidentTest(DbCase):
         self.flush()
         (inc,) = [i for i in mon.incidents(now=NOW) if i["type"] == "system_error"]
         self.assertTrue(inc["open"])
-        self.event(1.8, tm.EVENT_AI_QUERY, "INFO", tm.COMPONENT_AI, "ok", data={"outcome": "ok", "provider_called": True})
+        # Пользовательский вызов AI не подтверждает исправность нормализации (другая операция)
+        self.event(1.9, tm.EVENT_AI_QUERY, "INFO", tm.COMPONENT_AI, "ok",
+                   data={"outcome": "ok", "provider_called": True, "purpose": "user"})
+        self.flush()
+        (inc,) = [i for i in mon.incidents(now=NOW) if i["type"] == "system_error"]
+        self.assertTrue(inc["open"])
+        self.event(1.8, tm.EVENT_AI_QUERY, "INFO", tm.COMPONENT_AI, "ok",
+                   data={"outcome": "ok", "provider_called": True, "purpose": "normalize"})
         self.flush()
         (inc,) = [i for i in mon.incidents(now=NOW) if i["type"] == "system_error"]
         self.assertEqual(inc["state"], "recovered")
         (inc,) = [i for i in mon.incidents(now=NOW - datetime.timedelta(hours=2)) if i["type"] == "system_error"]
         self.assertTrue(inc["open"])  # меньше часа без повторов
+
+    def test_codex_repro_polling_not_recovered_by_delivery(self):
+        # Формат реального producer: telegram_bot.py пишет WARNING system_error where=telegram_polling
+        self.event(3, tm.EVENT_SYSTEM_ERROR, "WARNING", tm.COMPONENT_TELEGRAM, "telegram_polling: ClientError",
+                   data={"where": "telegram_polling", "error": "ClientError"})
+        self.event(0.5, tm.EVENT_TELEGRAM_ALERT, "INFO", tm.COMPONENT_TELEGRAM, "доставка", data={"sent": 1})
+        self.flush()
+        (inc,) = [i for i in mon.incidents(now=NOW) if i["type"] == "system_error"]
+        self.assertEqual((inc["state"], inc["recovered_at"]), ("open", None))
+        (inc,) = [i for i in mon.incidents(now=NOW + datetime.timedelta(hours=25)) if i["type"] == "system_error"]
+        self.assertEqual((inc["state"], inc["recovered_at"]), ("quiet", None))
+
+    def test_notification_worker_recovered_by_delivery(self):
+        self.event(3, tm.EVENT_SYSTEM_ERROR, "ERROR", tm.COMPONENT_TELEGRAM, "notification_worker: OperationalError",
+                   data={"where": "notification_worker", "error": "OperationalError"})
+        self.event(1, tm.EVENT_TELEGRAM_ALERT, "INFO", tm.COMPONENT_TELEGRAM, "доставка", data={"sent": 2})
+        self.flush()
+        (inc,) = [i for i in mon.incidents(now=NOW) if i["type"] == "system_error"]
+        self.assertEqual(inc["state"], "recovered")
+
+    def test_unknown_where_has_no_component_fallback(self):
+        self.event(3, tm.EVENT_SYSTEM_ERROR, "ERROR", tm.COMPONENT_AI, "new_worker: RuntimeError",
+                   data={"where": "new_worker", "error": "RuntimeError"})
+        self.event(1, tm.EVENT_AI_QUERY, "INFO", tm.COMPONENT_AI, "ok",
+                   data={"outcome": "ok", "provider_called": True, "purpose": "normalize"})
+        self.flush()
+        (inc,) = [i for i in mon.incidents(now=NOW) if i["type"] == "system_error"]
+        self.assertTrue(inc["open"])
 
     def test_component_without_success_signal_becomes_quiet_not_recovered(self):
         self.event(30, tm.EVENT_SYSTEM_ERROR, "ERROR", tm.COMPONENT_SYSTEM, "http_handler: KeyError",
