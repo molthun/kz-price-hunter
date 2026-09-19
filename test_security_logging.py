@@ -1,4 +1,5 @@
 """Synthetic-only logging tests; no app startup, config, database, or network."""
+import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
 import io
 import unittest
 from unittest.mock import patch

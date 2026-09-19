@@ -1,4 +1,5 @@
 """Тесты для агрегатора акций и супер-скидок по магазинам Казахстана (get_store_deals и /api/deals)."""
+import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
 import tempfile
 import unittest
 from pathlib import Path

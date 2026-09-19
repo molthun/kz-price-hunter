@@ -1,4 +1,5 @@
 """P01 Telemetry Foundation: агрегация HTTP, p95, очистка данных, retention, fail-open, scan_id."""
+import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
 import asyncio
 import datetime
 import os

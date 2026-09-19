@@ -1,4 +1,5 @@
 """Этап 3 аудита: достоверность цен и сбора. Без сети и без рабочей БД."""
+import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
 import asyncio
 import datetime
 import os

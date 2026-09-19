@@ -1,5 +1,6 @@
 """Этап 5 аудита: ограниченные кэши, планировщик, 100 синтетических источников, ресурсы, бюджет AI.
 Без сети и без рабочей БД."""
+import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
 import asyncio
 import os
 import tempfile

@@ -1,4 +1,5 @@
 """Tests for expired session cleanup and session management."""
+import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
 import datetime
 import unittest
 

@@ -1,4 +1,5 @@
 """Unit tests for matching precision, accessory exclusion, and price ingestion guards."""
+import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
 import unittest
 
 from model_matching import extract_canonical_key

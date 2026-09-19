@@ -1,3 +1,4 @@
+import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
 import unittest
 import json
 import os
@@ -277,6 +278,9 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
             for table in ('notification_outbox', 'product_sources', 'alerts', 'products', 'shop_scans', 'users', 'sessions', 'title_ai_attempts', 'title_canonical_cache', 'scheduler_lease'):
                 conn.execute(f'DELETE FROM {table}')
         invalidate_alerts_cache()
+        # Флаг потери аренды — состояние модуля; тесты вызывают _scan_shop напрямую, без _do_scan_task
+        import web.server as server
+        server._lease_state.update(lost=False, last_ok=time.monotonic())
 
     def product(self, pid='audit', **kwargs):
         return dict(id=pid, title='Apple iPhone 16 256 ГБ', price=150000,

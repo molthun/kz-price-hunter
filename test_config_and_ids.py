@@ -1,4 +1,5 @@
 """Мелкий долг аудита: L03 (настройки), M07 (устойчивые id), L01 (тексты без устаревших чисел)."""
+import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
 import json
 import os
 import re
@@ -93,6 +94,25 @@ class NoHardcodedShopCountsTest(unittest.TestCase):
         for path in (ROOT / "web/templates/index.html", ROOT / "telegram_bot.py", ROOT / "ai_service.py"):
             hits = [m.group(0) for m in pattern.finditer(path.read_text(encoding="utf-8"))]
             self.assertEqual(hits, [], path.name)
+
+
+class TestDataIsolationTest(unittest.TestCase):
+    """Тесты не должны писать в рабочую prices.db: DATA_DIR фиксируется первым импортом config."""
+
+    def test_every_test_module_imports_test_support_first(self):
+        import ast
+        for path in sorted(ROOT.glob("test_*.py")):
+            if path.name == "test_support.py":
+                continue
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            first = next(n for n in tree.body if isinstance(n, (ast.Import, ast.ImportFrom)))
+            names = [a.name for a in first.names] if isinstance(first, ast.Import) else [first.module]
+            self.assertEqual(names, ["test_support"], f"{path.name}: первым импортом должен быть test_support")
+
+    def test_db_path_is_outside_repo(self):
+        import database
+        for db_path in (config.DB_PATH, database.DB_PATH, config.SETTINGS_FILE):
+            self.assertNotEqual(Path(db_path).resolve().parent, ROOT, db_path)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 """M12: выгрузка своих данных, удаление аккаунта, срок хранения уведомлений. Без сети и рабочей БД."""
+import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
 import json
 import os
 import tempfile

@@ -1,4 +1,5 @@
 """Тесты для иерархии категорий, органического наполнения каталога и безопасного сброса."""
+import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
 import tempfile
 import unittest
 from pathlib import Path

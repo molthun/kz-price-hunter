@@ -1,4 +1,5 @@
 """Тесты для интеллектуальной классификации категорий (AI + расширенная эвристика)."""
+import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
 import tempfile
 import unittest
 from pathlib import Path

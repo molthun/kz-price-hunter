@@ -1,4 +1,5 @@
 """Temporary loopback-only browser fixture. Never starts scanning or Telegram."""
+import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
 import asyncio
 import ipaddress
 import os
