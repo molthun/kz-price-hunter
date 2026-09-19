@@ -334,3 +334,79 @@ class AiBudgetTest(unittest.IsolatedAsyncioTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LeaseLossTest(unittest.IsolatedAsyncioTestCase):
+    """R-H03: потеря аренды во время обхода останавливает запись; подготовка под try/finally."""
+
+    async def asyncSetUp(self):
+        init_db()
+        import web.server as server
+        self.server = server
+        server.scan_state["is_running"] = False
+        with get_connection() as conn:
+            for table in ("products", "product_sources", "shop_scans", "scheduler_lease", "tracked_categories"):
+                conn.execute(f"DELETE FROM {table}")
+            conn.commit()
+        live = patch("search_engine.search_live_stores", new_callable=AsyncMock, return_value=[])
+        live.start()
+        self.addCleanup(live.stop)
+
+    @staticmethod
+    def settings():
+        import config
+        return {**config.load_settings(), "enabled_shops": {}}
+
+    async def test_lease_taken_over_mid_scan_stops_writes(self):
+        server = self.server
+        calls, active, lock = {"peak": 0, "closed": 0}, [0], threading.Lock()
+        registry = {f"syn{i}": (_make_source(i, calls, active, lock, "slow"),
+                                [{"name": f"Синт {i}", "url": f"https://shop{i}.example/c", "master": "all"}],
+                                f"Синтетика {i}") for i in range(40)}
+
+        async def steal_lease():
+            await asyncio.sleep(0.15)
+            with get_connection() as conn:
+                conn.execute("UPDATE scheduler_lease SET owner = 'other-host:9:x', expires_at = ?", (time.time() + 600,))
+                conn.commit()
+
+        with patch.dict(server.SHOP_REGISTRY, registry, clear=True), \
+             patch.object(server, "load_settings", return_value=self.settings()), \
+             patch.object(server, "queue_titles_for_ai"), \
+             patch.object(server, "SCHEDULER_LEASE_RENEW_SECONDS", 0.05):
+            thief = asyncio.create_task(steal_lease())
+            await server._do_scan_task(list(registry), scan_type="manual")
+            await thief
+
+        self.assertIn("аренда", server.scan_state["error"])
+        self.assertFalse(server.scan_state["is_running"])
+        with get_connection() as conn:
+            written = conn.execute("SELECT count(*) FROM products WHERE id LIKE 'syn%'").fetchone()[0]
+            lease = conn.execute("SELECT owner FROM scheduler_lease").fetchall()
+        self.assertLess(written, 40 * 10)                         # обход не дошёл до конца
+        self.assertEqual([r[0] for r in lease], ["other-host:9:x"])  # чужая аренда не удалена
+        # После остановки новые записи не появляются
+        await asyncio.sleep(0.2)
+        with get_connection() as conn:
+            self.assertEqual(conn.execute("SELECT count(*) FROM products WHERE id LIKE 'syn%'").fetchone()[0], written)
+
+    async def test_exception_in_preparation_releases_everything(self):
+        server = self.server
+        with patch.object(server, "load_settings", side_effect=RuntimeError("settings broken")):
+            await server._do_scan_task(["kaspi"], scan_type="manual")
+        self.assertFalse(server.scan_state["is_running"])
+        self.assertIn("RuntimeError", server.scan_state["error"])
+        with get_connection() as conn:
+            self.assertEqual(conn.execute("SELECT count(*) FROM scheduler_lease").fetchone()[0], 0)
+
+    def test_stale_reset_respects_foreign_lease(self):
+        from database import reset_stale_running_scans
+        with get_connection() as conn:
+            conn.execute("INSERT INTO shop_scans (shop_key, status) VALUES ('kaspi', 'running')")
+            conn.execute("INSERT INTO scheduler_lease VALUES ('scan', 'other', ?)", (time.time() + 60,))
+            conn.commit()
+        self.assertEqual(reset_stale_running_scans(), 0)
+        with get_connection() as conn:
+            conn.execute("DELETE FROM scheduler_lease")
+            conn.commit()
+        self.assertEqual(reset_stale_running_scans(), 1)

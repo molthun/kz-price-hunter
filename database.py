@@ -1323,8 +1323,13 @@ def delete_session(token: Optional[str]) -> None:
 # ===== Состояние сканирования по магазинам =====
 
 def reset_stale_running_scans() -> int:
-    """Сбрасывает статус 'running' у магазинов, прерванных падением или перезапуском процесса."""
+    """Сбрасывает статус 'running' у магазинов, прерванных падением или перезапуском процесса.
+    Если аренда планировщика действует у другого процесса, его обход идёт — ничего не трогаем (R-M04)."""
     with get_connection() as conn:
+        active = conn.execute("SELECT 1 FROM scheduler_lease WHERE name = 'scan' AND expires_at > ?",
+                              (time.time(),)).fetchone()
+        if active:
+            return 0
         cur = conn.execute("""
             UPDATE shop_scans
             SET status = 'failed', last_error = 'Прервано перезапуском сервиса'

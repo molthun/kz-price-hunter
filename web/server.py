@@ -1078,6 +1078,7 @@ async def _scan_shop_categories(key, scraper, categories, shop_name, candidate_s
                 error = error or "Пустая выдача: требуется проверка"
             scan_state["total_scanned"] += len(prods)
             collected += len(prods)
+            _ensure_lease()  # результаты пишет только владелец аренды (R-H03)
             await _save_and_detect(prods, shop_name, candidate_settings)
             await asyncio.to_thread(reconcile_source, key, cat["url"], prods, complete and not error)
             if error:
@@ -1085,6 +1086,8 @@ async def _scan_shop_categories(key, scraper, categories, shop_name, candidate_s
             elif not complete:
                 limited = True
             await asyncio.sleep(0.5)
+        except LeaseLost:
+            raise
         except Exception as e:
             failed_categories.append(f"{cat['name']}: {type(e).__name__}")
             print(f"[{shop_name}] Ошибка категории {cat['name']}: {type(e).__name__}")
@@ -1115,13 +1118,37 @@ def spawn_scan(*args, **kwargs) -> asyncio.Task:
     return task
 
 
-async def _keep_scheduler_lease():
+class LeaseLost(RuntimeError):
+    """Аренда планировщика перешла к другому процессу: этот обход больше не пишет результаты."""
+
+
+# Состояние аренды текущего обхода (R-H03)
+_lease_state = {"lost": False, "last_ok": 0.0}
+
+
+def _ensure_lease() -> None:
+    if _lease_state["lost"]:
+        raise LeaseLost("аренда планировщика потеряна")
+
+
+async def _keep_scheduler_lease(work: asyncio.Task):
+    """Продлевает аренду; при отказе (аренда у другого) или долгой ошибке продления — останавливает обход."""
     while True:
         await asyncio.sleep(SCHEDULER_LEASE_RENEW_SECONDS)
         try:
-            await asyncio.to_thread(acquire_scheduler_lease, SCHEDULER_OWNER, SCHEDULER_LEASE_SECONDS)
+            renewed = await asyncio.to_thread(acquire_scheduler_lease, SCHEDULER_OWNER, SCHEDULER_LEASE_SECONDS)
         except Exception as e:
+            renewed = None
             print(f"[Scan] Аренда не продлена: {type(e).__name__}")
+        now = time.monotonic()
+        if renewed:
+            _lease_state["last_ok"] = now
+            continue
+        if renewed is False or now - _lease_state["last_ok"] >= SCHEDULER_LEASE_SECONDS:
+            _lease_state["lost"] = True
+            print("[Scan] ⛔ Аренда планировщика потеряна — обход остановлен, результаты больше не записываются")
+            work.cancel()
+            return
 
 
 async def _do_scan_task(shop_keys=None, target_categories=None, scan_type="manual"):
@@ -1141,7 +1168,60 @@ async def _do_scan_task(shop_keys=None, target_categories=None, scan_type="manua
         scan_state["is_running"] = False
         print("[Scan] Обход уже выполняет другой процесс (аренда планировщика) — пропуск")
         return
-    lease_keeper = asyncio.create_task(_keep_scheduler_lease())
+    _lease_state.update(lost=False, last_ok=time.monotonic())
+    # Вся работа — отдельная задача под одним try/finally: исключение в подготовке не оставит
+    # флаг «идёт обход» и продление аренды; потеря аренды отменяет работу (R-H03)
+    work = asyncio.create_task(_scan_task_body(shop_keys, target_categories, scan_type))
+    keeper = asyncio.create_task(_keep_scheduler_lease(work))
+    try:
+        await work
+    except asyncio.CancelledError:
+        if not _lease_state["lost"]:
+            raise  # остановка приложения
+        scan_state["error"] = "Обход остановлен: аренда планировщика перешла к другому процессу"
+    except Exception as e:
+        scan_state["error"] = f"Ошибка сканирования ({type(e).__name__})"
+    finally:
+        keeper.cancel()
+        if not work.done():
+            work.cancel()
+        try:
+            release_scheduler_lease(SCHEDULER_OWNER)  # удаляет только свою аренду
+        except Exception as e:
+            print(f"[Scan] Аренда не освобождена: {type(e).__name__}")
+        await asyncio.sleep(1.0)
+        scan_state["is_running"] = False
+        scan_state["current_shop"] = ""
+        scan_state["current_category"] = ""
+        scan_state["scan_type"] = "manual"
+        scan_state["target_categories"] = None
+
+
+def _failed_shop_keys(keys) -> List[str]:
+    from database import get_connection
+    marks = ",".join("?" * len(keys))
+    with get_connection() as conn:
+        return [r[0] for r in conn.execute(
+            f"SELECT shop_key FROM shop_scans WHERE shop_key IN ({marks}) AND status = 'failed'", list(keys))] if keys else []
+
+
+def _record_wave_outcome(info, keys, failed) -> None:
+    """Итог волны: круг засчитывается только если последняя волна прошла без упавших магазинов."""
+    outcome = {**info, "finished_at": time.time(), "shops": len(keys), "failed_shops": failed}
+    set_metadata("wave_last_result", json.dumps(outcome, ensure_ascii=False))
+    if not info["is_last"]:
+        return
+    if failed:
+        print(f"[Wave] Круг #{info['cycle']} не засчитан: последняя волна с ошибками у {len(failed)} магазинов ({', '.join(failed[:5])})")
+        return
+    next_cycle = info["cycle"] + 1
+    wave_state["current_cycle"] = next_cycle
+    set_metadata("wave_cycle", next_cycle)
+    set_metadata("wave_last_cycle_completed_at", str(time.time()))
+    print(f"[Wave] 🏁 Полный круг #{info['cycle']} завершён: все {info['total_waves']} волн выполнены. Старт круга #{next_cycle}")
+
+
+async def _scan_task_body(shop_keys, target_categories, scan_type):
     scan_state["total_scanned"] = 0
     scan_state["anomalies_found"] = 0
     scan_state["current_step"] = 0
@@ -1150,6 +1230,7 @@ async def _do_scan_task(shop_keys=None, target_categories=None, scan_type="manua
     scan_state["scan_type"] = scan_type
     scan_state["target_categories"] = list(target_categories) if target_categories else None
 
+    wave_plan_info = None
     settings = load_settings()
     candidate_settings = get_candidate_settings(settings)
     keys = list(dict.fromkeys(k for k in (shop_keys if shop_keys is not None else enabled_shop_keys(settings)) if k in SHOP_REGISTRY))
@@ -1188,14 +1269,10 @@ async def _do_scan_task(shop_keys=None, target_categories=None, scan_type="manua
             set_metadata("wave_last_run_at", str(time.time()))
 
             current_cycle_val = wave_state.get("current_cycle", 1)
-            if is_circle_finished:
-                # Полный круг завершен! Все категории каталога обновлены ровно 1 раз.
-                # Новый круг начинается только после завершения всех волн.
-                next_cycle = current_cycle_val + 1
-                wave_state["current_cycle"] = next_cycle
-                set_metadata("wave_cycle", next_cycle)
-                set_metadata("wave_last_cycle_completed_at", str(time.time()))
-                print(f"[Wave] 🏁 Полный круг #{current_cycle_val} завершен (все {plan['total_waves']} волн уложились в 24ч)! Старт круга #{next_cycle}")
+            # Номер следующей волны сдвигается сразу (справедливая ротация даже после сбоя),
+            # а «круг завершён» записывается только после успешного выполнения этой волны (R-M04)
+            wave_plan_info = {"cycle": current_cycle_val, "wave_index": current_idx,
+                              "total_waves": plan["total_waves"], "is_last": is_circle_finished}
 
             scan_state["wave_info"] = {
                 "current_cycle": current_cycle_val,
@@ -1242,6 +1319,11 @@ async def _do_scan_task(shop_keys=None, target_categories=None, scan_type="manua
             if isinstance(res, Exception):
                 print(f"[Scan] Магазин {SHOP_REGISTRY[key][2]} упал: {res}")
                 record_shop_scan_result(key, 0, 0, str(res))
+        _ensure_lease()
+        crashed = [k for k, res in zip(keys, results) if isinstance(res, BaseException)]
+        failed = await asyncio.to_thread(_failed_shop_keys, keys)
+        if wave_plan_info:
+            await asyncio.to_thread(_record_wave_outcome, wave_plan_info, keys, sorted(set(crashed) | set(failed)))
 
         # Дополнительный этап волны: фоновое обновление порции отслеживаемых категорий из поиска
         try:
@@ -1278,18 +1360,6 @@ async def _do_scan_task(shop_keys=None, target_categories=None, scan_type="manua
         print(f"[Scan] Цикл завершен: {scan_state['total_scanned']} товаров, {scan_state['anomalies_found']} новых аномалий")
     except Exception as e:
         scan_state["error"] = f"Ошибка сканирования ({type(e).__name__})"
-    finally:
-        lease_keeper.cancel()
-        try:
-            release_scheduler_lease(SCHEDULER_OWNER)
-        except Exception as e:
-            print(f"[Scan] Аренда не освобождена: {type(e).__name__}")
-        await asyncio.sleep(1.0)
-        scan_state["is_running"] = False
-        scan_state["current_shop"] = ""
-        scan_state["current_category"] = ""
-        scan_state["scan_type"] = "manual"
-        scan_state["target_categories"] = None
 
 @routes.post("/api/scan/start")
 @require_admin

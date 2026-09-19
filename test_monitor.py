@@ -2638,16 +2638,31 @@ class TestTrackedCategoriesEqualFunctionality(unittest.IsolatedAsyncioTestCase):
         from unittest.mock import patch, MagicMock, AsyncMock
         dummy_scraper_cls = MagicMock()
         dummy_instance = dummy_scraper_cls.return_value
-        dummy_instance.scrape = AsyncMock(return_value=[])
+        from scrapers.base import ScanResult
+        item = {"id": "wave_1", "shop": "ТестШоп", "title": "Смартфон Тест X1", "url": "https://test.kz/p/1",
+                "price": 100000, "city": "Астана", "category": "Phones"}
         fake_registry = {"test_shop": (dummy_scraper_cls, [{"name": "Phones", "url": "https://test.kz", "master": "smartphones"}], "ТестШоп")}
+        settings = {**config.SYSTEM_DEFAULTS, "enabled_categories": config._all_categories_enabled(), "hot_categories": hot_cats, "wave_size": 2, "wave_mode": "rolling", "scan_interval_minutes": 180}
 
+        # 4а. Последняя волна с упавшим магазином (пустая выдача без подтверждения) — круг не засчитывается (R-M04)
+        dummy_instance.scrape = AsyncMock(return_value=[])
         with patch.dict(server.SHOP_REGISTRY, fake_registry, clear=True), \
-             patch.object(server, "load_settings", return_value={**config.SYSTEM_DEFAULTS, "enabled_categories": config._all_categories_enabled(), "hot_categories": hot_cats, "wave_size": 2, "wave_mode": "rolling", "scan_interval_minutes": 180}), \
+             patch.object(server, "load_settings", return_value=settings), \
+             patch.object(server, "queue_titles_for_ai"):
+            await server._do_scan_task(["test_shop"], scan_type="auto")
+        self.assertEqual(int(get_metadata("wave_index")), 0)   # ротация всё равно продвигается
+        self.assertEqual(int(get_metadata("wave_cycle")), 1)   # но круг не объявлен завершённым
+
+        # 4б. Успешная последняя волна — круг засчитан
+        set_metadata("wave_index", str(total_waves - 1))
+        server.wave_state["current_wave_index"] = total_waves - 1
+        dummy_instance.scrape = AsyncMock(return_value=ScanResult([dict(item)], complete=True))
+        with patch.dict(server.SHOP_REGISTRY, fake_registry, clear=True), \
+             patch.object(server, "load_settings", return_value=settings), \
              patch.object(server, "queue_titles_for_ai"):
             await server._do_scan_task(["test_shop"], scan_type="auto")
 
-        # После завершения последней волны текущего круга:
-        # wave_index сбрасывается в 0, а wave_cycle увеличивается до 2
+        # После успешной последней волны: wave_index сбрасывается в 0, а wave_cycle увеличивается до 2
         self.assertEqual(int(get_metadata("wave_index")), 0)
         self.assertEqual(int(get_metadata("wave_cycle")), 2)
         self.assertEqual(server.wave_state["current_cycle"], 2)
