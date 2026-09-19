@@ -4,10 +4,10 @@
 
 ## Текущая контрольная точка
 
-- Дата: 2026-09-19 19:12, Asia/Almaty — повторный аудит Codex завершён.
-- Последнее действие: Codex проверил исправления `f8c63f3` на HEAD `3e1afec`: **A01–A05 закрыты**. Новых блокирующих замечаний к исправлениям нет. [Актуальный отчёт](P01_AUDIT_CODEX.md). Остаток P01-02/iSpace требует решения по объёму; весь P01 не объявлен внедрённым.
+- Дата: 2026-09-19 19:20, Asia/Almaty.
+- Последнее действие: по решению владельца Claude реализовал P01-02 — оставшиеся источники событий P01 и контекст iSpace (коммит `66f1b7e`), и передал на **аудит Codex**. Ядро P01 и исправления A01–A05 Codex уже принял ([отчёт](P01_AUDIT_CODEX.md)).
 - Ветка `dev/p00-baseline`, база P01 `12672ec`. Версия приложения `5.7.1`, `schema_version = 5` (не повышались). Push/выпуска не было.
-- Полный suite независимо повторён Codex с временным `DATA_DIR`: 318 тестов OK, 31.614 с. Прод не проверялся.
+- Полный suite с временным `DATA_DIR`: 331 тест OK. Прод не проверялся.
 - Пишущих исполнителей в этом checkout нет: Claude закончил. Задача изоляции тестов от `prices.db` — в отдельном worktree `.claude/worktrees/affectionate-lehmann-490dc0`; при интеграции сверить `test_*.py`.
 - P00 — READY, независимый аудит не проведён.
 
@@ -19,7 +19,7 @@
 | Этап | Статус | Исполнитель | Аудит | Прод |
 |---|---|---|---|---|
 | P00 | READY | Antigravity | Самопроверка (требует review) | Не проверен (нет прямого доступа) |
-| P01 | REVIEW (решение по остатку объёма) | Antigravity → Claude | Codex: A01–A05 закрыты; ядро проверено | Не проверен |
+| P01 | HANDOFF (аудит P01-02) | Antigravity → Claude | Codex: ядро и A01–A05 закрыты; P01-02 передан, не начат | Не проверен |
 | P02 | TODO | — | Не проведён | Не проверен |
 | P03 | TODO | — | Не проведён | Не проверен |
 | P04 | TODO | — | Не проведён | Не проверен |
@@ -228,6 +228,52 @@ Checkout / ветка / базовый HEAD / текущий HEAD:
   Команда: «Прочитай AGENTS.md, docs/DEVELOPMENT_PLAN.md и docs/AGENT_HANDOFF.md. Проведи повторный аудит исправлений P01
   A01–A05 (diff edad2d6..f8c63f3, раздел «Исправления по аудиту Codex» в AGENT_HANDOFF.md), не меняя код. Запиши выводы
   в P01_AUDIT_CODEX.md и карточку, обнови статус P01.»
+
+## P01-02 — оставшиеся источники событий (Claude → аудит Codex)
+
+- Решение владельца 2026-09-19 ~19:14: остаток P01 делать сейчас в рамках P01 (не переносить).
+- Статус: HANDOFF на аудит Codex. Реализация Claude 19:15–19:20 Asia/Almaty, коммит `66f1b7e` (база `2c1396b`).
+  Claude больше не пишет в эти файлы.
+- Сделано (точки записи; всё через telemetry.record_event — память, фоновый сброс, fail-open, очистка A01):
+  - Поиск (`search_engine.py`): `get_best_price_summary` (source=summary: live, city, имена применённых фильтров),
+    `search_live_stores` (source=live: city, cached), `/search` в Telegram (source=telegram). Данные: outcome
+    found/not_found/error, results, duration_ms, форма запроса (query_len, query_tokens, query_has_digits) — без текста
+    и без хеша запроса (P06: текст может содержать ПДн). Не больше 60 событий в минуту на источник.
+  - Цены/matching (`web/server.py::_save_and_detect`): сводка price_changed на пачку категории — items, new,
+    price_down, price_up, discount_candidates, arbitrage_candidates, alerts_recorded; scan_id/category из контекста.
+    Каждый записанный алерт — anomaly_detected (alert_id, product_id, type, цены, drop_pct, competitor_shop), ≤ 100/мин.
+    Событие на каждую смену цены не пишется (тысячи за обход).
+  - Telegram (`notifier.py`): сводка цикла deliver_pending (sent/cancelled/retry/failed/errors, pause_seconds при 429),
+    пустые циклы не пишутся, chat_id/пользователи не сохраняются. Ошибки notification_worker и polling бота — system_error.
+  - AI (`ai_service.py::_limited_provider_call`): каждый реальный вызов провайдера — provider, purpose (user/normalize),
+    outcome (ok/empty/http_NNN/timeout/error), duration_ms, http_status, model, input/output tokens из ответа провайдера
+    (usageMetadata / usage); отказ до вызова — skipped_busy / budget_exhausted с provider_called=false (≤ 5/мин).
+    Промпт и ответ не сохраняются. Стоимость в деньгах не считается — только токены (тарифы не заданы в проекте).
+  - Backup (`database.py::backup_database`): outcome ok/failed, файл (имя), size_bytes, duration_sec; исключение по-прежнему
+    пробрасывается.
+  - Деградация/восстановление (`database.py::record_shop_scan_result`): degradation — первый неуспешный обход
+    (failed → ERROR, partial → WARNING) после истории успеха; recovery — успех после сбоев (failed_before). Определяется
+    по failure_count (status running между обходами не мешает). Порог деградации по качеству данных — P02.
+  - Системные ошибки: middleware `telemetry_middleware` (необработанные исключения обработчиков: метод, шаблон маршрута,
+    класс исключения; HTTPException не считается), воркеры auto_scan / ai_normalize / notification / telegram polling.
+    Только имя класса, ≤ 5/мин на компонент+место+класс (`record_system_error`).
+  - iSpace: карточки грузятся в копиях контекста вызывающего потока (по копии на карточку) — HTTP-метрики и события
+    получают shop, category, scan_id и сводку категории.
+  - Ядро: общий throttle_key в record_event (счётчик stats.suppressed_events), query_shape, record_system_error.
+- Проверки (2026-09-19, macOS, Python 3.14.7 venv):
+  - DATA_DIR=$(mktemp -d) ./venv/bin/python -m unittest test_telemetry → 53 OK. Новые классы: ShopTransitionTest,
+    BackupEventTest, AiEventTest, TelegramEventTest, SearchEventTest, PriceAndAnomalyEventTest, SystemErrorTest,
+    ISpaceContextTest (13 тестов). На коде до P01-02 (2c1396b, отдельный worktree) все 13 падают, на 66f1b7e — OK.
+  - Полный suite: DATA_DIR=$(mktemp -d) ./venv/bin/python -m unittest discover -s . -p "test_*.py" → Ran 331, OK.
+- Не проведено: реальный запуск сервера с обходом, реальные AI/Telegram-вызовы (стоимость/токены подтверждены только
+  на подменённых ответах), frontend, docker, прод.
+- Для аудита: diff 2c1396b..66f1b7e (9 файлов кода/тестов). Приоритет: отсутствие ПДн/секретов в событиях поиска,
+  Telegram и AI; что обёртки get_best_price_summary/search_live_stores/deliver_pending/backup_database/_limited_provider_call
+  не меняют возвращаемые значения и исключения; объём событий (троттлинг, сводки вместо событий на каждый товар);
+  корректность переходов degradation/recovery.
+- Команда для Codex: «Прочитай AGENTS.md, docs/DEVELOPMENT_PLAN.md и docs/AGENT_HANDOFF.md. Проведи аудит P01-02
+  (diff 2c1396b..66f1b7e, раздел «P01-02» в AGENT_HANDOFF.md), не меняя код. Запиши выводы в P01_AUDIT_CODEX.md
+  и карточку, обнови статус P01.»
 
 ## Повторный аудит Codex — 2026-09-19 19:12
 
