@@ -1,4 +1,5 @@
 """Private-chat isolation and bounded Telegram worker regressions (no network)."""
+import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
 import asyncio
 import os
 import tempfile

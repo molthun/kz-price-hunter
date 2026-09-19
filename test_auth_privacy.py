@@ -1,4 +1,5 @@
 """Stage 2 synthetic regression suite. No real DB, credentials, or provider calls."""
+import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
 import asyncio
 import hashlib
 import hmac

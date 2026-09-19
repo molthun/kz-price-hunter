@@ -1,5 +1,6 @@
 """Контракт каждого магазина из реестра (R-M09): новые адаптеры проверяются автоматически,
 без ручного списка классов. Без сети."""
+import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
 import inspect
 import os
 import tempfile

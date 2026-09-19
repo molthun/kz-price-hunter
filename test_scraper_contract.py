@@ -1,4 +1,5 @@
 """Tests for the unified Scraper contract, Scraper Protocol, and product validator."""
+import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
 import inspect
 import unittest
 from scrapers.base import Scraper, PagedScraper, validate_product_item

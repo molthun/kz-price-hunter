@@ -1,4 +1,5 @@
 """M13: доставка уведомлений — скрытые алерты, ответы Telegram, дубли. Без сети и без рабочей БД."""
+import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
 import os
 import tempfile
 import threading

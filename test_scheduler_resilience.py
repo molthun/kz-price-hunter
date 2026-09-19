@@ -1,4 +1,5 @@
 """Unit tests for scheduler resilience, stale running status resets, and backoff."""
+import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
 import time
 import unittest
 

@@ -1,4 +1,5 @@
 """R-H01: обязательный префикс магазина в id и миграция 5 без пересборки каталога. Без сети."""
+import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
 import json
 import os
 import sqlite3

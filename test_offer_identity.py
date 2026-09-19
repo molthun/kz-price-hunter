@@ -1,5 +1,6 @@
 """Этап 4 аудита: идентичность предложения по городу, миграции, история цен, сопоставление моделей.
 Без сети и без рабочей БД."""
+import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
 import asyncio
 import datetime
 import os

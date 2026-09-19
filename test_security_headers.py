@@ -1,4 +1,5 @@
 """Tests for HTTP security headers and notifier URL sanity checks."""
+import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
 import unittest
 from aiohttp import web
 from aiohttp.test_utils import make_mocked_request
