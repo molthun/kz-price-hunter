@@ -4,13 +4,13 @@
 
 ## Текущая контрольная точка
 
-- Дата: 2026-09-19 23:20, Asia/Almaty.
-- Последнее действие: Claude подготовил выпуск P02 как **v5.9.0** на `dev/p02-quality` (релизный коммит `dd6ab95`).
-  По решению владельца открыт PR https://github.com/molthun/kz-price-hunter/pull/1 (dev/p02-quality → main, не draft).
-  Слияние PR в main = автодеплой через Watchtower; после слияния — тег v5.9.0 на dd6ab95 и проверка /api/version.
-- Версия `5.9.0`, `schema_version = 5`. Ветка dev/p02-quality опубликована для PR; тег не создан, выпуск через main не выполнялся. Последний зафиксированный origin/main = 6302ba0 (v5.8.0).
-- Полный suite: 378 тестов OK. Обновление и откат на 5.8.0 проверены на копии БД (см. R-P02).
-- Пишущих исполнителей нет: Claude закончил.
+- Дата: 2026-09-19 23:48, Asia/Almaty.
+- Последнее действие: по разрешению владельца («Выпускай 5.9.0») Claude выпустил **v5.9.0 (P02 Data Quality &
+  Freshness)**: main fast-forward до `264d5bd` (PR #1 отмечен MERGED 18:40:51 UTC), аннотированный тег `v5.9.0` на
+  `dd6ab95`, push main и тега. CI и обе сборки образа (main/latest, v5.9.0) — success.
+  Прод: /api/version → 5.9.0 в 23:46:52 (Watchtower; перед этим кратко страница Synology при перезапуске).
+- P02 — DEPLOYED (проверка только чтением API). main = dev/p02-quality. `schema_version = 5`.
+- Пишущих исполнителей нет. Следующий этап по плану — P03 (Monitoring Center V1), только после назначения владельцем.
 
 ## Реестр этапов
 
@@ -21,7 +21,7 @@
 |---|---|---|---|---|
 | P00 | READY | Antigravity | Самопроверка (требует review) | Не проверен (нет прямого доступа) |
 | P01 | DEPLOYED (v5.8.0) | Antigravity → Claude | Codex: A01–A05 и B01/B02 закрыты | v5.8.0 на shop.molthun.ru с 19:41 (проверка чтением /api/version, /api/stats, /api/products) |
-| P02 | READY — v5.9.0 подготовлен, ждёт разрешения на выпуск | Claude | Codex: C01–C03 закрыты | Не выпущен |
+| P02 | DEPLOYED (v5.9.0) | Claude | Codex: C01–C03 закрыты | v5.9.0 на shop.molthun.ru с 23:46 (проверка чтением /api/version, /api/stats, /api/best-price, /api/products) |
 | P03 | TODO | — | Не проведён | Не проверен |
 | P04 | TODO | — | Не проведён | Не проверен |
 | P05 | TODO | — | Не проведён | Не проверен |
@@ -459,7 +459,23 @@ Checkout / ветка / базовый HEAD / текущий HEAD:
 - Следующий шаг остаётся за владельцем: разрешить слияние PR и выпуск. R-P02 требует отдельного разрешения;
   разрешение на открытие PR само по себе не подтверждает разрешение на автодеплой.
 
-## R-P02 — подготовка выпуска P02 → v5.9.0 (Claude, готово, ждёт разрешения владельца)
+## R-P02 — выпуск P02 → v5.9.0 (Claude, ВЫПУЩЕНО 2026-09-19 23:46)
+
+- Разрешение владельца: «Выпускай 5.9.0» (2026-09-19 ~23:40).
+- Выполнено: fetch (origin/main = 6302ba0, тега не было, origin/dev/p02-quality = локальной) → `git merge --ff-only
+  dev/p02-quality` в main (264d5bd) → `git tag -a v5.9.0 dd6ab95` → push main, push тега. PR #1 закрылся как MERGED.
+- GitHub Actions: CI (main) success; Build and Publish Docker Image (main → latest) success; (v5.9.0) success.
+- Прод (только GET): /api/version 5.9.0 с 23:46:52. /api/stats — 77980 видимых товаров (до выката 77922), 17844 скидок,
+  145 алертов. /api/best-price?q=samsung galaxy — 227 предложений, все fresh, лучшая цена 10890 (fresh), поля
+  freshness/stale_count/all_stale присутствуют. /api/products?limit=200 — freshness у всех (fresh).
+- Не проверено на проде: запись source_scans и оценок качества (появятся после ближайших обходов), доставка алертов,
+  бейджи в браузере на проде; доступа к БД/контейнеру нет. Рекомендация владельцу: после ближайших волн посмотреть
+  события degradation и data.quality в scan_category (частота warning/degraded на реальной истории), при желании
+  внутри контейнера `sqlite3 data/prices.db "select quality, count(*) from source_scans group by quality"`.
+  Откат: образ ghcr.io/molthun/kz-price-hunter:5.8.0, БД восстанавливать не нужно.
+
+### Подготовка (история)
+
 
 - Поручение владельца 2026-09-19 ~23:19: «Подготовить выпуск 5.9.0». Push в main, тег и выкат — только после отдельного
   разрешения. Выполнено Claude 23:19–23:20 Asia/Almaty.
