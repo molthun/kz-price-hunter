@@ -460,8 +460,9 @@ def backup_database(label: str) -> Optional[str]:
         return None
     backup_dir = DATA_DIR / "backups"
     backup_dir.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    dest = backup_dir / f"prices-{label}-{stamp}.db"
+    # Микросекунды + случайный суффикс: два бэкапа в одну секунду не перезапишут друг друга
+    stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    dest = backup_dir / f"prices-{label}-{stamp}-{secrets.token_hex(3)}.db"
     src = sqlite3.connect(DB_PATH, timeout=30)
     dst = sqlite3.connect(dest)
     try:
@@ -475,16 +476,40 @@ def backup_database(label: str) -> Optional[str]:
     return str(dest)
 
 
-def run_migrations() -> List[int]:
+class SchemaTooNew(RuntimeError):
+    """База обновлена более новой версией приложения, чем запущенная."""
+
+
+def _existing_state(conn) -> Dict[str, Any]:
+    """Версия схемы и наличие данных — без создания таблиц (работает и на пустом файле)."""
+    tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+    version = get_schema_version(conn) if "schema_metadata" in tables else 0
+    has_data = any(conn.execute(f"SELECT 1 FROM {t} LIMIT 1").fetchone()
+                   for t in ("products", "alerts", "users") if t in tables)
+    return {"version": version, "has_data": has_data}
+
+
+def check_schema_compatible(conn) -> int:
+    """Старое приложение на базе новой схемы (откат образа без восстановления базы) не стартует:
+    оно писало бы данные в формате, который новая схема уже изменила (R-M12)."""
+    version = _existing_state(conn)["version"]
+    if version > SCHEMA_VERSION:
+        raise SchemaTooNew(
+            f"Версия схемы базы {version} новее, чем поддерживает приложение ({SCHEMA_VERSION}). "
+            "Запустите версию приложения, которая создала эту базу, или восстановите бэкап "
+            "data/backups/prices-pre-v*.db, сделанный перед обновлением.")
+    return version
+
+
+def run_migrations(backup_done: bool = False) -> List[int]:
     """Применяет ожидающие миграции по порядку; ошибка останавливает старт, транзакция откатывается."""
     with get_connection() as conn:
-        current = get_schema_version(conn)
-        has_data = any(conn.execute(f"SELECT 1 FROM {t} LIMIT 1").fetchone()
-                       for t in ("products", "alerts", "users"))
+        current = check_schema_compatible(conn)
+        has_data = _existing_state(conn)["has_data"]
     pending = [m for m in MIGRATIONS if m[0] > current]
     if not pending:
         return []
-    if has_data:
+    if has_data and not backup_done:
         path = backup_database(f"pre-v{pending[-1][0]}")
         print(f"[DB] Бэкап перед миграциями {current}→{pending[-1][0]}: {path}")
 
@@ -522,10 +547,21 @@ def run_migrations() -> List[int]:
 
 
 def init_db():
+    # Сначала проверка совместимости и бэкап, потом любые изменения схемы (R-M12):
+    # даже аддитивные колонки создаются уже после копии исходной базы
+    backup_done = False
+    if DB_PATH.exists():
+        with get_connection() as conn:
+            state = _existing_state(conn)
+            check_schema_compatible(conn)
+        if state["has_data"] and state["version"] < SCHEMA_VERSION:
+            path = backup_database(f"pre-v{SCHEMA_VERSION}")
+            print(f"[DB] Бэкап перед обновлением схемы {state['version']}→{SCHEMA_VERSION}: {path}")
+            backup_done = True
     with get_connection() as conn:
         _create_schema(conn.cursor())
         conn.commit()
-    run_migrations()
+    run_migrations(backup_done=backup_done)
     cleanup_expired_sessions()
     reset_stale_running_scans()
 

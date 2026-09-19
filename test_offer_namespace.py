@@ -117,5 +117,75 @@ class MigrationTest(unittest.TestCase):
         self.assertTrue(list(Path(self.tmp.name, "backups").glob("prices-pre-v5-*.db")))
 
 
+
+class SchemaSafetyTest(unittest.TestCase):
+    """R-M12: защита от более новой схемы, бэкап до изменений схемы, уникальные имена, проверка бэкапа."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name)
+        self.db = self.dir / "prices.db"
+        self.patches = [patch.object(database, "DB_PATH", self.db), patch("config.DATA_DIR", self.dir)]
+        for p in self.patches:
+            p.start()
+
+    def tearDown(self):
+        for p in self.patches:
+            p.stop()
+        self.tmp.cleanup()
+
+    def _legacy_db(self, version):
+        conn = sqlite3.connect(self.db)
+        conn.execute("CREATE TABLE schema_metadata (name TEXT PRIMARY KEY, value TEXT)")
+        conn.execute("INSERT INTO schema_metadata VALUES ('schema_version', ?)", (str(version),))
+        conn.execute("INSERT INTO schema_metadata VALUES ('identity_v2', '1')")
+        conn.execute("""CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT, first_name TEXT, last_name TEXT,
+                        photo_url TEXT, settings TEXT NOT NULL DEFAULT '{}', is_blocked INTEGER NOT NULL DEFAULT 0,
+                        created_at TIMESTAMP, last_login_at TIMESTAMP)""")
+        conn.execute("INSERT INTO users (id, first_name) VALUES (7, 'Юзер')")
+        conn.commit()
+        conn.close()
+
+    def test_newer_schema_refuses_to_start(self):
+        self._legacy_db(database.SCHEMA_VERSION + 1)
+        with self.assertRaises(database.SchemaTooNew):
+            database.init_db()
+        conn = sqlite3.connect(self.db)
+        tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        conn.close()
+        self.assertNotIn("products", tables)  # база не тронута
+
+    def test_backup_taken_before_schema_changes(self):
+        self._legacy_db(4)
+        database.init_db()
+        backups = list((self.dir / "backups").glob("prices-pre-v*.db"))
+        self.assertEqual(len(backups), 1)
+        conn = sqlite3.connect(backups[0])
+        tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        conn.close()
+        self.assertNotIn("scheduler_lease", tables)   # копия исходной базы, до _create_schema
+        self.assertIn("scheduler_lease", {r[0] for r in sqlite3.connect(self.db).execute(
+            "SELECT name FROM sqlite_master WHERE type='table'")})
+
+    def test_backup_names_unique_and_backup_restorable(self):
+        database.init_db()
+        with get_connection() as conn:
+            conn.execute("INSERT INTO users (id, first_name) VALUES (8, 'Б')")
+            conn.commit()
+        first, second = database.backup_database("manual"), database.backup_database("manual")
+        self.assertNotEqual(first, second)
+        sys_path = str(Path(__file__).resolve().parent / "scripts")
+        import sys
+        sys.path.insert(0, sys_path)
+        try:
+            from backup_check import check_backup
+        finally:
+            sys.path.remove(sys_path)
+        report = check_backup(first)
+        self.assertTrue(report["ok"])
+        self.assertEqual(report["schema_version"], database.SCHEMA_VERSION)
+        self.assertEqual(report["counts"]["users"], 1)
+
+
 if __name__ == "__main__":
     unittest.main()
