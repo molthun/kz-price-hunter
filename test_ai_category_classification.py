@@ -58,6 +58,17 @@ class AiCategoryHeuristicsTest(unittest.TestCase):
 
 
 class AiCategoryBatchClassificationTest(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.db_path = Path(self.tmp.name) / "test_batch.db"
+        self.patcher = patch.object(database, "DB_PATH", self.db_path)
+        self.patcher.start()
+        database.init_db()
+
+    async def asyncTearDown(self):
+        self.patcher.stop()
+        self.tmp.cleanup()
+
     async def test_batch_classification_heuristic_fallback(self):
         categories = [
             {"id": 78, "name": "Носки для девочек", "query": "акции"},

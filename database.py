@@ -592,9 +592,12 @@ def release_scheduler_lease(owner: str, name: str = "scan") -> None:
 
 
 def get_metadata(name: str, default: Optional[str] = None) -> Optional[str]:
-    with get_connection() as conn:
-        row = conn.execute("SELECT value FROM schema_metadata WHERE name = ?", (name,)).fetchone()
-        return row[0] if row else default
+    try:
+        with get_connection() as conn:
+            row = conn.execute("SELECT value FROM schema_metadata WHERE name = ?", (name,)).fetchone()
+            return row[0] if row else default
+    except sqlite3.OperationalError:
+        return default
 
 
 def set_metadata(name: str, value: str) -> None:
