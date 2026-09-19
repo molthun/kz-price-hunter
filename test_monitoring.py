@@ -304,6 +304,39 @@ class IncidentTest(DbCase):
         (inc,) = [i for i in mon.incidents(now=NOW - datetime.timedelta(hours=2)) if i["type"] == "system_error"]
         self.assertTrue(inc["open"])  # меньше часа без повторов
 
+    def ai_error(self, hours, purpose, outcome="error"):
+        self.event(hours, tm.EVENT_AI_QUERY, "WARNING", tm.COMPONENT_AI, f"AI gemini/{purpose}: {outcome}",
+                   data={"outcome": outcome, "provider_called": True, "purpose": purpose})
+
+    def ai_incidents(self):
+        return {i["scope"]: i for i in mon.incidents(now=NOW) if i["type"] == "ai_query"}
+
+    def check_ai_separation(self, first, second):
+        self.ai_error(3, first)
+        self.ai_error(2, second)
+        self.event(1, tm.EVENT_AI_QUERY, "INFO", tm.COMPONENT_AI, "ok",
+                   data={"outcome": "ok", "provider_called": True, "purpose": "normalize"})
+        self.flush()
+        incs = self.ai_incidents()
+        self.assertEqual(set(incs), {"ai:user", "ai:normalize"})
+        self.assertEqual((incs["ai:normalize"]["state"], incs["ai:normalize"]["count"]), ("recovered", 1))
+        self.assertEqual((incs["ai:user"]["state"], incs["ai:user"]["recovered_at"]), ("open", None))
+        ids = {k: v["id"] for k, v in incs.items()}
+        self.assertEqual(ids, {k: v["id"] for k, v in self.ai_incidents().items()})  # стабильны между вызовами
+        self.assertEqual(len(set(ids.values())), 2)
+
+    def test_codex_repro_ai_operations_grouped_separately(self):
+        self.check_ai_separation("normalize", "user")
+
+    def test_ai_operations_grouped_separately_reverse_order(self):
+        self.check_ai_separation("user", "normalize")
+
+    def test_same_producer_outcome_empty_also_separated(self):
+        self.ai_error(3, "normalize", "empty")
+        self.ai_error(2, "user", "empty")
+        self.flush()
+        self.assertEqual(set(self.ai_incidents()), {"ai:user", "ai:normalize"})
+
     def test_codex_repro_polling_not_recovered_by_delivery(self):
         # Формат реального producer: telegram_bot.py пишет WARNING system_error where=telegram_polling
         self.event(3, tm.EVENT_SYSTEM_ERROR, "WARNING", tm.COMPONENT_TELEGRAM, "telegram_polling: ClientError",

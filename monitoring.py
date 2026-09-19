@@ -630,7 +630,10 @@ def incidents(days: int = INCIDENT_WINDOW_DAYS, now: Optional[datetime.datetime]
                 continue
             if e["type"] in ("scan_start", "scan_end") and e["severity"] != "ERROR":
                 continue
-            key = (e["component"], e["type"], shop or "", _signature(e))
+            # Область восстановления входит в ключ группировки: разные операции (например ai:user и ai:normalize с
+            # одинаковым исходом) — разные инциденты, иначе успех одной закрыл бы проблему другой (D01)
+            scope = _incident_scope(e["type"], e["data"])
+            key = (e["component"], e["type"], shop or "", _signature(e), scope or "")
             inc = problems.get(key)
             if inc is None:
                 inc = problems[key] = {
@@ -640,7 +643,7 @@ def incidents(days: int = INCIDENT_WINDOW_DAYS, now: Optional[datetime.datetime]
                     "shop_key": e["data"].get("shop_key"), "signature": key[3],
                     "severity": e["severity"], "first_seen": e["timestamp"], "count": 0,
                     "cat_last": {}, "host_last": {}, "scan_ids": set(), "sample": e["message"],
-                    "scope": _incident_scope(e["type"], e["data"]),
+                    "scope": scope,
                 }
             inc["count"] += 1
             inc["last_seen"] = e["timestamp"]
@@ -656,7 +659,7 @@ def incidents(days: int = INCIDENT_WINDOW_DAYS, now: Optional[datetime.datetime]
 
         out = []
         for key, inc in problems.items():
-            component, _type, shop, signature = key
+            component, _type, shop, signature, _scope = key
             recovered_at, progress = None, None
             quiet_h = _hours_since(inc["last_seen"], now) or 0
             state = "open"
