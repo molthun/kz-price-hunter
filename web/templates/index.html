@@ -2443,14 +2443,20 @@
         case 'tracked-delete': deleteTrackedCat(args[0], args[1]); break;
         case 'tracked-hot': toggleTrackedHot(args[0], args[1]); break;
         case 'user-block': setUserBlocked(args[0], args[1]); break;
+        case 'group-accordion': toggleGroupAccordion(args[0]); break;
       }
     });
     document.addEventListener('change', event => {
-      const el = event.target.closest('[data-change-action="tracked-toggle"]');
+      const el = event.target.closest('[data-change-action]');
       if (!el) return;
       let args;
       try { args = JSON.parse(el.dataset.actionArgs); } catch (_) { return; }
-      if (Array.isArray(args)) toggleTrackedCat(args[0], el.checked);
+      if (!Array.isArray(args)) return;
+      if (el.dataset.changeAction === 'tracked-toggle') {
+        toggleTrackedCat(args[0], el.checked);
+      } else if (el.dataset.changeAction === 'category-parent') {
+        changeCategoryParent(args[0], el.value);
+      }
     });
 
     function getShopBadge(shop) {
@@ -4504,7 +4510,33 @@
       const treeContainer = document.getElementById('adminCategoriesTreeGrid');
       if (!treeContainer) return;
 
-      const tree = data.tree || { groups: [], unassigned: [] };
+      let tree = data.tree;
+      if (!tree) {
+        const tracked = data.tracked_categories || [];
+        const groups = (cats || []).map(c => ({
+          id: c.id,
+          name: c.name,
+          icon: c.icon,
+          description: c.description || '',
+          subcategories: [],
+          total_products: c.products_count || 0,
+          total_searches: 0,
+          hot_count: 0
+        }));
+        const unassigned = [];
+        const gMap = {};
+        groups.forEach(g => { gMap[g.id] = g; });
+        for (const tc of tracked) {
+          const m = tc.master_category;
+          if (m && gMap[m]) {
+            gMap[m].subcategories.push(tc);
+          } else {
+            unassigned.push(tc);
+          }
+        }
+        tree = { groups, unassigned, total_tracked: tracked.length };
+      }
+
       const groups = tree.groups || [];
       const unassigned = tree.unassigned || [];
 
@@ -4584,8 +4616,8 @@
                   <i class="fa-solid fa-bolt text-amber-400 text-[10px]"></i>
                   <span>Обновить</span>
                 </button>
-                <button type="button" onclick="toggleGroupAccordion('${escapeHtml(g.id)}')" class="p-1.5 text-slate-400 hover:text-white transition cursor-pointer" title="Раскрыть/свернуть подкатегории">
-                  <i id="accordionIcon_${escapeHtml(g.id)}" class="fa-solid fa-chevron-down text-xs transition-transform duration-200"></i>
+                <button type="button" ${actionAttrs('group-accordion', [g.id])} class="p-1.5 text-slate-400 hover:text-white transition cursor-pointer" title="Раскрыть/свернуть подкатегории">
+                  <i data-accordion-icon="${escapeHtml(g.id)}" class="fa-solid fa-chevron-down text-xs transition-transform duration-200"></i>
                 </button>
               </div>
             </div>
@@ -4635,7 +4667,7 @@
           <div class="flex items-center gap-2 shrink-0">
             <div class="flex items-center gap-1" title="Родительская группа каталога">
               <span class="text-[10px] text-slate-500">Группа:</span>
-              <select onchange="changeCategoryParent('${escapeHtml(tc.id)}', this.value)" class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-slate-200 focus:outline-none focus:border-cyan-500 cursor-pointer">
+              <select ${actionAttrs('category-parent', [tc.id], 'change')} class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-slate-200 focus:outline-none focus:border-cyan-500 cursor-pointer">
                 <option value="" ${!effectiveMaster ? 'selected' : ''}>— Без группы —</option>
                 ${parentOptionsHtml}
               </select>
@@ -4663,7 +4695,7 @@
 
     function toggleGroupAccordion(gid) {
       const el = document.getElementById('subcategories_' + gid);
-      const icon = document.getElementById('accordionIcon_' + gid);
+      const icon = document.querySelector(`[data-accordion-icon="${CSS.escape ? CSS.escape(gid) : gid}"]`);
       if (!el) return;
       const isHidden = el.classList.toggle('hidden');
       if (icon) {
@@ -4679,7 +4711,7 @@
           el.classList.add('hidden');
         }
       });
-      document.querySelectorAll('[id^="accordionIcon_"]').forEach(icon => {
+      document.querySelectorAll('[data-accordion-icon]').forEach(icon => {
         icon.style.transform = expand ? 'rotate(0deg)' : 'rotate(-90deg)';
       });
     }
