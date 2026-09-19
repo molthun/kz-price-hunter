@@ -1,4 +1,5 @@
 import json
+import re
 import time
 import sqlite3
 import hashlib
@@ -1082,43 +1083,58 @@ def get_alerts(limit: int = 150, city: Optional[str] = None, alert_type: Optiona
     settings = user_settings if user_settings is not None else merge_user_settings({})
     return _fetch_filtered_alerts(settings, city=city, alert_type=alert_type, limit=limit)
 
-def get_products_list(shop: Optional[str] = None, city: Optional[str] = None, search: Optional[str] = None, limit: int = 50, offset: int = 0) -> list:
-    query = "SELECT * FROM products WHERE " + active_product_clause()
-    params = []
+def _catalog_filters(shop, city, search, use_fts: bool):
+    where = [active_product_clause()]
+    params: List[Any] = []
     if shop and shop != "Все":
-        query += " AND shop = ?"
+        where.append("shop = ?")
         params.append(shop)
     if city and city != "Все":
-        query += " AND (city = ? OR city IS NULL)"
+        where.append("(city = ? OR city IS NULL)")
         params.append(city)
     if search:
-        query += " AND title LIKE ?"
-        params.append(f"%{search}%")
-    query += " ORDER BY updated_at DESC LIMIT ? OFFSET ?"
-    params.extend([limit, offset])
+        expr = _catalog_fts_expr(search) if use_fts else None
+        if expr:
+            # Полнотекстовый индекс по названию вместо полного перебора LIKE (R-M08)
+            where.append("rowid IN (SELECT rowid FROM products_fts WHERE products_fts MATCH ?)")
+            params.append(expr)
+        else:
+            where.append("title LIKE ?")
+            params.append(f"%{search}%")
+    return " AND ".join(where), params
 
+
+def _catalog_fts_expr(search: str) -> Optional[str]:
+    """Каждое слово запроса — префикс слова в названии: «смартфон» находит «Смартфоны»."""
+    tokens = re.findall(r"\w+", search.lower())
+    if not tokens:
+        return None
+    return " AND ".join('title : "' + t.replace('"', '') + '"*' for t in tokens)
+
+
+def _catalog_use_fts(shop, city, search) -> bool:
+    """FTS, если он что-то находит; иначе прежний LIKE (фрагмент внутри слова, например «phone» в «iphone»)."""
+    if not search or not _catalog_fts_expr(search):
+        return False
+    where, params = _catalog_filters(shop, city, search, True)
     with get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(query, params)
-        return [dict(row) for row in cursor.fetchall()]
+        try:
+            return conn.execute(f"SELECT 1 FROM products WHERE {where} LIMIT 1", params).fetchone() is not None
+        except sqlite3.OperationalError:
+            return False
+
+
+def get_products_list(shop: Optional[str] = None, city: Optional[str] = None, search: Optional[str] = None, limit: int = 50, offset: int = 0) -> list:
+    where, params = _catalog_filters(shop, city, search, _catalog_use_fts(shop, city, search))
+    with get_connection() as conn:
+        rows = conn.execute(f"SELECT * FROM products WHERE {where} ORDER BY updated_at DESC LIMIT ? OFFSET ?",
+                            params + [limit, offset]).fetchall()
+        return [dict(row) for row in rows]
 
 def get_products_count(shop: Optional[str] = None, city: Optional[str] = None, search: Optional[str] = None) -> int:
-    query = "SELECT COUNT(*) FROM products WHERE " + active_product_clause()
-    params = []
-    if shop and shop != "Все":
-        query += " AND shop = ?"
-        params.append(shop)
-    if city and city != "Все":
-        query += " AND (city = ? OR city IS NULL)"
-        params.append(city)
-    if search:
-        query += " AND title LIKE ?"
-        params.append(f"%{search}%")
-
+    where, params = _catalog_filters(shop, city, search, _catalog_use_fts(shop, city, search))
     with get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(query, params)
-        return cursor.fetchone()[0]
+        return conn.execute(f"SELECT COUNT(*) FROM products WHERE {where}", params).fetchone()[0]
 
 def find_market_comparisons(
     title: str,

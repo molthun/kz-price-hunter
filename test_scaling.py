@@ -410,3 +410,31 @@ class LeaseLossTest(unittest.IsolatedAsyncioTestCase):
             conn.execute("DELETE FROM scheduler_lease")
             conn.commit()
         self.assertEqual(reset_stale_running_scans(), 1)
+
+
+class CatalogSearchTest(unittest.TestCase):
+    """R-M08: поиск каталога через FTS (регистр кириллицы, префикс слова), запасной LIKE для фрагментов."""
+
+    def setUp(self):
+        init_db()
+        from database import save_or_update_products_batch
+        with get_connection() as conn:
+            conn.execute("DELETE FROM products")
+            conn.commit()
+        save_or_update_products_batch([
+            {"id": "cs1@astana", "shop": "Sulpak", "title": "Смартфон Samsung Galaxy A26", "url": "https://x", "price": 100000, "city": "Астана"},
+            {"id": "cs2@astana", "shop": "Sulpak", "title": "Смартфоны Apple iPhone 15", "url": "https://x", "price": 400000, "city": "Астана"},
+            {"id": "cs3@astana", "shop": "Sulpak", "title": "Пылесос Dyson V15", "url": "https://x", "price": 300000, "city": "Астана"},
+        ])
+
+    def test_cyrillic_case_and_word_prefix(self):
+        from database import get_products_count, get_products_list
+        self.assertEqual(sorted(p["id"] for p in get_products_list(search="смартфон")), ["cs1@astana", "cs2@astana"])
+        self.assertEqual(get_products_count(search="смартфон"), 2)
+        self.assertEqual([p["id"] for p in get_products_list(search="galaxy смартф")], ["cs1@astana"])
+
+    def test_fragment_inside_word_falls_back_to_like(self):
+        from database import get_products_count, get_products_list
+        self.assertEqual([p["id"] for p in get_products_list(search="phone")], ["cs2@astana"])
+        self.assertEqual(get_products_count(search="phone"), 1)
+        self.assertEqual(get_products_list(search="несуществующее"), [])
