@@ -4,7 +4,7 @@
 
 ## Текущая контрольная точка
 
-- Дата: 2026-09-19 19:33, Asia/Almaty.
+- Дата: 2026-09-19 19:28, Asia/Almaty.
 - Последнее действие: Claude исправил замечания Codex по P01-02 B01/B02 (коммит `158c68e`) и передал на **повторный аудит Codex**. A01–A05 закрыты ранее. [Отчёт](P01_AUDIT_CODEX.md).
 - Ветка `dev/p00-baseline`, база P01 `12672ec`. Версия приложения `5.7.1`, `schema_version = 5` (не повышались). Push/выпуска не было.
 - Полный suite с временным `DATA_DIR`: 339 тестов OK. Прод не проверялся.
@@ -229,7 +229,7 @@ Checkout / ветка / базовый HEAD / текущий HEAD:
   A01–A05 (diff edad2d6..f8c63f3, раздел «Исправления по аудиту Codex» в AGENT_HANDOFF.md), не меняя код. Запиши выводы
   в P01_AUDIT_CODEX.md и карточку, обнови статус P01.»
 
-## Исправления B01/B02 по аудиту P01-02 (Claude, 2026-09-19 19:26–19:33, коммит 158c68e)
+## Исправления B01/B02 по аудиту P01-02 (Claude, 2026-09-19 19:26–19:28, коммит 158c68e)
 
 - B01: деградация/восстановление магазина определяются по полноте итога обхода, а не по error/failure_count.
   Порядок failed < partial < limited < complete (`database.SHOP_HEALTH_RANK`). Состояние хранится в schema_metadata
@@ -255,7 +255,7 @@ Checkout / ветка / базовый HEAD / текущий HEAD:
   даёт degradation, partial_recovery, recovery; get_best_price_summary('x', city='FAKE_PERSON +77010000000') →
   city=unknown, маркеров в telemetry_events нет.
 - Полный suite: DATA_DIR=$(mktemp -d) ./venv/bin/python -m unittest discover -s . -p "test_*.py" → Ran 339, OK.
-- Следующий шаг: повторный аудит Codex B01/B02 (diff <коммит аудита Codex>..158c68e). Команда: «Прочитай AGENTS.md,
+- Следующий шаг: повторный аудит Codex B01/B02 (diff 6843818..158c68e). Команда: «Прочитай AGENTS.md,
   docs/DEVELOPMENT_PLAN.md и docs/AGENT_HANDOFF.md. Проведи повторный аудит исправлений P01-02 B01/B02
   (коммит 158c68e, раздел «Исправления B01/B02» в AGENT_HANDOFF.md), не меняя код. Запиши выводы в P01_AUDIT_CODEX.md
   и карточку, обнови статус P01.»
