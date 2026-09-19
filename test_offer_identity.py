@@ -180,7 +180,7 @@ class MigrationTest(unittest.TestCase):
 
     def test_legacy_database_is_backed_up_and_catalog_rebuilt(self):
         applied = database.run_migrations()
-        self.assertEqual(applied, [1, 2, 3, 4])
+        self.assertEqual(applied, [1, 2, 3, 4, 5])
         for table in ("products", "alerts", "product_sources", "notification_outbox", "shop_scans", "price_observations"):
             self.assertEqual(self._count(table), 0, table)
         for table in ("users", "sessions", "tracked_categories", "title_canonical_cache"):
@@ -192,7 +192,7 @@ class MigrationTest(unittest.TestCase):
             self.assertEqual(conn.execute("SELECT settings FROM users").fetchone()[0], '{"x": 1}')
             trigger = conn.execute("SELECT sql FROM sqlite_master WHERE name='products_au'").fetchone()[0]
             self.assertIn("UPDATE OF", trigger)
-        backups = list((self.data_dir / "backups").glob("prices-pre-v4-*.db"))
+        backups = list((self.data_dir / "backups").glob("prices-pre-v5-*.db"))
         self.assertEqual(len(backups), 1)
         backup = sqlite3.connect(backups[0])
         try:

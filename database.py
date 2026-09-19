@@ -336,6 +336,95 @@ def _migration_fts_update_trigger(conn) -> None:
     conn.execute("INSERT INTO products_fts(products_fts) VALUES('rebuild')")
 
 
+def offer_namespace_plan(conn) -> Dict[str, Any]:
+    """План переименования id без префикса магазина (R-H01). Ничего не меняет.
+
+    renames — [(старый id, новый id, магазин)]; collided — id, в которые писали несколько магазинов
+    (у одного product_id источники разных shop_key): их история и алерты смешаны;
+    conflicts — новый id уже занят другой записью.
+    """
+    from offer_identity import namespaced_id
+    renames, conflicts = [], []
+    existing = {r[0] for r in conn.execute("SELECT id FROM products")}
+    for pid, shop in conn.execute("SELECT id, shop FROM products").fetchall():
+        base, sep, city = pid.partition("@")
+        new_base = namespaced_id(base, shop)
+        if new_base == base:
+            continue
+        new_id = f"{new_base}{sep}{city}"
+        (conflicts if new_id in existing else renames).append((pid, new_id, shop))
+    collided = {r[0] for r in conn.execute(
+        "SELECT product_id FROM product_sources GROUP BY product_id HAVING COUNT(DISTINCT shop_key) > 1")}
+    return {"renames": renames, "conflicts": conflicts,
+            "collided": sorted(pid for pid, _, _ in renames + conflicts if pid in collided)}
+
+
+def _migration_offer_namespace(conn) -> None:
+    """R-H01: id без префикса магазина получают префикс; каталог не пересобирается.
+
+    Переименование проходит по products, product_sources (по shop_key каждой строки), алертам,
+    истории цен и неотправленным уведомлениям. Записи, в которые уже писали несколько магазинов,
+    нельзя разделить: они переименовываются по текущему магазину, а их история цен, исходная и
+    минимальная/максимальная цены и алерты сбрасываются. Конфликты (новый id уже занят)
+    сливаются в существующую запись.
+    """
+    from offer_identity import id_prefix
+    plan = offer_namespace_plan(conn)
+    print(f"[DB] Миграция 5: переименований {len(plan['renames'])}, конфликтов {len(plan['conflicts'])}, "
+          f"смешанных записей (история сброшена) {len(plan['collided'])}")
+    collided = set(plan["collided"])
+    renamed = {old: new for old, new, _ in plan["renames"] + plan["conflicts"]}
+
+    for old, new, _ in plan["conflicts"]:
+        conn.execute("DELETE FROM products WHERE id = ?", (old,))
+    for old, new, _ in plan["renames"]:
+        conn.execute("UPDATE products SET id = ? WHERE id = ?", (new, old))
+
+    for old, new in renamed.items():
+        conn.execute("UPDATE alerts SET product_id = ? WHERE product_id = ?", (new, old))
+        conn.execute("UPDATE price_observations SET product_id = ? WHERE product_id = ?", (new, old))
+
+    # Источники — по shop_key каждой строки: у смешанной записи источники разных магазинов
+    # получают каждый свой префикс
+    for product_id, shop_key, source_url in conn.execute("SELECT product_id, shop_key, source_url FROM product_sources").fetchall():
+        base, sep, city = product_id.partition("@")
+        prefix = id_prefix(shop_key) + "_"
+        if base.startswith(prefix) or shop_key not in _shop_keys():
+            continue
+        conn.execute("""UPDATE OR IGNORE product_sources SET product_id = ?
+                        WHERE product_id = ? AND shop_key = ? AND source_url = ?""",
+                     (f"{prefix}{base}{sep}{city}", product_id, shop_key, source_url))
+
+    # Смешанная история недостоверна: сброс до текущей цены, без выдуманных точек
+    for old in collided:
+        new = renamed[old]
+        conn.execute("DELETE FROM price_observations WHERE product_id = ?", (new,))
+        conn.execute("""UPDATE products SET first_seen_price = current_price, min_price = current_price,
+                        max_price = current_price, old_price_on_site = 0 WHERE id = ?""", (new,))
+        alert_ids = [r[0] for r in conn.execute("SELECT id FROM alerts WHERE product_id = ?", (new,))]
+        for alert_id in alert_ids:
+            conn.execute("DELETE FROM notification_outbox WHERE alert_id = ?", (alert_id,))
+        conn.execute("DELETE FROM alerts WHERE product_id = ?", (new,))
+
+    # Неотправленные уведомления ищут товар по id из payload
+    for row_id, payload in conn.execute("SELECT id, payload FROM notification_outbox WHERE status = 'pending'").fetchall():
+        try:
+            data = json.loads(payload)
+        except ValueError:
+            continue
+        product = data.get("product") or {}
+        new = renamed.get(str(product.get("id")))
+        if new:
+            product["id"] = new
+            conn.execute("UPDATE notification_outbox SET payload = ? WHERE id = ?",
+                         (json.dumps(data, ensure_ascii=False), row_id))
+
+
+def _shop_keys():
+    from config import SHOP_KEYS
+    return SHOP_KEYS
+
+
 CATALOG_REBUILD_MUTE_SECONDS = 6 * 3600
 
 
@@ -354,6 +443,7 @@ MIGRATIONS = (
     (2, "legacy_cleanups", _migration_legacy_cleanups),
     (3, "offer_identity_reset", _migration_offer_identity_reset),
     (4, "fts_update_trigger", _migration_fts_update_trigger),
+    (5, "offer_namespace", _migration_offer_namespace),
 )
 SCHEMA_VERSION = MIGRATIONS[-1][0]
 
