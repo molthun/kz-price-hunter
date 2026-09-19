@@ -27,7 +27,8 @@ jobs:
         run: pip install -r requirements.txt -c constraints.txt
 
       - name: Run tests
-        run: python -m unittest test_monitor test_auth_privacy test_bot_privacy test_security_logging test_scraper_reliability test_offer_identity test_scaling
+        # Все наборы test_*.py: новый файл тестов попадает в проверку перед выкатом автоматически
+        run: python -m unittest discover -s . -p "test_*.py"
 
   # Браузерные регрессии интерфейса (XSS, вход, окно товара) в предустановленном Chrome раннера
   frontend:

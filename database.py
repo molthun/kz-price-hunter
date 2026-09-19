@@ -774,6 +774,17 @@ def record_alert(product_id: str, alert_type: str, old_price: int, new_price: in
         return 0
     with get_connection() as conn:
         cursor = conn.cursor()
+        # Проверка дубля и вставка — одна транзакция под блокировкой записи: два процесса
+        # или повторная обработка не создадут два алерта на одно событие (M13)
+        conn.execute("BEGIN IMMEDIATE")
+        duplicate = cursor.execute("""
+            SELECT 1 FROM alerts
+            WHERE product_id = ? AND new_price = ? AND datetime(created_at) >= datetime('now', '-1 day')
+            LIMIT 1
+        """, (str(product_id), new_price)).fetchone()
+        if duplicate:
+            conn.rollback()
+            return 0
         cursor.execute("""
             INSERT INTO alerts (shop, city, product_id, alert_type, old_price, new_price, discount_pct, savings_kzt, competitor_shop)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -860,10 +871,10 @@ def dismiss_alert(alert_id: int) -> bool:
     """Скрывает/удаляет алерт из ленты (пользователь нажал 'Скрыть' или алерт неактуален)."""
     with get_connection() as conn:
         cursor = conn.cursor()
-        try:
-            cursor.execute("UPDATE alerts SET is_dismissed = 1 WHERE id = ?", (alert_id,))
-        except Exception:
-            cursor.execute("DELETE FROM alerts WHERE id = ?", (alert_id,))
+        cursor.execute("UPDATE alerts SET is_dismissed = 1 WHERE id = ?", (alert_id,))
+        # Скрытый алерт больше не рассылается (M13)
+        cursor.execute("UPDATE notification_outbox SET status='cancelled', last_error='alert dismissed' "
+                       "WHERE alert_id = ? AND status = 'pending'", (alert_id,))
         conn.commit()
     invalidate_alerts_cache()
     return True
@@ -1268,10 +1279,12 @@ def claim_notification():
     return dict(row) if row else None
 
 
-def finish_notification(delivery_id, status, attempts=0, error=None):
+def finish_notification(delivery_id, status, attempts=0, error=None, retry_after=None):
+    """retry_after — пауза, которую назвал Telegram (429); иначе экспоненциальная задержка."""
+    delay = float(retry_after) if retry_after is not None else min(3600, 60 * 2 ** min(attempts, 6))
     with get_connection() as conn:
         conn.execute("""UPDATE notification_outbox SET status=?,next_attempt_at=?,last_error=? WHERE id=?""",
-            (status, time.time() + min(3600, 60 * 2 ** min(attempts, 6)), error, delivery_id))
+            (status, time.time() + max(1.0, min(delay, 3600)), error, delivery_id))
         conn.commit()
 
 

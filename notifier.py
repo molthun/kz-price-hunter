@@ -3,7 +3,7 @@ import json
 import asyncio
 from urllib.parse import urlsplit
 import requests
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from config import get_bot_token, APP_URL
 
 SHOP_EMOJI = [
@@ -56,9 +56,50 @@ def is_safe_image_url(url: str) -> bool:
     except Exception:
         return False
 
-def send_telegram_alert(chat_id: int, product: Dict[str, Any], anomaly: Dict[str, Any]) -> bool:
+class DeliveryResult:
+    """Итог отправки: истинен только при успехе (совместим с прежним bool).
+
+    status: sent — доставлено; retry — временная ошибка (429, 5xx, сеть), повторить позже;
+    permanent — повтор бессмысленен (бот заблокирован, чат не найден, неверный запрос).
+    """
+    __slots__ = ("status", "retry_after", "error")
+
+    def __init__(self, status: str, retry_after: Optional[float] = None, error: Optional[str] = None):
+        self.status = status
+        self.retry_after = retry_after
+        self.error = error
+
+    def __bool__(self) -> bool:
+        return self.status == "sent"
+
+    def __repr__(self) -> str:
+        return f"DeliveryResult({self.status!r}, retry_after={self.retry_after!r}, error={self.error!r})"
+
+
+def classify_telegram_response(res) -> DeliveryResult:
+    """Разбирает ответ Bot API: 429 с паузой retry_after, 400/403/404 — постоянные, остальное — временные."""
+    if res.status_code == 200:
+        return DeliveryResult("sent")
+    try:
+        data = res.json() or {}
+    except Exception:
+        data = {}
+    if res.status_code == 429:
+        retry_after = (data.get("parameters") or {}).get("retry_after") or res.headers.get("Retry-After")
+        try:
+            retry_after = float(retry_after)
+        except (TypeError, ValueError):
+            retry_after = None
+        return DeliveryResult("retry", retry_after, "Telegram 429")
+    if res.status_code in (400, 403, 404):
+        return DeliveryResult("permanent", None, f"Telegram {res.status_code}")
+    return DeliveryResult("retry", None, f"Telegram {res.status_code}")
+
+
+def send_telegram_alert(chat_id: int, product: Dict[str, Any], anomaly: Dict[str, Any]) -> DeliveryResult:
     """Отправляет карточку аномалии в Telegram через Bot API.
-    Поддерживает отправку фото с fallback на обычное сообщение.
+    Фото с fallback на текст — только если фото отклонено (400); при 429 и блокировке бота
+    текст не отправляется следом.
     """
     shop = product.get("shop", "Магазин")
     url = product.get("url", "")
@@ -83,23 +124,25 @@ def send_telegram_alert(chat_id: int, product: Dict[str, Any], anomaly: Dict[str
 
     try:
         if is_safe_image_url(image_url):
-            res = telegram_api("sendPhoto", {
+            result = classify_telegram_response(telegram_api("sendPhoto", {
                 "chat_id": chat_id, "photo": image_url, "caption": message_text,
                 "parse_mode": "HTML", "reply_markup": reply_markup
-            })
-            if res.status_code == 200:
-                return True
-            # Telegram не смог загрузить фото — отправляем текстом
-        res = telegram_api("sendMessage", {
+            }))
+            # Текстом — только если Telegram не смог взять фото (400); 429/403/5xx возвращаются как есть
+            if result or result.error != "Telegram 400":
+                if not result:
+                    print(f"[Telegram Error] {result.error}")
+                return result
+        result = classify_telegram_response(telegram_api("sendMessage", {
             "chat_id": chat_id, "text": message_text,
             "parse_mode": "HTML", "reply_markup": reply_markup
-        })
-        if res.status_code != 200:
-            print(f"[Telegram Error] статус {res.status_code}")
-        return res.status_code == 200
+        }))
+        if not result:
+            print(f"[Telegram Error] {result.error}")
+        return result
     except Exception as e:
         print(f"[Telegram Exception] {type(e).__name__}")
-        return False
+        return DeliveryResult("retry", None, type(e).__name__)
 
 def dispatch_alert(product: Dict[str, Any], anomaly: Dict[str, Any]) -> int:
     """Печатает алерт в консоль и рассылает его пользователям, чьи личные пороги он проходит.
@@ -174,16 +217,26 @@ def deliver_pending(limit=10):
             with get_connection() as conn:
                 current = conn.execute("SELECT current_price FROM products WHERE id=? AND " + active_product_clause(),
                                        (str(product["id"]),)).fetchone()
+                alert = conn.execute("SELECT is_dismissed FROM alerts WHERE id=?", (item["alert_id"],)).fetchone()
             if (not user or user["is_blocked"] or not user["settings"].get("telegram_notify_enabled")
+                or not alert or alert[0]  # алерт удалён или скрыт администратором
                 or not current or current[0] != anomaly["new_price"]
                 or not alert_matches_user(candidate, user["settings"])
                 or not notify_level_allows(anomaly, user["settings"].get("telegram_notify_level", "ALL"))):
                 finish_notification(item["id"], "cancelled")
                 continue
-            ok = send_telegram_alert(user["id"], product, anomaly)
-            finish_notification(item["id"], "sent" if ok else "pending", item["attempts"],
-                                None if ok else "Telegram delivery failed")
-            sent += int(ok)
+            result = send_telegram_alert(user["id"], product, anomaly)
+            if isinstance(result, bool):  # совместимость с подменами в тестах
+                result = DeliveryResult("sent" if result else "retry", None, None if result else "Telegram delivery failed")
+            if result:
+                finish_notification(item["id"], "sent", item["attempts"])
+                sent += 1
+            elif result.status == "permanent":
+                finish_notification(item["id"], "failed", item["attempts"], result.error)
+            else:
+                finish_notification(item["id"], "pending", item["attempts"], result.error, retry_after=result.retry_after)
+                if result.retry_after is not None:
+                    break  # 429 — лимит на весь бот: остальные сообщения ждут следующего цикла
         except Exception as e:
             finish_notification(item["id"], "pending", item["attempts"], type(e).__name__)
     return sent

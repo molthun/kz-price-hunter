@@ -761,9 +761,7 @@ def _process_anomaly_sync(p, anomaly, shop_name):
     if not anomaly or was_alert_sent_recently(p["id"], p["price"]):
         return False
 
-    scan_state["anomalies_found"] += 1
-
-    record_alert(
+    alert_id = record_alert(
         product_id=p["id"],
         alert_type=anomaly["type"],
         old_price=anomaly["old_price"],
@@ -776,6 +774,9 @@ def _process_anomaly_sync(p, anomaly, shop_name):
         # После пересборки каталога первый цикл не рассылает уже известные скидки повторно
         deliveries=[] if notifications_muted() else prepare_deliveries(p, anomaly)
     )
+    if not alert_id:
+        return False  # дубль, записанный параллельно, или отбракованная цена
+    scan_state["anomalies_found"] += 1
     return True
 
 # Реестр магазинов: ключ настроек -> (класс парсера, категории, название)
