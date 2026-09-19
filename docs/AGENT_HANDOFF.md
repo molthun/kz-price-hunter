@@ -4,12 +4,12 @@
 
 ## Текущая контрольная точка
 
-- Дата: 2026-09-19 19:01, Asia/Almaty (checkpoint аудита Codex).
-- Последнее действие: Codex завершил независимый аудит P01 на `5f9ce5f`: A01 (P1), A02–A05 (P2); требуются исправления. Отчёт: [P01_AUDIT_CODEX.md](P01_AUDIT_CODEX.md). Код не менялся, правки аудита только в документации, без коммита/push.
-- Ветка `dev/p00-baseline`, HEAD — коммит этой передачи (см. `git log`), база P01 `12672ec`. Версия приложения `5.7.1` (не повышалась), `schema_version = 5` (не повышалась).
-- Полный suite: 300 тестов OK (с временным `DATA_DIR`). Прод не проверялся (нет доступа), выпуск не выполнялся, push не делался.
-- Пишущих исполнителей в этом checkout сейчас нет: Claude закончил. Параллельно в отдельном worktree `.claude/worktrees/affectionate-lehmann-490dc0` (ветка `claude/affectionate-lehmann-490dc0`) идёт независимая задача владельца — изоляция тестов от `prices.db`; файлы P01 она не затрагивает по поручению, но при интеграции сверить `test_*.py`.
-- P00 — READY, независимый аудит также не проведён.
+- Дата: 2026-09-19 19:08, Asia/Almaty.
+- Последнее действие: Claude исправил замечания аудита Codex A01–A05 (коммит `f8c63f3`) и передал P01 на **повторный аудит Codex**. Отчёт первого аудита: [P01_AUDIT_CODEX.md](P01_AUDIT_CODEX.md).
+- Ветка `dev/p00-baseline`, база P01 `12672ec`. Версия приложения `5.7.1`, `schema_version = 5` (не повышались). Push/выпуска не было.
+- Полный suite с временным `DATA_DIR`: 318 тестов OK. Прод не проверялся.
+- Пишущих исполнителей в этом checkout нет: Claude закончил. Задача изоляции тестов от `prices.db` — в отдельном worktree `.claude/worktrees/affectionate-lehmann-490dc0`; при интеграции сверить `test_*.py`.
+- P00 — READY, независимый аудит не проведён.
 
 ## Реестр этапов
 
@@ -19,7 +19,7 @@
 | Этап | Статус | Исполнитель | Аудит | Прод |
 |---|---|---|---|---|
 | P00 | READY | Antigravity | Самопроверка (требует review) | Не проверен (нет прямого доступа) |
-| P01 | IN_PROGRESS | Claude — следующий на исправления, не запущен | Codex: A01–A05, требуется повторный аудит | Не проверен |
+| P01 | HANDOFF (повторный аудит) | Antigravity → Claude | Codex: A01–A05 исправлены Claude, повторный аудит не начат | Не проверен |
 | P02 | TODO | — | Не проведён | Не проверен |
 | P03 | TODO | — | Не проведён | Не проверен |
 | P04 | TODO | — | Не проведён | Не проверен |
@@ -50,7 +50,7 @@ ID / этап: P01. Telemetry Foundation
   - Автотесты: p95, fake-источники 200->200->429, 200->403, timeout, retention, отсутствие регрессий.
 Основание/поручение владельца: Утверждённый implementation_plan.md (в репозитории отсутствует), поручение: «перейти к этапу P01»;
   подхват Claude по команде владельца «Подхвати текущую задачу по AGENTS.md и docs/AGENT_HANDOFF.md».
-Статус: IN_PROGRESS — аудит Codex завершён, исправления A01–A05 не начаты
+Статус: HANDOFF на повторный аудит Codex (A01–A05 исправлены Claude в f8c63f3; Claude больше не пишет в файлы P01)
 Исполнитель / предыдущий исполнитель / следующий: Claude (завершил) / Antigravity / Codex — независимый аудит
 Начало и checkpoint: 2026-09-19 18:18 (Antigravity), подхват Claude 18:36, передача на аудит 18:56 (Asia/Almaty)
 Checkout / ветка / базовый HEAD / текущий HEAD:
@@ -76,7 +76,7 @@ Checkout / ветка / базовый HEAD / текущий HEAD:
   5. «Резервуар» хранил первые 500 задержек бакета (смещённый p95); теперь Algorithm R поверх БД.
   6. Синхронная запись в SQLite на каждый HTTP-запрос и событие (busy_timeout 15 с, в т.ч. из event loop).
      Теперь запись в память, фоновый сброс батчами раз в 10 с (telemetry.start() в background_tasks и main.py),
-     busy_timeout 2 с, flush в конце обхода, буферы ограничены (dropped_* счётчики).
+     busy_timeout 2 с, буферы ограничены (dropped_* счётчики). Сброс в конце обхода убран при исправлении A04.
   7. Нет minute-бакетов (требование плана) — добавлены. Нет connection_errors, 3xx, Retry-After max — добавлены.
   8. prune сравнивал строки разных форматов; теперь cutoff в формате каждого бакета, отдельные сроки.
   9. scan_id не устанавливался; теперь _do_scan_task задаёт current_scan_id, пишет scan_start/scan_end,
@@ -186,6 +186,48 @@ Checkout / ветка / базовый HEAD / текущий HEAD:
 - Следующий точный шаг: Claude исправляет A01–A05 по поручению владельца, добавляет регрессии и возвращает на аудит Codex. Самостоятельно следующий агент не запускался.
 - В этом checkpoint изменены только `docs/AGENT_HANDOFF.md` и новый `docs/P01_AUDIT_CODEX.md`; код/рабочая БД/прод не изменялись. Фоновых процессов аудита не осталось.
 - Оставшийся объём P01-02 требует явного решения о переносе; наличие констант не означает реализацию событий. P00 отдельно не проверялся.
+
+## Исправления по аудиту Codex (Claude, 2026-09-19 19:03–19:08, коммит f8c63f3)
+
+- A01 (P1): из транспортных исключений сохраняется только имя класса (`safe_error_name`) и вид ошибки (timeout/connection/other).
+  Вид определяется в `scrapers/http.py::_error_kind` по классу исключения (curl_cffi Timeout/ConnectionError/SSLError,
+  встроенные TimeoutError/ConnectionError), с запасным разбором текста; сам текст не сохраняется. Свободный текст (message,
+  строки payload) проходит `sanitize_text`: встроенные URL очищаются структурно (userinfo и фрагмент удаляются целиком,
+  чувствительные query-параметры → [REDACTED]), значения Cookie/Set-Cookie скрываются, затем `redact_secrets`. Payload очищается
+  рекурсивно по явному списку чувствительных имён (`_SENSITIVE_NAME_REGEX`: token, secret, password, auth, authorization,
+  signature/sig, cookie, credential, jwt, session/sid, key/api_key/access_key/…; разделители _ - .). `shop_key` не скрывается.
+  Глубина 6, до 100 элементов. Ошибка сериализации → только имя класса. В server.py ошибки категорий и падения магазинов
+  тоже пишутся только именем класса.
+- A02 (P2): `_fit_json` — итоговый UTF-8 JSON ≤ 4096 байт: наибольший префикс ищется бинарным поиском с учётом обёртки
+  и экранирования, многобайтовые символы не разрываются. Строковый payload оборачивается в {"text": …} (валидный JSON).
+- A03 (P2): в памяти до flush — Algorithm R (≤ MAX_SAMPLES_PER_BUCKET на ключ) по всем запросам окна; при flush
+  `merge_reservoirs` объединяет выборку из БД (популяция = total_requests) и окна (популяция = запросы окна) выбором без
+  возвращения с весами популяций. Число ключей до flush ограничено MAX_PENDING_HTTP_KEYS (переполнение → stats.dropped_http).
+  Flush в транзакции BEGIN IMMEDIATE.
+- A04 (P2): `_do_scan_task` пишет scan_end с outcome completed / failed / cancelled / lease_lost (INFO / ERROR / WARNING / WARNING).
+  Запись события обёрнута в try; await flush в finally убран — очистка (release lease, is_running, contextvar) не зависит
+  от телеметрии.
+- A05 (P2): колонка `status_codes` (JSON: {"200": n, "403": n, "timeout": n, "cooldown": n}) в telemetry_http_aggregates;
+  добавляется аддитивно через _add_column и в существующие таблицы, schema_version не меняется. Диагностическое событие
+  на каждый 4xx (WARNING) / 5xx (ERROR) / 429 / транспортную ошибку с безопасным URL, методом, кодом и latency; scan_id,
+  category и shop — из контекста. Частота: ≤ MAX_HTTP_DIAG_EVENTS_PER_MINUTE (20) на host+код в минуту, счётчики
+  агрегата остаются точными. Сводка HTTP категории (`current_http_trace`: requests, bytes, status_codes) — в data.http
+  событий scan_category/scan_error.
+  Минимальный контракт цепочки «обход → страницы → результат»: scan_start/scan_end (outcome) и scan_category/scan_error
+  по одному scan_id; сводка кодов категории в data.http; неуспешные страницы — отдельные события с тем же scan_id и category;
+  успешные страницы — только в сводке и агрегатах (без трассы каждой страницы).
+- Регрессии: test_telemetry.py, классы AuditA01SecretsTest, AuditA02SizeTest, AuditA03ReservoirTest, AuditA04ScanOutcomeTest,
+  AuditA05HttpDiagnosticsTest (18 новых тестов, всего в модуле 40). На коде до исправлений (HEAD edad2d6, отдельный worktree)
+  эти тесты падают: 19 FAIL/ERROR; на f8c63f3 — OK. Команды воспроизведения из P01_AUDIT_CODEX.md теперь дают:
+  A01 {'FAKE_PASSWORD': False, 'FAKE_SIGNATURE': False}, A02 4093 байта, A03 total 3000, p95 1000.0 (эталон 1000.0).
+- Полный suite: DATA_DIR=$(mktemp -d) ./venv/bin/python -m unittest discover -s . -p "test_*.py" → Ran 318 tests, OK.
+- Не проведено: реальный обход с сетью, frontend, docker, прод, запуск образа 5.7.1 на новой БД.
+- Остаётся без изменений (решение владельца): P01-02 — события search/Telegram/AI/backup/price/degradation/recovery; iSpace без
+  copy_context (HTTP карточек iSpace — shop='' и без сводки категории).
+- Следующий точный шаг: Codex — повторный аудит A01–A05 на f8c63f3 (diff edad2d6..f8c63f3), затем статус READY или список исправлений.
+  Команда: «Прочитай AGENTS.md, docs/DEVELOPMENT_PLAN.md и docs/AGENT_HANDOFF.md. Проведи повторный аудит исправлений P01
+  A01–A05 (diff edad2d6..f8c63f3, раздел «Исправления по аудиту Codex» в AGENT_HANDOFF.md), не меняя код. Запиши выводы
+  в P01_AUDIT_CODEX.md и карточку, обнови статус P01.»
 
 ## Завершённые задачи
 
