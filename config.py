@@ -494,7 +494,8 @@ def _check_range(key, num):
     if key in SETTING_RANGES:
         low, high, label = SETTING_RANGES[key]
         if not (low <= num <= high):
-            raise ValueError(f"{label}: допустимо от {low:,} до {high:,}".replace(",", " "))
+            fmt = lambda n: f"{n:,}".replace(",", " ")
+            raise ValueError(f"{label}: допустимо от {fmt(low)} до {fmt(high)}")
 
 
 def _validate(new_settings, defaults):
