@@ -41,6 +41,7 @@ class ClosingConnection(sqlite3.Connection):
 
 
 def get_connection():
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH, timeout=15, factory=ClosingConnection)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode = WAL;")
@@ -398,6 +399,7 @@ def run_migrations() -> List[int]:
         print(f"[DB] Бэкап перед миграциями {current}→{pending[-1][0]}: {path}")
 
     applied = []
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH, timeout=30, isolation_level=None)
     conn.row_factory = sqlite3.Row
     try:
