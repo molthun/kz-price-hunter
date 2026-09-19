@@ -4,15 +4,12 @@
 
 ## Текущая контрольная точка
 
-- Дата: 2026-09-19 19:43, Asia/Almaty.
-- Последнее действие: по разрешению владельца Claude выпустил **v5.8.0 (P01 Telemetry Foundation)**: main fast-forward до
-  `6302ba0`, тег `v5.8.0` на `f668383`, push main и тега. CI и обе сборки образа (main/latest и v5.8.0) — success.
-  Прод https://shop.molthun.ru/api/version → 5.8.0 в 19:41:48 (Watchtower); /api/stats и /api/products — 200.
-- P01 — DEPLOYED (подтверждено только чтением версии и двух GET-эндпоинтов; телеметрия на проде изнутри не проверялась —
-  доступа к БД прода нет).
-- Ветки: `main` = `dev/p00-baseline` (далее работать от main или новой ветки этапа). `schema_version = 5`.
-- Пишущих исполнителей нет. Следующий этап по плану — P02 (Data Quality & Freshness), только после назначения владельцем.
-- P00 — READY, независимый аудит не проведён.
+- Дата: 2026-09-19 20:01, Asia/Almaty.
+- Последнее действие: Claude реализовал P02 (Data Quality & Freshness) на ветке `dev/p02-quality` (коммит `89d4191`)
+  по порогам, утверждённым владельцем до реализации, и передал на **аудит Codex**. Не выпущено.
+- main = v5.8.0 (P01, на проде). Локальный main впереди origin на 1 docs-коммит (4bbde64, не запушен — см. R-P01).
+- Полный suite: 362 теста OK (без ручного DATA_DIR; тесты изолированы T01).
+- Пишущих исполнителей нет: Claude закончил.
 
 ## Реестр этапов
 
@@ -23,7 +20,7 @@
 |---|---|---|---|---|
 | P00 | READY | Antigravity | Самопроверка (требует review) | Не проверен (нет прямого доступа) |
 | P01 | DEPLOYED (v5.8.0) | Antigravity → Claude | Codex: A01–A05 и B01/B02 закрыты | v5.8.0 на shop.molthun.ru с 19:41 (проверка чтением /api/version, /api/stats, /api/products) |
-| P02 | IN_PROGRESS (дизайн и порог baseline) | Claude (с 19:47) | Не проведён | Не проверен |
+| P02 | HANDOFF (аудит) | Claude | Не проведён — передан Codex | Не выпущен |
 | P03 | TODO | — | Не проведён | Не проверен |
 | P04 | TODO | — | Не проведён | Не проверен |
 | P05 | TODO | — | Не проведён | Не проверен |
@@ -375,12 +372,12 @@ Checkout / ветка / базовый HEAD / текущий HEAD:
 - Следующий точный шаг: Claude исправляет B01/B02 и добавляет регрессии, затем повторный аудит Codex. Агент не запускался. A01–A05 остаются закрытыми, контекст iSpace замечаний в проверенном объёме не вызвал.
 - Изменены только `docs/P01_AUDIT_CODEX.md` и `docs/AGENT_HANDOFF.md`. Код/рабочая БД/прод не менялись, коммита и push нет. Фоновых процессов аудита нет.
 
-## Карточка текущей задачи: P02 (Claude, IN_PROGRESS)
+## Карточка текущей задачи: P02 (Claude → аудит Codex)
 
 ```text
 ID / этап: P02. Data Quality & Freshness
 Основание/поручение владельца: «Начинай P02» (2026-09-19 ~19:46).
-Статус: IN_PROGRESS — P02-00 завершён, пороги подтверждены владельцем; реализация P02-01.
+Статус: HANDOFF на аудит Codex (реализация завершена; Claude больше не пишет в файлы P02).
 Исполнитель: Claude, начало 2026-09-19 19:47 Asia/Almaty.
 Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-hunter / dev/p02-quality / 4bbde64 (main).
 Чужие изменения до начала: нет.
@@ -430,7 +427,53 @@ Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-h
   baseline ≥ 20 → degraded, 50–80 % → warning без обучения baseline; rejected > 30 % → degraded; фото −30 п.п. → warning).
   Q3 — Fresh ≤ 26 ч, Aging ≤ 72 ч, Stale > 72 ч. Q4 — вариант A: не скрывать по возрасту, бейдж Aging/Stale;
   скрывать только снятые полным обходом (is_active=0) и не виденные > 30 дней; Stale не участвует в «лучшей цене» и алертах.
-Следующий шаг: P02-01 (метрики и source_scans).
+Статус реализации: P02-01..P02-05 выполнены Claude 19:52–20:00, коммит 89d4191 (ветка dev/p02-quality). HANDOFF на аудит.
+
+Сделано:
+  - data_quality.py — пороги (константы с комментарием о решении владельца), is_valid_offer/measure (received, valid,
+    rejected, with_image), baseline_from_history (медиана последних 5 принятых, минимум 3), assess (ok / warning /
+    degraded / failed / unknown; learn; may_retire), freshness / annotate (last_seen_at, freshness, age_hours).
+  - database.py — таблица source_scans (аддитивно, schema_version 5): итог каждой категории с метриками, качеством,
+    причиной, baseline и accepted; get_source_baseline (история того же вида complete/limited, иначе число активных
+    предложений источника ≥ 20, иначе None), record_source_scan, get_last_source_quality, prune_source_scans (90 дн.,
+    вызывается в конце обхода рядом с другими сроками хранения).
+    active_product_clause теперь = is_active и last_seen ≤ 30 дн. (раньше 24 ч); новый fresh_price_clause (≤ 72 ч)
+    — для алертов (_fetch_filtered_alerts), витрины скидок/арбитража и их счётчика, доставки уведомлений (notifier).
+    get_products_list и отчёт по магазинам — freshness; отчёт — last_quality/last_quality_reason (худшая категория
+    последнего scan_id).
+  - web/server.py::_scan_shop_categories — measure → get_source_baseline → assess ДО reconcile_source. Degraded:
+    error «Качество: …» (категория в failed_categories → магазин partial, событие degradation P01, повтор по
+    существующей политике), reconcile без снятия, не обучает baseline; товары из выдачи сохраняются как наблюдения.
+    Warning — принимается (может снимать), не обучает. Исключение адаптера — строка failed в source_scans.
+    Качество и метрики — в data.quality события scan_category. Свежесть в /api/products/{id} и сравнении моделей
+    (мин/макс/экономия только по неустаревшим).
+  - search_engine.py::_get_best_price_summary — annotate всех предложений; best_deal, price_stats, store_comparison,
+    comparable — только не-Stale; stale_count, all_stale (best_deal = None, если свежих нет).
+  - web/templates/index.html — freshnessBadge (Aging: «⏳ цена от <дата>», Stale: «⚠️ цена устарела (N дн.)») в таблице
+    лучших цен, карточке лучшей цены, каталоге и окне сравнения моделей; «Лидер»/«Лучшая цена» не у Stale.
+Ограничение (записано в data_quality.py): адаптеры сами отбрасывают карточки без цены (часто товары не в наличии),
+  поэтому rejected видит только возвращённое адаптером; массовая потеря цен ловится порогом объёма. Правка 24 адаптеров
+  не делалась (план: не переписывать все адаптеры одновременно).
+Проверки (2026-09-19, macOS, Python 3.14.7 venv):
+  - ./venv/bin/python -m unittest test_data_quality → 21 OK: пороги (5000/5100/4900 ok, 5000→83 degraded, 70 % пустых
+    цен degraded, warning не обучает), baseline, переходы свежести на управляемом времени (26/72 ч, формат SQLite),
+    сквозной _scan_shop_categories на временной БД (тихая поломка 200→3 — каталог сохранён, partial, baseline не
+    испорчен; baseline по активным предложениям при нехватке истории; нормальные изменения снимают исчезнувшие;
+    FAILED сохраняет товары и не освежает непришедшие), видимость (Aging/Stale видны, > 30 дн. скрыты, Stale не лучшая
+    цена и не скидка/уведомление), контракт: повтор первой страницы → не complete; HTML challenge → ни один из 24
+    адаптеров реестра (кроме DNS/Playwright) не даёт complete и товаров.
+  - Полный suite: ./venv/bin/python -m unittest discover -s . -p "test_*.py" → Ran 362, OK.
+  - UI (встроенный браузер, локальный сервер на копии prices.db.backup_1789811567, без фоновых задач и сети; часть
+    предложений состарена): поиск «Samsung Galaxy» — лучшая цена 21 275 ₸ (Aging, бейдж), две более дешёвые Stale
+    с бейджем «цена устарела (4 дн.)» и «не сравнивается», в сравнении магазинов Halyk без устаревшей цены. Ошибок JS нет
+    (в консоли только 401 закрытых эндпоинтов без входа и 404 внешних картинок).
+Не проведено: frontend-тесты (нет node), Docker, реальный обход магазинов, прод. Поведение на реальной истории
+  (частота warning/degraded) проверится только после выката — рекомендую наблюдать события degradation/scan_category.
+Изменение поведения для пользователей: товары сбойного магазина больше не исчезают через 24 ч, а видны до 30 дней
+  с бейджем; скидки/алерты — только по ценам не старше 72 ч.
+Следующий шаг: аудит Codex P02 (diff 7a38304..89d4191 и эта карточка). Команда: «Прочитай AGENTS.md,
+  docs/DEVELOPMENT_PLAN.md и docs/AGENT_HANDOFF.md. Проведи аудит P02 на ветке dev/p02-quality (diff 7a38304..89d4191,
+  карточка P02), не меняя код. Запиши выводы в docs/P02_AUDIT_CODEX.md и карточку, обнови статус P02.»
 ```
 
 ## R-P01 — выпуск P01 → v5.8.0 (Claude, ВЫПУЩЕНО 2026-09-19 19:41)
