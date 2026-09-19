@@ -59,7 +59,7 @@ Checkout / ветка / базовый HEAD / текущий HEAD:
   - Checkout: /Users/molthun/Documents/kz-price-hunter
   - Ветка: dev/p00-baseline
   - Базовый HEAD: 12672ec
-  - Текущий HEAD: feeff43 (коммит P01)
+  - Текущий HEAD: 6fc7e04 (P01: feeff43 + без повышения схемы 6fc7e04)
 Зависимости: P00 (READY, ожидает аудита)
 Область изменений (файлы):
   telemetry.py (новый), test_telemetry.py (новый), database.py, scrapers/http.py, scrapers/arbuz.py,
