@@ -43,6 +43,7 @@ SHOP_KEYS = {
     "zeta": "Zeta",
     "komfort": "Комфорт",
     "lemanapro": "Лемана ПРО",
+    "arbuz": "Arbuz",
 }
 
 
@@ -991,6 +992,21 @@ LEMANA_PRO_CATEGORIES = [
     {"name": "Лемана ПРО: 🧼 Бытовая химия", "url": "https://lemanapro.kz/catalogue/bytovaya-himiya/", "master": "household", "max_pages": 15},
     {"name": "Лемана ПРО: 📦 Аксессуары для хранения", "url": "https://lemanapro.kz/catalogue/aksessuary-dlya-hraneniya/", "master": "household", "max_pages": 15},
 ]
+
+# Arbuz.kz (arbuz.kz): онлайн-супермаркет продуктов питания и товаров для дома
+ARBUZ_CATEGORIES = [
+    {"name": "Arbuz: 🧼 Средства для мытья посуды", "url": "https://arbuz.kz/ru/almaty/catalog/cat/224494-sredstva_dlya_mytya_posudy", "master": "household", "max_pages": 15},
+    {"name": "Arbuz: 🧺 Стирка и уход за бельём", "url": "https://arbuz.kz/ru/almaty/catalog/cat/224405-stirka_i_uhod_za_bel_m", "master": "household", "max_pages": 15},
+    {"name": "Arbuz: 🧻 Салфетки и туалетная бумага", "url": "https://arbuz.kz/ru/almaty/catalog/cat/224493-calfetki_tualetnaya_bumaga", "master": "household", "max_pages": 15},
+    {"name": "Arbuz: 🧴 Личная гигиена и косметика", "url": "https://arbuz.kz/ru/almaty/catalog/cat/224407-kosmetika_i_sredstva_lichnoi_gigieny", "master": "household", "max_pages": 15},
+    {"name": "Arbuz: 🥫 Бакалея", "url": "https://arbuz.kz/ru/almaty/catalog/cat/225169-bakaleya", "master": "grocery", "max_pages": 15},
+    {"name": "Arbuz: ☕️ Кофе, чай, какао", "url": "https://arbuz.kz/ru/almaty/catalog/cat/226099-kofe_chai_kakao", "master": "grocery", "max_pages": 15},
+    {"name": "Arbuz: 🧀 Молоко, сыр и яйца", "url": "https://arbuz.kz/ru/almaty/catalog/cat/225161-moloko_syr_i_yaica", "master": "grocery", "max_pages": 15},
+    {"name": "Arbuz: 🥩 Мясо и птица", "url": "https://arbuz.kz/ru/almaty/catalog/cat/225162-myaso_i_ptica", "master": "grocery", "max_pages": 15},
+    {"name": "Arbuz: 🍬 Кондитерские изделия", "url": "https://arbuz.kz/ru/almaty/catalog/cat/225166-konditerskie_izdeliya", "master": "grocery", "max_pages": 15},
+    {"name": "Arbuz: 🧃 Вода и напитки", "url": "https://arbuz.kz/ru/almaty/catalog/cat/14-voda_i_napitki", "master": "grocery", "max_pages": 15},
+]
+
 
 
 

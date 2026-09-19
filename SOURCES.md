@@ -18,7 +18,7 @@ A — feed/API владельца с документированным назн
 
 Изображения сохраняются ссылками, server image proxy/cache не обнаружен. Browser и Telegram могут получать их с внешнего источника. Description используется в UI и может дополнительно сохраняться через guest product-detail GET для любого магазина. Его отсутствие в конкретном parser не означает отсутствие копирования текста в целом.
 
-## Матрица 23 источников
+## Матрица 24 источников
 
 | Модуль / класс | Тип / механизм | Timeout / pacing | Session, pagination, retry | Поля и ограничения |
 |---|---|---|---|---|
@@ -45,6 +45,7 @@ A — feed/API владельца с документированным назн
 | `scrapers/zeta.py` / `ZetaScraper` | A; back.zeta.kz Next.js JSON API /good/list | 15 с; 0.3 с | Session chrome124; page=N&limit=40; empty results→complete | id/name.ru/price/oldPrice/images/article; Казахстан; описание нет |
 | `scrapers/komfort.py` / `KomfortScraper` | D; komfort.kz Bitrix Aspro HTML .catalog-block-view__item | 20 с; 0.4 с | Session chrome124; PAGEN_1; 404/empty→complete | id/title/price/old_price/image_url; Алматы; описание нет |
 | `scrapers/lemanapro.py` / `LemanaProScraper` | D; lemanapro.kz SSR HTML div[data-qa-product] | 20 с; 0.4 с | Session chrome124; ?page=N; 404/empty→complete | id/sku/title/price/old_price/image_url; Казахстан; описание нет |
+| `scrapers/arbuz.py` / `ArbuzScraper` | D; arbuz.kz SSR HTML article.product-card | 20 с; 0.4 с | Session chrome124; ?page=N; empty cards→complete | id/sku/title/price/old_price/image_url; Алматы; описание нет |
 
 ## Пути вне основного фонового scan
 
@@ -418,6 +419,21 @@ A — feed/API владельца с документированным назн
 | Лемана ПРО: 🧑‍🏭 Сварочное оборудование | diy | `https://lemanapro.kz/catalogue/svarochnoe-oborudovanie/` | 10 |
 | Лемана ПРО: 🧼 Бытовая химия | household | `https://lemanapro.kz/catalogue/bytovaya-himiya/` | 15 |
 | Лемана ПРО: 📦 Аксессуары для хранения | household | `https://lemanapro.kz/catalogue/aksessuary-dlya-hraneniya/` | 15 |
+
+### ArbuzScraper — 10 настроенных источников категории
+
+| Категория | Master | URL/query | max_pages |
+|---|---|---|---|
+| Arbuz: 🧼 Средства для мытья посуды | household | `https://arbuz.kz/ru/almaty/catalog/cat/224494-sredstva_dlya_mytya_posudy` | 15 |
+| Arbuz: 🧺 Стирка и уход за бельём | household | `https://arbuz.kz/ru/almaty/catalog/cat/224405-stirka_i_uhod_za_bel_m` | 15 |
+| Arbuz: 🧻 Салфетки и туалетная бумага | household | `https://arbuz.kz/ru/almaty/catalog/cat/224493-calfetki_tualetnaya_bumaga` | 15 |
+| Arbuz: 🧴 Личная гигиена и косметика | household | `https://arbuz.kz/ru/almaty/catalog/cat/224407-kosmetika_i_sredstva_lichnoi_gigieny` | 15 |
+| Arbuz: 🥫 Бакалея | grocery | `https://arbuz.kz/ru/almaty/catalog/cat/225169-bakaleya` | 15 |
+| Arbuz: ☕️ Кофе, чай, какао | grocery | `https://arbuz.kz/ru/almaty/catalog/cat/226099-kofe_chai_kakao` | 15 |
+| Arbuz: 🧀 Молоко, сыр и яйца | grocery | `https://arbuz.kz/ru/almaty/catalog/cat/225161-moloko_syr_i_yaica` | 15 |
+| Arbuz: 🥩 Мясо и птица | grocery | `https://arbuz.kz/ru/almaty/catalog/cat/225162-myaso_i_ptica` | 15 |
+| Arbuz: 🍬 Кондитерские изделия | grocery | `https://arbuz.kz/ru/almaty/catalog/cat/225166-konditerskie_izdeliya` | 15 |
+| Arbuz: 🧃 Вода и напитки | grocery | `https://arbuz.kz/ru/almaty/catalog/cat/14-voda_i_napitki` | 15 |
 
 ## Перед подключением следующего магазина
 

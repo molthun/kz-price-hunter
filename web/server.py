@@ -47,6 +47,7 @@ from config import (
     ZETA_CATEGORIES,
     KOMFORT_CATEGORIES,
     LEMANA_PRO_CATEGORIES,
+    ARBUZ_CATEGORIES,
     MASTER_CATEGORIES,
     get_wave_plan,
     get_wave_interval_seconds,
@@ -108,6 +109,7 @@ from scrapers.twelve_months import TwelveMonthsScraper
 from scrapers.zeta import ZetaScraper
 from scrapers.komfort import KomfortScraper
 from scrapers.lemanapro import LemanaProScraper
+from scrapers.arbuz import ArbuzScraper
 from search_engine import get_best_price_summary
 import ai_service
 from config import get_ai_config
@@ -836,6 +838,7 @@ SHOP_REGISTRY = {
     "zeta": (ZetaScraper, ZETA_CATEGORIES, "Zeta"),
     "komfort": (KomfortScraper, KOMFORT_CATEGORIES, "Комфорт"),
     "lemanapro": (LemanaProScraper, LEMANA_PRO_CATEGORIES, "Лемана ПРО"),
+    "arbuz": (ArbuzScraper, ARBUZ_CATEGORIES, "Arbuz"),
 }
 
 # Сколько магазинов обходить одновременно (у каждого свой сайт, поэтому нагрузка не суммируется)

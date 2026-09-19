@@ -12,12 +12,13 @@ from scrapers.twelve_months import TwelveMonthsScraper
 from scrapers.zeta import ZetaScraper
 from scrapers.komfort import KomfortScraper
 from scrapers.lemanapro import LemanaProScraper
+from scrapers.arbuz import ArbuzScraper
 
 
 class ScraperContractTest(unittest.TestCase):
     def test_scraper_classes_conform_to_contract(self):
         # Check standard scrapers
-        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper, LemanaProScraper):
+        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper, LemanaProScraper, ArbuzScraper):
             self.assertTrue(hasattr(cls, "SHOP_NAME"), f"{cls} must define SHOP_NAME")
             self.assertTrue(callable(getattr(cls, "scrape", None)), f"{cls} must define scrape")
             self.assertTrue(callable(getattr(cls, "close", None)), f"{cls} must define close")
@@ -255,6 +256,49 @@ class ScraperContractTest(unittest.TestCase):
         self.assertEqual(items[0]["url"], "https://lemanapro.kz/product/drel-shurupovert-alteco-89426501/")
         self.assertEqual(items[0]["image_url"], "https://cdn.lemanapro.ru/lmru/image/upload/alteco.png")
         self.assertEqual(items[0]["city"], "Казахстан")
+        scraper.close()
+        self.assertIsNone(scraper.session)
+
+    def test_arbuz_parsing_mock(self):
+        from unittest.mock import MagicMock
+        scraper = ArbuzScraper()
+        mock_html = '''
+        <article class="product-item product-card">
+            <div class="product-card__content">
+                <a class="product-card__link" href="/ru/almaty/catalog/item/351031-sredstvo_mello_home_dlya_mytya_posudy_aloe_0_5_l" title="Средство Mello Home для мытья посуды Алоэ 0.5 л">
+                    <img class="product-card__img" v-lazy="'https://arbuz.kz/image/s3/arbuz-kz-products/file.jpg?w=%w&h=%h&_c=123'" alt="Средство Mello Home" />
+                </a>
+            </div>
+            <main class="product-card__body">
+                <a class="product-card__title" href="/ru/almaty/catalog/item/351031-sredstvo_mello_home_dlya_mytya_posudy_aloe_0_5_l">
+                    Средство Mello Home для мытья посуды Алоэ 0.5 л
+                </a>
+                <p class="product-card__price">
+                    <b>1 355 ₸</b>
+                    <s class="product-card__price-previous">1 500 ₸</s>
+                </p>
+            </main>
+        </article>
+        '''
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = mock_html
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        scraper.session = mock_session
+
+        items = scraper._fetch_page("Средства для мытья посуды", "https://arbuz.kz/ru/almaty/catalog/cat/224494-sredstva_dlya_mytya_posudy", 1)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["id"], "351031")
+        self.assertEqual(items[0]["sku"], "351031")
+        self.assertEqual(items[0]["shop"], "Arbuz")
+        self.assertEqual(items[0]["title"], "Средство Mello Home для мытья посуды Алоэ 0.5 л")
+        self.assertEqual(items[0]["price"], 1355)
+        self.assertEqual(items[0]["old_price_on_site"], 1500)
+        self.assertEqual(items[0]["url"], "https://arbuz.kz/ru/almaty/catalog/item/351031-sredstvo_mello_home_dlya_mytya_posudy_aloe_0_5_l")
+        self.assertEqual(items[0]["image_url"], "https://arbuz.kz/image/s3/arbuz-kz-products/file.jpg?w=360&h=360&_c=123")
+        self.assertEqual(items[0]["city"], "Алматы")
         scraper.close()
         self.assertIsNone(scraper.session)
 
