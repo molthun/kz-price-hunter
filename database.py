@@ -1621,3 +1621,52 @@ def delete_tracked_category(category_id: int):
         conn.execute("DELETE FROM tracked_categories WHERE id = ?", (category_id,))
         conn.commit()
 
+def set_tracked_category_parent(category_id: int, master_category: str):
+    """Назначает родительскую группу для отслеживаемой категории."""
+    with get_connection() as conn:
+        conn.execute("UPDATE tracked_categories SET master_category = ? WHERE id = ?", (master_category, category_id))
+        conn.commit()
+
+def get_hierarchical_categories() -> Dict[str, Any]:
+    """Возвращает дерево категорий: родительские группы (из config.MASTER_CATEGORIES)
+    и входящие в них пользовательские подкатегории из поиска (tracked_categories).
+    """
+    from config import MASTER_CATEGORIES
+    tracked = get_tracked_categories(active_only=False, limit=500)
+
+    groups = {}
+    for m_id, meta in MASTER_CATEGORIES.items():
+        groups[m_id] = {
+            "id": m_id,
+            "name": meta["name"],
+            "icon": meta["icon"],
+            "description": meta.get("description", ""),
+            "subcategories": [],
+            "total_products": 0,
+            "total_searches": 0,
+            "hot_count": 0,
+        }
+
+    unassigned = []
+    for item in tracked:
+        m_id = item.get("master_category")
+        prod_count = item.get("products_count") or 0
+        search_cnt = item.get("search_count") or 0
+        is_hot = bool(item.get("is_hot"))
+
+        if m_id and m_id in groups:
+            groups[m_id]["subcategories"].append(item)
+            groups[m_id]["total_products"] += prod_count
+            groups[m_id]["total_searches"] += search_cnt
+            if is_hot:
+                groups[m_id]["hot_count"] += 1
+        else:
+            unassigned.append(item)
+
+    return {
+        "groups": list(groups.values()),
+        "unassigned": unassigned,
+        "total_tracked": len(tracked),
+    }
+
+

@@ -416,7 +416,7 @@ def determine_category_and_master(title: str, query: str = "", raw_category: str
 
     if any(k in text for k in ["холодильник"]):
         return "Холодильники", "appliances_large"
-    if any(k in text for k in ["стиральн"]):
+    if any(k in text for k in ["стиральн"]) and "порошок" not in text:
         return "Стиральные машины", "appliances_large"
     if any(k in text for k in ["кондиционер", "сплит"]):
         return "Кондиционеры", "appliances_large"
@@ -440,6 +440,18 @@ def determine_category_and_master(title: str, query: str = "", raw_category: str
 
     if any(k in text for k in ["смартфон", "телефон", "iphone", "айфон", "galaxy", "xiaomi", "redmi", "poco", "pixel"]):
         return "Смартфоны", "smartphones"
+
+    if any(k in text for k in ["перфоратор", "дрель", "шуруповерт", "шуруповёрт", "болгарк", "ушм", "лобзик", "пила", "молоток", "инструмент", "краск", "сантехник", "крепеж"]):
+        return "Инструменты и ремонт", "diy"
+
+    if any(k in text for k in ["кофе", "чай", "шоколад", "масло", "крупа", "макарон", "сахар", "молоко", "сыр", "колбас", "бакале", "продукт"]):
+        return "Продукты и бакалея", "grocery"
+
+    if any(k in text for k in ["порошок", "стирк", "ariel", "tide", "fairy", "мыло", "шампун", "паста", "салфетк", "химия", "уборк"]):
+        return "Бытовые товары и химия", "household"
+
+    if any(k in text for k in ["акци", "распродаж", "скидк", "ликвидац", "outlet", "sale"]):
+        return "Акции и распродажи", "actions"
 
     if raw_category and not raw_category.startswith("Поиск:"):
         return raw_category, None

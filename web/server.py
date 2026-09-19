@@ -1028,8 +1028,9 @@ def get_categories_overview():
             "shops_count": len(master_to_shops.get(cat_id, set())),
         })
 
-    from database import get_tracked_categories
-    tracked = get_tracked_categories(active_only=False, limit=50)
+    from database import get_tracked_categories, get_hierarchical_categories
+    tracked = get_tracked_categories(active_only=False, limit=100)
+    tree = get_hierarchical_categories()
 
     return {
         "categories": categories_list,
@@ -1037,7 +1038,8 @@ def get_categories_overview():
         "wave_size": wave_size,
         "wave_plan": plan,
         "wave_state": wave_state,
-        "tracked_categories": tracked
+        "tracked_categories": tracked,
+        "tree": tree,
     }
 
 async def _scan_shop(key, candidate_settings, semaphore, target_categories=None):
@@ -1589,6 +1591,41 @@ async def scan_single_tracked_category_handler(request):
         return web.json_response({"status": "ok", "id": cid, "name": target["name"], "items_found": len(found)})
     except Exception as e:
         return web.json_response({"error": redact_secrets(str(e))}, status=400)
+
+@routes.get("/api/admin/categories/tree")
+@require_admin
+async def admin_categories_tree_handler(request):
+    """Иерархическое дерево родительских групп и дочерних категорий из поиска."""
+    from database import get_hierarchical_categories
+    tree = await asyncio.to_thread(get_hierarchical_categories)
+    return web.json_response(tree)
+
+@routes.post("/api/categories/tracked/{id}/parent")
+@require_admin
+async def set_category_parent_handler(request):
+    """Перемещение категории в родительскую мастер-группу."""
+    try:
+        cid = int(request.match_info["id"])
+        data = await request.json()
+        master = data.get("master_category")
+        from database import set_tracked_category_parent
+        await asyncio.to_thread(set_tracked_category_parent, cid, master)
+        return web.json_response({"status": "ok", "id": cid, "master_category": master})
+    except Exception as e:
+        return web.json_response({"error": redact_secrets(str(e))}, status=400)
+
+@routes.post("/api/admin/catalog/reset")
+@require_admin
+async def admin_catalog_reset_handler(request):
+    """Безопасный сброс каталога с созданием резервной копии."""
+    if scan_state["is_running"]:
+        return web.json_response({"status": "error", "message": "Нельзя сбросить каталог во время активного сканирования"}, status=409)
+    try:
+        from scripts.reset_catalog import reset_catalog
+        res = await asyncio.to_thread(reset_catalog, True)
+        return web.json_response(res)
+    except Exception as e:
+        return web.json_response({"status": "error", "message": redact_secrets(str(e))}, status=500)
 
 @routes.get("/api/admin/shops")
 @require_admin

@@ -147,7 +147,7 @@ def _all_shops_enabled():
 def _all_categories_enabled():
     return {key: True for key in MASTER_CATEGORIES}
 
-DEFAULT_HOT_CATEGORIES = ["smartphones", "laptops", "pc_components"]
+DEFAULT_HOT_CATEGORIES = ["actions"]
 CYCLE_BUDGET_HOURS = 24
 CYCLE_BUDGET_SECONDS = 24 * 3600  # 86400 секунд в сутках
 

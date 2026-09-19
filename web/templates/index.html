@@ -1512,16 +1512,17 @@
 
         </div>
 
-        <!-- Админ: Волновое расписание и категории каталога (3-в-1) -->
-        <div class="glass p-6 rounded-2xl space-y-5 md:col-span-2">
+        <!-- Админ: Иерархия категорий по спросу и расписание волн -->
+        <div class="glass p-6 rounded-2xl space-y-6 md:col-span-2">
+          <!-- Заголовок и быстрые действия -->
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 class="text-base font-semibold text-white flex items-center gap-2">
-                <span>🌊 Волновое расписание и категории каталога</span>
+                <span>🌊 Иерархия категорий каталога</span>
                 <span id="waveCurrentBadge" class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">Волна...</span>
               </h3>
               <p class="text-xs text-slate-400 mt-1">
-                Система «3-в-1»: 1) Чекбоксы отслеживания категорий; 2) Ротация по волнам (Hot-категории сканируются каждый цикл, а второстепенные сменяются кругами); 3) Мгновенный On-Demand запуск парсинга нужной категории.
+                Каталог растёт по реальному спросу: пользователи ищут товары — система сохраняет их и распределяет по родительским группам.
               </p>
             </div>
             <div class="flex items-center gap-2">
@@ -1529,71 +1530,75 @@
                 <i class="fa-solid fa-rotate text-slate-400"></i>
                 <span>Обновить данные</span>
               </button>
+              <button type="button" onclick="resetCatalogAdmin()" class="px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer" title="Очистить товары и начать наполнение с нуля (создается бэкап, пользователи сохраняются)">
+                <i class="fa-solid fa-trash-can text-rose-400"></i>
+                <span>Сбросить каталог...</span>
+              </button>
             </div>
           </div>
 
-          <!-- Настройки параметров волнового режима -->
+          <!-- Постоянная HOT-категория: Акции и распродажи -->
+          <div class="p-4 rounded-2xl bg-gradient-to-r from-amber-950/40 via-slate-900 to-slate-900 border border-amber-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="flex items-start gap-3">
+              <span class="text-2xl p-2 rounded-xl bg-amber-500/20 text-amber-300 shrink-0">🔥</span>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-bold text-white">Акции и распродажи (все магазины РК)</span>
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/25 text-amber-300 border border-amber-500/40">Постоянный HOT</span>
+                </div>
+                <p class="text-xs text-slate-400 mt-1 max-w-2xl leading-relaxed">
+                  Постоянный приоритетный раздел: собирает скидки, промо-акции и ошибки ритейлеров («пропущенный ноль») по всем сетям Казахстана в каждом цикле без ожидания ротации.
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <button type="button" onclick="startScanOneCategory('actions', '🔥 Акции и распродажи')" class="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-lg shadow-amber-500/20">
+                <i class="fa-solid fa-bolt text-xs"></i>
+                <span>Обновить акции сейчас</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Параметры волнового режима -->
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-xl bg-slate-900/80 border border-slate-800">
             <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Режим сканирования:</label>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Режим ротации подкатегорий:</label>
               <select id="selectWaveMode" onchange="markCategoriesDirty()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500">
                 <option value="rolling">🌊 Волновой (рекомендуется — защита от банов)</option>
                 <option value="all">⚡️ Все активные категории каждый раз</option>
               </select>
-              <span class="text-[10px] text-slate-500 mt-1 block">Hot-категории проверяются всегда, остальные — частями</span>
+              <span class="text-[10px] text-slate-500 mt-1 block">Hot-категории сканируются всегда, остальные — частями</span>
             </div>
 
             <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Размер волны (категорий за обход):</label>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Категорий за волну:</label>
               <input type="number" id="inputWaveSize" min="1" max="10" value="2" onchange="markCategoriesDirty()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500">
-              <span class="text-[10px] text-slate-500 mt-1 block">Количество категорий в ротации одной волны</span>
+              <span class="text-[10px] text-slate-500 mt-1 block">Размер пачки подкатегорий в одном обходе</span>
             </div>
 
             <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Текущее состояние волн:</label>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Состояние волн:</label>
               <div id="wavePlanSummary" class="text-xs text-slate-300 py-1 space-y-1">
-                <div class="truncate text-[11px] text-emerald-400 font-medium">⏱ <span id="waveCycleTimingSummary">Полный круг: 24ч (расчет...)</span></div>
-                <div class="truncate">🔥 Hot (в каждой волне): <span id="waveHotCatsSummary" class="text-amber-400 font-medium">...</span></div>
+                <div class="truncate text-[11px] text-emerald-400 font-medium">⏱ <span id="waveCycleTimingSummary">Полный круг: 24ч</span></div>
+                <div class="truncate">🔥 Hot: <span id="waveHotCatsSummary" class="text-amber-400 font-medium">Акции и распродажи</span></div>
                 <div class="truncate">🌊 В этой волне: <span id="waveActiveCatsSummary" class="text-cyan-400 font-medium">...</span></div>
                 <div class="truncate text-[11px] text-slate-400">⏳ След. волна: <span id="waveNextCatsSummary" class="text-slate-300">...</span></div>
               </div>
             </div>
           </div>
 
-          <!-- Сетка 12 мастер-категорий -->
+          <!-- Иерархическое дерево родительских групп и подкатегорий -->
           <div>
             <div class="flex items-center justify-between mb-3">
-              <div class="text-xs font-semibold text-slate-300">Категории каталога (мастер-группы по всем магазинам РК):</div>
+              <div class="text-xs font-semibold text-slate-300">Дерево категорий (родительская группа → подкатегории пользователей):</div>
               <div class="space-x-2 text-xs">
-                <button type="button" onclick="toggleAllCategories(true)" class="text-emerald-400 hover:underline">Включить все</button>
+                <button type="button" onclick="expandAllCategoryGroups(true)" class="text-cyan-400 hover:underline">Развернуть все</button>
                 <span class="text-slate-600">•</span>
-                <button type="button" onclick="toggleAllCategories(false)" class="text-slate-400 hover:underline">Отключить все</button>
+                <button type="button" onclick="expandAllCategoryGroups(false)" class="text-slate-400 hover:underline">Свернуть все</button>
               </div>
             </div>
-            <div id="adminCategoriesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-400">Загрузка категорий...</div>
-            </div>
-          </div>
-
-          <!-- Отслеживаемые категории из поисковых запросов пользователей -->
-          <div class="mt-6 pt-5 border-t border-slate-800/80 space-y-3">
-            <div class="flex items-center justify-between">
-              <div>
-                <div class="text-xs font-semibold text-white flex items-center gap-2">
-                  <i class="fa-solid fa-fire text-amber-400"></i>
-                  <span>Отслеживаемые категории из поиска (подтягиваются волнами)</span>
-                  <span id="trackedCatsCount" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-cyan-300">0</span>
-                </div>
-                <div class="text-[11px] text-slate-400 mt-0.5">
-                  Категории, которые искали пользователи. Система автоматически включает их в фоновые волны обновлений (каждые N часов).
-                </div>
-              </div>
-            </div>
-
-            <div id="trackedCategoriesContainer" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800/60 text-xs text-slate-500 italic col-span-full">
-                Пока нет сохраненных категорий из поиска. Выполните поиск или они добавятся автоматически при живом поиске товаров.
-              </div>
+            <div id="adminCategoriesTreeGrid" class="space-y-3">
+              <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-400">Загрузка иерархии категорий...</div>
             </div>
           </div>
 
@@ -4416,8 +4421,8 @@
         }
       }
 
-      // 2. Блок базовых мастер-категорий (12 групп)
-      html += '<optgroup label="Базовые мастер-категории (12 групп)">';
+      // 2. Блок базовых мастер-категорий
+      html += '<optgroup label="Родительские мастер-группы">';
       html += Object.entries(MASTER_CATEGORIES_INFO).map(([id, meta]) => {
         const isSel = id === selectedCat ? 'selected' : '';
         return `<option value="${escapeHtml(id)}" ${isSel}>${escapeHtml(meta.icon)} ${escapeHtml(meta.name)}</option>`;
@@ -4496,106 +4501,232 @@
         nextSummary.innerText = names.join(', ') || '—';
       }
 
-      const grid = document.getElementById('adminCategoriesGrid');
-      if (!grid) return;
+      const treeContainer = document.getElementById('adminCategoriesTreeGrid');
+      if (!treeContainer) return;
 
-      grid.innerHTML = cats.map(c => {
+      const tree = data.tree || { groups: [], unassigned: [] };
+      const groups = tree.groups || [];
+      const unassigned = tree.unassigned || [];
+
+      // Create lookup map for master categories meta/state from data.categories
+      const catStateMap = {};
+      cats.forEach(c => { catStateMap[c.id] = c; });
+
+      let html = '';
+
+      // 1. Неразобранные категории из поиска (если есть)
+      if (unassigned.length > 0) {
+        html += `
+          <div class="rounded-xl bg-amber-950/25 border border-amber-500/40 p-4 space-y-3">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <span class="text-lg">⚠️</span>
+                <div>
+                  <div class="text-xs font-bold text-amber-300">Неразобранные категории из поиска (${unassigned.length})</div>
+                  <div class="text-[10px] text-slate-400">Назначьте родительскую группу для объединения в общем каталоге</div>
+                </div>
+              </div>
+            </div>
+            <div class="space-y-2">
+              ${unassigned.map(tc => renderSubcategoryRow(tc, null)).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      // 2. Дерево: Родительские мастер-группы и входящие подкатегории
+      html += groups.map(g => {
+        const c = catStateMap[g.id] || {};
         let statusBadge = '';
         if (c.is_hot) {
-          statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0" title="Обновляется в каждой волне без пропуска">🔥 В каждой волне</span>';
+          statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0" title="Обновляется в каждой волне без пропуска">🔥 Hot-группа</span>';
         } else if (c.is_in_wave) {
           statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 shrink-0">🌊 В этой волне</span>';
         } else if (c.is_in_next_wave) {
           statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-500/15 text-blue-300 border border-blue-500/30 shrink-0">⏳ След. волна</span>';
-        } else {
-          statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] text-slate-400 bg-slate-800/80 border border-slate-700/50 shrink-0">💤 В очереди круга</span>';
         }
 
-        const countStr = (c.products_count || 0).toLocaleString('ru-RU');
-        const checkedEnabled = c.enabled ? 'checked' : '';
+        const checkedEnabled = c.enabled !== false ? 'checked' : '';
         const checkedHot = c.is_hot ? 'checked' : '';
+        const subList = g.subcategories || [];
+        const hasSubs = subList.length > 0;
+        const totalItemsCount = (c.products_count || g.total_products || 0).toLocaleString('ru-RU');
+        const totalShopsCount = c.shops_count || 0;
 
         return `
-          <div class="p-3.5 rounded-xl bg-slate-900/90 border ${c.enabled ? 'border-slate-800' : 'border-slate-800/50 opacity-60'} hover:border-slate-700 transition flex flex-col justify-between space-y-3">
-            <div class="flex items-start justify-between gap-2">
-              <label class="flex items-center gap-2.5 cursor-pointer select-none">
-                <input type="checkbox" id="catCheck_${escapeHtml(c.id)}" ${checkedEnabled} onchange="markCategoriesDirty()" class="w-4 h-4 rounded text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-900">
-                <span class="text-base">${escapeHtml(c.icon || '📦')}</span>
-                <div>
-                  <div class="text-xs font-bold text-white leading-snug">${escapeHtml(c.name)}</div>
-                  <div class="text-[10px] text-slate-400 font-mono">${escapeHtml(countStr)} тов. • ${escapeHtml(c.shops_count)} сетей</div>
-                </div>
-              </label>
-              ${statusBadge}
+          <div class="rounded-xl bg-slate-900/90 border ${c.enabled !== false ? 'border-slate-800' : 'border-slate-800/40 opacity-60'} hover:border-slate-700 transition overflow-hidden">
+            <div class="p-3.5 flex flex-wrap items-center justify-between gap-3 bg-slate-900/60">
+              <div class="flex items-center gap-3 min-w-0">
+                <label class="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input type="checkbox" id="catCheck_${escapeHtml(g.id)}" ${checkedEnabled} onchange="markCategoriesDirty()" class="w-4 h-4 rounded text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-900">
+                  <span class="text-xl">${escapeHtml(g.icon || '📦')}</span>
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs font-bold text-white leading-snug">${escapeHtml(g.name)}</span>
+                      <span class="text-[10px] px-2 py-0.5 rounded-full ${hasSubs ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'bg-slate-800 text-slate-400'} font-mono">
+                        ${hasSubs ? `${subList.length} подкатегорий` : '0 подкатегорий'}
+                      </span>
+                    </div>
+                    <div class="text-[10px] text-slate-400 font-mono mt-0.5">
+                      ${escapeHtml(totalItemsCount)} тов. • ${escapeHtml(totalShopsCount)} сетей
+                    </div>
+                  </div>
+                </label>
+                ${statusBadge}
+              </div>
+
+              <div class="flex items-center gap-3 shrink-0">
+                <label class="flex items-center gap-1.5 cursor-pointer text-[11px] text-slate-300 hover:text-amber-300 transition select-none" title="Сканировать группу в каждом цикле">
+                  <input type="checkbox" id="catHot_${escapeHtml(g.id)}" ${checkedHot} onchange="markCategoriesDirty()" class="w-3.5 h-3.5 rounded text-amber-500 focus:ring-amber-500 focus:ring-offset-slate-900">
+                  <span>🔥 Hot</span>
+                </label>
+                <button type="button" ${actionAttrs('category', [g.id, g.name])} class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-cyan-950/40 hover:text-cyan-300 border border-slate-700/80 hover:border-cyan-500/40 text-[11px] text-slate-300 transition flex items-center gap-1 cursor-pointer" title="Запустить точечный сбор по этой группе прямо сейчас">
+                  <i class="fa-solid fa-bolt text-amber-400 text-[10px]"></i>
+                  <span>Обновить</span>
+                </button>
+                <button type="button" onclick="toggleGroupAccordion('${escapeHtml(g.id)}')" class="p-1.5 text-slate-400 hover:text-white transition cursor-pointer" title="Раскрыть/свернуть подкатегории">
+                  <i id="accordionIcon_${escapeHtml(g.id)}" class="fa-solid fa-chevron-down text-xs transition-transform duration-200"></i>
+                </button>
+              </div>
             </div>
 
-            <div class="flex items-center justify-between pt-2 border-t border-slate-800/80 text-xs">
-              <label class="flex items-center gap-1.5 cursor-pointer text-[11px] text-slate-300 hover:text-amber-300 transition select-none" title="Сканировать в каждом цикле">
-                <input type="checkbox" id="catHot_${escapeHtml(c.id)}" ${checkedHot} onchange="markCategoriesDirty()" class="w-3.5 h-3.5 rounded text-amber-500 focus:ring-amber-500 focus:ring-offset-slate-900">
-                <span>🔥 Hot</span>
-              </label>
-              <button type="button" ${actionAttrs('category', [c.id, c.name])} class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-cyan-950/40 hover:text-cyan-300 border border-slate-700/80 hover:border-cyan-500/40 text-[11px] text-slate-300 transition flex items-center gap-1 cursor-pointer" title="Запустить точечный сбор по этой категории прямо сейчас">
-                <i class="fa-solid fa-bolt text-amber-400 text-[10px]"></i>
-                <span>Обновить</span>
-              </button>
+            <div id="subcategories_${escapeHtml(g.id)}" class="p-3 border-t border-slate-800/80 bg-slate-950/40 space-y-2 ${hasSubs ? '' : 'hidden'}">
+              ${hasSubs ? subList.map(tc => renderSubcategoryRow(tc, g.id)).join('') : `
+                <div class="text-[11px] text-slate-500 italic py-1 px-2">
+                  Пока нет подкатегорий. Они будут созданы и объединены под «${escapeHtml(g.name)}» автоматически при поиске пользователей.
+                </div>
+              `}
             </div>
           </div>
         `;
       }).join('');
 
-      // Render tracked categories from user search
-      const trackedList = data.tracked_categories || [];
-      const trackedCountEl = document.getElementById('trackedCatsCount');
-      if (trackedCountEl) trackedCountEl.innerText = trackedList.length;
+      treeContainer.innerHTML = html;
+    }
 
-      const trackedContainer = document.getElementById('trackedCategoriesContainer');
-      if (trackedContainer) {
-        if (trackedList.length === 0) {
-          trackedContainer.innerHTML = `
-            <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800/60 text-xs text-slate-500 italic col-span-full">
-              Пока нет сохраненных категорий из поиска. Они появятся здесь автоматически при живом поиске товаров.
+    function renderSubcategoryRow(tc, currentMaster) {
+      const timeAgo = tc.last_scanned_at ? formatTrackedTime(tc.last_scanned_at) : 'В очереди волн';
+      const isActive = tc.is_active !== 0;
+      const isHot = Number(tc.is_hot) === 1;
+      const effectiveMaster = tc.master_category || currentMaster || '';
+
+      const parentOptionsHtml = Object.entries(MASTER_CATEGORIES_INFO).map(([mId, meta]) => {
+        const isSel = mId === effectiveMaster ? 'selected' : '';
+        return `<option value="${escapeHtml(mId)}" ${isSel}>${escapeHtml(meta.icon)} ${escapeHtml(meta.name)}</option>`;
+      }).join('');
+
+      return `
+        <div class="p-2.5 rounded-lg bg-slate-900/80 border ${isActive ? 'border-slate-800/80' : 'border-slate-800/40 opacity-50'} hover:border-slate-700/80 transition flex flex-wrap items-center justify-between gap-2.5">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-xs font-semibold text-white" title="${escapeHtml(tc.name)}">${escapeHtml(tc.name)}</span>
+              <span class="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30" title="Количество запросов пользователей">
+                🔥 ${escapeHtml(tc.search_count)}
+              </span>
+              <span class="text-[10px] text-slate-400 font-mono">📦 ${(tc.products_count || 0).toLocaleString('ru-RU')} тов.</span>
             </div>
-          `;
-        } else {
-          trackedContainer.innerHTML = trackedList.map(tc => {
-            const timeAgo = tc.last_scanned_at ? formatTrackedTime(tc.last_scanned_at) : 'В очереди';
-            const isActive = tc.is_active !== 0;
-            const isHot = Number(tc.is_hot) === 1;
-            return `
-              <div class="p-3 rounded-xl bg-slate-900/80 border ${isActive ? 'border-slate-800' : 'border-slate-800/40 opacity-50'} hover:border-slate-700 transition flex items-center justify-between gap-2">
-                <div class="min-w-0 flex-1">
-                  <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold text-white truncate" title="${escapeHtml(tc.name)}">${escapeHtml(tc.name)}</span>
-                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0" title="Сколько раз искали пользователи">
-                      🔥 ${escapeHtml(tc.search_count)}
-                    </span>
-                  </div>
-                  <div class="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
-                    <span>Запрос: <code class="text-slate-300">${escapeHtml(tc.query)}</code></span>
-                    <span>•</span>
-                    <span class="text-cyan-400">🌊 ${escapeHtml(timeAgo)}</span>
-                  </div>
-                </div>
+            <div class="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
+              <span>Запрос: <code class="text-slate-300">${escapeHtml(tc.query)}</code></span>
+              <span>•</span>
+              <span class="text-cyan-400">🌊 ${escapeHtml(timeAgo)}</span>
+            </div>
+          </div>
 
-                <div class="flex items-center gap-1.5 shrink-0">
-                  <button type="button" ${actionAttrs('tracked-hot', [tc.id, !isHot])} class="w-7 h-7 rounded-lg ${isHot ? 'bg-amber-500/25 text-amber-300 border border-amber-500/40' : 'bg-slate-800 text-slate-500 hover:text-amber-300'} transition flex items-center justify-center cursor-pointer" title="${isHot ? 'Горячая: обновляется в каждой волне (снять)' : 'Сделать горячей: обновлять в каждой волне'}">
-                    <i class="fa-solid fa-fire text-[11px]"></i>
-                  </button>
-                  <button type="button" ${actionAttrs('tracked-scan', [tc.id, tc.name])} class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-cyan-900/40 text-slate-300 hover:text-cyan-300 transition flex items-center justify-center cursor-pointer" title="Обновить цены в этой категории прямо сейчас">
-                    <i class="fa-solid fa-arrows-rotate text-[11px]"></i>
-                  </button>
-                  <label class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 transition flex items-center justify-center cursor-pointer" title="${isActive ? 'Включена в волны' : 'Выключена из волн'}">
-                    <input type="checkbox" ${isActive ? 'checked' : ''} ${actionAttrs('tracked-toggle', [tc.id], 'change')} class="w-3.5 h-3.5 rounded text-cyan-500 focus:ring-0">
-                  </label>
-                  <button type="button" ${actionAttrs('tracked-delete', [tc.id, tc.name])} class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-red-900/40 text-slate-400 hover:text-red-400 transition flex items-center justify-center cursor-pointer" title="Удалить категорию">
-                    <i class="fa-solid fa-trash text-[11px]"></i>
-                  </button>
-                </div>
-              </div>
-            `;
-          }).join('');
-        }
+          <div class="flex items-center gap-2 shrink-0">
+            <div class="flex items-center gap-1" title="Родительская группа каталога">
+              <span class="text-[10px] text-slate-500">Группа:</span>
+              <select onchange="changeCategoryParent('${escapeHtml(tc.id)}', this.value)" class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-slate-200 focus:outline-none focus:border-cyan-500 cursor-pointer">
+                <option value="" ${!effectiveMaster ? 'selected' : ''}>— Без группы —</option>
+                ${parentOptionsHtml}
+              </select>
+            </div>
+
+            <button type="button" ${actionAttrs('tracked-hot', [tc.id, !isHot])} class="w-7 h-7 rounded-lg ${isHot ? 'bg-amber-500/25 text-amber-300 border border-amber-500/40' : 'bg-slate-800 text-slate-500 hover:text-amber-300'} transition flex items-center justify-center cursor-pointer" title="${isHot ? 'Горячая: обновляется в каждой волне (снять)' : 'Сделать горячей: обновлять в каждой волне'}">
+              <i class="fa-solid fa-fire text-[11px]"></i>
+            </button>
+
+            <button type="button" ${actionAttrs('tracked-scan', [tc.id, tc.name])} class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-cyan-900/40 text-slate-300 hover:text-cyan-300 transition flex items-center justify-center cursor-pointer" title="Обновить цены в этой категории прямо сейчас">
+              <i class="fa-solid fa-arrows-rotate text-[11px]"></i>
+            </button>
+
+            <label class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 transition flex items-center justify-center cursor-pointer" title="${isActive ? 'Включена в волны' : 'Выключена из волн'}">
+              <input type="checkbox" ${isActive ? 'checked' : ''} ${actionAttrs('tracked-toggle', [tc.id], 'change')} class="w-3.5 h-3.5 rounded text-cyan-500 focus:ring-0">
+            </label>
+
+            <button type="button" ${actionAttrs('tracked-delete', [tc.id, tc.name])} class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-red-900/40 text-slate-400 hover:text-red-400 transition flex items-center justify-center cursor-pointer" title="Удалить категорию">
+              <i class="fa-solid fa-trash text-[11px]"></i>
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function toggleGroupAccordion(gid) {
+      const el = document.getElementById('subcategories_' + gid);
+      const icon = document.getElementById('accordionIcon_' + gid);
+      if (!el) return;
+      const isHidden = el.classList.toggle('hidden');
+      if (icon) {
+        icon.style.transform = isHidden ? 'rotate(-90deg)' : 'rotate(0deg)';
       }
+    }
+
+    function expandAllCategoryGroups(expand) {
+      document.querySelectorAll('[id^="subcategories_"]').forEach(el => {
+        if (expand) {
+          el.classList.remove('hidden');
+        } else {
+          el.classList.add('hidden');
+        }
+      });
+      document.querySelectorAll('[id^="accordionIcon_"]').forEach(icon => {
+        icon.style.transform = expand ? 'rotate(0deg)' : 'rotate(-90deg)';
+      });
+    }
+
+    async function changeCategoryParent(catId, newMaster) {
+      try {
+        const res = await fetch(`/api/categories/tracked/${encodeURIComponent(catId)}/parent`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ master_category: newMaster })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showToast('Родительская группа обновлена', false);
+          await loadAdminCategories();
+        } else {
+          showToast(data.message || 'Ошибка обновления группы', true);
+        }
+      } catch (e) {
+        showToast('Ошибка сети при обновлении группы', true);
+      }
+    }
+
+    async function resetCatalogAdmin() {
+      if (!confirm('Вы действительно хотите сбросить базу товаров и каталог?\n\n• Все товары, наблюдения и временные категории будут удалены.\n• Постоянная HOT-категория «🔥 Акции и распродажи» останется и будет сканироваться по всем магазинам Казахстана.\n• Все пользователи и сессии будут сохранены.\n• Будет создан резервный бэкап базы данных.')) {
+        return;
+      }
+      showToast('🧹 Выполняется безопасный сброс каталога...', false);
+      try {
+        const res = await fetch('/api/admin/catalog/reset', { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+          showToast(data.message || 'Каталог успешно сброшен!', false);
+          await loadAdminCategories();
+          await loadTrackedCategoriesList();
+          if (typeof loadStats === 'function') loadStats();
+          if (typeof executeBestPriceSearch === 'function') executeBestPriceSearch();
+        } else {
+          showToast(data.message || 'Ошибка сброса каталога', true);
+        }
+      } catch (e) {
+        showToast('Ошибка сети: ' + e, true);
+      }
+    }
+
+    function startScanOneCategory(catKey, catName) {
+      return scanCategoryNow(catKey, catName);
     }
 
     function formatTrackedTime(isoStr) {
