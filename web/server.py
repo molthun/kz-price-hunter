@@ -1,5 +1,6 @@
 from __future__ import annotations
 import asyncio
+import json
 import os
 import socket
 import uuid
@@ -642,6 +643,37 @@ async def logout_handler(request):
     clear_session_cookie(response)
     return response
 
+# ===== Мои данные: выгрузка и удаление аккаунта (M12) =====
+
+@routes.get("/api/me/export")
+@require_login
+async def export_my_data_handler(request):
+    from database import export_user_data
+    data = await asyncio.to_thread(export_user_data, request["user"]["id"])
+    if data is None:
+        return web.json_response({"status": "error", "message": "Аккаунт не найден"}, status=404)
+    response = web.json_response(data, dumps=lambda obj: json.dumps(obj, ensure_ascii=False, indent=2))
+    response.headers["Content-Disposition"] = 'attachment; filename="kz-price-hunter-my-data.json"'
+    return response
+
+
+@routes.post("/api/me/delete")
+@require_login
+async def delete_my_account_handler(request):
+    """Удаление аккаунта самим пользователем: нужно явное подтверждение в теле запроса."""
+    try:
+        confirmed = (await request.json()).get("confirm") is True
+    except Exception:
+        confirmed = False
+    if not confirmed:
+        return web.json_response({"status": "error", "message": "Нужно подтверждение удаления"}, status=400)
+    from database import delete_user_account
+    counts = await asyncio.to_thread(delete_user_account, request["user"]["id"])
+    print("[Auth] Пользователь удалил свой аккаунт")
+    response = web.json_response({"status": "ok", "deleted": counts})
+    clear_session_cookie(response)
+    return response
+
 # ===== Личные настройки =====
 
 @routes.post("/api/me/settings")
@@ -1228,14 +1260,15 @@ async def _do_scan_task(shop_keys=None, target_categories=None, scan_type="manua
         except Exception as e:
             print(f"[Wave] Ошибка обновления tracked categories: {e}")
 
-        # История цен хранится ограниченный срок (180 дней)
+        # Сроки хранения: история цен — 180 дней, завершённые уведомления — 30 дней
         try:
-            from database import prune_price_observations
+            from database import prune_price_observations, prune_notification_outbox
             pruned = await asyncio.to_thread(prune_price_observations)
-            if pruned:
-                print(f"[DB] Удалено старых наблюдений цен: {pruned}")
+            pruned_outbox = await asyncio.to_thread(prune_notification_outbox)
+            if pruned or pruned_outbox:
+                print(f"[DB] Удалено старых наблюдений цен: {pruned}, записей уведомлений: {pruned_outbox}")
         except Exception as e:
-            print(f"[DB] Ошибка очистки истории цен: {type(e).__name__}")
+            print(f"[DB] Ошибка очистки по срокам хранения: {type(e).__name__}")
 
         scan_state["progress_pct"] = 100
         scan_state["last_completed"] = datetime.datetime.now().strftime("%H:%M:%S")

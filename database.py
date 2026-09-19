@@ -1163,6 +1163,65 @@ def get_session_user(token: Optional[str]) -> Optional[Dict[str, Any]]:
         """, (_hash_token(token), now)).fetchone()
     return _user_row_to_dict(row) if row else None
 
+NOTIFICATION_RETENTION_DAYS = 30
+
+
+def export_user_data(user_id: int) -> Optional[Dict[str, Any]]:
+    """Всё, что сервис хранит о пользователе (M12): профиль, настройки, сессии без токенов,
+    история адресованных ему уведомлений."""
+    user = get_user(user_id)
+    if not user:
+        return None
+    with get_connection() as conn:
+        sessions = [dict(r) for r in conn.execute(
+            "SELECT created_at, expires_at FROM sessions WHERE user_id = ? ORDER BY created_at", (int(user_id),))]
+        notifications = []
+        for row in conn.execute("""SELECT alert_id, status, attempts, created_at, last_error, payload
+                                   FROM notification_outbox WHERE user_id = ? ORDER BY id""", (int(user_id),)):
+            try:
+                payload = json.loads(row["payload"])
+            except ValueError:
+                payload = {}
+            product = payload.get("product") or {}
+            notifications.append({
+                "alert_id": row["alert_id"], "status": row["status"], "attempts": row["attempts"],
+                "created_at": datetime.datetime.fromtimestamp(row["created_at"], datetime.timezone.utc).isoformat(),
+                "product": {k: product.get(k) for k in ("title", "shop", "city", "url", "price")},
+            })
+    return {
+        "exported_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "profile": {k: user.get(k) for k in ("id", "username", "first_name", "last_name", "photo_url",
+                                             "is_blocked", "created_at", "last_login_at")},
+        "settings": user.get("settings") or {},
+        "sessions": sessions,
+        "notifications": notifications,
+    }
+
+
+def delete_user_account(user_id: int) -> Dict[str, int]:
+    """Удаляет пользователя, его сессии и адресованные ему уведомления одной транзакцией (M12).
+    Общие алерты и каталог не удаляются: они не принадлежат пользователю."""
+    with get_connection() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        counts = {
+            "sessions": conn.execute("DELETE FROM sessions WHERE user_id = ?", (int(user_id),)).rowcount,
+            "notifications": conn.execute("DELETE FROM notification_outbox WHERE user_id = ?", (int(user_id),)).rowcount,
+            "users": conn.execute("DELETE FROM users WHERE id = ?", (int(user_id),)).rowcount,
+        }
+        conn.commit()
+    return counts
+
+
+def prune_notification_outbox(days: int = NOTIFICATION_RETENTION_DAYS) -> int:
+    """Удаляет завершённые записи очереди уведомлений старше срока хранения (ожидающие не трогает)."""
+    cutoff = time.time() - days * 86400
+    with get_connection() as conn:
+        deleted = conn.execute("DELETE FROM notification_outbox WHERE status != 'pending' AND created_at < ?",
+                               (cutoff,)).rowcount
+        conn.commit()
+        return deleted
+
+
 def delete_session(token: Optional[str]) -> None:
     if not token:
         return

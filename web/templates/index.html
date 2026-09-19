@@ -1006,6 +1006,24 @@
         </div>
       </div>
 
+      <!-- ===== Мои данные: выгрузка и удаление аккаунта ===== -->
+      <div id="myDataSection" class="auth-only hidden">
+        <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wide mb-3 flex items-center gap-2">
+          <i class="fa-solid fa-database text-sky-400"></i><span>Мои данные</span>
+        </h2>
+        <div class="glass p-4 rounded-2xl flex flex-col md:flex-row md:items-center gap-3 text-xs text-slate-400">
+          <p class="flex-1">Выгрузка содержит профиль Telegram, настройки, сессии и историю ваших уведомлений. Удаление аккаунта стирает их с сервера; общие алерты и каталог цен не удаляются. Подробнее — <a href="/privacy" class="text-emerald-400 hover:underline">как используются данные</a>.</p>
+          <div class="flex flex-wrap gap-2 shrink-0">
+            <a id="btnExportMyData" href="/api/me/export" download class="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium px-4 py-2 rounded-xl transition cursor-pointer">
+              <i class="fa-solid fa-download"></i><span>Скачать мои данные</span>
+            </a>
+            <button type="button" id="btnDeleteAccount" onclick="deleteMyAccount()" class="inline-flex items-center gap-2 bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 font-medium px-4 py-2 rounded-xl transition cursor-pointer">
+              <i class="fa-solid fa-user-xmark"></i><span>Удалить аккаунт</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- ===== Администрирование (только для администраторов) ===== -->
       <div id="adminSection" class="hidden">
         <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wide mb-3 flex items-center gap-2">
@@ -3699,6 +3717,24 @@
 
     async function devLogin() {
       if (await postAuth('/api/auth/dev-login')) location.reload();
+    }
+
+    async function deleteMyAccount() {
+      const ok = confirm('Удалить аккаунт? Будут удалены профиль, личные настройки, сессии и история ваших уведомлений. Отменить это нельзя. Войти заново через Telegram можно будет позже — с настройками по умолчанию.');
+      if (!ok) return;
+      try {
+        const res = await fetch('/api/me/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ confirm: true })
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        showToast('Аккаунт удалён');
+        setTimeout(() => location.reload(), 800);
+      } catch (e) {
+        console.error('Ошибка удаления аккаунта:', e);
+        showToast('Не удалось удалить аккаунт', true);
+      }
     }
 
     async function logout() {

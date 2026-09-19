@@ -27,9 +27,19 @@ const assert=require('node:assert/strict');
   assert.equal(settings.status,200);assert.equal(settings.data.settings.telegram_notify_enabled,false);
   assert.equal(await page.evaluate(()=>postAuth('/api/auth/logout')),true);
   await page.evaluate(()=>loadMe());assert.equal(await page.evaluate(()=>currentMe.user),null);
+  assert.equal(await page.evaluate(()=>document.getElementById('myDataSection').classList.contains('hidden')),true);
+  // «Мои данные»: блок виден после входа, выгрузка скачивается, удаление с подтверждением выходит из аккаунта
+  assert.equal(await page.evaluate(()=>postAuth('/api/auth/dev-login')),true);
+  await page.evaluate(()=>loadMe());
+  assert.equal(await page.evaluate(()=>document.getElementById('myDataSection').classList.contains('hidden')),false);
+  const exported=await page.evaluate(async()=>{const r=await fetch('/api/me/export');return {status:r.status,disp:r.headers.get('Content-Disposition'),data:await r.json()}});
+  assert.equal(exported.status,200);assert.match(exported.disp,/attachment/);assert.equal(exported.data.profile.id,-1);
+  page.once('dialog',dialog=>dialog.accept());
+  await page.evaluate(()=>{window.location.reload=()=>{};return deleteMyAccount();});
+  await page.evaluate(()=>loadMe());assert.equal(await page.evaluate(()=>currentMe.user),null);
   assert.equal((await page.request.get(base+'/privacy')).status(),200);
   assert.deepEqual(errors,[]);
-  console.log('PASS: real browser dev login, session, settings POST Origin, logout, privacy page; isolated DB');
+  console.log('PASS: real browser dev login, session, settings POST Origin, logout, my data export/delete, privacy page; isolated DB');
  }finally{
   if(browser)await browser.close();
   child.kill('SIGINT');
