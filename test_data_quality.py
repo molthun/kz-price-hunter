@@ -358,7 +358,7 @@ class StaleBenchmarkTest(DbCase):
         self.age("edge", 72.5)
         self.assertIsNone(self.arbitrage())
 
-    def test_existing_alert_hidden_and_not_delivered_when_benchmark_stale(self):
+    def test_existing_alert_hidden_when_benchmark_stale(self):
         self.add("cur", "Current", 200000, 0)
         seen_fresh = datetime.datetime.now(UTC).isoformat()
         seen_stale = (datetime.datetime.now(UTC) - datetime.timedelta(hours=80)).isoformat()
@@ -375,10 +375,7 @@ class StaleBenchmarkTest(DbCase):
         self.sql("UPDATE alerts SET created_at = datetime('now', '-4 days')")
         database.invalidate_alerts_cache()
         self.assertEqual(database._fetch_filtered_alerts({}), [])
-        import notifier
-        self.assertTrue(notifier._stale_benchmark({"type": "MARKET_ARBITRAGE", "competitor_seen_at": seen_stale}))
-        self.assertFalse(notifier._stale_benchmark({"type": "MARKET_ARBITRAGE", "competitor_seen_at": seen_fresh}))
-        self.assertFalse(notifier._stale_benchmark({"type": "ZERO_GLITCH", "competitor_seen_at": seen_stale}))
+        # Доставка очереди — сквозные тесты в test_notifications.DeliveryTest (*_arbitrage_*)
 
 
 class AllStaleComparisonTest(VisibilityCase):

@@ -4,6 +4,7 @@ import os
 import tempfile
 import threading
 import time
+import json
 import unittest
 from unittest.mock import Mock, patch
 
@@ -94,6 +95,44 @@ class DeliveryTest(unittest.TestCase):
     def outbox(self):
         with get_connection() as conn:
             return [dict(r) for r in conn.execute("SELECT * FROM notification_outbox ORDER BY id")]
+
+    def as_arbitrage(self, alert_id, created_hours_ago, seen_hours_ago=None):
+        """Превращает поставленный в очередь алерт в арбитражный; seen_hours_ago=None — старая запись без поля."""
+        seen = None if seen_hours_ago is None else f"-{seen_hours_ago} hours"
+        with get_connection() as conn:
+            conn.execute("UPDATE alerts SET alert_type='MARKET_ARBITRAGE', created_at=datetime('now', ?), "
+                         "competitor_seen_at=CASE WHEN ? IS NULL THEN NULL ELSE datetime('now', ?) END WHERE id=?",
+                         (f"-{created_hours_ago} hours", seen, seen, alert_id))
+            for row in conn.execute("SELECT id, payload FROM notification_outbox WHERE alert_id=?", (alert_id,)).fetchall():
+                payload = json.loads(row["payload"])
+                payload["anomaly"]["type"] = "MARKET_ARBITRAGE"
+                conn.execute("UPDATE notification_outbox SET payload=? WHERE id=?", (json.dumps(payload), row["id"]))
+            conn.commit()
+
+    def deliver(self):
+        with patch.object(notifier, "send_telegram_alert", return_value=notifier.DeliveryResult("sent")) as send:
+            sent = notifier.deliver_pending()
+        return sent, send.call_count, self.outbox()[0]["status"]
+
+    def test_legacy_arbitrage_with_stale_benchmark_is_cancelled(self):
+        # P02 C02: старая очередь без competitor_seen_at — основание по времени создания алерта (> 72 ч)
+        self.as_arbitrage(self.enqueue(), created_hours_ago=96)
+        self.assertEqual(self.deliver(), (0, 0, "cancelled"))
+
+    def test_legacy_arbitrage_with_fresh_benchmark_is_sent(self):
+        self.as_arbitrage(self.enqueue(), created_hours_ago=1)
+        self.assertEqual(self.deliver(), (1, 1, "sent"))
+
+    def test_new_arbitrage_with_stale_benchmark_is_cancelled_despite_fresh_alert(self):
+        self.as_arbitrage(self.enqueue(), created_hours_ago=1, seen_hours_ago=80)
+        self.assertEqual(self.deliver(), (0, 0, "cancelled"))
+
+    def test_regular_discount_not_affected_by_benchmark_rule(self):
+        alert_id = self.enqueue()
+        with get_connection() as conn:
+            conn.execute("UPDATE alerts SET created_at=datetime('now', '-96 hours') WHERE id=?", (alert_id,))
+            conn.commit()
+        self.assertEqual(self.deliver(), (1, 1, "sent"))
 
     def test_dismissed_alert_is_not_sent(self):
         alert_id = self.enqueue()

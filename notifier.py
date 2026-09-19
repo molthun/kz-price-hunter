@@ -235,13 +235,6 @@ def deliver_pending(limit=10):
     return sent
 
 
-def _stale_benchmark(anomaly) -> bool:
-    if anomaly.get("type") not in ("MARKET_ARBITRAGE", "ARBITRAGE") or not anomaly.get("competitor_seen_at"):
-        return False
-    from data_quality import STALE, freshness
-    return freshness(anomaly["competitor_seen_at"])["freshness"] == STALE
-
-
 def _record_delivery(counts, pause) -> None:
     """Сводка цикла доставки без chat_id/пользователей (P01); пустые циклы не пишутся."""
     if not any(counts.values()) and pause is None:
@@ -259,7 +252,8 @@ def _record_delivery(counts, pause) -> None:
 
 
 def _deliver_batch(limit, counts):
-    from database import claim_notification, finish_notification, get_user, get_connection, fresh_price_clause
+    from database import (claim_notification, finish_notification, get_user, get_connection, fresh_price_clause,
+                          fresh_benchmark_clause)
     from detector import alert_matches_user, notify_level_allows
     sent = 0
     pause = None
@@ -276,10 +270,13 @@ def _deliver_batch(limit, counts):
             with get_connection() as conn:
                 current = conn.execute("SELECT current_price FROM products WHERE id=? AND " + fresh_price_clause(),
                                        (str(product["id"]),)).fetchone()
-                alert = conn.execute("SELECT is_dismissed FROM alerts WHERE id=?", (item["alert_id"],)).fetchone()
+                # Основание арбитража проверяется по записи алерта тем же правилом, что и в выдаче
+                # (COALESCE(competitor_seen_at, created_at) ≤ 72 ч): старая очередь без поля в payload тоже (P02 C02)
+                alert = conn.execute("SELECT is_dismissed, " + fresh_benchmark_clause("") + " AS benchmark_ok "
+                                     "FROM alerts WHERE id=?", (item["alert_id"],)).fetchone()
             if (not user or user["is_blocked"] or not user["settings"].get("telegram_notify_enabled")
-                or _stale_benchmark(anomaly)  # цена конкурента-основания арбитража устарела (P02 C02)
                 or not alert or alert[0]  # алерт удалён или скрыт администратором
+                or not alert[1]  # цена конкурента-основания арбитража устарела (P02 C02)
                 or not current or current[0] != anomaly["new_price"]
                 or not alert_matches_user(candidate, user["settings"])
                 or not notify_level_allows(anomaly, user["settings"].get("telegram_notify_level", "ALL"))):
