@@ -19,7 +19,7 @@
     <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
       <div class="min-w-0">
         <a href="/" class="text-xs text-slate-400 hover:text-emerald-300">← KZ Price Hunter</a>
-        <h1 class="text-lg sm:text-xl font-bold text-white truncate">🩺 Центр мониторинга</h1>
+        <h1 class="text-lg sm:text-xl font-bold text-white truncate">🩺 <span class="sm:hidden">Мониторинг</span><span class="hidden sm:inline">Центр мониторинга</span></h1>
       </div>
       <div class="flex items-center gap-2 shrink-0">
         <span id="overallBadge"></span>
@@ -127,12 +127,19 @@
       <div class="md:hidden space-y-2">${cards}</div>`;
   }
 
+  function incidentPill(i) {
+    const [label, cls] = !i.open ? ['Восстановлен', 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40']
+      : (i.severity === 'ERROR' || i.severity === 'CRITICAL') ? ['Открыт · ошибка', 'bg-rose-500/15 text-rose-300 border-rose-500/40']
+      : ['Открыт · предупреждение', 'bg-amber-500/15 text-amber-300 border-amber-500/40'];
+    return `<span class="inline-block px-2 py-0.5 rounded-full border text-[11px] font-semibold whitespace-nowrap ${cls}">${label}</span>`;
+  }
+
   function incidentList(list) {
     if (!list || !list.length) return '<p class="text-sm text-slate-500">Инцидентов нет.</p>';
     return list.map(i => `
       <div class="p-3 rounded-xl border ${i.open ? 'border-rose-500/40 bg-rose-950/10' : 'border-slate-800 bg-dark-900'}">
         <div class="flex flex-wrap items-center gap-2">
-          ${pill(i.open ? (i.severity === 'ERROR' || i.severity === 'CRITICAL' ? 'offline' : 'degraded') : 'healthy')}
+          ${incidentPill(i)}
           <span class="text-sm font-medium text-white break-words">${esc(i.shop || i.component)} · ${esc(i.type)}</span>
           <span class="text-xs text-slate-400">${i.open ? 'открыт' : 'восстановлен ' + ago(i.recovered_at)}</span>
         </div>

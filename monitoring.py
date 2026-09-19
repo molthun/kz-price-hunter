@@ -500,11 +500,18 @@ def _signature(e: Dict[str, Any]) -> str:
     return _DIGITS.sub("#", text)[:120]
 
 
-def hypothesis(text: str) -> str:
+def hypothesis(text: str, event_type: str = "", signature: str = "") -> str:
     low = text.lower()
     for needles, explanation in HYPOTHESES:
         if any(n in low for n in needles):
             return explanation
+    if event_type == "system_error":
+        where, _, error = signature.partition(":")
+        return f"Необработанное исключение {error or '?'} в {where or 'компоненте'} — ошибка кода или данных"
+    if event_type == "search_query":
+        return "Поиск завершается ошибкой (база или живой опрос магазинов) — см. события"
+    if event_type == "ai_query":
+        return f"AI-провайдер отвечает с ошибкой ({signature or '?'})"
     return "Причина не классифицирована — см. события инцидента"
 
 
@@ -568,7 +575,7 @@ def incidents(days: int = INCIDENT_WINDOW_DAYS, now: Optional[datetime.datetime]
             "scale": {"events": inc["count"], "categories": sorted(inc["categories"])[:20],
                       "categories_count": len(inc["categories"]), "hosts": sorted(inc["hosts"]),
                       "scans": len(inc["scan_ids"])},
-            "hypothesis": hypothesis(f"{signature} {inc['sample']}"),
+            "hypothesis": hypothesis(f"{signature} {inc['sample']}", _type, signature),
             "recovered_at": recovered_at,
             "open": recovered_at is None,
         })
