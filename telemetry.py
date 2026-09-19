@@ -60,6 +60,7 @@ EVENT_AI_QUERY = "ai_query"
 EVENT_TELEGRAM_ALERT = "telegram_alert"
 EVENT_BACKUP_RUN = "backup_run"
 EVENT_SYSTEM_ERROR = "system_error"
+EVENT_TELEGRAM_BOT = "telegram_bot"
 
 # Уровни важности
 SEVERITY_DEBUG = "DEBUG"
@@ -88,6 +89,7 @@ MAX_PENDING_EVENTS = 5000
 MAX_PENDING_HTTP_KEYS = 5000
 # Диагностические события HTTP 4xx/5xx: не больше стольких в минуту на host+код, остальное — в счётчиках
 MAX_HTTP_DIAG_EVENTS_PER_MINUTE = 20
+MAX_SEARCH_EVENTS_PER_MINUTE = 60
 FLUSH_INTERVAL_SECONDS = 10.0
 PRUNE_INTERVAL_SECONDS = 6 * 3600
 # Телеметрия не ждёт блокировку SQLite дольше этого: обход важнее диагностики
@@ -246,6 +248,13 @@ def sanitize_payload(data: Any, max_bytes: int = MAX_DATA_JSON_BYTES) -> str:
         return json.dumps({"_serialization_error": type(e).__name__})
 
 
+def query_shape(query: Any) -> Dict[str, int]:
+    """Форма поискового запроса без текста и хеша: текст может содержать персональные данные (P06)."""
+    text = str(query or "").strip()
+    return {"query_len": len(text), "query_tokens": len(text.split()),
+            "query_has_digits": int(any(ch.isdigit() for ch in text))}
+
+
 def calculate_p95(latencies: List[float]) -> float:
     """Вычисляет 95-й процентиль (p95) из распределения значений.
 
@@ -326,7 +335,7 @@ class TelemetryService:
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
         self._last_prune = 0.0
-        self.stats = {"dropped_events": 0, "dropped_http": 0, "suppressed_http_events": 0, "failed_flushes": 0}
+        self.stats = {"dropped_events": 0, "dropped_http": 0, "suppressed_events": 0, "failed_flushes": 0}
 
     # ------------------------------------------------------------------ запись
 
@@ -342,12 +351,20 @@ class TelemetryService:
         scan_id: Optional[str] = None,
         request_id: Optional[str] = None,
         data: Optional[Dict[str, Any]] = None,
+        throttle_key: Optional[str] = None,
+        throttle_per_minute: int = MAX_HTTP_DIAG_EVENTS_PER_MINUTE,
     ) -> Optional[Dict[str, Any]]:
-        """Записывает структурированное событие. Fail-Open: исключения не выходят наружу."""
+        """Записывает структурированное событие. Fail-Open: исключения не выходят наружу.
+
+        throttle_key — не больше throttle_per_minute событий в минуту с этим ключом (частые источники:
+        поиск, ошибки воркеров); подавленные учитываются в stats["suppressed_events"].
+        """
         if not telemetry_enabled():
             return None
         try:
             now = datetime.datetime.now(datetime.timezone.utc)
+            if throttle_key is not None and not self._allow(now, throttle_key, throttle_per_minute):
+                return None
             event = {
                 "event_id": str(uuid.uuid4()),
                 "timestamp": now.strftime(_EVENT_TS_FORMAT),
@@ -479,22 +496,34 @@ class TelemetryService:
             message = f"HTTP {status_code} {method} {host}"
         else:
             return
-        minute = now.strftime(BUCKET_FORMATS["minute"])
-        key = (minute, host, code)
-        with self._lock:
-            if len(self._diag_counts) > 1000:
-                self._diag_counts = {k: v for k, v in self._diag_counts.items() if k[0] == minute}
-            seen = self._diag_counts.get(key, 0)
-            self._diag_counts[key] = seen + 1
-            if seen >= MAX_HTTP_DIAG_EVENTS_PER_MINUTE:
-                self.stats["suppressed_http_events"] += 1
-                return
         self.record_event(
             event_type=event_type, severity=severity, component=COMPONENT_HTTP, message=message,
             shop=shop_name or None,
             data={"host": host, "method": method, "status": status_code or None, "url": safe_url,
                   "error": error_name, "kind": error_kind, "retry_after": retry_after,
                   "latency_ms": round(float(latency_ms), 2)},
+            throttle_key=f"http:{host}:{code}",
+        )
+
+    def _allow(self, now: datetime.datetime, key: str, per_minute: int) -> bool:
+        minute = now.strftime(BUCKET_FORMATS["minute"])
+        with self._lock:
+            if len(self._diag_counts) > 1000:
+                self._diag_counts = {k: v for k, v in self._diag_counts.items() if k[0] == minute}
+            seen = self._diag_counts.get((minute, key), 0)
+            self._diag_counts[(minute, key)] = seen + 1
+            if seen >= per_minute:
+                self.stats["suppressed_events"] += 1
+                return False
+        return True
+
+    def record_system_error(self, component: str, where: str, exc: BaseException,
+                            severity: str = SEVERITY_ERROR, data: Optional[Dict[str, Any]] = None) -> None:
+        """Необработанная ошибка компонента: только имя класса и место, без текста исключения (A01)."""
+        self.record_event(
+            EVENT_SYSTEM_ERROR, severity, component, f"{where}: {type(exc).__name__}",
+            data={"where": where, "error": type(exc).__name__, **(data or {})},
+            throttle_key=f"system:{component}:{where}:{type(exc).__name__}", throttle_per_minute=5,
         )
 
     # ------------------------------------------------------------------ сброс в БД

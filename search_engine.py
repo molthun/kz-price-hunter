@@ -477,7 +477,34 @@ def _close_scraper(scraper) -> None:
         close()
 
 
+def _record_search(source: str, query: str, started: float, outcome: str, results: int,
+                   **extra) -> None:
+    """Событие поиска: форма запроса без текста (P06), число результатов, длительность, исход (P01)."""
+    try:
+        from telemetry import (telemetry, query_shape, EVENT_SEARCH_QUERY, SEVERITY_INFO, SEVERITY_ERROR,
+                               COMPONENT_SEARCH, MAX_SEARCH_EVENTS_PER_MINUTE)
+        telemetry.record_event(
+            EVENT_SEARCH_QUERY, SEVERITY_ERROR if outcome == "error" else SEVERITY_INFO, COMPONENT_SEARCH,
+            f"Поиск {source}: {outcome}, {results} результатов",
+            data={"source": source, "outcome": outcome, "results": results,
+                  "duration_ms": round((time.monotonic() - started) * 1000.0, 1), **query_shape(query), **extra},
+            throttle_key=f"search:{source}", throttle_per_minute=MAX_SEARCH_EVENTS_PER_MINUTE)
+    except Exception:
+        pass
+
+
 async def search_live_stores(query: str, city: str = "Астана") -> List[Dict[str, Any]]:
+    started = time.monotonic()
+    outcome, items, cached = "error", [], False
+    try:
+        items, cached = await _search_live_stores(query, city)
+        outcome = "found" if items else "not_found"
+        return items
+    finally:
+        _record_search("live", query, started, outcome, len(items), city=city, cached=cached)
+
+
+async def _search_live_stores(query: str, city: str = "Астана"):
     """Живой опрос площадок (Kaspi, 4mobile, Forte Market) с кэшированием.
 
     Город у предложения — только фактически опрошенный: «Все»/неизвестный город опрашивает
@@ -496,7 +523,7 @@ async def search_live_stores(query: str, city: str = "Астана") -> List[Dic
     if cache_key in _LIVE_CACHE:
         cached_ts, cached_items = _LIVE_CACHE[cache_key]
         if (now_ts - cached_ts) < SEARCH_CACHE_TTL_SECONDS:
-            return cached_items
+            return cached_items, True
 
     all_found = []
 
@@ -559,9 +586,27 @@ async def search_live_stores(query: str, city: str = "Астана") -> List[Dic
                     pass
 
     _LIVE_CACHE[cache_key] = (now_ts, all_found)
-    return all_found
+    return all_found, False
 
-async def get_best_price_summary(
+async def get_best_price_summary(query: str, live: bool = False, **kwargs) -> Dict[str, Any]:
+    """Комплексный поиск (см. _get_best_price_summary) с событием телеметрии поиска."""
+    started = time.monotonic()
+    outcome, total = "error", 0
+    try:
+        result = await _get_best_price_summary(query, live=live, **kwargs)
+        total = int(result.get("total_found") or 0)
+        outcome = "found" if total else "not_found"
+        return result
+    finally:
+        defaults = {"only_discount": False, "exclude_accessories": True, "match_mode": "AND", "sort_by": "price_asc"}
+        # Только имена применённых фильтров, без значений (ключевые слова пользователя — личные настройки)
+        filters = sorted(k for k, v in kwargs.items()
+                         if (k in defaults and v != defaults[k]) or (k not in defaults and v not in (None, "", [])))
+        _record_search("summary", query, started, outcome, total, live=live,
+                       city=kwargs.get("city"), filters=filters)
+
+
+async def _get_best_price_summary(
     query: str,
     live: bool = False,
     shop: Optional[str] = None,

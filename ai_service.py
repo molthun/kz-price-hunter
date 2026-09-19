@@ -9,6 +9,8 @@ ai_service.py - Универсальный сервис искусственно
 5. Защита от зависаний (таймаут 3.5 с) и прозрачный откат к стандартному FTS5-поиску при отсутствии ключа или сбое сети.
 """
 
+import asyncio
+import contextvars
 import os
 import re
 from model_matching import valid_ai_canonical_key
@@ -234,21 +236,62 @@ def daily_budget_allows(scan: bool = False) -> bool:
     return ai_calls_today() < limit
 
 
+# Итог одного вызова провайдера для телеметрии: причина сбоя и токены (если провайдер их вернул).
+# Задаётся внутри _call_*_api в той же задаче, читается в _limited_provider_call (P01).
+_call_info: contextvars.ContextVar[Optional[Dict[str, Any]]] = contextvars.ContextVar("ai_call_info", default=None)
+
+
+def _note_call(**fields) -> None:
+    info = _call_info.get()
+    if info is not None:
+        info.update(fields)
+
+
+def _record_ai(provider: str, purpose: str, outcome: str, duration_ms: float = 0.0,
+               info: Optional[Dict[str, Any]] = None) -> None:
+    """Реальный вызов провайдера или отказ до вызова. Промпт и ответ не сохраняются."""
+    try:
+        from telemetry import telemetry, EVENT_AI_QUERY, SEVERITY_INFO, SEVERITY_WARNING, COMPONENT_AI
+        severity = SEVERITY_INFO if outcome in ("ok", "skipped_busy") else SEVERITY_WARNING
+        data = {"provider": provider, "purpose": purpose, "outcome": outcome,
+                "provider_called": outcome not in ("skipped_busy", "budget_exhausted"),
+                "duration_ms": round(duration_ms, 1), **(info or {})}
+        throttle = f"ai:{purpose}:{outcome}" if outcome in ("skipped_busy", "budget_exhausted") else None
+        telemetry.record_event(EVENT_AI_QUERY, severity, COMPONENT_AI, f"AI {provider}/{purpose}: {outcome}",
+                               data=data, throttle_key=throttle, throttle_per_minute=5)
+    except Exception:
+        pass
+
+
 async def _limited_provider_call(fn, *args, scan: bool = False):
     global _provider_active
+    provider = "gemini" if "gemini" in fn.__name__ else "openai"
+    purpose = "normalize" if scan else "user"
     if scan and (_provider_active >= SCAN_MAX_ACTIVE or _scan_limiter.retry_after("scan")):
+        _record_ai(provider, purpose, "skipped_busy")
         return None
     if _provider_active >= 3 or _provider_limiter.retry_after("shared"):
+        _record_ai(provider, purpose, "skipped_busy")
         return None
     if not daily_budget_allows(scan):
         print(f"[AI] Дневной бюджет исчерпан ({'нормализация' if scan else 'все вызовы'}), лимит {DAILY_AI_CALL_LIMIT}")
+        _record_ai(provider, purpose, "budget_exhausted")
         return None
     _count_ai_call()
     _provider_active += 1
+    info: Dict[str, Any] = {}
+    token = _call_info.set(info)
+    started = time.monotonic()
+    result = None
     try:
-        return await fn(*args)
+        result = await fn(*args)
+        return result
     finally:
+        _call_info.reset(token)
         _provider_active -= 1
+        outcome = "ok" if result is not None else info.pop("failure", None) or "empty"
+        info.pop("failure", None)
+        _record_ai(provider, purpose, outcome, (time.monotonic() - started) * 1000.0, info)
 
 
 async def call_gemini_api(prompt: str, api_key: str, *, timeout: float = DEFAULT_TIMEOUT_SECONDS, scan: bool = False):
@@ -282,8 +325,11 @@ async def _call_gemini_api(prompt: str, api_key: str, timeout_seconds: float = D
             timeout = aiohttp.ClientTimeout(total=timeout_seconds, connect=min(10, timeout_seconds))
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.post(url, json=payload) as resp:
+                    _note_call(http_status=resp.status, model=model)
                     if resp.status == 200:
                         data = await resp.json()
+                        usage = data.get("usageMetadata") or {}
+                        _note_call(input_tokens=usage.get("promptTokenCount"), output_tokens=usage.get("candidatesTokenCount"))
                         candidates = data.get("candidates", [])
                         if candidates:
                             parts = candidates[0].get("content", {}).get("parts", [])
@@ -295,9 +341,11 @@ async def _call_gemini_api(prompt: str, api_key: str, timeout_seconds: float = D
                         continue
                     else:
                         print(f"[AI Service] Ошибка Gemini API ({model}, HTTP {resp.status})")
+                        _note_call(failure=f"http_{resp.status}")
                         return None
         except Exception as e:
             print(f"[AI Service] Исключение при вызове Gemini API ({model}): {type(e).__name__}")
+            _note_call(failure="timeout" if isinstance(e, asyncio.TimeoutError) else "error", error=type(e).__name__)
             continue
 
     return None
@@ -325,16 +373,21 @@ async def _call_openai_api(prompt: str, api_key: str, api_base: str, timeout_sec
         timeout = aiohttp.ClientTimeout(total=timeout_seconds, connect=min(10, timeout_seconds))
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.post(url, json=payload, headers=headers) as resp:
+                _note_call(http_status=resp.status, model=payload["model"])
                 if resp.status == 200:
                     data = await resp.json()
+                    usage = data.get("usage") or {}
+                    _note_call(input_tokens=usage.get("prompt_tokens"), output_tokens=usage.get("completion_tokens"))
                     choices = data.get("choices", [])
                     if choices:
                         content = choices[0].get("message", {}).get("content", "")
                         return _extract_json_from_text(content)
                 else:
                     print(f"[AI Service] Ошибка OpenAI API (HTTP {resp.status})")
+                    _note_call(failure=f"http_{resp.status}")
     except Exception as e:
         print(f"[AI Service] Ошибка OpenAI API: {type(e).__name__} (лимит ответа {timeout_seconds:g} с)")
+        _note_call(failure="timeout" if isinstance(e, asyncio.TimeoutError) else "error", error=type(e).__name__)
 
     return None
 

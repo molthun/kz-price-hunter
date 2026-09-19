@@ -622,6 +622,240 @@ class AuditA04ScanOutcomeTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((outcome, severity), ("lease_lost", "WARNING"))
 
 
+class P0102Case(TelemetryDbCase):
+    """P01-02: источники событий пишут в подменённый синглтон telemetry.telemetry."""
+
+    def setUp(self):
+        super().setUp()
+        p = patch.object(tm, "telemetry", self.t)
+        p.start()
+        self.patches.append(p)
+
+    def events(self, event_type=None):
+        return [dict(e, data=json.loads(e["data_json"]) if e.get("data_json") else {})
+                for e in self.t.get_recent_events(limit=500) if not event_type or e["type"] == event_type]
+
+
+class ShopTransitionTest(P0102Case):
+    def test_degradation_and_recovery(self):
+        record = database.record_shop_scan_result
+        record("shopx", 0, 1.0, error="HTTP 500")          # первый обход без истории успеха — не деградация
+        self.assertEqual(self.events(tm.EVENT_DEGRADATION), [])
+        record("shopx", 10, 1.0)                           # успех после сбоя — восстановление
+        record("shopx", 12, 1.0)                           # обычный успех
+        database.record_shop_scan_start("shopx")           # running не сбрасывает историю
+        record("shopx", 3, 1.0, error="Не открылись карточки")  # partial после успеха
+        record("shopx", 0, 1.0, error="HTTP 403")          # повторный сбой — без нового события
+        record("shopx", 9, 1.0)
+        deg = self.events(tm.EVENT_DEGRADATION)
+        rec = self.events(tm.EVENT_RECOVERY)
+        self.assertEqual([(e["data"]["status"], e["severity"]) for e in deg], [("partial", "WARNING")])
+        self.assertEqual([e["data"]["failed_before"] for e in rec], [1, 2])
+
+
+class BackupEventTest(P0102Case):
+    def test_backup_ok_and_failure(self):
+        with patch("config.DATA_DIR", type(DB_PATH)(self.tmp.name)):
+            path = database.backup_database("test")
+            with patch.object(database.sqlite3, "connect", side_effect=sqlite3.OperationalError("disk")):
+                with self.assertRaises(sqlite3.OperationalError):
+                    database.backup_database("broken")
+        ok, failed = self.events(tm.EVENT_BACKUP_RUN)
+        self.assertEqual((ok["data"]["outcome"], ok["data"]["size_bytes"]), ("ok", os.path.getsize(path)))
+        self.assertEqual((failed["data"]["outcome"], failed["severity"]), ("failed", "ERROR"))
+
+
+class AiEventTest(P0102Case):
+    def run_call(self, fn, **kw):
+        import ai_service
+        return asyncio.run(ai_service._limited_provider_call(fn, "PROMPT_SECRET_TEXT", **kw))
+
+    def test_real_call_tokens_failures_and_budget(self):
+        import ai_service
+
+        async def _call_gemini_api(prompt):
+            ai_service._note_call(http_status=200, input_tokens=120, output_tokens=30)
+            return {"ok": True}
+
+        async def _call_openai_api(prompt):
+            ai_service._note_call(http_status=429, failure="http_429")
+            return None
+
+        self.assertEqual(self.run_call(_call_gemini_api), {"ok": True})
+        self.assertIsNone(self.run_call(_call_openai_api, scan=True))
+        with patch.object(ai_service, "daily_budget_allows", return_value=False):
+            self.assertIsNone(self.run_call(_call_gemini_api))
+        got = [(e["data"]["provider"], e["data"]["purpose"], e["data"]["outcome"], e["data"]["provider_called"])
+               for e in self.events(tm.EVENT_AI_QUERY)]
+        self.assertEqual(got, [("gemini", "user", "ok", True), ("openai", "normalize", "http_429", True),
+                               ("gemini", "user", "budget_exhausted", False)])
+        first = self.events(tm.EVENT_AI_QUERY)[0]["data"]
+        self.assertEqual((first["input_tokens"], first["output_tokens"]), (120, 30))
+        self.assertNotIn("PROMPT_SECRET_TEXT", json.dumps(self.events()))
+
+
+class TelegramEventTest(P0102Case):
+    def test_delivery_summary_and_pause(self):
+        import notifier
+
+        def batch(limit, counts):
+            counts.update(sent=2, cancelled=1, retry=1)
+            return 2, 30.0
+
+        with patch.object(notifier, "get_bot_token", return_value="t"), \
+             patch.object(notifier, "telegram_paused_for", return_value=0), \
+             patch.object(notifier, "_deliver_batch", batch):
+            self.assertEqual(notifier.deliver_pending(), 2)
+        (e,) = self.events(tm.EVENT_TELEGRAM_ALERT)
+        self.assertEqual((e["severity"], e["data"]["sent"], e["data"]["pause_seconds"]), ("WARNING", 2, 30.0))
+        self.assertNotIn("chat", json.dumps(e["data"]))
+
+    def test_empty_cycle_silent_and_crash_recorded(self):
+        import notifier
+
+        def crash(limit, counts):
+            counts["errors"] += 1
+            raise RuntimeError("boom")
+
+        with patch.object(notifier, "get_bot_token", return_value="t"), \
+             patch.object(notifier, "telegram_paused_for", return_value=0):
+            with patch.object(notifier, "_deliver_batch", return_value=(0, None)):
+                notifier.deliver_pending()
+            self.assertEqual(self.events(tm.EVENT_TELEGRAM_ALERT), [])
+            with patch.object(notifier, "_deliver_batch", crash), self.assertRaises(RuntimeError):
+                notifier.deliver_pending()
+        (e,) = self.events(tm.EVENT_TELEGRAM_ALERT)
+        self.assertEqual(e["data"]["errors"], 1)
+
+
+class SearchEventTest(P0102Case):
+    QUERY = "iphone 15 Иванов +77011234567"
+
+    def assert_no_query_text(self):
+        dump = json.dumps(self.events(), ensure_ascii=False)
+        for part in ("iphone", "Иванов", "77011234567"):
+            self.assertNotIn(part, dump)
+
+    def test_summary_found_and_filters(self):
+        import search_engine
+
+        async def fake(query, live=False, **kw):
+            return {"total_found": 3}
+
+        with patch.object(search_engine, "_get_best_price_summary", fake):
+            asyncio.run(search_engine.get_best_price_summary(query=self.QUERY, only_discount=True, city="Астана",
+                                                             exclude_accessories=True, junk_keywords=["x"]))
+        (e,) = self.events(tm.EVENT_SEARCH_QUERY)
+        d = e["data"]
+        self.assertEqual((d["source"], d["outcome"], d["results"], d["query_tokens"]), ("summary", "found", 3, 4))
+        self.assertEqual(d["filters"], ["city", "junk_keywords", "only_discount"])
+        self.assert_no_query_text()
+
+    def test_live_error_recorded_and_raised(self):
+        import search_engine
+
+        async def boom(query, city):
+            raise RuntimeError("down")
+
+        with patch.object(search_engine, "_search_live_stores", boom), self.assertRaises(RuntimeError):
+            asyncio.run(search_engine.search_live_stores(self.QUERY))
+        (e,) = self.events(tm.EVENT_SEARCH_QUERY)
+        self.assertEqual((e["data"]["source"], e["data"]["outcome"], e["severity"]), ("live", "error", "ERROR"))
+        self.assert_no_query_text()
+
+    def test_search_throttled(self):
+        import search_engine
+        with patch.object(tm, "MAX_SEARCH_EVENTS_PER_MINUTE", 3):
+            for _ in range(5):
+                search_engine._record_search("summary", "q", time.monotonic(), "found", 1)
+        self.assertEqual(len(self.events(tm.EVENT_SEARCH_QUERY)), 3)
+
+
+class PriceAndAnomalyEventTest(P0102Case):
+    def test_save_and_detect_summary(self):
+        import web.server as server
+        prods = [{"id": "s_1", "price": 90}, {"id": "s_2", "price": 120}, {"id": "s_3", "price": 50}]
+        history = {"s_1": {"old_price": 100, "first_seen_price": 100},
+                   "s_2": {"old_price": 100, "first_seen_price": 100}}
+
+        async def process(p, anomaly, shop):
+            return bool(anomaly)
+
+        with patch("database.get_price_history_batch", return_value=history), \
+             patch("database.save_or_update_products_batch"), \
+             patch.object(server, "queue_titles_for_ai"), \
+             patch.object(server, "check_anomaly", return_value={"type": "PRICE_DROP"}), \
+             patch.object(server, "check_market_arbitrage", side_effect=lambda p, **k: {"t": 1} if p["id"] == "s_3" else None), \
+             patch.object(server, "_process_anomaly", process):
+            asyncio.run(server._save_and_detect(prods, "Shop", {}))
+        (e,) = self.events(tm.EVENT_PRICE_CHANGED)
+        self.assertEqual(e["data"], {"items": 3, "new": 1, "price_down": 1, "price_up": 1, "discount_candidates": 1,
+                                     "alerts_recorded": 2, "arbitrage_candidates": 1})
+
+    def test_recorded_alert_event(self):
+        import web.server as server
+        anomaly = {"type": "PRICE_DROP", "old_price": 100, "new_price": 70, "drop_pct": 30, "savings": 30}
+        with patch.object(server, "was_alert_sent_recently", return_value=False), \
+             patch.object(server, "record_alert", return_value=77), \
+             patch.object(server, "notifications_muted", return_value=True):
+            self.assertTrue(server._process_anomaly_sync({"id": "s_1", "price": 70, "shop": "Shop"}, anomaly, "Shop"))
+        (e,) = self.events(tm.EVENT_ANOMALY_DETECTED)
+        self.assertEqual((e["data"]["alert_id"], e["data"]["drop_pct"], e["shop"]), (77, 30, "Shop"))
+
+
+class SystemErrorTest(P0102Case):
+    def test_handler_exception_recorded_without_text(self):
+        from aiohttp import web
+        from aiohttp.test_utils import TestClient, TestServer
+        import web.server as server
+
+        async def boom(request):
+            raise ValueError("FAKE_TOKEN in handler")
+
+        async def scenario():
+            app = web.Application(middlewares=[server.telemetry_middleware])
+            app.router.add_get("/api/items/{item_id}", boom)
+            async with TestClient(TestServer(app)) as client:
+                return (await client.get("/api/items/secret-id-123")).status
+
+        self.assertEqual(asyncio.run(scenario()), 500)
+        (e,) = self.events(tm.EVENT_SYSTEM_ERROR)
+        self.assertEqual((e["data"]["route"], e["data"]["error"], e["data"]["method"]),
+                         ("/api/items/{item_id}", "ValueError", "GET"))
+        dump = json.dumps(e)
+        self.assertNotIn("FAKE_TOKEN", dump)
+        self.assertNotIn("secret-id-123", dump)
+
+    def test_worker_errors_throttled(self):
+        for _ in range(10):
+            self.t.record_system_error(tm.COMPONENT_AI, "ai_normalize_worker", RuntimeError("x"))
+        self.assertEqual(len(self.events(tm.EVENT_SYSTEM_ERROR)), 5)
+        self.assertEqual(self.t.stats["suppressed_events"], 5)
+
+
+class ISpaceContextTest(unittest.TestCase):
+    def test_card_threads_see_scan_context(self):
+        from scrapers.ispace import ISpaceScraper
+        from test_scraper_reliability import _ispace_card, _ispace_listing
+        scraper = ISpaceScraper()
+        seen = []
+
+        def get(url):
+            if "/product/" in url:
+                seen.append((tm.current_scan_id.get(), tm.current_shop.get()))
+                return Mock(status_code=200, text=_ispace_card(url.rsplit("/", 1)[-1].upper()))
+            return Mock(status_code=200, text=_ispace_listing(["a", "b", "c"]))
+
+        tokens = [(tm.current_scan_id, tm.current_scan_id.set("scan-isp")), (tm.current_shop, tm.current_shop.set("iSpace"))]
+        try:
+            with patch.object(scraper, "_get", side_effect=get), patch("scrapers.ispace.time.sleep"):
+                scraper._scrape_sync("iSpace: iPad", "https://ispace.kz/category/ipad", max_pages=1)
+        finally:
+            for var, token in reversed(tokens):
+                var.reset(token)
+        self.assertEqual(seen, [("scan-isp", "iSpace")] * 3)
+
+
 class ScanIdPropagationTest(unittest.IsolatedAsyncioTestCase):
     async def test_scan_id_reaches_tasks_and_threads(self):
         token = tm.current_scan_id.set("scan-xyz")

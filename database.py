@@ -532,17 +532,36 @@ def backup_database(label: str) -> Optional[str]:
     # Микросекунды + случайный суффикс: два бэкапа в одну секунду не перезапишут друг друга
     stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     dest = backup_dir / f"prices-{label}-{stamp}-{secrets.token_hex(3)}.db"
-    src = sqlite3.connect(DB_PATH, timeout=30)
-    dst = sqlite3.connect(dest)
+    started = time.monotonic()
+    outcome = "failed"
     try:
-        src.backup(dst)
-        result = dst.execute("PRAGMA quick_check").fetchone()[0]
-        if result != "ok":
-            raise RuntimeError(f"Бэкап не прошёл quick_check: {result}")
+        src = sqlite3.connect(DB_PATH, timeout=30)
+        dst = sqlite3.connect(dest)
+        try:
+            src.backup(dst)
+            result = dst.execute("PRAGMA quick_check").fetchone()[0]
+            if result != "ok":
+                raise RuntimeError(f"Бэкап не прошёл quick_check: {result}")
+        finally:
+            dst.close()
+            src.close()
+        outcome = "ok"
+        return str(dest)
     finally:
-        dst.close()
-        src.close()
-    return str(dest)
+        _record_backup(label, outcome, dest, time.monotonic() - started)
+
+
+def _record_backup(label, outcome, dest, duration) -> None:
+    try:
+        from telemetry import telemetry, EVENT_BACKUP_RUN, SEVERITY_INFO, SEVERITY_ERROR, COMPONENT_BACKUP
+        size = dest.stat().st_size if outcome == "ok" and dest.exists() else None
+        telemetry.record_event(
+            EVENT_BACKUP_RUN, SEVERITY_INFO if outcome == "ok" else SEVERITY_ERROR, COMPONENT_BACKUP,
+            f"Бэкап {label}: {outcome}",
+            data={"label": label, "outcome": outcome, "file": dest.name, "size_bytes": size,
+                  "duration_sec": round(duration, 2)})
+    except Exception:
+        pass
 
 
 class SchemaTooNew(RuntimeError):
@@ -1487,8 +1506,10 @@ def record_shop_scan_result(shop_key, items, duration_sec, error=None, status=No
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     status = status or ("partial" if error and items else "failed" if error else "complete")
     with get_connection() as conn:
-        row = conn.execute("SELECT failure_count FROM shop_scans WHERE shop_key=?", (shop_key,)).fetchone()
-        failures = (int(row[0]) if row else 0) + 1 if error else 0
+        row = conn.execute("SELECT failure_count, last_success_at FROM shop_scans WHERE shop_key=?", (shop_key,)).fetchone()
+        previous_failures = int(row[0] or 0) if row else 0
+        had_success = bool(row and row[1])
+        failures = previous_failures + 1 if error else 0
         retry = time.time() + min(3600, 300 * 2 ** min(failures - 1, 4)) if error else None
         conn.execute("""INSERT INTO shop_scans
             (shop_key,last_attempt_at,last_success_at,last_items,last_duration_sec,last_error,status,failure_count,next_retry_at)
@@ -1501,6 +1522,29 @@ def record_shop_scan_result(shop_key, items, duration_sec, error=None, status=No
             (shop_key, now, now if status == "complete" else None, items, duration_sec,
              error[:500] if error else None, status, failures, retry))
         conn.commit()
+    _record_shop_transition(shop_key, status, error, items, previous_failures, had_success)
+
+
+def _record_shop_transition(shop_key, status, error, items, previous_failures, had_success) -> None:
+    """Деградация: первый неуспешный обход после успешной работы; восстановление: успех после сбоев (P01).
+
+    Статус running между обходами не влияет: переход определяется по failure_count, который он не сбрасывает.
+    """
+    try:
+        from telemetry import (telemetry, EVENT_DEGRADATION, EVENT_RECOVERY, SEVERITY_ERROR,
+                               SEVERITY_WARNING, SEVERITY_INFO, COMPONENT_SCRAPER, safe_error_name)
+        if error and previous_failures == 0 and had_success:
+            telemetry.record_event(
+                EVENT_DEGRADATION, SEVERITY_ERROR if status == "failed" else SEVERITY_WARNING, COMPONENT_SCRAPER,
+                f"Магазин {shop_key}: {status} после успешных обходов",
+                data={"shop_key": shop_key, "status": status, "items": items, "error": str(error)[:300]})
+        elif not error and previous_failures > 0:
+            telemetry.record_event(
+                EVENT_RECOVERY, SEVERITY_INFO, COMPONENT_SCRAPER,
+                f"Магазин {shop_key}: восстановлен после {previous_failures} неуспешных обходов",
+                data={"shop_key": shop_key, "status": status, "items": items, "failed_before": previous_failures})
+    except Exception:
+        pass
 
 def get_shop_scans() -> Dict[str, Dict[str, Any]]:
     with get_connection() as conn:

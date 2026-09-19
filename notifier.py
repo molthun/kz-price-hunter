@@ -221,13 +221,41 @@ def pause_telegram(seconds: float) -> None:
 
 
 def deliver_pending(limit=10):
-    from database import claim_notification, finish_notification, get_user, get_connection, active_product_clause
-    from detector import alert_matches_user, notify_level_allows
     if not get_bot_token():
         return 0
     if telegram_paused_for() > 0:
         return 0  # Telegram просил подождать: ни одно сообщение не отправляется до конца паузы
     sent = 0
+    counts = {"sent": 0, "cancelled": 0, "retry": 0, "failed": 0, "errors": 0}
+    pause = None
+    try:
+        sent, pause = _deliver_batch(limit, counts)
+    finally:
+        _record_delivery(counts, pause)
+    return sent
+
+
+def _record_delivery(counts, pause) -> None:
+    """Сводка цикла доставки без chat_id/пользователей (P01); пустые циклы не пишутся."""
+    if not any(counts.values()) and pause is None:
+        return
+    try:
+        from telemetry import telemetry, EVENT_TELEGRAM_ALERT, SEVERITY_INFO, SEVERITY_WARNING, COMPONENT_TELEGRAM
+        bad = counts["failed"] or counts["errors"] or pause is not None
+        telemetry.record_event(
+            EVENT_TELEGRAM_ALERT, SEVERITY_WARNING if bad else SEVERITY_INFO, COMPONENT_TELEGRAM,
+            "Доставка уведомлений: " + ", ".join(f"{k} {v}" for k, v in counts.items() if v)
+            + (f"; пауза Telegram {pause:g} с" if pause is not None else ""),
+            data={**counts, "pause_seconds": pause})
+    except Exception:
+        pass
+
+
+def _deliver_batch(limit, counts):
+    from database import claim_notification, finish_notification, get_user, get_connection, active_product_clause
+    from detector import alert_matches_user, notify_level_allows
+    sent = 0
+    pause = None
     for _ in range(limit):
         item = claim_notification()
         if not item:
@@ -248,6 +276,7 @@ def deliver_pending(limit=10):
                 or not alert_matches_user(candidate, user["settings"])
                 or not notify_level_allows(anomaly, user["settings"].get("telegram_notify_level", "ALL"))):
                 finish_notification(item["id"], "cancelled")
+                counts["cancelled"] += 1
                 continue
             result = send_telegram_alert(user["id"], product, anomaly)
             if isinstance(result, bool):  # совместимость с подменами в тестах
@@ -255,16 +284,21 @@ def deliver_pending(limit=10):
             if result:
                 finish_notification(item["id"], "sent", item["attempts"])
                 sent += 1
+                counts["sent"] += 1
             elif result.status == "permanent":
                 finish_notification(item["id"], "failed", item["attempts"], result.error)
+                counts["failed"] += 1
             else:
                 finish_notification(item["id"], "pending", item["attempts"], result.error, retry_after=result.retry_after)
+                counts["retry"] += 1
                 if result.retry_after is not None:
                     pause_telegram(result.retry_after)  # 429 — лимит на весь бот
+                    pause = float(result.retry_after)
                     break
         except Exception as e:
             finish_notification(item["id"], "pending", item["attempts"], type(e).__name__)
-    return sent
+            counts["errors"] += 1
+    return sent, pause
 
 
 async def notification_worker():
@@ -273,4 +307,6 @@ async def notification_worker():
             await asyncio.to_thread(deliver_pending)
         except Exception as e:
             print(f"[Telegram Queue] {type(e).__name__}")
+            from telemetry import telemetry, COMPONENT_TELEGRAM
+            telemetry.record_system_error(COMPONENT_TELEGRAM, "notification_worker", e)
         await asyncio.sleep(10)

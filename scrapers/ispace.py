@@ -10,6 +10,7 @@
 import json
 import re
 import time
+import contextvars
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional
 from urllib.parse import parse_qs, urljoin, urlsplit
@@ -132,8 +133,11 @@ class ISpaceScraper(PagedScraper):
             except Exception:
                 return "error"
 
+        # Контекст копируется в вызывающем потоке, по копии на карточку (одну копию нельзя войти из двух
+        # потоков): магазин, категория и scan_id доходят до телеметрии HTTP (P01)
+        tasks = [(contextvars.copy_context(), link) for link in links]
         with ThreadPoolExecutor(self.PRODUCT_WORKERS) as pool:
-            results = list(pool.map(fetch, links))
+            results = list(pool.map(lambda task: task[0].run(fetch, task[1]), tasks))
 
         products = [p for p in results if isinstance(p, dict)]
         failed = sum(1 for p in results if p in ("error", NO_PRODUCT_DATA))

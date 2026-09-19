@@ -139,7 +139,14 @@ async def handle_search_command(session: aiohttp.ClientSession, token: str, chat
 
     await send_tg_chat_action(session, token, chat_id, "typing")
     
-    items = search_in_database(q, city="Все", sort_by="price_asc")
+    started = time.monotonic()
+    items, outcome = [], "error"
+    try:
+        items = search_in_database(q, city="Все", sort_by="price_asc")
+        outcome = "found" if items else "not_found"
+    finally:
+        from search_engine import _record_search
+        _record_search("telegram", q, started, outcome, len(items))
     if not items:
         await send_tg_message(session, token, chat_id, f"😕 По запросу «<b>{html.escape(q)}</b>» ничего не найдено в локальной базе. Попробуйте сократить запрос.")
         return
@@ -344,7 +351,9 @@ async def run_telegram_bot_task():
                             await asyncio.sleep(5)
                 except asyncio.CancelledError:
                     raise
-                except Exception:
+                except Exception as e:
+                    from telemetry import telemetry, COMPONENT_TELEGRAM, SEVERITY_WARNING
+                    telemetry.record_system_error(COMPONENT_TELEGRAM, "telegram_polling", e, severity=SEVERITY_WARNING)
                     await asyncio.sleep(5)
         finally:
             await dispatcher.close()

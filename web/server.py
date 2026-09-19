@@ -838,6 +838,17 @@ def _process_anomaly_sync(p, anomaly, shop_name):
     if not alert_id:
         return False  # дубль, записанный параллельно, или отбракованная цена
     scan_state["anomalies_found"] += 1
+    try:
+        from telemetry import telemetry, EVENT_ANOMALY_DETECTED, SEVERITY_INFO, COMPONENT_DETECTOR
+        telemetry.record_event(
+            EVENT_ANOMALY_DETECTED, SEVERITY_INFO, COMPONENT_DETECTOR,
+            f"Алерт {anomaly['type']}: −{anomaly['drop_pct']}%", shop=p.get("shop", shop_name),
+            data={"alert_id": alert_id, "product_id": str(p["id"]), "type": anomaly["type"],
+                  "old_price": anomaly["old_price"], "new_price": anomaly["new_price"],
+                  "drop_pct": anomaly["drop_pct"], "competitor_shop": anomaly.get("competitor_shop")},
+            throttle_key="anomaly", throttle_per_minute=100)
+    except Exception:
+        pass
     return True
 
 # Реестр магазинов: ключ настроек -> (класс парсера, категории, название)
@@ -896,10 +907,21 @@ async def _save_and_detect(prods, shop_name, candidate_settings):
     history_map = await asyncio.to_thread(get_price_history_batch, [p["id"] for p in prods])
     await asyncio.to_thread(save_or_update_products_batch, prods)
 
+    changes = {"items": len(prods), "new": 0, "price_down": 0, "price_up": 0, "discount_candidates": 0,
+               "alerts_recorded": 0, "arbitrage_candidates": 0}
     for p in prods:
+        known = str(p["id"]) in history_map
         history = history_map.get(str(p["id"]), {"old_price": p["price"], "first_seen_price": p["price"]})
+        if not known:
+            changes["new"] += 1
+        elif history["old_price"] > p["price"]:
+            changes["price_down"] += 1
+        elif history["old_price"] < p["price"]:
+            changes["price_up"] += 1
         if history["old_price"] > p["price"] or history["first_seen_price"] > p["price"] or (p.get("old_price_on_site") or 0) > p["price"]:
-            await _process_anomaly(p, check_anomaly(p, history, custom_settings=candidate_settings), shop_name)
+            anomaly = check_anomaly(p, history, custom_settings=candidate_settings)
+            changes["discount_candidates"] += bool(anomaly)
+            changes["alerts_recorded"] += bool(await _process_anomaly(p, anomaly, shop_name))
 
     # Сравнение с рынком для всей пачки — одна задача вне event loop, а не переключение
     # потока на каждый товар (у Белого Ветра ~14 тыс. за обход) (M06)
@@ -912,7 +934,25 @@ async def _save_and_detect(prods, shop_name, candidate_settings):
         return found
 
     for p, anomaly in await asyncio.to_thread(_arbitrage_batch):
-        await _process_anomaly(p, anomaly, shop_name)
+        changes["arbitrage_candidates"] += 1
+        changes["alerts_recorded"] += bool(await _process_anomaly(p, anomaly, shop_name))
+    _record_price_changes(shop_name, changes)
+
+
+def _record_price_changes(shop_name, changes) -> None:
+    """Сводка цен и сопоставления по пачке категории (P01); scan_id/category — из контекста обхода.
+
+    Отдельное событие на каждую смену цены не пишется: у крупных магазинов их тысячи за обход.
+    """
+    try:
+        from telemetry import telemetry, EVENT_PRICE_CHANGED, SEVERITY_INFO, COMPONENT_DETECTOR
+        telemetry.record_event(
+            EVENT_PRICE_CHANGED, SEVERITY_INFO, COMPONENT_DETECTOR,
+            f"[{shop_name}] цены: ↓{changes['price_down']} ↑{changes['price_up']} новых {changes['new']}, "
+            f"алертов {changes['alerts_recorded']}",
+            shop=shop_name, data=changes)
+    except Exception:
+        pass
 
 # Очередь фоновой AI-нормализации: название -> ID товаров с этим названием
 _ai_pending: Dict[str, set] = {}
@@ -970,6 +1010,8 @@ async def ai_normalize_background_worker(app):
             break
         except Exception as e:
             print(f"[AI] Ошибка фоновой нормализации: {type(e).__name__}")
+            from telemetry import telemetry, COMPONENT_AI
+            telemetry.record_system_error(COMPONENT_AI, "ai_normalize_worker", e)
 
 def get_categories_overview():
     """Возвращает информацию обо всех мастер-категориях: количество товаров в базе, статус волн, магазины."""
@@ -1870,6 +1912,8 @@ async def auto_scan_background_worker(app):
             break
         except Exception as e:
             print(f"[AutoScan] Ошибка в фоновом мониторе: {e}")
+            from telemetry import telemetry, COMPONENT_SCHEDULER
+            telemetry.record_system_error(COMPONENT_SCHEDULER, "auto_scan_worker", e)
             await asyncio.sleep(15)
 
 async def background_tasks(app):
@@ -1886,9 +1930,25 @@ async def background_tasks(app):
     await asyncio.gather(*tasks, *list(_scan_tasks), return_exceptions=True)
     await asyncio.to_thread(telemetry.stop)
 
+@web.middleware
+async def telemetry_middleware(request, handler):
+    """Необработанные исключения обработчиков → system_error (маршрут-шаблон, без параметров и тела; P01)."""
+    try:
+        return await handler(request)
+    except (web.HTTPException, asyncio.CancelledError):
+        raise
+    except Exception as e:
+        from telemetry import telemetry, COMPONENT_SYSTEM
+        route = getattr(getattr(request.match_info, "route", None), "resource", None)
+        telemetry.record_system_error(COMPONENT_SYSTEM, "http_handler", e,
+                                      data={"method": request.method,
+                                            "route": getattr(route, "canonical", None) or "unmatched"})
+        raise
+
+
 def create_app():
     init_db()
-    app = web.Application(middlewares=[auth_middleware])
+    app = web.Application(middlewares=[telemetry_middleware, auth_middleware])
     if ALLOW_DEV_LOGIN:
         print("[Auth] 🧑‍💻 Вход разработчика включен (локальный запуск): кнопка «Вход разработчика» в шапке, права администратора")
     elif not ADMIN_TELEGRAM_IDS:
