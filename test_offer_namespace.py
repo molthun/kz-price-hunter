@@ -95,7 +95,7 @@ class MigrationTest(unittest.TestCase):
         self.assertEqual(self.rows("SELECT count(*) FROM products WHERE id = '555@kz'"), [(1,)])
 
     def test_migration_renames_links_and_resets_only_mixed_history(self):
-        self.assertEqual(database.run_migrations(), [5, 6])  # 6 — таблицы телеметрии (P01)
+        self.assertEqual(database.run_migrations(), [5])
         ids = sorted(r[0] for r in self.rows("SELECT id FROM products"))
         self.assertEqual(ids, ["lemanapro_555@kz", "td_77@astana", "twelve_months_12345@kz"])
         # Чистая запись: история, алерт и уведомление переехали

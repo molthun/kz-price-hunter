@@ -316,22 +316,49 @@ class EventsTest(TelemetryDbCase):
         self.assertEqual([e["scan_id"] for e in fresh.get_recent_events(scan_id="scan-1")], ["scan-1"])
 
 
-class MigrationTest(unittest.TestCase):
-    def test_schema_version_6_on_copy(self):
+class SchemaTest(unittest.TestCase):
+    """Таблицы телеметрии аддитивны: создаются init_db без повышения schema_version (откат на 5.7.1 возможен)."""
+
+    def _init(self, db, tmp):
+        with patch.object(database, "DB_PATH", db), patch("config.DATA_DIR", type(DB_PATH)(tmp)):
+            database.init_db()
+
+    def _state(self, db):
+        conn = sqlite3.connect(db)
+        try:
+            version = conn.execute("SELECT value FROM schema_metadata WHERE name='schema_version'").fetchone()[0]
+            tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'telemetry_%'")}
+            return version, tables
+        finally:
+            conn.close()
+
+    def test_new_db_has_tables_and_version_5(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = type(DB_PATH)(os.path.join(tmp, "prices.db"))
-            with patch.object(database, "DB_PATH", db), patch("config.DATA_DIR", type(DB_PATH)(tmp)):
-                database.init_db()
-                database.init_db()  # повторный запуск идемпотентен
-                conn = sqlite3.connect(db)
-                try:
-                    version = conn.execute("SELECT value FROM schema_metadata WHERE name='schema_version'").fetchone()
-                    tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE name LIKE 'telemetry_%'")}
-                finally:
-                    conn.close()
-        self.assertEqual(database.SCHEMA_VERSION, 6)
-        self.assertEqual(version[0], "6")
-        self.assertTrue({"telemetry_events", "telemetry_http_aggregates", "telemetry_http_samples"} <= tables)
+            self._init(db, tmp)
+            self._init(db, tmp)  # повторный запуск идемпотентен
+            version, tables = self._state(db)
+        self.assertEqual(database.SCHEMA_VERSION, 5)
+        self.assertEqual(version, "5")
+        self.assertEqual(tables, {"telemetry_events", "telemetry_http_aggregates", "telemetry_http_samples"})
+
+    def test_existing_v5_db_gets_tables_without_backup(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = type(DB_PATH)(os.path.join(tmp, "prices.db"))
+            self._init(db, tmp)
+            conn = sqlite3.connect(db)
+            with conn:
+                for t in ("telemetry_events", "telemetry_http_aggregates", "telemetry_http_samples"):
+                    conn.execute(f"DROP TABLE {t}")
+                conn.execute("""INSERT INTO products (id, shop, city, title, url, current_price, first_seen_price, min_price, max_price)
+                                VALUES ('kaspi_1@astana', 'Kaspi', 'Астана', 'T', 'https://x', 1, 1, 1, 1)""")
+            conn.close()
+            self._init(db, tmp)
+            version, tables = self._state(db)
+            backups = list(type(DB_PATH)(tmp).glob("backups/*.db"))
+        self.assertEqual(version, "5")
+        self.assertEqual(len(tables), 3)
+        self.assertEqual(backups, [])  # версия не менялась — бэкап перед миграцией не нужен
 
 
 class ScanIdPropagationTest(unittest.IsolatedAsyncioTestCase):

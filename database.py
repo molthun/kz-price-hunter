@@ -263,6 +263,8 @@ def _create_schema(cursor) -> None:
     # Таблицы структурированной телеметрии и HTTP-агрегатов (P01). shop хранится как '' вместо
     # NULL: в UNIQUE значения NULL различны, и upsert агрегата создавал бы строку на каждый запрос.
     # telemetry_http_samples — ограниченная выборка задержек на бакет для p95 (не среднее из p95).
+    # Таблицы только добавляются и не меняют существующие данные, поэтому schema_version не повышается:
+    # образ предыдущей версии (5.7.1) стартует на этой базе и просто не использует их (откат без бэкапа).
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS telemetry_events (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -503,18 +505,12 @@ def notifications_muted() -> bool:
         return False
 
 
-def _migration_telemetry_foundation(conn) -> None:
-    """P01: таблицы телеметрии создаёт идемпотентная _create_schema; миграция фиксирует версию 6."""
-    _create_schema(conn.cursor())
-
-
 MIGRATIONS = (
     (1, "legacy_identity_v2", _migration_legacy_identity_v2),
     (2, "legacy_cleanups", _migration_legacy_cleanups),
     (3, "offer_identity_reset", _migration_offer_identity_reset),
     (4, "fts_update_trigger", _migration_fts_update_trigger),
     (5, "offer_namespace", _migration_offer_namespace),
-    (6, "telemetry_foundation", _migration_telemetry_foundation),
 )
 SCHEMA_VERSION = MIGRATIONS[-1][0]
 

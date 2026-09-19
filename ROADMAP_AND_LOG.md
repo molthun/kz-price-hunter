@@ -9,9 +9,9 @@
 ## [Не выпущено] — P01 Telemetry Foundation (в работе, ветка `dev/p00-baseline`)
 - 📡 **Структурированная телеметрия** (`telemetry.py`): события с `event_id`, severity, component, shop/category и единым `scan_id` для старта, категорий, ошибок и итога обхода; HTTP-агрегаты minute/hour/day (коды, timeout/connection errors, bytes, Retry-After, отказы по cooldown, avg и p95 по равномерной выборке задержек).
 - 🛡 **Fail-open**: запись только в память, сброс в SQLite фоновым потоком раз в 10 с с busy_timeout 2 с; `TELEMETRY_ENABLED=0` отключает сбор. Секреты в URL и payload скрываются.
-- 🗄 **Миграция 6**: таблицы `telemetry_events`, `telemetry_http_aggregates`, `telemetry_http_samples`; retention: события 30 дн., minute/samples 7, hour 90, day 365.
+- 🗄 **Таблицы телеметрии без смены схемы**: `telemetry_events`, `telemetry_http_aggregates`, `telemetry_http_samples` создаются при старте; `schema_version` остаётся 5, откат на 5.7.1 без восстановления бэкапа. Retention: события 30 дн., minute/samples 7, hour 90, day 365.
 - 🍉 **Arbuz**: fallback-ID товара — стабильный sha256 вместо зависящего от процесса `hash()`.
-- Статус: реализация Claude поверх начала Antigravity, 299 тестов OK; ожидает независимого аудита. Не выпущено, на проде не проверено.
+- Статус: реализация Claude поверх начала Antigravity, 300 тестов OK; ожидает независимого аудита. Не выпущено, на проде не проверено.
 
 ## [5.7.1] — 2026-09-19
 - 📊 **Синхронизация счётчиков витрины и дашборда**: в `get_stats()` добавлен подсчёт каталожных акций (`total_store_deals` / `total_discounts`, ~13 658 товаров) и разделение метрик на ценовые сбои (`ZERO_GLITCH`), арбитраж (`MARKET_ARBITRAGE`) и каталожные скидки ритейлеров.
