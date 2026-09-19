@@ -4,12 +4,12 @@
 
 ## Текущая контрольная точка
 
-- Дата: 2026-09-20 00:39, Asia/Almaty.
-- Последнее действие: Codex завершил повторный аудит P03 на HEAD 34cf649. **D02 закрыто; D01 частично открыто:**
-  отправка Telegram ошибочно подтверждает восстановление polling. [Отчёт](P03_AUDIT_CODEX.md). P03 не выпущен.
+- Дата: 2026-09-20 00:41, Asia/Almaty.
+- Последнее действие: Claude исправил остаток D01 (восстановление инцидентов воркеров только по своей операции,
+  коммит `610089c`) и передал P03 на **точечный аудит Codex**. D02 закрыт Codex. [Отчёт](P03_AUDIT_CODEX.md). Не выпущено.
 - main = v5.9.0 (P02, на проде). Локальный main впереди origin на 1 docs-коммит (0426523) — уйдёт со следующим выпуском.
-- Полный suite независимо повторён Codex: 408 тестов, 33.259 с, OK.
-- Пишущих исполнителей нет: аудит Codex завершён; следующий — Claude, остаток D01.
+- Полный suite: 411 тестов OK.
+- Пишущих исполнителей нет: Claude закончил.
 
 ## Реестр этапов
 
@@ -21,7 +21,7 @@
 | P00 | READY | Antigravity | Самопроверка (требует review) | Не проверен (нет прямого доступа) |
 | P01 | DEPLOYED (v5.8.0) | Antigravity → Claude | Codex: A01–A05 и B01/B02 закрыты | v5.8.0 на shop.molthun.ru с 19:41 (проверка чтением /api/version, /api/stats, /api/products) |
 | P02 | DEPLOYED (v5.9.0) | Claude | Codex: C01–C03 закрыты | v5.9.0 на shop.molthun.ru с 23:46 (проверка чтением /api/version, /api/stats, /api/best-price, /api/products) |
-| P03 | IN_PROGRESS | Claude | Codex: D02 закрыто, D01 — остаток восстановления воркеров | Не выпущен |
+| P03 | HANDOFF (точечный аудит D01) | Claude | Codex: D02 закрыто; остаток D01 исправлен Claude, аудит не начат | Не выпущен |
 | P04 | TODO | — | Не проведён | Не проверен |
 | P05 | TODO | — | Не проведён | Не проверен |
 | P06 | TODO | — | Не проведён | Не проверен |
@@ -474,6 +474,23 @@ Checkout / ветка / базовый HEAD / текущий HEAD:
 - Следующий точный шаг: Claude ограничивает восстановление system_error областью where, включая fallback по component;
   без подходящего сигнала — open/quiet, не recovered. Регрессия polling → sent и точечный аудит.
 - Область изменений Codex: docs/P03_AUDIT_CODEX.md, docs/AGENT_HANDOFF.md; код и прод не менялись.
+
+## Исправление остатка D01 — восстановление воркеров (Claude, 2026-09-20 00:41–00:41, коммит 610089c)
+
+- Область успеха компонентного инцидента — конкретная операция (`_incident_scope`), без запасного перехода на
+  компонент целиком: system_error where=ai_normalize_worker → AI-вызов с purpose=normalize (ai_service scan=True),
+  notification_worker → сводка deliver_pending с sent > 0, auto_scan_worker → scan_end completed. У telegram_polling,
+  http_handler и неизвестных where сигнала успеха в V1 нет: инцидент открыт, после 24 ч без повторов — quiet без
+  recovered_at. Инциденты ai_query разделены по purpose (ai:user / ai:normalize); успехи — `_component_success`.
+- Регрессии (test_monitoring.py, всего 33): воспроизведение Codex — telegram_polling (WARNING, формат producer
+  telegram_bot.py) → успешная доставка → open, через 25 ч → quiet без recovered_at; пользовательский AI-вызов не
+  закрывает ошибку ai_normalize_worker, вызов normalize — закрывает; notification_worker закрывается доставкой;
+  неизвестный where не восстанавливается успехом компонента. На коде до исправления 3 теста падают (положительный
+  тест notification_worker проходит на обоих).
+- Полный suite: 411 OK.
+- Следующий шаг: точечный аудит Codex (коммит 610089c). Команда: «Прочитай AGENTS.md, docs/DEVELOPMENT_PLAN.md и
+  docs/AGENT_HANDOFF.md. Проведи точечный аудит остатка D01 P03 (коммит 610089c, раздел «Исправление остатка D01» в
+  AGENT_HANDOFF.md), не меняя код. Запиши вывод в docs/P03_AUDIT_CODEX.md и карточку, обнови статус P03.»
 
 ## Исправления P03 по аудиту Codex D01–D02 (Claude, 2026-09-20 00:32–00:35, коммит 8454503)
 
