@@ -24,7 +24,7 @@
 | P01 | DEPLOYED (v5.8.0) | Antigravity → Claude | Codex: A01–A05 и B01/B02 закрыты | v5.8.0 на shop.molthun.ru с 19:41 (проверка чтением /api/version, /api/stats, /api/products) |
 | P02 | DEPLOYED (v5.9.0) | Claude | Codex: C01–C03 закрыты | v5.9.0 на shop.molthun.ru с 23:46 (проверка чтением /api/version, /api/stats, /api/best-price, /api/products) |
 | P03 | BLOCKED (аудит: Codex без лимита до завтра) | Claude | Codex: D02 закрыто; группировка D01 исправлена Claude, аудит не начат | Не выпущен |
-| P04 | IN_PROGRESS (только анализ, код не меняется до приёмки P03) | Claude (с 00:53) | Не проведён | Не проверен |
+| P04 | IN_PROGRESS (пачка без push, аудит завтра вместе с P03) | Claude (с 00:53) | Не проведён | Не проверен |
 | P05 | TODO | — | Не проведён | Не проверен |
 | P06 | TODO | — | Не проведён | Не проверен |
 | P07 | TODO | — | Не проведён | Не проверен |
@@ -485,15 +485,22 @@ Checkout / ветка / базовый HEAD / текущий HEAD:
   проверить оба порядка ошибок и независимое восстановление; затем точечный аудит.
 - 411 тестов OK (33.410 с). Изменены только docs/P03_AUDIT_CODEX.md и docs/AGENT_HANDOFF.md. Прод не менялся.
 
-## Карточка задачи: P04 (Claude, IN_PROGRESS — анализ)
+## Карточка задачи: P04 (Claude, IN_PROGRESS)
 
 ```text
 ID / этап: P04. Полный аудит UI и данных
-Основание/поручение владельца: пока аудит P03 ждёт Codex — «Начать P04 с анализа» (2026-09-20 ~00:52).
-Объём сейчас: только анализ БД → API → JS → DOM и список расхождений/дефектов. Код приложения НЕ меняется, пока P03
-  не принят (index.html затрагивал и P03 — избегаем конфликтов с возможными исправлениями P03).
-Исполнитель: Claude, начало 2026-09-20 00:53 Asia/Almaty. Ветка: dev/p03-monitoring (только docs).
+Основание/поручение владельца: пока аудит P03 ждёт Codex — «Начать P04 с анализа» (~00:52), затем «давай пачку
+  сделаем завтра проверит» и «не будем просто пушить» (~00:55): делаем P04 целиком (анализ + исправления) пачкой,
+  без push и выпуска; завтра Codex аудирует P03 и P04 вместе.
+Исполнитель: Claude, начало 2026-09-20 00:53 Asia/Almaty.
+Ветка: dev/p04-ui-audit от dev/p03-monitoring (P03 ещё не принят: исправления по аудиту P03 делаются в
+  dev/p03-monitoring и переносятся в dev/p04-ui-audit merge-ом).
 Результат анализа: docs/P04_UI_DATA_ANALYSIS.md.
+Frontend-тесты теперь запускаются локально (2026-09-20 00:55): Deno 2.9.6 (/opt/homebrew/bin/deno) + npm playwright 1.55.0
+  в scratchpad (симлинк node_modules в корне, исключён через .git/info/exclude), Chrome установлен:
+  `for f in test_frontend*.cjs; do NO_COLOR=1 deno run -A --node-modules-dir=manual "$f"; done` — все 4 PASS
+  на dev/p03-monitoring (test_frontend, _auth, _modal_image, _security). Это закрывает «frontend не проверен» для P01–P03
+  на уровне существующих тестов (новую страницу /monitoring они не покрывают).
 Следующий шаг: инвентаризация экранов, эндпоинтов и функций рендера index.html.
 ```
 
