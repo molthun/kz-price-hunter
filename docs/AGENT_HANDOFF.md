@@ -464,11 +464,32 @@ Checkout / ветка / базовый HEAD / текущий HEAD:
 ```text
 ID / этап: P03. Monitoring Center V1
 Основание/поручение владельца: «Начинай P03» (2026-09-19 ~23:49).
-Статус: IN_PROGRESS — P03-00: анализ существующей админки и данных P01/P02, дизайн.
+Статус: IN_PROGRESS — P03-00 (анализ и дизайн) завершён; реализация P03-01.
 Исполнитель: Claude, начало 2026-09-19 23:50 Asia/Almaty.
 Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-hunter / dev/p03-monitoring / 0426523 (main, v5.9.0 + docs).
 Чужие изменения до начала: нет.
-Следующий шаг: зафиксировать дизайн в карточке.
+Есть сейчас: /api/admin/shops (сводка shop_scans + P02 freshness/quality), вкладка «Логи» (буфер stdout),
+  телеметрия P01 (telemetry_events, telemetry_http_aggregates), качество P02 (source_scans). Экрана мониторинга нет.
+Дизайн:
+  - Бэкенд monitoring.py (только чтение, данные P01/P02 + shop_scans/scan_state/outbox) и /api/admin/monitoring
+    (обзор и все разделы), /api/admin/monitoring/shop/{key} (карточка), /api/admin/monitoring/events (журнал с фильтрами),
+    /api/admin/monitoring/incidents. Все — require_admin (гость 401, пользователь 403).
+  - Страница /monitoring (web/templates/monitoring.html): отдельная, адаптивная (390 px … 1920 px), разделы обзор /
+    магазины / сканирование / поиск / AI / Telegram / система / события; краткое состояние + раскрываемая диагностика.
+    В index.html — admin-only вкладка-ссылка «Мониторинг». Страница без данных для не-админа (данные только через API).
+  - Статусы (нет ложного зелёного): unknown — нет наблюдений; healthy; limited; degraded; offline; empty; disabled.
+    Магазин: disabled — выключен в настройках; unknown — ни одного итога обхода; offline — последний итог failed и нет
+    полного обхода > 72 ч (или 3+ неудачи подряд); degraded — partial / качество degraded|warning / freshness aging|stale;
+    empty — последний итог без товаров; limited — последний итог limited; healthy — complete, качество ok|unknown, fresh.
+    Разделы: сканирование — offline, если последний scan_end старше 2 × max(интервал волны, 3 ч) или его нет → unknown;
+    поиск/AI/Telegram — unknown без событий за 24 ч, degraded при доле ошибок > 20 %; AI/Telegram — disabled без ключа/токена.
+  - Инциденты: группировка событий severity ≥ WARNING за 7 дней по (component, type, shop, признак ошибки: код/класс/
+    причина качества); начало, последнее появление, число, масштаб (категории/хосты), гипотеза причины (403/429 —
+    блокировка/лимит, timeout/connection — сеть/недоступность сайта, quality — смена вёрстки/тихая поломка, …),
+    восстановление — последующее успешное событие того же магазина/компонента (recovery, scan_category без ошибки).
+План: P03-01 бэкенд + API; P03-02 страница и вкладка; P03-03 тесты (статусы, инциденты, доступ, 25/50/100 источников)
+  и проверка в браузере на 390 px / tablet / 1366×768 / 1920×1080.
+Следующий шаг: P03-01.
 ```
 
 ## R-P02 — выпуск P02 → v5.9.0 (Claude, ВЫПУЩЕНО 2026-09-19 23:46)
