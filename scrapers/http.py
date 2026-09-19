@@ -18,7 +18,7 @@ from curl_cffi import requests as _curl
 from curl_cffi.requests import Response, exceptions  # noqa: F401 — совместимость с `curl_cffi.requests`
 from curl_cffi.requests.exceptions import *  # noqa: F401,F403
 
-from telemetry import telemetry
+from telemetry import classify_error, telemetry
 
 # Минимальные ограничения (решение владельца 18.09.2026): скорость обхода как до лимитера —
 # паузы между страницами задают сами адаптеры, здесь только общий потолок одновременных
@@ -148,14 +148,23 @@ def _response_bytes(response, stream: bool) -> int:
         return 0
 
 
+def _error_kind(exc: BaseException) -> str:
+    """timeout / connection / other по классу исключения (текст учитывается, но не сохраняется)."""
+    if isinstance(exc, (TimeoutError, exceptions.Timeout)):
+        return "timeout"
+    if isinstance(exc, (ConnectionError, exceptions.ConnectionError, exceptions.SSLError)):
+        return "connection"
+    return classify_error(f"{type(exc).__name__}: {exc}") or "other"
+
+
 def _record(host, method, url, status_code, latency_ms, bytes_count=0, error=None,
-            retry_after=None, cooldown_rejected=False) -> None:
+            retry_after=None, cooldown_rejected=False, error_kind=None) -> None:
     # Телеметрия только учитывает запрос в памяти; её сбой не влияет на ответ (P01, fail-open)
     try:
         telemetry.record_http_metric(
             host=host, method=method, status_code=status_code, latency_ms=latency_ms,
             bytes_count=bytes_count, error=error, retry_after=retry_after, url=url,
-            cooldown_rejected=cooldown_rejected,
+            cooldown_rejected=cooldown_rejected, error_kind=error_kind,
         )
     except Exception:
         pass
@@ -176,7 +185,9 @@ def _limited(method: str, url: str, send, stream: bool = False):
         response = send()
     except Exception as e:
         state.slots.release()
-        _record(host, method, url, 0, (time.perf_counter() - t0) * 1000.0, error=f"{type(e).__name__}: {e}")
+        # Только имя класса: текст транспортной ошибки содержит URL/заголовки (A01)
+        _record(host, method, url, 0, (time.perf_counter() - t0) * 1000.0,
+                error=type(e).__name__, error_kind=_error_kind(e))
         raise
     latency_ms = (time.perf_counter() - t0) * 1000.0
     try:

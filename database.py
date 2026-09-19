@@ -311,6 +311,8 @@ def _create_schema(cursor) -> None:
             UNIQUE(bucket_type, bucket_start, host, shop)
         )
     """)
+    # Распределение кодов ответа {"200": n, "403": n, "timeout": n, "cooldown": n} (A05)
+    _add_column(cursor, "telemetry_http_aggregates", "status_codes", "TEXT")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_telemetry_http_agg_bucket ON telemetry_http_aggregates(bucket_type, bucket_start)")
 
     cursor.execute("""
