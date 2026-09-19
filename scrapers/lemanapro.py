@@ -10,7 +10,7 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 
 from scrapers import http as requests
-from scrapers.base import PagedScraper, price_value, validate_product_item
+from scrapers.base import PagedScraper, price_value, validate_product_item, UnconfirmedEnd, ScanResult, pagination_last_page
 
 
 class LemanaProScraper(PagedScraper):
@@ -47,14 +47,19 @@ class LemanaProScraper(PagedScraper):
         try:
             r = session.get(url, headers=self.headers, timeout=20)
             if r.status_code == 404:
-                return []
+                # За последней страницей — 404; на первой странице это ошибка категории
+                if page_num > 1:
+                    raise UnconfirmedEnd("HTTP 404 после последней страницы")
+                raise RuntimeError(f"HTTP 404 on {url}")
             if r.status_code != 200:
                 raise RuntimeError(f"HTTP {r.status_code} on {url}")
 
             soup = BeautifulSoup(r.text, "html.parser")
             cards = soup.select("div[data-qa-product]")
             if not cards:
-                return []
+                raise UnconfirmedEnd("карточки не найдены")
+            # Конец каталога подтверждает номер последней страницы в пагинации (R-M01)
+            last_page = pagination_last_page(r.text, category_url, "page")
 
             seen_ids = set()
 
@@ -148,7 +153,7 @@ class LemanaProScraper(PagedScraper):
                     seen_ids.add(sku)
                     products.append(item)
 
-            return products
+            return ScanResult(products, complete=last_page is not None and page_num >= last_page)
 
         except Exception as e:
             if isinstance(e, RuntimeError):

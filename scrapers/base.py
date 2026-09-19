@@ -93,6 +93,20 @@ def slug_id(prefix: str, slug: str, max_len: int = 80) -> str:
     return f"{prefix}_{slug[:max_len - 13]}_{digest}"
 
 
+def pagination_last_page(html: str, category_url: str, param: str = "page") -> Optional[int]:
+    """Наибольший номер страницы этой категории в ссылках пагинации; None, если ссылок нет."""
+    from urllib.parse import parse_qs, urljoin
+    from bs4 import BeautifulSoup
+    path = urlsplit(category_url).path.rstrip("/")
+    pages = []
+    for a in BeautifulSoup(html, "html.parser").select("a[href]"):
+        link = urlsplit(urljoin(category_url, a["href"]))
+        if link.path.rstrip("/") != path:
+            continue
+        pages += [int(v) for v in parse_qs(link.query).get(param, []) if v.isdigit()]
+    return max(pages) if pages else None
+
+
 class UnconfirmedEnd(RuntimeError):
     """HTTP succeeded, but HTML cannot prove whether the catalog ended."""
 

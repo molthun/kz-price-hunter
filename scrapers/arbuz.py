@@ -10,7 +10,7 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 
 from scrapers import http as requests
-from scrapers.base import PagedScraper, price_value, validate_product_item
+from scrapers.base import PagedScraper, price_value, validate_product_item, UnconfirmedEnd
 
 
 class ArbuzScraper(PagedScraper):
@@ -44,16 +44,18 @@ class ArbuzScraper(PagedScraper):
             url = f"{url}{separator}page={page_num}"
 
         session = self._get_session()
-        try:
-            resp = session.get(url, headers=self.headers, timeout=20)
-            if resp.status_code != 200:
-                return []
-        except Exception as e:
-            print(f"[{self.SHOP_NAME}] Ошибка загрузки {url}: {e}")
-            return []
+        # Ошибки HTTP и сети — ошибка обхода, а не пустая страница (раньше маскировались)
+        resp = session.get(url, headers=self.headers, timeout=20)
+        if resp.status_code == 404 and page_num > 1:
+            raise UnconfirmedEnd("HTTP 404 после последней страницы")
+        if resp.status_code != 200:
+            raise RuntimeError(f"HTTP {resp.status_code} on {url}")
 
         soup = BeautifulSoup(resp.text, "html.parser")
         cards = soup.select("article.product-card, article.product-item")
+        if not cards:
+            # Признака конца каталога в HTML нет: «ограничен», на первой странице — ошибка (R-M01)
+            raise UnconfirmedEnd("карточки не найдены")
 
         for card in cards:
             title_el = card.select_one(".product-card__title")

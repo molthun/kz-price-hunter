@@ -8,7 +8,7 @@ from typing import List, Dict, Any
 from urllib.parse import urljoin
 
 from scrapers import http as requests
-from scrapers.base import PagedScraper, price_value, validate_product_item
+from scrapers.base import PagedScraper, price_value, validate_product_item, ScanResult
 
 
 class ZetaScraper(PagedScraper):
@@ -62,9 +62,14 @@ class ZetaScraper(PagedScraper):
                 raise RuntimeError(f"HTTP {r.status_code} on {api_url}")
 
             data = r.json()
-            results = data.get("results", [])
+            if not isinstance(data, dict) or not isinstance(data.get("results"), list):
+                raise RuntimeError("Неожиданная структура ответа Zeta")
+            results = data["results"]
+            # isCount=true: resultCount — общее число товаров категории, доказательство конца (R-M01)
+            total = data.get("resultCount")
+            total_known = isinstance(total, int) and not isinstance(total, bool) and total >= 0
             if not results:
-                return []
+                return ScanResult([], complete=total_known and (page_num - 1) * self.PAGE_SIZE >= total)
 
             seen_ids = set()
 
@@ -142,7 +147,7 @@ class ZetaScraper(PagedScraper):
                     seen_ids.add(pid)
                     products.append(item)
 
-            return products
+            return ScanResult(products, complete=total_known and page_num * self.PAGE_SIZE >= total)
 
         except Exception as e:
             if isinstance(e, RuntimeError):

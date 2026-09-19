@@ -4,6 +4,7 @@ import datetime
 import os
 import tempfile
 import threading
+import time
 import unittest
 from unittest.mock import Mock, patch
 
@@ -341,7 +342,8 @@ class FakeSession:
         self.calls = 0
         self.closed = False
 
-    def __call__(self):
+    def __call__(self, **kwargs):
+        self.options = kwargs.get("curl_options")
         return self
 
     def __enter__(self):
@@ -512,3 +514,174 @@ class ArbitrageBenchmarkTest(unittest.TestCase):
                             custom_settings=settings)
         self.assertIn("300 000 ₸", res["reason"])
         self.assertIn("), возможно, пропущен ноль", res["reason"])
+
+
+class CooldownRaceTest(unittest.TestCase):
+    """R-M02: запрос, ждавший слот, пока другой получил 429, не уходит во время паузы."""
+
+    def setUp(self):
+        http.reset_limiter()
+        self.addCleanup(http.reset_limiter)
+
+    def test_waiting_request_sees_cooldown_set_while_it_waited(self):
+        started = threading.Event()
+        release = threading.Event()
+        sent = []
+
+        def slow_429():
+            started.set()
+            release.wait(2)
+            return Mock(status_code=429, headers={"Retry-After": "120"})
+
+        with patch.object(http, "MAX_CONCURRENCY_PER_HOST", 1):
+            http.reset_limiter()
+            first = threading.Thread(target=lambda: http._limited("GET", "https://race.example/a", slow_429))
+            first.start()
+            started.wait(2)
+            errors = []
+
+            def second():
+                try:
+                    http._limited("GET", "https://race.example/b", lambda: sent.append("b") or Mock(status_code=200, headers={}))
+                except http.HostCooldown as e:
+                    errors.append(e)
+
+            waiter = threading.Thread(target=second)
+            waiter.start()
+            time.sleep(0.05)   # второй запрос уже ждёт слот
+            release.set()
+            first.join(2)
+            waiter.join(2)
+        self.assertEqual(sent, [])
+        self.assertEqual(len(errors), 1)
+        self.assertGreater(errors[0].retry_after, 100)
+
+
+class DetailsHardeningTest(unittest.TestCase):
+    """R-M06 закрепление адреса, R-M07 Forte с составным id, R-M05 общий лимит догрузок."""
+
+    def setUp(self):
+        import product_details
+        self.pd = product_details
+        product_details._negative.clear()
+        from auth import RateLimiter
+        patcher = patch.object(product_details, "_fetch_rate", RateLimiter(product_details.MAX_FETCHES_PER_MINUTE, 60))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_connection_is_pinned_to_checked_address(self):
+        session = FakeSession([FakeStream(chunks=(b"<html>ok</html>",))])
+        with patch.object(self.pd.http, "Session", session):
+            self.pd.fetch_html("https://kaspi.kz/shop/p/x", lambda host, port: ["93.184.216.34"])
+        from curl_cffi import CurlOpt
+        self.assertEqual(session.options, {CurlOpt.RESOLVE: ["kaspi.kz:443:93.184.216.34"]})
+
+    def test_forte_description_with_composite_id(self):
+        hits = {"hits": [{"objectID": "999", "Params": {}}, {"objectID": "123", "ParamMap": {"Цвет": "Белый"}}]}
+        with patch.object(self.pd.http, "post", return_value=Mock(status_code=200, json=Mock(return_value=hits))):
+            self.assertIn("Цвет: Белый", self.pd.forte_description({"id": "forte_123@kz", "title": "Товар"}))
+
+    def test_new_shop_domains_allowed(self):
+        for host in ("vkusmart.vmv.kz", "12.kz", "www.zeta.kz", "komfort.kz", "lemanapro.kz", "arbuz.kz"):
+            self.assertTrue(self.pd.store_host_allowed(host), host)
+
+    def test_concurrency_and_rate_limit(self):
+        active, peak, calls = [0], [0], []
+        lock = threading.Lock()
+
+        def slow(prod):
+            with lock:
+                active[0] += 1
+                peak[0] = max(peak[0], active[0])
+                calls.append(prod["id"])
+            time.sleep(0.05)
+            with lock:
+                active[0] -= 1
+            return "описание"
+
+        async def scenario(n):
+            with patch.object(self.pd, "fetch_description_sync", side_effect=slow):
+                return await asyncio.gather(*(self.pd.get_description({"id": f"d{i}", "url": "https://kaspi.kz/x"})
+                                              for i in range(n)))
+
+        results = asyncio.run(scenario(12))
+        self.assertLessEqual(peak[0], self.pd.MAX_CONCURRENT_FETCHES)
+        self.assertEqual(results, ["описание"] * 12)
+        # Лимит новых загрузок в минуту: сверх него — без внешнего запроса
+        more = asyncio.run(scenario(self.pd.MAX_FETCHES_PER_MINUTE))
+        self.assertEqual(len(calls), self.pd.MAX_FETCHES_PER_MINUTE)
+        self.assertEqual(more.count(""), 12)
+
+
+class NewSourcesEndProofTest(unittest.TestCase):
+    """R-M01: конец каталога новых источников — по доказательству, иначе «ограничен», не ошибка."""
+
+    @staticmethod
+    def _zeta_items(n, start=0):
+        return [{"id": f"z{i}", "name": {"ru": f"Ведро {i}"}, "price": 1000 + i, "slug": f"vedro-{i}", "available": True}
+                for i in range(start, start + n)]
+
+    def _run(self, scraper, responses, url="https://x.kz/catalog/c/", max_pages=10):
+        session = Mock()
+        session.get.side_effect = responses
+        with patch.object(scraper, "_get_session", return_value=session), patch("scrapers.base.time.sleep"):
+            return scraper._scrape_sync("C", url, max_pages)
+
+    def test_zeta_complete_by_result_count(self):
+        from scrapers.zeta import ZetaScraper
+        s = ZetaScraper()
+        size = s.PAGE_SIZE
+        pages = [Mock(status_code=200, json=Mock(return_value={"results": self._zeta_items(size), "resultCount": size + 5})),
+                 Mock(status_code=200, json=Mock(return_value={"results": self._zeta_items(5, size), "resultCount": size + 5}))]
+        result = self._run(s, pages, "6851938995dd04035cad42d6")
+        self.assertTrue(result.complete)
+        self.assertEqual(len(result), size + 5)
+
+    def test_zeta_without_count_is_not_complete(self):
+        from scrapers.zeta import ZetaScraper
+        s = ZetaScraper()
+        pages = [Mock(status_code=200, json=Mock(return_value={"results": self._zeta_items(3)})),
+                 Mock(status_code=200, json=Mock(return_value={"results": []}))]
+        result = self._run(s, pages, "6851938995dd04035cad42d6")
+        self.assertFalse(result.complete)
+        with self.assertRaises(RuntimeError):
+            s._get_session = Mock(return_value=Mock(get=Mock(return_value=Mock(status_code=200, json=Mock(return_value={"error": "x"})))))
+            s._fetch_page("C", "6851938995dd04035cad42d6", 1)
+
+    def test_html_source_without_end_proof_is_limited_not_error(self):
+        from scrapers.base import UnconfirmedEnd
+        from scrapers.vkusmart import VkusmartScraper
+        s = VkusmartScraper()
+        calls = []
+
+        def fetch(name, url, page):
+            calls.append(page)
+            if page == 1:
+                return [{"id": "v1", "title": "Товар", "price": 100, "url": "https://vkusmart.vmv.kz/p/1"}]
+            raise UnconfirmedEnd("карточки не найдены")
+
+        with patch.object(s, "_fetch_page", side_effect=fetch), patch("scrapers.base.time.sleep"):
+            result = s._scrape_sync("C", "https://vkusmart.vmv.kz/catalog/x/", 5)
+        self.assertEqual((len(result), result.complete, result.limited, result.error), (1, False, True, None))
+        # Пустая первая страница — видимая ошибка, а не тихий ноль
+        session = Mock(get=Mock(return_value=Mock(status_code=200, text="<html><body>нет товаров</body></html>")))
+        with patch.object(s, "_get_session", return_value=session):
+            with self.assertRaises(UnconfirmedEnd):
+                s._fetch_page("C", "https://vkusmart.vmv.kz/catalog/x/", 1)
+            empty = s._scrape_sync("C", "https://vkusmart.vmv.kz/catalog/x/", 5)
+        self.assertTrue(empty.error)
+
+    def test_arbuz_http_error_is_not_empty_page(self):
+        from scrapers.arbuz import ArbuzScraper
+        s = ArbuzScraper()
+        session = Mock(get=Mock(return_value=Mock(status_code=503, text="")))
+        with patch.object(s, "_get_session", return_value=session):
+            with self.assertRaises(RuntimeError):
+                s._fetch_page("C", "https://arbuz.kz/ru/almaty/catalog/cat/1-x", 1)
+
+    def test_lemanapro_complete_on_last_page_from_pager(self):
+        from scrapers.base import pagination_last_page
+        html = ('<a href="/catalogue/instr/?page=2">2</a><a href="/catalogue/instr/?page=7">7</a>'
+                '<a href="/catalogue/other/?page=99">99</a>')
+        self.assertEqual(pagination_last_page(html, "https://lemanapro.kz/catalogue/instr/", "page"), 7)
+        self.assertIsNone(pagination_last_page("<a href='/x'>x</a>", "https://lemanapro.kz/catalogue/instr/", "page"))

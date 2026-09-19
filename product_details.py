@@ -11,17 +11,29 @@ import re
 import socket
 import time
 from collections import OrderedDict
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin, urlsplit
 
+from curl_cffi import CurlOpt
+
+from auth import RateLimiter
 from scrapers import http
+
 
 # Домены витрин, с которых разрешено читать описание (включая поддомены)
 STORE_DOMAINS = (
     "shop.kz", "kaspi.kz", "dns-shop.kz", "technodom.kz", "sulpak.kz", "mechta.kz",
     "alser.kz", "evrika.com", "moon.kz", "forcecom.kz", "flip.kz", "halykmarket.kz",
     "tgrad.kz", "ants.kz", "itmag.kz", "ispace.kz", "market.forte.kz",
+    # Магазины №19–24: описание — общими селекторами/мета-тегом, с теми же ограничениями
+    "vkusmart.vmv.kz", "12.kz", "zeta.kz", "komfort.kz", "lemanapro.kz", "arbuz.kz",
 )
+# Общий лимит внешней догрузки описаний (R-M05): перебор разных карточек не создаёт
+# неограниченную очередь запросов к магазинам
+MAX_CONCURRENT_FETCHES = 4
+MAX_FETCHES_PER_MINUTE = 30
+FETCH_WAIT_SECONDS = 5
+_fetch_rate = RateLimiter(max_calls=MAX_FETCHES_PER_MINUTE, period=60)
 MAX_REDIRECTS = 3
 MAX_RESPONSE_BYTES = 4 * 1024 * 1024
 MAX_DESCRIPTION_CHARS = 20_000
@@ -42,22 +54,33 @@ def store_host_allowed(host: str) -> bool:
     return any(host == d or host.endswith("." + d) for d in STORE_DOMAINS)
 
 
-def _resolve_public(host: str, port: int) -> None:
-    """Все адреса хоста должны быть публичными: не loopback/private/link-local/reserved."""
+def _resolve_public(host: str, port: int) -> List[str]:
+    """Все адреса хоста должны быть публичными: не loopback/private/link-local/reserved.
+    Возвращает проверенные адреса — соединение закрепляется за первым из них."""
     try:
         infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
     except OSError as e:
         raise UnsafeUrl(f"DNS: {type(e).__name__}") from None
     if not infos:
         raise UnsafeUrl("DNS: нет адресов")
+    addresses = []
     for info in infos:
         address = ipaddress.ip_address(info[4][0].split("%", 1)[0])
         if not address.is_global:
             raise UnsafeUrl("адрес магазина не публичный")
+        addresses.append(str(address))
+    return addresses
 
 
 def check_url(url: str, resolve=None) -> str:
     """Возвращает URL, если его разрешено запрашивать; иначе UnsafeUrl."""
+    return check_and_pin(url, resolve)[0]
+
+
+def check_and_pin(url: str, resolve=None):
+    """Проверка URL и запись для curl RESOLVE: соединение идёт на тот адрес, который прошёл
+    проверку, — повторное разрешение имени (DNS rebinding) не подменит его (R-M06).
+    Host и SNI при этом остаются исходными."""
     parts = urlsplit(str(url or ""))
     if parts.scheme not in ("http", "https") or not parts.hostname:
         raise UnsafeUrl("только http/https")
@@ -71,8 +94,11 @@ def check_url(url: str, resolve=None) -> str:
         raise UnsafeUrl("нестандартный порт")
     if not store_host_allowed(parts.hostname):
         raise UnsafeUrl("домен не из списка магазинов")
-    (resolve or _resolve_public)(parts.hostname, port)
-    return url
+    addresses = (resolve or _resolve_public)(parts.hostname, port)
+    if not addresses:
+        return url, None
+    ip = addresses[0]
+    return url, f"{parts.hostname}:{port}:{'[' + ip + ']' if ':' in ip else ip}"
 
 
 def fetch_html(url: str, resolve=None) -> Optional[str]:
@@ -80,15 +106,16 @@ def fetch_html(url: str, resolve=None) -> Optional[str]:
 
     Своя сессия живёт, пока тело читается потоком: модульный `get` закрывает её сразу.
     """
-    current = check_url(url, resolve)
-    with http.Session() as session:
-        for _ in range(MAX_REDIRECTS + 1):
+    current, pin = check_and_pin(url, resolve)
+    for _ in range(MAX_REDIRECTS + 1):
+        options = {CurlOpt.RESOLVE: [pin]} if pin else None
+        with http.Session(curl_options=options) as session:
             response = session.get(current, impersonate="chrome124", timeout=REQUEST_TIMEOUT_SECONDS,
                                    allow_redirects=False, stream=True)
             try:
                 if response.status_code in (301, 302, 303, 307, 308):
                     location = response.headers.get("Location") or ""
-                    current = check_url(urljoin(current, location), resolve)
+                    current, pin = check_and_pin(urljoin(current, location), resolve)
                     continue
                 if response.status_code != 200:
                     return None
@@ -172,7 +199,8 @@ def extract_description(html: str, url: str, shop: str) -> str:
 def forte_description(prod: Dict[str, Any]) -> str:
     """Forte Market: характеристики из API только у совпавшего objectID, не у первого результата."""
     from scrapers.fortemarket import API_SEARCH_URL, build_description_from_params
-    pid = str(prod.get("id") or "")
+    # id предложения составной: forte_<objectID>@<город> — город в objectID не входит (R-M07)
+    pid = str(prod.get("id") or "").split("@", 1)[0]
     object_id = pid[len("forte_"):] if pid.startswith("forte_") else ""
     title = prod.get("title") or ""
     if not object_id or not title:
@@ -226,6 +254,15 @@ async def get_description(prod: Dict[str, Any]) -> str:
     pending = _inflight.get(pid)
     if pending is not None:
         return await asyncio.shield(pending)
+    # Общий лимит: новые внешние загрузки не чаще MAX_FETCHES_PER_MINUTE и не больше
+    # MAX_CONCURRENT_FETCHES одновременно; не дождались места — карточка отдаётся без описания
+    if _fetch_rate.retry_after("details"):
+        return ""
+    semaphore = _fetch_semaphore()
+    try:
+        await asyncio.wait_for(semaphore.acquire(), FETCH_WAIT_SECONDS)
+    except asyncio.TimeoutError:
+        return ""
     future = asyncio.get_running_loop().create_future()
     _inflight[pid] = future
     try:
@@ -240,4 +277,17 @@ async def get_description(prod: Dict[str, Any]) -> str:
             return ""
         raise
     finally:
+        semaphore.release()
         _inflight.pop(pid, None)
+
+
+_semaphores: Dict[int, asyncio.Semaphore] = {}
+
+
+def _fetch_semaphore() -> asyncio.Semaphore:
+    """Семафор привязан к текущему event loop (в тестах их несколько)."""
+    loop_id = id(asyncio.get_running_loop())
+    if loop_id not in _semaphores:
+        _semaphores.clear()
+        _semaphores[loop_id] = asyncio.Semaphore(MAX_CONCURRENT_FETCHES)
+    return _semaphores[loop_id]

@@ -26,7 +26,7 @@ MAX_CONCURRENCY_PER_HOST = 4
 MIN_INTERVAL_SECONDS = 0.0
 JITTER_SECONDS = 0.0
 DEFAULT_COOLDOWN_SECONDS = 60
-MAX_COOLDOWN_SECONDS = 900
+MAX_COOLDOWN_SECONDS = 3600  # дольше — всё равно быстрый отказ (HostCooldown), обход завершается как partial
 # Короткий cooldown выжидаем; длинный — быстрый отказ, обход завершается как partial
 MAX_COOLDOWN_WAIT_SECONDS = 30
 
@@ -95,15 +95,21 @@ def parse_retry_after(value: Optional[str], now: Optional[datetime.datetime] = N
     return max(0.0, (when - now).total_seconds())
 
 
-def _acquire(host: str) -> _HostState:
-    state = _state(host)
+def _wait_cooldown(state: _HostState, host: str) -> None:
     wait = state.cooldown_until - _clock()
     if wait > MAX_COOLDOWN_WAIT_SECONDS:
         raise HostCooldown(host, wait)
     if wait > 0:
         _sleep(wait)
+
+
+def _acquire(host: str) -> _HostState:
+    state = _state(host)
+    _wait_cooldown(state, host)
     state.slots.acquire()
     try:
+        # Пока ждали слот, другой запрос мог получить 429: пауза проверяется снова (R-M02)
+        _wait_cooldown(state, host)
         with state.lock:
             now = _clock()
             start = max(now, state.next_start)
@@ -135,9 +141,10 @@ def _limited(method: str, url: str, send):
     state = _acquire(host)
     try:
         response = send()
+        # 429 учитывается до освобождения слота: ожидающий запрос увидит паузу
+        _observe(state, response)
     finally:
         state.slots.release()
-    _observe(state, response)
     return response
 
 

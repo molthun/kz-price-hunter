@@ -10,7 +10,7 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 
 from scrapers import http as requests
-from scrapers.base import PagedScraper, price_value, validate_product_item
+from scrapers.base import PagedScraper, price_value, validate_product_item, UnconfirmedEnd
 
 
 class TwelveMonthsScraper(PagedScraper):
@@ -47,14 +47,19 @@ class TwelveMonthsScraper(PagedScraper):
         try:
             r = session.get(url, headers=self.headers, timeout=15)
             if r.status_code == 404:
-                return []
+                # За последней страницей — 404; на первой странице это ошибка категории
+                if page_num > 1:
+                    raise UnconfirmedEnd("HTTP 404 после последней страницы")
+                raise RuntimeError(f"HTTP 404 on {url}")
             if r.status_code != 200:
                 raise RuntimeError(f"HTTP {r.status_code} on {url}")
 
             soup = BeautifulSoup(r.text, "html.parser")
             cards = soup.select(".products-view-item, .js-products-view-item")
             if not cards:
-                return []
+                # Источник не даёт признака конца каталога: пустая страница — «ограничен», а на
+                # первой странице — видимая ошибка, а не тихий ноль (R-M01)
+                raise UnconfirmedEnd("карточки не найдены")
 
             seen_ids = set()
 
