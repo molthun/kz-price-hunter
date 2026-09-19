@@ -4,10 +4,10 @@
 
 ## Текущая контрольная точка
 
-- Дата: 2026-09-19 19:24, Asia/Almaty — аудит P01-02 завершён.
-- Последнее действие: Codex проверил P01-02 (`66f1b7e`, HEAD `46ae29f`), нашёл B01/B02 (P2): ложное recovery после limited и сохранение произвольного city. Требуются исправления. A01–A05 остаются закрытыми. [Актуальный отчёт](P01_AUDIT_CODEX.md).
+- Дата: 2026-09-19 19:33, Asia/Almaty.
+- Последнее действие: Claude исправил замечания Codex по P01-02 B01/B02 (коммит `158c68e`) и передал на **повторный аудит Codex**. A01–A05 закрыты ранее. [Отчёт](P01_AUDIT_CODEX.md).
 - Ветка `dev/p00-baseline`, база P01 `12672ec`. Версия приложения `5.7.1`, `schema_version = 5` (не повышались). Push/выпуска не было.
-- Полный suite с временным `DATA_DIR`: 331 тест OK. Прод не проверялся.
+- Полный suite с временным `DATA_DIR`: 339 тестов OK. Прод не проверялся.
 - Пишущих исполнителей в этом checkout нет: Claude закончил. Задача изоляции тестов от `prices.db` — в отдельном worktree `.claude/worktrees/affectionate-lehmann-490dc0`; при интеграции сверить `test_*.py`.
 - P00 — READY, независимый аудит не проведён.
 
@@ -19,7 +19,7 @@
 | Этап | Статус | Исполнитель | Аудит | Прод |
 |---|---|---|---|---|
 | P00 | READY | Antigravity | Самопроверка (требует review) | Не проверен (нет прямого доступа) |
-| P01 | IN_PROGRESS | Claude — следующий на исправления B01/B02, не запущен | Codex: A01–A05 закрыты; P01-02 требует исправлений | Не проверен |
+| P01 | HANDOFF (повторный аудит P01-02) | Antigravity → Claude | Codex: A01–A05 закрыты; B01/B02 исправлены Claude, повторный аудит не начат | Не проверен |
 | P02 | TODO | — | Не проведён | Не проверен |
 | P03 | TODO | — | Не проведён | Не проверен |
 | P04 | TODO | — | Не проведён | Не проверен |
@@ -228,6 +228,37 @@ Checkout / ветка / базовый HEAD / текущий HEAD:
   Команда: «Прочитай AGENTS.md, docs/DEVELOPMENT_PLAN.md и docs/AGENT_HANDOFF.md. Проведи повторный аудит исправлений P01
   A01–A05 (diff edad2d6..f8c63f3, раздел «Исправления по аудиту Codex» в AGENT_HANDOFF.md), не меняя код. Запиши выводы
   в P01_AUDIT_CODEX.md и карточку, обнови статус P01.»
+
+## Исправления B01/B02 по аудиту P01-02 (Claude, 2026-09-19 19:26–19:33, коммит 158c68e)
+
+- B01: деградация/восстановление магазина определяются по полноте итога обхода, а не по error/failure_count.
+  Порядок failed < partial < limited < complete (`database.SHOP_HEALTH_RANK`). Состояние хранится в schema_metadata
+  `shop_health:<shop_key>` = {status, degraded} и обновляется в той же транзакции, что shop_scans; running его не
+  трогает, failure_count и retry-политика не менялись. События: degradation — итог хуже предыдущего (failed → ERROR,
+  иначе WARNING); recovery — complete после деградации (одно на восстановление); partial_recovery (новый тип) —
+  улучшение до не-complete после деградации (например failed → limited). Первый итог без истории — точка отсчёта,
+  событий нет; улучшение без предшествующей деградации (limited → complete с самого начала) — не recovery.
+  Данные события: shop_key, from, to, items (+ error у degradation).
+  Существующие базы: shop_health появляется с первым итогом после выката — первый обход каждого магазина
+  событий не даёт.
+- B02: `telemetry.canonical_city` — id поддерживаемого города (config.CITIES_KZ по id/названию), all («Все»),
+  kz («Казахстан») или unknown; исходный текст не сохраняется. Применяется на границе телеметрии: колонка city
+  (включая contextvar current_city) и поля data city / requested_city любого события. Live-поиск пишет
+  requested_city (канонический запрошенный) и city (фактически опрошенный по offer_identity.city_config).
+- Неблокирующее замечание AI: Gemini HTTP 400/404 теперь outcome http_400/http_404 (если следующая модель не ответила).
+- Регрессии: ShopTransitionTest (5: сценарий Codex complete→failed→limited, complete→limited, одно recovery при
+  повторах и running, старт без истории, неизменность retry-политики), CityPrivacyTest (4: канонические значения,
+  воспроизведение Codex через настоящий get_best_price_summary на временной БД, live found/cached/error,
+  колонка/контекст/данные). На коде до исправлений (46ae29f + audit docs) 8 из 9 падают (retry-тест — страховка,
+  проходит на обоих). На 158c68e — OK.
+- Воспроизведение Codex без подмен (init_db на временном DATA_DIR): complete → failed(HTTP 403) → limited → complete
+  даёт degradation, partial_recovery, recovery; get_best_price_summary('x', city='FAKE_PERSON +77010000000') →
+  city=unknown, маркеров в telemetry_events нет.
+- Полный suite: DATA_DIR=$(mktemp -d) ./venv/bin/python -m unittest discover -s . -p "test_*.py" → Ran 339, OK.
+- Следующий шаг: повторный аудит Codex B01/B02 (diff <коммит аудита Codex>..158c68e). Команда: «Прочитай AGENTS.md,
+  docs/DEVELOPMENT_PLAN.md и docs/AGENT_HANDOFF.md. Проведи повторный аудит исправлений P01-02 B01/B02
+  (коммит 158c68e, раздел «Исправления B01/B02» в AGENT_HANDOFF.md), не меняя код. Запиши выводы в P01_AUDIT_CODEX.md
+  и карточку, обнови статус P01.»
 
 ## P01-02 — оставшиеся источники событий (Claude → аудит Codex)
 
