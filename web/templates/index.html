@@ -43,7 +43,7 @@
             <span id="appVersionBadge" class="text-xs font-mono px-2 py-0.5 rounded-full bg-slate-800 text-emerald-400 border border-emerald-500/30 font-semibold">v2.5.0</span>
             <span id="currentCityHeaderBadge" class="text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Астана</span>
           </h1>
-          <p class="hidden md:block text-xs text-slate-400">Мониторинг цен 17 сетей: Kaspi, DNS, Мечта, Белый Ветер, 4mobile, Технодом, Sulpak и др.</p>
+          <p class="hidden md:block text-xs text-slate-400">Мониторинг цен магазинов Казахстана (подключено: <span data-shop-count>23</span>): Kaspi, DNS, Мечта, Белый Ветер, Технодом, Sulpak и др.</p>
         </div>
       </div>
 
@@ -116,7 +116,7 @@
       <div class="glass p-4 rounded-2xl">
         <div class="flex items-center justify-between mb-2">
           <div class="text-xs text-slate-400 font-medium">Активные магазины</div>
-          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">17 сетей</span>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">сетей: <span data-shop-count>23</span></span>
         </div>
         <div class="flex flex-wrap items-center gap-1.5 mt-1">
           <div title="Kaspi Магазин (kaspi.kz)" class="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-900/90 border border-slate-700/80 hover:border-rose-500 hover:scale-110 transition shadow-sm cursor-pointer">
@@ -173,7 +173,7 @@
         </div>
         <div class="text-[11px] text-slate-400 mt-2 flex items-center gap-1.5">
           <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span>17 ключевых сетей Казахстана</span>
+          <span>Подключено сетей Казахстана: <span data-shop-count>23</span></span>
         </div>
       </div>
 
@@ -308,7 +308,7 @@
               <span id="searchCityBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Астана</span>
             </h2>
             <p class="text-xs text-slate-400 mt-0.5">
-              Сравнение цен по 18 магазинам Казахстана: Kaspi, DNS, Мечта, Белый Ветер, Технодом, Sulpak, Forte Market и др.
+              Сравнение цен по магазинам Казахстана: Kaspi, DNS, Мечта, Белый Ветер, Технодом, Sulpak, Forte Market и др.
             </p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
@@ -568,7 +568,7 @@
               <span>Мало предложений в базе?</span>
             </div>
             <div id="bestPriceFewResultsText" class="text-xs text-slate-300">
-              Найдено мало результатов. Вы можете точечно обновить предложения по нужной категории по всем 18 магазинам.
+              Найдено мало результатов. Вы можете точечно обновить предложения по нужной категории по всем подключённым магазинам.
             </div>
           </div>
           <div class="flex items-center gap-2 shrink-0 w-full sm:w-auto">
@@ -641,7 +641,7 @@
               <h2 class="text-base font-bold text-white">AI-Консультант по покупкам</h2>
               <span class="px-2 py-0.5 text-[11px] rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-300 font-semibold flex items-center gap-1">
                 <i class="fa-solid fa-bolt text-amber-400 text-[10px]"></i>
-                <span>RAG • 17 магазинов РК</span>
+                <span>RAG • магазины РК</span>
               </span>
             </div>
             <p class="text-xs text-slate-400 mt-0.5">
@@ -685,7 +685,7 @@
               <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 text-slate-200 text-sm leading-relaxed space-y-2 shadow-sm">
                 <p class="font-semibold text-white">Здравствуйте! Чем я могу помочь вам сегодня?</p>
                 <p class="text-xs text-slate-400 leading-relaxed">
-                  Я знаю актуальные цены и скидки в <b>17 торговых сетях Казахстана</b> (Kaspi, DNS, Белый Ветер, Технодом, Мечта, Sulpak, Forcecom, Halyk Market и др.). Спросите меня о подборе техники под ваш бюджет, сравнении моделей или поиске лучшей цены.
+                  Я знаю актуальные цены и скидки в <b>торговых сетях Казахстана</b> (Kaspi, DNS, Белый Ветер, Технодом, Мечта, Sulpak, Forcecom, Halyk Market и др.). Спросите меня о подборе техники под ваш бюджет, сравнении моделей или поиске лучшей цены.
                 </p>
               </div>
 
@@ -1174,7 +1174,7 @@
 
           <!-- Отслеживаемые магазины -->
           <div class="flex items-center justify-between">
-            <div class="text-xs font-semibold text-slate-300">Сканируемые магазины (17 сетей Казахстана):</div>
+            <div class="text-xs font-semibold text-slate-300">Сканируемые магазины (подключено: <span data-shop-count>23</span>):</div>
             <div class="space-x-2 text-xs">
               <button type="button" onclick="toggleAllShops(true)" class="text-emerald-400 hover:underline">Выбрать все</button>
               <span class="text-slate-600">•</span>
@@ -1334,7 +1334,7 @@
           <!-- Сетка 12 мастер-категорий -->
           <div>
             <div class="flex items-center justify-between mb-3">
-              <div class="text-xs font-semibold text-slate-300">Категории каталога (12 мастер-групп по 18 магазинам РК):</div>
+              <div class="text-xs font-semibold text-slate-300">Категории каталога (мастер-группы по всем магазинам РК):</div>
               <div class="space-x-2 text-xs">
                 <button type="button" onclick="toggleAllCategories(true)" class="text-emerald-400 hover:underline">Включить все</button>
                 <span class="text-slate-600">•</span>
@@ -1558,7 +1558,7 @@
             <i class="fa-solid fa-scale-balanced"></i>
           </div>
           <div>
-            <h3 class="text-base font-bold text-white" id="modalCompareTitle">Сравнение цен в 17 магазинах</h3>
+            <h3 class="text-base font-bold text-white" id="modalCompareTitle">Сравнение цен во всех магазинах</h3>
             <p class="text-[11px] text-slate-400" id="modalCompareSubtitle">Поиск предложений по канонической модели</p>
           </div>
         </div>
@@ -1865,13 +1865,13 @@
       const key = decodeURIComponent(encodedKey || '');
 
       titleEl.textContent = title ? title : 'Сравнение цен по модели';
-      subEl.textContent = key ? `Каноническая модель: ${key}` : 'Поиск по всем 18 магазинам';
+      subEl.textContent = key ? `Каноническая модель: ${key}` : 'Поиск по всем магазинам';
       modal.classList.remove('hidden');
 
       body.innerHTML = `
         <div class="flex items-center justify-center py-8 text-slate-400">
           <i class="fa-solid fa-spinner fa-spin text-xl mr-2 text-sky-400"></i>
-          <span>Сравниваем цены в 17 торговых сетях...</span>
+          <span>Сравниваем цены в торговых сетях...</span>
         </div>
       `;
 
@@ -2933,7 +2933,7 @@
             <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 text-slate-200 text-sm leading-relaxed space-y-2 shadow-sm">
               <p class="font-semibold text-white">Здравствуйте! Диалог очищен. Чем я могу помочь?</p>
               <p class="text-xs text-slate-400 leading-relaxed">
-                Спросите меня о подборе техники под ваш бюджет, сравнении моделей или поиске лучшей цены по 18 магазинам Казахстана.
+                Спросите меня о подборе техники под ваш бюджет, сравнении моделей или поиске лучшей цены в магазинах Казахстана.
               </p>
             </div>
             <div class="space-y-1.5">
@@ -3003,7 +3003,7 @@
         </div>
         <div class="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 text-slate-400 text-xs flex items-center gap-2">
           <i class="fa-solid fa-spinner fa-spin text-purple-400"></i>
-          <span>Анализирую цены и предложения в 17 магазинах Казахстана...</span>
+          <span>Анализирую цены и предложения в магазинах Казахстана...</span>
         </div>
       `;
       feed.appendChild(loadingBubble);
@@ -3219,7 +3219,7 @@
               Попробуйте выбрать город «Все города», изменить категорию, диапазон цен или сократить запрос.
             </p>
             <div class="mt-5 inline-flex flex-col sm:flex-row items-center gap-2.5 p-3.5 rounded-2xl bg-slate-900/90 border border-slate-700/80 shadow-xl">
-              <span class="text-xs text-slate-300 font-medium">⚡️ Запустить точечный сбор по всем 18 магазинам для категории:</span>
+              <span class="text-xs text-slate-300 font-medium">⚡️ Запустить точечный сбор по всем магазинам для категории:</span>
               <select id="emptyStateCategorySelect" class="bg-slate-800 border border-slate-600 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500">
                 ${renderMasterCategoryOptions(detectedCat, q)}
               </select>
@@ -3480,7 +3480,7 @@
           const txt = document.getElementById('bestPriceFewResultsText');
           if (txt) {
             const catName = MASTER_CATEGORIES_INFO[cat]?.name || 'этой категории';
-            txt.innerHTML = `В каталоге найдено всего <b>${items.length}</b> предложений. Вы можете точечно обновить категорию <b>«${escapeHtml(catName)}»</b> по всем 18 магазинам:`;
+            txt.innerHTML = `В каталоге найдено всего <b>${items.length}</b> предложений. Вы можете точечно обновить категорию <b>«${escapeHtml(catName)}»</b> по всем магазинам:`;
           }
         } else {
           fewNotice.classList.add('hidden');
@@ -3581,6 +3581,13 @@
     function isLoggedIn() { return Boolean(currentMe.user); }
     function isAdminUser() { return Boolean(currentMe.user && currentMe.user.is_admin); }
 
+    // Число подключённых сетей берётся из /api/me, а не из текста: не устаревает при добавлении магазина
+    function renderShopCount() {
+      const count = Object.keys(currentMe.shops || {}).length;
+      if (!count) return;
+      document.querySelectorAll('[data-shop-count]').forEach(el => { el.textContent = String(count); });
+    }
+
     async function loadMe() {
       try {
         const res = await fetch('/api/me');
@@ -3590,6 +3597,7 @@
       }
       renderAuthArea();
       applyRoleVisibility();
+      renderShopCount();
       renderUserSettings(currentMe.settings || {});
       renderTgStatus();
       if (isAdminUser()) loadAdminSettings();
@@ -4367,7 +4375,7 @@
         showToast('⚠️ Точечный запуск сканера доступен только администратору');
         return;
       }
-      showToast(`⚡️ Запущен сбор по всем 18 магазинам для «${catName}»...`);
+      showToast(`⚡️ Запущен сбор по всем магазинам для «${catName}»...`);
       try {
         let payload = { category: catId };
         if (catId.startsWith('create_query:')) {

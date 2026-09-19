@@ -90,6 +90,8 @@ class FourMobileScraper:
                     if price <= 0:
                         continue
 
+                    # API 4mobile не отдаёт id товара: устойчивый id — хэш категории и названия
+                    # (переименование товара даст новое предложение — ограничение источника)
                     pid_raw = f"4m_{cat_title}_{name}"
                     pid = hashlib.md5(pid_raw.encode("utf-8")).hexdigest()[:12]
 

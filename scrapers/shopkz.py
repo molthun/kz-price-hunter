@@ -1,3 +1,4 @@
+import hashlib
 import re
 import asyncio
 from typing import List, Dict, Any
@@ -159,7 +160,8 @@ class ShopKzScraper:
                     rel_link = title_el.get("href", "")
                     if not pid:
                         match = re.search(r"/offer/([^/]+)/", rel_link)
-                        pid = match.group(1) if match else title[:20]
+                        # Без id и адреса товара — хэш полного названия (не первые 20 символов)
+                        pid = match.group(1) if match else "t" + hashlib.sha1(title.encode("utf-8")).hexdigest()[:12]
 
                     full_link = f"{self.base_url}{rel_link}" if rel_link.startswith("/") else rel_link
 

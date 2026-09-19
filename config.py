@@ -1,5 +1,7 @@
 import os
 import json
+import tempfile
+import threading
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -13,7 +15,8 @@ APP_URL = os.getenv("APP_URL", "").strip()
 # Настройки AI (Google Gemini API / OpenAI API)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
-OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1").strip()
+# Пустая переменная — берётся адрес из настроек админки (раньше непустой default всегда перекрывал его)
+OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "").strip()
 
 # Магазины: ключ настроек -> название магазина в базе (SHOP_NAME скраперов)
 SHOP_KEYS = {
@@ -507,12 +510,36 @@ def _validate_settings(new_settings):
 def validate_user_settings(new_settings):
     return _validate(new_settings, USER_DEFAULTS)
 
+_SETTINGS_WRITE_LOCK = threading.Lock()
+
+
+def _write_settings_file(data) -> None:
+    """Атомарная запись: временный файл рядом + os.replace. Сбой посреди записи не оставляет
+    обрезанный settings.json; права 0600 — в файле ключи API."""
+    SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(prefix=".settings-", suffix=".json", dir=str(SETTINGS_FILE.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+            f.flush()
+            os.fsync(f.fileno())
+        os.chmod(tmp_path, 0o600)
+        os.replace(tmp_path, SETTINGS_FILE)
+    except BaseException:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
+
+
 def save_settings(new_settings):
-    """Сохраняет общие настройки. Посторонние ключи старого формата в файле сохраняются как есть."""
-    raw = _read_settings_file()
-    raw.update(_validate_settings(new_settings))
-    with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
-        json.dump(raw, f, indent=2, ensure_ascii=False)
+    """Сохраняет общие настройки. Посторонние ключи старого формата в файле сохраняются как есть.
+    Чтение-изменение-запись под блокировкой: одновременные сохранения не теряют изменения."""
+    with _SETTINGS_WRITE_LOCK:
+        raw = _read_settings_file()
+        raw.update(_validate_settings(new_settings))
+        _write_settings_file(raw)
     return load_settings()
 
 CHECK_INTERVAL_SECONDS = load_settings()["check_interval_seconds"]

@@ -1,4 +1,5 @@
 """Общая основа парсеров: постраничный обход категории до конца выдачи."""
+import hashlib
 import re
 import time
 import asyncio
@@ -79,6 +80,16 @@ def price_value(value: Any) -> int:
     if not number.is_finite() or number <= 0:
         return 0
     return _in_range(int(number))
+
+
+def slug_id(prefix: str, slug: str, max_len: int = 80) -> str:
+    """Устойчивый id из slug без обрезки: длинный slug сокращается с хэшем полного значения,
+    поэтому товары с общим началом адреса не получают одинаковый id (аудит M07)."""
+    slug = (slug or "").strip("/")
+    if len(slug) <= max_len:
+        return f"{prefix}_{slug}"
+    digest = hashlib.sha1(slug.encode("utf-8")).hexdigest()[:12]
+    return f"{prefix}_{slug[:max_len - 13]}_{digest}"
 
 
 class UnconfirmedEnd(RuntimeError):

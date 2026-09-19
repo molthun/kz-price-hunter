@@ -27,7 +27,7 @@ flowchart TD
     subgraph SchedulerLayer["Фоновые задачи и сбор данных"]
         Scheduler["24h Round-Robin Шедулер (main.py / scheduler)"]
         LeaseManager["Атомарный лок (scheduler_lease)"]
-        ScraperPool["Пул скраперов: 18 магазинов (scrapers/)"]
+        ScraperPool["Пул скраперов (scrapers/, реестр SHOP_REGISTRY)"]
     end
 
     subgraph StorageLayer["Слой хранения данных"]

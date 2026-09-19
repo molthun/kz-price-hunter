@@ -1,6 +1,6 @@
 from typing import List, Dict, Any
 from scrapers import http as requests
-from scrapers.base import UnconfirmedEnd, PagedScraper, parse_price
+from scrapers.base import slug_id, UnconfirmedEnd, PagedScraper, parse_price
 from bs4 import BeautifulSoup
 
 class AlserScraper(PagedScraper):
@@ -89,7 +89,8 @@ class AlserScraper(PagedScraper):
 
                 # ID товара
                 slug = rel_link.split("/p/")[-1].strip("/")
-                pid = f"alser_{slug[:40]}"
+                # Раньше slug обрезался до 40 символов — длинные адреса с общим началом совпадали
+                pid = slug_id("alser", slug)
 
                 products.append({
                     "shop": self.SHOP_NAME,
