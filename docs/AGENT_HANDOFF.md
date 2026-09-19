@@ -45,12 +45,42 @@ ID / этап: T01. Изоляция тестов от рабочей prices.db 
   - Замерить mtime и размер prices.db / prices.db-wal до и после полного прогона — без изменений.
   - Все тесты проходят (299 на d3d3fde).
 Основание/поручение владельца: прямое поручение владельца Claude (2026-09-19). Не удалять и не восстанавливать prices.db без указания.
-Статус: IN_PROGRESS
-Исполнитель: Claude
-Начало: 2026-09-19 18:50 (Asia/Almaty)
-Checkout / ветка / базовый HEAD: .claude/worktrees/affectionate-lehmann-490dc0 / claude/affectionate-lehmann-490dc0 / d3d3fde
-Область изменений (файлы): test_support.py, test_*.py (только импорт изоляции в начале), docs/AGENT_HANDOFF.md, ROADMAP_AND_LOG.md
-Чужие изменения, замеченные до начала: нет (основной checkout на dev/p00-baseline чист).
+Статус: REVIEW (реализация завершена; не влита в dev/p00-baseline — там идёт аудит P01 Codex)
+Исполнитель / следующий: Claude (завершил) / аудит + слияние по решению владельца
+Начало и checkpoint: 2026-09-19 18:50 – 19:10 (Asia/Almaty)
+Checkout / ветка / базовый HEAD: .claude/worktrees/affectionate-lehmann-490dc0 / claude/affectionate-lehmann-490dc0 /
+  начато от d3d3fde, перебазировано на 5f9ce5f (конфликт только в ROADMAP_AND_LOG.md и этой карточке; решён)
+Область изменений (файлы): test_support.py, все test_*.py (одна строка импорта в начале), test_config_and_ids.py (контрактный тест),
+  test_monitor.py (сброс флага аренды), ROADMAP_AND_LOG.md, docs/AGENT_HANDOFF.md. Прод-код не менялся.
+Чужие изменения, замеченные до начала: нет. Во время работы в основном checkout появились коммиты 6fc7e04..5f9ce5f и
+  незакоммиченная правка docs/AGENT_HANDOFF.md (аудит Codex) — основной checkout не трогал.
+Причина дефекта (подтверждено): config вычисляет DB_PATH один раз при первом импорте. При discovery первым идёт
+  test_ai_category_classification (DATA_DIR не задаёт) → DB_PATH = <repo>/prices.db для всего прогона. Воспроизведено:
+  прогон на d3d3fde создал prices.db и settings.json в корне чистого checkout.
+Сделано:
+  1. test_support.py: если DATA_DIR не задан или равен корню репо — mkdtemp + os.environ["DATA_DIR"] (удаляется atexit);
+     если config уже импортирован с DATA_DIR = корень репо — RuntimeError (громкий отказ вместо тихой записи).
+  2. Каждый test_*.py первым импортом делает `import test_support` → изоляция не зависит от порядка.
+     Существующие _TMP/DATA_DIR в модулях оставлены (не мешают; subprocess в test_auth_privacy получает временный DATA_DIR).
+  3. Контракт test_config_and_ids.TestDataIsolationTest: первый импорт каждого test_*.py — test_support (AST);
+     config.DB_PATH, database.DB_PATH, config.SETTINGS_FILE вне корня репо.
+  4. Найдена вторая зависимость от порядка (была и на d3d3fde): web.server._lease_state["lost"] остаётся True после
+     тестов аренды; в обратном порядке 2 теста test_monitor.TestReliability падали LeaseLost. setUp теперь сбрасывает флаг.
+Проверки (macOS, Python 3.14.7 venv основного checkout, DATA_DIR снят через env -u, 2026-09-19):
+  - discovery: Ran 302 tests OK (300 upstream + 2 новых контрактных).
+  - Обратный порядок модулей и перемешанные (seed 1–6): 302/301 OK, 0 ошибок. На d3d3fde обратный порядок: 2 ошибки LeaseLost.
+  - Каждый модуль отдельно: OK.
+  - Корень worktree после всех прогонов: prices.db, settings.json, backups/ не создаются (до правки создавались).
+  - Приёмка mtime/размер: экспорт HEAD в scratchpad + sentinel prices.db (WAL) с mtime 12:00 → после полного прогона
+    prices.db 8192 байт и prices.db-wal 0 байт, mtime не изменились.
+  - Негативные: `import config; import test_support` → RuntimeError; модуль без test_support → контракт падает.
+Не проведено:
+  - Приёмка на реальной prices.db основного checkout (148 738 048 байт, mtime 18:55:19, WAL нет): там сейчас работает Codex,
+    ветку не вливал и тесты там не запускал. Сделать после слияния: записать stat prices.db*, прогнать suite, сравнить.
+  - Тестовые данные, уже попавшие в локальную prices.db (303→725 товаров), не чистились — решение владельца.
+Следующий точный шаг: ревью диффа 5f9ce5f..claude/affectionate-lehmann-490dc0, слияние в dev/p00-baseline (fast-forward,
+  если там не будет новых коммитов), затем приёмка на реальной prices.db по пункту выше.
+Готовность к выпуску: правки только тестов; версию не повышал.
 ```
 
 ## Карточка текущей задачи: P01
