@@ -2614,10 +2614,15 @@ class TestTrackedCategoriesEqualFunctionality(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(p_next_cycle["wave_categories"], plan0["wave_categories"])
 
         # 3. Проверка отслеживаемых поисковых категорий: Hot каждую волну, остальные по очереди
+        with get_connection() as conn:
+            conn.execute("DELETE FROM tracked_categories")
+            conn.commit()
+
         t_hot = save_tracked_category("Тест Hot Запрос", "запрос_hot", "smartphones")
         t_rot1 = save_tracked_category("Тест Ротация 1", "запрос_rot1", "audio")
         t_rot2 = save_tracked_category("Тест Ротация 2", "запрос_rot2", "audio")
         t_rot3 = save_tracked_category("Тест Ротация 3", "запрос_rot3", "tvs")
+        t_rot4 = save_tracked_category("Тест Ротация 4", "запрос_rot4", "tvs")
         toggle_tracked_category_hot(t_hot["id"], True)
 
         try:
@@ -2639,11 +2644,15 @@ class TestTrackedCategoriesEqualFunctionality(unittest.IsolatedAsyncioTestCase):
                 if cid not in hot_ids:
                     self.assertNotIn(cid, wave2_ids, "Не-Hot категория повторилась раньше завершения круга!")
         finally:
-            for item in [t_hot, t_rot1, t_rot2, t_rot3]:
+            for item in [t_hot, t_rot1, t_rot2, t_rot3, t_rot4]:
                 if item and item.get("id"):
                     delete_tracked_category(item["id"])
 
         # 4. Проверка инкремента номера круга (wave_cycle) в _do_scan_task
+        with get_connection() as conn:
+            conn.execute("DELETE FROM scheduler_lease")
+            conn.commit()
+
         set_metadata("wave_index", str(total_waves - 1))  # устанавливаем последнюю волну круга
         set_metadata("wave_cycle", "1")
         server.wave_state["current_wave_index"] = total_waves - 1
@@ -2668,6 +2677,10 @@ class TestTrackedCategoriesEqualFunctionality(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(int(get_metadata("wave_cycle")), 1)   # но круг не объявлен завершённым
 
         # 4б. Успешная последняя волна — круг засчитан
+        with get_connection() as conn:
+            conn.execute("DELETE FROM scheduler_lease")
+            conn.commit()
+
         set_metadata("wave_index", str(total_waves - 1))
         server.wave_state["current_wave_index"] = total_waves - 1
         dummy_instance.scrape = AsyncMock(return_value=ScanResult([dict(item)], complete=True))

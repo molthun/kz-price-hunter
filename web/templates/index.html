@@ -105,11 +105,11 @@
         </div>
       </div>
 
-      <div class="glass p-4 rounded-2xl border-amber-500/20 bg-amber-500/5">
-        <div class="text-xs text-amber-300 font-medium mb-1">Найдено аномалий & скидок</div>
-        <div id="metricTotalAlerts" class="text-2xl font-bold text-amber-400">...</div>
-        <div id="metricAlertsBreakdown" class="text-[11px] text-amber-400/80 mt-1 flex items-center gap-1">
-          <i class="fa-solid fa-triangle-exclamation"></i> <span>Пропущенный ноль / Скидки</span>
+      <div class="glass p-4 rounded-2xl border-rose-500/20 bg-rose-500/5">
+        <div class="text-xs text-rose-300 font-medium mb-1">Акции & Ценовые аномалии</div>
+        <div id="metricTotalAlerts" class="text-2xl font-bold text-rose-400">...</div>
+        <div id="metricAlertsBreakdown" class="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
+          <i class="fa-solid fa-fire text-rose-400"></i> <span>Скидки в магазинах • Сбои • Арбитраж</span>
         </div>
       </div>
 
@@ -2578,19 +2578,23 @@
       try {
         const res = await fetch('/api/stats');
         const data = await res.json();
+        const storeDeals = (data.total_store_deals != null) ? data.total_store_deals : (data.total_discounts || 0);
+        const anomaliesTotal = data.total_anomalies || 0;
+        const arbitrageTotal = (data.total_arbitrage != null) ? data.total_arbitrage : Math.max(0, (data.total_alerts || 0) - anomaliesTotal);
+
         document.getElementById('metricTotalProducts').innerText = (data.total_products || 0).toLocaleString();
-        document.getElementById('metricTotalAlerts').innerText = (data.total_alerts || 0).toLocaleString();
+        document.getElementById('metricTotalAlerts').innerText = storeDeals.toLocaleString();
         
         const mb = document.getElementById('metricAlertsBreakdown');
         if (mb) {
-          mb.innerHTML = `<span class="text-amber-300 font-bold">${escapeHtml(data.total_anomalies || 0)}</span> аномалий • <span class="text-rose-400 font-bold">${escapeHtml(data.total_discounts || 0)}</span> скидок`;
+          mb.innerHTML = `<span class="text-rose-400 font-bold">${storeDeals.toLocaleString()}</span> акций • <span class="text-amber-300 font-bold">${escapeHtml(anomaliesTotal)}</span> сбоев • <span class="text-sky-300 font-bold">${escapeHtml(arbitrageTotal)}</span> арбитраж`;
         }
 
         const bAno = document.getElementById('badgeAnomaliesCount');
-        if (bAno) bAno.innerText = (data.total_anomalies || 0).toString();
+        if (bAno) bAno.innerText = anomaliesTotal.toString();
 
         const bDisc = document.getElementById('badgeDiscountsCount');
-        if (bDisc) bDisc.innerText = (data.total_discounts || 0).toString();
+        if (bDisc) bDisc.innerText = storeDeals.toLocaleString();
 
         const state = data.scan_state || {};
         const freshness = data.db_freshness || {};
@@ -2892,8 +2896,15 @@
       if (!container) return;
 
       const filtered = cachedDiscounts || [];
+      const totalCount = (window.cachedDiscountsTotal != null) ? window.cachedDiscountsTotal : filtered.length;
       const label = document.getElementById('labelDiscountsCount');
-      if (label) label.innerText = `${filtered.length} предложений`;
+      if (label) {
+        if (totalCount > filtered.length) {
+          label.innerText = `Показано ${filtered.length} из ${totalCount.toLocaleString()} предложений`;
+        } else {
+          label.innerText = `${filtered.length} предложений`;
+        }
+      }
 
       if (filtered.length === 0) {
         container.innerHTML = `
@@ -2949,7 +2960,8 @@
 
         const badge = document.getElementById('badgeDiscountsCount');
         const count = data.total != null ? data.total : cachedDiscounts.length;
-        if (badge) badge.innerText = count;
+        window.cachedDiscountsTotal = count;
+        if (badge) badge.innerText = count.toLocaleString();
 
         renderDiscountsList();
       } catch (e) {

@@ -1068,16 +1068,28 @@ def get_stats(user_settings: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         cursor.execute("SELECT shop, COUNT(*) as count FROM products WHERE " + active_product_clause() + " GROUP BY shop")
         shops_stats = {row["shop"]: row["count"] for row in cursor.fetchall()}
 
+        cursor.execute(f"""
+            SELECT COUNT(*) FROM products 
+            WHERE ((old_price_on_site > current_price AND current_price > 0) 
+               OR (category IN ('actions', 'Акции и распродажи') AND first_seen_price > current_price AND current_price > 0)) 
+              AND {active_product_clause()}
+        """)
+        total_store_deals = cursor.fetchone()[0]
+
     # Счетчики аномалий и скидок — по личным порогам пользователя (у гостей — по умолчанию)
     visible = _fetch_filtered_alerts(settings)
     total_anomalies = sum(1 for a in visible if a["alert_type"] == "ZERO_GLITCH")
-    total_discounts = len(visible) - total_anomalies
+    total_arbitrage = sum(1 for a in visible if a["alert_type"] in ("MARKET_ARBITRAGE", "ARBITRAGE"))
+    total_alert_discounts = len(visible) - total_anomalies
 
     return {
         "total_products": total_products,
         "total_alerts": len(visible),
         "total_anomalies": total_anomalies,
-        "total_discounts": total_discounts,
+        "total_arbitrage": total_arbitrage,
+        "total_discounts": total_store_deals,
+        "total_store_deals": total_store_deals,
+        "total_alert_discounts": total_alert_discounts,
         "shops": shops_stats,
         "db_freshness": get_db_freshness(threshold_seconds=get_scan_interval_seconds())
     }
