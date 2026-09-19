@@ -81,6 +81,7 @@ from database import (
     get_shops_scan_report,
     upsert_telegram_user,
     save_user_settings,
+    replace_user_settings,
     list_users,
     get_user,
     set_user_blocked,
@@ -716,7 +717,7 @@ async def delete_my_account_handler(request):
 async def save_my_settings_handler(request):
     try:
         data = await request.json()
-        clean = validate_user_settings(data)
+        clean = validate_user_settings(data, (request["user"] or {}).get("settings"))
         if int(request["user"]["id"]) == DEV_ADMIN_ID:
             clean["telegram_notify_enabled"] = False
     except ValueError as e:
@@ -725,6 +726,21 @@ async def save_my_settings_handler(request):
         return web.json_response({"status": "error", "message": "Некорректный запрос"}, status=400)
     saved = save_user_settings(request["user"]["id"], clean)
     return web.json_response({"status": "ok", "settings": saved})
+
+@routes.post("/api/me/settings/reset")
+@require_login
+async def reset_my_settings_handler(request):
+    """Личные настройки к значениям по умолчанию (P05); включённость Telegram-уведомлений сохраняется."""
+    from config import USER_DEFAULTS, USER_RESET_KEEP
+    user = request["user"]
+    from config import merge_user_settings
+    current = merge_user_settings(user.get("settings") or {})
+    defaults = {k: (dict(v) if isinstance(v, dict) else list(v) if isinstance(v, list) else v)
+                for k, v in USER_DEFAULTS.items()}
+    defaults.update({k: current[k] for k in USER_RESET_KEEP})
+    saved = await asyncio.to_thread(replace_user_settings, user["id"], defaults)
+    return web.json_response({"status": "ok", "settings": saved})
+
 
 @routes.post("/api/me/test-telegram")
 @require_login

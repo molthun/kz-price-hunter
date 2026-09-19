@@ -1498,6 +1498,14 @@ def save_user_settings(user_id: int, clean_settings: Dict[str, Any]) -> Dict[str
         conn.commit()
     return merged
 
+def replace_user_settings(user_id: int, settings: Dict[str, Any]) -> Dict[str, Any]:
+    """Полная замена личных настроек (сброс к умолчаниям), без слияния с прежними."""
+    merged = merge_user_settings(settings)
+    with get_connection() as conn:
+        conn.execute("UPDATE users SET settings = ? WHERE id = ?", (json.dumps(merged, ensure_ascii=False), int(user_id)))
+        conn.commit()
+    return merged
+
 def list_users() -> List[Dict[str, Any]]:
     with get_connection() as conn:
         rows = conn.execute("SELECT * FROM users ORDER BY last_login_at DESC").fetchall()

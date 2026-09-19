@@ -472,6 +472,31 @@ def get_wave_interval_seconds(settings=None, total_waves=None):
     return max(SCAN_INTERVAL_MIN_MINUTES * 60, min(user_interval, max_interval_sec))
 
 
+# Допустимые диапазоны числовых настроек (P05): (минимум, максимум, подпись для сообщения об ошибке)
+_KZT_MAX = 100_000_000
+SETTING_RANGES = {
+    "min_item_price_kzt": (0, _KZT_MAX, "Мин. цена товара"),
+    "max_item_price_kzt": (1, _KZT_MAX, "Макс. цена товара"),
+    "price_glitch_drop_pct": (1, 99, "Мин. скидка, %"),
+    "min_savings_kzt": (0, _KZT_MAX, "Мин. выгода"),
+    "arbitrage_min_drop_pct": (1, 99, "Арбитраж: разница, %"),
+    "arbitrage_min_diff_kzt": (0, _KZT_MAX, "Арбитраж: выгода"),
+    "candidate_min_item_price_kzt": (0, _KZT_MAX, "Порог кандидатов: мин. цена"),
+    "candidate_drop_pct": (1, 99, "Порог кандидатов: скидка, %"),
+    "candidate_min_savings_kzt": (0, _KZT_MAX, "Порог кандидатов: выгода"),
+    "candidate_arbitrage_drop_pct": (1, 99, "Порог кандидатов: арбитраж, %"),
+    "candidate_arbitrage_diff_kzt": (0, _KZT_MAX, "Порог кандидатов: арбитраж, ₸"),
+    "check_interval_seconds": (30, 86400, "Интервал проверки, с"),
+}
+
+
+def _check_range(key, num):
+    if key in SETTING_RANGES:
+        low, high, label = SETTING_RANGES[key]
+        if not (low <= num <= high):
+            raise ValueError(f"{label}: допустимо от {low:,} до {high:,}".replace(",", " "))
+
+
 def _validate(new_settings, defaults):
     """Оставляет только известные ключи и приводит значения к типам из defaults."""
     if not isinstance(new_settings, dict):
@@ -491,8 +516,9 @@ def _validate(new_settings, defaults):
                 if isinstance(value, bool):
                     raise ValueError
                 num = float(value)
-                if num < 0:
+                if num < 0 or num != num or num in (float("inf"), float("-inf")):
                     raise ValueError
+                _check_range(key, num)
                 clean[key] = int(num) if isinstance(default, int) else num
             elif isinstance(default, list):
                 if not isinstance(value, list):
@@ -507,7 +533,9 @@ def _validate(new_settings, defaults):
                 if key in ENUM_VALUES and value not in ENUM_VALUES[key]:
                     raise ValueError
                 clean[key] = value
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as e:
+            if str(e) and key in SETTING_RANGES and SETTING_RANGES[key][2] in str(e):
+                raise
             raise ValueError(f"Некорректное значение настройки «{key}»: {value!r}")
     return clean
 
@@ -533,8 +561,17 @@ def _validate_settings(new_settings):
         clean["wave_size"] = max(1, min(int(clean["wave_size"]), len(MASTER_CATEGORIES)))
     return clean
 
-def validate_user_settings(new_settings):
-    return _validate(new_settings, USER_DEFAULTS)
+def validate_user_settings(new_settings, current=None):
+    """Личные настройки: типы, диапазоны и согласованность с уже сохранёнными (мин. цена ≤ макс.)."""
+    clean = _validate(new_settings, USER_DEFAULTS)
+    merged = {**merge_user_settings(current or {}), **clean}
+    if merged["min_item_price_kzt"] > merged["max_item_price_kzt"]:
+        raise ValueError("Мин. цена товара не может быть больше макс. цены")
+    return clean
+
+
+# Что не трогает сброс личных настроек: включённость уведомлений меняется только явным действием пользователя
+USER_RESET_KEEP = ("telegram_notify_enabled",)
 
 _SETTINGS_WRITE_LOCK = threading.Lock()
 

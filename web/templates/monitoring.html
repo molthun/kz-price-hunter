@@ -281,7 +281,11 @@
       <td class="py-1 pr-3">${esc(QUALITY[r.quality] || r.quality)}</td><td class="py-1 pr-3 text-right">${num(r.categories)}</td>
       <td class="py-1 pr-3 text-right">${num(r.valid)}</td><td class="py-1 pr-3 text-right">${num(r.rejected)} / ${num(r.duplicates)}</td></tr>`).join('');
     document.getElementById('shopModalBody').innerHTML = `
-      <p class="text-sm text-slate-300 break-words">${esc(d.reason)}</p>
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <p class="text-sm text-slate-300 break-words min-w-0">${esc(d.reason)}</p>
+        <button data-scan-shop="${esc(d.shop_key)}" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs shrink-0" ${d.enabled ? '' : 'disabled title="Магазин выключен в настройках"'}>Запустить обход магазина</button>
+      </div>
+      <p id="scanShopResult" class="text-xs text-slate-400"></p>
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
         ${card('Обходы', kv([['Последняя попытка', ago(sc.last_attempt_at)], ['Последний полный', ago(sc.last_success_at)],
           ['Итог', esc(sc.status || 'нет данных')], ['Товаров', num(sc.last_items)], ['Длительность', num(sc.last_duration_sec) + ' с'],
@@ -300,6 +304,23 @@
         <th class="pb-1 pr-3 text-right">Брак / повторы</th></tr></thead><tbody>${hist}</tbody></table></div>` : '<p class="text-sm text-slate-500">Истории качества пока нет.</p>')}
       ${card('Инциденты', incidentList(d.incidents))}
       ${card('Последние события', `<div class="space-y-1.5">${eventRows(d.events)}</div>`)}`;
+  }
+
+  // P05: запуск обхода одного магазина (перенесено из «Настроек» вместе с состоянием магазинов)
+  async function scanShop(key, btn) {
+    const out = document.getElementById('scanShopResult');
+    btn.disabled = true;
+    try {
+      const res = await fetch('/api/scan/start', {method: 'POST', headers: {'Content-Type': 'application/json'},
+                                                  body: JSON.stringify({shops: [key]})});
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.message || `HTTP ${res.status}`);
+      out.textContent = d.status === 'already_running' ? 'Обход уже выполняется — дождитесь завершения.' : 'Обход магазина запущен. Данные обновятся после его завершения.';
+    } catch (err) {
+      out.textContent = 'Не удалось запустить обход: ' + err.message;
+    } finally {
+      btn.disabled = false;
+    }
   }
 
   async function api(url) {
@@ -339,6 +360,8 @@
   document.addEventListener('click', e => {
     const sec = e.target.closest('[data-section]');
     if (sec) { current = sec.dataset.section; history.replaceState(null, '', '#' + current); render(); return; }
+    const scanBtn = e.target.closest('[data-scan-shop]');
+    if (scanBtn) { scanShop(scanBtn.dataset.scanShop, scanBtn); return; }
     const shop = e.target.closest('[data-shop]');
     if (shop) { openShop(shop.dataset.shop); return; }
     if (e.target.id === 'btnEvents') loadEvents();

@@ -956,32 +956,25 @@
 
     <!-- Вкладка 3: Настройки & Telegram -->
     <section id="tabSettings" class="hidden space-y-6">
-      <!-- Быстрая навигация по разделам настроек -->
-      <div class="flex flex-wrap items-center gap-2 pb-1 border-b border-slate-800">
-        <button type="button" onclick="scrollSettingsTo('sec-tg')" class="px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-xs text-slate-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer">
-          <i class="fa-brands fa-telegram text-sky-400"></i>
-          <span>Уведомления</span>
-        </button>
-        <button type="button" onclick="scrollSettingsTo('sec-shops')" class="px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-xs text-slate-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer">
-          <i class="fa-solid fa-store text-emerald-400"></i>
-          <span>Магазины (<span data-shop-count>25</span>)</span>
-        </button>
-        <button type="button" onclick="scrollSettingsTo('sec-thresholds')" class="px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-xs text-slate-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer">
-          <i class="fa-solid fa-sliders text-amber-400"></i>
-          <span>Пороги и скидки</span>
-        </button>
-        <button type="button" onclick="scrollSettingsTo('sec-search')" class="px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-xs text-slate-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer">
-          <i class="fa-solid fa-magnifying-glass text-purple-400"></i>
-          <span>Поиск и стоп-слова</span>
-        </button>
-        <button type="button" onclick="scrollSettingsTo('myDataSection')" class="auth-only hidden px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-xs text-slate-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer">
-          <i class="fa-solid fa-user-shield text-cyan-400"></i>
-          <span>Мои данные</span>
-        </button>
-        <button type="button" onclick="scrollSettingsTo('adminSection')" class="admin-only hidden px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-amber-500/40 text-xs text-amber-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer">
-          <i class="fa-solid fa-shield-halved text-amber-400"></i>
-          <span>Панель админа</span>
-        </button>
+      <!-- Навигация по настройкам (P05): личные настройки и системные (только администратор) -->
+      <div id="settingsNav" class="space-y-2 pb-2 border-b border-slate-800">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-[11px] uppercase tracking-wide text-slate-500 mr-1">Мои настройки</span>
+          <button type="button" onclick="scrollSettingsTo('sec-tg')" class="px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-xs text-slate-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer"><i class="fa-brands fa-telegram text-sky-400"></i><span>Уведомления</span></button>
+          <button type="button" onclick="scrollSettingsTo('sec-shops')" class="px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-xs text-slate-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer"><i class="fa-solid fa-store text-emerald-400"></i><span>Магазины (<span data-shop-count>25</span>)</span></button>
+          <button type="button" onclick="scrollSettingsTo('sec-thresholds')" class="px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-xs text-slate-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer"><i class="fa-solid fa-sliders text-amber-400"></i><span>Что показывать</span></button>
+          <button type="button" onclick="scrollSettingsTo('sec-search')" class="px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-xs text-slate-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer"><i class="fa-solid fa-magnifying-glass text-purple-400"></i><span>Поиск и стоп-слова</span></button>
+          <button type="button" onclick="scrollSettingsTo('myDataSection')" class="auth-only hidden px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-xs text-slate-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer"><i class="fa-solid fa-user-shield text-cyan-400"></i><span>Профиль и мои данные</span></button>
+        </div>
+        <div class="admin-only hidden flex flex-wrap items-center gap-2">
+          <span class="text-[11px] uppercase tracking-wide text-amber-400/80 mr-1">Система · администратор</span>
+          <button type="button" onclick="scrollSettingsTo('sec-admin-scan')" class="px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-amber-500/40 text-xs text-amber-200 hover:text-white transition flex items-center gap-1.5 cursor-pointer"><i class="fa-solid fa-satellite-dish text-amber-400"></i><span>Сканирование и магазины</span></button>
+          <a href="/monitoring#shops" class="px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-amber-500/40 text-xs text-amber-200 hover:text-white transition flex items-center gap-1.5 cursor-pointer"><i class="fa-solid fa-stethoscope text-rose-400"></i><span>Мониторинг ↗</span></a>
+          <button type="button" onclick="scrollSettingsTo('sec-admin-ai')" class="px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-amber-500/40 text-xs text-amber-200 hover:text-white transition flex items-center gap-1.5 cursor-pointer"><i class="fa-solid fa-wand-magic-sparkles text-purple-400"></i><span>AI</span></button>
+          <button type="button" onclick="scrollSettingsTo('sec-admin-algo')" class="px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-amber-500/40 text-xs text-amber-200 hover:text-white transition flex items-center gap-1.5 cursor-pointer"><i class="fa-solid fa-flask text-amber-400"></i><span>Алгоритмы</span></button>
+          <button type="button" onclick="scrollSettingsTo('sec-admin-bot')" class="px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-amber-500/40 text-xs text-amber-200 hover:text-white transition flex items-center gap-1.5 cursor-pointer"><i class="fa-brands fa-telegram text-sky-400"></i><span>Telegram-бот</span></button>
+          <button type="button" onclick="scrollSettingsTo('sec-admin-users')" class="px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-amber-500/40 text-xs text-amber-200 hover:text-white transition flex items-center gap-1.5 cursor-pointer"><i class="fa-solid fa-users text-cyan-400"></i><span>Пользователи</span></button>
+        </div>
       </div>
 
       <!-- Гостям: личные настройки доступны после входа -->
@@ -1076,20 +1069,29 @@
               <div>
                 <h3 class="text-base font-semibold text-white flex items-center gap-2">
                   <i class="fa-solid fa-sliders text-amber-400"></i>
-                  <span>Чувствительность поиска аномалий и скидок</span>
+                  <span>Какие скидки показывать</span>
                 </h3>
                 <p class="text-xs text-slate-400 mt-0.5">
-                  Настройте типы ошибок и критерии выгоды. Выберите готовый пресет или задайте точные числа.
+                  Выберите, что попадает в вашу ленту и уведомления, и насколько крупной должна быть выгода.
                 </p>
               </div>
+            </div>
 
-              <!-- Пресеты в 1 клик -->
+            <!-- P05: понятные режимы (типы событий) и уровни выгоды (числовые пороги) -->
+            <div class="space-y-2">
               <div class="flex flex-wrap items-center gap-1.5">
-                <span class="text-[11px] text-slate-500">Пресеты:</span>
-                <button type="button" onclick="applySettingsPreset('universal')" class="px-2.5 py-1 text-xs rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer" title="Подходит для супермаркетов, ремонта и электроники">🛒 Универсальный (от 2 000 ₸)</button>
-                <button type="button" onclick="applySettingsPreset('electronics')" class="px-2.5 py-1 text-xs rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer" title="Оптимально для гаджетов, ПК и бытовой техники">📱 Техника (от 25 000 ₸)</button>
-                <button type="button" onclick="applySettingsPreset('maximum')" class="px-2.5 py-1 text-xs rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer" title="Только самые крупные покупки с огромной выгодой">💎 Супер-выгода (от 50 000 ₸)</button>
+                <span class="text-[11px] text-slate-500 w-24 shrink-0">Что показывать:</span>
+                <button type="button" data-display-mode="glitches" onclick="applyDisplayMode('glitches')" class="px-2.5 py-1 text-xs rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer">🚨 Только ошибки цен</button>
+                <button type="button" data-display-mode="deals" onclick="applyDisplayMode('deals')" class="px-2.5 py-1 text-xs rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer">💥 Ошибки и распродажи</button>
+                <button type="button" data-display-mode="all" onclick="applyDisplayMode('all')" class="px-2.5 py-1 text-xs rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer">🎯 Всё выгодное (с арбитражем)</button>
               </div>
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span class="text-[11px] text-slate-500 w-24 shrink-0">Уровень выгоды:</span>
+                <button type="button" data-level="universal" onclick="applySettingsPreset('universal')" class="px-2.5 py-1 text-xs rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer" title="Подходит для супермаркетов, ремонта и электроники">🛒 Любые покупки (от 2 000 ₸)</button>
+                <button type="button" data-level="electronics" onclick="applySettingsPreset('electronics')" class="px-2.5 py-1 text-xs rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer" title="Оптимально для гаджетов, ПК и бытовой техники">📱 Техника (от 25 000 ₸)</button>
+                <button type="button" data-level="maximum" onclick="applySettingsPreset('maximum')" class="px-2.5 py-1 text-xs rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer" title="Только самые крупные покупки с огромной выгодой">💎 Супер-выгода (от 50 000 ₸)</button>
+              </div>
+              <div id="thresholdsSummary" class="text-xs text-slate-300"></div>
             </div>
 
             <!-- Типы аномалий: 3 карточки с тумблерами -->
@@ -1131,9 +1133,9 @@
               </label>
             </div>
 
-            <!-- Числовые пороги цен и процентов -->
-            <div class="pt-2 border-t border-slate-800/70">
-              <div class="text-xs font-semibold text-slate-300 mb-2">Точные параметры фильтрации:</div>
+            <!-- Числовые пороги цен и процентов (P05: дополнительные, свёрнуты) -->
+            <details id="thresholdsAdvanced" class="pt-2 border-t border-slate-800/70">
+              <summary class="text-xs font-semibold text-slate-300 mb-2 cursor-pointer">Точные параметры (для опытных) <span class="text-slate-500 font-normal">— цены, проценты и выгода в тенге</span></summary>
               <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 <div>
                   <label class="block text-[11px] text-slate-400 mb-1">Мин. цена товара (₸)</label>
@@ -1171,7 +1173,7 @@
                   <span class="text-[10px] text-slate-500 block mt-0.5">₸ дешевле других</span>
                 </div>
               </div>
-            </div>
+            </details>
           </div>
 
           <!-- Блок 4: Поиск по умолчанию и минус-слова -->
@@ -1232,7 +1234,8 @@
         <!-- Кнопка сохранения личных настроек -->
         <div id="personalSaveBar" class="pt-4 flex items-center justify-between gap-4">
           <div id="saveResultToast" class="hidden text-xs font-medium"></div>
-          <div class="ml-auto">
+          <div class="ml-auto flex flex-wrap items-center gap-2">
+            <button onclick="resetMySettings()" id="btnResetSettings" type="button" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-sm transition cursor-pointer" title="Пороги, фильтры, магазины и поиск — к значениям по умолчанию. Включённость Telegram-уведомлений не меняется.">Сбросить к умолчаниям</button>
             <button onclick="saveSettings()" id="btnSaveSettings" class="flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-medium px-6 py-2.5 rounded-xl text-sm shadow-lg shadow-emerald-500/25 transition cursor-pointer">
               <i class="fa-solid fa-floppy-disk"></i>
               <span>Сохранить мои настройки</span>
@@ -1266,25 +1269,25 @@
         </h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-        <div class="glass p-6 rounded-2xl space-y-4 md:col-span-2">
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <h3 class="text-base font-semibold text-white">Состояние магазинов</h3>
-            <button type="button" onclick="loadAdminShops()" class="px-3 py-2 rounded-lg bg-slate-800 text-xs">Обновить</button>
+        <!-- P05: состояние магазинов, обходы, очередь уведомлений и запуск обхода магазина — в Центре мониторинга -->
+        <a href="/monitoring#shops" class="glass p-5 rounded-2xl md:col-span-2 flex flex-wrap items-center justify-between gap-3 border border-rose-500/20 hover:border-rose-500/50 transition">
+          <div class="min-w-0">
+            <div class="text-base font-semibold text-white flex items-center gap-2"><i class="fa-solid fa-stethoscope text-rose-400"></i><span>Состояние магазинов — в Центре мониторинга</span></div>
+            <p class="text-xs text-slate-400 mt-1">Итоги обходов, качество категорий, HTTP, инциденты и запуск обхода отдельного магазина.</p>
           </div>
-          <p class="text-xs text-slate-400">Полный обход подтверждает наличие товаров. При ошибке или ограничении страниц исчезновение товара не подтверждается. Сбор цен ведется по городам Казахстана (Астана, Алматы, Шымкент и др.).</p>
-          <div class="overflow-x-auto"><table class="w-full text-xs text-left">
-            <thead class="text-slate-400"><tr><th class="py-2">Магазин</th><th>Результат</th><th>Товаров</th><th>Последняя попытка</th><th>Подробности</th><th></th></tr></thead>
-            <tbody id="adminShopsTable"><tr><td colspan="6" class="py-3">Загрузка…</td></tr></tbody>
-          </table></div>
-          <p id="notificationQueueStatus" class="text-xs text-slate-400"></p>
-        </div>
+          <span class="px-3 py-2 rounded-lg bg-slate-800 text-xs text-slate-200 whitespace-nowrap">Открыть мониторинг ↗</span>
+        </a>
 
         <!-- Админ: пороги записи кандидатов -->
-        <div class="glass p-6 rounded-2xl space-y-4">
-          <h3 class="text-base font-semibold text-white flex items-center gap-2">
-            <i class="fa-solid fa-filter text-amber-400"></i>
-            <span>Пороги записи кандидатов</span>
-          </h3>
+        <details id="sec-admin-algo" class="glass p-6 rounded-2xl space-y-4">
+          <summary class="cursor-pointer list-none">
+            <h3 class="text-base font-semibold text-white flex items-center gap-2">
+              <i class="fa-solid fa-flask text-amber-400"></i>
+              <span>Алгоритмы (для опытных): пороги записи кандидатов</span>
+              <i class="fa-solid fa-chevron-down text-xs text-slate-500"></i>
+            </h3>
+            <p class="text-xs text-slate-500 mt-1">Внутренние пороги детектора. Обычно менять не нужно.</p>
+          </summary>
           <p class="text-xs text-slate-400">
             Сканер сохраняет всё, что проходит эти мягкие пороги, а лента и уведомления каждого пользователя фильтруются уже по его личным настройкам. Личные пороги ниже этих не действуют.
           </p>
@@ -1310,10 +1313,10 @@
               <input type="number" id="inputCandArbDiff" min="0" step="5000" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
             </div>
           </div>
-        </div>
+        </details>
 
         <!-- Админ: Telegram-бот -->
-        <div class="glass p-6 rounded-2xl space-y-4">
+        <div id="sec-admin-bot" class="glass p-6 rounded-2xl space-y-4">
           <h3 class="text-base font-semibold text-white flex items-center gap-2">
             <i class="fa-brands fa-telegram text-sky-400 text-lg"></i>
             <span>Telegram-бот</span>
@@ -1325,7 +1328,7 @@
         </div>
 
         <!-- Админ: Интеллектуальный AI-поиск (Gemini / OpenAI) -->
-        <div class="glass p-6 rounded-2xl space-y-4 md:col-span-2">
+        <div id="sec-admin-ai" class="glass p-6 rounded-2xl space-y-4 md:col-span-2">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <h3 class="text-base font-semibold text-white flex items-center gap-2">
               <i class="fa-solid fa-wand-magic-sparkles text-purple-400 text-lg"></i>
@@ -1402,7 +1405,7 @@
         </div>
 
         <!-- Админ: сканирование магазинов -->
-        <div class="glass p-6 rounded-2xl space-y-4 md:col-span-2">
+        <div id="sec-admin-scan" class="glass p-6 rounded-2xl space-y-4 md:col-span-2">
           <h3 class="text-base font-semibold text-white flex items-center gap-2">
             <i class="fa-solid fa-store text-emerald-400"></i>
             <span>Сканирование магазинов</span>
@@ -1684,7 +1687,7 @@
         </div>
 
         <!-- Админ: пользователи -->
-        <div class="glass p-6 rounded-2xl space-y-4 md:col-span-2">
+        <div id="sec-admin-users" class="glass p-6 rounded-2xl space-y-4 md:col-span-2">
           <h3 class="text-base font-semibold text-white flex items-center gap-2">
             <i class="fa-solid fa-users text-emerald-400"></i>
             <span>Пользователи</span>
@@ -4027,6 +4030,7 @@
     function scrollSettingsTo(targetId) {
       const el = document.getElementById(targetId);
       if (!el) return;
+      if (el.tagName === 'DETAILS') el.open = true;
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       el.classList.add('ring-2', 'ring-emerald-500/50');
       setTimeout(() => {
@@ -4265,40 +4269,60 @@
       document.querySelectorAll(selector).forEach(el => { el.checked = checked; });
     }
 
-    function applySettingsPreset(presetName) {
-      const presets = {
-        universal: {
-          minPrice: 2000, maxPrice: 5000000, dropPct: 60, minSavings: 2500,
-          arbPct: 20, arbDiff: 2000,
-          zero: true, discount: true, arbitrage: true,
-          label: 'Универсальный (от 2 000 ₸)'
-        },
-        electronics: {
-          minPrice: 25000, maxPrice: 3000000, dropPct: 65, minSavings: 30000,
-          arbPct: 25, arbDiff: 20000,
-          zero: true, discount: true, arbitrage: true,
-          label: 'Техника и гаджеты (от 25 000 ₸)'
-        },
-        maximum: {
-          minPrice: 50000, maxPrice: 5000000, dropPct: 70, minSavings: 60000,
-          arbPct: 30, arbDiff: 40000,
-          zero: true, discount: true, arbitrage: true,
-          label: 'Супер-выгода (от 50 000 ₸)'
-        }
-      };
-      const p = presets[presetName];
-      if (!p) return;
-      document.getElementById('inputMinPrice').value = p.minPrice;
-      document.getElementById('inputMaxPrice').value = p.maxPrice;
-      document.getElementById('inputDropPct').value = p.dropPct;
-      document.getElementById('inputMinSavings').value = p.minSavings;
-      document.getElementById('inputArbitrageDiffPct').value = p.arbPct;
-      document.getElementById('inputArbitrageDiff').value = p.arbDiff;
-      document.getElementById('checkDetectZero').checked = p.zero;
-      document.getElementById('checkDetectDiscount').checked = p.discount;
-      document.getElementById('checkDetectArbitrage').checked = p.arbitrage;
+    // P05: уровни выгоды — только числовые пороги; типы событий задаёт режим (applyDisplayMode)
+    const THRESHOLD_LEVELS = {
+      universal: {minPrice: 2000, maxPrice: 5000000, dropPct: 60, minSavings: 2500, arbPct: 20, arbDiff: 2000, label: 'Любые покупки (от 2 000 ₸)'},
+      electronics: {minPrice: 25000, maxPrice: 3000000, dropPct: 65, minSavings: 30000, arbPct: 25, arbDiff: 20000, label: 'Техника (от 25 000 ₸)'},
+      maximum: {minPrice: 50000, maxPrice: 5000000, dropPct: 70, minSavings: 60000, arbPct: 30, arbDiff: 40000, label: 'Супер-выгода (от 50 000 ₸)'},
+    };
+    const THRESHOLD_FIELDS = {minPrice: 'inputMinPrice', maxPrice: 'inputMaxPrice', dropPct: 'inputDropPct',
+      minSavings: 'inputMinSavings', arbPct: 'inputArbitrageDiffPct', arbDiff: 'inputArbitrageDiff'};
+    const DISPLAY_MODES = {
+      glitches: {zero: true, discount: false, arbitrage: false, label: 'только ошибки цен'},
+      deals: {zero: true, discount: true, arbitrage: false, label: 'ошибки и распродажи'},
+      all: {zero: true, discount: true, arbitrage: true, label: 'всё выгодное (с арбитражем)'},
+    };
 
-      showToast(`⚡️ Применен пресет «${p.label}». Сохраните настройки.`);
+    function applySettingsPreset(presetName) {
+      const p = THRESHOLD_LEVELS[presetName];
+      if (!p) return;
+      for (const [field, id] of Object.entries(THRESHOLD_FIELDS)) document.getElementById(id).value = p[field];
+      updateThresholdsSummary();
+      showToast(`⚡️ Уровень «${p.label}». Сохраните настройки.`);
+    }
+
+    function applyDisplayMode(mode) {
+      const m = DISPLAY_MODES[mode];
+      if (!m) return;
+      document.getElementById('checkDetectZero').checked = m.zero;
+      document.getElementById('checkDetectDiscount').checked = m.discount;
+      document.getElementById('checkDetectArbitrage').checked = m.arbitrage;
+      updateThresholdsSummary();
+    }
+
+    // Текущие режим и уровень по значениям формы; «свои значения», если числа не совпадают ни с одним уровнем
+    function describeThresholds() {
+      const checks = {zero: document.getElementById('checkDetectZero').checked,
+        discount: document.getElementById('checkDetectDiscount').checked,
+        arbitrage: document.getElementById('checkDetectArbitrage').checked};
+      const mode = Object.keys(DISPLAY_MODES).find(k => ['zero', 'discount', 'arbitrage'].every(t => DISPLAY_MODES[k][t] === checks[t])) || null;
+      const values = Object.fromEntries(Object.entries(THRESHOLD_FIELDS).map(([f, id]) => [f, Number(document.getElementById(id).value)]));
+      const level = Object.keys(THRESHOLD_LEVELS).find(k => Object.keys(THRESHOLD_FIELDS).every(f => THRESHOLD_LEVELS[k][f] === values[f])) || null;
+      return {mode, level, checks};
+    }
+
+    // Индикатор режима/уровня пересчитывается при любом ручном изменении формы
+    ['input', 'change'].forEach(ev => document.getElementById('sec-thresholds')?.addEventListener(ev, () => updateThresholdsSummary()));
+
+    function updateThresholdsSummary() {
+      const {mode, level, checks} = describeThresholds();
+      document.querySelectorAll('[data-display-mode]').forEach(b => b.classList.toggle('border-emerald-500', b.dataset.displayMode === mode));
+      document.querySelectorAll('[data-level]').forEach(b => b.classList.toggle('border-emerald-500', b.dataset.level === level));
+      const box = document.getElementById('thresholdsSummary');
+      if (!box) return;
+      const modeText = mode ? DISPLAY_MODES[mode].label : (Object.values(checks).some(Boolean) ? 'свой набор типов' : 'ничего (все типы выключены)');
+      const levelText = level ? THRESHOLD_LEVELS[level].label : 'свои значения — см. «Точные параметры»';
+      box.innerHTML = `Сейчас: <b>${escapeHtml(modeText)}</b> · уровень: <b>${escapeHtml(levelText)}</b>`;
     }
 
     function renderUserSettings(s) {
@@ -4328,6 +4352,7 @@
 
       // 5. Магазины в ленте
       renderUserShopsGrid(s.alert_shops || {});
+      updateThresholdsSummary();
     }
 
     // Вкладка «Настройки»: показывает текущие значения (личные — из /api/me, общие — для админа)
@@ -4367,6 +4392,19 @@
         btn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i><span>${escapeHtml(btnLabel)}</span>`;
       }
       return null;
+    }
+
+    // P05: сброс личных настроек к умолчаниям (включённость Telegram-уведомлений сохраняется)
+    async function resetMySettings() {
+      if (!confirm('Вернуть пороги, фильтры, магазины и настройки поиска к значениям по умолчанию?')) return;
+      const data = await postSettings('/api/me/settings/reset', {}, 'btnResetSettings', 'saveResultToast', 'Сбросить к умолчаниям');
+      if (data) {
+        currentMe.settings = data.settings;
+        renderUserSettings(data.settings);
+        applySearchDefaults(data.settings);
+        loadStats();
+        loadAlerts();
+      }
     }
 
     async function saveSettings() {
@@ -4509,7 +4547,6 @@
         console.error('Ошибка loadAdminSettings:', e);
       }
       loadAdminUsers();
-      loadAdminShops();
       loadAdminCategories();
     }
 
@@ -5161,61 +5198,6 @@
       const catName = sel?.options[sel.selectedIndex]?.text || catId;
       scanCategoryNow(catId, catName, currentQuery);
     }
-
-    async function loadAdminShops() {
-      if (!isAdminUser()) return;
-      const body = document.getElementById('adminShopsTable');
-      try {
-        const res = await fetch('/api/admin/shops');
-        if (!res.ok) throw new Error('Не удалось загрузить состояние магазинов');
-        const data = await res.json();
-        const labels = {complete: 'Полный', limited: 'Ограниченный', partial: 'Частичный', failed: 'Ошибка', running: 'Выполняется', unknown: 'Нет данных'};
-        body.replaceChildren();
-        for (const shop of data.shops) {
-          const tr = document.createElement('tr');
-          const retry = shop.next_retry_at ? 'Повтор: ' + new Date(shop.next_retry_at * 1000).toLocaleString('ru-RU') : '';
-          const values = [shop.name + (data.enabled.includes(shop.shop_key) ? '' : ' (выключен)'),
-            labels[shop.status] || shop.status, shop.last_items,
-            shop.last_attempt_at ? new Date(shop.last_attempt_at).toLocaleString('ru-RU') : '—',
-            [shop.last_error, retry].filter(Boolean).join(' · ') || (shop.status === 'limited' ? 'Полнота выдачи не подтверждена' : '—')];
-          for (const value of values) {
-            const td = document.createElement('td');
-            td.className = 'py-3 pr-3 align-top';
-            td.textContent = value;
-            tr.append(td);
-          }
-          const td = document.createElement('td');
-          const button = document.createElement('button');
-          button.textContent = 'Проверить';
-          button.className = 'px-3 py-2 rounded-lg bg-slate-800 disabled:opacity-40';
-          button.disabled = data.scan_state.is_running;
-          button.onclick = () => scanOneShop(shop.shop_key);
-          td.append(button); tr.append(td); body.append(tr);
-        }
-        const n = data.notifications || {};
-        document.getElementById('notificationQueueStatus').textContent =
-          `Уведомления: ожидают ${n.pending || 0}, доставлены ${n.sent || 0}, отменены ${n.cancelled || 0}, истекли ${n.expired || 0}`;
-      } catch (e) {
-        body.replaceChildren();
-        const tr = document.createElement('tr'), td = document.createElement('td');
-        td.colSpan = 6; td.textContent = e.message; tr.append(td); body.append(tr);
-      }
-    }
-
-    async function scanOneShop(key) {
-      try {
-        const res = await fetch('/api/scan/start', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({shops: [key]})});
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Не удалось запустить обход');
-        showToast(data.status === 'already_running' ? 'Сканирование уже выполняется' : 'Обход магазина запущен');
-        await loadAdminShops();
-      } catch (e) { showToast(e.message, true); }
-    }
-
-    setInterval(() => {
-      const section = document.getElementById('adminSection');
-      if (isAdminUser() && section && section.getClientRects().length) loadAdminShops();
-    }, 15000);
 
     async function loadAdminUsers() {
       try {
