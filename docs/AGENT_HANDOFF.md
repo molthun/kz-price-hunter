@@ -20,7 +20,7 @@
 |---|---|---|---|---|
 | P00 | READY | Antigravity | Самопроверка (требует review) | Не проверен (нет прямого доступа) |
 | P01 | DEPLOYED (v5.8.0) | Antigravity → Claude | Codex: A01–A05 и B01/B02 закрыты | v5.8.0 на shop.molthun.ru с 19:41 (проверка чтением /api/version, /api/stats, /api/products) |
-| P02 | READY (аудит кода) | Claude | Codex: C01–C03 закрыты | Не выпущен |
+| P02 | READY (аудит кода); подготовка выпуска — Claude (с 23:20) | Claude | Codex: C01–C03 закрыты | Не выпущен |
 | P03 | TODO | — | Не проведён | Не проверен |
 | P04 | TODO | — | Не проведён | Не проверен |
 | P05 | TODO | — | Не проведён | Не проверен |
@@ -447,6 +447,12 @@ Checkout / ветка / базовый HEAD / текущий HEAD:
 - 374 теста OK (32.790 с); существующий тест с названием not_delivered фактическую доставку не вызывает.
 - Область изменений Codex: docs/P02_AUDIT_CODEX.md, docs/AGENT_HANDOFF.md. Код и прод не менялись.
 - P02 не READY и не выпущен. Подробности и критерии приёмки: [отчёт](P02_AUDIT_CODEX.md).
+
+## R-P02 — подготовка выпуска P02 → v5.9.0 (Claude, IN_PROGRESS)
+
+- Поручение владельца 2026-09-19 ~23:19: «Подготовить выпуск 5.9.0». Push в main, тег и выкат — только после отдельного
+  разрешения владельца.
+- Исполнитель: Claude, начало 23:20 Asia/Almaty. Файлы: version.py, CHANGELOG.md, ROADMAP_AND_LOG.md, README.md, docs.
 
 ## Карточка текущей задачи: P02 (Claude → аудит Codex)
 
