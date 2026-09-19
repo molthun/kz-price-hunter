@@ -1089,41 +1089,68 @@ async def _scan_shop(key, candidate_settings, semaphore, target_categories=None)
 
 
 async def _scan_shop_categories(key, scraper, categories, shop_name, candidate_settings):
+    from telemetry import (
+        telemetry, current_shop, current_category,
+        EVENT_SCAN_CATEGORY, EVENT_SCAN_ERROR, SEVERITY_INFO, SEVERITY_WARNING, SEVERITY_ERROR, COMPONENT_SCRAPER
+    )
     started = time.monotonic()
     collected = 0
     failed_categories = []
     limited = False
     record_shop_scan_start(key)
     scan_state["current_shop"] = shop_name
+    token_shop = current_shop.set(shop_name)
 
-    for cat in categories:
-        scan_state["current_category"] = cat["name"]
-        try:
-            prods = await scraper.scrape(cat["name"], cat["url"], max_pages=cat.get("max_pages"))
-            # Предложение = товар магазина + подтверждённый город (id вида kaspi_1@astana)
-            assign_offer_ids(prods)
-            error = getattr(prods, "error", None)
-            complete = getattr(prods, "complete", False)
-            if not prods and not complete:
-                error = error or "Пустая выдача: требуется проверка"
-            scan_state["total_scanned"] += len(prods)
-            collected += len(prods)
-            _ensure_lease()  # результаты пишет только владелец аренды (R-H03)
-            await _save_and_detect(prods, shop_name, candidate_settings)
-            await asyncio.to_thread(reconcile_source, key, cat["url"], prods, complete and not error)
-            if error:
-                failed_categories.append(f"{cat['name']}: {error}")
-            elif not complete:
-                limited = True
-            await asyncio.sleep(0.5)
-        except LeaseLost:
-            raise
-        except Exception as e:
-            failed_categories.append(f"{cat['name']}: {type(e).__name__}")
-            print(f"[{shop_name}] Ошибка категории {cat['name']}: {type(e).__name__}")
-        finally:
-            scan_state["current_step"] += 1
-            scan_state["progress_pct"] = int((scan_state["current_step"] / max(1, scan_state["total_steps"])) * 100)
+    try:
+        for cat in categories:
+            scan_state["current_category"] = cat["name"]
+            token_cat = current_category.set(cat["name"])
+            try:
+                prods = await scraper.scrape(cat["name"], cat["url"], max_pages=cat.get("max_pages"))
+                # Предложение = товар магазина + подтверждённый город (id вида kaspi_1@astana)
+                assign_offer_ids(prods)
+                error = getattr(prods, "error", None)
+                complete = getattr(prods, "complete", False)
+                if not prods and not complete:
+                    error = error or "Пустая выдача: требуется проверка"
+                scan_state["total_scanned"] += len(prods)
+                collected += len(prods)
+                _ensure_lease()  # результаты пишет только владелец аренды (R-H03)
+                await _save_and_detect(prods, shop_name, candidate_settings)
+                await asyncio.to_thread(reconcile_source, key, cat["url"], prods, complete and not error)
+                if error:
+                    failed_categories.append(f"{cat['name']}: {error}")
+                elif not complete:
+                    limited = True
+
+                telemetry.record_event(
+                    event_type=EVENT_SCAN_CATEGORY,
+                    severity=SEVERITY_WARNING if error else SEVERITY_INFO,
+                    component=COMPONENT_SCRAPER,
+                    message=f"[{shop_name}] Категория {cat['name']}: {len(prods)} товаров (complete={complete})",
+                    shop=shop_name,
+                    category=cat["name"],
+                    data={"items_count": len(prods), "complete": complete, "error": error}
+                )
+                await asyncio.sleep(0.5)
+            except LeaseLost:
+                raise
+            except Exception as e:
+                failed_categories.append(f"{cat['name']}: {type(e).__name__}")
+                print(f"[{shop_name}] Ошибка категории {cat['name']}: {type(e).__name__}")
+                telemetry.record_event(
+                    event_type=EVENT_SCAN_ERROR,
+                    severity=SEVERITY_ERROR,
+                    component=COMPONENT_SCRAPER,
+                    message=f"[{shop_name}] Ошибка категории {cat['name']}: {type(e).__name__}",
+                    data={"error": f"{type(e).__name__}: {e}"[:300]},
+                )
+            finally:
+                current_category.reset(token_cat)
+                scan_state["current_step"] += 1
+                scan_state["progress_pct"] = int((scan_state["current_step"] / max(1, scan_state["total_steps"])) * 100)
+    finally:
+        current_shop.reset(token_shop)
 
     duration = time.monotonic() - started
     error = "; ".join(failed_categories[:3]) or None
@@ -1199,6 +1226,16 @@ async def _do_scan_task(shop_keys=None, target_categories=None, scan_type="manua
         print("[Scan] Обход уже выполняет другой процесс (аренда планировщика) — пропуск")
         return
     _lease_state.update(lost=False, last_ok=time.monotonic())
+    # Один scan_id связывает планировщик, страницы (HTTP) и итог обхода: create_task/to_thread
+    # копируют контекст, поэтому значение видно во всех задачах обхода (P01)
+    from telemetry import telemetry, current_scan_id, EVENT_SCAN_START, EVENT_SCAN_END, SEVERITY_INFO, SEVERITY_ERROR, COMPONENT_SCHEDULER
+    scan_id = uuid.uuid4().hex[:16]
+    scan_token = current_scan_id.set(scan_id)
+    scan_started = time.monotonic()
+    telemetry.record_event(EVENT_SCAN_START, SEVERITY_INFO, COMPONENT_SCHEDULER,
+                           f"Старт обхода ({scan_type})",
+                           data={"scan_type": scan_type, "shop_keys": list(shop_keys or []),
+                                 "target_categories": sorted(target_categories or [])})
     # Вся работа — отдельная задача под одним try/finally: исключение в подготовке не оставит
     # флаг «идёт обход» и продление аренды; потеря аренды отменяет работу (R-H03)
     work = asyncio.create_task(_scan_task_body(shop_keys, target_categories, scan_type))
@@ -1219,6 +1256,14 @@ async def _do_scan_task(shop_keys=None, target_categories=None, scan_type="manua
             release_scheduler_lease(SCHEDULER_OWNER)  # удаляет только свою аренду
         except Exception as e:
             print(f"[Scan] Аренда не освобождена: {type(e).__name__}")
+        telemetry.record_event(EVENT_SCAN_END, SEVERITY_ERROR if scan_state.get("error") else SEVERITY_INFO,
+                               COMPONENT_SCHEDULER, f"Итог обхода ({scan_type}): {scan_state.get('error') or 'ок'}",
+                               data={"scan_type": scan_type, "total_scanned": scan_state.get("total_scanned", 0),
+                                     "anomalies_found": scan_state.get("anomalies_found", 0),
+                                     "error": scan_state.get("error"),
+                                     "duration_sec": round(time.monotonic() - scan_started, 1)})
+        current_scan_id.reset(scan_token)
+        await asyncio.to_thread(telemetry.flush)
         await asyncio.sleep(1.0)
         scan_state["is_running"] = False
         scan_state["current_shop"] = ""
@@ -1349,6 +1394,10 @@ async def _scan_task_body(shop_keys, target_categories, scan_type):
             if isinstance(res, Exception):
                 print(f"[Scan] Магазин {SHOP_REGISTRY[key][2]} упал: {res}")
                 record_shop_scan_result(key, 0, 0, str(res))
+                from telemetry import telemetry, EVENT_SCAN_ERROR, SEVERITY_ERROR, COMPONENT_SCRAPER
+                telemetry.record_event(EVENT_SCAN_ERROR, SEVERITY_ERROR, COMPONENT_SCRAPER,
+                                       f"Магазин упал: {type(res).__name__}", shop=SHOP_REGISTRY[key][2],
+                                       data={"shop_key": key, "error": str(res)[:300]})
         _ensure_lease()
         crashed = [k for k, res in zip(keys, results) if isinstance(res, BaseException)]
         failed = await asyncio.to_thread(_failed_shop_keys, keys)
@@ -1814,10 +1863,13 @@ async def background_tasks(app):
              asyncio.create_task(ai_normalize_background_worker(app)),
              asyncio.create_task(notification_worker()),
              asyncio.create_task(run_telegram_bot_task())]
+    from telemetry import telemetry
+    telemetry.start()
     yield
     for task in tasks + list(_scan_tasks):
         task.cancel()
     await asyncio.gather(*tasks, *list(_scan_tasks), return_exceptions=True)
+    await asyncio.to_thread(telemetry.stop)
 
 def create_app():
     init_db()

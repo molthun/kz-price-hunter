@@ -10,6 +10,7 @@ from datetime import datetime
 from config import get_scan_interval_seconds, get_bot_token
 from database import init_db, get_stats, get_shops_scan_report
 from notifier import notification_worker
+from telemetry import telemetry
 from web.server import SHOP_REGISTRY, enabled_shop_keys, _do_scan_task, scan_state
 
 async def run_cycle():
@@ -31,6 +32,7 @@ async def run_cycle():
 
 async def main_loop(run_once: bool = False):
     init_db()
+    telemetry.start()
 
     print("🤖 KZ Price Hunter — консольный мониторинг запущен!")
     print("Магазины из настроек:", ", ".join(SHOP_REGISTRY[k][2] for k in enabled_shop_keys()))
@@ -52,6 +54,7 @@ async def main_loop(run_once: bool = False):
             await asyncio.to_thread(deliver_pending)
             worker.cancel()
             await asyncio.gather(worker, return_exceptions=True)
+            await asyncio.to_thread(telemetry.stop)
             break
 
         interval = get_scan_interval_seconds()

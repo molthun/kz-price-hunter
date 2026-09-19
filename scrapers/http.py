@@ -18,6 +18,8 @@ from curl_cffi import requests as _curl
 from curl_cffi.requests import Response, exceptions  # noqa: F401 — совместимость с `curl_cffi.requests`
 from curl_cffi.requests.exceptions import *  # noqa: F401,F403
 
+from telemetry import telemetry
+
 # Минимальные ограничения (решение владельца 18.09.2026): скорость обхода как до лимитера —
 # паузы между страницами задают сами адаптеры, здесь только общий потолок одновременных
 # запросов на домен (4 = потоки карточек iSpace) и общая пауза по 429/Retry-After.
@@ -134,37 +136,80 @@ def _observe(state: _HostState, response) -> None:
         state.cooldown_until = max(state.cooldown_until, _clock() + pause)
 
 
-def _limited(method: str, url: str, send):
+def _response_bytes(response, stream: bool) -> int:
+    """Размер тела без чтения потока: для stream=True — только Content-Length."""
+    headers = getattr(response, "headers", None) or {}
+    try:
+        if stream:
+            return int(headers.get("Content-Length") or 0)
+        content = getattr(response, "content", None)
+        return len(content) if content is not None else int(headers.get("Content-Length") or 0)
+    except Exception:
+        return 0
+
+
+def _record(host, method, url, status_code, latency_ms, bytes_count=0, error=None,
+            retry_after=None, cooldown_rejected=False) -> None:
+    # Телеметрия только учитывает запрос в памяти; её сбой не влияет на ответ (P01, fail-open)
+    try:
+        telemetry.record_http_metric(
+            host=host, method=method, status_code=status_code, latency_ms=latency_ms,
+            bytes_count=bytes_count, error=error, retry_after=retry_after, url=url,
+            cooldown_rejected=cooldown_rejected,
+        )
+    except Exception:
+        pass
+
+
+def _limited(method: str, url: str, send, stream: bool = False):
     host = host_key(url)
     if not host:
         return send()
-    state = _acquire(host)
+    try:
+        state = _acquire(host)
+    except HostCooldown as e:
+        _record(host, method, url, 0, 0.0, retry_after=e.retry_after, cooldown_rejected=True)
+        raise
+    # Задержка — только сам запрос, без ожидания слота/паузы в _acquire
+    t0 = time.perf_counter()
     try:
         response = send()
+    except Exception as e:
+        state.slots.release()
+        _record(host, method, url, 0, (time.perf_counter() - t0) * 1000.0, error=f"{type(e).__name__}: {e}")
+        raise
+    latency_ms = (time.perf_counter() - t0) * 1000.0
+    try:
         # 429 учитывается до освобождения слота: ожидающий запрос увидит паузу
         _observe(state, response)
     finally:
         state.slots.release()
+    status = getattr(response, "status_code", 0) or 0
+    retry_after = None
+    if status in (429, 503):
+        retry_after = parse_retry_after((getattr(response, "headers", None) or {}).get("Retry-After"))
+    _record(host, method, url, status, latency_ms, _response_bytes(response, stream), retry_after=retry_after)
     return response
 
 
 def request(method: str, url: str, **kwargs):
-    return _limited(method, url, lambda: _curl.request(method, url, **kwargs))
+    return _limited(method, url, lambda: _curl.request(method, url, **kwargs), kwargs.get("stream", False))
 
 
 def get(url: str, **kwargs):
-    return _limited("GET", url, lambda: _curl.get(url, **kwargs))
+    return _limited("GET", url, lambda: _curl.get(url, **kwargs), kwargs.get("stream", False))
 
 
 def post(url: str, **kwargs):
-    return _limited("POST", url, lambda: _curl.post(url, **kwargs))
+    return _limited("POST", url, lambda: _curl.post(url, **kwargs), kwargs.get("stream", False))
 
 
 class Session(_curl.Session):
     """curl_cffi Session: get/post вызывают request, поэтому лимит действует на все методы."""
 
     def request(self, method, url, *args, **kwargs):
-        return _limited(method, url, lambda: super(Session, self).request(method, url, *args, **kwargs))
+        return _limited(method, url, lambda: super(Session, self).request(method, url, *args, **kwargs),
+                        kwargs.get("stream", False))
 
 
 _CERTS_DIR = Path(__file__).resolve().parent.parent / "certs"

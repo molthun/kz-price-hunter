@@ -95,7 +95,7 @@ class MigrationTest(unittest.TestCase):
         self.assertEqual(self.rows("SELECT count(*) FROM products WHERE id = '555@kz'"), [(1,)])
 
     def test_migration_renames_links_and_resets_only_mixed_history(self):
-        self.assertEqual(database.run_migrations(), [5])
+        self.assertEqual(database.run_migrations(), [5, 6])  # 6 — таблицы телеметрии (P01)
         ids = sorted(r[0] for r in self.rows("SELECT id FROM products"))
         self.assertEqual(ids, ["lemanapro_555@kz", "td_77@astana", "twelve_months_12345@kz"])
         # Чистая запись: история, алерт и уведомление переехали
@@ -114,7 +114,7 @@ class MigrationTest(unittest.TestCase):
             ("twelve_months_12345@kz", "twelve_months"), ("zeta_12345@kz", "zeta")])
         # Старые префиксы не тронуты, повторный запуск ничего не делает
         self.assertEqual(database.run_migrations(), [])
-        self.assertTrue(list(Path(self.tmp.name, "backups").glob("prices-pre-v5-*.db")))
+        self.assertTrue(list(Path(self.tmp.name, "backups").glob(f"prices-pre-v{database.SCHEMA_VERSION}-*.db")))
 
 
 

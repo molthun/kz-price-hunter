@@ -5,6 +5,7 @@
 Пагинация: ?page=N (по 40 карточек на страницу; пустая страница при завершении).
 """
 import re
+import hashlib
 from typing import List, Dict, Any, Optional
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup
@@ -78,8 +79,8 @@ class ArbuzScraper(PagedScraper):
             if m:
                 item_id = m.group(1)
             else:
-                # Fallback: хэш от URL
-                item_id = str(abs(hash(product_url)) % 100000000)
+                # Fallback: детерминированный стабильный идентификатор из URL (P00/P01)
+                item_id = hashlib.sha256(product_url.encode("utf-8")).hexdigest()[:12]
 
             # Текущая цена
             price_el = card.select_one(".product-card__price b, .product-card__price strong")
