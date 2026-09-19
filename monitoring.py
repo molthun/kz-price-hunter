@@ -31,6 +31,8 @@ INCIDENT_WINDOW_DAYS = 7
 INCIDENT_QUIET_HOURS = 1                           # компонентный инцидент считается закрытым после часа тишины
 HISTORY_SCANS = 15
 EVENTS_LIMIT_MAX = 500
+INCIDENTS_LIMIT = 200
+SHOP_INCIDENTS_LIMIT = 50
 
 UTC = datetime.timezone.utc
 _EVENT_TS = "%Y-%m-%dT%H:%M:%S.%fZ"
@@ -270,7 +272,8 @@ def shop_detail(key: str, name: str, categories: List[Dict[str, Any]], enabled: 
         "shop_key": key, "name": name, "status": status, "reason": reason, "enabled": enabled,
         "scan": scan or {}, "freshness": data_quality.freshness((scan or {}).get("last_success_at"), now),
         "last_quality": q, "categories": category_rows, "http": http, "history": history, "events": events,
-        "incidents": [i for i in incidents(now=now) if i.get("shop_key") == key or i.get("shop") == name],
+        "incidents": [i for i in incidents(now=now, shop_keys={name: key})
+                      if i.get("shop_key") == key or i.get("shop") in (name, key)][:SHOP_INCIDENTS_LIMIT],
     }
 
 
@@ -388,10 +391,16 @@ def telegram_section(now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
     for e in deliveries:
         for k in ("sent", "cancelled", "retry", "failed", "errors"):
             sums[k] += int(e["data"].get(k) or 0)
-    attempts = sums["sent"] + sums["failed"] + sums["retry"] + sums["errors"]
+    # Попытка отправки — sent, retry (временная ошибка: 429/5xx/сеть), failed (постоянная), errors (исключение);
+    # cancelled — не попытка. Ошибки воркера доставки — тоже неуспех: сообщения не уходили (D02)
+    unsuccessful = sums["retry"] + sums["failed"] + sums["errors"] + len(sys_errors)
+    attempts = sums["sent"] + unsuccessful
     paused = notifier.telegram_paused_for()
-    status, reason = rate_status(attempts, sums["failed"] + sums["errors"],
+    status, reason = rate_status(attempts, unsuccessful,
                                  disabled=not config.get_bot_token(), disabled_reason="TELEGRAM_BOT_TOKEN не задан")
+    if status == DEGRADED:
+        reason = (f"Не доставлено {unsuccessful} из {attempts}: временных {sums['retry']}, постоянных {sums['failed']}, "
+                  f"исключений {sums['errors']}, ошибок воркера {len(sys_errors)}")
     if status not in (DISABLED,) and paused > 0:
         status, reason = DEGRADED, f"Telegram попросил паузу ещё на {paused:.0f} с"
     return {"status": status, "reason": reason, "delivery_24h": dict(sums), "pause_seconds": round(paused),
@@ -515,70 +524,164 @@ def hypothesis(text: str, event_type: str = "", signature: str = "") -> str:
     return "Причина не классифицирована — см. события инцидента"
 
 
-def incidents(days: int = INCIDENT_WINDOW_DAYS, now: Optional[datetime.datetime] = None) -> List[Dict[str, Any]]:
-    """Повторяющиеся проблемы (WARNING+) группируются в инциденты: начало, последнее появление, число, масштаб,
-    гипотеза, восстановление. Магазинный инцидент закрыт, если после последнего появления была успешная категория
-    или recovery этого магазина; компонентный — если после него был успешный INFO того же компонента и прошёл час."""
+# Явные успешные исходы компонентов (D01): произвольный INFO не доказывает восстановления
+def _component_success(e: Dict[str, Any]) -> Optional[str]:
+    """Какую область подтверждает успешное событие: ключ компонента или None."""
+    d, t = e["data"], e["type"]
+    if t == "ai_query" and d.get("outcome") == "ok" and d.get("provider_called"):
+        return "ai"
+    if t == "search_query" and d.get("outcome") in ("found", "not_found"):
+        return "search"
+    if t == "telegram_alert" and int(d.get("sent") or 0) > 0:
+        return "telegram"
+    if t == "scan_end" and d.get("outcome") == "completed":
+        return "scheduler"
+    if t == "backup_run" and d.get("outcome") == "ok":
+        return "backup"
+    return None
+
+
+# Где проявляется успех для ошибок воркеров (system_error.where) и компонентных инцидентов
+_WHERE_SCOPE = {"ai_normalize_worker": "ai", "notification_worker": "telegram", "telegram_polling": "telegram",
+                "auto_scan_worker": "scheduler"}
+_COMPONENT_SCOPE = {"ai": "ai", "search": "search", "telegram": "telegram", "scheduler": "scheduler",
+                    "backup": "backup"}
+_SUCCESS_TYPES = ("scan_category", "recovery", "ai_query", "search_query", "telegram_alert", "scan_end", "backup_run")
+QUIET_UNCONFIRMED_HOURS = 24
+
+
+def _category_success(e: Dict[str, Any]) -> bool:
+    """Подтверждённый успех категории: полный (complete) итог без ошибки и без degraded/warning по качеству.
+    limited и warning восстановлением не считаются (D01)."""
+    d = e["data"]
+    quality = (d.get("quality") or {}).get("quality")
+    return (e["type"] == "scan_category" and e["severity"] == "INFO" and d.get("complete") is True
+            and not d.get("error") and quality in (None, "ok", "unknown"))
+
+
+def _host_recovered_at(conn, host: str, after: str) -> Optional[str]:
+    """Первый минутный бакет с успешными (2xx) ответами хоста после последнего появления проблемы."""
+    from telemetry import BUCKET_FORMATS
+    last = _parse(after)
+    if not host or last is None:
+        return None
+    minute_after = (last + datetime.timedelta(minutes=1)).strftime(BUCKET_FORMATS["minute"])
+    row = conn.execute("""SELECT MIN(bucket_start) FROM telemetry_http_aggregates
+        WHERE bucket_type='minute' AND host = ? AND bucket_start >= ? AND status_2xx > 0""", (host, minute_after)).fetchone()
+    return row[0] if row and row[0] else None
+
+
+def incidents(days: int = INCIDENT_WINDOW_DAYS, now: Optional[datetime.datetime] = None,
+              shop_keys: Optional[Dict[str, str]] = None) -> List[Dict[str, Any]]:
+    """Повторяющиеся проблемы (WARNING+) за окно группируются в инциденты: начало, последнее появление, число,
+    масштаб, гипотеза и восстановление, соотнесённое с областью инцидента (D01):
+
+    - категории магазина — у каждой затронутой категории после её последней проблемы есть подтверждённый успех
+      (_category_success), либо магазин получил recovery (полный обход после деградации, P02);
+    - HTTP без категории — у каждого затронутого хоста после последней проблемы есть минута с 2xx, либо recovery;
+    - магазин без категории и хоста (degradation, падение магазина) — только recovery;
+    - компонент — явный успешный исход своего компонента (_component_success) и час без повторов; если успешного
+      исхода у области нет, после QUIET_UNCONFIRMED_HOURS без повторов — состояние «quiet» (не подтверждено).
+    Состояния: open, recovered, quiet (quiet не считается открытым, но и восстановленным не называется).
+    shop_keys — {название магазина: ключ}: проблемные события пишут название, recovery (P02) — ключ магазина.
+    """
+    shop_keys = shop_keys or {}
     now = now or _now()
     since = _event_cutoff(now, days * 24)
+    marks = ",".join("?" * len(_SUCCESS_TYPES))
     with closing(_conn()) as conn:
-        rows = conn.execute("""SELECT timestamp, type, severity, component, shop, category, scan_id, message, data_json
-            FROM telemetry_events WHERE timestamp >= ? ORDER BY timestamp""", (since,)).fetchall()
-    problems: Dict[tuple, Dict[str, Any]] = {}
-    last_ok_shop: Dict[str, str] = {}
-    last_ok_component: Dict[str, str] = {}
-    for r in rows:
-        e = dict(r)
-        e["data"] = _loads(e.pop("data_json"))
-        shop = e["shop"] or e["data"].get("shop_key")
-        if e["severity"] in ("INFO", "DEBUG"):
-            if e["type"] in ("recovery", "scan_category") and shop:
-                last_ok_shop[shop] = e["timestamp"]
-            last_ok_component[e["component"]] = e["timestamp"]
-            continue
-        if e["type"] in ("scan_start", "scan_end") and e["severity"] != "ERROR":
-            continue
-        key = (e["component"], e["type"], shop or "", _signature(e))
-        inc = problems.get(key)
-        if inc is None:
-            inc = problems[key] = {
-                # Стабильный id между процессами (hash() рандомизирован — см. дефект Arbuz в P00)
-                "id": hashlib.sha1("|".join(key).encode("utf-8")).hexdigest()[:12],
-                "component": e["component"], "type": e["type"], "shop": e["shop"],
-                "shop_key": e["data"].get("shop_key"), "signature": key[3],
-                "severity": e["severity"], "first_seen": e["timestamp"], "count": 0,
-                "categories": set(), "hosts": set(), "scan_ids": set(), "sample": e["message"],
-            }
-        inc["count"] += 1
-        inc["last_seen"] = e["timestamp"]
-        inc["sample"] = e["message"]
-        if e["severity"] in ("ERROR", "CRITICAL"):
-            inc["severity"] = e["severity"]
-        if e["category"]:
-            inc["categories"].add(e["category"])
-        if e["data"].get("host"):
-            inc["hosts"].add(e["data"]["host"])
-        if e["scan_id"]:
-            inc["scan_ids"].add(e["scan_id"])
-    out = []
-    for key, inc in problems.items():
-        component, _type, shop, signature = key
-        if shop:
-            ok_at = last_ok_shop.get(shop)
-            recovered_at = ok_at if ok_at and ok_at > inc["last_seen"] else None
-        else:
-            ok_at = last_ok_component.get(component)
-            quiet = (_hours_since(inc["last_seen"], now) or 0) >= INCIDENT_QUIET_HOURS
-            recovered_at = ok_at if ok_at and ok_at > inc["last_seen"] and quiet else None
-        out.append({
-            **{k: v for k, v in inc.items() if k not in ("categories", "hosts", "scan_ids")},
-            "scale": {"events": inc["count"], "categories": sorted(inc["categories"])[:20],
-                      "categories_count": len(inc["categories"]), "hosts": sorted(inc["hosts"]),
-                      "scans": len(inc["scan_ids"])},
-            "hypothesis": hypothesis(f"{signature} {inc['sample']}", _type, signature),
-            "recovered_at": recovered_at,
-            "open": recovered_at is None,
-        })
+        # Только проблемы и события, способные подтвердить успех: окно не читается целиком
+        rows = conn.execute(f"""SELECT timestamp, type, severity, component, shop, category, scan_id, message, data_json
+            FROM telemetry_events WHERE timestamp >= ?
+              AND (severity IN ('WARNING', 'ERROR', 'CRITICAL') OR type IN ({marks}))
+            ORDER BY timestamp""", (since, *_SUCCESS_TYPES)).fetchall()
+        problems: Dict[tuple, Dict[str, Any]] = {}
+        cat_ok: Dict[tuple, str] = {}
+        shop_recovery: Dict[str, str] = {}
+        comp_ok: Dict[str, str] = {}
+        for r in rows:
+            e = dict(r)
+            e["data"] = _loads(e.pop("data_json"))
+            shop = e["shop"] or e["data"].get("shop_key")
+            if e["severity"] in ("INFO", "DEBUG"):
+                if _category_success(e) and shop and e["category"]:
+                    cat_ok[(shop, e["category"])] = e["timestamp"]
+                if e["type"] == "recovery" and shop:
+                    shop_recovery[shop] = e["timestamp"]
+                    if e["data"].get("shop_key"):
+                        shop_recovery[e["data"]["shop_key"]] = e["timestamp"]
+                scope = _component_success(e)
+                if scope:
+                    comp_ok[scope] = e["timestamp"]
+                continue
+            if e["type"] in ("scan_start", "scan_end") and e["severity"] != "ERROR":
+                continue
+            key = (e["component"], e["type"], shop or "", _signature(e))
+            inc = problems.get(key)
+            if inc is None:
+                inc = problems[key] = {
+                    # Стабильный id между процессами (hash() рандомизирован — см. дефект Arbuz в P00)
+                    "id": hashlib.sha1("|".join(key).encode("utf-8")).hexdigest()[:12],
+                    "component": e["component"], "type": e["type"], "shop": e["shop"],
+                    "shop_key": e["data"].get("shop_key"), "signature": key[3],
+                    "severity": e["severity"], "first_seen": e["timestamp"], "count": 0,
+                    "cat_last": {}, "host_last": {}, "scan_ids": set(), "sample": e["message"],
+                    "where": e["data"].get("where"),
+                }
+            inc["count"] += 1
+            inc["last_seen"] = e["timestamp"]
+            inc["sample"] = e["message"]
+            if e["severity"] in ("ERROR", "CRITICAL"):
+                inc["severity"] = e["severity"]
+            if e["category"]:
+                inc["cat_last"][e["category"]] = e["timestamp"]
+            if e["data"].get("host"):
+                inc["host_last"][e["data"]["host"]] = e["timestamp"]
+            if e["scan_id"]:
+                inc["scan_ids"].add(e["scan_id"])
+
+        out = []
+        for key, inc in problems.items():
+            component, _type, shop, signature = key
+            recovered_at, progress = None, None
+            quiet_h = _hours_since(inc["last_seen"], now) or 0
+            state = "open"
+            if shop:
+                rec = (shop_recovery.get(shop) or shop_recovery.get(shop_keys.get(shop, ""))
+                       or (inc["shop_key"] and shop_recovery.get(inc["shop_key"])))
+                if rec and rec > inc["last_seen"]:
+                    recovered_at = rec
+                elif inc["cat_last"]:
+                    fixed = {c: cat_ok[(shop, c)] for c, last in inc["cat_last"].items()
+                             if cat_ok.get((shop, c), "") > last}
+                    progress = {"recovered": len(fixed), "total": len(inc["cat_last"])}
+                    if len(fixed) == len(inc["cat_last"]):
+                        recovered_at = max(fixed.values())
+                elif inc["host_last"]:
+                    fixed = {h: _host_recovered_at(conn, h, last) for h, last in inc["host_last"].items()}
+                    progress = {"recovered": sum(1 for v in fixed.values() if v), "total": len(fixed)}
+                    if all(fixed.values()):
+                        recovered_at = max(fixed.values())
+            else:
+                scope = _WHERE_SCOPE.get(inc["where"] or "") or _COMPONENT_SCOPE.get(component)
+                ok_at = comp_ok.get(scope) if scope else None
+                if ok_at and ok_at > inc["last_seen"] and quiet_h >= INCIDENT_QUIET_HOURS:
+                    recovered_at = ok_at
+                elif quiet_h >= QUIET_UNCONFIRMED_HOURS:
+                    state = "quiet"
+            if recovered_at:
+                state = "recovered"
+            out.append({
+                **{k: v for k, v in inc.items() if k not in ("cat_last", "host_last", "scan_ids", "where")},
+                "scale": {"events": inc["count"], "categories": sorted(inc["cat_last"])[:20],
+                          "categories_count": len(inc["cat_last"]), "hosts": sorted(inc["host_last"]),
+                          "scans": len(inc["scan_ids"])},
+                "hypothesis": hypothesis(f"{signature} {inc['sample']}", _type, signature),
+                "recovered_at": recovered_at,
+                "recovery_progress": progress,
+                "state": state,
+                "open": state == "open",
+            })
     # Открытые первыми, внутри — самые свежие
     out.sort(key=lambda i: (not i["open"], -(_parse(i["last_seen"]) or now).timestamp()))
     return out
@@ -610,7 +713,8 @@ def overview(registry: Dict[str, Tuple[str, int]], enabled: Iterable[str], scan_
         "telegram": telegram_section(now),
         "system": system_section(now),
     }
-    open_incidents = [i for i in incidents(now=now) if i["open"]]
+    open_incidents = [i for i in incidents(now=now, shop_keys={name: key for key, (name, _n) in registry.items()})
+                      if i["open"]]
     sections["events"] = {
         "status": DEGRADED if any(i["severity"] in ("ERROR", "CRITICAL") for i in open_incidents)
         else (LIMITED if open_incidents else HEALTHY),

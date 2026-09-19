@@ -132,27 +132,140 @@ class OverviewTest(DbCase):
         self.assertEqual((s["status"], s["total"], s["errors"]), ("degraded", 10, 3))
 
 
-class IncidentTest(DbCase):
-    def test_repeated_403_grouped_with_hypothesis_and_recovery(self):
-        for h in (5, 4, 3):
-            self.event(h, tm.EVENT_HTTP_REQUEST, "WARNING", tm.COMPONENT_HTTP, "HTTP 403 GET shop.example",
-                       shop="Магазин", category=f"Кат {h}", scan_id=f"scan{h}",
-                       data={"host": "shop.example", "status": 403})
+class TelegramSectionTest(DbCase):
+    """D02: временные ошибки доставки и ошибки воркера — неуспех; cancelled — не попытка."""
+
+    def section(self, token="t", paused=0.0, **counts):
+        import notifier
+        if counts:
+            self.event(1, tm.EVENT_TELEGRAM_ALERT, "INFO", tm.COMPONENT_TELEGRAM, "доставка", data=counts)
         self.flush()
-        (inc,) = mon.incidents(now=NOW)
+        with patch("config.get_bot_token", return_value=token), patch.object(notifier, "telegram_paused_for",
+                                                                               return_value=paused):
+            return mon.telegram_section(NOW)
+
+    def test_only_retry_is_degraded(self):
+        s = self.section(sent=0, retry=10, failed=0, errors=0)
+        self.assertEqual(s["status"], "degraded")
+        self.assertIn("временных 10", s["reason"])
+
+    def test_threshold_on_mixed_results(self):
+        self.assertEqual(self.section(sent=9, retry=1)["status"], "healthy")
+
+    def test_threshold_exceeded(self):
+        self.assertEqual(self.section(sent=7, retry=2, failed=1)["status"], "degraded")
+
+    def test_no_attempts_unknown_and_cancelled_not_attempts(self):
+        self.assertEqual(self.section()["status"], "unknown")
+
+    def test_cancelled_only_is_unknown(self):
+        self.assertEqual(self.section(cancelled=5)["status"], "unknown")
+
+    def test_disabled_and_cooldown(self):
+        self.assertEqual(self.section(token="", sent=1)["status"], "disabled")
+
+    def test_active_pause_degraded(self):
+        self.assertEqual(self.section(paused=30, sent=5)["status"], "degraded")
+
+    def test_worker_errors_count(self):
+        self.event(2, tm.EVENT_SYSTEM_ERROR, "ERROR", tm.COMPONENT_TELEGRAM, "notification_worker: OperationalError",
+                   data={"where": "notification_worker", "error": "OperationalError"})
+        self.assertEqual(self.section()["status"], "degraded")
+
+
+class IncidentTest(DbCase):
+    def http403(self, hours, category, shop="Магазин"):
+        self.event(hours, tm.EVENT_HTTP_REQUEST, "WARNING", tm.COMPONENT_HTTP, "HTTP 403 GET shop.example",
+                   shop=shop, category=category, scan_id=f"scan{hours}{category}",
+                   data={"host": "shop.example", "status": 403})
+
+    def category_result(self, hours, category, complete=True, quality="ok", error=None, shop="Магазин"):
+        self.event(hours, tm.EVENT_SCAN_CATEGORY, "WARNING" if error else "INFO", tm.COMPONENT_SCRAPER, "итог",
+                   shop=shop, category=category,
+                   data={"items_count": 10, "complete": complete, "error": error, "quality": {"quality": quality}})
+
+    def only(self):
+        (inc,) = mon.incidents(now=NOW, shop_keys={"Магазин": "shop"})
+        return inc
+
+    def test_repeated_403_grouped_with_hypothesis(self):
+        for h in (5, 4, 3):
+            self.http403(h, f"Кат {h}")
+        self.flush()
+        inc = self.only()
         self.assertTrue(inc["open"])
         self.assertEqual((inc["count"], inc["scale"]["categories_count"], inc["scale"]["scans"]), (3, 3, 3))
         self.assertIn("блокир", inc["hypothesis"].lower())
         self.assertEqual(inc["scale"]["hosts"], ["shop.example"])
-        first_id = inc["id"]
-        # Успешная категория того же магазина после последнего появления — восстановление
-        self.event(1, tm.EVENT_SCAN_CATEGORY, "INFO", tm.COMPONENT_SCRAPER, "ok", shop="Магазин",
-                   data={"items_count": 10})
+
+    def test_codex_repro_other_category_success_does_not_recover(self):
+        # D01: Phones — 403, затем успех только TV того же магазина: инцидент Phones остаётся открытым
+        self.http403(2, "Phones")
+        self.category_result(1, "TV")
         self.flush()
-        (inc,) = mon.incidents(now=NOW)
-        self.assertFalse(inc["open"])
-        self.assertIsNotNone(inc["recovered_at"])
-        self.assertEqual(inc["id"], first_id)  # стабильный id
+        inc = self.only()
+        self.assertEqual((inc["state"], inc["recovered_at"]), ("open", None))
+        self.assertEqual(inc["recovery_progress"], {"recovered": 0, "total": 1})
+
+    def test_limited_or_warning_success_does_not_recover(self):
+        self.http403(3, "Phones")
+        self.category_result(2, "Phones", complete=False)            # limited
+        self.category_result(1, "Phones", quality="warning")         # предупреждение качества
+        self.flush()
+        self.assertTrue(self.only()["open"])
+
+    def test_confirmed_success_of_same_category_recovers_with_stable_id(self):
+        self.http403(3, "Phones")
+        self.flush()
+        first_id = self.only()["id"]
+        self.category_result(1, "Phones")
+        self.flush()
+        inc = self.only()
+        self.assertEqual(inc["state"], "recovered")
+        self.assertEqual(inc["id"], first_id)
+
+    def test_partial_recovery_of_several_categories(self):
+        self.http403(4, "Phones")
+        self.http403(4, "TV")
+        self.category_result(2, "Phones")
+        self.flush()
+        inc = self.only()
+        self.assertTrue(inc["open"])
+        self.assertEqual(inc["recovery_progress"], {"recovered": 1, "total": 2})
+        self.category_result(1, "TV")
+        self.flush()
+        self.assertEqual(self.only()["state"], "recovered")
+
+    def test_problem_after_success_reopens(self):
+        self.http403(4, "Phones")
+        self.category_result(3, "Phones")
+        self.http403(2, "Phones")
+        self.flush()
+        self.assertTrue(self.only()["open"])
+
+    def test_shop_recovery_event_closes_shop_level_incident(self):
+        # Падение магазина без категории закрывается только полным обходом после деградации (recovery P02)
+        self.event(3, tm.EVENT_DEGRADATION, "ERROR", tm.COMPONENT_SCRAPER, "Магазин shop: complete → failed",
+                   data={"shop_key": "shop", "from": "complete", "to": "failed"})
+        self.category_result(2, "Phones")
+        self.flush()
+        self.assertTrue(mon.incidents(now=NOW)[0]["open"])
+        self.event(1, tm.EVENT_RECOVERY, "INFO", tm.COMPONENT_SCRAPER, "восстановлен",
+                   data={"shop_key": "shop", "from": "failed", "to": "complete"})
+        self.flush()
+        self.assertEqual(mon.incidents(now=NOW)[0]["state"], "recovered")
+
+    def test_http_without_category_recovers_by_host_2xx(self):
+        now = datetime.datetime.now(UTC)
+        self.event(0.2, tm.EVENT_HTTP_REQUEST, "WARNING", tm.COMPONENT_HTTP, "HTTP 404", now=now, shop="Магазин",
+                   data={"host": "cards.example", "status": 404})
+        self.flush()
+        (inc,) = mon.incidents(now=now)
+        self.assertTrue(inc["open"])
+        self.t.record_http_metric("cards.example", "GET", 200, 10.0, shop="Магазин")
+        self.flush()
+        (inc,) = mon.incidents(now=now + datetime.timedelta(minutes=5))
+        self.assertEqual(inc["state"], "recovered")
 
     def test_different_causes_are_separate_incidents(self):
         self.event(3, tm.EVENT_HTTP_REQUEST, "WARNING", tm.COMPONENT_HTTP, "403", shop="A",
@@ -167,16 +280,32 @@ class IncidentTest(DbCase):
         self.assertTrue(any("timeout" in h for _, h in found))
         self.assertTrue(any("вёрстки" in h for _, h in found))
 
-    def test_component_incident_recovers_after_quiet_period(self):
+    def test_component_needs_explicit_success(self):
         for h in (3, 2.5):
             self.event(h, tm.EVENT_SYSTEM_ERROR, "ERROR", tm.COMPONENT_AI, "ai_normalize_worker: RuntimeError",
                        data={"where": "ai_normalize_worker", "error": "RuntimeError"})
-        self.event(2, tm.EVENT_AI_QUERY, "INFO", tm.COMPONENT_AI, "ok", data={"outcome": "ok"})
+        # Пропуск вызова (лимит) — INFO, но не успех AI
+        self.event(2, tm.EVENT_AI_QUERY, "INFO", tm.COMPONENT_AI, "skip",
+                   data={"outcome": "skipped_busy", "provider_called": False})
         self.flush()
         (inc,) = [i for i in mon.incidents(now=NOW) if i["type"] == "system_error"]
-        self.assertFalse(inc["open"])
-        (inc,) = [i for i in mon.incidents(now=NOW - datetime.timedelta(hours=2.2)) if i["type"] == "system_error"]
-        self.assertTrue(inc["open"])  # после ошибки прошло меньше часа тишины
+        self.assertTrue(inc["open"])
+        self.event(1.8, tm.EVENT_AI_QUERY, "INFO", tm.COMPONENT_AI, "ok", data={"outcome": "ok", "provider_called": True})
+        self.flush()
+        (inc,) = [i for i in mon.incidents(now=NOW) if i["type"] == "system_error"]
+        self.assertEqual(inc["state"], "recovered")
+        (inc,) = [i for i in mon.incidents(now=NOW - datetime.timedelta(hours=2)) if i["type"] == "system_error"]
+        self.assertTrue(inc["open"])  # меньше часа без повторов
+
+    def test_component_without_success_signal_becomes_quiet_not_recovered(self):
+        self.event(30, tm.EVENT_SYSTEM_ERROR, "ERROR", tm.COMPONENT_SYSTEM, "http_handler: KeyError",
+                   data={"where": "http_handler", "error": "KeyError"})
+        self.event(29, tm.EVENT_SEARCH_QUERY, "INFO", tm.COMPONENT_SEARCH, "q", data={"outcome": "found"})
+        self.flush()
+        (inc,) = [i for i in mon.incidents(now=NOW) if i["type"] == "system_error"]
+        self.assertEqual((inc["state"], inc["open"], inc["recovered_at"]), ("quiet", False, None))
+        (inc,) = [i for i in mon.incidents(now=NOW - datetime.timedelta(hours=20)) if i["type"] == "system_error"]
+        self.assertTrue(inc["open"])
 
     def test_events_filters(self):
         self.event(2, tm.EVENT_HTTP_REQUEST, "WARNING", tm.COMPONENT_HTTP, "w", shop="A", scan_id="x")
@@ -241,6 +370,8 @@ class AccessTest(unittest.IsolatedAsyncioTestCase):
                 body = await (await client.get("/api/admin/monitoring")).json()
                 self.assertEqual(len(body["shops"]), len(server.SHOP_REGISTRY))
                 self.assertEqual((await client.get("/api/admin/monitoring/shop/nope")).status, 404)
+                inc = await (await client.get("/api/admin/monitoring/incidents")).json()
+                self.assertEqual(set(inc), {"incidents", "total", "open_total"})
 
 
 if __name__ == "__main__":

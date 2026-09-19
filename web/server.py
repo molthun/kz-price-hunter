@@ -1885,8 +1885,12 @@ async def monitoring_events_handler(request):
 @require_admin
 async def monitoring_incidents_handler(request):
     import monitoring
-    rows = await asyncio.to_thread(monitoring.incidents)
-    return web.json_response({"incidents": rows}, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+    names = {name: key for key, (name, _n) in _monitoring_registry().items()}
+    rows = await asyncio.to_thread(monitoring.incidents, monitoring.INCIDENT_WINDOW_DAYS, None, names)
+    # Отдаётся ограниченное число (открытые первыми): страница не рендерит тысячи карточек
+    return web.json_response({"incidents": rows[:monitoring.INCIDENTS_LIMIT], "total": len(rows),
+                              "open_total": sum(1 for r in rows if r["open"])},
+                             dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
 
 
 @routes.post("/api/scan/shopkz-yml")
