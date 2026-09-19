@@ -2193,8 +2193,9 @@
         }
 
         html += '<div class="space-y-2">';
+        const bestIdx = data.offers.findIndex(o => !isStale(o));
         data.offers.forEach((it, idx) => {
-          const isBest = (idx === 0);
+          const isBest = (idx === bestIdx);
           const border = isBest ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-slate-800 bg-slate-900/50';
           const pStr = fmtPrice(it.current_price);
           html += `
@@ -2214,7 +2215,7 @@
               </div>
               <div class="flex items-center gap-3 shrink-0">
                 <div class="text-right">
-                  <div class="text-sm font-bold ${isBest ? 'text-emerald-400' : 'text-white'}">${pStr}</div>
+                  <div class="text-sm font-bold ${isBest ? 'text-emerald-400' : 'text-white'}">${pStr}${freshnessBadge(it) ? '<br>' + freshnessBadge(it) : ''}</div>
                 </div>
                 <a href="${escapeHtml(cleanUrl(it.url))}" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-medium text-xs flex items-center gap-1 transition">
                   <span>В магазин</span>
@@ -2446,6 +2447,19 @@
       const amount = Number(val);
       if (!Number.isFinite(amount)) return '0 ₸';
       return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " ₸";
+    }
+
+    // Свежесть цены (P02): Aging/Stale показываются с пометкой, а не скрываются
+    function isStale(it) { return !!it && it.freshness === 'stale'; }
+    function freshnessBadge(it) {
+      if (!it || (it.freshness !== 'aging' && it.freshness !== 'stale')) return '';
+      const seen = it.last_seen_at ? new Date(String(it.last_seen_at).replace(' ', 'T')) : null;
+      const when = seen && !isNaN(seen) ? seen.toLocaleDateString('ru-RU', {day: 'numeric', month: 'short'}) : '';
+      if (it.freshness === 'aging') {
+        return `<span class="inline-block mt-0.5 px-1.5 py-0.5 rounded text-[10px] bg-amber-500/15 text-amber-300 border border-amber-500/30" title="Цена получена более суток назад">⏳ цена от ${escapeHtml(when)}</span>`;
+      }
+      const days = Math.max(1, Math.round((Number(it.age_hours) || 72) / 24));
+      return `<span class="inline-block mt-0.5 px-1.5 py-0.5 rounded text-[10px] bg-rose-500/15 text-rose-300 border border-rose-500/30" title="Магазин давно не отдавал этот товар — цена может быть неактуальной">⚠️ цена устарела (${days} дн.)</span>`;
     }
 
     // URLs from catalogs/AI are data, never executable schemes or credentials.
@@ -3706,9 +3720,11 @@
       const minPrice = stats ? (stats.min_price || items[0].price) : items[0].price;
 
       tbody.innerHTML = items.map((it, idx) => {
-        const isFirst = idx === 0 && (activeShopFilterChip === 'Все');
+        const isFirst = idx === 0 && (activeShopFilterChip === 'Все') && !isStale(it);
         const diff = it.price - minPrice;
-        const diffText = diff <= 0 
+        const diffText = isStale(it)
+          ? '<span class="text-xs text-slate-500">не сравнивается</span>'
+          : diff <= 0 
           ? '<span class="px-2 py-0.5 rounded text-xs bg-emerald-500/20 text-emerald-300 font-bold">👑 Лидер</span>'
           : `<span class="text-xs text-slate-400 font-mono">+${fmtPrice(diff)}</span>`;
 
@@ -3748,6 +3764,7 @@
             <td class="px-4 py-3 whitespace-nowrap">
               <div class="font-bold ${isFirst ? 'text-emerald-400 text-base' : 'text-slate-200'}">${fmtPrice(it.price)}</div>
               ${oldPriceDisplay}
+              ${freshnessBadge(it)}
             </td>
             <td class="px-4 py-3 whitespace-nowrap">${diffText}</td>
             <td class="px-4 py-3 whitespace-nowrap text-right">
@@ -3813,6 +3830,7 @@
                 <div>
                   <div class="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">Лучшая цена:</div>
                   <div class="text-3xl font-black text-emerald-400 tracking-tight">${fmtPrice(best.price)}</div>
+                  ${freshnessBadge(best)}
                 </div>
                 <a href="${escapeHtml(cleanUrl(best.url))}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-dark-950 font-bold px-6 py-3 rounded-xl text-sm shadow-xl shadow-emerald-500/25 transition transform active:scale-95 w-full md:w-auto">
                   <span>Купить по лучшей цене</span>
@@ -3914,7 +3932,7 @@
               <div class="font-medium text-white line-clamp-1 max-w-md">${escapeHtml(p.title)}</div>
             </td>
             <td class="px-4 py-3 whitespace-nowrap text-xs text-slate-400">${escapeHtml(p.category || '-')}</td>
-            <td class="px-4 py-3 whitespace-nowrap font-bold text-emerald-400">${fmtPrice(p.current_price)}</td>
+            <td class="px-4 py-3 whitespace-nowrap font-bold text-emerald-400">${fmtPrice(p.current_price)}${freshnessBadge(p) ? '<br>' + freshnessBadge(p) : ''}</td>
             <td class="px-4 py-3 whitespace-nowrap text-right">
               <a href="${escapeHtml(cleanUrl(p.url))}" onclick="event.stopPropagation()" target="_blank" rel="noopener noreferrer" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs inline-flex items-center gap-1 transition">
                 <span>Открыть</span>

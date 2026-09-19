@@ -9,10 +9,22 @@ from typing import Optional, Dict, Any, List
 from config import DB_PATH, get_scan_interval_seconds, merge_user_settings
 
 def active_product_clause(alias=""):
+    """Видимые предложения: не сняты полным обходом и виделись не дольше HIDE_AFTER_DAYS (P02, решение владельца).
+
+    Устаревшие (Aging/Stale) показываются с бейджем свежести, а не скрываются: сбой магазина не убирает его каталог.
+    """
+    from data_quality import HIDE_AFTER_DAYS
     prefix = f"{alias}." if alias else ""
-    seconds = max(86400, 2 * get_scan_interval_seconds())
     return (f"{prefix}is_active = 1 AND julianday({prefix}updated_at) "
-            f">= julianday('now') - {seconds} / 86400.0")
+            f">= julianday('now') - {int(HIDE_AFTER_DAYS)}")
+
+
+def fresh_price_clause(alias=""):
+    """Предложения с неустаревшей ценой (не Stale): только они дают алерты, скидки и лучшую цену (P02)."""
+    from data_quality import AGING_HOURS
+    prefix = f"{alias}." if alias else ""
+    return (f"{prefix}is_active = 1 AND julianday({prefix}updated_at) "
+            f">= julianday('now') - {int(AGING_HOURS)} / 24.0")
 
 
 def reconcile_source(shop_key, source_url, products, complete=False):
@@ -31,6 +43,73 @@ def reconcile_source(shop_key, source_url, products, complete=False):
                 (shop_key, source_url))
         conn.commit()
     invalidate_alerts_cache()
+
+
+def get_source_baseline(shop_key: str, source_url: str, kind: str) -> Optional[Dict[str, Any]]:
+    """Норма источника (P02): медиана принятых результатов того же вида; при нехватке истории — число
+    активных предложений источника (если их достаточно); иначе None."""
+    from data_quality import BASELINE_WINDOW, MIN_BASELINE_ITEMS, baseline_from_history
+    with get_connection() as conn:
+        rows = conn.execute("""SELECT valid, with_image FROM source_scans
+            WHERE shop_key=? AND source_url=? AND kind=? AND accepted=1
+            ORDER BY finished_at DESC, id DESC LIMIT ?""", (shop_key, source_url, kind, BASELINE_WINDOW)).fetchall()
+        baseline = baseline_from_history([dict(r) for r in rows])
+        if baseline:
+            return baseline
+        active = conn.execute("SELECT COUNT(*) FROM product_sources WHERE shop_key=? AND source_url=? AND active=1",
+                              (shop_key, source_url)).fetchone()[0]
+    if active >= MIN_BASELINE_ITEMS:
+        return {"valid": float(active), "image_share": None, "basis": "active_offers", "samples": 0}
+    return None
+
+
+def record_source_scan(shop_key, source_url, category, scan_id, started_at, kind, assessment, metrics) -> None:
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    reason = "; ".join(assessment["reasons"] + assessment["warnings"])[:500] or None
+    with get_connection() as conn:
+        conn.execute("""INSERT INTO source_scans (shop_key, source_url, category, scan_id, started_at, finished_at, kind,
+                quality, reason, received, valid, rejected, with_image, baseline, baseline_basis, accepted)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (shop_key, source_url, category, scan_id, started_at, now, kind, assessment["quality"], reason,
+             metrics["received"], metrics["valid"], metrics["rejected"], metrics["with_image"],
+             assessment["baseline"], assessment["basis"], int(bool(assessment["learn"]))))
+        conn.commit()
+
+
+def get_last_source_quality(shop_keys: List[str]) -> Dict[str, Dict[str, Any]]:
+    """Качество последнего обхода магазина: худшая оценка среди категорий его последнего scan_id (P02)."""
+    order = {"failed": 0, "degraded": 1, "warning": 2, "unknown": 3, "ok": 4}
+    result: Dict[str, Dict[str, Any]] = {}
+    if not shop_keys:
+        return result
+    marks = ",".join("?" * len(shop_keys))
+    with get_connection() as conn:
+        rows = conn.execute(f"""SELECT shop_key, scan_id, quality, reason, category, finished_at FROM source_scans
+            WHERE shop_key IN ({marks}) AND finished_at >= ? ORDER BY finished_at DESC, id DESC""",
+            [*shop_keys, (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=7)).isoformat()]
+        ).fetchall()
+    last_scan: Dict[str, Any] = {}
+    for r in rows:
+        key = r["shop_key"]
+        if key not in last_scan:
+            last_scan[key] = r["scan_id"]
+        if r["scan_id"] != last_scan[key]:
+            continue
+        cur = result.get(key)
+        if cur is None or order.get(r["quality"], 3) < order.get(cur["quality"], 3):
+            result[key] = {"quality": r["quality"], "reason": r["reason"], "category": r["category"],
+                           "finished_at": r["finished_at"]}
+    return result
+
+
+def prune_source_scans(days: Optional[int] = None) -> int:
+    from data_quality import SOURCE_SCANS_RETENTION_DAYS
+    cutoff = (datetime.datetime.now(datetime.timezone.utc)
+              - datetime.timedelta(days=days or SOURCE_SCANS_RETENTION_DAYS)).isoformat()
+    with get_connection() as conn:
+        deleted = conn.execute("DELETE FROM source_scans WHERE finished_at < ?", (cutoff,)).rowcount
+        conn.commit()
+    return deleted
 
 
 class ClosingConnection(sqlite3.Connection):
@@ -259,6 +338,32 @@ def _create_schema(cursor) -> None:
             VALUES (new.rowid, new.id, new.title, new.shop, new.city, new.category);
         END;
     """)
+
+    # Итоги обхода источников (магазин + URL категории) с метриками качества (P02). Принятые (accepted=1)
+    # результаты образуют baseline источника; degraded/warning/failed его не обучают.
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS source_scans (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            shop_key TEXT NOT NULL,
+            source_url TEXT NOT NULL,
+            category TEXT,
+            scan_id TEXT,
+            started_at TEXT NOT NULL,
+            finished_at TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            quality TEXT NOT NULL,
+            reason TEXT,
+            received INTEGER NOT NULL DEFAULT 0,
+            valid INTEGER NOT NULL DEFAULT 0,
+            rejected INTEGER NOT NULL DEFAULT 0,
+            with_image INTEGER NOT NULL DEFAULT 0,
+            baseline REAL,
+            baseline_basis TEXT,
+            accepted INTEGER NOT NULL DEFAULT 0
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_source_scans_source ON source_scans(shop_key, source_url, kind, accepted, finished_at)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_source_scans_time ON source_scans(finished_at)")
 
     # Таблицы структурированной телеметрии и HTTP-агрегатов (P01). shop хранится как '' вместо
     # NULL: в UNIQUE значения NULL различны, и upsert агрегата создавал бы строку на каждый запрос.
@@ -1120,7 +1225,7 @@ def _fetch_filtered_alerts(user_settings: Dict[str, Any], city: Optional[str] = 
         WHERE (a.is_dismissed IS NULL OR a.is_dismissed = 0)
           AND a.old_price <= 10000000 AND a.new_price <= 10000000
           AND (julianday('now') - julianday(a.created_at)) <= 7.0
-          AND """ + active_product_clause("p") + " AND p.current_price = a.new_price"
+          AND """ + fresh_price_clause("p") + " AND p.current_price = a.new_price"
     params: List[Any] = []
     if city and city != "Все":
         query += " AND (a.city = ? OR a.city IS NULL)"
@@ -1159,7 +1264,7 @@ def get_stats(user_settings: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
             SELECT COUNT(*) FROM products 
             WHERE ((old_price_on_site > current_price AND current_price > 0) 
                OR (category IN ('actions', 'Акции и распродажи') AND first_seen_price > current_price AND current_price > 0)) 
-              AND {active_product_clause()}
+              AND {fresh_price_clause()}
         """)
         total_store_deals = cursor.fetchone()[0]
 
@@ -1231,7 +1336,8 @@ def get_products_list(shop: Optional[str] = None, city: Optional[str] = None, se
     with get_connection() as conn:
         rows = conn.execute(f"SELECT * FROM products WHERE {where} ORDER BY updated_at DESC LIMIT ? OFFSET ?",
                             params + [limit, offset]).fetchall()
-        return [dict(row) for row in rows]
+    from data_quality import annotate
+    return [annotate(dict(row)) for row in rows]
 
 def get_products_count(shop: Optional[str] = None, city: Optional[str] = None, search: Optional[str] = None) -> int:
     where, params = _catalog_filters(shop, city, search, _catalog_use_fts(shop, city, search))
@@ -1611,7 +1717,9 @@ def get_stale_shops(shop_keys: List[str], max_age_seconds: int) -> List[str]:
 
 def get_shops_scan_report(shop_keys: List[str]) -> List[Dict[str, Any]]:
     """Сводка по магазинам для админ-панели."""
+    from data_quality import freshness
     scans = get_shop_scans()
+    quality = get_last_source_quality(list(shop_keys))
     report = []
     for key in shop_keys:
         row = scans.get(key) or {}
@@ -1625,6 +1733,10 @@ def get_shops_scan_report(shop_keys: List[str]) -> List[Dict[str, Any]]:
             "last_items": row.get("last_items") or 0,
             "last_duration_sec": round(row.get("last_duration_sec") or 0, 1),
             "last_error": row.get("last_error"),
+            # P02: свежесть магазина — по последнему полному обходу; качество — худшая категория последнего обхода
+            "freshness": freshness(row.get("last_success_at"))["freshness"],
+            "last_quality": (quality.get(key) or {}).get("quality", "unknown"),
+            "last_quality_reason": (quality.get(key) or {}).get("reason"),
         })
     return report
 
@@ -1857,7 +1969,7 @@ def get_store_deals(
             FROM products p
             WHERE ((p.old_price_on_site > p.current_price AND p.current_price > 0)
                OR (p.category IN ('actions', 'Акции и распродажи') AND p.first_seen_price > p.current_price AND p.current_price > 0))
-              AND {active_product_clause("p")}
+              AND {fresh_price_clause("p")}
         """
         p_params: List[Any] = []
         if city and city != "Все":
@@ -1898,7 +2010,7 @@ def get_store_deals(
             JOIN products p ON a.product_id = p.id
             WHERE (a.is_dismissed IS NULL OR a.is_dismissed = 0)
               AND a.alert_type IN ('MARKET_ARBITRAGE', 'ARBITRAGE', 'SUPER_DISCOUNT')
-              AND {active_product_clause("p")}
+              AND {fresh_price_clause("p")}
         """
         a_params: List[Any] = []
         if city and city != "Все":

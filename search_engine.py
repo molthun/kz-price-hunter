@@ -688,15 +688,24 @@ async def _get_best_price_summary(
             "items": []
         }
 
-    prices = [item["current_price"] for item in local_items if item["current_price"] > 0]
+    # Свежесть каждого предложения (P02): устаревшие (Stale) показываются с бейджем, но не дают лучшую цену,
+    # статистику и сравнение магазинов. Если свежих нет — лучшей цены нет (all_stale).
+    import data_quality
+    for item in local_items:
+        data_quality.annotate(item)
+    priced = [item for item in local_items if item["current_price"] > 0]
+    pool = [item for item in priced if item["freshness"] != data_quality.STALE]
+    stale_count = len(priced) - len(pool)
+    basis = pool or priced
+    prices = [item["current_price"] for item in basis]
     min_p = min(prices)
     max_p = max(prices)
     avg_p = int(sum(prices) / len(prices))
 
-    cheapest_item = min(local_items, key=lambda x: x["current_price"])
+    cheapest_item = min(basis, key=lambda x: x["current_price"])
 
     from model_matching import same_model
-    comparable = [item for item in local_items
+    comparable = [item for item in basis
                   if item['shop'] != cheapest_item['shop']
                   and item.get('city') == cheapest_item.get('city')
                   and same_model(cheapest_item['title'], item['title'])]
@@ -710,6 +719,8 @@ async def _get_best_price_summary(
     for item in local_items:
         s_name = item["shop"]
         shop_counts[s_name] = shop_counts.get(s_name, 0) + 1
+    for item in basis:
+        s_name = item["shop"]
         if s_name not in store_map or item["current_price"] < store_map[s_name]["current_price"]:
             store_map[s_name] = item
 
@@ -725,7 +736,9 @@ async def _get_best_price_summary(
             "city": item.get("city", ""),
             "diff_from_best": diff,
             "diff_kzt": diff,
-            "count": shop_counts.get(s_name, 1)
+            "count": shop_counts.get(s_name, 1),
+            "freshness": item["freshness"],
+            "last_seen_at": item["last_seen_at"],
         })
 
     formatted_items = []
@@ -740,7 +753,9 @@ async def _get_best_price_summary(
     return {
         "query": query_clean,
         "total_found": len(local_items),
-        "best_deal": {
+        "stale_count": stale_count,
+        "all_stale": not pool,
+        "best_deal": None if not pool else {
             "id": cheapest_item["id"],
             "shop": cheapest_item["shop"],
             "title": cheapest_item["title"],
@@ -751,7 +766,9 @@ async def _get_best_price_summary(
             "city": cheapest_item.get("city", ""),
             "savings_vs_max": savings,
             "savings_pct": savings_pct,
-            "max_market_price": comparable_max
+            "max_market_price": comparable_max,
+            "freshness": cheapest_item["freshness"],
+            "last_seen_at": cheapest_item["last_seen_at"],
         },
         "price_stats": {
             "min": min_p,

@@ -59,6 +59,8 @@ from version import get_version_info
 from database import (
     init_db,
     reconcile_source,
+    get_source_baseline,
+    record_source_scan,
     notifications_muted,
     acquire_scheduler_lease,
     release_scheduler_lease,
@@ -114,6 +116,7 @@ from scrapers.arbuz import ArbuzScraper
 from scrapers.masterok import MasterOkScraper
 from search_engine import get_best_price_summary
 import ai_service
+import data_quality
 from config import get_ai_config
 from notifier import prepare_deliveries, notification_worker, telegram_api
 from log_manager import install_log_interceptor, log_buffer
@@ -360,6 +363,7 @@ async def product_detail_handler(request):
     prod = get_product_by_id(pid)
     if not prod:
         return web.json_response({"error": "Product not found"}, status=404)
+    data_quality.annotate(prod)
 
     # Если описания нет в базе, подтягиваем его вживую со страницы магазина и кэшируем в БД
     if not prod.get("description") and prod.get("url"):
@@ -454,7 +458,7 @@ async def compare_model_offers_handler(request):
         city_clause = "AND (city = ? OR city = 'Все' OR city IS NULL)" if city != "Все" else ""
         params = [key, city] if city != "Все" else [key]
         rows = conn.execute(f"""
-            SELECT id, shop, title, current_price, old_price_on_site, url, image_url, city, canonical_key
+            SELECT id, shop, title, current_price, old_price_on_site, url, image_url, city, canonical_key, updated_at
             FROM products
             WHERE canonical_key = ? {city_clause} AND current_price > 0 AND """ + active_product_clause() + """
             ORDER BY current_price ASC
@@ -462,10 +466,12 @@ async def compare_model_offers_handler(request):
 
     from model_matching import same_model
     reference = title or (rows[0]["title"] if rows else "")
-    items = [dict(r) for r in rows if same_model(reference, r["title"])]
-    min_p = items[0]["current_price"] if items else 0
-    max_p = items[-1]["current_price"] if items else 0
-    diff = max_p - min_p if len(items) > 1 else 0
+    items = [data_quality.annotate(dict(r)) for r in rows if same_model(reference, r["title"])]
+    # Сравнение цен — только по неустаревшим предложениям (P02); устаревшие остаются в списке с бейджем
+    priced = [it for it in items if it["freshness"] != data_quality.STALE]
+    min_p = priced[0]["current_price"] if priced else 0
+    max_p = priced[-1]["current_price"] if priced else 0
+    diff = max_p - min_p if len(priced) > 1 else 0
     diff_pct = round((diff / max_p) * 100, 1) if max_p > 0 else 0
 
     return web.json_response({
@@ -1132,7 +1138,7 @@ async def _scan_shop(key, candidate_settings, semaphore, target_categories=None)
 
 async def _scan_shop_categories(key, scraper, categories, shop_name, candidate_settings):
     from telemetry import (
-        telemetry, current_shop, current_category, current_http_trace,
+        telemetry, current_shop, current_category, current_http_trace, current_scan_id,
         EVENT_SCAN_CATEGORY, EVENT_SCAN_ERROR, SEVERITY_INFO, SEVERITY_WARNING, SEVERITY_ERROR, COMPONENT_SCRAPER
     )
     started = time.monotonic()
@@ -1150,6 +1156,7 @@ async def _scan_shop_categories(key, scraper, categories, shop_name, candidate_s
             # Сводка HTTP страниц категории (коды, число запросов) попадает в событие итога категории (A05)
             http_trace = {}
             token_trace = current_http_trace.set(http_trace)
+            cat_started = datetime.datetime.now(datetime.timezone.utc).isoformat()
             try:
                 prods = await scraper.scrape(cat["name"], cat["url"], max_pages=cat.get("max_pages"))
                 # Предложение = товар магазина + подтверждённый город (id вида kaspi_1@astana)
@@ -1158,11 +1165,21 @@ async def _scan_shop_categories(key, scraper, categories, shop_name, candidate_s
                 complete = getattr(prods, "complete", False)
                 if not prods and not complete:
                     error = error or "Пустая выдача: требуется проверка"
+                # Качество до снятия товаров (P02): «тихая поломка» с complete не снимает каталог и не обучает норму
+                kind = "complete" if complete else "limited"
+                metrics = data_quality.measure(prods)
+                baseline = None if error else await asyncio.to_thread(get_source_baseline, key, cat["url"], kind)
+                assessment = data_quality.assess(metrics, complete=complete, error=error, baseline=baseline)
+                if assessment["quality"] == data_quality.DEGRADED:
+                    error = "Качество: " + "; ".join(assessment["reasons"])
                 scan_state["total_scanned"] += len(prods)
                 collected += len(prods)
                 _ensure_lease()  # результаты пишет только владелец аренды (R-H03)
                 await _save_and_detect(prods, shop_name, candidate_settings)
-                await asyncio.to_thread(reconcile_source, key, cat["url"], prods, complete and not error)
+                await asyncio.to_thread(reconcile_source, key, cat["url"], prods,
+                                        assessment["may_retire"] and not error)
+                await asyncio.to_thread(record_source_scan, key, cat["url"], cat["name"], current_scan_id.get(),
+                                        cat_started, kind, assessment, metrics)
                 if error:
                     failed_categories.append(f"{cat['name']}: {error}")
                 elif not complete:
@@ -1175,7 +1192,10 @@ async def _scan_shop_categories(key, scraper, categories, shop_name, candidate_s
                     message=f"[{shop_name}] Категория {cat['name']}: {len(prods)} товаров (complete={complete})",
                     shop=shop_name,
                     category=cat["name"],
-                    data={"items_count": len(prods), "complete": complete, "error": error, "http": http_trace}
+                    data={"items_count": len(prods), "complete": complete, "error": error, "http": http_trace,
+                          "quality": {"quality": assessment["quality"], "reasons": assessment["reasons"],
+                                      "warnings": assessment["warnings"], "baseline": assessment["baseline"],
+                                      "basis": assessment["basis"], **metrics}}
                 )
                 await asyncio.sleep(0.5)
             except LeaseLost:
@@ -1183,6 +1203,13 @@ async def _scan_shop_categories(key, scraper, categories, shop_name, candidate_s
             except Exception as e:
                 failed_categories.append(f"{cat['name']}: {type(e).__name__}")
                 print(f"[{shop_name}] Ошибка категории {cat['name']}: {type(e).__name__}")
+                try:
+                    await asyncio.to_thread(
+                        record_source_scan, key, cat["url"], cat["name"], current_scan_id.get(), cat_started, "limited",
+                        data_quality.assess(data_quality.measure([]), complete=False, error=type(e).__name__, baseline=None),
+                        data_quality.measure([]))
+                except Exception:
+                    pass
                 telemetry.record_event(
                     event_type=EVENT_SCAN_ERROR,
                     severity=SEVERITY_ERROR,
@@ -1486,6 +1513,8 @@ async def _scan_task_body(shop_keys, target_categories, scan_type):
             from database import prune_price_observations, prune_notification_outbox
             pruned = await asyncio.to_thread(prune_price_observations)
             pruned_outbox = await asyncio.to_thread(prune_notification_outbox)
+            from database import prune_source_scans
+            await asyncio.to_thread(prune_source_scans)
             if pruned or pruned_outbox:
                 print(f"[DB] Удалено старых наблюдений цен: {pruned}, записей уведомлений: {pruned_outbox}")
         except Exception as e:

@@ -252,7 +252,7 @@ def _record_delivery(counts, pause) -> None:
 
 
 def _deliver_batch(limit, counts):
-    from database import claim_notification, finish_notification, get_user, get_connection, active_product_clause
+    from database import claim_notification, finish_notification, get_user, get_connection, fresh_price_clause
     from detector import alert_matches_user, notify_level_allows
     sent = 0
     pause = None
@@ -267,7 +267,7 @@ def _deliver_batch(limit, counts):
             candidate = dict(product, alert_type=anomaly["type"], new_price=anomaly["new_price"],
                              discount_pct=anomaly["drop_pct"], savings_kzt=anomaly["savings"])
             with get_connection() as conn:
-                current = conn.execute("SELECT current_price FROM products WHERE id=? AND " + active_product_clause(),
+                current = conn.execute("SELECT current_price FROM products WHERE id=? AND " + fresh_price_clause(),
                                        (str(product["id"]),)).fetchone()
                 alert = conn.execute("SELECT is_dismissed FROM alerts WHERE id=?", (item["alert_id"],)).fetchone()
             if (not user or user["is_blocked"] or not user["settings"].get("telegram_notify_enabled")
