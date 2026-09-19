@@ -244,7 +244,7 @@ async def categories_handler(request):
 
 @routes.get("/api/stats")
 async def stats_handler(request):
-    stats = get_stats(user_settings_for(request))
+    stats = await asyncio.to_thread(get_stats, user_settings_for(request), request.query.get("city") or None)
     stats["scan_state"] = scan_state
     settings = load_settings()
     try:
@@ -2050,4 +2050,6 @@ def create_app():
         print("[Auth] ⚠️ TELEGRAM_BOT_TOKEN не задан — вход через Telegram и уведомления отключены")
     app.cleanup_ctx.append(background_tasks)
     app.add_routes(routes)
+    # Статические модули витрины (P04 U08): без листинга каталогов
+    app.router.add_static("/static/", BASE_DIR / "web" / "static", show_index=False)
     return app

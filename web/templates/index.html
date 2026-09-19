@@ -19,8 +19,13 @@
     }
   </script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Общие функции форматирования (P04 U08): должны загрузиться до основного скрипта -->
+  <script src="/static/js/format.js"></script>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    /* P04 U06: на узком экране — первые 10 иконок магазинов и «+N» вместо сетки на весь экран */
+    @media (max-width: 639px) { .shop-icons > div:nth-child(n+11) { display: none; } }
+    @media (min-width: 640px) { .shop-icons-more { display: none; } }
     .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
     .pulse-dot { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
     @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .4; transform: scale(1.15); } }
@@ -40,7 +45,7 @@
         <div>
           <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
             KZ Price Hunter
-            <span id="appVersionBadge" class="text-xs font-mono px-2 py-0.5 rounded-full bg-slate-800 text-emerald-400 border border-emerald-500/30 font-semibold">v2.5.0</span>
+            <span id="appVersionBadge" class="text-xs font-mono px-2 py-0.5 rounded-full bg-slate-800 text-emerald-400 border border-emerald-500/30 font-semibold">v…</span>
             <span id="currentCityHeaderBadge" class="text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Астана</span>
           </h1>
           <p class="hidden md:block text-xs text-slate-400">Мониторинг цен магазинов Казахстана (подключено: <span data-shop-count>25</span>): Kaspi, DNS, Мечта, Белый Ветер, Технодом, Sulpak и др.</p>
@@ -108,7 +113,7 @@
       <div class="glass p-4 rounded-2xl border-rose-500/20 bg-rose-500/5">
         <div class="text-xs text-rose-300 font-medium mb-1">Акции & Ценовые аномалии</div>
         <div id="metricTotalAlerts" class="text-2xl font-bold text-rose-400">...</div>
-        <div id="metricAlertsBreakdown" class="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
+        <div id="metricAlertsBreakdown" class="text-[11px] text-slate-400 mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
           <i class="fa-solid fa-fire text-rose-400"></i> <span>Скидки в магазинах • Сбои • Арбитраж</span>
         </div>
       </div>
@@ -118,7 +123,7 @@
           <div class="text-xs text-slate-400 font-medium">Активные магазины</div>
           <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">сетей: <span data-shop-count>25</span></span>
         </div>
-        <div class="flex flex-wrap items-center gap-1.5 mt-1">
+        <div id="activeShopIcons" class="shop-icons flex flex-wrap items-center gap-1.5 mt-1">
           <div title="Kaspi Магазин (kaspi.kz)" class="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-900/90 border border-slate-700/80 hover:border-rose-500 hover:scale-110 transition shadow-sm cursor-pointer">
             <img src="https://www.google.com/s2/favicons?domain=kaspi.kz&sz=32" alt="Kaspi" class="w-4 h-4 rounded-sm object-contain" onerror="this.style.display='none'">
           </div>
@@ -194,7 +199,16 @@
           <div title="MasterOK (masterok.kz)" class="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-900/90 border border-slate-700/80 hover:border-orange-500 hover:scale-110 transition shadow-sm cursor-pointer">
             <img src="https://www.google.com/s2/favicons?domain=masterok.kz&sz=32" alt="MasterOK" class="w-4 h-4 rounded-sm object-contain" onerror="this.style.display='none'">
           </div>
+          <span id="activeShopIconsMore" class="shop-icons-more text-[11px] font-semibold text-slate-400 px-1.5"></span>
         </div>
+        <script>
+          (() => {
+            const box = document.getElementById('activeShopIcons');
+            const more = document.getElementById('activeShopIconsMore');
+            const hidden = box.querySelectorAll(':scope > div').length - 10;
+            if (hidden > 0) more.textContent = '+' + hidden; else more.remove();
+          })();
+        </script>
         <div class="text-[11px] text-slate-400 mt-2 flex items-center gap-1.5">
           <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
           <span>Подключено сетей Казахстана: <span data-shop-count>25</span></span>
@@ -212,7 +226,8 @@
     </div>
 
     <!-- Вкладки (Tabs) -->
-    <div class="flex border-b border-slate-800 space-x-6 sm:space-x-8 text-sm font-medium overflow-x-auto pb-0.5">
+    <!-- P04 U07: на узких экранах ряд прокручивается, на широких переносится — последняя вкладка не уходит за край -->
+    <div class="flex flex-nowrap lg:flex-wrap gap-x-6 sm:gap-x-8 gap-y-1 border-b border-slate-800 text-sm font-medium overflow-x-auto lg:overflow-visible pb-0.5">
       <button onclick="switchTab('anomalies')" id="tabBtnAnomalies" class="pb-3 text-emerald-400 border-b-2 border-emerald-400 flex items-center gap-2 cursor-pointer whitespace-nowrap font-semibold">
         <i class="fa-solid fa-triangle-exclamation text-amber-400"></i>
         <span>Аномалии цен</span>
@@ -1765,7 +1780,7 @@
 
   <footer class="border-t border-slate-800 py-4 px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
     <div>
-      KZ Price Hunter &copy; 2026 • Версия <span id="footerVersion" class="text-emerald-400 font-mono font-semibold">v2.5.0</span>
+      KZ Price Hunter &copy; 2026 • Версия <span id="footerVersion" class="text-emerald-400 font-mono font-semibold">v…</span>
     </div>
     <div class="flex items-center gap-3">
       <a href="/privacy" target="_blank" rel="noopener noreferrer" class="text-emerald-400 hover:underline">Как используются данные</a>
@@ -2016,6 +2031,7 @@
       if (sBadge) sBadge.innerText = city === 'Все' ? 'Все города (РК)' : city;
 
       if (reload) {
+        loadStats();
         loadAlerts();
         loadCatalog(0);
         showToast(`📍 Выбран регион: ${city === 'Все' ? 'Все города Казахстана' : city}`);
@@ -2447,24 +2463,7 @@
     let catalogSearchTimeout = null;
     let pollInterval = null;
 
-    function fmtPrice(val) {
-      const amount = Number(val);
-      if (!Number.isFinite(amount)) return '0 ₸';
-      return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " ₸";
-    }
-
-    // Свежесть цены (P02): Aging/Stale показываются с пометкой, а не скрываются
-    function isStale(it) { return !!it && it.freshness === 'stale'; }
-    function freshnessBadge(it) {
-      if (!it || (it.freshness !== 'aging' && it.freshness !== 'stale')) return '';
-      const seen = it.last_seen_at ? new Date(String(it.last_seen_at).replace(' ', 'T')) : null;
-      const when = seen && !isNaN(seen) ? seen.toLocaleDateString('ru-RU', {day: 'numeric', month: 'short'}) : '';
-      if (it.freshness === 'aging') {
-        return `<span class="inline-block mt-0.5 px-1.5 py-0.5 rounded text-[10px] bg-amber-500/15 text-amber-300 border border-amber-500/30" title="Цена получена более суток назад">⏳ цена от ${escapeHtml(when)}</span>`;
-      }
-      const days = Math.max(1, Math.round((Number(it.age_hours) || 72) / 24));
-      return `<span class="inline-block mt-0.5 px-1.5 py-0.5 rounded text-[10px] bg-rose-500/15 text-rose-300 border border-rose-500/30" title="Магазин давно не отдавал этот товар — цена может быть неактуальной">⚠️ цена устарела (${days} дн.)</span>`;
-    }
+    // fmtPrice, isStale, freshnessBadge, escapeHtml — /static/js/format.js (P04 U08)
 
     // URLs from catalogs/AI are data, never executable schemes or credentials.
     function safeHttpUrl(value, fallback = '#') {
@@ -2594,7 +2593,10 @@
     // Загрузка статистики и обновление автономного индикатора свежести базы
     async function loadStats() {
       try {
-        const res = await fetch('/api/stats');
+        // Счётчики — в выбранном городе и тем же определением, что и списки; бейджи вкладок пишет только эта функция
+        const statsUrl = currentCity && currentCity !== 'Все' ? `/api/stats?city=${encodeURIComponent(currentCity)}` : '/api/stats';
+        const res = await fetch(statsUrl);
+        if (!res.ok) return;
         const data = await res.json();
         const storeDeals = (data.total_store_deals != null) ? data.total_store_deals : (data.total_discounts || 0);
         const anomaliesTotal = data.total_anomalies || 0;
@@ -2605,7 +2607,11 @@
         
         const mb = document.getElementById('metricAlertsBreakdown');
         if (mb) {
-          mb.innerHTML = `<span class="text-rose-400 font-bold">${storeDeals.toLocaleString()}</span> акций • <span class="text-amber-300 font-bold">${escapeHtml(anomaliesTotal)}</span> сбоев • <span class="text-sky-300 font-bold">${escapeHtml(arbitrageTotal)}</span> арбитраж`;
+          // Каждый пункт не разрывается и переносится целиком (P04 U05: узкие экраны)
+          // Витрина включает арбитраж: «N предложений • из них M арбитраж • K сбоев» (сбои — отдельная лента)
+          mb.innerHTML = [['', storeDeals, 'предложений', 'text-rose-400'], ['из них ', arbitrageTotal, 'арбитраж', 'text-sky-300'], ['', anomaliesTotal, 'сбоев', 'text-amber-300']]
+            .map(([prefix, n, label, cls]) => `<span class="whitespace-nowrap">${prefix}<span class="${cls} font-bold">${escapeHtml(Number(n).toLocaleString())}</span> ${label}</span>`)
+            .join('<span class="text-slate-600">•</span>');
         }
 
         const bAno = document.getElementById('badgeAnomaliesCount');
@@ -2821,6 +2827,25 @@
       }
     }
 
+    // Загрузка JSON с проверкой статуса и формы ответа (P04 U04): ошибка API не выдаётся за пустой список
+    async function fetchJsonChecked(url, isValid) {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (isValid && !isValid(data)) throw new Error('Неожиданный формат ответа');
+      return data;
+    }
+
+    function loadErrorHtml(what, retryCall, wrap = 'div') {
+      const body = `<div class="py-10 text-center">
+          <div class="text-3xl mb-2">⚠️</div>
+          <p class="text-sm text-rose-300">Не удалось загрузить ${escapeHtml(what)}.</p>
+          <p class="text-xs text-slate-500 mt-1">Проверьте соединение и повторите попытку.</p>
+          <button onclick="${retryCall}" class="mt-3 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 transition cursor-pointer">Повторить</button>
+        </div>`;
+      return wrap === 'tr' ? `<tr><td colspan="5">${body}</td></tr>` : `<div class="col-span-full glass rounded-2xl">${body}</div>`;
+    }
+
     async function loadAnomalies() {
       const container = document.getElementById('anomaliesContainer');
       if (!container) return;
@@ -2829,13 +2854,11 @@
         if (currentCity && currentCity !== 'Все') {
           url += `&city=${encodeURIComponent(currentCity)}`;
         }
-        const res = await fetch(url);
-        const alerts = await res.json();
+        const alerts = await fetchJsonChecked(url, Array.isArray);
 
-        const badge = document.getElementById('badgeAnomaliesCount');
+        // Бейдж вкладки пишет loadStats; метка списка — число показанных карточек
         const label = document.getElementById('labelAnomaliesCount');
-        const count = alerts ? alerts.length : 0;
-        if (badge) badge.innerText = count;
+        const count = alerts.length;
         if (label) label.innerText = `${count} сбоев`;
 
         if (!alerts || alerts.length === 0) {
@@ -2857,6 +2880,7 @@
         container.innerHTML = alerts.map(renderAlertCard).join('');
       } catch (e) {
         console.error('Ошибка loadAnomalies:', e);
+        container.innerHTML = loadErrorHtml('ценовые сбои', 'loadAnomalies()');
       }
     }
 
@@ -2966,8 +2990,7 @@
           url += `&city=${encodeURIComponent(currentCity)}`;
         }
 
-        const res = await fetch(url);
-        let data = await res.json();
+        let data = await fetchJsonChecked(url, d => Array.isArray(d) || (d && Array.isArray(d.deals)));
         if (Array.isArray(data)) {
           cachedDiscounts = data;
           renderDiscountsShopsBar([]);
@@ -2976,14 +2999,14 @@
           renderDiscountsShopsBar(data.shops_summary || []);
         }
 
-        const badge = document.getElementById('badgeDiscountsCount');
+        // Бейдж вкладки пишет loadStats (тот же итог без фильтров витрины); здесь — только итог текущих фильтров
         const count = data.total != null ? data.total : cachedDiscounts.length;
         window.cachedDiscountsTotal = count;
-        if (badge) badge.innerText = count.toLocaleString();
 
         renderDiscountsList();
       } catch (e) {
         console.error('Ошибка loadDiscounts:', e);
+        container.innerHTML = loadErrorHtml('акции и скидки', 'loadDiscounts()');
       }
     }
 
@@ -3930,9 +3953,8 @@
                     (currentCity && currentCity !== 'Все' ? `&city=${encodeURIComponent(currentCity)}` : '') +
                     (search ? `&search=${encodeURIComponent(search)}` : '');
 
-        const res = await fetch(url);
-        const data = await res.json();
-        const products = data.products || [];
+        const data = await fetchJsonChecked(url, d => d && Array.isArray(d.products));
+        const products = data.products;
         const total = data.total || 0;
 
         document.getElementById('catalogPaginationInfo').innerText = `Показано ${Math.min(offset + 1, total)}–${Math.min(offset + products.length, total)} из ${total}`;
@@ -3962,6 +3984,8 @@
         `).join('');
       } catch (e) {
         console.error('Ошибка каталога:', e);
+        tbody.innerHTML = loadErrorHtml('каталог', 'loadCatalog(currentCatalogOffset)', 'tr');
+        document.getElementById('catalogPaginationInfo').innerText = '';
       }
     }
 
@@ -5195,9 +5219,7 @@
 
     async function loadAdminUsers() {
       try {
-        const res = await fetch('/api/admin/users');
-        if (!res.ok) return;
-        const users = await res.json();
+        const users = await fetchJsonChecked('/api/admin/users', Array.isArray);
         document.getElementById('adminUsersCount').innerText = users.length;
         document.getElementById('adminUsersTable').innerHTML = users.map(u => {
           const name = escapeHtml([u.first_name, u.last_name].filter(Boolean).join(' ') || '—');
@@ -5333,6 +5355,7 @@
         const res = await fetch('/api/version');
         if (res.ok) {
           const v = await res.json();
+          if (!v || !v.version) return;  // без версии — не показываем «vundefined»
           const verText = 'v' + v.version;
           const badge = document.getElementById('appVersionBadge');
           if (badge) badge.innerText = verText;
@@ -5421,12 +5444,6 @@
       else if (s.includes('sulpak')) color = 'text-teal-400 border-teal-500/30 bg-teal-500/10';
       else if (s.includes('мечта')) color = 'text-fuchsia-400 border-fuchsia-500/30 bg-fuchsia-500/10';
       return `<span class="px-1.5 py-0.5 rounded text-[10px] border ${color} font-medium">[${escapeHtml(src)}]</span>`;
-    }
-
-    function escapeHtml(text) {
-      return String(text ?? '').replace(/[&<>"']/g, ch => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-      }[ch]));
     }
 
     function renderLogs() {

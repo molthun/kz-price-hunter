@@ -1188,6 +1188,23 @@ def _alerts_cache_key(user_settings: Dict[str, Any], city, alert_type, limit):
 
 def invalidate_alerts_cache() -> None:
     _ALERTS_CACHE.clear()
+    _DEALS_TOTAL_CACHE.clear()
+
+
+# Число предложений витрины скидок по городу (P04 U01): бейдж и плитка считают тем же get_store_deals,
+# что и сама витрина (склейка по модели и магазину, арбитраж, свежесть цен), а не отдельным COUNT по products
+_DEALS_TOTAL_CACHE: Dict[Optional[str], tuple] = {}
+
+
+def store_deals_total(city: Optional[str] = None) -> int:
+    key = city if city and city != "Все" else None
+    cached = _DEALS_TOTAL_CACHE.get(key)
+    now = time.monotonic()
+    if cached and now - cached[0] < _ALERTS_CACHE_TTL_SECONDS:
+        return cached[1]
+    total = get_store_deals(city=key, deal_type="all", limit=0)["total"]
+    _DEALS_TOTAL_CACHE[key] = (now, total)
+    return total
 
 def _alert_type_clause(alert_type: Optional[str]):
     if not alert_type:
@@ -1264,8 +1281,11 @@ def _fetch_filtered_alerts(user_settings: Dict[str, Any], city: Optional[str] = 
         _ALERTS_CACHE.clear()
     return result
 
-def get_stats(user_settings: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def get_stats(user_settings: Optional[Dict[str, Any]] = None, city: Optional[str] = None) -> Dict[str, Any]:
+    """Сводные счётчики. Акции, аномалии и арбитраж — в выбранном городе и тем же определением, что и списки
+    (P04 U01–U03); total_products — вся база (плитка «Всего товаров в базе»)."""
     settings = user_settings if user_settings is not None else merge_user_settings({})
+    city = city if city and city != "Все" else None
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM products WHERE " + active_product_clause())
@@ -1274,16 +1294,10 @@ def get_stats(user_settings: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         cursor.execute("SELECT shop, COUNT(*) as count FROM products WHERE " + active_product_clause() + " GROUP BY shop")
         shops_stats = {row["shop"]: row["count"] for row in cursor.fetchall()}
 
-        cursor.execute(f"""
-            SELECT COUNT(*) FROM products 
-            WHERE ((old_price_on_site > current_price AND current_price > 0) 
-               OR (category IN ('actions', 'Акции и распродажи') AND first_seen_price > current_price AND current_price > 0)) 
-              AND {fresh_price_clause()}
-        """)
-        total_store_deals = cursor.fetchone()[0]
+    total_store_deals = store_deals_total(city)
 
-    # Счетчики аномалий и скидок — по личным порогам пользователя (у гостей — по умолчанию)
-    visible = _fetch_filtered_alerts(settings)
+    # Счетчики аномалий и скидок — по личным порогам пользователя (у гостей — по умолчанию) и городу
+    visible = _fetch_filtered_alerts(settings, city=city)
     total_anomalies = sum(1 for a in visible if a["alert_type"] == "ZERO_GLITCH")
     total_arbitrage = sum(1 for a in visible if a["alert_type"] in ("MARKET_ARBITRAGE", "ARBITRAGE"))
     total_alert_discounts = len(visible) - total_anomalies
@@ -1297,6 +1311,7 @@ def get_stats(user_settings: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         "total_store_deals": total_store_deals,
         "total_alert_discounts": total_alert_discounts,
         "shops": shops_stats,
+        "city": city or "Все",
         "db_freshness": get_db_freshness(threshold_seconds=get_scan_interval_seconds())
     }
 

@@ -1,0 +1,20 @@
+// P04 U08: общий модуль форматирования web/static/js/format.js — без браузера.
+const assert=require('node:assert/strict');
+const path=require('path');
+const f=require(path.join(__dirname,'web/static/js/format.js'));
+assert.equal(f.escapeHtml(`<a href="x" onclick='y'>&</a>`),'&lt;a href=&quot;x&quot; onclick=&#39;y&#39;&gt;&amp;&lt;/a&gt;');
+assert.equal(f.escapeHtml(null),'');
+assert.equal(f.fmtPrice(1234567),'1 234 567 ₸');
+assert.equal(f.fmtPrice(0),'0 ₸');
+assert.equal(f.fmtPrice('abc'),'0 ₸');
+assert.equal(f.fmtPrice(999),'999 ₸');
+assert.equal(f.isStale({freshness:'stale'}),true);
+assert.equal(f.isStale({freshness:'aging'}),false);
+assert.equal(f.isStale(null),false);
+assert.equal(f.freshnessBadge({freshness:'fresh'}),'');
+assert.equal(f.freshnessBadge(null),'');
+assert.match(f.freshnessBadge({freshness:'aging',last_seen_at:'2026-09-17T10:00:00+00:00'}),/цена от/);
+assert.match(f.freshnessBadge({freshness:'stale',age_hours:100}),/цена устарела \(4 дн\.\)/);
+assert.match(f.freshnessBadge({freshness:'stale'}),/\(3 дн\.\)/);
+assert.ok(!f.freshnessBadge({freshness:'aging',last_seen_at:'<img onerror=x>'}).includes('<img'));
+console.log('PASS: format module — escaping, prices, freshness badges');
