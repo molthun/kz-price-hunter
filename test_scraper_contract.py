@@ -13,12 +13,13 @@ from scrapers.zeta import ZetaScraper
 from scrapers.komfort import KomfortScraper
 from scrapers.lemanapro import LemanaProScraper
 from scrapers.arbuz import ArbuzScraper
+from scrapers.masterok import MasterOkScraper
 
 
 class ScraperContractTest(unittest.TestCase):
     def test_scraper_classes_conform_to_contract(self):
         # Check standard scrapers
-        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper, LemanaProScraper, ArbuzScraper):
+        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper, LemanaProScraper, ArbuzScraper, MasterOkScraper):
             self.assertTrue(hasattr(cls, "SHOP_NAME"), f"{cls} must define SHOP_NAME")
             self.assertTrue(callable(getattr(cls, "scrape", None)), f"{cls} must define scrape")
             self.assertTrue(callable(getattr(cls, "close", None)), f"{cls} must define close")
@@ -299,6 +300,64 @@ class ScraperContractTest(unittest.TestCase):
         self.assertEqual(items[0]["url"], "https://arbuz.kz/ru/almaty/catalog/item/351031-sredstvo_mello_home_dlya_mytya_posudy_aloe_0_5_l")
         self.assertEqual(items[0]["image_url"], "https://arbuz.kz/image/s3/arbuz-kz-products/file.jpg?w=360&h=360&_c=123")
         self.assertEqual(items[0]["city"], "Алматы")
+        scraper.close()
+        self.assertIsNone(scraper.session)
+
+    def test_masterok_parsing_mock(self):
+        from unittest.mock import MagicMock
+        scraper = MasterOkScraper()
+        mock_html = '''
+        <div class="catalog-item-card" data-entity="item" id="bx_40480796_40732_52eccb44ded0bb34f72b273e9a62ef02" itemscope itemtype="http://schema.org/Product">
+            <div class="item-image-cont">
+                <div class="item-image">
+                    <meta itemprop="image" content="/upload/iblock/fubag.jpg">
+                    <a href="/catalog/instrumenty/derzhatel-dlya-pnevmoinstrumenta-fubag-10sht/">
+                        <img class="item_img" src="/upload/iblock/fubag.jpg" alt="Держатель для пневмоинструмента, FUBAG 10шт">
+                    </a>
+                </div>
+            </div>
+            <div class="item-all-title">
+                <a class="item-title" href="/catalog/instrumenty/derzhatel-dlya-pnevmoinstrumenta-fubag-10sht/" itemprop="url">
+                    <span itemprop="name">Держатель для пневмоинструмента, FUBAG 10шт</span>
+                </a>
+            </div>
+            <div class="article_rating">
+                <div class="article">Артикул: 5260003</div>
+            </div>
+            <div class="item-desc" itemprop="description">
+                Назначение: для аккуратного хранения
+            </div>
+            <div class="item-price-cont" itemprop="offers" itemscope itemtype="http://schema.org/Offer">
+                <div class="item-price">
+                    <span class="catalog-item-price-old">22 462 тг</span>
+                    <span class="catalog-item-price">12 387 <span class="unit">тг</span></span>
+                </div>
+                <meta itemprop="price" content="12387">
+                <meta itemprop="priceCurrency" content="KZT">
+                <meta itemprop="availability" content="InStock">
+            </div>
+        </div>
+        '''
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = mock_html
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        scraper.session = mock_session
+
+        items = scraper._fetch_page("Инструменты", "https://masterok.kz/catalog/instrumenty/", 1)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["id"], "40732")
+        self.assertEqual(items[0]["sku"], "5260003")
+        self.assertEqual(items[0]["shop"], "MasterOK")
+        self.assertEqual(items[0]["title"], "Держатель для пневмоинструмента, FUBAG 10шт")
+        self.assertEqual(items[0]["price"], 12387)
+        self.assertEqual(items[0]["old_price_on_site"], 22462)
+        self.assertEqual(items[0]["url"], "https://masterok.kz/catalog/instrumenty/derzhatel-dlya-pnevmoinstrumenta-fubag-10sht/")
+        self.assertEqual(items[0]["image_url"], "https://masterok.kz/upload/iblock/fubag.jpg")
+        self.assertEqual(items[0]["city"], "Алматы")
+        self.assertIn("аккуратного хранения", items[0]["description"])
         scraper.close()
         self.assertIsNone(scraper.session)
 

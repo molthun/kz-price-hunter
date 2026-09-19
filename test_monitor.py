@@ -2269,6 +2269,19 @@ class TestForteMarketScraper(unittest.TestCase):
             self.assertIn("url", c)
             self.assertTrue(c["master"] in config.MASTER_CATEGORIES)
 
+    def test_registry_contains_masterok(self):
+        from web.server import SHOP_REGISTRY
+        from config import SHOP_KEYS, MASTEROK_CATEGORIES
+        self.assertIn("masterok", SHOP_REGISTRY)
+        scraper_cls, cats, name = SHOP_REGISTRY["masterok"]
+        self.assertEqual(name, "MasterOK")
+        self.assertEqual(cats, MASTEROK_CATEGORIES)
+        self.assertEqual(SHOP_KEYS.get("masterok"), "MasterOK")
+        for c in MASTEROK_CATEGORIES:
+            self.assertIn("master", c)
+            self.assertIn("url", c)
+            self.assertTrue(c["master"] in config.MASTER_CATEGORIES)
+
     def test_parse_response_and_regional_pricing(self):
         from scrapers.fortemarket import ForteMarketScraper
 

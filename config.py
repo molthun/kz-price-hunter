@@ -44,6 +44,7 @@ SHOP_KEYS = {
     "komfort": "Комфорт",
     "lemanapro": "Лемана ПРО",
     "arbuz": "Arbuz",
+    "masterok": "MasterOK",
 }
 
 
@@ -1006,6 +1007,19 @@ ARBUZ_CATEGORIES = [
     {"name": "Arbuz: 🍬 Кондитерские изделия", "url": "https://arbuz.kz/ru/almaty/catalog/cat/225166-konditerskie_izdeliya", "master": "grocery", "max_pages": 15},
     {"name": "Arbuz: 🧃 Вода и напитки", "url": "https://arbuz.kz/ru/almaty/catalog/cat/14-voda_i_napitki", "master": "grocery", "max_pages": 15},
 ]
+
+# MasterOK (masterok.kz): гипермаркет строительного, садового и силового оборудования
+MASTEROK_CATEGORIES = [
+    {"name": "MasterOK: 🔌 Инструменты", "url": "https://masterok.kz/catalog/instrumenty/", "master": "diy", "max_pages": 10},
+    {"name": "MasterOK: 🧑‍🏭 Сварочное оборудование", "url": "https://masterok.kz/catalog/svarochnoe-oborudovanie1/", "master": "diy", "max_pages": 10},
+    {"name": "MasterOK: 🌿 Садовое оборудование", "url": "https://masterok.kz/catalog/sadovoe-oborudovanie1/", "master": "diy", "max_pages": 10},
+    {"name": "MasterOK: 🏗 Строительное оборудование", "url": "https://masterok.kz/catalog/stroitelnoe-oborudovanie1/", "master": "diy", "max_pages": 10},
+    {"name": "MasterOK: ⚡️ Силовая техника и генераторы", "url": "https://masterok.kz/catalog/silovaya-tekhnika/", "master": "diy", "max_pages": 10},
+    {"name": "MasterOK: 🚰 Мотопомпы и насосы", "url": "https://masterok.kz/catalog/motopompy1-/", "master": "diy", "max_pages": 10},
+    {"name": "MasterOK: 🪵 Деревообрабатывающее оборудование", "url": "https://masterok.kz/catalog/derevoobrabatyvayushchee-oborudovanie-1/", "master": "diy", "max_pages": 10},
+    {"name": "MasterOK: 📦 Складское оборудование", "url": "https://masterok.kz/catalog/skladskoe-oborudovanie-/", "master": "diy", "max_pages": 10},
+]
+
 
 
 

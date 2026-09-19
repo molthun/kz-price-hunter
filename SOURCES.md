@@ -18,7 +18,7 @@ A — feed/API владельца с документированным назн
 
 Изображения сохраняются ссылками, server image proxy/cache не обнаружен. Browser и Telegram могут получать их с внешнего источника. Description используется в UI и может дополнительно сохраняться через guest product-detail GET для любого магазина. Его отсутствие в конкретном parser не означает отсутствие копирования текста в целом.
 
-## Матрица 24 источников
+## Матрица 25 источников
 
 | Модуль / класс | Тип / механизм | Timeout / pacing | Session, pagination, retry | Поля и ограничения |
 |---|---|---|---|---|
@@ -46,6 +46,7 @@ A — feed/API владельца с документированным назн
 | `scrapers/komfort.py` / `KomfortScraper` | D; komfort.kz Bitrix Aspro HTML .catalog-block-view__item | 20 с; 0.4 с | Session chrome124; PAGEN_1; признака конца нет → «ограничен» (UnconfirmedEnd), пустая первая страница — ошибка; следующая страница Bitrix повторяет первую (подгрузка скриптом) — фактически собирается только первая страница | id/title/price/old_price/image_url; Алматы; описание нет |
 | `scrapers/lemanapro.py` / `LemanaProScraper` | D; lemanapro.kz SSR HTML div[data-qa-product] | 20 с; 0.4 с | Session chrome124; ?page=N; **конец доказан** номером последней страницы в пагинации (например, 348 страниц — при max_pages=15 «ограничен») | id/sku/title/price/old_price/image_url; Казахстан; описание нет |
 | `scrapers/arbuz.py` / `ArbuzScraper` | D; arbuz.kz SSR HTML article.product-card | 20 с; 0.4 с | Session chrome124; ?page=N; признака конца нет → «ограничен», пустая первая страница и ошибки HTTP — ошибка (раньше маскировались пустым списком) | id/sku/title/price/old_price/image_url; Алматы; описание нет |
+| `scrapers/masterok.py` / `MasterOkScraper` | D + B; masterok.kz Bitrix HTML + Schema.org Product | 20 с; 0.4 с | Session chrome124; ?PAGEN_1=N; seen_ids→complete | id/sku/title/price/old_price/description/image_url; Алматы; описание есть |
 
 ## Пути вне основного фонового scan
 
@@ -434,6 +435,19 @@ A — feed/API владельца с документированным назн
 | Arbuz: 🥩 Мясо и птица | grocery | `https://arbuz.kz/ru/almaty/catalog/cat/225162-myaso_i_ptica` | 15 |
 | Arbuz: 🍬 Кондитерские изделия | grocery | `https://arbuz.kz/ru/almaty/catalog/cat/225166-konditerskie_izdeliya` | 15 |
 | Arbuz: 🧃 Вода и напитки | grocery | `https://arbuz.kz/ru/almaty/catalog/cat/14-voda_i_napitki` | 15 |
+
+### MasterOkScraper — 8 настроенных источников категории
+
+| Категория | Master | URL/query | max_pages |
+|---|---|---|---|
+| MasterOK: 🔌 Инструменты | diy | `https://masterok.kz/catalog/instrumenty/` | 10 |
+| MasterOK: 🧑‍🏭 Сварочное оборудование | diy | `https://masterok.kz/catalog/svarochnoe-oborudovanie1/` | 10 |
+| MasterOK: 🌿 Садовое оборудование | diy | `https://masterok.kz/catalog/sadovoe-oborudovanie1/` | 10 |
+| MasterOK: 🏗 Строительное оборудование | diy | `https://masterok.kz/catalog/stroitelnoe-oborudovanie1/` | 10 |
+| MasterOK: ⚡️ Силовая техника и генераторы | diy | `https://masterok.kz/catalog/silovaya-tekhnika/` | 10 |
+| MasterOK: 🚰 Мотопомпы и насосы | diy | `https://masterok.kz/catalog/motopompy1-/` | 10 |
+| MasterOK: 🪵 Деревообрабатывающее оборудование | diy | `https://masterok.kz/catalog/derevoobrabatyvayushchee-oborudovanie-1/` | 10 |
+| MasterOK: 📦 Складское оборудование | diy | `https://masterok.kz/catalog/skladskoe-oborudovanie-/` | 10 |
 
 ## Перед подключением следующего магазина
 
