@@ -26,7 +26,7 @@ A — feed/API владельца с документированным назн
 | `scrapers/fourmobile.py` / `FourMobileScraper` | C + D; 4mobile.pages.dev/api/data; fallback window.MOBILE_DATA | 15 с на запрос; весь каталог одним ответом | chrome124; HTTP JSON→HTML fallback; auth нет | description item[3], image item[2]/favicon; hash category+name; наличие по положительной цене; Астана hardcoded; переход wa.me с текстом запроса, не товарная страница |
 | `scrapers/halyk.py` / `HalykScraper` | C + D; halykmarket.kz/search-api/products; category resolution через HTML | 20 с API / 15 с homepage/category; 0.5 с между страницами | Session, homepage GET; chrome120; errors→ScanResult; без request retry | id/price/oldprice/picture; location=-2 Алматы; PAGE_SIZE=24; complete по count/total без строгой схемы; description не извлекает; переход /category/... |
 | `scrapers/kaspi.py` / `KaspiScraper` | C; kaspi.kz/yml/product-view/pl/results (это JSON, не YML feed) | 30 с; 0.4 с | chrome124; X-KS-City и c; страница API с 0; без retry | id/title/unitSalePrice/unitPrice/stock/previewImages; city code; catalog card без seller identity; description нет; /shop/p/ или search fallback |
-| `scrapers/fortemarket.py` / `ForteMarketScraper` | C; apigw.forte.kz/fm/v1/algolia/search/text; storefront market.forte.kz | 15 с category / 10 с live; 0.4 с | Session + browser UA/Origin/Referer; explicit impersonate нет; page с 0; без retry | objectID/Locations.Price/Price/Picture/URL; ParamMap/Param→description; старой цены нет; KZ fallback маркируется requested city; hits/nbHits; переход /items/... |
+| `scrapers/fortemarket.py` / `ForteMarketScraper` | C; apigw.forte.kz/fm/v1/algolia/search/text; storefront market.forte.kz | 15 с category / 10 с live; 0.4 с | Session + browser UA/Origin/Referer; explicit impersonate нет; page с 0; без retry | objectID/Locations.Price/Price/Picture/URL; ParamMap/Param→description; старой цены нет; город только подтверждённый: без цены города — «Казахстан» (5.0.0); 100 товаров на страницу (5.3.1); hits/nbHits; переход /items/... |
 | `scrapers/dns.py` / `DNSScraper` | E; www.dns-shop.kz HTML в Playwright Chromium | goto 25 с + selector 12 с; sleep 2+1.5 с/страницу | browser UA, city_path=astana; один page на scrape; общий browser semaphore отсутствует | data-code/data-product/title/current/prev/image; Астана; p=N; configured max_pages; всегда limited при успехе, полный каталог не подтверждает; описание нет |
 | `scrapers/technodom.py` / `TechnodomScraper` | C†; www.technodom.kz: встроенный __NEXT_DATA__; не документированный REST API | 30 с; inherited 0.3 с | chrome124; city/ city_id cookies; page=N; без retry | sku/title/price/oldPrice/images/uri; image api.technodom.kz URL; Астана; numeric decoder удаляет десятичную точку; описание нет |
 | `scrapers/mechta.py` / `MechtaScraper` | C; www.mechta.kz/api/v3/catalog/products | 15 с API + 10 с homepage; inherited 0.3 с | Session chrome124, device UUID, x-city-code; повтор после 403/422 с новой session | id/prices.finalPrice/basePrice/images/slug; Астана; page/pageSize24; 204/empty→complete; описание нет |
@@ -111,40 +111,44 @@ A — feed/API владельца с документированным назн
 
 ### ForteMarketScraper — 14 настроенных источников категории
 
+Фасеты сверены с API 19.09.2026; `max_pages` — страницы по 100 товаров (глубина пагинации не ограничена, «Смартфоны» — 9 733 товара).
+
 | Категория | Master | URL/query | max_pages |
 |---|---|---|---|
-| Forte: 📱 Смартфоны | smartphones | `https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Смартфоны` | 30 |
-| Forte: 💻 Ноутбуки | laptops | `https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Ноутбуки` | 30 |
-| Forte: 🖥 Мониторы | monitors | `https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Мониторы` | 20 |
-| Forte: 🎧 Наушники и гарнитуры | audio | `https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Наушники и гарнитуры` | 25 |
-| Forte: 📱 Планшеты | tablets_watches | `https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Планшеты` | 20 |
-| Forte: ⌚️ Смарт-часы | tablets_watches | `https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Смарт-часы` | 20 |
-| Forte: 📺 Телевизоры | tvs | `https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Телевизоры` | 25 |
-| Forte: 🎮 Игровые приставки | consoles | `https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Игровые приставки` | 15 |
-| Forte: 🧹 Пылесосы | appliances_small | `https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Пылесосы` | 20 |
+| Forte: 📱 Смартфоны | smartphones | `https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Смартфоны` | 120 |
+| Forte: 💻 Ноутбуки | laptops | `https://market.forte.kz/catalog?facet=CategoryMap.Lvl2:Ноутбуки и ультрабуки` | 60 |
+| Forte: 🖥 Мониторы | monitors | `https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Мониторы` | 30 |
+| Forte: 🎧 Наушники и гарнитуры | audio | `https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Наушники и гарнитуры` | 60 |
+| Forte: 📱 Планшеты | tablets_watches | `https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Планшеты` | 30 |
+| Forte: ⌚️ Смарт-часы | tablets_watches | `https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Смарт-часы и браслеты` | 40 |
+| Forte: 📺 Телевизоры | tvs | `https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Телевизоры` | 20 |
+| Forte: 🎮 Игровые приставки | consoles | `https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Игровые консоли` | 20 |
+| Forte: 🧹 Пылесосы | appliances_small | `https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Пылесосы` | 30 |
 | Forte: ❄️ Холодильники | appliances_large | `https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Холодильники` | 20 |
 | Forte: 🧺 Стиральные машины | appliances_large | `https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Стиральные машины` | 20 |
-| Forte: 🚗 Автотовары | all | `https://market.forte.kz/catalog?facet=CategoryMap.Lvl1:Автотовары` | 25 |
-| Forte: 🛠 Строительство и ремонт | all | `https://market.forte.kz/catalog?facet=CategoryMap.Lvl1:Строительство и ремонт` | 25 |
-| Forte: 🏡 Товары для дома и дачи | all | `https://market.forte.kz/catalog?facet=CategoryMap.Lvl1:Товары для дома и дачи` | 25 |
+| Forte: 🚗 Автотовары | all | `https://market.forte.kz/catalog?facet=CategoryMap.Lvl1:Автотовары` | 5 |
+| Forte: 🛠 Строительство и ремонт | diy | `https://market.forte.kz/catalog?facet=CategoryMap.Lvl1:Строительство и ремонт` | 5 |
+| Forte: 🏡 Товары для дома и дачи | all | `https://market.forte.kz/catalog?facet=CategoryMap.Lvl1:Товары для дома и дачи` | 5 |
 
 ### DNSScraper — 13 настроенных источников категории
 
+Со второй страницы категории DNS отвечает 403 с проверкой Cloudflare на бота (19.09.2026). Защиту не обходим: берётся только первая страница (~24 товара на категорию), обход помечается «ограничен». Полный каталог — только через официальную выгрузку/API магазина.
+
 | Категория | Master | URL/query | max_pages |
 |---|---|---|---|
-| DNS: 🔥 Все акции и распродажи | actions | `https://www.dns-shop.kz/catalog/actions/` | 3 |
-| DNS: 💻 Ноутбуки | laptops | `https://www.dns-shop.kz/catalog/17a892f816404e77/noutbuki/` | 3 |
-| DNS: 📱 Смартфоны | smartphones | `https://www.dns-shop.kz/catalog/17a8a01d16404e77/smartfony/` | 3 |
-| DNS: 🎮 Видеокарты | pc_components | `https://www.dns-shop.kz/catalog/17a89aab16404e77/videokarty/` | 3 |
-| DNS: ⚙️ Процессоры | pc_components | `https://www.dns-shop.kz/catalog/17a899cd16404e77/processory/` | 3 |
-| DNS: 🖥 Мониторы | monitors | `https://www.dns-shop.kz/catalog/17a8943716404e77/monitory/` | 3 |
-| DNS: 📺 Телевизоры | tvs | `https://www.dns-shop.kz/catalog/17a8ae4916404e77/televizory/` | 3 |
-| DNS: 📱 Планшеты | tablets_watches | `https://www.dns-shop.kz/catalog/17a890dc16404e77/planshety/` | 2 |
-| DNS: 💾 SSD накопители | pc_components | `https://www.dns-shop.kz/catalog/8a9ddbe317404e77/nakopiteli-ssd/` | 2 |
-| DNS: 🧠 Оперативная память | pc_components | `https://www.dns-shop.kz/catalog/17a89a3916404e77/operativnaya-pamyat-dimm/` | 2 |
-| DNS: 🎧 Наушники и гарнитуры | audio | `https://www.dns-shop.kz/catalog/17a8f3cd16404e77/naushniki-i-garnitury/` | 2 |
-| DNS: ⌚️ Смарт-часы | tablets_watches | `https://www.dns-shop.kz/catalog/17a9e70116404e77/smart-chasy-i-braslety/` | 2 |
-| DNS: 🎮 Игровые консоли | consoles | `https://www.dns-shop.kz/catalog/17a8a65f16404e77/igrovye-konsoli/` | 2 |
+| DNS: 🔥 Все акции и распродажи | actions | `https://www.dns-shop.kz/catalog/actions/` | 1 |
+| DNS: 💻 Ноутбуки | laptops | `https://www.dns-shop.kz/catalog/17a892f816404e77/noutbuki/` | 1 |
+| DNS: 📱 Смартфоны | smartphones | `https://www.dns-shop.kz/catalog/17a8a01d16404e77/smartfony/` | 1 |
+| DNS: 🎮 Видеокарты | pc_components | `https://www.dns-shop.kz/catalog/17a89aab16404e77/videokarty/` | 1 |
+| DNS: ⚙️ Процессоры | pc_components | `https://www.dns-shop.kz/catalog/17a899cd16404e77/processory/` | 1 |
+| DNS: 🖥 Мониторы | monitors | `https://www.dns-shop.kz/catalog/17a8943716404e77/monitory/` | 1 |
+| DNS: 📺 Телевизоры | tvs | `https://www.dns-shop.kz/catalog/17a8ae4916404e77/televizory/` | 1 |
+| DNS: 📱 Планшеты | tablets_watches | `https://www.dns-shop.kz/catalog/17a890dc16404e77/planshety/` | 1 |
+| DNS: 💾 SSD накопители | pc_components | `https://www.dns-shop.kz/catalog/8a9ddbe317404e77/nakopiteli-ssd/` | 1 |
+| DNS: 🧠 Оперативная память | pc_components | `https://www.dns-shop.kz/catalog/17a89a3916404e77/operativnaya-pamyat-dimm/` | 1 |
+| DNS: 🎧 Наушники и гарнитуры | audio | `https://www.dns-shop.kz/catalog/17a8f3cd16404e77/naushniki-i-garnitury/` | 1 |
+| DNS: ⌚️ Смарт-часы | tablets_watches | `https://www.dns-shop.kz/catalog/17a9e70116404e77/smart-chasy-i-braslety/` | 1 |
+| DNS: 🎮 Игровые консоли | consoles | `https://www.dns-shop.kz/catalog/17a8a65f16404e77/igrovye-konsoli/` | 1 |
 
 ### TechnodomScraper — 9 настроенных источников категории
 

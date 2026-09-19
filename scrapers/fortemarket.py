@@ -7,7 +7,9 @@ from scrapers import http as requests
 from scrapers.base import PagedScraper, ScanResult, price_value
 
 API_SEARCH_URL = "https://apigw.forte.kz/fm/v1/algolia/search/text"
-PAGE_SIZE = 20
+# 100 товаров на запрос: API отдаёт весь каталог категории постранично без лимита глубины
+# (проверено 19.09.2026: «Смартфоны» — 9 733 товара, 98 страниц)
+PAGE_SIZE = 100
 
 # Маппинг городов Казахстана на префиксы кодов локаций в Forte Market (поле Locations.Location.ID)
 CITY_LOCATION_MAP = {

@@ -436,3 +436,54 @@ class ProductDetailsTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CoverageConfigTest(unittest.TestCase):
+    """Полнота каталога: Forte по 100 товаров до конца категории, DNS — одна страница (дальше Cloudflare)."""
+
+    def test_forte_categories_and_page_size(self):
+        import config
+        from scrapers.fortemarket import ForteMarketScraper, PAGE_SIZE
+        self.assertEqual(PAGE_SIZE, 100)
+        urls = " ".join(c["url"] for c in config.FORTE_CATEGORIES)
+        # Эти фасеты раньше были неверными и давали 0 товаров
+        for facet in ("CategoryMap.Lvl2:Ноутбуки и ультрабуки", "CategoryMap.Lvl3:Смарт-часы и браслеты",
+                      "CategoryMap.Lvl3:Игровые консоли"):
+            self.assertIn(facet, urls)
+        smartphones = next(c for c in config.FORTE_CATEGORIES if "Смартфоны" in c["name"])
+        self.assertGreaterEqual(smartphones["max_pages"] * PAGE_SIZE, 10_000)
+        hits = [{"objectID": str(i), "Name": f"P{i}", "Price": 1000} for i in range(50)]
+        self.assertFalse(ForteMarketScraper.parse_response({"hits": hits, "nbHits": 250}, "C", 2).complete)
+        self.assertTrue(ForteMarketScraper.parse_response({"hits": hits, "nbHits": 250}, "C", 3).complete)
+
+    def test_dns_requests_only_first_page(self):
+        import config
+        self.assertTrue(config.DNS_CATEGORIES)
+        self.assertTrue(all(c["max_pages"] == 1 for c in config.DNS_CATEGORIES))
+
+
+class DnsCloudflareTest(unittest.IsolatedAsyncioTestCase):
+    async def test_cloudflare_challenge_is_reported_not_bypassed(self):
+        from unittest.mock import AsyncMock, MagicMock
+        from scrapers import dns
+        page = MagicMock()
+        page.goto = AsyncMock(return_value=MagicMock(status=403))
+        page.title = AsyncMock(return_value="Один момент…")
+        context = MagicMock()
+        context.add_cookies = AsyncMock()
+        context.new_page = AsyncMock(return_value=page)
+        context.close = AsyncMock()
+        browser = MagicMock()
+        browser.new_context = AsyncMock(return_value=context)
+        browser.close = AsyncMock()
+        playwright = MagicMock()
+        playwright.chromium.launch = AsyncMock(return_value=browser)
+        manager = MagicMock()
+        manager.__aenter__ = AsyncMock(return_value=playwright)
+        manager.__aexit__ = AsyncMock(return_value=False)
+        with patch.object(dns, "async_playwright", return_value=manager):
+            result = await dns.DNSScraper().scrape("c", "https://www.dns-shop.kz/catalog/x/", 1)
+        self.assertEqual(list(result), [])
+        self.assertIn("Cloudflare", result.error)
+        self.assertEqual(page.goto.await_count, 1)  # ни повторов, ни обходных запросов
+        browser.close.assert_awaited_once()

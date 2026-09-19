@@ -50,8 +50,11 @@ class DNSScraper:
 
             try:
                 resp = await page.goto(url, wait_until="domcontentloaded", timeout=25000)
+                if resp and resp.status == 403 and "Один момент" in (await page.title()):
+                    # Проверка Cloudflare на бота: не обходим, фиксируем понятную причину
+                    raise RuntimeError("DNS: доступ закрыт проверкой Cloudflare")
                 if not resp or resp.status != 200:
-                    raise RuntimeError("DNS: HTTP error")
+                    raise RuntimeError(f"DNS: HTTP {resp.status if resp else 'нет ответа'}")
 
                 try:
                     await page.wait_for_selector(".catalog-product", timeout=12000)
@@ -106,7 +109,8 @@ class DNSScraper:
 
                 await asyncio.sleep(1.5)
             except Exception as e:
-                error = f"Страница {page_num}: {type(e).__name__}"
+                detail = str(e) if str(e).startswith("DNS:") else type(e).__name__
+                error = f"Страница {page_num}: {detail}"
                 break
 
         await context.close()

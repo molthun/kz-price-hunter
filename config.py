@@ -618,20 +618,22 @@ ZERO_DROP_RATIO_MIN = 8.0
 ZERO_DROP_RATIO_MAX = 12.0
 
 # 1. DNS Казахстан (dns-shop.kz)
+# Вторая и дальнейшие страницы DNS закрыты проверкой Cloudflare на бота (403, 19.09.2026).
+# Защиту не обходим: берём только первую страницу категории.
 DNS_CATEGORIES = [
-    {"name": "DNS: 🔥 Все акции и распродажи", "url": "https://www.dns-shop.kz/catalog/actions/", "max_pages": 3, "master": "actions"},
-    {"name": "DNS: 💻 Ноутбуки", "url": "https://www.dns-shop.kz/catalog/17a892f816404e77/noutbuki/", "max_pages": 3, "master": "laptops"},
-    {"name": "DNS: 📱 Смартфоны", "url": "https://www.dns-shop.kz/catalog/17a8a01d16404e77/smartfony/", "max_pages": 3, "master": "smartphones"},
-    {"name": "DNS: 🎮 Видеокарты", "url": "https://www.dns-shop.kz/catalog/17a89aab16404e77/videokarty/", "max_pages": 3, "master": "pc_components"},
-    {"name": "DNS: ⚙️ Процессоры", "url": "https://www.dns-shop.kz/catalog/17a899cd16404e77/processory/", "max_pages": 3, "master": "pc_components"},
-    {"name": "DNS: 🖥 Мониторы", "url": "https://www.dns-shop.kz/catalog/17a8943716404e77/monitory/", "max_pages": 3, "master": "monitors"},
-    {"name": "DNS: 📺 Телевизоры", "url": "https://www.dns-shop.kz/catalog/17a8ae4916404e77/televizory/", "max_pages": 3, "master": "tvs"},
-    {"name": "DNS: 📱 Планшеты", "url": "https://www.dns-shop.kz/catalog/17a890dc16404e77/planshety/", "max_pages": 2, "master": "tablets_watches"},
-    {"name": "DNS: 💾 SSD накопители", "url": "https://www.dns-shop.kz/catalog/8a9ddbe317404e77/nakopiteli-ssd/", "max_pages": 2, "master": "pc_components"},
-    {"name": "DNS: 🧠 Оперативная память", "url": "https://www.dns-shop.kz/catalog/17a89a3916404e77/operativnaya-pamyat-dimm/", "max_pages": 2, "master": "pc_components"},
-    {"name": "DNS: 🎧 Наушники и гарнитуры", "url": "https://www.dns-shop.kz/catalog/17a8f3cd16404e77/naushniki-i-garnitury/", "max_pages": 2, "master": "audio"},
-    {"name": "DNS: ⌚️ Смарт-часы", "url": "https://www.dns-shop.kz/catalog/17a9e70116404e77/smart-chasy-i-braslety/", "max_pages": 2, "master": "tablets_watches"},
-    {"name": "DNS: 🎮 Игровые консоли", "url": "https://www.dns-shop.kz/catalog/17a8a65f16404e77/igrovye-konsoli/", "max_pages": 2, "master": "consoles"}
+    {"name": "DNS: 🔥 Все акции и распродажи", "url": "https://www.dns-shop.kz/catalog/actions/", "max_pages": 1, "master": "actions"},
+    {"name": "DNS: 💻 Ноутбуки", "url": "https://www.dns-shop.kz/catalog/17a892f816404e77/noutbuki/", "max_pages": 1, "master": "laptops"},
+    {"name": "DNS: 📱 Смартфоны", "url": "https://www.dns-shop.kz/catalog/17a8a01d16404e77/smartfony/", "max_pages": 1, "master": "smartphones"},
+    {"name": "DNS: 🎮 Видеокарты", "url": "https://www.dns-shop.kz/catalog/17a89aab16404e77/videokarty/", "max_pages": 1, "master": "pc_components"},
+    {"name": "DNS: ⚙️ Процессоры", "url": "https://www.dns-shop.kz/catalog/17a899cd16404e77/processory/", "max_pages": 1, "master": "pc_components"},
+    {"name": "DNS: 🖥 Мониторы", "url": "https://www.dns-shop.kz/catalog/17a8943716404e77/monitory/", "max_pages": 1, "master": "monitors"},
+    {"name": "DNS: 📺 Телевизоры", "url": "https://www.dns-shop.kz/catalog/17a8ae4916404e77/televizory/", "max_pages": 1, "master": "tvs"},
+    {"name": "DNS: 📱 Планшеты", "url": "https://www.dns-shop.kz/catalog/17a890dc16404e77/planshety/", "max_pages": 1, "master": "tablets_watches"},
+    {"name": "DNS: 💾 SSD накопители", "url": "https://www.dns-shop.kz/catalog/8a9ddbe317404e77/nakopiteli-ssd/", "max_pages": 1, "master": "pc_components"},
+    {"name": "DNS: 🧠 Оперативная память", "url": "https://www.dns-shop.kz/catalog/17a89a3916404e77/operativnaya-pamyat-dimm/", "max_pages": 1, "master": "pc_components"},
+    {"name": "DNS: 🎧 Наушники и гарнитуры", "url": "https://www.dns-shop.kz/catalog/17a8f3cd16404e77/naushniki-i-garnitury/", "max_pages": 1, "master": "audio"},
+    {"name": "DNS: ⌚️ Смарт-часы", "url": "https://www.dns-shop.kz/catalog/17a9e70116404e77/smart-chasy-i-braslety/", "max_pages": 1, "master": "tablets_watches"},
+    {"name": "DNS: 🎮 Игровые консоли", "url": "https://www.dns-shop.kz/catalog/17a8a65f16404e77/igrovye-konsoli/", "max_pages": 1, "master": "consoles"}
 ]
 
 # 2. Белый Ветер (shop.kz)
@@ -882,21 +884,23 @@ ISPACE_CATEGORIES = [
 ]
 
 # Forte Market (market.forte.kz): универсальный маркетплейс, фасеты Algolia API
+# Названия фасетов сверены с API 19.09.2026. Электроника — весь каталог категории (по 100 товаров
+# на страницу); огромные неэлектронные разделы (десятки тысяч позиций) — ограниченная выборка.
 FORTE_CATEGORIES = [
-    {"name": "Forte: 📱 Смартфоны", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Смартфоны", "master": "smartphones", "max_pages": 30},
-    {"name": "Forte: 💻 Ноутбуки", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Ноутбуки", "master": "laptops", "max_pages": 30},
-    {"name": "Forte: 🖥 Мониторы", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Мониторы", "master": "monitors", "max_pages": 20},
-    {"name": "Forte: 🎧 Наушники и гарнитуры", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Наушники и гарнитуры", "master": "audio", "max_pages": 25},
-    {"name": "Forte: 📱 Планшеты", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Планшеты", "master": "tablets_watches", "max_pages": 20},
-    {"name": "Forte: ⌚️ Смарт-часы", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Смарт-часы", "master": "tablets_watches", "max_pages": 20},
-    {"name": "Forte: 📺 Телевизоры", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Телевизоры", "master": "tvs", "max_pages": 25},
-    {"name": "Forte: 🎮 Игровые приставки", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Игровые приставки", "master": "consoles", "max_pages": 15},
-    {"name": "Forte: 🧹 Пылесосы", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Пылесосы", "master": "appliances_small", "max_pages": 20},
+    {"name": "Forte: 📱 Смартфоны", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Смартфоны", "master": "smartphones", "max_pages": 120},
+    {"name": "Forte: 💻 Ноутбуки", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl2:Ноутбуки и ультрабуки", "master": "laptops", "max_pages": 60},
+    {"name": "Forte: 🖥 Мониторы", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Мониторы", "master": "monitors", "max_pages": 30},
+    {"name": "Forte: 🎧 Наушники и гарнитуры", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Наушники и гарнитуры", "master": "audio", "max_pages": 60},
+    {"name": "Forte: 📱 Планшеты", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Планшеты", "master": "tablets_watches", "max_pages": 30},
+    {"name": "Forte: ⌚️ Смарт-часы", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Смарт-часы и браслеты", "master": "tablets_watches", "max_pages": 40},
+    {"name": "Forte: 📺 Телевизоры", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Телевизоры", "master": "tvs", "max_pages": 20},
+    {"name": "Forte: 🎮 Игровые приставки", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Игровые консоли", "master": "consoles", "max_pages": 20},
+    {"name": "Forte: 🧹 Пылесосы", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Пылесосы", "master": "appliances_small", "max_pages": 30},
     {"name": "Forte: ❄️ Холодильники", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Холодильники", "master": "appliances_large", "max_pages": 20},
     {"name": "Forte: 🧺 Стиральные машины", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Стиральные машины", "master": "appliances_large", "max_pages": 20},
-    {"name": "Forte: 🚗 Автотовары", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl1:Автотовары", "master": "all", "max_pages": 25},
-    {"name": "Forte: 🛠 Строительство и ремонт", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl1:Строительство и ремонт", "master": "diy", "max_pages": 25},
-    {"name": "Forte: 🏡 Товары для дома и дачи", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl1:Товары для дома и дачи", "master": "all", "max_pages": 25},
+    {"name": "Forte: 🚗 Автотовары", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl1:Автотовары", "master": "all", "max_pages": 5},
+    {"name": "Forte: 🛠 Строительство и ремонт", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl1:Строительство и ремонт", "master": "diy", "max_pages": 5},
+    {"name": "Forte: 🏡 Товары для дома и дачи", "url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl1:Товары для дома и дачи", "master": "all", "max_pages": 5},
 ]
 
 # Вкусмарт (vkusmart.vmv.kz): онлайн-супермаркет продуктов и бытовой химии
