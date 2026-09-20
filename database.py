@@ -2103,13 +2103,6 @@ def get_store_deals(
     for s_name, count in shops_counter.most_common():
         shops_summary.append({"shop": s_name, "count": count})
 
-    # Разбивка по типам считается по тому же набору после склейки, что и total (P04 E01):
-    # плитка «из них арбитраж» должна совпадать с вкладкой «Арбитраж» витрины при тех же фильтрах
-    type_totals = {
-        "all": len(all_deals),
-        "super": sum(1 for d in all_deals if d["discount_pct"] >= 30 or d["alert_type"] == "SUPER_DISCOUNT"),
-        "arbitrage": sum(1 for d in all_deals if d["alert_type"] in ("MARKET_ARBITRAGE", "ARBITRAGE")),
-    }
 
     # Применение фильтров
     filtered = all_deals
@@ -2124,10 +2117,24 @@ def get_store_deals(
         s_lower = search.lower()
         filtered = [d for d in filtered if s_lower in (d["title"] or "").lower()]
 
+    def _is_super(d):
+        return d["discount_pct"] >= 30 or d["alert_type"] == "SUPER_DISCOUNT"
+
+    def _is_arbitrage(d):
+        return d["alert_type"] in ("MARKET_ARBITRAGE", "ARBITRAGE")
+
+    # Разбивка по типам — по тому же набору после склейки и тех же фильтрах списка (город, магазин, категория,
+    # поиск), но до выбора вкладки и страницы (P04 E01): счётчик вкладки равен её же total при тех же фильтрах
+    type_totals = {
+        "all": len(filtered),
+        "super": sum(1 for d in filtered if _is_super(d)),
+        "arbitrage": sum(1 for d in filtered if _is_arbitrage(d)),
+    }
+
     if deal_type == "super":
-        filtered = [d for d in filtered if (d["discount_pct"] >= 30 or d["alert_type"] == "SUPER_DISCOUNT")]
+        filtered = [d for d in filtered if _is_super(d)]
     elif deal_type == "arbitrage":
-        filtered = [d for d in filtered if d["alert_type"] in ("MARKET_ARBITRAGE", "ARBITRAGE")]
+        filtered = [d for d in filtered if _is_arbitrage(d)]
 
     # Сортировка
     if sort_by == "savings_desc":

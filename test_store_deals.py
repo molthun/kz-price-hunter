@@ -145,11 +145,27 @@ class StoreDealsDbTest(unittest.TestCase):
         self.assertEqual(database.get_store_deals(deal_type="arbitrage")["total"], 0)
 
     def test_type_totals_match_filtered_totals(self):
-        """P04 E01: разбивка по типам считается по тому же набору после склейки, что и вкладки витрины."""
-        totals = database.get_store_deals()["type_totals"]
-        self.assertEqual(totals["all"], database.get_store_deals(deal_type="all")["total"])
-        self.assertEqual(totals["super"], database.get_store_deals(deal_type="super")["total"])
-        self.assertEqual(totals["arbitrage"], database.get_store_deals(deal_type="arbitrage")["total"])
+        """P04 E01: разбивка по типам совпадает с итогом вкладки при тех же фильтрах списка."""
+        filter_sets = [
+            {}, {"shop": "Технодом"}, {"shop": "Arbuz"}, {"city": "Алматы"}, {"category": "grocery"},
+            {"search": "iPhone"}, {"search": "нет такого товара"},
+            {"city": "Алматы", "search": "iPhone"}, {"shop": "DNS", "category": "actions"},
+            {"city": "Алматы", "shop": "Arbuz", "category": "grocery", "search": "Lavazza"},
+        ]
+        for filters in filter_sets:
+            with self.subTest(**filters):
+                totals = database.get_store_deals(**filters)["type_totals"]
+                for deal_type in ("all", "super", "arbitrage"):
+                    self.assertEqual(totals[deal_type],
+                                     database.get_store_deals(deal_type=deal_type, **filters)["total"])
+
+    def test_type_totals_independent_of_page_and_sort(self):
+        """Страница и сортировка не меняют счётчики."""
+        base = database.get_store_deals()["type_totals"]
+        for extra in ({"limit": 1}, {"limit": 1, "offset": 2}, {"sort_by": "price_asc"},
+                      {"sort_by": "savings_desc", "limit": 0}, {"deal_type": "arbitrage", "limit": 1}):
+            with self.subTest(**extra):
+                self.assertEqual(database.get_store_deals(**extra)["type_totals"], base)
 
     def test_get_store_deals_dedup(self):
         # Добавляем алерт на тот же товар в Arbuz с меньшей выгодой (например 10 000)
