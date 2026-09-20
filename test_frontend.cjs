@@ -11,6 +11,7 @@ const path=require('path');
   const u=new URL(route.request().url());
   if(u.hostname!=='127.0.0.1') return route.abort();
   if(u.pathname==='/') return route.fulfill({contentType:'text/html',body:html});
+  if(u.pathname.startsWith('/static/'))return route.fulfill({contentType:'application/javascript',body:fs.readFileSync(path.join(__dirname,'web',u.pathname),'utf8')});
   let data={};
   if(u.pathname==='/api/me')data={user:null,settings:{},auth:{},shops:{}};
   if(u.pathname.includes('alerts'))data=[];

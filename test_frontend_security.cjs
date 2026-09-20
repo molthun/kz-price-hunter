@@ -14,6 +14,7 @@ const assert=require('node:assert/strict');
   const u=new URL(route.request().url());
   if(u.hostname!=='127.0.0.1')return route.abort();
   if(u.pathname==='/')return route.fulfill({contentType:'text/html',body:html});
+  if(u.pathname.startsWith('/static/'))return route.fulfill({contentType:'application/javascript',body:fs.readFileSync(path.join(__dirname,'web',u.pathname),'utf8')});
   const data=u.pathname==='/api/me'?{user:null,settings:{},auth:{},shops:{}}:u.pathname.includes('alerts')?[]:{};
   return route.fulfill({contentType:'application/json',body:JSON.stringify(data)});
  });

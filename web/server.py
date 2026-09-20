@@ -81,6 +81,7 @@ from database import (
     get_shops_scan_report,
     upsert_telegram_user,
     save_user_settings,
+    replace_user_settings,
     list_users,
     get_user,
     set_user_blocked,
@@ -244,7 +245,7 @@ async def categories_handler(request):
 
 @routes.get("/api/stats")
 async def stats_handler(request):
-    stats = get_stats(user_settings_for(request))
+    stats = await asyncio.to_thread(get_stats, user_settings_for(request), request.query.get("city") or None)
     stats["scan_state"] = scan_state
     settings = load_settings()
     try:
@@ -716,7 +717,7 @@ async def delete_my_account_handler(request):
 async def save_my_settings_handler(request):
     try:
         data = await request.json()
-        clean = validate_user_settings(data)
+        clean = validate_user_settings(data, (request["user"] or {}).get("settings"))
         if int(request["user"]["id"]) == DEV_ADMIN_ID:
             clean["telegram_notify_enabled"] = False
     except ValueError as e:
@@ -725,6 +726,21 @@ async def save_my_settings_handler(request):
         return web.json_response({"status": "error", "message": "Некорректный запрос"}, status=400)
     saved = save_user_settings(request["user"]["id"], clean)
     return web.json_response({"status": "ok", "settings": saved})
+
+@routes.post("/api/me/settings/reset")
+@require_login
+async def reset_my_settings_handler(request):
+    """Личные настройки к значениям по умолчанию (P05); включённость Telegram-уведомлений сохраняется."""
+    from config import USER_DEFAULTS, USER_RESET_KEEP
+    user = request["user"]
+    from config import merge_user_settings
+    current = merge_user_settings(user.get("settings") or {})
+    defaults = {k: (dict(v) if isinstance(v, dict) else list(v) if isinstance(v, list) else v)
+                for k, v in USER_DEFAULTS.items()}
+    defaults.update({k: current[k] for k in USER_RESET_KEEP})
+    saved = await asyncio.to_thread(replace_user_settings, user["id"], defaults)
+    return web.json_response({"status": "ok", "settings": saved})
+
 
 @routes.post("/api/me/test-telegram")
 @require_login
@@ -1832,6 +1848,67 @@ async def admin_shops_handler(request):
         "scan_state": scan_state,
     })
 
+# ===== Monitoring Center V1 (P03): только чтение, только администратор =====
+
+def _monitoring_registry():
+    return {key: (SHOP_REGISTRY[key][2], len(SHOP_REGISTRY[key][1])) for key in SHOP_REGISTRY}
+
+
+@routes.get("/monitoring")
+async def monitoring_page_handler(request):
+    # Сама страница не содержит данных; данные отдаёт /api/admin/monitoring только администратору
+    return web.FileResponse(TEMPLATES_DIR / "monitoring.html")
+
+
+@routes.get("/api/admin/monitoring")
+@require_admin
+async def monitoring_overview_handler(request):
+    import monitoring
+    settings = load_settings()
+    data = await asyncio.to_thread(monitoring.overview, _monitoring_registry(), enabled_shop_keys(settings),
+                                   dict(scan_state), get_wave_interval_seconds(settings))
+    return web.json_response(data, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
+@routes.get("/api/admin/monitoring/shop/{key}")
+@require_admin
+async def monitoring_shop_handler(request):
+    import monitoring
+    key = request.match_info["key"]
+    if key not in SHOP_REGISTRY:
+        return web.json_response({"status": "error", "message": "Неизвестный магазин"}, status=404)
+    _cls, categories, name = SHOP_REGISTRY[key]
+    data = await asyncio.to_thread(monitoring.shop_detail, key, name, categories, key in enabled_shop_keys())
+    return web.json_response(data, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
+@routes.get("/api/admin/monitoring/events")
+@require_admin
+async def monitoring_events_handler(request):
+    import monitoring
+    q = request.query
+    try:
+        limit = int(q.get("limit", 200))
+    except ValueError:
+        limit = 200
+    rows = await asyncio.to_thread(monitoring.events, q.get("component") or None, q.get("severity") or None,
+                                   q.get("type") or None, q.get("shop") or None, q.get("scan_id") or None,
+                                   limit, q.get("before") or None)
+    return web.json_response({"events": rows}, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
+@routes.get("/api/admin/monitoring/incidents")
+@require_admin
+async def monitoring_incidents_handler(request):
+    import monitoring
+    names = {name: key for key, (name, _n) in _monitoring_registry().items()}
+    rows = await asyncio.to_thread(monitoring.incidents, monitoring.INCIDENT_WINDOW_DAYS, None, names)
+    # Отдаётся ограниченное число (открытые первыми): страница не рендерит тысячи карточек
+    return web.json_response({"incidents": rows[:monitoring.INCIDENTS_LIMIT], "total": len(rows),
+                              "open_total": sum(1 for r in rows if r["open"])},
+                             dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
 @routes.post("/api/scan/shopkz-yml")
 @require_admin
 async def sync_shopkz_yml_handler(request):
@@ -1989,4 +2066,6 @@ def create_app():
         print("[Auth] ⚠️ TELEGRAM_BOT_TOKEN не задан — вход через Telegram и уведомления отключены")
     app.cleanup_ctx.append(background_tasks)
     app.add_routes(routes)
+    # Статические модули витрины (P04 U08): без листинга каталогов
+    app.router.add_static("/static/", BASE_DIR / "web" / "static", show_index=False)
     return app

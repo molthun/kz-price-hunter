@@ -1188,6 +1188,28 @@ def _alerts_cache_key(user_settings: Dict[str, Any], city, alert_type, limit):
 
 def invalidate_alerts_cache() -> None:
     _ALERTS_CACHE.clear()
+    _DEALS_TOTAL_CACHE.clear()
+
+
+# Число предложений витрины скидок по городу (P04 U01): бейдж и плитка считают тем же get_store_deals,
+# что и сама витрина (склейка по модели и магазину, арбитраж, свежесть цен), а не отдельным COUNT по products
+_DEALS_TOTAL_CACHE: Dict[Optional[str], tuple] = {}
+
+
+def store_deals_counts(city: Optional[str] = None) -> Dict[str, int]:
+    """Счётчики витрины по городу: всего предложений и разбивка по типам после склейки (P04 U01, E01)."""
+    key = city if city and city != "Все" else None
+    cached = _DEALS_TOTAL_CACHE.get(key)
+    now = time.monotonic()
+    if cached and now - cached[0] < _ALERTS_CACHE_TTL_SECONDS:
+        return cached[1]
+    counts = dict(get_store_deals(city=key, deal_type="all", limit=0)["type_totals"])
+    _DEALS_TOTAL_CACHE[key] = (now, counts)
+    return counts
+
+
+def store_deals_total(city: Optional[str] = None) -> int:
+    return store_deals_counts(city)["all"]
 
 def _alert_type_clause(alert_type: Optional[str]):
     if not alert_type:
@@ -1264,8 +1286,11 @@ def _fetch_filtered_alerts(user_settings: Dict[str, Any], city: Optional[str] = 
         _ALERTS_CACHE.clear()
     return result
 
-def get_stats(user_settings: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def get_stats(user_settings: Optional[Dict[str, Any]] = None, city: Optional[str] = None) -> Dict[str, Any]:
+    """Сводные счётчики. Акции, аномалии и арбитраж — в выбранном городе и тем же определением, что и списки
+    (P04 U01–U03); total_products — вся база (плитка «Всего товаров в базе»)."""
     settings = user_settings if user_settings is not None else merge_user_settings({})
+    city = city if city and city != "Все" else None
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM products WHERE " + active_product_clause())
@@ -1274,18 +1299,14 @@ def get_stats(user_settings: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         cursor.execute("SELECT shop, COUNT(*) as count FROM products WHERE " + active_product_clause() + " GROUP BY shop")
         shops_stats = {row["shop"]: row["count"] for row in cursor.fetchall()}
 
-        cursor.execute(f"""
-            SELECT COUNT(*) FROM products 
-            WHERE ((old_price_on_site > current_price AND current_price > 0) 
-               OR (category IN ('actions', 'Акции и распродажи') AND first_seen_price > current_price AND current_price > 0)) 
-              AND {fresh_price_clause()}
-        """)
-        total_store_deals = cursor.fetchone()[0]
+    deals_counts = store_deals_counts(city)
+    total_store_deals = deals_counts["all"]
+    # «Из них арбитраж» — из того же набора витрины, что и общее число (P04 E01), а не из ленты алертов
+    total_arbitrage = deals_counts["arbitrage"]
 
-    # Счетчики аномалий и скидок — по личным порогам пользователя (у гостей — по умолчанию)
-    visible = _fetch_filtered_alerts(settings)
+    # Счетчики аномалий и скидок — по личным порогам пользователя (у гостей — по умолчанию) и городу
+    visible = _fetch_filtered_alerts(settings, city=city)
     total_anomalies = sum(1 for a in visible if a["alert_type"] == "ZERO_GLITCH")
-    total_arbitrage = sum(1 for a in visible if a["alert_type"] in ("MARKET_ARBITRAGE", "ARBITRAGE"))
     total_alert_discounts = len(visible) - total_anomalies
 
     return {
@@ -1297,6 +1318,7 @@ def get_stats(user_settings: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         "total_store_deals": total_store_deals,
         "total_alert_discounts": total_alert_discounts,
         "shops": shops_stats,
+        "city": city or "Все",
         "db_freshness": get_db_freshness(threshold_seconds=get_scan_interval_seconds())
     }
 
@@ -1478,6 +1500,14 @@ def get_user(user_id: int) -> Optional[Dict[str, Any]]:
 def save_user_settings(user_id: int, clean_settings: Dict[str, Any]) -> Dict[str, Any]:
     user = get_user(user_id)
     merged = merge_user_settings({**user["settings"], **clean_settings})
+    with get_connection() as conn:
+        conn.execute("UPDATE users SET settings = ? WHERE id = ?", (json.dumps(merged, ensure_ascii=False), int(user_id)))
+        conn.commit()
+    return merged
+
+def replace_user_settings(user_id: int, settings: Dict[str, Any]) -> Dict[str, Any]:
+    """Полная замена личных настроек (сброс к умолчаниям), без слияния с прежними."""
+    merged = merge_user_settings(settings)
     with get_connection() as conn:
         conn.execute("UPDATE users SET settings = ? WHERE id = ?", (json.dumps(merged, ensure_ascii=False), int(user_id)))
         conn.commit()
@@ -2030,6 +2060,8 @@ def get_store_deals(
               AND a.alert_type IN ('MARKET_ARBITRAGE', 'ARBITRAGE', 'SUPER_DISCOUNT')
               AND {fresh_price_clause("p")}
               AND {fresh_benchmark_clause("a")}
+              -- цена алерта должна совпадать с текущей ценой товара, иначе он устарел (E02, как в _fetch_filtered_alerts)
+              AND p.current_price = a.new_price
         """
         a_params: List[Any] = []
         if city and city != "Все":
@@ -2071,6 +2103,7 @@ def get_store_deals(
     for s_name, count in shops_counter.most_common():
         shops_summary.append({"shop": s_name, "count": count})
 
+
     # Применение фильтров
     filtered = all_deals
     if shop and shop != "Все":
@@ -2084,10 +2117,24 @@ def get_store_deals(
         s_lower = search.lower()
         filtered = [d for d in filtered if s_lower in (d["title"] or "").lower()]
 
+    def _is_super(d):
+        return d["discount_pct"] >= 30 or d["alert_type"] == "SUPER_DISCOUNT"
+
+    def _is_arbitrage(d):
+        return d["alert_type"] in ("MARKET_ARBITRAGE", "ARBITRAGE")
+
+    # Разбивка по типам — по тому же набору после склейки и тех же фильтрах списка (город, магазин, категория,
+    # поиск), но до выбора вкладки и страницы (P04 E01): счётчик вкладки равен её же total при тех же фильтрах
+    type_totals = {
+        "all": len(filtered),
+        "super": sum(1 for d in filtered if _is_super(d)),
+        "arbitrage": sum(1 for d in filtered if _is_arbitrage(d)),
+    }
+
     if deal_type == "super":
-        filtered = [d for d in filtered if (d["discount_pct"] >= 30 or d["alert_type"] == "SUPER_DISCOUNT")]
+        filtered = [d for d in filtered if _is_super(d)]
     elif deal_type == "arbitrage":
-        filtered = [d for d in filtered if d["alert_type"] in ("MARKET_ARBITRAGE", "ARBITRAGE")]
+        filtered = [d for d in filtered if _is_arbitrage(d)]
 
     # Сортировка
     if sort_by == "savings_desc":
@@ -2104,6 +2151,7 @@ def get_store_deals(
         "deals": page_items,
         "total": total_count,
         "shops_summary": shops_summary,
+        "type_totals": type_totals,
         "offset": offset,
         "limit": limit
     }

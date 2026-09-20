@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Мониторинг — KZ Price Hunter</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: 'class', theme: { extend: { colors: { dark: { 800: '#1e293b', 900: '#0f172a', 950: '#020617' } } } } }
+  </script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .nav-scroll { scrollbar-width: none; } .nav-scroll::-webkit-scrollbar { display: none; }
+    details > summary { list-style: none; } details > summary::-webkit-details-marker { display: none; }
+  </style>
+</head>
+<body class="bg-dark-950 text-slate-200 min-h-screen">
+  <header class="sticky top-0 z-20 bg-dark-950/95 backdrop-blur border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+      <div class="min-w-0">
+        <a href="/" class="text-xs text-slate-400 hover:text-emerald-300">← KZ Price Hunter</a>
+        <h1 class="text-lg sm:text-xl font-bold text-white truncate">🩺 <span class="sm:hidden">Мониторинг</span><span class="hidden sm:inline">Центр мониторинга</span></h1>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <span id="overallBadge"></span>
+        <button id="btnRefresh" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs">Обновить</button>
+      </div>
+    </div>
+    <nav class="max-w-7xl mx-auto px-4 nav-scroll overflow-x-auto">
+      <div id="sectionNav" class="flex gap-4 text-sm whitespace-nowrap"></div>
+    </nav>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-5 space-y-5">
+    <div id="accessMessage" class="hidden p-5 rounded-2xl border border-amber-500/40 bg-amber-950/20 text-amber-200"></div>
+    <div id="generatedAt" class="text-xs text-slate-500"></div>
+    <section id="view" class="space-y-5"></section>
+  </main>
+
+  <!-- Карточка магазина -->
+  <div id="shopModal" class="hidden fixed inset-0 z-30 bg-black/70 flex items-stretch sm:items-center justify-center p-0 sm:p-6">
+    <div class="bg-dark-900 border border-slate-700 w-full max-w-5xl sm:rounded-2xl overflow-y-auto max-h-screen sm:max-h-[90vh]">
+      <div class="sticky top-0 bg-dark-900 border-b border-slate-800 px-4 py-3 flex items-center justify-between gap-3">
+        <h2 id="shopModalTitle" class="font-bold text-white truncate"></h2>
+        <button id="shopModalClose" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm shrink-0">Закрыть</button>
+      </div>
+      <div id="shopModalBody" class="p-4 space-y-4"></div>
+    </div>
+  </div>
+
+<script>
+  const STATUS = {
+    healthy:  ['В норме',      'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'],
+    limited:  ['Ограничено',   'bg-sky-500/15 text-sky-300 border-sky-500/40'],
+    degraded: ['Деградация',   'bg-amber-500/15 text-amber-300 border-amber-500/40'],
+    offline:  ['Недоступен',   'bg-rose-500/15 text-rose-300 border-rose-500/40'],
+    empty:    ['Пусто',        'bg-orange-500/15 text-orange-300 border-orange-500/40'],
+    unknown:  ['Нет данных',   'bg-slate-500/15 text-slate-300 border-slate-500/40'],
+    disabled: ['Выключен',     'bg-slate-800 text-slate-500 border-slate-700 border-dashed'],
+  };
+  const QUALITY = { ok: 'норма', warning: 'предупреждение', degraded: 'деградация', failed: 'сбой', unknown: 'нет нормы' };
+  const SECTIONS = [
+    ['overview', 'Обзор'], ['shops', 'Магазины'], ['scanning', 'Сканирование'], ['search', 'Поиск'],
+    ['ai', 'AI'], ['telegram', 'Telegram'], ['system', 'Система'], ['events', 'События'],
+  ];
+  let data = null, current = 'overview';
+
+  const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+  const pill = s => { const [label, cls] = STATUS[s] || STATUS.unknown; return `<span class="inline-block px-2 py-0.5 rounded-full border text-[11px] font-semibold whitespace-nowrap ${cls}">${label}</span>`; };
+  const num = v => (v === null || v === undefined) ? '—' : Number(v).toLocaleString('ru-RU');
+  function ago(ts) {
+    if (!ts) return 'никогда';
+    const d = new Date(String(ts).replace(' ', 'T').replace(/(\.\d{3})\d+/, '$1'));
+    if (isNaN(d)) return esc(ts);
+    const h = (Date.now() - d.getTime()) / 3600000;
+    const when = d.toLocaleString('ru-RU', {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'});
+    const rel = h < 1 ? `${Math.max(0, Math.round(h * 60))} мин назад` : h < 48 ? `${h.toFixed(h < 10 ? 1 : 0)} ч назад` : `${Math.round(h / 24)} дн назад`;
+    return `<span title="${esc(when)}">${rel}</span>`;
+  }
+  const card = (title, body, status) => `
+    <div class="p-4 rounded-2xl bg-dark-900 border border-slate-800 min-w-0">
+      <div class="flex items-center justify-between gap-2 mb-2"><h3 class="font-semibold text-white truncate">${title}</h3>${status ? pill(status) : ''}</div>
+      ${body}
+    </div>`;
+  const kv = rows => `<dl class="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 text-sm">${rows.map(([k, v]) => `<dt class="text-slate-400">${k}</dt><dd class="text-slate-200 min-w-0 break-words">${v}</dd>`).join('')}</dl>`;
+  const details = (summary, body) => `<details class="mt-2"><summary class="cursor-pointer text-xs text-emerald-300 hover:text-emerald-200">▸ ${summary}</summary><div class="mt-2">${body}</div></details>`;
+  const json = obj => `<pre class="text-[11px] bg-dark-950 border border-slate-800 rounded-lg p-2 overflow-x-auto whitespace-pre-wrap break-words">${esc(JSON.stringify(obj, null, 2))}</pre>`;
+
+  function renderNav() {
+    const sec = (data && data.sections) || {};
+    document.getElementById('sectionNav').innerHTML = SECTIONS.map(([id, label]) => {
+      const st = id === 'overview' ? (data && data.status) : (sec[id] && sec[id].status);
+      const dot = st ? `<span class="inline-block w-2 h-2 rounded-full mr-1.5 ${ {healthy: 'bg-emerald-400', limited: 'bg-sky-400', degraded: 'bg-amber-400', offline: 'bg-rose-400', empty: 'bg-orange-400', disabled: 'bg-slate-600'}[st] || 'bg-slate-400'}"></span>` : '';
+      const active = id === current ? 'text-emerald-300 border-emerald-400' : 'text-slate-400 border-transparent hover:text-slate-200';
+      return `<button data-section="${id}" class="py-2 border-b-2 ${active} flex items-center">${dot}${label}</button>`;
+    }).join('');
+  }
+
+  function shopsTable(shops) {
+    if (!shops.length) return '<p class="text-sm text-slate-500">Магазинов нет.</p>';
+    const rows = shops.map(s => `
+      <tr data-shop="${esc(s.shop_key)}" class="border-t border-slate-800 hover:bg-slate-800/40 cursor-pointer">
+        <td class="py-2 pr-3">${pill(s.status)}</td>
+        <td class="py-2 pr-3 max-w-[14rem]"><div class="font-medium text-white truncate" title="${esc(s.name)}">${esc(s.name)}</div>
+          <div class="text-[11px] text-slate-400 truncate" title="${esc(s.reason)}">${esc(s.reason)}</div></td>
+        <td class="py-2 pr-3 whitespace-nowrap">${ago(s.last_attempt_at)}</td>
+        <td class="py-2 pr-3 whitespace-nowrap">${ago(s.last_success_at)}</td>
+        <td class="py-2 pr-3 text-right">${num(s.last_items)}</td>
+        <td class="py-2 pr-3 text-right">${num(s.baseline_items)}</td>
+        <td class="py-2 pr-3">${esc(QUALITY[s.quality] || s.quality)}${s.categories_problem ? ` <span class="text-amber-300">(${s.categories_problem} кат.)</span>` : ''}</td>
+        <td class="py-2 pr-3 text-right whitespace-nowrap">${num(s.http_requests_24h)} / <span class="${s.http_errors_24h ? 'text-amber-300' : ''}">${num(s.http_errors_24h)}</span></td>
+      </tr>`).join('');
+    const cards = shops.map(s => `
+      <button data-shop="${esc(s.shop_key)}" class="w-full text-left p-3 rounded-xl bg-dark-900 border border-slate-800 hover:border-slate-600">
+        <div class="flex items-center justify-between gap-2"><span class="font-medium text-white truncate">${esc(s.name)}</span>${pill(s.status)}</div>
+        <div class="text-xs text-slate-400 mt-1 line-clamp-2">${esc(s.reason)}</div>
+        <div class="text-xs text-slate-500 mt-1">Полный обход: ${ago(s.last_success_at)} · товаров ${num(s.last_items)} · норма ${num(s.baseline_items)}</div>
+      </button>`).join('');
+    return `
+      <div class="hidden md:block overflow-x-auto rounded-2xl border border-slate-800 bg-dark-900 p-3">
+        <table class="w-full text-sm"><thead class="text-left text-xs text-slate-400"><tr>
+          <th class="pb-2 pr-3">Статус</th><th class="pb-2 pr-3">Магазин</th><th class="pb-2 pr-3">Попытка</th>
+          <th class="pb-2 pr-3">Полный обход</th><th class="pb-2 pr-3 text-right">Товаров</th><th class="pb-2 pr-3 text-right">Норма</th>
+          <th class="pb-2 pr-3">Качество</th><th class="pb-2 pr-3 text-right">HTTP 24 ч / ошибки</th></tr></thead>
+          <tbody>${rows}</tbody></table>
+      </div>
+      <div class="md:hidden space-y-2">${cards}</div>`;
+  }
+
+  function incidentPill(i) {
+    const [label, cls] = i.state === 'quiet' ? ['Затих · не подтверждено', 'bg-slate-500/15 text-slate-300 border-slate-500/40']
+      : !i.open ? ['Восстановлен', 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40']
+      : (i.severity === 'ERROR' || i.severity === 'CRITICAL') ? ['Открыт · ошибка', 'bg-rose-500/15 text-rose-300 border-rose-500/40']
+      : ['Открыт · предупреждение', 'bg-amber-500/15 text-amber-300 border-amber-500/40'];
+    return `<span class="inline-block px-2 py-0.5 rounded-full border text-[11px] font-semibold whitespace-nowrap ${cls}">${label}</span>`;
+  }
+
+  function incidentList(list) {
+    if (!list || !list.length) return '<p class="text-sm text-slate-500">Инцидентов нет.</p>';
+    return list.map(i => `
+      <div class="p-3 rounded-xl border ${i.open ? 'border-rose-500/40 bg-rose-950/10' : 'border-slate-800 bg-dark-900'}">
+        <div class="flex flex-wrap items-center gap-2">
+          ${incidentPill(i)}
+          <span class="text-sm font-medium text-white break-words">${esc(i.shop || i.component)} · ${esc(i.type)}</span>
+          <span class="text-xs text-slate-400">${i.state === 'quiet' ? 'повторов нет больше суток, восстановление не подтверждено'
+            : i.open ? 'открыт' + (i.recovery_progress ? ` · восстановлено ${num(i.recovery_progress.recovered)} из ${num(i.recovery_progress.total)}` : '')
+            : 'восстановлен ' + ago(i.recovered_at)}</span>
+        </div>
+        <div class="text-sm text-slate-200 mt-1 break-words">${esc(i.hypothesis)}</div>
+        <div class="text-xs text-slate-400 mt-1">Начало ${ago(i.first_seen)} · последнее ${ago(i.last_seen)} · ${num(i.count)} событий
+          ${i.scale.categories_count ? ` · категорий ${i.scale.categories_count}` : ''}${i.scale.hosts.length ? ` · хосты: ${esc(i.scale.hosts.join(', '))}` : ''}</div>
+        ${details('Подробнее', kv([['Признак', esc(i.signature)], ['Пример', esc(i.sample)],
+          ['Категории', esc(i.scale.categories.join(', ') || '—')], ['Обходов', num(i.scale.scans)]]))}
+      </div>`).join('');
+  }
+
+  const VIEWS = {
+    overview() {
+      const s = data.sections;
+      const cards = SECTIONS.filter(([id]) => id !== 'overview').map(([id, label]) =>
+        `<button data-section="${id}" class="text-left">${card(label, `<p class="text-sm text-slate-300 break-words">${esc(s[id].reason)}</p>`, s[id].status)}</button>`).join('');
+      const c = s.shops.counts || {};
+      const summary = Object.keys(STATUS).filter(k => c[k]).map(k => `${pill(k)} <span class="text-sm mr-3">${c[k]}</span>`).join('');
+      return `
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">${cards}</div>
+        ${card('Магазины по состоянию', `<div class="flex flex-wrap items-center gap-1">${summary || '<span class="text-sm text-slate-500">нет данных</span>'}</div>`)}
+        ${card('Открытые инциденты', incidentList(data.open_incidents))}`;
+    },
+    shops() {
+      return `<p class="text-sm text-slate-400">Нажмите на магазин — откроется карточка с категориями, HTTP, историей и событиями.</p>${shopsTable(data.shops)}`;
+    },
+    scanning() {
+      const s = data.sections.scanning, st = s.state || {};
+      const rows = (s.recent_scans || []).map(r => `<tr class="border-t border-slate-800"><td class="py-1.5 pr-3 whitespace-nowrap">${ago(r.timestamp)}</td>
+        <td class="py-1.5 pr-3">${esc(r.scan_type)}</td><td class="py-1.5 pr-3">${esc(r.outcome || '—')}</td>
+        <td class="py-1.5 pr-3 text-right">${num(r.total_scanned)}</td><td class="py-1.5 pr-3 text-right">${num(r.duration_sec)} с</td>
+        <td class="py-1.5 pr-3 text-xs text-slate-400 break-words">${esc(r.error || '')}</td></tr>`).join('');
+      return card('Планировщик', `<p class="text-sm mb-2">${esc(s.reason)}</p>` + kv([
+          ['Идёт обход', st.is_running ? `да — ${esc(st.current_shop)} / ${esc(st.current_category)} (${num(st.progress_pct)}%)` : 'нет'],
+          ['Тип', esc(st.scan_type)], ['Последнее завершение', esc(st.last_completed || '—')], ['Ошибка', esc(st.error || '—')]]) +
+          details('Волна', json(st.wave_info || {})), s.status) +
+        card('Последние обходы', rows ? `<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="text-xs text-slate-400 text-left"><tr>
+          <th class="pb-1 pr-3">Когда</th><th class="pb-1 pr-3">Тип</th><th class="pb-1 pr-3">Исход</th><th class="pb-1 pr-3 text-right">Товаров</th>
+          <th class="pb-1 pr-3 text-right">Длительность</th><th class="pb-1 pr-3">Ошибка</th></tr></thead><tbody>${rows}</tbody></table></div>`
+          : '<p class="text-sm text-slate-500">Нет завершённых обходов в журнале.</p>');
+    },
+    search() {
+      const s = data.sections.search;
+      return card('Поиск за 24 ч', `<p class="text-sm mb-2">${esc(s.reason)}</p>` + kv([
+        ['Запросов', num(s.total)], ['Ошибок', num(s.errors)], ['Ничего не найдено', num(s.not_found)],
+        ['p95 длительности', s.p95_ms == null ? '—' : num(Math.round(s.p95_ms)) + ' мс']]) +
+        details('По источникам', json(s.by_source)) + `<p class="text-xs text-slate-500 mt-2">${esc(s.note)}</p>`, s.status);
+    },
+    ai() {
+      const s = data.sections.ai;
+      return card('AI за 24 ч', `<p class="text-sm mb-2">${esc(s.reason)}</p>` + kv([
+        ['Провайдер', esc(s.provider)], ['Вызовов провайдера', num(s.calls_24h)], ['Неуспешных', num(s.errors_24h)],
+        ['Токены (вход / выход)', `${num(s.input_tokens_24h)} / ${num(s.output_tokens_24h)}`],
+        ['Сегодня / дневной лимит', `${num(s.calls_today)} / ${num(s.daily_limit)}`]]) + details('Исходы', json(s.outcomes)), s.status);
+    },
+    telegram() {
+      const s = data.sections.telegram, d = s.delivery_24h || {};
+      return card('Уведомления Telegram', `<p class="text-sm mb-2">${esc(s.reason)}</p>` + kv([
+        ['Отправлено за 24 ч', num(d.sent || 0)], ['Отменено', num(d.cancelled || 0)], ['На повтор', num(d.retry || 0)],
+        ['Постоянные ошибки', num(d.failed || 0)], ['Пауза', s.pause_seconds ? `${num(s.pause_seconds)} с` : 'нет'],
+        ['Ошибок воркера', num(s.worker_errors_24h)]]) + details('Очередь (outbox)', json(s.outbox)) +
+        `<p class="text-xs text-slate-500 mt-2">${esc(s.note)}</p>`, s.status);
+    },
+    system() {
+      const s = data.sections.system, t = s.telemetry || {};
+      const errs = (s.recent_errors || []).map(e => `<li class="break-words">${ago(e.timestamp)} · ${esc(e.component)} · ${esc(e.where)} · ${esc(e.error)}${e.route ? ' · ' + esc(e.route) : ''}</li>`).join('');
+      return card('Система', `<p class="text-sm mb-2">${esc(s.reason)}</p>` + kv([
+        ['Версия', esc(s.version)], ['Схема БД', esc(s.schema_version)], ['Python / SQLite', `${esc(s.python)} / ${esc(s.sqlite)}`],
+        ['Размер БД', num(Math.round((s.db_size_bytes || 0) / 1048576)) + ' МБ'],
+        ['Товаров (активных)', `${num(s.counts.products)} (${num(s.counts.active_products)})`],
+        ['События телеметрии', num(s.counts.telemetry_events)],
+        ['Сброс телеметрии', `${t.flusher_alive ? 'работает' : 'не запущен'} · неудач ${num(t.failed_flushes)} · отброшено событий ${num(t.dropped_events)}`]]) +
+        (errs ? details(`Системные ошибки за 24 ч (${num(s.errors_24h)})`, `<ul class="text-xs space-y-1">${errs}</ul>`) : '') +
+        `<p class="text-xs text-slate-500 mt-2">${esc(s.note)}</p>`, s.status);
+    },
+    events() {
+      return `
+        <div class="p-3 rounded-2xl bg-dark-900 border border-slate-800 flex flex-wrap gap-2 items-end text-sm">
+          <label class="flex flex-col text-xs text-slate-400">Компонент<select id="fComponent" class="mt-1 bg-dark-950 border border-slate-700 rounded-lg px-2 py-1 text-slate-200">
+            <option value="">все</option>${['scraper', 'scheduler', 'http', 'detector', 'search', 'ai', 'telegram', 'backup', 'system'].map(c => `<option>${c}</option>`).join('')}</select></label>
+          <label class="flex flex-col text-xs text-slate-400">Уровень от<select id="fSeverity" class="mt-1 bg-dark-950 border border-slate-700 rounded-lg px-2 py-1 text-slate-200">
+            <option value="">любой</option><option>WARNING</option><option>ERROR</option></select></label>
+          <label class="flex flex-col text-xs text-slate-400 grow min-w-[10rem]">Магазин<input id="fShop" class="mt-1 bg-dark-950 border border-slate-700 rounded-lg px-2 py-1 text-slate-200" placeholder="название"></label>
+          <label class="flex flex-col text-xs text-slate-400 grow min-w-[10rem]">scan_id<input id="fScan" class="mt-1 bg-dark-950 border border-slate-700 rounded-lg px-2 py-1 text-slate-200"></label>
+          <button id="btnEvents" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white">Показать</button>
+        </div>
+        <h3 class="font-semibold text-white">Инциденты за 7 дней</h3><div id="incidentList" class="space-y-2 text-slate-400 text-sm">Загрузка…</div>
+        <h3 class="font-semibold text-white">Журнал событий</h3><div id="eventList" class="space-y-1.5 text-slate-400 text-sm">Загрузка…</div>`;
+    },
+  };
+
+  function eventRows(list) {
+    if (!list.length) return '<p class="text-sm text-slate-500">Событий нет.</p>';
+    const color = {ERROR: 'text-rose-300', CRITICAL: 'text-rose-300', WARNING: 'text-amber-300'};
+    return list.map(e => `
+      <details class="p-2 rounded-lg bg-dark-900 border border-slate-800">
+        <summary class="cursor-pointer text-sm flex flex-wrap gap-x-2 min-w-0">
+          <span class="text-slate-500 whitespace-nowrap">${ago(e.timestamp)}</span>
+          <span class="${color[e.severity] || 'text-slate-400'}">${esc(e.severity)}</span>
+          <span class="text-slate-400">${esc(e.component)}/${esc(e.type)}</span>
+          <span class="text-slate-200 break-words min-w-0">${esc(e.message)}</span></summary>
+        <div class="mt-2">${kv([['Магазин', esc(e.shop || '—')], ['Категория', esc(e.category || '—')], ['scan_id', esc(e.scan_id || '—')]])}${json(e.data)}</div>
+      </details>`).join('');
+  }
+
+  async function loadEvents() {
+    const p = new URLSearchParams({limit: '150'});
+    const val = id => (document.getElementById(id) || {}).value || '';
+    if (val('fComponent')) p.set('component', val('fComponent'));
+    if (val('fSeverity')) p.set('severity', val('fSeverity'));
+    if (val('fShop')) p.set('shop', val('fShop'));
+    if (val('fScan')) p.set('scan_id', val('fScan'));
+    const [ev, inc] = await Promise.all([api('/api/admin/monitoring/events?' + p), api('/api/admin/monitoring/incidents')]);
+    if (ev) document.getElementById('eventList').innerHTML = eventRows(ev.events);
+    if (inc) document.getElementById('incidentList').innerHTML =
+      (inc.total > inc.incidents.length ? `<p class="text-xs text-slate-400">Показаны ${num(inc.incidents.length)} из ${num(inc.total)} (открытых всего ${num(inc.open_total)}), сначала открытые и свежие.</p>` : '')
+      + incidentList(inc.incidents);
+  }
+
+  async function openShop(key) {
+    const modal = document.getElementById('shopModal');
+    document.getElementById('shopModalTitle').textContent = 'Загрузка…';
+    document.getElementById('shopModalBody').innerHTML = '';
+    modal.classList.remove('hidden');
+    const d = await api('/api/admin/monitoring/shop/' + encodeURIComponent(key));
+    if (!d) return;
+    document.getElementById('shopModalTitle').innerHTML = `${esc(d.name)} ${pill(d.status)}`;
+    const sc = d.scan || {}, h = d.http || {};
+    const cats = d.categories.map(c => `<tr class="border-t border-slate-800">
+      <td class="py-1.5 pr-3 max-w-[16rem]"><div class="truncate" title="${esc(c.name)}">${esc(c.name)}</div></td>
+      <td class="py-1.5 pr-3">${esc(QUALITY[c.quality] || c.quality)}</td><td class="py-1.5 pr-3">${esc(c.kind || '—')}</td>
+      <td class="py-1.5 pr-3 text-right">${num(c.valid)}</td><td class="py-1.5 pr-3 text-right">${num(c.baseline && Math.round(c.baseline))}</td>
+      <td class="py-1.5 pr-3 text-right">${num(c.rejected)} / ${num(c.duplicates)}</td><td class="py-1.5 pr-3 whitespace-nowrap">${ago(c.finished_at)}</td>
+      <td class="py-1.5 pr-3 text-xs text-slate-400 break-words max-w-[18rem]">${esc(c.reason || '')}</td></tr>`).join('');
+    const hist = d.history.map(r => `<tr class="border-t border-slate-800"><td class="py-1 pr-3 whitespace-nowrap">${ago(r.finished_at)}</td>
+      <td class="py-1 pr-3">${esc(QUALITY[r.quality] || r.quality)}</td><td class="py-1 pr-3 text-right">${num(r.categories)}</td>
+      <td class="py-1 pr-3 text-right">${num(r.valid)}</td><td class="py-1 pr-3 text-right">${num(r.rejected)} / ${num(r.duplicates)}</td></tr>`).join('');
+    document.getElementById('shopModalBody').innerHTML = `
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <p class="text-sm text-slate-300 break-words min-w-0">${esc(d.reason)}</p>
+        <button data-scan-shop="${esc(d.shop_key)}" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs shrink-0" ${d.enabled ? '' : 'disabled title="Магазин выключен в настройках"'}>Запустить обход магазина</button>
+      </div>
+      <p id="scanShopResult" class="text-xs text-slate-400"></p>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        ${card('Обходы', kv([['Последняя попытка', ago(sc.last_attempt_at)], ['Последний полный', ago(sc.last_success_at)],
+          ['Итог', esc(sc.status || 'нет данных')], ['Товаров', num(sc.last_items)], ['Длительность', num(sc.last_duration_sec) + ' с'],
+          ['Неудач подряд', num(sc.failure_count)], ['Свежесть', esc(d.freshness.freshness)], ['Причина', esc(sc.last_error || '—')]]))}
+        ${card('HTTP за 24 ч', h.requests ? kv([['Запросов', num(h.requests)], ['Средняя задержка', num(h.avg_latency_ms) + ' мс'],
+          ['p95 (худший час)', num(Math.round(h.worst_hour_p95_ms || 0)) + ' мс'], ['Коды', esc(Object.entries(h.status_codes || {}).map(([k, v]) => `${k}: ${v}`).join(', '))],
+          ['429 / отказы по паузе', `${num(h.status_429)} / ${num(h.cooldown_rejections)}`], ['Timeout / соединение', `${num(h.timeouts)} / ${num(h.connection_errors)}`],
+          ['Хосты', esc((h.hosts || []).join(', '))]]) : '<p class="text-sm text-slate-500">Нет HTTP-запросов за 24 ч — нет данных.</p>')}
+      </div>
+      ${card(`Категории (${d.categories.length})`, `<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="text-xs text-slate-400 text-left"><tr>
+        <th class="pb-1 pr-3">Категория</th><th class="pb-1 pr-3">Качество</th><th class="pb-1 pr-3">Вид</th><th class="pb-1 pr-3 text-right">Товаров</th>
+        <th class="pb-1 pr-3 text-right">Норма</th><th class="pb-1 pr-3 text-right">Брак / повторы</th><th class="pb-1 pr-3">Когда</th><th class="pb-1 pr-3">Причина</th>
+        </tr></thead><tbody>${cats}</tbody></table></div>`)}
+      ${card('История обходов', hist ? `<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="text-xs text-slate-400 text-left"><tr>
+        <th class="pb-1 pr-3">Когда</th><th class="pb-1 pr-3">Качество</th><th class="pb-1 pr-3 text-right">Категорий</th><th class="pb-1 pr-3 text-right">Товаров</th>
+        <th class="pb-1 pr-3 text-right">Брак / повторы</th></tr></thead><tbody>${hist}</tbody></table></div>` : '<p class="text-sm text-slate-500">Истории качества пока нет.</p>')}
+      ${card('Инциденты', incidentList(d.incidents))}
+      ${card('Последние события', `<div class="space-y-1.5">${eventRows(d.events)}</div>`)}`;
+  }
+
+  // P05: запуск обхода одного магазина (перенесено из «Настроек» вместе с состоянием магазинов)
+  async function scanShop(key, btn) {
+    const out = document.getElementById('scanShopResult');
+    btn.disabled = true;
+    try {
+      const res = await fetch('/api/scan/start', {method: 'POST', headers: {'Content-Type': 'application/json'},
+                                                  body: JSON.stringify({shops: [key]})});
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.message || `HTTP ${res.status}`);
+      out.textContent = d.status === 'already_running' ? 'Обход уже выполняется — дождитесь завершения.' : 'Обход магазина запущен. Данные обновятся после его завершения.';
+    } catch (err) {
+      out.textContent = 'Не удалось запустить обход: ' + err.message;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function api(url) {
+    const res = await fetch(url, {headers: {Accept: 'application/json'}});
+    const box = document.getElementById('accessMessage');
+    if (res.status === 401 || res.status === 403) {
+      box.classList.remove('hidden');
+      box.innerHTML = res.status === 401
+        ? 'Войдите через Telegram как администратор на <a class="underline" href="/">главной странице</a>, затем вернитесь сюда.'
+        : 'Центр мониторинга доступен только администратору.';
+      document.getElementById('view').innerHTML = '';
+      return null;
+    }
+    if (!res.ok) {
+      box.classList.remove('hidden');
+      box.textContent = `Ошибка загрузки данных мониторинга (HTTP ${res.status}).`;
+      return null;
+    }
+    box.classList.add('hidden');
+    return res.json();
+  }
+
+  function render() {
+    renderNav();
+    if (!data) return;
+    document.getElementById('overallBadge').innerHTML = pill(data.status);
+    document.getElementById('generatedAt').innerHTML = 'Данные на ' + ago(data.generated_at) + '. Статус «Нет данных» означает отсутствие наблюдений, а не норму.';
+    document.getElementById('view').innerHTML = VIEWS[current]();
+    if (current === 'events') loadEvents();
+  }
+
+  async function load() {
+    const d = await api('/api/admin/monitoring');
+    if (d) { data = d; render(); }
+  }
+
+  document.addEventListener('click', e => {
+    const sec = e.target.closest('[data-section]');
+    if (sec) { current = sec.dataset.section; history.replaceState(null, '', '#' + current); render(); return; }
+    const scanBtn = e.target.closest('[data-scan-shop]');
+    if (scanBtn) { scanShop(scanBtn.dataset.scanShop, scanBtn); return; }
+    const shop = e.target.closest('[data-shop]');
+    if (shop) { openShop(shop.dataset.shop); return; }
+    if (e.target.id === 'btnEvents') loadEvents();
+    if (e.target.id === 'btnRefresh') load();
+    if (e.target.id === 'shopModalClose' || e.target.id === 'shopModal') document.getElementById('shopModal').classList.add('hidden');
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') document.getElementById('shopModal').classList.add('hidden'); });
+  const initial = location.hash.slice(1);
+  if (SECTIONS.some(([id]) => id === initial)) current = initial;
+  renderNav();
+  load();
+  setInterval(() => { if (document.visibilityState === 'visible' && document.getElementById('shopModal').classList.contains('hidden')) load(); }, 60000);
+</script>
+</body>
+</html>
