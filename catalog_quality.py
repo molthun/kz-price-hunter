@@ -90,12 +90,26 @@ def signature(title: Any) -> Dict[str, Any]:
     return {"quantity": quantity(title), "pack": pack_count(title)}
 
 
+def _spec_conflict(left_title: Any, right_title: Any) -> str:
+    """Явное противоречие характеристик: разная память, оперативная память или диагональ."""
+    left, right = specs(left_title), specs(right_title)
+    labels = {"ram_gb": "оперативная память", "storage_gb": "память", "diagonal": "диагональ"}
+    for field, label in labels.items():
+        a, b = left[field], right[field]
+        if a is not None and b is not None and a != b:
+            return f"разная {label}: {a:g} и {b:g}"
+    return ""
+
+
 def comparable(left_title: Any, right_title: Any) -> Tuple[bool, str]:
     """Можно ли сравнивать эти два предложения как один товар.
 
-    Возвращает (можно, причина). «Можно» не означает «одинаковые» — это проверка на явное противоречие
-    фасовки поверх обычного сопоставления модели.
+    Возвращает (можно, причина). «Можно» не означает «одинаковые» — это проверка на явные противоречия
+    (фасовка, упаковка, память, диагональ) поверх обычного сопоставления модели.
     """
+    spec = _spec_conflict(left_title, right_title)
+    if spec:
+        return False, spec
     left, right = signature(left_title), signature(right_title)
     lq, rq = left["quantity"], right["quantity"]
     if lq and rq:
@@ -140,9 +154,10 @@ def _human(q: Dict[str, Any]) -> str:
 # сравнивается то, что осталось. Ничего не «угадывается»: если после очистки не осталось отличительного
 # признака (цифры или бренда), товары одинаковыми не признаются.
 
-# Слова, которые описывают вид товара, а не его личность
+# Слова, которые описывают вид товара, а не его личность. «Для кошек» и «для собак» сюда НЕ входят:
+# это назначение товара, и корм для кошек не заменяет корм для собак (P09 I01).
 _GENERIC = set("""напиток вода сок молоко мука кофе чай корм шампунь порошок салфетки бумага туалетная
-влажные стиральный для кошек собак смартфон телефон мобильный ноутбук планшет телевизор монитор
+влажные стиральный смартфон телефон мобильный ноутбук планшет телевизор монитор
 приставка игровая наушники робот пылесос кабель защитное стекло чехол упаковка набор""".split())
 
 # Спецификации, которые пишут не везде и которые не меняют товар
@@ -162,13 +177,44 @@ _RE_TB = re.compile(r"\b(\d+)\s*(?:tb|тб)\b", re.IGNORECASE)
 _RE_GB = re.compile(r"\b(\d+)\s*(?:gb|гб)\b", re.IGNORECASE)
 
 
-def identity_tokens(title: Any) -> frozenset:
-    """Отличительные слова товара: без слов категории, фасовки, диагонали и мелких спецификаций."""
+def specs(title: Any) -> Dict[str, Any]:
+    """Характеристики, которые прямо названы в заголовке: память, оперативная память, диагональ.
+
+    Они не стираются из личности товара (P09 I01): 8/512 ГБ и 16/512 ГБ — разные ноутбуки, 32" и 43" —
+    разные телевизоры. Неуказанная характеристика — это «неизвестно», а не «совпадает».
+    """
     text = unicodedata.normalize("NFKC", str(title or "")).lower().replace("ё", "е")
     text = _RE_TB.sub(lambda m: f" {int(m[1]) * 1024}gb ", text)
-    text = _RE_RAM_STORAGE.sub(r" \2gb ", text)      # «8/256GB» — это память 256, оперативная не в счёт
-    text = _RE_GB.sub(r" \1gb ", text)
-    text = _RE_SCREEN.sub(" ", text)                 # диагональ пишут не везде
+    ram = storage = diagonal = None
+    ram_match = _RE_RAM_STORAGE.search(text)
+    if ram_match:
+        ram, storage = int(ram_match[1]), int(ram_match[2])
+    else:
+        # Объёмы могут стоять отдельными словами: «MacBook Air M2 8GB 256GB» — это 8 ГБ оперативной
+        # и 256 ГБ накопителя. Меньший объём считается оперативной памятью только когда их два и более.
+        capacities = sorted({int(m[1]) for m in _RE_GB.finditer(text)})
+        if capacities:
+            storage = capacities[-1]
+            ram = capacities[0] if len(capacities) > 1 else None
+    screen = _RE_SCREEN.search(text)
+    if screen:
+        try:
+            diagonal = float(re.sub(r"[^\d.,]", "", screen.group(0)).replace(",", "."))
+        except ValueError:
+            diagonal = None
+    return {"ram_gb": ram, "storage_gb": storage, "diagonal": diagonal}
+
+
+def identity_tokens(title: Any) -> frozenset:
+    """Отличительные слова товара: без слов категории, фасовки, диагонали и мелких спецификаций.
+
+    Память и диагональ здесь не участвуют — они сравниваются точно, через specs().
+    """
+    text = unicodedata.normalize("NFKC", str(title or "")).lower().replace("ё", "е")
+    text = _RE_TB.sub(lambda m: f" {int(m[1]) * 1024}gb ", text)
+    text = _RE_RAM_STORAGE.sub(" ", text)
+    text = _RE_GB.sub(" ", text)
+    text = _RE_SCREEN.sub(" ", text)
     text = _RE_QUANTITY.sub(" ", text)               # фасовка сравнивается отдельно и точно
     text = _RE_PACK.sub(" ", text)
     tokens = []
@@ -191,8 +237,15 @@ def _distinctive(tokens: frozenset) -> bool:
 
 
 def same_product(left: Any, right: Any) -> bool:
-    """Один и тот же товар: совпала модель (или отличительные слова) И не противоречит фасовка."""
+    """Один и тот же товар: нет противоречий И совпала модель (или отличительные слова).
+
+    Проверки идут в таком порядке специально (P09 I01, I02): сначала явные противоречия характеристик и
+    фасовки, затем неизвестная с одной стороны фасовка, и только потом положительное решение. Совпадение
+    по модели не разрешает сравнивать упаковку из 2 штук с одиночным товаром.
+    """
     if not comparable(left, right)[0]:
+        return False
+    if uncertain(left, right)[0]:
         return False
     from model_matching import same_model
     if same_model(left, right):
@@ -200,12 +253,7 @@ def same_product(left: Any, right: Any) -> bool:
     left_tokens, right_tokens = identity_tokens(left), identity_tokens(right)
     if not left_tokens or left_tokens != right_tokens:
         return False
-    if not _distinctive(left_tokens):
-        return False
-    # Слова совпали полностью — тогда и фасовка должна быть известна одинаковой либо не указана у обоих
-    left_sig, right_sig = signature(left), signature(right)
-    return (bool(left_sig["quantity"]) == bool(right_sig["quantity"])
-            and bool(left_sig["pack"]) == bool(right_sig["pack"]))
+    return _distinctive(left_tokens)
 
 
 def evaluate(pairs) -> Dict[str, Any]:
@@ -231,6 +279,16 @@ def evaluate(pairs) -> Dict[str, Any]:
             tn += 1
     precision = tp / (tp + fp) if (tp + fp) else 1.0
     recall = tp / (tp + fn) if (tp + fn) else 1.0
+    # Отдельный разбор по группам: опасные группы (память, диагональ, назначение, фасовка) важнее среднего
+    by_group: Dict[str, Dict[str, int]] = {}
+    for pair in pairs:
+        group = by_group.setdefault(pair.get("group", "—"), {"pairs": 0, "false_positives": 0,
+                                                             "false_negatives": 0})
+        group["pairs"] += 1
+    for pair in false_positives:
+        by_group[pair.get("group", "—")]["false_positives"] += 1
+    for pair in false_negatives:
+        by_group[pair.get("group", "—")]["false_negatives"] += 1
     return {"precision": round(precision, 4), "recall": round(recall, 4),
-            "tp": tp, "fp": fp, "tn": tn, "fn": fn,
+            "tp": tp, "fp": fp, "tn": tn, "fn": fn, "by_group": by_group,
             "false_positives": false_positives, "false_negatives": false_negatives}

@@ -6,6 +6,7 @@ import time
 from typing import List, Dict, Any, Optional, Tuple
 from config import DB_PATH, SEARCH_CACHE_TTL_SECONDS, load_settings
 from bounded_cache import BoundedTTLCache
+import contextvars
 import search_analytics
 from database import save_or_update_products_batch
 from scrapers.kaspi import KaspiScraper
@@ -478,6 +479,12 @@ def _close_scraper(scraper) -> None:
         close()
 
 
+# Итог работоспособности живых источников последнего опроса в этой задаче: пустой ответ при отказе
+# источников — не «товара нет» (P06 F03). Контекстная переменная, поэтому параллельные поиски не мешают.
+_live_health: contextvars.ContextVar[Optional[Dict[str, int]]] = contextvars.ContextVar(
+    "live_health", default=None)
+
+
 def _record_search(source: str, query: str, started: float, outcome: str, results: int,
                    analytics_source: Optional[str] = None, city_name: Optional[str] = None, **extra) -> None:
     """Событие поиска (P01: форма запроса без текста) и — только для обращения человека — агрегат аналитики (P06).
@@ -514,6 +521,11 @@ async def search_live_stores(query: str, city: str = "Астана",
     health = {"attempted": 0, "failed": 0}
     try:
         items, cached, health = await _search_live_stores(query, city)
+        collected = _live_health.get()
+        if collected is not None:
+            # Сводка снаружи узнаёт, что источники отвечали, даже если сам список пуст
+            collected["attempted"] += health["attempted"]
+            collected["failed"] += health["failed"]
         # Исход — по качеству совпадения, а не по числу строк (P06): десять чехлов на «RTX 5090» не успех.
         # Пустой ответ при сбое источников — ошибка: утверждать, что товара нет, оснований нет (F03).
         outcome = (search_analytics.ERROR if not items and health["failed"]
@@ -630,17 +642,24 @@ async def get_best_price_summary(query: str, live: bool = False, user_search: bo
     """
     started = time.monotonic()
     outcome, total = "error", 0
+    health: Dict[str, int] = {"attempted": 0, "failed": 0}
+    token = _live_health.set(health)
     try:
         result = await _get_best_price_summary(query, live=live, **kwargs)
         total = int(result.get("total_found") or 0)
-        outcome = search_analytics.classify(query, result.get("items") or [])
+        items = result.get("items") or []
+        # Пустой ответ при отказе опрошенных источников — ошибка, а не достоверное отсутствие товара (F03)
+        outcome = (search_analytics.ERROR if not items and health["failed"]
+                   else search_analytics.classify(query, items))
         return result
     finally:
+        _live_health.reset(token)
         defaults = {"only_discount": False, "exclude_accessories": True, "match_mode": "AND", "sort_by": "price_asc"}
         # Только имена применённых фильтров, без значений (ключевые слова пользователя — личные настройки)
         filters = sorted(k for k, v in kwargs.items()
                          if (k in defaults and v != defaults[k]) or (k not in defaults and v not in (None, "", [])))
         _record_search("summary", query, started, outcome, total, live=live,
+                       sources_attempted=health["attempted"], sources_failed=health["failed"],
                        analytics_source=("live" if live else "catalog") if user_search else None,
                        city_name=kwargs.get("city"), city=kwargs.get("city"), filters=filters)
 

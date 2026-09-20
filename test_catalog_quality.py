@@ -90,8 +90,39 @@ class GoldenDatasetTest(unittest.TestCase):
         self.assertLess(new_errors, old_errors)
         self.assertEqual(new_errors, 0)
 
+    def test_no_false_matches_in_any_dangerous_group(self):
+        """Отдельный отчёт по группам: в опасных группах ложных совпадений быть не должно."""
+        result = cq.evaluate(GOLDEN["pairs"])
+        dangerous = ("память", "оперативная память", "диагональ", "назначение", "фасовка", "упаковка",
+                     "sim", "вариант", "аксессуар")
+        for group in dangerous:
+            with self.subTest(group=group):
+                stats = result["by_group"].get(group)
+                if not stats:
+                    continue
+                self.assertEqual(stats["false_positives"], 0)
+
+    def test_specifications_are_compared_not_erased(self):
+        """Явно названные память, оперативная память и диагональ различают товары (аудит I01)."""
+        cases = [("Ноутбук ASUS TUF A15 8/512GB", "Ноутбук ASUS TUF A15 16/512GB"),
+                 ("Телевизор Xiaomi Mi TV 32\"", "Телевизор Xiaomi Mi TV 43\""),
+                 ("Корм Whiskas для кошек 85 г", "Корм Whiskas для собак 85 г"),
+                 ("Смартфон Samsung Galaxy A55 8/128GB", "Смартфон Samsung Galaxy A55 8/256GB")]
+        for left, right in cases:
+            with self.subTest(left=left):
+                self.assertFalse(cq.same_product(left, right))
+                self.assertFalse(cq.comparable(left, right)[0] and cq.same_product(left, right))
+        # Неуказанная характеристика — это «неизвестно», а не «совпадает»
+        self.assertTrue(cq.same_product("Монитор LG UltraGear 27GP850-B 27\"", "LG 27GP850-B UltraGear"))
+
+    def test_model_match_does_not_bypass_unknown_packaging(self):
+        """Совпавшая модель не разрешает сравнить упаковку из 2 штук с одиночным товаром (аудит I02)."""
+        self.assertFalse(cq.same_product("Apple iPhone 15 128GB 2 шт", "Apple iPhone 15 128GB"))
+        self.assertTrue(cq.uncertain("Apple iPhone 15 128GB 2 шт", "Apple iPhone 15 128GB")[0])
+        self.assertTrue(cq.same_product("Apple iPhone 15 128GB 2 шт", "Apple iPhone 15 128Gb 2 штуки"))
+
     def test_dataset_is_versioned_and_explains_itself(self):
-        self.assertGreaterEqual(GOLDEN["version"], 1)
+        self.assertGreaterEqual(GOLDEN["version"], 2)
         self.assertIn("about", GOLDEN)
         self.assertIn("known_limitations", GOLDEN)
 
@@ -168,3 +199,32 @@ class ShadowReportTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DangerousPairsInDatabaseTest(ShadowReportTest):
+    """Те же опасные пары, но через настоящий отбор конкурентов (сценарий аудита I01/I02)."""
+
+    def competitors(self, left, right, left_price=700, right_price=500):
+        self.save([
+            {"id": "L", "title": left, "price": left_price, "shop": "Arbuz", "city": "Астана",
+             "url": "https://a/l", "category": "Товары"},
+            {"id": "R", "title": right, "price": right_price, "shop": "Zeta", "city": "Астана",
+             "url": "https://z/r", "category": "Товары"},
+        ])
+        return database.find_market_comparisons(left, "Arbuz", left_price, "Астана")
+
+    def test_ram_diagonal_and_purpose_do_not_become_competitors(self):
+        cases = [("Ноутбук ASUS TUF A15 8/512GB", "Ноутбук ASUS TUF A15 16/512GB"),
+                 ("Телевизор Xiaomi Mi TV 32\"", "Телевизор Xiaomi Mi TV 43\""),
+                 ("Корм Whiskas для кошек 85 г", "Корм Whiskas для собак 85 г"),
+                 ("Apple iPhone 15 128GB 2 шт", "Apple iPhone 15 128GB")]
+        for left, right in cases:
+            with self.subTest(left=left):
+                self.tearDown()
+                self.setUp()
+                self.assertIsNone(self.competitors(left, right))
+
+    def test_identical_offers_still_find_each_other(self):
+        found = self.competitors("Телевизор Xiaomi Mi TV 43\"", "Xiaomi Mi TV 43 дюйма")
+        self.assertIsNotNone(found)
+        self.assertEqual(found["min_price"], 500)

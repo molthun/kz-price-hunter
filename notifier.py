@@ -199,6 +199,8 @@ def _deliver_watch(item, payload, counts) -> tuple:
         counts["sent"] += 1
         with get_connection() as conn:
             conn.execute("UPDATE watch_events SET status = 'sent' WHERE id = ?", (payload.get("event_id"),))
+            # Одноразовое наблюдение выключается ПОСЛЕ отправки: своё сообщение оно должно успеть доставить
+            conn.execute("UPDATE watches SET is_active = 0 WHERE id = ? AND repeat_mode = 0", (watch["id"],))
             conn.commit()
         return True, None
     if result.status == "permanent":

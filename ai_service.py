@@ -207,23 +207,35 @@ SCAN_DAILY_SHARE = 0.7
 MAX_OUTPUT_TOKENS = 8192
 
 
-def _daily_key() -> str:
-    return "ai_calls:" + time.strftime("%Y-%m-%d", time.gmtime())
+# Расход считается отдельно для людей и для фоновых задач проекта (P08 H01): исчерпанный лимит одной
+# стороны не должен закрывать доступ другой. Ключ вида ai_calls:user:2026-09-20.
+AUDIENCES = ("user", "internal")
 
 
-def ai_calls_today() -> int:
+def _daily_key(audience: str = "user") -> str:
+    side = audience if audience in AUDIENCES else "user"
+    return f"ai_calls:{side}:" + time.strftime("%Y-%m-%d", time.gmtime())
+
+
+def ai_calls_today(audience: Optional[str] = None) -> int:
+    """Вызовы за сегодня: одной стороны (user/internal) или всего, если сторона не указана."""
     from database import get_metadata
-    try:
-        return int(get_metadata(_daily_key(), "0") or 0)
-    except (TypeError, ValueError):
-        return 0
+    sides = [audience] if audience in AUDIENCES else list(AUDIENCES)
+    total = 0
+    for side in sides:
+        try:
+            total += int(get_metadata(_daily_key(side), "0") or 0)
+        except (TypeError, ValueError):
+            continue
+    return total
 
 
-def _count_ai_call() -> None:
+def _count_ai_call(audience: str = "user") -> None:
     from database import get_connection
     with get_connection() as conn:
         conn.execute("""INSERT INTO schema_metadata (name, value) VALUES (?, '1')
-                        ON CONFLICT(name) DO UPDATE SET value = CAST(value AS INTEGER) + 1""", (_daily_key(),))
+                        ON CONFLICT(name) DO UPDATE SET value = CAST(value AS INTEGER) + 1""",
+                     (_daily_key(audience),))
         # Счётчики старше 30 дней не нужны
         oldest = "ai_calls:" + time.strftime("%Y-%m-%d", time.gmtime(time.time() - 30 * 86400))
         conn.execute("DELETE FROM schema_metadata WHERE name LIKE 'ai_calls:%' AND name < ?", (oldest,))
@@ -231,8 +243,10 @@ def _count_ai_call() -> None:
 
 
 def daily_budget_allows(scan: bool = False) -> bool:
+    """Остался ли дневной лимит у своей стороны: у фоновых задач он свой и меньше (P08 H01)."""
+    audience = "internal" if scan else "user"
     limit = DAILY_AI_CALL_LIMIT * (SCAN_DAILY_SHARE if scan else 1)
-    return ai_calls_today() < limit
+    return ai_calls_today(audience) < limit
 
 
 # Итог одного вызова провайдера для телеметрии: причина сбоя и токены (если провайдер их вернул).
@@ -277,10 +291,12 @@ async def _limited_provider_call(fn, *args, scan: bool = False):
         _record_ai(provider, purpose, "skipped_busy")
         return None
     if not daily_budget_allows(scan):
-        print(f"[AI] Дневной бюджет исчерпан ({'нормализация' if scan else 'все вызовы'}), лимит {DAILY_AI_CALL_LIMIT}")
+        print(f"[AI] Дневной бюджет исчерпан ({'фоновые задачи' if scan else 'обращения людей'}), "
+              f"лимит {DAILY_AI_CALL_LIMIT}")
         _record_ai(provider, purpose, "budget_exhausted")
         return None
-    _count_ai_call()
+    # Место списания — граница провайдера: повторы и запасной провайдер тоже расходуют лимит своей стороны
+    _count_ai_call("internal" if scan else "user")
     _provider_active += 1
     info: Dict[str, Any] = {}
     token = _call_info.set(info)
@@ -689,11 +705,14 @@ async def ask_ai_consultant(
     openai_key = creds.get("openai_api_key")
     openai_base = creds.get("openai_api_base", "https://api.openai.com/v1")
 
-    res = None
-    if gemini_key:
-        res = await call_gemini_api(prompt, gemini_key)
-    if not res and openai_key:
-        res = await call_openai_api(prompt, openai_key, openai_base)
+    # Через роутер: задача «консультант» принадлежит людям, у неё свой бюджет, политика и учёт (P08 H02)
+    import ai_router
+    try:
+        routed = await ai_router.run("consultant", prompt, config=creds,
+                                     validate=lambda v: v if isinstance(v, dict) else None)
+        res = routed["result"]
+    except ai_router.AIUnavailable:
+        res = None
 
     if res and isinstance(res, dict) and isinstance(res.get("answer"), str) and res["answer"].strip():
         # Ответ AI — недоверенные данные: строгая форма и длина; карточки только из БД (M10)
@@ -828,14 +847,14 @@ async def normalize_product_titles_batch(
                        + ai_router.untrusted_block("\n".join(f"- {t}" for t in chunk), "НАЗВАНИЯ"))
         full_prompt = system_prompt + "\n\n" + user_prompt
 
-        ai_res = None
-        attempted = False
-        if creds["gemini_api_key"]:
-            ai_res = await call_gemini_api(full_prompt, creds["gemini_api_key"], scan=for_scan)
-            attempted = True
-        if not ai_res and creds["openai_api_key"]:
-            ai_res = await call_openai_api(full_prompt, creds["openai_api_key"],
-                                           creds.get("openai_api_base") or "https://api.openai.com/v1", scan=for_scan)
+        # Через роутер: у задачи «нормализация» свой бюджет, запрет запасного провайдера и учёт (P08 H02)
+        ai_res, attempted = None, False
+        try:
+            routed = await ai_router.run("normalize", full_prompt, config=creds,
+                                         validate=lambda v: v if isinstance(v, dict) and
+                                         isinstance(v.get("items"), list) else None)
+            ai_res, attempted = routed["result"], True
+        except ai_router.AIUnavailable:
             attempted = True
         calls += 1
 
@@ -944,12 +963,15 @@ async def classify_categories_batch_ai(categories: List[Dict[str, Any]]) -> Dict
   ]
 }}
 """
+        # Через роутер: у классификации категорий своя политика (фоновая задача проекта) и учёт (P08 H02)
+        import ai_router
         parsed = None
         try:
-            if gemini_key:
-                parsed = await call_gemini_api(prompt, gemini_key, timeout=10.0, scan=False)
-            elif openai_key and openai_base:
-                parsed = await call_openai_api(prompt, openai_key, openai_base, timeout=10.0, scan=False)
+            routed = await ai_router.run("category_classify", prompt, config=creds,
+                                         validate=lambda v: v if isinstance(v, dict) and "mappings" in v else None)
+            parsed = routed["result"]
+        except ai_router.AIUnavailable:
+            parsed = None
         except Exception as e:
             print(f"[AI Service] Ошибка при AI-классификации категорий: {type(e).__name__}")
 

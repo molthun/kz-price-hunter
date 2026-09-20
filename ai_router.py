@@ -115,12 +115,15 @@ def providers_for(task: str, config: Dict[str, Any]) -> list:
 
 
 def budget_allows(task: str) -> bool:
-    """Остался ли дневной бюджет вызовов у этой стороны (люди и внутренние задачи считаются отдельно)."""
+    """Остался ли дневной бюджет вызовов у этой стороны.
+
+    Люди и фоновые задачи проекта считаются раздельно (P08 H01): расход одной стороны не уменьшает
+    остаток другой, у каждой свой счётчик и свой лимит.
+    """
     import ai_service
-    limit = ai_service.DAILY_AI_CALL_LIMIT
-    if audience(task) == INTERNAL:
-        limit *= INTERNAL_BUDGET_SHARE
-    return ai_service.ai_calls_today() < limit
+    side = audience(task)
+    limit = ai_service.DAILY_AI_CALL_LIMIT * (INTERNAL_BUDGET_SHARE if side == INTERNAL else 1)
+    return ai_service.ai_calls_today(side) < limit
 
 
 async def run(task: str, prompt: str, *, deterministic: Optional[Callable[[], Any]] = None,
@@ -156,7 +159,9 @@ async def run(task: str, prompt: str, *, deterministic: Optional[Callable[[], An
     # Вызывающий может передать уже прочитанную конфигурацию — иначе читаем сами
     config = config or get_ai_config()
     enabled = config.get("enabled", config.get("ai_search_enabled", True))
-    if not enabled or not config.get("has_ai"):
+    # Вызывающий может передать урезанную конфигурацию: наличие AI тогда определяется по ключам
+    has_ai = config.get("has_ai", bool(config.get("gemini_api_key") or config.get("openai_api_key")))
+    if not enabled or not has_ai:
         record_usage(task, provider="none", model="none", outcome="disabled")
         raise AIUnavailable("AI выключен или не настроен")
     if not budget_allows(task):

@@ -646,6 +646,9 @@ def _create_schema(cursor) -> None:
         )
     """)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_watches_user ON watches(user_id, is_active)")
+    # «Сработало» — не то же самое, что «выключено человеком»: сообщение по одноразовому наблюдению
+    # ещё должно уйти, а новых срабатываний быть не должно (P07 G01)
+    _add_column(cursor, "watches", "fired_at", "TEXT")
     # Память наблюдения по каждому предложению: цена последнего отправленного сообщения не даёт
     # повторно уведомлять об одном и том же (возврат цены к прежнему значению — не новость)
     cursor.execute("""
@@ -2464,6 +2467,7 @@ def _watch_row(row) -> Dict[str, Any]:
     except ValueError:
         item["shops"] = []
     item["repeat"] = bool(item.pop("repeat_mode", 1))
+    item["fired"] = bool(item.get("fired_at"))
     return item
 
 
@@ -2577,16 +2581,24 @@ def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.dateti
         for watch in active:
             if not w.matches(watch, offer):
                 continue
+            price = int(offer.get("current_price") or 0)
+            available = 1 if offer.get("is_available", True) else 0
             with get_connection() as conn:
+                # Чтение состояния, решение и запись события — одна транзакция на запись: два
+                # одновременных обхода не создадут два сообщения об одном снижении (P07 G02)
+                conn.execute("BEGIN IMMEDIATE")
+                fresh = conn.execute("SELECT is_active, fired_at, last_sent_at, repeat_mode FROM watches "
+                                     "WHERE id = ?", (watch["id"],)).fetchone()
+                if not fresh or not fresh["is_active"] or (not fresh["repeat_mode"] and fresh["fired_at"]):
+                    conn.rollback()
+                    continue
                 state = _watch_states(conn, watch["id"], product_id)
                 triggered, reason = w.condition_met(watch, offer, state)
-                price = int(offer.get("current_price") or 0)
-                available = 1 if offer.get("is_available", True) else 0
                 if not triggered:
                     # Память обновляется всегда: следующее снижение считается от актуальной цены
                     conn.execute("""
-                        INSERT INTO watch_state (watch_id, product_id, previous_price, min_price, was_available,
-                                                 updated_at)
+                        INSERT INTO watch_state (watch_id, product_id, previous_price, min_price,
+                                                 was_available, updated_at)
                         VALUES (?, ?, ?, ?, ?, ?)
                         ON CONFLICT(watch_id, product_id) DO UPDATE SET
                             previous_price = excluded.previous_price,
@@ -2597,8 +2609,8 @@ def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.dateti
                     continue
 
                 last_sent_at = None
-                if watch.get("last_sent_at"):
-                    last_sent_at = datetime.datetime.fromisoformat(watch["last_sent_at"])
+                if fresh["last_sent_at"]:
+                    last_sent_at = datetime.datetime.fromisoformat(fresh["last_sent_at"])
                 send_now, wait_reason = w.deliver_now(watch, moment, last_sent_at)
                 deliver_after = 0.0 if send_now else w.digest_due_at(watch, moment).timestamp()
 
@@ -2610,7 +2622,8 @@ def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.dateti
                 event_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
                 payload = {"kind": "watch", "watch_id": watch["id"], "event_id": event_id,
                            "reason": reason, "price": price,
-                           "product": {k: offer.get(k) for k in ("id", "title", "shop", "city", "url", "image_url")},
+                           "product": {k: offer.get(k) for k in ("id", "title", "shop", "city", "url",
+                                                                 "image_url")},
                            "description": w.describe(watch)}
                 conn.execute("""INSERT OR IGNORE INTO notification_outbox
                                 (alert_id, user_id, payload, status, created_at, next_attempt_at)
@@ -2627,14 +2640,16 @@ def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.dateti
                         min_price = MIN(COALESCE(min_price, excluded.min_price), excluded.min_price),
                         was_available = excluded.was_available, updated_at = excluded.updated_at
                 """, (watch["id"], product_id, price, price, price or None, available, moment.isoformat()))
-                conn.execute("UPDATE watches SET last_sent_at = ? WHERE id = ?", (moment.isoformat(), watch["id"]))
-                if not watch["repeat"]:
-                    # Одноразовое наблюдение своё дело сделало и больше не тревожит
-                    conn.execute("UPDATE watches SET is_active = 0 WHERE id = ?", (watch["id"],))
-                    watch["is_active"] = 0
+                # Одноразовое наблюдение помечается сработавшим, но остаётся включённым до отправки:
+                # выключение прямо здесь отменило бы его собственное сообщение (G01)
+                conn.execute("UPDATE watches SET last_sent_at = ?, fired_at = COALESCE(fired_at, ?) "
+                             "WHERE id = ?", (moment.isoformat(), moment.isoformat(), watch["id"]))
                 conn.commit()
-                watch["last_sent_at"] = moment.isoformat()
-                queued += 1
+            watch["last_sent_at"] = moment.isoformat()
+            if not watch["repeat"]:
+                watch["fired_at"] = moment.isoformat()
+            queued += 1
+
     return queued
 
 

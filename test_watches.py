@@ -200,13 +200,16 @@ class StorageTest(unittest.TestCase):
         self.assertEqual(len(self.outbox()), 1)
 
     def test_one_shot_watch_stops_after_it_fires(self):
+        """Сработало один раз — новых сообщений нет, но само оно остаётся включённым до отправки (G01)."""
         created = self.add(repeat=False)
         database.evaluate_watches([offer(100000)])
         database.evaluate_watches([offer(90000)])
-        self.assertEqual(database.list_watches(701)[0]["is_active"], 0)
+        watch = database.list_watches(701)[0]
+        self.assertTrue(watch["fired"])
+        self.assertEqual(watch["is_active"], 1)          # иначе отменило бы собственное сообщение
         database.evaluate_watches([offer(80000)])
         self.assertEqual(len(self.outbox()), 1)
-        self.assertEqual(created["id"], database.list_watches(701)[0]["id"])
+        self.assertEqual(created["id"], watch["id"])
 
     def test_quiet_hours_delay_delivery_but_keep_the_event(self):
         self.add(quiet_from="23:00", quiet_to="08:00")
@@ -401,3 +404,79 @@ class ApiTest(unittest.IsolatedAsyncioTestCase):
             still = await (await client.get("/api/me/watches")).json()
             self.assertEqual(len(still["watches"]), 1)
             self.assertEqual((await client.delete(f"/api/me/watches/{watch_id}")).status, 200)
+
+
+class OneShotAndConcurrencyTest(DeliveryTest):
+    """Аудит G01/G02: одноразовое наблюдение доходит до человека, гонка не удваивает сообщение."""
+
+    def test_one_shot_watch_is_actually_delivered(self):
+        import notifier
+        self.add(repeat=False, quiet_from="00:00", quiet_to="00:00")
+        database.evaluate_watches([offer(100000)])
+        database.evaluate_watches([offer(90000)])
+        send = self.deliver(notifier.DeliveryResult("sent"))
+        self.assertEqual(send.call_count, 1)                       # сообщение ушло
+        self.assertEqual([q["status"] for q in self.outbox()], ["sent"])
+        watch = database.list_watches(701)[0]
+        self.assertEqual(watch["is_active"], 0)                    # и только теперь выключилось
+        database.evaluate_watches([offer(80000)])
+        self.assertEqual(len(self.outbox()), 1)                    # новых срабатываний нет
+
+    def test_one_shot_delivery_survives_a_temporary_failure(self):
+        import notifier
+        self.add(repeat=False, quiet_from="00:00", quiet_to="00:00")
+        database.evaluate_watches([offer(100000)])
+        database.evaluate_watches([offer(90000)])
+        self.deliver(notifier.DeliveryResult("retry", error="сеть недоступна"))
+        self.assertEqual([q["status"] for q in self.outbox()], ["pending"])
+        self.assertEqual(database.list_watches(701)[0]["is_active"], 1)
+        with database.get_connection() as conn:                     # время повтора наступило
+            conn.execute("UPDATE notification_outbox SET next_attempt_at = 0")
+            conn.commit()
+        send = self.deliver(notifier.DeliveryResult("sent"))        # «перезапуск» и повтор
+        self.assertEqual(send.call_count, 1)
+        self.assertEqual([q["status"] for q in self.outbox()], ["sent"])
+
+    def test_manual_switch_off_still_cancels_the_message(self):
+        import notifier
+        created = self.add(repeat=False, quiet_from="00:00", quiet_to="00:00")
+        database.evaluate_watches([offer(100000)])
+        database.evaluate_watches([offer(90000)])
+        database.update_watch(701, created["id"], {"is_active": False})
+        send = self.deliver(notifier.DeliveryResult("sent"))
+        self.assertEqual(send.call_count, 0)
+        self.assertEqual([q["status"] for q in self.outbox()], ["cancelled"])
+
+    def test_two_parallel_scans_create_one_message(self):
+        """Два обхода видят одну и ту же прежнюю цену — сообщение всё равно одно (G02)."""
+        import threading
+        self.add()
+        database.evaluate_watches([offer(100000)])
+        barrier = threading.Barrier(2)
+        original = database._watch_states
+
+        def synced(conn, watch_id, product_id):
+            state = original(conn, watch_id, product_id)
+            try:
+                barrier.wait(timeout=5)
+            except threading.BrokenBarrierError:
+                pass
+            return state
+
+        results, errors = [], []
+
+        def run():
+            try:
+                results.append(database.evaluate_watches([offer(90000)]))
+            except Exception as e:                      # занятая база — допустимый исход гонки
+                errors.append(type(e).__name__)
+
+        with patch.object(database, "_watch_states", synced):
+            threads = [threading.Thread(target=run) for _ in range(2)]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join(timeout=15)
+        self.assertEqual(len(self.outbox()), 1, f"ошибки потоков: {errors}")
+        with database.get_connection() as conn:
+            self.assertEqual(conn.execute("SELECT COUNT(*) FROM watch_events").fetchone()[0], 1)

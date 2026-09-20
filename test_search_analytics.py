@@ -335,3 +335,73 @@ class AuditFixesTest(RecordTest):
                 asyncio.run(search_engine.search_live_stores("редкий запрос", city="Астана"))
         self.assertEqual(database.search_totals(days=1)["total"], 0)
         self.assertEqual(self.stored_queries(), [])
+
+
+class LiveHealthInSummaryTest(RecordTest):
+    """F03 (повторно): отказ источников виден на настоящем пути API, а не превращается в «не найдено»."""
+
+    def summary(self, scraper_behaviour, live=True):
+        import asyncio
+        import search_engine
+
+        with patch.object(search_engine, "KaspiScraper", scraper_behaviour), \
+             patch.object(search_engine, "_close_scraper", lambda s: None), \
+             patch.object(search_engine, "load_settings",
+                          lambda: {"enabled_shops": {"kaspi": True, "fourmobile": False, "fortemarket": False}}), \
+             patch.object(search_engine, "search_in_database", return_value=[]), \
+             patch.object(search_engine, "_LIVE_CACHE", {}):
+            return asyncio.run(search_engine.get_best_price_summary(
+                "audit failure query", live=live, user_search=True, city="Астана"))
+
+    def test_total_source_failure_is_an_error(self):
+        class Boom:
+            def __init__(self, *a, **kw):
+                pass
+
+            async def search(self, query, max_items=15):
+                raise TimeoutError("источник не ответил")
+
+        for _ in range(2):
+            self.summary(Boom)
+        totals = database.search_totals(days=1)
+        self.assertEqual(totals["counts"][sa.ERROR], 2)
+        self.assertEqual(totals["counts"][sa.NOT_FOUND], 0)
+        self.assertEqual(totals["by_source"]["live"]["error"], 2)
+
+    def test_successful_empty_answer_is_not_found(self):
+        class Empty:
+            def __init__(self, *a, **kw):
+                pass
+
+            async def search(self, query, max_items=15):
+                return []
+
+        self.summary(Empty)
+        totals = database.search_totals(days=1)
+        self.assertEqual(totals["counts"][sa.NOT_FOUND], 1)
+        self.assertEqual(totals["counts"][sa.ERROR], 0)
+
+    def test_failure_is_counted_once_per_user_search(self):
+        """Единичный учёт (F04) сохраняется: вложенный живой опрос свою запись не делает."""
+        class Boom:
+            def __init__(self, *a, **kw):
+                pass
+
+            async def search(self, query, max_items=15):
+                raise TimeoutError("источник не ответил")
+
+        self.summary(Boom)
+        self.assertEqual(database.search_totals(days=1)["total"], 1)
+
+    def test_catalog_search_without_live_is_not_an_error(self):
+        class Boom:
+            def __init__(self, *a, **kw):
+                pass
+
+            async def search(self, query, max_items=15):
+                raise TimeoutError("не должен вызываться")
+
+        self.summary(Boom, live=False)
+        totals = database.search_totals(days=1)
+        self.assertEqual(totals["counts"][sa.NOT_FOUND], 1)
+        self.assertEqual(totals["by_source"]["catalog"]["not_found"], 1)

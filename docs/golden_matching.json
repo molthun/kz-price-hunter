@@ -1,7 +1,7 @@
 {
-  "version": 1,
+  "version": 2,
   "updated_at": "2026-09-20",
-  "about": "Проверочный набор для сопоставления товаров (P09). same=true — это одно и то же предложение и цены можно сравнивать; same=false — разные товары, сравнение цен обмануло бы человека. Набор версионируется: при изменении правил сначала обновляется он, потом код.",
+  "about": "Проверочный набор для сопоставления товаров (P09). same=true — это одно и то же предложение и цены можно сравнивать; same=false — разные товары, сравнение цен обмануло бы человека. Набор версионируется: при изменении правил сначала обновляется он, потом код. Версия 2: добавлены опасные пары из аудита (оперативная память, диагональ, назначение корма, упаковка).",
   "agreed_thresholds": {
     "precision": 0.99,
     "recall": 0.7,
@@ -248,6 +248,84 @@
       "right": "Смартфон Samsung Galaxy S24 256GB",
       "same": false,
       "group": "аксессуар"
+    },
+    {
+      "left": "Ноутбук ASUS TUF A15 8/512GB",
+      "right": "Ноутбук ASUS TUF A15 16/512GB",
+      "same": false,
+      "group": "оперативная память"
+    },
+    {
+      "left": "Ноутбук ASUS TUF A15 16/512GB",
+      "right": "ASUS TUF A15 16/512 GB",
+      "same": true,
+      "group": "оперативная память"
+    },
+    {
+      "left": "Телевизор Xiaomi Mi TV 32\"",
+      "right": "Телевизор Xiaomi Mi TV 43\"",
+      "same": false,
+      "group": "диагональ"
+    },
+    {
+      "left": "Телевизор Xiaomi Mi TV 43\"",
+      "right": "Xiaomi Mi TV 43 дюйма",
+      "same": true,
+      "group": "диагональ"
+    },
+    {
+      "left": "Корм Whiskas для кошек 85 г",
+      "right": "Корм Whiskas для собак 85 г",
+      "same": false,
+      "group": "назначение"
+    },
+    {
+      "left": "Корм Whiskas для кошек 85 г",
+      "right": "Whiskas для кошек 85 гр",
+      "same": true,
+      "group": "назначение"
+    },
+    {
+      "left": "Apple iPhone 15 128GB 2 шт",
+      "right": "Apple iPhone 15 128GB",
+      "same": false,
+      "group": "упаковка"
+    },
+    {
+      "left": "Смартфон Samsung Galaxy A55 8/128GB",
+      "right": "Смартфон Samsung Galaxy A55 8/256GB",
+      "same": false,
+      "group": "память"
+    },
+    {
+      "left": "Монитор Samsung Odyssey G5 27\"",
+      "right": "Монитор Samsung Odyssey G5 32\"",
+      "same": false,
+      "group": "диагональ"
+    },
+    {
+      "left": "Кофе Nescafe Gold 190 г 2 шт",
+      "right": "Кофе Nescafe Gold 190 г 3 шт",
+      "same": false,
+      "group": "упаковка"
+    },
+    {
+      "left": "Корм для собак Pedigree 85 г",
+      "right": "Корм для собак Pedigree 85 г говядина",
+      "same": false,
+      "group": "назначение"
+    },
+    {
+      "left": "Apple MacBook Air M2 8GB 256GB",
+      "right": "Apple MacBook Air M2 16GB 256GB",
+      "same": false,
+      "group": "оперативная память"
+    },
+    {
+      "left": "Apple MacBook Air M2 8GB 256GB",
+      "right": "MacBook Air M2 8 GB 256 GB",
+      "same": true,
+      "group": "оперативная память"
     }
   ],
   "known_limitations": [
