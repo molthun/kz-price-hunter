@@ -7,8 +7,9 @@ const assert=require('node:assert/strict');
  const browser=await chromium.launch({channel:'chrome',headless:true});
  const html=fs.readFileSync(path.join(__dirname,'web/templates/index.html'),'utf8');
  const statsCalls=[];
- async function open(viewport,{failLists=false}={}){
-  const page=await browser.newPage({viewport}); const errors=[];
+ async function open(viewport,{failLists=false,locale='en-US'}={}){
+  // locale по умолчанию английская: числа на странице не должны зависеть от языка браузера посетителя
+  const page=await browser.newPage({viewport,locale}); const errors=[];
   await page.addInitScript(()=>{window.tailwind={config:{}};localStorage.setItem('kz_hunter_city','Астана')});
   page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/*',async route=>{

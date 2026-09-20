@@ -2605,15 +2605,15 @@
         const anomaliesTotal = data.total_anomalies || 0;
         const arbitrageTotal = (data.total_arbitrage != null) ? data.total_arbitrage : Math.max(0, (data.total_alerts || 0) - anomaliesTotal);
 
-        document.getElementById('metricTotalProducts').innerText = (data.total_products || 0).toLocaleString();
-        document.getElementById('metricTotalAlerts').innerText = storeDeals.toLocaleString();
+        document.getElementById('metricTotalProducts').innerText = (data.total_products || 0).toLocaleString('ru-RU');
+        document.getElementById('metricTotalAlerts').innerText = storeDeals.toLocaleString('ru-RU');
         
         const mb = document.getElementById('metricAlertsBreakdown');
         if (mb) {
           // Каждый пункт не разрывается и переносится целиком (P04 U05: узкие экраны)
           // Витрина включает арбитраж: «N предложений • из них M арбитраж • K сбоев» (сбои — отдельная лента)
           mb.innerHTML = [['', storeDeals, 'предложений', 'text-rose-400'], ['из них ', arbitrageTotal, 'арбитраж', 'text-sky-300'], ['', anomaliesTotal, 'сбоев', 'text-amber-300']]
-            .map(([prefix, n, label, cls]) => `<span class="whitespace-nowrap">${prefix}<span class="${cls} font-bold">${escapeHtml(Number(n).toLocaleString())}</span> ${label}</span>`)
+            .map(([prefix, n, label, cls]) => `<span class="whitespace-nowrap">${prefix}<span class="${cls} font-bold">${escapeHtml(Number(n).toLocaleString('ru-RU'))}</span> ${label}</span>`)
             .join('<span class="text-slate-600">•</span>');
         }
 
@@ -2621,7 +2621,7 @@
         if (bAno) bAno.innerText = anomaliesTotal.toString();
 
         const bDisc = document.getElementById('badgeDiscountsCount');
-        if (bDisc) bDisc.innerText = storeDeals.toLocaleString();
+        if (bDisc) bDisc.innerText = storeDeals.toLocaleString('ru-RU');
 
         const state = data.scan_state || {};
         const freshness = data.db_freshness || {};
@@ -2945,7 +2945,7 @@
       const label = document.getElementById('labelDiscountsCount');
       if (label) {
         if (totalCount > filtered.length) {
-          label.innerText = `Показано ${filtered.length} из ${totalCount.toLocaleString()} предложений`;
+          label.innerText = `Показано ${filtered.length} из ${totalCount.toLocaleString('ru-RU')} предложений`;
         } else {
           label.innerText = `${filtered.length} предложений`;
         }
@@ -5448,7 +5448,7 @@
       });
 
       if (countBadge) {
-        countBadge.innerText = allLogsCache.length.toLocaleString();
+        countBadge.innerText = allLogsCache.length.toLocaleString('ru-RU');
       }
 
       if (filtered.length === 0) {
