@@ -182,7 +182,8 @@
         card('Последние обходы', rows ? `<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="text-xs text-slate-400 text-left"><tr>
           <th class="pb-1 pr-3">Когда</th><th class="pb-1 pr-3">Тип</th><th class="pb-1 pr-3">Исход</th><th class="pb-1 pr-3 text-right">Товаров</th>
           <th class="pb-1 pr-3 text-right">Длительность</th><th class="pb-1 pr-3">Ошибка</th></tr></thead><tbody>${rows}</tbody></table></div>`
-          : '<p class="text-sm text-slate-500">Нет завершённых обходов в журнале.</p>');
+          : '<p class="text-sm text-slate-500">Нет завершённых обходов в журнале.</p>')
+        + '<div id="schedulerShadow" class="mt-4"><p class="text-sm text-slate-500">Считаю предложения планировщика…</p></div>';
     },
     search() {
       const s = data.sections.search;
@@ -264,6 +265,34 @@
         <td class="py-1 pr-3 text-right text-slate-300">${num(q.not_found)}</td><td class="py-1 pr-3 text-right text-rose-300">${num(q.error)}</td>
         <td class="py-1 pr-3 text-right">${q.success_rate == null ? '—' : num(q.success_rate) + ' %'}</td></tr>`).join('') +
       '</tbody></table></div>';
+  }
+
+  async function loadSchedulerShadow() {
+    const box = document.getElementById('schedulerShadow');
+    if (!box) return;
+    const s = await api('/api/admin/monitoring/scheduler');
+    if (!s) { box.innerHTML = '<p class="text-sm text-rose-300">Не удалось загрузить предложения планировщика.</p>'; return; }
+    const rows = (s.plan || []).map(p => `<tr class="border-t border-slate-800">
+        <td class="py-1 pr-3">${esc(p.shop || '')}</td><td class="py-1 pr-3 break-words">${esc(p.category || '')}</td>
+        <td class="py-1 pr-3 text-right">${num(p.score)}</td>
+        <td class="py-1 pr-3">${esc(p.profile || '')}</td>
+        <td class="py-1 pr-3 text-right">${p.age_hours == null ? 'ни разу' : num(Math.round(p.age_hours)) + ' ч'}</td>
+        <td class="py-1 pr-3 break-words text-slate-400">${esc(p.reason || '')}</td></tr>`).join('');
+    const cmp = s.comparison && s.comparison.verdict;
+    box.innerHTML = card('Теневой планировщик обходов', `<p class="text-sm mb-2">${esc(s.reason)}</p>` + kv([
+        ['Источников с данными', num(s.candidates)],
+        ['Профили', Object.entries(s.profiles || {}).map(([k, v]) => `${esc(k)}: ${num(v)}`).join(' · ') || '—'],
+        ['Отложено с причиной', num((s.skipped || []).length)]]) +
+      (cmp ? kv([['Охвачено неудовлетворённого спроса против обычного порядка', num(cmp.unmet_demand_covered)],
+                 ['Охвачено ожидающих наблюдений', num(cmp.watches_covered)],
+                 ['Средний возраст данных, разница', num(cmp.avg_age_hours) + ' ч'],
+                 ['Нарушений ограничений', num(cmp.violations)]]) : '') +
+      `<p class="text-xs text-slate-500 mt-2">${esc(s.note)}</p>`, s.status)
+      + card('Что обошли бы первым', rows ? `<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="text-xs text-slate-400 text-left"><tr>
+          <th class="pb-1 pr-3">Магазин</th><th class="pb-1 pr-3">Категория</th><th class="pb-1 pr-3 text-right">Оценка</th>
+          <th class="pb-1 pr-3">Профиль</th><th class="pb-1 pr-3 text-right">Возраст</th>
+          <th class="pb-1 pr-3">Почему</th></tr></thead><tbody>${rows}</tbody></table></div>`
+        : '<p class="text-sm text-slate-500">Сейчас обновлять нечего: все источники обойдены недавно.</p>');
   }
 
   async function loadMatchingShadow() {
@@ -448,6 +477,7 @@
     if (current === 'search') loadSearchAnalytics();
     if (current === 'ai') loadAiSpending();
     if (current === 'system') loadMatchingShadow();
+    if (current === 'scanning') loadSchedulerShadow();
   }
 
   async function load() {

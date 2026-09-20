@@ -2819,3 +2819,115 @@ def matching_shadow(days: int = 7, now: Optional[datetime.datetime] = None) -> D
             "note": "«Запрещено» — разная фасовка, такие цены не сравниваются. «Не уверены» — фасовка "
                     "указана только у одного предложения, поэтому цены тоже не сравниваются: это кандидаты "
                     "на разбор моделью."}
+
+
+# ---------------------------------------------------------------------------
+# Сигналы для теневого планировщика (P10). Только чтение уже собранных данных:
+# дополнительных обходов магазинов ради планирования не делается.
+# ---------------------------------------------------------------------------
+
+def scheduler_candidates(days: int = 7, now: Optional[datetime.datetime] = None) -> List[Dict[str, Any]]:
+    """Источники (магазин + категория) с сигналами: возраст, качество, спрос, наблюдения, изменчивость цен."""
+    import scheduler_shadow as sched
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    since_day = (moment - datetime.timedelta(days=max(1, int(days)))).strftime("%Y-%m-%d")
+    since_ts = (moment - datetime.timedelta(days=max(1, int(days)))).isoformat()
+
+    candidates: Dict[tuple, Dict[str, Any]] = {}
+    with get_connection() as conn:
+        # Последний обход каждой пары «магазин + категория» и его качество
+        for row in conn.execute("""
+            SELECT s.shop_key, s.category, s.quality, s.finished_at
+            FROM source_scans s
+            JOIN (SELECT shop_key, category, MAX(id) AS last_id FROM source_scans GROUP BY shop_key, category) last
+              ON last.last_id = s.id
+        """):
+            try:
+                finished = datetime.datetime.fromisoformat(row["finished_at"])
+                if finished.tzinfo is None:
+                    finished = finished.replace(tzinfo=datetime.timezone.utc)
+                age_hours = max(0.0, (moment - finished).total_seconds() / 3600.0)
+            except (TypeError, ValueError):
+                age_hours = None
+            candidates[(row["shop_key"], row["category"])] = {
+                "shop": row["shop_key"], "category": row["category"],
+                "age_hours": age_hours, "last_quality": row["quality"],
+                "searches": 0, "unmet_searches": 0, "watches": 0, "price_changes_per_day": 0.0,
+            }
+
+        # Пауза после ошибок берётся из состояния магазина: планировщик её обязан уважать
+        retries = {r["shop_key"]: r["next_retry_at"] for r in conn.execute(
+            "SELECT shop_key, next_retry_at FROM shop_scans")}
+
+        # Спрос: запросы людей, сопоставленные с категориями по тем же правилам, что и поиск
+        demand_rows = [dict(r) for r in conn.execute(
+            "SELECT normalized_query, SUM(searches) AS searches, SUM(weak) + SUM(not_found) AS unmet "
+            "FROM search_queries WHERE bucket >= ? GROUP BY normalized_query", (since_day,))]
+
+        # Наблюдения людей: по категории напрямую, по товару и модели — через магазин товара
+        watch_rows = [dict(r) for r in conn.execute(
+            "SELECT kind, target FROM watches WHERE is_active = 1")]
+
+        # Изменчивость цен: сколько изменений цены в сутки видели у товаров этой пары
+        for row in conn.execute("""
+            SELECT p.shop AS shop, p.category AS category, COUNT(*) AS changes
+            FROM price_observations o JOIN products p ON p.id = o.product_id
+            WHERE o.observed_at >= ? GROUP BY p.shop, p.category
+        """, (since_ts,)):
+            for key, item in candidates.items():
+                if item["category"] == row["category"] or str(row["shop"] or "").lower() in str(key[0]).lower():
+                    item["price_changes_per_day"] = round(row["changes"] / max(1, int(days)), 2)
+
+    from search_engine import determine_category_and_master
+    for row in demand_rows:
+        name, _ = determine_category_and_master("", row["normalized_query"])
+        target = str(name or "").lower()
+        for item in candidates.values():
+            if target and target in str(item["category"] or "").lower():
+                item["searches"] += int(row["searches"] or 0)
+                item["unmet_searches"] += int(row["unmet"] or 0)
+
+    for row in watch_rows:
+        target = str(row["target"] or "").lower()
+        for item in candidates.values():
+            category = str(item["category"] or "").lower()
+            if row["kind"] == "category" and target and target in category:
+                item["watches"] += 1
+            elif row["kind"] in ("search", "model") and target and any(
+                    word in category for word in target.split() if len(word) > 3):
+                item["watches"] += 1
+
+    http = http_metrics_by_shop(days=days, now=moment)
+    result = []
+    for (shop_key, _category), item in candidates.items():
+        profile, why = sched.source_profile(http.get(shop_key, {}))
+        item["profile"] = profile
+        item["profile_reason"] = why
+        item["target_hours"] = sched.MIN_INTERVAL_HOURS.get(profile, 6.0)
+        retry_at = retries.get(shop_key)
+        if retry_at:
+            try:
+                moment_retry = datetime.datetime.fromtimestamp(float(retry_at), datetime.timezone.utc)
+                item["next_retry_at"] = moment_retry
+            except (TypeError, ValueError):
+                pass
+        result.append(item)
+    return result
+
+
+def http_metrics_by_shop(days: int = 7, now: Optional[datetime.datetime] = None) -> Dict[str, Dict[str, Any]]:
+    """HTTP-метрики магазина за период из агрегатов телеметрии (P01): нагрузка, ошибки, задержка."""
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    since = (moment - datetime.timedelta(days=max(1, int(days)))).strftime("%Y-%m-%d")
+    metrics: Dict[str, Dict[str, Any]] = {}
+    with get_connection() as conn:
+        for row in conn.execute("""
+            SELECT shop, SUM(total_requests) AS requests, SUM(errors) + SUM(status_5xx) AS errors,
+                   SUM(status_429) + SUM(status_4xx) AS blocked, MAX(latency_p95_ms) AS latency_p95_ms,
+                   SUM(bytes_total) AS bytes_total
+            FROM telemetry_http_aggregates
+            WHERE bucket_type = 'day' AND bucket_start >= ? AND shop != ''
+            GROUP BY shop
+        """, (since,)):
+            metrics[row["shop"]] = dict(row)
+    return metrics

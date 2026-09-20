@@ -832,3 +832,42 @@ def matching_quality(days: int = MATCHING_SHADOW_DAYS,
         status = HEALTHY
         reason = f"Не сравнивается: по разной фасовке {data['blocked']}, по неизвестной {data['uncertain']}"
     return {"status": status, "reason": reason, **data}
+
+
+SCHEDULER_SHADOW_DAYS = 7
+SCHEDULER_PLAN_LIMIT = 15
+
+
+def scheduler_suggestions(days: int = SCHEDULER_SHADOW_DAYS, limit: int = SCHEDULER_PLAN_LIMIT,
+                          now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
+    """Предложения теневого планировщика (P10): что стоило бы обойти раньше и почему.
+
+    Только чтение и счёт: обходов отсюда не запускается и ничего не меняется. Статус «неизвестно», пока
+    данных о обходах нет; «в норме», когда предложения есть или все источники свежие.
+    """
+    import database
+    import scheduler_shadow as sched
+
+    candidates = database.scheduler_candidates(days=days, now=now)
+    if not candidates:
+        return {"status": UNKNOWN, "reason": "Нет данных об обходах источников", "plan": [], "skipped": [],
+                "candidates": 0, "profiles": {}, "comparison": None, "note": "Теневой режим: ничего не меняется."}
+
+    result = sched.plan(candidates, now=now, max_sources=limit)
+    comparison = sched.compare(candidates, cycles=4, limit=max(1, min(limit, 10)), now=now)
+    profiles: Dict[str, int] = {}
+    for item in candidates:
+        profiles[item["profile"]] = profiles.get(item["profile"], 0) + 1
+    degraded = profiles.get(sched.DEGRADED, 0)
+    if degraded:
+        status = LIMITED
+        reason = f"{degraded} источников отвечают ошибками — их предлагается щадить"
+    elif result["plan"]:
+        status = HEALTHY
+        reason = f"Предложено обойти {len(result['plan'])} из {len(candidates)} источников"
+    else:
+        status = HEALTHY
+        reason = "Все источники обойдены недавно — обновлять нечего"
+    return {"status": status, "reason": reason, "candidates": len(candidates), "profiles": profiles,
+            "plan": result["plan"], "skipped": result["skipped"][:20], "comparison": comparison,
+            "note": result["note"]}
