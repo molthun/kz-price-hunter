@@ -48,11 +48,16 @@ class StoreDealsDbTest(unittest.TestCase):
                 VALUES ('p4', 'MasterOK', 'Перфоратор Makita', 'diy', 'Алматы', 'http://m/4', 20000, 40000, 40000, 20000, 40000, 0, 'makita perf')
             """)
 
-            # 5. Алерт арбитража для p1 (p1 дешевле в Технодоме)
+            # 5. То же предложение в Технодоме — оно и дешевле, алерт арбитража указывает на него.
+            # Цена алерта совпадает с текущей ценой товара: иначе алерт устарел и в витрину не идёт (P04 E02)
+            cur.execute("""
+                INSERT INTO products (id, shop, title, category, city, url, current_price, old_price_on_site, first_seen_price, min_price, max_price, is_active, canonical_key)
+                VALUES ('p5', 'Технодом', 'iPhone 15 128GB', 'smartphones', 'Алматы', 'http://t/5', 350000, 350000, 350000, 350000, 350000, 1, 'apple iphone 15 128gb')
+            """)
             # В Технодоме 350 000, в Kaspi 400 000 (выгода 50 000, 13%)
             cur.execute("""
                 INSERT INTO alerts (id, shop, city, product_id, alert_type, old_price, new_price, discount_pct, savings_kzt, competitor_shop, is_dismissed)
-                VALUES (1, 'Технодом', 'Алматы', 'p1', 'MARKET_ARBITRAGE', 400000, 350000, 13, 50000, 'Kaspi', 0)
+                VALUES (1, 'Технодом', 'Алматы', 'p5', 'MARKET_ARBITRAGE', 400000, 350000, 13, 50000, 'Kaspi', 0)
             """)
 
             # 6. Скрытый алерт (is_dismissed = 1, не должен попадать)
@@ -127,6 +132,24 @@ class StoreDealsDbTest(unittest.TestCase):
         self.assertEqual(res_price["deals"][0]["new_price"], 35000)
         self.assertEqual(res_price["deals"][1]["new_price"], 70000)
         self.assertEqual(res_price["deals"][2]["new_price"], 350000)
+
+    def test_alert_with_outdated_price_is_hidden(self):
+        """P04 E02: цена товара изменилась — старый алерт не показывается и не участвует в счётчиках."""
+        self.assertEqual(database.get_store_deals(deal_type="arbitrage")["total"], 1)
+        with database.get_connection() as conn:
+            conn.execute("UPDATE products SET current_price = 360000 WHERE id = 'p5'")
+            conn.commit()
+        result = database.get_store_deals()
+        self.assertEqual(result["total"], 2)                       # остались только p2 и p3
+        self.assertEqual(result["type_totals"]["arbitrage"], 0)
+        self.assertEqual(database.get_store_deals(deal_type="arbitrage")["total"], 0)
+
+    def test_type_totals_match_filtered_totals(self):
+        """P04 E01: разбивка по типам считается по тому же набору после склейки, что и вкладки витрины."""
+        totals = database.get_store_deals()["type_totals"]
+        self.assertEqual(totals["all"], database.get_store_deals(deal_type="all")["total"])
+        self.assertEqual(totals["super"], database.get_store_deals(deal_type="super")["total"])
+        self.assertEqual(totals["arbitrage"], database.get_store_deals(deal_type="arbitrage")["total"])
 
     def test_get_store_deals_dedup(self):
         # Добавляем алерт на тот же товар в Arbuz с меньшей выгодой (например 10 000)
