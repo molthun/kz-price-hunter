@@ -374,3 +374,89 @@ class RealPathsGoThroughRouterTest(RouterTest):
                 ai_service._count_ai_call("user")
             self.assertFalse(ai_router.budget_allows("consultant"))
             self.assertEqual(ai_service.ai_calls_today(), 17)
+
+
+class QuotaIsAtomicTest(RouterTest):
+    """H01/H03: последнюю единицу квоты получает один исполнитель, а отказ бюджета — не вызов провайдера."""
+
+    def test_two_workers_cannot_spend_the_last_unit_twice(self):
+        import asyncio
+        import threading
+        from auth import RateLimiter
+
+        transport_calls = []
+
+        async def transport(*a, **kw):
+            transport_calls.append(1)
+            return {"ok": True}
+
+        barrier = threading.Barrier(2)
+        original = ai_service.reserve_ai_call
+
+        def synced(audience="user", limit=None):
+            barrier.wait(timeout=5)          # оба исполнителя подходят к квоте одновременно
+            return original(audience, limit)
+
+        results = []
+
+        def run():
+            results.append(asyncio.run(ai_service._limited_provider_call(transport)))
+
+        with patch.object(ai_service, "DAILY_AI_CALL_LIMIT", 1), \
+             patch.object(ai_service, "_provider_limiter", RateLimiter(1000, 60)), \
+             patch.object(ai_service, "reserve_ai_call", synced):
+            threads = [threading.Thread(target=run) for _ in range(2)]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join(timeout=15)
+
+        self.assertEqual(len(transport_calls), 1, "к провайдеру должен уйти только один вызов")
+        self.assertEqual(sorted(r is None for r in results), [False, True])
+        self.assertEqual(ai_service.ai_calls_today("user"), 1)
+
+    def test_quota_refusal_is_not_a_provider_call(self):
+        """Заблокированный бюджетом запасной провайдер не считается обращением и отказом провайдера.
+
+        Подменяются только сетевые функции, поэтому квота, ограничитель и учёт работают настоящие.
+        """
+        import asyncio
+        from auth import RateLimiter
+        transports = []
+
+        async def gemini_transport(prompt, key, timeout=30):
+            transports.append("gemini")
+            return None                      # провайдер ответил отказом — это настоящий вызов
+
+        async def openai_transport(prompt, key, base, timeout=30):
+            transports.append("openai")
+            return {"ok": True}
+
+        with patch.object(ai_service, "DAILY_AI_CALL_LIMIT", 1), \
+             patch.object(ai_service, "_provider_limiter", RateLimiter(1000, 60)), \
+             patch.object(ai_service, "_scan_limiter", RateLimiter(1000, 60)), \
+             patch.object(ai_service, "_call_gemini_api", gemini_transport), \
+             patch.object(ai_service, "_call_openai_api", openai_transport), \
+             patch("config.get_ai_config", return_value=self.config):
+            with self.assertRaises(ai_router.AIUnavailable):
+                asyncio.run(ai_router.run("query_parse", "запрос"))
+
+        self.assertEqual(transports, ["gemini"], "второй провайдер не вызывался: квота уже исчерпана")
+        usage = self.usage()
+        self.assertEqual(usage["totals"]["provider_calls"], 1)
+        self.assertEqual(usage["totals"]["errors"], 1, "ошибка только у того, кто действительно ответил")
+        self.assertEqual(usage["totals"]["fallbacks"], 0)
+        self.assertIn("budget_exhausted", [row for row in self.outcomes()])
+
+    def outcomes(self):
+        with database.get_connection() as conn:
+            return [r[0] for r in conn.execute("SELECT outcome FROM ai_usage")]
+
+    def test_internal_quota_refusal_does_not_touch_the_user_quota(self):
+        with patch.object(ai_service, "DAILY_AI_CALL_LIMIT", 10):
+            for _ in range(7):
+                self.assertTrue(ai_service.reserve_ai_call("internal"))
+            self.assertFalse(ai_service.reserve_ai_call("internal"))   # 70 % от 10
+            self.assertTrue(ai_service.reserve_ai_call("user"))
+            self.assertEqual(ai_service.ai_calls_today("user"), 1)
+            self.assertEqual(ai_service.ai_calls_today("internal"), 7)

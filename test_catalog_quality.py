@@ -121,6 +121,16 @@ class GoldenDatasetTest(unittest.TestCase):
         self.assertTrue(cq.uncertain("Apple iPhone 15 128GB 2 шт", "Apple iPhone 15 128GB")[0])
         self.assertTrue(cq.same_product("Apple iPhone 15 128GB 2 шт", "Apple iPhone 15 128Gb 2 штуки"))
 
+    def test_measured_numbers_in_the_dataset_match_reality(self):
+        """Записанный в наборе замер должен воспроизводиться, иначе документация обманывает."""
+        result = cq.evaluate(GOLDEN["pairs"])
+        measured = GOLDEN["measured"]
+        self.assertEqual(result["precision"], measured["precision"])
+        self.assertEqual(round(result["recall"], 4), measured["recall"])
+        self.assertEqual((result["tp"], result["fp"], result["tn"], result["fn"]),
+                         (measured["tp"], measured["fp"], measured["tn"], measured["fn"]))
+        self.assertEqual(len(GOLDEN["known_limitations"]), result["fn"])
+
     def test_dataset_is_versioned_and_explains_itself(self):
         self.assertGreaterEqual(GOLDEN["version"], 2)
         self.assertIn("about", GOLDEN)

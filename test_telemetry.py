@@ -778,7 +778,8 @@ class AiEventTest(P0102Case):
 
         self.assertEqual(self.run_call(_call_gemini_api), {"ok": True})
         self.assertIsNone(self.run_call(_call_openai_api, scan=True))
-        with patch.object(ai_service, "daily_budget_allows", return_value=False):
+        # Квота проверяется и списывается одной операцией (P08 H01), поэтому отказ имитируется ею
+        with patch.object(ai_service, "reserve_ai_call", return_value=False):
             self.assertIsNone(self.run_call(_call_gemini_api))
         got = [(e["data"]["provider"], e["data"]["purpose"], e["data"]["outcome"], e["data"]["provider_called"])
                for e in self.events(tm.EVENT_AI_QUERY)]

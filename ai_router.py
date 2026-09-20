@@ -199,10 +199,20 @@ async def run(task: str, prompt: str, *, deterministic: Optional[Callable[[], An
         model = info.get("model") or model
 
         if data is None:
+            local_refusal = info.get("provider_called") is False
+            outcome = info.get("outcome") or "empty"
+            if local_refusal:
+                # Отказ своего бюджета или занятость — не обращение к провайдеру и не его ошибка (H03).
+                # Исчерпанная квота не лечится вторым провайдером, поэтому запасной не пробуем.
+                record_usage(task, provider="none", model="none", outcome=outcome)
+                if outcome == "budget_exhausted":
+                    raise AIUnavailable("Дневной бюджет AI исчерпан")
+                last_error = outcome
+                continue
             # Ни ответа, ни разбираемого содержимого: таймаут, отказ провайдера или не-JSON в ответе
             record_usage(task, provider=provider, model=model, outcome="error", latency_ms=latency_ms,
-                         error=last_error or info.get("outcome") or "empty", tokens=tokens)
-            last_error = last_error or info.get("outcome") or "empty"
+                         error=last_error or outcome, tokens=tokens)
+            last_error = last_error or outcome
             continue
 
         value = data

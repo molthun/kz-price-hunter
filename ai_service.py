@@ -230,6 +230,27 @@ def ai_calls_today(audience: Optional[str] = None) -> int:
     return total
 
 
+def reserve_ai_call(audience: str = "user", limit: Optional[float] = None) -> bool:
+    """Занимает единицу дневной квоты своей стороны — проверка и списание одной операцией (P08 H01).
+
+    Раздельные проверка и увеличение счётчика позволяли двум исполнителям с общей базой превысить предел:
+    оба видели свободное место. Здесь условный UPDATE выполняется в транзакции на запись, поэтому последнюю
+    единицу квоты получает ровно один.
+    """
+    from database import get_connection
+    side = audience if audience in AUDIENCES else "user"
+    cap = DAILY_AI_CALL_LIMIT * (SCAN_DAILY_SHARE if side == "internal" else 1) if limit is None else limit
+    key = _daily_key(side)
+    with get_connection() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute("INSERT OR IGNORE INTO schema_metadata (name, value) VALUES (?, '0')", (key,))
+        reserved = conn.execute(
+            "UPDATE schema_metadata SET value = CAST(value AS INTEGER) + 1 "
+            "WHERE name = ? AND CAST(value AS INTEGER) < ?", (key, cap)).rowcount
+        conn.commit()
+    return bool(reserved)
+
+
 def _count_ai_call(audience: str = "user") -> None:
     from database import get_connection
     with get_connection() as conn:
@@ -284,19 +305,29 @@ async def _limited_provider_call(fn, *args, scan: bool = False):
     global _provider_active
     provider = "gemini" if "gemini" in fn.__name__ else "openai"
     purpose = "normalize" if scan else "user"
+    def _skip(reason: str):
+        _record_ai(provider, purpose, reason)
+        sink = usage_sink.get()
+        if sink is not None:
+            # Локальный отказ (занятость, бюджет) не должен выглядеть обращением к провайдеру (H03)
+            sink.append({"provider": provider, "outcome": reason, "provider_called": False})
+        return None
+
     if scan and (_provider_active >= SCAN_MAX_ACTIVE or _scan_limiter.retry_after("scan")):
-        _record_ai(provider, purpose, "skipped_busy")
-        return None
+        return _skip("skipped_busy")
     if _provider_active >= 3 or _provider_limiter.retry_after("shared"):
-        _record_ai(provider, purpose, "skipped_busy")
-        return None
-    if not daily_budget_allows(scan):
+        return _skip("skipped_busy")
+    # Проверка и списание квоты — одна операция: два исполнителя не заберут последнюю единицу вдвоём (H01)
+    audience = "internal" if scan else "user"
+    if not reserve_ai_call(audience):
         print(f"[AI] Дневной бюджет исчерпан ({'фоновые задачи' if scan else 'обращения людей'}), "
               f"лимит {DAILY_AI_CALL_LIMIT}")
         _record_ai(provider, purpose, "budget_exhausted")
+        sink = usage_sink.get()
+        if sink is not None:
+            # Отказ своего бюджета — это не обращение к провайдеру и не его ошибка (H03)
+            sink.append({"provider": provider, "outcome": "budget_exhausted", "provider_called": False})
         return None
-    # Место списания — граница провайдера: повторы и запасной провайдер тоже расходуют лимит своей стороны
-    _count_ai_call("internal" if scan else "user")
     _provider_active += 1
     info: Dict[str, Any] = {}
     token = _call_info.set(info)
