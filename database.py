@@ -123,6 +123,136 @@ def prune_source_scans(days: Optional[int] = None) -> int:
     return deleted
 
 
+def record_search(query: str, city: Optional[str], source: str, outcome: str, results: int,
+                  now: Optional[datetime.datetime] = None) -> None:
+    """Записывает исход поиска в дневные агрегаты (P06).
+
+    Хранится только то, что нужно отчёту: день, город, источник, исход и число результатов. Кто искал —
+    не передаётся сюда вовсе. Текст запроса попадает в `search_queries` лишь начиная с третьего повтора
+    и только если не похож на личные данные.
+    """
+    import search_analytics as sa
+    if outcome not in sa.OUTCOMES:
+        raise ValueError(f"Неизвестный исход поиска: {outcome}")
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    bucket = moment.strftime("%Y-%m-%d")
+    city_name = (city or "").strip()
+    results = max(0, int(results or 0))
+
+    with get_connection() as conn:
+        conn.execute("""
+            INSERT INTO search_stats (bucket, city, source, outcome, searches, results_sum)
+            VALUES (?, ?, ?, ?, 1, ?)
+            ON CONFLICT(bucket, city, source, outcome) DO UPDATE SET
+                searches = searches + 1, results_sum = results_sum + excluded.results_sum
+        """, (bucket, city_name, source, outcome, results))
+
+        text = sa.storable_text(query)
+        if text:
+            key = sa.query_key(query, city_name)
+            conn.execute("""
+                INSERT INTO search_query_seen (query_key, seen, last_seen) VALUES (?, 1, ?)
+                ON CONFLICT(query_key) DO UPDATE SET seen = seen + 1, last_seen = excluded.last_seen
+            """, (key, moment.isoformat()))
+            seen = conn.execute("SELECT seen FROM search_query_seen WHERE query_key = ?", (key,)).fetchone()[0]
+            if seen >= sa.MIN_OCCURRENCES_TO_STORE_TEXT:
+                conn.execute(f"""
+                    INSERT INTO search_queries (bucket, normalized_query, city, searches, {outcome},
+                                                results_sum, last_seen)
+                    VALUES (?, ?, ?, 1, 1, ?, ?)
+                    ON CONFLICT(bucket, normalized_query, city) DO UPDATE SET
+                        searches = searches + 1, {outcome} = {outcome} + 1,
+                        results_sum = results_sum + excluded.results_sum, last_seen = excluded.last_seen
+                """, (bucket, text, city_name, results, moment.isoformat()))
+        conn.commit()
+
+
+def search_totals(days: int = 7, city: Optional[str] = None,
+                  now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
+    """Сводка по поиску за период: исходы, доля успеха и доля ошибок, разбивка по источникам."""
+    import search_analytics as sa
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    since = (moment - datetime.timedelta(days=max(1, int(days)))).strftime("%Y-%m-%d")
+    where, params = "bucket >= ?", [since]
+    if city and city != "Все":
+        where += " AND city = ?"
+        params.append(city)
+
+    counts = {k: 0 for k in sa.OUTCOMES}
+    by_source: Dict[str, Dict[str, Any]] = {}
+    results_sum = 0
+    with get_connection() as conn:
+        for row in conn.execute(f"SELECT source, outcome, SUM(searches) AS n, SUM(results_sum) AS r "
+                                f"FROM search_stats WHERE {where} GROUP BY source, outcome", params):
+            counts[row["outcome"]] = counts.get(row["outcome"], 0) + row["n"]
+            results_sum += row["r"] or 0
+            src = by_source.setdefault(row["source"], {k: 0 for k in sa.OUTCOMES})
+            src[row["outcome"]] = src.get(row["outcome"], 0) + row["n"]
+
+    total = sum(counts.values())
+    for src in by_source.values():
+        src["total"] = sum(src[k] for k in sa.OUTCOMES)
+        src["success_rate"] = sa.success_rate(src)
+        src["error_rate"] = sa.error_rate(src)
+    return {
+        "days": int(days),
+        "city": city or "Все",
+        "total": total,
+        "counts": counts,
+        "success_rate": sa.success_rate(counts),
+        "error_rate": sa.error_rate(counts),
+        "avg_results": round(results_sum / total, 1) if total else None,
+        "by_source": by_source,
+    }
+
+
+def search_queries(days: int = 7, outcome: Optional[str] = None, limit: int = 50,
+                   city: Optional[str] = None, now: Optional[datetime.datetime] = None) -> List[Dict[str, Any]]:
+    """Запросы с текстом (от третьего повтора): самые частые или самые проблемные за период."""
+    import search_analytics as sa
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    since = (moment - datetime.timedelta(days=max(1, int(days)))).strftime("%Y-%m-%d")
+    where, params = "bucket >= ?", [since]
+    if city and city != "Все":
+        where += " AND city = ?"
+        params.append(city)
+    # «Плохо отвечаем» — только запросы, где людям действительно нечего было показать
+    having = " HAVING bad > 0" if outcome == "bad" else ""
+    order = "bad DESC, searches DESC" if outcome == "bad" else "searches DESC"
+    if outcome in sa.OUTCOMES:
+        order = f"{outcome} DESC, searches DESC"
+
+    rows = []
+    with get_connection() as conn:
+        for row in conn.execute(f"""
+            SELECT normalized_query, city, SUM(searches) AS searches, SUM(found) AS found, SUM(weak) AS weak,
+                   SUM(not_found) AS not_found, SUM(error) AS error,
+                   SUM(weak) + SUM(not_found) AS bad, MAX(last_seen) AS last_seen
+            FROM search_queries WHERE {where}
+            GROUP BY normalized_query, city{having}
+            ORDER BY {order} LIMIT ?
+        """, params + [max(1, int(limit))]):
+            item = dict(row)
+            item["success_rate"] = sa.success_rate(item)
+            rows.append(item)
+    return rows
+
+
+def prune_search_analytics(days: Optional[int] = None,
+                           now: Optional[datetime.datetime] = None) -> int:
+    """Удаляет аналитику поиска старше срока хранения (P06: 90 дней) вместе со счётчиком повторов."""
+    import search_analytics as sa
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    cutoff_day = (moment - datetime.timedelta(days=days or sa.RETENTION_DAYS)).strftime("%Y-%m-%d")
+    cutoff_ts = (moment - datetime.timedelta(days=days or sa.RETENTION_DAYS)).isoformat()
+    with get_connection() as conn:
+        deleted = conn.execute("DELETE FROM search_stats WHERE bucket < ?", (cutoff_day,)).rowcount
+        deleted += conn.execute("DELETE FROM search_queries WHERE bucket < ?", (cutoff_day,)).rowcount
+        deleted += conn.execute("DELETE FROM search_query_seen WHERE last_seen < ?", (cutoff_ts,)).rowcount
+        conn.commit()
+    return deleted
+
+
 class ClosingConnection(sqlite3.Connection):
     def __exit__(self, exc_type, exc_value, traceback):
         try:
@@ -446,6 +576,46 @@ def _create_schema(cursor) -> None:
         )
     """)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_telemetry_http_samples ON telemetry_http_samples(bucket_type, bucket_start, host, shop)")
+
+    # Аналитика поиска (P06). Только агрегаты по дням: ни идентификатора пользователя, ни Telegram ID,
+    # ни IP, ни времени с точностью до запроса. Таблицы добавляются, существующие данные не меняются —
+    # schema_version не повышается (откат на предыдущий образ без восстановления базы).
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS search_stats (
+            bucket TEXT NOT NULL,
+            city TEXT NOT NULL DEFAULT '',
+            source TEXT NOT NULL,
+            outcome TEXT NOT NULL,
+            searches INTEGER NOT NULL DEFAULT 0,
+            results_sum INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (bucket, city, source, outcome)
+        )
+    """)
+    # Счётчик повторов по необратимому ключу: текст запроса сохраняется только начиная с третьего раза,
+    # а по ключу его не восстановить, поэтому редкие (и потому более узнаваемые) запросы текстом не хранятся
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS search_query_seen (
+            query_key TEXT PRIMARY KEY,
+            seen INTEGER NOT NULL DEFAULT 0,
+            last_seen TEXT NOT NULL
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS search_queries (
+            bucket TEXT NOT NULL,
+            normalized_query TEXT NOT NULL,
+            city TEXT NOT NULL DEFAULT '',
+            searches INTEGER NOT NULL DEFAULT 0,
+            found INTEGER NOT NULL DEFAULT 0,
+            weak INTEGER NOT NULL DEFAULT 0,
+            not_found INTEGER NOT NULL DEFAULT 0,
+            error INTEGER NOT NULL DEFAULT 0,
+            results_sum INTEGER NOT NULL DEFAULT 0,
+            last_seen TEXT NOT NULL,
+            PRIMARY KEY (bucket, normalized_query, city)
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_search_queries_bucket ON search_queries(bucket)")
 
 
 # ---------------------------------------------------------------------------

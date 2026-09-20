@@ -189,7 +189,8 @@
       return card('Поиск за 24 ч', `<p class="text-sm mb-2">${esc(s.reason)}</p>` + kv([
         ['Запросов', num(s.total)], ['Ошибок', num(s.errors)], ['Ничего не найдено', num(s.not_found)],
         ['p95 длительности', s.p95_ms == null ? '—' : num(Math.round(s.p95_ms)) + ' мс']]) +
-        details('По источникам', json(s.by_source)) + `<p class="text-xs text-slate-500 mt-2">${esc(s.note)}</p>`, s.status);
+        details('По источникам', json(s.by_source)) + `<p class="text-xs text-slate-500 mt-2">${esc(s.note)}</p>`, s.status)
+        + '<div id="searchAnalytics" class="mt-4"><p class="text-sm text-slate-500">Загружаю отчёт по поиску…</p></div>';
     },
     ai() {
       const s = data.sections.ai;
@@ -246,6 +247,41 @@
           <span class="text-slate-200 break-words min-w-0">${esc(e.message)}</span></summary>
         <div class="mt-2">${kv([['Магазин', esc(e.shop || '—')], ['Категория', esc(e.category || '—')], ['scan_id', esc(e.scan_id || '—')]])}${json(e.data)}</div>
       </details>`).join('');
+  }
+
+  function queryRows(list) {
+    if (!list || !list.length) return '<p class="text-sm text-slate-500">Запросов с сохранённым текстом пока нет.</p>';
+    return `<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="text-xs text-slate-400 text-left"><tr>
+      <th class="pb-1 pr-3">Запрос</th><th class="pb-1 pr-3">Город</th><th class="pb-1 pr-3 text-right">Поисков</th>
+      <th class="pb-1 pr-3 text-right">Нашлось</th><th class="pb-1 pr-3 text-right">Слабо</th>
+      <th class="pb-1 pr-3 text-right">Пусто</th><th class="pb-1 pr-3 text-right">Ошибок</th>
+      <th class="pb-1 pr-3 text-right">Успех</th></tr></thead><tbody>` +
+      list.map(q => `<tr class="border-t border-slate-800"><td class="py-1 pr-3 break-words">${esc(q.normalized_query)}</td>
+        <td class="py-1 pr-3 text-slate-400">${esc(q.city || 'Все')}</td><td class="py-1 pr-3 text-right">${num(q.searches)}</td>
+        <td class="py-1 pr-3 text-right text-emerald-300">${num(q.found)}</td><td class="py-1 pr-3 text-right text-amber-300">${num(q.weak)}</td>
+        <td class="py-1 pr-3 text-right text-slate-300">${num(q.not_found)}</td><td class="py-1 pr-3 text-right text-rose-300">${num(q.error)}</td>
+        <td class="py-1 pr-3 text-right">${q.success_rate == null ? '—' : num(q.success_rate) + ' %'}</td></tr>`).join('') +
+      '</tbody></table></div>';
+  }
+
+  async function loadSearchAnalytics() {
+    const box = document.getElementById('searchAnalytics');
+    if (!box) return;
+    const s = await api('/api/admin/monitoring/search');
+    if (!s) { box.innerHTML = '<p class="text-sm text-rose-300">Не удалось загрузить отчёт по поиску.</p>'; return; }
+    const c = s.counts || {};
+    box.innerHTML = card(`Качество поиска за ${num(s.days)} дн.`, `<p class="text-sm mb-2">${esc(s.reason)}</p>` + kv([
+        ['Поисков', num(s.total)],
+        ['Доля успеха', s.success_rate == null ? '—' : num(s.success_rate) + ' %'],
+        ['Доля ошибок', s.error_rate == null ? '—' : num(s.error_rate) + ' %'],
+        ['Нашлось / слабо / пусто / ошибка',
+          `${num(c.found)} / ${num(c.weak)} / ${num(c.not_found)} / ${num(c.error)}`],
+        ['Результатов в среднем', s.avg_results == null ? '—' : num(s.avg_results)]]) +
+      `<p class="text-xs text-slate-500 mt-2">${esc(s.formula)}</p>` +
+      details('По источникам', json(s.by_source)), s.status)
+      + card('Чаще всего ищут', queryRows(s.top_queries))
+      + card('Плохо отвечаем', queryRows(s.bad_queries) +
+        `<p class="text-xs text-slate-500 mt-2">${esc(s.note)}</p>`);
   }
 
   async function loadEvents() {
@@ -350,6 +386,7 @@
     document.getElementById('generatedAt').innerHTML = 'Данные на ' + ago(data.generated_at) + '. Статус «Нет данных» означает отсутствие наблюдений, а не норму.';
     document.getElementById('view').innerHTML = VIEWS[current]();
     if (current === 'events') loadEvents();
+    if (current === 'search') loadSearchAnalytics();
   }
 
   async function load() {

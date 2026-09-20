@@ -6,6 +6,7 @@ import time
 from typing import List, Dict, Any, Optional, Tuple
 from config import DB_PATH, SEARCH_CACHE_TTL_SECONDS, load_settings
 from bounded_cache import BoundedTTLCache
+import search_analytics
 from database import save_or_update_products_batch
 from scrapers.kaspi import KaspiScraper
 
@@ -478,8 +479,16 @@ def _close_scraper(scraper) -> None:
 
 
 def _record_search(source: str, query: str, started: float, outcome: str, results: int,
-                   **extra) -> None:
-    """Событие поиска: форма запроса без текста (P06), число результатов, длительность, исход (P01)."""
+                   city_name: Optional[str] = None, **extra) -> None:
+    """Событие поиска (P01: форма запроса без текста) и дневной агрегат аналитики (P06).
+
+    Обе записи fail-open: аналитика никогда не ломает и не задерживает сам поиск.
+    """
+    try:
+        import database
+        database.record_search(query, city_name, source, outcome, results)
+    except Exception:
+        pass
     try:
         from telemetry import (telemetry, query_shape, EVENT_SEARCH_QUERY, SEVERITY_INFO, SEVERITY_ERROR,
                                COMPONENT_SEARCH, MAX_SEARCH_EVENTS_PER_MINUTE)
@@ -498,11 +507,12 @@ async def search_live_stores(query: str, city: str = "Астана") -> List[Dic
     outcome, items, cached = "error", [], False
     try:
         items, cached = await _search_live_stores(query, city)
-        outcome = "found" if items else "not_found"
+        # Исход — по качеству совпадения, а не по числу строк (P06): десять чехлов на «RTX 5090» не успех
+        outcome = search_analytics.classify(query, items)
         return items
     finally:
         from offer_identity import city_config
-        _record_search("live", query, started, outcome, len(items), requested_city=city,
+        _record_search("live", query, started, outcome, len(items), city_name=city, requested_city=city,
                        city=city_config(city)["id"], cached=cached)
 
 
@@ -597,7 +607,7 @@ async def get_best_price_summary(query: str, live: bool = False, **kwargs) -> Di
     try:
         result = await _get_best_price_summary(query, live=live, **kwargs)
         total = int(result.get("total_found") or 0)
-        outcome = "found" if total else "not_found"
+        outcome = search_analytics.classify(query, result.get("items") or [])
         return result
     finally:
         defaults = {"only_discount": False, "exclude_accessories": True, "match_mode": "AND", "sort_by": "price_asc"}
@@ -605,7 +615,7 @@ async def get_best_price_summary(query: str, live: bool = False, **kwargs) -> Di
         filters = sorted(k for k, v in kwargs.items()
                          if (k in defaults and v != defaults[k]) or (k not in defaults and v not in (None, "", [])))
         _record_search("summary", query, started, outcome, total, live=live,
-                       city=kwargs.get("city"), filters=filters)
+                       city_name=kwargs.get("city"), city=kwargs.get("city"), filters=filters)
 
 
 async def _get_best_price_summary(

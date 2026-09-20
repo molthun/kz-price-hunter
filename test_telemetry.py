@@ -717,16 +717,17 @@ class CityPrivacyTest(P0102Case):
         import search_engine
 
         async def found(query, city):
-            return [{"id": 1}], True
+            # Название нужно для оценки качества совпадения (P06), город в него не входит
+            return [{"id": 1, "title": "Apple iPhone 15 128GB"}], True
 
         async def boom(query, city):
             raise RuntimeError("down")
 
         with patch.object(search_engine, "_search_live_stores", found):
-            asyncio.run(search_engine.search_live_stores("x", city=self.PII))
-            asyncio.run(search_engine.search_live_stores("x", city="Алматы"))
+            asyncio.run(search_engine.search_live_stores("iphone 15", city=self.PII))
+            asyncio.run(search_engine.search_live_stores("iphone 15", city="Алматы"))
         with patch.object(search_engine, "_search_live_stores", boom), self.assertRaises(RuntimeError):
-            asyncio.run(search_engine.search_live_stores("x", city=self.PII))
+            asyncio.run(search_engine.search_live_stores("iphone 15", city=self.PII))
         got = [(e["data"]["requested_city"], e["data"]["city"], e["data"]["outcome"], e["data"]["cached"])
                for e in self.events(tm.EVENT_SEARCH_QUERY)]
         # Неизвестный город опрашивается как Астана (city_config) — это и пишется как фактический
@@ -834,7 +835,8 @@ class SearchEventTest(P0102Case):
         import search_engine
 
         async def fake(query, live=False, **kw):
-            return {"total_found": 3}
+            # Исход поиска определяется качеством совпадения (P06), поэтому подмена отдаёт и сами товары
+            return {"total_found": 3, "items": [{"title": "Apple iPhone 15 128GB"}]}
 
         with patch.object(search_engine, "_get_best_price_summary", fake):
             asyncio.run(search_engine.get_best_price_summary(query=self.QUERY, only_discount=True, city="Астана",

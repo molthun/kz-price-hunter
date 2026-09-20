@@ -740,3 +740,52 @@ def overview(registry: Dict[str, Tuple[str, int]], enabled: Iterable[str], scan_
     }
     return {"generated_at": now.isoformat(), "status": worst(v["status"] for v in sections.values()),
             "sections": sections, "shops": shops, "open_incidents": open_incidents[:10]}
+
+
+SEARCH_ANALYTICS_DAYS = 7
+SEARCH_ANALYTICS_LIMIT = 20
+# Доля успеха ниже этой — поиск отвечает людям плохо, даже если технически работает (P06)
+SEARCH_SUCCESS_LIMITED = 60.0
+
+
+def search_analytics(days: int = SEARCH_ANALYTICS_DAYS, city: Optional[str] = None,
+                     limit: int = SEARCH_ANALYTICS_LIMIT,
+                     now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
+    """Отчёт по поиску из дневных агрегатов (P06): точные числа, а не выборка событий телеметрии.
+
+    Статус без ложного зелёного: пока поисков не было — «неизвестно». Ошибки считаются отдельно и
+    никогда не учитываются как «ничего не найдено».
+    """
+    import database
+    import search_analytics as sa
+
+    totals = database.search_totals(days=days, city=city, now=now)
+    counts = totals["counts"]
+    if not totals["total"]:
+        status, reason = UNKNOWN, f"Поисков за {days} дн. не было"
+    elif (totals["error_rate"] or 0) > ERROR_SHARE_DEGRADED * 100:
+        status, reason = DEGRADED, f"Ошибок {counts[sa.ERROR]} из {totals['total']} ({totals['error_rate']:.0f} %)"
+    elif totals["success_rate"] is not None and totals["success_rate"] < SEARCH_SUCCESS_LIMITED:
+        status, reason = LIMITED, f"Успешных ответов {totals['success_rate']:.0f} % — людям часто нечего показать"
+    else:
+        status, reason = HEALTHY, f"{totals['total']} поисков, успешных {totals['success_rate']:.0f} %"
+
+    return {
+        "status": status,
+        "reason": reason,
+        "days": days,
+        "city": totals["city"],
+        "total": totals["total"],
+        "counts": counts,
+        "success_rate": totals["success_rate"],
+        "error_rate": totals["error_rate"],
+        "avg_results": totals["avg_results"],
+        "by_source": totals["by_source"],
+        "top_queries": database.search_queries(days=days, limit=limit, city=city, now=now),
+        "bad_queries": database.search_queries(days=days, outcome="bad", limit=limit, city=city, now=now),
+        "formula": "Доля успеха = FOUND / (FOUND + WEAK + NOT_FOUND); ошибки в знаменатель не входят "
+                   "и показаны отдельной долей",
+        "note": f"Текст запроса сохраняется начиная с {sa.MIN_OCCURRENCES_TO_STORE_TEXT}-го повтора и только "
+                f"если не похож на личные данные; срок хранения {sa.RETENTION_DAYS} дн. "
+                f"Идентификаторы людей не записываются.",
+    }
