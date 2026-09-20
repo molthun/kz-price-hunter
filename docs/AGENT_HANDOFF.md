@@ -4,18 +4,14 @@
 
 ## Текущая контрольная точка
 
-- Дата: 2026-09-20 01:21, Asia/Almaty.
-- Последнее действие: Claude реализовал P05 (Settings UX) на ветке `dev/p05-settings` (поверх `dev/p04-ui-audit` →
-  `dev/p03-monitoring`), коммиты 2d756e8, 513917c. **Пачка P03 + P04 + P05 ждёт аудита Codex (завтра).**
-- Правило владельца: **без аудита ничего не пушим** (ни main, ни ветки). Всё локально, закоммичено.
-- main = v5.9.0 (P02, на проде). Локальный main впереди origin на 1 docs-коммит (0426523).
-- Тесты: Python 427 OK; frontend 7/7 PASS (Deno).
-- Пишущих исполнителей нет: Claude закончил.
-- Команда для Codex (завтра): «Прочитай AGENTS.md, docs/DEVELOPMENT_PLAN.md и docs/AGENT_HANDOFF.md. Проведи аудит
-  пачки, не меняя код: (1) точечный аудит группировки D01 P03 (коммит 7914071); (2) P04 на ветке dev/p04-ui-audit
-  (diff 142515c..f1b02c2, docs/P04_UI_DATA_ANALYSIS.md); (3) P05 на ветке dev/p05-settings (diff 82c972b..513917c,
-  карточка P05). Запиши выводы в docs/P03_AUDIT_CODEX.md, docs/P04_AUDIT_CODEX.md, docs/P05_AUDIT_CODEX.md, обнови
-  карточки и реестр.»
+- Дата: 2026-09-20 12:39, Asia/Almaty.
+- Последнее действие: Codex завершил аудит пачки на HEAD `044602a` (`dev/p05-settings`).
+  **P03 READY (D01/D02 закрыты), P05 READY по коду; P04 IN_PROGRESS — E01/E02 требуют исправлений.**
+- Отчёты: [P03](P03_AUDIT_CODEX.md), [P04](P04_AUDIT_CODEX.md), [P05](P05_AUDIT_CODEX.md).
+- Правило владельца: **без аудита ничего не пушим**. Push и выпуск не выполнялись; на проде по предыдущей передаче v5.9.0.
+- Независимые проверки Codex: Python 427 OK (33.397 с), frontend 7/7 PASS (Deno/Chrome, офлайн).
+- Пишущих исполнителей нет: аудит завершён. Следующий — Claude: исправить E01/E02 P04 и передать на повторный аудит.
+- Изменены только три отчёта аудита и этот реестр; код приложения, рабочая БД и прод не менялись.
 
 ## Реестр этапов
 
@@ -27,9 +23,9 @@
 | P00 | READY | Antigravity | Самопроверка (требует review) | Не проверен (нет прямого доступа) |
 | P01 | DEPLOYED (v5.8.0) | Antigravity → Claude | Codex: A01–A05 и B01/B02 закрыты | v5.8.0 на shop.molthun.ru с 19:41 (проверка чтением /api/version, /api/stats, /api/products) |
 | P02 | DEPLOYED (v5.9.0) | Claude | Codex: C01–C03 закрыты | v5.9.0 на shop.molthun.ru с 23:46 (проверка чтением /api/version, /api/stats, /api/best-price, /api/products) |
-| P03 | BLOCKED (аудит: Codex без лимита до завтра) | Claude | Codex: D02 закрыто; группировка D01 исправлена Claude, аудит не начат | Не выпущен |
-| P04 | HANDOFF (аудит завтра вместе с P03, без push) | Claude | Не проведён — ждёт Codex | Не выпущен |
-| P05 | HANDOFF (аудит завтра в пачке, без push) | Claude | Не проведён — ждёт Codex | Не выпущен |
+| P03 | READY (аудит кода) | Claude | Codex: D01/D02 закрыты | Не выпущен |
+| P04 | IN_PROGRESS | Claude | Codex: E01/E02 требуют исправлений | Не выпущен |
+| P05 | READY (аудит кода) | Claude | Codex: замечаний в проверенном объёме нет | Не выпущен |
 | P06 | TODO | — | Не проведён | Не проверен |
 | P07 | TODO | — | Не проведён | Не проверен |
 | P08 | TODO | — | Не проведён | Не проверен |
@@ -546,7 +542,7 @@ ID / этап: P05. Settings UX
   - Полный suite 427 OK; frontend 7/7 PASS. Браузер (стенд p02-smoke, админ): навигация, раздел «Что показывать»,
     админские блоки — 1366×768 и 390×844, горизонтальной прокрутки нет, ошибок JS нет.
 Не проведено: Docker, прод, реальная рассылка Telegram.
-Статус: HANDOFF на аудит Codex в пачке (команда — в «Текущей контрольной точке»).
+Статус: READY по аудиту кода Codex; не выпущен. См. docs/P05_AUDIT_CODEX.md.
 ```
 
 ## Карточка задачи: P04 (Claude → аудит Codex завтра)
@@ -576,7 +572,8 @@ Checkpoint 00:58: анализ завершён — docs/P04_UI_DATA_ANALYSIS.md
   390/768/1366/1920 px — горизонтальной прокрутки нет, счётчики совпадают (11 732 на стенде, Астана), 10 иконок + «+15»
   на телефоне, «Мониторинг» виден.
 Не проведено: Docker, прод. Офлайн frontend-тесты без Tailwind — геометрия проверена только в браузере.
-Статус: HANDOFF на аудит Codex (завтра). Команда: «Прочитай AGENTS.md, docs/DEVELOPMENT_PLAN.md и docs/AGENT_HANDOFF.md.
+Статус: IN_PROGRESS — аудит Codex завершён, исправить E01/E02 по docs/P04_AUDIT_CODEX.md.
+Историческая команда первого аудита: «Прочитай AGENTS.md, docs/DEVELOPMENT_PLAN.md и docs/AGENT_HANDOFF.md.
   Проведи (1) точечный аудит группировки D01 P03 (коммит 7914071) и (2) аудит P04 на ветке dev/p04-ui-audit
   (diff 142515c..f1b02c2, docs/P04_UI_DATA_ANALYSIS.md), не меняя код. Запиши выводы в docs/P03_AUDIT_CODEX.md и
   docs/P04_AUDIT_CODEX.md, обнови карточки и реестр.»
@@ -657,7 +654,7 @@ Checkpoint 00:58: анализ завершён — docs/P04_UI_DATA_ANALYSIS.md
 ```text
 ID / этап: P03. Monitoring Center V1
 Основание/поручение владельца: «Начинай P03» (2026-09-19 ~23:49).
-Статус: IN_PROGRESS — точечный аудит завершён; D02 закрыто, D01: исправить группировку ai_query по purpose.
+Статус: READY по аудиту кода Codex — D01/D02 закрыты; не выпущен.
 Исполнитель: Claude, начало 2026-09-19 23:50 Asia/Almaty.
 Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-hunter / dev/p03-monitoring / 0426523 (main, v5.9.0 + docs).
 Чужие изменения до начала: нет.
