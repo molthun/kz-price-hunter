@@ -197,7 +197,8 @@
       return card('AI за 24 ч', `<p class="text-sm mb-2">${esc(s.reason)}</p>` + kv([
         ['Провайдер', esc(s.provider)], ['Вызовов провайдера', num(s.calls_24h)], ['Неуспешных', num(s.errors_24h)],
         ['Токены (вход / выход)', `${num(s.input_tokens_24h)} / ${num(s.output_tokens_24h)}`],
-        ['Сегодня / дневной лимит', `${num(s.calls_today)} / ${num(s.daily_limit)}`]]) + details('Исходы', json(s.outcomes)), s.status);
+        ['Сегодня / дневной лимит', `${num(s.calls_today)} / ${num(s.daily_limit)}`]]) + details('Исходы', json(s.outcomes)), s.status)
+        + '<div id="aiSpending" class="mt-4"><p class="text-sm text-slate-500">Загружаю расходы AI…</p></div>';
     },
     telegram() {
       const s = data.sections.telegram, d = s.delivery_24h || {};
@@ -262,6 +263,43 @@
         <td class="py-1 pr-3 text-right text-slate-300">${num(q.not_found)}</td><td class="py-1 pr-3 text-right text-rose-300">${num(q.error)}</td>
         <td class="py-1 pr-3 text-right">${q.success_rate == null ? '—' : num(q.success_rate) + ' %'}</td></tr>`).join('') +
       '</tbody></table></div>';
+  }
+
+  async function loadAiSpending() {
+    const box = document.getElementById('aiSpending');
+    if (!box) return;
+    const s = await api('/api/admin/monitoring/ai-usage');
+    if (!s) { box.innerHTML = '<p class="text-sm text-rose-300">Не удалось загрузить расходы AI.</p>'; return; }
+    const t = s.totals || {};
+    const taskRows = Object.entries(s.by_task || {}).map(([task, v]) => `<tr class="border-t border-slate-800">
+        <td class="py-1 pr-3">${esc(task)}</td><td class="py-1 pr-3 text-slate-400">${v.audience === 'user' ? 'люди' : 'проект'}</td>
+        <td class="py-1 pr-3 text-right">${num(v.requests)}</td><td class="py-1 pr-3 text-right">${num(v.provider_calls)}</td>
+        <td class="py-1 pr-3 text-right text-emerald-300">${num(v.cache_hits)}</td>
+        <td class="py-1 pr-3 text-right text-amber-300">${num(v.fallbacks)}</td>
+        <td class="py-1 pr-3 text-right text-rose-300">${num(v.errors)}</td>
+        <td class="py-1 pr-3 text-right">${v.avg_latency_ms == null ? '—' : num(Math.round(v.avg_latency_ms)) + ' мс'}</td></tr>`).join('');
+    const modelRows = Object.entries(s.by_model || {}).map(([model, v]) => `<tr class="border-t border-slate-800">
+        <td class="py-1 pr-3 break-words">${esc(model)}</td><td class="py-1 pr-3 text-right">${num(v.requests)}</td>
+        <td class="py-1 pr-3 text-right">${num(v.input_tokens)}</td><td class="py-1 pr-3 text-right">${num(v.output_tokens)}</td>
+        <td class="py-1 pr-3 text-right">${s.cost_known ? '$' + (v.cost_usd || 0).toFixed(4) : '—'}</td></tr>`).join('');
+    box.innerHTML = card(`Расходы AI за ${num(s.days)} дн.`, `<p class="text-sm mb-2">${esc(s.reason)}</p>` + kv([
+        ['Задач всего', num(t.requests)], ['Вызовов провайдера', num(t.provider_calls)],
+        ['Решено без модели', num(t.deterministic)], ['Из кэша', num(t.cache_hits)],
+        ['Переходов на запасного', num(t.fallbacks)], ['Ошибок', num(t.errors)],
+        ['Токены (вход / выход)', `${num(t.input_tokens)} / ${num(t.output_tokens)}`],
+        ['Деньги', s.cost_known ? '$' + num((t.cost_usd || 0).toFixed(4)) : 'цены моделей не заданы']]) +
+      `<p class="text-xs text-slate-500 mt-2">${esc(s.note)}</p>`, s.status)
+      + card('По задачам', taskRows ? `<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="text-xs text-slate-400 text-left"><tr>
+          <th class="pb-1 pr-3">Задача</th><th class="pb-1 pr-3">Чья</th><th class="pb-1 pr-3 text-right">Всего</th>
+          <th class="pb-1 pr-3 text-right">К провайдеру</th><th class="pb-1 pr-3 text-right">Из кэша</th>
+          <th class="pb-1 pr-3 text-right">Запасной</th><th class="pb-1 pr-3 text-right">Ошибки</th>
+          <th class="pb-1 pr-3 text-right">Задержка</th></tr></thead><tbody>${taskRows}</tbody></table></div>`
+        : '<p class="text-sm text-slate-500">Обращений не было.</p>')
+      + card('По моделям', modelRows ? `<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="text-xs text-slate-400 text-left"><tr>
+          <th class="pb-1 pr-3">Модель</th><th class="pb-1 pr-3 text-right">Вызовов</th>
+          <th class="pb-1 pr-3 text-right">Токены входа</th><th class="pb-1 pr-3 text-right">Токены ответа</th>
+          <th class="pb-1 pr-3 text-right">Деньги</th></tr></thead><tbody>${modelRows}</tbody></table></div>`
+        : '<p class="text-sm text-slate-500">Вызовов провайдера не было.</p>');
   }
 
   async function loadSearchAnalytics() {
@@ -387,6 +425,7 @@
     document.getElementById('view').innerHTML = VIEWS[current]();
     if (current === 'events') loadEvents();
     if (current === 'search') loadSearchAnalytics();
+    if (current === 'ai') loadAiSpending();
   }
 
   async function load() {

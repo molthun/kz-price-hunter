@@ -789,3 +789,26 @@ def search_analytics(days: int = SEARCH_ANALYTICS_DAYS, city: Optional[str] = No
                 f"если не похож на личные данные; срок хранения {sa.RETENTION_DAYS} дн. "
                 f"Идентификаторы людей не записываются.",
     }
+
+
+AI_USAGE_DAYS = 7
+
+
+def ai_spending(days: int = AI_USAGE_DAYS, now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
+    """Расходы AI по задачам и моделям (P08): вызовы, токены, деньги, кэш, переходы на запасной провайдер.
+
+    Статус без ложного зелёного: нет обращений — «неизвестно». Если цены моделей не заданы, отчёт прямо
+    говорит, что расход в деньгах показан не полностью, вместо того чтобы показать убедительный ноль.
+    """
+    import database
+    data = database.ai_usage(days=days, now=now)
+    totals = data["totals"]
+    if not totals["requests"]:
+        status, reason = UNKNOWN, f"Обращений к AI за {days} дн. не было"
+    elif totals["provider_calls"] and totals["errors"] / max(1, totals["provider_calls"]) > ERROR_SHARE_DEGRADED:
+        status, reason = DEGRADED, f"Ошибок {totals['errors']} из {totals['provider_calls']} вызовов"
+    else:
+        saved = totals["deterministic"] + totals["cache_hits"]
+        status, reason = HEALTHY, (f"{totals['provider_calls']} вызовов провайдера"
+                                   + (f", {saved} задач решено без модели" if saved else ""))
+    return {"status": status, "reason": reason, **data}

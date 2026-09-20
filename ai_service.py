@@ -156,15 +156,14 @@ async def parse_natural_query(query: str, current_city: str = "Все", force: b
 }}
 """
 
-    parsed_result = None
-
-    # 1. Попытка через Google Gemini REST API (основной быстрый бесплатный провайдер)
-    if gemini_key:
-        parsed_result = await call_gemini_api(prompt, gemini_key, timeout=SEARCH_TIMEOUT_SECONDS)
-
-    # 2. Fallback на OpenAI-совместимый API, если Gemini нет или не ответил
-    if not parsed_result and openai_key:
-        parsed_result = await call_openai_api(prompt, openai_key, openai_base, timeout=SEARCH_TIMEOUT_SECONDS)
+    # Провайдер, запасной провайдер, бюджет и учёт — по политике задачи «разбор запроса» (P08)
+    import ai_router
+    try:
+        routed = await ai_router.run("query_parse", prompt, config=creds,
+                                     validate=lambda value: value if isinstance(value, dict) else None)
+        parsed_result = routed["result"]
+    except ai_router.AIUnavailable:
+        parsed_result = None
 
     if parsed_result:
         # Валидация и очистка полей
@@ -240,6 +239,10 @@ def daily_budget_allows(scan: bool = False) -> bool:
 # Задаётся внутри _call_*_api в той же задаче, читается в _limited_provider_call (P01).
 _call_info: contextvars.ContextVar[Optional[Dict[str, Any]]] = contextvars.ContextVar("ai_call_info", default=None)
 
+# Куда маршрутизатор задач (P08) собирает итоги вызовов: список, выставленный вызывающей задачей.
+# Контекстная переменная, поэтому параллельные задачи не перемешивают свои записи.
+usage_sink: contextvars.ContextVar[Optional[list]] = contextvars.ContextVar("ai_usage_sink", default=None)
+
 
 def _note_call(**fields) -> None:
     info = _call_info.get()
@@ -291,7 +294,11 @@ async def _limited_provider_call(fn, *args, scan: bool = False):
         _provider_active -= 1
         outcome = "ok" if result is not None else info.pop("failure", None) or "empty"
         info.pop("failure", None)
-        _record_ai(provider, purpose, outcome, (time.monotonic() - started) * 1000.0, info)
+        duration_ms = (time.monotonic() - started) * 1000.0
+        _record_ai(provider, purpose, outcome, duration_ms, info)
+        sink = usage_sink.get()
+        if sink is not None:
+            sink.append({"provider": provider, "outcome": outcome, "duration_ms": duration_ms, **info})
 
 
 async def call_gemini_api(prompt: str, api_key: str, *, timeout: float = DEFAULT_TIMEOUT_SECONDS, scan: bool = False):
@@ -814,7 +821,11 @@ async def normalize_product_titles_batch(
         if max_ai_calls is not None and calls >= max_ai_calls:
             break
         chunk = missing_for_ai[i:i + 20]
-        user_prompt = "Нормализуй следующие товары:\n" + "\n".join(f"- {t}" for t in chunk)
+        # Названия приходят с сайтов магазинов: в них может оказаться текст, адресованный модели.
+        # Поэтому они вставляются как размеченный блок данных, а не как часть указаний (P08).
+        import ai_router
+        user_prompt = ("Нормализуй товары, перечисленные в блоке данных ниже.\n"
+                       + ai_router.untrusted_block("\n".join(f"- {t}" for t in chunk), "НАЗВАНИЯ"))
         full_prompt = system_prompt + "\n\n" + user_prompt
 
         ai_res = None

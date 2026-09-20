@@ -674,6 +674,29 @@ def _create_schema(cursor) -> None:
     """)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_watch_events_watch ON watch_events(watch_id, status)")
 
+    # Учёт AI по задачам и моделям (P08). Стоимость хранится только когда администратор задал цены,
+    # иначе остаётся NULL — «не задано» честнее выдуманной цифры. Таблица добавляется, schema_version тот же.
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS ai_usage (
+            day TEXT NOT NULL,
+            task TEXT NOT NULL,
+            audience TEXT NOT NULL,
+            provider TEXT NOT NULL,
+            model TEXT NOT NULL,
+            outcome TEXT NOT NULL,
+            requests INTEGER NOT NULL DEFAULT 0,
+            input_tokens INTEGER NOT NULL DEFAULT 0,
+            output_tokens INTEGER NOT NULL DEFAULT 0,
+            cost_usd REAL,
+            latency_sum_ms REAL NOT NULL DEFAULT 0,
+            cache_hits INTEGER NOT NULL DEFAULT 0,
+            fallbacks INTEGER NOT NULL DEFAULT 0,
+            errors INTEGER NOT NULL DEFAULT 0,
+            last_error TEXT,
+            PRIMARY KEY (day, task, provider, model, outcome)
+        )
+    """)
+
 
 # ---------------------------------------------------------------------------
 # Пронумерованные миграции данных. Каждая выполняется один раз, в своей транзакции;
@@ -2609,3 +2632,104 @@ def watch_events(user_id: int, limit: int = 50) -> List[Dict[str, Any]]:
             FROM watch_events e JOIN watches w ON w.id = e.watch_id
             WHERE w.user_id = ? ORDER BY e.id DESC LIMIT ?
         """, (int(user_id), max(1, int(limit))))]
+
+
+# ---------------------------------------------------------------------------
+# Учёт AI (P08): сколько вызовов, токенов и денег ушло на какую задачу.
+# ---------------------------------------------------------------------------
+
+def record_ai_usage(task: str, audience: str, provider: str, model: str, outcome: str,
+                    input_tokens: int = 0, output_tokens: int = 0, cost: Optional[float] = None,
+                    latency_ms: float = 0.0, error: Optional[str] = None,
+                    cache_hit: bool = False, fallback: bool = False,
+                    now: Optional[datetime.datetime] = None) -> None:
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    day = moment.strftime("%Y-%m-%d")
+    with get_connection() as conn:
+        conn.execute("""
+            INSERT INTO ai_usage (day, task, audience, provider, model, outcome, requests, input_tokens,
+                                  output_tokens, cost_usd, latency_sum_ms, cache_hits, fallbacks, errors, last_error)
+            VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(day, task, provider, model, outcome) DO UPDATE SET
+                requests = requests + 1,
+                input_tokens = input_tokens + excluded.input_tokens,
+                output_tokens = output_tokens + excluded.output_tokens,
+                cost_usd = CASE WHEN excluded.cost_usd IS NULL THEN cost_usd
+                                ELSE COALESCE(cost_usd, 0) + excluded.cost_usd END,
+                latency_sum_ms = latency_sum_ms + excluded.latency_sum_ms,
+                cache_hits = cache_hits + excluded.cache_hits,
+                fallbacks = fallbacks + excluded.fallbacks,
+                errors = errors + excluded.errors,
+                last_error = COALESCE(excluded.last_error, last_error)
+        """, (day, task, audience, provider, model, outcome, int(input_tokens or 0), int(output_tokens or 0),
+              cost, float(latency_ms or 0.0), 1 if cache_hit else 0, 1 if fallback else 0,
+              1 if outcome in ("error", "bad_response") else 0, error))
+        conn.commit()
+
+
+def ai_usage(days: int = 7, now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
+    """Сводка расходов AI за период: по задачам и по моделям, с честной пометкой о неизвестной цене."""
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    since = (moment - datetime.timedelta(days=max(1, int(days)))).strftime("%Y-%m-%d")
+    totals = {"requests": 0, "provider_calls": 0, "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0,
+              "cache_hits": 0, "fallbacks": 0, "errors": 0, "deterministic": 0}
+    by_task: Dict[str, Dict[str, Any]] = {}
+    by_model: Dict[str, Dict[str, Any]] = {}
+    priced = True
+    with get_connection() as conn:
+        for row in conn.execute("SELECT * FROM ai_usage WHERE day >= ?", (since,)):
+            item = dict(row)
+            totals["requests"] += item["requests"]
+            totals["input_tokens"] += item["input_tokens"]
+            totals["output_tokens"] += item["output_tokens"]
+            totals["cache_hits"] += item["cache_hits"]
+            totals["fallbacks"] += item["fallbacks"]
+            totals["errors"] += item["errors"]
+            if item["provider"] not in ("none", "cache"):
+                totals["provider_calls"] += item["requests"]
+                if item["cost_usd"] is None and item["input_tokens"] + item["output_tokens"]:
+                    priced = False
+            if item["outcome"] == "deterministic":
+                totals["deterministic"] += item["requests"]
+            totals["cost_usd"] += item["cost_usd"] or 0.0
+
+            task = by_task.setdefault(item["task"], {"audience": item["audience"], "requests": 0,
+                                                     "provider_calls": 0, "errors": 0, "cache_hits": 0,
+                                                     "fallbacks": 0, "cost_usd": 0.0, "latency_sum_ms": 0.0})
+            task["requests"] += item["requests"]
+            task["errors"] += item["errors"]
+            task["cache_hits"] += item["cache_hits"]
+            task["fallbacks"] += item["fallbacks"]
+            task["cost_usd"] += item["cost_usd"] or 0.0
+            task["latency_sum_ms"] += item["latency_sum_ms"]
+            if item["provider"] not in ("none", "cache"):
+                task["provider_calls"] += item["requests"]
+
+            if item["provider"] in ("none", "cache"):
+                continue
+            model = by_model.setdefault(f'{item["provider"]}/{item["model"]}',
+                                        {"requests": 0, "input_tokens": 0, "output_tokens": 0,
+                                         "cost_usd": 0.0, "errors": 0})
+            model["requests"] += item["requests"]
+            model["input_tokens"] += item["input_tokens"]
+            model["output_tokens"] += item["output_tokens"]
+            model["cost_usd"] += item["cost_usd"] or 0.0
+            model["errors"] += item["errors"]
+
+    for task in by_task.values():
+        task["avg_latency_ms"] = round(task["latency_sum_ms"] / task["provider_calls"], 1) if task["provider_calls"] else None
+        task.pop("latency_sum_ms")
+    totals["cost_usd"] = round(totals["cost_usd"], 4)
+    return {"days": int(days), "totals": totals, "by_task": by_task, "by_model": by_model,
+            "cost_known": priced,
+            "note": ("Стоимость посчитана по ценам, заданным администратором." if priced else
+                     "Цены части моделей не заданы — стоимость показана не полностью.")}
+
+
+def prune_ai_usage(days: int = 365, now: Optional[datetime.datetime] = None) -> int:
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    cutoff = (moment - datetime.timedelta(days=days)).strftime("%Y-%m-%d")
+    with get_connection() as conn:
+        deleted = conn.execute("DELETE FROM ai_usage WHERE day < ?", (cutoff,)).rowcount
+        conn.commit()
+    return deleted
