@@ -871,3 +871,46 @@ def scheduler_suggestions(days: int = SCHEDULER_SHADOW_DAYS, limit: int = SCHEDU
     return {"status": status, "reason": reason, "candidates": len(candidates), "profiles": profiles,
             "plan": result["plan"], "skipped": result["skipped"][:20], "comparison": comparison,
             "note": result["note"]}
+
+
+STATE_STATUS = {"alive": HEALTHY, "stale": DEGRADED, "unknown": UNKNOWN, "disabled": DISABLED}
+
+
+def environment_section(now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
+    """Фактическое окружение и пульс фоновых работников (P14).
+
+    Отвечающий сайт не считается признаком того, что обходы идут: у каждого работника свой пульс.
+    Выключенный владельцем компонент показывается выключенным, а не аварией; молчащий — «нет пульса».
+    Секреты не показываются: видно только, настроено ли.
+    """
+    import database
+    import environment as env
+    moment = now or _now()
+    last = database.heartbeats()
+    enabled = env.enabled_components()
+    components = [env.component_state(name, last.get(name), enabled.get(name, True), moment)
+                  for name in env.COMPONENTS]
+    for item in components:
+        item["status"] = STATE_STATUS.get(item["state"], UNKNOWN)
+
+    dead = [c for c in components if c["state"] == "stale"]
+    silent = [c for c in components if c["state"] == "unknown"]
+    if dead:
+        status = DEGRADED
+        reason = "Молчат: " + ", ".join(c["label"] for c in dead)
+    elif silent:
+        status = UNKNOWN
+        reason = "Нет пульса: " + ", ".join(c["label"] for c in silent)
+    else:
+        status = HEALTHY
+        reason = "Все включённые работники отзываются"
+
+    return {
+        "status": status, "reason": reason,
+        "versions": env.versions(),
+        "uptime_seconds": round(env.uptime_seconds()),
+        "components": components,
+        "config": env.safe_config_view(),
+        "note": "Выключенный компонент отличается от молчащего: первое — решение владельца, второе — повод "
+                "разобраться. Секреты здесь не показываются.",
+    }

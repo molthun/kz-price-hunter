@@ -211,7 +211,8 @@
     },
     system() {
       const s = data.sections.system, t = s.telemetry || {};
-      const shadowBox = '<div id="matchingShadow" class="mt-4"><p class="text-sm text-slate-500">Загружаю отчёт сопоставления…</p></div>';
+      const shadowBox = '<div id="environmentBox" class="mt-4"><p class="text-sm text-slate-500">Смотрю окружение…</p></div>'
+        + '<div id="matchingShadow" class="mt-4"><p class="text-sm text-slate-500">Загружаю отчёт сопоставления…</p></div>';
       const errs = (s.recent_errors || []).map(e => `<li class="break-words">${ago(e.timestamp)} · ${esc(e.component)} · ${esc(e.where)} · ${esc(e.error)}${e.route ? ' · ' + esc(e.route) : ''}</li>`).join('');
       return card('Система', `<p class="text-sm mb-2">${esc(s.reason)}</p>` + kv([
         ['Версия', esc(s.version)], ['Схема БД', esc(s.schema_version)], ['Python / SQLite', `${esc(s.python)} / ${esc(s.sqlite)}`],
@@ -293,6 +294,35 @@
           <th class="pb-1 pr-3">Профиль</th><th class="pb-1 pr-3 text-right">Возраст</th>
           <th class="pb-1 pr-3">Почему</th></tr></thead><tbody>${rows}</tbody></table></div>`
         : '<p class="text-sm text-slate-500">Сейчас обновлять нечего: все источники обойдены недавно.</p>');
+  }
+
+  const STATE_WORDS = {alive: 'отзывается', stale: 'молчит', unknown: 'пульса не было', disabled: 'выключено'};
+
+  async function loadEnvironment() {
+    const box = document.getElementById('environmentBox');
+    if (!box) return;
+    const s = await api('/api/admin/monitoring/environment');
+    if (!s) { box.innerHTML = '<p class="text-sm text-rose-300">Не удалось загрузить состояние окружения.</p>'; return; }
+    const rows = (s.components || []).map(c => `<tr class="border-t border-slate-800">
+        <td class="py-1 pr-3">${esc(c.label)}</td>
+        <td class="py-1 pr-3">${pill(c.status)} <span class="text-slate-400">${esc(STATE_WORDS[c.state] || c.state)}</span></td>
+        <td class="py-1 pr-3 text-slate-400 break-words">${esc(c.reason || '')}</td>
+        <td class="py-1 pr-3 text-slate-500 break-words">${esc(c.note || '')}</td></tr>`).join('');
+    const v = s.versions || {};
+    const hours = Math.floor((s.uptime_seconds || 0) / 3600), mins = Math.floor(((s.uptime_seconds || 0) % 3600) / 60);
+    box.innerHTML = card('Окружение и работники', `<p class="text-sm mb-2">${esc(s.reason)}</p>` + kv([
+        ['Версия приложения', esc(v.app || '—')],
+        ['Коммит', esc((v.git_sha || '—').slice(0, 12))],
+        ['Работает без перезапуска', `${num(hours)} ч ${num(mins)} мин`],
+        ['Python / SQLite', `${esc(v.python || '—')} / ${esc(v.sqlite || '—')}`],
+        ['aiohttp / requests', `${esc(v.aiohttp || '—')} / ${esc(v.requests || '—')}`],
+        ['Playwright / curl_cffi', `${esc(v.playwright || '—')} / ${esc(v.curl_cffi || '—')}`],
+        ['Система', esc(v.platform || '—')]]) +
+      `<div class="overflow-x-auto mt-3"><table class="w-full text-sm"><thead class="text-xs text-slate-400 text-left"><tr>
+          <th class="pb-1 pr-3">Работник</th><th class="pb-1 pr-3">Состояние</th>
+          <th class="pb-1 pr-3">Почему</th><th class="pb-1 pr-3">Последнее</th></tr></thead><tbody>${rows}</tbody></table></div>` +
+      details('Настройка (без секретов)', json(s.config || {})) +
+      `<p class="text-xs text-slate-500 mt-2">${esc(s.note)}</p>`, s.status);
   }
 
   async function loadMatchingShadow() {
@@ -476,7 +506,7 @@
     if (current === 'events') loadEvents();
     if (current === 'search') loadSearchAnalytics();
     if (current === 'ai') loadAiSpending();
-    if (current === 'system') loadMatchingShadow();
+    if (current === 'system') { loadEnvironment(); loadMatchingShadow(); }
     if (current === 'scanning') loadSchedulerShadow();
   }
 

@@ -677,6 +677,17 @@ def _create_schema(cursor) -> None:
     """)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_watch_events_watch ON watch_events(watch_id, status)")
 
+    # Пульс фоновых работников (P14): «сайт отвечает» ещё не значит, что обходы идут.
+    # Таблица добавляется, schema_version не меняется.
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS component_heartbeats (
+            component TEXT PRIMARY KEY,
+            last_seen TEXT NOT NULL,
+            note TEXT,
+            beats INTEGER NOT NULL DEFAULT 0
+        )
+    """)
+
     # Учёт AI по задачам и моделям (P08). Стоимость хранится только когда администратор задал цены,
     # иначе остаётся NULL — «не задано» честнее выдуманной цифры. Таблица добавляется, schema_version тот же.
     # Теневой отчёт сопоставления (P09): что новое правило фасовки запретило сравнивать и где оно
@@ -909,7 +920,11 @@ def get_schema_version(conn) -> int:
 
 
 def backup_database(label: str) -> Optional[str]:
-    """Консистентная копия через SQLite backup API в DATA_DIR/backups; проверяется quick_check."""
+    """Консистентная копия через SQLite backup API в DATA_DIR/backups; проверяется quick_check.
+
+    Результат отмечается пульсом компонента «резервные копии» (P14), чтобы было видно, когда копия
+    делалась в последний раз и чем закончилась.
+    """
     from config import DATA_DIR
     if not DB_PATH.exists():
         return None
@@ -938,6 +953,12 @@ def backup_database(label: str) -> Optional[str]:
 
 
 def _record_backup(label, outcome, dest, duration) -> None:
+    try:
+        # Пульс компонента «резервные копии» (P14): видно, когда копия делалась и чем закончилась
+        import environment
+        environment.heartbeat(environment.BACKUP, f"{label}: {outcome}")
+    except Exception:
+        pass
     try:
         from telemetry import telemetry, EVENT_BACKUP_RUN, SEVERITY_INFO, SEVERITY_ERROR, COMPONENT_BACKUP
         size = dest.stat().st_size if outcome == "ok" and dest.exists() else None
@@ -2931,3 +2952,25 @@ def http_metrics_by_shop(days: int = 7, now: Optional[datetime.datetime] = None)
         """, (since,)):
             metrics[row["shop"]] = dict(row)
     return metrics
+
+
+# ---------------------------------------------------------------------------
+# Пульс фоновых работников (P14).
+# ---------------------------------------------------------------------------
+
+def record_heartbeat(component: str, note: str = "", now: Optional[datetime.datetime] = None) -> None:
+    """Отметка работника «я жив». Пишется часто, поэтому одной короткой операцией."""
+    moment = (now or datetime.datetime.now(datetime.timezone.utc)).isoformat()
+    with get_connection() as conn:
+        conn.execute("""
+            INSERT INTO component_heartbeats (component, last_seen, note, beats) VALUES (?, ?, ?, 1)
+            ON CONFLICT(component) DO UPDATE SET last_seen = excluded.last_seen,
+                                                note = excluded.note, beats = beats + 1
+        """, (str(component), moment, str(note or "")[:200]))
+        conn.commit()
+
+
+def heartbeats() -> Dict[str, Dict[str, Any]]:
+    """Последний пульс каждого компонента."""
+    with get_connection() as conn:
+        return {r["component"]: dict(r) for r in conn.execute("SELECT * FROM component_heartbeats")}
