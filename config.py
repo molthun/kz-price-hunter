@@ -293,6 +293,10 @@ SYSTEM_DEFAULTS = {
     "gemini_model": "gemini-2.5-flash",
     "openai_model_mode": "auto",
     "openai_model": "gpt-4o-mini",
+    # Цены моделей задаёт администратор: {"gemini-2.5-flash": {"input": 0.3, "output": 2.5}} — доллары за
+    # миллион токенов. Пустое значение означает «цена неизвестна», и расход в деньгах не показывается:
+    # тарифы меняются, и зашитая в код цифра вводила бы в заблуждение (P08).
+    "ai_model_prices": {},
 }
 
 
@@ -560,6 +564,34 @@ def _validate_settings(new_settings):
         clean["hot_categories"] = [c for c in clean["hot_categories"] if c in MASTER_CATEGORIES]
     if "wave_size" in clean:
         clean["wave_size"] = max(1, min(int(clean["wave_size"]), len(MASTER_CATEGORIES)))
+    # Цены моделей — это карта «модель → числа», а не карта переключателей, поэтому разбираются отдельно
+    if isinstance(new_settings, dict) and "ai_model_prices" in new_settings:
+        clean["ai_model_prices"] = _validate_model_prices(new_settings["ai_model_prices"])
+    return clean
+
+
+def _validate_model_prices(raw):
+    """Цены моделей: имя модели → {input, output} в долларах за миллион токенов (P08)."""
+    if not isinstance(raw, dict):
+        raise ValueError("Цены моделей передаются объектом «модель: {input, output}»")
+    import re
+    clean = {}
+    for model, value in raw.items():
+        name = str(model).strip()
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,149}", name):
+            raise ValueError(f"Некорректное имя модели: {model}")
+        if not isinstance(value, dict):
+            raise ValueError(f"Цена модели {name}: нужен объект с полями input и output")
+        prices = {}
+        for field in ("input", "output"):
+            try:
+                price = float(value.get(field, 0) or 0)
+            except (TypeError, ValueError):
+                raise ValueError(f"Цена модели {name} ({field}): нужно число")
+            if not 0 <= price <= 10000:
+                raise ValueError(f"Цена модели {name} ({field}): допустимо от 0 до 10 000 $ за млн токенов")
+            prices[field] = price
+        clean[name] = prices
     return clean
 
 def validate_user_settings(new_settings, current=None):

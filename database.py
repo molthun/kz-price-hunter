@@ -123,6 +123,139 @@ def prune_source_scans(days: Optional[int] = None) -> int:
     return deleted
 
 
+def record_search(query: str, city: Optional[str], source: str, outcome: str, results: int,
+                  now: Optional[datetime.datetime] = None) -> None:
+    """Записывает исход поиска в дневные агрегаты (P06).
+
+    Хранится только то, что нужно отчёту: день, город, источник, исход и число результатов. Кто искал —
+    не передаётся сюда вовсе. Текст запроса попадает в `search_queries` лишь начиная с третьего повтора
+    и только если не похож на личные данные.
+    """
+    import search_analytics as sa
+    if outcome not in sa.OUTCOMES:
+        raise ValueError(f"Неизвестный исход поиска: {outcome}")
+    if source not in sa.SOURCES:
+        raise ValueError(f"Неизвестный источник поиска: {source}")
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    bucket = moment.strftime("%Y-%m-%d")
+    # Город приводится к справочнику: в параметре может прийти произвольный текст с личными данными (F01)
+    city_name = sa.canonical_city(city)
+    results = max(0, int(results or 0))
+
+    with get_connection() as conn:
+        conn.execute("""
+            INSERT INTO search_stats (bucket, city, source, outcome, searches, results_sum)
+            VALUES (?, ?, ?, ?, 1, ?)
+            ON CONFLICT(bucket, city, source, outcome) DO UPDATE SET
+                searches = searches + 1, results_sum = results_sum + excluded.results_sum
+        """, (bucket, city_name, source, outcome, results))
+
+        text = sa.storable_text(query)
+        if text:
+            key = sa.query_key(query, city_name)
+            conn.execute("""
+                INSERT INTO search_query_seen (query_key, seen, last_seen) VALUES (?, 1, ?)
+                ON CONFLICT(query_key) DO UPDATE SET seen = seen + 1, last_seen = excluded.last_seen
+            """, (key, moment.isoformat()))
+            seen = conn.execute("SELECT seen FROM search_query_seen WHERE query_key = ?", (key,)).fetchone()[0]
+            if seen >= sa.MIN_OCCURRENCES_TO_STORE_TEXT:
+                conn.execute(f"""
+                    INSERT INTO search_queries (bucket, normalized_query, city, searches, {outcome},
+                                                results_sum, last_seen)
+                    VALUES (?, ?, ?, 1, 1, ?, ?)
+                    ON CONFLICT(bucket, normalized_query, city) DO UPDATE SET
+                        searches = searches + 1, {outcome} = {outcome} + 1,
+                        results_sum = results_sum + excluded.results_sum, last_seen = excluded.last_seen
+                """, (bucket, text, city_name, results, moment.isoformat()))
+        conn.commit()
+
+
+def search_totals(days: int = 7, city: Optional[str] = None,
+                  now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
+    """Сводка по поиску за период: исходы, доля успеха и доля ошибок, разбивка по источникам."""
+    import search_analytics as sa
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    since = (moment - datetime.timedelta(days=max(1, int(days)))).strftime("%Y-%m-%d")
+    where, params = "bucket >= ?", [since]
+    if city and city != sa.CITY_ALL:
+        where += " AND city = ?"
+        params.append(sa.canonical_city(city))
+
+    counts = {k: 0 for k in sa.OUTCOMES}
+    by_source: Dict[str, Dict[str, Any]] = {}
+    results_sum = 0
+    with get_connection() as conn:
+        for row in conn.execute(f"SELECT source, outcome, SUM(searches) AS n, SUM(results_sum) AS r "
+                                f"FROM search_stats WHERE {where} GROUP BY source, outcome", params):
+            counts[row["outcome"]] = counts.get(row["outcome"], 0) + row["n"]
+            results_sum += row["r"] or 0
+            src = by_source.setdefault(row["source"], {k: 0 for k in sa.OUTCOMES})
+            src[row["outcome"]] = src.get(row["outcome"], 0) + row["n"]
+
+    total = sum(counts.values())
+    for src in by_source.values():
+        src["total"] = sum(src[k] for k in sa.OUTCOMES)
+        src["success_rate"] = sa.success_rate(src)
+        src["error_rate"] = sa.error_rate(src)
+    return {
+        "days": int(days),
+        "city": city or "Все",
+        "total": total,
+        "counts": counts,
+        "success_rate": sa.success_rate(counts),
+        "error_rate": sa.error_rate(counts),
+        "avg_results": round(results_sum / total, 1) if total else None,
+        "by_source": by_source,
+    }
+
+
+def search_queries(days: int = 7, outcome: Optional[str] = None, limit: int = 50,
+                   city: Optional[str] = None, now: Optional[datetime.datetime] = None) -> List[Dict[str, Any]]:
+    """Запросы с текстом (от третьего повтора): самые частые или самые проблемные за период."""
+    import search_analytics as sa
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    since = (moment - datetime.timedelta(days=max(1, int(days)))).strftime("%Y-%m-%d")
+    where, params = "bucket >= ?", [since]
+    if city and city != sa.CITY_ALL:
+        where += " AND city = ?"
+        params.append(sa.canonical_city(city))
+    # «Плохо отвечаем» — только запросы, где людям действительно нечего было показать
+    having = " HAVING bad > 0" if outcome == "bad" else ""
+    order = "bad DESC, searches DESC" if outcome == "bad" else "searches DESC"
+    if outcome in sa.OUTCOMES:
+        order = f"{outcome} DESC, searches DESC"
+
+    rows = []
+    with get_connection() as conn:
+        for row in conn.execute(f"""
+            SELECT normalized_query, city, SUM(searches) AS searches, SUM(found) AS found, SUM(weak) AS weak,
+                   SUM(not_found) AS not_found, SUM(error) AS error,
+                   SUM(weak) + SUM(not_found) AS bad, MAX(last_seen) AS last_seen
+            FROM search_queries WHERE {where}
+            GROUP BY normalized_query, city{having}
+            ORDER BY {order} LIMIT ?
+        """, params + [max(1, int(limit))]):
+            item = dict(row)
+            item["success_rate"] = sa.success_rate(item)
+            rows.append(item)
+    return rows
+
+
+def prune_search_analytics(days: Optional[int] = None,
+                           now: Optional[datetime.datetime] = None) -> int:
+    """Удаляет аналитику поиска старше срока хранения (P06: 90 дней) вместе со счётчиком повторов."""
+    import search_analytics as sa
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    cutoff_day = (moment - datetime.timedelta(days=days or sa.RETENTION_DAYS)).strftime("%Y-%m-%d")
+    cutoff_ts = (moment - datetime.timedelta(days=days or sa.RETENTION_DAYS)).isoformat()
+    with get_connection() as conn:
+        deleted = conn.execute("DELETE FROM search_stats WHERE bucket < ?", (cutoff_day,)).rowcount
+        deleted += conn.execute("DELETE FROM search_queries WHERE bucket < ?", (cutoff_day,)).rowcount
+        deleted += conn.execute("DELETE FROM search_query_seen WHERE last_seen < ?", (cutoff_ts,)).rowcount
+        conn.commit()
+    return deleted
+
+
 class ClosingConnection(sqlite3.Connection):
     def __exit__(self, exc_type, exc_value, traceback):
         try:
@@ -446,6 +579,140 @@ def _create_schema(cursor) -> None:
         )
     """)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_telemetry_http_samples ON telemetry_http_samples(bucket_type, bucket_start, host, shop)")
+
+    # Аналитика поиска (P06). Только агрегаты по дням: ни идентификатора пользователя, ни Telegram ID,
+    # ни IP, ни времени с точностью до запроса. Таблицы добавляются, существующие данные не меняются —
+    # schema_version не повышается (откат на предыдущий образ без восстановления базы).
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS search_stats (
+            bucket TEXT NOT NULL,
+            city TEXT NOT NULL DEFAULT '',
+            source TEXT NOT NULL,
+            outcome TEXT NOT NULL,
+            searches INTEGER NOT NULL DEFAULT 0,
+            results_sum INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (bucket, city, source, outcome)
+        )
+    """)
+    # Счётчик повторов по необратимому ключу: текст запроса сохраняется только начиная с третьего раза,
+    # а по ключу его не восстановить, поэтому редкие (и потому более узнаваемые) запросы текстом не хранятся
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS search_query_seen (
+            query_key TEXT PRIMARY KEY,
+            seen INTEGER NOT NULL DEFAULT 0,
+            last_seen TEXT NOT NULL
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS search_queries (
+            bucket TEXT NOT NULL,
+            normalized_query TEXT NOT NULL,
+            city TEXT NOT NULL DEFAULT '',
+            searches INTEGER NOT NULL DEFAULT 0,
+            found INTEGER NOT NULL DEFAULT 0,
+            weak INTEGER NOT NULL DEFAULT 0,
+            not_found INTEGER NOT NULL DEFAULT 0,
+            error INTEGER NOT NULL DEFAULT 0,
+            results_sum INTEGER NOT NULL DEFAULT 0,
+            last_seen TEXT NOT NULL,
+            PRIMARY KEY (bucket, normalized_query, city)
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_search_queries_bucket ON search_queries(bucket)")
+
+    # Наблюдения пользователя (P07). Таблицы только добавляются — schema_version не повышается,
+    # предыдущий образ стартует на этой базе и просто их не использует.
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS watches (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            kind TEXT NOT NULL,
+            target TEXT NOT NULL,
+            title TEXT,
+            condition TEXT NOT NULL,
+            threshold INTEGER,
+            city TEXT,
+            shops TEXT NOT NULL DEFAULT '[]',
+            mode TEXT NOT NULL DEFAULT 'instant',
+            quiet_from TEXT NOT NULL DEFAULT '23:00',
+            quiet_to TEXT NOT NULL DEFAULT '08:00',
+            timezone TEXT NOT NULL DEFAULT 'Asia/Almaty',
+            cooldown_hours INTEGER NOT NULL DEFAULT 6,
+            repeat_mode INTEGER NOT NULL DEFAULT 1,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL,
+            last_sent_at TEXT,
+            UNIQUE(user_id, kind, target, condition, threshold)
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_watches_user ON watches(user_id, is_active)")
+    # «Сработало» — не то же самое, что «выключено человеком»: сообщение по одноразовому наблюдению
+    # ещё должно уйти, а новых срабатываний быть не должно (P07 G01)
+    _add_column(cursor, "watches", "fired_at", "TEXT")
+    # Память наблюдения по каждому предложению: цена последнего отправленного сообщения не даёт
+    # повторно уведомлять об одном и том же (возврат цены к прежнему значению — не новость)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS watch_state (
+            watch_id INTEGER NOT NULL,
+            product_id TEXT NOT NULL,
+            last_notified_price INTEGER,
+            previous_price INTEGER,
+            min_price INTEGER,
+            was_available INTEGER NOT NULL DEFAULT 1,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (watch_id, product_id)
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS watch_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            watch_id INTEGER NOT NULL,
+            product_id TEXT NOT NULL,
+            price INTEGER NOT NULL,
+            reason TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'queued',
+            deliver_after REAL NOT NULL DEFAULT 0
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_watch_events_watch ON watch_events(watch_id, status)")
+
+    # Учёт AI по задачам и моделям (P08). Стоимость хранится только когда администратор задал цены,
+    # иначе остаётся NULL — «не задано» честнее выдуманной цифры. Таблица добавляется, schema_version тот же.
+    # Теневой отчёт сопоставления (P09): что новое правило фасовки запретило сравнивать и где оно
+    # честно не знает. Хранятся только данные о товарах, без пользователей. schema_version не меняется.
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS matching_shadow (
+            day TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            reason TEXT NOT NULL,
+            count INTEGER NOT NULL DEFAULT 0,
+            example_left TEXT,
+            example_right TEXT,
+            PRIMARY KEY (day, kind, reason)
+        )
+    """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS ai_usage (
+            day TEXT NOT NULL,
+            task TEXT NOT NULL,
+            audience TEXT NOT NULL,
+            provider TEXT NOT NULL,
+            model TEXT NOT NULL,
+            outcome TEXT NOT NULL,
+            requests INTEGER NOT NULL DEFAULT 0,
+            input_tokens INTEGER NOT NULL DEFAULT 0,
+            output_tokens INTEGER NOT NULL DEFAULT 0,
+            cost_usd REAL,
+            latency_sum_ms REAL NOT NULL DEFAULT 0,
+            cache_hits INTEGER NOT NULL DEFAULT 0,
+            fallbacks INTEGER NOT NULL DEFAULT 0,
+            errors INTEGER NOT NULL DEFAULT 0,
+            last_error TEXT,
+            PRIMARY KEY (day, task, provider, model, outcome)
+        )
+    """)
 
 
 # ---------------------------------------------------------------------------
@@ -1432,10 +1699,27 @@ def find_market_comparisons(
                 ORDER BY current_price ASC LIMIT 500
             """, (current_shop, city, fts_query)).fetchall()
 
-    valid_competitors = [dict(r) for r in rows
-        if same_model(title, r["title"])
-        and not is_junk_accessory(r["title"], r["category"] or "")
-        and not is_used_goods(r["title"], r["category"] or "", r["url"])]
+    import catalog_quality
+    valid_competitors = []
+    for r in rows:
+        ok, reason = catalog_quality.comparable(title, r["title"])
+        if not ok:
+            # Разная фасовка — разные товары: сравнение 1 л с 1,5 л показало бы выгоду, которой нет (P09).
+            # В теневой отчёт попадают те пары, которые без этого правила считались бы одним товаром.
+            if same_model(title, r["title"]) or (catalog_quality.identity_tokens(title)
+                                                 == catalog_quality.identity_tokens(r["title"])):
+                record_matching_shadow("blocked", reason, title, r["title"])
+            continue
+        if not catalog_quality.same_product(title, r["title"]):
+            unsure, unsure_reason = catalog_quality.uncertain(title, r["title"])
+            if unsure and catalog_quality.identity_tokens(title) == catalog_quality.identity_tokens(r["title"]):
+                # Слова совпали, но фасовку указал только один магазин: сравнивать вслепую не будем,
+                # случай записывается для разбора (P09)
+                record_matching_shadow("uncertain", unsure_reason, title, r["title"])
+            continue
+        if is_junk_accessory(r["title"], r["category"] or "") or is_used_goods(r["title"], r["category"] or "", r["url"]):
+            continue
+        valid_competitors.append(dict(r))
     valid_competitors = valid_competitors[:limit]
 
     if not valid_competitors:
@@ -1566,10 +1850,12 @@ NOTIFICATION_RETENTION_DAYS = 30
 
 def export_user_data(user_id: int) -> Optional[Dict[str, Any]]:
     """Всё, что сервис хранит о пользователе (M12): профиль, настройки, сессии без токенов,
-    история адресованных ему уведомлений."""
+    история адресованных ему уведомлений, его наблюдения и их срабатывания (P07)."""
     user = get_user(user_id)
     if not user:
         return None
+    watches = list_watches(user_id)
+    events = watch_events(user_id, limit=1000)
     with get_connection() as conn:
         sessions = [dict(r) for r in conn.execute(
             "SELECT created_at, expires_at FROM sessions WHERE user_id = ? ORDER BY created_at", (int(user_id),))]
@@ -1593,6 +1879,9 @@ def export_user_data(user_id: int) -> Optional[Dict[str, Any]]:
         "settings": user.get("settings") or {},
         "sessions": sessions,
         "notifications": notifications,
+        # Наблюдения принадлежат человеку и входят в его выгрузку (P07)
+        "watches": watches,
+        "watch_events": events,
     }
 
 
@@ -1601,9 +1890,15 @@ def delete_user_account(user_id: int) -> Dict[str, int]:
     Общие алерты и каталог не удаляются: они не принадлежат пользователю."""
     with get_connection() as conn:
         conn.execute("BEGIN IMMEDIATE")
+        # Наблюдения принадлежат человеку, поэтому уходят вместе с ним (P07)
+        conn.execute("DELETE FROM watch_state WHERE watch_id IN (SELECT id FROM watches WHERE user_id = ?)",
+                     (int(user_id),))
+        conn.execute("DELETE FROM watch_events WHERE watch_id IN (SELECT id FROM watches WHERE user_id = ?)",
+                     (int(user_id),))
         counts = {
             "sessions": conn.execute("DELETE FROM sessions WHERE user_id = ?", (int(user_id),)).rowcount,
             "notifications": conn.execute("DELETE FROM notification_outbox WHERE user_id = ?", (int(user_id),)).rowcount,
+            "watches": conn.execute("DELETE FROM watches WHERE user_id = ?", (int(user_id),)).rowcount,
             "users": conn.execute("DELETE FROM users WHERE id = ?", (int(user_id),)).rowcount,
         }
         conn.commit()
@@ -2158,3 +2453,369 @@ def get_store_deals(
 
 
 
+
+
+# ---------------------------------------------------------------------------
+# Наблюдения пользователя (P07): хранение, оценка срабатываний и постановка в очередь доставки.
+# Правила (что считается срабатыванием, тихие часы, пауза) живут в watches.py.
+# ---------------------------------------------------------------------------
+
+def _watch_row(row) -> Dict[str, Any]:
+    item = dict(row)
+    try:
+        item["shops"] = json.loads(item.get("shops") or "[]")
+    except ValueError:
+        item["shops"] = []
+    item["repeat"] = bool(item.pop("repeat_mode", 1))
+    item["fired"] = bool(item.get("fired_at"))
+    return item
+
+
+def list_watches(user_id: int, only_active: bool = False) -> List[Dict[str, Any]]:
+    import watches as w
+    query = "SELECT * FROM watches WHERE user_id = ?"
+    if only_active:
+        query += " AND is_active = 1"
+    with get_connection() as conn:
+        rows = [_watch_row(r) for r in conn.execute(query + " ORDER BY id DESC", (int(user_id),))]
+    for row in rows:
+        row["description"] = w.describe(row)
+    return rows
+
+
+def create_watch(user_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
+    """Создаёт наблюдение пользователя; повторное создание того же возвращает существующее."""
+    import watches as w
+    clean = w.normalize(data)
+    with get_connection() as conn:
+        count = conn.execute("SELECT COUNT(*) FROM watches WHERE user_id = ?", (int(user_id),)).fetchone()[0]
+        if count >= w.MAX_WATCHES_PER_USER:
+            raise ValueError(f"Больше {w.MAX_WATCHES_PER_USER} наблюдений не поддерживается — "
+                             f"удалите ненужные")
+        existing = conn.execute("""SELECT * FROM watches WHERE user_id = ? AND kind = ? AND target = ?
+                                   AND condition = ? AND threshold IS ?""",
+                                (int(user_id), clean["kind"], clean["target"], clean["condition"],
+                                 clean["threshold"])).fetchone()
+        if existing:
+            conn.execute("UPDATE watches SET is_active = 1 WHERE id = ?", (existing["id"],))
+            conn.commit()
+            return _watch_row(conn.execute("SELECT * FROM watches WHERE id = ?", (existing["id"],)).fetchone())
+        conn.execute("""
+            INSERT INTO watches (user_id, kind, target, title, condition, threshold, city, shops, mode,
+                                 quiet_from, quiet_to, timezone, cooldown_hours, repeat_mode, is_active, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (int(user_id), clean["kind"], clean["target"], clean["title"], clean["condition"], clean["threshold"],
+              clean["city"], json.dumps(clean["shops"], ensure_ascii=False), clean["mode"], clean["quiet_from"],
+              clean["quiet_to"], clean["timezone"], clean["cooldown_hours"], clean["repeat"], clean["is_active"],
+              datetime.datetime.now(datetime.timezone.utc).isoformat()))
+        watch_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        conn.commit()
+        return _watch_row(conn.execute("SELECT * FROM watches WHERE id = ?", (watch_id,)).fetchone())
+
+
+def update_watch(user_id: int, watch_id: int, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Меняет своё наблюдение. Чужое не найдётся: выборка всегда ограничена владельцем."""
+    import watches as w
+    with get_connection() as conn:
+        current = conn.execute("SELECT * FROM watches WHERE id = ? AND user_id = ?",
+                               (int(watch_id), int(user_id))).fetchone()
+        if not current:
+            return None
+        merged = _watch_row(current)
+        merged.update({k: v for k, v in data.items() if k in (
+            "kind", "target", "title", "condition", "threshold", "city", "shops", "mode",
+            "quiet_from", "quiet_to", "timezone", "cooldown_hours", "repeat", "is_active")})
+        clean = w.normalize(merged)
+        conn.execute("""
+            UPDATE watches SET kind=?, target=?, title=?, condition=?, threshold=?, city=?, shops=?, mode=?,
+                   quiet_from=?, quiet_to=?, timezone=?, cooldown_hours=?, repeat_mode=?, is_active=?
+            WHERE id = ? AND user_id = ?
+        """, (clean["kind"], clean["target"], clean["title"], clean["condition"], clean["threshold"], clean["city"],
+              json.dumps(clean["shops"], ensure_ascii=False), clean["mode"], clean["quiet_from"], clean["quiet_to"],
+              clean["timezone"], clean["cooldown_hours"], clean["repeat"], clean["is_active"],
+              int(watch_id), int(user_id)))
+        conn.commit()
+        return _watch_row(conn.execute("SELECT * FROM watches WHERE id = ?", (int(watch_id),)).fetchone())
+
+
+def delete_watch(user_id: int, watch_id: int) -> bool:
+    with get_connection() as conn:
+        deleted = conn.execute("DELETE FROM watches WHERE id = ? AND user_id = ?",
+                               (int(watch_id), int(user_id))).rowcount
+        if deleted:
+            # Сначала снимаем неотправленные задания: после удаления срабатываний их уже не найти
+            conn.execute("UPDATE notification_outbox SET status='cancelled', last_error='watch deleted' "
+                         "WHERE status='pending' AND alert_id IN "
+                         "(SELECT -id FROM watch_events WHERE watch_id = ?)", (int(watch_id),))
+            conn.execute("DELETE FROM watch_state WHERE watch_id = ?", (int(watch_id),))
+            conn.execute("DELETE FROM watch_events WHERE watch_id = ?", (int(watch_id),))
+        conn.commit()
+    return bool(deleted)
+
+
+def _watch_states(conn, watch_id: int, product_id: str) -> Dict[str, Any]:
+    row = conn.execute("SELECT * FROM watch_state WHERE watch_id = ? AND product_id = ?",
+                       (int(watch_id), str(product_id))).fetchone()
+    return dict(row) if row else {}
+
+
+def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.datetime] = None) -> int:
+    """Сверяет изменившиеся предложения с активными наблюдениями и ставит срабатывания в очередь.
+
+    Одно срабатывание — одно задание доставки: задание кладётся в общую очередь уведомлений с
+    alert_id = -id срабатывания, а её UNIQUE(alert_id, user_id) не даёт продублировать отправку даже
+    при повторном запуске или параллельных воркерах (P07).
+    """
+    import watches as w
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    queued = 0
+    with get_connection() as conn:
+        active = [_watch_row(r) for r in conn.execute("SELECT * FROM watches WHERE is_active = 1")]
+    if not active:
+        return 0
+
+    for offer in offers:
+        product_id = str(offer.get("id") or "")
+        if not product_id:
+            continue
+        for watch in active:
+            if not w.matches(watch, offer):
+                continue
+            price = int(offer.get("current_price") or 0)
+            available = 1 if offer.get("is_available", True) else 0
+            with get_connection() as conn:
+                # Чтение состояния, решение и запись события — одна транзакция на запись: два
+                # одновременных обхода не создадут два сообщения об одном снижении (P07 G02)
+                conn.execute("BEGIN IMMEDIATE")
+                fresh = conn.execute("SELECT is_active, fired_at, last_sent_at, repeat_mode FROM watches "
+                                     "WHERE id = ?", (watch["id"],)).fetchone()
+                if not fresh or not fresh["is_active"] or (not fresh["repeat_mode"] and fresh["fired_at"]):
+                    conn.rollback()
+                    continue
+                state = _watch_states(conn, watch["id"], product_id)
+                triggered, reason = w.condition_met(watch, offer, state)
+                if not triggered:
+                    # Память обновляется всегда: следующее снижение считается от актуальной цены
+                    conn.execute("""
+                        INSERT INTO watch_state (watch_id, product_id, previous_price, min_price,
+                                                 was_available, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(watch_id, product_id) DO UPDATE SET
+                            previous_price = excluded.previous_price,
+                            min_price = MIN(COALESCE(min_price, excluded.min_price), excluded.min_price),
+                            was_available = excluded.was_available, updated_at = excluded.updated_at
+                    """, (watch["id"], product_id, price, price or None, available, moment.isoformat()))
+                    conn.commit()
+                    continue
+
+                last_sent_at = None
+                if fresh["last_sent_at"]:
+                    last_sent_at = datetime.datetime.fromisoformat(fresh["last_sent_at"])
+                send_now, wait_reason = w.deliver_now(watch, moment, last_sent_at)
+                deliver_after = 0.0 if send_now else w.digest_due_at(watch, moment).timestamp()
+
+                conn.execute("""INSERT INTO watch_events (watch_id, product_id, price, reason, created_at,
+                                                          status, deliver_after)
+                                VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                             (watch["id"], product_id, price, reason, moment.isoformat(),
+                              "queued" if send_now else f"waiting:{wait_reason}", deliver_after))
+                event_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+                payload = {"kind": "watch", "watch_id": watch["id"], "event_id": event_id,
+                           "reason": reason, "price": price,
+                           "product": {k: offer.get(k) for k in ("id", "title", "shop", "city", "url",
+                                                                 "image_url")},
+                           "description": w.describe(watch)}
+                conn.execute("""INSERT OR IGNORE INTO notification_outbox
+                                (alert_id, user_id, payload, status, created_at, next_attempt_at)
+                                VALUES (?, ?, ?, 'pending', ?, ?)""",
+                             (-event_id, watch["user_id"], json.dumps(payload, ensure_ascii=False),
+                              moment.timestamp(), deliver_after))
+                conn.execute("""
+                    INSERT INTO watch_state (watch_id, product_id, last_notified_price, previous_price,
+                                             min_price, was_available, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(watch_id, product_id) DO UPDATE SET
+                        last_notified_price = excluded.last_notified_price,
+                        previous_price = excluded.previous_price,
+                        min_price = MIN(COALESCE(min_price, excluded.min_price), excluded.min_price),
+                        was_available = excluded.was_available, updated_at = excluded.updated_at
+                """, (watch["id"], product_id, price, price, price or None, available, moment.isoformat()))
+                # Одноразовое наблюдение помечается сработавшим, но остаётся включённым до отправки:
+                # выключение прямо здесь отменило бы его собственное сообщение (G01)
+                conn.execute("UPDATE watches SET last_sent_at = ?, fired_at = COALESCE(fired_at, ?) "
+                             "WHERE id = ?", (moment.isoformat(), moment.isoformat(), watch["id"]))
+                conn.commit()
+            watch["last_sent_at"] = moment.isoformat()
+            if not watch["repeat"]:
+                watch["fired_at"] = moment.isoformat()
+            queued += 1
+
+    return queued
+
+
+def watched_offers(product_ids: List[str]) -> List[Dict[str, Any]]:
+    """Сохранённые предложения по идентификаторам — вход для проверки наблюдений (P07)."""
+    ids = [str(i) for i in product_ids if i]
+    if not ids:
+        return []
+    rows: List[Dict[str, Any]] = []
+    with get_connection() as conn:
+        for start in range(0, len(ids), 500):
+            chunk = ids[start:start + 500]
+            placeholders = ",".join("?" * len(chunk))
+            rows.extend(dict(r) for r in conn.execute(
+                f"SELECT id, title, shop, city, url, image_url, category, canonical_key, current_price, "
+                f"is_active AS is_available FROM products WHERE id IN ({placeholders})", chunk))
+    return rows
+
+
+def watch_events(user_id: int, limit: int = 50) -> List[Dict[str, Any]]:
+    """История срабатываний наблюдений пользователя (для «Моих наблюдений» и выгрузки данных)."""
+    with get_connection() as conn:
+        return [dict(r) for r in conn.execute("""
+            SELECT e.id, e.watch_id, e.product_id, e.price, e.reason, e.created_at, e.status,
+                   w.kind, w.target, w.title
+            FROM watch_events e JOIN watches w ON w.id = e.watch_id
+            WHERE w.user_id = ? ORDER BY e.id DESC LIMIT ?
+        """, (int(user_id), max(1, int(limit))))]
+
+
+# ---------------------------------------------------------------------------
+# Учёт AI (P08): сколько вызовов, токенов и денег ушло на какую задачу.
+# ---------------------------------------------------------------------------
+
+def record_ai_usage(task: str, audience: str, provider: str, model: str, outcome: str,
+                    input_tokens: int = 0, output_tokens: int = 0, cost: Optional[float] = None,
+                    latency_ms: float = 0.0, error: Optional[str] = None,
+                    cache_hit: bool = False, fallback: bool = False,
+                    now: Optional[datetime.datetime] = None) -> None:
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    day = moment.strftime("%Y-%m-%d")
+    with get_connection() as conn:
+        conn.execute("""
+            INSERT INTO ai_usage (day, task, audience, provider, model, outcome, requests, input_tokens,
+                                  output_tokens, cost_usd, latency_sum_ms, cache_hits, fallbacks, errors, last_error)
+            VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(day, task, provider, model, outcome) DO UPDATE SET
+                requests = requests + 1,
+                input_tokens = input_tokens + excluded.input_tokens,
+                output_tokens = output_tokens + excluded.output_tokens,
+                cost_usd = CASE WHEN excluded.cost_usd IS NULL THEN cost_usd
+                                ELSE COALESCE(cost_usd, 0) + excluded.cost_usd END,
+                latency_sum_ms = latency_sum_ms + excluded.latency_sum_ms,
+                cache_hits = cache_hits + excluded.cache_hits,
+                fallbacks = fallbacks + excluded.fallbacks,
+                errors = errors + excluded.errors,
+                last_error = COALESCE(excluded.last_error, last_error)
+        """, (day, task, audience, provider, model, outcome, int(input_tokens or 0), int(output_tokens or 0),
+              cost, float(latency_ms or 0.0), 1 if cache_hit else 0, 1 if fallback else 0,
+              1 if outcome in ("error", "bad_response") else 0, error))
+        conn.commit()
+
+
+def ai_usage(days: int = 7, now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
+    """Сводка расходов AI за период: по задачам и по моделям, с честной пометкой о неизвестной цене."""
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    since = (moment - datetime.timedelta(days=max(1, int(days)))).strftime("%Y-%m-%d")
+    totals = {"requests": 0, "provider_calls": 0, "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0,
+              "cache_hits": 0, "fallbacks": 0, "errors": 0, "deterministic": 0}
+    by_task: Dict[str, Dict[str, Any]] = {}
+    by_model: Dict[str, Dict[str, Any]] = {}
+    priced = True
+    with get_connection() as conn:
+        for row in conn.execute("SELECT * FROM ai_usage WHERE day >= ?", (since,)):
+            item = dict(row)
+            totals["requests"] += item["requests"]
+            totals["input_tokens"] += item["input_tokens"]
+            totals["output_tokens"] += item["output_tokens"]
+            totals["cache_hits"] += item["cache_hits"]
+            totals["fallbacks"] += item["fallbacks"]
+            totals["errors"] += item["errors"]
+            if item["provider"] not in ("none", "cache"):
+                totals["provider_calls"] += item["requests"]
+                if item["cost_usd"] is None and item["input_tokens"] + item["output_tokens"]:
+                    priced = False
+            if item["outcome"] == "deterministic":
+                totals["deterministic"] += item["requests"]
+            totals["cost_usd"] += item["cost_usd"] or 0.0
+
+            task = by_task.setdefault(item["task"], {"audience": item["audience"], "requests": 0,
+                                                     "provider_calls": 0, "errors": 0, "cache_hits": 0,
+                                                     "fallbacks": 0, "cost_usd": 0.0, "latency_sum_ms": 0.0})
+            task["requests"] += item["requests"]
+            task["errors"] += item["errors"]
+            task["cache_hits"] += item["cache_hits"]
+            task["fallbacks"] += item["fallbacks"]
+            task["cost_usd"] += item["cost_usd"] or 0.0
+            task["latency_sum_ms"] += item["latency_sum_ms"]
+            if item["provider"] not in ("none", "cache"):
+                task["provider_calls"] += item["requests"]
+
+            if item["provider"] in ("none", "cache"):
+                continue
+            model = by_model.setdefault(f'{item["provider"]}/{item["model"]}',
+                                        {"requests": 0, "input_tokens": 0, "output_tokens": 0,
+                                         "cost_usd": 0.0, "errors": 0})
+            model["requests"] += item["requests"]
+            model["input_tokens"] += item["input_tokens"]
+            model["output_tokens"] += item["output_tokens"]
+            model["cost_usd"] += item["cost_usd"] or 0.0
+            model["errors"] += item["errors"]
+
+    for task in by_task.values():
+        task["avg_latency_ms"] = round(task["latency_sum_ms"] / task["provider_calls"], 1) if task["provider_calls"] else None
+        task.pop("latency_sum_ms")
+    totals["cost_usd"] = round(totals["cost_usd"], 4)
+    return {"days": int(days), "totals": totals, "by_task": by_task, "by_model": by_model,
+            "cost_known": priced,
+            "note": ("Стоимость посчитана по ценам, заданным администратором." if priced else
+                     "Цены части моделей не заданы — стоимость показана не полностью.")}
+
+
+def prune_ai_usage(days: int = 365, now: Optional[datetime.datetime] = None) -> int:
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    cutoff = (moment - datetime.timedelta(days=days)).strftime("%Y-%m-%d")
+    with get_connection() as conn:
+        deleted = conn.execute("DELETE FROM ai_usage WHERE day < ?", (cutoff,)).rowcount
+        conn.commit()
+    return deleted
+
+
+# ---------------------------------------------------------------------------
+# Теневой отчёт сопоставления (P09): видно, что изменило правило фасовки и где оно не уверено.
+# ---------------------------------------------------------------------------
+
+def record_matching_shadow(kind: str, reason: str, left: str, right: str,
+                           now: Optional[datetime.datetime] = None) -> None:
+    """Fail-open: отчёт не должен мешать обходу и сравнению цен."""
+    try:
+        moment = now or datetime.datetime.now(datetime.timezone.utc)
+        with get_connection() as conn:
+            conn.execute("""
+                INSERT INTO matching_shadow (day, kind, reason, count, example_left, example_right)
+                VALUES (?, ?, ?, 1, ?, ?)
+                ON CONFLICT(day, kind, reason) DO UPDATE SET count = count + 1
+            """, (moment.strftime("%Y-%m-%d"), kind, reason, str(left)[:200], str(right)[:200]))
+            conn.commit()
+    except Exception:
+        pass
+
+
+def matching_shadow(days: int = 7, now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
+    """Сводка теневого отчёта: сколько сравнений заблокировано по фасовке и сколько случаев спорных."""
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    since = (moment - datetime.timedelta(days=max(1, int(days)))).strftime("%Y-%m-%d")
+    blocked, uncertain, rows = 0, 0, []
+    with get_connection() as conn:
+        for row in conn.execute("SELECT * FROM matching_shadow WHERE day >= ? ORDER BY count DESC LIMIT 100",
+                                (since,)):
+            item = dict(row)
+            rows.append(item)
+            if item["kind"] == "blocked":
+                blocked += item["count"]
+            else:
+                uncertain += item["count"]
+    return {"days": int(days), "blocked": blocked, "uncertain": uncertain, "rows": rows,
+            "note": "«Запрещено» — разная фасовка, такие цены не сравниваются. «Не уверены» — фасовка "
+                    "указана только у одного предложения, поэтому цены тоже не сравниваются: это кандидаты "
+                    "на разбор моделью."}

@@ -24,6 +24,8 @@ def changed_value(key, default):
     if isinstance(default, list):
         return ["тест", "проверка"]
     if isinstance(default, dict):
+        if not default:                      # пустая карта по умолчанию (цены моделей): даём допустимую запись
+            return {"gemini-2.5-flash": {"input": 0.3, "output": 2.5}}
         first = next(iter(default))
         return {first: not default[first]}
     return "changed"

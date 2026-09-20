@@ -189,14 +189,16 @@
       return card('Поиск за 24 ч', `<p class="text-sm mb-2">${esc(s.reason)}</p>` + kv([
         ['Запросов', num(s.total)], ['Ошибок', num(s.errors)], ['Ничего не найдено', num(s.not_found)],
         ['p95 длительности', s.p95_ms == null ? '—' : num(Math.round(s.p95_ms)) + ' мс']]) +
-        details('По источникам', json(s.by_source)) + `<p class="text-xs text-slate-500 mt-2">${esc(s.note)}</p>`, s.status);
+        details('По источникам', json(s.by_source)) + `<p class="text-xs text-slate-500 mt-2">${esc(s.note)}</p>`, s.status)
+        + '<div id="searchAnalytics" class="mt-4"><p class="text-sm text-slate-500">Загружаю отчёт по поиску…</p></div>';
     },
     ai() {
       const s = data.sections.ai;
       return card('AI за 24 ч', `<p class="text-sm mb-2">${esc(s.reason)}</p>` + kv([
         ['Провайдер', esc(s.provider)], ['Вызовов провайдера', num(s.calls_24h)], ['Неуспешных', num(s.errors_24h)],
         ['Токены (вход / выход)', `${num(s.input_tokens_24h)} / ${num(s.output_tokens_24h)}`],
-        ['Сегодня / дневной лимит', `${num(s.calls_today)} / ${num(s.daily_limit)}`]]) + details('Исходы', json(s.outcomes)), s.status);
+        ['Сегодня / дневной лимит', `${num(s.calls_today)} / ${num(s.daily_limit)}`]]) + details('Исходы', json(s.outcomes)), s.status)
+        + '<div id="aiSpending" class="mt-4"><p class="text-sm text-slate-500">Загружаю расходы AI…</p></div>';
     },
     telegram() {
       const s = data.sections.telegram, d = s.delivery_24h || {};
@@ -208,6 +210,7 @@
     },
     system() {
       const s = data.sections.system, t = s.telemetry || {};
+      const shadowBox = '<div id="matchingShadow" class="mt-4"><p class="text-sm text-slate-500">Загружаю отчёт сопоставления…</p></div>';
       const errs = (s.recent_errors || []).map(e => `<li class="break-words">${ago(e.timestamp)} · ${esc(e.component)} · ${esc(e.where)} · ${esc(e.error)}${e.route ? ' · ' + esc(e.route) : ''}</li>`).join('');
       return card('Система', `<p class="text-sm mb-2">${esc(s.reason)}</p>` + kv([
         ['Версия', esc(s.version)], ['Схема БД', esc(s.schema_version)], ['Python / SQLite', `${esc(s.python)} / ${esc(s.sqlite)}`],
@@ -216,7 +219,7 @@
         ['События телеметрии', num(s.counts.telemetry_events)],
         ['Сброс телеметрии', `${t.flusher_alive ? 'работает' : 'не запущен'} · неудач ${num(t.failed_flushes)} · отброшено событий ${num(t.dropped_events)}`]]) +
         (errs ? details(`Системные ошибки за 24 ч (${num(s.errors_24h)})`, `<ul class="text-xs space-y-1">${errs}</ul>`) : '') +
-        `<p class="text-xs text-slate-500 mt-2">${esc(s.note)}</p>`, s.status);
+        `<p class="text-xs text-slate-500 mt-2">${esc(s.note)}</p>`, s.status) + shadowBox;
     },
     events() {
       return `
@@ -246,6 +249,98 @@
           <span class="text-slate-200 break-words min-w-0">${esc(e.message)}</span></summary>
         <div class="mt-2">${kv([['Магазин', esc(e.shop || '—')], ['Категория', esc(e.category || '—')], ['scan_id', esc(e.scan_id || '—')]])}${json(e.data)}</div>
       </details>`).join('');
+  }
+
+  function queryRows(list) {
+    if (!list || !list.length) return '<p class="text-sm text-slate-500">Запросов с сохранённым текстом пока нет.</p>';
+    return `<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="text-xs text-slate-400 text-left"><tr>
+      <th class="pb-1 pr-3">Запрос</th><th class="pb-1 pr-3">Город</th><th class="pb-1 pr-3 text-right">Поисков</th>
+      <th class="pb-1 pr-3 text-right">Нашлось</th><th class="pb-1 pr-3 text-right">Слабо</th>
+      <th class="pb-1 pr-3 text-right">Пусто</th><th class="pb-1 pr-3 text-right">Ошибок</th>
+      <th class="pb-1 pr-3 text-right">Успех</th></tr></thead><tbody>` +
+      list.map(q => `<tr class="border-t border-slate-800"><td class="py-1 pr-3 break-words">${esc(q.normalized_query)}</td>
+        <td class="py-1 pr-3 text-slate-400">${esc(q.city || 'Все')}</td><td class="py-1 pr-3 text-right">${num(q.searches)}</td>
+        <td class="py-1 pr-3 text-right text-emerald-300">${num(q.found)}</td><td class="py-1 pr-3 text-right text-amber-300">${num(q.weak)}</td>
+        <td class="py-1 pr-3 text-right text-slate-300">${num(q.not_found)}</td><td class="py-1 pr-3 text-right text-rose-300">${num(q.error)}</td>
+        <td class="py-1 pr-3 text-right">${q.success_rate == null ? '—' : num(q.success_rate) + ' %'}</td></tr>`).join('') +
+      '</tbody></table></div>';
+  }
+
+  async function loadMatchingShadow() {
+    const box = document.getElementById('matchingShadow');
+    if (!box) return;
+    const s = await api('/api/admin/monitoring/matching');
+    if (!s) { box.innerHTML = '<p class="text-sm text-rose-300">Не удалось загрузить отчёт сопоставления.</p>'; return; }
+    const rows = (s.rows || []).map(r => `<tr class="border-t border-slate-800">
+        <td class="py-1 pr-3">${r.kind === 'blocked' ? 'разная фасовка' : 'не уверены'}</td>
+        <td class="py-1 pr-3 break-words">${esc(r.reason)}</td>
+        <td class="py-1 pr-3 text-right">${num(r.count)}</td>
+        <td class="py-1 pr-3 break-words text-slate-400">${esc(r.example_left || '')} ↔ ${esc(r.example_right || '')}</td></tr>`).join('');
+    box.innerHTML = card(`Сопоставление товаров за ${num(s.days)} дн.`, `<p class="text-sm mb-2">${esc(s.reason)}</p>` + kv([
+        ['Развело по разной фасовке', num(s.blocked)],
+        ['Не сравнивается из-за неизвестной фасовки', num(s.uncertain)]]) +
+      (rows ? `<div class="overflow-x-auto mt-2"><table class="w-full text-sm"><thead class="text-xs text-slate-400 text-left"><tr>
+          <th class="pb-1 pr-3">Случай</th><th class="pb-1 pr-3">Причина</th><th class="pb-1 pr-3 text-right">Раз</th>
+          <th class="pb-1 pr-3">Пример</th></tr></thead><tbody>${rows}</tbody></table></div>`
+        : '<p class="text-sm text-slate-500">Пока ничего не записано.</p>') +
+      `<p class="text-xs text-slate-500 mt-2">${esc(s.note)}</p>`, s.status);
+  }
+
+  async function loadAiSpending() {
+    const box = document.getElementById('aiSpending');
+    if (!box) return;
+    const s = await api('/api/admin/monitoring/ai-usage');
+    if (!s) { box.innerHTML = '<p class="text-sm text-rose-300">Не удалось загрузить расходы AI.</p>'; return; }
+    const t = s.totals || {};
+    const taskRows = Object.entries(s.by_task || {}).map(([task, v]) => `<tr class="border-t border-slate-800">
+        <td class="py-1 pr-3">${esc(task)}</td><td class="py-1 pr-3 text-slate-400">${v.audience === 'user' ? 'люди' : 'проект'}</td>
+        <td class="py-1 pr-3 text-right">${num(v.requests)}</td><td class="py-1 pr-3 text-right">${num(v.provider_calls)}</td>
+        <td class="py-1 pr-3 text-right text-emerald-300">${num(v.cache_hits)}</td>
+        <td class="py-1 pr-3 text-right text-amber-300">${num(v.fallbacks)}</td>
+        <td class="py-1 pr-3 text-right text-rose-300">${num(v.errors)}</td>
+        <td class="py-1 pr-3 text-right">${v.avg_latency_ms == null ? '—' : num(Math.round(v.avg_latency_ms)) + ' мс'}</td></tr>`).join('');
+    const modelRows = Object.entries(s.by_model || {}).map(([model, v]) => `<tr class="border-t border-slate-800">
+        <td class="py-1 pr-3 break-words">${esc(model)}</td><td class="py-1 pr-3 text-right">${num(v.requests)}</td>
+        <td class="py-1 pr-3 text-right">${num(v.input_tokens)}</td><td class="py-1 pr-3 text-right">${num(v.output_tokens)}</td>
+        <td class="py-1 pr-3 text-right">${s.cost_known ? '$' + (v.cost_usd || 0).toFixed(4) : '—'}</td></tr>`).join('');
+    box.innerHTML = card(`Расходы AI за ${num(s.days)} дн.`, `<p class="text-sm mb-2">${esc(s.reason)}</p>` + kv([
+        ['Задач всего', num(t.requests)], ['Вызовов провайдера', num(t.provider_calls)],
+        ['Решено без модели', num(t.deterministic)], ['Из кэша', num(t.cache_hits)],
+        ['Переходов на запасного', num(t.fallbacks)], ['Ошибок', num(t.errors)],
+        ['Токены (вход / выход)', `${num(t.input_tokens)} / ${num(t.output_tokens)}`],
+        ['Деньги', s.cost_known ? '$' + num((t.cost_usd || 0).toFixed(4)) : 'цены моделей не заданы']]) +
+      `<p class="text-xs text-slate-500 mt-2">${esc(s.note)}</p>`, s.status)
+      + card('По задачам', taskRows ? `<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="text-xs text-slate-400 text-left"><tr>
+          <th class="pb-1 pr-3">Задача</th><th class="pb-1 pr-3">Чья</th><th class="pb-1 pr-3 text-right">Всего</th>
+          <th class="pb-1 pr-3 text-right">К провайдеру</th><th class="pb-1 pr-3 text-right">Из кэша</th>
+          <th class="pb-1 pr-3 text-right">Запасной</th><th class="pb-1 pr-3 text-right">Ошибки</th>
+          <th class="pb-1 pr-3 text-right">Задержка</th></tr></thead><tbody>${taskRows}</tbody></table></div>`
+        : '<p class="text-sm text-slate-500">Обращений не было.</p>')
+      + card('По моделям', modelRows ? `<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="text-xs text-slate-400 text-left"><tr>
+          <th class="pb-1 pr-3">Модель</th><th class="pb-1 pr-3 text-right">Вызовов</th>
+          <th class="pb-1 pr-3 text-right">Токены входа</th><th class="pb-1 pr-3 text-right">Токены ответа</th>
+          <th class="pb-1 pr-3 text-right">Деньги</th></tr></thead><tbody>${modelRows}</tbody></table></div>`
+        : '<p class="text-sm text-slate-500">Вызовов провайдера не было.</p>');
+  }
+
+  async function loadSearchAnalytics() {
+    const box = document.getElementById('searchAnalytics');
+    if (!box) return;
+    const s = await api('/api/admin/monitoring/search');
+    if (!s) { box.innerHTML = '<p class="text-sm text-rose-300">Не удалось загрузить отчёт по поиску.</p>'; return; }
+    const c = s.counts || {};
+    box.innerHTML = card(`Качество поиска за ${num(s.days)} дн.`, `<p class="text-sm mb-2">${esc(s.reason)}</p>` + kv([
+        ['Поисков', num(s.total)],
+        ['Доля успеха', s.success_rate == null ? '—' : num(s.success_rate) + ' %'],
+        ['Доля ошибок', s.error_rate == null ? '—' : num(s.error_rate) + ' %'],
+        ['Нашлось / слабо / пусто / ошибка',
+          `${num(c.found)} / ${num(c.weak)} / ${num(c.not_found)} / ${num(c.error)}`],
+        ['Результатов в среднем', s.avg_results == null ? '—' : num(s.avg_results)]]) +
+      `<p class="text-xs text-slate-500 mt-2">${esc(s.formula)}</p>` +
+      details('По источникам', json(s.by_source)), s.status)
+      + card('Чаще всего ищут', queryRows(s.top_queries))
+      + card('Плохо отвечаем', queryRows(s.bad_queries) +
+        `<p class="text-xs text-slate-500 mt-2">${esc(s.note)}</p>`);
   }
 
   async function loadEvents() {
@@ -350,6 +445,9 @@
     document.getElementById('generatedAt').innerHTML = 'Данные на ' + ago(data.generated_at) + '. Статус «Нет данных» означает отсутствие наблюдений, а не норму.';
     document.getElementById('view').innerHTML = VIEWS[current]();
     if (current === 'events') loadEvents();
+    if (current === 'search') loadSearchAnalytics();
+    if (current === 'ai') loadAiSpending();
+    if (current === 'system') loadMatchingShadow();
   }
 
   async function load() {

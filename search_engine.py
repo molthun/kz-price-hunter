@@ -6,6 +6,8 @@ import time
 from typing import List, Dict, Any, Optional, Tuple
 from config import DB_PATH, SEARCH_CACHE_TTL_SECONDS, load_settings
 from bounded_cache import BoundedTTLCache
+import contextvars
+import search_analytics
 from database import save_or_update_products_batch
 from scrapers.kaspi import KaspiScraper
 
@@ -477,9 +479,27 @@ def _close_scraper(scraper) -> None:
         close()
 
 
+# Итог работоспособности живых источников последнего опроса в этой задаче: пустой ответ при отказе
+# источников — не «товара нет» (P06 F03). Контекстная переменная, поэтому параллельные поиски не мешают.
+_live_health: contextvars.ContextVar[Optional[Dict[str, int]]] = contextvars.ContextVar(
+    "live_health", default=None)
+
+
 def _record_search(source: str, query: str, started: float, outcome: str, results: int,
-                   **extra) -> None:
-    """Событие поиска: форма запроса без текста (P06), число результатов, длительность, исход (P01)."""
+                   analytics_source: Optional[str] = None, city_name: Optional[str] = None, **extra) -> None:
+    """Событие поиска (P01: форма запроса без текста) и — только для обращения человека — агрегат аналитики (P06).
+
+    `analytics_source` задаётся лишь там, где поиск запросил человек. Вложенное обновление живых цен внутри
+    сводки и фоновые обходы в спрос не попадают: иначе одно обращение считалось бы дважды и быстрее
+    открывало бы текст редкого запроса (F04). Технические события телеметрии пишутся по-прежнему для всех.
+    Обе записи fail-open: аналитика никогда не ломает и не задерживает сам поиск.
+    """
+    if analytics_source:
+        try:
+            import database
+            database.record_search(query, city_name, analytics_source, outcome, results)
+        except Exception:
+            pass
     try:
         from telemetry import (telemetry, query_shape, EVENT_SEARCH_QUERY, SEVERITY_INFO, SEVERITY_ERROR,
                                COMPONENT_SEARCH, MAX_SEARCH_EVENTS_PER_MINUTE)
@@ -493,17 +513,29 @@ def _record_search(source: str, query: str, started: float, outcome: str, result
         pass
 
 
-async def search_live_stores(query: str, city: str = "Астана") -> List[Dict[str, Any]]:
+async def search_live_stores(query: str, city: str = "Астана",
+                             analytics_source: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Живой опрос площадок. `analytics_source` указывают только обращения человека (P06 F04)."""
     started = time.monotonic()
     outcome, items, cached = "error", [], False
+    health = {"attempted": 0, "failed": 0}
     try:
-        items, cached = await _search_live_stores(query, city)
-        outcome = "found" if items else "not_found"
+        items, cached, health = await _search_live_stores(query, city)
+        collected = _live_health.get()
+        if collected is not None:
+            # Сводка снаружи узнаёт, что источники отвечали, даже если сам список пуст
+            collected["attempted"] += health["attempted"]
+            collected["failed"] += health["failed"]
+        # Исход — по качеству совпадения, а не по числу строк (P06): десять чехлов на «RTX 5090» не успех.
+        # Пустой ответ при сбое источников — ошибка: утверждать, что товара нет, оснований нет (F03).
+        outcome = (search_analytics.ERROR if not items and health["failed"]
+                   else search_analytics.classify(query, items))
         return items
     finally:
         from offer_identity import city_config
-        _record_search("live", query, started, outcome, len(items), requested_city=city,
-                       city=city_config(city)["id"], cached=cached)
+        _record_search("live", query, started, outcome, len(items), analytics_source=analytics_source,
+                       city_name=city, requested_city=city, city=city_config(city)["id"], cached=cached,
+                       sources_attempted=health["attempted"], sources_failed=health["failed"])
 
 
 async def _search_live_stores(query: str, city: str = "Астана"):
@@ -525,9 +557,12 @@ async def _search_live_stores(query: str, city: str = "Астана"):
     if cache_key in _LIVE_CACHE:
         cached_ts, cached_items = _LIVE_CACHE[cache_key]
         if (now_ts - cached_ts) < SEARCH_CACHE_TTL_SECONDS:
-            return cached_items, True
+            return cached_items, True, {"attempted": 0, "failed": 0}
 
     all_found = []
+    # Сколько источников опрошено и сколько не ответили: пустой ответ из-за сбоя — не то же самое,
+    # что достоверное отсутствие товара (P06 F03)
+    health = {"attempted": 0, "failed": 0}
 
     async def _store(items):
         items = list(assign_offer_ids(items))
@@ -541,6 +576,7 @@ async def _search_live_stores(query: str, city: str = "Астана"):
 
     # 1. Kaspi: цены выбранного города (код города Kaspi)
     if "kaspi" in active_shops:
+        health["attempted"] += 1
         try:
             kaspi = KaspiScraper(city_code=polled_city["kaspi_code"])
             try:
@@ -548,10 +584,12 @@ async def _search_live_stores(query: str, city: str = "Астана"):
             finally:
                 _close_scraper(kaspi)
         except Exception as e:
+            health["failed"] += 1
             print(f"[SearchEngine] Ошибка live-поиска в Kaspi: {type(e).__name__}")
 
     # 2. 4mobile: единый магазин, город задаёт сам адаптер
     if "fourmobile" in active_shops:
+        health["attempted"] += 1
         try:
             from scrapers.fourmobile import FourMobileScraper
             four_mobile = FourMobileScraper()
@@ -560,10 +598,12 @@ async def _search_live_stores(query: str, city: str = "Астана"):
             finally:
                 _close_scraper(four_mobile)
         except Exception as e:
+            health["failed"] += 1
             print(f"[SearchEngine] Ошибка live-поиска в 4mobile: {type(e).__name__}")
 
     # 3. Forte Market: цена города или общая по Казахстану (метку ставит адаптер)
     if "fortemarket" in active_shops:
+        health["attempted"] += 1
         try:
             from scrapers.fortemarket import ForteMarketScraper
             forte = ForteMarketScraper(city=city_name)
@@ -572,6 +612,7 @@ async def _search_live_stores(query: str, city: str = "Астана"):
             finally:
                 _close_scraper(forte)
         except Exception as e:
+            health["failed"] += 1
             print(f"[SearchEngine] Ошибка live-поиска в Forte Market: {type(e).__name__}")
 
     # Авто-регистрация категории для ротации в волнах обновлений
@@ -587,25 +628,40 @@ async def _search_live_stores(query: str, city: str = "Астана"):
                 except Exception:
                     pass
 
-    _LIVE_CACHE[cache_key] = (now_ts, all_found)
-    return all_found, False
+    # Сбой не кладётся в кэш как успешная пустая выдача: иначе поломка источника повторялась бы весь TTL
+    if all_found or not health["failed"]:
+        _LIVE_CACHE[cache_key] = (now_ts, all_found)
+    return all_found, False, health
 
-async def get_best_price_summary(query: str, live: bool = False, **kwargs) -> Dict[str, Any]:
-    """Комплексный поиск (см. _get_best_price_summary) с событием телеметрии поиска."""
+async def get_best_price_summary(query: str, live: bool = False, user_search: bool = False,
+                                 **kwargs) -> Dict[str, Any]:
+    """Комплексный поиск (см. _get_best_price_summary) с событием телеметрии поиска.
+
+    `user_search=True` ставит только обращение человека через API: именно оно попадает в аналитику спроса
+    ровно одной записью, включая случай live (вложенный живой опрос свою запись не делает — P06 F04).
+    """
     started = time.monotonic()
     outcome, total = "error", 0
+    health: Dict[str, int] = {"attempted": 0, "failed": 0}
+    token = _live_health.set(health)
     try:
         result = await _get_best_price_summary(query, live=live, **kwargs)
         total = int(result.get("total_found") or 0)
-        outcome = "found" if total else "not_found"
+        items = result.get("items") or []
+        # Пустой ответ при отказе опрошенных источников — ошибка, а не достоверное отсутствие товара (F03)
+        outcome = (search_analytics.ERROR if not items and health["failed"]
+                   else search_analytics.classify(query, items))
         return result
     finally:
+        _live_health.reset(token)
         defaults = {"only_discount": False, "exclude_accessories": True, "match_mode": "AND", "sort_by": "price_asc"}
         # Только имена применённых фильтров, без значений (ключевые слова пользователя — личные настройки)
         filters = sorted(k for k, v in kwargs.items()
                          if (k in defaults and v != defaults[k]) or (k not in defaults and v not in (None, "", [])))
         _record_search("summary", query, started, outcome, total, live=live,
-                       city=kwargs.get("city"), filters=filters)
+                       sources_attempted=health["attempted"], sources_failed=health["failed"],
+                       analytics_source=("live" if live else "catalog") if user_search else None,
+                       city_name=kwargs.get("city"), city=kwargs.get("city"), filters=filters)
 
 
 async def _get_best_price_summary(

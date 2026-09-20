@@ -310,14 +310,18 @@ class AiBudgetTest(unittest.IsolatedAsyncioTestCase):
         with patch.object(ai_service, "DAILY_AI_CALL_LIMIT", 10), \
              patch.object(ai_service, "_provider_limiter", RateLimiter(1000, 60)), \
              patch.object(ai_service, "_scan_limiter", RateLimiter(1000, 60)):
+            # Фоновым задачам — своя доля (70 % от 10), и она исчерпывается отдельно от людей (P08 H01)
             for _ in range(7):
                 self.assertEqual(await ai_service._limited_provider_call(provider, scan=True), {"ok": True})
-            self.assertIsNone(await ai_service._limited_provider_call(provider, scan=True))  # 70% для фона
-            for _ in range(3):
+            self.assertIsNone(await ai_service._limited_provider_call(provider, scan=True))
+            # Исчерпанный фоновый лимит не отнимает лимит у людей
+            for _ in range(10):
                 self.assertEqual(await ai_service._limited_provider_call(provider), {"ok": True})
             self.assertIsNone(await ai_service._limited_provider_call(provider))
-        self.assertEqual(provider.await_count, 10)
-        self.assertEqual(ai_service.ai_calls_today(), 10)
+        self.assertEqual(provider.await_count, 17)
+        self.assertEqual(ai_service.ai_calls_today("internal"), 7)
+        self.assertEqual(ai_service.ai_calls_today("user"), 10)
+        self.assertEqual(ai_service.ai_calls_today(), 17)
 
     async def test_consultant_answer_is_bounded(self):
         import ai_service

@@ -215,7 +215,16 @@ def same_model(left, right):
 
 
 def search_terms(title):
-    terms = model_tokens(title)
+    """Слова для поиска аналогов в других магазинах.
+
+    Берутся отличительные слова товара (P09): слова категории («напиток», «корм») и фасовка отбрасываются —
+    иначе аналог с другим порядком слов просто не находится. Точную фасовку проверяет уже правило
+    сопоставления, а не полнотекстовый поиск.
+    """
+    import catalog_quality
+    terms = [t for t in catalog_quality.identity_tokens(title) if len(t) > 1]
+    if not terms:
+        terms = list(model_tokens(title))
     # Capacity may be spelled differently in FTS: use brand/model tokens instead.
     terms = [t for t in terms if not re.fullmatch(r'\d+(?:gb|mb)', t)]
     terms.sort(key=lambda t: (not any(c.isdigit() for c in t), -len(t), t))

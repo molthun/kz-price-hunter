@@ -717,16 +717,17 @@ class CityPrivacyTest(P0102Case):
         import search_engine
 
         async def found(query, city):
-            return [{"id": 1}], True
+            # Название нужно для оценки качества совпадения (P06), город в него не входит
+            return [{"id": 1, "title": "Apple iPhone 15 128GB"}], True, {"attempted": 1, "failed": 0}
 
         async def boom(query, city):
             raise RuntimeError("down")
 
         with patch.object(search_engine, "_search_live_stores", found):
-            asyncio.run(search_engine.search_live_stores("x", city=self.PII))
-            asyncio.run(search_engine.search_live_stores("x", city="Алматы"))
+            asyncio.run(search_engine.search_live_stores("iphone 15", city=self.PII))
+            asyncio.run(search_engine.search_live_stores("iphone 15", city="Алматы"))
         with patch.object(search_engine, "_search_live_stores", boom), self.assertRaises(RuntimeError):
-            asyncio.run(search_engine.search_live_stores("x", city=self.PII))
+            asyncio.run(search_engine.search_live_stores("iphone 15", city=self.PII))
         got = [(e["data"]["requested_city"], e["data"]["city"], e["data"]["outcome"], e["data"]["cached"])
                for e in self.events(tm.EVENT_SEARCH_QUERY)]
         # Неизвестный город опрашивается как Астана (city_config) — это и пишется как фактический
@@ -777,7 +778,8 @@ class AiEventTest(P0102Case):
 
         self.assertEqual(self.run_call(_call_gemini_api), {"ok": True})
         self.assertIsNone(self.run_call(_call_openai_api, scan=True))
-        with patch.object(ai_service, "daily_budget_allows", return_value=False):
+        # Квота проверяется и списывается одной операцией (P08 H01), поэтому отказ имитируется ею
+        with patch.object(ai_service, "reserve_ai_call", return_value=False):
             self.assertIsNone(self.run_call(_call_gemini_api))
         got = [(e["data"]["provider"], e["data"]["purpose"], e["data"]["outcome"], e["data"]["provider_called"])
                for e in self.events(tm.EVENT_AI_QUERY)]
@@ -834,14 +836,16 @@ class SearchEventTest(P0102Case):
         import search_engine
 
         async def fake(query, live=False, **kw):
-            return {"total_found": 3}
+            # Исход поиска определяется качеством совпадения (P06), поэтому подмена отдаёт и сами товары
+            return {"total_found": 3, "items": [{"title": "Apple iPhone 15 128GB"}]}
 
         with patch.object(search_engine, "_get_best_price_summary", fake):
             asyncio.run(search_engine.get_best_price_summary(query=self.QUERY, only_discount=True, city="Астана",
                                                              exclude_accessories=True, junk_keywords=["x"]))
         (e,) = self.events(tm.EVENT_SEARCH_QUERY)
         d = e["data"]
-        self.assertEqual((d["source"], d["outcome"], d["results"], d["query_tokens"]), ("summary", "found", 3, 4))
+        # В запросе есть посторонний номер, которого нет в названии товара: это не уверенное совпадение (P06 F02)
+        self.assertEqual((d["source"], d["outcome"], d["results"], d["query_tokens"]), ("summary", "weak", 3, 4))
         self.assertEqual(d["filters"], ["city", "junk_keywords", "only_discount"])
         self.assert_no_query_text()
 

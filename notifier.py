@@ -145,6 +145,76 @@ def send_telegram_alert(chat_id: int, product: Dict[str, Any], anomaly: Dict[str
         print(f"[Telegram Exception] {type(e).__name__}")
         return DeliveryResult("retry", None, type(e).__name__)
 
+def send_watch_message(chat_id: int, payload: Dict[str, Any]) -> DeliveryResult:
+    """Сообщение по личному наблюдению (P07): что сработало и почему — в первой же строке."""
+    product = payload.get("product") or {}
+    shop = product.get("shop", "Магазин")
+    text = (
+        f"🔔 <b>Сработало ваше наблюдение</b>\n"
+        f"{html.escape(payload.get('description') or '')}\n\n"
+        f"{_shop_emoji(shop)} <b>Магазин:</b> {html.escape(shop)}\n"
+        f"🏷 <b>Товар:</b> {html.escape(product.get('title') or '')}\n"
+        f"📍 <b>Регион:</b> {html.escape(product.get('city') or 'Астана')}\n"
+        f"✅ <b>Цена:</b> <b>{format_price(int(payload.get('price') or 0))}</b>\n\n"
+        f"ℹ️ {html.escape(payload.get('reason') or '')}"
+    )
+    keyboard = [[{"text": f"⚡️ Открыть товар в {shop}", "url": product.get("url") or APP_URL or ""}]]
+    if APP_URL:
+        keyboard.append([{"text": "🔔 Мои наблюдения", "url": APP_URL}])
+    try:
+        return classify_telegram_response(telegram_api("sendMessage", {
+            "chat_id": chat_id, "text": text, "parse_mode": "HTML",
+            "reply_markup": {"inline_keyboard": keyboard}}))
+    except Exception as e:
+        print(f"[Telegram Exception] {type(e).__name__}")
+        return DeliveryResult("retry", None, type(e).__name__)
+
+
+def _deliver_watch(item, payload, counts) -> tuple:
+    """Отправка задания по наблюдению.
+
+    Возвращает (отправлено ли сообщение, пауза Telegram по 429 или None).
+    """
+    from database import finish_notification, get_user, get_connection
+
+    user = get_user(item["user_id"])
+    with get_connection() as conn:
+        watch = conn.execute("SELECT * FROM watches WHERE id = ? AND user_id = ?",
+                             (payload.get("watch_id"), item["user_id"])).fetchone()
+        current = conn.execute("SELECT current_price FROM products WHERE id = ?",
+                               (str((payload.get("product") or {}).get("id") or ""),)).fetchone()
+    # Наблюдение удалено или выключено, человек отключил Telegram, цена уже другая — сообщение неактуально
+    if (not user or user["is_blocked"] or not user["settings"].get("telegram_notify_enabled")
+            or not watch or not watch["is_active"]
+            or not current or int(current[0] or 0) != int(payload.get("price") or 0)):
+        finish_notification(item["id"], "cancelled")
+        counts["cancelled"] += 1
+        return False, None
+
+    result = send_watch_message(user["id"], payload)
+    if isinstance(result, bool):  # совместимость с подменами в тестах
+        result = DeliveryResult("sent" if result else "retry", None, None if result else "Telegram delivery failed")
+    if result:
+        finish_notification(item["id"], "sent", item["attempts"])
+        counts["sent"] += 1
+        with get_connection() as conn:
+            conn.execute("UPDATE watch_events SET status = 'sent' WHERE id = ?", (payload.get("event_id"),))
+            # Одноразовое наблюдение выключается ПОСЛЕ отправки: своё сообщение оно должно успеть доставить
+            conn.execute("UPDATE watches SET is_active = 0 WHERE id = ? AND repeat_mode = 0", (watch["id"],))
+            conn.commit()
+        return True, None
+    if result.status == "permanent":
+        finish_notification(item["id"], "failed", item["attempts"], result.error)
+        counts["failed"] += 1
+        return False, None
+    finish_notification(item["id"], "pending", item["attempts"], result.error, retry_after=result.retry_after)
+    counts["retry"] += 1
+    if result.retry_after is not None:
+        pause_telegram(result.retry_after)   # 429 — лимит на весь бот
+        return False, float(result.retry_after)
+    return False, None
+
+
 def dispatch_alert(product: Dict[str, Any], anomaly: Dict[str, Any]) -> int:
     """Печатает алерт в консоль и рассылает его пользователям, чьи личные пороги он проходит.
 
@@ -263,6 +333,13 @@ def _deliver_batch(limit, counts):
             break
         try:
             payload = json.loads(item["payload"])
+            if payload.get("kind") == "watch":
+                # Задание по личному наблюдению: свои проверки актуальности, та же очередь и та же пауза 429
+                delivered, pause = _deliver_watch(item, payload, counts)
+                sent += 1 if delivered else 0
+                if pause is not None:
+                    break
+                continue
             product, anomaly = payload["product"], payload["anomaly"]
             user = get_user(item["user_id"])
             candidate = dict(product, alert_type=anomaly["type"], new_price=anomaly["new_price"],
