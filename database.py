@@ -620,6 +620,60 @@ def _create_schema(cursor) -> None:
     """)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_search_queries_bucket ON search_queries(bucket)")
 
+    # Наблюдения пользователя (P07). Таблицы только добавляются — schema_version не повышается,
+    # предыдущий образ стартует на этой базе и просто их не использует.
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS watches (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            kind TEXT NOT NULL,
+            target TEXT NOT NULL,
+            title TEXT,
+            condition TEXT NOT NULL,
+            threshold INTEGER,
+            city TEXT,
+            shops TEXT NOT NULL DEFAULT '[]',
+            mode TEXT NOT NULL DEFAULT 'instant',
+            quiet_from TEXT NOT NULL DEFAULT '23:00',
+            quiet_to TEXT NOT NULL DEFAULT '08:00',
+            timezone TEXT NOT NULL DEFAULT 'Asia/Almaty',
+            cooldown_hours INTEGER NOT NULL DEFAULT 6,
+            repeat_mode INTEGER NOT NULL DEFAULT 1,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL,
+            last_sent_at TEXT,
+            UNIQUE(user_id, kind, target, condition, threshold)
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_watches_user ON watches(user_id, is_active)")
+    # Память наблюдения по каждому предложению: цена последнего отправленного сообщения не даёт
+    # повторно уведомлять об одном и том же (возврат цены к прежнему значению — не новость)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS watch_state (
+            watch_id INTEGER NOT NULL,
+            product_id TEXT NOT NULL,
+            last_notified_price INTEGER,
+            previous_price INTEGER,
+            min_price INTEGER,
+            was_available INTEGER NOT NULL DEFAULT 1,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (watch_id, product_id)
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS watch_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            watch_id INTEGER NOT NULL,
+            product_id TEXT NOT NULL,
+            price INTEGER NOT NULL,
+            reason TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'queued',
+            deliver_after REAL NOT NULL DEFAULT 0
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_watch_events_watch ON watch_events(watch_id, status)")
+
 
 # ---------------------------------------------------------------------------
 # Пронумерованные миграции данных. Каждая выполняется один раз, в своей транзакции;
@@ -1739,10 +1793,12 @@ NOTIFICATION_RETENTION_DAYS = 30
 
 def export_user_data(user_id: int) -> Optional[Dict[str, Any]]:
     """Всё, что сервис хранит о пользователе (M12): профиль, настройки, сессии без токенов,
-    история адресованных ему уведомлений."""
+    история адресованных ему уведомлений, его наблюдения и их срабатывания (P07)."""
     user = get_user(user_id)
     if not user:
         return None
+    watches = list_watches(user_id)
+    events = watch_events(user_id, limit=1000)
     with get_connection() as conn:
         sessions = [dict(r) for r in conn.execute(
             "SELECT created_at, expires_at FROM sessions WHERE user_id = ? ORDER BY created_at", (int(user_id),))]
@@ -1766,6 +1822,9 @@ def export_user_data(user_id: int) -> Optional[Dict[str, Any]]:
         "settings": user.get("settings") or {},
         "sessions": sessions,
         "notifications": notifications,
+        # Наблюдения принадлежат человеку и входят в его выгрузку (P07)
+        "watches": watches,
+        "watch_events": events,
     }
 
 
@@ -1774,9 +1833,15 @@ def delete_user_account(user_id: int) -> Dict[str, int]:
     Общие алерты и каталог не удаляются: они не принадлежат пользователю."""
     with get_connection() as conn:
         conn.execute("BEGIN IMMEDIATE")
+        # Наблюдения принадлежат человеку, поэтому уходят вместе с ним (P07)
+        conn.execute("DELETE FROM watch_state WHERE watch_id IN (SELECT id FROM watches WHERE user_id = ?)",
+                     (int(user_id),))
+        conn.execute("DELETE FROM watch_events WHERE watch_id IN (SELECT id FROM watches WHERE user_id = ?)",
+                     (int(user_id),))
         counts = {
             "sessions": conn.execute("DELETE FROM sessions WHERE user_id = ?", (int(user_id),)).rowcount,
             "notifications": conn.execute("DELETE FROM notification_outbox WHERE user_id = ?", (int(user_id),)).rowcount,
+            "watches": conn.execute("DELETE FROM watches WHERE user_id = ?", (int(user_id),)).rowcount,
             "users": conn.execute("DELETE FROM users WHERE id = ?", (int(user_id),)).rowcount,
         }
         conn.commit()
@@ -2331,3 +2396,216 @@ def get_store_deals(
 
 
 
+
+
+# ---------------------------------------------------------------------------
+# Наблюдения пользователя (P07): хранение, оценка срабатываний и постановка в очередь доставки.
+# Правила (что считается срабатыванием, тихие часы, пауза) живут в watches.py.
+# ---------------------------------------------------------------------------
+
+def _watch_row(row) -> Dict[str, Any]:
+    item = dict(row)
+    try:
+        item["shops"] = json.loads(item.get("shops") or "[]")
+    except ValueError:
+        item["shops"] = []
+    item["repeat"] = bool(item.pop("repeat_mode", 1))
+    return item
+
+
+def list_watches(user_id: int, only_active: bool = False) -> List[Dict[str, Any]]:
+    import watches as w
+    query = "SELECT * FROM watches WHERE user_id = ?"
+    if only_active:
+        query += " AND is_active = 1"
+    with get_connection() as conn:
+        rows = [_watch_row(r) for r in conn.execute(query + " ORDER BY id DESC", (int(user_id),))]
+    for row in rows:
+        row["description"] = w.describe(row)
+    return rows
+
+
+def create_watch(user_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
+    """Создаёт наблюдение пользователя; повторное создание того же возвращает существующее."""
+    import watches as w
+    clean = w.normalize(data)
+    with get_connection() as conn:
+        count = conn.execute("SELECT COUNT(*) FROM watches WHERE user_id = ?", (int(user_id),)).fetchone()[0]
+        if count >= w.MAX_WATCHES_PER_USER:
+            raise ValueError(f"Больше {w.MAX_WATCHES_PER_USER} наблюдений не поддерживается — "
+                             f"удалите ненужные")
+        existing = conn.execute("""SELECT * FROM watches WHERE user_id = ? AND kind = ? AND target = ?
+                                   AND condition = ? AND threshold IS ?""",
+                                (int(user_id), clean["kind"], clean["target"], clean["condition"],
+                                 clean["threshold"])).fetchone()
+        if existing:
+            conn.execute("UPDATE watches SET is_active = 1 WHERE id = ?", (existing["id"],))
+            conn.commit()
+            return _watch_row(conn.execute("SELECT * FROM watches WHERE id = ?", (existing["id"],)).fetchone())
+        conn.execute("""
+            INSERT INTO watches (user_id, kind, target, title, condition, threshold, city, shops, mode,
+                                 quiet_from, quiet_to, timezone, cooldown_hours, repeat_mode, is_active, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (int(user_id), clean["kind"], clean["target"], clean["title"], clean["condition"], clean["threshold"],
+              clean["city"], json.dumps(clean["shops"], ensure_ascii=False), clean["mode"], clean["quiet_from"],
+              clean["quiet_to"], clean["timezone"], clean["cooldown_hours"], clean["repeat"], clean["is_active"],
+              datetime.datetime.now(datetime.timezone.utc).isoformat()))
+        watch_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        conn.commit()
+        return _watch_row(conn.execute("SELECT * FROM watches WHERE id = ?", (watch_id,)).fetchone())
+
+
+def update_watch(user_id: int, watch_id: int, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Меняет своё наблюдение. Чужое не найдётся: выборка всегда ограничена владельцем."""
+    import watches as w
+    with get_connection() as conn:
+        current = conn.execute("SELECT * FROM watches WHERE id = ? AND user_id = ?",
+                               (int(watch_id), int(user_id))).fetchone()
+        if not current:
+            return None
+        merged = _watch_row(current)
+        merged.update({k: v for k, v in data.items() if k in (
+            "kind", "target", "title", "condition", "threshold", "city", "shops", "mode",
+            "quiet_from", "quiet_to", "timezone", "cooldown_hours", "repeat", "is_active")})
+        clean = w.normalize(merged)
+        conn.execute("""
+            UPDATE watches SET kind=?, target=?, title=?, condition=?, threshold=?, city=?, shops=?, mode=?,
+                   quiet_from=?, quiet_to=?, timezone=?, cooldown_hours=?, repeat_mode=?, is_active=?
+            WHERE id = ? AND user_id = ?
+        """, (clean["kind"], clean["target"], clean["title"], clean["condition"], clean["threshold"], clean["city"],
+              json.dumps(clean["shops"], ensure_ascii=False), clean["mode"], clean["quiet_from"], clean["quiet_to"],
+              clean["timezone"], clean["cooldown_hours"], clean["repeat"], clean["is_active"],
+              int(watch_id), int(user_id)))
+        conn.commit()
+        return _watch_row(conn.execute("SELECT * FROM watches WHERE id = ?", (int(watch_id),)).fetchone())
+
+
+def delete_watch(user_id: int, watch_id: int) -> bool:
+    with get_connection() as conn:
+        deleted = conn.execute("DELETE FROM watches WHERE id = ? AND user_id = ?",
+                               (int(watch_id), int(user_id))).rowcount
+        if deleted:
+            # Сначала снимаем неотправленные задания: после удаления срабатываний их уже не найти
+            conn.execute("UPDATE notification_outbox SET status='cancelled', last_error='watch deleted' "
+                         "WHERE status='pending' AND alert_id IN "
+                         "(SELECT -id FROM watch_events WHERE watch_id = ?)", (int(watch_id),))
+            conn.execute("DELETE FROM watch_state WHERE watch_id = ?", (int(watch_id),))
+            conn.execute("DELETE FROM watch_events WHERE watch_id = ?", (int(watch_id),))
+        conn.commit()
+    return bool(deleted)
+
+
+def _watch_states(conn, watch_id: int, product_id: str) -> Dict[str, Any]:
+    row = conn.execute("SELECT * FROM watch_state WHERE watch_id = ? AND product_id = ?",
+                       (int(watch_id), str(product_id))).fetchone()
+    return dict(row) if row else {}
+
+
+def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.datetime] = None) -> int:
+    """Сверяет изменившиеся предложения с активными наблюдениями и ставит срабатывания в очередь.
+
+    Одно срабатывание — одно задание доставки: задание кладётся в общую очередь уведомлений с
+    alert_id = -id срабатывания, а её UNIQUE(alert_id, user_id) не даёт продублировать отправку даже
+    при повторном запуске или параллельных воркерах (P07).
+    """
+    import watches as w
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    queued = 0
+    with get_connection() as conn:
+        active = [_watch_row(r) for r in conn.execute("SELECT * FROM watches WHERE is_active = 1")]
+    if not active:
+        return 0
+
+    for offer in offers:
+        product_id = str(offer.get("id") or "")
+        if not product_id:
+            continue
+        for watch in active:
+            if not w.matches(watch, offer):
+                continue
+            with get_connection() as conn:
+                state = _watch_states(conn, watch["id"], product_id)
+                triggered, reason = w.condition_met(watch, offer, state)
+                price = int(offer.get("current_price") or 0)
+                available = 1 if offer.get("is_available", True) else 0
+                if not triggered:
+                    # Память обновляется всегда: следующее снижение считается от актуальной цены
+                    conn.execute("""
+                        INSERT INTO watch_state (watch_id, product_id, previous_price, min_price, was_available,
+                                                 updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(watch_id, product_id) DO UPDATE SET
+                            previous_price = excluded.previous_price,
+                            min_price = MIN(COALESCE(min_price, excluded.min_price), excluded.min_price),
+                            was_available = excluded.was_available, updated_at = excluded.updated_at
+                    """, (watch["id"], product_id, price, price or None, available, moment.isoformat()))
+                    conn.commit()
+                    continue
+
+                last_sent_at = None
+                if watch.get("last_sent_at"):
+                    last_sent_at = datetime.datetime.fromisoformat(watch["last_sent_at"])
+                send_now, wait_reason = w.deliver_now(watch, moment, last_sent_at)
+                deliver_after = 0.0 if send_now else w.digest_due_at(watch, moment).timestamp()
+
+                conn.execute("""INSERT INTO watch_events (watch_id, product_id, price, reason, created_at,
+                                                          status, deliver_after)
+                                VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                             (watch["id"], product_id, price, reason, moment.isoformat(),
+                              "queued" if send_now else f"waiting:{wait_reason}", deliver_after))
+                event_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+                payload = {"kind": "watch", "watch_id": watch["id"], "event_id": event_id,
+                           "reason": reason, "price": price,
+                           "product": {k: offer.get(k) for k in ("id", "title", "shop", "city", "url", "image_url")},
+                           "description": w.describe(watch)}
+                conn.execute("""INSERT OR IGNORE INTO notification_outbox
+                                (alert_id, user_id, payload, status, created_at, next_attempt_at)
+                                VALUES (?, ?, ?, 'pending', ?, ?)""",
+                             (-event_id, watch["user_id"], json.dumps(payload, ensure_ascii=False),
+                              moment.timestamp(), deliver_after))
+                conn.execute("""
+                    INSERT INTO watch_state (watch_id, product_id, last_notified_price, previous_price,
+                                             min_price, was_available, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(watch_id, product_id) DO UPDATE SET
+                        last_notified_price = excluded.last_notified_price,
+                        previous_price = excluded.previous_price,
+                        min_price = MIN(COALESCE(min_price, excluded.min_price), excluded.min_price),
+                        was_available = excluded.was_available, updated_at = excluded.updated_at
+                """, (watch["id"], product_id, price, price, price or None, available, moment.isoformat()))
+                conn.execute("UPDATE watches SET last_sent_at = ? WHERE id = ?", (moment.isoformat(), watch["id"]))
+                if not watch["repeat"]:
+                    # Одноразовое наблюдение своё дело сделало и больше не тревожит
+                    conn.execute("UPDATE watches SET is_active = 0 WHERE id = ?", (watch["id"],))
+                    watch["is_active"] = 0
+                conn.commit()
+                watch["last_sent_at"] = moment.isoformat()
+                queued += 1
+    return queued
+
+
+def watched_offers(product_ids: List[str]) -> List[Dict[str, Any]]:
+    """Сохранённые предложения по идентификаторам — вход для проверки наблюдений (P07)."""
+    ids = [str(i) for i in product_ids if i]
+    if not ids:
+        return []
+    rows: List[Dict[str, Any]] = []
+    with get_connection() as conn:
+        for start in range(0, len(ids), 500):
+            chunk = ids[start:start + 500]
+            placeholders = ",".join("?" * len(chunk))
+            rows.extend(dict(r) for r in conn.execute(
+                f"SELECT id, title, shop, city, url, image_url, category, canonical_key, current_price, "
+                f"is_active AS is_available FROM products WHERE id IN ({placeholders})", chunk))
+    return rows
+
+
+def watch_events(user_id: int, limit: int = 50) -> List[Dict[str, Any]]:
+    """История срабатываний наблюдений пользователя (для «Моих наблюдений» и выгрузки данных)."""
+    with get_connection() as conn:
+        return [dict(r) for r in conn.execute("""
+            SELECT e.id, e.watch_id, e.product_id, e.price, e.reason, e.created_at, e.status,
+                   w.kind, w.target, w.title
+            FROM watch_events e JOIN watches w ON w.id = e.watch_id
+            WHERE w.user_id = ? ORDER BY e.id DESC LIMIT ?
+        """, (int(user_id), max(1, int(limit))))]

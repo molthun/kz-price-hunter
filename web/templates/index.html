@@ -964,6 +964,7 @@
           <button type="button" onclick="scrollSettingsTo('sec-shops')" class="px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-xs text-slate-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer"><i class="fa-solid fa-store text-emerald-400"></i><span>Магазины (<span data-shop-count>25</span>)</span></button>
           <button type="button" onclick="scrollSettingsTo('sec-thresholds')" class="px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-xs text-slate-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer"><i class="fa-solid fa-sliders text-amber-400"></i><span>Что показывать</span></button>
           <button type="button" onclick="scrollSettingsTo('sec-search')" class="px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-xs text-slate-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer"><i class="fa-solid fa-magnifying-glass text-purple-400"></i><span>Поиск и стоп-слова</span></button>
+          <button type="button" onclick="scrollSettingsTo('sec-watches')" class="auth-only hidden px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-xs text-slate-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer"><i class="fa-solid fa-bell text-rose-400"></i><span>Наблюдения</span></button>
           <button type="button" onclick="scrollSettingsTo('myDataSection')" class="auth-only hidden px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-xs text-slate-300 hover:text-white transition flex items-center gap-1.5 cursor-pointer"><i class="fa-solid fa-user-shield text-cyan-400"></i><span>Профиль и мои данные</span></button>
         </div>
         <div class="admin-only hidden flex flex-wrap items-center gap-2">
@@ -988,6 +989,50 @@
 
       <div>
         <fieldset id="personalSettingsFieldset" class="space-y-6 disabled:opacity-60">
+
+          <!-- Блок 0: Мои наблюдения (P07) -->
+          <div id="sec-watches" class="auth-only hidden glass p-6 rounded-2xl space-y-4 transition">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <h3 class="text-base font-semibold text-white flex items-center gap-2">
+                <i class="fa-solid fa-bell text-rose-400 text-lg"></i>
+                <span>Мои наблюдения</span>
+              </h3>
+              <span id="watchesCount" class="text-xs text-slate-400"></span>
+            </div>
+            <p class="text-xs text-slate-400">Следите за конкретным товаром, моделью, запросом или категорией: сообщение придёт в Telegram, когда сработает ваше условие. Ночью (23:00–08:00) не беспокоим — накопленное придёт утром.</p>
+            <div class="grid md:grid-cols-5 gap-2 items-end">
+              <label class="md:col-span-2 text-xs text-slate-400">За чем следить
+                <input id="watchTarget" type="text" placeholder="например, iphone 15 pro" class="mt-1 w-full bg-dark-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
+              </label>
+              <label class="text-xs text-slate-400">Вид
+                <select id="watchKind" class="mt-1 w-full bg-dark-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
+                  <option value="search">поисковый запрос</option>
+                  <option value="model">модель</option>
+                  <option value="category">категория</option>
+                  <option value="product">товар по ссылке-идентификатору</option>
+                </select>
+              </label>
+              <label class="text-xs text-slate-400">Условие
+                <select id="watchCondition" onchange="updateWatchThreshold()" class="mt-1 w-full bg-dark-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
+                  <option value="target_price">цена не выше</option>
+                  <option value="drop_pct">снижение от, %</option>
+                  <option value="drop_kzt">снижение от, ₸</option>
+                  <option value="any_drop">любое снижение</option>
+                  <option value="best_price">лучшая цена за всё время</option>
+                  <option value="back_in_stock">снова в продаже</option>
+                </select>
+              </label>
+              <label id="watchThresholdWrap" class="text-xs text-slate-400">Значение
+                <input id="watchThreshold" type="number" min="1" placeholder="150000" class="mt-1 w-full bg-dark-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
+              </label>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+              <button type="button" onclick="createWatch()" class="px-4 py-2 rounded-xl bg-rose-500/90 hover:bg-rose-500 text-white text-sm font-semibold transition cursor-pointer"><i class="fa-solid fa-plus mr-1"></i>Добавить наблюдение</button>
+              <label class="flex items-center gap-2 text-xs text-slate-400 cursor-pointer"><input id="watchOnce" type="checkbox" class="accent-rose-500"><span>сообщить один раз и выключить</span></label>
+              <span id="watchesMessage" class="text-xs"></span>
+            </div>
+            <div id="watchesList" class="space-y-2"></div>
+          </div>
 
           <!-- Блок 1: Telegram-уведомления -->
           <div id="sec-tg" class="glass p-6 rounded-2xl space-y-4 transition">
@@ -4072,6 +4117,8 @@
       if (aiLabel && loggedIn && aiLabel.textContent === 'AI после входа') aiLabel.textContent = 'AI Авто';
       if (aiBtn) aiBtn.classList.toggle('opacity-60', !loggedIn);
       document.querySelectorAll('.auth-only').forEach(el => el.classList.toggle('hidden', !loggedIn));
+      // Наблюдения существуют только у вошедшего человека (P07)
+      if (loggedIn && typeof loadWatches === 'function') { updateWatchThreshold(); loadWatches(); }
       if (!loggedIn && !document.getElementById('tabConsultant').classList.contains('hidden')) {
         switchTab('anomalies');
       }
@@ -4395,6 +4442,93 @@
     }
 
     // P05: сброс личных настроек к умолчаниям (включённость Telegram-уведомлений сохраняется)
+    // --- Мои наблюдения (P07) ---
+    const WATCH_NEEDS_VALUE = ['target_price', 'drop_pct', 'drop_kzt'];
+
+    function updateWatchThreshold() {
+      const condition = document.getElementById('watchCondition').value;
+      const wrap = document.getElementById('watchThresholdWrap');
+      const needs = WATCH_NEEDS_VALUE.includes(condition);
+      wrap.classList.toggle('hidden', !needs);
+      document.getElementById('watchThreshold').placeholder = condition === 'drop_pct' ? '20' : '150000';
+    }
+
+    function watchMessage(text, ok) {
+      const box = document.getElementById('watchesMessage');
+      if (!box) return;
+      box.textContent = text || '';
+      box.className = 'text-xs ' + (ok ? 'text-emerald-300' : 'text-rose-300');
+    }
+
+    async function loadWatches() {
+      const box = document.getElementById('watchesList');
+      if (!box) return;
+      let data;
+      try {
+        data = await fetchJsonChecked('/api/me/watches', d => d && Array.isArray(d.watches));
+      } catch (e) {
+        console.error('Наблюдения:', e.message);
+        box.innerHTML = loadErrorHtml('наблюдения', 'loadWatches()');
+        return;
+      }
+      const count = document.getElementById('watchesCount');
+      if (count) count.textContent = `${data.watches.length} из ${data.limits.max}`;
+      if (!data.watches.length) {
+        box.innerHTML = '<p class="text-xs text-slate-500">Пока ни одного наблюдения. Добавьте то, за чем хотите следить.</p>';
+        return;
+      }
+      box.innerHTML = data.watches.map(w => `
+        <div class="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-dark-900 border border-slate-800">
+          <div class="min-w-0">
+            <div class="text-sm text-slate-200 break-words">${escapeHtml(w.description || '')}</div>
+            <div class="text-[11px] text-slate-500 mt-0.5">
+              ${w.is_active ? 'включено' : 'выключено'} · тишина ${escapeHtml(w.quiet_from)}–${escapeHtml(w.quiet_to)}
+              · пауза ${escapeHtml(String(w.cooldown_hours))} ч${w.repeat ? '' : ' · один раз'}
+              ${w.last_sent_at ? ' · последнее сообщение ' + escapeHtml(String(w.last_sent_at).slice(0, 16).replace('T', ' ')) : ''}
+            </div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <button type="button" onclick="toggleWatch(${w.id}, ${w.is_active ? 'false' : 'true'})" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 transition cursor-pointer">${w.is_active ? 'Выключить' : 'Включить'}</button>
+            <button type="button" onclick="deleteWatch(${w.id})" class="px-3 py-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-xs text-rose-300 transition cursor-pointer">Удалить</button>
+          </div>
+        </div>`).join('');
+    }
+
+    async function createWatch() {
+      const condition = document.getElementById('watchCondition').value;
+      const body = {
+        kind: document.getElementById('watchKind').value,
+        target: document.getElementById('watchTarget').value.trim(),
+        condition,
+        repeat: !document.getElementById('watchOnce').checked,
+      };
+      if (WATCH_NEEDS_VALUE.includes(condition)) body.threshold = document.getElementById('watchThreshold').value;
+      if (!body.target) { watchMessage('Укажите, за чем следить', false); return; }
+      const res = await fetch('/api/me/watches', {method: 'POST', headers: {'Content-Type': 'application/json'},
+                                                  body: JSON.stringify(body)});
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { watchMessage(data.message || 'Не удалось создать наблюдение', false); return; }
+      document.getElementById('watchTarget').value = '';
+      watchMessage('Наблюдение создано', true);
+      loadWatches();
+    }
+
+    async function toggleWatch(id, active) {
+      const res = await fetch(`/api/me/watches/${id}`, {method: 'POST', headers: {'Content-Type': 'application/json'},
+                                                        body: JSON.stringify({is_active: active})});
+      if (!res.ok) { watchMessage('Не удалось изменить наблюдение', false); return; }
+      watchMessage('', true);
+      loadWatches();
+    }
+
+    async function deleteWatch(id) {
+      if (!confirm('Удалить это наблюдение?')) return;
+      const res = await fetch(`/api/me/watches/${id}`, {method: 'DELETE'});
+      if (!res.ok) { watchMessage('Не удалось удалить наблюдение', false); return; }
+      watchMessage('Наблюдение удалено', true);
+      loadWatches();
+    }
+
     async function resetMySettings() {
       if (!confirm('Вернуть пороги, фильтры, магазины и настройки поиска к значениям по умолчанию?')) return;
       const data = await postSettings('/api/me/settings/reset', {}, 'btnResetSettings', 'saveResultToast', 'Сбросить к умолчаниям');

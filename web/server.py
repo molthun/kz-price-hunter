@@ -728,6 +728,71 @@ async def save_my_settings_handler(request):
     saved = save_user_settings(request["user"]["id"], clean)
     return web.json_response({"status": "ok", "settings": saved})
 
+@routes.get("/api/me/watches")
+@require_login
+async def my_watches_handler(request):
+    """Мои наблюдения и последние срабатывания (P07). Чужие не видны: выборка всегда по своему id."""
+    from database import list_watches, watch_events
+    user_id = request["user"]["id"]
+    watches, events = await asyncio.to_thread(
+        lambda: (list_watches(user_id), watch_events(user_id, limit=30)))
+    import watches as watch_rules
+    return web.json_response({
+        "status": "ok", "watches": watches, "events": events,
+        "limits": {"max": watch_rules.MAX_WATCHES_PER_USER},
+        "kinds": watch_rules.KINDS, "conditions": watch_rules.CONDITIONS, "labels": watch_rules.LABELS,
+    }, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
+@routes.post("/api/me/watches")
+@require_login
+async def create_watch_handler(request):
+    from database import create_watch
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"status": "error", "message": "Некорректный запрос"}, status=400)
+    try:
+        watch = await asyncio.to_thread(create_watch, request["user"]["id"], data)
+    except ValueError as e:
+        return web.json_response({"status": "error", "message": str(e)}, status=400)
+    return web.json_response({"status": "ok", "watch": watch},
+                             dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
+@routes.post("/api/me/watches/{watch_id}")
+@require_login
+async def update_watch_handler(request):
+    from database import update_watch
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"status": "error", "message": "Некорректный запрос"}, status=400)
+    try:
+        watch = await asyncio.to_thread(update_watch, request["user"]["id"],
+                                        int(request.match_info["watch_id"]), data)
+    except (ValueError, TypeError) as e:
+        return web.json_response({"status": "error", "message": str(e)}, status=400)
+    if not watch:
+        return web.json_response({"status": "error", "message": "Наблюдение не найдено"}, status=404)
+    return web.json_response({"status": "ok", "watch": watch},
+                             dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
+@routes.delete("/api/me/watches/{watch_id}")
+@require_login
+async def delete_watch_handler(request):
+    from database import delete_watch
+    try:
+        removed = await asyncio.to_thread(delete_watch, request["user"]["id"],
+                                          int(request.match_info["watch_id"]))
+    except (ValueError, TypeError):
+        return web.json_response({"status": "error", "message": "Наблюдение не найдено"}, status=404)
+    if not removed:
+        return web.json_response({"status": "error", "message": "Наблюдение не найдено"}, status=404)
+    return web.json_response({"status": "ok"})
+
+
 @routes.post("/api/me/settings/reset")
 @require_login
 async def reset_my_settings_handler(request):
@@ -946,6 +1011,20 @@ async def _save_and_detect(prods, shop_name, candidate_settings):
             anomaly = check_anomaly(p, history, custom_settings=candidate_settings)
             changes["discount_candidates"] += bool(anomaly)
             changes["alerts_recorded"] += bool(await _process_anomaly(p, anomaly, shop_name))
+
+    # Личные наблюдения (P07): проверяются только изменившиеся и новые предложения, отдельной задачей
+    # вне event loop. Сбой наблюдений не должен ломать обход, поэтому ошибка только логируется.
+    changed_ids = [str(p["id"]) for p in prods
+                   if str(p["id"]) not in history_map
+                   or history_map[str(p["id"])]["old_price"] != p["price"]]
+    if changed_ids:
+        try:
+            from database import evaluate_watches, watched_offers
+            await asyncio.to_thread(lambda: evaluate_watches(watched_offers(changed_ids)))
+        except Exception as e:
+            print(f"[Watches] Ошибка проверки наблюдений: {type(e).__name__}")
+            from telemetry import telemetry, COMPONENT_SYSTEM
+            telemetry.record_system_error(COMPONENT_SYSTEM, "evaluate_watches", e)
 
     # Сравнение с рынком для всей пачки — одна задача вне event loop, а не переключение
     # потока на каждый товар (у Белого Ветра ~14 тыс. за обход) (M06)

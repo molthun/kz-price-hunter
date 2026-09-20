@@ -82,7 +82,9 @@ class SelfServiceHttpTest(unittest.IsolatedAsyncioTestCase):
         self.login()
         resp = await self.client.post("/api/me/delete", json={"confirm": True}, headers=self.origin)
         self.assertEqual(resp.status, 200)
-        self.assertEqual((await resp.json())["deleted"], {"sessions": 1, "notifications": 1, "users": 1})
+        # Наблюдения человека удаляются вместе с ним (P07); у этого пользователя их не было
+        self.assertEqual((await resp.json())["deleted"],
+                         {"sessions": 1, "notifications": 1, "watches": 0, "users": 1})
         self.assertIsNone(get_user(UID))
         with get_connection() as conn:
             self.assertEqual(conn.execute("SELECT count(*) FROM sessions WHERE user_id = ?", (UID,)).fetchone()[0], 0)
