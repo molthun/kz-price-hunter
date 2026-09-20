@@ -210,6 +210,7 @@
     },
     system() {
       const s = data.sections.system, t = s.telemetry || {};
+      const shadowBox = '<div id="matchingShadow" class="mt-4"><p class="text-sm text-slate-500">Загружаю отчёт сопоставления…</p></div>';
       const errs = (s.recent_errors || []).map(e => `<li class="break-words">${ago(e.timestamp)} · ${esc(e.component)} · ${esc(e.where)} · ${esc(e.error)}${e.route ? ' · ' + esc(e.route) : ''}</li>`).join('');
       return card('Система', `<p class="text-sm mb-2">${esc(s.reason)}</p>` + kv([
         ['Версия', esc(s.version)], ['Схема БД', esc(s.schema_version)], ['Python / SQLite', `${esc(s.python)} / ${esc(s.sqlite)}`],
@@ -218,7 +219,7 @@
         ['События телеметрии', num(s.counts.telemetry_events)],
         ['Сброс телеметрии', `${t.flusher_alive ? 'работает' : 'не запущен'} · неудач ${num(t.failed_flushes)} · отброшено событий ${num(t.dropped_events)}`]]) +
         (errs ? details(`Системные ошибки за 24 ч (${num(s.errors_24h)})`, `<ul class="text-xs space-y-1">${errs}</ul>`) : '') +
-        `<p class="text-xs text-slate-500 mt-2">${esc(s.note)}</p>`, s.status);
+        `<p class="text-xs text-slate-500 mt-2">${esc(s.note)}</p>`, s.status) + shadowBox;
     },
     events() {
       return `
@@ -263,6 +264,26 @@
         <td class="py-1 pr-3 text-right text-slate-300">${num(q.not_found)}</td><td class="py-1 pr-3 text-right text-rose-300">${num(q.error)}</td>
         <td class="py-1 pr-3 text-right">${q.success_rate == null ? '—' : num(q.success_rate) + ' %'}</td></tr>`).join('') +
       '</tbody></table></div>';
+  }
+
+  async function loadMatchingShadow() {
+    const box = document.getElementById('matchingShadow');
+    if (!box) return;
+    const s = await api('/api/admin/monitoring/matching');
+    if (!s) { box.innerHTML = '<p class="text-sm text-rose-300">Не удалось загрузить отчёт сопоставления.</p>'; return; }
+    const rows = (s.rows || []).map(r => `<tr class="border-t border-slate-800">
+        <td class="py-1 pr-3">${r.kind === 'blocked' ? 'разная фасовка' : 'не уверены'}</td>
+        <td class="py-1 pr-3 break-words">${esc(r.reason)}</td>
+        <td class="py-1 pr-3 text-right">${num(r.count)}</td>
+        <td class="py-1 pr-3 break-words text-slate-400">${esc(r.example_left || '')} ↔ ${esc(r.example_right || '')}</td></tr>`).join('');
+    box.innerHTML = card(`Сопоставление товаров за ${num(s.days)} дн.`, `<p class="text-sm mb-2">${esc(s.reason)}</p>` + kv([
+        ['Развело по разной фасовке', num(s.blocked)],
+        ['Не сравнивается из-за неизвестной фасовки', num(s.uncertain)]]) +
+      (rows ? `<div class="overflow-x-auto mt-2"><table class="w-full text-sm"><thead class="text-xs text-slate-400 text-left"><tr>
+          <th class="pb-1 pr-3">Случай</th><th class="pb-1 pr-3">Причина</th><th class="pb-1 pr-3 text-right">Раз</th>
+          <th class="pb-1 pr-3">Пример</th></tr></thead><tbody>${rows}</tbody></table></div>`
+        : '<p class="text-sm text-slate-500">Пока ничего не записано.</p>') +
+      `<p class="text-xs text-slate-500 mt-2">${esc(s.note)}</p>`, s.status);
   }
 
   async function loadAiSpending() {
@@ -426,6 +447,7 @@
     if (current === 'events') loadEvents();
     if (current === 'search') loadSearchAnalytics();
     if (current === 'ai') loadAiSpending();
+    if (current === 'system') loadMatchingShadow();
   }
 
   async function load() {

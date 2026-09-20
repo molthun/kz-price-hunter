@@ -1991,6 +1991,19 @@ async def monitoring_incidents_handler(request):
                              dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
 
 
+@routes.get("/api/admin/monitoring/matching")
+@require_admin
+async def monitoring_matching_handler(request):
+    """Теневой отчёт сопоставления товаров (P09): фасовка, спорные случаи и примеры."""
+    import monitoring
+    try:
+        days = max(1, min(90, int(request.query.get("days") or monitoring.MATCHING_SHADOW_DAYS)))
+    except ValueError:
+        days = monitoring.MATCHING_SHADOW_DAYS
+    data = await asyncio.to_thread(monitoring.matching_quality, days)
+    return web.json_response(data, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
 @routes.get("/api/admin/monitoring/ai-usage")
 @require_admin
 async def monitoring_ai_usage_handler(request):

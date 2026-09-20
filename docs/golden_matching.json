@@ -1,0 +1,256 @@
+{
+  "version": 1,
+  "updated_at": "2026-09-20",
+  "about": "Проверочный набор для сопоставления товаров (P09). same=true — это одно и то же предложение и цены можно сравнивать; same=false — разные товары, сравнение цен обмануло бы человека. Набор версионируется: при изменении правил сначала обновляется он, потом код.",
+  "agreed_thresholds": {
+    "precision": 0.99,
+    "recall": 0.7,
+    "agreed_at": "2026-09-20, решение владельца до проведения замера",
+    "why": "ложное сравнение (показать выгоду, которой нет) вреднее пропущенного совпадения"
+  },
+  "pairs": [
+    {
+      "left": "Смартфон Apple iPhone 15 128GB черный",
+      "right": "Apple iPhone 15 128Gb Black",
+      "same": true,
+      "group": "модель"
+    },
+    {
+      "left": "Смартфон Apple iPhone 15 128GB",
+      "right": "Смартфон Apple iPhone 15 256GB",
+      "same": false,
+      "group": "память"
+    },
+    {
+      "left": "Apple iPhone 15 Pro 256GB",
+      "right": "Apple iPhone 15 256GB",
+      "same": false,
+      "group": "вариант"
+    },
+    {
+      "left": "Apple iPhone 15 Pro Max 512GB",
+      "right": "Apple iPhone 15 Pro 512GB",
+      "same": false,
+      "group": "вариант"
+    },
+    {
+      "left": "Смартфон Samsung Galaxy S24 Ultra 12/256GB",
+      "right": "Samsung Galaxy S24 Ultra 256Gb",
+      "same": true,
+      "group": "модель"
+    },
+    {
+      "left": "Samsung Galaxy S24 256GB",
+      "right": "Samsung Galaxy S24 Ultra 256GB",
+      "same": false,
+      "group": "вариант"
+    },
+    {
+      "left": "Apple iPhone 15 128GB Dual SIM",
+      "right": "Apple iPhone 15 128GB eSIM",
+      "same": false,
+      "group": "sim"
+    },
+    {
+      "left": "Apple iPhone 15 128GB nano-SIM + eSIM",
+      "right": "Apple iPhone 15 128GB Dual SIM",
+      "same": false,
+      "group": "sim"
+    },
+    {
+      "left": "Apple iPhone 15 128GB",
+      "right": "Apple iPhone 15 128GB eSIM",
+      "same": true,
+      "group": "sim"
+    },
+    {
+      "left": "Видеокарта Palit GeForce RTX 4060 Dual 8GB",
+      "right": "Palit RTX 4060 Dual 8Gb",
+      "same": true,
+      "group": "модель"
+    },
+    {
+      "left": "Видеокарта NVIDIA GeForce RTX 5090 32GB",
+      "right": "Видеокарта NVIDIA GeForce RTX 4060 8GB",
+      "same": false,
+      "group": "модель"
+    },
+    {
+      "left": "Ноутбук ASUS TUF Gaming A15 512GB",
+      "right": "ASUS TUF Gaming A15 1TB",
+      "same": false,
+      "group": "память"
+    },
+    {
+      "left": "Apple MacBook Air M2 256GB",
+      "right": "Apple MacBook Pro M2 256GB",
+      "same": false,
+      "group": "вариант"
+    },
+    {
+      "left": "Напиток Coca-Cola 1 л",
+      "right": "Напиток Coca-Cola 1.5 л",
+      "same": false,
+      "group": "фасовка"
+    },
+    {
+      "left": "Напиток Coca-Cola 1 л",
+      "right": "Кока-Кола 1000 мл",
+      "same": true,
+      "group": "фасовка"
+    },
+    {
+      "left": "Coca-Cola Zero 0.5 л",
+      "right": "Coca-Cola Zero 500 мл",
+      "same": true,
+      "group": "фасовка"
+    },
+    {
+      "left": "Корм для кошек Whiskas 75 г",
+      "right": "Корм для кошек Whiskas 85 г",
+      "same": false,
+      "group": "фасовка"
+    },
+    {
+      "left": "Корм Whiskas говядина 85 г",
+      "right": "Whiskas говядина 85 гр",
+      "same": true,
+      "group": "фасовка"
+    },
+    {
+      "left": "Молоко Простоквашино 2.5% 900 мл",
+      "right": "Молоко Простоквашино 2.5% 1 л",
+      "same": false,
+      "group": "фасовка"
+    },
+    {
+      "left": "Мука Цесна высший сорт 2 кг",
+      "right": "Мука Цесна высший сорт 5 кг",
+      "same": false,
+      "group": "фасовка"
+    },
+    {
+      "left": "Мука Цесна высший сорт 2 кг",
+      "right": "Мука Цесна высший сорт 2000 г",
+      "same": true,
+      "group": "фасовка"
+    },
+    {
+      "left": "Стиральный порошок Ariel 3 кг",
+      "right": "Стиральный порошок Ariel 6 кг",
+      "same": false,
+      "group": "фасовка"
+    },
+    {
+      "left": "Кофе Jacobs Monarch 190 г",
+      "right": "Кофе Jacobs Monarch 95 г",
+      "same": false,
+      "group": "фасовка"
+    },
+    {
+      "left": "Туалетная бумага Zewa 4 шт",
+      "right": "Туалетная бумага Zewa 8 шт",
+      "same": false,
+      "group": "упаковка"
+    },
+    {
+      "left": "Салфетки влажные Huggies 64 шт",
+      "right": "Салфетки влажные Huggies 64 штуки",
+      "same": true,
+      "group": "упаковка"
+    },
+    {
+      "left": "Вода Тассай 0.5 л х6",
+      "right": "Вода Тассай 0.5 л х12",
+      "same": false,
+      "group": "упаковка"
+    },
+    {
+      "left": "Шампунь Head & Shoulders 400 мл",
+      "right": "Шампунь Head & Shoulders 200 мл",
+      "same": false,
+      "group": "фасовка"
+    },
+    {
+      "left": "Кабель USB-C 1 м",
+      "right": "Кабель USB-C 2 м",
+      "same": false,
+      "group": "фасовка"
+    },
+    {
+      "left": "Телевизор Samsung 55CU7100 4K 55\"",
+      "right": "Samsung 55CU7100 55 дюймов",
+      "same": true,
+      "group": "диагональ"
+    },
+    {
+      "left": "Телевизор Samsung 55CU7100 55\"",
+      "right": "Телевизор Samsung 43CU7100 43\"",
+      "same": false,
+      "group": "модель"
+    },
+    {
+      "left": "Монитор LG UltraGear 27GP850-B 27\"",
+      "right": "LG 27GP850-B UltraGear",
+      "same": true,
+      "group": "диагональ"
+    },
+    {
+      "left": "Робот-пылесос Dreame D10 Plus",
+      "right": "Робот-пылесос Dreame D10s Pro",
+      "same": false,
+      "group": "модель"
+    },
+    {
+      "left": "Наушники Sony WH-1000XM5",
+      "right": "Наушники Sony WH-1000XM4",
+      "same": false,
+      "group": "модель"
+    },
+    {
+      "left": "Игровая приставка Sony PlayStation 5 Slim 1TB",
+      "right": "Sony PlayStation 5 Slim 1024GB",
+      "same": true,
+      "group": "модель"
+    },
+    {
+      "left": "Sony PlayStation 5 Slim 1TB",
+      "right": "Sony PlayStation 5 Pro 2TB",
+      "same": false,
+      "group": "вариант"
+    },
+    {
+      "left": "Смартфон Xiaomi Redmi Note 13 8/256GB",
+      "right": "Xiaomi Redmi Note 13 256Gb",
+      "same": true,
+      "group": "модель"
+    },
+    {
+      "left": "Xiaomi Redmi Note 13 256GB",
+      "right": "Xiaomi Redmi Note 13 Pro 256GB",
+      "same": false,
+      "group": "вариант"
+    },
+    {
+      "left": "Планшет Apple iPad Air 11 256GB",
+      "right": "Apple iPad Air 11 дюймов 256Gb",
+      "same": true,
+      "group": "модель"
+    },
+    {
+      "left": "Чехол для Apple iPhone 15 силиконовый",
+      "right": "Смартфон Apple iPhone 15 128GB",
+      "same": false,
+      "group": "аксессуар"
+    },
+    {
+      "left": "Защитное стекло для Samsung Galaxy S24",
+      "right": "Смартфон Samsung Galaxy S24 256GB",
+      "same": false,
+      "group": "аксессуар"
+    }
+  ],
+  "known_limitations": [
+    "«iPad Air 11 256GB» и «iPad Air 11 дюймов 256Gb» не признаются одним товаром: в первом названии 11 — просто число, и отличить диагональ от номера модели без единицы измерения нельзя. Признать их одинаковыми значило бы рисковать сравнением разных моделей (11 и 13), поэтому пропуск выбран сознательно."
+  ]
+}

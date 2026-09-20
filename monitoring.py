@@ -812,3 +812,23 @@ def ai_spending(days: int = AI_USAGE_DAYS, now: Optional[datetime.datetime] = No
         status, reason = HEALTHY, (f"{totals['provider_calls']} вызовов провайдера"
                                    + (f", {saved} задач решено без модели" if saved else ""))
     return {"status": status, "reason": reason, **data}
+
+
+MATCHING_SHADOW_DAYS = 7
+
+
+def matching_quality(days: int = MATCHING_SHADOW_DAYS,
+                     now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
+    """Теневой отчёт сопоставления (P09): где правило фасовки развело товары и где оно не уверено.
+
+    Это наблюдение, а не тревога: статус «в норме», пока данные просто накапливаются, и «неизвестно»,
+    пока сравнений не было.
+    """
+    import database
+    data = database.matching_shadow(days=days, now=now)
+    if not data["blocked"] and not data["uncertain"]:
+        status, reason = UNKNOWN, f"За {days} дн. правило фасовки ничего не развело"
+    else:
+        status = HEALTHY
+        reason = f"Не сравнивается: по разной фасовке {data['blocked']}, по неизвестной {data['uncertain']}"
+    return {"status": status, "reason": reason, **data}

@@ -676,6 +676,20 @@ def _create_schema(cursor) -> None:
 
     # Учёт AI по задачам и моделям (P08). Стоимость хранится только когда администратор задал цены,
     # иначе остаётся NULL — «не задано» честнее выдуманной цифры. Таблица добавляется, schema_version тот же.
+    # Теневой отчёт сопоставления (P09): что новое правило фасовки запретило сравнивать и где оно
+    # честно не знает. Хранятся только данные о товарах, без пользователей. schema_version не меняется.
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS matching_shadow (
+            day TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            reason TEXT NOT NULL,
+            count INTEGER NOT NULL DEFAULT 0,
+            example_left TEXT,
+            example_right TEXT,
+            PRIMARY KEY (day, kind, reason)
+        )
+    """)
+
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS ai_usage (
             day TEXT NOT NULL,
@@ -1682,10 +1696,27 @@ def find_market_comparisons(
                 ORDER BY current_price ASC LIMIT 500
             """, (current_shop, city, fts_query)).fetchall()
 
-    valid_competitors = [dict(r) for r in rows
-        if same_model(title, r["title"])
-        and not is_junk_accessory(r["title"], r["category"] or "")
-        and not is_used_goods(r["title"], r["category"] or "", r["url"])]
+    import catalog_quality
+    valid_competitors = []
+    for r in rows:
+        ok, reason = catalog_quality.comparable(title, r["title"])
+        if not ok:
+            # Разная фасовка — разные товары: сравнение 1 л с 1,5 л показало бы выгоду, которой нет (P09).
+            # В теневой отчёт попадают те пары, которые без этого правила считались бы одним товаром.
+            if same_model(title, r["title"]) or (catalog_quality.identity_tokens(title)
+                                                 == catalog_quality.identity_tokens(r["title"])):
+                record_matching_shadow("blocked", reason, title, r["title"])
+            continue
+        if not catalog_quality.same_product(title, r["title"]):
+            unsure, unsure_reason = catalog_quality.uncertain(title, r["title"])
+            if unsure and catalog_quality.identity_tokens(title) == catalog_quality.identity_tokens(r["title"]):
+                # Слова совпали, но фасовку указал только один магазин: сравнивать вслепую не будем,
+                # случай записывается для разбора (P09)
+                record_matching_shadow("uncertain", unsure_reason, title, r["title"])
+            continue
+        if is_junk_accessory(r["title"], r["category"] or "") or is_used_goods(r["title"], r["category"] or "", r["url"]):
+            continue
+        valid_competitors.append(dict(r))
     valid_competitors = valid_competitors[:limit]
 
     if not valid_competitors:
@@ -2733,3 +2764,43 @@ def prune_ai_usage(days: int = 365, now: Optional[datetime.datetime] = None) -> 
         deleted = conn.execute("DELETE FROM ai_usage WHERE day < ?", (cutoff,)).rowcount
         conn.commit()
     return deleted
+
+
+# ---------------------------------------------------------------------------
+# Теневой отчёт сопоставления (P09): видно, что изменило правило фасовки и где оно не уверено.
+# ---------------------------------------------------------------------------
+
+def record_matching_shadow(kind: str, reason: str, left: str, right: str,
+                           now: Optional[datetime.datetime] = None) -> None:
+    """Fail-open: отчёт не должен мешать обходу и сравнению цен."""
+    try:
+        moment = now or datetime.datetime.now(datetime.timezone.utc)
+        with get_connection() as conn:
+            conn.execute("""
+                INSERT INTO matching_shadow (day, kind, reason, count, example_left, example_right)
+                VALUES (?, ?, ?, 1, ?, ?)
+                ON CONFLICT(day, kind, reason) DO UPDATE SET count = count + 1
+            """, (moment.strftime("%Y-%m-%d"), kind, reason, str(left)[:200], str(right)[:200]))
+            conn.commit()
+    except Exception:
+        pass
+
+
+def matching_shadow(days: int = 7, now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
+    """Сводка теневого отчёта: сколько сравнений заблокировано по фасовке и сколько случаев спорных."""
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    since = (moment - datetime.timedelta(days=max(1, int(days)))).strftime("%Y-%m-%d")
+    blocked, uncertain, rows = 0, 0, []
+    with get_connection() as conn:
+        for row in conn.execute("SELECT * FROM matching_shadow WHERE day >= ? ORDER BY count DESC LIMIT 100",
+                                (since,)):
+            item = dict(row)
+            rows.append(item)
+            if item["kind"] == "blocked":
+                blocked += item["count"]
+            else:
+                uncertain += item["count"]
+    return {"days": int(days), "blocked": blocked, "uncertain": uncertain, "rows": rows,
+            "note": "«Запрещено» — разная фасовка, такие цены не сравниваются. «Не уверены» — фасовка "
+                    "указана только у одного предложения, поэтому цены тоже не сравниваются: это кандидаты "
+                    "на разбор моделью."}
