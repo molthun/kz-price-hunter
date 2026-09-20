@@ -589,6 +589,7 @@ async def best_price_handler(request):
         data = await get_best_price_summary(
             query=search_query,
             live=live,
+            user_search=True,     # обращение человека: одна запись в аналитике спроса (P06)
             shop=shop,
             city=city,
             category=category,

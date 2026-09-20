@@ -718,7 +718,7 @@ class CityPrivacyTest(P0102Case):
 
         async def found(query, city):
             # Название нужно для оценки качества совпадения (P06), город в него не входит
-            return [{"id": 1, "title": "Apple iPhone 15 128GB"}], True
+            return [{"id": 1, "title": "Apple iPhone 15 128GB"}], True, {"attempted": 1, "failed": 0}
 
         async def boom(query, city):
             raise RuntimeError("down")
@@ -843,7 +843,8 @@ class SearchEventTest(P0102Case):
                                                              exclude_accessories=True, junk_keywords=["x"]))
         (e,) = self.events(tm.EVENT_SEARCH_QUERY)
         d = e["data"]
-        self.assertEqual((d["source"], d["outcome"], d["results"], d["query_tokens"]), ("summary", "found", 3, 4))
+        # В запросе есть посторонний номер, которого нет в названии товара: это не уверенное совпадение (P06 F02)
+        self.assertEqual((d["source"], d["outcome"], d["results"], d["query_tokens"]), ("summary", "weak", 3, 4))
         self.assertEqual(d["filters"], ["city", "junk_keywords", "only_discount"])
         self.assert_no_query_text()
 

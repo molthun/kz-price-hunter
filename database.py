@@ -134,9 +134,12 @@ def record_search(query: str, city: Optional[str], source: str, outcome: str, re
     import search_analytics as sa
     if outcome not in sa.OUTCOMES:
         raise ValueError(f"Неизвестный исход поиска: {outcome}")
+    if source not in sa.SOURCES:
+        raise ValueError(f"Неизвестный источник поиска: {source}")
     moment = now or datetime.datetime.now(datetime.timezone.utc)
     bucket = moment.strftime("%Y-%m-%d")
-    city_name = (city or "").strip()
+    # Город приводится к справочнику: в параметре может прийти произвольный текст с личными данными (F01)
+    city_name = sa.canonical_city(city)
     results = max(0, int(results or 0))
 
     with get_connection() as conn:
@@ -174,9 +177,9 @@ def search_totals(days: int = 7, city: Optional[str] = None,
     moment = now or datetime.datetime.now(datetime.timezone.utc)
     since = (moment - datetime.timedelta(days=max(1, int(days)))).strftime("%Y-%m-%d")
     where, params = "bucket >= ?", [since]
-    if city and city != "Все":
+    if city and city != sa.CITY_ALL:
         where += " AND city = ?"
-        params.append(city)
+        params.append(sa.canonical_city(city))
 
     counts = {k: 0 for k in sa.OUTCOMES}
     by_source: Dict[str, Dict[str, Any]] = {}
@@ -213,9 +216,9 @@ def search_queries(days: int = 7, outcome: Optional[str] = None, limit: int = 50
     moment = now or datetime.datetime.now(datetime.timezone.utc)
     since = (moment - datetime.timedelta(days=max(1, int(days)))).strftime("%Y-%m-%d")
     where, params = "bucket >= ?", [since]
-    if city and city != "Все":
+    if city and city != sa.CITY_ALL:
         where += " AND city = ?"
-        params.append(city)
+        params.append(sa.canonical_city(city))
     # «Плохо отвечаем» — только запросы, где людям действительно нечего было показать
     having = " HAVING bad > 0" if outcome == "bad" else ""
     order = "bad DESC, searches DESC" if outcome == "bad" else "searches DESC"

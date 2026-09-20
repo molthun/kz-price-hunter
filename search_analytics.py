@@ -21,14 +21,21 @@ NOT_FOUND = "not_found"  # подходящих строк нет
 ERROR = "error"          # поиск не отработал (исключение, недоступный источник)
 OUTCOMES = (FOUND, WEAK, NOT_FOUND, ERROR)
 
+# Источники поиска, которые аналитика принимает: любое другое значение — ошибка вызова, а не новая строка отчёта
+SOURCES = ("catalog", "live")
+
 RETENTION_DAYS = 90        # срок хранения аналитики (решение владельца, 2026-09-20)
 MIN_OCCURRENCES_TO_STORE_TEXT = 3  # текст запроса сохраняется только начиная с третьего раза
 MAX_QUERY_CHARS = 80       # длинные тексты — не поисковый запрос, а сообщение; такие не храним текстом
 
-# Товар считается подходящим, если в его названии есть не меньше двух слов запроса (или единственное слово,
-# когда запрос из одного слова). Это не сортировочная оценка релевантности: она зависит от длины названия,
-# и товар с подробным названием мог бы считаться «мимо» только из-за длины.
+# Товар считается подходящим, если совпали не меньше двух слов запроса (или единственное слово, когда
+# запрос из одного слова) И все названные человеком признаки модели. Это не сортировочная оценка
+# релевантности: она зависит от длины названия, и подробное название считалось бы «мимо» только из-за длины.
 MIN_MATCHED_TOKENS = 2
+
+# Слова-варианты: если человек написал «pro», «max», «plus» — товар без них другой (F02)
+VARIANT_TOKENS = frozenset(("pro", "max", "plus", "ultra", "mini", "lite", "air", "se", "fe", "prox",
+                            "promax", "гб", "gb", "tb", "тб"))
 
 _SENSITIVE_PATTERNS = (
     re.compile(r"[\w.+-]+@[\w-]+\.[a-z]{2,}", re.I),               # почта
@@ -67,10 +74,46 @@ def storable_text(query: Any) -> Optional[str]:
     return normalized or None
 
 
-def query_key(query: Any, city: Optional[str] = None) -> str:
-    """Ключ для подсчёта повторов без хранения текста: по нему текст не восстановить."""
-    base = f"{normalize(query)}|{(city or '').strip().lower()}"
+CITY_ALL = "Все"
+CITY_COUNTRY = "Казахстан"
+CITY_UNKNOWN = "Неизвестно"
+
+
+def canonical_city(city: Any) -> str:
+    """Город приводится к справочнику до записи (F01).
+
+    В параметре city из запроса к API может прийти произвольный текст (вплоть до личных данных), поэтому
+    исходное значение не сохраняется нигде: известный город — своим названием из справочника, «все» и
+    «Казахстан» — общими значениями, всё остальное — «Неизвестно».
+    """
+    from telemetry import canonical_city as _canonical
+    code = _canonical(city)
+    if code in (None, "unknown"):
+        return CITY_ALL if code is None else CITY_UNKNOWN
+    if code == "all":
+        return CITY_ALL
+    if code == "kz":
+        return CITY_COUNTRY
+    try:
+        from config import CITIES_KZ
+        return next(c["name"] for c in CITIES_KZ.values() if str(c["id"]) == code)
+    except Exception:
+        return CITY_UNKNOWN
+
+
+def query_key(query: Any, city: Any = None) -> str:
+    """Ключ для подсчёта повторов: сам текст в базе не хранится до третьего раза.
+
+    Это не защита от подбора — короткий запрос из словаря можно проверить перебором хешей; ключ лишь
+    избавляет от хранения текста редких запросов в открытом виде.
+    """
+    base = f"{normalize(query)}|{canonical_city(city)}"
     return hashlib.sha256(base.encode("utf-8")).hexdigest()
+
+
+def _has_token(title: str, token: str) -> bool:
+    """Слово запроса встречается в названии как отдельное слово: «15» не совпадает с «156» или «128gb»."""
+    return re.search(rf"(?<![\w]){re.escape(token)}(?![\w])", title) is not None
 
 
 def _is_accessory(title: str, nouns: Iterable[str]) -> bool:
@@ -98,6 +141,9 @@ def classify(query: str, items: Optional[List[Dict[str, Any]]], failed: bool = F
     if not tokens:
         return NOT_FOUND
     needed = min(MIN_MATCHED_TOKENS, len(tokens))
+    # Признаки конкретной модели: номер (5090, 15), объём памяти (256gb) и слова-варианты (pro, max).
+    # Их человек назвал явно, поэтому товар без них — другой товар, а не успешный ответ (F02).
+    required = [t for t in tokens if any(ch.isdigit() for ch in t) or t in VARIANT_TOKENS]
     wants_accessory = is_accessory_query(query_clean)
 
     for item in items:
@@ -107,7 +153,9 @@ def classify(query: str, items: Optional[List[Dict[str, Any]]], failed: bool = F
         # Аксессуар засчитывается только тогда, когда его и искали: «чехол» на запрос «RTX 5090» — не ответ
         if not wants_accessory and _is_accessory(title, tokens):
             continue
-        if query_clean in title or sum(1 for t in tokens if t in title) >= needed:
+        if required and not all(_has_token(title, t) for t in required):
+            continue
+        if query_clean in title or sum(1 for t in tokens if _has_token(title, t)) >= needed:
             return FOUND
     return WEAK
 
