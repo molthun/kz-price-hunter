@@ -31,6 +31,7 @@ TASKS: Dict[str, Dict[str, Any]] = {
     "matching":          {"audience": INTERNAL, "timeout": 30, "fallback": False, "cache_ttl": 24 * 3600},
     "source_health":     {"audience": INTERNAL, "timeout": 30, "fallback": False, "cache_ttl": 0},
     "admin_assistant":   {"audience": INTERNAL, "timeout": 30, "fallback": True, "cache_ttl": 0},
+    "daily_digest":      {"audience": INTERNAL, "timeout": 30, "fallback": True, "cache_ttl": 0},
 }
 
 PROVIDERS = ("gemini", "openai")

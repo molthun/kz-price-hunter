@@ -710,6 +710,18 @@ def _create_schema(cursor) -> None:
     # Теневой отчёт сопоставления (P09): что новое правило фасовки запретило сравнивать и где оно
     # честно не знает. Хранятся только данные о товарах, без пользователей. schema_version не меняется.
     cursor.execute("""
+        CREATE TABLE IF NOT EXISTS daily_reports (
+            day TEXT NOT NULL,
+            tz TEXT NOT NULL DEFAULT 'UTC',
+            computed_at TEXT NOT NULL,
+            partial INTEGER NOT NULL DEFAULT 0,
+            payload TEXT NOT NULL,
+            summary TEXT,
+            summary_provider TEXT,
+            PRIMARY KEY (day, tz)
+        )
+    """)
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS matching_shadow (
             day TEXT NOT NULL,
             kind TEXT NOT NULL,
@@ -2823,6 +2835,52 @@ def prune_ai_usage(days: int = 365, now: Optional[datetime.datetime] = None) -> 
 # Теневой отчёт сопоставления (P09): видно, что изменило правило фасовки и где оно не уверено.
 # ---------------------------------------------------------------------------
 
+
+# ---------------------------------------------------------------------------
+# Суточная сводка (P13): один день — одна запись, пересчёт заменяет её целиком.
+# ---------------------------------------------------------------------------
+
+def save_daily_report(day: str, tz: str, computed_at: str, partial: int, payload: str,
+                      summary: Optional[str] = None, provider: Optional[str] = None) -> None:
+    """Пересчёт того же дня не создаёт вторую запись. Пересказ не теряется, если его не передали."""
+    with get_connection() as conn:
+        conn.execute("""
+            INSERT INTO daily_reports (day, tz, computed_at, partial, payload, summary, summary_provider)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(day, tz) DO UPDATE SET
+                computed_at = excluded.computed_at, partial = excluded.partial,
+                payload = excluded.payload,
+                summary = COALESCE(excluded.summary, daily_reports.summary),
+                summary_provider = COALESCE(excluded.summary_provider, daily_reports.summary_provider)
+        """, (day, tz, computed_at, int(partial), payload, summary, provider))
+        conn.commit()
+
+
+def daily_report(day: str, tz: str = "UTC") -> Optional[Dict[str, Any]]:
+    with get_connection() as conn:
+        row = conn.execute("SELECT * FROM daily_reports WHERE day = ? AND tz = ?", (day, tz)).fetchone()
+    return dict(row) if row else None
+
+
+def daily_reports(limit: int = 30) -> List[Dict[str, Any]]:
+    with get_connection() as conn:
+        return [{"day": r["day"], "tz": r["tz"], "computed_at": r["computed_at"],
+                 "partial": bool(r["partial"]), "has_summary": bool(r["summary"])}
+                for r in conn.execute("SELECT day, tz, computed_at, partial, summary FROM daily_reports "
+                                      "ORDER BY day DESC LIMIT ?", (limit,))]
+
+
+DAILY_REPORT_RETENTION_DAYS = 180
+
+
+def prune_daily_reports(keep_days: int = DAILY_REPORT_RETENTION_DAYS, now: Optional[datetime.datetime] = None) -> int:
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    cutoff = (moment - datetime.timedelta(days=max(1, int(keep_days)))).strftime("%Y-%m-%d")
+    with get_connection() as conn:
+        cur = conn.execute("DELETE FROM daily_reports WHERE day < ?", (cutoff,))
+        conn.commit()
+        return cur.rowcount or 0
+
 def record_matching_shadow(kind: str, reason: str, left: str, right: str,
                            now: Optional[datetime.datetime] = None) -> None:
     """Fail-open: отчёт не должен мешать обходу и сравнению цен."""
@@ -3045,6 +3103,7 @@ def retention_usage() -> List[Dict[str, Any]]:
         ("Аналитика поиска", "search_stats", "bucket", "text"),
         ("Запросы с текстом", "search_queries", "bucket", "text"),
         ("Расходы AI", "ai_usage", "day", "text"),
+        ("Суточные сводки", "daily_reports", "day", "text"),
         ("История цен", "price_observations", "observed_at", "text"),
         ("Очередь уведомлений", "notification_outbox", "created_at", "epoch"),
     ]

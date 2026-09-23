@@ -163,6 +163,7 @@
       const summary = Object.keys(STATUS).filter(k => c[k]).map(k => `${pill(k)} <span class="text-sm mr-3">${c[k]}</span>`).join('');
       return `
         ${assistantBox()}
+        <div id="dailyBox"><p class="text-sm text-slate-500">Собираю суточную сводку…</p></div>
         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">${cards}</div>
         ${card('Магазины по состоянию', `<div class="flex flex-wrap items-center gap-1">${summary || '<span class="text-sm text-slate-500">нет данных</span>'}</div>`)}
         ${card('Открытые инциденты', incidentList(data.open_incidents))}`;
@@ -607,12 +608,70 @@
     box.innerHTML = head + facts + `<p class="text-xs text-slate-500 mt-2">${esc(d.note)}</p>`;
   }
 
+  async function loadDaily(day, refresh) {
+    const box = document.getElementById('dailyBox');
+    if (!box) return;
+    const q = new URLSearchParams();
+    if (day) q.set('day', day);
+    if (refresh) q.set('refresh', '1');
+    box.innerHTML = '<p class="text-sm text-slate-500">Собираю суточную сводку…</p>';
+    const d = await api('/api/admin/monitoring/daily' + (q.toString() ? '?' + q : ''));
+    if (!d || !d.report) { box.innerHTML = '<p class="text-sm text-rose-300">Не удалось собрать суточную сводку.</p>'; return; }
+    const r = d.report, b = r.blocks || {};
+    const approx = x => x && x.approximate ? ' <span class="text-amber-300">(границы по суткам UTC)</span>' : '';
+    const rows = [];
+    if (b.search) rows.push(['Поиски' + approx(b.search),
+      `${num(b.search.searches)}${b.search.success_rate == null ? '' : ' · успех ' + num(b.search.success_rate) + ' %'}`]);
+    if (b.catalog) rows.push(['Новые товары / изменения цен',
+      `${num(b.catalog.new_products)} / ${num(b.catalog.price_changes)} (дешевле ${num(b.catalog.cheaper)}, дороже ${num(b.catalog.dearer)})`]);
+    if (b.telegram) rows.push(['Уведомления: отправлено / попыток',
+      `${num(b.telegram.sent)} / ${num(b.telegram.attempts)}`]);
+    if (b.ai) rows.push(['AI: вызовов / стоимость' + approx(b.ai),
+      `${num(b.ai.requests)} / ${b.ai.cost_usd == null ? '— цены не заданы' : '$' + b.ai.cost_usd}`]);
+    if (b.shops) rows.push(['Обходы · ухудшений / восстановлений',
+      `${num(b.shops.scans)} · ${num(b.shops.degraded)} / ${num(b.shops.recovered)}`]);
+    const drops = ((b.catalog || {}).biggest_drops || []).map(x =>
+      `<li class="break-words">${esc(x.title)} — ${num(x.was)} → ${num(x.now)} ₸ (−${num(x.drop_pct)} %)</li>`).join('');
+    const options = (d.days || []).map(x => `<option value="${esc(x.day)}" ${x.day === r.day ? 'selected' : ''}>${esc(x.day)}${x.partial ? ' (неполные)' : ''}</option>`).join('');
+    const state = r.partial ? 'limited' : (r.empty ? 'empty' : 'healthy');
+    box.innerHTML = card(`Сводка за сутки ${esc(r.day)} (${esc(r.tz)})`,
+      `<div class="flex flex-wrap gap-2 items-center mb-2">
+         <select id="dailyDay" class="bg-dark-950 border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-200">
+           ${options || `<option>${esc(r.day)}</option>`}</select>
+         <button id="btnDailyRefresh" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs">Пересчитать</button>
+         <button id="btnDailySummary" class="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs">Пересказать словами</button>
+       </div>` +
+      (r.empty ? '<p class="text-sm text-slate-400 mb-2">За эти сутки наблюдений нет — это не ноль достижений, а отсутствие данных.</p>' : '') +
+      kv(rows) +
+      (drops ? details('Самые заметные снижения цен', `<ul class="text-sm space-y-1">${drops}</ul>`) : '') +
+      (Object.keys(r.unavailable || {}).length
+        ? `<p class="text-xs text-amber-300 mt-2">Недоступные блоки: ${esc(Object.keys(r.unavailable).join(', '))}</p>` : '') +
+      `<div id="dailySummary" class="mt-3 text-sm">${r.summary
+        ? `<div class="whitespace-pre-wrap text-slate-100">${esc(r.summary)}</div>` : ''}</div>` +
+      `<p class="text-xs text-slate-500 mt-2">${esc(r.note)}</p>`, state);
+  }
+
+  async function daily(action) {
+    const day = (document.getElementById('dailyDay') || {}).value || '';
+    if (action === 'refresh') return loadDaily(day, true);
+    const box = document.getElementById('dailySummary');
+    box.innerHTML = '<p class="text-slate-500">Прошу пересказать…</p>';
+    const res = await fetch('/api/admin/monitoring/daily/summary', {method: 'POST',
+      headers: {'Content-Type': 'application/json'}, body: JSON.stringify({day})});
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) { box.innerHTML = `<p class="text-rose-300">${esc(d.message || 'Не удалось получить пересказ')}</p>`; return; }
+    box.innerHTML = d.summary
+      ? `<div class="whitespace-pre-wrap text-slate-100">${esc(d.summary)}</div>`
+      : `<p class="text-amber-300">Пересказ не показан: ${esc(d.rejected || 'причина не указана')}. Цифры выше остаются в силе.</p>`;
+  }
+
   function render() {
     renderNav();
     if (!data) return;
     document.getElementById('overallBadge').innerHTML = pill(data.status);
     document.getElementById('generatedAt').innerHTML = 'Данные на ' + ago(data.generated_at) + '. Статус «Нет данных» означает отсутствие наблюдений, а не норму.';
     document.getElementById('view').innerHTML = VIEWS[current]();
+    if (current === 'overview') loadDaily();
     if (current === 'events') loadEvents();
     if (current === 'search') loadSearchAnalytics();
     if (current === 'ai') loadAiSpending();
@@ -635,10 +694,13 @@
     const shop = e.target.closest('[data-shop]');
     if (shop) { openShop(shop.dataset.shop); return; }
     if (e.target.id === 'btnAsk') { askAssistant(); return; }
+    if (e.target.id === 'btnDailyRefresh') { daily('refresh'); return; }
+    if (e.target.id === 'btnDailySummary') { daily('summary'); return; }
     if (e.target.id === 'btnEvents') loadEvents();
     if (e.target.id === 'btnRefresh') load();
     if (e.target.id === 'shopModalClose' || e.target.id === 'shopModal') document.getElementById('shopModal').classList.add('hidden');
   });
+  document.addEventListener('change', e => { if (e.target.id === 'dailyDay') loadDaily(e.target.value, false); });
   document.addEventListener('keydown', e => {
     if (e.key === 'Enter' && e.target.id === 'askQ') { askAssistant(); return; }
     if (e.key === 'Escape') document.getElementById('shopModal').classList.add('hidden'); });

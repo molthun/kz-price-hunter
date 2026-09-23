@@ -1619,6 +1619,8 @@ async def _scan_task_body(shop_keys, target_categories, scan_type):
             await asyncio.to_thread(prune_source_scans)
             await asyncio.to_thread(prune_search_analytics)
             await asyncio.to_thread(prune_ai_usage)
+            from database import prune_daily_reports
+            await asyncio.to_thread(prune_daily_reports)
             # Самопроверка копий: раз в сутки развернуть свежую копию во временную базу (P15)
             from backup_health import verify_backups_if_due
             await asyncio.to_thread(verify_backups_if_due)
@@ -2050,6 +2052,47 @@ async def admin_assistant_handler(request):
     except (TypeError, ValueError):
         days = admin_assistant.DEFAULT_DAYS
     result = await admin_assistant.answer(question, days=days)
+    return web.json_response({"status": "ok", **result},
+                             dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
+@routes.get("/api/admin/monitoring/daily")
+@require_admin
+async def admin_daily_digest_handler(request):
+    """Суточная сводка (P13): цифры из собственных данных, пересказ — отдельным запросом."""
+    import daily_digest
+    import database as db
+    day = (request.query.get("day") or "").strip() or None
+    tz = (request.query.get("tz") or daily_digest.DEFAULT_TZ).strip()
+    refresh = request.query.get("refresh") == "1"
+    if day:
+        try:
+            datetime.date.fromisoformat(day)
+        except ValueError:
+            return web.json_response({"status": "error", "message": "Дата в формате ГГГГ-ММ-ДД"}, status=400)
+    try:
+        report = await asyncio.to_thread(daily_digest.report, day, tz, refresh)
+    except Exception as e:
+        print(f"[Daily] Отчёт не собран: {type(e).__name__}")
+        return web.json_response({"status": "error", "message": "Не удалось собрать сводку"}, status=500)
+    days = await asyncio.to_thread(db.daily_reports, 14)
+    return web.json_response({"status": "ok", "report": report, "days": days},
+                             dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
+@routes.post("/api/admin/monitoring/daily/summary")
+@require_admin
+async def admin_daily_summary_handler(request):
+    """Пересказ сводки словами. Число, которого нет в отчёте, отменяет пересказ целиком."""
+    import daily_digest
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    day = str(data.get("day") or "").strip() or None
+    tz = str(data.get("tz") or daily_digest.DEFAULT_TZ).strip()
+    report = await asyncio.to_thread(daily_digest.report, day, tz, False)
+    result = await daily_digest.summarize(report)
     return web.json_response({"status": "ok", **result},
                              dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
 
