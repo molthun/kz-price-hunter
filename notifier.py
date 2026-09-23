@@ -384,9 +384,12 @@ def _deliver_batch(limit, counts):
 
 
 async def notification_worker():
+    import environment
     while True:
         try:
             await asyncio.to_thread(deliver_pending)
+            # Пульс очереди Telegram (P14): умерший воркер не должен выглядеть работающим
+            await asyncio.to_thread(environment.heartbeat, environment.TELEGRAM, "цикл доставки")
         except Exception as e:
             print(f"[Telegram Queue] {type(e).__name__}")
             from telemetry import telemetry, COMPONENT_TELEGRAM

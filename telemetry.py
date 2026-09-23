@@ -682,12 +682,23 @@ class TelemetryService:
         self.flush()
 
     def _run(self) -> None:
+        beats = 0
         while not self._stop.wait(FLUSH_INTERVAL_SECONDS):
             try:
                 self.flush()
                 if time.monotonic() - self._last_prune >= PRUNE_INTERVAL_SECONDS:
                     self._last_prune = time.monotonic()
                     self.prune()
+                # Пульс записи телеметрии раз в несколько циклов (P14): по нему видно, что поток жив.
+                # Реже, чем сам сброс, — чтобы не добавлять лишних записей в базу.
+                beats += 1
+                if beats % 6 == 1:
+                    try:
+                        import environment
+                        environment.heartbeat(environment.TELEMETRY,
+                                              f"сброшено событий {self.stats.get('flushed_events', 0)}")
+                    except Exception:
+                        pass
             except Exception:
                 pass  # поток телеметрии не должен умирать
 

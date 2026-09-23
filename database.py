@@ -677,6 +677,34 @@ def _create_schema(cursor) -> None:
     """)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_watch_events_watch ON watch_events(watch_id, status)")
 
+    # Пульс фоновых работников (P14): «сайт отвечает» ещё не значит, что обходы идут.
+    # Таблица добавляется, schema_version не меняется.
+    # Результаты самопроверки копий (P15): копия, которую никто не открывал, ничего не гарантирует
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS backup_checks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            checked_at TEXT NOT NULL,
+            file TEXT,
+            kind TEXT NOT NULL,
+            ok INTEGER NOT NULL DEFAULT 0,
+            detail TEXT,
+            duration_sec REAL
+        )
+    """)
+    # Проверка относится к конкретному файлу: успешная проверка вчерашней копии ничего не говорит
+    # о сегодняшней, поэтому вместе с результатом хранятся размер и время изменения файла (P15 L01)
+    _add_column(cursor, "backup_checks", "file_size", "INTEGER")
+    _add_column(cursor, "backup_checks", "file_mtime", "REAL")
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS component_heartbeats (
+            component TEXT PRIMARY KEY,
+            last_seen TEXT NOT NULL,
+            note TEXT,
+            beats INTEGER NOT NULL DEFAULT 0
+        )
+    """)
+
     # Учёт AI по задачам и моделям (P08). Стоимость хранится только когда администратор задал цены,
     # иначе остаётся NULL — «не задано» честнее выдуманной цифры. Таблица добавляется, schema_version тот же.
     # Теневой отчёт сопоставления (P09): что новое правило фасовки запретило сравнивать и где оно
@@ -909,7 +937,11 @@ def get_schema_version(conn) -> int:
 
 
 def backup_database(label: str) -> Optional[str]:
-    """Консистентная копия через SQLite backup API в DATA_DIR/backups; проверяется quick_check."""
+    """Консистентная копия через SQLite backup API в DATA_DIR/backups; проверяется quick_check.
+
+    Результат отмечается пульсом компонента «резервные копии» (P14), чтобы было видно, когда копия
+    делалась в последний раз и чем закончилась.
+    """
     from config import DATA_DIR
     if not DB_PATH.exists():
         return None
@@ -938,6 +970,12 @@ def backup_database(label: str) -> Optional[str]:
 
 
 def _record_backup(label, outcome, dest, duration) -> None:
+    try:
+        # Пульс компонента «резервные копии» (P14): видно, когда копия делалась и чем закончилась
+        import environment
+        environment.heartbeat(environment.BACKUP, f"{label}: {outcome}")
+    except Exception:
+        pass
     try:
         from telemetry import telemetry, EVENT_BACKUP_RUN, SEVERITY_INFO, SEVERITY_ERROR, COMPONENT_BACKUP
         size = dest.stat().st_size if outcome == "ok" and dest.exists() else None
@@ -2819,3 +2857,210 @@ def matching_shadow(days: int = 7, now: Optional[datetime.datetime] = None) -> D
             "note": "«Запрещено» — разная фасовка, такие цены не сравниваются. «Не уверены» — фасовка "
                     "указана только у одного предложения, поэтому цены тоже не сравниваются: это кандидаты "
                     "на разбор моделью."}
+
+
+# ---------------------------------------------------------------------------
+# Сигналы для теневого планировщика (P10). Только чтение уже собранных данных:
+# дополнительных обходов магазинов ради планирования не делается.
+# ---------------------------------------------------------------------------
+
+def scheduler_candidates(days: int = 7, now: Optional[datetime.datetime] = None) -> List[Dict[str, Any]]:
+    """Источники (магазин + категория) с сигналами: возраст, качество, спрос, наблюдения, изменчивость цен."""
+    import scheduler_shadow as sched
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    since_day = (moment - datetime.timedelta(days=max(1, int(days)))).strftime("%Y-%m-%d")
+    since_ts = (moment - datetime.timedelta(days=max(1, int(days)))).isoformat()
+
+    candidates: Dict[tuple, Dict[str, Any]] = {}
+    with get_connection() as conn:
+        # Последний обход каждой пары «магазин + категория» и его качество
+        for row in conn.execute("""
+            SELECT s.shop_key, s.category, s.quality, s.finished_at
+            FROM source_scans s
+            JOIN (SELECT shop_key, category, MAX(id) AS last_id FROM source_scans GROUP BY shop_key, category) last
+              ON last.last_id = s.id
+        """):
+            try:
+                finished = datetime.datetime.fromisoformat(row["finished_at"])
+                if finished.tzinfo is None:
+                    finished = finished.replace(tzinfo=datetime.timezone.utc)
+                age_hours = max(0.0, (moment - finished).total_seconds() / 3600.0)
+            except (TypeError, ValueError):
+                age_hours = None
+            candidates[(row["shop_key"], row["category"])] = {
+                "shop": row["shop_key"], "category": row["category"],
+                "age_hours": age_hours, "last_quality": row["quality"],
+                "searches": 0, "unmet_searches": 0, "watches": 0, "price_changes_per_day": None,
+            }
+
+        # Пауза после ошибок берётся из состояния магазина: планировщик её обязан уважать
+        retries = {r["shop_key"]: r["next_retry_at"] for r in conn.execute(
+            "SELECT shop_key, next_retry_at FROM shop_scans")}
+
+        # Спрос: запросы людей, сопоставленные с категориями по тем же правилам, что и поиск
+        demand_rows = [dict(r) for r in conn.execute(
+            "SELECT normalized_query, SUM(searches) AS searches, SUM(weak) + SUM(not_found) AS unmet "
+            "FROM search_queries WHERE bucket >= ? GROUP BY normalized_query", (since_day,))]
+
+        # Наблюдения людей: по категории напрямую, по товару и модели — через магазин товара
+        watch_rows = [dict(r) for r in conn.execute(
+            "SELECT kind, target FROM watches WHERE is_active = 1")]
+
+        # Фактические переходы текущей цены, включая предыдущее наблюдение до окна.
+        # Первая цена и изменение только зачёркнутой цены переходом не считаются.
+        from config import SHOP_KEYS
+        shop_aliases = {str(name).strip().casefold(): key for key, name in SHOP_KEYS.items()}
+        shop_aliases.update({key.casefold(): key for key in SHOP_KEYS})
+        for row in conn.execute("""
+            WITH history AS (
+                SELECT product_id, price, observed_at,
+                       LAG(price) OVER (PARTITION BY product_id ORDER BY julianday(observed_at), rowid) AS previous
+                FROM price_observations
+                WHERE julianday(observed_at) <= julianday(?)
+            )
+            SELECT p.shop, p.category, COUNT(*) AS samples,
+                   SUM(CASE WHEN h.previous IS NOT NULL AND h.price != h.previous THEN 1 ELSE 0 END) AS changes
+            FROM history h JOIN products p ON p.id = h.product_id
+            WHERE julianday(h.observed_at) >= julianday(?)
+            GROUP BY p.shop, p.category
+        """, (moment.isoformat(), since_ts)):
+            shop_key = shop_aliases.get(str(row["shop"] or "").strip().casefold())
+            item = candidates.get((shop_key, row["category"]))
+            if item is not None:
+                item["price_changes_per_day"] = round(
+                    (item["price_changes_per_day"] or 0.0) + row["changes"] / max(1, int(days)), 2)
+
+    from search_engine import determine_category_and_master
+    for row in demand_rows:
+        name, _ = determine_category_and_master("", row["normalized_query"])
+        target = str(name or "").lower()
+        for item in candidates.values():
+            if target and target in str(item["category"] or "").lower():
+                item["searches"] += int(row["searches"] or 0)
+                item["unmet_searches"] += int(row["unmet"] or 0)
+
+    for row in watch_rows:
+        target = str(row["target"] or "").lower()
+        for item in candidates.values():
+            category = str(item["category"] or "").lower()
+            if row["kind"] == "category" and target and target in category:
+                item["watches"] += 1
+            elif row["kind"] in ("search", "model") and target and any(
+                    word in category for word in target.split() if len(word) > 3):
+                item["watches"] += 1
+
+    http = http_metrics_by_shop(days=days, now=moment)
+    result = []
+    for (shop_key, _category), item in candidates.items():
+        profile, why = sched.source_profile(http.get(shop_key, {}))
+        item["profile"] = profile
+        item["profile_reason"] = why
+        item["target_hours"] = sched.MIN_INTERVAL_HOURS.get(profile, 6.0)
+        retry_at = retries.get(shop_key)
+        if retry_at:
+            try:
+                moment_retry = datetime.datetime.fromtimestamp(float(retry_at), datetime.timezone.utc)
+                item["next_retry_at"] = moment_retry
+            except (TypeError, ValueError):
+                pass
+        result.append(item)
+    return result
+
+
+def http_metrics_by_shop(days: int = 7, now: Optional[datetime.datetime] = None) -> Dict[str, Dict[str, Any]]:
+    """HTTP-метрики магазина за период из агрегатов телеметрии (P01): нагрузка, ошибки, задержка."""
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    since = (moment - datetime.timedelta(days=max(1, int(days)))).strftime("%Y-%m-%d")
+    metrics: Dict[str, Dict[str, Any]] = {}
+    with get_connection() as conn:
+        for row in conn.execute("""
+            SELECT shop, SUM(total_requests) AS requests, SUM(errors) + SUM(status_5xx) AS errors,
+                   SUM(status_429) + SUM(status_4xx) AS blocked, MAX(latency_p95_ms) AS latency_p95_ms,
+                   SUM(bytes_total) AS bytes_total
+            FROM telemetry_http_aggregates
+            WHERE bucket_type = 'day' AND bucket_start >= ? AND shop != ''
+            GROUP BY shop
+        """, (since,)):
+            metrics[row["shop"]] = dict(row)
+    return metrics
+
+
+# ---------------------------------------------------------------------------
+# Пульс фоновых работников (P14).
+# ---------------------------------------------------------------------------
+
+def record_heartbeat(component: str, note: str = "", now: Optional[datetime.datetime] = None) -> None:
+    """Отметка работника «я жив». Пишется часто, поэтому одной короткой операцией."""
+    moment = (now or datetime.datetime.now(datetime.timezone.utc)).isoformat()
+    with get_connection() as conn:
+        conn.execute("""
+            INSERT INTO component_heartbeats (component, last_seen, note, beats) VALUES (?, ?, ?, 1)
+            ON CONFLICT(component) DO UPDATE SET last_seen = excluded.last_seen,
+                                                note = excluded.note, beats = beats + 1
+        """, (str(component), moment, str(note or "")[:200]))
+        conn.commit()
+
+
+def heartbeats() -> Dict[str, Dict[str, Any]]:
+    """Последний пульс каждого компонента."""
+    with get_connection() as conn:
+        return {r["component"]: dict(r) for r in conn.execute("SELECT * FROM component_heartbeats")}
+
+
+# ---------------------------------------------------------------------------
+# Самопроверка копий и фактическое потребление по срокам хранения (P15).
+# ---------------------------------------------------------------------------
+
+def record_backup_check(kind: str, ok: bool, file: Optional[str] = None, detail: Optional[str] = None,
+                        duration_sec: Optional[float] = None, file_size: Optional[int] = None,
+                        file_mtime: Optional[float] = None,
+                        now: Optional[datetime.datetime] = None) -> None:
+    """Результат проверки вместе с приметами самого файла: к какой именно копии он относится (P15 L01)."""
+    moment = (now or datetime.datetime.now(datetime.timezone.utc)).isoformat()
+    with get_connection() as conn:
+        conn.execute("""INSERT INTO backup_checks (checked_at, file, kind, ok, detail, duration_sec,
+                                                   file_size, file_mtime)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                     (moment, str(file or "")[:200], str(kind), 1 if ok else 0,
+                      str(detail or "")[:300] or None, duration_sec, file_size, file_mtime))
+        # История самопроверок нужна недолго: держим последние 100 записей
+        conn.execute("DELETE FROM backup_checks WHERE id NOT IN "
+                     "(SELECT id FROM backup_checks ORDER BY id DESC LIMIT 100)")
+        conn.commit()
+
+
+def backup_checks(limit: int = 10) -> List[Dict[str, Any]]:
+    with get_connection() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT * FROM backup_checks ORDER BY id DESC LIMIT ?", (max(1, int(limit)),))]
+
+
+def retention_usage() -> List[Dict[str, Any]]:
+    """Сколько строк сейчас занимает каждый вид данных и насколько старые есть записи."""
+    plan = [
+        ("Диагностика HTTP (выборки)", "telemetry_http_samples", "created_at", "epoch"),
+        ("События телеметрии", "telemetry_events", "timestamp", "text"),
+        ("Агрегаты HTTP", "telemetry_http_aggregates", "bucket_start", "text"),
+        ("История качества обходов", "source_scans", "finished_at", "text"),
+        ("Аналитика поиска", "search_stats", "bucket", "text"),
+        ("Запросы с текстом", "search_queries", "bucket", "text"),
+        ("Расходы AI", "ai_usage", "day", "text"),
+        ("История цен", "price_observations", "observed_at", "text"),
+        ("Очередь уведомлений", "notification_outbox", "created_at", "epoch"),
+    ]
+    rows: List[Dict[str, Any]] = []
+    with get_connection() as conn:
+        for label, table, column, kind in plan:
+            try:
+                count = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+                oldest = conn.execute(f"SELECT MIN({column}) FROM {table}").fetchone()[0]
+            except sqlite3.Error:
+                continue
+            if kind == "epoch" and oldest:
+                try:
+                    oldest = datetime.datetime.fromtimestamp(float(oldest),
+                                                             datetime.timezone.utc).isoformat()
+                except (TypeError, ValueError):
+                    oldest = None
+            rows.append({"data": label, "table": table, "rows": count, "oldest": oldest})
+    return rows

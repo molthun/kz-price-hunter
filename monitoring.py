@@ -832,3 +832,161 @@ def matching_quality(days: int = MATCHING_SHADOW_DAYS,
         status = HEALTHY
         reason = f"Не сравнивается: по разной фасовке {data['blocked']}, по неизвестной {data['uncertain']}"
     return {"status": status, "reason": reason, **data}
+
+
+SCHEDULER_SHADOW_DAYS = 7
+SCHEDULER_PLAN_LIMIT = 15
+
+
+def scheduler_suggestions(days: int = SCHEDULER_SHADOW_DAYS, limit: int = SCHEDULER_PLAN_LIMIT,
+                          now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
+    """Предложения теневого планировщика (P10): что стоило бы обойти раньше и почему.
+
+    Только чтение и счёт: обходов отсюда не запускается и ничего не меняется. Статус «неизвестно», пока
+    данных о обходах нет; «в норме», когда предложения есть или все источники свежие.
+    """
+    import database
+    import scheduler_shadow as sched
+
+    candidates = database.scheduler_candidates(days=days, now=now)
+    if not candidates:
+        return {"status": UNKNOWN, "reason": "Нет данных об обходах источников", "plan": [], "skipped": [],
+                "candidates": 0, "profiles": {}, "comparison": None, "note": "Теневой режим: ничего не меняется."}
+
+    result = sched.plan(candidates, now=now, max_sources=limit)
+    comparison = sched.compare(candidates, cycles=4, limit=max(1, min(limit, 10)), now=now)
+    profiles: Dict[str, int] = {}
+    for item in candidates:
+        profiles[item["profile"]] = profiles.get(item["profile"], 0) + 1
+    degraded = profiles.get(sched.DEGRADED, 0)
+    if degraded:
+        status = LIMITED
+        reason = f"{degraded} источников отвечают ошибками — их предлагается щадить"
+    elif result["plan"]:
+        status = HEALTHY
+        reason = f"Предложено обойти {len(result['plan'])} из {len(candidates)} источников"
+    else:
+        status = HEALTHY
+        reason = "Все источники обойдены недавно — обновлять нечего"
+    return {"status": status, "reason": reason, "candidates": len(candidates), "profiles": profiles,
+            "plan": result["plan"], "skipped": result["skipped"][:20], "comparison": comparison,
+            "note": result["note"]}
+
+
+STATE_STATUS = {"alive": HEALTHY, "stale": DEGRADED, "unknown": UNKNOWN, "disabled": DISABLED}
+
+
+def environment_section(now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
+    """Фактическое окружение и пульс фоновых работников (P14).
+
+    Отвечающий сайт не считается признаком того, что обходы идут: у каждого работника свой пульс.
+    Выключенный владельцем компонент показывается выключенным, а не аварией; молчащий — «нет пульса».
+    Секреты не показываются: видно только, настроено ли.
+    """
+    import database
+    import environment as env
+    moment = now or _now()
+    last = database.heartbeats()
+    enabled = env.enabled_components()
+    components = [env.component_state(name, last.get(name), enabled.get(name, True), moment)
+                  for name in env.COMPONENTS]
+    for item in components:
+        item["status"] = STATE_STATUS.get(item["state"], UNKNOWN)
+
+    dead = [c for c in components if c["state"] == "stale"]
+    silent = [c for c in components if c["state"] == "unknown"]
+    if dead:
+        status = DEGRADED
+        reason = "Молчат: " + ", ".join(c["label"] for c in dead)
+    elif silent:
+        status = UNKNOWN
+        reason = "Нет пульса: " + ", ".join(c["label"] for c in silent)
+    else:
+        status = HEALTHY
+        reason = "Все включённые работники отзываются"
+
+    return {
+        "status": status, "reason": reason,
+        "versions": env.versions(),
+        "uptime_seconds": round(env.uptime_seconds()),
+        "components": components,
+        "config": env.safe_config_view(),
+        "note": "Выключенный компонент отличается от молчащего: первое — решение владельца, второе — повод "
+                "разобраться. Секреты здесь не показываются.",
+    }
+
+
+def _check_is_stale(check: Dict[str, Any], moment: datetime.datetime) -> bool:
+    """Проверка считается устаревшей, если её делали дольше двух положенных интервалов назад."""
+    import backup_health
+    try:
+        checked = datetime.datetime.fromisoformat(check["checked_at"])
+    except (TypeError, ValueError, KeyError):
+        return True
+    if checked.tzinfo is None:
+        checked = checked.replace(tzinfo=datetime.timezone.utc)
+    return (moment - checked).total_seconds() > 2 * backup_health.VERIFY_INTERVAL_HOURS * 3600
+
+
+def backup_section(now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
+    """Резервные копии и сроки хранения (P15): свежесть, результат последней настоящей проверки, объёмы.
+
+    «Копия есть» и «копия пригодна» — разные утверждения, поэтому статус опирается на результат проверки,
+    а не на наличие файла. Отдельно сказано, что внутренняя проверка не заметит полную остановку процесса.
+    """
+    import backup_health
+    import database
+    moment = now or _now()
+
+    backups = backup_health.list_backups()
+    checks = database.backup_checks(limit=20)
+    newest = backups[0] if backups else None
+    # Проверка относится к конкретному файлу: успешная проверка вчерашней копии не делает зелёной
+    # сегодняшнюю (P15 L01). Ищем проверку именно самой свежей копии.
+    identity = backup_health.file_identity(newest["path"]) if newest else {}
+    own_check = backup_health.last_check_for(identity, checks) if newest else None
+    confirmed = next((c for c in checks if c["ok"]), None)
+    # Неудачная попытка, сделанная позже последней успешной проверки этой копии, не должна прятаться за
+    # прежним успехом — даже если у неё не осталось примет файла (P15 L04)
+    last_attempt = checks[0] if checks else None
+    failed_attempt = (last_attempt if last_attempt and not last_attempt["ok"]
+                      and (not own_check or last_attempt["id"] > own_check["id"]) else None)
+
+    if not backups:
+        status, reason = UNKNOWN, "Копий пока нет"
+    elif newest["age_hours"] > backup_health.BACKUP_STALE_HOURS:
+        status = DEGRADED
+        reason = f"Свежей копии нет: последней {newest['age_hours']:.0f} ч"
+    elif failed_attempt:
+        status = DEGRADED
+        reason = ("Последняя попытка проверки не прошла: "
+                  + (failed_attempt.get("detail") or "причина не записана"))
+    elif not own_check:
+        status = UNKNOWN
+        reason = "Самая свежая копия ещё не проверялась"
+    elif not own_check["ok"]:
+        status = DEGRADED
+        reason = f"Проверка свежей копии не прошла: {own_check.get('detail') or 'причина не записана'}"
+    elif _check_is_stale(own_check, moment):
+        status = UNKNOWN
+        reason = "Проверка свежей копии устарела"
+    else:
+        status = HEALTHY
+        reason = f"Копия {newest['age_hours']:.0f} ч назад, её проверка пройдена"
+
+    return {
+        "status": status, "reason": reason,
+        "backups": backups[:10],
+        "newest": newest,
+        "newest_check": own_check,
+        "failed_attempt": failed_attempt,
+        "last_confirmed": confirmed,
+        "total_size_bytes": sum(b["size_bytes"] for b in backups),
+        "checks": checks,
+        "retention": backup_health.retention_policy(),
+        "usage": database.retention_usage(),
+        "note": "Проверка открывает копию, читает схему и разворачивает её во временную базу, после чего "
+                "временная база удаляется. Результат относится к конкретному файлу: новая или изменённая "
+                "копия считается непроверенной. Внутренняя проверка не заметит полную остановку процесса — "
+                "это видно только наблюдателю снаружи.",
+    }

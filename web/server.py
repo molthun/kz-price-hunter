@@ -1102,9 +1102,12 @@ async def process_ai_pending(max_titles: int = AI_NORMALIZE_TITLES_PER_TICK) -> 
 
 async def ai_normalize_background_worker(app):
     """Фоновая AI-нормализация названий с отдельным урезанным бюджетом (не мешает пользователям)."""
+    import environment
     while True:
         try:
             await asyncio.sleep(AI_NORMALIZE_INTERVAL_SECONDS)
+            await asyncio.to_thread(environment.heartbeat, environment.AI_NORMALIZE,
+                                    f"в очереди {len(_ai_pending)} названий")
             if _ai_pending:
                 updated = await process_ai_pending()
                 if updated:
@@ -1616,6 +1619,9 @@ async def _scan_task_body(shop_keys, target_categories, scan_type):
             await asyncio.to_thread(prune_source_scans)
             await asyncio.to_thread(prune_search_analytics)
             await asyncio.to_thread(prune_ai_usage)
+            # Самопроверка копий: раз в сутки развернуть свежую копию во временную базу (P15)
+            from backup_health import verify_backups_if_due
+            await asyncio.to_thread(verify_backups_if_due)
             if pruned or pruned_outbox:
                 print(f"[DB] Удалено старых наблюдений цен: {pruned}, записей уведомлений: {pruned_outbox}")
         except Exception as e:
@@ -1991,6 +1997,37 @@ async def monitoring_incidents_handler(request):
                              dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
 
 
+@routes.get("/api/admin/monitoring/backups")
+@require_admin
+async def monitoring_backups_handler(request):
+    """Резервные копии, результат их настоящей проверки и сроки хранения (P15). Только чтение."""
+    import monitoring
+    data = await asyncio.to_thread(monitoring.backup_section)
+    return web.json_response(data, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
+@routes.get("/api/admin/monitoring/environment")
+@require_admin
+async def monitoring_environment_handler(request):
+    """Фактическое окружение и пульс фоновых работников (P14). Только чтение."""
+    import monitoring
+    data = await asyncio.to_thread(monitoring.environment_section)
+    return web.json_response(data, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
+@routes.get("/api/admin/monitoring/scheduler")
+@require_admin
+async def monitoring_scheduler_handler(request):
+    """Предложения теневого планировщика (P10). Только чтение: обходы отсюда не запускаются."""
+    import monitoring
+    try:
+        days = max(1, min(90, int(request.query.get("days") or monitoring.SCHEDULER_SHADOW_DAYS)))
+    except ValueError:
+        days = monitoring.SCHEDULER_SHADOW_DAYS
+    data = await asyncio.to_thread(monitoring.scheduler_suggestions, days)
+    return web.json_response(data, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
 @routes.get("/api/admin/monitoring/matching")
 @require_admin
 async def monitoring_matching_handler(request):
@@ -2094,8 +2131,11 @@ async def auto_scan_background_worker(app):
     )
     init_wave_interval = get_wave_interval_seconds(settings, init_plan["total_waves"])
     print(f"[AutoScan] 🤖 Автономный фоновый монитор запущен (интервал волны: {init_wave_interval // 60} мин, лимит полного круга: 24ч)...")
+    import environment
     while True:
         try:
+            # Пульс работника (P14): «сайт отвечает» ещё не значит, что обходы идут
+            await asyncio.to_thread(environment.heartbeat, environment.SCHEDULER, "цикл планировщика")
             await asyncio.sleep(20)
             if scan_state.get("is_running"):
                 continue

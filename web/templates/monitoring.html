@@ -182,7 +182,8 @@
         card('Последние обходы', rows ? `<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="text-xs text-slate-400 text-left"><tr>
           <th class="pb-1 pr-3">Когда</th><th class="pb-1 pr-3">Тип</th><th class="pb-1 pr-3">Исход</th><th class="pb-1 pr-3 text-right">Товаров</th>
           <th class="pb-1 pr-3 text-right">Длительность</th><th class="pb-1 pr-3">Ошибка</th></tr></thead><tbody>${rows}</tbody></table></div>`
-          : '<p class="text-sm text-slate-500">Нет завершённых обходов в журнале.</p>');
+          : '<p class="text-sm text-slate-500">Нет завершённых обходов в журнале.</p>')
+        + '<div id="schedulerShadow" class="mt-4"><p class="text-sm text-slate-500">Считаю предложения планировщика…</p></div>';
     },
     search() {
       const s = data.sections.search;
@@ -210,7 +211,9 @@
     },
     system() {
       const s = data.sections.system, t = s.telemetry || {};
-      const shadowBox = '<div id="matchingShadow" class="mt-4"><p class="text-sm text-slate-500">Загружаю отчёт сопоставления…</p></div>';
+      const shadowBox = '<div id="environmentBox" class="mt-4"><p class="text-sm text-slate-500">Смотрю окружение…</p></div>'
+        + '<div id="backupsBox" class="mt-4"><p class="text-sm text-slate-500">Проверяю состояние копий…</p></div>'
+        + '<div id="matchingShadow" class="mt-4"><p class="text-sm text-slate-500">Загружаю отчёт сопоставления…</p></div>';
       const errs = (s.recent_errors || []).map(e => `<li class="break-words">${ago(e.timestamp)} · ${esc(e.component)} · ${esc(e.where)} · ${esc(e.error)}${e.route ? ' · ' + esc(e.route) : ''}</li>`).join('');
       return card('Система', `<p class="text-sm mb-2">${esc(s.reason)}</p>` + kv([
         ['Версия', esc(s.version)], ['Схема БД', esc(s.schema_version)], ['Python / SQLite', `${esc(s.python)} / ${esc(s.sqlite)}`],
@@ -264,6 +267,101 @@
         <td class="py-1 pr-3 text-right text-slate-300">${num(q.not_found)}</td><td class="py-1 pr-3 text-right text-rose-300">${num(q.error)}</td>
         <td class="py-1 pr-3 text-right">${q.success_rate == null ? '—' : num(q.success_rate) + ' %'}</td></tr>`).join('') +
       '</tbody></table></div>';
+  }
+
+  async function loadSchedulerShadow() {
+    const box = document.getElementById('schedulerShadow');
+    if (!box) return;
+    const s = await api('/api/admin/monitoring/scheduler');
+    if (!s) { box.innerHTML = '<p class="text-sm text-rose-300">Не удалось загрузить предложения планировщика.</p>'; return; }
+    const rows = (s.plan || []).map(p => `<tr class="border-t border-slate-800">
+        <td class="py-1 pr-3">${esc(p.shop || '')}</td><td class="py-1 pr-3 break-words">${esc(p.category || '')}</td>
+        <td class="py-1 pr-3 text-right">${num(p.score)}</td>
+        <td class="py-1 pr-3">${esc(p.profile || '')}</td>
+        <td class="py-1 pr-3 text-right">${p.age_hours == null ? 'ни разу' : num(Math.round(p.age_hours)) + ' ч'}</td>
+        <td class="py-1 pr-3 break-words text-slate-400">${esc(p.reason || '')}</td></tr>`).join('');
+    const cmp = s.comparison && s.comparison.verdict;
+    box.innerHTML = card('Теневой планировщик обходов', `<p class="text-sm mb-2">${esc(s.reason)}</p>` + kv([
+        ['Источников с данными', num(s.candidates)],
+        ['Профили', Object.entries(s.profiles || {}).map(([k, v]) => `${esc(k)}: ${num(v)}`).join(' · ') || '—'],
+        ['Отложено с причиной', num((s.skipped || []).length)]]) +
+      (cmp ? kv([['Охвачено неудовлетворённого спроса против очереди по возрасту', num(cmp.unmet_demand_covered)],
+                 ['Охвачено ожидающих наблюдений', num(cmp.watches_covered)],
+                 ['Средний возраст данных, разница', num(cmp.avg_age_hours) + ' ч'],
+                 ['Нарушений ограничений', num(cmp.violations)]]) : '') +
+      `<p class="text-xs text-slate-500 mt-2">${esc(s.note)}</p>`, s.status)
+      + card('Что обошли бы первым', rows ? `<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="text-xs text-slate-400 text-left"><tr>
+          <th class="pb-1 pr-3">Магазин</th><th class="pb-1 pr-3">Категория</th><th class="pb-1 pr-3 text-right">Оценка</th>
+          <th class="pb-1 pr-3">Профиль</th><th class="pb-1 pr-3 text-right">Возраст</th>
+          <th class="pb-1 pr-3">Почему</th></tr></thead><tbody>${rows}</tbody></table></div>`
+        : '<p class="text-sm text-slate-500">Сейчас обновлять нечего: все источники обойдены недавно.</p>');
+  }
+
+  const STATE_WORDS = {alive: 'отзывается', stale: 'молчит', unknown: 'пульса не было', disabled: 'выключено'};
+
+  async function loadBackups() {
+    const box = document.getElementById('backupsBox');
+    if (!box) return;
+    const s = await api('/api/admin/monitoring/backups');
+    if (!s) { box.innerHTML = '<p class="text-sm text-rose-300">Не удалось загрузить состояние копий.</p>'; return; }
+    const mb = b => num(Math.round((b || 0) / 1048576)) + ' МБ';
+    const backups = (s.backups || []).map(b => `<tr class="border-t border-slate-800">
+        <td class="py-1 pr-3 break-words">${esc(b.name)}</td>
+        <td class="py-1 pr-3 text-right">${mb(b.size_bytes)}</td>
+        <td class="py-1 pr-3 text-right">${num(Math.round(b.age_hours))} ч назад</td></tr>`).join('');
+    const checks = (s.checks || []).slice(0, 5).map(c => `<tr class="border-t border-slate-800">
+        <td class="py-1 pr-3">${ago(c.checked_at)}</td>
+        <td class="py-1 pr-3">${c.ok ? '<span class="text-emerald-300">пройдена</span>' : '<span class="text-rose-300">не прошла</span>'}</td>
+        <td class="py-1 pr-3 text-slate-400 break-words">${esc(c.detail || '')}</td></tr>`).join('');
+    const retention = (s.retention || []).map(r => {
+      const used = (s.usage || []).find(u => u.table && u.table === r.table) || {};
+      return `<tr class="border-t border-slate-800"><td class="py-1 pr-3 break-words">${esc(r.data)}</td>
+        <td class="py-1 pr-3 text-right">${num(r.days)} дн.</td>
+        <td class="py-1 pr-3 text-right">${used.rows == null ? '—' : num(used.rows)}</td>
+        <td class="py-1 pr-3 text-slate-400 break-words">${esc(r.why)}</td></tr>`;
+    }).join('');
+    box.innerHTML = card('Резервные копии', `<p class="text-sm mb-2">${esc(s.reason)}</p>` + kv([
+        ['Копий', num((s.backups || []).length)],
+        ['Занимают', mb(s.total_size_bytes)],
+        ['Последняя копия', s.newest ? `${num(Math.round(s.newest.age_hours))} ч назад` : '—']]) +
+      (backups ? `<div class="overflow-x-auto mt-2"><table class="w-full text-sm"><thead class="text-xs text-slate-400 text-left"><tr>
+          <th class="pb-1 pr-3">Файл</th><th class="pb-1 pr-3 text-right">Размер</th>
+          <th class="pb-1 pr-3 text-right">Возраст</th></tr></thead><tbody>${backups}</tbody></table></div>` : '') +
+      (checks ? `<div class="overflow-x-auto mt-3"><table class="w-full text-sm"><thead class="text-xs text-slate-400 text-left"><tr>
+          <th class="pb-1 pr-3">Проверка</th><th class="pb-1 pr-3">Итог</th>
+          <th class="pb-1 pr-3">Подробности</th></tr></thead><tbody>${checks}</tbody></table></div>`
+        : '<p class="text-sm text-slate-500 mt-2">Проверок ещё не было.</p>') +
+      `<p class="text-xs text-slate-500 mt-2">${esc(s.note)}</p>`, s.status)
+      + card('Сроки хранения', `<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="text-xs text-slate-400 text-left"><tr>
+          <th class="pb-1 pr-3">Данные</th><th class="pb-1 pr-3 text-right">Храним</th>
+          <th class="pb-1 pr-3 text-right">Строк сейчас</th><th class="pb-1 pr-3">Зачем</th></tr></thead><tbody>${retention}</tbody></table></div>`);
+  }
+
+  async function loadEnvironment() {
+    const box = document.getElementById('environmentBox');
+    if (!box) return;
+    const s = await api('/api/admin/monitoring/environment');
+    if (!s) { box.innerHTML = '<p class="text-sm text-rose-300">Не удалось загрузить состояние окружения.</p>'; return; }
+    const rows = (s.components || []).map(c => `<tr class="border-t border-slate-800">
+        <td class="py-1 pr-3">${esc(c.label)}</td>
+        <td class="py-1 pr-3">${pill(c.status)} <span class="text-slate-400">${esc(STATE_WORDS[c.state] || c.state)}</span></td>
+        <td class="py-1 pr-3 text-slate-400 break-words">${esc(c.reason || '')}</td>
+        <td class="py-1 pr-3 text-slate-500 break-words">${esc(c.note || '')}</td></tr>`).join('');
+    const v = s.versions || {};
+    const hours = Math.floor((s.uptime_seconds || 0) / 3600), mins = Math.floor(((s.uptime_seconds || 0) % 3600) / 60);
+    box.innerHTML = card('Окружение и работники', `<p class="text-sm mb-2">${esc(s.reason)}</p>` + kv([
+        ['Версия приложения', esc(v.app || '—')],
+        ['Коммит', esc((v.git_sha || '—').slice(0, 12))],
+        ['Работает без перезапуска', `${num(hours)} ч ${num(mins)} мин`],
+        ['Python / SQLite', `${esc(v.python || '—')} / ${esc(v.sqlite || '—')}`],
+        ['aiohttp / requests', `${esc(v.aiohttp || '—')} / ${esc(v.requests || '—')}`],
+        ['Playwright / curl_cffi', `${esc(v.playwright || '—')} / ${esc(v.curl_cffi || '—')}`],
+        ['Система', esc(v.platform || '—')]]) +
+      `<div class="overflow-x-auto mt-3"><table class="w-full text-sm"><thead class="text-xs text-slate-400 text-left"><tr>
+          <th class="pb-1 pr-3">Работник</th><th class="pb-1 pr-3">Состояние</th>
+          <th class="pb-1 pr-3">Почему</th><th class="pb-1 pr-3">Последнее</th></tr></thead><tbody>${rows}</tbody></table></div>` +
+      details('Настройка (без секретов)', json(s.config || {})) +
+      `<p class="text-xs text-slate-500 mt-2">${esc(s.note)}</p>`, s.status);
   }
 
   async function loadMatchingShadow() {
@@ -447,7 +545,8 @@
     if (current === 'events') loadEvents();
     if (current === 'search') loadSearchAnalytics();
     if (current === 'ai') loadAiSpending();
-    if (current === 'system') loadMatchingShadow();
+    if (current === 'system') { loadEnvironment(); loadBackups(); loadMatchingShadow(); }
+    if (current === 'scanning') loadSchedulerShadow();
   }
 
   async function load() {
