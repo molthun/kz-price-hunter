@@ -1,5 +1,9 @@
 name: Build and Publish Docker Image
 
+# Шлюз выката (P16): образ публикуется только после того, как прошли ВСЕ обязательные проверки —
+# тесты, браузерные регрессии, поиск секретов, уязвимости зависимостей, репетиция обновления базы
+# предыдущего релиза и smoke по собранному образу. Непрошедшая проверка останавливает публикацию.
+
 on:
   push:
     branches: [ "main" ]
@@ -25,6 +29,9 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements.txt -c constraints.txt
+
+      - name: Check Python syntax (compileall)
+        run: python -m compileall -q .
 
       - name: Run tests
         # Все наборы test_*.py: новый файл тестов попадает в проверку перед выкатом автоматически
@@ -59,8 +66,125 @@ jobs:
           TEST_PYTHON: python
         run: for f in test_frontend*.cjs; do echo "== $f"; node "$f" || exit 1; done
 
+  # Ключи и токены не должны попадать ни в репозиторий, ни в образ
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+
+      - name: Scan sources for secrets
+        run: python release_gate.py secrets --root .
+
+  # Уязвимости зависимостей: пропуск действует только с причиной и до указанной даты
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Audit dependencies
+        # pip-audit сам по себе останавливает шаг, поэтому отчёт пишется всегда, а решение принимает шлюз
+        run: pip-audit -r requirements.txt -f json -o audit.json || true
+
+      - name: Apply the gate to the audit report
+        run: python release_gate.py deps audit.json
+
+  # Репетиция обновления: база предыдущего релиза → новый код → миграции → запросы приложения → целостность
+  upgrade-rehearsal:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository (full history for the previous tag)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt -c constraints.txt
+
+      - name: Create a database of the previous release
+        run: |
+          PREV=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1)
+          echo "Предыдущий релиз: ${PREV:-нет тега, берём текущий код}"
+          rm -rf prev-release prev-data && mkdir -p prev-data
+          if [ -n "$PREV" ]; then
+            git worktree add --detach prev-release "$PREV"
+          else
+            git worktree add --detach prev-release HEAD
+          fi
+          cd prev-release && DATA_DIR="$GITHUB_WORKSPACE/prev-data" python -c "import database; database.init_db()"
+
+      - name: Rehearse the upgrade with the new code
+        run: python release_gate.py upgrade prev-data/prices.db
+
+  # Сборка образа и smoke по нему ДО публикации: отвечающий контейнер — ещё не работающий сервис
+  image-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+
+      - name: Build the image locally
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: .
+          push: false
+          load: true
+          tags: kz-price-hunter:smoke
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+
+      - name: Install smoke dependencies
+        run: pip install aiohttp
+
+      - name: Start the container
+        run: |
+          docker run -d --name smoke -p 35539:35539 -e ALLOW_DEV_LOGIN=0 kz-price-hunter:smoke
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:35539/api/version >/dev/null 2>&1; then break; fi
+            sleep 2
+          done
+
+      - name: Smoke the running image
+        run: python release_gate.py smoke http://127.0.0.1:35539
+
+      - name: Container logs on failure
+        if: failure()
+        run: docker logs smoke || true
+
+      - name: Stop the container
+        if: always()
+        run: docker rm -f smoke || true
+
   build-and-push:
-    needs: [test, frontend]
+    needs: [test, frontend, secret-scan, dependency-audit, upgrade-rehearsal, image-smoke]
     runs-on: ubuntu-latest
     permissions:
       contents: read
