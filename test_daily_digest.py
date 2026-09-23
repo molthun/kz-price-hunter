@@ -304,3 +304,212 @@ class PermissionsTest(unittest.IsolatedAsyncioTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TelegramDigestTest(unittest.TestCase):
+    """Отправка сводки администратору: отдельное включение, один раз за сутки, понятный текст."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.data_dir = type(DB_PATH)(self.tmp.name)
+        self.patches = [patch.object(database, "DB_PATH", self.data_dir / "prices.db"),
+                        patch("config.DATA_DIR", self.data_dir),
+                        patch("config.SETTINGS_FILE", self.data_dir / "settings.json")]
+        for p in self.patches:
+            p.start()
+            self.addCleanup(p.stop)
+        database.init_db()
+        database.upsert_telegram_user({"id": 501, "first_name": "Админ"})
+        database.upsert_telegram_user({"id": 502, "first_name": "Человек"})
+        self.admins = patch("config.ADMIN_TELEGRAM_IDS", {501})
+        self.admins.start()
+        self.addCleanup(self.admins.stop)
+        self.view = {"enabled": True, "hour": 10, "tz": "UTC"}
+
+    def outbox(self):
+        with database.get_connection() as conn:
+            return [dict(r) for r in conn.execute("SELECT * FROM notification_outbox ORDER BY id")]
+
+    # --- когда отправлять -------------------------------------------------
+
+    def test_disabled_by_default(self):
+        import config
+        self.assertFalse(config.SYSTEM_DEFAULTS["daily_digest_telegram_enabled"],
+                         "план просил отдельное включение, а не включение по умолчанию")
+        with patch.object(digest, "settings_view", return_value={**self.view, "enabled": False}):
+            self.assertIsNone(digest.due_day(NOW))
+            self.assertEqual(digest.queue_if_due(NOW), 0)
+
+    def test_nothing_is_sent_before_the_chosen_hour(self):
+        early = datetime.datetime(2026, 9, 23, 9, 0, tzinfo=UTC)
+        with patch.object(digest, "settings_view", return_value=self.view):
+            self.assertIsNone(digest.due_day(early))
+            self.assertEqual(digest.due_day(NOW), DAY, "после назначенного часа — вчерашние сутки")
+
+    def test_hour_is_counted_in_the_chosen_timezone(self):
+        """05:00 UTC — это уже 10:00 в Алматы, сводка должна уйти."""
+        moment = datetime.datetime(2026, 9, 23, 5, 0, tzinfo=UTC)
+        with patch.object(digest, "settings_view", return_value={**self.view, "tz": "Asia/Almaty"}):
+            self.assertEqual(digest.due_day(moment), DAY)
+        with patch.object(digest, "settings_view", return_value=self.view):
+            self.assertIsNone(digest.due_day(moment), "по UTC ещё рано")
+
+    # --- очередь ----------------------------------------------------------
+
+    def test_one_message_per_day_even_if_checked_many_times(self):
+        with patch.object(digest, "settings_view", return_value=self.view):
+            self.assertEqual(digest.queue_if_due(NOW), 1)
+            for _ in range(5):
+                self.assertEqual(digest.queue_if_due(NOW), 0, "повторная проверка не плодит писем")
+        queue = self.outbox()
+        self.assertEqual(len(queue), 1)
+        self.assertEqual(queue[0]["user_id"], 501)
+        self.assertEqual(queue[0]["alert_id"], digest.digest_alert_id(DAY))
+
+    def test_next_day_gets_its_own_message(self):
+        with patch.object(digest, "settings_view", return_value=self.view):
+            digest.queue_if_due(NOW)
+            digest.queue_if_due(NOW + datetime.timedelta(days=1))
+        self.assertEqual(len(self.outbox()), 2)
+
+    def test_digest_ids_cannot_collide_with_watch_events(self):
+        """Своё пространство идентификаторов: сводка не отменит чужое сообщение."""
+        self.assertLess(digest.digest_alert_id(DAY), -digest.DIGEST_ALERT_BASE)
+        self.assertNotEqual(digest.digest_alert_id(DAY), digest.digest_alert_id("2026-09-21"))
+
+    def test_only_admins_receive_it(self):
+        with patch.object(digest, "settings_view", return_value=self.view):
+            digest.queue_if_due(NOW)
+        self.assertEqual([q["user_id"] for q in self.outbox()], [501])
+
+    def test_blocked_admin_is_not_a_recipient(self):
+        database.set_user_blocked(501, True)
+        with patch.object(digest, "settings_view", return_value=self.view):
+            self.assertEqual(digest.queue_if_due(NOW), 0)
+
+    def test_report_is_stored_and_reused_for_the_message(self):
+        with patch.object(digest, "settings_view", return_value=self.view):
+            digest.queue_if_due(NOW)
+        self.assertIsNotNone(digest.load(DAY, "UTC"), "сводка сохранена и её можно открыть в мониторинге")
+
+    # --- текст ------------------------------------------------------------
+
+    def test_message_has_the_numbers_without_any_ai(self):
+        report = digest.compute(DAY, "UTC", now=NOW)
+        text = "\n".join(digest.message_lines(report))
+        self.assertIn(f"Сводка за {DAY}", text)
+        self.assertIn("Поиски", text)
+        self.assertIn("цены не заданы", text, "стоимость без цен — не ноль")
+        self.assertIn("посчитаны кодом", text)
+        self.assertNotIn("None", text)
+
+    def test_quiet_and_partial_days_are_named(self):
+        quiet = "\n".join(digest.message_lines(digest.compute(DAY, "UTC", now=NOW)))
+        self.assertIn("отсутствие данных", quiet)
+        partial = "\n".join(digest.message_lines(digest.compute("2026-09-23", "UTC", now=NOW)))
+        self.assertIn("не закончились", partial)
+
+    def test_summary_is_added_only_when_it_exists(self):
+        report = digest.compute(DAY, "UTC", now=NOW)
+        self.assertNotIn("🗒", "\n".join(digest.message_lines(report)))
+        report["summary"] = "Спокойные сутки."
+        self.assertIn("Спокойные сутки.", "\n".join(digest.message_lines(report)))
+
+    def test_titles_from_shops_are_escaped(self):
+        report = digest.compute(DAY, "UTC", now=NOW)
+        report["blocks"]["catalog"]["biggest_drops"] = [
+            {"title": "<img src=x onerror=alert(1)>", "was": 100, "now": 90, "drop_pct": 10}]
+        text = "\n".join(digest.message_lines(report))
+        self.assertIn("&lt;img", text)
+        self.assertNotIn("<img", text)
+
+    # --- доставка ---------------------------------------------------------
+
+    def send(self):
+        import notifier
+        sent = []
+        with patch.object(notifier, "get_bot_token", lambda: "token"), \
+             patch.object(notifier, "telegram_api",
+                          side_effect=lambda method, payload, **kw: sent.append(payload) or _digest_ok()):
+            notifier.deliver_pending(limit=5)
+        return sent
+
+    def test_delivery_sends_one_message_and_closes_the_task(self):
+        with patch.object(digest, "settings_view", return_value=self.view):
+            digest.queue_if_due(NOW)
+        sent = self.send()
+        self.assertEqual(len(sent), 1)
+        self.assertEqual(sent[0]["chat_id"], 501)
+        self.assertIn("Сводка за", sent[0]["text"])
+        self.assertEqual([q["status"] for q in self.outbox()], ["sent"])
+        self.assertEqual(self.send(), [], "повторной отправки после перезапуска нет")
+
+    def test_message_for_a_former_admin_is_cancelled(self):
+        with patch.object(digest, "settings_view", return_value=self.view):
+            digest.queue_if_due(NOW)
+        with patch("config.ADMIN_TELEGRAM_IDS", set()):
+            self.assertEqual(self.send(), [])
+        self.assertEqual([q["status"] for q in self.outbox()], ["cancelled"])
+
+    def test_failed_delivery_returns_to_the_queue(self):
+        import notifier
+        with patch.object(digest, "settings_view", return_value=self.view):
+            digest.queue_if_due(NOW)
+        with patch.object(notifier, "get_bot_token", lambda: "token"), \
+             patch.object(notifier, "send_daily_digest",
+                          return_value=notifier.DeliveryResult("retry", None, "сеть")):
+            notifier.deliver_pending(limit=5)
+        self.assertEqual([q["status"] for q in self.outbox()], ["pending"])
+
+
+def _digest_ok():
+    class _R:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {"ok": True}
+    return _R()
+
+
+class TelegramSwitchApiTest(unittest.IsolatedAsyncioTestCase):
+    async def test_switch_is_admin_only_and_validated(self):
+        import auth
+        import config
+        import web.server as server
+        from aiohttp.test_utils import TestServer
+        from test_support import BrowserTestClient as TestClient
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        patches = [patch.object(database, "DB_PATH", type(DB_PATH)(os.path.join(tmp.name, "prices.db"))),
+                   patch("config.DATA_DIR", type(DB_PATH)(tmp.name)),
+                   patch("config.SETTINGS_FILE", type(DB_PATH)(os.path.join(tmp.name, "settings.json")))]
+        for p in patches:
+            p.start()
+            self.addCleanup(p.stop)
+        database.init_db()
+        for uid in (9401, 9402):
+            database.upsert_telegram_user({"id": uid, "first_name": "U"})
+        tokens = {uid: database.create_session(uid) for uid in (9401, 9402)}
+        app = server.create_app()
+        app.cleanup_ctx.clear()
+        async with TestClient(TestServer(app)) as client:
+            self.assertEqual((await client.post("/api/admin/monitoring/daily/telegram",
+                                                json={"enabled": True})).status, 401)
+            client.session.cookie_jar.update_cookies({auth.SESSION_COOKIE: tokens[9401]})
+            self.assertEqual((await client.post("/api/admin/monitoring/daily/telegram",
+                                                json={"enabled": True})).status, 403)
+            with patch.object(auth, "ADMIN_TELEGRAM_IDS", {9402}):
+                client.session.cookie_jar.update_cookies({auth.SESSION_COOKIE: tokens[9402]})
+                res = await client.post("/api/admin/monitoring/daily/telegram",
+                                        json={"enabled": True, "hour": 7})
+                self.assertEqual(res.status, 200)
+                body = await res.json()
+                self.assertTrue(body["telegram"]["enabled"])
+                self.assertEqual(body["telegram"]["hour"], 7)
+                self.assertTrue(config.load_settings()["daily_digest_telegram_enabled"])
+                bad = await client.post("/api/admin/monitoring/daily/telegram", json={"hour": 47})
+                self.assertEqual(bad.status, 400)
+                empty = await client.post("/api/admin/monitoring/daily/telegram", json={})
+                self.assertEqual(empty.status, 400)

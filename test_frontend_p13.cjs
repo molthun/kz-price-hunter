@@ -16,6 +16,8 @@ const assert=require('node:assert/strict');
           ai:{requests:1,cost_usd:null,approximate:false},
           shops:{scans:1,degraded:0,recovered:1}}};
  let summary=null, days=[{day:'2026-09-22',partial:false},{day:'2026-09-21',partial:false}], asked=[];
+ let telegram={enabled:false,hour:10,tz:'Asia/Almaty',recipients:1,note:'Отправка в Telegram выключена'};
+ const switches=[];
  try{
   const page=await browser.newPage({viewport:{width:1366,height:900},locale:'en-US'}); const errors=[];
   await page.addInitScript(()=>{window.tailwind={config:{}}});
@@ -29,9 +31,17 @@ const assert=require('node:assert/strict');
     asked.push(JSON.parse(req.postData()||'{}'));
     return route.fulfill({contentType:'application/json',body:JSON.stringify(summary)});
    }
+   if(u.pathname==='/api/admin/monitoring/daily/telegram'){
+    const body=JSON.parse(req.postData()||'{}'); switches.push(body);
+    if(body.hour===25)return route.fulfill({status:400,contentType:'application/json',
+      body:JSON.stringify({status:'error',message:'Час суточной сводки: допустимо от 0 до 23'})});
+    telegram={...telegram,...body,note:body.enabled===false?'Отправка в Telegram выключена'
+      :'Сводка уходит администраторам после указанного часа, один раз за сутки'};
+    return route.fulfill({contentType:'application/json',body:JSON.stringify({status:'ok',telegram})});
+   }
    if(u.pathname==='/api/admin/monitoring/daily'){
     asked.push({day:u.searchParams.get('day'),refresh:u.searchParams.get('refresh')});
-    return route.fulfill({contentType:'application/json',body:JSON.stringify({status:'ok',report,days})});
+    return route.fulfill({contentType:'application/json',body:JSON.stringify({status:'ok',report,days,telegram})});
    }
    if(u.pathname==='/api/admin/monitoring')return route.fulfill({contentType:'application/json',body:JSON.stringify({
     status:'healthy',generated_at:new Date().toISOString(),open_incidents:[],shops:[],sections:{
@@ -86,7 +96,24 @@ const assert=require('node:assert/strict');
   assert.match(text,/не ноль достижений/);
   assert.equal(asked.at(-1).refresh,'1','пересчёт запрашивается явно');
 
+  // Выключатель отправки в Telegram: состояние видно, включение сохраняется, час меняется
+  report.partial=false; report.empty=false; report.note='Все числа посчитаны кодом.';
+  await page.click('#btnDailyRefresh');
+  await page.waitForFunction(()=>document.getElementById('dailyTelegram'));
+  assert.equal(await page.evaluate(()=>document.getElementById('dailyTelegram').checked),false);
+  assert.match(await page.locator('#dailyBox').innerText(),/Отправка в Telegram выключена/);
+  assert.match(await page.locator('#dailyBox').innerText(),/Asia\/Almaty/);
+
+  await page.check('#dailyTelegram');
+  await page.waitForFunction(()=>document.getElementById('dailyBox').innerText.includes('один раз за сутки'));
+  assert.deepEqual(switches.at(-1),{enabled:true});
+  assert.equal(await page.evaluate(()=>document.getElementById('dailyTelegram').checked),true);
+
+  await page.selectOption('#dailyHour','8');
+  await page.waitForFunction(()=>document.getElementById('dailyHour').value==='8');
+  assert.deepEqual(switches.at(-1),{hour:8});
+
   assert.deepEqual(errors,[],'ошибок JS быть не должно');
-  console.log('PASS: P13 суточная сводка — цифры без AI, отклонённый пересказ, неполные и пустые сутки');
+  console.log('PASS: P13 суточная сводка — цифры без AI, отклонённый пересказ, неполные сутки, отправка в Telegram');
  } finally { await browser.close(); }
 })().catch(e=>{console.error(e);process.exit(1);});

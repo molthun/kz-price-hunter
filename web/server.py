@@ -2091,7 +2091,12 @@ async def admin_daily_digest_handler(request):
         print(f"[Daily] Отчёт не собран: {type(e).__name__}")
         return web.json_response({"status": "error", "message": "Не удалось собрать сводку"}, status=500)
     days = await asyncio.to_thread(db.daily_reports, 14)
-    return web.json_response({"status": "ok", "report": report, "days": days},
+    view = await asyncio.to_thread(daily_digest.settings_view)
+    people = await asyncio.to_thread(daily_digest.recipients)
+    telegram = {**view, "recipients": len(people),
+                "note": "Сводка уходит администраторам после указанного часа, один раз за сутки"
+                        if view["enabled"] else "Отправка в Telegram выключена"}
+    return web.json_response({"status": "ok", "report": report, "days": days, "telegram": telegram},
                              dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
 
 
@@ -2110,6 +2115,36 @@ async def admin_daily_summary_handler(request):
     result = await daily_digest.summarize(report)
     return web.json_response({"status": "ok", **result},
                              dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
+@routes.post("/api/admin/monitoring/daily/telegram")
+@require_admin
+async def admin_daily_telegram_handler(request):
+    """Включение суточной сводки в Telegram (P13): отдельный выключатель, как и просил план."""
+    import config
+    import daily_digest
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    payload = {}
+    if "enabled" in data:
+        payload["daily_digest_telegram_enabled"] = bool(data.get("enabled"))
+    if "hour" in data:
+        try:
+            payload["daily_digest_hour"] = int(data.get("hour"))
+        except (TypeError, ValueError):
+            return web.json_response({"status": "error", "message": "Час — целое число от 0 до 23"},
+                                     status=400)
+    if not payload:
+        return web.json_response({"status": "error", "message": "Нечего менять"}, status=400)
+    try:
+        await asyncio.to_thread(config.save_settings, payload)
+    except ValueError as e:
+        return web.json_response({"status": "error", "message": str(e)}, status=400)
+    view = await asyncio.to_thread(daily_digest.settings_view)
+    people = await asyncio.to_thread(daily_digest.recipients)
+    return web.json_response({"status": "ok", "telegram": {**view, "recipients": len(people)}})
 
 
 @routes.get("/api/admin/scheduler/rollout")

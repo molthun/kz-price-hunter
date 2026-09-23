@@ -617,7 +617,7 @@
     box.innerHTML = '<p class="text-sm text-slate-500">Собираю суточную сводку…</p>';
     const d = await api('/api/admin/monitoring/daily' + (q.toString() ? '?' + q : ''));
     if (!d || !d.report) { box.innerHTML = '<p class="text-sm text-rose-300">Не удалось собрать суточную сводку.</p>'; return; }
-    const r = d.report, b = r.blocks || {};
+    const r = d.report, b = r.blocks || {}, tg = d.telegram || {enabled: false, hour: 10, recipients: 0};
     const approx = x => x && x.approximate ? ' <span class="text-amber-300">(границы по суткам UTC)</span>' : '';
     const rows = [];
     if (b.search) rows.push(['Поиски' + approx(b.search),
@@ -640,6 +640,16 @@
            ${options || `<option>${esc(r.day)}</option>`}</select>
          <button id="btnDailyRefresh" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs">Пересчитать</button>
          <button id="btnDailySummary" class="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs">Пересказать словами</button>
+       </div>
+       <div class="flex flex-wrap gap-3 items-center mb-2 text-xs text-slate-400">
+         <label class="flex items-center gap-2 cursor-pointer">
+           <input type="checkbox" id="dailyTelegram" class="accent-emerald-500" ${tg.enabled ? 'checked' : ''}>
+           <span>присылать в Telegram</span></label>
+         <label class="flex items-center gap-2">в
+           <select id="dailyHour" class="bg-dark-950 border border-slate-700 rounded-lg px-2 py-1 text-slate-200">
+             ${Array.from({length: 24}, (_, h) => `<option value="${h}" ${h === tg.hour ? 'selected' : ''}>${String(h).padStart(2, '0')}:00</option>`).join('')}
+           </select> ${esc(tg.tz || '')}</label>
+         <span>${num(tg.recipients)} получателей · ${esc(tg.note || '')}</span>
        </div>` +
       (r.empty ? '<p class="text-sm text-slate-400 mb-2">За эти сутки наблюдений нет — это не ноль достижений, а отсутствие данных.</p>' : '') +
       kv(rows) +
@@ -649,6 +659,15 @@
       `<div id="dailySummary" class="mt-3 text-sm">${r.summary
         ? `<div class="whitespace-pre-wrap text-slate-100">${esc(r.summary)}</div>` : ''}</div>` +
       `<p class="text-xs text-slate-500 mt-2">${esc(r.note)}</p>`, state);
+  }
+
+  async function setDailyTelegram(payload) {
+    const box = document.getElementById('dailySummary');
+    const res = await fetch('/api/admin/monitoring/daily/telegram', {method: 'POST',
+      headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) { if (box) box.innerHTML = `<p class="text-rose-300">${esc(d.message || 'Не удалось сохранить')}</p>`; return; }
+    loadDaily((document.getElementById('dailyDay') || {}).value || '', false);
   }
 
   async function daily(action) {
@@ -700,7 +719,11 @@
     if (e.target.id === 'btnRefresh') load();
     if (e.target.id === 'shopModalClose' || e.target.id === 'shopModal') document.getElementById('shopModal').classList.add('hidden');
   });
-  document.addEventListener('change', e => { if (e.target.id === 'dailyDay') loadDaily(e.target.value, false); });
+  document.addEventListener('change', e => {
+    if (e.target.id === 'dailyDay') { loadDaily(e.target.value, false); return; }
+    if (e.target.id === 'dailyTelegram') { setDailyTelegram({enabled: e.target.checked}); return; }
+    if (e.target.id === 'dailyHour') { setDailyTelegram({hour: Number(e.target.value)}); return; }
+  });
   document.addEventListener('keydown', e => {
     if (e.key === 'Enter' && e.target.id === 'askQ') { askAssistant(); return; }
     if (e.key === 'Escape') document.getElementById('shopModal').classList.add('hidden'); });

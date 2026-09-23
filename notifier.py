@@ -285,6 +285,52 @@ def _deliver_watch(item, payload, counts) -> tuple:
     return False, None
 
 
+def send_daily_digest(chat_id: int, payload: Dict[str, Any]) -> DeliveryResult:
+    """Суточная сводка администратору (P13). Текст собран заранее из посчитанных цифр."""
+    lines = payload.get("lines") or []
+    text = "\n".join(str(line) for line in lines)[:4000]
+    keyboard = [[{"text": "🩺 Центр мониторинга", "url": APP_URL.rstrip("/") + "/monitoring"}]] if APP_URL else []
+    try:
+        return classify_telegram_response(telegram_api("sendMessage", {
+            "chat_id": chat_id, "text": text, "parse_mode": "HTML",
+            "disable_web_page_preview": True,
+            "reply_markup": {"inline_keyboard": keyboard}}))
+    except Exception as e:
+        print(f"[Telegram Exception] {type(e).__name__}")
+        return DeliveryResult("retry", None, type(e).__name__)
+
+
+def _deliver_daily_digest(item, payload, counts) -> tuple:
+    """Отправка суточной сводки: та же очередь, те же повторы и та же пауза 429."""
+    from database import finish_notification, get_user
+    import config
+
+    user = get_user(item["user_id"])
+    # Сводка — админские цифры: если человек больше не администратор или заблокирован, письмо отменяется
+    if not user or user["is_blocked"] or int(item["user_id"]) not in config.ADMIN_TELEGRAM_IDS:
+        finish_notification(item["id"], "cancelled")
+        counts["cancelled"] += 1
+        return False, None
+
+    result = send_daily_digest(user["id"], payload)
+    if isinstance(result, bool):  # совместимость с подменами в тестах
+        result = DeliveryResult("sent" if result else "retry", None, None if result else "Telegram delivery failed")
+    if result:
+        finish_notification(item["id"], "sent", item["attempts"])
+        counts["sent"] += 1
+        return True, None
+    if result.status == "permanent":
+        finish_notification(item["id"], "failed", item["attempts"], result.error)
+        counts["failed"] += 1
+        return False, None
+    finish_notification(item["id"], "pending", item["attempts"], result.error, retry_after=result.retry_after)
+    counts["retry"] += 1
+    if result.retry_after is not None:
+        pause_telegram(result.retry_after)   # 429 — лимит на весь бот
+        return False, float(result.retry_after)
+    return False, None
+
+
 def dispatch_alert(product: Dict[str, Any], anomaly: Dict[str, Any]) -> int:
     """Печатает алерт в консоль и рассылает его пользователям, чьи личные пороги он проходит.
 
@@ -403,6 +449,13 @@ def _deliver_batch(limit, counts):
             break
         try:
             payload = json.loads(item["payload"])
+            if payload.get("kind") == "daily_digest":
+                # Суточная сводка администратору (P13): своё правило актуальности, та же очередь
+                delivered, pause = _deliver_daily_digest(item, payload, counts)
+                sent += 1 if delivered else 0
+                if pause is not None:
+                    break
+                continue
             if payload.get("kind") == "watch":
                 # Задание по личному наблюдению: свои проверки актуальности, та же очередь и та же пауза 429
                 delivered, pause = _deliver_watch(item, payload, counts)
@@ -457,6 +510,12 @@ async def notification_worker():
     import environment
     while True:
         try:
+            # Суточная сводка администратору (P13): ставится в очередь раз в сутки, если включена
+            try:
+                import daily_digest
+                await asyncio.to_thread(daily_digest.queue_if_due)
+            except Exception as e:
+                print(f"[Daily] Сводка не поставлена в очередь: {type(e).__name__}")
             await asyncio.to_thread(deliver_pending)
             # Пульс очереди Telegram (P14): умерший воркер не должен выглядеть работающим
             await asyncio.to_thread(environment.heartbeat, environment.TELEGRAM, "цикл доставки")

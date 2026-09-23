@@ -300,6 +300,11 @@ SYSTEM_DEFAULTS = {
     # миллион токенов. Пустое значение означает «цена неизвестна», и расход в деньгах не показывается:
     # тарифы меняются, и зашитая в код цифра вводила бы в заблуждение (P08).
     "ai_model_prices": {},
+    # Суточная сводка администратору в Telegram (P13). По умолчанию выключена: план прямо отложил
+    # отправку как отдельное последующее включение, и владелец включает её сам.
+    "daily_digest_telegram_enabled": False,
+    "daily_digest_hour": 10,
+    "daily_digest_timezone": "Asia/Almaty",
 }
 
 
@@ -497,6 +502,7 @@ SETTING_RANGES = {
     "candidate_arbitrage_drop_pct": (1, 99, "Порог кандидатов: арбитраж, %"),
     "candidate_arbitrage_diff_kzt": (0, _KZT_MAX, "Порог кандидатов: арбитраж, ₸"),
     "check_interval_seconds": (30, 86400, "Интервал проверки, с"),
+    "daily_digest_hour": (0, 23, "Час суточной сводки"),
 }
 
 
@@ -552,6 +558,12 @@ def _validate(new_settings, defaults):
 
 def _validate_settings(new_settings):
     clean = _validate(new_settings, SYSTEM_DEFAULTS)
+    if "daily_digest_timezone" in clean:
+        import zoneinfo
+        try:
+            zoneinfo.ZoneInfo(clean["daily_digest_timezone"])
+        except Exception:
+            raise ValueError(f"Неизвестный часовой пояс: {clean['daily_digest_timezone']}")
     for name, choices in (("ai_provider", {"auto", "gemini", "openai"}),
                           ("gemini_model_mode", {"auto", "manual"}),
                           ("openai_model_mode", {"auto", "manual"}),

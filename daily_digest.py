@@ -322,3 +322,134 @@ async def summarize(report: Dict[str, Any]) -> Dict[str, Any]:
     result["provider"] = routed.get("provider")
     save(report, summary=text, provider=routed.get("provider"))
     return result
+
+
+# ---------------------------------------------------------------------------
+# Отправка сводки администратору в Telegram (P13, отдельное включение)
+# ---------------------------------------------------------------------------
+
+# Своё пространство идентификаторов в общей очереди уведомлений: alert_id отрицательный и не может
+# совпасть ни с алертом ленты (положительный), ни со срабатыванием наблюдения (−id события, небольшое).
+DIGEST_ALERT_BASE = 1_000_000_000
+
+
+def digest_alert_id(day: str) -> int:
+    """Идентификатор задания для этих суток: одна запись на день — значит, одно сообщение на день."""
+    return -(DIGEST_ALERT_BASE + datetime.date.fromisoformat(day).toordinal())
+
+
+def settings_view() -> Dict[str, Any]:
+    import config
+    settings = config.load_settings()
+    return {"enabled": bool(settings.get("daily_digest_telegram_enabled")),
+            "hour": int(settings.get("daily_digest_hour") or 0),
+            "tz": str(settings.get("daily_digest_timezone") or DEFAULT_TZ)}
+
+
+def due_day(now: Optional[datetime.datetime] = None,
+            view: Optional[Dict[str, Any]] = None) -> Optional[str]:
+    """Сутки, о которых пора написать, или None.
+
+    Пишем только о завершившихся сутках и только после назначенного часа: сводка за неполный день
+    дала бы цифры, которые к вечеру изменятся.
+    """
+    view = view or settings_view()
+    if not view["enabled"]:
+        return None
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    local = moment.astimezone(_zone(view["tz"]))
+    if local.hour < view["hour"]:
+        return None
+    return previous_day(view["tz"], moment)
+
+
+def recipients() -> List[int]:
+    """Кому уходит сводка: администраторам сервиса. Это админские цифры, и чужим они не нужны."""
+    import config
+    import database
+    people = []
+    for admin_id in sorted(config.ADMIN_TELEGRAM_IDS):
+        user = database.get_user(admin_id)
+        if user and not user["is_blocked"]:
+            people.append(int(admin_id))
+    return people
+
+
+def message_lines(report: Dict[str, Any]) -> List[str]:
+    """Текст сводки: сначала цифры, потом пересказ. Без AI сообщение всё равно осмысленно."""
+    blocks = report.get("blocks") or {}
+    money = lambda v: "—" if v is None else f"{v}"
+    lines = [f"📅 <b>Сводка за {report.get('day')}</b> ({report.get('tz')})"]
+    if report.get("partial"):
+        lines.append("⚠️ Сутки ещё не закончились — цифры неполные.")
+    if report.get("empty"):
+        lines.append("За эти сутки наблюдений нет — это отсутствие данных, а не ноль достижений.")
+    search = blocks.get("search") or {}
+    catalog = blocks.get("catalog") or {}
+    telegram = blocks.get("telegram") or {}
+    ai = blocks.get("ai") or {}
+    shops = blocks.get("shops") or {}
+    lines.append("")
+    lines.append(f"🔎 Поиски: <b>{search.get('searches', 0)}</b>"
+                 + (f" · успех {search.get('success_rate')} %" if search.get("success_rate") is not None else "")
+                 + (" (границы по суткам UTC)" if search.get("approximate") else ""))
+    lines.append(f"🏷 Новые товары: <b>{catalog.get('new_products', 0)}</b> · изменений цен "
+                 f"<b>{catalog.get('price_changes', 0)}</b> (дешевле {catalog.get('cheaper', 0)}, "
+                 f"дороже {catalog.get('dearer', 0)})")
+    lines.append(f"📨 Уведомления: отправлено <b>{telegram.get('sent', 0)}</b> из "
+                 f"{telegram.get('attempts', 0)} попыток")
+    lines.append(f"🤖 AI: вызовов <b>{ai.get('requests', 0)}</b> · стоимость "
+                 f"{'$' + money(ai.get('cost_usd')) if ai.get('cost_usd') is not None else '— цены не заданы'}")
+    lines.append(f"🏬 Обходы: <b>{shops.get('scans', 0)}</b> · ухудшений {shops.get('degraded', 0)} · "
+                 f"восстановлений {shops.get('recovered', 0)}")
+    drops = catalog.get("biggest_drops") or []
+    if drops:
+        lines.append("")
+        lines.append("📉 Заметные снижения:")
+        for item in drops[:3]:
+            import html as html_module
+            lines.append(f"• {html_module.escape(str(item.get('title') or ''))} — "
+                         f"{item.get('was')} → {item.get('now')} ₸ (−{item.get('drop_pct')} %)")
+    unavailable = report.get("unavailable") or {}
+    if unavailable:
+        lines.append("")
+        lines.append(f"⚠️ Недоступные блоки: {', '.join(sorted(unavailable))}")
+    if report.get("summary"):
+        import html as html_module
+        lines.append("")
+        lines.append("🗒 " + html_module.escape(str(report["summary"])))
+    lines.append("")
+    lines.append("ℹ️ Цифры посчитаны кодом по собственным данным и воспроизводятся повторным расчётом.")
+    return lines
+
+
+def queue_if_due(now: Optional[datetime.datetime] = None) -> int:
+    """Ставит сводку в общую очередь уведомлений. Повторный вызов в те же сутки ничего не дублирует.
+
+    Одно задание на день и человека обеспечивает UNIQUE(alert_id, user_id) очереди: даже если проверка
+    вызовется десятки раз за день или сервис перезапустится, сообщение уйдёт один раз.
+    """
+    import json as json_module
+    import database
+    view = settings_view()
+    day = due_day(now, view)
+    if not day:
+        return 0
+    people = recipients()
+    if not people:
+        return 0
+    stored = load(day, view["tz"]) or report(day, view["tz"], now=now)
+    payload = {"kind": "daily_digest", "day": day, "tz": view["tz"],
+               "lines": message_lines(stored)}
+    moment = (now or datetime.datetime.now(datetime.timezone.utc)).timestamp()
+    queued = 0
+    with database.get_connection() as conn:
+        for user_id in people:
+            cur = conn.execute("""INSERT OR IGNORE INTO notification_outbox
+                                  (alert_id, user_id, payload, status, created_at, next_attempt_at)
+                                  VALUES (?, ?, ?, 'pending', ?, ?)""",
+                               (digest_alert_id(day), user_id,
+                                json_module.dumps(payload, ensure_ascii=False), moment, 0))
+            queued += cur.rowcount or 0
+        conn.commit()
+    return queued
