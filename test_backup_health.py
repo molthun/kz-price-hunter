@@ -66,15 +66,29 @@ class BackupVerificationTest(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertIn("не читается как база", result["error"])
 
-    def test_empty_backup_is_not_useful(self):
+    def test_file_with_one_table_is_not_a_database(self):
+        """Файл SQLite с таблицей товаров — ещё не рабочая база приложения (аудит L02)."""
         empty = os.path.join(self.tmp.name, "backups", "prices-empty.db")
         os.makedirs(os.path.dirname(empty), exist_ok=True)
         conn = sqlite3.connect(empty)
-        conn.execute("CREATE TABLE products (id TEXT)")
+        conn.execute("CREATE TABLE products (id TEXT, title TEXT)")
+        conn.execute("INSERT INTO products VALUES ('p1', 'Товар')")
         conn.execute("CREATE TABLE schema_metadata (name TEXT, value TEXT)")
         conn.commit()
         conn.close()
         result = bh.verify_backup(empty)
+        self.assertFalse(result["ok"])
+        self.assertIn("нет обязательных таблиц", result["error"])
+        self.assertIn("users", result["missing_tables"])
+        self.assertFalse(bh.restore_rehearsal(empty)["restored"])
+
+    def test_backup_without_products_is_not_useful(self):
+        path = self.make_backup()
+        conn = sqlite3.connect(path)
+        conn.execute("DELETE FROM products")
+        conn.commit()
+        conn.close()
+        result = bh.verify_backup(path)
         self.assertFalse(result["ok"])
         self.assertIn("нет товаров", result["error"])
 
@@ -119,18 +133,24 @@ class BackupVerificationTest(unittest.TestCase):
 
     def test_full_disk_does_not_crash_the_check(self):
         self.make_backup()
-        with patch.object(bh.shutil, "copy2", side_effect=OSError("No space left on device")):
+        with patch.object(bh, "_copy_with_deadline", side_effect=OSError("No space left on device")):
             result = bh.restore_rehearsal()
         self.assertFalse(result["restored"])
         self.assertIn("восстановить не удалось", result["error"])
 
-    def test_verification_runs_once_a_day(self):
-        self.make_backup()
+    def test_verification_runs_once_a_day_for_the_same_copy(self):
+        """Пауза в сутки считается по проверке этой же копии, а не по любой прошлой (аудит L01)."""
+        path = self.make_backup()
+        identity = bh.file_identity(path)
         self.assertTrue(bh.due_for_verification(checks=[], now=NOW))
-        recent = [{"checked_at": (NOW - datetime.timedelta(hours=2)).isoformat()}]
+        recent = [{**identity, "checked_at": (NOW - datetime.timedelta(hours=2)).isoformat(), "ok": 1}]
         self.assertFalse(bh.due_for_verification(checks=recent, now=NOW))
-        old = [{"checked_at": (NOW - datetime.timedelta(hours=30)).isoformat()}]
+        old = [{**identity, "checked_at": (NOW - datetime.timedelta(hours=30)).isoformat(), "ok": 1}]
         self.assertTrue(bh.due_for_verification(checks=old, now=NOW))
+        # Проверка другой копии паузу не даёт
+        other = [{"file": "prices-другая.db", "file_size": 1, "file_mtime": 1.0,
+                  "checked_at": (NOW - datetime.timedelta(hours=2)).isoformat(), "ok": 1}]
+        self.assertTrue(bh.due_for_verification(checks=other, now=NOW))
 
     def test_periodic_check_records_result_and_heartbeat(self):
         import environment as env
@@ -186,7 +206,7 @@ class BackupSectionTest(BackupVerificationTest):
         self.make_backup()
         section = monitoring.backup_section(now=NOW)
         self.assertEqual(section["status"], monitoring.UNKNOWN)
-        self.assertIn("ни одна ещё не проверялась", section["reason"])
+        self.assertIn("ещё не проверялась", section["reason"])
 
     def test_passed_check_makes_it_healthy(self):
         self.make_backup()
@@ -196,8 +216,11 @@ class BackupSectionTest(BackupVerificationTest):
         self.assertIn("проверка пройдена", section["reason"])
 
     def test_failed_check_is_degraded(self):
-        self.make_backup()
-        database.record_backup_check("restore", False, detail="файл не читается как база")
+        path = self.make_backup()
+        identity = bh.file_identity(path)
+        database.record_backup_check("restore", False, detail="файл не читается как база",
+                                     file=identity["file"], file_size=identity["file_size"],
+                                     file_mtime=identity["file_mtime"])
         section = monitoring.backup_section(now=NOW)
         self.assertEqual(section["status"], monitoring.DEGRADED)
         self.assertIn("не прошла", section["reason"])
@@ -219,3 +242,138 @@ class BackupSectionTest(BackupVerificationTest):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AuditFixesTest(BackupVerificationTest):
+    """Сценарии приёмки из аудита: L01 (чужая проверка), L02 (неполная схема), L03 (предел времени)."""
+
+    def newer_file(self, name, content=b"not a database"):
+        path = os.path.join(self.tmp.name, "backups", name)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "wb") as f:
+            f.write(content)
+        future = datetime.datetime.now().timestamp() + 60
+        os.utime(path, (future, future))
+        return path
+
+    def test_new_broken_copy_does_not_inherit_an_old_success(self):
+        """Успешная проверка прежней копии не делает зелёной новую испорченную (аудит L01)."""
+        self.make_backup()
+        self.assertTrue(bh.verify_backups_if_due(now=NOW)["restored"])
+        self.assertEqual(monitoring.backup_section(now=NOW)["status"], monitoring.HEALTHY)
+
+        self.newer_file("prices-latest-bad.db")
+        section = monitoring.backup_section(now=NOW)
+        self.assertNotEqual(section["status"], monitoring.HEALTHY)
+        self.assertIn("ещё не проверялась", section["reason"])
+        self.assertTrue(bh.due_for_verification(now=NOW), "новая копия должна вызвать проверку")
+        # Последняя подтверждённая копия остаётся видимой отдельно
+        self.assertTrue(section["last_confirmed"]["ok"])
+
+    def test_replacing_a_copy_under_the_same_name_invalidates_the_check(self):
+        path = self.make_backup()
+        bh.verify_backups_if_due(now=NOW)
+        self.assertEqual(monitoring.backup_section(now=NOW)["status"], monitoring.HEALTHY)
+        with open(path, "wb") as f:
+            f.write("подменили содержимое под тем же именем".encode("utf-8"))
+        future = datetime.datetime.now().timestamp() + 60
+        os.utime(path, (future, future))
+        section = monitoring.backup_section(now=NOW)
+        self.assertNotEqual(section["status"], monitoring.HEALTHY)
+
+    def test_a_stale_check_of_a_fresh_copy_is_not_green(self):
+        path = self.make_backup()
+        identity = bh.file_identity(path)
+        database.record_backup_check("restore", True, file=identity["file"],
+                                     file_size=identity["file_size"], file_mtime=identity["file_mtime"],
+                                     detail="давняя проверка",
+                                     now=NOW - datetime.timedelta(days=5))
+        section = monitoring.backup_section(now=NOW)
+        self.assertEqual(section["status"], monitoring.UNKNOWN)
+        self.assertIn("устарела", section["reason"])
+
+    def test_unsupported_schema_version_is_rejected(self):
+        """Копия неизвестной версии схемы не считается пригодной (аудит L02)."""
+        path = self.make_backup()
+        conn = sqlite3.connect(path)
+        conn.execute("UPDATE schema_metadata SET value = '999' WHERE name = 'schema_version'")
+        conn.commit()
+        conn.close()
+        result = bh.verify_backup(path)
+        self.assertFalse(result["ok"])
+        self.assertIn("не поддерживается", result["error"])
+
+    def test_missing_schema_version_is_rejected(self):
+        path = self.make_backup()
+        conn = sqlite3.connect(path)
+        conn.execute("DELETE FROM schema_metadata WHERE name = 'schema_version'")
+        conn.commit()
+        conn.close()
+        result = bh.verify_backup(path)
+        self.assertFalse(result["ok"])
+        self.assertIn("не записана версия схемы", result["error"])
+
+    def test_missing_required_tables_are_named(self):
+        path = self.make_backup()
+        conn = sqlite3.connect(path)
+        conn.execute("DROP TABLE watches")
+        conn.commit()
+        conn.close()
+        result = bh.verify_backup(path)
+        self.assertFalse(result["ok"])
+        self.assertIn("watches", result["missing_tables"])
+
+    def test_missing_product_columns_are_named(self):
+        broken = os.path.join(self.tmp.name, "backups", "prices-no-columns.db")
+        os.makedirs(os.path.dirname(broken), exist_ok=True)
+        source = self.make_backup()
+        import shutil as _shutil
+        _shutil.copy2(source, broken)
+        conn = sqlite3.connect(broken)
+        conn.execute("ALTER TABLE products RENAME TO products_old")
+        conn.execute("CREATE TABLE products (id TEXT, title TEXT)")
+        conn.execute("INSERT INTO products SELECT id, title FROM products_old")
+        conn.commit()
+        conn.close()
+        result = bh.verify_backup(broken)
+        self.assertFalse(result["ok"])
+        self.assertIn("нет колонок", result["error"])
+
+    def test_a_good_copy_answers_the_queries_the_app_makes(self):
+        self.make_backup()
+        result = bh.restore_rehearsal()
+        self.assertTrue(result["restored"], result["error"])
+        self.assertEqual(set(result["queries"]), {label for label, _ in bh.SMOKE_QUERIES})
+        self.assertTrue(all(result["queries"].values()))
+
+    def test_verification_respects_its_time_limit(self):
+        """Заявленный предел времени действительно прерывает проверку (аудит L03)."""
+        self.make_backup()
+        real_copy = bh._copy_with_deadline
+
+        def slow_copy(source, dest, deadline, chunk=8 * 1024 * 1024):
+            import time as _time
+            _time.sleep(0.05)
+            return real_copy(source, dest, deadline, chunk)
+
+        with patch.object(bh, "VERIFY_TIMEOUT_SECONDS", 0.001), \
+             patch.object(bh, "_copy_with_deadline", slow_copy):
+            result = bh.restore_rehearsal()
+        self.assertFalse(result["restored"])
+        self.assertTrue(result["timed_out"])
+        self.assertIn("не уложилась", result["error"])
+
+    def test_slow_queries_are_interrupted_too(self):
+        self.make_backup()
+        with patch.object(bh, "VERIFY_TIMEOUT_SECONDS", 0.0):
+            result = bh.verify_backup(bh.list_backups()[0]["path"])
+        self.assertFalse(result["ok"])
+        self.assertTrue(result.get("timed_out") or "не уложилась" in (result["error"] or ""))
+
+    def test_timeout_is_recorded_as_a_failed_check(self):
+        self.make_backup()
+        with patch.object(bh, "VERIFY_TIMEOUT_SECONDS", 0.0):
+            bh.verify_backups_if_due(now=NOW)
+        check = database.backup_checks(limit=1)[0]
+        self.assertEqual(check["ok"], 0)
+        self.assertIn("не уложилась", check["detail"])

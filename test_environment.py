@@ -171,13 +171,41 @@ class AuditConfigurationTest(unittest.TestCase):
                 self.assertEqual(state['state'], 'disabled')
 
     def test_on_demand_backup_is_not_a_missing_periodic_worker(self):
-        enabled = env.enabled_components()
+        """K01: без запланированной работы копии не выдаются за умершего работника.
+
+        После P15 самопроверка копий идёт в обслуживании после обходов, поэтому пульс ожидается только
+        при включённых автоматических обходах; при выключенных — состояние «выключено», а не «молчит».
+        """
+        with patch("config.load_settings", return_value={"auto_scan_enabled": False}), \
+             patch("config.get_ai_config", return_value={"has_ai": False, "enabled": False}), \
+             patch("config.get_bot_token", return_value=""):
+            enabled = env.enabled_components()
         self.assertFalse(enabled[env.BACKUP])
-        last = {'last_seen':(NOW-datetime.timedelta(days=30)).isoformat()}
+        last = {'last_seen': (NOW - datetime.timedelta(days=30)).isoformat()}
         state = env.component_state(env.BACKUP, last, enabled[env.BACKUP], NOW)
         self.assertEqual(state['state'], 'disabled')
-        self.assertIn('периодический работник не настроен', state['reason'])
+        self.assertIn('обходы выключены', state['reason'])
 
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BackupComponentRhythmTest(unittest.TestCase):
+    """Копии делаются по событию, а их самопроверка идёт с обходами (P14 K01 + P15)."""
+
+    def test_backup_liveness_follows_the_scan_schedule(self):
+        with patch("config.load_settings", return_value={"auto_scan_enabled": True}), \
+             patch("config.get_ai_config", return_value={"has_ai": False, "enabled": False}), \
+             patch("config.get_bot_token", return_value=""):
+            self.assertTrue(env.enabled_components()[env.BACKUP])
+        with patch("config.load_settings", return_value={"auto_scan_enabled": False}), \
+             patch("config.get_ai_config", return_value={"has_ai": False, "enabled": False}), \
+             patch("config.get_bot_token", return_value=""):
+            self.assertFalse(env.enabled_components()[env.BACKUP])
+
+    def test_disabled_backup_explains_itself_without_blaming_a_worker(self):
+        state = env.component_state(env.BACKUP, None, enabled=False, now=NOW)
+        self.assertEqual(state["state"], "disabled")
+        self.assertIn("обходы выключены", state["reason"])
+        self.assertNotIn("молчит", state["reason"])

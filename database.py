@@ -691,6 +691,10 @@ def _create_schema(cursor) -> None:
             duration_sec REAL
         )
     """)
+    # Проверка относится к конкретному файлу: успешная проверка вчерашней копии ничего не говорит
+    # о сегодняшней, поэтому вместе с результатом хранятся размер и время изменения файла (P15 L01)
+    _add_column(cursor, "backup_checks", "file_size", "INTEGER")
+    _add_column(cursor, "backup_checks", "file_mtime", "REAL")
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS component_heartbeats (
@@ -3008,14 +3012,17 @@ def heartbeats() -> Dict[str, Dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 def record_backup_check(kind: str, ok: bool, file: Optional[str] = None, detail: Optional[str] = None,
-                        duration_sec: Optional[float] = None,
+                        duration_sec: Optional[float] = None, file_size: Optional[int] = None,
+                        file_mtime: Optional[float] = None,
                         now: Optional[datetime.datetime] = None) -> None:
+    """Результат проверки вместе с приметами самого файла: к какой именно копии он относится (P15 L01)."""
     moment = (now or datetime.datetime.now(datetime.timezone.utc)).isoformat()
     with get_connection() as conn:
-        conn.execute("""INSERT INTO backup_checks (checked_at, file, kind, ok, detail, duration_sec)
-                        VALUES (?, ?, ?, ?, ?, ?)""",
+        conn.execute("""INSERT INTO backup_checks (checked_at, file, kind, ok, detail, duration_sec,
+                                                   file_size, file_mtime)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                      (moment, str(file or "")[:200], str(kind), 1 if ok else 0,
-                      str(detail or "")[:300] or None, duration_sec))
+                      str(detail or "")[:300] or None, duration_sec, file_size, file_mtime))
         # История самопроверок нужна недолго: держим последние 100 записей
         conn.execute("DELETE FROM backup_checks WHERE id NOT IN "
                      "(SELECT id FROM backup_checks ORDER BY id DESC LIMIT 100)")

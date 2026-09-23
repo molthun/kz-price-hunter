@@ -916,6 +916,18 @@ def environment_section(now: Optional[datetime.datetime] = None) -> Dict[str, An
     }
 
 
+def _check_is_stale(check: Dict[str, Any], moment: datetime.datetime) -> bool:
+    """Проверка считается устаревшей, если её делали дольше двух положенных интервалов назад."""
+    import backup_health
+    try:
+        checked = datetime.datetime.fromisoformat(check["checked_at"])
+    except (TypeError, ValueError, KeyError):
+        return True
+    if checked.tzinfo is None:
+        checked = checked.replace(tzinfo=datetime.timezone.utc)
+    return (moment - checked).total_seconds() > 2 * backup_health.VERIFY_INTERVAL_HOURS * 3600
+
+
 def backup_section(now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
     """Резервные копии и сроки хранения (P15): свежесть, результат последней настоящей проверки, объёмы.
 
@@ -927,34 +939,44 @@ def backup_section(now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
     moment = now or _now()
 
     backups = backup_health.list_backups()
-    checks = database.backup_checks(limit=10)
-    last_check = checks[0] if checks else None
+    checks = database.backup_checks(limit=20)
     newest = backups[0] if backups else None
+    # Проверка относится к конкретному файлу: успешная проверка вчерашней копии не делает зелёной
+    # сегодняшнюю (P15 L01). Ищем проверку именно самой свежей копии.
+    identity = backup_health.file_identity(newest["path"]) if newest else {}
+    own_check = backup_health.last_check_for(identity, checks) if newest else None
+    confirmed = next((c for c in checks if c["ok"]), None)
 
     if not backups:
         status, reason = UNKNOWN, "Копий пока нет"
     elif newest["age_hours"] > backup_health.BACKUP_STALE_HOURS:
         status = DEGRADED
         reason = f"Свежей копии нет: последней {newest['age_hours']:.0f} ч"
-    elif last_check and not last_check["ok"]:
-        status = DEGRADED
-        reason = f"Последняя проверка копии не прошла: {last_check.get('detail') or 'причина не записана'}"
-    elif not last_check:
+    elif not own_check:
         status = UNKNOWN
-        reason = "Копии есть, но ни одна ещё не проверялась"
+        reason = "Самая свежая копия ещё не проверялась"
+    elif not own_check["ok"]:
+        status = DEGRADED
+        reason = f"Проверка свежей копии не прошла: {own_check.get('detail') or 'причина не записана'}"
+    elif _check_is_stale(own_check, moment):
+        status = UNKNOWN
+        reason = "Проверка свежей копии устарела"
     else:
         status = HEALTHY
-        reason = f"Копия {newest['age_hours']:.0f} ч назад, проверка пройдена"
+        reason = f"Копия {newest['age_hours']:.0f} ч назад, её проверка пройдена"
 
     return {
         "status": status, "reason": reason,
         "backups": backups[:10],
         "newest": newest,
+        "newest_check": own_check,
+        "last_confirmed": confirmed,
         "total_size_bytes": sum(b["size_bytes"] for b in backups),
         "checks": checks,
         "retention": backup_health.retention_policy(),
         "usage": database.retention_usage(),
         "note": "Проверка открывает копию, читает схему и разворачивает её во временную базу, после чего "
-                "временная база удаляется. Внутренняя проверка не заметит полную остановку процесса — "
+                "временная база удаляется. Результат относится к конкретному файлу: новая или изменённая "
+                "копия считается непроверенной. Внутренняя проверка не заметит полную остановку процесса — "
                 "это видно только наблюдателю снаружи.",
     }

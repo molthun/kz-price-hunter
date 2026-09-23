@@ -133,7 +133,8 @@ def component_state(component: str, last: Optional[Dict[str, Any]], enabled: boo
     label = LABELS.get(component, component)
     if not enabled:
         return {"component": component, "label": label, "state": "disabled",
-                "reason": ("периодический работник не настроен; копии и проверки выполняются по событию"
+                "reason": ("автоматические обходы выключены, поэтому самопроверка копий не запускается; "
+                           "возраст копий показан отдельно"
                            if component == BACKUP else "выключено настройками"),
                 "age_seconds": None, "last_seen": None}
     if not last or not last.get("last_seen"):
@@ -177,9 +178,10 @@ def enabled_components(settings: Optional[Dict[str, Any]] = None) -> Dict[str, b
         TELEGRAM: bool(config.get_bot_token()),
         AI_NORMALIZE: bool(ai.get("has_ai") and ai.get("enabled")),
         TELEMETRY: telemetry_enabled(),
-        # Нет отдельного периодического worker: миграции и P15 post-scan checks
-        # вызываются по событию. Возраст копий — отдельная метрика, не liveness.
-        BACKUP: False,
+        # Сами копии по-прежнему делаются по событию (миграции), поэтому их возраст — отдельная метрика,
+        # а не признак живого работника. Но самопроверка копий (P15) идёт в обслуживании после обходов,
+        # поэтому пульс здесь ожидается ровно тогда, когда включены автоматические обходы.
+        BACKUP: bool(settings.get("auto_scan_enabled", True)),
     }
 
 
