@@ -253,6 +253,17 @@ class SummaryTest(unittest.TestCase):
         self.assertIsNone(digest.load(DAY, "UTC")["summary"], "плохой пересказ не сохраняется")
         self.assertEqual(report["blocks"]["search"]["searches"], 0, "цифры отчёта остаются")
 
+    def test_small_invented_number_is_rejected_too(self):
+        """M04: «12 ошибок» при нулевых фактах — выдумка, а не нумерация пункта."""
+        report, result = self.run_summary("За сутки было 12 ошибок и 3 обхода.")
+        self.assertIsNone(result["summary"])
+        self.assertIn("которых нет в отчёте", result["rejected"])
+
+    def test_numbered_list_of_real_numbers_is_kept(self):
+        report, result = self.run_summary("Итоги:\n1. Поисков 0.\n2. Новых товаров 0.")
+        self.assertIsNone(result["rejected"])
+        self.assertIn("1.", result["summary"])
+
     def test_prompt_states_the_rules_and_wraps_data(self):
         self.run_summary("Поисков 0.")
         self.assertIn("ТОЛЬКО числа из блока данных", self.prompt)
@@ -400,7 +411,7 @@ class TelegramDigestTest(unittest.TestCase):
         text = "\n".join(digest.message_lines(report))
         self.assertIn(f"Сводка за {DAY}", text)
         self.assertIn("Поиски", text)
-        self.assertIn("цены не заданы", text, "стоимость без цен — не ноль")
+        self.assertIn("вызовов не было", text, "без вызовов стоимость не показывается нулём")
         self.assertIn("посчитаны кодом", text)
         self.assertNotIn("None", text)
 
@@ -513,3 +524,88 @@ class TelegramSwitchApiTest(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(bad.status, 400)
                 empty = await client.post("/api/admin/monitoring/daily/telegram", json={})
                 self.assertEqual(empty.status, 400)
+
+
+class AuditFixesTest(unittest.TestCase):
+    """M05 и M06: счётчики событий считают все, а неизвестная стоимость не выдаётся за ноль."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.data_dir = type(DB_PATH)(self.tmp.name)
+        for p in [patch.object(database, "DB_PATH", self.data_dir / "prices.db"),
+                  patch("config.DATA_DIR", self.data_dir),
+                  patch("config.SETTINGS_FILE", self.data_dir / "settings.json")]:
+            p.start()
+            self.addCleanup(p.stop)
+        database.init_db()
+        self.inside = datetime.datetime(2026, 9, 22, 10, 0, tzinfo=UTC)
+
+    def add_events(self, kind, count):
+        with database.get_connection() as conn:
+            for i in range(count):
+                conn.execute("""INSERT INTO telemetry_events (event_id, timestamp, type, severity,
+                                component, shop, message, data_json)
+                                VALUES (?, ?, ?, 'INFO', 'scraper', 'dns', 'событие', '{}')""",
+                             (f"{kind}-{i}", self.inside.isoformat(), kind))
+            conn.commit()
+
+    def blocks(self):
+        return digest.compute(DAY, "UTC", now=NOW)["blocks"]
+
+    # --- M05 ---
+
+    def test_event_counters_are_exact_for_any_number(self):
+        for count in (0, 5, 8, 100):
+            with self.subTest(count=count):
+                with database.get_connection() as conn:
+                    conn.execute("DELETE FROM telemetry_events")
+                    conn.commit()
+                self.add_events("recovery", count)
+                shops = self.blocks()["shops"]
+                self.assertEqual(shops["recovered"], count)
+                self.assertLessEqual(len(shops["events"]["recovery"]), 5, "примеров не больше пяти")
+
+    def test_degradation_counter_is_exact_too(self):
+        self.add_events("degradation", 9)
+        self.assertEqual(self.blocks()["shops"]["degraded"], 9)
+
+    def test_telegram_message_shows_the_full_count(self):
+        self.add_events("recovery", 8)
+        text = "\n".join(digest.message_lines(digest.compute(DAY, "UTC", now=NOW)))
+        self.assertIn("восстановлений 8", text)
+
+    # --- M06 ---
+
+    def test_calls_without_prices_mean_unknown_cost_not_zero(self):
+        for i in range(3):
+            database.record_ai_usage("consultant", "user", "gemini", "gemini-2.5-flash", "ok",
+                                     input_tokens=10, output_tokens=5, cost=None, now=self.inside)
+        ai = self.blocks()["ai"]
+        self.assertEqual(ai["requests"], 3)
+        self.assertIsNone(ai["cost_usd"])
+        self.assertEqual(ai["cost_state"], "unknown")
+        self.assertIn("неизвестна", digest._cost_text(ai))
+
+    def test_partially_priced_calls_are_named_partial(self):
+        database.record_ai_usage("consultant", "user", "gemini", "gemini-2.5-flash", "ok",
+                                 cost=0.5, now=self.inside)
+        database.record_ai_usage("normalize", "internal", "gemini", "gemini-2.5-flash", "ok",
+                                 cost=None, now=self.inside)
+        ai = self.blocks()["ai"]
+        self.assertEqual(ai["cost_state"], "partial")
+        self.assertEqual((ai["priced_requests"], ai["unpriced_requests"]), (1, 1))
+        self.assertIn("из 2 вызовов", digest._cost_text(ai))
+
+    def test_real_zero_price_is_a_known_zero(self):
+        database.record_ai_usage("consultant", "user", "gemini", "gemini-2.5-flash", "ok",
+                                 cost=0.0, now=self.inside)
+        ai = self.blocks()["ai"]
+        self.assertEqual((ai["cost_state"], ai["cost_usd"]), ("known", 0.0))
+        self.assertEqual(digest._cost_text(ai), "$0.0")
+
+    def test_no_calls_is_not_a_zero_cost(self):
+        ai = self.blocks()["ai"]
+        self.assertEqual(ai["cost_state"], "no_calls")
+        self.assertIsNone(ai["cost_usd"])
+        self.assertIn("вызовов не было", digest._cost_text(ai))

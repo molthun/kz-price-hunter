@@ -144,13 +144,27 @@ def _ai_block(conn, start, end) -> Dict[str, Any]:
                for r in conn.execute(f"SELECT task, SUM(requests) AS requests, SUM(cost_usd) AS cost "
                                      f"FROM ai_usage WHERE day IN ({placeholders}) GROUP BY task "
                                      f"ORDER BY requests DESC LIMIT ?", keys + [MAX_ITEMS])]
-    cost = row["cost"]
-    return {"requests": row["requests"] or 0, "errors": row["errors"] or 0,
+    # Стоимость: «неизвестно», «известный ноль» и «посчитана не по всем вызовам» — три разных ответа (M06)
+    priced = conn.execute(f"SELECT SUM(requests) AS requests, SUM(cost_usd) AS cost FROM ai_usage "
+                          f"WHERE day IN ({placeholders}) AND cost_usd IS NOT NULL", keys).fetchone()
+    requests = row["requests"] or 0
+    priced_requests = priced["requests"] or 0
+    if not requests:
+        cost_state, cost = "no_calls", None
+    elif not priced_requests:
+        cost_state, cost = "unknown", None
+    elif priced_requests < requests:
+        cost_state, cost = "partial", round(priced["cost"] or 0.0, 4)
+    else:
+        cost_state, cost = "known", round(priced["cost"] or 0.0, 4)
+    return {"requests": requests, "errors": row["errors"] or 0,
             "input_tokens": row["input_tokens"] or 0, "output_tokens": row["output_tokens"] or 0,
-            "cost_usd": round(cost, 4) if cost else (0.0 if row["requests"] else None),
+            "cost_usd": cost, "cost_state": cost_state,
+            "priced_requests": priced_requests, "unpriced_requests": requests - priced_requests,
             "by_task": by_task,
             "approximate": not is_exact_utc_day(start, end), "day_keys": keys,
-            "note": "Стоимость считается только по ценам, заданным владельцем; без них — прочерк"}
+            "note": "Стоимость считается только по ценам, заданным владельцем: без них она неизвестна, "
+                    "а не равна нулю"}
 
 
 def _shops_block(conn, start, end) -> Dict[str, Any]:
@@ -166,18 +180,22 @@ def _shops_block(conn, start, end) -> Dict[str, Any]:
         s["valid"] += row["valid"] or 0
         if row["quality"] not in ("ok", "good"):
             s["bad_quality"] += 1
+    # Счёт отдельно от примеров: список примеров ограничен пятью, а итог — нет (M05)
+    totals = {"degradation": 0, "recovery": 0}
     events = {"degradation": [], "recovery": []}
     for row in conn.execute("SELECT type, shop, message, timestamp FROM telemetry_events "
                             "WHERE type IN (?, ?) AND timestamp >= ? AND timestamp < ? ORDER BY timestamp",
                             (EVENT_DEGRADATION, EVENT_RECOVERY, lo, hi)):
         key = "degradation" if row["type"] == EVENT_DEGRADATION else "recovery"
+        totals[key] += 1
         if len(events[key]) < MAX_ITEMS:
             events[key].append({"shop": row["shop"], "message": row["message"], "at": row["timestamp"]})
     return {"scans": len(scans), "shops": len(shops),
             "by_shop": [{"shop": k, **v} for k, v in sorted(shops.items())][:20],
-            "degraded": len(events["degradation"]), "recovered": len(events["recovery"]),
-            "events": events,
-            "note": "«Восстановился» — это записанное событие восстановления, а не отсутствие жалоб"}
+            "degraded": totals["degradation"], "recovered": totals["recovery"],
+            "events": events, "examples_limited_to": MAX_ITEMS,
+            "note": "«Восстановился» — это записанное событие восстановления, а не отсутствие жалоб; "
+                    "в примерах показаны не больше пяти событий, счётчик считает все"}
 
 
 BLOCKS = {
@@ -375,10 +393,23 @@ def recipients() -> List[int]:
     return people
 
 
+def _cost_text(ai: Dict[str, Any]) -> str:
+    """Стоимость словами: неизвестно, по части вызовов или точная сумма (M06)."""
+    state = ai.get("cost_state")
+    cost = ai.get("cost_usd")
+    if state == "no_calls":
+        return "вызовов не было"
+    if state == "unknown" or cost is None:
+        return "неизвестна — цены моделей не заданы"
+    if state == "partial":
+        return (f"${cost} по {ai.get('priced_requests')} из {ai.get('requests')} вызовов "
+                f"(для остальных цена не задана)")
+    return f"${cost}"
+
+
 def message_lines(report: Dict[str, Any]) -> List[str]:
     """Текст сводки: сначала цифры, потом пересказ. Без AI сообщение всё равно осмысленно."""
     blocks = report.get("blocks") or {}
-    money = lambda v: "—" if v is None else f"{v}"
     lines = [f"📅 <b>Сводка за {report.get('day')}</b> ({report.get('tz')})"]
     if report.get("partial"):
         lines.append("⚠️ Сутки ещё не закончились — цифры неполные.")
@@ -398,8 +429,7 @@ def message_lines(report: Dict[str, Any]) -> List[str]:
                  f"дороже {catalog.get('dearer', 0)})")
     lines.append(f"📨 Уведомления: отправлено <b>{telegram.get('sent', 0)}</b> из "
                  f"{telegram.get('attempts', 0)} попыток")
-    lines.append(f"🤖 AI: вызовов <b>{ai.get('requests', 0)}</b> · стоимость "
-                 f"{'$' + money(ai.get('cost_usd')) if ai.get('cost_usd') is not None else '— цены не заданы'}")
+    lines.append(f"🤖 AI: вызовов <b>{ai.get('requests', 0)}</b> · стоимость {_cost_text(ai)}")
     lines.append(f"🏬 Обходы: <b>{shops.get('scans', 0)}</b> · ухудшений {shops.get('degraded', 0)} · "
                  f"восстановлений {shops.get('recovered', 0)}")
     drops = catalog.get("biggest_drops") or []

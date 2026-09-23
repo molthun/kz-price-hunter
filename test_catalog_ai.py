@@ -347,3 +347,45 @@ class SwitchApiTest(unittest.IsolatedAsyncioTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RoundingTest(unittest.TestCase):
+    """M11: округление для показа не должно поднимать уверенность до порога принятия."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.data_dir = type(DB_PATH)(self.tmp.name)
+        for p in [patch.object(database, "DB_PATH", self.data_dir / "prices.db"),
+                  patch("config.DATA_DIR", self.data_dir),
+                  patch("config.SETTINGS_FILE", self.data_dir / "settings.json")]:
+            p.start()
+            self.addCleanup(p.stop)
+        database.init_db()
+
+    def test_just_below_the_threshold_is_not_accepted(self):
+        decision = catalog_ai.parse({"same": True, "confidence": 0.8999})
+        self.assertEqual(decision["confidence"], 0.8999, "уверенность хранится как есть")
+        self.assertFalse(catalog_ai.accepted(decision))
+
+    def test_exactly_the_threshold_is_accepted(self):
+        self.assertTrue(catalog_ai.accepted(catalog_ai.parse({"same": True, "confidence": 0.9})))
+
+    def test_true_instead_of_a_number_is_not_confidence(self):
+        self.assertIsNone(catalog_ai.parse({"same": True, "confidence": True}))
+        self.assertFalse(catalog_ai.accepted({"same": True, "confidence": True}))
+
+    def test_whole_path_keeps_the_value_below_the_threshold(self):
+        """parse → сохранение → чтение → accepted: граница не должна «поехать» по дороге."""
+        key = catalog_ai.pair_key(*UNSURE)
+        decision = catalog_ai.parse({"same": True, "confidence": 0.8999, "reason": "почти"})
+        database.record_matching_pair(UNSURE[0], UNSURE[1], key, now=NOW)
+        database.save_matching_decision(key, decision["same"], decision["confidence"],
+                                        decision["reason"], "gemini", catalog_ai.SHADOW, now=NOW)
+        stored = database.matching_decision(key)
+        self.assertEqual(stored["confidence"], 0.8999)
+        self.assertFalse(catalog_ai.accepted(stored))
+
+    def test_display_rounds_but_does_not_decide(self):
+        self.assertEqual(catalog_ai.show_confidence(0.8999), 0.9)
+        self.assertIsNone(catalog_ai.show_confidence("нет"))

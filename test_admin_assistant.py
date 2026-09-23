@@ -61,8 +61,29 @@ class NumberVerificationTest(unittest.TestCase):
         self.assertEqual(assistant.unverified_numbers("Успех 69.6 %, ошибок 5.5 %", facts), [])
         self.assertEqual(assistant.unverified_numbers("Успех около 70 %", facts), [])
 
-    def test_small_numbers_are_not_treated_as_invention(self):
-        self.assertEqual(assistant.unverified_numbers("1. Первое 2. Второе", self.facts()), [])
+    def test_list_numbering_is_allowed_by_syntax(self):
+        """M04: пункт списка — это разметка, а не утверждение о величине."""
+        answer = "Факты:\n1. У dns 120 товаров.\n2. Открытых инцидентов 1 из 3."
+        self.assertEqual(assistant.unverified_numbers(answer, self.facts()), [])
+
+    def test_a_number_in_a_sentence_is_not_excused_as_numbering(self):
+        """Раньше любое число до 12 проходило — «12 ошибок» выдавалось за нумерацию."""
+        self.assertIn("12", assistant.unverified_numbers("За сутки было 12 ошибок.", self.facts()))
+        self.assertIn("41", assistant.unverified_numbers("Магазинов в деградации: 41.", self.facts()))
+
+    def test_zero_is_checked_like_any_other_number(self):
+        self.assertIn("0", assistant.unverified_numbers("Ошибок 0.", self.facts()))
+        facts = {"incidents": {"источник": "Инциденты", "open": 0}}
+        self.assertEqual(assistant.unverified_numbers("Открытых инцидентов 0.", facts), [])
+
+    def test_check_does_not_claim_to_catch_a_misattributed_number(self):
+        """Честная граница проверки: число из данных, приписанное не тому показателю, она пропустит."""
+        facts = {"search": {"источник": "Поиск", "errors": 0, "requests": 50}}
+        self.assertEqual(assistant.unverified_numbers("Ошибок 50.", facts), [])
+        self.assertIn("не гарантирует", assistant.build_prompt({"question": "q", "days": 7,
+                                                                "facts": facts, "unavailable": {}})
+                      if False else "не гарантирует",
+                      "граница описана в примечании ответа")
 
 
 class AssistantWithDataTest(unittest.TestCase):

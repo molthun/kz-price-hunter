@@ -94,21 +94,46 @@ def parse(value: Any) -> Optional[Dict[str, Any]]:
     same = value.get("same")
     if not isinstance(same, bool):
         return None
+    raw = value.get("confidence")
+    # True вместо числа — это не «уверенность 1.0», а отсутствие уверенности (M11)
+    if isinstance(raw, bool) or not isinstance(raw, (int, float, str)):
+        return None
     try:
-        confidence = float(value.get("confidence"))
+        confidence = float(raw)
     except (TypeError, ValueError):
         return None
     if not 0.0 <= confidence <= 1.0:
         return None
-    return {"same": same, "confidence": round(confidence, 3),
+    # Уверенность хранится как есть: округление 0.8999 до 0.9 подняло бы её до порога принятия (M11).
+    # Округляется только показ.
+    return {"same": same, "confidence": confidence,
             "reason": str(value.get("reason") or "")[:300]}
 
 
 def accepted(decision: Optional[Dict[str, Any]]) -> bool:
-    """Принимается только уверенное «да»: «нет» и «не уверен» оставляют прежнее поведение."""
+    """Принимается только уверенное «да»: «нет» и «не уверен» оставляют прежнее поведение.
+
+    Сравнивается исходная уверенность, а не округлённая для показа: 0.8999 — это ниже порога 0.90,
+    и таким оно и должно остаться (M11).
+    """
     if not decision:
         return False
-    return bool(decision.get("same")) and float(decision.get("confidence") or 0) >= MIN_CONFIDENCE
+    raw = decision.get("confidence")
+    if isinstance(raw, bool):
+        return False
+    try:
+        confidence = float(raw)
+    except (TypeError, ValueError):
+        return False
+    return bool(decision.get("same")) and confidence >= MIN_CONFIDENCE
+
+
+def show_confidence(value: Any) -> Optional[float]:
+    """Уверенность для показа человеку — округление только здесь."""
+    try:
+        return round(float(value), 3)
+    except (TypeError, ValueError):
+        return None
 
 
 async def resolve(left: Any, right: Any, config: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:

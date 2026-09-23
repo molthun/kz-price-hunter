@@ -644,6 +644,14 @@
     box.innerHTML = head + facts + `<p class="text-xs text-slate-500 mt-2">${esc(d.note)}</p>`;
   }
 
+  // Неизвестная стоимость, известный ноль и сумма по части вызовов — разные ответы (M06)
+  function dailyCost(ai) {
+    if (ai.cost_state === 'no_calls') return 'вызовов не было';
+    if (ai.cost_state === 'partial') return `$${ai.cost_usd} по ${num(ai.priced_requests)} из ${num(ai.requests)} вызовов`;
+    if (ai.cost_usd == null) return 'неизвестна — цены не заданы';
+    return '$' + ai.cost_usd;
+  }
+
   async function loadDaily(day, refresh) {
     const box = document.getElementById('dailyBox');
     if (!box) return;
@@ -663,7 +671,7 @@
     if (b.telegram) rows.push(['Уведомления: отправлено / попыток',
       `${num(b.telegram.sent)} / ${num(b.telegram.attempts)}`]);
     if (b.ai) rows.push(['AI: вызовов / стоимость' + approx(b.ai),
-      `${num(b.ai.requests)} / ${b.ai.cost_usd == null ? '— цены не заданы' : '$' + b.ai.cost_usd}`]);
+      `${num(b.ai.requests)} / ${dailyCost(b.ai)}`]);
     if (b.shops) rows.push(['Обходы · ухудшений / восстановлений',
       `${num(b.shops.scans)} · ${num(b.shops.degraded)} / ${num(b.shops.recovered)}`]);
     const drops = ((b.catalog || {}).biggest_drops || []).map(x =>

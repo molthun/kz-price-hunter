@@ -205,11 +205,25 @@ def _norm_number(value: Any) -> str:
     return f"{number:.4f}".rstrip("0").rstrip(".")
 
 
+# Нумерация пункта списка: только в начале строки и только как разметка списка. Разрешение по
+# синтаксису, а не по величине числа — иначе «12 ошибок» проходило бы как «пункт 12» (M04).
+_LIST_MARKER_RE = re.compile(r"(?m)^[ \t]*(?:[-*•]\s*)?\d{1,2}[.)](?=\s)")
+
+
+def strip_list_numbering(text: str) -> str:
+    """Убирает номера пунктов списка, чтобы они не считались утверждением о величине."""
+    return _LIST_MARKER_RE.sub("•", str(text or ""))
+
+
 def unverified_numbers(answer: str, context: Dict[str, Any]) -> List[str]:
     """Числа ответа, которых нет в собранных фактах.
 
-    Проценты и округления модель считает сама, поэтому допускаются числа, выводимые из фактов: доли,
-    разности и округления до целого. Всё остальное — повод не показывать такой ответ.
+    Проценты и округления модель считает сама, поэтому допускаются числа, выводимые из фактов: доли
+    и округления до целого. Всё остальное — повод не показывать такой ответ.
+
+    Чего эта проверка **не** делает: она не подтверждает, что число отнесено к нужному показателю.
+    Ответ «ошибок 50» при фактах «ошибок 0, запросов 50» она пропустит, потому что число 50 в данных
+    есть. Проверка ловит выдуманные величины, а не перепутанные (M04).
     """
     known = numbers_in(context)
     derived = set()
@@ -218,14 +232,14 @@ def unverified_numbers(answer: str, context: Dict[str, Any]) -> List[str]:
             number = float(value)
         except ValueError:
             continue
-        derived.add(_norm_number(round(number)))
-        derived.add(_norm_number(round(number * 100)))         # доля → проценты
-        derived.add(_norm_number(round(number / 100)))
+        derived.add(_norm_number(round(number)))               # округление до целого
         derived.add(_norm_number(round(number, 1)))
-    # Мелкие числа (нумерация пунктов, «1 из 2») не считаются выдумкой
-    allowed = known | derived | {_norm_number(n) for n in range(0, 13)}
-    return [n for n in (_norm_number(m) for m in _NUMBER_RE.findall(str(answer or "")))
-            if n not in allowed]
+        if 0 <= number <= 1:
+            derived.add(_norm_number(round(number * 100)))     # доля → проценты
+        # Деление на сто не добавляется: из «1» оно делало «0», и выдуманный ноль проходил проверку (M04)
+    allowed = known | derived
+    text = strip_list_numbering(answer)
+    return [n for n in (_norm_number(m) for m in _NUMBER_RE.findall(text)) if n not in allowed]
 
 
 def facts_summary(context: Dict[str, Any]) -> str:
@@ -273,7 +287,9 @@ async def answer(question: str, days: int = DEFAULT_DAYS,
               "unavailable": context["unavailable"], "summary": summary, "answer": None,
               "ai": None, "rejected": None,
               "note": "Цифры собраны кодом из отчётов мониторинга; модель только объясняет их словами. "
-                      "Помощник работает только на чтение."}
+                      "Помощник работает только на чтение. Проверка отклоняет числа, которых нет в "
+                      "данных, но не гарантирует, что число отнесено к нужному показателю — сверяйтесь "
+                      "с фактами ниже."}
     try:
         routed = await ai_router.run("admin_assistant", build_prompt(context),
                                      validate=lambda v: v if isinstance(v, (dict, str)) else None)
