@@ -107,9 +107,12 @@ def canary_shops(stage: str, candidates: Sequence[Dict[str, Any]],
     Берутся только включённые источники: кандидаты собираются из истории обходов и содержат в том числе
     выключенные магазины, а их сервис всё равно не обходит (M01).
 
-    Первым берётся самый дружелюбный источник (быстрый, лёгкий, без ошибок) — на нём ошибка включения
-    стоит меньше всего. Порядок детерминирован, чтобы шаг был воспроизводим. Если дружелюбного источника
-    нет, первый шаг не начинается: причина называется, замена не подбирается.
+    Первым берётся наименее рискованный источник: дружелюбный (быстрый, лёгкий, без ошибок), а если
+    такого нет — обычный (NORMAL: обычные задержка и объём). Решение владельца 2026-09-24: требовать
+    именно FRIENDLY оказалось недостижимо — у магазинов Казахстана страницы тяжелее 300 КБ, и таких
+    источников в проде просто не бывает, отчего первый шаг не начинался вовсе.
+    Медленные и тяжёлые (EXPENSIVE) и отвечающие ошибками (DEGRADED) первым шагом по-прежнему
+    запрещены. Порядок детерминирован, чтобы шаг был воспроизводим.
     """
     import scheduler_shadow as sched
     if stage == OFF or not candidates:
@@ -133,10 +136,10 @@ def canary_shops(stage: str, candidates: Sequence[Dict[str, Any]],
 
     if stage == CANARY_ONE:
         profile, shop = ordered[0]
-        if profile != rank[sched.FRIENDLY]:
+        if profile > rank[sched.NORMAL]:
             raise StageRefused(
-                "первый шаг делается только на дружелюбном источнике (быстром, лёгком, без ошибок); "
-                "сейчас такого среди включённых магазинов нет")
+                "первый шаг делается на дружелюбном или обычном источнике; сейчас все включённые "
+                "магазины либо медленные и тяжёлые, либо отвечают ошибками — начинать на таком нельзя")
         return [shop]
     shops = [s for _, s in ordered]
     if stage == CANARY_FEW:
@@ -579,9 +582,11 @@ def status(candidates: Optional[Sequence[Dict[str, Any]]] = None,
         ready = False
         why = (f"участники шага недоступны для наблюдения (пропали или выключены): {', '.join(gone)} — "
                f"замена не подбирается, продолжать шаг нельзя")
+    profiles = {str(c.get("shop") or ""): c.get("profile") for c in candidates}
     return {
         "stage": stage,
         "stage_label": STAGE_LABELS[stage],
+        "canary_profiles": {shop: profiles.get(shop) for shop in shops},
         "next_stage": NEXT_STAGE.get(stage),
         "canary": shops,
         "missing_members": gone,

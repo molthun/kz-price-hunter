@@ -289,7 +289,8 @@
         class="px-3 py-1.5 rounded-lg text-xs transition ${active ? 'bg-sky-500/80 text-white' : allowed ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 cursor-pointer' : 'bg-slate-900 text-slate-600'}">${esc(label)}</button>`;
     }).join(' ');
     box.innerHTML = card('Включение нового порядка обходов', `<p class="text-sm mb-2">${esc(s.stage_label)}</p>` + kv([
-        ['Пробные магазины', (s.canary || []).map(esc).join(', ') || '—'],
+        ['Пробные магазины', (s.canary || []).map(shop =>
+            esc(shop) + ((s.canary_profiles || {})[shop] ? ` (${esc(s.canary_profiles[shop])})` : '')).join(', ') || '—'],
         ['Идёт с', s.started_at ? ago(s.started_at) : '—'],
         cmp('Доля ошибок', 'error_share'),
         cmp('Отказы по лимиту', 'block_share'),

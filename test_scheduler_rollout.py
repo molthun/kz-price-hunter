@@ -578,11 +578,34 @@ class PartialHourTest(RolloutStateTest):
 class CanaryMembershipTest(RolloutStateTest):
     """M01: участником может быть только включённый магазин, а первый шаг — только дружелюбный."""
 
-    def test_first_step_needs_a_friendly_source(self):
-        with self.assertRaises(rollout.StageRefused) as refused:
-            rollout.canary_shops(rollout.CANARY_ONE, [candidate("dns", sched.DEGRADED)],
-                                 allowed=["dns"])
-        self.assertIn("дружелюбном", str(refused.exception))
+    def test_first_step_refuses_a_degraded_or_expensive_source(self):
+        """Решение владельца 24.09: обычный источник годится, проблемный и тяжёлый — нет."""
+        for profile in (sched.DEGRADED, sched.EXPENSIVE):
+            with self.subTest(profile=profile):
+                with self.assertRaises(rollout.StageRefused) as refused:
+                    rollout.canary_shops(rollout.CANARY_ONE, [candidate("dns", profile)], allowed=["dns"])
+                self.assertIn("медленные и тяжёлые", str(refused.exception))
+
+    def test_first_step_starts_on_a_normal_source_when_no_friendly_exists(self):
+        """Требовать FRIENDLY было недостижимо на реальных данных: таких источников просто нет."""
+        shops = rollout.canary_shops(rollout.CANARY_ONE,
+                                     [candidate("dns", sched.NORMAL), candidate("kaspi", sched.EXPENSIVE)],
+                                     allowed=["dns", "kaspi"])
+        self.assertEqual(shops, ["dns"])
+
+    def test_friendly_is_still_preferred_over_normal(self):
+        shops = rollout.canary_shops(rollout.CANARY_ONE,
+                                     [candidate("dns", sched.NORMAL), candidate("kaspi", sched.FRIENDLY)],
+                                     allowed=["dns", "kaspi"])
+        self.assertEqual(shops, ["kaspi"])
+
+    def test_status_shows_the_profile_of_the_chosen_shop(self):
+        import config
+        config.save_settings({**config.load_settings(), rollout.SETTING_STAGE: rollout.CANARY_ONE})
+        with patch.object(rollout, "allowed_shops", return_value=["kaspi", "dns"]):
+            rollout.start_stage(rollout.CANARY_ONE, self.candidates, now=NOW)
+            state = rollout.status(self.candidates, now=NOW)
+        self.assertEqual(state["canary_profiles"], {"kaspi": sched.FRIENDLY})
 
     def test_disabled_shop_is_not_chosen_even_if_it_is_the_friendliest(self):
         candidates = [candidate("dns", sched.FRIENDLY), candidate("kaspi", sched.FRIENDLY)]
