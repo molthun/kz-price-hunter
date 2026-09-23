@@ -421,7 +421,43 @@
           <th class="pb-1 pr-3">Случай</th><th class="pb-1 pr-3">Причина</th><th class="pb-1 pr-3 text-right">Раз</th>
           <th class="pb-1 pr-3">Пример</th></tr></thead><tbody>${rows}</tbody></table></div>`
         : '<p class="text-sm text-slate-500">Пока ничего не записано.</p>') +
+      matchingAiBlock(s.ai) +
       `<p class="text-xs text-slate-500 mt-2">${esc(s.note)}</p>`, s.status);
+  }
+
+  const MATCHING_AI_MODES = [['off', 'Выключено'], ['shadow', 'Тень'], ['on', 'Включено']];
+
+  function matchingAiBlock(ai) {
+    if (!ai) return '';
+    const t = ai.thresholds || {};
+    const buttons = MATCHING_AI_MODES.map(([id, label]) => {
+      const active = ai.mode === id;
+      return `<button type="button" data-matching-ai="${id}"
+        class="px-3 py-1.5 rounded-lg text-xs transition cursor-pointer ${active
+          ? 'bg-sky-500/80 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-200'}">${esc(label)}</button>`;
+    }).join(' ');
+    const examples = (ai.examples || []).slice(0, 5).map(e => `<li class="break-words">
+        ${e.same ? '<span class="text-emerald-300">один товар</span>' : '<span class="text-slate-400">разные</span>'}
+        · уверенность ${num(e.confidence)} · ${esc(e.left_title || '')} ↔ ${esc(e.right_title || '')}
+        ${e.reason ? '<span class="text-slate-500"> — ' + esc(e.reason) + '</span>' : ''}</li>`).join('');
+    return `<div class="mt-3 pt-3 border-t border-slate-800">
+      <p class="text-sm mb-2">Разбор спорных пар моделью: ${esc(ai.mode_label || '')}</p>` +
+      kv([['Ждут разбора', num(ai.pending)],
+          ['Разобрано', num(ai.decided)],
+          ['Из них «один товар»', num(ai.same)],
+          ['Согласованные пороги (до замера)',
+           `уверенность ${num(t.confidence)} · точность ${num(t.precision)} · полнота ${num(t.recall)} · от ${esc(t.agreed_at || '')}`]]) +
+      `<div class="mt-2 flex flex-wrap gap-2">${buttons}</div>` +
+      (examples ? details('Последние решения модели', `<ul class="text-sm space-y-1">${examples}</ul>`) : '') +
+      `<p class="text-xs text-slate-500 mt-2">${esc(ai.note || '')}</p></div>`;
+  }
+
+  async function setMatchingAi(mode) {
+    const res = await fetch('/api/admin/monitoring/matching/ai', {method: 'POST',
+      headers: {'Content-Type': 'application/json'}, body: JSON.stringify({mode})});
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) { alert(d.message || 'Не удалось переключить режим'); return; }
+    loadMatchingShadow();
   }
 
   async function loadAiSpending() {
@@ -706,6 +742,8 @@
   document.addEventListener('click', e => {
     const sec = e.target.closest('[data-section]');
     if (sec) { current = sec.dataset.section; history.replaceState(null, '', '#' + current); render(); return; }
+    const aiMatchBtn = e.target.closest('[data-matching-ai]');
+    if (aiMatchBtn) { setMatchingAi(aiMatchBtn.dataset.matchingAi); return; }
     const rolloutBtn = e.target.closest('[data-rollout]');
     if (rolloutBtn && !rolloutBtn.disabled) { switchRollout(rolloutBtn.dataset.rollout); return; }
     const scanBtn = e.target.closest('[data-scan-shop]');

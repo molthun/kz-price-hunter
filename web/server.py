@@ -1634,8 +1634,15 @@ async def _scan_task_body(shop_keys, target_categories, scan_type):
             await asyncio.to_thread(prune_source_scans)
             await asyncio.to_thread(prune_search_analytics)
             await asyncio.to_thread(prune_ai_usage)
-            from database import prune_daily_reports
+            from database import prune_daily_reports, prune_matching_pairs
             await asyncio.to_thread(prune_daily_reports)
+            await asyncio.to_thread(prune_matching_pairs)
+            # Спорные пары сопоставления разбирает модель — вне пути сравнения цен (P09, AI-часть)
+            try:
+                import catalog_ai
+                await catalog_ai.resolve_pending()
+            except Exception as e:
+                print(f"[Matching] Разбор спорных пар не выполнен: {type(e).__name__}")
             # Самопроверка копий: раз в сутки развернуть свежую копию во временную базу (P15)
             from backup_health import verify_backups_if_due
             await asyncio.to_thread(verify_backups_if_due)
@@ -2211,6 +2218,30 @@ async def monitoring_matching_handler(request):
         days = monitoring.MATCHING_SHADOW_DAYS
     data = await asyncio.to_thread(monitoring.matching_quality, days)
     return web.json_response(data, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
+@routes.post("/api/admin/monitoring/matching/ai")
+@require_admin
+async def monitoring_matching_ai_handler(request):
+    """Режим AI-части сопоставления (P09): off → shadow → on. Включение — решение владельца."""
+    import catalog_ai
+    import config
+    import monitoring
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    mode = str(data.get("mode") or "").strip()
+    if mode not in catalog_ai.MODES:
+        return web.json_response({"status": "error",
+                                  "message": f"Режим: {', '.join(catalog_ai.MODES)}"}, status=400)
+    try:
+        await asyncio.to_thread(config.save_settings, {"ai_matching_mode": mode})
+    except ValueError as e:
+        return web.json_response({"status": "error", "message": str(e)}, status=400)
+    view = await asyncio.to_thread(monitoring._matching_ai_view)
+    return web.json_response({"status": "ok", "ai": view},
+                             dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
 
 
 @routes.get("/api/admin/monitoring/ai-usage")

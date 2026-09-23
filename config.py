@@ -302,6 +302,9 @@ SYSTEM_DEFAULTS = {
     "ai_model_prices": {},
     # Суточная сводка администратору в Telegram (P13). По умолчанию выключена: план прямо отложил
     # отправку как отдельное последующее включение, и владелец включает её сам.
+    # AI-часть сопоставления каталога (P09). off — модель не вызывается, shadow — вызывается и
+    # записывает решения, on — принятое решение разрешает сравнение цен. По умолчанию off.
+    "ai_matching_mode": "off",
     "daily_digest_telegram_enabled": False,
     "daily_digest_hour": 10,
     "daily_digest_timezone": "Asia/Almaty",
@@ -347,6 +350,8 @@ ENUM_VALUES = {
     # Шаг включения адаптивного планировщика (P11): перечисление держится здесь, чтобы проверка значений
     # и общий тест системных параметров знали о нём наравне с остальными
     "adaptive_scheduler_stage": ("off", "canary_one", "canary_few", "all"),
+    # Режим AI-части сопоставления (P09): сначала тень, включение — решение владельца
+    "ai_matching_mode": ("off", "shadow", "on"),
 }
 
 # Обратная совместимость: объединенные значения по умолчанию
@@ -567,7 +572,8 @@ def _validate_settings(new_settings):
     for name, choices in (("ai_provider", {"auto", "gemini", "openai"}),
                           ("gemini_model_mode", {"auto", "manual"}),
                           ("openai_model_mode", {"auto", "manual"}),
-                          ("adaptive_scheduler_stage", {"off", "canary_one", "canary_few", "all"})):
+                          ("adaptive_scheduler_stage", {"off", "canary_one", "canary_few", "all"}),
+                          ("ai_matching_mode", {"off", "shadow", "on"})):
         if name in clean and clean[name] not in choices:
             raise ValueError(f"Некорректный режим: {name}")
     merged = {**load_settings(), **clean}

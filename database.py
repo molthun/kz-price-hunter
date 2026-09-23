@@ -722,6 +722,22 @@ def _create_schema(cursor) -> None:
         )
     """)
     cursor.execute("""
+        CREATE TABLE IF NOT EXISTS matching_pairs (
+            pair_key TEXT PRIMARY KEY,
+            left_title TEXT NOT NULL,
+            right_title TEXT NOT NULL,
+            seen INTEGER NOT NULL DEFAULT 1,
+            first_seen TEXT NOT NULL,
+            last_seen TEXT NOT NULL,
+            same INTEGER,
+            confidence REAL,
+            reason TEXT,
+            provider TEXT,
+            decided_at TEXT,
+            mode TEXT
+        )
+    """)
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS matching_shadow (
             day TEXT NOT NULL,
             kind TEXT NOT NULL,
@@ -1766,7 +1782,12 @@ def find_market_comparisons(
                 # Слова совпали, но фасовку указал только один магазин: сравнивать вслепую не будем,
                 # случай записывается для разбора (P09)
                 record_matching_shadow("uncertain", unsure_reason, title, r["title"])
-            continue
+                if not _ai_allows_comparison(title, r["title"]):
+                    continue
+                # Модель разобрала этот случай и уверена — сравнение разрешено (P09, AI-часть)
+                record_matching_shadow("ai_allowed", unsure_reason, title, r["title"])
+            else:
+                continue
         if is_junk_accessory(r["title"], r["category"] or "") or is_used_goods(r["title"], r["category"] or "", r["url"]):
             continue
         valid_competitors.append(dict(r))
@@ -2933,6 +2954,106 @@ def prune_daily_reports(keep_days: int = DAILY_REPORT_RETENTION_DAYS, now: Optio
         conn.commit()
         return cur.rowcount or 0
 
+
+# ---------------------------------------------------------------------------
+# Спорные пары сопоставления и решения модели по ним (P09, AI-часть).
+# ---------------------------------------------------------------------------
+
+MATCHING_PAIRS_RETENTION_DAYS = 90
+MAX_MATCHING_PAIRS = 5000        # очередь разбора не должна расти без предела
+
+
+def record_matching_pair(left_title: str, right_title: str, pair_key: str,
+                         now: Optional[datetime.datetime] = None) -> None:
+    """Запоминает спорную пару для последующего разбора. Повтор только обновляет счётчик."""
+    moment = (now or datetime.datetime.now(datetime.timezone.utc)).isoformat()
+    with get_connection() as conn:
+        count = conn.execute("SELECT COUNT(*) FROM matching_pairs WHERE same IS NULL").fetchone()[0]
+        exists = conn.execute("SELECT 1 FROM matching_pairs WHERE pair_key = ?", (pair_key,)).fetchone()
+        if not exists and count >= MAX_MATCHING_PAIRS:
+            return                # очередь заполнена: новые случаи подождут следующей очистки
+        conn.execute("""
+            INSERT INTO matching_pairs (pair_key, left_title, right_title, seen, first_seen, last_seen)
+            VALUES (?, ?, ?, 1, ?, ?)
+            ON CONFLICT(pair_key) DO UPDATE SET seen = seen + 1, last_seen = excluded.last_seen
+        """, (pair_key, str(left_title)[:300], str(right_title)[:300], moment, moment))
+        conn.commit()
+
+
+def pending_matching_pairs(limit: int = 10) -> List[Dict[str, Any]]:
+    """Самые частые нерешённые пары: разбирать сначала то, что встречается чаще."""
+    with get_connection() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT pair_key, left_title, right_title, seen FROM matching_pairs WHERE same IS NULL "
+            "ORDER BY seen DESC, rowid LIMIT ?", (int(limit),))]
+
+
+def save_matching_decision(pair_key: str, same: bool, confidence: float, reason: str,
+                           provider: Optional[str], mode: str,
+                           now: Optional[datetime.datetime] = None) -> None:
+    moment = (now or datetime.datetime.now(datetime.timezone.utc)).isoformat()
+    with get_connection() as conn:
+        conn.execute("""UPDATE matching_pairs SET same = ?, confidence = ?, reason = ?, provider = ?,
+                        mode = ?, decided_at = ? WHERE pair_key = ?""",
+                     (1 if same else 0, float(confidence), str(reason)[:300], provider, mode,
+                      moment, pair_key))
+        conn.commit()
+
+
+def matching_decision(pair_key: str) -> Optional[Dict[str, Any]]:
+    with get_connection() as conn:
+        row = conn.execute("SELECT * FROM matching_pairs WHERE pair_key = ? AND same IS NOT NULL",
+                           (pair_key,)).fetchone()
+    if not row:
+        return None
+    item = dict(row)
+    item["same"] = bool(item["same"])
+    return item
+
+
+def matching_decisions_summary(limit: int = 20) -> Dict[str, Any]:
+    """Что модель разобрала: сколько пар ждёт, сколько решено и с какой уверенностью."""
+    with get_connection() as conn:
+        pending = conn.execute("SELECT COUNT(*) FROM matching_pairs WHERE same IS NULL").fetchone()[0]
+        decided = conn.execute("SELECT COUNT(*) FROM matching_pairs WHERE same IS NOT NULL").fetchone()[0]
+        yes = conn.execute("SELECT COUNT(*) FROM matching_pairs WHERE same = 1").fetchone()[0]
+        examples = [dict(r) for r in conn.execute(
+            "SELECT left_title, right_title, same, confidence, reason, provider, decided_at, seen "
+            "FROM matching_pairs WHERE same IS NOT NULL ORDER BY decided_at DESC LIMIT ?", (int(limit),))]
+    for item in examples:
+        item["same"] = bool(item["same"])
+    return {"pending": pending, "decided": decided, "same": yes, "different": decided - yes,
+            "examples": examples}
+
+
+def prune_matching_pairs(keep_days: int = MATCHING_PAIRS_RETENTION_DAYS,
+                         now: Optional[datetime.datetime] = None) -> int:
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    cutoff = (moment - datetime.timedelta(days=max(1, int(keep_days)))).isoformat()
+    with get_connection() as conn:
+        cur = conn.execute("DELETE FROM matching_pairs WHERE last_seen < ?", (cutoff,))
+        conn.commit()
+        return cur.rowcount or 0
+
+def _ai_allows_comparison(left_title: str, right_title: str) -> bool:
+    """Разрешила ли модель сравнение этой спорной пары.
+
+    Сетевых вызовов здесь нет: путь сравнения цен не должен ждать модель. Спорная пара только
+    запоминается, разбирает её отдельная задача обслуживания, а сюда попадает уже готовое решение —
+    и только если владелец включил режим «on».
+    """
+    try:
+        import catalog_ai
+        key = catalog_ai.pair_key(left_title, right_title)
+        record_matching_pair(left_title, right_title, key)
+        if catalog_ai.mode() != catalog_ai.ON:
+            return False
+        return catalog_ai.accepted(matching_decision(key))
+    except Exception as e:                     # сбой AI-части не должен ломать сравнение цен
+        print(f"[Matching] AI-разбор недоступен: {type(e).__name__}")
+        return False
+
+
 def record_matching_shadow(kind: str, reason: str, left: str, right: str,
                            now: Optional[datetime.datetime] = None) -> None:
     """Fail-open: отчёт не должен мешать обходу и сравнению цен."""
@@ -3156,6 +3277,7 @@ def retention_usage() -> List[Dict[str, Any]]:
         ("Запросы с текстом", "search_queries", "bucket", "text"),
         ("Расходы AI", "ai_usage", "day", "text"),
         ("Суточные сводки", "daily_reports", "day", "text"),
+        ("Спорные пары сопоставления", "matching_pairs", "last_seen", "text"),
         ("История цен", "price_observations", "observed_at", "text"),
         ("Очередь уведомлений", "notification_outbox", "created_at", "epoch"),
     ]
