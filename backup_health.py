@@ -18,6 +18,7 @@ import os
 import shutil
 import sqlite3
 import tempfile
+import threading
 import time
 from typing import Any, Dict, List, Optional
 
@@ -35,13 +36,30 @@ VERIFY_TIMEOUT_SECONDS = 120
 # Без этих таблиц приложение не поднимется, поэтому такая копия не считается пригодной к восстановлению.
 REQUIRED_TABLES = ("products", "alerts", "users", "watches", "schema_metadata", "sessions",
                    "notification_outbox")
-REQUIRED_PRODUCT_COLUMNS = ("id", "title", "shop", "city", "url", "current_price", "is_active")
-# Запросы, которые приложение действительно делает: копия должна их выдерживать, а не просто открываться
+
+# Обязательные колонки критичных таблиц. Наличия таблицы мало: база с `watches(id)` откроется, но
+# «Мои наблюдения» на ней упадут (P15 L02), поэтому проверяются поля, которыми пользуется приложение.
+REQUIRED_COLUMNS = {
+    "products": ("id", "title", "shop", "city", "url", "current_price", "is_active"),
+    "users": ("id", "settings", "is_blocked"),
+    "watches": ("id", "user_id", "kind", "target", "condition", "is_active"),
+    "alerts": ("id", "product_id", "alert_type", "new_price", "created_at"),
+    "sessions": ("token_hash", "user_id", "expires_at"),
+    "notification_outbox": ("id", "alert_id", "user_id", "payload", "status"),
+}
+REQUIRED_PRODUCT_COLUMNS = REQUIRED_COLUMNS["products"]      # совместимость с прежним именем
+
+# Запросы, которые приложение действительно делает. Проверяется именно чтение нужных полей: COUNT(*)
+# проходит и на базе без единой рабочей колонки.
 SMOKE_QUERIES = (
     ("активные товары", "SELECT COUNT(*) FROM products WHERE is_active = 1"),
-    ("товар с ценой", "SELECT id, title, current_price FROM products WHERE current_price > 0 LIMIT 1"),
-    ("пользователи", "SELECT COUNT(*) FROM users"),
-    ("наблюдения", "SELECT COUNT(*) FROM watches"),
+    ("товар с ценой", "SELECT id, title, shop, city, url, current_price FROM products "
+                      "WHERE current_price > 0 LIMIT 1"),
+    ("вход пользователя", "SELECT u.id, u.settings, u.is_blocked, s.token_hash, s.expires_at FROM users u "
+                          "LEFT JOIN sessions s ON s.user_id = u.id LIMIT 1"),
+    ("наблюдения человека", "SELECT id, user_id, kind, target, condition, is_active FROM watches LIMIT 1"),
+    ("очередь уведомлений", "SELECT id, alert_id, user_id, payload, status FROM notification_outbox LIMIT 1"),
+    ("лента алертов", "SELECT id, product_id, alert_type, new_price, created_at FROM alerts LIMIT 1"),
 )
 
 
@@ -144,7 +162,7 @@ def verify_backup(path: str, deep: bool = True, deadline: Optional[float] = None
     limit = deadline if deadline is not None else _deadline()
     result: Dict[str, Any] = {"path": path, "name": os.path.basename(path), "ok": False,
                               "integrity": None, "schema_version": None, "counts": {},
-                              "missing_tables": [], "error": None}
+                              "missing_tables": [], "missing_columns": {}, "error": None}
     conn = None
     try:
         if not os.path.exists(path):
@@ -180,10 +198,17 @@ def verify_backup(path: str, deep: bool = True, deadline: Optional[float] = None
                                f"(приложение работает с {sorted(supported)})")
             return result
 
-        columns = {r[1] for r in conn.execute("PRAGMA table_info(products)")}
-        missing_columns = [c for c in REQUIRED_PRODUCT_COLUMNS if c not in columns]
+        missing_columns = {}
+        for table, required in REQUIRED_COLUMNS.items():
+            _check_deadline(limit)
+            columns = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+            absent = [c for c in required if c not in columns]
+            if absent:
+                missing_columns[table] = absent
+        result["missing_columns"] = missing_columns
         if missing_columns:
-            result["error"] = "в таблице товаров нет колонок: " + ", ".join(missing_columns)
+            result["error"] = "не хватает колонок: " + "; ".join(
+                f"{table} → {', '.join(cols)}" for table, cols in missing_columns.items())
             return result
 
         for table in ("products", "alerts", "users", "watches"):
@@ -240,14 +265,20 @@ def restore_rehearsal(path: Optional[str] = None) -> Dict[str, Any]:
         try:
             for label, sql in SMOKE_QUERIES:
                 _check_deadline(limit)
-                queries[label] = conn.execute(sql).fetchone() is not None
+                try:
+                    # Успех — что запрос выполнился на этой схеме. Пустая таблица не поломка:
+                    # у нового сервиса может не быть ни одного пользователя или наблюдения.
+                    conn.execute(sql).fetchone()
+                    queries[label] = True
+                except sqlite3.Error as e:
+                    queries[label] = f"{type(e).__name__}: {e}"
         finally:
             conn.close()
         outcome["queries"] = queries
-        outcome["sample_readable"] = all(queries.values())
-        outcome["restored"] = bool(outcome["sample_readable"])
-        if not outcome["restored"]:
-            failed = [label for label, ok in queries.items() if not ok]
+        failed = [label for label, ok in queries.items() if ok is not True]
+        outcome["sample_readable"] = not failed
+        outcome["restored"] = not failed
+        if failed:
             outcome["error"] = "восстановленная база не отвечает на запросы: " + ", ".join(failed)
         return outcome
     except VerificationTimeout as e:
@@ -338,6 +369,46 @@ def due_for_verification(checks: Optional[List[Dict[str, Any]]] = None,
     return (moment - last).total_seconds() >= VERIFY_INTERVAL_HOURS * 3600
 
 
+# Идущая проверка: пока прежняя не завершилась, новую не начинаем, иначе зависшее чтение размножится
+_running = threading.Lock()
+_running_thread: Optional[threading.Thread] = None
+
+
+def restore_rehearsal_bounded(path: Optional[str] = None,
+                              timeout: Optional[float] = None) -> Dict[str, Any]:
+    """Репетиция восстановления с твёрдым пределом для вызывающего (P15 L03).
+
+    Проверка идёт в отдельном потоке, и обслуживание базы ждёт её не дольше отведённого времени. Если
+    чтение файла зависло (сломанный диск, сетевая папка), прервать саму операцию чтения средствами Python
+    нельзя — поэтому здесь честно: вызывающий освобождается вовремя, результат помечается как
+    непройденная проверка, а зависший поток остаётся фоновым и новую проверку не запускает, пока не
+    завершится. Он не держит блокировок рабочей базы и сам убирает свою временную папку.
+    """
+    global _running_thread
+    limit = VERIFY_TIMEOUT_SECONDS if timeout is None else timeout
+    if _running_thread is not None and _running_thread.is_alive():
+        return {"restored": False, "error": "предыдущая проверка ещё не завершилась", "checks": {},
+                "timed_out": True, "still_running": True}
+
+    box: Dict[str, Any] = {}
+
+    def run():
+        with _running:
+            try:
+                box["result"] = restore_rehearsal(path)
+            except Exception as e:                  # поток проверки не должен падать молча
+                box["result"] = {"restored": False, "error": f"{type(e).__name__}", "checks": {}}
+
+    worker = threading.Thread(target=run, name="backup-verify", daemon=True)
+    _running_thread = worker
+    worker.start()
+    worker.join(timeout=limit)
+    if worker.is_alive():
+        return {"restored": False, "checks": {}, "timed_out": True, "still_running": True,
+                "error": f"проверка не уложилась в {limit:g} с и продолжается фоном"}
+    return box.get("result") or {"restored": False, "error": "проверка не дала результата", "checks": {}}
+
+
 def verify_backups_if_due(now: Optional[datetime.datetime] = None) -> Optional[Dict[str, Any]]:
     """Периодическая самопроверка: раз в сутки развернуть свежую копию и убедиться, что она пригодна.
 
@@ -350,7 +421,7 @@ def verify_backups_if_due(now: Optional[datetime.datetime] = None) -> Optional[D
         return None
     result = {"restored": False, "error": "не выполнялась"}
     try:
-        result = restore_rehearsal()
+        result = restore_rehearsal_bounded()
         detail = result.get("error") or (
             f"схема {result.get('checks', {}).get('schema_version')}, "
             f"товаров {result.get('checks', {}).get('counts', {}).get('products')}")

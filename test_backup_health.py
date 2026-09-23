@@ -4,6 +4,7 @@ import datetime
 import os
 import sqlite3
 import tempfile
+import threading
 import unittest
 from unittest.mock import patch
 
@@ -337,7 +338,8 @@ class AuditFixesTest(BackupVerificationTest):
         conn.close()
         result = bh.verify_backup(broken)
         self.assertFalse(result["ok"])
-        self.assertIn("нет колонок", result["error"])
+        self.assertIn("не хватает колонок", result["error"])
+        self.assertIn("products", result["missing_columns"])
 
     def test_a_good_copy_answers_the_queries_the_app_makes(self):
         self.make_backup()
@@ -377,3 +379,92 @@ class AuditFixesTest(BackupVerificationTest):
         check = database.backup_checks(limit=1)[0]
         self.assertEqual(check["ok"], 0)
         self.assertIn("не уложилась", check["detail"])
+
+
+class SchemaContractTest(BackupVerificationTest):
+    """L02: таблица есть, а рабочих колонок нет — такая копия не годится."""
+
+    def break_table(self, path, table, columns="id INTEGER"):
+        conn = sqlite3.connect(path)
+        conn.execute(f"DROP TABLE {table}")
+        conn.execute(f"CREATE TABLE {table} ({columns})")
+        conn.commit()
+        conn.close()
+
+    def test_missing_columns_of_every_critical_table_are_rejected(self):
+        for table in ("watches", "users", "alerts", "sessions", "notification_outbox"):
+            with self.subTest(table=table):
+                self.tearDown()
+                self.setUp()
+                path = self.make_backup()
+                self.break_table(path, table)
+                result = bh.verify_backup(path)
+                self.assertFalse(result["ok"], f"{table} без колонок должна отклоняться")
+                self.assertIn(table, result["missing_columns"])
+                self.assertFalse(bh.restore_rehearsal(path)["restored"])
+
+    def test_watches_query_that_the_app_runs_is_checked(self):
+        """Ровно тот случай из аудита: list_watches падал бы на такой копии."""
+        path = self.make_backup()
+        self.break_table(path, "watches")
+        rehearsal = bh.restore_rehearsal(path)
+        self.assertFalse(rehearsal["restored"])
+        self.assertIn("колонок", rehearsal["error"])
+
+    def test_empty_tables_are_not_a_failure(self):
+        """У нового сервиса нет ни пользователей, ни наблюдений — это нормально."""
+        path = self.make_backup()
+        rehearsal = bh.restore_rehearsal(path)
+        self.assertTrue(rehearsal["restored"], rehearsal["error"])
+        self.assertTrue(all(v is True for v in rehearsal["queries"].values()))
+        self.assertIn("наблюдения человека", rehearsal["queries"])
+
+
+class HangingReadTest(BackupVerificationTest):
+    """L03: зависшее чтение не должно удерживать обслуживание базы."""
+
+    def test_caller_is_released_even_if_the_read_hangs(self):
+        import time as _time
+        self.make_backup()
+        released = threading.Event()
+
+        def hang(source, dest, deadline, chunk=8 * 1024 * 1024):
+            released.wait(timeout=30)          # «зависшее» чтение
+
+        with patch.object(bh, "_copy_with_deadline", hang):
+            started = _time.monotonic()
+            result = bh.restore_rehearsal_bounded(timeout=0.2)
+            elapsed = _time.monotonic() - started
+        self.assertLess(elapsed, 5, "обслуживание должно освободиться вовремя")
+        self.assertFalse(result["restored"])
+        self.assertTrue(result["timed_out"])
+        self.assertTrue(result["still_running"])
+
+        # Пока зависший поток жив, новая проверка не запускается
+        second = bh.restore_rehearsal_bounded(timeout=0.2)
+        self.assertTrue(second["still_running"])
+        released.set()
+        bh._running_thread.join(timeout=10)
+
+    def test_timeout_is_recorded_as_a_failed_check_and_the_cycle_continues(self):
+        import time as _time
+        self.make_backup()
+        released = threading.Event()
+
+        def hang(source, dest, deadline, chunk=8 * 1024 * 1024):
+            released.wait(timeout=30)
+
+        with patch.object(bh, "_copy_with_deadline", hang), \
+             patch.object(bh, "VERIFY_TIMEOUT_SECONDS", 0.2):
+            bh.verify_backups_if_due(now=NOW)
+        check = database.backup_checks(limit=1)[0]
+        self.assertEqual(check["ok"], 0)
+        self.assertIn("не уложилась", check["detail"])
+        released.set()
+        if bh._running_thread:
+            bh._running_thread.join(timeout=10)
+
+    def test_normal_verification_still_runs_in_the_bounded_path(self):
+        self.make_backup()
+        result = bh.restore_rehearsal_bounded(timeout=30)
+        self.assertTrue(result["restored"], result["error"])
