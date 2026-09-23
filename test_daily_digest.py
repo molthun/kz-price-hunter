@@ -240,19 +240,18 @@ class SummaryTest(unittest.TestCase):
              patch.object(ai_service, "call_gemini_api", fake):
             return report, asyncio.run(digest.summarize(report))
 
-    def test_summary_with_field_references_is_rendered_by_the_service(self):
-        report, result = self.run_summary(
-            "За сутки поисков {blocks.search.searches}, новых товаров {blocks.catalog.new_products}. "
-            "Вероятно, сервис простаивал.")
+    def test_wordy_summary_is_kept_next_to_the_numbers(self):
+        """M04: пересказ — это слова; цифры в письме и в карточке собирает код."""
+        report, result = self.run_summary("Сутки прошли тихо, заметных изменений нет. "
+                                          "Вероятно, сервис простаивал.")
         self.assertIsNone(result["rejected"])
-        self.assertIn("поисков 0", result["summary"])
         self.assertIn("Вероятно", result["summary"])
         self.assertEqual(digest.load(DAY, "UTC")["summary"], result["summary"])
 
     def test_invented_numbers_cancel_the_summary_but_not_the_report(self):
         report, result = self.run_summary("Продажи выросли на 37 %, обработано 4200 запросов.")
         self.assertIsNone(result["summary"])
-        self.assertIn("написала числа сама", result["rejected"])
+        self.assertIn("есть числа", result["rejected"])
         self.assertIsNone(digest.load(DAY, "UTC")["summary"], "плохой пересказ не сохраняется")
         self.assertEqual(report["blocks"]["search"]["searches"], 0, "цифры отчёта остаются")
 
@@ -260,25 +259,28 @@ class SummaryTest(unittest.TestCase):
         """M04: «12 ошибок» при нулевых фактах — выдумка, а не нумерация пункта."""
         report, result = self.run_summary("За сутки было 12 ошибок и 3 обхода.")
         self.assertIsNone(result["summary"])
-        self.assertIn("написала числа сама", result["rejected"])
+        self.assertIn("есть числа", result["rejected"])
 
     def test_a_known_number_attached_to_the_wrong_metric_is_refused(self):
         """Критерий M04: число из отчёта, приписанное не тому показателю, тоже не проходит."""
         report, result = self.run_summary("Ошибок AI: 0.")
         self.assertIsNone(result["summary"])
-        self.assertIn("написала числа сама", result["rejected"])
+        self.assertIn("есть числа", result["rejected"])
 
-    def test_numbered_list_with_references_is_kept(self):
-        report, result = self.run_summary(
-            "Итоги:\n1. Поисков {blocks.search.searches}.\n2. Новых товаров {blocks.catalog.new_products}.")
+    def test_metric_reference_is_refused_in_the_summary_too(self):
+        report, result = self.run_summary("За сутки было {blocks.search.searches} ошибок.")
+        self.assertIsNone(result["summary"])
+        self.assertIn("есть числа", result["rejected"])
+
+    def test_numbered_list_without_numbers_is_kept(self):
+        report, result = self.run_summary("Итоги:\n1. Поиск работал ровно.\n2. Каталог не менялся.")
         self.assertIsNone(result["rejected"])
-        self.assertIn("1. Поисков 0", result["summary"])
+        self.assertIn("1. Поиск работал ровно", result["summary"])
 
     def test_prompt_states_the_rules_and_wraps_data(self):
         self.run_summary("Сутки без происшествий.")
-        self.assertIn("НЕ ПИШИ ЧИСЕЛ", self.prompt)
-        self.assertIn("Доступные ссылки на показатели", self.prompt)
-        self.assertIn("{blocks.search.searches}", self.prompt)
+        self.assertIn("НЕ ПРИВОДИ НИКАКИХ ЧИСЕЛ", self.prompt)
+        self.assertIn("словесное объяснение", self.prompt)
         self.assertIn("<<<ДАННЫЕ>>>", self.prompt)
         self.assertIn("вероятно", self.prompt)
 
@@ -437,7 +439,9 @@ class TelegramDigestTest(unittest.TestCase):
         report = digest.compute(DAY, "UTC", now=NOW)
         self.assertNotIn("🗒", "\n".join(digest.message_lines(report)))
         report["summary"] = "Спокойные сутки."
-        self.assertIn("Спокойные сутки.", "\n".join(digest.message_lines(report)))
+        text = "\n".join(digest.message_lines(report))
+        self.assertIn("Спокойные сутки.", text)
+        self.assertIn("Объяснение словами", text, "пересказ подписан как объяснение, а не как цифры")
 
     def test_titles_from_shops_are_escaped(self):
         report = digest.compute(DAY, "UTC", now=NOW)

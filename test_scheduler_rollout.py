@@ -716,3 +716,117 @@ class SwitchApiTest(unittest.IsolatedAsyncioTestCase):
                 jump = await client.post("/api/admin/scheduler/rollout", json={"stage": "all"})
                 self.assertEqual(jump.status, 400)
                 self.assertEqual(config.load_settings()[rollout_module.SETTING_STAGE], "off")
+
+
+class PermissionEdgeTest(RolloutStateTest):
+    """M01: «никто не разрешён» и «неизвестно» — это не «разрешены все»."""
+
+    def test_empty_allowed_list_means_nobody(self):
+        with self.assertRaises(rollout.StageRefused) as refused:
+            rollout.canary_shops(rollout.CANARY_ONE,
+                                 [candidate("kaspi", sched.FRIENDLY), candidate("dns")], allowed=[])
+        self.assertIn("ни один магазин", str(refused.exception))
+
+    def test_all_shops_disabled_stops_a_new_step(self):
+        with patch.object(rollout, "allowed_shops", return_value=[]):
+            with self.assertRaises(rollout.StageRefused):
+                rollout.switch_stage(rollout.CANARY_ONE, self.candidates, now=NOW)
+        self.assertEqual(rollout.stage_of(), rollout.OFF)
+
+    def test_disabling_the_last_member_is_visible(self):
+        import config
+        config.save_settings({**config.load_settings(), rollout.SETTING_STAGE: rollout.CANARY_ONE})
+        with patch.object(rollout, "allowed_shops", return_value=["kaspi", "dns"]):
+            rollout.start_stage(rollout.CANARY_ONE, self.candidates, now=NOW)
+        with patch.object(rollout, "allowed_shops", return_value=[]):
+            self.assertEqual(rollout.missing_members(self.candidates), ["kaspi"])
+            state = rollout.status(self.candidates, now=NOW + datetime.timedelta(hours=1))
+        self.assertEqual(state["missing_members"], ["kaspi"])
+        self.assertFalse(state["ready_for_next"])
+
+    def test_unknown_permissions_do_not_allow_everyone(self):
+        with patch.object(rollout, "allowed_shops", return_value=None):
+            with self.assertRaises(rollout.StageRefused) as refused:
+                rollout.canary_shops(rollout.CANARY_ONE, self.candidates)
+            self.assertIn("не удалось выяснить", str(refused.exception))
+
+    def test_unknown_permissions_make_members_unobservable(self):
+        import config
+        config.save_settings({**config.load_settings(), rollout.SETTING_STAGE: rollout.CANARY_ONE})
+        with patch.object(rollout, "allowed_shops", return_value=["kaspi", "dns"]):
+            rollout.start_stage(rollout.CANARY_ONE, self.candidates, now=NOW)
+        with patch.object(rollout, "allowed_shops", return_value=None):
+            self.assertEqual(rollout.missing_members(self.candidates), ["kaspi"])
+
+    def test_failure_of_the_lookup_is_reported_as_unknown(self):
+        import web.server as server
+        with patch.object(server, "enabled_shop_keys", side_effect=RuntimeError("настройки недоступны")):
+            self.assertIsNone(rollout.allowed_shops())
+
+
+class ConcurrentSwitchTest(RolloutStateTest):
+    """M03: отказ одного перехода не должен стирать состояние другого, успевшего пройти."""
+
+    def test_failed_switch_does_not_erase_a_parallel_successful_one(self):
+        import threading
+        self.http("kaspi", 200, 10, 2)
+        self.scans("kaspi", 10, 9)
+        reached, release = threading.Event(), threading.Event()
+        original = rollout.prepare_stage
+
+        def slow_prepare(stage, candidates, now=None):
+            prepared = original(stage, candidates, now=now)
+            reached.set()
+            release.wait(5)
+            raise RuntimeError("подготовка сорвалась")
+
+        failure = {}
+
+        def first():
+            try:
+                with patch.object(rollout, "prepare_stage", slow_prepare):
+                    rollout.switch_stage(rollout.CANARY_ONE, self.candidates, now=NOW)
+            except Exception as e:                      # отказ ожидаем
+                failure["error"] = str(e)
+
+        thread = threading.Thread(target=first)
+        thread.start()
+        self.assertTrue(reached.wait(5), "первый переход должен дойти до подготовки")
+        # Второй переход проходит целиком, пока первый ещё не завершился
+        second = threading.Thread(target=lambda: rollout.switch_stage(
+            rollout.CANARY_ONE, self.candidates, now=NOW + datetime.timedelta(minutes=1)))
+        second.start()
+        second.join(10)
+        release.set()
+        thread.join(10)
+
+        self.assertEqual(rollout.stage_of(), rollout.CANARY_ONE)
+        self.assertEqual(rollout.canary_members(), ["kaspi"], "успешный переход не должен быть стёрт")
+        self.assertIsNotNone(rollout.baseline_metrics())
+        self.assertIsNotNone(rollout.started_at(NOW))
+
+    def test_stale_preparation_cannot_overwrite_a_newer_state(self):
+        rollout.switch_stage(rollout.CANARY_ONE, self.candidates, now=NOW)
+        stale_version = rollout.state_version()
+        rollout.switch_stage(rollout.OFF, [], now=NOW + datetime.timedelta(minutes=1))
+        rollout.switch_stage(rollout.CANARY_ONE, self.candidates, now=NOW + datetime.timedelta(minutes=2))
+        fresh_members = rollout.canary_members()
+        # Запоздалая попытка записать состояние по старой версии отклоняется
+        with self.assertRaises(rollout.StageRefused):
+            rollout.start_stage(rollout.CANARY_ONE, self.candidates, now=NOW,
+                                expected_version=stale_version)
+        self.assertEqual(rollout.canary_members(), fresh_members)
+
+    def test_automatic_rollback_skips_a_state_changed_in_parallel(self):
+        self.http("kaspi", 200, 4, 0)
+        self.scans("kaspi", 10, 10)
+        rollout.switch_stage(rollout.CANARY_ONE, self.candidates, now=NOW)
+        record = rollout.rollback("проверка", now=NOW, expected_version="999")
+        self.assertIn("skipped", record)
+        self.assertEqual(rollout.stage_of(), rollout.CANARY_ONE, "чужое состояние не тронуто")
+
+    def test_version_grows_with_every_stored_transition(self):
+        first = rollout.switch_stage(rollout.CANARY_ONE, self.candidates, now=NOW)["version"]
+        rollout.switch_stage(rollout.OFF, [], now=NOW)
+        second = rollout.switch_stage(rollout.CANARY_ONE, self.candidates, now=NOW)["version"]
+        self.assertGreater(int(second), int(first))

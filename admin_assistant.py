@@ -215,72 +215,37 @@ def strip_list_numbering(text: str) -> str:
     return _LIST_MARKER_RE.sub("•", str(text or ""))
 
 
-# --- Числа в ответе подставляет код -------------------------------------------------------------
-# Проверка «число встречается в фактах» ловила выдумку, но не подмену: «ошибок 50» при фактах
-# «ошибок 0, запросов 50» проходило. Поэтому модель вообще не пишет чисел: она ставит ссылку вида
-# {блок.поле}, а значение подставляет сервис из тех же фактов (M04).
-FIELD_RE = re.compile(r"\{([A-Za-zА-Яа-я0-9_]+(?:\.[A-Za-zА-Яа-я0-9_]+)+)\}")
+# --- Числа показывает код, модель их не касается ------------------------------------------------
+# Подстановка значения внутрь свободного предложения не помогла: подпись к числу («ошибок», «за сутки»,
+# название магазина) всё равно писала модель, и «{http.requests} ошибок» превращалось в «50 ошибок»
+# при нуле ошибок (M04). Поэтому количественные утверждения у модели отобраны совсем: цифры и периоды
+# показывает сводка фактов, собранная кодом, а модель даёт только словесное объяснение.
 DIGIT_RE = re.compile(r"\d")
+REFERENCE_RE = re.compile(r"\{[^}]*\}")
 
 
-def field_paths(facts: Dict[str, Any], prefix: str = "") -> Dict[str, Any]:
-    """Пути к числовым полям фактов: «блок.поле» → значение. Их и предлагаем модели."""
-    paths: Dict[str, Any] = {}
-    for key, value in (facts or {}).items():
-        name = f"{prefix}{key}"
-        if isinstance(value, dict):
-            paths.update(field_paths(value, f"{name}."))
-        elif isinstance(value, bool):
-            continue
-        elif isinstance(value, (int, float)):
-            paths[name] = value
-    return paths
+def numeric_fragments(text: str) -> List[str]:
+    """Количественные куски в тексте модели: сами числа и ссылки на показатели."""
+    clean = strip_list_numbering(str(text or ""))
+    found = [m.group(0) for m in REFERENCE_RE.finditer(clean)]
+    found += _NUMBER_RE.findall(REFERENCE_RE.sub("", clean))
+    return found
 
 
-def resolve_field(facts: Dict[str, Any], path: str) -> Any:
-    node: Any = facts
-    for part in path.split("."):
-        if not isinstance(node, dict) or part not in node:
-            return None
-        node = node[part]
-    if isinstance(node, bool) or not isinstance(node, (int, float)):
-        return None
-    return node
+def verify_comment(text: str) -> Tuple[Optional[str], Optional[str]]:
+    """Словесное объяснение или причина отказа.
 
-
-def _format_value(value: Any) -> str:
-    if isinstance(value, float) and not value.is_integer():
-        return f"{value:.4f}".rstrip("0").rstrip(".")
-    return str(int(value))
-
-
-def render_numbers(text: str, facts: Dict[str, Any]) -> Tuple[str, List[str], List[str]]:
-    """Подставляет значения вместо ссылок. Возвращает (текст, неизвестные ссылки, свои числа модели)."""
-    unknown: List[str] = []
-
-    def replace(match):
-        value = resolve_field(facts, match.group(1))
-        if value is None:
-            unknown.append(match.group(1))
-            return match.group(0)
-        return _format_value(value)
-
-    rendered = FIELD_RE.sub(replace, str(text or ""))
-    # Числа, которые модель написала сама, а не через ссылку: их проверить нельзя, поэтому они запрещены
-    own = [fragment for fragment in _NUMBER_RE.findall(strip_list_numbering(FIELD_RE.sub("", str(text or ""))))]
-    return rendered, unknown, own
-
-
-def verify_and_render(text: str, facts: Dict[str, Any]) -> Tuple[Optional[str], Optional[str]]:
-    """Готовый текст или причина отказа. Любое собственное число модели — причина отказа."""
-    rendered, unknown, own = render_numbers(text, facts)
-    if unknown:
-        return None, ("в ответе есть ссылки на показатели, которых нет в данных: "
-                      + ", ".join(sorted(set(unknown))[:5]))
-    if own:
-        return None, ("модель написала числа сама: " + ", ".join(sorted(set(own))[:5])
-                      + ". Числа подставляет сервис по ссылке вида {блок.поле}")
-    return rendered, None
+    Любое число в тексте модели — причина отказа: проверить, к какому показателю оно относится,
+    нельзя, а показать непроверенное утверждение как факт — хуже, чем показать только цифры сервиса.
+    """
+    clean = str(text or "").strip()
+    if not clean:
+        return None, "модель не дала объяснения"
+    found = numeric_fragments(clean)
+    if found:
+        return None, ("в объяснении есть числа: " + ", ".join(sorted(set(found))[:5])
+                      + ". Цифры показывает сервис отдельным блоком, объяснение должно быть словесным")
+    return clean, None
 
 
 def unverified_numbers(answer: str, context: Dict[str, Any]) -> List[str]:
@@ -310,14 +275,47 @@ def unverified_numbers(answer: str, context: Dict[str, Any]) -> List[str]:
     return [n for n in (_norm_number(m) for m in _NUMBER_RE.findall(text)) if n not in allowed]
 
 
+SUMMARY_FIELDS_PER_BLOCK = 8
+SKIP_FIELDS = ("источник", "period", "note", "reason", "status")
+
+
+def _fact_lines(block: Dict[str, Any], prefix: str = "") -> List[str]:
+    """Числовые поля блока «имя: значение». Именно они — единственный источник цифр в ответе (M04)."""
+    lines: List[str] = []
+    for key, value in block.items():
+        if key in SKIP_FIELDS:
+            continue
+        name = f"{prefix}{key}"
+        if isinstance(value, bool):
+            lines.append(f"{name}: {'да' if value else 'нет'}")
+        elif isinstance(value, (int, float)):
+            lines.append(f"{name}: {value}")
+        elif isinstance(value, dict):
+            lines.extend(_fact_lines(value, f"{name}."))
+        elif isinstance(value, list) and value and isinstance(value[0], dict):
+            for item in value[:3]:
+                inner = ", ".join(f"{k}: {v}" for k, v in item.items()
+                                  if isinstance(v, (int, float, str)) and k not in SKIP_FIELDS)
+                if inner:
+                    lines.append(f"{name} — {inner}")
+    return lines
+
+
 def facts_summary(context: Dict[str, Any]) -> str:
-    """Человеческая сводка фактов без AI: сервис обязан отвечать и при выключенной модели."""
+    """Сводка фактов без AI: и когда модель выключена, и как единственный источник цифр в ответе.
+
+    Все числа, которые видит администратор, приходят отсюда: у каждого блока назван источник и период,
+    а значения подписаны своими именами (M04).
+    """
     lines = []
     for name, block in (context.get("facts") or {}).items():
         source = block.get("источник", name)
         period = block.get("period", "")
         reason = block.get("reason") or block.get("status")
-        lines.append(f"• {source} ({period}): {reason}" if reason else f"• {source} ({period})")
+        head = f"• {source} ({period}): {reason}" if reason else f"• {source} ({period})"
+        lines.append(head)
+        for line in _fact_lines(block)[:SUMMARY_FIELDS_PER_BLOCK]:
+            lines.append(f"    {line}")
     for name, error in (context.get("unavailable") or {}).items():
         lines.append(f"• {TOOLS.get(name, {}).get('title', name)}: данные недоступны ({error})")
     return "\n".join(lines) or "Данных для ответа нет."
@@ -331,17 +329,15 @@ def build_prompt(context: Dict[str, Any]) -> str:
     return (
         "Ты помогаешь администратору сервиса мониторинга цен разобраться в его состоянии.\n"
         "Отвечай по-русски, коротко и по делу. Правила, которые нельзя нарушать:\n"
-        "1. НЕ ПИШИ ЧИСЕЛ. Вместо числа ставь ссылку на показатель в фигурных скобках — {блок.поле} —\n"
-        "   и сервис подставит значение сам. Доступные ссылки перечислены ниже. Ссылка на показатель,\n"
-        "   которого там нет, недопустима; собственное число в тексте тоже.\n"
+        "1. НЕ ПРИВОДИ НИКАКИХ ЧИСЕЛ И ССЫЛОК НА НИХ. Цифры администратор видит рядом — их показывает\n"
+        "   сервис отдельным блоком. Твоя часть — объяснение словами: что похоже на причину, что стоит\n"
+        "   проверить. Слова «выросло», «упало», «заметно меньше» допустимы, конкретные величины — нет.\n"
         "2. Разделяй факты и предположения: сначала «Факты», затем «Возможная причина» со словом «вероятно».\n"
         "3. Если данных для вывода не хватает — так и напиши, какого именно наблюдения не хватает.\n"
         "4. У каждого числа указывай период или источник, как они даны в данных.\n"
         "5. Ничего не предлагай изменить в настройках магазинов без явного вопроса об этом.\n\n"
         f"Вопрос администратора: {context.get('question')}\n\n"
-        "Доступные ссылки на показатели:\n"
-        + "\n".join(f"  {{{path}}}" for path in sorted(field_paths(context.get('facts') or {})))
-        + "\n\n" + ai_router.untrusted_block(facts, "ДАННЫЕ")
+        + ai_router.untrusted_block(facts, "ДАННЫЕ")
     )
 
 
@@ -359,8 +355,8 @@ async def answer(question: str, days: int = DEFAULT_DAYS,
               "unavailable": context["unavailable"], "summary": summary, "answer": None,
               "ai": None, "rejected": None,
               "note": "Цифры собраны кодом из отчётов мониторинга; модель только объясняет их словами. "
-                      "Помощник работает только на чтение. Числа в ответе подставлены сервисом по ссылке "
-                      "на показатель, поэтому величина и показатель не могут разойтись."}
+                      "Помощник работает только на чтение. Все числа и периоды взяты из сводки фактов "
+                      "ниже, собранной кодом; объяснение модели — словесное и цифр не содержит."}
     try:
         routed = await ai_router.run("admin_assistant", build_prompt(context),
                                      validate=lambda v: v if isinstance(v, (dict, str)) else None)
@@ -375,12 +371,12 @@ async def answer(question: str, days: int = DEFAULT_DAYS,
         result["ai"] = "модель не дала ответа"
         return result
 
-    rendered, refusal = verify_and_render(text, context["facts"])
+    comment, refusal = verify_comment(text)
     if refusal:
         result["rejected"] = refusal
         result["ai"] = routed.get("provider")
         return result
-    text = rendered
+    text = comment
     result["answer"] = text
     result["ai"] = routed.get("provider")
     return result

@@ -1143,6 +1143,30 @@ def get_metadata(name: str, default: Optional[str] = None) -> Optional[str]:
         return default
 
 
+def compare_and_set_metadata(version_key: str, expected: Optional[str],
+                             pairs: Dict[str, str]) -> Optional[str]:
+    """Записывает значения, только если версия состояния не изменилась. Возвращает новую версию или None.
+
+    Так отказ одного перехода не может затереть состояние другого, успевшего пройти: он увидит чужую
+    версию и ничего не тронет (M03). Транзакция BEGIN IMMEDIATE сериализует и параллельные процессы.
+    """
+    with get_connection() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute("SELECT value FROM schema_metadata WHERE name = ?", (version_key,)).fetchone()
+        current = row[0] if row else None
+        if (current or "") != (expected or ""):
+            conn.rollback()
+            return None
+        version = str(int(current or 0) + 1)
+        for name, value in pairs.items():
+            conn.execute("INSERT OR REPLACE INTO schema_metadata (name, value) VALUES (?, ?)",
+                         (name, str(value)))
+        conn.execute("INSERT OR REPLACE INTO schema_metadata (name, value) VALUES (?, ?)",
+                     (version_key, version))
+        conn.commit()
+        return version
+
+
 def set_metadata_many(pairs: Dict[str, str]) -> None:
     """Несколько служебных значений одной транзакцией: состояние шага не должно записаться наполовину."""
     with get_connection() as conn:

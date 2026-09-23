@@ -42,48 +42,32 @@ class ToolsAreReadOnlyTest(unittest.TestCase):
         self.assertEqual(assistant.pick_tools("как дела"), ["shops", "incidents", "system"])
 
 
-class NumberVerificationTest(unittest.TestCase):
-    def facts(self):
-        return {"shops": {"источник": "Состояние магазинов", "period": "7 дн.",
-                          "shops": [{"shop": "dns", "items": 120, "status": "degraded"}]},
-                "incidents": {"источник": "Инциденты", "total": 3, "open": 1}}
+class CommentRulesTest(unittest.TestCase):
+    """Комментарий модели не содержит количественных утверждений — их показывает код."""
 
-    def test_numbers_from_facts_are_accepted(self):
-        answer = "Факты: у dns 120 товаров, открытых инцидентов 1 из 3."
-        self.assertEqual(assistant.unverified_numbers(answer, self.facts()), [])
+    def test_wordy_comment_is_accepted(self):
+        text, refusal = assistant.verify_comment("Каталог заметно сократился, отказы выросли.")
+        self.assertIsNone(refusal)
+        self.assertTrue(text)
 
-    def test_invented_number_is_caught(self):
-        answer = "Факты: каталог dns упал до 17 товаров."
-        self.assertIn("17", assistant.unverified_numbers(answer, self.facts()))
+    def test_any_number_is_refused(self):
+        for answer in ("Ошибок 0.", "12 обходов из 15.", "Скидка 73 %."):
+            with self.subTest(answer=answer):
+                self.assertIsNotNone(assistant.verify_comment(answer)[1])
 
-    def test_percentages_derived_from_shares_are_allowed(self):
-        facts = {"search": {"success_rate": 69.6, "error_rate": 5.5}}
-        self.assertEqual(assistant.unverified_numbers("Успех 69.6 %, ошибок 5.5 %", facts), [])
-        self.assertEqual(assistant.unverified_numbers("Успех около 70 %", facts), [])
+    def test_metric_reference_is_refused(self):
+        self.assertIsNotNone(assistant.verify_comment("Было {search.errors} ошибок.")[1])
 
-    def test_list_numbering_is_allowed_by_syntax(self):
-        """M04: пункт списка — это разметка, а не утверждение о величине."""
-        answer = "Факты:\n1. У dns 120 товаров.\n2. Открытых инцидентов 1 из 3."
-        self.assertEqual(assistant.unverified_numbers(answer, self.facts()), [])
+    def test_list_numbering_is_not_a_quantitative_claim(self):
+        text, refusal = assistant.verify_comment("Итоги:\n1. Каталог сократился.\n2. Отказы выросли.")
+        self.assertIsNone(refusal)
+        self.assertIn("Каталог сократился", text)
 
-    def test_a_number_in_a_sentence_is_not_excused_as_numbering(self):
-        """Раньше любое число до 12 проходило — «12 ошибок» выдавалось за нумерацию."""
-        self.assertIn("12", assistant.unverified_numbers("За сутки было 12 ошибок.", self.facts()))
-        self.assertIn("41", assistant.unverified_numbers("Магазинов в деградации: 41.", self.facts()))
+    def test_empty_answer_is_refused(self):
+        self.assertIsNotNone(assistant.verify_comment("   ")[1])
 
-    def test_zero_is_checked_like_any_other_number(self):
-        self.assertIn("0", assistant.unverified_numbers("Ошибок 0.", self.facts()))
-        facts = {"incidents": {"источник": "Инциденты", "open": 0}}
-        self.assertEqual(assistant.unverified_numbers("Открытых инцидентов 0.", facts), [])
-
-    def test_check_does_not_claim_to_catch_a_misattributed_number(self):
-        """Честная граница проверки: число из данных, приписанное не тому показателю, она пропустит."""
-        facts = {"search": {"источник": "Поиск", "errors": 0, "requests": 50}}
-        self.assertEqual(assistant.unverified_numbers("Ошибок 50.", facts), [])
-        self.assertIn("не гарантирует", assistant.build_prompt({"question": "q", "days": 7,
-                                                                "facts": facts, "unavailable": {}})
-                      if False else "не гарантирует",
-                      "граница описана в примечании ответа")
+    def test_numeric_fragments_lists_what_was_found(self):
+        self.assertEqual(assistant.numeric_fragments("Было {a.b} и 50"), ["{a.b}", "50"])
 
 
 class AssistantWithDataTest(unittest.TestCase):
@@ -155,40 +139,41 @@ class AssistantWithDataTest(unittest.TestCase):
         self.assertIn("100", numbers, "падение каталога до 100 товаров должно быть в фактах")
         self.assertTrue(context["facts"], "факты не должны быть пустыми")
 
-    def test_answer_with_field_references_is_rendered_by_the_service(self):
-        """M04: модель ссылается на показатель, значение подставляет сервис."""
+    def test_wordy_explanation_is_shown_next_to_the_facts(self):
+        """M04: модель объясняет словами, цифры показывает сводка фактов, собранная кодом."""
         self.catalog_collapse()
-        context = assistant.collect("почему в dns стало меньше товаров и растут ошибки", days=7, now=NOW)
-        paths = assistant.field_paths(context["facts"])
-        path = next(p for p in paths if p.endswith("blocked_4xx_429"))
         result = self.ask("почему в dns стало меньше товаров и растут ошибки",
-                          model_answer=f"Факты: отказов у dns — {{{path}}}. "
-                                       f"Возможная причина: вероятно, магазин ограничил доступ.")
+                          model_answer="Каталог dns заметно сократился, а доля отказов выросла. "
+                                       "Вероятно, магазин ограничил доступ.")
         self.assertIsNone(result["rejected"])
-        self.assertIn("200", result["answer"])
-        self.assertIn("вероятно", result["answer"])
+        self.assertIn("Вероятно", result["answer"])
+        self.assertIn("received: 100", result["summary"], "цифры остаются в сводке фактов")
+        self.assertIn("http_by_shop.dns.errors: 200", result["summary"])
 
-    def test_number_written_by_the_model_itself_is_refused(self):
+    def test_number_written_by_the_model_is_refused(self):
         self.catalog_collapse()
         result = self.ask("почему упал каталог dns",
-                          model_answer="Факты: последний обход dns принёс 100 товаров вместо 2000.")
+                          model_answer="Последний обход dns принёс 100 товаров вместо 2000.")
         self.assertIsNone(result["answer"])
-        self.assertIn("написала числа сама", result["rejected"])
+        self.assertIn("есть числа", result["rejected"])
 
-    def test_reference_to_a_missing_metric_is_refused(self):
+    def test_metric_reference_is_refused_too(self):
+        """Подстановка числа под подпись модели больше не предлагается: ссылки тоже отклоняются."""
         self.catalog_collapse()
         result = self.ask("почему упал каталог dns",
-                          model_answer="Выручка составила {shops.revenue} тенге.")
+                          model_answer="За сутки было {http.requests} ошибок.")
         self.assertIsNone(result["answer"])
-        self.assertIn("которых нет в данных", result["rejected"])
+        self.assertIn("есть числа", result["rejected"])
 
-    def test_a_real_number_cannot_be_attached_to_the_wrong_metric(self):
-        """Ключевой критерий M04: подмена показателя невозможна — значение берёт сервис."""
-        facts = {"search": {"источник": "Поиск", "period": "7 дн.", "errors": 0, "requests": 50}}
-        rendered, refusal = assistant.verify_and_render("Ошибок {search.errors}.", facts)
+    def test_a_number_cannot_be_attached_to_a_wrong_label(self):
+        """Критерий M04: неверная подпись к верному числу не показывается как подтверждённый факт."""
+        for answer in ("За сутки было {search.requests} ошибок.", "За сутки было 50 ошибок.",
+                       "У kaspi 100 товаров за 7 дней."):
+            with self.subTest(answer=answer):
+                self.assertIsNotNone(assistant.verify_comment(answer)[1])
+        text, refusal = assistant.verify_comment("Ошибки выросли заметно; вероятно, магазин ограничил доступ.")
         self.assertIsNone(refusal)
-        self.assertEqual(rendered, "Ошибок 0.")
-        self.assertIsNotNone(assistant.verify_and_render("Ошибок 50.", facts)[1])
+        self.assertIn("Ошибки выросли", text)
 
     def test_answer_with_invented_numbers_is_rejected(self):
         """Недостаток данных не превращается в выдуманную причину."""
@@ -196,7 +181,7 @@ class AssistantWithDataTest(unittest.TestCase):
         result = self.ask("почему упал каталог dns",
                           model_answer="Каталог упал на 73 %, потому что сменился адрес 987 страниц.")
         self.assertIsNone(result["answer"])
-        self.assertIn("написала числа сама", result["rejected"])
+        self.assertIn("есть числа", result["rejected"])
         self.assertTrue(result["summary"], "факты всё равно показываются")
 
     def test_without_ai_the_assistant_still_answers_with_facts(self):
@@ -228,8 +213,8 @@ class AssistantWithDataTest(unittest.TestCase):
         self.catalog_collapse()
         self.ask("почему упал каталог dns", model_answer="Факты без чисел.")
         self.assertIn("Разделяй факты и предположения", self.prompt)
-        self.assertIn("НЕ ПИШИ ЧИСЕЛ", self.prompt)
-        self.assertIn("Доступные ссылки на показатели", self.prompt)
+        self.assertIn("НЕ ПРИВОДИ НИКАКИХ ЧИСЕЛ", self.prompt)
+        self.assertIn("объяснение словами", self.prompt)
 
     def test_unavailable_block_is_reported_not_hidden(self):
         with patch.dict(assistant.TOOLS["incidents"], {"fn": lambda **kw: (_ for _ in ()).throw(

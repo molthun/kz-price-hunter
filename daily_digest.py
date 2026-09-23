@@ -316,15 +316,12 @@ def build_prompt(report: Dict[str, Any]) -> str:
     data = json.dumps(numbers_source(report), ensure_ascii=False, indent=1, default=str)
     return (
         f"Ты пишешь короткую сводку за сутки {report['day']} ({report['tz']}) для владельца сервиса.\n"
-        "Правила: пиши по-русски, 3–6 предложений. НЕ ПИШИ ЧИСЕЛ: вместо числа ставь ссылку на "
-        "показатель в фигурных скобках — {блок.поле} — сервис подставит значение сам. Доступные ссылки "
-        "перечислены ниже; ссылка на показатель, которого там нет, недопустима. Разделяй факты и "
-        "предположения: догадку помечай словом «вероятно». Если данных за сутки нет, так и напиши.\n"
+        "Правила: пиши по-русски, 3–6 предложений. НЕ ПРИВОДИ НИКАКИХ ЧИСЕЛ И ССЫЛОК НА НИХ: все цифры "
+        "владелец видит рядом, их показывает сервис. Твоя часть — словесное объяснение: на что похоже "
+        "происходящее и что стоит проверить. Догадку помечай словом «вероятно». Если данных за сутки "
+        "нет, так и напиши.\n"
         + ("Сутки ещё не закончились, скажи об этом.\n" if report.get("partial") else "")
-        + "Доступные ссылки на показатели:\n"
-        + "\n".join(f"  {{{path}}}"
-                    for path in sorted(admin_assistant.field_paths(numbers_source(report))))
-        + "\n\n" + ai_router.untrusted_block(data, "ДАННЫЕ")
+        + ai_router.untrusted_block(data, "ДАННЫЕ")
     )
 
 
@@ -345,12 +342,12 @@ async def summarize(report: Dict[str, Any]) -> Dict[str, Any]:
     if not text:
         result["rejected"] = "модель не дала пересказа"
         return result
-    rendered, refusal = admin_assistant.verify_and_render(text, numbers_source(report))
+    comment, refusal = admin_assistant.verify_comment(text)
     if refusal:
         result["rejected"] = refusal
         result["provider"] = routed.get("provider")
         return result
-    text = rendered
+    text = comment
     result["summary"] = text
     result["provider"] = routed.get("provider")
     save(report, summary=text, provider=routed.get("provider"))
@@ -465,7 +462,8 @@ def message_lines(report: Dict[str, Any]) -> List[str]:
     if report.get("summary"):
         import html as html_module
         lines.append("")
-        lines.append("🗒 " + html_module.escape(str(report["summary"])))
+        lines.append("🗒 Объяснение словами (цифры выше собраны кодом): "
+                     + html_module.escape(str(report["summary"])))
     lines.append("")
     lines.append("ℹ️ Цифры посчитаны кодом по собственным данным и воспроизводятся повторным расчётом.")
     return lines

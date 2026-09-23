@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import datetime
+import threading
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 # Шаги включения
@@ -35,12 +36,16 @@ STAGE_LABELS = {
 NEXT_STAGE = {OFF: CANARY_ONE, CANARY_ONE: CANARY_FEW, CANARY_FEW: ALL, ALL: None}
 CANARY_FEW_LIMIT = 5
 
+# Переходы шага выполняются по одному: параллельные запросы администратора не должны смешиваться (M03)
+_SWITCH_LOCK = threading.Lock()
+
 SETTING_STAGE = "adaptive_scheduler_stage"
 METADATA_BASELINE = "adaptive_scheduler_baseline"      # снимок метрик на момент включения шага
 METADATA_STARTED = "adaptive_scheduler_started_at"
 METADATA_LAST_ROLLBACK = "adaptive_scheduler_last_rollback"
 METADATA_CANARY = "adaptive_scheduler_canary"          # состав шага фиксируется при включении (M01)
 METADATA_HTTP_START = "adaptive_scheduler_http_start"  # счётчики HTTP на момент включения (M02)
+METADATA_VERSION = "adaptive_scheduler_state_version"  # версия состояния: защита конкурентных переходов (M03)
 
 # --- Пороги остановки и отката. СОГЛАСОВАНЫ С ВЛАДЕЛЬЦЕМ ДО ВКЛЮЧЕНИЯ (2026-09-23), вариант «строго»:
 # лучше лишний откат, чем испорченные отношения с магазином.
@@ -80,13 +85,19 @@ class StageRefused(Exception):
     """Шаг нельзя начать, и причина называется словами, а не молча подменяется другим магазином."""
 
 
-def allowed_shops() -> List[str]:
-    """Магазины, которые сервис вообще обходит сейчас: выключенный источник участником быть не может."""
+def allowed_shops() -> Optional[List[str]]:
+    """Магазины, которые сервис обходит сейчас, или None, если это не удалось выяснить.
+
+    Пустой список означает «не разрешён никто» (все магазины выключены), а None — «неизвестно».
+    Ни то, ни другое не может читаться как «разрешены все»: неизвестность не даёт права включать
+    эксперимент на чём попало (M01).
+    """
     try:
         import web.server as server
         return list(server.enabled_shop_keys())
-    except Exception:
-        return []
+    except Exception as e:
+        print(f"[Rollout] Список включённых магазинов недоступен: {type(e).__name__}")
+        return None
 
 
 def canary_shops(stage: str, candidates: Sequence[Dict[str, Any]],
@@ -103,12 +114,17 @@ def canary_shops(stage: str, candidates: Sequence[Dict[str, Any]],
     import scheduler_shadow as sched
     if stage == OFF or not candidates:
         return []
-    permitted = set(allowed if allowed is not None else allowed_shops())
+    permitted_list = allowed if allowed is not None else allowed_shops()
+    if permitted_list is None:
+        raise StageRefused("не удалось выяснить, какие магазины включены: шаг не начинается")
+    permitted = set(permitted_list)
+    if not permitted:
+        raise StageRefused("сейчас не включён ни один магазин: пробному шагу не на чем работать")
     rank = {sched.FRIENDLY: 0, sched.NORMAL: 1, sched.EXPENSIVE: 2, sched.DEGRADED: 3}
     ordered: List[Tuple[int, str]] = []
     for item in sorted(candidates, key=lambda c: (rank.get(c.get("profile"), 9), str(c.get("shop") or ""))):
         shop = str(item.get("shop") or "")
-        if not shop or (permitted and shop not in permitted):
+        if not shop or shop not in permitted:
             continue
         if shop not in [s for _, s in ordered]:
             ordered.append((rank.get(item.get("profile"), 9), shop))
@@ -313,16 +329,21 @@ def _json_metadata(key: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def start_stage(stage: str, candidates: Sequence[Dict[str, Any]],
-                now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
-    """Начало шага: выбирает состав, фиксирует его, снимает метрики «до» и запоминает время.
+def state_snapshot() -> Dict[str, str]:
+    """Текущее состояние включения целиком — чтобы вернуть его при неудачной активации (M03)."""
+    import database
+    return {key: (database.get_metadata(key) or "")
+            for key in (METADATA_CANARY, METADATA_HTTP_START, METADATA_BASELINE, METADATA_STARTED)}
 
-    Состав выбирается ровно здесь и больше не пересматривается (M01): иначе ухудшившийся пробный
-    магазин молча заменялся бы другим, а сравнение «до/после» относилось бы к разным источникам.
 
-    Всё состояние шага пишется одной транзакцией: наполовину подготовленного шага быть не должно (M03).
-    """
-    import json
+def state_version() -> Optional[str]:
+    import database
+    return database.get_metadata(METADATA_VERSION) or None
+
+
+def prepare_stage(stage: str, candidates: Sequence[Dict[str, Any]],
+                  now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
+    """Считает всё нужное для шага, НИЧЕГО не записывая: состав, снимок «до», счётчики, время."""
     import database
     moment = now or datetime.datetime.now(datetime.timezone.utc)
     shops = canary_shops(stage, candidates)          # может отказать словами (StageRefused)
@@ -330,54 +351,75 @@ def start_stage(stage: str, candidates: Sequence[Dict[str, Any]],
     before = metrics(shops, since, until) if shops else None
     # Счётчики часа, в котором шаг начался: без них первый неполный час выпал бы из наблюдения (M02)
     http_start = database.http_counters_for_hour(moment)
-    database.set_metadata_many({
-        METADATA_CANARY: json.dumps(shops, ensure_ascii=False),
-        METADATA_HTTP_START: json.dumps(http_start, ensure_ascii=False),
-        METADATA_BASELINE: json.dumps(before, ensure_ascii=False) if before else "",
-        METADATA_STARTED: moment.isoformat(),
-    })
-    return {"stage": stage, "canary": shops, "before": before, "started_at": moment.isoformat()}
+    return {"stage": stage, "canary": shops, "before": before, "http_start": http_start,
+            "started_at": moment.isoformat()}
 
 
-def state_snapshot() -> Dict[str, str]:
-    """Текущее состояние включения целиком — чтобы вернуть его при неудачной подготовке (M03)."""
+def _state_pairs(prepared: Dict[str, Any]) -> Dict[str, str]:
+    import json
+    return {
+        METADATA_CANARY: json.dumps(prepared["canary"], ensure_ascii=False),
+        METADATA_HTTP_START: json.dumps(prepared["http_start"], ensure_ascii=False),
+        METADATA_BASELINE: json.dumps(prepared["before"], ensure_ascii=False) if prepared["before"] else "",
+        METADATA_STARTED: prepared["started_at"],
+    }
+
+
+def start_stage(stage: str, candidates: Sequence[Dict[str, Any]],
+                now: Optional[datetime.datetime] = None,
+                expected_version: Optional[str] = ...) -> Dict[str, Any]:
+    """Начало шага: выбирает состав, фиксирует его, снимает метрики «до» и запоминает время.
+
+    Состав выбирается ровно здесь и больше не пересматривается (M01). Всё состояние пишется одной
+    транзакцией и только если версия состояния не изменилась с момента подготовки: параллельный переход
+    не может быть затёрт чужим отказом (M03).
+    """
     import database
-    return {key: (database.get_metadata(key) or "")
-            for key in (METADATA_CANARY, METADATA_HTTP_START, METADATA_BASELINE, METADATA_STARTED)}
-
-
-def restore_state(snapshot: Dict[str, str]) -> None:
-    import database
-    database.set_metadata_many(dict(snapshot))
+    prepared = prepare_stage(stage, candidates, now=now)
+    expected = state_version() if expected_version is ... else expected_version
+    version = database.compare_and_set_metadata(METADATA_VERSION, expected, _state_pairs(prepared))
+    if version is None:
+        raise StageRefused("состояние включения изменилось параллельно: повторите переход")
+    return {"stage": stage, "canary": prepared["canary"], "before": prepared["before"],
+            "started_at": prepared["started_at"], "version": version}
 
 
 def switch_stage(target: str, candidates: Sequence[Dict[str, Any]],
                  now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
     """Единственный путь смены шага: проверка перехода → подготовка → активация.
 
-    Настройка меняется ПОСЛЕ того, как состояние шага подготовлено и записано. Если подготовка не
-    удалась, прежний шаг и прежнее состояние остаются нетронутыми: включённого шага без снимка «до»
-    и без состава возникнуть не может (M03).
+    Переходы сериализованы: внутри процесса — замком, между процессами — условной записью состояния по
+    версии. Настройка меняется ПОСЛЕ записи состояния; если активация не удалась, откатывается только
+    собственная подготовка, и только если её никто не успел сменить (M03).
     """
     import config
-    current = stage_of()
-    ok, why = can_switch(current, target)
-    if not ok:
-        raise StageRefused(why)
+    import database
+    with _SWITCH_LOCK:
+        current = stage_of()
+        ok, why = can_switch(current, target)
+        if not ok:
+            raise StageRefused(why)
 
-    previous_state = state_snapshot()
-    try:
-        started = start_stage(target, candidates, now=now) if target != OFF else {"stage": OFF}
-        settings = dict(config.load_settings())
-        settings[SETTING_STAGE] = target
-        config.save_settings(settings)
-    except Exception:
-        restore_state(previous_state)                # подготовка не удалась — состояние не менялось
-        raise
-    if target == OFF:
-        import database
-        database.set_metadata_many({METADATA_CANARY: "", METADATA_HTTP_START: ""})
-    return started
+        before_version = state_version()
+        previous_state = state_snapshot()
+        if target == OFF:
+            settings = dict(config.load_settings())
+            settings[SETTING_STAGE] = OFF
+            config.save_settings(settings)
+            database.compare_and_set_metadata(METADATA_VERSION, before_version,
+                                              {METADATA_CANARY: "", METADATA_HTTP_START: ""})
+            return {"stage": OFF}
+
+        started = start_stage(target, candidates, now=now, expected_version=before_version)
+        try:
+            settings = dict(config.load_settings())
+            settings[SETTING_STAGE] = target
+            config.save_settings(settings)
+        except Exception:
+            # Отменяем только СВОЮ подготовку: если её версию уже сменил другой переход, не трогаем
+            database.compare_and_set_metadata(METADATA_VERSION, started["version"], previous_state)
+            raise
+        return started
 
 
 def http_start_counters() -> Optional[Dict[str, Any]]:
@@ -395,18 +437,16 @@ def missing_members(candidates: Sequence[Dict[str, Any]],
                     allowed: Optional[Sequence[str]] = None) -> List[str]:
     """Участники шага, которых больше нельзя наблюдать: пропали из кандидатов или выключены.
 
-    Замена им не подбирается: эксперимент либо продолжается тем же составом, либо владелец возвращает
-    прежний порядок (M01).
+    Пустой список разрешённых означает, что выключены все, поэтому недоступны и все участники —
+    прежнее условие «permitted and …» молча признавало такую ситуацию нормальной (M01). Замена
+    участникам не подбирается: либо шаг продолжается тем же составом, либо владелец его возвращает.
     """
     known = {str(c.get("shop") or "") for c in candidates}
-    permitted = set(allowed if allowed is not None else allowed_shops())
-    gone = []
-    for shop in canary_members():
-        if shop not in known:
-            gone.append(shop)
-        elif permitted and shop not in permitted:
-            gone.append(shop)
-    return gone
+    permitted_list = allowed if allowed is not None else allowed_shops()
+    if permitted_list is None:
+        return list(canary_members())    # разрешения неизвестны — наблюдать нельзя ни за кем
+    permitted = set(permitted_list)
+    return [shop for shop in canary_members() if shop not in known or shop not in permitted]
 
 
 def started_at(now: Optional[datetime.datetime] = None) -> Optional[datetime.datetime]:
@@ -425,21 +465,33 @@ def baseline_metrics() -> Optional[Dict[str, Any]]:
     return _json_metadata(METADATA_BASELINE)
 
 
-def rollback(reason: str, now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
-    """Возвращает прежний порядок обходов целиком и записывает, почему."""
+def rollback(reason: str, now: Optional[datetime.datetime] = None,
+             expected_version: Optional[str] = ...) -> Dict[str, Any]:
+    """Возвращает прежний порядок обходов целиком и записывает, почему.
+
+    Откат тоже проходит через замок и версию состояния: он не должен выключить шаг, который владелец
+    только что включил заново (M03).
+    """
     import json
     import config
     import database
     moment = now or datetime.datetime.now(datetime.timezone.utc)
+    expected = state_version() if expected_version is ... else expected_version
     previous = stage_of()
-    settings = dict(config.load_settings())
-    settings[SETTING_STAGE] = OFF
-    config.save_settings(settings)
     record = {"at": moment.isoformat(), "from_stage": previous, "reason": reason,
               "canary": canary_members()}
-    database.set_metadata(METADATA_LAST_ROLLBACK, json.dumps(record, ensure_ascii=False))
-    database.set_metadata(METADATA_CANARY, "")      # шага больше нет — нет и его состава
-    database.set_metadata(METADATA_HTTP_START, "")
+    with _SWITCH_LOCK:
+        version = database.compare_and_set_metadata(METADATA_VERSION, expected, {
+            METADATA_LAST_ROLLBACK: json.dumps(record, ensure_ascii=False),
+            METADATA_CANARY: "",                    # шага больше нет — нет и его состава
+            METADATA_HTTP_START: "",
+        })
+        if version is None:
+            record["skipped"] = "состояние включения изменилось параллельно: откат не применён"
+            return record
+        settings = dict(config.load_settings())
+        settings[SETTING_STAGE] = OFF
+        config.save_settings(settings)
     try:
         from telemetry import telemetry, SEVERITY_WARNING, COMPONENT_SCHEDULER
         telemetry.record_event("scheduler_rollback", SEVERITY_WARNING, COMPONENT_SCHEDULER,
@@ -470,11 +522,14 @@ def check_and_rollback(candidates: Sequence[Dict[str, Any]],
     if not shops or began is None:
         return None
     # Считаем только то, что произошло ПОСЛЕ включения шага, и только по его участникам (M01, M02)
+    version = state_version()
     after = metrics(shops, began, moment, http_start_counters())
     needed, reason = should_rollback(baseline_metrics(), after)
     if not needed:
         return None
-    record = rollback(reason, now=now)
+    record = rollback(reason, now=now, expected_version=version)
+    if record.get("skipped"):
+        return None
     record["after"] = after
     return record
 
