@@ -43,24 +43,52 @@ SECRET_PATTERNS = (
     ("GitHub token", re.compile(r"\bgh[pousr]_[A-Za-z0-9]{36,}\b")),
 )
 
-# Строки, которые выглядят как секрет, но являются примером или заглушкой
-PLACEHOLDER = re.compile(r"(?i)(example|placeholder|dummy|fake|your[_-]?key|xxxx|<[^>]+>|\.\.\.)")
+# Заглушка распознаётся по самому значению, а не по строке вокруг него: слово «example» в комментарии
+# рядом не должно оправдывать настоящий ключ (M08).
+PLACEHOLDER = re.compile(r"(?i)(example|placeholder|dummy|fake|your[_-]?key|x{4,}|012345|abcdef0123)")
+
+
+def _git_tracked(root: str) -> Optional[List[str]]:
+    """Файлы, которые хранит git. Именно они попадают в репозиторий и в образ.
+
+    Обход каталогов пропускал всё, что начинается с точки, а значит и `.github` — токен в workflow
+    вообще не проверялся (M08). Список от самого git такой дыры не оставляет.
+    """
+    import subprocess
+    try:
+        res = subprocess.run(["git", "-C", root, "ls-files", "-z"],
+                             capture_output=True, text=True, timeout=120)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if res.returncode != 0:
+        return None
+    return [os.path.join(root, name) for name in res.stdout.split("\0") if name]
 
 
 def _scan_files(root: str) -> List[str]:
+    """Что проверять: отслеживаемые git-файлы, а вне репозитория — обход каталогов.
+
+    Скрытые каталоги больше не пропускаются скопом: исключаются только служебные, названные поимённо.
+    """
+    candidates = _git_tracked(root)
+    if candidates is None:
+        candidates = []
+        for base, dirs, files in os.walk(root):
+            dirs[:] = [d for d in dirs if d not in SKIP_DIRS and d != ".git"]
+            candidates.extend(os.path.join(base, name) for name in files)
     found: List[str] = []
-    for base, dirs, files in os.walk(root):
-        dirs[:] = [d for d in dirs if d not in SKIP_DIRS and not d.startswith(".")]
-        for name in files:
-            if name.endswith(SKIP_SUFFIXES):
+    for path in candidates:
+        parts = set(os.path.relpath(path, root).split(os.sep))
+        if parts & SKIP_DIRS or ".git" in parts:
+            continue
+        if path.endswith(SKIP_SUFFIXES):
+            continue
+        try:
+            if os.path.islink(path) or os.path.getsize(path) > MAX_SCAN_BYTES:
                 continue
-            path = os.path.join(base, name)
-            try:
-                if os.path.getsize(path) > MAX_SCAN_BYTES or os.path.islink(path):
-                    continue
-            except OSError:
-                continue
-            found.append(path)
+        except OSError:
+            continue
+        found.append(path)
     return sorted(found)
 
 
@@ -98,7 +126,7 @@ def secret_findings(root: str = ".") -> List[Dict[str, Any]]:
                         continue
                     for label, pattern in SECRET_PATTERNS:
                         match = pattern.search(line)
-                        if not match or PLACEHOLDER.search(line):
+                        if not match or PLACEHOLDER.search(match.group(0)):
                             continue
                         findings.append({
                             "file": os.path.relpath(path, root), "line": number, "kind": label,
@@ -149,11 +177,29 @@ def check_dependencies(report_path: str, allowlist_path: str = ALLOWLIST_FILE,
                 "error": f"Отчёт о зависимостях не прочитан: {type(e).__name__}"}
 
     packages = report.get("dependencies") if isinstance(report, dict) else report
+    # Отчёт обязан быть понятной структурой: пустой или неожиданный JSON — это отсутствие проверки,
+    # а не её успех. В конвейере код выхода pip-audit подавляется, поэтому судит только этот разбор (M09).
+    if not isinstance(packages, list) or not packages:
+        return {"ok": False, "blocking": [], "allowed": [], "expired": [], "skipped": [],
+                "error": "Отчёт о зависимостях пуст или не той формы: проверка не выполнена"}
+
     allow = {str(e.get("id") or "").upper(): e for e in load_allowlist(allowlist_path)}
-    blocking, allowed, expired = [], [], []
+    blocking, allowed, expired, skipped = [], [], [], []
     for pkg in packages or []:
+        if not isinstance(pkg, dict):
+            return {"ok": False, "blocking": [], "allowed": [], "expired": [], "skipped": [],
+                    "error": "Отчёт о зависимостях повреждён: элемент списка не является пакетом"}
         name = pkg.get("name") or pkg.get("package")
         version = pkg.get("version")
+        # Пакет, который не смогли проверить, — не «чистый»: о нём просто ничего не известно
+        reason = pkg.get("skip_reason") or pkg.get("skipped") or pkg.get("error")
+        if reason:
+            skipped.append({"package": name, "version": version, "why": str(reason)[:200]})
+            continue
+        if "vulns" not in pkg and "vulnerabilities" not in pkg:
+            skipped.append({"package": name, "version": version,
+                            "why": "в отчёте нет списка уязвимостей для этого пакета"})
+            continue
         for vuln in pkg.get("vulns") or pkg.get("vulnerabilities") or []:
             vid = str(vuln.get("id") or "").upper()
             item = {"id": vid, "package": name, "version": version,
@@ -175,9 +221,10 @@ def check_dependencies(report_path: str, allowlist_path: str = ALLOWLIST_FILE,
                 expired.append({**item, "until": until, "reason": reason})
             else:
                 allowed.append({**item, "until": until, "reason": reason})
-    return {"ok": not blocking and not expired, "blocking": blocking, "allowed": allowed,
-            "expired": expired,
-            "note": "Пропуск уязвимости действует только с причиной и до указанной даты"}
+    return {"ok": not blocking and not expired and not skipped,
+            "blocking": blocking, "allowed": allowed, "expired": expired, "skipped": skipped,
+            "note": "Пропуск уязвимости действует только с причиной и до указанной даты; "
+                    "непроверенная зависимость считается непроверенной, а не безопасной"}
 
 
 # ---------------------------------------------------------------------------
@@ -191,6 +238,68 @@ def _schema_version(path: str) -> Optional[int]:
         return int(row[0]) if row and row[0] is not None else None
     except (sqlite3.Error, TypeError, ValueError):
         return None
+
+
+def _snapshot(source_path: str, target_path: str) -> None:
+    """Согласованная копия базы через SQLite Backup API.
+
+    Обычное копирование файла берёт только основной файл: подтверждённые транзакции, которые ещё лежат
+    в журнале WAL, в копию не попадают, а проверка целостности такой потери не замечает (M07).
+    Backup API копирует базу целиком, вместе с журналом, и не трогает исходный файл.
+    """
+    source = sqlite3.connect(f"file:{source_path}?mode=ro", uri=True)
+    try:
+        target = sqlite3.connect(target_path)
+        try:
+            source.backup(target)
+        finally:
+            target.close()
+    finally:
+        source.close()
+
+
+def rollback_check(db_path: str, code_dir: str, python_exe: Optional[str] = None,
+                   timeout: float = 120.0) -> Dict[str, Any]:
+    """Проверяет, что ПРЕЖНИЙ код действительно работает на обновлённой базе.
+
+    Равенство версии схемы — условие необходимое, но не достаточное: старое приложение могло опираться
+    на что-то ещё (M07). Поэтому запросы приложения выполняются кодом из указанного каталога, то есть
+    тем самым, на который предлагается откатиться. Проверка идёт на копии; исходный файл не трогается.
+    """
+    import subprocess
+    if not os.path.isdir(code_dir):
+        return {"ok": False, "error": f"Каталог прежнего кода не найден: {code_dir}"}
+    workdir = tempfile.mkdtemp(prefix="rollback-check-")
+    target = os.path.join(workdir, "prices.db")
+    script = (
+        "import json, os, sys\n"
+        "sys.path.insert(0, os.getcwd())\n"
+        "import backup_health, database\n"
+        "database.DB_PATH = type(database.DB_PATH)(os.environ['ROLLBACK_DB'])\n"
+        "checks = []\n"
+        "with database.get_connection() as conn:\n"
+        "    for label, query in backup_health.SMOKE_QUERIES:\n"
+        "        try:\n"
+        "            conn.execute(query).fetchall()\n"
+        "            checks.append({'check': label, 'ok': True})\n"
+        "        except Exception as e:\n"
+        "            checks.append({'check': label, 'ok': False, 'error': f'{type(e).__name__}: {e}'})\n"
+        "print(json.dumps(checks, ensure_ascii=False))\n")
+    try:
+        _snapshot(db_path, target)
+        env = dict(os.environ, ROLLBACK_DB=target, DATA_DIR=workdir)
+        res = subprocess.run([python_exe or sys.executable, "-c", script], cwd=code_dir, env=env,
+                             capture_output=True, text=True, timeout=timeout)
+        if res.returncode != 0:
+            return {"ok": False, "error": f"Прежний код не смог открыть базу: {res.stderr.strip()[-400:]}"}
+        line = [l for l in res.stdout.splitlines() if l.startswith("[")]
+        checks = json.loads(line[-1]) if line else []
+        return {"ok": bool(checks) and all(c["ok"] for c in checks), "checks": checks,
+                "note": "Запросы приложения выполнены кодом прежнего релиза на обновлённой копии"}
+    except Exception as e:                       # noqa: BLE001 — отчёт важнее трассировки
+        return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+    finally:
+        shutil.rmtree(workdir, ignore_errors=True)
 
 
 def upgrade_rehearsal(db_path: str) -> Dict[str, Any]:
@@ -210,7 +319,7 @@ def upgrade_rehearsal(db_path: str) -> Dict[str, Any]:
     result: Dict[str, Any] = {"ok": False, "schema_before": before, "schema_after": None,
                               "smoke": [], "integrity": None, "rollback_compatible": None}
     try:
-        shutil.copy2(db_path, target)
+        _snapshot(db_path, target)
         import config
         import database
         saved = (database.DB_PATH, config.DATA_DIR)
@@ -239,7 +348,8 @@ def upgrade_rehearsal(db_path: str) -> Dict[str, Any]:
         smoke_ok = all(s["ok"] for s in result["smoke"])
         result["rollback_compatible"] = (before is not None and after == before)
         result["rollback_note"] = (
-            "Схема не изменилась: возврат на прежний образ возможен без восстановления копии."
+            "Схема не изменилась, поэтому прежний образ такую базу откроет. Это необходимое условие, "
+            "но не доказательство: работу прежнего кода подтверждает отдельная проверка rollback_check."
             if result["rollback_compatible"] else
             f"Схема выросла {before} → {after}: прежний образ такую базу не поднимет. Возврат — только "
             "восстановлением согласованной копии, при этом теряются все данные, накопленные после неё.")
@@ -326,6 +436,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     p_deps.add_argument("--allowlist", default=ALLOWLIST_FILE)
     p_upgrade = sub.add_parser("upgrade", help="репетиция обновления базы предыдущего релиза")
     p_upgrade.add_argument("db")
+    p_rollback = sub.add_parser("rollback", help="проверка прежнего кода на обновлённой базе")
+    p_rollback.add_argument("db")
+    p_rollback.add_argument("code_dir")
+    p_rollback.add_argument("--python", default=None)
     p_smoke = sub.add_parser("smoke", help="smoke по работающему образу")
     p_smoke.add_argument("url")
     args = parser.parse_args(argv)
@@ -336,6 +450,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return _print(check_dependencies(args.report, args.allowlist))
     if args.command == "upgrade":
         return _print(upgrade_rehearsal(args.db))
+    if args.command == "rollback":
+        return _print(rollback_check(args.db, args.code_dir, args.python))
     import asyncio
     return _print(asyncio.run(smoke(args.url)))
 

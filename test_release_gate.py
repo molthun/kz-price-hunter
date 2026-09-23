@@ -49,15 +49,31 @@ class SecretScanTest(unittest.TestCase):
         kinds = {f["kind"] for f in gate.check_secrets(self.tmp.name)["findings"]}
         self.assertEqual(kinds, {"Telegram bot token", "Приватный ключ"})
 
-    def test_examples_and_placeholders_do_not_block(self):
-        self.write("README.md", 'Пример: GEMINI_API_KEY="AIza' + "d" * 35 + '" (example)\n')
+    def test_placeholder_values_do_not_block(self):
+        """M08: заглушкой считается само значение, а не слово «example» где-то в строке."""
+        self.write("README.md", 'Пример: GEMINI_API_KEY="AIzaSy' + "x" * 33 + '"\n')
         self.write("env.sample", 'TELEGRAM_BOT_TOKEN=<your_token_here>\n')
         self.assertTrue(gate.check_secrets(self.tmp.name)["ok"])
+
+    def test_word_example_next_to_a_real_key_does_not_excuse_it(self):
+        self.write("README.md", 'Пример: GEMINI_API_KEY="AIza' + "d" * 35 + '" (example)\n')
+        report = gate.check_secrets(self.tmp.name)
+        self.assertFalse(report["ok"], "настоящий ключ остаётся ключом рядом со словом «пример»")
 
     def test_dependencies_and_binaries_are_skipped(self):
         self.write("node_modules/pkg/index.js", 'const k = "AIza' + "e" * 35 + '";\n')
         self.write("venv/lib/x.py", 'K = "AIza' + "f" * 35 + '"\n')
         self.assertTrue(gate.check_secrets(self.tmp.name)["ok"])
+
+    def test_workflow_files_are_scanned(self):
+        """M08: .github не должен выпадать из проверки — он попадает в репозиторий."""
+        import subprocess
+        subprocess.run(["git", "init", "-q", self.tmp.name], check=True, capture_output=True)
+        self.write(".github/workflows/publish.yml", "env:\n  TOKEN: ghp_" + "b" * 36 + "\n")
+        subprocess.run(["git", "-C", self.tmp.name, "add", "-A"], check=True, capture_output=True)
+        report = gate.check_secrets(self.tmp.name)
+        self.assertFalse(report["ok"])
+        self.assertEqual(report["findings"][0]["file"], ".github/workflows/publish.yml")
 
     def test_this_repository_has_no_secrets(self):
         """Настоящая проверка: в самом репозитории ключей быть не должно."""
@@ -111,6 +127,31 @@ class DependencyAuditTest(unittest.TestCase):
                                                  self.allowlist([entry]), now=NOW)
                 self.assertFalse(result["ok"])
 
+    def test_skipped_package_is_not_a_clean_result(self):
+        """M09: «не смогли проверить» — это не «проверено и чисто»."""
+        path = os.path.join(self.tmp.name, "audit.json")
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump({"dependencies": [{"name": "demo", "version": "1.0",
+                                         "skip_reason": "Could not audit package"}]}, fh)
+        result = gate.check_dependencies(path, self.allowlist([]), now=NOW)
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["skipped"][0]["package"], "demo")
+
+    def test_package_without_a_vulnerability_list_is_treated_as_unchecked(self):
+        path = os.path.join(self.tmp.name, "audit.json")
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump({"dependencies": [{"name": "demo", "version": "1.0"}]}, fh)
+        self.assertFalse(gate.check_dependencies(path, self.allowlist([]), now=NOW)["ok"])
+
+    def test_empty_or_foreign_report_does_not_pass(self):
+        for payload in ({}, {"dependencies": []}, [], {"результат": "ок"},
+                        {"dependencies": ["aiohttp"]}):
+            with self.subTest(payload=payload):
+                path = os.path.join(self.tmp.name, "audit.json")
+                with open(path, "w", encoding="utf-8") as fh:
+                    json.dump(payload, fh)
+                self.assertFalse(gate.check_dependencies(path, self.allowlist([]), now=NOW)["ok"])
+
     def test_unreadable_report_blocks_instead_of_passing(self):
         result = gate.check_dependencies(os.path.join(self.tmp.name, "нет.json"), self.allowlist([]), now=NOW)
         self.assertFalse(result["ok"])
@@ -146,10 +187,12 @@ class UpgradeRehearsalTest(unittest.TestCase):
         self.assertTrue(all(s["ok"] for s in result["smoke"]))
         self.assertEqual(result["schema_after"], database.SCHEMA_VERSION)
 
-    def test_unchanged_schema_means_rollback_needs_no_restore(self):
+    def test_unchanged_schema_is_stated_as_necessary_not_sufficient(self):
+        """M07: равенство схемы не выдаётся за доказательство работоспособности прежнего кода."""
         result = gate.upgrade_rehearsal(self.db)
         self.assertTrue(result["rollback_compatible"])
-        self.assertIn("без восстановления копии", result["rollback_note"])
+        self.assertIn("не доказательство", result["rollback_note"])
+        self.assertIn("rollback_check", result["rollback_note"])
 
     def test_grown_schema_names_the_data_loss_plainly(self):
         with sqlite3.connect(self.db) as conn:
@@ -178,6 +221,70 @@ class UpgradeRehearsalTest(unittest.TestCase):
         after = os.stat(self.db)
         self.assertEqual((before.st_size, round(before.st_mtime, 3)),
                          (after.st_size, round(after.st_mtime, 3)))
+
+
+class WalSnapshotTest(unittest.TestCase):
+    """M07: подтверждённая транзакция в журнале WAL обязана попасть в копию."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.data_dir = type(DB_PATH)(self.tmp.name)
+        for p in [patch.object(database, "DB_PATH", self.data_dir / "prices.db"),
+                  patch("config.DATA_DIR", self.data_dir),
+                  patch("config.SETTINGS_FILE", self.data_dir / "settings.json")]:
+            p.start()
+            self.addCleanup(p.stop)
+        database.init_db()
+        self.db = str(self.data_dir / "prices.db")
+
+    def write_into_wal(self):
+        """Запись, подтверждённая, но оставленная в журнале: checkpoint отключён, соединение открыто."""
+        conn = sqlite3.connect(self.db)
+        self.addCleanup(conn.close)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA wal_autocheckpoint=0")
+        conn.execute("INSERT OR REPLACE INTO schema_metadata (name, value) VALUES ('wal_sentinel', '1')")
+        conn.commit()
+        return conn
+
+    def test_committed_wal_record_is_in_the_rehearsed_copy(self):
+        self.write_into_wal()
+        seen = {}
+        original = gate._snapshot
+
+        def spy(source, target):
+            original(source, target)
+            with sqlite3.connect(target) as copy:
+                row = copy.execute("SELECT value FROM schema_metadata WHERE name = 'wal_sentinel'").fetchone()
+            seen["sentinel"] = row[0] if row else None
+
+        with patch.object(gate, "_snapshot", spy):
+            result = gate.upgrade_rehearsal(self.db)
+        self.assertTrue(result["ok"], result.get("error"))
+        self.assertEqual(seen["sentinel"], "1", "запись из журнала WAL должна быть в копии")
+
+    def test_source_database_is_not_modified_by_the_snapshot(self):
+        self.write_into_wal()
+        before = os.stat(self.db)
+        target = os.path.join(self.tmp.name, "copy.db")
+        gate._snapshot(self.db, target)
+        after = os.stat(self.db)
+        self.assertEqual(before.st_size, after.st_size)
+        with sqlite3.connect(target) as copy:
+            self.assertEqual(copy.execute("PRAGMA integrity_check").fetchone()[0], "ok")
+
+    def test_previous_code_is_checked_on_the_upgraded_copy(self):
+        """M07: обещание отката подтверждается запуском прежнего кода, а не равенством номера схемы."""
+        repo = os.path.dirname(os.path.abspath(__file__))
+        result = gate.rollback_check(self.db, repo)
+        self.assertTrue(result["ok"], result.get("error"))
+        self.assertTrue(all(c["ok"] for c in result["checks"]))
+
+    def test_missing_previous_code_is_reported_not_assumed_fine(self):
+        result = gate.rollback_check(self.db, os.path.join(self.tmp.name, "нет-кода"))
+        self.assertFalse(result["ok"])
+        self.assertIn("не найден", result["error"])
 
 
 class ImageSmokeTest(unittest.IsolatedAsyncioTestCase):
@@ -283,6 +390,9 @@ class WorkflowTest(unittest.TestCase):
         for job in ("secret-scan:", "dependency-audit:", "upgrade-rehearsal:", "image-smoke:"):
             with self.subTest(job=job):
                 self.assertIn(f"  {job}", text)
+
+    def test_rollback_is_rehearsed_with_the_previous_release_code(self):
+        self.assertIn("release_gate.py rollback", self.workflow())
 
     def test_image_is_smoke_tested_before_it_is_pushed(self):
         text = self.workflow()

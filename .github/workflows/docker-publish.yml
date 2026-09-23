@@ -136,6 +136,11 @@ jobs:
       - name: Rehearse the upgrade with the new code
         run: python release_gate.py upgrade prev-data/prices.db
 
+      # Равенство версии схемы — условие необходимое, но не достаточное: на обновлённой базе
+      # запускается САМ прежний релиз, иначе обещание отката ничем не подтверждено (M07)
+      - name: Rehearse the rollback with the previous release code
+        run: python release_gate.py rollback prev-data/prices.db prev-release
+
   # Сборка образа и smoke по нему ДО публикации: отвечающий контейнер — ещё не работающий сервис
   image-smoke:
     runs-on: ubuntu-latest
