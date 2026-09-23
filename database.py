@@ -769,6 +769,10 @@ def _create_schema(cursor) -> None:
             PRIMARY KEY (day, task, provider, model, outcome)
         )
     """)
+    # Сколько вызовов в строке имеют известную стоимость: одна строка агрегата объединяет вызовы с ценой
+    # и без неё, и без отдельного счётчика неполнота суммы была не видна (M06). У прежних строк колонка
+    # остаётся NULL — это читается как «покрытие неизвестно», а не как «всё оценено».
+    _add_column(cursor, "ai_usage", "priced_requests", "INTEGER")
 
 
 # ---------------------------------------------------------------------------
@@ -1137,6 +1141,16 @@ def get_metadata(name: str, default: Optional[str] = None) -> Optional[str]:
             return row[0] if row else default
     except sqlite3.OperationalError:
         return default
+
+
+def set_metadata_many(pairs: Dict[str, str]) -> None:
+    """Несколько служебных значений одной транзакцией: состояние шага не должно записаться наполовину."""
+    with get_connection() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        for name, value in pairs.items():
+            conn.execute("INSERT OR REPLACE INTO schema_metadata (name, value) VALUES (?, ?)",
+                         (name, str(value)))
+        conn.commit()
 
 
 def set_metadata(name: str, value: str) -> None:
@@ -2827,11 +2841,13 @@ def record_ai_usage(task: str, audience: str, provider: str, model: str, outcome
     day = moment.strftime("%Y-%m-%d")
     with get_connection() as conn:
         conn.execute("""
-            INSERT INTO ai_usage (day, task, audience, provider, model, outcome, requests, input_tokens,
-                                  output_tokens, cost_usd, latency_sum_ms, cache_hits, fallbacks, errors, last_error)
-            VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO ai_usage (day, task, audience, provider, model, outcome, requests, priced_requests,
+                                  input_tokens, output_tokens, cost_usd, latency_sum_ms, cache_hits,
+                                  fallbacks, errors, last_error)
+            VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(day, task, provider, model, outcome) DO UPDATE SET
                 requests = requests + 1,
+                priced_requests = COALESCE(priced_requests, 0) + excluded.priced_requests,
                 input_tokens = input_tokens + excluded.input_tokens,
                 output_tokens = output_tokens + excluded.output_tokens,
                 cost_usd = CASE WHEN excluded.cost_usd IS NULL THEN cost_usd
@@ -2841,7 +2857,9 @@ def record_ai_usage(task: str, audience: str, provider: str, model: str, outcome
                 fallbacks = fallbacks + excluded.fallbacks,
                 errors = errors + excluded.errors,
                 last_error = COALESCE(excluded.last_error, last_error)
-        """, (day, task, audience, provider, model, outcome, int(input_tokens or 0), int(output_tokens or 0),
+        """, (day, task, audience, provider, model, outcome,
+              1 if cost is not None else 0,          # вызов с известной стоимостью (M06)
+              int(input_tokens or 0), int(output_tokens or 0),
               cost, float(latency_ms or 0.0), 1 if cache_hit else 0, 1 if fallback else 0,
               1 if outcome in ("error", "bad_response") else 0, error))
         conn.commit()
@@ -3227,23 +3245,51 @@ def http_metrics_by_shop(days: int = 7, now: Optional[datetime.datetime] = None)
     return metrics
 
 
+def http_counters_for_hour(moment: datetime.datetime) -> Dict[str, Dict[str, Any]]:
+    """Счётчики того часа, в который попал момент: нужны, чтобы посчитать дельту неполного часа (M02)."""
+    bucket = moment.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:00:00Z")
+    counters: Dict[str, Dict[str, Any]] = {}
+    with get_connection() as conn:
+        for row in conn.execute("""
+            SELECT shop, SUM(total_requests) AS requests, SUM(errors) + SUM(status_5xx) AS errors,
+                   SUM(status_429) + SUM(status_4xx) AS blocked
+            FROM telemetry_http_aggregates
+            WHERE bucket_type = 'hour' AND bucket_start = ? AND shop != ''
+            GROUP BY shop
+        """, (bucket,)):
+            counters[row["shop"]] = {"requests": int(row["requests"] or 0),
+                                     "errors": int(row["errors"] or 0),
+                                     "blocked": int(row["blocked"] or 0)}
+    return {"hour": bucket, "shops": counters}
+
+
 def http_metrics_by_shop_window(since: datetime.datetime,
-                                until: Optional[datetime.datetime] = None) -> Dict[str, Dict[str, Any]]:
+                                until: Optional[datetime.datetime] = None,
+                                start_counters: Optional[Dict[str, Any]] = None) -> Dict[str, Dict[str, Any]]:
     """HTTP-метрики за ТОЧНЫЙ период по часовым агрегатам (P11, M02).
 
     Дневных сумм для границы внутри суток недостаточно: они втягивают трафик до начала шага и прячут
-    провал пробного магазина. Часовые агрегаты дают границу с точностью до часа.
+    провал пробного магазина.
 
-    Начало округляется вверх до целого часа: неполный час, в который шаг только включили, содержит и
-    прежний трафик, поэтому он не засчитывается — лучше недосчитать, чем засчитать чужое.
+    Неполный первый час не выбрасывается (M02): если передан снимок счётчиков на момент начала
+    (`start_counters` от `http_counters_for_hour`), из часа, в котором шаг начался, вычитается то, что
+    уже было записано до старта. Без снимка час начала не засчитывается вовсе — это честнее, чем
+    засчитать чужой трафик, и такой случай виден в отчёте.
     """
     end = until or datetime.datetime.now(datetime.timezone.utc)
     start = since.astimezone(datetime.timezone.utc)
-    if start.minute or start.second or start.microsecond:
-        start = start.replace(minute=0, second=0, microsecond=0) + datetime.timedelta(hours=1)
     fmt = "%Y-%m-%dT%H:00:00Z"
-    lo = start.strftime(fmt)
+    start_hour = start.replace(minute=0, second=0, microsecond=0)
+    partial_hour = start_hour.strftime(fmt)
+    counters = (start_counters or {}).get("shops") or {}
+    uses_delta = bool(start_counters) and (start_counters.get("hour") == partial_hour)
+    if start.minute or start.second or start.microsecond:
+        lo = partial_hour if uses_delta else (start_hour + datetime.timedelta(hours=1)).strftime(fmt)
+    else:
+        lo = partial_hour
+        uses_delta = False                 # шаг начался ровно на границе часа: вычитать нечего
     hi = end.astimezone(datetime.timezone.utc).strftime(fmt)
+
     metrics: Dict[str, Dict[str, Any]] = {}
     with get_connection() as conn:
         for row in conn.execute("""
@@ -3253,7 +3299,14 @@ def http_metrics_by_shop_window(since: datetime.datetime,
             WHERE bucket_type = 'hour' AND bucket_start >= ? AND bucket_start <= ? AND shop != ''
             GROUP BY shop
         """, (lo, hi)):
-            metrics[row["shop"]] = dict(row)
+            item = dict(row)
+            if uses_delta:
+                before = counters.get(row["shop"]) or {}
+                for field in ("requests", "errors", "blocked"):
+                    item[field] = max(0, int(item.get(field) or 0) - int(before.get(field) or 0))
+            metrics[row["shop"]] = item
+    metrics["_coverage"] = {"from": lo, "to": hi, "partial_hour": "delta" if uses_delta else
+                            ("full" if lo == partial_hour else "excluded")}
     return metrics
 
 

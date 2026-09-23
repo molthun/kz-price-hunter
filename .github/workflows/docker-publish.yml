@@ -134,12 +134,13 @@ jobs:
           cd prev-release && DATA_DIR="$GITHUB_WORKSPACE/prev-data" python -c "import database; database.init_db()"
 
       - name: Rehearse the upgrade with the new code
-        run: python release_gate.py upgrade prev-data/prices.db
+        # Обновлённая база сохраняется: проверка отката должна идти именно по ней, а не по исходной
+        run: python release_gate.py upgrade prev-data/prices.db --keep upgraded.db
 
-      # Равенство версии схемы — условие необходимое, но не достаточное: на обновлённой базе
+      # Равенство версии схемы — условие необходимое, но не достаточное: на ОБНОВЛЁННОЙ базе
       # запускается САМ прежний релиз, иначе обещание отката ничем не подтверждено (M07)
-      - name: Rehearse the rollback with the previous release code
-        run: python release_gate.py rollback prev-data/prices.db prev-release
+      - name: Rehearse the rollback with the previous release code on the upgraded database
+        run: python release_gate.py rollback upgraded.db prev-release
 
   # Сборка образа и smoke по нему ДО публикации: отвечающий контейнер — ещё не работающий сервис
   image-smoke:

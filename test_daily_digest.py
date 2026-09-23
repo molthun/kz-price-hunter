@@ -240,16 +240,19 @@ class SummaryTest(unittest.TestCase):
              patch.object(ai_service, "call_gemini_api", fake):
             return report, asyncio.run(digest.summarize(report))
 
-    def test_summary_with_report_numbers_is_kept(self):
-        report, result = self.run_summary("За сутки поисков 0, новых товаров 0. Вероятно, сервис простаивал.")
+    def test_summary_with_field_references_is_rendered_by_the_service(self):
+        report, result = self.run_summary(
+            "За сутки поисков {blocks.search.searches}, новых товаров {blocks.catalog.new_products}. "
+            "Вероятно, сервис простаивал.")
         self.assertIsNone(result["rejected"])
+        self.assertIn("поисков 0", result["summary"])
         self.assertIn("Вероятно", result["summary"])
         self.assertEqual(digest.load(DAY, "UTC")["summary"], result["summary"])
 
     def test_invented_numbers_cancel_the_summary_but_not_the_report(self):
         report, result = self.run_summary("Продажи выросли на 37 %, обработано 4200 запросов.")
         self.assertIsNone(result["summary"])
-        self.assertIn("которых нет в отчёте", result["rejected"])
+        self.assertIn("написала числа сама", result["rejected"])
         self.assertIsNone(digest.load(DAY, "UTC")["summary"], "плохой пересказ не сохраняется")
         self.assertEqual(report["blocks"]["search"]["searches"], 0, "цифры отчёта остаются")
 
@@ -257,16 +260,25 @@ class SummaryTest(unittest.TestCase):
         """M04: «12 ошибок» при нулевых фактах — выдумка, а не нумерация пункта."""
         report, result = self.run_summary("За сутки было 12 ошибок и 3 обхода.")
         self.assertIsNone(result["summary"])
-        self.assertIn("которых нет в отчёте", result["rejected"])
+        self.assertIn("написала числа сама", result["rejected"])
 
-    def test_numbered_list_of_real_numbers_is_kept(self):
-        report, result = self.run_summary("Итоги:\n1. Поисков 0.\n2. Новых товаров 0.")
+    def test_a_known_number_attached_to_the_wrong_metric_is_refused(self):
+        """Критерий M04: число из отчёта, приписанное не тому показателю, тоже не проходит."""
+        report, result = self.run_summary("Ошибок AI: 0.")
+        self.assertIsNone(result["summary"])
+        self.assertIn("написала числа сама", result["rejected"])
+
+    def test_numbered_list_with_references_is_kept(self):
+        report, result = self.run_summary(
+            "Итоги:\n1. Поисков {blocks.search.searches}.\n2. Новых товаров {blocks.catalog.new_products}.")
         self.assertIsNone(result["rejected"])
-        self.assertIn("1.", result["summary"])
+        self.assertIn("1. Поисков 0", result["summary"])
 
     def test_prompt_states_the_rules_and_wraps_data(self):
-        self.run_summary("Поисков 0.")
-        self.assertIn("ТОЛЬКО числа из блока данных", self.prompt)
+        self.run_summary("Сутки без происшествий.")
+        self.assertIn("НЕ ПИШИ ЧИСЕЛ", self.prompt)
+        self.assertIn("Доступные ссылки на показатели", self.prompt)
+        self.assertIn("{blocks.search.searches}", self.prompt)
         self.assertIn("<<<ДАННЫЕ>>>", self.prompt)
         self.assertIn("вероятно", self.prompt)
 
@@ -609,3 +621,74 @@ class AuditFixesTest(unittest.TestCase):
         self.assertEqual(ai["cost_state"], "no_calls")
         self.assertIsNone(ai["cost_usd"])
         self.assertIn("вызовов не было", digest._cost_text(ai))
+
+
+class MixedCostTest(unittest.TestCase):
+    """M06: вызовы с ценой и без неё попадают в одну строку агрегата — неполнота обязана быть видна."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.data_dir = type(DB_PATH)(self.tmp.name)
+        for p in [patch.object(database, "DB_PATH", self.data_dir / "prices.db"),
+                  patch("config.DATA_DIR", self.data_dir),
+                  patch("config.SETTINGS_FILE", self.data_dir / "settings.json")]:
+            p.start()
+            self.addCleanup(p.stop)
+        database.init_db()
+        self.inside = datetime.datetime(2026, 9, 22, 10, 0, tzinfo=UTC)
+
+    def record(self, cost):
+        database.record_ai_usage("consultant", "user", "gemini", "gemini-2.5-flash", "ok",
+                                 cost=cost, now=self.inside)
+
+    def ai(self):
+        return digest.compute(DAY, "UTC", now=NOW)["blocks"]["ai"]
+
+    def test_same_row_with_and_without_price_is_partial(self):
+        """Воспроизведение аудита: два одинаковых по ключу вызова, у одного цены нет."""
+        self.record(None)
+        self.record(0.5)
+        ai = self.ai()
+        self.assertEqual(ai["requests"], 2)
+        self.assertEqual(ai["priced_requests"], 1)
+        self.assertEqual(ai["unpriced_requests"], 1)
+        self.assertEqual(ai["cost_state"], "partial")
+        self.assertIn("из 2 вызовов", digest._cost_text(ai))
+
+    def test_order_does_not_matter(self):
+        self.record(0.5)
+        self.record(None)
+        ai = self.ai()
+        self.assertEqual((ai["cost_state"], ai["priced_requests"]), ("partial", 1))
+
+    def test_all_priced_in_one_row_is_known(self):
+        self.record(0.25)
+        self.record(0.25)
+        ai = self.ai()
+        self.assertEqual(ai["cost_state"], "known")
+        self.assertEqual(ai["cost_usd"], 0.5)
+
+    def test_all_unpriced_in_one_row_is_unknown(self):
+        self.record(None)
+        self.record(None)
+        ai = self.ai()
+        self.assertEqual(ai["cost_state"], "unknown")
+        self.assertIsNone(ai["cost_usd"])
+
+    def test_rows_written_before_the_counter_are_called_incomplete(self):
+        """Прежние строки без счётчика: покрытие неизвестно, и так и сказано."""
+        self.record(0.5)
+        with database.get_connection() as conn:
+            conn.execute("UPDATE ai_usage SET priced_requests = NULL")
+            conn.commit()
+        ai = self.ai()
+        self.assertEqual(ai["cost_state"], "partial")
+        self.assertEqual(ai["legacy_requests"], 1)
+        self.assertIn("до раздельного учёта", digest._cost_text(ai))
+
+    def test_incompleteness_reaches_the_telegram_message(self):
+        self.record(None)
+        self.record(0.5)
+        text = "\n".join(digest.message_lines(digest.compute(DAY, "UTC", now=NOW)))
+        self.assertIn("из 2 вызовов", text)

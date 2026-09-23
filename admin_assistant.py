@@ -215,6 +215,74 @@ def strip_list_numbering(text: str) -> str:
     return _LIST_MARKER_RE.sub("•", str(text or ""))
 
 
+# --- Числа в ответе подставляет код -------------------------------------------------------------
+# Проверка «число встречается в фактах» ловила выдумку, но не подмену: «ошибок 50» при фактах
+# «ошибок 0, запросов 50» проходило. Поэтому модель вообще не пишет чисел: она ставит ссылку вида
+# {блок.поле}, а значение подставляет сервис из тех же фактов (M04).
+FIELD_RE = re.compile(r"\{([A-Za-zА-Яа-я0-9_]+(?:\.[A-Za-zА-Яа-я0-9_]+)+)\}")
+DIGIT_RE = re.compile(r"\d")
+
+
+def field_paths(facts: Dict[str, Any], prefix: str = "") -> Dict[str, Any]:
+    """Пути к числовым полям фактов: «блок.поле» → значение. Их и предлагаем модели."""
+    paths: Dict[str, Any] = {}
+    for key, value in (facts or {}).items():
+        name = f"{prefix}{key}"
+        if isinstance(value, dict):
+            paths.update(field_paths(value, f"{name}."))
+        elif isinstance(value, bool):
+            continue
+        elif isinstance(value, (int, float)):
+            paths[name] = value
+    return paths
+
+
+def resolve_field(facts: Dict[str, Any], path: str) -> Any:
+    node: Any = facts
+    for part in path.split("."):
+        if not isinstance(node, dict) or part not in node:
+            return None
+        node = node[part]
+    if isinstance(node, bool) or not isinstance(node, (int, float)):
+        return None
+    return node
+
+
+def _format_value(value: Any) -> str:
+    if isinstance(value, float) and not value.is_integer():
+        return f"{value:.4f}".rstrip("0").rstrip(".")
+    return str(int(value))
+
+
+def render_numbers(text: str, facts: Dict[str, Any]) -> Tuple[str, List[str], List[str]]:
+    """Подставляет значения вместо ссылок. Возвращает (текст, неизвестные ссылки, свои числа модели)."""
+    unknown: List[str] = []
+
+    def replace(match):
+        value = resolve_field(facts, match.group(1))
+        if value is None:
+            unknown.append(match.group(1))
+            return match.group(0)
+        return _format_value(value)
+
+    rendered = FIELD_RE.sub(replace, str(text or ""))
+    # Числа, которые модель написала сама, а не через ссылку: их проверить нельзя, поэтому они запрещены
+    own = [fragment for fragment in _NUMBER_RE.findall(strip_list_numbering(FIELD_RE.sub("", str(text or ""))))]
+    return rendered, unknown, own
+
+
+def verify_and_render(text: str, facts: Dict[str, Any]) -> Tuple[Optional[str], Optional[str]]:
+    """Готовый текст или причина отказа. Любое собственное число модели — причина отказа."""
+    rendered, unknown, own = render_numbers(text, facts)
+    if unknown:
+        return None, ("в ответе есть ссылки на показатели, которых нет в данных: "
+                      + ", ".join(sorted(set(unknown))[:5]))
+    if own:
+        return None, ("модель написала числа сама: " + ", ".join(sorted(set(own))[:5])
+                      + ". Числа подставляет сервис по ссылке вида {блок.поле}")
+    return rendered, None
+
+
 def unverified_numbers(answer: str, context: Dict[str, Any]) -> List[str]:
     """Числа ответа, которых нет в собранных фактах.
 
@@ -263,13 +331,17 @@ def build_prompt(context: Dict[str, Any]) -> str:
     return (
         "Ты помогаешь администратору сервиса мониторинга цен разобраться в его состоянии.\n"
         "Отвечай по-русски, коротко и по делу. Правила, которые нельзя нарушать:\n"
-        "1. Используй ТОЛЬКО числа из блока данных ниже. Не придумывай и не оценивай недостающие значения.\n"
+        "1. НЕ ПИШИ ЧИСЕЛ. Вместо числа ставь ссылку на показатель в фигурных скобках — {блок.поле} —\n"
+        "   и сервис подставит значение сам. Доступные ссылки перечислены ниже. Ссылка на показатель,\n"
+        "   которого там нет, недопустима; собственное число в тексте тоже.\n"
         "2. Разделяй факты и предположения: сначала «Факты», затем «Возможная причина» со словом «вероятно».\n"
         "3. Если данных для вывода не хватает — так и напиши, какого именно наблюдения не хватает.\n"
         "4. У каждого числа указывай период или источник, как они даны в данных.\n"
         "5. Ничего не предлагай изменить в настройках магазинов без явного вопроса об этом.\n\n"
         f"Вопрос администратора: {context.get('question')}\n\n"
-        + ai_router.untrusted_block(facts, "ДАННЫЕ")
+        "Доступные ссылки на показатели:\n"
+        + "\n".join(f"  {{{path}}}" for path in sorted(field_paths(context.get('facts') or {})))
+        + "\n\n" + ai_router.untrusted_block(facts, "ДАННЫЕ")
     )
 
 
@@ -287,9 +359,8 @@ async def answer(question: str, days: int = DEFAULT_DAYS,
               "unavailable": context["unavailable"], "summary": summary, "answer": None,
               "ai": None, "rejected": None,
               "note": "Цифры собраны кодом из отчётов мониторинга; модель только объясняет их словами. "
-                      "Помощник работает только на чтение. Проверка отклоняет числа, которых нет в "
-                      "данных, но не гарантирует, что число отнесено к нужному показателю — сверяйтесь "
-                      "с фактами ниже."}
+                      "Помощник работает только на чтение. Числа в ответе подставлены сервисом по ссылке "
+                      "на показатель, поэтому величина и показатель не могут разойтись."}
     try:
         routed = await ai_router.run("admin_assistant", build_prompt(context),
                                      validate=lambda v: v if isinstance(v, (dict, str)) else None)
@@ -304,11 +375,12 @@ async def answer(question: str, days: int = DEFAULT_DAYS,
         result["ai"] = "модель не дала ответа"
         return result
 
-    invented = unverified_numbers(text, context["facts"])
-    if invented:
-        result["rejected"] = f"в ответе есть числа, которых нет в данных: {', '.join(invented[:5])}"
+    rendered, refusal = verify_and_render(text, context["facts"])
+    if refusal:
+        result["rejected"] = refusal
         result["ai"] = routed.get("provider")
         return result
+    text = rendered
     result["answer"] = text
     result["ai"] = routed.get("provider")
     return result

@@ -40,6 +40,7 @@ METADATA_BASELINE = "adaptive_scheduler_baseline"      # снимок метри
 METADATA_STARTED = "adaptive_scheduler_started_at"
 METADATA_LAST_ROLLBACK = "adaptive_scheduler_last_rollback"
 METADATA_CANARY = "adaptive_scheduler_canary"          # состав шага фиксируется при включении (M01)
+METADATA_HTTP_START = "adaptive_scheduler_http_start"  # счётчики HTTP на момент включения (M02)
 
 # --- Пороги остановки и отката. СОГЛАСОВАНЫ С ВЛАДЕЛЬЦЕМ ДО ВКЛЮЧЕНИЯ (2026-09-23), вариант «строго»:
 # лучше лишний откат, чем испорченные отношения с магазином.
@@ -75,23 +76,53 @@ def can_switch(current: str, target: str) -> Tuple[bool, str]:
                    f"следующий шаг — «{STAGE_LABELS[NEXT_STAGE[current]]}»")
 
 
-def canary_shops(stage: str, candidates: Sequence[Dict[str, Any]]) -> List[str]:
+class StageRefused(Exception):
+    """Шаг нельзя начать, и причина называется словами, а не молча подменяется другим магазином."""
+
+
+def allowed_shops() -> List[str]:
+    """Магазины, которые сервис вообще обходит сейчас: выключенный источник участником быть не может."""
+    try:
+        import web.server as server
+        return list(server.enabled_shop_keys())
+    except Exception:
+        return []
+
+
+def canary_shops(stage: str, candidates: Sequence[Dict[str, Any]],
+                 allowed: Optional[Sequence[str]] = None) -> List[str]:
     """Магазины, на которые распространяется новый порядок.
 
+    Берутся только включённые источники: кандидаты собираются из истории обходов и содержат в том числе
+    выключенные магазины, а их сервис всё равно не обходит (M01).
+
     Первым берётся самый дружелюбный источник (быстрый, лёгкий, без ошибок) — на нём ошибка включения
-    стоит меньше всего. Порядок детерминирован, чтобы шаг был воспроизводим.
+    стоит меньше всего. Порядок детерминирован, чтобы шаг был воспроизводим. Если дружелюбного источника
+    нет, первый шаг не начинается: причина называется, замена не подбирается.
     """
     import scheduler_shadow as sched
     if stage == OFF or not candidates:
         return []
+    permitted = set(allowed if allowed is not None else allowed_shops())
     rank = {sched.FRIENDLY: 0, sched.NORMAL: 1, sched.EXPENSIVE: 2, sched.DEGRADED: 3}
-    shops: List[str] = []
+    ordered: List[Tuple[int, str]] = []
     for item in sorted(candidates, key=lambda c: (rank.get(c.get("profile"), 9), str(c.get("shop") or ""))):
         shop = str(item.get("shop") or "")
-        if shop and shop not in shops:
-            shops.append(shop)
+        if not shop or (permitted and shop not in permitted):
+            continue
+        if shop not in [s for _, s in ordered]:
+            ordered.append((rank.get(item.get("profile"), 9), shop))
+    if not ordered:
+        raise StageRefused("среди включённых магазинов нет источников с историей обходов")
+
     if stage == CANARY_ONE:
-        return shops[:1]
+        profile, shop = ordered[0]
+        if profile != rank[sched.FRIENDLY]:
+            raise StageRefused(
+                "первый шаг делается только на дружелюбном источнике (быстром, лёгком, без ошибок); "
+                "сейчас такого среди включённых магазинов нет")
+        return [shop]
+    shops = [s for _, s in ordered]
     if stage == CANARY_FEW:
         return shops[:CANARY_FEW_LIMIT]
     return shops
@@ -115,7 +146,11 @@ def select_targets(stage: str, baseline_targets: Sequence[str], candidates: Sequ
     # Состав шага берётся зафиксированным при включении, а не выбирается заново каждый раз (M01)
     chosen = list(members) if members is not None else canary_members()
     if not chosen:
-        chosen = canary_shops(stage, candidates)
+        try:
+            chosen = canary_shops(stage, candidates)
+        except StageRefused:
+            return {"targets": baseline, "changed": False, "canary": [],
+                    "explanation": "состав пробного шага не определён"}
     canary = [s for s in chosen if s in baseline]
     if not canary:
         return {"targets": baseline, "changed": False, "canary": [],
@@ -148,7 +183,8 @@ def before_window(moment: datetime.datetime) -> Tuple[datetime.datetime, datetim
 
 
 def metrics(shop_keys: Sequence[str], since: datetime.datetime,
-            until: Optional[datetime.datetime] = None) -> Dict[str, Any]:
+            until: Optional[datetime.datetime] = None,
+            start_counters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Метрики пробных магазинов за ТОЧНЫЙ период: доля ошибок, отказов по лимиту, полнота обходов.
 
     Период задаётся границами, а не «последними сутками»: иначе в результат шага попадали бы прежние
@@ -158,7 +194,8 @@ def metrics(shop_keys: Sequence[str], since: datetime.datetime,
     import database
     end = until or datetime.datetime.now(datetime.timezone.utc)
     keys = [str(k) for k in shop_keys]
-    http = database.http_metrics_by_shop_window(since, end)
+    http = database.http_metrics_by_shop_window(since, end, start_counters)
+    coverage = http.pop("_coverage", {})
 
     requests = errors = blocked = 0
     for key in keys:
@@ -183,6 +220,9 @@ def metrics(shop_keys: Sequence[str], since: datetime.datetime,
     return {
         "shops": keys,
         "since": since.isoformat(), "until": end.isoformat(),
+        # Какой период реально покрыт счётчиками HTTP: «delta» — неполный час учтён вычитанием,
+        # «excluded» — час начала не засчитан (нет снимка счётчиков) (M02)
+        "http_coverage": coverage,
         "hours": round((end - since).total_seconds() / 3600.0, 2),
         "requests": requests, "errors": errors, "blocked": blocked, "scans": scans,
         "error_share": round(errors / requests, 4) if requests else None,
@@ -197,8 +237,18 @@ def should_rollback(before: Optional[Dict[str, Any]],
     """Пора ли вернуть прежний порядок. Пороги согласованы с владельцем до включения.
 
     Мало наблюдений — не повод ни откатывать, ни объявлять шаг удачным: об этом говорится прямо.
+    Но «мало запросов» не должно закрывать глаза на провалившиеся обходы: полнота оценивается по
+    своему минимуму отдельно от HTTP (M02).
     """
-    if not after or not after.get("enough_data"):
+    if not after:
+        return False, "наблюдений пока мало, чтобы судить"
+    if not after.get("enough_data"):
+        # Обходов уже достаточно, чтобы судить о полноте, даже если запросов записано мало
+        scans_enough = int(after.get("scans") or 0) >= MIN_SCANS_TO_JUDGE
+        old_complete, new_complete = (before or {}).get("completeness"), after.get("completeness")
+        if scans_enough and old_complete is not None and new_complete is not None \
+                and old_complete - new_complete > COMPLETENESS_DROP_LIMIT:
+            return True, (f"упала полнота обходов: было {old_complete:.0%}, стало {new_complete:.0%}")
         return False, "наблюдений пока мало, чтобы судить"
     if not before:
         return False, "не с чем сравнивать: снимок «до» не сохранён"
@@ -269,17 +319,70 @@ def start_stage(stage: str, candidates: Sequence[Dict[str, Any]],
 
     Состав выбирается ровно здесь и больше не пересматривается (M01): иначе ухудшившийся пробный
     магазин молча заменялся бы другим, а сравнение «до/после» относилось бы к разным источникам.
+
+    Всё состояние шага пишется одной транзакцией: наполовину подготовленного шага быть не должно (M03).
     """
     import json
     import database
     moment = now or datetime.datetime.now(datetime.timezone.utc)
-    shops = canary_shops(stage, candidates)
+    shops = canary_shops(stage, candidates)          # может отказать словами (StageRefused)
     since, until = before_window(moment)
     before = metrics(shops, since, until) if shops else None
-    database.set_metadata(METADATA_CANARY, json.dumps(shops, ensure_ascii=False))
-    database.set_metadata(METADATA_BASELINE, json.dumps(before, ensure_ascii=False) if before else "")
-    database.set_metadata(METADATA_STARTED, moment.isoformat())
+    # Счётчики часа, в котором шаг начался: без них первый неполный час выпал бы из наблюдения (M02)
+    http_start = database.http_counters_for_hour(moment)
+    database.set_metadata_many({
+        METADATA_CANARY: json.dumps(shops, ensure_ascii=False),
+        METADATA_HTTP_START: json.dumps(http_start, ensure_ascii=False),
+        METADATA_BASELINE: json.dumps(before, ensure_ascii=False) if before else "",
+        METADATA_STARTED: moment.isoformat(),
+    })
     return {"stage": stage, "canary": shops, "before": before, "started_at": moment.isoformat()}
+
+
+def state_snapshot() -> Dict[str, str]:
+    """Текущее состояние включения целиком — чтобы вернуть его при неудачной подготовке (M03)."""
+    import database
+    return {key: (database.get_metadata(key) or "")
+            for key in (METADATA_CANARY, METADATA_HTTP_START, METADATA_BASELINE, METADATA_STARTED)}
+
+
+def restore_state(snapshot: Dict[str, str]) -> None:
+    import database
+    database.set_metadata_many(dict(snapshot))
+
+
+def switch_stage(target: str, candidates: Sequence[Dict[str, Any]],
+                 now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
+    """Единственный путь смены шага: проверка перехода → подготовка → активация.
+
+    Настройка меняется ПОСЛЕ того, как состояние шага подготовлено и записано. Если подготовка не
+    удалась, прежний шаг и прежнее состояние остаются нетронутыми: включённого шага без снимка «до»
+    и без состава возникнуть не может (M03).
+    """
+    import config
+    current = stage_of()
+    ok, why = can_switch(current, target)
+    if not ok:
+        raise StageRefused(why)
+
+    previous_state = state_snapshot()
+    try:
+        started = start_stage(target, candidates, now=now) if target != OFF else {"stage": OFF}
+        settings = dict(config.load_settings())
+        settings[SETTING_STAGE] = target
+        config.save_settings(settings)
+    except Exception:
+        restore_state(previous_state)                # подготовка не удалась — состояние не менялось
+        raise
+    if target == OFF:
+        import database
+        database.set_metadata_many({METADATA_CANARY: "", METADATA_HTTP_START: ""})
+    return started
+
+
+def http_start_counters() -> Optional[Dict[str, Any]]:
+    """Снимок счётчиков HTTP на момент включения шага (M02)."""
+    return _json_metadata(METADATA_HTTP_START)
 
 
 def canary_members() -> List[str]:
@@ -288,10 +391,22 @@ def canary_members() -> List[str]:
     return [str(s) for s in stored] if isinstance(stored, list) else []
 
 
-def missing_members(candidates: Sequence[Dict[str, Any]]) -> List[str]:
-    """Участники шага, которых больше нет среди кандидатов: замены им не подбирается (M01)."""
+def missing_members(candidates: Sequence[Dict[str, Any]],
+                    allowed: Optional[Sequence[str]] = None) -> List[str]:
+    """Участники шага, которых больше нельзя наблюдать: пропали из кандидатов или выключены.
+
+    Замена им не подбирается: эксперимент либо продолжается тем же составом, либо владелец возвращает
+    прежний порядок (M01).
+    """
     known = {str(c.get("shop") or "") for c in candidates}
-    return [s for s in canary_members() if s not in known]
+    permitted = set(allowed if allowed is not None else allowed_shops())
+    gone = []
+    for shop in canary_members():
+        if shop not in known:
+            gone.append(shop)
+        elif permitted and shop not in permitted:
+            gone.append(shop)
+    return gone
 
 
 def started_at(now: Optional[datetime.datetime] = None) -> Optional[datetime.datetime]:
@@ -324,6 +439,7 @@ def rollback(reason: str, now: Optional[datetime.datetime] = None) -> Dict[str, 
               "canary": canary_members()}
     database.set_metadata(METADATA_LAST_ROLLBACK, json.dumps(record, ensure_ascii=False))
     database.set_metadata(METADATA_CANARY, "")      # шага больше нет — нет и его состава
+    database.set_metadata(METADATA_HTTP_START, "")
     try:
         from telemetry import telemetry, SEVERITY_WARNING, COMPONENT_SCHEDULER
         telemetry.record_event("scheduler_rollback", SEVERITY_WARNING, COMPONENT_SCHEDULER,
@@ -354,7 +470,7 @@ def check_and_rollback(candidates: Sequence[Dict[str, Any]],
     if not shops or began is None:
         return None
     # Считаем только то, что произошло ПОСЛЕ включения шага, и только по его участникам (M01, M02)
-    after = metrics(shops, began, moment)
+    after = metrics(shops, began, moment, http_start_counters())
     needed, reason = should_rollback(baseline_metrics(), after)
     if not needed:
         return None
@@ -373,21 +489,26 @@ def status(candidates: Optional[Sequence[Dict[str, Any]]] = None,
     stage = stage_of()
     began = started_at(moment)
     shops = canary_members() if stage != OFF else []
+    refused = ""
     if stage != OFF and not shops:
-        shops = canary_shops(stage, candidates)      # состав ещё не фиксировался (старое состояние)
+        try:
+            shops = canary_shops(stage, candidates)  # состав ещё не фиксировался (старое состояние)
+        except StageRefused as e:
+            shops, refused = [], str(e)
     before = baseline_metrics()
-    after = metrics(shops, began, moment) if shops and began else None
+    after = metrics(shops, began, moment, http_start_counters()) if shops and began else None
     ready, why = ready_for_next_step(stage, before, after, began, moment)
     needed, rollback_reason = should_rollback(before, after)
     # Шаг включён, а пробных магазинов нет — это состояние надо назвать, а не показывать пустым прочерком
     if stage != OFF and not shops:
-        why = "пробные магазины ещё не определены: нет данных об обходах"
+        why = refused or "пробные магазины ещё не определены: нет данных об обходах"
         ready = False
     # Участник шага пропал из кандидатов: замену ему не подбираем и молчать об этом нельзя (M01)
     gone = missing_members(candidates) if stage != OFF else []
     if gone:
         ready = False
-        why = f"участники шага пропали из наблюдения: {', '.join(gone)} — замена не подбирается"
+        why = (f"участники шага недоступны для наблюдения (пропали или выключены): {', '.join(gone)} — "
+               f"замена не подбирается, продолжать шаг нельзя")
     return {
         "stage": stage,
         "stage_label": STAGE_LABELS[stage],

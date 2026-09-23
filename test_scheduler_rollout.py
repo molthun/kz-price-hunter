@@ -54,8 +54,10 @@ class StagesTest(unittest.TestCase):
 
     def test_canary_choice_is_reproducible(self):
         candidates = [candidate(f"shop{i}", sched.NORMAL) for i in range(8)]
-        first = rollout.canary_shops(rollout.CANARY_FEW, candidates)
-        self.assertEqual(first, rollout.canary_shops(rollout.CANARY_FEW, list(reversed(candidates))))
+        allowed = [f"shop{i}" for i in range(8)]
+        first = rollout.canary_shops(rollout.CANARY_FEW, candidates, allowed=allowed)
+        self.assertEqual(first, rollout.canary_shops(rollout.CANARY_FEW, list(reversed(candidates)),
+                                                     allowed=allowed))
 
 
 class SelectionTest(unittest.TestCase):
@@ -505,3 +507,212 @@ class GuardedSettingsTest(unittest.IsolatedAsyncioTestCase):
     async def test_dedicated_endpoint_still_refuses_a_jump(self):
         self.assertFalse(rollout.can_switch(rollout.OFF, rollout.ALL)[0])
         self.assertTrue(rollout.can_switch(rollout.OFF, rollout.CANARY_ONE)[0])
+
+
+class PartialHourTest(RolloutStateTest):
+    """M02: шаг, начатый в середине часа, не должен терять первые же ошибки."""
+
+    START = datetime.datetime(2026, 9, 23, 12, 10, tzinfo=datetime.timezone.utc)
+
+    def setUp(self):
+        super().setUp()
+        import config
+        config.save_settings({**config.load_settings(), rollout.SETTING_STAGE: rollout.CANARY_ONE})
+
+    def test_traffic_of_the_starting_hour_is_measured_as_a_delta(self):
+        """Воспроизведение аудита: старт 12:10, до него 10 000 запросов, после — 100 провальных."""
+        # 12:00–12:10 — прежний трафик того же часа
+        self.http("kaspi", 10000, 1000, 0, at=self.START.replace(minute=0))
+        self.scans("kaspi", 100, 100, day=self.START - datetime.timedelta(hours=2))
+        rollout.start_stage(rollout.CANARY_ONE, self.candidates, now=self.START)
+        # 12:20 — тот же час, но уже после включения: счётчик часа вырос
+        self.http("kaspi", 10100, 1100, 0, at=self.START.replace(minute=0))
+        self.scans("kaspi", 5, 0, day=self.START + datetime.timedelta(minutes=10))
+        moment = self.START.replace(minute=30)
+        after = rollout.metrics(["kaspi"], self.START, moment, rollout.http_start_counters())
+        self.assertEqual(after["requests"], 100, "учтён только трафик после включения")
+        self.assertEqual(after["errors"], 100)
+        self.assertEqual(after["http_coverage"]["partial_hour"], "delta")
+        self.assertTrue(after["enough_data"], "реальных наблюдений достаточно, чтобы судить")
+
+    def test_failure_in_the_first_hour_causes_a_rollback(self):
+        self.http("kaspi", 10000, 1000, 0, at=self.START.replace(minute=0))
+        self.scans("kaspi", 100, 100, day=self.START - datetime.timedelta(hours=2))
+        rollout.start_stage(rollout.CANARY_ONE, self.candidates, now=self.START)
+        self.http("kaspi", 10100, 1100, 0, at=self.START.replace(minute=0))
+        self.scans("kaspi", 5, 0, day=self.START + datetime.timedelta(minutes=10))
+        record = rollout.check_and_rollback(self.candidates, now=self.START.replace(minute=30))
+        self.assertIsNotNone(record, "провал первого часа обязан приводить к откату")
+        self.assertEqual(rollout.stage_of(), rollout.OFF)
+
+    def test_coverage_is_reported_honestly_without_a_snapshot(self):
+        """Без снимка счётчиков час начала не засчитывается — и отчёт об этом говорит."""
+        self.http("kaspi", 500, 10, 0, at=self.START.replace(minute=0))
+        after = rollout.metrics(["kaspi"], self.START, self.START.replace(minute=50))
+        self.assertEqual(after["requests"], 0)
+        self.assertEqual(after["http_coverage"]["partial_hour"], "excluded")
+
+    def test_broken_scans_alone_are_enough_to_roll_back(self):
+        """Мало запросов, но обходы провалились — это не «мало данных», а ухудшение."""
+        self.http("kaspi", 200, 4, 0, at=self.START - datetime.timedelta(hours=2))
+        self.scans("kaspi", 10, 10, day=self.START - datetime.timedelta(hours=2))
+        rollout.start_stage(rollout.CANARY_ONE, self.candidates, now=self.START)
+        self.scans("kaspi", 5, 0, day=self.START + datetime.timedelta(minutes=20))
+        after = rollout.metrics(["kaspi"], self.START, self.START.replace(minute=50),
+                                rollout.http_start_counters())
+        self.assertFalse(after["enough_data"], "запросов действительно мало")
+        needed, why = rollout.should_rollback(rollout.baseline_metrics(), after)
+        self.assertTrue(needed, why)
+        self.assertIn("полнота", why)
+
+    def test_a_step_started_on_the_hour_counts_the_whole_hour(self):
+        exact = self.START.replace(minute=0)
+        rollout.start_stage(rollout.CANARY_ONE, self.candidates, now=exact)
+        self.http("kaspi", 60, 1, 0, at=exact)
+        after = rollout.metrics(["kaspi"], exact, exact.replace(minute=40),
+                                rollout.http_start_counters())
+        self.assertEqual(after["requests"], 60)
+        self.assertEqual(after["http_coverage"]["partial_hour"], "full")
+
+
+class CanaryMembershipTest(RolloutStateTest):
+    """M01: участником может быть только включённый магазин, а первый шаг — только дружелюбный."""
+
+    def test_first_step_needs_a_friendly_source(self):
+        with self.assertRaises(rollout.StageRefused) as refused:
+            rollout.canary_shops(rollout.CANARY_ONE, [candidate("dns", sched.DEGRADED)],
+                                 allowed=["dns"])
+        self.assertIn("дружелюбном", str(refused.exception))
+
+    def test_disabled_shop_is_not_chosen_even_if_it_is_the_friendliest(self):
+        candidates = [candidate("dns", sched.FRIENDLY), candidate("kaspi", sched.FRIENDLY)]
+        self.assertEqual(rollout.canary_shops(rollout.CANARY_ONE, candidates, allowed=["kaspi"]),
+                         ["kaspi"])
+
+    def test_no_enabled_candidates_refuses_the_step(self):
+        with self.assertRaises(rollout.StageRefused):
+            rollout.canary_shops(rollout.CANARY_ONE, [candidate("dns", sched.FRIENDLY)], allowed=["kaspi"])
+
+    def test_wider_steps_take_only_enabled_shops(self):
+        candidates = [candidate("kaspi", sched.FRIENDLY), candidate("dns"), candidate("alser")]
+        self.assertEqual(rollout.canary_shops(rollout.CANARY_FEW, candidates, allowed=["kaspi", "alser"]),
+                         ["kaspi", "alser"])
+
+    def test_member_disabled_after_the_start_is_named_not_replaced(self):
+        import config
+        config.save_settings({**config.load_settings(), rollout.SETTING_STAGE: rollout.CANARY_ONE})
+        with patch.object(rollout, "allowed_shops", return_value=["kaspi", "dns"]):
+            rollout.start_stage(rollout.CANARY_ONE, self.candidates, now=NOW)
+            self.assertEqual(rollout.canary_members(), ["kaspi"])
+        # Владелец выключил kaspi уже после начала шага
+        with patch.object(rollout, "allowed_shops", return_value=["dns"]):
+            state = rollout.status(self.candidates, now=NOW + datetime.timedelta(hours=1))
+        self.assertEqual(state["missing_members"], ["kaspi"])
+        self.assertEqual(state["canary"], ["kaspi"], "замена не подбирается")
+        self.assertFalse(state["ready_for_next"])
+        self.assertIn("выключены", state["ready_reason"])
+
+    def test_status_names_the_refusal_instead_of_showing_an_empty_dash(self):
+        import config
+        config.save_settings({**config.load_settings(), rollout.SETTING_STAGE: rollout.CANARY_ONE})
+        with patch.object(rollout, "allowed_shops", return_value=["dns"]):
+            state = rollout.status([candidate("dns", sched.DEGRADED)], now=NOW)
+        self.assertEqual(state["canary"], [])
+        self.assertFalse(state["ready_for_next"])
+        self.assertIn("дружелюбном", state["ready_reason"])
+
+    def test_wave_is_not_broken_when_the_step_cannot_be_formed(self):
+        selection = rollout.select_targets(rollout.CANARY_ONE, ["dns"],
+                                           [candidate("dns", sched.DEGRADED)], now=NOW, members=None)
+        self.assertEqual(selection["targets"], ["dns"])
+        self.assertFalse(selection["changed"])
+
+
+class AtomicSwitchTest(RolloutStateTest):
+    """M03: включённого шага без подготовленного состояния возникнуть не может."""
+
+    def test_failed_preparation_leaves_the_previous_stage(self):
+        with patch.object(rollout, "metrics", side_effect=RuntimeError("база занята")):
+            with self.assertRaises(RuntimeError):
+                rollout.switch_stage(rollout.CANARY_ONE, self.candidates, now=NOW)
+        self.assertEqual(rollout.stage_of(), rollout.OFF, "шаг не должен включиться")
+        self.assertEqual(rollout.canary_members(), [])
+        self.assertIsNone(rollout.baseline_metrics())
+
+    def test_refused_step_does_not_switch_anything(self):
+        with patch.object(rollout, "allowed_shops", return_value=["dns"]):
+            with self.assertRaises(rollout.StageRefused):
+                rollout.switch_stage(rollout.CANARY_ONE, [candidate("dns", sched.DEGRADED)], now=NOW)
+        self.assertEqual(rollout.stage_of(), rollout.OFF)
+
+    def test_jump_over_a_step_is_refused_by_the_only_path(self):
+        with self.assertRaises(rollout.StageRefused):
+            rollout.switch_stage(rollout.ALL, self.candidates, now=NOW)
+        self.assertEqual(rollout.stage_of(), rollout.OFF)
+
+    def test_successful_switch_stores_stage_members_and_baseline_together(self):
+        self.http("kaspi", 200, 10, 2)
+        self.scans("kaspi", 10, 9)
+        rollout.switch_stage(rollout.CANARY_ONE, self.candidates, now=NOW)
+        self.assertEqual(rollout.stage_of(), rollout.CANARY_ONE)
+        self.assertEqual(rollout.canary_members(), ["kaspi"])
+        self.assertIsNotNone(rollout.baseline_metrics())
+        self.assertIsNotNone(rollout.started_at(NOW))
+        self.assertIsNotNone(rollout.http_start_counters())
+
+    def test_previous_preparation_is_restored_on_failure(self):
+        """Неудачная попытка расширения не должна портить состояние уже идущего шага."""
+        rollout.switch_stage(rollout.CANARY_ONE, self.candidates, now=NOW)
+        members, started = rollout.canary_members(), rollout.started_at(NOW)
+        with patch.object(rollout, "metrics", side_effect=RuntimeError("база занята")):
+            with self.assertRaises(RuntimeError):
+                rollout.switch_stage(rollout.CANARY_FEW, self.candidates,
+                                     now=NOW + datetime.timedelta(hours=1))
+        self.assertEqual(rollout.stage_of(), rollout.CANARY_ONE)
+        self.assertEqual(rollout.canary_members(), members)
+        self.assertEqual(rollout.started_at(NOW), started)
+
+    def test_switching_off_clears_the_step_state(self):
+        rollout.switch_stage(rollout.CANARY_ONE, self.candidates, now=NOW)
+        rollout.switch_stage(rollout.OFF, [], now=NOW + datetime.timedelta(hours=1))
+        self.assertEqual(rollout.stage_of(), rollout.OFF)
+        self.assertEqual(rollout.canary_members(), [])
+
+
+class SwitchApiTest(unittest.IsolatedAsyncioTestCase):
+    """Тот же путь через HTTP: отказ подготовки не оставляет включённый шаг."""
+
+    async def test_endpoint_refuses_and_keeps_the_stage_off(self):
+        import auth
+        import config
+        import scheduler_rollout as rollout_module
+        import web.server as server
+        from aiohttp.test_utils import TestServer
+        from test_support import BrowserTestClient as TestClient
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        patches = [patch.object(database, "DB_PATH", type(DB_PATH)(os.path.join(tmp.name, "prices.db"))),
+                   patch("config.DATA_DIR", type(DB_PATH)(tmp.name)),
+                   patch("config.SETTINGS_FILE", type(DB_PATH)(os.path.join(tmp.name, "settings.json")))]
+        for p in patches:
+            p.start()
+            self.addCleanup(p.stop)
+        database.init_db()
+        database.upsert_telegram_user({"id": 9701, "first_name": "A"})
+        token = database.create_session(9701)
+        app = server.create_app()
+        app.cleanup_ctx.clear()
+        async with TestClient(TestServer(app)) as client:
+            client.session.cookie_jar.update_cookies({auth.SESSION_COOKIE: token})
+            with patch.object(auth, "ADMIN_TELEGRAM_IDS", {9701}):
+                # Сбой подготовки: раньше шаг оставался включённым без снимка «до»
+                with patch.object(database, "scheduler_candidates", side_effect=RuntimeError("база занята")):
+                    res = await client.post("/api/admin/scheduler/rollout", json={"stage": "canary_one"})
+                self.assertEqual(res.status, 500)
+                self.assertEqual(config.load_settings()[rollout_module.SETTING_STAGE], "off")
+                self.assertEqual(rollout_module.canary_members(), [])
+                self.assertIsNone(rollout_module.baseline_metrics())
+                # Прыжок через шаг по-прежнему отклоняется
+                jump = await client.post("/api/admin/scheduler/rollout", json={"stage": "all"})
+                self.assertEqual(jump.status, 400)
+                self.assertEqual(config.load_settings()[rollout_module.SETTING_STAGE], "off")

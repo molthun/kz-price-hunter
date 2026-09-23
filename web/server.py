@@ -2188,21 +2188,24 @@ async def scheduler_rollout_switch_handler(request):
         return web.json_response({"status": "error", "message": "Некорректный запрос"}, status=400)
 
     target = str(data.get("stage") or "").strip()
-    current = rollout.stage_of()
-    ok, why = rollout.can_switch(current, target)
-    if not ok:
-        return web.json_response({"status": "error", "message": why}, status=400)
+    if target not in rollout.STAGES:
+        return web.json_response({"status": "error", "message": f"неизвестный шаг: {target}"}, status=400)
 
     def switch():
-        settings = dict(load_settings())
-        settings[rollout.SETTING_STAGE] = target
-        save_settings(settings)
         from database import scheduler_candidates
-        if target != rollout.OFF:
-            return rollout.start_stage(target, scheduler_candidates(days=7))
-        return {"stage": rollout.OFF}
+        candidates = scheduler_candidates(days=7) if target != rollout.OFF else []
+        return rollout.switch_stage(target, candidates)
 
-    started = await asyncio.to_thread(switch)
+    try:
+        # Подготовка и активация — один путь: при отказе шаг не включается (M03)
+        started = await asyncio.to_thread(switch)
+    except rollout.StageRefused as e:
+        return web.json_response({"status": "error", "message": str(e)}, status=400)
+    except Exception as e:
+        print(f"[Rollout] Переход не выполнен: {type(e).__name__}")
+        return web.json_response({"status": "error",
+                                  "message": "Шаг не включён: не удалось подготовить состояние"},
+                                 status=500)
     status = await asyncio.to_thread(rollout.status)
     return web.json_response({"status": "ok", "switched": started, "state": status},
                              dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))

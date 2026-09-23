@@ -403,3 +403,71 @@ class WorkflowTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class UpgradeThenRollbackTest(unittest.TestCase):
+    """M07: откат проверяется на ОБНОВЛЁННОЙ базе, иначе он ничего про обновление не доказывает."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.data_dir = type(DB_PATH)(self.tmp.name)
+        for p in [patch.object(database, "DB_PATH", self.data_dir / "prices.db"),
+                  patch("config.DATA_DIR", self.data_dir),
+                  patch("config.SETTINGS_FILE", self.data_dir / "settings.json")]:
+            p.start()
+            self.addCleanup(p.stop)
+        database.init_db()
+        self.db = str(self.data_dir / "prices.db")
+        self.upgraded = os.path.join(self.tmp.name, "upgraded.db")
+
+    def old_code(self, query):
+        """Каталог «прежнего релиза»: свои SMOKE_QUERIES и свой доступ к базе."""
+        code = os.path.join(self.tmp.name, "prev-release")
+        os.makedirs(code, exist_ok=True)
+        with open(os.path.join(code, "backup_health.py"), "w", encoding="utf-8") as fh:
+            fh.write(f"SMOKE_QUERIES = ((\"запрос прежнего кода\", {query!r}),)\n")
+        with open(os.path.join(code, "database.py"), "w", encoding="utf-8") as fh:
+            fh.write("import pathlib, sqlite3\n"
+                     "DB_PATH = pathlib.Path('prices.db')\n"
+                     "def get_connection():\n"
+                     "    conn = sqlite3.connect(str(DB_PATH))\n"
+                     "    conn.row_factory = sqlite3.Row\n"
+                     "    return conn\n")
+        return code
+
+    def test_upgrade_keeps_the_upgraded_copy_for_the_rollback_check(self):
+        result = gate.upgrade_rehearsal(self.db, keep_path=self.upgraded)
+        self.assertTrue(result["ok"], result.get("error"))
+        self.assertEqual(result["upgraded_copy"], self.upgraded)
+        self.assertTrue(os.path.exists(self.upgraded), "обновлённая база должна остаться для проверки")
+        with sqlite3.connect(self.upgraded) as conn:
+            version = conn.execute("SELECT value FROM schema_metadata WHERE name='schema_version'").fetchone()
+        self.assertEqual(int(version[0]), database.SCHEMA_VERSION)
+
+    def test_source_database_is_left_alone(self):
+        before = os.stat(self.db)
+        gate.upgrade_rehearsal(self.db, keep_path=self.upgraded)
+        after = os.stat(self.db)
+        self.assertEqual((before.st_size, round(before.st_mtime, 3)),
+                         (after.st_size, round(after.st_mtime, 3)))
+
+    def test_previous_code_passes_on_the_upgraded_database(self):
+        gate.upgrade_rehearsal(self.db, keep_path=self.upgraded)
+        result = gate.rollback_check(self.upgraded, self.old_code("SELECT id FROM products LIMIT 1"))
+        self.assertTrue(result["ok"], result.get("error"))
+
+    def test_a_change_the_old_code_cannot_read_fails_this_sequence(self):
+        """Приёмка Codex: несовместимость обязана валить именно последовательность upgrade → rollback."""
+        gate.upgrade_rehearsal(self.db, keep_path=self.upgraded)
+        broken = self.old_code("SELECT колонка_которой_нет FROM products LIMIT 1")
+        result = gate.rollback_check(self.upgraded, broken)
+        self.assertFalse(result["ok"], "запрос прежнего кода не работает — это и есть провал отката")
+
+    def test_workflow_runs_the_rollback_on_the_upgraded_database(self):
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            ".github", "workflows", "docker-publish.yml")
+        with open(path, encoding="utf-8") as fh:
+            text = fh.read()
+        self.assertIn("upgrade prev-data/prices.db --keep upgraded.db", text)
+        self.assertIn("rollback upgraded.db prev-release", text)

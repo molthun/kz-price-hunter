@@ -144,23 +144,32 @@ def _ai_block(conn, start, end) -> Dict[str, Any]:
                for r in conn.execute(f"SELECT task, SUM(requests) AS requests, SUM(cost_usd) AS cost "
                                      f"FROM ai_usage WHERE day IN ({placeholders}) GROUP BY task "
                                      f"ORDER BY requests DESC LIMIT ?", keys + [MAX_ITEMS])]
-    # Стоимость: «неизвестно», «известный ноль» и «посчитана не по всем вызовам» — три разных ответа (M06)
-    priced = conn.execute(f"SELECT SUM(requests) AS requests, SUM(cost_usd) AS cost FROM ai_usage "
-                          f"WHERE day IN ({placeholders}) AND cost_usd IS NOT NULL", keys).fetchone()
+    # Стоимость: «вызовов не было», «неизвестна», «посчитана не по всем вызовам» и «известный ноль» —
+    # четыре разных ответа. Считается по числу оценённых вызовов внутри строки агрегата, потому что одна
+    # строка объединяет вызовы с ценой и без неё (M06).
+    priced = conn.execute(
+        f"SELECT SUM(COALESCE(priced_requests, 0)) AS priced, SUM(cost_usd) AS cost, "
+        f"SUM(CASE WHEN priced_requests IS NULL THEN requests ELSE 0 END) AS legacy "
+        f"FROM ai_usage WHERE day IN ({placeholders})", keys).fetchone()
     requests = row["requests"] or 0
-    priced_requests = priced["requests"] or 0
+    priced_requests = int(priced["priced"] or 0)
+    legacy_requests = int(priced["legacy"] or 0)     # старые строки без счётчика: покрытие неизвестно
+    cost_sum = round(priced["cost"], 4) if priced["cost"] is not None else None
     if not requests:
         cost_state, cost = "no_calls", None
+    elif legacy_requests:
+        cost_state, cost = "partial", cost_sum
     elif not priced_requests:
         cost_state, cost = "unknown", None
     elif priced_requests < requests:
-        cost_state, cost = "partial", round(priced["cost"] or 0.0, 4)
+        cost_state, cost = "partial", cost_sum
     else:
-        cost_state, cost = "known", round(priced["cost"] or 0.0, 4)
+        cost_state, cost = "known", cost_sum if cost_sum is not None else 0.0
     return {"requests": requests, "errors": row["errors"] or 0,
             "input_tokens": row["input_tokens"] or 0, "output_tokens": row["output_tokens"] or 0,
             "cost_usd": cost, "cost_state": cost_state,
             "priced_requests": priced_requests, "unpriced_requests": requests - priced_requests,
+            "legacy_requests": legacy_requests,
             "by_task": by_task,
             "approximate": not is_exact_utc_day(start, end), "day_keys": keys,
             "note": "Стоимость считается только по ценам, заданным владельцем: без них она неизвестна, "
@@ -302,15 +311,20 @@ def numbers_source(report: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def build_prompt(report: Dict[str, Any]) -> str:
+    import admin_assistant
     import ai_router
     data = json.dumps(numbers_source(report), ensure_ascii=False, indent=1, default=str)
     return (
         f"Ты пишешь короткую сводку за сутки {report['day']} ({report['tz']}) для владельца сервиса.\n"
-        "Правила: пиши по-русски, 3–6 предложений. Используй ТОЛЬКО числа из блока данных — ничего не "
-        "додумывай и не пересчитывай. Разделяй факты и предположения: догадку помечай словом «вероятно». "
-        "Если данных за сутки нет, так и напиши.\n"
+        "Правила: пиши по-русски, 3–6 предложений. НЕ ПИШИ ЧИСЕЛ: вместо числа ставь ссылку на "
+        "показатель в фигурных скобках — {блок.поле} — сервис подставит значение сам. Доступные ссылки "
+        "перечислены ниже; ссылка на показатель, которого там нет, недопустима. Разделяй факты и "
+        "предположения: догадку помечай словом «вероятно». Если данных за сутки нет, так и напиши.\n"
         + ("Сутки ещё не закончились, скажи об этом.\n" if report.get("partial") else "")
-        + ai_router.untrusted_block(data, "ДАННЫЕ")
+        + "Доступные ссылки на показатели:\n"
+        + "\n".join(f"  {{{path}}}"
+                    for path in sorted(admin_assistant.field_paths(numbers_source(report))))
+        + "\n\n" + ai_router.untrusted_block(data, "ДАННЫЕ")
     )
 
 
@@ -331,11 +345,12 @@ async def summarize(report: Dict[str, Any]) -> Dict[str, Any]:
     if not text:
         result["rejected"] = "модель не дала пересказа"
         return result
-    invented = admin_assistant.unverified_numbers(text, numbers_source(report))
-    if invented:
-        result["rejected"] = f"в пересказе есть числа, которых нет в отчёте: {', '.join(invented[:5])}"
+    rendered, refusal = admin_assistant.verify_and_render(text, numbers_source(report))
+    if refusal:
+        result["rejected"] = refusal
         result["provider"] = routed.get("provider")
         return result
+    text = rendered
     result["summary"] = text
     result["provider"] = routed.get("provider")
     save(report, summary=text, provider=routed.get("provider"))
@@ -402,6 +417,9 @@ def _cost_text(ai: Dict[str, Any]) -> str:
     if state == "unknown" or cost is None:
         return "неизвестна — цены моделей не заданы"
     if state == "partial":
+        if ai.get("legacy_requests"):
+            return (f"${cost} — но {ai.get('legacy_requests')} вызовов записаны до раздельного учёта, "
+                    f"поэтому полнота суммы неизвестна")
         return (f"${cost} по {ai.get('priced_requests')} из {ai.get('requests')} вызовов "
                 f"(для остальных цена не задана)")
     return f"${cost}"

@@ -302,12 +302,15 @@ def rollback_check(db_path: str, code_dir: str, python_exe: Optional[str] = None
         shutil.rmtree(workdir, ignore_errors=True)
 
 
-def upgrade_rehearsal(db_path: str) -> Dict[str, Any]:
+def upgrade_rehearsal(db_path: str, keep_path: Optional[str] = None) -> Dict[str, Any]:
     """Берёт базу предыдущего релиза, обновляет её новым кодом и проверяет, что с ней можно работать.
 
     Ответ на два вопроса владельца: поднимется ли новый образ на старой базе и можно ли будет вернуться
     на старый образ. Возврат возможен, только если версия схемы не выросла; иначе честно описывается,
     что придётся восстанавливать копию и какие данные будут потеряны.
+
+    `keep_path` сохраняет ОБНОВЛЁННУЮ базу: именно на ней потом проверяется прежний код. Без этого
+    проверка отката запускалась бы на исходной старой базе и ничего про обновление не доказывала (M07).
     """
     import backup_health
     if not os.path.exists(db_path):
@@ -342,6 +345,10 @@ def upgrade_rehearsal(db_path: str) -> Dict[str, Any]:
                     result["smoke"].append({"check": label, "ok": True})
                 except sqlite3.Error as e:
                     result["smoke"].append({"check": label, "ok": False, "error": str(e)})
+
+        if keep_path:
+            _snapshot(target, keep_path)
+            result["upgraded_copy"] = keep_path
 
         expected = int(database.SCHEMA_VERSION)
         result["schema_expected"] = expected
@@ -436,6 +443,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     p_deps.add_argument("--allowlist", default=ALLOWLIST_FILE)
     p_upgrade = sub.add_parser("upgrade", help="репетиция обновления базы предыдущего релиза")
     p_upgrade.add_argument("db")
+    p_upgrade.add_argument("--keep", default=None,
+                           help="куда сохранить обновлённую базу для проверки отката")
     p_rollback = sub.add_parser("rollback", help="проверка прежнего кода на обновлённой базе")
     p_rollback.add_argument("db")
     p_rollback.add_argument("code_dir")
@@ -449,7 +458,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if args.command == "deps":
         return _print(check_dependencies(args.report, args.allowlist))
     if args.command == "upgrade":
-        return _print(upgrade_rehearsal(args.db))
+        return _print(upgrade_rehearsal(args.db, args.keep))
     if args.command == "rollback":
         return _print(rollback_check(args.db, args.code_dir, args.python))
     import asyncio
