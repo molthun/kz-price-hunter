@@ -140,12 +140,19 @@ class SystemSettingsTest(unittest.TestCase):
                     value = [next(iter(config.MASTER_CATEGORIES))]
                 if key == "scan_interval_minutes":
                     value = 60
+                if key == "daily_digest_timezone":
+                    value = "UTC"
                 clean = config._validate_settings({key: value})
                 self.assertIn(key, clean)
 
+    def test_unknown_timezone_for_the_digest_is_refused(self):
+        with self.assertRaises(ValueError):
+            config._validate_settings({"daily_digest_timezone": "Nowhere/Nothing"})
+
     def test_system_ranges(self):
         for key, value in (("candidate_drop_pct", 0), ("candidate_arbitrage_drop_pct", 100),
-                           ("check_interval_seconds", 5), ("scan_interval_minutes", 1)):
+                           ("check_interval_seconds", 5), ("scan_interval_minutes", 1),
+                           ("daily_digest_hour", 24)):
             with self.subTest(key=key):
                 with self.assertRaises(ValueError):
                     config._validate_settings({key: value})

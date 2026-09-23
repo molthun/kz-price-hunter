@@ -1000,16 +1000,20 @@
               <span id="watchesCount" class="text-xs text-slate-400"></span>
             </div>
             <p class="text-xs text-slate-400">Следите за конкретным товаром, моделью, запросом или категорией: сообщение придёт в Telegram, когда сработает ваше условие. Ночью (23:00–08:00) не беспокоим — накопленное придёт утром.</p>
+            <p id="watchTargetHint" class="text-xs text-slate-500 hidden"></p>
             <div class="grid md:grid-cols-5 gap-2 items-end">
               <label class="md:col-span-2 text-xs text-slate-400">За чем следить
-                <input id="watchTarget" type="text" placeholder="например, iphone 15 pro" class="mt-1 w-full bg-dark-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
+                <input id="watchTarget" type="text" placeholder="например, iphone 15 pro" aria-describedby="watchTargetHint" class="mt-1 w-full bg-dark-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
               </label>
               <label class="text-xs text-slate-400">Вид
-                <select id="watchKind" class="mt-1 w-full bg-dark-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
+                <select id="watchKind" onchange="updateWatchKind()" class="mt-1 w-full bg-dark-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
                   <option value="search">поисковый запрос</option>
                   <option value="model">модель</option>
                   <option value="category">категория</option>
                   <option value="product">товар по ссылке-идентификатору</option>
+                  <option value="shop">магазин</option>
+                  <option value="deal">выгодные предложения</option>
+                  <option value="arbitrage">разница цен между магазинами</option>
                 </select>
               </label>
               <label class="text-xs text-slate-400">Условие
@@ -1020,6 +1024,8 @@
                   <option value="any_drop">любое снижение</option>
                   <option value="best_price">лучшая цена за всё время</option>
                   <option value="back_in_stock">снова в продаже</option>
+                  <option value="any_find">любая находка (сделки, разница цен)</option>
+                  <option value="discount_pct">скидка от, % (сделки, разница цен)</option>
                 </select>
               </label>
               <label id="watchThresholdWrap" class="text-xs text-slate-400">Значение
@@ -2019,6 +2025,7 @@
             <i class="fa-solid fa-scale-balanced text-sky-400"></i>
             <span>Сравнить</span>
           </button>
+          <span id="modalProductWatch"></span>
         </div>
         <button onclick="closeProductDetailsModal()" class="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 hover:text-white transition cursor-pointer">
           Закрыть
@@ -2326,6 +2333,10 @@
       const modal = document.getElementById('modalProductDetails');
       if (!modal) return;
 
+      // Кнопка «следить» прямо в карточке товара (P07 V2)
+      const watchSlot = document.getElementById('modalProductWatch');
+      if (watchSlot) watchSlot.innerHTML = watchButton(a);
+
       // Badges
       const shopBadgeEl = document.getElementById('modalProductShopBadge');
       if (shopBadgeEl) shopBadgeEl.innerHTML = getShopBadge(a.shop);
@@ -2555,6 +2566,7 @@
         case 'dismiss': if (isAdminUser()) dismissAlert(args[0], event, el); break;
         case 'compare': openModelComparison(encodeURIComponent(args[0] || ''), encodeURIComponent(args[1] || '')); break;
         case 'suggestion': sendConsultantSuggestion(args[0]); break;
+        case 'watch': toggleProductWatch(args[0], args[1]); break;
         case 'shop': filterResultsByShop(args[0]); break;
         case 'category': scanCategoryNow(args[0], args[1]); break;
         case 'tracked-scan': scanTrackedCatNow(args[0], args[1]); break;
@@ -2830,6 +2842,7 @@
               <span>${escapeHtml(buyBtnText)}</span>
               <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
             </a>
+            ${watchButton(a)}
             ${isArbitrage ? `
               <button ${actionAttrs('compare', [a.canonical_key || a.title, a.title])} class="w-full flex items-center justify-center space-x-1.5 bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/30 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer">
                 <i class="fa-solid fa-scale-balanced text-xs text-sky-400"></i>
@@ -3843,10 +3856,13 @@
             </td>
             <td class="px-4 py-3 whitespace-nowrap">${diffText}</td>
             <td class="px-4 py-3 whitespace-nowrap text-right">
-              <a href="${escapeHtml(cleanUrl(it.url))}" onclick="event.stopPropagation()" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-lg ${isFirst ? 'bg-emerald-500 hover:bg-emerald-600 text-dark-950 font-bold' : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white'} text-xs inline-flex items-center gap-1.5 transition shadow-sm">
-                <span>В магазин</span>
-                <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
-              </a>
+              <div class="inline-flex items-center gap-1.5">
+                ${watchIconButton(it)}
+                <a href="${escapeHtml(cleanUrl(it.url))}" onclick="event.stopPropagation()" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-lg ${isFirst ? 'bg-emerald-500 hover:bg-emerald-600 text-dark-950 font-bold' : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white'} text-xs inline-flex items-center gap-1.5 transition shadow-sm">
+                  <span>В магазин</span>
+                  <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                </a>
+              </div>
             </td>
           </tr>
         `;
@@ -4118,7 +4134,7 @@
       if (aiBtn) aiBtn.classList.toggle('opacity-60', !loggedIn);
       document.querySelectorAll('.auth-only').forEach(el => el.classList.toggle('hidden', !loggedIn));
       // Наблюдения существуют только у вошедшего человека (P07)
-      if (loggedIn && typeof loadWatches === 'function') { updateWatchThreshold(); loadWatches(); }
+      if (loggedIn && typeof loadWatches === 'function') { updateWatchKind(); loadWatches(); }
       if (!loggedIn && !document.getElementById('tabConsultant').classList.contains('hidden')) {
         switchTab('anomalies');
       }
@@ -4442,15 +4458,116 @@
     }
 
     // P05: сброс личных настроек к умолчаниям (включённость Telegram-уведомлений сохраняется)
+    // --- Кнопка «следить» прямо на находке и в поиске (P07 V2) ---
+    // Наблюдение за товаром создаётся в один клик: условие «любое снижение», повторяющееся.
+    // Тонкие настройки (цель по цене, тихие часы, пауза) остаются в разделе «Мои наблюдения».
+    let watchedProducts = {};
+
+    function watchButton(p) {
+      if (!isLoggedIn()) return '';
+      const id = String(p.product_id || p.id || '');
+      if (!id) return '';
+      const on = Object.prototype.hasOwnProperty.call(watchedProducts, id);
+      return `<button type="button" data-watch-product="${escapeHtml(id)}" ${actionAttrs('watch', [id, p.title || ''])}
+        title="${on ? 'Перестать следить за этим товаром' : 'Следить за снижением цены'}"
+        class="w-full flex items-center justify-center space-x-1.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer border ${on
+          ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border-rose-500/40'
+          : 'bg-slate-800/70 hover:bg-slate-700 text-slate-300 border-slate-700'}">
+        <i class="fa-solid fa-bell text-[11px]"></i><span>${on ? 'Слежу за ценой' : 'Следить за ценой'}</span></button>`;
+    }
+
+    function watchIconButton(p) {
+      if (!isLoggedIn()) return '';
+      const id = String(p.product_id || p.id || '');
+      if (!id) return '';
+      const on = Object.prototype.hasOwnProperty.call(watchedProducts, id);
+      return `<button type="button" data-watch-product="${escapeHtml(id)}" data-watch-icon="1"
+        ${actionAttrs('watch', [id, p.title || ''])}
+        title="${on ? 'Перестать следить за этим товаром' : 'Следить за снижением цены'}"
+        aria-label="${on ? 'Перестать следить за этим товаром' : 'Следить за снижением цены'}"
+        class="px-2.5 py-1.5 rounded-lg border text-xs transition cursor-pointer ${on
+          ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border-rose-500/40'
+          : 'bg-slate-800 hover:bg-slate-700 text-slate-400 border-slate-700'}">
+        <i class="fa-solid fa-bell text-[11px]"></i></button>`;
+    }
+
+    function syncWatchButtons() {
+      document.querySelectorAll('[data-watch-product]').forEach(btn => {
+        const on = Object.prototype.hasOwnProperty.call(watchedProducts, btn.dataset.watchProduct);
+        btn.title = on ? 'Перестать следить за этим товаром' : 'Следить за снижением цены';
+        if (btn.dataset.watchIcon) {
+          btn.className = `px-2.5 py-1.5 rounded-lg border text-xs transition cursor-pointer ${on
+            ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border-rose-500/40'
+            : 'bg-slate-800 hover:bg-slate-700 text-slate-400 border-slate-700'}`;
+          btn.setAttribute('aria-label', btn.title);
+          return;
+        }
+        btn.className = `w-full flex items-center justify-center space-x-1.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer border ${on
+          ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border-rose-500/40'
+          : 'bg-slate-800/70 hover:bg-slate-700 text-slate-300 border-slate-700'}`;
+        const label = btn.querySelector('span');
+        if (label) label.textContent = on ? 'Слежу за ценой' : 'Следить за ценой';
+        btn.title = on ? 'Перестать следить за этим товаром' : 'Следить за снижением цены';
+      });
+    }
+
+    async function toggleProductWatch(productId, title) {
+      if (!isLoggedIn()) return;
+      const id = String(productId || '');
+      const existing = watchedProducts[id];
+      let res;
+      if (existing) {
+        res = await fetch(`/api/me/watches/${existing}`, {method: 'DELETE'});
+        if (res.ok) delete watchedProducts[id];
+      } else {
+        res = await fetch('/api/me/watches', {method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({kind: 'product', target: id, title: title || id,
+                                condition: 'any_drop', repeat: true})});
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.watch) watchedProducts[id] = data.watch.id;
+        else if (!res.ok) { showToast(data.message || 'Не удалось создать наблюдение'); return; }
+      }
+      syncWatchButtons();
+      if (typeof loadWatches === 'function') loadWatches();
+    }
+
     // --- Мои наблюдения (P07) ---
-    const WATCH_NEEDS_VALUE = ['target_price', 'drop_pct', 'drop_kzt'];
+    const WATCH_NEEDS_VALUE = ['target_price', 'drop_pct', 'drop_kzt', 'discount_pct'];
+
+    // Виды «сделки» и «разница цен» устроены иначе: цель — это область поиска, а условия у них свои
+    const WATCH_FIND_KINDS = ['deal', 'arbitrage'];
+    const WATCH_FIND_CONDITIONS = ['any_find', 'discount_pct', 'target_price'];
+
+    function updateWatchKind() {
+      const kind = document.getElementById('watchKind').value;
+      const isFind = WATCH_FIND_KINDS.includes(kind);
+      const target = document.getElementById('watchTarget');
+      const hint = document.getElementById('watchTargetHint');
+      target.placeholder = isFind ? 'все — или название категории'
+        : kind === 'shop' ? 'например, Kaspi' : 'например, iphone 15 pro';
+      hint.textContent = isFind
+        ? 'Для сделок и разницы цен укажите «все» или категорию: сообщение придёт, когда такая находка появится в ленте.'
+        : '';
+      hint.classList.toggle('hidden', !isFind);
+      const condition = document.getElementById('watchCondition');
+      [...condition.options].forEach(o => {
+        const findOnly = ['any_find', 'discount_pct'].includes(o.value);
+        // Условие должно подходить виду — иначе сервер откажет, а человек не поймёт почему
+        o.hidden = isFind ? !WATCH_FIND_CONDITIONS.includes(o.value) : findOnly;
+      });
+      // Для сделок по умолчанию предлагаем «любую находку»; «цена не выше» остаётся выбираемой вручную
+      if (isFind && !['any_find', 'discount_pct'].includes(condition.value)) condition.value = 'any_find';
+      if (!isFind && ['any_find', 'discount_pct'].includes(condition.value)) condition.value = 'any_drop';
+      updateWatchThreshold();
+    }
 
     function updateWatchThreshold() {
       const condition = document.getElementById('watchCondition').value;
       const wrap = document.getElementById('watchThresholdWrap');
       const needs = WATCH_NEEDS_VALUE.includes(condition);
       wrap.classList.toggle('hidden', !needs);
-      document.getElementById('watchThreshold').placeholder = condition === 'drop_pct' ? '20' : '150000';
+      document.getElementById('watchThreshold').placeholder =
+        (condition === 'drop_pct' || condition === 'discount_pct') ? '20' : '150000';
     }
 
     function watchMessage(text, ok) {
@@ -4471,6 +4588,10 @@
         box.innerHTML = loadErrorHtml('наблюдения', 'loadWatches()');
         return;
       }
+      // Карта «товар → наблюдение» нужна кнопкам на находках: они показывают, за чем уже слежу
+      watchedProducts = {};
+      data.watches.forEach(w => { if (w.kind === 'product' && w.is_active) watchedProducts[String(w.target)] = w.id; });
+      syncWatchButtons();
       const count = document.getElementById('watchesCount');
       if (count) count.textContent = `${data.watches.length} из ${data.limits.max}`;
       if (!data.watches.length) {
@@ -4503,6 +4624,7 @@
         repeat: !document.getElementById('watchOnce').checked,
       };
       if (WATCH_NEEDS_VALUE.includes(condition)) body.threshold = document.getElementById('watchThreshold').value;
+      if (!body.target && WATCH_FIND_KINDS.includes(body.kind)) body.target = 'все';
       if (!body.target) { watchMessage('Укажите, за чем следить', false); return; }
       const res = await fetch('/api/me/watches', {method: 'POST', headers: {'Content-Type': 'application/json'},
                                                   body: JSON.stringify(body)});

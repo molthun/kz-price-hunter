@@ -162,6 +162,8 @@
       const c = s.shops.counts || {};
       const summary = Object.keys(STATUS).filter(k => c[k]).map(k => `${pill(k)} <span class="text-sm mr-3">${c[k]}</span>`).join('');
       return `
+        ${assistantBox()}
+        <div id="dailyBox"><p class="text-sm text-slate-500">Собираю суточную сводку…</p></div>
         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">${cards}</div>
         ${card('Магазины по состоянию', `<div class="flex flex-wrap items-center gap-1">${summary || '<span class="text-sm text-slate-500">нет данных</span>'}</div>`)}
         ${card('Открытые инциденты', incidentList(data.open_incidents))}`;
@@ -183,6 +185,7 @@
           <th class="pb-1 pr-3">Когда</th><th class="pb-1 pr-3">Тип</th><th class="pb-1 pr-3">Исход</th><th class="pb-1 pr-3 text-right">Товаров</th>
           <th class="pb-1 pr-3 text-right">Длительность</th><th class="pb-1 pr-3">Ошибка</th></tr></thead><tbody>${rows}</tbody></table></div>`
           : '<p class="text-sm text-slate-500">Нет завершённых обходов в журнале.</p>')
+        + '<div id="rolloutBox" class="mt-4"><p class="text-sm text-slate-500">Смотрю состояние включения…</p></div>'
         + '<div id="schedulerShadow" class="mt-4"><p class="text-sm text-slate-500">Считаю предложения планировщика…</p></div>';
     },
     search() {
@@ -267,6 +270,43 @@
         <td class="py-1 pr-3 text-right text-slate-300">${num(q.not_found)}</td><td class="py-1 pr-3 text-right text-rose-300">${num(q.error)}</td>
         <td class="py-1 pr-3 text-right">${q.success_rate == null ? '—' : num(q.success_rate) + ' %'}</td></tr>`).join('') +
       '</tbody></table></div>';
+  }
+
+  const ROLLOUT_STEPS = [['off', 'Выключено'], ['canary_one', '1 магазин'], ['canary_few', 'до 5'], ['all', 'Все']];
+
+  async function loadRollout() {
+    const box = document.getElementById('rolloutBox');
+    if (!box) return;
+    const s = await api('/api/admin/scheduler/rollout');
+    if (!s) { box.innerHTML = '<p class="text-sm text-rose-300">Не удалось загрузить состояние включения.</p>'; return; }
+    const share = v => v == null ? '—' : (v * 100).toFixed(1) + ' %';
+    const cmp = (label, field) => [label, `${share((s.before || {})[field])} → ${share((s.after || {})[field])}`];
+    const buttons = ROLLOUT_STEPS.map(([id, label]) => {
+      const active = s.stage === id;
+      const allowed = active || id === 'off' || id === s.next_stage
+        || ROLLOUT_STEPS.findIndex(x => x[0] === id) < ROLLOUT_STEPS.findIndex(x => x[0] === s.stage);
+      return `<button type="button" data-rollout="${id}" ${allowed ? '' : 'disabled'}
+        class="px-3 py-1.5 rounded-lg text-xs transition ${active ? 'bg-sky-500/80 text-white' : allowed ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 cursor-pointer' : 'bg-slate-900 text-slate-600'}">${esc(label)}</button>`;
+    }).join(' ');
+    box.innerHTML = card('Включение нового порядка обходов', `<p class="text-sm mb-2">${esc(s.stage_label)}</p>` + kv([
+        ['Пробные магазины', (s.canary || []).map(esc).join(', ') || '—'],
+        ['Идёт с', s.started_at ? ago(s.started_at) : '—'],
+        cmp('Доля ошибок', 'error_share'),
+        cmp('Отказы по лимиту', 'block_share'),
+        cmp('Полнота обходов', 'completeness'),
+        ['Готов следующий шаг', s.ready_for_next ? 'да' : `нет — ${esc(s.ready_reason || '')}`]]) +
+      `<div class="mt-3 flex flex-wrap gap-2">${buttons}</div>` +
+      (s.last_rollback ? `<p class="text-xs text-amber-300 mt-2">Последний откат ${ago(s.last_rollback.at)}: ${esc(s.last_rollback.reason)}</p>` : '') +
+      `<p class="text-xs text-slate-500 mt-2">${esc(s.note)}</p>`,
+      s.stage === 'off' ? 'disabled' : (s.rollback_needed ? 'degraded' : 'healthy'));
+  }
+
+  async function switchRollout(stage) {
+    const res = await fetch('/api/admin/scheduler/rollout', {method: 'POST',
+      headers: {'Content-Type': 'application/json'}, body: JSON.stringify({stage})});
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { alert(data.message || 'Не удалось переключить шаг'); return; }
+    loadRollout();
   }
 
   async function loadSchedulerShadow() {
@@ -381,7 +421,43 @@
           <th class="pb-1 pr-3">Случай</th><th class="pb-1 pr-3">Причина</th><th class="pb-1 pr-3 text-right">Раз</th>
           <th class="pb-1 pr-3">Пример</th></tr></thead><tbody>${rows}</tbody></table></div>`
         : '<p class="text-sm text-slate-500">Пока ничего не записано.</p>') +
+      matchingAiBlock(s.ai) +
       `<p class="text-xs text-slate-500 mt-2">${esc(s.note)}</p>`, s.status);
+  }
+
+  const MATCHING_AI_MODES = [['off', 'Выключено'], ['shadow', 'Тень'], ['on', 'Включено']];
+
+  function matchingAiBlock(ai) {
+    if (!ai) return '';
+    const t = ai.thresholds || {};
+    const buttons = MATCHING_AI_MODES.map(([id, label]) => {
+      const active = ai.mode === id;
+      return `<button type="button" data-matching-ai="${id}"
+        class="px-3 py-1.5 rounded-lg text-xs transition cursor-pointer ${active
+          ? 'bg-sky-500/80 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-200'}">${esc(label)}</button>`;
+    }).join(' ');
+    const examples = (ai.examples || []).slice(0, 5).map(e => `<li class="break-words">
+        ${e.same ? '<span class="text-emerald-300">один товар</span>' : '<span class="text-slate-400">разные</span>'}
+        · уверенность ${num(e.confidence)} · ${esc(e.left_title || '')} ↔ ${esc(e.right_title || '')}
+        ${e.reason ? '<span class="text-slate-500"> — ' + esc(e.reason) + '</span>' : ''}</li>`).join('');
+    return `<div class="mt-3 pt-3 border-t border-slate-800">
+      <p class="text-sm mb-2">Разбор спорных пар моделью: ${esc(ai.mode_label || '')}</p>` +
+      kv([['Ждут разбора', num(ai.pending)],
+          ['Разобрано', num(ai.decided)],
+          ['Из них «один товар»', num(ai.same)],
+          ['Согласованные пороги (до замера)',
+           `уверенность ${num(t.confidence)} · точность ${num(t.precision)} · полнота ${num(t.recall)} · от ${esc(t.agreed_at || '')}`]]) +
+      `<div class="mt-2 flex flex-wrap gap-2">${buttons}</div>` +
+      (examples ? details('Последние решения модели', `<ul class="text-sm space-y-1">${examples}</ul>`) : '') +
+      `<p class="text-xs text-slate-500 mt-2">${esc(ai.note || '')}</p></div>`;
+  }
+
+  async function setMatchingAi(mode) {
+    const res = await fetch('/api/admin/monitoring/matching/ai', {method: 'POST',
+      headers: {'Content-Type': 'application/json'}, body: JSON.stringify({mode})});
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) { alert(d.message || 'Не удалось переключить режим'); return; }
+    loadMatchingShadow();
   }
 
   async function loadAiSpending() {
@@ -536,17 +612,134 @@
     return res.json();
   }
 
+  function assistantBox() {
+    return card('Помощник администратора', `
+      <p class="text-sm text-slate-400 mb-2">Вопрос о состоянии сервиса. Цифры берутся из отчётов мониторинга, помощник работает только на чтение.</p>
+      <div class="flex flex-wrap gap-2 items-end">
+        <label class="flex flex-col text-xs text-slate-400 grow min-w-[14rem]">Вопрос
+          <input id="askQ" class="mt-1 bg-dark-950 border border-slate-700 rounded-lg px-2 py-1.5 text-slate-200"
+                 placeholder="например: почему в dns стало меньше товаров"></label>
+        <label class="flex flex-col text-xs text-slate-400">Период
+          <select id="askDays" class="mt-1 bg-dark-950 border border-slate-700 rounded-lg px-2 py-1.5 text-slate-200">
+            <option value="7">7 дней</option><option value="14">14 дней</option><option value="30">30 дней</option></select></label>
+        <button id="btnAsk" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm">Спросить</button>
+      </div>
+      <div id="askResult" class="mt-3 text-sm"></div>`);
+  }
+
+  async function askAssistant() {
+    const input = document.getElementById('askQ'), box = document.getElementById('askResult');
+    const question = (input.value || '').trim();
+    if (!question) { box.innerHTML = '<p class="text-slate-500">Задайте вопрос.</p>'; return; }
+    box.innerHTML = '<p class="text-slate-500">Собираю факты…</p>';
+    const res = await fetch('/api/admin/assistant', {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({question, days: Number(document.getElementById('askDays').value)})});
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) { box.innerHTML = `<p class="text-rose-300">${esc(d.message || 'Не удалось получить ответ')}</p>`; return; }
+    const facts = `<div class="mt-2 p-2 rounded-lg bg-dark-950 border border-slate-800 whitespace-pre-wrap text-slate-300">${esc(d.summary)}</div>`;
+    let head;
+    if (d.answer) head = `<div class="whitespace-pre-wrap text-slate-100">${esc(d.answer)}</div>`;
+    else if (d.rejected) head = `<p class="text-amber-300">Ответ модели не показан: ${esc(d.rejected)}. Ниже только собранные факты.</p>`;
+    else head = `<p class="text-slate-400">${esc(d.ai || 'Объяснение недоступно')}. Ниже только собранные факты.</p>`;
+    box.innerHTML = head + facts + `<p class="text-xs text-slate-500 mt-2">${esc(d.note)}</p>`;
+  }
+
+  // Неизвестная стоимость, известный ноль и сумма по части вызовов — разные ответы (M06)
+  function dailyCost(ai) {
+    if (ai.cost_state === 'no_calls') return 'вызовов не было';
+    if (ai.cost_state === 'partial') return `$${ai.cost_usd} по ${num(ai.priced_requests)} из ${num(ai.requests)} вызовов`;
+    if (ai.cost_usd == null) return 'неизвестна — цены не заданы';
+    return '$' + ai.cost_usd;
+  }
+
+  async function loadDaily(day, refresh) {
+    const box = document.getElementById('dailyBox');
+    if (!box) return;
+    const q = new URLSearchParams();
+    if (day) q.set('day', day);
+    if (refresh) q.set('refresh', '1');
+    box.innerHTML = '<p class="text-sm text-slate-500">Собираю суточную сводку…</p>';
+    const d = await api('/api/admin/monitoring/daily' + (q.toString() ? '?' + q : ''));
+    if (!d || !d.report) { box.innerHTML = '<p class="text-sm text-rose-300">Не удалось собрать суточную сводку.</p>'; return; }
+    const r = d.report, b = r.blocks || {}, tg = d.telegram || {enabled: false, hour: 10, recipients: 0};
+    const approx = x => x && x.approximate ? ' <span class="text-amber-300">(границы по суткам UTC)</span>' : '';
+    const rows = [];
+    if (b.search) rows.push(['Поиски' + approx(b.search),
+      `${num(b.search.searches)}${b.search.success_rate == null ? '' : ' · успех ' + num(b.search.success_rate) + ' %'}`]);
+    if (b.catalog) rows.push(['Новые товары / изменения цен',
+      `${num(b.catalog.new_products)} / ${num(b.catalog.price_changes)} (дешевле ${num(b.catalog.cheaper)}, дороже ${num(b.catalog.dearer)})`]);
+    if (b.telegram) rows.push(['Уведомления: отправлено / попыток',
+      `${num(b.telegram.sent)} / ${num(b.telegram.attempts)}`]);
+    if (b.ai) rows.push(['AI: вызовов / стоимость' + approx(b.ai),
+      `${num(b.ai.requests)} / ${dailyCost(b.ai)}`]);
+    if (b.shops) rows.push(['Обходы · ухудшений / восстановлений',
+      `${num(b.shops.scans)} · ${num(b.shops.degraded)} / ${num(b.shops.recovered)}`]);
+    const drops = ((b.catalog || {}).biggest_drops || []).map(x =>
+      `<li class="break-words">${esc(x.title)} — ${num(x.was)} → ${num(x.now)} ₸ (−${num(x.drop_pct)} %)</li>`).join('');
+    const options = (d.days || []).map(x => `<option value="${esc(x.day)}" ${x.day === r.day ? 'selected' : ''}>${esc(x.day)}${x.partial ? ' (неполные)' : ''}</option>`).join('');
+    const state = r.partial ? 'limited' : (r.empty ? 'empty' : 'healthy');
+    box.innerHTML = card(`Сводка за сутки ${esc(r.day)} (${esc(r.tz)})`,
+      `<div class="flex flex-wrap gap-2 items-center mb-2">
+         <select id="dailyDay" class="bg-dark-950 border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-200">
+           ${options || `<option>${esc(r.day)}</option>`}</select>
+         <button id="btnDailyRefresh" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs">Пересчитать</button>
+         <button id="btnDailySummary" class="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs">Пересказать словами</button>
+       </div>
+       <div class="flex flex-wrap gap-3 items-center mb-2 text-xs text-slate-400">
+         <label class="flex items-center gap-2 cursor-pointer">
+           <input type="checkbox" id="dailyTelegram" class="accent-emerald-500" ${tg.enabled ? 'checked' : ''}>
+           <span>присылать в Telegram</span></label>
+         <label class="flex items-center gap-2">в
+           <select id="dailyHour" class="bg-dark-950 border border-slate-700 rounded-lg px-2 py-1 text-slate-200">
+             ${Array.from({length: 24}, (_, h) => `<option value="${h}" ${h === tg.hour ? 'selected' : ''}>${String(h).padStart(2, '0')}:00</option>`).join('')}
+           </select> ${esc(tg.tz || '')}</label>
+         <span>${num(tg.recipients)} получателей · ${esc(tg.note || '')}</span>
+       </div>` +
+      (r.empty ? '<p class="text-sm text-slate-400 mb-2">За эти сутки наблюдений нет — это не ноль достижений, а отсутствие данных.</p>' : '') +
+      kv(rows) +
+      (drops ? details('Самые заметные снижения цен', `<ul class="text-sm space-y-1">${drops}</ul>`) : '') +
+      (Object.keys(r.unavailable || {}).length
+        ? `<p class="text-xs text-amber-300 mt-2">Недоступные блоки: ${esc(Object.keys(r.unavailable).join(', '))}</p>` : '') +
+      `<div id="dailySummary" class="mt-3 text-sm">${r.summary
+        ? `<div class="whitespace-pre-wrap text-slate-100">${esc(r.summary)}</div>` : ''}</div>` +
+      `<p class="text-xs text-slate-500 mt-2">${esc(r.note)}</p>`, state);
+  }
+
+  async function setDailyTelegram(payload) {
+    const box = document.getElementById('dailySummary');
+    const res = await fetch('/api/admin/monitoring/daily/telegram', {method: 'POST',
+      headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) { if (box) box.innerHTML = `<p class="text-rose-300">${esc(d.message || 'Не удалось сохранить')}</p>`; return; }
+    loadDaily((document.getElementById('dailyDay') || {}).value || '', false);
+  }
+
+  async function daily(action) {
+    const day = (document.getElementById('dailyDay') || {}).value || '';
+    if (action === 'refresh') return loadDaily(day, true);
+    const box = document.getElementById('dailySummary');
+    box.innerHTML = '<p class="text-slate-500">Прошу пересказать…</p>';
+    const res = await fetch('/api/admin/monitoring/daily/summary', {method: 'POST',
+      headers: {'Content-Type': 'application/json'}, body: JSON.stringify({day})});
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) { box.innerHTML = `<p class="text-rose-300">${esc(d.message || 'Не удалось получить пересказ')}</p>`; return; }
+    box.innerHTML = d.summary
+      ? `<div class="whitespace-pre-wrap text-slate-100">${esc(d.summary)}</div>`
+      : `<p class="text-amber-300">Пересказ не показан: ${esc(d.rejected || 'причина не указана')}. Цифры выше остаются в силе.</p>`;
+  }
+
   function render() {
     renderNav();
     if (!data) return;
     document.getElementById('overallBadge').innerHTML = pill(data.status);
     document.getElementById('generatedAt').innerHTML = 'Данные на ' + ago(data.generated_at) + '. Статус «Нет данных» означает отсутствие наблюдений, а не норму.';
     document.getElementById('view').innerHTML = VIEWS[current]();
+    if (current === 'overview') loadDaily();
     if (current === 'events') loadEvents();
     if (current === 'search') loadSearchAnalytics();
     if (current === 'ai') loadAiSpending();
     if (current === 'system') { loadEnvironment(); loadBackups(); loadMatchingShadow(); }
-    if (current === 'scanning') loadSchedulerShadow();
+    if (current === 'scanning') { loadRollout(); loadSchedulerShadow(); }
   }
 
   async function load() {
@@ -557,15 +750,29 @@
   document.addEventListener('click', e => {
     const sec = e.target.closest('[data-section]');
     if (sec) { current = sec.dataset.section; history.replaceState(null, '', '#' + current); render(); return; }
+    const aiMatchBtn = e.target.closest('[data-matching-ai]');
+    if (aiMatchBtn) { setMatchingAi(aiMatchBtn.dataset.matchingAi); return; }
+    const rolloutBtn = e.target.closest('[data-rollout]');
+    if (rolloutBtn && !rolloutBtn.disabled) { switchRollout(rolloutBtn.dataset.rollout); return; }
     const scanBtn = e.target.closest('[data-scan-shop]');
     if (scanBtn) { scanShop(scanBtn.dataset.scanShop, scanBtn); return; }
     const shop = e.target.closest('[data-shop]');
     if (shop) { openShop(shop.dataset.shop); return; }
+    if (e.target.id === 'btnAsk') { askAssistant(); return; }
+    if (e.target.id === 'btnDailyRefresh') { daily('refresh'); return; }
+    if (e.target.id === 'btnDailySummary') { daily('summary'); return; }
     if (e.target.id === 'btnEvents') loadEvents();
     if (e.target.id === 'btnRefresh') load();
     if (e.target.id === 'shopModalClose' || e.target.id === 'shopModal') document.getElementById('shopModal').classList.add('hidden');
   });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') document.getElementById('shopModal').classList.add('hidden'); });
+  document.addEventListener('change', e => {
+    if (e.target.id === 'dailyDay') { loadDaily(e.target.value, false); return; }
+    if (e.target.id === 'dailyTelegram') { setDailyTelegram({enabled: e.target.checked}); return; }
+    if (e.target.id === 'dailyHour') { setDailyTelegram({hour: Number(e.target.value)}); return; }
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.id === 'askQ') { askAssistant(); return; }
+    if (e.key === 'Escape') document.getElementById('shopModal').classList.add('hidden'); });
   const initial = location.hash.slice(1);
   if (SECTIONS.some(([id]) => id === initial)) current = initial;
   renderNav();

@@ -851,11 +851,25 @@ async def get_admin_config_handler(request):
         "ai": {k: v for k, v in get_ai_config().items() if k not in ("gemini_api_key", "openai_api_key")}
     })
 
+# Настройки со своей процедурой перехода: их нельзя менять общим сохранением, иначе шаг включения
+# сменился бы без проверки перехода и без снимка «до», а автооткат остался бы без основания (M03).
+GUARDED_SETTINGS = {
+    "adaptive_scheduler_stage": "POST /api/admin/scheduler/rollout",
+    "ai_matching_mode": "POST /api/admin/monitoring/matching/ai",
+}
+
+
 @routes.post("/api/admin/config")
 @require_admin
 async def post_admin_config_handler(request):
     try:
         data = await request.json()
+        guarded = [k for k in GUARDED_SETTINGS if k in (data or {})]
+        if guarded:
+            where = ", ".join(f"«{k}» — {GUARDED_SETTINGS[k]}" for k in guarded)
+            return web.json_response(
+                {"status": "error",
+                 "message": f"Эти настройки меняются своим переключателем: {where}"}, status=400)
         current = load_settings()
         for k in ("gemini_api_key", "openai_api_key"):
             if k in data and ("..." in str(data[k]) or "***" in str(data[k])):
@@ -1036,9 +1050,24 @@ async def _save_and_detect(prods, shop_name, candidate_settings):
                 found.append((p, anomaly))
         return found
 
+    arbitrage_ids = []
     for p, anomaly in await asyncio.to_thread(_arbitrage_batch):
         changes["arbitrage_candidates"] += 1
-        changes["alerts_recorded"] += bool(await _process_anomaly(p, anomaly, shop_name))
+        recorded = bool(await _process_anomaly(p, anomaly, shop_name))
+        changes["alerts_recorded"] += recorded
+        if recorded:
+            arbitrage_ids.append(str(p["id"]))
+
+    # Наблюдения за разницей цен между магазинами (P07 V2) срабатывают на записанный алерт, поэтому
+    # проверяются после него — до этого места находки ещё не существует.
+    if arbitrage_ids:
+        try:
+            from database import evaluate_watches, watched_offers
+            await asyncio.to_thread(lambda: evaluate_watches(watched_offers(arbitrage_ids)))
+        except Exception as e:
+            print(f"[Watches] Ошибка проверки наблюдений за арбитражем: {type(e).__name__}")
+            from telemetry import telemetry, COMPONENT_SYSTEM
+            telemetry.record_system_error(COMPONENT_SYSTEM, "evaluate_watches_arbitrage", e)
     _record_price_changes(shop_name, changes)
 
 
@@ -1619,9 +1648,20 @@ async def _scan_task_body(shop_keys, target_categories, scan_type):
             await asyncio.to_thread(prune_source_scans)
             await asyncio.to_thread(prune_search_analytics)
             await asyncio.to_thread(prune_ai_usage)
+            from database import prune_daily_reports, prune_matching_pairs
+            await asyncio.to_thread(prune_daily_reports)
+            await asyncio.to_thread(prune_matching_pairs)
+            # Спорные пары сопоставления разбирает модель — вне пути сравнения цен (P09, AI-часть)
+            try:
+                import catalog_ai
+                await catalog_ai.resolve_pending()
+            except Exception as e:
+                print(f"[Matching] Разбор спорных пар не выполнен: {type(e).__name__}")
             # Самопроверка копий: раз в сутки развернуть свежую копию во временную базу (P15)
             from backup_health import verify_backups_if_due
             await asyncio.to_thread(verify_backups_if_due)
+            # Признаки ухудшения после включения адаптивного порядка — откат сразу, без ожидания (P11)
+            await asyncio.to_thread(check_adaptive_rollback)
             if pruned or pruned_outbox:
                 print(f"[DB] Удалено старых наблюдений цен: {pruned}, записей уведомлений: {pruned_outbox}")
         except Exception as e:
@@ -2015,6 +2055,162 @@ async def monitoring_environment_handler(request):
     return web.json_response(data, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
 
 
+def check_adaptive_rollback():
+    """Проверяет метрики пробных магазинов и возвращает прежний порядок при ухудшении (P11)."""
+    try:
+        import scheduler_rollout as rollout
+        if rollout.stage_of() == rollout.OFF:
+            return None
+        from database import scheduler_candidates
+        record = rollout.check_and_rollback(scheduler_candidates(days=7))
+        if record:
+            print(f"[AutoScan] ⏮ Адаптивный порядок выключен: {record['reason']}")
+        return record
+    except Exception as e:
+        print(f"[AutoScan] Проверка отката не выполнена: {type(e).__name__}")
+        return None
+
+
+@routes.post("/api/admin/assistant")
+@require_admin
+async def admin_assistant_handler(request):
+    """AI-помощник администратора (P12): только чтение, цифры из отчётов мониторинга."""
+    import admin_assistant
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"status": "error", "message": "Некорректный запрос"}, status=400)
+    question = str(data.get("question") or "").strip()
+    if not question:
+        return web.json_response({"status": "error", "message": "Задайте вопрос"}, status=400)
+    try:
+        days = max(1, min(90, int(data.get("days") or admin_assistant.DEFAULT_DAYS)))
+    except (TypeError, ValueError):
+        days = admin_assistant.DEFAULT_DAYS
+    result = await admin_assistant.answer(question, days=days)
+    return web.json_response({"status": "ok", **result},
+                             dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
+@routes.get("/api/admin/monitoring/daily")
+@require_admin
+async def admin_daily_digest_handler(request):
+    """Суточная сводка (P13): цифры из собственных данных, пересказ — отдельным запросом."""
+    import daily_digest
+    import database as db
+    day = (request.query.get("day") or "").strip() or None
+    tz = (request.query.get("tz") or daily_digest.DEFAULT_TZ).strip()
+    refresh = request.query.get("refresh") == "1"
+    if day:
+        try:
+            datetime.date.fromisoformat(day)
+        except ValueError:
+            return web.json_response({"status": "error", "message": "Дата в формате ГГГГ-ММ-ДД"}, status=400)
+    try:
+        report = await asyncio.to_thread(daily_digest.report, day, tz, refresh)
+    except Exception as e:
+        print(f"[Daily] Отчёт не собран: {type(e).__name__}")
+        return web.json_response({"status": "error", "message": "Не удалось собрать сводку"}, status=500)
+    days = await asyncio.to_thread(db.daily_reports, 14)
+    view = await asyncio.to_thread(daily_digest.settings_view)
+    people = await asyncio.to_thread(daily_digest.recipients)
+    telegram = {**view, "recipients": len(people),
+                "note": "Сводка уходит администраторам после указанного часа, один раз за сутки"
+                        if view["enabled"] else "Отправка в Telegram выключена"}
+    return web.json_response({"status": "ok", "report": report, "days": days, "telegram": telegram},
+                             dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
+@routes.post("/api/admin/monitoring/daily/summary")
+@require_admin
+async def admin_daily_summary_handler(request):
+    """Пересказ сводки словами. Число, которого нет в отчёте, отменяет пересказ целиком."""
+    import daily_digest
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    day = str(data.get("day") or "").strip() or None
+    tz = str(data.get("tz") or daily_digest.DEFAULT_TZ).strip()
+    report = await asyncio.to_thread(daily_digest.report, day, tz, False)
+    result = await daily_digest.summarize(report)
+    return web.json_response({"status": "ok", **result},
+                             dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
+@routes.post("/api/admin/monitoring/daily/telegram")
+@require_admin
+async def admin_daily_telegram_handler(request):
+    """Включение суточной сводки в Telegram (P13): отдельный выключатель, как и просил план."""
+    import config
+    import daily_digest
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    payload = {}
+    if "enabled" in data:
+        payload["daily_digest_telegram_enabled"] = bool(data.get("enabled"))
+    if "hour" in data:
+        try:
+            payload["daily_digest_hour"] = int(data.get("hour"))
+        except (TypeError, ValueError):
+            return web.json_response({"status": "error", "message": "Час — целое число от 0 до 23"},
+                                     status=400)
+    if not payload:
+        return web.json_response({"status": "error", "message": "Нечего менять"}, status=400)
+    try:
+        await asyncio.to_thread(config.save_settings, payload)
+    except ValueError as e:
+        return web.json_response({"status": "error", "message": str(e)}, status=400)
+    view = await asyncio.to_thread(daily_digest.settings_view)
+    people = await asyncio.to_thread(daily_digest.recipients)
+    return web.json_response({"status": "ok", "telegram": {**view, "recipients": len(people)}})
+
+
+@routes.get("/api/admin/scheduler/rollout")
+@require_admin
+async def scheduler_rollout_status_handler(request):
+    """Состояние контролируемого включения планировщика (P11)."""
+    import scheduler_rollout as rollout
+    data = await asyncio.to_thread(rollout.status)
+    return web.json_response(data, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
+@routes.post("/api/admin/scheduler/rollout")
+@require_admin
+async def scheduler_rollout_switch_handler(request):
+    """Переключение шага включения. Вперёд — по одному шагу, назад и в «выключено» — всегда."""
+    import scheduler_rollout as rollout
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"status": "error", "message": "Некорректный запрос"}, status=400)
+
+    target = str(data.get("stage") or "").strip()
+    if target not in rollout.STAGES:
+        return web.json_response({"status": "error", "message": f"неизвестный шаг: {target}"}, status=400)
+
+    def switch():
+        from database import scheduler_candidates
+        candidates = scheduler_candidates(days=7) if target != rollout.OFF else []
+        return rollout.switch_stage(target, candidates)
+
+    try:
+        # Подготовка и активация — один путь: при отказе шаг не включается (M03)
+        started = await asyncio.to_thread(switch)
+    except rollout.StageRefused as e:
+        return web.json_response({"status": "error", "message": str(e)}, status=400)
+    except Exception as e:
+        print(f"[Rollout] Переход не выполнен: {type(e).__name__}")
+        return web.json_response({"status": "error",
+                                  "message": "Шаг не включён: не удалось подготовить состояние"},
+                                 status=500)
+    status = await asyncio.to_thread(rollout.status)
+    return web.json_response({"status": "ok", "switched": started, "state": status},
+                             dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
 @routes.get("/api/admin/monitoring/scheduler")
 @require_admin
 async def monitoring_scheduler_handler(request):
@@ -2039,6 +2235,30 @@ async def monitoring_matching_handler(request):
         days = monitoring.MATCHING_SHADOW_DAYS
     data = await asyncio.to_thread(monitoring.matching_quality, days)
     return web.json_response(data, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
+@routes.post("/api/admin/monitoring/matching/ai")
+@require_admin
+async def monitoring_matching_ai_handler(request):
+    """Режим AI-части сопоставления (P09): off → shadow → on. Включение — решение владельца."""
+    import catalog_ai
+    import config
+    import monitoring
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    mode = str(data.get("mode") or "").strip()
+    if mode not in catalog_ai.MODES:
+        return web.json_response({"status": "error",
+                                  "message": f"Режим: {', '.join(catalog_ai.MODES)}"}, status=400)
+    try:
+        await asyncio.to_thread(config.save_settings, {"ai_matching_mode": mode})
+    except ValueError as e:
+        return web.json_response({"status": "error", "message": str(e)}, status=400)
+    view = await asyncio.to_thread(monitoring._matching_ai_view)
+    return web.json_response({"status": "ok", "ai": view},
+                             dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
 
 
 @routes.get("/api/admin/monitoring/ai-usage")
@@ -2120,6 +2340,26 @@ async def logs_export_handler(request):
         headers={"Content-Disposition": 'attachment; filename="kz_price_hunter_logs.txt"'}
     )
 
+def apply_adaptive_order(target_shops):
+    """Порядок обхода волны с учётом шага включения адаптивного планировщика (P11).
+
+    Возвращает (список магазинов, пояснение). При выключенном шаге и при любой ошибке возвращается
+    исходный список: новый порядок — необязательная надстройка, он не имеет права ломать обходы.
+    """
+    try:
+        import scheduler_rollout as rollout
+        stage = rollout.stage_of()
+        if stage == rollout.OFF:
+            return list(target_shops), ""
+        from database import scheduler_candidates
+        candidates = scheduler_candidates(days=7)
+        result = rollout.select_targets(stage, list(target_shops), candidates)
+        return result["targets"], result["explanation"] if result["changed"] else ""
+    except Exception as e:
+        print(f"[AutoScan] Адаптивный порядок не применён: {type(e).__name__}")
+        return list(target_shops), ""
+
+
 async def auto_scan_background_worker(app):
     """Фоновый монитор: строгое поочередное волновое сканирование за 24 часа + контроль свежести магазинов."""
     settings = load_settings()
@@ -2169,6 +2409,11 @@ async def auto_scan_background_worker(app):
                 if is_wave_due or stale:
                     target_shops = enabled_keys if is_wave_due else stale
                     reason = f"время очередной волны (шаг: {wave_interval_sec // 60}м, круговой лимит: 24ч)" if is_wave_due else f"устарели {len(stale)} магазинов"
+                    # Контролируемое включение адаптивного порядка (P11): по умолчанию выключено, а
+                    # включённый порядок может только переставить и сократить эту же волну
+                    target_shops, adaptive_note = apply_adaptive_order(target_shops)
+                    if adaptive_note:
+                        reason += f"; {adaptive_note}"
                     print(f"[AutoScan] 🌊 Запуск волны: {reason}")
                     spawn_scan(target_shops, scan_type="auto")
             else:

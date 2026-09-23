@@ -141,7 +141,11 @@ class StorageTest(unittest.TestCase):
         self.tmp.cleanup()
 
     def add(self, user_id=701, **kw):
-        data = {"kind": w.PRODUCT, "target": "p1", "condition": w.ANY_DROP, "title": "iPhone 15"}
+        # Тихие часы по умолчанию выключены: иначе результат тестов доставки зависел бы от времени суток,
+        # в которое их запускают (ночью сообщения законно откладываются до утра). Там, где проверяются
+        # сами тихие часы, значения задаются явно.
+        data = {"kind": w.PRODUCT, "target": "p1", "condition": w.ANY_DROP, "title": "iPhone 15",
+                "quiet_from": "00:00", "quiet_to": "00:00"}
         data.update(kw)
         return database.create_watch(user_id, data)
 
@@ -480,3 +484,188 @@ class OneShotAndConcurrencyTest(DeliveryTest):
         self.assertEqual(len(self.outbox()), 1, f"ошибки потоков: {errors}")
         with database.get_connection() as conn:
             self.assertEqual(conn.execute("SELECT COUNT(*) FROM watch_events").fetchone()[0], 1)
+
+
+class WatchV2RulesTest(unittest.TestCase):
+    """V2: магазин, выгодные предложения и разница цен между магазинами."""
+
+    def watch(self, **kw):
+        data = {"kind": w.DEAL, "target": w.ANY_TARGET, "condition": w.ANY_FIND}
+        data.update(kw)
+        return w.normalize(data)
+
+    def test_shop_watch_matches_only_its_shop(self):
+        watch = self.watch(kind=w.SHOP, target="Kaspi", condition=w.ANY_DROP)
+        self.assertTrue(w.matches(watch, offer(100000, shop="Kaspi Магазин")))
+        self.assertFalse(w.matches(watch, offer(100000, shop="Technodom")))
+
+    def test_deal_watch_fires_only_on_a_recorded_find(self):
+        """«Сделка» — это записанный алерт ленты, а не наша догадка о хорошей цене."""
+        watch = self.watch()
+        self.assertFalse(w.matches(watch, offer(100000)), "без алерта наблюдение молчит")
+        self.assertTrue(w.matches(watch, offer(100000, alert_type="SUPER_DISCOUNT")))
+        self.assertFalse(w.matches(watch, offer(100000, alert_type="MARKET_ARBITRAGE")),
+                         "арбитраж — отдельный вид наблюдения")
+
+    def test_arbitrage_watch_takes_its_own_alert_type(self):
+        watch = self.watch(kind=w.ARBITRAGE)
+        self.assertTrue(w.matches(watch, offer(100000, alert_type="MARKET_ARBITRAGE")))
+        self.assertFalse(w.matches(watch, offer(100000, alert_type="SUPER_DISCOUNT")))
+
+    def test_find_watch_can_be_limited_to_a_category(self):
+        watch = self.watch(target="Смартфоны")
+        self.assertTrue(w.matches(watch, offer(100000, alert_type="SUPER_DISCOUNT")))
+        self.assertFalse(w.matches(watch, offer(100000, alert_type="SUPER_DISCOUNT", category="Телевизоры")))
+
+    def test_discount_threshold_is_respected(self):
+        watch = self.watch(condition=w.DISCOUNT_PCT, threshold=40)
+        ok, reason = w.condition_met(watch, offer(100000, alert_type="SUPER_DISCOUNT", discount_pct=45), {})
+        self.assertTrue(ok)
+        self.assertIn("45 %", reason)
+        self.assertFalse(w.condition_met(watch, offer(100000, alert_type="SUPER_DISCOUNT",
+                                                      discount_pct=20), {})[0])
+
+    def test_same_find_is_not_reported_twice(self):
+        watch = self.watch()
+        state = {"last_notified_price": 100000}
+        self.assertFalse(w.condition_met(watch, offer(100000, alert_type="SUPER_DISCOUNT"), state)[0])
+        self.assertTrue(w.condition_met(watch, offer(90000, alert_type="SUPER_DISCOUNT"), state)[0])
+
+    def test_condition_must_fit_the_kind(self):
+        with self.assertRaises(ValueError):
+            self.watch(condition=w.BACK_IN_STOCK)          # для ленты находок бессмысленно
+        with self.assertRaises(ValueError):
+            self.watch(kind=w.PRODUCT, target="p1", condition=w.ANY_FIND)   # и наоборот
+
+    def test_description_of_a_find_watch_reads_plainly(self):
+        self.assertEqual(w.describe(self.watch()), "выгодные предложения: любая находка")
+        self.assertIn("в категории «Смартфоны»", w.describe(self.watch(target="Смартфоны")))
+        self.assertIn("скидка от 30 %", w.describe(self.watch(condition=w.DISCOUNT_PCT, threshold=30)))
+
+
+class WatchV2StorageTest(StorageTest):
+    def products(self, count=3, price=100000, alert=None):
+        rows = [{"id": f"d{i}", "title": f"Товар {i}", "price": price, "shop": "Kaspi", "city": "Астана",
+                 "url": f"https://k.example/d{i}", "category": "Смартфоны"} for i in range(count)]
+        database.save_or_update_products_batch(rows)
+        if alert:
+            for row in rows:
+                database.record_alert(row["id"], alert, price * 2, price, 50.0, price, shop="Kaspi",
+                                      city="Астана")
+        return [r["id"] for r in rows]
+
+    def test_offers_carry_the_find_that_the_feed_recorded(self):
+        ids = self.products(alert="SUPER_DISCOUNT")
+        offers = {o["id"]: o for o in database.watched_offers(ids)}
+        self.assertEqual(offers["d0"]["alert_type"], "SUPER_DISCOUNT")
+        self.assertEqual(offers["d0"]["discount_pct"], 50.0)
+
+    def test_stale_find_is_not_attached_to_the_offer(self):
+        """Вчерашний алерт — не сегодняшняя находка."""
+        ids = self.products(alert="SUPER_DISCOUNT")
+        with database.get_connection() as conn:
+            conn.execute("UPDATE alerts SET created_at = ?", ("2026-09-01 10:00:00",))
+            conn.commit()
+        self.assertNotIn("alert_type", database.watched_offers(ids)[0])
+
+    def test_deal_watch_queues_one_message_per_find(self):
+        ids = self.products(count=2, alert="SUPER_DISCOUNT")
+        self.add(kind=w.DEAL, target=w.ANY_TARGET, condition=w.ANY_FIND, title="Сделки")
+        queued = database.evaluate_watches(database.watched_offers(ids))
+        self.assertEqual(queued, 2)
+        self.assertEqual(len(self.outbox()), 2)
+
+    def test_broad_watch_cannot_flood_the_queue_in_one_run(self):
+        """Наблюдение за магазином не должно превращать один обход в сотни заданий."""
+        ids = self.products(count=6, alert="SUPER_DISCOUNT")
+        self.add(kind=w.SHOP, target="Kaspi", condition=w.ANY_DROP, title="Kaspi")
+        with patch.object(database, "MAX_EVENTS_PER_WATCH_PER_RUN", 2):
+            database.evaluate_watches([dict(o, current_price=90000)
+                                       for o in database.watched_offers(ids)])
+            # первая проверка задаёт память по каждому предложению, вторая уже может сработать
+            queued = database.evaluate_watches([dict(o, current_price=80000)
+                                                for o in database.watched_offers(ids)])
+        self.assertLessEqual(queued, 2)
+
+
+class DigestDeliveryTest(DeliveryTest):
+    """Режим «сводка» обещает одно письмо, а не отложенную пачку."""
+
+    def queue_digest(self, count=3):
+        rows = [{"id": f"s{i}", "title": f"Товар {i}", "price": 100000, "shop": "Kaspi", "city": "Астана",
+                 "url": f"https://k.example/s{i}", "category": "Смартфоны"} for i in range(count)]
+        database.save_or_update_products_batch(rows)
+        self.add(kind=w.SHOP, target="Kaspi", condition=w.ANY_DROP, title="Kaspi", mode=w.DIGEST,
+                 cooldown_hours=0)
+        offers = [dict(o) for o in database.watched_offers([r["id"] for r in rows])]
+        database.evaluate_watches(offers)
+        cheaper = [{**r, "price": 90000} for r in rows]
+        database.save_or_update_products_batch(cheaper)
+        database.evaluate_watches([dict(o, current_price=90000) for o in offers])
+        # Время сводки уже наступило: задания ждут в очереди
+        with database.get_connection() as conn:
+            conn.execute("UPDATE notification_outbox SET next_attempt_at = 0 WHERE status = 'pending'")
+            conn.commit()
+
+    def send_all(self):
+        import notifier
+        sent = []
+        with patch.object(notifier, "get_bot_token", lambda: "token"), \
+             patch.object(notifier, "telegram_api",
+                          side_effect=lambda method, payload, **kw: sent.append(payload) or _ok_response()):
+            notifier.deliver_pending(limit=10)
+        return sent
+
+    def test_a_full_run_batch_goes_out_as_one_message(self):
+        """M10: 25 срабатываний за обход — это одно письмо, а не 21 и 4."""
+        self.queue_digest(count=25)
+        self.assertEqual(len(self.outbox()), 25)
+        sent = self.send_all()
+        self.assertEqual(len(sent), 1, "весь пакет обхода должен уйти одним письмом")
+        self.assertIn("Сработало раз: <b>25</b>", sent[0]["text"])
+        self.assertIn("…и ещё 15", sent[0]["text"], "список сокращается, счётчик — нет")
+        self.assertEqual({q["status"] for q in self.outbox()}, {"sent"})
+
+    def test_accumulated_triggers_go_out_as_one_message(self):
+        self.queue_digest(count=3)
+        self.assertEqual(len(self.outbox()), 3, "срабатывания накопились по одному")
+        sent = self.send_all()
+        self.assertEqual(len(sent), 1, "а письмо должно быть одно")
+        self.assertIn("Сводка по наблюдению", sent[0]["text"])
+        self.assertIn("Сработало раз: <b>3</b>", sent[0]["text"])
+        self.assertEqual({q["status"] for q in self.outbox()}, {"sent"})
+        self.assertEqual({e["status"] for e in database.watch_events(701)}, {"sent"})
+
+    def test_failed_digest_returns_to_the_queue_whole(self):
+        import notifier
+        self.queue_digest(count=3)
+        with patch.object(notifier, "get_bot_token", lambda: "token"), \
+             patch.object(notifier, "send_watch_digest",
+                          return_value=notifier.DeliveryResult("retry", None, "сеть")):
+            notifier.deliver_pending(limit=10)
+        self.assertEqual({q["status"] for q in self.outbox()}, {"pending"},
+                         "ни одно срабатывание не потеряно")
+        # Повтор — после назначенной паузы; когда она пройдёт, письмо снова уходит целиком
+        with database.get_connection() as conn:
+            conn.execute("UPDATE notification_outbox SET next_attempt_at = 0 WHERE status = 'pending'")
+            conn.commit()
+        sent = self.send_all()
+        self.assertEqual(len(sent), 1)
+        self.assertIn("Сработало раз: <b>3</b>", sent[0]["text"])
+
+    def test_outdated_trigger_does_not_get_into_the_digest(self):
+        self.queue_digest(count=3)
+        database.save_or_update_products_batch([{"id": "s1", "title": "Товар 1", "price": 70000,
+                                                 "shop": "Kaspi", "city": "Астана",
+                                                 "url": "https://k.example/s1", "category": "Смартфоны"}])
+        sent = self.send_all()
+        self.assertEqual(len(sent), 1)
+        self.assertNotIn("Товар 1", sent[0]["text"], "цена уже другая — в письмо не попадает")
+        self.assertIn("cancelled", [q["status"] for q in self.outbox()])
+
+    def test_instant_mode_still_sends_one_message_per_trigger(self):
+        import notifier
+        self.trigger()
+        sent = self.send_all()
+        self.assertEqual(len(sent), 1)
+        self.assertIn("Сработало ваше наблюдение", sent[0]["text"])

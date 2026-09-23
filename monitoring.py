@@ -831,7 +831,33 @@ def matching_quality(days: int = MATCHING_SHADOW_DAYS,
     else:
         status = HEALTHY
         reason = f"Не сравнивается: по разной фасовке {data['blocked']}, по неизвестной {data['uncertain']}"
-    return {"status": status, "reason": reason, **data}
+    ai = _matching_ai_view()
+    return {"status": status, "reason": reason, **data, "ai": ai}
+
+
+def _matching_ai_view() -> Dict[str, Any]:
+    """Состояние AI-части сопоставления (P09): режим, разобранные пары и согласованные пороги.
+
+    Режим «on» без выполненного замера не показывается как норма: пороги согласованы до замера
+    именно для того, чтобы включение опиралось на цифры, а не на надежду.
+    """
+    import catalog_ai
+    import database
+    summary = database.matching_decisions_summary()
+    mode = catalog_ai.mode()
+    labels = {catalog_ai.OFF: "выключено: модель не вызывается",
+              catalog_ai.SHADOW: "тень: модель отвечает, сравнение цен не меняется",
+              catalog_ai.ON: "включено: уверенное решение модели разрешает сравнение"}
+    return {
+        "mode": mode, "mode_label": labels.get(mode, mode), "modes": list(catalog_ai.MODES),
+        **summary,
+        "thresholds": {"confidence": catalog_ai.MIN_CONFIDENCE,
+                       "precision": catalog_ai.REQUIRED_PRECISION,
+                       "recall": catalog_ai.REQUIRED_RECALL,
+                       "agreed_at": catalog_ai.AGREED_AT},
+        "note": ("Модель спрашивают только о спорных парах: явное противоречие фасовки она не отменяет, "
+                 "а уже признанный товар не пересматривает."),
+    }
 
 
 SCHEDULER_SHADOW_DAYS = 7

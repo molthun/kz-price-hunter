@@ -710,6 +710,34 @@ def _create_schema(cursor) -> None:
     # Теневой отчёт сопоставления (P09): что новое правило фасовки запретило сравнивать и где оно
     # честно не знает. Хранятся только данные о товарах, без пользователей. schema_version не меняется.
     cursor.execute("""
+        CREATE TABLE IF NOT EXISTS daily_reports (
+            day TEXT NOT NULL,
+            tz TEXT NOT NULL DEFAULT 'UTC',
+            computed_at TEXT NOT NULL,
+            partial INTEGER NOT NULL DEFAULT 0,
+            payload TEXT NOT NULL,
+            summary TEXT,
+            summary_provider TEXT,
+            PRIMARY KEY (day, tz)
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS matching_pairs (
+            pair_key TEXT PRIMARY KEY,
+            left_title TEXT NOT NULL,
+            right_title TEXT NOT NULL,
+            seen INTEGER NOT NULL DEFAULT 1,
+            first_seen TEXT NOT NULL,
+            last_seen TEXT NOT NULL,
+            same INTEGER,
+            confidence REAL,
+            reason TEXT,
+            provider TEXT,
+            decided_at TEXT,
+            mode TEXT
+        )
+    """)
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS matching_shadow (
             day TEXT NOT NULL,
             kind TEXT NOT NULL,
@@ -741,6 +769,10 @@ def _create_schema(cursor) -> None:
             PRIMARY KEY (day, task, provider, model, outcome)
         )
     """)
+    # Сколько вызовов в строке имеют известную стоимость: одна строка агрегата объединяет вызовы с ценой
+    # и без неё, и без отдельного счётчика неполнота суммы была не видна (M06). У прежних строк колонка
+    # остаётся NULL — это читается как «покрытие неизвестно», а не как «всё оценено».
+    _add_column(cursor, "ai_usage", "priced_requests", "INTEGER")
 
 
 # ---------------------------------------------------------------------------
@@ -1109,6 +1141,40 @@ def get_metadata(name: str, default: Optional[str] = None) -> Optional[str]:
             return row[0] if row else default
     except sqlite3.OperationalError:
         return default
+
+
+def compare_and_set_metadata(version_key: str, expected: Optional[str],
+                             pairs: Dict[str, str]) -> Optional[str]:
+    """Записывает значения, только если версия состояния не изменилась. Возвращает новую версию или None.
+
+    Так отказ одного перехода не может затереть состояние другого, успевшего пройти: он увидит чужую
+    версию и ничего не тронет (M03). Транзакция BEGIN IMMEDIATE сериализует и параллельные процессы.
+    """
+    with get_connection() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute("SELECT value FROM schema_metadata WHERE name = ?", (version_key,)).fetchone()
+        current = row[0] if row else None
+        if (current or "") != (expected or ""):
+            conn.rollback()
+            return None
+        version = str(int(current or 0) + 1)
+        for name, value in pairs.items():
+            conn.execute("INSERT OR REPLACE INTO schema_metadata (name, value) VALUES (?, ?)",
+                         (name, str(value)))
+        conn.execute("INSERT OR REPLACE INTO schema_metadata (name, value) VALUES (?, ?)",
+                     (version_key, version))
+        conn.commit()
+        return version
+
+
+def set_metadata_many(pairs: Dict[str, str]) -> None:
+    """Несколько служебных значений одной транзакцией: состояние шага не должно записаться наполовину."""
+    with get_connection() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        for name, value in pairs.items():
+            conn.execute("INSERT OR REPLACE INTO schema_metadata (name, value) VALUES (?, ?)",
+                         (name, str(value)))
+        conn.commit()
 
 
 def set_metadata(name: str, value: str) -> None:
@@ -1754,7 +1820,12 @@ def find_market_comparisons(
                 # Слова совпали, но фасовку указал только один магазин: сравнивать вслепую не будем,
                 # случай записывается для разбора (P09)
                 record_matching_shadow("uncertain", unsure_reason, title, r["title"])
-            continue
+                if not _ai_allows_comparison(title, r["title"]):
+                    continue
+                # Модель разобрала этот случай и уверена — сравнение разрешено (P09, AI-часть)
+                record_matching_shadow("ai_allowed", unsure_reason, title, r["title"])
+            else:
+                continue
         if is_junk_accessory(r["title"], r["category"] or "") or is_used_goods(r["title"], r["category"] or "", r["url"]):
             continue
         valid_competitors.append(dict(r))
@@ -2136,6 +2207,39 @@ def claim_notification():
                          (now + 120, row["id"]))
         conn.commit()
     return dict(row) if row else None
+
+
+# Сводка забирает ВСЕ готовые срабатывания наблюдения, а не первые двадцать: иначе пакет из 25 событий
+# разваливался на два письма подряд (M10). Верхняя граница остаётся защитой от бесконечного письма.
+MAX_DIGEST_BATCH = 500
+
+
+def claim_watch_digest(watch_id: int, user_id: int, exclude_id: int,
+                       limit: int = MAX_DIGEST_BATCH) -> List[Dict[str, Any]]:
+    """Забирает остальные готовые задания того же наблюдения: они уйдут одним сообщением, а не пачкой.
+
+    Берутся только задания, которым уже пора, и только этого человека и этого наблюдения. Каждое
+    забирается так же, как обычное — с увеличением попытки, чтобы при сбое доставки оно не потерялось
+    и не ушло дважды.
+
+    Берутся все готовые срабатывания до предела MAX_DIGEST_BATCH: за один обход наблюдение создаёт не
+    больше MAX_EVENTS_PER_WATCH_PER_RUN событий, поэтому обычный пакет умещается в одно письмо (M10).
+    Если срабатываний окажется больше предела, остаток уйдёт следующим письмом — об этом говорит само
+    письмо, а не молчание.
+    """
+    now = time.time()
+    with get_connection() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        rows = conn.execute("""SELECT * FROM notification_outbox
+            WHERE status = 'pending' AND user_id = ? AND id <> ? AND next_attempt_at <= ?
+              AND json_extract(payload, '$.kind') = 'watch'
+              AND json_extract(payload, '$.watch_id') = ?
+            ORDER BY id LIMIT ?""", (user_id, exclude_id, now, watch_id, limit)).fetchall()
+        for row in rows:
+            conn.execute("UPDATE notification_outbox SET attempts = attempts + 1, next_attempt_at = ? "
+                         "WHERE id = ?", (now + 120, row["id"]))
+        conn.commit()
+    return [dict(r) for r in rows]
 
 
 def finish_notification(delivery_id, status, attempts=0, error=None, retry_after=None):
@@ -2597,6 +2701,9 @@ def _watch_states(conn, watch_id: int, product_id: str) -> Dict[str, Any]:
     return dict(row) if row else {}
 
 
+MAX_EVENTS_PER_WATCH_PER_RUN = 25
+
+
 def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.datetime] = None) -> int:
     """Сверяет изменившиеся предложения с активными наблюдениями и ставит срабатывания в очередь.
 
@@ -2612,12 +2719,17 @@ def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.dateti
     if not active:
         return 0
 
+    per_watch: Dict[int, int] = {}
     for offer in offers:
         product_id = str(offer.get("id") or "")
         if not product_id:
             continue
         for watch in active:
             if not w.matches(watch, offer):
+                continue
+            # Широкое наблюдение (магазин, сделки) за один обход может задеть сотни предложений.
+            # Очередь не должна расти без предела: остальное попадёт в следующую проверку.
+            if per_watch.get(watch["id"], 0) >= MAX_EVENTS_PER_WATCH_PER_RUN:
                 continue
             price = int(offer.get("current_price") or 0)
             available = 1 if offer.get("is_available", True) else 0
@@ -2683,6 +2795,7 @@ def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.dateti
                 conn.execute("UPDATE watches SET last_sent_at = ?, fired_at = COALESCE(fired_at, ?) "
                              "WHERE id = ?", (moment.isoformat(), moment.isoformat(), watch["id"]))
                 conn.commit()
+            per_watch[watch["id"]] = per_watch.get(watch["id"], 0) + 1
             watch["last_sent_at"] = moment.isoformat()
             if not watch["repeat"]:
                 watch["fired_at"] = moment.isoformat()
@@ -2691,11 +2804,23 @@ def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.dateti
     return queued
 
 
-def watched_offers(product_ids: List[str]) -> List[Dict[str, Any]]:
-    """Сохранённые предложения по идентификаторам — вход для проверки наблюдений (P07)."""
+WATCH_ALERT_WINDOW_MINUTES = 30      # находка считается свежей столько времени после записи алерта
+
+
+def watched_offers(product_ids: List[str], now: Optional[datetime.datetime] = None) -> List[Dict[str, Any]]:
+    """Сохранённые предложения по идентификаторам — вход для проверки наблюдений (P07).
+
+    К предложению добавляется свежая находка ленты (алерт), если она есть: вид, скидка и магазин-основание.
+    Наблюдения за сделками и арбитражем срабатывают именно на записанный алерт, а не на собственную догадку
+    о том, что цена «выглядит хорошей».
+    """
     ids = [str(i) for i in product_ids if i]
     if not ids:
         return []
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    # created_at у алертов пишет сам SQLite (CURRENT_TIMESTAMP, UTC, без смещения) —
+    # сравниваем в том же виде, иначе граница окна сдвинулась бы
+    since = (moment - datetime.timedelta(minutes=WATCH_ALERT_WINDOW_MINUTES)).strftime("%Y-%m-%d %H:%M:%S")
     rows: List[Dict[str, Any]] = []
     with get_connection() as conn:
         for start in range(0, len(ids), 500):
@@ -2704,6 +2829,15 @@ def watched_offers(product_ids: List[str]) -> List[Dict[str, Any]]:
             rows.extend(dict(r) for r in conn.execute(
                 f"SELECT id, title, shop, city, url, image_url, category, canonical_key, current_price, "
                 f"is_active AS is_available FROM products WHERE id IN ({placeholders})", chunk))
+            for row in conn.execute(
+                    f"SELECT product_id, alert_type, discount_pct, new_price, competitor_shop "
+                    f"FROM alerts WHERE product_id IN ({placeholders}) AND is_dismissed = 0 "
+                    f"AND created_at >= ? ORDER BY id", chunk + [since]):
+                for offer in rows:
+                    if offer["id"] == row["product_id"] and int(row["new_price"] or 0) == int(offer["current_price"] or 0):
+                        offer["alert_type"] = row["alert_type"]
+                        offer["discount_pct"] = row["discount_pct"]
+                        offer["competitor_shop"] = row["competitor_shop"]
     return rows
 
 
@@ -2731,11 +2865,13 @@ def record_ai_usage(task: str, audience: str, provider: str, model: str, outcome
     day = moment.strftime("%Y-%m-%d")
     with get_connection() as conn:
         conn.execute("""
-            INSERT INTO ai_usage (day, task, audience, provider, model, outcome, requests, input_tokens,
-                                  output_tokens, cost_usd, latency_sum_ms, cache_hits, fallbacks, errors, last_error)
-            VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO ai_usage (day, task, audience, provider, model, outcome, requests, priced_requests,
+                                  input_tokens, output_tokens, cost_usd, latency_sum_ms, cache_hits,
+                                  fallbacks, errors, last_error)
+            VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(day, task, provider, model, outcome) DO UPDATE SET
                 requests = requests + 1,
+                priced_requests = COALESCE(priced_requests, 0) + excluded.priced_requests,
                 input_tokens = input_tokens + excluded.input_tokens,
                 output_tokens = output_tokens + excluded.output_tokens,
                 cost_usd = CASE WHEN excluded.cost_usd IS NULL THEN cost_usd
@@ -2745,7 +2881,9 @@ def record_ai_usage(task: str, audience: str, provider: str, model: str, outcome
                 fallbacks = fallbacks + excluded.fallbacks,
                 errors = errors + excluded.errors,
                 last_error = COALESCE(excluded.last_error, last_error)
-        """, (day, task, audience, provider, model, outcome, int(input_tokens or 0), int(output_tokens or 0),
+        """, (day, task, audience, provider, model, outcome,
+              1 if cost is not None else 0,          # вызов с известной стоимостью (M06)
+              int(input_tokens or 0), int(output_tokens or 0),
               cost, float(latency_ms or 0.0), 1 if cache_hit else 0, 1 if fallback else 0,
               1 if outcome in ("error", "bad_response") else 0, error))
         conn.commit()
@@ -2822,6 +2960,152 @@ def prune_ai_usage(days: int = 365, now: Optional[datetime.datetime] = None) -> 
 # ---------------------------------------------------------------------------
 # Теневой отчёт сопоставления (P09): видно, что изменило правило фасовки и где оно не уверено.
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# Суточная сводка (P13): один день — одна запись, пересчёт заменяет её целиком.
+# ---------------------------------------------------------------------------
+
+def save_daily_report(day: str, tz: str, computed_at: str, partial: int, payload: str,
+                      summary: Optional[str] = None, provider: Optional[str] = None) -> None:
+    """Пересчёт того же дня не создаёт вторую запись. Пересказ не теряется, если его не передали."""
+    with get_connection() as conn:
+        conn.execute("""
+            INSERT INTO daily_reports (day, tz, computed_at, partial, payload, summary, summary_provider)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(day, tz) DO UPDATE SET
+                computed_at = excluded.computed_at, partial = excluded.partial,
+                payload = excluded.payload,
+                summary = COALESCE(excluded.summary, daily_reports.summary),
+                summary_provider = COALESCE(excluded.summary_provider, daily_reports.summary_provider)
+        """, (day, tz, computed_at, int(partial), payload, summary, provider))
+        conn.commit()
+
+
+def daily_report(day: str, tz: str = "UTC") -> Optional[Dict[str, Any]]:
+    with get_connection() as conn:
+        row = conn.execute("SELECT * FROM daily_reports WHERE day = ? AND tz = ?", (day, tz)).fetchone()
+    return dict(row) if row else None
+
+
+def daily_reports(limit: int = 30) -> List[Dict[str, Any]]:
+    with get_connection() as conn:
+        return [{"day": r["day"], "tz": r["tz"], "computed_at": r["computed_at"],
+                 "partial": bool(r["partial"]), "has_summary": bool(r["summary"])}
+                for r in conn.execute("SELECT day, tz, computed_at, partial, summary FROM daily_reports "
+                                      "ORDER BY day DESC LIMIT ?", (limit,))]
+
+
+DAILY_REPORT_RETENTION_DAYS = 180
+
+
+def prune_daily_reports(keep_days: int = DAILY_REPORT_RETENTION_DAYS, now: Optional[datetime.datetime] = None) -> int:
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    cutoff = (moment - datetime.timedelta(days=max(1, int(keep_days)))).strftime("%Y-%m-%d")
+    with get_connection() as conn:
+        cur = conn.execute("DELETE FROM daily_reports WHERE day < ?", (cutoff,))
+        conn.commit()
+        return cur.rowcount or 0
+
+
+# ---------------------------------------------------------------------------
+# Спорные пары сопоставления и решения модели по ним (P09, AI-часть).
+# ---------------------------------------------------------------------------
+
+MATCHING_PAIRS_RETENTION_DAYS = 90
+MAX_MATCHING_PAIRS = 5000        # очередь разбора не должна расти без предела
+
+
+def record_matching_pair(left_title: str, right_title: str, pair_key: str,
+                         now: Optional[datetime.datetime] = None) -> None:
+    """Запоминает спорную пару для последующего разбора. Повтор только обновляет счётчик."""
+    moment = (now or datetime.datetime.now(datetime.timezone.utc)).isoformat()
+    with get_connection() as conn:
+        count = conn.execute("SELECT COUNT(*) FROM matching_pairs WHERE same IS NULL").fetchone()[0]
+        exists = conn.execute("SELECT 1 FROM matching_pairs WHERE pair_key = ?", (pair_key,)).fetchone()
+        if not exists and count >= MAX_MATCHING_PAIRS:
+            return                # очередь заполнена: новые случаи подождут следующей очистки
+        conn.execute("""
+            INSERT INTO matching_pairs (pair_key, left_title, right_title, seen, first_seen, last_seen)
+            VALUES (?, ?, ?, 1, ?, ?)
+            ON CONFLICT(pair_key) DO UPDATE SET seen = seen + 1, last_seen = excluded.last_seen
+        """, (pair_key, str(left_title)[:300], str(right_title)[:300], moment, moment))
+        conn.commit()
+
+
+def pending_matching_pairs(limit: int = 10) -> List[Dict[str, Any]]:
+    """Самые частые нерешённые пары: разбирать сначала то, что встречается чаще."""
+    with get_connection() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT pair_key, left_title, right_title, seen FROM matching_pairs WHERE same IS NULL "
+            "ORDER BY seen DESC, rowid LIMIT ?", (int(limit),))]
+
+
+def save_matching_decision(pair_key: str, same: bool, confidence: float, reason: str,
+                           provider: Optional[str], mode: str,
+                           now: Optional[datetime.datetime] = None) -> None:
+    moment = (now or datetime.datetime.now(datetime.timezone.utc)).isoformat()
+    with get_connection() as conn:
+        conn.execute("""UPDATE matching_pairs SET same = ?, confidence = ?, reason = ?, provider = ?,
+                        mode = ?, decided_at = ? WHERE pair_key = ?""",
+                     (1 if same else 0, float(confidence), str(reason)[:300], provider, mode,
+                      moment, pair_key))
+        conn.commit()
+
+
+def matching_decision(pair_key: str) -> Optional[Dict[str, Any]]:
+    with get_connection() as conn:
+        row = conn.execute("SELECT * FROM matching_pairs WHERE pair_key = ? AND same IS NOT NULL",
+                           (pair_key,)).fetchone()
+    if not row:
+        return None
+    item = dict(row)
+    item["same"] = bool(item["same"])
+    return item
+
+
+def matching_decisions_summary(limit: int = 20) -> Dict[str, Any]:
+    """Что модель разобрала: сколько пар ждёт, сколько решено и с какой уверенностью."""
+    with get_connection() as conn:
+        pending = conn.execute("SELECT COUNT(*) FROM matching_pairs WHERE same IS NULL").fetchone()[0]
+        decided = conn.execute("SELECT COUNT(*) FROM matching_pairs WHERE same IS NOT NULL").fetchone()[0]
+        yes = conn.execute("SELECT COUNT(*) FROM matching_pairs WHERE same = 1").fetchone()[0]
+        examples = [dict(r) for r in conn.execute(
+            "SELECT left_title, right_title, same, confidence, reason, provider, decided_at, seen "
+            "FROM matching_pairs WHERE same IS NOT NULL ORDER BY decided_at DESC LIMIT ?", (int(limit),))]
+    for item in examples:
+        item["same"] = bool(item["same"])
+    return {"pending": pending, "decided": decided, "same": yes, "different": decided - yes,
+            "examples": examples}
+
+
+def prune_matching_pairs(keep_days: int = MATCHING_PAIRS_RETENTION_DAYS,
+                         now: Optional[datetime.datetime] = None) -> int:
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    cutoff = (moment - datetime.timedelta(days=max(1, int(keep_days)))).isoformat()
+    with get_connection() as conn:
+        cur = conn.execute("DELETE FROM matching_pairs WHERE last_seen < ?", (cutoff,))
+        conn.commit()
+        return cur.rowcount or 0
+
+def _ai_allows_comparison(left_title: str, right_title: str) -> bool:
+    """Разрешила ли модель сравнение этой спорной пары.
+
+    Сетевых вызовов здесь нет: путь сравнения цен не должен ждать модель. Спорная пара только
+    запоминается, разбирает её отдельная задача обслуживания, а сюда попадает уже готовое решение —
+    и только если владелец включил режим «on».
+    """
+    try:
+        import catalog_ai
+        key = catalog_ai.pair_key(left_title, right_title)
+        record_matching_pair(left_title, right_title, key)
+        if catalog_ai.mode() != catalog_ai.ON:
+            return False
+        return catalog_ai.accepted(matching_decision(key))
+    except Exception as e:                     # сбой AI-части не должен ломать сравнение цен
+        print(f"[Matching] AI-разбор недоступен: {type(e).__name__}")
+        return False
+
 
 def record_matching_shadow(kind: str, reason: str, left: str, right: str,
                            now: Optional[datetime.datetime] = None) -> None:
@@ -2985,6 +3269,71 @@ def http_metrics_by_shop(days: int = 7, now: Optional[datetime.datetime] = None)
     return metrics
 
 
+def http_counters_for_hour(moment: datetime.datetime) -> Dict[str, Dict[str, Any]]:
+    """Счётчики того часа, в который попал момент: нужны, чтобы посчитать дельту неполного часа (M02)."""
+    bucket = moment.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:00:00Z")
+    counters: Dict[str, Dict[str, Any]] = {}
+    with get_connection() as conn:
+        for row in conn.execute("""
+            SELECT shop, SUM(total_requests) AS requests, SUM(errors) + SUM(status_5xx) AS errors,
+                   SUM(status_429) + SUM(status_4xx) AS blocked
+            FROM telemetry_http_aggregates
+            WHERE bucket_type = 'hour' AND bucket_start = ? AND shop != ''
+            GROUP BY shop
+        """, (bucket,)):
+            counters[row["shop"]] = {"requests": int(row["requests"] or 0),
+                                     "errors": int(row["errors"] or 0),
+                                     "blocked": int(row["blocked"] or 0)}
+    return {"hour": bucket, "shops": counters}
+
+
+def http_metrics_by_shop_window(since: datetime.datetime,
+                                until: Optional[datetime.datetime] = None,
+                                start_counters: Optional[Dict[str, Any]] = None) -> Dict[str, Dict[str, Any]]:
+    """HTTP-метрики за ТОЧНЫЙ период по часовым агрегатам (P11, M02).
+
+    Дневных сумм для границы внутри суток недостаточно: они втягивают трафик до начала шага и прячут
+    провал пробного магазина.
+
+    Неполный первый час не выбрасывается (M02): если передан снимок счётчиков на момент начала
+    (`start_counters` от `http_counters_for_hour`), из часа, в котором шаг начался, вычитается то, что
+    уже было записано до старта. Без снимка час начала не засчитывается вовсе — это честнее, чем
+    засчитать чужой трафик, и такой случай виден в отчёте.
+    """
+    end = until or datetime.datetime.now(datetime.timezone.utc)
+    start = since.astimezone(datetime.timezone.utc)
+    fmt = "%Y-%m-%dT%H:00:00Z"
+    start_hour = start.replace(minute=0, second=0, microsecond=0)
+    partial_hour = start_hour.strftime(fmt)
+    counters = (start_counters or {}).get("shops") or {}
+    uses_delta = bool(start_counters) and (start_counters.get("hour") == partial_hour)
+    if start.minute or start.second or start.microsecond:
+        lo = partial_hour if uses_delta else (start_hour + datetime.timedelta(hours=1)).strftime(fmt)
+    else:
+        lo = partial_hour
+        uses_delta = False                 # шаг начался ровно на границе часа: вычитать нечего
+    hi = end.astimezone(datetime.timezone.utc).strftime(fmt)
+
+    metrics: Dict[str, Dict[str, Any]] = {}
+    with get_connection() as conn:
+        for row in conn.execute("""
+            SELECT shop, SUM(total_requests) AS requests, SUM(errors) + SUM(status_5xx) AS errors,
+                   SUM(status_429) + SUM(status_4xx) AS blocked, MAX(latency_p95_ms) AS latency_p95_ms
+            FROM telemetry_http_aggregates
+            WHERE bucket_type = 'hour' AND bucket_start >= ? AND bucket_start <= ? AND shop != ''
+            GROUP BY shop
+        """, (lo, hi)):
+            item = dict(row)
+            if uses_delta:
+                before = counters.get(row["shop"]) or {}
+                for field in ("requests", "errors", "blocked"):
+                    item[field] = max(0, int(item.get(field) or 0) - int(before.get(field) or 0))
+            metrics[row["shop"]] = item
+    metrics["_coverage"] = {"from": lo, "to": hi, "partial_hour": "delta" if uses_delta else
+                            ("full" if lo == partial_hour else "excluded")}
+    return metrics
+
+
 # ---------------------------------------------------------------------------
 # Пульс фоновых работников (P14).
 # ---------------------------------------------------------------------------
@@ -3045,6 +3394,8 @@ def retention_usage() -> List[Dict[str, Any]]:
         ("Аналитика поиска", "search_stats", "bucket", "text"),
         ("Запросы с текстом", "search_queries", "bucket", "text"),
         ("Расходы AI", "ai_usage", "day", "text"),
+        ("Суточные сводки", "daily_reports", "day", "text"),
+        ("Спорные пары сопоставления", "matching_pairs", "last_seen", "text"),
         ("История цен", "price_observations", "observed_at", "text"),
         ("Очередь уведомлений", "notification_outbox", "created_at", "epoch"),
     ]

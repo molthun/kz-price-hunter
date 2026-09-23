@@ -28,6 +28,9 @@ jobs:
         run: |
           python -m compileall -q .
 
+      - name: Scan sources for secrets
+        run: python release_gate.py secrets --root .
+
       - name: Run hermetic test suite
         run: |
           python -m unittest discover -s . -p "test_*.py" -v
