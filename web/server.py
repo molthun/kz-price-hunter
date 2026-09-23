@@ -1619,6 +1619,9 @@ async def _scan_task_body(shop_keys, target_categories, scan_type):
             await asyncio.to_thread(prune_source_scans)
             await asyncio.to_thread(prune_search_analytics)
             await asyncio.to_thread(prune_ai_usage)
+            # Самопроверка копий: раз в сутки развернуть свежую копию во временную базу (P15)
+            from backup_health import verify_backups_if_due
+            await asyncio.to_thread(verify_backups_if_due)
             if pruned or pruned_outbox:
                 print(f"[DB] Удалено старых наблюдений цен: {pruned}, записей уведомлений: {pruned_outbox}")
         except Exception as e:
@@ -1992,6 +1995,15 @@ async def monitoring_incidents_handler(request):
     return web.json_response({"incidents": rows[:monitoring.INCIDENTS_LIMIT], "total": len(rows),
                               "open_total": sum(1 for r in rows if r["open"])},
                              dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
+@routes.get("/api/admin/monitoring/backups")
+@require_admin
+async def monitoring_backups_handler(request):
+    """Резервные копии, результат их настоящей проверки и сроки хранения (P15). Только чтение."""
+    import monitoring
+    data = await asyncio.to_thread(monitoring.backup_section)
+    return web.json_response(data, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
 
 
 @routes.get("/api/admin/monitoring/environment")

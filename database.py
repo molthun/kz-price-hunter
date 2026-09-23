@@ -679,6 +679,19 @@ def _create_schema(cursor) -> None:
 
     # Пульс фоновых работников (P14): «сайт отвечает» ещё не значит, что обходы идут.
     # Таблица добавляется, schema_version не меняется.
+    # Результаты самопроверки копий (P15): копия, которую никто не открывал, ничего не гарантирует
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS backup_checks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            checked_at TEXT NOT NULL,
+            file TEXT,
+            kind TEXT NOT NULL,
+            ok INTEGER NOT NULL DEFAULT 0,
+            detail TEXT,
+            duration_sec REAL
+        )
+    """)
+
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS component_heartbeats (
             component TEXT PRIMARY KEY,
@@ -2873,7 +2886,7 @@ def scheduler_candidates(days: int = 7, now: Optional[datetime.datetime] = None)
             candidates[(row["shop_key"], row["category"])] = {
                 "shop": row["shop_key"], "category": row["category"],
                 "age_hours": age_hours, "last_quality": row["quality"],
-                "searches": 0, "unmet_searches": 0, "watches": 0, "price_changes_per_day": 0.0,
+                "searches": 0, "unmet_searches": 0, "watches": 0, "price_changes_per_day": None,
             }
 
         # Пауза после ошибок берётся из состояния магазина: планировщик её обязан уважать
@@ -2889,15 +2902,29 @@ def scheduler_candidates(days: int = 7, now: Optional[datetime.datetime] = None)
         watch_rows = [dict(r) for r in conn.execute(
             "SELECT kind, target FROM watches WHERE is_active = 1")]
 
-        # Изменчивость цен: сколько изменений цены в сутки видели у товаров этой пары
+        # Фактические переходы текущей цены, включая предыдущее наблюдение до окна.
+        # Первая цена и изменение только зачёркнутой цены переходом не считаются.
+        from config import SHOP_KEYS
+        shop_aliases = {str(name).strip().casefold(): key for key, name in SHOP_KEYS.items()}
+        shop_aliases.update({key.casefold(): key for key in SHOP_KEYS})
         for row in conn.execute("""
-            SELECT p.shop AS shop, p.category AS category, COUNT(*) AS changes
-            FROM price_observations o JOIN products p ON p.id = o.product_id
-            WHERE o.observed_at >= ? GROUP BY p.shop, p.category
-        """, (since_ts,)):
-            for key, item in candidates.items():
-                if item["category"] == row["category"] or str(row["shop"] or "").lower() in str(key[0]).lower():
-                    item["price_changes_per_day"] = round(row["changes"] / max(1, int(days)), 2)
+            WITH history AS (
+                SELECT product_id, price, observed_at,
+                       LAG(price) OVER (PARTITION BY product_id ORDER BY julianday(observed_at), rowid) AS previous
+                FROM price_observations
+                WHERE julianday(observed_at) <= julianday(?)
+            )
+            SELECT p.shop, p.category, COUNT(*) AS samples,
+                   SUM(CASE WHEN h.previous IS NOT NULL AND h.price != h.previous THEN 1 ELSE 0 END) AS changes
+            FROM history h JOIN products p ON p.id = h.product_id
+            WHERE julianday(h.observed_at) >= julianday(?)
+            GROUP BY p.shop, p.category
+        """, (moment.isoformat(), since_ts)):
+            shop_key = shop_aliases.get(str(row["shop"] or "").strip().casefold())
+            item = candidates.get((shop_key, row["category"]))
+            if item is not None:
+                item["price_changes_per_day"] = round(
+                    (item["price_changes_per_day"] or 0.0) + row["changes"] / max(1, int(days)), 2)
 
     from search_engine import determine_category_and_master
     for row in demand_rows:
@@ -2974,3 +3001,59 @@ def heartbeats() -> Dict[str, Dict[str, Any]]:
     """Последний пульс каждого компонента."""
     with get_connection() as conn:
         return {r["component"]: dict(r) for r in conn.execute("SELECT * FROM component_heartbeats")}
+
+
+# ---------------------------------------------------------------------------
+# Самопроверка копий и фактическое потребление по срокам хранения (P15).
+# ---------------------------------------------------------------------------
+
+def record_backup_check(kind: str, ok: bool, file: Optional[str] = None, detail: Optional[str] = None,
+                        duration_sec: Optional[float] = None,
+                        now: Optional[datetime.datetime] = None) -> None:
+    moment = (now or datetime.datetime.now(datetime.timezone.utc)).isoformat()
+    with get_connection() as conn:
+        conn.execute("""INSERT INTO backup_checks (checked_at, file, kind, ok, detail, duration_sec)
+                        VALUES (?, ?, ?, ?, ?, ?)""",
+                     (moment, str(file or "")[:200], str(kind), 1 if ok else 0,
+                      str(detail or "")[:300] or None, duration_sec))
+        # История самопроверок нужна недолго: держим последние 100 записей
+        conn.execute("DELETE FROM backup_checks WHERE id NOT IN "
+                     "(SELECT id FROM backup_checks ORDER BY id DESC LIMIT 100)")
+        conn.commit()
+
+
+def backup_checks(limit: int = 10) -> List[Dict[str, Any]]:
+    with get_connection() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT * FROM backup_checks ORDER BY id DESC LIMIT ?", (max(1, int(limit)),))]
+
+
+def retention_usage() -> List[Dict[str, Any]]:
+    """Сколько строк сейчас занимает каждый вид данных и насколько старые есть записи."""
+    plan = [
+        ("Диагностика HTTP (выборки)", "telemetry_http_samples", "created_at", "epoch"),
+        ("События телеметрии", "telemetry_events", "timestamp", "text"),
+        ("Агрегаты HTTP", "telemetry_http_aggregates", "bucket_start", "text"),
+        ("История качества обходов", "source_scans", "finished_at", "text"),
+        ("Аналитика поиска", "search_stats", "bucket", "text"),
+        ("Запросы с текстом", "search_queries", "bucket", "text"),
+        ("Расходы AI", "ai_usage", "day", "text"),
+        ("История цен", "price_observations", "observed_at", "text"),
+        ("Очередь уведомлений", "notification_outbox", "created_at", "epoch"),
+    ]
+    rows: List[Dict[str, Any]] = []
+    with get_connection() as conn:
+        for label, table, column, kind in plan:
+            try:
+                count = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+                oldest = conn.execute(f"SELECT MIN({column}) FROM {table}").fetchone()[0]
+            except sqlite3.Error:
+                continue
+            if kind == "epoch" and oldest:
+                try:
+                    oldest = datetime.datetime.fromtimestamp(float(oldest),
+                                                             datetime.timezone.utc).isoformat()
+                except (TypeError, ValueError):
+                    oldest = None
+            rows.append({"data": label, "table": table, "rows": count, "oldest": oldest})
+    return rows

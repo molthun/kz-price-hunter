@@ -914,3 +914,47 @@ def environment_section(now: Optional[datetime.datetime] = None) -> Dict[str, An
         "note": "Выключенный компонент отличается от молчащего: первое — решение владельца, второе — повод "
                 "разобраться. Секреты здесь не показываются.",
     }
+
+
+def backup_section(now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
+    """Резервные копии и сроки хранения (P15): свежесть, результат последней настоящей проверки, объёмы.
+
+    «Копия есть» и «копия пригодна» — разные утверждения, поэтому статус опирается на результат проверки,
+    а не на наличие файла. Отдельно сказано, что внутренняя проверка не заметит полную остановку процесса.
+    """
+    import backup_health
+    import database
+    moment = now or _now()
+
+    backups = backup_health.list_backups()
+    checks = database.backup_checks(limit=10)
+    last_check = checks[0] if checks else None
+    newest = backups[0] if backups else None
+
+    if not backups:
+        status, reason = UNKNOWN, "Копий пока нет"
+    elif newest["age_hours"] > backup_health.BACKUP_STALE_HOURS:
+        status = DEGRADED
+        reason = f"Свежей копии нет: последней {newest['age_hours']:.0f} ч"
+    elif last_check and not last_check["ok"]:
+        status = DEGRADED
+        reason = f"Последняя проверка копии не прошла: {last_check.get('detail') or 'причина не записана'}"
+    elif not last_check:
+        status = UNKNOWN
+        reason = "Копии есть, но ни одна ещё не проверялась"
+    else:
+        status = HEALTHY
+        reason = f"Копия {newest['age_hours']:.0f} ч назад, проверка пройдена"
+
+    return {
+        "status": status, "reason": reason,
+        "backups": backups[:10],
+        "newest": newest,
+        "total_size_bytes": sum(b["size_bytes"] for b in backups),
+        "checks": checks,
+        "retention": backup_health.retention_policy(),
+        "usage": database.retention_usage(),
+        "note": "Проверка открывает копию, читает схему и разворачивает её во временную базу, после чего "
+                "временная база удаляется. Внутренняя проверка не заметит полную остановку процесса — "
+                "это видно только наблюдателю снаружи.",
+    }
