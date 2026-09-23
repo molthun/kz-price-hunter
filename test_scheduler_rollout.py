@@ -830,3 +830,78 @@ class ConcurrentSwitchTest(RolloutStateTest):
         rollout.switch_stage(rollout.OFF, [], now=NOW)
         second = rollout.switch_stage(rollout.CANARY_ONE, self.candidates, now=NOW)["version"]
         self.assertGreater(int(second), int(first))
+
+
+class RollbackConsistencyTest(RolloutStateTest):
+    """M03: после неудачного отката не бывает включённого шага с пустым состоянием."""
+
+    def start(self):
+        self.http("kaspi", 200, 4, 0)
+        self.scans("kaspi", 10, 10)
+        return rollout.switch_stage(rollout.CANARY_ONE, self.candidates, now=NOW)
+
+    def test_failed_settings_write_keeps_the_step_and_its_state(self):
+        """Воспроизведение аудита: запись настроек падает — шаг остаётся целым, а не полупустым."""
+        import config
+        self.start()
+        members, counters = rollout.canary_members(), rollout.http_start_counters()
+        with patch.object(config, "save_settings", side_effect=OSError("диск недоступен")):
+            record = rollout.rollback("выросли ошибки", now=NOW)
+        self.assertIn("failed", record)
+        self.assertEqual(rollout.stage_of(), rollout.CANARY_ONE)
+        self.assertEqual(rollout.canary_members(), members, "состав шага не должен исчезнуть")
+        self.assertEqual(rollout.http_start_counters(), counters)
+        self.assertIsNotNone(rollout.baseline_metrics())
+
+    def test_failed_rollback_is_not_recorded_as_done(self):
+        import config
+        self.start()
+        with patch.object(config, "save_settings", side_effect=OSError("диск недоступен")):
+            rollout.rollback("выросли ошибки", now=NOW)
+        self.assertIsNone(rollout.last_rollback(), "неуспешный откат не записывается как состоявшийся")
+
+    def test_automatic_check_reports_no_rollback_when_it_failed(self):
+        import config
+        self.start()
+        later = NOW + datetime.timedelta(hours=1)
+        self.http("kaspi", 200, 60, 0, at=later)
+        self.scans("kaspi", 10, 10, day=later)
+        with patch.object(config, "save_settings", side_effect=OSError("диск недоступен")):
+            record = rollout.check_and_rollback(self.candidates, now=NOW + datetime.timedelta(hours=2))
+        self.assertIsNone(record, "провалившийся откат не выдаётся за выполненный")
+        self.assertEqual(rollout.stage_of(), rollout.CANARY_ONE)
+        self.assertEqual(rollout.canary_members(), ["kaspi"])
+
+    def test_successful_rollback_clears_everything_together(self):
+        self.start()
+        record = rollout.rollback("выросли ошибки", now=NOW)
+        self.assertNotIn("failed", record)
+        self.assertEqual(rollout.stage_of(), rollout.OFF)
+        self.assertEqual(rollout.canary_members(), [])
+        self.assertIsNone(rollout.http_start_counters())
+        self.assertEqual(rollout.last_rollback()["reason"], "выросли ошибки")
+
+    def test_rollback_does_not_touch_a_step_started_in_parallel(self):
+        self.start()
+        stale = rollout.state_version()
+        rollout.switch_stage(rollout.OFF, [], now=NOW)
+        fresh = rollout.switch_stage(rollout.CANARY_ONE, self.candidates,
+                                     now=NOW + datetime.timedelta(minutes=5))
+        record = rollout.rollback("запоздалый откат", now=NOW, expected_version=stale)
+        self.assertIn("skipped", record)
+        self.assertEqual(rollout.stage_of(), rollout.CANARY_ONE)
+        self.assertEqual(rollout.state_version(), fresh["version"])
+
+    def test_restart_in_the_intermediate_state_is_safe(self):
+        """Шаг выключен, но метаданные ещё остались: после «перезапуска» это выключённое состояние."""
+        import importlib
+        self.start()
+        import config
+        settings = dict(config.load_settings())
+        settings[rollout.SETTING_STAGE] = rollout.OFF
+        config.save_settings(settings)               # настройка записана, очистка не дошла
+        importlib.reload(rollout)
+        self.assertEqual(rollout.stage_of(), rollout.OFF)
+        state = rollout.status(self.candidates, now=NOW + datetime.timedelta(hours=1))
+        self.assertEqual(state["canary"], [], "выключенный шаг не показывает участников")
+        self.assertFalse(state["ready_for_next"])

@@ -403,6 +403,7 @@ def switch_stage(target: str, candidates: Sequence[Dict[str, Any]],
         before_version = state_version()
         previous_state = state_snapshot()
         if target == OFF:
+            # Настройка первой: если её не удалось записать, шаг остаётся включённым вместе с составом
             settings = dict(config.load_settings())
             settings[SETTING_STAGE] = OFF
             config.save_settings(settings)
@@ -469,8 +470,13 @@ def rollback(reason: str, now: Optional[datetime.datetime] = None,
              expected_version: Optional[str] = ...) -> Dict[str, Any]:
     """Возвращает прежний порядок обходов целиком и записывает, почему.
 
+    Порядок действий важен (M03): сначала выключается сама настройка, и только потом очищается
+    состояние шага. Если запись настройки не удалась — в базе ничего не менялось, шаг остаётся
+    включённым вместе со своим составом и снимком счётчиков, а откат НЕ записывается как состоявшийся.
+    Обратный порядок оставлял бы включённый режим с пустыми метаданными.
+
     Откат тоже проходит через замок и версию состояния: он не должен выключить шаг, который владелец
-    только что включил заново (M03).
+    только что включил заново.
     """
     import json
     import config
@@ -481,17 +487,26 @@ def rollback(reason: str, now: Optional[datetime.datetime] = None,
     record = {"at": moment.isoformat(), "from_stage": previous, "reason": reason,
               "canary": canary_members()}
     with _SWITCH_LOCK:
+        if state_version() != expected:
+            record["skipped"] = "состояние включения изменилось параллельно: откат не применён"
+            return record
+        try:
+            settings = dict(config.load_settings())
+            settings[SETTING_STAGE] = OFF
+            config.save_settings(settings)
+        except Exception as e:                       # noqa: BLE001 — отчёт важнее трассировки
+            record["failed"] = f"не удалось выключить шаг: {type(e).__name__}"
+            print(f"[Rollout] Откат не выполнен: {type(e).__name__}")
+            return record                            # состояние шага осталось нетронутым
         version = database.compare_and_set_metadata(METADATA_VERSION, expected, {
             METADATA_LAST_ROLLBACK: json.dumps(record, ensure_ascii=False),
-            METADATA_CANARY: "",                    # шага больше нет — нет и его состава
+            METADATA_CANARY: "",                     # шага больше нет — нет и его состава
             METADATA_HTTP_START: "",
         })
         if version is None:
-            record["skipped"] = "состояние включения изменилось параллельно: откат не применён"
+            # Состояние успел сменить другой процесс: настройка уже выключена, чужие данные не трогаем
+            record["skipped"] = "состояние включения изменилось параллельно: метаданные не очищены"
             return record
-        settings = dict(config.load_settings())
-        settings[SETTING_STAGE] = OFF
-        config.save_settings(settings)
     try:
         from telemetry import telemetry, SEVERITY_WARNING, COMPONENT_SCHEDULER
         telemetry.record_event("scheduler_rollback", SEVERITY_WARNING, COMPONENT_SCHEDULER,
@@ -528,7 +543,7 @@ def check_and_rollback(candidates: Sequence[Dict[str, Any]],
     if not needed:
         return None
     record = rollback(reason, now=now, expected_version=version)
-    if record.get("skipped"):
+    if record.get("skipped") or record.get("failed"):
         return None
     record["after"] = after
     return record

@@ -111,10 +111,12 @@ const assert=require('node:assert/strict');
    assert.equal(await page.evaluate(()=>document.getElementById('watchCondition').value),'any_find');
    assert.equal(await page.evaluate(()=>[...document.getElementById('watchCondition').options]
      .filter(o=>!o.hidden).map(o=>o.value).join(',')),'target_price,any_find,discount_pct');
-   // Пустая цель для сделок означает «все», а не ошибку
+   // Пустая цель для сделок означает «все», а не ошибку.
+   // Ждём сам ответ сервера: waitForFunction по window ничего не ждал и давал гонку (замечание аудита).
    calls.length=0;
+   const created=page.waitForResponse(r=>r.url().includes('/api/me/watches')&&r.request().method()==='POST');
    await page.click('button:has-text("Добавить наблюдение")');
-   await page.waitForFunction(()=>window.__calls===undefined);
+   await created;
    assert.equal(calls.at(-1).target,'все');
    assert.equal(calls.at(-1).kind,'deal');
    // У обычного вида условия находок не предлагаются

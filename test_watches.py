@@ -141,7 +141,11 @@ class StorageTest(unittest.TestCase):
         self.tmp.cleanup()
 
     def add(self, user_id=701, **kw):
-        data = {"kind": w.PRODUCT, "target": "p1", "condition": w.ANY_DROP, "title": "iPhone 15"}
+        # Тихие часы по умолчанию выключены: иначе результат тестов доставки зависел бы от времени суток,
+        # в которое их запускают (ночью сообщения законно откладываются до утра). Там, где проверяются
+        # сами тихие часы, значения задаются явно.
+        data = {"kind": w.PRODUCT, "target": "p1", "condition": w.ANY_DROP, "title": "iPhone 15",
+                "quiet_from": "00:00", "quiet_to": "00:00"}
         data.update(kw)
         return database.create_watch(user_id, data)
 
