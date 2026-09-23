@@ -293,6 +293,9 @@ SYSTEM_DEFAULTS = {
     "gemini_model": "gemini-2.5-flash",
     "openai_model_mode": "auto",
     "openai_model": "gpt-4o-mini",
+    # Шаг включения адаптивного планировщика (P11). По умолчанию выключено: обходы идут прежним порядком,
+    # расширение — только вручную владельцем, откат — автоматический по согласованным порогам.
+    "adaptive_scheduler_stage": "off",
     # Цены моделей задаёт администратор: {"gemini-2.5-flash": {"input": 0.3, "output": 2.5}} — доллары за
     # миллион токенов. Пустое значение означает «цена неизвестна», и расход в деньгах не показывается:
     # тарифы меняются, и зашитая в код цифра вводила бы в заблуждение (P08).
@@ -336,6 +339,9 @@ ENUM_VALUES = {
     "search_default_sort": ("price_asc", "price_desc", "savings_desc"),
     "telegram_notify_level": ("ALL", "CRITICAL_ONLY", "HIGH_SAVINGS"),
     "wave_mode": ("rolling", "all"),
+    # Шаг включения адаптивного планировщика (P11): перечисление держится здесь, чтобы проверка значений
+    # и общий тест системных параметров знали о нём наравне с остальными
+    "adaptive_scheduler_stage": ("off", "canary_one", "canary_few", "all"),
 }
 
 # Обратная совместимость: объединенные значения по умолчанию
@@ -548,7 +554,8 @@ def _validate_settings(new_settings):
     clean = _validate(new_settings, SYSTEM_DEFAULTS)
     for name, choices in (("ai_provider", {"auto", "gemini", "openai"}),
                           ("gemini_model_mode", {"auto", "manual"}),
-                          ("openai_model_mode", {"auto", "manual"})):
+                          ("openai_model_mode", {"auto", "manual"}),
+                          ("adaptive_scheduler_stage", {"off", "canary_one", "canary_few", "all"})):
         if name in clean and clean[name] not in choices:
             raise ValueError(f"Некорректный режим: {name}")
     merged = {**load_settings(), **clean}

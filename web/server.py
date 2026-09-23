@@ -1622,6 +1622,8 @@ async def _scan_task_body(shop_keys, target_categories, scan_type):
             # Самопроверка копий: раз в сутки развернуть свежую копию во временную базу (P15)
             from backup_health import verify_backups_if_due
             await asyncio.to_thread(verify_backups_if_due)
+            # Признаки ухудшения после включения адаптивного порядка — откат сразу, без ожидания (P11)
+            await asyncio.to_thread(check_adaptive_rollback)
             if pruned or pruned_outbox:
                 print(f"[DB] Удалено старых наблюдений цен: {pruned}, записей уведомлений: {pruned_outbox}")
         except Exception as e:
@@ -2015,6 +2017,62 @@ async def monitoring_environment_handler(request):
     return web.json_response(data, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
 
 
+def check_adaptive_rollback():
+    """Проверяет метрики пробных магазинов и возвращает прежний порядок при ухудшении (P11)."""
+    try:
+        import scheduler_rollout as rollout
+        if rollout.stage_of() == rollout.OFF:
+            return None
+        from database import scheduler_candidates
+        record = rollout.check_and_rollback(scheduler_candidates(days=7))
+        if record:
+            print(f"[AutoScan] ⏮ Адаптивный порядок выключен: {record['reason']}")
+        return record
+    except Exception as e:
+        print(f"[AutoScan] Проверка отката не выполнена: {type(e).__name__}")
+        return None
+
+
+@routes.get("/api/admin/scheduler/rollout")
+@require_admin
+async def scheduler_rollout_status_handler(request):
+    """Состояние контролируемого включения планировщика (P11)."""
+    import scheduler_rollout as rollout
+    data = await asyncio.to_thread(rollout.status)
+    return web.json_response(data, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
+@routes.post("/api/admin/scheduler/rollout")
+@require_admin
+async def scheduler_rollout_switch_handler(request):
+    """Переключение шага включения. Вперёд — по одному шагу, назад и в «выключено» — всегда."""
+    import scheduler_rollout as rollout
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"status": "error", "message": "Некорректный запрос"}, status=400)
+
+    target = str(data.get("stage") or "").strip()
+    current = rollout.stage_of()
+    ok, why = rollout.can_switch(current, target)
+    if not ok:
+        return web.json_response({"status": "error", "message": why}, status=400)
+
+    def switch():
+        settings = dict(load_settings())
+        settings[rollout.SETTING_STAGE] = target
+        save_settings(settings)
+        from database import scheduler_candidates
+        if target != rollout.OFF:
+            return rollout.start_stage(target, scheduler_candidates(days=7))
+        return {"stage": rollout.OFF}
+
+    started = await asyncio.to_thread(switch)
+    status = await asyncio.to_thread(rollout.status)
+    return web.json_response({"status": "ok", "switched": started, "state": status},
+                             dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
 @routes.get("/api/admin/monitoring/scheduler")
 @require_admin
 async def monitoring_scheduler_handler(request):
@@ -2120,6 +2178,26 @@ async def logs_export_handler(request):
         headers={"Content-Disposition": 'attachment; filename="kz_price_hunter_logs.txt"'}
     )
 
+def apply_adaptive_order(target_shops):
+    """Порядок обхода волны с учётом шага включения адаптивного планировщика (P11).
+
+    Возвращает (список магазинов, пояснение). При выключенном шаге и при любой ошибке возвращается
+    исходный список: новый порядок — необязательная надстройка, он не имеет права ломать обходы.
+    """
+    try:
+        import scheduler_rollout as rollout
+        stage = rollout.stage_of()
+        if stage == rollout.OFF:
+            return list(target_shops), ""
+        from database import scheduler_candidates
+        candidates = scheduler_candidates(days=7)
+        result = rollout.select_targets(stage, list(target_shops), candidates)
+        return result["targets"], result["explanation"] if result["changed"] else ""
+    except Exception as e:
+        print(f"[AutoScan] Адаптивный порядок не применён: {type(e).__name__}")
+        return list(target_shops), ""
+
+
 async def auto_scan_background_worker(app):
     """Фоновый монитор: строгое поочередное волновое сканирование за 24 часа + контроль свежести магазинов."""
     settings = load_settings()
@@ -2169,6 +2247,11 @@ async def auto_scan_background_worker(app):
                 if is_wave_due or stale:
                     target_shops = enabled_keys if is_wave_due else stale
                     reason = f"время очередной волны (шаг: {wave_interval_sec // 60}м, круговой лимит: 24ч)" if is_wave_due else f"устарели {len(stale)} магазинов"
+                    # Контролируемое включение адаптивного порядка (P11): по умолчанию выключено, а
+                    # включённый порядок может только переставить и сократить эту же волну
+                    target_shops, adaptive_note = apply_adaptive_order(target_shops)
+                    if adaptive_note:
+                        reason += f"; {adaptive_note}"
                     print(f"[AutoScan] 🌊 Запуск волны: {reason}")
                     spawn_scan(target_shops, scan_type="auto")
             else:

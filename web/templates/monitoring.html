@@ -183,6 +183,7 @@
           <th class="pb-1 pr-3">Когда</th><th class="pb-1 pr-3">Тип</th><th class="pb-1 pr-3">Исход</th><th class="pb-1 pr-3 text-right">Товаров</th>
           <th class="pb-1 pr-3 text-right">Длительность</th><th class="pb-1 pr-3">Ошибка</th></tr></thead><tbody>${rows}</tbody></table></div>`
           : '<p class="text-sm text-slate-500">Нет завершённых обходов в журнале.</p>')
+        + '<div id="rolloutBox" class="mt-4"><p class="text-sm text-slate-500">Смотрю состояние включения…</p></div>'
         + '<div id="schedulerShadow" class="mt-4"><p class="text-sm text-slate-500">Считаю предложения планировщика…</p></div>';
     },
     search() {
@@ -267,6 +268,43 @@
         <td class="py-1 pr-3 text-right text-slate-300">${num(q.not_found)}</td><td class="py-1 pr-3 text-right text-rose-300">${num(q.error)}</td>
         <td class="py-1 pr-3 text-right">${q.success_rate == null ? '—' : num(q.success_rate) + ' %'}</td></tr>`).join('') +
       '</tbody></table></div>';
+  }
+
+  const ROLLOUT_STEPS = [['off', 'Выключено'], ['canary_one', '1 магазин'], ['canary_few', 'до 5'], ['all', 'Все']];
+
+  async function loadRollout() {
+    const box = document.getElementById('rolloutBox');
+    if (!box) return;
+    const s = await api('/api/admin/scheduler/rollout');
+    if (!s) { box.innerHTML = '<p class="text-sm text-rose-300">Не удалось загрузить состояние включения.</p>'; return; }
+    const share = v => v == null ? '—' : (v * 100).toFixed(1) + ' %';
+    const cmp = (label, field) => [label, `${share((s.before || {})[field])} → ${share((s.after || {})[field])}`];
+    const buttons = ROLLOUT_STEPS.map(([id, label]) => {
+      const active = s.stage === id;
+      const allowed = active || id === 'off' || id === s.next_stage
+        || ROLLOUT_STEPS.findIndex(x => x[0] === id) < ROLLOUT_STEPS.findIndex(x => x[0] === s.stage);
+      return `<button type="button" data-rollout="${id}" ${allowed ? '' : 'disabled'}
+        class="px-3 py-1.5 rounded-lg text-xs transition ${active ? 'bg-sky-500/80 text-white' : allowed ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 cursor-pointer' : 'bg-slate-900 text-slate-600'}">${esc(label)}</button>`;
+    }).join(' ');
+    box.innerHTML = card('Включение нового порядка обходов', `<p class="text-sm mb-2">${esc(s.stage_label)}</p>` + kv([
+        ['Пробные магазины', (s.canary || []).map(esc).join(', ') || '—'],
+        ['Идёт с', s.started_at ? ago(s.started_at) : '—'],
+        cmp('Доля ошибок', 'error_share'),
+        cmp('Отказы по лимиту', 'block_share'),
+        cmp('Полнота обходов', 'completeness'),
+        ['Готов следующий шаг', s.ready_for_next ? 'да' : `нет — ${esc(s.ready_reason || '')}`]]) +
+      `<div class="mt-3 flex flex-wrap gap-2">${buttons}</div>` +
+      (s.last_rollback ? `<p class="text-xs text-amber-300 mt-2">Последний откат ${ago(s.last_rollback.at)}: ${esc(s.last_rollback.reason)}</p>` : '') +
+      `<p class="text-xs text-slate-500 mt-2">${esc(s.note)}</p>`,
+      s.stage === 'off' ? 'disabled' : (s.rollback_needed ? 'degraded' : 'healthy'));
+  }
+
+  async function switchRollout(stage) {
+    const res = await fetch('/api/admin/scheduler/rollout', {method: 'POST',
+      headers: {'Content-Type': 'application/json'}, body: JSON.stringify({stage})});
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { alert(data.message || 'Не удалось переключить шаг'); return; }
+    loadRollout();
   }
 
   async function loadSchedulerShadow() {
@@ -546,7 +584,7 @@
     if (current === 'search') loadSearchAnalytics();
     if (current === 'ai') loadAiSpending();
     if (current === 'system') { loadEnvironment(); loadBackups(); loadMatchingShadow(); }
-    if (current === 'scanning') loadSchedulerShadow();
+    if (current === 'scanning') { loadRollout(); loadSchedulerShadow(); }
   }
 
   async function load() {
@@ -557,6 +595,8 @@
   document.addEventListener('click', e => {
     const sec = e.target.closest('[data-section]');
     if (sec) { current = sec.dataset.section; history.replaceState(null, '', '#' + current); render(); return; }
+    const rolloutBtn = e.target.closest('[data-rollout]');
+    if (rolloutBtn && !rolloutBtn.disabled) { switchRollout(rolloutBtn.dataset.rollout); return; }
     const scanBtn = e.target.closest('[data-scan-shop]');
     if (scanBtn) { scanShop(scanBtn.dataset.scanShop, scanBtn); return; }
     const shop = e.target.closest('[data-shop]');
