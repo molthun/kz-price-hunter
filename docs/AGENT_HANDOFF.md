@@ -21,8 +21,14 @@
   Это первая настоящая проверка заданий P16, до выпуска они прогонялись только локально.
 - Не проверялось: настоящие вызовы моделей и Telegram, замер AI-части на живой модели, production
   canary; Docker-образ на машине разработчика не собирался (его собрал конвейер).
-- **Следующий точный шаг: дождаться сборки образа и подтвердить версию на проде чтением
-  /api/version, /api/stats, /monitoring; затем зафиксировать результат здесь.**
+- **Выпуск состоялся.** Конвейер опубликовал образ (`build-and-push: success`), Watchtower подхватил его,
+  прод отвечает `5.13.0` (проверка чтением 2026-09-24 ~01:5x): `/api/version` — 5.13.0 от 2026-09-24;
+  `/api/stats` — 94 877 товаров, 16 771 предложение с выгодой, 438 арбитражных; `/monitoring` — 200;
+  `/api/admin/monitoring` без входа — 401, то есть админские данные закрыты.
+- **Следующий точный шаг: решение владельца о первом включении каждой возможности** — шаг адаптивного
+  планировщика (`canary_one` на дружелюбном магазине), отправка суточной сводки в Telegram и режим
+  `shadow` для AI-части сопоставления. Все три сейчас выключены. До включения AI-части нужен замер на
+  живой модели по согласованным порогам (уверенность 0.90, точность 1.0, полнота 0.94).
 
 ## Реестр этапов
 
@@ -38,16 +44,16 @@
 | P04 | READY (аудит кода) | Claude | Codex: E01/E02 закрыты | v5.11.0 на shop.molthun.ru с 18:26 (проверка чтением /api/version, /api/stats, /api/deals, /monitoring) |
 | P05 | DEPLOYED (v5.10.0) | Claude | Codex: замечаний нет | v5.10.0 на shop.molthun.ru с 13:16 (проверка чтением /api/version, /api/stats, /api/deals, /monitoring) |
 | P06 | DEPLOYED (v5.11.0) | Claude | Codex: F01–F04 закрыты | v5.11.0 на shop.molthun.ru с 18:26 (проверка чтением /api/version, /api/stats, /api/deals, /monitoring) |
-| P07 | V1 DEPLOYED (v5.11.0); V2 DEPLOYED (v5.13.0) | Claude | Codex: G01/G02, M10 закрыты | Проверяется после выката |
+| P07 | V1 DEPLOYED (v5.11.0); V2 DEPLOYED (v5.13.0) | Claude | Codex: G01/G02, M10 закрыты | v5.13.0 на shop.molthun.ru с 01:5x (проверка чтением /api/version, /api/stats, /monitoring) |
 | P08 | DEPLOYED (v5.11.0) | Claude | Codex: H01/H02/H03 закрыты | v5.11.0 на shop.molthun.ru с 18:26 (проверка чтением /api/version, /api/stats, /api/deals, /monitoring) |
-| P09 | DEPLOYED (v5.11.0); AI-часть DEPLOYED (v5.13.0) | Claude | Codex: I01/I02, M11 закрыты | Проверяется после выката |
+| P09 | DEPLOYED (v5.11.0); AI-часть DEPLOYED (v5.13.0) | Claude | Codex: I01/I02, M11 закрыты | v5.13.0 на shop.molthun.ru с 01:5x (проверка чтением /api/version, /api/stats, /monitoring) |
 | P10 | DEPLOYED (v5.12.0) | Claude → Codex | Claude: просмотр исправлений J01–J03 без замечаний | v5.12.0 на shop.molthun.ru с 14:52 (проверка чтением /api/version, /api/stats, /monitoring) |
-| P11 | DEPLOYED (v5.13.0) | Claude | Codex: M01–M03 закрыты | Проверяется после выката |
-| P12 | DEPLOYED (v5.13.0) | Claude | Codex: M04 закрыт | Проверяется после выката |
-| P13 | DEPLOYED (v5.13.0) | Claude | Codex: M04–M06 закрыты | Проверяется после выката |
+| P11 | DEPLOYED (v5.13.0) | Claude | Codex: M01–M03 закрыты | v5.13.0 на shop.molthun.ru с 01:5x (проверка чтением /api/version, /api/stats, /monitoring) |
+| P12 | DEPLOYED (v5.13.0) | Claude | Codex: M04 закрыт | v5.13.0 на shop.molthun.ru с 01:5x (проверка чтением /api/version, /api/stats, /monitoring) |
+| P13 | DEPLOYED (v5.13.0) | Claude | Codex: M04–M06 закрыты | v5.13.0 на shop.molthun.ru с 01:5x (проверка чтением /api/version, /api/stats, /monitoring) |
 | P14 | DEPLOYED (v5.12.0) | Claude → Codex → Claude | Claude: просмотр исправлений K01/K02; совместный suite OK | v5.12.0 на shop.molthun.ru с 14:52 (проверка чтением /api/version, /api/stats, /monitoring) |
 | P15 | DEPLOYED (v5.12.0) | Claude | Codex: L01–L04 закрыты в проверенном объёме | v5.12.0 на shop.molthun.ru с 14:52 (проверка чтением /api/version, /api/stats, /monitoring) |
-| P16 | DEPLOYED (v5.13.0) | Claude | Codex: M07–M09 закрыты | Проверяется после выката |
+| P16 | DEPLOYED (v5.13.0) | Claude | Codex: M07–M09 закрыты | v5.13.0 на shop.molthun.ru с 01:5x (проверка чтением /api/version, /api/stats, /monitoring) |
 
 ## Карточка задачи: T01 (изоляция тестов)
 
