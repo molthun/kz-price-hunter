@@ -162,6 +162,7 @@
       const c = s.shops.counts || {};
       const summary = Object.keys(STATUS).filter(k => c[k]).map(k => `${pill(k)} <span class="text-sm mr-3">${c[k]}</span>`).join('');
       return `
+        ${assistantBox()}
         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">${cards}</div>
         ${card('Магазины по состоянию', `<div class="flex flex-wrap items-center gap-1">${summary || '<span class="text-sm text-slate-500">нет данных</span>'}</div>`)}
         ${card('Открытые инциденты', incidentList(data.open_incidents))}`;
@@ -574,6 +575,38 @@
     return res.json();
   }
 
+  function assistantBox() {
+    return card('Помощник администратора', `
+      <p class="text-sm text-slate-400 mb-2">Вопрос о состоянии сервиса. Цифры берутся из отчётов мониторинга, помощник работает только на чтение.</p>
+      <div class="flex flex-wrap gap-2 items-end">
+        <label class="flex flex-col text-xs text-slate-400 grow min-w-[14rem]">Вопрос
+          <input id="askQ" class="mt-1 bg-dark-950 border border-slate-700 rounded-lg px-2 py-1.5 text-slate-200"
+                 placeholder="например: почему в dns стало меньше товаров"></label>
+        <label class="flex flex-col text-xs text-slate-400">Период
+          <select id="askDays" class="mt-1 bg-dark-950 border border-slate-700 rounded-lg px-2 py-1.5 text-slate-200">
+            <option value="7">7 дней</option><option value="14">14 дней</option><option value="30">30 дней</option></select></label>
+        <button id="btnAsk" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm">Спросить</button>
+      </div>
+      <div id="askResult" class="mt-3 text-sm"></div>`);
+  }
+
+  async function askAssistant() {
+    const input = document.getElementById('askQ'), box = document.getElementById('askResult');
+    const question = (input.value || '').trim();
+    if (!question) { box.innerHTML = '<p class="text-slate-500">Задайте вопрос.</p>'; return; }
+    box.innerHTML = '<p class="text-slate-500">Собираю факты…</p>';
+    const res = await fetch('/api/admin/assistant', {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({question, days: Number(document.getElementById('askDays').value)})});
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) { box.innerHTML = `<p class="text-rose-300">${esc(d.message || 'Не удалось получить ответ')}</p>`; return; }
+    const facts = `<div class="mt-2 p-2 rounded-lg bg-dark-950 border border-slate-800 whitespace-pre-wrap text-slate-300">${esc(d.summary)}</div>`;
+    let head;
+    if (d.answer) head = `<div class="whitespace-pre-wrap text-slate-100">${esc(d.answer)}</div>`;
+    else if (d.rejected) head = `<p class="text-amber-300">Ответ модели не показан: ${esc(d.rejected)}. Ниже только собранные факты.</p>`;
+    else head = `<p class="text-slate-400">${esc(d.ai || 'Объяснение недоступно')}. Ниже только собранные факты.</p>`;
+    box.innerHTML = head + facts + `<p class="text-xs text-slate-500 mt-2">${esc(d.note)}</p>`;
+  }
+
   function render() {
     renderNav();
     if (!data) return;
@@ -601,11 +634,14 @@
     if (scanBtn) { scanShop(scanBtn.dataset.scanShop, scanBtn); return; }
     const shop = e.target.closest('[data-shop]');
     if (shop) { openShop(shop.dataset.shop); return; }
+    if (e.target.id === 'btnAsk') { askAssistant(); return; }
     if (e.target.id === 'btnEvents') loadEvents();
     if (e.target.id === 'btnRefresh') load();
     if (e.target.id === 'shopModalClose' || e.target.id === 'shopModal') document.getElementById('shopModal').classList.add('hidden');
   });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') document.getElementById('shopModal').classList.add('hidden'); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.id === 'askQ') { askAssistant(); return; }
+    if (e.key === 'Escape') document.getElementById('shopModal').classList.add('hidden'); });
   const initial = location.hash.slice(1);
   if (SECTIONS.some(([id]) => id === initial)) current = initial;
   renderNav();

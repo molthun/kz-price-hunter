@@ -2033,6 +2033,27 @@ def check_adaptive_rollback():
         return None
 
 
+@routes.post("/api/admin/assistant")
+@require_admin
+async def admin_assistant_handler(request):
+    """AI-помощник администратора (P12): только чтение, цифры из отчётов мониторинга."""
+    import admin_assistant
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"status": "error", "message": "Некорректный запрос"}, status=400)
+    question = str(data.get("question") or "").strip()
+    if not question:
+        return web.json_response({"status": "error", "message": "Задайте вопрос"}, status=400)
+    try:
+        days = max(1, min(90, int(data.get("days") or admin_assistant.DEFAULT_DAYS)))
+    except (TypeError, ValueError):
+        days = admin_assistant.DEFAULT_DAYS
+    result = await admin_assistant.answer(question, days=days)
+    return web.json_response({"status": "ok", **result},
+                             dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
 @routes.get("/api/admin/scheduler/rollout")
 @require_admin
 async def scheduler_rollout_status_handler(request):
