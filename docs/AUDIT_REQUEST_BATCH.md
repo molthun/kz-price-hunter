@@ -113,6 +113,30 @@ for f in test_frontend*.cjs; do deno run -A --node-modules-dir=false "$f" || bre
 5. На пути сравнения цен нет вызовов модели: пара запоминается, разбор идёт отдельной задачей порциями,
    очередь ограничена и чистится; сбой AI-части оставляет сравнение прежним.
 
+
+## Исправления по аудиту Codex (M01–M11), 2026-09-23
+
+Отчёт аудита — [BATCH_AUDIT_CODEX.md](BATCH_AUDIT_CODEX.md). Все одиннадцать замечаний исправлены с
+регрессиями; ниже — что именно изменилось и каким тестом это закреплено.
+
+| № | Что было | Что сделано | Регрессия |
+|---|---|---|---|
+| M01 | Состав пробного шага переизбирался при каждом вызове: ухудшившийся магазин молча заменялся другим | Состав выбирается один раз при переходе и хранится в `adaptive_scheduler_canary`; выбывший участник называется в состоянии, замена не подбирается; откат очищает состав | `AuditFixesTest.test_membership_is_fixed_at_start_and_does_not_follow_the_ranking`, `…test_worsened_member_stays_under_observation_and_is_rolled_back`, `…test_disappeared_member_is_named_not_replaced` |
+| M02 | «После» считалось за скользящие сутки и включало успехи до включения | `metrics(shops, since, until)` с явными границами; HTTP — по часовым агрегатам (`http_metrics_by_shop_window`), начало округляется вверх до часа; порог достаточности считает только период шага | `…test_history_before_the_stage_does_not_mask_a_failing_canary`, `…test_old_observations_do_not_fill_the_sufficiency_threshold` |
+| M03 | Общий `POST /api/admin/config` выставлял шаг включения мимо проверки перехода и снимка «до» | Настройки со своей процедурой (`adaptive_scheduler_stage`, `ai_matching_mode`) общим сохранением не принимаются — ответ 400 с указанием своего переключателя | `GuardedSettingsTest.test_general_config_endpoint_refuses_the_staged_settings` |
+| M04 | Любое число до 12 считалось нумерацией и проходило проверку | Разрешение по синтаксису списка (маркер в начале строки), а не по величине; деление известного числа на сто больше не порождает ноль; в примечании прямо сказано, что проверка ловит выдуманные величины, а не перепутанные | `NumberVerificationTest.test_a_number_in_a_sentence_is_not_excused_as_numbering`, `…test_list_numbering_is_allowed_by_syntax`, `SummaryTest.test_small_invented_number_is_rejected_too` |
+| M05 | Счётчики ухудшений и восстановлений равнялись длине списка примеров (максимум 5) | Счёт ведётся отдельно от примеров | `AuditFixesTest.test_event_counters_are_exact_for_any_number` |
+| M06 | Неизвестная стоимость AI показывалась как `$0.0` | Четыре разных ответа: вызовов не было, цены не заданы, сумма по части вызовов, известный ноль — в карточке и в письме | `AuditFixesTest.test_calls_without_prices_mean_unknown_cost_not_zero`, `…test_partially_priced_calls_are_named_partial` |
+| M07 | `shutil.copy2` терял подтверждённые транзакции из журнала WAL, проверка целостности этого не видела | Копия снимается через SQLite Backup API; сверх того конвейер запускает **сам прежний релиз** на обновлённой копии (`release_gate.py rollback`), потому что равенство версии схемы — условие необходимое, но не достаточное | `WalSnapshotTest.test_committed_wal_record_is_in_the_rehearsed_copy`, `…test_previous_code_is_checked_on_the_upgraded_copy` |
+| M08 | Сканер секретов пропускал все каталоги с точки, включая `.github`; слово «example» в строке оправдывало настоящий ключ | Обходятся файлы, которые хранит git; служебные каталоги исключаются поимённо; заглушка распознаётся по самому значению | `SecretScanTest.test_workflow_files_are_scanned`, `…test_word_example_next_to_a_real_key_does_not_excuse_it` |
+| M09 | Пакет со `skip_reason` и пустой отчёт считались успешной проверкой | Отчёт обязан быть полным и понятным: пустой, повреждённый, с пропущенным или без списка уязвимостей пакетом — блокирует публикацию | `DependencyAuditTest.test_skipped_package_is_not_a_clean_result`, `…test_empty_or_foreign_report_does_not_pass` |
+| M10 | Пакет из 25 срабатываний уходил двумя письмами (21 и 4) | Сводка забирает все готовые срабатывания наблюдения (предел 500); список сокращается, счётчик — нет | `DigestDeliveryTest.test_a_full_run_batch_goes_out_as_one_message` |
+| M11 | `confidence` округлялась до показа, и 0.8999 проходило порог 0.90 | Решение принимается по исходному значению, округление — только для показа (`show_confidence`); `True` вместо числа не считается уверенностью | `RoundingTest.test_just_below_the_threshold_is_not_accepted`, `…test_whole_path_keeps_the_value_below_the_threshold` |
+
+Проверки после исправлений: **Python 1093 OK**, **frontend 14/14 PASS**, `release_gate.py secrets` — чисто.
+Непроведённое из списка ниже не изменилось: прод, Docker, живой конвейер, реальные вызовы моделей и
+Telegram, замер AI-части на живой модели.
+
 ## Что НЕ проведено (и не выдаётся за проведённое)
 
 - Независимый аудит — предмет этой заявки.
