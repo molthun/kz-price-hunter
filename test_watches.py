@@ -612,6 +612,16 @@ class DigestDeliveryTest(DeliveryTest):
             notifier.deliver_pending(limit=10)
         return sent
 
+    def test_a_full_run_batch_goes_out_as_one_message(self):
+        """M10: 25 срабатываний за обход — это одно письмо, а не 21 и 4."""
+        self.queue_digest(count=25)
+        self.assertEqual(len(self.outbox()), 25)
+        sent = self.send_all()
+        self.assertEqual(len(sent), 1, "весь пакет обхода должен уйти одним письмом")
+        self.assertIn("Сработало раз: <b>25</b>", sent[0]["text"])
+        self.assertIn("…и ещё 15", sent[0]["text"], "список сокращается, счётчик — нет")
+        self.assertEqual({q["status"] for q in self.outbox()}, {"sent"})
+
     def test_accumulated_triggers_go_out_as_one_message(self):
         self.queue_digest(count=3)
         self.assertEqual(len(self.outbox()), 3, "срабатывания накопились по одному")

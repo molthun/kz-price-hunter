@@ -187,18 +187,23 @@ class RolloutStateTest(unittest.TestCase):
             p.stop()
         self.tmp.cleanup()
 
-    def http(self, shop, requests, errors, blocked, day=None):
-        day = day or NOW.strftime("%Y-%m-%d")
+    def http(self, shop, requests, errors, blocked, at=None):
+        """Часовой агрегат: периоды «до» и «после» должны различаться с точностью до часа (M02)."""
+        moment = at or (NOW - datetime.timedelta(hours=1))
+        bucket = moment.strftime("%Y-%m-%dT%H:00:00Z")
         with database.get_connection() as conn:
             conn.execute("""INSERT INTO telemetry_http_aggregates
                             (bucket_type, bucket_start, host, shop, total_requests, errors, status_429,
                              status_4xx, status_5xx)
-                            VALUES ('day', ?, ?, ?, ?, ?, ?, 0, 0)""",
-                         (day, f"{shop}.kz", shop, requests, errors, blocked))
+                            VALUES ('hour', ?, ?, ?, ?, ?, ?, 0, 0)
+                            ON CONFLICT(bucket_type, bucket_start, host, shop) DO UPDATE SET
+                                total_requests = excluded.total_requests, errors = excluded.errors,
+                                status_429 = excluded.status_429""",
+                         (bucket, f"{shop}.kz", shop, requests, errors, blocked))
             conn.commit()
 
     def scans(self, shop, total, good, day=None):
-        moment = day or NOW
+        moment = day or (NOW - datetime.timedelta(hours=1))
         with database.get_connection() as conn:
             for i in range(total):
                 conn.execute("""INSERT INTO source_scans (shop_key, source_url, category, scan_id,
@@ -225,7 +230,7 @@ class RolloutStateTest(unittest.TestCase):
         self.http("kaspi", 100, 5, 0)
         self.http("dns", 100, 50, 0)
         self.scans("kaspi", 10, 10)
-        data = rollout.metrics(["kaspi"], days=1, now=NOW)
+        data = rollout.metrics(["kaspi"], NOW - datetime.timedelta(days=1), NOW)
         self.assertEqual(data["requests"], 100)
         self.assertAlmostEqual(data["error_share"], 0.05)
 
@@ -244,11 +249,11 @@ class RolloutStateTest(unittest.TestCase):
         self.scans("kaspi", 10, 10)
         config.save_settings({**config.load_settings(), rollout.SETTING_STAGE: rollout.CANARY_ONE})
         rollout.start_stage(rollout.CANARY_ONE, self.candidates, now=NOW)
-        # Всё стало хуже: ошибок втрое больше
-        with database.get_connection() as conn:
-            conn.execute("UPDATE telemetry_http_aggregates SET errors = 60 WHERE shop = 'kaspi'")
-            conn.commit()
-        record = rollout.check_and_rollback(self.candidates, now=NOW)
+        # Всё стало хуже уже ПОСЛЕ включения: ошибок втрое больше
+        later = NOW + datetime.timedelta(hours=1)
+        self.http("kaspi", 200, 60, 0, at=later)
+        self.scans("kaspi", 10, 10, day=later)
+        record = rollout.check_and_rollback(self.candidates, now=NOW + datetime.timedelta(hours=2))
         self.assertIsNotNone(record)
         self.assertEqual(rollout.stage_of(), rollout.OFF)
         self.assertIn("ошибок", record["reason"])
@@ -259,7 +264,11 @@ class RolloutStateTest(unittest.TestCase):
         self.scans("kaspi", 10, 9)
         config.save_settings({**config.load_settings(), rollout.SETTING_STAGE: rollout.CANARY_ONE})
         rollout.start_stage(rollout.CANARY_ONE, self.candidates, now=NOW)
-        self.assertIsNone(rollout.check_and_rollback(self.candidates, now=NOW))
+        later = NOW + datetime.timedelta(hours=1)
+        self.http("kaspi", 200, 10, 2, at=later)
+        self.scans("kaspi", 10, 9, day=later)
+        self.assertIsNone(rollout.check_and_rollback(self.candidates,
+                                                     now=NOW + datetime.timedelta(hours=2)))
         self.assertEqual(rollout.stage_of(), rollout.CANARY_ONE)
 
     def test_stage_survives_a_restart(self):
@@ -287,14 +296,30 @@ class RolloutStateTest(unittest.TestCase):
         self.scans("kaspi", 10, 9)
         config.save_settings({**config.load_settings(), rollout.SETTING_STAGE: rollout.CANARY_ONE})
         rollout.start_stage(rollout.CANARY_ONE, self.candidates, now=NOW)
-        state = rollout.status(self.candidates, now=NOW)
+        state = rollout.status(self.candidates, now=NOW + datetime.timedelta(hours=1))
         self.assertEqual(state["stage"], rollout.CANARY_ONE)
         self.assertEqual(state["canary"], ["kaspi"])
         self.assertEqual(state["next_stage"], rollout.CANARY_FEW)
         self.assertFalse(state["ready_for_next"])
-        self.assertIn("наблюдения", state["ready_reason"] + state["note"])
+        self.assertIn("наблюдений пока мало", state["ready_reason"])
+        self.assertIn("после включения", state["note"])
         self.assertEqual(state["thresholds"]["error_growth"], rollout.ERROR_GROWTH_LIMIT)
         self.assertIn("вручную", state["note"])
+
+
+class _FrozenNow(datetime.datetime):
+    """«Сейчас» для кода, который берёт время сам: проверка отката вызывается воркером без параметра."""
+
+    _moment = None
+
+    def __class_getitem__(cls, item):      # pragma: no cover — совместимость с typing
+        return cls
+
+    def __new__(cls, moment):
+        frozen = type("Frozen", (datetime.datetime,), {})
+        frozen.now = classmethod(lambda c, tz=None: moment if tz is None else moment.astimezone(tz))
+        frozen.fromisoformat = datetime.datetime.fromisoformat
+        return frozen
 
 
 class WorkerIntegrationTest(RolloutStateTest):
@@ -332,10 +357,11 @@ class WorkerIntegrationTest(RolloutStateTest):
         self.scans("kaspi", 10, 10)
         config.save_settings({**config.load_settings(), rollout.SETTING_STAGE: rollout.CANARY_ONE})
         rollout.start_stage(rollout.CANARY_ONE, self.candidates, now=NOW)
-        with database.get_connection() as conn:
-            conn.execute("UPDATE telemetry_http_aggregates SET errors = 60 WHERE shop = 'kaspi'")
-            conn.commit()
-        with patch.object(database, "scheduler_candidates", return_value=self.candidates):
+        later = NOW + datetime.timedelta(hours=1)
+        self.http("kaspi", 200, 60, 0, at=later)
+        self.scans("kaspi", 10, 10, day=later)
+        with patch.object(database, "scheduler_candidates", return_value=self.candidates), \
+             patch.object(rollout.datetime, "datetime", _FrozenNow(NOW + datetime.timedelta(hours=2))):
             record = server.check_adaptive_rollback()
         self.assertIsNotNone(record)
         self.assertEqual(rollout.stage_of(), rollout.OFF)
@@ -343,3 +369,139 @@ class WorkerIntegrationTest(RolloutStateTest):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AuditFixesTest(RolloutStateTest):
+    """Регрессии по замечаниям аудита M01, M02 и M03."""
+
+    # --- M01: состав шага не переизбирается ---
+
+    def test_membership_is_fixed_at_start_and_does_not_follow_the_ranking(self):
+        import config
+        config.save_settings({**config.load_settings(), rollout.SETTING_STAGE: rollout.CANARY_ONE})
+        rollout.start_stage(rollout.CANARY_ONE, self.candidates, now=NOW)
+        self.assertEqual(rollout.canary_members(), ["kaspi"])
+        # Профили поменялись местами: kaspi ухудшился, dns стал дружелюбным
+        swapped = [candidate("kaspi", sched.DEGRADED), candidate("dns", sched.FRIENDLY)]
+        state = rollout.status(swapped, now=NOW + datetime.timedelta(hours=1))
+        self.assertEqual(state["canary"], ["kaspi"], "участник шага не должен подменяться сам")
+        selection = rollout.select_targets(rollout.CANARY_ONE, ["dns", "kaspi"], swapped, now=NOW)
+        self.assertEqual(selection["canary"], ["kaspi"])
+
+    def test_worsened_member_stays_under_observation_and_is_rolled_back(self):
+        import config
+        self.http("kaspi", 200, 4, 0)
+        self.scans("kaspi", 10, 10)
+        config.save_settings({**config.load_settings(), rollout.SETTING_STAGE: rollout.CANARY_ONE})
+        rollout.start_stage(rollout.CANARY_ONE, self.candidates, now=NOW)
+        later = NOW + datetime.timedelta(hours=1)
+        self.http("kaspi", 200, 60, 0, at=later)
+        self.scans("kaspi", 10, 10, day=later)
+        swapped = [candidate("kaspi", sched.DEGRADED), candidate("dns", sched.FRIENDLY)]
+        record = rollout.check_and_rollback(swapped, now=NOW + datetime.timedelta(hours=2))
+        self.assertIsNotNone(record, "ухудшившийся участник обязан привести к откату, а не исчезнуть")
+        self.assertEqual(rollout.stage_of(), rollout.OFF)
+
+    def test_disappeared_member_is_named_not_replaced(self):
+        import config
+        config.save_settings({**config.load_settings(), rollout.SETTING_STAGE: rollout.CANARY_ONE})
+        rollout.start_stage(rollout.CANARY_ONE, self.candidates, now=NOW)
+        state = rollout.status([candidate("dns", sched.FRIENDLY)], now=NOW)
+        self.assertEqual(state["missing_members"], ["kaspi"])
+        self.assertFalse(state["ready_for_next"])
+        self.assertIn("замена не подбирается", state["ready_reason"])
+
+    def test_membership_survives_a_restart(self):
+        import config
+        import importlib
+        config.save_settings({**config.load_settings(), rollout.SETTING_STAGE: rollout.CANARY_ONE})
+        rollout.start_stage(rollout.CANARY_ONE, self.candidates, now=NOW)
+        importlib.reload(rollout)
+        self.assertEqual(rollout.canary_members(), ["kaspi"])
+
+    def test_rollback_clears_the_membership(self):
+        import config
+        config.save_settings({**config.load_settings(), rollout.SETTING_STAGE: rollout.CANARY_ONE})
+        rollout.start_stage(rollout.CANARY_ONE, self.candidates, now=NOW)
+        record = rollout.rollback("проверка", now=NOW)
+        self.assertEqual(record["canary"], ["kaspi"], "в записи отката видно, кто участвовал")
+        self.assertEqual(rollout.canary_members(), [])
+
+    # --- M02: периоды до и после не смешиваются ---
+
+    def test_history_before_the_stage_does_not_mask_a_failing_canary(self):
+        """Сценарий аудита: 10 000 хороших запросов до включения и 100 провальных после."""
+        import config
+        self.http("kaspi", 10000, 1000, 0)
+        self.scans("kaspi", 100, 100)
+        config.save_settings({**config.load_settings(), rollout.SETTING_STAGE: rollout.CANARY_ONE})
+        rollout.start_stage(rollout.CANARY_ONE, self.candidates, now=NOW)
+        later = NOW + datetime.timedelta(hours=1)
+        self.http("kaspi", 100, 100, 0, at=later)
+        self.scans("kaspi", 5, 0, day=later)
+        moment = NOW + datetime.timedelta(hours=2)
+        after = rollout.metrics(["kaspi"], NOW, moment)
+        self.assertEqual(after["requests"], 100, "прежние запросы не относятся к этому шагу")
+        self.assertEqual(after["error_share"], 1.0)
+        self.assertEqual(after["completeness"], 0.0)
+        needed, why = rollout.should_rollback(rollout.baseline_metrics(), after)
+        self.assertTrue(needed, why)
+        self.assertIsNotNone(rollout.check_and_rollback(self.candidates, now=moment))
+
+    def test_old_observations_do_not_fill_the_sufficiency_threshold(self):
+        import config
+        self.http("kaspi", 10000, 10, 0)
+        self.scans("kaspi", 100, 100)
+        config.save_settings({**config.load_settings(), rollout.SETTING_STAGE: rollout.CANARY_ONE})
+        rollout.start_stage(rollout.CANARY_ONE, self.candidates, now=NOW)
+        after = rollout.metrics(["kaspi"], NOW, NOW + datetime.timedelta(hours=1))
+        self.assertEqual(after["requests"], 0)
+        self.assertFalse(after["enough_data"], "судить по истории до включения нельзя")
+
+    def test_metrics_report_their_own_period(self):
+        data = rollout.metrics(["kaspi"], NOW, NOW + datetime.timedelta(hours=3))
+        self.assertEqual(data["hours"], 3.0)
+        self.assertTrue(data["since"].startswith("2026-"))
+
+
+class GuardedSettingsTest(unittest.IsolatedAsyncioTestCase):
+    """M03: шаг включения нельзя выставить общим сохранением настроек в обход подготовки."""
+
+    async def test_general_config_endpoint_refuses_the_staged_settings(self):
+        import auth
+        import config
+        import web.server as server
+        from aiohttp.test_utils import TestServer
+        from test_support import BrowserTestClient as TestClient
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        patches = [patch.object(database, "DB_PATH", type(DB_PATH)(os.path.join(tmp.name, "prices.db"))),
+                   patch("config.DATA_DIR", type(DB_PATH)(tmp.name)),
+                   patch("config.SETTINGS_FILE", type(DB_PATH)(os.path.join(tmp.name, "settings.json")))]
+        for p in patches:
+            p.start()
+            self.addCleanup(p.stop)
+        database.init_db()
+        database.upsert_telegram_user({"id": 9601, "first_name": "A"})
+        token = database.create_session(9601)
+        app = server.create_app()
+        app.cleanup_ctx.clear()
+        async with TestClient(TestServer(app)) as client:
+            client.session.cookie_jar.update_cookies({auth.SESSION_COOKIE: token})
+            with patch.object(auth, "ADMIN_TELEGRAM_IDS", {9601}):
+                res = await client.post("/api/admin/config",
+                                        json={"adaptive_scheduler_stage": "all"})
+                self.assertEqual(res.status, 400)
+                self.assertIn("своим переключателем", (await res.json())["message"])
+                self.assertEqual(config.load_settings()["adaptive_scheduler_stage"], "off")
+                # Тот же запрет и для режима AI-сопоставления
+                self.assertEqual((await client.post("/api/admin/config",
+                                                    json={"ai_matching_mode": "on"})).status, 400)
+                # Обычные настройки по-прежнему сохраняются
+                ok = await client.post("/api/admin/config", json={"candidate_drop_pct": 33})
+                self.assertEqual(ok.status, 200)
+                self.assertEqual(config.load_settings()["candidate_drop_pct"], 33)
+
+    async def test_dedicated_endpoint_still_refuses_a_jump(self):
+        self.assertFalse(rollout.can_switch(rollout.OFF, rollout.ALL)[0])
+        self.assertTrue(rollout.can_switch(rollout.OFF, rollout.CANARY_ONE)[0])

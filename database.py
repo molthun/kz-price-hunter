@@ -2171,12 +2171,23 @@ def claim_notification():
     return dict(row) if row else None
 
 
-def claim_watch_digest(watch_id: int, user_id: int, exclude_id: int, limit: int = 20) -> List[Dict[str, Any]]:
+# Сводка забирает ВСЕ готовые срабатывания наблюдения, а не первые двадцать: иначе пакет из 25 событий
+# разваливался на два письма подряд (M10). Верхняя граница остаётся защитой от бесконечного письма.
+MAX_DIGEST_BATCH = 500
+
+
+def claim_watch_digest(watch_id: int, user_id: int, exclude_id: int,
+                       limit: int = MAX_DIGEST_BATCH) -> List[Dict[str, Any]]:
     """Забирает остальные готовые задания того же наблюдения: они уйдут одним сообщением, а не пачкой.
 
     Берутся только задания, которым уже пора, и только этого человека и этого наблюдения. Каждое
     забирается так же, как обычное — с увеличением попытки, чтобы при сбое доставки оно не потерялось
     и не ушло дважды.
+
+    Берутся все готовые срабатывания до предела MAX_DIGEST_BATCH: за один обход наблюдение создаёт не
+    больше MAX_EVENTS_PER_WATCH_PER_RUN событий, поэтому обычный пакет умещается в одно письмо (M10).
+    Если срабатываний окажется больше предела, остаток уйдёт следующим письмом — об этом говорит само
+    письмо, а не молчание.
     """
     now = time.time()
     with get_connection() as conn:
@@ -3212,6 +3223,36 @@ def http_metrics_by_shop(days: int = 7, now: Optional[datetime.datetime] = None)
             WHERE bucket_type = 'day' AND bucket_start >= ? AND shop != ''
             GROUP BY shop
         """, (since,)):
+            metrics[row["shop"]] = dict(row)
+    return metrics
+
+
+def http_metrics_by_shop_window(since: datetime.datetime,
+                                until: Optional[datetime.datetime] = None) -> Dict[str, Dict[str, Any]]:
+    """HTTP-метрики за ТОЧНЫЙ период по часовым агрегатам (P11, M02).
+
+    Дневных сумм для границы внутри суток недостаточно: они втягивают трафик до начала шага и прячут
+    провал пробного магазина. Часовые агрегаты дают границу с точностью до часа.
+
+    Начало округляется вверх до целого часа: неполный час, в который шаг только включили, содержит и
+    прежний трафик, поэтому он не засчитывается — лучше недосчитать, чем засчитать чужое.
+    """
+    end = until or datetime.datetime.now(datetime.timezone.utc)
+    start = since.astimezone(datetime.timezone.utc)
+    if start.minute or start.second or start.microsecond:
+        start = start.replace(minute=0, second=0, microsecond=0) + datetime.timedelta(hours=1)
+    fmt = "%Y-%m-%dT%H:00:00Z"
+    lo = start.strftime(fmt)
+    hi = end.astimezone(datetime.timezone.utc).strftime(fmt)
+    metrics: Dict[str, Dict[str, Any]] = {}
+    with get_connection() as conn:
+        for row in conn.execute("""
+            SELECT shop, SUM(total_requests) AS requests, SUM(errors) + SUM(status_5xx) AS errors,
+                   SUM(status_429) + SUM(status_4xx) AS blocked, MAX(latency_p95_ms) AS latency_p95_ms
+            FROM telemetry_http_aggregates
+            WHERE bucket_type = 'hour' AND bucket_start >= ? AND bucket_start <= ? AND shop != ''
+            GROUP BY shop
+        """, (lo, hi)):
             metrics[row["shop"]] = dict(row)
     return metrics
 

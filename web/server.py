@@ -851,11 +851,25 @@ async def get_admin_config_handler(request):
         "ai": {k: v for k, v in get_ai_config().items() if k not in ("gemini_api_key", "openai_api_key")}
     })
 
+# Настройки со своей процедурой перехода: их нельзя менять общим сохранением, иначе шаг включения
+# сменился бы без проверки перехода и без снимка «до», а автооткат остался бы без основания (M03).
+GUARDED_SETTINGS = {
+    "adaptive_scheduler_stage": "POST /api/admin/scheduler/rollout",
+    "ai_matching_mode": "POST /api/admin/monitoring/matching/ai",
+}
+
+
 @routes.post("/api/admin/config")
 @require_admin
 async def post_admin_config_handler(request):
     try:
         data = await request.json()
+        guarded = [k for k in GUARDED_SETTINGS if k in (data or {})]
+        if guarded:
+            where = ", ".join(f"«{k}» — {GUARDED_SETTINGS[k]}" for k in guarded)
+            return web.json_response(
+                {"status": "error",
+                 "message": f"Эти настройки меняются своим переключателем: {where}"}, status=400)
         current = load_settings()
         for k in ("gemini_api_key", "openai_api_key"):
             if k in data and ("..." in str(data[k]) or "***" in str(data[k])):

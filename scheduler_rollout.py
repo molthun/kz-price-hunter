@@ -39,6 +39,7 @@ SETTING_STAGE = "adaptive_scheduler_stage"
 METADATA_BASELINE = "adaptive_scheduler_baseline"      # снимок метрик на момент включения шага
 METADATA_STARTED = "adaptive_scheduler_started_at"
 METADATA_LAST_ROLLBACK = "adaptive_scheduler_last_rollback"
+METADATA_CANARY = "adaptive_scheduler_canary"          # состав шага фиксируется при включении (M01)
 
 # --- Пороги остановки и отката. СОГЛАСОВАНЫ С ВЛАДЕЛЬЦЕМ ДО ВКЛЮЧЕНИЯ (2026-09-23), вариант «строго»:
 # лучше лишний откат, чем испорченные отношения с магазином.
@@ -98,7 +99,8 @@ def canary_shops(stage: str, candidates: Sequence[Dict[str, Any]]) -> List[str]:
 
 def select_targets(stage: str, baseline_targets: Sequence[str], candidates: Sequence[Dict[str, Any]],
                    now: Optional[datetime.datetime] = None,
-                   max_sources: int = 20) -> Dict[str, Any]:
+                   max_sources: int = 20,
+                   members: Optional[Sequence[str]] = None) -> Dict[str, Any]:
     """Что обходить сейчас: прежний список для обычных магазинов, адаптивный порядок — для пробных.
 
     Возвращает {"targets", "changed", "canary", "explanation"}. `targets` — всегда подмножество
@@ -110,7 +112,11 @@ def select_targets(stage: str, baseline_targets: Sequence[str], candidates: Sequ
         return {"targets": baseline, "changed": False, "canary": [],
                 "explanation": "прежний порядок обходов"}
 
-    canary = [s for s in canary_shops(stage, candidates) if s in baseline]
+    # Состав шага берётся зафиксированным при включении, а не выбирается заново каждый раз (M01)
+    chosen = list(members) if members is not None else canary_members()
+    if not chosen:
+        chosen = canary_shops(stage, candidates)
+    canary = [s for s in chosen if s in baseline]
     if not canary:
         return {"targets": baseline, "changed": False, "canary": [],
                 "explanation": "пробных магазинов в этой волне нет"}
@@ -136,13 +142,23 @@ def select_targets(stage: str, baseline_targets: Sequence[str], candidates: Sequ
             "explanation": explanation}
 
 
-def metrics(shop_keys: Sequence[str], days: int = 1,
-            now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
-    """Метрики пробных магазинов: доля ошибок, доля отказов по лимиту, полнота обходов."""
+def before_window(moment: datetime.datetime) -> Tuple[datetime.datetime, datetime.datetime]:
+    """Период «до»: сутки, закончившиеся в момент включения шага."""
+    return moment - datetime.timedelta(days=1), moment
+
+
+def metrics(shop_keys: Sequence[str], since: datetime.datetime,
+            until: Optional[datetime.datetime] = None) -> Dict[str, Any]:
+    """Метрики пробных магазинов за ТОЧНЫЙ период: доля ошибок, отказов по лимиту, полнота обходов.
+
+    Период задаётся границами, а не «последними сутками»: иначе в результат шага попадали бы прежние
+    успехи, а провал canary прятался бы за историей до включения (M02). По этой же причине порог
+    достаточности данных считается только по наблюдениям внутри периода.
+    """
     import database
-    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    end = until or datetime.datetime.now(datetime.timezone.utc)
     keys = [str(k) for k in shop_keys]
-    http = database.http_metrics_by_shop(days=days, now=moment)
+    http = database.http_metrics_by_shop_window(since, end)
 
     requests = errors = blocked = 0
     for key in keys:
@@ -153,20 +169,22 @@ def metrics(shop_keys: Sequence[str], days: int = 1,
 
     scans = complete = 0
     if keys:
-        since = (moment - datetime.timedelta(days=max(1, int(days)))).isoformat()
         placeholders = ",".join("?" * len(keys))
         with database.get_connection() as conn:
             for row in conn.execute(
                     f"SELECT quality, COUNT(*) AS n FROM source_scans "
-                    f"WHERE shop_key IN ({placeholders}) AND finished_at >= ? GROUP BY quality",
-                    keys + [since]):
+                    f"WHERE shop_key IN ({placeholders}) AND finished_at >= ? AND finished_at < ? "
+                    f"GROUP BY quality",
+                    keys + [since.isoformat(), end.isoformat()]):
                 scans += row["n"]
                 if row["quality"] in ("ok", "complete"):
                     complete += row["n"]
 
     return {
-        "shops": keys, "days": days, "requests": requests, "errors": errors, "blocked": blocked,
-        "scans": scans,
+        "shops": keys,
+        "since": since.isoformat(), "until": end.isoformat(),
+        "hours": round((end - since).total_seconds() / 3600.0, 2),
+        "requests": requests, "errors": errors, "blocked": blocked, "scans": scans,
         "error_share": round(errors / requests, 4) if requests else None,
         "block_share": round(blocked / requests, 4) if requests else None,
         "completeness": round(complete / scans, 4) if scans else None,
@@ -247,15 +265,33 @@ def _json_metadata(key: str) -> Optional[Dict[str, Any]]:
 
 def start_stage(stage: str, candidates: Sequence[Dict[str, Any]],
                 now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
-    """Запоминает, с чего шаг начинается: снимок метрик «до» и время. Без него сравнивать не с чем."""
+    """Начало шага: выбирает состав, фиксирует его, снимает метрики «до» и запоминает время.
+
+    Состав выбирается ровно здесь и больше не пересматривается (M01): иначе ухудшившийся пробный
+    магазин молча заменялся бы другим, а сравнение «до/после» относилось бы к разным источникам.
+    """
     import json
     import database
     moment = now or datetime.datetime.now(datetime.timezone.utc)
     shops = canary_shops(stage, candidates)
-    before = metrics(shops, days=1, now=moment) if shops else None
+    since, until = before_window(moment)
+    before = metrics(shops, since, until) if shops else None
+    database.set_metadata(METADATA_CANARY, json.dumps(shops, ensure_ascii=False))
     database.set_metadata(METADATA_BASELINE, json.dumps(before, ensure_ascii=False) if before else "")
     database.set_metadata(METADATA_STARTED, moment.isoformat())
     return {"stage": stage, "canary": shops, "before": before, "started_at": moment.isoformat()}
+
+
+def canary_members() -> List[str]:
+    """Состав текущего шага, зафиксированный при включении. Пустой список — состав не сохранён."""
+    stored = _json_metadata(METADATA_CANARY)
+    return [str(s) for s in stored] if isinstance(stored, list) else []
+
+
+def missing_members(candidates: Sequence[Dict[str, Any]]) -> List[str]:
+    """Участники шага, которых больше нет среди кандидатов: замены им не подбирается (M01)."""
+    known = {str(c.get("shop") or "") for c in candidates}
+    return [s for s in canary_members() if s not in known]
 
 
 def started_at(now: Optional[datetime.datetime] = None) -> Optional[datetime.datetime]:
@@ -284,8 +320,10 @@ def rollback(reason: str, now: Optional[datetime.datetime] = None) -> Dict[str, 
     settings = dict(config.load_settings())
     settings[SETTING_STAGE] = OFF
     config.save_settings(settings)
-    record = {"at": moment.isoformat(), "from_stage": previous, "reason": reason}
+    record = {"at": moment.isoformat(), "from_stage": previous, "reason": reason,
+              "canary": canary_members()}
     database.set_metadata(METADATA_LAST_ROLLBACK, json.dumps(record, ensure_ascii=False))
+    database.set_metadata(METADATA_CANARY, "")      # шага больше нет — нет и его состава
     try:
         from telemetry import telemetry, SEVERITY_WARNING, COMPONENT_SCHEDULER
         telemetry.record_event("scheduler_rollback", SEVERITY_WARNING, COMPONENT_SCHEDULER,
@@ -310,10 +348,13 @@ def check_and_rollback(candidates: Sequence[Dict[str, Any]],
     stage = stage_of()
     if stage == OFF:
         return None
-    shops = canary_shops(stage, candidates)
-    if not shops:
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    shops = canary_members() or canary_shops(stage, candidates)
+    began = started_at(moment)
+    if not shops or began is None:
         return None
-    after = metrics(shops, days=1, now=now)
+    # Считаем только то, что произошло ПОСЛЕ включения шага, и только по его участникам (M01, M02)
+    after = metrics(shops, began, moment)
     needed, reason = should_rollback(baseline_metrics(), after)
     if not needed:
         return None
@@ -330,20 +371,29 @@ def status(candidates: Optional[Sequence[Dict[str, Any]]] = None,
     if candidates is None:
         candidates = database.scheduler_candidates(days=7, now=moment)
     stage = stage_of()
-    shops = canary_shops(stage, candidates)
+    began = started_at(moment)
+    shops = canary_members() if stage != OFF else []
+    if stage != OFF and not shops:
+        shops = canary_shops(stage, candidates)      # состав ещё не фиксировался (старое состояние)
     before = baseline_metrics()
-    after = metrics(shops, days=1, now=moment) if shops else None
-    ready, why = ready_for_next_step(stage, before, after, started_at(), moment)
+    after = metrics(shops, began, moment) if shops and began else None
+    ready, why = ready_for_next_step(stage, before, after, began, moment)
     needed, rollback_reason = should_rollback(before, after)
     # Шаг включён, а пробных магазинов нет — это состояние надо назвать, а не показывать пустым прочерком
     if stage != OFF and not shops:
         why = "пробные магазины ещё не определены: нет данных об обходах"
         ready = False
+    # Участник шага пропал из кандидатов: замену ему не подбираем и молчать об этом нельзя (M01)
+    gone = missing_members(candidates) if stage != OFF else []
+    if gone:
+        ready = False
+        why = f"участники шага пропали из наблюдения: {', '.join(gone)} — замена не подбирается"
     return {
         "stage": stage,
         "stage_label": STAGE_LABELS[stage],
         "next_stage": NEXT_STAGE.get(stage),
         "canary": shops,
+        "missing_members": gone,
         "before": before,
         "after": after,
         "ready_for_next": ready,
@@ -358,5 +408,7 @@ def status(candidates: Optional[Sequence[Dict[str, Any]]] = None,
             "agreed_at": "2026-09-23, до включения, решение владельца «строго»",
         },
         "note": "Расширение шага — только вручную. Откат происходит автоматически при росте ошибок или "
-                "отказов по лимиту больше чем на треть либо падении полноты обходов больше чем на 10 %.",
+                "отказов по лимиту больше чем на треть либо падении полноты обходов больше чем на 10 %. "
+                "Состав шага фиксируется при включении: цифры «после» считаются по тем же магазинам и "
+                "только за время после включения.",
     }
