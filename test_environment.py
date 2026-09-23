@@ -157,5 +157,27 @@ class HeartbeatStorageTest(unittest.TestCase):
         self.assertIn("не показываются", section["note"])
 
 
+
+
+class AuditConfigurationTest(unittest.TestCase):
+    def test_all_disabled_forms_match_the_real_telemetry_switch(self):
+        from telemetry import telemetry_enabled
+        for value in ('0','false','False','no','OFF',' off '):
+            with self.subTest(value=value), patch.dict(os.environ, {'TELEMETRY_ENABLED':value}):
+                self.assertFalse(telemetry_enabled())
+                enabled = env.enabled_components()
+                self.assertFalse(enabled[env.TELEMETRY])
+                state = env.component_state(env.TELEMETRY, None, enabled[env.TELEMETRY], NOW)
+                self.assertEqual(state['state'], 'disabled')
+
+    def test_on_demand_backup_is_not_a_missing_periodic_worker(self):
+        enabled = env.enabled_components()
+        self.assertFalse(enabled[env.BACKUP])
+        last = {'last_seen':(NOW-datetime.timedelta(days=30)).isoformat()}
+        state = env.component_state(env.BACKUP, last, enabled[env.BACKUP], NOW)
+        self.assertEqual(state['state'], 'disabled')
+        self.assertIn('периодический работник не настроен', state['reason'])
+
+
 if __name__ == "__main__":
     unittest.main()

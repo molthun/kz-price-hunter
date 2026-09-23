@@ -133,7 +133,9 @@ def component_state(component: str, last: Optional[Dict[str, Any]], enabled: boo
     label = LABELS.get(component, component)
     if not enabled:
         return {"component": component, "label": label, "state": "disabled",
-                "reason": "выключено настройками", "age_seconds": None, "last_seen": None}
+                "reason": ("периодический работник не настроен; копии и проверки выполняются по событию"
+                           if component == BACKUP else "выключено настройками"),
+                "age_seconds": None, "last_seen": None}
     if not last or not last.get("last_seen"):
         return {"component": component, "label": label, "state": "unknown",
                 "reason": "пульса ещё не было", "age_seconds": None, "last_seen": None}
@@ -169,12 +171,15 @@ def enabled_components(settings: Optional[Dict[str, Any]] = None) -> Dict[str, b
     import config
     settings = settings if settings is not None else config.load_settings()
     ai = config.get_ai_config()
+    from telemetry import telemetry_enabled
     return {
         SCHEDULER: bool(settings.get("auto_scan_enabled", True)),
         TELEGRAM: bool(config.get_bot_token()),
         AI_NORMALIZE: bool(ai.get("has_ai") and ai.get("enabled")),
-        TELEMETRY: os.getenv("TELEMETRY_ENABLED", "1").strip() != "0",
-        BACKUP: True,
+        TELEMETRY: telemetry_enabled(),
+        # Нет отдельного периодического worker: миграции и P15 post-scan checks
+        # вызываются по событию. Возраст копий — отдельная метрика, не liveness.
+        BACKUP: False,
     }
 
 

@@ -141,7 +141,8 @@ class SimulationTest(unittest.TestCase):
 
     def test_nobody_starves(self):
         """Источник без спроса всё равно обходится: иначе он не обновится никогда."""
-        result = sched.simulate(self.items, cycles=12, limit=2, strategy="adaptive")
+        # 5 ч + 12 интервалов по 6 ч: порог 72 ч пересекается только после 12-го решения.
+        result = sched.simulate(self.items, cycles=16, limit=2, strategy="adaptive")
         self.assertEqual(result["never_visited"], [])
 
     def test_baseline_strategy_is_measured_too(self):
@@ -209,6 +210,66 @@ class NoSideEffectsTest(unittest.TestCase):
         with patch.object(http_layer, "_limited", side_effect=AssertionError("сеть не должна вызываться")):
             candidates = database.scheduler_candidates(days=7, now=NOW)
             sched.plan(candidates, now=NOW)
+
+
+
+
+class AuditRegressionTest(unittest.TestCase):
+    def setUp(self):
+        NoSideEffectsTest.setUp(self)
+
+    def tearDown(self):
+        NoSideEffectsTest.tearDown(self)
+
+    def test_oldest_queue_and_elapsed_time(self):
+        items = [candidate(shop='a', category='old', age_hours=100),
+                 candidate(shop='b', category='other', age_hours=90)]
+        result = sched.simulate(items, now=NOW, cycles=4, limit=1, strategy='round_robin')
+        self.assertEqual(result['timeline'], [['a/old'], ['b/other'], ['a/old'], ['b/other']])
+        self.assertEqual(result['avg_age_hours'], 9)
+        self.assertEqual(result['violations'], [])
+        self.assertEqual(items[0]['age_hours'], 100)
+
+    def test_both_strategies_obey_cooldown_interval_and_shop_cap(self):
+        items = [candidate(shop='busy', category=str(i), age_hours=100) for i in range(5)]
+        items += [candidate(shop='paused', next_retry_at=NOW + datetime.timedelta(hours=30)),
+                  candidate(shop='fresh', age_hours=0)]
+        for strategy in sched.STRATEGIES:
+            result = sched.simulate(items, now=NOW, cycles=2, limit=10, strategy=strategy)
+            self.assertEqual(result['violations'], [])
+            self.assertNotIn('paused/Смартфоны', result['visits'])
+            self.assertNotIn('fresh/Смартфоны', result['timeline'][0])
+            self.assertIn('fresh/Смартфоны', result['timeline'][1])
+            self.assertLessEqual(sum(x.startswith('busy/') for x in result['timeline'][0]), 3)
+
+    def test_overdue_sources_get_service_despite_persistent_demand(self):
+        items = [candidate(shop=str(i), age_hours=72, searches=1000, unmet_searches=1000)
+                 for i in range(2)]
+        items += [candidate(shop='cold', age_hours=100), candidate(shop='never', age_hours=None)]
+        result = sched.simulate(items, now=NOW, cycles=100, limit=1)
+        self.assertEqual(result['never_visited'], [])
+        cold_cycles = [i for i, chosen in enumerate(result['timeline']) if 'cold/Смартфоны' in chosen]
+        self.assertGreater(len(cold_cycles), 1)
+        self.assertLessEqual(max(b-a for a,b in zip(cold_cycles, cold_cycles[1:])), 16)
+        self.assertEqual(result['violations'], [])
+
+    def test_price_transitions_are_scoped_and_include_previous_price(self):
+        with database.get_connection() as conn:
+            conn.execute('DELETE FROM price_observations')
+            for days, price, old in [(8,100,120), (6,100,130), (5,90,130), (4,90,140), (3,80,140)]:
+                conn.execute('INSERT INTO price_observations VALUES (?, ?, ?, ?)',
+                             ('p1', price, old, (NOW-datetime.timedelta(days=days)).isoformat()))
+            conn.commit()
+        for shop, category in [('sulpak','Смартфоны'), ('kaspi','Ноутбуки')]:
+            database.record_source_scan(shop_key=shop, source_url='https://example.test/c', category=category,
+                scan_id='audit', started_at=NOW.isoformat(), kind='category',
+                assessment={'quality':'ok','reasons':[],'warnings':[],'learn':True,'baseline':10,'basis':'median'},
+                metrics={'received':10,'valid':10,'rejected':0,'duplicates':0,'with_image':10})
+        found = {(c['shop'],c['category']):c['price_changes_per_day']
+                 for c in database.scheduler_candidates(now=NOW)}
+        self.assertEqual(found[('kaspi','Смартфоны')], round(2/7,2))
+        self.assertIsNone(found[('sulpak','Смартфоны')])
+        self.assertIsNone(found[('kaspi','Ноутбуки')])
 
 
 if __name__ == "__main__":

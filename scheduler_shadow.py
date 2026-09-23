@@ -127,8 +127,8 @@ def score(signals: Dict[str, Any], profile: str = NORMAL,
     raw = sum(parts.values()) * PROFILE_WEIGHT.get(profile, 1.0)
 
     # Источник, забытый надолго, поднимается независимо от спроса: иначе он не обновится никогда
-    starving = age_hours is not None and age_hours >= STARVATION_HOURS
-    if starving or age_hours is None:
+    starving = age_hours is None or age_hours >= STARVATION_HOURS
+    if starving:
         raw += 2.0
         parts["давно не обходили"] = 2.0
 
@@ -153,13 +153,16 @@ def allowed(candidate: Dict[str, Any], now: datetime.datetime) -> Tuple[bool, st
 
 
 def plan(candidates: Iterable[Dict[str, Any]], now: Optional[datetime.datetime] = None,
-         max_sources: int = 20, per_shop_limit: int = 3) -> Dict[str, Any]:
+         max_sources: int = 20, per_shop_limit: int = 3,
+         order: str = "adaptive") -> Dict[str, Any]:
     """Составляет предложение расписания: что обойти в первую очередь и почему.
 
     Ограничения соблюдаются здесь же: паузы, минимальные интервалы, не больше нескольких категорий
     одного магазина за цикл и общий предел. Отклонённые кандидаты остаются видимыми с причиной —
     молчаливый пропуск невозможно проверить.
     """
+    if order not in ("adaptive", "oldest"):
+        raise ValueError("unknown ordering")
     moment = now or datetime.datetime.now(datetime.timezone.utc)
     suggestions, skipped = [], []
     for candidate in candidates:
@@ -172,8 +175,17 @@ def plan(candidates: Iterable[Dict[str, Any]], now: Optional[datetime.datetime] 
             continue
         suggestions.append(item)
 
-    # Порядок: сначала самые нужные; при равенстве — те, что дольше не обходились
-    suggestions.sort(key=lambda s: (-s["score"], -(s.get("age_hours") or 1e9)))
+    # Просроченные обслуживаются по возрасту раньше спроса. Это предотвращает
+    # голодание при конечном наборе доступных источников, не обходя ограничения.
+    def priority(item):
+        age = item.get("age_hours")
+        age = float("inf") if age is None else age
+        tie = (str(item.get("shop") or ""), str(item.get("category") or ""))
+        if order == "oldest":
+            return (-age, *tie)
+        return (not item["starving"], -age if item["starving"] else -item["score"], -age, *tie)
+
+    suggestions.sort(key=priority)
 
     per_shop: Dict[str, int] = {}
     chosen = []
@@ -193,7 +205,8 @@ def plan(candidates: Iterable[Dict[str, Any]], now: Optional[datetime.datetime] 
         "plan": chosen,
         "skipped": skipped,
         "limits": {"max_sources": max_sources, "per_shop_limit": per_shop_limit},
-        "note": "Это предложение, а не действие: теневой планировщик ничего не обходит и ничего не меняет.",
+        "note": "Это предложение, а не действие: теневой планировщик ничего не обходит и ничего не меняет. "
+                "Сравнение — с очередью по возрасту при тех же ограничениях, а не с рабочими волнами обхода.",
     }
 
 
@@ -202,9 +215,8 @@ def plan(candidates: Iterable[Dict[str, Any]], now: Optional[datetime.datetime] 
 
 def strategy_round_robin(candidates: List[Dict[str, Any]], now: datetime.datetime,
                          limit: int) -> List[Dict[str, Any]]:
-    """Как сейчас: по очереди, кто дольше всех не обходился."""
-    ordered = sorted(candidates, key=lambda c: -(c.get("age_hours") or 1e9))
-    return ordered[:limit]
+    """Контрольная стратегия oldest-first с теми же ограничениями, не эмуляция production waves."""
+    return plan(candidates, now=now, max_sources=limit, order="oldest")["plan"]
 
 
 def strategy_adaptive(candidates: List[Dict[str, Any]], now: datetime.datetime,
@@ -224,11 +236,14 @@ def simulate(candidates: List[Dict[str, Any]], cycles: int = 5, limit: int = 10,
     Метрики: средний возраст данных к концу, сколько неудовлетворённого спроса и наблюдений охвачено,
     сколько источников не обошли ни разу (starvation) и не нарушены ли ограничения.
     """
+    if cycles < 0 or limit < 0 or cycle_hours <= 0:
+        raise ValueError("cycles/limit must be nonnegative and cycle_hours positive")
     moment = now or datetime.datetime.now(datetime.timezone.utc)
     state = [dict(c) for c in candidates]
     covered_unmet = covered_watches = 0
     visits: Dict[str, int] = {}
     violations: List[str] = []
+    timeline = []
     pick = STRATEGIES[strategy]
 
     for cycle in range(cycles):
@@ -236,17 +251,25 @@ def simulate(candidates: List[Dict[str, Any]], cycles: int = 5, limit: int = 10,
         chosen = pick(state, cycle_now, limit)
         for item in chosen:
             key = f"{item.get('shop')}/{item.get('category')}"
-            target = item.get("target_hours") or MIN_INTERVAL_HOURS.get(item.get("profile", NORMAL), 6.0)
-            age = item.get("age_hours")
-            if age is not None and age < target:
-                violations.append(f"{key}: обойдён раньше минимального интервала")
+            ok, why = allowed(item, cycle_now)
+            if not ok:
+                violations.append(f"{key}: {why}")
             visits[key] = visits.get(key, 0) + 1
             covered_unmet += int(item.get("unmet_searches") or 0)
             covered_watches += int(item.get("watches") or 0)
         chosen_keys = {f"{i.get('shop')}/{i.get('category')}" for i in chosen}
+        timeline.append(sorted(chosen_keys))
+        if len(chosen) > limit:
+            violations.append("превышен общий лимит")
+        if any(sum(i.get("shop") == shop for i in chosen) > 3 for shop in {i.get("shop") for i in chosen}):
+            violations.append("превышен лимит магазина")
         for item in state:
             key = f"{item.get('shop')}/{item.get('category')}"
-            item["age_hours"] = 0.0 if key in chosen_keys else (item.get("age_hours") or 0.0) + cycle_hours
+            # Состояние на конец интервала: после обхода прошёл полный cycle_hours.
+            # Никогда не посещённый источник остаётся неизвестным до первого обхода.
+            age = item.get("age_hours")
+            item["age_hours"] = (cycle_hours if key in chosen_keys
+                                 else None if age is None else age + cycle_hours)
 
     ages = [float(c.get("age_hours") or 0.0) for c in state]
     never = [f"{c.get('shop')}/{c.get('category')}" for c in state
@@ -259,6 +282,8 @@ def simulate(candidates: List[Dict[str, Any]], cycles: int = 5, limit: int = 10,
         "covered_unmet_searches": covered_unmet,
         "covered_watches": covered_watches,
         "visits": visits,
+        "timeline": timeline,
+        "unknown_age_sources": sum(c.get("age_hours") is None for c in state),
         "never_visited": never,
         "violations": violations,
     }
@@ -276,6 +301,7 @@ def compare(candidates: List[Dict[str, Any]], **kwargs) -> Dict[str, Any]:
             "avg_age_hours": round(adaptive["avg_age_hours"] - baseline["avg_age_hours"], 2),
             "violations": len(adaptive["violations"]),
         },
-        "note": "Симуляция сравнивает решения на записанных данных. Она не доказывает ускорение реальных "
+        "note": "Контрольная стратегия — oldest-first с общими ограничениями, не копия production waves. "
+                "Симуляция сравнивает решения на записанных данных. Она не доказывает ускорение реальных "
                 "обходов — это проверяется только при настоящем включении.",
     }
