@@ -946,12 +946,21 @@ def backup_section(now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
     identity = backup_health.file_identity(newest["path"]) if newest else {}
     own_check = backup_health.last_check_for(identity, checks) if newest else None
     confirmed = next((c for c in checks if c["ok"]), None)
+    # Неудачная попытка, сделанная позже последней успешной проверки этой копии, не должна прятаться за
+    # прежним успехом — даже если у неё не осталось примет файла (P15 L04)
+    last_attempt = checks[0] if checks else None
+    failed_attempt = (last_attempt if last_attempt and not last_attempt["ok"]
+                      and (not own_check or last_attempt["id"] > own_check["id"]) else None)
 
     if not backups:
         status, reason = UNKNOWN, "Копий пока нет"
     elif newest["age_hours"] > backup_health.BACKUP_STALE_HOURS:
         status = DEGRADED
         reason = f"Свежей копии нет: последней {newest['age_hours']:.0f} ч"
+    elif failed_attempt:
+        status = DEGRADED
+        reason = ("Последняя попытка проверки не прошла: "
+                  + (failed_attempt.get("detail") or "причина не записана"))
     elif not own_check:
         status = UNKNOWN
         reason = "Самая свежая копия ещё не проверялась"
@@ -970,6 +979,7 @@ def backup_section(now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
         "backups": backups[:10],
         "newest": newest,
         "newest_check": own_check,
+        "failed_attempt": failed_attempt,
         "last_confirmed": confirmed,
         "total_size_bytes": sum(b["size_bytes"] for b in backups),
         "checks": checks,

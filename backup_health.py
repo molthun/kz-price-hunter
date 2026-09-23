@@ -374,28 +374,30 @@ _running = threading.Lock()
 _running_thread: Optional[threading.Thread] = None
 
 
-def restore_rehearsal_bounded(path: Optional[str] = None,
-                              timeout: Optional[float] = None) -> Dict[str, Any]:
-    """Репетиция восстановления с твёрдым пределом для вызывающего (P15 L03).
+def _bounded(work, timeout: Optional[float] = None) -> Dict[str, Any]:
+    """Выполняет работу с хранилищем копий в отдельном потоке и ждёт её не дольше предела (P15 L03).
 
-    Проверка идёт в отдельном потоке, и обслуживание базы ждёт её не дольше отведённого времени. Если
-    чтение файла зависло (сломанный диск, сетевая папка), прервать саму операцию чтения средствами Python
-    нельзя — поэтому здесь честно: вызывающий освобождается вовремя, результат помечается как
-    непройденная проверка, а зависший поток остаётся фоновым и новую проверку не запускает, пока не
-    завершится. Он не держит блокировок рабочей базы и сам убирает свою временную папку.
+    Под ограничение попадает **всё**: перечисление каталога, чтение метаданных, выбор копии, копирование и
+    проверка. Зависнуть может уже listdir на сломанном диске, поэтому ничего из этого не делается в потоке
+    вызывающего.
+
+    Чего здесь нет и не может быть: средствами Python нельзя прервать уже начатое блокирующее чтение.
+    Поэтому вызывающий освобождается вовремя, результат помечается непройденной проверкой, а зависший поток
+    остаётся фоновым — он не держит блокировок рабочей базы, убирает свою временную папку и не даёт начать
+    новую проверку, пока не завершится.
     """
     global _running_thread
     limit = VERIFY_TIMEOUT_SECONDS if timeout is None else timeout
     if _running_thread is not None and _running_thread.is_alive():
         return {"restored": False, "error": "предыдущая проверка ещё не завершилась", "checks": {},
-                "timed_out": True, "still_running": True}
+                "timed_out": True, "still_running": True, "identity": {}}
 
-    box: Dict[str, Any] = {}
+    box: Dict[str, Any] = {"identity": {}}
 
     def run():
         with _running:
             try:
-                box["result"] = restore_rehearsal(path)
+                box["result"] = work(box)
             except Exception as e:                  # поток проверки не должен падать молча
                 box["result"] = {"restored": False, "error": f"{type(e).__name__}", "checks": {}}
 
@@ -404,38 +406,65 @@ def restore_rehearsal_bounded(path: Optional[str] = None,
     worker.start()
     worker.join(timeout=limit)
     if worker.is_alive():
+        # Идентичность файла берётся из того, что поток успел узнать: иначе отказ не привязать к копии
         return {"restored": False, "checks": {}, "timed_out": True, "still_running": True,
+                "identity": dict(box.get("identity") or {}),
                 "error": f"проверка не уложилась в {limit:g} с и продолжается фоном"}
-    return box.get("result") or {"restored": False, "error": "проверка не дала результата", "checks": {}}
+    result = box.get("result") or {"restored": False, "error": "проверка не дала результата", "checks": {}}
+    result.setdefault("identity", box.get("identity") or {})
+    return result
+
+
+def restore_rehearsal_bounded(path: Optional[str] = None,
+                              timeout: Optional[float] = None) -> Dict[str, Any]:
+    """Репетиция восстановления с твёрдым пределом для вызывающего (P15 L03)."""
+    def work(box):
+        target = path
+        if target is None:
+            backups = list_backups()               # перечисление тоже под ограничением
+            target = backups[0]["path"] if backups else None
+        if target:
+            box["identity"] = file_identity(target)
+        return restore_rehearsal(target)
+
+    return _bounded(work, timeout)
 
 
 def verify_backups_if_due(now: Optional[datetime.datetime] = None) -> Optional[Dict[str, Any]]:
     """Периодическая самопроверка: раз в сутки развернуть свежую копию и убедиться, что она пригодна.
 
-    Ошибка самой проверки не должна ломать обслуживание базы, поэтому результат записывается, а исключение
-    наружу не уходит. Пульс компонента (P14) ставится в любом случае — видно, что проверка вообще идёт.
+    Всё, что трогает диск, — включая решение «пора ли» — выполняется под общим ограничением времени, потому
+    что зависнуть может уже перечисление каталога (P15 L03). Ошибка самой проверки не ломает обслуживание:
+    результат записывается, исключение наружу не уходит. Пульс компонента (P14) ставится в любом случае.
     """
     import database
     import environment
-    if not due_for_verification(now=now):
+
+    def work(box):
+        if not due_for_verification(now=now):
+            return {"skipped": True}
+        backups = list_backups()
+        target = backups[0]["path"] if backups else None
+        if target:
+            box["identity"] = file_identity(target)
+        return restore_rehearsal(target)
+
+    result = _bounded(work)
+    if result.get("skipped"):
         return None
-    result = {"restored": False, "error": "не выполнялась"}
+
     try:
-        result = restore_rehearsal_bounded()
+        identity = result.get("identity") or {}
         detail = result.get("error") or (
             f"схема {result.get('checks', {}).get('schema_version')}, "
             f"товаров {result.get('checks', {}).get('counts', {}).get('products')}")
-        identity = result.get("identity") or {}
         database.record_backup_check("restore", bool(result.get("restored")),
-                                     file=identity.get("file") or result.get("source"), detail=detail,
+                                     file=identity.get("file"), detail=detail,
                                      duration_sec=result.get("duration_sec"),
                                      file_size=identity.get("file_size"),
                                      file_mtime=identity.get("file_mtime"), now=now)
-    except Exception as e:                      # самопроверка не должна ронять обслуживание
-        try:
-            database.record_backup_check("restore", False, detail=f"{type(e).__name__}", now=now)
-        except Exception:
-            pass
+    except Exception:                               # учёт не должен ронять обслуживание
+        pass
     finally:
         environment.heartbeat(environment.BACKUP,
                               "проверка пройдена" if result.get("restored") else "проверка не прошла")

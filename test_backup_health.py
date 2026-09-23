@@ -468,3 +468,116 @@ class HangingReadTest(BackupVerificationTest):
         self.make_backup()
         result = bh.restore_rehearsal_bounded(timeout=30)
         self.assertTrue(result["restored"], result["error"])
+
+
+class TimeoutIsNotHiddenTest(BackupVerificationTest):
+    """L04: неудачная попытка проверки не прячется за прежним успехом."""
+
+    def hang_copy(self, released):
+        def hang(source, dest, deadline, chunk=8 * 1024 * 1024):
+            released.wait(timeout=30)
+        return hang
+
+    def test_timeout_is_attributed_to_the_copy_it_tried(self):
+        path = self.make_backup()
+        bh.verify_backups_if_due(now=NOW)
+        self.assertEqual(monitoring.backup_section(now=NOW)["status"], monitoring.HEALTHY)
+
+        released = threading.Event()
+        later = NOW + datetime.timedelta(hours=30)
+        with patch.object(bh, "_copy_with_deadline", self.hang_copy(released)), \
+             patch.object(bh, "VERIFY_TIMEOUT_SECONDS", 0.2):
+            bh.verify_backups_if_due(now=later)
+        check = database.backup_checks(limit=1)[0]
+        self.assertEqual(check["ok"], 0)
+        self.assertEqual(check["file"], os.path.basename(path), "отказ привязан к проверявшейся копии")
+        self.assertIsNotNone(check["file_size"])
+
+        section = monitoring.backup_section(now=later)
+        self.assertEqual(section["status"], monitoring.DEGRADED)
+        self.assertIn("не прошла", section["reason"])
+        released.set()
+        if bh._running_thread:
+            bh._running_thread.join(timeout=10)
+
+    def test_failed_attempt_without_identity_still_degrades(self):
+        """Даже если о файле ничего не известно, свежий отказ виден, а не скрыт прошлым успехом."""
+        self.make_backup()
+        bh.verify_backups_if_due(now=NOW)
+        database.record_backup_check("restore", False, detail="перечисление копий не ответило",
+                                     now=NOW + datetime.timedelta(hours=1))
+        section = monitoring.backup_section(now=NOW + datetime.timedelta(hours=1))
+        self.assertEqual(section["status"], monitoring.DEGRADED)
+        self.assertIn("Последняя попытка", section["reason"])
+        self.assertTrue(section["last_confirmed"]["ok"], "подтверждённая копия всё ещё видна")
+
+    def test_a_later_success_clears_the_earlier_failure(self):
+        self.make_backup()
+        database.record_backup_check("restore", False, detail="временный сбой", now=NOW)
+        bh.verify_backups_if_due(now=NOW + datetime.timedelta(hours=30))
+        section = monitoring.backup_section(now=NOW + datetime.timedelta(hours=30))
+        self.assertEqual(section["status"], monitoring.HEALTHY)
+
+
+class BoundedDiscoveryTest(BackupVerificationTest):
+    """L03: зависнуть может уже перечисление каталога — обслуживание всё равно освобождается."""
+
+    def test_hanging_listing_does_not_hold_the_cycle(self):
+        import time as _time
+        self.make_backup()
+        released = threading.Event()
+        real_list = bh.list_backups
+
+        def slow_list():
+            released.wait(timeout=30)
+            return real_list()
+
+        with patch.object(bh, "list_backups", slow_list), \
+             patch.object(bh, "VERIFY_TIMEOUT_SECONDS", 0.2):
+            started = _time.monotonic()
+            bh.verify_backups_if_due(now=NOW)
+            elapsed = _time.monotonic() - started
+        self.assertLess(elapsed, 5, "перечисление копий тоже под ограничением")
+        check = database.backup_checks(limit=1)[0]
+        self.assertEqual(check["ok"], 0)
+        released.set()
+        if bh._running_thread:
+            bh._running_thread.join(timeout=10)
+
+    def test_repeated_calls_do_not_pile_up_tasks(self):
+        self.make_backup()
+        released = threading.Event()
+        real_list = bh.list_backups
+
+        def slow_list():
+            released.wait(timeout=30)
+            return real_list()
+
+        with patch.object(bh, "list_backups", slow_list), \
+             patch.object(bh, "VERIFY_TIMEOUT_SECONDS", 0.2):
+            for _ in range(3):
+                bh.verify_backups_if_due(now=NOW)
+        self.assertEqual(threading.active_count() - threading.active_count(), 0)
+        alive = [t for t in threading.enumerate() if t.name == "backup-verify"]
+        self.assertLessEqual(len(alive), 1, "одновременно идёт не больше одной проверки")
+        released.set()
+        if bh._running_thread:
+            bh._running_thread.join(timeout=10)
+
+    def test_access_restored_lets_later_checks_work(self):
+        self.make_backup()
+        released = threading.Event()
+        real_list = bh.list_backups
+
+        def slow_list():
+            released.wait(timeout=30)
+            return real_list()
+
+        with patch.object(bh, "list_backups", slow_list), \
+             patch.object(bh, "VERIFY_TIMEOUT_SECONDS", 0.2):
+            bh.verify_backups_if_due(now=NOW)
+        released.set()
+        if bh._running_thread:
+            bh._running_thread.join(timeout=10)
+        result = bh.verify_backups_if_due(now=NOW + datetime.timedelta(hours=30))
+        self.assertTrue(result["restored"], result.get("error"))
