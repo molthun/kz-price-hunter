@@ -2150,6 +2150,28 @@ def claim_notification():
     return dict(row) if row else None
 
 
+def claim_watch_digest(watch_id: int, user_id: int, exclude_id: int, limit: int = 20) -> List[Dict[str, Any]]:
+    """Забирает остальные готовые задания того же наблюдения: они уйдут одним сообщением, а не пачкой.
+
+    Берутся только задания, которым уже пора, и только этого человека и этого наблюдения. Каждое
+    забирается так же, как обычное — с увеличением попытки, чтобы при сбое доставки оно не потерялось
+    и не ушло дважды.
+    """
+    now = time.time()
+    with get_connection() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        rows = conn.execute("""SELECT * FROM notification_outbox
+            WHERE status = 'pending' AND user_id = ? AND id <> ? AND next_attempt_at <= ?
+              AND json_extract(payload, '$.kind') = 'watch'
+              AND json_extract(payload, '$.watch_id') = ?
+            ORDER BY id LIMIT ?""", (user_id, exclude_id, now, watch_id, limit)).fetchall()
+        for row in rows:
+            conn.execute("UPDATE notification_outbox SET attempts = attempts + 1, next_attempt_at = ? "
+                         "WHERE id = ?", (now + 120, row["id"]))
+        conn.commit()
+    return [dict(r) for r in rows]
+
+
 def finish_notification(delivery_id, status, attempts=0, error=None, retry_after=None):
     """retry_after — пауза, которую назвал Telegram (429); иначе экспоненциальная задержка."""
     # Пауза, названная Telegram, соблюдается полностью (до суток); своя задержка — до часа
@@ -2609,6 +2631,9 @@ def _watch_states(conn, watch_id: int, product_id: str) -> Dict[str, Any]:
     return dict(row) if row else {}
 
 
+MAX_EVENTS_PER_WATCH_PER_RUN = 25
+
+
 def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.datetime] = None) -> int:
     """Сверяет изменившиеся предложения с активными наблюдениями и ставит срабатывания в очередь.
 
@@ -2624,12 +2649,17 @@ def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.dateti
     if not active:
         return 0
 
+    per_watch: Dict[int, int] = {}
     for offer in offers:
         product_id = str(offer.get("id") or "")
         if not product_id:
             continue
         for watch in active:
             if not w.matches(watch, offer):
+                continue
+            # Широкое наблюдение (магазин, сделки) за один обход может задеть сотни предложений.
+            # Очередь не должна расти без предела: остальное попадёт в следующую проверку.
+            if per_watch.get(watch["id"], 0) >= MAX_EVENTS_PER_WATCH_PER_RUN:
                 continue
             price = int(offer.get("current_price") or 0)
             available = 1 if offer.get("is_available", True) else 0
@@ -2695,6 +2725,7 @@ def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.dateti
                 conn.execute("UPDATE watches SET last_sent_at = ?, fired_at = COALESCE(fired_at, ?) "
                              "WHERE id = ?", (moment.isoformat(), moment.isoformat(), watch["id"]))
                 conn.commit()
+            per_watch[watch["id"]] = per_watch.get(watch["id"], 0) + 1
             watch["last_sent_at"] = moment.isoformat()
             if not watch["repeat"]:
                 watch["fired_at"] = moment.isoformat()
@@ -2703,11 +2734,23 @@ def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.dateti
     return queued
 
 
-def watched_offers(product_ids: List[str]) -> List[Dict[str, Any]]:
-    """Сохранённые предложения по идентификаторам — вход для проверки наблюдений (P07)."""
+WATCH_ALERT_WINDOW_MINUTES = 30      # находка считается свежей столько времени после записи алерта
+
+
+def watched_offers(product_ids: List[str], now: Optional[datetime.datetime] = None) -> List[Dict[str, Any]]:
+    """Сохранённые предложения по идентификаторам — вход для проверки наблюдений (P07).
+
+    К предложению добавляется свежая находка ленты (алерт), если она есть: вид, скидка и магазин-основание.
+    Наблюдения за сделками и арбитражем срабатывают именно на записанный алерт, а не на собственную догадку
+    о том, что цена «выглядит хорошей».
+    """
     ids = [str(i) for i in product_ids if i]
     if not ids:
         return []
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    # created_at у алертов пишет сам SQLite (CURRENT_TIMESTAMP, UTC, без смещения) —
+    # сравниваем в том же виде, иначе граница окна сдвинулась бы
+    since = (moment - datetime.timedelta(minutes=WATCH_ALERT_WINDOW_MINUTES)).strftime("%Y-%m-%d %H:%M:%S")
     rows: List[Dict[str, Any]] = []
     with get_connection() as conn:
         for start in range(0, len(ids), 500):
@@ -2716,6 +2759,15 @@ def watched_offers(product_ids: List[str]) -> List[Dict[str, Any]]:
             rows.extend(dict(r) for r in conn.execute(
                 f"SELECT id, title, shop, city, url, image_url, category, canonical_key, current_price, "
                 f"is_active AS is_available FROM products WHERE id IN ({placeholders})", chunk))
+            for row in conn.execute(
+                    f"SELECT product_id, alert_type, discount_pct, new_price, competitor_shop "
+                    f"FROM alerts WHERE product_id IN ({placeholders}) AND is_dismissed = 0 "
+                    f"AND created_at >= ? ORDER BY id", chunk + [since]):
+                for offer in rows:
+                    if offer["id"] == row["product_id"] and int(row["new_price"] or 0) == int(offer["current_price"] or 0):
+                        offer["alert_type"] = row["alert_type"]
+                        offer["discount_pct"] = row["discount_pct"]
+                        offer["competitor_shop"] = row["competitor_shop"]
     return rows
 
 

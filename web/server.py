@@ -1036,9 +1036,24 @@ async def _save_and_detect(prods, shop_name, candidate_settings):
                 found.append((p, anomaly))
         return found
 
+    arbitrage_ids = []
     for p, anomaly in await asyncio.to_thread(_arbitrage_batch):
         changes["arbitrage_candidates"] += 1
-        changes["alerts_recorded"] += bool(await _process_anomaly(p, anomaly, shop_name))
+        recorded = bool(await _process_anomaly(p, anomaly, shop_name))
+        changes["alerts_recorded"] += recorded
+        if recorded:
+            arbitrage_ids.append(str(p["id"]))
+
+    # Наблюдения за разницей цен между магазинами (P07 V2) срабатывают на записанный алерт, поэтому
+    # проверяются после него — до этого места находки ещё не существует.
+    if arbitrage_ids:
+        try:
+            from database import evaluate_watches, watched_offers
+            await asyncio.to_thread(lambda: evaluate_watches(watched_offers(arbitrage_ids)))
+        except Exception as e:
+            print(f"[Watches] Ошибка проверки наблюдений за арбитражем: {type(e).__name__}")
+            from telemetry import telemetry, COMPONENT_SYSTEM
+            telemetry.record_system_error(COMPONENT_SYSTEM, "evaluate_watches_arbitrage", e)
     _record_price_changes(shop_name, changes)
 
 

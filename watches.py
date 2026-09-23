@@ -14,9 +14,18 @@ import datetime
 import zoneinfo
 from typing import Any, Dict, List, Optional, Tuple
 
-# Виды наблюдений (V1: решение владельца 2026-09-20 — товар, модель, поиск, категория)
+# Виды наблюдений. V1 (решение владельца 2026-09-20): товар, модель, поиск, категория.
+# V2: магазин, выгодные предложения и арбитраж — последние два срабатывают на тех же находках,
+# что показывает лента, поэтому «сделка» здесь означает записанный алерт, а не чьё-то мнение о цене.
 PRODUCT, MODEL, SEARCH, CATEGORY = "product", "model", "search", "category"
-KINDS = (PRODUCT, MODEL, SEARCH, CATEGORY)
+SHOP, DEAL, ARBITRAGE = "shop", "deal", "arbitrage"
+KINDS = (PRODUCT, MODEL, SEARCH, CATEGORY, SHOP, DEAL, ARBITRAGE)
+
+# Для наблюдений за сделками и арбитражем цель — это область поиска, а не конкретный товар
+ANY_TARGET = "все"
+ALERT_KINDS = (DEAL, ARBITRAGE)
+DEAL_ALERT_TYPES = ("SUPER_DISCOUNT", "ZERO_GLITCH")
+ARBITRAGE_ALERT_TYPES = ("MARKET_ARBITRAGE", "ARBITRAGE")
 
 # Условия срабатывания
 TARGET_PRICE = "target_price"    # цена не выше заданной
@@ -25,9 +34,15 @@ DROP_KZT = "drop_kzt"            # снижение не меньше задан
 ANY_DROP = "any_drop"            # любое снижение цены
 BEST_PRICE = "best_price"        # цена ниже всего, что видели по этому наблюдению
 BACK_IN_STOCK = "back_in_stock"  # товар снова появился в продаже
-CONDITIONS = (TARGET_PRICE, DROP_PCT, DROP_KZT, ANY_DROP, BEST_PRICE, BACK_IN_STOCK)
+DISCOUNT_PCT = "discount_pct"    # скидка в находке не меньше заданной (для сделок и арбитража)
+ANY_FIND = "any_find"            # любая находка по этому наблюдению
+CONDITIONS = (TARGET_PRICE, DROP_PCT, DROP_KZT, ANY_DROP, BEST_PRICE, BACK_IN_STOCK,
+              DISCOUNT_PCT, ANY_FIND)
 
-NEEDS_THRESHOLD = (TARGET_PRICE, DROP_PCT, DROP_KZT)
+NEEDS_THRESHOLD = (TARGET_PRICE, DROP_PCT, DROP_KZT, DISCOUNT_PCT)
+
+# Условия, которые имеют смысл только для находок ленты (сделка, арбитраж), и наоборот
+FIND_ONLY_CONDITIONS = (DISCOUNT_PCT, ANY_FIND)
 
 INSTANT, DIGEST = "instant", "digest"
 MODES = (INSTANT, DIGEST)
@@ -41,6 +56,8 @@ MAX_WATCHES_PER_USER = 50        # чтобы один человек не пр�
 
 LABELS = {
     PRODUCT: "товар", MODEL: "модель", SEARCH: "поисковый запрос", CATEGORY: "категория",
+    SHOP: "магазин", DEAL: "выгодные предложения", ARBITRAGE: "разница цен между магазинами",
+    DISCOUNT_PCT: "скидка не меньше", ANY_FIND: "любая находка",
     TARGET_PRICE: "цена не выше", DROP_PCT: "снижение в процентах", DROP_KZT: "снижение в тенге",
     ANY_DROP: "любое снижение", BEST_PRICE: "лучшая цена за всё время", BACK_IN_STOCK: "снова в продаже",
 }
@@ -67,9 +84,15 @@ def normalize(data: Dict[str, Any]) -> Dict[str, Any]:
     if len(target) > 200:
         raise ValueError("Слишком длинное значение для наблюдения")
 
-    condition = str(data.get("condition") or ANY_DROP).strip()
+    condition = str(data.get("condition") or (ANY_FIND if kind in ALERT_KINDS else ANY_DROP)).strip()
     if condition not in CONDITIONS:
         raise ValueError(f"Неизвестное условие: {condition}")
+    # Условие должно быть применимо к виду: «скидка не меньше» не имеет смысла для наблюдения за
+    # конкретным товаром, а «снова в продаже» — для ленты находок
+    if kind in ALERT_KINDS and condition not in FIND_ONLY_CONDITIONS + (TARGET_PRICE,):
+        raise ValueError(f"Для вида «{LABELS[kind]}» доступны: любая находка, скидка не меньше, цена не выше")
+    if kind not in ALERT_KINDS and condition in FIND_ONLY_CONDITIONS:
+        raise ValueError(f"Условие «{LABELS[condition]}» работает только для сделок и разницы цен")
 
     threshold = data.get("threshold")
     if condition in NEEDS_THRESHOLD:
@@ -142,6 +165,17 @@ def matches(watch: Dict[str, Any], offer: Dict[str, Any]) -> bool:
     if kind == SEARCH:
         import search_analytics
         return search_analytics.classify(watch["target"], [offer]) == search_analytics.FOUND
+    if kind == SHOP:
+        shop = str(offer.get("shop") or "").lower()
+        return bool(shop) and (shop == target or target in shop)
+    if kind in ALERT_KINDS:
+        # Находка — это записанный алерт того же вида, что показывает лента. Без алерта наблюдение молчит.
+        allowed = DEAL_ALERT_TYPES if kind == DEAL else ARBITRAGE_ALERT_TYPES
+        if str(offer.get("alert_type") or "") not in allowed:
+            return False
+        if target in ("", ANY_TARGET, "all"):
+            return True
+        return target in str(offer.get("category") or "").lower()
     return False
 
 
@@ -170,6 +204,19 @@ def condition_met(watch: Dict[str, Any], offer: Dict[str, Any],
 
     if not available:
         return False, ""
+
+    if condition in (ANY_FIND, DISCOUNT_PCT):
+        # Повтор того же не шлём: сравнение с ценой последнего сообщения по этой же находке
+        if last_sent is not None and price >= int(last_sent):
+            return False, ""
+        discount = float(offer.get("discount_pct") or 0)
+        if condition == DISCOUNT_PCT and discount < float(threshold):
+            return False, ""
+        where = offer.get("competitor_shop")
+        tail = f" (в {where} дороже)" if where else ""
+        if discount > 0:
+            return True, f"находка: {price} ₸, скидка {discount:.0f} %{tail}"
+        return True, f"находка: {price} ₸{tail}"
 
     if condition == TARGET_PRICE:
         if price > int(threshold):
@@ -262,7 +309,13 @@ def digest_due_at(watch: Dict[str, Any], moment: datetime.datetime,
 
 def describe(watch: Dict[str, Any]) -> str:
     """Короткое человеческое описание наблюдения для списка и для текста сообщения."""
-    what = f"{LABELS.get(watch['kind'], watch['kind'])} «{watch.get('title') or watch['target']}»"
+    target = watch.get("title") or watch["target"]
+    if watch["kind"] in ALERT_KINDS:
+        scope = "" if str(watch["target"]).strip().lower() in ("", ANY_TARGET, "all") \
+            else f" в категории «{target}»"
+        what = f"{LABELS[watch['kind']]}{scope}"
+    else:
+        what = f"{LABELS.get(watch['kind'], watch['kind'])} «{target}»"
     condition = watch["condition"]
     if condition == TARGET_PRICE:
         rule = f"цена не выше {int(watch['threshold']):,} ₸".replace(",", " ")
@@ -270,6 +323,8 @@ def describe(watch: Dict[str, Any]) -> str:
         rule = f"снижение от {int(watch['threshold'])} %"
     elif condition == DROP_KZT:
         rule = f"снижение от {int(watch['threshold']):,} ₸".replace(",", " ")
+    elif condition == DISCOUNT_PCT:
+        rule = f"скидка от {int(watch['threshold'])} %"
     else:
         rule = LABELS.get(condition, condition)
     where = []

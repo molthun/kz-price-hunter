@@ -4,7 +4,7 @@ import asyncio
 import time
 from urllib.parse import urlsplit
 import requests
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional
 from config import get_bot_token, APP_URL
 
 SHOP_EMOJI = [
@@ -170,6 +170,42 @@ def send_watch_message(chat_id: int, payload: Dict[str, Any]) -> DeliveryResult:
         return DeliveryResult("retry", None, type(e).__name__)
 
 
+DIGEST_LINES = 10        # длинное письмо не читают: остальное сворачивается в «и ещё N»
+
+
+def send_watch_digest(chat_id: int, payloads: List[Dict[str, Any]]) -> DeliveryResult:
+    """Одно сообщение по наблюдению в режиме сводки: сколько сработало и что именно.
+
+    Режим «сводка» обещает человеку одно письмо, а не отложенную пачку, поэтому накопленные
+    срабатывания собираются в один текст.
+    """
+    first = payloads[0]
+    lines = [f"🔔 <b>Сводка по наблюдению</b>", html.escape(first.get("description") or ""), ""]
+    lines.append(f"Сработало раз: <b>{len(payloads)}</b>")
+    lines.append("")
+    for payload in payloads[:DIGEST_LINES]:
+        product = payload.get("product") or {}
+        shop = product.get("shop") or "Магазин"
+        url = product.get("url") or ""
+        title = html.escape(product.get("title") or "")
+        name = f'<a href="{html.escape(url, quote=True)}">{title}</a>' if url.startswith(("http://", "https://")) else title
+        lines.append(f"{_shop_emoji(shop)} {name} — <b>{format_price(int(payload.get('price') or 0))}</b>"
+                     f" · {html.escape(shop)}")
+        if payload.get("reason"):
+            lines.append(f"   ℹ️ {html.escape(payload['reason'])}")
+    if len(payloads) > DIGEST_LINES:
+        lines.append(f"…и ещё {len(payloads) - DIGEST_LINES}")
+    keyboard = [[{"text": "🔔 Мои наблюдения", "url": APP_URL}]] if APP_URL else []
+    try:
+        return classify_telegram_response(telegram_api("sendMessage", {
+            "chat_id": chat_id, "text": "\n".join(lines), "parse_mode": "HTML",
+            "disable_web_page_preview": True,
+            "reply_markup": {"inline_keyboard": keyboard}}))
+    except Exception as e:
+        print(f"[Telegram Exception] {type(e).__name__}")
+        return DeliveryResult("retry", None, type(e).__name__)
+
+
 def _deliver_watch(item, payload, counts) -> tuple:
     """Отправка задания по наблюдению.
 
@@ -191,23 +227,57 @@ def _deliver_watch(item, payload, counts) -> tuple:
         counts["cancelled"] += 1
         return False, None
 
-    result = send_watch_message(user["id"], payload)
+    # Режим «сводка»: остальные накопленные срабатывания этого же наблюдения уходят одним сообщением
+    extra_items = []
+    if (watch["mode"] or "instant") == "digest":
+        from database import claim_watch_digest
+        for other in claim_watch_digest(watch["id"], item["user_id"], item["id"]):
+            try:
+                extra_items.append((other, json.loads(other["payload"])))
+            except (TypeError, ValueError):
+                finish_notification(other["id"], "cancelled")
+                counts["cancelled"] += 1
+
+    # Каждое срабатывание сводки проверяется отдельно: устаревшая цена не должна попасть в письмо
+    fresh, stale = [(item, payload)], []
+    for other, other_payload in extra_items:
+        with get_connection() as conn:
+            price = conn.execute("SELECT current_price FROM products WHERE id = ?",
+                                 (str((other_payload.get("product") or {}).get("id") or ""),)).fetchone()
+        if price and int(price[0] or 0) == int(other_payload.get("price") or 0):
+            fresh.append((other, other_payload))
+        else:
+            stale.append(other)
+    for other in stale:
+        finish_notification(other["id"], "cancelled")
+        counts["cancelled"] += 1
+
+    deliveries = [d for d, _ in fresh]
+    payloads = [pl for _, pl in fresh]
+    result = send_watch_digest(user["id"], payloads) if len(payloads) > 1 \
+        else send_watch_message(user["id"], payload)
     if isinstance(result, bool):  # совместимость с подменами в тестах
         result = DeliveryResult("sent" if result else "retry", None, None if result else "Telegram delivery failed")
     if result:
-        finish_notification(item["id"], "sent", item["attempts"])
+        for delivery in deliveries:
+            finish_notification(delivery["id"], "sent", delivery["attempts"])
         counts["sent"] += 1
         with get_connection() as conn:
-            conn.execute("UPDATE watch_events SET status = 'sent' WHERE id = ?", (payload.get("event_id"),))
+            for done in payloads:
+                conn.execute("UPDATE watch_events SET status = 'sent' WHERE id = ?", (done.get("event_id"),))
             # Одноразовое наблюдение выключается ПОСЛЕ отправки: своё сообщение оно должно успеть доставить
             conn.execute("UPDATE watches SET is_active = 0 WHERE id = ? AND repeat_mode = 0", (watch["id"],))
             conn.commit()
         return True, None
     if result.status == "permanent":
-        finish_notification(item["id"], "failed", item["attempts"], result.error)
+        for delivery in deliveries:
+            finish_notification(delivery["id"], "failed", delivery["attempts"], result.error)
         counts["failed"] += 1
         return False, None
-    finish_notification(item["id"], "pending", item["attempts"], result.error, retry_after=result.retry_after)
+    # Временная неудача: вся сводка возвращается в очередь целиком, ни одно срабатывание не теряется
+    for delivery in deliveries:
+        finish_notification(delivery["id"], "pending", delivery["attempts"], result.error,
+                            retry_after=result.retry_after)
     counts["retry"] += 1
     if result.retry_after is not None:
         pause_telegram(result.retry_after)   # 429 — лимит на весь бот
