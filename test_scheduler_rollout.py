@@ -905,3 +905,65 @@ class RollbackConsistencyTest(RolloutStateTest):
         state = rollout.status(self.candidates, now=NOW + datetime.timedelta(hours=1))
         self.assertEqual(state["canary"], [], "выключенный шаг не показывает участников")
         self.assertFalse(state["ready_for_next"])
+
+
+class SwitchDiagnosticsTest(RolloutStateTest):
+    """Отказ перехода должен называть причину и переживать занятую базу."""
+
+    def test_busy_database_is_retried_not_refused(self):
+        import sqlite3 as sq
+        calls = {"n": 0}
+        original = database._compare_and_set_once
+
+        def flaky(version_key, expected, pairs):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise sq.OperationalError("database is locked")
+            return original(version_key, expected, pairs)
+
+        with patch.object(database, "_compare_and_set_once", flaky):
+            started = rollout.switch_stage(rollout.CANARY_ONE, self.candidates, now=NOW)
+        self.assertEqual(rollout.stage_of(), rollout.CANARY_ONE)
+        self.assertEqual(started["canary"], ["kaspi"])
+        self.assertGreaterEqual(calls["n"], 2, "занятая база — повод повторить, а не отказать")
+
+    def test_other_database_errors_are_not_retried(self):
+        import sqlite3 as sq
+        with patch.object(database, "_compare_and_set_once",
+                          side_effect=sq.OperationalError("no such table: schema_metadata")) as broken:
+            with self.assertRaises(sq.OperationalError):
+                rollout.switch_stage(rollout.CANARY_ONE, self.candidates, now=NOW)
+        self.assertEqual(broken.call_count, 1)
+        self.assertEqual(rollout.stage_of(), rollout.OFF)
+
+
+class SwitchErrorMessageTest(unittest.IsolatedAsyncioTestCase):
+    """Сообщение об отказе должно называть тип ошибки, а не «что-то пошло не так»."""
+
+    async def test_failure_names_the_reason(self):
+        import auth
+        import web.server as server
+        from aiohttp.test_utils import TestServer
+        from test_support import BrowserTestClient as TestClient
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        for p in [patch.object(database, "DB_PATH", type(DB_PATH)(os.path.join(tmp.name, "prices.db"))),
+                  patch("config.DATA_DIR", type(DB_PATH)(tmp.name)),
+                  patch("config.SETTINGS_FILE", type(DB_PATH)(os.path.join(tmp.name, "settings.json")))]:
+            p.start()
+            self.addCleanup(p.stop)
+        database.init_db()
+        database.upsert_telegram_user({"id": 9801, "first_name": "A"})
+        token = database.create_session(9801)
+        app = server.create_app()
+        app.cleanup_ctx.clear()
+        async with TestClient(TestServer(app)) as client:
+            client.session.cookie_jar.update_cookies({auth.SESSION_COOKIE: token})
+            with patch.object(auth, "ADMIN_TELEGRAM_IDS", {9801}), \
+                 patch.object(database, "scheduler_candidates",
+                              side_effect=RuntimeError("no such table: source_scans")):
+                res = await client.post("/api/admin/scheduler/rollout", json={"stage": "canary_one"})
+                self.assertEqual(res.status, 500)
+                message = (await res.json())["message"]
+                self.assertIn("RuntimeError", message)
+                self.assertIn("source_scans", message, "видно, чего именно не хватило")

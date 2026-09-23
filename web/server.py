@@ -2202,9 +2202,17 @@ async def scheduler_rollout_switch_handler(request):
     except rollout.StageRefused as e:
         return web.json_response({"status": "error", "message": str(e)}, status=400)
     except Exception as e:
-        print(f"[Rollout] Переход не выполнен: {type(e).__name__}")
+        # Тип ошибки видно сразу в интерфейсе: «не удалось подготовить состояние» не говорит ничего
+        # ни владельцу, ни тому, кто будет разбираться. Текст ошибки чистится от возможных секретов.
+        print(f"[Rollout] Переход не выполнен: {type(e).__name__}: {e}")
+        try:
+            from telemetry import telemetry, COMPONENT_SCHEDULER
+            telemetry.record_system_error(COMPONENT_SCHEDULER, "scheduler_rollout_switch", e)
+        except Exception:
+            pass
+        detail = redact_secrets(f"{type(e).__name__}: {e}")[:200]
         return web.json_response({"status": "error",
-                                  "message": "Шаг не включён: не удалось подготовить состояние"},
+                                  "message": f"Шаг не включён: {detail}"},
                                  status=500)
     status = await asyncio.to_thread(rollout.status)
     return web.json_response({"status": "ok", "switched": started, "state": status},

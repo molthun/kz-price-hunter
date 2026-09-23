@@ -1144,12 +1144,27 @@ def get_metadata(name: str, default: Optional[str] = None) -> Optional[str]:
 
 
 def compare_and_set_metadata(version_key: str, expected: Optional[str],
-                             pairs: Dict[str, str]) -> Optional[str]:
+                             pairs: Dict[str, str], attempts: int = 5) -> Optional[str]:
     """Записывает значения, только если версия состояния не изменилась. Возвращает новую версию или None.
 
     Так отказ одного перехода не может затереть состояние другого, успевшего пройти: он увидит чужую
     версию и ничего не тронет (M03). Транзакция BEGIN IMMEDIATE сериализует и параллельные процессы.
     """
+    # База занята пишущим обходом — обычное дело на работающем сервисе: короткий повтор вместо отказа
+    for attempt in range(max(1, attempts)):
+        try:
+            return _compare_and_set_once(version_key, expected, pairs)
+        except sqlite3.OperationalError as e:
+            if "lock" not in str(e).lower() and "busy" not in str(e).lower():
+                raise
+            if attempt == max(1, attempts) - 1:
+                raise
+            time.sleep(0.2 * (attempt + 1))
+    return None
+
+
+def _compare_and_set_once(version_key: str, expected: Optional[str],
+                          pairs: Dict[str, str]) -> Optional[str]:
     with get_connection() as conn:
         conn.execute("BEGIN IMMEDIATE")
         row = conn.execute("SELECT value FROM schema_metadata WHERE name = ?", (version_key,)).fetchone()

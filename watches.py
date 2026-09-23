@@ -112,9 +112,8 @@ def normalize(data: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError(f"Неизвестный способ доставки: {mode}")
 
     timezone = str(data.get("timezone") or DEFAULT_TIMEZONE).strip()
-    try:
-        zoneinfo.ZoneInfo(timezone)
-    except Exception:
+    import timezones as tz_lookup
+    if tz_lookup.known(timezone) is False:      # None — базы нет, проверить нечем (регрессия 5.13.0)
         raise ValueError(f"Неизвестный часовой пояс: {timezone}")
 
     try:
@@ -253,7 +252,9 @@ def condition_met(watch: Dict[str, Any], offer: Dict[str, Any],
 
 
 def _local(watch: Dict[str, Any], moment: datetime.datetime) -> datetime.datetime:
-    tz = zoneinfo.ZoneInfo(watch.get("timezone") or DEFAULT_TIMEZONE)
+    import timezones
+    # Без базы часовых поясов считаем по UTC: тихие часы сдвинутся, но уведомления не сломаются
+    tz = timezones.zone(watch.get("timezone") or DEFAULT_TIMEZONE)
     if moment.tzinfo is None:
         moment = moment.replace(tzinfo=datetime.timezone.utc)
     return moment.astimezone(tz)

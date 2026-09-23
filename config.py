@@ -564,10 +564,10 @@ def _validate(new_settings, defaults):
 def _validate_settings(new_settings):
     clean = _validate(new_settings, SYSTEM_DEFAULTS)
     if "daily_digest_timezone" in clean:
-        import zoneinfo
-        try:
-            zoneinfo.ZoneInfo(clean["daily_digest_timezone"])
-        except Exception:
+        import timezones
+        # None означает «в системе нет базы часовых поясов»: это не повод отвергать правильное имя и
+        # блокировать сохранение всех настроек разом (регрессия 5.13.0)
+        if timezones.known(clean["daily_digest_timezone"]) is False:
             raise ValueError(f"Неизвестный часовой пояс: {clean['daily_digest_timezone']}")
     for name, choices in (("ai_provider", {"auto", "gemini", "openai"}),
                           ("gemini_model_mode", {"auto", "manual"}),

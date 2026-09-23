@@ -26,11 +26,9 @@ MAX_SUMMARY_CHARS = 1500
 # ---------------------------------------------------------------------------
 
 def _zone(tz: str):
-    from zoneinfo import ZoneInfo
-    try:
-        return ZoneInfo(tz)
-    except Exception:
-        return ZoneInfo("UTC")
+    """Часовой пояс отчёта. Без базы часовых поясов считаем по UTC, а не падаем (регрессия 5.13.0)."""
+    import timezones
+    return timezones.zone(tz)
 
 
 def day_window(day: str, tz: str = DEFAULT_TZ) -> Tuple[datetime.datetime, datetime.datetime]:
