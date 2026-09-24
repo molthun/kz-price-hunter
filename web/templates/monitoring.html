@@ -478,6 +478,10 @@
         <td class="py-1 pr-3 text-right text-amber-300">${num(v.fallbacks)}</td>
         <td class="py-1 pr-3 text-right text-rose-300">${num(v.errors)}</td>
         <td class="py-1 pr-3 text-right">${v.avg_latency_ms == null ? '—' : num(Math.round(v.avg_latency_ms)) + ' мс'}</td></tr>`).join('');
+    // Почему именно падает: «100 % ошибок» без причины не помогает (найдено владельцем 24.09)
+    const failureRows = (s.failures || []).map(f => `<li class="break-words">
+        <span class="text-rose-300">${esc(f.reason)}</span> — ${num(f.count)} раз ·
+        ${esc(f.provider || '')}/${esc(f.model || '')}</li>`).join('');
     const modelRows = Object.entries(s.by_model || {}).map(([model, v]) => `<tr class="border-t border-slate-800">
         <td class="py-1 pr-3 break-words">${esc(model)}</td><td class="py-1 pr-3 text-right">${num(v.requests)}</td>
         <td class="py-1 pr-3 text-right">${num(v.input_tokens)}</td><td class="py-1 pr-3 text-right">${num(v.output_tokens)}</td>
