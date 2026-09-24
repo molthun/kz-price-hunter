@@ -16,7 +16,7 @@ import re
 from model_matching import valid_ai_canonical_key
 import json
 import time
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 import aiohttp
 
 import config

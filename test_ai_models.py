@@ -174,6 +174,38 @@ class ModelsApiTest(unittest.IsolatedAsyncioTestCase):
                     self.assertIn("не задан", body["openai"]["error"])
                     self.assertNotIn("api_key", str(body), "ключи наружу не отдаются")
 
+    async def test_saving_ai_settings_clears_model_cooldowns(self):
+        """Модель, отвергнутая по 404, исключается на сутки. Владелец чинит это в настройках —
+        значит, сохранение настроек обязано снимать исключения, иначе правка не подействует до завтра."""
+        import auth
+        import web.server as server
+        from aiohttp.test_utils import TestServer
+        from test_support import BrowserTestClient as TestClient
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        for p in [patch.object(database, "DB_PATH", type(DB_PATH)(os.path.join(tmp.name, "prices.db"))),
+                  patch("config.DATA_DIR", type(DB_PATH)(tmp.name)),
+                  patch("config.SETTINGS_FILE", type(DB_PATH)(os.path.join(tmp.name, "settings.json")))]:
+            p.start()
+            self.addCleanup(p.stop)
+        database.init_db()
+        database.upsert_telegram_user({"id": 9903, "first_name": "U"})
+        token = database.create_session(9903)
+        app = server.create_app()
+        app.cleanup_ctx.clear()
+
+        ai_service.mark_model_cooldown("gemini", "gemini-3-flash", 86400)
+        self.addCleanup(ai_service.clear_model_cooldowns)
+        self.assertTrue(ai_service.is_model_on_cooldown("gemini", "gemini-3-flash"))
+
+        async with TestClient(TestServer(app)) as client:
+            client.session.cookie_jar.update_cookies({auth.SESSION_COOKIE: token})
+            with patch.object(auth, "ADMIN_TELEGRAM_IDS", {9903}):
+                res = await client.post("/api/admin/config", json={"gemini_model": "gemini-3-pro"})
+                self.assertEqual(res.status, 200, await res.text())
+        self.assertFalse(ai_service.is_model_on_cooldown("gemini", "gemini-3-flash"),
+                         "после правки настроек модель должна вернуться в ротацию сразу")
+
 
 if __name__ == "__main__":
     unittest.main()

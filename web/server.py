@@ -875,6 +875,11 @@ async def post_admin_config_handler(request):
             if k in data and ("..." in str(data[k]) or "***" in str(data[k])):
                 data[k] = current.get(k, "")
         saved = save_settings(data)
+        # Модель, отвергнутая по 404, исключается из ротации на сутки. Владелец правит ключ или
+        # выбирает другую модель именно здесь — если не снять исключения, правка не подействует
+        # до завтра, и это выглядело бы как «ничего не изменилось».
+        if any(k.startswith(("gemini_", "openai_", "ai_")) for k in (data or {})):
+            ai_service.clear_model_cooldowns()
         public_settings = dict(saved)
         for key in ("gemini_api_key", "openai_api_key"):
             if public_settings.get(key):
