@@ -990,3 +990,84 @@ class SwitchErrorMessageTest(unittest.IsolatedAsyncioTestCase):
                 message = (await res.json())["message"]
                 self.assertIn("RuntimeError", message)
                 self.assertIn("source_scans", message, "видно, чего именно не хватило")
+
+
+class ShopKeyMappingTest(RolloutStateTest):
+    """Найдено владельцем: HTTP-метрики пишутся под названием магазина, а шаг знает его ключ."""
+
+    def http_named(self, shop_name, requests, errors, blocked, at=None):
+        moment = at or (NOW - datetime.timedelta(hours=1))
+        with database.get_connection() as conn:
+            conn.execute("""INSERT INTO telemetry_http_aggregates
+                            (bucket_type, bucket_start, host, shop, total_requests, errors, status_429,
+                             status_4xx, status_5xx)
+                            VALUES ('hour', ?, ?, ?, ?, ?, ?, 0, 0)""",
+                         (moment.strftime("%Y-%m-%dT%H:00:00Z"), "shop.kz", shop_name,
+                          requests, errors, blocked))
+            conn.commit()
+
+    def test_metrics_find_the_shop_by_its_display_name(self):
+        self.assertEqual(rollout.shop_display_name("alser"), "Alser")
+        self.http_named("Alser", 200, 10, 2)
+        data = rollout.metrics(["alser"], NOW - datetime.timedelta(days=1), NOW)
+        self.assertEqual(data["requests"], 200, "запросы магазина должны находиться по ключу шага")
+        self.assertAlmostEqual(data["error_share"], 0.05)
+
+    def test_unknown_key_stays_itself(self):
+        self.http_named("shop7", 100, 0, 0)
+        self.assertEqual(rollout.shop_display_name("shop7"), "shop7")
+        self.assertEqual(rollout.metrics(["shop7"], NOW - datetime.timedelta(days=1), NOW)["requests"], 100)
+
+    def test_invisible_metrics_used_to_hide_a_failing_canary(self):
+        """Регрессия: без сопоставления доля ошибок была «—», и откат не срабатывал никогда."""
+        import config
+        self.scans("alser", 10, 10)
+        config.save_settings({**config.load_settings(), rollout.SETTING_STAGE: rollout.CANARY_ONE})
+        with patch.object(rollout, "allowed_shops", return_value=["alser"]):
+            rollout.start_stage(rollout.CANARY_ONE, [candidate("alser", sched.NORMAL)], now=NOW)
+            later = NOW + datetime.timedelta(hours=1)
+            self.http_named("Alser", 200, 180, 0, at=later)     # всё сломалось после включения
+            self.scans("alser", 10, 10, day=later)
+            record = rollout.check_and_rollback([candidate("alser", sched.NORMAL)],
+                                                now=NOW + datetime.timedelta(hours=2))
+        self.assertIsNotNone(record, "провал пробного магазина обязан приводить к откату")
+        self.assertEqual(rollout.stage_of(), rollout.OFF)
+
+    def test_report_says_how_many_observations_are_needed(self):
+        data = rollout.metrics(["alser"], NOW - datetime.timedelta(hours=1), NOW)
+        self.assertEqual(data["need"], {"requests": rollout.MIN_REQUESTS_TO_JUDGE,
+                                        "scans": rollout.MIN_SCANS_TO_JUDGE})
+        self.assertEqual(data["complete_scans"], 0)
+
+
+class AbsoluteCeilingTest(RolloutStateTest):
+    """Отсутствие снимка «до» не должно оправдывать откровенно плохой источник."""
+
+    def after(self, requests, errors, blocked=0):
+        return {"requests": requests, "errors": errors, "blocked": blocked, "scans": 10,
+                "error_share": errors / requests, "block_share": blocked / requests,
+                "completeness": 1.0, "enough_data": True}
+
+    def test_bad_errors_roll_back_even_without_a_baseline(self):
+        needed, why = rollout.should_rollback(None, self.after(200, 180))
+        self.assertTrue(needed)
+        self.assertIn("независимо от того, что было", why)
+
+    def test_bad_errors_roll_back_even_when_the_baseline_has_no_http(self):
+        before = {"requests": 0, "error_share": None, "block_share": None, "completeness": 1.0}
+        needed, _ = rollout.should_rollback(before, self.after(200, 180))
+        self.assertTrue(needed)
+
+    def test_blocks_above_the_ceiling_roll_back(self):
+        needed, why = rollout.should_rollback(None, self.after(200, 0, blocked=40))
+        self.assertTrue(needed)
+        self.assertIn("притормозить", why)
+
+    def test_healthy_numbers_without_a_baseline_do_not_roll_back(self):
+        needed, why = rollout.should_rollback(None, self.after(200, 4))
+        self.assertFalse(needed)
+        self.assertIn("не с чем сравнивать", why)
+
+    def test_too_little_data_still_wins_over_the_ceiling(self):
+        thin = {**self.after(10, 9), "enough_data": False, "scans": 1}
+        self.assertFalse(rollout.should_rollback(None, thin)[0])

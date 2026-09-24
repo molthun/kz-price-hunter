@@ -52,6 +52,12 @@ METADATA_VERSION = "adaptive_scheduler_state_version"  # версия состо
 ERROR_GROWTH_LIMIT = 1.33        # доля ошибок выросла больше чем на треть
 BLOCK_GROWTH_LIMIT = 1.33        # доля отказов по лимиту (429/403) выросла больше чем на треть
 COMPLETENESS_DROP_LIMIT = 0.10   # полнота обходов упала больше чем на 10 процентных пунктов
+# Абсолютные потолки: сравнивать с «до» можно не всегда (у магазина могло не быть HTTP-наблюдений до
+# включения), но откровенно плохой источник — повод откатиться независимо от базы сравнения.
+# Значения те же, по которым теневой планировщик считает источник проблемным (P10).
+ABSOLUTE_ERROR_SHARE = 0.20      # каждый пятый запрос неуспешен
+ABSOLUTE_BLOCK_SHARE = 0.05      # магазин просит притормозить
+
 MIN_REQUESTS_TO_JUDGE = 50       # меньше наблюдений — судить рано, ни откат, ни «готов к шагу»
 MIN_SCANS_TO_JUDGE = 5
 OBSERVE_HOURS = 24               # сколько наблюдать шаг, прежде чем считать его подтверждённым
@@ -83,6 +89,15 @@ def can_switch(current: str, target: str) -> Tuple[bool, str]:
 
 class StageRefused(Exception):
     """Шаг нельзя начать, и причина называется словами, а не молча подменяется другим магазином."""
+
+
+def shop_display_name(key: str) -> str:
+    """Название магазина, под которым его видит телеметрия. Неизвестный ключ остаётся собой."""
+    try:
+        import config
+        return config.SHOP_KEYS.get(str(key), str(key))
+    except Exception:
+        return str(key)
 
 
 def allowed_shops() -> Optional[List[str]]:
@@ -218,7 +233,10 @@ def metrics(shop_keys: Sequence[str], since: datetime.datetime,
 
     requests = errors = blocked = 0
     for key in keys:
-        row = http.get(key) or {}
+        # Обходы хранятся под ключом настроек («alser»), а HTTP-метрики — под названием магазина
+        # («Alser»). Без сопоставления шаг не видел ни одного запроса, и откат был слеп (найдено
+        # владельцем на первом же пробном шаге).
+        row = http.get(key) or http.get(shop_display_name(key)) or {}
         requests += int(row.get("requests") or 0)
         errors += int(row.get("errors") or 0)
         blocked += int(row.get("blocked") or 0)
@@ -244,6 +262,8 @@ def metrics(shop_keys: Sequence[str], since: datetime.datetime,
         "http_coverage": coverage,
         "hours": round((end - since).total_seconds() / 3600.0, 2),
         "requests": requests, "errors": errors, "blocked": blocked, "scans": scans,
+        "complete_scans": complete,
+        "need": {"requests": MIN_REQUESTS_TO_JUDGE, "scans": MIN_SCANS_TO_JUDGE},
         "error_share": round(errors / requests, 4) if requests else None,
         "block_share": round(blocked / requests, 4) if requests else None,
         "completeness": round(complete / scans, 4) if scans else None,
@@ -269,6 +289,16 @@ def should_rollback(before: Optional[Dict[str, Any]],
                 and old_complete - new_complete > COMPLETENESS_DROP_LIMIT:
             return True, (f"упала полнота обходов: было {old_complete:.0%}, стало {new_complete:.0%}")
         return False, "наблюдений пока мало, чтобы судить"
+    # Потолки проверяются до сравнения с «до»: отсутствие базы сравнения не должно оправдывать провал
+    error_share = after.get("error_share")
+    if error_share is not None and error_share > ABSOLUTE_ERROR_SHARE:
+        return True, (f"доля ошибок {error_share:.0%} — выше допустимой {ABSOLUTE_ERROR_SHARE:.0%} "
+                      f"независимо от того, что было до включения")
+    block_share = after.get("block_share")
+    if block_share is not None and block_share > ABSOLUTE_BLOCK_SHARE:
+        return True, (f"отказы по лимиту {block_share:.0%} — выше допустимых "
+                      f"{ABSOLUTE_BLOCK_SHARE:.0%}: магазин просит притормозить")
+
     if not before:
         return False, "не с чем сравнивать: снимок «до» не сохранён"
 
