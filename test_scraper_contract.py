@@ -19,12 +19,13 @@ from scrapers.magnum import MagnumScraper
 from scrapers.intertop import IntertopScraper
 from scrapers.marwin import MarwinScraper
 from scrapers.iteka import ITekaScraper
+from scrapers.mebel import MebelScraper
 
 
 class ScraperContractTest(unittest.TestCase):
     def test_scraper_classes_conform_to_contract(self):
         # Check standard scrapers
-        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper, LemanaProScraper, ArbuzScraper, MasterOkScraper, MagnumScraper, IntertopScraper, MarwinScraper, ITekaScraper):
+        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper, LemanaProScraper, ArbuzScraper, MasterOkScraper, MagnumScraper, IntertopScraper, MarwinScraper, ITekaScraper, MebelScraper):
             self.assertTrue(hasattr(cls, "SHOP_NAME"), f"{cls} must define SHOP_NAME")
             self.assertTrue(callable(getattr(cls, "scrape", None)), f"{cls} must define scrape")
             self.assertTrue(callable(getattr(cls, "close", None)), f"{cls} must define close")
@@ -614,6 +615,88 @@ class ScraperContractTest(unittest.TestCase):
         self.assertEqual(results[0]["title"], "Аспирин Кардио 100мг")
         self.assertEqual(results[0]["price"], 1500)
         self.assertEqual(results[0]["shop"], "i-Teka")
+        scraper.close()
+
+    def test_mebel_parsing_mock(self):
+        from unittest.mock import MagicMock
+        scraper = MebelScraper()
+        mock_html = '''
+        <html><body>
+        <div class="ProductCardMain-module__4dYtKq__container">
+            <a href="/product/divan-test-slug-123">
+                <img src="https://cdn.servicecdn.ru/img/divan.jpg" alt="Диван Тестовый" />
+            </a>
+            <div class="ProductName">Диван прямой Тестовый</div>
+            <span class="FullPrice-module__Dh5lpq__actual" data-testid="price">250 000 ₸</span>
+            <span class="FullPrice-module__Dh5lpq__expired" data-testid="price">300 000 ₸</span>
+        </div>
+        <div class="pagination">
+            <a href="/category/divany/page-2">2</a>
+        </div>
+        </body></html>
+        '''
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = mock_html
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        scraper.session = mock_session
+
+        items = scraper._fetch_page("Диваны", "https://mebel.kz/category/divany", 1)
+        self.assertEqual(len(items), 1)
+        item = items[0]
+        self.assertEqual(item["id"], "mebel_divan-test-slug-123")
+        self.assertEqual(item["sku"], "divan-test-slug-123")
+        self.assertEqual(item["shop"], "Mebel.kz")
+        self.assertEqual(item["title"], "Диван прямой Тестовый")
+        self.assertEqual(item["price"], 250000)
+        self.assertEqual(item["old_price_on_site"], 300000)
+        self.assertEqual(item["url"], "https://mebel.kz/product/divan-test-slug-123")
+        self.assertEqual(item["image_url"], "https://cdn.servicecdn.ru/img/divan.jpg")
+        self.assertEqual(item["city"], "Алматы / Казахстан")
+        self.assertFalse(items.complete)
+        scraper.close()
+        self.assertIsNone(scraper.session)
+
+    def test_mebel_live_search_mock(self):
+        from unittest.mock import MagicMock
+        scraper = MebelScraper()
+        mock_data = {
+            "ok": True,
+            "data": {
+                "products": [
+                    {
+                        "id": 998877,
+                        "type": "Кресло офисное",
+                        "name": "Эргономик Люкс",
+                        "link": "/product/kreslo-ergonomic-lux",
+                        "price": {
+                            "actual": 85000,
+                            "expired": 105000
+                        },
+                        "images": [
+                            {"src": "https://cdn.servicecdn.ru/kreslo.jpg"}
+                        ]
+                    }
+                ]
+            }
+        }
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = mock_data
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        scraper.session = mock_session
+
+        results = scraper.search_live("кресло", limit=5)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["title"], "Кресло офисное Эргономик Люкс")
+        self.assertEqual(results[0]["price"], 85000)
+        self.assertEqual(results[0]["old_price_on_site"], 105000)
+        self.assertEqual(results[0]["shop"], "Mebel.kz")
+        self.assertEqual(results[0]["url"], "https://mebel.kz/product/kreslo-ergonomic-lux")
         scraper.close()
 
 

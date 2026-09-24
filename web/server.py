@@ -53,6 +53,7 @@ from config import (
     INTERTOP_CATEGORIES,
     MARWIN_CATEGORIES,
     ITEKA_CATEGORIES,
+    MEBEL_CATEGORIES,
     MASTER_CATEGORIES,
     get_wave_plan,
     get_wave_interval_seconds,
@@ -123,6 +124,7 @@ from scrapers.magnum import MagnumScraper
 from scrapers.intertop import IntertopScraper
 from scrapers.marwin import MarwinScraper
 from scrapers.iteka import ITekaScraper
+from scrapers.mebel import MebelScraper
 from search_engine import get_best_price_summary
 import ai_service
 import data_quality
@@ -998,6 +1000,7 @@ SHOP_REGISTRY = {
     "intertop": (IntertopScraper, INTERTOP_CATEGORIES, "Интертоп"),
     "marwin": (MarwinScraper, MARWIN_CATEGORIES, "Меломан"),
     "iteka": (ITekaScraper, ITEKA_CATEGORIES, "i-Teka"),
+    "mebel": (MebelScraper, MEBEL_CATEGORIES, "Mebel.kz"),
 }
 
 # Сколько магазинов обходить одновременно (у каждого свой сайт, поэтому нагрузка не суммируется)

@@ -4,11 +4,15 @@
 
 ## Текущая контрольная точка
 
-- Дата: 2026-09-24, Asia/Almaty. Завершено: **Подключение 29-го магазина «i-Teka (Аптеки Казахстана)» (i-teka.kz) — Релиз v5.22.0**.
+- Дата: 2026-09-24, Asia/Almaty. **Завершён релиз v5.23.0: подключение 30-го магазина — гипермаркет мебели «Mebel.kz» (mebel.kz)**.
 - **Исполнитель:** Antigravity.
-- **Статус релиза:** Все проверки пройдены (1320 unit tests, 15 frontend Deno suites, release_gate.py secrets).
-- **Следующий шаг:** Подключение 30-го магазина (следующий по очереди в каталоге, например, JYSK или OBI/12 месяцев мебель/товары для дома).
-- **Релизы дня:**
+- **Область файлов:** `scrapers/mebel.py`, `config.py`, `web/server.py`, `product_details.py`, `web/templates/index.html`, `SOURCES.md`, `README.md`, `version.py`, `CHANGELOG.md`, `test_scraper_contract.py`, `test_scraper_reliability.py`, `test_monitor.py`, `docs/AGENT_HANDOFF.md`.
+- **Контекст:**
+  - JYSK не имеет официального сайта и магазинов в РК (закрыты). Категорию «Мебель, интерьер и текстиль для дома» (`home_furniture`) закрывает флагман мебельного ритейла Казахстана — гипермаркет **Mebel.kz**.
+  - Каталог: SSR HTML с карточками `ProductCardMain`, ценниками со скидками `actual` / `expired`, пагинацией `page-N`, определением конца каталога по ссылкам пагинатора и резервным парсингом `schema.org ItemList`.
+  - Поиск в реальном времени: официальный backend API `proxy.mebel.kz/backend/search/get-products` со скоростью ответа ~0.6с.
+- **Предыдущие релизы дня:**
+  - **v5.23.0:** подключение 30-го магазина — гипермаркет мебели «Mebel.kz» (mebel.kz, 10 категорий home_furniture, search_live API).
   - **v5.22.0:** подключение 29-го магазина — аптечный агрегатор «i-Teka» (i-teka.kz, 9 категорий beauty_health, search_live).
   - **v5.21.0:** подключение 28-го магазина — сеть «Меломан / MARWIN» (marwin.kz, 9 категорий, search_live).
   - **v5.20.0:** подключение 27-го магазина — сеть обуви и одежды «Интертоп» (intertop.kz, 8 категорий clothes).

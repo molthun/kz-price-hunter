@@ -49,6 +49,7 @@ SHOP_KEYS = {
     "intertop": "Интертоп",
     "marwin": "Меломан",
     "iteka": "i-Teka",
+    "mebel": "Mebel.kz",
 }
 
 
@@ -1206,6 +1207,20 @@ ITEKA_CATEGORIES = [
     {"name": "i-Teka: 👶 Товары для матери и ребенка", "url": "https://i-teka.kz/astana/drug-categories/tovary-dlya-materi-i-rebenka", "master": "beauty_health", "max_pages": 10},
     {"name": "i-Teka: 💄 Косметика и дерматологический уход", "url": "https://i-teka.kz/astana/drug-categories/kosmetika-i-uhod", "master": "beauty_health", "max_pages": 10},
 ]
+
+MEBEL_CATEGORIES = [
+    {"name": "Mebel.kz: 🛋 Диваны и кресла", "url": "https://mebel.kz/category/divany", "master": "home_furniture", "max_pages": 10},
+    {"name": "Mebel.kz: 🛏 Кровати", "url": "https://mebel.kz/category/krovati", "master": "home_furniture", "max_pages": 10},
+    {"name": "Mebel.kz: 💤 Матрасы", "url": "https://mebel.kz/category/matrasy", "master": "home_furniture", "max_pages": 10},
+    {"name": "Mebel.kz: 🚪 Шкафы и стеллажи", "url": "https://mebel.kz/category/shkafy", "master": "home_furniture", "max_pages": 10},
+    {"name": "Mebel.kz: 💻 Рабочие столы", "url": "https://mebel.kz/category/stoly-pismennye-i-kompyuternye", "master": "home_furniture", "max_pages": 10},
+    {"name": "Mebel.kz: 🍽 Обеденные столы и кухни", "url": "https://mebel.kz/category/kuhonnye-stoly", "master": "home_furniture", "max_pages": 10},
+    {"name": "Mebel.kz: 🗄 Комоды и тумбы", "url": "https://mebel.kz/category/komody", "master": "home_furniture", "max_pages": 10},
+    {"name": "Mebel.kz: 💺 Компьютерные кресла", "url": "https://mebel.kz/category/kompyuternye-kresla", "master": "home_furniture", "max_pages": 10},
+    {"name": "Mebel.kz: 🧶 Ковры и текстиль", "url": "https://mebel.kz/category/kovry-i-tekstil", "master": "home_furniture", "max_pages": 10},
+    {"name": "Mebel.kz: 💡 Светильники и свет", "url": "https://mebel.kz/category/svet", "master": "home_furniture", "max_pages": 10},
+]
+
 
 
 

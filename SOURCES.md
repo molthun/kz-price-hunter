@@ -18,7 +18,7 @@ A — feed/API владельца с документированным назн
 
 Изображения сохраняются ссылками, server image proxy/cache не обнаружен. Browser и Telegram могут получать их с внешнего источника. Description используется в UI и может дополнительно сохраняться через guest product-detail GET для любого магазина. Его отсутствие в конкретном parser не означает отсутствие копирования текста в целом.
 
-## Матрица 29 источников
+## Матрица 30 источников
 
 | Модуль / класс | Тип / механизм | Timeout / pacing | Session, pagination, retry | Поля и ограничения |
 |---|---|---|---|---|
@@ -51,6 +51,7 @@ A — feed/API владельца с документированным назн
 | `scrapers/intertop.py` / `IntertopScraper` | D; intertop.kz SSR HTML .in-product-tile | 20 с; 0.4 с | Session chrome124; ?page=N; retry 5xx; **конец доказан** номером последней страницы в пагинации (pagination_last_page) | id/sku/brand+title/price/old_price/image_url; Алматы / Казахстан; описание нет |
 | `scrapers/marwin.py` / `MarwinScraper` | D; marwin.kz SSR HTML (Magento 2) .product-item-info | 20 с; 0.4 с | Session chrome124; ?p=N; retry 5xx; **конец доказан** номером последней страницы в пагинации (pagination_last_page); живой поиск /catalogsearch/result/ | id/sku/title/price/old_price/image_url; Алматы / Казахстан; описание есть |
 | `scrapers/iteka.py` / `ITekaScraper` | D; i-teka.kz SSR HTML (Yii2 + Alpine.js) div.rounded-16 | 20 с; 0.4 с | Session chrome124; ?page=N; retry 5xx; **конец доказан** номером последней страницы в пагинации (pagination_last_page с GlossaryTnfull_page); живой поиск /search?query= | id/sku/title/price/old_price/image_url; Астана / регионы; описание нет |
+| `scrapers/mebel.py` / `MebelScraper` | D + B; mebel.kz SSR HTML .ProductCardMain + schema.org ItemList | 20 с; 0.4 с | Session chrome124; /page-N; retry 5xx; **конец доказан** номером последней страницы в пагинации (/page-N); живой поиск proxy.mebel.kz/backend/search/ | id/sku/title/price/old_price/image_url; Алматы / Казахстан; описание есть |
 
 ## Пути вне основного фонового scan
 
@@ -513,6 +514,21 @@ A — feed/API владельца с документированным назн
 | i-Teka: 🧼 Гигиена и уход | beauty_health | `https://i-teka.kz/astana/medicaments/gigiena-i-uhod` | 10 |
 | i-Teka: 👶 Мама и малыш | beauty_health | `https://i-teka.kz/astana/medicaments/mama-i-malysh` | 10 |
 | i-Teka: 🧴 Лечебная косметика | beauty_health | `https://i-teka.kz/astana/medicaments/lechebnaya-kosmetika` | 10 |
+
+### MebelScraper — 10 настроенных источников категории
+
+| Категория | Master | URL/query | max_pages |
+|---|---|---|---|
+| Mebel.kz: 🛋 Диваны и кресла | home_furniture | `https://mebel.kz/category/divany` | 10 |
+| Mebel.kz: 🛏 Кровати | home_furniture | `https://mebel.kz/category/krovati` | 10 |
+| Mebel.kz: 💤 Матрасы | home_furniture | `https://mebel.kz/category/matrasy` | 10 |
+| Mebel.kz: 🚪 Шкафы и стеллажи | home_furniture | `https://mebel.kz/category/shkafy` | 10 |
+| Mebel.kz: 💻 Рабочие столы | home_furniture | `https://mebel.kz/category/stoly-pismennye-i-kompyuternye` | 10 |
+| Mebel.kz: 🍽 Обеденные столы и кухни | home_furniture | `https://mebel.kz/category/kuhonnye-stoly` | 10 |
+| Mebel.kz: 🗄 Комоды и тумбы | home_furniture | `https://mebel.kz/category/komody` | 10 |
+| Mebel.kz: 💺 Компьютерные кресла | home_furniture | `https://mebel.kz/category/kompyuternye-kresla` | 10 |
+| Mebel.kz: 🧶 Ковры и текстиль | home_furniture | `https://mebel.kz/category/kovry-i-tekstil` | 10 |
+| Mebel.kz: 💡 Светильники и свет | home_furniture | `https://mebel.kz/category/svet` | 10 |
 
 ## Перед подключением следующего магазина
 

@@ -1111,5 +1111,65 @@ class NewSourcesEndProofTest(unittest.TestCase):
         with self.assertRaises(UnconfirmedEnd):
             s._fetch_page("Обезболивающие", "https://i-teka.kz/astana/medicaments/obezbolivayushie-preparaty", 3)
 
+    def test_mebel_retry_on_transient_error(self):
+        from unittest.mock import Mock, patch
+        from scrapers.mebel import MebelScraper
+
+        s = MebelScraper()
+        resp502 = Mock(status_code=502)
+        html_ok = '''
+        <html><body>
+        <div class="ProductCardMain-module__4dYtKq__container">
+            <a href="/product/divan-test-555"></a>
+            <div class="ProductName">Диван Тест 555</div>
+            <span class="FullPrice-module__Dh5lpq__actual" data-testid="price">150 000 ₸</span>
+        </div>
+        <div class="pagination">
+            <a href="/category/divany/page-2">2</a>
+        </div>
+        </body></html>
+        '''
+        resp200 = Mock(status_code=200, text=html_ok)
+        session = Mock(get=Mock(side_effect=[resp502, resp200]))
+        s.session = session
+
+        with patch("time.sleep", return_value=None):
+            res = s._fetch_page("Диваны", "https://mebel.kz/category/divany", 1)
+
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0]["id"], "mebel_divan-test-555")
+        self.assertEqual(res[0]["price"], 150000)
+        self.assertFalse(res.complete)
+        self.assertEqual(session.get.call_count, 2)
+
+    def test_mebel_completion_and_unconfirmed_end(self):
+        from unittest.mock import Mock
+        from scrapers.mebel import MebelScraper
+        from scrapers.base import UnconfirmedEnd
+
+        s = MebelScraper()
+        html_p2 = '''
+        <html><body>
+        <div class="ProductCardMain-module__4dYtKq__container">
+            <a href="/product/divan-test-556"></a>
+            <div class="ProductName">Диван Тест 556</div>
+            <span class="FullPrice-module__Dh5lpq__actual" data-testid="price">180 000 ₸</span>
+        </div>
+        <div class="pagination">
+            <a href="/category/divany/page-2">2</a>
+        </div>
+        </body></html>
+        '''
+        session = Mock(get=Mock(return_value=Mock(status_code=200, text=html_p2)))
+        s.session = session
+
+        res2 = s._fetch_page("Диваны", "https://mebel.kz/category/divany", 2)
+        self.assertEqual(len(res2), 1)
+        self.assertTrue(res2.complete)
+
+        session.get = Mock(return_value=Mock(status_code=200, text="<html><body><div>Пусто</div></body></html>"))
+        with self.assertRaises(UnconfirmedEnd):
+            s._fetch_page("Диваны", "https://mebel.kz/category/divany", 1)
+
 
 

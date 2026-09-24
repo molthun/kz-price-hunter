@@ -2338,6 +2338,19 @@ class TestForteMarketScraper(unittest.TestCase):
             self.assertIn("url", c)
             self.assertTrue(c["master"] in config.MASTER_CATEGORIES)
 
+    def test_registry_contains_mebel(self):
+        from web.server import SHOP_REGISTRY
+        from config import SHOP_KEYS, MEBEL_CATEGORIES
+        self.assertIn("mebel", SHOP_REGISTRY)
+        scraper_cls, cats, name = SHOP_REGISTRY["mebel"]
+        self.assertEqual(name, "Mebel.kz")
+        self.assertEqual(cats, MEBEL_CATEGORIES)
+        self.assertEqual(SHOP_KEYS.get("mebel"), "Mebel.kz")
+        for c in MEBEL_CATEGORIES:
+            self.assertIn("master", c)
+            self.assertIn("url", c)
+            self.assertTrue(c["master"] in config.MASTER_CATEGORIES)
+
     def test_parse_response_and_regional_pricing(self):
         from scrapers.fortemarket import ForteMarketScraper
 
