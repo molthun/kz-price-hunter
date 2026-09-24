@@ -15,12 +15,13 @@ from scrapers.komfort import KomfortScraper
 from scrapers.lemanapro import LemanaProScraper
 from scrapers.arbuz import ArbuzScraper
 from scrapers.masterok import MasterOkScraper
+from scrapers.magnum import MagnumScraper
 
 
 class ScraperContractTest(unittest.TestCase):
     def test_scraper_classes_conform_to_contract(self):
         # Check standard scrapers
-        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper, LemanaProScraper, ArbuzScraper, MasterOkScraper):
+        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper, LemanaProScraper, ArbuzScraper, MasterOkScraper, MagnumScraper):
             self.assertTrue(hasattr(cls, "SHOP_NAME"), f"{cls} must define SHOP_NAME")
             self.assertTrue(callable(getattr(cls, "scrape", None)), f"{cls} must define scrape")
             self.assertTrue(callable(getattr(cls, "close", None)), f"{cls} must define close")
@@ -359,6 +360,68 @@ class ScraperContractTest(unittest.TestCase):
         self.assertEqual(items[0]["image_url"], "https://masterok.kz/upload/iblock/fubag.jpg")
         self.assertEqual(items[0]["city"], "Алматы")
         self.assertIn("аккуратного хранения", items[0]["description"])
+        scraper.close()
+        self.assertIsNone(scraper.session)
+
+    def test_magnum_parsing_mock(self):
+        from unittest.mock import MagicMock
+        scraper = MagnumScraper(city="Алматы")
+        mock_payload = [
+            {
+                "id": 1930,
+                "name": "ОГУРЦЫ «BONDUELLE» МАРИНОВАННЫЕ 680 Г",
+                "start_price": 2179,
+                "final_price": 1199,
+                "discount": 0.45,
+                "image": "/uploads/bonduelle.jpg",
+                "discount_type": {
+                    "conditions": "Акция действует во всех магазинах"
+                }
+            }
+        ]
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = mock_payload
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        scraper.session = mock_session
+
+        res = scraper._scrape_sync("Бакалея", "https://magnum.kz/catalog?category=bakaleia")
+        self.assertTrue(res.complete)
+        self.assertIsNone(res.error)
+        self.assertEqual(len(res), 1)
+        item = res[0]
+        self.assertEqual(item["id"], "magnum_1930")
+        self.assertEqual(item["shop"], "Магнум")
+        self.assertEqual(item["title"], "ОГУРЦЫ «BONDUELLE» МАРИНОВАННЫЕ 680 Г")
+        self.assertEqual(item["price"], 1199)
+        self.assertEqual(item["old_price_on_site"], 2179)
+        self.assertEqual(item["url"], "https://magnum.kz/products/1930")
+        self.assertEqual(item["image_url"], "https://magnum.kz:1337/uploads/bonduelle.jpg")
+        self.assertEqual(item["description"], "Акция действует во всех магазинах")
+        self.assertEqual(item["city"], "Алматы")
+
+        # Live search test
+        matches = scraper._search_live_sync("bonduelle огурцы")
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0]["id"], "magnum_1930")
+
+        no_matches = scraper._search_live_sync("несуществующий")
+        self.assertEqual(len(no_matches), 0)
+
+        # Empty response
+        mock_resp.json.return_value = []
+        res_empty = scraper._scrape_sync("Бакалея", "https://magnum.kz/catalog?category=bakaleia")
+        self.assertFalse(res_empty.complete)
+        self.assertEqual(res_empty.error, "Пустая выдача: полнота не подтверждена")
+
+        # HTTP error
+        mock_resp.status_code = 500
+        res_err = scraper._scrape_sync("Бакалея", "https://magnum.kz/catalog?category=bakaleia")
+        self.assertFalse(res_err.complete)
+        self.assertIn("HTTP", res_err.error)
+
         scraper.close()
         self.assertIsNone(scraper.session)
 

@@ -45,6 +45,7 @@ SHOP_KEYS = {
     "lemanapro": "Лемана ПРО",
     "arbuz": "Arbuz",
     "masterok": "MasterOK",
+    "magnum": "Магнум",
 }
 
 
@@ -1146,6 +1147,25 @@ MASTEROK_CATEGORIES = [
     {"name": "MasterOK: 🚰 Мотопомпы и насосы", "url": "https://masterok.kz/catalog/motopompy1-/", "master": "diy", "max_pages": 10},
     {"name": "MasterOK: 🪵 Деревообрабатывающее оборудование", "url": "https://masterok.kz/catalog/derevoobrabatyvayushchee-oborudovanie-1/", "master": "diy", "max_pages": 10},
     {"name": "MasterOK: 📦 Складское оборудование", "url": "https://masterok.kz/catalog/skladskoe-oborudovanie-/", "master": "diy", "max_pages": 10},
+]
+
+# Магнум (magnum.kz): крупнейшая розничная сеть супермаркетов Казахстана
+MAGNUM_CATEGORIES = [
+    {"name": "Магнум: 🔥 Все акции и скидки", "url": "https://magnum.kz/catalog", "master": "actions", "max_pages": 5},
+    {"name": "Магнум: 🥫 Бакалея", "url": "https://magnum.kz/catalog?category=bakaleia", "master": "grocery", "max_pages": 5},
+    {"name": "Магнум: ☕️ Чай, кофе, какао", "url": "https://magnum.kz/catalog?category=chai-koffee-kakao", "master": "grocery", "max_pages": 5},
+    {"name": "Магнум: 🥛 Молочные продукты", "url": "https://magnum.kz/catalog?category=molochnye-produkty", "master": "grocery", "max_pages": 5},
+    {"name": "Магнум: 🥩 Мясо и птица", "url": "https://magnum.kz/catalog?category=myaso", "master": "grocery", "max_pages": 5},
+    {"name": "Магнум: 🍏 Фрукты и овощи", "url": "https://magnum.kz/catalog?category=frukty-ovoschi", "master": "grocery", "max_pages": 5},
+    {"name": "Магнум: 🧀 Гастрономия", "url": "https://magnum.kz/catalog?category=gastronomiya", "master": "grocery", "max_pages": 5},
+    {"name": "Магнум: 🍬 Кондитерские изделия", "url": "https://magnum.kz/catalog?category=konditerskie-izdeliya", "master": "grocery", "max_pages": 5},
+    {"name": "Магнум: 🐟 Консервы", "url": "https://magnum.kz/catalog?category=konservy", "master": "grocery", "max_pages": 5},
+    {"name": "Магнум: 🧃 Безалкогольные напитки", "url": "https://magnum.kz/catalog?category=bezalkogolnye-napitki", "master": "grocery", "max_pages": 5},
+    {"name": "Магнум: 🧊 Замороженные продукты", "url": "https://magnum.kz/catalog?category=zamorojennye-produkty", "master": "grocery", "max_pages": 5},
+    {"name": "Магнум: 🧼 Бытовая химия", "url": "https://magnum.kz/catalog?category=bytovaiya-himiya", "master": "household", "max_pages": 5},
+    {"name": "Магнум: 🧴 Средства гигиены", "url": "https://magnum.kz/catalog?category=sredstva-gigieny", "master": "household", "max_pages": 5},
+    {"name": "Магнум: 👶 Детские товары", "url": "https://magnum.kz/catalog?category=detskie-tovary", "master": "household", "max_pages": 5},
+    {"name": "Магнум: 🍳 Собственное производство", "url": "https://magnum.kz/catalog?category=sobstvennoe-proizvodstvo", "master": "grocery", "max_pages": 5},
 ]
 
 

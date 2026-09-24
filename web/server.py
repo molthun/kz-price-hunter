@@ -49,6 +49,7 @@ from config import (
     LEMANA_PRO_CATEGORIES,
     ARBUZ_CATEGORIES,
     MASTEROK_CATEGORIES,
+    MAGNUM_CATEGORIES,
     MASTER_CATEGORIES,
     get_wave_plan,
     get_wave_interval_seconds,
@@ -115,6 +116,7 @@ from scrapers.komfort import KomfortScraper
 from scrapers.lemanapro import LemanaProScraper
 from scrapers.arbuz import ArbuzScraper
 from scrapers.masterok import MasterOkScraper
+from scrapers.magnum import MagnumScraper
 from search_engine import get_best_price_summary
 import ai_service
 import data_quality
@@ -986,6 +988,7 @@ SHOP_REGISTRY = {
     "lemanapro": (LemanaProScraper, LEMANA_PRO_CATEGORIES, "Лемана ПРО"),
     "arbuz": (ArbuzScraper, ARBUZ_CATEGORIES, "Arbuz"),
     "masterok": (MasterOkScraper, MASTEROK_CATEGORIES, "MasterOK"),
+    "magnum": (MagnumScraper, MAGNUM_CATEGORIES, "Магнум"),
 }
 
 # Сколько магазинов обходить одновременно (у каждого свой сайт, поэтому нагрузка не суммируется)

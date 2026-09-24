@@ -47,6 +47,7 @@ A — feed/API владельца с документированным назн
 | `scrapers/lemanapro.py` / `LemanaProScraper` | D; lemanapro.kz SSR HTML div[data-qa-product] | 20 с; 0.4 с | Session chrome124; ?page=N; **конец доказан** номером последней страницы в пагинации (например, 348 страниц — при max_pages=15 «ограничен») | id/sku/title/price/old_price/image_url; Казахстан; описание нет |
 | `scrapers/arbuz.py` / `ArbuzScraper` | D; arbuz.kz SSR HTML article.product-card | 20 с; 0.4 с | Session chrome124; ?page=N; признака конца нет → «ограничен», пустая первая страница и ошибки HTTP — ошибка (раньше маскировались пустым списком) | id/sku/title/price/old_price/image_url; Алматы; описание нет |
 | `scrapers/masterok.py` / `MasterOkScraper` | D + B; masterok.kz Bitrix HTML + Schema.org Product | 20 с; 0.4 с | Session chrome124; ?PAGEN_1=N; seen_ids→complete | id/sku/title/price/old_price/description/image_url; Алматы; описание есть |
+| `scrapers/magnum.py` / `MagnumScraper` | A; magnum.kz:1337 Strapi JSON API /api/new-product | 20 с; 0.3 с | Session chrome124; city={slug}&cunt=500{&category=slug}; конец доказан (полный список за 1 запрос) → complete | id/name/final_price/start_price/image/discount_type; Алматы/регионы; описание conditions |
 
 ## Пути вне основного фонового scan
 
@@ -448,6 +449,26 @@ A — feed/API владельца с документированным назн
 | MasterOK: 🚰 Мотопомпы и насосы | diy | `https://masterok.kz/catalog/motopompy1-/` | 10 |
 | MasterOK: 🪵 Деревообрабатывающее оборудование | diy | `https://masterok.kz/catalog/derevoobrabatyvayushchee-oborudovanie-1/` | 10 |
 | MasterOK: 📦 Складское оборудование | diy | `https://masterok.kz/catalog/skladskoe-oborudovanie-/` | 10 |
+
+### MagnumScraper — 15 настроенных источников категории
+
+| Категория | Master | URL/query | max_pages |
+|---|---|---|---|
+| Магнум: 🔥 Все акции и скидки | actions | `https://magnum.kz/catalog` | 5 |
+| Магнум: 🥫 Бакалея | grocery | `https://magnum.kz/catalog?category=bakaleia` | 5 |
+| Магнум: ☕️ Чай, кофе, какао | grocery | `https://magnum.kz/catalog?category=chai-koffee-kakao` | 5 |
+| Магнум: 🥛 Молочные продукты | grocery | `https://magnum.kz/catalog?category=molochnye-produkty` | 5 |
+| Магнум: 🥩 Мясо и птица | grocery | `https://magnum.kz/catalog?category=myaso` | 5 |
+| Магнум: 🍏 Фрукты и овощи | grocery | `https://magnum.kz/catalog?category=frukty-ovoschi` | 5 |
+| Магнум: 🧀 Гастрономия | grocery | `https://magnum.kz/catalog?category=gastronomiya` | 5 |
+| Магнум: 🍬 Кондитерские изделия | grocery | `https://magnum.kz/catalog?category=konditerskie-izdeliya` | 5 |
+| Магнум: 🐟 Консервы | grocery | `https://magnum.kz/catalog?category=konservy` | 5 |
+| Магнум: 🧃 Безалкогольные напитки | grocery | `https://magnum.kz/catalog?category=bezalkogolnye-napitki` | 5 |
+| Магнум: 🧊 Замороженные продукты | grocery | `https://magnum.kz/catalog?category=zamorojennye-produkty` | 5 |
+| Магнум: 🧼 Бытовая химия | household | `https://magnum.kz/catalog?category=bytovaiya-himiya` | 5 |
+| Магнум: 🧴 Средства гигиены | household | `https://magnum.kz/catalog?category=sredstva-gigieny` | 5 |
+| Магнум: 👶 Детские товары | household | `https://magnum.kz/catalog?category=detskie-tovary` | 5 |
+| Магнум: 🍳 Собственное производство | grocery | `https://magnum.kz/catalog?category=sobstvennoe-proizvodstvo` | 5 |
 
 ## Перед подключением следующего магазина
 

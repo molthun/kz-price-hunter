@@ -199,6 +199,9 @@
           <div title="MasterOK (masterok.kz)" class="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-900/90 border border-slate-700/80 hover:border-orange-500 hover:scale-110 transition shadow-sm cursor-pointer">
             <img src="https://www.google.com/s2/favicons?domain=masterok.kz&sz=32" alt="MasterOK" class="w-4 h-4 rounded-sm object-contain" onerror="this.style.display='none'">
           </div>
+          <div title="Магнум (magnum.kz)" class="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-900/90 border border-slate-700/80 hover:border-red-500 hover:scale-110 transition shadow-sm cursor-pointer">
+            <img src="https://www.google.com/s2/favicons?domain=magnum.kz&sz=32" alt="Магнум" class="w-4 h-4 rounded-sm object-contain" onerror="this.style.display='none'">
+          </div>
           <span id="activeShopIconsMore" class="shop-icons-more text-[11px] font-semibold text-slate-400 px-1.5"></span>
         </div>
         <script>
@@ -1694,6 +1697,12 @@
               <input type="checkbox" id="checkShopMasterok" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
               <img src="https://www.google.com/s2/favicons?domain=masterok.kz&sz=32" alt="MasterOK" class="w-4 h-4 rounded-sm object-contain shrink-0" onerror="this.style.display='none'">
               <span class="text-xs font-medium text-slate-200">MasterOK</span>
+            </label>
+
+            <label class="flex items-center space-x-2.5 p-3 rounded-xl bg-slate-900/90 border border-slate-800 cursor-pointer hover:border-slate-700 hover:bg-slate-800/60 transition">
+              <input type="checkbox" id="checkShopMagnum" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              <img src="https://www.google.com/s2/favicons?domain=magnum.kz&sz=32" alt="Магнум" class="w-4 h-4 rounded-sm object-contain shrink-0" onerror="this.style.display='none'">
+              <span class="text-xs font-medium text-slate-200">Магнум</span>
             </label>
             <p class="col-span-full text-xs text-slate-400 mt-1">💡 <strong>Flip.kz</strong>: выберите «Все города» для просмотра; город наличия на сайте не подтверждён, поэтому предложения доступны в общем каталоге и исключены из регионального арбитража.</p>
           </div>
@@ -3303,7 +3312,8 @@
       'Комфорт': { domain: 'komfort.kz', emoji: '🛋', category: 'home', catLabel: 'Товары для дома' },
       'Лемана ПРО': { domain: 'lemanapro.kz', emoji: '🏠', category: 'diy', catLabel: 'Гипермаркет ремонта' },
       'Arbuz.kz': { domain: 'arbuz.kz', emoji: '🍉', category: 'grocery', catLabel: 'Супермаркет' },
-      'MasterOK': { domain: 'masterok.kz', emoji: '🔨', category: 'diy', catLabel: 'Инструмент и крепеж' }
+      'MasterOK': { domain: 'masterok.kz', emoji: '🔨', category: 'diy', catLabel: 'Инструмент и крепеж' },
+      'Магнум': { domain: 'magnum.kz', emoji: '🔴', category: 'grocery', catLabel: 'Супермаркет' }
     };
 
     const SHOP_LOGO_DOMAINS = Object.fromEntries(
@@ -3317,7 +3327,8 @@
       halyk: 'checkShopHalyk', tgrad: 'checkShopTgrad', ants: 'checkShopAnts', itmag: 'checkShopItmag',
       ispace: 'checkShopIspace', fortemarket: 'checkShopForte', vkusmart: 'checkShopVkusmart',
       twelve_months: 'checkShopTwelveMonths', zeta: 'checkShopZeta', komfort: 'checkShopKomfort',
-      lemanapro: 'checkShopLemanaPro', arbuz: 'checkShopArbuz', masterok: 'checkShopMasterok'
+      lemanapro: 'checkShopLemanaPro', arbuz: 'checkShopArbuz', masterok: 'checkShopMasterok',
+      magnum: 'checkShopMagnum'
     };
 
     function shopLogoHtml(shopValue) {

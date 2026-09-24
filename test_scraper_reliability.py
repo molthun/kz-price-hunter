@@ -888,3 +888,42 @@ class NewSourcesEndProofTest(unittest.TestCase):
             self.assertEqual(len(res2), 1)
             self.assertTrue(res2.complete)
 
+    def test_magnum_retry_on_transient_error(self):
+        from unittest.mock import Mock
+        from scrapers.magnum import MagnumScraper
+
+        s = MagnumScraper()
+        # Первый запрос 502, второй 200 с товарами
+        resp502 = Mock(status_code=502)
+        resp200 = Mock(status_code=200, json=Mock(return_value=[
+            {"id": 100, "name": "Молоко 3.2%", "final_price": 500, "start_price": 600}
+        ]))
+        session = Mock(get=Mock(side_effect=[resp502, resp200]))
+        s.session = session
+
+        with patch("time.sleep", return_value=None):
+            res = s._scrape_sync("Молочные", "https://magnum.kz/catalog?category=molochnye-produkty")
+
+        self.assertTrue(res.complete)
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0]["id"], "magnum_100")
+        self.assertEqual(session.get.call_count, 2)
+        s.close()
+
+    def test_magnum_slug_extraction_and_city(self):
+        from unittest.mock import Mock
+        from scrapers.magnum import MagnumScraper
+
+        s = MagnumScraper(city="Астана")
+        self.assertEqual(s.city_slug, "astana")
+        self.assertEqual(s.city_display, "Астана")
+
+        session = Mock(get=Mock(return_value=Mock(status_code=200, json=Mock(return_value=[]))))
+        s.session = session
+
+        s._scrape_sync("Бакалея", "https://magnum.kz/catalog?category=bakaleia")
+        call_url = session.get.call_args[0][0]
+        self.assertIn("category=bakaleia", call_url)
+        self.assertIn("city=astana", call_url)
+        s.close()
+
