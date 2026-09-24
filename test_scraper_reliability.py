@@ -803,3 +803,88 @@ class NewSourcesEndProofTest(unittest.TestCase):
         self.assertTrue(s._is_challenge(challenge_html))
         self.assertTrue(s._is_challenge(""))
         self.assertFalse(s._is_challenge("<html><body><h1>Каталог</h1></body></html>"))
+
+    def test_sulpak_sale_endpoint_and_pagination(self):
+        from unittest.mock import patch, Mock
+        from scrapers.sulpak import SulpakScraper
+
+        s = SulpakScraper()
+        prod_html = '''
+        <div class="product__item" data-code="641733" data-name="Samsung Galaxy A17" data-price="119890.0">
+            <a href="/g/galaxy-a17">Samsung Galaxy A17</a>
+            <img src="/photo.jpg" />
+            <span class="product__item-price-old">159 890 ₸</span>
+        </div>
+        '''
+        paginator_html = '<div id="paginator" class="pagination" data-currentPage="1" data-pagesCount="2"></div>'
+        mock_resp_p1 = Mock(status_code=200, text='ok', json=Mock(return_value={
+            "products": prod_html,
+            "paginator": paginator_html
+        }))
+        mock_resp_p2 = Mock(status_code=200, text='ok', json=Mock(return_value={
+            "products": prod_html,
+            "paginator": '<div id="paginator" class="pagination" data-currentPage="2" data-pagesCount="2"></div>'
+        }))
+        mock_resp_p3 = Mock(status_code=200, text='', json=Mock(side_effect=Exception("empty")))
+
+        with patch('scrapers.sulpak.requests.post', side_effect=[mock_resp_p1, mock_resp_p2, mock_resp_p3]) as post:
+            res1 = s._fetch_page("Распродажа", "https://www.sulpak.kz/sale/1", 1)
+            self.assertEqual(len(res1), 1)
+            self.assertEqual(res1[0]["id"], "sulpak_641733")
+            self.assertEqual(res1[0]["price"], 119890)
+            self.assertEqual(res1[0]["old_price_on_site"], 159890)
+            self.assertFalse(res1.complete)
+
+            res2 = s._fetch_page("Распродажа", "https://www.sulpak.kz/sale/1", 2)
+            self.assertEqual(len(res2), 1)
+            self.assertTrue(res2.complete)
+
+            res3 = s._fetch_page("Распродажа", "https://www.sulpak.kz/sale/1", 3)
+            self.assertEqual(len(res3), 0)
+            self.assertTrue(res3.complete)
+
+            self.assertEqual(post.call_count, 3)
+
+    def test_sulpak_sale_error_with_empty_body_is_not_a_finished_scan(self):
+        """Пустое тело при HTTP 500 — это сбой. Если счесть его концом каталога,
+        неудачный обход запишется как успешный, а цены исчезнувших товаров — как снятые с продажи."""
+        from unittest.mock import patch, Mock
+        from scrapers.sulpak import SulpakScraper
+
+        s = SulpakScraper()
+        broken = Mock(status_code=500, text='', json=Mock(side_effect=Exception("empty")))
+        with patch('scrapers.sulpak.requests.post', return_value=broken):
+            with self.assertRaises(Exception) as caught:
+                s._fetch_page("Распродажа", "https://www.sulpak.kz/sale/1", 1)
+        self.assertIn("500", str(caught.exception))
+
+    def test_sulpak_standard_category_completion(self):
+        from unittest.mock import patch, Mock
+        from scrapers.sulpak import SulpakScraper
+
+        s = SulpakScraper()
+        html_p1 = '''
+        <html><body>
+        <div class="product__item" data-code="123" data-name="Ноутбук Asus" data-price="250000">
+            <a href="/g/asus-123">Ноутбук Asus</a>
+        </div>
+        <div id="paginator" class="pagination" data-currentpage="1" data-pagescount="2"></div>
+        </body></html>
+        '''
+        html_p2 = '''
+        <html><body>
+        <div class="product__item" data-code="456" data-name="Ноутбук Lenovo" data-price="280000">
+            <a href="/g/lenovo-456">Ноутбук Lenovo</a>
+        </div>
+        <div id="paginator" class="pagination" data-currentpage="2" data-pagescount="2"></div>
+        </body></html>
+        '''
+        with patch('scrapers.sulpak.requests.get', side_effect=[Mock(status_code=200, text=html_p1), Mock(status_code=200, text=html_p2)]):
+            res1 = s._fetch_page("Ноутбуки", "https://www.sulpak.kz/f/noutbuki", 1)
+            self.assertEqual(len(res1), 1)
+            self.assertFalse(res1.complete)
+
+            res2 = s._fetch_page("Ноутбуки", "https://www.sulpak.kz/f/noutbuki", 2)
+            self.assertEqual(len(res2), 1)
+            self.assertTrue(res2.complete)
+
