@@ -39,7 +39,7 @@ const assert=require('node:assert/strict');
 
   // Пустой вопрос не уходит на сервер
   await page.click('#btnAsk');
-  await page.waitForFunction(()=>document.getElementById('askResult').innerText.includes('Задайте вопрос'));
+  await page.waitForFunction(()=>(document.getElementById('askResult')?.innerText||'').includes('Задайте вопрос'));
   assert.equal(asked.length,0,'пустой вопрос не должен отправляться');
 
   // Обычный ответ: текст модели, факты и оговорка рядом
@@ -48,7 +48,7 @@ const assert=require('node:assert/strict');
   await page.fill('#askQ','почему упал каталог dns');
   await page.selectOption('#askDays','30');
   await page.click('#btnAsk');
-  await page.waitForFunction(()=>document.getElementById('askResult').innerText.includes('100 товаров'));
+  await page.waitForFunction(()=>(document.getElementById('askResult')?.innerText||'').includes('100 товаров'));
   let text=await page.locator('#askResult').innerText();
   assert.match(text,/вместо 2000/);
   assert.match(text,/принято 100 товаров/,'факты показываются вместе с ответом');
@@ -63,7 +63,7 @@ const assert=require('node:assert/strict');
   reply={status:'ok',answer:null,summary:facts,rejected:'в ответе есть числа, которых нет в данных: 73, 987',
          ai:'gemini',note};
   await page.click('#btnAsk');
-  await page.waitForFunction(()=>document.getElementById('askResult').innerText.includes('не показан'));
+  await page.waitForFunction(()=>(document.getElementById('askResult')?.innerText||'').includes('не показан'));
   text=await page.locator('#askResult').innerText();
   assert.match(text,/которых нет в данных: 73, 987/);
   assert.match(text,/принято 100 товаров/,'факты остаются видимыми');
@@ -72,14 +72,14 @@ const assert=require('node:assert/strict');
   // AI выключен — сервис всё равно отвечает фактами
   reply={status:'ok',answer:null,summary:facts,rejected:null,ai:'AI недоступен: ai_disabled',note};
   await page.click('#btnAsk');
-  await page.waitForFunction(()=>document.getElementById('askResult').innerText.includes('AI недоступен'));
+  await page.waitForFunction(()=>(document.getElementById('askResult')?.innerText||'').includes('AI недоступен'));
   text=await page.locator('#askResult').innerText();
   assert.match(text,/принято 100 товаров/);
 
   // Ошибка сервера видна словами
   status=403; reply={status:'error',message:'Доступ только для администратора'};
   await page.click('#btnAsk');
-  await page.waitForFunction(()=>document.getElementById('askResult').innerText.includes('только для администратора'));
+  await page.waitForFunction(()=>(document.getElementById('askResult')?.innerText||'').includes('только для администратора'));
 
   assert.deepEqual(errors,[],'ошибок JS быть не должно');
   console.log('PASS: P12 помощник администратора — факты всегда видны, выдуманные числа не показываются');

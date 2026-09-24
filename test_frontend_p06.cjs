@@ -41,7 +41,7 @@ const assert=require('node:assert/strict');
   });
   await page.goto('http://127.0.0.1:18086/monitoring#search');
   await page.waitForFunction(()=>document.querySelectorAll('#searchAnalytics *').length>0);
-  await page.waitForFunction(()=>!document.getElementById('searchAnalytics').innerText.includes('Загружаю'));
+  await page.waitForFunction(()=>!(document.getElementById('searchAnalytics')?.innerText||'').includes('Загружаю'));
   const box=page.locator('#searchAnalytics');
   const text=await box.innerText();
 
@@ -69,7 +69,7 @@ const assert=require('node:assert/strict');
   // Ошибка запроса видна, а не тихая пустота
   failSearch=true;
   await page.evaluate(()=>{document.querySelector('[data-section="search"]').click();});
-  await page.waitForFunction(()=>document.getElementById('searchAnalytics').innerText.includes('Не удалось'));
+  await page.waitForFunction(()=>(document.getElementById('searchAnalytics')?.innerText||'').includes('Не удалось'));
   assert.equal(searchCalls,2);
 
   assert.deepEqual(errors,[],'ошибок JS быть не должно');

@@ -80,7 +80,7 @@ const assert=require('node:assert/strict');
    // Отказ сервера виден словами, состояние кнопки не врёт
    failCreate=true;
    await page.click('#cardFixture [data-watch-product]');
-   await page.waitForFunction(()=>document.getElementById('globalToast').innerText.includes('нельзя'));
+   await page.waitForFunction(()=>(document.getElementById('globalToast')?.innerText||'').includes('нельзя'));
    assert.match(await page.evaluate(()=>document.querySelector('#cardFixture [data-watch-product]').innerText),/Следить за ценой/);
    failCreate=false;
 
@@ -106,7 +106,7 @@ const assert=require('node:assert/strict');
 
    // Форма знает про новые виды: у сделок своя цель и свои условия
    await page.selectOption('#watchKind','deal');
-   await page.waitForFunction(()=>!document.getElementById('watchTargetHint').classList.contains('hidden'));
+   await page.waitForFunction(()=>!!!document.getElementById('watchTargetHint')?.classList.contains('hidden'));
    assert.match(await page.locator('#watchTargetHint').innerText(),/все. или категорию/);
    assert.equal(await page.evaluate(()=>document.getElementById('watchCondition').value),'any_find');
    assert.equal(await page.evaluate(()=>[...document.getElementById('watchCondition').options]

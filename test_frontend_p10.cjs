@@ -42,7 +42,7 @@ const assert=require('node:assert/strict');
   });
   await page.goto('http://127.0.0.1:18088/monitoring#scanning');
   await page.waitForFunction(()=>document.getElementById('schedulerShadow')
-    && !document.getElementById('schedulerShadow').innerText.includes('Считаю'));
+    && !(document.getElementById('schedulerShadow')?.innerText||'').includes('Считаю'));
   const text=await page.locator('#schedulerShadow').innerText();
 
   // Предложения видны вместе с причиной и профилем
@@ -67,7 +67,7 @@ const assert=require('node:assert/strict');
   fail=true;
   await page.evaluate(()=>{document.querySelector('[data-section="search"]').click();});
   await page.evaluate(()=>{document.querySelector('[data-section="scanning"]').click();});
-  await page.waitForFunction(()=>document.getElementById('schedulerShadow').innerText.includes('Не удалось'));
+  await page.waitForFunction(()=>(document.getElementById('schedulerShadow')?.innerText||'').includes('Не удалось'));
 
   assert.deepEqual(errors,[],'ошибок JS быть не должно');
   console.log('PASS: P10 теневой планировщик — предложения с причинами, сравнение стратегий, без кнопок действий');

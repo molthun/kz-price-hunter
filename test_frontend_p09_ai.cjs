@@ -51,7 +51,7 @@ const assert=require('node:assert/strict');
   });
   await page.goto('http://127.0.0.1:18095/monitoring#system');
   await page.waitForFunction(()=>document.getElementById('matchingShadow')
-    && !document.getElementById('matchingShadow').innerText.includes('Загружаю'));
+    && !(document.getElementById('matchingShadow')?.innerText||'').includes('Загружаю'));
   let text=await page.locator('#matchingShadow').innerText();
 
   // Режим и согласованные пороги видны сразу
@@ -63,14 +63,14 @@ const assert=require('node:assert/strict');
 
   // Переключение в тень
   await page.click('[data-matching-ai="shadow"]');
-  await page.waitForFunction(()=>document.getElementById('matchingShadow').innerText.includes('сравнение цен не меняется'));
+  await page.waitForFunction(()=>(document.getElementById('matchingShadow')?.innerText||'').includes('сравнение цен не меняется'));
   assert.equal(switches.at(-1),'shadow');
 
   // Включение без разобранных пар сервер отклоняет — это видно человеку
   const alerts=[];
   page.on('dialog',d=>{alerts.push(d.message());});
   await page.click('[data-matching-ai="on"]');
-  await page.waitForFunction(()=>document.getElementById('matchingShadow').innerText.includes('сравнение цен не меняется'));
+  await page.waitForFunction(()=>(document.getElementById('matchingShadow')?.innerText||'').includes('сравнение цен не меняется'));
   assert.equal(switches.at(-1),'on');
 
   // Решения модели показываются с уверенностью и причиной, названия экранируются
@@ -78,7 +78,7 @@ const assert=require('node:assert/strict');
     {left_title:'<img src=x onerror=alert(1)>',right_title:'Whiskas',same:true,confidence:0.95,
      reason:'та же фасовка',provider:'gemini',decided_at:'2026-09-23T10:00:00+00:00',seen:4}]}};
   await page.click('[data-matching-ai="shadow"]');
-  await page.waitForFunction(()=>document.getElementById('matchingShadow').innerText.includes('Разобрано'));
+  await page.waitForFunction(()=>(document.getElementById('matchingShadow')?.innerText||'').includes('Разобрано'));
   await page.click('#matchingShadow summary:has-text("Последние решения")');
   text=await page.locator('#matchingShadow').innerText();
   assert.match(text,/один товар/);

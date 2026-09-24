@@ -44,7 +44,7 @@ const assert=require('node:assert/strict');
   await page.goto('http://127.0.0.1:18096/');
   await page.waitForFunction(()=>typeof loadAiModels==='function');
   await page.evaluate(()=>loadAdminSettings());
-  await page.waitForFunction(()=>document.getElementById('listGeminiModels').options.length>1);
+  await page.waitForFunction(()=>(document.getElementById('listGeminiModels')?.options||[]).length>1);
 
   // Список пришёл от провайдера, а не из кода
   const options=await page.evaluate(()=>[...document.getElementById('listGeminiModels').options].map(o=>o.value));
@@ -75,7 +75,7 @@ const assert=require('node:assert/strict');
   // Отказ провайдера виден словами, а не пустым списком
   models={...models,gemini:{models:[],error:'Gemini ответил HTTP 403'}};
   await page.evaluate(()=>loadAiModels(true));
-  await page.waitForFunction(()=>document.getElementById('aiModelsNote').textContent.includes('403'));
+  await page.waitForFunction(()=>(document.getElementById('aiModelsNote')?.textContent||'').includes('403'));
   assert.equal(refreshes,1);
 
   assert.deepEqual(errors,[],'ошибок JS быть не должно');

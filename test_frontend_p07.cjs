@@ -52,15 +52,15 @@ const assert=require('node:assert/strict');
 
    if(role==='guest'){
     // Гостю раздел не показывается: наблюдения принадлежат конкретному человеку
-    await page.waitForFunction(()=>document.getElementById('sec-watches').classList.contains('hidden'));
+    await page.waitForFunction(()=>!!document.getElementById('sec-watches')?.classList.contains('hidden'));
     // Офлайн Tailwind не загружается, поэтому проверяем сам класс, а не вычисленную видимость
     assert.ok(await page.evaluate(()=>document.getElementById('sec-watches').classList.contains('hidden')));
     await page.close();
     continue;
    }
 
-   await page.waitForFunction(()=>!document.getElementById('sec-watches').classList.contains('hidden'));
-   await page.waitForFunction(()=>document.getElementById('watchesList').children.length>0);
+   await page.waitForFunction(()=>!!!document.getElementById('sec-watches')?.classList.contains('hidden'));
+   await page.waitForFunction(()=>(document.getElementById('watchesList')?.children||[]).length>0);
    assert.match(await section.innerText(),/цена не выше 700 000 ₸/);
    assert.match(await section.innerText(),/тишина 23:00–08:00/);
    assert.match(await page.locator('#watchesCount').innerText(),/1 из 50/);
@@ -81,25 +81,25 @@ const assert=require('node:assert/strict');
    await page.fill('#watchTarget','стиральная машина');
    await page.selectOption('#watchCondition','any_drop');
    await page.click('button:has-text("Добавить наблюдение")');
-   await page.waitForFunction(()=>document.getElementById('watchesMessage').innerText.includes('от 1 до 99'));
+   await page.waitForFunction(()=>(document.getElementById('watchesMessage')?.innerText||'').includes('от 1 до 99'));
    rejectNext=false;
 
    // Успешное создание добавляет наблюдение в список
    await page.click('button:has-text("Добавить наблюдение")');
-   await page.waitForFunction(()=>document.getElementById('watchesList').children.length===2);
+   await page.waitForFunction(()=>(document.getElementById('watchesList')?.children||[]).length===2);
    assert.equal(posts.at(-1).target,'стиральная машина');
    assert.equal(posts.at(-1).repeat,true);
 
    // Включение/выключение и удаление
    await page.click('#watchesList button:has-text("Выключить")');
-   await page.waitForFunction(()=>document.getElementById('watchesList').innerText.includes('выключено'));
+   await page.waitForFunction(()=>(document.getElementById('watchesList')?.innerText||'').includes('выключено'));
    await page.click('#watchesList button:has-text("Удалить")');
-   await page.waitForFunction(()=>document.getElementById('watchesList').children.length===1);
+   await page.waitForFunction(()=>(document.getElementById('watchesList')?.children||[]).length===1);
 
    // Текст наблюдения приходит от человека — он должен экранироваться
    watches=[{...watches[0],id:9,description:'<img src=x onerror=alert(1)>'}];
    await page.evaluate(()=>loadWatches());
-   await page.waitForFunction(()=>document.getElementById('watchesList').innerText.includes('<img'));
+   await page.waitForFunction(()=>(document.getElementById('watchesList')?.innerText||'').includes('<img'));
    assert.equal(await page.evaluate(()=>document.querySelectorAll('#watchesList img').length),0);
 
    assert.deepEqual(errors,[],'ошибок JS быть не должно');

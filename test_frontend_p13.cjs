@@ -57,7 +57,7 @@ const assert=require('node:assert/strict');
   });
   await page.goto('http://127.0.0.1:18093/monitoring#overview');
   await page.waitForFunction(()=>document.getElementById('dailyBox')
-    && !document.getElementById('dailyBox').innerText.includes('Собираю'));
+    && !(document.getElementById('dailyBox')?.innerText||'').includes('Собираю'));
   let text=await page.locator('#dailyBox').innerText();
 
   // Цифры видны сами по себе, без всякого пересказа
@@ -76,7 +76,7 @@ const assert=require('node:assert/strict');
   // Пересказ с выдуманными числами не показывается, цифры остаются
   summary={status:'ok',summary:null,rejected:'в пересказе есть числа, которых нет в отчёте: 37, 4200',provider:'gemini'};
   await page.click('#btnDailySummary');
-  await page.waitForFunction(()=>document.getElementById('dailySummary').innerText.includes('не показан'));
+  await page.waitForFunction(()=>(document.getElementById('dailySummary')?.innerText||'').includes('не показан'));
   text=await page.locator('#dailyBox').innerText();
   assert.match(text,/37, 4200/);
   assert.match(text,/Цифры выше остаются в силе/);
@@ -85,13 +85,13 @@ const assert=require('node:assert/strict');
   // Хороший пересказ показывается рядом с цифрами
   summary={status:'ok',summary:'Поисков 3, новых товаров 1. Вероятно, день был спокойным.',rejected:null,provider:'gemini'};
   await page.click('#btnDailySummary');
-  await page.waitForFunction(()=>document.getElementById('dailySummary').innerText.includes('Вероятно'));
+  await page.waitForFunction(()=>(document.getElementById('dailySummary')?.innerText||'').includes('Вероятно'));
 
   // Неполные сутки названы неполными, пустые — отсутствием данных
   report.partial=true; report.empty=true;
   report.note='Сутки ещё не закончились — цифры неполные.';
   await page.click('#btnDailyRefresh');
-  await page.waitForFunction(()=>document.getElementById('dailyBox').innerText.includes('не закончились'));
+  await page.waitForFunction(()=>(document.getElementById('dailyBox')?.innerText||'').includes('не закончились'));
   text=await page.locator('#dailyBox').innerText();
   assert.match(text,/не ноль достижений/);
   assert.equal(asked.at(-1).refresh,'1','пересчёт запрашивается явно');
@@ -105,12 +105,12 @@ const assert=require('node:assert/strict');
   assert.match(await page.locator('#dailyBox').innerText(),/Asia\/Almaty/);
 
   await page.check('#dailyTelegram');
-  await page.waitForFunction(()=>document.getElementById('dailyBox').innerText.includes('один раз за сутки'));
+  await page.waitForFunction(()=>(document.getElementById('dailyBox')?.innerText||'').includes('один раз за сутки'));
   assert.deepEqual(switches.at(-1),{enabled:true});
   assert.equal(await page.evaluate(()=>document.getElementById('dailyTelegram').checked),true);
 
   await page.selectOption('#dailyHour','8');
-  await page.waitForFunction(()=>document.getElementById('dailyHour').value==='8');
+  await page.waitForFunction(()=>document.getElementById('dailyHour')?.value==='8');
   assert.deepEqual(switches.at(-1),{hour:8});
 
   assert.deepEqual(errors,[],'ошибок JS быть не должно');
