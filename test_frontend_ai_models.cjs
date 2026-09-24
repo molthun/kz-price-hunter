@@ -13,6 +13,11 @@ const assert=require('node:assert/strict');
   prices:{'gemini-3-flash':{input:0.3,output:2.5}},
   note:'Цены провайдеры не отдают.'};
  let saved=null, refreshes=0;
+ const prices={status:'ok',fetched_at:'2026-09-24T12:00:00+00:00',
+  disclaimer:'Цены прочитаны с публичной страницы провайдера, а не из вашего аккаунта.',
+  found:{'gemini-3-pro':{model:'gemini-3-pro',input:1.25,output:10,ambiguous:true,
+    basis:'Standard, за 1 млн токенов, текст',raw:'$1.25, prompts <= 200k'}},
+  missing:[{model:'gpt-5',why:'прайс этого провайдера собирается в браузере',source:'https://platform.openai.com/docs/pricing'}]};
  try{
   const page=await browser.newPage({viewport:{width:1366,height:1000},locale:'en-US'}); const errors=[];
   await page.addInitScript(()=>{window.tailwind={config:{}}});
@@ -25,6 +30,8 @@ const assert=require('node:assert/strict');
    if(u.pathname.startsWith('/static/'))return route.fulfill({contentType:'application/javascript',body:fs.readFileSync(path.join(__dirname,'web',u.pathname),'utf8')});
    if(u.pathname==='/api/me')return route.fulfill({contentType:'application/json',body:JSON.stringify(
      {user:{id:1,is_admin:true,first_name:'A'},settings:{},auth:{},shops:{}})});
+   if(u.pathname==='/api/admin/ai/prices')
+     return route.fulfill({contentType:'application/json',body:JSON.stringify(prices)});
    if(u.pathname==='/api/admin/ai/models'){
      if(u.searchParams.get('refresh')==='1')refreshes++;
      return route.fulfill({contentType:'application/json',body:JSON.stringify(models)});
@@ -66,9 +73,19 @@ const assert=require('node:assert/strict');
     .some(el=>el.dataset.priceModel==='gemini-3-pro'));
   assert.equal(await page.evaluate(()=>document.getElementById('inputGeminiModel').value),'gemini-3-pro');
 
+  // Подсказка цен подставляет значения, но НЕ сохраняет их: сохранение — подтверждение владельца
+  await page.evaluate(()=>suggestAiPrices());
+  await page.waitForFunction(()=>(document.getElementById('aiPricesSuggestion')?.innerText||'').includes('НЕ сохранено'));
+  const suggestion=await page.locator('#aiPricesSuggestion').innerText();
+  assert.match(suggestion,/gemini-3-pro: вход \$1.25, выход \$10/);
+  assert.match(suggestion,/несколько цен/,'неоднозначная цена помечена');
+  assert.match(suggestion,/собирается в браузере/,'о непрочитанной цене сказано прямо');
+  assert.match(suggestion,/не из вашего аккаунта/);
+  assert.equal(saved,null,'подсказка ничего не сохраняет сама');
+  assert.equal(await page.evaluate(()=>document.querySelector('[data-price-model="gemini-3-pro"][data-price-field="input"]')?.value),'1.25');
+
   // Введённые цены уходят на сервер вместе с настройками
-  await page.fill('[data-price-model="gemini-3-pro"][data-price-field="input"]','1.25');
-  await page.fill('[data-price-model="gemini-3-pro"][data-price-field="output"]','10');
+  // Значения уже подставлены подсказкой — сохраняем их как есть, это и есть подтверждение
   await page.evaluate(()=>saveAdminSettings());
   await page.waitForFunction(()=>true);
   assert.ok(saved,'настройки должны отправиться');

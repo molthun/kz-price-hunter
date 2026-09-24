@@ -1458,9 +1458,13 @@
             <div class="md:col-span-2">
               <div class="flex flex-wrap items-center justify-between gap-2">
                 <span class="text-xs font-medium text-slate-300">Цены моделей (доллары за миллион токенов)</span>
-                <button type="button" onclick="loadAiModels(true)" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 transition cursor-pointer">Обновить список моделей</button>
+                <div class="flex flex-wrap gap-2">
+                  <button type="button" onclick="loadAiModels(true)" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 transition cursor-pointer">Обновить список моделей</button>
+                  <button type="button" onclick="suggestAiPrices()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 transition cursor-pointer">Подставить цены из прайса</button>
+                </div>
               </div>
               <div id="aiPrices" class="mt-2 space-y-2"></div>
+              <div id="aiPricesSuggestion" class="mt-2"></div>
               <p id="aiModelsNote" class="text-[10px] text-slate-400 mt-1">Провайдеры не отдают цены через API — их задаёте вы. Пока цена не задана, расход в деньгах не считается и показывается прочерком.</p>
             </div>
 
@@ -4806,6 +4810,49 @@
         prices[name][el.dataset.priceField] = Number(value);
       });
       return prices;
+    }
+
+    async function suggestAiPrices() {
+      const note = document.getElementById('aiModelsNote');
+      const names = aiModelNames();
+      if (!names.length) { if (note) note.textContent = 'Сначала выберите модель.'; return; }
+      if (note) note.textContent = 'Читаю прайс провайдера…';
+      let data;
+      try {
+        const res = await fetch('/api/admin/ai/prices?models=' + encodeURIComponent(names.join(',')));
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        data = await res.json();
+      } catch (e) {
+        if (note) note.textContent = 'Не удалось прочитать прайс: ' + e.message;
+        return;
+      }
+      // Подставляем в поля, но НЕ сохраняем: сохранение — подтверждение владельца
+      let filled = 0;
+      for (const [model, price] of Object.entries(data.found || {})) {
+        for (const field of ['input', 'output']) {
+          const el = document.querySelector(`[data-price-model="${CSS.escape(model)}"][data-price-field="${field}"]`);
+          if (!el) continue;
+          el.value = price[field];
+          el.classList.add('border-amber-500');       // не сохранено, требует подтверждения
+          filled++;
+        }
+      }
+      const lines = [];
+      for (const [model, price] of Object.entries(data.found || {})) {
+        lines.push(`${model}: вход $${price.input}, выход $${price.output} — ${price.basis}`
+          + (price.ambiguous ? ' ⚠️ на странице несколько цен (длина запроса, аудио) — подставлена первая' : ''));
+      }
+      for (const miss of data.missing || []) lines.push(`${miss.model}: ${miss.why}`);
+      const box = document.getElementById('aiPricesSuggestion');
+      if (box) {
+        box.innerHTML = lines.length
+          ? `<p class="text-[11px] text-amber-300">Подставлено, но НЕ сохранено — проверьте и нажмите «Сохранить настройки».</p>`
+            + `<ul class="text-[11px] text-slate-400 mt-1 space-y-0.5">${lines.map(l => `<li>${escapeHtml(l)}</li>`).join('')}</ul>`
+            + `<p class="text-[10px] text-slate-500 mt-1">${escapeHtml(data.disclaimer || '')} Источник прочитан ${escapeHtml(String(data.fetched_at || '').slice(0, 16).replace('T', ' '))}.</p>`
+          : '';
+      }
+      if (note) note.textContent = filled ? `Подставлено значений: ${filled}. Сохранение подтверждает их вами.`
+                                          : 'Ни одной цены прочитать не удалось — впишите вручную.';
     }
 
     async function loadAiModels(refresh) {

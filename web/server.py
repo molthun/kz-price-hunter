@@ -2279,6 +2279,20 @@ async def admin_ai_models_handler(request):
                              dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
 
 
+@routes.get("/api/admin/ai/prices")
+@require_admin
+async def admin_ai_prices_handler(request):
+    """Подсказка цен с публичного прайса провайдера. Ничего не сохраняет — решает владелец."""
+    import ai_prices
+    models = [m.strip() for m in (request.query.get("models") or "").split(",") if m.strip()][:10]
+    if not models:
+        return web.json_response({"status": "error", "message": "Не указано, для каких моделей"},
+                                 status=400)
+    data = await ai_prices.suggest(models)
+    return web.json_response({"status": "ok", **data},
+                             dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
 @routes.post("/api/admin/monitoring/matching/ai")
 @require_admin
 async def monitoring_matching_ai_handler(request):
