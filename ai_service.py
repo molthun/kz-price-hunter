@@ -2,7 +2,7 @@
 ai_service.py - Универсальный сервис искусственного интеллекта для KZ Price Hunter.
 
 Реализует:
-1. Асинхронное взаимодействие с Google Gemini REST API (gemini-2.5-flash / gemini-1.5-flash) и OpenAI API без сторонних тяжелых SDK.
+1. Асинхронное взаимодействие с Google Gemini REST API (gemini-3.5-flash-lite / gemini-3.5-flash) и OpenAI API без сторонних тяжелых SDK.
 2. Интеллектуальный разбор сложных человеческих запросов (Natural Language Query Parsing) в структурированные фильтры базы данных.
 3. Определение необходимости AI-парсинга (эвристика разговорных запросов).
 4. Встроенное кэширование ответов AI в оперативной памяти (LRU Cache) для мгновенного отклика и экономии квоты API.
@@ -348,8 +348,9 @@ async def _limited_provider_call(fn, *args, scan: bool = False):
             sink.append({"provider": provider, "outcome": outcome, "duration_ms": duration_ms, **info})
 
 
-async def call_gemini_api(prompt: str, api_key: str, *, timeout: float = DEFAULT_TIMEOUT_SECONDS, scan: bool = False):
-    return await _limited_provider_call(_call_gemini_api, prompt, api_key, timeout, scan=scan)
+async def call_gemini_api(prompt: str, api_key: str, *, timeout: float = DEFAULT_TIMEOUT_SECONDS,
+                          scan: bool = False, model: Optional[str] = None):
+    return await _limited_provider_call(_call_gemini_api, prompt, api_key, timeout, model, scan=scan)
 
 
 # ---------------------------------------------------------------------------
@@ -359,6 +360,55 @@ async def call_gemini_api(prompt: str, api_key: str, *, timeout: float = DEFAULT
 # ---------------------------------------------------------------------------
 
 MODELS_TIMEOUT_SECONDS = 15.0
+
+# Режим «Авто» выбирает живую модель из списка провайдера. Кэш — чтобы не спрашивать список на каждый
+# вызов; на проде это тысяча запросов в день.
+AUTO_MODEL_TTL_SECONDS = 3600
+_auto_model_cache: Dict[str, Any] = {}
+
+
+def auto_model_cached(provider: str) -> Optional[str]:
+    """Последняя выбранная «Авто» модель, если она уже известна (для отчётов, без сетевых вызовов)."""
+    item = _auto_model_cache.get(provider)
+    return item["model"] if item else None
+
+
+async def auto_model(provider: str, cfg: Optional[Dict[str, Any]] = None) -> Optional[str]:
+    """Модель для режима «Авто»: самая свежая дешёвая из доступных этому ключу.
+
+    Если список получить не удалось, возвращается настроенное значение — работать на прежнем имени
+    лучше, чем не работать вовсе, и это видно в отчёте.
+    """
+    import model_choice
+    import time as _time
+    cfg = cfg or config.get_ai_config()
+    fallback = cfg.get(f"{provider}_model")
+    item = _auto_model_cache.get(provider)
+    if item and _time.time() - item["at"] < AUTO_MODEL_TTL_SECONDS:
+        return item["model"] or fallback
+
+    if provider == "gemini":
+        listing = await list_gemini_models(cfg.get("gemini_api_key") or "")
+    else:
+        listing = await list_openai_models(cfg.get("openai_api_key") or "",
+                                           cfg.get("openai_api_base") or "")
+    names = [m["name"] for m in listing.get("models") or []]
+    chosen = model_choice.preferred(names, fallback)
+    _auto_model_cache[provider] = {"model": chosen, "at": _time.time(), "names": names,
+                                   "from_list": bool(names), "error": listing.get("error")}
+    return chosen
+
+
+def alternatives(provider: str, chosen: Optional[str], limit: int = 2) -> List[str]:
+    """Запасные модели того же провайдера: следующие подходящие из его же списка.
+
+    Замысел запасной модели сохраняется (сбой одной не должен останавливать работу), но имена берутся
+    из ответа провайдера, а не зашиваются в код: зашитые устаревают молча.
+    """
+    import model_choice
+    item = _auto_model_cache.get(provider) or {}
+    names = item.get("names") or []
+    return [n for n in model_choice.candidates(names) if n != chosen][:limit]
 
 
 async def list_gemini_models(api_key: str, timeout: float = MODELS_TIMEOUT_SECONDS) -> Dict[str, Any]:
@@ -410,14 +460,24 @@ async def list_openai_models(api_key: str, api_base: str = "",
     return {"models": models, "error": None}
 
 
-async def call_openai_api(prompt: str, api_key: str, api_base: str, *, timeout: float = DEFAULT_TIMEOUT_SECONDS, scan: bool = False):
-    return await _limited_provider_call(_call_openai_api, prompt, api_key, api_base, timeout, scan=scan)
+async def call_openai_api(prompt: str, api_key: str, api_base: str, *,
+                          timeout: float = DEFAULT_TIMEOUT_SECONDS, scan: bool = False,
+                          model: Optional[str] = None):
+    return await _limited_provider_call(_call_openai_api, prompt, api_key, api_base, timeout, model, scan=scan)
 
 
 async def _call_gemini_api(prompt: str, api_key: str, timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS) -> Optional[Dict[str, Any]]:
     """Вызов Gemini Flash REST API через aiohttp."""
-    models_to_try = [config.get_ai_config()["gemini_model"]]
-    
+    ai_cfg = config.get_ai_config()
+    configured_model = ai_cfg.get("gemini_model") or "gemini-3.5-flash-lite"
+    if ai_cfg.get("gemini_model_mode") == "manual":
+        models_to_try = [configured_model]
+    else:
+        # Режим «Авто»: свежая, быстрая и экономичная gemini-3.5-flash-lite как основная,
+        # с автоматическим резервом при недоступности или перегрузке
+        fallback_models = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-flash-latest"]
+        models_to_try = [configured_model] + [m for m in fallback_models if m != configured_model]
+
     for model in models_to_try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
         payload = {
@@ -456,6 +516,10 @@ async def _call_gemini_api(prompt: str, api_key: str, timeout_seconds: float = D
                               f"модель недоступна для этого ключа или имя неверно")
                         _note_call(failure=f"http_{resp.status}")
                         continue
+                    elif resp.status in (429, 500, 502, 503, 504):
+                        print(f"[AI Service] Gemini временно недоступен ({model}, HTTP {resp.status}), пробуем следующую модель")
+                        _note_call(failure=f"http_{resp.status}")
+                        continue
                     else:
                         print(f"[AI Service] Ошибка Gemini API ({model}, HTTP {resp.status})")
                         _note_call(failure=f"http_{resp.status}")
@@ -468,43 +532,60 @@ async def _call_gemini_api(prompt: str, api_key: str, timeout_seconds: float = D
     return None
 
 
-async def _call_openai_api(prompt: str, api_key: str, api_base: str, timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS) -> Optional[Dict[str, Any]]:
+async def _call_openai_api(prompt: str, api_key: str, api_base: str,
+                           timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+                           model: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """Вызов OpenAI-совместимого API через aiohttp."""
     url = f"{api_base.rstrip('/')}/chat/completions"
-    payload = {
-        "model": config.get_ai_config()["openai_model"],
-        "messages": [
-            {"role": "system", "content": "You are a helpful JSON parser for e-commerce search queries."},
-            {"role": "user", "content": prompt}
-        ],
-        "response_format": {"type": "json_object"},
-        "temperature": 0.1,
-        "max_tokens": MAX_OUTPUT_TOKENS
-    }
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
     }
 
-    try:
-        timeout = aiohttp.ClientTimeout(total=timeout_seconds, connect=min(10, timeout_seconds))
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.post(url, json=payload, headers=headers) as resp:
-                _note_call(http_status=resp.status, model=payload["model"])
-                if resp.status == 200:
-                    data = await resp.json()
-                    usage = data.get("usage") or {}
-                    _note_call(input_tokens=usage.get("prompt_tokens"), output_tokens=usage.get("completion_tokens"))
-                    choices = data.get("choices", [])
-                    if choices:
-                        content = choices[0].get("message", {}).get("content", "")
-                        return _extract_json_from_text(content)
-                else:
-                    print(f"[AI Service] Ошибка OpenAI API (HTTP {resp.status})")
-                    _note_call(failure=f"http_{resp.status}")
-    except Exception as e:
-        print(f"[AI Service] Ошибка OpenAI API: {type(e).__name__} (лимит ответа {timeout_seconds:g} с)")
-        _note_call(failure="timeout" if isinstance(e, asyncio.TimeoutError) else "error", error=type(e).__name__)
+    ai_cfg = config.get_ai_config()
+    # Модель выбирает вызывающий: в ручном режиме — заданная владельцем, в «Авто» — выбранная из
+    # списка провайдера. Зашитых запасных имён здесь больше нет: они устаревают молча.
+    configured_model = model or ai_cfg.get("openai_model")
+    models_to_try = ([configured_model] + alternatives("openai", configured_model)
+                     if configured_model else [])
+
+    for model in models_to_try:
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": "You are a helpful JSON parser for e-commerce search queries."},
+                {"role": "user", "content": prompt}
+            ],
+            "response_format": {"type": "json_object"},
+            "temperature": 0.1,
+            "max_tokens": MAX_OUTPUT_TOKENS
+        }
+
+        try:
+            timeout = aiohttp.ClientTimeout(total=timeout_seconds, connect=min(10, timeout_seconds))
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.post(url, json=payload, headers=headers) as resp:
+                    _note_call(http_status=resp.status, model=model)
+                    if resp.status == 200:
+                        data = await resp.json()
+                        usage = data.get("usage") or {}
+                        _note_call(input_tokens=usage.get("prompt_tokens"), output_tokens=usage.get("completion_tokens"))
+                        choices = data.get("choices", [])
+                        if choices:
+                            content = choices[0].get("message", {}).get("content", "")
+                            return _extract_json_from_text(content)
+                    elif resp.status in (400, 404, 429, 500, 502, 503, 504):
+                        print(f"[AI Service] OpenAI отказал ({model}, HTTP {resp.status}), пробуем следующую модель")
+                        _note_call(failure=f"http_{resp.status}")
+                        continue
+                    else:
+                        print(f"[AI Service] Ошибка OpenAI API ({model}, HTTP {resp.status})")
+                        _note_call(failure=f"http_{resp.status}")
+                        return None
+        except Exception as e:
+            print(f"[AI Service] Ошибка OpenAI API ({model}): {type(e).__name__} (лимит ответа {timeout_seconds:g} с)")
+            _note_call(failure="timeout" if isinstance(e, asyncio.TimeoutError) else "error", error=type(e).__name__)
+            continue
 
     return None
 

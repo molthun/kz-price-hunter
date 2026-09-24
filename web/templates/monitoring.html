@@ -202,8 +202,8 @@
         ['Провайдер', esc(s.provider)], ['Вызовов провайдера', num(s.calls_24h)], ['Неуспешных', num(s.errors_24h)],
         ['Токены (вход / выход)', `${num(s.input_tokens_24h)} / ${num(s.output_tokens_24h)}`],
         ['Сегодня / дневной лимит', `${num(s.calls_today)} / ${num(s.daily_limit)}`],
-        ['Модель Gemini', `${esc((s.models || {}).gemini?.model || '—')}${(s.models || {}).gemini?.mode === 'manual' ? '' : ' (режим «авто» — выбранная в списке не применяется)'}`],
-        ['Модель OpenAI', `${esc((s.models || {}).openai?.model || '—')}${(s.models || {}).openai?.mode === 'manual' ? '' : ' (режим «авто» — выбранная в списке не применяется)'}`]]) +
+        ['Модель Gemini', modelLine((s.models || {}).gemini)],
+        ['Модель OpenAI', modelLine((s.models || {}).openai)]]) +
         details('Исходы', json(s.outcomes)), s.status)
         + '<div id="aiSpending" class="mt-4"><p class="text-sm text-slate-500">Загружаю расходы AI…</p></div>';
     },
@@ -466,6 +466,14 @@
     const d = await res.json().catch(() => ({}));
     if (!res.ok) { alert(d.message || 'Не удалось переключить режим'); return; }
     loadMatchingShadow();
+  }
+
+  // Какая модель работает на самом деле: в «Авто» её выбирает сервис из списка провайдера
+  function modelLine(info) {
+    if (!info || !info.model) return '—';
+    if (info.mode === 'manual') return esc(info.model) + ' (задана вручную)';
+    return esc(info.model) + (info.auto_choice ? ' (авто — выбрана из списка провайдера)'
+                                               : ' (авто — список ещё не получен, пока прежняя)');
   }
 
   async function loadAiSpending() {

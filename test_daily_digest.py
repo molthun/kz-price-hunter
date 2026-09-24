@@ -227,7 +227,7 @@ class SummaryTest(unittest.TestCase):
     def run_summary(self, text, has_ai=True):
         report = digest.report(DAY, "UTC", now=NOW)      # отчёт уже сохранён: пересказ ложится к нему
 
-        async def fake(prompt, key, *, timeout=30, scan=False):
+        async def fake(prompt, key, *, timeout=30, scan=False, model=None):
             self.prompt = prompt
             sink = ai_service.usage_sink.get()
             if sink is not None:

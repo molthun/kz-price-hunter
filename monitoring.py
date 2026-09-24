@@ -374,8 +374,19 @@ def ai_section(now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
         calls_today, limit = None, None
     # Какая модель реально используется: выбранная в списке применяется только в ручном режиме,
     # и без этой строки было не видно, что сервис продолжает звать модель по умолчанию (24.09)
-    models = {"gemini": {"model": cfg.get("gemini_model"), "mode": cfg.get("gemini_model_mode")},
-              "openai": {"model": cfg.get("openai_model"), "mode": cfg.get("openai_model_mode")}}
+    try:
+        import ai_service
+        auto = {p: ai_service.auto_model_cached(p) for p in ("gemini", "openai")}
+    except Exception:
+        auto = {"gemini": None, "openai": None}
+    models = {}
+    for provider in ("gemini", "openai"):
+        mode = cfg.get(f"{provider}_model_mode")
+        # В «Авто» действует выбранная из списка провайдера, а не записанная в настройках
+        effective = cfg.get(f"{provider}_model") if mode == "manual" else (auto.get(provider)
+                                                                          or cfg.get(f"{provider}_model"))
+        models[provider] = {"model": effective, "mode": mode,
+                            "auto_choice": auto.get(provider) if mode != "manual" else None}
     return {"status": status, "reason": reason, "provider": cfg.get("provider"), "calls_24h": len(called),
             "errors_24h": errors, "outcomes": dict(outcomes), "input_tokens_24h": tokens_in,
             "output_tokens_24h": tokens_out, "calls_today": calls_today, "daily_limit": limit,

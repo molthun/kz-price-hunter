@@ -50,10 +50,10 @@ class RouterTest(unittest.TestCase):
                 sink.append({"provider": provider, "outcome": "ok" if spec else "empty", **usage})
             return (spec or {}).get("value")
 
-        async def fake_gemini(prompt, key, *, timeout=30, scan=False):
+        async def fake_gemini(prompt, key, *, timeout=30, scan=False, model=None):
             return deliver(gemini, "gemini")
 
-        async def fake_openai(prompt, key, base, *, timeout=30, scan=False):
+        async def fake_openai(prompt, key, base, *, timeout=30, scan=False, model=None):
             return deliver(openai, "openai")
 
         with patch("config.get_ai_config", return_value=self.config), \
@@ -172,7 +172,7 @@ class RouterTest(unittest.TestCase):
         """Одновременные задачи тратят общий счётчик, а не каждый свой."""
         calls = {"n": 0}
 
-        async def fake_gemini(prompt, key, *, timeout=30, scan=False):
+        async def fake_gemini(prompt, key, *, timeout=30, scan=False, model=None):
             calls["n"] += 1
             ai_service._count_ai_call()
             return "ответ"
@@ -290,7 +290,7 @@ class RealPathsGoThroughRouterTest(RouterTest):
         import asyncio
         gemini_calls, openai_calls = [], []
 
-        async def fake_gemini(prompt, key, *, timeout=30, scan=False):
+        async def fake_gemini(prompt, key, *, timeout=30, scan=False, model=None):
             gemini_calls.append(prompt)
             sink = ai_service.usage_sink.get()
             if sink is not None:
@@ -298,7 +298,7 @@ class RealPathsGoThroughRouterTest(RouterTest):
                              "model": "gemini-2.5-flash", "input_tokens": 50, "output_tokens": 10})
             return gemini
 
-        async def fake_openai(prompt, key, base, *, timeout=30, scan=False):
+        async def fake_openai(prompt, key, base, *, timeout=30, scan=False, model=None):
             openai_calls.append(prompt)
             sink = ai_service.usage_sink.get()
             if sink is not None:
@@ -424,11 +424,11 @@ class QuotaIsAtomicTest(RouterTest):
         from auth import RateLimiter
         transports = []
 
-        async def gemini_transport(prompt, key, timeout=30):
+        async def gemini_transport(prompt, key, timeout=30, model=None):
             transports.append("gemini")
             return None                      # провайдер ответил отказом — это настоящий вызов
 
-        async def openai_transport(prompt, key, base, timeout=30):
+        async def openai_transport(prompt, key, base, timeout=30, model=None):
             transports.append("openai")
             return {"ok": True}
 
@@ -481,7 +481,7 @@ class FailureReasonTest(unittest.TestCase):
                        "gemini_model": "gemini-2.5-flash", "openai_model": "gpt-4o-mini"}
 
     def test_provider_status_is_kept_as_the_reason(self):
-        async def failing(prompt, key, *, timeout=30, scan=False):
+        async def failing(prompt, key, *, timeout=30, scan=False, model=None):
             sink = ai_service.usage_sink.get()
             if sink is not None:
                 sink.append({"provider": "gemini", "model": "gemini-2.5-flash",

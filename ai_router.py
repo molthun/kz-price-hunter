@@ -177,7 +177,12 @@ async def run(task: str, prompt: str, *, deterministic: Optional[Callable[[], An
 
     last_error = None
     for index, provider in enumerate(order):
-        model = config.get(f"{provider}_model") or provider
+        # В режиме «Авто» модель выбирается из списка провайдера, а не берётся из зашитого имени:
+        # зашитое уже успело устареть и дать тысячу отказов подряд (24.09.2026)
+        if str(config.get(f"{provider}_model_mode") or "auto") == "manual":
+            model = config.get(f"{provider}_model") or provider
+        else:
+            model = await ai_service.auto_model(provider, config) or config.get(f"{provider}_model") or provider
         started = time.monotonic()
         calls: list = []
         token = ai_service.usage_sink.set(calls)
@@ -185,12 +190,14 @@ async def run(task: str, prompt: str, *, deterministic: Optional[Callable[[], An
             if provider == "gemini":
                 data = await ai_service.call_gemini_api(prompt, config["gemini_api_key"],
                                                         timeout=cfg["timeout"],
-                                                        scan=audience(task) == INTERNAL)
+                                                        scan=audience(task) == INTERNAL,
+                                                        model=model)
             else:
                 data = await ai_service.call_openai_api(prompt, config["openai_api_key"],
                                                         config.get("openai_api_base") or "",
                                                         timeout=cfg["timeout"],
-                                                        scan=audience(task) == INTERNAL)
+                                                        scan=audience(task) == INTERNAL,
+                                                        model=model)
         except Exception as e:                      # таймаут, сеть, неожиданный ответ провайдера
             data, last_error = None, type(e).__name__
         finally:

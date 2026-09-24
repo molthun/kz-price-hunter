@@ -218,3 +218,163 @@ class PriceSurvivesReadTest(unittest.TestCase):
         config.save_settings({"ai_model_prices": {"gpt-5": {"input": 1.25, "output": 10.0}}})
         config.save_settings({"candidate_drop_pct": 33})
         self.assertIn("gpt-5", config.load_settings()["ai_model_prices"])
+
+
+class AutoModelDefaultsAndFallbackTest(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        data_dir = type(DB_PATH)(self.tmp.name)
+        for p in [patch.object(database, "DB_PATH", data_dir / "prices.db"),
+                  patch("config.DATA_DIR", data_dir),
+                  patch("config.SETTINGS_FILE", data_dir / "settings.json")]:
+            p.start()
+            self.addCleanup(p.stop)
+        database.init_db()
+
+    def test_defaults_are_used_until_the_list_answers(self):
+        """Значения по умолчанию — только запасной вариант: рабочую модель выбирает список провайдера."""
+        import config
+        cfg = config.get_ai_config()
+        self.assertEqual(cfg["gemini_model"], config.DEFAULT_SETTINGS["gemini_model"])
+        self.assertEqual(cfg["openai_model"], config.DEFAULT_SETTINGS["openai_model"])
+
+    async def test_gemini_fallback_on_404_or_503(self):
+        calls = []
+
+        class FakeResp:
+            def __init__(self, status, payload):
+                self.status = status
+                self._payload = payload
+
+            async def json(self):
+                return self._payload
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+        class FakeSession:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+            def post(self, url, json=None, **kwargs):
+                model = url.split("/models/")[1].split(":")[0]
+                calls.append(model)
+                if model == "gemini-3.5-flash-lite":
+                    return FakeResp(404, {"error": "not found"})
+                if model == "gemini-3.1-flash-lite":
+                    return FakeResp(503, {"error": "unavailable"})
+                # Третья модель успешно отвечает
+                return FakeResp(200, {
+                    "candidates": [{
+                        "content": {
+                            "parts": [{"text": '{"clean_query": "ноутбук"}'}]
+                        }
+                    }],
+                    "usageMetadata": {"promptTokenCount": 50, "candidatesTokenCount": 20}
+                })
+
+        with patch.object(ai_service.aiohttp, "ClientSession", FakeSession):
+            res = await ai_service._call_gemini_api("тест", "api-key")
+
+        self.assertIsNotNone(res)
+        self.assertEqual(res.get("clean_query"), "ноутбук")
+        self.assertEqual(calls[:3], ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.5-flash"])
+
+    async def test_gemini_manual_mode_does_not_silently_fallback(self):
+        calls = []
+
+        class FakeResp:
+            def __init__(self, status):
+                self.status = status
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+        class FakeSession:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+            def post(self, url, **kwargs):
+                model = url.split("/models/")[1].split(":")[0]
+                calls.append(model)
+                return FakeResp(404)
+
+        import config
+        config.save_settings({"gemini_model_mode": "manual", "gemini_model": "custom-gemini"})
+        with patch.object(ai_service.aiohttp, "ClientSession", FakeSession):
+            res = await ai_service._call_gemini_api("тест", "api-key")
+
+        self.assertIsNone(res)
+        self.assertEqual(calls, ["custom-gemini"], "В ручном режиме нельзя молча подменять выбранную модель")
+
+    async def test_openai_fallback_on_error(self):
+        calls = []
+
+        class FakeResp:
+            def __init__(self, status, payload):
+                self.status = status
+                self._payload = payload
+
+            async def json(self):
+                return self._payload
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+        class FakeSession:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+            def post(self, url, json=None, **kwargs):
+                model = json.get("model")
+                calls.append(model)
+                if model == "gpt-4o-mini":
+                    return FakeResp(503, {"error": "busy"})
+                return FakeResp(200, {
+                    "choices": [{
+                        "message": {"content": '{"clean_query": "пылесос"}'}
+                    }],
+                    "usage": {"prompt_tokens": 30, "completion_tokens": 10}
+                })
+
+        # Запасные берутся из списка провайдера: имена больше не зашиты в код
+        ai_service._auto_model_cache["openai"] = {"model": "gpt-4o-mini", "at": 9e9,
+                                                  "names": ["gpt-4o-mini", "gpt-5-mini"],
+                                                  "from_list": True, "error": None}
+        self.addCleanup(ai_service._auto_model_cache.clear)
+        with patch.object(ai_service.aiohttp, "ClientSession", FakeSession):
+            res = await ai_service._call_openai_api("тест", "sk-fake", "https://api.openai.com/v1",
+                                                    model="gpt-4o-mini")
+
+        self.assertIsNotNone(res, "сбой одной модели не должен останавливать работу")
+        self.assertEqual(res.get("clean_query"), "пылесос")
+        self.assertEqual(calls, ["gpt-4o-mini", "gpt-5-mini"])
+

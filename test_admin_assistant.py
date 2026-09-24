@@ -110,7 +110,7 @@ class AssistantWithDataTest(unittest.TestCase):
             conn.commit()
 
     def ask(self, question, model_answer=None, fail=False):
-        async def fake(prompt, key, *, timeout=30, scan=False):
+        async def fake(prompt, key, *, timeout=30, scan=False, model=None):
             self.prompt = prompt
             if fail:
                 return None

@@ -1423,7 +1423,7 @@
               <span class="text-[10px] text-slate-500 mt-1 block">Ключ Google Gemini. Модель выбирается ниже.</span>
               <label for="selectGeminiModelMode" class="block text-xs text-slate-300 mt-3 mb-1">Модель Gemini</label>
               <select id="selectGeminiModelMode" onchange="syncAiModelInputs()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
-                <option value="auto">Авто — модель проекта по умолчанию</option>
+                <option value="auto">Авто (gemini-3.5-flash-lite — быстрая, свежая, экономичная)</option>
                 <option value="manual">Указать вручную</option>
               </select>
               <select id="listGeminiModels" aria-label="Модели Gemini по вашему ключу" disabled
@@ -1443,7 +1443,7 @@
               <span class="text-[10px] text-slate-500 mt-1 block">Ключ OpenAI или совместимого сервиса. Модель выбирается ниже.</span>
               <label for="selectOpenAiModelMode" class="block text-xs text-slate-300 mt-3 mb-1">Модель OpenAI</label>
               <select id="selectOpenAiModelMode" onchange="syncAiModelInputs()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
-                <option value="auto">Авто — модель проекта по умолчанию</option>
+                <option value="auto">Авто (gpt-4o-mini — быстрая, экономичная)</option>
                 <option value="manual">Указать вручную</option>
               </select>
               <select id="listOpenAiModels" aria-label="Модели OpenAI по вашему ключу" disabled
@@ -4906,7 +4906,7 @@
         const { settings: s, bot, ai } = await res.json();
 
         document.getElementById('selectAiProvider').value = s.ai_provider || 'auto';
-        for (const [key, name, fallback] of [['gemini', 'Gemini', 'gemini-2.5-flash'], ['openai', 'OpenAi', 'gpt-4o-mini']]) {
+        for (const [key, name, fallback] of [['gemini', 'Gemini', 'gemini-3.5-flash-lite'], ['openai', 'OpenAi', 'gpt-4o-mini']]) {
           document.getElementById(`select${name}ModelMode`).value = s[`${key}_model_mode`] || 'auto';
           document.getElementById(`input${name}Model`).value = s[`${key}_model`] || fallback;
         }

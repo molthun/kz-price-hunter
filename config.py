@@ -290,13 +290,13 @@ SYSTEM_DEFAULTS = {
     "ai_search_enabled": True,
     "ai_provider": "auto",
     "gemini_model_mode": "auto",
-    "gemini_model": "gemini-2.5-flash",
+    "gemini_model": "gemini-3.5-flash-lite",
     "openai_model_mode": "auto",
     "openai_model": "gpt-4o-mini",
     # Шаг включения адаптивного планировщика (P11). По умолчанию выключено: обходы идут прежним порядком,
     # расширение — только вручную владельцем, откат — автоматический по согласованным порогам.
     "adaptive_scheduler_stage": "off",
-    # Цены моделей задаёт администратор: {"gemini-2.5-flash": {"input": 0.3, "output": 2.5}} — доллары за
+    # Цены моделей задаёт администратор: {"gemini-3.5-flash-lite": {"input": 0.3, "output": 2.5}} — доллары за
     # миллион токенов. Пустое значение означает «цена неизвестна», и расход в деньгах не показывается:
     # тарифы меняются, и зашитая в код цифра вводила бы в заблуждение (P08).
     "ai_model_prices": {},
@@ -425,7 +425,7 @@ def get_ai_config():
         "ai_provider": selection,
         "gemini_model_mode": sys_settings.get("gemini_model_mode", "auto"),
         "openai_model_mode": sys_settings.get("openai_model_mode", "auto"),
-        "gemini_model": sys_settings.get("gemini_model", "gemini-2.5-flash") if sys_settings.get("gemini_model_mode") == "manual" else "gemini-2.5-flash",
+        "gemini_model": sys_settings.get("gemini_model", "gemini-3.5-flash-lite") if sys_settings.get("gemini_model_mode") == "manual" else "gemini-3.5-flash-lite",
         "openai_model": sys_settings.get("openai_model", "gpt-4o-mini") if sys_settings.get("openai_model_mode") == "manual" else "gpt-4o-mini",
         "gemini_api_key": gemini_key,
         "openai_api_key": openai_key,

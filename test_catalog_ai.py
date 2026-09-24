@@ -111,7 +111,7 @@ class ResolveTest(unittest.TestCase):
         self.addCleanup(ai_router._CACHE.clear)
 
     def fake_provider(self):
-        async def fake(prompt, key, *, timeout=30, scan=False):
+        async def fake(prompt, key, *, timeout=30, scan=False, model=None):
             self.calls.append(prompt)
             sink = ai_service.usage_sink.get()
             if sink is not None:
