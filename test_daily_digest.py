@@ -350,6 +350,9 @@ class TelegramDigestTest(unittest.TestCase):
         self.admins = patch("config.ADMIN_TELEGRAM_IDS", {501})
         self.admins.start()
         self.addCleanup(self.admins.stop)
+        self.time_patch = patch("time.time", return_value=NOW.timestamp() + 60)
+        self.time_patch.start()
+        self.addCleanup(self.time_patch.stop)
         self.view = {"enabled": True, "hour": 10, "tz": "UTC"}
 
     def outbox(self):

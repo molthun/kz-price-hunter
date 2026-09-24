@@ -750,3 +750,56 @@ class NewSourcesEndProofTest(unittest.TestCase):
                 '<a href="/catalogue/other/?page=99">99</a>')
         self.assertEqual(pagination_last_page(html, "https://lemanapro.kz/catalogue/instr/", "page"), 7)
         self.assertIsNone(pagination_last_page("<a href='/x'>x</a>", "https://lemanapro.kz/catalogue/instr/", "page"))
+
+    def test_lemanapro_initial_state_json_parsing(self):
+        from scrapers.lemanapro import LemanaProScraper
+        s = LemanaProScraper()
+        mock_json_html = '''
+        <!DOCTYPE html><html><head><title>Test</title></head><body>
+        <script>
+        window.INITIAL_STATE = window.INITIAL_STATE || {};
+        window.INITIAL_STATE["plp"] = {
+            "plp": {
+                "plp": {
+                    "products": {
+                        "productsCount": 35,
+                        "productsData": [
+                            {
+                                "displayedName": "Перфоратор сетевой Rockfield 900 Вт",
+                                "productLink": "/product/perforator-rockfield-89348566/",
+                                "price": {"main_price": 32500, "previous_price": 38900},
+                                "mediaMainPhoto": {"tablet": "https://cdn.example.kz/photo.png"}
+                            }
+                        ]
+                    }
+                }
+            }
+        };
+        </script>
+        </body></html>
+        '''
+        res = s._parse_html(mock_json_html, "Перфораторы", "https://lemanapro.kz/catalogue/perforatory/", 1)
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0]["id"], "89348566")
+        self.assertEqual(res[0]["title"], "Перфоратор сетевой Rockfield 900 Вт")
+        self.assertEqual(res[0]["price"], 32500)
+        self.assertEqual(res[0]["old_price_on_site"], 38900)
+        self.assertEqual(res[0]["url"], "https://lemanapro.kz/product/perforator-rockfield-89348566/")
+        self.assertEqual(res[0]["image_url"], "https://cdn.example.kz/photo.png")
+        self.assertFalse(res.complete)  # 35 items total -> page 1 is not complete
+
+        # Page 2 should be complete
+        res2 = s._parse_html(mock_json_html, "Перфораторы", "https://lemanapro.kz/catalogue/perforatory/", 2)
+        self.assertTrue(res2.complete)
+
+    def test_lemanapro_servicepipe_challenge_detection(self):
+        from scrapers.lemanapro import LemanaProScraper
+        s = LemanaProScraper()
+        challenge_html = '''
+        <!DOCTYPE html><html><head>
+        <script src="https://servicepipe.tech/loaders/02d8e3391586a9c546d30b2958b58ca4.js"></script>
+        </head><body><div id="id_spinner"><js-challenge-loader></js-challenge-loader></div></body></html>
+        '''
+        self.assertTrue(s._is_challenge(challenge_html))
+        self.assertTrue(s._is_challenge(""))
+        self.assertFalse(s._is_challenge("<html><body><h1>Каталог</h1></body></html>"))
