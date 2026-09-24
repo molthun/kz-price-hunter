@@ -994,4 +994,64 @@ class NewSourcesEndProofTest(unittest.TestCase):
         with self.assertRaises(UnconfirmedEnd):
             s._fetch_page("Обувь", "https://intertop.kz/catalog/shoes/", 3)
 
+    def test_marwin_retry_on_transient_error(self):
+        from unittest.mock import Mock, patch
+        from scrapers.marwin import MarwinScraper
+
+        s = MarwinScraper()
+        resp502 = Mock(status_code=502)
+        html_ok = '''
+        <html><body>
+        <div class="product-item-info" data-product-id="555">
+            <a class="product-item-link" href="/books/item555.html" data-product-name="Гарри Поттер">Гарри Поттер</a>
+            <span data-price-type="finalPrice" data-price-amount="4500"></span>
+            <img class="product-image-photo" data-src="https://simg.marwin.kz/hp.jpg" />
+        </div>
+        <div class="pages">
+            <ul class="pages-items"><li class="item"><a class="page" href="?p=2"><span>2</span></a></li></ul>
+        </div>
+        </body></html>
+        '''
+        resp200 = Mock(status_code=200, text=html_ok)
+        session = Mock(get=Mock(side_effect=[resp502, resp200]))
+        s.session = session
+
+        with patch("time.sleep", return_value=None):
+            res = s._fetch_page("Книги", "https://www.marwin.kz/books/", 1)
+
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0]["id"], "marwin_555")
+        self.assertEqual(res[0]["price"], 4500)
+        self.assertFalse(res.complete)
+        self.assertEqual(session.get.call_count, 2)
+
+    def test_marwin_completion_and_unconfirmed_end(self):
+        from unittest.mock import Mock
+        from scrapers.marwin import MarwinScraper
+        from scrapers.base import UnconfirmedEnd
+
+        s = MarwinScraper()
+        html_p2 = '''
+        <html><body>
+        <div class="product-item-info" data-product-id="556">
+            <a class="product-item-link" href="/books/item556.html" data-product-name="Властелин Колец">Властелин Колец</a>
+            <span data-price-type="finalPrice" data-price-amount="6000"></span>
+        </div>
+        <div class="pages">
+            <ul class="pages-items"><li class="item"><a class="page" href="?p=2"><span>2</span></a></li></ul>
+        </div>
+        </body></html>
+        '''
+        session = Mock(get=Mock(return_value=Mock(status_code=200, text=html_p2)))
+        s.session = session
+
+        res2 = s._fetch_page("Книги", "https://www.marwin.kz/books/", 2)
+        self.assertEqual(len(res2), 1)
+        self.assertTrue(res2.complete)
+
+        session.get = Mock(return_value=Mock(status_code=200, text="<html><body><div>Пусто</div></body></html>"))
+        with self.assertRaises(UnconfirmedEnd):
+            s._fetch_page("Книги", "https://www.marwin.kz/books/", 3)
+
+
 

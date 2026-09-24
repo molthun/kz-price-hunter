@@ -4,18 +4,19 @@
 
 ## Текущая контрольная точка
 
-- Дата: 2026-09-24, Asia/Almaty. Завершена реализация: **Подключение 27-го магазина «Интертоп» (intertop.kz)** и подготовка релиза **v5.20.0**.
+- Дата: 2026-09-24, Asia/Almaty. Завершена реализация: **Подключение 28-го магазина «Меломан / MARWIN» (marwin.kz)** и подготовка релиза **v5.21.0**.
 - **Исполнитель:** Antigravity.
-- **Область файлов:** `scrapers/intertop.py`, `config.py`, `web/server.py`, `product_details.py`, `web/templates/index.html`, `SOURCES.md`, `README.md`, `version.py`, `CHANGELOG.md`, `test_scraper_contract.py`, `test_scraper_reliability.py`, `test_monitor.py`, `docs/AGENT_HANDOFF.md`.
+- **Область файлов:** `scrapers/marwin.py`, `config.py`, `web/server.py`, `product_details.py`, `web/templates/index.html`, `SOURCES.md`, `README.md`, `version.py`, `CHANGELOG.md`, `test_scraper_contract.py`, `test_scraper_reliability.py`, `test_monitor.py`, `docs/AGENT_HANDOFF.md`.
 - **Что сделано:**
-  - Закрыта товарная категория «Одежда и обувь» (`clothes`). «Интертоп» — крупнейшая мультибрендовая сеть Казахстана (Geox, Ecco, Tommy Hilfiger, Skechers, Clarks, Timberland, Puma, Nike и др.).
-  - Реализован `IntertopScraper(PagedScraper)`: SSR HTML-каталог с карточками `.in-product-tile`, цены со скидкой и зачёркнутые старые цены (`in-price__actual` / `in-price__regular`), артикулы SKU, прямые ссылки, CDN-фотографии `kz.media.intertop.com`, определение конца каталога через `pagination_last_page`.
-  - Подключены 8 категорий (скидки, мужская/женская/детская одежда и обувь, аксессуары).
-  - Зарегистрирован магазин в `SHOP_REGISTRY`, `SHOP_KEYS`, добавлена поддержка карточек товаров в `STORE_DOMAINS`.
-  - В веб-интерфейсе добавлены иконка в шапке, отображение в настройках магазинов администратора (`checkShopIntertop`) и метаданные.
-  - Покрыто unit-тестами: контракт скрапера, валидация полей, mock-парсинг HTML, retry при ошибках 5xx, определение конца пагинации и проверка реестра.
-  - Обновлены `SOURCES.md`, `README.md`, `version.py` (5.20.0), `CHANGELOG.md`.
+  - Подключен холдинг «Меломан / MARWIN» — лидер рынка Казахстана по книгам, настольным играм, игрушкам, LEGO, канцелярии, геймингу и музыке/винилу.
+  - Реализован `MarwinScraper(PagedScraper)`: SSR HTML (Magento 2) с карточками `.product-item-info`, ценами `data-price-type="finalPrice"` / `data-price-type="oldPrice"`, CDN-фотографиями `simg.marwin.kz`, пагинацией `?p=N` через `pagination_last_page` и живым поиском `/catalogsearch/result/?q=`.
+  - Подключены 9 категорий (книги, консоли/видеоигры, игрушки, LEGO, настольные игры, творчество, канцелярия, музыка/винил, сладости/подарки).
+  - Магазин зарегистрирован в `SHOP_REGISTRY`, `SHOP_KEYS`, домены `marwin.kz` и `meloman.kz` добавлены в `STORE_DOMAINS`.
+  - В интерфейсе добавлены иконка в шапке, чекбокс `checkShopMarwin` в модальном окне настроек сканирования и метаданные.
+  - Написаны тесты контракта, парсинга, поиска, retry при ошибках 5xx и определения конца каталога.
+  - Обновлены `SOURCES.md`, `README.md`, `version.py` (5.21.0), `CHANGELOG.md`.
 - **Предыдущие релизы дня:**
+  - **v5.20.0:** подключение 27-го магазина — сеть обуви и одежды «Интертоп» (intertop.kz).
   - **v5.19.0:** подключение 26-го магазина — розничная сеть «Магнум» (magnum.kz).
   - **v5.18.0:** подъём всего ПО до последних стабильных версий (Python 3.14, playwright 1.63, Ubuntu 26.04).
   - **v5.17.5:** починка импорта Tuple для static contract test.

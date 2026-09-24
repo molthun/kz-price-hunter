@@ -17,12 +17,13 @@ from scrapers.arbuz import ArbuzScraper
 from scrapers.masterok import MasterOkScraper
 from scrapers.magnum import MagnumScraper
 from scrapers.intertop import IntertopScraper
+from scrapers.marwin import MarwinScraper
 
 
 class ScraperContractTest(unittest.TestCase):
     def test_scraper_classes_conform_to_contract(self):
         # Check standard scrapers
-        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper, LemanaProScraper, ArbuzScraper, MasterOkScraper, MagnumScraper, IntertopScraper):
+        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper, LemanaProScraper, ArbuzScraper, MasterOkScraper, MagnumScraper, IntertopScraper, MarwinScraper):
             self.assertTrue(hasattr(cls, "SHOP_NAME"), f"{cls} must define SHOP_NAME")
             self.assertTrue(callable(getattr(cls, "scrape", None)), f"{cls} must define scrape")
             self.assertTrue(callable(getattr(cls, "close", None)), f"{cls} must define close")
@@ -467,6 +468,86 @@ class ScraperContractTest(unittest.TestCase):
         self.assertEqual(item["city"], "Алматы / Казахстан")
         scraper.close()
         self.assertIsNone(scraper.session)
+
+    def test_marwin_parsing_mock(self):
+        from unittest.mock import MagicMock
+        scraper = MarwinScraper()
+        mock_html = '''
+        <html><body>
+        <li class="product-item">
+            <div class="product-item-info" data-product-id="3595999">
+                <a class="product-item-photo" href="/press/banner.html">
+                    <img class="product-image-photo" data-src="https://simg.marwin.kz/media/catalog/product/ps5.png" alt="PS5" />
+                </a>
+                <strong class="product-item-name">
+                    <a class="product-item-link" href="https://www.marwin.kz/videogames/ps5.html" data-product-name="Игровая консоль PlayStation 5 Slim">
+                        Игровая консоль PlayStation 5 Slim
+                    </a>
+                </strong>
+                <div class="price-box">
+                    <span data-price-type="oldPrice" data-price-amount="420000"></span>
+                    <span data-price-type="finalPrice" data-price-amount="389990">
+                        <span class="price">389 990 ₸</span>
+                    </span>
+                </div>
+            </div>
+        </li>
+        <div class="pages">
+            <ul class="pages-items">
+                <li class="item"><a class="page" href="?p=2"><span>2</span></a></li>
+            </ul>
+        </div>
+        </body></html>
+        '''
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = mock_html
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        scraper.session = mock_session
+
+        items = scraper._fetch_page("Видеоигры и консоли", "https://www.marwin.kz/videogames/", 1)
+        self.assertEqual(len(items), 1)
+        item = items[0]
+        self.assertEqual(item["id"], "marwin_3595999")
+        self.assertEqual(item["sku"], "3595999")
+        self.assertEqual(item["shop"], "Меломан")
+        self.assertEqual(item["title"], "Игровая консоль PlayStation 5 Slim")
+        self.assertEqual(item["price"], 389990)
+        self.assertEqual(item["old_price_on_site"], 420000)
+        self.assertEqual(item["url"], "https://www.marwin.kz/videogames/ps5.html")
+        self.assertEqual(item["image_url"], "https://simg.marwin.kz/media/catalog/product/ps5.png")
+        self.assertEqual(item["city"], "Алматы / Казахстан")
+        self.assertFalse(items.complete)
+        scraper.close()
+        self.assertIsNone(scraper.session)
+
+    def test_marwin_live_search_mock(self):
+        from unittest.mock import MagicMock
+        scraper = MarwinScraper()
+        mock_html = '''
+        <html><body>
+        <div class="product-item-info" data-product-id="123">
+            <a class="product-item-link" href="https://www.marwin.kz/books/lego.html">Книга LEGO</a>
+            <span data-price-type="finalPrice" data-price-amount="5000"></span>
+            <img class="product-image-photo" src="https://simg.marwin.kz/img.jpg" />
+        </div>
+        </body></html>
+        '''
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = mock_html
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        scraper.session = mock_session
+
+        results = scraper.search_live("LEGO", limit=5)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["title"], "Книга LEGO")
+        self.assertEqual(results[0]["price"], 5000)
+        scraper.close()
 
 
 if __name__ == "__main__":

@@ -18,7 +18,7 @@ A — feed/API владельца с документированным назн
 
 Изображения сохраняются ссылками, server image proxy/cache не обнаружен. Browser и Telegram могут получать их с внешнего источника. Description используется в UI и может дополнительно сохраняться через guest product-detail GET для любого магазина. Его отсутствие в конкретном parser не означает отсутствие копирования текста в целом.
 
-## Матрица 27 источников
+## Матрица 28 источников
 
 | Модуль / класс | Тип / механизм | Timeout / pacing | Session, pagination, retry | Поля и ограничения |
 |---|---|---|---|---|
@@ -49,6 +49,7 @@ A — feed/API владельца с документированным назн
 | `scrapers/masterok.py` / `MasterOkScraper` | D + B; masterok.kz Bitrix HTML + Schema.org Product | 20 с; 0.4 с | Session chrome124; ?PAGEN_1=N; seen_ids→complete | id/sku/title/price/old_price/description/image_url; Алматы; описание есть |
 | `scrapers/magnum.py` / `MagnumScraper` | A; magnum.kz:1337 Strapi JSON API /api/new-product | 20 с; 0.3 с | Session chrome124; city={slug}&cunt=500{&category=slug}; конец доказан (полный список за 1 запрос) → complete | id/name/final_price/start_price/image/discount_type; Алматы/регионы; описание conditions |
 | `scrapers/intertop.py` / `IntertopScraper` | D; intertop.kz SSR HTML .in-product-tile | 20 с; 0.4 с | Session chrome124; ?page=N; retry 5xx; **конец доказан** номером последней страницы в пагинации (pagination_last_page) | id/sku/brand+title/price/old_price/image_url; Алматы / Казахстан; описание нет |
+| `scrapers/marwin.py` / `MarwinScraper` | D; marwin.kz SSR HTML (Magento 2) .product-item-info | 20 с; 0.4 с | Session chrome124; ?p=N; retry 5xx; **конец доказан** номером последней страницы в пагинации (pagination_last_page); живой поиск /catalogsearch/result/ | id/sku/title/price/old_price/image_url; Алматы / Казахстан; описание есть |
 
 ## Пути вне основного фонового scan
 
@@ -483,6 +484,20 @@ A — feed/API владельца с документированным назн
 | Интертоп: 👟 Детская обувь | clothes | `https://intertop.kz/catalog/detskaya_obuv/` | 10 |
 | Интертоп: 👕 Детская одежда | clothes | `https://intertop.kz/catalog/detskaya_odezhda/` | 10 |
 | Интертоп: 🎒 Аксессуары | clothes | `https://intertop.kz/catalog/aksessuary/` | 10 |
+
+### MarwinScraper — 9 настроенных источников категории
+
+| Категория | Master | URL/query | max_pages |
+|---|---|---|---|
+| Меломан: 📚 Книги | household | `https://www.marwin.kz/books/` | 10 |
+| Меломан: 🎮 Видеоигры и консоли | consoles | `https://www.marwin.kz/videogames/` | 10 |
+| Меломан: 🧸 Игрушки и развлечения | household | `https://www.marwin.kz/toys-and-entertainment/` | 10 |
+| Меломан: 🧱 Конструкторы LEGO | household | `https://www.marwin.kz/toys-and-entertainment/lego/` | 10 |
+| Меломан: 🎲 Настольные игры | household | `https://www.marwin.kz/toys-and-entertainment/nastol-nye-igry/` | 10 |
+| Меломан: 🎨 Творчество и хобби | household | `https://www.marwin.kz/tvorchestvo-19692/` | 10 |
+| Меломан: ✏️ Школа и канцелярия | office_network | `https://www.marwin.kz/shkola-kancelyariya-19236/` | 10 |
+| Меломан: 🎵 Музыка и винил | audio | `https://www.marwin.kz/music/` | 10 |
+| Меломан: 🍬 Сладости и подарки | grocery | `https://www.marwin.kz/food-items/` | 10 |
 
 ## Перед подключением следующего магазина
 
