@@ -20,7 +20,7 @@ class DNSScraper:
         async with async_playwright() as p:
             browser = await p.chromium.launch(
                 headless=True,
-                args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]
+                args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu", "--disable-blink-features=AutomationControlled"]
             )
             try:
                 return await self._scrape_with_browser(browser, category_name, category_url, max_pages, products)
@@ -36,11 +36,42 @@ class DNSScraper:
             viewport={"width": 1920, "height": 1080}
         )
 
+        if hasattr(context, "add_init_script"):
+            res = context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+            if asyncio.iscoroutine(res):
+                await res
+
         await context.add_cookies([
             {"name": "city_path", "value": "astana", "domain": ".dns-shop.kz", "path": "/"}
         ])
 
         page = await context.new_page()
+
+        # Словарь для перехваченных AJAX цен и данных DNS: pid -> {"price": ..., "old_price": ...}
+        intercepted_data: Dict[str, Dict[str, Any]] = {}
+
+        async def _handle_response(resp):
+            try:
+                url = resp.url
+                if any(k in url for k in ("/ajax-state/", "/microdata/", "/product/buy", "product-buy")):
+                    ct = resp.headers.get("content-type", "")
+                    if resp.status == 200 and "application/json" in ct:
+                        body = await resp.json()
+                        if isinstance(body, dict):
+                            data_block = body.get("data") if isinstance(body.get("data"), dict) else body
+                            states = data_block.get("states", []) if isinstance(data_block, dict) else []
+                            for st in states:
+                                if isinstance(st, dict) and "id" in st:
+                                    code = str(st["id"])
+                                    price_info = st.get("price") or {}
+                                    cur = price_info.get("current") if isinstance(price_info, dict) else price_info
+                                    prev = price_info.get("previous") if isinstance(price_info, dict) else 0
+                                    intercepted_data[code] = {"price": cur, "old_price": prev}
+            except Exception:
+                pass
+
+        if hasattr(page, "on"):
+            page.on("response", _handle_response)
 
         for page_num in range(1, (max_pages or 2) + 1):
             url = category_url
@@ -89,11 +120,15 @@ class DNSScraper:
                         price_text = await price_el.inner_text() if price_el else ""
 
                     price = parse_price(price_text)
+                    if price <= 0 and pid in intercepted_data:
+                        price = parse_price(str(intercepted_data[pid].get("price") or 0))
                     if price <= 0:
                         continue
 
                     old_price_el = await el.query_selector(".product-buy__prev, .product-buy__price-sub, [class*='__prev']")
                     old_price = parse_price(await old_price_el.inner_text()) if old_price_el else 0
+                    if old_price <= 0 and pid in intercepted_data:
+                        old_price = parse_price(str(intercepted_data[pid].get("old_price") or 0))
 
                     products.append({
                         "shop": self.SHOP_NAME,

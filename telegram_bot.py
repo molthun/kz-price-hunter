@@ -79,6 +79,23 @@ async def send_tg_message(session: aiohttp.ClientSession, token: str, chat_id: i
         print(f"[Telegram Bot] Ошибка отправки сообщения: {type(e).__name__}")
 
 
+async def answer_callback_query(session: aiohttp.ClientSession, token: str, callback_query_id: str, text: str = "", show_alert: bool = False):
+    """Отправляет подтверждение на нажатие inline-кнопки в Telegram."""
+    if not session or not token or not callback_query_id:
+        return
+    url = f"https://api.telegram.org/bot{token}/answerCallbackQuery"
+    payload: Dict[str, Any] = {"callback_query_id": str(callback_query_id)}
+    if text:
+        payload["text"] = text
+    if show_alert:
+        payload["show_alert"] = True
+    try:
+        async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=5)):
+            pass
+    except Exception as e:
+        print(f"[Telegram Bot] Ошибка answerCallbackQuery: {type(e).__name__}")
+
+
 async def send_tg_chat_action(session: aiohttp.ClientSession, token: str, chat_id: int, action: str = "typing"):
     """Показывает статус 'набирает сообщение...' пока AI думает."""
     url = f"https://api.telegram.org/bot{token}/sendChatAction"
@@ -237,6 +254,35 @@ async def handle_ai_consultant_message(session: aiohttp.ClientSession, token: st
 
 async def process_telegram_update(session: aiohttp.ClientSession, token: str, update: Dict[str, Any]):
     """Обрабатывает одно входящее событие от Telegram."""
+    cq = update.get("callback_query")
+    if cq:
+        cq_id = str(cq.get("id") or "")
+        from_user = cq.get("from") or {}
+        user_id = from_user.get("id")
+        msg = cq.get("message") or {}
+        chat = msg.get("chat") or {}
+        chat_id = chat.get("id")
+
+        if chat.get("type") != "private" or not isinstance(user_id, int) or isinstance(user_id, bool) or user_id <= 0 or chat_id != user_id or from_user.get("is_bot"):
+            return
+        user = get_user(user_id)
+        if user and user.get("is_blocked"):
+            return
+        data = str(cq.get("data") or "").strip()
+        if data.startswith("unwatch:"):
+            try:
+                watch_id = int(data.split(":", 1)[1])
+                from database import delete_watch
+                deleted = delete_watch(user_id, watch_id)
+                if deleted:
+                    await answer_callback_query(session, token, cq_id, text="🔕 Наблюдение отключено")
+                    await send_tg_message(session, token, chat_id, "🔕 <b>Наблюдение отключено</b>\nВы больше не будете получать сообщения по этому товару.")
+                else:
+                    await answer_callback_query(session, token, cq_id, text="Наблюдение уже не активно")
+            except Exception as e:
+                await answer_callback_query(session, token, cq_id, text="Ошибка при отключении")
+        return
+
     msg = update.get("message")
     if not msg:
         return
@@ -292,7 +338,8 @@ class TelegramDispatcher:
     async def _worker(self):
         while True:
             update = await self.queue.get()
-            chat_id = (update.get("message") or {}).get("chat", {}).get("id")
+            msg = update.get("message") or (update.get("callback_query") or {}).get("message")
+            chat_id = (msg or {}).get("chat", {}).get("id")
             lock, count = self.chat_locks.get(chat_id, (asyncio.Lock(), 0))
             self.chat_locks[chat_id] = (lock, count + 1)
             try:

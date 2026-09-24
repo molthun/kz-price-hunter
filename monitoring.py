@@ -174,6 +174,8 @@ def _http_by_shop(conn, now: datetime.datetime) -> Dict[str, Dict[str, Any]]:
         agg["status_codes"] = dict(agg["status_codes"])
         agg["hosts"] = sorted(agg["hosts"])
         del agg["latency_sum_ms"]
+        total_errs = agg["errors"] + agg["status_4xx"] + agg["status_5xx"] + agg["status_429"] + agg["timeouts"] + agg["connection_errors"]
+        agg["error_pct"] = round((total_errs / agg["requests"]) * 100, 1) if agg["requests"] else 0.0
     return out
 
 
@@ -266,12 +268,36 @@ def shop_detail(key: str, name: str, categories: List[Dict[str, Any]], enabled: 
         "rejected": r["rejected"], "duplicates": r["duplicates"],
         "quality": worst_quality((r["qualities"] or "").split(",")),
     } for r in hist_rows]
+    baseline = sum(c["baseline"] or 0 for c in latest if c.get("baseline")) or None
+    last_items = (scan or {}).get("last_items") or 0
+    coverage_pct = round((last_items / baseline) * 100, 1) if (baseline and baseline > 0 and last_items) else (0.0 if (baseline and not last_items) else None)
+
+    import scheduler_shadow
+    sched_metrics = {
+        "requests": http.get("requests", 0),
+        "errors": http.get("errors", 0) + http.get("status_4xx", 0) + http.get("status_5xx", 0) + http.get("status_429", 0),
+        "blocked": http.get("status_429", 0) + http.get("cooldown_rejections", 0),
+        "latency_p95_ms": http.get("worst_hour_p95_ms", 0),
+        "bytes_total": http.get("bytes", 0),
+    }
+    profile_code, profile_reason = scheduler_shadow.source_profile(sched_metrics)
+    min_interval = scheduler_shadow.MIN_INTERVAL_HOURS.get(profile_code, 6.0)
+    adaptive_profile = {
+        "code": profile_code,
+        "label": scheduler_shadow.PROFILE_LABELS.get(profile_code, profile_code),
+        "reason": profile_reason,
+        "recommended_interval_hours": min_interval,
+    }
+
     for e in events:
         e["data"] = _loads(e.pop("data_json"))
+
     return {
         "shop_key": key, "name": name, "status": status, "reason": reason, "enabled": enabled,
         "scan": scan or {}, "freshness": data_quality.freshness((scan or {}).get("last_success_at"), now),
         "last_quality": q, "categories": category_rows, "http": http, "history": history, "events": events,
+        "baseline_items": baseline, "coverage_pct": coverage_pct,
+        "adaptive_profile": adaptive_profile,
         "incidents": [i for i in incidents(now=now, shop_keys={name: key})
                       if i.get("shop_key") == key or i.get("shop") in (name, key)][:SHOP_INCIDENTS_LIMIT],
     }
@@ -343,7 +369,19 @@ def search_section(now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
     errors = sum(1 for e in events if e["data"].get("outcome") == "error")
     status, reason = rate_status(len(events), errors)
     not_found = sum(1 for e in events if e["data"].get("outcome") == "not_found")
-    return {"status": status, "reason": reason, "total": len(events), "errors": errors, "not_found": not_found,
+    found = sum(1 for e in events if e["data"].get("outcome") == "found")
+    weak = sum(1 for e in events if e["data"].get("outcome") == "weak")
+    total = len(events)
+    success_rate = round((found / total) * 100, 1) if total else None
+    weak_rate = round((weak / total) * 100, 1) if total else None
+    not_found_rate = round((not_found / total) * 100, 1) if total else None
+
+    if total and status == HEALTHY:
+        reason = f"{total} поисков: {success_rate or 0}% успешных, {weak_rate or 0}% слабых, {not_found_rate or 0}% пусто"
+
+    return {"status": status, "reason": reason, "total": total, "errors": errors,
+            "found": found, "weak": weak, "not_found": not_found,
+            "success_rate": success_rate, "weak_rate": weak_rate, "not_found_rate": not_found_rate,
             "by_source": {k: dict(v) for k, v in by_source.items()},
             "p95_ms": calculate_p95(durations) if durations else None,
             "note": "Частые события поиска ограничены 60/мин на источник — это выборка, а не точный счётчик"}
@@ -449,14 +487,19 @@ def system_section(now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
         status, reason = DEGRADED, f"Системных ошибок за 24 ч: {len(errors)}"
     else:
         status, reason = HEALTHY, "Системных ошибок за 24 ч нет"
+    import environment as env
+    git_sha = env.git_sha()
+    uptime_sec = round(env.uptime_seconds())
+
     return {"status": status, "reason": reason, "version": version.__version__,
+            "git_sha": git_sha, "uptime_seconds": uptime_sec,
             "schema_version": schema[0] if schema else None, "python": sys.version.split()[0],
             "sqlite": _sqlite.sqlite_version, "db_size_bytes": size, "counts": {**counts, "active_products": active},
             "telemetry": {**telemetry.stats, "flusher_alive": flusher_alive}, "errors_24h": len(errors),
             "recent_errors": [{"timestamp": e["timestamp"], "component": e["component"],
                                "where": e["data"].get("where"), "error": e["data"].get("error"),
                                "route": e["data"].get("route")} for e in errors[:20]],
-            "note": "Git SHA, uptime и heartbeat компонентов — этап P14"}
+            "note": "Фактические версии пакетов и пульс работников — в блоках ниже"}
 
 
 # ---------------------------------------------------------------------------------------------- журнал и инциденты

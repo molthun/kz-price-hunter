@@ -154,6 +154,54 @@
       </div>`).join('');
   }
 
+  function shopAnomaliesBanner() {
+    const shops = (data && data.shops) || [];
+    const degradedShops = shops.filter(s => s.enabled && ['degraded', 'offline', 'empty'].includes(s.status));
+    const limitedShops = shops.filter(s => s.enabled && s.status === 'limited');
+    const healthyCount = shops.filter(s => s.enabled && s.status === 'healthy').length;
+
+    if (degradedShops.length === 0 && limitedShops.length === 0) {
+      return `
+        <div class="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-950/20 text-emerald-300 text-xs flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+            <span><b>Все активные магазины (${healthyCount})</b> работают штатно, без блокировок и потери каталога.</span>
+          </div>
+          <button data-section="shops" class="text-emerald-400 hover:underline">Подробнее →</button>
+        </div>`;
+    }
+
+    const items = [...degradedShops, ...limitedShops].map(s => {
+      const cov = (s.baseline_items && s.last_items) ? Math.round((s.last_items / s.baseline_items) * 100) : null;
+      const dropText = cov !== null && cov < 80 ? ` · каталог ${cov}% нормы` : '';
+      const errText = s.http_errors_24h > 0 ? ` · ошибок HTTP: ${num(s.http_errors_24h)}` : '';
+      return `
+        <div class="p-2.5 rounded-lg bg-dark-950 border border-amber-500/30 flex flex-wrap items-center justify-between gap-2">
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              ${pill(s.status)}
+              <span class="font-bold text-white text-xs">${esc(s.name)}</span>
+              <span class="text-[11px] text-amber-300">${dropText}${errText}</span>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-0.5 truncate">${esc(s.reason)}</p>
+          </div>
+          <button data-shop="${esc(s.shop_key)}" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 shrink-0">Диагностика ↗</button>
+        </div>`;
+    }).join('');
+
+    return `
+      <div class="p-4 rounded-2xl border border-amber-500/40 bg-amber-950/15 space-y-2.5">
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <span class="inline-block w-3 h-3 rounded-full bg-amber-400 animate-pulse"></span>
+            <h3 class="text-sm font-bold text-amber-200">Внимание: ${degradedShops.length + limitedShops.length} магазин(а) требуют проверки</h3>
+          </div>
+          <span class="text-xs text-slate-400">${healthyCount} в норме</span>
+        </div>
+        <div class="space-y-1.5">${items}</div>
+      </div>`;
+  }
+
   const VIEWS = {
     overview() {
       const s = data.sections;
@@ -163,6 +211,7 @@
       const summary = Object.keys(STATUS).filter(k => c[k]).map(k => `${pill(k)} <span class="text-sm mr-3">${c[k]}</span>`).join('');
       return `
         ${assistantBox()}
+        ${shopAnomaliesBanner()}
         <div id="dailyBox"><p class="text-sm text-slate-500">Собираю суточную сводку…</p></div>
         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">${cards}</div>
         ${card('Магазины по состоянию', `<div class="flex flex-wrap items-center gap-1">${summary || '<span class="text-sm text-slate-500">нет данных</span>'}</div>`)}
@@ -190,8 +239,14 @@
     },
     search() {
       const s = data.sections.search;
+      const ssRate = s.success_rate != null
+        ? `${num(s.success_rate)}% (найдено: ${num(s.found)}, слабо: ${num(s.weak)}, пусто: ${num(s.not_found)})`
+        : '—';
       return card('Поиск за 24 ч', `<p class="text-sm mb-2">${esc(s.reason)}</p>` + kv([
-        ['Запросов', num(s.total)], ['Ошибок', num(s.errors)], ['Ничего не найдено', num(s.not_found)],
+        ['Всего запросов', num(s.total)],
+        ['Search Success Rate', ssRate],
+        ['Ошибок поиска', num(s.errors)],
+        ['Ничего не найдено', num(s.not_found)],
         ['p95 длительности', s.p95_ms == null ? '—' : num(Math.round(s.p95_ms)) + ' мс']]) +
         details('По источникам', json(s.by_source)) + `<p class="text-xs text-slate-500 mt-2">${esc(s.note)}</p>`, s.status)
         + '<div id="searchAnalytics" class="mt-4"><p class="text-sm text-slate-500">Загружаю отчёт по поиску…</p></div>';
@@ -221,8 +276,18 @@
         + '<div id="backupsBox" class="mt-4"><p class="text-sm text-slate-500">Проверяю состояние копий…</p></div>'
         + '<div id="matchingShadow" class="mt-4"><p class="text-sm text-slate-500">Загружаю отчёт сопоставления…</p></div>';
       const errs = (s.recent_errors || []).map(e => `<li class="break-words">${ago(e.timestamp)} · ${esc(e.component)} · ${esc(e.where)} · ${esc(e.error)}${e.route ? ' · ' + esc(e.route) : ''}</li>`).join('');
+      const hours = s.uptime_seconds ? Math.floor(s.uptime_seconds / 3600) : 0;
+      const mins = s.uptime_seconds ? Math.floor((s.uptime_seconds % 3600) / 60) : 0;
+      const days = Math.floor(hours / 24);
+      const remHours = hours % 24;
+      const uptimeStr = s.uptime_seconds ? (days > 0 ? `${days} д ${remHours} ч` : `${hours} ч ${mins} мин`) : '—';
+
       return card('Система', `<p class="text-sm mb-2">${esc(s.reason)}</p>` + kv([
-        ['Версия', esc(s.version)], ['Схема БД', esc(s.schema_version)], ['Python / SQLite', `${esc(s.python)} / ${esc(s.sqlite)}`],
+        ['Версия приложения', esc(s.version)],
+        ['Git коммит', esc((s.git_sha || '—').slice(0, 12))],
+        ['Время работы (uptime)', uptimeStr],
+        ['Схема БД', esc(s.schema_version)],
+        ['Python / SQLite', `${esc(s.python)} / ${esc(s.sqlite)}`],
         ['Размер БД', num(Math.round((s.db_size_bytes || 0) / 1048576)) + ' МБ'],
         ['Товаров (активных)', `${num(s.counts.products)} (${num(s.counts.active_products)})`],
         ['События телеметрии', num(s.counts.telemetry_events)],
@@ -246,18 +311,54 @@
     },
   };
 
+  function eventIcon(e) {
+    if (e.severity === 'ERROR' || e.severity === 'CRITICAL') return '🔴';
+    if (e.severity === 'WARNING') return '⚠️';
+    if (e.component === 'search') return '🔍';
+    if (e.component === 'ai') return '🤖';
+    if (e.component === 'detector' || (e.type && e.type.includes('price'))) return '📉';
+    if (e.component === 'telegram') return '📱';
+    if (e.component === 'backup') return '💾';
+    if (e.component === 'scraper') return '🟢';
+    if (e.component === 'scheduler') return '⏱️';
+    if (e.component === 'http') return '🌐';
+    return 'ℹ️';
+  }
+
   function eventRows(list) {
-    if (!list.length) return '<p class="text-sm text-slate-500">Событий нет.</p>';
+    if (!list || !list.length) return '<p class="text-sm text-slate-500">Событий нет.</p>';
     const color = {ERROR: 'text-rose-300', CRITICAL: 'text-rose-300', WARNING: 'text-amber-300'};
-    return list.map(e => `
-      <details class="p-2 rounded-lg bg-dark-900 border border-slate-800">
-        <summary class="cursor-pointer text-sm flex flex-wrap gap-x-2 min-w-0">
-          <span class="text-slate-500 whitespace-nowrap">${ago(e.timestamp)}</span>
-          <span class="${color[e.severity] || 'text-slate-400'}">${esc(e.severity)}</span>
-          <span class="text-slate-400">${esc(e.component)}/${esc(e.type)}</span>
-          <span class="text-slate-200 break-words min-w-0">${esc(e.message)}</span></summary>
-        <div class="mt-2">${kv([['Магазин', esc(e.shop || '—')], ['Категория', esc(e.category || '—')], ['scan_id', esc(e.scan_id || '—')]])}${json(e.data)}</div>
-      </details>`).join('');
+    return list.map(e => {
+      const dt = new Date(e.timestamp);
+      const timeStr = !isNaN(dt) ? dt.toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'}) : '';
+      return `
+      <details class="group p-2.5 rounded-xl bg-dark-900 border border-slate-800/80 hover:border-slate-700 transition">
+        <summary class="cursor-pointer text-sm flex items-center justify-between gap-2 min-w-0 select-none">
+          <div class="flex items-center gap-2 min-w-0 flex-1">
+            <span class="text-xs font-mono text-slate-400 shrink-0">${esc(timeStr || ago(e.timestamp))}</span>
+            <span class="shrink-0 text-sm leading-none">${eventIcon(e)}</span>
+            ${e.shop ? `<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-slate-800 text-slate-200 border border-slate-700 shrink-0">${esc(e.shop)}</span>` : ''}
+            <span class="px-1.5 py-0.5 rounded text-[11px] font-mono bg-dark-950 text-slate-400 border border-slate-800 shrink-0">${esc(e.component)}</span>
+            <span class="text-slate-100 font-medium truncate">${esc(e.message)}</span>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="text-xs text-slate-500 whitespace-nowrap">${ago(e.timestamp)}</span>
+            <span class="text-xs text-slate-500 group-open:rotate-180 transition-transform">▼</span>
+          </div>
+        </summary>
+        <div class="mt-2.5 pt-2.5 border-t border-slate-800/80 text-xs">
+          ${kv([
+            ['Время события', esc(e.timestamp) + (timeStr ? ` (${timeStr})` : '')],
+            ['Уровень', `<span class="${color[e.severity] || 'text-slate-300'} font-semibold">${esc(e.severity)}</span>`],
+            ['Компонент / Тип', `${esc(e.component)} / ${esc(e.type)}`],
+            ['Магазин', esc(e.shop || '—')],
+            ['Категория', esc(e.category || '—')],
+            ['scan_id', esc(e.scan_id || '—')]
+          ])}
+          ${json(e.data)}
+        </div>
+      </details>`;
+    }).join('');
   }
 
   function queryRows(list) {
@@ -267,11 +368,20 @@
       <th class="pb-1 pr-3 text-right">Нашлось</th><th class="pb-1 pr-3 text-right">Слабо</th>
       <th class="pb-1 pr-3 text-right">Пусто</th><th class="pb-1 pr-3 text-right">Ошибок</th>
       <th class="pb-1 pr-3 text-right">Успех</th></tr></thead><tbody>` +
-      list.map(q => `<tr class="border-t border-slate-800"><td class="py-1 pr-3 break-words">${esc(q.normalized_query)}</td>
-        <td class="py-1 pr-3 text-slate-400">${esc(q.city || 'Все')}</td><td class="py-1 pr-3 text-right">${num(q.searches)}</td>
-        <td class="py-1 pr-3 text-right text-emerald-300">${num(q.found)}</td><td class="py-1 pr-3 text-right text-amber-300">${num(q.weak)}</td>
-        <td class="py-1 pr-3 text-right text-slate-300">${num(q.not_found)}</td><td class="py-1 pr-3 text-right text-rose-300">${num(q.error)}</td>
-        <td class="py-1 pr-3 text-right">${q.success_rate == null ? '—' : num(q.success_rate) + ' %'}</td></tr>`).join('') +
+      list.map(q => {
+        const rate = q.success_rate;
+        let badge = '<span class="text-slate-500">—</span>';
+        if (rate != null) {
+          const cls = rate >= 70 ? 'text-emerald-400 font-semibold' : rate >= 30 ? 'text-amber-400 font-semibold' : 'text-rose-400 font-semibold';
+          const icon = rate >= 70 ? '🟢' : rate >= 30 ? '🟠' : '🔴';
+          badge = `<span class="${cls}">${icon} ${num(rate)}%</span>`;
+        }
+        return `<tr class="border-t border-slate-800"><td class="py-1.5 pr-3 font-medium text-white break-words">${esc(q.normalized_query)}</td>
+        <td class="py-1.5 pr-3 text-slate-400">${esc(q.city || 'Все')}</td><td class="py-1.5 pr-3 text-right font-semibold">${num(q.searches)}</td>
+        <td class="py-1.5 pr-3 text-right text-emerald-300">${num(q.found)}</td><td class="py-1.5 pr-3 text-right text-amber-300">${num(q.weak)}</td>
+        <td class="py-1.5 pr-3 text-right text-slate-400">${num(q.not_found)}</td><td class="py-1.5 pr-3 text-right text-rose-300">${num(q.error)}</td>
+        <td class="py-1.5 pr-3 text-right">${badge}</td></tr>`;
+      }).join('') +
       '</tbody></table></div>';
   }
 
@@ -525,18 +635,23 @@
     const s = await api('/api/admin/monitoring/search');
     if (!s) { box.innerHTML = '<p class="text-sm text-rose-300">Не удалось загрузить отчёт по поиску.</p>'; return; }
     const c = s.counts || {};
+    const successRateBadge = s.success_rate != null
+      ? (s.success_rate >= 70 ? `<span class="text-emerald-400 font-bold">🟢 ${num(s.success_rate)}%</span>` : s.success_rate >= 40 ? `<span class="text-amber-400 font-bold">🟠 ${num(s.success_rate)}%</span>` : `<span class="text-rose-400 font-bold">🔴 ${num(s.success_rate)}%</span>`)
+      : '—';
+
     box.innerHTML = card(`Качество поиска за ${num(s.days)} дн.`, `<p class="text-sm mb-2">${esc(s.reason)}</p>` + kv([
-        ['Поисков', num(s.total)],
-        ['Доля успеха', s.success_rate == null ? '—' : num(s.success_rate) + ' %'],
+        ['Всего поисков', num(s.total)],
+        ['Search Success Rate', successRateBadge],
         ['Доля ошибок', s.error_rate == null ? '—' : num(s.error_rate) + ' %'],
         ['Нашлось / слабо / пусто / ошибка',
-          `${num(c.found)} / ${num(c.weak)} / ${num(c.not_found)} / ${num(c.error)}`],
+          `<span class="text-emerald-300">${num(c.found)}</span> / <span class="text-amber-300">${num(c.weak)}</span> / <span class="text-slate-400">${num(c.not_found)}</span> / <span class="text-rose-300">${num(c.error)}</span>`],
         ['Результатов в среднем', s.avg_results == null ? '—' : num(s.avg_results)]]) +
       `<p class="text-xs text-slate-500 mt-2">${esc(s.formula)}</p>` +
       details('По источникам', json(s.by_source)), s.status)
-      + card('Чаще всего ищут', queryRows(s.top_queries))
-      + card('Плохо отвечаем', queryRows(s.bad_queries) +
-        `<p class="text-xs text-slate-500 mt-2">${esc(s.note)}</p>`);
+      + card('🔥 Чаще всего ищут', queryRows(s.top_queries))
+      + card('⚠️ Что мы плохо находим (неудовлетворённый спрос)', queryRows(s.bad_queries) +
+        `<p class="text-xs text-amber-400/90 mt-2 font-medium">⚡️ Связь с планировщиком: запросы с исходом «пусто» или «слабо» автоматически увеличивают приоритет обхода соответствующих категорий в адаптивном планировщике (вес спроса x2.0).</p>` +
+        `<p class="text-xs text-slate-500 mt-1">${esc(s.note)}</p>`);
   }
 
   async function loadEvents() {
@@ -571,6 +686,28 @@
     const hist = d.history.map(r => `<tr class="border-t border-slate-800"><td class="py-1 pr-3 whitespace-nowrap">${ago(r.finished_at)}</td>
       <td class="py-1 pr-3">${esc(QUALITY[r.quality] || r.quality)}</td><td class="py-1 pr-3 text-right">${num(r.categories)}</td>
       <td class="py-1 pr-3 text-right">${num(r.valid)}</td><td class="py-1 pr-3 text-right">${num(r.rejected)} / ${num(r.duplicates)}</td></tr>`).join('');
+    function httpCodesBadges(statusCodes) {
+      if (!statusCodes || !Object.keys(statusCodes).length) return '<span class="text-slate-500">—</span>';
+      return Object.entries(statusCodes).sort((a,b) => a[0].localeCompare(b[0])).map(([code, count]) => {
+        const c = String(code);
+        let cls = 'bg-slate-800 text-slate-300 border-slate-700';
+        if (c.startsWith('2')) cls = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
+        else if (c.startsWith('3')) cls = 'bg-sky-500/20 text-sky-300 border-sky-500/40';
+        else if (c === '401' || c === '404') cls = 'bg-slate-800 text-slate-300 border-slate-600';
+        else if (c === '403') cls = 'bg-amber-500/20 text-amber-300 border-amber-500/40 font-semibold';
+        else if (c === '429') cls = 'bg-orange-500/20 text-orange-300 border-orange-500/40 font-semibold';
+        else if (c.startsWith('5')) cls = 'bg-rose-500/20 text-rose-300 border-rose-500/40 font-semibold';
+        return `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] border ${cls}"><span>${esc(code)}</span><span class="font-bold">${num(count)}</span></span>`;
+      }).join(' ');
+    }
+
+    const covText = d.coverage_pct != null
+      ? `${d.coverage_pct}% ${d.coverage_pct < 50 ? '<span class="text-rose-400 font-semibold">↓ деградация</span>' : '<span class="text-emerald-400">🟢</span>'}`
+      : '—';
+    const profileInfo = d.adaptive_profile
+      ? `${esc(d.adaptive_profile.label)} <span class="text-xs text-slate-400">(~${d.adaptive_profile.recommended_interval_hours} ч)</span>`
+      : '—';
+
     document.getElementById('shopModalBody').innerHTML = `
       <div class="flex flex-wrap items-center justify-between gap-2">
         <p class="text-sm text-slate-300 break-words min-w-0">${esc(d.reason)}</p>
@@ -578,13 +715,26 @@
       </div>
       <p id="scanShopResult" class="text-xs text-slate-400"></p>
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        ${card('Обходы', kv([['Последняя попытка', ago(sc.last_attempt_at)], ['Последний полный', ago(sc.last_success_at)],
-          ['Итог', esc(sc.status || 'нет данных')], ['Товаров', num(sc.last_items)], ['Длительность', num(sc.last_duration_sec) + ' с'],
-          ['Неудач подряд', num(sc.failure_count)], ['Свежесть', esc(d.freshness.freshness)], ['Причина', esc(sc.last_error || '—')]]))}
-        ${card('HTTP за 24 ч', h.requests ? kv([['Запросов', num(h.requests)], ['Средняя задержка', num(h.avg_latency_ms) + ' мс'],
-          ['p95 (худший час)', num(Math.round(h.worst_hour_p95_ms || 0)) + ' мс'], ['Коды', esc(Object.entries(h.status_codes || {}).map(([k, v]) => `${k}: ${v}`).join(', '))],
-          ['429 / отказы по паузе', `${num(h.status_429)} / ${num(h.cooldown_rejections)}`], ['Timeout / соединение', `${num(h.timeouts)} / ${num(h.connection_errors)}`],
-          ['Хосты', esc((h.hosts || []).join(', '))]]) : '<p class="text-sm text-slate-500">Нет HTTP-запросов за 24 ч — нет данных.</p>')}
+        ${card('Обходы и каталог', kv([
+          ['Последняя попытка', ago(sc.last_attempt_at)],
+          ['Последний полный', ago(sc.last_success_at)],
+          ['Итог обхода', esc(sc.status || 'нет данных')],
+          ['Товаров (сейчас / норма)', `${num(sc.last_items)} / ~${num(d.baseline_items)}`],
+          ['Покрытие каталога', covText],
+          ['Профиль сканирования', profileInfo],
+          ['Длительность', num(sc.last_duration_sec) + ' с'],
+          ['Неудач подряд', num(sc.failure_count)],
+          ['Свежесть цен', esc(d.freshness.freshness)],
+          ['Причина / ошибка', esc(sc.last_error || '—')],
+        ]))}
+        ${card('HTTP за 24 ч', h.requests ? kv([
+          ['Всего запросов', `${num(h.requests)} (${h.error_pct != null ? (h.error_pct > 20 ? `<span class="text-rose-400 font-bold">${h.error_pct}% ошибок</span>` : `${h.error_pct}% ошибок`) : ''})`],
+          ['Задержка: ср. / p95', `${(h.avg_latency_ms != null ? (h.avg_latency_ms / 1000).toFixed(1) + ' с' : '—')} / ${(h.worst_hour_p95_ms ? (h.worst_hour_p95_ms / 1000).toFixed(1) + ' с' : '—')}`],
+          ['Коды ответов', `<div class="flex flex-wrap gap-1.5 mt-0.5">${httpCodesBadges(h.status_codes)}</div>`],
+          ['429 / паузы (cooldown)', `${num(h.status_429)} / ${num(h.cooldown_rejections)}`],
+          ['Таймауты / ошибки сети', `${num(h.timeouts)} / ${num(h.connection_errors)}`],
+          ['Хосты', esc((h.hosts || []).join(', '))],
+        ]) : '<p class="text-sm text-slate-500">Нет HTTP-запросов за 24 ч — нет данных.</p>')}
       </div>
       ${card(`Категории (${d.categories.length})`, `<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="text-xs text-slate-400 text-left"><tr>
         <th class="pb-1 pr-3">Категория</th><th class="pb-1 pr-3">Качество</th><th class="pb-1 pr-3">Вид</th><th class="pb-1 pr-3 text-right">Товаров</th>
@@ -635,7 +785,7 @@
   }
 
   function assistantBox() {
-    return card('Помощник администратора', `
+    return card('✨ Спросить KZ Price Hunter (Помощник администратора)', `
       <p class="text-sm text-slate-400 mb-2">Вопрос о состоянии сервиса. Цифры берутся из отчётов мониторинга, помощник работает только на чтение.</p>
       <div class="flex flex-wrap gap-2 items-end">
         <label class="flex flex-col text-xs text-slate-400 grow min-w-[14rem]">Вопрос
@@ -645,6 +795,12 @@
           <select id="askDays" class="mt-1 bg-dark-950 border border-slate-700 rounded-lg px-2 py-1.5 text-slate-200">
             <option value="7">7 дней</option><option value="14">14 дней</option><option value="30">30 дней</option></select></label>
         <button id="btnAsk" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm">Спросить</button>
+      </div>
+      <div class="flex flex-wrap gap-1.5 mt-2">
+        <button type="button" class="quick-ask px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700/60 transition cursor-pointer" data-prompt="почему в dns стало меньше товаров">🔍 Почему DNS потерял товары?</button>
+        <button type="button" class="quick-ask px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700/60 transition cursor-pointer" data-prompt="какие магазины сейчас сбоят и почему">⚠️ Какие магазины сбоят?</button>
+        <button type="button" class="quick-ask px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700/60 transition cursor-pointer" data-prompt="что пользователи ищут и не находят">🎯 Что ищут и не находят?</button>
+        <button type="button" class="quick-ask px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700/60 transition cursor-pointer" data-prompt="сделай краткую сводку по здоровью сервиса">📅 Сводка состояния</button>
       </div>
       <div id="askResult" class="mt-3 text-sm"></div>`);
   }
@@ -780,6 +936,15 @@
     if (scanBtn) { scanShop(scanBtn.dataset.scanShop, scanBtn); return; }
     const shop = e.target.closest('[data-shop]');
     if (shop) { openShop(shop.dataset.shop); return; }
+    const quickAskBtn = e.target.closest('.quick-ask');
+    if (quickAskBtn) {
+      const qInput = document.getElementById('askQ');
+      if (qInput) {
+        qInput.value = quickAskBtn.dataset.prompt || '';
+        askAssistant();
+      }
+      return;
+    }
     if (e.target.id === 'btnAsk') { askAssistant(); return; }
     if (e.target.id === 'btnDailyRefresh') { daily('refresh'); return; }
     if (e.target.id === 'btnDailySummary') { daily('summary'); return; }

@@ -30,6 +30,26 @@ class BotPrivacyTests(unittest.IsolatedAsyncioTestCase):
                 await bot.process_telegram_update(None,'fake',msg)
             self.assertEqual(ai.await_count,1)
 
+    async def test_callback_query_unwatch_invokes_delete_watch_and_answers(self):
+        cq = {'callback_query': {'id': 'cq1', 'from': {'id': 777}, 'message': {'chat': {'id': 777, 'type': 'private'}}, 'data': 'unwatch:42'}}
+        with patch('database.delete_watch', return_value=True) as dw, \
+             patch.object(bot, 'answer_callback_query', new_callable=AsyncMock) as acq, \
+             patch.object(bot, 'send_tg_message', new_callable=AsyncMock) as stm, \
+             patch.object(bot, 'get_user', return_value=None):
+            await bot.process_telegram_update(None, 'fake', cq)
+            dw.assert_called_once_with(777, 42)
+            acq.assert_awaited_once()
+            self.assertIn("отключено", acq.call_args[1].get("text", ""))
+            stm.assert_awaited_once()
+
+    async def test_callback_query_from_unauthorized_chat_is_ignored(self):
+        cq = {'callback_query': {'id': 'cq1', 'from': {'id': 777}, 'message': {'chat': {'id': 999, 'type': 'group'}}, 'data': 'unwatch:42'}}
+        with patch('database.delete_watch') as dw, \
+             patch.object(bot, 'answer_callback_query', new_callable=AsyncMock) as acq:
+            await bot.process_telegram_update(None, 'fake', cq)
+            dw.assert_not_called()
+            acq.assert_not_awaited()
+
     async def test_dispatcher_orders_dialog_and_shuts_down_workers(self):
         entered=asyncio.Event();release=asyncio.Event();seen=[]
         async def handle(session,token,update):

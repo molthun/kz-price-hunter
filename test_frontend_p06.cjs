@@ -56,7 +56,7 @@ const assert=require('node:assert/strict');
   // Обе таблицы запросов и предупреждение о приватности
   assert.match(text,/Чаще всего ищут/);
   assert.match(text,/iphone 15/);
-  assert.match(text,/Плохо отвечаем/);
+  assert.match(text,/плохо находим/i,'раздел с проблемными запросами переименован, но остался');
   assert.match(text,/3-го повтора/);
   // Текст запроса выводится экранированным: запрос приходит от постороннего человека
   assert.equal(await page.evaluate(()=>document.querySelectorAll('#searchAnalytics img').length),0);

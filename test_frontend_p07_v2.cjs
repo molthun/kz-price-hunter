@@ -58,6 +58,7 @@ const assert=require('node:assert/strict');
 
    // Кнопка появляется на карточке находки и сначала предлагает следить
    const fixture=await page.evaluate(a=>{
+     window.__alert=a;
      const box=document.createElement('div'); box.id='cardFixture'; document.body.append(box);
      box.innerHTML=renderAlertCard(a);
      const btn=box.querySelector('[data-watch-product]');
@@ -67,10 +68,15 @@ const assert=require('node:assert/strict');
    assert.match(fixture.text,/Следить за ценой/);
    assert.equal(fixture.imgs,0,'название товара экранируется');
 
-   // Клик создаёт наблюдение за этим товаром с понятными значениями по умолчанию
+   // Клик открывает окно настройки наблюдения, а сохранение в нём создаёт наблюдение
    await page.click('#cardFixture [data-watch-product]');
-   await page.waitForFunction(()=>document.querySelector('#cardFixture [data-watch-product]').innerText.includes('Слежу'));
-   assert.deepEqual(calls.at(-1),{kind:'product',target:'p-1',title:alert.title,condition:'any_drop',repeat:true});
+   await page.waitForFunction(()=>!document.getElementById('modalWatchSetup').classList.contains('hidden'));
+   assert.match(await page.locator('#modalWatchTitle').innerText(),/Смартфон/,'в окне виден товар');
+   await page.evaluate(()=>submitWatchSetupModal());
+   await page.waitForFunction(()=>Object.keys(watchedProducts).length>0);
+   assert.equal(calls.at(-1).kind,'product');
+   assert.equal(calls.at(-1).target,'p-1');
+   await page.evaluate(()=>{document.getElementById('cardFixture').innerHTML=renderAlertCard(window.__alert);});
 
    // Повторный клик снимает наблюдение
    await page.click('#cardFixture [data-watch-product]');
@@ -80,6 +86,8 @@ const assert=require('node:assert/strict');
    // Отказ сервера виден словами, состояние кнопки не врёт
    failCreate=true;
    await page.click('#cardFixture [data-watch-product]');
+   await page.waitForFunction(()=>!document.getElementById('modalWatchSetup').classList.contains('hidden'));
+   await page.evaluate(()=>submitWatchSetupModal());
    await page.waitForFunction(()=>(document.getElementById('globalToast')?.innerText||'').includes('нельзя'));
    assert.match(await page.evaluate(()=>document.querySelector('#cardFixture [data-watch-product]').innerText),/Следить за ценой/);
    failCreate=false;

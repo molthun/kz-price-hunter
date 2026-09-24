@@ -149,18 +149,41 @@ def send_watch_message(chat_id: int, payload: Dict[str, Any]) -> DeliveryResult:
     """Сообщение по личному наблюдению (P07): что сработало и почему — в первой же строке."""
     product = payload.get("product") or {}
     shop = product.get("shop", "Магазин")
+    watch_id = payload.get("watch_id")
+    price = int(payload.get("price") or 0)
+    reason = str(payload.get("reason") or "").strip()
+    desc = str(payload.get("description") or "").strip()
+
+    # Понятный заголовок по типу срабатывания
+    if "не выше вашей цели" in reason.lower() or "цена не выше" in desc.lower():
+        sub_header = "🎯 <b>Цена достигла вашей цели!</b>\n"
+    elif "самая низкая цена" in reason.lower() or "лучшая цена" in desc.lower():
+        sub_header = "👑 <b>Самая низкая цена за всё время!</b>\n"
+    elif "снова в продаже" in reason.lower():
+        sub_header = "📦 <b>Товар снова в продаже!</b>\n"
+    elif "снизилась" in reason.lower():
+        sub_header = "📉 <b>Цена снизилась!</b>\n"
+    else:
+        sub_header = ""
+
     text = (
         f"🔔 <b>Сработало ваше наблюдение</b>\n"
-        f"{html.escape(payload.get('description') or '')}\n\n"
+        f"{sub_header}"
+        f"{html.escape(desc)}\n\n"
         f"{_shop_emoji(shop)} <b>Магазин:</b> {html.escape(shop)}\n"
         f"🏷 <b>Товар:</b> {html.escape(product.get('title') or '')}\n"
         f"📍 <b>Регион:</b> {html.escape(product.get('city') or 'Астана')}\n"
-        f"✅ <b>Цена:</b> <b>{format_price(int(payload.get('price') or 0))}</b>\n\n"
-        f"ℹ️ {html.escape(payload.get('reason') or '')}"
+        f"✅ <b>Цена:</b> <b>{format_price(price)}</b>\n\n"
+        f"ℹ️ {html.escape(reason)}"
     )
     keyboard = [[{"text": f"⚡️ Открыть товар в {shop}", "url": product.get("url") or APP_URL or ""}]]
+    second_row = []
+    if watch_id:
+        second_row.append({"text": "🔕 Не следить", "callback_data": f"unwatch:{watch_id}"})
     if APP_URL:
-        keyboard.append([{"text": "🔔 Мои наблюдения", "url": APP_URL}])
+        second_row.append({"text": "🔔 Мои наблюдения", "url": APP_URL})
+    if second_row:
+        keyboard.append(second_row)
     try:
         return classify_telegram_response(telegram_api("sendMessage", {
             "chat_id": chat_id, "text": text, "parse_mode": "HTML",

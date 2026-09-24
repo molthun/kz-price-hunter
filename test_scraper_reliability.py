@@ -491,6 +491,70 @@ class DnsCloudflareTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(page.goto.await_count, 1)  # ни повторов, ни обходных запросов
         browser.close.assert_awaited_once()
 
+    async def test_stealth_and_ajax_interception(self):
+        from unittest.mock import AsyncMock, MagicMock
+        from scrapers import dns
+        page = MagicMock()
+        page.goto = AsyncMock(return_value=MagicMock(status=200))
+
+        el = MagicMock()
+        el.get_attribute = AsyncMock(side_effect=lambda a: "12345" if a == "data-code" else None)
+        name_el = MagicMock()
+        name_el.inner_text = AsyncMock(return_value="Ноутбук Тест")
+        name_el.get_attribute = AsyncMock(return_value="/product/12345/")
+        el.query_selector = AsyncMock(side_effect=lambda sel: name_el if "name" in sel else None)
+        page.query_selector_all = AsyncMock(return_value=[el])
+
+        response_handler = None
+        def mock_on(event, handler):
+            nonlocal response_handler
+            if event == "response":
+                response_handler = handler
+        page.on = mock_on
+
+        context = MagicMock()
+        context.add_init_script = AsyncMock()
+        context.add_cookies = AsyncMock()
+        context.new_page = AsyncMock(return_value=page)
+        context.close = AsyncMock()
+        browser = MagicMock()
+        browser.new_context = AsyncMock(return_value=context)
+        browser.close = AsyncMock()
+        playwright = MagicMock()
+        playwright.chromium.launch = AsyncMock(return_value=browser)
+        manager = MagicMock()
+        manager.__aenter__ = AsyncMock(return_value=playwright)
+        manager.__aexit__ = AsyncMock(return_value=False)
+
+        scraper = dns.DNSScraper()
+
+        async def fake_wait(*args, **kwargs):
+            if response_handler:
+                resp = MagicMock()
+                resp.url = "https://www.dns-shop.kz/ajax-state/product-buy/"
+                resp.status = 200
+                resp.headers = {"content-type": "application/json"}
+                resp.json = AsyncMock(return_value={
+                    "data": {
+                        "states": [
+                            {"id": "12345", "price": {"current": 250000, "previous": 300000}}
+                        ]
+                    }
+                })
+                await response_handler(resp)
+
+        page.wait_for_selector = fake_wait
+
+        with patch.object(dns, "async_playwright", return_value=manager):
+            result = await scraper.scrape("Ноутбуки", "https://www.dns-shop.kz/catalog/noutbuki/", 1)
+
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["price"], 250000)
+        self.assertEqual(result[0]["old_price_on_site"], 300000)
+        context.add_init_script.assert_awaited_once()
+        self.assertIn("webdriver", context.add_init_script.await_args[0][0])
+
+
 
 class ArbitrageBenchmarkTest(unittest.TestCase):
     """R-L02: явно переданный ориентир рынка не роняет проверку; запятые текста не теряются."""

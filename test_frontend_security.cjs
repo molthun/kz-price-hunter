@@ -41,8 +41,21 @@ const assert=require('node:assert/strict');
   document.querySelector('[data-click-action="tracked-scan"]').click();
   toggleTrackedCat=(id,active)=>trackedReceived.push([id,active]);
   const toggle=document.querySelector('[data-change-action="tracked-toggle"]');toggle.checked=false;toggle.dispatchEvent(new Event('change',{bubbles:true}));
+  // Текст поискового запроса приходит от человека: он не должен попадать внутрь JS-обработчика.
+  // Кавычка в запросе закрывала строку в onclick — проверяем, что кнопка передаёт запрос данными.
+  currentMe.user={id:2,is_admin:false};
+  const queryAttack=`'); window.pwned=1; //`;
+  const queryInput=document.createElement('input'); queryInput.id='bestPriceQuery';
+  queryInput.value=queryAttack; document.body.append(queryInput);
+  renderBestPriceResults({best_deal:{...p,savings_vs_max:100,savings_pct:attack},items:[p],
+    price_stats:{min_price:100},store_comparison:[{...p,min_price:100}]});
+  const queryBtn=document.querySelector('[data-click-action="watch-query"]');
+  const queryPassed=[];
+  watchSearchQuery=(q)=>queryPassed.push(q);
+  if(queryBtn) queryBtn.click();
   const unsafeLinks=[...fixture.querySelectorAll('a')].filter(a=>!['http:','https:'].includes(a.protocol)).length;
   const handlerLeak=[...document.querySelectorAll('*')].some(e=>[...e.attributes].some(a=>/^on/.test(a.name)&&a.value.includes('window.pwned')));
+  const queryInHandler=[...document.querySelectorAll('[onclick]')].some(e=>e.getAttribute('onclick').includes('pwned'));
   fixture.querySelector('[data-click-action="product"]').click();
   await Promise.resolve();
   const modalTitle=document.getElementById('modalProductTitle').textContent;
@@ -53,16 +66,18 @@ const assert=require('node:assert/strict');
   fixture.append(suggestion);suggestion.querySelector('button').click();
   const bad=['javascript:alert(1)','data:text/html,<script>1</script>','java\nscript:alert(1)','https://user:pass@example.com','http://wa.me/77010000000','https://wa.me/not-a-number'];
   return {guestDismiss,userDismiss,adminDismiss,unsafeLinks,handlerLeak,modalTitle,attack,received,trackedReceived,
+   queryInHandler,queryPassed,queryAttack,
    injected:document.querySelectorAll('[data-injected]').length,pwned:!!window.pwned,
    rejected:bad.every(u=>cleanUrl(u)==='#'),
    legitimate:cleanUrl('https://wa.me/77010000000?text=hello')==='https://wa.me/77010000000?text=hello'&&cleanUrl('/p/example')==='https://kaspi.kz/shop/p/example'};
  });
  assert.equal(result.guestDismiss,0);assert.equal(result.userDismiss,false);assert.equal(result.adminDismiss,1);
  for(const k of ['unsafeLinks','injected'])assert.equal(result[k],0,k);
- for(const k of ['handlerLeak','pwned'])assert.equal(result[k],false,k);
+ for(const k of ['handlerLeak','pwned','queryInHandler'])assert.equal(result[k],false,k);
+ assert.deepEqual(result.queryPassed,[result.queryAttack],'поисковый запрос передаётся данными, а не кодом');
  assert.equal(result.modalTitle,result.attack);assert.deepEqual(result.received,[result.attack]);assert.deepEqual(result.trackedReceived,[[91,result.attack],[91,false]]);
  assert.equal(result.rejected,true);assert.equal(result.legitimate,true);
  assert.deepEqual(errors,[]);
- console.log('PASS: catalog/AI/log XSS, URL schemes, role visibility, product and suggestion actions');
+ console.log('PASS: catalog/AI/log XSS, поисковый запрос как данные, URL schemes, роли, действия карточки');
  }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exit(1)});

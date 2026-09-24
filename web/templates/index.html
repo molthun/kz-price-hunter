@@ -1063,10 +1063,10 @@
               </div>
 
               <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800">
-                <label class="block text-xs font-semibold text-white mb-1">Уровень чувствительности:</label>
+                <label class="block text-xs font-semibold text-white mb-1">Какие скидки присылать в бот:</label>
                 <select id="selectTgNotifyLevel" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
-                  <option value="ALL">🟢 Все найденные скидки и аномалии</option>
-                  <option value="HIGH_SAVINGS">🔥 Только горячее (скидки от 75% или экономия от 100 000 ₸)</option>
+                  <option value="ALL">🟢 Все подходящие по моим настройкам</option>
+                  <option value="HIGH_SAVINGS">🔥 Только горячее (скидки от 70% или экономия от 50 000 ₸)</option>
                   <option value="CRITICAL_ONLY">🚨 Только критические баги («Пропущенный ноль»)</option>
                 </select>
               </div>
@@ -1123,24 +1123,60 @@
                   <span>Какие скидки показывать</span>
                 </h3>
                 <p class="text-xs text-slate-400 mt-0.5">
-                  Выберите, что попадает в вашу ленту и уведомления, и насколько крупной должна быть выгода.
+                  Определяет, насколько значительным должно быть снижение цены, чтобы оно считалось интересным.
                 </p>
               </div>
             </div>
 
-            <!-- P05: понятные режимы (типы событий) и уровни выгоды (числовые пороги) -->
-            <div class="space-y-2">
+            <!-- Пресеты выгоды: 3 понятных режима -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <label onclick="applySettingsPreset('maximum')" class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 cursor-pointer flex flex-col justify-between space-y-2 transition">
+                <div class="flex items-center justify-between">
+                  <div class="text-xs font-bold text-white flex items-center gap-1.5">
+                    <input type="radio" name="settingsPresetRadio" value="maximum" class="accent-amber-500">
+                    <span>Только крупные скидки</span>
+                  </div>
+                  <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400">от 50 000 ₸</span>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Меньше уведомлений, только заметное и глубокое снижение цены.
+                </p>
+              </label>
+
+              <label onclick="applySettingsPreset('electronics')" class="p-3.5 rounded-xl bg-slate-900/90 border border-emerald-500/40 hover:border-emerald-500/70 bg-emerald-500/5 cursor-pointer flex flex-col justify-between space-y-2 transition relative">
+                <div class="flex items-center justify-between">
+                  <div class="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
+                    <input type="radio" name="settingsPresetRadio" value="electronics" checked class="accent-emerald-500">
+                    <span>Обычный режим</span>
+                  </div>
+                  <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-semibold">Рекомендуется</span>
+                </div>
+                <p class="text-[11px] text-slate-300 leading-relaxed">
+                  Хороший баланс между количеством и качеством находок (от 25 000 ₸).
+                </p>
+              </label>
+
+              <label onclick="applySettingsPreset('universal')" class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 cursor-pointer flex flex-col justify-between space-y-2 transition">
+                <div class="flex items-center justify-between">
+                  <div class="text-xs font-bold text-white flex items-center gap-1.5">
+                    <input type="radio" name="settingsPresetRadio" value="universal" class="accent-amber-500">
+                    <span>Показывать больше</span>
+                  </div>
+                  <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400">от 2 000 ₸</span>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Будут учитываться и небольшие изменения цены во всех категориях.
+                </p>
+              </label>
+            </div>
+
+            <!-- Что показывать (типы событий) -->
+            <div class="space-y-1.5 pt-1">
               <div class="flex flex-wrap items-center gap-1.5">
-                <span class="text-[11px] text-slate-500 w-24 shrink-0">Что показывать:</span>
+                <span class="text-[11px] text-slate-500 w-28 shrink-0">Типы событий:</span>
                 <button type="button" data-display-mode="glitches" onclick="applyDisplayMode('glitches')" class="px-2.5 py-1 text-xs rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer">🚨 Только ошибки цен</button>
                 <button type="button" data-display-mode="deals" onclick="applyDisplayMode('deals')" class="px-2.5 py-1 text-xs rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer">💥 Ошибки и распродажи</button>
                 <button type="button" data-display-mode="all" onclick="applyDisplayMode('all')" class="px-2.5 py-1 text-xs rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer">🎯 Всё выгодное (с арбитражем)</button>
-              </div>
-              <div class="flex flex-wrap items-center gap-1.5">
-                <span class="text-[11px] text-slate-500 w-24 shrink-0">Уровень выгоды:</span>
-                <button type="button" data-level="universal" onclick="applySettingsPreset('universal')" class="px-2.5 py-1 text-xs rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer" title="Подходит для супермаркетов, ремонта и электроники">🛒 Любые покупки (от 2 000 ₸)</button>
-                <button type="button" data-level="electronics" onclick="applySettingsPreset('electronics')" class="px-2.5 py-1 text-xs rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer" title="Оптимально для гаджетов, ПК и бытовой техники">📱 Техника (от 25 000 ₸)</button>
-                <button type="button" data-level="maximum" onclick="applySettingsPreset('maximum')" class="px-2.5 py-1 text-xs rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer" title="Только самые крупные покупки с огромной выгодой">💎 Супер-выгода (от 50 000 ₸)</button>
               </div>
               <div id="thresholdsSummary" class="text-xs text-slate-300"></div>
             </div>
@@ -1320,27 +1356,30 @@
         </h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-        <!-- P05: состояние магазинов, обходы, очередь уведомлений и запуск обхода магазина — в Центре мониторинга -->
-        <a href="/monitoring#shops" class="glass p-5 rounded-2xl md:col-span-2 flex flex-wrap items-center justify-between gap-3 border border-rose-500/20 hover:border-rose-500/50 transition">
+        <!-- Админ: Мониторинг магазинов и парсеров -->
+        <a href="/monitoring#shops" class="glass p-5 rounded-2xl md:col-span-2 flex flex-wrap items-center justify-between gap-3 border border-sky-500/30 hover:border-sky-500/60 bg-gradient-to-r from-slate-900 to-sky-950/20 transition">
           <div class="min-w-0">
-            <div class="text-base font-semibold text-white flex items-center gap-2"><i class="fa-solid fa-stethoscope text-rose-400"></i><span>Состояние магазинов — в Центре мониторинга</span></div>
-            <p class="text-xs text-slate-400 mt-1">Итоги обходов, качество категорий, HTTP, инциденты и запуск обхода отдельного магазина.</p>
+            <div class="text-base font-semibold text-white flex items-center gap-2"><i class="fa-solid fa-store text-sky-400"></i><span>🏪 Мониторинг магазинов и парсеров</span></div>
+            <p class="text-xs text-slate-400 mt-1">Состояние парсеров (Kaspi, DNS, Technodom и др.), актуальность каталогов ритейлеров, ошибки обходов и ручной запуск сканирования.</p>
           </div>
-          <span class="px-3 py-2 rounded-lg bg-slate-800 text-xs text-slate-200 whitespace-nowrap">Открыть мониторинг ↗</span>
+          <span class="px-3.5 py-2 rounded-xl bg-sky-500/20 text-xs font-semibold text-sky-300 border border-sky-500/40 hover:bg-sky-500/30 whitespace-nowrap">Открыть мониторинг магазинов ↗</span>
         </a>
 
-        <!-- Админ: пороги записи кандидатов -->
+        <!-- Админ: Алгоритмы — предварительный отбор изменений цены -->
         <details id="sec-admin-algo" class="glass p-6 rounded-2xl space-y-4">
           <summary class="cursor-pointer list-none">
             <h3 class="text-base font-semibold text-white flex items-center gap-2">
               <i class="fa-solid fa-flask text-amber-400"></i>
-              <span>Алгоритмы (для опытных): пороги записи кандидатов</span>
+              <span>Алгоритмы: Предварительный отбор изменений цены</span>
               <i class="fa-solid fa-chevron-down text-xs text-slate-500"></i>
             </h3>
-            <p class="text-xs text-slate-500 mt-1">Внутренние пороги детектора. Обычно менять не нужно.</p>
+            <p class="text-xs text-slate-500 mt-1">Определяет, какие изменения сохраняются для последующего анализа. Обычно менять не требуется.</p>
           </summary>
+          <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs">
+            ⚠️ <strong>Внимание:</strong> Изменение этих параметров влияет на отбор на уровне всей системы. Завышенные пороги могут пропустить реальные скидки, а слишком мягкие перегрузят базу данных.
+          </div>
           <p class="text-xs text-slate-400">
-            Сканер сохраняет всё, что проходит эти мягкие пороги, а лента и уведомления каждого пользователя фильтруются уже по его личным настройкам. Личные пороги ниже этих не действуют.
+            Сканер отбирает изменения цен, проходящие эти базовые пороги. Персональные фильтры пользователей работают поверх них.
           </p>
           <div class="grid grid-cols-2 gap-3">
             <div>
@@ -2019,6 +2058,11 @@
             <span class="text-amber-400 font-medium">Экономия:</span>
             <span id="modalProductSavings" class="text-amber-400 font-bold text-sm"></span>
           </div>
+
+          <div id="modalProductFreshnessRow" class="flex items-center justify-between text-xs pt-2 border-t border-slate-800/80">
+            <span class="text-slate-400">Свежесть цены:</span>
+            <span id="modalProductFreshness" class="font-medium text-slate-300"></span>
+          </div>
         </div>
 
         <!-- Description section -->
@@ -2052,6 +2096,99 @@
         </div>
         <button onclick="closeProductDetailsModal()" class="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 hover:text-white transition cursor-pointer">
           Закрыть
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно настройки наблюдения за товаром/ценой -->
+  <div id="modalWatchSetup" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 hidden" onclick="if(event.target === this) closeWatchSetupModal()">
+    <div class="glass max-w-lg w-full rounded-2xl border border-slate-700 flex flex-col shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between p-4 sm:p-5 border-b border-slate-800 bg-slate-900/50">
+        <div class="flex items-center gap-2">
+          <span class="text-amber-400 text-lg">🔔</span>
+          <h3 class="text-base font-bold text-white">Следить за ценой</h3>
+        </div>
+        <button type="button" onclick="closeWatchSetupModal()" class="text-slate-400 hover:text-white cursor-pointer text-lg p-1.5 rounded-lg hover:bg-slate-800 transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="p-4 sm:p-6 space-y-4 text-xs sm:text-sm">
+        <!-- Информация о товаре -->
+        <div class="p-3 bg-slate-900/70 rounded-xl border border-slate-800">
+          <div id="modalWatchTitle" class="font-semibold text-slate-100 line-clamp-2"></div>
+          <div class="flex items-center gap-3 mt-1.5 text-xs text-slate-400">
+            <span id="modalWatchShop" class="font-medium text-slate-300"></span>
+            <span>Текущая цена: <strong id="modalWatchPrice" class="text-emerald-400 font-bold"></strong></span>
+          </div>
+        </div>
+
+        <!-- Условие срабатывания -->
+        <div>
+          <label class="block text-slate-300 font-medium mb-2">Условие отправки уведомления:</label>
+          <div class="space-y-2">
+            <label class="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-800 hover:border-slate-700 bg-slate-900/40 cursor-pointer">
+              <input type="radio" name="modalWatchCond" value="any_drop" checked onchange="updateWatchSetupCondUI()" class="accent-amber-500">
+              <span class="text-slate-200">Любое снижение цены</span>
+            </label>
+            <label class="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-800 hover:border-slate-700 bg-slate-900/40 cursor-pointer">
+              <input type="radio" name="modalWatchCond" value="drop_pct" onchange="updateWatchSetupCondUI()" class="accent-amber-500">
+              <span class="text-slate-200">Снижение на</span>
+              <select id="modalWatchDropPctVal" class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-0.5 text-xs text-slate-200 ml-auto focus:border-amber-500">
+                <option value="5">5 %</option>
+                <option value="10" selected>10 %</option>
+                <option value="15">15 %</option>
+                <option value="20">20 %</option>
+                <option value="30">30 %</option>
+              </select>
+            </label>
+            <label class="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-800 hover:border-slate-700 bg-slate-900/40 cursor-pointer">
+              <input type="radio" name="modalWatchCond" value="target_price" onchange="updateWatchSetupCondUI()" class="accent-amber-500">
+              <span class="text-slate-200">Цена станет не выше:</span>
+              <div class="flex items-center gap-1 ml-auto">
+                <input type="number" id="modalWatchTargetPriceVal" placeholder="150000" class="w-28 bg-slate-800 border border-slate-700 rounded-lg px-2 py-0.5 text-xs text-slate-200 focus:border-amber-500 text-right">
+                <span class="text-slate-400 text-xs">₸</span>
+              </div>
+            </label>
+            <label class="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-800 hover:border-slate-700 bg-slate-900/40 cursor-pointer">
+              <input type="radio" name="modalWatchCond" value="best_price" onchange="updateWatchSetupCondUI()" class="accent-amber-500">
+              <span class="text-slate-200">Самая низкая цена за всё время</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Область наблюдения (только этот магазин или все магазины) -->
+        <div id="modalWatchScopeWrap">
+          <label class="block text-slate-300 font-medium mb-2">Где отслеживать:</label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-800 hover:border-slate-700 bg-slate-900/40 cursor-pointer">
+              <input type="radio" name="modalWatchScope" value="product" checked class="accent-amber-500">
+              <span class="text-slate-200">Только этот магазин</span>
+            </label>
+            <label id="modalWatchScopeModelWrap" class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-800 hover:border-slate-700 bg-slate-900/40 cursor-pointer">
+              <input type="radio" name="modalWatchScope" value="model" class="accent-amber-500">
+              <span class="text-slate-200">Все магазины (модель)</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Однократно или повторять -->
+        <div class="flex items-center justify-between pt-1">
+          <label class="flex items-center gap-2 cursor-pointer text-slate-300">
+            <input type="checkbox" id="modalWatchRepeat" checked class="rounded accent-amber-500 w-4 h-4">
+            <span>Продолжать следить после срабатывания</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-3 p-4 border-t border-slate-800 bg-slate-900/50">
+        <button type="button" onclick="closeWatchSetupModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition cursor-pointer">
+          Отмена
+        </button>
+        <button type="button" onclick="submitWatchSetupModal()" class="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20 transition cursor-pointer flex items-center gap-2">
+          <i class="fa-solid fa-check"></i>
+          <span>Сохранить наблюдение</span>
         </button>
       </div>
     </div>
@@ -2462,6 +2599,25 @@
         }
       }
 
+      const freshnessEl = document.getElementById('modalProductFreshness');
+      if (freshnessEl) {
+        const seen = a.last_seen_at || a.updated_at || a.created_at;
+        const seenDate = seen ? new Date(String(seen).replace(' ', 'T')) : null;
+        const ageH = a.age_hours != null ? a.age_hours : (seenDate && !isNaN(seenDate) ? Math.max(0, (Date.now() - seenDate.getTime()) / 3600000) : null);
+        if (a.freshness === 'stale' || (ageH != null && ageH > 72)) {
+          const days = Math.max(1, Math.round((ageH || 72) / 24));
+          freshnessEl.innerHTML = `<span class="text-rose-400 font-bold">⚠️ Устарела (${days} дн. назад)</span>`;
+        } else if (a.freshness === 'aging' || (ageH != null && ageH > 26)) {
+          const when = seenDate && !isNaN(seenDate) ? seenDate.toLocaleDateString('ru-RU', {day: 'numeric', month: 'short'}) : 'более суток назад';
+          freshnessEl.innerHTML = `<span class="text-amber-400 font-medium">⏳ От ${escapeHtml(when)}</span>`;
+        } else if (ageH != null) {
+          const ageText = ageH < 1 ? 'только что' : `${Math.round(ageH)} ч назад`;
+          freshnessEl.innerHTML = `<span class="text-emerald-400 font-medium">✓ Проверено ${ageText}</span>`;
+        } else {
+          freshnessEl.innerHTML = '<span class="text-slate-400">Недавно</span>';
+        }
+      }
+
       // Buttons
       const buyLink = document.getElementById('modalProductBuyLink');
       const buyLabel = document.getElementById('modalProductBuyLabel');
@@ -2589,7 +2745,10 @@
         case 'dismiss': if (isAdminUser()) dismissAlert(args[0], event, el); break;
         case 'compare': openModelComparison(encodeURIComponent(args[0] || ''), encodeURIComponent(args[1] || '')); break;
         case 'suggestion': sendConsultantSuggestion(args[0]); break;
-        case 'watch': toggleProductWatch(args[0], args[1]); break;
+        case 'watch': handleWatchClick(args[0], args[1], args[2], args[3], args[4], args[5]); break;
+        // Текст поискового запроса — чужой ввод: он передаётся данными, а не внутрь onclick,
+        // иначе кавычка в запросе закрывает строку и выполняется что угодно
+        case 'watch-query': watchSearchQuery(args[0]); break;
         case 'shop': filterResultsByShop(args[0]); break;
         case 'category': scanCategoryNow(args[0], args[1]); break;
         case 'tracked-scan': scanTrackedCatNow(args[0], args[1]); break;
@@ -2783,26 +2942,31 @@
     }
 
     function renderAlertCard(a) {
-      const discountPct = a.discount_pct || 0;
-      const savings = fmtPrice(a.savings_kzt);
-      const oldPrice = fmtPrice(a.old_price);
-      const newPrice = fmtPrice(a.new_price);
+      const rawPct = Number(a.discount_pct) || 0;
+      const discountPct = rawPct > 0 ? Math.min(99, Math.round(rawPct)) : 0;
+      const savingsVal = Number(a.savings_kzt) || 0;
+      const savings = savingsVal > 0 ? fmtPrice(savingsVal) : null;
+      const oldPriceVal = Number(a.old_price) || 0;
+      const newPriceVal = Number(a.new_price) || 0;
+      const hasOldPrice = oldPriceVal > newPriceVal && oldPriceVal > 0;
+      const oldPrice = hasOldPrice ? fmtPrice(oldPriceVal) : null;
+      const newPrice = fmtPrice(newPriceVal);
       const isZeroGlitch = a.alert_type === 'ZERO_GLITCH';
       const isArbitrage = a.alert_type === 'MARKET_ARBITRAGE' || a.alert_type === 'ARBITRAGE';
 
       let cardBorder = 'border-emerald-500/30';
       let badgeClass = 'bg-emerald-500/20 text-emerald-400';
-      let badgeLabel = `-${discountPct}%`;
+      let badgeLabel = discountPct > 0 ? `-${discountPct}%` : 'Акция';
       let refLabel = 'Старая цена:';
 
       if (isZeroGlitch) {
         cardBorder = 'border-amber-500/40 bg-amber-500/5';
         badgeClass = 'bg-amber-500/20 text-amber-300';
-        badgeLabel = `🚨 Сбой -${discountPct}%`;
+        badgeLabel = discountPct > 0 ? `🚨 Сбой -${discountPct}%` : '🚨 Сбой';
       } else if (isArbitrage) {
         cardBorder = 'border-sky-500/40 bg-sky-500/5';
         badgeClass = 'bg-sky-500/20 text-sky-300';
-        badgeLabel = a.competitor_shop ? `🎯 Арбитраж vs ${a.competitor_shop}` : `🎯 Арбитраж -${discountPct}%`;
+        badgeLabel = a.competitor_shop ? `🎯 Арбитраж vs ${a.competitor_shop}` : (discountPct > 0 ? `🎯 Арбитраж -${discountPct}%` : '🎯 Арбитраж');
         refLabel = a.competitor_shop ? `В ${a.competitor_shop}:` : 'Рыночная цена:';
       }
 
@@ -2827,7 +2991,7 @@
             <div class="flex gap-3 items-start pt-1">
               ${(() => {
                 const img = (a.image_url || '').replace('https://shop.kz//static.shop.kz', 'https://static.shop.kz');
-                return img ? `<img src="${escapeHtml(imageUrl(img))}" onerror="this.style.display='none'" class="w-16 h-16 object-contain rounded-lg bg-slate-900 p-1 border border-slate-800 shrink-0 group-hover:scale-105 transition-transform duration-200">` : `<div class="w-16 h-16 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0 text-slate-600"><i class="fa-regular fa-image text-xl"></i></div>`;
+                return img ? `<img src="${escapeHtml(imageUrl(img))}" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'w-16 h-16 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0 text-slate-600\\'><i class=\\'fa-regular fa-image text-xl\\'></i></div>';" class="w-16 h-16 object-contain rounded-lg bg-slate-900 p-1 border border-slate-800 shrink-0 group-hover:scale-105 transition-transform duration-200">` : `<div class="w-16 h-16 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0 text-slate-600"><i class="fa-regular fa-image text-xl"></i></div>`;
               })()}
               <div>
                 <h4 class="text-sm font-semibold text-white line-clamp-2 leading-snug group-hover:text-emerald-300 transition-colors">${escapeHtml(a.title || 'Товар')}</h4>
@@ -2842,21 +3006,25 @@
                     <i class="fa-solid fa-scale-balanced text-sky-400 text-xs"></i>
                     <span>Дешевле, чем в <strong class="text-white font-semibold">${escapeHtml(a.competitor_shop || 'других сетях')}</strong></span>
                   </span>
-                  <span class="px-2 py-0.5 rounded-full bg-sky-500/25 text-sky-300 text-[11px] font-bold">-${escapeHtml(discountPct)}%</span>
+                  ${discountPct > 0 ? `<span class="px-2 py-0.5 rounded-full bg-sky-500/25 text-sky-300 text-[11px] font-bold">-${escapeHtml(discountPct)}%</span>` : ''}
                 </div>
               ` : ''}
+              ${hasOldPrice ? `
               <div class="flex items-center justify-between text-xs">
                 <span class="text-slate-400">${escapeHtml(refLabel)}</span>
                 <span class="line-through text-slate-500 font-medium">${oldPrice}</span>
               </div>
+              ` : ''}
               <div class="flex items-center justify-between text-sm">
                 <span class="text-slate-300 font-medium">Новая цена:</span>
                 <span class="text-emerald-400 font-bold text-base">${newPrice}</span>
               </div>
+              ${savings ? `
               <div class="flex items-center justify-between text-xs pt-1 border-t border-slate-800">
                 <span class="text-amber-400/80 font-medium">Экономия:</span>
                 <span class="text-amber-400 font-bold">${savings}</span>
               </div>
+              ` : ''}
             </div>
           </div>
 
@@ -3400,7 +3568,7 @@
         : '';
 
       const imgHtml = p.image_url
-        ? `<img src="${escapeHtml(imageUrl(p.image_url))}" class="w-12 h-12 object-contain rounded-lg bg-slate-950 p-1 shrink-0" onerror="this.style.display='none'">`
+        ? `<img src="${escapeHtml(imageUrl(p.image_url))}" class="w-12 h-12 object-contain rounded-lg bg-slate-950 p-1 shrink-0" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'w-12 h-12 rounded-lg bg-slate-800 flex items-center justify-center text-xs shrink-0\\'>📦</div>';">`
         : `<div class="w-12 h-12 rounded-lg bg-slate-800 flex items-center justify-center text-xs shrink-0">📦</div>`;
 
       return `
@@ -3778,30 +3946,41 @@
         });
       }
 
+      // Список магазинов с числом предложений: строка была потеряна при правке, и отрисовка
+      // результатов поиска падала с ReferenceError
       const shops = Object.entries(shopCounts).sort((a, b) => b[1] - a[1]);
-      if (shops.length <= 1) {
-        container.innerHTML = '';
-        return;
-      }
 
-      let html = `
-        <span class="text-xs text-slate-400 font-medium mr-1 py-1">Магазин:</span>
-        <button type="button" onclick="filterResultsByShop('Все')" class="shop-chip px-2.5 py-1 text-xs rounded-lg border transition cursor-pointer flex items-center gap-1.5 ${activeShopFilterChip === 'Все' ? 'active' : 'border-slate-700/80 bg-slate-900/80 text-slate-300 hover:text-white'}">
-          <span>Все магазины</span>
-          <span class="text-[10px] px-1.5 py-0.2 rounded-full ${activeShopFilterChip === 'Все' ? 'bg-emerald-500/30 text-emerald-200' : 'bg-slate-800 text-slate-400'}">${items.length}</span>
-        </button>
-      `;
-
-      shops.forEach(([shopName, cnt]) => {
-        const isAct = activeShopFilterChip === shopName;
+      let html = '';
+      if (shops.length > 1) {
         html += `
-          <button type="button" ${actionAttrs('shop', [shopName])} class="shop-chip px-2.5 py-1 text-xs rounded-lg border transition cursor-pointer flex items-center gap-1.5 ${isAct ? 'active' : 'border-slate-700/80 bg-slate-900/80 text-slate-300 hover:text-white'}">
-            ${shopLogoHtml(shopName)}
-            <span>${escapeHtml(shopName)}</span>
-            <span class="text-[10px] px-1.5 py-0.2 rounded-full ${isAct ? 'bg-emerald-500/30 text-emerald-200' : 'bg-slate-800 text-slate-400'}">${cnt}</span>
+          <span class="text-xs text-slate-400 font-medium mr-1 py-1">Магазин:</span>
+          <button type="button" onclick="filterResultsByShop('Все')" class="shop-chip px-2.5 py-1 text-xs rounded-lg border transition cursor-pointer flex items-center gap-1.5 ${activeShopFilterChip === 'Все' ? 'active' : 'border-slate-700/80 bg-slate-900/80 text-slate-300 hover:text-white'}">
+            <span>Все магазины</span>
+            <span class="text-[10px] px-1.5 py-0.2 rounded-full ${activeShopFilterChip === 'Все' ? 'bg-emerald-500/30 text-emerald-200' : 'bg-slate-800 text-slate-400'}">${items.length}</span>
           </button>
         `;
-      });
+
+        shops.forEach(([shopName, cnt]) => {
+          const isAct = activeShopFilterChip === shopName;
+          html += `
+            <button type="button" ${actionAttrs('shop', [shopName])} class="shop-chip px-2.5 py-1 text-xs rounded-lg border transition cursor-pointer flex items-center gap-1.5 ${isAct ? 'active' : 'border-slate-700/80 bg-slate-900/80 text-slate-300 hover:text-white'}">
+              ${shopLogoHtml(shopName)}
+              <span>${escapeHtml(shopName)}</span>
+              <span class="text-[10px] px-1.5 py-0.2 rounded-full ${isAct ? 'bg-emerald-500/30 text-emerald-200' : 'bg-slate-800 text-slate-400'}">${cnt}</span>
+            </button>
+          `;
+        });
+      }
+
+      const searchQ = (document.getElementById('bestPriceQuery') ? document.getElementById('bestPriceQuery').value : '').trim();
+      if (isLoggedIn() && searchQ) {
+        html += `
+          <button type="button" ${actionAttrs('watch-query', [searchQ])} class="ml-auto px-2.5 py-1 text-xs rounded-lg border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 transition cursor-pointer flex items-center gap-1.5" title="Получать уведомления о снижении цен по этому запросу">
+            <i class="fa-solid fa-bell"></i>
+            <span>Следить за запросом</span>
+          </button>
+        `;
+      }
 
       container.innerHTML = html;
     }
@@ -4372,9 +4551,14 @@
     function applySettingsPreset(presetName) {
       const p = THRESHOLD_LEVELS[presetName];
       if (!p) return;
-      for (const [field, id] of Object.entries(THRESHOLD_FIELDS)) document.getElementById(id).value = p[field];
+      for (const [field, id] of Object.entries(THRESHOLD_FIELDS)) {
+        const el = document.getElementById(id);
+        if (el) el.value = p[field];
+      }
+      const radio = document.querySelector(`input[name="settingsPresetRadio"][value="${presetName}"]`);
+      if (radio) radio.checked = true;
       updateThresholdsSummary();
-      showToast(`⚡️ Уровень «${p.label}». Сохраните настройки.`);
+      showToast(`⚡️ Режим «${p.label}». Сохраните настройки.`);
     }
 
     function applyDisplayMode(mode) {
@@ -4404,11 +4588,14 @@
       const {mode, level, checks} = describeThresholds();
       document.querySelectorAll('[data-display-mode]').forEach(b => b.classList.toggle('border-emerald-500', b.dataset.displayMode === mode));
       document.querySelectorAll('[data-level]').forEach(b => b.classList.toggle('border-emerald-500', b.dataset.level === level));
+      document.querySelectorAll('input[name="settingsPresetRadio"]').forEach(r => {
+        r.checked = (r.value === level);
+      });
       const box = document.getElementById('thresholdsSummary');
       if (!box) return;
       const modeText = mode ? DISPLAY_MODES[mode].label : (Object.values(checks).some(Boolean) ? 'свой набор типов' : 'ничего (все типы выключены)');
-      const levelText = level ? THRESHOLD_LEVELS[level].label : 'свои значения — см. «Точные параметры»';
-      box.innerHTML = `Сейчас: <b>${escapeHtml(modeText)}</b> · уровень: <b>${escapeHtml(levelText)}</b>`;
+      const levelText = level ? THRESHOLD_LEVELS[level].label : 'свои значения — см. «Дополнительные параметры»';
+      box.innerHTML = `Сейчас: <b>${escapeHtml(modeText)}</b> · пороги: <b>${escapeHtml(levelText)}</b>`;
     }
 
     function renderUserSettings(s) {
@@ -4481,17 +4668,20 @@
     }
 
     // P05: сброс личных настроек к умолчаниям (включённость Telegram-уведомлений сохраняется)
-    // --- Кнопка «следить» прямо на находке и в поиске (P07 V2) ---
-    // Наблюдение за товаром создаётся в один клик: условие «любое снижение», повторяющееся.
-    // Тонкие настройки (цель по цене, тихие часы, пауза) остаются в разделе «Мои наблюдения».
+    // --- Кнопка «следить» прямо на находке и в поиске (P07 V2 + Notification Center V2) ---
     let watchedProducts = {};
+    let currentSetupProduct = null;
 
     function watchButton(p) {
       if (!isLoggedIn()) return '';
       const id = String(p.product_id || p.id || '');
       if (!id) return '';
       const on = Object.prototype.hasOwnProperty.call(watchedProducts, id);
-      return `<button type="button" data-watch-product="${escapeHtml(id)}" ${actionAttrs('watch', [id, p.title || ''])}
+      const price = p.current_price || p.price || 0;
+      const shop = p.shop || '';
+      const city = p.city || '';
+      const canonical = p.canonical_key || '';
+      return `<button type="button" data-watch-product="${escapeHtml(id)}" ${actionAttrs('watch', [id, p.title || '', price, shop, city, canonical])}
         title="${on ? 'Перестать следить за этим товаром' : 'Следить за снижением цены'}"
         class="w-full flex items-center justify-center space-x-1.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer border ${on
           ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border-rose-500/40'
@@ -4504,8 +4694,12 @@
       const id = String(p.product_id || p.id || '');
       if (!id) return '';
       const on = Object.prototype.hasOwnProperty.call(watchedProducts, id);
+      const price = p.current_price || p.price || 0;
+      const shop = p.shop || '';
+      const city = p.city || '';
+      const canonical = p.canonical_key || '';
       return `<button type="button" data-watch-product="${escapeHtml(id)}" data-watch-icon="1"
-        ${actionAttrs('watch', [id, p.title || ''])}
+        ${actionAttrs('watch', [id, p.title || '', price, shop, city, canonical])}
         title="${on ? 'Перестать следить за этим товаром' : 'Следить за снижением цены'}"
         aria-label="${on ? 'Перестать следить за этим товаром' : 'Следить за снижением цены'}"
         class="px-2.5 py-1.5 rounded-lg border text-xs transition cursor-pointer ${on
@@ -4534,21 +4728,173 @@
       });
     }
 
+    function handleWatchClick(productId, title, price, shop, city, canonicalKey) {
+      if (!isLoggedIn()) {
+        showToast('Войдите через Telegram, чтобы настраивать наблюдения');
+        return;
+      }
+      const id = String(productId || '');
+      const existing = watchedProducts[id];
+      if (existing) {
+        toggleProductWatch(id, title);
+        return;
+      }
+      openWatchSetupModal({
+        id: id,
+        title: title || id,
+        price: Number(price) || 0,
+        shop: shop || '',
+        city: city || '',
+        canonical_key: canonicalKey || ''
+      });
+    }
+
+    function openWatchSetupModal(p) {
+      currentSetupProduct = p;
+      const modal = document.getElementById('modalWatchSetup');
+      if (!modal) return;
+      document.getElementById('modalWatchTitle').textContent = p.title || 'Товар';
+      document.getElementById('modalWatchShop').textContent = p.shop ? `Магазин: ${p.shop}` : '';
+      document.getElementById('modalWatchPrice').textContent = p.price > 0 ? fmtPrice(p.price) : 'по запросу';
+      
+      const condRadios = document.querySelectorAll('input[name="modalWatchCond"]');
+      if (condRadios.length) condRadios[0].checked = true;
+
+      const targetInput = document.getElementById('modalWatchTargetPriceVal');
+      if (targetInput) {
+        targetInput.value = p.price > 0 ? Math.round(p.price * 0.9 / 1000) * 1000 : '';
+      }
+
+      const scopeModelWrap = document.getElementById('modalWatchScopeModelWrap');
+      const scopeRadios = document.querySelectorAll('input[name="modalWatchScope"]');
+      if (p.canonical_key && scopeModelWrap) {
+        scopeModelWrap.classList.remove('hidden');
+      } else if (scopeModelWrap) {
+        scopeModelWrap.classList.add('hidden');
+        if (scopeRadios.length) scopeRadios[0].checked = true;
+      }
+
+      document.getElementById('modalWatchRepeat').checked = true;
+      modal.classList.remove('hidden');
+    }
+
+    function closeWatchSetupModal() {
+      const modal = document.getElementById('modalWatchSetup');
+      if (modal) modal.classList.add('hidden');
+      currentSetupProduct = null;
+    }
+
+    function updateWatchSetupCondUI() {
+      const checked = document.querySelector('input[name="modalWatchCond"]:checked');
+      if (!checked) return;
+      if (checked.value === 'target_price') {
+        const input = document.getElementById('modalWatchTargetPriceVal');
+        if (input) input.focus();
+      }
+    }
+
+    async function submitWatchSetupModal() {
+      if (!currentSetupProduct) return;
+      const p = currentSetupProduct;
+      const condRadio = document.querySelector('input[name="modalWatchCond"]:checked');
+      const condition = condRadio ? condRadio.value : 'any_drop';
+
+      let threshold = null;
+      if (condition === 'drop_pct') {
+        threshold = parseInt(document.getElementById('modalWatchDropPctVal').value, 10) || 10;
+      } else if (condition === 'target_price') {
+        threshold = parseInt(document.getElementById('modalWatchTargetPriceVal').value, 10);
+        if (!threshold || threshold <= 0) {
+          showToast('Укажите корректную целевую цену');
+          return;
+        }
+      }
+
+      const scopeRadio = document.querySelector('input[name="modalWatchScope"]:checked');
+      const scope = scopeRadio ? scopeRadio.value : 'product';
+
+      const isModel = scope === 'model' && Boolean(p.canonical_key);
+      const kind = isModel ? 'model' : 'product';
+      const target = isModel ? p.canonical_key : String(p.id);
+      const title = isModel ? p.canonical_key : (p.title || p.id);
+
+      const repeat = document.getElementById('modalWatchRepeat').checked;
+      const city = p.city || (typeof currentCity !== 'undefined' ? currentCity : null);
+      const shops = (!isModel && p.shop) ? [p.shop] : [];
+
+      const body = {
+        kind: kind,
+        target: target,
+        title: title,
+        condition: condition,
+        repeat: repeat,
+        city: city && city !== 'Все' ? city : null,
+        shops: shops
+      };
+      if (threshold !== null) body.threshold = threshold;
+
+      try {
+        const res = await fetch('/api/me/watches', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(body)
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.watch) {
+          watchedProducts[String(p.id)] = data.watch.id;
+          syncWatchButtons();
+          closeWatchSetupModal();
+          showToast('🔔 Наблюдение включено! Мы уведомим вас о выгодной цене.');
+          if (typeof loadWatches === 'function') loadWatches();
+        } else {
+          showToast(data.message || 'Не удалось создать наблюдение');
+        }
+      } catch (err) {
+        showToast('Ошибка связи с сервером при сохранении наблюдения');
+      }
+    }
+
+    async function watchSearchQuery(query) {
+      if (!isLoggedIn()) {
+        showToast('Войдите через Telegram, чтобы отслеживать поисковые запросы');
+        return;
+      }
+      const q = String(query || '').trim();
+      if (!q) return;
+      try {
+        const res = await fetch('/api/me/watches', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            kind: 'search',
+            target: q,
+            title: q,
+            condition: 'any_drop',
+            repeat: true
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          showToast(`🔔 Наблюдение включено за запросом «${q}»!`);
+          if (typeof loadWatches === 'function') loadWatches();
+        } else {
+          showToast(data.message || 'Не удалось создать наблюдение');
+        }
+      } catch (err) {
+        showToast('Ошибка при добавлении наблюдения');
+      }
+    }
+
     async function toggleProductWatch(productId, title) {
       if (!isLoggedIn()) return;
       const id = String(productId || '');
       const existing = watchedProducts[id];
-      let res;
       if (existing) {
-        res = await fetch(`/api/me/watches/${existing}`, {method: 'DELETE'});
-        if (res.ok) delete watchedProducts[id];
-      } else {
-        res = await fetch('/api/me/watches', {method: 'POST', headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({kind: 'product', target: id, title: title || id,
-                                condition: 'any_drop', repeat: true})});
-        const data = await res.json().catch(() => ({}));
-        if (res.ok && data.watch) watchedProducts[id] = data.watch.id;
-        else if (!res.ok) { showToast(data.message || 'Не удалось создать наблюдение'); return; }
+        const res = await fetch(`/api/me/watches/${existing}`, {method: 'DELETE'});
+        if (res.ok) {
+          delete watchedProducts[id];
+          showToast('🔕 Вы перестали следить за этим товаром');
+        }
       }
       syncWatchButtons();
       if (typeof loadWatches === 'function') loadWatches();
