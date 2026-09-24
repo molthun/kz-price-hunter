@@ -1423,7 +1423,7 @@
               <span class="text-[10px] text-slate-500 mt-1 block">Ключ Google Gemini. Модель выбирается ниже.</span>
               <label for="selectGeminiModelMode" class="block text-xs text-slate-300 mt-3 mb-1">Модель Gemini</label>
               <select id="selectGeminiModelMode" onchange="syncAiModelInputs()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
-                <option value="auto">Авто — gemini-2.5-flash</option>
+                <option value="auto">Авто — модель проекта по умолчанию</option>
                 <option value="manual">Указать вручную</option>
               </select>
               <select id="listGeminiModels" aria-label="Модели Gemini по вашему ключу" disabled
@@ -1443,7 +1443,7 @@
               <span class="text-[10px] text-slate-500 mt-1 block">Ключ OpenAI или совместимого сервиса. Модель выбирается ниже.</span>
               <label for="selectOpenAiModelMode" class="block text-xs text-slate-300 mt-3 mb-1">Модель OpenAI</label>
               <select id="selectOpenAiModelMode" onchange="syncAiModelInputs()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
-                <option value="auto">Авто — gpt-4o-mini</option>
+                <option value="auto">Авто — модель проекта по умолчанию</option>
                 <option value="manual">Указать вручную</option>
               </select>
               <select id="listOpenAiModels" aria-label="Модели OpenAI по вашему ключу" disabled
@@ -4755,7 +4755,7 @@
         const manual = document.getElementById(`select${name}ModelMode`).value === 'manual';
         const list = document.getElementById(`list${name}Models`);
         // Список моделей приходит от провайдера; ручной ввод остаётся для случая, когда нужной там нет
-        if (list) list.disabled = !manual || !list.dataset.loaded;
+        if (list) list.disabled = !list.dataset.loaded;
         document.getElementById(`input${name}Model`).disabled = !manual;
       }
     }
@@ -4833,8 +4833,13 @@
           ? models.map(m => `<option value="${escapeHtml(m.name)}" ${m.name === current ? 'selected' : ''}>${escapeHtml(m.title || m.name)}</option>`).join('')
           : '<option value="">— провайдер не вернул моделей —</option>';
         list.dataset.loaded = models.length ? '1' : '';
+        list.disabled = !models.length;          // выбирать можно всегда, когда список есть
         list.onchange = () => {
+          // Выбор из списка означает «эту модель и использовать»: режим сам становится ручным,
+          // иначе сервис молча продолжал бы звать модель по умолчанию (найдено владельцем 24.09)
+          document.getElementById(`select${name}ModelMode`).value = 'manual';
           document.getElementById(`input${name}Model`).value = list.value;
+          syncAiModelInputs();
           renderAiPrices();
         };
       }

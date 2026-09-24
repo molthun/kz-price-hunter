@@ -201,7 +201,10 @@
       return card('AI за 24 ч', `<p class="text-sm mb-2">${esc(s.reason)}</p>` + kv([
         ['Провайдер', esc(s.provider)], ['Вызовов провайдера', num(s.calls_24h)], ['Неуспешных', num(s.errors_24h)],
         ['Токены (вход / выход)', `${num(s.input_tokens_24h)} / ${num(s.output_tokens_24h)}`],
-        ['Сегодня / дневной лимит', `${num(s.calls_today)} / ${num(s.daily_limit)}`]]) + details('Исходы', json(s.outcomes)), s.status)
+        ['Сегодня / дневной лимит', `${num(s.calls_today)} / ${num(s.daily_limit)}`],
+        ['Модель Gemini', `${esc((s.models || {}).gemini?.model || '—')}${(s.models || {}).gemini?.mode === 'manual' ? '' : ' (режим «авто» — выбранная в списке не применяется)'}`],
+        ['Модель OpenAI', `${esc((s.models || {}).openai?.model || '—')}${(s.models || {}).openai?.mode === 'manual' ? '' : ' (режим «авто» — выбранная в списке не применяется)'}`]]) +
+        details('Исходы', json(s.outcomes)), s.status)
         + '<div id="aiSpending" class="mt-4"><p class="text-sm text-slate-500">Загружаю расходы AI…</p></div>';
     },
     telegram() {

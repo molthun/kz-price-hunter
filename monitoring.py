@@ -372,9 +372,14 @@ def ai_section(now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
         calls_today, limit = ai_service.ai_calls_today(), ai_service.DAILY_AI_CALL_LIMIT
     except Exception:
         calls_today, limit = None, None
+    # Какая модель реально используется: выбранная в списке применяется только в ручном режиме,
+    # и без этой строки было не видно, что сервис продолжает звать модель по умолчанию (24.09)
+    models = {"gemini": {"model": cfg.get("gemini_model"), "mode": cfg.get("gemini_model_mode")},
+              "openai": {"model": cfg.get("openai_model"), "mode": cfg.get("openai_model_mode")}}
     return {"status": status, "reason": reason, "provider": cfg.get("provider"), "calls_24h": len(called),
             "errors_24h": errors, "outcomes": dict(outcomes), "input_tokens_24h": tokens_in,
-            "output_tokens_24h": tokens_out, "calls_today": calls_today, "daily_limit": limit}
+            "output_tokens_24h": tokens_out, "calls_today": calls_today, "daily_limit": limit,
+            "models": models}
 
 
 def telegram_section(now: Optional[datetime.datetime] = None) -> Dict[str, Any]:

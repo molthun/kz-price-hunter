@@ -57,8 +57,11 @@ const assert=require('node:assert/strict');
   assert.ok(priceInputs.includes('gemini-3-flash:input=0.3'),priceInputs.join(','));
   assert.ok(priceInputs.some(p=>p.startsWith('gpt-5:input=')),'для второй модели поля тоже есть');
 
-  // Выбор другой модели добавляет для неё строку цен
+  // Выбор из списка сам переводит режим в ручной: иначе выбранная модель не применяется
+  await page.selectOption('#selectGeminiModelMode','auto');
   await page.selectOption('#listGeminiModels','gemini-3-pro');
+  assert.equal(await page.evaluate(()=>document.getElementById('selectGeminiModelMode').value),'manual',
+    'выбор модели из списка должен включать ручной режим');
   await page.waitForFunction(()=>[...document.querySelectorAll('[data-price-model]')]
     .some(el=>el.dataset.priceModel==='gemini-3-pro'));
   assert.equal(await page.evaluate(()=>document.getElementById('inputGeminiModel').value),'gemini-3-pro');
