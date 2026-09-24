@@ -2957,7 +2957,14 @@ def ai_usage(days: int = 7, now: Optional[datetime.datetime] = None) -> Dict[str
         task["avg_latency_ms"] = round(task["latency_sum_ms"] / task["provider_calls"], 1) if task["provider_calls"] else None
         task.pop("latency_sum_ms")
     totals["cost_usd"] = round(totals["cost_usd"], 4)
+    # Самые частые причины отказов: «100 % ошибок» без причины ничего не объясняет (найдено владельцем)
+    with get_connection() as conn:
+        failures = [dict(r) for r in conn.execute(
+            "SELECT provider, model, last_error AS reason, SUM(errors) AS count FROM ai_usage "
+            "WHERE day >= ? AND errors > 0 AND last_error IS NOT NULL "
+            "GROUP BY provider, model, last_error ORDER BY count DESC LIMIT 5", (since,))]
     return {"days": int(days), "totals": totals, "by_task": by_task, "by_model": by_model,
+            "failures": failures,
             "cost_known": priced,
             "note": ("Стоимость посчитана по ценам, заданным администратором." if priced else
                      "Цены части моделей не заданы — стоимость показана не полностью.")}

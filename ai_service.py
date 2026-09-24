@@ -391,7 +391,11 @@ async def _call_gemini_api(prompt: str, api_key: str, timeout_seconds: float = D
                                 text = parts[0].get("text", "").strip()
                                 return _extract_json_from_text(text)
                     elif resp.status in (400, 404):
-                        # Модель может быть недоступна в этой версии, пробуем следующую
+                        # Модель может быть недоступна в этой версии, пробуем следующую.
+                        # Раньше эта ветка молчала, и «100 % ошибок» в мониторинге не имело объяснения:
+                        # именно она срабатывает при неверном имени модели или отвергнутом ключе.
+                        print(f"[AI Service] Gemini отказал ({model}, HTTP {resp.status}) — "
+                              f"модель недоступна для этого ключа или имя неверно")
                         _note_call(failure=f"http_{resp.status}")
                         continue
                     else:

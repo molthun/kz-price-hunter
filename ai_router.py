@@ -211,10 +211,15 @@ async def run(task: str, prompt: str, *, deterministic: Optional[Callable[[], An
                     raise AIUnavailable("Дневной бюджет AI исчерпан")
                 last_error = outcome
                 continue
-            # Ни ответа, ни разбираемого содержимого: таймаут, отказ провайдера или не-JSON в ответе
+            # Ни ответа, ни разбираемого содержимого: таймаут, отказ провайдера или не-JSON в ответе.
+            # Код ответа провайдера (http_400/http_404/http_429) сохраняется как причина: без него
+            # «100 % ошибок» в мониторинге ничего не объясняло (найдено владельцем).
+            reason = info.get("failure") or last_error or outcome
+            if info.get("http_status") and "http" not in str(reason):
+                reason = f"{reason} (HTTP {info['http_status']})"
             record_usage(task, provider=provider, model=model, outcome="error", latency_ms=latency_ms,
-                         error=last_error or outcome, tokens=tokens)
-            last_error = last_error or outcome
+                         error=reason, tokens=tokens)
+            last_error = reason
             continue
 
         value = data

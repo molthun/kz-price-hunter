@@ -460,3 +460,48 @@ class QuotaIsAtomicTest(RouterTest):
             self.assertTrue(ai_service.reserve_ai_call("user"))
             self.assertEqual(ai_service.ai_calls_today("user"), 1)
             self.assertEqual(ai_service.ai_calls_today("internal"), 7)
+
+
+class FailureReasonTest(unittest.TestCase):
+    """«100 % ошибок» без причины ничего не объясняет (найдено владельцем 24.09)."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        data_dir = type(DB_PATH)(self.tmp.name)
+        for p in [patch.object(database, "DB_PATH", data_dir / "prices.db"),
+                  patch("config.DATA_DIR", data_dir),
+                  patch("config.SETTINGS_FILE", data_dir / "settings.json")]:
+            p.start()
+            self.addCleanup(p.stop)
+        database.init_db()
+        ai_router._CACHE.clear()
+        self.config = {"enabled": True, "has_ai": True, "ai_search_enabled": True, "ai_provider": "gemini",
+                       "gemini_api_key": "g", "openai_api_key": "", "openai_api_base": "",
+                       "gemini_model": "gemini-2.5-flash", "openai_model": "gpt-4o-mini"}
+
+    def test_provider_status_is_kept_as_the_reason(self):
+        async def failing(prompt, key, *, timeout=30, scan=False):
+            sink = ai_service.usage_sink.get()
+            if sink is not None:
+                sink.append({"provider": "gemini", "model": "gemini-2.5-flash",
+                             "http_status": 404, "failure": "http_404"})
+            return None
+
+        with patch("config.get_ai_config", return_value=self.config), \
+             patch.object(ai_service, "call_gemini_api", failing):
+            with self.assertRaises(ai_router.AIUnavailable):
+                asyncio.run(ai_router.run("normalize", "любой промпт"))
+
+        usage = database.ai_usage(days=1)
+        reasons = {f["reason"] for f in usage["failures"]}
+        self.assertTrue(any("404" in r for r in reasons), f"причина должна называть код ответа: {reasons}")
+
+    def test_failures_are_grouped_by_provider_and_model(self):
+        database.record_ai_usage("normalize", "internal", "gemini", "gemini-2.5-flash", "error",
+                                 error="http_404")
+        database.record_ai_usage("normalize", "internal", "gemini", "gemini-2.5-flash", "error",
+                                 error="http_404")
+        failures = database.ai_usage(days=1)["failures"]
+        self.assertEqual(failures[0]["count"], 2)
+        self.assertEqual(failures[0]["model"], "gemini-2.5-flash")
