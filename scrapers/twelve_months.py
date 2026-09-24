@@ -45,7 +45,23 @@ class TwelveMonthsScraper(PagedScraper):
 
         session = self._get_session()
         try:
-            r = session.get(url, headers=self.headers, timeout=15)
+            r = None
+            for attempt in range(2):
+                try:
+                    r = session.get(url, headers=self.headers, timeout=20)
+                    if r.status_code in (500, 502, 503, 504) and attempt == 0:
+                        import time
+                        time.sleep(1.0)
+                        continue
+                    break
+                except Exception:
+                    if attempt == 0:
+                        import time
+                        time.sleep(1.0)
+                        continue
+                    raise
+            if r is None:
+                raise RuntimeError(f"Не удалось получить ответ от {url}")
             if r.status_code == 404:
                 # За последней страницей — 404; на первой странице это ошибка категории
                 if page_num > 1:

@@ -24,8 +24,34 @@ def ts(hours_ago, now=NOW):
 class ShopStatusTest(unittest.TestCase):
     """Правила статуса магазина на управляемом времени."""
 
-    def status(self, scan, quality=None, enabled=True):
-        return mon.shop_status(enabled, scan, quality, NOW)[0]
+    def status(self, scan, quality=None, enabled=True, **kw):
+        return mon.shop_status(enabled, scan, quality, NOW, **kw)[0]
+
+    def test_granular_problem_counts_avoid_false_degradation(self):
+        ok = {"status": "complete", "last_success_at": ts(2), "last_items": 177, "failure_count": 0}
+        # 1 предупреждение из 3 категорий, 100% объема (4mobile) -> healthy
+        self.assertEqual(
+            self.status(ok, "warning", categories_total=3, problem_counts={"warning": 1}, baseline_items=177),
+            "healthy"
+        )
+        # 1 пустая категория из 8, частичный сбор, но объем 118% (кейс Zeta) -> limited
+        zeta_scan = {"status": "partial", "last_success_at": ts(2), "last_items": 433, "failure_count": 0}
+        self.assertEqual(
+            self.status(zeta_scan, "failed", categories_total=8, problem_counts={"failed": 1}, baseline_items=367),
+            "limited"
+        )
+        # Объем упал ниже 50% (кейс Alser: 28 товаров при норме 121) -> degraded
+        alser_scan = {"status": "complete", "last_success_at": ts(2), "last_items": 28, "failure_count": 0}
+        self.assertEqual(
+            self.status(alser_scan, "degraded", categories_total=8, problem_counts={"degraded": 3}, baseline_items=121),
+            "degraded"
+        )
+        # 6 категорий со сбоем из 8 (кейс 12 Месяцев) -> degraded
+        twelve_scan = {"status": "partial", "last_success_at": ts(2), "last_items": 208, "failure_count": 0}
+        self.assertEqual(
+            self.status(twelve_scan, "failed", categories_total=8, problem_counts={"failed": 6}, baseline_items=65),
+            "degraded"
+        )
 
     def test_all_states(self):
         ok = {"status": "complete", "last_success_at": ts(2), "last_items": 500, "failure_count": 0}

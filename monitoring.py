@@ -73,7 +73,11 @@ def _loads(value: Any) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------------------------- статусы (чистые)
 
 def shop_status(enabled: bool, scan: Optional[Dict[str, Any]], quality: Optional[str],
-                now: Optional[datetime.datetime] = None) -> Tuple[str, str]:
+                now: Optional[datetime.datetime] = None,
+                *,
+                categories_total: int = 0,
+                problem_counts: Optional[Dict[str, int]] = None,
+                baseline_items: Optional[float] = None) -> Tuple[str, str]:
     """Статус магазина и короткая причина по последнему итогу обхода, качеству (P02) и свежести."""
     now = now or _now()
     if not enabled:
@@ -86,15 +90,39 @@ def shop_status(enabled: bool, scan: Optional[Dict[str, Any]], quality: Optional
     since_full = _hours_since(scan.get("last_success_at"), now)
     failures = int(scan.get("failure_count") or 0)
     error = scan.get("last_error") or ""
+    last_items = int(scan.get("last_items") or 0)
+
     if status == "failed":
         if since_full is None or since_full > OFFLINE_AFTER_HOURS or failures >= OFFLINE_CONSECUTIVE_FAILURES:
             full = "полного обхода не было" if since_full is None else f"полный обход {since_full:.0f} ч назад"
             return OFFLINE, f"Обход не удаётся ({failures} подряд), {full}: {error}".strip(": ")
         return DEGRADED, f"Последний обход не удался: {error}".strip(": ")
-    if status == "partial" or quality in (data_quality.DEGRADED, data_quality.WARNING):
-        return DEGRADED, error or f"Качество последнего обхода: {quality}"
-    if int(scan.get("last_items") or 0) == 0 and status in ("complete", "limited"):
+
+    if last_items == 0 and status in ("complete", "limited"):
         return EMPTY, "Последний обход не вернул товаров"
+
+    if problem_counts is not None:
+        failed_cnt = problem_counts.get("failed", 0)
+        degraded_cnt = problem_counts.get("degraded", 0)
+        severe_cnt = failed_cnt + degraded_cnt
+
+        # 1. Системное падение объёма каталога (ниже 50% от нормы)
+        if baseline_items and baseline_items >= 20 and last_items < baseline_items * 0.5:
+            return DEGRADED, error or f"Качество: товаров {last_items} при норме {baseline_items:.0f}"
+
+        # 2. Критическое число сбоящих категорий (3+ сбоев или >=35% категорий)
+        if severe_cnt >= 3 or (categories_total >= 3 and severe_cnt / categories_total >= 0.35):
+            return DEGRADED, error or f"Качество: сбой/деградация в {severe_cnt} из {categories_total} категорий"
+
+        # 3. Частичный сбор (несколько категорий пустые или не подтверждены, но база в порядке)
+        if status == "partial" or severe_cnt > 0:
+            return LIMITED, error or f"Каталог собран частично (сбой {severe_cnt} кат.)"
+    else:
+        if status == "partial" or quality == data_quality.DEGRADED:
+            return DEGRADED, error or f"Качество последнего обхода: {quality}"
+        if quality == data_quality.WARNING:
+            return DEGRADED, error or f"Качество последнего обхода: {quality}"
+
     freshness = data_quality.freshness(scan.get("last_success_at"), now)["freshness"]
     if status == "limited":
         return LIMITED, "Каталог собран не полностью (ограничение страниц или конец не подтверждён)"
@@ -201,9 +229,19 @@ def shops_overview(registry: Dict[str, Tuple[str, int]], enabled: Iterable[str],
         name, n_categories = registry[key]
         scan = scans.get(key)
         q = (quality.get(key) or {}).get("quality")
-        status, reason = shop_status(key in enabled, scan, q, now)
         shop_cats = cats.get(key, [])
         baseline = sum(c["baseline"] or 0 for c in shop_cats if c["baseline"]) or None
+        prob_counts = defaultdict(int) if shop_cats else None
+        if shop_cats:
+            for c in shop_cats:
+                if c.get("quality") in ("failed", "degraded", "warning"):
+                    prob_counts[c["quality"]] += 1
+        status, reason = shop_status(
+            key in enabled, scan, q, now,
+            categories_total=n_categories,
+            problem_counts=prob_counts,
+            baseline_items=baseline
+        )
         h = http.get(name) or {}
         result.append({
             "shop_key": key, "name": name, "status": status, "reason": reason,
@@ -236,7 +274,6 @@ def shop_detail(key: str, name: str, categories: List[Dict[str, Any]], enabled: 
     now = now or _now()
     scan = database.get_shop_scans().get(key)
     q = (database.get_last_source_quality([key]).get(key) or {})
-    status, reason = shop_status(enabled, scan, q.get("quality"), now)
     names = {c["url"]: c["name"] for c in categories}
     with closing(_conn()) as conn:
         latest = _latest_categories(conn, [key]).get(key, [])
@@ -249,6 +286,18 @@ def shop_detail(key: str, name: str, categories: List[Dict[str, Any]], enabled: 
         events = [dict(r) for r in conn.execute("""SELECT timestamp, type, severity, category, scan_id, message, data_json
             FROM telemetry_events WHERE shop = ? OR data_json LIKE ? ORDER BY timestamp DESC LIMIT 50""",
                                                  (name, f'%"shop_key": "{key}"%')).fetchall()]
+    prob_counts = defaultdict(int) if latest else None
+    if latest:
+        for c in latest:
+            if c.get("quality") in ("failed", "degraded", "warning"):
+                prob_counts[c["quality"]] += 1
+    baseline = sum(c["baseline"] or 0 for c in latest if c.get("baseline")) or None
+    status, reason = shop_status(
+        enabled, scan, q.get("quality"), now,
+        categories_total=len(categories),
+        problem_counts=prob_counts,
+        baseline_items=baseline
+    )
     observed = {c["source_url"] for c in latest}
     category_rows = [{
         "name": c["category"] or names.get(c["source_url"]) or c["source_url"],
@@ -776,8 +825,17 @@ def overview(registry: Dict[str, Tuple[str, int]], enabled: Iterable[str], scan_
     if not active:
         shops_status, shops_reason = UNKNOWN, "Нет включённых магазинов"
     else:
-        shops_status = worst(active)
         bad = counts[OFFLINE] + counts[DEGRADED] + counts[EMPTY]
+        if counts[OFFLINE] == len(active):
+            shops_status = OFFLINE
+        elif counts[OFFLINE] > 0 or counts[DEGRADED] > 0 or counts[EMPTY] > 0:
+            shops_status = DEGRADED
+        elif counts[LIMITED] > 0:
+            shops_status = LIMITED
+        elif counts[UNKNOWN] == len(active):
+            shops_status = UNKNOWN
+        else:
+            shops_status = HEALTHY
         shops_reason = (f"Проблемы у {bad} из {len(active)} магазинов" if bad else
                         f"Нет данных по {counts[UNKNOWN]} из {len(active)}" if counts[UNKNOWN] else
                         f"Все {len(active)} магазинов в порядке")
