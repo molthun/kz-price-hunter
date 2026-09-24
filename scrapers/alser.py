@@ -1,7 +1,20 @@
-from typing import List, Dict, Any
+"""Скрапер сети электроники «Alser» (alser.kz).
+
+Каталог отдаётся сервером целиком, но небольшой: сайт сам печатает «N товаров» в блоке
+p.total-text, и это же число подтверждает API магазина. Счётчик читается, чтобы отличить
+полностью собранную маленькую категорию от обхода, оборвавшегося на первой странице.
+
+Без этого любая категория возвращалась limited: вторая страница карточек не содержит, адаптер
+бросал UnconfirmedEnd, и базовый класс помечал обход неполным. По правилу P02 неполные обходы
+не обучают норму источника, поэтому baseline у магазина не строился никогда.
+"""
+import math
+import re
+from typing import Any, Dict, List, Optional
 from scrapers import http as requests
-from scrapers.base import slug_id, UnconfirmedEnd, PagedScraper, parse_price
+from scrapers.base import slug_id, UnconfirmedEnd, PagedScraper, ScanResult, parse_price
 from bs4 import BeautifulSoup
+
 
 class AlserScraper(PagedScraper):
     SHOP_NAME = "Alser"
@@ -9,6 +22,9 @@ class AlserScraper(PagedScraper):
 
     def __init__(self):
         self.base_url = "https://alser.kz"
+        # Объявленный магазином итог и размер первой страницы — по категории, чтобы параллельный
+        # обход разных категорий одним экземпляром не путал их между собой
+        self._expected_pages: Dict[str, int] = {}
         self.headers = {
             "User-Agent": (
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -110,4 +126,27 @@ class AlserScraper(PagedScraper):
             print(f"[{self.SHOP_NAME}] Ошибка страницы {url}: {e}")
             raise
 
-        return products
+        return ScanResult(products,
+                          complete=self._is_last_page(soup, category_url, page_num, len(cards)))
+
+    def _is_last_page(self, soup, category_url: str, page_num: int, cards_on_page: int) -> bool:
+        """Последняя ли это страница. Пока итог неизвестен — считаем, что нет."""
+        if page_num == 1:
+            total = self._declared_total(soup)
+            if total is None or cards_on_page <= 0:
+                self._expected_pages.pop(category_url, None)
+                return False
+            self._expected_pages[category_url] = math.ceil(total / cards_on_page)
+        expected = self._expected_pages.get(category_url)
+        return bool(expected) and page_num >= expected
+
+    @staticmethod
+    def _declared_total(soup) -> Optional[int]:
+        """Число товаров по версии самого магазина: <p class="… total-text">10 товаров</p>."""
+        counter = soup.select_one("p.total-text, .total-text")
+        if not counter:
+            return None
+        match = re.search(r"(\d[\d\s\u00a0]*)", counter.get_text())
+        if not match:
+            return None
+        return int(re.sub(r"[^0-9]", "", match.group(1)))

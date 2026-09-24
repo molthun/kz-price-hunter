@@ -2,7 +2,13 @@
 
 Платформа: 1C-Bitrix HTML со Schema.org Product/Offer микроразметкой.
 Селектор карточек: div.catalog-item-card.
-Пагинация: ?PAGEN_1=N.
+Пагинация: ?PAGEN_1=N; последняя страница берётся из ссылок пагинатора, а при их отсутствии
+выводится из счётчика «Товаров: N» в блоке div.count_items.
+
+Зачем подтверждать конец каталога: без этого обход любой категории возвращался limited, даже когда
+все товары собраны. По правилу P02 неполный обход не обучает норму источника, поэтому у магазина
+никогда не строился baseline, а в мониторинге он навсегда оставался «собран не полностью» —
+неотличимо от настоящего обрыва.
 """
 import re
 from typing import List, Dict, Any, Optional
@@ -10,13 +16,23 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 
 from scrapers import http as requests
-from scrapers.base import PagedScraper, price_value, validate_product_item
+from scrapers.base import (
+    PagedScraper,
+    UnconfirmedEnd,
+    ScanResult,
+    pagination_last_page,
+    price_value,
+    validate_product_item,
+)
 
 
 class MasterOkScraper(PagedScraper):
     SHOP_NAME = "MasterOK"
     SHOP_EMOJI = "🛠"
-    PAGE_DELAY_SECONDS = 0.4
+    # Сайт отвечает пустыми страницами, если листать быстро: при 0.4 с полный обход крупного
+    # раздела начинал терять товары примерно с третьей страницы. Пауза важнее скорости —
+    # оборванный обход всё равно пришлось бы повторять.
+    PAGE_DELAY_SECONDS = 1.2
 
     def __init__(self):
         self.base_url = "https://masterok.kz"
@@ -46,11 +62,12 @@ class MasterOkScraper(PagedScraper):
         session = self._get_session()
         try:
             resp = session.get(url, headers=self.headers, timeout=20)
-            if resp.status_code != 200:
-                return []
         except Exception as e:
-            print(f"[{self.SHOP_NAME}] Ошибка загрузки {url}: {e}")
-            return []
+            # Сбой сети — это ошибка страницы, а не пустая категория: пусть базовый класс
+            # запишет причину, иначе обход выглядел бы просто «ничего не нашлось»
+            raise RuntimeError(f"Не удалось загрузить {url}: {type(e).__name__}") from e
+        if resp.status_code != 200:
+            raise RuntimeError(f"HTTP {resp.status_code}")
 
         soup = BeautifulSoup(resp.text, "html.parser")
         cards = soup.select(".catalog-item-card, div[data-entity='item']")
@@ -139,7 +156,35 @@ class MasterOkScraper(PagedScraper):
             if validate_product_item(item):
                 products.append(item)
 
-        return products
+        if cards and not products:
+            # Страница прочитана, но все её товары — «цена по запросу»: у masterok.kz такого
+            # оборудования много. Это не пустая страница и не сбой, поэтому и не ошибка; но и
+            # конца каталога мы не видели, так что обход честно остаётся неполным.
+            raise UnconfirmedEnd("Страница без цен: конец каталога не подтверждён")
+
+        return ScanResult(products, complete=self._is_last_page(soup, category_url, page_num,
+                                                               len(cards)))
+
+    def _is_last_page(self, soup, category_url: str, page_num: int, cards_on_page: int) -> bool:
+        """Последняя ли это страница категории. Неизвестно — значит нет, а не «да»."""
+        last = pagination_last_page(str(soup), category_url, param="PAGEN_1")
+        if last:
+            return page_num >= last
+        # Пагинатора нет: либо каталог уместился на одной странице, либо разметка сменилась.
+        # Счётчик магазина отличает одно от другого.
+        total = self._declared_total(soup)
+        if total is None:
+            return False
+        return page_num == 1 and cards_on_page >= total
+
+    @staticmethod
+    def _declared_total(soup) -> Optional[int]:
+        """Число товаров, объявленное самим магазином: <div class="count_items">…<span>690</span>."""
+        counter = soup.select_one("div.count_items span")
+        if not counter:
+            return None
+        digits = re.sub(r"[^0-9]", "", counter.get_text())
+        return int(digits) if digits else None
 
     def close(self):
         if self.session is not None:
