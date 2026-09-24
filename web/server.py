@@ -2245,6 +2245,40 @@ async def monitoring_matching_handler(request):
     return web.json_response(data, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
 
 
+_AI_MODELS_CACHE: Dict[str, Any] = {"at": 0.0, "data": None}
+AI_MODELS_CACHE_SECONDS = 300
+
+
+@routes.get("/api/admin/ai/models")
+@require_admin
+async def admin_ai_models_handler(request):
+    """Список моделей от самих провайдеров: имена меняются, зашивать их в код нельзя.
+
+    Наружу уходят только имена моделей — ключи остаются на сервере. Ответ ненадолго кэшируется,
+    чтобы открытие настроек не дёргало провайдеров на каждый клик.
+    """
+    import ai_service
+    import time as _time
+    fresh = request.query.get("refresh") == "1"
+    if not fresh and _AI_MODELS_CACHE["data"] and \
+            _time.time() - _AI_MODELS_CACHE["at"] < AI_MODELS_CACHE_SECONDS:
+        return web.json_response({"status": "ok", "cached": True, **_AI_MODELS_CACHE["data"]})
+
+    cfg = get_ai_config()
+    gemini, openai = await asyncio.gather(
+        ai_service.list_gemini_models(cfg.get("gemini_api_key") or ""),
+        ai_service.list_openai_models(cfg.get("openai_api_key") or "", cfg.get("openai_api_base") or ""),
+    )
+    data = {"gemini": gemini, "openai": openai,
+            "current": {"gemini": cfg.get("gemini_model"), "openai": cfg.get("openai_model")},
+            "prices": load_settings().get("ai_model_prices") or {},
+            "note": "Список приходит от провайдера по вашему ключу. Цены провайдеры не отдают — "
+                    "их вы задаёте сами, в долларах за миллион токенов."}
+    _AI_MODELS_CACHE.update({"at": _time.time(), "data": data})
+    return web.json_response({"status": "ok", "cached": False, **data},
+                             dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
 @routes.post("/api/admin/monitoring/matching/ai")
 @require_admin
 async def monitoring_matching_ai_handler(request):

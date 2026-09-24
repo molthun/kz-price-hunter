@@ -352,6 +352,64 @@ async def call_gemini_api(prompt: str, api_key: str, *, timeout: float = DEFAULT
     return await _limited_provider_call(_call_gemini_api, prompt, api_key, timeout, scan=scan)
 
 
+# ---------------------------------------------------------------------------
+# Список моделей у самого провайдера: имена моделей меняются, и зашивать их в код нельзя —
+# ровно так проект уже обжёгся на недоступной gemini-модели (24.09.2026).
+# Ключ наружу не отдаётся: сюда приходит только список имён.
+# ---------------------------------------------------------------------------
+
+MODELS_TIMEOUT_SECONDS = 15.0
+
+
+async def list_gemini_models(api_key: str, timeout: float = MODELS_TIMEOUT_SECONDS) -> Dict[str, Any]:
+    """Модели Gemini, доступные этому ключу и умеющие генерировать ответ."""
+    if not api_key:
+        return {"models": [], "error": "ключ Gemini не задан"}
+    url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
+    try:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session:
+            async with session.get(url) as resp:
+                if resp.status != 200:
+                    return {"models": [], "error": f"Gemini ответил HTTP {resp.status}"}
+                data = await resp.json()
+    except Exception as e:                          # сеть, таймаут, неожиданный ответ
+        return {"models": [], "error": f"{type(e).__name__}"}
+    models = []
+    for item in (data or {}).get("models", []):
+        methods = item.get("supportedGenerationMethods") or []
+        if "generateContent" not in methods:
+            continue
+        name = str(item.get("name") or "").split("/")[-1]
+        if name:
+            models.append({"name": name, "title": str(item.get("displayName") or name)})
+    models.sort(key=lambda m: m["name"])
+    return {"models": models, "error": None}
+
+
+async def list_openai_models(api_key: str, api_base: str = "",
+                             timeout: float = MODELS_TIMEOUT_SECONDS) -> Dict[str, Any]:
+    """Модели OpenAI (или совместимого сервиса), доступные этому ключу."""
+    if not api_key:
+        return {"models": [], "error": "ключ OpenAI не задан"}
+    base = (api_base or "https://api.openai.com/v1").rstrip("/")
+    try:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session:
+            async with session.get(f"{base}/models",
+                                   headers={"Authorization": f"Bearer {api_key}"}) as resp:
+                if resp.status != 200:
+                    return {"models": [], "error": f"OpenAI ответил HTTP {resp.status}"}
+                data = await resp.json()
+    except Exception as e:
+        return {"models": [], "error": f"{type(e).__name__}"}
+    models = []
+    for item in (data or {}).get("data", []):
+        name = str(item.get("id") or "")
+        if name:
+            models.append({"name": name, "title": name})
+    models.sort(key=lambda m: m["name"])
+    return {"models": models, "error": None}
+
+
 async def call_openai_api(prompt: str, api_key: str, api_base: str, *, timeout: float = DEFAULT_TIMEOUT_SECONDS, scan: bool = False):
     return await _limited_provider_call(_call_openai_api, prompt, api_key, api_base, timeout, scan=scan)
 

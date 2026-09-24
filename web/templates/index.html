@@ -1426,8 +1426,13 @@
                 <option value="auto">Авто — gemini-2.5-flash</option>
                 <option value="manual">Указать вручную</option>
               </select>
-              <input id="inputGeminiModel" aria-label="Имя модели gemini" placeholder="gemini-2.5-flash" maxlength="150" disabled class="w-full mt-2 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white disabled:opacity-40">
-              <p class="text-[10px] text-slate-400 mt-1">Авто использует стандартную модель проекта. Вручную — точное имя текстовой модели с поддержкой JSON.</p>
+              <select id="listGeminiModels" aria-label="Модели Gemini по вашему ключу" disabled
+                      class="w-full mt-2 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white disabled:opacity-40">
+                <option value="">— список моделей не загружен —</option>
+              </select>
+              <input id="inputGeminiModel" aria-label="Имя модели gemini" placeholder="имя модели"
+                     maxlength="150" disabled class="w-full mt-2 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white disabled:opacity-40">
+              <p class="text-[10px] text-slate-400 mt-1">Список приходит от провайдера по вашему ключу. Если нужной модели в списке нет — впишите имя вручную.</p>
             </div>
 
             <div class="md:col-span-1">
@@ -1441,8 +1446,22 @@
                 <option value="auto">Авто — gpt-4o-mini</option>
                 <option value="manual">Указать вручную</option>
               </select>
-              <input id="inputOpenAiModel" aria-label="Имя модели openai" placeholder="gpt-4o-mini" maxlength="150" disabled class="w-full mt-2 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white disabled:opacity-40">
-              <p class="text-[10px] text-slate-400 mt-1">Авто использует стандартную модель проекта. Вручную — точное имя текстовой модели с поддержкой JSON.</p>
+              <select id="listOpenAiModels" aria-label="Модели OpenAI по вашему ключу" disabled
+                      class="w-full mt-2 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white disabled:opacity-40">
+                <option value="">— список моделей не загружен —</option>
+              </select>
+              <input id="inputOpenAiModel" aria-label="Имя модели openai" placeholder="имя модели"
+                     maxlength="150" disabled class="w-full mt-2 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white disabled:opacity-40">
+              <p class="text-[10px] text-slate-400 mt-1">Список приходит от провайдера по вашему ключу. Если нужной модели в списке нет — впишите имя вручную.</p>
+            </div>
+
+            <div class="md:col-span-2">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <span class="text-xs font-medium text-slate-300">Цены моделей (доллары за миллион токенов)</span>
+                <button type="button" onclick="loadAiModels(true)" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 transition cursor-pointer">Обновить список моделей</button>
+              </div>
+              <div id="aiPrices" class="mt-2 space-y-2"></div>
+              <p id="aiModelsNote" class="text-[10px] text-slate-400 mt-1">Провайдеры не отдают цены через API — их задаёте вы. Пока цена не задана, расход в деньгах не считается и показывается прочерком.</p>
             </div>
 
             <div class="md:col-span-1">
@@ -4733,7 +4752,98 @@
 
     function syncAiModelInputs() {
       for (const name of ['Gemini', 'OpenAi']) {
-        document.getElementById(`input${name}Model`).disabled = document.getElementById(`select${name}ModelMode`).value !== 'manual';
+        const manual = document.getElementById(`select${name}ModelMode`).value === 'manual';
+        const list = document.getElementById(`list${name}Models`);
+        // Список моделей приходит от провайдера; ручной ввод остаётся для случая, когда нужной там нет
+        if (list) list.disabled = !manual || !list.dataset.loaded;
+        document.getElementById(`input${name}Model`).disabled = !manual;
+      }
+    }
+
+    // --- Модели и цены (имена берём у провайдера, цены задаёт владелец) ---
+    let aiModelPrices = {};
+
+    function aiModelNames() {
+      const names = new Set(Object.keys(aiModelPrices));
+      for (const name of ['Gemini', 'OpenAi']) {
+        const chosen = document.getElementById(`input${name}Model`).value.trim();
+        if (chosen) names.add(chosen);
+      }
+      return [...names].sort();
+    }
+
+    function renderAiPrices() {
+      const box = document.getElementById('aiPrices');
+      if (!box) return;
+      const names = aiModelNames();
+      if (!names.length) {
+        box.innerHTML = '<p class="text-[10px] text-slate-500">Выберите модель — и здесь появятся поля для её цен.</p>';
+        return;
+      }
+      box.innerHTML = names.map(name => {
+        const price = aiModelPrices[name] || {};
+        return `<div class="flex flex-wrap items-center gap-2">
+          <span class="text-xs text-slate-300 font-mono grow min-w-[12rem] break-all">${escapeHtml(name)}</span>
+          <label class="text-[10px] text-slate-400">вход
+            <input type="number" min="0" step="0.01" data-price-model="${escapeHtml(name)}" data-price-field="input"
+                   value="${price.input != null ? escapeHtml(String(price.input)) : ''}" placeholder="0"
+                   class="ml-1 w-24 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white"></label>
+          <label class="text-[10px] text-slate-400">выход
+            <input type="number" min="0" step="0.01" data-price-model="${escapeHtml(name)}" data-price-field="output"
+                   value="${price.output != null ? escapeHtml(String(price.output)) : ''}" placeholder="0"
+                   class="ml-1 w-24 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white"></label>
+        </div>`;
+      }).join('');
+    }
+
+    function collectAiPrices() {
+      const prices = {};
+      document.querySelectorAll('[data-price-model]').forEach(el => {
+        const name = el.dataset.priceModel;
+        const value = el.value.trim();
+        if (!value) return;
+        prices[name] = prices[name] || {};
+        prices[name][el.dataset.priceField] = Number(value);
+      });
+      return prices;
+    }
+
+    async function loadAiModels(refresh) {
+      const note = document.getElementById('aiModelsNote');
+      if (note && refresh) note.textContent = 'Спрашиваю провайдеров…';
+      let data;
+      try {
+        const res = await fetch('/api/admin/ai/models' + (refresh ? '?refresh=1' : ''));
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        data = await res.json();
+      } catch (e) {
+        if (note) note.textContent = 'Не удалось получить список моделей: ' + e.message;
+        return;
+      }
+      aiModelPrices = data.prices || aiModelPrices;
+      const problems = [];
+      for (const [key, name] of [['gemini', 'Gemini'], ['openai', 'OpenAi']]) {
+        const list = document.getElementById(`list${name}Models`);
+        const block = data[key] || {};
+        if (!list) continue;
+        const models = block.models || [];
+        if (block.error) problems.push(`${key}: ${block.error}`);
+        const current = document.getElementById(`input${name}Model`).value.trim();
+        list.innerHTML = models.length
+          ? models.map(m => `<option value="${escapeHtml(m.name)}" ${m.name === current ? 'selected' : ''}>${escapeHtml(m.title || m.name)}</option>`).join('')
+          : '<option value="">— провайдер не вернул моделей —</option>';
+        list.dataset.loaded = models.length ? '1' : '';
+        list.onchange = () => {
+          document.getElementById(`input${name}Model`).value = list.value;
+          renderAiPrices();
+        };
+      }
+      renderAiPrices();
+      syncAiModelInputs();
+      if (note) {
+        note.textContent = problems.length
+          ? 'Список получен не полностью — ' + problems.join('; ')
+          : (data.note || '') + (data.cached ? ' Список из кэша, кнопка обновляет его.' : '');
       }
     }
 
@@ -4749,6 +4859,9 @@
           document.getElementById(`input${name}Model`).value = s[`${key}_model`] || fallback;
         }
         syncAiModelInputs();
+        aiModelPrices = s.ai_model_prices || {};
+        renderAiPrices();
+        loadAiModels(false);                 // имена моделей спрашиваем у провайдера, не зашиваем в код
         // AI-настройки
         const aiCheck = document.getElementById('checkAiSearchEnabled');
         if (aiCheck) aiCheck.checked = (s.ai_search_enabled !== false);
@@ -5525,7 +5638,8 @@
         ai_search_enabled: aiCheck ? aiCheck.checked : true,
         gemini_api_key: gKeyInput ? gKeyInput.value.trim() : '',
         openai_api_key: oKeyInput ? oKeyInput.value.trim() : '',
-        openai_api_base: oBaseInput ? oBaseInput.value.trim() : ''
+        openai_api_base: oBaseInput ? oBaseInput.value.trim() : '',
+        ai_model_prices: collectAiPrices()
       };
 
       if (await postSettings('/api/admin/config', payload, 'btnSaveAdminSettings', 'adminSaveResultToast', 'Сохранить общие настройки')) {

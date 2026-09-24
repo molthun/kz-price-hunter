@@ -380,12 +380,21 @@ def _read_settings_file():
             pass
     return {}
 
+# Настройки-словари, у которых ключи задаёт владелец, а не код: сюда нельзя применять правило
+# «оставить только ключи по умолчанию», иначе сохранённое значение исчезает при чтении.
+FREEFORM_DICT_SETTINGS = ("ai_model_prices",)
+
+
 def _merge(defaults, data):
     merged = {k: (dict(v) if isinstance(v, dict) else list(v) if isinstance(v, list) else v) for k, v in defaults.items()}
     for key, value in data.items():
         if key not in defaults:
             continue
-        if isinstance(defaults[key], dict) and isinstance(value, dict):
+        if key in FREEFORM_DICT_SETTINGS and isinstance(value, dict):
+            # Карта «модель → цены»: имена моделей знает владелец, а не значения по умолчанию.
+            # Прежнее правило вырезало их все, и заданные цены не доходили до расчёта расхода.
+            merged[key] = {str(k): v for k, v in value.items()}
+        elif isinstance(defaults[key], dict) and isinstance(value, dict):
             merged[key].update({k: bool(v) for k, v in value.items() if k in defaults[key]})
         else:
             merged[key] = value
