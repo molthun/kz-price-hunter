@@ -1,4 +1,4 @@
-# Транзитивные зависимости requirements.txt (версии из тестового прогона CI 18.09.2026)
+# Транзитивные зависимости requirements.txt (версии из тестового прогона CI 24.09.2026, Python 3.14)
 aiohappyeyeballs==2.7.1
 aiosignal==1.4.0
 attrs==26.1.0
@@ -7,11 +7,12 @@ charset_normalizer==3.5.1
 frozenlist==1.8.0
 greenlet==3.5.6
 idna==3.20
-multidict==6.9.0
+multidict==6.9.1
 propcache==0.5.4
 pycparser==3.0
+# pyee 14 вышел, но playwright 1.63 требует pyee<14 — это потолок, а не отставший пин
 pyee==13.0.1
-soupsieve==2.9.2
+soupsieve==2.10
 typing-extensions==4.16.0
 urllib3==2.8.0
 yarl==1.25.1

@@ -1,4 +1,7 @@
-FROM mcr.microsoft.com/playwright/python:v1.49.0-jammy
+# Образ Playwright той же версии, что и пакет в requirements.txt: раньше здесь был 1.49 при
+# pip-Playwright 1.63, и системные библиотеки браузера расходились с библиотекой, которая их зовёт.
+# resolute — Ubuntu 26.04 LTS, штатный Python 3.14: та же версия, что в CI и в локальном venv.
+FROM mcr.microsoft.com/playwright/python:v1.63.0-resolute
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -8,8 +11,11 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 COPY requirements.txt constraints.txt ./
-# Точные версии: сборка не подтягивает новые релизы зависимостей сама по себе (M11)
-RUN pip install --no-cache-dir -r requirements.txt -c constraints.txt && \
+# Точные версии: сборка не подтягивает новые релизы зависимостей сама по себе (M11).
+# --break-system-packages: Ubuntu 26.04 помечает системный Python как externally-managed (PEP 668).
+# Контейнер и есть окружение приложения, отдельный venv тут ничего не изолирует, а CMD и HEALTHCHECK
+# зовут системный python3 напрямую.
+RUN pip install --no-cache-dir --break-system-packages -r requirements.txt -c constraints.txt && \
     playwright install chromium
 
 COPY . .
