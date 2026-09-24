@@ -18,7 +18,7 @@ A — feed/API владельца с документированным назн
 
 Изображения сохраняются ссылками, server image proxy/cache не обнаружен. Browser и Telegram могут получать их с внешнего источника. Description используется в UI и может дополнительно сохраняться через guest product-detail GET для любого магазина. Его отсутствие в конкретном parser не означает отсутствие копирования текста в целом.
 
-## Матрица 25 источников
+## Матрица 27 источников
 
 | Модуль / класс | Тип / механизм | Timeout / pacing | Session, pagination, retry | Поля и ограничения |
 |---|---|---|---|---|
@@ -48,6 +48,7 @@ A — feed/API владельца с документированным назн
 | `scrapers/arbuz.py` / `ArbuzScraper` | D; arbuz.kz SSR HTML article.product-card | 20 с; 0.4 с | Session chrome124; ?page=N; признака конца нет → «ограничен», пустая первая страница и ошибки HTTP — ошибка (раньше маскировались пустым списком) | id/sku/title/price/old_price/image_url; Алматы; описание нет |
 | `scrapers/masterok.py` / `MasterOkScraper` | D + B; masterok.kz Bitrix HTML + Schema.org Product | 20 с; 0.4 с | Session chrome124; ?PAGEN_1=N; seen_ids→complete | id/sku/title/price/old_price/description/image_url; Алматы; описание есть |
 | `scrapers/magnum.py` / `MagnumScraper` | A; magnum.kz:1337 Strapi JSON API /api/new-product | 20 с; 0.3 с | Session chrome124; city={slug}&cunt=500{&category=slug}; конец доказан (полный список за 1 запрос) → complete | id/name/final_price/start_price/image/discount_type; Алматы/регионы; описание conditions |
+| `scrapers/intertop.py` / `IntertopScraper` | D; intertop.kz SSR HTML .in-product-tile | 20 с; 0.4 с | Session chrome124; ?page=N; retry 5xx; **конец доказан** номером последней страницы в пагинации (pagination_last_page) | id/sku/brand+title/price/old_price/image_url; Алматы / Казахстан; описание нет |
 
 ## Пути вне основного фонового scan
 
@@ -469,6 +470,19 @@ A — feed/API владельца с документированным назн
 | Магнум: 🧴 Средства гигиены | household | `https://magnum.kz/catalog?category=sredstva-gigieny` | 5 |
 | Магнум: 👶 Детские товары | household | `https://magnum.kz/catalog?category=detskie-tovary` | 5 |
 | Магнум: 🍳 Собственное производство | grocery | `https://magnum.kz/catalog?category=sobstvennoe-proizvodstvo` | 5 |
+
+### IntertopScraper — 8 настроенных источников категории
+
+| Категория | Master | URL/query | max_pages |
+|---|---|---|---|
+| Интертоп: 🔥 Скидки и распродажи | clothes | `https://intertop.kz/catalog/?discount=1` | 10 |
+| Интертоп: 👠 Женская обувь | clothes | `https://intertop.kz/catalog/zhenskaya_obuv/` | 10 |
+| Интертоп: 👗 Женская одежда | clothes | `https://intertop.kz/catalog/zhenskaya_odezhda/` | 10 |
+| Интертоп: 👞 Мужская обувь | clothes | `https://intertop.kz/catalog/muzhskaya_obuv/` | 10 |
+| Интертоп: 👔 Мужская одежда | clothes | `https://intertop.kz/catalog/muzhskaya_odezhda/` | 10 |
+| Интертоп: 👟 Детская обувь | clothes | `https://intertop.kz/catalog/detskaya_obuv/` | 10 |
+| Интертоп: 👕 Детская одежда | clothes | `https://intertop.kz/catalog/detskaya_odezhda/` | 10 |
+| Интертоп: 🎒 Аксессуары | clothes | `https://intertop.kz/catalog/aksessuary/` | 10 |
 
 ## Перед подключением следующего магазина
 

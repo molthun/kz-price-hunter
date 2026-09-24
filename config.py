@@ -46,6 +46,7 @@ SHOP_KEYS = {
     "arbuz": "Arbuz",
     "masterok": "MasterOK",
     "magnum": "Магнум",
+    "intertop": "Интертоп",
 }
 
 
@@ -1166,6 +1167,18 @@ MAGNUM_CATEGORIES = [
     {"name": "Магнум: 🧴 Средства гигиены", "url": "https://magnum.kz/catalog?category=sredstva-gigieny", "master": "household", "max_pages": 5},
     {"name": "Магнум: 👶 Детские товары", "url": "https://magnum.kz/catalog?category=detskie-tovary", "master": "household", "max_pages": 5},
     {"name": "Магнум: 🍳 Собственное производство", "url": "https://magnum.kz/catalog?category=sobstvennoe-proizvodstvo", "master": "grocery", "max_pages": 5},
+]
+
+# Интертоп (intertop.kz): крупнейшая мультибрендовая сеть обуви, одежды и аксессуаров в Казахстане
+INTERTOP_CATEGORIES = [
+    {"name": "Интертоп: 🔥 Скидки и распродажи", "url": "https://intertop.kz/ru-kz/shopping/catalog/women/shoes/?discount=1", "master": "actions", "max_pages": 10},
+    {"name": "Интертоп: 👠 Женская обувь", "url": "https://intertop.kz/ru-kz/shopping/catalog/women/shoes/", "master": "clothes", "max_pages": 10},
+    {"name": "Интертоп: 👗 Женская одежда", "url": "https://intertop.kz/ru-kz/shopping/catalog/women/clothing/", "master": "clothes", "max_pages": 10},
+    {"name": "Интертоп: 👞 Мужская обувь", "url": "https://intertop.kz/ru-kz/shopping/catalog/men/shoes/", "master": "clothes", "max_pages": 10},
+    {"name": "Интертоп: 👕 Мужская одежда", "url": "https://intertop.kz/ru-kz/shopping/catalog/men/clothing/", "master": "clothes", "max_pages": 10},
+    {"name": "Интертоп: 🧒 Детская обувь", "url": "https://intertop.kz/ru-kz/shopping/catalog/kids/shoes/", "master": "clothes", "max_pages": 10},
+    {"name": "Интертоп: 👶 Детская одежда", "url": "https://intertop.kz/ru-kz/shopping/catalog/kids/clothing/", "master": "clothes", "max_pages": 10},
+    {"name": "Интертоп: 👜 Аксессуары", "url": "https://intertop.kz/ru-kz/shopping/catalog/women/accessories/", "master": "clothes", "max_pages": 10},
 ]
 
 

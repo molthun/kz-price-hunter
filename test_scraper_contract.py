@@ -16,12 +16,13 @@ from scrapers.lemanapro import LemanaProScraper
 from scrapers.arbuz import ArbuzScraper
 from scrapers.masterok import MasterOkScraper
 from scrapers.magnum import MagnumScraper
+from scrapers.intertop import IntertopScraper
 
 
 class ScraperContractTest(unittest.TestCase):
     def test_scraper_classes_conform_to_contract(self):
         # Check standard scrapers
-        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper, LemanaProScraper, ArbuzScraper, MasterOkScraper, MagnumScraper):
+        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper, LemanaProScraper, ArbuzScraper, MasterOkScraper, MagnumScraper, IntertopScraper):
             self.assertTrue(hasattr(cls, "SHOP_NAME"), f"{cls} must define SHOP_NAME")
             self.assertTrue(callable(getattr(cls, "scrape", None)), f"{cls} must define scrape")
             self.assertTrue(callable(getattr(cls, "close", None)), f"{cls} must define close")
@@ -422,6 +423,48 @@ class ScraperContractTest(unittest.TestCase):
         self.assertFalse(res_err.complete)
         self.assertIn("HTTP", res_err.error)
 
+        scraper.close()
+        self.assertIsNone(scraper.session)
+
+    def test_intertop_parsing_mock(self):
+        from unittest.mock import MagicMock
+        scraper = IntertopScraper()
+        mock_html = '''
+        <html><body>
+        <div class="in-product-tile" data-product-id="10193392" data-product-sku="FW0FW08424-TRY">
+            <a href="/ru-kz/product/sandals-tommy-hilfiger-10193392/">
+                <div class="in-product-tile__product-brand">Tommy Hilfiger</div>
+                <div class="in-product-tile__product-name">Босоножки</div>
+            </a>
+            <div class="in-price__regular">₸ 85 990</div>
+            <div class="in-price__actual">₸ 68 790</div>
+            <img class="in-picture__img" src="https://kz.media.intertop.com/load/mp676428/small/MAIN.webp" alt="Босоножки Tommy Hilfiger Фото" />
+        </div>
+        <div class="pagination">
+            <a href="/ru-kz/shopping/catalog/women/shoes/?page=2">2</a>
+        </div>
+        </body></html>
+        '''
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = mock_html
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        scraper.session = mock_session
+
+        items = scraper._fetch_page("Женская обувь", "https://intertop.kz/ru-kz/shopping/catalog/women/shoes/", 1)
+        self.assertEqual(len(items), 1)
+        item = items[0]
+        self.assertEqual(item["id"], "intertop_10193392")
+        self.assertEqual(item["sku"], "FW0FW08424-TRY")
+        self.assertEqual(item["shop"], "Интертоп")
+        self.assertEqual(item["title"], "Tommy Hilfiger Босоножки")
+        self.assertEqual(item["price"], 68790)
+        self.assertEqual(item["old_price_on_site"], 85990)
+        self.assertEqual(item["url"], "https://intertop.kz/ru-kz/product/sandals-tommy-hilfiger-10193392/")
+        self.assertEqual(item["image_url"], "https://kz.media.intertop.com/load/mp676428/small/MAIN.webp")
+        self.assertEqual(item["city"], "Алматы / Казахстан")
         scraper.close()
         self.assertIsNone(scraper.session)
 

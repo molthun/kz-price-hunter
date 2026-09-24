@@ -927,3 +927,71 @@ class NewSourcesEndProofTest(unittest.TestCase):
         self.assertIn("city=astana", call_url)
         s.close()
 
+    def test_intertop_retry_on_transient_error(self):
+        from unittest.mock import Mock, patch
+        from scrapers.intertop import IntertopScraper
+
+        s = IntertopScraper()
+        resp502 = Mock(status_code=502)
+        html_ok = '''
+        <html><body>
+        <div class="in-product-tile" data-product-id="12345" data-product-sku="SKU123">
+            <a href="/catalog/shoes/123">Кроссовки</a>
+            <div class="in-product-tile__product-brand">Nike</div>
+            <div class="in-product-tile__product-name">Air Max</div>
+            <div class="in-price__actual">45 000 ₸</div>
+            <div class="in-price__regular">55 000 ₸</div>
+            <img src="https://kz.media.intertop.com/img1.jpg" />
+        </div>
+        <div class="pagination">
+            <a href="?page=1">1</a>
+            <a href="?page=2">2</a>
+        </div>
+        </body></html>
+        '''
+        resp200 = Mock(status_code=200, text=html_ok)
+        session = Mock(get=Mock(side_effect=[resp502, resp200]))
+        s.session = session
+
+        with patch("time.sleep", return_value=None):
+            res = s._fetch_page("Кроссовки", "https://intertop.kz/catalog/shoes/", 1)
+
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0]["id"], "intertop_12345")
+        self.assertEqual(res[0]["price"], 45000)
+        self.assertEqual(res[0]["old_price_on_site"], 55000)
+        self.assertFalse(res.complete)
+        self.assertEqual(session.get.call_count, 2)
+
+    def test_intertop_completion_and_unconfirmed_end(self):
+        from unittest.mock import Mock
+        from scrapers.intertop import IntertopScraper
+        from scrapers.base import UnconfirmedEnd
+
+        s = IntertopScraper()
+        html_p2 = '''
+        <html><body>
+        <div class="in-product-tile" data-product-id="12346">
+            <a href="/catalog/shoes/124">Ботинки</a>
+            <div class="in-product-tile__product-name">Ботинки зимние</div>
+            <div class="in-price">30 000 ₸</div>
+        </div>
+        <div class="pagination">
+            <a href="?page=1">1</a>
+            <a href="?page=2">2</a>
+        </div>
+        </body></html>
+        '''
+        session = Mock(get=Mock(return_value=Mock(status_code=200, text=html_p2)))
+        s.session = session
+
+        res2 = s._fetch_page("Обувь", "https://intertop.kz/catalog/shoes/", 2)
+        self.assertEqual(len(res2), 1)
+        self.assertTrue(res2.complete)
+
+        # Empty page on page > 1 raises UnconfirmedEnd
+        session.get = Mock(return_value=Mock(status_code=200, text="<html><body><div>Пусто</div></body></html>"))
+        with self.assertRaises(UnconfirmedEnd):
+            s._fetch_page("Обувь", "https://intertop.kz/catalog/shoes/", 3)
+
+

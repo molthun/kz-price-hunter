@@ -50,6 +50,7 @@ from config import (
     ARBUZ_CATEGORIES,
     MASTEROK_CATEGORIES,
     MAGNUM_CATEGORIES,
+    INTERTOP_CATEGORIES,
     MASTER_CATEGORIES,
     get_wave_plan,
     get_wave_interval_seconds,
@@ -117,6 +118,7 @@ from scrapers.lemanapro import LemanaProScraper
 from scrapers.arbuz import ArbuzScraper
 from scrapers.masterok import MasterOkScraper
 from scrapers.magnum import MagnumScraper
+from scrapers.intertop import IntertopScraper
 from search_engine import get_best_price_summary
 import ai_service
 import data_quality
@@ -989,6 +991,7 @@ SHOP_REGISTRY = {
     "arbuz": (ArbuzScraper, ARBUZ_CATEGORIES, "Arbuz"),
     "masterok": (MasterOkScraper, MASTEROK_CATEGORIES, "MasterOK"),
     "magnum": (MagnumScraper, MAGNUM_CATEGORIES, "Магнум"),
+    "intertop": (IntertopScraper, INTERTOP_CATEGORIES, "Интертоп"),
 }
 
 # Сколько магазинов обходить одновременно (у каждого свой сайт, поэтому нагрузка не суммируется)
