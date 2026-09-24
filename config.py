@@ -48,6 +48,7 @@ SHOP_KEYS = {
     "magnum": "Магнум",
     "intertop": "Интертоп",
     "marwin": "Меломан",
+    "iteka": "i-Teka",
 }
 
 
@@ -1193,6 +1194,19 @@ MARWIN_CATEGORIES = [
     {"name": "Меломан: 🎵 Музыка и винил", "url": "https://www.marwin.kz/music/", "master": "audio", "max_pages": 10},
     {"name": "Меломан: 🍬 Сладости и подарки", "url": "https://www.marwin.kz/food-items/", "master": "grocery", "max_pages": 10},
 ]
+
+ITEKA_CATEGORIES = [
+    {"name": "i-Teka: 💊 Лекарства и БАД", "url": "https://i-teka.kz/astana/drug-categories/lekarstvennye-preparaty-i-bad", "master": "beauty_health", "max_pages": 10},
+    {"name": "i-Teka: 🩺 Обезболивающие и спазмолитики", "url": "https://i-teka.kz/astana/drug-categories/obezbolivayuschie-i-spazmalitiki", "master": "beauty_health", "max_pages": 10},
+    {"name": "i-Teka: 🦠 Противовирусные препараты", "url": "https://i-teka.kz/astana/drug-categories/protivovirusnye-preparaty", "master": "beauty_health", "max_pages": 10},
+    {"name": "i-Teka: 💉 Антибиотики и противомикробные", "url": "https://i-teka.kz/astana/drug-categories/antibakterialjnye-preparaty-i-antibiotiki", "master": "beauty_health", "max_pages": 10},
+    {"name": "i-Teka: 🩹 Медтехника и изделия мед. назначения", "url": "https://i-teka.kz/astana/drug-categories/izdeliya-medicinskogo-naznacheniya-i-medtehnika", "master": "beauty_health", "max_pages": 10},
+    {"name": "i-Teka: 🫀 Тонометры и диагностика", "url": "https://i-teka.kz/astana/drug-categories/tonometry-i-komplektuyuschie-dlya-tonometrov", "master": "beauty_health", "max_pages": 10},
+    {"name": "i-Teka: 🧴 Санитария и гигиена", "url": "https://i-teka.kz/astana/drug-categories/sanitariya-i-gigiena", "master": "beauty_health", "max_pages": 10},
+    {"name": "i-Teka: 👶 Товары для матери и ребенка", "url": "https://i-teka.kz/astana/drug-categories/tovary-dlya-materi-i-rebenka", "master": "beauty_health", "max_pages": 10},
+    {"name": "i-Teka: 💄 Косметика и дерматологический уход", "url": "https://i-teka.kz/astana/drug-categories/kosmetika-i-uhod", "master": "beauty_health", "max_pages": 10},
+]
+
 
 
 

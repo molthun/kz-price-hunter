@@ -18,12 +18,13 @@ from scrapers.masterok import MasterOkScraper
 from scrapers.magnum import MagnumScraper
 from scrapers.intertop import IntertopScraper
 from scrapers.marwin import MarwinScraper
+from scrapers.iteka import ITekaScraper
 
 
 class ScraperContractTest(unittest.TestCase):
     def test_scraper_classes_conform_to_contract(self):
         # Check standard scrapers
-        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper, LemanaProScraper, ArbuzScraper, MasterOkScraper, MagnumScraper, IntertopScraper, MarwinScraper):
+        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper, LemanaProScraper, ArbuzScraper, MasterOkScraper, MagnumScraper, IntertopScraper, MarwinScraper, ITekaScraper):
             self.assertTrue(hasattr(cls, "SHOP_NAME"), f"{cls} must define SHOP_NAME")
             self.assertTrue(callable(getattr(cls, "scrape", None)), f"{cls} must define scrape")
             self.assertTrue(callable(getattr(cls, "close", None)), f"{cls} must define close")
@@ -547,6 +548,72 @@ class ScraperContractTest(unittest.TestCase):
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["title"], "Книга LEGO")
         self.assertEqual(results[0]["price"], 5000)
+        scraper.close()
+
+    def test_iteka_parsing_mock(self):
+        from unittest.mock import MagicMock
+        scraper = ITekaScraper()
+        mock_html = '''
+        <html><body>
+        <div class="rounded-16 bg-white p-4">
+            <a href="/astana/medicaments/paracetamol-500mg-tab-n10-12345">Парацетамол 500мг таб №10</a>
+            <img src="https://i-teka.kz/images/paracetamol.jpg" />
+            <button x-data="addToCartButton({ drugId: '12345', drugPrice: 250, count: 1 })">Купить</button>
+            <span class="line-through">300 ₸</span>
+        </div>
+        <ul class="pagination">
+            <li class="page-item"><a class="page-link" href="?GlossaryTnfull_page=2">2</a></li>
+        </ul>
+        </body></html>
+        '''
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = mock_html
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        scraper.session = mock_session
+
+        items = scraper._fetch_page("Обезболивающие", "https://i-teka.kz/astana/medicaments/obezbolivayushie-preparaty", 1)
+        self.assertEqual(len(items), 1)
+        item = items[0]
+        self.assertEqual(item["id"], "iteka_12345")
+        self.assertEqual(item["sku"], "12345")
+        self.assertEqual(item["shop"], "i-Teka")
+        self.assertEqual(item["title"], "Парацетамол 500мг таб №10")
+        self.assertEqual(item["price"], 250)
+        self.assertEqual(item["old_price_on_site"], 300)
+        self.assertEqual(item["url"], "https://i-teka.kz/astana/medicaments/paracetamol-500mg-tab-n10-12345")
+        self.assertEqual(item["image_url"], "https://i-teka.kz/images/paracetamol.jpg")
+        self.assertEqual(item["city"], "Астана")
+        self.assertFalse(items.complete)
+        scraper.close()
+        self.assertIsNone(scraper.session)
+
+    def test_iteka_live_search_mock(self):
+        from unittest.mock import MagicMock
+        scraper = ITekaScraper()
+        mock_html = '''
+        <html><body>
+        <div class="rounded-16 bg-white p-4">
+            <a href="/astana/medicaments/aspirin-100mg-54321">Аспирин Кардио 100мг</a>
+            <button x-data="addToCartButton({ drugId: '54321', drugPrice: 1500 })">Купить</button>
+        </div>
+        </body></html>
+        '''
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = mock_html
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        scraper.session = mock_session
+
+        results = scraper.search_live("Аспирин", limit=5)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["title"], "Аспирин Кардио 100мг")
+        self.assertEqual(results[0]["price"], 1500)
+        self.assertEqual(results[0]["shop"], "i-Teka")
         scraper.close()
 
 

@@ -52,6 +52,7 @@ from config import (
     MAGNUM_CATEGORIES,
     INTERTOP_CATEGORIES,
     MARWIN_CATEGORIES,
+    ITEKA_CATEGORIES,
     MASTER_CATEGORIES,
     get_wave_plan,
     get_wave_interval_seconds,
@@ -121,6 +122,7 @@ from scrapers.masterok import MasterOkScraper
 from scrapers.magnum import MagnumScraper
 from scrapers.intertop import IntertopScraper
 from scrapers.marwin import MarwinScraper
+from scrapers.iteka import ITekaScraper
 from search_engine import get_best_price_summary
 import ai_service
 import data_quality
@@ -995,6 +997,7 @@ SHOP_REGISTRY = {
     "magnum": (MagnumScraper, MAGNUM_CATEGORIES, "Магнум"),
     "intertop": (IntertopScraper, INTERTOP_CATEGORIES, "Интертоп"),
     "marwin": (MarwinScraper, MARWIN_CATEGORIES, "Меломан"),
+    "iteka": (ITekaScraper, ITEKA_CATEGORIES, "i-Teka"),
 }
 
 # Сколько магазинов обходить одновременно (у каждого свой сайт, поэтому нагрузка не суммируется)

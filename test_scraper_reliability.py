@@ -1053,5 +1053,63 @@ class NewSourcesEndProofTest(unittest.TestCase):
         with self.assertRaises(UnconfirmedEnd):
             s._fetch_page("Книги", "https://www.marwin.kz/books/", 3)
 
+    def test_iteka_retry_on_transient_error(self):
+        from unittest.mock import Mock, patch
+        from scrapers.iteka import ITekaScraper
+
+        s = ITekaScraper()
+        resp502 = Mock(status_code=502)
+        html_ok = '''
+        <html><body>
+        <div class="rounded-16 bg-white p-4">
+            <a href="/astana/medicaments/paracetamol-777">Парацетамол</a>
+            <button x-data="addToCartButton({ drugId: '777', drugPrice: 200 })">Купить</button>
+        </div>
+        <ul class="pagination">
+            <li class="page-item"><a class="page-link" href="?GlossaryTnfull_page=2">2</a></li>
+        </ul>
+        </body></html>
+        '''
+        resp200 = Mock(status_code=200, text=html_ok)
+        session = Mock(get=Mock(side_effect=[resp502, resp200]))
+        s.session = session
+
+        with patch("time.sleep", return_value=None):
+            res = s._fetch_page("Обезболивающие", "https://i-teka.kz/astana/medicaments/obezbolivayushie-preparaty", 1)
+
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0]["id"], "iteka_777")
+        self.assertEqual(res[0]["price"], 200)
+        self.assertFalse(res.complete)
+        self.assertEqual(session.get.call_count, 2)
+
+    def test_iteka_completion_and_unconfirmed_end(self):
+        from unittest.mock import Mock
+        from scrapers.iteka import ITekaScraper
+        from scrapers.base import UnconfirmedEnd
+
+        s = ITekaScraper()
+        html_p2 = '''
+        <html><body>
+        <div class="rounded-16 bg-white p-4">
+            <a href="/astana/medicaments/paracetamol-778">Парацетамол</a>
+            <button x-data="addToCartButton({ drugId: '778', drugPrice: 200 })">Купить</button>
+        </div>
+        <ul class="pagination">
+            <li class="page-item"><a class="page-link" href="?GlossaryTnfull_page=2">2</a></li>
+        </ul>
+        </body></html>
+        '''
+        session = Mock(get=Mock(return_value=Mock(status_code=200, text=html_p2)))
+        s.session = session
+
+        res2 = s._fetch_page("Обезболивающие", "https://i-teka.kz/astana/medicaments/obezbolivayushie-preparaty", 2)
+        self.assertEqual(len(res2), 1)
+        self.assertTrue(res2.complete)
+
+        session.get = Mock(return_value=Mock(status_code=200, text="<html><body><div>Пусто</div></body></html>"))
+        with self.assertRaises(UnconfirmedEnd):
+            s._fetch_page("Обезболивающие", "https://i-teka.kz/astana/medicaments/obezbolivayushie-preparaty", 3)
+
 
 
