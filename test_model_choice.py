@@ -80,7 +80,9 @@ class AlternativesTest(unittest.TestCase):
 
     def setUp(self):
         ai_service._auto_model_cache.clear()
+        ai_service.clear_model_cooldowns()
         self.addCleanup(ai_service._auto_model_cache.clear)
+        self.addCleanup(ai_service.clear_model_cooldowns)
 
     def cache(self, names):
         ai_service._auto_model_cache["gemini"] = {"model": names[0] if names else None, "at": 9e9,
@@ -187,3 +189,28 @@ class RealCallSignatureTest(unittest.IsolatedAsyncioTestCase):
              patch.object(ai_service.aiohttp, "ClientSession", self.session(payload, calls)):
             await ai_service.call_gemini_api("текст", "k", timeout=5)
         self.assertIn("/models/gemini-3.5-flash-lite:", calls[0]["url"])
+
+    async def test_openai_uses_max_completion_tokens(self):
+        calls = []
+        payload = {"choices": [{"message": {"content": '{"ok": 1}'}}],
+                   "usage": {"prompt_tokens": 5, "completion_tokens": 2}}
+        with patch("config.get_ai_config", return_value=self.cfg), \
+             patch.object(ai_service.aiohttp, "ClientSession", self.session(payload, calls)):
+            await ai_service.call_openai_api("текст", "k", "https://api.openai.com/v1",
+                                             timeout=5, model="gpt-5.4-nano")
+        self.assertIn("max_completion_tokens", calls[0]["body"])
+        self.assertEqual(calls[0]["body"]["max_completion_tokens"], ai_service.MAX_OUTPUT_TOKENS)
+
+    async def test_model_cooldown_skips_failed_model(self):
+        ai_service.clear_model_cooldowns()
+        self.assertFalse(ai_service.is_model_on_cooldown("gemini", "gemini-3.8-flash"))
+        ai_service.mark_model_cooldown("gemini", "gemini-3.8-flash", 60)
+        self.assertTrue(ai_service.is_model_on_cooldown("gemini", "gemini-3.8-flash"))
+
+        listing = {"models": [{"name": "gemini-3.8-flash", "title": "3.8"},
+                              {"name": "gemini-3.5-flash-lite", "title": "3.5"}], "error": None}
+        with patch.object(ai_service, "list_gemini_models", return_value=listing):
+            chosen = await ai_service.auto_model("gemini", self.cfg)
+        self.assertEqual(chosen, "gemini-3.5-flash-lite")
+        ai_service.clear_model_cooldowns()
+

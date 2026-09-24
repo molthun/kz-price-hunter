@@ -231,6 +231,8 @@ class AutoModelDefaultsAndFallbackTest(unittest.IsolatedAsyncioTestCase):
             p.start()
             self.addCleanup(p.stop)
         database.init_db()
+        ai_service.clear_model_cooldowns()
+        self.addCleanup(ai_service.clear_model_cooldowns)
 
     def test_defaults_are_used_until_the_list_answers(self):
         """Значения по умолчанию — только запасной вариант: рабочую модель выбирает список провайдера."""

@@ -365,6 +365,28 @@ MODELS_TIMEOUT_SECONDS = 15.0
 # вызов; на проде это тысяча запросов в день.
 AUTO_MODEL_TTL_SECONDS = 3600
 _auto_model_cache: Dict[str, Any] = {}
+_model_cooldown: Dict[Tuple[str, str], float] = {}
+
+
+def mark_model_cooldown(provider: str, model: str, duration_seconds: float = 600) -> None:
+    """Временное исключение модели из ротации при 429 (квота) или 404/400 (недоступна)."""
+    if provider and model:
+        _model_cooldown[(provider, model)] = time.time() + duration_seconds
+        _auto_model_cache.pop(provider, None)
+
+
+def is_model_on_cooldown(provider: str, model: str) -> bool:
+    until = _model_cooldown.get((provider, model))
+    if not until:
+        return False
+    if time.time() >= until:
+        _model_cooldown.pop((provider, model), None)
+        return False
+    return True
+
+
+def clear_model_cooldowns() -> None:
+    _model_cooldown.clear()
 
 
 def auto_model_cached(provider: str) -> Optional[str]:
@@ -385,7 +407,9 @@ async def auto_model(provider: str, cfg: Optional[Dict[str, Any]] = None) -> Opt
     fallback = cfg.get(f"{provider}_model")
     item = _auto_model_cache.get(provider)
     if item and _time.time() - item["at"] < AUTO_MODEL_TTL_SECONDS:
-        return item["model"] or fallback
+        cached_model = item["model"] or fallback
+        if not is_model_on_cooldown(provider, cached_model):
+            return cached_model
 
     if provider == "gemini":
         listing = await list_gemini_models(cfg.get("gemini_api_key") or "")
@@ -393,7 +417,8 @@ async def auto_model(provider: str, cfg: Optional[Dict[str, Any]] = None) -> Opt
         listing = await list_openai_models(cfg.get("openai_api_key") or "",
                                            cfg.get("openai_api_base") or "")
     names = [m["name"] for m in listing.get("models") or []]
-    chosen = model_choice.preferred(names, fallback)
+    usable_names = [n for n in names if not is_model_on_cooldown(provider, n)]
+    chosen = model_choice.preferred(usable_names or names, fallback)
     _auto_model_cache[provider] = {"model": chosen, "at": _time.time(), "names": names,
                                    "from_list": bool(names), "error": listing.get("error")}
     return chosen
@@ -408,7 +433,9 @@ def alternatives(provider: str, chosen: Optional[str], limit: int = 2) -> List[s
     import model_choice
     item = _auto_model_cache.get(provider) or {}
     names = item.get("names") or []
-    return [n for n in model_choice.candidates(names) if n != chosen][:limit]
+    usable_names = [n for n in names if not is_model_on_cooldown(provider, n)]
+    pool = usable_names if usable_names else names
+    return [n for n in model_choice.candidates(pool) if n != chosen][:limit]
 
 
 async def list_gemini_models(api_key: str, timeout: float = MODELS_TIMEOUT_SECONDS) -> Dict[str, Any]:
@@ -486,7 +513,8 @@ async def _call_gemini_api(prompt: str, api_key: str, timeout_seconds: float = D
         models_to_try = [configured_model]
     else:
         chain = [configured_model] + alternatives("gemini", configured_model) + STATIC_GEMINI_FALLBACK
-        models_to_try = list(dict.fromkeys(chain))      # без повторов, порядок сохраняется
+        active_chain = [m for m in chain if not is_model_on_cooldown("gemini", m)]
+        models_to_try = list(dict.fromkeys(active_chain or chain))      # без повторов, порядок сохраняется
 
     for model in models_to_try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
@@ -518,15 +546,19 @@ async def _call_gemini_api(prompt: str, api_key: str, timeout_seconds: float = D
                             if parts:
                                 text = parts[0].get("text", "").strip()
                                 return _extract_json_from_text(text)
-                    elif resp.status in (400, 404):
-                        # Модель может быть недоступна в этой версии, пробуем следующую.
-                        # Раньше эта ветка молчала, и «100 % ошибок» в мониторинге не имело объяснения:
-                        # именно она срабатывает при неверном имени модели или отвергнутом ключе.
-                        print(f"[AI Service] Gemini отказал ({model}, HTTP {resp.status}) — "
-                              f"модель недоступна для этого ключа или имя неверно")
-                        _note_call(failure=f"http_{resp.status}")
+                    elif resp.status == 404:
+                        print(f"[AI Service] Gemini отказал ({model}, HTTP 404) — "
+                              f"модель недоступна для этого ключа, исключаем из ротации")
+                        mark_model_cooldown("gemini", model, 86400)
+                        _note_call(failure="http_404")
                         continue
-                    elif resp.status in (429, 500, 502, 503, 504):
+                    elif resp.status == 429:
+                        print(f"[AI Service] Gemini исчерпал квоту ({model}, HTTP 429), "
+                              f"исключаем модель на 10 минут и пробуем следующую")
+                        mark_model_cooldown("gemini", model, 600)
+                        _note_call(failure="http_429")
+                        continue
+                    elif resp.status in (400, 500, 502, 503, 504):
                         print(f"[AI Service] Gemini временно недоступен ({model}, HTTP {resp.status}), пробуем следующую модель")
                         _note_call(failure=f"http_{resp.status}")
                         continue
@@ -556,10 +588,14 @@ async def _call_openai_api(prompt: str, api_key: str, api_base: str,
     # Модель выбирает вызывающий: в ручном режиме — заданная владельцем, в «Авто» — выбранная из
     # списка провайдера. Зашитых запасных имён здесь больше нет: они устаревают молча.
     configured_model = model or ai_cfg.get("openai_model")
-    models_to_try = ([configured_model] + alternatives("openai", configured_model)
-                     if configured_model else [])
+    raw_chain = ([configured_model] + alternatives("openai", configured_model)
+                 if configured_model else [])
+    active_chain = [m for m in raw_chain if not is_model_on_cooldown("openai", m)]
+    models_to_try = list(dict.fromkeys(active_chain or raw_chain))
 
     for model in models_to_try:
+        # Для совместимости: современные модели OpenAI (gpt-5.4, o-серия, gpt-4o) требуют
+        # max_completion_tokens вместо устаревшего max_tokens.
         payload = {
             "model": model,
             "messages": [
@@ -568,7 +604,7 @@ async def _call_openai_api(prompt: str, api_key: str, api_base: str,
             ],
             "response_format": {"type": "json_object"},
             "temperature": 0.1,
-            "max_tokens": MAX_OUTPUT_TOKENS
+            "max_completion_tokens": MAX_OUTPUT_TOKENS
         }
 
         try:
@@ -584,8 +620,35 @@ async def _call_openai_api(prompt: str, api_key: str, api_base: str,
                         if choices:
                             content = choices[0].get("message", {}).get("content", "")
                             return _extract_json_from_text(content)
-                    elif resp.status in (400, 404, 429, 500, 502, 503, 504):
-                        print(f"[AI Service] OpenAI отказал ({model}, HTTP {resp.status}), пробуем следующую модель")
+                    elif resp.status == 400:
+                        # Если сервер старый и не знает max_completion_tokens, пробуем с max_tokens
+                        err_text = await resp.text()
+                        if "max_completion_tokens" in err_text:
+                            payload_fallback = dict(payload)
+                            payload_fallback.pop("max_completion_tokens", None)
+                            payload_fallback["max_tokens"] = MAX_OUTPUT_TOKENS
+                            async with session.post(url, json=payload_fallback, headers=headers) as resp2:
+                                if resp2.status == 200:
+                                    data2 = await resp2.json()
+                                    choices = data2.get("choices", [])
+                                    if choices:
+                                        content = choices[0].get("message", {}).get("content", "")
+                                        return _extract_json_from_text(content)
+                        print(f"[AI Service] OpenAI отказал ({model}, HTTP 400), пробуем следующую модель")
+                        _note_call(failure="http_400")
+                        continue
+                    elif resp.status == 404:
+                        print(f"[AI Service] OpenAI модель {model} не найдена (HTTP 404), исключаем из ротации")
+                        mark_model_cooldown("openai", model, 86400)
+                        _note_call(failure="http_404")
+                        continue
+                    elif resp.status == 429:
+                        print(f"[AI Service] OpenAI лимит исчерпан ({model}, HTTP 429), исключаем на 10 минут")
+                        mark_model_cooldown("openai", model, 600)
+                        _note_call(failure="http_429")
+                        continue
+                    elif resp.status in (500, 502, 503, 504):
+                        print(f"[AI Service] OpenAI временно недоступен ({model}, HTTP {resp.status}), пробуем следующую модель")
                         _note_call(failure=f"http_{resp.status}")
                         continue
                     else:
