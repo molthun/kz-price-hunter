@@ -529,6 +529,36 @@ def _deliver_batch(limit, counts):
     return sent, pause
 
 
+def _check_shop_notices() -> None:
+    """Проверяет, не обратился ли магазин к тем, кто его парсит (shop_notices.py).
+
+    Список магазинов берётся из реестра, чтобы новый магазин попадал под наблюдение сам собой,
+    без отдельной правки. Проверка тяжёлая, поэтому внутри она сама решает, пора ли.
+    """
+    import re
+    import shop_notices
+    from web.server import SHOP_REGISTRY
+
+    hosts, names = {}, {}
+    for key, value in SHOP_REGISTRY.items():
+        categories = value[1] if len(value) > 1 else []
+        names[key] = value[2] if len(value) > 2 else key
+        for row in categories or []:
+            url = row.get("url") if isinstance(row, dict) else None
+            match = re.match(r"https?://([^/]+)", url or "")
+            if match:
+                hosts[key] = match.group(1)
+                break
+    if not hosts:
+        return
+    result = shop_notices.check_and_queue(hosts, names)
+    if result.get("skipped"):
+        return
+    print(f"[Notices] Проверено магазинов: {result['checked']}, "
+          f"новых обращений: {len(result['changed'])}, "
+          f"не открылись: {len(result['unreachable'])}")
+
+
 async def notification_worker():
     import environment
     while True:
@@ -539,6 +569,12 @@ async def notification_worker():
                 await asyncio.to_thread(daily_digest.queue_if_due)
             except Exception as e:
                 print(f"[Daily] Сводка не поставлена в очередь: {type(e).__name__}")
+            # Обращения магазинов к тем, кто их парсит: раз в неделю, см. shop_notices.py.
+            # Отказ проверки не должен мешать доставке уведомлений — она здесь главная.
+            try:
+                await asyncio.to_thread(_check_shop_notices)
+            except Exception as e:
+                print(f"[Notices] Проверка обращений магазинов не выполнена: {type(e).__name__}")
             await asyncio.to_thread(deliver_pending)
             # Пульс очереди Telegram (P14): умерший воркер не должен выглядеть работающим
             await asyncio.to_thread(environment.heartbeat, environment.TELEGRAM, "цикл доставки")

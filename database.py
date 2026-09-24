@@ -721,6 +721,19 @@ def _create_schema(cursor) -> None:
             PRIMARY KEY (day, tz)
         )
     """)
+    # Обращения магазинов к тем, кто их парсит (см. shop_notices.py). Таблица добавочная:
+    # schema_version остаётся прежним, откат на старый образ не требует восстановления базы.
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS shop_notices (
+            shop_key TEXT PRIMARY KEY,
+            host TEXT NOT NULL,
+            fingerprint TEXT NOT NULL,
+            notices TEXT NOT NULL,
+            first_seen_at TEXT NOT NULL,
+            last_changed_at TEXT NOT NULL,
+            last_checked_at TEXT NOT NULL
+        )
+    """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS matching_pairs (
             pair_key TEXT PRIMARY KEY,
@@ -2156,6 +2169,42 @@ def get_shop_scans() -> Dict[str, Dict[str, Any]]:
     with get_connection() as conn:
         rows = conn.execute("SELECT * FROM shop_scans").fetchall()
     return {row["shop_key"]: dict(row) for row in rows}
+
+def get_shop_notices() -> Dict[str, Dict[str, Any]]:
+    """Известные обращения магазинов к парсерам, по ключу магазина (см. shop_notices.py)."""
+    with get_connection() as conn:
+        rows = conn.execute("SELECT * FROM shop_notices").fetchall()
+    return {row["shop_key"]: dict(row) for row in rows}
+
+
+def save_shop_notice(shop_key: str, host: str, fingerprint: str, notices: str,
+                     checked_at: str) -> bool:
+    """Сохраняет обращение магазина. Возвращает True, если текст новый или изменился.
+
+    Дата первого появления не переписывается: важно знать, когда магазин заговорил впервые.
+    """
+    with get_connection() as conn:
+        row = conn.execute("SELECT fingerprint, first_seen_at FROM shop_notices WHERE shop_key = ?",
+                           (shop_key,)).fetchone()
+        changed = row is None or row["fingerprint"] != fingerprint
+        first_seen = row["first_seen_at"] if row else checked_at
+        last_changed = checked_at if changed else None
+        if row is None:
+            conn.execute("""INSERT INTO shop_notices
+                            (shop_key, host, fingerprint, notices, first_seen_at,
+                             last_changed_at, last_checked_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                         (shop_key, host, fingerprint, notices, first_seen, checked_at, checked_at))
+        elif changed:
+            conn.execute("""UPDATE shop_notices SET host = ?, fingerprint = ?, notices = ?,
+                            last_changed_at = ?, last_checked_at = ? WHERE shop_key = ?""",
+                         (host, fingerprint, notices, checked_at, checked_at, shop_key))
+        else:
+            conn.execute("UPDATE shop_notices SET last_checked_at = ? WHERE shop_key = ?",
+                         (checked_at, shop_key))
+        conn.commit()
+    return changed
+
 
 def _age_seconds(timestamp: Optional[str]) -> Optional[int]:
     if not timestamp:
