@@ -466,17 +466,27 @@ async def call_openai_api(prompt: str, api_key: str, api_base: str, *,
     return await _limited_provider_call(_call_openai_api, prompt, api_key, api_base, timeout, model, scan=scan)
 
 
-async def _call_gemini_api(prompt: str, api_key: str, timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS) -> Optional[Dict[str, Any]]:
-    """Вызов Gemini Flash REST API через aiohttp."""
+# Запасная цепочка на случай, когда список моделей у провайдера получить не удалось. Имена здесь
+# устаревают — поэтому они последняя линия, а не первая: сначала спрашиваем провайдера (Antigravity
+# предложил каскад, Claude — выбор из списка; работает и то, и другое, в этом порядке).
+STATIC_GEMINI_FALLBACK = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.5-flash",
+                          "gemini-flash-latest"]
+
+
+async def _call_gemini_api(prompt: str, api_key: str, timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+                           model: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Вызов Gemini REST API через aiohttp.
+
+    Модель приходит от вызывающего: в ручном режиме — заданная владельцем, в «Авто» — выбранная из
+    списка провайдера. Если ничего не передали, работает прежний порядок с запасной цепочкой.
+    """
     ai_cfg = config.get_ai_config()
-    configured_model = ai_cfg.get("gemini_model") or "gemini-3.5-flash-lite"
-    if ai_cfg.get("gemini_model_mode") == "manual":
+    configured_model = model or ai_cfg.get("gemini_model") or STATIC_GEMINI_FALLBACK[0]
+    if not model and ai_cfg.get("gemini_model_mode") == "manual":
         models_to_try = [configured_model]
     else:
-        # Режим «Авто»: свежая, быстрая и экономичная gemini-3.5-flash-lite как основная,
-        # с автоматическим резервом при недоступности или перегрузке
-        fallback_models = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-flash-latest"]
-        models_to_try = [configured_model] + [m for m in fallback_models if m != configured_model]
+        chain = [configured_model] + alternatives("gemini", configured_model) + STATIC_GEMINI_FALLBACK
+        models_to_try = list(dict.fromkeys(chain))      # без повторов, порядок сохраняется
 
     for model in models_to_try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"

@@ -101,3 +101,89 @@ class AlternativesTest(unittest.TestCase):
     def test_unsuitable_models_never_become_alternatives(self):
         self.cache(["gemini-3.8-flash", "gemini-embedding-2", "gemini-3-flash-preview"])
         self.assertEqual(ai_service.alternatives("gemini", "gemini-3.8-flash"), [])
+
+
+class RealCallSignatureTest(unittest.IsolatedAsyncioTestCase):
+    """Вызов провайдера идёт через настоящую обёртку: несовпадение подписей должно ловиться тестом.
+
+    Именно это и уехало на прод 24.09: вызывающий передавал модель, а функция её не принимала — и
+    каждый вызов Gemini падал с TypeError. Тесты не заметили, потому что подменяли саму функцию.
+    """
+
+    def setUp(self):
+        import tempfile
+        import database
+        from config import DB_PATH
+        ai_service._auto_model_cache.clear()
+        self.addCleanup(ai_service._auto_model_cache.clear)
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        data_dir = type(DB_PATH)(tmp.name)
+        for p in [patch.object(database, "DB_PATH", data_dir / "prices.db"),
+                  patch("config.DATA_DIR", data_dir),
+                  patch("config.SETTINGS_FILE", data_dir / "settings.json")]:
+            p.start()
+            self.addCleanup(p.stop)
+        database.init_db()        # учёт вызовов пишется в базу — она должна быть временной
+        self.cfg = {"gemini_api_key": "k", "gemini_model": "gemini-3.5-flash-lite",
+                    "gemini_model_mode": "auto", "openai_api_key": "k", "openai_api_base": "",
+                    "openai_model": "gpt-4o-mini", "openai_model_mode": "auto"}
+
+    def session(self, payload, capture):
+        class Resp:
+            status = 200
+
+            async def json(self_inner):
+                return payload
+
+            async def __aenter__(self_inner):
+                return self_inner
+
+            async def __aexit__(self_inner, *exc):
+                return False
+
+        class Session:
+            def __init__(self_inner, **kwargs):
+                pass
+
+            def post(self_inner, url, json=None, **kwargs):
+                capture.append({"url": url, "body": json})
+                return Resp()
+
+            async def __aenter__(self_inner):
+                return self_inner
+
+            async def __aexit__(self_inner, *exc):
+                return False
+
+        return Session
+
+    async def test_gemini_is_called_with_the_model_it_was_given(self):
+        calls = []
+        payload = {"candidates": [{"content": {"parts": [{"text": '{"ok": 1}'}]}}],
+                   "usageMetadata": {"promptTokenCount": 5, "candidatesTokenCount": 2}}
+        with patch("config.get_ai_config", return_value=self.cfg), \
+             patch.object(ai_service.aiohttp, "ClientSession", self.session(payload, calls)):
+            result = await ai_service.call_gemini_api("текст", "k", timeout=5, model="gemini-3.8-flash")
+        self.assertEqual(result, {"ok": 1})
+        self.assertIn("/models/gemini-3.8-flash:", calls[0]["url"])
+
+    async def test_openai_is_called_with_the_model_it_was_given(self):
+        calls = []
+        payload = {"choices": [{"message": {"content": '{"ok": 1}'}}],
+                   "usage": {"prompt_tokens": 5, "completion_tokens": 2}}
+        with patch("config.get_ai_config", return_value=self.cfg), \
+             patch.object(ai_service.aiohttp, "ClientSession", self.session(payload, calls)):
+            result = await ai_service.call_openai_api("текст", "k", "https://api.openai.com/v1",
+                                                      timeout=5, model="gpt-5-mini")
+        self.assertEqual(result, {"ok": 1})
+        self.assertEqual(calls[0]["body"]["model"], "gpt-5-mini")
+
+    async def test_without_a_model_the_static_chain_still_works(self):
+        calls = []
+        payload = {"candidates": [{"content": {"parts": [{"text": '{"ok": 1}'}]}}],
+                   "usageMetadata": {"promptTokenCount": 1, "candidatesTokenCount": 1}}
+        with patch("config.get_ai_config", return_value=self.cfg), \
+             patch.object(ai_service.aiohttp, "ClientSession", self.session(payload, calls)):
+            await ai_service.call_gemini_api("текст", "k", timeout=5)
+        self.assertIn("/models/gemini-3.5-flash-lite:", calls[0]["url"])
