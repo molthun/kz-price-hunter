@@ -1313,6 +1313,87 @@ class NewSourcesEndProofTest(unittest.TestCase):
         self.assertTrue(res_404.complete)
         self.assertEqual(len(res_404), 0)
 
+    def test_zoomarket_retry_on_transient_error(self):
+        from unittest.mock import Mock, patch
+        from scrapers.zoomarket import ZooMarketScraper
+
+        s = ZooMarketScraper()
+        resp503 = Mock(status_code=503)
+        html_ok = """
+        <html><body>
+          <div class="catalog_item" data-param-id="777">
+            <div class="item-title">
+              <a class="link-product-page" href="/catalog/cat/korm/777/">
+                <span>Корм для кошек Purina 1.5 кг</span>
+              </a>
+            </div>
+            <div class="price" data-value="4500">
+              <span class="price_value">4 500</span>
+            </div>
+          </div>
+          <div class="nums">
+            <span class="cur">1</span>
+            <a href="/catalog/cat/korm/?PAGEN_1=2">2</a>
+          </div>
+        </body></html>
+        """
+        resp200 = Mock(status_code=200, text=html_ok)
+        session = Mock(get=Mock(side_effect=[resp503, resp200]))
+        s.session = session
+
+        with patch("time.sleep", return_value=None):
+            res = s._fetch_page("Корма", "https://zoomarket.kz/catalog/cat/korm/", 1)
+
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0]["id"], "zoomarket_777")
+        self.assertEqual(res[0]["price"], 4500)
+        self.assertFalse(res.complete)
+        self.assertEqual(session.get.call_count, 2)
+
+    def test_zoomarket_completion_and_unconfirmed_end(self):
+        from unittest.mock import Mock
+        from scrapers.zoomarket import ZooMarketScraper
+        from scrapers.base import UnconfirmedEnd
+
+        s = ZooMarketScraper()
+        # Page 2 of 2 -> complete
+        html_last = """
+        <html><body>
+          <div class="catalog_item" data-param-id="888">
+            <div class="item-title">
+              <a class="link-product-page" href="/catalog/cat/korm/888/">
+                <span>Корм Purina 2</span>
+              </a>
+            </div>
+            <div class="price" data-value="5000">
+              <span class="price_value">5 000</span>
+            </div>
+          </div>
+          <div class="nums">
+            <a href="/catalog/cat/korm/?PAGEN_1=1">1</a>
+            <span class="cur">2</span>
+          </div>
+        </body></html>
+        """
+        session = Mock(get=Mock(return_value=Mock(status_code=200, text=html_last)))
+        s.session = session
+
+        res = s._fetch_page("Корма", "https://zoomarket.kz/catalog/cat/korm/", 2)
+        self.assertEqual(len(res), 1)
+        self.assertTrue(res.complete)
+
+        # Empty page 1 -> UnconfirmedEnd
+        session.get = Mock(return_value=Mock(status_code=200, text="<html><body><div>Пусто</div></body></html>"))
+        with self.assertRaises(UnconfirmedEnd):
+            s._fetch_page("Корма", "https://zoomarket.kz/catalog/cat/korm/", 1)
+
+        # 404 on page 2 -> complete
+        session.get = Mock(return_value=Mock(status_code=404))
+        res_404 = s._fetch_page("Корма", "https://zoomarket.kz/catalog/cat/korm/", 2)
+        self.assertTrue(res_404.complete)
+        self.assertEqual(len(res_404), 0)
+
+
 
 
 

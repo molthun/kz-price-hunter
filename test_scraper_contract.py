@@ -22,12 +22,13 @@ from scrapers.iteka import ITekaScraper
 from scrapers.mebel import MebelScraper
 from scrapers.detmir import DetmirScraper
 from scrapers.askona import AskonaScraper
+from scrapers.zoomarket import ZooMarketScraper
 
 
 class ScraperContractTest(unittest.TestCase):
     def test_scraper_classes_conform_to_contract(self):
         # Check standard scrapers
-        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper, LemanaProScraper, ArbuzScraper, MasterOkScraper, MagnumScraper, IntertopScraper, MarwinScraper, ITekaScraper, MebelScraper, DetmirScraper, AskonaScraper):
+        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper, LemanaProScraper, ArbuzScraper, MasterOkScraper, MagnumScraper, IntertopScraper, MarwinScraper, ITekaScraper, MebelScraper, DetmirScraper, AskonaScraper, ZooMarketScraper):
             self.assertTrue(hasattr(cls, "SHOP_NAME"), f"{cls} must define SHOP_NAME")
             self.assertTrue(callable(getattr(cls, "scrape", None)), f"{cls} must define scrape")
             self.assertTrue(callable(getattr(cls, "close", None)), f"{cls} must define close")
@@ -871,6 +872,99 @@ class ScraperContractTest(unittest.TestCase):
         self.assertEqual(results[0]["old_price_on_site"], 39990)
         self.assertEqual(results[0]["shop"], "Askona")
         self.assertEqual(results[0]["url"], "https://askona.kz/podushki/alpha-gel/")
+        scraper.close()
+
+    def test_zoomarket_parsing_mock(self):
+        from unittest.mock import MagicMock
+        scraper = ZooMarketScraper()
+
+        html = """
+        <html>
+        <body>
+          <div class="catalog_item" id="bx_123_45678" data-param-id="45678">
+            <div class="item-title">
+              <a class="dark_link link-product-page" href="/catalog/cat/korm_k/vzroslye/45678/">
+                <span>Корм Carny Chicken для кошек 10 кг</span>
+              </a>
+            </div>
+            <div class="cost prices clearfix">
+              <div class="price" data-value="18500">
+                <span class="price_value">18 500</span>
+              </div>
+              <div class="price price_old" data-value="22000">
+                <span class="price_value">22 000</span>
+              </div>
+            </div>
+            <a class="thumb" href="/catalog/cat/korm_k/vzroslye/45678/">
+              <img src="/upload/iblock/carny.jpg" />
+            </a>
+          </div>
+          <div class="nums">
+            <span class="cur">1</span>
+            <a href="/catalog/cat/korm_k/?PAGEN_1=2">2</a>
+            <a href="/catalog/cat/korm_k/?PAGEN_1=3">3</a>
+          </div>
+        </body>
+        </html>
+        """
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = html
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        scraper.session = mock_session
+
+        res = scraper._fetch_page("Корма для кошек", "https://zoomarket.kz/catalog/cat/korm_k/", 1)
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0]["id"], "zoomarket_45678")
+        self.assertEqual(res[0]["title"], "Корм Carny Chicken для кошек 10 кг")
+        self.assertEqual(res[0]["price"], 18500)
+        self.assertEqual(res[0]["old_price_on_site"], 22000)
+        self.assertEqual(res[0]["shop"], "Зоомаркет")
+        self.assertEqual(res[0]["url"], "https://zoomarket.kz/catalog/cat/korm_k/vzroslye/45678/")
+        self.assertEqual(res[0]["image_url"], "https://zoomarket.kz/upload/iblock/carny.jpg")
+        self.assertFalse(res.complete)
+        scraper.close()
+        self.assertIsNone(scraper.session)
+
+    def test_zoomarket_live_search_mock(self):
+        from unittest.mock import MagicMock
+        scraper = ZooMarketScraper()
+
+        html = """
+        <html>
+        <body>
+          <div class="catalog_item" data-param-id="998877">
+            <div class="item-title">
+              <a class="link-product-page" href="/catalog/dog/korm/998877/">
+                <span>Корм Royal Canin Mini Puppy 4 кг</span>
+              </a>
+            </div>
+            <div class="price" data-value="12400">
+              <span class="price_value">12 400</span>
+            </div>
+          </div>
+        </body>
+        </html>
+        """
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = html
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        scraper.session = mock_session
+
+        results = scraper.search_live("royal canin", limit=5)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["id"], "zoomarket_998877")
+        self.assertEqual(results[0]["title"], "Корм Royal Canin Mini Puppy 4 кг")
+        self.assertEqual(results[0]["price"], 12400)
+        self.assertEqual(results[0]["shop"], "Зоомаркет")
+        self.assertEqual(results[0]["url"], "https://zoomarket.kz/catalog/dog/korm/998877/")
         scraper.close()
 
 

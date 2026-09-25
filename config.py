@@ -52,6 +52,7 @@ SHOP_KEYS = {
     "mebel": "Mebel.kz",
     "detmir": "Детский мир",
     "askona": "Askona",
+    "zoomarket": "Зоомаркет",
 }
 
 
@@ -1257,6 +1258,21 @@ ASKONA_CATEGORIES = [
     {"name": "Аскона: 💺 Кресла и пуфы", "url": "https://askona.kz/kresla/", "master": "home_furniture", "max_pages": 10},
     {"name": "Аскона: 🏡 Товары для дома и декор", "url": "https://askona.kz/dlya-doma/", "master": "home_furniture", "max_pages": 10},
 ]
+
+# ZooMarket (zoomarket.kz): интернет-зоомагазин, корма, ветаптека, лакомства и уход
+ZOOMARKET_CATEGORIES = [
+    {"name": "Зоомаркет: 🐱 Корма для кошек", "url": "https://zoomarket.kz/catalog/cat/korm_k/", "master": "pets", "max_pages": 10},
+    {"name": "Зоомаркет: 🐶 Корма для собак", "url": "https://zoomarket.kz/catalog/dog/korm/", "master": "pets", "max_pages": 10},
+    {"name": "Зоомаркет: 🥫 Консервы для кошек", "url": "https://zoomarket.kz/catalog/cat/konservy_k/", "master": "pets", "max_pages": 10},
+    {"name": "Зоомаркет: 🍖 Консервы для собак", "url": "https://zoomarket.kz/catalog/dog/konservy/", "master": "pets", "max_pages": 10},
+    {"name": "Зоомаркет: 🚽 Наполнители и туалеты", "url": "https://zoomarket.kz/catalog/cat/tualet_k/", "master": "pets", "max_pages": 10},
+    {"name": "Зоомаркет: 💊 Ветаптека для кошек", "url": "https://zoomarket.kz/catalog/cat/apteka_k/", "master": "pets", "max_pages": 10},
+    {"name": "Зоомаркет: 💉 Ветаптека для собак", "url": "https://zoomarket.kz/catalog/dog/apteka/", "master": "pets", "max_pages": 10},
+    {"name": "Зоомаркет: 🦴 Лакомства для собак", "url": "https://zoomarket.kz/catalog/dog/lakomstva/", "master": "pets", "max_pages": 10},
+    {"name": "Зоомаркет: 🐭 Товары для грызунов", "url": "https://zoomarket.kz/catalog/rodent/", "master": "pets", "max_pages": 10},
+    {"name": "Зоомаркет: 🐠 Аквариумистика и рыбы", "url": "https://zoomarket.kz/catalog/fish/", "master": "pets", "max_pages": 10},
+]
+
 
 
 

@@ -4,17 +4,18 @@
 
 ## Текущая контрольная точка
 
-- Дата: 2026-09-25, Asia/Almaty. **Завершён релиз v5.26.0: подключение 32-го магазина — «Askona Казахстан» (askona.kz)**.
+- Дата: 2026-09-25, Asia/Almaty. **Завершён релиз v5.27.0: подключение 33-го магазина — интернет-зоомагазин «ZooMarket Казахстан» (zoomarket.kz)**.
 - **Исполнитель:** Antigravity.
-- **Область файлов:** `scrapers/askona.py`, `config.py`, `web/server.py`, `product_details.py`, `web/templates/index.html`, `SOURCES.md`, `README.md`, `version.py`, `CHANGELOG.md`, `test_scraper_contract.py`, `test_scraper_reliability.py`, `test_monitor.py`, `docs/AGENT_HANDOFF.md`.
+- **Область файлов:** `scrapers/zoomarket.py`, `config.py`, `web/server.py`, `product_details.py`, `web/templates/index.html`, `SOURCES.md`, `README.md`, `version.py`, `CHANGELOG.md`, `test_scraper_contract.py`, `test_scraper_reliability.py`, `test_monitor.py`, `docs/AGENT_HANDOFF.md`.
 - **Контекст:**
-  - Подключен крупнейший ритейлер матрасов, кроватей и товаров для спальни — **«Askona Казахстан» (askona.kz)**.
-  - Каталог: SSR HTML с карточками `div.card-v6` (`data-cur-sku-id`, название, цена `card-v6__price-actual`, старая цена `card-v6__price-old`, фото `img[src]`), пагинацией `/category/page/N/` и точным определением последней страницы из `.pagination-v3`.
-  - Поиск в реальном времени: `/?digiSearch=true&term={query}` (SSR карточки за ~1.4с).
-  - 10 категорий каталога охватывают матрасы, кровати, диваны, подушки, одеяла, постельное белье, мебель для спальни, чехлы, детские товары для сна и аксессуары.
+  - Подключен крупнейший интернет-зоомагазин Казахстана — **«ZooMarket Казахстан» (zoomarket.kz)**.
+  - Каталог: SSR HTML Bitrix с карточками `.catalog_item` (`data-param-id`, название, цена `.price[data-value]`, старая цена `.price_old`, фото `img[src]`), пагинацией `?PAGEN_1=N` и точным доказательством окончания каталога по ссылкам `.nums`.
+  - Поиск в реальном времени: `/catalog/?q={query}` (SSR карточки за ~1.1с).
+  - 10 категорий каталога охватывают корма для кошек и собак, консервы, наполнители и туалеты, ветаптеку, лакомства, товары для грызунов и рыб с привязкой к системной мастер-категории `pets` («Зоотовары»).
   - Поддержан retry при 5xx и сетевых ошибках, регистрация во всех сервисах и UI.
-  - Тесты: 195 тестов в `test_monitor.py`, `test_scraper_contract.py`, `test_scraper_reliability.py` + 33 теста в `test_data_quality.py` + 0 замечаний в `release_gate.py secrets`.
+  - Тесты: 200 тестов в `test_monitor.py`, `test_scraper_contract.py`, `test_scraper_reliability.py` + 33 теста в `test_data_quality.py` + 0 замечаний в `release_gate.py secrets`.
 - **Предыдущие релизы дня:**
+  - **v5.26.0:** подключение 32-го магазина — гипермаркет матрасов и спальни «Askona» (askona.kz, 10 категорий home_furniture/household, search_live).
   - **v5.25.0:** подключение 31-го магазина — гипермаркет детских товаров «Детский мир» (detmir.kz, 10 категорий, search_live).
   - **v5.24.0:** мониторинг обращений магазинов к краулерам (`shop_notices.py`).
   - **v5.23.1:** исправление полноты обходов Alser и MasterOK.

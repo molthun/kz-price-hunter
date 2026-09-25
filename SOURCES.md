@@ -18,7 +18,7 @@ A — feed/API владельца с документированным назн
 
 Изображения сохраняются ссылками, server image proxy/cache не обнаружен. Browser и Telegram могут получать их с внешнего источника. Description используется в UI и может дополнительно сохраняться через guest product-detail GET для любого магазина. Его отсутствие в конкретном parser не означает отсутствие копирования текста в целом.
 
-## Матрица 32 источников
+## Матрица 33 источников
 
 | Модуль / класс | Тип / механизм | Timeout / pacing | Session, pagination, retry | Поля и ограничения |
 |---|---|---|---|---|
@@ -54,6 +54,7 @@ A — feed/API владельца с документированным назн
 | `scrapers/mebel.py` / `MebelScraper` | D + B; mebel.kz SSR HTML .ProductCardMain + schema.org ItemList | 20 с; 0.4 с | Session chrome124; /page-N; retry 5xx; **конец доказан** номером последней страницы в пагинации (/page-N); живой поиск proxy.mebel.kz/backend/search/ | id/sku/title/price/old_price/image_url; Алматы / Казахстан; описание есть |
 | `scrapers/detmir.py` / `DetmirScraper` | C + D; detmir.kz SSR HTML + window.appData JSON + section[data-product-id] | 20 с; 0.4 с | Session chrome124; /page/N/; retry 5xx; **конец доказан** по productsLength в appData и пагинатору; живой поиск /search/results/?qt= | id/sku/title/price/old_price/image_url; Алматы / Казахстан; описание нет |
 | `scrapers/askona.py` / `AskonaScraper` | D; askona.kz SSR HTML div.card-v6 | 20 с; 0.4 с | Session chrome124; /page/N/; retry 5xx; **конец доказан** по номерам страниц в .pagination-v3; живой поиск /?digiSearch=true&term= | id/sku/title/price/old_price/image_url; Алматы / Казахстан; описание нет |
+| `scrapers/zoomarket.py` / `ZooMarketScraper` | D; zoomarket.kz SSR HTML Bitrix .catalog_item | 20 с; 0.4 с | Session chrome124; ?PAGEN_1=N; retry 5xx; **конец доказан** по номерам страниц в .nums; живой поиск /catalog/?q= | id/sku/title/price/old_price/image_url; Алматы / Казахстан; описание нет |
 
 ## Пути вне основного фонового scan
 
@@ -561,6 +562,21 @@ A — feed/API владельца с документированным назн
 | Аскона: 👶 Товары для детей | household | `https://askona.kz/dlya-detey/` | 10 |
 | Аскона: 💺 Кресла и пуфы | home_furniture | `https://askona.kz/kresla/` | 10 |
 | Аскона: 🏡 Товары для дома и декор | home_furniture | `https://askona.kz/dlya-doma/` | 10 |
+
+### ZooMarketScraper — 10 настроенных источников категории
+
+| Категория | Master | URL/query | max_pages |
+|---|---|---|---|
+| Зоомаркет: 🐱 Корма для кошек | pets | `https://zoomarket.kz/catalog/cat/korm_k/` | 10 |
+| Зоомаркет: 🐶 Корма для собак | pets | `https://zoomarket.kz/catalog/dog/korm/` | 10 |
+| Зоомаркет: 🥫 Консервы для кошек | pets | `https://zoomarket.kz/catalog/cat/konservy_k/` | 10 |
+| Зоомаркет: 🍖 Консервы для собак | pets | `https://zoomarket.kz/catalog/dog/konservy/` | 10 |
+| Зоомаркет: 🚽 Наполнители и туалеты | pets | `https://zoomarket.kz/catalog/cat/tualet_k/` | 10 |
+| Зоомаркет: 💊 Ветаптека для кошек | pets | `https://zoomarket.kz/catalog/cat/apteka_k/` | 10 |
+| Зоомаркет: 💉 Ветаптека для собак | pets | `https://zoomarket.kz/catalog/dog/apteka/` | 10 |
+| Зоомаркет: 🦴 Лакомства для собак | pets | `https://zoomarket.kz/catalog/dog/lakomstva/` | 10 |
+| Зоомаркет: 🐭 Товары для грызунов | pets | `https://zoomarket.kz/catalog/rodent/` | 10 |
+| Зоомаркет: 🐠 Аквариумистика и рыбы | pets | `https://zoomarket.kz/catalog/fish/` | 10 |
 
 ## Перед подключением следующего магазина
 
