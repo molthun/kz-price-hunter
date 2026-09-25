@@ -13,7 +13,14 @@
   - Поиск в реальном времени: `/search?q={query}` (SSR карточки за ~0.6–0.8с).
   - 10 категорий каталога (лекарства, жаропонижающие, противовирусные, антибиотики, анальгетики, спазмолитики, медприборы, витамины, мать и дитя, дермакосметика) с привязкой к мастер-категории `beauty_health`.
   - Тесты: 215 тестов в основном наборе (`test_monitor.py`, `test_scraper_contract.py`, `test_scraper_reliability.py`), 33 теста в `test_data_quality.py`, release_gate secrets: 0 findings.
-  - **Следующий шаг:** переход к **KZ Price Hunter 2.0 — Search Platform** (`docs/SEARCH_PLATFORM_PLAN.md`): фиксация итогового Baseline волны магазинов (Этап 0).
+  - **KZ Price Hunter 2.0 Baseline (Этап 0 зафиксирован на v5.30.0, commit 2af71ce):**
+    - Количество магазинов: **36 сетей** (10 JSON API / Feed, 25 SSR HTML, 1 Playwright Browser).
+    - Количество предложений: **42 899 товаров** в БД (100% active).
+    - Размер БД: **141.85 MB** (`prices.db`).
+    - Search Latency (FTS5): **средняя 10.13 мс** (1.76 – 31.83 мс).
+    - Live Search Latency: **0.6 – 1.5 с**.
+    - Качество обходов: защита от деградаций, доказанное завершение по постраничным маркерам, сохранение старых данных при сбоях.
+  - **Следующий шаг:** переход к **Этапу 1 (Модели данных 2.0: Seller, Product, Channel, Offer)** согласно `docs/SEARCH_PLATFORM_PLAN.md`.
 - **Предыдущие релизы дня:**
   - **v5.30.0:** подключение 36-го магазина — аптечная сеть «Europharma» (europharma.kz, 10 категорий beauty_health, search_live).
   - **v5.29.0:** подключение 35-го магазина — сеть обуви и одежды «KIMEX» (kimex.kz, 10 категорий clothes, search_live).
