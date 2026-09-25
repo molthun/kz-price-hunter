@@ -60,6 +60,7 @@ from config import (
     PLANETA_CATEGORIES,
     KIMEX_CATEGORIES,
     EUROPHARMA_CATEGORIES,
+    FRENCH_HOUSE_CATEGORIES,
     MASTER_CATEGORIES,
     get_wave_plan,
     get_wave_interval_seconds,
@@ -137,6 +138,7 @@ from scrapers.zoomarket import ZooMarketScraper
 from scrapers.planeta import PlanetaScraper
 from scrapers.kimex import KimexScraper
 from scrapers.europharma import EuropharmaScraper
+from scrapers.french_house import FrenchHouseScraper
 from search_engine import get_best_price_summary
 import ai_service
 import data_quality
@@ -1019,6 +1021,7 @@ SHOP_REGISTRY = {
     "planeta": (PlanetaScraper, PLANETA_CATEGORIES, "Планета Электроники"),
     "kimex": (KimexScraper, KIMEX_CATEGORIES, "KIMEX"),
     "europharma": (EuropharmaScraper, EUROPHARMA_CATEGORIES, "Europharma"),
+    "french_house": (FrenchHouseScraper, FRENCH_HOUSE_CATEGORIES, "Французский Дом"),
 }
 
 # Сколько магазинов обходить одновременно (у каждого свой сайт, поэтому нагрузка не суммируется)

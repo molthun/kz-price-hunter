@@ -18,7 +18,7 @@ A — feed/API владельца с документированным назн
 
 Изображения сохраняются ссылками, server image proxy/cache не обнаружен. Browser и Telegram могут получать их с внешнего источника. Description используется в UI и может дополнительно сохраняться через guest product-detail GET для любого магазина. Его отсутствие в конкретном parser не означает отсутствие копирования текста в целом.
 
-## Матрица 36 источников
+## Матрица 37 источников
 
 | Модуль / класс | Тип / механизм | Timeout / pacing | Session, pagination, retry | Поля и ограничения |
 |---|---|---|---|---|
@@ -58,6 +58,7 @@ A — feed/API владельца с документированным назн
 | `scrapers/planeta.py` / `PlanetaScraper` | D; planeta.kz SSR HTML .unit-item-block | 20 с; 0.4 с | Session chrome124; /ru/site/search/term/{term}/page/{page}/; retry 5xx; **конец доказан** по номерам страниц в ul.pagination li a[data-page] и кнопке next; живой поиск /ru/site/search/?term= | id/sku/title/price/old_price/image_url; Алматы / Казахстан; описание нет |
 | `scrapers/kimex.py` / `KimexScraper` | D; kimex.kz SSR HTML a.card[data-entity="item"] | 20 с; 0.4 с | Session chrome124; /page-{page}/; retry 5xx; **конец доказан** по кнопке .btn.js-load-more; живой поиск /search/?q= | id/sku/title/price/old_price/image_url; Алматы / Казахстан; описание нет |
 | `scrapers/europharma.py` / `EuropharmaScraper` | D; europharma.kz SSR HTML .card-product | 20 с; 0.4 с | Session chrome124; ?page=N; retry 5xx; **конец доказан** по li.pagination__item.next.disabled; живой поиск /search?q= | id/sku/title/price/old_price/description/image_url; Алматы / Казахстан; описание есть |
+| `scrapers/french_house.py` / `FrenchHouseScraper` | D; french-house.kz SSR HTML .goodCard.cardType1 | 20 с; 0.4 с | Session chrome124; ?PAGEN_1=N; retry 5xx; **конец доказан** номером последней страницы в пагинации (pagination_last_page с PAGEN_1); живой поиск /search/?q= | id/sku/title/price/old_price/description/image_url; Алматы / Казахстан; описание есть |
 
 ## Пути вне основного фонового scan
 
@@ -625,6 +626,21 @@ A — feed/API владельца с документированным назн
 | Europharma: 🦴 Витамины и минералы | beauty_health | `https://europharma.kz/catalog/vitaminy-i-mineraly` | 10 |
 | Europharma: 👶 Мать и дитя | beauty_health | `https://europharma.kz/catalog/mat-i-ditya` | 10 |
 | Europharma: 🧴 Дермакосметика | beauty_health | `https://europharma.kz/catalog/dermakosmetika` | 10 |
+
+### FrenchHouseScraper — 10 настроенных источников категории
+
+| Категория | Master | URL/query | max_pages |
+|---|---|---|---|
+| Французский Дом: 🌸 Женская парфюмерия | beauty_health | `https://french-house.kz/catalog/parfyumeriya/zhenskaya-parfyumeriya/` | 10 |
+| Французский Дом: 👔 Мужская парфюмерия | beauty_health | `https://french-house.kz/catalog/parfyumeriya/muzhskaya-parfyumeriya/` | 10 |
+| Французский Дом: 🧴 Уход за лицом | beauty_health | `https://french-house.kz/catalog/ukhodovye-sredstva/uhod-za-litsom/` | 10 |
+| Французский Дом: 🧖 Уход за телом | beauty_health | `https://french-house.kz/catalog/ukhodovye-sredstva/uhod-za-telom/` | 10 |
+| Французский Дом: 💆 Уход за волосами | beauty_health | `https://french-house.kz/catalog/ukhodovye-sredstva/uhod-dlya-volos/` | 10 |
+| Французский Дом: 💄 Макияж для губ | beauty_health | `https://french-house.kz/catalog/makiyazh/dlya-gub/` | 10 |
+| Французский Дом: 👁 Макияж для глаз | beauty_health | `https://french-house.kz/catalog/makiyazh/dlya-glaz/` | 10 |
+| Французский Дом: 🎨 Макияж для лица | beauty_health | `https://french-house.kz/catalog/makiyazh/dlya-litsa/` | 10 |
+| Французский Дом: 🎁 Подарочные наборы | beauty_health | `https://french-house.kz/catalog/parfyumeriya/podarochnye-nabory-parfyumeriya/` | 10 |
+| Французский Дом: ✨ Нишевая парфюмерия | beauty_health | `https://french-house.kz/catalog/parfyumeriya/selektivnaya-parfyumeriya/` | 10 |
 
 ## Перед подключением следующего магазина
 

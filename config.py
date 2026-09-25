@@ -56,6 +56,7 @@ SHOP_KEYS = {
     "planeta": "Планета Электроники",
     "kimex": "KIMEX",
     "europharma": "Europharma",
+    "french_house": "Французский Дом",
 }
 
 
@@ -1317,6 +1318,21 @@ EUROPHARMA_CATEGORIES = [
     {"name": "Europharma: 👶 Мать и дитя", "url": "https://europharma.kz/catalog/mat-i-ditya", "master": "beauty_health", "max_pages": 10},
     {"name": "Europharma: 🧴 Дермакосметика", "url": "https://europharma.kz/catalog/dermakosmetika", "master": "beauty_health", "max_pages": 10},
 ]
+
+# Французский Дом (french-house.kz): элитная парфюмерия, косметика, уход, макияж
+FRENCH_HOUSE_CATEGORIES = [
+    {"name": "Французский Дом: 🌸 Женская парфюмерия", "url": "https://french-house.kz/catalog/parfyumeriya/zhenskaya-parfyumeriya/", "master": "beauty_health", "max_pages": 10},
+    {"name": "Французский Дом: 🌲 Мужская парфюмерия", "url": "https://french-house.kz/catalog/parfyumeriya/muzhskaya-parfyumeriya/", "master": "beauty_health", "max_pages": 10},
+    {"name": "Французский Дом: 💎 Нишевая парфюмерия", "url": "https://french-house.kz/catalog/parfyumeriya/nishevaya-parfyumeriya/", "master": "beauty_health", "max_pages": 10},
+    {"name": "Французский Дом: 💄 Макияж лица", "url": "https://french-house.kz/catalog/makiyazh/litso/", "master": "beauty_health", "max_pages": 10},
+    {"name": "Французский Дом: 👁 Макияж глаз", "url": "https://french-house.kz/catalog/makiyazh/glaza/", "master": "beauty_health", "max_pages": 10},
+    {"name": "Французский Дом: 💋 Макияж губ", "url": "https://french-house.kz/catalog/makiyazh/guby/", "master": "beauty_health", "max_pages": 10},
+    {"name": "Французский Дом: 🧴 Уход за лицом", "url": "https://french-house.kz/catalog/ukhodovye-sredstva/uhod-za-litsom/", "master": "beauty_health", "max_pages": 10},
+    {"name": "Французский Дом: 🛁 Уход за телом", "url": "https://french-house.kz/catalog/ukhodovye-sredstva/telo/", "master": "beauty_health", "max_pages": 10},
+    {"name": "Французский Дом: 💆‍♀️ Уход за волосами", "url": "https://french-house.kz/catalog/ukhodovye-sredstva/volosy/", "master": "beauty_health", "max_pages": 10},
+    {"name": "Французский Дом: 🎁 Подарочные наборы", "url": "https://french-house.kz/catalog/nabory/", "master": "beauty_health", "max_pages": 10},
+]
+
 
 
 

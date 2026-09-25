@@ -29,6 +29,7 @@ STORE_DOMAINS = (
     "vkusmart.vmv.kz", "12.kz", "zeta.kz", "komfort.kz", "lemanapro.kz", "arbuz.kz",
     "masterok.kz", "magnum.kz", "intertop.kz", "marwin.kz", "meloman.kz", "i-teka.kz", "mebel.kz",
     "detmir.kz", "askona.kz", "zoomarket.kz", "planeta.kz", "kimex.kz", "europharma.kz",
+    "french-house.kz",
 )
 # Общий лимит внешней догрузки описаний (R-M05): перебор разных карточек не создаёт
 # неограниченную очередь запросов к магазинам

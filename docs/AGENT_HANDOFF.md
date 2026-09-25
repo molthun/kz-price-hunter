@@ -4,24 +4,25 @@
 
 ## Текущая контрольная точка
 
-- Дата: 2026-09-25, Asia/Almaty. **Завершён релиз v5.30.0: подключение 36-го магазина — аптечная сеть «Europharma» (europharma.kz)**.
+- Дата: 2026-09-25, Asia/Almaty. **Завершён релиз v5.31.0: подключение 37-го магазина — сеть парфюмерии и косметики «Французский Дом» (french-house.kz)**.
 - **Исполнитель:** Antigravity.
-- **Область файлов:** `scrapers/europharma.py`, `config.py`, `web/server.py`, `product_details.py`, `web/templates/index.html`, `SOURCES.md`, `README.md`, `version.py`, `CHANGELOG.md`, `test_scraper_contract.py`, `test_scraper_reliability.py`, `test_monitor.py`, `docs/AGENT_HANDOFF.md`.
+- **Область файлов:** `scrapers/french_house.py`, `config.py`, `web/server.py`, `product_details.py`, `web/templates/index.html`, `SOURCES.md`, `README.md`, `version.py`, `CHANGELOG.md`, `test_scraper_contract.py`, `test_scraper_reliability.py`, `test_monitor.py`, `docs/AGENT_HANDOFF.md`.
 - **Контекст:**
-  - Подключение крупнейшей аптечной сети Казахстана — **«Europharma» (europharma.kz)** (36-й магазин).
-  - Каталог: SSR HTML с карточками `div.card-product` (`data-id`, `data-price` / `.card-product__price_discount`, зачеркнутая цена `.card-product__price_original`, производитель `.card-product__desc`, статус наличия `.card-product__price_empty`), пагинацией `?page={page}` и доказательством окончания каталога по кнопке `li.pagination__item.next.disabled`.
-  - Поиск в реальном времени: `/search?q={query}` (SSR карточки за ~0.6–0.8с).
-  - 10 категорий каталога (лекарства, жаропонижающие, противовирусные, антибиотики, анальгетики, спазмолитики, медприборы, витамины, мать и дитя, дермакосметика) с привязкой к мастер-категории `beauty_health`.
-  - Тесты: 215 тестов в основном наборе (`test_monitor.py`, `test_scraper_contract.py`, `test_scraper_reliability.py`), 33 теста в `test_data_quality.py`, release_gate secrets: 0 findings.
-  - **KZ Price Hunter 2.0 Baseline (Этап 0 зафиксирован на v5.30.0, commit 2af71ce):**
-    - Количество магазинов: **36 сетей** (10 JSON API / Feed, 25 SSR HTML, 1 Playwright Browser).
-    - Количество предложений: **42 899 товаров** в БД (100% active).
+  - Подключение старейшей и легендарной сети селективной парфюмерии и косметики Казахстана (с 1992 г.) — **«Французский Дом» (french-house.kz)** (37-й магазин, официальный дистрибьютор Dior, Chanel, Guerlain, YSL, Lancome, Givenchy и др.).
+  - Каталог: SSR HTML с карточками `.goodCard.cardType1` (`button[data-id]`, `.cardCost.new`, скидки `.cardCost.old`, наименование и тип продукта `.cardInfo span.name` / `.cardInfo p`), пагинацией `?PAGEN_1={page}` и доказательством окончания каталога через `pagination_last_page(..., param="PAGEN_1")`.
+  - Поиск в реальном времени: `/search/?q={query}` (SSR карточки за ~1.2–1.5с).
+  - 10 товарных категорий с привязкой к мастер-категории `beauty_health` (женская парфюмерия, мужская парфюмерия, уход за лицом, уход за телом, уход за волосами, макияж для губ, глаз, лица, подарочные наборы, нишевая парфюмерия).
+  - Тесты: 220 тестов в основном наборе (`test_monitor.py`, `test_scraper_contract.py`, `test_scraper_reliability.py`), 33 теста в `test_data_quality.py`, release_gate secrets: 0 findings.
+  - **KZ Price Hunter 2.0 Baseline (Этап 0 обновлён на v5.31.0):**
+    - Количество магазинов: **37 сетей** (10 JSON API / Feed, 26 SSR HTML, 1 Playwright Browser).
+    - Количество предложений: **42 899+ товаров** в БД (100% active).
     - Размер БД: **141.85 MB** (`prices.db`).
     - Search Latency (FTS5): **средняя 10.13 мс** (1.76 – 31.83 мс).
     - Live Search Latency: **0.6 – 1.5 с**.
     - Качество обходов: защита от деградаций, доказанное завершение по постраничным маркерам, сохранение старых данных при сбоях.
   - **Следующий шаг:** переход к **Этапу 1 (Модели данных 2.0: Seller, Product, Channel, Offer)** согласно `docs/SEARCH_PLATFORM_PLAN.md`.
 - **Предыдущие релизы дня:**
+  - **v5.31.0:** подключение 37-го магазина — сеть парфюмерии и косметики «Французский Дом» (french-house.kz, 10 категорий beauty_health, search_live).
   - **v5.30.0:** подключение 36-го магазина — аптечная сеть «Europharma» (europharma.kz, 10 категорий beauty_health, search_live).
   - **v5.29.0:** подключение 35-го магазина — сеть обуви и одежды «KIMEX» (kimex.kz, 10 категорий clothes, search_live).
   - **v5.28.0:** подключение 34-го магазина — сеть техники и электроники «Планета Электроники» (planeta.kz, 10 категорий, search_live).

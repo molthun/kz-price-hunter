@@ -26,12 +26,13 @@ from scrapers.zoomarket import ZooMarketScraper
 from scrapers.planeta import PlanetaScraper
 from scrapers.kimex import KimexScraper
 from scrapers.europharma import EuropharmaScraper
+from scrapers.french_house import FrenchHouseScraper
 
 
 class ScraperContractTest(unittest.TestCase):
     def test_scraper_classes_conform_to_contract(self):
         # Check standard scrapers
-        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper, LemanaProScraper, ArbuzScraper, MasterOkScraper, MagnumScraper, IntertopScraper, MarwinScraper, ITekaScraper, MebelScraper, DetmirScraper, AskonaScraper, ZooMarketScraper, PlanetaScraper, KimexScraper, EuropharmaScraper):
+        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper, LemanaProScraper, ArbuzScraper, MasterOkScraper, MagnumScraper, IntertopScraper, MarwinScraper, ITekaScraper, MebelScraper, DetmirScraper, AskonaScraper, ZooMarketScraper, PlanetaScraper, KimexScraper, EuropharmaScraper, FrenchHouseScraper):
             self.assertTrue(hasattr(cls, "SHOP_NAME"), f"{cls} must define SHOP_NAME")
             self.assertTrue(callable(getattr(cls, "scrape", None)), f"{cls} must define scrape")
             self.assertTrue(callable(getattr(cls, "close", None)), f"{cls} must define close")
@@ -1241,6 +1242,94 @@ class ScraperContractTest(unittest.TestCase):
         self.assertEqual(results[0]["shop"], "Europharma")
         self.assertEqual(results[0]["url"], "https://europharma.kz/paratsetamol-05-g-no-10-tabl")
         self.assertEqual(results[0]["description"], "Производитель: Ирбитский химфармзавод")
+        scraper.close()
+
+    def test_french_house_parsing_mock(self):
+        from unittest.mock import MagicMock
+        scraper = FrenchHouseScraper()
+
+        html = """
+        <html>
+        <body>
+          <div class="goodCard cardType1">
+            <a href="/catalog/parfyumeriya/zhenskaya-parfyumeriya/ysl-libre-12527/">YSL LIBRE</a>
+            <button class="invisBtn" data-id="25076"></button>
+            <div class="cardInfo">
+              <p>Парфюмерная вода</p>
+              <span class="name">YSL LIBRE</span>
+              <div class="costLine">
+                <span class="cardCost new">42 825</span>
+                <span class="cardCost old">57 100</span>
+              </div>
+            </div>
+            <img src="/upload/iblock/ysl.jpg" />
+          </div>
+          <div class="paginationList">
+            <a href="/catalog/parfyumeriya/zhenskaya-parfyumeriya/?PAGEN_1=2">2</a>
+          </div>
+        </body>
+        </html>
+        """
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = html
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        scraper.session = mock_session
+
+        res = scraper._fetch_page("Женская парфюмерия", "https://french-house.kz/catalog/parfyumeriya/zhenskaya-parfyumeriya/", 1)
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0]["id"], "frenchhouse_25076")
+        self.assertEqual(res[0]["sku"], "25076")
+        self.assertEqual(res[0]["title"], "YSL LIBRE Парфюмерная вода")
+        self.assertEqual(res[0]["price"], 42825)
+        self.assertEqual(res[0]["old_price_on_site"], 57100)
+        self.assertEqual(res[0]["shop"], "Французский Дом")
+        self.assertEqual(res[0]["url"], "https://french-house.kz/catalog/parfyumeriya/zhenskaya-parfyumeriya/ysl-libre-12527/")
+        self.assertEqual(res[0]["image_url"], "https://french-house.kz/upload/iblock/ysl.jpg")
+        self.assertFalse(res.complete)
+        scraper.close()
+        self.assertIsNone(scraper.session)
+
+    def test_french_house_live_search_mock(self):
+        from unittest.mock import MagicMock
+        scraper = FrenchHouseScraper()
+
+        html = """
+        <html>
+        <body>
+          <div class="goodCard cardType1">
+            <a href="/catalog/parfyumeriya/miss-dior/">Miss Dior</a>
+            <button class="invisBtn" data-id="70384"></button>
+            <div class="cardInfo">
+              <p>Парфюмерная вода</p>
+              <span class="name">Miss Dior</span>
+              <div class="costLine">
+                <span class="cardCost new">26 040</span>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+        """
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = html
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        scraper.session = mock_session
+
+        results = scraper.search_live("dior", limit=5)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["id"], "frenchhouse_70384")
+        self.assertEqual(results[0]["title"], "Miss Dior Парфюмерная вода")
+        self.assertEqual(results[0]["price"], 26040)
+        self.assertEqual(results[0]["shop"], "Французский Дом")
+        self.assertEqual(results[0]["url"], "https://french-house.kz/catalog/parfyumeriya/miss-dior/")
         scraper.close()
 
 

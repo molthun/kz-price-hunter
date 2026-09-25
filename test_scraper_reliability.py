@@ -1609,6 +1609,84 @@ class NewSourcesEndProofTest(unittest.TestCase):
         self.assertTrue(res_404.complete)
         self.assertEqual(len(res_404), 0)
 
+    def test_french_house_retry_on_transient_error(self):
+        from scrapers.french_house import FrenchHouseScraper
+
+        s = FrenchHouseScraper()
+        resp502 = Mock(status_code=502)
+        html_ok = """
+        <html><body>
+          <div class="goodCard cardType1">
+            <a href="/catalog/parfyumeriya/dior-sauvage-12345/"></a>
+            <div class="cardInfo">
+              <span class="name">Dior Sauvage</span>
+              <p>Парфюмерная вода</p>
+            </div>
+            <div class="cardCost new">65 000 ₸</div>
+            <div class="cardCost old">72 000 ₸</div>
+            <button data-id="12345"></button>
+          </div>
+          <div class="pagination">
+            <a href="/catalog/parfyumeriya/?PAGEN_1=1">1</a>
+            <a href="/catalog/parfyumeriya/?PAGEN_1=2">2</a>
+          </div>
+        </body></html>
+        """
+        resp200 = Mock(status_code=200, text=html_ok)
+        session = Mock(get=Mock(side_effect=[resp502, resp200]))
+        s.session = session
+
+        with patch("time.sleep", return_value=None):
+            res = s._fetch_page("Парфюмерия", "https://french-house.kz/catalog/parfyumeriya/", 1)
+
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0]["id"], "frenchhouse_12345")
+        self.assertEqual(res[0]["price"], 65000)
+        self.assertEqual(res[0]["old_price_on_site"], 72000)
+        self.assertFalse(res.complete)
+        self.assertEqual(session.get.call_count, 2)
+
+    def test_french_house_completion_and_unconfirmed_end(self):
+        from scrapers.french_house import FrenchHouseScraper
+        from scrapers.base import UnconfirmedEnd
+
+        s = FrenchHouseScraper()
+        # Page 2 with last page = 2 -> complete
+        html_last = """
+        <html><body>
+          <div class="goodCard cardType1">
+            <a href="/catalog/parfyumeriya/chanel-bleu-67890/"></a>
+            <div class="cardInfo">
+              <span class="name">Chanel Bleu</span>
+            </div>
+            <div class="cardCost new">80 000 ₸</div>
+            <button data-id="67890"></button>
+          </div>
+          <div class="pagination">
+            <a href="/catalog/parfyumeriya/?PAGEN_1=1">1</a>
+            <a href="/catalog/parfyumeriya/?PAGEN_1=2">2</a>
+          </div>
+        </body></html>
+        """
+        session = Mock(get=Mock(return_value=Mock(status_code=200, text=html_last)))
+        s.session = session
+
+        res = s._fetch_page("Парфюмерия", "https://french-house.kz/catalog/parfyumeriya/", 2)
+        self.assertEqual(len(res), 1)
+        self.assertTrue(res.complete)
+
+        # Empty page 1 -> UnconfirmedEnd
+        session.get = Mock(return_value=Mock(status_code=200, text="<html><body><div>Пусто</div></body></html>"))
+        with self.assertRaises(UnconfirmedEnd):
+            s._fetch_page("Парфюмерия", "https://french-house.kz/catalog/parfyumeriya/", 1)
+
+        # 404 on page 2 -> complete
+        session.get = Mock(return_value=Mock(status_code=404))
+        res_404 = s._fetch_page("Парфюмерия", "https://french-house.kz/catalog/parfyumeriya/", 2)
+        self.assertTrue(res_404.complete)
+        self.assertEqual(len(res_404), 0)
+
+
 
 
 
