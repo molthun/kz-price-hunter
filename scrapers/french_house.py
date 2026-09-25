@@ -222,12 +222,3 @@ class FrenchHouseScraper(PagedScraper):
                     break
 
         return results
-
-    def scrape(
-        self,
-        category_name: str,
-        category_url: str,
-        max_pages: Optional[int] = None,
-    ) -> ScanResult:
-        """Постраничный обход каталога «Французский Дом»."""
-        return super().scrape(category_name, category_url, max_pages=max_pages)
