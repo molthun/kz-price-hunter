@@ -58,6 +58,7 @@ from config import (
     ASKONA_CATEGORIES,
     ZOOMARKET_CATEGORIES,
     PLANETA_CATEGORIES,
+    KIMEX_CATEGORIES,
     MASTER_CATEGORIES,
     get_wave_plan,
     get_wave_interval_seconds,
@@ -133,6 +134,7 @@ from scrapers.detmir import DetmirScraper
 from scrapers.askona import AskonaScraper
 from scrapers.zoomarket import ZooMarketScraper
 from scrapers.planeta import PlanetaScraper
+from scrapers.kimex import KimexScraper
 from search_engine import get_best_price_summary
 import ai_service
 import data_quality
@@ -1013,6 +1015,7 @@ SHOP_REGISTRY = {
     "askona": (AskonaScraper, ASKONA_CATEGORIES, "Askona"),
     "zoomarket": (ZooMarketScraper, ZOOMARKET_CATEGORIES, "Зоомаркет"),
     "planeta": (PlanetaScraper, PLANETA_CATEGORIES, "Планета Электроники"),
+    "kimex": (KimexScraper, KIMEX_CATEGORIES, "KIMEX"),
 }
 
 # Сколько магазинов обходить одновременно (у каждого свой сайт, поэтому нагрузка не суммируется)

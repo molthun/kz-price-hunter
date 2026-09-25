@@ -54,6 +54,7 @@ SHOP_KEYS = {
     "askona": "Askona",
     "zoomarket": "Зоомаркет",
     "planeta": "Планета Электроники",
+    "kimex": "KIMEX",
 }
 
 
@@ -1286,6 +1287,20 @@ PLANETA_CATEGORIES = [
     {"name": "Планета: 👔 Утюги", "url": "https://planeta.kz/ru/site/search/?term=утюг", "master": "appliances_small", "max_pages": 10},
     {"name": "Планета: 🍹 Блендеры", "url": "https://planeta.kz/ru/site/search/?term=блендер", "master": "appliances_small", "max_pages": 10},
     {"name": "Планета: 🎧 Наушники", "url": "https://planeta.kz/ru/site/search/?term=наушники", "master": "audio", "max_pages": 10},
+]
+
+# KIMEX (kimex.kz): европейская обувь и одежда (Rieker, Tamaris, Caprice, Bugatti и др.)
+KIMEX_CATEGORIES = [
+    {"name": "KIMEX: 👟 Женские кроссовки", "url": "https://kimex.kz/catalog/zhenskoe/obuv/krossovki/", "master": "clothes", "max_pages": 10},
+    {"name": "KIMEX: 👠 Женские туфли", "url": "https://kimex.kz/catalog/zhenskoe/obuv/tufli/", "master": "clothes", "max_pages": 10},
+    {"name": "KIMEX: 👢 Женские ботинки", "url": "https://kimex.kz/catalog/zhenskoe/obuv/botinki/", "master": "clothes", "max_pages": 10},
+    {"name": "KIMEX: 👡 Женские босоножки", "url": "https://kimex.kz/catalog/zhenskoe/obuv/bosonozhki/", "master": "clothes", "max_pages": 10},
+    {"name": "KIMEX: 🥿 Женские лоферы", "url": "https://kimex.kz/catalog/zhenskoe/obuv/lofery/", "master": "clothes", "max_pages": 10},
+    {"name": "KIMEX: 👟 Мужские кроссовки", "url": "https://kimex.kz/catalog/muzhskoe/obuv/krossovki/", "master": "clothes", "max_pages": 10},
+    {"name": "KIMEX: 👞 Мужские туфли", "url": "https://kimex.kz/catalog/muzhskoe/obuv/tufli/", "master": "clothes", "max_pages": 10},
+    {"name": "KIMEX: 🥾 Мужские ботинки", "url": "https://kimex.kz/catalog/muzhskoe/obuv/botinki/", "master": "clothes", "max_pages": 10},
+    {"name": "KIMEX: 👟 Мужские кеды", "url": "https://kimex.kz/catalog/muzhskoe/obuv/kedy/", "master": "clothes", "max_pages": 10},
+    {"name": "KIMEX: 👞 Мужские мокасины", "url": "https://kimex.kz/catalog/muzhskoe/obuv/mokasiny/", "master": "clothes", "max_pages": 10},
 ]
 
 

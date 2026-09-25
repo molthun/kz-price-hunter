@@ -4,17 +4,18 @@
 
 ## Текущая контрольная точка
 
-- Дата: 2026-09-25, Asia/Almaty. **Завершён релиз v5.28.0: подключение 34-го магазина — сеть магазинов техники и электроники «Планета Электроники» (planeta.kz)**.
+- Дата: 2026-09-25, Asia/Almaty. **Завершён релиз v5.29.0: подключение 35-го магазина — сеть обуви, одежды и аксессуаров «KIMEX» (kimex.kz)**.
 - **Исполнитель:** Antigravity.
-- **Область файлов:** `scrapers/planeta.py`, `config.py`, `web/server.py`, `product_details.py`, `web/templates/index.html`, `SOURCES.md`, `README.md`, `version.py`, `CHANGELOG.md`, `test_scraper_contract.py`, `test_scraper_reliability.py`, `test_monitor.py`, `docs/AGENT_HANDOFF.md`.
+- **Область файлов:** `scrapers/kimex.py`, `config.py`, `web/server.py`, `product_details.py`, `web/templates/index.html`, `SOURCES.md`, `README.md`, `version.py`, `CHANGELOG.md`, `test_scraper_contract.py`, `test_scraper_reliability.py`, `test_monitor.py`, `docs/AGENT_HANDOFF.md`.
 - **Контекст:**
-  - Подключена одна из старейших и наиболее авторитетных сетей бытовой техники и потребительской электроники Казахстана — **«Планета Электроники» (planeta.kz)**.
-  - Каталог: SSR HTML с карточками `.unit-item-block` (код товара `.code`, название, цена `.price-block .price-big`, старая цена `.price-old`, фото `img[src]`), пагинацией `/ru/site/search/term/{term}/page/{page}/` и точным доказательством окончания каталога по ссылкам пагинатора `ul.pagination li a[data-page]` и деактивации кнопки next.
-  - Поиск в реальном времени: `/ru/site/search/?term={query}` (SSR карточки за ~0.8с).
-  - 10 категорий каталога охватывают смартфоны, ноутбуки, телевизоры, холодильники, кондиционеры, пылесосы, чайники, утюги, блендеры и наушники с привязкой к системным мастер-категориям электроники и бытовой техники.
-  - Поддержан retry при 5xx и сетевых ошибках, регистрация во всех сервисах и UI.
-  - Тесты: 205 тестов в `test_monitor.py`, `test_scraper_contract.py`, `test_scraper_reliability.py` + 33 теста в `test_data_quality.py` + 0 замечаний в `release_gate.py secrets`.
+  - Подключение старейшей и крупнейшей в Казахстане сети обуви и одежды европейских брендов — **«KIMEX» (kimex.kz)**.
+  - Каталог: SSR HTML с карточками `div.cataloge__cards a.card[data-entity="item"]` (`data-id`, название `.card__title`, цена `.price-current`, старая цена `.card__price--old`, фото `img[src]`), пагинацией `/page-{page}/` и доказательством окончания каталога по отсутствию кнопки `.btn.js-load-more`.
+  - Поиск в реальном времени: `/search/?q={query}` (SSR карточки за ~1.1с).
+  - 10 категорий каталога (женская и мужская обувь: кроссовки, туфли, ботинки, босоножки, лоферы, кеды, мокасины) с привязкой к системной мастер-категории `clothes` («Одежда и обувь»).
+  - Тесты: 210 тестов в основном наборе (`test_monitor.py`, `test_scraper_contract.py`, `test_scraper_reliability.py`), 33 теста в `test_data_quality.py`, release_gate secrets: 0 findings.
 - **Предыдущие релизы дня:**
+  - **v5.29.0:** подключение 35-го магазина — сеть обуви и одежды «KIMEX» (kimex.kz, 10 категорий clothes, search_live).
+  - **v5.28.0:** подключение 34-го магазина — сеть техники и электроники «Планета Электроники» (planeta.kz, 10 категорий, search_live).
   - **v5.27.0:** подключение 33-го магазина — интернет-зоомагазин «ZooMarket» (zoomarket.kz, 10 категорий pets, search_live).
   - **v5.26.0:** подключение 32-го магазина — гипермаркет матрасов и спальни «Askona» (askona.kz, 10 категорий home_furniture/household, search_live).
   - **v5.25.0:** подключение 31-го магазина — гипермаркет детских товаров «Детский мир» (detmir.kz, 10 категорий, search_live).

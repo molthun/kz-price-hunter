@@ -2,7 +2,7 @@
 KZ Price Hunter - Version Information
 """
 
-__version__ = "5.28.0"
+__version__ = "5.29.0"
 __app_name__ = "KZ Price Hunter"
 __release_date__ = "2026-09-25"
 __author__ = "Advanced Agentic Coding"

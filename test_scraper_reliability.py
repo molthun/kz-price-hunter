@@ -1464,6 +1464,73 @@ class NewSourcesEndProofTest(unittest.TestCase):
         self.assertTrue(res_404.complete)
         self.assertEqual(len(res_404), 0)
 
+    def test_kimex_retry_on_transient_error(self):
+        from unittest.mock import Mock, patch
+        from scrapers.kimex import KimexScraper
+
+        s = KimexScraper()
+        resp503 = Mock(status_code=503)
+        html_ok = """
+        <html><body>
+          <div class="cataloge__cards">
+            <a class="card" data-entity="item" data-id="101" href="/catalog/zhenskoe/obuv/krossovki/caprice-101/">
+              <span class="card__title">Кроссовки Caprice</span>
+              <span class="price-current">69 990 ₸</span>
+            </a>
+            <div class="cataloge__show-more">
+              <button class="btn js-load-more" data-url="/catalog/zhenskoe/obuv/krossovki/page-2/"></button>
+            </div>
+          </div>
+        </body></html>
+        """
+        resp200 = Mock(status_code=200, text=html_ok)
+        session = Mock(get=Mock(side_effect=[resp503, resp200]))
+        s.session = session
+
+        with patch("time.sleep", return_value=None):
+            res = s._fetch_page("Женские кроссовки", "https://kimex.kz/catalog/zhenskoe/obuv/krossovki/", 1)
+
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0]["id"], "kimex_101")
+        self.assertEqual(res[0]["price"], 69990)
+        self.assertFalse(res.complete)
+        self.assertEqual(session.get.call_count, 2)
+
+    def test_kimex_completion_and_unconfirmed_end(self):
+        from unittest.mock import Mock
+        from scrapers.kimex import KimexScraper
+        from scrapers.base import UnconfirmedEnd
+
+        s = KimexScraper()
+        # Page 2 without js-load-more -> complete
+        html_last = """
+        <html><body>
+          <div class="cataloge__cards">
+            <a class="card" data-entity="item" data-id="202" href="/catalog/zhenskoe/obuv/krossovki/caprice-202/">
+              <span class="card__title">Кроссовки Caprice 2</span>
+              <span class="price-current">79 990 ₸</span>
+            </a>
+          </div>
+        </body></html>
+        """
+        session = Mock(get=Mock(return_value=Mock(status_code=200, text=html_last)))
+        s.session = session
+
+        res = s._fetch_page("Женские кроссовки", "https://kimex.kz/catalog/zhenskoe/obuv/krossovki/", 2)
+        self.assertEqual(len(res), 1)
+        self.assertTrue(res.complete)
+
+        # Empty page 1 -> UnconfirmedEnd
+        session.get = Mock(return_value=Mock(status_code=200, text="<html><body><div>Пусто</div></body></html>"))
+        with self.assertRaises(UnconfirmedEnd):
+            s._fetch_page("Женские кроссовки", "https://kimex.kz/catalog/zhenskoe/obuv/krossovki/", 1)
+
+        # 404 on page 2 -> complete
+        session.get = Mock(return_value=Mock(status_code=404))
+        res_404 = s._fetch_page("Женские кроссовки", "https://kimex.kz/catalog/zhenskoe/obuv/krossovki/", 2)
+        self.assertTrue(res_404.complete)
+        self.assertEqual(len(res_404), 0)
+
 
 
 

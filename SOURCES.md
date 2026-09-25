@@ -18,7 +18,7 @@ A — feed/API владельца с документированным назн
 
 Изображения сохраняются ссылками, server image proxy/cache не обнаружен. Browser и Telegram могут получать их с внешнего источника. Description используется в UI и может дополнительно сохраняться через guest product-detail GET для любого магазина. Его отсутствие в конкретном parser не означает отсутствие копирования текста в целом.
 
-## Матрица 34 источников
+## Матрица 35 источников
 
 | Модуль / класс | Тип / механизм | Timeout / pacing | Session, pagination, retry | Поля и ограничения |
 |---|---|---|---|---|
@@ -56,6 +56,7 @@ A — feed/API владельца с документированным назн
 | `scrapers/askona.py` / `AskonaScraper` | D; askona.kz SSR HTML div.card-v6 | 20 с; 0.4 с | Session chrome124; /page/N/; retry 5xx; **конец доказан** по номерам страниц в .pagination-v3; живой поиск /?digiSearch=true&term= | id/sku/title/price/old_price/image_url; Алматы / Казахстан; описание нет |
 | `scrapers/zoomarket.py` / `ZooMarketScraper` | D; zoomarket.kz SSR HTML Bitrix .catalog_item | 20 с; 0.4 с | Session chrome124; ?PAGEN_1=N; retry 5xx; **конец доказан** по номерам страниц в .nums; живой поиск /catalog/?q= | id/sku/title/price/old_price/image_url; Алматы / Казахстан; описание нет |
 | `scrapers/planeta.py` / `PlanetaScraper` | D; planeta.kz SSR HTML .unit-item-block | 20 с; 0.4 с | Session chrome124; /ru/site/search/term/{term}/page/{page}/; retry 5xx; **конец доказан** по номерам страниц в ul.pagination li a[data-page] и кнопке next; живой поиск /ru/site/search/?term= | id/sku/title/price/old_price/image_url; Алматы / Казахстан; описание нет |
+| `scrapers/kimex.py` / `KimexScraper` | D; kimex.kz SSR HTML a.card[data-entity="item"] | 20 с; 0.4 с | Session chrome124; /page-{page}/; retry 5xx; **конец доказан** по кнопке .btn.js-load-more; живой поиск /search/?q= | id/sku/title/price/old_price/image_url; Алматы / Казахстан; описание нет |
 
 ## Пути вне основного фонового scan
 
@@ -593,6 +594,21 @@ A — feed/API владельца с документированным назн
 | Планета: 👔 Утюги | appliances_small | `https://planeta.kz/ru/site/search/?term=утюг` | 10 |
 | Планета: 🍹 Блендеры | appliances_small | `https://planeta.kz/ru/site/search/?term=блендер` | 10 |
 | Планета: 🎧 Наушники | audio | `https://planeta.kz/ru/site/search/?term=наушники` | 10 |
+
+### KimexScraper — 10 настроенных источников категории
+
+| Категория | Master | URL/query | max_pages |
+|---|---|---|---|
+| KIMEX: 👟 Женские кроссовки | clothes | `https://kimex.kz/catalog/zhenskoe/obuv/krossovki/` | 10 |
+| KIMEX: 👠 Женские туфли | clothes | `https://kimex.kz/catalog/zhenskoe/obuv/tufli/` | 10 |
+| KIMEX: 👢 Женские ботинки | clothes | `https://kimex.kz/catalog/zhenskoe/obuv/botinki/` | 10 |
+| KIMEX: 👡 Женские босоножки | clothes | `https://kimex.kz/catalog/zhenskoe/obuv/bosonozhki/` | 10 |
+| KIMEX: 🥿 Женские лоферы | clothes | `https://kimex.kz/catalog/zhenskoe/obuv/lofery/` | 10 |
+| KIMEX: 👟 Мужские кроссовки | clothes | `https://kimex.kz/catalog/muzhskoe/obuv/krossovki/` | 10 |
+| KIMEX: 👞 Мужские туфли | clothes | `https://kimex.kz/catalog/muzhskoe/obuv/tufli/` | 10 |
+| KIMEX: 🥾 Мужские ботинки | clothes | `https://kimex.kz/catalog/muzhskoe/obuv/botinki/` | 10 |
+| KIMEX: 👟 Мужские кеды | clothes | `https://kimex.kz/catalog/muzhskoe/obuv/kedy/` | 10 |
+| KIMEX: 👞 Мужские мокасины | clothes | `https://kimex.kz/catalog/muzhskoe/obuv/mokasiny/` | 10 |
 
 ## Перед подключением следующего магазина
 

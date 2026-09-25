@@ -24,12 +24,13 @@ from scrapers.detmir import DetmirScraper
 from scrapers.askona import AskonaScraper
 from scrapers.zoomarket import ZooMarketScraper
 from scrapers.planeta import PlanetaScraper
+from scrapers.kimex import KimexScraper
 
 
 class ScraperContractTest(unittest.TestCase):
     def test_scraper_classes_conform_to_contract(self):
         # Check standard scrapers
-        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper, LemanaProScraper, ArbuzScraper, MasterOkScraper, MagnumScraper, IntertopScraper, MarwinScraper, ITekaScraper, MebelScraper, DetmirScraper, AskonaScraper, ZooMarketScraper, PlanetaScraper):
+        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper, LemanaProScraper, ArbuzScraper, MasterOkScraper, MagnumScraper, IntertopScraper, MarwinScraper, ITekaScraper, MebelScraper, DetmirScraper, AskonaScraper, ZooMarketScraper, PlanetaScraper, KimexScraper):
             self.assertTrue(hasattr(cls, "SHOP_NAME"), f"{cls} must define SHOP_NAME")
             self.assertTrue(callable(getattr(cls, "scrape", None)), f"{cls} must define scrape")
             self.assertTrue(callable(getattr(cls, "close", None)), f"{cls} must define close")
@@ -1065,6 +1066,84 @@ class ScraperContractTest(unittest.TestCase):
         self.assertEqual(results[0]["price"], 429990)
         self.assertEqual(results[0]["shop"], "Планета Электроники")
         self.assertEqual(results[0]["url"], "https://planeta.kz/ru/products/samsung-galaxy-s24-ct-101/")
+        scraper.close()
+
+    def test_kimex_parsing_mock(self):
+        from unittest.mock import MagicMock
+        scraper = KimexScraper()
+
+        html = """
+        <html>
+        <body>
+          <div class="cataloge__cards cataloge-wrapper">
+            <a class="card" data-entity="item" data-id="1031420" href="/catalog/zhenskoe/obuv/krossovki/aya-kiim-krossovki-caprice_69/">
+              <span class="card__title">Кроссовки Caprice</span>
+              <span class="price-current">80 990 ₸</span>
+              <span class="card__price--old">99 990 ₸</span>
+              <img src="/upload/iblock/caprice.webp" />
+            </a>
+            <div class="cataloge__show-more">
+              <button class="btn js-load-more" data-url="/catalog/zhenskoe/obuv/krossovki/page-2/"></button>
+            </div>
+          </div>
+        </body>
+        </html>
+        """
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = html
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        scraper.session = mock_session
+
+        res = scraper._fetch_page("Женские кроссовки", "https://kimex.kz/catalog/zhenskoe/obuv/krossovki/", 1)
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0]["id"], "kimex_1031420")
+        self.assertEqual(res[0]["sku"], "1031420")
+        self.assertEqual(res[0]["title"], "Кроссовки Caprice")
+        self.assertEqual(res[0]["price"], 80990)
+        self.assertEqual(res[0]["old_price_on_site"], 99990)
+        self.assertEqual(res[0]["shop"], "KIMEX")
+        self.assertEqual(res[0]["url"], "https://kimex.kz/catalog/zhenskoe/obuv/krossovki/aya-kiim-krossovki-caprice_69/")
+        self.assertEqual(res[0]["image_url"], "https://kimex.kz/upload/iblock/caprice.webp")
+        self.assertFalse(res.complete)
+        scraper.close()
+        self.assertIsNone(scraper.session)
+
+    def test_kimex_live_search_mock(self):
+        from unittest.mock import MagicMock
+        scraper = KimexScraper()
+
+        html = """
+        <html>
+        <body>
+          <div class="cataloge__cards">
+            <a class="card" data-entity="item" data-id="1018182" href="/catalog/zhenskoe/obuv/krossovki/aya-kiim-krossovki-rieker_150/">
+              <span class="card__title">Кроссовки Rieker</span>
+              <span class="price-current">54 990 ₸</span>
+            </a>
+          </div>
+        </body>
+        </html>
+        """
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = html
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        scraper.session = mock_session
+
+        results = scraper.search_live("rieker", limit=5)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["id"], "kimex_1018182")
+        self.assertEqual(results[0]["title"], "Кроссовки Rieker")
+        self.assertEqual(results[0]["price"], 54990)
+        self.assertEqual(results[0]["shop"], "KIMEX")
+        self.assertEqual(results[0]["url"], "https://kimex.kz/catalog/zhenskoe/obuv/krossovki/aya-kiim-krossovki-rieker_150/")
         scraper.close()
 
 
