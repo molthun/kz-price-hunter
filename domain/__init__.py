@@ -13,6 +13,19 @@ from domain.models import (
     Seller,
 )
 
+from domain.seller_identity import (
+    IdentityType,
+    MatchDecision,
+    SellerIdentity,
+    SellerMatchResult,
+    normalize_bin,
+    normalize_business_name,
+    normalize_domain,
+    normalize_phone,
+)
+
+from domain.seller_matcher import SellerMatcher
+
 __all__ = [
     "Availability",
     "CanonicalProduct",
@@ -22,4 +35,13 @@ __all__ = [
     "Offer",
     "OfferPriceHistory",
     "Seller",
+    "IdentityType",
+    "MatchDecision",
+    "SellerIdentity",
+    "SellerMatchResult",
+    "SellerMatcher",
+    "normalize_bin",
+    "normalize_business_name",
+    "normalize_domain",
+    "normalize_phone",
 ]

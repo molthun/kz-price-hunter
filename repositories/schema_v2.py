@@ -105,6 +105,34 @@ CREATE TABLE IF NOT EXISTS offer_price_history (
 );
 CREATE INDEX IF NOT EXISTS idx_oph_offer ON offer_price_history(offer_id);
 CREATE INDEX IF NOT EXISTS idx_oph_observed ON offer_price_history(observed_at);
+
+-- 6. Seller Identities (Seller Graph footprint)
+CREATE TABLE IF NOT EXISTS seller_identities (
+    id TEXT PRIMARY KEY,
+    seller_id TEXT NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+    identity_type TEXT NOT NULL,
+    identity_value TEXT NOT NULL,
+    confidence REAL DEFAULT 1.0,
+    source TEXT,
+    created_at TEXT NOT NULL,
+    UNIQUE(identity_type, identity_value, seller_id)
+);
+CREATE INDEX IF NOT EXISTS idx_seller_identities_lookup ON seller_identities(identity_type, identity_value);
+CREATE INDEX IF NOT EXISTS idx_seller_identities_seller ON seller_identities(seller_id);
+
+-- 7. Seller Review Queue (for ambiguous REVIEW matches)
+CREATE TABLE IF NOT EXISTS seller_review_queue (
+    id TEXT PRIMARY KEY,
+    candidate_seller_id TEXT,
+    matched_seller_id TEXT,
+    reason TEXT NOT NULL,
+    confidence REAL DEFAULT 0.0,
+    details_json TEXT DEFAULT '{}',
+    status TEXT DEFAULT 'PENDING',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_srq_status ON seller_review_queue(status);
 """
 
 

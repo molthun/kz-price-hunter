@@ -228,14 +228,46 @@ def sync_legacy_product_to_v2(
     )
     seller_id = f"seller_{seller_slug}"
 
-    conn.execute(
-        """
-        INSERT INTO sellers (id, slug, name, is_active, created_at, updated_at)
-        VALUES (?, ?, ?, 1, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET updated_at = excluded.updated_at
-        """,
-        (seller_id, seller_slug, seller_name, timestamp, timestamp),
-    )
+    norm_dom = None
+    if channel_type in (ChannelType.WEBSITE, ChannelType.DIRECT) and url:
+        from domain.seller_identity import normalize_domain
+        norm_dom = normalize_domain(url)
+
+    if norm_dom:
+        conn.execute(
+            """
+            INSERT INTO sellers (id, slug, name, domain, is_active, created_at, updated_at)
+            VALUES (?, ?, ?, ?, 1, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                domain = COALESCE(sellers.domain, excluded.domain),
+                updated_at = excluded.updated_at
+            """,
+            (seller_id, seller_slug, seller_name, norm_dom, timestamp, timestamp),
+        )
+        # Идентификатор строится из самого отпечатка, а не только из продавца: иначе второй домен
+        # того же продавца конфликтует по первичному ключу, предложение ON CONFLICT ниже его не
+        # покрывает, и товар вообще не попадает в v2. Тот же приём уже применён в merge_sellers.
+        ident_digest = hashlib.sha256(
+            f"{seller_id}:domain:{norm_dom}".encode("utf-8")
+        ).hexdigest()[:16]
+        ident_id = f"ident_{ident_digest}"
+        conn.execute(
+            """
+            INSERT INTO seller_identities (id, seller_id, identity_type, identity_value, confidence, source, created_at)
+            VALUES (?, ?, 'domain', ?, 1.0, 'product_url', ?)
+            ON CONFLICT(identity_type, identity_value, seller_id) DO NOTHING
+            """,
+            (ident_id, seller_id, norm_dom, timestamp),
+        )
+    else:
+        conn.execute(
+            """
+            INSERT INTO sellers (id, slug, name, is_active, created_at, updated_at)
+            VALUES (?, ?, ?, 1, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET updated_at = excluded.updated_at
+            """,
+            (seller_id, seller_slug, seller_name, timestamp, timestamp),
+        )
 
     # 2. Resolve Channel
     channel_id = f"chan_{seller_slug}_{channel_type}"
