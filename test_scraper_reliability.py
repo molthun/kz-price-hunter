@@ -1171,5 +1171,80 @@ class NewSourcesEndProofTest(unittest.TestCase):
         with self.assertRaises(UnconfirmedEnd):
             s._fetch_page("Диваны", "https://mebel.kz/category/divany", 1)
 
+    def test_detmir_retry_on_transient_error(self):
+        import json
+        from unittest.mock import Mock, patch
+        from scrapers.detmir import DetmirScraper
+
+        s = DetmirScraper()
+        resp502 = Mock(status_code=502)
+        app_payload = {
+            "catalog": {
+                "data": {
+                    "meta": {"productsLength": 100},
+                    "items": [
+                        {
+                            "id": "112233",
+                            "title": "Кукла Барби Сияние",
+                            "price": {"price": 9990},
+                            "old_price": {"price": 12990},
+                            "link": {"web_url": "https://detmir.kz/product/index/id/112233/"}
+                        }
+                    ]
+                }
+            }
+        }
+        json_arg = json.dumps(json.dumps(app_payload))
+        html_ok = f'<html><body><script>window.appData = JSON.parse({json_arg});</script></body></html>'
+        resp200 = Mock(status_code=200, text=html_ok)
+        session = Mock(get=Mock(side_effect=[resp502, resp200]))
+        s.session = session
+
+        with patch("time.sleep", return_value=None):
+            res = s._fetch_page("Куклы", "https://detmir.kz/catalog/index/name/kukly/", 1)
+
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0]["id"], "detmir_112233")
+        self.assertEqual(res[0]["price"], 9990)
+        self.assertFalse(res.complete)
+        self.assertEqual(session.get.call_count, 2)
+
+    def test_detmir_completion_and_unconfirmed_end(self):
+        import json
+        from unittest.mock import Mock
+        from scrapers.detmir import DetmirScraper
+        from scrapers.base import UnconfirmedEnd
+
+        s = DetmirScraper()
+        # 36 items total, page 1 of 1 -> complete
+        app_payload = {
+            "catalog": {
+                "data": {
+                    "meta": {"productsLength": 30},
+                    "items": [
+                        {
+                            "id": "112234",
+                            "title": "Кукла Барби Модница",
+                            "price": {"price": 8990},
+                            "link": {"web_url": "https://detmir.kz/product/index/id/112234/"}
+                        }
+                    ]
+                }
+            }
+        }
+        json_arg = json.dumps(json.dumps(app_payload))
+        html_ok = f'<html><body><script>window.appData = JSON.parse({json_arg});</script></body></html>'
+        session = Mock(get=Mock(return_value=Mock(status_code=200, text=html_ok)))
+        s.session = session
+
+        res = s._fetch_page("Куклы", "https://detmir.kz/catalog/index/name/kukly/", 1)
+        self.assertEqual(len(res), 1)
+        self.assertTrue(res.complete)  # 30 items <= 36 -> complete on page 1
+
+        session.get = Mock(return_value=Mock(status_code=200, text="<html><body><div>Пусто</div></body></html>"))
+        with self.assertRaises(UnconfirmedEnd):
+            s._fetch_page("Куклы", "https://detmir.kz/catalog/index/name/kukly/", 1)
+
+
 
 

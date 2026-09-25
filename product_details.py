@@ -25,9 +25,10 @@ STORE_DOMAINS = (
     "shop.kz", "kaspi.kz", "dns-shop.kz", "technodom.kz", "sulpak.kz", "mechta.kz",
     "alser.kz", "evrika.com", "moon.kz", "forcecom.kz", "flip.kz", "halykmarket.kz",
     "tgrad.kz", "ants.kz", "itmag.kz", "ispace.kz", "market.forte.kz",
-    # Магазины №19–30: описание — общими селекторами/мета-тегом, с теми же ограничениями
+    # Магазины №19–31: описание — общими селекторами/мета-тегом, с теми же ограничениями
     "vkusmart.vmv.kz", "12.kz", "zeta.kz", "komfort.kz", "lemanapro.kz", "arbuz.kz",
     "masterok.kz", "magnum.kz", "intertop.kz", "marwin.kz", "meloman.kz", "i-teka.kz", "mebel.kz",
+    "detmir.kz",
 )
 # Общий лимит внешней догрузки описаний (R-M05): перебор разных карточек не создаёт
 # неограниченную очередь запросов к магазинам

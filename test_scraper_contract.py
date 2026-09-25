@@ -20,12 +20,13 @@ from scrapers.intertop import IntertopScraper
 from scrapers.marwin import MarwinScraper
 from scrapers.iteka import ITekaScraper
 from scrapers.mebel import MebelScraper
+from scrapers.detmir import DetmirScraper
 
 
 class ScraperContractTest(unittest.TestCase):
     def test_scraper_classes_conform_to_contract(self):
         # Check standard scrapers
-        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper, LemanaProScraper, ArbuzScraper, MasterOkScraper, MagnumScraper, IntertopScraper, MarwinScraper, ITekaScraper, MebelScraper):
+        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper, LemanaProScraper, ArbuzScraper, MasterOkScraper, MagnumScraper, IntertopScraper, MarwinScraper, ITekaScraper, MebelScraper, DetmirScraper):
             self.assertTrue(hasattr(cls, "SHOP_NAME"), f"{cls} must define SHOP_NAME")
             self.assertTrue(callable(getattr(cls, "scrape", None)), f"{cls} must define scrape")
             self.assertTrue(callable(getattr(cls, "close", None)), f"{cls} must define close")
@@ -697,6 +698,100 @@ class ScraperContractTest(unittest.TestCase):
         self.assertEqual(results[0]["old_price_on_site"], 105000)
         self.assertEqual(results[0]["shop"], "Mebel.kz")
         self.assertEqual(results[0]["url"], "https://mebel.kz/product/kreslo-ergonomic-lux")
+        scraper.close()
+
+    def test_detmir_parsing_mock(self):
+        import json
+        from unittest.mock import MagicMock
+        scraper = DetmirScraper()
+
+        app_payload = {
+            "catalog": {
+                "data": {
+                    "meta": {"productsLength": 100},
+                    "items": [
+                        {
+                            "id": "778899",
+                            "title": "Конструктор LEGO City Пожарный самолет",
+                            "price": {"price": 14990},
+                            "old_price": {"price": 19990},
+                            "link": {"web_url": "https://detmir.kz/product/index/id/778899/"},
+                            "pictures": [{"original": "https://catalog-cdn.detmir.st/lego.jpg"}]
+                        }
+                    ]
+                }
+            }
+        }
+        json_inner = json.dumps(app_payload)
+        json_arg = json.dumps(json_inner)
+        html = f"""
+        <html><body>
+        <script>window.appData = JSON.parse({json_arg});</script>
+        </body></html>
+        """
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = html
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        scraper.session = mock_session
+
+        res = scraper._fetch_page("Конструкторы", "https://detmir.kz/catalog/index/name/konstruktory/", 1)
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0]["id"], "detmir_778899")
+        self.assertEqual(res[0]["title"], "Конструктор LEGO City Пожарный самолет")
+        self.assertEqual(res[0]["price"], 14990)
+        self.assertEqual(res[0]["old_price_on_site"], 19990)
+        self.assertEqual(res[0]["shop"], "Детский мир")
+        self.assertEqual(res[0]["url"], "https://detmir.kz/product/index/id/778899/")
+        self.assertFalse(res.complete)
+        scraper.close()
+        self.assertIsNone(scraper.session)
+
+    def test_detmir_live_search_mock(self):
+        import json
+        from unittest.mock import MagicMock
+        scraper = DetmirScraper()
+
+        app_payload = {
+            "catalog": {
+                "data": {
+                    "items": [
+                        {
+                            "id": "554433",
+                            "title": "Подгузники Pampers Active Baby-Dry 4 (9-14 кг) 106 шт.",
+                            "price": {"price": 12490},
+                            "old_price": {"price": 15990},
+                            "link": {"web_url": "https://detmir.kz/product/index/id/554433/"},
+                            "pictures": [{"original": "https://catalog-cdn.detmir.st/pampers.jpg"}]
+                        }
+                    ]
+                }
+            }
+        }
+        json_inner = json.dumps(app_payload)
+        json_arg = json.dumps(json_inner)
+        html = f"""
+        <html><body>
+        <script>window.appData = JSON.parse({json_arg});</script>
+        </body></html>
+        """
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = html
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        scraper.session = mock_session
+
+        results = scraper.search_live("памперсы", limit=5)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["title"], "Подгузники Pampers Active Baby-Dry 4 (9-14 кг) 106 шт.")
+        self.assertEqual(results[0]["price"], 12490)
+        self.assertEqual(results[0]["old_price_on_site"], 15990)
+        self.assertEqual(results[0]["shop"], "Детский мир")
+        self.assertEqual(results[0]["url"], "https://detmir.kz/product/index/id/554433/")
         scraper.close()
 
 

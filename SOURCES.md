@@ -18,7 +18,7 @@ A — feed/API владельца с документированным назн
 
 Изображения сохраняются ссылками, server image proxy/cache не обнаружен. Browser и Telegram могут получать их с внешнего источника. Description используется в UI и может дополнительно сохраняться через guest product-detail GET для любого магазина. Его отсутствие в конкретном parser не означает отсутствие копирования текста в целом.
 
-## Матрица 30 источников
+## Матрица 31 источника
 
 | Модуль / класс | Тип / механизм | Timeout / pacing | Session, pagination, retry | Поля и ограничения |
 |---|---|---|---|---|
@@ -52,6 +52,7 @@ A — feed/API владельца с документированным назн
 | `scrapers/marwin.py` / `MarwinScraper` | D; marwin.kz SSR HTML (Magento 2) .product-item-info | 20 с; 0.4 с | Session chrome124; ?p=N; retry 5xx; **конец доказан** номером последней страницы в пагинации (pagination_last_page); живой поиск /catalogsearch/result/ | id/sku/title/price/old_price/image_url; Алматы / Казахстан; описание есть |
 | `scrapers/iteka.py` / `ITekaScraper` | D; i-teka.kz SSR HTML (Yii2 + Alpine.js) div.rounded-16 | 20 с; 0.4 с | Session chrome124; ?page=N; retry 5xx; **конец доказан** номером последней страницы в пагинации (pagination_last_page с GlossaryTnfull_page); живой поиск /search?query= | id/sku/title/price/old_price/image_url; Астана / регионы; описание нет |
 | `scrapers/mebel.py` / `MebelScraper` | D + B; mebel.kz SSR HTML .ProductCardMain + schema.org ItemList | 20 с; 0.4 с | Session chrome124; /page-N; retry 5xx; **конец доказан** номером последней страницы в пагинации (/page-N); живой поиск proxy.mebel.kz/backend/search/ | id/sku/title/price/old_price/image_url; Алматы / Казахстан; описание есть |
+| `scrapers/detmir.py` / `DetmirScraper` | C + D; detmir.kz SSR HTML + window.appData JSON + section[data-product-id] | 20 с; 0.4 с | Session chrome124; /page/N/; retry 5xx; **конец доказан** по productsLength в appData и пагинатору; живой поиск /search/results/?qt= | id/sku/title/price/old_price/image_url; Алматы / Казахстан; описание нет |
 
 ## Пути вне основного фонового scan
 
@@ -529,6 +530,21 @@ A — feed/API владельца с документированным назн
 | Mebel.kz: 💺 Компьютерные кресла | home_furniture | `https://mebel.kz/category/kompyuternye-kresla` | 10 |
 | Mebel.kz: 🧶 Ковры и текстиль | home_furniture | `https://mebel.kz/category/kovry-i-tekstil` | 10 |
 | Mebel.kz: 💡 Светильники и свет | home_furniture | `https://mebel.kz/category/svet` | 10 |
+
+### DetmirScraper — 10 настроенных источников категории
+
+| Категория | Master | URL/query | max_pages |
+|---|---|---|---|
+| Детский мир: 🧩 Игрушки и игры | household | `https://detmir.kz/catalog/index/name/igry_i_igrushki/` | 10 |
+| Детский мир: 🧱 Конструкторы и LEGO | household | `https://detmir.kz/catalog/index/name/konstruktory/` | 10 |
+| Детский мир: 🍼 Детское питание и кормление | grocery | `https://detmir.kz/catalog/index/name/nutrition_feeding/` | 10 |
+| Детский мир: 👶 Подгузники и гигиена | household | `https://detmir.kz/catalog/index/name/hygiene_care/` | 10 |
+| Детский мир: 👕 Одежда и обувь | clothes | `https://detmir.kz/catalog/index/name/children_clothes/` | 10 |
+| Детский мир: 🚼 Детские коляски | household | `https://detmir.kz/catalog/index/name/kolyaski/` | 10 |
+| Детский мир: 🚗 Автокресла | household | `https://detmir.kz/catalog/index/name/avtokresla/` | 10 |
+| Детский мир: 🛏 Детская комната | home_furniture | `https://detmir.kz/catalog/index/name/childrens_room/` | 10 |
+| Детский мир: 🎨 Хобби и творчество | household | `https://detmir.kz/catalog/index/name/hobbies_creativity/` | 10 |
+| Детский мир: 🛴 Детский транспорт | household | `https://detmir.kz/catalog/index/name/childrens_transport/` | 10 |
 
 ## Перед подключением следующего магазина
 

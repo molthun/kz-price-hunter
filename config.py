@@ -50,6 +50,7 @@ SHOP_KEYS = {
     "marwin": "Меломан",
     "iteka": "i-Teka",
     "mebel": "Mebel.kz",
+    "detmir": "Детский мир",
 }
 
 
@@ -1143,14 +1144,21 @@ ARBUZ_CATEGORIES = [
 
 # MasterOK (masterok.kz): гипермаркет строительного, садового и силового оборудования
 MASTEROK_CATEGORIES = [
-    {"name": "MasterOK: 🔌 Инструменты", "url": "https://masterok.kz/catalog/instrumenty/", "master": "diy", "max_pages": 10},
-    {"name": "MasterOK: 🧑‍🏭 Сварочное оборудование", "url": "https://masterok.kz/catalog/svarochnoe-oborudovanie1/", "master": "diy", "max_pages": 10},
-    {"name": "MasterOK: 🌿 Садовое оборудование", "url": "https://masterok.kz/catalog/sadovoe-oborudovanie1/", "master": "diy", "max_pages": 10},
-    {"name": "MasterOK: 🏗 Строительное оборудование", "url": "https://masterok.kz/catalog/stroitelnoe-oborudovanie1/", "master": "diy", "max_pages": 10},
-    {"name": "MasterOK: ⚡️ Силовая техника и генераторы", "url": "https://masterok.kz/catalog/silovaya-tekhnika/", "master": "diy", "max_pages": 10},
-    {"name": "MasterOK: 🚰 Мотопомпы и насосы", "url": "https://masterok.kz/catalog/motopompy1-/", "master": "diy", "max_pages": 10},
-    {"name": "MasterOK: 🪵 Деревообрабатывающее оборудование", "url": "https://masterok.kz/catalog/derevoobrabatyvayushchee-oborudovanie-1/", "master": "diy", "max_pages": 10},
-    {"name": "MasterOK: 📦 Складское оборудование", "url": "https://masterok.kz/catalog/skladskoe-oborudovanie-/", "master": "diy", "max_pages": 10},
+    # Разделы настоящего каталога. Раньше здесь были подразделы «Распродажи витрины» — на сайте
+    # это отдельная ветка, и весь каталог (около 2000 позиций) не собирался вовсе.
+    # У masterok.kz нет общих разделов «Инструменты» или «Сварочное оборудование»: такими именами
+    # названы только подразделы распродажи и уценки. Каталог устроен по видам техники.
+    {"name": "MasterOK: 📦 Складское оборудование", "url": "https://masterok.kz/catalog/skladskoe-oborudovanie/", "master": "diy", "max_pages": 60},
+    {"name": "MasterOK: 🔩 Запчасти", "url": "https://masterok.kz/catalog/zapchasti/", "master": "diy", "max_pages": 50},
+    {"name": "MasterOK: 🚜 Минитракторы", "url": "https://masterok.kz/catalog/minitraktory/", "master": "diy", "max_pages": 25},
+    {"name": "MasterOK: 🌱 Мотоблоки и культиваторы", "url": "https://masterok.kz/catalog/kultivatory-motobloki/", "master": "diy", "max_pages": 25},
+    {"name": "MasterOK: 🪵 Деревообрабатывающие станки", "url": "https://masterok.kz/catalog/derevoobrabatyvayushchee-oborudovanie1/", "master": "diy", "max_pages": 20},
+    {"name": "MasterOK: 🧹 Техника для уборки", "url": "https://masterok.kz/catalog/tekhnika-dlya-uborki/", "master": "diy", "max_pages": 20},
+    {"name": "MasterOK: ⚡️ Генераторы и электростанции", "url": "https://masterok.kz/catalog/generatory-el-stantsii/", "master": "diy", "max_pages": 10},
+    # Скидочные ветки: одна ссылка на корень заменяет восемь прежних подразделов и даёт больше
+    {"name": "MasterOK: 🔥 Распродажа витрины", "url": "https://masterok.kz/catalog/rasprodazha-vitrina/", "master": "actions", "max_pages": 20},
+    {"name": "MasterOK: 🏷 Уценка", "url": "https://masterok.kz/catalog/ucenennyj-tovar/", "master": "actions", "max_pages": 10},
+    {"name": "MasterOK: ✨ Новинки", "url": "https://masterok.kz/catalog/newproduct/", "master": "diy", "max_pages": 10},
 ]
 
 # Магнум (magnum.kz): крупнейшая розничная сеть супермаркетов Казахстана
@@ -1220,6 +1228,21 @@ MEBEL_CATEGORIES = [
     {"name": "Mebel.kz: 🧶 Ковры и текстиль", "url": "https://mebel.kz/category/kovry-i-tekstil", "master": "home_furniture", "max_pages": 10},
     {"name": "Mebel.kz: 💡 Светильники и свет", "url": "https://mebel.kz/category/svet", "master": "home_furniture", "max_pages": 10},
 ]
+
+# Детский мир (detmir.kz): крупнейшая сеть детских товаров в Казахстане
+DETMIR_CATEGORIES = [
+    {"name": "Детский мир: 🧩 Игрушки и игры", "url": "https://detmir.kz/catalog/index/name/igry_i_igrushki/", "master": "household", "max_pages": 10},
+    {"name": "Детский мир: 🧱 Конструкторы и LEGO", "url": "https://detmir.kz/catalog/index/name/konstruktory/", "master": "household", "max_pages": 10},
+    {"name": "Детский мир: 🍼 Детское питание и кормление", "url": "https://detmir.kz/catalog/index/name/nutrition_feeding/", "master": "grocery", "max_pages": 10},
+    {"name": "Детский мир: 👶 Подгузники и гигиена", "url": "https://detmir.kz/catalog/index/name/hygiene_care/", "master": "household", "max_pages": 10},
+    {"name": "Детский мир: 👕 Одежда и обувь", "url": "https://detmir.kz/catalog/index/name/children_clothes/", "master": "clothes", "max_pages": 10},
+    {"name": "Детский мир: 🚼 Детские коляски", "url": "https://detmir.kz/catalog/index/name/kolyaski/", "master": "household", "max_pages": 10},
+    {"name": "Детский мир: 🚗 Автокресла", "url": "https://detmir.kz/catalog/index/name/avtokresla/", "master": "household", "max_pages": 10},
+    {"name": "Детский мир: 🛏 Детская комната", "url": "https://detmir.kz/catalog/index/name/childrens_room/", "master": "home_furniture", "max_pages": 10},
+    {"name": "Детский мир: 🎨 Хобби и творчество", "url": "https://detmir.kz/catalog/index/name/hobbies_creativity/", "master": "household", "max_pages": 10},
+    {"name": "Детский мир: 🛴 Детский транспорт", "url": "https://detmir.kz/catalog/index/name/childrens_transport/", "master": "household", "max_pages": 10},
+]
+
 
 
 

@@ -2351,6 +2351,19 @@ class TestForteMarketScraper(unittest.TestCase):
             self.assertIn("url", c)
             self.assertTrue(c["master"] in config.MASTER_CATEGORIES)
 
+    def test_registry_contains_detmir(self):
+        from web.server import SHOP_REGISTRY
+        from config import SHOP_KEYS, DETMIR_CATEGORIES
+        self.assertIn("detmir", SHOP_REGISTRY)
+        scraper_cls, cats, name = SHOP_REGISTRY["detmir"]
+        self.assertEqual(name, "Детский мир")
+        self.assertEqual(cats, DETMIR_CATEGORIES)
+        self.assertEqual(SHOP_KEYS.get("detmir"), "Детский мир")
+        for c in DETMIR_CATEGORIES:
+            self.assertIn("master", c)
+            self.assertIn("url", c)
+            self.assertTrue(c["master"] in config.MASTER_CATEGORIES)
+
     def test_parse_response_and_regional_pricing(self):
         from scrapers.fortemarket import ForteMarketScraper
 
