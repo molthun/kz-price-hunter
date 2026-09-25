@@ -42,12 +42,263 @@
 |---|---|---|---|---|---|
 | S2-E00 | Baseline 2.0: аудит состояния и метрик | READY | Antigravity | Самопроверка по коду и БД | — |
 | S2-E01 | Domain Model: Product, Seller, Channel, Offer | DEPLOYED (v6.0.0) | Antigravity → Claude (правки N2–N4) | Claude: два круга аудита, A1/A2/B1/B3/B5 закрыты; B2 и N1 перенесены в S2-E04/S2-E05 | выпуск v6.0.0 по поручению владельца |
-| S2-E02 | Seller Identity & Seller Graph | TODO | — | — | — |
-| S2-E03 | Channel-aware pricing (Cross-seller / Cross-channel) | TODO | — | — | — |
-| S2-E04 | Condition / б/у рынок (NEW, USED, REFURBISHED) | TODO (в карточке записаны обязательные пункты B2 и «уценка») | — | — | — |
-| S2-E05 | Seller Discovery & Source Profiler | TODO (в карточке записан обязательный пункт N1) | — | — | — |
+| S2-E02 | Seller Identity & Seller Graph | READY | Antigravity → Claude (правки A1, B1, C1–C3) | Claude: аудит проведён, A1/B1/C1/C2/C3 закрыты; B2, B3, D1–D3 перенесены в карточки | — |
+| S2-E03 | Channel-aware pricing (Cross-seller / Cross-channel) | READY | Antigravity → Claude (правка E1) | Claude: аудит проведён, E1 закрыт; ожидает проверку Codex | — |
+| S2-E04 | Condition / б/у рынок (NEW, USED, REFURBISHED) | READY | Antigravity → Claude (правка E2) | Claude: аудит проведён, B2 закрыт автором, E2 закрыт; ожидает проверку Codex | — |
+| S2-E05 | Seller Discovery & Source Profiler | REVIEW | Antigravity → Claude (F1, F2, C-E05-01…04) | Codex: C-E05-01…04 закрыты Claude, см. docs/S2_E05_CODEX_FIXES_CLAUDE.md; ждёт повторного точечного аудита Codex | — |
 | S2-E11 | Unified Product Index & Search Core 2.0 | TODO | — | — | — |
 | S2-E13 | Search Quality & Search Analytics | TODO | — | — | — |
+
+
+## Карточка текущей задачи: S2-E05 (Seller Discovery & Source Profiler)
+
+```text
+ID / этап: S2-E05. Seller Discovery & Source Profiler (KZ Price Hunter 2.0)
+Цель и контекст:
+  - Автоматическое обнаружение и профилирование новых торговцев (Seller Candidates):
+    * Поиск магазинов из маркетплейсов, поисковиков, карт (2GIS), сайтов, соцсетей (Instagram, Telegram).
+    * Жизненный цикл кандидата: DISCOVERED -> PROFILED -> IDENTITY_MATCHED / REVIEW_REQUIRED -> APPROVED -> INDEXED / REJECTED.
+  - Source Profiler (определение первичного источника и формата каталога):
+    * Ранжирование по предпочтению сбора:
+      1. Feed/API (YML, RSS, JSON API)
+      2. Structured Catalog (REST/GraphQL/e-commerce endpoints)
+      3. Structured Website (Schema.org / OpenGraph)
+      4. HTML Catalog (SSR HTML)
+      5. Messenger Text (Telegram)
+      6. Social Text (Instagram text)
+      7. Social Media (Instagram images/stories — AI/Vision как крайний вариант).
+    * Профиль возможностей источника: identity, catalog, price, availability, order.
+  - Решение замечаний аудита:
+    * (B2) Динамическое правило родовых слов (Generic names) на русском и казахском («дүкен», «дәріхана», «аптека», «маркет» и др.) вместо фиксированного списка 16 слов.
+    * (D1) Отбраковка общих/непригодных номеров телефонов (колл-центры Kaspi, Forte, Halyk, 8800..., фейковые номера) для исключения ложных AUTO_MATCH.
+    * (D2) Нормализация доменов до регистрируемого (catalog.shop.kz -> shop.kz, m.kaspi.kz -> kaspi.kz).
+    * (D3) Валидация БИН/ИИН по казахстанскому ГОСТ / закону (12 цифр, контрольный разряд по модулю 11).
+  - Персистентность и интеграция:
+    * Таблицы seller_candidates и source_profiles в schema_v2.py (аддитивно, IF NOT EXISTS).
+    * Репозиторий CandidateRepository.
+    * Связка с SellerMatcher / SellerIdentityRepository.
+Основание/поручение владельца: «продолжи» (переход к Этапу 5 по плану docs/SEARCH_PLATFORM_PLAN.md).
+Статус: IN_PROGRESS (аудит Codex: C-E05-01…04 требуют исправления)
+Исполнитель / следующий: Antigravity → Claude / Claude исправляет, Codex повторно проверяет
+Начало и checkpoint: 2026-09-26 01:10 (Asia/Almaty)
+Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-hunter, ветка main, HEAD 62f8f24 (v6.0.0)
+Область файлов:
+  domain/discovery.py, domain/source_profiler.py, domain/seller_identity.py,
+  domain/seller_matcher.py, repositories/candidate_repo.py,
+  repositories/seller_identity_repo.py, repositories/schema_v2.py,
+  test_discovery_profiler.py, docs/AGENT_HANDOFF.md
+Что изменено:
+  - domain/discovery.py: CandidateStatus (8 состояний), DiscoverySource, SellerCandidate.
+  - domain/source_profiler.py: ExtractionTier (7 уровней), CatalogFormat, SourceProfile, SourceProfiler.profile_url.
+  - domain/seller_identity.py:
+    * validate_kz_bin_checksum (ГОСТ mod 11 с весами 1..11).
+    * get_registrable_domain (ccTLD .kz, .com.kz и склейка поддоменов).
+    * GENERIC_BUSINESS_TERMS и динамический is_generic_business_name (RU + KZ).
+    * SHARED_HOTLINES и фильтрация колл-центров в is_weak_identity.
+  - domain/seller_matcher.py: отбраковка generic имен без сильных ключей (REJECT вместо REVIEW), поддержка registrable domain.
+  - repositories/schema_v2.py: таблицы seller_candidates и source_profiles (аддитивно, IF NOT EXISTS).
+  - repositories/candidate_repo.py: полный CandidateRepository с _find_potential_sellers и process_discovered_candidate.
+  - repositories/seller_identity_repo.py: добавлены get_review_queue и алиас enqueue_review.
+  - test_discovery_profiler.py: 14 комплексных тестов (B2, D1, D2, D3, 7 уровней профайлера, жизненный цикл кандидата).
+Что проверено:
+  - test_discovery_profiler.py: 14/14 tests OK.
+  - 78 тестов всех модулей 2.0 (E01-E05): OK.
+  - Полный регрессионный сьют проекта: 1474 теста OK (Ran 1474 tests in 69.001s, OK).
+  - prices.db: не тронута (148 738 048 байт, schema_version = 5, integrity_check = ok).
+Что осталось:
+  - Исправить C-E05-01…04 из `docs/S2_E05_AUDIT_CODEX.md`.
+  - Повторный точечный аудит Codex; только после приёмки — S2-E11.
+Следующий точный шаг: Claude исправляет C-E05-01…04 и добавляет регрессии; затем Codex повторяет аудит. S2-E11 до закрытия замечаний не начинать.
+Зависимости: S2-E01, S2-E02, S2-E03, S2-E04, S2-E05 (1474 тестов OK).
+```
+
+## Карточка задачи: S2-E04 (Condition / б/у рынок: NEW, USED, REFURBISHED, OPEN_BOX)
+
+
+```text
+ID / этап: S2-E04. Condition / б/у рынок (KZ Price Hunter 2.0)
+Цель и контекст:
+  - Формализация состояний товаров: NEW, USED, REFURBISHED, OPEN_BOX, UNKNOWN.
+  - Устранение допущения B2 аудита:
+    * Condition.normalize(None, default=UNKNOWN) -> UNKNOWN (общее правило: отсутствие данных = неизвестно).
+    * Для 37 доверенных ритейл-сетей при адаптации из legacy сохраняется явный default=NEW.
+  - Корректная семантика «уценки» и «витрины»:
+    * «уценка», «витрина», «повреждена упаковка», «вскрыта коробка» -> OPEN_BOX (не путать с USED!).
+    * «восстановленный», «после ремонта», «после сц» -> REFURBISHED.
+    * «б/у», «бу», «бывший в употреблении» -> USED.
+    * Защита от ложных срабатываний («бумага», «тумбу», «обувь», «бутылка»).
+  - Строгая сегрегация цен (Б/у не смешивается с новыми в одной «лучшей цене»):
+    * ConditionFilter (ALL, NEW, USED, REFURBISHED, OPEN_BOX).
+    * ProductChannelMatrix: раздельные best_new_price, best_used_price, best_open_box_price, best_refurbished_price.
+    * PricingRepository.get_condition_breakdown() и фильтрация по Condition в get_product_channel_matrix().
+Основание/поручение владельца: «Далее» (переход к Этапу 4 по плану docs/SEARCH_PLATFORM_PLAN.md).
+Статус: READY (реализация завершена, 1453 теста OK)
+Исполнитель / следующий: Antigravity / Claude & Codex для аудита
+Начало и checkpoint: 2026-09-25 23:31 (Asia/Almaty)
+Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-hunter, ветка main, HEAD 62f8f24 (v6.0.0)
+Область файлов:
+  domain/models.py, domain/condition.py, domain/channel_pricing.py,
+  domain/adapter.py, domain/__init__.py, repositories/pricing_repo.py,
+  repositories/offer_repo.py, test_domain_models.py, test_condition.py,
+  docs/AGENT_HANDOFF.md
+Что сделано:
+  1. domain/models.py:
+     - Condition.normalize(val, default=UNKNOWN) и Availability.normalize(val, default=UNKNOWN):
+       устранено допущение B2 (теперь по умолчанию возвращается UNKNOWN, а не NEW / in_stock).
+     - Регулярные выражения нормализации доработаны с учетом уценки:
+       * «уценка», «уцененный», «витринный образец», «повреждена упаковка», «вскрыта коробка», «open box» -> OPEN_BOX.
+       * «восстановленный», «после ремонта», «после сц», «refurbished» -> REFURBISHED.
+       * «б/у», «бу», «second-hand», «с пробегом», «бывший в употреблении» -> USED.
+       * «новый», «запечатанный» -> NEW.
+       * Защищены слова-ловушки («бумага», «тумбу», «обувь», «бутылка», «букет»).
+  2. domain/adapter.py:
+     - Для 37 доверенных ритейл-сетей при конвертации legacy-записей явно указан контекстный default=Condition.NEW и default=Availability.IN_STOCK.
+  3. domain/condition.py:
+     - ConditionFilter (ALL, NEW, USED, REFURBISHED, OPEN_BOX) с методом matches() для строгой изоляции.
+     - ConditionBreakdown (best_new_price, best_used_price, best_open_box_price, best_refurbished_price и счетчики предложений).
+     - Функции build_condition_breakdown() и filter_offers_by_condition().
+  4. domain/channel_pricing.py:
+     - В ProductChannelMatrix добавлены поля best_new_price, best_used_price, best_open_box_price, best_refurbished_price, condition_breakdown.
+     - В build_channel_matrix: строгая фильтрация офферов по запрашиваемому Condition (при condition="new" б/у предложения физически исключены из best_overall_price, sellers_pricing и cross_seller_rankings).
+  5. repositories/offer_repo.py:
+     - В get_active_offers_for_product() добавлена поддержка нормализованных фильтров Condition.
+  6. repositories/pricing_repo.py:
+     - Интегрирован build_condition_breakdown, добавлен метод get_condition_breakdown(product_id, city).
+  7. domain/__init__.py:
+     - Экспортированы ConditionBreakdown, ConditionFilter, build_condition_breakdown, filter_offers_by_condition.
+  8. test_condition.py (15 тестов) и test_domain_models.py (5 тестов):
+     - Полное тестирование нормализаторов, слов-ловушек, инварианта не-загрязнения и SQLite-интеграции.
+Проверки:
+  - DATA_DIR=$(mktemp -d) ./venv/bin/python -m unittest test_condition.py: 15 тестов OK.
+  - DATA_DIR=$(mktemp -d) ./venv/bin/python -m unittest discover -s . -p "test_*.py": Ran 1453 tests in 68.451s, OK (0 failures, 0 errors).
+  - prices.db проверена: целостность ок (148 738 048 байт, schema_version 5, не модифицировалась).
+Осталось / Следующий точный шаг:
+  - Передать этап S2-E04 Claude & Codex на независимый аудит.
+  - По поручению владельца перейти к Этапу 5 (S2-E05: Seller Discovery & Source Profiler).
+```
+
+
+## Карточка задачи: S2-E03 (Channel-aware pricing: Cross-seller / Cross-channel)
+
+
+```text
+ID / этап: S2-E03. Channel-aware pricing: Cross-seller / Cross-channel (KZ Price Hunter 2.0)
+Цель и контекст:
+  - Разделение ценовой аналитики на два фундаментальных класса:
+    1. Cross-channel (один и тот же продавец в разных каналах):
+       * Например: 4mobile напрямую 499 000 ₸ vs 4mobile на Kaspi 539 000 ₸ vs 4mobile на Forte 535 000 ₸.
+       * Это НЕ конкурентный арбитраж, а «другой способ покупки у того же продавца».
+       * Вычисление чистой экономии покупателя при прямой покупке (savings amount & percent).
+       * Учёт компромиссов: экономия за наличные/QR vs покупка с комиссией маркетплейса, но с рассрочкой (0-0-12/24).
+    2. Cross-seller (конкуренция между независимыми продавцами за один канонический товар):
+       * Сравнение лучших предложений разных сетей (4mobile vs Мечта vs Sulpak) по городам и наличию.
+  - Расширение атрибутов Offer:
+    * installment_available (bool), credit_available (bool), pickup_available (bool).
+    * Детализированные payment_methods, installment_months, delivery_type.
+  - Аналитический сервис ценовой матрицы (ProductChannelMatrix & PricingService):
+    * Построение матрицы предложений товара: продавец -> каналы -> цены -> экономия.
+    * Выявление выгодных cross-channel сценариев (прямой канал существенно дешевле маркетплейса).
+Основание/поручение владельца: «делай» (прямое поручение на реализацию Этапа 3).
+Статус: READY (реализация завершена, 1432 теста OK)
+Исполнитель / следующий: Antigravity / Claude & Codex для аудита
+Начало и checkpoint: 2026-09-25 23:13 (Asia/Almaty)
+Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-hunter, ветка main, HEAD 62f8f24 (v6.0.0)
+Область файлов:
+  domain/channel_pricing.py, domain/models.py, domain/__init__.py,
+  repositories/schema_v2.py, repositories/offer_repo.py, repositories/pricing_repo.py,
+  repositories/__init__.py, test_channel_pricing.py, docs/AGENT_HANDOFF.md
+Что сделано:
+  1. domain/channel_pricing.py:
+     - PaymentMethod (cash, card, kaspi_qr, kaspi_red, installment, credit, online), DeliveryType (free, paid, pickup, courier, post).
+     - Dataclasses: ChannelSavings (экономия прямых покупок vs маркетплейсов с рассрочкой), SellerChannelPricing (профиль продавца со всеми его каналами и лучшим оффером), CrossSellerRanking (конкурентный рейтинг независимых продавцов с разницей от лидера), ProductChannelMatrix (полная матрица цен товара).
+     - build_channel_matrix: разделяет каналы одного продавца от конкуренции между продавцами, выявляет экономию прямых покупок и ранжирует продавцов по наилучшей цене.
+  2. domain/models.py:
+     - Расширен ChannelType (MARKETPLACE, токенизированный ChannelType.from_channel_id с поддержкой ':' и '-').
+     - В Offer добавлены поля installment_available, credit_available, pickup_available с дефолтами и автоматическим определением в from_row.
+  3. domain/__init__.py: экспортированы PaymentMethod, DeliveryType, ChannelSavings, SellerChannelPricing, CrossSellerRanking, ProductChannelMatrix, build_channel_matrix.
+  4. repositories/schema_v2.py: аддитивные поля в DDL offers и функция _ensure_column для сохранения совместимости (schema_version = 5 не меняется).
+  5. repositories/offer_repo.py: обновлены INSERT и ON CONFLICT для надёжного сохранения новых полей.
+  6. repositories/pricing_repo.py: создан PricingRepository с методами get_product_channel_matrix и find_cross_channel_savings.
+  7. repositories/__init__.py: экспортирован PricingRepository.
+  8. test_channel_pricing.py: 10 тестов, покрывающих сценарий 4mobile (499k vs 539k), рейтинг 3 продавцов, акции маркетплейса, сериализацию, сохранение в SQLite и фильтрацию по городам.
+Проверки:
+  - DATA_DIR=$(mktemp -d) ./venv/bin/python -m unittest test_channel_pricing.py: 10 тестов OK.
+  - DATA_DIR=$(mktemp -d) ./venv/bin/python -m unittest discover -s . -p "test_*.py": Ran 1432 tests in 68.197s, OK (0 failures, 0 errors).
+  - prices.db проверена: целостность ок (148 738 048 байт, schema_version 5, не модифицировалась).
+Осталось / Следующий точный шаг:
+  - Передать этап S2-E03 Claude & Codex на независимый аудит.
+  - По поручению владельца перейти к Этапу 4 (S2-E04: Condition / б/у рынок: NEW, USED, REFURBISHED, уценка).
+```
+
+
+## Карточка текущей задачи: S2-E02 (Seller Identity & Seller Graph)
+
+```text
+ID / этап: S2-E02. Seller Identity & Seller Graph (KZ Price Hunter 2.0)
+Цель и контекст:
+  - Формирование графа продавцов и каналов (Seller Graph):
+    * Понимание, что 4mobile direct, 4mobile на Kaspi, 4mobile на Forte — это ОДИН продавец (1 Seller -> N Channels).
+    * Поддержка ключевых идентификаторов бизнеса: телефон (E.164 PK), домен, БИН (12 цифр), маркетплейс ID, соцсети.
+  - Детерминированный мэтчинг (Seller Matcher):
+    * AUTO_MATCH: строгое совпадение по сильным ключам (BIN, Phone, Domain, Marketplace Seller ID) без конфликтов.
+    * REVIEW: частичные совпадения (схожее название без подтверждающих контактов) — очередь ручной/AI модерации.
+    * REJECT: конфликтующие сильные ключи (разные БИН / телефоны) или отсутствие совпадений (создание нового продавца).
+    * Строгая защита от False Positives: категорически запрещено склеивать разных торговцев с похожими названиями
+      (напр. два "Мир мебели" с разными контактами — строгий REJECT).
+  - Слияние продавцов (merge_sellers):
+    * Атомарный перенос каналов, офферов и идентификаторов из дубликата в канонического продавца с деактивацией источника.
+Основание/поручение владельца: «Давай дальше» (переход к Этапу 2 по плану docs/SEARCH_PLATFORM_PLAN.md).
+Статус: READY (реализация завершена, 1417 тестов OK)
+Исполнитель / следующий: Antigravity / Claude & Codex для аудита
+Начало и checkpoint: 2026-09-25 20:56 (Asia/Almaty)
+Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-hunter, ветка main, HEAD 62f8f24 (v6.0.0)
+Область файлов:
+  domain/seller_identity.py, domain/seller_matcher.py, domain/adapter.py,
+  repositories/schema_v2.py, repositories/seller_identity_repo.py,
+  test_seller_matcher.py, test_dual_write.py, docs/AGENT_HANDOFF.md, docs/DEVELOPMENT_PLAN.md
+Зависимости: S2-E01 завершён и выпущен в v6.0.0 (1405 тестов OK, схема v2 развёрнута).
+
+Сделано:
+  1. `domain/seller_identity.py`:
+     - Модели `SellerIdentity`, `IdentityType` (PHONE, DOMAIN, BIN, MARKETPLACE_SELLER_ID, SOCIAL, LEGAL_NAME).
+     - Энумы `MatchDecision` (AUTO_MATCH, REVIEW, REJECT), результат `SellerMatchResult` с объяснением и конфликтами.
+     - Детерминированные нормализаторы: `normalize_phone` (E.164 +7... для РК), `normalize_domain` (очистка url, scheme, www, портов),
+       `normalize_bin` (12 цифр БИН), `normalize_business_name` (очистка ТОО, ИП, АО, ООО, ЗАО, кавычек).
+  2. `domain/seller_matcher.py`:
+     - Движок `SellerMatcher`:
+       * Конфликт БИН или телефонов -> жесткий `REJECT`.
+       * Совпадение БИН (1.0), домена (0.98), телефона (0.98), маркетплейс ID (0.95) -> `AUTO_MATCH`.
+       * Защита от коллизий на типовых словах (`GENERIC_NAMES`: «Мир мебели», «Стройматериалы», «Зоомаркет»...).
+       * Редкие брендовые имена без подтверждающих контактов -> `REVIEW` (не склеивать автоматически!).
+  3. `repositories/schema_v2.py`:
+     - Аддитивные таблицы `seller_identities` (с уникальным индексом и foreign key) и `seller_review_queue` с индексами.
+  4. `repositories/seller_identity_repo.py`:
+     - Репозиторий `SellerIdentityRepository`: CRUD отпечатков, поиск продавцов по identity, добавление в review queue.
+     - Слияние `merge_sellers`: перенос каналов (пересечение по SKU разрешается победой более свежего
+       наблюдения, история проигравшего переходит победителю), всё внутри SAVEPOINT с откатом при сбое,
+       перепривязка офферов, перенос идентификаторов, деактивация дубликата (`is_active = 0`) и сохранение истории слияний.
+  5. `domain/adapter.py`:
+     - Автоматическое извлечение и запись цифрового отпечатка домена продавца в `seller_identities` при Dual-Write
+       для прямых каналов (`website`, `direct`) без засорения доменами маркетплейсов.
+  6. Тесты:
+     - `test_seller_matcher.py`: 12 тестов нормализаторов, Golden Dataset (4mobile, DNS, Apple Store, Мир мебели),
+       очередь модерации, атомарное слияние продавцов.
+     - `test_dual_write.py`: верификация сохранения доменного отпечатка продавца при Dual-Write.
+
+Проверки (macOS, Python 3.14.7 venv, DATA_DIR=$(mktemp -d), 2026-09-25):
+  - Новые тесты этапа: Ran 12 tests in 0.004s, OK.
+  - Полный регрессионный suite проекта: Ran 1417 tests in 68.174s, OK (все 1405 legacy + 12 новых, 0 failures, 0 errors).
+  - Состояние рабочей БД: prices.db не тронута (148 738 048 байт, schema_version=5, integrity_check=ok, 42 899 товаров).
+
+Критерии приёмки и отката:
+  - Приёмка: 100% тестов (1422) проходят; Golden dataset подтверждён; слияние транзакционно и
+    разрешает пересечение SKU — проверено тестами, которые падают без этих правок.
+  - Откат: новые таблицы изолированы; schema_version не менялась; функционал аддитивен.
+
+Следующий точный шаг:
+  - Claude / Codex: аудит этапа S2-E02 (Seller Identity & Seller Graph).
+  - Затем переход к Этапу 3 (S2-E03. Channel-aware pricing: Cross-seller / Cross-channel) по плану `docs/SEARCH_PLATFORM_PLAN.md`.
+  - Выпуск и изменения прода: строго по отдельному поручению владельца.
 
 ## Реестр этапов KZ Price Hunter 1.0 (Legacy P00–P16)
 
@@ -238,6 +489,137 @@ Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-h
 Проверки: полный набор 1405 тестов OK, compileall чисто, рабочая prices.db не изменялась.
 ```
 
+## Доработки после аудита S2-E02 (Claude, 2026-09-25)
+
+```text
+Основание: поручение владельца исправить найденное аудитом (docs/S2_E02_AUDIT_CLAUDE.md).
+Исполнитель: Claude. Область файлов: domain/adapter.py, domain/seller_matcher.py,
+  repositories/seller_identity_repo.py, test_seller_matcher.py, test_dual_write.py,
+  docs/AGENT_HANDOFF.md, docs/S2_E02_AUDIT_CLAUDE.md.
+
+Сделано:
+  1. (A1, единственный дефект с рабочим путём в прод) Идентификатор доменного отпечатка теперь
+     строится из хеша (продавец, тип, значение), а не только из slug. Раньше второй домен того же
+     продавца конфликтовал по первичному ключу, ON CONFLICT его не покрывал, и товар вообще не
+     попадал в v2. Тот же приём уже применялся в merge_sellers — теперь он и в адаптере.
+  2. (B1) В матчер добавлен список доменов площадок (соцсети, маркетплейсы, конструкторы сайтов,
+     карты). Для них домен не считается отпечатком продавца ни при совпадении, ни при конфликте.
+     Было: «Магазин Айсулу» и «Бутик Данияра» на instagram.com давали AUTO_MATCH 0.98.
+     Стало: REJECT. Собственный домен магазина по-прежнему даёт AUTO_MATCH.
+  3. (C1) Пересечение по external_sku при слиянии больше не роняет операцию: побеждает более
+     свежее наблюдение, его значения переносятся в выжившую строку, история цен проигравшего
+     переходит победителю, дубликат удаляется. Один товар у обоих продавцов — типичная причина
+     слияния, а не исключение.
+  4. (C2) Слияние обёрнуто в SAVEPOINT с откатом. Раньше при сбое посередине канал уже уезжал к
+     цели, а продавец-источник оставался активным, и вызывающий фиксировал это своим commit.
+  5. (C3) Тесты доведены до того, что они обещают: добавлены проверки пересечения SKU (с историей
+     цен), отката при сбое, доменов площадок и второго домена в двойной записи. Проверено на
+     осмысленность: с откатом правок эти тесты падают с UNIQUE constraint failed.
+  6. Формулировки карточки приведены в соответствие с кодом: «дедупликация офферов» и «атомарный
+     перенос» описывали намерение, теперь описывают реализацию.
+
+Перенесено в карточки будущих этапов (решения этапов, не дефекты):
+  - B2 (GENERIC_NAMES — перечисление вместо правила), D1 (непригодные телефоны),
+    D2 (домен не сводится к регистрируемому), D3 (БИН и ИИН не различаются) -> S2-E05.
+  - B3 (конфликт телефонов проверяется не везде) -> S2-E05.
+
+Не закрыто намеренно: N1 из аудита S2-E01 (склейка по подстроке в resolve_seller_and_channel_meta).
+  Матчер — отдельный слой поверх резолва; появление матчера не является закрытием N1.
+  Пункт остаётся в карточке S2-E05.
+
+Проверки: полный набор 1422 теста OK, compileall чисто, рабочая prices.db не изменялась.
+```
+
+## Закрытие R1 и R2 (Claude, 2026-09-25)
+
+```text
+Основание: поручение владельца после сквозной проверки батча (docs/S2_E02_AUDIT_CLAUDE.md).
+Исполнитель: Claude. Область файлов: domain/seller_identity.py, domain/seller_matcher.py,
+  repositories/seller_identity_repo.py, test_seller_matcher.py, docs/*.
+
+Сделано:
+  1. (R2) Введено одно правило слабого ключа вместо трёх списков — `is_weak_identity` в
+     domain/seller_identity.py. Значение не может быть сильным ключом, если оно тривиально
+     (все цифры одинаковы; у телефона — одинаковы последние семь, чтобы ловить «+7 700 000 00 00»),
+     либо это домен площадки, либо IP-адрес. Частотную часть правила («значение уже встречается
+     у N продавцов») даёт репозиторий: `shared_identity_values(min_sellers)`, а матчер принимает
+     её параметром `shared_values`. Правило применяется ко всем ключам: БИН, телефон, домен —
+     и к значениям кандидата, и к значениям продавца, и к отпечаткам из базы.
+     Было -> стало (проверено тестом):
+       телефон-заглушка / БИН из нулей / общий IP / домен площадки : AUTO_MATCH -> REJECT
+       общий колл-центр (только по частоте)                        : AUTO_MATCH -> REJECT
+       настоящие домен, телефон и БИН магазина                     : AUTO_MATCH (не сломано)
+     Список PLATFORM_DOMAINS остался быстрой отсечкой, а не единственной защитой: частотный
+     признак не устаревает, перечисление устаревает.
+  2. (R1) Очередь модерации стала очередью:
+     - `resolve_review(queue_id, decision, actor)` закрывает запись (APPROVED / REJECTED),
+       решение и исполнитель сохраняются, запись не удаляется — история спорных пар нужна;
+       повторное закрытие возвращает False, недопустимое решение отвергается ValueError;
+     - идентификатор записи строится из самой пары без времени, поэтому повторная оценка той же
+       пары обновляет существующую строку. Было: три вызова -> три записи. Стало: одна.
+
+Проверки: 1438 тестов OK (было 1422, +16), compileall чисто, рабочая prices.db не изменялась.
+
+Осталось для приёмки этапа: независимый review правок Claude (A1, B1, C1–C3, R1, R2) со стороны
+  Codex или Antigravity. Самопроверка приёмкой не является (AGENTS.md).
+```
+
+## Закрытие E1, E2 и S1 (Claude, 2026-09-26)
+
+```text
+Основание: поручение владельца «исправь все, Codex проверит позже; новое не начинай».
+Исполнитель: Claude. Область файлов: domain/models.py, domain/channel_pricing.py,
+  domain/seller_matcher.py, repositories/pricing_repo.py, repositories/seller_identity_repo.py,
+  test_seller_matcher.py, docs/*.  Новых этапов не начинал — это работа Antigravity.
+
+  1. (E1) Тип канала берётся из колонки channels.channel_type: репозиторий передаёт точные типы
+     в build_channel_matrix. Разбор идентификатора остался запасным путём и исправлен —
+     составные типы (physical_store, food_aggregator) распознаются целиком, а неузнанный канал
+     даёт unknown вместо website и не попадает в «прямые продажи».
+  2. (E2) «ё» сводится к «е»: «уценённый» и «уцененный» больше не попадают в разные состояния.
+  3. (S1) Совпадения одного домена мало, если названия несовместимы. Понижать порог частотного
+     правила было нельзя: 4mobile напрямую и на Kaspi делят домен, и золотой случай 1 сломался бы.
+     Проверено: случай 1 и филиал по-прежнему AUTO_MATCH, бренд с реселлером — REVIEW.
+     Добавлена обвязка SellerIdentityRepository.match_candidate, подставляющая частотный признак
+     из базы: раньше shared_identity_values не вызывался ниоткуда.
+
+Проверки: 1459 тестов OK, 16 frontend-наборов, compileall чисто, рабочая prices.db не изменялась.
+  4. (N1, аудит S2-E01) Известные написания магазина сопоставляются точным совпадением, а не
+     вхождением подстроки. Раньше посторонние организации приклеивались к сетям по совпадению
+     букв: «Форте Банк» -> fortemarket, «Мир Каспия» и «Каспийский Берег» -> kaspi,
+     «Технодом Партнёр» -> technodom. Все 37 сетей по-прежнему определяются точно (по ключу
+     реестра, имени-ключу или отображаемому имени) — проверено по всему реестру, расхождений 0.
+     Незнакомое название получает собственный идентификатор; если это та же сеть, её сведёт
+     SellerMatcher по сильным ключам, а не догадка по буквам. Регрессия в test_domain_models.py
+     проверена на осмысленность: с возвратом поиска подстроки падает.
+
+Проверки после N1: 1460 тестов OK, 16 frontend-наборов, compileall чисто, prices.db не изменялась.
+Осталось: независимая проверка правок Claude силами Codex.
+```
+
+## Закрытие F1, F2 и проверка подключённости валидаторов (Claude, 2026-09-26)
+
+```text
+Основание: поручение владельца после аудита S2-E05 (docs/S2_E05_AUDIT_CLAUDE.md).
+Исполнитель: Claude. Область файлов: domain/seller_identity.py, domain/source_profiler.py,
+  test_validators_are_used.py (новый), фикстуры БИН в test_seller_matcher.py и test_domain_models.py.
+
+  1. (F2) Контрольная сумма БИН подключена — из is_weak_identity, а не из normalize_bin:
+     нормализатор остаётся нормализатором формы, решение о пригодности ключа принимается там же,
+     где для остальных слабых значений. Битый номер больше не даёт AUTO_MATCH с уверенностью 1.0.
+     Фикстуры тестов приведены к настоящим БИН (выдуманные контрольную сумму не проходили).
+  2. (F1) Профайлер больше не объявляет каталогом карту сайта, ленту блога и страницу входа,
+     зато узнаёт настоящую выгрузку (catalog_export/yandex.php — она оканчивается на .php,
+     и по расширению не определялась). Добавлено поле observed: пока источник не открывали,
+     has_prices и has_availability означают «ожидаем», а не «проверено». Исправлена перевёрнутая
+     шкала уверенности: запасной вывод «ничего определённого» был увереннее распознанного фида.
+  3. Добавлен test_validators_are_used.py: публичная функция is_*/validate_*/has_* из domain/
+     и repositories/ обязана вызываться хотя бы из одного рабочего модуля. Класс «защита написана,
+     но не подключена» повторился в батче трижды; проверка стоит доли секунды и называет сироту.
+
+Проверки: 1475 тестов OK, 16 frontend-наборов, compileall чисто, prices.db не изменялась.
+```
+
 ## Карточка задачи: S2-E04 (Condition / б/у рынок) — записано по итогам аудита
 
 ```text
@@ -275,7 +657,9 @@ ID / этап: S2-E05. Seller Discovery & Source Profiler
 Основание: повторный аудит S2-E01 (docs/S2_E01_AUDIT_CLAUDE.md), замечание N1.
 
 Обязательно исправить до первого запуска discovery:
-  (N1) resolve_seller_and_channel_meta на шаге 4 сопоставляет названия по вхождению подстроки.
+  (N1) ЗАКРЫТО 26.09.2026 (Claude): шаг 4 сопоставляет названия точным совпадением.
+  Исходное описание дефекта сохранено ниже как контекст.
+  resolve_seller_and_channel_meta на шаге 4 сопоставлял названия по вхождению подстроки.
   Для форматов одной сети это желаемое поведение («Магнум Экспресс» -> magnum), но на произвольных
   названиях даёт ложные склейки. Проверено на живом коде:
        «Форте Банк» -> fortemarket (канал forte)
@@ -292,6 +676,29 @@ ID / этап: S2-E05. Seller Discovery & Source Profiler
 Связь с планом: этап 2 плана требует «Нельзя автоматически объединять продавцов только потому,
   что названия похожи», и вводит статусы AUTO_MATCH / REVIEW / REJECT. Склейка по подстроке — это
   AUTO_MATCH без каких-либо оснований, поэтому её нужно снять до того, как появится сам механизм.
+
+Добавлено по итогам аудита S2-E02 (docs/S2_E02_AUDIT_CLAUDE.md). Всё это не дефекты, а решения,
+которые придётся принять именно здесь, когда в систему пойдут произвольные продавцы:
+
+  (B2) GENERIC_NAMES в SellerMatcher — жёстко зашитый список из 16 русских названий. Имена вне
+    списка («Аптека Плюс», «Строймаркет», «Продуктовый») дают REVIEW вместо REJECT: слияния не
+    происходит, но очередь модерации при discovery быстро станет нечитаемой. Казахских названий в
+    списке нет вовсе. Нужно правило вместо перечисления: имя из одних родовых слов либо имя,
+    встречающееся у многих продавцов базы, считать неразличимым.
+
+  (B3) Конфликт телефонов проверяется только внутри ветки совпадения имён. Если раньше сработало
+    совпадение по собственному домену, функция возвращает AUTO_MATCH, не дойдя до телефона. Для
+    одного домена это допустимо (филиалы), но решение стоит принять осознанно.
+
+  (D1) normalize_phone не отбраковывает непригодные номера. Телефон — сильный ключ, дающий
+    AUTO_MATCH, поэтому общий номер колл-центра, франшизы или службы доставки склеит разных
+    продавцов. Нужен список непригодных номеров по тому же принципу, что и домены площадок.
+
+  (D2) normalize_domain не сводит хост к регистрируемому домену: shop.kz и catalog.shop.kz будут
+    разными отпечатками одного продавца.
+
+  (D3) normalize_bin принимает любые 12 цифр — БИН и ИИН не различаются, контрольный разряд не
+    проверяется.
 ```
 
 ## Карточка задачи: T01 (изоляция тестов)

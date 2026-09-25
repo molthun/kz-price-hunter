@@ -162,10 +162,21 @@ def resolve_seller_and_channel_meta(shop_name: str, shop_key: Optional[str] = No
         k = DISPLAY_TO_SHOP_KEY[lower_name]
         return resolve_seller_and_channel_meta(SHOP_KEYS[k], shop_key=k)
 
-    # 4. Check KNOWN_SELLER_MAPPINGS substrings
-    for key, val in KNOWN_SELLER_MAPPINGS.items():
-        if key in lower_name:
-            return val
+    # 4. Известные написания магазина — точным совпадением, а не вхождением подстроки.
+    #
+    # Раньше здесь искалось вхождение, и посторонние организации приклеивались к сетям по
+    # совпадению букв: «Форте Банк» -> fortemarket, «Мир Каспия» и «Каспийский Берег» -> kaspi,
+    # «Технодом Партнёр» -> technodom. Этап 2 плана это прямо запрещает: нельзя объединять
+    # продавцов только потому, что названия похожи.
+    #
+    # Все 37 подключённых сетей определяются точно — по ключу реестра (шаг 1), по имени-ключу
+    # (шаг 2) или по отображаемому имени (шаг 3); эта таблица добавляет им альтернативные
+    # написания. Незнакомое название уходит на транслитерацию и становится отдельным продавцом:
+    # если это действительно та же сеть, их сведёт SellerMatcher по сильным ключам, а не догадка
+    # по буквам.
+    exact = KNOWN_SELLER_MAPPINGS.get(lower_name)
+    if exact:
+        return exact
 
     # 5. Fallback: Transliterate and normalize safely
     slug = transliterate_to_slug(cleaned_name)
@@ -228,14 +239,46 @@ def sync_legacy_product_to_v2(
     )
     seller_id = f"seller_{seller_slug}"
 
-    conn.execute(
-        """
-        INSERT INTO sellers (id, slug, name, is_active, created_at, updated_at)
-        VALUES (?, ?, ?, 1, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET updated_at = excluded.updated_at
-        """,
-        (seller_id, seller_slug, seller_name, timestamp, timestamp),
-    )
+    norm_dom = None
+    if channel_type in (ChannelType.WEBSITE, ChannelType.DIRECT) and url:
+        from domain.seller_identity import normalize_domain
+        norm_dom = normalize_domain(url)
+
+    if norm_dom:
+        conn.execute(
+            """
+            INSERT INTO sellers (id, slug, name, domain, is_active, created_at, updated_at)
+            VALUES (?, ?, ?, ?, 1, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                domain = COALESCE(sellers.domain, excluded.domain),
+                updated_at = excluded.updated_at
+            """,
+            (seller_id, seller_slug, seller_name, norm_dom, timestamp, timestamp),
+        )
+        # Идентификатор строится из самого отпечатка, а не только из продавца: иначе второй домен
+        # того же продавца конфликтует по первичному ключу, предложение ON CONFLICT ниже его не
+        # покрывает, и товар вообще не попадает в v2. Тот же приём уже применён в merge_sellers.
+        ident_digest = hashlib.sha256(
+            f"{seller_id}:domain:{norm_dom}".encode("utf-8")
+        ).hexdigest()[:16]
+        ident_id = f"ident_{ident_digest}"
+        conn.execute(
+            """
+            INSERT INTO seller_identities (id, seller_id, identity_type, identity_value, confidence, source, created_at)
+            VALUES (?, ?, 'domain', ?, 1.0, 'product_url', ?)
+            ON CONFLICT(identity_type, identity_value, seller_id) DO NOTHING
+            """,
+            (ident_id, seller_id, norm_dom, timestamp),
+        )
+    else:
+        conn.execute(
+            """
+            INSERT INTO sellers (id, slug, name, is_active, created_at, updated_at)
+            VALUES (?, ?, ?, 1, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET updated_at = excluded.updated_at
+            """,
+            (seller_id, seller_slug, seller_name, timestamp, timestamp),
+        )
 
     # 2. Resolve Channel
     channel_id = f"chan_{seller_slug}_{channel_type}"
@@ -270,8 +313,9 @@ def sync_legacy_product_to_v2(
     # 4. Offer
     # Stable offer ID derived from legacy product ID
     offer_id = f"off_{pid}"
-    condition = Condition.normalize(product.get("condition"))
-    availability = Availability.normalize(product.get("availability"))
+    condition = Condition.normalize(product.get("condition"), default=Condition.NEW)
+    availability = Availability.normalize(product.get("availability"), default=Availability.IN_STOCK)
+
 
     # Check previous price to see if history record is needed
     cur = conn.execute(

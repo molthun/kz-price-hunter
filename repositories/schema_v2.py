@@ -76,8 +76,11 @@ CREATE TABLE IF NOT EXISTS offers (
     availability TEXT DEFAULT 'in_stock',
     city TEXT NOT NULL,
     payment_methods_json TEXT DEFAULT '[]',
+    installment_available INTEGER DEFAULT 0,
     installment_months INTEGER,
+    credit_available INTEGER DEFAULT 0,
     delivery_type TEXT,
+    pickup_available INTEGER DEFAULT 0,
     warranty TEXT,
     published_at TEXT,
     observed_at TEXT NOT NULL,
@@ -105,7 +108,83 @@ CREATE TABLE IF NOT EXISTS offer_price_history (
 );
 CREATE INDEX IF NOT EXISTS idx_oph_offer ON offer_price_history(offer_id);
 CREATE INDEX IF NOT EXISTS idx_oph_observed ON offer_price_history(observed_at);
+
+-- 6. Seller Identities (Seller Graph footprint)
+CREATE TABLE IF NOT EXISTS seller_identities (
+    id TEXT PRIMARY KEY,
+    seller_id TEXT NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+    identity_type TEXT NOT NULL,
+    identity_value TEXT NOT NULL,
+    confidence REAL DEFAULT 1.0,
+    source TEXT,
+    created_at TEXT NOT NULL,
+    UNIQUE(identity_type, identity_value, seller_id)
+);
+CREATE INDEX IF NOT EXISTS idx_seller_identities_lookup ON seller_identities(identity_type, identity_value);
+CREATE INDEX IF NOT EXISTS idx_seller_identities_seller ON seller_identities(seller_id);
+
+-- 7. Seller Review Queue (for ambiguous REVIEW matches)
+CREATE TABLE IF NOT EXISTS seller_review_queue (
+    id TEXT PRIMARY KEY,
+    candidate_seller_id TEXT,
+    matched_seller_id TEXT,
+    reason TEXT NOT NULL,
+    confidence REAL DEFAULT 0.0,
+    details_json TEXT DEFAULT '{}',
+    status TEXT DEFAULT 'PENDING',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+-- 8. Seller Candidates (Discovery Pipeline)
+CREATE TABLE IF NOT EXISTS seller_candidates (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    source_type TEXT NOT NULL,
+    source_url TEXT,
+    status TEXT NOT NULL DEFAULT 'DISCOVERED',
+    matched_seller_id TEXT REFERENCES sellers(id) ON DELETE SET NULL,
+    phone TEXT,
+    domain TEXT,
+    bin TEXT,
+    legal_name TEXT,
+    marketplace_seller_id TEXT,
+    city TEXT,
+    raw_metadata TEXT DEFAULT '{}',
+    notes TEXT DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_candidates_status ON seller_candidates(status);
+CREATE INDEX IF NOT EXISTS idx_candidates_source ON seller_candidates(source_type);
+
+-- 9. Source Profiles (Source Profiler capabilities & tiers)
+CREATE TABLE IF NOT EXISTS source_profiles (
+    id TEXT PRIMARY KEY,
+    seller_id TEXT REFERENCES sellers(id) ON DELETE CASCADE,
+    candidate_id TEXT REFERENCES seller_candidates(id) ON DELETE CASCADE,
+    source_url TEXT NOT NULL,
+    domain TEXT,
+    catalog_format TEXT NOT NULL DEFAULT 'unknown',
+    extraction_tier INTEGER NOT NULL DEFAULT 4,
+    has_prices INTEGER DEFAULT 1,
+    has_availability INTEGER DEFAULT 1,
+    capabilities_json TEXT DEFAULT '{}',
+    confidence REAL DEFAULT 0.8,
+    notes TEXT DEFAULT '',
+    profiled_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_source_profiles_cand ON source_profiles(candidate_id);
+CREATE INDEX IF NOT EXISTS idx_source_profiles_seller ON source_profiles(seller_id);
 """
+
+
+
+def _ensure_column(conn: sqlite3.Connection, table: str, col: str, col_type: str) -> None:
+    cur = conn.cursor()
+    cur.execute(f"PRAGMA table_info({table})")
+    cols = {row[1] for row in cur.fetchall()}
+    if cols and col not in cols:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}")
 
 
 def init_schema_v2(conn: sqlite3.Connection) -> None:
@@ -114,3 +193,10 @@ def init_schema_v2(conn: sqlite3.Connection) -> None:
     Idempotent and safe to run multiple times.
     """
     conn.executescript(DDL_V2)
+    # Additive columns for existing v2 tables
+    # Признак «источник действительно открывали» обязан переживать запись: без него профиль,
+    # полученный догадкой по адресу, после чтения из базы неотличим от подтверждённого (C-E05-03)
+    _ensure_column(conn, "source_profiles", "observed", "INTEGER DEFAULT 0")
+    _ensure_column(conn, "offers", "installment_available", "INTEGER DEFAULT 0")
+    _ensure_column(conn, "offers", "credit_available", "INTEGER DEFAULT 0")
+    _ensure_column(conn, "offers", "pickup_available", "INTEGER DEFAULT 0")

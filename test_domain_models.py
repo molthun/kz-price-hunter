@@ -19,23 +19,47 @@ from domain.models import (
 
 class TestDomainModels(unittest.TestCase):
     def test_condition_normalization(self):
-        self.assertEqual(Condition.normalize(None), Condition.NEW)
-        self.assertEqual(Condition.normalize(""), Condition.NEW)
+        # S2-E04 (B2): Default without context is UNKNOWN (absence of data != in order)
+        self.assertEqual(Condition.normalize(None), Condition.UNKNOWN)
+        self.assertEqual(Condition.normalize(""), Condition.UNKNOWN)
+        # Contextual default for trusted retailers
+        self.assertEqual(Condition.normalize(None, default=Condition.NEW), Condition.NEW)
+
         self.assertEqual(Condition.normalize("NEW"), Condition.NEW)
         self.assertEqual(Condition.normalize("новый"), Condition.NEW)
         self.assertEqual(Condition.normalize("Новое"), Condition.NEW)
+        self.assertEqual(Condition.normalize("запечатанный"), Condition.NEW)
+
+        # Used market
         self.assertEqual(Condition.normalize("б/у в отличном состоянии"), Condition.USED)
         self.assertEqual(Condition.normalize("БУ"), Condition.USED)
         self.assertEqual(Condition.normalize("used"), Condition.USED)
-        # B1 check: ensure "бумага", "тумбу" are not treated as USED
+        self.assertEqual(Condition.normalize("бывший в употреблении"), Condition.USED)
+        self.assertEqual(Condition.normalize("с пробегом"), Condition.USED)
+
+        # B1 check: ensure "бумага", "тумбу", "обувь" are not treated as USED
         self.assertNotEqual(Condition.normalize("бумага офисная"), Condition.USED)
         self.assertNotEqual(Condition.normalize("тумбу под тв"), Condition.USED)
+        self.assertNotEqual(Condition.normalize("обувь мужская"), Condition.USED)
+
+        # Refurbished
         self.assertEqual(Condition.normalize("Refurbished"), Condition.REFURBISHED)
         self.assertEqual(Condition.normalize("восстановленный"), Condition.REFURBISHED)
+        self.assertEqual(Condition.normalize("после ремонта"), Condition.REFURBISHED)
+
+        # Open Box & уценка
         self.assertEqual(Condition.normalize("open box"), Condition.OPEN_BOX)
+        self.assertEqual(Condition.normalize("уценка"), Condition.OPEN_BOX)
+        self.assertEqual(Condition.normalize("витринный образец"), Condition.OPEN_BOX)
+        self.assertEqual(Condition.normalize("повреждена упаковка"), Condition.OPEN_BOX)
 
     def test_availability_normalization(self):
-        self.assertEqual(Availability.normalize(None), Availability.IN_STOCK)
+        # S2-E04 (B2): Default without context is UNKNOWN
+        self.assertEqual(Availability.normalize(None), Availability.UNKNOWN)
+        self.assertEqual(Availability.normalize(""), Availability.UNKNOWN)
+        # Contextual default for trusted retailers
+        self.assertEqual(Availability.normalize(None, default=Availability.IN_STOCK), Availability.IN_STOCK)
+
         self.assertEqual(Availability.normalize("in_stock"), Availability.IN_STOCK)
         self.assertEqual(Availability.normalize("В наличии"), Availability.IN_STOCK)
         self.assertEqual(Availability.normalize("instock"), Availability.IN_STOCK)
@@ -46,13 +70,14 @@ class TestDomainModels(unittest.TestCase):
         self.assertEqual(Availability.normalize("нет данных"), Availability.UNKNOWN)
         self.assertEqual(Availability.normalize("неизвестно"), Availability.UNKNOWN)
 
+
     def test_seller_serialization(self):
         seller = Seller(
             id="seller_4mobile",
             slug="4mobile",
             name="4mobile",
             legal_name="ТОО 4Mobile",
-            bin="123456789012",
+            bin="123456789010",
             domain="4mobile.kz",
             phone="+77001234567",
             rating=4.9,
@@ -153,6 +178,27 @@ class TestDomainModels(unittest.TestCase):
         fallback_slug, fallback_name, fallback_ctype = resolve_seller_and_channel_meta("Новый Неизвестный Магазин 2026")
         self.assertTrue(fallback_slug)
         self.assertNotEqual(fallback_slug, "unknown_seller")
+
+
+    def test_foreign_names_do_not_stick_to_known_chains(self):
+        """Посторонняя организация не должна приклеиваться к сети по совпадению букв.
+
+        Раньше известные написания искались вхождением подстроки, и получалось:
+        «Форте Банк» -> fortemarket, «Мир Каспия» и «Каспийский Берег» -> kaspi,
+        «Технодом Партнёр» -> technodom. Этап 2 плана это запрещает прямо: нельзя объединять
+        продавцов только потому, что названия похожи. Если это действительно та же сеть,
+        её сведёт SellerMatcher по сильным ключам, а не догадка по буквам.
+        """
+        from domain.adapter import resolve_seller_and_channel_meta
+
+        for name, wrong_slug in (("Форте Банк", "fortemarket"),
+                                 ("Мир Каспия", "kaspi"),
+                                 ("Каспийский Берег", "kaspi"),
+                                 ("Alser Plus", "alser"),
+                                 ("Технодом Партнёр", "technodom")):
+            slug, _, _ = resolve_seller_and_channel_meta(name)
+            self.assertNotEqual(slug, wrong_slug, f"«{name}» не должен считаться сетью {wrong_slug}")
+            self.assertTrue(slug, f"«{name}» обязан получить собственный идентификатор")
 
 
 if __name__ == "__main__":

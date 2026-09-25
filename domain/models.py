@@ -35,26 +35,47 @@ class Condition:
     ALL = {NEW, USED, REFURBISHED, OPEN_BOX, UNKNOWN}
 
     @classmethod
-    def normalize(cls, val: Optional[str]) -> str:
-        if not val:
-            return cls.NEW
-        val_strip = val.strip()
+    def normalize(cls, val: Optional[str], default: str = UNKNOWN) -> str:
+        if not val or not str(val).strip():
+            return default
+        val_strip = str(val).strip()
         val_upper = val_strip.upper()
         if val_upper in cls.ALL:
             return val_upper
 
-        val_lower = val_strip.lower()
-        # Word boundary pattern: match standalone б/у, б.у, бу, used, second-hand
-        if re.search(r"(?:^|[\s,._\-(])(?:б[/\s._-]?у|бу|used|second[-_\s]?hand|уценк|уценен)(?:$|[\s,._\-)])", val_lower):
-            return cls.USED
-        if re.search(r"(?:^|[\s,._\-(])(?:refurb(?:ished)?|восстановлен(?:ный|ное|ная|ные)?)(?:$|[\s,._\-)])", val_lower):
+        # Разметка магазинов пишет и «уценённый», и «уцененный»: без сведения ё к е одно и то же
+        # слово попадало в разные состояния (OPEN_BOX против UNKNOWN)
+        val_lower = val_strip.lower().replace("ё", "е")
+
+        # 1. Refurbished / восстановленный / после ремонта / СЦ
+        if re.search(
+            r"(?:^|[\s,._\-(])(?:refurb(?:ished)?|восстановлен(?:ный|ное|ная|ные)?|после[-_\s]?ремонта|после[-_\s]?сц|отремонтирован(?:ный|ное|ная|ные)?)(?:$|[\s,._\-)])",
+            val_lower,
+        ):
             return cls.REFURBISHED
-        if re.search(r"(?:^|[\s,._\-(])(?:open[-_\s]?box|распакован(?:ный|ное|ная|ные)?)(?:$|[\s,._\-)])", val_lower):
+
+        # 2. Open Box / витринный образец / повреждена упаковка / уценка витрины
+        if re.search(
+            r"(?:^|[\s,._\-(])(?:open[-_\s]?box|распакован(?:ный|ное|ная|ные)?|витрин(?:а|ный|ное|ная|ные)?|витринный[-_\s]?образец|поврежден(?:а|о|ы)?[-_\s]?упаковк(?:а|и)?|вскрыт(?:а|о|ы)?[-_\s]?(?:коробк|упаковк)(?:а|и)?|уценк(?:а|и)?|уценен(?:ный|ное|ная|ные)?)(?:$|[\s,._\-)])",
+            val_lower,
+        ):
             return cls.OPEN_BOX
-        if re.search(r"(?:^|[\s,._\-(])(?:нов(?:ый|ое|ая|ые)|new)(?:$|[\s,._\-)])", val_lower):
+
+        # 3. Used / б/у / бывший в употреблении / с пробегом / с пробегом / second-hand
+        if re.search(
+            r"(?:^|[\s,._\-(])(?:б[/\s._-]?у|бу|used|second[-_\s]?hand|бывш(?:ий|ее|ая|ие)?[-_\s]в[-_\s]употреблении|с[-_\s]пробегом)(?:$|[\s,._\-)])",
+            val_lower,
+        ):
+            return cls.USED
+
+        # 4. New / новый / запечатанный
+        if re.search(
+            r"(?:^|[\s,._\-(])(?:нов(?:ый|ое|ая|ые)|new|запечатан(?:ный|ное|ная|ные)?)(?:$|[\s,._\-)])",
+            val_lower,
+        ):
             return cls.NEW
 
-        return cls.UNKNOWN
+        return default
 
 
 class Availability:
@@ -66,10 +87,10 @@ class Availability:
     ALL = {IN_STOCK, OUT_OF_STOCK, PREORDER, UNKNOWN}
 
     @classmethod
-    def normalize(cls, val: Optional[str]) -> str:
-        if not val:
-            return cls.IN_STOCK
-        val_lower = val.strip().lower()
+    def normalize(cls, val: Optional[str], default: str = UNKNOWN) -> str:
+        if not val or not str(val).strip():
+            return default
+        val_lower = str(val).strip().lower().replace("ё", "е")
         if val_lower in cls.ALL:
             return val_lower
         if "нет данных" in val_lower or "неизвестн" in val_lower:
@@ -80,10 +101,14 @@ class Availability:
             return cls.IN_STOCK
         if "предзаказ" in val_lower or "preorder" in val_lower:
             return cls.PREORDER
-        return cls.UNKNOWN
+        return default
+
 
 
 class ChannelType:
+    # «Неизвестно» — полноценное значение: канал, тип которого не удалось установить, не должен
+    # молча причисляться к прямым продажам и искажать сравнение «напрямую против площадки»
+    UNKNOWN = "unknown"
     DIRECT = "direct"
     WEBSITE = "website"
     KASPI = "kaspi"
@@ -95,6 +120,7 @@ class ChannelType:
     PHYSICAL_STORE = "physical_store"
     CLASSIFIEDS = "classifieds"
     FOOD_AGGREGATOR = "food_aggregator"
+    MARKETPLACE = "marketplace"
 
     ALL = {
         DIRECT,
@@ -108,7 +134,33 @@ class ChannelType:
         PHYSICAL_STORE,
         CLASSIFIEDS,
         FOOD_AGGREGATOR,
+        MARKETPLACE,
     }
+
+    @classmethod
+    def from_channel_id(cls, channel_id: Optional[str]) -> str:
+        """Тип канала по его идентификатору — запасной путь, когда база недоступна.
+
+        Точный источник типа — колонка `channels.channel_type`; разбор форматированной строки
+        применяется только там, где соединения с базой нет. Раньше строка резалась по разделителям,
+        включая `_`, поэтому составные типы (`physical_store`, `food_aggregator`) распадались и
+        не находились, а неузнанный идентификатор молча становился `website` — неизвестное
+        выдавалось за известное и попадало в «прямые продажи».
+
+        Теперь сначала проверяется совпадение целиком (самые длинные имена первыми), а при неудаче
+        возвращается UNKNOWN: такой канал не засчитывается ни прямым, ни маркетплейсным.
+        """
+        if not channel_id:
+            return cls.UNKNOWN
+        cid_lower = str(channel_id).lower()
+        for known in sorted(cls.ALL, key=len, reverse=True):
+            if cid_lower.endswith(known) or f"_{known}_" in cid_lower or f":{known}:" in cid_lower:
+                return known
+        for known in sorted(cls.ALL, key=len, reverse=True):
+            if known in cid_lower:
+                return known
+        return cls.UNKNOWN
+
 
 
 @dataclass
@@ -258,8 +310,11 @@ class Offer:
     availability: str = Availability.IN_STOCK
     city: str = "Казахстан"
     payment_methods: List[str] = field(default_factory=list)
+    installment_available: bool = False
     installment_months: Optional[int] = None
+    credit_available: bool = False
     delivery_type: Optional[str] = None
+    pickup_available: bool = False
     warranty: Optional[str] = None
     published_at: Optional[str] = None
     observed_at: str = field(default_factory=utc_now_iso)
@@ -285,6 +340,12 @@ class Offer:
                 raw = json.loads(raw)
             except Exception:
                 raw = {}
+
+        inst_months = row.get("installment_months")
+        has_inst = bool(row.get("installment_available")) or (inst_months is not None and inst_months > 0) or ("installment" in payments)
+        has_credit = bool(row.get("credit_available")) or ("credit" in payments)
+        has_pickup = bool(row.get("pickup_available")) or (row.get("delivery_type") == "pickup") or ("pickup" in payments)
+
         return cls(
             id=row["id"],
             product_id=row["product_id"],
@@ -300,8 +361,11 @@ class Offer:
             availability=row.get("availability") or Availability.IN_STOCK,
             city=row.get("city") or "Казахстан",
             payment_methods=payments,
-            installment_months=row.get("installment_months"),
+            installment_available=has_inst,
+            installment_months=inst_months,
+            credit_available=has_credit,
             delivery_type=row.get("delivery_type"),
+            pickup_available=has_pickup,
             warranty=row.get("warranty"),
             published_at=row.get("published_at"),
             observed_at=row.get("observed_at") or utc_now_iso(),

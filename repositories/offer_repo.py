@@ -21,11 +21,12 @@ class OfferRepository(BaseRepository):
         INSERT INTO offers (
             id, product_id, seller_id, channel_id, external_sku,
             url, image_url, price, old_price, currency, condition,
-            availability, city, payment_methods_json, installment_months,
-            delivery_type, warranty, published_at, observed_at,
+            availability, city, payment_methods_json,
+            installment_available, installment_months, credit_available,
+            delivery_type, pickup_available, warranty, published_at, observed_at,
             is_active, raw_payload_json, created_at, updated_at
         ) VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
         ON CONFLICT(id) DO UPDATE SET
             product_id=excluded.product_id,
@@ -41,8 +42,11 @@ class OfferRepository(BaseRepository):
             availability=excluded.availability,
             city=excluded.city,
             payment_methods_json=excluded.payment_methods_json,
+            installment_available=excluded.installment_available,
             installment_months=COALESCE(excluded.installment_months, offers.installment_months),
+            credit_available=excluded.credit_available,
             delivery_type=COALESCE(excluded.delivery_type, offers.delivery_type),
+            pickup_available=excluded.pickup_available,
             warranty=COALESCE(excluded.warranty, offers.warranty),
             published_at=COALESCE(excluded.published_at, offers.published_at),
             observed_at=excluded.observed_at,
@@ -66,8 +70,11 @@ class OfferRepository(BaseRepository):
             offer.availability,
             offer.city,
             json.dumps(offer.payment_methods, ensure_ascii=False),
+            1 if offer.installment_available else 0,
             offer.installment_months,
+            1 if offer.credit_available else 0,
             offer.delivery_type,
+            1 if offer.pickup_available else 0,
             offer.warranty,
             offer.published_at,
             offer.observed_at or now,
@@ -123,11 +130,23 @@ class OfferRepository(BaseRepository):
             sql += " AND (city = ? OR city = 'Казахстан')"
             params.append(city)
         if condition:
-            sql += " AND condition = ?"
-            params.append(condition)
+            c_norm = condition.strip().lower()
+            if c_norm not in {"all", "any", "*"}:
+                c_upper = condition.strip().upper()
+                if c_norm in {"б/у", "бу", "used"}:
+                    c_upper = "USED"
+                elif c_norm in {"новое", "новый", "new"}:
+                    c_upper = "NEW"
+                elif c_norm in {"уценка", "витрина", "openbox", "open_box"}:
+                    c_upper = "OPEN_BOX"
+                elif c_norm in {"восстановленный", "refurb", "refurbished"}:
+                    c_upper = "REFURBISHED"
+                sql += " AND condition = ?"
+                params.append(c_upper)
         sql += " ORDER BY price ASC"
         rows = self.fetchall(sql, params)
         return [Offer.from_row(r) for r in rows]
+
 
     def get_price_history(self, offer_id: str, limit: int = 100) -> List[OfferPriceHistory]:
         sql = """

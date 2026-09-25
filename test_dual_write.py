@@ -56,6 +56,14 @@ class TestDualWrite(unittest.TestCase):
             self.assertEqual(len(history), 1)
             self.assertEqual(history[0].price, 89000.0)
 
+            # Verify seller domain and digital footprint
+            self.assertEqual(seller.domain, "french-house.kz")
+            from repositories import SellerIdentityRepository
+            from domain import IdentityType
+            ident_repo = SellerIdentityRepository(conn)
+            idents = ident_repo.get_identities_by_seller(seller.id)
+            self.assertTrue(any(i.identity_type == IdentityType.DOMAIN and i.identity_value == "french-house.kz" for i in idents))
+
     def test_batch_products_dual_write(self):
         items = [
             {
@@ -161,6 +169,33 @@ class TestDualWrite(unittest.TestCase):
         self.assertEqual(row["severity"], "WARNING")
         self.assertEqual(row["component"], "system")
         self.assertIn("test_failure_obs", row["message"])
+
+
+    def test_second_domain_of_same_seller_does_not_break_dual_write(self):
+        """Идентификатор отпечатка строится из его значения, а не только из продавца.
+
+        Раньше он собирался как ident_<slug>_domain, и второй домен того же магазина конфликтовал
+        по первичному ключу. Предложение ON CONFLICT покрывает тройку (тип, значение, продавец) и
+        такой конфликт не подавляет, поэтому товар вообще не попадал в v2. Сегодня это недостижимо
+        (ни у одного магазина ссылки не ведут на разные домены), но переезд магазина на новый домен
+        терял бы каждый товар на новом хосте.
+        """
+        database.reset_dual_write_stats()
+        base = {"shop": "Мечта", "shop_key": "mechta", "city": "Астана",
+                "title": "Товар", "category": "Тест", "price": 1000}
+        database.save_or_update_product({**base, "id": "dom_1", "url": "https://mechta.kz/p/1"})
+        database.save_or_update_product({**base, "id": "dom_2", "url": "https://shop.mechta.kz/p/2"})
+
+        self.assertEqual(database.get_dual_write_stats()["failures"], 0,
+                         "второй домен не должен ронять двойную запись")
+        with database.get_connection() as conn:
+            offers = conn.execute(
+                "SELECT COUNT(*) FROM offers WHERE id IN ('off_dom_1','off_dom_2')").fetchone()[0]
+            domains = {r[0] for r in conn.execute(
+                "SELECT identity_value FROM seller_identities WHERE seller_id = 'seller_mechta'")}
+        self.assertEqual(offers, 2, "оба товара обязаны попасть в v2")
+        self.assertEqual(domains, {"mechta.kz", "shop.mechta.kz"},
+                         "оба домена сохраняются как отдельные отпечатки")
 
 
 if __name__ == "__main__":
