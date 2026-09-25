@@ -1531,6 +1531,85 @@ class NewSourcesEndProofTest(unittest.TestCase):
         self.assertTrue(res_404.complete)
         self.assertEqual(len(res_404), 0)
 
+    def test_europharma_retry_on_transient_error(self):
+        from unittest.mock import Mock, patch
+        from scrapers.europharma import EuropharmaScraper
+
+        s = EuropharmaScraper()
+        resp502 = Mock(status_code=502)
+        html_ok = """
+        <html><body>
+          <div class="card-product" data-id="101" data-price="450">
+            <div class="card-product__title">
+              <a class="card-product__link" href="/item-101">Аспирин 100 мг</a>
+            </div>
+            <div class="card-product__prices">
+              <span class="card-product__price_discount">450 ₸</span>
+            </div>
+          </div>
+          <ul class="pagination">
+            <li class="pagination__item next">
+              <a class="pagination__link" href="/catalog?page=2">Вперед</a>
+            </li>
+          </ul>
+        </body></html>
+        """
+        resp200 = Mock(status_code=200, text=html_ok)
+        session = Mock(get=Mock(side_effect=[resp502, resp200]))
+        s.session = session
+
+        with patch("time.sleep", return_value=None):
+            res = s._fetch_page("Жаропонижающие", "https://europharma.kz/catalog/zharoponizhayushchiye", 1)
+
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0]["id"], "europharma_101")
+        self.assertEqual(res[0]["price"], 450)
+        self.assertFalse(res.complete)
+        self.assertEqual(session.get.call_count, 2)
+
+    def test_europharma_completion_and_unconfirmed_end(self):
+        from unittest.mock import Mock
+        from scrapers.europharma import EuropharmaScraper
+        from scrapers.base import UnconfirmedEnd
+
+        s = EuropharmaScraper()
+        # Page 2 with next disabled -> complete
+        html_last = """
+        <html><body>
+          <div class="card-product" data-id="202" data-price="750">
+            <div class="card-product__title">
+              <a class="card-product__link" href="/item-202">Аспирин Форте</a>
+            </div>
+            <div class="card-product__prices">
+              <span class="card-product__price_discount">750 ₸</span>
+            </div>
+          </div>
+          <ul class="pagination">
+            <li class="pagination__item next disabled">
+              <a class="pagination__link">Вперед</a>
+            </li>
+          </ul>
+        </body></html>
+        """
+        session = Mock(get=Mock(return_value=Mock(status_code=200, text=html_last)))
+        s.session = session
+
+        res = s._fetch_page("Жаропонижающие", "https://europharma.kz/catalog/zharoponizhayushchiye", 2)
+        self.assertEqual(len(res), 1)
+        self.assertTrue(res.complete)
+
+        # Empty page 1 -> UnconfirmedEnd
+        session.get = Mock(return_value=Mock(status_code=200, text="<html><body><div>Пусто</div></body></html>"))
+        with self.assertRaises(UnconfirmedEnd):
+            s._fetch_page("Жаропонижающие", "https://europharma.kz/catalog/zharoponizhayushchiye", 1)
+
+        # 404 on page 2 -> complete
+        session.get = Mock(return_value=Mock(status_code=404))
+        res_404 = s._fetch_page("Жаропонижающие", "https://europharma.kz/catalog/zharoponizhayushchiye", 2)
+        self.assertTrue(res_404.complete)
+        self.assertEqual(len(res_404), 0)
+
+
 
 
 

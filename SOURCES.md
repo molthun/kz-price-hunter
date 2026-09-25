@@ -18,7 +18,7 @@ A — feed/API владельца с документированным назн
 
 Изображения сохраняются ссылками, server image proxy/cache не обнаружен. Browser и Telegram могут получать их с внешнего источника. Description используется в UI и может дополнительно сохраняться через guest product-detail GET для любого магазина. Его отсутствие в конкретном parser не означает отсутствие копирования текста в целом.
 
-## Матрица 35 источников
+## Матрица 36 источников
 
 | Модуль / класс | Тип / механизм | Timeout / pacing | Session, pagination, retry | Поля и ограничения |
 |---|---|---|---|---|
@@ -57,6 +57,7 @@ A — feed/API владельца с документированным назн
 | `scrapers/zoomarket.py` / `ZooMarketScraper` | D; zoomarket.kz SSR HTML Bitrix .catalog_item | 20 с; 0.4 с | Session chrome124; ?PAGEN_1=N; retry 5xx; **конец доказан** по номерам страниц в .nums; живой поиск /catalog/?q= | id/sku/title/price/old_price/image_url; Алматы / Казахстан; описание нет |
 | `scrapers/planeta.py` / `PlanetaScraper` | D; planeta.kz SSR HTML .unit-item-block | 20 с; 0.4 с | Session chrome124; /ru/site/search/term/{term}/page/{page}/; retry 5xx; **конец доказан** по номерам страниц в ul.pagination li a[data-page] и кнопке next; живой поиск /ru/site/search/?term= | id/sku/title/price/old_price/image_url; Алматы / Казахстан; описание нет |
 | `scrapers/kimex.py` / `KimexScraper` | D; kimex.kz SSR HTML a.card[data-entity="item"] | 20 с; 0.4 с | Session chrome124; /page-{page}/; retry 5xx; **конец доказан** по кнопке .btn.js-load-more; живой поиск /search/?q= | id/sku/title/price/old_price/image_url; Алматы / Казахстан; описание нет |
+| `scrapers/europharma.py` / `EuropharmaScraper` | D; europharma.kz SSR HTML .card-product | 20 с; 0.4 с | Session chrome124; ?page=N; retry 5xx; **конец доказан** по li.pagination__item.next.disabled; живой поиск /search?q= | id/sku/title/price/old_price/description/image_url; Алматы / Казахстан; описание есть |
 
 ## Пути вне основного фонового scan
 
@@ -609,6 +610,21 @@ A — feed/API владельца с документированным назн
 | KIMEX: 🥾 Мужские ботинки | clothes | `https://kimex.kz/catalog/muzhskoe/obuv/botinki/` | 10 |
 | KIMEX: 👟 Мужские кеды | clothes | `https://kimex.kz/catalog/muzhskoe/obuv/kedy/` | 10 |
 | KIMEX: 👞 Мужские мокасины | clothes | `https://kimex.kz/catalog/muzhskoe/obuv/mokasiny/` | 10 |
+
+### EuropharmaScraper — 10 настроенных источников категории
+
+| Категория | Master | URL/query | max_pages |
+|---|---|---|---|
+| Europharma: 💊 Лекарственные средства | beauty_health | `https://europharma.kz/catalog/lekarstvennye-sredstva` | 10 |
+| Europharma: 🌡 Жаропонижающие | beauty_health | `https://europharma.kz/catalog/zharoponizhayushchiye` | 10 |
+| Europharma: 🛡 Противовирусные препараты | beauty_health | `https://europharma.kz/catalog/protivovirusnyye-preparaty` | 10 |
+| Europharma: 🦠 Антибиотики | beauty_health | `https://europharma.kz/catalog/antibiotiki` | 10 |
+| Europharma: 🩹 Обезболивающие | beauty_health | `https://europharma.kz/catalog/analgetiki` | 10 |
+| Europharma: 💊 Спазмолитики | beauty_health | `https://europharma.kz/catalog/spazmoliticeskie-preparaty` | 10 |
+| Europharma: 🩺 Медицинские приборы | beauty_health | `https://europharma.kz/catalog/meditsinskiye-pribory` | 10 |
+| Europharma: 🦴 Витамины и минералы | beauty_health | `https://europharma.kz/catalog/vitaminy-i-mineraly` | 10 |
+| Europharma: 👶 Мать и дитя | beauty_health | `https://europharma.kz/catalog/mat-i-ditya` | 10 |
+| Europharma: 🧴 Дермакосметика | beauty_health | `https://europharma.kz/catalog/dermakosmetika` | 10 |
 
 ## Перед подключением следующего магазина
 

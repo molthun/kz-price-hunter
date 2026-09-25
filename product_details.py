@@ -28,7 +28,7 @@ STORE_DOMAINS = (
     # Магазины №19–35: описание — общими селекторами/мета-тегом, с теми же ограничениями
     "vkusmart.vmv.kz", "12.kz", "zeta.kz", "komfort.kz", "lemanapro.kz", "arbuz.kz",
     "masterok.kz", "magnum.kz", "intertop.kz", "marwin.kz", "meloman.kz", "i-teka.kz", "mebel.kz",
-    "detmir.kz", "askona.kz", "zoomarket.kz", "planeta.kz", "kimex.kz",
+    "detmir.kz", "askona.kz", "zoomarket.kz", "planeta.kz", "kimex.kz", "europharma.kz",
 )
 # Общий лимит внешней догрузки описаний (R-M05): перебор разных карточек не создаёт
 # неограниченную очередь запросов к магазинам

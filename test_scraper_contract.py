@@ -25,12 +25,13 @@ from scrapers.askona import AskonaScraper
 from scrapers.zoomarket import ZooMarketScraper
 from scrapers.planeta import PlanetaScraper
 from scrapers.kimex import KimexScraper
+from scrapers.europharma import EuropharmaScraper
 
 
 class ScraperContractTest(unittest.TestCase):
     def test_scraper_classes_conform_to_contract(self):
         # Check standard scrapers
-        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper, LemanaProScraper, ArbuzScraper, MasterOkScraper, MagnumScraper, IntertopScraper, MarwinScraper, ITekaScraper, MebelScraper, DetmirScraper, AskonaScraper, ZooMarketScraper, PlanetaScraper, KimexScraper):
+        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper, LemanaProScraper, ArbuzScraper, MasterOkScraper, MagnumScraper, IntertopScraper, MarwinScraper, ITekaScraper, MebelScraper, DetmirScraper, AskonaScraper, ZooMarketScraper, PlanetaScraper, KimexScraper, EuropharmaScraper):
             self.assertTrue(hasattr(cls, "SHOP_NAME"), f"{cls} must define SHOP_NAME")
             self.assertTrue(callable(getattr(cls, "scrape", None)), f"{cls} must define scrape")
             self.assertTrue(callable(getattr(cls, "close", None)), f"{cls} must define close")
@@ -1144,6 +1145,102 @@ class ScraperContractTest(unittest.TestCase):
         self.assertEqual(results[0]["price"], 54990)
         self.assertEqual(results[0]["shop"], "KIMEX")
         self.assertEqual(results[0]["url"], "https://kimex.kz/catalog/zhenskoe/obuv/krossovki/aya-kiim-krossovki-rieker_150/")
+        scraper.close()
+
+    def test_europharma_parsing_mock(self):
+        from unittest.mock import MagicMock
+        scraper = EuropharmaScraper()
+
+        html = """
+        <html>
+        <body>
+          <div class="card-product sl-item" data-id="49667" data-price="410">
+            <div class="card-product__title">
+              <a class="card-product__link" href="/ibukem-tabletki-200-mg-no10">
+                Ибукем таблетки 200 мг №10
+              </a>
+            </div>
+            <div class="card-product__desc">
+              <div>Производитель: Alkem Laboratories Ltd</div>
+            </div>
+            <div class="card-product__prices">
+              <span class="card-product__price_discount">410 ₸</span>
+              <span class="card-product__price_original">500 ₸</span>
+            </div>
+            <img class="card-product__img" src="https://st.europharma.kz/cache/product/49667/160x160.jpg" />
+          </div>
+          <ul class="pagination">
+            <li class="pagination__item next disabled">
+              <a class="pagination__link">Вперед</a>
+            </li>
+          </ul>
+        </body>
+        </html>
+        """
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = html
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        scraper.session = mock_session
+
+        res = scraper._fetch_page("Жаропонижающие", "https://europharma.kz/catalog/zharoponizhayushchiye", 1)
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0]["id"], "europharma_49667")
+        self.assertEqual(res[0]["sku"], "49667")
+        self.assertEqual(res[0]["title"], "Ибукем таблетки 200 мг №10")
+        self.assertEqual(res[0]["price"], 410)
+        self.assertEqual(res[0]["old_price_on_site"], 500)
+        self.assertEqual(res[0]["description"], "Производитель: Alkem Laboratories Ltd")
+        self.assertEqual(res[0]["shop"], "Europharma")
+        self.assertEqual(res[0]["url"], "https://europharma.kz/ibukem-tabletki-200-mg-no10")
+        self.assertEqual(res[0]["image_url"], "https://st.europharma.kz/cache/product/49667/160x160.jpg")
+        self.assertTrue(res.complete)
+        scraper.close()
+        self.assertIsNone(scraper.session)
+
+    def test_europharma_live_search_mock(self):
+        from unittest.mock import MagicMock
+        scraper = EuropharmaScraper()
+
+        html = """
+        <html>
+        <body>
+          <div class="card-product" data-id="4126">
+            <div class="card-product__title">
+              <a class="card-product__link" href="/paratsetamol-05-g-no-10-tabl">
+                Парацетамол 0,5 г № 10 табл
+              </a>
+            </div>
+            <div class="card-product__desc">
+              <div>Производитель: Ирбитский химфармзавод</div>
+            </div>
+            <div class="card-product__prices">
+              <span class="card-product__price_discount">285 ₸</span>
+            </div>
+          </div>
+        </body>
+        </html>
+        """
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = html
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        scraper.session = mock_session
+
+        results = scraper.search_live("парацетамол", limit=5)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["id"], "europharma_4126")
+        self.assertEqual(results[0]["title"], "Парацетамол 0,5 г № 10 табл")
+        self.assertEqual(results[0]["price"], 285)
+        self.assertEqual(results[0]["shop"], "Europharma")
+        self.assertEqual(results[0]["url"], "https://europharma.kz/paratsetamol-05-g-no-10-tabl")
+        self.assertEqual(results[0]["description"], "Производитель: Ирбитский химфармзавод")
         scraper.close()
 
 

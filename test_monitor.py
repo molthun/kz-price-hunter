@@ -2416,6 +2416,19 @@ class TestForteMarketScraper(unittest.TestCase):
             self.assertIn("url", c)
             self.assertTrue(c["master"] in config.MASTER_CATEGORIES)
 
+    def test_registry_contains_europharma(self):
+        from web.server import SHOP_REGISTRY
+        from config import SHOP_KEYS, EUROPHARMA_CATEGORIES
+        self.assertIn("europharma", SHOP_REGISTRY)
+        scraper_cls, cats, name = SHOP_REGISTRY["europharma"]
+        self.assertEqual(name, "Europharma")
+        self.assertEqual(cats, EUROPHARMA_CATEGORIES)
+        self.assertEqual(SHOP_KEYS.get("europharma"), "Europharma")
+        for c in EUROPHARMA_CATEGORIES:
+            self.assertIn("master", c)
+            self.assertIn("url", c)
+            self.assertTrue(c["master"] in config.MASTER_CATEGORIES)
+
     def test_parse_response_and_regional_pricing(self):
         from scrapers.fortemarket import ForteMarketScraper
 

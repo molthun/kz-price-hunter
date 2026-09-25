@@ -55,6 +55,7 @@ SHOP_KEYS = {
     "zoomarket": "Зоомаркет",
     "planeta": "Планета Электроники",
     "kimex": "KIMEX",
+    "europharma": "Europharma",
 }
 
 
@@ -1302,6 +1303,21 @@ KIMEX_CATEGORIES = [
     {"name": "KIMEX: 👟 Мужские кеды", "url": "https://kimex.kz/catalog/muzhskoe/obuv/kedy/", "master": "clothes", "max_pages": 10},
     {"name": "KIMEX: 👞 Мужские мокасины", "url": "https://kimex.kz/catalog/muzhskoe/obuv/mokasiny/", "master": "clothes", "max_pages": 10},
 ]
+
+# Europharma (europharma.kz): сеть аптек, лекарства, витамины, медтехника, дермакосметика
+EUROPHARMA_CATEGORIES = [
+    {"name": "Europharma: 💊 Лекарственные средства", "url": "https://europharma.kz/catalog/lekarstvennye-sredstva", "master": "beauty_health", "max_pages": 10},
+    {"name": "Europharma: 🌡 Жаропонижающие", "url": "https://europharma.kz/catalog/zharoponizhayushchiye", "master": "beauty_health", "max_pages": 10},
+    {"name": "Europharma: 🛡 Противовирусные препараты", "url": "https://europharma.kz/catalog/protivovirusnyye-preparaty", "master": "beauty_health", "max_pages": 10},
+    {"name": "Europharma: 🦠 Антибиотики", "url": "https://europharma.kz/catalog/antibiotiki", "master": "beauty_health", "max_pages": 10},
+    {"name": "Europharma: 🩹 Обезболивающие", "url": "https://europharma.kz/catalog/analgetiki", "master": "beauty_health", "max_pages": 10},
+    {"name": "Europharma: 💊 Спазмолитики", "url": "https://europharma.kz/catalog/spazmoliticeskie-preparaty", "master": "beauty_health", "max_pages": 10},
+    {"name": "Europharma: 🩺 Медицинские приборы", "url": "https://europharma.kz/catalog/meditsinskiye-pribory", "master": "beauty_health", "max_pages": 10},
+    {"name": "Europharma: 🦴 Витамины и минералы", "url": "https://europharma.kz/catalog/vitaminy-i-mineraly", "master": "beauty_health", "max_pages": 10},
+    {"name": "Europharma: 👶 Мать и дитя", "url": "https://europharma.kz/catalog/mat-i-ditya", "master": "beauty_health", "max_pages": 10},
+    {"name": "Europharma: 🧴 Дермакосметика", "url": "https://europharma.kz/catalog/dermakosmetika", "master": "beauty_health", "max_pages": 10},
+]
+
 
 
 
