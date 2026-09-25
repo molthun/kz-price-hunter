@@ -18,7 +18,7 @@ A — feed/API владельца с документированным назн
 
 Изображения сохраняются ссылками, server image proxy/cache не обнаружен. Browser и Telegram могут получать их с внешнего источника. Description используется в UI и может дополнительно сохраняться через guest product-detail GET для любого магазина. Его отсутствие в конкретном parser не означает отсутствие копирования текста в целом.
 
-## Матрица 33 источников
+## Матрица 34 источников
 
 | Модуль / класс | Тип / механизм | Timeout / pacing | Session, pagination, retry | Поля и ограничения |
 |---|---|---|---|---|
@@ -55,6 +55,7 @@ A — feed/API владельца с документированным назн
 | `scrapers/detmir.py` / `DetmirScraper` | C + D; detmir.kz SSR HTML + window.appData JSON + section[data-product-id] | 20 с; 0.4 с | Session chrome124; /page/N/; retry 5xx; **конец доказан** по productsLength в appData и пагинатору; живой поиск /search/results/?qt= | id/sku/title/price/old_price/image_url; Алматы / Казахстан; описание нет |
 | `scrapers/askona.py` / `AskonaScraper` | D; askona.kz SSR HTML div.card-v6 | 20 с; 0.4 с | Session chrome124; /page/N/; retry 5xx; **конец доказан** по номерам страниц в .pagination-v3; живой поиск /?digiSearch=true&term= | id/sku/title/price/old_price/image_url; Алматы / Казахстан; описание нет |
 | `scrapers/zoomarket.py` / `ZooMarketScraper` | D; zoomarket.kz SSR HTML Bitrix .catalog_item | 20 с; 0.4 с | Session chrome124; ?PAGEN_1=N; retry 5xx; **конец доказан** по номерам страниц в .nums; живой поиск /catalog/?q= | id/sku/title/price/old_price/image_url; Алматы / Казахстан; описание нет |
+| `scrapers/planeta.py` / `PlanetaScraper` | D; planeta.kz SSR HTML .unit-item-block | 20 с; 0.4 с | Session chrome124; /ru/site/search/term/{term}/page/{page}/; retry 5xx; **конец доказан** по номерам страниц в ul.pagination li a[data-page] и кнопке next; живой поиск /ru/site/search/?term= | id/sku/title/price/old_price/image_url; Алматы / Казахстан; описание нет |
 
 ## Пути вне основного фонового scan
 
@@ -577,6 +578,21 @@ A — feed/API владельца с документированным назн
 | Зоомаркет: 🦴 Лакомства для собак | pets | `https://zoomarket.kz/catalog/dog/lakomstva/` | 10 |
 | Зоомаркет: 🐭 Товары для грызунов | pets | `https://zoomarket.kz/catalog/rodent/` | 10 |
 | Зоомаркет: 🐠 Аквариумистика и рыбы | pets | `https://zoomarket.kz/catalog/fish/` | 10 |
+
+### PlanetaScraper — 10 настроенных источников категории
+
+| Категория | Master | URL/query | max_pages |
+|---|---|---|---|
+| Планета: 📱 Смартфоны | smartphones | `https://planeta.kz/ru/site/search/?term=смартфон` | 10 |
+| Планета: 💻 Ноутбуки | laptops | `https://planeta.kz/ru/site/search/?term=ноутбук` | 10 |
+| Планета: 📺 Телевизоры | tvs | `https://planeta.kz/ru/site/search/?term=телевизор` | 10 |
+| Планета: ❄️ Холодильники | appliances_large | `https://planeta.kz/ru/site/search/?term=холодильник` | 10 |
+| Планета: 💨 Кондиционеры | appliances_large | `https://planeta.kz/ru/site/search/?term=кондиционер` | 10 |
+| Планета: 🧹 Пылесосы | appliances_small | `https://planeta.kz/ru/site/search/?term=пылесос` | 10 |
+| Планета: 🫖 Чайники | appliances_small | `https://planeta.kz/ru/site/search/?term=чайник` | 10 |
+| Планета: 👔 Утюги | appliances_small | `https://planeta.kz/ru/site/search/?term=утюг` | 10 |
+| Планета: 🍹 Блендеры | appliances_small | `https://planeta.kz/ru/site/search/?term=блендер` | 10 |
+| Планета: 🎧 Наушники | audio | `https://planeta.kz/ru/site/search/?term=наушники` | 10 |
 
 ## Перед подключением следующего магазина
 

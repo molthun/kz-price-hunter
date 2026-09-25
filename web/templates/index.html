@@ -223,6 +223,9 @@
           <div title="Зоомаркет (zoomarket.kz)" class="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-900/90 border border-slate-700/80 hover:border-amber-500 hover:scale-110 transition shadow-sm cursor-pointer">
             <img src="https://www.google.com/s2/favicons?domain=zoomarket.kz&sz=32" alt="Зоомаркет" class="w-4 h-4 rounded-sm object-contain" onerror="this.style.display='none'">
           </div>
+          <div title="Планета Электроники (planeta.kz)" class="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-900/90 border border-slate-700/80 hover:border-blue-500 hover:scale-110 transition shadow-sm cursor-pointer">
+            <img src="https://www.google.com/s2/favicons?domain=planeta.kz&sz=32" alt="Планета Электроники" class="w-4 h-4 rounded-sm object-contain" onerror="this.style.display='none'">
+          </div>
           <span id="activeShopIconsMore" class="shop-icons-more text-[11px] font-semibold text-slate-400 px-1.5"></span>
         </div>
         <script>
@@ -1766,6 +1769,12 @@
               <input type="checkbox" id="checkShopZooMarket" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
               <img src="https://www.google.com/s2/favicons?domain=zoomarket.kz&sz=32" alt="Зоомаркет" class="w-4 h-4 rounded-sm object-contain shrink-0" onerror="this.style.display='none'">
               <span class="text-xs font-medium text-slate-200">Зоомаркет</span>
+            </label>
+
+            <label class="flex items-center space-x-2.5 p-3 rounded-xl bg-slate-900/90 border border-slate-800 cursor-pointer hover:border-slate-700 hover:bg-slate-800/60 transition">
+              <input type="checkbox" id="checkShopPlaneta" class="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              <img src="https://www.google.com/s2/favicons?domain=planeta.kz&sz=32" alt="Планета Электроники" class="w-4 h-4 rounded-sm object-contain shrink-0" onerror="this.style.display='none'">
+              <span class="text-xs font-medium text-slate-200">Планета Электроники</span>
             </label>
             <p class="col-span-full text-xs text-slate-400 mt-1">💡 <strong>Flip.kz</strong>: выберите «Все города» для просмотра; город наличия на сайте не подтверждён, поэтому предложения доступны в общем каталоге и исключены из регионального арбитража.</p>
           </div>
@@ -3383,7 +3392,8 @@
       'Mebel.kz': { domain: 'mebel.kz', emoji: '🛋', category: 'home', catLabel: 'Мебель и дом' },
       'Детский мир': { domain: 'detmir.kz', emoji: '🧸', category: 'kids', catLabel: 'Детские товары' },
       'Askona': { domain: 'askona.kz', emoji: '🛏', category: 'home', catLabel: 'Матрасы и спальня' },
-      'Зоомаркет': { domain: 'zoomarket.kz', emoji: '🐾', category: 'pets', catLabel: 'Зоотовары' }
+      'Зоомаркет': { domain: 'zoomarket.kz', emoji: '🐾', category: 'pets', catLabel: 'Зоотовары' },
+      'Планета Электроники': { domain: 'planeta.kz', emoji: '🪐', category: 'electronics', catLabel: 'Электроника' }
     };
 
     const SHOP_LOGO_DOMAINS = Object.fromEntries(
@@ -3399,7 +3409,8 @@
       twelve_months: 'checkShopTwelveMonths', zeta: 'checkShopZeta', komfort: 'checkShopKomfort',
       lemanapro: 'checkShopLemanaPro', arbuz: 'checkShopArbuz', masterok: 'checkShopMasterok',
       magnum: 'checkShopMagnum', intertop: 'checkShopIntertop', marwin: 'checkShopMarwin', iteka: 'checkShopIteka',
-      mebel: 'checkShopMebel', detmir: 'checkShopDetmir', askona: 'checkShopAskona', zoomarket: 'checkShopZooMarket'
+      mebel: 'checkShopMebel', detmir: 'checkShopDetmir', askona: 'checkShopAskona', zoomarket: 'checkShopZooMarket',
+      planeta: 'checkShopPlaneta'
     };
 
     function shopLogoHtml(shopValue) {

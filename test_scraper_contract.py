@@ -23,12 +23,13 @@ from scrapers.mebel import MebelScraper
 from scrapers.detmir import DetmirScraper
 from scrapers.askona import AskonaScraper
 from scrapers.zoomarket import ZooMarketScraper
+from scrapers.planeta import PlanetaScraper
 
 
 class ScraperContractTest(unittest.TestCase):
     def test_scraper_classes_conform_to_contract(self):
         # Check standard scrapers
-        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper, LemanaProScraper, ArbuzScraper, MasterOkScraper, MagnumScraper, IntertopScraper, MarwinScraper, ITekaScraper, MebelScraper, DetmirScraper, AskonaScraper, ZooMarketScraper):
+        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper, LemanaProScraper, ArbuzScraper, MasterOkScraper, MagnumScraper, IntertopScraper, MarwinScraper, ITekaScraper, MebelScraper, DetmirScraper, AskonaScraper, ZooMarketScraper, PlanetaScraper):
             self.assertTrue(hasattr(cls, "SHOP_NAME"), f"{cls} must define SHOP_NAME")
             self.assertTrue(callable(getattr(cls, "scrape", None)), f"{cls} must define scrape")
             self.assertTrue(callable(getattr(cls, "close", None)), f"{cls} must define close")
@@ -965,6 +966,105 @@ class ScraperContractTest(unittest.TestCase):
         self.assertEqual(results[0]["price"], 12400)
         self.assertEqual(results[0]["shop"], "Зоомаркет")
         self.assertEqual(results[0]["url"], "https://zoomarket.kz/catalog/dog/korm/998877/")
+        scraper.close()
+
+    def test_planeta_parsing_mock(self):
+        from unittest.mock import MagicMock
+        scraper = PlanetaScraper()
+
+        html = """
+        <html>
+        <body>
+          <div class="unit-item-block">
+            <div class="code">Код товара: 128416</div>
+            <div class="title">
+              Пылесос
+              <br/>
+              <a href="/ru/products/vc15k4116vr-ct-23/">
+                <b>SAMSUNG</b> VC15K4116VR
+              </a>
+            </div>
+            <a class="pic" href="/ru/products/vc15k4116vr-ct-23/">
+              <img src="/upload/Catalog/cat/vacuum.jpg" />
+            </a>
+            <div class="status-block">
+              <div class="status green">Есть в наличии</div>
+            </div>
+            <div class="price-block">
+              <span class="price-big">
+                <div class="ng-binding">84 990</div>
+              </span>
+              <span class="price-old">99 990</span>
+            </div>
+          </div>
+          <ul class="pagination">
+            <li class="active"><a data-page="1">1</a></li>
+            <li><a data-page="2" href="/ru/site/search/term/пылесос/page/2/">2</a></li>
+            <li class="next"><a data-page="2" href="/ru/site/search/term/пылесос/page/2/"></a></li>
+          </ul>
+        </body>
+        </html>
+        """
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = html
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        scraper.session = mock_session
+
+        res = scraper._fetch_page("Пылесосы", "https://planeta.kz/ru/site/search/?term=пылесос", 1)
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0]["id"], "planeta_128416")
+        self.assertEqual(res[0]["sku"], "128416")
+        self.assertEqual(res[0]["title"], "Пылесос SAMSUNG VC15K4116VR")
+        self.assertEqual(res[0]["price"], 84990)
+        self.assertEqual(res[0]["old_price_on_site"], 99990)
+        self.assertEqual(res[0]["shop"], "Планета Электроники")
+        self.assertEqual(res[0]["url"], "https://planeta.kz/ru/products/vc15k4116vr-ct-23/")
+        self.assertEqual(res[0]["image_url"], "https://planeta.kz/upload/Catalog/cat/vacuum.jpg")
+        self.assertFalse(res.complete)
+        scraper.close()
+        self.assertIsNone(scraper.session)
+
+    def test_planeta_live_search_mock(self):
+        from unittest.mock import MagicMock
+        scraper = PlanetaScraper()
+
+        html = """
+        <html>
+        <body>
+          <div class="unit-item-block">
+            <div class="code">Код товара: 90799</div>
+            <div class="title">
+              <a href="/ru/products/samsung-galaxy-s24-ct-101/">
+                <b>SAMSUNG</b> Galaxy S24
+              </a>
+            </div>
+            <div class="price-block">
+              <span class="price-big">429 990</span>
+            </div>
+          </div>
+        </body>
+        </html>
+        """
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = html
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        scraper.session = mock_session
+
+        results = scraper.search_live("galaxy s24", limit=5)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["id"], "planeta_90799")
+        self.assertEqual(results[0]["title"], "SAMSUNG Galaxy S24")
+        self.assertEqual(results[0]["price"], 429990)
+        self.assertEqual(results[0]["shop"], "Планета Электроники")
+        self.assertEqual(results[0]["url"], "https://planeta.kz/ru/products/samsung-galaxy-s24-ct-101/")
         scraper.close()
 
 

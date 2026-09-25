@@ -4,17 +4,18 @@
 
 ## Текущая контрольная точка
 
-- Дата: 2026-09-25, Asia/Almaty. **Завершён релиз v5.27.0: подключение 33-го магазина — интернет-зоомагазин «ZooMarket Казахстан» (zoomarket.kz)**.
+- Дата: 2026-09-25, Asia/Almaty. **Завершён релиз v5.28.0: подключение 34-го магазина — сеть магазинов техники и электроники «Планета Электроники» (planeta.kz)**.
 - **Исполнитель:** Antigravity.
-- **Область файлов:** `scrapers/zoomarket.py`, `config.py`, `web/server.py`, `product_details.py`, `web/templates/index.html`, `SOURCES.md`, `README.md`, `version.py`, `CHANGELOG.md`, `test_scraper_contract.py`, `test_scraper_reliability.py`, `test_monitor.py`, `docs/AGENT_HANDOFF.md`.
+- **Область файлов:** `scrapers/planeta.py`, `config.py`, `web/server.py`, `product_details.py`, `web/templates/index.html`, `SOURCES.md`, `README.md`, `version.py`, `CHANGELOG.md`, `test_scraper_contract.py`, `test_scraper_reliability.py`, `test_monitor.py`, `docs/AGENT_HANDOFF.md`.
 - **Контекст:**
-  - Подключен крупнейший интернет-зоомагазин Казахстана — **«ZooMarket Казахстан» (zoomarket.kz)**.
-  - Каталог: SSR HTML Bitrix с карточками `.catalog_item` (`data-param-id`, название, цена `.price[data-value]`, старая цена `.price_old`, фото `img[src]`), пагинацией `?PAGEN_1=N` и точным доказательством окончания каталога по ссылкам `.nums`.
-  - Поиск в реальном времени: `/catalog/?q={query}` (SSR карточки за ~1.1с).
-  - 10 категорий каталога охватывают корма для кошек и собак, консервы, наполнители и туалеты, ветаптеку, лакомства, товары для грызунов и рыб с привязкой к системной мастер-категории `pets` («Зоотовары»).
+  - Подключена одна из старейших и наиболее авторитетных сетей бытовой техники и потребительской электроники Казахстана — **«Планета Электроники» (planeta.kz)**.
+  - Каталог: SSR HTML с карточками `.unit-item-block` (код товара `.code`, название, цена `.price-block .price-big`, старая цена `.price-old`, фото `img[src]`), пагинацией `/ru/site/search/term/{term}/page/{page}/` и точным доказательством окончания каталога по ссылкам пагинатора `ul.pagination li a[data-page]` и деактивации кнопки next.
+  - Поиск в реальном времени: `/ru/site/search/?term={query}` (SSR карточки за ~0.8с).
+  - 10 категорий каталога охватывают смартфоны, ноутбуки, телевизоры, холодильники, кондиционеры, пылесосы, чайники, утюги, блендеры и наушники с привязкой к системным мастер-категориям электроники и бытовой техники.
   - Поддержан retry при 5xx и сетевых ошибках, регистрация во всех сервисах и UI.
-  - Тесты: 200 тестов в `test_monitor.py`, `test_scraper_contract.py`, `test_scraper_reliability.py` + 33 теста в `test_data_quality.py` + 0 замечаний в `release_gate.py secrets`.
+  - Тесты: 205 тестов в `test_monitor.py`, `test_scraper_contract.py`, `test_scraper_reliability.py` + 33 теста в `test_data_quality.py` + 0 замечаний в `release_gate.py secrets`.
 - **Предыдущие релизы дня:**
+  - **v5.27.0:** подключение 33-го магазина — интернет-зоомагазин «ZooMarket» (zoomarket.kz, 10 категорий pets, search_live).
   - **v5.26.0:** подключение 32-го магазина — гипермаркет матрасов и спальни «Askona» (askona.kz, 10 категорий home_furniture/household, search_live).
   - **v5.25.0:** подключение 31-го магазина — гипермаркет детских товаров «Детский мир» (detmir.kz, 10 категорий, search_live).
   - **v5.24.0:** мониторинг обращений магазинов к краулерам (`shop_notices.py`).

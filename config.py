@@ -53,6 +53,7 @@ SHOP_KEYS = {
     "detmir": "Детский мир",
     "askona": "Askona",
     "zoomarket": "Зоомаркет",
+    "planeta": "Планета Электроники",
 }
 
 
@@ -1271,6 +1272,20 @@ ZOOMARKET_CATEGORIES = [
     {"name": "Зоомаркет: 🦴 Лакомства для собак", "url": "https://zoomarket.kz/catalog/dog/lakomstva/", "master": "pets", "max_pages": 10},
     {"name": "Зоомаркет: 🐭 Товары для грызунов", "url": "https://zoomarket.kz/catalog/rodent/", "master": "pets", "max_pages": 10},
     {"name": "Зоомаркет: 🐠 Аквариумистика и рыбы", "url": "https://zoomarket.kz/catalog/fish/", "master": "pets", "max_pages": 10},
+]
+
+# Планета Электроники (planeta.kz): электроника, бытовая техника, климат, ТВ и аудио
+PLANETA_CATEGORIES = [
+    {"name": "Планета: 📱 Смартфоны", "url": "https://planeta.kz/ru/site/search/?term=смартфон", "master": "smartphones", "max_pages": 10},
+    {"name": "Планета: 💻 Ноутбуки", "url": "https://planeta.kz/ru/site/search/?term=ноутбук", "master": "laptops", "max_pages": 10},
+    {"name": "Планета: 📺 Телевизоры", "url": "https://planeta.kz/ru/site/search/?term=телевизор", "master": "tvs", "max_pages": 10},
+    {"name": "Планета: ❄️ Холодильники", "url": "https://planeta.kz/ru/site/search/?term=холодильник", "master": "appliances_large", "max_pages": 10},
+    {"name": "Планета: 💨 Кондиционеры", "url": "https://planeta.kz/ru/site/search/?term=кондиционер", "master": "appliances_large", "max_pages": 10},
+    {"name": "Планета: 🧹 Пылесосы", "url": "https://planeta.kz/ru/site/search/?term=пылесос", "master": "appliances_small", "max_pages": 10},
+    {"name": "Планета: 🫖 Чайники", "url": "https://planeta.kz/ru/site/search/?term=чайник", "master": "appliances_small", "max_pages": 10},
+    {"name": "Планета: 👔 Утюги", "url": "https://planeta.kz/ru/site/search/?term=утюг", "master": "appliances_small", "max_pages": 10},
+    {"name": "Планета: 🍹 Блендеры", "url": "https://planeta.kz/ru/site/search/?term=блендер", "master": "appliances_small", "max_pages": 10},
+    {"name": "Планета: 🎧 Наушники", "url": "https://planeta.kz/ru/site/search/?term=наушники", "master": "audio", "max_pages": 10},
 ]
 
 
