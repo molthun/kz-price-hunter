@@ -1,3 +1,4 @@
+import os
 import json
 import re
 import time
@@ -5,8 +6,44 @@ import sqlite3
 import hashlib
 import secrets
 import datetime
+import logging
 from typing import Optional, Dict, Any, List
 from config import DB_PATH, get_scan_interval_seconds, merge_user_settings
+
+logger = logging.getLogger("kz_price_hunter.database")
+
+_DUAL_WRITE_STATS = {
+    "total": 0,
+    "failures": 0,
+    "last_error": None,
+}
+
+def get_dual_write_stats() -> Dict[str, Any]:
+    """Возвращает статистику работы Dual-Write v2."""
+    return dict(_DUAL_WRITE_STATS)
+
+def reset_dual_write_stats() -> None:
+    """Сбрасывает счетчики Dual-Write v2 (для тестов)."""
+    _DUAL_WRITE_STATS["total"] = 0
+    _DUAL_WRITE_STATS["failures"] = 0
+    _DUAL_WRITE_STATS["last_error"] = None
+
+def _record_dual_write_error(pid: str, err: Exception) -> None:
+    """Фиксирует сбой двойной записи в статистику, лог и телеметрию."""
+    _DUAL_WRITE_STATS["failures"] += 1
+    _DUAL_WRITE_STATS["last_error"] = str(err)
+    logger.warning("Dual-write v2 failed for product %s: %s", pid, err)
+    try:
+        from telemetry import telemetry, SEVERITY_WARNING, COMPONENT_SYSTEM
+        telemetry.record_event(
+            "dual_write_error",
+            SEVERITY_WARNING,
+            COMPONENT_SYSTEM,
+            f"Dual-write v2 failed for product {pid}: {err}",
+            data={"product_id": pid, "error": str(err)},
+        )
+    except Exception:
+        pass
 
 def active_product_clause(alias=""):
     """Видимые предложения: не сняты полным обходом и виделись не дольше HIDE_AFTER_DAYS (P02, решение владельца).
@@ -787,6 +824,11 @@ def _create_schema(cursor) -> None:
     # остаётся NULL — это читается как «покрытие неизвестно», а не как «всё оценено».
     _add_column(cursor, "ai_usage", "priced_requests", "INTEGER")
 
+    # Схема данных KZ Price Hunter 2.0 (Search Platform): sellers, channels, canonical_products, offers, offer_price_history.
+    # Таблицы создаются аддитивно (IF NOT EXISTS), schema_version остаётся прежним (5).
+    from repositories.schema_v2 import init_schema_v2
+    init_schema_v2(cursor.connection)
+
 
 # ---------------------------------------------------------------------------
 # Пронумерованные миграции данных. Каждая выполняется один раз, в своей транзакции;
@@ -1380,8 +1422,7 @@ def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
                 INSERT INTO products (id, shop, city, title, category, url, image_url, description, current_price, old_price_on_site, first_seen_price, min_price, max_price, canonical_key, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (pid, shop, city, title, category, url, image_url, description, current_price, old_on_site, current_price, current_price, current_price, canonical_key, now, now))
-            conn.commit()
-            return {
+            res = {
                 "is_new": True,
                 "old_price": current_price,
                 "first_seen_price": current_price,
@@ -1402,15 +1443,24 @@ def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
                     current_price = ?, old_price_on_site = ?, min_price = ?, max_price = ?, canonical_key = COALESCE(?, canonical_key), updated_at = ?
                 WHERE id = ?
             """, (shop, city, title, category, url, image_url, description, description, current_price, old_on_site, min_price, max_price, canonical_key, now, pid))
-            conn.commit()
-
-            return {
+            res = {
                 "is_new": False,
                 "old_price": old_price,
                 "first_seen_price": first_seen_price,
                 "current_price": current_price,
                 "price_changed": price_changed
             }
+
+        if os.environ.get("DUAL_WRITE_V2", "1") != "0":
+            _DUAL_WRITE_STATS["total"] += 1
+            try:
+                from domain.adapter import sync_legacy_product_to_v2
+                sync_legacy_product_to_v2(conn, p, now)
+            except Exception as e:
+                _record_dual_write_error(pid, e)
+
+        conn.commit()
+        return res
 
 def get_price_history_batch(product_ids: List[str]) -> Dict[str, Dict[str, Any]]:
     """Возвращает сохраненную историю цен для набора товаров (до пакетной перезаписи)."""
@@ -1489,6 +1539,14 @@ def save_or_update_products_batch(products: List[Dict[str, Any]]) -> int:
                         current_price = ?, old_price_on_site = ?, min_price = ?, max_price = ?, canonical_key = COALESCE(?, canonical_key), updated_at = ?
                     WHERE id = ?
                 """, (shop, city, title, category, url, image_url, description, description, current_price, old_on_site, min_price, max_price, canonical_key, now, pid))
+            if os.environ.get("DUAL_WRITE_V2", "1") != "0":
+                _DUAL_WRITE_STATS["total"] += 1
+                try:
+                    from domain.adapter import sync_legacy_product_to_v2
+                    sync_legacy_product_to_v2(conn, p, now)
+                except Exception as e:
+                    _record_dual_write_error(pid, e)
+
             updated_count += 1
         conn.commit()
 

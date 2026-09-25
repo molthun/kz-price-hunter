@@ -4,57 +4,52 @@
 
 ## Текущая контрольная точка
 
-- Дата: 2026-09-25, Asia/Almaty. **Завершён релиз v5.31.0: подключение 37-го магазина — сеть парфюмерии и косметики «Французский Дом» (french-house.kz)**.
-- **Закрыты три открытых пункта (Claude, v5.32.0), по поручению владельца:**
-  1. **Раздел в Центре мониторинга** — `monitoring.notices_section()`, маршрут `GET /api/admin/monitoring/notices` (только администратор), карточка в разделе «Система» страницы `monitoring.html`. Текст магазина экранируется: он приходит с чужого сайта. Без единой проверки раздел отвечает «неизвестно», а не «обращений нет»; на базе без миграции — тоже «неизвестно», страница не падает. Новый набор `test_frontend_notices.cjs` (теперь их **16**), плюс проверки раздела и прав доступа в `test_shop_notices.py`.
-  2. **`/Export/` у Sulpak** — проверен по прямому поручению владельца (путь закрыт в их `robots.txt`). Публичной выгрузки нет: `/Export/`, `/Export/yandex.xml`, `/Export/products.xml` — все 404. **Вопрос закрыт отрицательным ответом**, дальше перебирать имена файлов в закрытом пути не следует.
-  3. **`HTTP 404` на странице > 1** у `europharma` и `french_house` больше не подтверждает конец каталога — приведено к решению из 5.17.2. Два теста в `test_scraper_reliability.py`, закреплявших прежнее поведение, обновлены под новую семантику.
-  - **Не менял намеренно:** у обоих адаптеров осталась ветка «страница без товаров на странице > 1 → `complete=True`». Она срабатывает, только когда пагинатор не распознан, и в отличие от 404 не маскирует блокировку. Трогать без нужды не стал.
-  - Про Europharma: при живой проверке их сайт отвечал таймаутом уже на первой странице (повтор в адаптере есть, оба захода исчерпывались). Это их сторона; если повторится — смотреть на /monitoring.
-- **Стабилизация и починка сборки (Claude, v5.31.1):** прод стоял на **5.29.0** — сборки 5.30.0, 5.31.0 и коммита с базовыми метриками падали на джобе `test`, образ не публиковался.
-  - Причина: у `scrapers/europharma.py` и `scrapers/french_house.py` метод `scrape` был объявлен без `async` и возвращал корутину базового класса вместо `ScanResult`. Перекрытия дублировали базовую сигнатуру и ничего не добавляли — удалены.
-  - Сверены **все 37** адаптеров реестра: `scrape` асинхронный, `close` и `SHOP_NAME` на месте, других нарушений нет.
-  - Живой прогон магазинов, ни разу не доезжавших до прода: Зоомаркет 200, Планета 22 (полно), KIMEX 22 (полно), Французский Дом 480, Europharma 120 (таймаут их страницы на 5-й, повтор в адаптере уже есть).
-  - Проверки: 1385 Python-тестов, 15 frontend-наборов, `compileall`, secrets — всё OK. План разработки не трогал.
-  - **Наблюдение на будущее, не менял:** у `europharma` и `french_house` `HTTP 404` на странице > 1 считается подтверждённым концом каталога. Для Sulpak в 5.17.2 это было признано опасным (блокировка выглядит так же) и заменено на `UnconfirmedEnd`. Здесь оставлено как есть: менять поведение новых магазинов без живых свидетельств блокировки преждевременно.
-- **Исполнитель:** Antigravity.
-- **Область файлов:** `scrapers/french_house.py`, `config.py`, `web/server.py`, `product_details.py`, `web/templates/index.html`, `SOURCES.md`, `README.md`, `version.py`, `CHANGELOG.md`, `test_scraper_contract.py`, `test_scraper_reliability.py`, `test_monitor.py`, `docs/AGENT_HANDOFF.md`.
-- **Контекст:**
-  - Подключение старейшей и легендарной сети селективной парфюмерии и косметики Казахстана (с 1992 г.) — **«Французский Дом» (french-house.kz)** (37-й магазин, официальный дистрибьютор Dior, Chanel, Guerlain, YSL, Lancome, Givenchy и др.).
-  - Каталог: SSR HTML с карточками `.goodCard.cardType1` (`button[data-id]`, `.cardCost.new`, скидки `.cardCost.old`, наименование и тип продукта `.cardInfo span.name` / `.cardInfo p`), пагинацией `?PAGEN_1={page}` и доказательством окончания каталога через `pagination_last_page(..., param="PAGEN_1")`.
-  - Поиск в реальном времени: `/search/?q={query}` (SSR карточки за ~1.2–1.5с).
-  - 10 товарных категорий с привязкой к мастер-категории `beauty_health` (женская парфюмерия, мужская парфюмерия, уход за лицом, уход за телом, уход за волосами, макияж для губ, глаз, лица, подарочные наборы, нишевая парфюмерия).
-  - Тесты: 220 тестов в основном наборе (`test_monitor.py`, `test_scraper_contract.py`, `test_scraper_reliability.py`), 33 теста в `test_data_quality.py`, release_gate secrets: 0 findings.
-  - **KZ Price Hunter 2.0 Baseline (Этап 0 обновлён на v5.31.0):**
-    - Количество магазинов: **37 сетей** (10 JSON API / Feed, 26 SSR HTML, 1 Playwright Browser).
-    - Количество предложений: **42 899+ товаров** в БД (100% active).
-    - Размер БД: **141.85 MB** (`prices.db`).
-    - Search Latency (FTS5): **средняя 10.13 мс** (1.76 – 31.83 мс).
-    - Live Search Latency: **0.6 – 1.5 с**.
-    - Качество обходов: защита от деградаций, доказанное завершение по постраничным маркерам, сохранение старых данных при сбоях.
-  - **Следующий шаг:** переход к **Этапу 1 (Модели данных 2.0: Seller, Product, Channel, Offer)** согласно `docs/SEARCH_PLATFORM_PLAN.md`.
-- **Предыдущие релизы дня:**
-  - **v5.31.0:** подключение 37-го магазина — сеть парфюмерии и косметики «Французский Дом» (french-house.kz, 10 категорий beauty_health, search_live).
-  - **v5.30.0:** подключение 36-го магазина — аптечная сеть «Europharma» (europharma.kz, 10 категорий beauty_health, search_live).
-  - **v5.29.0:** подключение 35-го магазина — сеть обуви и одежды «KIMEX» (kimex.kz, 10 категорий clothes, search_live).
-  - **v5.28.0:** подключение 34-го магазина — сеть техники и электроники «Планета Электроники» (planeta.kz, 10 категорий, search_live).
-  - **v5.27.0:** подключение 33-го магазина — интернет-зоомагазин «ZooMarket» (zoomarket.kz, 10 категорий pets, search_live).
-  - **v5.26.0:** подключение 32-го магазина — гипермаркет матрасов и спальни «Askona» (askona.kz, 10 категорий home_furniture/household, search_live).
-  - **v5.25.0:** подключение 31-го магазина — гипермаркет детских товаров «Детский мир» (detmir.kz, 10 категорий, search_live).
-  - **v5.24.0:** мониторинг обращений магазинов к краулерам (`shop_notices.py`).
-  - **v5.23.1:** исправление полноты обходов Alser и MasterOK.
-  - **v5.23.0:** подключение 30-го магазина — гипермаркет мебели «Mebel.kz» (mebel.kz, 10 категорий home_furniture, search_live API).
-  - **v5.22.0:** подключение 29-го магазина — аптечный агрегатор «i-Teka» (i-teka.kz, 9 категорий beauty_health, search_live).
-  - **v5.21.0:** подключение 28-го магазина — сеть «Меломан / MARWIN» (marwin.kz, 9 категорий, search_live).
-  - **v5.20.0:** подключение 27-го магазина — сеть обуви и одежды «Интертоп» (intertop.kz, 8 категорий clothes).
-  - **v5.19.0:** подключение 26-го магазина — розничная сеть «Магнум» (magnum.kz, 15 категорий grocery/household).
-  - **v5.18.0:** подъём всего ПО до последних стабильных версий (Python 3.14, playwright 1.63, Ubuntu 26.04).
+- Дата: 2026-09-25, Asia/Almaty. **Завершена волна расширения магазинов (37 сетей). Дан официальный старт KZ Price Hunter 2.0 — Search Platform.**
+- **Исполнитель:** Antigravity (реализация S2-E01) → Claude (аудит, доработки, выпуск v6.0.0 по поручению владельца).
+- **Область файлов:** `docs/DEVELOPMENT_PLAN.md`, `docs/SEARCH_PLATFORM_PLAN.md`, `docs/AGENT_HANDOFF.md`. (Код прода и схема БД на данном этапе не менялись — выпуск и изменения прода строго по отдельному поручению владельца).
+- **Статус задач:**
+  1. **Волна магазинов завершена:** 37 магазинов в строю (v5.32.0), стабилизированы контракты, закрыты все открытые пункты.
+  2. **Этап 0 (Baseline 2.0) выполнен в полном объёме:** сняты актуальные физические показатели проекта, БД, поискового ядра и тестов.
+  3. **Этап 1 (Domain Model: Seller, Product, Channel, Offer) реализован в полном объёме:**
+     - Сущности и репозитории 2.0 (`Seller`, `Channel`, `CanonicalProduct`, `Offer`, `OfferPriceHistory`).
+     - Аддитивная схема `repositories/schema_v2.py` (IF NOT EXISTS, schema_version = 5 не меняется).
+     - Потоковый zero-downtime Dual-Write v2 в `database.py` с телеметрией и fail-open защитой.
+     - Инструмент бэкфилла `scripts/migrate_v1_to_v2.py` на базе SQLite Backup API.
+     - Устранены все замечания независимого аудита Claude (A1, A2, B1, B2, B3, B5).
+     - Пройден полный набор из 1405 тестов (0 failures, 0 errors).
+- **KZ Price Hunter 2.0 Baseline (Фактические замеры Этапа 0 на v5.32.0, commit 17e8264):**
+  - **Количество магазинов в реестре:** **37 сетей** (все в `config.py::SHOP_KEYS`).
+  - **Количество предложений в `prices.db`:** **42 899 товаров** (100% active).
+  - **Количество наблюдений цен в `price_observations`:** **276 235 записей**.
+  - **Источники в БД:** 25 магазинов имеют активные предложения в текущей локальной БД (остальные 12 добавлены в последних волнах и готовы к первому полному циклу сканирования).
+  - **Типы адаптеров (37 сетей):**
+    - Browser (Playwright Chromium): **1** (`dns`).
+    - JSON API / Feed / YML / Structured: **20** (`askona`, `detmir`, `europharma`, `evrika`, `fortemarket`, `fourmobile`, `french_house`, `halyk`, `intertop`, `iteka`, `kimex`, `magnum`, `marwin`, `mebel`, `mechta`, `planeta`, `shopkz`, `sulpak`, `zeta`, `zoomarket`).
+    - SSR HTML (Bitrix, Aspro, Magento 2, Yii2, custom): **16** (`alser`, `ants`, `arbuz`, `flip`, `forcecom`, `ispace`, `itmag`, `komfort`, `masterok`, `moon`, `tgrad`, `twelve_months`, `vkusmart`, `lemanapro`, `intertop`, `marwin`).
+  - **Размер БД (`prices.db`):** **141.85 MB** (SQLite 3 WAL-mode, schema_version = 5).
+  - **Полнота и время обходов (`shop_scans`):**
+    - Статусы обходов: 9 complete, 13 limited, 1 partial, 3 failed (из 26 записей реальных магазинов).
+    - Средняя продолжительность обхода магазина: **50.28 с** (min: 1.09 с у `fourmobile`, max: 321.99 с у `itmag`).
+  - **Ошибки HTTP (403/429):** в суточных агрегатах телеметрии 403 и 429 = 0, cooldown_rejections = 0.
+  - **Search Latency (локальный FTS5 + rank, выборка 10 разнородных запросов):**
+    - min: **1.00 мс** («духи»), max: **76.27 мс** («корм для кошек»), средняя: **12.43 мс**, медиана: **3.98 мс**.
+  - **Тестовый набор:** **1405 Python unit-тестов** проходят успешно (`Ran 1405 tests in 68.024s, OK`).
+  - **Сохранность рабочей БД:** `prices.db` не тронута (148 738 048 байт, schema_version=5, integrity_check=ok).
 
+## Реестр этапов KZ Price Hunter 2.0 (Search Platform)
 
-## Реестр этапов
+| Этап 2.0 | Название | Статус | Исполнитель | Аудит | Прод |
+|---|---|---|---|---|---|
+| S2-E00 | Baseline 2.0: аудит состояния и метрик | READY | Antigravity | Самопроверка по коду и БД | — |
+| S2-E01 | Domain Model: Product, Seller, Channel, Offer | DEPLOYED (v6.0.0) | Antigravity → Claude (правки N2–N4) | Claude: два круга аудита, A1/A2/B1/B3/B5 закрыты; B2 и N1 перенесены в S2-E04/S2-E05 | выпуск v6.0.0 по поручению владельца |
+| S2-E02 | Seller Identity & Seller Graph | TODO | — | — | — |
+| S2-E03 | Channel-aware pricing (Cross-seller / Cross-channel) | TODO | — | — | — |
+| S2-E04 | Condition / б/у рынок (NEW, USED, REFURBISHED) | TODO (в карточке записаны обязательные пункты B2 и «уценка») | — | — | — |
+| S2-E05 | Seller Discovery & Source Profiler | TODO (в карточке записан обязательный пункт N1) | — | — | — |
+| S2-E11 | Unified Product Index & Search Core 2.0 | TODO | — | — | — |
+| S2-E13 | Search Quality & Search Analytics | TODO | — | — | — |
 
-Статусы: `TODO` → `IN_PROGRESS` → `REVIEW` → `READY` → `DEPLOYED`.
-Дополнительно: `HANDOFF` — подготовлен подхват; `BLOCKED` — указан конкретный блокер. READY означает принятую реализацию, DEPLOYED — подтверждение на целевом окружении. Поля автора, аудитора и владельца приёмки заполняются по факту.
+## Реестр этапов KZ Price Hunter 1.0 (Legacy P00–P16)
 
 | Этап | Статус | Исполнитель | Аудит | Прод |
 |---|---|---|---|---|
@@ -75,6 +70,229 @@
 | P14 | DEPLOYED (v5.12.0) | Claude → Codex → Claude | Claude: просмотр исправлений K01/K02; совместный suite OK | v5.12.0 на shop.molthun.ru с 14:52 (проверка чтением /api/version, /api/stats, /monitoring) |
 | P15 | DEPLOYED (v5.12.0) | Claude | Codex: L01–L04 закрыты в проверенном объёме | v5.12.0 на shop.molthun.ru с 14:52 (проверка чтением /api/version, /api/stats, /monitoring) |
 | P16 | DEPLOYED (v5.13.0) | Claude | Codex: M07–M09 закрыты | v5.15.0 на shop.molthun.ru (проверка чтением /api/version, /monitoring) |
+
+## Карточка текущей задачи: S2-E01 (Domain Model: Product, Seller, Channel, Offer)
+
+```text
+ID / этап: S2-E01. Domain Model: Product, Seller, Channel, Offer (KZ Price Hunter 2.0)
+Цель и контекст:
+  - Переход от упрощённой модели (Shop -> Product -> Price) к масштабируемой платформе:
+      Product (товар/модель)
+        ↓
+      Seller (реальный продавец, напр. 4mobile, Mechta, Sulpak, локальный магазин)
+        ↓
+      Channel (канал продаж: direct, website, kaspi, forte, halyk, instagram, whatsapp, physical_store)
+        ↓
+      Offer (конкретное торговое предложение продавца в конкретном канале: цена, скидка, город, состояние, ссылка)
+  - Обеспечить нулевой простой (zero-downtime) и обратную совместимость: существующие 37 адаптеров продолжают
+    работать как Source Adapters. Старые API (/api/products, /api/best-price, /api/deals, /monitoring) работают штатно.
+  - Подготовить архитектуру репозиториев (Repository Pattern), изолирующую доступ к SQLite и готовую к будущему PostgreSQL.
+Основание/поручение владельца: «Добавление магазинов завершено. Переходим к KZ Price Hunter 2.0 — Search Platform.
+  Зафиксируй завершение текущей волны и начни этап 0 нового плана: проверь фактическое состояние проекта и собери исходные
+  показатели. Сохрани чужие незавершённые изменения. Затем подготовь задачи первого этапа новой модели данных, план миграции,
+  критерии приёмки и отката. Переиспользуй уже работающие подсистемы. Веди текущую задачу и следующий точный шаг в AGENT_HANDOFF.md».
+Статус: READY (реализация завершена, замечания аудита Claude A1–B5 полностью устранены)
+Исполнитель / следующий: Antigravity / Claude & Codex для повторного аудита
+Начало и checkpoint: 2026-09-25 20:26 (Asia/Almaty)
+Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-hunter, ветка main, HEAD 17e8264
+Область файлов:
+  domain/__init__.py, domain/models.py, domain/adapter.py,
+  repositories/__init__.py, repositories/schema_v2.py, repositories/base.py,
+  repositories/seller_repo.py, repositories/channel_repo.py, repositories/product_repo.py, repositories/offer_repo.py,
+  database.py, scripts/migrate_v1_to_v2.py,
+  test_domain_models.py, test_repositories.py, test_dual_write.py, test_migration_script.py, test_shadow_read.py,
+  docs/AGENT_HANDOFF.md, docs/DEVELOPMENT_PLAN.md
+Зависимости: S2-E00 (Baseline зафиксирован, 1389 тестов OK, 42 899 товаров, 276 235 записей истории цен, DB 141.85 MB)
+
+Архитектура сущностей 2.0:
+  1. sellers:
+     - id (TEXT PRIMARY KEY, напр. "seller_4mobile", "seller_dns")
+     - slug (TEXT UNIQUE NOT NULL)
+     - name (TEXT NOT NULL)
+     - legal_name (TEXT), bin (TEXT), domain (TEXT), phone (TEXT), rating (REAL)
+     - is_active (INTEGER DEFAULT 1), metadata_json (TEXT DEFAULT '{}'), created_at, updated_at
+  2. channels:
+     - id (TEXT PRIMARY KEY, напр. "chan_4mobile_direct", "chan_4mobile_kaspi")
+     - seller_id (TEXT NOT NULL REFERENCES sellers(id))
+     - channel_type (TEXT NOT NULL), name (TEXT NOT NULL), external_store_id (TEXT), base_url (TEXT)
+     - is_active (INTEGER DEFAULT 1), metadata_json (TEXT DEFAULT '{}'), created_at
+     - UNIQUE(seller_id, channel_type, COALESCE(external_store_id, ''))
+  3. canonical_products:
+     - id (TEXT PRIMARY KEY, напр. "prod_sha256_canonical")
+     - canonical_key (TEXT UNIQUE NOT NULL), title (TEXT NOT NULL), category (TEXT NOT NULL)
+     - brand (TEXT), model (TEXT), description (TEXT), image_url (TEXT), attributes_json (TEXT DEFAULT '{}')
+     - created_at, updated_at
+  4. offers:
+     - id (TEXT PRIMARY KEY, напр. "off_<external_id>")
+     - product_id (TEXT NOT NULL REFERENCES canonical_products(id))
+     - seller_id (TEXT NOT NULL REFERENCES sellers(id))
+     - channel_id (TEXT NOT NULL REFERENCES channels(id))
+     - external_sku (TEXT NOT NULL), url (TEXT NOT NULL), image_url (TEXT)
+     - price (REAL NOT NULL), old_price (REAL), currency (TEXT DEFAULT 'KZT')
+     - condition (TEXT DEFAULT 'NEW'), availability (TEXT DEFAULT 'in_stock'), city (TEXT NOT NULL)
+     - payment_methods_json (TEXT DEFAULT '[]'), installment_months (INTEGER), delivery_type (TEXT), warranty (TEXT)
+     - published_at (TEXT), observed_at (TEXT NOT NULL), is_active (INTEGER DEFAULT 1)
+     - raw_payload_json (TEXT DEFAULT '{}'), created_at, updated_at
+     - UNIQUE(channel_id, external_sku)
+  5. offer_price_history:
+     - offer_id (TEXT NOT NULL REFERENCES offers(id)), price (REAL NOT NULL), old_price (REAL), observed_at (TEXT NOT NULL)
+     - PRIMARY KEY (offer_id, observed_at)
+
+Сделано:
+  1. `domain/models.py` и `domain/__init__.py`:
+     - Строгие dataclasses: `Seller`, `Channel`, `CanonicalProduct`, `Offer`, `OfferPriceHistory`.
+     - Перечисления и нормализаторы: `Condition` (NEW, USED, REFURBISHED, OPEN_BOX, UNKNOWN) с парсингом
+       строк б/у, восстановленный, уценённый; исключены ложные срабатывания (B1: "бумага", "тумбу" не считаются USED);
+       `Availability` (in_stock, out_of_stock, preorder, unknown) с приоритетной проверкой отсутствия и нормализацией
+       "нет данных" -> UNKNOWN (B2).
+     - Метод `to_dict()` и `from_row()` для бесшовной сериализации и работы с SQLite/JSON.
+  2. `repositories/schema_v2.py`:
+     - Аддитивный DDL: таблицы и индексы создаются через IF NOT EXISTS.
+     - Индексация по slug, domain, seller_id, channel_type, canonical_key, brand, product_id, seller_id,
+       city, price, is_active, condition, observed_at.
+     - Идемпотентная функция `init_schema_v2(conn)`.
+  3. `repositories/` (Repository Pattern):
+     - `BaseRepository`: инкапсулирует соединение, row_factory = sqlite3.Row, методы транзакций.
+     - `SellerRepository`: save_or_update, get_by_id, get_by_slug, get_or_create, list_sellers.
+     - `ChannelRepository`: save_or_update, get_by_id, get_or_create, list_by_seller.
+     - `ProductRepository`: save_or_update, get_by_id, get_by_canonical_key, get_or_create_canonical (с
+       обогащением атрибутов), list_products.
+     - `OfferRepository`: save_or_update, add_price_observation, get_by_id, get_by_channel_sku,
+       get_active_offers_for_product (с сортировкой по цене, фильтрацией по городу и состоянию),
+       get_price_history (B3: гарантирован выбор последних N точек по времени в хронологическом порядке), count_offers.
+  4. `domain/adapter.py`:
+     - Адаптер `sync_legacy_product_to_v2`: транслирует любой входящий словарь товара из 37 скраперов
+       в граф 2.0 (Seller -> Channel -> CanonicalProduct -> Offer -> OfferPriceHistory).
+     - Маппинг магазинов (A1): поддержка системных `config.SHOP_KEYS`, точных display names, казахских/русских названий,
+       транслитерации кириллицы `transliterate_to_slug` и изолированного хэш-слага при неизвестном магазине.
+     - Проверено параметризованным тестом на все 37 сетей Казахстана: 0 слияний в unknown_seller, 37 уникальных slugs.
+  5. `database.py`:
+     - В `_create_schema` добавлен вызов `init_schema_v2(cursor.connection)` (аддитивно, schema_version = 5).
+     - В `save_or_update_product` и `save_or_update_products_batch` интегрирован Dual-Write v2:
+       каждая пачка входящих товаров пишется в legacy `products`/`price_observations` и параллельно в v2.
+     - Принцип Fail-Open и полная наблюдаемость (A2): счётчики `_DUAL_WRITE_STATS`, метод `get_dual_write_stats()`,
+       логирование `logger.warning`, запись события `telemetry.record_event("dual_write_error", ...)`.
+     - Feature Flag `DUAL_WRITE_V2`: возможность мгновенного отключения без рестарта (`DUAL_WRITE_V2=0`).
+  6. `scripts/migrate_v1_to_v2.py`:
+     - Полноценный CLI инструмент миграции и бэкфилла.
+     - Поддержка создания согласованного снапшота через SQLite Backup API (`--create-snapshot-to`).
+     - Пакетная обработка товаров и срезов цен с транзакциями батчами.
+     - Учёт пропущенных товаров `products_skipped` (B5), флаги `--batch-size`, `--dry-run`, проверка `PRAGMA integrity_check`.
+  7. Новые наборы автотестов (16 тестов):
+     - `test_domain_models.py`: 5 тестов (сериализация, B1/B2 нормализация состояний, A1 проверка всех 37 магазинов).
+     - `test_repositories.py`: 5 тестов (CRUD, Cross-channel/Cross-seller, B3 лимиты истории цен).
+     - `test_dual_write.py`: 4 теста (одиночная/батчевая запись, отключение DUAL_WRITE_V2, A2 телеметрия сбоев).
+     - `test_migration_script.py`: 1 тест (Backup API, dry-run, бэкфилл, B5 skipped, идемпотентность).
+     - `test_shadow_read.py`: 1 тест (parity лучших цен между v1 SQL и v2 OfferRepository).
+
+Проверки (macOS, Python 3.14.7 venv, DATA_DIR=$(mktemp -d), 2026-09-25):
+  - Новые тесты этапа: Ran 16 tests in 0.14s, OK.
+  - Полный регрессионный suite проекта: Ran 1405 tests in 68.024s, OK (все 1389 legacy + 16 новых, 0 failures, 0 errors).
+  - Контракт изоляции тестов: `test_config_and_ids` проходит (10 тестов OK), рабочая `prices.db` не затронута.
+  - Реальный прогон миграции на снапшоте рабочей БД:
+    * Исходный файл: `prices.db` (141.85 MB, 42 899 товаров, 276 235 записей цен).
+    * Снапшот создан за **0.24 с**.
+    * Полная миграция 42 899 товаров и 276 235 записей цен выполнена за **4.70 с** (без единой ошибки).
+    * Сформировано сущностей: 24 продавца, 24 канала, 33 933 канонических товара, 42 899 офферов, 276 235 записей цен.
+    * `PRAGMA integrity_check`: ok.
+  - Состояние рабочей `prices.db`: размер 148 738 048 байт, 42 899 товаров, 276 235 наблюдений, schema_version=5 (не изменилась).
+
+Критерии приёмки и отката (подтверждено на практике):
+  - Приёмка: 100% тестов (1405) проходят; целостность данных подтверждена; parity v1/v2 подтверждено.
+  - Откат: `DUAL_WRITE_V2=0` мгновенно отключает запись в v2; новые таблицы изолированы; schema_version не менялась.
+
+Следующий точный шаг:
+  - Claude / Codex: повторный аудит закрытия замечаний A1, A2, B1, B2, B3, B5.
+  - Затем переход к реализации Этапа 2 (S2-E02. Seller Identity & Seller Graph) по плану `docs/SEARCH_PLATFORM_PLAN.md`.
+  - Выпуск и изменения прода: строго по отдельному поручению владельца.
+```
+
+## Доработки после повторного аудита (Claude, 2026-09-25)
+
+```text
+Основание: поручение владельца «запиши B2 и N1 в карточки, закрой N2 и исправь недочёты».
+Исполнитель: Claude. Область файлов: test_dual_write.py, web/server.py, domain/adapter.py,
+  scripts/migrate_v1_to_v2.py, docs/AGENT_HANDOFF.md, docs/S2_E01_AUDIT_CLAUDE.md.
+
+Сделано:
+  1. (N2) test_dual_write_failure_telemetry_and_stats теперь проверяет и телеметрию, а не только
+     счётчики: сбрасывает буфер телеметрии и убеждается, что событие dual_write_error с severity
+     WARNING и component system попало в telemetry_events. Раньше вызов телеметрии был обёрнут в
+     except Exception: pass, и его поломка отключила бы наблюдаемость молча.
+     Проверено на осмысленность: с переименованной константой тест падает с сообщением
+     «сбой двойной записи обязан попасть в журнал событий».
+  2. (N3) Ключ магазина прокинут в путь сохранения: _save_and_detect принимает shop_key и
+     проставляет его каждому товару, а обход передаёт ключ реестра. Теперь продавец в модели 2.0
+     определяется по ключу (шаг 1 резолва), а не по отображаемому имени: имя магазин может сменить,
+     ключ реестра — нет. Раньше ветка резолва по ключу была мёртвой, потому что shop_key в словарь
+     товара не клал никто.
+  3. (N4) Запасной slug из хеша больше не даёт seller_seller_<hash>: префикс убран (unnamed_<hash>).
+  4. (N4) Пробный прогон миграции (--dry-run) больше не считает все строки перенесёнными: пропуски
+     по цене считаются по тем же правилам, что и в настоящем прогоне, иначе он обещал больше,
+     чем сделает настоящий.
+
+Перенесено в карточки будущих этапов (не исправлялось намеренно, это решения этапов):
+  - B2 (умолчания Condition/Availability) и «уценка» -> карточка S2-E04.
+  - N1 (склейка продавцов по подстроке) -> карточка S2-E05.
+
+Проверки: полный набор 1405 тестов OK, compileall чисто, рабочая prices.db не изменялась.
+```
+
+## Карточка задачи: S2-E04 (Condition / б/у рынок) — записано по итогам аудита
+
+```text
+ID / этап: S2-E04. Condition / б/у рынок (NEW, USED, REFURBISHED, OPEN_BOX, UNKNOWN)
+Статус: TODO. Карточка заведена заранее: здесь зафиксированы допущения модели 2.0, которые
+  обязательно пересмотреть до подключения источников с неизвестным состоянием товара.
+Основание: независимый аудит S2-E01 (docs/S2_E01_AUDIT_CLAUDE.md), замечания B2 и «уценка».
+
+Обязательно к пересмотру до реализации этапа:
+  1. (B2) Отсутствие данных сегодня трактуется как уверенный ответ:
+       Condition.normalize(None)    -> NEW
+       Availability.normalize(None) -> in_stock
+     Это осознанное допущение текущей волны: все 37 подключённых источников продают новое и в
+     наличии, а в legacy-модели поля состояния нет вовсе. Допущение безопасно ровно до тех пор,
+     пока не появятся доски объявлений, Instagram и частные продавцы — то есть до этого этапа.
+     Оно противоречит общему правилу проекта «отсутствие наблюдения — это неизвестно, а не в
+     порядке», поэтому решение принимается явно: либо менять умолчание на UNKNOWN, либо оставить
+     и записать причину. Молча оставлять нельзя.
+  2. («уценка») Строка «уценка/уценённый» сейчас относится к USED. Уценённый товар часто новый
+     с повреждённой упаковкой (раздел «Уценка» у MasterOK — именно такой), и отнесение его к USED
+     исключит эти позиции из «лучшей цены на новое». Решить, что это: USED, OPEN_BOX или UNKNOWN.
+  3. Требование плана: «Б/у не смешивается с новыми товарами в одной лучшей цене». Любое умолчание,
+     которое превращает неизвестное состояние в NEW, это требование нарушает по умолчанию.
+
+Проверки, которые должны появиться вместе с этапом:
+  - строки-ловушки нормализации (уже есть в test_domain_models.py, дополнить решением по «уценке»);
+  - выбор «Новое / Б/у / Все» не смешивает состояния в одной лучшей цене.
+```
+
+## Карточка задачи: S2-E05 (Seller Discovery) — записано по итогам аудита
+
+```text
+ID / этап: S2-E05. Seller Discovery & Source Profiler
+Статус: TODO. Карточка заведена заранее: здесь зафиксирован дефект, который спит до этого этапа.
+Основание: повторный аудит S2-E01 (docs/S2_E01_AUDIT_CLAUDE.md), замечание N1.
+
+Обязательно исправить до первого запуска discovery:
+  (N1) resolve_seller_and_channel_meta на шаге 4 сопоставляет названия по вхождению подстроки.
+  Для форматов одной сети это желаемое поведение («Магнум Экспресс» -> magnum), но на произвольных
+  названиях даёт ложные склейки. Проверено на живом коде:
+       «Форте Банк» -> fortemarket (канал forte)
+       «Мир Каспия» -> kaspi       (канал kaspi)
+  Это посторонние организации, объединённые с торговыми сетями по совпадению букв.
+  Сегодня влияния нет: таких магазинов в реестре нет, все 37 резолвятся точным совпадением
+  (шаги 1-3) и покрыты тестом test_all_shop_keys_seller_resolution. Дефект проснётся ровно здесь,
+  когда в систему начнут попадать произвольные названия из поиска, карт и маркетплейсов.
+
+  Варианты: сопоставлять по границам слова; либо применять шаг 4 только к известным 37, а
+  произвольные названия сразу отправлять на транслитерацию (шаг 5) — она уже даёт различимые
+  и безопасные slug.
+
+Связь с планом: этап 2 плана требует «Нельзя автоматически объединять продавцов только потому,
+  что названия похожи», и вводит статусы AUTO_MATCH / REVIEW / REJECT. Склейка по подстроке — это
+  AUTO_MATCH без каких-либо оснований, поэтому её нужно снять до того, как появится сам механизм.
+```
 
 ## Карточка задачи: T01 (изоляция тестов)
 

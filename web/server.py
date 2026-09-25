@@ -1032,7 +1032,7 @@ def enabled_shop_keys(settings=None):
     enabled = s.get("enabled_shops", {})
     return [key for key in SHOP_REGISTRY if enabled.get(key, True)]
 
-async def _save_and_detect(prods, shop_name, candidate_settings):
+async def _save_and_detect(prods, shop_name, candidate_settings, shop_key=None):
     """Сохраняет товары категории одной транзакцией и записывает кандидатов в аномалии.
 
     Пакетная запись важна не только для скорости: магазины сканируются параллельно,
@@ -1040,6 +1040,12 @@ async def _save_and_detect(prods, shop_name, candidate_settings):
     """
     if not prods:
         return
+
+    # Ключ магазина известен только здесь, в обходе. Модель 2.0 определяет продавца по нему,
+    # а не по отображаемому имени: имя магазин может сменить, ключ реестра — нет.
+    if shop_key:
+        for item in prods:
+            item.setdefault("shop_key", shop_key)
 
     from database import save_or_update_products_batch, get_price_history_batch
 
@@ -1347,7 +1353,7 @@ async def _scan_shop_categories(key, scraper, categories, shop_name, candidate_s
                 scan_state["total_scanned"] += len(prods)
                 collected += len(prods)
                 _ensure_lease()  # результаты пишет только владелец аренды (R-H03)
-                await _save_and_detect(prods, shop_name, candidate_settings)
+                await _save_and_detect(prods, shop_name, candidate_settings, shop_key=key)
                 await asyncio.to_thread(reconcile_source, key, cat["url"], prods,
                                         assessment["may_retire"] and not error)
                 await asyncio.to_thread(record_source_scan, key, cat["url"], cat["name"], current_scan_id.get(),
