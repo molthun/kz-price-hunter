@@ -158,5 +158,67 @@ class CheckAndQueueTest(unittest.TestCase):
         self.assertIn("https://shop.kz/y.php", text)
 
 
+class MonitoringSectionTest(unittest.TestCase):
+    def setUp(self):
+        database.init_db()
+        with database.get_connection() as conn:
+            conn.execute("DELETE FROM shop_notices")
+            conn.commit()
+
+    def test_without_any_check_status_is_unknown_not_clean(self):
+        """Молчание не должно выглядеть проверенной чистотой."""
+        import monitoring
+        section = monitoring.notices_section()
+        self.assertEqual(section["status"], monitoring.UNKNOWN)
+        self.assertEqual(section["items"], [])
+        self.assertIn("не выполнялась", section["reason"])
+
+    def test_found_notice_is_shown_with_its_link(self):
+        import monitoring
+        database.save_shop_notice(
+            "shopkz", "shop.kz", "aaa",
+            json.dumps([{"text": "Возьмите готовую выгрузку.", "source": "b.js",
+                         "url": "https://shop.kz/y.php"}], ensure_ascii=False),
+            "2026-09-25T10:00:00+00:00")
+        section = monitoring.notices_section()
+        self.assertEqual(len(section["items"]), 1)
+        item = section["items"][0]
+        self.assertEqual(item["host"], "shop.kz")
+        self.assertEqual(item["links"], ["https://shop.kz/y.php"])
+        self.assertEqual(section["last_check_at"], "2026-09-25T10:00:00+00:00")
+
+    def test_missing_table_is_unknown_and_does_not_break_the_page(self):
+        """На базе без миграции раздел отвечает «неизвестно», а не роняет мониторинг."""
+        import monitoring
+        with patch.object(database, "get_shop_notices",
+                          side_effect=Exception("no such table: shop_notices")):
+            section = monitoring.notices_section()
+        self.assertEqual(section["status"], monitoring.UNKNOWN)
+        self.assertEqual(section["items"], [])
+
+
+class RouteTest(unittest.IsolatedAsyncioTestCase):
+    async def test_notices_endpoint_is_admin_only(self):
+        import auth
+        import web.server as server
+        from aiohttp.test_utils import TestServer
+        from test_support import BrowserTestClient as TestClient
+        database.init_db()
+        for uid in (9911, 9912):
+            database.upsert_telegram_user({"id": uid, "first_name": "U"})
+        tokens = {uid: database.create_session(uid) for uid in (9911, 9912)}
+        app = server.create_app()
+        app.cleanup_ctx.clear()
+        async with TestClient(TestServer(app)) as client:
+            self.assertEqual((await client.get("/api/admin/monitoring/notices")).status, 401)
+            client.session.cookie_jar.update_cookies({auth.SESSION_COOKIE: tokens[9911]})
+            self.assertEqual((await client.get("/api/admin/monitoring/notices")).status, 403)
+            with patch.object(auth, "ADMIN_TELEGRAM_IDS", {9912}):
+                client.session.cookie_jar.update_cookies({auth.SESSION_COOKIE: tokens[9912]})
+                res = await client.get("/api/admin/monitoring/notices")
+                self.assertEqual(res.status, 200)
+                self.assertIn("status", await res.json())
+
+
 if __name__ == "__main__":
     unittest.main()

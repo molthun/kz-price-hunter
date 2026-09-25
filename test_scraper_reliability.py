@@ -1603,11 +1603,11 @@ class NewSourcesEndProofTest(unittest.TestCase):
         with self.assertRaises(UnconfirmedEnd):
             s._fetch_page("Жаропонижающие", "https://europharma.kz/catalog/zharoponizhayushchiye", 1)
 
-        # 404 on page 2 -> complete
+        # 404 на странице 2 — конец не подтверждён: так же выглядит блокировка, а подтверждённый
+        # конец каталога пометил бы недосмотренные товары снятыми с продажи (решение из 5.17.2)
         session.get = Mock(return_value=Mock(status_code=404))
-        res_404 = s._fetch_page("Жаропонижающие", "https://europharma.kz/catalog/zharoponizhayushchiye", 2)
-        self.assertTrue(res_404.complete)
-        self.assertEqual(len(res_404), 0)
+        with self.assertRaises(UnconfirmedEnd):
+            s._fetch_page("Жаропонижающие", "https://europharma.kz/catalog/zharoponizhayushchiye", 2)
 
     def test_french_house_retry_on_transient_error(self):
         from scrapers.french_house import FrenchHouseScraper
@@ -1680,11 +1680,11 @@ class NewSourcesEndProofTest(unittest.TestCase):
         with self.assertRaises(UnconfirmedEnd):
             s._fetch_page("Парфюмерия", "https://french-house.kz/catalog/parfyumeriya/", 1)
 
-        # 404 on page 2 -> complete
+        # 404 на странице 2 — конец не подтверждён: так же выглядит блокировка, а подтверждённый
+        # конец каталога пометил бы недосмотренные товары снятыми с продажи (решение из 5.17.2)
         session.get = Mock(return_value=Mock(status_code=404))
-        res_404 = s._fetch_page("Парфюмерия", "https://french-house.kz/catalog/parfyumeriya/", 2)
-        self.assertTrue(res_404.complete)
-        self.assertEqual(len(res_404), 0)
+        with self.assertRaises(UnconfirmedEnd):
+            s._fetch_page("Парфюмерия", "https://french-house.kz/catalog/parfyumeriya/", 2)
 
 
 

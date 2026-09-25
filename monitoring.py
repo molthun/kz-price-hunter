@@ -1133,3 +1133,66 @@ def backup_section(now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
                 "копия считается непроверенной. Внутренняя проверка не заметит полную остановку процесса — "
                 "это видно только наблюдателю снаружи.",
     }
+
+
+def notices_section(now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
+    """Обращения магазинов к тем, кто их парсит (см. shop_notices.py).
+
+    Статус опирается на то, что мы видели, а не на молчание: пока проверка ни разу не прошла,
+    здесь «неизвестно», а не «обращений нет». Само наличие обращения — не поломка: магазин может
+    предлагать готовую выгрузку. Поэтому найденное показывается как сведения, а не как авария.
+    """
+    import json as _json
+    import shop_notices
+    import database
+
+    moment = now or _now()
+    try:
+        rows = database.get_shop_notices()
+    except Exception as e:
+        # База старше этой возможности (таблица появляется в init_db). Это «неизвестно», а не
+        # «обращений нет»: молчание не должно выглядеть как проверенная чистота.
+        return {"status": UNKNOWN, "reason": f"Хранилище обращений недоступно: {type(e).__name__}",
+                "items": [], "last_check_at": None,
+                "interval_hours": shop_notices.CHECK_INTERVAL_HOURS,
+                "generated_at": moment.isoformat(), "note": ""}
+
+    items = []
+    for key, row in sorted(rows.items()):
+        try:
+            notices = _json.loads(row["notices"])
+        except (ValueError, TypeError):
+            notices = []
+        items.append({
+            "shop_key": key,
+            "host": row["host"],
+            "notices": notices,
+            "links": sorted({n.get("url") for n in notices if n.get("url")}),
+            "first_seen_at": row["first_seen_at"],
+            "last_changed_at": row["last_changed_at"],
+            "last_checked_at": row["last_checked_at"],
+        })
+
+    checked = [row["last_checked_at"] for row in rows.values() if row.get("last_checked_at")]
+    last_check = max(checked) if checked else None
+    if not rows:
+        status = UNKNOWN
+        reason = "Проверка ещё не выполнялась: о сообщениях магазинов пока ничего не известно"
+    elif items:
+        status = HEALTHY
+        reason = f"Найдено обращений: {len(items)}. Магазин может предлагать готовую выгрузку"
+    else:
+        status = HEALTHY
+        reason = "Обращений не найдено"
+
+    return {
+        "status": status,
+        "reason": reason,
+        "items": items,
+        "last_check_at": last_check,
+        "interval_hours": shop_notices.CHECK_INTERVAL_HOURS,
+        "generated_at": moment.isoformat(),
+        "note": ("Проверяются главная страница магазина и его собственные скрипты: сообщение может "
+                 "жить внутри собранного JS-бандла, а не в разметке. Новое или изменившееся "
+                 "обращение приходит владельцу в Telegram один раз."),
+    }

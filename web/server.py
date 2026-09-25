@@ -2087,6 +2087,15 @@ async def monitoring_backups_handler(request):
     return web.json_response(data, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
 
 
+@routes.get("/api/admin/monitoring/notices")
+@require_admin
+async def monitoring_notices_handler(request):
+    """Обращения магазинов к тем, кто их парсит (shop_notices.py). Только чтение."""
+    import monitoring
+    data = await asyncio.to_thread(monitoring.notices_section)
+    return web.json_response(data, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
 @routes.get("/api/admin/monitoring/environment")
 @require_admin
 async def monitoring_environment_handler(request):

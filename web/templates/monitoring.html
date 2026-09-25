@@ -274,6 +274,7 @@
       const s = data.sections.system, t = s.telemetry || {};
       const shadowBox = '<div id="environmentBox" class="mt-4"><p class="text-sm text-slate-500">Смотрю окружение…</p></div>'
         + '<div id="backupsBox" class="mt-4"><p class="text-sm text-slate-500">Проверяю состояние копий…</p></div>'
+        + '<div id="noticesBox" class="mt-4"><p class="text-sm text-slate-500">Смотрю обращения магазинов…</p></div>'
         + '<div id="matchingShadow" class="mt-4"><p class="text-sm text-slate-500">Загружаю отчёт сопоставления…</p></div>';
       const errs = (s.recent_errors || []).map(e => `<li class="break-words">${ago(e.timestamp)} · ${esc(e.component)} · ${esc(e.where)} · ${esc(e.error)}${e.route ? ' · ' + esc(e.route) : ''}</li>`).join('');
       const hours = s.uptime_seconds ? Math.floor(s.uptime_seconds / 3600) : 0;
@@ -493,6 +494,35 @@
       + card('Сроки хранения', `<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="text-xs text-slate-400 text-left"><tr>
           <th class="pb-1 pr-3">Данные</th><th class="pb-1 pr-3 text-right">Храним</th>
           <th class="pb-1 pr-3 text-right">Строк сейчас</th><th class="pb-1 pr-3">Зачем</th></tr></thead><tbody>${retention}</tbody></table></div>`);
+  }
+
+  async function loadNotices() {
+    // Обращения магазинов к тем, кто их парсит. Текст магазина показывается цитатой и
+    // обязательно экранируется: это чужой текст с их сайта, а не наш.
+    const box = document.getElementById('noticesBox');
+    if (!box) return;
+    const s = await api('/api/admin/monitoring/notices');
+    if (!s) { box.innerHTML = '<p class="text-sm text-rose-300">Не удалось загрузить обращения магазинов.</p>'; return; }
+    const rows = (s.items || []).map(item => {
+      const quotes = (item.notices || []).map(n =>
+        `<div class="text-sm text-slate-200 break-words">« ${esc(n.text)} »</div>`).join('');
+      const links = (item.links || []).map(u =>
+        `<div class="text-xs text-slate-400 break-all">${esc(u)}</div>`).join('');
+      return `<tr class="border-t border-slate-800 align-top">
+        <td class="py-2 pr-3 break-words">${esc(item.host || item.shop_key)}</td>
+        <td class="py-2 pr-3">${quotes}${links}</td>
+        <td class="py-2 pr-3 whitespace-nowrap">${ago(item.first_seen_at)}</td>
+        <td class="py-2 pr-3 whitespace-nowrap">${ago(item.last_changed_at)}</td></tr>`;
+    }).join('');
+    box.innerHTML = card('Обращения магазинов к парсерам', `<p class="text-sm mb-2">${esc(s.reason)}</p>` + kv([
+        ['Магазинов с обращением', num((s.items || []).length)],
+        ['Последняя проверка', s.last_check_at ? ago(s.last_check_at) : '—'],
+        ['Проверяем раз в', num(Math.round((s.interval_hours || 0) / 24)) + ' дн.']]) +
+      (rows ? `<div class="overflow-x-auto mt-2"><table class="w-full text-sm"><thead class="text-xs text-slate-400 text-left"><tr>
+          <th class="pb-1 pr-3">Сайт</th><th class="pb-1 pr-3">Что сказал магазин</th>
+          <th class="pb-1 pr-3">Впервые</th><th class="pb-1 pr-3">Изменилось</th></tr></thead><tbody>${rows}</tbody></table></div>`
+        : '<p class="text-sm text-slate-500 mt-2">Обращений пока не найдено.</p>') +
+      `<p class="text-xs text-slate-500 mt-2">${esc(s.note || '')}</p>`, s.status);
   }
 
   async function loadEnvironment() {
@@ -916,7 +946,7 @@
     if (current === 'events') loadEvents();
     if (current === 'search') loadSearchAnalytics();
     if (current === 'ai') loadAiSpending();
-    if (current === 'system') { loadEnvironment(); loadBackups(); loadMatchingShadow(); }
+    if (current === 'system') { loadEnvironment(); loadBackups(); loadNotices(); loadMatchingShadow(); }
     if (current === 'scanning') { loadRollout(); loadSchedulerShadow(); }
   }
 

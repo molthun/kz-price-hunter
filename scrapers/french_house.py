@@ -156,8 +156,12 @@ class FrenchHouseScraper(PagedScraper):
             raise UnconfirmedEnd(f"Не удалось получить ответ для страницы {page_num}")
 
         if resp.status_code == 404:
+            # 404 за последней страницей похож на конец каталога, но так же выглядит блокировка
+            # или сбой CDN. Подтверждённый конец означает, что недосмотренные товары будут помечены
+            # снятыми с продажи, поэтому обход честно остаётся неполным (то же решение, что для
+            # Sulpak в 5.17.2).
             if page_num > 1:
-                return ScanResult([], complete=True)
+                raise UnconfirmedEnd("HTTP 404 после последней доступной страницы")
             raise UnconfirmedEnd("Категория не найдена (404 на первой странице)")
 
         if resp.status_code != 200:
