@@ -21,12 +21,13 @@ from scrapers.marwin import MarwinScraper
 from scrapers.iteka import ITekaScraper
 from scrapers.mebel import MebelScraper
 from scrapers.detmir import DetmirScraper
+from scrapers.askona import AskonaScraper
 
 
 class ScraperContractTest(unittest.TestCase):
     def test_scraper_classes_conform_to_contract(self):
         # Check standard scrapers
-        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper, LemanaProScraper, ArbuzScraper, MasterOkScraper, MagnumScraper, IntertopScraper, MarwinScraper, ITekaScraper, MebelScraper, DetmirScraper):
+        for cls in (TechnodomScraper, ForteMarketScraper, FourMobileScraper, ShopKzScraper, KaspiScraper, VkusmartScraper, TwelveMonthsScraper, ZetaScraper, KomfortScraper, LemanaProScraper, ArbuzScraper, MasterOkScraper, MagnumScraper, IntertopScraper, MarwinScraper, ITekaScraper, MebelScraper, DetmirScraper, AskonaScraper):
             self.assertTrue(hasattr(cls, "SHOP_NAME"), f"{cls} must define SHOP_NAME")
             self.assertTrue(callable(getattr(cls, "scrape", None)), f"{cls} must define scrape")
             self.assertTrue(callable(getattr(cls, "close", None)), f"{cls} must define close")
@@ -792,6 +793,84 @@ class ScraperContractTest(unittest.TestCase):
         self.assertEqual(results[0]["old_price_on_site"], 15990)
         self.assertEqual(results[0]["shop"], "Детский мир")
         self.assertEqual(results[0]["url"], "https://detmir.kz/product/index/id/554433/")
+        scraper.close()
+
+    def test_askona_parsing_mock(self):
+        from unittest.mock import MagicMock
+        scraper = AskonaScraper()
+
+        html = """
+        <html>
+        <body>
+          <div class="card-v6" data-cur-sku-id="12345" data-id="12345">
+            <a class="card-v6__title" href="/matrasy/ergonomic-sleep-160x200/">Анатомический матрас Sleep Lux 160х200</a>
+            <div class="card-v6__price-actual">189 990 ₸</div>
+            <div class="card-v6__price-old">249 990 ₸</div>
+            <img src="/upload/iblock/sleep_lux.jpg" />
+          </div>
+          <div class="pagination-v3">
+            <a href="/matrasy/page/1/">1</a>
+            <a href="/matrasy/page/2/">2</a>
+            <a href="/matrasy/page/3/">3</a>
+          </div>
+        </body>
+        </html>
+        """
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = html
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        scraper.session = mock_session
+
+        res = scraper._fetch_page("Матрасы", "https://askona.kz/matrasy/", 1)
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0]["id"], "askona_12345")
+        self.assertEqual(res[0]["title"], "Анатомический матрас Sleep Lux 160х200")
+        self.assertEqual(res[0]["price"], 189990)
+        self.assertEqual(res[0]["old_price_on_site"], 249990)
+        self.assertEqual(res[0]["shop"], "Askona")
+        self.assertEqual(res[0]["url"], "https://askona.kz/matrasy/ergonomic-sleep-160x200/")
+        self.assertEqual(res[0]["image_url"], "https://askona.kz/upload/iblock/sleep_lux.jpg")
+        self.assertFalse(res.complete)
+        scraper.close()
+        self.assertIsNone(scraper.session)
+
+    def test_askona_live_search_mock(self):
+        from unittest.mock import MagicMock
+        scraper = AskonaScraper()
+
+        html = """
+        <html>
+        <body>
+          <div class="card-v6" data-cur-sku-id="98765" data-id="98765">
+            <a class="card-v6__title" href="/podushki/alpha-gel/">Анатомическая подушка Alpha Gel</a>
+            <div class="card-v6__price-actual">29 990 ₸</div>
+            <div class="card-v6__price-old">39 990 ₸</div>
+            <img src="https://askona.kz/upload/alpha.jpg" />
+          </div>
+        </body>
+        </html>
+        """
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = html
+
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        scraper.session = mock_session
+
+        results = scraper.search_live("подушка", limit=5)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["id"], "askona_98765")
+        self.assertEqual(results[0]["title"], "Анатомическая подушка Alpha Gel")
+        self.assertEqual(results[0]["price"], 29990)
+        self.assertEqual(results[0]["old_price_on_site"], 39990)
+        self.assertEqual(results[0]["shop"], "Askona")
+        self.assertEqual(results[0]["url"], "https://askona.kz/podushki/alpha-gel/")
         scraper.close()
 
 

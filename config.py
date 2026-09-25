@@ -51,6 +51,7 @@ SHOP_KEYS = {
     "iteka": "i-Teka",
     "mebel": "Mebel.kz",
     "detmir": "Детский мир",
+    "askona": "Askona",
 }
 
 
@@ -1242,6 +1243,21 @@ DETMIR_CATEGORIES = [
     {"name": "Детский мир: 🎨 Хобби и творчество", "url": "https://detmir.kz/catalog/index/name/hobbies_creativity/", "master": "household", "max_pages": 10},
     {"name": "Детский мир: 🛴 Детский транспорт", "url": "https://detmir.kz/catalog/index/name/childrens_transport/", "master": "household", "max_pages": 10},
 ]
+
+# Askona (askona.kz): товары для здорового сна, ортопедические матрасы и мебель
+ASKONA_CATEGORIES = [
+    {"name": "Аскона: 💤 Анатомические матрасы", "url": "https://askona.kz/matrasy/", "master": "home_furniture", "max_pages": 10},
+    {"name": "Аскона: 🛏 Кровати и изголовья", "url": "https://askona.kz/krovati/", "master": "home_furniture", "max_pages": 10},
+    {"name": "Аскона: 🛋 Анатомические диваны", "url": "https://askona.kz/divany/", "master": "home_furniture", "max_pages": 10},
+    {"name": "Аскона: ☁️ Анатомические подушки", "url": "https://askona.kz/podushki/", "master": "home_furniture", "max_pages": 10},
+    {"name": "Аскона: 🪶 Одеяла", "url": "https://askona.kz/odeyala/", "master": "home_furniture", "max_pages": 10},
+    {"name": "Аскона: 🧵 Постельное белье и текстиль", "url": "https://askona.kz/tekstil/", "master": "home_furniture", "max_pages": 10},
+    {"name": "Аскона: 🚪 Мебель для спальни", "url": "https://askona.kz/mebel/", "master": "home_furniture", "max_pages": 10},
+    {"name": "Аскона: 👶 Товары для детей", "url": "https://askona.kz/dlya-detey/", "master": "household", "max_pages": 10},
+    {"name": "Аскона: 💺 Кресла и пуфы", "url": "https://askona.kz/kresla/", "master": "home_furniture", "max_pages": 10},
+    {"name": "Аскона: 🏡 Товары для дома и декор", "url": "https://askona.kz/dlya-doma/", "master": "home_furniture", "max_pages": 10},
+]
+
 
 
 

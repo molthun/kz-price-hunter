@@ -1245,6 +1245,74 @@ class NewSourcesEndProofTest(unittest.TestCase):
         with self.assertRaises(UnconfirmedEnd):
             s._fetch_page("Куклы", "https://detmir.kz/catalog/index/name/kukly/", 1)
 
+    def test_askona_retry_on_transient_error(self):
+        from unittest.mock import Mock, patch
+        from scrapers.askona import AskonaScraper
+
+        s = AskonaScraper()
+        resp502 = Mock(status_code=502)
+        html_ok = """
+        <html><body>
+          <div class="card-v6" data-cur-sku-id="555" data-id="555">
+            <a class="card-v6__title" href="/matrasy/test-matras/">Матрас Test 160х200</a>
+            <div class="card-v6__price-actual">120 000 ₸</div>
+          </div>
+          <div class="pagination-v3">
+            <a href="/matrasy/page/1/">1</a>
+            <a href="/matrasy/page/2/">2</a>
+          </div>
+        </body></html>
+        """
+        resp200 = Mock(status_code=200, text=html_ok)
+        session = Mock(get=Mock(side_effect=[resp502, resp200]))
+        s.session = session
+
+        with patch("time.sleep", return_value=None):
+            res = s._fetch_page("Матрасы", "https://askona.kz/matrasy/", 1)
+
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0]["id"], "askona_555")
+        self.assertEqual(res[0]["price"], 120000)
+        self.assertFalse(res.complete)
+        self.assertEqual(session.get.call_count, 2)
+
+    def test_askona_completion_and_unconfirmed_end(self):
+        from unittest.mock import Mock
+        from scrapers.askona import AskonaScraper
+        from scrapers.base import UnconfirmedEnd
+
+        s = AskonaScraper()
+        # Page 2 of 2 -> complete
+        html_last = """
+        <html><body>
+          <div class="card-v6" data-cur-sku-id="666" data-id="666">
+            <a class="card-v6__title" href="/matrasy/test-matras-2/">Матрас Test 2</a>
+            <div class="card-v6__price-actual">150 000 ₸</div>
+          </div>
+          <div class="pagination-v3">
+            <a href="/matrasy/page/1/">1</a>
+            <a href="/matrasy/page/2/">2</a>
+          </div>
+        </body></html>
+        """
+        session = Mock(get=Mock(return_value=Mock(status_code=200, text=html_last)))
+        s.session = session
+
+        res = s._fetch_page("Матрасы", "https://askona.kz/matrasy/", 2)
+        self.assertEqual(len(res), 1)
+        self.assertTrue(res.complete)
+
+        # Empty page 1 -> UnconfirmedEnd
+        session.get = Mock(return_value=Mock(status_code=200, text="<html><body><div>Пусто</div></body></html>"))
+        with self.assertRaises(UnconfirmedEnd):
+            s._fetch_page("Матрасы", "https://askona.kz/matrasy/", 1)
+
+        # 404 on page 2 -> complete
+        session.get = Mock(return_value=Mock(status_code=404))
+        res_404 = s._fetch_page("Матрасы", "https://askona.kz/matrasy/", 2)
+        self.assertTrue(res_404.complete)
+        self.assertEqual(len(res_404), 0)
+
 
 
 

@@ -4,25 +4,26 @@
 
 ## Текущая контрольная точка
 
-- Дата: 2026-09-25, Asia/Almaty. **Завершён релиз v5.25.0: подключение 31-го магазина — «Детский мир Казахстан» (detmir.kz) + включение обновлённых MASTEROK_CATEGORIES в config.py**.
+- Дата: 2026-09-25, Asia/Almaty. **Завершён релиз v5.26.0: подключение 32-го магазина — «Askona Казахстан» (askona.kz)**.
 - **Исполнитель:** Antigravity.
-- **Область файлов:** `scrapers/detmir.py`, `config.py`, `web/server.py`, `product_details.py`, `web/templates/index.html`, `SOURCES.md`, `README.md`, `version.py`, `CHANGELOG.md`, `test_scraper_contract.py`, `test_scraper_reliability.py`, `test_monitor.py`, `docs/AGENT_HANDOFF.md`.
+- **Область файлов:** `scrapers/askona.py`, `config.py`, `web/server.py`, `product_details.py`, `web/templates/index.html`, `SOURCES.md`, `README.md`, `version.py`, `CHANGELOG.md`, `test_scraper_contract.py`, `test_scraper_reliability.py`, `test_monitor.py`, `docs/AGENT_HANDOFF.md`.
 - **Контекст:**
-  - Подключена крупнейшая сеть детских товаров в Казахстане — гипермаркет **«Детский мир» (detmir.kz)**.
-  - Каталог: SSR HTML с первичным разбором встроенного JSON-состояния гидратации `window.appData`, fallback на DOM-селекторы `section[data-product-id]`, точным вычислением `max_page = math.ceil(productsLength / 36)` и признака `complete`.
-  - Поиск в реальном времени: `/search/results/?qt={query}` с парсингом товаров за ~1с.
-  - 10 категорий охватывают игрушки, LEGO, питание, подгузники, детскую одежду, коляски, автокресла, мебель для детской и транспорт.
-  - Включены проверенные Claude категории `MASTEROK_CATEGORIES` (1199 товаров вместо 99) в `config.py`.
-- **Наблюдение за обращениями магазинов к парсерам, релиз v5.24.0 (Claude, по поручению владельца):**
+  - Подключен крупнейший ритейлер матрасов, кроватей и товаров для спальни — **«Askona Казахстан» (askona.kz)**.
+  - Каталог: SSR HTML с карточками `div.card-v6` (`data-cur-sku-id`, название, цена `card-v6__price-actual`, старая цена `card-v6__price-old`, фото `img[src]`), пагинацией `/category/page/N/` и точным определением последней страницы из `.pagination-v3`.
+  - Поиск в реальном времени: `/?digiSearch=true&term={query}` (SSR карточки за ~1.4с).
+  - 10 категорий каталога охватывают матрасы, кровати, диваны, подушки, одеяла, постельное белье, мебель для спальни, чехлы, детские товары для сна и аксессуары.
+  - Поддержан retry при 5xx и сетевых ошибках, регистрация во всех сервисах и UI.
+  - Тесты: 195 тестов в `test_monitor.py`, `test_scraper_contract.py`, `test_scraper_reliability.py` + 33 теста в `test_data_quality.py` + 0 замечаний в `release_gate.py secrets`.
 - **Предыдущие релизы дня:**
+  - **v5.25.0:** подключение 31-го магазина — гипермаркет детских товаров «Детский мир» (detmir.kz, 10 категорий, search_live).
+  - **v5.24.0:** мониторинг обращений магазинов к краулерам (`shop_notices.py`).
+  - **v5.23.1:** исправление полноты обходов Alser и MasterOK.
   - **v5.23.0:** подключение 30-го магазина — гипермаркет мебели «Mebel.kz» (mebel.kz, 10 категорий home_furniture, search_live API).
   - **v5.22.0:** подключение 29-го магазина — аптечный агрегатор «i-Teka» (i-teka.kz, 9 категорий beauty_health, search_live).
   - **v5.21.0:** подключение 28-го магазина — сеть «Меломан / MARWIN» (marwin.kz, 9 категорий, search_live).
   - **v5.20.0:** подключение 27-го магазина — сеть обуви и одежды «Интертоп» (intertop.kz, 8 категорий clothes).
   - **v5.19.0:** подключение 26-го магазина — розничная сеть «Магнум» (magnum.kz, 15 категорий grocery/household).
   - **v5.18.0:** подъём всего ПО до последних стабильных версий (Python 3.14, playwright 1.63, Ubuntu 26.04).
-  - **v5.17.5:** починка импорта Tuple для static contract test.
-  - **v5.17.4:** устранение ложной деградации магазинов в мониторинге, retry в twelve_months.
 
 
 ## Реестр этапов

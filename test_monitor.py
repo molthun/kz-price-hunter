@@ -2364,6 +2364,19 @@ class TestForteMarketScraper(unittest.TestCase):
             self.assertIn("url", c)
             self.assertTrue(c["master"] in config.MASTER_CATEGORIES)
 
+    def test_registry_contains_askona(self):
+        from web.server import SHOP_REGISTRY
+        from config import SHOP_KEYS, ASKONA_CATEGORIES
+        self.assertIn("askona", SHOP_REGISTRY)
+        scraper_cls, cats, name = SHOP_REGISTRY["askona"]
+        self.assertEqual(name, "Askona")
+        self.assertEqual(cats, ASKONA_CATEGORIES)
+        self.assertEqual(SHOP_KEYS.get("askona"), "Askona")
+        for c in ASKONA_CATEGORIES:
+            self.assertIn("master", c)
+            self.assertIn("url", c)
+            self.assertTrue(c["master"] in config.MASTER_CATEGORIES)
+
     def test_parse_response_and_regional_pricing(self):
         from scrapers.fortemarket import ForteMarketScraper
 

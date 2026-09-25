@@ -18,7 +18,7 @@ A — feed/API владельца с документированным назн
 
 Изображения сохраняются ссылками, server image proxy/cache не обнаружен. Browser и Telegram могут получать их с внешнего источника. Description используется в UI и может дополнительно сохраняться через guest product-detail GET для любого магазина. Его отсутствие в конкретном parser не означает отсутствие копирования текста в целом.
 
-## Матрица 31 источника
+## Матрица 32 источников
 
 | Модуль / класс | Тип / механизм | Timeout / pacing | Session, pagination, retry | Поля и ограничения |
 |---|---|---|---|---|
@@ -53,6 +53,7 @@ A — feed/API владельца с документированным назн
 | `scrapers/iteka.py` / `ITekaScraper` | D; i-teka.kz SSR HTML (Yii2 + Alpine.js) div.rounded-16 | 20 с; 0.4 с | Session chrome124; ?page=N; retry 5xx; **конец доказан** номером последней страницы в пагинации (pagination_last_page с GlossaryTnfull_page); живой поиск /search?query= | id/sku/title/price/old_price/image_url; Астана / регионы; описание нет |
 | `scrapers/mebel.py` / `MebelScraper` | D + B; mebel.kz SSR HTML .ProductCardMain + schema.org ItemList | 20 с; 0.4 с | Session chrome124; /page-N; retry 5xx; **конец доказан** номером последней страницы в пагинации (/page-N); живой поиск proxy.mebel.kz/backend/search/ | id/sku/title/price/old_price/image_url; Алматы / Казахстан; описание есть |
 | `scrapers/detmir.py` / `DetmirScraper` | C + D; detmir.kz SSR HTML + window.appData JSON + section[data-product-id] | 20 с; 0.4 с | Session chrome124; /page/N/; retry 5xx; **конец доказан** по productsLength в appData и пагинатору; живой поиск /search/results/?qt= | id/sku/title/price/old_price/image_url; Алматы / Казахстан; описание нет |
+| `scrapers/askona.py` / `AskonaScraper` | D; askona.kz SSR HTML div.card-v6 | 20 с; 0.4 с | Session chrome124; /page/N/; retry 5xx; **конец доказан** по номерам страниц в .pagination-v3; живой поиск /?digiSearch=true&term= | id/sku/title/price/old_price/image_url; Алматы / Казахстан; описание нет |
 
 ## Пути вне основного фонового scan
 
@@ -545,6 +546,21 @@ A — feed/API владельца с документированным назн
 | Детский мир: 🛏 Детская комната | home_furniture | `https://detmir.kz/catalog/index/name/childrens_room/` | 10 |
 | Детский мир: 🎨 Хобби и творчество | household | `https://detmir.kz/catalog/index/name/hobbies_creativity/` | 10 |
 | Детский мир: 🛴 Детский транспорт | household | `https://detmir.kz/catalog/index/name/childrens_transport/` | 10 |
+
+### AskonaScraper — 10 настроенных источников категории
+
+| Категория | Master | URL/query | max_pages |
+|---|---|---|---|
+| Аскона: 💤 Анатомические матрасы | home_furniture | `https://askona.kz/matrasy/` | 10 |
+| Аскона: 🛏 Кровати и изголовья | home_furniture | `https://askona.kz/krovati/` | 10 |
+| Аскона: 🛋 Анатомические диваны | home_furniture | `https://askona.kz/divany/` | 10 |
+| Аскона: ☁️ Анатомические подушки | home_furniture | `https://askona.kz/podushki/` | 10 |
+| Аскона: 🪶 Одеяла | home_furniture | `https://askona.kz/odeyala/` | 10 |
+| Аскона: 🧵 Постельное белье и текстиль | home_furniture | `https://askona.kz/tekstil/` | 10 |
+| Аскона: 🚪 Мебель для спальни | home_furniture | `https://askona.kz/mebel/` | 10 |
+| Аскона: 👶 Товары для детей | household | `https://askona.kz/dlya-detey/` | 10 |
+| Аскона: 💺 Кресла и пуфы | home_furniture | `https://askona.kz/kresla/` | 10 |
+| Аскона: 🏡 Товары для дома и декор | home_furniture | `https://askona.kz/dlya-doma/` | 10 |
 
 ## Перед подключением следующего магазина
 
