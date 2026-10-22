@@ -23,6 +23,7 @@
   8. Выполнена оптимизация веб-слоя (шаги 12–16): gzip для крупных ответов, кэш сводных счётчиков `/api/stats`; rate limiting и worker pool Telegram уже были, кэш ответов бота не внедрён по причинам контекста и свежести цен (см. карточку ниже).
   9. Покрытие тестами подключено к CI (порог 80%, текущий замер 84%) и актуализированы числа документации: 37 сетей, 42 899 товаров, версия 6.1.0 (см. карточку ниже).
   10. Реализован **S2-E15/E17 (Adaptive Scheduler 2.0)**: shadow-план по сигналам спроса и PENDING-задачам discovery, контролируемое включение через `ADAPTIVE_SCHEDULER_2`, таблица `scheduler_plans`, admin-эндпоинт плана (см. карточку ниже).
+  11. Подготовлен **релиз v6.2.0**: `version.py`, CHANGELOG, ROADMAP и README обновлены, создан локальный тег `v6.2.0`; **push не выполнен** — он публикует образ и ждёт отдельной команды владельца (см. карточку ниже).
 
 ## Карточка задачи: ускорение детектора, JSON AI и обслуживание FTS5 (2026-10-22)
 
@@ -77,12 +78,14 @@ Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-h
 ## Результаты проверок Codex (2026-10-22)
 
 ```text
-Срез: main, HEAD e802095 + незакоммиченное дерево Adaptive Scheduler 2.0.
+Срез: main, HEAD b1bfd5e + незакоммиченное дерево релиза v6.2.0.
 Тесты:
-  - tests/scheduler/test_adaptive_scheduler_v2.py: 23/23 PASS.
-  - Полный suite проекта: Ran 1674 tests in 72.941s, OK (0 failures, 0 errors), временный DATA_DIR.
-  - Покрытие по-прежнему выше порога 80% (CI-проверка не менялась).
+  - Полный suite проекта: 1674 PASS (последний прогон 72.941s, 0 failures, 0 errors).
+  - Покрытие: 84% (порог CI 80%).
   - compileall OK; release_gate.py secrets — 0 findings.
+  - version.py = 6.2.0 (release_date 2026-10-22), локальный тег v6.2.0.
+БД:
+  - prices.db неприкосновенна; schema_version остаётся 5 (все схемы аддитивные).
 БД:
   - prices.db неприкосновенна (148 738 048 байт, mtime 24.09).
   - CI workflow валиден (Ruby YAML). .coverage в .gitignore, в репозиторий не попадает.
@@ -93,6 +96,30 @@ Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-h
   - Независимый аудит S2-E06; затем S2-E15/E17 (Adaptive Scheduler 2.0) и релиз v6.2.0.
 ```
 
+
+## Релиз v6.2.0 (подготовка, 2026-10-22)
+
+```text
+Статус: release-коммит + локальный тег v6.2.0; push НЕ выполнен (публикует образ).
+Исполнитель: Codex (по поручению владельца)
+Checkout / ветка / базовый HEAD: main, HEAD b1bfd5e + незакоммиченное дерево релиза
+Область файлов: version.py, CHANGELOG.md, ROADMAP_AND_LOG.md, README.md, docs/AGENT_HANDOFF.md
+Что сделано:
+  - version.py: 6.2.0, дата выпуска 2026-10-22;
+  - CHANGELOG [6.2.0]: S2-E06, S2-E08, S2-E11, S2-E13, S2-E14, S2-E15, S2-E16, S2-E17,
+    оптимизации (детектор/AI JSON/FTS5/поиск/скраперы/веб), тесты и CI, границы выпуска;
+  - ROADMAP_AND_LOG: раздел [6.2.0];
+  - README: «Текущая версия» и version.py → 6.2.0;
+  - git-тег v6.2.0 (лёгкий, как предыдущие).
+Что проверено:
+  - полный suite: 1674 PASS; compileall OK; release_gate.py secrets — 0 findings;
+  - покрытие 84% (CI-порог 80%); prices.db не изменялась; schema_version остаётся 5.
+Что осталось:
+  - push в main + тег v6.2.0 — только по отдельной команде владельца: он публикует образ,
+    Watchtower забирает latest;
+  - после выката проверить на проде /api/version, /api/stats, /monitoring;
+  - независимые аудиты S2-E06, S2-E08, S2-E15/E17 остаются открытыми.
+```
 
 ## Карточка задачи: S2-E15/E17 (Adaptive Scheduler 2.0)
 
