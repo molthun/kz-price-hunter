@@ -1,4 +1,5 @@
 from database import active_product_clause
+import functools
 import re
 import sqlite3
 import asyncio
@@ -158,33 +159,52 @@ _ACCESSORY_LEADS = ("сумка", "рюкзак", "чехол", "кейс", "к�
                     "аккумулятор для", "фильтр", "пылесборник", "мешок", "мешки", "щетка", "насадка", "пульт",
                     "наклейка", "шлейф", "клавиатура для", "матрица", "петли", "вентилятор для", "кулер для")
 
+
+@functools.lru_cache(maxsize=256)
+def _accessory_pattern_for(nouns: tuple) -> Optional[re.Pattern]:
+    """Скомпилированный шаблон «для … <товар>» для набора основ (кэш на запрос)."""
+    normalized = [str(n).lower().replace("ё", "е") for n in nouns if str(n).strip()]
+    if not normalized:
+        return None
+    escaped = "|".join(map(re.escape, normalized))
+    # \w* вместо \b после основы: в названиях падежи — «для ноутбука», «для мониторов».
+    return re.compile(rf"\bдля\s+(?:\S+\s+){{0,2}}(?:{escaped})\w*", re.IGNORECASE)
+
+
 def _is_accessory_for(title: str, nouns: List[str]) -> bool:
-    t = " ".join(title.lower().replace("ё", "е").split())
+    """Аксессуар к искомому товару. Используется классификатором поиска и тестами."""
+    t = " ".join((title or "").lower().replace("ё", "е").split())
     if t.startswith(_ACCESSORY_LEADS):
         return True
-    return any(re.search(rf"\bдля\s+(?:\S+\s+){{0,2}}{re.escape(n)}", t) for n in nouns)
+    pattern = _accessory_pattern_for(tuple(nouns or ()))
+    return bool(pattern and pattern.search(t))
 
 def score_relevance(product: Dict[str, Any], query_clean: str, query_tokens: List[str]) -> float:
-    """Вычисляет релевантность товара для сортировки результатов."""
-    title_lower = product.get("title", "").lower()
-    category_lower = product.get("category", "").lower()
+    """Релевантность товара для сортировки (lower() считается один раз на товар).
+
+    Категория может быть None в старых записях — отсутствие категории не роняет сортировку.
+    """
+    title = product.get("title", "") or ""
+    category = product.get("category", "") or ""
+    title_lower = title.lower()
+    category_lower = category.lower()
     score = 0.0
 
-    # Точное совпадение поисковой фразы в заголовке
+    # 1. Точное совпадение всей фразы в заголовке (максимальный приоритет)
     if query_clean in title_lower:
         score += 100.0
         if title_lower.startswith(query_clean):
             score += 50.0
 
-    # Наличие каждого токена запроса в заголовке
-    for t in query_tokens:
-        t_low = t.lower()
-        if t_low in title_lower:
+    # 2. Наличие каждого токена запроса
+    for token in query_tokens:
+        token_lower = token.lower()
+        if token_lower in title_lower:
             score += 15.0
-        elif t_low in category_lower:
+        elif token_lower in category_lower:
             score += 5.0
 
-    # Небольшой штраф за избыточную длину заголовка (фокус на целевой модели)
+    # 3. Небольшой штраф за избыточную длину заголовка (фокус на модели, а не на «спаме» слов)
     score -= len(title_lower) * 0.05
     return score
 
@@ -281,13 +301,15 @@ def search_in_database(
                 params.extend([f"%{query_clean}%", f"%{query_clean}%"])
             else:
                 token_conds = []
+                # Одно объединённое выражение вместо повторного LOWER(title)+LOWER(category)
+                search_text = "LOWER(title || ' ' || IFNULL(category, ''))"
                 for t in raw_tokens:
                     syn = BRAND_SYNONYMS.get(t, t)
                     stem = stem_russian_word(t)
-                    sub = "(LOWER(title) LIKE ? OR LOWER(title) LIKE ? OR LOWER(category) LIKE ?)"
+                    sub = f"({search_text} LIKE ? OR {search_text} LIKE ? OR {search_text} LIKE ?)"
                     token_conds.append(sub)
                     params.extend([f"%{t}%", f"%{syn}%", f"%{stem}%"])
-                
+
                 joiner = " OR " if mode == "OR" else " AND "
                 if token_conds:
                     conditions.append(f"({joiner.join(token_conds)})")
@@ -348,9 +370,19 @@ def search_in_database(
         if negs:
             results = [r for r in results if not any(nk in r.get("title", "").lower() for nk in negs)]
 
-    # 4.0. Аксессуары к искомому товару: «Сумка для ноутбука», «Кронштейн для двух мониторов»
+    # 4.0. Аксессуары к искомому товару: «Сумка для ноутбука», «Кронштейн для двух мониторов».
+    # Шаблон компилируется один раз на набор основ (кэш), а не на каждый товар/основу.
     if product_nouns:
-        results = [r for r in results if not _is_accessory_for(r.get("title", ""), product_nouns)]
+        accessory_pattern = _accessory_pattern_for(tuple(product_nouns))
+        if accessory_pattern:
+            filtered_results = []
+            for result in results:
+                title = (result.get("title", "") or "").lower().replace("ё", "е")
+                if title.startswith(_ACCESSORY_LEADS):
+                    continue
+                if not accessory_pattern.search(title):
+                    filtered_results.append(result)
+            results = filtered_results
 
     # 4.1. Мягкий фильтр по назначению («для игр»): оставляем подходящие модели, если такие нашлись
     if prefer_keywords:

@@ -18,6 +18,7 @@
   3. Тесты сгруппированы по функциональным блокам (`tests/`, коммит `77eb0de`); добавлены `domain/README.md`, `web/README.md`, `tests/README.md`.
   4. Выполнена мини-задача оптимизаций: скомпилированные фильтры детектора, устойчивый разбор JSON от AI и лёгкое обслуживание FTS5 (см. карточку ниже).
   5. **S2-E06 реализован и переведён в READY для аудита:** коннекторы Telegram (публичная превью канала) и Instagram (Graph API с токеном), реестр источников `social_sources`, сервис сбора `social_ingest.py` и CLI `scripts/social_ingest.py` (см. карточку ниже).
+  6. Выполнена оптимизация поискового движка (шаги 5–7 из поручения владельца): кэш шаблона фильтра аксессуаров, fallback LIKE без повторных `LOWER`, `score_relevance` с одним `lower()` и защитой от `category=None` (см. карточку ниже).
 
 ## Карточка задачи: ускорение детектора, JSON AI и обслуживание FTS5 (2026-10-22)
 
@@ -70,11 +71,12 @@ Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-h
 ## Результаты проверок Codex (2026-10-22)
 
 ```text
-Срез: main, HEAD 0963afa + незакоммиченное дерево S2-E06.
+Срез: main, HEAD 859d7bd + незакоммиченное дерево поискового движка.
 Тесты:
-  - tests/sellers/test_social_connectors.py: 27/27 PASS.
+  - tests/search/test_search_engine_optimizations.py: 8/8 PASS.
+  - tests/sellers/test_social_connectors.py: 27/27 PASS (S2-E06).
   - tests/sellers/test_social_content_intelligence.py: 29/29 PASS (S2-E08).
-  - Полный suite проекта: Ran 1620 tests in 69.846s, OK (0 failures, 0 errors), временный DATA_DIR.
+  - Полный suite проекта: Ran 1628 tests in 69.553s, OK (0 failures, 0 errors), временный DATA_DIR.
   - compileall: OK; release_gate.py secrets: 0 findings.
 БД:
   - prices.db неприкосновенна (148 738 048 байт, mtime 24.09; integrity_check ранее = ok).
@@ -82,6 +84,39 @@ Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-h
   - Независимый аудит S2-E06; затем S2-E15/E17 (Adaptive Scheduler 2.0) и релиз v6.2.0.
 ```
 
+
+## Карточка задачи: оптимизации поискового движка (2026-10-22)
+
+```text
+ID / этап: внеэтапная оптимизация по прямому поручению владельца (шаги 5–7, после S2-E06).
+Статус: DONE
+Исполнитель: Codex (по поручению владельца)
+Checkout / ветка / базовый HEAD: main, HEAD 859d7bd + незакоммиченное дерево
+Область файлов:
+  search_engine.py, tests/search/test_search_engine_optimizations.py,
+  tests/README.md, docs/AGENT_HANDOFF.md
+Что сделано:
+  - Шаг 5 (аксессуары к товару): шаблон «для … <основа>» компилируется один раз на набор
+    основ и кэшируется (functools.lru_cache), а не на каждый товар/основу. В присланном
+    варианте после основы стоял \b — в падежах он не срабатывал («для ноутбука»,
+    «для мониторов»); заменён на \w*. Функция _is_accessory_for сохранена: её импортирует
+    рабочий классификатор search_analytics.py, без неё поиск падал.
+  - Шаг 6 (fallback LIKE): одно объединённое выражение
+    LOWER(title || ' ' || IFNULL(category, '')) вместо повторного LOWER(title)+LOWER(category).
+  - Шаг 7 (score_relevance): lower() считается один раз, category=None (старые записи)
+    больше не роняет сортировку.
+Проверки и замеры:
+  - Новые тесты: tests/search/test_search_engine_optimizations.py — 8 проверок.
+  - Полный suite: 1628 PASS (69.553s, 0 failures, 0 errors), временный DATA_DIR.
+  - Фильтр аксессуаров: 3000 названий, 2 основы — 0.014s → 0.004s (3.2x), результат идентичен.
+  - Fallback LIKE (3000 строк, 5 токенов): 0.035s → 0.039s (0.91x). Заявленного ускорения
+    в 2–3 раза нет: конкатенация строки на каждый ряд дороже двух LOWER по колонкам.
+    Изменение оставлено (поведение идентично, SQL компактнее), но ускорением не считается.
+  - Ограничение SQLite: LOWER() не понижает кириллицу, поэтому fallback LIKE для кириллических
+    категорий по-прежнему чувствителен к регистру (так было и до правок; не исправлялось).
+  - prices.db не изменялась.
+Следующий точный шаг: аудит S2-E06, затем S2-E15/E17 (Adaptive Scheduler 2.0) и релиз v6.2.0.
+```
 
 ## Карточка задачи: S2-E06 (Telegram & Social Media Connectors)
 
