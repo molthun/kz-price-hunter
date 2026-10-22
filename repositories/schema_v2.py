@@ -231,6 +231,26 @@ CREATE INDEX IF NOT EXISTS idx_search_events_created ON search_events(created_at
 CREATE INDEX IF NOT EXISTS idx_search_events_norm_query ON search_events(normalized_query);
 CREATE INDEX IF NOT EXISTS idx_search_events_city ON search_events(city);
 CREATE INDEX IF NOT EXISTS idx_search_events_outcome ON search_events(outcome);
+
+-- 12. Adaptive Discovery Tasks (S2-E14)
+CREATE TABLE IF NOT EXISTS discovery_tasks (
+    id TEXT PRIMARY KEY,
+    signal_query TEXT NOT NULL,
+    normalized_query TEXT NOT NULL,
+    city TEXT,
+    search_count INTEGER NOT NULL DEFAULT 0,
+    success_rate REAL NOT NULL DEFAULT 0.0,
+    priority_score REAL NOT NULL DEFAULT 0.0,
+    status TEXT NOT NULL DEFAULT 'PENDING',
+    search_queries TEXT NOT NULL DEFAULT '[]',
+    discovered_candidates_count INTEGER NOT NULL DEFAULT 0,
+    notes TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_discovery_tasks_status ON discovery_tasks(status);
+CREATE INDEX IF NOT EXISTS idx_discovery_tasks_priority ON discovery_tasks(priority_score DESC);
+CREATE INDEX IF NOT EXISTS idx_discovery_tasks_norm_query ON discovery_tasks(normalized_query, city);
 """
 
 
@@ -262,6 +282,7 @@ def init_schema_v2(conn: sqlite3.Connection) -> None:
     _ensure_column(conn, "offers", "installment_available", "INTEGER DEFAULT 0")
     _ensure_column(conn, "offers", "credit_available", "INTEGER DEFAULT 0")
     _ensure_column(conn, "offers", "pickup_available", "INTEGER DEFAULT 0")
+    _ensure_column(conn, "seller_candidates", "discovery_task_id", "TEXT")
 
     # C-E11-02: Ensure existing canonical_products rows are indexed in FTS on initial creation
     cur = conn.cursor()

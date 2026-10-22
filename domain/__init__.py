@@ -75,7 +75,17 @@ from domain.search_analytics import (
     normalize_search_query,
 )
 
+from domain.adaptive_discovery import (
+    AdaptiveDiscoveryEngine,
+    DiscoveryTask,
+    DiscoveryTaskStatus,
+    GeneratedSearchQuery,
+    SearchPatternGenerator,
+    TargetSearchChannel,
+)
+
 __all__ = [
+    "AdaptiveDiscoveryEngine",
     "AggregatedOffer",
     "Availability",
     "CandidateStatus",
@@ -90,7 +100,10 @@ __all__ = [
     "CrossSellerRanking",
     "DeliveryType",
     "DiscoverySource",
+    "DiscoveryTask",
+    "DiscoveryTaskStatus",
     "ExtractionTier",
+    "GeneratedSearchQuery",
     "IdentityType",
     "KZ_CITIES_MAP",
     "MatchDecision",
@@ -105,6 +118,7 @@ __all__ = [
     "SearchCore",
     "SearchEvent",
     "SearchOutcome",
+    "SearchPatternGenerator",
     "SearchQualitySummary",
     "SearchResponse2",
     "Seller",
@@ -114,6 +128,7 @@ __all__ = [
     "SellerMatchResult",
     "SourceProfile",
     "SourceProfiler",
+    "TargetSearchChannel",
     "build_channel_matrix",
     "build_condition_breakdown",
     "filter_offers_by_condition",

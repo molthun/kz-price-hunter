@@ -878,6 +878,125 @@ async def search_quality_analytics_handler(request):
     finally:
         conn.close()
 
+
+# ===== Adaptive Discovery (S2-E14) =====
+
+@routes.get("/api/v2/discovery/tasks")
+@require_admin
+async def get_discovery_tasks_handler(request):
+    """Список задач поиска каталогов и магазинов по неудовлетворенному спросу (S2-E14)."""
+    status = request.query.get("status")
+    city = request.query.get("city")
+    try:
+        min_priority = float(request.query.get("min_priority", 0.0))
+    except (ValueError, TypeError):
+        min_priority = 0.0
+    limit = _int_param(request, "limit", 50, minimum=1, maximum=200)
+
+    from database import get_connection
+    from repositories.discovery_task_repo import DiscoveryTaskRepository
+
+    conn = get_connection()
+    try:
+        repo = DiscoveryTaskRepository(conn)
+        tasks = repo.find_tasks(status=status, city=city, min_priority=min_priority, limit=limit)
+        summary = repo.get_tasks_summary()
+        return web.json_response({
+            "tasks": [t.to_dict() for t in tasks],
+            "summary": summary,
+        })
+    except Exception as e:
+        print(f"[API discovery tasks] Ошибка: {e}")
+        return web.json_response({"error": "Ошибка получения задач discovery"}, status=500)
+    finally:
+        conn.close()
+
+
+@routes.post("/api/v2/discovery/generate")
+@require_admin
+async def generate_discovery_tasks_handler(request):
+    """Генерация задач адаптивного поиска по текущим сигналам спроса (S2-E14)."""
+    try:
+        body = await request.json() if request.can_read_body else {}
+    except Exception:
+        body = {}
+
+    min_searches = int(body.get("min_searches", 3))
+    max_success_rate = float(body.get("max_success_rate", 70.0))
+    city = body.get("city")
+    limit = int(body.get("limit", 50))
+
+    from database import get_connection
+    from repositories.discovery_task_repo import DiscoveryTaskRepository
+    from repositories.search_analytics_repo import SearchAnalyticsRepository
+
+    conn = get_connection()
+    try:
+        analytics_repo = SearchAnalyticsRepository(conn)
+        task_repo = DiscoveryTaskRepository(conn)
+
+        signals = analytics_repo.get_discovery_signals(
+            min_searches=min_searches,
+            max_success_rate=max_success_rate,
+            limit=limit,
+            city=city,
+        )
+
+        created_tasks = task_repo.generate_tasks_from_signals(signals)
+        return web.json_response({
+            "status": "ok",
+            "signals_evaluated": len(signals),
+            "tasks_created": len(created_tasks),
+            "tasks": [t.to_dict() for t in created_tasks],
+        })
+    except Exception as e:
+        print(f"[API generate discovery tasks] Ошибка: {e}")
+        return web.json_response({"error": "Ошибка генерации задач discovery"}, status=500)
+    finally:
+        conn.close()
+
+
+@routes.post("/api/v2/discovery/tasks/{task_id}/resolve")
+@require_admin
+async def resolve_discovery_task_handler(request):
+    """Обновление статуса/завершение задачи discovery (S2-E14)."""
+    task_id = request.match_info["task_id"]
+    try:
+        body = await request.json()
+    except Exception:
+        return web.json_response({"error": "Требуется JSON-тело"}, status=400)
+
+    new_status = body.get("status")
+    notes = body.get("notes")
+    candidates_delta = int(body.get("candidates_delta", 0))
+
+    from domain.adaptive_discovery import DiscoveryTaskStatus
+    if not new_status or new_status not in DiscoveryTaskStatus.ALL:
+        return web.json_response({"error": f"Некорректный статус. Допустимы: {list(DiscoveryTaskStatus.ALL)}"}, status=400)
+
+    from database import get_connection
+    from repositories.discovery_task_repo import DiscoveryTaskRepository
+
+    conn = get_connection()
+    try:
+        repo = DiscoveryTaskRepository(conn)
+        existing = repo.get_task_by_id(task_id)
+        if not existing:
+            return web.json_response({"error": "Задача не найдена"}, status=404)
+
+        updated = repo.update_status(task_id, new_status, notes=notes, candidates_delta=candidates_delta)
+        task = repo.get_task_by_id(task_id)
+        return web.json_response({
+            "status": "ok",
+            "task": task.to_dict() if task else None,
+        })
+    except Exception as e:
+        print(f"[API resolve discovery task] Ошибка: {e}")
+        return web.json_response({"error": "Ошибка обновления статуса задачи"}, status=500)
+    finally:
+        conn.close()
+
+
 # ===== Авторизация =====
 
 @routes.get("/api/me")

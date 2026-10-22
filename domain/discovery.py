@@ -109,6 +109,7 @@ class SellerCandidate:
     legal_name: Optional[str] = None
     marketplace_seller_id: Optional[str] = None
     city: Optional[str] = None
+    discovery_task_id: Optional[str] = None
     raw_metadata: Dict[str, Any] = field(default_factory=dict)
     notes: str = ""
     created_at: str = field(default_factory=utc_now_iso)
@@ -139,6 +140,7 @@ class SellerCandidate:
             legal_name=d.get("legal_name"),
             marketplace_seller_id=d.get("marketplace_seller_id"),
             city=d.get("city"),
+            discovery_task_id=d.get("discovery_task_id"),
             raw_metadata=meta,
             notes=d.get("notes") or "",
             created_at=d.get("created_at") or utc_now_iso(),

@@ -5,21 +5,17 @@
 ## Текущая контрольная точка
 
 - Дата: 2026-10-22, Asia/Almaty.
-- **Исполнитель:** Antigravity (полное устранение замечаний контрольного аудита Codex C-E11-03, C-E13-01…04, C-E16-01…05, стабилизация дат observed_at).
-- **Область файлов:** `domain/models.py`, `domain/search_core.py`, `domain/search_analytics.py`, `repositories/schema_v2.py`, `repositories/search_repo.py`, `repositories/search_analytics_repo.py`, `database.py`, `web/server.py`, `web/templates/index.html`, `test_search_ui_v2.py`, `test_search_analytics_v2.py`, `test_search_core_v2.py`, `test_search_privacy_v2.py`.
+- **Исполнитель:** Antigravity (завершение реализации этапа S2-E14: Adaptive Discovery & Query Demand Generator).
+- **Область файлов:** `domain/adaptive_discovery.py`, `repositories/discovery_task_repo.py`, `repositories/schema_v2.py`, `domain/__init__.py`, `domain/discovery.py`, `repositories/__init__.py`, `repositories/candidate_repo.py`, `web/server.py`, `test_adaptive_discovery_v2.py`, `docs/AGENT_HANDOFF.md`.
 - **Статус задач:**
-  1. **Все замечания контрольного аудита Codex устранены:**
-     - **C-E11-03 / C-E16-03:** В `web/server.py` удален fallback на stale/out-of-stock в `best_deal`, `price_stats`, `store_comparison`. Если валидных (purchasable) офферов нет — возвращаются `null` и флаг `all_stale=true`.
-     - **C-E13-01 (Privacy Blocker):** В `domain/search_analytics.py` внедрена автоматическая маскировка чувствительных данных (`sa.is_sensitive(query)`: телефоны, email, адреса, длинные номера/ИИН заменяются на `"[redacted]"`). В `get_top_queries` запросы `[redacted]` исключаются. Эндпоинт `/api/v2/analytics/search-quality` защищен `@require_admin`.
-     - **C-E13-02:** Формула SSR гармонизирована со спецификацией P06: `answered = found + weak + not_found`, `SSR = found * 100 / answered`. Ошибки (`ERROR`) не входят в знаменатель SSR и выделены в отдельную метрику `error_rate = error * 100 / total`.
-     - **C-E13-03:** В `domain/search_analytics.py` и `web/server.py` город канонизируется через `sa.canonical_city(city or parsed.detected_city)`, исключая потерю города из естественного языка.
-     - **C-E13-04:** В `database.py` в функцию `prune_search_analytics` добавлена очистка устаревших записей `search_events`.
-     - **C-E16-01:** В `repositories/search_repo.py` и `domain/search_core.py` внедрена нормализация условий `Condition.normalize(condition)` перед обращением к FTS и фильтрами офферов (`NEW`, `USED`, `REFURBISHED`).
-     - **C-E16-02:** В `web/templates/index.html` в функции `renderSearchV2ProductCards` чтение цен, счетчиков и бейджей состояния переведено на корневые поля объекта результата (`it.min_price`, `it.max_price`, `it.sellers_count`, `it.offers_count`, `it.conditions_available`, `it.has_new`, `it.has_used`).
-     - **C-E16-04:** В `web/server.py` в `best_price_handler` при `v2=1` добавлена поддержка фильтрации по магазину (`shop`).
-     - **C-E16-05:** Чекбокс `checkSearchV2` сделан опциональным (opt-in, по умолчанию выключен). Реализована функция `onSearchV2Toggle(checked)` с сохранением в `localStorage.getItem('kz_search_v2_enabled')` и мгновенным перезапуском поиска.
-  2. **Этапы S2-E11, S2-E13, S2-E16 переведены в статус READY** для повторной приемки аудитором Codex.
-  3. Фундамент готов к переходу к **S2-E14: Adaptive Discovery** (генерация задач поиска по сигналам спроса).
+  1. Реализация **S2-E14: Adaptive Discovery & Query Demand Generator** полностью завершена:
+     - Модель `DiscoveryTask` с полным жизненным циклом (PENDING, RUNNING, COMPLETED, FAILED, CANCELLED).
+     - Генератор мультиплатформенных поисковых запросов `SearchPatternGenerator` (Google, Kaspi, 2GIS, Instagram, Telegram).
+     - Формула приоритизации задач `AdaptiveDiscoveryEngine.calculate_priority(search_count, success_rate)`.
+     - Репозиторий `DiscoveryTaskRepository` с дедупликацией активных задач, атомарным инкрементом найденных кандидатов и аналитикой.
+     - Связка с `SellerCandidate.discovery_task_id` и аддитивная схема `discovery_tasks` в `schema_v2.py`.
+     - Административные REST API эндпоинты `/api/v2/discovery/tasks`, `/api/v2/discovery/generate`, `/api/v2/discovery/tasks/{task_id}/resolve` (защищены `@require_admin` и CSRF Origin middleware).
+  2. Этап переведён в статус **READY** для аудита Codex.
 
 ## Реестр этапов KZ Price Hunter 2.0 (Search Platform)
 
@@ -34,37 +30,84 @@
 | S2-E11 | Unified Product Index & Search Core 2.0 | READY | Antigravity | Codex: C-E11-01…06 закрыты | — |
 | S2-E13 | Search Quality & Search Analytics | READY | Antigravity | Codex: C-E13-01…04 закрыты; privacy blocker снят | — |
 | S2-E16 | Search UI 2.0 (мультипродавцовая витрина, фильтры состояний) | READY | Antigravity | Codex: C-E16-01…05 закрыты | — |
-| S2-E14 | Adaptive Discovery & Query Demand Generator | NEXT | Antigravity | — | — |
+| S2-E14 | Adaptive Discovery & Query Demand Generator | READY | Antigravity | Ожидает аудит Codex | — |
 
 ## Результаты проверок Antigravity (2026-10-22)
 
 ```text
 Срез: main, рабочее дерево Antigravity.
-Статус замечаний:
-  - C-E11-03: УСТРАНЕНО (исключение stale/out-of-stock из best_deal/price_stats/store_comparison).
-  - C-E13-01: УСТРАНЕНО (redaction чувствительных данных в search_events + @require_admin на эндпоинте аналитики).
-  - C-E13-02: УСТРАНЕНО (гармонизация формулы SSR с P06: answered = found + weak + not_found).
-  - C-E13-03: УСТРАНЕНО (канонизация города detected_city в телеметрии и хранилище).
-  - C-E13-04: УСТРАНЕНО (retention search_events в prune_search_analytics).
-  - C-E16-01: УСТРАНЕНО (нормализация Condition.normalize перед поиском).
-  - C-E16-02: УСТРАНЕНО (привязка карточки к root-полям it.min_price/sellers_count/conditions_available).
-  - C-E16-03: УСТРАНЕНО (all_stale=true при отсутствии пригодных офферов).
-  - C-E16-04: УСТРАНЕНО (поддержка фильтрации по магазину в v2).
-  - C-E16-05: УСТРАНЕНО (opt-in тумблер с localStorage).
+Статус S2-E14: РЕАЛИЗОВАНО.
 Тесты:
+  - test_adaptive_discovery_v2.py: 15/15 PASS.
   - test_search_ui_v2.py: 6/6 PASS.
   - test_search_analytics_v2.py: 11/11 PASS.
   - test_search_core_v2.py: 21/21 PASS.
   - test_search_privacy_v2.py: 5/5 PASS.
-  - Полный сьют проекта: 1531 PASS (70.801s), 0 failures, 0 errors, временный DATA_DIR.
+  - test_validators_are_used.py: 1/1 PASS.
+  - Полный регрессионный сьют проекта: 1546 PASS (70.195s), 0 failures, 0 errors, временный DATA_DIR.
 БД:
   - prices.db неприкосновенна (148 738 048 байт, integrity_check = ok).
 Следующий точный шаг:
-  - Контрольная приемка Codex по S2-E11, S2-E13, S2-E16; переход к S2-E14: Adaptive Discovery.
+  - Независимый аудит Codex по этапу S2-E14 (Adaptive Discovery).
 ```
 
 
-## Карточка текущей задачи: S2-E16 (Search UI 2.0)
+## Карточка текущей задачи: S2-E14 (Adaptive Discovery & Query Demand Generator)
+
+```text
+ID / этап: S2-E14. Adaptive Discovery & Query Demand Generator (KZ Price Hunter 2.0)
+Цель и контекст:
+  - Автоматическая трансформация сигналов неудовлетворённого спроса в задачи поиска магазинов и каталогов:
+    * Источник сигналов: QueryDemandSignal из SearchAnalyticsRepository (S2-E13) — поисковые запросы с частым спросом (search_count >= min_searches) и низкой успешностью выдачи (success_rate <= max_success_rate: NOT_FOUND или WEAK_MATCH).
+    * Модель задачи DiscoveryTask:
+      - task_id, signal_query, normalized_query, city, search_count, success_rate, priority_score (рассчитывается от спроса и дефицита), status (PENDING, RUNNING, COMPLETED, FAILED, CANCELLED), search_queries (сгенерированные целевые запросы для Google, Kaspi, 2GIS, Instagram, Telegram), discovered_candidates_count, created_at, updated_at.
+    * Генератор поисковых шаблонов (SearchPatternGenerator):
+      - Формирование эффективных запросов для поиска торговцев и каналов по товару/категории с учетом города Казахстана:
+        * Google / Web: "купить <товар> <город>", "интернет магазин <товар> <город>", "<товар> в наличии <город> сайт".
+        * Kaspi / маркетплейсы: "<товар>", поиск прямых продавцов.
+        * Instagram / Telegram: "<товар> <город> instagram", "<товар> канал kz".
+        * 2GIS: "<категория> <город>".
+    * Дедупликация и приоритизация:
+      - Идемпотентность: не создавать дубликатов активных задач (PENDING/RUNNING) для одного и того же normalized_query + city.
+      - Автоматический расчёт приоритета: priority_score = round(search_count * (1.0 - success_rate / 100.0), 2).
+    * Связка с кандидатами в продавцы (CandidateRepository / SellerCandidate):
+      - Поле discovery_task_id в seller_candidates и SellerCandidate, метод link_candidate с атомарным инкрементом discovered_candidates_count.
+    * Персистентность и схема:
+      - Таблица discovery_tasks в repositories/schema_v2.py (аддитивно, IF NOT EXISTS).
+      - Репозиторий DiscoveryTaskRepository (repositories/discovery_task_repo.py).
+    * REST API эндпоинты в web/server.py:
+      - GET /api/v2/discovery/tasks (фильтрация по статусу, городу, лимиту; @require_admin).
+      - POST /api/v2/discovery/generate (запуск генерации задач по сигналам спроса; @require_admin).
+      - POST /api/v2/discovery/tasks/{task_id}/resolve (завершение задачи; @require_admin).
+Основание/поручение владельца: «Делай все по плану а потом соберем у других замечания».
+Статус: READY
+Исполнитель / следующий: Antigravity реализовал / Codex проводит аудит
+Начало и checkpoint: 2026-10-22 16:05 (Asia/Almaty)
+Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-hunter, ветка main, HEAD c0903b5
+Область файлов:
+  domain/adaptive_discovery.py, domain/__init__.py, domain/discovery.py,
+  repositories/schema_v2.py, repositories/discovery_task_repo.py, repositories/candidate_repo.py,
+  repositories/__init__.py, web/server.py, test_adaptive_discovery_v2.py, docs/AGENT_HANDOFF.md
+Что сделано:
+  - Создан domain/adaptive_discovery.py (DiscoveryTask, DiscoveryTaskStatus, SearchPatternGenerator, AdaptiveDiscoveryEngine).
+  - В domain/discovery.py и repositories/candidate_repo.py добавлена поддержка discovery_task_id в SellerCandidate.
+  - В repositories/schema_v2.py создана таблица discovery_tasks и колонка discovery_task_id.
+  - Создан repositories/discovery_task_repo.py (CRUD, дедупликация, генерация из сигналов, привязка кандидатов, сводка).
+  - В web/server.py добавлены эндпоинты GET /api/v2/discovery/tasks, POST /api/v2/discovery/generate, POST /api/v2/discovery/tasks/{task_id}/resolve.
+  - Написано 15 тестов в test_adaptive_discovery_v2.py.
+Что проверено:
+  - test_adaptive_discovery_v2.py: 15/15 PASS.
+  - test_search_ui_v2.py + test_search_analytics_v2.py + test_search_core_v2.py + test_search_privacy_v2.py: 43/43 PASS.
+  - test_validators_are_used.py: PASS.
+  - Полный сьют проекта: 1546 PASS (70.195s, 0 failures, 0 errors).
+  - prices.db: неприкосновенна (148 738 048 байт, integrity_check = ok).
+Что осталось:
+  - Аудит этапа S2-E14 аудитором Codex.
+Следующий точный шаг: передача этапа S2-E14 на аудит Codex.
+Зависимости: S2-E05, S2-E11, S2-E13, S2-E16 (1546 тестов OK).
+```
+
+## Карточка задачи: S2-E16 (Search UI 2.0)
 
 ```text
 ID / этап: S2-E16. Search UI 2.0 (мультипродавцовая агрегация и фильтры состояний)

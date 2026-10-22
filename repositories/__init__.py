@@ -5,6 +5,7 @@ Repositories package for KZ Price Hunter 2.0.
 from repositories.base import BaseRepository
 from repositories.candidate_repo import CandidateRepository
 from repositories.channel_repo import ChannelRepository
+from repositories.discovery_task_repo import DiscoveryTaskRepository
 from repositories.offer_repo import OfferRepository
 from repositories.pricing_repo import PricingRepository
 from repositories.product_repo import ProductRepository
@@ -19,6 +20,7 @@ __all__ = [
     "CandidateRepository",
     "ChannelRepository",
     "DDL_V2",
+    "DiscoveryTaskRepository",
     "OfferRepository",
     "PricingRepository",
     "ProductRepository",

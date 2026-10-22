@@ -44,11 +44,11 @@ class CandidateRepository(BaseRepository):
         sql = """
         INSERT INTO seller_candidates (
             id, name, source_type, source_url, status, matched_seller_id,
-            phone, domain, bin, legal_name, marketplace_seller_id, city,
+            phone, domain, bin, legal_name, marketplace_seller_id, city, discovery_task_id,
             raw_metadata, notes, created_at, updated_at
         ) VALUES (
             ?, ?, ?, ?, ?, ?,
-            ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?
         )
         ON CONFLICT(id) DO UPDATE SET
@@ -63,6 +63,7 @@ class CandidateRepository(BaseRepository):
             legal_name = COALESCE(excluded.legal_name, seller_candidates.legal_name),
             marketplace_seller_id = COALESCE(excluded.marketplace_seller_id, seller_candidates.marketplace_seller_id),
             city = COALESCE(excluded.city, seller_candidates.city),
+            discovery_task_id = COALESCE(excluded.discovery_task_id, seller_candidates.discovery_task_id),
             raw_metadata = excluded.raw_metadata,
             notes = excluded.notes,
             updated_at = excluded.updated_at
@@ -81,6 +82,7 @@ class CandidateRepository(BaseRepository):
             candidate.legal_name,
             candidate.marketplace_seller_id,
             candidate.city,
+            candidate.discovery_task_id,
             json.dumps(candidate.raw_metadata, ensure_ascii=False),
             candidate.notes,
             candidate.created_at or now,
