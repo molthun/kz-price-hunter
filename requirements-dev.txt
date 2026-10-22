@@ -1,0 +1,4 @@
+# Только для разработки и CI: в образ не устанавливается.
+# Запуск покрытия: coverage run --rcfile=.coveragerc -m unittest discover -s . -p "test_*.py"
+# Порог CI зафиксирован в .github/workflows/docker-publish.yml (--fail-under).
+coverage==7.16.2

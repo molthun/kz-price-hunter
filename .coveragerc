@@ -1,0 +1,27 @@
+# Измерение покрытия кода приложения (CI-шаг test). Тесты и служебные каталоги
+# не входят в отчёт: они не являются рабочим кодом проекта.
+[run]
+source = .
+omit =
+    tests/*
+    venv/*
+    .venv/*
+    .claude/*
+    node_modules/*
+    certs/*
+    docs/*
+
+[report]
+omit =
+    tests/*
+    venv/*
+    .venv/*
+    .claude/*
+    node_modules/*
+    certs/*
+    docs/*
+skip_empty = True
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:
+    raise NotImplementedError

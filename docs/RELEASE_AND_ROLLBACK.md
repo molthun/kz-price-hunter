@@ -9,7 +9,7 @@
 
 | Проверка | Что делает | Где |
 |---|---|---|
-| `test` | компиляция всех файлов и весь набор `test_*.py` | `.github/workflows/docker-publish.yml` |
+| `test` | компиляция всех файлов, весь набор `test_*.py` и покрытие не ниже 80% (`coverage`, порог в workflow) | `.github/workflows/docker-publish.yml` |
 | `frontend` | браузерные регрессии `tests/frontend/test_frontend*.cjs` в Chrome раннера | там же |
 | `secret-scan` | ищет ключи и токены во всех файлах, которые хранит git, включая `.github` | `release_gate.py secrets` |
 | `dependency-audit` | уязвимости зависимостей (`pip-audit`) с учётом списка пропусков | `release_gate.py deps` |

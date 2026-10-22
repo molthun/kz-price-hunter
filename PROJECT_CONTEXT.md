@@ -24,9 +24,9 @@
 
 ---
 
-## 2. Поддерживаемые магазины (17 сетей Казахстана)
+## 2. Поддерживаемые магазины (37 сетей Казахстана)
 
-В каталоге мониторинга задействовано более **58 000+ товаров** из 17 сетей:
+В каталоге мониторинга задействовано более **42 899 товаров** из 37 сетей:
 
 | # | Магазин | Эмодзи | Домен / Источник | Метод парсинга | Особенности |
 |---|---|:---:|---|---|---|
@@ -55,7 +55,7 @@
 ```
 kz-price-hunter/
 ├── auth.py               # Вход через Telegram Login Widget + Dev Login, сессии, роли, CSRF
-├── config.py             # Общие (SYSTEM_DEFAULTS) и личные (USER_DEFAULTS) настройки, города, 17 сетей
+├── config.py             # Общие (SYSTEM_DEFAULTS) и личные (USER_DEFAULTS) настройки, города, 37 сетей
 ├── database.py           # SQLite WAL, FTS5 products_fts, триггеры, индексы, canonical_key, статистика
 ├── detector.py           # Детектор аномалий: ZERO_GLITCH, SUPER_DISCOUNT, MARKET_ARBITRAGE
 ├── search_engine.py      # Интеллектуальный поиск (синонимы, стемминг, транслит раскладки, FTS5 + LIKE)
@@ -67,7 +67,7 @@ kz-price-hunter/
 ├── version.py            # Версионирование проекта (v4.0.0)
 ├── main.py               # Консольный раннер циклического мониторинга
 ├── gui.py                # Точка входа для Web Dashboard (запуск aiohttp на 8080)
-├── scrapers/             # Модули парсеров 17 магазинов
+├── scrapers/             # Модули парсеров 37 магазинов
 │   ├── dns.py
 │   ├── shopkz.py         # Потоковый YML-парсер yandex.php через iterparse
 │   ├── technodom.py
@@ -115,7 +115,7 @@ kz-price-hunter/
 2. **Виртуальная таблица `products_fts`**:
    - Полнотекстовый поиск FTS5 (`content='products'`, `content_rowid='rowid'`)
    - Автоматическая синхронизация триггерами `products_ai`, `products_ad`, `products_au`
-   - Отклик `MATCH ?` от 1 до 3 миллисекунд по 58 000+ товарам.
+   - Отклик `MATCH ?` от 1 до 3 миллисекунд по 42 899 товарам.
 
 3. **Таблица `title_canonical_cache`**:
    - `title_hash TEXT PRIMARY KEY` — SHA-256 хэш названия товара
@@ -148,7 +148,7 @@ kz-price-hunter/
 ### Этап 2: Интерактивный AI-Консультант (RAG в Web & Telegram)
 - Пайплайн `ai_service.ask_ai_consultant`:
   1. Извлечение поискового намерения пользователя.
-  2. RAG-запрос в локальную SQLite базу по 17 сетям Казахстана (выборка релевантных товаров с лучшими ценами).
+  2. RAG-запрос в локальную SQLite базу по 37 сетям Казахстана (выборка релевантных товаров с лучшими ценами).
   3. Формирование персонализированного ответа с конкретными ссылками на магазины, ценами в ₸ и обоснованием выгоды.
 - Доступен во вкладке `💬 AI-Консультант` в веб-интерфейсе и в Telegram-боте (`telegram_bot.py`).
 
@@ -161,7 +161,7 @@ kz-price-hunter/
   1. `model_matching.extract_canonical_key`: детерминированная очистка служебных слов, артикулов в скобках, SIM-спецификаций, диагоналей и приведение памяти (`128GB`/`128 ГБ` -> `128gb`).
   2. `ai_service.normalize_product_titles_batch`: пакетная обработка через Gemini Flash для сложных/нетипичных названий с сохранением в `title_canonical_cache`.
   3. `database.find_market_comparisons`: мгновенный подбор цен на идентичную модель в других сетях через индекс `idx_products_canonical_key`.
-  4. Эндпоинт `/api/models/compare` и модальное окно в Web UI для наглядного сравнения цен во всех 17 сетях.
+  4. Эндпоинт `/api/models/compare` и модальное окно в Web UI для наглядного сравнения цен во всех 37 сетях.
 
 ---
 
@@ -200,11 +200,11 @@ source venv/bin/activate
 # Запуск Web Dashboard + Telegram Bot
 python gui.py
 
-# Запуск одного цикла сканирования всех 17 магазинов
+# Запуск одного цикла сканирования всех 37 магазинов
 python main.py --once
 
-# Запуск полного набора автоматических тестов (46 тестов)
-python -m unittest tests.monitoring.test_monitor -v
+# Полный набор тестов (1651 проверка, временный DATA_DIR)
+DATA_DIR=$(mktemp -d) python -m unittest discover -s . -p "test_*.py"
 ```
 
 ---
@@ -212,5 +212,5 @@ python -m unittest tests.monitoring.test_monitor -v
 ## 8. Продовый сервер и Деплой
 - **Docker Compose**: Контейнер `kz-price-hunter` с томом `./data:/app/data` и автообновлением через `watchtower`.
 - **Реестр образов**: `ghcr.io/molthun/kz-price-hunter:latest` (сборка GitHub Actions на Node 24).
-- **База данных**: более **58 000+ товаров** по 17 сетям Казахстана.
+- **База данных**: **42 899 товаров** по 37 сетям Казахстана.
 - **Интервал обновления базы**: **3 часа** (`scan_interval_minutes = 180`).

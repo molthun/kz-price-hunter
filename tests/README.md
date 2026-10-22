@@ -45,6 +45,11 @@ DATA_DIR=$(mktemp -d) ./venv/bin/python -m unittest discover -s tests/search -t 
 # Один модуль
 DATA_DIR=$(mktemp -d) ./venv/bin/python -m unittest tests.search.test_search_core_v2 -v
 
+# Полный набор с покрытием (порог 80% проверяет CI)
+pip install -r requirements-dev.txt
+DATA_DIR=$(mktemp -d) ./venv/bin/coverage run --rcfile=.coveragerc -m unittest discover -s . -p "test_*.py"
+./venv/bin/coverage report --rcfile=.coveragerc
+
 # Браузерные регрессии (нужны Node.js, Playwright и Chrome)
 for f in tests/frontend/test_frontend*.cjs; do echo "== $f"; node "$f" || exit 1; done
 ```

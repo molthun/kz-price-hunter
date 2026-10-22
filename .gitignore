@@ -29,3 +29,7 @@ backup/
 *.sqlite
 *.sqlite3
 settings.json.*
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml

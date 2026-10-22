@@ -21,6 +21,7 @@
   6. Выполнена оптимизация поискового движка (шаги 5–7 из поручения владельца): кэш шаблона фильтра аксессуаров, fallback LIKE без повторных `LOWER`, `score_relevance` с одним `lower()` и защитой от `category=None` (см. карточку ниже).
   7. Выполнена оптимизация базы скраперов (шаги 8–11): retry только временных сбоев, быстрый `parse_price`, метрики категории; вместо aiohttp-хелпера зафиксирован единый транспорт `scrapers/http.py` (см. карточку ниже).
   8. Выполнена оптимизация веб-слоя (шаги 12–16): gzip для крупных ответов, кэш сводных счётчиков `/api/stats`; rate limiting и worker pool Telegram уже были, кэш ответов бота не внедрён по причинам контекста и свежести цен (см. карточку ниже).
+  9. Покрытие тестами подключено к CI (порог 80%, текущий замер 84%) и актуализированы числа документации: 37 сетей, 42 899 товаров, версия 6.1.0 (см. карточку ниже).
 
 ## Карточка задачи: ускорение детектора, JSON AI и обслуживание FTS5 (2026-10-22)
 
@@ -73,12 +74,15 @@ Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-h
 ## Результаты проверок Codex (2026-10-22)
 
 ```text
-Срез: main, HEAD 46e41f1 + незакоммиченное дерево веб-слоя.
+Срез: main, HEAD 773d5bf + незакоммиченное дерево покрытия/документации.
 Тесты:
-  - tests/web/test_web_optimizations.py: 10/10 PASS.
-  - tests/scrapers/test_scraper_base_optimizations.py: 13/13 PASS.
-  - tests/search/test_search_engine_optimizations.py: 8/8 PASS.
-  - Полный suite проекта: Ran 1651 tests in 74.041s, OK (0 failures, 0 errors), временный DATA_DIR.
+  - Полный suite проекта: Ran 1651 tests in 73.219s, OK (0 failures, 0 errors), временный DATA_DIR.
+  - Покрытие: 84% строк (18 485 инструкций, 3 008 непокрытых), CI-порог 80%.
+  - coverage --fail-under=80 -> exit 0; --fail-under=99 -> exit 2.
+  - compileall OK; release_gate.py secrets — 0 findings.
+БД:
+  - prices.db неприкосновенна (148 738 048 байт, mtime 24.09).
+  - CI workflow валиден (Ruby YAML). .coverage в .gitignore, в репозиторий не попадает.
   - compileall: OK; release_gate.py secrets: 0 findings.
 БД:
   - prices.db неприкосновенна (148 738 048 байт, mtime 24.09; integrity_check ранее = ok).
@@ -86,6 +90,42 @@ Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-h
   - Независимый аудит S2-E06; затем S2-E15/E17 (Adaptive Scheduler 2.0) и релиз v6.2.0.
 ```
 
+
+## Карточка задачи: покрытие тестами в CI и актуализация документации (2026-10-22)
+
+```text
+ID / этап: внеэтапная работа по поручению владельца (после оптимизаций).
+Статус: DONE
+Исполнитель: Codex (по поручению владельца)
+Checkout / ветка / базовый HEAD: main, HEAD 773d5bf + незакоммиченное дерево
+Область файлов:
+  .coveragerc, requirements-dev.txt, .gitignore, .github/workflows/docker-publish.yml,
+  README.md, PROJECT_CONTEXT.md, tests/README.md, docs/RELEASE_AND_ROLLBACK.md,
+  docs/AGENT_HANDOFF.md
+Что сделано:
+  - Покрытие: coverage 7.16.2 в requirements-dev.txt (в образ не устанавливается);
+    .coveragerc исключает tests/, venv/, .claude/, node_modules/, certs/, docs/.
+    CI-шаг test теперь запускает coverage run --rcfile=.coveragerc и
+    coverage report --fail-under=80 (текущий замер 84%: 18 485 инструкций, 3 008 непокрытых).
+  - .gitignore: .coverage, .coverage.*, htmlcov/, coverage.xml.
+  - README: версия 6.1.0; «80 000+ товаров в 25 сетях» -> «42 899 товаров, 37 сетей,
+    активные предложения в 25»; «36/33 магазина» -> 37; version.py 6.1.0; добавлена
+    команда измерения покрытия.
+  - PROJECT_CONTEXT: 17 -> 37 сетей, 58 000+ -> 42 899 товаров, 46 тестов -> 1651,
+    команда запуска полного набора вместо одиночного test_monitor.
+  - docs/RELEASE_AND_ROLLBACK.md: в строке проверки test указан порог покрытия 80%.
+Проверки:
+  - coverage report --fail-under=80 -> exit 0; --fail-under=99 -> exit 2 (порог реально работает).
+  - Полный suite: 1651 PASS (73.219s), временный DATA_DIR.
+  - compileall OK; release_gate.py secrets — 0 findings; prices.db не изменялась.
+  - YAML workflow валиден (Ruby YAML); .coverage в репозиторий не попадает.
+Что осталось:
+  - Ночной live-smoke скраперов НЕ добавлен: живая сеть из CI флакует (403/Cloudflare),
+    а ошибки источника не должны валить сборку образа; нужен отдельный opt-in/scheduled
+    job и решение владельца, какие магазины проверять. Mock это не заменяет.
+  - Покрытие сейчас строчное, без branch coverage; OpenAPI и Prometheus-метрик по-прежнему нет.
+Следующий точный шаг: S2-E15/E17 (Adaptive Scheduler 2.0), затем релиз v6.2.0 по поручению владельца.
+```
 
 ## Карточка задачи: оптимизации веб-слоя (2026-10-22)
 

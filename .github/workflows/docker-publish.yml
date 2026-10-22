@@ -30,12 +30,18 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt -c constraints.txt
 
+      - name: Install dev dependencies
+        run: pip install -r requirements-dev.txt
+
       - name: Check Python syntax (compileall)
         run: python -m compileall -q .
 
-      - name: Run tests
-        # Все наборы test_*.py: новый файл тестов попадает в проверку перед выкатом автоматически
-        run: python -m unittest discover -s . -p "test_*.py"
+      - name: Run tests with coverage
+        # Все наборы test_*.py: новый файл тестов попадает в проверку перед выкатом автоматически.
+        # Порог 80%: текущий замер 84%, запас на новую ветку кода без тестов не бесконечен.
+        run: |
+          coverage run --rcfile=.coveragerc -m unittest discover -s . -p "test_*.py"
+          coverage report --rcfile=.coveragerc --fail-under=80
 
   # Браузерные регрессии интерфейса (XSS, вход, окно товара) в предустановленном Chrome раннера
   frontend:
