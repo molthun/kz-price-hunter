@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS offers (
     warranty TEXT,
     published_at TEXT,
     observed_at TEXT NOT NULL,
+    expires_at TEXT,
     is_active INTEGER DEFAULT 1,
     raw_payload_json TEXT DEFAULT '{}',
     created_at TEXT NOT NULL,
@@ -251,6 +252,25 @@ CREATE TABLE IF NOT EXISTS discovery_tasks (
 CREATE INDEX IF NOT EXISTS idx_discovery_tasks_status ON discovery_tasks(status);
 CREATE INDEX IF NOT EXISTS idx_discovery_tasks_priority ON discovery_tasks(priority_score DESC);
 CREATE INDEX IF NOT EXISTS idx_discovery_tasks_norm_query ON discovery_tasks(normalized_query, city);
+
+-- 13. Social Content Observations (S2-E08)
+CREATE TABLE IF NOT EXISTS content_observations (
+    id TEXT PRIMARY KEY,
+    seller_id TEXT NOT NULL,
+    channel_id TEXT NOT NULL,
+    content_type TEXT NOT NULL DEFAULT 'POST',
+    post_id TEXT,
+    text TEXT NOT NULL DEFAULT '',
+    media_urls TEXT NOT NULL DEFAULT '[]',
+    published_at TEXT,
+    observed_at TEXT NOT NULL,
+    expires_at TEXT,
+    raw_metadata TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_content_obs_seller ON content_observations(seller_id);
+CREATE INDEX IF NOT EXISTS idx_content_obs_channel ON content_observations(channel_id);
+CREATE INDEX IF NOT EXISTS idx_content_obs_type ON content_observations(content_type);
+CREATE INDEX IF NOT EXISTS idx_content_obs_expires ON content_observations(expires_at);
 """
 
 
@@ -282,6 +302,7 @@ def init_schema_v2(conn: sqlite3.Connection) -> None:
     _ensure_column(conn, "offers", "installment_available", "INTEGER DEFAULT 0")
     _ensure_column(conn, "offers", "credit_available", "INTEGER DEFAULT 0")
     _ensure_column(conn, "offers", "pickup_available", "INTEGER DEFAULT 0")
+    _ensure_column(conn, "offers", "expires_at", "TEXT")
     _ensure_column(conn, "seller_candidates", "discovery_task_id", "TEXT")
 
     # C-E11-02: Ensure existing canonical_products rows are indexed in FTS on initial creation

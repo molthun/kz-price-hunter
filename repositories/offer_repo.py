@@ -24,9 +24,9 @@ class OfferRepository(BaseRepository):
             availability, city, payment_methods_json,
             installment_available, installment_months, credit_available,
             delivery_type, pickup_available, warranty, published_at, observed_at,
-            is_active, raw_payload_json, created_at, updated_at
+            expires_at, is_active, raw_payload_json, created_at, updated_at
         ) VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
         ON CONFLICT(id) DO UPDATE SET
             product_id=excluded.product_id,
@@ -50,6 +50,7 @@ class OfferRepository(BaseRepository):
             warranty=COALESCE(excluded.warranty, offers.warranty),
             published_at=COALESCE(excluded.published_at, offers.published_at),
             observed_at=excluded.observed_at,
+            expires_at=excluded.expires_at,
             is_active=excluded.is_active,
             raw_payload_json=excluded.raw_payload_json,
             updated_at=excluded.updated_at
@@ -78,6 +79,7 @@ class OfferRepository(BaseRepository):
             offer.warranty,
             offer.published_at,
             offer.observed_at or now,
+            offer.expires_at,
             1 if offer.is_active else 0,
             json.dumps(offer.raw_payload, ensure_ascii=False),
             offer.created_at or now,

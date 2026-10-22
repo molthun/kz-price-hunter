@@ -6,6 +6,7 @@ availability/freshness filtering, and relevance ranking for KZ Price Hunter 2.0.
 
 from __future__ import annotations
 
+import datetime
 import logging
 import re
 import time
@@ -17,6 +18,24 @@ from domain.models import Availability, CanonicalProduct, Condition
 from domain.query_parser import ParsedQuery, QueryParser
 
 logger = logging.getLogger("kz_price_hunter.search_core")
+
+
+def offer_expired(expires_at: Any, now: Optional[datetime.datetime] = None) -> bool:
+    """Истёк ли TTL предложения (S2-E08).
+
+    Срок известен — значит просроченный оффер не purchasable, даже если обход видел его
+    только что: цена из сторис могла исчезнуть вместе со сроком. Битое значение не
+    считается истечением: это отсутствие данных, а не ответ «просрочено».
+    """
+    if not expires_at:
+        return False
+    try:
+        exp = datetime.datetime.fromisoformat(str(expires_at))
+    except (TypeError, ValueError):
+        return False
+    if exp.tzinfo is None:
+        exp = exp.replace(tzinfo=datetime.timezone.utc)
+    return (now or datetime.datetime.now(datetime.timezone.utc)) > exp
 
 
 class SearchOutcome:
@@ -50,6 +69,7 @@ class AggregatedOffer:
     observed_at: Optional[str] = None
     freshness: str = "fresh"
     is_purchasable: bool = True
+    expires_at: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -180,7 +200,11 @@ class SearchCore:
                     is_in_stock = raw_avail in ("in_stock", "preorder", Availability.IN_STOCK, Availability.PREORDER)
                     is_fresh = f_state != data_quality.STALE
                     price_val = float(od["price"])
-                    purchasable = is_in_stock and is_fresh and (price_val > 0)
+                    expires_at = od.get("expires_at")
+                    # S2-E08: TTL короткоживущего предложения. Просроченный оффер не
+                    # purchasable, иначе «лучшая цена» покажет сделку, которой уже нет.
+                    purchasable = (is_in_stock and is_fresh and (price_val > 0)
+                                   and not offer_expired(expires_at))
 
                     agg_off = AggregatedOffer(
                         id=od["id"],
@@ -202,6 +226,7 @@ class SearchCore:
                         observed_at=obs_at,
                         freshness=f_state,
                         is_purchasable=purchasable,
+                        expires_at=expires_at,
                     )
                     aggregated_offers.append(agg_off)
 

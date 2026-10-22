@@ -60,6 +60,13 @@ from domain.query_parser import (
     QueryParser,
 )
 
+from domain.social_content import (
+    ContentObservation,
+    ContentType,
+    ExtractedOfferCandidate,
+    SocialContentExtractor,
+)
+
 from domain.search_core import (
     AggregatedOffer,
     ProductSearchResult,
@@ -97,6 +104,10 @@ __all__ = [
     "Condition",
     "ConditionBreakdown",
     "ConditionFilter",
+    "ContentObservation",
+    "ContentType",
+    "ExtractedOfferCandidate",
+    "SocialContentExtractor",
     "CrossSellerRanking",
     "DeliveryType",
     "DiscoverySource",

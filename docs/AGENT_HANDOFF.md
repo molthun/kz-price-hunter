@@ -5,17 +5,17 @@
 ## Текущая контрольная точка
 
 - Дата: 2026-10-22, Asia/Almaty.
-- **Исполнитель:** Antigravity (завершение реализации этапа S2-E14: Adaptive Discovery & Query Demand Generator).
-- **Область файлов:** `domain/adaptive_discovery.py`, `repositories/discovery_task_repo.py`, `repositories/schema_v2.py`, `domain/__init__.py`, `domain/discovery.py`, `repositories/__init__.py`, `repositories/candidate_repo.py`, `web/server.py`, `test_adaptive_discovery_v2.py`, `docs/AGENT_HANDOFF.md`.
+- **Исполнитель:** Antigravity (каркас S2-E08) → Codex (доработка по прямому поручению владельца).
+- **Область файлов:** `domain/social_content.py`, `domain/models.py`, `domain/search_core.py`, `domain/__init__.py`, `repositories/content_repo.py`, `repositories/offer_repo.py`, `repositories/schema_v2.py`, `repositories/__init__.py`, `database.py`, `tests/sellers/test_social_content_intelligence.py`, `docs/AGENT_HANDOFF.md`; инфраструктура тестов — `tests/` (коммит `77eb0de`).
 - **Статус задач:**
-  1. Реализация **S2-E14: Adaptive Discovery & Query Demand Generator** полностью завершена:
-     - Модель `DiscoveryTask` с полным жизненным циклом (PENDING, RUNNING, COMPLETED, FAILED, CANCELLED).
-     - Генератор мультиплатформенных поисковых запросов `SearchPatternGenerator` (Google, Kaspi, 2GIS, Instagram, Telegram).
-     - Формула приоритизации задач `AdaptiveDiscoveryEngine.calculate_priority(search_count, success_rate)`.
-     - Репозиторий `DiscoveryTaskRepository` с дедупликацией активных задач, атомарным инкрементом найденных кандидатов и аналитикой.
-     - Связка с `SellerCandidate.discovery_task_id` и аддитивная схема `discovery_tasks` в `schema_v2.py`.
-     - Административные REST API эндпоинты `/api/v2/discovery/tasks`, `/api/v2/discovery/generate`, `/api/v2/discovery/tasks/{task_id}/resolve` (защищены `@require_admin` и CSRF Origin middleware).
-  2. Этап переведён в статус **READY** для аудита Codex.
+  1. Этапы **S2-E11, S2-E13, S2-E16, S2-E14** приняты аудитором Codex (`APPROVED`). Коммиты `c0903b5`, `17fc864`, `6028329`.
+  2. **S2-E08 реализован и переведён в READY для аудита Codex:**
+     - Модель `ContentObservation` (POST, STORY, MESSAGE, HIGHLIGHT, REEL), Story TTL 24 ч и `expires_at`.
+     - `SocialContentExtractor`: цены «399 000 тг», «450к», «500000 ₸», «цена: 45 000», пары «было/стало» и «X → Y»; номер модели больше не сливается с ценой, телефоны и объём памяти не считаются ценой; состояние, город и многострочные посты.
+     - TTL доведён до предложения: `Offer.expires_at`, `SearchCore` не считает просроченный оффер purchasable и не берёт его в лучшую цену.
+     - `ContentObservationRepository`: CRUD, выборки по продавцу/каналу/посту, `purge_expired`; очистка подключена к `database.prune_search_analytics`.
+     - Тесты: `tests/sellers/test_social_content_intelligence.py` — 29 проверок.
+  3. Тесты сгруппированы по функциональным блокам (`tests/`, коммит `77eb0de`); добавлены `domain/README.md`, `web/README.md`, `tests/README.md`.
 
 ## Реестр этапов KZ Price Hunter 2.0 (Search Platform)
 
@@ -27,32 +27,84 @@
 | S2-E03 | Channel-aware pricing (Cross-seller / Cross-channel) | READY | Antigravity → Claude (правка E1) | Claude: аудит проведён, E1 закрыт; ожидает проверку Codex | — |
 | S2-E04 | Condition / б/у рынок (NEW, USED, REFURBISHED) | READY | Antigravity → Claude (правка E2) | Claude: аудит проведён, B2 закрыт автором, E2 закрыт; ожидает проверку Codex | — |
 | S2-E05 | Seller Discovery & Source Profiler | READY | Antigravity → Claude | Claude: аудит проведён, C-E05-01…04 закрыты; ожидает финального подтверждения Codex | — |
-| S2-E11 | Unified Product Index & Search Core 2.0 | READY | Antigravity | Codex: C-E11-01…06 закрыты | — |
-| S2-E13 | Search Quality & Search Analytics | READY | Antigravity | Codex: C-E13-01…04 закрыты; privacy blocker снят | — |
-| S2-E16 | Search UI 2.0 (мультипродавцовая витрина, фильтры состояний) | READY | Antigravity | Codex: C-E16-01…05 закрыты | — |
+| S2-E11 | Unified Product Index & Search Core 2.0 | READY | Antigravity | Codex: C-E11-01…06 закрыты, APPROVED | — |
+| S2-E13 | Search Quality & Search Analytics | READY | Antigravity | Codex: C-E13-01…04 закрыты, APPROVED | — |
+| S2-E16 | Search UI 2.0 (мультипродавцовая витрина, фильтры состояний) | READY | Antigravity | Codex: C-E16-01…05 закрыты, APPROVED | — |
 | S2-E14 | Adaptive Discovery & Query Demand Generator | READY | Antigravity | Codex: C-E14-01…02 закрыты, APPROVED | — |
+| S2-E08 | Social Content Intelligence & Stories TTL | READY | Antigravity → Codex (TTL, парсер цен, репозиторий) | ожидает аудит Codex | — |
 
-## Результаты проверок Antigravity (2026-10-22)
+## Результаты проверок Codex (2026-10-22)
 
 ```text
-Срез: main, рабочее дерево Antigravity.
-Статус S2-E14: РЕАЛИЗОВАНО И ПРИНЯТО (Codex APPROVED).
+Срез: main, HEAD 77eb0de + незакоммиченное дерево S2-E08.
 Тесты:
-  - test_adaptive_discovery_v2.py: 16/16 PASS.
-  - test_search_ui_v2.py: 6/6 PASS.
-  - test_search_analytics_v2.py: 11/11 PASS.
-  - test_search_core_v2.py: 21/21 PASS.
-  - test_search_privacy_v2.py: 5/5 PASS.
-  - test_validators_are_used.py: 1/1 PASS.
-  - Полный регрессионный сьют проекта: 1546 PASS (70.195s), 0 failures, 0 errors, временный DATA_DIR.
+  - tests/sellers/test_social_content_intelligence.py: 29/29 PASS.
+  - Полный suite проекта: Ran 1576 tests in 70.883s, OK (0 failures, 0 errors), временный DATA_DIR.
+  - compileall: OK; release_gate.py secrets: 0 findings.
 БД:
-  - prices.db неприкосновенна (148 738 048 байт, integrity_check = ok).
+  - prices.db неприкосновенна (148 738 048 байт, mtime 24.09; integrity_check ранее = ok).
 Следующий точный шаг:
-  - Независимый аудит Codex по этапу S2-E14 (Adaptive Discovery).
+  - Независимый аудит Codex по S2-E08; затем следующие этапы плана Search Platform.
 ```
 
 
-## Карточка текущей задачи: S2-E14 (Adaptive Discovery & Query Demand Generator)
+## Карточка текущей задачи: S2-E08 (Social Content Intelligence & Stories TTL)
+
+```text
+ID / этап: S2-E08. Social Content Intelligence & Stories TTL (Telegram & Instagram, KZ Price Hunter 2.0)
+Цель и контекст:
+  - Пайплайн обработки неструктурированного контента из мессенджеров и соцсетей:
+    * ContentObservation: фиксация сырых постов, сообщений каналов и сторис (seller_id, channel_id, content_type: POST, STORY, MESSAGE, HIGHLIGHT, post_id, text, media_urls, published_at, observed_at, expires_at).
+    * Детерминированный экстрактор коммерческих атрибутов (SocialContentExtractor):
+      - Распознавание цен в казахстанском контексте: тенге (399 000 тг, 450к, 500000 ₸, «цена: 45 000»).
+      - Распознавание скидочных и старых цен («было 550к, сейчас 499к»).
+      - Распознавание состояния Condition: NEW, USED, REFURBISHED («б/у», «идеал», «новый в коробке», «витринный образец»).
+      - Распознавание городов РК (Алматы, Астана, Шымкент...) и признаков наличия/доставки.
+      - Защита от ложных цен (номера телефонов 8701..., кол-во памяти 256GB не путаются с ценами).
+    * Модель короткоживущих предложений (Stories TTL):
+      - Гранулированный срок жизни: 24h для Stories, кастомный valid_until для временных акций.
+      - Автоматическое истечение срока годности (при observed_at + TTL < now предложение помечается как STALE и исключается из purchasable).
+    * Персистентность и схема:
+      - Таблица content_observations в repositories/schema_v2.py (аддитивно).
+      - Репозиторий ContentObservationRepository.
+    * Связка с Offer:
+      - Возможность конвертации валидного ExtractedCandidate в полноценный Offer с привязкой к каналу и источнику.
+Основание/поручение владельца: «Делай».
+Статус: READY (реализация завершена, ожидает аудита Codex)
+Исполнитель / следующий: Antigravity (каркас) → Codex (доработка) / Codex проводит аудит
+Начало и checkpoint: 2026-10-22 16:18; доработка и приёмка — 16:45 (Asia/Almaty)
+Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-hunter, ветка main, HEAD 77eb0de
+Область файлов:
+  domain/social_content.py, domain/models.py, domain/search_core.py, domain/__init__.py,
+  repositories/content_repo.py, repositories/offer_repo.py, repositories/schema_v2.py,
+  repositories/__init__.py, database.py, tests/sellers/test_social_content_intelligence.py,
+  docs/AGENT_HANDOFF.md
+Что сделано:
+  - domain/social_content.py: ContentType, ContentObservation (Story TTL 24 ч), ExtractedOfferCandidate,
+    SocialContentExtractor.
+  - Парсер цен переработан: числа с валютами/«к»/словом «цена», пары «было/стало» и «X → Y»;
+    номер модели в названии отделяется от цены («iPhone 15 399 000» → 399 000), телефон и объём
+    памяти маскируются без изменения длины строки, поэтому название вырезается по позиции цены.
+  - TTL доведён до оффера: Offer.expires_at (модель, персистентность), Search Core исключает
+    просроченный оффер из purchasable и из min_price/best_offer.
+  - repositories/content_repo.py: ContentObservationRepository (save/upsert, get, find_by_post,
+    find_by_seller/channel с фильтром срока, purge_expired, extract_candidates).
+  - Очистка purge_expired подключена к database.prune_search_analytics (общий проход retention).
+  - Экспорт новых сущностей в domain/__init__.py и repositories/__init__.py.
+  - Тесты tests/sellers/test_social_content_intelligence.py — 29 проверок (цены, ложные цены,
+    атрибуты, TTL, репозиторий, интеграция TTL с Search Core).
+Что проверено:
+  - tests/sellers/test_social_content_intelligence.py: 29/29 PASS.
+  - Полный suite проекта: 1576 PASS (70.883s, 0 failures, 0 errors), временный DATA_DIR.
+  - compileall: OK; release_gate.py secrets: 0 findings.
+  - prices.db: не тронута (148 738 048 байт).
+Что осталось:
+  - Независимый аудит Codex по S2-E08.
+  - Интеграция с реальным сбором контента (адаптеры Telegram/Instagram) — отдельным этапом.
+Следующий точный шаг: аудит S2-E08, затем следующие этапы Search Platform.
+```
+
+## Карточка задачи: S2-E14 (Adaptive Discovery & Query Demand Generator)
 
 ```text
 ID / этап: S2-E14. Adaptive Discovery & Query Demand Generator (KZ Price Hunter 2.0)

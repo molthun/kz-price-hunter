@@ -297,6 +297,13 @@ def prune_search_analytics(days: Optional[int] = None,
                 days=days or sa.RETENTION_DAYS)
         except (sqlite3.OperationalError, ImportError):
             pass  # таблицы v2 ещё нет — legacy-контур это не ломает
+        try:
+            # TTL контента соцсетей (S2-E08): просроченные сторис и временные акции
+            # удаляются тем же регулярным проходом, что и остальная аналитика.
+            from repositories.content_repo import ContentObservationRepository
+            deleted += ContentObservationRepository(conn).purge_expired(moment.isoformat())
+        except (sqlite3.OperationalError, ImportError):
+            pass  # таблицы v2 ещё нет
         conn.commit()
     return deleted
 

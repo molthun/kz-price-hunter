@@ -328,6 +328,8 @@ class Offer:
     raw_payload: Dict[str, Any] = field(default_factory=dict)
     created_at: str = field(default_factory=utc_now_iso)
     updated_at: str = field(default_factory=utc_now_iso)
+    # TTL короткоживущего предложения (сторис/временная акция, S2-E08). None — срок не задан.
+    expires_at: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -379,6 +381,7 @@ class Offer:
             raw_payload=raw,
             created_at=row.get("created_at") or utc_now_iso(),
             updated_at=row.get("updated_at") or utc_now_iso(),
+            expires_at=row.get("expires_at"),
         )
 
 
