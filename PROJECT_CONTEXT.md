@@ -204,7 +204,7 @@ python gui.py
 python main.py --once
 
 # Запуск полного набора автоматических тестов (46 тестов)
-pytest tests/test_monitor.py -v
+python -m unittest tests.monitoring.test_monitor -v
 ```
 
 ---

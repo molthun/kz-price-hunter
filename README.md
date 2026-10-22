@@ -166,14 +166,22 @@ python3 -m venv venv
 ### Тесты
 
 ```bash
-# Запуск полного набора автоматических тестов (189+ тестов):
-./venv/bin/python3 -m unittest discover -s . -p "test_*.py"
+# Полный набор (временный DATA_DIR, рабочая prices.db не используется):
+DATA_DIR=$(mktemp -d) ./venv/bin/python -m unittest discover -s . -p "test_*.py"
 
-# Выборочный запуск основных тестовых модулей:
-./venv/bin/python3 -m unittest test_monitor test_auth_privacy test_matching_precision test_scraper_contract test_scheduler_resilience test_security_headers
+# Один функциональный блок:
+DATA_DIR=$(mktemp -d) ./venv/bin/python -m unittest discover -s tests/search -t . -p "test_*.py"
+
+# Один модуль:
+DATA_DIR=$(mktemp -d) ./venv/bin/python -m unittest tests.search.test_search_core_v2 -v
+
+# Браузерные регрессии (нужны Node.js, Playwright и Chrome):
+for f in tests/frontend/test_frontend*.cjs; do node "$f" || exit 1; done
 ```
 
-Тесты работают на временной базе и не трогают `prices.db` и `settings.json`.
+Тесты лежат в [`tests/`](tests/) по функциональным блокам (поиск, продавцы, скраперы, мониторинг,
+AI, web и т.д.) — структура и правила описаны в [`tests/README.md`](tests/README.md). Все наборы
+работают на временной базе и не трогают `prices.db` и `settings.json`.
 
 ## Настройки
 
@@ -209,7 +217,7 @@ config.py           — настройки, категории, города
 notifier.py         — Telegram-уведомления с валидацией безопасных URL
 log_manager.py      — перехват логов для вкладки «Логи»
 main.py             — консольный режим и шедулер
-test_*.py           — комплексный набор автоматических тестов (200+ тестов)
+tests/              — набор автоматических тестов по функциональным блокам (см. tests/README.md)
 version.py          — версия приложения (v5.27.0)
 ```
 
@@ -220,6 +228,9 @@ version.py          — версия приложения (v5.27.0)
   - [`docs/SCRAPER_GUIDE.md`](docs/SCRAPER_GUIDE.md) — руководство по разработке скраперов (масштабирование до 100+ сетей)
   - [`docs/MATCHING_AND_ARBITRAGE.md`](docs/MATCHING_AND_ARBITRAGE.md) — нормализация `canonical_key`, фильтрация аксессуаров и арбитраж
   - [`docs/SECURITY_AND_PRIVACY.md`](docs/SECURITY_AND_PRIVACY.md) — аутентификация, безопасность сессий, headers и приватность
+- [`domain/README.md`](domain/README.md) — доменные модели и детерминированная логика
+- [`web/README.md`](web/README.md) — HTTP API и список функций `web/server.py`
+- [`tests/README.md`](tests/README.md) — структура тестов, правила и команды запуска
 - [`SOURCES.md`](SOURCES.md) — паспорт всех источников и категорий
 - [`SCRAPER_STANDARD.md`](SCRAPER_STANDARD.md) — спецификация контракта скраперов
 - [`SECURITY_CONFIG.md`](SECURITY_CONFIG.md) — безопасность и reverse proxy

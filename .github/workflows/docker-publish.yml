@@ -64,7 +64,7 @@ jobs:
       - name: Run browser tests
         env:
           TEST_PYTHON: python
-        run: for f in test_frontend*.cjs; do echo "== $f"; node "$f" || exit 1; done
+        run: for f in tests/frontend/test_frontend*.cjs; do echo "== $f"; node "$f" || exit 1; done
 
   # Ключи и токены не должны попадать ни в репозиторий, ни в образ
   secret-scan:

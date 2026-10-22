@@ -10,7 +10,7 @@
 | Проверка | Что делает | Где |
 |---|---|---|
 | `test` | компиляция всех файлов и весь набор `test_*.py` | `.github/workflows/docker-publish.yml` |
-| `frontend` | браузерные регрессии `test_frontend*.cjs` в Chrome раннера | там же |
+| `frontend` | браузерные регрессии `tests/frontend/test_frontend*.cjs` в Chrome раннера | там же |
 | `secret-scan` | ищет ключи и токены во всех файлах, которые хранит git, включая `.github` | `release_gate.py secrets` |
 | `dependency-audit` | уязвимости зависимостей (`pip-audit`) с учётом списка пропусков | `release_gate.py deps` |
 | `upgrade-rehearsal` | база предыдущего релиза → новый код → миграции → запросы приложения → целостность, затем запуск САМОГО прежнего релиза на обновлённой копии | `release_gate.py upgrade`, `release_gate.py rollback` |
