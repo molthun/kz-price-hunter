@@ -271,6 +271,25 @@ CREATE INDEX IF NOT EXISTS idx_content_obs_seller ON content_observations(seller
 CREATE INDEX IF NOT EXISTS idx_content_obs_channel ON content_observations(channel_id);
 CREATE INDEX IF NOT EXISTS idx_content_obs_type ON content_observations(content_type);
 CREATE INDEX IF NOT EXISTS idx_content_obs_expires ON content_observations(expires_at);
+
+-- 14. Social Sources registry (S2-E06): каналы Telegram и профили Instagram как источники контента
+CREATE TABLE IF NOT EXISTS social_sources (
+    id TEXT PRIMARY KEY,
+    platform TEXT NOT NULL,
+    handle TEXT NOT NULL,
+    url TEXT DEFAULT '',
+    seller_id TEXT DEFAULT '',
+    channel_id TEXT DEFAULT '',
+    enabled INTEGER DEFAULT 1,
+    last_fetch_at TEXT,
+    last_status TEXT DEFAULT 'PENDING',
+    last_error TEXT DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(platform, handle)
+);
+CREATE INDEX IF NOT EXISTS idx_social_sources_enabled ON social_sources(enabled);
+CREATE INDEX IF NOT EXISTS idx_social_sources_platform ON social_sources(platform);
 """
 
 

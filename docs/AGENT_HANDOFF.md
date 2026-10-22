@@ -17,6 +17,7 @@
      - Тесты: `tests/sellers/test_social_content_intelligence.py` — 29 проверок.
   3. Тесты сгруппированы по функциональным блокам (`tests/`, коммит `77eb0de`); добавлены `domain/README.md`, `web/README.md`, `tests/README.md`.
   4. Выполнена мини-задача оптимизаций: скомпилированные фильтры детектора, устойчивый разбор JSON от AI и лёгкое обслуживание FTS5 (см. карточку ниже).
+  5. **S2-E06 реализован и переведён в READY для аудита:** коннекторы Telegram (публичная превью канала) и Instagram (Graph API с токеном), реестр источников `social_sources`, сервис сбора `social_ingest.py` и CLI `scripts/social_ingest.py` (см. карточку ниже).
 
 ## Карточка задачи: ускорение детектора, JSON AI и обслуживание FTS5 (2026-10-22)
 
@@ -59,6 +60,7 @@ Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-h
 | S2-E03 | Channel-aware pricing (Cross-seller / Cross-channel) | READY | Antigravity → Claude (правка E1) | Claude: аудит проведён, E1 закрыт; ожидает проверку Codex | — |
 | S2-E04 | Condition / б/у рынок (NEW, USED, REFURBISHED) | READY | Antigravity → Claude (правка E2) | Claude: аудит проведён, B2 закрыт автором, E2 закрыт; ожидает проверку Codex | — |
 | S2-E05 | Seller Discovery & Source Profiler | READY | Antigravity → Claude | Claude: аудит проведён, C-E05-01…04 закрыты; ожидает финального подтверждения Codex | — |
+| S2-E06 | Telegram & Social Media Connectors | READY | Codex (по поручению владельца) | ожидает аудит Codex | — |
 | S2-E11 | Unified Product Index & Search Core 2.0 | READY | Antigravity | Codex: C-E11-01…06 закрыты, APPROVED | — |
 | S2-E13 | Search Quality & Search Analytics | READY | Antigravity | Codex: C-E13-01…04 закрыты, APPROVED | — |
 | S2-E16 | Search UI 2.0 (мультипродавцовая витрина, фильтры состояний) | READY | Antigravity | Codex: C-E16-01…05 закрыты, APPROVED | — |
@@ -68,17 +70,63 @@ Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-h
 ## Результаты проверок Codex (2026-10-22)
 
 ```text
-Срез: main, HEAD 77eb0de + незакоммиченное дерево S2-E08.
+Срез: main, HEAD 0963afa + незакоммиченное дерево S2-E06.
 Тесты:
-  - tests/sellers/test_social_content_intelligence.py: 29/29 PASS.
-  - Полный suite проекта: Ran 1576 tests in 70.883s, OK (0 failures, 0 errors), временный DATA_DIR.
+  - tests/sellers/test_social_connectors.py: 27/27 PASS.
+  - tests/sellers/test_social_content_intelligence.py: 29/29 PASS (S2-E08).
+  - Полный suite проекта: Ran 1620 tests in 69.846s, OK (0 failures, 0 errors), временный DATA_DIR.
   - compileall: OK; release_gate.py secrets: 0 findings.
 БД:
   - prices.db неприкосновенна (148 738 048 байт, mtime 24.09; integrity_check ранее = ok).
 Следующий точный шаг:
-  - Независимый аудит Codex по S2-E08; затем следующие этапы плана Search Platform.
+  - Независимый аудит S2-E06; затем S2-E15/E17 (Adaptive Scheduler 2.0) и релиз v6.2.0.
 ```
 
+
+## Карточка задачи: S2-E06 (Telegram & Social Media Connectors)
+
+```text
+ID / этап: S2-E06. Telegram & Social Media Connectors (KZ Price Hunter 2.0)
+Цель и контекст:
+  - Публичный сбор контента из каналов Telegram и бизнес-аккаунтов Instagram как источника
+    каталога для продавцов, у которых каталог живёт в соцсетях (этапы 5–8 Search Platform).
+  - Правило плана: соцсети — последний по предпочтению источник каталога (после feed/YML/
+    API/структурированного сайта). Коннектор только получает и разбирает контент; решение
+    «это каталог» остаётся за Source Profiler.
+Статус: READY (ожидает аудита Codex)
+Исполнитель: Codex (по прямому поручению владельца)
+Checkout / ветка / базовый HEAD: main, HEAD 0963afa + незакоммиченное дерево S2-E06
+Область файлов:
+  domain/social_connector.py, repositories/social_source_repo.py, repositories/schema_v2.py,
+  repositories/__init__.py, social_ingest.py, scripts/social_ingest.py,
+  tests/sellers/test_social_connectors.py, docs/AGENT_HANDOFF.md
+Что сделано:
+  - domain/social_connector.py: SocialPlatform/SocialSource/FetchedPost, TelegramChannelConnector
+    (публичная страница t.me/s/<handle>: текст, фото, видео, время, ссылка на пост),
+    InstagramConnector (Graph API media/stories только с токеном и числовым Business ID),
+    normalize_handle, детерминированные source_id/observation_id, posts_to_observations.
+  - Ошибки явные: 429 → ConnectorRateLimited(retry_after), 401/403/404 → ConnectorUnavailable;
+    отсутствие токена Instagram — ошибка доступа, а не пустой каталог; текст ошибки не содержит
+    токен. Сеть в тестах не используется — HTTP-функция инжектируется.
+  - repositories/social_source_repo.py и аддитивная таблица social_sources
+    (UNIQUE platform+handle): add/save/get/list/set_enabled/mark_fetch; статус и ошибка
+    последнего сбора видны в реестре.
+  - social_ingest.py: ingest_source() сохраняет ContentObservation (S2-E08), считает
+    извлечённых кандидатов и фиксирует исход (OK/EMPTY/RATE_LIMITED/ERROR/DISABLED) в
+    IngestResult и social_sources, не бросая ошибки источника наружу;
+    ingest_due_sources() последовательно обходит включённые источники.
+  - scripts/social_ingest.py: CLI --list/--add/--ingest/--once. Реальная сеть — только по
+    явному запуску; фоновой сбор в веб-панели намеренно не включён (это S2-E15/E17).
+Что проверено:
+  - tests/sellers/test_social_connectors.py: 27/27 PASS (парсеры Telegram/Instagram, 429/403,
+    TTL сторис, реестр источников, идемпотентность повторного сбора, отсутствие утечки токена).
+  - Полный suite проекта: 1620 PASS (69.846s, 0 failures, 0 errors), временный DATA_DIR.
+  - compileall: OK; release_gate.py secrets: 0 findings.
+Что осталось:
+  - Независимый аудит S2-E06.
+  - Подключение сбора к расписанию и сигналам discovery — этап S2-E15/E17 (Adaptive Scheduler 2.0).
+Следующий точный шаг: аудит S2-E06, затем S2-E15/E17, затем релиз v6.2.0 по поручению владельца.
+```
 
 ## Карточка текущей задачи: S2-E08 (Social Content Intelligence & Stories TTL)
 

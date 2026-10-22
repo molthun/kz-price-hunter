@@ -3,7 +3,7 @@
 Все проверки проекта собраны в этом каталоге и разложены по функциональным блокам.
 Корень проекта больше не содержит `test_*.py`: новые наборы добавляются внутрь `tests/<блок>/`.
 
-Сейчас это **65 тестовых модулей Python (1593 проверки)** и **16 браузерных наборов** Playwright.
+Сейчас это **66 тестовых модулей Python (1620 проверок)** и **16 браузерных наборов** Playwright.
 
 ## Принципы
 
@@ -21,7 +21,7 @@
 |---|---|---|
 | `tests/core/` | конфигурация, схема и целостность БД, репозитории, доменные модели, identity/offer-namespace, миграции, валидаторы, timezone, release gate | `test_repositories.py`, `test_config_and_ids.py` |
 | `tests/search/` | Search Core 2.0, query parser, FTS, агрегация продавцов, аналитика качества поиска и приватность запросов, UI 2.0 | `test_search_core_v2.py`, `test_search_privacy_v2.py` |
-| `tests/sellers/` | продавцы и каналы, condition, Seller Discovery и профилирование источников, Adaptive Discovery | `test_seller_matcher.py`, `test_adaptive_discovery_v2.py` |
+| `tests/sellers/` | продавцы и каналы, condition, Seller Discovery и профилирование источников, Adaptive Discovery, коннекторы соцсетей | `test_seller_matcher.py`, `test_adaptive_discovery_v2.py` |
 | `tests/scrapers/` | контракт скраперов, надёжность, полнота обхода, TLS | `test_scraper_contract.py`, `test_scraper_reliability.py` |
 | `tests/monitoring/` | телеметрия, качество и свежесть данных, Центр мониторинга, backup health, environment, scaling, daily digest | `test_monitor.py`, `test_telemetry.py` |
 | `tests/scheduler/` | теневой планировщик, rollout, аренды и устойчивость | `test_scheduler_rollout.py`, `test_shadow_read.py` |
