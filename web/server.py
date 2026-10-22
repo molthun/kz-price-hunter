@@ -190,6 +190,8 @@ scan_state = {
     "scan_type": "manual",  # "manual", "auto", "category"
     "target_categories": None,
     "wave_info": None,
+    # S2-E15/E17: последний план Adaptive Scheduler 2.0 (shadow по умолчанию)
+    "adaptive_plan": None,
 }
 
 # Состояние ротации волн
@@ -866,6 +868,24 @@ async def search_v2_handler(request):
         return web.json_response({"error": "Ошибка поиска v2, попробуйте позже"}, status=500)
     finally:
         conn.close()
+
+
+@routes.get("/api/v2/scheduler/plan")
+@require_admin
+async def scheduler_plan_handler(request):
+    """Последний план Adaptive Scheduler 2.0 (S2-E15/E17); только чтение, только администратор."""
+    from adaptive_scheduler_v2 import latest_plan, mode
+
+    def _load():
+        from database import get_connection
+        conn = get_connection()
+        try:
+            return latest_plan(conn)
+        finally:
+            conn.close()
+
+    plan = await asyncio.to_thread(_load)
+    return web.json_response({"status": "ok", "mode": mode(), "plan": plan})
 
 
 @routes.get("/api/v2/analytics/search-quality")
@@ -2007,6 +2027,26 @@ async def _scan_task_body(shop_keys, target_categories, scan_type):
                 "is_last_wave": is_circle_finished
             }
             print(f"[Wave] 🌊 Круг #{current_cycle_val} | Волна #{plan['wave_index'] + 1}/{plan['total_waves']} (интервал: {wave_interval_sec // 60}м, лимит круга: 24ч): Hot={plan['hot_categories']}, Wave={plan['wave_categories']}")
+            # Adaptive Scheduler 2.0 (S2-E15/E17): shadow по умолчанию записывает план и
+            # не меняет волну; включённый режим добавляет не больше N категорий по спросу.
+            try:
+                from adaptive_scheduler_v2 import adapt_wave_plan
+                adaptive = adapt_wave_plan(target_categories,
+                                           enabled_categories=settings.get("enabled_categories"))
+                scan_state["adaptive_plan"] = adaptive.get("summary") or {}
+                extra_categories = adaptive.get("extra_categories") or []
+                if extra_categories:
+                    target_categories = list(dict.fromkeys(list(target_categories) + extra_categories))
+                    names = [MASTER_CATEGORIES[key]["name"] for key in extra_categories
+                             if key in MASTER_CATEGORIES]
+                    print(f"[Adaptive2] Добавлены категории по спросу: {', '.join(names)}")
+                elif (adaptive.get("summary") or {}).get("extra_categories"):
+                    planned = adaptive["summary"]["extra_categories"]
+                    names = [MASTER_CATEGORIES[key]["name"] for key in planned
+                             if key in MASTER_CATEGORIES]
+                    print(f"[Adaptive2] shadow-план (не применяется): {', '.join(names)}")
+            except Exception as e:
+                print(f"[Adaptive2] План не рассчитан: {type(e).__name__}")
         else:
             enabled_cats = settings.get("enabled_categories")
             if enabled_cats:

@@ -16,7 +16,7 @@
 1. `init_db()` — инициализация и миграции SQLite;
 2. `web.Application(middlewares=[telemetry_middleware, auth_middleware, gzip_middleware])`;
 3. `app.cleanup_ctx.append(background_tasks)` — автообход, AI-нормализация, рассылка уведомлений, Telegram-бот;
-4. `app.add_routes(routes)` — 78 маршрутов из общего `routes = web.RouteTableDef()`;
+4. `app.add_routes(routes)` — 79 маршрутов из общего `routes = web.RouteTableDef()`;
 5. `app.router.add_static("/static/", BASE_DIR / "web" / "static", show_index=False)`;
 6. `app["stats_cache"] = BoundedTTLCache(...)` — кэш сводных счётчиков `/api/stats` (TTL 30 с, сбрасывается при обходе, настройках и разборе алертов).
 
@@ -32,7 +32,7 @@ Jinja2 не используется: шаблонизатора в зависи
 
 ## Список функций `web/server.py`
 
-В файле 111 функций верхнего уровня (92 `async`) и класс `LeaseLost`. 78 функций — aiohttp-хендлеры: 19 публичных, 10 под `@require_login`, 49 под `@require_admin`. Ниже перечислены все маршруты; соседние хендлеры с общим смыслом объединены в одну строку. Колонки: **функция** — точное имя из кода, **маршрут** — метод и путь, **доступ** — публичный / вход / админ, **что делает** — по коду.
+В файле 112 функций верхнего уровня (93 `async`) и класс `LeaseLost`. 79 функций — aiohttp-хендлеры: 19 публичных, 10 под `@require_login`, 50 под `@require_admin`. Ниже перечислены все маршруты; соседние хендлеры с общим смыслом объединены в одну строку. Колонки: **функция** — точное имя из кода, **маршрут** — метод и путь, **доступ** — публичный / вход / админ, **что делает** — по коду.
 
 ### Страницы и метаданные
 
@@ -123,6 +123,7 @@ Jinja2 не используется: шаблонизатора в зависи
 | Функция | Маршрут | Доступ | Что делает |
 |---|---|---|---|
 | `search_quality_analytics_handler` | `GET /api/v2/analytics/search-quality` | админ | KPI поиска, топ-запросы и сигналы для discovery (`city`, `since`, `limit`). |
+| `scheduler_plan_handler` | `GET /api/v2/scheduler/plan` | админ | Последний план Adaptive Scheduler 2.0 (`ADAPTIVE_SCHEDULER_2=off/shadow/on`, по умолчанию shadow) и список категорий из него. |
 | `get_discovery_tasks_handler`, `generate_discovery_tasks_handler` | `GET /api/v2/discovery/tasks`, `POST /api/v2/discovery/generate` | админ | Задачи adaptive discovery (`status`, `city`, `min_priority`, `limit`) и генерация задач по сигналам спроса. |
 | `resolve_discovery_task_handler` | `POST /api/v2/discovery/tasks/{task_id}/resolve` | админ | Меняет статус задачи (`status`, `notes`, `candidates_delta`), проверяет допустимые статусы. |
 
@@ -145,6 +146,7 @@ Jinja2 не используется: шаблонизатора в зависи
 - **CSRF/Origin.** `auth_middleware` для всех не-GET/HEAD/OPTIONS требует точного совпадения `Origin` с `expected_origin(request)`, иначе 403. `expected_origin` — это `PUBLIC_ORIGIN` (проверяется при импорте `auth.py`) либо loopback-origin без доверия произвольному `Host` и прокси-заголовкам. Запросы с `Sec-Fetch-Site: cross-site` отклоняются. Cookie `kzph_session`: `HttpOnly`, `SameSite=Lax`, `Secure` при HTTPS, срок из `SESSION_TTL_DAYS`.
 - **Заголовок `X-KZPH-Request`.** `GET /api/best-price` с `live=1` или AI расходует квоту и пишет кэш, поэтому требует `browser_read_action_allowed`: заголовок `X-KZPH-Request: 1`, тот же Origin (или его отсутствие) и не cross-site. Гостю `live` запрещён (401).
 - **Rate limiting.** `RateLimiter` — скользящее окно в памяти процесса: `search_limiter` 60/мин на IP (`/api/best-price`, `/api/v2/search`), `live_search_limiter` 10/10 мин на пользователя, `consultant_limiter` 10/мин на пользователя (`/api/ai/consultant`), `telegram_test_limiter` 3/мин, `auth_limiter` 20/10 мин на IP. Ответ 429 с `Retry-After`.
+- **Adaptive Scheduler 2.0.** `ADAPTIVE_SCHEDULER_2=off|shadow|on` (по умолчанию shadow). Shadow считает и сохраняет план по сигналам спроса и PENDING-задачам discovery в `scheduler_plans`, но волну не меняет; `on` добавляет к волне не больше двух категорий, не меняя ротацию и порядок. Ошибка планировщика не ломает обход.
 - **Сжатие и кэш.** `gzip_middleware` сжимает обычные ответы больше 1 КБ только при `Accept-Encoding: gzip`, не трогает потоковые и уже сжатые, ставит `Vary: Accept-Encoding`. `/api/stats` кэшируется на 30 с по ключу (пользователь/гость, город); `scan_state` и `wave_info` считаются заново в каждом ответе, кэш сбрасывается после обхода, смены настроек и разбора алертов. Остальные тяжёлые списки (`/api/deals`, `/api/products`, `/api/alerts`) не кэшируются, чтобы не показывать устаревшие цены.
 - **Права.** `require_admin` даёт 401 без входа и 403 без прав; `require_login` — 401. Админские данные и действия только под `require_admin`; личные — под `require_login` и всегда по `request["user"]["id"]`, без id из запроса.
 - **Секреты.** `/api/admin/config` маскирует `gemini_api_key` и `openai_api_key`; POST не затирает реальный ключ маской; `/api/admin/ai/models` отдаёт только имена моделей. Тексты ошибок проходят через `redact_secrets`, наружу не уходят токены, cookie и внутренние детали.

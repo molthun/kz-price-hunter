@@ -3,7 +3,7 @@
 Все проверки проекта собраны в этом каталоге и разложены по функциональным блокам.
 Корень проекта больше не содержит `test_*.py`: новые наборы добавляются внутрь `tests/<блок>/`.
 
-Сейчас это **69 тестовых модулей Python (1651 проверка)** и **16 браузерных наборов** Playwright.
+Сейчас это **70 тестовых модулей Python (1674 проверки)** и **16 браузерных наборов** Playwright.
 
 ## Принципы
 
@@ -24,7 +24,7 @@
 | `tests/sellers/` | продавцы и каналы, condition, Seller Discovery и профилирование источников, Adaptive Discovery, коннекторы соцсетей | `test_seller_matcher.py`, `test_adaptive_discovery_v2.py` |
 | `tests/scrapers/` | контракт скраперов, надёжность, полнота обхода, TLS | `test_scraper_contract.py`, `test_scraper_reliability.py` |
 | `tests/monitoring/` | телеметрия, качество и свежесть данных, Центр мониторинга, backup health, environment, scaling, daily digest | `test_monitor.py`, `test_telemetry.py` |
-| `tests/scheduler/` | теневой планировщик, rollout, аренды и устойчивость | `test_scheduler_rollout.py`, `test_shadow_read.py` |
+| `tests/scheduler/` | теневой планировщик, rollout, Adaptive Scheduler 2.0 (спрос/discovery), аренды и устойчивость | `test_scheduler_rollout.py`, `test_shadow_read.py` |
 | `tests/ai/` | AI-роутер и модели, цены, каталог и качество, matching, админ-помощник | `test_ai_router.py`, `test_catalog_quality.py` |
 | `tests/notifications/` | Telegram-уведомления, наблюдения (watches), бот, обращения магазинов | `test_watches.py`, `test_notifications.py` |
 | `tests/web/` | HTTP API и auth, gzip/кэш дашборда, browser-фикстура сервера, security headers/logging, UI data, self-service приватности | `test_ui_data.py`, `test_auth_privacy.py` |

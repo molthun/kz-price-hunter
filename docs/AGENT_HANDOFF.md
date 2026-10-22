@@ -22,6 +22,7 @@
   7. Выполнена оптимизация базы скраперов (шаги 8–11): retry только временных сбоев, быстрый `parse_price`, метрики категории; вместо aiohttp-хелпера зафиксирован единый транспорт `scrapers/http.py` (см. карточку ниже).
   8. Выполнена оптимизация веб-слоя (шаги 12–16): gzip для крупных ответов, кэш сводных счётчиков `/api/stats`; rate limiting и worker pool Telegram уже были, кэш ответов бота не внедрён по причинам контекста и свежести цен (см. карточку ниже).
   9. Покрытие тестами подключено к CI (порог 80%, текущий замер 84%) и актуализированы числа документации: 37 сетей, 42 899 товаров, версия 6.1.0 (см. карточку ниже).
+  10. Реализован **S2-E15/E17 (Adaptive Scheduler 2.0)**: shadow-план по сигналам спроса и PENDING-задачам discovery, контролируемое включение через `ADAPTIVE_SCHEDULER_2`, таблица `scheduler_plans`, admin-эндпоинт плана (см. карточку ниже).
 
 ## Карточка задачи: ускорение детектора, JSON AI и обслуживание FTS5 (2026-10-22)
 
@@ -69,16 +70,18 @@ Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-h
 | S2-E13 | Search Quality & Search Analytics | READY | Antigravity | Codex: C-E13-01…04 закрыты, APPROVED | — |
 | S2-E16 | Search UI 2.0 (мультипродавцовая витрина, фильтры состояний) | READY | Antigravity | Codex: C-E16-01…05 закрыты, APPROVED | — |
 | S2-E14 | Adaptive Discovery & Query Demand Generator | READY | Antigravity | Codex: C-E14-01…02 закрыты, APPROVED | — |
+| S2-E15 | Adaptive Scheduler 2.0: shadow-план по спросу и discovery | READY | Codex (по поручению владельца) | ожидает аудит Codex | — |
+| S2-E17 | Adaptive Scheduler 2.0: контролируемое включение (mode on) | READY | Codex (по поручению владельца) | ожидает аудит Codex | — |
 | S2-E08 | Social Content Intelligence & Stories TTL | READY | Antigravity → Codex (TTL, парсер цен, репозиторий) | ожидает аудит Codex | — |
 
 ## Результаты проверок Codex (2026-10-22)
 
 ```text
-Срез: main, HEAD 773d5bf + незакоммиченное дерево покрытия/документации.
+Срез: main, HEAD e802095 + незакоммиченное дерево Adaptive Scheduler 2.0.
 Тесты:
-  - Полный suite проекта: Ran 1651 tests in 73.219s, OK (0 failures, 0 errors), временный DATA_DIR.
-  - Покрытие: 84% строк (18 485 инструкций, 3 008 непокрытых), CI-порог 80%.
-  - coverage --fail-under=80 -> exit 0; --fail-under=99 -> exit 2.
+  - tests/scheduler/test_adaptive_scheduler_v2.py: 23/23 PASS.
+  - Полный suite проекта: Ran 1674 tests in 72.941s, OK (0 failures, 0 errors), временный DATA_DIR.
+  - Покрытие по-прежнему выше порога 80% (CI-проверка не менялась).
   - compileall OK; release_gate.py secrets — 0 findings.
 БД:
   - prices.db неприкосновенна (148 738 048 байт, mtime 24.09).
@@ -90,6 +93,47 @@ Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-h
   - Независимый аудит S2-E06; затем S2-E15/E17 (Adaptive Scheduler 2.0) и релиз v6.2.0.
 ```
 
+
+## Карточка задачи: S2-E15/E17 (Adaptive Scheduler 2.0)
+
+```text
+ID / этап: S2-E15 (shadow-план) / S2-E17 (контролируемое включение).
+Цель и контекст:
+  - Планировщик обходов учитывает не только свежесть магазинов, но и спрос: сигналы
+    неудовлетворённых запросов (S2-E13) и PENDING-задачи discovery (S2-E14) превращаются
+    в список категорий, которые стоит обновить в ближайшей волне.
+Статус: READY (реализация завершена, ожидает аудита Codex)
+Исполнитель: Codex (по прямому поручению владельца)
+Checkout / ветка / базовый HEAD: main, HEAD e802095 + незакоммиченное дерево
+Область файлов:
+  adaptive_scheduler_v2.py, repositories/schema_v2.py, web/server.py,
+  tests/scheduler/test_adaptive_scheduler_v2.py, web/README.md, docs/AGENT_HANDOFF.md
+Что сделано:
+  - adaptive_scheduler_v2.py: детерминированное сопоставление запросов с мастер-категориями
+    (словарь основ, без AI), агрегация score: спрос = search_count*(1-успех/100),
+    задачи = priority_score; лимит MAX_EXTRA_CATEGORIES=2; фильтр enabled_categories.
+  - Режимы ADAPTIVE_SCHEDULER_2=off|shadow|on, по умолчанию shadow; неизвестное значение →
+    shadow (безопасный). shadow считает план и пишет его в scheduler_plans, но волну не меняет;
+    on добавляет к волне не больше двух отсутствующих категорий, не меняя ротацию/порядок;
+    off не запускает планировщик. Любая ошибка планировщика возвращает базовую волну.
+  - Статусы discovery-задач НЕ меняются: они только сигнал; исполнение задач (поиск новых
+    продавцов) — отдельный этап.
+  - Интеграция в _scan_task_body (auto/rolling): план в scan_state["adaptive_plan"],
+    лог применённых/shadow-категорий.
+  - Аддитивная таблица scheduler_plans (история до 200 записей) + GET /api/v2/scheduler/plan
+    (@require_admin, только чтение).
+Проверки:
+  - tests/scheduler/test_adaptive_scheduler_v2.py — 23 проверки (сопоставление категорий,
+    режимы, лимиты, shadow не меняет волну, on добавляет только новые, off no-op, ошибка
+    не ломает обход, персистентность и обрезка истории, реальный сигнал из search_events,
+    endpoint 401 для гостя и 200 для админа).
+  - Полный suite: 1674 PASS (72.941s, 0 failures, 0 errors), временный DATA_DIR.
+  - compileall OK; release_gate.py secrets — 0 findings; prices.db не изменялась.
+Что осталось:
+  - Независимый аудит S2-E15/E17.
+  - Исполнение discovery-задач и включение mode=on на проде — только после наблюдения shadow-планов.
+Следующий точный шаг: аудит S2-E15/E17, затем релиз v6.2.0 (version.py, CHANGELOG, push по поручению владельца).
+```
 
 ## Карточка задачи: покрытие тестами в CI и актуализация документации (2026-10-22)
 

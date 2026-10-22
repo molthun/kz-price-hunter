@@ -290,6 +290,18 @@ CREATE TABLE IF NOT EXISTS social_sources (
 );
 CREATE INDEX IF NOT EXISTS idx_social_sources_enabled ON social_sources(enabled);
 CREATE INDEX IF NOT EXISTS idx_social_sources_platform ON social_sources(platform);
+
+-- 15. Scheduler plans (S2-E15/E17): история shadow-планов адаптивного планировщика 2.0
+CREATE TABLE IF NOT EXISTS scheduler_plans (
+    id TEXT PRIMARY KEY,
+    mode TEXT NOT NULL,
+    generated_at TEXT NOT NULL,
+    extra_categories TEXT NOT NULL DEFAULT '[]',
+    demand_queries TEXT NOT NULL DEFAULT '[]',
+    discovery_tasks TEXT NOT NULL DEFAULT '[]',
+    reasons TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_scheduler_plans_generated ON scheduler_plans(generated_at DESC);
 """
 
 
