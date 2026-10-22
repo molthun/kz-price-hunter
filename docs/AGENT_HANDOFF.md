@@ -19,6 +19,7 @@
   4. Выполнена мини-задача оптимизаций: скомпилированные фильтры детектора, устойчивый разбор JSON от AI и лёгкое обслуживание FTS5 (см. карточку ниже).
   5. **S2-E06 реализован и переведён в READY для аудита:** коннекторы Telegram (публичная превью канала) и Instagram (Graph API с токеном), реестр источников `social_sources`, сервис сбора `social_ingest.py` и CLI `scripts/social_ingest.py` (см. карточку ниже).
   6. Выполнена оптимизация поискового движка (шаги 5–7 из поручения владельца): кэш шаблона фильтра аксессуаров, fallback LIKE без повторных `LOWER`, `score_relevance` с одним `lower()` и защитой от `category=None` (см. карточку ниже).
+  7. Выполнена оптимизация базы скраперов (шаги 8–11): retry только временных сбоев, быстрый `parse_price`, метрики категории; вместо aiohttp-хелпера зафиксирован единый транспорт `scrapers/http.py` (см. карточку ниже).
 
 ## Карточка задачи: ускорение детектора, JSON AI и обслуживание FTS5 (2026-10-22)
 
@@ -71,12 +72,12 @@ Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-h
 ## Результаты проверок Codex (2026-10-22)
 
 ```text
-Срез: main, HEAD 859d7bd + незакоммиченное дерево поискового движка.
+Срез: main, HEAD 0c61d62 + незакоммиченное дерево базы скраперов.
 Тесты:
+  - tests/scrapers/test_scraper_base_optimizations.py: 13/13 PASS.
   - tests/search/test_search_engine_optimizations.py: 8/8 PASS.
   - tests/sellers/test_social_connectors.py: 27/27 PASS (S2-E06).
-  - tests/sellers/test_social_content_intelligence.py: 29/29 PASS (S2-E08).
-  - Полный suite проекта: Ran 1628 tests in 69.553s, OK (0 failures, 0 errors), временный DATA_DIR.
+  - Полный suite проекта: Ran 1641 tests in 73.042s, OK (0 failures, 0 errors), временный DATA_DIR.
   - compileall: OK; release_gate.py secrets: 0 findings.
 БД:
   - prices.db неприкосновенна (148 738 048 байт, mtime 24.09; integrity_check ранее = ok).
@@ -84,6 +85,40 @@ Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-h
   - Независимый аудит S2-E06; затем S2-E15/E17 (Adaptive Scheduler 2.0) и релиз v6.2.0.
 ```
 
+
+## Карточка задачи: оптимизации базы скраперов (2026-10-22)
+
+```text
+ID / этап: внеэтапная оптимизация по прямому поручению владельца (шаги 8–11, после поиска).
+Статус: DONE
+Исполнитель: Codex (по поручению владельца)
+Checkout / ветка / базовый HEAD: main, HEAD 0c61d62 + незакоммиченное дерево
+Область файлов:
+  scrapers/base.py, tests/scrapers/test_scraper_base_optimizations.py,
+  tests/README.md, docs/AGENT_HANDOFF.md
+Что сделано:
+  - Шаг 8 (retry): PagedScraper._fetch_page_with_retry — экспоненциальная пауза 1/2 с + jitter.
+    Повторяются только временные сбои: сетевые (Timeout/Connection/OSError) и HTTP 5xx.
+    НЕ повторяются UnconfirmedEnd, HostCooldown (429/503 транспорта) и 4xx: повтор 403/404
+    усиливает бан, а пауза по 429 уже держится в scrapers/http.py.
+    Параметры RETRY_ATTEMPTS/RETRY_BASE_DELAY/RETRY_JITTER_SECONDS — атрибуты класса.
+  - Шаг 9 (parse_price): быстрый выход при отсутствии цифр; предкомпилированы
+    _CENTS_OR_FRACTION, _INSTALLMENT_AFTER, _NON_DIGITS (остальные шаблоны были скомпилированы).
+  - Шаг 11 (метрики): PagedScraper._report_scrape печатает «[Магазин] Категория: N товаров за
+    M стр. (T с) — исход» для всех исходов: завершено, лимит страниц, дубликаты, ошибка,
+    конец каталога не подтверждён.
+  - Шаг 10 (сессия) НЕ внедрён как aiohttp-хелпер сознательно: проект ходит через единый
+    транспорт scrapers/http.py (curl_cffi) с лимитом 4 соединения на домен, cooldown по 429,
+    Retry-After и телеметрией; отдельная aiohttp-сессия с limit_per_host=5 обошла бы эти
+    ограничения. В docstring PagedScraper зафиксировано, что наследники не создают своих пулов.
+Проверки:
+  - tests/scrapers/test_scraper_base_optimizations.py: 13/13 PASS (retry/не-retry по типам
+    ошибок, метрики, быстрый parse_price).
+  - Полный suite: 1641 PASS (73.042s, 0 failures, 0 errors), временный DATA_DIR.
+  - compileall: OK; release_gate.py secrets: 0 findings; prices.db не изменялась.
+Следующий точный шаг: финальный блок (web/server.py и Telegram-бот) по поручению владельца,
+затем аудиты S2-E06/S2-E08, S2-E15/E17 и релиз v6.2.0.
+```
 
 ## Карточка задачи: оптимизации поискового движка (2026-10-22)
 
