@@ -164,6 +164,30 @@ class TestDiscoveryTaskRepository(unittest.TestCase):
         self.assertEqual(updated.search_count, 30)
         self.assertEqual(updated.priority_score, 24.0)  # 30 * 0.8
 
+    def test_deduplication_city_all_and_none_equivalence(self):
+        """C-E14-01: Verifies that city='Все' and city=None are treated as duplicate scopes."""
+        sig1 = QueryDemandSignal(
+            normalized_query="наушники sony",
+            sample_query="наушники sony wh-1000xm5",
+            search_count=10,
+            success_rate=40.0,
+            city=None,
+            needs_discovery=True,
+        )
+        tasks = self.repo.generate_tasks_from_signals([sig1])
+        self.assertEqual(len(tasks), 1)
+
+        sig2 = QueryDemandSignal(
+            normalized_query="наушники sony",
+            sample_query="наушники sony wh-1000xm5",
+            search_count=20,
+            success_rate=30.0,
+            city="Все",
+            needs_discovery=True,
+        )
+        tasks_vse = self.repo.generate_tasks_from_signals([sig2])
+        self.assertEqual(len(tasks_vse), 0)  # Deduplicated against city=None task
+
     def test_update_status(self):
         task = DiscoveryTask(
             id="dtask_status_test",

@@ -30,15 +30,15 @@
 | S2-E11 | Unified Product Index & Search Core 2.0 | READY | Antigravity | Codex: C-E11-01…06 закрыты | — |
 | S2-E13 | Search Quality & Search Analytics | READY | Antigravity | Codex: C-E13-01…04 закрыты; privacy blocker снят | — |
 | S2-E16 | Search UI 2.0 (мультипродавцовая витрина, фильтры состояний) | READY | Antigravity | Codex: C-E16-01…05 закрыты | — |
-| S2-E14 | Adaptive Discovery & Query Demand Generator | READY | Antigravity | Ожидает аудит Codex | — |
+| S2-E14 | Adaptive Discovery & Query Demand Generator | READY | Antigravity | Codex: C-E14-01…02 закрыты, APPROVED | — |
 
 ## Результаты проверок Antigravity (2026-10-22)
 
 ```text
 Срез: main, рабочее дерево Antigravity.
-Статус S2-E14: РЕАЛИЗОВАНО.
+Статус S2-E14: РЕАЛИЗОВАНО И ПРИНЯТО (Codex APPROVED).
 Тесты:
-  - test_adaptive_discovery_v2.py: 15/15 PASS.
+  - test_adaptive_discovery_v2.py: 16/16 PASS.
   - test_search_ui_v2.py: 6/6 PASS.
   - test_search_analytics_v2.py: 11/11 PASS.
   - test_search_core_v2.py: 21/21 PASS.

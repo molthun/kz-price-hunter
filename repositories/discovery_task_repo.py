@@ -81,8 +81,9 @@ class DiscoveryTaskRepository(BaseRepository):
     ) -> Optional[DiscoveryTask]:
         """
         Finds an existing PENDING or RUNNING task for the same query/city to avoid duplicate work.
+        Treats city='Все' and city=None as semantically equivalent nationwide scopes (C-E14-01).
         """
-        if city:
+        if city and city != "Все":
             sql = """
             SELECT * FROM discovery_tasks
             WHERE normalized_query = ? AND city = ? AND status IN (?, ?)
@@ -163,23 +164,31 @@ class DiscoveryTaskRepository(BaseRepository):
     def link_candidate(self, task_id: str, candidate_id: str) -> bool:
         """
         Links a newly discovered seller candidate to this discovery task.
-        Increments task candidate counter atomically.
+        Increments task candidate counter atomically within a transaction (C-E14-02).
         """
         now = utc_now_iso()
-        # Update candidate
-        cand_sql = "UPDATE seller_candidates SET discovery_task_id = ?, updated_at = ? WHERE id = ?"
-        c_cur = self.execute(cand_sql, (task_id, now, candidate_id))
+        self.execute("SAVEPOINT link_candidate")
+        try:
+            # Update candidate
+            cand_sql = "UPDATE seller_candidates SET discovery_task_id = ?, updated_at = ? WHERE id = ?"
+            c_cur = self.execute(cand_sql, (task_id, now, candidate_id))
 
-        if c_cur.rowcount > 0:
-            # Increment task counter
-            task_sql = """
-            UPDATE discovery_tasks
-            SET discovered_candidates_count = discovered_candidates_count + 1, updated_at = ?
-            WHERE id = ?
-            """
-            self.execute(task_sql, (now, task_id))
-            return True
-        return False
+            if c_cur.rowcount > 0:
+                # Increment task counter
+                task_sql = """
+                UPDATE discovery_tasks
+                SET discovered_candidates_count = discovered_candidates_count + 1, updated_at = ?
+                WHERE id = ?
+                """
+                self.execute(task_sql, (now, task_id))
+                self.execute("RELEASE SAVEPOINT link_candidate")
+                return True
+            self.execute("RELEASE SAVEPOINT link_candidate")
+            return False
+        except Exception:
+            self.execute("ROLLBACK TO SAVEPOINT link_candidate")
+            self.execute("RELEASE SAVEPOINT link_candidate")
+            raise
 
     def generate_tasks_from_signals(
         self,
