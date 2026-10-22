@@ -16,6 +16,38 @@
      - `ContentObservationRepository`: CRUD, выборки по продавцу/каналу/посту, `purge_expired`; очистка подключена к `database.prune_search_analytics`.
      - Тесты: `tests/sellers/test_social_content_intelligence.py` — 29 проверок.
   3. Тесты сгруппированы по функциональным блокам (`tests/`, коммит `77eb0de`); добавлены `domain/README.md`, `web/README.md`, `tests/README.md`.
+  4. Выполнена мини-задача оптимизаций: скомпилированные фильтры детектора, устойчивый разбор JSON от AI и лёгкое обслуживание FTS5 (см. карточку ниже).
+
+## Карточка задачи: ускорение детектора, JSON AI и обслуживание FTS5 (2026-10-22)
+
+```text
+ID / этап: внеэтапная оптимизация после S2-E08 (прямое поручение владельца).
+Статус: DONE
+Исполнитель: Codex (по поручению владельца)
+Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-hunter, main, коммит S2-E08
+Область файлов:
+  detector.py, ai_service.py, database.py, main.py, web/server.py,
+  tests/monitoring/test_detector_edge_cases.py, tests/ai/test_ai_json_extraction.py,
+  tests/core/test_fts_optimize.py, tests/README.md, docs/AGENT_HANDOFF.md
+Что сделано:
+  - detector.py: стоп-слова и маркеры уценки вынесены в скомпилированные при импорте шаблоны;
+    текст приводится к нижнему регистру один раз (без IGNORECASE). «Стекло» больше не срабатывает
+    внутри «стеклоочиститель»; уценка ловит формы слов, «sn:12345» ловится, «sn-кабель» — нет.
+  - ai_service.py: _extract_json_from_text берёт первую «{» и последнюю «}», поэтому ответ модели
+    с пояснением до/после JSON и markdown-обёрткой разбирается; битый JSON по-прежнему даёт None.
+  - database.py: optimize_fts() — официальная команда 'optimize' для products_fts и
+    canonical_products_fts (если таблица есть) плюс PRAGMA optimize; ошибки не критичны.
+  - Интеграция: optimize_fts() вызывается после цикла в main.py и в ежедневном обслуживании
+    web/server.py рядом с retention.
+Проверки:
+  - Новые тесты: 17 (детектор — 9, JSON AI — 6, FTS — 2; часть проверяет сами вызовы optimize_fts).
+  - Полный suite: 1593 теста OK (69.488s), compileall OK, release_gate.py secrets — 0 findings.
+  - Микробенчмарк детектора на 1000 названий: итоговый вариант не медленнее прежнего
+    (~0.5 мкс на товар для хлама, ~1.0 мкс для уценки); заявленных в задании «5–10 раз»
+    на этом профиле данных не получено — выигрыш в корректности границ слов, не в скорости.
+  - prices.db не изменялась.
+Следующий точный шаг: аудит S2-E08, затем следующие этапы плана.
+```
 
 ## Реестр этапов KZ Price Hunter 2.0 (Search Platform)
 

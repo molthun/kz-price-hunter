@@ -675,19 +675,30 @@ def clean_ai_json_response(text: str) -> str:
 
 
 def _extract_json_from_text(text: str) -> Optional[Dict[str, Any]]:
-    """Извлекает и парсит JSON из текстового ответа LLM."""
+    """Извлекает и парсит JSON из ответа LLM, устойчиво к тексту до и после объекта.
+
+    Берём первую «{» и последнюю «}», а не жадное регулярное выражение: так ответ
+    с пояснением модели перед JSON и после него всё равно разбирается.
+    """
     if not text:
         return None
+
+    start_idx = text.find("{")
+    end_idx = text.rfind("}")
+    if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+        try:
+            return json.loads(text[start_idx:end_idx + 1])
+        except json.JSONDecodeError:
+            pass  # возможно, мусор внутри markdown-обёртки — пробуем после очистки
+
     cleaned = clean_ai_json_response(text)
-    try:
-        return json.loads(cleaned)
-    except json.JSONDecodeError:
-        match = re.search(r'\{.*\}', cleaned, re.DOTALL)
-        if match:
-            try:
-                return json.loads(match.group(0))
-            except json.JSONDecodeError:
-                pass
+    start_idx = cleaned.find("{")
+    end_idx = cleaned.rfind("}")
+    if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+        try:
+            return json.loads(cleaned[start_idx:end_idx + 1])
+        except json.JSONDecodeError:
+            pass
     return None
 
 

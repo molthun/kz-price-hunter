@@ -1,3 +1,4 @@
+import re
 from typing import Optional, Dict, Any, List
 from config import get_candidate_settings, SHOP_KEYS, ZERO_DROP_RATIO_MIN, ZERO_DROP_RATIO_MAX
 
@@ -16,25 +17,44 @@ DEFAULT_JUNK_KEYWORDS = [
 
 USED_GOODS_KEYWORDS = [
     "уценен", "уценка", "уценён", "уцененный", "уценённый", "витрин", "витринный",
-    "б/у", "б.у", "б_у", "восстановлен", "refurbished", "после ремонта",
-    "(sn:", "sn:9", "sn:1", "sn:2", "sn:3", "sn:4", "sn:5", "sn:6", "sn:7", "sn:8", "sn:0"
+    "б/у", "б.у", "б_у", "восстановлен", "refurbished", "после ремонта"
 ]
 
+# Скомпилированные один раз при импорте: проверка тысяч товаров не пересобирает шаблон на каждом.
+# \b — граница слова, чтобы «стекло» не срабатывало внутри «стеклоочиститель».
+# Текст заранее приводится к нижнему регистру один раз: regex без IGNORECASE
+# на коротких названиях быстрее и не собирает шаблон на каждый вызов.
+JUNK_ACCESSORY_RE = re.compile(
+    r"\b(?:" + "|".join(map(re.escape, DEFAULT_JUNK_KEYWORDS)) + r")\b",
+)
+# Уценка ищется подстрокой по списку (как раньше): ключи — основы слов, а регулярное
+# выражение на длинном URL оказалось втрое медленнее. Границы слов здесь не нужны:
+# «уценен» должен находить «уцененный», а «витрин» — «витрину»/«витринный».
+SN_PATTERN = re.compile(r"sn:\s*\d")  # серийник витринного экземпляра: sn:12345, но не «sn-кабель»
+BRACELET_FOR_RE = re.compile(r"\bбраслет\b.*\bдля\b")
+
+
 def is_junk_accessory(title: str, category: str = "", custom_keywords: Optional[List[str]] = None) -> bool:
-    import re
-    t = f"{title} {category}".lower()
-    if re.search(r'\bбраслет\b.*\bдля\b', title.lower()):
+    """Хлам и аксессуар: сначала быстрый regex по названию/категории, затем слова пользователя."""
+    # Один lower() на товар: regex уже без IGNORECASE и работает по подготовленной строке.
+    lowered = f"{title} {category}".lower()
+    if JUNK_ACCESSORY_RE.search(lowered):
         return True
-    keywords = list(DEFAULT_JUNK_KEYWORDS)
+    if "браслет" in lowered and BRACELET_FOR_RE.search(lowered):
+        return True
+    # Пользовательских стоп-слов обычно единицы, поэтому substring здесь дешевле regex.
     if custom_keywords:
-        for k in custom_keywords:
-            if k.strip() and k.strip().lower() not in keywords:
-                keywords.append(k.strip().lower())
-    return any(k in t for k in keywords if k)
+        return any(k.strip().lower() in lowered for k in custom_keywords if k and k.strip())
+    return False
+
 
 def is_used_goods(title: str, category: str = "", url: str = "") -> bool:
-    t = f"{title} {category} {url}".lower()
-    return any(k in t for k in USED_GOODS_KEYWORDS)
+    """Уценка, витринный образец, восстановленный товар или серийник витринного экземпляра."""
+    lowered = f"{title} {category} {url}".lower()
+    if any(keyword in lowered for keyword in USED_GOODS_KEYWORDS if keyword):
+        return True
+    return bool(SN_PATTERN.search(lowered))
+
 
 def _kzt(amount: int) -> str:
     """Сумма с пробелами между разрядами: заменяются только разделители числа, не запятые текста."""

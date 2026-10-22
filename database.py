@@ -1160,6 +1160,25 @@ def run_migrations(backup_done: bool = False) -> List[int]:
     return applied
 
 
+def optimize_fts() -> None:
+    """Лёгкое обслуживание FTS5-индексов (официальная команда 'optimize').
+
+    В отличие от VACUUM не переписывает базу и не блокирует её надолго. Вызывается
+    после массового обхода в консольном режиме и в ежедневном обслуживании веб-панели.
+    Отсутствие таблицы (legacy-база или v2-контур ещё не создан) не ошибка.
+    """
+    try:
+        with get_connection() as conn:
+            for table in ("products_fts", "canonical_products_fts"):
+                try:
+                    conn.execute(f"INSERT INTO {table}({table}) VALUES('optimize')")
+                except sqlite3.OperationalError:
+                    continue  # этой FTS-таблицы ещё нет — остальные всё равно оптимизируем
+            conn.execute("PRAGMA optimize")
+    except Exception as e:
+        print(f"[DB] Ошибка при оптимизации FTS5 (некритично): {e}")
+
+
 def init_db():
     # Сначала проверка совместимости и бэкап, потом любые изменения схемы (R-M12):
     # даже аддитивные колонки создаются уже после копии исходной базы

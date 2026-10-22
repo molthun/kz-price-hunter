@@ -8,7 +8,7 @@ import argparse
 from datetime import datetime
 
 from config import get_scan_interval_seconds, get_bot_token
-from database import init_db, get_stats, get_shops_scan_report
+from database import init_db, get_stats, get_shops_scan_report, optimize_fts
 from notifier import notification_worker
 from telemetry import telemetry
 from web.server import SHOP_REGISTRY, enabled_shop_keys, _do_scan_task, scan_state
@@ -17,6 +17,8 @@ async def run_cycle():
     keys = enabled_shop_keys()
     print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 🚀 Старт обхода {len(keys)} магазинов...")
     await _do_scan_task(keys)
+    # Лёгкое обслуживание FTS5 после массового обхода: быстрее поиска, без VACUUM.
+    optimize_fts()
 
     stats = get_stats()
     print("\n" + "=" * 60)

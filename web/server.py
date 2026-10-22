@@ -2053,10 +2053,13 @@ async def _scan_task_body(shop_keys, target_categories, scan_type):
             from database import prune_price_observations, prune_notification_outbox
             pruned = await asyncio.to_thread(prune_price_observations)
             pruned_outbox = await asyncio.to_thread(prune_notification_outbox)
-            from database import prune_source_scans, prune_search_analytics, prune_ai_usage
+            from database import (prune_source_scans, prune_search_analytics,
+                                    prune_ai_usage, optimize_fts)
             await asyncio.to_thread(prune_source_scans)
             await asyncio.to_thread(prune_search_analytics)
             await asyncio.to_thread(prune_ai_usage)
+            # Обслуживание FTS5 в том же ежедневном проходе (S2: лёгкая оптимизация вместо VACUUM)
+            await asyncio.to_thread(optimize_fts)
             from database import prune_daily_reports, prune_matching_pairs
             await asyncio.to_thread(prune_daily_reports)
             await asyncio.to_thread(prune_matching_pairs)
