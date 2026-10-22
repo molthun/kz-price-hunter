@@ -1,5 +1,7 @@
 from __future__ import annotations
 import asyncio
+import gzip
+import weakref
 import json
 import os
 import socket
@@ -165,8 +167,13 @@ from auth import (
 # Инициализируем перехватчик консольного вывода для веб-логов
 install_log_interceptor()
 
+from bounded_cache import BoundedTTLCache
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 TEMPLATES_DIR = BASE_DIR / "web" / "templates"
+
+# Ниже этого размера gzip-обёртка только добавляет заголовки и не экономит трафик.
+GZIP_MIN_BYTES = 1024
 
 # Глобальное состояние сканирования
 scan_state = {
@@ -269,7 +276,17 @@ async def categories_handler(request):
 
 @routes.get("/api/stats")
 async def stats_handler(request):
-    stats = await asyncio.to_thread(get_stats, user_settings_for(request), request.query.get("city") or None)
+    city = request.query.get("city") or None
+    cache = getattr(getattr(request, "app", None), "get", lambda *_: None)("stats_cache")
+    user = request.get("user")
+    cache_key = (str(user["id"]) if user else "guest", city or "Все")
+    cached = cache.get(cache_key) if cache is not None else None
+    if cached is not None:
+        stats = dict(cached)
+    else:
+        stats = await asyncio.to_thread(get_stats, user_settings_for(request), city)
+        if cache is not None:
+            cache[cache_key] = dict(stats)
     stats["scan_state"] = scan_state
     settings = load_settings()
     try:
@@ -344,6 +361,7 @@ async def dismiss_alert_handler(request):
         return web.json_response({"error": "ID должен быть положительным числом"}, status=400)
 
     dismiss_alert(alert_id)
+    _invalidate_stats_caches()
     return web.json_response({"status": "ok", "dismissed_id": alert_id})
 
 @routes.delete("/api/alerts/{id}")
@@ -355,6 +373,7 @@ async def delete_alert_handler(request):
         return web.json_response({"error": "Некорректный ID"}, status=400)
 
     dismiss_alert(alert_id)
+    _invalidate_stats_caches()
     return web.json_response({"status": "ok", "dismissed_id": alert_id})
 
 @routes.get("/api/products")
@@ -1112,6 +1131,7 @@ async def save_my_settings_handler(request):
     except Exception:
         return web.json_response({"status": "error", "message": "Некорректный запрос"}, status=400)
     saved = save_user_settings(request["user"]["id"], clean)
+    _invalidate_stats_caches()
     return web.json_response({"status": "ok", "settings": saved})
 
 @routes.get("/api/me/watches")
@@ -1191,6 +1211,7 @@ async def reset_my_settings_handler(request):
                 for k, v in USER_DEFAULTS.items()}
     defaults.update({k: current[k] for k in USER_RESET_KEEP})
     saved = await asyncio.to_thread(replace_user_settings, user["id"], defaults)
+    _invalidate_stats_caches()
     return web.json_response({"status": "ok", "settings": saved})
 
 
@@ -1894,6 +1915,7 @@ async def _do_scan_task(shop_keys=None, target_categories=None, scan_type="manua
         scan_state["current_category"] = ""
         scan_state["scan_type"] = "manual"
         scan_state["target_categories"] = None
+        _invalidate_stats_caches()
 
 
 def _failed_shop_keys(keys) -> List[str]:
@@ -2924,6 +2946,60 @@ async def background_tasks(app):
     await asyncio.to_thread(telemetry.stop)
 
 @web.middleware
+async def gzip_middleware(request, handler):
+    """Gzip для крупных ответов, если клиент его принимает.
+
+    Сжимаем только обычные Response (не потоковые), без уже выставленного Content-Encoding,
+    при Accept-Encoding: gzip. Vary обязателен, чтобы прокси не отдали gzip клиенту без gzip.
+    """
+    response = await handler(request)
+    if not isinstance(response, web.Response) or response.body is None:
+        return response
+    if response.headers.get("Content-Encoding"):
+        return response
+    if response.status < 200 or response.status in (204, 304):
+        return response
+    body = response.body
+    if len(body) < GZIP_MIN_BYTES:
+        return response
+    accepted = request.headers.get("Accept-Encoding", "").lower()
+    if "gzip" not in accepted:
+        return response
+    compressed = gzip.compress(body)
+    if len(compressed) >= len(body):
+        return response
+    response.body = compressed
+    response.headers["Content-Encoding"] = "gzip"
+    response.headers["Content-Length"] = str(len(compressed))
+    response.headers["Vary"] = "Accept-Encoding"
+    return response
+
+
+# Кэш сводных счётчиков: ключ (пользователь/гость, город). Значения живут недолго и
+# сбрасываются после обхода, смены порогов и разбора алертов — счётчики не должны
+# застывать на время жизни кэша. Прогресс обхода (scan_state) не кэшируется.
+STATS_CACHE_TTL_SECONDS = 30
+# BoundedTTLCache наследует MutableMapping (не hashable), поэтому храним слабые ссылки
+# списком: приложение может быть создано и закрыто много раз (тесты), кэш не утекает.
+_stats_caches = []
+
+
+def _register_stats_cache(cache) -> None:
+    _stats_caches.append(weakref.ref(cache))
+
+
+def _invalidate_stats_caches() -> None:
+    """Сбрасывает закэшированные счётчики во всех приложениях процесса."""
+    alive = []
+    for ref in list(_stats_caches):
+        cache = ref()
+        if cache is not None:
+            cache.clear()
+            alive.append(ref)
+    _stats_caches[:] = alive
+
+
+@web.middleware
 async def telemetry_middleware(request, handler):
     """Необработанные исключения обработчиков → system_error (маршрут-шаблон, без параметров и тела; P01)."""
     try:
@@ -2941,7 +3017,9 @@ async def telemetry_middleware(request, handler):
 
 def create_app():
     init_db()
-    app = web.Application(middlewares=[telemetry_middleware, auth_middleware])
+    app = web.Application(middlewares=[telemetry_middleware, auth_middleware, gzip_middleware])
+    app["stats_cache"] = BoundedTTLCache(maxsize=128, ttl=STATS_CACHE_TTL_SECONDS)
+    _register_stats_cache(app["stats_cache"])
     if ALLOW_DEV_LOGIN:
         print("[Auth] 🧑‍💻 Вход разработчика включен (локальный запуск): кнопка «Вход разработчика» в шапке, права администратора")
     elif not ADMIN_TELEGRAM_IDS:

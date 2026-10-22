@@ -20,6 +20,7 @@
   5. **S2-E06 реализован и переведён в READY для аудита:** коннекторы Telegram (публичная превью канала) и Instagram (Graph API с токеном), реестр источников `social_sources`, сервис сбора `social_ingest.py` и CLI `scripts/social_ingest.py` (см. карточку ниже).
   6. Выполнена оптимизация поискового движка (шаги 5–7 из поручения владельца): кэш шаблона фильтра аксессуаров, fallback LIKE без повторных `LOWER`, `score_relevance` с одним `lower()` и защитой от `category=None` (см. карточку ниже).
   7. Выполнена оптимизация базы скраперов (шаги 8–11): retry только временных сбоев, быстрый `parse_price`, метрики категории; вместо aiohttp-хелпера зафиксирован единый транспорт `scrapers/http.py` (см. карточку ниже).
+  8. Выполнена оптимизация веб-слоя (шаги 12–16): gzip для крупных ответов, кэш сводных счётчиков `/api/stats`; rate limiting и worker pool Telegram уже были, кэш ответов бота не внедрён по причинам контекста и свежести цен (см. карточку ниже).
 
 ## Карточка задачи: ускорение детектора, JSON AI и обслуживание FTS5 (2026-10-22)
 
@@ -72,12 +73,12 @@ Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-h
 ## Результаты проверок Codex (2026-10-22)
 
 ```text
-Срез: main, HEAD 0c61d62 + незакоммиченное дерево базы скраперов.
+Срез: main, HEAD 46e41f1 + незакоммиченное дерево веб-слоя.
 Тесты:
+  - tests/web/test_web_optimizations.py: 10/10 PASS.
   - tests/scrapers/test_scraper_base_optimizations.py: 13/13 PASS.
   - tests/search/test_search_engine_optimizations.py: 8/8 PASS.
-  - tests/sellers/test_social_connectors.py: 27/27 PASS (S2-E06).
-  - Полный suite проекта: Ran 1641 tests in 73.042s, OK (0 failures, 0 errors), временный DATA_DIR.
+  - Полный suite проекта: Ran 1651 tests in 74.041s, OK (0 failures, 0 errors), временный DATA_DIR.
   - compileall: OK; release_gate.py secrets: 0 findings.
 БД:
   - prices.db неприкосновенна (148 738 048 байт, mtime 24.09; integrity_check ранее = ok).
@@ -85,6 +86,47 @@ Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-h
   - Независимый аудит S2-E06; затем S2-E15/E17 (Adaptive Scheduler 2.0) и релиз v6.2.0.
 ```
 
+
+## Карточка задачи: оптимизации веб-слоя (2026-10-22)
+
+```text
+ID / этап: внеэтапная оптимизация по прямому поручению владельца (шаги 12–16).
+Статус: DONE (шаг 14 уже был реализован раньше, шаг 16 не внедрён сознательно)
+Исполнитель: Codex (по поручению владельца)
+Checkout / ветка / базовый HEAD: main, HEAD 46e41f1 + незакоммиченное дерево
+Область файлов:
+  web/server.py, tests/web/test_web_optimizations.py,
+  web/README.md, tests/README.md, docs/AGENT_HANDOFF.md
+Что сделано:
+  - Шаг 12 (кэш): /api/stats — BoundedTTLCache на экземпляр приложения (128 ключей, TTL 30 с),
+    ключ (пользователь/гость, город). scan_state и wave_info считаются в каждом ответе и не
+    кэшируются; кэш сбрасывается при завершении обхода, dismiss/delete алерта, сохранении и
+    сбросе личных настроек (/api/me/settings, /api/me/settings/reset).
+    /api/cities и /api/categories возвращают константы из памяти и в БД не ходят — кэшировать там
+    нечего (предпосылка шага для этих эндпоинтов неверна).
+  - Шаг 13 (gzip): gzip_middleware сжимает обычные Response больше 1 КБ только при
+    Accept-Encoding: gzip; не трогает потоковые и уже сжатые ответы; ставит
+    Vary: Accept-Encoding и корректный Content-Length.
+  - Шаг 14 (rate limiting): НЕ менял — уже есть и шире предложенного: search_limiter 60/мин на IP
+    для /api/best-price и /api/v2/search; consultant_limiter 10/мин на пользователя для
+    /api/ai/consultant; live/auth/telegram лимитеры. Путей /api/search и /api/consultant в
+    проекте нет, поэтому пример из поручения к коду не применим.
+  - Шаг 15 (Telegram batch): НЕ менял — в telegram_bot.py уже bounded worker pool (4 воркера),
+    очередь с backpressure и замок на чат, чтобы ответы не путались. Вариант с asyncio.gather
+    снял бы порядок и ограничение параллелизма.
+  - Шаг 16 (кэш ответов бота): НЕ внедрён сознательно: ответ AI-консультанта зависит от истории
+    диалога чата, а цены/наличие меняются; кэш по тексту вопроса вернул бы ответ не по контексту
+    и устаревшую цену. Если нужно — отдельное решение владельца (например, только для пустой
+    истории, TTL 60 с и явная пометка «цена могла измениться»).
+Проверки и замеры:
+  - Новые тесты: tests/web/test_web_optimizations.py — 10 (gzip/no-gzip/малый/уже сжатый,
+    кэш и ключи, инвалидация, незамороженный scan_state, вызовы invalidate в точках изменений).
+  - Полный suite: 1651 PASS (74.041s, 0 failures, 0 errors), временный DATA_DIR.
+  - gzip: JSON с 100 товарами 22.1 KB -> 1.3 KB (16.9x меньше трафика).
+  - кэш /api/stats на базе 5000 товаров: 3.6 мс -> ~1 мкс на попадание (TTL 30 с).
+  - compileall: OK; release_gate.py secrets: 0 findings; prices.db не изменялась.
+Следующий точный шаг: аудиты S2-E06/S2-E08, S2-E15/E17 (Adaptive Scheduler 2.0), релиз v6.2.0.
+```
 
 ## Карточка задачи: оптимизации базы скраперов (2026-10-22)
 

@@ -3,7 +3,7 @@
 Все проверки проекта собраны в этом каталоге и разложены по функциональным блокам.
 Корень проекта больше не содержит `test_*.py`: новые наборы добавляются внутрь `tests/<блок>/`.
 
-Сейчас это **68 тестовых модулей Python (1641 проверка)** и **16 браузерных наборов** Playwright.
+Сейчас это **69 тестовых модулей Python (1651 проверка)** и **16 браузерных наборов** Playwright.
 
 ## Принципы
 
@@ -27,7 +27,7 @@
 | `tests/scheduler/` | теневой планировщик, rollout, аренды и устойчивость | `test_scheduler_rollout.py`, `test_shadow_read.py` |
 | `tests/ai/` | AI-роутер и модели, цены, каталог и качество, matching, админ-помощник | `test_ai_router.py`, `test_catalog_quality.py` |
 | `tests/notifications/` | Telegram-уведомления, наблюдения (watches), бот, обращения магазинов | `test_watches.py`, `test_notifications.py` |
-| `tests/web/` | HTTP API и auth, browser-фикстура сервера, security headers/logging, UI data, self-service приватности | `test_ui_data.py`, `test_auth_privacy.py` |
+| `tests/web/` | HTTP API и auth, gzip/кэш дашборда, browser-фикстура сервера, security headers/logging, UI data, self-service приватности | `test_ui_data.py`, `test_auth_privacy.py` |
 | `tests/frontend/` | браузерные регрессии интерфейса (Playwright + Chrome), не Python | `test_frontend*.cjs` |
 
 `tests/test_support.py` — общий помощник (изоляция `DATA_DIR`, `BrowserTestClient`, `REPO_DIR`);
