@@ -15,7 +15,9 @@ import re
 import unittest
 
 CHECKED_DIRS = ("domain", "repositories")
-VALIDATOR_RE = re.compile(r"^(is_|validate_|has_|looks_like_|check_)")
+# Сюда же отнесены очистки: «написано и не вызывается» одинаково опасно и для защиты, и для
+# удаления данных по сроку — неработающая очистка тихо копит то, что обещано было удалять.
+VALIDATOR_RE = re.compile(r"^(is_|validate_|has_|looks_like_|check_|purge_|cleanup_|enforce_)")
 SKIP_DIRS = {"__pycache__", "venv", "node_modules"}
 
 
@@ -38,8 +40,12 @@ def _public_validators(root: pathlib.Path):
 class ValidatorsAreWiredTest(unittest.TestCase):
     def test_every_public_validator_is_called_from_working_code(self):
         root = pathlib.Path(__file__).resolve().parent
-        sources = [p for folder in CHECKED_DIRS for p in (root / folder).rglob("*.py")
-                   if not any(part in SKIP_DIRS for part in p.parts)]
+        # Собираем валидаторы из domain/ и repositories/, а использования ищем по всему проекту:
+        # вызов может быть где угодно в рабочем коде — например, очистку по сроку зовёт database.py.
+        # Тесты не считаются: функция, которую дёргает только её собственный тест, не подключена.
+        sources = [p for p in root.rglob("*.py")
+                   if not any(part in SKIP_DIRS for part in p.parts)
+                   and not p.name.startswith("test_")]
         texts = {p: p.read_text(encoding="utf-8") for p in sources}
 
         orphans = []

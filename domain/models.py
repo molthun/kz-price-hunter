@@ -265,8 +265,14 @@ class CanonicalProduct:
     created_at: str = field(default_factory=utc_now_iso)
     updated_at: str = field(default_factory=utc_now_iso)
 
+    @property
+    def canonical_name(self) -> str:
+        return self.title
+
     def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+        res = asdict(self)
+        res["canonical_name"] = self.title
+        return res
 
     @classmethod
     def from_row(cls, row: Dict[str, Any]) -> CanonicalProduct:

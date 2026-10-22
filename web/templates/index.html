@@ -30,6 +30,7 @@
     .pulse-dot { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
     @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .4; transform: scale(1.15); } }
     .best-price-pill.active { background-color: rgba(16, 185, 129, 0.2) !important; border-color: #10b981 !important; color: #6ee7b7 !important; font-weight: 600; }
+    .condition-pill.active { background-color: rgba(16, 185, 129, 0.2) !important; border-color: #10b981 !important; color: #6ee7b7 !important; font-weight: 600; }
     .shop-chip.active { background-color: rgba(16, 185, 129, 0.2) !important; border-color: #10b981 !important; color: #6ee7b7 !important; font-weight: 600; }
   </style>
 </head>
@@ -514,6 +515,25 @@
           <button onclick="setBestPriceTag('робот-пылесос')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-emerald-400 transition cursor-pointer">🧹 Робот-пылесос</button>
         </div>
 
+        <!-- Состояние товара: [Все] [Новое] [Б/у] (Этап 16: Search UI 2.0) -->
+        <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-slate-400 font-medium">Состояние товара:</span>
+            <div class="inline-flex p-1 rounded-xl bg-slate-900 border border-slate-700/80 gap-1">
+              <button type="button" id="btnCondAll" onclick="setConditionSearchFilter('', this)" class="condition-pill active px-3 py-1 text-xs rounded-lg font-medium transition cursor-pointer">Все</button>
+              <button type="button" id="btnCondNew" onclick="setConditionSearchFilter('NEW', this)" class="condition-pill px-3 py-1 text-xs rounded-lg font-medium transition cursor-pointer text-slate-400 hover:text-white">✨ Новое</button>
+              <button type="button" id="btnCondUsed" onclick="setConditionSearchFilter('USED', this)" class="condition-pill px-3 py-1 text-xs rounded-lg font-medium transition cursor-pointer text-slate-400 hover:text-white">♻️ Б/у</button>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="inline-flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-700/80 hover:border-slate-600 transition">
+              <input type="checkbox" id="checkSearchV2" onchange="onSearchV2Toggle(this.checked)" class="w-3.5 h-3.5 rounded text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900">
+              <span class="text-emerald-400 font-semibold">⚡️ Search Core 2.0</span>
+              <span class="text-[10px] text-slate-400">(мультипродавцовая агрегация)</span>
+            </label>
+          </div>
+        </div>
+
         <!-- Панель быстрых фильтров поиска -->
         <div class="pt-4 border-t border-slate-800/80 space-y-3">
           <!-- Ряд 1: Основные селекторы (Город, Магазин, Категория, Сортировка) -->
@@ -746,6 +766,22 @@
               <span>Обновить сейчас</span>
             </button>
           </div>
+        </div>
+
+        <!-- Мультипродавцовая выдача Search Core 2.0 (Этап 16) -->
+        <div id="searchV2ProductsSection" class="hidden space-y-4">
+          <div id="searchV2SkippedFilters" class="hidden text-xs text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2"></div>
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-1">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-boxes-stacked text-emerald-400"></i>
+              <span>Единый каталог товаров Казахстана</span>
+              <span id="searchV2ProductsCountBadge" class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono"></span>
+            </h3>
+            <div class="flex items-center gap-3">
+              <span id="searchV2LatencyBadge" class="text-[11px] text-slate-400 font-mono"></span>
+            </div>
+          </div>
+          <div id="searchV2ProductsContainer" class="space-y-4"></div>
         </div>
 
         <!-- Топ-1 Победитель по цене: HERO КАРТОЧКА -->
@@ -3594,6 +3630,29 @@
       executeBestPriceSearch();
     }
 
+    window.activeConditionFilter = '';
+    function setConditionSearchFilter(cond, btn) {
+      window.activeConditionFilter = cond;
+      document.querySelectorAll('.condition-pill').forEach(b => {
+        b.classList.remove('active', 'bg-emerald-500/20', 'text-emerald-300', 'border-emerald-500/40');
+        b.classList.add('text-slate-400');
+      });
+      if (btn) {
+        btn.classList.add('active', 'bg-emerald-500/20', 'text-emerald-300', 'border-emerald-500/40');
+        btn.classList.remove('text-slate-400');
+      }
+      const q = document.getElementById('inputBestPriceQuery').value.trim();
+      if (q) executeBestPriceSearch();
+    }
+
+    function onSearchV2Toggle(checked) {
+      try {
+        localStorage.setItem('kz_search_v2_enabled', checked ? '1' : '0');
+      } catch (e) {}
+      const q = document.getElementById('inputBestPriceQuery')?.value.trim();
+      if (q) executeBestPriceSearch();
+    }
+
     function resetSearchFilters() {
       const minEl = document.getElementById('bestPriceMinPrice');
       const maxEl = document.getElementById('bestPriceMaxPrice');
@@ -3964,6 +4023,9 @@
         if (sort) url += `&sort=${encodeURIComponent(sort)}`;
         if (excludeAcc) url += `&exclude_acc=${encodeURIComponent(excludeAcc)}`;
         if (negWords) url += `&neg=${encodeURIComponent(negWords)}`;
+        const checkV2El = document.getElementById('checkSearchV2');
+        if (checkV2El && checkV2El.checked) url += '&v2=1';
+        if (window.activeConditionFilter) url += `&condition=${encodeURIComponent(window.activeConditionFilter)}`;
 
         const res = await fetch(url, { headers: { 'X-KZPH-Request': '1' } });
         const data = await res.json();
@@ -4195,9 +4257,203 @@
       }).join('');
     }
 
+    function renderSearchV2ProductCards(items, container) {
+      if (!items || items.length === 0) {
+        container.innerHTML = `
+          <div class="glass p-8 rounded-2xl text-center text-slate-400">
+            <i class="fa-solid fa-box-open text-3xl mb-3 text-slate-600 block"></i>
+            По вашему запросу товары в каталоге не найдены.
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = items.map((it, idx) => {
+        const p = it.product || {};
+        const best = it.best_offer;
+        const offers = it.offers || [];
+        const isLeader = idx === 0;
+
+        // Condition badge
+        let condBadges = [];
+        const conds = it.conditions_available || [];
+        if (conds.includes('new') || it.has_new || p.condition === 'new') {
+          condBadges.push('<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✨ Новое</span>');
+        }
+        if (conds.includes('used') || it.has_used || p.condition === 'used') {
+          condBadges.push('<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">♻️ Б/у</span>');
+        }
+        if (conds.includes('refurbished') || p.condition === 'refurbished') {
+          condBadges.push('<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">🛠 Восстановлен</span>');
+        }
+        if (condBadges.length === 0) {
+          condBadges.push('<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✨ Новое</span>');
+        }
+        const condBadge = condBadges.join(' ');
+
+        // Price range
+        const minP = (it.min_price !== null && it.min_price !== undefined) ? it.min_price : p.min_price;
+        const maxP = (it.max_price !== null && it.max_price !== undefined) ? it.max_price : p.max_price;
+        const sellersCount = (it.sellers_count !== undefined && it.sellers_count !== null) ? it.sellers_count : (p.stores_count || 1);
+        const offersCount = (it.offers_count !== undefined && it.offers_count !== null) ? it.offers_count : (p.offers_count || offers.length);
+
+        let priceHtml = '';
+        if (minP && maxP && minP !== maxP) {
+          priceHtml = `
+            <div class="flex items-baseline gap-1.5">
+              <span class="text-xs text-slate-400">от</span>
+              <span class="text-xl sm:text-2xl font-black text-emerald-400">${fmtPrice(minP)}</span>
+              <span class="text-xs text-slate-500">до ${fmtPrice(maxP)}</span>
+            </div>
+          `;
+        } else if (minP) {
+          priceHtml = `
+            <div class="text-xl sm:text-2xl font-black text-emerald-400">${fmtPrice(minP)}</div>
+          `;
+        } else {
+          priceHtml = '<div class="text-sm text-slate-500">Цена не указана</div>';
+        }
+
+        // Offers accordion
+        const offersListHtml = offers.map(off => {
+          const shopName = off.channel_name || off.seller_name || off.shop || 'Магазин';
+          const offDiff = (minP && off.price > minP) ? `+${fmtPrice(off.price - minP)}` : '';
+          const sellerPart = (off.seller_name && off.seller_name !== shopName) ? `
+            <span class="text-[11px] text-slate-400 flex items-center gap-1">
+              <i class="fa-solid fa-store text-[9px] text-slate-500"></i> ${escapeHtml(off.seller_name)}
+              ${off.seller_rating ? `<span class="text-amber-400 text-[10px] font-semibold">★ ${off.seller_rating}</span>` : ''}
+            </span>
+          ` : '';
+          const cityPart = off.city ? `<span class="text-[10px] text-slate-500 font-mono">${escapeHtml(off.city)}</span>` : '';
+          const offCond = off.condition === 'used' ? '<span class="text-[10px] text-amber-400">Б/у</span>' : '';
+          const isStale = off.freshness === 'stale' || off.is_stale;
+
+          return `
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 rounded-xl bg-slate-900/70 border border-slate-800/80 hover:border-slate-700 transition">
+              <div class="flex items-center gap-3">
+                <div class="shrink-0">${getShopBadge(shopName)}</div>
+                <div class="space-y-0.5">
+                  <div class="text-xs font-medium text-slate-200 line-clamp-1" title="${escapeHtml(off.title || '')}">${escapeHtml(off.title || p.canonical_name)}</div>
+                  <div class="flex items-center gap-2">
+                    ${sellerPart}
+                    ${cityPart}
+                    ${offCond}
+                    ${isStale ? '<span class="text-[9px] text-amber-500">⏳ цена может отличаться</span>' : ''}
+                  </div>
+                </div>
+              </div>
+              <div class="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800/60">
+                <div class="text-right">
+                  <div class="text-sm font-bold text-white">${fmtPrice(off.price)}</div>
+                  ${offDiff ? `<div class="text-[10px] text-slate-500 font-medium">${offDiff}</div>` : ''}
+                </div>
+                <a href="${escapeHtml(cleanUrl(off.url || '#'))}" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500 hover:text-dark-950 text-emerald-300 font-semibold text-xs inline-flex items-center gap-1.5 transition">
+                  <span>В магазин</span>
+                  <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                </a>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        const bestShop = best ? (best.channel_name || best.seller_name || best.shop || 'Магазин') : '';
+
+        return `
+          <div class="glass p-5 sm:p-6 rounded-2xl border ${isLeader ? 'border-emerald-500/50 bg-gradient-to-br from-emerald-950/20 to-slate-900/90' : 'border-slate-800/80 bg-slate-900/60'} space-y-4 hover:border-slate-700 transition shadow-xl">
+            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div class="flex items-start sm:items-center gap-4">
+                ${p.image_url ? `
+                  <img src="${escapeHtml(imageUrl(p.image_url))}" onerror="this.style.display='none';" class="w-16 h-16 sm:w-20 sm:h-20 object-contain rounded-xl bg-slate-900 p-2 border border-slate-800 shrink-0 shadow-md">
+                ` : ''}
+                <div class="space-y-1.5">
+                  <div class="flex flex-wrap items-center gap-1.5">
+                    ${condBadge}
+                    ${p.brand ? `<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700">${escapeHtml(p.brand)}</span>` : ''}
+                    ${p.category ? `<span class="px-2 py-0.5 rounded-md text-[10px] text-slate-400 bg-slate-800/60">${escapeHtml(p.category)}</span>` : ''}
+                  </div>
+                  <h4 class="text-base sm:text-lg font-bold text-white leading-snug">${escapeHtml(p.canonical_name)}</h4>
+                  <div class="text-xs text-slate-400 flex items-center gap-2">
+                    <span class="inline-flex items-center gap-1"><i class="fa-solid fa-shop text-[10px] text-slate-500"></i> ${sellersCount} маг.</span>
+                    <span>•</span>
+                    <span class="inline-flex items-center gap-1"><i class="fa-solid fa-tags text-[10px] text-slate-500"></i> ${offersCount} предл.</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="w-full md:w-auto text-left md:text-right shrink-0 space-y-2 pt-2 md:pt-0 border-t md:border-t-0 border-slate-800">
+                ${priceHtml}
+                ${best && best.url ? `
+                  <a href="${escapeHtml(cleanUrl(best.url))}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-dark-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition w-full md:w-auto">
+                    <span>Лучшая цена в ${escapeHtml(bestShop)}</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                  </a>
+                ` : ''}
+              </div>
+            </div>
+
+            ${offers.length > 0 ? `
+              <details class="group border-t border-slate-800/80 pt-3" ${isLeader ? 'open' : ''}>
+                <summary class="cursor-pointer text-xs font-semibold text-slate-300 hover:text-white flex items-center justify-between select-none py-1">
+                  <span class="flex items-center gap-2">
+                    <i class="fa-solid fa-layer-group text-slate-400 text-[11px]"></i>
+                    <span>Все предложения продавцов (${offers.length})</span>
+                  </span>
+                  <span class="text-[11px] text-slate-400 group-open:rotate-180 transition-transform">
+                    <i class="fa-solid fa-chevron-down"></i>
+                  </span>
+                </summary>
+                <div class="space-y-2 pt-3">
+                  ${offersListHtml}
+                </div>
+              </details>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
     function renderBestPriceResults(data) {
       lastBestPriceData = data;
       activeShopFilterChip = 'Все';
+
+      const isV2 = !!(data.v2 || (data.items && data.items.length > 0 && data.items[0].product));
+      const v2Section = document.getElementById('searchV2ProductsSection');
+      const v2Container = document.getElementById('searchV2ProductsContainer');
+      const legacyTableWrapper = document.getElementById('bestPriceTableBody')?.closest('.glass');
+
+      if (isV2) {
+        if (v2Section && v2Container) {
+          v2Section.classList.remove('hidden');
+          const totalProds = data.total_products !== undefined ? data.total_products : (data.items ? data.items.length : 0);
+          const totalOffs = data.total_offers !== undefined ? data.total_offers : 0;
+          const badgeCount = document.getElementById('searchV2ProductsCountBadge');
+          if (badgeCount) badgeCount.innerText = `${totalProds} товаров • ${totalOffs} офферов`;
+          const badgeLatency = document.getElementById('searchV2LatencyBadge');
+          if (badgeLatency) {
+            const lat = data.latency_ms ? data.latency_ms.toFixed(1) : '0';
+            badgeLatency.innerText = `⚡️ ${lat} мс • KPI: ${data.outcome || 'FOUND'}`;
+          }
+          renderSearchV2ProductCards(data.items || [], v2Container);
+          // Фильтры, которые режим 2.0 пока не применяет, называем прямо: молча проигнорировать
+          // заданный человеком фильтр — значит показать выдачу, которой он не просил.
+          const skipped = data.unsupported_filters || [];
+          const skippedBox = document.getElementById('searchV2SkippedFilters');
+          if (skippedBox) {
+            if (skipped.length) {
+              skippedBox.innerHTML = '⚠️ В режиме Search Core 2.0 пока не применяются: '
+                + skipped.map(escapeHtml).join(', ')
+                + '. Выключите переключатель, чтобы искать с этими фильтрами.';
+              skippedBox.classList.remove('hidden');
+            } else {
+              skippedBox.classList.add('hidden');
+            }
+          }
+        }
+        if (legacyTableWrapper) legacyTableWrapper.classList.add('hidden');
+      } else {
+        if (v2Section) v2Section.classList.add('hidden');
+        if (legacyTableWrapper) legacyTableWrapper.classList.remove('hidden');
+      }
 
       const best = data.best_deal;
       const stats = data.price_stats || {};
@@ -4274,8 +4530,10 @@
       if (data.all_stale || !stats.min_price) {
         badgeStats.innerText = 'Нет актуальных цен для сравнения';
         grid.innerHTML = '<div class="col-span-full text-xs text-slate-500 py-2">Сравнение магазинов строится только по ценам не старше 72 часов.</div>';
-        renderShopFilterChips(data);
-        renderBestPriceTable(items, null);
+        if (!isV2) {
+          renderShopFilterChips(data);
+          renderBestPriceTable(items, null);
+        }
         return;
       }
       badgeStats.innerText = `Магазинов с товаром: ${stores.length} • Разброс цен: ${fmtPrice(stats.min_price)} — ${fmtPrice(stats.max_price)}`;
@@ -4307,9 +4565,11 @@
         `;
       }).join('');
 
-      // 3. Shop Chips & Offers Table
-      renderShopFilterChips(data);
-      renderBestPriceTable(items, stats);
+      // 3. Shop Chips & Offers Table (for legacy mode)
+      if (!isV2) {
+        renderShopFilterChips(data);
+        renderBestPriceTable(items, stats);
+      }
 
       // 4. Баннер при малом количестве предложений (<= 3 товаров)
       const fewNotice = document.getElementById('bestPriceFewResultsNotice');
@@ -6424,6 +6684,15 @@
       if (sessEl) {
         sessEl.innerText = `Сессия: ${clientSessionId}`;
       }
+
+      // Восстанавливаем состояние тумблера Search Core 2.0 (по умолчанию выключен)
+      try {
+        const v2Saved = localStorage.getItem('kz_search_v2_enabled');
+        const v2El = document.getElementById('checkSearchV2');
+        if (v2El && v2Saved !== null) {
+          v2El.checked = (v2Saved === '1');
+        }
+      } catch (e) {}
 
       loadVersionInfo();
       loadStats();

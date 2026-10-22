@@ -175,7 +175,69 @@ CREATE TABLE IF NOT EXISTS source_profiles (
 );
 CREATE INDEX IF NOT EXISTS idx_source_profiles_cand ON source_profiles(candidate_id);
 CREATE INDEX IF NOT EXISTS idx_source_profiles_seller ON source_profiles(seller_id);
+
+-- 10. Unified Product Index (FTS5)
+CREATE VIRTUAL TABLE IF NOT EXISTS canonical_products_fts USING fts5(
+    canonical_key UNINDEXED,
+    title,
+    brand,
+    model,
+    category,
+    content='canonical_products',
+    content_rowid='rowid'
+);
+
+CREATE TRIGGER IF NOT EXISTS canonical_products_ai AFTER INSERT ON canonical_products BEGIN
+    INSERT INTO canonical_products_fts(rowid, canonical_key, title, brand, model, category)
+    VALUES (new.rowid, new.canonical_key, new.title, COALESCE(new.brand, ''), COALESCE(new.model, ''), new.category);
+END;
+
+CREATE TRIGGER IF NOT EXISTS canonical_products_ad AFTER DELETE ON canonical_products BEGIN
+    INSERT INTO canonical_products_fts(canonical_products_fts, rowid, canonical_key, title, brand, model, category)
+    VALUES('delete', old.rowid, old.canonical_key, old.title, COALESCE(old.brand, ''), COALESCE(old.model, ''), old.category);
+END;
+
+CREATE TRIGGER IF NOT EXISTS canonical_products_au AFTER UPDATE OF title, brand, model, category ON canonical_products BEGIN
+    INSERT INTO canonical_products_fts(canonical_products_fts, rowid, canonical_key, title, brand, model, category)
+    VALUES('delete', old.rowid, old.canonical_key, old.title, COALESCE(old.brand, ''), COALESCE(old.model, ''), old.category);
+    INSERT INTO canonical_products_fts(rowid, canonical_key, title, brand, model, category)
+    VALUES (new.rowid, new.canonical_key, new.title, COALESCE(new.brand, ''), COALESCE(new.model, ''), new.category);
+END;
+
+-- 11. Search Events & Quality Analytics (S2-E13)
+-- Счётчик повторов запросов (правило приватности P06): текст запроса хранится только
+-- начиная с третьего раза. Таблица та же, что у legacy-контура, и создаётся так же —
+-- механизм один на оба пути, дублировать его нельзя.
+CREATE TABLE IF NOT EXISTS search_query_seen (
+    query_key TEXT PRIMARY KEY,
+    seen INTEGER NOT NULL DEFAULT 0,
+    last_seen TEXT
+);
+
+CREATE TABLE IF NOT EXISTS search_events (
+    id TEXT PRIMARY KEY,
+    query TEXT NOT NULL,
+    normalized_query TEXT NOT NULL,
+    city TEXT,
+    condition TEXT,
+    channel_type TEXT,
+    outcome TEXT NOT NULL,
+    total_products INTEGER NOT NULL DEFAULT 0,
+    total_offers INTEGER NOT NULL DEFAULT 0,
+    latency_ms REAL NOT NULL DEFAULT 0.0,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_search_events_created ON search_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_search_events_norm_query ON search_events(normalized_query);
+CREATE INDEX IF NOT EXISTS idx_search_events_city ON search_events(city);
+CREATE INDEX IF NOT EXISTS idx_search_events_outcome ON search_events(outcome);
 """
+
+
+def rebuild_canonical_products_fts(conn: sqlite3.Connection) -> None:
+    """Rebuilds canonical_products_fts index from current canonical_products rows."""
+    conn.execute("INSERT INTO canonical_products_fts(canonical_products_fts) VALUES('rebuild')")
+
 
 
 
@@ -200,3 +262,16 @@ def init_schema_v2(conn: sqlite3.Connection) -> None:
     _ensure_column(conn, "offers", "installment_available", "INTEGER DEFAULT 0")
     _ensure_column(conn, "offers", "credit_available", "INTEGER DEFAULT 0")
     _ensure_column(conn, "offers", "pickup_available", "INTEGER DEFAULT 0")
+
+    # C-E11-02: Ensure existing canonical_products rows are indexed in FTS on initial creation
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT COUNT(*) FROM canonical_products")
+        prod_count = cur.fetchone()[0]
+        if prod_count > 0:
+            cur.execute("SELECT COUNT(*) FROM canonical_products_fts_docsize")
+            fts_count = cur.fetchone()[0]
+            if fts_count < prod_count:
+                rebuild_canonical_products_fts(conn)
+    except Exception:
+        pass

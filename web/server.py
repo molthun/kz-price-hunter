@@ -567,6 +567,146 @@ async def best_price_handler(request):
         if wait:
             return web.json_response({"error": f"Лимит прямого опроса магазинов исчерпан, повторите через {int(wait // 60) + 1} мин"}, status=429)
 
+    v2_flag = request.query.get("v2", "").lower() in ("1", "true", "yes")
+    if v2_flag:
+        from database import get_connection
+        from domain.search_core import SearchCore
+        from repositories.search_repo import SearchRepository
+        conn = get_connection()
+        try:
+            core = SearchCore(SearchRepository(conn))
+            cond_param = request.query.get("condition")
+            resp = core.search(
+                query=query,
+                city=city,
+                condition=cond_param,
+                channel_type=request.query.get("channel_type"),
+                min_price=float(min_price) if min_price is not None else None,
+                max_price=float(max_price) if max_price is not None else None,
+                sort_by=sort_by,
+                limit=_int_param(request, "limit", 50, minimum=1, maximum=100),
+            )
+            # Фильтры, которых Search Core 2.0 пока не умеет. Молча игнорировать заданный
+            # пользователем фильтр нельзя: человек видит поле, задаёт его и получает выдачу так,
+            # будто не задавал. Пока нет паритета — честно называем, что не применили (K3).
+            unsupported = [name for name, applied in (
+                ("категория", bool(category) and category != "Все"),
+                ("только со скидкой", bool(only_discount)),
+                ("без аксессуаров", not exclude_accessories),
+                ("минус-слова", bool(negative_keywords)),
+                ("режим поиска", match_mode not in ("", "AND")),
+                ("живой опрос магазинов", bool(live)),
+            ) if applied]
+
+            # Filter by shop if specified (C-E16-04)
+            if shop and shop != "Все":
+                filtered_items = []
+                for it in resp.items:
+                    it_offers = [o for o in it.offers if (o.channel_name or "").lower() == shop.lower() or (o.seller_name or "").lower() == shop.lower()]
+                    if it_offers:
+                        it.offers = it_offers
+                        filtered_items.append(it)
+                resp.items = filtered_items
+                resp.total_products = len(filtered_items)
+                resp.total_offers = sum(len(it.offers) for it in filtered_items)
+            try:
+                from repositories.search_analytics_repo import SearchAnalyticsRepository
+                from domain.search_analytics import SearchEvent
+                import search_analytics as sa
+                resolved_city = sa.canonical_city(city or getattr(resp.parsed_query, "detected_city", None))
+                SearchAnalyticsRepository(conn).record_event(
+                    SearchEvent(
+                        query=query,
+                        city=resolved_city,
+                        condition=resp.parsed_query.condition,
+                        channel_type=resp.parsed_query.channel_type,
+                        outcome=resp.outcome,
+                        total_products=resp.total_products,
+                        total_offers=resp.total_offers,
+                        latency_ms=resp.latency_ms,
+                    )
+                )
+            except Exception as ex:
+                print(f"[Analytics] Failed to record search event: {ex}")
+
+            resp_dict = resp.to_dict()
+            resp_dict["v2"] = True
+
+            all_offers = []
+            for item in resp.items:
+                for off in item.offers:
+                    all_offers.append((item.product, off))
+
+            if all_offers:
+                valid_offers = [o for p, o in all_offers if o.price and o.price > 0 and o.is_purchasable]
+
+                if valid_offers:
+                    valid_offers.sort(key=lambda o: o.price)
+                    top_offer = valid_offers[0]
+                    top_prod = next((p for p, o in all_offers if o.id == top_offer.id), None)
+                    prices = [o.price for o in valid_offers]
+                    min_p = min(prices)
+                    max_p = max(prices)
+                    avg_p = sum(prices) / len(prices)
+
+                    shop_name = top_offer.channel_name or top_offer.seller_name
+                    prod_title = (top_prod.title if top_prod else None) or top_offer.seller_name
+                    resp_dict["best_deal"] = {
+                        "title": prod_title,
+                        "shop": shop_name,
+                        "price": top_offer.price,
+                        "url": top_offer.url,
+                        "image_url": top_offer.image_url or (top_prod.image_url if top_prod else None),
+                        "source": "catalog_v2",
+                        "savings_vs_max": round(max_p - min_p, 2),
+                        "savings_pct": round(((max_p - min_p) / max_p * 100), 1) if max_p > 0 else 0,
+                    }
+                    resp_dict["price_stats"] = {
+                        "min_price": min_p,
+                        "max_price": max_p,
+                        "avg_price": avg_p,
+                        "total_offers": len(valid_offers),
+                    }
+                    store_map = {}
+                    for p, off in all_offers:
+                        if not off.is_purchasable:
+                            continue
+                        s_name = off.channel_name or off.seller_name
+                        if not s_name or not off.price or off.price <= 0:
+                            continue
+                        if s_name not in store_map or off.price < store_map[s_name]["min_price"]:
+                            store_map[s_name] = {
+                                "shop": s_name,
+                                "min_price": off.price,
+                                "diff_from_best": round(off.price - min_p, 2),
+                                "title": getattr(p, "title", "") or getattr(p, "canonical_name", ""),
+                                "url": off.url,
+                            }
+                    resp_dict["store_comparison"] = sorted(store_map.values(), key=lambda s: s["min_price"])
+                    resp_dict["all_stale"] = False
+                else:
+                    resp_dict["best_deal"] = None
+                    resp_dict["price_stats"] = None
+                    resp_dict["store_comparison"] = []
+                    resp_dict["all_stale"] = any(getattr(o, "freshness", "fresh") == "stale" or getattr(o, "is_stale", False) or not o.is_purchasable for p, o in all_offers)
+            else:
+                resp_dict["best_deal"] = None
+                resp_dict["price_stats"] = None
+                resp_dict["store_comparison"] = []
+                resp_dict["all_stale"] = False
+
+            # Фильтры, которые пользователь задал, а Search Core 2.0 пока не применяет.
+            # Молчать о них нельзя: человек видит поле, заполняет его и получает выдачу так,
+            # будто не заполнял (K3). Интерфейс показывает это списком под результатами.
+            resp_dict["unsupported_filters"] = unsupported
+
+            return web.json_response(resp_dict)
+        except Exception as e:
+            print(f"[API best-price v2] Ошибка: {e}")
+            return web.json_response({"error": "Ошибка поиска v2, попробуйте позже"}, status=500)
+        finally:
+            conn.close()
+
     # Интеллектуальный разбор запроса через AI
     ai_meta = None
     search_query = query
@@ -634,6 +774,109 @@ async def best_price_handler(request):
     except Exception as e:
         print(f"[API best-price] Ошибка: {e}")
         return web.json_response({"error": "Ошибка поиска, попробуйте позже"}, status=500)
+
+
+@routes.get("/api/v2/search")
+async def search_v2_handler(request):
+    """Единый поиск Search Core 2.0 с агрегацией по продавцам и каналам (S2-E11)."""
+    query = request.query.get("q", "").strip()
+    city = request.query.get("city")
+    condition = request.query.get("condition")
+    channel_type = request.query.get("channel_type")
+
+    min_price = None
+    if "min_price" in request.query:
+        try:
+            min_price = float(request.query["min_price"])
+        except (ValueError, TypeError):
+            pass
+
+    max_price = None
+    if "max_price" in request.query:
+        try:
+            max_price = float(request.query["max_price"])
+        except (ValueError, TypeError):
+            pass
+
+    sort_by = request.query.get("sort", "relevance")
+    limit = _int_param(request, "limit", 50, minimum=1, maximum=100)
+
+    wait = search_limiter.retry_after(f"ip:{client_ip(request)}")
+    if wait:
+        return web.json_response({"error": f"Слишком много запросов, повторите через {int(wait) + 1} сек"}, status=429)
+
+    from database import get_connection
+    from domain.search_core import SearchCore
+    from repositories.search_repo import SearchRepository
+
+    conn = get_connection()
+    try:
+        core = SearchCore(SearchRepository(conn))
+        resp = core.search(
+            query=query,
+            city=city,
+            condition=condition,
+            channel_type=channel_type,
+            min_price=min_price,
+            max_price=max_price,
+            sort_by=sort_by,
+            limit=limit,
+        )
+        try:
+            from repositories.search_analytics_repo import SearchAnalyticsRepository
+            from domain.search_analytics import SearchEvent
+            import search_analytics as sa
+            resolved_city = sa.canonical_city(city or getattr(resp.parsed_query, "detected_city", None))
+            SearchAnalyticsRepository(conn).record_event(
+                SearchEvent(
+                    query=query,
+                    city=resolved_city,
+                    condition=condition,
+                    channel_type=channel_type,
+                    outcome=resp.outcome,
+                    total_products=resp.total_products,
+                    total_offers=resp.total_offers,
+                    latency_ms=resp.latency_ms,
+                )
+            )
+        except Exception as ex:
+            print(f"[Analytics] Failed to record search event: {ex}")
+        return web.json_response(resp.to_dict())
+    except Exception as e:
+        print(f"[API search v2] Ошибка: {e}")
+        return web.json_response({"error": "Ошибка поиска v2, попробуйте позже"}, status=500)
+    finally:
+        conn.close()
+
+
+@routes.get("/api/v2/analytics/search-quality")
+@require_admin
+async def search_quality_analytics_handler(request):
+    """Возвращает агрегированные KPI качества поиска (Search Success Rate) и сигналы для Discovery (S2-E13)."""
+    city = request.query.get("city")
+    since = request.query.get("since")
+    limit = _int_param(request, "limit", 50, minimum=1, maximum=200)
+
+    from database import get_connection
+    from repositories.search_analytics_repo import SearchAnalyticsRepository
+
+    conn = get_connection()
+    try:
+        repo = SearchAnalyticsRepository(conn)
+        summary = repo.get_quality_summary(since_iso=since, city=city)
+        top_queries = repo.get_top_queries(limit=limit, since_iso=since, city=city)
+        discovery_signals = repo.get_discovery_signals(min_searches=5, max_success_rate=70.0, limit=limit, since_iso=since, city=city)
+
+        return web.json_response({
+            "summary": summary.to_dict(),
+            "top_queries": top_queries,
+            "discovery_signals": [s.to_dict() for s in discovery_signals],
+        })
+    except Exception as e:
+        print(f"[API search quality analytics] Ошибка: {e}")
+        return web.json_response({"error": "Ошибка аналитики поиска"}, status=500)
+    finally:
+        conn.close()
 
 # ===== Авторизация =====
 

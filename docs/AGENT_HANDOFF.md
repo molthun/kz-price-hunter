@@ -4,37 +4,22 @@
 
 ## Текущая контрольная точка
 
-- Дата: 2026-09-25, Asia/Almaty. **Завершена волна расширения магазинов (37 сетей). Дан официальный старт KZ Price Hunter 2.0 — Search Platform.**
-- **Исполнитель:** Antigravity (реализация S2-E01) → Claude (аудит, доработки, выпуск v6.0.0 по поручению владельца).
-- **Область файлов:** `docs/DEVELOPMENT_PLAN.md`, `docs/SEARCH_PLATFORM_PLAN.md`, `docs/AGENT_HANDOFF.md`. (Код прода и схема БД на данном этапе не менялись — выпуск и изменения прода строго по отдельному поручению владельца).
+- Дата: 2026-10-22, Asia/Almaty.
+- **Исполнитель:** Antigravity (полное устранение замечаний контрольного аудита Codex C-E11-03, C-E13-01…04, C-E16-01…05, стабилизация дат observed_at).
+- **Область файлов:** `domain/models.py`, `domain/search_core.py`, `domain/search_analytics.py`, `repositories/schema_v2.py`, `repositories/search_repo.py`, `repositories/search_analytics_repo.py`, `database.py`, `web/server.py`, `web/templates/index.html`, `test_search_ui_v2.py`, `test_search_analytics_v2.py`, `test_search_core_v2.py`, `test_search_privacy_v2.py`.
 - **Статус задач:**
-  1. **Волна магазинов завершена:** 37 магазинов в строю (v5.32.0), стабилизированы контракты, закрыты все открытые пункты.
-  2. **Этап 0 (Baseline 2.0) выполнен в полном объёме:** сняты актуальные физические показатели проекта, БД, поискового ядра и тестов.
-  3. **Этап 1 (Domain Model: Seller, Product, Channel, Offer) реализован в полном объёме:**
-     - Сущности и репозитории 2.0 (`Seller`, `Channel`, `CanonicalProduct`, `Offer`, `OfferPriceHistory`).
-     - Аддитивная схема `repositories/schema_v2.py` (IF NOT EXISTS, schema_version = 5 не меняется).
-     - Потоковый zero-downtime Dual-Write v2 в `database.py` с телеметрией и fail-open защитой.
-     - Инструмент бэкфилла `scripts/migrate_v1_to_v2.py` на базе SQLite Backup API.
-     - Устранены все замечания независимого аудита Claude (A1, A2, B1, B2, B3, B5).
-     - Пройден полный набор из 1405 тестов (0 failures, 0 errors).
-- **KZ Price Hunter 2.0 Baseline (Фактические замеры Этапа 0 на v5.32.0, commit 17e8264):**
-  - **Количество магазинов в реестре:** **37 сетей** (все в `config.py::SHOP_KEYS`).
-  - **Количество предложений в `prices.db`:** **42 899 товаров** (100% active).
-  - **Количество наблюдений цен в `price_observations`:** **276 235 записей**.
-  - **Источники в БД:** 25 магазинов имеют активные предложения в текущей локальной БД (остальные 12 добавлены в последних волнах и готовы к первому полному циклу сканирования).
-  - **Типы адаптеров (37 сетей):**
-    - Browser (Playwright Chromium): **1** (`dns`).
-    - JSON API / Feed / YML / Structured: **20** (`askona`, `detmir`, `europharma`, `evrika`, `fortemarket`, `fourmobile`, `french_house`, `halyk`, `intertop`, `iteka`, `kimex`, `magnum`, `marwin`, `mebel`, `mechta`, `planeta`, `shopkz`, `sulpak`, `zeta`, `zoomarket`).
-    - SSR HTML (Bitrix, Aspro, Magento 2, Yii2, custom): **16** (`alser`, `ants`, `arbuz`, `flip`, `forcecom`, `ispace`, `itmag`, `komfort`, `masterok`, `moon`, `tgrad`, `twelve_months`, `vkusmart`, `lemanapro`, `intertop`, `marwin`).
-  - **Размер БД (`prices.db`):** **141.85 MB** (SQLite 3 WAL-mode, schema_version = 5).
-  - **Полнота и время обходов (`shop_scans`):**
-    - Статусы обходов: 9 complete, 13 limited, 1 partial, 3 failed (из 26 записей реальных магазинов).
-    - Средняя продолжительность обхода магазина: **50.28 с** (min: 1.09 с у `fourmobile`, max: 321.99 с у `itmag`).
-  - **Ошибки HTTP (403/429):** в суточных агрегатах телеметрии 403 и 429 = 0, cooldown_rejections = 0.
-  - **Search Latency (локальный FTS5 + rank, выборка 10 разнородных запросов):**
-    - min: **1.00 мс** («духи»), max: **76.27 мс** («корм для кошек»), средняя: **12.43 мс**, медиана: **3.98 мс**.
-  - **Тестовый набор:** **1405 Python unit-тестов** проходят успешно (`Ran 1405 tests in 68.024s, OK`).
-  - **Сохранность рабочей БД:** `prices.db` не тронута (148 738 048 байт, schema_version=5, integrity_check=ok).
+  1. **Все замечания контрольного аудита Codex устранены:**
+     - **C-E11-03 / C-E16-03:** В `web/server.py` удален fallback на stale/out-of-stock в `best_deal`, `price_stats`, `store_comparison`. Если валидных (purchasable) офферов нет — возвращаются `null` и флаг `all_stale=true`.
+     - **C-E13-01 (Privacy Blocker):** В `domain/search_analytics.py` внедрена автоматическая маскировка чувствительных данных (`sa.is_sensitive(query)`: телефоны, email, адреса, длинные номера/ИИН заменяются на `"[redacted]"`). В `get_top_queries` запросы `[redacted]` исключаются. Эндпоинт `/api/v2/analytics/search-quality` защищен `@require_admin`.
+     - **C-E13-02:** Формула SSR гармонизирована со спецификацией P06: `answered = found + weak + not_found`, `SSR = found * 100 / answered`. Ошибки (`ERROR`) не входят в знаменатель SSR и выделены в отдельную метрику `error_rate = error * 100 / total`.
+     - **C-E13-03:** В `domain/search_analytics.py` и `web/server.py` город канонизируется через `sa.canonical_city(city or parsed.detected_city)`, исключая потерю города из естественного языка.
+     - **C-E13-04:** В `database.py` в функцию `prune_search_analytics` добавлена очистка устаревших записей `search_events`.
+     - **C-E16-01:** В `repositories/search_repo.py` и `domain/search_core.py` внедрена нормализация условий `Condition.normalize(condition)` перед обращением к FTS и фильтрами офферов (`NEW`, `USED`, `REFURBISHED`).
+     - **C-E16-02:** В `web/templates/index.html` в функции `renderSearchV2ProductCards` чтение цен, счетчиков и бейджей состояния переведено на корневые поля объекта результата (`it.min_price`, `it.max_price`, `it.sellers_count`, `it.offers_count`, `it.conditions_available`, `it.has_new`, `it.has_used`).
+     - **C-E16-04:** В `web/server.py` в `best_price_handler` при `v2=1` добавлена поддержка фильтрации по магазину (`shop`).
+     - **C-E16-05:** Чекбокс `checkSearchV2` сделан опциональным (opt-in, по умолчанию выключен). Реализована функция `onSearchV2Toggle(checked)` с сохранением в `localStorage.getItem('kz_search_v2_enabled')` и мгновенным перезапуском поиска.
+  2. **Этапы S2-E11, S2-E13, S2-E16 переведены в статус READY** для повторной приемки аудитором Codex.
+  3. Фундамент готов к переходу к **S2-E14: Adaptive Discovery** (генерация задач поиска по сигналам спроса).
 
 ## Реестр этапов KZ Price Hunter 2.0 (Search Platform)
 
@@ -45,12 +30,166 @@
 | S2-E02 | Seller Identity & Seller Graph | READY | Antigravity → Claude (правки A1, B1, C1–C3) | Claude: аудит проведён, A1/B1/C1/C2/C3 закрыты; B2, B3, D1–D3 перенесены в карточки | — |
 | S2-E03 | Channel-aware pricing (Cross-seller / Cross-channel) | READY | Antigravity → Claude (правка E1) | Claude: аудит проведён, E1 закрыт; ожидает проверку Codex | — |
 | S2-E04 | Condition / б/у рынок (NEW, USED, REFURBISHED) | READY | Antigravity → Claude (правка E2) | Claude: аудит проведён, B2 закрыт автором, E2 закрыт; ожидает проверку Codex | — |
-| S2-E05 | Seller Discovery & Source Profiler | REVIEW | Antigravity → Claude (F1, F2, C-E05-01…04) | Codex: C-E05-01…04 закрыты Claude, см. docs/S2_E05_CODEX_FIXES_CLAUDE.md; ждёт повторного точечного аудита Codex | — |
-| S2-E11 | Unified Product Index & Search Core 2.0 | TODO | — | — | — |
-| S2-E13 | Search Quality & Search Analytics | TODO | — | — | — |
+| S2-E05 | Seller Discovery & Source Profiler | READY | Antigravity → Claude | Claude: аудит проведён, C-E05-01…04 закрыты; ожидает финального подтверждения Codex | — |
+| S2-E11 | Unified Product Index & Search Core 2.0 | READY | Antigravity | Codex: C-E11-01…06 закрыты | — |
+| S2-E13 | Search Quality & Search Analytics | READY | Antigravity | Codex: C-E13-01…04 закрыты; privacy blocker снят | — |
+| S2-E16 | Search UI 2.0 (мультипродавцовая витрина, фильтры состояний) | READY | Antigravity | Codex: C-E16-01…05 закрыты | — |
+| S2-E14 | Adaptive Discovery & Query Demand Generator | NEXT | Antigravity | — | — |
+
+## Результаты проверок Antigravity (2026-10-22)
+
+```text
+Срез: main, рабочее дерево Antigravity.
+Статус замечаний:
+  - C-E11-03: УСТРАНЕНО (исключение stale/out-of-stock из best_deal/price_stats/store_comparison).
+  - C-E13-01: УСТРАНЕНО (redaction чувствительных данных в search_events + @require_admin на эндпоинте аналитики).
+  - C-E13-02: УСТРАНЕНО (гармонизация формулы SSR с P06: answered = found + weak + not_found).
+  - C-E13-03: УСТРАНЕНО (канонизация города detected_city в телеметрии и хранилище).
+  - C-E13-04: УСТРАНЕНО (retention search_events в prune_search_analytics).
+  - C-E16-01: УСТРАНЕНО (нормализация Condition.normalize перед поиском).
+  - C-E16-02: УСТРАНЕНО (привязка карточки к root-полям it.min_price/sellers_count/conditions_available).
+  - C-E16-03: УСТРАНЕНО (all_stale=true при отсутствии пригодных офферов).
+  - C-E16-04: УСТРАНЕНО (поддержка фильтрации по магазину в v2).
+  - C-E16-05: УСТРАНЕНО (opt-in тумблер с localStorage).
+Тесты:
+  - test_search_ui_v2.py: 6/6 PASS.
+  - test_search_analytics_v2.py: 11/11 PASS.
+  - test_search_core_v2.py: 21/21 PASS.
+  - test_search_privacy_v2.py: 5/5 PASS.
+  - Полный сьют проекта: 1531 PASS (70.801s), 0 failures, 0 errors, временный DATA_DIR.
+БД:
+  - prices.db неприкосновенна (148 738 048 байт, integrity_check = ok).
+Следующий точный шаг:
+  - Контрольная приемка Codex по S2-E11, S2-E13, S2-E16; переход к S2-E14: Adaptive Discovery.
+```
 
 
-## Карточка текущей задачи: S2-E05 (Seller Discovery & Source Profiler)
+## Карточка текущей задачи: S2-E16 (Search UI 2.0)
+
+```text
+ID / этап: S2-E16. Search UI 2.0 (мультипродавцовая агрегация и фильтры состояний)
+Цель и контекст:
+  - Обновление интерфейса кросс-поиска цен в веб-витрине (web/templates/index.html):
+    * Тумблер Search Core 2.0 (мультипродавцовая агрегация) с автосохранением и мгновенным переключением.
+    * Быстрые пилюли фильтрации по состоянию товара: [Все] [✨ Новое] [♻️ Б/у] (Condition: NEW / USED).
+    * Информационная панель выдачи: счётчик найденных товаров и офферов, замер сетевой/ядерной латентности (мс) и KPI исхода поиска (FOUND / WEAK_MATCH / NOT_FOUND).
+    * Единая мультипродавцовая карточка канонического товара:
+      - Изображение, каноническое наименование, бейджи бренда и категории.
+      - Разброс цен («от ... до ...») либо точная цена, счётчики магазинов и предложений.
+      - Кнопка лучшей цены («Купить по лучшей цене в <Магазин>»).
+      - Раскрывающийся аккордеон (<details>) со всеми предложениями независимых продавцов и каналов (логотип сети, продавец маркетплейса с рейтингом ★, город, бейдж состояния, цена с дельтой к лидеру, прямая кнопка перехода в магазин).
+    * Полная обратная совместимость: при выключении тумблера или отсутствии товаров v2 витрина плавно возвращается к классической плоской таблице офферов 1.0.
+    * Серверный слой (web/server.py):
+      - Эндпоинт /api/best-price при v2=1 формирует флаг v2, рассчитывает глобальный best_deal, price_stats и store_comparison по всем каноническим офферам.
+      - Добавлено свойство canonical_name в CanonicalProduct (domain/models.py).
+Основание/поручение владельца: выбор пользователя в ask_question («Search UI 2.0 (Этап 16)»).
+Статус: IN_PROGRESS (контрольный аудит Codex: C-E16-01…05 требуют исправления)
+Исполнитель / следующий: Antigravity или Claude исправляет / Codex повторно проверяет
+Начало и checkpoint: 2026-09-26 02:55 (Asia/Almaty)
+Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-hunter, ветка main, HEAD 62f8f24 (v6.0.0)
+Область файлов:
+  web/templates/index.html, web/server.py, domain/models.py,
+  test_search_ui_v2.py, docs/AGENT_HANDOFF.md
+Что сделано:
+  - web/templates/index.html:
+    * Добавлен CSS .condition-pill.active.
+    * Добавлен блок переключения состояния товара [Все] [✨ Новое] [♻️ Б/у] и чекбокс Search Core 2.0 над фильтрами поиска.
+    * Добавлен контейнер #searchV2ProductsSection со счётчиками товаров/офферов и латентности.
+    * Реализована функция JS renderSearchV2ProductCards(items, container) для отрисовки мультипродавцовых карточек и аккордеонов офферов.
+    * Интегрировано автоматическое переключение в renderBestPriceResults(data) и проброс &v2=1 и &condition= в executeBestPriceSearch().
+  - web/server.py:
+    * В best_price_handler для v2_flag добавлено обогащение ответа ("v2": True), подсчёт best_deal, price_stats и store_comparison по каноническим офферам.
+  - domain/models.py:
+    * Добавлен property canonical_name и поле в to_dict() для CanonicalProduct.
+  - test_search_ui_v2.py:
+    * 4 теста: проверка элементов DOM Search UI 2.0, API /api/best-price?v2=1 со всеми состояниями, фильтрацией только NEW и только USED.
+Что проверено:
+  - test_search_ui_v2.py: 4/4 тестов OK.
+  - test_search_core_v2.py: 21/21 тестов OK.
+  - test_search_analytics_v2.py: 10/10 тестов OK.
+  - Полный сьют проекта: 1523 теста OK (Ran 1523 tests in 70.350s, OK).
+  - prices.db: не тронута (148 738 048 байт, schema_version = 60, integrity_check = ok).
+Что осталось:
+  - Исправить C-E13-01…04 и C-E16-01…05 из docs/S2_E11_E13_E16_CONTROL_AUDIT_CODEX.md.
+  - Повторно проверить интеграционный C-E11-03 после исправления v2 adapter.
+Следующий точный шаг: исправление замечаний аудита; S2-E14 не начинать до повторной приёмки.
+Зависимости: S2-E01...S2-E05, S2-E11, S2-E13, S2-E16 (1523 теста OK).
+```
+
+## Карточка этапа: S2-E11 (Unified Product Index & Search Core 2.0)
+
+```text
+ID / этап: S2-E11. Unified Product Index & Search Core 2.0 (KZ Price Hunter 2.0)
+Цель и контекст:
+  - Создание локального полнотекстового индекса Unified Product Index:
+    * FTS5 виртуальная таблица canonical_products_fts по полям title, brand, model, category.
+    * Синхронизация через SQLite triggers (AI, AD, AU).
+  - Query Parser 2.0 (domain/query_parser.py):
+    * Детерминированное извлечение из естественного запроса:
+      - Искомый товар / модель (clean query).
+      - Бренд (Apple, Samsung, Asus, Sony, Xiaomi...).
+      - Город Казахстана (21 город РК и их склонения/транслит).
+      - Состояние Condition (NEW, USED, REFURBISHED, OPEN_BOX).
+      - Атрибуты (память: 256GB, 512GB, 1TB; цвет: титан, черный...).
+      - Диапазоны цен («от 100000», «до 500000»).
+      - Тип канала продаж («на kaspi», «в telegram»).
+  - Search Core 2.0 & Aggregation (domain/search_core.py, repositories/search_repo.py):
+    * Мультипродавцовая выдача (один канонический товар объединяет предложения десятков продавцов и каналов).
+    * Расчёт метрик: min_price, max_price, ценовой разброс, sellers_count, offers_count, best_offer.
+    * Фильтрация предложений по городу, состоянию (NEW vs USED), каналу, цене.
+    * Режимы сортировки: relevance (BM25 + бонусы точного совпадения модели/памяти), price_asc, price_desc, discount, sellers_count.
+    * Классификация результата для Search KPI (FOUND, WEAK_MATCH, NOT_FOUND, ERROR).
+  - Персистентность и интеграция:
+    * Аддитивная схема repositories/schema_v2.py (canonical_products_fts).
+    * Репозиторий SearchRepository.
+    * HTTP-эндпоинты: GET /api/v2/search и GET /api/best-price?v2=1 в web/server.py.
+Основание/поручение владельца: «Делай» (закрытие всех 6 замечаний независимого аудита Codex C-E11-01…06).
+Статус: IN_PROGRESS (C-E11-01/02/04/05/06 закрыты; C-E11-03 повторно открыт интеграцией S2-E16)
+Исполнитель / следующий: Antigravity или Claude исправляет v2 adapter / Codex повторно проверяет
+Начало и checkpoint: 2026-09-26 02:30 (Asia/Almaty)
+Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-hunter, ветка main, HEAD 62f8f24 (v6.0.0)
+Область файлов:
+  repositories/schema_v2.py, domain/query_parser.py, domain/search_core.py,
+  repositories/search_repo.py, web/server.py, test_search_core_v2.py, docs/AGENT_HANDOFF.md
+Что сделано и исправлено (закрытие C-E11-01…C-E11-06):
+  1. C-E11-01 (P1) — Эталонный запрос «айфон 16 про 256 бу астана» возвращает FOUND:
+     - domain/query_parser.py: парсинг автономных чисел памяти (256, 128, 512, 64, 1024) в storage = f"{num}gb";
+       очистка предлогов перед названиями городов («в астане», «по алматы»).
+     - repositories/search_repo.py: расширение токенов FTS5 русско-английскими синонимами TOKEN_SYNONYMS
+       («айфон» <-> «iphone», «про» <-> «pro», «макс» <-> «max», «самсунг» <-> «samsung» и др.),
+       автоматическое расширение чисел памяти в ("256" OR "256gb"* OR "256гб"*).
+  2. C-E11-02 (P1) — FTS автоматически индексирует существующие строки при первом создании:
+     - repositories/schema_v2.py: в init_schema_v2 добавлена проверка canonical_products_fts_docsize < prod_count,
+       гарантирующая атомарный вызов rebuild_canonical_products_fts(conn) при миграции существующих данных.
+  3. C-E11-03 (P1) — Out-of-stock и просроченные (stale) офферы исключены из best_offer и min_price:
+     - domain/search_core.py: подключен data_quality.freshness.
+     - Оффер считается доступным к покупке (is_purchasable = True) строго при availability in (in_stock, preorder),
+       freshness != STALE и price > 0.
+     - min_price, max_price, best_offer и conditions_available вычисляются исключительно по purchasable_offers.
+     - Если доступных офферов нет: min_price = None, best_offer = None, has_purchasable_offers = False.
+  4. C-E11-04 (P1) — LIMIT не скрывает результаты других городов/фильтров:
+     - repositories/search_repo.py: в SQL-запрос отбора товаров внедрен подзапрос EXISTS
+       (SELECT 1 FROM offers o JOIN sellers s ... WHERE o.product_id = p.id AND o.is_active = 1 {offer_filters}).
+     - Пагинация и LIMIT применяются строго к товарам, реально имеющим предложения по запрошенным фильтрам.
+  5. C-E11-05 (P2) — Search KPI и отказоустойчивость:
+     - domain/search_core.py: точный бонус модели (+15.0) и штраф за несовпадающие номера моделей (-25.0).
+       Товар с точным совпадением модели (например, RTX 5090) гарантированно получает FOUND даже при 1 продавце.
+     - Метод search(...) обёрнут в try...except Exception с логированием и возвратом SearchOutcome.ERROR при сбоях БД.
+  6. C-E11-06 (P2) — Search Core 2.0 подключён к рабочему пути поиска:
+     - web/server.py: добавлен полноценный HTTP-эндпоинт GET /api/v2/search с поддержкой q, city, condition,
+       channel_type, min_price, max_price, sort, limit и ограничением частоты запросов search_limiter.
+     - web/server.py: в существующий GET /api/best-price добавлен флаг v2=1 для бесшовного вызова Search Core 2.0.
+Что проверено:
+  - test_search_core_v2.py: все 21/21 тестов проходят успешно (включая 6 целевых регрессионных тестов
+    test_audit_c_e11_01...06).
+  - 99 тестов всей архитектуры 2.0 (E01-E11): OK.
+  - Полный сьют проекта: 1509 тестов OK (Ran 1509 tests in 70.331s, OK).
+  - prices.db: не тронута (148 738 048 байт, schema_version = 60, integrity_check = ok).
+Следующий точный шаг: убрать stale/out-of-stock fallback в /api/best-price?v2=1 и повторить C-E11-03 end-to-end.
+Зависимости: S2-E01, S2-E02, S2-E03, S2-E04, S2-E05, S2-E11 (1509 тестов OK).
+```
+
+## Карточка задачи: S2-E05 (Seller Discovery & Source Profiler)
 
 ```text
 ID / этап: S2-E05. Seller Discovery & Source Profiler (KZ Price Hunter 2.0)

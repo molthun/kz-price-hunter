@@ -54,34 +54,66 @@ from domain.source_profiler import (
     SourceProfiler,
 )
 
+from domain.query_parser import (
+    KZ_CITIES_MAP,
+    ParsedQuery,
+    QueryParser,
+)
+
+from domain.search_core import (
+    AggregatedOffer,
+    ProductSearchResult,
+    SearchCore,
+    SearchOutcome,
+    SearchResponse2,
+)
+
+from domain.search_analytics import (
+    QueryDemandSignal,
+    SearchEvent,
+    SearchQualitySummary,
+    normalize_search_query,
+)
+
 __all__ = [
+    "AggregatedOffer",
     "Availability",
     "CandidateStatus",
     "CanonicalProduct",
     "CatalogFormat",
     "Channel",
+    "ChannelSavings",
     "ChannelType",
     "Condition",
     "ConditionBreakdown",
     "ConditionFilter",
-    "DiscoverySource",
-    "ExtractionTier",
-    "Offer",
-    "OfferPriceHistory",
-    "Seller",
-    "SellerCandidate",
-    "SourceProfile",
-    "SourceProfiler",
-    "IdentityType",
-    "MatchDecision",
-    "SellerIdentity",
-    "SellerMatchResult",
-    "ChannelSavings",
     "CrossSellerRanking",
     "DeliveryType",
+    "DiscoverySource",
+    "ExtractionTier",
+    "IdentityType",
+    "KZ_CITIES_MAP",
+    "MatchDecision",
+    "Offer",
+    "OfferPriceHistory",
+    "ParsedQuery",
     "PaymentMethod",
     "ProductChannelMatrix",
+    "ProductSearchResult",
+    "QueryDemandSignal",
+    "QueryParser",
+    "SearchCore",
+    "SearchEvent",
+    "SearchOutcome",
+    "SearchQualitySummary",
+    "SearchResponse2",
+    "Seller",
+    "SellerCandidate",
     "SellerChannelPricing",
+    "SellerIdentity",
+    "SellerMatchResult",
+    "SourceProfile",
+    "SourceProfiler",
     "build_channel_matrix",
     "build_condition_breakdown",
     "filter_offers_by_condition",
@@ -89,6 +121,8 @@ __all__ = [
     "normalize_business_name",
     "normalize_domain",
     "normalize_phone",
+    "normalize_search_query",
 ]
+
 
 

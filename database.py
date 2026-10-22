@@ -289,6 +289,14 @@ def prune_search_analytics(days: Optional[int] = None,
         deleted = conn.execute("DELETE FROM search_stats WHERE bucket < ?", (cutoff_day,)).rowcount
         deleted += conn.execute("DELETE FROM search_queries WHERE bucket < ?", (cutoff_day,)).rowcount
         deleted += conn.execute("DELETE FROM search_query_seen WHERE last_seen < ?", (cutoff_ts,)).rowcount
+        try:
+            # Очистка новых событий поиска — та же, что вызывается точечно: реализация одна,
+            # иначе два независимых удаления по сроку со временем разъезжаются
+            from repositories.search_analytics_repo import SearchAnalyticsRepository
+            deleted += SearchAnalyticsRepository(conn).purge_old_events(
+                days=days or sa.RETENTION_DAYS)
+        except (sqlite3.OperationalError, ImportError):
+            pass  # таблицы v2 ещё нет — legacy-контур это не ломает
         conn.commit()
     return deleted
 
