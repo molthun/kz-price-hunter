@@ -870,6 +870,122 @@ async def search_v2_handler(request):
         conn.close()
 
 
+@routes.get("/api/v2/sellers")
+async def list_sellers_v2_handler(request):
+    """Список активных продавцов с агрегированными каналами и офферами (S2-E19)."""
+    city = request.query.get("city")
+    search = request.query.get("q") or request.query.get("search")
+    channel_type = request.query.get("channel_type")
+    limit = _int_param(request, "limit", 50, minimum=1, maximum=100)
+    offset = _int_param(request, "offset", 0, minimum=0)
+
+    from database import get_connection
+    from repositories.seller_repo import SellerRepository
+    from repositories.channel_repo import ChannelRepository
+
+    conn = get_connection()
+    try:
+        seller_repo = SellerRepository(conn)
+        chan_repo = ChannelRepository(conn)
+
+        items = seller_repo.list_sellers_summary(
+            city=city, search=search, channel_type=channel_type, limit=limit, offset=offset
+        )
+        total = seller_repo.count_sellers_summary(
+            city=city, search=search, channel_type=channel_type
+        )
+
+        result = []
+        for s in items:
+            channels = chan_repo.list_by_seller(s["id"])
+            s["channels"] = [c.to_dict() for c in channels]
+            result.append(s)
+
+        return web.json_response({
+            "ok": True,
+            "total": total,
+            "sellers": result,
+            "limit": limit,
+            "offset": offset,
+        })
+    except Exception as e:
+        print(f"[API sellers v2] Ошибка: {e}")
+        return web.json_response({"ok": False, "error": "Ошибка получения списка продавцов"}, status=500)
+    finally:
+        conn.close()
+
+
+@routes.get("/api/v2/seller/{id_or_slug}")
+async def get_seller_v2_handler(request):
+    """Детальный профиль и витрина предложений продавца (S2-E19)."""
+    id_or_slug = request.match_info.get("id_or_slug", "").strip()
+    if not id_or_slug:
+        return web.json_response({"ok": False, "error": "Идентификатор продавца обязателен"}, status=400)
+
+    city = request.query.get("city")
+    condition = request.query.get("condition")
+    category = request.query.get("category")
+    limit = _int_param(request, "limit", 50, minimum=1, maximum=200)
+    offset = _int_param(request, "offset", 0, minimum=0)
+
+    from database import get_connection
+    from repositories.seller_repo import SellerRepository
+    from repositories.channel_repo import ChannelRepository
+    from repositories.offer_repo import OfferRepository
+    from domain.seller_showcase import group_seller_offers_by_product, build_seller_showcase
+
+    conn = get_connection()
+    try:
+        seller_repo = SellerRepository(conn)
+        seller = seller_repo.get_by_id_or_slug(id_or_slug)
+        if not seller or not seller.is_active:
+            return web.json_response({"ok": False, "error": "Продавец не найден"}, status=404)
+
+        chan_repo = ChannelRepository(conn)
+        channels = chan_repo.list_by_seller(seller.id)
+
+        offer_repo = OfferRepository(conn)
+        raw_offers = offer_repo.get_active_offers_with_details_for_seller(
+            seller_id=seller.id,
+            city=city,
+            condition=condition,
+            category=category,
+            limit=limit,
+            offset=offset,
+        )
+        total_offers = offer_repo.count_active_offers_for_seller(
+            seller_id=seller.id,
+            city=city,
+            condition=condition,
+            category=category,
+        )
+        aggs = offer_repo.get_seller_aggregates(seller.id)
+
+        grouped_products = group_seller_offers_by_product(raw_offers)
+
+        showcase = build_seller_showcase(
+            seller=seller,
+            channels=channels,
+            grouped_products=grouped_products,
+            total_offers_count=total_offers,
+            available_cities=aggs["cities"],
+            available_categories=aggs["categories"],
+            conditions_breakdown=aggs["conditions_breakdown"],
+        )
+        showcase["ok"] = True
+        showcase["pagination"] = {
+            "limit": limit,
+            "offset": offset,
+            "total_offers": total_offers,
+        }
+        return web.json_response(showcase)
+    except Exception as e:
+        print(f"[API seller showcase v2] Ошибка: {e}")
+        return web.json_response({"ok": False, "error": "Ошибка получения витрины продавца"}, status=500)
+    finally:
+        conn.close()
+
+
 @routes.get("/api/v2/scheduler/plan")
 @require_admin
 async def scheduler_plan_handler(request):

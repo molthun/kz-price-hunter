@@ -168,3 +168,132 @@ class OfferRepository(BaseRepository):
             sql += " WHERE is_active = 1"
         row = self.fetchone(sql)
         return row["COUNT(*)"] if row else 0
+
+    def get_active_offers_with_details_for_seller(
+        self,
+        seller_id: str,
+        city: Optional[str] = None,
+        condition: Optional[str] = None,
+        category: Optional[str] = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> List[dict]:
+        """
+        Retrieves active offers for a seller joined with canonical product & channel info.
+        """
+        sql = """
+        SELECT
+            o.*,
+            cp.title AS product_title,
+            cp.category AS product_category,
+            cp.brand AS product_brand,
+            cp.image_url AS product_image_url,
+            c.name AS channel_name,
+            c.channel_type AS channel_type,
+            c.base_url AS channel_base_url
+        FROM offers o
+        LEFT JOIN canonical_products cp ON o.product_id = cp.id
+        LEFT JOIN channels c ON o.channel_id = c.id
+        WHERE o.seller_id = ? AND o.is_active = 1
+        """
+        params: list = [seller_id]
+        if city and city != "Казахстан":
+            sql += " AND (o.city = ? OR o.city = 'Казахстан')"
+            params.append(city)
+        if condition:
+            c_norm = condition.strip().lower()
+            if c_norm not in {"all", "any", "*"}:
+                c_upper = condition.strip().upper()
+                if c_norm in {"б/у", "бу", "used"}:
+                    c_upper = "USED"
+                elif c_norm in {"новое", "новый", "new"}:
+                    c_upper = "NEW"
+                elif c_norm in {"уценка", "витрина", "openbox", "open_box"}:
+                    c_upper = "OPEN_BOX"
+                elif c_norm in {"восстановленный", "refurb", "refurbished"}:
+                    c_upper = "REFURBISHED"
+                sql += " AND o.condition = ?"
+                params.append(c_upper)
+        if category:
+            sql += " AND cp.category = ?"
+            params.append(category)
+
+        sql += " ORDER BY o.price ASC LIMIT ? OFFSET ?"
+        params.extend([max(1, min(limit, 200)), max(0, offset)])
+        rows = self.fetchall(sql, params)
+        return [dict(r) for r in rows]
+
+    def count_active_offers_for_seller(
+        self,
+        seller_id: str,
+        city: Optional[str] = None,
+        condition: Optional[str] = None,
+        category: Optional[str] = None,
+    ) -> int:
+        sql = """
+        SELECT COUNT(*) as count
+        FROM offers o
+        LEFT JOIN canonical_products cp ON o.product_id = cp.id
+        WHERE o.seller_id = ? AND o.is_active = 1
+        """
+        params: list = [seller_id]
+        if city and city != "Казахстан":
+            sql += " AND (o.city = ? OR o.city = 'Казахстан')"
+            params.append(city)
+        if condition:
+            c_norm = condition.strip().lower()
+            if c_norm not in {"all", "any", "*"}:
+                c_upper = condition.strip().upper()
+                if c_norm in {"б/у", "бу", "used"}:
+                    c_upper = "USED"
+                elif c_norm in {"новое", "новый", "new"}:
+                    c_upper = "NEW"
+                elif c_norm in {"уценка", "витрина", "openbox", "open_box"}:
+                    c_upper = "OPEN_BOX"
+                elif c_norm in {"восстановленный", "refurb", "refurbished"}:
+                    c_upper = "REFURBISHED"
+                sql += " AND o.condition = ?"
+                params.append(c_upper)
+        if category:
+            sql += " AND cp.category = ?"
+            params.append(category)
+        row = self.fetchone(sql, params)
+        return row["count"] if row else 0
+
+    def get_seller_aggregates(self, seller_id: str) -> dict:
+        """
+        Calculates conditions breakdown, available cities, and categories for a seller.
+        """
+        cond_sql = """
+        SELECT condition, COUNT(*) as count
+        FROM offers
+        WHERE seller_id = ? AND is_active = 1
+        GROUP BY condition
+        """
+        cond_rows = self.fetchall(cond_sql, (seller_id,))
+        conditions_breakdown = {r["condition"]: r["count"] for r in cond_rows if r["condition"]}
+
+        city_sql = """
+        SELECT DISTINCT city
+        FROM offers
+        WHERE seller_id = ? AND is_active = 1 AND city IS NOT NULL AND city != ''
+        ORDER BY city ASC
+        """
+        city_rows = self.fetchall(city_sql, (seller_id,))
+        cities = [r["city"] for r in city_rows]
+
+        cat_sql = """
+        SELECT DISTINCT cp.category
+        FROM offers o
+        JOIN canonical_products cp ON o.product_id = cp.id
+        WHERE o.seller_id = ? AND o.is_active = 1 AND cp.category IS NOT NULL AND cp.category != ''
+        ORDER BY cp.category ASC
+        """
+        cat_rows = self.fetchall(cat_sql, (seller_id,))
+        categories = [r["category"] for r in cat_rows]
+
+        return {
+            "conditions_breakdown": conditions_breakdown,
+            "cities": cities,
+            "categories": categories,
+        }

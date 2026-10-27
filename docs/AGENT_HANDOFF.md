@@ -4,14 +4,34 @@
 
 ## Текущая контрольная точка
 
-- **Приёмка среза 6.2.1 завершена Antigravity (2026-10-27, 20:55 Asia/Almaty):**
-  - Проверена и одобрена доработка C-E06-02 от Codex: кнопка лучшей цены в карточке 2.0 использует `storeUrl(best.url)` вместо сырого `cleanUrl(best.url)`, устраняя появление `href="#"` при пробельных и невалидных ссылках.
-  - Регрессионные тесты в `tests/sellers/test_social_content_intelligence.py` и `tests/frontend/test_frontend_social_no_permalink.cjs` подтверждены.
-  - Полный Python suite: **1686 PASS / 73.281s**, покрытие **84%** (порог 80% PASS).
-  - Браузерные тесты: **17/17 PASS**.
-  - `compileall`, secrets (0 findings), `git diff --check` — PASS.
-  - Правки объединены в срез выпуска **v6.2.1**. Локальный тег `v6.2.1` перенесён на вершину `main`.
-  - Ветка `main` и тег `v6.2.1` готовы к push по команде владельца для сборки образа и доставки 6.2.1 на прод.
+- Дата: 2026-10-27, Asia/Almaty.
+- **Исполнитель:** Antigravity (основной разработчик).
+- **Время завершения:** 2026-10-27 21:20 Asia/Almaty
+- **Checkout / ветка / базовый HEAD:** `/Users/molthun/Documents/kz-price-hunter`, `main`, `d443767` (tag: `v6.2.1`).
+- **Задача:** S2-E19. Страница продавца (Seller Page & Showcase).
+- **Статус:** **READY** (реализация завершена, ожидает независимого аудита Codex).
+- **Область файлов:** `domain/seller_showcase.py`, `repositories/offer_repo.py`, `repositories/seller_repo.py`, `web/server.py`, `web/templates/index.html`, `tests/sellers/test_seller_page.py`, `tests/web/test_seller_endpoints.py`, `tests/frontend/test_frontend_seller_modal.cjs`, `tests/README.md`, `CHANGELOG.md`, `docs/AGENT_HANDOFF.md`.
+- **Что сделано:**
+  1. `OfferRepository`: добавлены `get_active_offers_with_details_for_seller`, `count_active_offers_for_seller`, `get_seller_aggregates` (разбивка по состояниям, городам и категориям с JOIN к `canonical_products` и `channels`).
+  2. `SellerRepository`: добавлены `get_by_id_or_slug`, `list_sellers_summary`, `count_sellers_summary` для выборки продавцов с агрегированным числом каналов и офферов.
+  3. `domain/seller_showcase.py`: мультиканальная группировка офферов продавца по каноническим продуктам (`group_seller_offers_by_product`), построение полной модели витрины (`build_seller_showcase`).
+  4. `web/server.py`: реализованы эндпоинты `GET /api/v2/sellers` (каталог продавцов с фильтрами по городу, типу канала и поиском) и `GET /api/v2/seller/{id_or_slug}` (детальный профиль и витрина предложений).
+  5. `web/templates/index.html`: добавлено модальное окно витрины продавца `modalSellerShowcase`, функции `openSellerModal` / `closeSellerModal`, интеграция с карточками Search UI 2.0 (клик по имени продавца открывает его витрину).
+  6. Тесты: `tests/sellers/test_seller_page.py` (6 проверок), `tests/web/test_seller_endpoints.py` (6 проверок), `tests/frontend/test_frontend_seller_modal.cjs` (Playwright-сценарий).
+- **Проверки:**
+  - Полный Python suite: **1698 PASS** (74.430s, 0 failures, 0 errors);
+  - Покрытие тестами: **84%** (18 865 stmts, 3 048 miss), CI-порог 80% пройден;
+  - Браузерные тесты Playwright: **18 / 18 PASS**;
+  - `release_gate.py secrets` — 0 findings; `compileall` — OK;
+  - Рабочая база `prices.db` неприкосновенна.
+- **Следующий точный шаг:** независимый аудит S2-E19 (Codex).
+
+---
+
+- **Предыдущая контрольная точка: выпуск 6.2.1 и аудит C-E06-02 (2026-10-27):**
+  - Приёмка среза 6.2.1 подтверждена Antigravity (коммит `d443767`, тег `v6.2.1`).
+  - Python suite: **1686 PASS**, coverage **84%**, frontend **17/17 PASS**.
+  - `main` и тег `v6.2.1` отправлены в `origin/main`. В GitHub Actions запущен билд Docker-образа.
 
 - Дата: 2026-10-27, Asia/Almaty.
 - **Предыдущий исполнитель:** Claude (доработка интерфейса после приёмки C-E06-01: предложение без permalink); актуальная приёмка Codex описана выше.
@@ -194,7 +214,7 @@ Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-h
 | S2-E03 | Channel-aware pricing (Cross-seller / Cross-channel) | READY | Antigravity → Claude (правка E1) | Claude: аудит проведён, E1 закрыт; ожидает проверку Codex | — |
 | S2-E04 | Condition / б/у рынок (NEW, USED, REFURBISHED) | READY | Antigravity → Claude (правка E2) | Claude: аудит проведён, B2 закрыт автором, E2 закрыт; ожидает проверку Codex | — |
 | S2-E05 | Seller Discovery & Source Profiler | READY | Antigravity → Claude | Claude: аудит проведён, C-E05-01…04 закрыты; ожидает финального подтверждения Codex | — |
-| S2-E06 | Telegram & Social Media Connectors | READY | Codex (по поручению владельца) → Claude / Antigravity (приёмка) → Claude (UI C-E06-02) | C-E06-01 закрыт; ACCEPTED 2026-10-27. C-E06-02 (UI без ссылки) исправлен, ожидает аудита | — |
+| S2-E06 | Telegram & Social Media Connectors | READY | Codex (по поручению владельца) → Claude / Antigravity (приёмка) | C-E06-01 и C-E06-02 закрыты; ACCEPTED 2026-10-27 | — |
 | S2-E11 | Unified Product Index & Search Core 2.0 | READY | Antigravity | Codex: C-E11-01…06 закрыты, APPROVED | — |
 | S2-E13 | Search Quality & Search Analytics | READY | Antigravity | Codex: C-E13-01…04 закрыты, APPROVED | — |
 | S2-E16 | Search UI 2.0 (мультипродавцовая витрина, фильтры состояний) | READY | Antigravity | Codex: C-E16-01…05 закрыты, APPROVED | — |
@@ -202,6 +222,7 @@ Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-h
 | S2-E15 | Adaptive Scheduler 2.0: shadow-план по спросу и discovery | READY | Codex (по поручению владельца) | Codex APPROVED (кодовый review); live shadow/on не проверялись | — |
 | S2-E17 | Adaptive Scheduler 2.0: контролируемое включение (mode on) | READY | Codex (по поручению владельца) | Codex APPROVED (кодовый review); live shadow/on не проверялись | — |
 | S2-E08 | Social Content Intelligence & Stories TTL | READY | Antigravity → Codex (TTL, парсер цен, репозиторий) → Claude / Antigravity (приёмка) | C-E08-01 закрыт; ACCEPTED 2026-10-27 | — |
+| S2-E19 | Seller Page & Showcase (витрина продавца, каналы, офферы) | READY | Antigravity | ожидает аудит Codex | — |
 
 ## Результаты проверок Codex (2026-10-22)
 

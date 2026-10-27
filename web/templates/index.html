@@ -2149,6 +2149,46 @@
     </div>
   </div>
 
+  <!-- Модальное окно витрины продавца (S2-E19: Seller Page & Showcase) -->
+  <div id="modalSellerShowcase" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 hidden" onclick="if(event.target === this) closeSellerModal()">
+    <div class="glass max-w-4xl w-full rounded-2xl border border-slate-700 max-h-[92vh] flex flex-col shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
+      <!-- Header -->
+      <div class="flex items-center justify-between p-4 sm:p-5 border-b border-slate-800 bg-slate-900/60">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 text-lg">
+            <i class="fa-solid fa-store"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 class="text-base sm:text-lg font-bold text-white" id="modalSellerName">Витрина продавца</h3>
+              <span id="modalSellerRating" class="hidden text-amber-400 text-xs font-bold px-2 py-0.5 rounded-full bg-amber-400/10 border border-amber-400/20"></span>
+            </div>
+            <p class="text-xs text-slate-400" id="modalSellerSubtitle">Каналы продаж и доступные предложения</p>
+          </div>
+        </div>
+        <button onclick="closeSellerModal()" class="text-slate-400 hover:text-white cursor-pointer text-lg p-1.5 rounded-lg hover:bg-slate-800/60 transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Body: Scrollable -->
+      <div id="modalSellerBody" class="p-4 sm:p-6 overflow-y-auto space-y-6 text-xs text-slate-300">
+        <div class="flex items-center justify-center py-12 text-slate-400">
+          <i class="fa-solid fa-spinner fa-spin text-2xl mr-2 text-emerald-400"></i>
+          <span>Загрузка профиля продавца...</span>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="p-3 sm:p-4 border-t border-slate-800 bg-slate-900/40 flex items-center justify-between">
+        <span class="text-[11px] text-slate-500" id="modalSellerFooterInfo"></span>
+        <button onclick="closeSellerModal()" class="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white transition cursor-pointer">
+          Закрыть
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Модальное окно детальной информации о товаре (с большим фото и описанием) -->
   <div id="modalProductDetails" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 hidden" onclick="if(event.target === this) closeProductDetailsModal()">
     <div class="glass max-w-2xl w-full rounded-2xl border border-slate-700 max-h-[92vh] flex flex-col shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
@@ -2622,6 +2662,194 @@
       if (modal) modal.classList.add('hidden');
     }
 
+    async function openSellerModal(idOrSlug) {
+      if (!idOrSlug) return;
+      const modal = document.getElementById('modalSellerShowcase');
+      const body = document.getElementById('modalSellerBody');
+      const titleEl = document.getElementById('modalSellerName');
+      const ratingEl = document.getElementById('modalSellerRating');
+      const subEl = document.getElementById('modalSellerSubtitle');
+      const footerEl = document.getElementById('modalSellerFooterInfo');
+
+      if (!modal || !body) return;
+
+      modal.classList.remove('hidden');
+      body.innerHTML = `
+        <div class="flex items-center justify-center py-12 text-slate-400">
+          <i class="fa-solid fa-spinner fa-spin text-2xl mr-2 text-emerald-400"></i>
+          <span>Загрузка витрины продавца...</span>
+        </div>
+      `;
+      if (titleEl) titleEl.textContent = 'Витрина продавца';
+      if (ratingEl) ratingEl.classList.add('hidden');
+      if (subEl) subEl.textContent = 'Загрузка данных...';
+      if (footerEl) footerEl.textContent = '';
+
+      try {
+        const resp = await fetch(`/api/v2/seller/${encodeURIComponent(idOrSlug)}`);
+        const data = await resp.json();
+
+        if (!resp.ok || !data.ok) {
+          body.innerHTML = `
+            <div class="text-center py-10 space-y-2">
+              <i class="fa-solid fa-circle-exclamation text-3xl text-rose-400"></i>
+              <div class="text-sm font-semibold text-slate-200">${escapeHtml(data.error || 'Продавец не найден')}</div>
+              <div class="text-xs text-slate-500">Возможно, продавец временно отключен или перемещен.</div>
+            </div>
+          `;
+          return;
+        }
+
+        const seller = data.seller || {};
+        const channels = data.channels || [];
+        const stats = data.stats || {};
+        const products = data.products || [];
+
+        if (titleEl) titleEl.textContent = seller.name || 'Продавец';
+        if (ratingEl) {
+          if (seller.rating) {
+            ratingEl.textContent = `★ ${seller.rating}`;
+            ratingEl.classList.remove('hidden');
+          } else {
+            ratingEl.classList.add('hidden');
+          }
+        }
+        if (subEl) {
+          const parts = [];
+          if (seller.legal_name) parts.push(seller.legal_name);
+          if (seller.domain) parts.push(seller.domain);
+          if (seller.phone) parts.push(seller.phone);
+          subEl.textContent = parts.join(' • ') || 'Профиль продавца';
+        }
+        if (footerEl) {
+          footerEl.textContent = `Всего предложений: ${stats.total_offers || 0} в ${channels.length} каналах`;
+        }
+
+        // Render Channels Pills
+        const channelsHtml = channels.map(ch => {
+          const typeIcon = ch.channel_type === 'website' ? 'fa-globe' :
+                           ch.channel_type === 'kaspi' ? 'fa-cart-shopping' :
+                           ch.channel_type === 'instagram' ? 'fa-brands fa-instagram' :
+                           ch.channel_type === 'telegram' ? 'fa-brands fa-telegram' : 'fa-store';
+          const href = ch.base_url ? storeUrl(ch.base_url) : null;
+          return href ? `
+            <a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/70 text-slate-200 text-xs font-medium transition">
+              <i class="fa-solid ${typeIcon} text-emerald-400 text-xs"></i>
+              <span>${escapeHtml(ch.name)}</span>
+              <i class="fa-solid fa-arrow-up-right-from-square text-[9px] text-slate-500"></i>
+            </a>
+          ` : `
+            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/50 border border-slate-700/50 text-slate-300 text-xs font-medium">
+              <i class="fa-solid ${typeIcon} text-slate-400 text-xs"></i>
+              <span>${escapeHtml(ch.name)}</span>
+            </span>
+          `;
+        }).join('');
+
+        // Render Stats Summary
+        const conditionsHtml = Object.entries(stats.conditions_breakdown || {}).map(([cond, cnt]) => {
+          const badgeClass = cond === 'USED' ? 'text-amber-400 bg-amber-400/10 border-amber-400/20' : 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
+          return `<span class="px-2 py-0.5 rounded-full text-[11px] font-medium border ${badgeClass}">${escapeHtml(cond)}: ${cnt}</span>`;
+        }).join(' ');
+
+        // Render Products List
+        const productsHtml = products.length ? products.map(p => {
+          const chList = (p.channels || []).map(ch => {
+            const chHref = storeUrl(ch.url);
+            const chName = ch.channel_name || ch.channel_type || 'Канал';
+            const condBadge = ch.condition === 'USED' ? '<span class="text-[10px] text-amber-400">Б/у</span>' : '';
+            return `
+              <div class="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-slate-950/40 border border-slate-800/80 text-xs">
+                <div class="flex items-center gap-2">
+                  <span class="font-medium text-slate-300">${escapeHtml(chName)}</span>
+                  ${condBadge}
+                  <span class="text-[10px] text-slate-500 font-mono">${escapeHtml(ch.city || '')}</span>
+                </div>
+                <div class="flex items-center gap-3">
+                  <span class="font-bold text-slate-100">${fmtPrice(ch.price)}</span>
+                  ${chHref ? `
+                    <a href="${escapeHtml(chHref)}" target="_blank" rel="noopener noreferrer" class="px-3 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 font-medium text-[11px] transition inline-flex items-center gap-1">
+                      <span>В магазин</span>
+                      <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+                    </a>
+                  ` : '<span class="text-[10px] text-slate-500">Нет ссылки</span>'}
+                </div>
+              </div>
+            `;
+          }).join('');
+
+          return `
+            <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-3">
+              <div class="flex items-start justify-between gap-3">
+                <div class="flex items-center gap-3">
+                  ${p.image_url ? `
+                    <img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.title)}" class="w-12 h-12 rounded-lg object-contain bg-slate-950 p-1 border border-slate-800 shrink-0" onerror="this.style.display='none'">
+                  ` : ''}
+                  <div>
+                    <div class="font-bold text-sm text-slate-100">${escapeHtml(p.title)}</div>
+                    <div class="text-[11px] text-slate-400">${escapeHtml(p.category || '')} ${p.brand ? `• ${escapeHtml(p.brand)}` : ''}</div>
+                  </div>
+                </div>
+                <div class="text-right shrink-0">
+                  <div class="text-xs text-slate-400">от</div>
+                  <div class="text-sm font-black text-emerald-400">${fmtPrice(p.min_price)}</div>
+                </div>
+              </div>
+              <div class="space-y-1.5 pl-2 border-l-2 border-slate-800">
+                ${chList}
+              </div>
+            </div>
+          `;
+        }).join('') : `
+          <div class="text-center py-8 text-slate-500 text-xs">
+            Нет активных предложений с заданными параметрами.
+          </div>
+        `;
+
+        body.innerHTML = `
+          <!-- Каналы -->
+          <div class="space-y-2">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Точки продаж и каналы (${channels.length})</div>
+            <div class="flex flex-wrap gap-2">
+              ${channelsHtml || '<span class="text-xs text-slate-500">Каналы не настроены</span>'}
+            </div>
+          </div>
+
+          <!-- Сводка -->
+          <div class="p-3 rounded-xl bg-slate-950/50 border border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div class="flex items-center gap-2">
+              <span class="text-slate-400">Состояния:</span>
+              ${conditionsHtml || '<span class="text-slate-500">Нет данных</span>'}
+            </div>
+            <div class="text-slate-400">
+              Города: <span class="text-slate-200">${escapeHtml((stats.available_cities || []).join(', ') || 'Все')}</span>
+            </div>
+          </div>
+
+          <!-- Витрина товаров -->
+          <div class="space-y-3">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Товары и цены (${products.length})</div>
+            <div class="space-y-3">
+              ${productsHtml}
+            </div>
+          </div>
+        `;
+      } catch (err) {
+        body.innerHTML = `
+          <div class="text-center py-10 space-y-2">
+            <i class="fa-solid fa-triangle-exclamation text-3xl text-amber-400"></i>
+            <div class="text-sm font-semibold text-slate-200">Ошибка загрузки витрины</div>
+            <div class="text-xs text-slate-500">${escapeHtml(err.message || 'Сетевая ошибка')}</div>
+          </div>
+        `;
+      }
+    }
+
+    function closeSellerModal() {
+      const modal = document.getElementById('modalSellerShowcase');
+      if (modal) modal.classList.add('hidden');
+    }
+
     function openProductDetailsModalFromData(encodedStr) {
       try {
         const decoded = decodeURIComponent(encodedStr);
@@ -2839,6 +3067,7 @@
       if (e.key === 'Escape') {
         closeProductDetailsModal();
         closeModelComparisonModal();
+        closeSellerModal();
       }
     });
 
@@ -4331,12 +4560,17 @@
         const offersListHtml = offers.map(off => {
           const shopName = off.channel_name || off.seller_name || off.shop || 'Магазин';
           const offDiff = (minP && off.price > minP) ? `+${fmtPrice(off.price - minP)}` : '';
+          const sellerKey = off.seller_slug || off.seller_id;
           const sellerPart = (off.seller_name && off.seller_name !== shopName) ? `
-            <span class="text-[11px] text-slate-400 flex items-center gap-1">
-              <i class="fa-solid fa-store text-[9px] text-slate-500"></i> ${escapeHtml(off.seller_name)}
+            <button type="button" class="text-[11px] text-slate-400 hover:text-emerald-400 flex items-center gap-1 cursor-pointer transition text-left" ${sellerKey ? `onclick="openSellerModal('${escapeHtml(sellerKey)}')"` : ''} title="Открыть витрину продавца">
+              <i class="fa-solid fa-store text-[9px] text-slate-500"></i> <span class="underline decoration-slate-600 hover:decoration-emerald-400">${escapeHtml(off.seller_name)}</span>
               ${off.seller_rating ? `<span class="text-amber-400 text-[10px] font-semibold">★ ${off.seller_rating}</span>` : ''}
-            </span>
-          ` : '';
+            </button>
+          ` : (sellerKey ? `
+            <button type="button" class="text-[10px] text-slate-500 hover:text-emerald-400 flex items-center gap-1 cursor-pointer transition" onclick="openSellerModal('${escapeHtml(sellerKey)}')" title="Витрина продавца">
+              <i class="fa-solid fa-store text-[9px]"></i> Витрина
+            </button>
+          ` : '');
           const cityPart = off.city ? `<span class="text-[10px] text-slate-500 font-mono">${escapeHtml(off.city)}</span>` : '';
           const offCond = off.condition === 'used' ? '<span class="text-[10px] text-amber-400">Б/у</span>' : '';
           const offUrl = storeUrl(off.url);

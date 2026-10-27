@@ -91,3 +91,90 @@ class SellerRepository(BaseRepository):
         sql += " ORDER BY name ASC"
         rows = self.fetchall(sql)
         return [Seller.from_row(r) for r in rows]
+
+    def get_by_id_or_slug(self, identifier: str) -> Optional[Seller]:
+        """
+        Lookup seller by ID or by slug.
+        """
+        if not identifier:
+            return None
+        cleaned = identifier.strip()
+        seller = self.get_by_id(cleaned)
+        if seller:
+            return seller
+        return self.get_by_slug(cleaned)
+
+    def list_sellers_summary(
+        self,
+        city: Optional[str] = None,
+        search: Optional[str] = None,
+        channel_type: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> List[dict]:
+        """
+        Lists sellers along with their channel summary and active offer counts.
+        """
+        sql = """
+        SELECT
+            s.id,
+            s.slug,
+            s.name,
+            s.legal_name,
+            s.domain,
+            s.rating,
+            s.is_active,
+            COUNT(DISTINCT o.id) as active_offers_count,
+            COUNT(DISTINCT c.id) as channels_count
+        FROM sellers s
+        LEFT JOIN channels c ON s.id = c.seller_id AND c.is_active = 1
+        LEFT JOIN offers o ON s.id = o.seller_id AND o.is_active = 1
+        WHERE s.is_active = 1
+        """
+        params: list = []
+        if search:
+            sql += " AND (s.name LIKE ? OR s.slug LIKE ? OR s.domain LIKE ?)"
+            s_param = f"%{search.strip()}%"
+            params.extend([s_param, s_param, s_param])
+        if channel_type:
+            sql += " AND c.channel_type = ?"
+            params.append(channel_type.strip().lower())
+        if city and city != "Казахстан":
+            sql += " AND (o.city = ? OR o.city = 'Казахстан')"
+            params.append(city)
+
+        sql += """
+        GROUP BY s.id
+        ORDER BY active_offers_count DESC, s.name ASC
+        LIMIT ? OFFSET ?
+        """
+        params.extend([max(1, min(limit, 100)), max(0, offset)])
+        rows = self.fetchall(sql, params)
+        return [dict(r) for r in rows]
+
+    def count_sellers_summary(
+        self,
+        city: Optional[str] = None,
+        search: Optional[str] = None,
+        channel_type: Optional[str] = None,
+    ) -> int:
+        sql = """
+        SELECT COUNT(DISTINCT s.id) as count
+        FROM sellers s
+        LEFT JOIN channels c ON s.id = c.seller_id AND c.is_active = 1
+        LEFT JOIN offers o ON s.id = o.seller_id AND o.is_active = 1
+        WHERE s.is_active = 1
+        """
+        params: list = []
+        if search:
+            sql += " AND (s.name LIKE ? OR s.slug LIKE ? OR s.domain LIKE ?)"
+            s_param = f"%{search.strip()}%"
+            params.extend([s_param, s_param, s_param])
+        if channel_type:
+            sql += " AND c.channel_type = ?"
+            params.append(channel_type.strip().lower())
+        if city and city != "Казахстан":
+            sql += " AND (o.city = ? OR o.city = 'Казахстан')"
+            params.append(city)
+        row = self.fetchone(sql, params)
+        return row["count"] if row else 0
