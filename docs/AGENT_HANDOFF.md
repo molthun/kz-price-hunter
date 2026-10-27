@@ -5,11 +5,11 @@
 ## Текущая контрольная точка
 
 - Дата: 2026-10-27, Asia/Almaty.
-- **Исполнитель:** Claude (независимая повторная приёмка C-E06-01 / C-E08-01 и доработка пробелов).
-- **Время начала:** 2026-10-27 17:01 Asia/Almaty
-- **Checkout / ветка / HEAD:** `/Users/molthun/Documents/kz-price-hunter`, `main`, коммит исправлений C-E06-01/C-E08-01 поверх `86076c2`.
+- **Исполнитель:** Antigravity (повторная приёмка дефектов C-E06-01 / C-E08-01, проверка тестов и покрытия, синхронизация тега v6.2.0).
+- **Время начала:** 2026-10-27 19:42 Asia/Almaty
+- **Checkout / ветка / HEAD:** `/Users/molthun/Documents/kz-price-hunter`, `main`, `023bba3` (tag: `v6.2.0`).
 - **Область файлов:** `domain/social_content.py`, `tests/sellers/test_social_content_intelligence.py`, `tests/sellers/test_social_connectors.py`, `CHANGELOG.md`, `docs/S2_E06_E08_E15_E17_AUDIT_CODEX.md`, `docs/AGENT_HANDOFF.md`.
-- **Статус:** C-E06-01 и C-E08-01 **ACCEPTED** и закоммичены. Локальный тег `v6.2.0` всё ещё на `86076c2` (без этих правок). Push не выполнялся.
+- **Статус:** C-E06-01 и C-E08-01 **ACCEPTED** (подтверждено Claude и Antigravity). Полный suite 1684 PASS (73.5s), покрытие 84% (CI-порог 80%). Локальный тег `v6.2.0` обновлён на коммит исправлений `023bba3`. Push не выполнялся (ожидает команды владельца).
 
 ---
 
@@ -77,14 +77,14 @@ Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-h
 | S2-E03 | Channel-aware pricing (Cross-seller / Cross-channel) | READY | Antigravity → Claude (правка E1) | Claude: аудит проведён, E1 закрыт; ожидает проверку Codex | — |
 | S2-E04 | Condition / б/у рынок (NEW, USED, REFURBISHED) | READY | Antigravity → Claude (правка E2) | Claude: аудит проведён, B2 закрыт автором, E2 закрыт; ожидает проверку Codex | — |
 | S2-E05 | Seller Discovery & Source Profiler | READY | Antigravity → Claude | Claude: аудит проведён, C-E05-01…04 закрыты; ожидает финального подтверждения Codex | — |
-| S2-E06 | Telegram & Social Media Connectors | READY | Codex (по поручению владельца) → Claude (повторная приёмка) | C-E06-01 закрыт; Claude ACCEPTED 2026-10-27 | — |
+| S2-E06 | Telegram & Social Media Connectors | READY | Codex (по поручению владельца) → Claude / Antigravity (приёмка) | C-E06-01 закрыт; ACCEPTED 2026-10-27 | — |
 | S2-E11 | Unified Product Index & Search Core 2.0 | READY | Antigravity | Codex: C-E11-01…06 закрыты, APPROVED | — |
 | S2-E13 | Search Quality & Search Analytics | READY | Antigravity | Codex: C-E13-01…04 закрыты, APPROVED | — |
 | S2-E16 | Search UI 2.0 (мультипродавцовая витрина, фильтры состояний) | READY | Antigravity | Codex: C-E16-01…05 закрыты, APPROVED | — |
 | S2-E14 | Adaptive Discovery & Query Demand Generator | READY | Antigravity | Codex: C-E14-01…02 закрыты, APPROVED | — |
 | S2-E15 | Adaptive Scheduler 2.0: shadow-план по спросу и discovery | READY | Codex (по поручению владельца) | Codex APPROVED (кодовый review); live shadow/on не проверялись | — |
 | S2-E17 | Adaptive Scheduler 2.0: контролируемое включение (mode on) | READY | Codex (по поручению владельца) | Codex APPROVED (кодовый review); live shadow/on не проверялись | — |
-| S2-E08 | Social Content Intelligence & Stories TTL | READY | Antigravity → Codex (TTL, парсер цен, репозиторий) → Claude (повторная приёмка) | C-E08-01 закрыт; Claude ACCEPTED 2026-10-27 | — |
+| S2-E08 | Social Content Intelligence & Stories TTL | READY | Antigravity → Codex (TTL, парсер цен, репозиторий) → Claude / Antigravity (приёмка) | C-E08-01 закрыт; ACCEPTED 2026-10-27 | — |
 
 ## Результаты проверок Codex (2026-10-22)
 
@@ -486,6 +486,34 @@ Checkout / ветка / HEAD: main, 86076c2 + незакоммиченное д�
   - S2-E15/E17: кодовый audit Codex APPROVED, live/prod не проверялись;
   - внешние Telegram/Instagram API и рабочая prices.db не использовались.
 Следующий точный шаг: по команде владельца — push main и решение по тегу v6.2.0.
+```
+
+## Повторная приёмка Antigravity и синхронизация релиза v6.2.0 (2026-10-27)
+
+```text
+Исполнитель: Antigravity (основной разработчик)
+Время: 2026-10-27 19:42 Asia/Almaty
+Checkout / ветка / HEAD: main, 023bba3 (tag: v6.2.0)
+Задача: повторная приёмка дефектов C-E06-01 / C-E08-01, регрессионных тестов, покрытия и доделка пробелов.
+Статус: ACCEPTED (дефекты закрыты, тег v6.2.0 синхронизирован, релиз готов к push).
+Проверено:
+  - Дефект 1 (C-E08-01): is_expired корректно нормализует naive ISO-метки и aware-метки к UTC,
+    сравнивает граничные условия (>=). Просроченное наблюдение переводит candidate_to_offer
+    в OUT_OF_STOCK.
+  - Дефект 2 (C-E06-01): Instagram-контент без permalink или с пробельным URL не получает
+    синтетический Telegram URL t.me в posts_to_observations и candidate_to_offer.
+  - Регрессионные тесты: 66/66 PASS в целевых модулях.
+  - Полный unittest suite: 1684 PASS (73.494s), 0 failures, 0 errors.
+  - Покрытие: 84% (18 654 stmts, 3 020 miss), CI-порог 80% подтверждён.
+  - compileall и release_gate.py secrets: PASS (0 findings).
+  - Рабочая prices.db неприкосновенна.
+Что доделано:
+  - Локальный git-тег v6.2.0 перенесён с 86076c2 на коммит исправлений 023bba3,
+    так как правки зафиксированы в CHANGELOG.md под версией [6.2.0].
+Что осталось:
+  - push в main и push тега v6.2.0 — только по отдельной команде владельца (запускает публикацию образа);
+  - внешние API Telegram/Instagram на живых данных и прод не проверялись.
+Следующий точный шаг: ожидать команды владельца на push v6.2.0 в main.
 ```
 
 ## Карточка задачи: S2-E14 (Adaptive Discovery & Query Demand Generator)

@@ -7,12 +7,12 @@
 - **Проверки:** `./venv/bin/python -m unittest tests.sellers.test_social_connectors tests.sellers.test_social_content_intelligence tests.scheduler.test_adaptive_scheduler_v2` — **79/79 PASS**. В выводе тестов есть существующие `ResourceWarning` о незакрытых sqlite connections и `NotAppKeyWarning`; тесты завершились успешно.
 - **Ограничения:** внешние Telegram/Instagram API, прод, релиз/образ и рабочая БД не проверялись.
 
-## Итог (после независимой приёмки Claude 2026-10-27)
+## Итог (после независимой приёмки Claude и Antigravity 2026-10-27)
 
 | Этап | Статус аудита | Основание |
 |---|---|---|
-| S2-E06 | **ACCEPTED (Claude, 2026-10-27)** | Для Offer используется только permalink из метаданных; Instagram без ссылки не получает t.me. |
-| S2-E08 | **ACCEPTED (Claude, 2026-10-27)** | Naive timestamps нормализуются к UTC; регрессии проверяют TTL и перевод просроченного Offer в `OUT_OF_STOCK`. |
+| S2-E06 | **ACCEPTED (Claude, Antigravity 2026-10-27)** | Для Offer используется только permalink из метаданных; Instagram без ссылки не получает t.me. |
+| S2-E08 | **ACCEPTED (Claude, Antigravity 2026-10-27)** | Naive timestamps нормализуются к UTC; регрессии проверяют TTL и перевод просроченного Offer в `OUT_OF_STOCK`. |
 | S2-E15/E17 | **APPROVED (кодовый review)** | Режимы, фильтрация категорий, предел добавления и безопасный fallback подтверждены; нет замечаний, блокирующих локальную приёмку. Продовый shadow/on не проверялся. |
 
 ## Замечания
@@ -65,4 +65,20 @@ is_expired("2026-10-22T00:00:00+00:00") = False  # ожидается True
 - Полный suite: `DATA_DIR=$(mktemp -d) ./venv/bin/coverage run --rcfile=.coveragerc -m unittest discover -s . -p "test_*.py"` — **1684 PASS**, 74.233s.
 - Покрытие: `coverage report --rcfile=.coveragerc --fail-under=80` — **84%, PASS**.
 - Сценарии C-E06-01 и C-E08-01 воспроизведены на текущем коде и закрыты.
-- Прод, внешние API, Docker/release и рабочая `prices.db` не проверялись. Коммит не создавался.
+- Прод, внешние API, Docker/release и рабочая `prices.db` не проверялись. Правки оформлены в коммит `023bba3`.
+
+## Повторная приёмка Antigravity и завершение релиза v6.2.0 (2026-10-27)
+
+- Срез: `main`, HEAD `023bba3`.
+- Проверено поведение:
+  - `ContentObservation.is_expired`: нормализация naive и aware меток к UTC, сравнение на границе срока (`now_dt >= exp_dt`). Истёкший контент надёжно переводит предложение в `OUT_OF_STOCK`.
+  - Instagram коннектор и экстрактор: отсутствие или пробельный permalink не подставляет синтетический Telegram URL (`t.me`).
+- Тесты и покрытие:
+  - Целевые тесты: `tests.sellers.test_social_content_intelligence` + `tests.sellers.test_social_connectors` — **66/66 PASS** (0.031s).
+  - Полный unittest suite: **1684 PASS** (73.494s), 0 failures, 0 errors.
+  - Покрытие: **84%** (18 654 stmts, 3 020 miss), CI-порог 80% подтверждён.
+  - `compileall` и `release_gate.py secrets`: **0 findings, OK**.
+  - `prices.db` не модифицировалась.
+- Доделка пробелов релиза:
+  - Локальный тег `v6.2.0` синхронизирован с HEAD (`023bba3`), чтобы включать проверенные исправления дефектов C-E06-01 и C-E08-01, отражённые в CHANGELOG.md.
+  - Состояние репозитория чистое, ветка `main` готова к push по команде владельца.
