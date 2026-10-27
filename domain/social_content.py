@@ -57,10 +57,21 @@ class ContentObservation:
     def is_expired(self, now_iso: Optional[str] = None) -> bool:
         if not self.expires_at:
             return False
-        now_dt = datetime.fromisoformat(now_iso) if now_iso else datetime.now(timezone.utc)
         try:
+            now_dt = datetime.fromisoformat(now_iso) if now_iso else datetime.now(timezone.utc)
             exp_dt = datetime.fromisoformat(self.expires_at)
-            return now_dt > exp_dt
+            # ISO timestamps without offsets are interpreted as UTC throughout the
+            # application. Normalize both sides before comparing to avoid treating
+            # an expired Story as active when its source omitted a timezone suffix.
+            if now_dt.tzinfo is None:
+                now_dt = now_dt.replace(tzinfo=timezone.utc)
+            else:
+                now_dt = now_dt.astimezone(timezone.utc)
+            if exp_dt.tzinfo is None:
+                exp_dt = exp_dt.replace(tzinfo=timezone.utc)
+            else:
+                exp_dt = exp_dt.astimezone(timezone.utc)
+            return now_dt >= exp_dt
         except Exception:
             return False
 
@@ -379,7 +390,9 @@ class SocialContentExtractor:
         """
         offer_id = f"off_soc_{uuid.uuid4().hex[:12]}"
         sku = external_sku or f"SKU-SOC-{candidate.raw_title[:16].strip().replace(' ', '-').upper()}"
-        url = observation.raw_metadata.get("post_url") or f"https://t.me/post/{observation.post_id or observation.id}"
+        # Keep only a source-provided permalink. Do not invent a Telegram URL:
+        # Instagram has no t.me path, and a missing Graph permalink is not a Telegram post.
+        url = str(observation.raw_metadata.get("post_url") or "").strip()
 
         # TTL: просроченное наблюдение (сторис/временная акция) не может стать доступным
         # к покупке предложением. Иначе SearchCore посчитает его purchasable и предложит

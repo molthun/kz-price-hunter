@@ -178,6 +178,20 @@ class InstagramConnectorTest(unittest.TestCase):
         self.assertEqual(posts[0].published_at, "2026-10-01T10:00:00+00:00")
         self.assertEqual(posts[0].post_url, "https://www.instagram.com/p/abc/")
         self.assertEqual(len(posts[1].media_urls), 2)
+        self.assertIsNone(posts[1].post_url)
+
+    def test_instagram_media_without_permalink_stays_without_url(self):
+        payload = {
+            "data": [{
+                "id": "17900000000000099",
+                "caption": "Pixel 8 Pro 320 000 тг",
+                "media_url": "https://cdn.example.invalid/ig99.jpg",
+                "timestamp": "2026-10-01T10:00:00+0000",
+            }]
+        }
+        posts = InstagramConnector().parse_media(payload, "17841400000000000")
+        self.assertEqual(len(posts), 1)
+        self.assertIsNone(posts[0].post_url)
 
     def test_parse_stories_marks_content_type(self):
         posts = InstagramConnector().parse_media(
@@ -232,6 +246,23 @@ class ObservationMappingTest(unittest.TestCase):
         self.assertEqual(first[0].raw_metadata["platform"], "telegram")
         self.assertEqual(first[0].raw_metadata["post_url"], "https://t.me/shopkz_test/42")
         self.assertEqual(first[0].seller_id, "seller_1")
+
+    def test_instagram_without_permalink_does_not_get_telegram_url(self):
+        post = fetched(
+            "17900000000000099",
+            platform=SocialPlatform.INSTAGRAM,
+            channel_handle="17841400000000000",
+            post_url=None,
+        )
+        source = self.source(
+            id="src_ig_test",
+            platform=SocialPlatform.INSTAGRAM,
+            handle="17841400000000000",
+        )
+        observation = posts_to_observations([post], source)[0]
+        self.assertEqual(observation.raw_metadata["platform"], "instagram")
+        self.assertEqual(observation.raw_metadata["post_url"], "")
+        self.assertNotIn("t.me", observation.raw_metadata["post_url"])
 
     def test_story_observation_gets_ttl(self):
         post = fetched("story-1", content_type=ContentType.STORY)

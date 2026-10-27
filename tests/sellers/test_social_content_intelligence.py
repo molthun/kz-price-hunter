@@ -160,6 +160,24 @@ class StoryTtlTest(unittest.TestCase):
         self.assertFalse(obs.is_expired(BEFORE_EXPIRY_ISO))
         self.assertTrue(obs.is_expired(AFTER_EXPIRY_ISO))
 
+    def test_naive_story_timestamps_are_interpreted_as_utc(self):
+        obs = observation("iPhone 15 499 000 тг", content_type=ContentType.STORY,
+                          observed_at="2026-10-01T10:00:00")
+        self.assertEqual(obs.expires_at, "2026-10-02T10:00:00")
+        self.assertTrue(obs.is_expired("2026-10-02T10:00:00+00:00"))
+        self.assertTrue(obs.is_expired("2026-10-02T13:00:00+03:00"))
+
+    def test_naive_now_and_expiry_compare_as_utc(self):
+        obs = observation("iPhone 15 499 000 тг", content_type=ContentType.STORY,
+                          expires_at="2026-10-02T10:00:00")
+        self.assertFalse(obs.is_expired("2026-10-02T09:59:59"))
+        self.assertTrue(obs.is_expired("2026-10-02T10:00:00"))
+
+    def test_default_now_treats_naive_past_expiry_as_expired(self):
+        obs = observation("iPhone 15 499 000 тг", content_type=ContentType.STORY,
+                          expires_at="2020-01-02T00:00:00")
+        self.assertTrue(obs.is_expired())
+
     def test_expired_observation_never_becomes_purchasable_offer(self):
         obs = observation("iPhone 15 499 000 тг", content_type=ContentType.STORY)
         candidate = ExtractedOfferCandidate(raw_title="iPhone 15", price=499000.0)
@@ -175,6 +193,47 @@ class StoryTtlTest(unittest.TestCase):
         offer = SocialContentExtractor.candidate_to_offer(
             candidate, obs, product_id="product_1", external_sku="SKU-1")
         self.assertEqual(offer.availability, Availability.IN_STOCK)
+
+    def test_expired_naive_story_becomes_out_of_stock_offer(self):
+        obs = observation("iPhone 15 499 000 тг", content_type=ContentType.STORY,
+                          observed_at="2020-01-01T00:00:00")
+        candidate = ExtractedOfferCandidate(raw_title="iPhone 15", price=499000.0)
+        offer = SocialContentExtractor.candidate_to_offer(
+            candidate, obs, product_id="product_1", external_sku="SKU-1")
+        self.assertEqual(offer.availability, Availability.OUT_OF_STOCK)
+
+    def test_instagram_offer_without_permalink_has_no_fabricated_telegram_url(self):
+        obs = observation("iPhone 15 499 000 тг", raw_metadata={
+            "platform": "instagram", "post_url": ""})
+        candidate = ExtractedOfferCandidate(raw_title="iPhone 15", price=499000.0)
+        offer = SocialContentExtractor.candidate_to_offer(
+            candidate, obs, product_id="product_1", external_sku="SKU-1")
+        self.assertEqual(offer.url, "")
+        self.assertNotIn("t.me", offer.url)
+
+    def test_missing_post_url_metadata_does_not_invent_telegram_link(self):
+        obs = observation("iPhone 15 499 000 тг", raw_metadata={"platform": "instagram"})
+        candidate = ExtractedOfferCandidate(raw_title="iPhone 15", price=499000.0)
+        offer = SocialContentExtractor.candidate_to_offer(
+            candidate, obs, product_id="product_1", external_sku="SKU-1")
+        self.assertEqual(offer.url, "")
+
+    def test_blank_post_url_is_treated_as_missing(self):
+        obs = observation("iPhone 15 499 000 тг", raw_metadata={
+            "platform": "instagram", "post_url": "   "})
+        candidate = ExtractedOfferCandidate(raw_title="iPhone 15", price=499000.0)
+        offer = SocialContentExtractor.candidate_to_offer(
+            candidate, obs, product_id="product_1", external_sku="SKU-1")
+        self.assertEqual(offer.url, "")
+
+    def test_instagram_permalink_is_kept_on_offer(self):
+        permalink = "https://www.instagram.com/p/abc/"
+        obs = observation("iPhone 15 499 000 тг", raw_metadata={
+            "platform": "instagram", "post_url": permalink})
+        candidate = ExtractedOfferCandidate(raw_title="iPhone 15", price=499000.0)
+        offer = SocialContentExtractor.candidate_to_offer(
+            candidate, obs, product_id="product_1", external_sku="SKU-1")
+        self.assertEqual(offer.url, permalink)
 
 
 class ContentObservationRepositoryTest(unittest.TestCase):
