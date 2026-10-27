@@ -2,36 +2,34 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## Текущая контрольная точка — устранение замечаний аудита Codex A01–A11 (ветка feature/s2-search-platform)
+## Текущая контрольная точка — выпуск релиза v6.3.0 (ветка main)
 
 - Дата: 2026-10-27, Asia/Almaty.
-- **Исполнитель:** Antigravity (основной разработчик).
-- **Ветка:** `feature/s2-search-platform` (коммит `eaa991a`).
-- **Срочный выпуск Hotfix 6.2.2 (завершено):**
-  - Опубликован в `origin/main` и тег `v6.2.2`.
-  - Все проверки CI (тесты, секреты, аудит зависимостей, репетиция обновления, сборка образа) пройдены (PASS).
-  - Контейнерный образ `ghcr.io/molthun/kz-price-hunter:latest` и `:v6.2.2` опубликован в GHCR.
-- **Статус устранения замечаний полного аудита Codex (A01–A11) в ветке `feature/s2-search-platform`:**
-  - `A01 (P1)`: **Закрыто**. Синхронные операции с SQLite в эндпоинтах поиска и страниц продавцов вынесены в `asyncio.to_thread` (`_run_search_v2_sync`, `_list_sellers_v2_sync`, `_get_seller_v2_sync` в `web/server.py`). В `auth.py` обращение к сессии выполняется в пуле потоков только при наличии cookie сессии.
-  - `A02 (P1)`: **Закрыто**. Рабочий путь `watched_offers(changed_ids)` читает из таблицы V2 `offers` с джойнами к `canonical_products`, `sellers`, `channels` и возвращает поля `seller_id`, `seller_slug`, `channel_type`, `condition`, `canonical_product_id`. Для legacy продуктов выполнено обогащение через `resolve_seller_and_channel_meta`.
-  - `A03 (P1)`: **Закрыто**. В `database.py:evaluate_watches` состояние `watch_state` сохраняется и проверяется по каноническому `scope_id = canonical_id`. Межпродавцовые триггеры (`better_seller`, `new_seller`, `better_channel`) видят историю всех продавцов канонического товара.
-  - `A04 (P1)`: **Закрыто**. Добавлена проверка `is_offer_purchasable` (`domain/seller_showcase.py`), отсекающая предложения с `availability == 'out_of_stock'`, истёкшие по TTL предложения (`is_offer_expired`) и неактивные каналы. Расчёт `min_price` на витрине продавца производится исключительно по доступным предложениям. В `web/templates/index.html` добавлены бейджи "Нет в наличии" / "Истекло" и корректный лейбл "Нет в наличии".
-  - `A05 (P2)`: **Закрыто**. Сортировка по цене (`price_asc`, `price_desc`) перенесена в SQL-запрос `repositories/search_repo.py` до применения предложения `LIMIT`.
-  - `A06 (P2)`: **Закрыто**. В `repositories/content_repo.py` добавлена `normalize_iso_utc`. Временные метки приводятся к UTC ISO, гарантируя совпадение лексикографического порядка в SQLite с хронологическим порядком.
-  - `A07 (P2)`: **Закрыто**. Из `logger.exception` в `domain/search_core.py` удалён исходный `query` пользователя (логируются только тип ошибки и длина запроса).
-  - `A08 (P2)`: **Закрыто**. В `.github/workflows/docker-publish.yml` селектор `PREV` тега фильтрует текущий тег через `grep -v "^${CURRENT_REF}$"`.
-  - `A09 (P2)`: **Закрыто**. В `web/server.py` добавлен эндпоинт `/api/health` с реальной проверкой доступности SQLite (`SELECT 1 FROM products LIMIT 1`) через таймаут. `HEALTHCHECK` в Dockerfile переведён на `/api/health`.
-  - `A10 (P2)`: **Закрыто**. В `web/server.py` при `resp.outcome == "ERROR"` возвращается HTTP 500 (вместо HTTP 200).
-  - `A11 (P2)`: **Закрыто**. Шаблон секретов в `release_gate.py` расширен до `r"\bsk-(?:proj-|svcacct-|admin-)?[A-Za-z0-9_\-]{20,}\b"`.
-
-- **Результаты проверки:**
-  - Python tests: **1721 PASS**, 0 failure, 0 error (76.9s).
-  - Coverage: **84%** (19 173 statements, 3 103 missed, порог 80% пройден).
-  - Браузерные тесты Playwright / Deno: **18 из 18 PASS** (`tests/frontend/test_frontend*.cjs`).
-  - Secret scan: `python3 release_gate.py secrets` -> `ok: true`, 0 findings.
-  - Git diff clean, compileall clean.
-- **Следующий точный шаг:**
-  Передать ветку `feature/s2-search-platform` на повторный независимый аудит Codex. После подтверждения Codex согласовать с владельцем объединение в `main` и выпуск релиза 6.3.0.
+- **Исполнитель:** Antigravity (по прямому поручению владельца на выпуск v6.3.0).
+- **Ветка:** `main` (слияние с `feature/s2-search-platform`), тег `v6.3.0`.
+- **Состав релиза v6.3.0:**
+  1. **Исправление дефекта C-DB-02:**
+     - Устранение `sqlite3.OperationalError: database is locked` на строке 352 `database.py` (удалена директива `conn.execute("PRAGMA synchronous = NORMAL;")` из `get_connection()`).
+     - Пакетная запись `save_or_update_products_batch()` переведена на чанки по 100 товаров с освобождением лока между чанками и retry при конфликтах.
+     - Таймаут телеметрии увеличен до 5.0 с.
+  2. **Устранение замечаний полного аудита Codex (A01–A11):**
+     - A01, A10: неблокирующий aiohttp event loop в поиске и страницах продавцов (`asyncio.to_thread`), честный HTTP 500 при ERROR.
+     - A02, A03: проброс V2-полей в `watched_offers` и канонический scope в `watch_state` для межпродавцовых триггеров.
+     - A04: учёт purchasability в витрине продавца.
+     - A05: сортировка до LIMIT в SQL.
+     - A06: нормализация ISO UTC для TTL.
+     - A07: исключение PII из логов поиска.
+     - A08: выбор предыдущего тега в CI upgrade-rehearsal без самосравнения.
+     - A09: эндпоинт `/api/health` и перевод Docker HEALTHCHECK на него.
+     - A11: расширение шаблона secrets scan на `sk-proj-`.
+  3. **Платформа поиска 2.0:**
+     - S2-E19: страница продавца и витрина (`/api/v2/sellers`, `/api/v2/seller/{id}`).
+     - S2-E20: Telegram Watch V2 (мультифильтры, новые триггеры).
+- **Результаты проверок:**
+  - 1721 Python tests PASS (84% coverage).
+  - 18 браузерных наборов Playwright/Deno PASS.
+  - Secret scan: ok: true, 0 findings.
+  - Схема БД: `schema_version` = 5.
 
 ## Предыдущая контрольная точка — полный аудит проекта
 
