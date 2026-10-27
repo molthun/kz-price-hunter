@@ -7,10 +7,11 @@
 - Дата: 2026-10-27, Asia/Almaty.
 - **Исполнитель:** Claude (доработка интерфейса после приёмки C-E06-01: предложение без permalink).
 - **Checkout / ветка / базовый HEAD:** `/Users/molthun/Documents/kz-price-hunter`, `main`, `7306af5`.
-- **Область файлов:** `web/templates/index.html`, `tests/frontend/test_frontend_social_no_permalink.cjs`, `CHANGELOG.md`, `tests/README.md`, `docs/S2_E06_E08_E15_E17_AUDIT_CODEX.md`, `docs/AGENT_HANDOFF.md`.
+- **Область файлов:** `web/templates/index.html`, `tests/frontend/test_frontend_social_no_permalink.cjs`, `requirements.txt`, `CHANGELOG.md`, `ROADMAP_AND_LOG.md`, `tests/README.md`, `docs/S2_E06_E08_E15_E17_AUDIT_CODEX.md`, `docs/AGENT_HANDOFF.md`.
 - **Статус:** C-E06-01 и C-E08-01 **ACCEPTED**; доработан UI-пробел того же дефекта (**C-E06-02**) — кнопка магазина больше не рисуется для предложения без ссылки. Полный Python suite 1684 PASS (74.6s), покрытие 84% (CI-порог 80%), все 17 браузерных наборов PASS, `compileall` и `release_gate.py secrets` — OK, `prices.db` не изменялась. Правка закоммичена локально по команде владельца; **push не выполнялся**, приёмка аудитором (Codex/Antigravity) впереди.
 - **Фактическое состояние выпуска (проверено 2026-10-27):** `origin/main` и удалённый тег `v6.2.0` оба указывают на `7306af5` — то есть релиз 6.2.0 **уже отправлен** в origin, а не ждёт команды владельца, как написано в карточках ниже. Но workflow «Build and Publish Docker Image» для `main` и для тега **упал** на гейте `dependency-audit`: pip-audit нашёл уязвимости в `aiohttp==3.14.3` (исправление 3.14.4) и `certifi==2026.7.22` (исправление 2026.10.18/19), 10 записей. Образ не опубликован, Watchtower обновлять нечего, прод отвечает **6.1.0** (чтение `https://shop.molthun.ru/api/version`). Выпуск 6.2.0 **не состоялся**.
-- **Следующий точный шаг:** решение владельца по зависимостям — поднять `aiohttp` до 3.14.4 и `certifi` до 2026.10.18+ (прогнать suite и браузерные наборы) либо оформить исключение в `docs/dependency_allowlist.json` с причиной и сроком; без этого образ 6.2.0 не собирается. Параллельно — аудит правки C-E06-02 (`web/templates/index.html` + новый браузерный набор).
+- **Зависимости подняты (2026-10-27, по команде владельца):** `aiohttp` 3.14.3 → **3.14.4**, `certifi` 2026.7.22 → **2026.10.19** в `requirements.txt`; `constraints.txt` не менялся (`pip check` — без конфликтов, aiohttp 3.14.4 требует `yarl>=1.25.1`, что уже закреплено). Локально: `pip-audit -r requirements.txt` — **No known vulnerabilities found**, `release_gate.py deps` — **ok: true**, полный suite **1684 PASS** (73.7s), покрытие **84%**, все **17** браузерных наборов PASS (среди них `test_frontend_auth.cjs`, который поднимает настоящий aiohttp-сервер), `compileall` и `release_gate.py secrets` — OK, `prices.db` не изменялась.
+- **Следующий точный шаг:** аудит правок C-E06-02 и подъёма зависимостей, затем решение владельца о форме выпуска — перенести тег `v6.2.0` на новый срез или выпустить **6.2.1** (`version.py` + CHANGELOG + ROADMAP + тег). Образ соберётся только с этого нового среза: тег `v6.2.0` в origin указывает на `7306af5` со старыми версиями, и его сборка уже упала.
 
 ## Карточка задачи: предложение без permalink в интерфейсе (C-E06-02, 2026-10-27)
 
@@ -39,6 +40,36 @@ Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-h
   - prices.db не изменялась (md5 91fc9de938eb0f6797f691d73d113eab).
 Не проверялось: прод, внешние Telegram/Instagram API, образ и публикация.
 Следующий точный шаг: аудит правки, затем синхронизация тега v6.2.0 и push по команде владельца.
+```
+
+## Карточка задачи: подъём aiohttp и certifi под гейт зависимостей (2026-10-27)
+
+```text
+ID / этап: разблокировка выпуска 6.2.0 (поручение владельца).
+Статус: READY (ожидает аудита)
+Исполнитель: Claude
+Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-hunter, main, c6da346
+Область файлов: requirements.txt, CHANGELOG.md, ROADMAP_AND_LOG.md, docs/AGENT_HANDOFF.md
+Почему: workflow публикации образа для main и тега v6.2.0 упал на гейте dependency-audit —
+  pip-audit нашёл 10 записей: CVE-2026-111065 и CVE-2026-111748 (aiohttp 3.14.3, фикс 3.14.4)
+  и PYSEC-2026-4320 (certifi 2026.7.22, фиксы 2026.10.18 и 2026.10.19). Образ не опубликован,
+  прод остался на 6.1.0.
+Что сделано:
+  - aiohttp==3.14.4 (минимальная версия, закрывающая оба CVE);
+  - certifi==2026.10.19 (минимальная версия, закрывающая оба PYSEC-пропуска; доступны и
+    более новые 2026.10.23, взята минимальная — хранилище корневых сертификатов меняем
+    не больше, чем требует гейт);
+  - constraints.txt не тронут: pip check конфликтов не нашёл;
+  - исключение в docs/dependency_allowlist.json не оформлялось — уязвимости закрыты версиями.
+Проверки:
+  - pip-audit -r requirements.txt (pip-audit 2.10.1, изолированный venv): No known vulnerabilities found;
+  - release_gate.py deps audit.json: ok=true, blocking=[];
+  - полный Python suite: 1684 PASS (73.711s), покрытие 84% (порог 80%);
+  - браузерные наборы: 17/17 PASS, включая test_frontend_auth.cjs с живым aiohttp-сервером;
+  - compileall OK; release_gate.py secrets — 0 findings;
+  - prices.db не изменялась (md5 91fc9de938eb0f6797f691d73d113eab).
+Не проверялось: прод, сборка образа в CI, внешние API.
+Следующий точный шаг: аудит, затем решение владельца — перенос тега v6.2.0 или выпуск 6.2.1.
 ```
 
 ---
