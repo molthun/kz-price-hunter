@@ -2769,7 +2769,9 @@
 
       const is4mobile = a.shop === '4mobile' || (a.url && a.url.includes('wa.me'));
       if (buyLink) {
-        buyLink.href = cleanUrl(a.url);
+        const modalUrl = storeUrl(a.url);
+        buyLink.href = modalUrl || '#';
+        buyLink.classList.toggle('hidden', !modalUrl);
         if (buyLabel) {
           buyLabel.innerText = is4mobile ? '⚡️ Заказать в WhatsApp (4mobile)' : `⚡️ Купить в ${a.shop || 'магазине'}`;
         }
@@ -2865,6 +2867,17 @@
       else if (url.startsWith('/shop/p/')) url = 'https://kaspi.kz' + url;
       else if (url.startsWith('https://kaspi.kz/p/')) url = url.replace('https://kaspi.kz/p/', 'https://kaspi.kz/shop/p/');
       return safeHttpUrl(url);
+    }
+
+    // Предложения из соцсетей без permalink приходят с пустым url (C-E06-01):
+    // кнопку магазина для них рисовать нельзя — href="#" выглядит рабочим, но никуда не ведёт.
+    function storeUrl(u) {
+      const href = cleanUrl(u);
+      return href === '#' ? null : href;
+    }
+
+    function noStoreLinkHtml(sizeClass = 'text-[10px]') {
+      return `<span class="${sizeClass} text-slate-500 inline-flex items-center gap-1" title="Источник не дал прямую ссылку на предложение"><i class="fa-solid fa-link-slash text-[9px]"></i>Нет ссылки</span>`;
     }
 
     function imageUrl(value) {
@@ -4326,6 +4339,7 @@
           ` : '';
           const cityPart = off.city ? `<span class="text-[10px] text-slate-500 font-mono">${escapeHtml(off.city)}</span>` : '';
           const offCond = off.condition === 'used' ? '<span class="text-[10px] text-amber-400">Б/у</span>' : '';
+          const offUrl = storeUrl(off.url);
           const isStale = off.freshness === 'stale' || off.is_stale;
 
           return `
@@ -4347,10 +4361,11 @@
                   <div class="text-sm font-bold text-white">${fmtPrice(off.price)}</div>
                   ${offDiff ? `<div class="text-[10px] text-slate-500 font-medium">${offDiff}</div>` : ''}
                 </div>
-                <a href="${escapeHtml(cleanUrl(off.url || '#'))}" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500 hover:text-dark-950 text-emerald-300 font-semibold text-xs inline-flex items-center gap-1.5 transition">
+                ${offUrl ? `
+                <a href="${escapeHtml(offUrl)}" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500 hover:text-dark-950 text-emerald-300 font-semibold text-xs inline-flex items-center gap-1.5 transition">
                   <span>В магазин</span>
                   <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
-                </a>
+                </a>` : noStoreLinkHtml('text-xs')}
               </div>
             </div>
           `;
@@ -4456,6 +4471,7 @@
       }
 
       const best = data.best_deal;
+      const bestUrl = best ? storeUrl(best.url) : null;
       const stats = data.price_stats || {};
       const stores = data.store_comparison || [];
       const items = data.items || [];
@@ -4505,10 +4521,11 @@
                   <div class="text-3xl font-black text-emerald-400 tracking-tight">${fmtPrice(best.price)}</div>
                   ${freshnessBadge(best)}
                 </div>
-                <a href="${escapeHtml(cleanUrl(best.url))}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-dark-950 font-bold px-6 py-3 rounded-xl text-sm shadow-xl shadow-emerald-500/25 transition transform active:scale-95 w-full md:w-auto">
+                ${bestUrl ? `
+                <a href="${escapeHtml(bestUrl)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-dark-950 font-bold px-6 py-3 rounded-xl text-sm shadow-xl shadow-emerald-500/25 transition transform active:scale-95 w-full md:w-auto">
                   <span>Купить по лучшей цене</span>
                   <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
-                </a>
+                </a>` : `<div class="text-xs text-slate-400">${noStoreLinkHtml('text-[11px]')} — свяжитесь с продавцом ${escapeHtml(best.shop || '')}</div>`}
               </div>
             </div>
           </div>
@@ -4542,7 +4559,7 @@
         const diffVal = st.diff_from_best !== undefined ? st.diff_from_best : (st.diff_kzt || 0);
         const isWinner = diffVal === 0;
         const itemTitle = st.title || st.best_item_title || '';
-        const itemUrl = cleanUrl(st.url || st.best_item_url || '#');
+        const itemUrl = storeUrl(st.url || st.best_item_url);
         return `
           <div ${actionAttrs('shop', [st.shop])} class="p-3.5 rounded-xl border ${isWinner ? 'border-emerald-500/60 bg-emerald-500/10' : 'border-slate-800 bg-slate-900/60'} flex flex-col justify-between space-y-2 cursor-pointer hover:border-slate-700 transition" title="Нажмите, чтобы отфильтровать таблицу по магазину ${escapeHtml(st.shop)}">
             <div class="flex items-center justify-between">
@@ -4556,10 +4573,11 @@
             </div>
             <div class="flex items-center justify-between pt-1 border-t border-slate-800/80 text-[11px]">
               <span class="text-slate-400 hover:text-slate-200 text-[10px]"><i class="fa-solid fa-filter text-[9px] mr-1"></i>Фильтр</span>
+              ${itemUrl ? `
               <a href="${escapeHtml(itemUrl)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="text-emerald-400 hover:text-emerald-300 inline-flex items-center gap-1">
                 <span>В магазин</span>
                 <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
-              </a>
+              </a>` : noStoreLinkHtml()}
             </div>
           </div>
         `;

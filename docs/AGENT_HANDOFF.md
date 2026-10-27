@@ -5,13 +5,48 @@
 ## Текущая контрольная точка
 
 - Дата: 2026-10-27, Asia/Almaty.
-- **Исполнитель:** Antigravity (повторная приёмка дефектов C-E06-01 / C-E08-01, проверка тестов и покрытия, синхронизация тега v6.2.0).
-- **Время начала:** 2026-10-27 19:42 Asia/Almaty
-- **Checkout / ветка / HEAD:** `/Users/molthun/Documents/kz-price-hunter`, `main`, `023bba3` (tag: `v6.2.0`).
-- **Область файлов:** `domain/social_content.py`, `tests/sellers/test_social_content_intelligence.py`, `tests/sellers/test_social_connectors.py`, `CHANGELOG.md`, `docs/S2_E06_E08_E15_E17_AUDIT_CODEX.md`, `docs/AGENT_HANDOFF.md`.
-- **Статус:** C-E06-01 и C-E08-01 **ACCEPTED** (подтверждено Claude и Antigravity). Полный suite 1684 PASS (73.5s), покрытие 84% (CI-порог 80%). Локальный тег `v6.2.0` обновлён на коммит исправлений `023bba3`. Push не выполнялся (ожидает команды владельца).
+- **Исполнитель:** Claude (доработка интерфейса после приёмки C-E06-01: предложение без permalink).
+- **Checkout / ветка / базовый HEAD:** `/Users/molthun/Documents/kz-price-hunter`, `main`, `7306af5`.
+- **Область файлов:** `web/templates/index.html`, `tests/frontend/test_frontend_social_no_permalink.cjs`, `CHANGELOG.md`, `tests/README.md`, `docs/S2_E06_E08_E15_E17_AUDIT_CODEX.md`, `docs/AGENT_HANDOFF.md`.
+- **Статус:** C-E06-01 и C-E08-01 **ACCEPTED**; доработан UI-пробел того же дефекта (**C-E06-02**) — кнопка магазина больше не рисуется для предложения без ссылки. Полный Python suite 1684 PASS (74.6s), покрытие 84% (CI-порог 80%), все 17 браузерных наборов PASS, `compileall` и `release_gate.py secrets` — OK, `prices.db` не изменялась. Изменения закоммичены локально по команде владельца; **push не выполнялся** — публикация образа и приёмка аудитором (Codex/Antigravity) ещё впереди.
+- **Следующий точный шаг:** аудит правки C-E06-02 (`web/templates/index.html` + новый браузерный набор), затем решение владельца о коммите, синхронизации тега `v6.2.0` и push.
+
+## Карточка задачи: предложение без permalink в интерфейсе (C-E06-02, 2026-10-27)
+
+```text
+ID / этап: доработка S2-E06 после приёмки C-E06-01.
+Статус: READY (ожидает аудита)
+Исполнитель: Claude
+Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-hunter, main, 7306af5
+Область файлов:
+  web/templates/index.html, tests/frontend/test_frontend_social_no_permalink.cjs,
+  CHANGELOG.md, tests/README.md, docs/S2_E06_E08_E15_E17_AUDIT_CODEX.md, docs/AGENT_HANDOFF.md
+Что сделано:
+  - Проверены исправления C-E08-01 (нормализация naive ISO к UTC в is_expired) и
+    C-E06-01 (Offer берёт только подтверждённый post_url) — оба на месте, регрессии на месте.
+  - Найден и закрыт UI-пробел того же дефекта: после отказа от подставного t.me социальное
+    предложение без permalink приходит с пустым url, а интерфейс всё равно рисовал кнопки
+    «Купить по лучшей цене», «В магазин» и кнопку покупки в модальном окне с href="#".
+  - index.html: storeUrl() (null, если ссылки нет или она небезопасна) и noStoreLinkHtml();
+    карточка 2.0, hero, плитка сравнения магазинов и модальное окно показывают «Нет ссылки».
+  - Новый браузерный набор test_frontend_social_no_permalink.cjs (пустой/пробельный/
+    отсутствующий/небезопасный url, положительный контроль с permalink, модальное окно).
+Проверки:
+  - Полный Python suite: 1684 PASS (74.556s), покрытие 84% (порог CI 80%).
+  - Браузерные наборы: 17/17 PASS (Deno + playwright 1.64.1 + системный Chrome).
+  - compileall OK; release_gate.py secrets — 0 findings.
+  - prices.db не изменялась (md5 91fc9de938eb0f6797f691d73d113eab).
+Не проверялось: прод, внешние Telegram/Instagram API, образ и публикация.
+Следующий точный шаг: аудит правки, затем синхронизация тега v6.2.0 и push по команде владельца.
+```
 
 ---
+
+## Контрольная точка (архив 2026-10-27, Antigravity)
+
+- **Исполнитель:** Antigravity (повторная приёмка дефектов C-E06-01 / C-E08-01, проверка тестов и покрытия, синхронизация тега v6.2.0).
+- **Checkout / ветка / HEAD:** `main`, `023bba3` (tag: `v6.2.0`).
+- **Статус:** C-E06-01 и C-E08-01 **ACCEPTED** (подтверждено Claude и Antigravity). Полный suite 1684 PASS (73.5s), покрытие 84%. Локальный тег `v6.2.0` обновлён на коммит исправлений `023bba3`. Push не выполнялся.
 
 ## Текущая контрольная точка (архив 2026-10-22)
 
@@ -77,7 +112,7 @@ Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-h
 | S2-E03 | Channel-aware pricing (Cross-seller / Cross-channel) | READY | Antigravity → Claude (правка E1) | Claude: аудит проведён, E1 закрыт; ожидает проверку Codex | — |
 | S2-E04 | Condition / б/у рынок (NEW, USED, REFURBISHED) | READY | Antigravity → Claude (правка E2) | Claude: аудит проведён, B2 закрыт автором, E2 закрыт; ожидает проверку Codex | — |
 | S2-E05 | Seller Discovery & Source Profiler | READY | Antigravity → Claude | Claude: аудит проведён, C-E05-01…04 закрыты; ожидает финального подтверждения Codex | — |
-| S2-E06 | Telegram & Social Media Connectors | READY | Codex (по поручению владельца) → Claude / Antigravity (приёмка) | C-E06-01 закрыт; ACCEPTED 2026-10-27 | — |
+| S2-E06 | Telegram & Social Media Connectors | READY | Codex (по поручению владельца) → Claude / Antigravity (приёмка) → Claude (UI C-E06-02) | C-E06-01 закрыт; ACCEPTED 2026-10-27. C-E06-02 (UI без ссылки) исправлен, ожидает аудита | — |
 | S2-E11 | Unified Product Index & Search Core 2.0 | READY | Antigravity | Codex: C-E11-01…06 закрыты, APPROVED | — |
 | S2-E13 | Search Quality & Search Analytics | READY | Antigravity | Codex: C-E13-01…04 закрыты, APPROVED | — |
 | S2-E16 | Search UI 2.0 (мультипродавцовая витрина, фильтры состояний) | READY | Antigravity | Codex: C-E16-01…05 закрыты, APPROVED | — |
