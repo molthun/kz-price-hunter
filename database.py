@@ -316,13 +316,39 @@ class ClosingConnection(sqlite3.Connection):
             self.close()
 
 
+def ensure_journal_mode() -> str:
+    """Включает WAL один раз — пока фоновые работники не открыли свои соединения.
+
+    Смена журнального режима требует исключительного доступа к базе. Пока она
+    запрашивалась на каждом соединении, занятая база отвечала "database is locked"
+    уже на открытии: другое соединение в работающем приложении есть всегда, поэтому
+    перейти в WAL не удавалось никогда и падало каждое обращение (C-DB-01). Здесь
+    неудача не фатальна: без WAL приложение работает медленнее, но работает.
+    """
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(DB_PATH, timeout=15)
+    try:
+        mode = str(conn.execute("PRAGMA journal_mode;").fetchone()[0]).lower()
+        if mode == "wal":
+            return mode
+        try:
+            mode = str(conn.execute("PRAGMA journal_mode = WAL;").fetchone()[0]).lower()
+        except sqlite3.OperationalError as e:
+            print(f"[DB] Журнальный режим остался {mode}: WAL не включился ({e})")
+        return mode
+    finally:
+        conn.close()
+
+
 def get_connection():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH, timeout=15, factory=ClosingConnection)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode = WAL;")
     # Магазины сканируются параллельно: ждем освобождения блокировки вместо ошибки "database is locked"
     conn.execute("PRAGMA busy_timeout = 15000;")
+    # Журнальный режим здесь не трогаем: его смена требует исключительного доступа
+    # и валила открытие соединения на занятой базе (C-DB-01). Он ставится один раз
+    # в ensure_journal_mode() при инициализации.
     conn.execute("PRAGMA synchronous = NORMAL;")
     return conn
 
@@ -1180,6 +1206,9 @@ def optimize_fts() -> None:
 
 
 def init_db():
+    # Журнальный режим — первым делом: здесь, до запуска фоновых работников, база ещё
+    # свободна, и это единственный момент, когда переход в WAL вообще возможен (C-DB-01).
+    ensure_journal_mode()
     # Сначала проверка совместимости и бэкап, потом любые изменения схемы (R-M12):
     # даже аддитивные колонки создаются уже после копии исходной базы
     backup_done = False
