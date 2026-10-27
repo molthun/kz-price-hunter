@@ -2,7 +2,30 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## Текущая контрольная точка — полный аудит проекта
+## Текущая контрольная точка — публикация Hotfix 6.2.2 и работа над устранением замечаний аудита
+
+- Дата: 2026-10-27, Asia/Almaty.
+- **Исполнитель:** Antigravity (по поручению владельца «работаем»).
+- **Ветка:** `feature/s2-search-platform` (синхронизирована с `main@c2d3b09`).
+- **Срочный выпуск Hotfix 6.2.2:**
+  - Ветка `main` сброшена на `hotfix/6.2.2-db-lock` (коммит `c2d3b09`, содержащий релизный `94e3f7c` с узким исправлением C-DB-01 в `database.py`, тестом `tests/core/test_db_connection_locking.py` и полным отчётом аудита Codex).
+  - Выполнен `git push origin main` и `git push origin v6.2.2`.
+  - Все проверки GitHub Actions CI пройдены (`test`, `frontend`, `secret-scan`, `dependency-audit`, `upgrade-rehearsal`, `image-smoke`), образ `ghcr.io/molthun/kz-price-hunter:latest` собран и опубликован в GHCR.
+  - Ожидается обновление прода через Watchtower на NAS.
+- **Ветка разработки Search Platform 2.0 (`feature/s2-search-platform`):**
+  - В ветку вмерджен свежий `main` (коммит `1a5678f`), разрешены минимальные конфликты в CHANGELOG и tests/README.
+  - Ветка содержит полную историю разработки S2-E19, S2-E20 и базу hotfix 6.2.2.
+- **Очередь реализации замечаний аудита Codex (A01–A11):**
+  1. `A01 (P1)`: Вынос синхронных обращений к SQLite в асинхронных хэндлерах (`web/server.py:api_search_v2` и `auth.py:auth_middleware`) в пул потоков (`asyncio.to_thread`), чтобы занятая база не блокировала event loop.
+  2. `A02 (P1)`: Передача V2-полей (`seller_id`, `channel_type`, `condition`, `canonical_product_id`) в рабочий путь `watched_offers(changed_ids)` для корректной работы триггеров S2-E20.
+  3. `A03 (P1)`: Исправление области состояния наблюдений в `watch_state` — межканальное и межпродавцовое сравнение (`better_seller`, `better_channel`, `new_seller`) по каноническому `product_id`, а не по отдельному Offer ID.
+  4. `A04 (P1)`: Учёт `purchasability` (наличие, истечение срока, активность канала) в витрине продавца `domain/seller_showcase.py` и `repositories/offer_repo.py`.
+  5. `A05 (P2)`: Сортировка до LIMIT в `repositories/search_repo.py`.
+  6. `A06 (P2)`: Хронологическое сравнение TTL в `repositories/content_repo.py`.
+  7. `A07 (P2)`: Удаление исходного пользовательского запроса из `logger.exception` в `domain/search_core.py`.
+  8. `A08–A11`: Защита CI и release gate (sk-proj- в secrets scan, PREV tag в upgrade rehearsal, readiness probe).
+
+## Предыдущая контрольная точка — полный аудит проекта
 
 - Дата: 2026-10-27, Asia/Almaty. Исполнитель: **Codex**, по поручению владельца «сделай полный аудит проекта».
 - Срезы: чистый исходный checkout `hotfix/6.2.2-db-lock@0ceda448`; отдельно архив
