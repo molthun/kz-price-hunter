@@ -4372,6 +4372,7 @@
         }).join('');
 
         const bestShop = best ? (best.channel_name || best.seller_name || best.shop || 'Магазин') : '';
+        const bestOfferUrl = best ? storeUrl(best.url) : null;
 
         return `
           <div class="glass p-5 sm:p-6 rounded-2xl border ${isLeader ? 'border-emerald-500/50 bg-gradient-to-br from-emerald-950/20 to-slate-900/90' : 'border-slate-800/80 bg-slate-900/60'} space-y-4 hover:border-slate-700 transition shadow-xl">
@@ -4397,8 +4398,8 @@
 
               <div class="w-full md:w-auto text-left md:text-right shrink-0 space-y-2 pt-2 md:pt-0 border-t md:border-t-0 border-slate-800">
                 ${priceHtml}
-                ${best && best.url ? `
-                  <a href="${escapeHtml(cleanUrl(best.url))}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-dark-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition w-full md:w-auto">
+                ${bestOfferUrl ? `
+                  <a href="${escapeHtml(bestOfferUrl)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-dark-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition w-full md:w-auto">
                     <span>Лучшая цена в ${escapeHtml(bestShop)}</span>
                     <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
                   </a>

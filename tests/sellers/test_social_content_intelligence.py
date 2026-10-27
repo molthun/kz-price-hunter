@@ -20,6 +20,7 @@ from domain.models import (
     Seller,
 )
 from domain.search_core import SearchCore
+from domain.social_connector import InstagramConnector, SocialPlatform, SocialSource, posts_to_observations
 from domain.social_content import (
     ContentObservation,
     ContentType,
@@ -178,6 +179,21 @@ class StoryTtlTest(unittest.TestCase):
                           expires_at="2020-01-02T00:00:00")
         self.assertTrue(obs.is_expired())
 
+    def test_expiry_boundary_is_the_same_in_every_timezone_representation(self):
+        # All expiry strings denote 10:00 UTC; include a previous local date.
+        expiries = ("2026-10-02T10:00:00", "2026-10-02T10:00:00Z",
+                    "2026-10-02T15:00:00+05:00", "2026-10-01T22:00:00-12:00")
+        times = (("2026-10-02T09:59:59.999999", False),
+                 ("2026-10-02T14:59:59.999999+05:00", False),
+                 ("2026-10-02T10:00:00", True),
+                 ("2026-10-02T05:00:00-05:00", True),
+                 ("2026-10-02T10:00:00.000001Z", True))
+        for expiry in expiries:
+            obs = observation("iPhone 15 499 000 тг", expires_at=expiry)
+            for now, expected in times:
+                with self.subTest(expiry=expiry, now=now):
+                    self.assertEqual(obs.is_expired(now), expected)
+
     def test_expired_observation_never_becomes_purchasable_offer(self):
         obs = observation("iPhone 15 499 000 тг", content_type=ContentType.STORY)
         candidate = ExtractedOfferCandidate(raw_title="iPhone 15", price=499000.0)
@@ -234,6 +250,24 @@ class StoryTtlTest(unittest.TestCase):
         offer = SocialContentExtractor.candidate_to_offer(
             candidate, obs, product_id="product_1", external_sku="SKU-1")
         self.assertEqual(offer.url, permalink)
+
+    def test_instagram_parse_to_offer_preserves_only_the_actual_permalink(self):
+        source = SocialSource(id="src_ig", platform=SocialPlatform.INSTAGRAM,
+                              handle="17841400000000000", seller_id="seller_1",
+                              channel_id="channel_1")
+        permalink = "https://www.instagram.com/p/abc/"
+        for value in (None, "", "   ", permalink):
+            with self.subTest(permalink=value):
+                item = {"id": "17900000000000001", "caption": "iPhone 15 499 000 тг"}
+                if value is not None:
+                    item["permalink"] = value
+                posts = InstagramConnector().parse_media({"data": [item]}, source.handle)
+                obs = posts_to_observations(posts, source)[0]
+                candidates = SocialContentExtractor.extract_candidates(obs)
+                self.assertEqual(len(candidates), 1)
+                offer = SocialContentExtractor.candidate_to_offer(candidates[0], obs, "product_1")
+                self.assertEqual(offer.url, (value or "").strip())
+                self.assertNotIn("t.me", offer.url)
 
 
 class ContentObservationRepositoryTest(unittest.TestCase):

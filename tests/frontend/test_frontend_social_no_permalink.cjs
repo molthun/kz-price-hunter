@@ -64,7 +64,21 @@ const legacyData=(url)=>({v2:false,items:[],
     return {links:[...box.querySelectorAll('a[href]')].map(a=>a.getAttribute('href')),html:box.innerHTML};
   },v2Item('https://t.me/shopkz/42'));
   assert.ok(cardWithUrl.links.includes('https://t.me/shopkz/42'),'permalink становится кнопкой');
+  assert.equal(cardWithUrl.links.filter(url=>url==='https://t.me/shopkz/42').length,2,
+    'при действительном permalink доступны кнопки оффера и лучшей цены');
   assert.ok(!/Нет ссылки/.test(cardWithUrl.html),'при наличии ссылки пометки нет');
+
+  // Проверяем всю карточку: у лучшего предложения есть отдельная кнопка.
+  for (const url of ['', '   ', null, undefined, '#', 'javascript:alert(1)']) {
+    const result=await page.evaluate(item=>{
+      const box=document.createElement('div');
+      renderSearchV2ProductCards([item],box);
+      return {links:[...box.querySelectorAll('a[href]')].map(a=>a.getAttribute('href')),
+        text:box.textContent};
+    },v2Item(url));
+    assert.deepEqual(result.links,[],`карточка без действительного permalink (${String(url)}) не содержит ссылок магазина`);
+    assert.match(result.text,/Нет ссылки/);
+  }
 
   // Hero «Купить по лучшей цене» и плитки сравнения магазинов
   const hero=await page.evaluate(data=>{

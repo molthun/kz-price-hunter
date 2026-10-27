@@ -4,8 +4,17 @@
 
 ## Текущая контрольная точка
 
+- **Приёмка среза 6.2.1 завершена Antigravity (2026-10-27, 20:55 Asia/Almaty):**
+  - Проверена и одобрена доработка C-E06-02 от Codex: кнопка лучшей цены в карточке 2.0 использует `storeUrl(best.url)` вместо сырого `cleanUrl(best.url)`, устраняя появление `href="#"` при пробельных и невалидных ссылках.
+  - Регрессионные тесты в `tests/sellers/test_social_content_intelligence.py` и `tests/frontend/test_frontend_social_no_permalink.cjs` подтверждены.
+  - Полный Python suite: **1686 PASS / 73.281s**, покрытие **84%** (порог 80% PASS).
+  - Браузерные тесты: **17/17 PASS**.
+  - `compileall`, secrets (0 findings), `git diff --check` — PASS.
+  - Правки объединены в срез выпуска **v6.2.1**. Локальный тег `v6.2.1` перенесён на вершину `main`.
+  - Ветка `main` и тег `v6.2.1` готовы к push по команде владельца для сборки образа и доставки 6.2.1 на прод.
+
 - Дата: 2026-10-27, Asia/Almaty.
-- **Исполнитель:** Claude (доработка интерфейса после приёмки C-E06-01: предложение без permalink).
+- **Предыдущий исполнитель:** Claude (доработка интерфейса после приёмки C-E06-01: предложение без permalink); актуальная приёмка Codex описана выше.
 - **Checkout / ветка / базовый HEAD:** `/Users/molthun/Documents/kz-price-hunter`, `main`, `7306af5`.
 - **Область файлов:** `web/templates/index.html`, `tests/frontend/test_frontend_social_no_permalink.cjs`, `requirements.txt`, `CHANGELOG.md`, `ROADMAP_AND_LOG.md`, `tests/README.md`, `docs/S2_E06_E08_E15_E17_AUDIT_CODEX.md`, `docs/AGENT_HANDOFF.md`.
 - **Статус:** C-E06-01 и C-E08-01 **ACCEPTED**; доработан UI-пробел того же дефекта (**C-E06-02**) — кнопка магазина больше не рисуется для предложения без ссылки. Полный Python suite 1684 PASS (74.6s), покрытие 84% (CI-порог 80%), все 17 браузерных наборов PASS, `compileall` и `release_gate.py secrets` — OK, `prices.db` не изменялась. Правка закоммичена локально по команде владельца; **push не выполнялся**, приёмка аудитором (Codex/Antigravity) впереди.
