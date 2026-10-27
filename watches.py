@@ -17,9 +17,11 @@ from typing import Any, Dict, List, Optional, Tuple
 # Виды наблюдений. V1 (решение владельца 2026-09-20): товар, модель, поиск, категория.
 # V2: магазин, выгодные предложения и арбитраж — последние два срабатывают на тех же находках,
 # что показывает лента, поэтому «сделка» здесь означает записанный алерт, а не чьё-то мнение о цене.
+# V2 (S2-E20): продавец (seller) для подписки на предложения конкретного продавца.
 PRODUCT, MODEL, SEARCH, CATEGORY = "product", "model", "search", "category"
 SHOP, DEAL, ARBITRAGE = "shop", "deal", "arbitrage"
-KINDS = (PRODUCT, MODEL, SEARCH, CATEGORY, SHOP, DEAL, ARBITRAGE)
+SELLER = "seller"
+KINDS = (PRODUCT, MODEL, SEARCH, CATEGORY, SHOP, DEAL, ARBITRAGE, SELLER)
 
 # Для наблюдений за сделками и арбитражем цель — это область поиска, а не конкретный товар
 ANY_TARGET = "все"
@@ -36,8 +38,18 @@ BEST_PRICE = "best_price"        # цена ниже всего, что виде
 BACK_IN_STOCK = "back_in_stock"  # товар снова появился в продаже
 DISCOUNT_PCT = "discount_pct"    # скидка в находке не меньше заданной (для сделок и арбитража)
 ANY_FIND = "any_find"            # любая находка по этому наблюдению
+
+# V2 триггеры (S2-E20)
+PRICE_DROP = "price_drop"        # снижение цены (порог в тенге или процентах, либо любое)
+NEW_OFFER = "new_offer"          # появление нового предложения
+NEW_SELLER = "new_seller"        # появление нового продавца с этим товаром
+NEW_USED_OFFER = "new_used_offer"# появление б/у предложения (USED или REFURBISHED)
+BETTER_CHANNEL = "better_channel"# появление более выгодного канала покупки
+BETTER_SELLER = "better_seller"  # появление продавца с лучшей ценой или условием
+
 CONDITIONS = (TARGET_PRICE, DROP_PCT, DROP_KZT, ANY_DROP, BEST_PRICE, BACK_IN_STOCK,
-              DISCOUNT_PCT, ANY_FIND)
+              DISCOUNT_PCT, ANY_FIND, PRICE_DROP, NEW_OFFER, NEW_SELLER,
+              NEW_USED_OFFER, BETTER_CHANNEL, BETTER_SELLER)
 
 NEEDS_THRESHOLD = (TARGET_PRICE, DROP_PCT, DROP_KZT, DISCOUNT_PCT)
 
@@ -57,9 +69,12 @@ MAX_WATCHES_PER_USER = 50        # чтобы один человек не пр�
 LABELS = {
     PRODUCT: "товар", MODEL: "модель", SEARCH: "поисковый запрос", CATEGORY: "категория",
     SHOP: "магазин", DEAL: "выгодные предложения", ARBITRAGE: "разница цен между магазинами",
+    SELLER: "продавец",
     DISCOUNT_PCT: "скидка не меньше", ANY_FIND: "любая находка",
     TARGET_PRICE: "цена не выше", DROP_PCT: "снижение в процентах", DROP_KZT: "снижение в тенге",
     ANY_DROP: "любое снижение", BEST_PRICE: "лучшая цена за всё время", BACK_IN_STOCK: "снова в продаже",
+    PRICE_DROP: "снижение цены", NEW_OFFER: "новое предложение", NEW_SELLER: "новый продавец",
+    NEW_USED_OFFER: "появление б/у", BETTER_CHANNEL: "более выгодный канал", BETTER_SELLER: "лучшая цена у другого продавца",
 }
 
 
@@ -104,6 +119,13 @@ def normalize(data: Dict[str, Any]) -> Dict[str, Any]:
             raise ValueError("Процент снижения: допустимо от 1 до 99")
         if condition in (TARGET_PRICE, DROP_KZT) and not 1 <= threshold <= 100_000_000:
             raise ValueError("Сумма: допустимо от 1 до 100 000 000 ₸")
+    elif condition == PRICE_DROP and threshold is not None and str(threshold).strip() != "":
+        try:
+            threshold = int(threshold)
+            if not 1 <= threshold <= 100_000_000:
+                raise ValueError("Порог снижения: допустимо от 1 до 100 000 000")
+        except (TypeError, ValueError):
+            raise ValueError("Для порога снижения нужно положительное число")
     else:
         threshold = None
 
@@ -127,6 +149,39 @@ def normalize(data: Dict[str, Any]) -> Dict[str, Any]:
     if not isinstance(shops, list) or any(not isinstance(s, str) for s in shops):
         raise ValueError("Магазины передаются списком")
 
+    # V2 (S2-E20): фильтры состояний товара (new, used, refurbished)
+    raw_conditions = data.get("item_conditions")
+    if raw_conditions is None:
+        raw_conditions = data.get("conditions")
+    if isinstance(raw_conditions, str):
+        raw_conditions = [c.strip() for c in raw_conditions.split(",") if c.strip()]
+    if raw_conditions and (not isinstance(raw_conditions, (list, tuple, set)) or
+                           any(not isinstance(c, str) for c in raw_conditions)):
+        raise ValueError("Состояния товара передаются списком (new, used, refurbished)")
+    allowed_conditions = {"new", "used", "refurbished"}
+    clean_conditions = []
+    if raw_conditions:
+        for c in raw_conditions:
+            cl = str(c).strip().lower()
+            if cl in allowed_conditions and cl not in clean_conditions:
+                clean_conditions.append(cl)
+
+    # V2 (S2-E20): фильтры продавцов (seller_id / seller_slug / названия)
+    raw_sellers = data.get("sellers") or []
+    if isinstance(raw_sellers, str):
+        raw_sellers = [s.strip() for s in raw_sellers.split(",") if s.strip()]
+    if not isinstance(raw_sellers, (list, tuple, set)) or any(not isinstance(s, str) for s in raw_sellers):
+        raise ValueError("Продавцы передаются списком")
+    clean_sellers = sorted({s.strip().lower() for s in raw_sellers if s.strip()})
+
+    # V2 (S2-E20): фильтры каналов (web, telegram, instagram, kaspi)
+    raw_channels = data.get("channels") or []
+    if isinstance(raw_channels, str):
+        raw_channels = [ch.strip() for ch in raw_channels.split(",") if ch.strip()]
+    if not isinstance(raw_channels, (list, tuple, set)) or any(not isinstance(ch, str) for ch in raw_channels):
+        raise ValueError("Каналы передаются списком")
+    clean_channels = sorted({ch.strip().lower() for ch in raw_channels if ch.strip()})
+
     return {
         "kind": kind,
         "target": target,
@@ -135,6 +190,9 @@ def normalize(data: Dict[str, Any]) -> Dict[str, Any]:
         "threshold": threshold,
         "city": str(data.get("city") or "").strip() or None,
         "shops": sorted({s.strip() for s in shops if s.strip()}),
+        "item_conditions": clean_conditions,
+        "sellers": clean_sellers,
+        "channels": clean_channels,
         "mode": mode,
         "quiet_from": _time(data.get("quiet_from"), DEFAULT_QUIET_FROM),
         "quiet_to": _time(data.get("quiet_to"), DEFAULT_QUIET_TO),
@@ -146,7 +204,7 @@ def normalize(data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def matches(watch: Dict[str, Any], offer: Dict[str, Any]) -> bool:
-    """Относится ли предложение к наблюдению: вид, город и выбранные магазины."""
+    """Относится ли предложение к наблюдению: вид, город, магазины, продавцы, каналы, состояние."""
     city = (watch.get("city") or "").strip()
     if city and city not in ("Все",) and (offer.get("city") or "") not in (city, None, ""):
         return False
@@ -154,11 +212,45 @@ def matches(watch: Dict[str, Any], offer: Dict[str, Any]) -> bool:
     if shops and (offer.get("shop") or "") not in shops:
         return False
 
+    # V2 (S2-E20): фильтрация по продавцам
+    watch_sellers = watch.get("sellers") or []
+    if watch_sellers:
+        offer_sellers = {
+            str(offer.get("seller_id") or "").strip().lower(),
+            str(offer.get("seller_slug") or "").strip().lower(),
+            str(offer.get("seller_name") or "").strip().lower(),
+            str(offer.get("shop") or "").strip().lower(),
+        } - {""}
+        if not any(ws in offer_sellers or any(ws in os for os in offer_sellers) for ws in watch_sellers):
+            return False
+
+    # V2 (S2-E20): фильтрация по типам каналов
+    watch_channels = watch.get("channels") or []
+    if watch_channels:
+        offer_channels = {
+            str(offer.get("channel_type") or "").strip().lower(),
+            str(offer.get("channel_id") or "").strip().lower(),
+            str(offer.get("channel") or "").strip().lower(),
+        } - {""}
+        if not any(ch in offer_channels for ch in watch_channels):
+            return False
+
+    # V2 (S2-E20): фильтрация по состоянию (new, used, refurbished)
+    watch_conditions = watch.get("item_conditions") or []
+    if watch_conditions:
+        offer_cond = str(offer.get("condition") or offer.get("item_condition") or "new").strip().lower()
+        if offer_cond not in watch_conditions:
+            return False
+
     kind, target = watch["kind"], str(watch["target"]).lower()
     if kind == PRODUCT:
-        return str(offer.get("id") or "") == watch["target"]
+        offer_pid = str(offer.get("id") or "")
+        return (offer_pid == watch["target"] or
+                str(offer.get("canonical_product_id") or "") == watch["target"] or
+                str(offer.get("product_id") or "") == watch["target"])
     if kind == MODEL:
-        return str(offer.get("canonical_key") or "").lower() == target
+        return (str(offer.get("canonical_key") or "").lower() == target or
+                str(offer.get("model") or "").lower() == target)
     if kind == CATEGORY:
         return target in str(offer.get("category") or "").lower()
     if kind == SEARCH:
@@ -167,6 +259,14 @@ def matches(watch: Dict[str, Any], offer: Dict[str, Any]) -> bool:
     if kind == SHOP:
         shop = str(offer.get("shop") or "").lower()
         return bool(shop) and (shop == target or target in shop)
+    if kind == SELLER:
+        offer_sellers = {
+            str(offer.get("seller_id") or "").strip().lower(),
+            str(offer.get("seller_slug") or "").strip().lower(),
+            str(offer.get("seller_name") or "").strip().lower(),
+            str(offer.get("shop") or "").strip().lower(),
+        } - {""}
+        return any(target == s or target in s for s in offer_sellers)
     if kind in ALERT_KINDS:
         # Находка — это записанный алерт того же вида, что показывает лента. Без алерта наблюдение молчит.
         allowed = DEAL_ALERT_TYPES if kind == DEAL else ARBITRAGE_ALERT_TYPES
@@ -183,8 +283,9 @@ def condition_met(watch: Dict[str, Any], offer: Dict[str, Any],
     """Сработало ли условие и как это объяснить человеку.
 
     `state` — память по этому наблюдению и предложению: цена последнего отправленного сообщения
-    (`last_notified_price`), минимальная виденная цена (`min_price`) и было ли предложение в продаже
-    (`was_available`). Сравнение с ценой последнего сообщения — то, что не даёт слать одно и то же дважды.
+    (`last_notified_price`), минимальная виденная цена (`min_price`), было ли в продаже (`was_available`),
+    список известных продавцов (`known_sellers`), список известных каналов (`known_channels`),
+    список известных предложений (`known_offers`).
     """
     state = state or {}
     price = int(offer.get("current_price") or 0)
@@ -202,6 +303,57 @@ def condition_met(watch: Dict[str, Any], offer: Dict[str, Any],
         return False, ""
 
     if not available:
+        return False, ""
+
+    # V2 (S2-E20): NEW_OFFER
+    if condition == NEW_OFFER:
+        known_offers = set(state.get("known_offers") or [])
+        offer_id = str(offer.get("id") or offer.get("offer_id") or "")
+        if offer_id and offer_id in known_offers:
+            return False, ""
+        seller_label = offer.get("seller_name") or offer.get("shop") or "магазин"
+        return True, f"новое предложение: {price} ₸ ({seller_label})"
+
+    # V2 (S2-E20): NEW_SELLER
+    if condition == NEW_SELLER:
+        known_sellers = set(state.get("known_sellers") or [])
+        seller_key = str(offer.get("seller_slug") or offer.get("seller_id") or offer.get("seller_name") or offer.get("shop") or "").strip().lower()
+        if not seller_key or seller_key in known_sellers:
+            return False, ""
+        seller_label = offer.get("seller_name") or offer.get("shop") or seller_key
+        return True, f"новый продавец «{seller_label}»: {price} ₸"
+
+    # V2 (S2-E20): NEW_USED_OFFER
+    if condition == NEW_USED_OFFER:
+        cond = str(offer.get("condition") or offer.get("item_condition") or "").strip().lower()
+        if cond not in ("used", "refurbished"):
+            return False, ""
+        known_offers = set(state.get("known_offers") or [])
+        offer_id = str(offer.get("id") or offer.get("offer_id") or "")
+        if offer_id and offer_id in known_offers:
+            if last_sent is not None and price >= int(last_sent):
+                return False, ""
+        seller_label = offer.get("seller_name") or offer.get("shop") or "продавец"
+        cond_label = "б/у" if cond == "used" else "refurbished"
+        return True, f"появилось {cond_label} предложение: {price} ₸ ({seller_label})"
+
+    # V2 (S2-E20): BETTER_CHANNEL
+    if condition == BETTER_CHANNEL:
+        channel = str(offer.get("channel_type") or offer.get("channel") or "")
+        seen_min = state.get("min_price")
+        known_channels = set(state.get("known_channels") or [])
+        if seen_min is not None and price < int(seen_min):
+            return True, f"более выгодный канал ({channel or 'альтернативный'}): {price} ₸ (ранее от {int(seen_min)} ₸)"
+        if channel and channel.lower() not in known_channels and (last_sent is None or price < int(last_sent)):
+            return True, f"новый канал предложения ({channel}): {price} ₸"
+        return False, ""
+
+    # V2 (S2-E20): BETTER_SELLER
+    if condition == BETTER_SELLER:
+        seen_min = state.get("min_price")
+        seller_label = offer.get("seller_name") or offer.get("shop") or "продавец"
+        if seen_min is not None and price < int(seen_min):
+            return True, f"лучшая цена у продавца «{seller_label}»: {price} ₸ (ранее от {int(seen_min)} ₸)"
         return False, ""
 
     if condition in (ANY_FIND, DISCOUNT_PCT):
@@ -237,6 +389,7 @@ def condition_met(watch: Dict[str, Any], offer: Dict[str, Any],
     if base is None or price >= int(base):
         return False, ""
     drop = int(base) - price
+
     if condition == ANY_DROP:
         return True, f"цена снизилась с {int(base)} до {price} ₸"
     if condition == DROP_KZT:
@@ -248,6 +401,19 @@ def condition_met(watch: Dict[str, Any], offer: Dict[str, Any],
         if pct >= float(threshold):
             return True, f"цена снизилась на {pct:.0f} % (вы просили от {int(threshold)} %)"
         return False, ""
+    if condition == PRICE_DROP:
+        if threshold is None:
+            return True, f"цена снизилась с {int(base)} до {price} ₸"
+        if int(threshold) <= 100:
+            pct = drop * 100.0 / int(base)
+            if pct >= float(threshold):
+                return True, f"цена снизилась на {pct:.0f} % (порог от {int(threshold)} %)"
+            return False, ""
+        else:
+            if drop >= int(threshold):
+                return True, f"цена снизилась на {drop} ₸ (порог от {int(threshold)} ₸)"
+            return False, ""
+
     return False, ""
 
 
@@ -326,6 +492,12 @@ def describe(watch: Dict[str, Any]) -> str:
         rule = f"снижение от {int(watch['threshold']):,} ₸".replace(",", " ")
     elif condition == DISCOUNT_PCT:
         rule = f"скидка от {int(watch['threshold'])} %"
+    elif condition == PRICE_DROP:
+        if watch.get("threshold"):
+            th = int(watch["threshold"])
+            rule = f"снижение от {th} %" if th <= 100 else f"снижение от {th:,} ₸".replace(",", " ")
+        else:
+            rule = "любое снижение цены"
     else:
         rule = LABELS.get(condition, condition)
     where = []
@@ -333,5 +505,12 @@ def describe(watch: Dict[str, Any]) -> str:
         where.append(watch["city"])
     if watch.get("shops"):
         where.append(", ".join(watch["shops"]))
+    if watch.get("sellers"):
+        where.append(f"продавцы: {', '.join(watch['sellers'])}")
+    if watch.get("channels"):
+        where.append(f"каналы: {', '.join(watch['channels'])}")
+    if watch.get("item_conditions"):
+        cond_map = {"new": "новое", "used": "б/у", "refurbished": "refurbished"}
+        where.append("состояние: " + ", ".join(cond_map.get(c, c) for c in watch["item_conditions"]))
     tail = f" · {' · '.join(where)}" if where else ""
     return f"{what}: {rule}{tail}"

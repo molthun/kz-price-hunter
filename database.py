@@ -701,6 +701,10 @@ def _create_schema(cursor) -> None:
     # «Сработало» — не то же самое, что «выключено человеком»: сообщение по одноразовому наблюдению
     # ещё должно уйти, а новых срабатываний быть не должно (P07 G01)
     _add_column(cursor, "watches", "fired_at", "TEXT")
+    # V2 (S2-E20): фильтрация по состояниям NEW/USED, продавцам и типам каналов
+    _add_column(cursor, "watches", "item_conditions", "TEXT NOT NULL DEFAULT '[]'")
+    _add_column(cursor, "watches", "sellers", "TEXT NOT NULL DEFAULT '[]'")
+    _add_column(cursor, "watches", "channels", "TEXT NOT NULL DEFAULT '[]'")
     # Память наблюдения по каждому предложению: цена последнего отправленного сообщения не даёт
     # повторно уведомлять об одном и том же (возврат цены к прежнему значению — не новость)
     cursor.execute("""
@@ -715,6 +719,10 @@ def _create_schema(cursor) -> None:
             PRIMARY KEY (watch_id, product_id)
         )
     """)
+    # V2 (S2-E20): память по известным продавцам, каналам и офферам
+    _add_column(cursor, "watch_state", "known_sellers", "TEXT NOT NULL DEFAULT '[]'")
+    _add_column(cursor, "watch_state", "known_channels", "TEXT NOT NULL DEFAULT '[]'")
+    _add_column(cursor, "watch_state", "known_offers", "TEXT NOT NULL DEFAULT '[]'")
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS watch_events (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -2760,10 +2768,11 @@ def get_store_deals(
 
 def _watch_row(row) -> Dict[str, Any]:
     item = dict(row)
-    try:
-        item["shops"] = json.loads(item.get("shops") or "[]")
-    except ValueError:
-        item["shops"] = []
+    for col in ("shops", "item_conditions", "sellers", "channels"):
+        try:
+            item[col] = json.loads(item.get(col) or "[]")
+        except (ValueError, TypeError):
+            item[col] = []
     item["repeat"] = bool(item.pop("repeat_mode", 1))
     item["fired"] = bool(item.get("fired_at"))
     return item
@@ -2795,16 +2804,28 @@ def create_watch(user_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
                                 (int(user_id), clean["kind"], clean["target"], clean["condition"],
                                  clean["threshold"])).fetchone()
         if existing:
-            conn.execute("UPDATE watches SET is_active = 1 WHERE id = ?", (existing["id"],))
+            conn.execute("""UPDATE watches SET is_active = 1,
+                                   shops = ?, item_conditions = ?, sellers = ?, channels = ?
+                            WHERE id = ?""",
+                         (json.dumps(clean["shops"], ensure_ascii=False),
+                          json.dumps(clean["item_conditions"], ensure_ascii=False),
+                          json.dumps(clean["sellers"], ensure_ascii=False),
+                          json.dumps(clean["channels"], ensure_ascii=False),
+                          existing["id"]))
             conn.commit()
             return _watch_row(conn.execute("SELECT * FROM watches WHERE id = ?", (existing["id"],)).fetchone())
         conn.execute("""
-            INSERT INTO watches (user_id, kind, target, title, condition, threshold, city, shops, mode,
+            INSERT INTO watches (user_id, kind, target, title, condition, threshold, city, shops,
+                                 item_conditions, sellers, channels, mode,
                                  quiet_from, quiet_to, timezone, cooldown_hours, repeat_mode, is_active, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (int(user_id), clean["kind"], clean["target"], clean["title"], clean["condition"], clean["threshold"],
-              clean["city"], json.dumps(clean["shops"], ensure_ascii=False), clean["mode"], clean["quiet_from"],
-              clean["quiet_to"], clean["timezone"], clean["cooldown_hours"], clean["repeat"], clean["is_active"],
+              clean["city"], json.dumps(clean["shops"], ensure_ascii=False),
+              json.dumps(clean["item_conditions"], ensure_ascii=False),
+              json.dumps(clean["sellers"], ensure_ascii=False),
+              json.dumps(clean["channels"], ensure_ascii=False),
+              clean["mode"], clean["quiet_from"], clean["quiet_to"], clean["timezone"],
+              clean["cooldown_hours"], clean["repeat"], clean["is_active"],
               datetime.datetime.now(datetime.timezone.utc).isoformat()))
         watch_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
         conn.commit()
@@ -2821,15 +2842,21 @@ def update_watch(user_id: int, watch_id: int, data: Dict[str, Any]) -> Optional[
             return None
         merged = _watch_row(current)
         merged.update({k: v for k, v in data.items() if k in (
-            "kind", "target", "title", "condition", "threshold", "city", "shops", "mode",
+            "kind", "target", "title", "condition", "threshold", "city", "shops",
+            "item_conditions", "sellers", "channels", "mode",
             "quiet_from", "quiet_to", "timezone", "cooldown_hours", "repeat", "is_active")})
         clean = w.normalize(merged)
         conn.execute("""
-            UPDATE watches SET kind=?, target=?, title=?, condition=?, threshold=?, city=?, shops=?, mode=?,
+            UPDATE watches SET kind=?, target=?, title=?, condition=?, threshold=?, city=?, shops=?,
+                   item_conditions=?, sellers=?, channels=?, mode=?,
                    quiet_from=?, quiet_to=?, timezone=?, cooldown_hours=?, repeat_mode=?, is_active=?
             WHERE id = ? AND user_id = ?
         """, (clean["kind"], clean["target"], clean["title"], clean["condition"], clean["threshold"], clean["city"],
-              json.dumps(clean["shops"], ensure_ascii=False), clean["mode"], clean["quiet_from"], clean["quiet_to"],
+              json.dumps(clean["shops"], ensure_ascii=False),
+              json.dumps(clean["item_conditions"], ensure_ascii=False),
+              json.dumps(clean["sellers"], ensure_ascii=False),
+              json.dumps(clean["channels"], ensure_ascii=False),
+              clean["mode"], clean["quiet_from"], clean["quiet_to"],
               clean["timezone"], clean["cooldown_hours"], clean["repeat"], clean["is_active"],
               int(watch_id), int(user_id)))
         conn.commit()
@@ -2854,7 +2881,15 @@ def delete_watch(user_id: int, watch_id: int) -> bool:
 def _watch_states(conn, watch_id: int, product_id: str) -> Dict[str, Any]:
     row = conn.execute("SELECT * FROM watch_state WHERE watch_id = ? AND product_id = ?",
                        (int(watch_id), str(product_id))).fetchone()
-    return dict(row) if row else {}
+    if not row:
+        return {}
+    res = dict(row)
+    for col in ("known_sellers", "known_channels", "known_offers"):
+        try:
+            res[col] = json.loads(res.get(col) or "[]")
+        except (ValueError, TypeError):
+            res[col] = []
+    return res
 
 
 MAX_EVENTS_PER_WATCH_PER_RUN = 25
@@ -2889,6 +2924,11 @@ def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.dateti
                 continue
             price = int(offer.get("current_price") or 0)
             available = 1 if offer.get("is_available", True) else 0
+
+            seller_key = str(offer.get("seller_slug") or offer.get("seller_id") or offer.get("seller_name") or offer.get("shop") or "").strip().lower()
+            channel_key = str(offer.get("channel_type") or offer.get("channel_id") or offer.get("channel") or "").strip().lower()
+            offer_key = str(offer.get("id") or offer.get("offer_id") or "").strip()
+
             with get_connection() as conn:
                 # Чтение состояния, решение и запись события — одна транзакция на запись: два
                 # одновременных обхода не создадут два сообщения об одном снижении (P07 G02)
@@ -2900,17 +2940,37 @@ def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.dateti
                     continue
                 state = _watch_states(conn, watch["id"], product_id)
                 triggered, reason = w.condition_met(watch, offer, state)
+
+                known_sellers = set(state.get("known_sellers") or [])
+                if seller_key:
+                    known_sellers.add(seller_key)
+                known_channels = set(state.get("known_channels") or [])
+                if channel_key:
+                    known_channels.add(channel_key)
+                known_offers = set(state.get("known_offers") or [])
+                if offer_key:
+                    known_offers.add(offer_key)
+                sellers_json = json.dumps(sorted(known_sellers), ensure_ascii=False)
+                channels_json = json.dumps(sorted(known_channels), ensure_ascii=False)
+                offers_json = json.dumps(sorted(known_offers), ensure_ascii=False)
+
                 if not triggered:
                     # Память обновляется всегда: следующее снижение считается от актуальной цены
                     conn.execute("""
                         INSERT INTO watch_state (watch_id, product_id, previous_price, min_price,
-                                                 was_available, updated_at)
-                        VALUES (?, ?, ?, ?, ?, ?)
+                                                 was_available, updated_at,
+                                                 known_sellers, known_channels, known_offers)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ON CONFLICT(watch_id, product_id) DO UPDATE SET
                             previous_price = excluded.previous_price,
                             min_price = MIN(COALESCE(min_price, excluded.min_price), excluded.min_price),
-                            was_available = excluded.was_available, updated_at = excluded.updated_at
-                    """, (watch["id"], product_id, price, price or None, available, moment.isoformat()))
+                            was_available = excluded.was_available,
+                            updated_at = excluded.updated_at,
+                            known_sellers = excluded.known_sellers,
+                            known_channels = excluded.known_channels,
+                            known_offers = excluded.known_offers
+                    """, (watch["id"], product_id, price, price or None, available, moment.isoformat(),
+                          sellers_json, channels_json, offers_json))
                     conn.commit()
                     continue
 
@@ -2928,8 +2988,10 @@ def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.dateti
                 event_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
                 payload = {"kind": "watch", "watch_id": watch["id"], "event_id": event_id,
                            "reason": reason, "price": price,
-                           "product": {k: offer.get(k) for k in ("id", "title", "shop", "city", "url",
-                                                                 "image_url")},
+                           "product": {k: offer.get(k) for k in (
+                               "id", "title", "shop", "city", "url", "image_url",
+                               "seller_name", "seller_slug", "channel_type", "condition", "item_condition"
+                           )},
                            "description": w.describe(watch)}
                 conn.execute("""INSERT OR IGNORE INTO notification_outbox
                                 (alert_id, user_id, payload, status, created_at, next_attempt_at)
@@ -2938,25 +3000,30 @@ def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.dateti
                               moment.timestamp(), deliver_after))
                 conn.execute("""
                     INSERT INTO watch_state (watch_id, product_id, last_notified_price, previous_price,
-                                             min_price, was_available, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                                             min_price, was_available, updated_at,
+                                             known_sellers, known_channels, known_offers)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(watch_id, product_id) DO UPDATE SET
                         last_notified_price = excluded.last_notified_price,
                         previous_price = excluded.previous_price,
                         min_price = MIN(COALESCE(min_price, excluded.min_price), excluded.min_price),
-                        was_available = excluded.was_available, updated_at = excluded.updated_at
-                """, (watch["id"], product_id, price, price, price or None, available, moment.isoformat()))
+                        was_available = excluded.was_available,
+                        updated_at = excluded.updated_at,
+                        known_sellers = excluded.known_sellers,
+                        known_channels = excluded.known_channels,
+                        known_offers = excluded.known_offers
+                """, (watch["id"], product_id, price, price, price or None, available, moment.isoformat(),
+                      sellers_json, channels_json, offers_json))
                 # Одноразовое наблюдение помечается сработавшим, но остаётся включённым до отправки:
                 # выключение прямо здесь отменило бы его собственное сообщение (G01)
                 conn.execute("UPDATE watches SET last_sent_at = ?, fired_at = COALESCE(fired_at, ?) "
                              "WHERE id = ?", (moment.isoformat(), moment.isoformat(), watch["id"]))
                 conn.commit()
-            per_watch[watch["id"]] = per_watch.get(watch["id"], 0) + 1
-            watch["last_sent_at"] = moment.isoformat()
-            if not watch["repeat"]:
-                watch["fired_at"] = moment.isoformat()
-            queued += 1
-
+                per_watch[watch["id"]] = per_watch.get(watch["id"], 0) + 1
+                watch["last_sent_at"] = moment.isoformat()
+                if not watch["repeat"]:
+                    watch["fired_at"] = moment.isoformat()
+                queued += 1
     return queued
 
 

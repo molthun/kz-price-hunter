@@ -6,17 +6,53 @@
 
 - Дата: 2026-10-27, Asia/Almaty.
 - **Исполнитель:** Antigravity (основной разработчик).
+- **Время завершения:** 2026-10-27 21:52 Asia/Almaty
+- **Checkout / ветка / базовый HEAD:** `/Users/molthun/Documents/kz-price-hunter`, `main`, `8845cd7` (коммит S2-E19).
+- **Задача:** S2-E20. Telegram Watch V2 (новые триггеры `NEW_OFFER`, `NEW_SELLER`, `NEW_USED_OFFER`, `BETTER_CHANNEL`, `BETTER_SELLER`, фильтры состояний NEW/USED, каналы и продавцы).
+- **Статус:** **READY** (реализация завершена, ожидает независимого аудита Codex).
+- **Область файлов:** `watches.py`, `database.py`, `notifier.py`, `web/templates/index.html`, `tests/notifications/test_watches_v2.py`, `tests/README.md`, `CHANGELOG.md`, `docs/AGENT_HANDOFF.md`.
+- **Что сделано:**
+  1. `watches.py`:
+     - Добавлен вид наблюдения `SELLER` ("seller") для отслеживания предложений и ассортимента конкретного продавца;
+     - Добавлены новые триггеры V2: `NEW_OFFER` ("new_offer"), `NEW_SELLER` ("new_seller"), `NEW_USED_OFFER` ("new_used_offer"), `BETTER_CHANNEL` ("better_channel"), `BETTER_SELLER` ("better_seller"), `PRICE_DROP` ("price_drop" с поддержкой процентного и денежного порогов);
+     - Поддержка мультифильтрации: `item_conditions` (`new`, `used`, `refurbished`), `sellers` (список ID/имен), `channels` (типы каналов);
+     - Расширены функции `normalize`, `matches`, `condition_met` и `describe`.
+  2. `database.py`:
+     - Добавлены аддитивные колонки в таблицу `watches`: `item_conditions`, `sellers`, `channels`;
+     - Добавлены аддитивные колонки в `watch_state`: `known_sellers`, `known_channels`, `known_offers`;
+     - Поддержано сохранение и извлечение V2-полей в `create_watch`, `update_watch`, `_watch_row`, `_watch_states`;
+     - В `evaluate_watches` реализовано отслеживание известных продавцов, каналов и предложений с гарантией дедупликации и предотвращения повторных уведомлений.
+  3. `notifier.py`:
+     - Реализовано информативное форматирование сообщений в Telegram: отображение продавца, канала и состояния (новое / б/у), специализированные заголовки и иконки под каждый триггер.
+  4. `web/templates/index.html`:
+     - В блоке «Мои наблюдения» добавлена возможность выбора вида `seller`, новых условий срабатывания и фильтрации по состоянию товара (`new`, `used`, `refurbished`).
+  5. `tests/notifications/test_watches_v2.py`:
+     - Набор из 11 тестов со 100% покрытием всех новых триггеров, фильтров и интеграции со слоем БД.
+- **Проверки:**
+  - Полный Python suite: **1709 PASS** (74.538s, 0 failures, 0 errors);
+  - Покрытие тестами: **84%** (19 038 stmts, 3 082 miss), CI-порог 80% пройден;
+  - Браузерные тесты Playwright: **18 / 18 PASS**;
+  - `release_gate.py secrets` — 0 findings; `compileall` — OK;
+  - Рабочая база `prices.db` неприкосновенна.
+- **Следующий точный шаг:** независимый аудит S2-E20 (Codex).
+
+---
+
+## Предыдущая контрольная точка: S2-E19 (Seller Page & Showcase)
+
+- Дата: 2026-10-27, Asia/Almaty.
+- **Исполнитель:** Antigravity (основной разработчик).
 - **Время завершения:** 2026-10-27 21:20 Asia/Almaty
 - **Checkout / ветка / базовый HEAD:** `/Users/molthun/Documents/kz-price-hunter`, `main`, `d443767` (tag: `v6.2.1`).
 - **Задача:** S2-E19. Страница продавца (Seller Page & Showcase).
-- **Статус:** **READY** (реализация завершена, ожидает независимого аудита Codex).
+- **Статус:** **READY** (реализация завершена в коммите `8845cd7`, ожидает аудита Codex).
 - **Область файлов:** `domain/seller_showcase.py`, `repositories/offer_repo.py`, `repositories/seller_repo.py`, `web/server.py`, `web/templates/index.html`, `tests/sellers/test_seller_page.py`, `tests/web/test_seller_endpoints.py`, `tests/frontend/test_frontend_seller_modal.cjs`, `tests/README.md`, `CHANGELOG.md`, `docs/AGENT_HANDOFF.md`.
 - **Что сделано:**
-  1. `OfferRepository`: добавлены `get_active_offers_with_details_for_seller`, `count_active_offers_for_seller`, `get_seller_aggregates` (разбивка по состояниям, городам и категориям с JOIN к `canonical_products` и `channels`).
-  2. `SellerRepository`: добавлены `get_by_id_or_slug`, `list_sellers_summary`, `count_sellers_summary` для выборки продавцов с агрегированным числом каналов и офферов.
-  3. `domain/seller_showcase.py`: мультиканальная группировка офферов продавца по каноническим продуктам (`group_seller_offers_by_product`), построение полной модели витрины (`build_seller_showcase`).
-  4. `web/server.py`: реализованы эндпоинты `GET /api/v2/sellers` (каталог продавцов с фильтрами по городу, типу канала и поиском) и `GET /api/v2/seller/{id_or_slug}` (детальный профиль и витрина предложений).
-  5. `web/templates/index.html`: добавлено модальное окно витрины продавца `modalSellerShowcase`, функции `openSellerModal` / `closeSellerModal`, интеграция с карточками Search UI 2.0 (клик по имени продавца открывает его витрину).
+  1. `OfferRepository`: добавлены `get_active_offers_with_details_for_seller`, `count_active_offers_for_seller`, `get_seller_aggregates`.
+  2. `SellerRepository`: добавлены `get_by_id_or_slug`, `list_sellers_summary`, `count_sellers_summary`.
+  3. `domain/seller_showcase.py`: мультиканальная группировка офферов продавца по каноническим продуктам, построение полной модели витрины.
+  4. `web/server.py`: реализованы эндпоинты `GET /api/v2/sellers` и `GET /api/v2/seller/{id_or_slug}`.
+  5. `web/templates/index.html`: добавлено модальное окно витрины продавца `modalSellerShowcase`, функции `openSellerModal` / `closeSellerModal`, интеграция с Search UI 2.0.
   6. Тесты: `tests/sellers/test_seller_page.py` (6 проверок), `tests/web/test_seller_endpoints.py` (6 проверок), `tests/frontend/test_frontend_seller_modal.cjs` (Playwright-сценарий).
 - **Проверки:**
   - Полный Python suite: **1698 PASS** (74.430s, 0 failures, 0 errors);
@@ -223,6 +259,7 @@ Checkout / ветка / базовый HEAD: /Users/molthun/Documents/kz-price-h
 | S2-E17 | Adaptive Scheduler 2.0: контролируемое включение (mode on) | READY | Codex (по поручению владельца) | Codex APPROVED (кодовый review); live shadow/on не проверялись | — |
 | S2-E08 | Social Content Intelligence & Stories TTL | READY | Antigravity → Codex (TTL, парсер цен, репозиторий) → Claude / Antigravity (приёмка) | C-E08-01 закрыт; ACCEPTED 2026-10-27 | — |
 | S2-E19 | Seller Page & Showcase (витрина продавца, каналы, офферы) | READY | Antigravity | ожидает аудит Codex | — |
+| S2-E20 | Telegram Watch V2 (новые триггеры, фильтры NEW/USED, каналы, продавцы) | READY | Antigravity | ожидает аудит Codex | — |
 
 ## Результаты проверок Codex (2026-10-22)
 

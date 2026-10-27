@@ -26,7 +26,7 @@
 | `tests/monitoring/` | телеметрия, качество и свежесть данных, Центр мониторинга, backup health, environment, scaling, daily digest | `test_monitor.py`, `test_telemetry.py` |
 | `tests/scheduler/` | теневой планировщик, rollout, Adaptive Scheduler 2.0 (спрос/discovery), аренды и устойчивость | `test_scheduler_rollout.py`, `test_shadow_read.py` |
 | `tests/ai/` | AI-роутер и модели, цены, каталог и качество, matching, админ-помощник | `test_ai_router.py`, `test_catalog_quality.py` |
-| `tests/notifications/` | Telegram-уведомления, наблюдения (watches), бот, обращения магазинов | `test_watches.py`, `test_notifications.py` |
+| `tests/notifications/` | Telegram-уведомления, наблюдения (watches), бот, обращения магазинов | `test_watches.py`, `test_watches_v2.py`, `test_notifications.py` |
 | `tests/web/` | HTTP API и auth, gzip/кэш дашборда, browser-фикстура сервера, security headers/logging, UI data, self-service приватности | `test_ui_data.py`, `test_auth_privacy.py` |
 | `tests/frontend/` | браузерные регрессии интерфейса (Playwright + Chrome), не Python | `test_frontend*.cjs` |
 

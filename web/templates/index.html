@@ -1083,6 +1083,7 @@
                   <option value="model">модель</option>
                   <option value="category">категория</option>
                   <option value="product">товар по ссылке-идентификатору</option>
+                  <option value="seller">продавец</option>
                   <option value="shop">магазин</option>
                   <option value="deal">выгодные предложения</option>
                   <option value="arbitrage">разница цен между магазинами</option>
@@ -1091,10 +1092,16 @@
               <label class="text-xs text-slate-400">Условие
                 <select id="watchCondition" onchange="updateWatchThreshold()" class="mt-1 w-full bg-dark-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
                   <option value="target_price">цена не выше</option>
+                  <option value="price_drop">снижение цены</option>
                   <option value="drop_pct">снижение от, %</option>
                   <option value="drop_kzt">снижение от, ₸</option>
                   <option value="any_drop">любое снижение</option>
                   <option value="best_price">лучшая цена за всё время</option>
+                  <option value="new_offer">новое предложение</option>
+                  <option value="new_seller">новый продавец</option>
+                  <option value="new_used_offer">появление б/у</option>
+                  <option value="better_channel">более выгодный канал</option>
+                  <option value="better_seller">лучшая цена у другого продавца</option>
                   <option value="back_in_stock">снова в продаже</option>
                   <option value="any_find">любая находка (сделки, разница цен)</option>
                   <option value="discount_pct">скидка от, % (сделки, разница цен)</option>
@@ -1104,9 +1111,18 @@
                 <input id="watchThreshold" type="number" min="1" placeholder="150000" class="mt-1 w-full bg-dark-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
               </label>
             </div>
-            <div class="flex flex-wrap items-center gap-3">
-              <button type="button" onclick="createWatch()" class="px-4 py-2 rounded-xl bg-rose-500/90 hover:bg-rose-500 text-white text-sm font-semibold transition cursor-pointer"><i class="fa-solid fa-plus mr-1"></i>Добавить наблюдение</button>
+            <div class="flex flex-wrap items-center gap-3 pt-1">
+              <label class="text-xs text-slate-400 flex items-center gap-2">
+                <span>Состояние:</span>
+                <select id="watchItemCondition" class="bg-dark-900 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white">
+                  <option value="">любое (новое и б/у)</option>
+                  <option value="new">только новые</option>
+                  <option value="used">только б/у (USED)</option>
+                  <option value="refurbished">только refurbished</option>
+                </select>
+              </label>
               <label class="flex items-center gap-2 text-xs text-slate-400 cursor-pointer"><input id="watchOnce" type="checkbox" class="accent-rose-500"><span>сообщить один раз и выключить</span></label>
+              <button type="button" onclick="createWatch()" class="px-4 py-2 rounded-xl bg-rose-500/90 hover:bg-rose-500 text-white text-sm font-semibold transition cursor-pointer"><i class="fa-solid fa-plus mr-1"></i>Добавить наблюдение</button>
               <span id="watchesMessage" class="text-xs"></span>
             </div>
             <div id="watchesList" class="space-y-2"></div>
@@ -5537,8 +5553,8 @@
       if (typeof loadWatches === 'function') loadWatches();
     }
 
-    // --- Мои наблюдения (P07) ---
-    const WATCH_NEEDS_VALUE = ['target_price', 'drop_pct', 'drop_kzt', 'discount_pct'];
+    // --- Мои наблюдения (P07 / V2) ---
+    const WATCH_NEEDS_VALUE = ['target_price', 'drop_pct', 'drop_kzt', 'discount_pct', 'price_drop'];
 
     // Виды «сделки» и «разница цен» устроены иначе: цель — это область поиска, а условия у них свои
     const WATCH_FIND_KINDS = ['deal', 'arbitrage'];
@@ -5550,6 +5566,7 @@
       const target = document.getElementById('watchTarget');
       const hint = document.getElementById('watchTargetHint');
       target.placeholder = isFind ? 'все — или название категории'
+        : kind === 'seller' ? 'например, Technodom или seller-slug'
         : kind === 'shop' ? 'например, Kaspi' : 'например, iphone 15 pro';
       hint.textContent = isFind
         ? 'Для сделок и разницы цен укажите «все» или категорию: сообщение придёт, когда такая находка появится в ленте.'
@@ -5629,7 +5646,14 @@
         condition,
         repeat: !document.getElementById('watchOnce').checked,
       };
-      if (WATCH_NEEDS_VALUE.includes(condition)) body.threshold = document.getElementById('watchThreshold').value;
+      const condFilter = document.getElementById('watchItemCondition')?.value;
+      if (condFilter) {
+        body.item_conditions = [condFilter];
+      }
+      if (WATCH_NEEDS_VALUE.includes(condition)) {
+        const th = document.getElementById('watchThreshold').value;
+        if (th) body.threshold = th;
+      }
       if (!body.target && WATCH_FIND_KINDS.includes(body.kind)) body.target = 'все';
       if (!body.target) { watchMessage('Укажите, за чем следить', false); return; }
       const res = await fetch('/api/me/watches', {method: 'POST', headers: {'Content-Type': 'application/json'},

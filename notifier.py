@@ -146,9 +146,12 @@ def send_telegram_alert(chat_id: int, product: Dict[str, Any], anomaly: Dict[str
         return DeliveryResult("retry", None, type(e).__name__)
 
 def send_watch_message(chat_id: int, payload: Dict[str, Any]) -> DeliveryResult:
-    """Сообщение по личному наблюдению (P07): что сработало и почему — в первой же строке."""
+    """Сообщение по личному наблюдению (P07 / V2): что сработало и почему — в первой же строке."""
     product = payload.get("product") or {}
     shop = product.get("shop", "Магазин")
+    seller_name = product.get("seller_name") or shop
+    channel_type = product.get("channel_type")
+    condition = product.get("condition") or product.get("item_condition")
     watch_id = payload.get("watch_id")
     price = int(payload.get("price") or 0)
     reason = str(payload.get("reason") or "").strip()
@@ -161,22 +164,40 @@ def send_watch_message(chat_id: int, payload: Dict[str, Any]) -> DeliveryResult:
         sub_header = "👑 <b>Самая низкая цена за всё время!</b>\n"
     elif "снова в продаже" in reason.lower():
         sub_header = "📦 <b>Товар снова в продаже!</b>\n"
+    elif "появилось б/у" in reason.lower() or "б/у предложение" in reason.lower():
+        sub_header = "♻️ <b>Появилось б/у предложение!</b>\n"
+    elif "новый продавец" in reason.lower():
+        sub_header = "🏪 <b>Новый продавец для товара!</b>\n"
+    elif "новое предложение" in reason.lower():
+        sub_header = "✨ <b>Новое предложение!</b>\n"
+    elif "более выгодный канал" in reason.lower() or "новый канал" in reason.lower():
+        sub_header = "🚀 <b>Более выгодный канал покупки!</b>\n"
     elif "снизилась" in reason.lower():
         sub_header = "📉 <b>Цена снизилась!</b>\n"
     else:
         sub_header = ""
 
+    details = [
+        f"{_shop_emoji(shop)} <b>Магазин / Продавец:</b> {html.escape(seller_name)}",
+        f"🏷 <b>Товар:</b> {html.escape(product.get('title') or '')}",
+    ]
+    if condition and condition != "new":
+        cond_label = "Б/у" if condition == "used" else "Refurbished"
+        details.append(f"📦 <b>Состояние:</b> {cond_label}")
+    if channel_type:
+        details.append(f"🌐 <b>Канал:</b> {html.escape(str(channel_type))}")
+    details.append(f"📍 <b>Регион:</b> {html.escape(product.get('city') or 'Астана')}")
+    details.append(f"✅ <b>Цена:</b> <b>{format_price(price)}</b>")
+
+    body = "\n".join(details)
     text = (
         f"🔔 <b>Сработало ваше наблюдение</b>\n"
         f"{sub_header}"
         f"{html.escape(desc)}\n\n"
-        f"{_shop_emoji(shop)} <b>Магазин:</b> {html.escape(shop)}\n"
-        f"🏷 <b>Товар:</b> {html.escape(product.get('title') or '')}\n"
-        f"📍 <b>Регион:</b> {html.escape(product.get('city') or 'Астана')}\n"
-        f"✅ <b>Цена:</b> <b>{format_price(price)}</b>\n\n"
+        f"{body}\n\n"
         f"ℹ️ {html.escape(reason)}"
     )
-    keyboard = [[{"text": f"⚡️ Открыть товар в {shop}", "url": product.get("url") or APP_URL or ""}]]
+    keyboard = [[{"text": f"⚡️ Открыть предложение", "url": product.get("url") or APP_URL or ""}]]
     second_row = []
     if watch_id:
         second_row.append({"text": "🔕 Не следить", "callback_data": f"unwatch:{watch_id}"})
