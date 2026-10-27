@@ -1,0 +1,130 @@
+{
+  "date": "2026-10-27",
+  "timezone": "Asia/Almaty",
+  "auditor": "Codex",
+  "snapshots": {
+    "hotfix": "0ceda448aec9a199e62facdf4eeea267b9e3d46f",
+    "local_main": "257708f70d408e05da133737421c08545be4978d",
+    "remote_main": "d4437674c4416dc62fcbe0fcf3d71cb3d3604cbd"
+  },
+  "tests": {
+    "hotfix": {
+      "python": 1693,
+      "seconds": 75.634,
+      "coverage_percent": 84,
+      "frontend_suites": 17
+    },
+    "main": {
+      "python": 1716,
+      "seconds": 77.176,
+      "frontend_suites": 18
+    },
+    "old_code_negative_control": {
+      "tests": 7,
+      "failures": 1,
+      "errors": 5
+    }
+  },
+  "dependencies": {
+    "audited_packages": 23,
+    "known_vulnerabilities": 0,
+    "gate_ok": true
+  },
+  "upgrade": {
+    "ok": true,
+    "schema_before": 5,
+    "schema_after": 5,
+    "smoke": [
+      {
+        "check": "активные товары",
+        "ok": true
+      },
+      {
+        "check": "товар с ценой",
+        "ok": true
+      },
+      {
+        "check": "вход пользователя",
+        "ok": true
+      },
+      {
+        "check": "наблюдения человека",
+        "ok": true
+      },
+      {
+        "check": "очередь уведомлений",
+        "ok": true
+      },
+      {
+        "check": "лента алертов",
+        "ok": true
+      }
+    ],
+    "integrity": "ok",
+    "rollback_compatible": true,
+    "upgraded_copy": "/tmp/kzph-audit-20261027/upgraded.db",
+    "schema_expected": 5,
+    "rollback_note": "Схема не изменилась, поэтому прежний образ такую базу откроет. Это необходимое условие, но не доказательство: работу прежнего кода подтверждает отдельная проверка rollback_check."
+  },
+  "rollback": {
+    "ok": true,
+    "checks": [
+      {
+        "check": "активные товары",
+        "ok": true
+      },
+      {
+        "check": "товар с ценой",
+        "ok": true
+      },
+      {
+        "check": "вход пользователя",
+        "ok": true
+      },
+      {
+        "check": "наблюдения человека",
+        "ok": true
+      },
+      {
+        "check": "очередь уведомлений",
+        "ok": true
+      },
+      {
+        "check": "лента алертов",
+        "ok": true
+      }
+    ],
+    "note": "Запросы приложения выполнены кодом прежнего релиза на обновлённой копии"
+  },
+  "reproductions": {
+    "hotfix": [
+      "SECRET_SCAN_PROJECT_KEY {\"ok\": true, \"findings_count\": 0}",
+      "SORT_LIMIT {\"limit1\": 900.0, \"limit50\": 100.0}",
+      "TTL_OFFSET {\"expired_python\": false, \"visible_sql\": 0, \"purged_sql\": 1}",
+      "QUERY_ERROR_LOG True",
+      "EVENT_LOOP_DELAY_SECONDS 0.773",
+      "HTTP_SEARCH_FAILURE {\"http\": 200, \"outcome\": \"ERROR\"}",
+      "READINESS_FALSE_GREEN {\"version_http\": 200, \"stats_http\": 500}"
+    ],
+    "main": [
+      "SECRET_SCAN_PROJECT_KEY {\"ok\": true, \"findings_count\": 0}",
+      "SORT_LIMIT {\"limit1\": 900.0, \"limit50\": 100.0}",
+      "TTL_OFFSET {\"expired_python\": false, \"visible_sql\": 0, \"purged_sql\": 1}",
+      "QUERY_ERROR_LOG True",
+      "EVENT_LOOP_DELAY_SECONDS 0.777",
+      "HTTP_SEARCH_FAILURE {\"http\": 200, \"outcome\": \"ERROR\"}",
+      "READINESS_FALSE_GREEN {\"version_http\": 200, \"stats_http\": 500}",
+      "SHOWCASE_MIN 1.0",
+      "WATCHED_OFFERS_KEYS ['canonical_key', 'category', 'city', 'current_price', 'id', 'image_url', 'is_available', 'shop', 'title', 'url']",
+      "WATCH_BETTER_SELLER 0",
+      "WATCH_NEW_SELLER 2"
+    ]
+  },
+  "limits": [
+    "No Docker build or image smoke",
+    "No production access",
+    "No external AI or Telegram calls",
+    "No live shop or social API acceptance",
+    "No working database access"
+  ]
+}
