@@ -94,7 +94,7 @@ MAX_SEARCH_EVENTS_PER_MINUTE = 60
 FLUSH_INTERVAL_SECONDS = 10.0
 PRUNE_INTERVAL_SECONDS = 6 * 3600
 # Телеметрия не ждёт блокировку SQLite дольше этого: обход важнее диагностики
-DB_BUSY_TIMEOUT_SECONDS = 2.0
+DB_BUSY_TIMEOUT_SECONDS = 5.0
 
 # Бакеты агрегатов и формат их начала (лексикографически сравнимые строки UTC)
 BUCKET_FORMATS = {

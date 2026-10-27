@@ -317,17 +317,21 @@ class ClosingConnection(sqlite3.Connection):
 
 
 def ensure_journal_mode() -> str:
-    """Включает WAL один раз — пока фоновые работники не открыли свои соединения.
+    """Включает WAL и synchronous = NORMAL один раз — пока фоновые работники не открыли свои соединения.
 
-    Смена журнального режима требует исключительного доступа к базе. Пока она
-    запрашивалась на каждом соединении, занятая база отвечала "database is locked"
+    Смена журнального режима и прагм синхронизации требует исключительного доступа к базе. Пока они
+    запрашивались на каждом соединении, занятая база отвечала "database is locked"
     уже на открытии: другое соединение в работающем приложении есть всегда, поэтому
-    перейти в WAL не удавалось никогда и падало каждое обращение (C-DB-01). Здесь
-    неудача не фатальна: без WAL приложение работает медленнее, но работает.
+    любая лишняя прагма в get_connection валила открытие соединения (C-DB-01 / C-DB-02).
     """
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH, timeout=15)
     try:
+        try:
+            conn.execute("PRAGMA busy_timeout = 15000;")
+            conn.execute("PRAGMA synchronous = NORMAL;")
+        except sqlite3.OperationalError:
+            pass
         mode = str(conn.execute("PRAGMA journal_mode;").fetchone()[0]).lower()
         if mode == "wal":
             return mode
@@ -346,10 +350,6 @@ def get_connection():
     conn.row_factory = sqlite3.Row
     # Магазины сканируются параллельно: ждем освобождения блокировки вместо ошибки "database is locked"
     conn.execute("PRAGMA busy_timeout = 15000;")
-    # Журнальный режим здесь не трогаем: его смена требует исключительного доступа
-    # и валила открытие соединения на занятой базе (C-DB-01). Он ставится один раз
-    # в ensure_journal_mode() при инициализации.
-    conn.execute("PRAGMA synchronous = NORMAL;")
     return conn
 
 def _columns(cursor, table: str) -> set:
@@ -1558,7 +1558,7 @@ def get_price_history_batch(product_ids: List[str]) -> Dict[str, Dict[str, Any]]
     return history
 
 def save_or_update_products_batch(products: List[Dict[str, Any]]) -> int:
-    """Массовая вставка/обновление товаров в единой транзакции (для YML выгрузок и больших каталогов)."""
+    """Массовая вставка/обновление товаров порциями в транзакциях (для YML выгрузок и больших каталогов)."""
     if not products:
         return 0
 
@@ -1566,60 +1566,70 @@ def save_or_update_products_batch(products: List[Dict[str, Any]]) -> int:
 
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     updated_count = 0
+    chunk_size = 100
 
-    with get_connection() as conn:
-        cursor = conn.cursor()
-        for p in products:
-            pid = str(p["id"])
-            shop = p.get("shop", "Белый Ветер")
-            city = p.get("city", "Астана")
-            title = p["title"]
-            category = p.get("category", "")
-            url = p["url"]
-            if url and "kaspi.kz/p/" in url and "kaspi.kz/shop/p/" not in url:
-                url = url.replace("kaspi.kz/p/", "kaspi.kz/shop/p/")
-            image_url = p.get("image_url", "")
-            if image_url and "shop.kz//static.shop.kz" in image_url:
-                image_url = image_url.replace("https://shop.kz//static.shop.kz", "https://static.shop.kz").replace("shop.kz//static.shop.kz", "static.shop.kz")
-            description = p.get("description") or ""
+    for i in range(0, len(products), chunk_size):
+        chunk = products[i:i + chunk_size]
+        for attempt in range(3):
             try:
-                current_price = int(p.get("price", 0))
-            except (TypeError, ValueError):
-                current_price = 0
-            if current_price > 10_000_000 or current_price <= 0:
-                continue
-            canonical_key = p.get("canonical_key") or extract_canonical_key(title)
-            old_on_site = site_old_price(p.get("old_price_on_site"), current_price)
+                with get_connection() as conn:
+                    cursor = conn.cursor()
+                    for p in chunk:
+                        pid = str(p["id"])
+                        shop = p.get("shop", "Белый Ветер")
+                        city = p.get("city", "Астана")
+                        title = p["title"]
+                        category = p.get("category", "")
+                        url = p["url"]
+                        if url and "kaspi.kz/p/" in url and "kaspi.kz/shop/p/" not in url:
+                            url = url.replace("kaspi.kz/p/", "kaspi.kz/shop/p/")
+                        image_url = p.get("image_url", "")
+                        if image_url and "shop.kz//static.shop.kz" in image_url:
+                            image_url = image_url.replace("https://shop.kz//static.shop.kz", "https://static.shop.kz").replace("shop.kz//static.shop.kz", "static.shop.kz")
+                        description = p.get("description") or ""
+                        try:
+                            current_price = int(p.get("price", 0))
+                        except (TypeError, ValueError):
+                            current_price = 0
+                        if current_price > 10_000_000 or current_price <= 0:
+                            continue
+                        canonical_key = p.get("canonical_key") or extract_canonical_key(title)
+                        old_on_site = site_old_price(p.get("old_price_on_site"), current_price)
 
-            cursor.execute("SELECT current_price, min_price, max_price, old_price_on_site FROM products WHERE id = ?", (pid,))
-            existing = cursor.fetchone()
-            _record_observation(cursor, pid, existing, current_price, old_on_site, now)
+                        cursor.execute("SELECT current_price, min_price, max_price, old_price_on_site FROM products WHERE id = ?", (pid,))
+                        existing = cursor.fetchone()
+                        _record_observation(cursor, pid, existing, current_price, old_on_site, now)
 
-            if existing is None:
-                cursor.execute("""
-                    INSERT INTO products (id, shop, city, title, category, url, image_url, description, current_price, old_price_on_site, first_seen_price, min_price, max_price, canonical_key, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (pid, shop, city, title, category, url, image_url, description, current_price, old_on_site, current_price, current_price, current_price, canonical_key, now, now))
-            else:
-                min_price = min(existing["min_price"], current_price)
-                max_price = max(existing["max_price"], current_price)
-                cursor.execute("""
-                    UPDATE products
-                    SET is_active = 1, shop = ?, city = ?, title = ?, category = ?, url = ?, image_url = ?,
-                        description = CASE WHEN ? != '' THEN ? ELSE description END,
-                        current_price = ?, old_price_on_site = ?, min_price = ?, max_price = ?, canonical_key = COALESCE(?, canonical_key), updated_at = ?
-                    WHERE id = ?
-                """, (shop, city, title, category, url, image_url, description, description, current_price, old_on_site, min_price, max_price, canonical_key, now, pid))
-            if os.environ.get("DUAL_WRITE_V2", "1") != "0":
-                _DUAL_WRITE_STATS["total"] += 1
-                try:
-                    from domain.adapter import sync_legacy_product_to_v2
-                    sync_legacy_product_to_v2(conn, p, now)
-                except Exception as e:
-                    _record_dual_write_error(pid, e)
+                        if existing is None:
+                            cursor.execute("""
+                                INSERT INTO products (id, shop, city, title, category, url, image_url, description, current_price, old_price_on_site, first_seen_price, min_price, max_price, canonical_key, created_at, updated_at)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """, (pid, shop, city, title, category, url, image_url, description, current_price, old_on_site, current_price, current_price, current_price, canonical_key, now, now))
+                        else:
+                            min_price = min(existing["min_price"], current_price)
+                            max_price = max(existing["max_price"], current_price)
+                            cursor.execute("""
+                                UPDATE products
+                                SET is_active = 1, shop = ?, city = ?, title = ?, category = ?, url = ?, image_url = ?,
+                                    description = CASE WHEN ? != '' THEN ? ELSE description END,
+                                    current_price = ?, old_price_on_site = ?, min_price = ?, max_price = ?, canonical_key = COALESCE(?, canonical_key), updated_at = ?
+                                WHERE id = ?
+                            """, (shop, city, title, category, url, image_url, description, description, current_price, old_on_site, min_price, max_price, canonical_key, now, pid))
+                        if os.environ.get("DUAL_WRITE_V2", "1") != "0":
+                            _DUAL_WRITE_STATS["total"] += 1
+                            try:
+                                from domain.adapter import sync_legacy_product_to_v2
+                                sync_legacy_product_to_v2(conn, p, now)
+                            except Exception as e:
+                                _record_dual_write_error(pid, e)
 
-            updated_count += 1
-        conn.commit()
+                        updated_count += 1
+                    conn.commit()
+                break
+            except sqlite3.OperationalError as e:
+                if attempt == 2 or "locked" not in str(e).lower():
+                    raise
+                time.sleep(0.5 * (attempt + 1))
 
     return updated_count
 
