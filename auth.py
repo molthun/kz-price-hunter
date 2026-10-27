@@ -1,4 +1,5 @@
 """Авторизация через Telegram Login Widget, сессии, права доступа и ограничение частоты запросов."""
+import asyncio
 import hmac
 import time
 import hashlib
@@ -183,7 +184,11 @@ async def auth_middleware(request: web.Request, handler):
         if request.headers.get("Sec-Fetch-Site") == "cross-site":
             return web.json_response({"status": "error", "message": "Запрос с чужого сайта отклонен"}, status=403, headers={"Cache-Control": "no-store"})
 
-    request["user"] = get_session_user(request.cookies.get(SESSION_COOKIE))
+    session_cookie = request.cookies.get(SESSION_COOKIE)
+    if session_cookie:
+        request["user"] = await asyncio.to_thread(get_session_user, session_cookie)
+    else:
+        request["user"] = None
     # A developer session is only meaningful at the same direct local boundary.
     if request["user"] and int(request["user"]["id"]) == DEV_ADMIN_ID and not dev_login_allowed(request):
         request["user"] = None

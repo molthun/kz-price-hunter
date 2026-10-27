@@ -35,6 +35,17 @@ class SecretScanTest(unittest.TestCase):
         self.assertFalse(report["ok"])
         self.assertEqual(report["findings"][0]["kind"], "Google/Gemini API key")
 
+    def test_openai_keys_including_proj_and_svcacct_are_found(self):
+        """A11: распознавание ключей OpenAI с префиксами proj- и svcacct- и дефисами."""
+        self.write("openai_proj.py", 'KEY = "sk-proj-' + "A" * 25 + '"\n')
+        self.write("openai_svc.py", 'KEY = "sk-svcacct-' + "B" * 25 + '"\n')
+        self.write("openai_std.py", 'KEY = "sk-' + "C" * 25 + '"\n')
+        report = gate.check_secrets(self.tmp.name)
+        self.assertFalse(report["ok"])
+        kinds = [f["kind"] for f in report["findings"]]
+        self.assertEqual(len(kinds), 3)
+        self.assertTrue(all(k == "OpenAI API key" for k in kinds))
+
     def test_secret_value_is_not_printed_in_the_report(self):
         """Отчёты пересылают: сам ключ в них попадать не должен."""
         secret = "AIza" + "c" * 35

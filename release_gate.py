@@ -36,7 +36,7 @@ MAX_SCAN_BYTES = 2_000_000
 # Узкие шаблоны настоящих ключей: широкое «password» дало бы шум, на который перестают смотреть.
 SECRET_PATTERNS = (
     ("Google/Gemini API key", re.compile(r"\bAIza[0-9A-Za-z_\-]{35}\b")),
-    ("OpenAI API key", re.compile(r"\bsk-[A-Za-z0-9]{20,}\b")),
+    ("OpenAI API key", re.compile(r"\bsk-(?:proj-|svcacct-|admin-)?[A-Za-z0-9_\-]{20,}\b")),
     ("Telegram bot token", re.compile(r"\b\d{8,10}:[A-Za-z0-9_\-]{35}\b")),
     ("AWS access key", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
     ("Приватный ключ", re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH |PGP )?PRIVATE KEY-----")),

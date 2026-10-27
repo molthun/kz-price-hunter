@@ -2958,6 +2958,11 @@ def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.dateti
             channel_key = str(offer.get("channel_type") or offer.get("channel_id") or offer.get("channel") or "").strip().lower()
             offer_key = str(offer.get("id") or offer.get("offer_id") or "").strip()
 
+            # A03: Для межпродавцовых, межканальных условий и наблюдений за товаром
+            # ключом состояния должен быть канонический идентификатор товара
+            canonical_id = str(offer.get("canonical_product_id") or offer.get("product_id") or offer.get("canonical_key") or product_id)
+            scope_id = canonical_id if (canonical_id and canonical_id != product_id) else product_id
+
             with get_connection() as conn:
                 # Чтение состояния, решение и запись события — одна транзакция на запись: два
                 # одновременных обхода не создадут два сообщения об одном снижении (P07 G02)
@@ -2967,7 +2972,7 @@ def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.dateti
                 if not fresh or not fresh["is_active"] or (not fresh["repeat_mode"] and fresh["fired_at"]):
                     conn.rollback()
                     continue
-                state = _watch_states(conn, watch["id"], product_id)
+                state = _watch_states(conn, watch["id"], scope_id)
                 triggered, reason = w.condition_met(watch, offer, state)
 
                 known_sellers = set(state.get("known_sellers") or [])
@@ -2998,7 +3003,7 @@ def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.dateti
                             known_sellers = excluded.known_sellers,
                             known_channels = excluded.known_channels,
                             known_offers = excluded.known_offers
-                    """, (watch["id"], product_id, price, price or None, available, moment.isoformat(),
+                    """, (watch["id"], scope_id, price, price or None, available, moment.isoformat(),
                           sellers_json, channels_json, offers_json))
                     conn.commit()
                     continue
@@ -3041,7 +3046,7 @@ def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.dateti
                         known_sellers = excluded.known_sellers,
                         known_channels = excluded.known_channels,
                         known_offers = excluded.known_offers
-                """, (watch["id"], product_id, price, price, price or None, available, moment.isoformat(),
+                """, (watch["id"], scope_id, price, price, price or None, available, moment.isoformat(),
                       sellers_json, channels_json, offers_json))
                 # Одноразовое наблюдение помечается сработавшим, но остаётся включённым до отправки:
                 # выключение прямо здесь отменило бы его собственное сообщение (G01)
@@ -3060,11 +3065,11 @@ WATCH_ALERT_WINDOW_MINUTES = 30      # находка считается све�
 
 
 def watched_offers(product_ids: List[str], now: Optional[datetime.datetime] = None) -> List[Dict[str, Any]]:
-    """Сохранённые предложения по идентификаторам — вход для проверки наблюдений (P07).
+    """Сохранённые предложения по идентификаторам — вход для проверки наблюдений (P07, A02).
 
     К предложению добавляется свежая находка ленты (алерт), если она есть: вид, скидка и магазин-основание.
-    Наблюдения за сделками и арбитражем срабатывают именно на записанный алерт, а не на собственную догадку
-    о том, что цена «выглядит хорошей».
+    Поддерживает V2-схему (offers, canonical_products, sellers, channels) с передачей
+    seller_id, seller_slug, channel_type, condition и canonical_product_id.
     """
     ids = [str(i) for i in product_ids if i]
     if not ids:
@@ -3075,12 +3080,65 @@ def watched_offers(product_ids: List[str], now: Optional[datetime.datetime] = No
     since = (moment - datetime.timedelta(minutes=WATCH_ALERT_WINDOW_MINUTES)).strftime("%Y-%m-%d %H:%M:%S")
     rows: List[Dict[str, Any]] = []
     with get_connection() as conn:
+        has_v2 = bool(conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='offers'").fetchone())
+
         for start in range(0, len(ids), 500):
             chunk = ids[start:start + 500]
             placeholders = ",".join("?" * len(chunk))
-            rows.extend(dict(r) for r in conn.execute(
-                f"SELECT id, title, shop, city, url, image_url, category, canonical_key, current_price, "
-                f"is_active AS is_available FROM products WHERE id IN ({placeholders})", chunk))
+            found_ids = set()
+
+            if has_v2:
+                v2_sql = f"""
+                    SELECT
+                        o.id,
+                        o.id AS offer_id,
+                        o.product_id AS canonical_product_id,
+                        o.product_id,
+                        cp.canonical_key,
+                        COALESCE(cp.title, o.id) AS title,
+                        COALESCE(cp.category, 'general') AS category,
+                        COALESCE(s.name, 'Магазин') AS shop,
+                        s.id AS seller_id,
+                        s.slug AS seller_slug,
+                        s.name AS seller_name,
+                        c.id AS channel_id,
+                        c.channel_type,
+                        LOWER(COALESCE(o.condition, 'new')) AS condition,
+                        o.city,
+                        o.url,
+                        o.image_url,
+                        CAST(o.price AS INTEGER) AS current_price,
+                        o.is_active AS is_available
+                    FROM offers o
+                    LEFT JOIN canonical_products cp ON o.product_id = cp.id
+                    LEFT JOIN sellers s ON o.seller_id = s.id
+                    LEFT JOIN channels c ON o.channel_id = c.id
+                    WHERE o.id IN ({placeholders})
+                """
+                v2_rows = [dict(r) for r in conn.execute(v2_sql, chunk)]
+                for r in v2_rows:
+                    found_ids.add(r["id"])
+                    rows.append(r)
+
+            missing = [i for i in chunk if i not in found_ids]
+            if missing:
+                m_placeholders = ",".join("?" * len(missing))
+                legacy_rows = [dict(r) for r in conn.execute(
+                    f"SELECT id, title, shop, city, url, image_url, category, canonical_key, current_price, "
+                    f"is_active AS is_available FROM products WHERE id IN ({m_placeholders})", missing)]
+                for r in legacy_rows:
+                    from domain.adapter import resolve_seller_and_channel_meta
+                    slug, sname, ch_type = resolve_seller_and_channel_meta(r.get("shop") or "")
+                    r["seller_id"] = f"seller_{slug}"
+                    r["seller_slug"] = slug
+                    r["seller_name"] = sname
+                    r["channel_type"] = ch_type
+                    r["condition"] = "new"
+                    r["product_id"] = r.get("id")
+                    r["canonical_product_id"] = r.get("id")
+                    rows.append(r)
+
             for row in conn.execute(
                     f"SELECT product_id, alert_type, discount_pct, new_price, competitor_shop "
                     f"FROM alerts WHERE product_id IN ({placeholders}) AND is_dismissed = 0 "

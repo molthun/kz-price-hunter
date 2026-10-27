@@ -129,7 +129,8 @@ jobs:
 
       - name: Create a database of the previous release
         run: |
-          PREV=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1)
+          CURRENT_REF="${GITHUB_REF_NAME:-}"
+          PREV=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | grep -v "^${CURRENT_REF}$" | head -n 1)
           echo "Предыдущий релиз: ${PREV:-нет тега, берём текущий код}"
           rm -rf prev-release prev-data && mkdir -p prev-data
           if [ -n "$PREV" ]; then

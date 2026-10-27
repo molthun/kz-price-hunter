@@ -2774,21 +2774,30 @@
             const chHref = storeUrl(ch.url);
             const chName = ch.channel_name || ch.channel_type || 'Канал';
             const condBadge = ch.condition === 'USED' ? '<span class="text-[10px] text-amber-400">Б/у</span>' : '';
+            const statusBadge = ch.is_purchasable === false ? (
+              ch.is_expired ? '<span class="text-[10px] text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded">Истекло</span>' :
+              '<span class="text-[10px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">Нет в наличии</span>'
+            ) : '';
             return `
               <div class="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-slate-950/40 border border-slate-800/80 text-xs">
                 <div class="flex items-center gap-2">
                   <span class="font-medium text-slate-300">${escapeHtml(chName)}</span>
                   ${condBadge}
+                  ${statusBadge}
                   <span class="text-[10px] text-slate-500 font-mono">${escapeHtml(ch.city || '')}</span>
                 </div>
                 <div class="flex items-center gap-3">
-                  <span class="font-bold text-slate-100">${fmtPrice(ch.price)}</span>
-                  ${chHref ? `
+                  <span class="font-bold ${ch.is_purchasable === false ? 'text-slate-500 line-through' : 'text-slate-100'}">${fmtPrice(ch.price)}</span>
+                  ${chHref && ch.is_purchasable !== false ? `
                     <a href="${escapeHtml(chHref)}" target="_blank" rel="noopener noreferrer" class="px-3 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 font-medium text-[11px] transition inline-flex items-center gap-1">
                       <span>В магазин</span>
                       <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
                     </a>
-                  ` : '<span class="text-[10px] text-slate-500">Нет ссылки</span>'}
+                  ` : (chHref ? `
+                    <a href="${escapeHtml(chHref)}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 text-[10px] transition inline-flex items-center gap-1">
+                      <span>Просмотр</span>
+                    </a>
+                  ` : '<span class="text-[10px] text-slate-500">Нет ссылки</span>')}
                 </div>
               </div>
             `;
@@ -2807,8 +2816,12 @@
                   </div>
                 </div>
                 <div class="text-right shrink-0">
-                  <div class="text-xs text-slate-400">от</div>
-                  <div class="text-sm font-black text-emerald-400">${fmtPrice(p.min_price)}</div>
+                  ${p.has_purchasable && p.min_price > 0 ? `
+                    <div class="text-xs text-slate-400">от</div>
+                    <div class="text-sm font-black text-emerald-400">${fmtPrice(p.min_price)}</div>
+                  ` : `
+                    <div class="text-xs font-semibold text-slate-500">Нет в наличии</div>
+                  `}
                 </div>
               </div>
               <div class="space-y-1.5 pl-2 border-l-2 border-slate-800">

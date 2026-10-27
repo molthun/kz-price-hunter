@@ -277,6 +277,35 @@ class SellerPageTest(unittest.TestCase):
         self.assertEqual(showcase["stats"]["min_price"], 380000.0)
         self.assertEqual(showcase["stats"]["max_price"], 470000.0)
 
+    def test_out_of_stock_and_expired_offers_do_not_determine_min_price(self):
+        """A04: истёкшие и отсутствующие предложения не становятся минимальной ценой покупки."""
+        raw_offers = [
+            {
+                "id": "off_expired",
+                "product_id": "prod_phone",
+                "product_title": "Audit Phone",
+                "price": 1.0,
+                "availability": "out_of_stock",
+                "expires_at": "2020-01-01T00:00:00+00:00",
+                "condition": "NEW",
+            },
+            {
+                "id": "off_active",
+                "product_id": "prod_phone",
+                "product_title": "Audit Phone",
+                "price": 100000.0,
+                "availability": "in_stock",
+                "expires_at": "2099-01-01T00:00:00+00:00",
+                "condition": "NEW",
+            },
+        ]
+        grouped = group_seller_offers_by_product(raw_offers)
+        self.assertEqual(len(grouped), 1)
+        item = grouped[0]
+        # Минимальная доступная цена должна быть 100 000, а не 1.0!
+        self.assertEqual(item["min_price"], 100000.0)
+        self.assertTrue(item["has_purchasable"])
+
 
 if __name__ == "__main__":
     unittest.main()

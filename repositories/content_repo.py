@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime, timezone
 from typing import Any, List, Optional
 
 from domain.models import utc_now_iso
@@ -20,12 +21,32 @@ from repositories.base import BaseRepository
 logger = logging.getLogger("kz_price_hunter.repositories.content")
 
 
+def normalize_iso_utc(ts: Optional[str]) -> Optional[str]:
+    """Нормализует ISO-строку времени к UTC (YYYY-MM-DDTHH:MM:SS+00:00).
+
+    A06: Обеспечивает согласованность лексикографического сравнения в SQL
+    с хронологическим временем для любых временных зон и смещений.
+    """
+    if not ts:
+        return None
+    try:
+        dt = datetime.fromisoformat(ts)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt = dt.astimezone(timezone.utc)
+        return dt.isoformat()
+    except Exception:
+        return ts
+
+
 class ContentObservationRepository(BaseRepository):
     """CRUD, TTL и выборки по сырому контенту соцсетей и мессенджеров."""
 
     def save_observation(self, observation: ContentObservation) -> ContentObservation:
         """Вставляет наблюдение или обновляет уже сохранённое с тем же id."""
         now = utc_now_iso()
+        norm_expires = normalize_iso_utc(observation.expires_at)
         self.execute(
             """
             INSERT INTO content_observations (
@@ -54,7 +75,7 @@ class ContentObservationRepository(BaseRepository):
                 json.dumps(observation.media_urls or [], ensure_ascii=False),
                 observation.published_at,
                 observation.observed_at or now,
-                observation.expires_at,
+                norm_expires,
                 json.dumps(observation.raw_metadata or {}, ensure_ascii=False),
             ),
         )
@@ -77,7 +98,8 @@ class ContentObservationRepository(BaseRepository):
         """Возвращает SQL-условие и параметр для фильтра по сроку жизни."""
         if include_expired:
             return "", ()
-        return " AND (expires_at IS NULL OR expires_at > ?)", (now_iso or utc_now_iso(),)
+        ref = normalize_iso_utc(now_iso) or utc_now_iso()
+        return " AND (expires_at IS NULL OR expires_at > ?)", (ref,)
 
     def find_by_seller(
         self,
@@ -111,10 +133,11 @@ class ContentObservationRepository(BaseRepository):
 
     def purge_expired(self, now_iso: Optional[str] = None) -> int:
         """Удаляет наблюдения, срок жизни которых истёк. Возвращает число удалённых строк."""
+        ref = normalize_iso_utc(now_iso) or utc_now_iso()
         cur = self.execute(
             "DELETE FROM content_observations "
             "WHERE expires_at IS NOT NULL AND expires_at <= ?",
-            (now_iso or utc_now_iso(),),
+            (ref,),
         )
         self.commit()
         return cur.rowcount or 0

@@ -91,6 +91,7 @@ class SearchRepository(BaseRepository):
         channel_type: Optional[str] = None,
         min_price: Optional[float] = None,
         max_price: Optional[float] = None,
+        sort_by: str = "relevance",
         limit: int = 50,
     ) -> List[Dict[str, Any]]:
         """
@@ -144,6 +145,31 @@ class SearchRepository(BaseRepository):
         )
         """
 
+        # A05: Сортировка до LIMIT
+        order_by_sql = "rank ASC"
+        order_by_like = "p.id ASC"
+        order_params: list = []
+        if sort_by == "price_asc":
+            sub = f"""(
+                SELECT MIN(o.price) FROM offers o
+                JOIN sellers s ON o.seller_id = s.id
+                JOIN channels c ON o.channel_id = c.id
+                WHERE o.product_id = p.id AND {" AND ".join(exists_conditions)}
+            ) ASC"""
+            order_by_sql = sub
+            order_by_like = sub
+            order_params = list(exists_params)
+        elif sort_by == "price_desc":
+            sub = f"""(
+                SELECT MAX(o.price) FROM offers o
+                JOIN sellers s ON o.seller_id = s.id
+                JOIN channels c ON o.channel_id = c.id
+                WHERE o.product_id = p.id AND {" AND ".join(exists_conditions)}
+            ) DESC"""
+            order_by_sql = sub
+            order_by_like = sub
+            order_params = list(exists_params)
+
         # -------------------------------------------------------------------
         # Step 1: Match Canonical Products
         # -------------------------------------------------------------------
@@ -158,10 +184,10 @@ class SearchRepository(BaseRepository):
                 JOIN canonical_products p ON f.rowid = p.rowid
                 WHERE canonical_products_fts MATCH ?
                   {exists_sql}
-                ORDER BY rank ASC
+                ORDER BY {order_by_sql}
                 LIMIT ?
                 """
-                fts_params = [fts_query] + exists_params + [limit]
+                fts_params = [fts_query] + exists_params + order_params + [limit]
                 rows = self.fetchall(sql_fts, fts_params)
                 if rows:
                     used_fts = True
@@ -206,9 +232,10 @@ class SearchRepository(BaseRepository):
             SELECT p.* FROM canonical_products p
             WHERE {" AND ".join(where_clauses)}
               {exists_sql}
+            ORDER BY {order_by_like}
             LIMIT ?
             """
-            like_full_params = like_params + exists_params + [limit]
+            like_full_params = like_params + exists_params + order_params + [limit]
             rows = self.fetchall(sql_like, like_full_params)
             for r in rows:
                 pid = r["id"]

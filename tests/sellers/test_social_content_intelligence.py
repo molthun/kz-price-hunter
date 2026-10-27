@@ -398,6 +398,29 @@ class SearchCoreTtlTest(unittest.TestCase):
         # просроченный off_expired (399 000) исключён, значит лучшая цена — 480 000
         self.assertEqual(response.items[0].min_price, 480000.0)
 
+    def test_ttl_with_timezone_offset_matches_python_and_sql(self):
+        """A06: хронологическое сравнение TTL в SQL совпадает с Python при смещениях зон."""
+        from repositories.content_repo import ContentObservationRepository
+        from domain.social_content import ContentObservation
+        repo = ContentObservationRepository(self.conn)
+        # expires at 13:00 -05:00 = 18:00 UTC
+        obs = ContentObservation(id="ttl1", seller_id="s_tg", channel_id="ch_tg",
+                                 expires_at="2026-10-27T13:00:00-05:00")
+        repo.save_observation(obs)
+        # В 17:00 UTC (за 1 час до истечения): Python считает НЕ истёкшим
+        self.assertFalse(obs.is_expired("2026-10-27T17:00:00+00:00"))
+        # SQL find_by_seller обязан возвращать наблюдение
+        found = repo.find_by_seller("s_tg", now_iso="2026-10-27T17:00:00+00:00")
+        self.assertTrue(any(o.id == "ttl1" for o in found))
+        # SQL purge НЕ должен его удалять
+        purged = repo.purge_expired("2026-10-27T17:00:00+00:00")
+        self.assertEqual(purged, 0)
+        # В 19:00 UTC (через час после истечения): Python считает истёкшим
+        self.assertTrue(obs.is_expired("2026-10-27T19:00:00+00:00"))
+        # SQL purge обязан его удалить
+        purged = repo.purge_expired("2026-10-27T19:00:00+00:00")
+        self.assertEqual(purged, 1)
+
 
 if __name__ == "__main__":
     unittest.main()

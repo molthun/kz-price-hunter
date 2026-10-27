@@ -190,7 +190,8 @@ class OfferRepository(BaseRepository):
             cp.image_url AS product_image_url,
             c.name AS channel_name,
             c.channel_type AS channel_type,
-            c.base_url AS channel_base_url
+            c.base_url AS channel_base_url,
+            c.is_active AS channel_is_active
         FROM offers o
         LEFT JOIN canonical_products cp ON o.product_id = cp.id
         LEFT JOIN channels c ON o.channel_id = c.id

@@ -291,6 +291,93 @@ class TestWatchesV2(unittest.TestCase):
         queued_two = database.evaluate_watches([offer_2])
         self.assertEqual(queued_two, 1)
 
+    def test_watched_offers_returns_v2_fields(self):
+        """A02: watched_offers возвращает V2-поля (seller_id, channel_type, condition, canonical_product_id)."""
+        from repositories import init_schema_v2, SellerRepository, ChannelRepository, ProductRepository, OfferRepository
+        from domain.models import Seller, Channel, CanonicalProduct, Offer
+        with database.get_connection() as conn:
+            init_schema_v2(conn)
+            SellerRepository(conn).save_or_update(Seller(id="s_test", slug="test_seller", name="Test Seller"))
+            ChannelRepository(conn).save_or_update(Channel(id="ch_test", seller_id="s_test", channel_type="telegram", name="TG"))
+            ProductRepository(conn).save_or_update(CanonicalProduct(id="prod_canon", canonical_key="key_canon", title="Test Canon", category="phones"))
+            OfferRepository(conn).save_or_update(Offer(
+                id="off_test_v2", product_id="prod_canon", seller_id="s_test", channel_id="ch_test",
+                external_sku="SKU1", url="https://example.com/item", price=150000, condition="USED", city="Алматы"
+            ))
+
+        loaded = database.watched_offers(["off_test_v2"])
+        self.assertEqual(len(loaded), 1)
+        item = loaded[0]
+        self.assertEqual(item["seller_id"], "s_test")
+        self.assertEqual(item["seller_slug"], "test_seller")
+        self.assertEqual(item["channel_type"], "telegram")
+        self.assertEqual(item["condition"], "used")
+        self.assertEqual(item["canonical_product_id"], "prod_canon")
+
+    def test_cross_seller_better_seller_and_new_seller_state_sharing(self):
+        """A03: межпродавцовое состояние S2-E20 делит память по каноническому товару."""
+        user_id = 99993
+        # Наблюдение better_seller за каноническим товаром prod_laptop
+        watch_bs = database.create_watch(user_id, {
+            "kind": "product",
+            "target": "prod_laptop",
+            "condition": "better_seller",
+            "repeat": True,
+        })
+        # Наблюдение new_seller за каноническим товаром prod_laptop
+        watch_ns = database.create_watch(user_id, {
+            "kind": "product",
+            "target": "prod_laptop",
+            "condition": "new_seller",
+            "repeat": True,
+        })
+
+        # Предложение A: продавец 1, цена 200 000
+        offer_a = {
+            "id": "offer_a",
+            "canonical_product_id": "prod_laptop",
+            "current_price": 200000,
+            "seller_slug": "seller_one",
+            "seller_name": "Seller One",
+            "channel_type": "website",
+            "city": "Астана",
+        }
+        database.evaluate_watches([offer_a])
+
+        # Предложение A2: ТОТ ЖЕ продавец 1 в другом канале (kaspi)
+        offer_a2 = {
+            "id": "offer_a2",
+            "canonical_product_id": "prod_laptop",
+            "current_price": 200000,
+            "seller_slug": "seller_one",
+            "seller_name": "Seller One",
+            "channel_type": "kaspi",
+            "city": "Астана",
+        }
+        events_before = len(database.watch_events(user_id))
+        database.evaluate_watches([offer_a2])
+        events_after = len(database.watch_events(user_id))
+        # Тот же продавец в другом канале НЕ должен создавать повторное событие new_seller!
+        self.assertEqual(events_after, events_before)
+
+        # Предложение B: продавец 2, цена 100 000 (лучшая цена у другого продавца)
+        offer_b = {
+            "id": "offer_b",
+            "canonical_product_id": "prod_laptop",
+            "current_price": 100000,
+            "seller_slug": "seller_two",
+            "seller_name": "Seller Two",
+            "channel_type": "website",
+            "city": "Астана",
+        }
+        database.evaluate_watches([offer_b])
+        events = database.watch_events(user_id)
+        reasons = [e["reason"] for e in events]
+        # Проверяем, что better_seller сработал на предложение B!
+        self.assertTrue(any("лучшая цена у продавца «Seller Two»" in r for r in reasons))
+        # И new_seller сработал на появление продавца 2
+        self.assertTrue(any("новый продавец «Seller Two»" in r for r in reasons))
+
 
 if __name__ == "__main__":
     unittest.main()

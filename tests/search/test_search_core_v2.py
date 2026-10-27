@@ -685,6 +685,25 @@ class TestSearchCoreV2HttpEndpoints(unittest.IsolatedAsyncioTestCase):
         self.assertIn("parsed_query", data)
         self.assertIn("items", data)
 
+    def test_sort_applied_before_limit(self):
+        """A05: сортировка price_asc применяется до LIMIT, находя самый дешёвый товар при limit=1."""
+        conn = sqlite3.connect(":memory:")
+        init_schema_v2(conn)
+        SellerRepository(conn).save_or_update(Seller(id="s", slug="seller", name="Audit Seller"))
+        ChannelRepository(conn).save_or_update(Channel(id="c", seller_id="s", channel_type="website", name="Website"))
+        # Создаем 2 товара с одинаковым именем: дорогой (900) и дешёвый (100)
+        for n, price in enumerate((900, 100)):
+            ProductRepository(conn).save_or_update(CanonicalProduct(id=f"p{n}", canonical_key=f"key{n}", title="Audit Laptop", category="laptops"))
+            OfferRepository(conn).save_or_update(Offer(id=f"o{n}", product_id=f"p{n}", seller_id="s", channel_id="c", external_sku=str(n), url="https://example.invalid", price=price))
+
+        core = SearchCore(SearchRepository(conn))
+        limited = core.search("Audit Laptop", sort_by="price_asc", limit=1)
+        all_items = core.search("Audit Laptop", sort_by="price_asc", limit=50)
+
+        self.assertEqual(len(limited.items), 1)
+        self.assertEqual(limited.items[0].min_price, 100.0)
+        self.assertEqual(all_items.items[0].min_price, 100.0)
+
 
 if __name__ == "__main__":
     unittest.main()

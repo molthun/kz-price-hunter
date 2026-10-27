@@ -175,6 +175,7 @@ class SearchCore:
                 channel_type=target_channel,
                 min_price=target_min_price,
                 max_price=target_max_price,
+                sort_by=sort_by,
                 limit=limit,
             )
 
@@ -348,8 +349,8 @@ class SearchCore:
             )
 
         except Exception as e:
-            # C-E11-05: Catch database/internal operational errors and return ERROR status
-            logger.exception(f"SearchCore execution error for query '{query}': {e}")
+            # C-E11-05 / A07: Catch database/internal operational errors, log without raw user query PII
+            logger.exception(f"SearchCore execution error: {type(e).__name__} (len={len(query) if query else 0})")
             latency_ms = (time.perf_counter() - start_time) * 1000.0
             fallback_parsed = parsed or QueryParser.parse(query)
             return SearchResponse2(

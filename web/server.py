@@ -245,6 +245,25 @@ async def privacy_handler(request):
 async def version_handler(request):
     return web.json_response(get_version_info())
 
+def _check_db_readiness_sync() -> bool:
+    from database import get_connection
+    conn = get_connection()
+    try:
+        conn.execute("SELECT 1 FROM products LIMIT 1").fetchone()
+        return True
+    finally:
+        conn.close()
+
+@routes.get("/api/health")
+@routes.get("/api/readiness")
+async def health_handler(request):
+    """A09: Проверка готовности сервиса и доступности базы данных."""
+    try:
+        ok = await asyncio.wait_for(asyncio.to_thread(_check_db_readiness_sync), timeout=3.0)
+        return web.json_response({"status": "ok", "db": "ok" if ok else "fail"}, status=200 if ok else 503)
+    except Exception as e:
+        return web.json_response({"status": "unhealthy", "error": type(e).__name__}, status=503)
+
 @routes.get("/api/cities")
 async def cities_handler(request):
     return web.json_response(CITIES_KZ)
@@ -826,6 +845,26 @@ async def search_v2_handler(request):
     if wait:
         return web.json_response({"error": f"Слишком много запросов, повторите через {int(wait) + 1} сек"}, status=429)
 
+    try:
+        resp = await asyncio.to_thread(
+            _run_search_v2_sync,
+            query=query,
+            city=city,
+            condition=condition,
+            channel_type=channel_type,
+            min_price=min_price,
+            max_price=max_price,
+            sort_by=sort_by,
+            limit=limit,
+        )
+        status_code = 500 if getattr(resp, "outcome", None) == "ERROR" else 200
+        return web.json_response(resp.to_dict(), status=status_code)
+    except Exception as e:
+        print(f"[API search v2] Ошибка: {e}")
+        return web.json_response({"error": "Ошибка поиска v2, попробуйте позже"}, status=500)
+
+
+def _run_search_v2_sync(query, city, condition, channel_type, min_price, max_price, sort_by, limit):
     from database import get_connection
     from domain.search_core import SearchCore
     from repositories.search_repo import SearchRepository
@@ -862,23 +901,12 @@ async def search_v2_handler(request):
             )
         except Exception as ex:
             print(f"[Analytics] Failed to record search event: {ex}")
-        return web.json_response(resp.to_dict())
-    except Exception as e:
-        print(f"[API search v2] Ошибка: {e}")
-        return web.json_response({"error": "Ошибка поиска v2, попробуйте позже"}, status=500)
+        return resp
     finally:
         conn.close()
 
 
-@routes.get("/api/v2/sellers")
-async def list_sellers_v2_handler(request):
-    """Список активных продавцов с агрегированными каналами и офферами (S2-E19)."""
-    city = request.query.get("city")
-    search = request.query.get("q") or request.query.get("search")
-    channel_type = request.query.get("channel_type")
-    limit = _int_param(request, "limit", 50, minimum=1, maximum=100)
-    offset = _int_param(request, "offset", 0, minimum=0)
-
+def _list_sellers_v2_sync(city, search, channel_type, limit, offset):
     from database import get_connection
     from repositories.seller_repo import SellerRepository
     from repositories.channel_repo import ChannelRepository
@@ -901,33 +929,18 @@ async def list_sellers_v2_handler(request):
             s["channels"] = [c.to_dict() for c in channels]
             result.append(s)
 
-        return web.json_response({
+        return {
             "ok": True,
             "total": total,
             "sellers": result,
             "limit": limit,
             "offset": offset,
-        })
-    except Exception as e:
-        print(f"[API sellers v2] Ошибка: {e}")
-        return web.json_response({"ok": False, "error": "Ошибка получения списка продавцов"}, status=500)
+        }
     finally:
         conn.close()
 
 
-@routes.get("/api/v2/seller/{id_or_slug}")
-async def get_seller_v2_handler(request):
-    """Детальный профиль и витрина предложений продавца (S2-E19)."""
-    id_or_slug = request.match_info.get("id_or_slug", "").strip()
-    if not id_or_slug:
-        return web.json_response({"ok": False, "error": "Идентификатор продавца обязателен"}, status=400)
-
-    city = request.query.get("city")
-    condition = request.query.get("condition")
-    category = request.query.get("category")
-    limit = _int_param(request, "limit", 50, minimum=1, maximum=200)
-    offset = _int_param(request, "offset", 0, minimum=0)
-
+def _get_seller_v2_sync(id_or_slug, city, condition, category, limit, offset):
     from database import get_connection
     from repositories.seller_repo import SellerRepository
     from repositories.channel_repo import ChannelRepository
@@ -939,7 +952,7 @@ async def get_seller_v2_handler(request):
         seller_repo = SellerRepository(conn)
         seller = seller_repo.get_by_id_or_slug(id_or_slug)
         if not seller or not seller.is_active:
-            return web.json_response({"ok": False, "error": "Продавец не найден"}, status=404)
+            return None
 
         chan_repo = ChannelRepository(conn)
         channels = chan_repo.list_by_seller(seller.id)
@@ -978,12 +991,49 @@ async def get_seller_v2_handler(request):
             "offset": offset,
             "total_offers": total_offers,
         }
+        return showcase
+    finally:
+        conn.close()
+
+
+@routes.get("/api/v2/sellers")
+async def list_sellers_v2_handler(request):
+    """Список активных продавцов с агрегированными каналами и офферами (S2-E19)."""
+    city = request.query.get("city")
+    search = request.query.get("q") or request.query.get("search")
+    channel_type = request.query.get("channel_type")
+    limit = _int_param(request, "limit", 50, minimum=1, maximum=100)
+    offset = _int_param(request, "offset", 0, minimum=0)
+
+    try:
+        data = await asyncio.to_thread(_list_sellers_v2_sync, city, search, channel_type, limit, offset)
+        return web.json_response(data)
+    except Exception as e:
+        print(f"[API sellers v2] Ошибка: {e}")
+        return web.json_response({"ok": False, "error": "Ошибка получения списка продавцов"}, status=500)
+
+
+@routes.get("/api/v2/seller/{id_or_slug}")
+async def get_seller_v2_handler(request):
+    """Детальный профиль и витрина предложений продавца (S2-E19)."""
+    id_or_slug = request.match_info.get("id_or_slug", "").strip()
+    if not id_or_slug:
+        return web.json_response({"ok": False, "error": "Идентификатор продавца обязателен"}, status=400)
+
+    city = request.query.get("city")
+    condition = request.query.get("condition")
+    category = request.query.get("category")
+    limit = _int_param(request, "limit", 50, minimum=1, maximum=200)
+    offset = _int_param(request, "offset", 0, minimum=0)
+
+    try:
+        showcase = await asyncio.to_thread(_get_seller_v2_sync, id_or_slug, city, condition, category, limit, offset)
+        if not showcase:
+            return web.json_response({"ok": False, "error": "Продавец не найден"}, status=404)
         return web.json_response(showcase)
     except Exception as e:
         print(f"[API seller showcase v2] Ошибка: {e}")
         return web.json_response({"ok": False, "error": "Ошибка получения витрины продавца"}, status=500)
-    finally:
-        conn.close()
 
 
 @routes.get("/api/v2/scheduler/plan")

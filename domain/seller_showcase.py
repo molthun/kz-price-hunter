@@ -10,6 +10,36 @@ from typing import Any, Dict, List, Optional
 from domain.models import Channel, Seller
 
 
+def is_offer_expired(expires_at: Optional[str]) -> bool:
+    """Проверяет, истёк ли срок действия предложения (S2-E08, A04)."""
+    if not expires_at:
+        return False
+    try:
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        exp = datetime.fromisoformat(expires_at)
+        if exp.tzinfo is None:
+            exp = exp.replace(tzinfo=timezone.utc)
+        return now >= exp
+    except Exception:
+        return False
+
+
+def is_offer_purchasable(row: Dict[str, Any]) -> bool:
+    """A04: Проверяет доступность оффера для покупки (наличие, актуальность, активность канала)."""
+    price = float(row.get("price") or 0.0)
+    if price <= 0:
+        return False
+    avail = str(row.get("availability") or "in_stock").lower()
+    if avail not in ("in_stock", "preorder"):
+        return False
+    if is_offer_expired(row.get("expires_at")):
+        return False
+    if row.get("channel_is_active") is not None and not row.get("channel_is_active"):
+        return False
+    return True
+
+
 def group_seller_offers_by_product(offers_with_details: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
     Groups raw offers for a seller by product (canonical product_id or title).
@@ -42,6 +72,9 @@ def group_seller_offers_by_product(offers_with_details: List[Dict[str, Any]]) ->
                 "image_url": image_url,
                 "min_price": float("inf"),
                 "max_price": 0.0,
+                "min_price_new": float("inf"),
+                "min_price_used": float("inf"),
+                "has_purchasable": False,
                 "conditions": set(),
                 "cities": set(),
                 "channels": [],
@@ -53,11 +86,21 @@ def group_seller_offers_by_product(offers_with_details: List[Dict[str, Any]]) ->
         condition = (row.get("condition") or "NEW").upper()
         city = row.get("city") or "Казахстан"
 
-        if price > 0:
+        purchasable = is_offer_purchasable(row)
+        expired = is_offer_expired(row.get("expires_at"))
+
+        if purchasable:
             if price < grp["min_price"]:
                 grp["min_price"] = price
             if price > grp["max_price"]:
                 grp["max_price"] = price
+            grp["has_purchasable"] = True
+            if condition == "NEW":
+                if price < grp["min_price_new"]:
+                    grp["min_price_new"] = price
+            else:
+                if price < grp["min_price_used"]:
+                    grp["min_price_used"] = price
 
         grp["conditions"].add(condition)
         grp["cities"].add(city)
@@ -77,21 +120,27 @@ def group_seller_offers_by_product(offers_with_details: List[Dict[str, Any]]) ->
             "external_sku": row.get("external_sku"),
             "expires_at": row.get("expires_at"),
             "published_at": row.get("published_at"),
+            "is_purchasable": purchasable,
+            "is_expired": expired,
         })
 
     result = []
     for grp in groups.values():
         if grp["min_price"] == float("inf"):
             grp["min_price"] = 0.0
-        # Sort channels by price ASC
-        grp["channels"].sort(key=lambda c: c["price"])
+        if grp["min_price_new"] == float("inf"):
+            grp["min_price_new"] = 0.0
+        if grp["min_price_used"] == float("inf"):
+            grp["min_price_used"] = 0.0
+        # Sort channels by purchasable first, then price ASC
+        grp["channels"].sort(key=lambda c: (not c["is_purchasable"], c["price"]))
         grp["conditions"] = sorted(list(grp["conditions"]))
         grp["cities"] = sorted(list(grp["cities"]))
         grp["offers_count"] = len(grp["channels"])
         result.append(grp)
 
-    # Sort grouped products by min_price ASC
-    result.sort(key=lambda p: p["min_price"])
+    # Sort grouped products: purchasable first, then min_price ASC
+    result.sort(key=lambda p: (not p["has_purchasable"], p["min_price"] if p["has_purchasable"] else float("inf")))
     return result
 
 
