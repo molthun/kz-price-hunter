@@ -200,8 +200,9 @@ class ClaimOwnershipTest(QueueContractBase):
 
     async def test_commit_after_claim_lost_writes_nothing(self):
         # R04: проверка владельца — в транзакции записи, а не один раз до await
+        pid = f"fenced-commit-{os.urandom(4).hex()}"  # своя строка: повтор в той же базе не мешает
         first = self.qm()
-        await first.enqueue([prod("fenced-commit", 70)], "Contract", {}, shop_key="fc")
+        await first.enqueue([prod(pid, 70)], "Contract", {}, shop_key="fc")
         item = await first.dequeue(timeout=0.05)
         with database.get_connection() as conn:  # владелец «завис», срок захвата истёк
             conn.execute("UPDATE product_queue_spool SET claim_expires_at = 0")
@@ -211,10 +212,10 @@ class ClaimOwnershipTest(QueueContractBase):
         self.assertEqual(taken["task_id"], item["task_id"])
         with self.assertRaises(server.ClaimLost):
             await server._execute_queue_item(item)
-        self.assertIsNone(product_price("fenced-commit"))
+        self.assertIsNone(product_price(pid))
         self.assertFalse(await first.ack(item))
         self.assertTrue(await self.run_item(second, taken))
-        self.assertEqual(product_price("fenced-commit"), 70)
+        self.assertEqual(product_price(pid), 70)
         self.assertEqual(spool_rows(), [])
 
     async def test_tasks_of_one_shop_run_in_admission_order(self):

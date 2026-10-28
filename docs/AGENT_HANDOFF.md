@@ -48,12 +48,32 @@ C06: /api/readiness в bypass без сессии; поиск сессии — �
     SIGKILL дочернего процесса после захвата / после порции / после core / до ACK и три поколения подряд.
   tests/search/test_purchasability_policy.py на коде 6.4.2 (временный worktree): 8 из 11 FAIL; на 6.4.3 — OK.
   Фронтенд 18/18 PASS (Deno + Playwright/Chrome). release_gate.py secrets → ok, findings=[].
-Не проверено: Linux-прогон (Docker на этой машине нет), стенд, нагрузка и полный обход. Скрипт
+Linux (дополнено после выкладки на стенд, см. ниже): образ стенда 6.4.4, одноразовый контейнер
+  --network none --cpus 4 --memory 15g, Python 3.14.4. Очередь/health 8 прогонов подряд — OK, включая
+  настоящий SIGKILL. Полный набор: 1827 OK в чистой базе (два прогона). Найдено и исправлено в тестах:
+  test_capped_on_large_hosts зависел от cgroup машины (под --cpus 4 давал 16) — расчёт от os.cpu_count
+  теперь изолирован от квоты; test_commit_after_claim_lost_writes_nothing падал при повторе в той же базе —
+  уникальный ID товара. В самом первом Linux-прогоне был ещё один сбой, имя которого не сохранилось;
+  в пяти последующих прогонах он не повторился. Известное, не моё: test_adaptive_discovery_v2
+  (test_pipeline_unsatisfied_searches_trigger_tasks) падает, только если переиспользовать DATA_DIR.
+Не проверено: нагрузка и полный обход на стенде. Скрипт
   docs/audit_evidence/2026-10-28-c01-c09-reaccept/reproduce.py написан под API 6.4.2 (spool_enqueue,
   lease_generation, sync ack) и на 6.4.3 не запустится — сценарии перенесены в tests/ (см. выше).
 Известные компромиссы: сводка цен телеметрии (_record_price_changes) при повторе derived может
   записаться дважды; бюджет журнала 200/магазин и 2000 всего; барьер магазина ждёт до 120 с.
-За владельцем: заменить DIAG_TOKEN стенда; восстановить лимиты 4 CPU/15 ГБ (R10); после приёмки — push.
+Стенд (выполнено Claude по поручению владельца «сам сделай все шаги», 2026-10-28 17:45–17:50):
+  * код доставлен git-бандлом (без push), checkout ~/kzph-stand на 8a6bcc6 (6.4.4);
+  * копии отката: образ kzph-stand:6.4.2-rollback, данные stand-data.bak-6.4.2-202610281747
+    (prices.db побайтно совпадает, settings.json), .env.bak-6.4.2 (содержит старый токен, chmod 600);
+  * R11: DIAG_TOKEN стенда заменён (openssl rand -hex 24, значение нигде не выводилось). Проверка:
+    новый токен → /api/diag 200, старый → 404, без токена → 404;
+  * R10: контейнер пересоздан через docker compose -f docker-compose.stand.yml (раньше — ручной docker run
+    без лимитов). inspect: NanoCpus=4000000000, Memory=16106127360, restart=no; cgroup cpu.max=400000 100000;
+  * после старта: /api/version 6.4.4, /api/health 200 ok (queue ok, dead_letters 0, rejected 0,
+    worker_running true), /api/diag ok, problems=[fresh_start], /api/changelog отдаёт 6.4.4 первой.
+  Новый токен — в ~/kzph-stand/.env на стенде; владельцу взять оттуда. Старый токен остаётся в .env.bak-6.4.2:
+    удалить этот файл, когда откат на 6.4.2 больше не понадобится.
+За владельцем: после приёмки Codex — разрешить push.
 Следующий точный шаг: Codex — независимая приёмка 6.4.3 по рабочим путям, включая Linux crash-проверки.
 
 Дополнение 6.4.4 (поручение владельца «2 вариант конечно», 2026-10-28): окно «История версий» на сайте

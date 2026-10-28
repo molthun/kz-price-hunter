@@ -128,6 +128,11 @@ class WorkerThreadCountTest(unittest.TestCase):
     def setUp(self):
         self._saved = os.environ.get("WORKER_THREADS")
         self.addCleanup(self._restore)
+        # Расчёт от os.cpu_count: лимит cgroup машины, где идут тесты (контейнер с --cpus),
+        # не должен подмешиваться — его ветки проверяет ContainerCpuLimitTest
+        quota = patch("config.cgroup_cpu_quota", return_value=None)
+        quota.start()
+        self.addCleanup(quota.stop)
 
     def _restore(self):
         if self._saved is None:
