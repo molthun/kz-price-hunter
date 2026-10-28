@@ -7,6 +7,7 @@
 from tests import test_support  # noqa: F401
 import os
 import sqlite3
+import threading
 import time
 from unittest.mock import patch
 
@@ -277,3 +278,77 @@ class OfferRetirementTest(QueueContractBase):
         await self.scan(["kept", "drift"])
         self.assertEqual([e["reason"] for e in self.events()], ["товар снова в продаже"] * 2)
         self.assertEqual(self.outbox(), 2)
+
+    async def prepare_deferred_return(self):
+        """Отложенное снятие (сбой при старте), товар уже вернулся без проверки наблюдений."""
+        await self.prepare_old_base()
+        with patch.object(database, "_apply_retire_transition", side_effect=sqlite3.OperationalError("synthetic")):
+            database.init_db()
+        with database.get_connection() as conn:
+            conn.execute("UPDATE products SET is_active = 1 WHERE id = ?", (self.pid("drift"),))
+            conn.execute("UPDATE offers SET is_active = 1 WHERE id = ?", (f"off_{self.pid('drift')}",))
+            conn.commit()
+        self.assertEqual(self.refresh_jobs("drift"), 1)
+
+    def run_two_refreshes(self, second_waits_for_first):
+        """Два настоящих refresh по одному заданию; барьер ставится, когда оба уже прочли фазу retire."""
+        original = database._apply_retire_transition
+        barrier = threading.Barrier(2, timeout=10)
+        first_done = threading.Event()
+        errors = []
+
+        def scheduled(*args):
+            barrier.wait()
+            if threading.current_thread().name == "second" and second_waits_for_first:
+                first_done.wait(10)
+            return original(*args)
+
+        def worker():
+            try:
+                database.refresh_retired_watches([self.pid("drift")])
+            except Exception as e:  # noqa: BLE001
+                errors.append(e)
+            finally:
+                if threading.current_thread().name == "first":
+                    first_done.set()
+
+        with patch.object(database, "_apply_retire_transition", side_effect=scheduled):
+            threads = [threading.Thread(target=worker, name=n) for n in ("first", "second")]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join(20)
+        self.assertEqual(errors, [])
+
+    async def test_concurrent_refresh_after_first_completes_gives_one_event(self):
+        """G05: оба прочли retire → первый завершил событие и удаление → второй продолжил → одно событие."""
+        await self.prepare_deferred_return()
+        self.run_two_refreshes(second_waits_for_first=True)
+        self.assertEqual((len(self.events()), self.outbox()), (1, 1))
+        self.assertEqual(self.refresh_jobs("drift"), 0)
+
+    async def test_concurrent_refresh_interleaved_gives_one_event(self):
+        """G05, обратное чередование: оба идут одновременно после чтения retire — одно событие."""
+        await self.prepare_deferred_return()
+        self.run_two_refreshes(second_waits_for_first=False)
+        self.assertEqual((len(self.events()), self.outbox()), (1, 1))
+        self.assertEqual(self.refresh_jobs("drift"), 0)
+
+    async def test_stale_refresh_does_not_confirm_a_newer_retirement(self):
+        """Поколение: новое снятие во время старой обработки не подтверждается старым вызовом."""
+        await self.prepare_deferred_return()
+        original = database._apply_retire_transition
+
+        def retire_again_then_apply(*args):
+            applied = original(*args)
+            with database.get_connection() as conn:  # тем временем — новое настоящее снятие
+                database._queue_watch_refresh_conn(conn, [self.pid("drift")])
+                conn.commit()
+            return applied
+
+        with patch.object(database, "_apply_retire_transition", side_effect=retire_again_then_apply):
+            database.refresh_retired_watches([self.pid("drift")])
+        with database.get_connection() as conn:
+            phase = conn.execute("SELECT phase FROM watch_refresh WHERE product_id = ?",
+                                 (self.pid("drift"),)).fetchone()
+        self.assertEqual(phase[0] if phase else None, "retire", "новое снятие потеряно старым вызовом")

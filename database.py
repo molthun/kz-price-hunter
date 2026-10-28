@@ -121,9 +121,24 @@ def _queue_watch_refresh_conn(conn, product_ids) -> None:
     now = time.time()
     # Новое снятие — новый переход: задание снова начинается с фазы 'retire', даже если прежнее
     # ещё не удалено
-    conn.executemany("""INSERT INTO watch_refresh (product_id, created_at, phase) VALUES (?, ?, 'retire')
-                        ON CONFLICT(product_id) DO UPDATE SET phase = 'retire', created_at = excluded.created_at""",
+    conn.executemany("""INSERT INTO watch_refresh (product_id, created_at, phase, gen) VALUES (?, ?, 'retire', 0)
+                        ON CONFLICT(product_id) DO UPDATE SET phase = 'retire', gen = watch_refresh.gen + 1,
+                                                              created_at = excluded.created_at""",
                      [(str(pid), now) for pid in product_ids])
+
+
+def _watch_refresh_jobs(ids: List[str], phase: Optional[str] = None) -> Dict[str, int]:
+    jobs: Dict[str, int] = {}
+    with get_connection() as conn:
+        for i in range(0, len(ids), 500):
+            chunk = ids[i:i + 500]
+            sql = f"SELECT product_id, gen FROM watch_refresh WHERE product_id IN ({','.join('?' * len(chunk))})"
+            params: List[Any] = list(chunk)
+            if phase:
+                sql += " AND phase = ?"
+                params.append(phase)
+            jobs.update((r[0], r[1]) for r in conn.execute(sql, params))
+    return jobs
 
 
 def refresh_retired_watches(product_ids: List[str]) -> None:
@@ -131,36 +146,29 @@ def refresh_retired_watches(product_ids: List[str]) -> None:
 
     Задание значит «товар был снят» независимо от того, что с ним сейчас (G04). Две фазы:
       1. 'retire' → память наблюдений получает was_available = 0 в одной транзакции с переводом
-         задания в 'current' (_apply_retire_transition). Повтор эту фазу не повторяет.
+         задания в 'current'; фаза и поколение проверяются в той же транзакции, поэтому ни повтор,
+         ни конкурирующий обработчик не применят снятие второй раз (_apply_retire_transition).
       2. 'current' → оценка текущего состояния. Если товар уже вернулся, наблюдение даёт «снова
-         в продаже»; повтор идемпотентен — память после события уже was_available = 1.
-    Затем задания удаляются. Ошибка на любом шаге оставляет задание в его фазе. Итог — ровно одно
-    событие на переход даже при сбое между событием и удалением задания (G05).
+         в продаже»; повтор и конкурент идемпотентны — после события память уже was_available = 1.
+    Затем удаляются задания в фазе 'current' того же поколения: новое снятие, случившееся тем
+    временем, не подтверждается старым вызовом. Ошибка оставляет задание в его фазе.
     """
     ids = [str(pid) for pid in product_ids]
     if not ids:
         return
-    phases: Dict[str, str] = {}
-    with get_connection() as conn:
-        for i in range(0, len(ids), 500):
-            chunk = ids[i:i + 500]
-            phases.update((r[0], r[1]) for r in conn.execute(
-                f"SELECT product_id, phase FROM watch_refresh WHERE product_id IN ({','.join('?' * len(chunk))})",
-                chunk))
-    if not phases:
-        return  # задания уже выполнены другим путём (возврат товара, старт, обслуживание)
-    retire = [pid for pid, phase in phases.items() if phase == "retire"]
+    retire = _watch_refresh_jobs(ids, "retire")
     if retire:
-        _apply_retire_transition(retire, watched_offers(retire))
-    current = [o for o in watched_offers(list(phases)) if o.get("is_available")]
-    if current:
-        evaluate_watches(current)
-    done = list(phases)
+        _apply_retire_transition(retire)
+    current = _watch_refresh_jobs(ids, "current")
+    if not current:
+        return  # задания уже выполнены другим путём (возврат товара, старт, обслуживание)
+    returned = [o for o in watched_offers(list(current)) if o.get("is_available")]
+    if returned:
+        evaluate_watches(returned)
     with get_connection() as conn:
-        for i in range(0, len(done), 500):
-            chunk = done[i:i + 500]
-            conn.execute(f"DELETE FROM watch_refresh WHERE phase = 'current' AND product_id IN "
-                         f"({','.join('?' * len(chunk))})", chunk)
+        for pid, gen in current.items():
+            conn.execute("DELETE FROM watch_refresh WHERE product_id = ? AND phase = 'current' AND gen = ?",
+                         (pid, gen))
         conn.commit()
 
 
@@ -682,6 +690,9 @@ def _create_schema(cursor) -> None:
     # G05: фаза задания — 'retire' (снятие ещё не записано в память наблюдений) или 'current'
     # (записано; осталось оценить текущее состояние, это идемпотентно)
     _add_column(cursor, "watch_refresh", "phase", "TEXT NOT NULL DEFAULT 'retire'")
+    # G05 (конкуренция): поколение перехода — каждое новое снятие увеличивает его; устаревший
+    # обработчик не применит и не подтвердит чужое поколение
+    _add_column(cursor, "watch_refresh", "gen", "INTEGER NOT NULL DEFAULT 0")
     cursor.execute("""CREATE TABLE IF NOT EXISTS source_observed (
         shop_key TEXT NOT NULL,
         source_url TEXT NOT NULL,
@@ -3218,21 +3229,30 @@ def _watch_scope_id(watch: Dict[str, Any], offer: Dict[str, Any]) -> str:
     return offer_key if offer_key else product_id
 
 
-def _apply_retire_transition(product_ids: List[str], offers: List[Dict[str, Any]]) -> None:
+def _apply_retire_transition(jobs: Dict[str, int]) -> List[str]:
     """Фаза 1 задания watch_refresh (G05): «товар снят» записывается в память наблюдений
     (was_available = 0) в одной транзакции с переводом задания в фазу 'current'.
 
-    Повтор задания после этой транзакции фазу 1 не повторяет — искусственное снятие не создаётся
-    второй раз, и возврат не может дать второе событие. Событий фаза 1 не создаёт.
+    jobs — {product_id: поколение}, прочитанные вызывающим. Под тем же BEGIN IMMEDIATE заново
+    проверяется, что задание существует, всё ещё в фазе 'retire' и того же поколения: обработчик,
+    опоздавший за конкурентом, ничего не меняет. Возвращает id, к которым переход применён.
+    Событий фаза 1 не создаёт.
     """
     import watches as w
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    ids = [str(pid) for pid in product_ids]
     with get_connection() as conn:
         conn.execute("BEGIN IMMEDIATE")
         try:
+            still: List[str] = []
+            for pid, gen in jobs.items():
+                if conn.execute("SELECT 1 FROM watch_refresh WHERE product_id = ? AND phase = 'retire' AND gen = ?",
+                                (pid, gen)).fetchone():
+                    still.append(pid)
+            if not still:
+                conn.rollback()
+                return []
             active = [_watch_row(r) for r in conn.execute("SELECT * FROM watches WHERE is_active = 1")]
-            for offer in offers:
+            for offer in watched_offers(still):
                 for watch in active:
                     if not w.matches(watch, offer):
                         continue
@@ -3242,11 +3262,11 @@ def _apply_retire_transition(product_ids: List[str], offers: List[Dict[str, Any]
                         ON CONFLICT(watch_id, product_id) DO UPDATE SET
                             was_available = 0, updated_at = excluded.updated_at
                     """, (watch["id"], _watch_scope_id(watch, offer), now))
-            for i in range(0, len(ids), 500):
-                chunk = ids[i:i + 500]
-                conn.execute(f"UPDATE watch_refresh SET phase = 'current' WHERE product_id IN "
-                             f"({','.join('?' * len(chunk))})", chunk)
+            for pid in still:
+                conn.execute("UPDATE watch_refresh SET phase = 'current' WHERE product_id = ? AND gen = ?",
+                             (pid, jobs[pid]))
             conn.commit()
+            return still
         except BaseException:
             conn.rollback()
             raise
