@@ -1,0 +1,31 @@
+[
+  {
+    "name": "null_observed_stale_updated",
+    "limit1": [
+      {
+        "id": "p0",
+        "min": null
+      }
+    ],
+    "limit50": [
+      {
+        "id": "p1",
+        "min": 100.0
+      },
+      {
+        "id": "p0",
+        "min": null
+      }
+    ]
+  },
+  {
+    "name": "old_task_retry_overwrites_new",
+    "expected_latest": 200,
+    "actual": 100
+  },
+  {
+    "name": "privacy_export_truncated",
+    "stored": 1001,
+    "exported": 1000
+  }
+]

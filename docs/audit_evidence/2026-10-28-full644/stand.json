@@ -1,0 +1,71 @@
+{
+  "cpu": 4000000000,
+  "memory": 16106127360,
+  "health": "healthy",
+  "diag": {
+    "generated_at": "2026-10-28T14:52:05.607441+00:00",
+    "service": {
+      "version": "6.4.4",
+      "release_date": "2026-10-28",
+      "uptime_seconds": 7454.9,
+      "started_at": "2026-10-28T12:47:50.710105+00:00"
+    },
+    "runtime": {
+      "python": "3.14.4",
+      "platform": "linux",
+      "cpu_count": 16,
+      "thread_pool_size": 16,
+      "threads_alive": 19,
+      "rss_mb": 686.1,
+      "event_loop_lag_ms": 0.2
+    },
+    "database": {
+      "path": "/app/data/prices.db",
+      "size_mb": 480.0,
+      "wal_mb": null,
+      "journal_mode": "wal",
+      "synchronous": 1,
+      "busy_timeout_ms": 15000,
+      "page_size": 4096,
+      "rows": {
+        "products": 111731,
+        "offers": 111731,
+        "sellers": 34,
+        "alerts": 4437,
+        "watches": 0
+      },
+      "schema_version": "5"
+    },
+    "queue": {
+      "size": 0,
+      "failures": 0,
+      "redis_active": true,
+      "worker_running": true
+    },
+    "scan": {
+      "is_running": false,
+      "current_shop": "",
+      "current_category": "",
+      "progress_pct": 100,
+      "total_scanned": 0
+    },
+    "errors": {
+      "window_hours": 1.0,
+      "total": 1,
+      "by_component": {
+        "http": 1
+      },
+      "last": [
+        {
+          "at": "2026-10-28T14:45:54.720131Z",
+          "component": "http",
+          "type": "http_request",
+          "severity": "ERROR",
+          "message": "HTTP 500 GET tgrad.kz"
+        }
+      ]
+    },
+    "problems": [],
+    "status": "ok"
+  }
+}

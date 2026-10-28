@@ -1,0 +1,31 @@
+{
+  "head": "733d4f986945ac7b94bed466d677a06d3770eeb9",
+  "python": {
+    "tests": 1827,
+    "seconds": 89.763,
+    "result": "OK"
+  },
+  "frontend": {
+    "suites": 19,
+    "result": "PASS"
+  },
+  "linux_original_image": {
+    "tests": 1827,
+    "seconds": 162.148,
+    "result": "FAILED",
+    "reason": "image contains test_capped_on_large_hosts before final local test isolation fix"
+  },
+  "linux_exact_head": {
+    "tests": 1827,
+    "seconds": 162.153,
+    "result": "OK",
+    "environment": "ephemeral container; exact git archive HEAD; network none; 4CPU/15GiB; no mounts"
+  },
+  "findings": {
+    "P1": 1,
+    "P2": 3
+  },
+  "production_modified": false,
+  "working_database_used": false,
+  "real_ai_or_telegram_calls": false
+}
