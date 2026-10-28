@@ -110,8 +110,46 @@ def _reconcile_source_conn(conn, shop_key, source_url, product_ids, complete=Fal
     if not active_before:
         return []
     marks = ",".join("?" * len(active_before))
-    return [r[0] for r in conn.execute(f"SELECT id FROM products WHERE is_active = 0 AND id IN ({marks})",
-                                       sorted(active_before))]
+    retired = [r[0] for r in conn.execute(f"SELECT id FROM products WHERE is_active = 0 AND id IN ({marks})",
+                                          sorted(active_before))]
+    _queue_watch_refresh_conn(conn, retired)
+    return retired
+
+
+def _queue_watch_refresh_conn(conn, product_ids) -> None:
+    """G03: задание обновить память наблюдений — в той же транзакции, что снятие товара."""
+    now = time.time()
+    conn.executemany("INSERT OR IGNORE INTO watch_refresh (product_id, created_at) VALUES (?, ?)",
+                     [(str(pid), now) for pid in product_ids])
+
+
+def refresh_retired_watches(product_ids: List[str]) -> None:
+    """Наблюдения узнают, что товары сняты (was_available = 0), затем задания удаляются.
+
+    Ошибка пробрасывается и оставляет задания: их повторит следующий вызов или старт (G03).
+    Повтор безопасен — недоступный товар событий не создаёт, только обновляет память.
+    """
+    ids = [str(pid) for pid in product_ids]
+    if not ids:
+        return
+    evaluate_watches(watched_offers(ids))
+    with get_connection() as conn:
+        for i in range(0, len(ids), 500):
+            chunk = ids[i:i + 500]
+            conn.execute(f"DELETE FROM watch_refresh WHERE product_id IN ({','.join('?' * len(chunk))})", chunk)
+        conn.commit()
+
+
+def drain_watch_refresh(page: int = 500) -> int:
+    """Выполняет все накопленные задания обновления памяти наблюдений. Возвращает их число."""
+    done = 0
+    while True:
+        with get_connection() as conn:
+            ids = [r[0] for r in conn.execute("SELECT product_id FROM watch_refresh ORDER BY rowid LIMIT ?", (page,))]
+        if not ids:
+            return done
+        refresh_retired_watches(ids)
+        done += len(ids)
 
 
 def _has_table(conn, name: str) -> bool:
@@ -142,26 +180,36 @@ def _retire_mirrored_offers_conn(conn, shop_key: Optional[str] = None, source_ur
 
 
 def sync_retired_offers() -> int:
-    """Разовая починка при старте: сняты в products, но активны в offers (до 6.4.6). Идемпотентна.
+    """Починка при старте: сняты в products, но активны в offers (до 6.4.6). Идемпотентна.
 
-    Снятые так товары проходят через наблюдения как недоступные (G02): иначе их память осталась бы
-    was_available = 1, и возврат товара по прежней цене не дал бы «снова в продаже».
+    Снятие offers и задания обновить память наблюдений по этим товарам фиксируются одной
+    транзакцией; сами задания выполняет drain_watch_refresh() и повторяет при следующем старте,
+    если проверка сорвалась (G02, G03). Один раз, по метке в schema_metadata, в задания ставятся и
+    товары, которые уже сняла 6.4.6 без обновления памяти.
     """
     with get_connection() as conn:
         if not _has_table(conn, "offers"):
             return 0
+        conn.execute("BEGIN IMMEDIATE")
         product_ids = [r[0] for r in conn.execute(
             "SELECT p.id FROM products p JOIN offers o ON o.id = 'off_' || p.id "
             "WHERE p.is_active = 0 AND o.is_active = 1")]
         count = _retire_mirrored_offers_conn(conn)
+        _queue_watch_refresh_conn(conn, product_ids)
+        if not conn.execute("SELECT 1 FROM schema_metadata WHERE name = ?", (WATCH_REFRESH_SEED,)).fetchone():
+            _queue_watch_refresh_conn(conn, [r[0] for r in conn.execute(
+                "SELECT p.id FROM products p JOIN offers o ON o.id = 'off_' || p.id "
+                "WHERE p.is_active = 0 AND o.is_active = 0")])
+            conn.execute("INSERT INTO schema_metadata (name, value) VALUES (?, ?)",
+                         (WATCH_REFRESH_SEED, datetime.datetime.now(datetime.timezone.utc).isoformat()))
         conn.commit()
     if count:
         print(f"[DB] G01: снято {count} предложений V2, которых уже нет в каталоге")
-        try:
-            evaluate_watches(watched_offers(product_ids))
-        except Exception as e:  # noqa: BLE001 — старт не должен падать из-за памяти наблюдений
-            print(f"[DB] G02: память наблюдений по снятым предложениям не обновлена: {type(e).__name__}")
     return count
+
+
+# Метка разового досева заданий памяти для баз, которые уже прошли починку 6.4.6 (G03)
+WATCH_REFRESH_SEED = "watch_refresh_seed_v1"
 
 
 def reconcile_source(shop_key, source_url, products, complete=False):
@@ -588,6 +636,13 @@ def _create_schema(cursor) -> None:
     # F01: метка наблюдения — момент приёма данных (time.time()). Запись старше уже сохранённой
     # (повтор давнего отказа после более свежего обхода) не перезаписывает товар и не снимает источник.
     _add_column(cursor, "products", "observed_seq", "REAL")
+    # G03: товары, снятые из продажи, чью память наблюдений ещё нужно обновить (was_available = 0).
+    # Строка пишется в той же транзакции, что снятие, и удаляется только после успешной проверки —
+    # сбой или рестарт не теряют переход «снова в продаже».
+    cursor.execute("""CREATE TABLE IF NOT EXISTS watch_refresh (
+        product_id TEXT PRIMARY KEY,
+        created_at REAL NOT NULL
+    )""")
     cursor.execute("""CREATE TABLE IF NOT EXISTS source_observed (
         shop_key TEXT NOT NULL,
         source_url TEXT NOT NULL,
@@ -1372,6 +1427,12 @@ def init_db():
         conn.commit()
     run_migrations(backup_done=backup_done)
     sync_retired_offers()
+    try:
+        refreshed = drain_watch_refresh()
+        if refreshed:
+            print(f"[DB] G03: память наблюдений обновлена по {refreshed} снятым товарам")
+    except Exception as e:  # noqa: BLE001 — задания остаются и будут повторены при следующем старте
+        print(f"[DB] G03: память наблюдений не обновлена, повтор при следующем старте: {type(e).__name__}")
     cleanup_expired_sessions()
     reset_stale_running_scans()
 

@@ -1943,11 +1943,13 @@ async def _evaluate_retired_watches(product_ids, strict=False):
     """G01: снятые сверкой товары проходят через наблюдения как недоступные.
 
     Событие при этом не создаётся (недоступное не срабатывает), но память наблюдения запоминает
-    was_available = 0 — без этого возврат товара не дал бы «снова в продаже».
+    was_available = 0 — без этого возврат товара не дал бы «снова в продаже». Задание на это
+    записано сверкой в watch_refresh и снимается только после успеха: при сбое его повторят
+    повтор задачи очереди, суточное обслуживание или следующий старт (G03).
     """
     try:
-        from database import evaluate_watches, watched_offers
-        await asyncio.to_thread(lambda: evaluate_watches(watched_offers(list(product_ids))))
+        from database import refresh_retired_watches
+        await asyncio.to_thread(refresh_retired_watches, list(product_ids))
     except Exception as e:
         print(f"[Watches] Ошибка проверки снятых товаров: {type(e).__name__}")
         from telemetry import telemetry, COMPONENT_SYSTEM
@@ -2675,8 +2677,9 @@ async def _scan_task_body(shop_keys, target_categories, scan_type):
             from database import prune_daily_reports, prune_matching_pairs
             await asyncio.to_thread(prune_daily_reports)
             await asyncio.to_thread(prune_matching_pairs)
-            from database import prune_spool_archive
+            from database import prune_spool_archive, drain_watch_refresh
             await asyncio.to_thread(prune_spool_archive)
+            await asyncio.to_thread(drain_watch_refresh)  # G03: несработавшие обновления памяти наблюдений
             # Спорные пары сопоставления разбирает модель — вне пути сравнения цен (P09, AI-часть)
             try:
                 import catalog_ai

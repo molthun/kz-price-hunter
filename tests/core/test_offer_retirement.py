@@ -6,7 +6,9 @@
 
 from tests import test_support  # noqa: F401
 import os
+import sqlite3
 import time
+from unittest.mock import patch
 
 import database
 from domain.search_core import SearchCore
@@ -150,4 +152,67 @@ class OfferRetirementTest(QueueContractBase):
         self.assertEqual(self.events(), [])
         await self.scan(["kept", "drift"])
         self.assert_available("drift", True)
+        self.assertEqual([e["reason"] for e in self.events()], ["товар снова в продаже"])
+
+    def refresh_jobs(self, name):
+        with database.get_connection() as conn:
+            return conn.execute("SELECT COUNT(*) FROM watch_refresh WHERE product_id = ?",
+                                (self.pid(name),)).fetchone()[0]
+
+    async def prepare_old_base(self):
+        await self.scan(["kept", "drift"])
+        self.watch("drift", "back_in_stock")
+        database.evaluate_watches(database.watched_offers([self.pid("drift")]))  # память: доступен
+        with database.get_connection() as conn:
+            conn.execute("UPDATE products SET is_active = 0 WHERE id = ?", (self.pid("drift"),))
+            conn.commit()
+
+    async def assert_return_notifies_once(self):
+        await self.scan(["kept", "drift"])
+        self.assert_available("drift", True)
+        self.assertEqual([e["reason"] for e in self.events()], ["товар снова в продаже"])
+
+    async def test_memory_repair_survives_failure_and_restart(self):
+        """G03-A: сбой обновления памяти при старте повторяется следующим стартом."""
+        await self.prepare_old_base()
+        with patch.object(database, "evaluate_watches", side_effect=sqlite3.OperationalError("synthetic")):
+            database.init_db()
+        self.assert_available("drift", False)
+        self.assertEqual(self.refresh_jobs("drift"), 1, "задание потеряно после сбоя")
+        database.init_db()
+        self.assertEqual(self.refresh_jobs("drift"), 0)
+        await self.assert_return_notifies_once()
+
+    async def test_base_already_repaired_by_646_gets_memory_fixed(self):
+        """G03-B: offers уже сняла 6.4.6, память осталась «в продаже» — разовый досев заданий."""
+        await self.prepare_old_base()
+        with database.get_connection() as conn:  # состояние после 6.4.6: offer снят, заданий нет, метки нет
+            conn.execute("UPDATE offers SET is_active = 0 WHERE id = ?", (f"off_{self.pid('drift')}",))
+            conn.execute("DELETE FROM watch_refresh")
+            conn.execute("DELETE FROM schema_metadata WHERE name = ?", (database.WATCH_REFRESH_SEED,))
+            conn.commit()
+        database.init_db()
+        self.assertEqual(self.refresh_jobs("drift"), 0)
+        database.init_db()  # повторный старт ничего не досевает заново
+        await self.assert_return_notifies_once()
+
+    async def test_failed_retired_watch_refresh_in_queue_is_retried(self):
+        """Сбой обновления памяти в очереди: задача и задание остаются, повтор доводит до конца."""
+        await self.scan(["kept", "late"])
+        self.watch("late", "back_in_stock")
+        database.evaluate_watches(database.watched_offers([self.pid("late")]))
+        qm = self.qm()
+        await qm.enqueue([self.item("kept")], "Contract", {}, shop_key=self.shop,
+                         reconcile={"key": self.shop, "url": "https://example.invalid/cat", "complete": True})
+        item = await qm.dequeue(timeout=0.05)
+        with patch.object(database, "evaluate_watches", side_effect=sqlite3.OperationalError("synthetic")):
+            with self.assertRaises(sqlite3.OperationalError):
+                await self.run_item(qm, item)
+        self.assertEqual(self.refresh_jobs("late"), 1)
+        self.assertEqual(await qm.nack(item, error="synthetic"), "pending")
+        item = await qm.dequeue(timeout=0.05)
+        self.assertTrue(await self.run_item(qm, item))
+        self.assertEqual(self.refresh_jobs("late"), 0)
+        time.sleep(0.01)
+        await self.scan(["kept", "late"])
         self.assertEqual([e["reason"] for e in self.events()], ["товар снова в продаже"])
