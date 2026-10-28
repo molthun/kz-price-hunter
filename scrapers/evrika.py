@@ -8,7 +8,7 @@ from typing import Any, Dict, List
 from urllib.parse import urlparse
 
 from scrapers import http as requests
-from bs4 import BeautifulSoup
+from html_soup import make_soup
 from scrapers.base import ScanResult, PagedScraper, parse_price
 
 class EvrikaScraper(PagedScraper):
@@ -49,7 +49,7 @@ class EvrikaScraper(PagedScraper):
         if not isinstance(data, dict) or "products" not in data:
             raise ValueError("Неожиданная структура каталога Эврика")
 
-        soup = BeautifulSoup(data.get("products") or "", "html.parser")
+        soup = make_soup(data.get("products") or "")
         products: List[Dict[str, Any]] = []
 
         for tile in soup.select(".goods-tile"):

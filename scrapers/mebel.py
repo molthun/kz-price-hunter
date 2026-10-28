@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional, Set
 from urllib.parse import quote_plus, urljoin
 
 from bs4 import BeautifulSoup
+from html_soup import make_soup
 from scrapers import http as requests
 from scrapers.base import (
     PagedScraper,
@@ -179,7 +180,7 @@ class MebelScraper(PagedScraper):
         if resp.status_code != 200:
             raise UnconfirmedEnd(f"Mebel.kz HTTP {resp.status_code} на странице {page_num}")
 
-        soup = BeautifulSoup(resp.text, "html.parser")
+        soup = make_soup(resp.text)
 
         # 1. Поиск карточек в HTML
         cards = soup.find_all(

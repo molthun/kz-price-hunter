@@ -15,8 +15,7 @@ import math
 import re
 from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin
-from bs4 import BeautifulSoup
-
+from html_soup import make_soup
 from scrapers import http as requests
 from scrapers.base import (
     PagedScraper, price_value, validate_product_item,
@@ -203,7 +202,7 @@ class LemanaProScraper(PagedScraper):
 
         # 2. Fallback: парсинг карточек из DOM (div[data-qa-product]), если JSON не найден
         if not products:
-            soup = BeautifulSoup(html_text, "html.parser")
+            soup = make_soup(html_text)
             cards = soup.select("div[data-qa-product]")
             for c in cards:
                 link_el = c.select_one('a[data-qa="product-name"], a[href*="/product/"]')

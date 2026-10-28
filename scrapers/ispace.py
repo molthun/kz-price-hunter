@@ -15,7 +15,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional
 from urllib.parse import parse_qs, urljoin, urlsplit
 
-from bs4 import BeautifulSoup
+from html_soup import make_soup
 from scrapers import http as requests
 from scrapers.base import DEFAULT_MAX_PAGES, PagedScraper, ScanResult, parse_price
 
@@ -35,7 +35,7 @@ class ISpaceScraper(PagedScraper):
 
     @staticmethod
     def parse_listing(html: str) -> List[str]:
-        soup = BeautifulSoup(html, "html.parser")
+        soup = make_soup(html)
         links = []
         for a in soup.select(".entity-card a.entity-card_name[href]"):
             href = urljoin(BASE_URL, a["href"].split("?")[0])
@@ -48,7 +48,7 @@ class ISpaceScraper(PagedScraper):
         """Наибольший номер страницы этой категории в ссылках пагинации (1, если ссылок нет)."""
         path = urlsplit(category_url).path.rstrip("/")
         pages = [1]
-        for a in BeautifulSoup(html, "html.parser").select("a[href*='page=']"):
+        for a in make_soup(html).select("a[href*='page=']"):
             link = urlsplit(urljoin(BASE_URL, a["href"]))
             if link.path.rstrip("/") != path:
                 continue

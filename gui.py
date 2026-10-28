@@ -44,7 +44,9 @@ def main():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     from concurrent.futures import ThreadPoolExecutor
-    loop.set_default_executor(ThreadPoolExecutor(max_workers=64, thread_name_prefix="kzph-worker"))
+    from config import worker_thread_count
+    loop.set_default_executor(ThreadPoolExecutor(max_workers=worker_thread_count(),
+                                                 thread_name_prefix="kzph-worker"))
     loop.call_later(0.8, open_browser, local_url)
 
     web.run_app(app, host=HOST, port=PORT, print=None, loop=loop)

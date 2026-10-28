@@ -11,8 +11,7 @@ from __future__ import annotations
 import time
 from typing import List, Dict, Any, Optional
 from urllib.parse import urljoin, quote_plus
-from bs4 import BeautifulSoup
-
+from html_soup import make_soup
 from scrapers import http as requests
 from scrapers.base import (
     PagedScraper, price_value, validate_product_item,
@@ -163,7 +162,7 @@ class MarwinScraper(PagedScraper):
         if resp.status_code != 200:
             raise RuntimeError(f"HTTP {resp.status_code} on {url}")
 
-        soup = BeautifulSoup(resp.text, "html.parser")
+        soup = make_soup(resp.text)
         cards = soup.select(".product-item-info")
         if not cards:
             if page_num > 1:
@@ -189,7 +188,7 @@ class MarwinScraper(PagedScraper):
             resp = session.get(url, headers=self.headers, timeout=12)
             if resp.status_code != 200:
                 return []
-            soup = BeautifulSoup(resp.text, "html.parser")
+            soup = make_soup(resp.text)
             cards = soup.select(".product-item-info")
             results: List[Dict[str, Any]] = []
             for card in cards:

@@ -6,8 +6,7 @@
 """
 from typing import List, Dict, Any
 from urllib.parse import urljoin
-from bs4 import BeautifulSoup
-
+from html_soup import make_soup
 from scrapers import http as requests
 from scrapers.base import PagedScraper, price_value, validate_product_item, UnconfirmedEnd
 
@@ -53,7 +52,7 @@ class VkusmartScraper(PagedScraper):
             if r.status_code != 200:
                 raise RuntimeError(f"HTTP {r.status_code} on {url}")
 
-            soup = BeautifulSoup(r.text, "html.parser")
+            soup = make_soup(r.text)
             cards = soup.select(".catalog-block-view__item, .catalog_item_wrapp, .item_block")
             if not cards:
                 # Источник не даёт признака конца каталога: пустая страница — «ограничен», а на

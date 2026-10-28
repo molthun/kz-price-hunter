@@ -13,8 +13,7 @@
 import re
 from typing import List, Dict, Any, Optional
 from urllib.parse import urljoin
-from bs4 import BeautifulSoup
-
+from html_soup import make_soup
 from scrapers import http as requests
 from scrapers.base import (
     PagedScraper,
@@ -69,7 +68,7 @@ class MasterOkScraper(PagedScraper):
         if resp.status_code != 200:
             raise RuntimeError(f"HTTP {resp.status_code}")
 
-        soup = BeautifulSoup(resp.text, "html.parser")
+        soup = make_soup(resp.text)
         cards = soup.select(".catalog-item-card, div[data-entity='item']")
 
         for card in cards:

@@ -3,7 +3,7 @@ import re
 import asyncio
 from typing import List, Dict, Any
 from scrapers import http as requests
-from bs4 import BeautifulSoup
+from html_soup import make_soup
 from scrapers.base import ScanResult, parse_price
 
 # Официальная выгрузка ~40 МБ (сентябрь 2026); предел с запасом против бесконечного ответа
@@ -143,7 +143,7 @@ class ShopKzScraper:
                 if r.status_code != 200:
                     break
 
-                soup = BeautifulSoup(r.text, "html.parser")
+                soup = make_soup(r.text)
                 cards = soup.select(".bx_catalog_item")
                 if not cards:
                     break

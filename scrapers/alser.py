@@ -13,9 +13,7 @@ import re
 from typing import Any, Dict, List, Optional
 from scrapers import http as requests
 from scrapers.base import slug_id, UnconfirmedEnd, PagedScraper, ScanResult, parse_price
-from bs4 import BeautifulSoup
-
-
+from html_soup import make_soup
 class AlserScraper(PagedScraper):
     SHOP_NAME = "Alser"
     SHOP_EMOJI = "🟡"
@@ -59,7 +57,7 @@ class AlserScraper(PagedScraper):
             if r.status_code != 200:
                 raise RuntimeError(f"HTTP {r.status_code}")
 
-            soup = BeautifulSoup(r.text, "html.parser")
+            soup = make_soup(r.text)
             cards = soup.select("article.product-card")
             if not cards:
                 raise UnconfirmedEnd("Не найдены карточки: конец выдачи не подтвержден")

@@ -10,8 +10,7 @@ from __future__ import annotations
 import time
 from typing import List, Dict, Any, Optional
 from urllib.parse import urljoin
-from bs4 import BeautifulSoup
-
+from html_soup import make_soup
 from scrapers import http as requests
 from scrapers.base import (
     PagedScraper, price_value, validate_product_item,
@@ -76,7 +75,7 @@ class IntertopScraper(PagedScraper):
         if resp.status_code != 200:
             raise RuntimeError(f"HTTP {resp.status_code} on {url}")
 
-        soup = BeautifulSoup(resp.text, "html.parser")
+        soup = make_soup(resp.text)
         cards = soup.select(".in-product-tile")
         if not cards:
             if page_num > 1:

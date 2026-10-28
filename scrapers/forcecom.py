@@ -3,8 +3,7 @@ import hashlib
 from typing import List, Dict, Any
 from scrapers import http as requests
 from scrapers.base import UnconfirmedEnd, PagedScraper, parse_price
-from bs4 import BeautifulSoup
-
+from html_soup import make_soup
 class ForcecomScraper(PagedScraper):
     SHOP_NAME = "Forcecom"
     SHOP_EMOJI = "⚡️"
@@ -40,7 +39,7 @@ class ForcecomScraper(PagedScraper):
             if r.status_code != 200:
                 raise RuntimeError(f"HTTP {r.status_code}")
 
-            soup = BeautifulSoup(r.text, "html.parser")
+            soup = make_soup(r.text)
             cards = soup.select(".catalog-table__inner, .catalog-block__inner, .catalog-item")
             if not cards:
                 raise UnconfirmedEnd("Не найдены карточки: конец выдачи не подтвержден")

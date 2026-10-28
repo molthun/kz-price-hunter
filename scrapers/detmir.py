@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 from urllib.parse import quote_plus, urljoin
 
 from bs4 import BeautifulSoup
+from html_soup import make_soup
 from scrapers import http as requests
 from scrapers.base import (
     PagedScraper,
@@ -223,7 +224,7 @@ class DetmirScraper(PagedScraper):
         # 1. Попытка через window.appData
         products, total_products = self._extract_app_data_items(html, category_name)
 
-        soup = BeautifulSoup(html, "html.parser")
+        soup = make_soup(html)
         # 2. Если appData пуста, используем DOM
         if not products:
             products = self._extract_dom_items(soup, category_name)
@@ -268,7 +269,7 @@ class DetmirScraper(PagedScraper):
                 return []
             products, _ = self._extract_app_data_items(resp.text, "Поиск")
             if not products:
-                soup = BeautifulSoup(resp.text, "html.parser")
+                soup = make_soup(resp.text)
                 products = self._extract_dom_items(soup, "Поиск")
             return products[:limit]
         except Exception:

@@ -135,9 +135,9 @@ def same_site(url: str, host: str) -> bool:
 
 def script_urls(html: str, page_url: str, host: str) -> List[str]:
     """Свои скрипты страницы, в порядке появления, без повторов."""
-    from bs4 import BeautifulSoup
+    from html_soup import make_soup
     urls: List[str] = []
-    for tag in BeautifulSoup(html or "", "html.parser").select("script[src]"):
+    for tag in make_soup(html or "").select("script[src]"):
         url = urljoin(page_url, tag.get("src") or "")
         if url not in urls and same_site(url, host):
             urls.append(url)

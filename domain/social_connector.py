@@ -24,8 +24,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import urlparse
 
-from bs4 import BeautifulSoup
-
+from html_soup import make_soup
 from domain.models import utc_now_iso
 from domain.social_content import ContentObservation, ContentType
 
@@ -228,7 +227,7 @@ class TelegramChannelConnector:
 
     def parse_posts(self, html: str, handle: str) -> List[FetchedPost]:
         """Разбор страницы t.me/s/<handle>. Пустая страница — пустой список, не ошибка."""
-        soup = BeautifulSoup(html or "", "html.parser")
+        soup = make_soup(html or "")
         posts: List[FetchedPost] = []
         seen = set()
         for node in soup.select("div.tgme_widget_message"):

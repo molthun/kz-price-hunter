@@ -11,9 +11,7 @@ from scrapers.base import (
     ScanResult,
     validate_product_item,
 )
-from bs4 import BeautifulSoup
-
-
+from html_soup import make_soup
 class SulpakScraper(PagedScraper):
     SHOP_NAME = "Sulpak"
     SHOP_EMOJI = "🟢"
@@ -65,8 +63,8 @@ class SulpakScraper(PagedScraper):
                 if not products_html or not products_html.strip():
                     return ScanResult([], complete=True)
 
-                soup = BeautifulSoup(products_html, "html.parser")
-                pag_soup = BeautifulSoup(paginator_html, "html.parser") if paginator_html else None
+                soup = make_soup(products_html)
+                pag_soup = make_soup(paginator_html) if paginator_html else None
             else:
                 url = category_url
                 if page_num > 1:
@@ -91,7 +89,7 @@ class SulpakScraper(PagedScraper):
                 if r.status_code != 200:
                     raise RuntimeError(f"HTTP {r.status_code}")
 
-                soup = BeautifulSoup(r.text, "html.parser")
+                soup = make_soup(r.text)
                 pag_soup = soup
 
             cards = soup.select(".product__item, .goods-tiles")

@@ -13,8 +13,7 @@ import re
 import time
 from typing import List, Dict, Any, Optional, Set
 from urllib.parse import urljoin, quote_plus
-from bs4 import BeautifulSoup
-
+from html_soup import make_soup
 from scrapers import http as requests
 from scrapers.base import (
     PagedScraper, price_value, validate_product_item,
@@ -154,7 +153,7 @@ class ITekaScraper(PagedScraper):
         if resp.status_code != 200:
             raise RuntimeError(f"HTTP {resp.status_code} on {url}")
 
-        soup = BeautifulSoup(resp.text, "html.parser")
+        soup = make_soup(resp.text)
         med_links = soup.select("a[href*='/medicaments/']")
         if not med_links:
             if page_num > 1:
@@ -190,7 +189,7 @@ class ITekaScraper(PagedScraper):
             resp = session.get(url, headers=self.headers, timeout=12)
             if resp.status_code != 200:
                 return []
-            soup = BeautifulSoup(resp.text, "html.parser")
+            soup = make_soup(resp.text)
             med_links = soup.select("a[href*='/medicaments/']")
             results: List[Dict[str, Any]] = []
             seen_cards: Set[int] = set()

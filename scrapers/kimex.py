@@ -13,7 +13,7 @@ import time
 from typing import Any, Dict, List, Optional, Set
 from urllib.parse import quote_plus, urljoin
 
-from bs4 import BeautifulSoup
+from html_soup import make_soup
 from scrapers import http as requests
 from scrapers.base import (
     PagedScraper,
@@ -151,7 +151,7 @@ class KimexScraper(PagedScraper):
         if resp.status_code != 200:
             raise UnconfirmedEnd(f"KIMEX HTTP {resp.status_code} на странице {page_num}")
 
-        soup = BeautifulSoup(resp.text, "html.parser")
+        soup = make_soup(resp.text)
         # Основные карточки каталога находятся в .cataloge__cards
         cards = soup.select(".cataloge__cards a.card[data-entity='item']")
         if not cards:
@@ -188,7 +188,7 @@ class KimexScraper(PagedScraper):
             resp = session.get(url, headers=self.headers, timeout=12)
             if resp.status_code != 200:
                 return []
-            soup = BeautifulSoup(resp.text, "html.parser")
+            soup = make_soup(resp.text)
             cards = soup.select(".cataloge__cards a.card[data-entity='item']")
             if not cards:
                 cards = [c for c in soup.select("a.card[data-entity='item']") if "swiper-slide" not in [p.get("class", [""])[0] for p in c.parents]]

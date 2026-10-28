@@ -3354,8 +3354,11 @@ async def telemetry_middleware(request, handler):
 
 async def _init_thread_pool(app):
     from concurrent.futures import ThreadPoolExecutor
+    from config import worker_thread_count
     loop = asyncio.get_running_loop()
-    loop.set_default_executor(ThreadPoolExecutor(max_workers=64, thread_name_prefix="kzph-worker"))
+    workers = worker_thread_count()
+    print(f"[System] Пул рабочих потоков: {workers} (ядер: {os.cpu_count() or '?'})")
+    loop.set_default_executor(ThreadPoolExecutor(max_workers=workers, thread_name_prefix="kzph-worker"))
 
 def create_app():
     init_db()

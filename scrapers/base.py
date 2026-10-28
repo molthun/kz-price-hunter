@@ -112,10 +112,10 @@ def slug_id(prefix: str, slug: str, max_len: int = 80) -> str:
 def pagination_last_page(html: str, category_url: str, param: str = "page") -> Optional[int]:
     """Наибольший номер страницы этой категории в ссылках пагинации; None, если ссылок нет."""
     from urllib.parse import parse_qs, urljoin
-    from bs4 import BeautifulSoup
+    from html_soup import make_soup
     path = urlsplit(category_url).path.rstrip("/")
     pages = []
-    for a in BeautifulSoup(html, "html.parser").select("a[href]"):
+    for a in make_soup(html).select("a[href]"):
         link = urlsplit(urljoin(category_url, a["href"]))
         if link.path.rstrip("/") != path:
             continue

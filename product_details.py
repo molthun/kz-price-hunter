@@ -144,8 +144,8 @@ def _clean(text: str) -> str:
 
 
 def extract_description(html: str, url: str, shop: str) -> str:
-    from bs4 import BeautifulSoup
-    soup = BeautifulSoup(html, "html.parser")
+    from html_soup import make_soup
+    soup = make_soup(html)
     host = (urlsplit(url).hostname or "").lower()
 
     # 1. Белый Ветер (shop.kz)

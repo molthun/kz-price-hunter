@@ -375,6 +375,25 @@ ADMIN_TELEGRAM_IDS = {
 }
 # Local developer login is explicitly opt-in and never impersonates Telegram IDs.
 ALLOW_DEV_LOGIN = os.getenv("ALLOW_DEV_LOGIN", "0").strip() == "1"
+
+# Размер пула рабочих потоков: в нём живут разбор каталогов, запись в SQLite и прочие
+# блокирующие вызовы обработчиков. Почти вся эта работа — Python под GIL, поэтому
+# десятки потоков её не ускоряют, а отнимают процессор у цикла событий: во время волны
+# обхода даже /api/live, который не ходит в базу, отвечал до 5 секунд (замер 28.10.2026).
+# Считаем кратно числу ядер — запас нужен на ожидание блокировок, а не на параллельный счёт.
+# WORKER_THREADS переопределяет расчёт, если окружению нужен свой размер.
+WORKER_THREADS_PER_CORE = 4
+WORKER_THREADS_MIN = 8
+WORKER_THREADS_MAX = 32
+
+
+def worker_thread_count() -> int:
+    """Число потоков в общем пуле: из WORKER_THREADS либо кратно числу ядер."""
+    raw = (os.getenv("WORKER_THREADS") or "").strip()
+    if raw.isdigit() and int(raw) > 0:
+        return int(raw)
+    cores = os.cpu_count() or 2
+    return max(WORKER_THREADS_MIN, min(WORKER_THREADS_MAX, cores * WORKER_THREADS_PER_CORE))
 DEV_ADMIN_ID = -1  # Reserved local principal; Telegram user IDs are positive.
 
 # Empty means no forwarded headers are trusted. Use exact proxy IPs where possible.

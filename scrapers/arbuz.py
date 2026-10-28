@@ -8,8 +8,7 @@ import re
 import hashlib
 from typing import List, Dict, Any, Optional
 from urllib.parse import urljoin
-from bs4 import BeautifulSoup
-
+from html_soup import make_soup
 from scrapers import http as requests
 from scrapers.base import PagedScraper, price_value, validate_product_item, UnconfirmedEnd
 
@@ -52,7 +51,7 @@ class ArbuzScraper(PagedScraper):
         if resp.status_code != 200:
             raise RuntimeError(f"HTTP {resp.status_code} on {url}")
 
-        soup = BeautifulSoup(resp.text, "html.parser")
+        soup = make_soup(resp.text)
         cards = soup.select("article.product-card, article.product-item")
         if not cards:
             # Признака конца каталога в HTML нет: «ограничен», на первой странице — ошибка (R-M01)

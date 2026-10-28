@@ -9,7 +9,7 @@ import hashlib
 from typing import Any, Dict, List
 from urllib.parse import parse_qs, urljoin, urlparse
 
-from bs4 import BeautifulSoup
+from html_soup import make_soup
 from scrapers import http as requests
 from scrapers.base import PagedScraper, ScanResult, parse_price
 
@@ -50,7 +50,7 @@ class SchemaListingScraper(PagedScraper):
 
     @classmethod
     def parse_page(cls, html: str, category_name: str, page_num: int, page_url: str = "") -> ScanResult:
-        soup = BeautifulSoup(html, "html.parser")
+        soup = make_soup(html)
         products: List[Dict[str, Any]] = []
         seen = set()
         out_of_stock = 0
