@@ -1,0 +1,282 @@
+[
+  {
+    "at": "2026-10-28T07:16:19.237571+00:00",
+    "results": [
+      {
+        "path": "/api/live",
+        "status": 200,
+        "seconds": 0.072,
+        "data": {
+          "status": "live"
+        }
+      },
+      {
+        "path": "/api/health",
+        "status": 200,
+        "seconds": 0.092,
+        "data": {
+          "status": "ok",
+          "db": "ok",
+          "queue_size": 53,
+          "redis_active": true,
+          "worker_running": true
+        }
+      }
+    ]
+  },
+  {
+    "at": "2026-10-28T07:16:24.334992+00:00",
+    "results": [
+      {
+        "path": "/api/live",
+        "error": "TimeoutError",
+        "seconds": 8.034
+      },
+      {
+        "path": "/api/health",
+        "error": "TimeoutError",
+        "seconds": 8.033
+      }
+    ]
+  },
+  {
+    "at": "2026-10-28T07:16:37.374934+00:00",
+    "results": [
+      {
+        "path": "/api/live",
+        "status": 200,
+        "seconds": 6.735,
+        "data": {
+          "status": "live"
+        }
+      },
+      {
+        "path": "/api/health",
+        "status": 200,
+        "seconds": 6.735,
+        "data": {
+          "status": "ok",
+          "db": "ok",
+          "queue_size": 53,
+          "redis_active": true,
+          "worker_running": true
+        }
+      }
+    ]
+  },
+  {
+    "at": "2026-10-28T07:16:49.111138+00:00",
+    "results": [
+      {
+        "path": "/api/live",
+        "status": 200,
+        "seconds": 0.058,
+        "data": {
+          "status": "live"
+        }
+      },
+      {
+        "path": "/api/health",
+        "status": 200,
+        "seconds": 0.054,
+        "data": {
+          "status": "ok",
+          "db": "ok",
+          "queue_size": 53,
+          "redis_active": true,
+          "worker_running": true
+        }
+      }
+    ]
+  },
+  {
+    "at": "2026-10-28T07:16:54.175222+00:00",
+    "results": [
+      {
+        "path": "/api/live",
+        "status": 200,
+        "seconds": 0.049,
+        "data": {
+          "status": "live"
+        }
+      },
+      {
+        "path": "/api/health",
+        "status": 200,
+        "seconds": 0.054,
+        "data": {
+          "status": "ok",
+          "db": "ok",
+          "queue_size": 53,
+          "redis_active": true,
+          "worker_running": true
+        }
+      }
+    ]
+  },
+  {
+    "at": "2026-10-28T07:16:59.234937+00:00",
+    "results": [
+      {
+        "path": "/api/live",
+        "status": 200,
+        "seconds": 0.047,
+        "data": {
+          "status": "live"
+        }
+      },
+      {
+        "path": "/api/health",
+        "status": 200,
+        "seconds": 0.048,
+        "data": {
+          "status": "ok",
+          "db": "ok",
+          "queue_size": 53,
+          "redis_active": true,
+          "worker_running": true
+        }
+      }
+    ]
+  },
+  {
+    "at": "2026-10-28T07:17:04.287120+00:00",
+    "results": [
+      {
+        "path": "/api/live",
+        "error": "TimeoutError",
+        "seconds": 8.06
+      },
+      {
+        "path": "/api/health",
+        "error": "TimeoutError",
+        "seconds": 8.06
+      }
+    ]
+  },
+  {
+    "at": "2026-10-28T07:17:17.349669+00:00",
+    "results": [
+      {
+        "path": "/api/live",
+        "status": 200,
+        "seconds": 7.431,
+        "data": {
+          "status": "live"
+        }
+      },
+      {
+        "path": "/api/health",
+        "status": 200,
+        "seconds": 7.431,
+        "data": {
+          "status": "ok",
+          "db": "ok",
+          "queue_size": 53,
+          "redis_active": true,
+          "worker_running": true
+        }
+      }
+    ]
+  },
+  {
+    "at": "2026-10-28T07:17:29.784871+00:00",
+    "results": [
+      {
+        "path": "/api/live",
+        "status": 200,
+        "seconds": 0.121,
+        "data": {
+          "status": "live"
+        }
+      },
+      {
+        "path": "/api/health",
+        "status": 200,
+        "seconds": 0.139,
+        "data": {
+          "status": "ok",
+          "db": "ok",
+          "queue_size": 64,
+          "redis_active": true,
+          "worker_running": true
+        }
+      }
+    ]
+  },
+  {
+    "at": "2026-10-28T07:17:34.928460+00:00",
+    "results": [
+      {
+        "path": "/api/live",
+        "status": 200,
+        "seconds": 0.103,
+        "data": {
+          "status": "live"
+        }
+      },
+      {
+        "path": "/api/health",
+        "status": 200,
+        "seconds": 0.188,
+        "data": {
+          "status": "ok",
+          "db": "ok",
+          "queue_size": 74,
+          "redis_active": true,
+          "worker_running": true
+        }
+      }
+    ]
+  },
+  {
+    "at": "2026-10-28T07:17:40.118553+00:00",
+    "results": [
+      {
+        "path": "/api/live",
+        "status": 200,
+        "seconds": 0.105,
+        "data": {
+          "status": "live"
+        }
+      },
+      {
+        "path": "/api/health",
+        "status": 200,
+        "seconds": 0.136,
+        "data": {
+          "status": "ok",
+          "db": "ok",
+          "queue_size": 78,
+          "redis_active": true,
+          "worker_running": true
+        }
+      }
+    ]
+  },
+  {
+    "at": "2026-10-28T07:17:45.260642+00:00",
+    "results": [
+      {
+        "path": "/api/live",
+        "status": 200,
+        "seconds": 0.113,
+        "data": {
+          "status": "live"
+        }
+      },
+      {
+        "path": "/api/health",
+        "status": 200,
+        "seconds": 0.237,
+        "data": {
+          "status": "ok",
+          "db": "ok",
+          "queue_size": 83,
+          "redis_active": true,
+          "worker_running": true
+        }
+      }
+    ]
+  }
+]

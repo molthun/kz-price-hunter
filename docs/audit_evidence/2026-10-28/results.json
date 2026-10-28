@@ -1,0 +1,300 @@
+{
+  "date": "2026-10-28",
+  "timezone": "Asia/Almaty",
+  "snapshots": {
+    "local_main": "9f9e09bcd5ffdae051f2d798655429c577c0d6b9",
+    "remote_main_v640": "1872b246847ad6558ebf8f37af21488b77dacef3"
+  },
+  "suites": {
+    "local_main": {
+      "python": 1759,
+      "seconds": 79.156,
+      "coverage_percent": 83,
+      "statements": 19691,
+      "missed": 3253,
+      "frontend": 18
+    },
+    "published_snapshot": {
+      "python": 1728,
+      "seconds": 80.778,
+      "frontend": 18
+    }
+  },
+  "dependencies": {
+    "packages": 24,
+    "known_vulnerabilities": 0,
+    "gate_ok": true
+  },
+  "reproductions": {
+    "main": [
+      {
+        "name": "connection_pragmas",
+        "synchronous": 1,
+        "journal_mode": "wal"
+      },
+      {
+        "name": "worker_failure_loses_item",
+        "queued": 0
+      },
+      {
+        "name": "fallback_strands_redis",
+        "redis_mode": false,
+        "reported_size": 0,
+        "stranded": 1,
+        "next_id": "newer",
+        "next_after": null
+      },
+      {
+        "name": "redis_commands_no_deadline",
+        "first_pending": true,
+        "second_pending": true
+      },
+      {
+        "name": "scan_lease_blocks_loop",
+        "timer_20ms_seconds": 0.786
+      },
+      {
+        "name": "queued_write_after_lease_loss",
+        "persisted": true
+      },
+      {
+        "name": "readiness_empty_database",
+        "ready": true,
+        "size_bytes": 0
+      },
+      {
+        "name": "readiness_stopped_writer",
+        "http": 200,
+        "body": {
+          "status": "ok",
+          "db": "ok",
+          "queue_size": 0,
+          "redis_active": false,
+          "worker_running": false
+        }
+      },
+      {
+        "name": "readiness_exception",
+        "http": 200,
+        "body": {
+          "status": "degraded",
+          "error": "RuntimeError"
+        }
+      },
+      {
+        "name": "unchanged_offer_false_drop",
+        "initial_events": 0,
+        "unchanged_events": 1,
+        "reasons": [
+          "цена снизилась с 200 до 100 ₸"
+        ]
+      },
+      {
+        "name": "scanner_v2_identity_mismatch",
+        "scanner_row_canonical": "after-lease",
+        "actual_canonical": "prod_0699c2055647d187",
+        "v2_lookup_canonical": "prod_0699c2055647d187",
+        "canonical_watch_events": 0
+      },
+      {
+        "name": "stale_showcase_offer",
+        "min_price": 1.0,
+        "purchasable": true
+      },
+      {
+        "name": "search_sort_expired_candidate",
+        "limit1": 900.0,
+        "limit50": 100.0
+      },
+      {
+        "name": "scan_complete_before_commit",
+        "reported_status": "complete",
+        "collected": 1,
+        "queued": 1,
+        "persisted": 0
+      },
+      {
+        "name": "diagnostic_lazy_uptime",
+        "diagnostic_uptime_seconds": 0.0,
+        "process_already_initialized": true
+      }
+    ],
+    "published_snapshot": [
+      {
+        "name": "connection_pragmas",
+        "synchronous": 2,
+        "journal_mode": "wal"
+      },
+      {
+        "name": "worker_failure_loses_item",
+        "queued": 0
+      },
+      {
+        "name": "fallback_strands_redis",
+        "redis_mode": false,
+        "reported_size": 0,
+        "stranded": 1,
+        "next_id": "newer",
+        "next_after": null
+      },
+      {
+        "name": "redis_commands_no_deadline",
+        "first_pending": true,
+        "second_pending": true
+      },
+      {
+        "name": "scan_lease_blocks_loop",
+        "timer_20ms_seconds": 0.788
+      },
+      {
+        "name": "queued_write_after_lease_loss",
+        "persisted": true
+      },
+      {
+        "name": "readiness_empty_database",
+        "ready": true,
+        "size_bytes": 0
+      },
+      {
+        "name": "readiness_stopped_writer",
+        "http": 200,
+        "body": {
+          "status": "ok",
+          "db": "ok",
+          "queue_size": 0,
+          "redis_active": false,
+          "worker_running": false
+        }
+      },
+      {
+        "name": "readiness_exception",
+        "http": 200,
+        "body": {
+          "status": "degraded",
+          "error": "RuntimeError"
+        }
+      },
+      {
+        "name": "unchanged_offer_false_drop",
+        "initial_events": 0,
+        "unchanged_events": 1,
+        "reasons": [
+          "цена снизилась с 200 до 100 ₸"
+        ]
+      },
+      {
+        "name": "scanner_v2_identity_mismatch",
+        "scanner_row_canonical": "after-lease",
+        "actual_canonical": "prod_0699c2055647d187",
+        "v2_lookup_canonical": "prod_0699c2055647d187",
+        "canonical_watch_events": 0
+      },
+      {
+        "name": "stale_showcase_offer",
+        "min_price": 1.0,
+        "purchasable": true
+      },
+      {
+        "name": "search_sort_expired_candidate",
+        "limit1": 900.0,
+        "limit50": 100.0
+      },
+      {
+        "name": "scan_complete_before_commit",
+        "reported_status": "complete",
+        "collected": 1,
+        "queued": 1,
+        "persisted": 0
+      }
+    ]
+  },
+  "upgrade": {
+    "ok": true,
+    "schema_before": 5,
+    "schema_after": 5,
+    "smoke": [
+      {
+        "check": "активные товары",
+        "ok": true
+      },
+      {
+        "check": "товар с ценой",
+        "ok": true
+      },
+      {
+        "check": "вход пользователя",
+        "ok": true
+      },
+      {
+        "check": "наблюдения человека",
+        "ok": true
+      },
+      {
+        "check": "очередь уведомлений",
+        "ok": true
+      },
+      {
+        "check": "лента алертов",
+        "ok": true
+      }
+    ],
+    "integrity": "ok",
+    "rollback_compatible": true,
+    "upgraded_copy": "/tmp/kzph-audit-20261028/upgraded.db",
+    "schema_expected": 5,
+    "rollback_note": "Схема не изменилась, поэтому прежний образ такую базу откроет. Это необходимое условие, но не доказательство: работу прежнего кода подтверждает отдельная проверка rollback_check."
+  },
+  "rollback": {
+    "ok": true,
+    "checks": [
+      {
+        "check": "активные товары",
+        "ok": true
+      },
+      {
+        "check": "товар с ценой",
+        "ok": true
+      },
+      {
+        "check": "вход пользователя",
+        "ok": true
+      },
+      {
+        "check": "наблюдения человека",
+        "ok": true
+      },
+      {
+        "check": "очередь уведомлений",
+        "ok": true
+      },
+      {
+        "check": "лента алертов",
+        "ok": true
+      }
+    ],
+    "note": "Запросы приложения выполнены кодом прежнего релиза на обновлённой копии"
+  },
+  "production": {
+    "version": "6.4.0",
+    "diag_http": 404,
+    "series_file": "public-series.json",
+    "samples_per_endpoint": 12,
+    "timeouts_per_endpoint": 2,
+    "queue_first": 53,
+    "queue_last": 83
+  },
+  "github": {
+    "published_main_run": 40635746592,
+    "conclusion": "success",
+    "main_upgrade_baseline": "v6.4.0",
+    "failed_prior_ci": 40633785168,
+    "failed_prior_ci_reason": "test_support was not the first import in test_queue_service.py"
+  },
+  "limits": [
+    "No production modifications",
+    "No working database access",
+    "No local Docker or real Redis tests",
+    "No authenticated NAS diagnostics",
+    "No real AI or Telegram calls"
+  ]
+}

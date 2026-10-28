@@ -1,0 +1,38 @@
+[
+  {
+    "path": "/api/version",
+    "status": 200,
+    "seconds": 0.061,
+    "data": {
+      "version": "6.4.0",
+      "app_name": "KZ Price Hunter",
+      "release_date": "2026-10-28",
+      "author": "Advanced Agentic Coding"
+    }
+  },
+  {
+    "path": "/api/live",
+    "status": 200,
+    "seconds": 0.06,
+    "data": {
+      "status": "live"
+    }
+  },
+  {
+    "path": "/api/health",
+    "status": 200,
+    "seconds": 0.061,
+    "data": {
+      "status": "ok",
+      "db": "ok",
+      "queue_size": 52,
+      "redis_active": true,
+      "worker_running": true
+    }
+  },
+  {
+    "path": "/api/diag",
+    "status": 404,
+    "seconds": 0.043
+  }
+]
