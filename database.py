@@ -76,22 +76,27 @@ def fresh_price_clause(alias=""):
 
 
 def _reconcile_source_conn(conn, shop_key, source_url, product_ids, complete=False,
-                           observed_seq: Optional[float] = None) -> bool:
+                           observed_seq: Optional[float] = None) -> Optional[List[str]]:
     """Сверка источника в открытой транзакции conn, без фиксации (R04).
 
-    False — источник уже сверен по более свежему обходу: старый результат не снимает товары,
+    Возвращает id товаров, снятых этой сверкой (G01: по ним проверяются наблюдения).
+    None — источник уже сверен по более свежему обходу: старый результат не снимает товары,
     появившиеся позже, и не возвращает снятые (F01).
     """
     if observed_seq is not None:
         row = conn.execute("SELECT observed_seq FROM source_observed WHERE shop_key = ? AND source_url = ?",
                            (shop_key, source_url)).fetchone()
         if row and row[0] > observed_seq:
-            return False
+            return None
         conn.execute("""INSERT INTO source_observed (shop_key, source_url, observed_seq) VALUES (?, ?, ?)
                         ON CONFLICT(shop_key, source_url) DO UPDATE SET observed_seq = excluded.observed_seq""",
                      (shop_key, source_url, observed_seq))
     ids = {str(pid) for pid in product_ids}
+    active_before: set = set()
     if complete and ids:
+        active_before = {r[0] for r in conn.execute(
+            "SELECT p.id FROM products p JOIN product_sources ps ON ps.product_id = p.id "
+            "WHERE ps.shop_key = ? AND ps.source_url = ? AND p.is_active = 1", (shop_key, source_url))}
         conn.execute("UPDATE product_sources SET active=0 WHERE shop_key=? AND source_url=?", (shop_key, source_url))
     conn.executemany("""INSERT INTO product_sources(product_id,shop_key,source_url,active)
         VALUES (?,?,?,1) ON CONFLICT(product_id,shop_key,source_url) DO UPDATE SET active=1""",
@@ -101,15 +106,59 @@ def _reconcile_source_conn(conn, shop_key, source_url, product_ids, complete=Fal
             (SELECT product_id FROM product_sources WHERE shop_key=? AND source_url=?)
             AND NOT EXISTS (SELECT 1 FROM product_sources s WHERE s.product_id=products.id AND s.active=1)""",
             (shop_key, source_url))
-    return True
+        _retire_mirrored_offers_conn(conn, shop_key, source_url)
+    if not active_before:
+        return []
+    marks = ",".join("?" * len(active_before))
+    return [r[0] for r in conn.execute(f"SELECT id FROM products WHERE is_active = 0 AND id IN ({marks})",
+                                       sorted(active_before))]
+
+
+def _has_table(conn, name: str) -> bool:
+    return conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)).fetchone() is not None
+
+
+def _retire_mirrored_offers_conn(conn, shop_key: Optional[str] = None, source_url: Optional[str] = None) -> int:
+    """G01: снятый товар снимается и в V2 — поиск и наблюдения читают offers, а не products.
+
+    Затрагиваются только зеркальные предложения dual-write (id = 'off_' || products.id), и только
+    у товаров, которые уже сняты в products — то есть не подтверждены ни одним активным источником.
+    Предложения соцсетей и ручные каналы продавца имеют свои id и не трогаются. Возврат товара
+    делает сама запись: dual-write ставит предложению is_active = 1.
+    Без shop_key/source_url — по всей базе (разовая починка рассинхронизации прежних версий).
+    """
+    if not _has_table(conn, "offers"):
+        return 0
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    scope = ""
+    params: List[Any] = [now]
+    if shop_key is not None:
+        scope = ("AND p.id IN (SELECT product_id FROM product_sources WHERE shop_key = ? AND source_url = ?)")
+        params.extend([shop_key, source_url])
+    return conn.execute(f"""
+        UPDATE offers SET is_active = 0, updated_at = ?
+        WHERE is_active = 1 AND id IN (SELECT 'off_' || p.id FROM products p WHERE p.is_active = 0 {scope})
+    """, params).rowcount
+
+
+def sync_retired_offers() -> int:
+    """Разовая починка при старте: сняты в products, но активны в offers (до 6.4.6). Идемпотентна."""
+    with get_connection() as conn:
+        count = _retire_mirrored_offers_conn(conn)
+        conn.commit()
+    if count:
+        print(f"[DB] G01: снято {count} предложений V2, которых уже нет в каталоге")
+    return count
 
 
 def reconcile_source(shop_key, source_url, products, complete=False):
     """Only a verified complete source may retire its previously observed offers."""
     with get_connection() as conn:
-        _reconcile_source_conn(conn, shop_key, source_url, [p["id"] for p in products], complete, time.time())
+        retired = _reconcile_source_conn(conn, shop_key, source_url, [p["id"] for p in products], complete,
+                                         time.time())
         conn.commit()
     invalidate_alerts_cache()
+    return retired or []
 
 
 def get_source_baseline(shop_key: str, source_url: str, kind: str) -> Optional[Dict[str, Any]]:
@@ -522,6 +571,7 @@ def _create_schema(cursor) -> None:
     _add_column(cursor, "product_queue_spool", "stage", "TEXT NOT NULL DEFAULT 'core'")
     _add_column(cursor, "product_queue_spool", "core_done", "INTEGER NOT NULL DEFAULT 0")
     _add_column(cursor, "product_queue_spool", "scan_id", "TEXT")
+    _add_column(cursor, "product_queue_spool", "retired", "TEXT")  # G01: id снятых сверкой товаров
     # F01: метка наблюдения — момент приёма данных (time.time()). Запись старше уже сохранённой
     # (повтор давнего отказа после более свежего обхода) не перезаписывает товар и не снимает источник.
     _add_column(cursor, "products", "observed_seq", "REAL")
@@ -1308,6 +1358,7 @@ def init_db():
         _create_schema(conn.cursor())
         conn.commit()
     run_migrations(backup_done=backup_done)
+    sync_retired_offers()
     cleanup_expired_sessions()
     reset_stale_running_scans()
 
@@ -1630,13 +1681,15 @@ def _price_history_conn(conn, ids: List[str]) -> Dict[str, Dict[str, Any]]:
         chunk = ids[i:i + 500]
         placeholders = ",".join("?" * len(chunk))
         cursor.execute(
-            f"SELECT id, current_price, first_seen_price FROM products WHERE id IN ({placeholders})",
+            f"SELECT id, current_price, first_seen_price, is_active FROM products WHERE id IN ({placeholders})",
             chunk
         )
         for row in cursor.fetchall():
             history[row["id"]] = {
                 "old_price": row["current_price"],
-                "first_seen_price": row["first_seen_price"]
+                "first_seen_price": row["first_seen_price"],
+                # снят прежней сверкой: возврат — повод проверить наблюдения «снова в продаже» (G01)
+                "was_active": row["is_active"],
             }
     return history
 
@@ -4064,15 +4117,17 @@ def spool_finish_core(task_id: str, token: str, product_ids: List[str],
             if claim["stage"] != "core":
                 conn.rollback()
                 return True
+            retired: List[str] = []
             if reconcile:
-                _reconcile_source_conn(conn, reconcile["key"], reconcile["url"], product_ids,
-                                       reconcile.get("complete", False), claim["created_at"])
+                retired = _reconcile_source_conn(conn, reconcile["key"], reconcile["url"], product_ids,
+                                                 reconcile.get("complete", False), claim["created_at"]) or []
             if scan_log:
                 _record_source_scan_conn(conn, scan_log["key"], scan_log["url"], scan_log["name"],
                                          scan_log["scan_id"], scan_log["cat_started"], scan_log["kind"],
                                          scan_log["assessment"], scan_log["metrics"])
-            conn.execute("UPDATE product_queue_spool SET stage = 'derived', claim_expires_at = ?, updated_at = ? "
-                         "WHERE task_id = ?", (now + ttl, now, task_id))
+            conn.execute("UPDATE product_queue_spool SET stage = 'derived', retired = ?, claim_expires_at = ?, "
+                         "updated_at = ? WHERE task_id = ?",
+                         (json.dumps(retired) if retired else None, now + ttl, now, task_id))
             conn.commit()
         except BaseException:
             conn.rollback()
@@ -4090,6 +4145,13 @@ def spool_history(task_id: str) -> Dict[str, Dict[str, Any]]:
                                 (task_id,)):
             merged.update(json.loads(row[0]))
     return merged
+
+
+def spool_retired(task_id: str) -> List[str]:
+    """Товары, снятые полной сверкой этой задачи: наблюдения узнают, что их больше нет (G01)."""
+    with get_connection() as conn:
+        row = conn.execute("SELECT retired FROM product_queue_spool WHERE task_id = ?", (task_id,)).fetchone()
+    return json.loads(row[0]) if row and row[0] else []
 
 
 def spool_superseded(task_id: str, product_ids: List[str]) -> List[str]:

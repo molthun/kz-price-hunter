@@ -1827,7 +1827,8 @@ async def _detect_after_save(prods, history_map, shop_name, candidate_settings, 
     # вне event loop. Сбой наблюдений не должен ломать обход, поэтому ошибка только логируется.
     changed_ids = [str(p["id"]) for p in prods
                    if str(p["id"]) not in history_map
-                   or history_map[str(p["id"])]["old_price"] != p["price"]]
+                   or history_map[str(p["id"])]["old_price"] != p["price"]
+                   or not history_map[str(p["id"])].get("was_active", 1)]  # вернулся в продажу (G01)
     if changed_ids:
         try:
             from database import evaluate_watches, watched_offers
@@ -1899,7 +1900,8 @@ async def _execute_queue_item(item):
     ничего. Записанные порции при повторе пропускаются, а производные эффекты считаются от цен,
     сохранённых до записи, поэтому повтор после частичного commit не теряет снижение цены.
     """
-    from database import SPOOL_CHUNK_SIZE, spool_apply_chunk, spool_finish_core, spool_history, spool_superseded
+    from database import (SPOOL_CHUNK_SIZE, spool_apply_chunk, spool_finish_core, spool_history,
+                          spool_retired, spool_superseded)
 
     task_id, token = item["task_id"], item["claim_token"]
     prods = item.get("prods") or []
@@ -1931,7 +1933,27 @@ async def _execute_queue_item(item):
         if current:
             history_map = await run_db(spool_history, task_id)
             await _detect_after_save(current, history_map, shop_name, candidate_settings, strict=True)
+    retired = await run_db(spool_retired, task_id)
+    if retired:
+        await _evaluate_retired_watches(retired, strict=True)
     return True
+
+
+async def _evaluate_retired_watches(product_ids, strict=False):
+    """G01: снятые сверкой товары проходят через наблюдения как недоступные.
+
+    Событие при этом не создаётся (недоступное не срабатывает), но память наблюдения запоминает
+    was_available = 0 — без этого возврат товара не дал бы «снова в продаже».
+    """
+    try:
+        from database import evaluate_watches, watched_offers
+        await asyncio.to_thread(lambda: evaluate_watches(watched_offers(list(product_ids))))
+    except Exception as e:
+        print(f"[Watches] Ошибка проверки снятых товаров: {type(e).__name__}")
+        from telemetry import telemetry, COMPONENT_SYSTEM
+        telemetry.record_system_error(COMPONENT_SYSTEM, "evaluate_watches_retired", e)
+        if strict:
+            raise
 
 
 async def _keep_queue_claim(queue, item):
@@ -2274,8 +2296,10 @@ async def _scan_shop_categories(key, scraper, categories, shop_name, candidate_s
                         failed_categories.append(f"{cat['name']}: Сбой постановки в очередь записи ({admission.reason})")
                 else:
                     await _save_and_detect_direct(prods, shop_name, candidate_settings, shop_key=key)
-                    await asyncio.to_thread(reconcile_source, key, cat["url"], prods,
-                                            assessment["may_retire"] and not error)
+                    retired = await asyncio.to_thread(reconcile_source, key, cat["url"], prods,
+                                                      assessment["may_retire"] and not error)
+                    if retired:
+                        await _evaluate_retired_watches(retired)
                     await asyncio.to_thread(record_source_scan, key, cat["url"], cat["name"], current_scan_id.get(),
                                             cat_started, kind, assessment, metrics)
                 if error:
