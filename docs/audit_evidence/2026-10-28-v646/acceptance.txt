@@ -1,0 +1,41 @@
+[System] 📡 Модуль онлайн-логирования активирован.
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+test_derived_retry_preserves_retirement_transition (__main__.Acceptance.test_derived_retry_preserves_retirement_transition) ... Задача task_efa03664a27f46198da3bcef88ca6581 (Contract) превысила лимит повторов и помещена в dead-letter
+ok
+test_direct_path_retirement_and_return (__main__.Acceptance.test_direct_path_retirement_and_return) ... ok
+test_full_scan_without_item_retires_it_everywhere_and_return_restores (__main__.Acceptance.test_full_scan_without_item_retires_it_everywhere_and_return_restores) ... ok
+test_independent_seller_channel_is_not_retired (__main__.Acceptance.test_independent_seller_channel_is_not_retired) ... ok
+test_item_confirmed_by_another_active_source_stays (__main__.Acceptance.test_item_confirmed_by_another_active_source_stays) ... ok
+test_limited_and_failed_scans_do_not_retire (__main__.Acceptance.test_limited_and_failed_scans_do_not_retire) ... Задача task_72bb15015fc44dc8b1c27d002955b1e6 (Contract) превысила лимит повторов и помещена в dead-letter
+ok
+test_old_retry_after_newer_full_scan_does_not_retire (__main__.Acceptance.test_old_retry_after_newer_full_scan_does_not_retire) ... Задача task_ddd02c6b3c4e4f2096671a13afbd27d9 (Contract) превысила лимит повторов и помещена в dead-letter
+ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+test_startup_repairs_offers_retired_before_the_fix (__main__.Acceptance.test_startup_repairs_offers_retired_before_the_fix) ... ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+test_upgrade_retirement_then_return_notifies_existing_watch (__main__.Acceptance.test_upgrade_retirement_then_return_notifies_existing_watch) ... FAIL
+
+======================================================================
+FAIL: test_upgrade_retirement_then_return_notifies_existing_watch (__main__.Acceptance.test_upgrade_retirement_then_return_notifies_existing_watch)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py", line 128, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py", line 720, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-28-v646/acceptance.py", line 31, in test_upgrade_retirement_then_return_notifies_existing_watch
+    self.assertEqual(len(self.events()), 1, 'startup repair lost back_in_stock transition')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1 : startup repair lost back_in_stock transition
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.642s
+
+FAILED (failures=1)
