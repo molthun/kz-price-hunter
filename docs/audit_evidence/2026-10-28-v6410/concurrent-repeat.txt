@@ -1,0 +1,38 @@
+[System] 📡 Модуль онлайн-логирования активирован.
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+{'concurrent_event_count': 2, 'outbox_count': 2}
+test_concurrent_refresh_does_not_reapply_finished_retirement (__main__.RetryAcceptance.test_concurrent_refresh_does_not_reapply_finished_retirement) ... FAIL
+
+======================================================================
+FAIL: test_concurrent_refresh_does_not_reapply_finished_retirement (__main__.RetryAcceptance.test_concurrent_refresh_does_not_reapply_finished_retirement)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py", line 128, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py", line 720, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-28-v6410/retry_delivery.py", line 85, in test_concurrent_refresh_does_not_reapply_finished_retirement
+    self.assertEqual((len(self.events()), self.outbox()), (1, 1), 'concurrent refresh reapplied completed retirement')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: (2, 2) != (1, 1)
+
+First differing element 0:
+2
+1
+
+- (2, 2)
++ (1, 1) : concurrent refresh reapplied completed retirement
+
+----------------------------------------------------------------------
+Ran 1 test in 0.092s
+
+FAILED (failures=1)
