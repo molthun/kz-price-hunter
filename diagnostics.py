@@ -34,11 +34,30 @@ FRESH_START_SECONDS = 300
 # Формат текстовой метки событий телеметрии — тот же, что пишет сам telemetry.py.
 EVENT_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
-_STARTED_AT = time.time()
+# Старт процесса отмечает приложение при инициализации (create_app). Раньше здесь стояло
+# time.time() на уровне модуля, а сервер импортирует diagnostics лениво, при первом запросе:
+# давно работающий процесс показывал uptime ≈ 0 и признак fresh_start, то есть снимок,
+# созданный ради разбора падений, сам сообщал бы о только что случившемся перезапуске (B12).
+_STARTED_AT: Optional[float] = None
+
+
+def mark_process_start(when: Optional[float] = None, *, force: bool = False) -> float:
+    """Фиксирует момент старта процесса. Повторные вызовы ничего не меняют: приложение
+    может создаваться не один раз (тесты), а процесс стартовал однажды."""
+    global _STARTED_AT
+    if _STARTED_AT is None or force:
+        _STARTED_AT = time.time() if when is None else when
+    return _STARTED_AT
+
+
+def started_at() -> float:
+    """Момент старта. Если его никто не отметил (скрипт, тест), берётся первое обращение —
+    это честнее времени импорта модуля, но хуже отметки приложения."""
+    return mark_process_start()
 
 
 def uptime_seconds() -> float:
-    return max(0.0, time.time() - _STARTED_AT)
+    return max(0.0, time.time() - started_at())
 
 
 def _rss_mb() -> Optional[float]:
@@ -214,8 +233,8 @@ def collect(*, version_info: Dict[str, Any], connect: Callable[[], sqlite3.Conne
             "version": version_info.get("version"),
             "release_date": version_info.get("release_date"),
             "uptime_seconds": round(uptime_seconds(), 1),
-            "started_at": datetime.datetime.fromtimestamp(_STARTED_AT, tz=moment.tzinfo).isoformat()
-            if moment.tzinfo else datetime.datetime.fromtimestamp(_STARTED_AT).isoformat(),
+            "started_at": datetime.datetime.fromtimestamp(started_at(), tz=moment.tzinfo).isoformat()
+            if moment.tzinfo else datetime.datetime.fromtimestamp(started_at()).isoformat(),
         },
         "runtime": {
             "python": sys.version.split()[0],

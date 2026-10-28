@@ -3433,6 +3433,10 @@ async def _init_thread_pool(app):
     loop.set_default_executor(ThreadPoolExecutor(max_workers=workers, thread_name_prefix="kzph-worker"))
 
 def create_app():
+    # Старт процесса отмечается здесь, а не при импорте diagnostics: модуль грузится лениво,
+    # при первом обращении к /api/diag, и иначе снимок показывал бы uptime ≈ 0 (B12).
+    import diagnostics
+    diagnostics.mark_process_start()
     init_db()
     app = web.Application(middlewares=[telemetry_middleware, auth_middleware, gzip_middleware])
     app.on_startup.append(_init_thread_pool)

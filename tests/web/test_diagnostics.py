@@ -4,6 +4,7 @@ import datetime
 import sqlite3
 import tempfile
 import time
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -62,6 +63,49 @@ class DiagnosticsAccessTest(AioHTTPTestCase):
         self.assertIn("Диагностика KZ Price Hunter", body)
         self.assertNotIn("<script", body, "страница должна открываться без скриптов и внешних файлов")
         self.assertEqual(resp.headers.get("X-Robots-Tag"), "noindex, nofollow")
+
+
+class ProcessStartTest(unittest.TestCase):
+    """B12: сервер импортирует diagnostics лениво, поэтому время старта должно приходить
+    от приложения, а не от момента первого обращения к снимку."""
+
+    def setUp(self):
+        self._saved = diagnostics._STARTED_AT
+        self.addCleanup(setattr, diagnostics, "_STARTED_AT", self._saved)
+
+    def test_application_marks_the_start(self):
+        diagnostics._STARTED_AT = None
+        diagnostics.mark_process_start(when=time.time() - 3600)
+        self.assertGreater(diagnostics.uptime_seconds(), 3500,
+                           "давно работающий процесс не должен выглядеть только что поднятым")
+
+    def test_repeated_marks_do_not_reset_uptime(self):
+        """create_app вызывается не раз (тесты, повторная инициализация), процесс стартовал однажды."""
+        diagnostics._STARTED_AT = None
+        first = diagnostics.mark_process_start(when=time.time() - 600)
+        diagnostics.mark_process_start()
+        self.assertEqual(diagnostics.mark_process_start(), first)
+        self.assertGreater(diagnostics.uptime_seconds(), 500)
+
+    def test_force_is_available_for_a_real_restart(self):
+        diagnostics._STARTED_AT = None
+        diagnostics.mark_process_start(when=time.time() - 600)
+        diagnostics.mark_process_start(force=True)
+        self.assertLess(diagnostics.uptime_seconds(), 5)
+
+    def test_unmarked_process_falls_back_to_first_use(self):
+        diagnostics._STARTED_AT = None
+        self.assertIsNotNone(diagnostics.started_at())
+        self.assertLess(diagnostics.uptime_seconds(), 5)
+
+    def test_create_app_marks_the_start_before_diagnostics_is_imported(self):
+        """Главный сценарий B12: приложение поработало, снимок запрашивают позже."""
+        diagnostics._STARTED_AT = None
+        server.create_app()
+        marked = diagnostics._STARTED_AT
+        self.assertIsNotNone(marked, "create_app обязан отметить старт процесса")
+        diagnostics.mark_process_start()
+        self.assertEqual(diagnostics._STARTED_AT, marked)
 
 
 class DatabaseSnapshotTest(unittest.TestCase):
