@@ -142,12 +142,25 @@ def _retire_mirrored_offers_conn(conn, shop_key: Optional[str] = None, source_ur
 
 
 def sync_retired_offers() -> int:
-    """Разовая починка при старте: сняты в products, но активны в offers (до 6.4.6). Идемпотентна."""
+    """Разовая починка при старте: сняты в products, но активны в offers (до 6.4.6). Идемпотентна.
+
+    Снятые так товары проходят через наблюдения как недоступные (G02): иначе их память осталась бы
+    was_available = 1, и возврат товара по прежней цене не дал бы «снова в продаже».
+    """
     with get_connection() as conn:
+        if not _has_table(conn, "offers"):
+            return 0
+        product_ids = [r[0] for r in conn.execute(
+            "SELECT p.id FROM products p JOIN offers o ON o.id = 'off_' || p.id "
+            "WHERE p.is_active = 0 AND o.is_active = 1")]
         count = _retire_mirrored_offers_conn(conn)
         conn.commit()
     if count:
         print(f"[DB] G01: снято {count} предложений V2, которых уже нет в каталоге")
+        try:
+            evaluate_watches(watched_offers(product_ids))
+        except Exception as e:  # noqa: BLE001 — старт не должен падать из-за памяти наблюдений
+            print(f"[DB] G02: память наблюдений по снятым предложениям не обновлена: {type(e).__name__}")
     return count
 
 

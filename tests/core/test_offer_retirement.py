@@ -136,3 +136,18 @@ class OfferRetirementTest(QueueContractBase):
         self.assert_available("drift", False)
         self.assert_available("kept", True)
         self.assertEqual(database.sync_retired_offers(), 0, "починка не идемпотентна")
+
+    async def test_startup_repair_updates_watch_memory_so_return_notifies(self):
+        """G02: старая база + наблюдение → init_db → возврат по прежней цене → одно «снова в продаже»."""
+        await self.scan(["kept", "drift"])
+        self.watch("drift", "back_in_stock")
+        database.evaluate_watches(database.watched_offers([self.pid("drift")]))  # память: доступен
+        with database.get_connection() as conn:  # рассинхронизация 6.4.5: снят только в products
+            conn.execute("UPDATE products SET is_active = 0 WHERE id = ?", (self.pid("drift"),))
+            conn.commit()
+        database.init_db()
+        self.assert_available("drift", False)
+        self.assertEqual(self.events(), [])
+        await self.scan(["kept", "drift"])
+        self.assert_available("drift", True)
+        self.assertEqual([e["reason"] for e in self.events()], ["товар снова в продаже"])
