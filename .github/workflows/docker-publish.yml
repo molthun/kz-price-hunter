@@ -128,10 +128,26 @@ jobs:
         run: pip install -r requirements.txt -c constraints.txt
 
       - name: Create a database of the previous release
+        # Базу выбирает release_gate baseline, а не «старший semver-тег»: в сборке по main тег
+        # текущего выпуска указывает на тот же коммит, и репетиция сверяла релиз сам с собой —
+        # проходила, ничего не проверяя (B13). Гейт отбрасывает теги выпускаемого коммита и
+        # теги, не являющиеся его предками. Оба SHA пишутся в сводку job и в артефакт.
         run: |
-          CURRENT_REF="${GITHUB_REF_NAME:-}"
-          PREV=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | grep -v "^${CURRENT_REF}$" | head -n 1)
-          echo "Предыдущий релиз: ${PREV:-нет тега, берём текущий код}"
+          python release_gate.py baseline --root . > baseline.json || true
+          cat baseline.json
+          PREV=$(python -c "import json;print(json.load(open('baseline.json')).get('tag') or '')")
+          PREV_SHA=$(python -c "import json;print(json.load(open('baseline.json')).get('sha') or '')")
+          CURRENT_SHA=$(git rev-parse HEAD)
+          echo "Предыдущий релиз: ${PREV:-нет подходящего тега, берём текущий код}"
+          {
+            echo "### Репетиция обновления"
+            echo "- выпускаемый коммит: \`${CURRENT_SHA}\`"
+            echo "- предыдущий релиз: \`${PREV:-нет}\` (\`${PREV_SHA:-нет}\`)"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$PREV_SHA" ] && [ "$PREV_SHA" = "$CURRENT_SHA" ]; then
+            echo "База репетиции совпала с выпускаемым коммитом — так проверять нечего" >&2
+            exit 1
+          fi
           rm -rf prev-release prev-data && mkdir -p prev-data
           if [ -n "$PREV" ]; then
             git worktree add --detach prev-release "$PREV"
@@ -139,6 +155,14 @@ jobs:
             git worktree add --detach prev-release HEAD
           fi
           cd prev-release && DATA_DIR="$GITHUB_WORKSPACE/prev-data" python -c "import database; database.init_db()"
+
+      - name: Save the rehearsal baseline
+        # Артефакт нужен разбору: по нему видно, с каким именно релизом сверялось обновление
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: upgrade-baseline
+          path: baseline.json
+          if-no-files-found: warn
 
       - name: Rehearse the upgrade with the new code
         # Обновлённая база сохраняется: проверка отката должна идти именно по ней, а не по исходной

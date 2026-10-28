@@ -428,6 +428,68 @@ async def smoke(base_url: str, timeout: float = 10.0) -> Dict[str, Any]:
 # Командная строка
 # ---------------------------------------------------------------------------
 
+SEMVER_TAG = re.compile(r"^v(\d+)\.(\d+)\.(\d+)$")
+
+
+def _git(root: str, *args: str) -> str:
+    import subprocess
+    res = subprocess.run(["git", "-C", root, *args], capture_output=True, text=True)
+    return res.stdout.strip() if res.returncode == 0 else ""
+
+
+def previous_release(root: str = ".", sha: Optional[str] = None) -> Dict[str, Any]:
+    """Предыдущий опубликованный релиз для репетиции обновления (B13).
+
+    Репетиция должна сверять выпускаемый код с ПРЕДЫДУЩИМ релизом. Выбор «самого старшего
+    semver-тега» этого не обеспечивал: в сборке по ветке main тег текущего выпуска указывает
+    на тот же коммит, и обновление репетировалось с релиза на него же — проверка проходила,
+    не проверяя ничего. Исключения по имени ветки/тега (GITHUB_REF_NAME) недостаточно:
+    в main-сборке имя ref'а — "main", а не имя тега.
+
+    Поэтому отбираются теги, которые: имеют вид vX.Y.Z, НЕ указывают на текущий коммит
+    и являются его предками (тег с чужой ветки предыдущим релизом не считается).
+    Из них берётся старший по версии.
+    """
+    current = sha or _git(root, "rev-parse", "HEAD")
+    report: Dict[str, Any] = {"ok": False, "current_sha": current, "tag": None, "sha": None,
+                              "skipped": [], "reason": None}
+    if not current:
+        report["reason"] = "не удалось определить текущий коммит"
+        return report
+
+    candidates = []
+    for tag in _git(root, "tag", "--list").splitlines():
+        tag = tag.strip()
+        match = SEMVER_TAG.match(tag)
+        if not match:
+            continue
+        tag_sha = _git(root, "rev-list", "-n", "1", tag)
+        if not tag_sha:
+            continue
+        if tag_sha == current:
+            report["skipped"].append({"tag": tag, "why": "указывает на выпускаемый коммит"})
+            continue
+        if not _is_ancestor(root, tag_sha, current):
+            report["skipped"].append({"tag": tag, "why": "не является предком выпускаемого коммита"})
+            continue
+        candidates.append((tuple(int(part) for part in match.groups()), tag, tag_sha))
+
+    if not candidates:
+        report["reason"] = "подходящего предыдущего релиза нет"
+        return report
+    _version, tag, tag_sha = max(candidates)
+    report.update({"ok": True, "tag": tag, "sha": tag_sha})
+    return report
+
+
+def _is_ancestor(root: str, ancestor: str, descendant: str) -> bool:
+    """git merge-base --is-ancestor отвечает кодом возврата, а не выводом."""
+    import subprocess
+    res = subprocess.run(["git", "-C", root, "merge-base", "--is-ancestor", ancestor, descendant],
+                         capture_output=True, text=True)
+    return res.returncode == 0
+
+
 def _print(report: Dict[str, Any]) -> int:
     print(json.dumps(report, ensure_ascii=False, indent=2, default=str))
     return 0 if report.get("ok") else 1
@@ -449,6 +511,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     p_rollback.add_argument("db")
     p_rollback.add_argument("code_dir")
     p_rollback.add_argument("--python", default=None)
+    p_baseline = sub.add_parser("baseline", help="предыдущий опубликованный релиз для репетиции")
+    p_baseline.add_argument("--root", default=".")
+    p_baseline.add_argument("--sha", default=None, help="выпускаемый коммит (по умолчанию HEAD)")
     p_smoke = sub.add_parser("smoke", help="smoke по работающему образу")
     p_smoke.add_argument("url")
     args = parser.parse_args(argv)
@@ -459,6 +524,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return _print(check_dependencies(args.report, args.allowlist))
     if args.command == "upgrade":
         return _print(upgrade_rehearsal(args.db, args.keep))
+    if args.command == "baseline":
+        return _print(previous_release(args.root, args.sha))
     if args.command == "rollback":
         return _print(rollback_check(args.db, args.code_dir, args.python))
     import asyncio
