@@ -114,7 +114,11 @@ def fetch_html(url: str, resolve=None) -> Optional[str]:
         options = {CurlOpt.RESOLVE: [pin]} if pin else None
         with http.Session(curl_options=options) as session:
             response = session.get(current, impersonate="chrome124", timeout=REQUEST_TIMEOUT_SECONDS,
-                                   allow_redirects=False, stream=True)
+                                   allow_redirects=False, stream=True,
+                                   # Витрина может не отдавать промежуточный сертификат; проверка
+                                   # TLS остаётся включённой. Хост берём заново: редирект уводит
+                                   # на другой, и бандл нужен от него.
+                                   verify=http.verify_for_url(current))
             try:
                 if response.status_code in (301, 302, 303, 307, 308):
                     location = response.headers.get("Location") or ""

@@ -147,7 +147,10 @@ def script_urls(html: str, page_url: str, host: str) -> List[str]:
 def _fetch(url: str) -> Optional[str]:
     from scrapers import http as requests
     try:
-        resp = requests.get(url, impersonate="chrome124", timeout=TIMEOUT_SECONDS)
+        resp = requests.get(url, impersonate="chrome124", timeout=TIMEOUT_SECONDS,
+                            # Без этого витрина с неполной цепочкой (moon.kz) молча попадала
+                            # в «не смогли посмотреть»: ошибка TLS глохла в except ниже.
+                            verify=requests.verify_for_url(url))
         if resp.status_code != 200:
             return None
         text = resp.text

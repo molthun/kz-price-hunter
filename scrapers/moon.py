@@ -2,7 +2,6 @@ from typing import List, Dict, Any
 from scrapers import http as requests
 from scrapers.base import UnconfirmedEnd, PagedScraper, parse_price
 from html_soup import make_soup
-MOON_INTERMEDIATE_CA = "gogetssl-rsa-dv-ssl-ca-2.crt"
 
 class MoonScraper(PagedScraper):
     SHOP_NAME = "Moon.kz"
@@ -35,8 +34,9 @@ class MoonScraper(PagedScraper):
                 url,
                 headers=self.headers,
                 impersonate="chrome124",
-                # Сервер не отдаёт промежуточный сертификат; проверка TLS включена
-                verify=requests.ca_bundle_with(MOON_INTERMEDIATE_CA),
+                # Сервер не отдаёт промежуточный сертификат; проверка TLS включена.
+                # Список таких витрин — в scrapers/http.py, одним местом для всех путей.
+                verify=requests.verify_for_url(url),
                 timeout=15
             )
             if r.status_code == 404 and page_num > 1:

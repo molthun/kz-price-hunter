@@ -139,10 +139,35 @@ class TlsTest(unittest.TestCase):
     def test_moon_bundle_has_certifi_and_intermediate(self):
         import certifi
         from pathlib import Path
-        from scrapers.moon import MOON_INTERMEDIATE_CA
-        bundle = Path(http.ca_bundle_with(MOON_INTERMEDIATE_CA)).read_text()
+        bundle_path = http.ca_bundle_for_host("moon.kz")
+        self.assertIsNotNone(bundle_path, "moon.kz должен получать бандл с промежуточным")
+        bundle = Path(bundle_path).read_text()
         self.assertIn(Path(certifi.where()).read_text()[:500], bundle)
         self.assertIn("MIIGHjCCBAagAwIBAgIRAKmWRHPh0AHswhf4RLEmCdIwDQYJKoZIhvcNAQEMBQAw", bundle)
+
+    def test_bundle_lookup_by_host(self):
+        """Поддомены — тоже бандл, чужие хосты — обычная проверка certifi."""
+        self.assertIsNotNone(http.ca_bundle_for_host("MOON.KZ"))
+        self.assertIsNotNone(http.ca_bundle_for_host("www.moon.kz"))
+        self.assertIsNotNone(http.ca_bundle_for_host("moon.kz."))
+        for host in ("kaspi.kz", "notmoon.kz", "moon.kz.evil.com", "", None):
+            self.assertIsNone(http.ca_bundle_for_host(host), host)
+
+    def test_verify_for_url_picks_bundle_per_host(self):
+        self.assertEqual(http.verify_for_url("https://moon.kz/videokarty/"),
+                         http.ca_bundle_for_host("moon.kz"))
+        self.assertIs(http.verify_for_url("https://kaspi.kz/shop/"), True)
+        self.assertIs(http.verify_for_url("не ссылка"), True)
+
+    def test_outside_scraper_paths_pass_store_bundle(self):
+        """Описания и проверка витрин ходят теми же хостами: без бандла moon.kz падал
+        с CertificateVerifyError — на проде описания не грузились никогда."""
+        import inspect
+        import product_details
+        import shop_notices
+        for module in (product_details, shop_notices):
+            source = inspect.getsource(module)
+            self.assertIn("verify_for_url", source, module.__name__)
 
 
 class PriceParsingTest(unittest.TestCase):

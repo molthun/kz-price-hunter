@@ -243,3 +243,30 @@ def ca_bundle_with(*cert_names: str) -> str:
             handle.write("\n".join(parts))
         _bundles[key] = handle.name
         return handle.name
+
+
+# Магазины, которые не отдают промежуточный сертификат. Браузеры и macOS дотягивают его сами
+# по AIA и проблемы не видят, OpenSSL в контейнере — нет: проверка падает с «unable to get
+# local issuer certificate». Знание держим в одном месте: мимо скрапера к тем же витринам
+# ходят догрузка описаний (product_details) и проверка витрин (shop_notices).
+_MISSING_INTERMEDIATES: Dict[str, tuple] = {
+    "moon.kz": ("gogetssl-rsa-dv-ssl-ca-2.crt",),
+}
+
+
+def ca_bundle_for_host(host: str) -> Optional[str]:
+    """Бандл с промежуточными для этого хоста, либо None — тогда обычная проверка certifi."""
+    host = (host or "").strip().lower().rstrip(".")
+    for domain, cert_names in _MISSING_INTERMEDIATES.items():
+        if host == domain or host.endswith("." + domain):
+            return ca_bundle_with(*cert_names)
+    return None
+
+
+def verify_for_url(url: str):
+    """Значение verify для запроса: бандл магазина, если он нужен, иначе True (обычная проверка)."""
+    try:
+        host = urlsplit(url).hostname or ""
+    except ValueError:
+        return True
+    return ca_bundle_for_host(host) or True

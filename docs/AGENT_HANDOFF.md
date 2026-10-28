@@ -2,6 +2,72 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## Текущая задача: промежуточные сертификаты вне скраперов + внешний доступ стенда (Claude, 2026-10-28)
+
+```text
+ID / этап: C-TLS-01. Moon.kz: CertificateVerifyError в догрузке описаний и в проверке витрин
+Основание: поручение владельца «да, исправь» после разбора журнала стенда (2026-10-28).
+Статус: REVIEW (реализация завершена, ожидает независимого аудита)
+Исполнитель: Claude
+Начало и checkpoint: 2026-10-28, Asia/Almaty
+Ветка / базовый HEAD: main / 9373233 (локальный, в origin не отправлен)
+Область изменений (файлы): scrapers/http.py, product_details.py, shop_notices.py, scrapers/moon.py,
+  tests/ (регрессии), docs/TEST_STAND.md, docs/AGENT_HANDOFF.md, ROADMAP_AND_LOG.md
+
+Дефект (воспроизведён локально, не только на стенде):
+  moon.kz отдаёт неполную цепочку — лист без промежуточного GoGetSSL. Скрапер это учитывает
+  (scrapers/moon.py: verify=ca_bundle_with(MOON_INTERMEDIATE_CA)) и работает. Остальные пути
+  ходят с одним certifi и падают:
+    - product_details.py:116 fetch_html → CertificateVerifyError, описания Moon.kz не грузятся
+      никогда; в телеметрию капает ошибка каждые ~90 с (17 за час на стенде);
+    - shop_notices.py:150 _fetch → та же ошибка, но проглочена except Exception → витрина
+      Moon.kz молча отмечается как «не смогли посмотреть», а не как ошибка TLS.
+  На macOS в браузере/curl не видно: Apple дотягивает промежуточный по AIA, OpenSSL — нет.
+  Касается прода так же, как стенда.
+  Проверка до правки (venv, DATA_DIR временный, рабочая prices.db не открывалась,
+  md5 91fc9de938eb0f6797f691d73d113eab не изменился):
+    путь скрапера → HTTP 200, 398331 байт; product_details.fetch_html → CertificateVerifyError (20).
+
+План: один реестр «хост → недостающие промежуточные» в scrapers/http.py, выбор бандла по хосту
+  во всех трёх путях, регрессии на реестр и на вызов с бандлом. Знание о сертификате — в одном месте.
+
+Заодно (по поручению владельца, настройки выданы в переписке): стенд выставлен наружу как
+  https://shdev.molthun.ru через обратный прокси DSM на 192.168.28.10, наружу только 443/80,
+  TRUSTED_PROXIES=192.168.28.10/32, отдельный бот @kzph_dev_bot (domain выставлен),
+  ALLOW_DEV_LOGIN=0. Проверено: /api/version, /api/diag и /api/me отвечают через прокси,
+  bot_username = kzph_dev_bot. Это надо занести в docs/TEST_STAND.md — там стенд описан
+  как доступный только в локальной сети.
+
+Сделано:
+  1. scrapers/http.py: реестр _MISSING_INTERMEDIATES (пока одна витрина — moon.kz),
+     ca_bundle_for_host() с учётом поддоменов и регистра, verify_for_url() для вызова по URL.
+  2. product_details.fetch_html: verify=http.verify_for_url(current) — хост берётся заново на
+     каждом шаге редиректов, иначе бандл был бы от исходного адреса.
+  3. shop_notices._fetch: тот же бандл по хосту.
+  4. scrapers/moon.py: больше не держит имя сертификата у себя, берёт из общего реестра;
+     константа MOON_INTERMEDIATE_CA удалена (её импортировал только тест, он переписан).
+  5. Регрессии в tests/scrapers/test_scraper_reliability.py: бандл по хосту (поддомен, регистр,
+     точка на конце, чужие хосты и moon.kz.evil.com → None), verify_for_url, и контракт, что
+     пути вне скраперов используют verify_for_url. Проверка «нигде нет verify=False» сохранена.
+
+Проверки (macOS, Python 3.14.7 venv, DATA_DIR временный, 2026-10-28):
+  - живой moon.kz до правки: путь скрапера HTTP 200, fetch_html → CertificateVerifyError (20);
+    после правки: fetch_html 376196 символов, shop_notices._fetch 327952, verify_for_url
+    для kaspi.kz → True (обычный certifi);
+  - полный Python suite: Ran 1792 tests, OK (82 с);
+  - рабочая prices.db не открывалась, md5 91fc9de938eb0f6797f691d73d113eab до и после.
+
+Не проведено: прод, сборка образа, браузерные наборы test_frontend*.cjs (правка серверная;
+  перед выпуском прогнать все по правилу проекта), повторный прогон на стенде после правки.
+Версия не повышалась, в origin не отправлялось: по правилу проекта push только после аудита.
+
+Следующий точный шаг: независимый аудит C-TLS-01 (Codex), затем решение владельца о выпуске.
+  Отдельно стоит проверить на стенде, что ошибки moon.kz в /api/diag прекратились — это
+  подтверждение на рабочем пути, а не локальной проверкой.
+```
+
+---
+
 ## Испытательный стенд работает (Claude, 2026-10-28)
 
 ```text
