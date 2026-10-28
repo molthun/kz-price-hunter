@@ -293,6 +293,7 @@ async def health_handler(request):
         ok = await asyncio.wait_for(run_db(_check_db_readiness_sync), timeout=1.5)
         worker_ok = product_queue.is_worker_running
         q_len = await product_queue.qsize()
+        dead_letters = len(product_queue.dead_letter_queue)
         ready = ok and worker_ok
         status_code = 200 if ready else 503
         status_str = "ok" if ready else "unavailable"
@@ -300,6 +301,7 @@ async def health_handler(request):
             "status": status_str,
             "db": "ok" if ok else "unready",
             "queue_size": q_len,
+            "dead_letters": dead_letters,
             "redis_active": product_queue.is_redis_active(),
             "worker_running": worker_ok,
         }, status=status_code)
@@ -1806,18 +1808,28 @@ async def _save_and_detect(prods, shop_name, candidate_settings, shop_key=None, 
 
     from queue_service import product_queue
     if product_queue.is_worker_running and not wait:
-        await product_queue.enqueue(prods, shop_name, candidate_settings, shop_key=shop_key)
+        await product_queue.enqueue(
+            prods,
+            shop_name,
+            candidate_settings,
+            shop_key=shop_key,
+            lease_generation=_lease_state.get("generation", 0),
+        )
         return
 
     await _save_and_detect_direct(prods, shop_name, candidate_settings, shop_key=shop_key)
 
 
 async def _execute_queue_item(item):
-    """Выполняет полную запись спарсенных данных категории в SQLite без конкуренции с другими потоками."""
-    # Fencing guard (B06): если аренда планировщика была потеряна, отклоняем запись
-    if _lease_state.get("lost"):
-        print("[Queue Worker] ⛔ Запись пакета отклонена: аренда планировщика была потеряна (fencing guard)")
-        return
+    """Выполняет полную запись спарсенных данных категории в SQLite без конкуренции с другими потоками (C01, C04, C05)."""
+    # Fencing guard (B06, C05): если аренда планировщика была потеряна или поколение устарело
+    item_gen = item.get("lease_generation", 0)
+    current_gen = _lease_state.get("generation", 0)
+    if _lease_state.get("lost") or (item_gen > 0 and current_gen > 0 and item_gen != current_gen):
+        print(f"[Queue Worker] ⛔ Запись пакета отклонена: аренда планировщика была потеряна (fencing guard, gen {item_gen} vs {current_gen})")
+        from queue_service import product_queue
+        product_queue.reject(item, reason=f"fenced_lease_lost (item_gen={item_gen}, cur_gen={current_gen})")
+        return False
 
     prods = item.get("prods") or []
     shop_name = item.get("shop_name", "Shop")
@@ -1830,44 +1842,35 @@ async def _execute_queue_item(item):
         await _save_and_detect_direct(prods, shop_name, candidate_settings, shop_key=shop_key)
 
     if reconcile:
-        try:
-            from database import reconcile_source
-            await asyncio.to_thread(
-                reconcile_source,
-                reconcile["key"],
-                reconcile["url"],
-                prods,
-                reconcile.get("complete", False),
-            )
-        except Exception as e:
-            print(f"[Queue Worker] Ошибка reconcile_source: {e}")
-            from telemetry import telemetry, COMPONENT_SYSTEM
-            telemetry.record_system_error(COMPONENT_SYSTEM, "worker_reconcile_source", e)
+        from database import reconcile_source
+        await asyncio.to_thread(
+            reconcile_source,
+            reconcile["key"],
+            reconcile["url"],
+            prods,
+            reconcile.get("complete", False),
+        )
 
     if scan_log:
-        try:
-            from database import record_source_scan
-            await asyncio.to_thread(
-                record_source_scan,
-                scan_log["key"],
-                scan_log["url"],
-                scan_log["name"],
-                scan_log["scan_id"],
-                scan_log["cat_started"],
-                scan_log["kind"],
-                scan_log["assessment"],
-                scan_log["metrics"],
-            )
-        except Exception as e:
-            print(f"[Queue Worker] Ошибка record_source_scan: {e}")
-            from telemetry import telemetry, COMPONENT_SYSTEM
-            telemetry.record_system_error(COMPONENT_SYSTEM, "worker_record_source_scan", e)
+        from database import record_source_scan
+        await asyncio.to_thread(
+            record_source_scan,
+            scan_log["key"],
+            scan_log["url"],
+            scan_log["name"],
+            scan_log["scan_id"],
+            scan_log["cat_started"],
+            scan_log["kind"],
+            scan_log["assessment"],
+            scan_log["metrics"],
+        )
+    return True
 
 
 async def single_db_writer_worker(app=None):
     """Единственный асинхронный воркер записи в SQLite.
 
-    Вычитывает задачи из очереди (Redis или Memory) и последовательно производит запись,
+    Вычитывает задачи из персистентного spool и последовательно производит запись,
     гарантируя полное отсутствие конфликтов 'database is locked' между скраперами.
     """
     from queue_service import product_queue
@@ -1879,23 +1882,25 @@ async def single_db_writer_worker(app=None):
             try:
                 item = await product_queue.dequeue(timeout=0.5)
                 if item:
-                    await _execute_queue_item(item)
-                    product_queue.ack(item)
+                    res = await _execute_queue_item(item)
+                    if res is not False:
+                        product_queue.ack(item)
                     item = None
             except asyncio.CancelledError:
                 if item:
-                    product_queue.nack(item)
+                    product_queue.nack(item, error="Worker cancelled")
                 break
             except Exception as e:
                 print(f"[Queue Worker] Ошибка при обработке очереди: {e}")
                 if item:
-                    product_queue.nack(item)
+                    product_queue.nack(item, error=str(e))
                     item = None
                 from telemetry import telemetry, COMPONENT_SYSTEM
                 telemetry.record_system_error(COMPONENT_SYSTEM, "single_db_writer_worker", e)
                 await asyncio.sleep(0.5)
     finally:
         product_queue.is_worker_running = False
+        print("[Queue] Single DB-Writer Worker остановлен")
         print("[Queue] Single DB-Writer Worker остановлен")
 
 
@@ -2152,14 +2157,17 @@ async def _scan_shop_categories(key, scraper, categories, shop_name, candidate_s
                         "assessment": assessment,
                         "metrics": metrics,
                     }
-                    await product_queue.enqueue(
+                    enqueued = await product_queue.enqueue(
                         prods,
                         shop_name,
                         candidate_settings,
                         shop_key=key,
                         reconcile=reconcile_data,
                         scan_log=scan_log_data,
+                        lease_generation=_lease_state.get("generation", 0),
                     )
+                    if not enqueued:
+                        failed_categories.append(f"{cat['name']}: Сбой постановки в очередь записи")
                 else:
                     await _save_and_detect_direct(prods, shop_name, candidate_settings, shop_key=key)
                     await asyncio.to_thread(reconcile_source, key, cat["url"], prods,
@@ -2216,10 +2224,10 @@ async def _scan_shop_categories(key, scraper, categories, shop_name, candidate_s
 
     from queue_service import product_queue
     if product_queue.is_worker_running:
-        # Барьер завершения скана (B06): статус complete выставляется только после фактической записи в SQLite
-        drained = await product_queue.wait_drained(timeout=10.0)
+        # Барьер завершения скана (B06, C01, C02): статус complete выставляется только после фактической записи в SQLite
+        drained = await product_queue.wait_drained(shop_key=key, timeout=10.0)
         if not drained:
-            error = (error + "; ") if error else "" + "Таймаут подтверждения записи очереди"
+            error = (error + "; ") if error else "" + "Таймаут или сбой подтверждения записи очереди"
 
     status = ("partial" if collected else "failed") if error else "limited" if limited else "complete"
     await run_db(record_shop_scan_result, key, collected, duration, error, status)
@@ -2246,8 +2254,8 @@ class LeaseLost(RuntimeError):
     """Аренда планировщика перешла к другому процессу: этот обход больше не пишет результаты."""
 
 
-# Состояние аренды текущего обхода (R-H03)
-_lease_state = {"lost": False, "last_ok": 0.0}
+# Состояние аренды текущего обхода (R-H03, C05)
+_lease_state = {"lost": False, "last_ok": 0.0, "generation": 1}
 
 
 def _ensure_lease() -> None:
@@ -2291,7 +2299,7 @@ async def _do_scan_task(shop_keys=None, target_categories=None, scan_type="manua
         scan_state["is_running"] = False
         print("[Scan] Обход уже выполняет другой процесс (аренда планировщика) — пропуск")
         return
-    _lease_state.update(lost=False, last_ok=time.monotonic())
+    _lease_state.update(lost=False, last_ok=time.monotonic(), generation=_lease_state.get("generation", 0) + 1)
     # Один scan_id связывает планировщик, страницы (HTTP) и итог обхода: create_task/to_thread
     # копируют контекст, поэтому значение видно во всех задачах обхода (P01)
     from telemetry import telemetry, current_scan_id, EVENT_SCAN_START, EVENT_SCAN_END, SEVERITY_INFO, SEVERITY_WARNING, SEVERITY_ERROR, COMPONENT_SCHEDULER

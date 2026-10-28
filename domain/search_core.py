@@ -21,7 +21,7 @@ logger = logging.getLogger("kz_price_hunter.search_core")
 
 
 def offer_expired(expires_at: Any, now: Optional[datetime.datetime] = None) -> bool:
-    """Истёк ли TTL предложения (S2-E08).
+    """Истёк ли TTL предложения (S2-E08, C09).
 
     Срок известен — значит просроченный оффер не purchasable, даже если обход видел его
     только что: цена из сторис могла исчезнуть вместе со сроком. Битое значение не
@@ -35,7 +35,10 @@ def offer_expired(expires_at: Any, now: Optional[datetime.datetime] = None) -> b
         return False
     if exp.tzinfo is None:
         exp = exp.replace(tzinfo=datetime.timezone.utc)
-    return (now or datetime.datetime.now(datetime.timezone.utc)) > exp
+    current_now = now or datetime.datetime.now(datetime.timezone.utc)
+    if current_now.tzinfo is None:
+        current_now = current_now.replace(tzinfo=datetime.timezone.utc)
+    return current_now >= exp
 
 
 class SearchOutcome:

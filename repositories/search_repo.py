@@ -146,11 +146,11 @@ class SearchRepository(BaseRepository):
         )
         """
 
-        # A05, B10: Сортировка до LIMIT с учётом доступности (исключаем просроченные и недоступные)
+        # A05, B10, C07, C09: Сортировка до LIMIT с учётом доступности (исключаем просроченные и недоступные)
         import datetime
         now_iso = (now or datetime.datetime.now(datetime.timezone.utc)).isoformat()
         order_conditions = list(exists_conditions) + [
-            "(o.expires_at IS NULL OR o.expires_at > ?)",
+            "(o.expires_at IS NULL OR o.expires_at >= ?)",
             "LOWER(COALESCE(o.availability, 'in_stock')) IN ('in_stock', 'preorder')",
         ]
 
@@ -163,20 +163,20 @@ class SearchRepository(BaseRepository):
                 JOIN sellers s ON o.seller_id = s.id
                 JOIN channels c ON o.channel_id = c.id
                 WHERE o.product_id = p.id AND {" AND ".join(order_conditions)}
-            ) ASC"""
-            order_by_sql = sub
-            order_by_like = sub
-            order_params = list(exists_params) + [now_iso]
+            )"""
+            order_by_sql = f"CASE WHEN {sub} IS NULL THEN 1 ELSE 0 END ASC, {sub} ASC"
+            order_by_like = order_by_sql
+            order_params = (list(exists_params) + [now_iso]) * 2
         elif sort_by == "price_desc":
             sub = f"""(
                 SELECT MAX(o.price) FROM offers o
                 JOIN sellers s ON o.seller_id = s.id
                 JOIN channels c ON o.channel_id = c.id
                 WHERE o.product_id = p.id AND {" AND ".join(order_conditions)}
-            ) DESC"""
-            order_by_sql = sub
-            order_by_like = sub
-            order_params = list(exists_params) + [now_iso]
+            )"""
+            order_by_sql = f"CASE WHEN {sub} IS NULL THEN 1 ELSE 0 END ASC, {sub} DESC"
+            order_by_like = order_by_sql
+            order_params = (list(exists_params) + [now_iso]) * 2
 
         # -------------------------------------------------------------------
         # Step 1: Match Canonical Products

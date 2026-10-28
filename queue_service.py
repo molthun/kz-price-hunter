@@ -19,7 +19,8 @@ import shutil
 import socket
 import subprocess
 import time
-from typing import Any, Dict, List, Optional, Tuple
+import uuid
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 logger = logging.getLogger("kz_price_hunter.queue")
 
@@ -202,11 +203,11 @@ class MiniRedisClient:
 
 
 # ---------------------------------------------------------------------------
-# Менеджер очереди товаров (Redis + Fallback In-Memory)
+# Менеджер очереди товаров (SQLite Spool / Outbox с Redis кэшем) (C01–C05)
 # ---------------------------------------------------------------------------
 
 class ProductQueueManager:
-    """Универсальная очередь сохранения товаров с гарантией надёжности (ACK/retry/drain)."""
+    """Универсальная очередь сохранения товаров с гарантией надёжности (ACK/retry/drain/spool)."""
 
     def __init__(self, maxsize: int = 200):
         self.redis_client: Optional[MiniRedisClient] = None
@@ -215,23 +216,48 @@ class ProductQueueManager:
         self.is_worker_running: bool = False
         self._retry_queue: List[Any] = []
         self._in_flight: Set[int] = set()
-        self.dead_letter_queue: List[Any] = []
+        self._dead_letter_mem: List[Any] = []
         self._in_memory_cache: Dict[str, Tuple[float, Any]] = {}
+        self._new_item_event: Optional[asyncio.Event] = None
+        self.maxsize = maxsize
+
+    @property
+    def dead_letter_queue(self) -> List[Any]:
+        """Возвращает список задач dead_letter (из SQLite spool и памяти) (C02)."""
+        res = list(self._dead_letter_mem)
+        try:
+            from database import spool_dead_letters
+            res.extend(spool_dead_letters())
+        except Exception:
+            pass
+        return res
 
     async def initialize(self) -> None:
-        """Инициализирует подключение: пробует Redis, при отказе остаётся на очереди в памяти."""
-        # 1. Пробуем встроенный демон
+        """Инициализирует очередь: восстанавливает зависшие задачи spool и подключает Redis для кэша."""
+        self._new_item_event = asyncio.Event()
+
+        # Восстановление зависших задач spool при старте (C01)
+        try:
+            from database import spool_recover_on_startup
+            recovered = await asyncio.to_thread(spool_recover_on_startup)
+            if recovered > 0:
+                print(f"[Queue] 🔄 Восстановлено {recovered} зависших задач из spool в статус pending")
+                self._new_item_event.set()
+        except Exception as e:
+            logger.warning("spool_recover_on_startup пропущен: %s", e)
+
+        # 1. Пробуем встроенный демон Redis для кэша аналитики
         has_redis = start_redis_daemon_if_available()
         if has_redis or _is_port_open(DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT):
             client = MiniRedisClient(DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
             if await client.connect() and await client.ping():
                 self.redis_client = client
                 self.use_redis = True
-                print("[Queue] 🚀 Очередь скрапинга и кэш подключены к Redis (Single DB-Writer mode)")
+                print("[Queue] 🚀 Аналитический кэш подключен к Redis")
                 return
 
         self.use_redis = False
-        print("[Queue] ℹ️ Redis не обнаружен: используется высокоскоростная очередь в памяти (In-Memory Single DB-Writer)")
+        print("[Queue] ℹ️ Кэш работает в памяти (In-Memory Bounded TTLCache)")
 
     def is_redis_active(self) -> bool:
         return self.use_redis and self.redis_client is not None and self.redis_client.is_connected()
@@ -244,10 +270,11 @@ class ProductQueueManager:
         shop_key: Optional[str] = None,
         reconcile: Optional[Dict[str, Any]] = None,
         scan_log: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        """Скраперы сбрасывают спарсенную пачку товаров в очередь без блокировки базы."""
+        lease_generation: int = 0,
+    ) -> bool:
+        """Скраперы сбрасывают спарсенную пачку товаров в транзакционный spool в SQLite (C01, C03)."""
         if not prods and not reconcile and not scan_log:
-            return
+            return True
 
         payload = {
             "prods": prods or [],
@@ -256,33 +283,63 @@ class ProductQueueManager:
             "shop_key": shop_key,
             "reconcile": reconcile,
             "scan_log": scan_log,
+            "lease_generation": lease_generation,
             "enqueued_at": time.time(),
         }
 
+        # 1. Пробуем надежный SQLite Spool (C01)
+        try:
+            from database import spool_enqueue, spool_stats
+            # Проверка backpressure
+            stats = await asyncio.to_thread(spool_stats, shop_key)
+            if (stats["pending"] + stats["processing"]) >= self.maxsize:
+                logger.error("Spool очередь переполнена (backpressure timeout), данные категории отклонены")
+                return False
+
+            task_id = f"task_{uuid.uuid4().hex}"
+            payload["task_id"] = task_id
+            ok = await asyncio.to_thread(
+                spool_enqueue,
+                task_id,
+                shop_key,
+                shop_name,
+                lease_generation,
+                payload,
+            )
+            if ok:
+                if self._new_item_event:
+                    self._new_item_event.set()
+                return True
+        except Exception as e:
+            logger.debug("spool_enqueue недоступен, fallback на очередь памяти: %s", e)
+
+        # 2. Fallback на Redis / Memory Queue при отсутствии БД spool
         if self.use_redis and self.redis_client:
             try:
                 data_str = json.dumps(payload, ensure_ascii=False)
                 await self.redis_client.rpush(QUEUE_KEY, data_str)
-                return
+                return True
             except Exception as e:
                 logger.warning("Сбой отправки в Redis (%s), переключаемся на очередь в памяти", e)
                 self.use_redis = False
 
-        # Backpressure при переполнении очереди в памяти (B03)
+        # Backpressure при переполнении очереди в памяти (B03, C03)
         try:
             await asyncio.wait_for(self.memory_queue.put(payload), timeout=5.0)
+            return True
         except (asyncio.TimeoutError, TimeoutError):
-            logger.error("Очередь памяти переполнена (backpressure timeout), данные категории отброшены для защиты памяти")
+            logger.error("Очередь памяти переполнена (backpressure timeout), данные категории отброшены")
+            return False
 
     async def dequeue(self, timeout: float = 0.5) -> Optional[Dict[str, Any]]:
-        """Извлекает одну задачу из очереди (сохраняя порядок и дочитывая зависшие задачи Redis)."""
-        # 1. Повторные попытки при предыдущих сбоях воркера (B02)
+        """Извлекает одну задачу из очереди (сохраняя порядок и дочитывая spool и fallback) (C01)."""
+        # 1. Повторные попытки при предыдущих сбоях воркера в памяти
         if self._retry_queue:
             item = self._retry_queue.pop(0)
             self._in_flight.add(id(item))
             return item
 
-        # 2. Дочитывание старых задач из Redis, даже если новые пишутся в fallback (B04)
+        # 2. Дочитывание старых задач из Redis
         if self.redis_client:
             try:
                 item_str = await self.redis_client.lpop(QUEUE_KEY)
@@ -293,7 +350,17 @@ class ProductQueueManager:
             except Exception as e:
                 logger.debug("Чтение из Redis недоступно: %s", e)
 
-        # 3. Извлечение из очереди памяти
+        # 3. Извлечение из персистентного SQLite Spool (C01)
+        try:
+            from database import spool_dequeue
+            item = await asyncio.to_thread(spool_dequeue)
+            if item:
+                self._in_flight.add(id(item))
+                return item
+        except Exception as e:
+            logger.debug("spool_dequeue недоступен: %s", e)
+
+        # 4. Извлечение из очереди памяти
         if not self.memory_queue.empty():
             try:
                 item = self.memory_queue.get_nowait()
@@ -302,48 +369,121 @@ class ProductQueueManager:
             except asyncio.QueueEmpty:
                 pass
 
-        # Если пусто, ждём немного в памяти
-        try:
-            item = await asyncio.wait_for(self.memory_queue.get(), timeout=timeout)
-            self._in_flight.add(id(item))
-            return item
-        except (asyncio.TimeoutError, TimeoutError):
-            return None
+        # Если пусто, ждём события _new_item_event или таймаута в памяти
+        if self._new_item_event:
+            try:
+                await asyncio.wait_for(self._new_item_event.wait(), timeout=timeout)
+                self._new_item_event.clear()
+                # Пробуем достать из spool
+                try:
+                    from database import spool_dequeue
+                    item = await asyncio.to_thread(spool_dequeue)
+                    if item:
+                        self._in_flight.add(id(item))
+                        return item
+                except Exception:
+                    pass
+            except (asyncio.TimeoutError, TimeoutError):
+                pass
+        else:
+            try:
+                item = await asyncio.wait_for(self.memory_queue.get(), timeout=timeout)
+                self._in_flight.add(id(item))
+                return item
+            except (asyncio.TimeoutError, TimeoutError):
+                pass
+
+        return None
 
     def ack(self, item: Any) -> None:
-        """Подтверждает успешную запись задачи в SQLite (B02)."""
+        """Подтверждает успешную запись задачи в SQLite (B02, C01, C04)."""
         self._in_flight.discard(id(item))
+        if isinstance(item, dict) and item.get("task_id"):
+            try:
+                from database import spool_commit
+                spool_commit(item["task_id"])
+            except Exception as e:
+                logger.error("Ошибка spool_commit для %s: %s", item.get("task_id"), e)
 
-    def nack(self, item: Any, max_retries: int = 3) -> None:
-        """Возвращает задачу в очередь при ошибке записи (B02)."""
+    def nack(self, item: Any, error: Optional[str] = None, max_retries: int = 3) -> None:
+        """Возвращает задачу в очередь при ошибке записи (B02, C01, C02)."""
         self._in_flight.discard(id(item))
         if not isinstance(item, dict):
             self._retry_queue.insert(0, item)
             return
 
-        attempts = item.get("_retry_count", 0) + 1
+        task_id = item.get("task_id")
+        if task_id:
+            try:
+                from database import spool_nack
+                spool_nack(task_id, error=error, max_retries=max_retries)
+            except Exception as e:
+                logger.error("Ошибка spool_nack для %s: %s", task_id, e)
+
+        attempts = item.get("_retry_count", item.get("attempts", 0)) + 1
         item["_retry_count"] = attempts
+        item["attempts"] = attempts
         if attempts <= max_retries:
             logger.warning("Повтор задачи очереди для %s (попытка %d/%d)", item.get("shop_name"), attempts, max_retries)
-            self._retry_queue.insert(0, item)
+            if not task_id:
+                self._retry_queue.insert(0, item)
         else:
             logger.error("Задача превысила лимит повторов (%d) и помещена в dead-letter: %s", max_retries, item.get("shop_name"))
-            self.dead_letter_queue.append(item)
+            if not task_id:
+                self._dead_letter_mem.append(item)
 
-    async def qsize(self) -> int:
+    def reject(self, item: Any, reason: str = "fenced") -> None:
+        """Помечает задачу отклонённой (stale lease generation / fenced) (C05)."""
+        self._in_flight.discard(id(item))
+        if isinstance(item, dict) and item.get("task_id"):
+            try:
+                from database import spool_reject
+                spool_reject(item["task_id"], reason=reason)
+            except Exception as e:
+                logger.error("Ошибка spool_reject для %s: %s", item.get("task_id"), e)
+
+    async def qsize(self, shop_key: Optional[str] = None) -> int:
         mem_size = self.memory_queue.qsize() + len(self._retry_queue)
         if self.redis_client:
             try:
                 mem_size += await self.redis_client.llen(QUEUE_KEY)
             except Exception:
                 pass
+        try:
+            from database import spool_stats
+            stats = await asyncio.to_thread(spool_stats, shop_key)
+            mem_size += stats.get("pending", 0)
+        except Exception:
+            pass
         return mem_size
 
-    async def wait_drained(self, timeout: float = 10.0) -> bool:
-        """Ожидает, пока все задачи из очереди будут полностью сохранены воркером в SQLite (B06)."""
+    async def wait_drained(self, shop_key: Optional[str] = None, timeout: float = 10.0) -> bool:
+        """Ожидает, пока все задачи из очереди будут полностью сохранены воркером в SQLite (B06, C01, C02)."""
         start = time.monotonic()
         while time.monotonic() - start < timeout:
-            if await self.qsize() == 0 and len(self._in_flight) == 0:
+            spool_errs = 0
+            try:
+                from database import spool_stats
+                stats = await asyncio.to_thread(spool_stats, shop_key)
+                spool_pending = stats.get("pending", 0) + stats.get("processing", 0)
+                spool_errs = stats.get("dead_letter", 0) + stats.get("rejected", 0)
+            except Exception:
+                spool_pending = 0
+
+            mem_pending = self.memory_queue.qsize() + len(self._retry_queue)
+            redis_pending = 0
+            if self.redis_client:
+                try:
+                    redis_pending = await self.redis_client.llen(QUEUE_KEY)
+                except Exception:
+                    pass
+
+            total_pending = spool_pending + mem_pending + redis_pending
+            if total_pending == 0 and len(self._in_flight) == 0:
+                # C02: если были ошибки dead_letter или rejected, барьер завершается с отказом
+                if spool_errs > 0 or len(self._dead_letter_mem) > 0:
+                    logger.warning("wait_drained: обнаружены задачи со сбоями (dead_letter/rejected)")
+                    return False
                 return True
             await asyncio.sleep(0.05)
         return False

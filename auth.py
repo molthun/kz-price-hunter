@@ -176,6 +176,17 @@ def dev_login_allowed(request: web.Request) -> bool:
 
 @web.middleware
 async def auth_middleware(request: web.Request, handler):
+    # C06: Быстрый bypass без обращения к БД сессий в общем пуле потоков для health/liveness и статики
+    if request.path in ("/api/live", "/api/health", "/favicon.ico") or request.path.startswith("/static/"):
+        request["user"] = None
+        response = await handler(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        if request.path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-store"
+        return response
+
     if request.method not in ("GET", "HEAD", "OPTIONS"):
         origin = normalized_origin(request.headers.get("Origin", ""))
         expected = expected_origin(request)

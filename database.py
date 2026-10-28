@@ -474,6 +474,23 @@ def _create_schema(cursor) -> None:
         created_at REAL NOT NULL, last_error TEXT,
         UNIQUE(alert_id, user_id)
     )""")
+    # C01, C02, C05: Персистентный журнал очереди задач сохранения товаров в SQLite (Spool / Outbox).
+    # Обеспечивает строгую транзакционность, гарантию непотери задач при kill -9/рестартах и fencing поколений.
+    cursor.execute("""CREATE TABLE IF NOT EXISTS product_queue_spool (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        task_id TEXT UNIQUE NOT NULL,
+        shop_key TEXT,
+        shop_name TEXT,
+        lease_generation INTEGER NOT NULL DEFAULT 0,
+        payload TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'processing', 'committed', 'rejected', 'dead_letter'
+        attempts INTEGER NOT NULL DEFAULT 0,
+        created_at REAL NOT NULL,
+        updated_at REAL NOT NULL,
+        last_error TEXT
+    )""")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_product_spool_status ON product_queue_spool(status, id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_product_spool_shop ON product_queue_spool(shop_key, status)")
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS tracked_categories (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -3147,8 +3164,10 @@ def watched_offers(product_ids: List[str], now: Optional[datetime.datetime] = No
                         o.city,
                         o.url,
                         o.image_url,
-                        CAST(o.price AS INTEGER) AS current_price,
-                        o.is_active AS is_available
+                        o.availability,
+                        o.expires_at,
+                        o.is_active,
+                        CAST(o.price AS INTEGER) AS current_price
                     FROM offers o
                     LEFT JOIN canonical_products cp ON o.product_id = cp.id
                     LEFT JOIN sellers s ON o.seller_id = s.id
@@ -3156,6 +3175,7 @@ def watched_offers(product_ids: List[str], now: Optional[datetime.datetime] = No
                     WHERE o.id IN ({v2_placeholders}) OR o.external_sku IN ({v2_placeholders})
                 """
                 v2_rows = [dict(r) for r in conn.execute(v2_sql, unique_lookup + unique_lookup)]
+                from domain.search_core import offer_expired
                 for r in v2_rows:
                     found_ids.add(r["id"])
                     if r.get("external_sku"):
@@ -3165,6 +3185,13 @@ def watched_offers(product_ids: List[str], now: Optional[datetime.datetime] = No
                     # Если запрашивался legacy ID (external_sku), сохраняем r["id"] для совместимости
                     if r.get("external_sku") and r.get("external_sku") in chunk:
                         r["id"] = r["external_sku"]
+
+                    # C08: Честная проверка доступности предложения (активность, наличие на складе и неистёкший TTL)
+                    avail = str(r.get("availability") or "in_stock").lower()
+                    in_stock = avail in ("in_stock", "preorder")
+                    expired = offer_expired(r.get("expires_at"), now=moment)
+                    r["is_available"] = 1 if (bool(r.get("is_active", 1)) and in_stock and not expired) else 0
+
                     rows.append(r)
 
             missing = [i for i in chunk if i not in found_ids]
@@ -3181,6 +3208,8 @@ def watched_offers(product_ids: List[str], now: Optional[datetime.datetime] = No
                     r["seller_name"] = sname
                     r["channel_type"] = ch_type
                     r["condition"] = "new"
+                    r["availability"] = "in_stock"
+                    r["expires_at"] = None
                     r["product_id"] = r.get("id")
                     r["canonical_product_id"] = r.get("id")
                     rows.append(r)
@@ -3780,3 +3809,162 @@ def retention_usage() -> List[Dict[str, Any]]:
                     oldest = None
             rows.append({"data": label, "table": table, "rows": count, "oldest": oldest})
     return rows
+
+
+# ---------------------------------------------------------------------------
+# C01–C05: Персистентный журнал очереди задач сохранения товаров (Product Spool)
+# ---------------------------------------------------------------------------
+
+def spool_enqueue(task_id: str, shop_key: Optional[str], shop_name: str,
+                   lease_generation: int, payload: Dict[str, Any]) -> bool:
+    """Записывает задачу в SQLite spool со статусом 'pending' (C01, C03)."""
+    now = time.time()
+    payload_str = json.dumps(payload, ensure_ascii=False)
+    with get_connection() as conn:
+        conn.execute("""
+            INSERT INTO product_queue_spool (
+                task_id, shop_key, shop_name, lease_generation, payload,
+                status, attempts, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, 'pending', 0, ?, ?)
+            ON CONFLICT(task_id) DO UPDATE SET
+                payload = excluded.payload,
+                status = 'pending',
+                updated_at = excluded.updated_at
+        """, (task_id, shop_key, shop_name, lease_generation, payload_str, now, now))
+        conn.commit()
+    return True
+
+
+def spool_dequeue() -> Optional[Dict[str, Any]]:
+    """Атомарно извлекает старейшую задачу 'pending' и переводит в 'processing' (C01)."""
+    now = time.time()
+    with get_connection() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute("""
+            SELECT id, task_id, shop_key, shop_name, lease_generation, payload, attempts
+            FROM product_queue_spool
+            WHERE status = 'pending'
+            ORDER BY id ASC LIMIT 1
+        """).fetchone()
+        if not row:
+            conn.rollback()
+            return None
+        row_id, task_id, shop_key, shop_name, lease_gen, payload_str, attempts = row
+        new_attempts = attempts + 1
+        conn.execute("""
+            UPDATE product_queue_spool
+            SET status = 'processing', attempts = ?, updated_at = ?
+            WHERE id = ?
+        """, (new_attempts, now, row_id))
+        conn.commit()
+
+        try:
+            item = json.loads(payload_str)
+        except Exception:
+            item = {}
+        item["task_id"] = task_id
+        item["shop_key"] = shop_key
+        item["shop_name"] = shop_name
+        item["lease_generation"] = lease_gen
+        item["attempts"] = new_attempts
+        item["_retry_count"] = max(0, new_attempts - 1)
+        return item
+
+
+def spool_commit(task_id: str) -> None:
+    """Подтверждает успешное завершение задачи (ACK) (C01, C04)."""
+    with get_connection() as conn:
+        conn.execute("DELETE FROM product_queue_spool WHERE task_id = ?", (task_id,))
+        conn.commit()
+
+
+def spool_nack(task_id: str, error: Optional[str] = None, max_retries: int = 3) -> None:
+    """Возвращает задачу в 'pending' для повтора или переводит в 'dead_letter' (C01, C02)."""
+    now = time.time()
+    err_str = str(error) if error else "Execution error"
+    with get_connection() as conn:
+        row = conn.execute("SELECT attempts FROM product_queue_spool WHERE task_id = ?", (task_id,)).fetchone()
+        if not row:
+            return
+        attempts = row[0]
+        if attempts > max_retries:
+            conn.execute("""
+                UPDATE product_queue_spool
+                SET status = 'dead_letter', last_error = ?, updated_at = ?
+                WHERE task_id = ?
+            """, (err_str, now, task_id))
+        else:
+            conn.execute("""
+                UPDATE product_queue_spool
+                SET status = 'pending', last_error = ?, updated_at = ?
+                WHERE task_id = ?
+            """, (err_str, now, task_id))
+        conn.commit()
+
+
+def spool_reject(task_id: str, reason: str = "fenced") -> None:
+    """Помечает задачу отклонённой (stale lease generation / fenced) (C05)."""
+    now = time.time()
+    with get_connection() as conn:
+        conn.execute("""
+            UPDATE product_queue_spool
+            SET status = 'rejected', last_error = ?, updated_at = ?
+            WHERE task_id = ?
+        """, (reason, now, task_id))
+        conn.commit()
+
+
+def spool_recover_on_startup() -> int:
+    """Восстанавливает зависшие задачи 'processing' обратно в 'pending' при старте (C01)."""
+    now = time.time()
+    with get_connection() as conn:
+        cur = conn.execute("""
+            UPDATE product_queue_spool
+            SET status = 'pending', updated_at = ?
+            WHERE status = 'processing'
+        """, (now,))
+        count = cur.rowcount
+        conn.commit()
+    return count
+
+
+def spool_stats(shop_key: Optional[str] = None) -> Dict[str, int]:
+    """Возвращает число задач в spool по статусам (C01, C02)."""
+    stats = {"pending": 0, "processing": 0, "dead_letter": 0, "rejected": 0}
+    with get_connection() as conn:
+        sql = "SELECT status, COUNT(*) FROM product_queue_spool"
+        params = []
+        if shop_key:
+            sql += " WHERE shop_key = ?"
+            params.append(shop_key)
+        sql += " GROUP BY status"
+        for st, cnt in conn.execute(sql, params):
+            if st in stats:
+                stats[st] = cnt
+    return stats
+
+
+def spool_dead_letters(shop_key: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Возвращает список задач dead_letter (C02)."""
+    with get_connection() as conn:
+        sql = "SELECT task_id, shop_key, shop_name, lease_generation, payload, attempts, last_error, created_at, updated_at FROM product_queue_spool WHERE status = 'dead_letter'"
+        params = []
+        if shop_key:
+            sql += " AND shop_key = ?"
+            params.append(shop_key)
+        rows = conn.execute(sql, params).fetchall()
+        result = []
+        for r in rows:
+            try:
+                pl = json.loads(r[4])
+            except Exception:
+                pl = {}
+            pl["task_id"] = r[0]
+            pl["shop_key"] = r[1]
+            pl["shop_name"] = r[2]
+            pl["lease_generation"] = r[3]
+            pl["attempts"] = r[5]
+            pl["_retry_count"] = max(0, r[5] - 1)
+            pl["last_error"] = r[6]
+            result.append(pl)
+        return result
