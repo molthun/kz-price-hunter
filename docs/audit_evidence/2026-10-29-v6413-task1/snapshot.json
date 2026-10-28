@@ -1,0 +1,12 @@
+{
+  "head": "72e1f731ce1b869037ebd4a34f36920bbe2d5988",
+  "changed_sha256": {
+    "CHANGELOG.md": "fe3cd72ff1060905c321288144d036ca2db5b189db08dee3ab86fab7119d5414",
+    "ROADMAP_AND_LOG.md": "a63c55f20105942532274ce7ce2f341f77791476b3274a137dedb45cca33538d",
+    "database.py": "8c5306a2c47a6213c9776f9f89ea1e16ef27fbf7633209e319c56f8fa2aee36d",
+    "docs/AGENT_HANDOFF.md": "cc327a4442b78133a8bb8e1e784957e9b0c36fdc342405fdd4914c1be0832d19",
+    "tests/core/test_offer_retirement.py": "1a344bee04b9903046dc2e3db58c796b0003bf55cfee889650c65eea2c699432",
+    "version.py": "8b21f5c03ff037f70785b649637ba5bf4614008925426586a78511139e4e510e",
+    "web/server.py": "eec47ab8c7d290ef469dad34870c417ec38d32a016d1fb8dec6b73b8d9e954d1"
+  }
+}

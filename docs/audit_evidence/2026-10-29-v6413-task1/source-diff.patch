@@ -1,0 +1,459 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 347c95f..588e75a 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -3,6 +3,17 @@
+ Все значимые изменения проекта документируются в этом файле.
+ Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
+ 
++## [6.4.13] - 2026-10-29
++
++### Для пользователей
++- Сервис открывается сразу после перезапуска или обновления: фоновая сверка снятых с продажи товаров больше не задерживает загрузку сайта.
++
++### Неблокирующий старт контейнера и фоновый разбор `watch_refresh` (P-6.4.12 / Задача 1)
++- 🚀 **Быстрый `init_db()` при старте.** Из `database.init_db()` убран синхронный вызов `drain_watch_refresh()`, который при большом числе накопленных заданий (на проде — `20 725` товаров при первом старте `6.4.11`) удерживал HTTP-порт закрытым несколько минут с `502` снаружи. В `init_db()` оставлен только быстрый транзакционный `sync_retired_offers()` (снятие предложений в `offers` и постановка заданий в `watch_refresh`).
++- 🔄 **Фоновый разбор `watch_refresh` после открытия порта.** В `web/server.py` (`background_tasks`) добавлен фоновый обработчик `startup_watch_refresh_worker`, разбирающий очередь `watch_refresh` через `run_db` страницами по `500` (`drain_watch_refresh(page=500, max_pages=1)`) с уступкой event loop между страницами и логом прогресса `[DB] G03: фоновое обновление памяти наблюдений — {done}/{total}`.
++- 🔒 **Сохранение семантики `watch_refresh`.** Двухфазный переход `retire` → `current`, поколение `gen` и проверка в транзакции записи (`6.4.11`) сохранены без изменений. При сбое фонового разбора невыполненные страницы остаются в `watch_refresh` и повторяются при следующем старте или суточном обслуживании (`daily_maintenance_worker`).
++- 🧪 **Регрессии (`tests/core/test_offer_retirement.py`):** старт с `20 501` заданием в `watch_refresh` мгновенно завершает `create_app()` и отвечает `200` на `/api/live` до окончания фонового `drain`, после чего все 42 страницы разбираются фоном; при сбое на второй странице первая сохранена, оставшиеся `701` остаются в очереди и дорабатываются повтором. Оба теста падают на коде до исправления (`72e1f73`).
++
+ ## [6.4.12] - 2026-10-28
+ 
+ ### Для пользователей
+diff --git a/ROADMAP_AND_LOG.md b/ROADMAP_AND_LOG.md
+index 54fdcca..ef25395 100644
+--- a/ROADMAP_AND_LOG.md
++++ b/ROADMAP_AND_LOG.md
+@@ -6,6 +6,12 @@
+ 
+ ---
+ 
++## [Не выпущено] 6.4.13 — быстрый старт порта и фоновый разбор watch_refresh, Задача 1 из P-6.4.12 (Antigravity, 29.10.2026)
++
++- 🔍 **По логам первого старта 6.4.11 на проде**: стартовый `drain_watch_refresh` разбирал `20 725` снятых товаров прямо внутри `init_db()` до открытия HTTP-порта, из-за чего контейнер несколько минут висел в `starting`, а снаружи отдавался `502`.
++- 🛠️ **Исправлено**: в `database.init_db()` оставлен только быстрый транзакционный `sync_retired_offers()`; разбор `watch_refresh` вынесен в фоновую задачу `startup_watch_refresh_worker` (`web/server.py` → `background_tasks`) через `run_db` страницами по `500` (`drain_watch_refresh(page=500, max_pages=1)`) с логом прогресса `[DB] G03: фоновое обновление памяти наблюдений — {done}/{total}`. Семантика `watch_refresh` (`retire`/`current`, `gen`) не изменена.
++- 🧪 **Проверено**: добавлены 2 регрессионных теста в `tests/core/test_offer_retirement.py` (`20 501` задание — `/api/live` отвечает `200` до завершения фонового `drain`; сбой на 2-й странице сохраняет остаток для повтора; оба теста падают на `72e1f73`).
++
+ ## [Не выпущено] 6.4.12 — устранение длительного удержания write-транзакций SQLite, Задача 2 из P-6.4.12 (Antigravity, 28.10.2026)
+ 
+ - 🔍 **По логам первого старта 6.4.11 на проде**: зафиксировано одно сообщение `[Queue Worker] Захват не продлён: OperationalError` во время волны обхода.
+diff --git a/database.py b/database.py
+index 4615a2a..ae9b92e 100644
+--- a/database.py
++++ b/database.py
+@@ -209,16 +209,30 @@ def watch_refresh_pending(product_ids: List[str]) -> List[str]:
+     return pending
+ 
+ 
+-def drain_watch_refresh(page: int = 500) -> int:
+-    """Выполняет все накопленные задания обновления памяти наблюдений. Возвращает их число."""
++def watch_refresh_count() -> int:
++    """Число накопленных заданий обновления памяти наблюдений (G03)."""
++    with get_connection() as conn:
++        return conn.execute("SELECT COUNT(*) FROM watch_refresh").fetchone()[0]
++
++
++def drain_watch_refresh(page: int = 500, max_pages: Optional[int] = None) -> int:
++    """Выполняет накопленные задания обновления памяти наблюдений страницами по page.
++
++    По умолчанию (max_pages=None) разбирает всю очередь до конца; при заданном max_pages
++    выполняет не более указанного числа страниц за вызов (для фонового разбора после старта
++    HTTP-сервера без блокировки порта и цикла событий). Возвращает число обработанных заданий.
++    """
+     done = 0
+-    while True:
++    pages = 0
++    while max_pages is None or pages < max_pages:
+         with get_connection() as conn:
+             ids = [r[0] for r in conn.execute("SELECT product_id FROM watch_refresh ORDER BY rowid LIMIT ?", (page,))]
+         if not ids:
+             return done
+         refresh_retired_watches(ids)
+         done += len(ids)
++        pages += 1
++    return done
+ 
+ 
+ def _has_table(conn, name: str) -> bool:
+@@ -1788,13 +1802,9 @@ def init_db():
+         _create_schema(conn.cursor())
+         conn.commit()
+     run_migrations(backup_done=backup_done)
++    # В init_db остаётся только быстрая транзакционная сверка снятых offers и постановка заданий
++    # в watch_refresh; сам разбор drain_watch_refresh идёт фоном после открытия HTTP-порта (P-6.4.12 / Задача 1).
+     sync_retired_offers()
+-    try:
+-        refreshed = drain_watch_refresh()
+-        if refreshed:
+-            print(f"[DB] G03: память наблюдений обновлена по {refreshed} снятым товарам")
+-    except Exception as e:  # noqa: BLE001 — задания остаются и будут повторены при следующем старте
+-        print(f"[DB] G03: память наблюдений не обновлена, повтор при следующем старте: {type(e).__name__}")
+     cleanup_expired_sessions()
+     reset_stale_running_scans()
+ 
+diff --git a/docs/AGENT_HANDOFF.md b/docs/AGENT_HANDOFF.md
+index 292b8f9..718122c 100644
+--- a/docs/AGENT_HANDOFF.md
++++ b/docs/AGENT_HANDOFF.md
+@@ -2,6 +2,90 @@
+ 
+ Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
+ 
++## Передача аудитору: Задача 1 из P-6.4.12 (фоновый drain_watch_refresh после открытия порта, v6.4.13) → Codex (Antigravity, 2026-10-29)
++
++```text
++ID / этап: P-6.4.12 / Задача 1 (P2, v6.4.13) — тяжёлая стартовая работа (drain_watch_refresh) не должна держать порт закрытым
++Основание/поручение владельца: «Аудит прошли. Продолжим» (2026-10-29) после приёмки Задачи 2 Codex.
++Статус: READY_FOR_AUDIT
++Исполнитель / предыдущий / следующий: Antigravity / Codex (приёмка Задачи 2) / Codex (независимая приёмка Задачи 1)
++Базовый HEAD: main 72e1f73 (origin/main = e380a0f = прод 6.4.11; push не выполнялся, прод не трогался).
++Версия: 6.4.13 (version.py, CHANGELOG.md с разделом «### Для пользователей», ROADMAP_AND_LOG.md).
++
++Корень проблемы (зафиксирован на проде при первом старте 6.4.11):
++  database.init_db() вызывается синхронно внутри create_app() до биндинга HTTP-сокета. На проде при первом
++  запуске 6.4.11 в очереди watch_refresh оказалось 20 725 снятых товаров, и синхронный drain_watch_refresh()
++  держал контейнер в статусе starting несколько минут, пока снаружи отдавался 502.
++
++Что изменено (6 файлов + этот реестр):
++  1. database.py:
++     - Добавлена функция watch_refresh_count() -> int (подсчёт числа заданий в watch_refresh).
++     - В drain_watch_refresh(page: int = 500, max_pages: Optional[int] = None) -> int добавлен опциональный
++       параметр max_pages (по умолчанию None — разбирает всю очередь до конца, как прежде; при max_pages=1
++       разбирает ровно одну страницу в 500 заданий).
++     - Из init_db() убран синхронный вызов drain_watch_refresh(); оставлен только быстрый транзакционный
++       sync_retired_offers() (снятие предложений в offers и постановка заданий в watch_refresh).
++     - Примечание для аудитора: старый скрипт docs/audit_evidence/2026-10-28-v6411/mechanism.py в двух
++       местах (строки 75 и 115) проверял полный разбор очереди через одиночный вызов db.init_db() без
++       веб-сервера и без db.drain_watch_refresh(); поскольку по ТЗ Задачи 1 init_db() больше не выполняет
++       drain_watch_refresh() синхронно, без запуска фонового воркера или явного drain_watch_refresh()
++       задания остаются в очереди до старта HTTP-сервера / daily_maintenance_worker.
++  2. web/server.py:
++     - Добавлены WATCH_REFRESH_STARTUP_PAGE = 500, _run_db_shielded(func, *args) (защищает выполняющийся
++       в _db_executor вызов страницы через asyncio.shield и дожидается завершения текущей короткой страницы
++       при отмене фоновой задачи во время остановки приложения) и корутина startup_watch_refresh_worker(app=None),
++       которая после открытия порта разбирает watch_refresh через run_db страницами по 500 с уступкой
++       event loop (await asyncio.sleep(0)) между страницами и логом прогресса:
++       «[DB] G03: фоновое обновление памяти наблюдений — {done}/{total}».
++     - В background_tasks(app) добавлен запуск startup_refresh_task = asyncio.create_task(startup_watch_refresh_worker(app))
++       с сохранением в app["startup_watch_refresh_task"] и корректной отменой в блоке finally.
++     - Семантика watch_refresh (двухфазный переход retire -> current, поколение gen, проверка в транзакции
++       записи) не изменялась. При сбое фонового drain невыполненные страницы остаются в watch_refresh и
++       повторяются при следующем старте или суточном обслуживании (daily_maintenance_worker).
++  3. tests/core/test_offer_retirement.py:
++     - Добавлен хелпер await self.startup() (database.init_db() + await server.startup_watch_refresh_worker())
++       для трёх существующих тестов, проверяющих полный стартовый цикл без поднятия HTTP-сервера.
++     - Добавлены 2 новых регрессионных теста (всего в файле 18 тестов):
++       * test_startup_with_20000_watch_refresh_jobs_opens_port_before_background_drain_finishes:
++         база с 20 501 заданием в watch_refresh -> create_app() не разбирает очередь синхронно (остаток
++         после create_app() равен 20 501), TestServer открывает порт и GET /api/live отвечает 200 до
++         завершения фонового drain, после чего фоновая задача разбирает все 42 страницы до 0 и для
++         возвращённого товара создаёт событие «снова в продаже».
++       * test_background_watch_refresh_failure_keeps_remaining_jobs_for_retry:
++         база с 1 201 заданием, сбой (OperationalError) на 2-й странице фонового воркера при старте
++         TestServer(create_app()) -> 1-я страница (500) выполнена, оставшиеся 701 сохранены в watch_refresh,
++         сервер продолжает отвечать 200 на /api/live, последующий drain_watch_refresh() разбирает остаток до 0.
++  4. version.py, CHANGELOG.md, ROADMAP_AND_LOG.md — версия 6.4.13 (с разделом «### Для пользователей»).
++
++Проведенные проверки:
++  1. Падение новых регрессий на коде до исправления (git worktree на 72e1f73 с новым test_offer_retirement.py):
++     FAILED (failures=2) — оба новых теста падают по поведению (на 72e1f73 create_app()/init_db() синхронно
++     разбирает все 20 501 заданий до открытия порта и синхронно вызывает refresh_retired_watches).
++  2. Локально (macOS, временный DATA_DIR):
++     - tests/core/test_offer_retirement.py: Ran 18 tests in 2.501s — OK.
++     - Полный Python suite: Ran 1873 tests in 97.684s — OK.
++     - Фронтенд-тесты: 19/19 PASS.
++     - ./venv/bin/python release_gate.py secrets --root . -> ok: true, findings: [].
++     - git diff --check -> пусто.
++  3. На тестовом стенде (192.168.28.25:2222, /home/molthun/kzph-stand):
++     - Точка отката перед выкладкой: образ kzph-stand:6.4.12-rollback, консистентный бэкап БД
++       /app/data/prices.db.before-6.4.13-backup.
++     - Контейнер kzph-stand пересобран и запущен на 6.4.13:
++       /api/live -> {"status": "live"}, /api/version -> 6.4.13, /api/health -> status: ok, db: ok, queue: ok.
++     - Изолированный прогон полного набора тестов в Linux-контейнере стенда
++       (docker run --rm --network none --cpus 4 --memory 15g -e DATA_DIR=/tmp/kzph-test kzph-stand:local python3 -m unittest discover -s . -p "test_*.py"):
++       Ran 1873 tests in 183.257s — OK.
++
++Не проверялось / ограничения:
++  - Реальный старт на проде (origin/main не пушился).
++
++Следующий точный шаг:
++  - Независимая приёмка Задачи 1 (v6.4.13) аудитором Codex.
++  - После приёмки Задачи 1 — Antigravity переходит к Задаче 3 из P-6.4.12 (исправление парсеров Эврика и Alser).
++```
++
++---
++
+ ## Повторная приёмка T01/T02 Задачи 2 — Codex (2026-10-29)
+ 
+ - Основание: «поправил проверь». Снимок main `303d452`, исходно чистый checkout.
+diff --git a/tests/core/test_offer_retirement.py b/tests/core/test_offer_retirement.py
+index 1ef1789..e02cb55 100644
+--- a/tests/core/test_offer_retirement.py
++++ b/tests/core/test_offer_retirement.py
+@@ -174,14 +174,20 @@ class OfferRetirementTest(QueueContractBase):
+         self.assert_available("drift", True)
+         self.assertEqual([e["reason"] for e in self.events()], ["товар снова в продаже"])
+ 
++    async def startup(self):
++        """Полный старт сервиса: быстрая синхронная init_db + фоновый разбор watch_refresh."""
++        from web import server
++        database.init_db()
++        await server.startup_watch_refresh_worker()
++
+     async def test_memory_repair_survives_failure_and_restart(self):
+         """G03-A: сбой обновления памяти при старте повторяется следующим стартом."""
+         await self.prepare_old_base()
+         with patch.object(database, "_apply_retire_transition", side_effect=sqlite3.OperationalError("synthetic")):
+-            database.init_db()
++            await self.startup()
+         self.assert_available("drift", False)
+         self.assertEqual(self.refresh_jobs("drift"), 1, "задание потеряно после сбоя")
+-        database.init_db()
++        await self.startup()
+         self.assertEqual(self.refresh_jobs("drift"), 0)
+         await self.assert_return_notifies_once()
+ 
+@@ -193,9 +199,9 @@ class OfferRetirementTest(QueueContractBase):
+             conn.execute("DELETE FROM watch_refresh")
+             conn.execute("DELETE FROM schema_metadata WHERE name = ?", (database.WATCH_REFRESH_SEED,))
+             conn.commit()
+-        database.init_db()
++        await self.startup()
+         self.assertEqual(self.refresh_jobs("drift"), 0)
+-        database.init_db()  # повторный старт ничего не досевает заново
++        await self.startup()  # повторный старт ничего не досевает заново
+         await self.assert_return_notifies_once()
+ 
+     async def test_failed_retired_watch_refresh_in_queue_is_retried(self):
+@@ -223,11 +229,11 @@ class OfferRetirementTest(QueueContractBase):
+         """G04: сбой при старте → товар вернулся раньше повтора → повтор; одно «снова в продаже»."""
+         await self.prepare_old_base()
+         with patch.object(database, "_apply_retire_transition", side_effect=sqlite3.OperationalError("synthetic")):
+-            database.init_db()
++            await self.startup()
+         self.assertEqual(self.refresh_jobs("drift"), 1)
+         await self.assert_return_notifies_once()        # возврат до повтора задания
+         self.assertEqual(self.refresh_jobs("drift"), 0, "переход снятия не применён при возврате")
+-        database.init_db()                               # повтор заданий: дубля нет
++        await self.startup()                             # повтор заданий: дубля нет
+         self.assertEqual([e["reason"] for e in self.events()], ["товар снова в продаже"])
+ 
+     async def test_deferred_refresh_after_return_applies_transition_in_order(self):
+@@ -352,3 +358,122 @@ class OfferRetirementTest(QueueContractBase):
+             phase = conn.execute("SELECT phase FROM watch_refresh WHERE product_id = ?",
+                                  (self.pid("drift"),)).fetchone()
+         self.assertEqual(phase[0] if phase else None, "retire", "новое снятие потеряно старым вызовом")
++
++    async def test_startup_with_20000_watch_refresh_jobs_opens_port_before_background_drain_finishes(self):
++        """P-6.4.12 / Задача 1: база с 20 000+ заданиями watch_refresh не держит порт закрытым при старте."""
++        from aiohttp.test_utils import TestClient, TestServer
++        from web import server
++
++        await self.prepare_old_base()
++        bulk_ids = [f"bulk-{self.tag}-{i}" for i in range(20_500)]
++        with database.get_connection() as conn:
++            conn.execute("DELETE FROM watch_refresh")
++            database._queue_watch_refresh_conn(conn, [self.pid("drift"), *bulk_ids])
++            conn.commit()
++        total_seeded = len(bulk_ids) + 1
++
++        orig_refresh = database.refresh_retired_watches
++        first_page_started = threading.Event()
++        release_drain = threading.Event()
++        pages_seen = []
++
++        def gated_refresh(product_ids):
++            pages_seen.append(len(product_ids))
++            if len(pages_seen) == 1:
++                first_page_started.set()
++                release_drain.wait(timeout=2.0)
++            return orig_refresh(product_ids)
++
++        async def noop_worker(*_args, **_kwargs):
++            return
++
++        with (
++            patch.object(database, "refresh_retired_watches", side_effect=gated_refresh),
++            patch.object(server, "auto_scan_background_worker", side_effect=noop_worker),
++            patch.object(server, "ai_normalize_background_worker", side_effect=noop_worker),
++            patch.object(server, "notification_worker", side_effect=noop_worker),
++        ):
++            t0 = time.monotonic()
++            app = server.create_app()
++            create_app_elapsed = time.monotonic() - t0
++            with database.get_connection() as conn:
++                after_create_app = conn.execute("SELECT COUNT(*) FROM watch_refresh").fetchone()[0]
++            self.assertEqual(
++                after_create_app,
++                total_seeded,
++                "create_app()/init_db() не должен синхронно разбирать watch_refresh до открытия порта",
++            )
++            self.assertLess(create_app_elapsed, 1.5)
++
++            async with TestClient(TestServer(app)) as client:
++                resp = await client.get("/api/live")
++                self.assertEqual(resp.status, 200)
++                self.assertEqual(await resp.json(), {"status": "live"})
++                with database.get_connection() as conn:
++                    pending_at_live = conn.execute("SELECT COUNT(*) FROM watch_refresh").fetchone()[0]
++                self.assertGreater(
++                    pending_at_live,
++                    0,
++                    "/api/live должен отвечать 200 до окончания фонового разбора 20 000+ заданий",
++                )
++                release_drain.set()
++                task = app.get("startup_watch_refresh_task")
++                self.assertIsNotNone(task)
++                drained = await task
++                self.assertEqual(drained, total_seeded)
++
++        with database.get_connection() as conn:
++            remaining = conn.execute("SELECT COUNT(*) FROM watch_refresh").fetchone()[0]
++        self.assertEqual(remaining, 0)
++        self.assertGreaterEqual(len(pages_seen), 41)
++        await self.assert_return_notifies_once()
++
++    async def test_background_watch_refresh_failure_keeps_remaining_jobs_for_retry(self):
++        """P-6.4.12 / Задача 1: при сбое фонового drain невыполненные задания остаются и повторяются."""
++        from aiohttp.test_utils import TestClient, TestServer
++        from web import server
++
++        await self.prepare_old_base()
++        bulk_ids = [f"failbulk-{self.tag}-{i}" for i in range(1_200)]
++        with database.get_connection() as conn:
++            conn.execute("DELETE FROM watch_refresh")
++            database._queue_watch_refresh_conn(conn, [*bulk_ids, self.pid("drift")])
++            conn.commit()
++
++        orig_refresh = database.refresh_retired_watches
++        calls = 0
++
++        def fail_second_page(product_ids):
++            nonlocal calls
++            calls += 1
++            if calls == 2:
++                raise sqlite3.OperationalError("synthetic page 2 failure")
++            return orig_refresh(product_ids)
++
++        async def noop_worker(*_args, **_kwargs):
++            return
++
++        with (
++            patch.object(database, "refresh_retired_watches", side_effect=fail_second_page),
++            patch.object(server, "auto_scan_background_worker", side_effect=noop_worker),
++            patch.object(server, "ai_normalize_background_worker", side_effect=noop_worker),
++            patch.object(server, "notification_worker", side_effect=noop_worker),
++        ):
++            app = server.create_app()
++            self.assertEqual(calls, 0, "create_app() не должен вызывать refresh_retired_watches синхронно")
++            async with TestClient(TestServer(app)) as client:
++                task = app.get("startup_watch_refresh_task")
++                self.assertIsNotNone(task)
++                done_before_fail = await task
++                self.assertEqual(done_before_fail, 500)
++                resp = await client.get("/api/live")
++                self.assertEqual(resp.status, 200)
++
++        with database.get_connection() as conn:
++            remaining = conn.execute("SELECT COUNT(*) FROM watch_refresh").fetchone()[0]
++        self.assertEqual(remaining, 701, "оставшиеся страницы должны сохраниться для повтора")
++
++        # Повтор (суточное обслуживание или следующий старт) доводит остаток до конца
++        self.assertEqual(database.drain_watch_refresh(), 701)
++        self.assertEqual(self.refresh_jobs("drift"), 0)
++        await self.assert_return_notifies_once()
+diff --git a/version.py b/version.py
+index 5f26617..0e09ecd 100644
+--- a/version.py
++++ b/version.py
+@@ -2,9 +2,9 @@
+ KZ Price Hunter - Version Information
+ """
+ 
+-__version__ = "6.4.12"
++__version__ = "6.4.13"
+ __app_name__ = "KZ Price Hunter"
+-__release_date__ = "2026-10-28"
++__release_date__ = "2026-10-29"
+ __author__ = "Advanced Agentic Coding"
+ 
+ def get_version_info():
+diff --git a/web/server.py b/web/server.py
+index 5a7f553..8446072 100644
+--- a/web/server.py
++++ b/web/server.py
+@@ -3542,13 +3542,74 @@ async def auto_scan_background_worker(app):
+             telemetry.record_system_error(COMPONENT_SCHEDULER, "auto_scan_worker", e)
+             await asyncio.sleep(15)
+ 
++WATCH_REFRESH_STARTUP_PAGE = 500
++
++
++async def _run_db_shielded(func, *args):
++    """Выполняет синхронную операцию БД в пуле и при отмене корутины дожидается завершения потока."""
++    fut = run_db(func, *args)
++    try:
++        return await asyncio.shield(fut)
++    except asyncio.CancelledError:
++        try:
++            await fut
++        except Exception:
++            pass
++        raise
++
++
++async def startup_watch_refresh_worker(app=None) -> int:
++    """Фоновый разбор заданий watch_refresh после открытия HTTP-порта (P-6.4.12 / Задача 1).
++
++    Выполняется страницами через run_db, чтобы тысячи накопленных заданий не держали порт
++    закрытым на старте. При сбое невыполненные задания остаются в watch_refresh и повторяются
++    суточным обслуживанием или следующим стартом (G03).
++    """
++    import database as db
++    done = 0
++    try:
++        total = await _run_db_shielded(db.watch_refresh_count)
++        if not total:
++            return 0
++        page_size = WATCH_REFRESH_STARTUP_PAGE
++        if total > page_size:
++            print(f"[DB] G03: фоновое обновление памяти наблюдений запущено ({total} заданий, страницами по {page_size})")
++        while True:
++            before = await _run_db_shielded(db.watch_refresh_count)
++            if not before:
++                break
++            processed = await _run_db_shielded(db.drain_watch_refresh, page_size, 1)
++            if not processed:
++                break
++            done += processed
++            if total > page_size:
++                print(f"[DB] G03: фоновое обновление памяти наблюдений — {done}/{total}")
++            after = await _run_db_shielded(db.watch_refresh_count)
++            if after >= before and done >= total:
++                break
++            await asyncio.sleep(0)
++        if done:
++            print(f"[DB] G03: память наблюдений обновлена по {done} снятым товарам")
++        return done
++    except asyncio.CancelledError:
++        if done:
++            print(f"[DB] G03: фоновое обновление памяти наблюдений прервано на {done} товарах (остаток в очереди)")
++        raise
++    except Exception as e:  # noqa: BLE001 — задания остаются в watch_refresh и будут повторены
++        print(f"[DB] G03: память наблюдений не обновлена, повтор при следующем старте: {type(e).__name__}")
++        return done
++
++
+ async def background_tasks(app):
+     from queue_service import product_queue
+     await product_queue.initialize()
+ 
+     from telegram_bot import run_telegram_bot_task
++    startup_refresh_task = asyncio.create_task(startup_watch_refresh_worker(app))
++    app["startup_watch_refresh_task"] = startup_refresh_task
+     tasks = [
+         asyncio.create_task(single_db_writer_worker(app)),
++        startup_refresh_task,
+         asyncio.create_task(auto_scan_background_worker(app)),
+         asyncio.create_task(ai_normalize_background_worker(app)),
+         asyncio.create_task(notification_worker()),

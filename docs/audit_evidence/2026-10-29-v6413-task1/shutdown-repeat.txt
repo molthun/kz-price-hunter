@@ -1,0 +1,47 @@
+[System] 📡 Модуль онлайн-логирования активирован.
+{"case": "helper_cancel", "task_done_before_release": true, "thread_finished": false}
+test_shield_waits_for_submitted_operation_on_cancel (__main__.Shutdown.test_shield_waits_for_submitted_operation_on_cancel) ... FAIL
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] G03: фоновое обновление памяти наблюдений запущено (600 заданий, страницами по 500)
+{"case": "worker_cancel", "worker_done_before_page_release": true, "jobs_before_release": 600, "jobs_after_page_finishes": 100}
+test_worker_waits_for_current_page_before_cancellation_finishes (__main__.Shutdown.test_worker_waits_for_current_page_before_cancellation_finishes) ... FAIL
+
+======================================================================
+FAIL: test_shield_waits_for_submitted_operation_on_cancel (__main__.Shutdown.test_shield_waits_for_submitted_operation_on_cancel)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py", line 128, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py", line 720, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph6413-audit-3dkeff7o/audit-results/shutdown.py", line 29, in test_shield_waits_for_submitted_operation_on_cancel
+    self.assertFalse(early,'cancelled helper returned before its submitted DB operation completed')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: True is not false : cancelled helper returned before its submitted DB operation completed
+
+======================================================================
+FAIL: test_worker_waits_for_current_page_before_cancellation_finishes (__main__.Shutdown.test_worker_waits_for_current_page_before_cancellation_finishes)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py", line 128, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py", line 720, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph6413-audit-3dkeff7o/audit-results/shutdown.py", line 55, in test_worker_waits_for_current_page_before_cancellation_finishes
+    self.assertFalse(early,'worker cancellation finished while the DB page was still running')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: True is not false : worker cancellation finished while the DB page was still running
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.198s
+
+FAILED (failures=2)

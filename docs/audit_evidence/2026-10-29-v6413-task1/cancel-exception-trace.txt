@@ -1,0 +1,23 @@
+[System] 📡 Модуль онлайн-логирования активирован.
+{"case": "helper_cancel", "task_done_before_release": true, "thread_finished": false}
+F
+======================================================================
+FAIL: test_shield_waits_for_submitted_operation_on_cancel (<run_path>.Shutdown.test_shield_waits_for_submitted_operation_on_cancel)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py", line 128, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py", line 720, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "audit-results/shutdown.py", line 29, in test_shield_waits_for_submitted_operation_on_cancel
+    self.assertFalse(early,'cancelled helper returned before its submitted DB operation completed')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: True is not false : cancelled helper returned before its submitted DB operation completed
+
+----------------------------------------------------------------------
+Ran 1 test in 0.069s
+
+FAILED (failures=1)
+{"helper_exceptions": [{"type": "CancelledError", "message": ""}, {"type": "RuntimeError", "message": "coroutine is being awaited already"}]}
