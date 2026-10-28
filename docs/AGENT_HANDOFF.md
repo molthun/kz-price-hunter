@@ -2,7 +2,49 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## Текущая контрольная точка — завершение этапа 2 аудита (B02, B03, B04, B06) (Antigravity, 2026-10-28)
+## Текущая контрольная точка — завершение всех этапов аудита Codex B01–B11 (Antigravity, 2026-10-28)
+
+```text
+ID / этап: Полное устранение замечаний аудита FULL_AUDIT_2026-10-28_CODEX (B01–B11 закрыты Antigravity, B12–B13 закрыты Claude). Версия v6.4.1.
+Статус: Завершён (все замечания подтверждены reproduce.py, 1780 unit-тестов PASS, Deno frontend PASS)
+Исполнитель: Antigravity (основной разработчик, по поручению владельца «Давай»)
+Checkout / ветка: feature/audit-step1-b01-b05-b07, готово к слиянию в main
+Область файлов: database.py, watches.py, domain/search_core.py, domain/seller_showcase.py, repositories/search_repo.py, queue_service.py, web/server.py, version.py, CHANGELOG.md, ROADMAP_AND_LOG.md.
+
+Выполнено на Этапе 3 (B08, B09, B10, B11):
+  B08 P1 — сопоставление ID сканера с Offer V2:
+    - В database.py:watched_offers расширен поиск предложений по o.id, o.external_sku и префиксированным ID off_*.
+    - Скрапер получает корректный canonical_product_id канонического товара вместо fallback на legacy ID, наблюдение за каноническим товаром срабатывает корректно.
+    - Воспроизведение reproduce.py: scanner_v2_identity_mismatch даёт canonical_watch_events=1, scanner_row_canonical == actual_canonical == prod_0699c2055647d187.
+  B09 P1 — изоляция истории цен для каждого предложения:
+    - В watches.py и database.py разделены скоупы состояния watch_state:
+      * Для условий снижения/изменения цены конкретного предложения (ANY_DROP, DROP_*, TARGET_PRICE, BACK_IN_STOCK) память ведётся строго per-offer (по offer_id). Чередование обхода магазинов А (100) и Б (200) больше не генерирует ложное «цена снизилась с 200 до 100».
+      * Для межпродавцовых условий (NEW_OFFER, NEW_SELLER, BETTER_SELLER и т.д.) память ведётся в скоупе канонического товара.
+    - Воспроизведение reproduce.py: unchanged_offer_false_drop даёт unchanged_events=0.
+  B10 P2 — согласованная SQL-сортировка цен до LIMIT:
+    - В repositories/search_repo.py подзапрос сортировки по цене (MIN/MAX) дополнен фильтрами доступности: актуальность TTL (expires_at IS NULL OR expires_at > now) и статус наличия (in_stock/preorder).
+    - Воспроизведение reproduce.py: search_sort_expired_candidate даёт limit1 == limit50 == 100.0.
+  B11 P2 — учёт свежести (freshness) в витрине продавца:
+    - В domain/seller_showcase.py функция is_offer_purchasable дополнена проверкой устаревания через data_quality.freshness (STALE отсекает предложение из purchasable и min_price).
+    - Воспроизведение reproduce.py: stale_showcase_offer даёт min_price=0.0, purchasable=false.
+
+Проверки:
+  - reproduce.py: Все 14 синтетических проверок (B01–B11) подтверждены с кодом 0 без замечаний.
+  - tests/notifications/test_watches.py: 107/107 PASS.
+  - tests/notifications/test_watches_v2.py: 13/13 PASS.
+  - tests/search/test_search_core_v2.py: 22/22 PASS.
+  - tests/core/test_queue_service.py: 6/6 PASS.
+  - tests/web/test_health_and_pool.py: 6/6 PASS.
+  - tests/web/test_seller_endpoints.py: 6/6 PASS.
+  - Полный hermetic test suite (python -m unittest discover -s . -p "test_*.py"): 1780/1780 PASS.
+  - Deno browser/frontend test suite (18 наборов): PASS.
+  - release_gate secrets: 0 замечаний.
+
+Следующий шаг:
+  Закоммитить релизные метаданные, слить ветку feature/audit-step1-b01-b05-b07 в main, поставить тег v6.4.1 и отправить в remote репозиторий.
+```
+
+## Предыдущая контрольная точка — завершение этапа 2 аудита (B02, B03, B04, B06) (Antigravity, 2026-10-28)
 
 ```text
 ID / этап: Этап 2 устранения замечаний аудита FULL_AUDIT_2026-10-28_CODEX (B02, B03, B04, B06).
