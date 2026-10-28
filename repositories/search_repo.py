@@ -93,6 +93,7 @@ class SearchRepository(BaseRepository):
         max_price: Optional[float] = None,
         sort_by: str = "relevance",
         limit: int = 50,
+        now: Optional[datetime.datetime] = None,
     ) -> List[Dict[str, Any]]:
         """
         1. Finds matching canonical products via FTS5 or LIKE fallback.
@@ -145,7 +146,14 @@ class SearchRepository(BaseRepository):
         )
         """
 
-        # A05: Сортировка до LIMIT
+        # A05, B10: Сортировка до LIMIT с учётом доступности (исключаем просроченные и недоступные)
+        import datetime
+        now_iso = (now or datetime.datetime.now(datetime.timezone.utc)).isoformat()
+        order_conditions = list(exists_conditions) + [
+            "(o.expires_at IS NULL OR o.expires_at > ?)",
+            "LOWER(COALESCE(o.availability, 'in_stock')) IN ('in_stock', 'preorder')",
+        ]
+
         order_by_sql = "rank ASC"
         order_by_like = "p.id ASC"
         order_params: list = []
@@ -154,21 +162,21 @@ class SearchRepository(BaseRepository):
                 SELECT MIN(o.price) FROM offers o
                 JOIN sellers s ON o.seller_id = s.id
                 JOIN channels c ON o.channel_id = c.id
-                WHERE o.product_id = p.id AND {" AND ".join(exists_conditions)}
+                WHERE o.product_id = p.id AND {" AND ".join(order_conditions)}
             ) ASC"""
             order_by_sql = sub
             order_by_like = sub
-            order_params = list(exists_params)
+            order_params = list(exists_params) + [now_iso]
         elif sort_by == "price_desc":
             sub = f"""(
                 SELECT MAX(o.price) FROM offers o
                 JOIN sellers s ON o.seller_id = s.id
                 JOIN channels c ON o.channel_id = c.id
-                WHERE o.product_id = p.id AND {" AND ".join(exists_conditions)}
+                WHERE o.product_id = p.id AND {" AND ".join(order_conditions)}
             ) DESC"""
             order_by_sql = sub
             order_by_like = sub
-            order_params = list(exists_params)
+            order_params = list(exists_params) + [now_iso]
 
         # -------------------------------------------------------------------
         # Step 1: Match Canonical Products

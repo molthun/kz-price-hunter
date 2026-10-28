@@ -51,6 +51,11 @@ CONDITIONS = (TARGET_PRICE, DROP_PCT, DROP_KZT, ANY_DROP, BEST_PRICE, BACK_IN_ST
               DISCOUNT_PCT, ANY_FIND, PRICE_DROP, NEW_OFFER, NEW_SELLER,
               NEW_USED_OFFER, BETTER_CHANNEL, BETTER_SELLER)
 
+# B09: Межпродавцовые условия отслеживаются в скоупе канонического товара (с учётом города и состояния).
+# Условия изменения цены конкретного предложения (ANY_DROP, DROP_*, TARGET_PRICE, BACK_IN_STOCK)
+# имеют изолированный скоуп per-offer, чтобы цена продавца A не перебивала цену продавца B.
+CROSS_OFFER_CONDITIONS = (NEW_OFFER, NEW_SELLER, NEW_USED_OFFER, BETTER_CHANNEL, BETTER_SELLER, BEST_PRICE)
+
 NEEDS_THRESHOLD = (TARGET_PRICE, DROP_PCT, DROP_KZT, DISCOUNT_PCT)
 
 # Условия, которые имеют смысл только для находок ленты (сделка, арбитраж), и наоборот

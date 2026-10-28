@@ -136,6 +136,7 @@ class SearchCore:
         max_price: Optional[float] = None,
         sort_by: str = "relevance",
         limit: int = 50,
+        now: Optional[datetime.datetime] = None,
     ) -> SearchResponse2:
         """
         Executes a 2.0 multi-merchant search query with error handling.
@@ -177,6 +178,7 @@ class SearchCore:
                 max_price=target_max_price,
                 sort_by=sort_by,
                 limit=limit,
+                now=now,
             )
 
             # 3. Aggregate offers and compute product cards

@@ -2979,10 +2979,17 @@ def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.dateti
             channel_key = str(offer.get("channel_type") or offer.get("channel_id") or offer.get("channel") or "").strip().lower()
             offer_key = str(offer.get("id") or offer.get("offer_id") or "").strip()
 
-            # A03: Для межпродавцовых, межканальных условий и наблюдений за товаром
-            # ключом состояния должен быть канонический идентификатор товара
+            # B09: Разделение скоупов наблюдения:
+            # Для межпродавцовых условий (NEW_OFFER, NEW_SELLER, etc.) память ведётся по каноническому товару.
+            # Для условий снижения цены (ANY_DROP, DROP_*, TARGET_PRICE) память ведётся по конкретному офферу,
+            # чтобы цена одного продавца не вызывала ложное срабатывание у другого.
             canonical_id = str(offer.get("canonical_product_id") or offer.get("product_id") or offer.get("canonical_key") or product_id)
-            scope_id = canonical_id if (canonical_id and canonical_id != product_id) else product_id
+            if watch.get("condition") in getattr(w, "CROSS_OFFER_CONDITIONS", ()):
+                city = str(offer.get("city") or "").strip().lower()
+                cond = str(offer.get("condition") or "new").strip().lower()
+                scope_id = f"{canonical_id}:{city}:{cond}" if (city or cond != "new") else canonical_id
+            else:
+                scope_id = offer_key if offer_key else product_id
 
             with get_connection() as conn:
                 # Чтение состояния, решение и запись события — одна транзакция на запись: два
@@ -3106,14 +3113,25 @@ def watched_offers(product_ids: List[str], now: Optional[datetime.datetime] = No
 
         for start in range(0, len(ids), 500):
             chunk = ids[start:start + 500]
-            placeholders = ",".join("?" * len(chunk))
             found_ids = set()
 
             if has_v2:
+                # B08: Скрапер может передавать legacy ID ('after-lease') или V2 offer ID ('off_after-lease').
+                # Ищем как по o.id, так и по o.external_sku и префиксированным ID.
+                lookup_ids = list(chunk)
+                for i in chunk:
+                    if not i.startswith("off_"):
+                        lookup_ids.append(f"off_{i}")
+                    else:
+                        lookup_ids.append(i[4:])
+                unique_lookup = list(dict.fromkeys(lookup_ids))
+                v2_placeholders = ",".join("?" * len(unique_lookup))
+
                 v2_sql = f"""
                     SELECT
                         o.id,
                         o.id AS offer_id,
+                        o.external_sku,
                         o.product_id AS canonical_product_id,
                         o.product_id,
                         cp.canonical_key,
@@ -3135,11 +3153,18 @@ def watched_offers(product_ids: List[str], now: Optional[datetime.datetime] = No
                     LEFT JOIN canonical_products cp ON o.product_id = cp.id
                     LEFT JOIN sellers s ON o.seller_id = s.id
                     LEFT JOIN channels c ON o.channel_id = c.id
-                    WHERE o.id IN ({placeholders})
+                    WHERE o.id IN ({v2_placeholders}) OR o.external_sku IN ({v2_placeholders})
                 """
-                v2_rows = [dict(r) for r in conn.execute(v2_sql, chunk)]
+                v2_rows = [dict(r) for r in conn.execute(v2_sql, unique_lookup + unique_lookup)]
                 for r in v2_rows:
                     found_ids.add(r["id"])
+                    if r.get("external_sku"):
+                        found_ids.add(r["external_sku"])
+                    if r["id"].startswith("off_"):
+                        found_ids.add(r["id"][4:])
+                    # Если запрашивался legacy ID (external_sku), сохраняем r["id"] для совместимости
+                    if r.get("external_sku") and r.get("external_sku") in chunk:
+                        r["id"] = r["external_sku"]
                     rows.append(r)
 
             missing = [i for i in chunk if i not in found_ids]
@@ -3160,12 +3185,14 @@ def watched_offers(product_ids: List[str], now: Optional[datetime.datetime] = No
                     r["canonical_product_id"] = r.get("id")
                     rows.append(r)
 
+            alert_ids = list(dict.fromkeys(chunk + list(found_ids)))
+            alert_placeholders = ",".join("?" * len(alert_ids))
             for row in conn.execute(
                     f"SELECT product_id, alert_type, discount_pct, new_price, competitor_shop "
-                    f"FROM alerts WHERE product_id IN ({placeholders}) AND is_dismissed = 0 "
-                    f"AND created_at >= ? ORDER BY id", chunk + [since]):
+                    f"FROM alerts WHERE product_id IN ({alert_placeholders}) AND is_dismissed = 0 "
+                    f"AND created_at >= ? ORDER BY id", alert_ids + [since]):
                 for offer in rows:
-                    if offer["id"] == row["product_id"] and int(row["new_price"] or 0) == int(offer["current_price"] or 0):
+                    if (offer["id"] == row["product_id"] or offer.get("external_sku") == row["product_id"]) and int(row["new_price"] or 0) == int(offer["current_price"] or 0):
                         offer["alert_type"] = row["alert_type"]
                         offer["discount_pct"] = row["discount_pct"]
                         offer["competitor_shop"] = row["competitor_shop"]
