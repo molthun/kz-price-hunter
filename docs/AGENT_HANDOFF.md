@@ -2,7 +2,30 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## Текущая контрольная точка — выпуск релиза v6.3.1 (устранение ThreadPool Starvation и ложного unhealthy)
+## Текущая контрольная точка — выпуск релиза v6.4.0 (In-Container Redis + Single DB-Writer Worker)
+
+- Дата: 2026-10-28, Asia/Almaty.
+- **Исполнитель:** Antigravity (основной разработчик, по поручению владельца «Делаем»).
+- **Ветка:** `feature/in-container-redis-queue` -> `main`, тег `v6.4.0`.
+- **Что сделано:**
+  - `Dockerfile`: добавлен `redis-server` (работает внутри одного контейнера на NAS, не требуя внешних сервисов).
+  - `queue_service.py`: модуль очереди и кэша с `start_redis_daemon_if_available` (`maxmemory 64mb`, `allkeys-lru`, no-save, no-appendonly), легковесный асинхронный клиент RESP (`MiniRedisClient`), синглтон `ProductQueueManager` с прозрачным fallback на `asyncio.Queue`.
+  - `web/server.py`:
+    - Реализован паттерн **Single DB-Writer**: скраперы не пишут в базу напрямую, а мгновенно сбрасывают спарсенную пачку товаров (`prods`, `reconcile`, `scan_log`) в очередь `product_queue`.
+    - Добавлен фоновый корутинный воркер `single_db_writer_worker`, который непрерывно и строго последовательно в один поток производит сохранение в SQLite.
+    - В `/api/health` добавлены метрики очереди (`queue_size`), активности Redis (`redis_active`) и пишущего воркера (`worker_running`).
+    - Инициализация очереди и воркера подключена в `background_tasks(app)`.
+  - `tests/core/test_queue_service.py`: добавлены тесты очередей, RESP-протокола и записи через Single DB-Writer воркер.
+- **Проверки:**
+  - `tests/core/test_queue_service.py`: 4 PASS.
+  - `tests/web/test_health_and_pool.py`: 3 PASS.
+  - `tests/monitoring/test_monitor.py` + `test_telemetry.py`: 171 PASS.
+  - `tests/web/test_web_optimizations.py`, `test_seller_endpoints.py`, `test_ui_data.py`: 21 PASS.
+  - Frontend Deno suite (18 тестовых файлов): 18 PASS.
+  - Secrets gate: ok (0 findings).
+- **Следующий шаг:** Слияние ветки в `main`, установка тега `v6.4.0`, push в GitHub для автоматической сборки образа и развёртывания на проде.
+
+## Предыдущая контрольная точка — выпуск релиза v6.3.1 (устранение ThreadPool Starvation и ложного unhealthy)
 
 - Дата: 2026-10-28, Asia/Almaty.
 - **Исполнитель:** Antigravity (основной разработчик).

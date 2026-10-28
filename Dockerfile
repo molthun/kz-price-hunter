@@ -10,6 +10,8 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y --no-install-recommends redis-server && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt constraints.txt ./
 # Точные версии: сборка не подтягивает новые релизы зависимостей сама по себе (M11).
 # --break-system-packages: Ubuntu 26.04 помечает системный Python как externally-managed (PEP 668).
