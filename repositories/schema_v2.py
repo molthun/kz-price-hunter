@@ -97,6 +97,7 @@ CREATE INDEX IF NOT EXISTS idx_offers_city ON offers(city);
 CREATE INDEX IF NOT EXISTS idx_offers_price ON offers(price);
 CREATE INDEX IF NOT EXISTS idx_offers_active ON offers(is_active);
 CREATE INDEX IF NOT EXISTS idx_offers_condition ON offers(condition);
+CREATE INDEX IF NOT EXISTS idx_offers_ext_sku ON offers(external_sku);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_offers_channel_sku ON offers(channel_id, external_sku);
 
 -- 5. Offer Price History
@@ -198,7 +199,9 @@ CREATE TRIGGER IF NOT EXISTS canonical_products_ad AFTER DELETE ON canonical_pro
     VALUES('delete', old.rowid, old.canonical_key, old.title, COALESCE(old.brand, ''), COALESCE(old.model, ''), old.category);
 END;
 
-CREATE TRIGGER IF NOT EXISTS canonical_products_au AFTER UPDATE OF title, brand, model, category ON canonical_products BEGIN
+CREATE TRIGGER IF NOT EXISTS canonical_products_au AFTER UPDATE OF title, brand, model, category ON canonical_products
+WHEN old.title IS NOT new.title OR old.brand IS NOT new.brand OR old.model IS NOT new.model OR old.category IS NOT new.category
+BEGIN
     INSERT INTO canonical_products_fts(canonical_products_fts, rowid, canonical_key, title, brand, model, category)
     VALUES('delete', old.rowid, old.canonical_key, old.title, COALESCE(old.brand, ''), COALESCE(old.model, ''), old.category);
     INSERT INTO canonical_products_fts(rowid, canonical_key, title, brand, model, category)
@@ -325,6 +328,11 @@ def init_schema_v2(conn: sqlite3.Connection) -> None:
     Apply Schema 2.0 DDL to SQLite connection.
     Idempotent and safe to run multiple times.
     """
+    trig_row = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='trigger' AND name='canonical_products_au'"
+    ).fetchone()
+    if trig_row and "WHEN" not in (trig_row[0] or "").upper():
+        conn.execute("DROP TRIGGER IF EXISTS canonical_products_au")
     conn.executescript(DDL_V2)
     # Additive columns for existing v2 tables
     # Признак «источник действительно открывали» обязан переживать запись: без него профиль,

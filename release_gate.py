@@ -261,6 +261,7 @@ def _snapshot(source_path: str, target_path: str) -> None:
 
 
 SPOOL_OPEN_STATUSES = ("pending", "processing", "dead_letter", "rejected")
+LEGACY_SPOOL_CHUNK_SIZE = 200  # размер порций очереди в 6.4.3–6.4.11 (database.LEGACY_SPOOL_CHUNK_SIZE)
 
 
 def _spool_obligations_check(db_path: str, code_dir: str) -> Dict[str, Any]:
@@ -284,14 +285,36 @@ def _spool_obligations_check(db_path: str, code_dir: str) -> Dict[str, Any]:
     open_tasks = sum(counts.values())
     try:
         with open(os.path.join(code_dir, "database.py"), encoding="utf-8") as fh:
-            supported = "def spool_claim(" in fh.read()
+            previous = fh.read()
     except OSError:
-        supported = False
-    result = {"check": label, "ok": open_tasks == 0 or supported, "open_tasks": open_tasks,
-              "by_status": counts, "previous_code_serves_spool": supported}
-    if not result["ok"]:
+        previous = ""
+    supported = "def spool_claim(" in previous
+    # T01: код до 6.4.12 считает прогресс задачи в порциях по LEGACY_SPOOL_CHUNK_SIZE. Задачу,
+    # принятую с другим размером порции, он продолжил бы не с того товара и потерял бы часть.
+    reads_chunk_size = "SPOOL_TASK_CHUNK_SIZE_SUPPORTED" in previous
+    foreign_layout = 0
+    if supported and not reads_chunk_size and open_tasks:
+        try:
+            with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as conn:
+                columns = {r[1] for r in conn.execute("PRAGMA table_info(product_queue_spool)")}
+                if "chunk_size" in columns:
+                    foreign_layout = conn.execute(
+                        f"SELECT COUNT(*) FROM product_queue_spool WHERE status IN ({marks}) "
+                        f"AND chunk_size IS NOT NULL AND chunk_size != ?",
+                        (*SPOOL_OPEN_STATUSES, LEGACY_SPOOL_CHUNK_SIZE)).fetchone()[0]
+        except sqlite3.Error as e:
+            return {"check": label, "ok": False, "error": f"Журнал очереди не читается: {e}"}
+    result = {"check": label, "ok": (open_tasks == 0 or supported) and foreign_layout == 0,
+              "open_tasks": open_tasks, "by_status": counts, "previous_code_serves_spool": supported,
+              "previous_code_reads_chunk_size": reads_chunk_size, "foreign_chunk_layout": foreign_layout}
+    if open_tasks and not supported:
         result["error"] = (f"В журнале очереди {open_tasks} незавершённых задач ({counts}); прежний код их "
                            "не обслуживает. Перед откатом дождитесь пустой очереди и разберите отказы "
+                           "(/api/admin/queue/failures: retry или archive).")
+    elif foreign_layout:
+        result["error"] = (f"В журнале очереди {foreign_layout} незавершённых задач с размером порции, отличным "
+                           f"от {LEGACY_SPOOL_CHUNK_SIZE}; прежний код продолжил бы их не с того товара. "
+                           "Перед откатом дождитесь пустой очереди и разберите отказы "
                            "(/api/admin/queue/failures: retry или archive).")
     return result
 

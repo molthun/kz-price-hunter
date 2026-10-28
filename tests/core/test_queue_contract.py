@@ -451,6 +451,56 @@ class StaleRetryTest(RetryAfterPartialCommitTest):
         self.assertEqual(stale_alerts, 0, "алерт по устаревшему снижению 300→100")
 
 
+class ChunkLayoutTest(RetryAfterPartialCommitTest):
+    """T01: прогресс задачи читается в порциях того размера, с которым она принята."""
+
+    async def resume_after_first_chunks(self, chunk_size, legacy, done_chunks, total=300):
+        tag = os.urandom(3).hex()
+        title = f"Layout {tag} Laptop"
+        prods = [prod(f"layout-{tag}-{n}", 200, title) for n in range(total)]
+        database.save_or_update_products_batch(prods)
+        watched = prods[150]["id"]
+        database.create_watch(WATCH_USER, {"kind": "product", "target": watched, "condition": "any_drop",
+                                           "quiet_from": "", "quiet_to": "", "cooldown_hours": 0})
+        database.evaluate_watches(database.watched_offers([watched]))  # память наблюдения: 200
+        time.sleep(0.01)
+        cheaper = [dict(p, price=100) for p in prods]
+        qm = self.qm()
+        admission = await qm.enqueue(cheaper, "Contract", {}, shop_key=f"layout-{tag}")
+        if legacy:  # задача принята версией до 6.4.12: размера в строке нет
+            with database.get_connection() as conn:
+                conn.execute("UPDATE product_queue_spool SET chunk_size = NULL WHERE task_id = ?",
+                             (admission.task_id,))
+                conn.commit()
+        item = await qm.dequeue(timeout=0.05)
+        for n in range(done_chunks):  # первые порции пишет прежний воркер своим размером
+            self.assertTrue(database.spool_apply_chunk(item["task_id"], item["claim_token"], n,
+                                                       cheaper[n * chunk_size:(n + 1) * chunk_size]))
+        self.assertEqual(await qm.nack(item, error="restart"), "pending")
+        item = await qm.dequeue(timeout=0.05)
+        self.assertEqual((item["core_done"], item["chunk_size"]), (done_chunks, chunk_size))
+        self.assertTrue(await self.run_item(qm, item))
+        prices = [product_price(p["id"]) for p in prods]
+        self.assertEqual(prices, [100] * total, "часть товаров задачи не записана")
+        history_events = [e for e in self.watch_events() if e["product_id"] == watched]
+        self.assertEqual([e["price"] for e in history_events], [100], "снижение 200→100 потеряно")
+
+    async def test_legacy_task_with_200_chunks_resumes_correctly(self):
+        await self.resume_after_first_chunks(chunk_size=200, legacy=True, done_chunks=1)
+
+    async def test_new_task_resumes_with_its_own_chunk_size(self):
+        await self.resume_after_first_chunks(chunk_size=database.SPOOL_CHUNK_SIZE, legacy=False, done_chunks=2,
+                                             total=250)
+
+    async def test_new_tasks_record_their_chunk_size(self):
+        qm = self.qm()
+        admission = await qm.enqueue([prod("layout-size")], "Contract", {}, shop_key="layout-size")
+        with database.get_connection() as conn:
+            size = conn.execute("SELECT chunk_size FROM product_queue_spool WHERE task_id = ?",
+                                (admission.task_id,)).fetchone()[0]
+        self.assertEqual(size, database.SPOOL_CHUNK_SIZE)
+
+
 class BarrierAndReadinessTest(QueueContractBase):
     async def test_unreadable_spool_is_not_drained(self):
         # R06: ошибка наблюдения — не успех

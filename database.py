@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import re
 import time
@@ -7,6 +8,7 @@ import hashlib
 import secrets
 import datetime
 import logging
+import threading
 from typing import Optional, Dict, Any, List
 from config import DB_PATH, get_scan_interval_seconds, merge_user_settings
 
@@ -92,27 +94,48 @@ def _reconcile_source_conn(conn, shop_key, source_url, product_ids, complete=Fal
                         ON CONFLICT(shop_key, source_url) DO UPDATE SET observed_seq = excluded.observed_seq""",
                      (shop_key, source_url, observed_seq))
     ids = {str(pid) for pid in product_ids}
+    existing_active = {
+        r[0] for r in conn.execute(
+            "SELECT product_id FROM product_sources WHERE shop_key = ? AND source_url = ? AND active = 1",
+            (shop_key, source_url),
+        )
+    }
     active_before: set = set()
     if complete and ids:
         active_before = {r[0] for r in conn.execute(
             "SELECT p.id FROM products p JOIN product_sources ps ON ps.product_id = p.id "
             "WHERE ps.shop_key = ? AND ps.source_url = ? AND p.is_active = 1", (shop_key, source_url))}
-        conn.execute("UPDATE product_sources SET active=0 WHERE shop_key=? AND source_url=?", (shop_key, source_url))
-    conn.executemany("""INSERT INTO product_sources(product_id,shop_key,source_url,active)
-        VALUES (?,?,?,1) ON CONFLICT(product_id,shop_key,source_url) DO UPDATE SET active=1""",
-        [(pid, shop_key, source_url) for pid in ids])
+        to_deactivate = sorted(existing_active - ids)
+        for i in range(0, len(to_deactivate), 500):
+            chunk = to_deactivate[i:i + 500]
+            marks = ",".join("?" * len(chunk))
+            conn.execute(
+                f"UPDATE product_sources SET active=0 WHERE shop_key=? AND source_url=? AND product_id IN ({marks})",
+                (shop_key, source_url, *chunk),
+            )
+    to_activate = sorted(ids - existing_active)
+    if to_activate:
+        conn.executemany("""INSERT INTO product_sources(product_id,shop_key,source_url,active)
+            VALUES (?,?,?,1) ON CONFLICT(product_id,shop_key,source_url) DO UPDATE SET active=1""",
+            [(pid, shop_key, source_url) for pid in to_activate])
     if complete and ids:
-        conn.execute("""UPDATE products SET is_active=0 WHERE id IN
-            (SELECT product_id FROM product_sources WHERE shop_key=? AND source_url=?)
+        conn.execute("""UPDATE products SET is_active=0 WHERE is_active=1 AND id IN
+            (SELECT product_id FROM product_sources WHERE shop_key=? AND source_url=? AND active=0)
             AND NOT EXISTS (SELECT 1 FROM product_sources s WHERE s.product_id=products.id AND s.active=1)""",
             (shop_key, source_url))
         _retire_mirrored_offers_conn(conn, shop_key, source_url)
     if not active_before:
         return []
-    marks = ",".join("?" * len(active_before))
-    retired = [r[0] for r in conn.execute(f"SELECT id FROM products WHERE is_active = 0 AND id IN ({marks})",
-                                          sorted(active_before))]
-    _queue_watch_refresh_conn(conn, retired)
+    disappeared = sorted(active_before - ids)
+    retired: List[str] = []
+    for i in range(0, len(disappeared), 500):
+        chunk = disappeared[i:i + 500]
+        marks = ",".join("?" * len(chunk))
+        retired.extend(
+            r[0] for r in conn.execute(f"SELECT id FROM products WHERE is_active = 0 AND id IN ({marks})", chunk)
+        )
+    if retired:
+        _queue_watch_refresh_conn(conn, retired)
     return retired
 
 
@@ -156,20 +179,22 @@ def refresh_retired_watches(product_ids: List[str]) -> None:
     ids = [str(pid) for pid in product_ids]
     if not ids:
         return
-    retire = _watch_refresh_jobs(ids, "retire")
-    if retire:
-        _apply_retire_transition(retire)
-    current = _watch_refresh_jobs(ids, "current")
-    if not current:
-        return  # задания уже выполнены другим путём (возврат товара, старт, обслуживание)
-    returned = [o for o in watched_offers(list(current)) if o.get("is_available")]
-    if returned:
-        evaluate_watches(returned)
-    with get_connection() as conn:
-        for pid, gen in current.items():
-            conn.execute("DELETE FROM watch_refresh WHERE product_id = ? AND phase = 'current' AND gen = ?",
-                         (pid, gen))
-        conn.commit()
+    for start in range(0, len(ids), 500):
+        page_ids = ids[start:start + 500]
+        retire = _watch_refresh_jobs(page_ids, "retire")
+        if retire:
+            _apply_retire_transition(retire)
+        current = _watch_refresh_jobs(page_ids, "current")
+        if not current:
+            continue  # задания уже выполнены другим путём (возврат товара, старт, обслуживание)
+        returned = [o for o in watched_offers(list(current)) if o.get("is_available")]
+        if returned:
+            evaluate_watches(returned)
+        with get_connection() as conn:
+            for pid, gen in current.items():
+                conn.execute("DELETE FROM watch_refresh WHERE product_id = ? AND phase = 'current' AND gen = ?",
+                             (pid, gen))
+            conn.commit()
 
 
 def watch_refresh_pending(product_ids: List[str]) -> List[str]:
@@ -485,11 +510,283 @@ def prune_search_analytics(days: Optional[int] = None,
     return deleted
 
 
+SLOW_WRITE_TX_SECONDS = float(os.getenv("SLOW_WRITE_TX_SECONDS", "2.0"))
+_WRITE_TX_LOCK = threading.Lock()
+_WRITE_TX_STATS: Dict[str, Dict[str, Any]] = {}
+_SLOW_WRITE_TX_LOG: List[Dict[str, Any]] = []
+_WRITE_VERBS = ("INSERT", "UPDATE", "DELETE", "REPLACE", "CREATE", "DROP", "ALTER")
+_INTERNAL_FRAME_NAMES = frozenset({
+    "_run_tracked", "execute", "executemany", "cursor", "_resolve_caller_op",
+    "get_connection", "_connect",
+})
+
+
+def _classify_sql(sql: str) -> str:
+    head = sql.lstrip()[:24].upper()
+    if head.startswith("BEGIN"):
+        if "IMMEDIATE" in head or "EXCLUSIVE" in head:
+            return "begin_write"
+        return "begin_deferred"
+    if head.startswith(("COMMIT", "END")):
+        return "commit"
+    if head.startswith("ROLLBACK"):
+        return "rollback"
+    for verb in _WRITE_VERBS:
+        if head.startswith(verb):
+            return "write"
+    return "other"
+
+
+def _resolve_caller_op() -> str:
+    try:
+        frame = sys._getframe(2)
+        while frame is not None:
+            name = frame.f_code.co_name
+            if name not in _INTERNAL_FRAME_NAMES:
+                return name
+            frame = frame.f_back
+    except ValueError:
+        pass
+    return "unknown"
+
+
+def get_write_tx_stats() -> Dict[str, Any]:
+    """Сводка длительности write-транзакций SQLite по операциям.
+
+    max_wait_ms — только по транзакциям с точным разделением (BEGIN IMMEDIATE). Для неявных
+    транзакций ожидание не отделимо: их hold — верхняя граница, счётчик unsplit_count (T02).
+    """
+    with _WRITE_TX_LOCK:
+        ops = {k: dict(v) for k, v in _WRITE_TX_STATS.items()}
+        slow = list(_SLOW_WRITE_TX_LOG)
+    max_hold_ms = max((v["max_hold_ms"] for v in ops.values()), default=0.0)
+    max_wait_ms = max((v["max_wait_ms"] for v in ops.values()), default=0.0)
+    return {
+        "threshold_seconds": SLOW_WRITE_TX_SECONDS,
+        "max_hold_ms": round(max_hold_ms, 2),
+        "max_wait_ms": round(max_wait_ms, 2),
+        "slow_count": sum(v["slow_count"] for v in ops.values()),
+        "unsplit_count": sum(v.get("unsplit_count", 0) for v in ops.values()),
+        "operations": ops,
+        "recent_slow": slow,
+    }
+
+
+def reset_write_tx_stats() -> None:
+    """Сбрасывает статистику длительности write-транзакций (для тестов и замеров)."""
+    with _WRITE_TX_LOCK:
+        _WRITE_TX_STATS.clear()
+        _SLOW_WRITE_TX_LOG.clear()
+
+
+class TrackedCursor(sqlite3.Cursor):
+    def execute(self, sql, parameters=(), /):
+        return self.connection._run_tracked(super().execute, sql, parameters)
+
+    def executemany(self, sql, seq_of_parameters, /):
+        return self.connection._run_tracked(super().executemany, sql, seq_of_parameters)
+
+
 class ClosingConnection(sqlite3.Connection):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._tx_started_at: Optional[float] = None
+        self._tx_acquired_at: Optional[float] = None
+        self._tx_wait_sec: Optional[float] = None
+        self._tx_split_exact: bool = False
+        self._tx_op: str = "unknown"
+        self._tx_statements: int = 0
+
+    def cursor(self, factory=TrackedCursor):
+        return super().cursor(factory)
+
+    def execute(self, sql, parameters=(), /):
+        return self.cursor().execute(sql, parameters)
+
+    def executemany(self, sql, seq_of_parameters, /):
+        return self.cursor().executemany(sql, seq_of_parameters)
+
+    def _run_tracked(self, fn, sql, *args):
+        """Учёт write-транзакций (T02): ожидание блокировки отделяется только там, где это возможно.
+
+        * BEGIN IMMEDIATE/EXCLUSIVE — сама команда и есть захват блокировки: её время — ожидание
+          (wait), удержание (hold) отсчитывается после неё. Разделение точное.
+        * Неявная транзакция или BEGIN DEFERRED — первая запись SQLite одновременно ждёт блокировку
+          и выполняется, и разделить их API не позволяет. Её время целиком идёт в удержание как
+          верхняя граница (блокировка могла быть взята в самом начале), ожидание помечается
+          неизвестным (wait = None, split = 'unknown') и в max_wait не попадает.
+        """
+        kind = _classify_sql(sql) if isinstance(sql, str) else "other"
+        if kind == "other":
+            return fn(sql, *args)
+        if kind in ("commit", "rollback"):
+            try:
+                return fn(sql, *args)
+            finally:
+                # Неудачный COMMIT (SQLITE_BUSY) оставляет транзакцию открытой: учёт не закрывается
+                if self._tx_started_at is not None and not self.in_transaction:
+                    self._finish_write_tx(kind)
+        if self._tx_started_at is None:
+            self._tx_op = _resolve_caller_op()
+            self._tx_statements = 0
+            self._tx_started_at = time.monotonic()
+            self._tx_acquired_at = None
+            self._tx_wait_sec = None
+            self._tx_split_exact = False
+        self._tx_statements += 1
+        if self._tx_acquired_at is None and kind in ("begin_write", "write"):
+            t0 = time.monotonic()
+            try:
+                res = fn(sql, *args)
+            except BaseException:
+                if not self.in_transaction:
+                    self._reset_write_tx()
+                raise
+            t1 = time.monotonic()
+            if kind == "begin_write":
+                self._tx_acquired_at = t1
+                self._tx_wait_sec = t1 - self._tx_started_at
+                self._tx_split_exact = True
+            else:
+                self._tx_acquired_at = t0
+                self._tx_wait_sec = None
+                self._tx_split_exact = False
+            if not self.in_transaction:
+                self._finish_write_tx("autocommit")
+            return res
+        res = fn(sql, *args)
+        if not self.in_transaction:
+            if self._tx_acquired_at is not None:
+                self._finish_write_tx("autocommit")
+            elif kind == "begin_deferred":
+                pass  # BEGIN без записи ещё ничего не держит
+        return res
+
+    def _reset_write_tx(self) -> None:
+        self._tx_started_at = None
+        self._tx_acquired_at = None
+        self._tx_wait_sec = None
+        self._tx_split_exact = False
+        self._tx_op = "unknown"
+        self._tx_statements = 0
+
+    def _finish_write_tx(self, outcome: str) -> None:
+        started = self._tx_started_at
+        acquired = self._tx_acquired_at
+        wait_sec = self._tx_wait_sec
+        exact = self._tx_split_exact
+        op = self._tx_op
+        stmts = self._tx_statements
+        self._reset_write_tx()
+        if started is None or acquired is None:
+            return
+        finished = time.monotonic()
+        hold_sec = max(0.0, finished - acquired)
+        total_sec = max(0.0, finished - started)
+        hold_ms = round(hold_sec * 1000.0, 2)
+        wait_ms = round(wait_sec * 1000.0, 2) if (exact and wait_sec is not None) else None
+        total_ms = round(total_sec * 1000.0, 2)
+        split = "exact" if exact else "unknown"
+        is_slow = hold_sec >= SLOW_WRITE_TX_SECONDS or total_sec >= SLOW_WRITE_TX_SECONDS
+        with _WRITE_TX_LOCK:
+            entry = _WRITE_TX_STATS.get(op)
+            if entry is None:
+                entry = {
+                    "count": 0,
+                    "commits": 0,
+                    "rollbacks": 0,
+                    "slow_count": 0,
+                    "total_hold_ms": 0.0,
+                    "max_hold_ms": 0.0,
+                    "max_wait_ms": 0.0,
+                    "max_total_ms": 0.0,
+                    "last_statements": 0,
+                    "unsplit_count": 0,
+                }
+                _WRITE_TX_STATS[op] = entry
+            entry["count"] += 1
+            if outcome in ("commit", "autocommit"):
+                entry["commits"] += 1
+            else:
+                entry["rollbacks"] += 1
+            if is_slow:
+                entry["slow_count"] += 1
+            entry["total_hold_ms"] = round(entry["total_hold_ms"] + hold_ms, 2)
+            if hold_ms > entry["max_hold_ms"]:
+                entry["max_hold_ms"] = hold_ms
+            if wait_ms is None:
+                entry["unsplit_count"] += 1  # ожидание внутри первой записи не отделить — hold верхняя граница
+            elif wait_ms > entry["max_wait_ms"]:
+                entry["max_wait_ms"] = wait_ms
+            if total_ms > entry["max_total_ms"]:
+                entry["max_total_ms"] = total_ms
+            entry["last_statements"] = stmts
+            if is_slow:
+                _SLOW_WRITE_TX_LOG.append({
+                    "op": op,
+                    "outcome": outcome,
+                    "hold_ms": hold_ms,
+                    "wait_ms": wait_ms,
+                    "split": split,
+                    "total_ms": total_ms,
+                    "statements": stmts,
+                    "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                })
+                if len(_SLOW_WRITE_TX_LOG) > 50:
+                    del _SLOW_WRITE_TX_LOG[:-50]
+        if is_slow:
+            print(
+                f"[DB Slow Write] op={op} outcome={outcome} hold={hold_sec:.3f}s"
+                f"{'' if exact else ' (верхняя граница)'} "
+                f"wait={'n/a' if wait_ms is None else f'{wait_ms / 1000:.3f}s'} total={total_sec:.3f}s stmts={stmts}"
+            )
+            try:
+                from telemetry import telemetry, SEVERITY_WARNING, COMPONENT_SYSTEM
+                telemetry.record_event(
+                    "db_slow_write",
+                    SEVERITY_WARNING,
+                    COMPONENT_SYSTEM,
+                    f"Slow SQLite write tx in {op}: hold={hold_sec:.3f}s ({split}) total={total_sec:.3f}s",
+                    data={
+                        "op": op,
+                        "outcome": outcome,
+                        "hold_ms": hold_ms,
+                        "wait_ms": wait_ms,
+                        "split": split,
+                        "total_ms": total_ms,
+                        "statements": stmts,
+                    },
+                )
+            except Exception:
+                pass
+
+    def commit(self):
+        try:
+            return super().commit()
+        finally:
+            # Неудачный commit оставляет транзакцию открытой — её закроет повтор или rollback
+            if self._tx_started_at is not None and not self.in_transaction:
+                self._finish_write_tx("commit")
+
+    def rollback(self):
+        try:
+            return super().rollback()
+        finally:
+            if self._tx_started_at is not None:
+                self._finish_write_tx("rollback")
+
+    def close(self):
+        if self._tx_started_at is not None:
+            self._finish_write_tx("close")
+        return super().close()
+
     def __exit__(self, exc_type, exc_value, traceback):
+        in_tx = self._tx_started_at is not None
         try:
             return super().__exit__(exc_type, exc_value, traceback)
         finally:
+            if in_tx and self._tx_started_at is not None:
+                self._finish_write_tx("rollback" if exc_type is not None else "commit")
             self.close()
 
 
@@ -677,6 +974,9 @@ def _create_schema(cursor) -> None:
     _add_column(cursor, "product_queue_spool", "core_done", "INTEGER NOT NULL DEFAULT 0")
     _add_column(cursor, "product_queue_spool", "scan_id", "TEXT")
     _add_column(cursor, "product_queue_spool", "retired", "TEXT")  # G01: id снятых сверкой товаров
+    # T01: размер порции — часть протокола задачи. core_done считается в порциях именно этого
+    # размера; NULL — задача принята до 6.4.12, её порции по LEGACY_SPOOL_CHUNK_SIZE.
+    _add_column(cursor, "product_queue_spool", "chunk_size", "INTEGER")
     # F01: метка наблюдения — момент приёма данных (time.time()). Запись старше уже сохранённой
     # (повтор давнего отказа после более свежего обхода) не перезаписывает товар и не снимает источник.
     _add_column(cursor, "products", "observed_seq", "REAL")
@@ -772,6 +1072,7 @@ def _create_schema(cursor) -> None:
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_tracked_cat_active ON tracked_categories(is_active, last_scanned_at)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_price_obs_product ON price_observations(product_id, observed_at)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_price_obs_time ON price_observations(observed_at)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_product_sources_shop_url ON product_sources(shop_key, source_url, active)")
 
     # Полнотекстовый индекс FTS5; перестраивается миграцией, а не при каждом старте
     cursor.execute("""
@@ -797,9 +1098,17 @@ def _create_schema(cursor) -> None:
             VALUES('delete', old.rowid, old.id, old.title, old.shop, old.city, old.category);
         END;
     """)
-    # Только при изменении индексируемых полей: обновление цены не переписывает индекс
+    # Только при фактическом изменении индексируемых полей: обновление цены не переписывает индекс
+    trig_row = cursor.execute(
+        "SELECT sql FROM sqlite_master WHERE type='trigger' AND name='products_au'"
+    ).fetchone()
+    if trig_row and "WHEN" not in (trig_row[0] or "").upper():
+        cursor.execute("DROP TRIGGER IF EXISTS products_au")
     cursor.execute("""
-        CREATE TRIGGER IF NOT EXISTS products_au AFTER UPDATE OF id, title, shop, city, category ON products BEGIN
+        CREATE TRIGGER IF NOT EXISTS products_au AFTER UPDATE OF id, title, shop, city, category ON products
+        WHEN old.id IS NOT new.id OR old.title IS NOT new.title OR old.shop IS NOT new.shop
+             OR old.city IS NOT new.city OR old.category IS NOT new.category
+        BEGIN
             INSERT INTO products_fts(products_fts, rowid, id, title, shop, city, category)
             VALUES('delete', old.rowid, old.id, old.title, old.shop, old.city, old.category);
             INSERT INTO products_fts(rowid, id, title, shop, city, category)
@@ -1189,7 +1498,10 @@ def _migration_fts_update_trigger(conn) -> None:
     """Триггер FTS только на индексируемые поля (старый срабатывал на каждое обновление цены) + rebuild."""
     conn.execute("DROP TRIGGER IF EXISTS products_au")
     conn.execute("""
-        CREATE TRIGGER products_au AFTER UPDATE OF id, title, shop, city, category ON products BEGIN
+        CREATE TRIGGER products_au AFTER UPDATE OF id, title, shop, city, category ON products
+        WHEN old.id IS NOT new.id OR old.title IS NOT new.title OR old.shop IS NOT new.shop
+             OR old.city IS NOT new.city OR old.category IS NOT new.category
+        BEGIN
             INSERT INTO products_fts(products_fts, rowid, id, title, shop, city, category)
             VALUES('delete', old.rowid, old.id, old.title, old.shop, old.city, old.category);
             INSERT INTO products_fts(rowid, id, title, shop, city, category)
@@ -1489,9 +1801,10 @@ def init_db():
 def acquire_scheduler_lease(owner: str, ttl_seconds: float, name: str = "scan") -> bool:
     """Берёт или продлевает аренду; False — действующая аренда у другого процесса."""
     now = time.time()
-    conn = sqlite3.connect(DB_PATH, timeout=15, isolation_level=None)
+    conn = sqlite3.connect(DB_PATH, timeout=15, isolation_level=None, factory=ClosingConnection)
     try:
         conn.execute("PRAGMA busy_timeout = 15000")
+        conn.execute("PRAGMA synchronous = NORMAL")
         conn.execute("BEGIN IMMEDIATE")
         row = conn.execute("SELECT owner, expires_at FROM scheduler_lease WHERE name = ?", (name,)).fetchone()
         if row and row[0] != owner and row[1] > now:
@@ -1660,9 +1973,11 @@ def update_products_canonical_keys(pairs: List[tuple]) -> int:
     """Проставляет канонические ключи товарам: [(canonical_key, product_id), ...]."""
     if not pairs:
         return 0
-    with get_connection() as conn:
-        conn.executemany("UPDATE products SET canonical_key = ? WHERE id = ?", pairs)
-        conn.commit()
+    for i in range(0, len(pairs), 200):
+        chunk = pairs[i:i + 200]
+        with get_connection() as conn:
+            conn.executemany("UPDATE products SET canonical_key = ? WHERE id = ?", chunk)
+            conn.commit()
     return len(pairs)
 
 PRICE_HISTORY_RETENTION_DAYS = 180
@@ -1779,7 +2094,7 @@ def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
             _DUAL_WRITE_STATS["total"] += 1
             try:
                 from domain.adapter import sync_legacy_product_to_v2
-                sync_legacy_product_to_v2(conn, p, now)
+                sync_legacy_product_to_v2(conn, p, now, canonical_key=canonical_key)
             except Exception as e:
                 _record_dual_write_error(pid, e)
 
@@ -1827,6 +2142,7 @@ def _save_products_chunk(conn, chunk: List[Dict[str, Any]], now: str, observed_s
 
     cursor = conn.cursor()
     updated_count = 0
+    seen_sellers: set = set()
     for p in chunk:
         pid = str(p["id"])
         shop = p.get("shop", "Белый Ветер")
@@ -1877,7 +2193,9 @@ def _save_products_chunk(conn, chunk: List[Dict[str, Any]], now: str, observed_s
             _DUAL_WRITE_STATS["total"] += 1
             try:
                 from domain.adapter import sync_legacy_product_to_v2
-                sync_legacy_product_to_v2(conn, p, now)
+                sync_legacy_product_to_v2(
+                    conn, p, now, canonical_key=canonical_key, seen_sellers=seen_sellers
+                )
             except Exception as e:
                 _record_dual_write_error(pid, e)
 
@@ -3239,7 +3557,13 @@ def _apply_retire_transition(jobs: Dict[str, int]) -> List[str]:
     Событий фаза 1 не создаёт.
     """
     import watches as w
+    if not jobs:
+        return []
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    with get_connection() as conn:
+        has_active_watches = conn.execute("SELECT 1 FROM watches WHERE is_active = 1 LIMIT 1").fetchone() is not None
+    preloaded_offers = watched_offers(list(jobs)) if has_active_watches else []
+
     with get_connection() as conn:
         conn.execute("BEGIN IMMEDIATE")
         try:
@@ -3252,16 +3576,23 @@ def _apply_retire_transition(jobs: Dict[str, int]) -> List[str]:
                 conn.rollback()
                 return []
             active = [_watch_row(r) for r in conn.execute("SELECT * FROM watches WHERE is_active = 1")]
-            for offer in watched_offers(still):
-                for watch in active:
-                    if not w.matches(watch, offer):
+            if active:
+                offers = preloaded_offers if preloaded_offers else watched_offers(still)
+                still_set = set(still)
+                for offer in offers:
+                    oid = str(offer.get("id") or "")
+                    ext = str(offer.get("external_sku") or "")
+                    if oid not in still_set and ext not in still_set:
                         continue
-                    conn.execute("""
-                        INSERT INTO watch_state (watch_id, product_id, was_available, updated_at)
-                        VALUES (?, ?, 0, ?)
-                        ON CONFLICT(watch_id, product_id) DO UPDATE SET
-                            was_available = 0, updated_at = excluded.updated_at
-                    """, (watch["id"], _watch_scope_id(watch, offer), now))
+                    for watch in active:
+                        if not w.matches(watch, offer):
+                            continue
+                        conn.execute("""
+                            INSERT INTO watch_state (watch_id, product_id, was_available, updated_at)
+                            VALUES (?, ?, 0, ?)
+                            ON CONFLICT(watch_id, product_id) DO UPDATE SET
+                                was_available = 0, updated_at = excluded.updated_at
+                        """, (watch["id"], _watch_scope_id(watch, offer), now))
             for pid in still:
                 conn.execute("UPDATE watch_refresh SET phase = 'current' WHERE product_id = ? AND gen = ?",
                              (pid, jobs[pid]))
@@ -4146,7 +4477,13 @@ def retention_usage() -> List[Dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 SPOOL_CLAIM_SECONDS = 60.0
-SPOOL_CHUNK_SIZE = 200
+# Размер порции НОВЫХ задач. Уже принятая задача пишется порциями своего размера (колонка
+# chunk_size), иначе смена константы меняет смысл сохранённого core_done (T01).
+SPOOL_CHUNK_SIZE = 100
+# Размер порций задач, принятых до появления chunk_size (6.4.3–6.4.11), и единственный размер,
+# который понимают эти версии при откате (release_gate проверяет это перед откатом).
+LEGACY_SPOOL_CHUNK_SIZE = 200
+SPOOL_TASK_CHUNK_SIZE_SUPPORTED = True  # метка для release_gate: код читает chunk_size задачи
 SPOOL_ACTIVE = ("pending", "processing")
 SPOOL_UNRESOLVED = ("dead_letter", "rejected")   # rejected — строки прежней версии (C05)
 
@@ -4186,9 +4523,9 @@ def spool_admit(task_id: str, shop_key: Optional[str], shop_name: str, scan_id: 
             return "full"
         conn.execute("""
             INSERT INTO product_queue_spool (task_id, shop_key, shop_name, scan_id, lease_generation, payload,
-                                             status, attempts, created_at, updated_at)
-            VALUES (?, ?, ?, ?, 0, ?, 'pending', 0, ?, ?)
-        """, (task_id, shop_key, shop_name, scan_id, payload_str, now, now))
+                                             status, attempts, created_at, updated_at, chunk_size)
+            VALUES (?, ?, ?, ?, 0, ?, 'pending', 0, ?, ?, ?)
+        """, (task_id, shop_key, shop_name, scan_id, payload_str, now, now, SPOOL_CHUNK_SIZE))
         conn.commit()
     return "accepted"
 
@@ -4203,7 +4540,8 @@ def spool_claim(owner: str, ttl: float = SPOOL_CLAIM_SECONDS) -> Optional[Dict[s
     with get_connection() as conn:
         conn.execute("BEGIN IMMEDIATE")
         row = conn.execute("""
-            SELECT s.id, s.task_id, s.shop_key, s.shop_name, s.scan_id, s.payload, s.attempts, s.stage, s.core_done
+            SELECT s.id, s.task_id, s.shop_key, s.shop_name, s.scan_id, s.payload, s.attempts, s.stage, s.core_done,
+                   s.chunk_size
             FROM product_queue_spool s
             WHERE (s.status = 'pending' OR (s.status = 'processing' AND s.claim_expires_at < ?))
               AND NOT EXISTS (SELECT 1 FROM product_queue_spool o
@@ -4229,6 +4567,7 @@ def spool_claim(owner: str, ttl: float = SPOOL_CLAIM_SECONDS) -> Optional[Dict[s
         item = {}
     item.update(task_id=row["task_id"], shop_key=row["shop_key"], shop_name=row["shop_name"],
                 scan_id=row["scan_id"], attempts=attempts, stage=row["stage"], core_done=row["core_done"],
+                chunk_size=row["chunk_size"] or LEGACY_SPOOL_CHUNK_SIZE,
                 claim_token=token)
     return item
 

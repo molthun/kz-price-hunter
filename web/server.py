@@ -1921,14 +1921,19 @@ async def _execute_queue_item(item):
         if prods:
             queue_titles_for_ai(prods)
         done = int(item.get("core_done") or 0)
-        for chunk_no, start in enumerate(range(0, len(prods), SPOOL_CHUNK_SIZE)):
+        # Порции — того размера, с которым задача принята: core_done считан в них (T01)
+        size = int(item.get("chunk_size") or SPOOL_CHUNK_SIZE)
+        for chunk_no, start in enumerate(range(0, len(prods), size)):
             if chunk_no < done:
                 continue
-            if not await run_db(spool_apply_chunk, task_id, token, chunk_no, prods[start:start + SPOOL_CHUNK_SIZE]):
+            if not await run_db(spool_apply_chunk, task_id, token, chunk_no, prods[start:start + size]):
                 raise ClaimLost(task_id)
+            item["_last_renewed_at"] = time.monotonic()
+            await asyncio.sleep(0.005)
         if not await run_db(spool_finish_core, task_id, token, [p["id"] for p in prods],
                             item.get("reconcile"), item.get("scan_log")):
             raise ClaimLost(task_id)
+        item["_last_renewed_at"] = time.monotonic()
 
     if prods:
         # Товары, уже обновлённые более поздним обходом, не дают алертов и уведомлений по устаревшему
@@ -1965,12 +1970,17 @@ async def _evaluate_retired_watches(product_ids, strict=False):
 
 async def _keep_queue_claim(queue, item):
     """Продлевает захват задачи, пока она выполняется; цикл событий занят — захват истечёт сам."""
+    step = max(1.0, queue.claim_seconds / 3)
     while True:
-        await asyncio.sleep(max(1.0, queue.claim_seconds / 3))
+        await asyncio.sleep(step)
+        last_renewed = item.get("_last_renewed_at")
+        if last_renewed is not None and (time.monotonic() - last_renewed) < step * 0.8:
+            continue
         try:
             if not await queue.renew(item):
                 print(f"[Queue Worker] Захват {item['task_id']} потерян — запись будет отклонена журналом")
                 return
+            item["_last_renewed_at"] = time.monotonic()
         except Exception as e:
             print(f"[Queue Worker] Захват не продлён: {type(e).__name__}")
 
@@ -1991,6 +2001,7 @@ async def single_db_writer_worker(app=None):
                 item = await product_queue.dequeue(timeout=0.5)
                 if not item:
                     continue
+                item["_last_renewed_at"] = time.monotonic()
                 keeper = asyncio.create_task(_keep_queue_claim(product_queue, item))
                 try:
                     await _execute_queue_item(item)

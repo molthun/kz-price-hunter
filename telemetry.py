@@ -560,9 +560,14 @@ class TelemetryService:
     def _connect(self):
         import database  # DB_PATH читается при каждом сбросе: тесты подменяют database.DB_PATH
 
-        conn = sqlite3.connect(database.DB_PATH, timeout=DB_BUSY_TIMEOUT_SECONDS)
+        conn = sqlite3.connect(
+            database.DB_PATH,
+            timeout=DB_BUSY_TIMEOUT_SECONDS,
+            factory=database.ClosingConnection,
+        )
         conn.row_factory = sqlite3.Row
         conn.execute(f"PRAGMA busy_timeout = {int(DB_BUSY_TIMEOUT_SECONDS * 1000)}")
+        conn.execute("PRAGMA synchronous = NORMAL")
         return conn
 
     def flush(self) -> bool:

@@ -2,6 +2,128 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## Плановый аудит P-6.4.12 / Задача 2 — Codex (2026-10-28)
+
+- Основание: «разработка продолжается плановый аудит». HEAD `33ee512`, кандидат 6.4.12 —
+  исходные 11 изменённых tracked-файлов + untracked test_write_tx_contention.py; staged пуст.
+  Проверена отдельная фиксированная копия. Перед отчётом исходные хеши совпали, разработки не затёрты.
+- Статус: **НА ДОРАБОТКУ: T01 P1 и T02 P2**.
+- T01: SPOOL_CHUNK_SIZE 200→100 меняет смысл core_done уже принятой задачи. Upgrade после
+  первой старой порции перезаписывает history перекрывающихся товаров → теряется any_drop.
+  Rollback: реальный прежний worker подтверждает задачу 300 товаров, сохранив только 200;
+  rollback_check при этом ok=true. Оба направления воспроизведены дважды, старая версия 2/2 OK.
+- T02: первый implicit write с SQL на 200 мс реально блокирует второго писателя ~211 мс,
+  но новый прибор даёт hold=1.28 мс, wait=205.13 мс. Требуется корректное разделение/описание.
+- Полный suite кандидата: **1860 OK, 92.540 с**; прежняя независимая матрица watch_refresh:
+  **27 OK, 2.576 с**; 5 новых штатных тестов проходят; secrets и diff check PASS.
+- Отчёт: [AUDIT_2026-10-28_V6412_TASK2_CODEX.md](AUDIT_2026-10-28_V6412_TASK2_CODEX.md).
+  Свидетельства: `docs/audit_evidence/2026-10-28-v6412-task2/` (snapshot hashes, patch, логи, сценарии).
+- Следующий шаг: разработчику совместимый прогресс/история задач между версиями и барьер отката,
+  корректный замер hold/wait + регрессии → повторная приёмка Задачи 2. Задачи 1 и 3 ещё не приняты.
+  Код приложения, рабочая БД, стенд и прод не менялись; коммит/push не выполнялись.
+
+---
+
+## Передача аудитору: Задача 2 из P-6.4.12 (write-транзакции SQLite и продление захвата очереди, v6.4.12) → Codex (Antigravity, 2026-10-28)
+
+```text
+ID / этап: P-6.4.12 / Задача 2 (P1-риск, v6.4.12) — устранение длительного удержания write-транзакций SQLite (>15 с) и ошибки «[Queue Worker] Захват не продлён: OperationalError»
+Основание/поручение владельца: «Продолжай разработку.» (2026-10-28) по передаче P-6.4.12 (порядок: Задача 2 → Codex → Задача 1 → Codex → Задача 3 → Codex).
+Статус: READY_FOR_AUDIT
+Исполнитель / предыдущий / следующий: Antigravity / Claude / Codex (независимая приёмка Задачи 2)
+Базовый HEAD: main 33ee512 (origin/main = e380a0f = прод 6.4.11; push не выполнялся, прод не трогался).
+Версия: 6.4.12 (version.py, CHANGELOG.md с разделом «### Для пользователей», ROADMAP_AND_LOG.md).
+
+Корень проблемы (установлен замерами на базе стенда, 113 450 товаров, источник shopkz = 13 511 товаров):
+  1. Безусловное срабатывание обоих FTS5-триггеров (products_au и canonical_products_au) при каждом
+     UPDATE products / canonical_products даже тогда, когда менялись только price и last_seen (а текстовые
+     поля id/title/shop/city/category/brand/model не менялись). На чанке из 200 товаров это создавало
+     ~3 000 лишних операций удаления/вставки в FTS5 B-tree внутри транзакции.
+  2. Повторные апсерты одних и тех же продавцов и каналов (sellers, seller_identities, channels) и
+     повторный вызов extract_canonical_key(title) на каждом из 200 товаров одного магазина в
+     _save_products_chunk → sync_legacy_product_to_v2.
+  3. Отсутствие индекса product_sources(shop_key, source_url, active) и безусловный двойной UPDATE всех
+     строк источника в _reconcile_source_conn: для shopkz (13 511 товаров) выполнялись 4 полных скана
+     таблицы product_sources и перезаписывались 27 023 строки при каждом обходе.
+  4. Отсутствие индекса offers(external_sku) и выполнение тяжёлого запроса watched_offers внутри
+     BEGIN IMMEDIATE в _apply_retire_transition (даже когда активных наблюдений watches нет), а также
+     неразбитые батчи в refresh_retired_watches и update_products_canonical_keys.
+  5. Конкуренция продления захвата: _keep_queue_claim каждые 5 с вызывал queue_service.renew →
+     database.spool_renew из общего пула потоков, конкурируя за write-lock с идущей серией чанков
+     spool_apply_chunk (68 чанков подряд на shopkz), хотя каждый успешный spool_apply_chunk и
+     spool_finish_core уже сам продлевал claim_expires_at внутри своей write-транзакции.
+
+Что изменено:
+  * database.py:
+    - В ClosingConnection / TrackedCursor добавлен встроенный трекинг всех write-транзакций SQLite
+      (BEGIN → COMMIT/ROLLBACK) по имени операции: get_write_tx_stats(), reset_write_tx_stats(),
+      порог SLOW_WRITE_TX_SECONDS = 2.0 с логом [DB Slow Write] и записью в телеметрию (db_slow_write).
+    - Добавлен индекс idx_product_sources_shop_url ON product_sources(shop_key, source_url, active).
+    - В триггер products_au добавлено условие WHEN (с автоматическим обновлением старого триггера при
+      миграции/старте), исключающее перестроение FTS5 при неизменных id/title/shop/city/category.
+    - В _reconcile_source_conn: дифференциальное обновление product_sources (active=0 только для
+      existing_active - ids, active=1 только для ids - existing_active) и проверка снятия только по
+      реально ушедшим active_before - ids порциями по 500.
+    - В _apply_retire_transition: watched_offers вынесен за пределы BEGIN IMMEDIATE и пропускается,
+      если нет активных наблюдений; refresh_retired_watches разбит на батчи по 500.
+    - SPOOL_CHUNK_SIZE уменьшен с 200 до 100; в _save_products_chunk предрасчитанный canonical_key и
+      кэш seen_sellers передаются в sync_legacy_product_to_v2; update_products_canonical_keys разбит
+      на батчи по 200; в acquire_scheduler_lease подключён ClosingConnection + PRAGMA synchronous=NORMAL.
+  * repositories/schema_v2.py:
+    - Добавлен индекс idx_offers_ext_sku ON offers(external_sku).
+    - В триггер canonical_products_au добавлено условие WHEN (с автообновлением старого триггера).
+  * domain/adapter.py:
+    - sync_legacy_product_to_v2 принимает опциональные canonical_key и seen_sellers, избегая повторных
+      вызовов extract_canonical_key и повторных INSERT в sellers/seller_identities/channels внутри пачки.
+  * web/server.py:
+    - В single_db_writer_worker, _execute_queue_item и _keep_queue_claim учитывается время последнего
+      продления захвата (item["_last_renewed_at"]), выполненного внутри spool_apply_chunk /
+      spool_finish_core; между чанками добавлена короткая уступка asyncio.sleep(0.005). Атомарность и
+      проверка claim_token (R04) в каждой транзакции полностью сохранены.
+  * ai_service.py: синхронные обращения к SQLite в normalize_product_titles_batch обёрнуты в asyncio.to_thread.
+  * telemetry.py: в _connect() подключён database.ClosingConnection и PRAGMA synchronous=NORMAL.
+  * diagnostics.py: в /api/diag → database добавлено поле write_tx (database.get_write_tx_stats()).
+  * tests/core/test_write_tx_contention.py: 5 регрессионных тестов (все 5 падают на базовом HEAD 33ee512).
+
+Замеры ДО (6.4.11) и ПОСЛЕ (6.4.12) на базе стенда (113 450 товаров, 4 CPU / 15 ГБ):
+  * Запись чанка (_save_products_chunk):
+    - До (чанк 200): 133.7 ms, 5 180 row changes.
+    - После (чанк 200): 84.9 ms, 2 231 row changes; при новом SPOOL_CHUNK_SIZE=100: 19.0 ms, 1 011 row changes (в 7.0 раз короче удержание на чанк).
+  * Сверка источника (_reconcile_source_conn на shopkz, 13 511 товаров):
+    - До: 176.6 ms, 27 023 row changes (4 полных SCAN product_sources).
+    - После: 71.0 ms, 58 row changes (SEARCH product_sources USING INDEX idx_product_sources_shop_url; в 465 раз меньше перезаписей строк).
+  * Переход снятия (_apply_retire_transition на 500 товарах):
+    - До: 114.3 ms внутри BEGIN IMMEDIATE.
+    - После: 5.26 ms внутри BEGIN IMMEDIATE (в 21.7 раза короче).
+  * Выборка watched_offers (500 товаров):
+    - До: 66.1 ms (полный SCAN offers).
+    - После: 15.9 ms (по индексу idx_offers_ext_sku).
+  * Полная волна обхода на стенде kzph-stand (36 магазинов, 23 184 товара):
+    - Ошибки «Захват не продлён: OperationalError» / «database is locked» / «[DB Slow Write]»: 0.
+    - Снимок /api/diag после полной волны: problems=[], slow_count=0, max_hold_ms=559.39 ms (flush телеметрии),
+      spool_apply_chunk (256 чанков): max_hold_ms=329.66 ms, avg_hold_ms=62.08 ms, max_wait_ms=53.55 ms;
+      spool_finish_core (52 источника, включая shopkz 13 454 товара): max_hold_ms=247.88 ms, max_wait_ms=10.19 ms;
+      spool_renew: count=1, max_hold_ms=4.57 ms, max_wait_ms=31.36 ms;
+      _apply_retire_transition: max_hold_ms=3.28 ms; refresh_retired_watches: max_hold_ms=4.50 ms;
+      update_products_canonical_keys (9 батчей во время волны): max_hold_ms=4.84 ms, max_wait_ms=9.17 ms.
+
+Стенд и точки отката:
+  * Контейнер kzph-stand запущен через docker compose -f docker-compose.stand.yml (4 CPU / 15 ГБ).
+  * Тег отката образа: kzph-stand:6.4.11-rollback.
+  * Консистентный бэкап БД до правок: /app/data/backups/prices-pre-6.4.12-stand-20261028T182220412693Z-69cbe1.db.
+
+Проверки:
+  * Локально (macOS, Python 3.14.7, временный DATA_DIR): Ran 1860 tests in 95.316s — OK; все 19/19 tests/frontend/test_frontend*.cjs — PASS; release_gate.py secrets — ok (0 findings).
+  * Проверка регрессий во временном worktree на базовом HEAD 33ee512: Ran 5 tests — FAILED (failures=4, errors=1).
+  * В Linux-контейнере стенда (docker run --rm --network none --cpus 4 --memory 15g -e DATA_DIR=/tmp/kzph-test kzph-stand:local python3 -m unittest discover -s . -p "test_*.py"): Ran 1860 tests in 177.481s — OK.
+  * Локальная рабочая prices.db не затрагивалась.
+
+Следующий точный шаг:
+  * Независимая приёмка Задачи 2 (v6.4.12) аудитором Codex. После приёмки — переход к Задаче 1 из P-6.4.12.
+```
+
+---
+
 ## Передача разработки: после выпуска 6.4.11 → Antigravity (Claude, 2026-10-28)
 
 ```text

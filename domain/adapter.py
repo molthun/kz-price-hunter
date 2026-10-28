@@ -193,6 +193,8 @@ def sync_legacy_product_to_v2(
     conn: sqlite3.Connection,
     product: Dict[str, Any],
     now: Optional[str] = None,
+    canonical_key: Optional[str] = None,
+    seen_sellers: Optional[set] = None,
 ) -> bool:
     """
     Saves or updates a legacy product dict into the v2 tables:
@@ -228,68 +230,71 @@ def sync_legacy_product_to_v2(
     if old_price is not None and (old_price <= price or old_price > 10_000_000):
         old_price = None
 
-    canonical_key = product.get("canonical_key") or extract_canonical_key(title)
+    canonical_key = canonical_key or product.get("canonical_key") or extract_canonical_key(title)
     if not canonical_key:
         norm_title = re.sub(r"[^a-zA-Z0-9а-яА-ЯёЁ]+", "_", title.lower()).strip("_")
         canonical_key = f"norm:{category}:{norm_title}" if category else f"norm:{norm_title}"
 
-    # 1. Resolve Seller
+    # 1. Resolve Seller & 2. Resolve Channel
     seller_slug, seller_name, channel_type = resolve_seller_and_channel_meta(
         shop_name, shop_key=product.get("shop_key")
     )
     seller_id = f"seller_{seller_slug}"
+    channel_id = f"chan_{seller_slug}_{channel_type}"
 
     norm_dom = None
     if channel_type in (ChannelType.WEBSITE, ChannelType.DIRECT) and url:
         from domain.seller_identity import normalize_domain
         norm_dom = normalize_domain(url)
 
-    if norm_dom:
-        conn.execute(
-            """
-            INSERT INTO sellers (id, slug, name, domain, is_active, created_at, updated_at)
-            VALUES (?, ?, ?, ?, 1, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET
-                domain = COALESCE(sellers.domain, excluded.domain),
-                updated_at = excluded.updated_at
-            """,
-            (seller_id, seller_slug, seller_name, norm_dom, timestamp, timestamp),
-        )
-        # Идентификатор строится из самого отпечатка, а не только из продавца: иначе второй домен
-        # того же продавца конфликтует по первичному ключу, предложение ON CONFLICT ниже его не
-        # покрывает, и товар вообще не попадает в v2. Тот же приём уже применён в merge_sellers.
-        ident_digest = hashlib.sha256(
-            f"{seller_id}:domain:{norm_dom}".encode("utf-8")
-        ).hexdigest()[:16]
-        ident_id = f"ident_{ident_digest}"
-        conn.execute(
-            """
-            INSERT INTO seller_identities (id, seller_id, identity_type, identity_value, confidence, source, created_at)
-            VALUES (?, ?, 'domain', ?, 1.0, 'product_url', ?)
-            ON CONFLICT(identity_type, identity_value, seller_id) DO NOTHING
-            """,
-            (ident_id, seller_id, norm_dom, timestamp),
-        )
-    else:
-        conn.execute(
-            """
-            INSERT INTO sellers (id, slug, name, is_active, created_at, updated_at)
-            VALUES (?, ?, ?, 1, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET updated_at = excluded.updated_at
-            """,
-            (seller_id, seller_slug, seller_name, timestamp, timestamp),
-        )
+    seller_cache_key = (seller_id, norm_dom, channel_id)
+    if seen_sellers is None or seller_cache_key not in seen_sellers:
+        if norm_dom:
+            conn.execute(
+                """
+                INSERT INTO sellers (id, slug, name, domain, is_active, created_at, updated_at)
+                VALUES (?, ?, ?, ?, 1, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    domain = COALESCE(sellers.domain, excluded.domain),
+                    updated_at = excluded.updated_at
+                """,
+                (seller_id, seller_slug, seller_name, norm_dom, timestamp, timestamp),
+            )
+            # Идентификатор строится из самого отпечатка, а не только из продавца: иначе второй домен
+            # того же продавца конфликтует по первичному ключу, предложение ON CONFLICT ниже его не
+            # покрывает, и товар вообще не попадает в v2. Тот же приём уже применён в merge_sellers.
+            ident_digest = hashlib.sha256(
+                f"{seller_id}:domain:{norm_dom}".encode("utf-8")
+            ).hexdigest()[:16]
+            ident_id = f"ident_{ident_digest}"
+            conn.execute(
+                """
+                INSERT INTO seller_identities (id, seller_id, identity_type, identity_value, confidence, source, created_at)
+                VALUES (?, ?, 'domain', ?, 1.0, 'product_url', ?)
+                ON CONFLICT(identity_type, identity_value, seller_id) DO NOTHING
+                """,
+                (ident_id, seller_id, norm_dom, timestamp),
+            )
+        else:
+            conn.execute(
+                """
+                INSERT INTO sellers (id, slug, name, is_active, created_at, updated_at)
+                VALUES (?, ?, ?, 1, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET updated_at = excluded.updated_at
+                """,
+                (seller_id, seller_slug, seller_name, timestamp, timestamp),
+            )
 
-    # 2. Resolve Channel
-    channel_id = f"chan_{seller_slug}_{channel_type}"
-    conn.execute(
-        """
-        INSERT INTO channels (id, seller_id, channel_type, name, is_active, created_at)
-        VALUES (?, ?, ?, ?, 1, ?)
-        ON CONFLICT(id) DO NOTHING
-        """,
-        (channel_id, seller_id, channel_type, f"{seller_name} ({channel_type})", timestamp),
-    )
+        conn.execute(
+            """
+            INSERT INTO channels (id, seller_id, channel_type, name, is_active, created_at)
+            VALUES (?, ?, ?, ?, 1, ?)
+            ON CONFLICT(id) DO NOTHING
+            """,
+            (channel_id, seller_id, channel_type, f"{seller_name} ({channel_type})", timestamp),
+        )
+        if seen_sellers is not None:
+            seen_sellers.add(seller_cache_key)
 
     # 3. Canonical Product
     hash_id = hashlib.sha256(canonical_key.encode("utf-8")).hexdigest()[:16]

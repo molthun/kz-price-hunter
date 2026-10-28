@@ -1041,7 +1041,7 @@ async def normalize_product_titles_batch(
                           get_recent_ai_attempts, record_ai_attempts)
 
     unique = list(dict.fromkeys(t for t in titles if t and t.strip()))
-    results: Dict[str, str] = dict(get_cached_canonical_keys_batch(unique))
+    results: Dict[str, str] = dict(await asyncio.to_thread(get_cached_canonical_keys_batch, unique))
     heuristic: Dict[str, str] = {}
     missing_for_ai: List[str] = []
 
@@ -1056,7 +1056,8 @@ async def normalize_product_titles_batch(
             missing_for_ai.append(t)
 
     # Найденные эвристикой ключи сохраняются в постоянный кэш
-    save_cached_canonical_keys_batch(heuristic)
+    if heuristic:
+        await asyncio.to_thread(save_cached_canonical_keys_batch, heuristic)
     if not missing_for_ai:
         return results
 
@@ -1065,7 +1066,7 @@ async def normalize_product_titles_batch(
         return results
 
     # Недавние неудачи не повторяем
-    recent = get_recent_ai_attempts(missing_for_ai, AI_RETRY_DAYS)
+    recent = await asyncio.to_thread(get_recent_ai_attempts, missing_for_ai, AI_RETRY_DAYS)
     for t in missing_for_ai:
         if t in recent:
             results[t] = ""
@@ -1132,10 +1133,11 @@ async def normalize_product_titles_batch(
                 if orig in chunk and valid_ai_canonical_key(ckey):
                     new_cached[orig] = ckey
         results.update(new_cached)
-        save_cached_canonical_keys_batch(new_cached)
+        if new_cached:
+            await asyncio.to_thread(save_cached_canonical_keys_batch, new_cached)
 
         # Все названия пакета помечаются попыткой: без ключа они не уйдут в AI еще AI_RETRY_DAYS дней
-        record_ai_attempts(chunk)
+        await asyncio.to_thread(record_ai_attempts, chunk)
         for t in chunk:
             results.setdefault(t, "")
 

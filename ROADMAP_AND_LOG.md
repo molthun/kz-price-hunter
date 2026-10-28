@@ -6,7 +6,13 @@
 
 ---
 
-## [Не выпущено] 6.4.11 — G05 для конкурирующих обработчиков (Claude, 28.10.2026)
+## [Не выпущено] 6.4.12 — устранение длительного удержания write-транзакций SQLite, Задача 2 из P-6.4.12 (Antigravity, 28.10.2026)
+
+- 🔍 **По логам первого старта 6.4.11 на проде**: зафиксировано одно сообщение `[Queue Worker] Захват не продлён: OperationalError` во время волны обхода.
+- 🛠️ **Исправлено**: добавлен встроенный трекинг длительности write-транзакций SQLite (`/api/diag` → `database.write_tx`), условные `WHEN`-триггеры FTS5 (`products_au`, `canonical_products_au`), индексы `idx_product_sources_shop_url` и `idx_offers_ext_sku`, дифференциальная сверка `_reconcile_source_conn`, уменьшенный `SPOOL_CHUNK_SIZE=100` с кэшированием `seen_sellers` и `canonical_key` внутри пачки, вынос `watched_offers` из-под `BEGIN IMMEDIATE` в `_apply_retire_transition`, батчирование `refresh_retired_watches` и `update_products_canonical_keys`, согласование `_keep_queue_claim` с продлением захвата в `spool_apply_chunk`/`spool_finish_core`.
+- 📊 **Замеры на стенде (`4 CPU / 15 ГБ`, база `113 450` товаров)**: чанк записи сократился со `133.7 мс` (`5 180` row changes) до `19.0 мс` (`1 011` row changes); сверка `shopkz` (`13 511` товаров) — со `176.6 мс` (`27 023` row changes) до `71.0 мс` (`58` row changes); `_apply_retire_transition` (500 товаров) — со `114.3 мс` до `5.26 мс`. Полная волна 36 магазинов (`23 184` товара) на стенде прошла без `OperationalError` и `DB Slow Write` (`max_hold_ms = 559.4 мс`, `slow_count = 0`). Python 1860 OK, фронтенд 19/19. Не выпущено, ждёт приёмки Codex.
+
+## [Выпущено] 6.4.11 — G05 для конкурирующих обработчиков (Claude, 28.10.2026)
 
 - 🔍 **Приёмка Codex 6.4.10**: последовательный повтор принят; два одновременных обработчика одного задания давали два уведомления. Отчёт: [ACCEPTANCE_2026-10-28_V6410_CODEX.md](docs/ACCEPTANCE_2026-10-28_V6410_CODEX.md).
 - 🛠️ **Исправлено**: фаза и поколение задания проверяются в транзакции записи; удаление — только своего поколения. Python 1855 OK, фронтенд 19/19. Не выпущено; Codex попрошено проверить механизм watch_refresh целиком.

@@ -484,11 +484,12 @@ class UpgradeThenRollbackTest(unittest.TestCase):
         result = gate.rollback_check(self.upgraded, broken)
         self.assertFalse(result["ok"], "запрос прежнего кода не работает — это и есть провал отката")
 
-    def add_spool_task(self, status, task_id="t1"):
+    def add_spool_task(self, status, task_id="t1", chunk_size=None, core_done=0):
         with sqlite3.connect(self.upgraded) as conn:
             conn.execute("INSERT INTO product_queue_spool (task_id, shop_key, shop_name, payload, status, "
-                         "attempts, created_at, updated_at) VALUES (?, 'shop', 'Shop', '{}', ?, 0, 1, 1)",
-                         (task_id, status))
+                         "attempts, created_at, updated_at, chunk_size, core_done) "
+                         "VALUES (?, 'shop', 'Shop', '{}', ?, 0, 1, 1, ?, ?)",
+                         (task_id, status, chunk_size, core_done))
 
     def spool_check(self, result):
         return next(c for c in result["checks"] if c["check"].startswith("Принятые задачи очереди"))
@@ -515,6 +516,23 @@ class UpgradeThenRollbackTest(unittest.TestCase):
         result = gate.rollback_check(self.upgraded, old)
         self.assertTrue(result["ok"], result)
         self.assertTrue(self.spool_check(result)["previous_code_serves_spool"])
+
+    def test_rollback_refuses_tasks_with_foreign_chunk_layout(self):
+        """T01: код 6.4.11 читает прогресс в порциях по 200 — задача по 100 после отката потеряла бы товары."""
+        gate.upgrade_rehearsal(self.db, keep_path=self.upgraded)
+        old = self.old_code("SELECT id FROM products LIMIT 1")
+        with open(os.path.join(old, "database.py"), "a", encoding="utf-8") as fh:
+            fh.write("def spool_claim(owner, ttl=60):\n    return None\n")  # 6.4.3–6.4.11: claim есть, chunk_size нет
+        self.add_spool_task("pending", "legacy", chunk_size=None, core_done=1)
+        self.add_spool_task("pending", "same", chunk_size=200, core_done=1)
+        self.assertTrue(gate.rollback_check(self.upgraded, old)["ok"], "размер 200 прежний код понимает")
+        self.add_spool_task("processing", "new", chunk_size=100, core_done=1)
+        result = gate.rollback_check(self.upgraded, old)
+        self.assertFalse(result["ok"])
+        self.assertEqual(self.spool_check(result)["foreign_chunk_layout"], 1)
+        with open(os.path.join(old, "database.py"), "a", encoding="utf-8") as fh:
+            fh.write("SPOOL_TASK_CHUNK_SIZE_SUPPORTED = True\n")
+        self.assertTrue(gate.rollback_check(self.upgraded, old)["ok"], "код с chunk_size откат принимает")
 
     def test_workflow_runs_the_rollback_on_the_upgraded_database(self):
         path = os.path.join(str(test_support.REPO_DIR),

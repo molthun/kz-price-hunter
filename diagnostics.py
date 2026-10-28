@@ -118,6 +118,11 @@ def database_snapshot(connect: Callable[[], sqlite3.Connection], db_path) -> Dic
                 "SELECT value FROM schema_metadata WHERE name = 'schema_version'").fetchone()[0]
         except (sqlite3.Error, TypeError):
             snap["schema_version"] = None
+        try:
+            import database
+            snap["write_tx"] = database.get_write_tx_stats()
+        except Exception:
+            pass
     finally:
         try:
             conn.close()
