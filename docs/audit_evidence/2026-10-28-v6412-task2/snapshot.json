@@ -1,0 +1,17 @@
+{
+  "head": "33ee51219588e621b7a4ac355baf78b59de0f896",
+  "changed_sha256": {
+    "CHANGELOG.md": "299ac5e545689b9baede22254969b9fbb95203adce79450bdc6d0409a49bdba6",
+    "ROADMAP_AND_LOG.md": "f39131646d912a8db0102d8e56ffd5e877c478c5b54cfc73208ed6aef8abf92c",
+    "ai_service.py": "11ff2a6bfdf34f032d7d00996b439bf8106619fc475cf6b09f072f1dcb0e31c3",
+    "database.py": "6f3a2665a33bcb01fcdb47eae2c3f8b1307614c3a8691962cf2462992fffb4c2",
+    "diagnostics.py": "680dd54c36ea49885013071db349272f2a18bdff9530326588a9278a0bfea480",
+    "docs/AGENT_HANDOFF.md": "37a54018c98fe44fc1682951672023bf5cd8fde847e32e261c5ddba3dc6df36f",
+    "domain/adapter.py": "c2177618f21088ba52834ae78775e6619bab080de39d895618d1331230e7ec04",
+    "repositories/schema_v2.py": "c504f8f7138b9e658dfccadae81c9108890564c17967408d6a8e45a3a3ec5a01",
+    "telemetry.py": "cb612a33d2adcd678a3f003717729bb8ee11d54d64341f92a5473c36779f9c80",
+    "version.py": "c436c41e5f4e73490087b622025ef652e9f3d05a4cfa3afc5441aa37d1503cfd",
+    "web/server.py": "8ceee94fb4cc01bbe40bc94df6e07c1423060e4231f8b8b538b830922191422f",
+    "tests/core/test_write_tx_contention.py": "0dac21c800d30a1cd7021e9d325b6d2fb5d6e6338a1a0e60e9097c17da58d5b4"
+  }
+}

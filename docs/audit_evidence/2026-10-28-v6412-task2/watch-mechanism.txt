@@ -1,0 +1,101 @@
+[System] 📡 Модуль онлайн-логирования активирован.
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+test_base_already_repaired_by_646_gets_memory_fixed (__main__.Mechanism.test_base_already_repaired_by_646_gets_memory_fixed)
+[DB] G03: память наблюдений обновлена по 1 снятым товарам
+G03-B: offers уже сняла 6.4.6, память осталась «в продаже» — разовый досев заданий. ... ok
+test_concurrent_refresh_after_first_completes_gives_one_event (__main__.Mechanism.test_concurrent_refresh_after_first_completes_gives_one_event)
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+G05: оба прочли retire → первый завершил событие и удаление → второй продолжил → одно событие. ... ok
+test_concurrent_refresh_interleaved_gives_one_event (__main__.Mechanism.test_concurrent_refresh_interleaved_gives_one_event)
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+G05, обратное чередование: оба идут одновременно после чтения retire — одно событие. ... ok
+test_deferred_refresh_after_return_applies_transition_in_order (__main__.Mechanism.test_deferred_refresh_after_return_applies_transition_in_order)
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+G04: задание выполняется уже после возврата (возврат без проверки наблюдений) — порядок сохранён. ... ok
+test_failed_job_delete_after_event_does_not_duplicate (__main__.Mechanism.test_failed_job_delete_after_event_does_not_duplicate)
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+[DB] G03: память наблюдений обновлена по 1 снятым товарам
+G05: событие и outbox записаны → удаление задания падает → повтор → ровно одно событие. ... ok
+test_failed_retired_watch_refresh_in_queue_is_retried (__main__.Mechanism.test_failed_retired_watch_refresh_in_queue_is_retried)
+[Watches] Ошибка проверки снятых товаров: OperationalError
+Сбой обновления памяти в очереди: задача и задание остаются, повтор доводит до конца. ... Повтор задачи task_ea5689018f5644d3b75078eaf666944a (Contract), попытка 1
+ok
+test_full_scan_without_item_retires_it_everywhere_and_return_restores (__main__.Mechanism.test_full_scan_without_item_retires_it_everywhere_and_return_restores) ... ok
+test_independent_seller_channel_is_not_retired (__main__.Mechanism.test_independent_seller_channel_is_not_retired) ... ok
+test_item_confirmed_by_another_active_source_stays (__main__.Mechanism.test_item_confirmed_by_another_active_source_stays) ... ok
+test_limited_and_failed_scans_do_not_retire (__main__.Mechanism.test_limited_and_failed_scans_do_not_retire) ... Задача task_7eacf93bca514cd7b0a8c27ba4732700 (Contract) превысила лимит повторов и помещена в dead-letter
+ok
+test_memory_repair_survives_failure_and_restart (__main__.Mechanism.test_memory_repair_survives_failure_and_restart)
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+[DB] G03: память наблюдений обновлена по 1 снятым товарам
+G03-A: сбой обновления памяти при старте повторяется следующим стартом. ... ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+[DB] G03: память наблюдений обновлена по 1 снятым товарам
+test_migrate_pending_job_from_pre_phase_schema (__main__.Mechanism.test_migrate_pending_job_from_pre_phase_schema) ... ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+test_old_ack_cannot_delete_new_current_generation (__main__.Mechanism.test_old_ack_cannot_delete_new_current_generation) ... ok
+test_old_retry_after_newer_full_scan_does_not_retire (__main__.Mechanism.test_old_retry_after_newer_full_scan_does_not_retire) ... Задача task_9057161b11b84fa69bff3cbd6dd88caf (Contract) превысила лимит повторов и помещена в dead-letter
+ok
+test_return_before_deferred_refresh_still_notifies_once (__main__.Mechanism.test_return_before_deferred_refresh_still_notifies_once)
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+G04: сбой при старте → товар вернулся раньше повтора → повтор; одно «снова в продаже». ... ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+test_rollback_ack_delete (__main__.Mechanism.test_rollback_ack_delete) ... ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+test_rollback_event_insert (__main__.Mechanism.test_rollback_event_insert) ... ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+test_rollback_outbox_insert (__main__.Mechanism.test_rollback_outbox_insert) ... ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+test_rollback_phase_change (__main__.Mechanism.test_rollback_phase_change) ... ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+test_rollback_state_after_event (__main__.Mechanism.test_rollback_state_after_event) ... ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+[DB] G03: память наблюдений обновлена по 1 снятым товарам
+test_sigkill_after_event_commit (__main__.Mechanism.test_sigkill_after_event_commit) ... Executing <Task finished name='Task-102' coro=<Mechanism.test_sigkill_after_event_commit() done, defined at /private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph6412-audit-6d0ztiit/docs/audit_evidence/2026-10-28-v6411/mechanism.py:79> result=None created at /opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:110> took 0.121 seconds
+ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+[DB] G03: память наблюдений обновлена по 1 снятым товарам
+test_sigkill_after_retire_commit (__main__.Mechanism.test_sigkill_after_retire_commit) ... Executing <Task finished name='Task-107' coro=<Mechanism.test_sigkill_after_retire_commit() done, defined at /private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph6412-audit-6d0ztiit/docs/audit_evidence/2026-10-28-v6411/mechanism.py:78> result=None created at /opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:110> took 0.116 seconds
+ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+test_stale_generation_is_noop (__main__.Mechanism.test_stale_generation_is_noop) ... ok
+test_stale_refresh_does_not_confirm_a_newer_retirement (__main__.Mechanism.test_stale_refresh_does_not_confirm_a_newer_retirement)
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+Поколение: новое снятие во время старой обработки не подтверждается старым вызовом. ... ok
+test_startup_repair_updates_watch_memory_so_return_notifies (__main__.Mechanism.test_startup_repair_updates_watch_memory_so_return_notifies)
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений обновлена по 2 снятым товарам
+G02: старая база + наблюдение → init_db → возврат по прежней цене → одно «снова в продаже». ... ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+test_startup_repairs_offers_retired_before_the_fix (__main__.Mechanism.test_startup_repairs_offers_retired_before_the_fix) ... ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+test_two_processes_stale_retire_snapshot (__main__.Mechanism.test_two_processes_stale_retire_snapshot) ... Executing <Task finished name='Task-132' coro=<Mechanism.test_two_processes_stale_retire_snapshot() done, defined at /private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph6412-audit-6d0ztiit/docs/audit_evidence/2026-10-28-v6411/mechanism.py:41> result=None created at /opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:110> took 0.135 seconds
+ok
+
+----------------------------------------------------------------------
+Ran 27 tests in 2.576s
+
+OK

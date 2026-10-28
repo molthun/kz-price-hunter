@@ -1,0 +1,70 @@
+[System] 📡 Модуль онлайн-логирования активирован.
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{"case": "implicit_write_timing", "blocked_contender_ms": [207.57487499213312], "stats": {"count": 1, "commits": 1, "rollbacks": 0, "slow_count": 0, "total_hold_ms": 0.14, "max_hold_ms": 0.14, "max_wait_ms": 205.03, "max_total_ms": 205.17, "last_statements": 1}}
+test_implicit_write_execution_is_measured_as_hold (__main__.Audit.test_implicit_write_execution_is_measured_as_hold) ... Executing <Task finished name='Task-2' coro=<Audit.test_implicit_write_execution_is_measured_as_hold() done, defined at /private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph6412-audit-6d0ztiit/audit-results/acceptance.py:61> exception=AssertionError('0.14 not greater than 150 : SQL execution while holding lock was attributed to wait, not hold') created at /opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:110> took 0.209 seconds
+FAIL
+test_rollback_partial_100_chunk_to_real_6411_persists_all (__main__.Audit.test_rollback_partial_100_chunk_to_real_6411_persists_all) ... Повтор задачи task_a71e6656c05841ea8560f210fab7514a (Contract), попытка 1
+{"case": "rollback", "release_gate_ok": true, "expected": 300, "persisted": 200, "remaining_tasks": 0, "previous_worker": "[System] \ud83d\udce1 \u041c\u043e\u0434\u0443\u043b\u044c \u043e\u043d\u043b\u0430\u0439\u043d-\u043b\u043e\u0433\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u044f \u0430\u043a\u0442\u0438\u0432\u0438\u0440\u043e\u0432\u0430\u043d.\n{\"ack\": true}"}
+Executing <Task finished name='Task-7' coro=<Audit.test_rollback_partial_100_chunk_to_real_6411_persists_all() done, defined at /private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph6412-audit-6d0ztiit/audit-results/acceptance.py:34> exception=AssertionError('200 != 300 : previous-release worker ACKed incomplete products after chunk-size change') created at /opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:110> took 0.475 seconds
+FAIL
+test_upgrade_partial_200_chunk_to_100_preserves_drop (__main__.Audit.test_upgrade_partial_200_chunk_to_100_preserves_drop) ... /private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph6412-audit-6d0ztiit/database.py:595: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x108d7f790>
+  return super().cursor(factory)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+Повтор задачи task_de0bc7a6f9eb47f3b4c703cc5972ac66 (Contract), попытка 1
+{"case": "upgrade", "original_price": 200, "saved_history_price": 100, "watch_events": 0}
+FAIL
+
+======================================================================
+FAIL: test_implicit_write_execution_is_measured_as_hold (__main__.Audit.test_implicit_write_execution_is_measured_as_hold)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py", line 128, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py", line 720, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph6412-audit-6d0ztiit/audit-results/acceptance.py", line 78, in test_implicit_write_execution_is_measured_as_hold
+    self.assertGreater(stats['max_hold_ms'],150,'SQL execution while holding lock was attributed to wait, not hold')
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0.14 not greater than 150 : SQL execution while holding lock was attributed to wait, not hold
+
+======================================================================
+FAIL: test_rollback_partial_100_chunk_to_real_6411_persists_all (__main__.Audit.test_rollback_partial_100_chunk_to_real_6411_persists_all)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py", line 128, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py", line 720, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph6412-audit-6d0ztiit/audit-results/acceptance.py", line 60, in test_rollback_partial_100_chunk_to_real_6411_persists_all
+    self.assertEqual(count,300,'previous-release worker ACKed incomplete products after chunk-size change')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 200 != 300 : previous-release worker ACKed incomplete products after chunk-size change
+
+======================================================================
+FAIL: test_upgrade_partial_200_chunk_to_100_preserves_drop (__main__.Audit.test_upgrade_partial_200_chunk_to_100_preserves_drop)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py", line 128, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py", line 720, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph6412-audit-6d0ztiit/audit-results/acceptance.py", line 33, in test_upgrade_partial_200_chunk_to_100_preserves_drop
+    self.assertEqual(len(events),1,'upgrade lost price-drop event for overlapping old/new chunks')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1 : upgrade lost price-drop event for overlapping old/new chunks
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.860s
+
+FAILED (failures=3)

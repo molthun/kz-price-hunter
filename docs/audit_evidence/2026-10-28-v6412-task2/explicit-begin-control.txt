@@ -1,0 +1,7 @@
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{"threshold_seconds": 2.0, "max_hold_ms": 205.6, "max_wait_ms": 0.0, "slow_count": 0, "operations": {"<module>": {"count": 1, "commits": 1, "rollbacks": 0, "slow_count": 0, "total_hold_ms": 205.6, "max_hold_ms": 205.6, "max_wait_ms": 0.0, "max_total_ms": 205.6, "last_statements": 2}}, "recent_slow": []}

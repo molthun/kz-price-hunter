@@ -1,0 +1,974 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 9f4ac2a..2056853 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -3,6 +3,20 @@
+ Все значимые изменения проекта документируются в этом файле.
+ Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
+ 
++## [6.4.12] - 2026-10-28
++
++### Для пользователей
++- Во время больших обходов магазинов база данных работает быстрее и ровнее: обновление цен больше не задерживает фоновую очередь и витрину.
++
++### Стабильность записи и устранение блокировок SQLite (P-6.4.12 / Задача 2)
++- ⏱️ **Замер и контроль write-транзакций SQLite.** В `ClosingConnection` / `TrackedCursor` (`database.py`, `/api/diag` → `database.write_tx`) добавлен учёт времени ожидания и удержания `BEGIN` → `COMMIT`/`ROLLBACK` по имени операции с логом `[DB Slow Write]` и событием телеметрии `db_slow_write` (порог `2.0 с`).
++- ⚡ **Короткие порции записи спула и кэширование в пачке.** `SPOOL_CHUNK_SIZE` уменьшен с `200` до `100`; в `_save_products_chunk` предрасчитанный `canonical_key` и кэш проверенных продавцов/каналов (`seen_sellers`) передаются в `sync_legacy_product_to_v2`, исключая повторный разбор заголовка и `100` дублирующих `INSERT ... ON CONFLICT` в `sellers`/`seller_identities`/`channels` на каждый чанк одного магазина.
++- 🔍 **Условные триггеры FTS5.** В триггеры `products_au` и `canonical_products_au` (с автоматическим обновлением на существующих БД) добавлено условие `WHEN`, чтобы обычное обновление цены или времени проверки не переписывало полнотекстовые индексы `products_fts` и `canonical_products_fts`.
++- 🧭 **Дифференциальная сверка источников и новые индексы.** Добавлены индексы `idx_product_sources_shop_url` и `idx_offers_ext_sku`. В `_reconcile_source_conn` убрана безусловная перезапись всех строк источника (`active=0` ставится только исчезнувшим товарам, `active=1` — только новым/вернувшимся, проверка снятия выполняется порциями по 500 по разнице множеств). На источнике `shopkz` (`13 511` товаров) число модифицируемых строк за сверку снизилось с `27 023` до `58`, время удержания — с `176.6 мс` до `71.0 мс`.
++- 🪶 **Короткие транзакции наблюдений и AI-ключей.** В `_apply_retire_transition` выборка `watched_offers` вынесена за пределы `BEGIN IMMEDIATE` (удержание снизилось с `114.3 мс` до `5.3 мс` на 500 товарах); `refresh_retired_watches` и `update_products_canonical_keys` разбиты на короткие батчи; синхронные обращения к кэшу AI-ключей в `normalize_product_titles_batch` перенесены в `asyncio.to_thread`.
++- 🤝 **Согласованное продление захвата очереди.** `_keep_queue_claim` учитывает продление `claim_expires_at`, уже выполненное внутри `spool_apply_chunk` и `spool_finish_core`, не создавая конкурирующих вызовов `spool_renew` из другого пула во время активной записи чанков.
++- 🧪 **Проверка на стенде и регрессии:** полная волна 36 магазинов на стенде (`23 184` товара) прошла с `0` ошибок `OperationalError` / `Захват не продлён`, `slow_count = 0`, `max_hold_ms = 559.4 мс`. Добавлен набор `tests/core/test_write_tx_contention.py` (5 тестов).
++
+ ## [6.4.11] - 2026-10-28
+ 
+ ### Для пользователей
+diff --git a/ROADMAP_AND_LOG.md b/ROADMAP_AND_LOG.md
+index d35b89c..54fdcca 100644
+--- a/ROADMAP_AND_LOG.md
++++ b/ROADMAP_AND_LOG.md
+@@ -6,7 +6,13 @@
+ 
+ ---
+ 
+-## [Не выпущено] 6.4.11 — G05 для конкурирующих обработчиков (Claude, 28.10.2026)
++## [Не выпущено] 6.4.12 — устранение длительного удержания write-транзакций SQLite, Задача 2 из P-6.4.12 (Antigravity, 28.10.2026)
++
++- 🔍 **По логам первого старта 6.4.11 на проде**: зафиксировано одно сообщение `[Queue Worker] Захват не продлён: OperationalError` во время волны обхода.
++- 🛠️ **Исправлено**: добавлен встроенный трекинг длительности write-транзакций SQLite (`/api/diag` → `database.write_tx`), условные `WHEN`-триггеры FTS5 (`products_au`, `canonical_products_au`), индексы `idx_product_sources_shop_url` и `idx_offers_ext_sku`, дифференциальная сверка `_reconcile_source_conn`, уменьшенный `SPOOL_CHUNK_SIZE=100` с кэшированием `seen_sellers` и `canonical_key` внутри пачки, вынос `watched_offers` из-под `BEGIN IMMEDIATE` в `_apply_retire_transition`, батчирование `refresh_retired_watches` и `update_products_canonical_keys`, согласование `_keep_queue_claim` с продлением захвата в `spool_apply_chunk`/`spool_finish_core`.
++- 📊 **Замеры на стенде (`4 CPU / 15 ГБ`, база `113 450` товаров)**: чанк записи сократился со `133.7 мс` (`5 180` row changes) до `19.0 мс` (`1 011` row changes); сверка `shopkz` (`13 511` товаров) — со `176.6 мс` (`27 023` row changes) до `71.0 мс` (`58` row changes); `_apply_retire_transition` (500 товаров) — со `114.3 мс` до `5.26 мс`. Полная волна 36 магазинов (`23 184` товара) на стенде прошла без `OperationalError` и `DB Slow Write` (`max_hold_ms = 559.4 мс`, `slow_count = 0`). Python 1860 OK, фронтенд 19/19. Не выпущено, ждёт приёмки Codex.
++
++## [Выпущено] 6.4.11 — G05 для конкурирующих обработчиков (Claude, 28.10.2026)
+ 
+ - 🔍 **Приёмка Codex 6.4.10**: последовательный повтор принят; два одновременных обработчика одного задания давали два уведомления. Отчёт: [ACCEPTANCE_2026-10-28_V6410_CODEX.md](docs/ACCEPTANCE_2026-10-28_V6410_CODEX.md).
+ - 🛠️ **Исправлено**: фаза и поколение задания проверяются в транзакции записи; удаление — только своего поколения. Python 1855 OK, фронтенд 19/19. Не выпущено; Codex попрошено проверить механизм watch_refresh целиком.
+diff --git a/ai_service.py b/ai_service.py
+index cab5ca9..1bf06b6 100644
+--- a/ai_service.py
++++ b/ai_service.py
+@@ -1041,7 +1041,7 @@ async def normalize_product_titles_batch(
+                           get_recent_ai_attempts, record_ai_attempts)
+ 
+     unique = list(dict.fromkeys(t for t in titles if t and t.strip()))
+-    results: Dict[str, str] = dict(get_cached_canonical_keys_batch(unique))
++    results: Dict[str, str] = dict(await asyncio.to_thread(get_cached_canonical_keys_batch, unique))
+     heuristic: Dict[str, str] = {}
+     missing_for_ai: List[str] = []
+ 
+@@ -1056,7 +1056,8 @@ async def normalize_product_titles_batch(
+             missing_for_ai.append(t)
+ 
+     # Найденные эвристикой ключи сохраняются в постоянный кэш
+-    save_cached_canonical_keys_batch(heuristic)
++    if heuristic:
++        await asyncio.to_thread(save_cached_canonical_keys_batch, heuristic)
+     if not missing_for_ai:
+         return results
+ 
+@@ -1065,7 +1066,7 @@ async def normalize_product_titles_batch(
+         return results
+ 
+     # Недавние неудачи не повторяем
+-    recent = get_recent_ai_attempts(missing_for_ai, AI_RETRY_DAYS)
++    recent = await asyncio.to_thread(get_recent_ai_attempts, missing_for_ai, AI_RETRY_DAYS)
+     for t in missing_for_ai:
+         if t in recent:
+             results[t] = ""
+@@ -1132,10 +1133,11 @@ async def normalize_product_titles_batch(
+                 if orig in chunk and valid_ai_canonical_key(ckey):
+                     new_cached[orig] = ckey
+         results.update(new_cached)
+-        save_cached_canonical_keys_batch(new_cached)
++        if new_cached:
++            await asyncio.to_thread(save_cached_canonical_keys_batch, new_cached)
+ 
+         # Все названия пакета помечаются попыткой: без ключа они не уйдут в AI еще AI_RETRY_DAYS дней
+-        record_ai_attempts(chunk)
++        await asyncio.to_thread(record_ai_attempts, chunk)
+         for t in chunk:
+             results.setdefault(t, "")
+ 
+diff --git a/database.py b/database.py
+index 6a83efd..aaed7f0 100644
+--- a/database.py
++++ b/database.py
+@@ -1,4 +1,5 @@
+ import os
++import sys
+ import json
+ import re
+ import time
+@@ -7,6 +8,7 @@ import hashlib
+ import secrets
+ import datetime
+ import logging
++import threading
+ from typing import Optional, Dict, Any, List
+ from config import DB_PATH, get_scan_interval_seconds, merge_user_settings
+ 
+@@ -92,27 +94,48 @@ def _reconcile_source_conn(conn, shop_key, source_url, product_ids, complete=Fal
+                         ON CONFLICT(shop_key, source_url) DO UPDATE SET observed_seq = excluded.observed_seq""",
+                      (shop_key, source_url, observed_seq))
+     ids = {str(pid) for pid in product_ids}
++    existing_active = {
++        r[0] for r in conn.execute(
++            "SELECT product_id FROM product_sources WHERE shop_key = ? AND source_url = ? AND active = 1",
++            (shop_key, source_url),
++        )
++    }
+     active_before: set = set()
+     if complete and ids:
+         active_before = {r[0] for r in conn.execute(
+             "SELECT p.id FROM products p JOIN product_sources ps ON ps.product_id = p.id "
+             "WHERE ps.shop_key = ? AND ps.source_url = ? AND p.is_active = 1", (shop_key, source_url))}
+-        conn.execute("UPDATE product_sources SET active=0 WHERE shop_key=? AND source_url=?", (shop_key, source_url))
+-    conn.executemany("""INSERT INTO product_sources(product_id,shop_key,source_url,active)
+-        VALUES (?,?,?,1) ON CONFLICT(product_id,shop_key,source_url) DO UPDATE SET active=1""",
+-        [(pid, shop_key, source_url) for pid in ids])
++        to_deactivate = sorted(existing_active - ids)
++        for i in range(0, len(to_deactivate), 500):
++            chunk = to_deactivate[i:i + 500]
++            marks = ",".join("?" * len(chunk))
++            conn.execute(
++                f"UPDATE product_sources SET active=0 WHERE shop_key=? AND source_url=? AND product_id IN ({marks})",
++                (shop_key, source_url, *chunk),
++            )
++    to_activate = sorted(ids - existing_active)
++    if to_activate:
++        conn.executemany("""INSERT INTO product_sources(product_id,shop_key,source_url,active)
++            VALUES (?,?,?,1) ON CONFLICT(product_id,shop_key,source_url) DO UPDATE SET active=1""",
++            [(pid, shop_key, source_url) for pid in to_activate])
+     if complete and ids:
+-        conn.execute("""UPDATE products SET is_active=0 WHERE id IN
+-            (SELECT product_id FROM product_sources WHERE shop_key=? AND source_url=?)
++        conn.execute("""UPDATE products SET is_active=0 WHERE is_active=1 AND id IN
++            (SELECT product_id FROM product_sources WHERE shop_key=? AND source_url=? AND active=0)
+             AND NOT EXISTS (SELECT 1 FROM product_sources s WHERE s.product_id=products.id AND s.active=1)""",
+             (shop_key, source_url))
+         _retire_mirrored_offers_conn(conn, shop_key, source_url)
+     if not active_before:
+         return []
+-    marks = ",".join("?" * len(active_before))
+-    retired = [r[0] for r in conn.execute(f"SELECT id FROM products WHERE is_active = 0 AND id IN ({marks})",
+-                                          sorted(active_before))]
+-    _queue_watch_refresh_conn(conn, retired)
++    disappeared = sorted(active_before - ids)
++    retired: List[str] = []
++    for i in range(0, len(disappeared), 500):
++        chunk = disappeared[i:i + 500]
++        marks = ",".join("?" * len(chunk))
++        retired.extend(
++            r[0] for r in conn.execute(f"SELECT id FROM products WHERE is_active = 0 AND id IN ({marks})", chunk)
++        )
++    if retired:
++        _queue_watch_refresh_conn(conn, retired)
+     return retired
+ 
+ 
+@@ -156,20 +179,22 @@ def refresh_retired_watches(product_ids: List[str]) -> None:
+     ids = [str(pid) for pid in product_ids]
+     if not ids:
+         return
+-    retire = _watch_refresh_jobs(ids, "retire")
+-    if retire:
+-        _apply_retire_transition(retire)
+-    current = _watch_refresh_jobs(ids, "current")
+-    if not current:
+-        return  # задания уже выполнены другим путём (возврат товара, старт, обслуживание)
+-    returned = [o for o in watched_offers(list(current)) if o.get("is_available")]
+-    if returned:
+-        evaluate_watches(returned)
+-    with get_connection() as conn:
+-        for pid, gen in current.items():
+-            conn.execute("DELETE FROM watch_refresh WHERE product_id = ? AND phase = 'current' AND gen = ?",
+-                         (pid, gen))
+-        conn.commit()
++    for start in range(0, len(ids), 500):
++        page_ids = ids[start:start + 500]
++        retire = _watch_refresh_jobs(page_ids, "retire")
++        if retire:
++            _apply_retire_transition(retire)
++        current = _watch_refresh_jobs(page_ids, "current")
++        if not current:
++            continue  # задания уже выполнены другим путём (возврат товара, старт, обслуживание)
++        returned = [o for o in watched_offers(list(current)) if o.get("is_available")]
++        if returned:
++            evaluate_watches(returned)
++        with get_connection() as conn:
++            for pid, gen in current.items():
++                conn.execute("DELETE FROM watch_refresh WHERE product_id = ? AND phase = 'current' AND gen = ?",
++                             (pid, gen))
++            conn.commit()
+ 
+ 
+ def watch_refresh_pending(product_ids: List[str]) -> List[str]:
+@@ -485,11 +510,250 @@ def prune_search_analytics(days: Optional[int] = None,
+     return deleted
+ 
+ 
++SLOW_WRITE_TX_SECONDS = float(os.getenv("SLOW_WRITE_TX_SECONDS", "2.0"))
++_WRITE_TX_LOCK = threading.Lock()
++_WRITE_TX_STATS: Dict[str, Dict[str, Any]] = {}
++_SLOW_WRITE_TX_LOG: List[Dict[str, Any]] = []
++_WRITE_VERBS = ("INSERT", "UPDATE", "DELETE", "REPLACE", "CREATE", "DROP", "ALTER")
++_INTERNAL_FRAME_NAMES = frozenset({
++    "_run_tracked", "execute", "executemany", "cursor", "_resolve_caller_op",
++    "get_connection", "_connect",
++})
++
++
++def _classify_sql(sql: str) -> str:
++    head = sql.lstrip()[:24].upper()
++    if head.startswith("BEGIN"):
++        if "IMMEDIATE" in head or "EXCLUSIVE" in head:
++            return "begin_write"
++        return "begin_deferred"
++    if head.startswith(("COMMIT", "END")):
++        return "commit"
++    if head.startswith("ROLLBACK"):
++        return "rollback"
++    for verb in _WRITE_VERBS:
++        if head.startswith(verb):
++            return "write"
++    return "other"
++
++
++def _resolve_caller_op() -> str:
++    try:
++        frame = sys._getframe(2)
++        while frame is not None:
++            name = frame.f_code.co_name
++            if name not in _INTERNAL_FRAME_NAMES:
++                return name
++            frame = frame.f_back
++    except ValueError:
++        pass
++    return "unknown"
++
++
++def get_write_tx_stats() -> Dict[str, Any]:
++    """Сводка длительности write-транзакций SQLite по операциям (удержание и ожидание блокировки)."""
++    with _WRITE_TX_LOCK:
++        ops = {k: dict(v) for k, v in _WRITE_TX_STATS.items()}
++        slow = list(_SLOW_WRITE_TX_LOG)
++    max_hold_ms = max((v["max_hold_ms"] for v in ops.values()), default=0.0)
++    max_wait_ms = max((v["max_wait_ms"] for v in ops.values()), default=0.0)
++    return {
++        "threshold_seconds": SLOW_WRITE_TX_SECONDS,
++        "max_hold_ms": round(max_hold_ms, 2),
++        "max_wait_ms": round(max_wait_ms, 2),
++        "slow_count": sum(v["slow_count"] for v in ops.values()),
++        "operations": ops,
++        "recent_slow": slow,
++    }
++
++
++def reset_write_tx_stats() -> None:
++    """Сбрасывает статистику длительности write-транзакций (для тестов и замеров)."""
++    with _WRITE_TX_LOCK:
++        _WRITE_TX_STATS.clear()
++        _SLOW_WRITE_TX_LOG.clear()
++
++
++class TrackedCursor(sqlite3.Cursor):
++    def execute(self, sql, parameters=(), /):
++        return self.connection._run_tracked(super().execute, sql, parameters)
++
++    def executemany(self, sql, seq_of_parameters, /):
++        return self.connection._run_tracked(super().executemany, sql, seq_of_parameters)
++
++
+ class ClosingConnection(sqlite3.Connection):
++    def __init__(self, *args, **kwargs):
++        super().__init__(*args, **kwargs)
++        self._tx_started_at: Optional[float] = None
++        self._tx_acquired_at: Optional[float] = None
++        self._tx_wait_sec: float = 0.0
++        self._tx_op: str = "unknown"
++        self._tx_statements: int = 0
++
++    def cursor(self, factory=TrackedCursor):
++        return super().cursor(factory)
++
++    def execute(self, sql, parameters=(), /):
++        return self.cursor().execute(sql, parameters)
++
++    def executemany(self, sql, seq_of_parameters, /):
++        return self.cursor().executemany(sql, seq_of_parameters)
++
++    def _run_tracked(self, fn, sql, *args):
++        kind = _classify_sql(sql) if isinstance(sql, str) else "other"
++        if kind == "other":
++            return fn(sql, *args)
++        if kind in ("commit", "rollback"):
++            try:
++                return fn(sql, *args)
++            finally:
++                if self._tx_started_at is not None:
++                    self._finish_write_tx(kind)
++        if self._tx_started_at is None:
++            op = _resolve_caller_op()
++            t0 = time.monotonic()
++            res = fn(sql, *args)
++            t1 = time.monotonic()
++            self._tx_started_at = t0
++            self._tx_op = op
++            self._tx_statements = 1
++            if kind in ("begin_write", "write"):
++                self._tx_acquired_at = t1
++                self._tx_wait_sec = t1 - t0
++            else:
++                self._tx_acquired_at = None
++                self._tx_wait_sec = 0.0
++            if not self.in_transaction and self._tx_acquired_at is not None:
++                self._finish_write_tx("autocommit")
++            return res
++        self._tx_statements += 1
++        if self._tx_acquired_at is None and kind in ("begin_write", "write"):
++            t0 = time.monotonic()
++            res = fn(sql, *args)
++            t1 = time.monotonic()
++            self._tx_acquired_at = t1
++            self._tx_wait_sec += (t1 - t0)
++            if not self.in_transaction:
++                self._finish_write_tx("autocommit")
++            return res
++        res = fn(sql, *args)
++        if not self.in_transaction and self._tx_acquired_at is not None:
++            self._finish_write_tx("autocommit")
++        return res
++
++    def _finish_write_tx(self, outcome: str) -> None:
++        started = self._tx_started_at
++        acquired = self._tx_acquired_at
++        wait_sec = self._tx_wait_sec
++        op = self._tx_op
++        stmts = self._tx_statements
++        self._tx_started_at = None
++        self._tx_acquired_at = None
++        self._tx_wait_sec = 0.0
++        self._tx_op = "unknown"
++        self._tx_statements = 0
++        if started is None or acquired is None:
++            return
++        finished = time.monotonic()
++        hold_sec = max(0.0, finished - acquired)
++        total_sec = max(0.0, finished - started)
++        hold_ms = round(hold_sec * 1000.0, 2)
++        wait_ms = round(wait_sec * 1000.0, 2)
++        total_ms = round(total_sec * 1000.0, 2)
++        is_slow = hold_sec >= SLOW_WRITE_TX_SECONDS or total_sec >= SLOW_WRITE_TX_SECONDS
++        with _WRITE_TX_LOCK:
++            entry = _WRITE_TX_STATS.get(op)
++            if entry is None:
++                entry = {
++                    "count": 0,
++                    "commits": 0,
++                    "rollbacks": 0,
++                    "slow_count": 0,
++                    "total_hold_ms": 0.0,
++                    "max_hold_ms": 0.0,
++                    "max_wait_ms": 0.0,
++                    "max_total_ms": 0.0,
++                    "last_statements": 0,
++                }
++                _WRITE_TX_STATS[op] = entry
++            entry["count"] += 1
++            if outcome in ("commit", "autocommit"):
++                entry["commits"] += 1
++            else:
++                entry["rollbacks"] += 1
++            if is_slow:
++                entry["slow_count"] += 1
++            entry["total_hold_ms"] = round(entry["total_hold_ms"] + hold_ms, 2)
++            if hold_ms > entry["max_hold_ms"]:
++                entry["max_hold_ms"] = hold_ms
++            if wait_ms > entry["max_wait_ms"]:
++                entry["max_wait_ms"] = wait_ms
++            if total_ms > entry["max_total_ms"]:
++                entry["max_total_ms"] = total_ms
++            entry["last_statements"] = stmts
++            if is_slow:
++                _SLOW_WRITE_TX_LOG.append({
++                    "op": op,
++                    "outcome": outcome,
++                    "hold_ms": hold_ms,
++                    "wait_ms": wait_ms,
++                    "total_ms": total_ms,
++                    "statements": stmts,
++                    "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
++                })
++                if len(_SLOW_WRITE_TX_LOG) > 50:
++                    del _SLOW_WRITE_TX_LOG[:-50]
++        if is_slow:
++            print(
++                f"[DB Slow Write] op={op} outcome={outcome} hold={hold_sec:.3f}s "
++                f"wait={wait_sec:.3f}s total={total_sec:.3f}s stmts={stmts}"
++            )
++            try:
++                from telemetry import telemetry, SEVERITY_WARNING, COMPONENT_SYSTEM
++                telemetry.record_event(
++                    "db_slow_write",
++                    SEVERITY_WARNING,
++                    COMPONENT_SYSTEM,
++                    f"Slow SQLite write tx in {op}: hold={hold_sec:.3f}s wait={wait_sec:.3f}s",
++                    data={
++                        "op": op,
++                        "outcome": outcome,
++                        "hold_ms": hold_ms,
++                        "wait_ms": wait_ms,
++                        "total_ms": total_ms,
++                        "statements": stmts,
++                    },
++                )
++            except Exception:
++                pass
++
++    def commit(self):
++        try:
++            return super().commit()
++        finally:
++            if self._tx_started_at is not None:
++                self._finish_write_tx("commit")
++
++    def rollback(self):
++        try:
++            return super().rollback()
++        finally:
++            if self._tx_started_at is not None:
++                self._finish_write_tx("rollback")
++
++    def close(self):
++        if self._tx_started_at is not None:
++            self._finish_write_tx("close")
++        return super().close()
++
+     def __exit__(self, exc_type, exc_value, traceback):
++        in_tx = self._tx_started_at is not None
+         try:
+             return super().__exit__(exc_type, exc_value, traceback)
+         finally:
++            if in_tx and self._tx_started_at is not None:
++                self._finish_write_tx("rollback" if exc_type is not None else "commit")
+             self.close()
+ 
+ 
+@@ -772,6 +1036,7 @@ def _create_schema(cursor) -> None:
+     cursor.execute("CREATE INDEX IF NOT EXISTS idx_tracked_cat_active ON tracked_categories(is_active, last_scanned_at)")
+     cursor.execute("CREATE INDEX IF NOT EXISTS idx_price_obs_product ON price_observations(product_id, observed_at)")
+     cursor.execute("CREATE INDEX IF NOT EXISTS idx_price_obs_time ON price_observations(observed_at)")
++    cursor.execute("CREATE INDEX IF NOT EXISTS idx_product_sources_shop_url ON product_sources(shop_key, source_url, active)")
+ 
+     # Полнотекстовый индекс FTS5; перестраивается миграцией, а не при каждом старте
+     cursor.execute("""
+@@ -797,9 +1062,17 @@ def _create_schema(cursor) -> None:
+             VALUES('delete', old.rowid, old.id, old.title, old.shop, old.city, old.category);
+         END;
+     """)
+-    # Только при изменении индексируемых полей: обновление цены не переписывает индекс
++    # Только при фактическом изменении индексируемых полей: обновление цены не переписывает индекс
++    trig_row = cursor.execute(
++        "SELECT sql FROM sqlite_master WHERE type='trigger' AND name='products_au'"
++    ).fetchone()
++    if trig_row and "WHEN" not in (trig_row[0] or "").upper():
++        cursor.execute("DROP TRIGGER IF EXISTS products_au")
+     cursor.execute("""
+-        CREATE TRIGGER IF NOT EXISTS products_au AFTER UPDATE OF id, title, shop, city, category ON products BEGIN
++        CREATE TRIGGER IF NOT EXISTS products_au AFTER UPDATE OF id, title, shop, city, category ON products
++        WHEN old.id IS NOT new.id OR old.title IS NOT new.title OR old.shop IS NOT new.shop
++             OR old.city IS NOT new.city OR old.category IS NOT new.category
++        BEGIN
+             INSERT INTO products_fts(products_fts, rowid, id, title, shop, city, category)
+             VALUES('delete', old.rowid, old.id, old.title, old.shop, old.city, old.category);
+             INSERT INTO products_fts(rowid, id, title, shop, city, category)
+@@ -1189,7 +1462,10 @@ def _migration_fts_update_trigger(conn) -> None:
+     """Триггер FTS только на индексируемые поля (старый срабатывал на каждое обновление цены) + rebuild."""
+     conn.execute("DROP TRIGGER IF EXISTS products_au")
+     conn.execute("""
+-        CREATE TRIGGER products_au AFTER UPDATE OF id, title, shop, city, category ON products BEGIN
++        CREATE TRIGGER products_au AFTER UPDATE OF id, title, shop, city, category ON products
++        WHEN old.id IS NOT new.id OR old.title IS NOT new.title OR old.shop IS NOT new.shop
++             OR old.city IS NOT new.city OR old.category IS NOT new.category
++        BEGIN
+             INSERT INTO products_fts(products_fts, rowid, id, title, shop, city, category)
+             VALUES('delete', old.rowid, old.id, old.title, old.shop, old.city, old.category);
+             INSERT INTO products_fts(rowid, id, title, shop, city, category)
+@@ -1489,9 +1765,10 @@ def init_db():
+ def acquire_scheduler_lease(owner: str, ttl_seconds: float, name: str = "scan") -> bool:
+     """Берёт или продлевает аренду; False — действующая аренда у другого процесса."""
+     now = time.time()
+-    conn = sqlite3.connect(DB_PATH, timeout=15, isolation_level=None)
++    conn = sqlite3.connect(DB_PATH, timeout=15, isolation_level=None, factory=ClosingConnection)
+     try:
+         conn.execute("PRAGMA busy_timeout = 15000")
++        conn.execute("PRAGMA synchronous = NORMAL")
+         conn.execute("BEGIN IMMEDIATE")
+         row = conn.execute("SELECT owner, expires_at FROM scheduler_lease WHERE name = ?", (name,)).fetchone()
+         if row and row[0] != owner and row[1] > now:
+@@ -1660,9 +1937,11 @@ def update_products_canonical_keys(pairs: List[tuple]) -> int:
+     """Проставляет канонические ключи товарам: [(canonical_key, product_id), ...]."""
+     if not pairs:
+         return 0
+-    with get_connection() as conn:
+-        conn.executemany("UPDATE products SET canonical_key = ? WHERE id = ?", pairs)
+-        conn.commit()
++    for i in range(0, len(pairs), 200):
++        chunk = pairs[i:i + 200]
++        with get_connection() as conn:
++            conn.executemany("UPDATE products SET canonical_key = ? WHERE id = ?", chunk)
++            conn.commit()
+     return len(pairs)
+ 
+ PRICE_HISTORY_RETENTION_DAYS = 180
+@@ -1779,7 +2058,7 @@ def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
+             _DUAL_WRITE_STATS["total"] += 1
+             try:
+                 from domain.adapter import sync_legacy_product_to_v2
+-                sync_legacy_product_to_v2(conn, p, now)
++                sync_legacy_product_to_v2(conn, p, now, canonical_key=canonical_key)
+             except Exception as e:
+                 _record_dual_write_error(pid, e)
+ 
+@@ -1827,6 +2106,7 @@ def _save_products_chunk(conn, chunk: List[Dict[str, Any]], now: str, observed_s
+ 
+     cursor = conn.cursor()
+     updated_count = 0
++    seen_sellers: set = set()
+     for p in chunk:
+         pid = str(p["id"])
+         shop = p.get("shop", "Белый Ветер")
+@@ -1877,7 +2157,9 @@ def _save_products_chunk(conn, chunk: List[Dict[str, Any]], now: str, observed_s
+             _DUAL_WRITE_STATS["total"] += 1
+             try:
+                 from domain.adapter import sync_legacy_product_to_v2
+-                sync_legacy_product_to_v2(conn, p, now)
++                sync_legacy_product_to_v2(
++                    conn, p, now, canonical_key=canonical_key, seen_sellers=seen_sellers
++                )
+             except Exception as e:
+                 _record_dual_write_error(pid, e)
+ 
+@@ -3239,7 +3521,13 @@ def _apply_retire_transition(jobs: Dict[str, int]) -> List[str]:
+     Событий фаза 1 не создаёт.
+     """
+     import watches as w
++    if not jobs:
++        return []
+     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
++    with get_connection() as conn:
++        has_active_watches = conn.execute("SELECT 1 FROM watches WHERE is_active = 1 LIMIT 1").fetchone() is not None
++    preloaded_offers = watched_offers(list(jobs)) if has_active_watches else []
++
+     with get_connection() as conn:
+         conn.execute("BEGIN IMMEDIATE")
+         try:
+@@ -3252,16 +3540,23 @@ def _apply_retire_transition(jobs: Dict[str, int]) -> List[str]:
+                 conn.rollback()
+                 return []
+             active = [_watch_row(r) for r in conn.execute("SELECT * FROM watches WHERE is_active = 1")]
+-            for offer in watched_offers(still):
+-                for watch in active:
+-                    if not w.matches(watch, offer):
++            if active:
++                offers = preloaded_offers if preloaded_offers else watched_offers(still)
++                still_set = set(still)
++                for offer in offers:
++                    oid = str(offer.get("id") or "")
++                    ext = str(offer.get("external_sku") or "")
++                    if oid not in still_set and ext not in still_set:
+                         continue
+-                    conn.execute("""
+-                        INSERT INTO watch_state (watch_id, product_id, was_available, updated_at)
+-                        VALUES (?, ?, 0, ?)
+-                        ON CONFLICT(watch_id, product_id) DO UPDATE SET
+-                            was_available = 0, updated_at = excluded.updated_at
+-                    """, (watch["id"], _watch_scope_id(watch, offer), now))
++                    for watch in active:
++                        if not w.matches(watch, offer):
++                            continue
++                        conn.execute("""
++                            INSERT INTO watch_state (watch_id, product_id, was_available, updated_at)
++                            VALUES (?, ?, 0, ?)
++                            ON CONFLICT(watch_id, product_id) DO UPDATE SET
++                                was_available = 0, updated_at = excluded.updated_at
++                        """, (watch["id"], _watch_scope_id(watch, offer), now))
+             for pid in still:
+                 conn.execute("UPDATE watch_refresh SET phase = 'current' WHERE product_id = ? AND gen = ?",
+                              (pid, jobs[pid]))
+@@ -4146,7 +4441,7 @@ def retention_usage() -> List[Dict[str, Any]]:
+ # ---------------------------------------------------------------------------
+ 
+ SPOOL_CLAIM_SECONDS = 60.0
+-SPOOL_CHUNK_SIZE = 200
++SPOOL_CHUNK_SIZE = 100
+ SPOOL_ACTIVE = ("pending", "processing")
+ SPOOL_UNRESOLVED = ("dead_letter", "rejected")   # rejected — строки прежней версии (C05)
+ 
+diff --git a/diagnostics.py b/diagnostics.py
+index 41945a6..0f02925 100644
+--- a/diagnostics.py
++++ b/diagnostics.py
+@@ -118,6 +118,11 @@ def database_snapshot(connect: Callable[[], sqlite3.Connection], db_path) -> Dic
+                 "SELECT value FROM schema_metadata WHERE name = 'schema_version'").fetchone()[0]
+         except (sqlite3.Error, TypeError):
+             snap["schema_version"] = None
++        try:
++            import database
++            snap["write_tx"] = database.get_write_tx_stats()
++        except Exception:
++            pass
+     finally:
+         try:
+             conn.close()
+diff --git a/docs/AGENT_HANDOFF.md b/docs/AGENT_HANDOFF.md
+index eaf9c35..e73a910 100644
+--- a/docs/AGENT_HANDOFF.md
++++ b/docs/AGENT_HANDOFF.md
+@@ -2,6 +2,106 @@
+ 
+ Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
+ 
++## Передача аудитору: Задача 2 из P-6.4.12 (write-транзакции SQLite и продление захвата очереди, v6.4.12) → Codex (Antigravity, 2026-10-28)
++
++```text
++ID / этап: P-6.4.12 / Задача 2 (P1-риск, v6.4.12) — устранение длительного удержания write-транзакций SQLite (>15 с) и ошибки «[Queue Worker] Захват не продлён: OperationalError»
++Основание/поручение владельца: «Продолжай разработку.» (2026-10-28) по передаче P-6.4.12 (порядок: Задача 2 → Codex → Задача 1 → Codex → Задача 3 → Codex).
++Статус: READY_FOR_AUDIT
++Исполнитель / предыдущий / следующий: Antigravity / Claude / Codex (независимая приёмка Задачи 2)
++Базовый HEAD: main 33ee512 (origin/main = e380a0f = прод 6.4.11; push не выполнялся, прод не трогался).
++Версия: 6.4.12 (version.py, CHANGELOG.md с разделом «### Для пользователей», ROADMAP_AND_LOG.md).
++
++Корень проблемы (установлен замерами на базе стенда, 113 450 товаров, источник shopkz = 13 511 товаров):
++  1. Безусловное срабатывание обоих FTS5-триггеров (products_au и canonical_products_au) при каждом
++     UPDATE products / canonical_products даже тогда, когда менялись только price и last_seen (а текстовые
++     поля id/title/shop/city/category/brand/model не менялись). На чанке из 200 товаров это создавало
++     ~3 000 лишних операций удаления/вставки в FTS5 B-tree внутри транзакции.
++  2. Повторные апсерты одних и тех же продавцов и каналов (sellers, seller_identities, channels) и
++     повторный вызов extract_canonical_key(title) на каждом из 200 товаров одного магазина в
++     _save_products_chunk → sync_legacy_product_to_v2.
++  3. Отсутствие индекса product_sources(shop_key, source_url, active) и безусловный двойной UPDATE всех
++     строк источника в _reconcile_source_conn: для shopkz (13 511 товаров) выполнялись 4 полных скана
++     таблицы product_sources и перезаписывались 27 023 строки при каждом обходе.
++  4. Отсутствие индекса offers(external_sku) и выполнение тяжёлого запроса watched_offers внутри
++     BEGIN IMMEDIATE в _apply_retire_transition (даже когда активных наблюдений watches нет), а также
++     неразбитые батчи в refresh_retired_watches и update_products_canonical_keys.
++  5. Конкуренция продления захвата: _keep_queue_claim каждые 5 с вызывал queue_service.renew →
++     database.spool_renew из общего пула потоков, конкурируя за write-lock с идущей серией чанков
++     spool_apply_chunk (68 чанков подряд на shopkz), хотя каждый успешный spool_apply_chunk и
++     spool_finish_core уже сам продлевал claim_expires_at внутри своей write-транзакции.
++
++Что изменено:
++  * database.py:
++    - В ClosingConnection / TrackedCursor добавлен встроенный трекинг всех write-транзакций SQLite
++      (BEGIN → COMMIT/ROLLBACK) по имени операции: get_write_tx_stats(), reset_write_tx_stats(),
++      порог SLOW_WRITE_TX_SECONDS = 2.0 с логом [DB Slow Write] и записью в телеметрию (db_slow_write).
++    - Добавлен индекс idx_product_sources_shop_url ON product_sources(shop_key, source_url, active).
++    - В триггер products_au добавлено условие WHEN (с автоматическим обновлением старого триггера при
++      миграции/старте), исключающее перестроение FTS5 при неизменных id/title/shop/city/category.
++    - В _reconcile_source_conn: дифференциальное обновление product_sources (active=0 только для
++      existing_active - ids, active=1 только для ids - existing_active) и проверка снятия только по
++      реально ушедшим active_before - ids порциями по 500.
++    - В _apply_retire_transition: watched_offers вынесен за пределы BEGIN IMMEDIATE и пропускается,
++      если нет активных наблюдений; refresh_retired_watches разбит на батчи по 500.
++    - SPOOL_CHUNK_SIZE уменьшен с 200 до 100; в _save_products_chunk предрасчитанный canonical_key и
++      кэш seen_sellers передаются в sync_legacy_product_to_v2; update_products_canonical_keys разбит
++      на батчи по 200; в acquire_scheduler_lease подключён ClosingConnection + PRAGMA synchronous=NORMAL.
++  * repositories/schema_v2.py:
++    - Добавлен индекс idx_offers_ext_sku ON offers(external_sku).
++    - В триггер canonical_products_au добавлено условие WHEN (с автообновлением старого триггера).
++  * domain/adapter.py:
++    - sync_legacy_product_to_v2 принимает опциональные canonical_key и seen_sellers, избегая повторных
++      вызовов extract_canonical_key и повторных INSERT в sellers/seller_identities/channels внутри пачки.
++  * web/server.py:
++    - В single_db_writer_worker, _execute_queue_item и _keep_queue_claim учитывается время последнего
++      продления захвата (item["_last_renewed_at"]), выполненного внутри spool_apply_chunk /
++      spool_finish_core; между чанками добавлена короткая уступка asyncio.sleep(0.005). Атомарность и
++      проверка claim_token (R04) в каждой транзакции полностью сохранены.
++  * ai_service.py: синхронные обращения к SQLite в normalize_product_titles_batch обёрнуты в asyncio.to_thread.
++  * telemetry.py: в _connect() подключён database.ClosingConnection и PRAGMA synchronous=NORMAL.
++  * diagnostics.py: в /api/diag → database добавлено поле write_tx (database.get_write_tx_stats()).
++  * tests/core/test_write_tx_contention.py: 5 регрессионных тестов (все 5 падают на базовом HEAD 33ee512).
++
++Замеры ДО (6.4.11) и ПОСЛЕ (6.4.12) на базе стенда (113 450 товаров, 4 CPU / 15 ГБ):
++  * Запись чанка (_save_products_chunk):
++    - До (чанк 200): 133.7 ms, 5 180 row changes.
++    - После (чанк 200): 84.9 ms, 2 231 row changes; при новом SPOOL_CHUNK_SIZE=100: 19.0 ms, 1 011 row changes (в 7.0 раз короче удержание на чанк).
++  * Сверка источника (_reconcile_source_conn на shopkz, 13 511 товаров):
++    - До: 176.6 ms, 27 023 row changes (4 полных SCAN product_sources).
++    - После: 71.0 ms, 58 row changes (SEARCH product_sources USING INDEX idx_product_sources_shop_url; в 465 раз меньше перезаписей строк).
++  * Переход снятия (_apply_retire_transition на 500 товарах):
++    - До: 114.3 ms внутри BEGIN IMMEDIATE.
++    - После: 5.26 ms внутри BEGIN IMMEDIATE (в 21.7 раза короче).
++  * Выборка watched_offers (500 товаров):
++    - До: 66.1 ms (полный SCAN offers).
++    - После: 15.9 ms (по индексу idx_offers_ext_sku).
++  * Полная волна обхода на стенде kzph-stand (36 магазинов, 23 184 товара):
++    - Ошибки «Захват не продлён: OperationalError» / «database is locked» / «[DB Slow Write]»: 0.
++    - Снимок /api/diag после полной волны: problems=[], slow_count=0, max_hold_ms=559.39 ms (flush телеметрии),
++      spool_apply_chunk (256 чанков): max_hold_ms=329.66 ms, avg_hold_ms=62.08 ms, max_wait_ms=53.55 ms;
++      spool_finish_core (52 источника, включая shopkz 13 454 товара): max_hold_ms=247.88 ms, max_wait_ms=10.19 ms;
++      spool_renew: count=1, max_hold_ms=4.57 ms, max_wait_ms=31.36 ms;
++      _apply_retire_transition: max_hold_ms=3.28 ms; refresh_retired_watches: max_hold_ms=4.50 ms;
++      update_products_canonical_keys (9 батчей во время волны): max_hold_ms=4.84 ms, max_wait_ms=9.17 ms.
++
++Стенд и точки отката:
++  * Контейнер kzph-stand запущен через docker compose -f docker-compose.stand.yml (4 CPU / 15 ГБ).
++  * Тег отката образа: kzph-stand:6.4.11-rollback.
++  * Консистентный бэкап БД до правок: /app/data/backups/prices-pre-6.4.12-stand-20261028T182220412693Z-69cbe1.db.
++
++Проверки:
++  * Локально (macOS, Python 3.14.7, временный DATA_DIR): Ran 1860 tests in 95.316s — OK; все 19/19 tests/frontend/test_frontend*.cjs — PASS; release_gate.py secrets — ok (0 findings).
++  * Проверка регрессий во временном worktree на базовом HEAD 33ee512: Ran 5 tests — FAILED (failures=4, errors=1).
++  * В Linux-контейнере стенда (docker run --rm --network none --cpus 4 --memory 15g -e DATA_DIR=/tmp/kzph-test kzph-stand:local python3 -m unittest discover -s . -p "test_*.py"): Ran 1860 tests in 177.481s — OK.
++  * Локальная рабочая prices.db не затрагивалась.
++
++Следующий точный шаг:
++  * Независимая приёмка Задачи 2 (v6.4.12) аудитором Codex. После приёмки — переход к Задаче 1 из P-6.4.12.
++```
++
++---
++
+ ## Передача разработки: после выпуска 6.4.11 → Antigravity (Claude, 2026-10-28)
+ 
+ ```text
+diff --git a/domain/adapter.py b/domain/adapter.py
+index 12d9af9..bc7b3e6 100644
+--- a/domain/adapter.py
++++ b/domain/adapter.py
+@@ -193,6 +193,8 @@ def sync_legacy_product_to_v2(
+     conn: sqlite3.Connection,
+     product: Dict[str, Any],
+     now: Optional[str] = None,
++    canonical_key: Optional[str] = None,
++    seen_sellers: Optional[set] = None,
+ ) -> bool:
+     """
+     Saves or updates a legacy product dict into the v2 tables:
+@@ -228,68 +230,71 @@ def sync_legacy_product_to_v2(
+     if old_price is not None and (old_price <= price or old_price > 10_000_000):
+         old_price = None
+ 
+-    canonical_key = product.get("canonical_key") or extract_canonical_key(title)
++    canonical_key = canonical_key or product.get("canonical_key") or extract_canonical_key(title)
+     if not canonical_key:
+         norm_title = re.sub(r"[^a-zA-Z0-9а-яА-ЯёЁ]+", "_", title.lower()).strip("_")
+         canonical_key = f"norm:{category}:{norm_title}" if category else f"norm:{norm_title}"
+ 
+-    # 1. Resolve Seller
++    # 1. Resolve Seller & 2. Resolve Channel
+     seller_slug, seller_name, channel_type = resolve_seller_and_channel_meta(
+         shop_name, shop_key=product.get("shop_key")
+     )
+     seller_id = f"seller_{seller_slug}"
++    channel_id = f"chan_{seller_slug}_{channel_type}"
+ 
+     norm_dom = None
+     if channel_type in (ChannelType.WEBSITE, ChannelType.DIRECT) and url:
+         from domain.seller_identity import normalize_domain
+         norm_dom = normalize_domain(url)
+ 
+-    if norm_dom:
+-        conn.execute(
+-            """
+-            INSERT INTO sellers (id, slug, name, domain, is_active, created_at, updated_at)
+-            VALUES (?, ?, ?, ?, 1, ?, ?)
+-            ON CONFLICT(id) DO UPDATE SET
+-                domain = COALESCE(sellers.domain, excluded.domain),
+-                updated_at = excluded.updated_at
+-            """,
+-            (seller_id, seller_slug, seller_name, norm_dom, timestamp, timestamp),
+-        )
+-        # Идентификатор строится из самого отпечатка, а не только из продавца: иначе второй домен
+-        # того же продавца конфликтует по первичному ключу, предложение ON CONFLICT ниже его не
+-        # покрывает, и товар вообще не попадает в v2. Тот же приём уже применён в merge_sellers.
+-        ident_digest = hashlib.sha256(
+-            f"{seller_id}:domain:{norm_dom}".encode("utf-8")
+-        ).hexdigest()[:16]
+-        ident_id = f"ident_{ident_digest}"
+-        conn.execute(
+-            """
+-            INSERT INTO seller_identities (id, seller_id, identity_type, identity_value, confidence, source, created_at)
+-            VALUES (?, ?, 'domain', ?, 1.0, 'product_url', ?)
+-            ON CONFLICT(identity_type, identity_value, seller_id) DO NOTHING
+-            """,
+-            (ident_id, seller_id, norm_dom, timestamp),
+-        )
+-    else:
++    seller_cache_key = (seller_id, norm_dom, channel_id)
++    if seen_sellers is None or seller_cache_key not in seen_sellers:
++        if norm_dom:
++            conn.execute(
++                """
++                INSERT INTO sellers (id, slug, name, domain, is_active, created_at, updated_at)
++                VALUES (?, ?, ?, ?, 1, ?, ?)
++                ON CONFLICT(id) DO UPDATE SET
++                    domain = COALESCE(sellers.domain, excluded.domain),
++                    updated_at = excluded.updated_at
++                """,
++                (seller_id, seller_slug, seller_name, norm_dom, timestamp, timestamp),
++            )
++            # Идентификатор строится из самого отпечатка, а не только из продавца: иначе второй домен
++            # того же продавца конфликтует по первичному ключу, предложение ON CONFLICT ниже его не
++            # покрывает, и товар вообще не попадает в v2. Тот же приём уже применён в merge_sellers.
++            ident_digest = hashlib.sha256(
++                f"{seller_id}:domain:{norm_dom}".encode("utf-8")
++            ).hexdigest()[:16]
++            ident_id = f"ident_{ident_digest}"
++            conn.execute(
++                """
++                INSERT INTO seller_identities (id, seller_id, identity_type, identity_value, confidence, source, created_at)
++                VALUES (?, ?, 'domain', ?, 1.0, 'product_url', ?)
++                ON CONFLICT(identity_type, identity_value, seller_id) DO NOTHING
++                """,
++                (ident_id, seller_id, norm_dom, timestamp),
++            )
++        else:
++            conn.execute(
++                """
++                INSERT INTO sellers (id, slug, name, is_active, created_at, updated_at)
++                VALUES (?, ?, ?, 1, ?, ?)
++                ON CONFLICT(id) DO UPDATE SET updated_at = excluded.updated_at
++                """,
++                (seller_id, seller_slug, seller_name, timestamp, timestamp),
++            )
++
+         conn.execute(
+             """
+-            INSERT INTO sellers (id, slug, name, is_active, created_at, updated_at)
+-            VALUES (?, ?, ?, 1, ?, ?)
+-            ON CONFLICT(id) DO UPDATE SET updated_at = excluded.updated_at
++            INSERT INTO channels (id, seller_id, channel_type, name, is_active, created_at)
++            VALUES (?, ?, ?, ?, 1, ?)
++            ON CONFLICT(id) DO NOTHING
+             """,
+-            (seller_id, seller_slug, seller_name, timestamp, timestamp),
++            (channel_id, seller_id, channel_type, f"{seller_name} ({channel_type})", timestamp),
+         )
+-
+-    # 2. Resolve Channel
+-    channel_id = f"chan_{seller_slug}_{channel_type}"
+-    conn.execute(
+-        """
+-        INSERT INTO channels (id, seller_id, channel_type, name, is_active, created_at)
+-        VALUES (?, ?, ?, ?, 1, ?)
+-        ON CONFLICT(id) DO NOTHING
+-        """,
+-        (channel_id, seller_id, channel_type, f"{seller_name} ({channel_type})", timestamp),
+-    )
++        if seen_sellers is not None:
++            seen_sellers.add(seller_cache_key)
+ 
+     # 3. Canonical Product
+     hash_id = hashlib.sha256(canonical_key.encode("utf-8")).hexdigest()[:16]
+diff --git a/repositories/schema_v2.py b/repositories/schema_v2.py
+index f01d9f9..aa7e6eb 100644
+--- a/repositories/schema_v2.py
++++ b/repositories/schema_v2.py
+@@ -97,6 +97,7 @@ CREATE INDEX IF NOT EXISTS idx_offers_city ON offers(city);
+ CREATE INDEX IF NOT EXISTS idx_offers_price ON offers(price);
+ CREATE INDEX IF NOT EXISTS idx_offers_active ON offers(is_active);
+ CREATE INDEX IF NOT EXISTS idx_offers_condition ON offers(condition);
++CREATE INDEX IF NOT EXISTS idx_offers_ext_sku ON offers(external_sku);
+ CREATE UNIQUE INDEX IF NOT EXISTS uq_offers_channel_sku ON offers(channel_id, external_sku);
+ 
+ -- 5. Offer Price History
+@@ -198,7 +199,9 @@ CREATE TRIGGER IF NOT EXISTS canonical_products_ad AFTER DELETE ON canonical_pro
+     VALUES('delete', old.rowid, old.canonical_key, old.title, COALESCE(old.brand, ''), COALESCE(old.model, ''), old.category);
+ END;
+ 
+-CREATE TRIGGER IF NOT EXISTS canonical_products_au AFTER UPDATE OF title, brand, model, category ON canonical_products BEGIN
++CREATE TRIGGER IF NOT EXISTS canonical_products_au AFTER UPDATE OF title, brand, model, category ON canonical_products
++WHEN old.title IS NOT new.title OR old.brand IS NOT new.brand OR old.model IS NOT new.model OR old.category IS NOT new.category
++BEGIN
+     INSERT INTO canonical_products_fts(canonical_products_fts, rowid, canonical_key, title, brand, model, category)
+     VALUES('delete', old.rowid, old.canonical_key, old.title, COALESCE(old.brand, ''), COALESCE(old.model, ''), old.category);
+     INSERT INTO canonical_products_fts(rowid, canonical_key, title, brand, model, category)
+@@ -325,6 +328,11 @@ def init_schema_v2(conn: sqlite3.Connection) -> None:
+     Apply Schema 2.0 DDL to SQLite connection.
+     Idempotent and safe to run multiple times.
+     """
++    trig_row = conn.execute(
++        "SELECT sql FROM sqlite_master WHERE type='trigger' AND name='canonical_products_au'"
++    ).fetchone()
++    if trig_row and "WHEN" not in (trig_row[0] or "").upper():
++        conn.execute("DROP TRIGGER IF EXISTS canonical_products_au")
+     conn.executescript(DDL_V2)
+     # Additive columns for existing v2 tables
+     # Признак «источник действительно открывали» обязан переживать запись: без него профиль,
+diff --git a/telemetry.py b/telemetry.py
+index 9b46e2d..ea5eb32 100644
+--- a/telemetry.py
++++ b/telemetry.py
+@@ -560,9 +560,14 @@ class TelemetryService:
+     def _connect(self):
+         import database  # DB_PATH читается при каждом сбросе: тесты подменяют database.DB_PATH
+ 
+-        conn = sqlite3.connect(database.DB_PATH, timeout=DB_BUSY_TIMEOUT_SECONDS)
++        conn = sqlite3.connect(
++            database.DB_PATH,
++            timeout=DB_BUSY_TIMEOUT_SECONDS,
++            factory=database.ClosingConnection,
++        )
+         conn.row_factory = sqlite3.Row
+         conn.execute(f"PRAGMA busy_timeout = {int(DB_BUSY_TIMEOUT_SECONDS * 1000)}")
++        conn.execute("PRAGMA synchronous = NORMAL")
+         return conn
+ 
+     def flush(self) -> bool:
+diff --git a/version.py b/version.py
+index 73475ea..5f26617 100644
+--- a/version.py
++++ b/version.py
+@@ -2,7 +2,7 @@
+ KZ Price Hunter - Version Information
+ """
+ 
+-__version__ = "6.4.11"
++__version__ = "6.4.12"
+ __app_name__ = "KZ Price Hunter"
+ __release_date__ = "2026-10-28"
+ __author__ = "Advanced Agentic Coding"
+diff --git a/web/server.py b/web/server.py
+index 842a860..2a5e12d 100644
+--- a/web/server.py
++++ b/web/server.py
+@@ -1926,9 +1926,12 @@ async def _execute_queue_item(item):
+                 continue
+             if not await run_db(spool_apply_chunk, task_id, token, chunk_no, prods[start:start + SPOOL_CHUNK_SIZE]):
+                 raise ClaimLost(task_id)
++            item["_last_renewed_at"] = time.monotonic()
++            await asyncio.sleep(0.005)
+         if not await run_db(spool_finish_core, task_id, token, [p["id"] for p in prods],
+                             item.get("reconcile"), item.get("scan_log")):
+             raise ClaimLost(task_id)
++        item["_last_renewed_at"] = time.monotonic()
+ 
+     if prods:
+         # Товары, уже обновлённые более поздним обходом, не дают алертов и уведомлений по устаревшему
+@@ -1965,12 +1968,17 @@ async def _evaluate_retired_watches(product_ids, strict=False):
+ 
+ async def _keep_queue_claim(queue, item):
+     """Продлевает захват задачи, пока она выполняется; цикл событий занят — захват истечёт сам."""
++    step = max(1.0, queue.claim_seconds / 3)
+     while True:
+-        await asyncio.sleep(max(1.0, queue.claim_seconds / 3))
++        await asyncio.sleep(step)
++        last_renewed = item.get("_last_renewed_at")
++        if last_renewed is not None and (time.monotonic() - last_renewed) < step * 0.8:
++            continue
+         try:
+             if not await queue.renew(item):
+                 print(f"[Queue Worker] Захват {item['task_id']} потерян — запись будет отклонена журналом")
+                 return
++            item["_last_renewed_at"] = time.monotonic()
+         except Exception as e:
+             print(f"[Queue Worker] Захват не продлён: {type(e).__name__}")
+ 
+@@ -1991,6 +1999,7 @@ async def single_db_writer_worker(app=None):
+                 item = await product_queue.dequeue(timeout=0.5)
+                 if not item:
+                     continue
++                item["_last_renewed_at"] = time.monotonic()
+                 keeper = asyncio.create_task(_keep_queue_claim(product_queue, item))
+                 try:
+                     await _execute_queue_item(item)

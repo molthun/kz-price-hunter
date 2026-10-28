@@ -1,0 +1,19 @@
+[System] 📡 Модуль онлайн-логирования активирован.
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+test_upgrade_partial_200_chunk_to_100_preserves_drop (__main__.Audit.test_upgrade_partial_200_chunk_to_100_preserves_drop) ... Повтор задачи task_f7c4a25d706b4295875bf9a64013ba4b (Contract), попытка 1
+{"case": "upgrade", "original_price": 200, "saved_history_price": 200, "watch_events": 1}
+ok
+test_rollback_partial_100_chunk_to_real_6411_persists_all (__main__.Audit.test_rollback_partial_100_chunk_to_real_6411_persists_all) ... Повтор задачи task_b78e6101c065469a8de8024b480c6701 (Contract), попытка 1
+{"case": "rollback", "producer_chunk_size": 200, "release_gate_ok": true, "expected": 300, "persisted": 300, "remaining_tasks": 0, "previous_worker": "[System] \ud83d\udce1 \u041c\u043e\u0434\u0443\u043b\u044c \u043e\u043d\u043b\u0430\u0439\u043d-\u043b\u043e\u0433\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u044f \u0430\u043a\u0442\u0438\u0432\u0438\u0440\u043e\u0432\u0430\u043d.\n{\"ack\": true}"}
+Executing <Task finished name='Task-7' coro=<Audit.test_rollback_partial_100_chunk_to_real_6411_persists_all() done, defined at /private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph6412-audit-6d0ztiit-base/audit-results/acceptance.py:34> result=None created at /opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:110> took 0.340 seconds
+ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.491s
+
+OK
