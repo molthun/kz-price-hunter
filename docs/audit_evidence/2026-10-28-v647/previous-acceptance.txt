@@ -1,0 +1,29 @@
+[System] 📡 Модуль онлайн-логирования активирован.
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+test_derived_retry_preserves_retirement_transition (__main__.Acceptance.test_derived_retry_preserves_retirement_transition) ... Задача task_1ef465f64aab40fb940f22beb38251ac (Contract) превысила лимит повторов и помещена в dead-letter
+ok
+test_direct_path_retirement_and_return (__main__.Acceptance.test_direct_path_retirement_and_return) ... ok
+test_full_scan_without_item_retires_it_everywhere_and_return_restores (__main__.Acceptance.test_full_scan_without_item_retires_it_everywhere_and_return_restores) ... ok
+test_independent_seller_channel_is_not_retired (__main__.Acceptance.test_independent_seller_channel_is_not_retired) ... ok
+test_item_confirmed_by_another_active_source_stays (__main__.Acceptance.test_item_confirmed_by_another_active_source_stays) ... ok
+test_limited_and_failed_scans_do_not_retire (__main__.Acceptance.test_limited_and_failed_scans_do_not_retire) ... Задача task_97b75e0926f443a18fcafda38d762352 (Contract) превысила лимит повторов и помещена в dead-letter
+ok
+test_old_retry_after_newer_full_scan_does_not_retire (__main__.Acceptance.test_old_retry_after_newer_full_scan_does_not_retire) ... Задача task_9bdd841b7c6e4acb8c7a37a4afd2c448 (Contract) превысила лимит повторов и помещена в dead-letter
+ok
+test_startup_repair_updates_watch_memory_so_return_notifies (__main__.Acceptance.test_startup_repair_updates_watch_memory_so_return_notifies)
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+G02: старая база + наблюдение → init_db → возврат по прежней цене → одно «снова в продаже». ... ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+test_startup_repairs_offers_retired_before_the_fix (__main__.Acceptance.test_startup_repairs_offers_retired_before_the_fix) ... ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+test_upgrade_retirement_then_return_notifies_existing_watch (__main__.Acceptance.test_upgrade_retirement_then_return_notifies_existing_watch) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 0.752s
+
+OK
