@@ -2087,40 +2087,9 @@
         </button>
       </div>
 
-      <div class="py-4 text-xs text-slate-300 space-y-4 overflow-y-auto pr-2">
-        <div class="p-3.5 rounded-xl bg-slate-900/80 border border-emerald-500/30 space-y-1.5">
-          <div class="flex items-center justify-between">
-            <span class="font-bold text-emerald-400 text-sm">v2.1.0 (Текущая версия)</span>
-            <span class="text-[10px] text-slate-400 font-mono">2026-09-17</span>
-          </div>
-          <ul class="list-disc list-inside space-y-1 text-slate-300 text-[11px]">
-            <li><b>Выбор города:</b> Поддержка Астаны, Алматы, Шымкента, Караганды, Актобе, Павлодара, Усть-Каменогорска.</li>
-            <li><b>Авто-геолокация:</b> Определение города по GPS (HTML5 Geolocation) с расчетом кратчайшего расстояния или IP fallback.</li>
-            <li><b>Изоляция пользователей:</b> Полная независимость сессий пользователей через client-side localStorage.</li>
-            <li><b>Anti-DDoS & Cache-First:</b> Поиск по умолчанию обращается только к локальной БД (&lt; 15 мс) без сетевых запросов к сайтам магазинов.</li>
-            <li><b>TTL-кэширование:</b> Живые запросы к Kaspi и внешним ритейлерам кэшируются в памяти на 1 час.</li>
-          </ul>
-        </div>
-
-        <div class="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1.5">
-          <div class="flex items-center justify-between">
-            <span class="font-bold text-slate-200 text-sm">v2.0.0</span>
-            <span class="text-[10px] text-slate-500 font-mono">2026-09-17</span>
-          </div>
-          <ul class="list-disc list-inside space-y-1 text-slate-400 text-[11px]">
-            <li>Интеграция Kaspi Магазина (Playwright stealth headless) и Shop.kz.</li>
-            <li>Кросс-поиск самой низкой цены с выявлением лидера и экономии (₸).</li>
-            <li>Гибкие фильтры: диапазон цен, режим совпадения (AND/EXACT/OR), минус-слова.</li>
-          </ul>
-        </div>
-
-        <div class="p-3.5 rounded-xl bg-slate-900/40 border border-slate-800 space-y-1.5">
-          <div class="flex items-center justify-between">
-            <span class="font-bold text-slate-300 text-sm">v1.5.0</span>
-            <span class="text-[10px] text-slate-500 font-mono">2026-09-16</span>
-          </div>
-          <p class="text-slate-400 text-[11px]">Подключение 10 ритейлеров Казахстана: DNS, Мечта, Белый Ветер, Технодом, Sulpak, Alser, Эврика, Moon.kz, Forcecom.</p>
-        </div>
+      <!-- Наполняется из /api/changelog: разделы «Для пользователей» из CHANGELOG.md -->
+      <div id="changelogList" class="py-4 text-xs text-slate-300 space-y-4 overflow-y-auto pr-2">
+        <p class="text-slate-500">Загрузка…</p>
       </div>
 
       <div class="pt-3 border-t border-slate-800 text-right">
@@ -2566,9 +2535,50 @@
       }, durationMs);
     }
 
+    let changelogLoaded = false;
+
+    // Текст пунктов — из файла репозитория, но в DOM он попадает только экранированным;
+    // единственная разметка — **жирный** из Markdown
+    function changelogItemHtml(text) {
+      return escapeHtml(text).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+    }
+
+    async function loadChangelog() {
+      const box = document.getElementById('changelogList');
+      if (!box) return;
+      try {
+        const res = await fetch('/api/changelog');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        const releases = Array.isArray(data.releases) ? data.releases : [];
+        if (!releases.length) {
+          box.innerHTML = '<p class="text-slate-500">История версий пока пуста.</p>';
+          return;
+        }
+        box.innerHTML = releases.map((r, i) => {
+          const isCurrent = r.version === data.current;
+          const frame = i === 0 ? 'bg-slate-900/80 border-emerald-500/30' : 'bg-slate-900/50 border-slate-800';
+          const title = i === 0 ? 'text-emerald-400' : 'text-slate-200';
+          return `<div class="p-3.5 rounded-xl border space-y-1.5 ${frame}" data-version="${escapeHtml(r.version)}">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-sm ${title}">v${escapeHtml(r.version)}${isCurrent ? ' (Текущая версия)' : ''}</span>
+              <span class="text-[10px] text-slate-500 font-mono">${escapeHtml(r.date)}</span>
+            </div>
+            <ul class="list-disc list-inside space-y-1 text-slate-300 text-[11px]">
+              ${(r.items || []).map(t => `<li>${changelogItemHtml(t)}</li>`).join('')}
+            </ul>
+          </div>`;
+        }).join('');
+        changelogLoaded = true;
+      } catch (e) {
+        box.innerHTML = '<p class="text-rose-400">Не удалось загрузить историю версий. Попробуйте позже.</p>';
+      }
+    }
+
     function openChangelogModal() {
       const m = document.getElementById('modalChangelog');
       if (m) m.classList.remove('hidden');
+      if (!changelogLoaded) loadChangelog();
     }
 
     function closeChangelogModal() {

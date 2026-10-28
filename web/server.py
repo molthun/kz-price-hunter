@@ -254,6 +254,17 @@ async def run_db(func, *args):
 async def version_handler(request):
     return web.json_response(get_version_info())
 
+@routes.get("/api/changelog")
+async def changelog_handler(request):
+    """История версий для окна на сайте — разделы «Для пользователей» из CHANGELOG.md."""
+    import release_notes
+    try:
+        limit = min(50, max(1, int(request.query.get("limit", 30))))
+    except ValueError:
+        limit = 30
+    return web.json_response({"current": get_version_info()["version"],
+                              "releases": release_notes.releases(limit)})
+
 @routes.get("/api/live")
 async def live_handler(request):
     """Liveness probe: контейнер жив и сервер aiohttp мгновенно отвечает на TCP/HTTP."""
