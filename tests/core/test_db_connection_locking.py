@@ -71,6 +71,21 @@ class ConnectionOnBusyDatabaseTest(unittest.TestCase):
         with database.get_connection() as conn:
             self.assertEqual(conn.execute("PRAGMA busy_timeout;").fetchone()[0], 15000)
 
+    def test_connection_uses_normal_synchronous(self):
+        """synchronous не хранится в файле базы: без установки на каждом соединении оно
+        работало бы в FULL и делало полный fsync на каждом коммите (C-DB-03)."""
+        with database.get_connection() as conn:
+            self.assertEqual(conn.execute("PRAGMA synchronous;").fetchone()[0], 1)
+
+    def test_synchronous_is_set_even_while_a_writer_holds_the_database(self):
+        """Эта прагма блокировки не требует, поэтому возвращать C-DB-01 она не должна."""
+        holder = self._holder("BEGIN IMMEDIATE")
+        holder.execute("INSERT INTO products (title) VALUES ('скан')")
+        started = time.monotonic()
+        with database.get_connection() as conn:
+            self.assertEqual(conn.execute("PRAGMA synchronous;").fetchone()[0], 1)
+        self.assertLess(time.monotonic() - started, 5)
+
 
 class JournalModeSetupTest(unittest.TestCase):
     def setUp(self):
