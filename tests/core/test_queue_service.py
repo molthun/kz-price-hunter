@@ -1,5 +1,6 @@
 """Тесты для queue_service и Single DB-Writer Worker."""
 
+from tests import test_support  # noqa: F401
 import asyncio
 import os
 import shutil
