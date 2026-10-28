@@ -31,6 +31,9 @@ ERRORS_WARN_PER_HOUR = 20
 RECENT_ERRORS_LIMIT = 20
 FRESH_START_SECONDS = 300
 
+# Формат текстовой метки событий телеметрии — тот же, что пишет сам telemetry.py.
+EVENT_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
+
 _STARTED_AT = time.time()
 
 
@@ -108,10 +111,13 @@ def recent_errors(connect: Callable[[], sqlite3.Connection], hours: float = 1.0,
                   limit: int = RECENT_ERRORS_LIMIT) -> Dict[str, Any]:
     """Свежие системные ошибки из телеметрии: что именно ломается прямо сейчас.
 
-    Отбор идёт по `created_at` — это epoch-секунды, выставляемые самой базой, поэтому
-    фильтр не зависит от формата текстовой метки и часового пояса процесса.
+    Отбор идёт по `timestamp`, а не по `created_at`: по первой колонке есть индекс
+    (`idx_telemetry_events_ts`), и запрос берёт диапазон, не читая всю таблицу. За 30 дней
+    хранения событий там сотни тысяч строк, и полный просмотр сделал бы снимок дорогим —
+    особенно на занятой базе, где он ещё и ждал бы блокировку.
     """
-    cutoff = time.time() - hours * 3600
+    cutoff = (datetime.datetime.now(datetime.timezone.utc)
+              - datetime.timedelta(hours=hours)).strftime(EVENT_TIMESTAMP_FORMAT)
     result: Dict[str, Any] = {"window_hours": hours, "total": 0, "by_component": {}, "last": []}
     try:
         conn = connect()
@@ -121,13 +127,13 @@ def recent_errors(connect: Callable[[], sqlite3.Connection], hours: float = 1.0,
     try:
         rows = conn.execute(
             "SELECT timestamp, component, type, severity, message FROM telemetry_events "
-            "WHERE severity IN ('ERROR', 'CRITICAL') AND created_at >= ? "
-            "ORDER BY created_at DESC LIMIT ?", (cutoff, limit)).fetchall()
+            "WHERE timestamp >= ? AND severity IN ('ERROR', 'CRITICAL') "
+            "ORDER BY timestamp DESC LIMIT ?", (cutoff, limit)).fetchall()
         result["last"] = [{"at": r[0], "component": r[1], "type": r[2], "severity": r[3],
                            "message": (r[4] or "")[:300]} for r in rows]
         totals = conn.execute(
             "SELECT component, count(*) FROM telemetry_events "
-            "WHERE severity IN ('ERROR', 'CRITICAL') AND created_at >= ? GROUP BY component",
+            "WHERE timestamp >= ? AND severity IN ('ERROR', 'CRITICAL') GROUP BY component",
             (cutoff,)).fetchall()
         result["by_component"] = {r[0]: r[1] for r in totals}
         result["total"] = sum(result["by_component"].values())

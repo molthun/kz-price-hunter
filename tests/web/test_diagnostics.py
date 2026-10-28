@@ -1,5 +1,6 @@
 """Диагностический снимок: доступ, состав и выводы о проблемах. Без сети."""
 from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+import datetime
 import sqlite3
 import tempfile
 import time
@@ -102,21 +103,38 @@ class DatabaseSnapshotTest(unittest.TestCase):
         self.assertIn("database is locked", snap["error"])
 
     def test_recent_errors_are_collected(self):
+        """Окно отбирается по индексированной колонке timestamp, поэтому метки — относительные."""
+        now = datetime.datetime.now(datetime.timezone.utc)
+
+        def stamp(minutes):
+            return (now - datetime.timedelta(minutes=minutes)).strftime(diagnostics.EVENT_TIMESTAMP_FORMAT)
+
         conn = self._connect()
-        now = time.time()
         conn.executemany(
             "INSERT INTO telemetry_events (timestamp, type, severity, component, message, created_at) "
             "VALUES (?, ?, ?, ?, ?, ?)",
-            [("2026-10-28T10:00:00.000Z", "scan_failed", "ERROR", "scraper", "Zeta упал", now - 60),
-             ("2026-10-28T09:59:00.000Z", "db_locked", "CRITICAL", "system", "database is locked", now - 120),
-             ("2026-10-28T09:00:00.000Z", "ok", "INFO", "system", "всё хорошо", now - 60),
-             ("2026-10-27T10:00:00.000Z", "old", "ERROR", "scraper", "вчерашняя", now - 90000)])
+            [(stamp(1), "scan_failed", "ERROR", "scraper", "Zeta упал", 0),
+             (stamp(2), "db_locked", "CRITICAL", "system", "database is locked", 0),
+             (stamp(3), "ok", "INFO", "system", "всё хорошо", 0),
+             (stamp(60 * 25), "old", "ERROR", "scraper", "вчерашняя", 0)])
         conn.commit()
         conn.close()
         errors = diagnostics.recent_errors(self._connect, hours=1)
         self.assertEqual(errors["total"], 2, "берутся только ошибки за окно, без INFO и вчерашних")
         self.assertEqual(errors["by_component"], {"scraper": 1, "system": 1})
         self.assertEqual(errors["last"][0]["message"], "Zeta упал")
+
+    def test_recent_errors_use_the_timestamp_index(self):
+        """Снимок не должен читать всю телеметрию: за 30 дней там сотни тысяч строк."""
+        conn = self._connect()
+        conn.execute("CREATE INDEX idx_telemetry_events_ts ON telemetry_events(timestamp, type)")
+        plan = " ".join(str(r[-1]) for r in conn.execute(
+            "EXPLAIN QUERY PLAN SELECT timestamp FROM telemetry_events "
+            "WHERE timestamp >= ? AND severity IN ('ERROR', 'CRITICAL') "
+            "ORDER BY timestamp DESC LIMIT 20", ("2026-01-01T00:00:00.000Z",)))
+        conn.close()
+        self.assertIn("idx_telemetry_events_ts", plan)
+        self.assertNotIn("TEMP B-TREE", plan, "сортировка должна идти по индексу")
 
 
 class ProblemDetectionTest(unittest.TestCase):
