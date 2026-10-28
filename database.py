@@ -209,16 +209,30 @@ def watch_refresh_pending(product_ids: List[str]) -> List[str]:
     return pending
 
 
-def drain_watch_refresh(page: int = 500) -> int:
-    """Выполняет все накопленные задания обновления памяти наблюдений. Возвращает их число."""
+def watch_refresh_count() -> int:
+    """Число накопленных заданий обновления памяти наблюдений (G03)."""
+    with get_connection() as conn:
+        return conn.execute("SELECT COUNT(*) FROM watch_refresh").fetchone()[0]
+
+
+def drain_watch_refresh(page: int = 500, max_pages: Optional[int] = None) -> int:
+    """Выполняет накопленные задания обновления памяти наблюдений страницами по page.
+
+    По умолчанию (max_pages=None) разбирает всю очередь до конца; при заданном max_pages
+    выполняет не более указанного числа страниц за вызов (для фонового разбора после старта
+    HTTP-сервера без блокировки порта и цикла событий). Возвращает число обработанных заданий.
+    """
     done = 0
-    while True:
+    pages = 0
+    while max_pages is None or pages < max_pages:
         with get_connection() as conn:
             ids = [r[0] for r in conn.execute("SELECT product_id FROM watch_refresh ORDER BY rowid LIMIT ?", (page,))]
         if not ids:
             return done
         refresh_retired_watches(ids)
         done += len(ids)
+        pages += 1
+    return done
 
 
 def _has_table(conn, name: str) -> bool:
@@ -1788,13 +1802,9 @@ def init_db():
         _create_schema(conn.cursor())
         conn.commit()
     run_migrations(backup_done=backup_done)
+    # В init_db остаётся только быстрая транзакционная сверка снятых offers и постановка заданий
+    # в watch_refresh; сам разбор drain_watch_refresh идёт фоном после открытия HTTP-порта (P-6.4.12 / Задача 1).
     sync_retired_offers()
-    try:
-        refreshed = drain_watch_refresh()
-        if refreshed:
-            print(f"[DB] G03: память наблюдений обновлена по {refreshed} снятым товарам")
-    except Exception as e:  # noqa: BLE001 — задания остаются и будут повторены при следующем старте
-        print(f"[DB] G03: память наблюдений не обновлена, повтор при следующем старте: {type(e).__name__}")
     cleanup_expired_sessions()
     reset_stale_running_scans()
 

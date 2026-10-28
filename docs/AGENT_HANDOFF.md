@@ -2,6 +2,109 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## Приёмка Задачи 1 P-6.4.12 / кандидат 6.4.13 — Codex (2026-10-29)
+
+- Основание: «готово проверяй». HEAD `72e1f73` + 7 исходных dirty-файлов, staged пуст.
+  Проверена отдельная фиксированная копия; перед отчётом HEAD/хеши не изменились, чужие правки сохранены.
+- Статус: **НА ДОРАБОТКУ: S01 P2**. Ранний /api/live и постраничный drain проходят.
+- S01: _run_db_shielded хранит coroutine от async run_db, shield запускает её как Task;
+  при cancel повторный await coroutine даёт «coroutine is being awaited already», ошибка подавляется.
+  Воркер уже завершён, а страница продолжает писать. Дважды: 600 заданий при завершении
+  отменённого воркера → 100 после позднего завершения страницы. Повреждение/потеря данных не утверждаются.
+- Полный suite: **1873 OK, 93.572 с**; адаптированная независимая матрица watch_refresh:
+  **29 OK**; 2 независимые проверки отмены — FAIL дважды; secrets и diff check PASS.
+- Отчёт: [ACCEPTANCE_2026-10-29_V6413_TASK1_CODEX.md](ACCEPTANCE_2026-10-29_V6413_TASK1_CODEX.md).
+  Свидетельства: `docs/audit_evidence/2026-10-29-v6413-task1/` (snapshot, patch, сценарии, логи).
+- Следующий шаг: разработчику ожидание той же запущенной Task/Future при отмене, regression
+  «cancel во время страницы → cleanup ждёт → остаток сохранён» → повторная приёмка Задачи 1.
+  T01/T02 ранее приняты; Задача 3 ещё следующая. Код приложения, рабочая БД, стенд и прод не менялись.
+
+---
+
+## Передача аудитору: Задача 1 из P-6.4.12 (фоновый drain_watch_refresh после открытия порта, v6.4.13) → Codex (Antigravity, 2026-10-29)
+
+```text
+ID / этап: P-6.4.12 / Задача 1 (P2, v6.4.13) — тяжёлая стартовая работа (drain_watch_refresh) не должна держать порт закрытым
+Основание/поручение владельца: «Аудит прошли. Продолжим» (2026-10-29) после приёмки Задачи 2 Codex.
+Статус: READY_FOR_AUDIT
+Исполнитель / предыдущий / следующий: Antigravity / Codex (приёмка Задачи 2) / Codex (независимая приёмка Задачи 1)
+Базовый HEAD: main 72e1f73 (origin/main = e380a0f = прод 6.4.11; push не выполнялся, прод не трогался).
+Версия: 6.4.13 (version.py, CHANGELOG.md с разделом «### Для пользователей», ROADMAP_AND_LOG.md).
+
+Корень проблемы (зафиксирован на проде при первом старте 6.4.11):
+  database.init_db() вызывается синхронно внутри create_app() до биндинга HTTP-сокета. На проде при первом
+  запуске 6.4.11 в очереди watch_refresh оказалось 20 725 снятых товаров, и синхронный drain_watch_refresh()
+  держал контейнер в статусе starting несколько минут, пока снаружи отдавался 502.
+
+Что изменено (6 файлов + этот реестр):
+  1. database.py:
+     - Добавлена функция watch_refresh_count() -> int (подсчёт числа заданий в watch_refresh).
+     - В drain_watch_refresh(page: int = 500, max_pages: Optional[int] = None) -> int добавлен опциональный
+       параметр max_pages (по умолчанию None — разбирает всю очередь до конца, как прежде; при max_pages=1
+       разбирает ровно одну страницу в 500 заданий).
+     - Из init_db() убран синхронный вызов drain_watch_refresh(); оставлен только быстрый транзакционный
+       sync_retired_offers() (снятие предложений в offers и постановка заданий в watch_refresh).
+     - Примечание для аудитора: старый скрипт docs/audit_evidence/2026-10-28-v6411/mechanism.py в двух
+       местах (строки 75 и 115) проверял полный разбор очереди через одиночный вызов db.init_db() без
+       веб-сервера и без db.drain_watch_refresh(); поскольку по ТЗ Задачи 1 init_db() больше не выполняет
+       drain_watch_refresh() синхронно, без запуска фонового воркера или явного drain_watch_refresh()
+       задания остаются в очереди до старта HTTP-сервера / daily_maintenance_worker.
+  2. web/server.py:
+     - Добавлены WATCH_REFRESH_STARTUP_PAGE = 500, _run_db_shielded(func, *args) (защищает выполняющийся
+       в _db_executor вызов страницы через asyncio.shield и дожидается завершения текущей короткой страницы
+       при отмене фоновой задачи во время остановки приложения) и корутина startup_watch_refresh_worker(app=None),
+       которая после открытия порта разбирает watch_refresh через run_db страницами по 500 с уступкой
+       event loop (await asyncio.sleep(0)) между страницами и логом прогресса:
+       «[DB] G03: фоновое обновление памяти наблюдений — {done}/{total}».
+     - В background_tasks(app) добавлен запуск startup_refresh_task = asyncio.create_task(startup_watch_refresh_worker(app))
+       с сохранением в app["startup_watch_refresh_task"] и корректной отменой в блоке finally.
+     - Семантика watch_refresh (двухфазный переход retire -> current, поколение gen, проверка в транзакции
+       записи) не изменялась. При сбое фонового drain невыполненные страницы остаются в watch_refresh и
+       повторяются при следующем старте или суточном обслуживании (daily_maintenance_worker).
+  3. tests/core/test_offer_retirement.py:
+     - Добавлен хелпер await self.startup() (database.init_db() + await server.startup_watch_refresh_worker())
+       для трёх существующих тестов, проверяющих полный стартовый цикл без поднятия HTTP-сервера.
+     - Добавлены 2 новых регрессионных теста (всего в файле 18 тестов):
+       * test_startup_with_20000_watch_refresh_jobs_opens_port_before_background_drain_finishes:
+         база с 20 501 заданием в watch_refresh -> create_app() не разбирает очередь синхронно (остаток
+         после create_app() равен 20 501), TestServer открывает порт и GET /api/live отвечает 200 до
+         завершения фонового drain, после чего фоновая задача разбирает все 42 страницы до 0 и для
+         возвращённого товара создаёт событие «снова в продаже».
+       * test_background_watch_refresh_failure_keeps_remaining_jobs_for_retry:
+         база с 1 201 заданием, сбой (OperationalError) на 2-й странице фонового воркера при старте
+         TestServer(create_app()) -> 1-я страница (500) выполнена, оставшиеся 701 сохранены в watch_refresh,
+         сервер продолжает отвечать 200 на /api/live, последующий drain_watch_refresh() разбирает остаток до 0.
+  4. version.py, CHANGELOG.md, ROADMAP_AND_LOG.md — версия 6.4.13 (с разделом «### Для пользователей»).
+
+Проведенные проверки:
+  1. Падение новых регрессий на коде до исправления (git worktree на 72e1f73 с новым test_offer_retirement.py):
+     FAILED (failures=2) — оба новых теста падают по поведению (на 72e1f73 create_app()/init_db() синхронно
+     разбирает все 20 501 заданий до открытия порта и синхронно вызывает refresh_retired_watches).
+  2. Локально (macOS, временный DATA_DIR):
+     - tests/core/test_offer_retirement.py: Ran 18 tests in 2.501s — OK.
+     - Полный Python suite: Ran 1873 tests in 97.684s — OK.
+     - Фронтенд-тесты: 19/19 PASS.
+     - ./venv/bin/python release_gate.py secrets --root . -> ok: true, findings: [].
+     - git diff --check -> пусто.
+  3. На тестовом стенде (192.168.28.25:2222, /home/molthun/kzph-stand):
+     - Точка отката перед выкладкой: образ kzph-stand:6.4.12-rollback, консистентный бэкап БД
+       /app/data/prices.db.before-6.4.13-backup.
+     - Контейнер kzph-stand пересобран и запущен на 6.4.13:
+       /api/live -> {"status": "live"}, /api/version -> 6.4.13, /api/health -> status: ok, db: ok, queue: ok.
+     - Изолированный прогон полного набора тестов в Linux-контейнере стенда
+       (docker run --rm --network none --cpus 4 --memory 15g -e DATA_DIR=/tmp/kzph-test kzph-stand:local python3 -m unittest discover -s . -p "test_*.py"):
+       Ran 1873 tests in 183.257s — OK.
+
+Не проверялось / ограничения:
+  - Реальный старт на проде (origin/main не пушился).
+
+Следующий точный шаг:
+  - Независимая приёмка Задачи 1 (v6.4.13) аудитором Codex.
+  - После приёмки Задачи 1 — Antigravity переходит к Задаче 3 из P-6.4.12 (исправление парсеров Эврика и Alser).
+```
+
+---
+
 ## Повторная приёмка T01/T02 Задачи 2 — Codex (2026-10-29)
 
 - Основание: «поправил проверь». Снимок main `303d452`, исходно чистый checkout.

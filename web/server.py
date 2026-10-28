@@ -3542,13 +3542,85 @@ async def auto_scan_background_worker(app):
             telemetry.record_system_error(COMPONENT_SCHEDULER, "auto_scan_worker", e)
             await asyncio.sleep(15)
 
+WATCH_REFRESH_STARTUP_PAGE = 500
+
+
+async def _run_db_shielded(func, *args):
+    """Выполняет синхронную операцию БД в пуле и при отмене дожидается её завершения (S01).
+
+    Задача создаётся один раз и ожидается через asyncio.wait, которое при отмене ожидающего
+    саму задачу не трогает. Отмена (в том числе повторная) запоминается и поднимается только
+    после завершения операции: отменённый вызывающий не завершится, пока страница ещё пишет
+    в базу. Страница короткая и ограничена по размеру. Ошибка самой операции после отмены
+    логируется; наружу уходит отмена.
+    """
+    task = asyncio.ensure_future(run_db(func, *args))
+    cancelled = False
+    while not task.done():
+        try:
+            await asyncio.wait({task})
+        except asyncio.CancelledError:
+            cancelled = True
+    if cancelled:
+        if not task.cancelled() and task.exception() is not None:
+            print(f"[DB] Операция {getattr(func, '__name__', func)} завершилась ошибкой во время остановки: "
+                  f"{type(task.exception()).__name__}")
+        raise asyncio.CancelledError()
+    return task.result()
+
+
+async def startup_watch_refresh_worker(app=None) -> int:
+    """Фоновый разбор заданий watch_refresh после открытия HTTP-порта (P-6.4.12 / Задача 1).
+
+    Выполняется страницами через run_db, чтобы тысячи накопленных заданий не держали порт
+    закрытым на старте. При сбое невыполненные задания остаются в watch_refresh и повторяются
+    суточным обслуживанием или следующим стартом (G03).
+    """
+    import database as db
+    done = 0
+    try:
+        total = await _run_db_shielded(db.watch_refresh_count)
+        if not total:
+            return 0
+        page_size = WATCH_REFRESH_STARTUP_PAGE
+        if total > page_size:
+            print(f"[DB] G03: фоновое обновление памяти наблюдений запущено ({total} заданий, страницами по {page_size})")
+        while True:
+            before = await _run_db_shielded(db.watch_refresh_count)
+            if not before:
+                break
+            processed = await _run_db_shielded(db.drain_watch_refresh, page_size, 1)
+            if not processed:
+                break
+            done += processed
+            if total > page_size:
+                print(f"[DB] G03: фоновое обновление памяти наблюдений — {done}/{total}")
+            after = await _run_db_shielded(db.watch_refresh_count)
+            if after >= before and done >= total:
+                break
+            await asyncio.sleep(0)
+        if done:
+            print(f"[DB] G03: память наблюдений обновлена по {done} снятым товарам")
+        return done
+    except asyncio.CancelledError:
+        if done:
+            print(f"[DB] G03: фоновое обновление памяти наблюдений прервано на {done} товарах (остаток в очереди)")
+        raise
+    except Exception as e:  # noqa: BLE001 — задания остаются в watch_refresh и будут повторены
+        print(f"[DB] G03: память наблюдений не обновлена, повтор при следующем старте: {type(e).__name__}")
+        return done
+
+
 async def background_tasks(app):
     from queue_service import product_queue
     await product_queue.initialize()
 
     from telegram_bot import run_telegram_bot_task
+    startup_refresh_task = asyncio.create_task(startup_watch_refresh_worker(app))
+    app["startup_watch_refresh_task"] = startup_refresh_task
     tasks = [
         asyncio.create_task(single_db_writer_worker(app)),
+        startup_refresh_task,
         asyncio.create_task(auto_scan_background_worker(app)),
         asyncio.create_task(ai_normalize_background_worker(app)),
         asyncio.create_task(notification_worker()),

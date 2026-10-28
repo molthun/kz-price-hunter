@@ -174,14 +174,20 @@ class OfferRetirementTest(QueueContractBase):
         self.assert_available("drift", True)
         self.assertEqual([e["reason"] for e in self.events()], ["товар снова в продаже"])
 
+    async def startup(self):
+        """Полный старт сервиса: быстрая синхронная init_db + фоновый разбор watch_refresh."""
+        from web import server
+        database.init_db()
+        await server.startup_watch_refresh_worker()
+
     async def test_memory_repair_survives_failure_and_restart(self):
         """G03-A: сбой обновления памяти при старте повторяется следующим стартом."""
         await self.prepare_old_base()
         with patch.object(database, "_apply_retire_transition", side_effect=sqlite3.OperationalError("synthetic")):
-            database.init_db()
+            await self.startup()
         self.assert_available("drift", False)
         self.assertEqual(self.refresh_jobs("drift"), 1, "задание потеряно после сбоя")
-        database.init_db()
+        await self.startup()
         self.assertEqual(self.refresh_jobs("drift"), 0)
         await self.assert_return_notifies_once()
 
@@ -193,9 +199,9 @@ class OfferRetirementTest(QueueContractBase):
             conn.execute("DELETE FROM watch_refresh")
             conn.execute("DELETE FROM schema_metadata WHERE name = ?", (database.WATCH_REFRESH_SEED,))
             conn.commit()
-        database.init_db()
+        await self.startup()
         self.assertEqual(self.refresh_jobs("drift"), 0)
-        database.init_db()  # повторный старт ничего не досевает заново
+        await self.startup()  # повторный старт ничего не досевает заново
         await self.assert_return_notifies_once()
 
     async def test_failed_retired_watch_refresh_in_queue_is_retried(self):
@@ -223,11 +229,11 @@ class OfferRetirementTest(QueueContractBase):
         """G04: сбой при старте → товар вернулся раньше повтора → повтор; одно «снова в продаже»."""
         await self.prepare_old_base()
         with patch.object(database, "_apply_retire_transition", side_effect=sqlite3.OperationalError("synthetic")):
-            database.init_db()
+            await self.startup()
         self.assertEqual(self.refresh_jobs("drift"), 1)
         await self.assert_return_notifies_once()        # возврат до повтора задания
         self.assertEqual(self.refresh_jobs("drift"), 0, "переход снятия не применён при возврате")
-        database.init_db()                               # повтор заданий: дубля нет
+        await self.startup()                             # повтор заданий: дубля нет
         self.assertEqual([e["reason"] for e in self.events()], ["товар снова в продаже"])
 
     async def test_deferred_refresh_after_return_applies_transition_in_order(self):
@@ -352,3 +358,122 @@ class OfferRetirementTest(QueueContractBase):
             phase = conn.execute("SELECT phase FROM watch_refresh WHERE product_id = ?",
                                  (self.pid("drift"),)).fetchone()
         self.assertEqual(phase[0] if phase else None, "retire", "новое снятие потеряно старым вызовом")
+
+    async def test_startup_with_20000_watch_refresh_jobs_opens_port_before_background_drain_finishes(self):
+        """P-6.4.12 / Задача 1: база с 20 000+ заданиями watch_refresh не держит порт закрытым при старте."""
+        from aiohttp.test_utils import TestClient, TestServer
+        from web import server
+
+        await self.prepare_old_base()
+        bulk_ids = [f"bulk-{self.tag}-{i}" for i in range(20_500)]
+        with database.get_connection() as conn:
+            conn.execute("DELETE FROM watch_refresh")
+            database._queue_watch_refresh_conn(conn, [self.pid("drift"), *bulk_ids])
+            conn.commit()
+        total_seeded = len(bulk_ids) + 1
+
+        orig_refresh = database.refresh_retired_watches
+        first_page_started = threading.Event()
+        release_drain = threading.Event()
+        pages_seen = []
+
+        def gated_refresh(product_ids):
+            pages_seen.append(len(product_ids))
+            if len(pages_seen) == 1:
+                first_page_started.set()
+                release_drain.wait(timeout=2.0)
+            return orig_refresh(product_ids)
+
+        async def noop_worker(*_args, **_kwargs):
+            return
+
+        with (
+            patch.object(database, "refresh_retired_watches", side_effect=gated_refresh),
+            patch.object(server, "auto_scan_background_worker", side_effect=noop_worker),
+            patch.object(server, "ai_normalize_background_worker", side_effect=noop_worker),
+            patch.object(server, "notification_worker", side_effect=noop_worker),
+        ):
+            t0 = time.monotonic()
+            app = server.create_app()
+            create_app_elapsed = time.monotonic() - t0
+            with database.get_connection() as conn:
+                after_create_app = conn.execute("SELECT COUNT(*) FROM watch_refresh").fetchone()[0]
+            self.assertEqual(
+                after_create_app,
+                total_seeded,
+                "create_app()/init_db() не должен синхронно разбирать watch_refresh до открытия порта",
+            )
+            self.assertLess(create_app_elapsed, 1.5)
+
+            async with TestClient(TestServer(app)) as client:
+                resp = await client.get("/api/live")
+                self.assertEqual(resp.status, 200)
+                self.assertEqual(await resp.json(), {"status": "live"})
+                with database.get_connection() as conn:
+                    pending_at_live = conn.execute("SELECT COUNT(*) FROM watch_refresh").fetchone()[0]
+                self.assertGreater(
+                    pending_at_live,
+                    0,
+                    "/api/live должен отвечать 200 до окончания фонового разбора 20 000+ заданий",
+                )
+                release_drain.set()
+                task = app.get("startup_watch_refresh_task")
+                self.assertIsNotNone(task)
+                drained = await task
+                self.assertEqual(drained, total_seeded)
+
+        with database.get_connection() as conn:
+            remaining = conn.execute("SELECT COUNT(*) FROM watch_refresh").fetchone()[0]
+        self.assertEqual(remaining, 0)
+        self.assertGreaterEqual(len(pages_seen), 41)
+        await self.assert_return_notifies_once()
+
+    async def test_background_watch_refresh_failure_keeps_remaining_jobs_for_retry(self):
+        """P-6.4.12 / Задача 1: при сбое фонового drain невыполненные задания остаются и повторяются."""
+        from aiohttp.test_utils import TestClient, TestServer
+        from web import server
+
+        await self.prepare_old_base()
+        bulk_ids = [f"failbulk-{self.tag}-{i}" for i in range(1_200)]
+        with database.get_connection() as conn:
+            conn.execute("DELETE FROM watch_refresh")
+            database._queue_watch_refresh_conn(conn, [*bulk_ids, self.pid("drift")])
+            conn.commit()
+
+        orig_refresh = database.refresh_retired_watches
+        calls = 0
+
+        def fail_second_page(product_ids):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise sqlite3.OperationalError("synthetic page 2 failure")
+            return orig_refresh(product_ids)
+
+        async def noop_worker(*_args, **_kwargs):
+            return
+
+        with (
+            patch.object(database, "refresh_retired_watches", side_effect=fail_second_page),
+            patch.object(server, "auto_scan_background_worker", side_effect=noop_worker),
+            patch.object(server, "ai_normalize_background_worker", side_effect=noop_worker),
+            patch.object(server, "notification_worker", side_effect=noop_worker),
+        ):
+            app = server.create_app()
+            self.assertEqual(calls, 0, "create_app() не должен вызывать refresh_retired_watches синхронно")
+            async with TestClient(TestServer(app)) as client:
+                task = app.get("startup_watch_refresh_task")
+                self.assertIsNotNone(task)
+                done_before_fail = await task
+                self.assertEqual(done_before_fail, 500)
+                resp = await client.get("/api/live")
+                self.assertEqual(resp.status, 200)
+
+        with database.get_connection() as conn:
+            remaining = conn.execute("SELECT COUNT(*) FROM watch_refresh").fetchone()[0]
+        self.assertEqual(remaining, 701, "оставшиеся страницы должны сохраниться для повтора")
+
+        # Повтор (суточное обслуживание или следующий старт) доводит остаток до конца
+        self.assertEqual(database.drain_watch_refresh(), 701)
+        self.assertEqual(self.refresh_jobs("drift"), 0)
+        await self.assert_return_notifies_once()
