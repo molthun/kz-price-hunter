@@ -1,0 +1,134 @@
+[
+  {
+    "name": "fallback_task_id_loses_retry",
+    "accepted": true,
+    "has_task_id": true,
+    "queue_after_nack": 0,
+    "spool": {
+      "pending": 0,
+      "processing": 0,
+      "dead_letter": 0,
+      "rejected": 0
+    },
+    "next_item": null
+  },
+  {
+    "name": "unreadable_spool_false_drained",
+    "drained": true,
+    "actual_pending": 1
+  },
+  {
+    "name": "old_rejection_poison_new_scan",
+    "new_scan_drained": false,
+    "health": {
+      "status": "ok",
+      "db": "ok",
+      "queue_size": 0,
+      "dead_letters": 0,
+      "redis_active": false,
+      "worker_running": true
+    },
+    "spool": {
+      "pending": 0,
+      "processing": 0,
+      "dead_letter": 0,
+      "rejected": 1
+    }
+  },
+  {
+    "name": "dead_letters_still_ready",
+    "http": 200,
+    "body": {
+      "status": "ok",
+      "db": "ok",
+      "queue_size": 0,
+      "dead_letters": 1,
+      "redis_active": false,
+      "worker_running": true
+    }
+  },
+  {
+    "name": "ack_blocks_event_loop",
+    "timer_20ms_seconds": 0.478
+  },
+  {
+    "name": "real_sigkill_recovery",
+    "producer_returncode": -9,
+    "recovery_returncode": 0,
+    "recovered": [
+      {
+        "name": "recovery_child",
+        "generation": 1,
+        "item_generation": 2,
+        "execution_result": false,
+        "written": 0,
+        "spool": {
+          "pending": 0,
+          "processing": 0,
+          "dead_letter": 0,
+          "rejected": 1
+        }
+      }
+    ]
+  },
+  {
+    "name": "second_start_steals_processing",
+    "recovered": 1,
+    "same_task": true
+  },
+  {
+    "name": "lease_lost_after_guard_still_writes",
+    "lost": true,
+    "execution_result": true,
+    "written": 1,
+    "spool": {
+      "pending": 0,
+      "processing": 0,
+      "dead_letter": 0,
+      "rejected": 0
+    }
+  },
+  {
+    "name": "retry_loses_price_transition",
+    "events": 0,
+    "spool": {
+      "pending": 0,
+      "processing": 0,
+      "dead_letter": 0,
+      "rejected": 0
+    }
+  },
+  {
+    "name": "price_transition_positive_control",
+    "events": 1
+  },
+  {
+    "name": "stale_candidate_still_wins_limit",
+    "limit1": [
+      {
+        "id": "p0",
+        "min": null
+      }
+    ],
+    "limit50": [
+      {
+        "id": "p1",
+        "min": 100.0
+      },
+      {
+        "id": "p0",
+        "min": null
+      }
+    ]
+  },
+  {
+    "name": "sql_exact_ttl_contradiction",
+    "first_product": "p0",
+    "python_expired": true
+  },
+  {
+    "name": "disabled_stale_offer_watch",
+    "available": 1,
+    "new_events": 1
+  }
+]

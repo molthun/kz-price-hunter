@@ -1,0 +1,31 @@
+{
+  "commit": "d33fcc8a748669bf9cfeade99bd1aeb5ada9fa7e",
+  "nano_cpus": 0,
+  "memory_bytes": 0,
+  "health": "healthy",
+  "diagnostics": {
+    "generated_at": "2026-10-28T11:57:52.467964+00:00",
+    "service": {
+      "version": "6.4.2",
+      "release_date": "2026-10-28",
+      "uptime_seconds": 994.7,
+      "started_at": "2026-10-28T11:41:17.761091+00:00"
+    },
+    "runtime": {
+      "python": "3.14.4",
+      "platform": "linux",
+      "cpu_count": 16,
+      "thread_pool_size": 32,
+      "threads_alive": 11,
+      "rss_mb": 318.3,
+      "event_loop_lag_ms": 0.6
+    },
+    "queue": {
+      "size": 0,
+      "redis_active": true,
+      "worker_running": true
+    },
+    "problems": [],
+    "status": "ok"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "head": "7358a1e13e7e304fc5b9eba0a2faa8aba37aae14",
+  "implementation": "d33fcc8a748669bf9cfeade99bd1aeb5ada9fa7e",
+  "remote_main": "70427f55de165ec0143fa1f47edc8642ab5dadd9",
+  "python_tests": 1792,
+  "python_seconds": 81.236,
+  "python_result": "OK",
+  "author_tests": 5,
+  "author_result": "OK",
+  "frontend_suites": 18,
+  "frontend_result": "PASS",
+  "queue_module_tests": 6,
+  "linux_counterexample_results": 13,
+  "linux_environment": "stand image; ephemeral container; --network none --cpus=4 --memory=15g; no mounts; temporary DATA_DIR",
+  "application_changes": false,
+  "production_changes": false,
+  "queue_module_result": "OK",
+  "findings": {
+    "P1": 7,
+    "P2": 3,
+    "P3": 1
+  },
+  "decision": "return_for_revision"
+}

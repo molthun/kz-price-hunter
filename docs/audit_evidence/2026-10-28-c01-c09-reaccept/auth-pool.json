@@ -1,0 +1,11 @@
+{
+  "/api/live": {
+    "completed_while_pool_busy": true
+  },
+  "/api/health": {
+    "completed_while_pool_busy": true
+  },
+  "/api/readiness": {
+    "completed_while_pool_busy": false
+  }
+}
