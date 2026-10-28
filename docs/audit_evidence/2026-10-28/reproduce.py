@@ -75,7 +75,7 @@ async def main():
 
     # Readiness accepts a database with no application tables.
     original=database.DB_PATH;database.DB_PATH=Path(os.environ['DATA_DIR'])/'empty.db'
-    try:result('readiness_empty_database',ready=server._check_db_readiness_sync(),size_bytes=database.DB_PATH.stat().st_size)
+    try:result('readiness_empty_database',ready=server._check_db_readiness_sync(),size_bytes=database.DB_PATH.stat().st_size if database.DB_PATH.exists() else 0)
     finally:database.DB_PATH=original
 
     from aiohttp.test_utils import make_mocked_request

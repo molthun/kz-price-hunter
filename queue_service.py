@@ -27,6 +27,7 @@ QUEUE_KEY = "kzph:products:queue"
 STATS_CACHE_KEY_PREFIX = "kzph:stats:"
 DEFAULT_REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 DEFAULT_REDIS_HOST = os.getenv("REDIS_HOST", "127.0.0.1")
+DEFAULT_COMMAND_TIMEOUT = float(os.getenv("REDIS_COMMAND_TIMEOUT", "0.2"))
 
 
 def _is_port_open(host: str, port: int, timeout: float = 0.3) -> bool:
@@ -109,7 +110,15 @@ class MiniRedisClient:
             self._writer = None
             self._reader = None
 
-    async def _send_command(self, *args: str) -> Any:
+    async def _send_command(self, *args: str, timeout: Optional[float] = None) -> Any:
+        to = timeout if timeout is not None else DEFAULT_COMMAND_TIMEOUT
+        try:
+            return await asyncio.wait_for(self._send_command_locked(*args), timeout=to)
+        except (asyncio.TimeoutError, TimeoutError, asyncio.CancelledError) as e:
+            await self.close()
+            raise TimeoutError(f"Таймаут команды Redis {args[0] if args else ''} ({to}с)") from e
+
+    async def _send_command_locked(self, *args: str) -> Any:
         async with self._lock:
             if not self.is_connected():
                 if not await self.connect():
@@ -124,10 +133,13 @@ class MiniRedisClient:
 
             assert self._writer is not None
             assert self._reader is not None
-            self._writer.writelines(buf)
-            await self._writer.drain()
-
-            return await self._read_response()
+            try:
+                self._writer.writelines(buf)
+                await self._writer.drain()
+                return await self._read_response()
+            except Exception:
+                await self.close()
+                raise
 
     async def _read_response(self) -> Any:
         assert self._reader is not None
@@ -159,34 +171,34 @@ class MiniRedisClient:
         else:
             raise ValueError(f"Неизвестный префикс RESP: {prefix}")
 
-    async def ping(self) -> bool:
+    async def ping(self, timeout: Optional[float] = None) -> bool:
         try:
-            res = await self._send_command("PING")
+            res = await self._send_command("PING", timeout=timeout)
             return res == "PONG"
         except Exception:
             return False
 
-    async def rpush(self, key: str, value: str) -> int:
-        return await self._send_command("RPUSH", key, value)
+    async def rpush(self, key: str, value: str, timeout: Optional[float] = None) -> int:
+        return await self._send_command("RPUSH", key, value, timeout=timeout)
 
-    async def lpop(self, key: str) -> Optional[str]:
-        return await self._send_command("LPOP", key)
+    async def lpop(self, key: str, timeout: Optional[float] = None) -> Optional[str]:
+        return await self._send_command("LPOP", key, timeout=timeout)
 
-    async def llen(self, key: str) -> int:
+    async def llen(self, key: str, timeout: Optional[float] = None) -> int:
         try:
-            return await self._send_command("LLEN", key)
+            return await self._send_command("LLEN", key, timeout=timeout)
         except Exception:
             return 0
 
-    async def get(self, key: str) -> Optional[str]:
-        return await self._send_command("GET", key)
+    async def get(self, key: str, timeout: Optional[float] = None) -> Optional[str]:
+        return await self._send_command("GET", key, timeout=timeout)
 
-    async def setex(self, key: str, seconds: int, value: str) -> bool:
-        res = await self._send_command("SETEX", key, str(seconds), value)
+    async def setex(self, key: str, seconds: int, value: str, timeout: Optional[float] = None) -> bool:
+        res = await self._send_command("SETEX", key, str(seconds), value, timeout=timeout)
         return res == "OK"
 
-    async def delete(self, key: str) -> int:
-        return await self._send_command("DEL", key)
+    async def delete(self, key: str, timeout: Optional[float] = None) -> int:
+        return await self._send_command("DEL", key, timeout=timeout)
 
 
 # ---------------------------------------------------------------------------

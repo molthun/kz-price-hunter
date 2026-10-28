@@ -2,7 +2,45 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## Текущая контрольная точка — разбор аудита и передача Antigravity (Claude, 2026-10-28)
+## Текущая контрольная точка — завершение этапа 1 аудита (B01, B05, B07) (Antigravity, 2026-10-28)
+
+```text
+ID / этап: Этап 1 устранения замечаний аудита FULL_AUDIT_2026-10-28_CODEX (B01, B05, B07).
+Статус: Завершён (проверен воспроизведением reproduce.py и тестами)
+Исполнитель: Antigravity (основной разработчик, по поручению владельца «Давай»)
+Checkout / ветка: feature/audit-step1-b01-b05-b07, базовый HEAD: b9c73da
+Область файлов: web/server.py, queue_service.py, tests/web/test_health_and_pool.py, docs/audit_evidence/2026-10-28/reproduce.py.
+
+Выполнено:
+  B01 P1 — синхронный SQLite в event loop:
+    - Создан выделенный пул _db_executor = ThreadPoolExecutor(max_workers=16, thread_name_prefix="kzph-db").
+    - Функция run_db(func, *args) выносит все DB-операции в этот пул.
+    - Вызовы acquire_scheduler_lease, release_scheduler_lease, record_shop_scan_start,
+      record_shop_scan_result, get_metadata в stats_handler и auto_scan переведены на run_db.
+    - Воспроизведение reproduce.py: задержка таймера 20мс при удерживаемом SQLite-писателе снизилась
+      с 0.791с до 0.022с (в 36 раз быстрее, event loop свободен).
+  B05 P1 — таймауты и deadlines в Redis RESP клиенте:
+    - В MiniRedisClient добавлен дефолтный deadline DEFAULT_COMMAND_TIMEOUT = 0.2с на все команды.
+    - При timeout/отмене сокет принудительно закрывается, исключая зависание и рассинхронизацию ответов.
+    - Воспроизведение reproduce.py: silent peer больше не подвешивает клиента (first_pending=False, second_pending=False).
+  B07 P1 — честный readiness probe:
+    - _check_db_readiness_sync переписан на безопасное read-only открытие (?mode=ro) без создания пустого файла.
+    - Добавлена проверка существования таблиц products, schema_metadata и schema_version >= 1.
+    - /api/health возвращает 503 при остановленном воркере очереди или отсутствии базы.
+    - Воспроизведение reproduce.py: пустая база дает ready=False, остановленный воркер дает HTTP 503.
+
+Проверки:
+  - tests/web/test_health_and_pool.py: 6/6 PASS.
+  - tests/core/test_queue_service.py: 4/4 PASS.
+  - tests/web/test_web_optimizations.py: 10/10 PASS.
+  - reproduce.py: B01, B05, B07 успешно подтверждены.
+  - release_gate secrets: 0 замечаний.
+
+Следующий шаг:
+  Переход к Этапу 2 — надёжность очереди и сохранность данных (B02, B03, B04, B06).
+```
+
+## Предыдущая контрольная точка — разбор аудита и передача Antigravity (Claude, 2026-10-28)
 
 Роли, подтверждённые владельцем 28.10.2026: **новый код пишет Antigravity**;
 **Claude** готовит срезы к аудиту и исправляет найденное аудитом и возникшее при разработке;

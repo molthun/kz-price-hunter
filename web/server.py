@@ -1,5 +1,6 @@
 from __future__ import annotations
 import asyncio
+import concurrent.futures
 import gzip
 import weakref
 import json
@@ -241,6 +242,14 @@ async def index_handler(request):
 async def privacy_handler(request):
     return web.FileResponse(TEMPLATES_DIR / "privacy.html")
 
+# Выделенный пул потоков для коротких DB/API операций, изолированный от тяжелого сетевого IO скраперов (B01)
+_db_executor = concurrent.futures.ThreadPoolExecutor(max_workers=16, thread_name_prefix="kzph-db")
+
+async def run_db(func, *args):
+    """Выполняет операцию с SQLite в выделенном пуле потоков базы данных, не блокируя event loop."""
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(_db_executor, func, *args)
+
 @routes.get("/api/version")
 async def version_handler(request):
     return web.json_response(get_version_info())
@@ -251,13 +260,27 @@ async def live_handler(request):
     return web.json_response({"status": "live"})
 
 def _check_db_readiness_sync() -> bool:
+    """Проверяет фактическую готовность БД: файл существует, не пуст, содержит таблицы приложения."""
     try:
         import sqlite3
         from database import DB_PATH
-        conn = sqlite3.connect(DB_PATH, timeout=1.0)
-        conn.execute("SELECT 1").fetchone()
-        conn.close()
-        return True
+        if not DB_PATH.exists() or DB_PATH.stat().st_size == 0:
+            return False
+        uri = f"file:{DB_PATH.resolve()}?mode=ro"
+        conn = sqlite3.connect(uri, uri=True, timeout=1.0)
+        try:
+            has_products = conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='products'").fetchone()
+            if not has_products:
+                return False
+            has_schema = conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='schema_metadata'").fetchone()
+            if not has_schema:
+                return False
+            ver_row = conn.execute("SELECT value FROM schema_metadata WHERE name='schema_version'").fetchone()
+            if not ver_row or int(ver_row[0]) < 1:
+                return False
+            return True
+        finally:
+            conn.close()
     except Exception:
         return False
 
@@ -267,17 +290,21 @@ async def health_handler(request):
     """Readiness probe: проверка готовности сервиса, доступности БД и состояния очереди."""
     from queue_service import product_queue
     try:
-        ok = await asyncio.wait_for(asyncio.to_thread(_check_db_readiness_sync), timeout=2.0)
+        ok = await asyncio.wait_for(run_db(_check_db_readiness_sync), timeout=1.5)
+        worker_ok = product_queue.is_worker_running
         q_len = await product_queue.qsize()
+        ready = ok and worker_ok
+        status_code = 200 if ready else 503
+        status_str = "ok" if ready else "unavailable"
         return web.json_response({
-            "status": "ok",
-            "db": "ok" if ok else "busy",
+            "status": status_str,
+            "db": "ok" if ok else "unready",
             "queue_size": q_len,
             "redis_active": product_queue.is_redis_active(),
-            "worker_running": product_queue.is_worker_running,
-        }, status=200 if ok else 503)
+            "worker_running": worker_ok,
+        }, status=status_code)
     except Exception as e:
-        return web.json_response({"status": "degraded", "error": type(e).__name__}, status=200)
+        return web.json_response({"status": "degraded", "error": type(e).__name__}, status=503)
 
 def _diag_allowed(request) -> bool:
     """Диагностика открыта администратору по сессии и по токену — для агента или curl."""
@@ -392,14 +419,16 @@ async def stats_handler(request):
     if cached is not None:
         stats = dict(cached)
     else:
-        stats = await asyncio.to_thread(get_stats, user_settings_for(request), city)
+        stats = await run_db(get_stats, user_settings_for(request), city)
         if cache is not None:
             cache[cache_key] = dict(stats)
     stats["scan_state"] = scan_state
     settings = load_settings()
     try:
-        wave_state["current_wave_index"] = int(get_metadata("wave_index", wave_state["current_wave_index"]))
-        wave_state["current_cycle"] = int(get_metadata("wave_cycle", wave_state.get("current_cycle", 1)))
+        w_idx = await run_db(get_metadata, "wave_index", wave_state["current_wave_index"])
+        w_cyc = await run_db(get_metadata, "wave_cycle", wave_state.get("current_cycle", 1))
+        wave_state["current_wave_index"] = int(w_idx)
+        wave_state["current_cycle"] = int(w_cyc)
     except (TypeError, ValueError):
         pass
 
@@ -2060,7 +2089,7 @@ async def _scan_shop_categories(key, scraper, categories, shop_name, candidate_s
     collected = 0
     failed_categories = []
     limited = False
-    record_shop_scan_start(key)
+    await run_db(record_shop_scan_start, key)
     scan_state["current_shop"] = shop_name
     token_shop = current_shop.set(shop_name)
 
@@ -2172,7 +2201,7 @@ async def _scan_shop_categories(key, scraper, categories, shop_name, candidate_s
     duration = time.monotonic() - started
     error = "; ".join(failed_categories[:3]) or None
     status = ("partial" if collected else "failed") if error else "limited" if limited else "complete"
-    record_shop_scan_result(key, collected, duration, error, status)
+    await run_db(record_shop_scan_result, key, collected, duration, error, status)
     print(f"[{shop_name}] {status}: {collected} товаров за {duration:.0f}с")
     return collected
 
@@ -2210,7 +2239,7 @@ async def _keep_scheduler_lease(work: asyncio.Task):
     while True:
         await asyncio.sleep(SCHEDULER_LEASE_RENEW_SECONDS)
         try:
-            renewed = await asyncio.to_thread(acquire_scheduler_lease, SCHEDULER_OWNER, SCHEDULER_LEASE_SECONDS)
+            renewed = await run_db(acquire_scheduler_lease, SCHEDULER_OWNER, SCHEDULER_LEASE_SECONDS)
         except Exception as e:
             renewed = None
             print(f"[Scan] Аренда не продлена: {type(e).__name__}")
@@ -2232,9 +2261,8 @@ async def _do_scan_task(shop_keys=None, target_categories=None, scan_type="manua
         return
     scan_state["is_running"] = True
     # Один планировщик на базу: второй процесс (main.py рядом с gui.py, второй контейнер) не обходит.
-    # Вызов синхронный и без await до установки флага — гонки внутри процесса нет.
     try:
-        leased = acquire_scheduler_lease(SCHEDULER_OWNER, SCHEDULER_LEASE_SECONDS)
+        leased = await run_db(acquire_scheduler_lease, SCHEDULER_OWNER, SCHEDULER_LEASE_SECONDS)
     except Exception as e:
         leased = False
         print(f"[Scan] Аренда планировщика недоступна: {type(e).__name__}")
@@ -2275,7 +2303,7 @@ async def _do_scan_task(shop_keys=None, target_categories=None, scan_type="manua
         if not work.done():
             work.cancel()
         try:
-            release_scheduler_lease(SCHEDULER_OWNER)  # удаляет только свою аренду
+            await run_db(release_scheduler_lease, SCHEDULER_OWNER)  # удаляет только свою аренду
         except Exception as e:
             print(f"[Scan] Аренда не освобождена: {type(e).__name__}")
         # Запись только в память и не бросает; сброс в БД делает фоновый поток, очистка ниже от него не зависит
@@ -3298,7 +3326,7 @@ async def auto_scan_background_worker(app):
                 total_waves = max(1, plan.get("total_waves", 1))
                 wave_interval_sec = get_wave_interval_seconds(settings, total_waves)
 
-                last_run_raw = get_metadata("wave_last_run_at")
+                last_run_raw = await run_db(get_metadata, "wave_last_run_at")
                 now = time.time()
                 try:
                     last_run_time = float(last_run_raw) if last_run_raw else None
@@ -3306,7 +3334,7 @@ async def auto_scan_background_worker(app):
                     last_run_time = None
 
                 is_wave_due = (last_run_time is None) or ((now - last_run_time) >= wave_interval_sec)
-                stale = get_stale_shops(enabled_keys, wave_interval_sec)
+                stale = await run_db(get_stale_shops, enabled_keys, wave_interval_sec)
 
                 if is_wave_due or stale:
                     target_shops = enabled_keys if is_wave_due else stale
@@ -3320,7 +3348,7 @@ async def auto_scan_background_worker(app):
                     spawn_scan(target_shops, scan_type="auto")
             else:
                 max_age_seconds = get_scan_interval_seconds(settings)
-                stale = get_stale_shops(enabled_keys, max_age_seconds)
+                stale = await run_db(get_stale_shops, enabled_keys, max_age_seconds)
                 if stale:
                     names = ", ".join(SHOP_REGISTRY[k][2] for k in stale[:4]) + ("..." if len(stale) > 4 else "")
                     print(f"[AutoScan] ⏰ Требуют обновления {len(stale)} магазинов (порог {max_age_seconds // 60} мин): {names}")
