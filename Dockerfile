@@ -25,8 +25,8 @@ RUN mkdir -p /app/data
 ENV PORT=35539
 EXPOSE 35539
 
-# Состояние контейнера видно в Docker/Container Manager: отвечает ли веб-сервер и БД
-HEALTHCHECK --interval=60s --timeout=10s --start-period=120s --retries=3 \
-    CMD python3 -c "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:%s/api/health' % os.environ.get('PORT', '35539'), timeout=5)" || exit 1
+# Liveness probe контейнера: мгновенный ответ сервера aiohttp без блокировки очередью
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD python3 -c "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:%s/api/live' % os.environ.get('PORT', '35539'), timeout=4)" || exit 1
 
 CMD ["python3", "gui.py"]

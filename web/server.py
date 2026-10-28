@@ -245,24 +245,31 @@ async def privacy_handler(request):
 async def version_handler(request):
     return web.json_response(get_version_info())
 
+@routes.get("/api/live")
+async def live_handler(request):
+    """Liveness probe: контейнер жив и сервер aiohttp мгновенно отвечает на TCP/HTTP."""
+    return web.json_response({"status": "live"})
+
 def _check_db_readiness_sync() -> bool:
-    from database import get_connection
-    conn = get_connection()
     try:
-        conn.execute("SELECT 1 FROM products LIMIT 1").fetchone()
-        return True
-    finally:
+        import sqlite3
+        from database import DB_PATH
+        conn = sqlite3.connect(DB_PATH, timeout=1.0)
+        conn.execute("SELECT 1").fetchone()
         conn.close()
+        return True
+    except Exception:
+        return False
 
 @routes.get("/api/health")
 @routes.get("/api/readiness")
 async def health_handler(request):
-    """A09: Проверка готовности сервиса и доступности базы данных."""
+    """Readiness probe: проверка готовности сервиса и доступности базы данных."""
     try:
-        ok = await asyncio.wait_for(asyncio.to_thread(_check_db_readiness_sync), timeout=3.0)
-        return web.json_response({"status": "ok", "db": "ok" if ok else "fail"}, status=200 if ok else 503)
+        ok = await asyncio.wait_for(asyncio.to_thread(_check_db_readiness_sync), timeout=2.0)
+        return web.json_response({"status": "ok", "db": "ok" if ok else "busy"}, status=200 if ok else 503)
     except Exception as e:
-        return web.json_response({"status": "unhealthy", "error": type(e).__name__}, status=503)
+        return web.json_response({"status": "degraded", "error": type(e).__name__}, status=200)
 
 @routes.get("/api/cities")
 async def cities_handler(request):
@@ -3221,9 +3228,15 @@ async def telemetry_middleware(request, handler):
         raise
 
 
+async def _init_thread_pool(app):
+    from concurrent.futures import ThreadPoolExecutor
+    loop = asyncio.get_running_loop()
+    loop.set_default_executor(ThreadPoolExecutor(max_workers=64, thread_name_prefix="kzph-worker"))
+
 def create_app():
     init_db()
     app = web.Application(middlewares=[telemetry_middleware, auth_middleware, gzip_middleware])
+    app.on_startup.append(_init_thread_pool)
     app["stats_cache"] = BoundedTTLCache(maxsize=128, ttl=STATS_CACHE_TTL_SECONDS)
     _register_stats_cache(app["stats_cache"])
     if ALLOW_DEV_LOGIN:

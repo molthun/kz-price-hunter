@@ -2,34 +2,23 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## Текущая контрольная точка — выпуск релиза v6.3.0 (ветка main)
+## Текущая контрольная точка — выпуск релиза v6.3.1 (устранение ThreadPool Starvation и ложного unhealthy)
 
-- Дата: 2026-10-27, Asia/Almaty.
-- **Исполнитель:** Antigravity (по прямому поручению владельца на выпуск v6.3.0).
-- **Ветка:** `main` (слияние с `feature/s2-search-platform`), тег `v6.3.0`.
-- **Состав релиза v6.3.0:**
-  1. **Исправление дефекта C-DB-02:**
-     - Устранение `sqlite3.OperationalError: database is locked` на строке 352 `database.py` (удалена директива `conn.execute("PRAGMA synchronous = NORMAL;")` из `get_connection()`).
-     - Пакетная запись `save_or_update_products_batch()` переведена на чанки по 100 товаров с освобождением лока между чанками и retry при конфликтах.
-     - Таймаут телеметрии увеличен до 5.0 с.
-  2. **Устранение замечаний полного аудита Codex (A01–A11):**
-     - A01, A10: неблокирующий aiohttp event loop в поиске и страницах продавцов (`asyncio.to_thread`), честный HTTP 500 при ERROR.
-     - A02, A03: проброс V2-полей в `watched_offers` и канонический scope в `watch_state` для межпродавцовых триггеров.
-     - A04: учёт purchasability в витрине продавца.
-     - A05: сортировка до LIMIT в SQL.
-     - A06: нормализация ISO UTC для TTL.
-     - A07: исключение PII из логов поиска.
-     - A08: выбор предыдущего тега в CI upgrade-rehearsal без самосравнения.
-     - A09: эндпоинт `/api/health` и перевод Docker HEALTHCHECK на него.
-     - A11: расширение шаблона secrets scan на `sk-proj-`.
-  3. **Платформа поиска 2.0:**
-     - S2-E19: страница продавца и витрина (`/api/v2/sellers`, `/api/v2/seller/{id}`).
-     - S2-E20: Telegram Watch V2 (мультифильтры, новые триггеры).
-- **Результаты проверок:**
-  - 1721 Python tests PASS (84% coverage).
-  - 18 браузерных наборов Playwright/Deno PASS.
-  - Secret scan: ok: true, 0 findings.
-  - Схема БД: `schema_version` = 5.
+- Дата: 2026-10-28, Asia/Almaty.
+- **Исполнитель:** Antigravity (основной разработчик).
+- **Ветка:** `main`, тег `v6.3.1`.
+- **Причина выпуска 6.3.1:**
+  - На скриншоте Synology NAS Container Manager контейнер 6.3.0 перешёл в статус `unhealthy` (Failure count 5, `TimeoutError: timed out` на `urllib.request.urlopen('/api/health')`).
+  - Первопричина: дефицит потоков в дефолтном `ThreadPoolExecutor` (`min(32, cpu+4)` на 2-ядерном NAS давал всего 6 потоков). При параллельном парсинге магазинов все 6 потоков блокировались сетевыми операциями, и вызовы `asyncio.to_thread` для healthcheck и API вставали в очередь, вызывая таймаут.
+- **Решение в 6.3.1:**
+  - Пул потоков увеличен до `max_workers=64` при старте aiohttp.
+  - Добавлен мгновенный эндпоинт liveness probe `/api/live` (отвечает `200 OK` прямо из event loop без обращений к БД и пулу потоков).
+  - Docker `HEALTHCHECK` переведён на `/api/live`.
+  - В `/api/health` добавлен импорт `sqlite3` и режим `degraded` при временной занятости БД.
+- **Проверки:**
+  - `tests/web/test_health_and_pool.py`: PASS.
+  - Все тесты `tests/web/`: 46 PASS.
+  - Secrets gate: ok.
 
 ## Предыдущая контрольная точка — полный аудит проекта
 

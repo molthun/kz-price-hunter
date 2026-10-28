@@ -6,6 +6,12 @@
 
 ---
 
+## [6.3.1] — 2026-10-28 — исправление ThreadPool Starvation и надёжный Healthcheck
+
+- 🚀 Увеличен пул `ThreadPoolExecutor` до 64 потоков в `gui.py` и `server.py` (устранение пробки запросов на 2-ядерных NAS).
+- 🩺 Добавлен эндпоинт liveness probe `/api/live`, `HEALTHCHECK` в `Dockerfile` переведён на `/api/live` (устранение ложного статуса unhealthy).
+- 🛠 В `/api/health` исправлен импорт `sqlite3`, таймаут снижен до 2с, возвращается статус degraded без 503 при кратковременной занятости базы.
+
 ## [6.3.0] — 2026-10-27 — Search Platform 2.0, исправление параллельного доступа C-DB-02 и закрытие аудита Codex
 
 - 🛠 C-DB-02: устранение `database is locked` при фоновом сканировании 27+ магазинов. Убрана директива `PRAGMA synchronous = NORMAL` из `get_connection()` (перенесена в `ensure_journal_mode()`), функция `save_or_update_products_batch` переведена на запись чанками по 100 товаров с автоматическим retry, таймаут телеметрии увеличен до 5.0 с.
