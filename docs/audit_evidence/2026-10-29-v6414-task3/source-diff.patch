@@ -1,0 +1,653 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 61fbc3d..c6e870c 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -3,6 +3,17 @@
+ Все значимые изменения проекта документируются в этом файле.
+ Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
+ 
++## [6.4.14] - 2026-10-29
++
++### Для пользователей
++- Восстановлен сбор цен и товаров из магазинов Эврика и Alser после обновления их сайтов и разделов каталога.
++
++### Восстановление адаптеров Эврики и Alser (P-6.4.12 / Задача 3)
++- 🔷 **Эврика (`scrapers/evrika.py`):** поддомен `back.evrika.com` после перехода витрины на Next.js перенаправляет (301) на `evrika.com` и возвращает полноценную SSR HTML-страницу вместо прежнего JSON-ответа, из-за чего `r.json()` падал с `JSONDecodeError` на первой странице всех 9 категорий (по истории `source_scans` сбой начался ещё до выпуска 6.4.11). Адаптер переведён на разбор карточек `.productCard-ui`, прямой ссылки на товар `a[class*="titleOfProduct"]`, цены `[class*="currentPrice"]`, зачёркнутой старой цены `[class*="costContainer"] [class*="oldPrice"]` (без ложного срабатывания на процент скидки `__oldPriceProcent` и бонусы `__oldPriceContainer`), полноразмерной картинки `data-original-src` и подтверждения конца каталога по счётчику `[class*="quantityOfProducts"]` и пагинатору `ul.pagination`.
++- 🟣 **Alser (`scrapers/alser.py`, `config.py`, `SOURCES.md`):** на сайте `alser.kz` в API `/api/v2/catalog-by-keyword-v2` были удалены 6 прежних разделов (`smartfony`, `televizory`, `monitory`, `planshety`, `vse-holodilniki`, `vse-kondicioneri` — API возвращает HTTP 404, а Nuxt SSR — пустую страницу `0 товаров`), а раздел пылесосов переехал с `/astana/c/pylesosy` на `/astana/c/vse-pilesosy`. Список `ALSER_CATEGORIES` приведён в соответствие с живым деревом каталога `alser.kz` (6 действующих разделов, включая `vse-pilesosy`). В `scrapers/alser.py` нормализованы пробелы и переносы в заголовках карточек.
++- 🛡️ **Защита от маскировки ошибок парсинга под конец каталога:** и в `EvrikaScraper`, и в `AlserScraper` при наличии карточек в DOM (`.productCard-ui` / `article.product-card`), из которых не удалось разобрать ни одного валидного товара, выбрасывается `ValueError` (вместо возврата пустого списка, который на последней странице пагинации маскировался под `complete=True`), а при отсутствии карточек выбрасывается `UnconfirmedEnd`.
++- 🧪 **Регрессии (`tests/scrapers/test_scraper_completeness.py`):** добавлены 4 регрессионных теста для `EvrikaScraper` и `AlserScraper` (разбор Next.js HTML Эврики со старой ценой и подтверждением полноты; отказ маскировать сломанную разметку карточек или пустой ответ под `complete=True`; соответствие `ALSER_CATEGORIES` живому каталогу без 404-слагов). Все 4 теста падают на коде до исправления (`6dce916`).
++
+ ## [6.4.13] - 2026-10-29
+ 
+ ### Для пользователей
+diff --git a/ROADMAP_AND_LOG.md b/ROADMAP_AND_LOG.md
+index ef25395..1a97f33 100644
+--- a/ROADMAP_AND_LOG.md
++++ b/ROADMAP_AND_LOG.md
+@@ -6,6 +6,14 @@
+ 
+ ---
+ 
++## [Не выпущено] 6.4.14 — восстановление адаптеров Эврики и Alser, Задача 3 из P-6.4.12 (Antigravity, 29.10.2026)
++
++- 🔍 **Диагностика по `source_scans` и живым сайтам**: оба магазина падали ещё на 6.4.1 до выпуска 6.4.11 из-за изменений на стороне самих витрин:
++  - `evrika.com`: `back.evrika.com` теперь делает 301-редирект на `evrika.com` и отдаёт Next.js SSR HTML вместо JSON `{"products": "..."}`, из-за чего `r.json()` падал с `JSONDecodeError` на всех 9 категориях (`0` товаров в БД).
++  - `alser.kz`: внутренний API `/api/v2/catalog-by-keyword-v2` возвращает `404` для 6 удалённых магазином разделов (`smartfony`, `televizory`, `monitory`, `planshety`, `vse-holodilniki`, `vse-kondicioneri`), а пылесосы переехали с `/astana/c/pylesosy` на `/astana/c/vse-pilesosy`.
++- 🛠️ **Исправлено**: `scrapers/evrika.py` переведён на разбор Next.js HTML (`.productCard-ui`, `[class*="quantityOfProducts"]`, `ul.pagination`) с извлечением `old_price_on_site` из `[class*="costContainer"] [class*="oldPrice"]` и `data-original-src`; `config.ALSER_CATEGORIES` и `SOURCES.md` обновлены под действующие разделы каталога `alser.kz`; в обоих адаптерах сломанная вёрстка карточек при наличии контейнеров в DOM выбрасывает `ValueError` и никогда не маскируется под `complete=True`.
++- 🧪 **Проверено**: живой прогон всех 9 категорий Эврики (`479` товаров, все `complete=True`) и всех 6 категорий Alser (`131` товар, все `complete=True`); добавлены 4 регрессионных теста в `tests/scrapers/test_scraper_completeness.py` (все 4 падают на `6dce916`). Не выпущено, ждёт приёмки Codex.
++
+ ## [Не выпущено] 6.4.13 — быстрый старт порта и фоновый разбор watch_refresh, Задача 1 из P-6.4.12 (Antigravity, 29.10.2026)
+ 
+ - 🔍 **По логам первого старта 6.4.11 на проде**: стартовый `drain_watch_refresh` разбирал `20 725` снятых товаров прямо внутри `init_db()` до открытия HTTP-порта, из-за чего контейнер несколько минут висел в `starting`, а снаружи отдавался `502`.
+diff --git a/SOURCES.md b/SOURCES.md
+index 4d3f57a..c9e9710 100644
+--- a/SOURCES.md
++++ b/SOURCES.md
+@@ -32,8 +32,8 @@ A — feed/API владельца с документированным назн
+ | `scrapers/mechta.py` / `MechtaScraper` | C; www.mechta.kz/api/v3/catalog/products | 15 с API + 10 с homepage; inherited 0.3 с | Session chrome124, device UUID, x-city-code; повтор после 403/422 с новой session | id/prices.finalPrice/basePrice/images/slug; Астана; page/pageSize24; 204/empty→complete; описание нет |
+ | `scrapers/forcecom.py` / `ForcecomScraper` | D; forcecom.kz HTML Bitrix/Aspro | 15 с; inherited 0.3 с | chrome124; PAGEN_1; 404/нет карточек→UnconfirmedEnd; retry нет | id из /model/; price new/old; image attrs; город Астана / Казахстан (не конкретное подтверждение доставки); описание нет |
+ | `scrapers/sulpak.py` / `SulpakScraper` | D; www.sulpak.kz HTML + data-* | 15 с; inherited 0.3 с; один retry timeout после 1 с | chrome124; city_id=1/language_id=3; page=N; 404→UnconfirmedEnd | data-code/data-price/title/href/image/old; fallback hash URL; Астана; описание нет |
+-| `scrapers/alser.py` / `AlserScraper` | D; alser.kz/astana/c/... HTML article.product-card | 15 с; inherited 0.3 с | chrome124; город в URL; page=N; 404/нет карточек→UnconfirmedEnd | slug truncated40 id; title/price/old/img; Астана; описание нет |
+-| `scrapers/evrika.py` / `EvrikaScraper` | C + D; back.evrika.com/catalog/nur-sultan-astana/... JSON с HTML products | 30 с; inherited 0.3 с | chrome124; verify=False; page=N; retry нет | data-json/HTML tile: id/name/price/image/href; old=0; Астана; fallback цены по всему tile text; description нет |
++| `scrapers/alser.py` / `AlserScraper` | D; alser.kz/astana/c/... HTML article.product-card | 15 с; inherited 0.3 с | chrome124; город в URL; page=N; 404/нет карточек→UnconfirmedEnd, неразобранные карточки→ValueError | slug_id; title/price/old/img; Астана; описание нет |
++| `scrapers/evrika.py` / `EvrikaScraper` | D; evrika.com/catalog/nur-sultan-astana/... Next.js SSR HTML .productCard-ui | 30 с; inherited 0.3 с | chrome124; page=N; 404/нет карточек→UnconfirmedEnd, неразобранные карточки→ValueError; конец доказан по quantityOfProducts и ul.pagination | id (/p\d+)/title/price/old_price/image_url; Астана; description нет |
+ | `scrapers/moon.py` / `MoonScraper` | D; moon.kz HTML Bitrix/Aspro | 15 с; inherited 0.3 с | chrome124; verify=False; PAGEN_1; 404/нет карточек→UnconfirmedEnd | data-id/slug,title,current/old,image; Астана hardcoded; description нет |
+ | `scrapers/flip.py` / `FlipScraper` | D; www.flip.kz HTML .new-product a.product | 30 с; 1.0 с | curl без explicit impersonate; page=N; без auth/cookies/retry | prod numeric id; data-available=1; current/old/image; .description добавляется к title, не отдельное поле; регион не подтверждён; ссылка ?prod= |
+ | `scrapers/tgrad.py` / `TgradScraper` | D; tgrad.kz HTML + data-ga JSON в button | 45 с; 0.5 с | Session chrome124; /page-N/; redirects disabled; 301/302 page>1→complete | id/name/price из data-ga; old/image из HTML; Алматы; description нет; next-link проверяется только N+1 |
+@@ -234,18 +234,16 @@ A — feed/API владельца с документированным назн
+ | Sulpak: ♨️ Микроволновые печи | appliances_small | `https://www.sulpak.kz/f/mikrovolnoviye_pechi` | не задан |
+ | Sulpak: 🔥 Распродажа | actions | `https://www.sulpak.kz/sale/1` | не задан |
+ 
+-### AlserScraper — 8 настроенных источников категории
++### AlserScraper — 6 настроенных источников категории
+ 
+ | Категория | Master | URL/query | max_pages |
+ |---|---|---|---|
+ | Alser: 💻 Ноутбуки | laptops | `https://alser.kz/astana/c/noutbuki` | не задан |
+-| Alser: 📱 Смартфоны | smartphones | `https://alser.kz/astana/c/smartfony` | не задан |
+-| Alser: 📺 Телевизоры | tvs | `https://alser.kz/astana/c/televizory` | не задан |
+-| Alser: 🖥 Мониторы | monitors | `https://alser.kz/astana/c/monitory` | не задан |
+-| Alser: 📱 Планшеты | tablets_watches | `https://alser.kz/astana/c/planshety` | не задан |
+-| Alser: 🧹 Пылесосы | appliances_small | `https://alser.kz/astana/c/pylesosy` | не задан |
+-| Alser: ❄️ Холодильники | appliances_large | `https://alser.kz/astana/c/vse-holodilniki` | не задан |
+-| Alser: 🌬 Кондиционеры | appliances_large | `https://alser.kz/astana/c/vse-kondicioneri` | не задан |
++| Alser: 🎧 Наушники | audio | `https://alser.kz/astana/c/naushniki-dlja-smartfonov` | не задан |
++| Alser: 🧹 Пылесосы | appliances_small | `https://alser.kz/astana/c/vse-pilesosy` | не задан |
++| Alser: ⌨️ Компьютерные аксессуары | pc_components | `https://alser.kz/astana/c/aksessuary-dlja-pk` | не задан |
++| Alser: 🖨 Расходные материалы | office_network | `https://alser.kz/astana/c/rashodnye-materialy` | не задан |
++| Alser: 🪥 Уход за полостью рта | beauty_health | `https://alser.kz/astana/c/uhod-za-polostu-rta` | не задан |
+ 
+ ### EvrikaScraper — 9 настроенных источников категории
+ 
+diff --git a/config.py b/config.py
+index 95e622c..2e8a500 100644
+--- a/config.py
++++ b/config.py
+@@ -946,15 +946,15 @@ MECHTA_CATEGORIES = [
+ ]
+ 
+ # 7. Alser (alser.kz)
++# Актуальные разделы каталога alser.kz (smartfony/televizory/monitory/planshety/vse-holodilniki/vse-kondicioneri
++# выведены из дерева /api/v2/catalog-by-keyword-v2 со статусом 404; пылесосы переехали на /c/vse-pilesosy).
+ ALSER_CATEGORIES = [
+     {"name": "Alser: 💻 Ноутбуки", "url": "https://alser.kz/astana/c/noutbuki", "master": "laptops"},
+-    {"name": "Alser: 📱 Смартфоны", "url": "https://alser.kz/astana/c/smartfony", "master": "smartphones"},
+-    {"name": "Alser: 📺 Телевизоры", "url": "https://alser.kz/astana/c/televizory", "master": "tvs"},
+-    {"name": "Alser: 🖥 Мониторы", "url": "https://alser.kz/astana/c/monitory", "master": "monitors"},
+-    {"name": "Alser: 📱 Планшеты", "url": "https://alser.kz/astana/c/planshety", "master": "tablets_watches"},
+-    {"name": "Alser: 🧹 Пылесосы", "url": "https://alser.kz/astana/c/pylesosy", "master": "appliances_small"},
+-    {"name": "Alser: ❄️ Холодильники", "url": "https://alser.kz/astana/c/vse-holodilniki", "master": "appliances_large"},
+-    {"name": "Alser: 🌬 Кондиционеры", "url": "https://alser.kz/astana/c/vse-kondicioneri", "master": "appliances_large"}
++    {"name": "Alser: 🎧 Наушники", "url": "https://alser.kz/astana/c/naushniki-dlja-smartfonov", "master": "audio"},
++    {"name": "Alser: 🧹 Пылесосы", "url": "https://alser.kz/astana/c/vse-pilesosy", "master": "appliances_small"},
++    {"name": "Alser: ⌨️ Компьютерные аксессуары", "url": "https://alser.kz/astana/c/aksessuary-dlja-pk", "master": "pc_components"},
++    {"name": "Alser: 🖨 Расходные материалы", "url": "https://alser.kz/astana/c/rashodnye-materialy", "master": "office_network"},
++    {"name": "Alser: 🪥 Уход за полостью рта", "url": "https://alser.kz/astana/c/uhod-za-polostu-rta", "master": "beauty_health"}
+ ]
+ 
+ # 8. Эврика (evrika.com)
+diff --git a/docs/AGENT_HANDOFF.md b/docs/AGENT_HANDOFF.md
+index a460d17..3753186 100644
+--- a/docs/AGENT_HANDOFF.md
++++ b/docs/AGENT_HANDOFF.md
+@@ -2,6 +2,101 @@
+ 
+ Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
+ 
++## Передача аудитору: Задача 3 из P-6.4.12 (восстановление адаптеров Эврики и Alser, v6.4.14) → Codex (Antigravity, 2026-10-29)
++
++```text
++ID / этап: P-6.4.12 / Задача 3 (P2) — исправление адаптеров Эврика и Alser (v6.4.14)
++Основание: владелец — «аудит прошел. продалжаем разработку» (2026-10-29) после приёмки S01 / v6.4.13.
++Статус: READY_FOR_AUDIT. Push не выполнялся; origin/main = e380a0f = прод 6.4.11.
++Базовый HEAD: 6dce916 (незакоммиченные файлы приёмки Codex docs/ACCEPTANCE_2026-10-29_V6413_S01_CODEX.md и
++  docs/audit_evidence/2026-10-29-v6413-reaccept/ сохранены без изменений).
++Расследование первопричины (по истории source_scans на базе 6.4.1 и живым ответам сайтов):
++  * Проверка истории source_scans в БД показала, что оба магазина падали ещё на 6.4.1 до выпуска 6.4.11
++    (самые ранние записи 2026-10-28T09:05:38+00:00: у Эврики 9/9 категорий "Страница 1: JSONDecodeError",
++    в products/product_sources 0 товаров; у Alser 7/8 категорий "Карточки не найдены на первой странице",
++    работали только Ноутбуки = 94 товара). Причина — изменения на сайтах магазинов, а не регрессия релиза.
++  * Эврика (evrika.com): старый эндпоинт back.evrika.com/catalog/nur-sultan-astana/<slug>/?page=1 теперь
++    отдаёт 301-редирект на https://evrika.com/catalog/nur-sultan-astana/<slug> и возвращает полноценную
++    Next.js SSR HTML-страницу (text/html) вместо прежнего JSON {"products": "..."}, из-за чего r.json()
++    выбрасывал JSONDecodeError на первой странице всех 9 категорий.
++  * Alser (alser.kz): внутренний API Nuxt /api/v2/catalog-by-keyword-v2?keyword=<slug> возвращает HTTP 404
++    для 6 удалённых из дерева каталога разделов (smartfony, televizory, monitory, planshety,
++    vse-holodilniki, vse-kondicioneri), при этом Nuxt SSR отдаёт HTTP 200 с "0 товаров" без карточек;
++    а раздел пылесосов переехал с /astana/c/pylesosy (404 в API) на /astana/c/vse-pilesosy ("Все пылесосы").
++Изменённые файлы Задачи 3 (v6.4.14):
++  * scrapers/evrika.py:
++    - переход с back.evrika.com JSON на разбор Next.js SSR HTML витрины evrika.com (.productCard-ui);
++    - выбор прямой ссылки на товар через a[class*="titleOfProduct"] (первый a[href*="/p"] в карточке —
++      обёртка картинки без текста), извлечение цены из [class*="currentPrice"], старой цены из
++      [class*="costContainer"] [class*="oldPrice"] (чтобы не путать со скидкой "- 18 %" в __oldPriceProcent
++      и бонусами "до 39 999" в __oldPriceContainer) и полноразмерной картинки из data-original-src;
++    - подтверждение конца каталога (_is_last_page) по пагинатору ul.pagination a[href] или счётчику
++      [class*="quantityOfProducts"]; HTTP 404 на page > 1 поднимает UnconfirmedEnd;
++    - защита от маскировки сбоя парсера: при отсутствии .productCard-ui поднимается UnconfirmedEnd,
++      а если карточки .productCard-ui в DOM есть, но ни один товар не разобран (products пуст) —
++      поднимается ValueError (никогда не возвращается complete=True или пустой список).
++  * scrapers/alser.py:
++    - нормализация пробелов/переносов в названии товара (" ".join(title.split()));
++    - если карточки article.product-card в DOM есть, но ни один товар не разобран (products пуст),
++      поднимается ValueError("Карточки Alser найдены, но ни один товар не удалось разобрать") — раньше
++      на последней странице пагинации возвращался ScanResult([], complete=True), маскируя поломку
++      вёрстки под полный обход;
++    - в _is_last_page добавлена проверка total > 0.
++  * config.py, SOURCES.md:
++    - ALSER_CATEGORIES приведён в соответствие с живым деревом каталога alser.kz: исправлен URL пылесосов
++      на https://alser.kz/astana/c/vse-pilesosy, убраны 6 удалённых магазином 404-разделов, оставлены 6
++      действующих разделов каталога (Ноутбуки, Наушники, Пылесосы, Компьютерные аксессуары, Расходные
++      материалы, Уход за полостью рта).
++  * tests/scrapers/test_scraper_completeness.py:
++    - добавлены 4 регрессионных теста (AlserCompletenessTest: сломанная вёрстка карточек на 2-й странице
++      поднимает ValueError и даёт complete=False вместо complete=True; проверка отсутствия 404-слагов и
++      наличия vse-pilesosy в config.ALSER_CATEGORIES; EvrikaCompletenessTest: разбор Next.js HTML, старой
++      цены, полноразмерной картинки и подтверждение полноты на 1- и 2-страничной категории; сломанные
++      карточки .productCard-ui поднимают ValueError, а пустой HTML — UnconfirmedEnd).
++    - все 4 новых теста проверены в отдельном git worktree на базовом коммите 6dce916 — все 4 падают
++      (FAILED: failures=3, errors=1), на новом коде — все 14 тестов файла проходят (OK).
++  * version.py, CHANGELOG.md (с разделом «### Для пользователей»), ROADMAP_AND_LOG.md, docs/AGENT_HANDOFF.md.
++Проверки:
++  * Живой обход с реальных сайтов (локально и внутри контейнера стенда kzph-stand):
++    - Эврика: все 9 категорий complete=True, error=None, собрано 479 валидных товаров (в БД стенда записано
++      479 активных товаров Эврики, status='complete', last_error=None).
++    - Alser: все 6 категорий complete=True, error=None, собрано 131 валидный товар (в БД стенда записано
++      131 активный товар Alser, status='complete', last_error=None).
++  * Локальный полный Python test suite (изолированный DATA_DIR, без AI/Telegram ключей):
++    Ran 1880 tests in 94.189s — OK.
++  * Фронтенд-тесты (все 19 файлов tests/frontend/test_frontend*.cjs): 19/19 PASS.
++  * release_gate.py secrets --root . → {"ok": true, "findings": []}; git diff --check → чисто.
++  * Тестовый стенд (192.168.28.25:2222, /home/molthun/kzph-stand, лимиты 4 CPU / 15g):
++    - точки отката созданы до обновления: образ kzph-stand:6.4.13-rollback, backup БД
++      /app/data/prices.db.before-6.4.14.bak (через sqlite3.backup);
++    - контейнер пересобран и перезапущен, /api/live → 200 {"status": "live"}, /api/version → 6.4.14,
++      /api/health → status="ok", db="ok", queue="ok";
++    - полный Python test suite внутри Linux-образа стенда (--network none --cpus 4 --memory 15g):
++      Ran 1880 tests in 182.962s — OK.
++Следующий точный шаг:
++  * Codex — независимый аудит и приёмка Задачи 3 (v6.4.14). После приёмки всеми трёх задач P-6.4.12
++    (v6.4.12 + v6.4.13 + v6.4.14) — решение владельца о выпуске на прод.
++```
++
++---
++
++## Повторная приёмка Задачи 1 / S01 — Codex (2026-10-29)
++
++- Основание: «Ждем аудит»; новая READY_FOR_AUDIT карточка S01. Срез main `6dce916`, исходно чистый.
++- Статус: **ПРИНЯТО по коду: S01 закрыт, Задача 1 принята в проверенных сценариях**.
++- Оба прежних независимых сценария отмены проходят. Новые регрессии подтверждают повторную
++  отмену, ошибку страницы при отмене и завершение текущей страницы до выхода воркера;
++  новая страница не стартует, 100 из 600 заданий сохраняются для повтора.
++- Полный suite: **1876 OK, 95.567 с**; прежний shutdown 2 OK; новые cancel 3 OK;
++  расширенная матрица watch_refresh 29 OK; secrets и diff check PASS. Временные синтетические БД.
++- Отчёт: [ACCEPTANCE_2026-10-29_V6413_S01_CODEX.md](ACCEPTANCE_2026-10-29_V6413_S01_CODEX.md).
++  Свидетельства: `docs/audit_evidence/2026-10-29-v6413-reaccept/`.
++- Следующий шаг: Antigravity — Задача 3 (Эврика/Alser), затем независимая приёмка.
++  Docker stop с таймаутом, новые Linux/frontend/CI и прод в этой приёмке не проверялись.
++  Код приложения, рабочая БД, стенд и прод не менялись; коммит/push не выполнялись.
++
++---
++
+ ## Передача аудитору: S01 Задачи 1 P-6.4.12 → Codex (Claude, 2026-10-29)
+ 
+ ```text
+diff --git a/scrapers/alser.py b/scrapers/alser.py
+index c518e78..195ce6c 100644
+--- a/scrapers/alser.py
++++ b/scrapers/alser.py
+@@ -81,6 +81,7 @@ class AlserScraper(PagedScraper):
+                 title = title_el.text.strip() if title_el else ""
+                 if not title:
+                     title = link_el.get("title", "") or link_el.text.strip()
++                title = " ".join(title.split())
+                 if not title:
+                     continue
+ 
+@@ -118,6 +119,9 @@ class AlserScraper(PagedScraper):
+                     "city": "Астана"
+                 })
+ 
++            if not products:
++                raise ValueError("Карточки Alser найдены, но ни один товар не удалось разобрать")
++
+         except UnconfirmedEnd:
+             raise
+         except Exception as e:
+@@ -131,7 +135,7 @@ class AlserScraper(PagedScraper):
+         """Последняя ли это страница. Пока итог неизвестен — считаем, что нет."""
+         if page_num == 1:
+             total = self._declared_total(soup)
+-            if total is None or cards_on_page <= 0:
++            if total is None or total <= 0 or cards_on_page <= 0:
+                 self._expected_pages.pop(category_url, None)
+                 return False
+             self._expected_pages[category_url] = math.ceil(total / cards_on_page)
+diff --git a/scrapers/evrika.py b/scrapers/evrika.py
+index 5b59f8a..ad55124 100644
+--- a/scrapers/evrika.py
++++ b/scrapers/evrika.py
+@@ -1,15 +1,24 @@
+-"""Эврика: каталог берется из JSON-ответа back.evrika.com (тот же источник, что и у сайта).
++"""Эврика (evrika.com): SSR-каталог на Next.js.
+ 
+-HTML-страницы отдают только первую страницу категории, а этот ответ содержит
+-общее число товаров и корректно листается параметром `page`.
++Раньше сайт отдавал JSON с HTML-плитками через `back.evrika.com`, но после перехода
++витрины на Next.js поддомен `back.evrika.com` перенаправляет (301) на `evrika.com`
++и возвращает полноценную HTML-страницу, из-за чего `r.json()` падал с `JSONDecodeError`.
++
++Актуальная разметка карточек — блоки `.productCard-ui`, общее число товаров категории —
++в `[class*="quantityOfProducts"]`, ссылки на страницы — в `ul.pagination`.
++Если карточки в разметке есть, но ни одна не разобралась (сменились внутренние селекторы),
++выбрасывается `ValueError`, чтобы ошибка парсера не маскировалась под пустую выдачу
++или подтверждённый конец каталога.
+ """
++import math
+ import re
+-from typing import Any, Dict, List
+-from urllib.parse import urlparse
++from typing import Any, Dict, List, Optional
++from urllib.parse import parse_qs, urljoin, urlparse, urlsplit
+ 
+-from scrapers import http as requests
+ from html_soup import make_soup
+-from scrapers.base import ScanResult, PagedScraper, parse_price
++from scrapers import http as requests
++from scrapers.base import PagedScraper, ScanResult, UnconfirmedEnd, parse_price
++
+ 
+ class EvrikaScraper(PagedScraper):
+     SHOP_NAME = "Эврика"
+@@ -21,77 +30,149 @@ class EvrikaScraper(PagedScraper):
+ 
+     def __init__(self):
+         self.base_url = "https://evrika.com"
++        self._expected_pages: Dict[str, int] = {}
+         self.headers = {
+             "User-Agent": (
+                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                 "AppleWebKit/537.36 (KHTML, like Gecko) "
+                 "Chrome/124.0.0.0 Safari/537.36"
+             ),
+-            "Accept": "application/json, text/plain, */*",
++            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+             "Accept-Language": "ru-RU,ru;q=0.9",
+-            "X-Requested-With": "XMLHttpRequest",
+         }
+ 
+-    def _api_url(self, category_url: str, page: int) -> str:
++    def _page_url(self, category_url: str, page: int) -> str:
+         path = urlparse(category_url).path if category_url.startswith("http") else category_url
+-        # Гарантируем город Астана в пути каталога
+         if f"/catalog/{self.CITY_SLUG}/" not in path:
+             path = path.replace("/catalog/", f"/catalog/{self.CITY_SLUG}/", 1)
+-        path = path.rstrip("/") + "/"
+-        return f"{self.API_HOST}{path}?page={page}"
++        path = "/" + path.strip("/")
++        if page <= 1:
++            return f"{self.base_url}{path}"
++        return f"{self.base_url}{path}?{self.PAGE_PARAM}={page}"
++
++    # Совместимость со старым именем метода
++    _api_url = _page_url
+ 
+     def _fetch_page(self, category_name: str, category_url: str, page_num: int) -> List[Dict[str, Any]]:
+-        url = self._api_url(category_url, page_num)
++        url = self._page_url(category_url, page_num)
+         r = requests.get(url, headers=self.headers, impersonate="chrome124", timeout=30)
++        if r.status_code == 404 and page_num > 1:
++            raise UnconfirmedEnd("HTTP 404 после последней доступной страницы")
+         if r.status_code != 200:
+             raise RuntimeError(f"HTTP {r.status_code}")
+-        data = r.json()
+-        if not isinstance(data, dict) or "products" not in data:
+-            raise ValueError("Неожиданная структура каталога Эврика")
+ 
+-        soup = make_soup(data.get("products") or "")
++        soup = make_soup(r.text or "")
++        cards = soup.select(".productCard-ui")
++        if not cards:
++            raise UnconfirmedEnd("Не найдены карточки: конец выдачи не подтвержден")
++
+         products: List[Dict[str, Any]] = []
++        seen_pids = set()
+ 
+-        for tile in soup.select(".goods-tile"):
+-            raw = tile.get("data-json") or ""
+-            link = tile.select_one('a[href*="/p"]')
++        for tile in cards:
++            title_link = tile.select_one('a[class*="titleOfProduct"][href*="/p"], a[class*="titleOfProduct"]')
++            link = title_link or tile.select_one('a[href*="/p"]')
+             if not link:
+                 continue
+ 
+-            href = link.get("href", "")
+-            pid_match = re.search(r"/p(\d+)", href)
++            href = (link.get("href") or "").strip()
++            pid_match = re.search(r"/p(\d+)(?:[/?#]|$)", href)
+             if not pid_match:
+                 continue
+             pid = pid_match.group(1)
++            if pid in seen_pids:
++                continue
+ 
+-            name_match = re.search(r"'name':\s*'(.*?)',\s*\n", raw, re.S)
+-            title = (name_match.group(1) if name_match else link.get_text(" ", strip=True)).strip()
++            img = tile.find("img")
++            raw_title = ""
++            if title_link is not None:
++                raw_title = title_link.get("title") or title_link.get_text(" ", strip=True)
++            if not raw_title:
++                raw_title = link.get("title") or link.get_text(" ", strip=True)
++            if not raw_title and img is not None:
++                raw_title = img.get("alt") or img.get("title") or ""
++            title = " ".join(str(raw_title).split())
+             if not title:
+                 continue
+ 
+-            price_match = re.search(r"'price':\s*'?(\d+)", raw)
+-            price = int(price_match.group(1)) if price_match else parse_price(tile.get_text(" ", strip=True))
++            price_el = tile.select_one('[class*="currentPrice"]')
++            price = parse_price(price_el.get_text(" ", strip=True)) if price_el else 0
+             if price <= 0:
+                 continue
+ 
++            old_price_el = tile.select_one('[class*="costContainer"] [class*="oldPrice"]')
++            old_price = parse_price(old_price_el.get_text(" ", strip=True)) if old_price_el else 0
++
+             image_url = ""
+-            img = tile.find("img")
+-            if img:
+-                for attr in ("data-original", "data-src", "data-lazy", "src"):
+-                    src = img.get(attr) or ""
++            if img is not None:
++                for attr in ("data-original-src", "data-original", "data-src", "data-lazy", "src"):
++                    src = (img.get(attr) or "").strip()
+                     if src and "empty.gif" not in src:
+                         image_url = src if src.startswith("http") else f"{self.base_url}{src}"
+                         break
+ 
++            if href.startswith("http"):
++                full_url = href.replace(self.API_HOST, self.base_url)
++            elif href.startswith("/"):
++                full_url = f"{self.base_url}{href}"
++            else:
++                full_url = f"{self.base_url}/{href}"
++
++            seen_pids.add(pid)
+             products.append({
+                 "shop": self.SHOP_NAME,
+                 "id": f"evrika_{pid}",
+                 "title": title,
+                 "category": category_name,
+-                "url": href.replace(self.API_HOST, self.base_url),
++                "url": full_url,
+                 "image_url": image_url,
+                 "price": price,
+-                "old_price_on_site": 0,
+-                "city": "Астана"
++                "old_price_on_site": old_price if old_price > price else 0,
++                "city": "Астана",
+             })
+-        return ScanResult(products, complete=not data["products"])
++
++        if not products:
++            raise ValueError("Карточки Эврика найдены, но ни один товар не удалось разобрать")
++
++        return ScanResult(
++            products,
++            complete=self._is_last_page(soup, category_url, page_num, len(cards)),
++        )
++
++    def _is_last_page(self, soup, category_url: str, page_num: int, cards_on_page: int) -> bool:
++        """Подтверждение последней страницы по счётчику категории или пагинатору."""
++        if page_num == 1:
++            pager_last = self._paginator_last_page(soup, category_url)
++            total = self._declared_total(soup)
++            if pager_last is not None and pager_last >= 1:
++                self._expected_pages[category_url] = pager_last
++            elif total is not None and total > 0 and cards_on_page > 0:
++                self._expected_pages[category_url] = math.ceil(total / cards_on_page)
++            else:
++                self._expected_pages.pop(category_url, None)
++                return False
++        expected = self._expected_pages.get(category_url)
++        return bool(expected) and page_num >= expected
++
++    @staticmethod
++    def _declared_total(soup) -> Optional[int]:
++        """Число товаров в шапке категории: <span class="…__quantityOfProducts">32 товара</span>."""
++        counter = soup.select_one('[class*="quantityOfProducts"]')
++        if not counter:
++            return None
++        match = re.search(r"(\d[\d\s\u00a0]*)", counter.get_text(" ", strip=True))
++        if not match:
++            return None
++        return int(re.sub(r"[^0-9]", "", match.group(1)))
++
++    def _paginator_last_page(self, soup, category_url: str) -> Optional[int]:
++        """Наибольший номер страницы в пагинаторе текущей категории."""
++        page_1_url = self._page_url(category_url, 1)
++        expected_path = urlsplit(page_1_url).path.rstrip("/")
++        pages: List[int] = []
++        for a in soup.select("ul.pagination a[href]"):
++            link = urlsplit(urljoin(page_1_url, a.get("href", "")))
++            if link.path.rstrip("/") != expected_path:
++                continue
++            pages.extend(int(v) for v in parse_qs(link.query).get(self.PAGE_PARAM, []) if v.isdigit())
++        return max(pages) if pages else None
+diff --git a/tests/scrapers/test_scraper_completeness.py b/tests/scrapers/test_scraper_completeness.py
+index 8229d7c..a52cc11 100644
+--- a/tests/scrapers/test_scraper_completeness.py
++++ b/tests/scrapers/test_scraper_completeness.py
+@@ -1,4 +1,4 @@
+-"""Подтверждение конца каталога у Alser и MasterOK (офлайн, без обращений к магазинам).
++"""Подтверждение конца каталога у Alser, MasterOK и Эврики (офлайн, без обращений к магазинам).
+ 
+ Зачем: оба адаптера не могли отчитаться `complete` ни при каком размере каталога. Вторая страница
+ карточек не содержала, базовый класс помечал обход `limited`, и по правилу P02 такой обход не обучает
+@@ -6,13 +6,19 @@
+ оставались «собран не полностью», неотличимо от настоящего обрыва.
+ 
+ Оба сайта сами печатают число товаров, и теперь адаптеры его читают. Проверяется и обратное:
+-когда подтвердить полноту нечем, ответ «нет», а не «да» — неизвестность не выдаётся за порядок.
++когда подтвердить полноту нечем или карточки сломаны, ответ «нет» / ошибка, а не «да» —
++неизвестность и сбой парсинга не выдаются за порядок.
+ """
+ from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
++import json
+ import unittest
+ from unittest.mock import Mock, patch
++from urllib.parse import urlparse
+ 
++import config
+ from scrapers.alser import AlserScraper
++from scrapers.base import UnconfirmedEnd
++from scrapers.evrika import EvrikaScraper
+ from scrapers.masterok import MasterOkScraper
+ 
+ ALSER_CARD = """
+@@ -94,6 +100,149 @@ class AlserCompletenessTest(unittest.TestCase):
+         self.assertTrue(small.complete, "своя маленькая категория закрыта")
+         self.assertTrue(big_second.complete, "чужая категория не сбила счёт страниц")
+ 
++    def test_broken_card_markup_raises_error_instead_of_claiming_complete(self):
++        """Если карточки в DOM есть, но из-за смены вёрстки не разобралась ни одна, это ошибка, а не конец каталога."""
++        broken_page = (
++            "<html><body>"
++            + "".join('<article class="product-card"><div class="broken">---</div></article>' for _ in range(6))
++            + "</body></html>"
++        )
++        scraper = AlserScraper()
++        scraper.page_delay = (0, 0)
++        with patch("scrapers.alser.requests.get",
++                   side_effect=[Mock(status_code=200, text=alser_page(12, "18 товаров")),
++                                Mock(status_code=200, text=broken_page)]):
++            result = scraper._scrape_sync("Ноутбуки", self.URL)
++        self.assertFalse(result.complete, "сломанная вторая страница не может считаться полным обходом")
++        self.assertEqual(result.error, "Страница 2: ValueError")
++
++    def test_alser_configured_categories_match_live_catalog_tree(self):
++        """В конфигурации Alser нет удалённых 404-разделов и старого слага /c/pylesosy."""
++        slugs = {urlparse(cat["url"]).path.rstrip("/").split("/")[-1] for cat in config.ALSER_CATEGORIES}
++        removed_404_slugs = {
++            "pylesosy",
++            "smartfony",
++            "televizory",
++            "monitory",
++            "planshety",
++            "vse-holodilniki",
++            "vse-kondicioneri",
++        }
++        self.assertTrue(slugs.isdisjoint(removed_404_slugs), f"В ALSER_CATEGORIES остались 404-слаги: {slugs & removed_404_slugs}")
++        self.assertIn("vse-pilesosy", slugs)
++
++
++EVRIKA_NEXT_CARD = """
++<div class="productCard-ui">
++  <div class="ProductCard_productCard__content__abc">
++    <a class="ProductCard_productCard__imageContainer__abc" href="/catalog/smartfony/apple-iphone-{n}/p{pid}">
++      <img src="/_next/image?url=https%3A%2F%2Fcdn.evrika.com%2Fimg-{pid}.jpg&amp;w=384&amp;q=100"
++           data-original-src="https://cdn.evrika.com/img-{pid}.jpg"
++           alt="Смартфон {n}" />
++    </a>
++    <div class="ProductCard_productCard__infoContainer__abc">
++      <div>
++        <div class="ProductCard_productCard__infoContainer__oldPrice__abc">
++          <span class="ProductCard_productCard__infoContainer__oldPriceProcent__abc"> - 18 %</span>
++        </div>
++        <a class="ProductCard_productCard__infoContainer__titleOfProduct__abc"
++           href="/catalog/smartfony/apple-iphone-{n}/p{pid}">
++          Смартфон Apple iPhone {n}
++        </a>
++      </div>
++      <div>
++        <div class="ProductCard_productCard__infoContainer__costContainer__abc">
++          <span class="ProductCard_productCard__infoContainer__currentPrice__abc">399 990 ₸</span>
++          <span class="ProductCard_productCard__infoContainer__oldPrice__abc">489 990 ₸</span>
++        </div>
++        <div class="ProductCard_productCard__infoContainer__oldPriceContainer__abc">
++          <span>до 39 999</span>
++        </div>
++      </div>
++    </div>
++  </div>
++</div>
++"""
++
++
++def evrika_next_page(cards: int, total_text: str = "", last_page: int = 0) -> str:
++    counter = (
++        f'<span class="FilterNavigation_filterCategory__filterButton__quantityOfProducts__abc">{total_text}</span>'
++        if total_text else ""
++    )
++    pager = (
++        '<ul class="pagination">'
++        + "".join(
++            f'<li><a href="/catalog/nur-sultan-astana/smartfony?page={p}">{p}</a></li>'
++            for p in range(1, last_page + 1)
++        )
++        + "</ul>"
++        if last_page else ""
++    )
++    body = "".join(EVRIKA_NEXT_CARD.format(n=i + 1, pid=48263 + i) for i in range(cards))
++    return f"<!DOCTYPE html><html><body>{counter}<div class='productsList-ui'>{body}</div>{pager}</body></html>"
++
++
++class EvrikaCompletenessTest(unittest.TestCase):
++    URL = "https://back.evrika.com/catalog/nur-sultan-astana/smartfony/"
++
++    def _html_response(self, html: str, status_code: int = 200) -> Mock:
++        resp = Mock(status_code=status_code, text=html)
++        resp.json.side_effect = json.JSONDecodeError("Expecting value", html, 0)
++        return resp
++
++    def test_evrika_nextjs_html_parses_cards_old_price_and_confirms_completeness(self):
++        """Эврика отдаёт Next.js HTML вместо старого JSON; карточки, старая цена и конец каталога разбираются."""
++        scraper = EvrikaScraper()
++        with patch("scrapers.evrika.requests.get",
++                   side_effect=[
++                       self._html_response(evrika_next_page(24, "30 товаров", last_page=2)),
++                       self._html_response(evrika_next_page(6, "30 товаров", last_page=2)),
++                   ]):
++            first = scraper._fetch_page("Смартфоны", self.URL, 1)
++            second = scraper._fetch_page("Смартфоны", self.URL, 2)
++
++        self.assertEqual(len(first), 24)
++        self.assertFalse(first.complete, "первая страница из двух ещё не закрывает каталог")
++        self.assertEqual(len(second), 6)
++        self.assertTrue(second.complete, "вторая страница закрывает каталог")
++
++        item = first[0]
++        self.assertEqual(item["id"], "evrika_48263")
++        self.assertEqual(item["title"], "Смартфон Apple iPhone 1")
++        self.assertEqual(item["price"], 399990)
++        self.assertEqual(item["old_price_on_site"], 489990, "старая цена не должна путаться со скидкой -18% или бонусами")
++        self.assertEqual(item["url"], "https://evrika.com/catalog/smartfony/apple-iphone-1/p48263")
++        self.assertEqual(item["image_url"], "https://cdn.evrika.com/img-48263.jpg")
++
++        # Одностраничная категория без пагинатора подтверждает полноту по счётчику товаров
++        with patch("scrapers.evrika.requests.get",
++                   return_value=self._html_response(evrika_next_page(5, "5 товаров"))):
++            single = scraper._fetch_page("Телевизоры", "https://evrika.com/catalog/televizory", 1)
++        self.assertEqual(len(single), 5)
++        self.assertTrue(single.complete)
++
++    def test_evrika_broken_cards_or_empty_html_never_claim_complete(self):
++        """Сломанная вёрстка карточек или пустой ответ Эврики не маскируются под конец каталога."""
++        broken_cards_html = (
++            '<html><body><span class="FilterNavigation_quantityOfProducts__x">2 товара</span>'
++            '<div class="productCard-ui"><div class="broken">нет цены и ссылки</div></div>'
++            '</body></html>'
++        )
++        scraper = EvrikaScraper()
++        scraper.page_delay = (0, 0)
++        with patch("scrapers.evrika.requests.get",
++                   return_value=self._html_response(broken_cards_html)):
++            res_broken = scraper._scrape_sync("Смартфоны", self.URL)
++        self.assertFalse(res_broken.complete)
++        self.assertEqual(res_broken.error, "Страница 1: ValueError")
++
++        empty_html = "<html><body><div>Каталог временно недоступен</div></body></html>"
++        with patch("scrapers.evrika.requests.get",
++                   return_value=self._html_response(empty_html)):
++            with self.assertRaises(UnconfirmedEnd):
++                scraper._fetch_page("Смартфоны", self.URL, 1)
++
+ 
+ class MasterOkCompletenessTest(unittest.TestCase):
+     URL = "https://masterok.kz/catalog/skladskoe-oborudovanie/"
+diff --git a/version.py b/version.py
+index 0e09ecd..e137b34 100644
+--- a/version.py
++++ b/version.py
+@@ -2,7 +2,7 @@
+ KZ Price Hunter - Version Information
+ """
+ 
+-__version__ = "6.4.13"
++__version__ = "6.4.14"
+ __app_name__ = "KZ Price Hunter"
+ __release_date__ = "2026-10-29"
+ __author__ = "Advanced Agentic Coding"

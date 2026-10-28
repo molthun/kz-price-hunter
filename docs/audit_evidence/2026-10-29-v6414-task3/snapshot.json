@@ -1,0 +1,14 @@
+{
+  "head": "6dce916c58899a8fef02158b50cfebd3e71abf83",
+  "files": {
+    "CHANGELOG.md": "6783b2106019dc39a9799d593294ed734e4f54cc397341b2c5f1baf7609f8c7a",
+    "ROADMAP_AND_LOG.md": "f23ef4a3d1a06338ca36fdcd73a49983899d2db993475a3a52edc06c16b94969",
+    "SOURCES.md": "642cf8747b7d6fce3e3d9c3224cec52434dc96b28f33a95adc80825b19d3373d",
+    "config.py": "67e78a14313599e96a6c3e7d73bcf12ba3e40a8a2200d27f8ed9b065dc84d3e7",
+    "docs/AGENT_HANDOFF.md": "627e47514b67a16cfd02089c6e3fd619fb1d39cb8f2108d366a6c97e4396736f",
+    "scrapers/alser.py": "5b483c778175e885b91ce217d98c9cab0ce29d7ab6731d4844fe7b25a2820d38",
+    "scrapers/evrika.py": "6a8ba80fc6fad5ed0dd8737606dba1e2f80a0603e4f5c7ab767d7b4e1bad8d1c",
+    "tests/scrapers/test_scraper_completeness.py": "04c4cda0fb57891a9056e89de76724c9d78a30b5374c9d778e5e75e4898f4b51",
+    "version.py": "509853c67c051b9ccf84e2f4b1143babea7d74b02749519794472eb0823f3a06"
+  }
+}

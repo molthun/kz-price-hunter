@@ -1,0 +1,41 @@
+test_alser_partial_parse_is_not_complete (__main__.Acceptance.test_alser_partial_parse_is_not_complete) ... [Alser] Laptops: 1 товаров за 1 стр. (0.0с) — завершено
+{'case': 'alser_partial', 'saved': 1, 'complete': True}
+FAIL
+test_evrika_partial_parse_is_not_complete (__main__.Acceptance.test_evrika_partial_parse_is_not_complete) ... [Эврика] Phones: 1 товаров за 1 стр. (0.0с) — завершено
+{'case': 'evrika_partial', 'saved': 1, 'complete': True}
+FAIL
+test_evrika_windowed_pager_does_not_override_total (__main__.Acceptance.test_evrika_windowed_pager_does_not_override_total) ... [Эврика] Phones: 48 товаров за 2 стр. (0.3с) — завершено
+{'case': 'windowed_pager', 'saved': 48, 'declared': 120, 'complete': True}
+FAIL
+
+======================================================================
+FAIL: test_alser_partial_parse_is_not_complete (__main__.Acceptance.test_alser_partial_parse_is_not_complete)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph6414-audit-kw92252g/audit-results/completeness.py", line 21, in test_alser_partial_parse_is_not_complete
+    self.assertFalse(r.complete)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_evrika_partial_parse_is_not_complete (__main__.Acceptance.test_evrika_partial_parse_is_not_complete)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph6414-audit-kw92252g/audit-results/completeness.py", line 15, in test_evrika_partial_parse_is_not_complete
+    self.assertFalse(r.complete,'one of two cards failed parsing but catalog was declared complete')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: True is not false : one of two cards failed parsing but catalog was declared complete
+
+======================================================================
+FAIL: test_evrika_windowed_pager_does_not_override_total (__main__.Acceptance.test_evrika_windowed_pager_does_not_override_total)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph6414-audit-kw92252g/audit-results/completeness.py", line 30, in test_evrika_windowed_pager_does_not_override_total
+    self.assertFalse(r.complete,'visible page links were mistaken for total page count')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: True is not false : visible page links were mistaken for total page count
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.329s
+
+FAILED (failures=3)

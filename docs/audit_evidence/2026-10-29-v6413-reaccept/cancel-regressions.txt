@@ -1,0 +1,14 @@
+[System] 📡 Модуль онлайн-логирования активирован.
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] G03: фоновое обновление памяти наблюдений запущено (600 заданий, страницами по 500)
+Executing <Task finished name='Task-2' coro=<ShieldedDbCancelTest.test_cancel_during_page_waits_for_page_and_keeps_the_rest() done, defined at /Users/molthun/Documents/kz-price-hunter/tests/web/test_shielded_db_cancel.py:72> result=None created at /opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:110> took 0.107 seconds
+...
+----------------------------------------------------------------------
+Ran 3 tests in 0.325s
+
+OK

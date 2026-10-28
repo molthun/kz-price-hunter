@@ -1,0 +1,52 @@
+[
+  {
+    "shop": "Эврика",
+    "url": "https://evrika.com/catalog/nur-sultan-astana/noutbuki/c207",
+    "status": 200,
+    "count": 32,
+    "complete": true,
+    "declared": 32,
+    "h1": [
+      "Ноутбуки в Астане"
+    ],
+    "pager": [],
+    "sample": [
+      {
+        "shop": "Эврика",
+        "id": "evrika_48328",
+        "title": "Lenovo LOQ 24Gb|512Gb|15.6|RTX5060 8Gb|i7-13645HX|Win11",
+        "category": "Эврика: 💻 Ноутбуки",
+        "url": "https://evrika.com/catalog/nur-sultan-astana/noutbuk-lenovo-loq-15irx10-15-6-i7-13645hx-24gb-512gb-ssd-rtx5060-8gb-win11/p48328",
+        "image_url": "https://cdn.evrika.com/storage/products/images/medium/rvteT2Im7mqvkePwgZxyFYyZoKoysmX9spbg5KhE.jpg.webp",
+        "price": 1039990,
+        "old_price_on_site": 0,
+        "city": "Астана"
+      }
+    ]
+  },
+  {
+    "shop": "Alser",
+    "url": "https://alser.kz/astana/c/vse-pilesosy",
+    "status": 200,
+    "count": 1,
+    "complete": true,
+    "declared": 1,
+    "h1": [
+      "Все пылесосы в Алматы"
+    ],
+    "pager": [],
+    "sample": [
+      {
+        "shop": "Alser",
+        "id": "alser_vertikalnyj-pylesos-wade-sv-01-blue",
+        "title": "Вертикальный пылесос WADE SV-01, Blue",
+        "category": "Alser: 🧹 Пылесосы",
+        "url": "https://alser.kz/p/vertikalnyj-pylesos-wade-sv-01-blue",
+        "image_url": "https://s3s.alser.kz/uploads/products/vertikalnie-pylesosy/bxGW0SmpG/vertikalnyj-pylesos-wade-sv-01-blue-w160.webp",
+        "price": 16090,
+        "old_price_on_site": 19990,
+        "city": "Астана"
+      }
+    ]
+  }
+]
