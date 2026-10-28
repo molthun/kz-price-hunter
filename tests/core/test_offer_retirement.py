@@ -27,6 +27,7 @@ class OfferRetirementTest(QueueContractBase):
             conn.execute("DELETE FROM watch_events")
             conn.execute("DELETE FROM watch_state")
             conn.execute("DELETE FROM watches")
+            conn.execute("DELETE FROM notification_outbox WHERE user_id = ?", (WATCH_USER,))
             conn.commit()
 
     def pid(self, name):
@@ -175,7 +176,7 @@ class OfferRetirementTest(QueueContractBase):
     async def test_memory_repair_survives_failure_and_restart(self):
         """G03-A: сбой обновления памяти при старте повторяется следующим стартом."""
         await self.prepare_old_base()
-        with patch.object(database, "evaluate_watches", side_effect=sqlite3.OperationalError("synthetic")):
+        with patch.object(database, "_apply_retire_transition", side_effect=sqlite3.OperationalError("synthetic")):
             database.init_db()
         self.assert_available("drift", False)
         self.assertEqual(self.refresh_jobs("drift"), 1, "задание потеряно после сбоя")
@@ -205,7 +206,7 @@ class OfferRetirementTest(QueueContractBase):
         await qm.enqueue([self.item("kept")], "Contract", {}, shop_key=self.shop,
                          reconcile={"key": self.shop, "url": "https://example.invalid/cat", "complete": True})
         item = await qm.dequeue(timeout=0.05)
-        with patch.object(database, "evaluate_watches", side_effect=sqlite3.OperationalError("synthetic")):
+        with patch.object(database, "_apply_retire_transition", side_effect=sqlite3.OperationalError("synthetic")):
             with self.assertRaises(sqlite3.OperationalError):
                 await self.run_item(qm, item)
         self.assertEqual(self.refresh_jobs("late"), 1)
@@ -220,7 +221,7 @@ class OfferRetirementTest(QueueContractBase):
     async def test_return_before_deferred_refresh_still_notifies_once(self):
         """G04: сбой при старте → товар вернулся раньше повтора → повтор; одно «снова в продаже»."""
         await self.prepare_old_base()
-        with patch.object(database, "evaluate_watches", side_effect=sqlite3.OperationalError("synthetic")):
+        with patch.object(database, "_apply_retire_transition", side_effect=sqlite3.OperationalError("synthetic")):
             database.init_db()
         self.assertEqual(self.refresh_jobs("drift"), 1)
         await self.assert_return_notifies_once()        # возврат до повтора задания
@@ -231,7 +232,7 @@ class OfferRetirementTest(QueueContractBase):
     async def test_deferred_refresh_after_return_applies_transition_in_order(self):
         """G04: задание выполняется уже после возврата (возврат без проверки наблюдений) — порядок сохранён."""
         await self.prepare_old_base()
-        with patch.object(database, "evaluate_watches", side_effect=sqlite3.OperationalError("synthetic")):
+        with patch.object(database, "_apply_retire_transition", side_effect=sqlite3.OperationalError("synthetic")):
             database.init_db()
         with database.get_connection() as conn:  # товар снова в каталоге, наблюдения ещё не проверялись
             conn.execute("UPDATE products SET is_active = 1 WHERE id = ?", (self.pid("drift"),))
@@ -241,3 +242,38 @@ class OfferRetirementTest(QueueContractBase):
         self.assertEqual([e["reason"] for e in self.events()], ["товар снова в продаже"])
         self.assertEqual(database.drain_watch_refresh(), 0)
         self.assertEqual(len(self.events()), 1)
+
+    def outbox(self):
+        with database.get_connection() as conn:
+            return conn.execute("SELECT COUNT(*) FROM notification_outbox WHERE user_id = ? AND alert_id < 0",
+                                (WATCH_USER,)).fetchone()[0]
+
+    async def test_failed_job_delete_after_event_does_not_duplicate(self):
+        """G05: событие и outbox записаны → удаление задания падает → повтор → ровно одно событие."""
+        await self.prepare_old_base()
+        with patch.object(database, "_apply_retire_transition", side_effect=sqlite3.OperationalError("synthetic")):
+            database.init_db()
+        with database.get_connection() as conn:  # товар вернулся без проверки наблюдений
+            conn.execute("UPDATE products SET is_active = 1 WHERE id = ?", (self.pid("drift"),))
+            conn.execute("UPDATE offers SET is_active = 1 WHERE id = ?", (f"off_{self.pid('drift')}",))
+            conn.execute("CREATE TRIGGER g05_block BEFORE DELETE ON watch_refresh "
+                         "BEGIN SELECT RAISE(ABORT, 'synthetic delete failure'); END")
+            conn.commit()
+        try:
+            with self.assertRaises(sqlite3.IntegrityError):
+                database.drain_watch_refresh()
+        finally:
+            with database.get_connection() as conn:
+                conn.execute("DROP TRIGGER g05_block")
+                conn.commit()
+        self.assertEqual((len(self.events()), self.outbox()), (1, 1))
+        self.assertEqual(self.refresh_jobs("drift"), 1, "задание должно остаться до подтверждения")
+        database.init_db()                                   # повтор: рестарт с тем же заданием
+        database.drain_watch_refresh()
+        self.assertEqual(self.refresh_jobs("drift"), 0)
+        self.assertEqual((len(self.events()), self.outbox()), (1, 1), "повтор создал второе уведомление")
+        # Новый настоящий цикл снятия и возврата — новое событие
+        await self.scan(["kept"])
+        await self.scan(["kept", "drift"])
+        self.assertEqual([e["reason"] for e in self.events()], ["товар снова в продаже"] * 2)
+        self.assertEqual(self.outbox(), 2)

@@ -119,34 +119,48 @@ def _reconcile_source_conn(conn, shop_key, source_url, product_ids, complete=Fal
 def _queue_watch_refresh_conn(conn, product_ids) -> None:
     """G03: задание обновить память наблюдений — в той же транзакции, что снятие товара."""
     now = time.time()
-    conn.executemany("INSERT OR IGNORE INTO watch_refresh (product_id, created_at) VALUES (?, ?)",
+    # Новое снятие — новый переход: задание снова начинается с фазы 'retire', даже если прежнее
+    # ещё не удалено
+    conn.executemany("""INSERT INTO watch_refresh (product_id, created_at, phase) VALUES (?, ?, 'retire')
+                        ON CONFLICT(product_id) DO UPDATE SET phase = 'retire', created_at = excluded.created_at""",
                      [(str(pid), now) for pid in product_ids])
 
 
 def refresh_retired_watches(product_ids: List[str]) -> None:
-    """Применяет к наблюдениям переход «снят», затем текущее состояние; потом удаляет задания.
+    """Выполняет задания watch_refresh этих товаров: «снят», затем текущее состояние (G03–G05).
 
-    Задание означает «товар был снят» независимо от того, что с ним сейчас (G04): сначала память
-    наблюдений получает was_available = 0 по снимку предложения, принудительно недоступному, — это
-    событий не создаёт. Если товар к этому моменту уже вернулся, следом оценивается его текущее
-    состояние, и наблюдение даёт «снова в продаже» в правильном порядке.
-    Ошибка пробрасывается и оставляет задания: их повторит следующий вызов или старт (G03).
-    Доставка — «хотя бы один раз»: сбой между оценкой и удалением задания может повторить
-    уведомление о возврате, но не потерять его.
+    Задание значит «товар был снят» независимо от того, что с ним сейчас (G04). Две фазы:
+      1. 'retire' → память наблюдений получает was_available = 0 в одной транзакции с переводом
+         задания в 'current' (_apply_retire_transition). Повтор эту фазу не повторяет.
+      2. 'current' → оценка текущего состояния. Если товар уже вернулся, наблюдение даёт «снова
+         в продаже»; повтор идемпотентен — память после события уже was_available = 1.
+    Затем задания удаляются. Ошибка на любом шаге оставляет задание в его фазе. Итог — ровно одно
+    событие на переход даже при сбое между событием и удалением задания (G05).
     """
     ids = [str(pid) for pid in product_ids]
     if not ids:
         return
-    offers = watched_offers(ids)
-    if offers:
-        evaluate_watches([dict(o, is_available=0) for o in offers])
-        returned = [o for o in offers if o.get("is_available")]
-        if returned:
-            evaluate_watches(returned)
+    phases: Dict[str, str] = {}
     with get_connection() as conn:
         for i in range(0, len(ids), 500):
             chunk = ids[i:i + 500]
-            conn.execute(f"DELETE FROM watch_refresh WHERE product_id IN ({','.join('?' * len(chunk))})", chunk)
+            phases.update((r[0], r[1]) for r in conn.execute(
+                f"SELECT product_id, phase FROM watch_refresh WHERE product_id IN ({','.join('?' * len(chunk))})",
+                chunk))
+    if not phases:
+        return  # задания уже выполнены другим путём (возврат товара, старт, обслуживание)
+    retire = [pid for pid, phase in phases.items() if phase == "retire"]
+    if retire:
+        _apply_retire_transition(retire, watched_offers(retire))
+    current = [o for o in watched_offers(list(phases)) if o.get("is_available")]
+    if current:
+        evaluate_watches(current)
+    done = list(phases)
+    with get_connection() as conn:
+        for i in range(0, len(done), 500):
+            chunk = done[i:i + 500]
+            conn.execute(f"DELETE FROM watch_refresh WHERE phase = 'current' AND product_id IN "
+                         f"({','.join('?' * len(chunk))})", chunk)
         conn.commit()
 
 
@@ -665,6 +679,9 @@ def _create_schema(cursor) -> None:
         product_id TEXT PRIMARY KEY,
         created_at REAL NOT NULL
     )""")
+    # G05: фаза задания — 'retire' (снятие ещё не записано в память наблюдений) или 'current'
+    # (записано; осталось оценить текущее состояние, это идемпотентно)
+    _add_column(cursor, "watch_refresh", "phase", "TEXT NOT NULL DEFAULT 'retire'")
     cursor.execute("""CREATE TABLE IF NOT EXISTS source_observed (
         shop_key TEXT NOT NULL,
         source_url TEXT NOT NULL,
@@ -3183,6 +3200,58 @@ def _watch_states(conn, watch_id: int, product_id: str) -> Dict[str, Any]:
 MAX_EVENTS_PER_WATCH_PER_RUN = 25
 
 
+def _watch_scope_id(watch: Dict[str, Any], offer: Dict[str, Any]) -> str:
+    """Ключ памяти наблюдения по предложению (B09).
+
+    Для межпродавцовых условий (NEW_OFFER, NEW_SELLER, etc.) память ведётся по каноническому товару.
+    Для условий снижения цены (ANY_DROP, DROP_*, TARGET_PRICE) — по конкретному офферу,
+    чтобы цена одного продавца не вызывала ложное срабатывание у другого.
+    """
+    import watches as w
+    product_id = str(offer.get("id") or "")
+    offer_key = str(offer.get("id") or offer.get("offer_id") or "").strip()
+    canonical_id = str(offer.get("canonical_product_id") or offer.get("product_id") or offer.get("canonical_key") or product_id)
+    if watch.get("condition") in getattr(w, "CROSS_OFFER_CONDITIONS", ()):
+        city = str(offer.get("city") or "").strip().lower()
+        cond = str(offer.get("condition") or "new").strip().lower()
+        return f"{canonical_id}:{city}:{cond}" if (city or cond != "new") else canonical_id
+    return offer_key if offer_key else product_id
+
+
+def _apply_retire_transition(product_ids: List[str], offers: List[Dict[str, Any]]) -> None:
+    """Фаза 1 задания watch_refresh (G05): «товар снят» записывается в память наблюдений
+    (was_available = 0) в одной транзакции с переводом задания в фазу 'current'.
+
+    Повтор задания после этой транзакции фазу 1 не повторяет — искусственное снятие не создаётся
+    второй раз, и возврат не может дать второе событие. Событий фаза 1 не создаёт.
+    """
+    import watches as w
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    ids = [str(pid) for pid in product_ids]
+    with get_connection() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            active = [_watch_row(r) for r in conn.execute("SELECT * FROM watches WHERE is_active = 1")]
+            for offer in offers:
+                for watch in active:
+                    if not w.matches(watch, offer):
+                        continue
+                    conn.execute("""
+                        INSERT INTO watch_state (watch_id, product_id, was_available, updated_at)
+                        VALUES (?, ?, 0, ?)
+                        ON CONFLICT(watch_id, product_id) DO UPDATE SET
+                            was_available = 0, updated_at = excluded.updated_at
+                    """, (watch["id"], _watch_scope_id(watch, offer), now))
+            for i in range(0, len(ids), 500):
+                chunk = ids[i:i + 500]
+                conn.execute(f"UPDATE watch_refresh SET phase = 'current' WHERE product_id IN "
+                             f"({','.join('?' * len(chunk))})", chunk)
+            conn.commit()
+        except BaseException:
+            conn.rollback()
+            raise
+
+
 def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.datetime] = None) -> int:
     """Сверяет изменившиеся предложения с активными наблюдениями и ставит срабатывания в очередь.
 
@@ -3217,17 +3286,7 @@ def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.dateti
             channel_key = str(offer.get("channel_type") or offer.get("channel_id") or offer.get("channel") or "").strip().lower()
             offer_key = str(offer.get("id") or offer.get("offer_id") or "").strip()
 
-            # B09: Разделение скоупов наблюдения:
-            # Для межпродавцовых условий (NEW_OFFER, NEW_SELLER, etc.) память ведётся по каноническому товару.
-            # Для условий снижения цены (ANY_DROP, DROP_*, TARGET_PRICE) память ведётся по конкретному офферу,
-            # чтобы цена одного продавца не вызывала ложное срабатывание у другого.
-            canonical_id = str(offer.get("canonical_product_id") or offer.get("product_id") or offer.get("canonical_key") or product_id)
-            if watch.get("condition") in getattr(w, "CROSS_OFFER_CONDITIONS", ()):
-                city = str(offer.get("city") or "").strip().lower()
-                cond = str(offer.get("condition") or "new").strip().lower()
-                scope_id = f"{canonical_id}:{city}:{cond}" if (city or cond != "new") else canonical_id
-            else:
-                scope_id = offer_key if offer_key else product_id
+            scope_id = _watch_scope_id(watch, offer)
 
             with get_connection() as conn:
                 # Чтение состояния, решение и запись события — одна транзакция на запись: два
