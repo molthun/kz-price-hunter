@@ -1,0 +1,38 @@
+[System] 📡 Модуль онлайн-логирования активирован.
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+test_compatible_legacy_rollback_real_previous_worker (__main__.Audit.test_compatible_legacy_rollback_real_previous_worker) ... Повтор задачи task_2511a638819d48e5b2085ccec692f8d6 (Contract), попытка 1
+{"case": "legacy_rollback", "gate_ok": true, "saved": 500}
+Executing <Task finished name='Task-2' coro=<Audit.test_compatible_legacy_rollback_real_previous_worker() done, defined at /Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-28-v6412-reaccept/acceptance.py:71> result=None created at /opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:110> took 0.456 seconds
+ok
+{"case": "implicit_write_timing", "blocked_contender_ms": [211.904665993643], "stats": {"count": 1, "commits": 1, "rollbacks": 0, "slow_count": 0, "total_hold_ms": 202.11, "max_hold_ms": 202.11, "max_wait_ms": 0.0, "max_total_ms": 202.11, "last_statements": 1, "unsplit_count": 1}}
+test_implicit_write_execution_is_measured_as_hold (__main__.Audit.test_implicit_write_execution_is_measured_as_hold) ... Executing <Task finished name='Task-7' coro=<Audit.test_implicit_write_execution_is_measured_as_hold() done, defined at /Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-28-v6412-reaccept/acceptance.py:52> result=None created at /opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:110> took 0.214 seconds
+ok
+test_rollback_partial_100_chunk_to_real_6411_persists_all (__main__.Audit.test_rollback_partial_100_chunk_to_real_6411_persists_all) ... Повтор задачи task_138e5a0b377244d1afe739ce19b8556d (Contract), попытка 1
+/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/traceback.py:294: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x10964f100>
+  def __init__(self, filename, lineno, name, *, lookup_line=True,
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/traceback.py:294: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x10964f1f0>
+  def __init__(self, filename, lineno, name, *, lookup_line=True,
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/traceback.py:294: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x10964d210>
+  def __init__(self, filename, lineno, name, *, lookup_line=True,
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/traceback.py:294: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x10964f880>
+  def __init__(self, filename, lineno, name, *, lookup_line=True,
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+{"case": "rollback_guard", "gate_ok": false, "current_worker_saved": 300}
+ok
+test_sql_failed_commit_keeps_measurement_open (__main__.Audit.test_sql_failed_commit_keeps_measurement_open) ... ok
+test_upgrade_partial_200_chunk_to_100_preserves_drop (__main__.Audit.test_upgrade_partial_200_chunk_to_100_preserves_drop) ... Повтор задачи task_7769c6f510af47eaaddfa5612cf4d21b (Contract), попытка 1
+{"case": "upgrade", "original_price": 200, "saved_history_price": 200, "watch_events": 1}
+ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 1.098s
+
+OK

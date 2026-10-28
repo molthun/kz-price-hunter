@@ -1,0 +1,40 @@
+[System] 📡 Модуль онлайн-логирования активирован.
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+test_admitted_layout_survives_default_size_change (__main__.Audit.test_admitted_layout_survives_default_size_change) ... Повтор задачи task_80d97719799b4f68bd09b5a3bb16a0d9 (Contract), попытка 1
+ok
+test_compatible_legacy_rollback_real_previous_worker (__main__.Audit.test_compatible_legacy_rollback_real_previous_worker) ... Повтор задачи task_6d4a351fbf314c70bababaebc59a462f (Contract), попытка 1
+{"case": "legacy_rollback", "gate_ok": true, "saved": 500}
+Executing <Task finished name='Task-7' coro=<Audit.test_compatible_legacy_rollback_real_previous_worker() done, defined at /Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-28-v6412-reaccept/acceptance.py:76> result=None created at /opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:110> took 0.356 seconds
+ok
+{"case": "implicit_write_timing", "blocked_contender_ms": [260.11591700080317], "stats": {"count": 1, "commits": 1, "rollbacks": 0, "slow_count": 0, "total_hold_ms": 205.9, "max_hold_ms": 205.9, "max_wait_ms": 0.0, "max_total_ms": 205.9, "last_statements": 1, "unsplit_count": 1}}
+test_implicit_write_execution_is_measured_as_hold (__main__.Audit.test_implicit_write_execution_is_measured_as_hold) ... Executing <Task finished name='Task-12' coro=<Audit.test_implicit_write_execution_is_measured_as_hold() done, defined at /Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-28-v6412-reaccept/acceptance.py:57> result=None created at /opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:110> took 0.262 seconds
+ok
+test_rollback_partial_100_chunk_to_real_6411_persists_all (__main__.Audit.test_rollback_partial_100_chunk_to_real_6411_persists_all) ... Повтор задачи task_c028ddd465c94c588cef9cd17b4a4d70 (Contract), попытка 1
+/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py:806: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x10d52cc70>
+  def __setattr__(self, name, value):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py:806: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x10d52cd60>
+  def __setattr__(self, name, value):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py:806: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x10d2be4d0>
+  def __setattr__(self, name, value):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py:806: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x10d2bea70>
+  def __setattr__(self, name, value):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+{"case": "rollback_guard", "gate_ok": false, "current_worker_saved": 300}
+ok
+test_sql_failed_commit_keeps_measurement_open (__main__.Audit.test_sql_failed_commit_keeps_measurement_open) ... ok
+test_upgrade_partial_200_chunk_to_100_preserves_drop (__main__.Audit.test_upgrade_partial_200_chunk_to_100_preserves_drop) ... Повтор задачи task_b0edd740d1eb488aa050c95a0ba361c5 (Contract), попытка 1
+{"case": "upgrade", "original_price": 200, "saved_history_price": 200, "watch_events": 1}
+ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 1.165s
+
+OK
