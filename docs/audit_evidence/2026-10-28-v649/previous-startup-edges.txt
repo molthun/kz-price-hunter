@@ -1,0 +1,57 @@
+[System] 📡 Модуль онлайн-логирования активирован.
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+test_base_already_repaired_by_646_gets_memory_fixed (__main__.StartupEdges.test_base_already_repaired_by_646_gets_memory_fixed)
+[DB] G03: память наблюдений обновлена по 1 снятым товарам
+G03-B: offers уже сняла 6.4.6, память осталась «в продаже» — разовый досев заданий. ... ok
+test_deferred_refresh_after_return_applies_transition_in_order (__main__.StartupEdges.test_deferred_refresh_after_return_applies_transition_in_order)
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+G04: задание выполняется уже после возврата (возврат без проверки наблюдений) — порядок сохранён. ... ok
+test_failed_retired_watch_refresh_in_queue_is_retried (__main__.StartupEdges.test_failed_retired_watch_refresh_in_queue_is_retried)
+[Watches] Ошибка проверки снятых товаров: OperationalError
+Сбой обновления памяти в очереди: задача и задание остаются, повтор доводит до конца. ... Повтор задачи task_85f9b4702a634aed9296e4891e3fe934 (Contract), попытка 1
+ok
+test_full_scan_without_item_retires_it_everywhere_and_return_restores (__main__.StartupEdges.test_full_scan_without_item_retires_it_everywhere_and_return_restores) ... ok
+test_independent_seller_channel_is_not_retired (__main__.StartupEdges.test_independent_seller_channel_is_not_retired) ... ok
+test_item_confirmed_by_another_active_source_stays (__main__.StartupEdges.test_item_confirmed_by_another_active_source_stays) ... ok
+test_limited_and_failed_scans_do_not_retire (__main__.StartupEdges.test_limited_and_failed_scans_do_not_retire) ... Задача task_93000ae89e9e4c848fa5d5add248e4f5 (Contract) превысила лимит повторов и помещена в dead-letter
+ok
+test_memory_repair_survives_failure_and_restart (__main__.StartupEdges.test_memory_repair_survives_failure_and_restart)
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+[DB] G03: память наблюдений обновлена по 1 снятым товарам
+G03-A: сбой обновления памяти при старте повторяется следующим стартом. ... ok
+test_old_retry_after_newer_full_scan_does_not_retire (__main__.StartupEdges.test_old_retry_after_newer_full_scan_does_not_retire) ... Задача task_309399105f134a1696925539e7f30b3f (Contract) превысила лимит повторов и помещена в dead-letter
+ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений обновлена по 1 снятым товарам
+test_repeated_startup_and_same_price_return_no_duplicate (__main__.StartupEdges.test_repeated_startup_and_same_price_return_no_duplicate) ... ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+test_return_before_deferred_refresh_preserves_transition (__main__.StartupEdges.test_return_before_deferred_refresh_preserves_transition) ... ok
+test_return_before_deferred_refresh_still_notifies_once (__main__.StartupEdges.test_return_before_deferred_refresh_still_notifies_once)
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+G04: сбой при старте → товар вернулся раньше повтора → повтор; одно «снова в продаже». ... ok
+test_startup_repair_updates_watch_memory_so_return_notifies (__main__.StartupEdges.test_startup_repair_updates_watch_memory_so_return_notifies)
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений обновлена по 1 снятым товарам
+G02: старая база + наблюдение → init_db → возврат по прежней цене → одно «снова в продаже». ... ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+test_startup_repairs_offers_retired_before_the_fix (__main__.StartupEdges.test_startup_repairs_offers_retired_before_the_fix) ... ok
+[DB] G03: память наблюдений обновлена по 3 снятым товарам
+test_upgrade_from_646_repairs_already_retired_offer_watch (__main__.StartupEdges.test_upgrade_from_646_repairs_already_retired_offer_watch) ... ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+[DB] G03: память наблюдений обновлена по 1 снятым товарам
+test_watch_failure_then_restart_retries_obligation (__main__.StartupEdges.test_watch_failure_then_restart_retries_obligation) ... ok
+
+----------------------------------------------------------------------
+Ran 16 tests in 1.357s
+
+OK

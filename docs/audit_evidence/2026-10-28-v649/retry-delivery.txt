@@ -1,0 +1,66 @@
+[System] 📡 Модуль онлайн-логирования активирован.
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+test_base_already_repaired_by_646_gets_memory_fixed (__main__.RetryAcceptance.test_base_already_repaired_by_646_gets_memory_fixed)
+[DB] G03: память наблюдений обновлена по 1 снятым товарам
+G03-B: offers уже сняла 6.4.6, память осталась «в продаже» — разовый досев заданий. ... ok
+test_deferred_refresh_after_return_applies_transition_in_order (__main__.RetryAcceptance.test_deferred_refresh_after_return_applies_transition_in_order)
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+G04: задание выполняется уже после возврата (возврат без проверки наблюдений) — порядок сохранён. ... ok
+test_failed_retired_watch_refresh_in_queue_is_retried (__main__.RetryAcceptance.test_failed_retired_watch_refresh_in_queue_is_retried)
+[Watches] Ошибка проверки снятых товаров: OperationalError
+Сбой обновления памяти в очереди: задача и задание остаются, повтор доводит до конца. ... Повтор задачи task_bdae7dcd499f4d68b6a4139dad3d045d (Contract), попытка 1
+ok
+test_full_scan_without_item_retires_it_everywhere_and_return_restores (__main__.RetryAcceptance.test_full_scan_without_item_retires_it_everywhere_and_return_restores) ... ok
+test_independent_seller_channel_is_not_retired (__main__.RetryAcceptance.test_independent_seller_channel_is_not_retired) ... ok
+test_item_confirmed_by_another_active_source_stays (__main__.RetryAcceptance.test_item_confirmed_by_another_active_source_stays) ... ok
+test_limited_and_failed_scans_do_not_retire (__main__.RetryAcceptance.test_limited_and_failed_scans_do_not_retire) ... Задача task_078123b0cc7d4a6097a2f7e737712bfd (Contract) превысила лимит повторов и помещена в dead-letter
+ok
+test_memory_repair_survives_failure_and_restart (__main__.RetryAcceptance.test_memory_repair_survives_failure_and_restart)
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+[DB] G03: память наблюдений обновлена по 1 снятым товарам
+G03-A: сбой обновления памяти при старте повторяется следующим стартом. ... ok
+test_old_retry_after_newer_full_scan_does_not_retire (__main__.RetryAcceptance.test_old_retry_after_newer_full_scan_does_not_retire) ... Задача task_3c4eff74345947f9a302b94fe74abd7c (Contract) превысила лимит повторов и помещена в dead-letter
+ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+[Watches] Ошибка проверки наблюдений: IntegrityError
+test_retry_after_refresh_delete_failure_does_not_duplicate_event (__main__.RetryAcceptance.test_retry_after_refresh_delete_failure_does_not_duplicate_event) ... Повтор задачи task_b53f1dbeae484d4280fcac157a7bc3f3 (Contract), попытка 1
+{'event_count': 2, 'outbox_count': 2}
+FAIL
+test_return_before_deferred_refresh_still_notifies_once (__main__.RetryAcceptance.test_return_before_deferred_refresh_still_notifies_once)
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+G04: сбой при старте → товар вернулся раньше повтора → повтор; одно «снова в продаже». ... ok
+test_startup_repair_updates_watch_memory_so_return_notifies (__main__.RetryAcceptance.test_startup_repair_updates_watch_memory_so_return_notifies)
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений обновлена по 1 снятым товарам
+G02: старая база + наблюдение → init_db → возврат по прежней цене → одно «снова в продаже». ... ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+test_startup_repairs_offers_retired_before_the_fix (__main__.RetryAcceptance.test_startup_repairs_offers_retired_before_the_fix) ... ok
+
+======================================================================
+FAIL: test_retry_after_refresh_delete_failure_does_not_duplicate_event (__main__.RetryAcceptance.test_retry_after_refresh_delete_failure_does_not_duplicate_event)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py", line 128, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py", line 720, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-28-v649/retry_delivery.py", line 46, in test_retry_after_refresh_delete_failure_does_not_duplicate_event
+    self.assertEqual(len(events), 1, 'one retirement/return transition created duplicate events after retry')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 2 != 1 : one retirement/return transition created duplicate events after retry
+
+----------------------------------------------------------------------
+Ran 13 tests in 1.074s
+
+FAILED (failures=1)

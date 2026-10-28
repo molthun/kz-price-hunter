@@ -1,0 +1,33 @@
+[System] 📡 Модуль онлайн-логирования активирован.
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+[Watches] Ошибка проверки наблюдений: IntegrityError
+test_retry_after_refresh_delete_failure_does_not_duplicate_event (__main__.RetryAcceptance.test_retry_after_refresh_delete_failure_does_not_duplicate_event) ... Повтор задачи task_79ff28b958744d03a1211294ee7d4d9e (Contract), попытка 1
+{'event_count': 2, 'outbox_count': 2}
+FAIL
+
+======================================================================
+FAIL: test_retry_after_refresh_delete_failure_does_not_duplicate_event (__main__.RetryAcceptance.test_retry_after_refresh_delete_failure_does_not_duplicate_event)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py", line 128, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py", line 720, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-28-v649/retry_delivery.py", line 46, in test_retry_after_refresh_delete_failure_does_not_duplicate_event
+    self.assertEqual(len(events), 1, 'one retirement/return transition created duplicate events after retry')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 2 != 1 : one retirement/return transition created duplicate events after retry
+
+----------------------------------------------------------------------
+Ran 1 test in 0.108s
+
+FAILED (failures=1)
