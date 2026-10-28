@@ -279,6 +279,78 @@ async def health_handler(request):
     except Exception as e:
         return web.json_response({"status": "degraded", "error": type(e).__name__}, status=200)
 
+def _diag_allowed(request) -> bool:
+    """Диагностика открыта администратору по сессии и по токену — для агента или curl."""
+    import hmac
+    from config import DIAG_TOKEN
+    from auth import is_admin
+    user = request.get("user")
+    if user and is_admin(user):
+        return True
+    token = request.headers.get("X-Diag-Token", "")
+    # Сравниваем байты: compare_digest на строках требует только ASCII и падает,
+    # если в токене оказалась кириллица или любой другой символ вне ASCII.
+    return bool(DIAG_TOKEN) and hmac.compare_digest(token.encode("utf-8"), DIAG_TOKEN.encode("utf-8"))
+
+
+async def _measure_loop_lag_ms(samples: int = 5, pause: float = 0.05) -> float:
+    """Насколько цикл событий опаздывает против собственного сна. Берём худшую из попыток:
+    именно редкие длинные простои и видны людям как «страница висит»."""
+    loop = asyncio.get_running_loop()
+    worst = 0.0
+    for _ in range(samples):
+        started = loop.time()
+        await asyncio.sleep(pause)
+        worst = max(worst, (loop.time() - started - pause) * 1000)
+    return max(0.0, worst)
+
+
+async def _collect_diagnostics() -> dict:
+    import diagnostics
+    import database
+    from config import worker_thread_count
+    from queue_service import product_queue
+    from version import get_version_info
+
+    lag = await _measure_loop_lag_ms()
+    queue_info = {"size": await product_queue.qsize(),
+                  "redis_active": product_queue.is_redis_active(),
+                  "worker_running": product_queue.is_worker_running}
+    scan_info = {k: scan_state.get(k) for k in
+                 ("is_running", "current_shop", "current_category", "progress_pct", "total_scanned")}
+    return await asyncio.to_thread(
+        diagnostics.collect,
+        version_info=get_version_info(),
+        connect=database.get_connection,
+        db_path=database.DB_PATH,
+        queue=queue_info,
+        scan=scan_info,
+        thread_pool_size=worker_thread_count(),
+        event_loop_lag_ms=lag,
+    )
+
+
+@routes.get("/api/diag")
+async def diagnostics_json_handler(request):
+    """Снимок состояния для агента: машиночитаемый, начинается с ключа problems."""
+    if not _diag_allowed(request):
+        raise web.HTTPNotFound()
+    snapshot = await _collect_diagnostics()
+    return web.json_response(snapshot, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
+@routes.get("/diag")
+async def diagnostics_page_handler(request):
+    """Тот же снимок страницей. Собирается на сервере: ни внешних файлов, ни скриптов,
+    чтобы открывалась и тогда, когда остальное приложение уже не в порядке."""
+    if not _diag_allowed(request):
+        raise web.HTTPNotFound()
+    import diagnostics
+    snapshot = await _collect_diagnostics()
+    return web.Response(text=diagnostics.render_html(snapshot), content_type="text/html",
+                        headers={"X-Robots-Tag": "noindex, nofollow"})
+
+
 @routes.get("/api/cities")
 async def cities_handler(request):
     return web.json_response(CITIES_KZ)

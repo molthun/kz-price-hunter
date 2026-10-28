@@ -19,6 +19,9 @@ services:
       # Exact observed proxy peer IP/CIDR, not the public NAT address.
       - TRUSTED_PROXIES=${TRUSTED_PROXIES:-}
       - ALLOW_DEV_LOGIN=0
+      # Токен диагностики (/diag и /api/diag). Пока пуст — обе страницы отвечают 404.
+      # Значение держать в .env рядом с compose, в git не класть. См. docs/DIAGNOSTICS.md
+      - DIAG_TOKEN=${DIAG_TOKEN:-}
       # Токен Telegram-бота (вход на сайте и уведомления) и администраторы (Telegram ID через запятую).
       # Значения берутся из .env рядом с docker-compose.yml — не храните их в git.
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
