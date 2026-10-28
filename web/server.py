@@ -264,10 +264,18 @@ def _check_db_readiness_sync() -> bool:
 @routes.get("/api/health")
 @routes.get("/api/readiness")
 async def health_handler(request):
-    """Readiness probe: проверка готовности сервиса и доступности базы данных."""
+    """Readiness probe: проверка готовности сервиса, доступности БД и состояния очереди."""
+    from queue_service import product_queue
     try:
         ok = await asyncio.wait_for(asyncio.to_thread(_check_db_readiness_sync), timeout=2.0)
-        return web.json_response({"status": "ok", "db": "ok" if ok else "busy"}, status=200 if ok else 503)
+        q_len = await product_queue.qsize()
+        return web.json_response({
+            "status": "ok",
+            "db": "ok" if ok else "busy",
+            "queue_size": q_len,
+            "redis_active": product_queue.is_redis_active(),
+            "worker_running": product_queue.is_worker_running,
+        }, status=200 if ok else 503)
     except Exception as e:
         return web.json_response({"status": "degraded", "error": type(e).__name__}, status=200)
 
@@ -1608,12 +1616,8 @@ def enabled_shop_keys(settings=None):
     enabled = s.get("enabled_shops", {})
     return [key for key in SHOP_REGISTRY if enabled.get(key, True)]
 
-async def _save_and_detect(prods, shop_name, candidate_settings, shop_key=None):
-    """Сохраняет товары категории одной транзакцией и записывает кандидатов в аномалии.
-
-    Пакетная запись важна не только для скорости: магазины сканируются параллельно,
-    и отдельная транзакция на каждый товар создавала конкуренцию за блокировку базы.
-    """
+async def _save_and_detect_direct(prods, shop_name, candidate_settings, shop_key=None):
+    """Синхронно сохраняет товары категории одной транзакцией и записывает кандидатов в аномалии."""
     if not prods:
         return
 
@@ -1692,6 +1696,93 @@ async def _save_and_detect(prods, shop_name, candidate_settings, shop_key=None):
             from telemetry import telemetry, COMPONENT_SYSTEM
             telemetry.record_system_error(COMPONENT_SYSTEM, "evaluate_watches_arbitrage", e)
     _record_price_changes(shop_name, changes)
+
+
+async def _save_and_detect(prods, shop_name, candidate_settings, shop_key=None, wait=False):
+    """Сохраняет товары категории через очередь (Single DB-Writer) или напрямую при отсутствии воркера."""
+    if not prods:
+        return
+
+    from queue_service import product_queue
+    if product_queue.is_worker_running and not wait:
+        await product_queue.enqueue(prods, shop_name, candidate_settings, shop_key=shop_key)
+        return
+
+    await _save_and_detect_direct(prods, shop_name, candidate_settings, shop_key=shop_key)
+
+
+async def _execute_queue_item(item):
+    """Выполняет полную запись спарсенных данных категории в SQLite без конкуренции с другими потоками."""
+    prods = item.get("prods") or []
+    shop_name = item.get("shop_name", "Shop")
+    candidate_settings = item.get("candidate_settings", {})
+    shop_key = item.get("shop_key")
+    reconcile = item.get("reconcile")
+    scan_log = item.get("scan_log")
+
+    if prods:
+        await _save_and_detect_direct(prods, shop_name, candidate_settings, shop_key=shop_key)
+
+    if reconcile:
+        try:
+            from database import reconcile_source
+            await asyncio.to_thread(
+                reconcile_source,
+                reconcile["key"],
+                reconcile["url"],
+                prods,
+                reconcile.get("complete", False),
+            )
+        except Exception as e:
+            print(f"[Queue Worker] Ошибка reconcile_source: {e}")
+            from telemetry import telemetry, COMPONENT_SYSTEM
+            telemetry.record_system_error(COMPONENT_SYSTEM, "worker_reconcile_source", e)
+
+    if scan_log:
+        try:
+            from database import record_source_scan
+            await asyncio.to_thread(
+                record_source_scan,
+                scan_log["key"],
+                scan_log["url"],
+                scan_log["name"],
+                scan_log["scan_id"],
+                scan_log["cat_started"],
+                scan_log["kind"],
+                scan_log["assessment"],
+                scan_log["metrics"],
+            )
+        except Exception as e:
+            print(f"[Queue Worker] Ошибка record_source_scan: {e}")
+            from telemetry import telemetry, COMPONENT_SYSTEM
+            telemetry.record_system_error(COMPONENT_SYSTEM, "worker_record_source_scan", e)
+
+
+async def single_db_writer_worker(app=None):
+    """Единственный асинхронный воркер записи в SQLite.
+
+    Вычитывает задачи из очереди (Redis или Memory) и последовательно производит запись,
+    гарантируя полное отсутствие конфликтов 'database is locked' между скраперами.
+    """
+    from queue_service import product_queue
+    product_queue.is_worker_running = True
+    print("[Queue] ⚡ Фоновый Single DB-Writer Worker запущен")
+    try:
+        while True:
+            try:
+                item = await product_queue.dequeue(timeout=0.5)
+                if item:
+                    await _execute_queue_item(item)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                print(f"[Queue Worker] Ошибка при обработке очереди: {e}")
+                from telemetry import telemetry, COMPONENT_SYSTEM
+                telemetry.record_system_error(COMPONENT_SYSTEM, "single_db_writer_worker", e)
+                await asyncio.sleep(0.5)
+    finally:
+        product_queue.is_worker_running = False
+        print("[Queue] Single DB-Writer Worker остановлен")
 
 
 def _record_price_changes(shop_name, changes) -> None:
@@ -1929,11 +2020,38 @@ async def _scan_shop_categories(key, scraper, categories, shop_name, candidate_s
                 scan_state["total_scanned"] += len(prods)
                 collected += len(prods)
                 _ensure_lease()  # результаты пишет только владелец аренды (R-H03)
-                await _save_and_detect(prods, shop_name, candidate_settings, shop_key=key)
-                await asyncio.to_thread(reconcile_source, key, cat["url"], prods,
-                                        assessment["may_retire"] and not error)
-                await asyncio.to_thread(record_source_scan, key, cat["url"], cat["name"], current_scan_id.get(),
-                                        cat_started, kind, assessment, metrics)
+
+                from queue_service import product_queue
+                if product_queue.is_worker_running:
+                    reconcile_data = {
+                        "key": key,
+                        "url": cat["url"],
+                        "complete": assessment["may_retire"] and not error,
+                    }
+                    scan_log_data = {
+                        "key": key,
+                        "url": cat["url"],
+                        "name": cat["name"],
+                        "scan_id": current_scan_id.get(),
+                        "cat_started": cat_started,
+                        "kind": kind,
+                        "assessment": assessment,
+                        "metrics": metrics,
+                    }
+                    await product_queue.enqueue(
+                        prods,
+                        shop_name,
+                        candidate_settings,
+                        shop_key=key,
+                        reconcile=reconcile_data,
+                        scan_log=scan_log_data,
+                    )
+                else:
+                    await _save_and_detect_direct(prods, shop_name, candidate_settings, shop_key=key)
+                    await asyncio.to_thread(reconcile_source, key, cat["url"], prods,
+                                            assessment["may_retire"] and not error)
+                    await asyncio.to_thread(record_source_scan, key, cat["url"], cat["name"], current_scan_id.get(),
+                                            cat_started, kind, assessment, metrics)
                 if error:
                     failed_categories.append(f"{cat['name']}: {error}")
                 elif not complete:
@@ -3145,11 +3263,17 @@ async def auto_scan_background_worker(app):
             await asyncio.sleep(15)
 
 async def background_tasks(app):
+    from queue_service import product_queue
+    await product_queue.initialize()
+
     from telegram_bot import run_telegram_bot_task
-    tasks = [asyncio.create_task(auto_scan_background_worker(app)),
-             asyncio.create_task(ai_normalize_background_worker(app)),
-             asyncio.create_task(notification_worker()),
-             asyncio.create_task(run_telegram_bot_task())]
+    tasks = [
+        asyncio.create_task(single_db_writer_worker(app)),
+        asyncio.create_task(auto_scan_background_worker(app)),
+        asyncio.create_task(ai_normalize_background_worker(app)),
+        asyncio.create_task(notification_worker()),
+        asyncio.create_task(run_telegram_bot_task()),
+    ]
     from telemetry import telemetry
     telemetry.start()
     yield
