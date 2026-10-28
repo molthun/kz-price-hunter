@@ -33,3 +33,6 @@ settings.json.*
 .coverage.*
 htmlcov/
 coverage.xml
+
+# Данные испытательного стенда (docs/TEST_STAND.md)
+stand-data/
