@@ -1,0 +1,27 @@
+{
+  "head": "6baa48c74c84effb723fa6ec5c65afe8c35fa92e",
+  "python": {
+    "tests": 1839,
+    "seconds": 90.976,
+    "result": "OK"
+  },
+  "frontend": {
+    "suites": 19,
+    "result": "PASS"
+  },
+  "linux_exact_head": {
+    "tests": 1839,
+    "seconds": 166.976,
+    "result": "OK",
+    "limits": "4 CPU / 15 GiB",
+    "source": "git archive exact HEAD",
+    "network": "none",
+    "data": "temporary; no mounts"
+  },
+  "previous_F01_F04": "accepted in reproduced scenarios",
+  "findings": {
+    "G01": "P1"
+  },
+  "production_modified": false,
+  "working_database_used": false
+}

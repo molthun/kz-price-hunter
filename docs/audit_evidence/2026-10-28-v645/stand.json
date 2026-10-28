@@ -1,0 +1,78 @@
+{
+  "cpu": 4000000000,
+  "memory": 16106127360,
+  "health": "healthy",
+  "diag": {
+    "generated_at": "2026-10-28T15:26:17.668718+00:00",
+    "service": {
+      "version": "6.4.5",
+      "release_date": "2026-10-28",
+      "uptime_seconds": 576.3,
+      "started_at": "2026-10-28T15:16:41.364887+00:00"
+    },
+    "runtime": {
+      "python": "3.14.4",
+      "platform": "linux",
+      "cpu_count": 16,
+      "thread_pool_size": 16,
+      "threads_alive": 15,
+      "rss_mb": 259.6,
+      "event_loop_lag_ms": 0.4
+    },
+    "database": {
+      "path": "/app/data/prices.db",
+      "size_mb": 480.0,
+      "wal_mb": null,
+      "journal_mode": "wal",
+      "synchronous": 1,
+      "busy_timeout_ms": 15000,
+      "page_size": 4096,
+      "rows": {
+        "products": 112002,
+        "offers": 112002,
+        "sellers": 35,
+        "alerts": 4437,
+        "watches": 0
+      },
+      "schema_version": "5"
+    },
+    "queue": {
+      "size": 0,
+      "failures": 0,
+      "redis_active": true,
+      "worker_running": true
+    },
+    "scan": {
+      "is_running": false,
+      "current_shop": "",
+      "current_category": "",
+      "progress_pct": 100,
+      "total_scanned": 0
+    },
+    "errors": {
+      "window_hours": 1.0,
+      "total": 2,
+      "by_component": {
+        "http": 2
+      },
+      "last": [
+        {
+          "at": "2026-10-28T15:20:21.878236Z",
+          "component": "http",
+          "type": "http_request",
+          "severity": "ERROR",
+          "message": "HTTP 502 GET www.sulpak.kz"
+        },
+        {
+          "at": "2026-10-28T14:45:54.720131Z",
+          "component": "http",
+          "type": "http_request",
+          "severity": "ERROR",
+          "message": "HTTP 500 GET tgrad.kz"
+        }
+      ]
+    },
+    "problems": [],
+    "status": "ok"
+  }
+}

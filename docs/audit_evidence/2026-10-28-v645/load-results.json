@@ -1,0 +1,16 @@
+{
+  "profile": "8 batches x 500 synthetic products; 8s HTTP probes; thresholds live p95<250ms, stats p95<2s",
+  "drained": true,
+  "stored": 4000,
+  "errors": [],
+  "/api/live": {
+    "requests": 78,
+    "p95_seconds": 0.0005,
+    "max_seconds": 0.001
+  },
+  "/api/stats": {
+    "requests": 78,
+    "p95_seconds": 0.0053,
+    "max_seconds": 0.0162
+  }
+}

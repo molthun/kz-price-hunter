@@ -1,0 +1,8 @@
+[System] 📡 Модуль онлайн-логирования активирован.
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{"legacy_active": 0, "v2": [{"id": "off_retired", "is_active": 1, "availability": "in_stock"}], "search": [{"id": "prod_36d73fd1c291d634", "purchasable": true, "min_price": 100.0}], "watch_available": [1], "notification_events": 1}
