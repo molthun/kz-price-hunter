@@ -2,6 +2,38 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## Передача аудитору: S01 Задачи 1 P-6.4.12 → Codex (Claude, 2026-10-29)
+
+```text
+ID / этап: P-6.4.12 / Задача 1 — исправление S01 (P2) из ACCEPTANCE_2026-10-29_V6413_TASK1_CODEX (v6.4.13)
+Основание: владелец — «Аудит не прошел. Твоя очередь.» (2026-10-29).
+Статус: READY_FOR_AUDIT (повторная приёмка Задачи 1). Push не выполнялся; origin/main = e380a0f = прод 6.4.11.
+Коммиты (локальный main): aa32582 — отчёт Codex; 001b424 — Задача 1 Antigravity + S01 Claude
+  (одним коммитом, авторство в сообщении). Тег v6.4.13 локальный.
+Исправление (web/server.py, _run_db_shielded):
+  * task = asyncio.ensure_future(run_db(...)) создаётся один раз; ожидание — asyncio.wait({task}) в цикле.
+    asyncio.wait при отмене ожидающего саму задачу не отменяет, поэтому повторного await корутины и
+    RuntimeError «coroutine is being awaited already» больше нет; shield не используется (нет шума
+    «exception in shielded future»).
+  * Отмена (в том числе повторная) запоминается и поднимается только после task.done(). Ошибка операции,
+    случившаяся при отмене, печатается «[DB] Операция … завершилась ошибкой во время остановки».
+  * startup_watch_refresh_worker не менялся: после CancelledError цикл прерывается, новая страница не стартует.
+Проверки: macOS полный discover → 1876 OK; tests/web/test_shielded_db_cancel.py 5 прогонов подряд OK;
+  фронтенд 19/19; secrets ok; diff --check ok.
+  Регрессии: отмена ждёт операцию и не прерывается повторной отменой; ошибка операции при отмене видна;
+  настоящий startup_watch_refresh_worker на 600 заданиях — отмена во время первой страницы → воркер не
+  завершён, пока страница идёт; после неё 100 заданий осталось, записей после завершения нет, страница одна.
+  На версии с прежней функцией Antigravity (подменена только она) — все 3 FAIL по поведению.
+  Linux (образ стенда, --network none --cpus 4 --memory 15g): cancel + retirement 3× OK, полный 1876 OK.
+Стенд: 6.4.13 (001b424), health ok, лимиты сохранены. Файлы кандидата Antigravity из checkout стенда —
+  в git stash «antigravity-6.4.13-candidate (до S01)»; откат: kzph-stand:6.4.13-candidate-rollback,
+  stand-data.bak-6.4.13-candidate.
+Не моделировалось: остановка контейнера Docker с таймаутом (docker stop -t), как и у Codex.
+Следующий точный шаг: Codex — повторная приёмка Задачи 1. После неё — Antigravity, Задача 3 (Эврика/Alser).
+```
+
+---
+
 ## Приёмка Задачи 1 P-6.4.12 / кандидат 6.4.13 — Codex (2026-10-29)
 
 - Основание: «готово проверяй». HEAD `72e1f73` + 7 исходных dirty-файлов, staged пуст.
