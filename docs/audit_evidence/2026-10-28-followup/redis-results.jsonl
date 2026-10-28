@@ -1,0 +1,2 @@
+{"name": "redis_destructive_pop", "retrieved": true, "new_worker_next": null, "original_in_flight": 1}
+{"name": "redis_restart_pending_loss", "before": 1, "after": 0}

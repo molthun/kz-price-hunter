@@ -1,0 +1,26 @@
+{
+  "local_head": "1f0d2ef0d86123449ec07fbf2822d4c8a46bc722",
+  "remote_main": "70427f55de165ec0143fa1f47edc8642ab5dadd9",
+  "stand_head": "2db26dcfd4561ceee34932216b0850a429da9591",
+  "python_tests": 1792,
+  "python_seconds": 82.253,
+  "python_result": "OK",
+  "frontend_suites": 18,
+  "frontend_result": "PASS",
+  "production_version": "6.4.1",
+  "production_diag_http": 404,
+  "production_diag_token_available": false,
+  "test_data": "temporary synthetic databases only",
+  "real_external_calls": "2 HTTPS moon.kz reads; no AI/Telegram calls",
+  "production_redis_active": false,
+  "production_queue_samples": [
+    171,
+    171,
+    169
+  ],
+  "stand_limits": {
+    "nano_cpus": 4000000000,
+    "memory_bytes": 16106127360,
+    "restart": "no"
+  }
+}

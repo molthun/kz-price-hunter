@@ -1,0 +1,79 @@
+[
+  {
+    "name": "dead_letter_false_success",
+    "dead_letters": 1,
+    "queue_size": 0,
+    "drained": true,
+    "readiness": 200
+  },
+  {
+    "name": "scan_complete_after_dead_letter",
+    "shop_status": "complete",
+    "saved": 0,
+    "dead_letters": 1
+  },
+  {
+    "name": "fallback_silent_drop",
+    "first_return": null,
+    "second_return": null,
+    "queued": 1,
+    "elapsed": 5.0
+  },
+  {
+    "name": "reconcile_failure_acknowledged",
+    "queued": 0,
+    "in_flight": 0,
+    "retries": 0,
+    "drained": true
+  },
+  {
+    "name": "fencing_acknowledges_discard",
+    "saved": 0,
+    "queued": 0,
+    "drained": true
+  },
+  {
+    "name": "fencing_generation_absent",
+    "old_task_saved": 1
+  },
+  {
+    "name": "liveness_cookie_shared_pool",
+    "blocked_at_200ms": true,
+    "status": 200,
+    "elapsed": 0.202
+  },
+  {
+    "name": "expired_only_candidate_before_limit",
+    "limit1": [
+      {
+        "id": "p0",
+        "min": null,
+        "purchasable": false
+      }
+    ],
+    "limit50": [
+      {
+        "id": "p1",
+        "min": 100.0,
+        "purchasable": true
+      },
+      {
+        "id": "p0",
+        "min": null,
+        "purchasable": false
+      }
+    ]
+  },
+  {
+    "name": "ttl_boundary",
+    "search_expired": false,
+    "showcase_expired": true
+  },
+  {
+    "name": "expired_unavailable_watch",
+    "input_available": 1,
+    "includes_expiry": false,
+    "includes_availability": false,
+    "notification_events": 1
+  }
+]

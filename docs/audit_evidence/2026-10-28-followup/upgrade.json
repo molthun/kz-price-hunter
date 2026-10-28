@@ -1,0 +1,36 @@
+{
+  "ok": true,
+  "schema_before": 5,
+  "schema_after": 5,
+  "smoke": [
+    {
+      "check": "активные товары",
+      "ok": true
+    },
+    {
+      "check": "товар с ценой",
+      "ok": true
+    },
+    {
+      "check": "вход пользователя",
+      "ok": true
+    },
+    {
+      "check": "наблюдения человека",
+      "ok": true
+    },
+    {
+      "check": "очередь уведомлений",
+      "ok": true
+    },
+    {
+      "check": "лента алертов",
+      "ok": true
+    }
+  ],
+  "integrity": "ok",
+  "rollback_compatible": true,
+  "upgraded_copy": "/tmp/kzph-audit-1028/upgraded.db",
+  "schema_expected": 5,
+  "rollback_note": "Схема не изменилась, поэтому прежний образ такую базу откроет. Это необходимое условие, но не доказательство: работу прежнего кода подтверждает отдельная проверка rollback_check."
+}

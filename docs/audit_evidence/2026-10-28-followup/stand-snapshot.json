@@ -1,0 +1,207 @@
+{
+  "generated_at": "2026-10-28T10:43:46.383239+00:00",
+  "service": {
+    "version": "6.4.1",
+    "release_date": "2026-10-28",
+    "uptime_seconds": 1198.2,
+    "started_at": "2026-10-28T10:23:48.142903+00:00"
+  },
+  "runtime": {
+    "python": "3.14.4",
+    "platform": "linux",
+    "cpu_count": 16,
+    "thread_pool_size": 16,
+    "threads_alive": 18,
+    "rss_mb": 812.1,
+    "event_loop_lag_ms": 4.2
+  },
+  "database": {
+    "path": "/app/data/prices.db",
+    "size_mb": 391.0,
+    "wal_mb": 0.3,
+    "journal_mode": "wal",
+    "synchronous": 1,
+    "busy_timeout_ms": 15000,
+    "page_size": 4096,
+    "rows": {
+      "products": 105200,
+      "offers": 105200,
+      "sellers": 34,
+      "alerts": 3332,
+      "watches": 0
+    },
+    "schema_version": "5"
+  },
+  "queue": {
+    "size": 1,
+    "redis_active": true,
+    "worker_running": true
+  },
+  "scan": {
+    "is_running": true,
+    "current_shop": "i-Teka",
+    "current_category": "i-Teka: 🦠 Противовирусные препараты",
+    "progress_pct": 74,
+    "total_scanned": 90749
+  },
+  "errors": {
+    "window_hours": 1.0,
+    "total": 44,
+    "by_component": {
+      "http": 43,
+      "scraper": 1
+    },
+    "last": [
+      {
+        "at": "2026-10-28T10:37:17.312411Z",
+        "component": "http",
+        "type": "http_request",
+        "severity": "ERROR",
+        "message": "HTTP GET komfort.kz: Timeout (timeout)"
+      },
+      {
+        "at": "2026-10-28T10:32:43.368132Z",
+        "component": "http",
+        "type": "http_request",
+        "severity": "ERROR",
+        "message": "HTTP GET sale.sulpak.kz: Timeout (timeout)"
+      },
+      {
+        "at": "2026-10-28T10:30:53.303378Z",
+        "component": "http",
+        "type": "http_request",
+        "severity": "ERROR",
+        "message": "HTTP GET www.mechta.kz: SSLError (connection)"
+      },
+      {
+        "at": "2026-10-28T10:30:42.428200Z",
+        "component": "http",
+        "type": "http_request",
+        "severity": "ERROR",
+        "message": "HTTP 500 GET halykmarket.kz"
+      },
+      {
+        "at": "2026-10-28T10:28:42.234844Z",
+        "component": "scraper",
+        "type": "degradation",
+        "severity": "ERROR",
+        "message": "Магазин flip: limited → failed"
+      },
+      {
+        "at": "2026-10-28T10:25:37.557171Z",
+        "component": "http",
+        "type": "http_request",
+        "severity": "ERROR",
+        "message": "HTTP GET www.sulpak.kz: Timeout (timeout)"
+      },
+      {
+        "at": "2026-10-28T10:23:17.124323Z",
+        "component": "http",
+        "type": "http_request",
+        "severity": "ERROR",
+        "message": "HTTP GET moon.kz: CertificateVerifyError (connection)"
+      },
+      {
+        "at": "2026-10-28T10:22:05.839395Z",
+        "component": "http",
+        "type": "http_request",
+        "severity": "ERROR",
+        "message": "HTTP GET moon.kz: CertificateVerifyError (connection)"
+      },
+      {
+        "at": "2026-10-28T10:21:14.647880Z",
+        "component": "http",
+        "type": "http_request",
+        "severity": "ERROR",
+        "message": "HTTP GET moon.kz: CertificateVerifyError (connection)"
+      },
+      {
+        "at": "2026-10-28T10:20:00.593707Z",
+        "component": "http",
+        "type": "http_request",
+        "severity": "ERROR",
+        "message": "HTTP GET moon.kz: CertificateVerifyError (connection)"
+      },
+      {
+        "at": "2026-10-28T10:18:46.357340Z",
+        "component": "http",
+        "type": "http_request",
+        "severity": "ERROR",
+        "message": "HTTP GET moon.kz: CertificateVerifyError (connection)"
+      },
+      {
+        "at": "2026-10-28T10:17:28.217742Z",
+        "component": "http",
+        "type": "http_request",
+        "severity": "ERROR",
+        "message": "HTTP GET moon.kz: CertificateVerifyError (connection)"
+      },
+      {
+        "at": "2026-10-28T10:16:14.885066Z",
+        "component": "http",
+        "type": "http_request",
+        "severity": "ERROR",
+        "message": "HTTP GET moon.kz: CertificateVerifyError (connection)"
+      },
+      {
+        "at": "2026-10-28T10:14:55.551754Z",
+        "component": "http",
+        "type": "http_request",
+        "severity": "ERROR",
+        "message": "HTTP GET moon.kz: CertificateVerifyError (connection)"
+      },
+      {
+        "at": "2026-10-28T10:13:39.419670Z",
+        "component": "http",
+        "type": "http_request",
+        "severity": "ERROR",
+        "message": "HTTP GET moon.kz: CertificateVerifyError (connection)"
+      },
+      {
+        "at": "2026-10-28T10:13:36.968840Z",
+        "component": "http",
+        "type": "http_request",
+        "severity": "ERROR",
+        "message": "HTTP GET forcecom.kz: Timeout (timeout)"
+      },
+      {
+        "at": "2026-10-28T10:12:07.282729Z",
+        "component": "http",
+        "type": "http_request",
+        "severity": "ERROR",
+        "message": "HTTP GET moon.kz: CertificateVerifyError (connection)"
+      },
+      {
+        "at": "2026-10-28T10:10:56.215472Z",
+        "component": "http",
+        "type": "http_request",
+        "severity": "ERROR",
+        "message": "HTTP GET moon.kz: CertificateVerifyError (connection)"
+      },
+      {
+        "at": "2026-10-28T10:09:38.563751Z",
+        "component": "http",
+        "type": "http_request",
+        "severity": "ERROR",
+        "message": "HTTP GET moon.kz: CertificateVerifyError (connection)"
+      },
+      {
+        "at": "2026-10-28T10:08:28.046391Z",
+        "component": "http",
+        "type": "http_request",
+        "severity": "ERROR",
+        "message": "HTTP GET moon.kz: CertificateVerifyError (connection)"
+      }
+    ]
+  },
+  "problems": [
+    {
+      "severity": "warning",
+      "code": "error_rate",
+      "problem": "44 ошибок за час, больше всего в «http»",
+      "meaning": "Смотрите errors.last: там последние сообщения с временем и компонентом."
+    }
+  ],
+  "status": "warning",
+  "tls_errors_since_process_start": 0
+}

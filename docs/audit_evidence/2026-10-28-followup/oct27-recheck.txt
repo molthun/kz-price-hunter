@@ -1,0 +1,8 @@
+SECRET_SCAN_PROJECT_KEY {"ok": false, "findings_count": 1}
+SORT_LIMIT {"limit1": 100.0, "limit50": 100.0}
+TTL_OFFSET {"expired_python": false, "visible_sql": 1, "purged_sql": 0}
+QUERY_ERROR_LOG False
+HTTP_SEARCH_FAILURE {"http": 500, "outcome": "ERROR"}
+SHOWCASE_MIN 100.0
+WATCH_BETTER_SELLER 1
+WATCH_NEW_SELLER 1

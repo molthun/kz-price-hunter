@@ -1,0 +1,91 @@
+[
+  {
+    "name": "connection_pragmas",
+    "synchronous": 1,
+    "journal_mode": "wal"
+  },
+  {
+    "name": "worker_failure_loses_item",
+    "queued": 1
+  },
+  {
+    "name": "fallback_strands_redis",
+    "redis_mode": false,
+    "reported_size": 0,
+    "stranded": 0,
+    "next_id": "newer",
+    "next_after": null
+  },
+  {
+    "name": "redis_commands_no_deadline",
+    "first_pending": false,
+    "second_pending": false
+  },
+  {
+    "name": "scan_lease_blocks_loop",
+    "timer_20ms_seconds": 0.021
+  },
+  {
+    "name": "queued_write_after_lease_loss",
+    "persisted": false
+  },
+  {
+    "name": "readiness_empty_database",
+    "ready": false,
+    "size_bytes": 0
+  },
+  {
+    "name": "readiness_stopped_writer",
+    "http": 503,
+    "body": {
+      "status": "unavailable",
+      "db": "ok",
+      "queue_size": 0,
+      "redis_active": false,
+      "worker_running": false
+    }
+  },
+  {
+    "name": "readiness_exception",
+    "http": 503,
+    "body": {
+      "status": "degraded",
+      "error": "RuntimeError"
+    }
+  },
+  {
+    "name": "unchanged_offer_false_drop",
+    "initial_events": 0,
+    "unchanged_events": 0,
+    "reasons": []
+  },
+  {
+    "name": "scanner_v2_identity_mismatch",
+    "scanner_row_canonical": "prod_0699c2055647d187",
+    "actual_canonical": "prod_0699c2055647d187",
+    "v2_lookup_canonical": "prod_0699c2055647d187",
+    "canonical_watch_events": 1
+  },
+  {
+    "name": "stale_showcase_offer",
+    "min_price": 0.0,
+    "purchasable": false
+  },
+  {
+    "name": "search_sort_expired_candidate",
+    "limit1": 100.0,
+    "limit50": 100.0
+  },
+  {
+    "name": "scan_complete_before_commit",
+    "reported_status": "partial",
+    "collected": 1,
+    "queued": 1,
+    "persisted": 0
+  },
+  {
+    "name": "diagnostic_lazy_uptime",
+    "diagnostic_uptime_seconds": 0.0,
+    "process_already_initialized": true
+  }
+]
