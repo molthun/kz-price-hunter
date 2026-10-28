@@ -946,15 +946,15 @@ MECHTA_CATEGORIES = [
 ]
 
 # 7. Alser (alser.kz)
+# Актуальные разделы каталога alser.kz (smartfony/televizory/monitory/planshety/vse-holodilniki/vse-kondicioneri
+# выведены из дерева /api/v2/catalog-by-keyword-v2 со статусом 404; пылесосы переехали на /c/vse-pilesosy).
 ALSER_CATEGORIES = [
     {"name": "Alser: 💻 Ноутбуки", "url": "https://alser.kz/astana/c/noutbuki", "master": "laptops"},
-    {"name": "Alser: 📱 Смартфоны", "url": "https://alser.kz/astana/c/smartfony", "master": "smartphones"},
-    {"name": "Alser: 📺 Телевизоры", "url": "https://alser.kz/astana/c/televizory", "master": "tvs"},
-    {"name": "Alser: 🖥 Мониторы", "url": "https://alser.kz/astana/c/monitory", "master": "monitors"},
-    {"name": "Alser: 📱 Планшеты", "url": "https://alser.kz/astana/c/planshety", "master": "tablets_watches"},
-    {"name": "Alser: 🧹 Пылесосы", "url": "https://alser.kz/astana/c/pylesosy", "master": "appliances_small"},
-    {"name": "Alser: ❄️ Холодильники", "url": "https://alser.kz/astana/c/vse-holodilniki", "master": "appliances_large"},
-    {"name": "Alser: 🌬 Кондиционеры", "url": "https://alser.kz/astana/c/vse-kondicioneri", "master": "appliances_large"}
+    {"name": "Alser: 🎧 Наушники", "url": "https://alser.kz/astana/c/naushniki-dlja-smartfonov", "master": "audio"},
+    {"name": "Alser: 🧹 Пылесосы", "url": "https://alser.kz/astana/c/vse-pilesosy", "master": "appliances_small"},
+    {"name": "Alser: ⌨️ Компьютерные аксессуары", "url": "https://alser.kz/astana/c/aksessuary-dlja-pk", "master": "pc_components"},
+    {"name": "Alser: 🖨 Расходные материалы", "url": "https://alser.kz/astana/c/rashodnye-materialy", "master": "office_network"},
+    {"name": "Alser: 🪥 Уход за полостью рта", "url": "https://alser.kz/astana/c/uhod-za-polostu-rta", "master": "beauty_health"}
 ]
 
 # 8. Эврика (evrika.com)

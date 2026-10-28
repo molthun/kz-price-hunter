@@ -6,6 +6,14 @@
 
 ---
 
+## [Не выпущено] 6.4.14 — восстановление адаптеров Эврики и Alser, Задача 3 из P-6.4.12 (Antigravity, 29.10.2026)
+
+- 🔍 **Диагностика по `source_scans` и живым сайтам**: оба магазина падали ещё на 6.4.1 до выпуска 6.4.11 из-за изменений на стороне самих витрин:
+  - `evrika.com`: `back.evrika.com` теперь делает 301-редирект на `evrika.com` и отдаёт Next.js SSR HTML вместо JSON `{"products": "..."}`, из-за чего `r.json()` падал с `JSONDecodeError` на всех 9 категориях (`0` товаров в БД).
+  - `alser.kz`: внутренний API `/api/v2/catalog-by-keyword-v2` возвращает `404` для 6 удалённых магазином разделов (`smartfony`, `televizory`, `monitory`, `planshety`, `vse-holodilniki`, `vse-kondicioneri`), а пылесосы переехали с `/astana/c/pylesosy` на `/astana/c/vse-pilesosy`.
+- 🛠️ **Исправлено**: `scrapers/evrika.py` переведён на разбор Next.js HTML (`.productCard-ui`, `[class*="quantityOfProducts"]`, `ul.pagination`) с извлечением `old_price_on_site` из `[class*="costContainer"] [class*="oldPrice"]` и `data-original-src`; `config.ALSER_CATEGORIES` и `SOURCES.md` обновлены под действующие разделы каталога `alser.kz`; в обоих адаптерах сломанная вёрстка карточек при наличии контейнеров в DOM выбрасывает `ValueError` и никогда не маскируется под `complete=True`.
+- 🧪 **Проверено**: живой прогон всех 9 категорий Эврики (`479` товаров, все `complete=True`) и всех 6 категорий Alser (`131` товар, все `complete=True`); добавлены 4 регрессионных теста в `tests/scrapers/test_scraper_completeness.py` (все 4 падают на `6dce916`). Не выпущено, ждёт приёмки Codex.
+
 ## [Не выпущено] 6.4.13 — быстрый старт порта и фоновый разбор watch_refresh, Задача 1 из P-6.4.12 (Antigravity, 29.10.2026)
 
 - 🔍 **По логам первого старта 6.4.11 на проде**: стартовый `drain_watch_refresh` разбирал `20 725` снятых товаров прямо внутри `init_db()` до открытия HTTP-порта, из-за чего контейнер несколько минут висел в `starting`, а снаружи отдавался `502`.

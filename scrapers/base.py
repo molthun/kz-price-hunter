@@ -128,12 +128,17 @@ class UnconfirmedEnd(RuntimeError):
 
 
 class ScanResult(list):
-    """List-compatible result with explicit coverage; partial data is still usable."""
-    def __init__(self, items=(), *, complete=False, error=None, limited=False):
+    """List-compatible result with explicit coverage; partial data is still usable.
+
+    unparsed — карточки страницы, которые адаптер видел, но не смог разобрать (сломанный селектор).
+    Такая страница не даёт обходу права называться полным (A01).
+    """
+    def __init__(self, items=(), *, complete=False, error=None, limited=False, unparsed=0):
         super().__init__(items)
         self.complete = complete
         self.error = error
         self.limited = limited
+        self.unparsed = unparsed
 
 
 @runtime_checkable
@@ -261,6 +266,7 @@ class PagedScraper:
         products: List[Dict[str, Any]] = []
         seen_ids = set()
         pages_scraped = 0
+        unparsed = 0  # неразобранные карточки во всей категории (A01)
         started = time.monotonic()
 
         for page in range(1, limit + 1):
@@ -287,6 +293,7 @@ class PagedScraper:
                 return ScanResult(products, complete=complete,
                                   error=None if complete else "Пустая выдача: полнота не подтверждена")
 
+            unparsed += int(getattr(items, "unparsed", 0) or 0)
             fresh = [i for i in items if i.get("id") and i["id"] not in seen_ids]
             if not fresh:
                 # Страница повторяет уже собранные товары — каталог закончился
@@ -297,6 +304,12 @@ class PagedScraper:
             seen_ids.update(i["id"] for i in fresh)
             products.extend(fresh)
             if getattr(items, "complete", False):
+                if unparsed:
+                    # Магазин подтвердил конец, но часть карточек не разобрана: отсутствие товара
+                    # могло быть ошибкой разбора — обход не полный, сверка ничего не снимет (A01)
+                    self._report_scrape(category_name, products, pages_scraped, started,
+                                        f"конец каталога, но не разобрано карточек: {unparsed}")
+                    return ScanResult(products, limited=True, unparsed=unparsed)
                 self._report_scrape(category_name, products, pages_scraped, started, "завершено")
                 return ScanResult(products, complete=True)
 

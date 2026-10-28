@@ -32,8 +32,8 @@ A — feed/API владельца с документированным назн
 | `scrapers/mechta.py` / `MechtaScraper` | C; www.mechta.kz/api/v3/catalog/products | 15 с API + 10 с homepage; inherited 0.3 с | Session chrome124, device UUID, x-city-code; повтор после 403/422 с новой session | id/prices.finalPrice/basePrice/images/slug; Астана; page/pageSize24; 204/empty→complete; описание нет |
 | `scrapers/forcecom.py` / `ForcecomScraper` | D; forcecom.kz HTML Bitrix/Aspro | 15 с; inherited 0.3 с | chrome124; PAGEN_1; 404/нет карточек→UnconfirmedEnd; retry нет | id из /model/; price new/old; image attrs; город Астана / Казахстан (не конкретное подтверждение доставки); описание нет |
 | `scrapers/sulpak.py` / `SulpakScraper` | D; www.sulpak.kz HTML + data-* | 15 с; inherited 0.3 с; один retry timeout после 1 с | chrome124; city_id=1/language_id=3; page=N; 404→UnconfirmedEnd | data-code/data-price/title/href/image/old; fallback hash URL; Астана; описание нет |
-| `scrapers/alser.py` / `AlserScraper` | D; alser.kz/astana/c/... HTML article.product-card | 15 с; inherited 0.3 с | chrome124; город в URL; page=N; 404/нет карточек→UnconfirmedEnd | slug truncated40 id; title/price/old/img; Астана; описание нет |
-| `scrapers/evrika.py` / `EvrikaScraper` | C + D; back.evrika.com/catalog/nur-sultan-astana/... JSON с HTML products | 30 с; inherited 0.3 с | chrome124; verify=False; page=N; retry нет | data-json/HTML tile: id/name/price/image/href; old=0; Астана; fallback цены по всему tile text; description нет |
+| `scrapers/alser.py` / `AlserScraper` | D; alser.kz/astana/c/... HTML article.product-card | 15 с; inherited 0.3 с | chrome124; город в URL; page=N; 404/нет карточек→UnconfirmedEnd, неразобранные карточки→ValueError | slug_id; title/price/old/img; Астана; описание нет |
+| `scrapers/evrika.py` / `EvrikaScraper` | D; evrika.com/catalog/nur-sultan-astana/... Next.js SSR HTML .productCard-ui | 30 с; inherited 0.3 с | chrome124; page=N; 404/нет карточек→UnconfirmedEnd, неразобранные карточки→ValueError; конец доказан по quantityOfProducts и ul.pagination | id (/p\d+)/title/price/old_price/image_url; Астана; description нет |
 | `scrapers/moon.py` / `MoonScraper` | D; moon.kz HTML Bitrix/Aspro | 15 с; inherited 0.3 с | chrome124; verify=False; PAGEN_1; 404/нет карточек→UnconfirmedEnd | data-id/slug,title,current/old,image; Астана hardcoded; description нет |
 | `scrapers/flip.py` / `FlipScraper` | D; www.flip.kz HTML .new-product a.product | 30 с; 1.0 с | curl без explicit impersonate; page=N; без auth/cookies/retry | prod numeric id; data-available=1; current/old/image; .description добавляется к title, не отдельное поле; регион не подтверждён; ссылка ?prod= |
 | `scrapers/tgrad.py` / `TgradScraper` | D; tgrad.kz HTML + data-ga JSON в button | 45 с; 0.5 с | Session chrome124; /page-N/; redirects disabled; 301/302 page>1→complete | id/name/price из data-ga; old/image из HTML; Алматы; description нет; next-link проверяется только N+1 |
@@ -234,18 +234,16 @@ A — feed/API владельца с документированным назн
 | Sulpak: ♨️ Микроволновые печи | appliances_small | `https://www.sulpak.kz/f/mikrovolnoviye_pechi` | не задан |
 | Sulpak: 🔥 Распродажа | actions | `https://www.sulpak.kz/sale/1` | не задан |
 
-### AlserScraper — 8 настроенных источников категории
+### AlserScraper — 6 настроенных источников категории
 
 | Категория | Master | URL/query | max_pages |
 |---|---|---|---|
 | Alser: 💻 Ноутбуки | laptops | `https://alser.kz/astana/c/noutbuki` | не задан |
-| Alser: 📱 Смартфоны | smartphones | `https://alser.kz/astana/c/smartfony` | не задан |
-| Alser: 📺 Телевизоры | tvs | `https://alser.kz/astana/c/televizory` | не задан |
-| Alser: 🖥 Мониторы | monitors | `https://alser.kz/astana/c/monitory` | не задан |
-| Alser: 📱 Планшеты | tablets_watches | `https://alser.kz/astana/c/planshety` | не задан |
-| Alser: 🧹 Пылесосы | appliances_small | `https://alser.kz/astana/c/pylesosy` | не задан |
-| Alser: ❄️ Холодильники | appliances_large | `https://alser.kz/astana/c/vse-holodilniki` | не задан |
-| Alser: 🌬 Кондиционеры | appliances_large | `https://alser.kz/astana/c/vse-kondicioneri` | не задан |
+| Alser: 🎧 Наушники | audio | `https://alser.kz/astana/c/naushniki-dlja-smartfonov` | не задан |
+| Alser: 🧹 Пылесосы | appliances_small | `https://alser.kz/astana/c/vse-pilesosy` | не задан |
+| Alser: ⌨️ Компьютерные аксессуары | pc_components | `https://alser.kz/astana/c/aksessuary-dlja-pk` | не задан |
+| Alser: 🖨 Расходные материалы | office_network | `https://alser.kz/astana/c/rashodnye-materialy` | не задан |
+| Alser: 🪥 Уход за полостью рта | beauty_health | `https://alser.kz/astana/c/uhod-za-polostu-rta` | не задан |
 
 ### EvrikaScraper — 9 настроенных источников категории
 

@@ -8,7 +8,6 @@ p.total-text, и это же число подтверждает API магаз�
 бросал UnconfirmedEnd, и базовый класс помечал обход неполным. По правилу P02 неполные обходы
 не обучают норму источника, поэтому baseline у магазина не строился никогда.
 """
-import math
 import re
 from typing import Any, Dict, List, Optional
 from scrapers import http as requests
@@ -20,9 +19,11 @@ class AlserScraper(PagedScraper):
 
     def __init__(self):
         self.base_url = "https://alser.kz"
-        # Объявленный магазином итог и размер первой страницы — по категории, чтобы параллельный
-        # обход разных категорий одним экземпляром не путал их между собой
-        self._expected_pages: Dict[str, int] = {}
+        # Увиденные карточки категории (разобранные и намеренно пропущенные) — по категории, чтобы
+        # параллельный обход разных категорий одним экземпляром не путал их; их число сверяется
+        # со счётчиком магазина (A01/A02)
+        self._observed: Dict[str, set] = {}
+        self._declared: Dict[str, int] = {}  # счётчик категории с первой страницы
         self.headers = {
             "User-Agent": (
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -58,21 +59,31 @@ class AlserScraper(PagedScraper):
                 raise RuntimeError(f"HTTP {r.status_code}")
 
             soup = make_soup(r.text)
+            self._check_city(soup, r.text)
             cards = soup.select("article.product-card")
             if not cards:
                 raise UnconfirmedEnd("Не найдены карточки: конец выдачи не подтвержден")
 
             seen_urls = set()
+            unparsed = 0
+            if page_num == 1:
+                self._observed[category_url] = set()
+            observed = self._observed.setdefault(category_url, set())
 
             for c in cards:
                 # Ссылка
                 link_el = c.find_parent("a") or c.select_one("a[href*='/p/']")
                 if not link_el:
+                    unparsed += 1  # структура карточки сменилась — ошибка разбора, не пропуск
                     continue
                 rel_link = link_el.get("href", "")
-                if not rel_link or rel_link in seen_urls:
+                if not rel_link:
+                    unparsed += 1
+                    continue
+                if rel_link in seen_urls:
                     continue
                 seen_urls.add(rel_link)
+                observed.add(rel_link)
 
                 full_link = f"{self.base_url}{rel_link}" if rel_link.startswith("/") else rel_link
 
@@ -81,14 +92,19 @@ class AlserScraper(PagedScraper):
                 title = title_el.text.strip() if title_el else ""
                 if not title:
                     title = link_el.get("title", "") or link_el.text.strip()
+                title = " ".join(title.split())
                 if not title:
+                    unparsed += 1
                     continue
 
                 # Цены
                 price_el = c.select_one(".info-container-product-price")
-                current_price = parse_price(price_el.text) if price_el else 0
-                if current_price <= 0:
+                if price_el is None:
+                    unparsed += 1  # нет элемента цены — сменился селектор (A01)
                     continue
+                current_price = parse_price(price_el.text)
+                if current_price <= 0:
+                    continue  # цена есть, но не числовая: намеренный пропуск
 
                 old_price_el = c.select_one(".product-card__old-price")
                 old_price = parse_price(old_price_el.text) if old_price_el else 0
@@ -118,6 +134,9 @@ class AlserScraper(PagedScraper):
                     "city": "Астана"
                 })
 
+            if not products and unparsed:
+                raise ValueError("Карточки Alser найдены, но ни один товар не удалось разобрать")
+
         except UnconfirmedEnd:
             raise
         except Exception as e:
@@ -125,18 +144,54 @@ class AlserScraper(PagedScraper):
             raise
 
         return ScanResult(products,
-                          complete=self._is_last_page(soup, category_url, page_num, len(cards)))
+                          complete=self._is_last_page(soup, category_url, page_num,
+                                                      len(self._observed.get(category_url, ()))),
+                          unparsed=unparsed)
 
-    def _is_last_page(self, soup, category_url: str, page_num: int, cards_on_page: int) -> bool:
-        """Последняя ли это страница. Пока итог неизвестен — считаем, что нет."""
+    def _is_last_page(self, soup, category_url: str, page_num: int, observed_total: int) -> bool:
+        """Конец — когда увидено столько уникальных карточек, сколько заявил счётчик магазина (A02).
+        Число страниц из размера первой страницы не выводится: страницы бывают разного размера.
+        Счётчик берётся со страницы, а если на ней его нет — с первой страницы категории.
+        Пока счётчика нет вовсе — конец не подтверждён."""
+        total = self._declared_total(soup)
         if page_num == 1:
-            total = self._declared_total(soup)
-            if total is None or cards_on_page <= 0:
-                self._expected_pages.pop(category_url, None)
-                return False
-            self._expected_pages[category_url] = math.ceil(total / cards_on_page)
-        expected = self._expected_pages.get(category_url)
-        return bool(expected) and page_num >= expected
+            self._declared.pop(category_url, None)
+        if total is not None and total > 0:
+            self._declared[category_url] = total
+        total = self._declared.get(category_url)
+        return total is not None and observed_total >= total
+
+    CITY_LABEL = "Астана"
+
+    def _check_city(self, soup, html: str = "") -> None:
+        """Выдача должна быть для Астаны: город берётся из состояния страницы, а не из заголовка.
+
+        H1 — SEO-текст и пишет «в Алматы» и на астанинской выдаче. Город выбора — currentCity в
+        состоянии Nuxt (его же показывает переключатель городов). Если его нет — подпись кнопки
+        переключателя, совпадающая с названием города из списка городов страницы. Если не найдено
+        ни то ни другое, город определяется адресом /astana/ (прежнее поведение). Другой город —
+        ошибка: товары не подписываются Астаной (аудит 6.4.14).
+        """
+        city = self.selected_city(soup, html)
+        if city and city != self.CITY_LABEL:
+            raise RuntimeError(f"Alser отдал выдачу для города «{city}», а не «{self.CITY_LABEL}»")
+
+    @staticmethod
+    def selected_city(soup, html: str = "") -> Optional[str]:
+        if html:
+            ref = re.search(r"currentCity:([A-Za-z_$][\w$]*)", html)
+            if ref:
+                var = re.escape(ref.group(1))
+                named = (re.search(r"(?<![\w$.])" + var + r'\.name="([^"]+)"', html)
+                         or re.search(r"(?<![\w$.])" + var + r'=\{name:"([^"]+)"', html))
+                if named:
+                    return named.group(1).strip()
+        cities = set(re.findall(r'name:"([^"]+)",keyword:"[a-z\-]+"', html)) | {"Астана", "Алматы"}
+        for button in soup.select('button[name="main_button"][aria-label]'):
+            label = " ".join((button.get("aria-label") or "").split())
+            if label in cities:
+                return label
+        return None
 
     @staticmethod
     def _declared_total(soup) -> Optional[int]:
