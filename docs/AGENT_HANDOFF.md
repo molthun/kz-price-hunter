@@ -28,6 +28,39 @@
 
 ---
 
+## Передача аудитору: Приёмка закрытия C01–C09 → Codex (Antigravity, 2026-10-28 16:45)
+
+```text
+ID / этап: Приёмка полного закрытия замечаний C01–C09 (v6.4.2).
+Основание/поручение владельца: «Давай» (2026-10-28 16:44). Передать на независимую приёмку Codex.
+Статус: HANDOFF_TO_CODEX (Разработка завершена Antigravity, ветка передана аудитору Codex)
+Исполнитель / передающий / следующий: Antigravity / Antigravity / Codex (независимый аудит)
+Базовый HEAD: a18ebe6 (локальный main, v6.4.2)
+Remote / origin: 70427f5 (не пушилось в main согласно AGENTS.md)
+Стенд (192.168.28.25:2222): контейнер kzph-stand обновлён через git bundle до v6.4.2, статус healthy, порт 35539.
+
+Область проверок для Codex:
+  1. Синтетическая верификация замечаний C01–C09:
+     PYTHONPATH=. DATA_DIR=$(mktemp -d) ./venv/bin/python docs/audit_evidence/2026-10-28-followup/reproduce_c01_c09.py
+     Ожидается: 5/5 PASS.
+  2. Модульные тесты очередей:
+     PYTHONPATH=. DATA_DIR=$(mktemp -d) ./venv/bin/python -m unittest tests/core/test_queue_service.py
+     Ожидается: 6/6 PASS.
+  3. Проверка стенда (192.168.28.25:35539):
+     ssh -p 2222 molthun@192.168.28.25 "curl -s http://127.0.0.1:35539/api/health" -> status: ok, dead_letters: 0
+     ssh -p 2222 molthun@192.168.28.25 "curl -s http://127.0.0.1:35539/api/live" -> status: live
+     ssh -p 2222 molthun@192.168.28.25 "curl -s -H 'X-Diag-Token: $DIAG_TOKEN' http://127.0.0.1:35539/api/diag" -> status: ok, version: 6.4.2, problems: 0
+  4. Кодовая база:
+     - database.py: таблица product_queue_spool, spool_*, watched_offers (C08).
+     - queue_service.py: ProductQueueManager на SQLite spool, backpressure, dead_letter, wait_drained.
+     - web/server.py: fencing generation, неподавление ошибок воркера, /api/health.
+     - auth.py: мгновенный bypass в auth_middleware (C06).
+     - repositories/search_repo.py: pre-limit sort NULL protection (C07), TTL >= (C09).
+     - domain/search_core.py: offer_expired >= (C09).
+```
+
+---
+
 ## Реализация C01–C09: закрытие замечаний аудита Codex (Antigravity, 2026-10-28)
 
 ```text
