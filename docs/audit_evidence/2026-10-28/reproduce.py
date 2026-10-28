@@ -72,6 +72,7 @@ async def main():
     with database.get_connection() as c:found=c.execute("SELECT count(*) FROM products WHERE id='after-lease'").fetchone()[0]
     result('queued_write_after_lease_loss',persisted=bool(found))
     server._lease_state['lost']=False
+    await server._execute_queue_item(item)
 
     # Readiness accepts a database with no application tables.
     original=database.DB_PATH;database.DB_PATH=Path(os.environ['DATA_DIR'])/'empty.db'

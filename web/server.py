@@ -1814,6 +1814,11 @@ async def _save_and_detect(prods, shop_name, candidate_settings, shop_key=None, 
 
 async def _execute_queue_item(item):
     """Выполняет полную запись спарсенных данных категории в SQLite без конкуренции с другими потоками."""
+    # Fencing guard (B06): если аренда планировщика была потеряна, отклоняем запись
+    if _lease_state.get("lost"):
+        print("[Queue Worker] ⛔ Запись пакета отклонена: аренда планировщика была потеряна (fencing guard)")
+        return
+
     prods = item.get("prods") or []
     shop_name = item.get("shop_name", "Shop")
     candidate_settings = item.get("candidate_settings", {})
@@ -1868,16 +1873,24 @@ async def single_db_writer_worker(app=None):
     from queue_service import product_queue
     product_queue.is_worker_running = True
     print("[Queue] ⚡ Фоновый Single DB-Writer Worker запущен")
+    item = None
     try:
         while True:
             try:
                 item = await product_queue.dequeue(timeout=0.5)
                 if item:
                     await _execute_queue_item(item)
+                    product_queue.ack(item)
+                    item = None
             except asyncio.CancelledError:
+                if item:
+                    product_queue.nack(item)
                 break
             except Exception as e:
                 print(f"[Queue Worker] Ошибка при обработке очереди: {e}")
+                if item:
+                    product_queue.nack(item)
+                    item = None
                 from telemetry import telemetry, COMPONENT_SYSTEM
                 telemetry.record_system_error(COMPONENT_SYSTEM, "single_db_writer_worker", e)
                 await asyncio.sleep(0.5)
@@ -2200,6 +2213,14 @@ async def _scan_shop_categories(key, scraper, categories, shop_name, candidate_s
 
     duration = time.monotonic() - started
     error = "; ".join(failed_categories[:3]) or None
+
+    from queue_service import product_queue
+    if product_queue.is_worker_running:
+        # Барьер завершения скана (B06): статус complete выставляется только после фактической записи в SQLite
+        drained = await product_queue.wait_drained(timeout=10.0)
+        if not drained:
+            error = (error + "; ") if error else "" + "Таймаут подтверждения записи очереди"
+
     status = ("partial" if collected else "failed") if error else "limited" if limited else "complete"
     await run_db(record_shop_scan_result, key, collected, duration, error, status)
     print(f"[{shop_name}] {status}: {collected} товаров за {duration:.0f}с")

@@ -154,6 +154,61 @@ class TestQueueService(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(row["current_price"], 25000)
             self.assertEqual(row["shop"], "Тестовый магазин")
 
+    async def test_ack_nack_retry_and_dead_letter(self):
+        qm = ProductQueueManager()
+        item = {"shop_name": "RetryShop", "prods": [{"id": "r1"}]}
+        await qm.enqueue(item["prods"], "RetryShop", {})
+
+        dequeued = await qm.dequeue(timeout=0.1)
+        self.assertIsNotNone(dequeued)
+        self.assertEqual(await qm.qsize(), 0)
+
+        # NACK возвращает задачу в retry queue (попытка 1)
+        qm.nack(dequeued, max_retries=2)
+        self.assertEqual(await qm.qsize(), 1)
+        retried1 = await qm.dequeue(timeout=0.1)
+        self.assertEqual(retried1["_retry_count"], 1)
+
+        # NACK попытка 2
+        qm.nack(retried1, max_retries=2)
+        self.assertEqual(await qm.qsize(), 1)
+        retried2 = await qm.dequeue(timeout=0.1)
+        self.assertEqual(retried2["_retry_count"], 2)
+
+        # NACK попытка 3 -> уходит в dead_letter
+        qm.nack(retried2, max_retries=2)
+        self.assertEqual(await qm.qsize(), 0)
+        self.assertEqual(len(qm.dead_letter_queue), 1)
+
+    async def test_stranded_redis_recovery(self):
+        qm = ProductQueueManager()
+        # Имитируем падение Redis с оставшимися задачами
+        class MockRedisStranded:
+            def __init__(self):
+                self.items = ['{"shop_name": "OldRedis", "prods": [{"id": "old_1"}]}']
+            async def lpop(self, key):
+                return self.items.pop(0) if self.items else None
+            async def llen(self, key):
+                return len(self.items)
+
+        qm.redis_client = MockRedisStranded()
+        qm.use_redis = False  # Переключились на память!
+
+        # Добавили новую задачу в память
+        await qm.enqueue([{"id": "new_1"}], "NewMemory", {})
+
+        # Проверяем, что qsize видит и старый Redis, и память
+        self.assertEqual(await qm.qsize(), 2)
+
+        # Dequeue обязан сначала вернуть старую задачу из Redis!
+        first = await qm.dequeue(timeout=0.1)
+        self.assertEqual(first["shop_name"], "OldRedis")
+
+        # Затем новую из памяти
+        second = await qm.dequeue(timeout=0.1)
+        self.assertEqual(second["shop_name"], "NewMemory")
+        self.assertEqual(await qm.qsize(), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

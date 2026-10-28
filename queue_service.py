@@ -54,7 +54,7 @@ def start_redis_daemon_if_available(port: int = DEFAULT_REDIS_PORT) -> bool:
             "--port", str(port),
             "--bind", "127.0.0.1",
             "--maxmemory", "64mb",
-            "--maxmemory-policy", "allkeys-lru",
+            "--maxmemory-policy", "volatile-lru",  # B03: вытесняются только ключи кэша с TTL, очередь без TTL защищена
             "--save", "",
             "--appendonly", "no",
         ]
@@ -206,13 +206,16 @@ class MiniRedisClient:
 # ---------------------------------------------------------------------------
 
 class ProductQueueManager:
-    """Универсальная очередь сохранения товаров с автоматическим выбором Redis или памяти."""
+    """Универсальная очередь сохранения товаров с гарантией надёжности (ACK/retry/drain)."""
 
-    def __init__(self):
+    def __init__(self, maxsize: int = 200):
         self.redis_client: Optional[MiniRedisClient] = None
-        self.memory_queue: asyncio.Queue = asyncio.Queue()
+        self.memory_queue: asyncio.Queue = asyncio.Queue(maxsize=maxsize)
         self.use_redis: bool = False
         self.is_worker_running: bool = False
+        self._retry_queue: List[Any] = []
+        self._in_flight: Set[int] = set()
+        self.dead_letter_queue: List[Any] = []
         self._in_memory_cache: Dict[str, Tuple[float, Any]] = {}
 
     async def initialize(self) -> None:
@@ -265,39 +268,85 @@ class ProductQueueManager:
                 logger.warning("Сбой отправки в Redis (%s), переключаемся на очередь в памяти", e)
                 self.use_redis = False
 
-        await self.memory_queue.put(payload)
+        # Backpressure при переполнении очереди в памяти (B03)
+        try:
+            await asyncio.wait_for(self.memory_queue.put(payload), timeout=5.0)
+        except (asyncio.TimeoutError, TimeoutError):
+            logger.error("Очередь памяти переполнена (backpressure timeout), данные категории отброшены для защиты памяти")
 
     async def dequeue(self, timeout: float = 0.5) -> Optional[Dict[str, Any]]:
-        """Извлекает одну задачу из очереди (сначала проверяет память, затем Redis)."""
-        # Сначала проверяем очередь памяти
-        if not self.memory_queue.empty():
-            try:
-                return self.memory_queue.get_nowait()
-            except asyncio.QueueEmpty:
-                pass
+        """Извлекает одну задачу из очереди (сохраняя порядок и дочитывая зависшие задачи Redis)."""
+        # 1. Повторные попытки при предыдущих сбоях воркера (B02)
+        if self._retry_queue:
+            item = self._retry_queue.pop(0)
+            self._in_flight.add(id(item))
+            return item
 
-        if self.use_redis and self.redis_client:
+        # 2. Дочитывание старых задач из Redis, даже если новые пишутся в fallback (B04)
+        if self.redis_client:
             try:
                 item_str = await self.redis_client.lpop(QUEUE_KEY)
                 if item_str:
-                    return json.loads(item_str)
+                    item = json.loads(item_str) if isinstance(item_str, str) else item_str
+                    self._in_flight.add(id(item))
+                    return item
             except Exception as e:
-                logger.warning("Сбой чтения из Redis: %s", e)
+                logger.debug("Чтение из Redis недоступно: %s", e)
 
-        # Если в Redis пусто, ждём немного в памяти
+        # 3. Извлечение из очереди памяти
+        if not self.memory_queue.empty():
+            try:
+                item = self.memory_queue.get_nowait()
+                self._in_flight.add(id(item))
+                return item
+            except asyncio.QueueEmpty:
+                pass
+
+        # Если пусто, ждём немного в памяти
         try:
-            return await asyncio.wait_for(self.memory_queue.get(), timeout=timeout)
+            item = await asyncio.wait_for(self.memory_queue.get(), timeout=timeout)
+            self._in_flight.add(id(item))
+            return item
         except (asyncio.TimeoutError, TimeoutError):
             return None
 
+    def ack(self, item: Any) -> None:
+        """Подтверждает успешную запись задачи в SQLite (B02)."""
+        self._in_flight.discard(id(item))
+
+    def nack(self, item: Any, max_retries: int = 3) -> None:
+        """Возвращает задачу в очередь при ошибке записи (B02)."""
+        self._in_flight.discard(id(item))
+        if not isinstance(item, dict):
+            self._retry_queue.insert(0, item)
+            return
+
+        attempts = item.get("_retry_count", 0) + 1
+        item["_retry_count"] = attempts
+        if attempts <= max_retries:
+            logger.warning("Повтор задачи очереди для %s (попытка %d/%d)", item.get("shop_name"), attempts, max_retries)
+            self._retry_queue.insert(0, item)
+        else:
+            logger.error("Задача превысила лимит повторов (%d) и помещена в dead-letter: %s", max_retries, item.get("shop_name"))
+            self.dead_letter_queue.append(item)
+
     async def qsize(self) -> int:
-        mem_size = self.memory_queue.qsize()
-        if self.use_redis and self.redis_client:
+        mem_size = self.memory_queue.qsize() + len(self._retry_queue)
+        if self.redis_client:
             try:
-                return mem_size + await self.redis_client.llen(QUEUE_KEY)
+                mem_size += await self.redis_client.llen(QUEUE_KEY)
             except Exception:
                 pass
         return mem_size
+
+    async def wait_drained(self, timeout: float = 10.0) -> bool:
+        """Ожидает, пока все задачи из очереди будут полностью сохранены воркером в SQLite (B06)."""
+        start = time.monotonic()
+        while time.monotonic() - start < timeout:
+            if await self.qsize() == 0 and len(self._in_flight) == 0:
+                return True
+            await asyncio.sleep(0.05)
+        return False
 
     # Кэширование аналитических данных (/api/stats и др.)
     async def get_cached(self, key: str) -> Optional[Any]:
