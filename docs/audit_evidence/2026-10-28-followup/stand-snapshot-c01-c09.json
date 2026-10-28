@@ -1,0 +1,56 @@
+{
+  "generated_at": "2026-10-28T11:41:35.411650+00:00",
+  "service": {
+    "version": "6.4.2",
+    "release_date": "2026-10-28",
+    "uptime_seconds": 17.7,
+    "started_at": "2026-10-28T11:41:17.761091+00:00"
+  },
+  "runtime": {
+    "python": "3.14.4",
+    "platform": "linux",
+    "cpu_count": 16,
+    "thread_pool_size": 32,
+    "threads_alive": 9,
+    "rss_mb": 141.0,
+    "event_loop_lag_ms": 0.2
+  },
+  "database": {
+    "path": "/app/data/prices.db",
+    "size_mb": 416.6,
+    "wal_mb": null,
+    "journal_mode": "wal",
+    "synchronous": 1,
+    "busy_timeout_ms": 15000,
+    "page_size": 4096,
+    "rows": {
+      "products": 111017,
+      "offers": 111017,
+      "sellers": 34,
+      "alerts": 4350,
+      "watches": 0
+    },
+    "schema_version": "5"
+  },
+  "queue": {
+    "size": 0,
+    "redis_active": true,
+    "worker_running": true
+  },
+  "scan": {
+    "is_running": false,
+    "current_shop": "",
+    "current_category": "",
+    "progress_pct": 0,
+    "total_scanned": 0
+  },
+  "problems": [
+    {
+      "severity": "info",
+      "code": "fresh_start",
+      "problem": "Процесс поднят 18 с назад",
+      "meaning": "Метрики ещё не накопились; возможен недавний перезапуск или выкладка."
+    }
+  ],
+  "status": "ok"
+}

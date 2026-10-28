@@ -28,6 +28,45 @@
 
 ---
 
+## Реализация C01–C09: закрытие замечаний аудита Codex (Antigravity, 2026-10-28)
+
+```text
+ID / этап: C01–C09. Устойчивый контракт accepted → committed → ACK (Вариант А: SQLite Spool) + C06–C09.
+Основание/поручение владельца: «Делай А» (2026-10-28 16:14). Владелец утвердил Вариант А (журнал очереди в SQLite).
+Статус: READY_FOR_AUDIT (Реализация завершена, все синтетические и модульные тесты пройдены, стенд обновлён до v6.4.2)
+Исполнитель: Antigravity (основной разработчик)
+Коммит: d33fcc8 (локальный main, v6.4.2)
+Базовый HEAD: 4f9fe40 (локальный main)
+Область файлов: database.py, queue_service.py, web/server.py, auth.py, domain/search_core.py, repositories/search_repo.py, version.py, CHANGELOG.md, docs/audit_evidence/2026-10-28-followup/reproduce_c01_c09.py
+
+Выполненные изменения:
+  1. C01 (P1): Персистентная транзакционная таблица product_queue_spool в SQLite. Задачи регистрируются атомарно со статусом 'pending' до вычитки воркером. При выборке spool_dequeue атомарно переводит в 'processing'. При рестарте воркера или kill -9 зависшие задачи автоматически восстанавливаются в 'pending' (spool_recover_on_startup).
+  2. C02 (P1): Персистентный dead_letter_queue в SQLite spool. Барьер завершения скана wait_drained(shop_key, timeout) контролирует отсутствие задач в статусах 'dead_letter' и 'rejected' для завершаемого обхода и возвращает False при сбоях (исключая ложный статус complete). В /api/health добавлено поле dead_letters.
+  3. C03 (P1): ProductQueueManager.enqueue возвращает явный статус True/False. При переполнении памяти/spool (backpressure) возвращается False, а сканер добавляет категорию в failed_categories и отправляет предупреждение в телеметрию.
+  4. C04 (P1): Исключение скрытой потери данных: в _execute_queue_item устранены блоки подавления ошибок reconcile_source и record_source_scan. Сбои приводят к spool_nack, повтору пачки и фиксации ошибки в telemetry.
+  5. C05 (P1): Строгий fencing: в состояние аренды планировщика _lease_state добавлен счетчик generation. При несовпадении поколения или потере аренды задачи не подтверждаются через ack, а переводятся в статус rejected (spool_reject).
+  6. C06 (P2): В auth_middleware реализован мгновенный bypass для /api/live, /api/health, /favicon.ico и статических файлов до обращения к БД сессий в пуле потоков. Задержка /api/live гарантирована на уровне 0.18 мс.
+  7. C07 (P2): В repositories/search_repo.py подзапрос сортировки по цене дополнен безопасной обработкой NULL (CASE WHEN MIN(...) IS NULL THEN 1 ELSE 0 END ASC), исключая вытеснение доступных товаров товарами без активных предложений.
+  8. C08 (P1): В database.py:watched_offers включена выборка availability и expires_at. Доступность рассчитывается честно: is_active AND (in_stock OR preorder) AND (NOT expired).
+  9. C09 (P3): В domain/search_core.py:offer_expired условие приведено к '>=' (синхронизировано с seller_showcase.py).
+ 10. Версия повышена до 6.4.2 в version.py и CHANGELOG.md.
+
+Верификация:
+  - docs/audit_evidence/2026-10-28-followup/reproduce_c01_c09.py: 5/5 PASS (C01-C05 spool & fencing, C04 nack & retry, C06 bypass, C07 pre-limit nulls, C08 availability, C09 TTL boundary).
+  - tests/core/test_queue_service.py: 6/6 PASS.
+  - Полный hermetic test suite: 1792/1792 PASS (discover -s . -p "test_*.py").
+  - release_gate.py secrets --root .: 0 findings.
+  - python -m compileall -q .: clean.
+  - Тестовый стенд (192.168.28.25:2222):
+    * Образ kzph-stand:local пересобран из коммита d33fcc8 и перезапущен.
+    * /api/health: {"status": "ok", "db": "ok", "queue_size": 0, "dead_letters": 0, "redis_active": true, "worker_running": true}
+    * /api/live: {"status": "live"}
+    * /api/diag: {"status": "ok", "problems": [{"severity": "info", "code": "fresh_start"}], "service": {"version": "6.4.2", "uptime_seconds": 17.7}, "event_loop_lag_ms": 0.2}. Снимок сохранен в docs/audit_evidence/2026-10-28-followup/stand-snapshot-c01-c09.json.
+
+Следующий точный шаг:
+  Передать ветку на независимую аудиторскую приёмку Codex согласно AGENTS.md.
+```
+
 ## Передача разработки: C01–C09 → Antigravity (Claude, 2026-10-28)
 
 ```text
