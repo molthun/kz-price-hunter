@@ -60,6 +60,15 @@ class SecretScanTest(unittest.TestCase):
         kinds = {f["kind"] for f in gate.check_secrets(self.tmp.name)["findings"]}
         self.assertEqual(kinds, {"Telegram bot token", "Приватный ключ"})
 
+    def test_diag_token_value_is_found(self):
+        """R11: литерал токена диагностики в команде заявки — утечка, переменная — нет."""
+        self.write("handoff.md", "curl -H 'X-Diag-Token: " + "9f" * 12 + "' http://stand/api/diag\n")
+        self.write("stand.env", "DIAG_TOKEN=" + "7c" * 12 + "\n")
+        self.write("ok.md", "curl -H 'X-Diag-Token: $DIAG_TOKEN' http://stand/api/diag\n")
+        findings = gate.check_secrets(self.tmp.name)["findings"]
+        self.assertEqual(sorted(f["file"] for f in findings), ["handoff.md", "stand.env"])
+        self.assertTrue(all(f["kind"] == "Диагностический токен" for f in findings))
+
     def test_placeholder_values_do_not_block(self):
         """M08: заглушкой считается само значение, а не слово «example» где-то в строке."""
         self.write("README.md", 'Пример: GEMINI_API_KEY="AIzaSy' + "x" * 33 + '"\n')

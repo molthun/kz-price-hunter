@@ -39,6 +39,15 @@ class HealthAndPoolTest(AioHTTPTestCase):
         finally:
             product_queue.is_worker_running = False
 
+    async def test_readiness_alias_skips_session_lookup(self):
+        # C06: /api/readiness — alias /api/health, сессию в базе не ищет даже с cookie
+        from auth import SESSION_COOKIE
+        with patch("auth.get_session_user", side_effect=AssertionError("session lookup")) as lookup:
+            for path in ("/api/live", "/api/health", "/api/readiness"):
+                resp = await self.client.get(path, cookies={SESSION_COOKIE: "x" * 32})
+                self.assertIn(resp.status, (200, 503), path)
+        lookup.assert_not_called()
+
     async def test_readiness_probe_returns_503_when_worker_stopped(self):
         # B07: Остановленный пишущий воркер возвращает HTTP 503
         product_queue.is_worker_running = False

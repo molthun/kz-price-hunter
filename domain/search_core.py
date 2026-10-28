@@ -14,31 +14,14 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 
 import data_quality
-from domain.models import Availability, CanonicalProduct, Condition
+from domain.models import CanonicalProduct, Condition
 from domain.query_parser import ParsedQuery, QueryParser
 
 logger = logging.getLogger("kz_price_hunter.search_core")
 
 
-def offer_expired(expires_at: Any, now: Optional[datetime.datetime] = None) -> bool:
-    """Истёк ли TTL предложения (S2-E08, C09).
-
-    Срок известен — значит просроченный оффер не purchasable, даже если обход видел его
-    только что: цена из сторис могла исчезнуть вместе со сроком. Битое значение не
-    считается истечением: это отсутствие данных, а не ответ «просрочено».
-    """
-    if not expires_at:
-        return False
-    try:
-        exp = datetime.datetime.fromisoformat(str(expires_at))
-    except (TypeError, ValueError):
-        return False
-    if exp.tzinfo is None:
-        exp = exp.replace(tzinfo=datetime.timezone.utc)
-    current_now = now or datetime.datetime.now(datetime.timezone.utc)
-    if current_now.tzinfo is None:
-        current_now = current_now.replace(tzinfo=datetime.timezone.utc)
-    return current_now >= exp
+# Правило доступности одно на поиск, витрину и наблюдения (C08, R07–R09)
+from domain.purchasability import offer_expired, offer_purchasable, utc_now  # noqa: E402,F401
 
 
 class SearchOutcome:
@@ -146,6 +129,8 @@ class SearchCore:
         """
         start_time = time.perf_counter()
         parsed: Optional[ParsedQuery] = None
+        # Один момент времени для SQL-отбора и итоговой доступности (R09)
+        now = utc_now(now)
 
         try:
             # 1. Parse natural query
@@ -200,17 +185,12 @@ class SearchCore:
                 for od in offers_data:
                     # C-E11-03: Assess freshness and purchasability
                     obs_at = od.get("observed_at")
-                    f_info = data_quality.freshness(obs_at)
+                    f_info = data_quality.freshness(obs_at, now=now)
                     f_state = f_info.get("freshness", "unknown")
-                    raw_avail = str(od.get("availability") or "in_stock").lower()
-                    is_in_stock = raw_avail in ("in_stock", "preorder", Availability.IN_STOCK, Availability.PREORDER)
-                    is_fresh = f_state != data_quality.STALE
                     price_val = float(od["price"])
                     expires_at = od.get("expires_at")
-                    # S2-E08: TTL короткоживущего предложения. Просроченный оффер не
-                    # purchasable, иначе «лучшая цена» покажет сделку, которой уже нет.
-                    purchasable = (is_in_stock and is_fresh and (price_val > 0)
-                                   and not offer_expired(expires_at))
+                    # S2-E08, C08: наличие, свежесть, цена, TTL и активность — общим правилом
+                    purchasable = offer_purchasable(od, now=now)
 
                     agg_off = AggregatedOffer(
                         id=od["id"],

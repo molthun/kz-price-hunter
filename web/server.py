@@ -287,21 +287,33 @@ def _check_db_readiness_sync() -> bool:
 @routes.get("/api/health")
 @routes.get("/api/readiness")
 async def health_handler(request):
-    """Readiness probe: проверка готовности сервиса, доступности БД и состояния очереди."""
+    """Readiness probe: база, воркер записи и нерешённые отказы очереди (B07, R06).
+
+    ok — готов; degraded (HTTP 200) — обслуживает, но есть незаписанные задачи (dead_letter,
+    rejected), которые требуют решения администратора; unavailable (503) — база не готова,
+    воркер не работает или состояние очереди не прочитать.
+    """
     from queue_service import product_queue
     try:
         ok = await asyncio.wait_for(run_db(_check_db_readiness_sync), timeout=1.5)
         worker_ok = product_queue.is_worker_running
-        q_len = await product_queue.qsize()
-        dead_letters = len(product_queue.dead_letter_queue)
-        ready = ok and worker_ok
-        status_code = 200 if ready else 503
-        status_str = "ok" if ready else "unavailable"
+        try:
+            stats = await asyncio.wait_for(product_queue.stats(), timeout=1.5)
+        except Exception:
+            stats = None
+        if not (ok and worker_ok and stats is not None):
+            status_str, status_code = "unavailable", 503
+        elif stats["dead_letter"] or stats["rejected"]:
+            status_str, status_code = "degraded", 200
+        else:
+            status_str, status_code = "ok", 200
         return web.json_response({
             "status": status_str,
             "db": "ok" if ok else "unready",
-            "queue_size": q_len,
-            "dead_letters": dead_letters,
+            "queue": "ok" if stats is not None else "unreadable",
+            "queue_size": (stats["pending"] + stats["processing"]) if stats else None,
+            "dead_letters": stats["dead_letter"] if stats else None,
+            "rejected": stats["rejected"] if stats else None,
             "redis_active": product_queue.is_redis_active(),
             "worker_running": worker_ok,
         }, status=status_code)
@@ -342,9 +354,14 @@ async def _collect_diagnostics() -> dict:
     from version import get_version_info
 
     lag = await _measure_loop_lag_ms()
-    queue_info = {"size": await product_queue.qsize(),
-                  "redis_active": product_queue.is_redis_active(),
-                  "worker_running": product_queue.is_worker_running}
+    try:
+        stats = await product_queue.stats()
+        queue_info = {"size": stats["pending"] + stats["processing"],
+                      "failures": stats["dead_letter"] + stats["rejected"]}
+    except Exception as e:
+        queue_info = {"size": None, "failures": None, "error": type(e).__name__}
+    queue_info.update(redis_active=product_queue.is_redis_active(),
+                      worker_running=product_queue.is_worker_running)
     scan_info = {k: scan_state.get(k) for k in
                  ("is_running", "current_shop", "current_category", "progress_pct", "total_scanned")}
     return await asyncio.to_thread(
@@ -1628,6 +1645,34 @@ async def admin_block_user_handler(request):
     set_user_blocked(user_id, blocked)
     return web.json_response({"status": "ok"})
 
+
+@routes.get("/api/admin/queue/failures")
+@require_admin
+async def admin_queue_failures_handler(request):
+    """Незаписанные задачи очереди: магазин, обход, стадия, число попыток и последняя ошибка (R06)."""
+    from database import spool_failures
+    return web.json_response({"items": await run_db(spool_failures, 200)})
+
+
+@routes.post("/api/admin/queue/failures")
+@require_admin
+async def admin_queue_resolve_handler(request):
+    """Решение по отказам: {"action": "retry" | "archive", "task_ids": [...] или все}."""
+    from database import spool_resolve_failures
+    try:
+        body = await request.json()
+        action = body.get("action")
+        task_ids = body.get("task_ids")
+        if action not in ("retry", "archive") or (task_ids is not None and not isinstance(task_ids, list)):
+            raise ValueError
+    except Exception:
+        return web.json_response({"status": "error", "message": "Некорректный запрос"}, status=400)
+    count = await run_db(spool_resolve_failures, action, task_ids)
+    if action == "retry" and count:
+        from queue_service import product_queue
+        product_queue.wake()
+    return web.json_response({"status": "ok", "count": count})
+
 async def _process_anomaly(p, anomaly, shop_name):
     """Записывает кандидата (с защитой от дублей) и рассылает его пользователям по их личным порогам."""
     if not anomaly:
@@ -1713,6 +1758,8 @@ SHOP_REGISTRY = {
 
 # Сколько магазинов обходить одновременно (у каждого свой сайт, поэтому нагрузка не суммируется)
 SHOP_CONCURRENCY = 4
+# Сколько обход магазина ждёт записи своих задач очереди; писатель один на все магазины
+QUEUE_DRAIN_TIMEOUT = 120.0
 
 def enabled_shop_keys(settings=None):
     s = settings if settings is not None else load_settings()
@@ -1739,7 +1786,16 @@ async def _save_and_detect_direct(prods, shop_name, candidate_settings, shop_key
     # История цен читается ДО пакетной перезаписи, иначе прежняя цена будет потеряна
     history_map = await asyncio.to_thread(get_price_history_batch, [p["id"] for p in prods])
     await asyncio.to_thread(save_or_update_products_batch, prods)
+    await _detect_after_save(prods, history_map, shop_name, candidate_settings)
 
+
+async def _detect_after_save(prods, history_map, shop_name, candidate_settings, strict=False):
+    """Производные эффекты записанной пачки: алерты, наблюдения, арбитраж, сводка цен.
+
+    history_map — цены до записи. Повтор безопасен: алерт с той же ценой за сутки не дублируется,
+    наблюдение помнит последнюю цену. strict — путь очереди: сбой наблюдений не глотается,
+    а возвращает задачу на повтор этой стадии (R05).
+    """
     changes = {"items": len(prods), "new": 0, "price_down": 0, "price_up": 0, "discount_candidates": 0,
                "alerts_recorded": 0, "arbitrage_candidates": 0}
     for p in prods:
@@ -1769,6 +1825,8 @@ async def _save_and_detect_direct(prods, shop_name, candidate_settings, shop_key
             print(f"[Watches] Ошибка проверки наблюдений: {type(e).__name__}")
             from telemetry import telemetry, COMPONENT_SYSTEM
             telemetry.record_system_error(COMPONENT_SYSTEM, "evaluate_watches", e)
+            if strict:
+                raise
 
     # Сравнение с рынком для всей пачки — одна задача вне event loop, а не переключение
     # потока на каждый товар (у Белого Ветра ~14 тыс. за обход) (M06)
@@ -1798,6 +1856,8 @@ async def _save_and_detect_direct(prods, shop_name, candidate_settings, shop_key
             print(f"[Watches] Ошибка проверки наблюдений за арбитражем: {type(e).__name__}")
             from telemetry import telemetry, COMPONENT_SYSTEM
             telemetry.record_system_error(COMPONENT_SYSTEM, "evaluate_watches_arbitrage", e)
+            if strict:
+                raise
     _record_price_changes(shop_name, changes)
 
 
@@ -1808,99 +1868,119 @@ async def _save_and_detect(prods, shop_name, candidate_settings, shop_key=None, 
 
     from queue_service import product_queue
     if product_queue.is_worker_running and not wait:
-        await product_queue.enqueue(
-            prods,
-            shop_name,
-            candidate_settings,
-            shop_key=shop_key,
-            lease_generation=_lease_state.get("generation", 0),
-        )
+        admission = await product_queue.enqueue(prods, shop_name, candidate_settings, shop_key=shop_key)
+        if not admission:
+            raise RuntimeError(f"Пачка не принята очередью записи: {admission.reason}")
         return
 
     await _save_and_detect_direct(prods, shop_name, candidate_settings, shop_key=shop_key)
 
 
-async def _execute_queue_item(item):
-    """Выполняет полную запись спарсенных данных категории в SQLite без конкуренции с другими потоками (C01, C04, C05)."""
-    # Fencing guard (B06, C05): если аренда планировщика была потеряна или поколение устарело
-    item_gen = item.get("lease_generation", 0)
-    current_gen = _lease_state.get("generation", 0)
-    if _lease_state.get("lost") or (item_gen > 0 and current_gen > 0 and item_gen != current_gen):
-        print(f"[Queue Worker] ⛔ Запись пакета отклонена: аренда планировщика была потеряна (fencing guard, gen {item_gen} vs {current_gen})")
-        from queue_service import product_queue
-        product_queue.reject(item, reason=f"fenced_lease_lost (item_gen={item_gen}, cur_gen={current_gen})")
-        return False
+class ClaimLost(RuntimeError):
+    """Захват задачи журнала перешёл к другому воркеру: этот воркер её больше не пишет."""
 
+
+async def _execute_queue_item(item):
+    """Выполняет задачу журнала (C01, C04, R03–R05).
+
+    Обязательные эффекты — товары порциями, затем сверка источника и журнал обхода — пишутся
+    транзакциями, каждая из которых сверяет токен захвата: потерявший захват воркер не запишет
+    ничего. Записанные порции при повторе пропускаются, а производные эффекты считаются от цен,
+    сохранённых до записи, поэтому повтор после частичного commit не теряет снижение цены.
+    """
+    from database import SPOOL_CHUNK_SIZE, spool_apply_chunk, spool_finish_core, spool_history
+
+    task_id, token = item["task_id"], item["claim_token"]
     prods = item.get("prods") or []
     shop_name = item.get("shop_name", "Shop")
     candidate_settings = item.get("candidate_settings", {})
     shop_key = item.get("shop_key")
-    reconcile = item.get("reconcile")
-    scan_log = item.get("scan_log")
+    if shop_key:
+        for p in prods:
+            p.setdefault("shop_key", shop_key)
+
+    if item.get("stage", "core") == "core":
+        if prods:
+            queue_titles_for_ai(prods)
+        done = int(item.get("core_done") or 0)
+        for chunk_no, start in enumerate(range(0, len(prods), SPOOL_CHUNK_SIZE)):
+            if chunk_no < done:
+                continue
+            if not await run_db(spool_apply_chunk, task_id, token, chunk_no, prods[start:start + SPOOL_CHUNK_SIZE]):
+                raise ClaimLost(task_id)
+        if not await run_db(spool_finish_core, task_id, token, [p["id"] for p in prods],
+                            item.get("reconcile"), item.get("scan_log")):
+            raise ClaimLost(task_id)
 
     if prods:
-        await _save_and_detect_direct(prods, shop_name, candidate_settings, shop_key=shop_key)
-
-    if reconcile:
-        from database import reconcile_source
-        await asyncio.to_thread(
-            reconcile_source,
-            reconcile["key"],
-            reconcile["url"],
-            prods,
-            reconcile.get("complete", False),
-        )
-
-    if scan_log:
-        from database import record_source_scan
-        await asyncio.to_thread(
-            record_source_scan,
-            scan_log["key"],
-            scan_log["url"],
-            scan_log["name"],
-            scan_log["scan_id"],
-            scan_log["cat_started"],
-            scan_log["kind"],
-            scan_log["assessment"],
-            scan_log["metrics"],
-        )
+        history_map = await run_db(spool_history, task_id)
+        await _detect_after_save(prods, history_map, shop_name, candidate_settings, strict=True)
     return True
+
+
+async def _keep_queue_claim(queue, item):
+    """Продлевает захват задачи, пока она выполняется; цикл событий занят — захват истечёт сам."""
+    while True:
+        await asyncio.sleep(max(1.0, queue.claim_seconds / 3))
+        try:
+            if not await queue.renew(item):
+                print(f"[Queue Worker] Захват {item['task_id']} потерян — запись будет отклонена журналом")
+                return
+        except Exception as e:
+            print(f"[Queue Worker] Захват не продлён: {type(e).__name__}")
 
 
 async def single_db_writer_worker(app=None):
     """Единственный асинхронный воркер записи в SQLite.
 
-    Вычитывает задачи из персистентного spool и последовательно производит запись,
-    гарантируя полное отсутствие конфликтов 'database is locked' между скраперами.
+    Захватывает задачи журнала и выполняет их; все обращения к базе — вне цикла событий (R01).
     """
     from queue_service import product_queue
+    from telemetry import telemetry, COMPONENT_SYSTEM
     product_queue.is_worker_running = True
     print("[Queue] ⚡ Фоновый Single DB-Writer Worker запущен")
-    item = None
     try:
         while True:
+            item = None
             try:
                 item = await product_queue.dequeue(timeout=0.5)
-                if item:
-                    res = await _execute_queue_item(item)
-                    if res is not False:
-                        product_queue.ack(item)
-                    item = None
+                if not item:
+                    continue
+                keeper = asyncio.create_task(_keep_queue_claim(product_queue, item))
+                try:
+                    await _execute_queue_item(item)
+                finally:
+                    keeper.cancel()
+                if not await product_queue.ack(item):
+                    # Эффекты уже записаны под нашим токеном; новый владелец увидит записанные
+                    # порции и повторит только идемпотентные производные эффекты
+                    print(f"[Queue Worker] Подтверждение {item['task_id']} отклонено: захват уже не наш")
+                    telemetry.record_system_error(COMPONENT_SYSTEM, "queue_ack", ClaimLost(item["task_id"]))
             except asyncio.CancelledError:
                 if item:
-                    product_queue.nack(item, error="Worker cancelled")
+                    # Мгновенно отпустить захват при штатной остановке; не успели — его освободит
+                    # восстановление при следующем старте (владелец мёртв) или истечение срока
+                    try:
+                        await asyncio.wait_for(asyncio.shield(
+                            product_queue.nack(item, error="Worker cancelled", max_retries=1_000_000)), 2.0)
+                    except BaseException:
+                        pass
                 break
+            except ClaimLost as e:
+                print(f"[Queue Worker] Задача {e} отдана другому воркеру — запись прекращена")
+                telemetry.record_system_error(COMPONENT_SYSTEM, "queue_claim_lost", e)
             except Exception as e:
-                print(f"[Queue Worker] Ошибка при обработке очереди: {e}")
-                if item:
-                    product_queue.nack(item, error=str(e))
-                    item = None
-                from telemetry import telemetry, COMPONENT_SYSTEM
+                print(f"[Queue Worker] Ошибка при обработке очереди: {type(e).__name__}: {e}")
                 telemetry.record_system_error(COMPONENT_SYSTEM, "single_db_writer_worker", e)
+                if item:
+                    try:
+                        await product_queue.nack(item, error=f"{type(e).__name__}: {e}")
+                    except Exception as nack_error:
+                        # Захват не освобождён — задача вернётся в работу по истечении его срока
+                        telemetry.record_system_error(COMPONENT_SYSTEM, "queue_nack", nack_error)
                 await asyncio.sleep(0.5)
     finally:
         product_queue.is_worker_running = False
-        print("[Queue] Single DB-Writer Worker остановлен")
         print("[Queue] Single DB-Writer Worker остановлен")
 
 
@@ -2106,6 +2186,7 @@ async def _scan_shop_categories(key, scraper, categories, shop_name, candidate_s
     started = time.monotonic()
     collected = 0
     failed_categories = []
+    accepted_tasks = []  # ID задач журнала этого обхода магазина — по ним барьер завершения (R06)
     limited = False
     await run_db(record_shop_scan_start, key)
     scan_state["current_shop"] = shop_name
@@ -2157,17 +2238,24 @@ async def _scan_shop_categories(key, scraper, categories, shop_name, candidate_s
                         "assessment": assessment,
                         "metrics": metrics,
                     }
-                    enqueued = await product_queue.enqueue(
+                    admission = await product_queue.enqueue(
                         prods,
                         shop_name,
                         candidate_settings,
                         shop_key=key,
                         reconcile=reconcile_data,
                         scan_log=scan_log_data,
-                        lease_generation=_lease_state.get("generation", 0),
+                        lease_owner=SCHEDULER_OWNER,
+                        scan_id=current_scan_id.get(),
                     )
-                    if not enqueued:
-                        failed_categories.append(f"{cat['name']}: Сбой постановки в очередь записи")
+                    if admission.reason == "fenced":
+                        # Журнал проверил аренду в транзакции вставки: она уже не наша (R04)
+                        _lease_state["lost"] = True
+                        raise LeaseLost("аренда планировщика потеряна при постановке в очередь")
+                    if admission:
+                        accepted_tasks.append(admission.task_id)
+                    else:
+                        failed_categories.append(f"{cat['name']}: Сбой постановки в очередь записи ({admission.reason})")
                 else:
                     await _save_and_detect_direct(prods, shop_name, candidate_settings, shop_key=key)
                     await asyncio.to_thread(reconcile_source, key, cat["url"], prods,
@@ -2222,12 +2310,13 @@ async def _scan_shop_categories(key, scraper, categories, shop_name, candidate_s
     duration = time.monotonic() - started
     error = "; ".join(failed_categories[:3]) or None
 
-    from queue_service import product_queue
-    if product_queue.is_worker_running:
-        # Барьер завершения скана (B06, C01, C02): статус complete выставляется только после фактической записи в SQLite
-        drained = await product_queue.wait_drained(shop_key=key, timeout=10.0)
+    if accepted_tasks:
+        from queue_service import product_queue
+        # Барьер завершения (B06, C02, R06): итог магазина — только после подтверждения каждой
+        # принятой задачи этого обхода; отказ, таймаут или нечитаемый журнал — не complete
+        drained = await product_queue.wait_drained(accepted_tasks, timeout=QUEUE_DRAIN_TIMEOUT)
         if not drained:
-            error = (error + "; ") if error else "" + "Таймаут или сбой подтверждения записи очереди"
+            error = (error + "; " if error else "") + "Таймаут или сбой подтверждения записи очереди"
 
     status = ("partial" if collected else "failed") if error else "limited" if limited else "complete"
     await run_db(record_shop_scan_result, key, collected, duration, error, status)
@@ -2254,8 +2343,9 @@ class LeaseLost(RuntimeError):
     """Аренда планировщика перешла к другому процессу: этот обход больше не пишет результаты."""
 
 
-# Состояние аренды текущего обхода (R-H03, C05)
-_lease_state = {"lost": False, "last_ok": 0.0, "generation": 1}
+# Состояние аренды текущего обхода (R-H03). Fencing записи — в журнале: аренда проверяется
+# в транзакции приёма задачи, захват — в каждой транзакции её эффектов (R03, R04)
+_lease_state = {"lost": False, "last_ok": 0.0}
 
 
 def _ensure_lease() -> None:
@@ -2299,7 +2389,7 @@ async def _do_scan_task(shop_keys=None, target_categories=None, scan_type="manua
         scan_state["is_running"] = False
         print("[Scan] Обход уже выполняет другой процесс (аренда планировщика) — пропуск")
         return
-    _lease_state.update(lost=False, last_ok=time.monotonic(), generation=_lease_state.get("generation", 0) + 1)
+    _lease_state.update(lost=False, last_ok=time.monotonic())
     # Один scan_id связывает планировщик, страницы (HTTP) и итог обхода: create_task/to_thread
     # копируют контекст, поэтому значение видно во всех задачах обхода (P01)
     from telemetry import telemetry, current_scan_id, EVENT_SCAN_START, EVENT_SCAN_END, SEVERITY_INFO, SEVERITY_WARNING, SEVERITY_ERROR, COMPONENT_SCHEDULER
@@ -2545,6 +2635,8 @@ async def _scan_task_body(shop_keys, target_categories, scan_type):
             from database import prune_daily_reports, prune_matching_pairs
             await asyncio.to_thread(prune_daily_reports)
             await asyncio.to_thread(prune_matching_pairs)
+            from database import prune_spool_archive
+            await asyncio.to_thread(prune_spool_archive)
             # Спорные пары сопоставления разбирает модель — вне пути сравнения цен (P09, AI-часть)
             try:
                 import catalog_ai

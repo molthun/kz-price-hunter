@@ -1,17 +1,16 @@
-"""In-Container Redis Queue Service & Single DB-Writer Worker for KZ Price Hunter.
+"""Очередь записи товаров и кэш аналитики KZ Price Hunter.
 
-Обеспечивает:
-1. Автоматический запуск встроенного redis-server (если бинарник есть в ОС).
-2. Легковесный асинхронный клиент протокола Redis (RESP) без сторонних библиотек.
-3. Бесшовный fallback на in-memory asyncio.Queue и BoundedTTLCache (для тестов и сред без Redis).
-4. Паттерн Single DB-Writer: все скраперы отправляют спарсенные товары в очередь,
-   а единственный фоновый воркер последовательно и порциями сохраняет их в SQLite.
-5. Устранение межпроцессных и межпоточных блокировок database is locked.
+1. Журнал задач записи в SQLite (product_queue_spool): приём, захват с владельцем и сроком,
+   подтверждение по токену; переживает kill -9 и рестарт (C01–C05, R01–R06).
+2. Встроенный redis-server и лёгкий клиент RESP — только для кэша аналитики, не для задач.
+3. Кэш в памяти (TTL), если Redis нет.
 """
 
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
+import functools
 import json
 import logging
 import os
@@ -20,7 +19,7 @@ import socket
 import subprocess
 import time
 import uuid
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger("kz_price_hunter.queue")
 
@@ -203,50 +202,105 @@ class MiniRedisClient:
 
 
 # ---------------------------------------------------------------------------
-# Менеджер очереди товаров (SQLite Spool / Outbox с Redis кэшем) (C01–C05)
+# Менеджер очереди товаров: журнал в SQLite (C01–C05, R01–R06)
 # ---------------------------------------------------------------------------
 
-class ProductQueueManager:
-    """Универсальная очередь сохранения товаров с гарантией надёжности (ACK/retry/drain/spool)."""
+# Владелец захватов этого процесса. Хост и PID позволяют после рестарта доказать, что прежний
+# владелец мёртв (тот же хост, процесса нет или PID наш, а метка другая), и не ждать срока.
+QUEUE_OWNER = f"{socket.gethostname()}:{os.getpid()}:{uuid.uuid4().hex[:8]}"
 
-    def __init__(self, maxsize: int = 200):
+# Срок захвата задачи; воркер продлевает его каждую треть срока (совпадает с database.SPOOL_CLAIM_SECONDS)
+CLAIM_SECONDS = 60.0
+
+# Все обращения очереди к SQLite идут через свой небольшой пул: ожидание блокировки базы
+# занимает поток пула, а не цикл событий, и не отнимает потоки у веб-запросов (R01, C06).
+_spool_executor = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="kzph-spool")
+
+
+async def _spool_db(func, *args):
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(_spool_executor, functools.partial(func, *args))
+
+
+def owner_is_dead(owner: str) -> bool:
+    """Погиб ли владелец захвата. Чужой хост — неизвестно, значит жив (ждём срока захвата)."""
+    try:
+        host, pid_str, _nonce = owner.rsplit(":", 2)
+        pid = int(pid_str)
+    except (AttributeError, ValueError):
+        return True  # строка без владельца или чужого формата — владельца не доказать
+    if host != socket.gethostname() or owner == QUEUE_OWNER:
+        return False
+    if pid == os.getpid():
+        return True  # наш PID с другой меткой — прежний экземпляр процесса (рестарт контейнера)
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return True
+    except PermissionError:
+        return False
+    except OSError:
+        return False
+    return False
+
+
+class Admission:
+    """Исход постановки задачи. Истинно, только если задача записана в журнал."""
+    __slots__ = ("accepted", "reason", "task_id")
+
+    def __init__(self, accepted: bool, reason: str, task_id: Optional[str] = None):
+        self.accepted = accepted
+        self.reason = reason
+        self.task_id = task_id
+
+    def __bool__(self) -> bool:
+        return self.accepted
+
+    def __repr__(self) -> str:
+        return f"Admission({self.accepted}, {self.reason!r}, {self.task_id!r})"
+
+
+class ProductQueueManager:
+    """Очередь записи товаров поверх журнала SQLite. Redis используется только как кэш аналитики.
+
+    Резервной очереди в памяти нет намеренно (R02): задача без строки в журнале не переживёт
+    смерть процесса, поэтому отказ журнала — это явный отказ постановки, а не тихий приём.
+    """
+
+    def __init__(self, maxsize: int = 200, total_budget: int = 2000, owner: Optional[str] = None,
+                 claim_seconds: Optional[float] = None):
         self.redis_client: Optional[MiniRedisClient] = None
-        self.memory_queue: asyncio.Queue = asyncio.Queue(maxsize=maxsize)
         self.use_redis: bool = False
         self.is_worker_running: bool = False
-        self._retry_queue: List[Any] = []
-        self._in_flight: Set[int] = set()
-        self._dead_letter_mem: List[Any] = []
         self._in_memory_cache: Dict[str, Tuple[float, Any]] = {}
         self._new_item_event: Optional[asyncio.Event] = None
         self.maxsize = maxsize
+        self.total_budget = total_budget
+        self.owner = owner or QUEUE_OWNER
+        # Синглтон создаётся при импорте модуля, поэтому database здесь не импортируется
+        self.claim_seconds = claim_seconds or CLAIM_SECONDS
 
-    @property
-    def dead_letter_queue(self) -> List[Any]:
-        """Возвращает список задач dead_letter (из SQLite spool и памяти) (C02)."""
-        res = list(self._dead_letter_mem)
-        try:
-            from database import spool_dead_letters
-            res.extend(spool_dead_letters())
-        except Exception:
-            pass
-        return res
+    def _event(self) -> asyncio.Event:
+        if self._new_item_event is None:
+            self._new_item_event = asyncio.Event()
+        return self._new_item_event
+
+    def wake(self) -> None:
+        """Будит воркер: в журнале появилась работа (новая задача или повтор отказа)."""
+        self._event().set()
 
     async def initialize(self) -> None:
-        """Инициализирует очередь: восстанавливает зависшие задачи spool и подключает Redis для кэша."""
+        """Освобождает захваты погибших владельцев и подключает Redis для кэша аналитики."""
         self._new_item_event = asyncio.Event()
-
-        # Восстановление зависших задач spool при старте (C01)
         try:
-            from database import spool_recover_on_startup
-            recovered = await asyncio.to_thread(spool_recover_on_startup)
-            if recovered > 0:
-                print(f"[Queue] 🔄 Восстановлено {recovered} зависших задач из spool в статус pending")
+            from database import spool_recover_orphans
+            released = await _spool_db(spool_recover_orphans, owner_is_dead)
+            if released > 0:
+                print(f"[Queue] 🔄 Освобождено {released} захватов погибших воркеров — задачи будут дописаны")
                 self._new_item_event.set()
         except Exception as e:
-            logger.warning("spool_recover_on_startup пропущен: %s", e)
+            logger.error("Восстановление захватов журнала не выполнено: %s", e)
 
-        # 1. Пробуем встроенный демон Redis для кэша аналитики
         has_redis = start_redis_daemon_if_available()
         if has_redis or _is_port_open(DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT):
             client = MiniRedisClient(DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
@@ -270,12 +324,20 @@ class ProductQueueManager:
         shop_key: Optional[str] = None,
         reconcile: Optional[Dict[str, Any]] = None,
         scan_log: Optional[Dict[str, Any]] = None,
-        lease_generation: int = 0,
-    ) -> bool:
-        """Скраперы сбрасывают спарсенную пачку товаров в транзакционный spool в SQLite (C01, C03)."""
-        if not prods and not reconcile and not scan_log:
-            return True
+        lease_owner: Optional[str] = None,
+        scan_id: Optional[str] = None,
+        wait_seconds: float = 30.0,
+    ) -> Admission:
+        """Ставит пачку в журнал. При исчерпанном бюджете ждёт место до wait_seconds (C03, R02).
 
+        lease_owner — владелец аренды планировщика: результаты обхода принимаются, только пока
+        аренда у него, и проверка идёт в транзакции вставки (R04).
+        """
+        if not prods and not reconcile and not scan_log:
+            return Admission(True, "empty")
+
+        from database import spool_admit
+        task_id = f"task_{uuid.uuid4().hex}"
         payload = {
             "prods": prods or [],
             "shop_name": shop_name,
@@ -283,210 +345,103 @@ class ProductQueueManager:
             "shop_key": shop_key,
             "reconcile": reconcile,
             "scan_log": scan_log,
-            "lease_generation": lease_generation,
             "enqueued_at": time.time(),
         }
-
-        # 1. Пробуем надежный SQLite Spool (C01)
-        try:
-            from database import spool_enqueue, spool_stats
-            # Проверка backpressure
-            stats = await asyncio.to_thread(spool_stats, shop_key)
-            if (stats["pending"] + stats["processing"]) >= self.maxsize:
-                logger.error("Spool очередь переполнена (backpressure timeout), данные категории отклонены")
-                return False
-
-            task_id = f"task_{uuid.uuid4().hex}"
-            payload["task_id"] = task_id
-            ok = await asyncio.to_thread(
-                spool_enqueue,
-                task_id,
-                shop_key,
-                shop_name,
-                lease_generation,
-                payload,
-            )
-            if ok:
-                if self._new_item_event:
-                    self._new_item_event.set()
-                return True
-        except Exception as e:
-            logger.debug("spool_enqueue недоступен, fallback на очередь памяти: %s", e)
-
-        # 2. Fallback на Redis / Memory Queue при отсутствии БД spool
-        if self.use_redis and self.redis_client:
+        deadline = time.monotonic() + max(0.0, wait_seconds)
+        while True:
             try:
-                data_str = json.dumps(payload, ensure_ascii=False)
-                await self.redis_client.rpush(QUEUE_KEY, data_str)
-                return True
+                status = await _spool_db(spool_admit, task_id, shop_key, shop_name, scan_id, payload,
+                                         lease_owner, self.maxsize, self.total_budget)
             except Exception as e:
-                logger.warning("Сбой отправки в Redis (%s), переключаемся на очередь в памяти", e)
-                self.use_redis = False
-
-        # Backpressure при переполнении очереди в памяти (B03, C03)
-        try:
-            await asyncio.wait_for(self.memory_queue.put(payload), timeout=5.0)
-            return True
-        except (asyncio.TimeoutError, TimeoutError):
-            logger.error("Очередь памяти переполнена (backpressure timeout), данные категории отброшены")
-            return False
+                logger.error("Журнал очереди недоступен, пачка не принята: %s", e)
+                return Admission(False, f"spool_unavailable:{type(e).__name__}")
+            if status == "accepted":
+                self._event().set()
+                return Admission(True, "accepted", task_id)
+            if status == "fenced":
+                return Admission(False, "fenced")
+            if time.monotonic() >= deadline:
+                logger.error("Журнал очереди переполнен (%s), пачка не принята", shop_key)
+                return Admission(False, "full")
+            await asyncio.sleep(0.5)
 
     async def dequeue(self, timeout: float = 0.5) -> Optional[Dict[str, Any]]:
-        """Извлекает одну задачу из очереди (сохраняя порядок и дочитывая spool и fallback) (C01)."""
-        # 1. Повторные попытки при предыдущих сбоях воркера в памяти
-        if self._retry_queue:
-            item = self._retry_queue.pop(0)
-            self._in_flight.add(id(item))
-            return item
-
-        # 2. Дочитывание старых задач из Redis
-        if self.redis_client:
+        """Захватывает следующую задачу журнала; без задач ждёт сигнала или таймаута."""
+        from database import spool_claim
+        for attempt in range(2):
             try:
-                item_str = await self.redis_client.lpop(QUEUE_KEY)
-                if item_str:
-                    item = json.loads(item_str) if isinstance(item_str, str) else item_str
-                    self._in_flight.add(id(item))
-                    return item
+                item = await _spool_db(spool_claim, self.owner, self.claim_seconds)
             except Exception as e:
-                logger.debug("Чтение из Redis недоступно: %s", e)
-
-        # 3. Извлечение из персистентного SQLite Spool (C01)
-        try:
-            from database import spool_dequeue
-            item = await asyncio.to_thread(spool_dequeue)
-            if item:
-                self._in_flight.add(id(item))
+                logger.warning("Захват задачи журнала не выполнен: %s", e)
+                await asyncio.sleep(timeout)
+                return None
+            if item or attempt:
                 return item
-        except Exception as e:
-            logger.debug("spool_dequeue недоступен: %s", e)
-
-        # 4. Извлечение из очереди памяти
-        if not self.memory_queue.empty():
+            event = self._event()
             try:
-                item = self.memory_queue.get_nowait()
-                self._in_flight.add(id(item))
-                return item
-            except asyncio.QueueEmpty:
-                pass
-
-        # Если пусто, ждём события _new_item_event или таймаута в памяти
-        if self._new_item_event:
-            try:
-                await asyncio.wait_for(self._new_item_event.wait(), timeout=timeout)
-                self._new_item_event.clear()
-                # Пробуем достать из spool
-                try:
-                    from database import spool_dequeue
-                    item = await asyncio.to_thread(spool_dequeue)
-                    if item:
-                        self._in_flight.add(id(item))
-                        return item
-                except Exception:
-                    pass
+                await asyncio.wait_for(event.wait(), timeout=timeout)
             except (asyncio.TimeoutError, TimeoutError):
                 pass
-        else:
-            try:
-                item = await asyncio.wait_for(self.memory_queue.get(), timeout=timeout)
-                self._in_flight.add(id(item))
-                return item
-            except (asyncio.TimeoutError, TimeoutError):
-                pass
-
+            event.clear()
         return None
 
-    def ack(self, item: Any) -> None:
-        """Подтверждает успешную запись задачи в SQLite (B02, C01, C04)."""
-        self._in_flight.discard(id(item))
-        if isinstance(item, dict) and item.get("task_id"):
-            try:
-                from database import spool_commit
-                spool_commit(item["task_id"])
-            except Exception as e:
-                logger.error("Ошибка spool_commit для %s: %s", item.get("task_id"), e)
+    async def renew(self, item: Dict[str, Any]) -> bool:
+        from database import spool_renew
+        return await _spool_db(spool_renew, item["task_id"], item["claim_token"], self.claim_seconds)
 
-    def nack(self, item: Any, error: Optional[str] = None, max_retries: int = 3) -> None:
-        """Возвращает задачу в очередь при ошибке записи (B02, C01, C02)."""
-        self._in_flight.discard(id(item))
-        if not isinstance(item, dict):
-            self._retry_queue.insert(0, item)
-            return
+    async def ack(self, item: Dict[str, Any]) -> bool:
+        """Подтверждение вне цикла событий. False — захват уже не наш, задачу допишет владелец."""
+        from database import spool_ack
+        return await _spool_db(spool_ack, item["task_id"], item["claim_token"])
 
-        task_id = item.get("task_id")
-        if task_id:
-            try:
-                from database import spool_nack
-                spool_nack(task_id, error=error, max_retries=max_retries)
-            except Exception as e:
-                logger.error("Ошибка spool_nack для %s: %s", task_id, e)
+    async def nack(self, item: Dict[str, Any], error: Optional[str] = None, max_retries: int = 3) -> Optional[str]:
+        """Возвращает задачу на повтор или в dead_letter; None — захват уже не наш."""
+        from database import spool_nack
+        status = await _spool_db(spool_nack, item["task_id"], item["claim_token"], error, max_retries)
+        if status == "dead_letter":
+            logger.error("Задача %s (%s) превысила лимит повторов и помещена в dead-letter",
+                         item.get("task_id"), item.get("shop_name"))
+        elif status == "pending":
+            logger.warning("Повтор задачи %s (%s), попытка %s", item.get("task_id"), item.get("shop_name"),
+                           item.get("attempts"))
+        return status
 
-        attempts = item.get("_retry_count", item.get("attempts", 0)) + 1
-        item["_retry_count"] = attempts
-        item["attempts"] = attempts
-        if attempts <= max_retries:
-            logger.warning("Повтор задачи очереди для %s (попытка %d/%d)", item.get("shop_name"), attempts, max_retries)
-            if not task_id:
-                self._retry_queue.insert(0, item)
-        else:
-            logger.error("Задача превысила лимит повторов (%d) и помещена в dead-letter: %s", max_retries, item.get("shop_name"))
-            if not task_id:
-                self._dead_letter_mem.append(item)
-
-    def reject(self, item: Any, reason: str = "fenced") -> None:
-        """Помечает задачу отклонённой (stale lease generation / fenced) (C05)."""
-        self._in_flight.discard(id(item))
-        if isinstance(item, dict) and item.get("task_id"):
-            try:
-                from database import spool_reject
-                spool_reject(item["task_id"], reason=reason)
-            except Exception as e:
-                logger.error("Ошибка spool_reject для %s: %s", item.get("task_id"), e)
+    async def stats(self, shop_key: Optional[str] = None) -> Dict[str, int]:
+        """Счётчики журнала; ошибка чтения пробрасывается — вызывающий решает fail-closed (R06)."""
+        from database import spool_stats
+        return await _spool_db(spool_stats, shop_key)
 
     async def qsize(self, shop_key: Optional[str] = None) -> int:
-        mem_size = self.memory_queue.qsize() + len(self._retry_queue)
-        if self.redis_client:
+        stats = await self.stats(shop_key)
+        return stats["pending"] + stats["processing"]
+
+    async def wait_drained(self, task_ids: List[str], timeout: float = 60.0) -> bool:
+        """Барьер обхода: True, только когда каждая принятая им задача подтверждена (R06).
+
+        Смотрит на конкретные ID, а не на магазин: старый отказ не портит новый обход, а отказ
+        этого обхода не скрыт чужими задачами. Нечитаемый журнал — не успех: ждём и по таймауту False.
+        """
+        ids = [t for t in task_ids if t]
+        if not ids:
+            return True
+        from database import spool_task_states
+        deadline = time.monotonic() + timeout
+        while True:
             try:
-                mem_size += await self.redis_client.llen(QUEUE_KEY)
-            except Exception:
-                pass
-        try:
-            from database import spool_stats
-            stats = await asyncio.to_thread(spool_stats, shop_key)
-            mem_size += stats.get("pending", 0)
-        except Exception:
-            pass
-        return mem_size
-
-    async def wait_drained(self, shop_key: Optional[str] = None, timeout: float = 10.0) -> bool:
-        """Ожидает, пока все задачи из очереди будут полностью сохранены воркером в SQLite (B06, C01, C02)."""
-        start = time.monotonic()
-        while time.monotonic() - start < timeout:
-            spool_errs = 0
-            try:
-                from database import spool_stats
-                stats = await asyncio.to_thread(spool_stats, shop_key)
-                spool_pending = stats.get("pending", 0) + stats.get("processing", 0)
-                spool_errs = stats.get("dead_letter", 0) + stats.get("rejected", 0)
-            except Exception:
-                spool_pending = 0
-
-            mem_pending = self.memory_queue.qsize() + len(self._retry_queue)
-            redis_pending = 0
-            if self.redis_client:
-                try:
-                    redis_pending = await self.redis_client.llen(QUEUE_KEY)
-                except Exception:
-                    pass
-
-            total_pending = spool_pending + mem_pending + redis_pending
-            if total_pending == 0 and len(self._in_flight) == 0:
-                # C02: если были ошибки dead_letter или rejected, барьер завершается с отказом
-                if spool_errs > 0 or len(self._dead_letter_mem) > 0:
-                    logger.warning("wait_drained: обнаружены задачи со сбоями (dead_letter/rejected)")
+                states = await _spool_db(spool_task_states, ids)
+            except Exception as e:
+                logger.warning("wait_drained: журнал не читается: %s", e)
+                states = None
+            if states is not None:
+                if any(st not in ("pending", "processing") for st in states.values()):
+                    logger.warning("wait_drained: задачи обхода не записаны: %s",
+                                   sorted(set(states.values())))
                     return False
-                return True
-            await asyncio.sleep(0.05)
-        return False
+                if not states:
+                    return True
+            if time.monotonic() >= deadline:
+                return False
+            await asyncio.sleep(0.1)
 
     # Кэширование аналитических данных (/api/stats и др.)
     async def get_cached(self, key: str) -> Optional[Any]:

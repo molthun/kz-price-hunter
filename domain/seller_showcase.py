@@ -12,39 +12,14 @@ from domain.models import Channel, Seller
 
 def is_offer_expired(expires_at: Optional[str], now: Optional[datetime] = None) -> bool:
     """Проверяет, истёк ли срок действия предложения (S2-E08, A04)."""
-    if not expires_at:
-        return False
-    try:
-        from datetime import datetime, timezone
-        now = now or datetime.now(timezone.utc)
-        exp = datetime.fromisoformat(expires_at)
-        if exp.tzinfo is None:
-            exp = exp.replace(tzinfo=timezone.utc)
-        return now >= exp
-    except Exception:
-        return False
+    from domain.purchasability import offer_expired
+    return offer_expired(expires_at, now=now)
 
 
 def is_offer_purchasable(row: Dict[str, Any], now: Optional[datetime] = None) -> bool:
-    """A04, B11: Проверяет доступность оффера для покупки (наличие, актуальность, активность канала, свежесть)."""
-    price = float(row.get("price") or 0.0)
-    if price <= 0:
-        return False
-    avail = str(row.get("availability") or "in_stock").lower()
-    if avail not in ("in_stock", "preorder"):
-        return False
-    if is_offer_expired(row.get("expires_at"), now=now):
-        return False
-    if row.get("channel_is_active") is not None and not row.get("channel_is_active"):
-        return False
-    # B11: Устаревшие предложения (STALE) не считаются доступными к покупке
-    obs = row.get("observed_at") or row.get("updated_at")
-    if obs:
-        import data_quality
-        f_state = data_quality.freshness(obs, now=now).get("freshness")
-        if f_state == data_quality.STALE:
-            return False
-    return True
+    """A04, B11, C08: общее правило доступности (domain.purchasability)."""
+    from domain.purchasability import offer_purchasable
+    return offer_purchasable(row, now=now)
 
 
 def group_seller_offers_by_product(offers_with_details: List[Dict[str, Any]], now: Optional[datetime] = None) -> List[Dict[str, Any]]:

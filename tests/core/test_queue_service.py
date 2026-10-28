@@ -19,22 +19,30 @@ class TestQueueService(unittest.IsolatedAsyncioTestCase):
     def tearDown(self):
         shutil.rmtree(self.tmp_dir, ignore_errors=True)
 
-    async def test_in_memory_queue_enqueue_dequeue(self):
+    async def test_spool_enqueue_dequeue(self):
+        from database import init_db, get_connection
+        init_db()
+        with get_connection() as conn:
+            conn.execute("DELETE FROM product_queue_spool")
+            conn.commit()
         qm = ProductQueueManager()
-        # По умолчанию без Redis
         self.assertFalse(qm.use_redis)
         self.assertEqual(await qm.qsize(), 0)
 
         sample_prods = [{"id": "p1", "title": "Товар 1", "price": 1000, "url": "http://x"}]
-        await qm.enqueue(sample_prods, "TestShop", {"min_discount": 10}, shop_key="test_shop")
+        admission = await qm.enqueue(sample_prods, "TestShop", {"min_discount": 10}, shop_key="test_shop")
+        self.assertTrue(admission)
 
         self.assertEqual(await qm.qsize(), 1)
         item = await qm.dequeue(timeout=0.1)
         self.assertIsNotNone(item)
+        self.assertEqual(item["task_id"], admission.task_id)
         self.assertEqual(item["shop_name"], "TestShop")
         self.assertEqual(item["shop_key"], "test_shop")
-        self.assertEqual(len(item["prods"]), 1)
         self.assertEqual(item["prods"][0]["id"], "p1")
+        # Захваченная задача остаётся в журнале до подтверждения
+        self.assertEqual(await qm.qsize(), 1)
+        self.assertTrue(await qm.ack(item))
         self.assertEqual(await qm.qsize(), 0)
 
     async def test_in_memory_cache_ttl(self):
@@ -128,23 +136,20 @@ class TestQueueService(unittest.IsolatedAsyncioTestCase):
         from web.server import _execute_queue_item
 
         init_db()
-
-        test_item = {
-            "prods": [{
-                "id": "item_q_1",
-                "shop": "Тестовый магазин",
-                "title": "Тестовый товар очереди",
-                "price": 25000,
-                "url": "https://example.com/p1",
-                "category": "Тест"
-            }],
-            "shop_name": "Тестовый магазин",
-            "candidate_settings": {},
-            "shop_key": "test_shop",
-        }
+        qm = ProductQueueManager()
+        await qm.enqueue([{
+            "id": "item_q_1",
+            "shop": "Тестовый магазин",
+            "title": "Тестовый товар очереди",
+            "price": 25000,
+            "url": "https://example.com/p1",
+            "category": "Тест"
+        }], "Тестовый магазин", {}, shop_key="test_shop_exec")
+        item = await qm.dequeue(timeout=0.1)
 
         # Запускаем обработку элемента через функцию воркера
-        await _execute_queue_item(test_item)
+        await _execute_queue_item(item)
+        self.assertTrue(await qm.ack(item))
 
         # Проверяем, что товар появился в базе SQLite
         with get_connection() as conn:
@@ -153,61 +158,6 @@ class TestQueueService(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(row["title"], "Тестовый товар очереди")
             self.assertEqual(row["current_price"], 25000)
             self.assertEqual(row["shop"], "Тестовый магазин")
-
-    async def test_ack_nack_retry_and_dead_letter(self):
-        qm = ProductQueueManager()
-        item = {"shop_name": "RetryShop", "prods": [{"id": "r1"}]}
-        await qm.enqueue(item["prods"], "RetryShop", {})
-
-        dequeued = await qm.dequeue(timeout=0.1)
-        self.assertIsNotNone(dequeued)
-        self.assertEqual(await qm.qsize(), 0)
-
-        # NACK возвращает задачу в retry queue (попытка 1)
-        qm.nack(dequeued, max_retries=2)
-        self.assertEqual(await qm.qsize(), 1)
-        retried1 = await qm.dequeue(timeout=0.1)
-        self.assertEqual(retried1["_retry_count"], 1)
-
-        # NACK попытка 2
-        qm.nack(retried1, max_retries=2)
-        self.assertEqual(await qm.qsize(), 1)
-        retried2 = await qm.dequeue(timeout=0.1)
-        self.assertEqual(retried2["_retry_count"], 2)
-
-        # NACK попытка 3 -> уходит в dead_letter
-        qm.nack(retried2, max_retries=2)
-        self.assertEqual(await qm.qsize(), 0)
-        self.assertEqual(len(qm.dead_letter_queue), 1)
-
-    async def test_stranded_redis_recovery(self):
-        qm = ProductQueueManager()
-        # Имитируем падение Redis с оставшимися задачами
-        class MockRedisStranded:
-            def __init__(self):
-                self.items = ['{"shop_name": "OldRedis", "prods": [{"id": "old_1"}]}']
-            async def lpop(self, key):
-                return self.items.pop(0) if self.items else None
-            async def llen(self, key):
-                return len(self.items)
-
-        qm.redis_client = MockRedisStranded()
-        qm.use_redis = False  # Переключились на память!
-
-        # Добавили новую задачу в память
-        await qm.enqueue([{"id": "new_1"}], "NewMemory", {})
-
-        # Проверяем, что qsize видит и старый Redis, и память
-        self.assertEqual(await qm.qsize(), 2)
-
-        # Dequeue обязан сначала вернуть старую задачу из Redis!
-        first = await qm.dequeue(timeout=0.1)
-        self.assertEqual(first["shop_name"], "OldRedis")
-
-        # Затем новую из памяти
-        second = await qm.dequeue(timeout=0.1)
-        self.assertEqual(second["shop_name"], "NewMemory")
-        self.assertEqual(await qm.qsize(), 0)
 
 
 if __name__ == "__main__":

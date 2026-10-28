@@ -75,20 +75,25 @@ def fresh_price_clause(alias=""):
             f">= julianday('now') - {int(AGING_HOURS)} / 24.0")
 
 
+def _reconcile_source_conn(conn, shop_key, source_url, product_ids, complete=False) -> None:
+    """Сверка источника в открытой транзакции conn, без фиксации (R04)."""
+    ids = {str(pid) for pid in product_ids}
+    if complete and ids:
+        conn.execute("UPDATE product_sources SET active=0 WHERE shop_key=? AND source_url=?", (shop_key, source_url))
+    conn.executemany("""INSERT INTO product_sources(product_id,shop_key,source_url,active)
+        VALUES (?,?,?,1) ON CONFLICT(product_id,shop_key,source_url) DO UPDATE SET active=1""",
+        [(pid, shop_key, source_url) for pid in ids])
+    if complete and ids:
+        conn.execute("""UPDATE products SET is_active=0 WHERE id IN
+            (SELECT product_id FROM product_sources WHERE shop_key=? AND source_url=?)
+            AND NOT EXISTS (SELECT 1 FROM product_sources s WHERE s.product_id=products.id AND s.active=1)""",
+            (shop_key, source_url))
+
+
 def reconcile_source(shop_key, source_url, products, complete=False):
     """Only a verified complete source may retire its previously observed offers."""
-    ids = {str(p["id"]) for p in products}
     with get_connection() as conn:
-        if complete and ids:
-            conn.execute("UPDATE product_sources SET active=0 WHERE shop_key=? AND source_url=?", (shop_key, source_url))
-        conn.executemany("""INSERT INTO product_sources(product_id,shop_key,source_url,active)
-            VALUES (?,?,?,1) ON CONFLICT(product_id,shop_key,source_url) DO UPDATE SET active=1""",
-            [(pid, shop_key, source_url) for pid in ids])
-        if complete and ids:
-            conn.execute("""UPDATE products SET is_active=0 WHERE id IN
-                (SELECT product_id FROM product_sources WHERE shop_key=? AND source_url=?)
-                AND NOT EXISTS (SELECT 1 FROM product_sources s WHERE s.product_id=products.id AND s.active=1)""",
-                (shop_key, source_url))
+        _reconcile_source_conn(conn, shop_key, source_url, [p["id"] for p in products], complete)
         conn.commit()
     invalidate_alerts_cache()
 
@@ -111,16 +116,20 @@ def get_source_baseline(shop_key: str, source_url: str, kind: str) -> Optional[D
     return None
 
 
-def record_source_scan(shop_key, source_url, category, scan_id, started_at, kind, assessment, metrics) -> None:
+def _record_source_scan_conn(conn, shop_key, source_url, category, scan_id, started_at, kind, assessment, metrics) -> None:
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     reason = "; ".join(assessment["reasons"] + assessment["warnings"])[:500] or None
+    conn.execute("""INSERT INTO source_scans (shop_key, source_url, category, scan_id, started_at, finished_at, kind,
+            quality, reason, received, valid, rejected, duplicates, with_image, baseline, baseline_basis, accepted)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (shop_key, source_url, category, scan_id, started_at, now, kind, assessment["quality"], reason,
+         metrics["received"], metrics["valid"], metrics["rejected"], metrics.get("duplicates", 0), metrics["with_image"],
+         assessment["baseline"], assessment["basis"], int(bool(assessment["learn"]))))
+
+
+def record_source_scan(shop_key, source_url, category, scan_id, started_at, kind, assessment, metrics) -> None:
     with get_connection() as conn:
-        conn.execute("""INSERT INTO source_scans (shop_key, source_url, category, scan_id, started_at, finished_at, kind,
-                quality, reason, received, valid, rejected, duplicates, with_image, baseline, baseline_basis, accepted)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (shop_key, source_url, category, scan_id, started_at, now, kind, assessment["quality"], reason,
-             metrics["received"], metrics["valid"], metrics["rejected"], metrics.get("duplicates", 0), metrics["with_image"],
-             assessment["baseline"], assessment["basis"], int(bool(assessment["learn"]))))
+        _record_source_scan_conn(conn, shop_key, source_url, category, scan_id, started_at, kind, assessment, metrics)
         conn.commit()
 
 
@@ -491,6 +500,22 @@ def _create_schema(cursor) -> None:
     )""")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_product_spool_status ON product_queue_spool(status, id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_product_spool_shop ON product_queue_spool(shop_key, status)")
+    # R03/R04/R05: владелец захвата задачи (процесс и одноразовый токен), срок захвата, стадия
+    # и число записанных порций. Любая запись эффекта сверяет токен в своей транзакции.
+    _add_column(cursor, "product_queue_spool", "claimed_by", "TEXT")
+    _add_column(cursor, "product_queue_spool", "claim_token", "TEXT")
+    _add_column(cursor, "product_queue_spool", "claim_expires_at", "REAL NOT NULL DEFAULT 0")
+    _add_column(cursor, "product_queue_spool", "stage", "TEXT NOT NULL DEFAULT 'core'")
+    _add_column(cursor, "product_queue_spool", "core_done", "INTEGER NOT NULL DEFAULT 0")
+    _add_column(cursor, "product_queue_spool", "scan_id", "TEXT")
+    # Цены до записи каждой порции: повтор производных эффектов считает переход от них, а не
+    # от уже обновлённой базы (R05). Строки живут до подтверждения задачи.
+    cursor.execute("""CREATE TABLE IF NOT EXISTS product_queue_history (
+        task_id TEXT NOT NULL,
+        chunk_no INTEGER NOT NULL,
+        history TEXT NOT NULL,
+        PRIMARY KEY (task_id, chunk_no)
+    )""")
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS tracked_categories (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1569,28 +1594,90 @@ def get_price_history_batch(product_ids: List[str]) -> Dict[str, Dict[str, Any]]
         return history
 
     with get_connection() as conn:
-        cursor = conn.cursor()
-        # Порциями, чтобы не упереться в лимит параметров SQLite
-        for i in range(0, len(ids), 500):
-            chunk = ids[i:i + 500]
-            placeholders = ",".join("?" * len(chunk))
-            cursor.execute(
-                f"SELECT id, current_price, first_seen_price FROM products WHERE id IN ({placeholders})",
-                chunk
-            )
-            for row in cursor.fetchall():
-                history[row["id"]] = {
-                    "old_price": row["current_price"],
-                    "first_seen_price": row["first_seen_price"]
-                }
+        return _price_history_conn(conn, ids)
+
+
+def _price_history_conn(conn, ids: List[str]) -> Dict[str, Dict[str, Any]]:
+    history: Dict[str, Dict[str, Any]] = {}
+    cursor = conn.cursor()
+    # Порциями, чтобы не упереться в лимит параметров SQLite
+    for i in range(0, len(ids), 500):
+        chunk = ids[i:i + 500]
+        placeholders = ",".join("?" * len(chunk))
+        cursor.execute(
+            f"SELECT id, current_price, first_seen_price FROM products WHERE id IN ({placeholders})",
+            chunk
+        )
+        for row in cursor.fetchall():
+            history[row["id"]] = {
+                "old_price": row["current_price"],
+                "first_seen_price": row["first_seen_price"]
+            }
     return history
+
+def _save_products_chunk(conn, chunk: List[Dict[str, Any]], now: str) -> int:
+    """Записывает порцию товаров в открытой транзакции conn, не фиксируя её (R04/R05)."""
+    from model_matching import extract_canonical_key
+
+    cursor = conn.cursor()
+    updated_count = 0
+    for p in chunk:
+        pid = str(p["id"])
+        shop = p.get("shop", "Белый Ветер")
+        city = p.get("city", "Астана")
+        title = p["title"]
+        category = p.get("category", "")
+        url = p["url"]
+        if url and "kaspi.kz/p/" in url and "kaspi.kz/shop/p/" not in url:
+            url = url.replace("kaspi.kz/p/", "kaspi.kz/shop/p/")
+        image_url = p.get("image_url", "")
+        if image_url and "shop.kz//static.shop.kz" in image_url:
+            image_url = image_url.replace("https://shop.kz//static.shop.kz", "https://static.shop.kz").replace("shop.kz//static.shop.kz", "static.shop.kz")
+        description = p.get("description") or ""
+        try:
+            current_price = int(p.get("price", 0))
+        except (TypeError, ValueError):
+            current_price = 0
+        if current_price > 10_000_000 or current_price <= 0:
+            continue
+        canonical_key = p.get("canonical_key") or extract_canonical_key(title)
+        old_on_site = site_old_price(p.get("old_price_on_site"), current_price)
+
+        cursor.execute("SELECT current_price, min_price, max_price, old_price_on_site FROM products WHERE id = ?", (pid,))
+        existing = cursor.fetchone()
+        _record_observation(cursor, pid, existing, current_price, old_on_site, now)
+
+        if existing is None:
+            cursor.execute("""
+                INSERT INTO products (id, shop, city, title, category, url, image_url, description, current_price, old_price_on_site, first_seen_price, min_price, max_price, canonical_key, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (pid, shop, city, title, category, url, image_url, description, current_price, old_on_site, current_price, current_price, current_price, canonical_key, now, now))
+        else:
+            min_price = min(existing["min_price"], current_price)
+            max_price = max(existing["max_price"], current_price)
+            cursor.execute("""
+                UPDATE products
+                SET is_active = 1, shop = ?, city = ?, title = ?, category = ?, url = ?, image_url = ?,
+                    description = CASE WHEN ? != '' THEN ? ELSE description END,
+                    current_price = ?, old_price_on_site = ?, min_price = ?, max_price = ?, canonical_key = COALESCE(?, canonical_key), updated_at = ?
+                WHERE id = ?
+            """, (shop, city, title, category, url, image_url, description, description, current_price, old_on_site, min_price, max_price, canonical_key, now, pid))
+        if os.environ.get("DUAL_WRITE_V2", "1") != "0":
+            _DUAL_WRITE_STATS["total"] += 1
+            try:
+                from domain.adapter import sync_legacy_product_to_v2
+                sync_legacy_product_to_v2(conn, p, now)
+            except Exception as e:
+                _record_dual_write_error(pid, e)
+
+        updated_count += 1
+    return updated_count
+
 
 def save_or_update_products_batch(products: List[Dict[str, Any]]) -> int:
     """Массовая вставка/обновление товаров порциями в транзакциях (для YML выгрузок и больших каталогов)."""
     if not products:
         return 0
-
-    from model_matching import extract_canonical_key
 
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     updated_count = 0
@@ -1601,57 +1688,7 @@ def save_or_update_products_batch(products: List[Dict[str, Any]]) -> int:
         for attempt in range(3):
             try:
                 with get_connection() as conn:
-                    cursor = conn.cursor()
-                    for p in chunk:
-                        pid = str(p["id"])
-                        shop = p.get("shop", "Белый Ветер")
-                        city = p.get("city", "Астана")
-                        title = p["title"]
-                        category = p.get("category", "")
-                        url = p["url"]
-                        if url and "kaspi.kz/p/" in url and "kaspi.kz/shop/p/" not in url:
-                            url = url.replace("kaspi.kz/p/", "kaspi.kz/shop/p/")
-                        image_url = p.get("image_url", "")
-                        if image_url and "shop.kz//static.shop.kz" in image_url:
-                            image_url = image_url.replace("https://shop.kz//static.shop.kz", "https://static.shop.kz").replace("shop.kz//static.shop.kz", "static.shop.kz")
-                        description = p.get("description") or ""
-                        try:
-                            current_price = int(p.get("price", 0))
-                        except (TypeError, ValueError):
-                            current_price = 0
-                        if current_price > 10_000_000 or current_price <= 0:
-                            continue
-                        canonical_key = p.get("canonical_key") or extract_canonical_key(title)
-                        old_on_site = site_old_price(p.get("old_price_on_site"), current_price)
-
-                        cursor.execute("SELECT current_price, min_price, max_price, old_price_on_site FROM products WHERE id = ?", (pid,))
-                        existing = cursor.fetchone()
-                        _record_observation(cursor, pid, existing, current_price, old_on_site, now)
-
-                        if existing is None:
-                            cursor.execute("""
-                                INSERT INTO products (id, shop, city, title, category, url, image_url, description, current_price, old_price_on_site, first_seen_price, min_price, max_price, canonical_key, created_at, updated_at)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            """, (pid, shop, city, title, category, url, image_url, description, current_price, old_on_site, current_price, current_price, current_price, canonical_key, now, now))
-                        else:
-                            min_price = min(existing["min_price"], current_price)
-                            max_price = max(existing["max_price"], current_price)
-                            cursor.execute("""
-                                UPDATE products
-                                SET is_active = 1, shop = ?, city = ?, title = ?, category = ?, url = ?, image_url = ?,
-                                    description = CASE WHEN ? != '' THEN ? ELSE description END,
-                                    current_price = ?, old_price_on_site = ?, min_price = ?, max_price = ?, canonical_key = COALESCE(?, canonical_key), updated_at = ?
-                                WHERE id = ?
-                            """, (shop, city, title, category, url, image_url, description, description, current_price, old_on_site, min_price, max_price, canonical_key, now, pid))
-                        if os.environ.get("DUAL_WRITE_V2", "1") != "0":
-                            _DUAL_WRITE_STATS["total"] += 1
-                            try:
-                                from domain.adapter import sync_legacy_product_to_v2
-                                sync_legacy_product_to_v2(conn, p, now)
-                            except Exception as e:
-                                _record_dual_write_error(pid, e)
-
-                        updated_count += 1
+                    updated_count += _save_products_chunk(conn, chunk, now)
                     conn.commit()
                 break
             except sqlite3.OperationalError as e:
@@ -3166,7 +3203,10 @@ def watched_offers(product_ids: List[str], now: Optional[datetime.datetime] = No
                         o.image_url,
                         o.availability,
                         o.expires_at,
+                        o.observed_at,
                         o.is_active,
+                        s.is_active AS seller_is_active,
+                        c.is_active AS channel_is_active,
                         CAST(o.price AS INTEGER) AS current_price
                     FROM offers o
                     LEFT JOIN canonical_products cp ON o.product_id = cp.id
@@ -3175,7 +3215,7 @@ def watched_offers(product_ids: List[str], now: Optional[datetime.datetime] = No
                     WHERE o.id IN ({v2_placeholders}) OR o.external_sku IN ({v2_placeholders})
                 """
                 v2_rows = [dict(r) for r in conn.execute(v2_sql, unique_lookup + unique_lookup)]
-                from domain.search_core import offer_expired
+                from domain.purchasability import offer_purchasable
                 for r in v2_rows:
                     found_ids.add(r["id"])
                     if r.get("external_sku"):
@@ -3186,11 +3226,9 @@ def watched_offers(product_ids: List[str], now: Optional[datetime.datetime] = No
                     if r.get("external_sku") and r.get("external_sku") in chunk:
                         r["id"] = r["external_sku"]
 
-                    # C08: Честная проверка доступности предложения (активность, наличие на складе и неистёкший TTL)
-                    avail = str(r.get("availability") or "in_stock").lower()
-                    in_stock = avail in ("in_stock", "preorder")
-                    expired = offer_expired(r.get("expires_at"), now=moment)
-                    r["is_available"] = 1 if (bool(r.get("is_active", 1)) and in_stock and not expired) else 0
+                    # C08, R08: то же правило, что у поиска и витрины — наличие, TTL, свежесть
+                    # наблюдения и активность предложения, канала и продавца
+                    r["is_available"] = 1 if offer_purchasable(r, now=moment) else 0
 
                     rows.append(r)
 
@@ -3199,8 +3237,10 @@ def watched_offers(product_ids: List[str], now: Optional[datetime.datetime] = No
                 m_placeholders = ",".join("?" * len(missing))
                 legacy_rows = [dict(r) for r in conn.execute(
                     f"SELECT id, title, shop, city, url, image_url, category, canonical_key, current_price, "
-                    f"is_active AS is_available FROM products WHERE id IN ({m_placeholders})", missing)]
+                    f"is_active, updated_at FROM products WHERE id IN ({m_placeholders})", missing)]
+                from domain.purchasability import offer_purchasable
                 for r in legacy_rows:
+                    r["is_available"] = 1 if offer_purchasable(r, now=moment) else 0
                     from domain.adapter import resolve_seller_and_channel_meta
                     slug, sname, ch_type = resolve_seller_and_channel_meta(r.get("shop") or "")
                     r["seller_id"] = f"seller_{slug}"
@@ -3812,128 +3852,266 @@ def retention_usage() -> List[Dict[str, Any]]:
 
 
 # ---------------------------------------------------------------------------
-# C01–C05: Персистентный журнал очереди задач сохранения товаров (Product Spool)
+# Журнал задач записи товаров (Product Spool), C01–C05 и R01–R06 повторной приёмки.
+#
+# Контракт: задача принята, только если строка вставлена в той же транзакции, где проверены
+# аренда планировщика у поставщика и бюджет журнала. Принятую задачу завершает любой законный
+# воркер: захват (claim) — строка с владельцем, одноразовым токеном и сроком. Каждая транзакция
+# эффекта сверяет токен, поэтому воркер, у которого захват перехватили, ничего не запишет.
+# Товары пишутся порциями; цены до записи сохраняются рядом, и повтор производных эффектов
+# (алерты, наблюдения) считает переход от них. Подтверждение удаляет строку по токену.
 # ---------------------------------------------------------------------------
 
-def spool_enqueue(task_id: str, shop_key: Optional[str], shop_name: str,
-                   lease_generation: int, payload: Dict[str, Any]) -> bool:
-    """Записывает задачу в SQLite spool со статусом 'pending' (C01, C03)."""
+SPOOL_CLAIM_SECONDS = 60.0
+SPOOL_CHUNK_SIZE = 200
+SPOOL_ACTIVE = ("pending", "processing")
+SPOOL_UNRESOLVED = ("dead_letter", "rejected")   # rejected — строки прежней версии (C05)
+
+
+def _spool_claim_row(conn, task_id: str, token: str):
+    return conn.execute(
+        "SELECT stage, core_done FROM product_queue_spool "
+        "WHERE task_id = ? AND claim_token = ? AND status = 'processing'", (task_id, token)).fetchone()
+
+
+def spool_admit(task_id: str, shop_key: Optional[str], shop_name: str, scan_id: Optional[str],
+                payload: Dict[str, Any], lease_owner: Optional[str] = None,
+                shop_budget: int = 200, total_budget: int = 2000, lease_name: str = "scan") -> str:
+    """Принимает задачу одной транзакцией: аренда, бюджет и вставка (R02, R04).
+
+    Возвращает 'accepted', 'full' (бюджет исчерпан, можно повторить позже) или 'fenced'
+    (аренда планировщика не у поставщика — его результаты не принимаются). Ошибка базы
+    пробрасывается: принятие без записи в журнал не считается принятием.
+    """
     now = time.time()
     payload_str = json.dumps(payload, ensure_ascii=False)
     with get_connection() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        if lease_owner is not None:
+            lease = conn.execute("SELECT owner, expires_at FROM scheduler_lease WHERE name = ?",
+                                 (lease_name,)).fetchone()
+            if not lease or lease[0] != lease_owner or lease[1] <= now:
+                conn.rollback()
+                return "fenced"
+        marks = ",".join("?" * len(SPOOL_ACTIVE))
+        total = conn.execute(f"SELECT COUNT(*) FROM product_queue_spool WHERE status IN ({marks})",
+                             SPOOL_ACTIVE).fetchone()[0]
+        per_shop = conn.execute(f"SELECT COUNT(*) FROM product_queue_spool WHERE status IN ({marks}) "
+                                f"AND shop_key IS ?", (*SPOOL_ACTIVE, shop_key)).fetchone()[0]
+        if total >= total_budget or per_shop >= shop_budget:
+            conn.rollback()
+            return "full"
         conn.execute("""
-            INSERT INTO product_queue_spool (
-                task_id, shop_key, shop_name, lease_generation, payload,
-                status, attempts, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, 'pending', 0, ?, ?)
-            ON CONFLICT(task_id) DO UPDATE SET
-                payload = excluded.payload,
-                status = 'pending',
-                updated_at = excluded.updated_at
-        """, (task_id, shop_key, shop_name, lease_generation, payload_str, now, now))
+            INSERT INTO product_queue_spool (task_id, shop_key, shop_name, scan_id, lease_generation, payload,
+                                             status, attempts, created_at, updated_at)
+            VALUES (?, ?, ?, ?, 0, ?, 'pending', 0, ?, ?)
+        """, (task_id, shop_key, shop_name, scan_id, payload_str, now, now))
         conn.commit()
-    return True
+    return "accepted"
 
 
-def spool_dequeue() -> Optional[Dict[str, Any]]:
-    """Атомарно извлекает старейшую задачу 'pending' и переводит в 'processing' (C01)."""
+def spool_claim(owner: str, ttl: float = SPOOL_CLAIM_SECONDS) -> Optional[Dict[str, Any]]:
+    """Захватывает старейшую доступную задачу: pending или processing с истёкшим захватом (R03, R04).
+
+    Задачи одного магазина выполняются по порядку приёма: пока более ранняя задача магазина
+    не завершена, следующая не выдаётся — старые данные не перезапишут более новые.
+    """
     now = time.time()
     with get_connection() as conn:
         conn.execute("BEGIN IMMEDIATE")
         row = conn.execute("""
-            SELECT id, task_id, shop_key, shop_name, lease_generation, payload, attempts
-            FROM product_queue_spool
-            WHERE status = 'pending'
-            ORDER BY id ASC LIMIT 1
-        """).fetchone()
+            SELECT s.id, s.task_id, s.shop_key, s.shop_name, s.scan_id, s.payload, s.attempts, s.stage, s.core_done
+            FROM product_queue_spool s
+            WHERE (s.status = 'pending' OR (s.status = 'processing' AND s.claim_expires_at < ?))
+              AND NOT EXISTS (SELECT 1 FROM product_queue_spool o
+                              WHERE o.shop_key IS s.shop_key AND o.id < s.id
+                                AND o.status IN ('pending', 'processing'))
+            ORDER BY s.id ASC LIMIT 1
+        """, (now,)).fetchone()
         if not row:
             conn.rollback()
             return None
-        row_id, task_id, shop_key, shop_name, lease_gen, payload_str, attempts = row
-        new_attempts = attempts + 1
+        token = secrets.token_hex(16)
+        attempts = row["attempts"] + 1
         conn.execute("""
             UPDATE product_queue_spool
-            SET status = 'processing', attempts = ?, updated_at = ?
+            SET status = 'processing', claimed_by = ?, claim_token = ?, claim_expires_at = ?,
+                attempts = ?, updated_at = ?
             WHERE id = ?
-        """, (new_attempts, now, row_id))
+        """, (owner, token, now + ttl, attempts, now, row["id"]))
         conn.commit()
+    try:
+        item = json.loads(row["payload"])
+    except (TypeError, ValueError):
+        item = {}
+    item.update(task_id=row["task_id"], shop_key=row["shop_key"], shop_name=row["shop_name"],
+                scan_id=row["scan_id"], attempts=attempts, stage=row["stage"], core_done=row["core_done"],
+                claim_token=token)
+    return item
 
+
+def spool_renew(task_id: str, token: str, ttl: float = SPOOL_CLAIM_SECONDS) -> bool:
+    """Продлевает захват; False — захват уже не наш (перехвачен или задача завершена)."""
+    now = time.time()
+    with get_connection() as conn:
+        cur = conn.execute("UPDATE product_queue_spool SET claim_expires_at = ?, updated_at = ? "
+                           "WHERE task_id = ? AND claim_token = ? AND status = 'processing'",
+                           (now + ttl, now, task_id, token))
+        conn.commit()
+        return cur.rowcount == 1
+
+
+def spool_apply_chunk(task_id: str, token: str, chunk_no: int, chunk: List[Dict[str, Any]],
+                      ttl: float = SPOOL_CLAIM_SECONDS) -> bool:
+    """Пишет порцию товаров и её прежние цены одной транзакцией под проверкой захвата (R04, R05).
+
+    False — захват потерян, ничего не записано. Уже записанная порция повторно не пишется.
+    """
+    now = time.time()
+    now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    with get_connection() as conn:
+        conn.execute("BEGIN IMMEDIATE")
         try:
-            item = json.loads(payload_str)
-        except Exception:
-            item = {}
-        item["task_id"] = task_id
-        item["shop_key"] = shop_key
-        item["shop_name"] = shop_name
-        item["lease_generation"] = lease_gen
-        item["attempts"] = new_attempts
-        item["_retry_count"] = max(0, new_attempts - 1)
-        return item
+            claim = _spool_claim_row(conn, task_id, token)
+            if not claim:
+                conn.rollback()
+                return False
+            if claim["stage"] != "core" or claim["core_done"] > chunk_no:
+                conn.rollback()
+                return True
+            history = _price_history_conn(conn, [str(p["id"]) for p in chunk])
+            _save_products_chunk(conn, chunk, now_iso)
+            conn.execute("INSERT OR REPLACE INTO product_queue_history (task_id, chunk_no, history) VALUES (?, ?, ?)",
+                         (task_id, chunk_no, json.dumps(history, ensure_ascii=False)))
+            conn.execute("UPDATE product_queue_spool SET core_done = ?, claim_expires_at = ?, updated_at = ? "
+                         "WHERE task_id = ?", (chunk_no + 1, now + ttl, now, task_id))
+            conn.commit()
+        except BaseException:
+            conn.rollback()
+            raise
+    return True
 
 
-def spool_commit(task_id: str) -> None:
-    """Подтверждает успешное завершение задачи (ACK) (C01, C04)."""
-    with get_connection() as conn:
-        conn.execute("DELETE FROM product_queue_spool WHERE task_id = ?", (task_id,))
-        conn.commit()
-
-
-def spool_nack(task_id: str, error: Optional[str] = None, max_retries: int = 3) -> None:
-    """Возвращает задачу в 'pending' для повтора или переводит в 'dead_letter' (C01, C02)."""
+def spool_finish_core(task_id: str, token: str, product_ids: List[str],
+                      reconcile: Optional[Dict[str, Any]], scan_log: Optional[Dict[str, Any]],
+                      ttl: float = SPOOL_CLAIM_SECONDS) -> bool:
+    """Сверка источника, журнал обхода и переход к производным эффектам — одна транзакция (R04, C04)."""
     now = time.time()
-    err_str = str(error) if error else "Execution error"
     with get_connection() as conn:
-        row = conn.execute("SELECT attempts FROM product_queue_spool WHERE task_id = ?", (task_id,)).fetchone()
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            claim = _spool_claim_row(conn, task_id, token)
+            if not claim:
+                conn.rollback()
+                return False
+            if claim["stage"] != "core":
+                conn.rollback()
+                return True
+            if reconcile:
+                _reconcile_source_conn(conn, reconcile["key"], reconcile["url"], product_ids,
+                                       reconcile.get("complete", False))
+            if scan_log:
+                _record_source_scan_conn(conn, scan_log["key"], scan_log["url"], scan_log["name"],
+                                         scan_log["scan_id"], scan_log["cat_started"], scan_log["kind"],
+                                         scan_log["assessment"], scan_log["metrics"])
+            conn.execute("UPDATE product_queue_spool SET stage = 'derived', claim_expires_at = ?, updated_at = ? "
+                         "WHERE task_id = ?", (now + ttl, now, task_id))
+            conn.commit()
+        except BaseException:
+            conn.rollback()
+            raise
+    if reconcile:
+        invalidate_alerts_cache()
+    return True
+
+
+def spool_history(task_id: str) -> Dict[str, Dict[str, Any]]:
+    """Цены товаров задачи до их записи (по всем порциям)."""
+    merged: Dict[str, Dict[str, Any]] = {}
+    with get_connection() as conn:
+        for row in conn.execute("SELECT history FROM product_queue_history WHERE task_id = ? ORDER BY chunk_no",
+                                (task_id,)):
+            merged.update(json.loads(row[0]))
+    return merged
+
+
+def spool_ack(task_id: str, token: str) -> bool:
+    """Подтверждение: удаляет задачу и её историю, только если захват наш (R01, R04)."""
+    with get_connection() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        cur = conn.execute("DELETE FROM product_queue_spool WHERE task_id = ? AND claim_token = ? "
+                           "AND status = 'processing'", (task_id, token))
+        if cur.rowcount != 1:
+            conn.rollback()
+            return False
+        conn.execute("DELETE FROM product_queue_history WHERE task_id = ?", (task_id,))
+        conn.commit()
+    return True
+
+
+def spool_nack(task_id: str, token: str, error: Optional[str] = None, max_retries: int = 3) -> Optional[str]:
+    """Освобождает захват для повтора или переводит задачу в dead_letter. Возвращает новый статус."""
+    now = time.time()
+    err_str = (str(error) if error else "Execution error")[:500]
+    with get_connection() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute("SELECT attempts FROM product_queue_spool WHERE task_id = ? AND claim_token = ? "
+                           "AND status = 'processing'", (task_id, token)).fetchone()
         if not row:
-            return
-        attempts = row[0]
-        if attempts > max_retries:
-            conn.execute("""
-                UPDATE product_queue_spool
-                SET status = 'dead_letter', last_error = ?, updated_at = ?
-                WHERE task_id = ?
-            """, (err_str, now, task_id))
-        else:
-            conn.execute("""
-                UPDATE product_queue_spool
-                SET status = 'pending', last_error = ?, updated_at = ?
-                WHERE task_id = ?
-            """, (err_str, now, task_id))
-        conn.commit()
-
-
-def spool_reject(task_id: str, reason: str = "fenced") -> None:
-    """Помечает задачу отклонённой (stale lease generation / fenced) (C05)."""
-    now = time.time()
-    with get_connection() as conn:
+            conn.rollback()
+            return None
+        status = "dead_letter" if row[0] > max_retries else "pending"
         conn.execute("""
             UPDATE product_queue_spool
-            SET status = 'rejected', last_error = ?, updated_at = ?
+            SET status = ?, last_error = ?, claimed_by = NULL, claim_token = NULL, claim_expires_at = 0,
+                updated_at = ?
             WHERE task_id = ?
-        """, (reason, now, task_id))
+        """, (status, err_str, now, task_id))
         conn.commit()
+    return status
 
 
-def spool_recover_on_startup() -> int:
-    """Восстанавливает зависшие задачи 'processing' обратно в 'pending' при старте (C01)."""
+def spool_recover_orphans(owner_is_dead) -> int:
+    """Освобождает захваты доказанно погибших владельцев (R03, R04).
+
+    Живой чужой захват не трогается: его заберут только после истечения срока, если владелец
+    перестанет продлевать. owner_is_dead(owner) решает по хосту и PID владельца.
+    """
     now = time.time()
+    released = 0
     with get_connection() as conn:
-        cur = conn.execute("""
-            UPDATE product_queue_spool
-            SET status = 'pending', updated_at = ?
-            WHERE status = 'processing'
-        """, (now,))
-        count = cur.rowcount
+        conn.execute("BEGIN IMMEDIATE")
+        rows = conn.execute("SELECT task_id, claimed_by, claim_expires_at FROM product_queue_spool "
+                            "WHERE status = 'processing'").fetchall()
+        for row in rows:
+            if row["claim_expires_at"] < now or not row["claimed_by"] or owner_is_dead(row["claimed_by"]):
+                conn.execute("UPDATE product_queue_spool SET claim_expires_at = 0, updated_at = ? WHERE task_id = ?",
+                             (now, row["task_id"]))
+                released += 1
         conn.commit()
-    return count
+    return released
+
+
+def spool_task_states(task_ids: List[str]) -> Dict[str, str]:
+    """Статусы задач по ID; завершённых (удалённых) задач в ответе нет."""
+    states: Dict[str, str] = {}
+    ids = [str(t) for t in task_ids if t]
+    with get_connection() as conn:
+        for i in range(0, len(ids), 500):
+            chunk = ids[i:i + 500]
+            marks = ",".join("?" * len(chunk))
+            for row in conn.execute(f"SELECT task_id, status FROM product_queue_spool WHERE task_id IN ({marks})",
+                                    chunk):
+                states[row[0]] = row[1]
+    return states
 
 
 def spool_stats(shop_key: Optional[str] = None) -> Dict[str, int]:
-    """Возвращает число задач в spool по статусам (C01, C02)."""
+    """Число задач журнала по статусам. Ошибка чтения пробрасывается (R06)."""
     stats = {"pending": 0, "processing": 0, "dead_letter": 0, "rejected": 0}
     with get_connection() as conn:
         sql = "SELECT status, COUNT(*) FROM product_queue_spool"
-        params = []
+        params: List[Any] = []
         if shop_key:
             sql += " WHERE shop_key = ?"
             params.append(shop_key)
@@ -3944,27 +4122,49 @@ def spool_stats(shop_key: Optional[str] = None) -> Dict[str, int]:
     return stats
 
 
-def spool_dead_letters(shop_key: Optional[str] = None) -> List[Dict[str, Any]]:
-    """Возвращает список задач dead_letter (C02)."""
+def spool_failures(limit: int = 50) -> List[Dict[str, Any]]:
+    """Нерешённые отказы журнала: что не записано, по какому магазину и обходу, с какой ошибкой."""
+    marks = ",".join("?" * len(SPOOL_UNRESOLVED))
     with get_connection() as conn:
-        sql = "SELECT task_id, shop_key, shop_name, lease_generation, payload, attempts, last_error, created_at, updated_at FROM product_queue_spool WHERE status = 'dead_letter'"
-        params = []
-        if shop_key:
-            sql += " AND shop_key = ?"
-            params.append(shop_key)
-        rows = conn.execute(sql, params).fetchall()
-        result = []
-        for r in rows:
-            try:
-                pl = json.loads(r[4])
-            except Exception:
-                pl = {}
-            pl["task_id"] = r[0]
-            pl["shop_key"] = r[1]
-            pl["shop_name"] = r[2]
-            pl["lease_generation"] = r[3]
-            pl["attempts"] = r[5]
-            pl["_retry_count"] = max(0, r[5] - 1)
-            pl["last_error"] = r[6]
-            result.append(pl)
-        return result
+        return [dict(r) for r in conn.execute(f"""
+            SELECT task_id, shop_key, shop_name, scan_id, status, stage, attempts, last_error, created_at, updated_at
+            FROM product_queue_spool WHERE status IN ({marks}) ORDER BY id LIMIT ?
+        """, (*SPOOL_UNRESOLVED, max(1, int(limit))))]
+
+
+def spool_resolve_failures(action: str, task_ids: Optional[List[str]] = None) -> int:
+    """Решение по отказам: 'retry' — вернуть в работу, 'archive' — снять как обработанные вручную.
+
+    Архив отделяет исторические отказы от текущих: readiness видит только нерешённые (R06).
+    """
+    if action not in ("retry", "archive"):
+        raise ValueError(f"Неизвестное действие: {action}")
+    now = time.time()
+    marks = ",".join("?" * len(SPOOL_UNRESOLVED))
+    sql_set = ("status = 'pending', attempts = 0, claimed_by = NULL, claim_token = NULL, claim_expires_at = 0"
+               if action == "retry" else "status = 'archived'")
+    sql = f"UPDATE product_queue_spool SET {sql_set}, updated_at = ? WHERE status IN ({marks})"
+    params: List[Any] = [now, *SPOOL_UNRESOLVED]
+    if task_ids is not None:
+        ids = [str(t) for t in task_ids if t]
+        if not ids:
+            return 0
+        sql += f" AND task_id IN ({','.join('?' * len(ids))})"
+        params.extend(ids)
+    with get_connection() as conn:
+        count = conn.execute(sql, params).rowcount
+        if action == "archive":
+            conn.execute("DELETE FROM product_queue_history WHERE task_id IN "
+                         "(SELECT task_id FROM product_queue_spool WHERE status = 'archived')")
+        conn.commit()
+    return count
+
+
+def prune_spool_archive(days: int = 14) -> int:
+    """Архивные отказы хранятся две недели: payload целой категории занимает место."""
+    cutoff = time.time() - days * 86400
+    with get_connection() as conn:
+        deleted = conn.execute("DELETE FROM product_queue_spool WHERE status = 'archived' AND updated_at < ?",
+                               (cutoff,)).rowcount
+        conn.commit()
+    return deleted

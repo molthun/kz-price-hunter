@@ -197,10 +197,17 @@ def detect_problems(snapshot: Dict[str, Any]) -> List[Dict[str, str]]:
     if queue.get("worker_running") is False:
         add("critical", "writer_down", "Воркер записи в базу не работает",
             "Собранные товары копятся в очереди и не попадают в базу.")
+    failures = queue.get("failures")
+    if queue.get("error"):
+        add("critical", "queue_unreadable", "Журнал очереди записи не читается",
+            "Нельзя подтвердить, что собранные товары записаны; обходы не завершатся как complete.")
+    elif isinstance(failures, int) and failures > 0:
+        add("warning", "queue_failures", f"Не записано задач очереди: {failures}",
+            "Задачи исчерпали повторы. Разберите их: повторить или архивировать (админка, очередь).")
     if isinstance(size, int):
         if size >= QUEUE_CRITICAL:
             add("critical", "queue_overflow", f"Очередь записи — {size} задач",
-                "Писатель не справляется; при вытеснении Redis часть данных будет потеряна.")
+                "Писатель не справляется; новые пачки ждут места и при таймауте не принимаются.")
         elif size >= QUEUE_WARN:
             add("warning", "queue_backlog", f"Очередь записи — {size} задач",
                 "Писатель отстаёт от скраперов, данные на витрине запаздывают.")

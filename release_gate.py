@@ -41,6 +41,8 @@ SECRET_PATTERNS = (
     ("AWS access key", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
     ("Приватный ключ", re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH |PGP )?PRIVATE KEY-----")),
     ("GitHub token", re.compile(r"\bgh[pousr]_[A-Za-z0-9]{36,}\b")),
+    # R11: значение диагностического токена в команде curl или в env-строке
+    ("Диагностический токен", re.compile(r"(?i)(?:X-Diag-Token\s*:\s*|\bDIAG_TOKEN\s*=\s*['\"]?)[A-Za-z0-9_\-]{16,}")),
 )
 
 # Заглушка распознаётся по самому значению, а не по строке вокруг него: слово «example» в комментарии

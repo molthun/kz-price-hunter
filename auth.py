@@ -1,5 +1,6 @@
 """Авторизация через Telegram Login Widget, сессии, права доступа и ограничение частоты запросов."""
 import asyncio
+import concurrent.futures
 import hmac
 import time
 import hashlib
@@ -174,10 +175,15 @@ def dev_login_allowed(request: web.Request) -> bool:
     return _is_loopback_host(request.remote or "") and expected_origin(request) is not None
 
 
+# Пробы и статика одинаково не трогают базу сессий, в том числе /api/readiness — alias /api/health
+_NO_SESSION_PATHS = frozenset(("/api/live", "/api/health", "/api/readiness", "/favicon.ico"))
+_session_executor = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="kzph-session")
+
+
 @web.middleware
 async def auth_middleware(request: web.Request, handler):
-    # C06: Быстрый bypass без обращения к БД сессий в общем пуле потоков для health/liveness и статики
-    if request.path in ("/api/live", "/api/health", "/favicon.ico") or request.path.startswith("/static/"):
+    # C06: Быстрый bypass без обращения к БД сессий для health/readiness/liveness и статики
+    if request.path in _NO_SESSION_PATHS or request.path.startswith("/static/"):
         request["user"] = None
         response = await handler(request)
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
@@ -197,7 +203,9 @@ async def auth_middleware(request: web.Request, handler):
 
     session_cookie = request.cookies.get(SESSION_COOKIE)
     if session_cookie:
-        request["user"] = await asyncio.to_thread(get_session_user, session_cookie)
+        # Свой пул: занятый общий пул потоков (to_thread сканеров) не задерживает проверку сессии (C06)
+        request["user"] = await asyncio.get_running_loop().run_in_executor(
+            _session_executor, get_session_user, session_cookie)
     else:
         request["user"] = None
     # A developer session is only meaningful at the same direct local boundary.

@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 import re
 import sqlite3
+import datetime
 from typing import Any, Dict, List, Optional
 
 from domain.models import CanonicalProduct
@@ -146,13 +147,11 @@ class SearchRepository(BaseRepository):
         )
         """
 
-        # A05, B10, C07, C09: Сортировка до LIMIT с учётом доступности (исключаем просроченные и недоступные)
-        import datetime
-        now_iso = (now or datetime.datetime.now(datetime.timezone.utc)).isoformat()
-        order_conditions = list(exists_conditions) + [
-            "(o.expires_at IS NULL OR o.expires_at >= ?)",
-            "LOWER(COALESCE(o.availability, 'in_stock')) IN ('in_stock', 'preorder')",
-        ]
+        # A05, B10, C07, R07, R09: ключ сортировки до LIMIT — цена только покупаемых предложений,
+        # по тому же правилу и моменту, что итоговая карточка (domain.purchasability)
+        from domain.purchasability import sql_purchasable_conditions
+        purchasable_sql, purchasable_params = sql_purchasable_conditions(now)
+        order_conditions = list(exists_conditions) + purchasable_sql
 
         order_by_sql = "rank ASC"
         order_by_like = "p.id ASC"
@@ -166,7 +165,7 @@ class SearchRepository(BaseRepository):
             )"""
             order_by_sql = f"CASE WHEN {sub} IS NULL THEN 1 ELSE 0 END ASC, {sub} ASC"
             order_by_like = order_by_sql
-            order_params = (list(exists_params) + [now_iso]) * 2
+            order_params = (list(exists_params) + purchasable_params) * 2
         elif sort_by == "price_desc":
             sub = f"""(
                 SELECT MAX(o.price) FROM offers o
@@ -176,7 +175,7 @@ class SearchRepository(BaseRepository):
             )"""
             order_by_sql = f"CASE WHEN {sub} IS NULL THEN 1 ELSE 0 END ASC, {sub} DESC"
             order_by_like = order_by_sql
-            order_params = (list(exists_params) + [now_iso]) * 2
+            order_params = (list(exists_params) + purchasable_params) * 2
 
         # -------------------------------------------------------------------
         # Step 1: Match Canonical Products
