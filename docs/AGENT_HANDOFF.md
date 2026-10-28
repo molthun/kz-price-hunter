@@ -2,6 +2,50 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## Передача аудитору: T01/T02 Задачи 2 P-6.4.12 → Codex (Claude, 2026-10-28)
+
+```text
+ID / этап: P-6.4.12 / Задача 2 — исправление T01 (P1) и T02 (P2) из AUDIT_2026-10-28_V6412_TASK2_CODEX
+Основание: владелец — «Аудит после разработки Антигравити не прошел. Смотри и правь. Потом Антигравити продолжит.»
+Статус: READY_FOR_AUDIT (повторная приёмка Задачи 2). Push не выполнялся; origin/main = e380a0f = прод 6.4.11.
+Коммиты (локальный main): 4a99d0a — отчёт Codex; cbc2467 — Задача 2 Antigravity + T01/T02 Claude
+  (одним коммитом: правки в тех же файлах; авторство описано в сообщении коммита). Тег v6.4.12 локальный.
+
+T01 — размер порции как часть протокола задачи:
+  * product_queue_spool.chunk_size (INTEGER, _add_column); spool_admit пишет SPOOL_CHUNK_SIZE (100).
+  * spool_claim отдаёт chunk_size; NULL (задачи 6.4.3–6.4.11) → LEGACY_SPOOL_CHUNK_SIZE = 200.
+  * _execute_queue_item режет товары и пропускает core_done порций по chunk_size задачи, не по константе.
+  * release_gate._spool_obligations_check: прежний код со spool_claim, но без метки
+    SPOOL_TASK_CHUNK_SIZE_SUPPORTED (6.4.3–6.4.11), не получает открытых задач с chunk_size ≠ 200 →
+    ok=false, foreign_chunk_layout=N, «дождитесь пустой очереди». Консервативно: независимо от core_done.
+    Задачи NULL/200 прежний код понимает — откат разрешён.
+T02 — семантика замера (database.ClosingConnection._run_tracked / _finish_write_tx):
+  * BEGIN IMMEDIATE/EXCLUSIVE: wait = время BEGIN, hold — после него; split='exact'.
+  * Неявная транзакция и BEGIN DEFERRED: время первой записи целиком в hold (верхняя граница),
+    wait=None, split='unknown', счётчик unsplit_count; max_wait_ms считается только по exact.
+  * Неудачный COMMIT (транзакция осталась открытой) учёт не закрывает — закроет повтор/rollback;
+    тот же принцип в ClosingConnection.commit(). Ошибка первой записи без открытой транзакции сбрасывает учёт.
+  * /api/diag → database.write_tx: поля split, unsplit_count; лог [DB Slow Write] пишет «верхняя граница»/«wait=n/a».
+Проверки (macOS, временный DATA_DIR): полный discover → 1871 OK; фронтенд 19/19; secrets ok; diff --check ok.
+  Новые регрессии: ChunkLayoutTest (возобновление задачи 6.4.11 после порции 200 → все 300 товаров и одно
+  any_drop; новая задача после двух порций по 100; запись chunk_size), test_rollback_refuses_tasks_with_
+  foreign_chunk_layout, WriteTxMeasurementSemanticsTest (неявная медленная запись = hold; DEFERRED;
+  ожидание под чужим BEGIN IMMEDIATE ≈200 мс = wait, hold < 100 мс; rollback; неудачный COMMIT по
+  отложенному FK). На кандидате Antigravity (33ee512 + source-diff.patch из свидетельств Codex):
+  T02 — 3 FAIL по поведению (hold 0.95 мс вместо ≥180; неудачный COMMIT закрывал учёт); T01 — ошибки
+  отсутствия колонки; поведение T01 дополнительно подтверждено подменой размера старых задач на 100 → FAIL.
+  Linux (образ стенда, --network none --cpus 4 --memory 15g): T01/T02 3 прогона OK; полный 1871 OK.
+Стенд: 6.4.12 (cbc2467), compose, лимиты сохранены, health ok, колонка chunk_size есть. Файлы кандидата
+  Antigravity из checkout стенда убраны в git stash «antigravity-6.4.12-candidate (до T01/T02)»;
+  откат: образ kzph-stand:6.4.12-candidate-rollback, данные stand-data.bak-6.4.12-candidate.
+Не проверено мной: полная волна на стенде после T01/T02 (результат волны в CHANGELOG — замер Antigravity
+  на кандидате до исправлений).
+Следующий точный шаг: Codex — повторная приёмка Задачи 2. После принятия — Antigravity продолжает
+  Задачу 1 (порт до тяжёлой стартовой работы), затем Задачу 3 (Эврика/Alser), карточка ниже.
+```
+
+---
+
 ## Плановый аудит P-6.4.12 / Задача 2 — Codex (2026-10-28)
 
 - Основание: «разработка продолжается плановый аудит». HEAD `33ee512`, кандидат 6.4.12 —
