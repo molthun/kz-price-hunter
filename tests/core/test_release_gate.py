@@ -484,6 +484,38 @@ class UpgradeThenRollbackTest(unittest.TestCase):
         result = gate.rollback_check(self.upgraded, broken)
         self.assertFalse(result["ok"], "запрос прежнего кода не работает — это и есть провал отката")
 
+    def add_spool_task(self, status, task_id="t1"):
+        with sqlite3.connect(self.upgraded) as conn:
+            conn.execute("INSERT INTO product_queue_spool (task_id, shop_key, shop_name, payload, status, "
+                         "attempts, created_at, updated_at) VALUES (?, 'shop', 'Shop', '{}', ?, 0, 1, 1)",
+                         (task_id, status))
+
+    def spool_check(self, result):
+        return next(c for c in result["checks"] if c["check"].startswith("Принятые задачи очереди"))
+
+    def test_rollback_refuses_open_spool_tasks_for_code_without_spool(self):
+        """F04: незавершённые задачи нового журнала — провал отката на код, который их не обслуживает."""
+        gate.upgrade_rehearsal(self.db, keep_path=self.upgraded)
+        for n, status in enumerate(("pending", "processing", "dead_letter", "rejected")):
+            self.add_spool_task(status, f"t{n}")
+        result = gate.rollback_check(self.upgraded, self.old_code("SELECT id FROM products LIMIT 1"))
+        self.assertFalse(result["ok"])
+        check = self.spool_check(result)
+        self.assertEqual(check["open_tasks"], 4)
+        self.assertIn("дождитесь пустой очереди", check["error"])
+
+    def test_rollback_allows_drained_spool_or_compatible_code(self):
+        gate.upgrade_rehearsal(self.db, keep_path=self.upgraded)
+        self.add_spool_task("archived")
+        old = self.old_code("SELECT id FROM products LIMIT 1")
+        self.assertTrue(gate.rollback_check(self.upgraded, old)["ok"], "архив — не обязательство")
+        self.add_spool_task("pending", "t2")
+        with open(os.path.join(old, "database.py"), "a", encoding="utf-8") as fh:
+            fh.write("def spool_claim(owner, ttl=60):\n    return None\n")
+        result = gate.rollback_check(self.upgraded, old)
+        self.assertTrue(result["ok"], result)
+        self.assertTrue(self.spool_check(result)["previous_code_serves_spool"])
+
     def test_workflow_runs_the_rollback_on_the_upgraded_database(self):
         path = os.path.join(str(test_support.REPO_DIR),
                             ".github", "workflows", "docker-publish.yml")

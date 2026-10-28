@@ -386,6 +386,71 @@ class RetryAfterPartialCommitTest(QueueContractBase):
         self.assertEqual(product_price("poison"), 100)
 
 
+class StaleRetryTest(RetryAfterPartialCommitTest):
+    """F01: повтор давнего отказа после более свежего обхода не откатывает данные и не шлёт устаревшее."""
+
+    def watch_drop(self, pid, title, baseline):
+        database.save_or_update_products_batch([prod(pid, baseline, title)])
+        database.create_watch(WATCH_USER, {"kind": "search", "target": title, "condition": "any_drop",
+                                           "quiet_from": "", "quiet_to": "", "cooldown_hours": 0})
+        database.evaluate_watches(database.watched_offers([pid]))
+        time.sleep(0.01)  # метка базового сохранения строго раньше приёма задач
+
+    def is_active(self, pid):
+        with database.get_connection() as conn:
+            return conn.execute("SELECT is_active FROM products WHERE id = ?", (pid,)).fetchone()[0]
+
+    async def test_retry_of_old_failure_before_core_keeps_newer_price_and_source(self):
+        pid, extra, title = "stale-core", "stale-core-new", "Stale Core Laptop"
+        self.watch_drop(pid, title, 300)
+        source = {"key": "stale", "url": "https://example.invalid/cat"}
+        qm = self.qm()
+        old = await qm.enqueue([prod(pid, 100, title)], "Contract", {}, shop_key="stale",
+                               reconcile={**source, "complete": True})
+        new = await qm.enqueue([prod(pid, 200, title), prod(extra, 500, title)], "Contract", {},
+                               shop_key="stale", reconcile={**source, "complete": True})
+        item = await qm.dequeue(timeout=0.05)
+        self.assertEqual(item["task_id"], old.task_id)
+        self.assertEqual(await qm.nack(item, error="boom", max_retries=0), "dead_letter")
+        item = await qm.dequeue(timeout=0.05)
+        self.assertEqual(item["task_id"], new.task_id)
+        self.assertTrue(await self.run_item(qm, item))
+        self.assertEqual(product_price(pid), 200)
+        self.assertEqual(database.spool_resolve_failures("retry"), 1)  # штатный retry администратора
+        item = await qm.dequeue(timeout=0.05)
+        self.assertEqual(item["task_id"], old.task_id)
+        self.assertTrue(await self.run_item(qm, item))
+        self.assertEqual(product_price(pid), 200, "старая задача откатила свежую цену")
+        self.assertEqual(self.is_active(extra), 1, "старая полная сверка сняла товар нового обхода")
+        events = self.watch_events()
+        self.assertEqual([e["price"] for e in events], [200])
+
+    async def test_retry_of_old_derived_stage_sends_nothing_after_newer_scan(self):
+        pid, title = "stale-derived", "Stale Derived Laptop"
+        self.watch_drop(pid, title, 300000)
+        qm = self.qm()
+        old = await qm.enqueue([prod(pid, 100000, title)], "Contract", {}, shop_key="stale-d")
+        item = await qm.dequeue(timeout=0.05)
+        with patch.object(server, "check_anomaly", side_effect=RuntimeError("after core")):
+            with self.assertRaises(RuntimeError):
+                await server._execute_queue_item(item)
+        self.assertEqual(await qm.nack(item, error="after core", max_retries=0), "dead_letter")
+        await qm.enqueue([prod(pid, 200000, title)], "Contract", {}, shop_key="stale-d")
+        item = await qm.dequeue(timeout=0.05)
+        self.assertTrue(await self.run_item(qm, item))
+        database.spool_resolve_failures("retry", [old.task_id])
+        item = await qm.dequeue(timeout=0.05)
+        self.assertEqual((item["task_id"], item["stage"]), (old.task_id, "derived"))
+        self.assertTrue(await self.run_item(qm, item))
+        self.assertEqual(product_price(pid), 200000)
+        # Наблюдение помнит 300: снижение до 200 по новому обходу законно; устаревшего 300→100 быть не должно
+        self.assertEqual([e["price"] for e in self.watch_events()], [200000])
+        with database.get_connection() as conn:
+            stale_alerts = conn.execute("SELECT COUNT(*) FROM alerts WHERE product_id = ? AND new_price = 100000",
+                                        (pid,)).fetchone()[0]
+        self.assertEqual(stale_alerts, 0, "алерт по устаревшему снижению 300→100")
+
+
 class BarrierAndReadinessTest(QueueContractBase):
     async def test_unreadable_spool_is_not_drained(self):
         # R06: ошибка наблюдения — не успех

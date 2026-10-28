@@ -260,6 +260,42 @@ def _snapshot(source_path: str, target_path: str) -> None:
         source.close()
 
 
+SPOOL_OPEN_STATUSES = ("pending", "processing", "dead_letter", "rejected")
+
+
+def _spool_obligations_check(db_path: str, code_dir: str) -> Dict[str, Any]:
+    """F04: принятые, но не завершённые задачи журнала очереди должен кто-то дописать.
+
+    Прежний код без протокола захвата (spool_claim, 6.4.3+) этих задач не видит: после отката они
+    остались бы без исполнителя, а smoke-запросы этого не заметят. Поэтому откат на такой код
+    разрешается только при пустом журнале — сначала дождаться очереди (drain) и разобрать отказы.
+    """
+    label = "Принятые задачи очереди обслуживаются"
+    try:
+        with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as conn:
+            if not conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' "
+                                "AND name='product_queue_spool'").fetchone():
+                return {"check": label, "ok": True, "open_tasks": 0}
+            marks = ",".join("?" * len(SPOOL_OPEN_STATUSES))
+            counts = dict(conn.execute(f"SELECT status, COUNT(*) FROM product_queue_spool "
+                                       f"WHERE status IN ({marks}) GROUP BY status", SPOOL_OPEN_STATUSES))
+    except sqlite3.Error as e:
+        return {"check": label, "ok": False, "error": f"Журнал очереди не читается: {e}"}
+    open_tasks = sum(counts.values())
+    try:
+        with open(os.path.join(code_dir, "database.py"), encoding="utf-8") as fh:
+            supported = "def spool_claim(" in fh.read()
+    except OSError:
+        supported = False
+    result = {"check": label, "ok": open_tasks == 0 or supported, "open_tasks": open_tasks,
+              "by_status": counts, "previous_code_serves_spool": supported}
+    if not result["ok"]:
+        result["error"] = (f"В журнале очереди {open_tasks} незавершённых задач ({counts}); прежний код их "
+                           "не обслуживает. Перед откатом дождитесь пустой очереди и разберите отказы "
+                           "(/api/admin/queue/failures: retry или archive).")
+    return result
+
+
 def rollback_check(db_path: str, code_dir: str, python_exe: Optional[str] = None,
                    timeout: float = 120.0) -> Dict[str, Any]:
     """Проверяет, что ПРЕЖНИЙ код действительно работает на обновлённой базе.
@@ -296,6 +332,8 @@ def rollback_check(db_path: str, code_dir: str, python_exe: Optional[str] = None
             return {"ok": False, "error": f"Прежний код не смог открыть базу: {res.stderr.strip()[-400:]}"}
         line = [l for l in res.stdout.splitlines() if l.startswith("[")]
         checks = json.loads(line[-1]) if line else []
+        if checks:
+            checks.append(_spool_obligations_check(target, code_dir))
         return {"ok": bool(checks) and all(c["ok"] for c in checks), "checks": checks,
                 "note": "Запросы приложения выполнены кодом прежнего релиза на обновлённой копии"}
     except Exception as e:                       # noqa: BLE001 — отчёт важнее трассировки

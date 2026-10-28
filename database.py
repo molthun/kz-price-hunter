@@ -75,8 +75,21 @@ def fresh_price_clause(alias=""):
             f">= julianday('now') - {int(AGING_HOURS)} / 24.0")
 
 
-def _reconcile_source_conn(conn, shop_key, source_url, product_ids, complete=False) -> None:
-    """Сверка источника в открытой транзакции conn, без фиксации (R04)."""
+def _reconcile_source_conn(conn, shop_key, source_url, product_ids, complete=False,
+                           observed_seq: Optional[float] = None) -> bool:
+    """Сверка источника в открытой транзакции conn, без фиксации (R04).
+
+    False — источник уже сверен по более свежему обходу: старый результат не снимает товары,
+    появившиеся позже, и не возвращает снятые (F01).
+    """
+    if observed_seq is not None:
+        row = conn.execute("SELECT observed_seq FROM source_observed WHERE shop_key = ? AND source_url = ?",
+                           (shop_key, source_url)).fetchone()
+        if row and row[0] > observed_seq:
+            return False
+        conn.execute("""INSERT INTO source_observed (shop_key, source_url, observed_seq) VALUES (?, ?, ?)
+                        ON CONFLICT(shop_key, source_url) DO UPDATE SET observed_seq = excluded.observed_seq""",
+                     (shop_key, source_url, observed_seq))
     ids = {str(pid) for pid in product_ids}
     if complete and ids:
         conn.execute("UPDATE product_sources SET active=0 WHERE shop_key=? AND source_url=?", (shop_key, source_url))
@@ -88,12 +101,13 @@ def _reconcile_source_conn(conn, shop_key, source_url, product_ids, complete=Fal
             (SELECT product_id FROM product_sources WHERE shop_key=? AND source_url=?)
             AND NOT EXISTS (SELECT 1 FROM product_sources s WHERE s.product_id=products.id AND s.active=1)""",
             (shop_key, source_url))
+    return True
 
 
 def reconcile_source(shop_key, source_url, products, complete=False):
     """Only a verified complete source may retire its previously observed offers."""
     with get_connection() as conn:
-        _reconcile_source_conn(conn, shop_key, source_url, [p["id"] for p in products], complete)
+        _reconcile_source_conn(conn, shop_key, source_url, [p["id"] for p in products], complete, time.time())
         conn.commit()
     invalidate_alerts_cache()
 
@@ -508,6 +522,15 @@ def _create_schema(cursor) -> None:
     _add_column(cursor, "product_queue_spool", "stage", "TEXT NOT NULL DEFAULT 'core'")
     _add_column(cursor, "product_queue_spool", "core_done", "INTEGER NOT NULL DEFAULT 0")
     _add_column(cursor, "product_queue_spool", "scan_id", "TEXT")
+    # F01: метка наблюдения — момент приёма данных (time.time()). Запись старше уже сохранённой
+    # (повтор давнего отказа после более свежего обхода) не перезаписывает товар и не снимает источник.
+    _add_column(cursor, "products", "observed_seq", "REAL")
+    cursor.execute("""CREATE TABLE IF NOT EXISTS source_observed (
+        shop_key TEXT NOT NULL,
+        source_url TEXT NOT NULL,
+        observed_seq REAL NOT NULL,
+        PRIMARY KEY (shop_key, source_url)
+    )""")
     # Цены до записи каждой порции: повтор производных эффектов считает переход от них, а не
     # от уже обновлённой базы (R05). Строки живут до подтверждения задачи.
     cursor.execute("""CREATE TABLE IF NOT EXISTS product_queue_history (
@@ -1534,6 +1557,7 @@ def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
     old_on_site = site_old_price(p.get("old_price_on_site"), current_price)
 
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    observed_seq = time.time()  # прямая запись — свежее наблюдение (F01)
 
     with get_connection() as conn:
         cursor = conn.cursor()
@@ -1543,9 +1567,9 @@ def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
 
         if existing is None:
             cursor.execute("""
-                INSERT INTO products (id, shop, city, title, category, url, image_url, description, current_price, old_price_on_site, first_seen_price, min_price, max_price, canonical_key, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (pid, shop, city, title, category, url, image_url, description, current_price, old_on_site, current_price, current_price, current_price, canonical_key, now, now))
+                INSERT INTO products (id, shop, city, title, category, url, image_url, description, current_price, old_price_on_site, first_seen_price, min_price, max_price, canonical_key, created_at, updated_at, observed_seq)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (pid, shop, city, title, category, url, image_url, description, current_price, old_on_site, current_price, current_price, current_price, canonical_key, now, now, observed_seq))
             res = {
                 "is_new": True,
                 "old_price": current_price,
@@ -1564,9 +1588,10 @@ def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
                 UPDATE products
                 SET is_active = 1, shop = ?, city = ?, title = ?, category = ?, url = ?, image_url = ?,
                     description = CASE WHEN ? != '' THEN ? ELSE description END,
-                    current_price = ?, old_price_on_site = ?, min_price = ?, max_price = ?, canonical_key = COALESCE(?, canonical_key), updated_at = ?
+                    current_price = ?, old_price_on_site = ?, min_price = ?, max_price = ?, canonical_key = COALESCE(?, canonical_key), updated_at = ?,
+                    observed_seq = COALESCE(?, observed_seq)
                 WHERE id = ?
-            """, (shop, city, title, category, url, image_url, description, description, current_price, old_on_site, min_price, max_price, canonical_key, now, pid))
+            """, (shop, city, title, category, url, image_url, description, description, current_price, old_on_site, min_price, max_price, canonical_key, now, observed_seq, pid))
             res = {
                 "is_new": False,
                 "old_price": old_price,
@@ -1615,8 +1640,12 @@ def _price_history_conn(conn, ids: List[str]) -> Dict[str, Dict[str, Any]]:
             }
     return history
 
-def _save_products_chunk(conn, chunk: List[Dict[str, Any]], now: str) -> int:
-    """Записывает порцию товаров в открытой транзакции conn, не фиксируя её (R04/R05)."""
+def _save_products_chunk(conn, chunk: List[Dict[str, Any]], now: str, observed_seq: Optional[float] = None) -> int:
+    """Записывает порцию товаров в открытой транзакции conn, не фиксируя её (R04/R05).
+
+    observed_seq — когда данные получены (момент приёма задачи). Товар, у которого уже сохранено
+    более свежее наблюдение, не трогается (F01); None — запись без метки, как прежде.
+    """
     from model_matching import extract_canonical_key
 
     cursor = conn.cursor()
@@ -1643,15 +1672,19 @@ def _save_products_chunk(conn, chunk: List[Dict[str, Any]], now: str) -> int:
         canonical_key = p.get("canonical_key") or extract_canonical_key(title)
         old_on_site = site_old_price(p.get("old_price_on_site"), current_price)
 
-        cursor.execute("SELECT current_price, min_price, max_price, old_price_on_site FROM products WHERE id = ?", (pid,))
+        cursor.execute("SELECT current_price, min_price, max_price, old_price_on_site, observed_seq "
+                       "FROM products WHERE id = ?", (pid,))
         existing = cursor.fetchone()
+        if (observed_seq is not None and existing is not None and existing["observed_seq"] is not None
+                and existing["observed_seq"] > observed_seq):
+            continue  # F01: сохранено более свежее наблюдение — старые данные его не откатывают
         _record_observation(cursor, pid, existing, current_price, old_on_site, now)
 
         if existing is None:
             cursor.execute("""
-                INSERT INTO products (id, shop, city, title, category, url, image_url, description, current_price, old_price_on_site, first_seen_price, min_price, max_price, canonical_key, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (pid, shop, city, title, category, url, image_url, description, current_price, old_on_site, current_price, current_price, current_price, canonical_key, now, now))
+                INSERT INTO products (id, shop, city, title, category, url, image_url, description, current_price, old_price_on_site, first_seen_price, min_price, max_price, canonical_key, created_at, updated_at, observed_seq)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (pid, shop, city, title, category, url, image_url, description, current_price, old_on_site, current_price, current_price, current_price, canonical_key, now, now, observed_seq))
         else:
             min_price = min(existing["min_price"], current_price)
             max_price = max(existing["max_price"], current_price)
@@ -1659,9 +1692,10 @@ def _save_products_chunk(conn, chunk: List[Dict[str, Any]], now: str) -> int:
                 UPDATE products
                 SET is_active = 1, shop = ?, city = ?, title = ?, category = ?, url = ?, image_url = ?,
                     description = CASE WHEN ? != '' THEN ? ELSE description END,
-                    current_price = ?, old_price_on_site = ?, min_price = ?, max_price = ?, canonical_key = COALESCE(?, canonical_key), updated_at = ?
+                    current_price = ?, old_price_on_site = ?, min_price = ?, max_price = ?, canonical_key = COALESCE(?, canonical_key), updated_at = ?,
+                    observed_seq = COALESCE(?, observed_seq)
                 WHERE id = ?
-            """, (shop, city, title, category, url, image_url, description, description, current_price, old_on_site, min_price, max_price, canonical_key, now, pid))
+            """, (shop, city, title, category, url, image_url, description, description, current_price, old_on_site, min_price, max_price, canonical_key, now, observed_seq, pid))
         if os.environ.get("DUAL_WRITE_V2", "1") != "0":
             _DUAL_WRITE_STATS["total"] += 1
             try:
@@ -1680,6 +1714,7 @@ def save_or_update_products_batch(products: List[Dict[str, Any]]) -> int:
         return 0
 
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    observed_seq = time.time()
     updated_count = 0
     chunk_size = 100
 
@@ -1688,7 +1723,7 @@ def save_or_update_products_batch(products: List[Dict[str, Any]]) -> int:
         for attempt in range(3):
             try:
                 with get_connection() as conn:
-                    updated_count += _save_products_chunk(conn, chunk, now)
+                    updated_count += _save_products_chunk(conn, chunk, now, observed_seq)
                     conn.commit()
                 break
             except sqlite3.OperationalError as e:
@@ -2196,7 +2231,7 @@ def export_user_data(user_id: int) -> Optional[Dict[str, Any]]:
     if not user:
         return None
     watches = list_watches(user_id)
-    events = watch_events(user_id, limit=1000)
+    events = list(iter_watch_events(user_id))  # полностью: лимит списка интерфейса здесь не действует (F03)
     with get_connection() as conn:
         sessions = [dict(r) for r in conn.execute(
             "SELECT created_at, expires_at FROM sessions WHERE user_id = ? ORDER BY created_at", (int(user_id),))]
@@ -3268,6 +3303,26 @@ def watched_offers(product_ids: List[str], now: Optional[datetime.datetime] = No
     return rows
 
 
+def iter_watch_events(user_id: int, page: int = 500):
+    """Все срабатывания пользователя, от старых к новым, страницами по id (F03, выгрузка данных).
+
+    Список в интерфейсе ограничен; выгрузка — нет. Страницы не держат курсор открытым дольше одной выборки.
+    """
+    last_id = 0
+    while True:
+        with get_connection() as conn:
+            rows = [dict(r) for r in conn.execute("""
+                SELECT e.id, e.watch_id, e.product_id, e.price, e.reason, e.created_at, e.status,
+                       w.kind, w.target, w.title
+                FROM watch_events e JOIN watches w ON w.id = e.watch_id
+                WHERE w.user_id = ? AND e.id > ? ORDER BY e.id LIMIT ?
+            """, (int(user_id), last_id, page))]
+        if not rows:
+            return
+        yield from rows
+        last_id = rows[-1]["id"]
+
+
 def watch_events(user_id: int, limit: int = 50) -> List[Dict[str, Any]]:
     """История срабатываний наблюдений пользователя (для «Моих наблюдений» и выгрузки данных)."""
     with get_connection() as conn:
@@ -3870,7 +3925,7 @@ SPOOL_UNRESOLVED = ("dead_letter", "rejected")   # rejected — строки п�
 
 def _spool_claim_row(conn, task_id: str, token: str):
     return conn.execute(
-        "SELECT stage, core_done FROM product_queue_spool "
+        "SELECT stage, core_done, created_at FROM product_queue_spool "
         "WHERE task_id = ? AND claim_token = ? AND status = 'processing'", (task_id, token)).fetchone()
 
 
@@ -3980,7 +4035,9 @@ def spool_apply_chunk(task_id: str, token: str, chunk_no: int, chunk: List[Dict[
                 conn.rollback()
                 return True
             history = _price_history_conn(conn, [str(p["id"]) for p in chunk])
-            _save_products_chunk(conn, chunk, now_iso)
+            # Метка наблюдения — момент приёма задачи: повтор давнего отказа не откатит товар,
+            # уже записанный более поздним обходом (F01)
+            _save_products_chunk(conn, chunk, now_iso, claim["created_at"])
             conn.execute("INSERT OR REPLACE INTO product_queue_history (task_id, chunk_no, history) VALUES (?, ?, ?)",
                          (task_id, chunk_no, json.dumps(history, ensure_ascii=False)))
             conn.execute("UPDATE product_queue_spool SET core_done = ?, claim_expires_at = ?, updated_at = ? "
@@ -4009,7 +4066,7 @@ def spool_finish_core(task_id: str, token: str, product_ids: List[str],
                 return True
             if reconcile:
                 _reconcile_source_conn(conn, reconcile["key"], reconcile["url"], product_ids,
-                                       reconcile.get("complete", False))
+                                       reconcile.get("complete", False), claim["created_at"])
             if scan_log:
                 _record_source_scan_conn(conn, scan_log["key"], scan_log["url"], scan_log["name"],
                                          scan_log["scan_id"], scan_log["cat_started"], scan_log["kind"],
@@ -4033,6 +4090,26 @@ def spool_history(task_id: str) -> Dict[str, Dict[str, Any]]:
                                 (task_id,)):
             merged.update(json.loads(row[0]))
     return merged
+
+
+def spool_superseded(task_id: str, product_ids: List[str]) -> List[str]:
+    """Товары задачи, которые уже обновлены более свежим наблюдением, чем эта задача (F01).
+
+    Для них производные эффекты (алерты, наблюдения) не считаются: переход цены устарел,
+    и уведомление по нему сообщило бы то, чего уже нет.
+    """
+    ids = [str(p) for p in product_ids]
+    superseded: List[str] = []
+    with get_connection() as conn:
+        row = conn.execute("SELECT created_at FROM product_queue_spool WHERE task_id = ?", (task_id,)).fetchone()
+        if not row:
+            return superseded
+        for i in range(0, len(ids), 500):
+            chunk = ids[i:i + 500]
+            marks = ",".join("?" * len(chunk))
+            superseded.extend(r[0] for r in conn.execute(
+                f"SELECT id FROM products WHERE id IN ({marks}) AND observed_seq > ?", (*chunk, row[0])))
+    return superseded
 
 
 def spool_ack(task_id: str, token: str) -> bool:

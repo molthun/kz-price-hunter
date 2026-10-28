@@ -337,6 +337,21 @@ class DeliveryTest(StorageTest):
         self.assertEqual(send.call_count, 0)
         self.assertEqual([q["status"] for q in self.outbox()], ["cancelled"])
 
+    def test_export_contains_every_watch_event_beyond_ui_limit(self):
+        """F03: выгрузка не обрезается лимитом списка интерфейса (1000)."""
+        self.trigger()
+        with database.get_connection() as conn:
+            watch_id = conn.execute("SELECT watch_id FROM watch_events LIMIT 1").fetchone()[0]
+            conn.executemany("INSERT INTO watch_events (watch_id, product_id, price, reason, created_at, status) "
+                             "VALUES (?, 'bulk', ?, 'bulk', '2026-10-28T00:00:00+00:00', 'sent')",
+                             [(watch_id, n) for n in range(1200)])
+            total = conn.execute("SELECT COUNT(*) FROM watch_events").fetchone()[0]
+            conn.commit()
+        data = database.export_user_data(701)
+        self.assertEqual(len(data["watch_events"]), total)
+        self.assertEqual(len({e["id"] for e in data["watch_events"]}), total)
+        self.assertEqual(len(database.watch_events(701, limit=50)), 50)  # интерфейс по-прежнему ограничен
+
     def test_user_data_export_and_delete_include_watches(self):
         self.trigger()
         data = database.export_user_data(701)

@@ -1899,7 +1899,7 @@ async def _execute_queue_item(item):
     ничего. Записанные порции при повторе пропускаются, а производные эффекты считаются от цен,
     сохранённых до записи, поэтому повтор после частичного commit не теряет снижение цены.
     """
-    from database import SPOOL_CHUNK_SIZE, spool_apply_chunk, spool_finish_core, spool_history
+    from database import SPOOL_CHUNK_SIZE, spool_apply_chunk, spool_finish_core, spool_history, spool_superseded
 
     task_id, token = item["task_id"], item["claim_token"]
     prods = item.get("prods") or []
@@ -1924,8 +1924,13 @@ async def _execute_queue_item(item):
             raise ClaimLost(task_id)
 
     if prods:
-        history_map = await run_db(spool_history, task_id)
-        await _detect_after_save(prods, history_map, shop_name, candidate_settings, strict=True)
+        # Товары, уже обновлённые более поздним обходом, не дают алертов и уведомлений по устаревшему
+        # переходу цены (F01: повтор давнего отказа)
+        superseded = set(await run_db(spool_superseded, task_id, [str(p["id"]) for p in prods]))
+        current = [p for p in prods if str(p["id"]) not in superseded]
+        if current:
+            history_map = await run_db(spool_history, task_id)
+            await _detect_after_save(current, history_map, shop_name, candidate_settings, strict=True)
     return True
 
 

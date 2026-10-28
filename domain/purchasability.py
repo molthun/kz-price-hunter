@@ -69,12 +69,14 @@ def offer_purchasable(row: Dict[str, Any], now: Optional[datetime.datetime] = No
 def sql_purchasable_conditions(now: Optional[datetime.datetime] = None, offer: str = "o") -> Tuple[List[str], list]:
     """Те же условия в SQL для отбора кандидатов до LIMIT (алиас предложения — offer)."""
     moment = utc_now(now).isoformat()
+    seen = f"COALESCE(NULLIF({offer}.observed_at, ''), {offer}.updated_at)"
     conditions = [
         f"{offer}.price > 0",
         f"LOWER(COALESCE({offer}.availability, 'in_stock')) IN ('in_stock', 'preorder')",
         # expired ⇔ now >= expires_at, значит допустимо только expires_at > now (R09)
         # Нечитаемое время, как и в Python, не делает предложение недоступным
         f"(julianday({offer}.expires_at) IS NULL OR julianday({offer}.expires_at) > julianday(?))",
-        f"(julianday({offer}.observed_at) IS NULL OR julianday({offer}.observed_at) >= julianday(?) - ?)",
+        # Как в Python: пустое observed_at — берётся updated_at (F02)
+        f"(julianday({seen}) IS NULL OR julianday({seen}) >= julianday(?) - ?)",
     ]
     return conditions, [moment, moment, data_quality.AGING_HOURS / 24.0]
