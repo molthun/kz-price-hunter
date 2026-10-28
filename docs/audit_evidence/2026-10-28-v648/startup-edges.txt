@@ -1,0 +1,64 @@
+[System] 📡 Модуль онлайн-логирования активирован.
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+test_base_already_repaired_by_646_gets_memory_fixed (__main__.StartupEdges.test_base_already_repaired_by_646_gets_memory_fixed)
+[DB] G03: память наблюдений обновлена по 1 снятым товарам
+G03-B: offers уже сняла 6.4.6, память осталась «в продаже» — разовый досев заданий. ... ok
+test_failed_retired_watch_refresh_in_queue_is_retried (__main__.StartupEdges.test_failed_retired_watch_refresh_in_queue_is_retried)
+[Watches] Ошибка проверки снятых товаров: OperationalError
+Сбой обновления памяти в очереди: задача и задание остаются, повтор доводит до конца. ... Повтор задачи task_c2d7d23a9f9a40a180bf2a96c79bd0a8 (Contract), попытка 1
+ok
+test_full_scan_without_item_retires_it_everywhere_and_return_restores (__main__.StartupEdges.test_full_scan_without_item_retires_it_everywhere_and_return_restores) ... ok
+test_independent_seller_channel_is_not_retired (__main__.StartupEdges.test_independent_seller_channel_is_not_retired) ... ok
+test_item_confirmed_by_another_active_source_stays (__main__.StartupEdges.test_item_confirmed_by_another_active_source_stays) ... ok
+test_limited_and_failed_scans_do_not_retire (__main__.StartupEdges.test_limited_and_failed_scans_do_not_retire) ... Задача task_b43f33c3bb00457d8d76b721a379f798 (Contract) превысила лимит повторов и помещена в dead-letter
+ok
+test_memory_repair_survives_failure_and_restart (__main__.StartupEdges.test_memory_repair_survives_failure_and_restart)
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+[DB] G03: память наблюдений обновлена по 1 снятым товарам
+G03-A: сбой обновления памяти при старте повторяется следующим стартом. ... ok
+test_old_retry_after_newer_full_scan_does_not_retire (__main__.StartupEdges.test_old_retry_after_newer_full_scan_does_not_retire) ... Задача task_34dfdf475ea44331b0f241172ffe6c9d (Contract) превысила лимит повторов и помещена в dead-letter
+ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений обновлена по 1 снятым товарам
+test_repeated_startup_and_same_price_return_no_duplicate (__main__.StartupEdges.test_repeated_startup_and_same_price_return_no_duplicate) ... ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+test_return_before_deferred_refresh_preserves_transition (__main__.StartupEdges.test_return_before_deferred_refresh_preserves_transition) ... FAIL
+test_startup_repair_updates_watch_memory_so_return_notifies (__main__.StartupEdges.test_startup_repair_updates_watch_memory_so_return_notifies)
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений обновлена по 1 снятым товарам
+G02: старая база + наблюдение → init_db → возврат по прежней цене → одно «снова в продаже». ... ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+test_startup_repairs_offers_retired_before_the_fix (__main__.StartupEdges.test_startup_repairs_offers_retired_before_the_fix) ... ok
+[DB] G03: память наблюдений обновлена по 3 снятым товарам
+test_upgrade_from_646_repairs_already_retired_offer_watch (__main__.StartupEdges.test_upgrade_from_646_repairs_already_retired_offer_watch) ... ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+[DB] G03: память наблюдений обновлена по 1 снятым товарам
+test_watch_failure_then_restart_retries_obligation (__main__.StartupEdges.test_watch_failure_then_restart_retries_obligation) ... ok
+
+======================================================================
+FAIL: test_return_before_deferred_refresh_preserves_transition (__main__.StartupEdges.test_return_before_deferred_refresh_preserves_transition)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py", line 128, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py", line 720, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-28-v648/startup_edges.py", line 70, in test_return_before_deferred_refresh_preserves_transition
+    self.assertEqual(len(self.events()), 1, 'return before refresh loses retired transition')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1 : return before refresh loses retired transition
+
+----------------------------------------------------------------------
+Ran 14 tests in 1.201s
+
+FAILED (failures=1)
