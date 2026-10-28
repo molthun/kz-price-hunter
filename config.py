@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 import json
 import tempfile
 import threading
@@ -393,12 +394,53 @@ WORKER_THREADS_MIN = 8
 WORKER_THREADS_MAX = 32
 
 
+# Пути cgroup вынесены в константы, чтобы расчёт можно было проверить тестом.
+CGROUP_V2_CPU_MAX = "/sys/fs/cgroup/cpu.max"
+CGROUP_V1_CPU_QUOTA = "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"
+CGROUP_V1_CPU_PERIOD = "/sys/fs/cgroup/cpu/cpu.cfs_period_us"
+
+
+def cgroup_cpu_quota() -> Optional[float]:
+    """Доля процессора, выделенная контейнеру, или None, если ограничения нет.
+
+    os.cpu_count() её не видит: он сообщает ядра хоста. На стенде с лимитом в 4 ядра
+    он возвращал 16, и пул получался вдвое больше задуманного — то есть ровно та
+    перегрузка потоками, от которой мы уходим.
+    """
+    try:
+        with open(CGROUP_V2_CPU_MAX, encoding="ascii") as fh:
+            quota, period = fh.read().split()
+        if quota != "max" and int(period) > 0:
+            return int(quota) / int(period)
+    except (OSError, ValueError):
+        pass
+    try:
+        with open(CGROUP_V1_CPU_QUOTA, encoding="ascii") as fh:
+            quota = int(fh.read().strip())
+        with open(CGROUP_V1_CPU_PERIOD, encoding="ascii") as fh:
+            period = int(fh.read().strip())
+        if quota > 0 and period > 0:
+            return quota / period
+    except (OSError, ValueError):
+        pass
+    return None
+
+
+def effective_cpu_count() -> int:
+    """Сколько ядер доступно процессу на деле: с оглядкой на лимит контейнера."""
+    cores = os.cpu_count() or 2
+    quota = cgroup_cpu_quota()
+    if quota is not None and quota > 0:
+        cores = min(cores, max(1, int(quota)))
+    return cores
+
+
 def worker_thread_count() -> int:
-    """Число потоков в общем пуле: из WORKER_THREADS либо кратно числу ядер."""
+    """Число потоков в общем пуле: из WORKER_THREADS либо кратно доступным ядрам."""
     raw = (os.getenv("WORKER_THREADS") or "").strip()
     if raw.isdigit() and int(raw) > 0:
         return int(raw)
-    cores = os.cpu_count() or 2
+    cores = effective_cpu_count()
     return max(WORKER_THREADS_MIN, min(WORKER_THREADS_MAX, cores * WORKER_THREADS_PER_CORE))
 DEV_ADMIN_ID = -1  # Reserved local principal; Telegram user IDs are positive.
 

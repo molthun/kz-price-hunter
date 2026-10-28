@@ -5,6 +5,7 @@ import os
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 _TMP = tempfile.TemporaryDirectory()
@@ -55,6 +56,72 @@ class HtmlParserTest(unittest.TestCase):
             reloaded = importlib.reload(html_soup)
             self.assertEqual(reloaded.PARSER, "html.parser")
             self.assertEqual(reloaded.make_soup("<p>ок</p>").select_one("p").get_text(), "ок")
+
+
+class ContainerCpuLimitTest(unittest.TestCase):
+    """Лимит контейнера os.cpu_count() не виден: он сообщает ядра хоста. На стенде с
+    лимитом в 4 ядра он возвращал 16, и пул выходил вдвое больше задуманного."""
+
+    def setUp(self):
+        self._dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self._dir.cleanup)
+        self.root = Path(self._dir.name)
+
+    def _v2(self, content):
+        path = self.root / "cpu.max"
+        path.write_text(content, encoding="ascii")
+        return patch.object(config, "CGROUP_V2_CPU_MAX", str(path))
+
+    def _v1(self, quota, period):
+        q, p = self.root / "quota", self.root / "period"
+        q.write_text(str(quota), encoding="ascii")
+        p.write_text(str(period), encoding="ascii")
+        return patch.multiple(config, CGROUP_V1_CPU_QUOTA=str(q), CGROUP_V1_CPU_PERIOD=str(p))
+
+    def _missing(self):
+        return patch.multiple(config,
+                              CGROUP_V2_CPU_MAX=str(self.root / "нет"),
+                              CGROUP_V1_CPU_QUOTA=str(self.root / "нет"),
+                              CGROUP_V1_CPU_PERIOD=str(self.root / "нет"))
+
+    def test_quota_from_cgroup_v2(self):
+        with self._v2("400000 100000"):
+            self.assertEqual(config.cgroup_cpu_quota(), 4.0)
+
+    def test_unlimited_cgroup_v2(self):
+        with self._v2("max 100000"), self._v1(-1, 100000):
+            self.assertIsNone(config.cgroup_cpu_quota())
+
+    def test_quota_from_cgroup_v1(self):
+        with self._missing(), self._v1(200000, 100000):
+            self.assertEqual(config.cgroup_cpu_quota(), 2.0)
+
+    def test_no_cgroup_files_means_no_limit(self):
+        with self._missing():
+            self.assertIsNone(config.cgroup_cpu_quota())
+
+    def test_limit_wins_over_host_cores(self):
+        with self._v2("400000 100000"), patch("os.cpu_count", return_value=16):
+            self.assertEqual(config.effective_cpu_count(), 4)
+            self.assertEqual(config.worker_thread_count(), 16)
+
+    def test_host_cores_win_when_limit_is_larger(self):
+        """Квота больше, чем ядер на машине, — не повод считать лишние."""
+        with self._v2("1600000 100000"), patch("os.cpu_count", return_value=4):
+            self.assertEqual(config.effective_cpu_count(), 4)
+
+    def test_fractional_quota_rounds_down(self):
+        with self._v2("250000 100000"), patch("os.cpu_count", return_value=16):
+            self.assertEqual(config.effective_cpu_count(), 2)
+
+    def test_tiny_quota_still_leaves_one_core(self):
+        with self._v2("10000 100000"), patch("os.cpu_count", return_value=16):
+            self.assertEqual(config.effective_cpu_count(), 1)
+            self.assertEqual(config.worker_thread_count(), config.WORKER_THREADS_MIN)
+
+    def test_broken_cgroup_file_is_survived(self):
+        with self._v2("not-a-number"):
+            self.assertIsNone(config.cgroup_cpu_quota())
 
 
 class WorkerThreadCountTest(unittest.TestCase):
