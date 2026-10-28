@@ -124,20 +124,42 @@ def _queue_watch_refresh_conn(conn, product_ids) -> None:
 
 
 def refresh_retired_watches(product_ids: List[str]) -> None:
-    """Наблюдения узнают, что товары сняты (was_available = 0), затем задания удаляются.
+    """Применяет к наблюдениям переход «снят», затем текущее состояние; потом удаляет задания.
 
+    Задание означает «товар был снят» независимо от того, что с ним сейчас (G04): сначала память
+    наблюдений получает was_available = 0 по снимку предложения, принудительно недоступному, — это
+    событий не создаёт. Если товар к этому моменту уже вернулся, следом оценивается его текущее
+    состояние, и наблюдение даёт «снова в продаже» в правильном порядке.
     Ошибка пробрасывается и оставляет задания: их повторит следующий вызов или старт (G03).
-    Повтор безопасен — недоступный товар событий не создаёт, только обновляет память.
+    Доставка — «хотя бы один раз»: сбой между оценкой и удалением задания может повторить
+    уведомление о возврате, но не потерять его.
     """
     ids = [str(pid) for pid in product_ids]
     if not ids:
         return
-    evaluate_watches(watched_offers(ids))
+    offers = watched_offers(ids)
+    if offers:
+        evaluate_watches([dict(o, is_available=0) for o in offers])
+        returned = [o for o in offers if o.get("is_available")]
+        if returned:
+            evaluate_watches(returned)
     with get_connection() as conn:
         for i in range(0, len(ids), 500):
             chunk = ids[i:i + 500]
             conn.execute(f"DELETE FROM watch_refresh WHERE product_id IN ({','.join('?' * len(chunk))})", chunk)
         conn.commit()
+
+
+def watch_refresh_pending(product_ids: List[str]) -> List[str]:
+    """Из этих товаров — те, по которым ещё не применён переход «снят» (G04)."""
+    ids = [str(pid) for pid in product_ids]
+    pending: List[str] = []
+    with get_connection() as conn:
+        for i in range(0, len(ids), 500):
+            chunk = ids[i:i + 500]
+            pending.extend(r[0] for r in conn.execute(
+                f"SELECT product_id FROM watch_refresh WHERE product_id IN ({','.join('?' * len(chunk))})", chunk))
+    return pending
 
 
 def drain_watch_refresh(page: int = 500) -> int:

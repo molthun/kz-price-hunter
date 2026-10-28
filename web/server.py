@@ -1831,7 +1831,12 @@ async def _detect_after_save(prods, history_map, shop_name, candidate_settings, 
                    or not history_map[str(p["id"])].get("was_active", 1)]  # вернулся в продажу (G01)
     if changed_ids:
         try:
-            from database import evaluate_watches, watched_offers
+            from database import evaluate_watches, watched_offers, watch_refresh_pending, refresh_retired_watches
+            # G04: если снятие ещё не применено к наблюдениям (задание отложено сбоем), сначала
+            # применяется оно — иначе возврат прочли бы без промежуточного «нет в продаже»
+            pending = await asyncio.to_thread(watch_refresh_pending, changed_ids)
+            if pending:
+                await asyncio.to_thread(refresh_retired_watches, pending)
             await asyncio.to_thread(lambda: evaluate_watches(watched_offers(changed_ids)))
         except Exception as e:
             print(f"[Watches] Ошибка проверки наблюдений: {type(e).__name__}")

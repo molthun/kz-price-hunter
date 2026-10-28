@@ -216,3 +216,28 @@ class OfferRetirementTest(QueueContractBase):
         time.sleep(0.01)
         await self.scan(["kept", "late"])
         self.assertEqual([e["reason"] for e in self.events()], ["товар снова в продаже"])
+
+    async def test_return_before_deferred_refresh_still_notifies_once(self):
+        """G04: сбой при старте → товар вернулся раньше повтора → повтор; одно «снова в продаже»."""
+        await self.prepare_old_base()
+        with patch.object(database, "evaluate_watches", side_effect=sqlite3.OperationalError("synthetic")):
+            database.init_db()
+        self.assertEqual(self.refresh_jobs("drift"), 1)
+        await self.assert_return_notifies_once()        # возврат до повтора задания
+        self.assertEqual(self.refresh_jobs("drift"), 0, "переход снятия не применён при возврате")
+        database.init_db()                               # повтор заданий: дубля нет
+        self.assertEqual([e["reason"] for e in self.events()], ["товар снова в продаже"])
+
+    async def test_deferred_refresh_after_return_applies_transition_in_order(self):
+        """G04: задание выполняется уже после возврата (возврат без проверки наблюдений) — порядок сохранён."""
+        await self.prepare_old_base()
+        with patch.object(database, "evaluate_watches", side_effect=sqlite3.OperationalError("synthetic")):
+            database.init_db()
+        with database.get_connection() as conn:  # товар снова в каталоге, наблюдения ещё не проверялись
+            conn.execute("UPDATE products SET is_active = 1 WHERE id = ?", (self.pid("drift"),))
+            conn.execute("UPDATE offers SET is_active = 1 WHERE id = ?", (f"off_{self.pid('drift')}",))
+            conn.commit()
+        self.assertEqual(database.drain_watch_refresh(), 1)
+        self.assertEqual([e["reason"] for e in self.events()], ["товар снова в продаже"])
+        self.assertEqual(database.drain_watch_refresh(), 0)
+        self.assertEqual(len(self.events()), 1)
