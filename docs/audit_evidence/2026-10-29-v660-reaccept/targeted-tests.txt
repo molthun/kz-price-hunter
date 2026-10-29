@@ -1,0 +1,206 @@
+test_admin_endpoints (tests.ai.test_local_ai.AdminEndpointsTest.test_admin_endpoints) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[System] 📡 Модуль онлайн-логирования активирован.
+/Users/molthun/Documents/kz-price-hunter/web/server.py:4127: NotAppKeyWarning: It is recommended to use web.AppKey instances for keys.
+https://docs.aiohttp.org/en/stable/web_advanced.html#application-s-config
+  app["stats_cache"] = BoundedTTLCache(maxsize=128, ttl=STATS_CACHE_TTL_SECONDS)
+[Auth] ⚠️ ADMIN_TELEGRAM_IDS не задан — администраторов нет, общие настройки и логи недоступны
+[Auth] ⚠️ TELEGRAM_BOT_TOKEN не задан — вход через Telegram и уведомления отключены
+[System] Пул рабочих потоков: 32 (ядер: 10)
+/Users/molthun/Documents/kz-price-hunter/auth.py:210: NotAppKeyWarning: It is recommended to use web.RequestKey instances for keys.
+https://docs.aiohttp.org/en/stable/web_advanced.html#request-s-storage
+  request["user"] = None
+ok
+test_placeholders (tests.ai.test_local_ai.CanonicalKeyTest.test_placeholders) ... ok
+test_local_only_counts_as_ai_and_validation (tests.ai.test_local_ai.ConfigTest.test_local_only_counts_as_ai_and_validation) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ok
+test_button_off_waits_an_hour_even_without_games (tests.ai.test_local_ai.HostScriptsTest.test_button_off_waits_an_hour_even_without_games) ... ok
+test_buttons_switch_mode_and_model (tests.ai.test_local_ai.HostScriptsTest.test_buttons_switch_mode_and_model) ... ok
+test_game_switches_off_and_resumes_after_an_hour_of_freedom (tests.ai.test_local_ai.HostScriptsTest.test_game_switches_off_and_resumes_after_an_hour_of_freedom) ... ok
+test_load_without_ollama_model_is_foreign (tests.ai.test_local_ai.HostScriptsTest.test_load_without_ollama_model_is_foreign) ... ok
+test_on_without_loaded_model_reloads_it (tests.ai.test_local_ai.HostScriptsTest.test_on_without_loaded_model_reloads_it) ... ok
+test_check_local_model (tests.ai.test_local_ai.LocalCallTest.test_check_local_model) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+/Users/molthun/Documents/kz-price-hunter/venv/lib/python3.14/site-packages/aiohttp/web_urldispatcher.py:193: DeprecationWarning: Bare functions are deprecated, use async ones
+  warnings.warn(
+ok
+test_one_request_at_a_time (tests.ai.test_local_ai.LocalCallTest.test_one_request_at_a_time) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ok
+test_payload_headers_budget_and_errors (tests.ai.test_local_ai.LocalCallTest.test_payload_headers_budget_and_errors) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[AI Service] Локальная модель ответила HTTP 500 (m)
+[AI Service] Локальная модель недоступна (m): ClientConnectorError
+ok
+test_gpu_state_freshness (tests.ai.test_local_ai.ModeTest.test_gpu_state_freshness) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ok
+test_mode_file_drives_pause (tests.ai.test_local_ai.ModeTest.test_mode_file_drives_pause) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ok
+test_explicit_local_choice_does_not_resend (tests.ai.test_local_ai.NormalizeFallbackTest.test_explicit_local_choice_does_not_resend) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ok
+test_misunderstood_titles_go_to_paid (tests.ai.test_local_ai.NormalizeFallbackTest.test_misunderstood_titles_go_to_paid) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ok
+test_waiting_requests_respect_switch_off (tests.ai.test_local_ai.QueuedPauseTest.test_waiting_requests_respect_switch_off) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ok
+test_budget_exhausted_resend_records_no_fake_paid_call (tests.ai.test_local_ai.ResendFallbackUsageTest.test_budget_exhausted_resend_records_no_fake_paid_call) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ok
+test_full_local_has_no_paid_and_no_fallback (tests.ai.test_local_ai.ResendFallbackUsageTest.test_full_local_has_no_paid_and_no_fallback) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ok
+test_partial_local_then_paid_is_one_fallback (tests.ai.test_local_ai.ResendFallbackUsageTest.test_partial_local_then_paid_is_one_fallback) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ok
+test_explicit_choice_has_no_silent_fallback (tests.ai.test_local_ai.RouterLocalTest.test_explicit_choice_has_no_silent_fallback) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ok
+test_local_failure_falls_back_to_paid_even_for_internal_tasks (tests.ai.test_local_ai.RouterLocalTest.test_local_failure_falls_back_to_paid_even_for_internal_tasks) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ok
+test_local_first_for_all_tasks_and_cost_zero (tests.ai.test_local_ai.RouterLocalTest.test_local_first_for_all_tasks_and_cost_zero) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ok
+test_local_misunderstood_answer_goes_to_paid (tests.ai.test_local_ai.RouterLocalTest.test_local_misunderstood_answer_goes_to_paid)
+«Не поняла»: ответ есть, но не прошёл проверку задачи — платная берёт задачу. ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ok
+test_normalize_stays_paid_until_enabled (tests.ai.test_local_ai.RouterLocalTest.test_normalize_stays_paid_until_enabled)
+Решение 29.10.2026: нормализация на локальной — только по включению в админке. ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ok
+test_paid_budget_exhausted_keeps_local (tests.ai.test_local_ai.RouterLocalTest.test_paid_budget_exhausted_keeps_local) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ok
+test_pause_skips_local_without_calling_it (tests.ai.test_local_ai.RouterLocalTest.test_pause_skips_local_without_calling_it) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ok
+test_without_local_nothing_changes (tests.ai.test_local_ai.RouterLocalTest.test_without_local_nothing_changes) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ok
+test_container_down_fails_and_says_result_not_recorded (tests.deploy.test_prod_host_scripts.BackupDeliveryScriptTest.test_container_down_fails_and_says_result_not_recorded) ... ok
+test_failures_record_failed_and_keep_old_copies (tests.deploy.test_prod_host_scripts.BackupDeliveryScriptTest.test_failures_record_failed_and_keep_old_copies) ... ok
+test_healthy_delivery_verifies_target_and_records_ok (tests.deploy.test_prod_host_scripts.BackupDeliveryScriptTest.test_healthy_delivery_verifies_target_and_records_ok) ... ok
+test_same_device_stops_before_making_a_copy (tests.deploy.test_prod_host_scripts.BackupDeliveryScriptTest.test_same_device_stops_before_making_a_copy) ... ok
+test_failed_or_stale_delivery_degrades_even_with_fresh_local_copy (tests.deploy.test_prod_host_scripts.DeliveryMonitoringTest.test_failed_or_stale_delivery_degrades_even_with_fresh_local_copy) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ok
+test_not_configured_does_not_change_status (tests.deploy.test_prod_host_scripts.DeliveryMonitoringTest.test_not_configured_does_not_change_status) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ok
+test_healthy_remote_runs_quick_check_and_config_check_on_target (tests.deploy.test_prod_host_scripts.RemoteBackupDeliveryTest.test_healthy_remote_runs_quick_check_and_config_check_on_target) ... ok
+test_remote_corrupt_or_unverifiable_target_fails_and_keeps_old_copies (tests.deploy.test_prod_host_scripts.RemoteBackupDeliveryTest.test_remote_corrupt_or_unverifiable_target_fails_and_keeps_old_copies) ... ok
+test_documented_prepare_then_start_flow (tests.deploy.test_prod_host_scripts.RestoreScriptTest.test_documented_prepare_then_start_flow)
+P17ER-01: точная последовательность инструкции — подготовка, отказ при живом старом, запуск. ... ok
+test_failure_after_start_attempt_keeps_live_db (tests.deploy.test_prod_host_scripts.RestoreScriptTest.test_failure_after_start_attempt_keeps_live_db)
+P17ER-03: после попытки запуска — даже неудачной — база считается живой и не заменяется. ... ok
+test_prepared_dir_accepts_fresher_db_before_start (tests.deploy.test_prod_host_scripts.RestoreScriptTest.test_prepared_dir_accepts_fresher_db_before_start) ... ok
+test_real_restore_keeps_config_and_refuses_start_while_old_prod_answers (tests.deploy.test_prod_host_scripts.RestoreScriptTest.test_real_restore_keeps_config_and_refuses_start_while_old_prod_answers) ... ok
+test_refuses_existing_data_and_incomplete_bundle (tests.deploy.test_prod_host_scripts.RestoreScriptTest.test_refuses_existing_data_and_incomplete_bundle) ... ok
+test_rehearsal_prepares_isolated_copy_without_secrets (tests.deploy.test_prod_host_scripts.RestoreScriptTest.test_rehearsal_prepares_isolated_copy_without_secrets) ... ok
+test_requires_exact_config_pair (tests.deploy.test_prod_host_scripts.RestoreScriptTest.test_requires_exact_config_pair) ... ok
+test_any_failure_gives_nonzero_exit (tests.deploy.test_prod_host_scripts.VerifyPublicScriptTest.test_any_failure_gives_nonzero_exit) ... ok
+test_healthy_actual_names_pass (tests.deploy.test_prod_host_scripts.VerifyPublicScriptTest.test_healthy_actual_names_pass) ... ok
+test_wrong_container_names_fail (tests.deploy.test_prod_host_scripts.VerifyPublicScriptTest.test_wrong_container_names_fail) ... ok
+
+----------------------------------------------------------------------
+Ran 45 tests in 23.633s
+
+OK

@@ -1,0 +1,17 @@
+{
+  "observed_at": "2026-10-29T15:21:24.082027+00:00",
+  "problems": [],
+  "queue": {
+    "size": 0,
+    "failures": 0,
+    "redis_active": true,
+    "worker_running": true
+  },
+  "prod_health": "healthy",
+  "version": {
+    "version": "6.5.2",
+    "app_name": "KZ Price Hunter",
+    "release_date": "2026-10-29",
+    "author": "Advanced Agentic Coding"
+  }
+}

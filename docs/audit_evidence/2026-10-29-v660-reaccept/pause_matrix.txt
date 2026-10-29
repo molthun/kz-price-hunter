@@ -1,0 +1,44 @@
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[
+  {
+    "selection": "auto",
+    "paid_budget": true,
+    "queued_outcome": "gemini",
+    "http_before_resume": 1,
+    "paid_calls": 1,
+    "resume": "local"
+  },
+  {
+    "selection": "local",
+    "paid_budget": true,
+    "queued_outcome": "AIUnavailable",
+    "http_before_resume": 1,
+    "paid_calls": 0,
+    "resume": "local"
+  },
+  {
+    "selection": "auto",
+    "paid_budget": false,
+    "queued_outcome": "AIUnavailable",
+    "http_before_resume": 1,
+    "paid_calls": 0,
+    "resume": "local"
+  }
+]
