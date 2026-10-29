@@ -92,8 +92,14 @@ if [ "$remote" = 0 ]; then
     "$name" 2>&1 | tail -1) || true
   [ "$verdict" = "ok" ] || fail "копия на цели не прошла quick_check: ${verdict:-нет ответа}"
 else
+  # На удалённой стороне (NAS: python3 и sqlite есть) — тот же quick_check конечного файла (P17ER-02).
+  # Не удалось выполнить проверку — это сбой: успех без проверки не записывается и старые копии не трогаются
   remote_size=$(ssh -o BatchMode=yes "$remote_host" "stat -c %s '$remote_dir/$name'") || fail "не прочитан размер на цели"
   [ "$remote_size" = "$size" ] || fail "размер на цели не совпадает с копией"
+  verdict=$(ssh -o BatchMode=yes "$remote_host" \
+    "python3 -c 'import sqlite3, sys; c = sqlite3.connect(\"file:\" + sys.argv[1] + \"?immutable=1\", uri=True); print(c.execute(\"PRAGMA quick_check\").fetchone()[0])' '$remote_dir/$name'" \
+    2>&1 | tail -1) || true
+  [ "$verdict" = "ok" ] || fail "копия на цели не прошла quick_check: ${verdict:-проверка на цели не выполнилась}"
 fi
 
 step="конфигурация"
@@ -117,6 +123,9 @@ if [ "$remote" = 0 ]; then
     || fail "набор конфигурации на цели неполный"
 else
   rsync -t --chmod=F600 "$bundle/$config" "$BACKUP_TARGET/" || fail "rsync конфигурации вернул ошибку"
+  members=$(ssh -o BatchMode=yes "$remote_host" "tar -tf '$remote_dir/$config'" | LC_ALL=C sort | tr '\n' ' ') \
+    || fail "набор конфигурации на цели не прочитан"
+  [ "$members" = ".env compose.yaml settings.json " ] || fail "набор конфигурации на цели неполный"
 fi
 rm -rf "$bundle"
 
@@ -134,5 +143,5 @@ docker exec "$CONTAINER" sh -c \
   "ls -1t /app/data/backups/prices-nightly-*.db 2>/dev/null | tail -n +$((KEEP_LOCAL + 1)) | xargs -r rm -f"
 
 trap - ERR
-record ok "база: размер и quick_check на цели сверены; конфигурация $config"
+record ok "база: размер и quick_check на цели сверены; конфигурация ${config}: 3 файла на цели"
 echo "$(date '+%F %T') готово: $name ($((size / 1048576)) МБ) + $config → $BACKUP_TARGET, проверено на цели"

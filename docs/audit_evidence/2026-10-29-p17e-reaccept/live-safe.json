@@ -1,0 +1,46 @@
+{
+  "observed_at": "2026-10-29T11:46:06.337424+00:00",
+  "diag": {
+    "problems": [
+      {
+        "severity": "warning",
+        "code": "error_rate",
+        "problem": "57 ошибок за час, больше всего в «http»",
+        "meaning": "Смотрите errors.last: там последние сообщения с временем и компонентом."
+      }
+    ],
+    "queue": {
+      "size": 0,
+      "failures": 0,
+      "redis_active": true,
+      "worker_running": true
+    }
+  },
+  "version": {
+    "version": "6.5.2",
+    "app_name": "KZ Price Hunter",
+    "release_date": "2026-10-29",
+    "author": "Advanced Agentic Coding"
+  },
+  "script_sha256": {
+    "backup_to_nas.sh": "5a6c38fdb9e103e82bd530c2b7f26b626f4c915569a1a19e560003d0142636a7",
+    "restore_prod.sh": "4b7e4e897e6f34a04cce3bceb2dff8a82a804c936b86e850aa5cc5a7fb81541e",
+    "verify_public.sh": "b2291a31c352223456c1b05dbc140bc93ecb3ee834c2b2c4d35a659bec9185d1"
+  },
+  "config_archives": 1,
+  "latest_bundle": {
+    "filename": "kzph-config-20261029T113550226502Z-dfaf43.tar",
+    "mode": "0o600",
+    "members": [
+      ".env",
+      "compose.yaml",
+      "settings.json"
+    ]
+  },
+  "container_health": "healthy",
+  "installed_scripts_match_checkout": {
+    "backup_to_nas.sh": true,
+    "restore_prod.sh": true,
+    "verify_public.sh": true
+  }
+}

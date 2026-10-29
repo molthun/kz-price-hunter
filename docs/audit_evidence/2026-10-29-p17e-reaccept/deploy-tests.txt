@@ -1,0 +1,29 @@
+test_container_down_fails_and_says_result_not_recorded (tests.deploy.test_prod_host_scripts.BackupDeliveryScriptTest.test_container_down_fails_and_says_result_not_recorded) ... ok
+test_failures_record_failed_and_keep_old_copies (tests.deploy.test_prod_host_scripts.BackupDeliveryScriptTest.test_failures_record_failed_and_keep_old_copies) ... ok
+test_healthy_delivery_verifies_target_and_records_ok (tests.deploy.test_prod_host_scripts.BackupDeliveryScriptTest.test_healthy_delivery_verifies_target_and_records_ok) ... ok
+test_same_device_stops_before_making_a_copy (tests.deploy.test_prod_host_scripts.BackupDeliveryScriptTest.test_same_device_stops_before_making_a_copy) ... ok
+test_failed_or_stale_delivery_degrades_even_with_fresh_local_copy (tests.deploy.test_prod_host_scripts.DeliveryMonitoringTest.test_failed_or_stale_delivery_degrades_even_with_fresh_local_copy) ... ok
+test_not_configured_does_not_change_status (tests.deploy.test_prod_host_scripts.DeliveryMonitoringTest.test_not_configured_does_not_change_status) ... ok
+test_real_restore_keeps_config_and_refuses_start_while_old_prod_answers (tests.deploy.test_prod_host_scripts.RestoreScriptTest.test_real_restore_keeps_config_and_refuses_start_while_old_prod_answers) ... ok
+test_refuses_existing_data_and_incomplete_bundle (tests.deploy.test_prod_host_scripts.RestoreScriptTest.test_refuses_existing_data_and_incomplete_bundle) ... ok
+test_rehearsal_prepares_isolated_copy_without_secrets (tests.deploy.test_prod_host_scripts.RestoreScriptTest.test_rehearsal_prepares_isolated_copy_without_secrets) ... ok
+test_any_failure_gives_nonzero_exit (tests.deploy.test_prod_host_scripts.VerifyPublicScriptTest.test_any_failure_gives_nonzero_exit) ... ok
+test_healthy_actual_names_pass (tests.deploy.test_prod_host_scripts.VerifyPublicScriptTest.test_healthy_actual_names_pass) ... ok
+test_wrong_container_names_fail (tests.deploy.test_prod_host_scripts.VerifyPublicScriptTest.test_wrong_container_names_fail) ... ok
+
+----------------------------------------------------------------------
+Ran 12 tests in 10.162s
+
+OK
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена

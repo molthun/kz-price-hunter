@@ -1,0 +1,13 @@
+{
+  "exit": 0,
+  "target_quick_check_ok": false,
+  "last_delivery_outcome": "ok",
+  "old_backups_remaining": 13,
+  "reported_done": true,
+  "remote_quick_check_called": false
+}
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-29-p17e-reaccept/remote_delivery.py", line 20, in <module>
+    assert r.returncode!=0 and result['last_delivery_outcome']=='failed','Remote delivery accepted corrupted same-size database and recorded success'
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Remote delivery accepted corrupted same-size database and recorded success

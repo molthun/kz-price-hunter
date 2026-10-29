@@ -1,0 +1,16 @@
+test_documented_prepare_then_start (__main__.Audit.test_documented_prepare_then_start) ... {"case": "documented_prepare_then_start", "prepare_exit": 0, "start_exit": 1, "start_stderr": "ОШИБКА: в /var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/tmpjmk0ssyl/restored уже есть data/prices.db — восстановление не перезаписывает данные", "docker_compose_called": false}
+FAIL
+
+======================================================================
+FAIL: test_documented_prepare_then_start (__main__.Audit.test_documented_prepare_then_start)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-29-p17e-reaccept/restore_flow.py", line 27, in test_documented_prepare_then_start
+    self.assertEqual(started.returncode,0,'Documented second step cannot start the prepared restoration')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0 : Documented second step cannot start the prepared restoration
+
+----------------------------------------------------------------------
+Ran 1 test in 0.370s
+
+FAILED (failures=1)

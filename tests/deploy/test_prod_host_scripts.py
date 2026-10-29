@@ -59,9 +59,20 @@ if name == "df":
     print(0 if fault == "no_space" else 10 ** 12)
     sys.exit(0)
 
+if name == "ssh":
+    # Удалённая сторона — тот же временный каталог: команда выполняется здесь, хост отбрасывается
+    cmd = args[-1]
+    if fault == "remote_no_python" and "python3" in cmd:
+        print("sh: python3: not found")
+        sys.exit(127)
+    import subprocess
+    sys.exit(subprocess.call(cmd, shell=True))
+
 if name == "rsync":
     if fault == "rsync_fail":
         sys.exit(23)
+    if ":" in args[-1]:
+        args[-1] = args[-1].split(":", 1)[1]
     src, dst = pathlib.Path(args[-2]), pathlib.Path(args[-1].rstrip("/"))
     target = dst / src.name
     shutil.copyfile(src, target)
@@ -105,6 +116,10 @@ if name == "docker":
         sys.exit(0)
     if args[0] == "logs":
         sys.exit(0)
+    if args[0] == "compose":
+        if "ps" in args:
+            print("kz-price-hunter")
+        sys.exit(0)
     if args[0] == "inspect":
         print("ghcr.io/molthun/kz-price-hunter:latest")
         sys.exit(0)
@@ -134,6 +149,14 @@ if name == "docker":
             sys.exit(0)
         if "/proc/net/tcp" in code:
             print("192.168.28.10")
+            sys.exit(0)
+        if "urllib" in code:
+            path = rest[3] if len(rest) > 3 else ""
+            print(json.dumps({"status": "ok"} if "health" in path else
+                             {"products": [{"id": "p"}]} if "products" in path else {"version": "6.5.3"}))
+            sys.exit(0)
+        if "load_settings" in code:
+            print("3 5 0 1")
             sys.exit(0)
         sys.exit(0)
     if args[0] == "run":
@@ -254,6 +277,49 @@ class BackupDeliveryScriptTest(_ScriptCase):
         self.assertEqual(self.old_copies(), 16)
 
 
+class RemoteBackupDeliveryTest(BackupDeliveryScriptTest):
+    """P17ER-02: цель host:каталог проверяется на удалённой стороне, а не только по размеру."""
+
+    def setUp(self):
+        super().setUp()
+        (self.prod / "backup.conf").write_text(
+            f"CONTAINER=kz-price-hunter\nBACKUP_TARGET=nas:{self.target}\nKEEP_LOCAL=2\nKEEP_REMOTE=14\n")
+        p = self.bin / "ssh"
+        p.write_text(STUB)
+        p.chmod(0o755)
+
+    def ssh_calls(self):
+        return [json.loads(l) for l in (self.root / "calls.jsonl").read_text().splitlines()
+                if json.loads(l)[0] == "ssh"]
+
+    def test_healthy_remote_runs_quick_check_and_config_check_on_target(self):
+        r = self.run_backup()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        cmds = " ".join(c[-1] for c in self.ssh_calls())
+        self.assertIn("quick_check", cmds)
+        self.assertIn("tar -tf", cmds)
+        self.assertEqual(self.deliveries()[-1][0], "ok")
+        self.assertEqual(len(list(self.target.glob("prices-nightly-*.db"))), 14)
+
+    def test_remote_corrupt_or_unverifiable_target_fails_and_keeps_old_copies(self):
+        for fault, marker in (("corrupt", "quick_check"), ("remote_no_python", "quick_check")):
+            with self.subTest(fault=fault):
+                for f in self.target.glob("*abc123*"):
+                    f.unlink()
+                r = self.run_backup(fault)
+                self.assertNotEqual(r.returncode, 0, r.stdout)
+                (last,) = self.deliveries()[-1:]
+                self.assertEqual(last[0], "failed")
+                self.assertIn(marker, last[4])
+                self.assertEqual(self.old_copies(), 16)
+
+    # Локальные отказы уже покрыты родителем; здесь не повторяются
+    test_failures_record_failed_and_keep_old_copies = None
+    test_same_device_stops_before_making_a_copy = None
+    test_healthy_delivery_verifies_target_and_records_ok = None
+    test_container_down_fails_and_says_result_not_recorded = None
+
+
 class VerifyPublicScriptTest(_ScriptCase):
     def run_verify(self, fault="", **env):
         return self.run_script(DEPLOY / "verify_public.sh", fault=fault, env=env)
@@ -330,6 +396,60 @@ class RestoreScriptTest(_ScriptCase):
         self.assertIn("prod-token", (to / ".env").read_text())  # настоящий прод — со своим ботом
         calls = (self.root / "calls.jsonl").read_text()
         self.assertNotIn('"compose"', calls, "контейнер запущен при живом старом проде")
+
+    def compose_calls(self):
+        path = self.root / "calls.jsonl"
+        return [c for c in (json.loads(l) for l in path.read_text().splitlines())
+                if c[0] == "docker" and c[1] == "compose" and "up" in c] if path.exists() else []
+
+    def test_documented_prepare_then_start_flow(self):
+        """P17ER-01: точная последовательность инструкции — подготовка, отказ при живом старом, запуск."""
+        to = self.root / "prod-new"
+        r = self.restore("--to", str(to))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("state=prepared", (to / ".restore-state").read_text())
+        self.assertEqual(self.compose_calls(), [], "подготовка не должна запускать прод")
+        prepared = (to / "data" / "prices.db").read_bytes()
+        r = self.restore("--to", str(to), "--start", fault="old_alive")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("старый прод", r.stderr)
+        self.assertEqual(self.compose_calls(), [])
+        self.assertEqual((to / "data" / "prices.db").read_bytes(), prepared, "подготовленная база тронута")
+        r = self.restore("--to", str(to), "--start")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(len(self.compose_calls()), 1)
+        self.assertIn("state=started", (to / ".restore-state").read_text())
+        # После запуска база живая: повторная подготовка в этот каталог запрещена
+        r = self.restore("--to", str(to), "--db", str(self.db))
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("уже запускался", r.stderr)
+
+    def test_prepared_dir_accepts_fresher_db_before_start(self):
+        to = self.root / "prod-new"
+        self.assertEqual(self.restore("--to", str(to)).returncode, 0)
+        fresh = self.root / "manual-fresh.db"
+        c = sqlite3.connect(fresh)
+        c.execute("CREATE TABLE products (id TEXT)")
+        c.execute("CREATE TABLE fresh_marker (x)")
+        c.commit()
+        c.close()
+        r = self.restore("--to", str(to), "--db", str(fresh))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        c = sqlite3.connect(to / "data" / "prices.db")
+        self.assertTrue(c.execute("SELECT 1 FROM sqlite_master WHERE name = 'fresh_marker'").fetchone())
+        c.close()
+        self.assertIn("prod-token", (to / ".env").read_text(), "конфигурация подготовки сохранена")
+        self.assertIn(f"db={fresh}", (to / ".restore-state").read_text())
+
+    def test_requires_exact_config_pair(self):
+        lone = self.backups / "prices-nightly-21000101T000000000000Z-zzz999.db"
+        shutil.copy(self.db, lone)
+        os.utime(lone, (4_200_000_000, 4_200_000_000))
+        r = self.restore("--to", str(self.root / "x"))
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("нет парного набора", r.stderr)
+        r = self.restore("--to", str(self.root / "y"), "--config", str(self.config))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
     def test_refuses_existing_data_and_incomplete_bundle(self):
         to = self.root / "restore"
