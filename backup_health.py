@@ -317,7 +317,7 @@ def retention_policy() -> List[Dict[str, Any]]:
     return [
         {"data": "Диагностика HTTP (выборки задержек)", "table": "telemetry_http_samples",
          "days": telemetry.RETENTION_DAYS["samples"],
-         "why": "нужна для разбора свежих сбоев, дальше только агрегаты"},
+         "why": "нужна для разбора свежих сбоев, дальше только агрегаты; с 6.5.2 выборка хранится в самом агрегате, тот же срок"},
         {"data": "События телеметрии", "table": "telemetry_events", "days": telemetry.RETENTION_DAYS["events"],
          "why": "месяц истории покрывает разбор инцидентов"},
         {"data": "Часовые агрегаты HTTP", "table": "telemetry_http_aggregates",

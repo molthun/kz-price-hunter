@@ -525,7 +525,9 @@ def system_section(now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
                   for t in ("products", "telemetry_events", "source_scans", "notification_outbox")}
         active = conn.execute("SELECT COUNT(*) FROM products WHERE is_active = 1").fetchone()[0]
     path = str(database.DB_PATH)
-    size = sum(os.path.getsize(p) for p in (path, path + "-wal") if os.path.exists(p))
+    db_bytes = os.path.getsize(path) if os.path.exists(path) else 0
+    wal_bytes = os.path.getsize(path + "-wal") if os.path.exists(path + "-wal") else 0
+    size = db_bytes + wal_bytes
     thread = getattr(telemetry, "_thread", None)
     flusher_alive = bool(thread and thread.is_alive())
     failed = telemetry.stats.get("failed_flushes", 0)
@@ -536,6 +538,12 @@ def system_section(now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
         status, reason = DEGRADED, f"Системных ошибок за 24 ч: {len(errors)}"
     else:
         status, reason = HEALTHY, "Системных ошибок за 24 ч нет"
+    if wal_bytes > database.WAL_WARN_BYTES:
+        # Разросшийся WAL — признак, что сброс журнала не успевает: читатели держат старые снимки
+        # или запись идёт непрерывно. На HDD он замедляет и чтение, и проверки готовности (6.5.2)
+        wal_reason = (f"Журнал WAL {wal_bytes / 1048576:.0f} МБ больше порога "
+                      f"{database.WAL_WARN_BYTES / 1048576:.0f} МБ")
+        status, reason = DEGRADED, (wal_reason if status == HEALTHY else f"{reason}; {wal_reason}")
     import environment as env
     git_sha = env.git_sha()
     uptime_sec = round(env.uptime_seconds())
@@ -543,7 +551,8 @@ def system_section(now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
     return {"status": status, "reason": reason, "version": version.__version__,
             "git_sha": git_sha, "uptime_seconds": uptime_sec,
             "schema_version": schema[0] if schema else None, "python": sys.version.split()[0],
-            "sqlite": _sqlite.sqlite_version, "db_size_bytes": size, "counts": {**counts, "active_products": active},
+            "sqlite": _sqlite.sqlite_version, "db_size_bytes": size, "db_file_bytes": db_bytes, "wal_bytes": wal_bytes,
+            "wal_warn_bytes": database.WAL_WARN_BYTES, "counts": {**counts, "active_products": active},
             "telemetry": {**telemetry.stats, "flusher_alive": flusher_alive}, "errors_24h": len(errors),
             "recent_errors": [{"timestamp": e["timestamp"], "component": e["component"],
                                "where": e["data"].get("where"), "error": e["data"].get("error"),

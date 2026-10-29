@@ -226,8 +226,11 @@ class HttpAggregationTest(TelemetryDbCase):
                 if i % 97 == 0:
                     self.t.flush()
             self.t.flush()
-        n = self.rows("SELECT COUNT(*) AS n FROM telemetry_http_samples WHERE bucket_type='hour' AND host='r.example'")
+        # Выборка — одна JSON-строка в агрегате (6.5.2), а не строка на значение
+        n = self.rows("SELECT json_array_length(latency_samples) AS n FROM telemetry_http_aggregates "
+                      "WHERE bucket_type='hour' AND host='r.example'")
         self.assertEqual(n[0]["n"], 50)
+        self.assertEqual(self.rows("SELECT COUNT(*) AS n FROM telemetry_http_samples")[0]["n"], 0)
         (a,) = self.agg("hour", "r.example")
         self.assertEqual(a["total_requests"], 400)
         self.assertGreater(a["latency_p95_ms"], 50.0)

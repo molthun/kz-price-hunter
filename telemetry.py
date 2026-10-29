@@ -636,6 +636,7 @@ class TelemetryService:
         conn.row_factory = sqlite3.Row
         conn.execute(f"PRAGMA busy_timeout = {int(DB_BUSY_TIMEOUT_SECONDS * 1000)}")
         conn.execute("PRAGMA synchronous = NORMAL")
+        conn.execute(f"PRAGMA journal_size_limit = {database.WAL_SIZE_LIMIT_BYTES}")
         return conn
 
     def flush(self) -> bool:
@@ -691,7 +692,8 @@ class TelemetryService:
     def _flush_aggregate(self, conn, key: tuple, agg: _PendingAggregate) -> None:
         where = "bucket_type = ? AND bucket_start = ? AND host = ? AND shop = ?"
         row = conn.execute(
-            f"SELECT total_requests, status_codes FROM telemetry_http_aggregates WHERE {where}", key).fetchone()
+            f"SELECT total_requests, status_codes, latency_samples FROM telemetry_http_aggregates WHERE {where}",
+            key).fetchone()
         stored_total = row[0] if row else 0
         codes: Dict[str, int] = {}
         if row and row[1]:
@@ -703,22 +705,15 @@ class TelemetryService:
             codes[code] = codes.get(code, 0) + n
 
         p95 = None
+        samples_json = None
         if agg.latencies:
-            # Слияние равномерной выборки из БД (stored_total запросов) и окна (agg.total), A03
-            # Выборка читается и пишется одним оператором (json_group_array / json_each), а не шагом
-            # на значение: до 500 значений на ключ — до тысячи возвратов GIL под блокировкой (6.5.1).
-            # Через JSON задержка сохраняет 15 значащих цифр — для миллисекунд с запасом.
-            stored = json.loads(conn.execute(
-                f"SELECT json_group_array(latency_ms) FROM telemetry_http_samples WHERE {where}",
-                key).fetchone()[0] or "[]")
+            # Выборка хранится одной JSON-строкой в самом агрегате (6.5.2). Прежде она лежала строкой
+            # на значение в telemetry_http_samples и на каждом сбросе (раз в 10 с, на каждый хост и
+            # бакет) удалялась и вставлялась заново — до 500 строк с индексом: на проде таблица дошла
+            # до rowid 609 млн и была главным писателем проекта на HDD NAS. Теперь — одна строка.
+            stored = self._stored_samples(conn, key, where, row)
             merged = merge_reservoirs(stored, stored_total, agg.latencies, agg.total, MAX_SAMPLES_PER_BUCKET)
-            conn.execute(f"DELETE FROM telemetry_http_samples WHERE {where}", key)
-            if merged:
-                conn.execute(
-                    "INSERT INTO telemetry_http_samples(bucket_type, bucket_start, host, shop, latency_ms) "
-                    "SELECT ?, ?, ?, ?, value FROM json_each(?)",
-                    (*key, json.dumps(list(merged))),
-                )
+            samples_json = json.dumps([round(float(v), 2) for v in merged])
             p95 = calculate_p95(merged)
 
         conn.execute(
@@ -726,8 +721,8 @@ class TelemetryService:
                 bucket_type, bucket_start, host, shop, total_requests,
                 status_2xx, status_3xx, status_4xx, status_5xx, status_429,
                 timeouts, connection_errors, errors, cooldown_rejections, retry_after_max_s,
-                bytes_total, latency_sum_ms, latency_p95_ms, status_codes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, 0), ?)
+                bytes_total, latency_sum_ms, latency_p95_ms, status_codes, latency_samples
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, 0), ?, ?)
             ON CONFLICT(bucket_type, bucket_start, host, shop) DO UPDATE SET
                 total_requests = total_requests + excluded.total_requests,
                 status_2xx = status_2xx + excluded.status_2xx,
@@ -746,11 +741,28 @@ class TelemetryService:
                 bytes_total = bytes_total + excluded.bytes_total,
                 latency_sum_ms = latency_sum_ms + excluded.latency_sum_ms,
                 latency_p95_ms = COALESCE(?, latency_p95_ms),
-                status_codes = excluded.status_codes""",
+                status_codes = excluded.status_codes,
+                latency_samples = COALESCE(excluded.latency_samples, latency_samples)""",
             (*key, agg.total, agg.s2xx, agg.s3xx, agg.s4xx, agg.s5xx, agg.s429,
              agg.timeouts, agg.conn_errors, agg.errors, agg.cooldown, agg.retry_after_max,
-             agg.bytes, agg.latency_sum, p95, json.dumps(codes, sort_keys=True), p95),
+             agg.bytes, agg.latency_sum, p95, json.dumps(codes, sort_keys=True), samples_json, p95),
         )
+
+    @staticmethod
+    def _stored_samples(conn, key: tuple, where: str, row) -> List[float]:
+        """Сохранённая выборка ключа. Ключ, записанный до 6.5.2, переносится из telemetry_http_samples
+        один раз: строки читаются одним запросом и удаляются, дальше выборка живёт в агрегате."""
+        if row is not None and row[2]:
+            try:
+                return [float(v) for v in json.loads(row[2])]
+            except (TypeError, ValueError):
+                return []
+        legacy = json.loads(conn.execute(
+            f"SELECT json_group_array(latency_ms) FROM telemetry_http_samples WHERE {where}",
+            key).fetchone()[0] or "[]")
+        if legacy:
+            conn.execute(f"DELETE FROM telemetry_http_samples WHERE {where}", key)
+        return legacy
 
     # ------------------------------------------------------------------ фоновый поток
 
@@ -891,9 +903,14 @@ class TelemetryService:
                         (cutoff("events", _EVENT_TS_FORMAT),)).rowcount
                     samples = 0
                     for bucket_type, fmt in BUCKET_FORMATS.items():
-                        # Выборки нужны только для пересчёта p95 открытых бакетов; сам p95 остаётся в агрегате
+                        # Выборки нужны только для пересчёта p95 открытых бакетов; сам p95 остаётся в агрегате.
+                        # Строки до 6.5.2 удаляются, выборка в агрегате обнуляется — тот же срок хранения
                         samples += conn.execute(
                             "DELETE FROM telemetry_http_samples WHERE bucket_type = ? AND bucket_start < ?",
+                            (bucket_type, cutoff("samples", fmt))).rowcount
+                        samples += conn.execute(
+                            "UPDATE telemetry_http_aggregates SET latency_samples = NULL "
+                            "WHERE bucket_type = ? AND bucket_start < ? AND latency_samples IS NOT NULL",
                             (bucket_type, cutoff("samples", fmt))).rowcount
                         deleted[bucket_type] = conn.execute(
                             "DELETE FROM telemetry_http_aggregates WHERE bucket_type = ? AND bucket_start < ?",

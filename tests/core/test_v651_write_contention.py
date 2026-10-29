@@ -190,6 +190,7 @@ class StatementCountTest(_DbCase):
         with patch.object(database.ClosingConnection, "_run_tracked", counting):
             with database.get_connection() as conn:
                 conn.execute("BEGIN IMMEDIATE")
+                calls.clear()  # считаются вызовы под блокировкой, а не PRAGMA открытия соединения
                 database._save_products_chunk(conn, chunk, now, seq)
                 conn.commit()
         self.assertNotIn("executemany", calls, "executemany шагает по строке — GIL отпускается на каждой")
@@ -316,8 +317,8 @@ class TelemetryFlushStatementsTest(_DbCase):
             self.assertLess(len(calls), 40)
         with database.get_connection() as conn:
             events = conn.execute("SELECT count(*) FROM telemetry_events WHERE type = 'audit_651'").fetchone()[0]
-            samples = conn.execute("SELECT latency_ms FROM telemetry_http_samples WHERE host = 'example.kz' "
-                                   "ORDER BY rowid LIMIT 3").fetchall()
+            samples = conn.execute("SELECT value FROM telemetry_http_aggregates, json_each(latency_samples) "
+                                   "WHERE host = 'example.kz' LIMIT 3").fetchall()
             total = conn.execute("SELECT max(total_requests) FROM telemetry_http_aggregates "
                                  "WHERE host = 'example.kz'").fetchone()[0]
         self.assertEqual(events, 120)

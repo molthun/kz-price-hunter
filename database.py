@@ -837,6 +837,11 @@ def ensure_journal_mode() -> str:
         conn.close()
 
 
+# Предел WAL после сброса и порог предупреждения мониторинга (6.5.2)
+WAL_SIZE_LIMIT_BYTES = 64 * 1024 * 1024
+WAL_WARN_BYTES = 256 * 1024 * 1024
+
+
 def get_connection():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH, timeout=15, factory=ClosingConnection)
@@ -850,6 +855,10 @@ def get_connection():
     # коммите: на дисках NAS это дороже и дольше держит блокировки. Прагма блокировки не
     # требует (при держащем писателе выполняется мгновенно), поэтому C-DB-01 она не возвращает.
     conn.execute("PRAGMA synchronous = NORMAL;")
+    # Сколько WAL оставлять на диске после его сброса (6.5.2). Без предела файл не уменьшается:
+    # на проде он дорос до 561 МБ при базе 2,2 ГБ, и каждая проверка и чтение шли по нему.
+    # Настройка соединения, как synchronous; блокировки не требует.
+    conn.execute(f"PRAGMA journal_size_limit = {WAL_SIZE_LIMIT_BYTES};")
     return conn
 
 def _columns(cursor, table: str) -> set:
@@ -1211,6 +1220,8 @@ def _create_schema(cursor) -> None:
     """)
     # Распределение кодов ответа {"200": n, "403": n, "timeout": n, "cooldown": n} (A05)
     _add_column(cursor, "telemetry_http_aggregates", "status_codes", "TEXT")
+    # Выборка задержек бакета одной JSON-строкой (6.5.2) вместо строки на значение в telemetry_http_samples
+    _add_column(cursor, "telemetry_http_aggregates", "latency_samples", "TEXT")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_telemetry_http_agg_bucket ON telemetry_http_aggregates(bucket_type, bucket_start)")
 
     cursor.execute("""
@@ -4568,7 +4579,9 @@ def backup_checks(limit: int = 10) -> List[Dict[str, Any]]:
 def retention_usage() -> List[Dict[str, Any]]:
     """Сколько строк сейчас занимает каждый вид данных и насколько старые есть записи."""
     plan = [
-        ("Диагностика HTTP (выборки)", "telemetry_http_samples", "created_at", "epoch"),
+        # С 6.5.2 выборки живут в telemetry_http_aggregates.latency_samples; здесь — строки до 6.5.2,
+        # которые переносятся при сбросе своего ключа или удаляются очисткой через 7 дней
+        ("Диагностика HTTP (выборки до 6.5.2)", "telemetry_http_samples", "created_at", "epoch"),
         ("События телеметрии", "telemetry_events", "timestamp", "text"),
         ("Агрегаты HTTP", "telemetry_http_aggregates", "bucket_start", "text"),
         ("История качества обходов", "source_scans", "finished_at", "text"),

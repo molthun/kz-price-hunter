@@ -290,6 +290,8 @@
         ['Схема БД', esc(s.schema_version)],
         ['Python / SQLite', `${esc(s.python)} / ${esc(s.sqlite)}`],
         ['Размер БД', num(Math.round((s.db_size_bytes || 0) / 1048576)) + ' МБ'],
+        ['Из них журнал WAL', num(Math.round((s.wal_bytes || 0) / 1048576)) + ' МБ' +
+          ((s.wal_bytes || 0) > (s.wal_warn_bytes || Infinity) ? ' — больше порога' : '')],
         ['Товаров (активных)', `${num(s.counts.products)} (${num(s.counts.active_products)})`],
         ['События телеметрии', num(s.counts.telemetry_events)],
         ['Сброс телеметрии', `${t.flusher_alive ? 'работает' : 'не запущен'} · неудач ${num(t.failed_flushes)} · отброшено событий ${num(t.dropped_events)}`]]) +
