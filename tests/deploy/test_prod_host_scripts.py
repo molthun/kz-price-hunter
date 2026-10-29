@@ -117,6 +117,8 @@ if name == "docker":
     if args[0] == "logs":
         sys.exit(0)
     if args[0] == "compose":
+        if "up" in args and fault == "compose_fail":
+            sys.exit(1)
         if "ps" in args:
             print("kz-price-hunter")
         sys.exit(0)
@@ -156,7 +158,10 @@ if name == "docker":
                              {"products": [{"id": "p"}]} if "products" in path else {"version": "6.5.3"}))
             sys.exit(0)
         if "load_settings" in code:
-            print("3 5 0 1")
+            if fault == "counts_mismatch":
+                print("0 0 0 1")
+            else:
+                print("3 5 0 1")
             sys.exit(0)
         sys.exit(0)
     if args[0] == "run":
@@ -423,6 +428,34 @@ class RestoreScriptTest(_ScriptCase):
         r = self.restore("--to", str(to), "--db", str(self.db))
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("уже запускался", r.stderr)
+
+    def test_failure_after_start_attempt_keeps_live_db(self):
+        """P17ER-03: после попытки запуска — даже неудачной — база считается живой и не заменяется."""
+        fresh = self.root / "other.db"
+        shutil.copy(self.db, fresh)
+        for fault in ("counts_mismatch", "compose_fail"):
+            with self.subTest(fault=fault):
+                to = self.root / f"prod-{fault}"
+                self.assertEqual(self.restore("--to", str(to)).returncode, 0)
+                r = self.restore("--to", str(to), "--start", fault=fault)
+                self.assertNotEqual(r.returncode, 0)
+                self.assertIn("state=starting", (to / ".restore-state").read_text())
+                # Приложение успело записать новые данные в восстановленную базу
+                c = sqlite3.connect(to / "data" / "prices.db")
+                c.execute("CREATE TABLE runtime_data (x)")
+                c.execute("INSERT INTO runtime_data VALUES ('после запуска')")
+                c.commit()
+                c.close()
+                r = self.restore("--to", str(to), "--db", str(fresh))
+                self.assertNotEqual(r.returncode, 0)
+                self.assertIn("уже запускался", r.stderr)
+                c = sqlite3.connect(to / "data" / "prices.db")
+                self.assertEqual(c.execute("SELECT x FROM runtime_data").fetchall(), [("после запуска",)])
+                c.close()
+                # Повторный запуск без замены данных разрешён
+                r = self.restore("--to", str(to), "--start")
+                self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+                self.assertIn("state=started", (to / ".restore-state").read_text())
 
     def test_prepared_dir_accepts_fresher_db_before_start(self):
         to = self.root / "prod-new"

@@ -9,6 +9,7 @@
 #   ./restore_prod.sh --to ~/kzph-prod-new --start              # 2) запустить подготовленное — только если
 #                                                               #    старый прод (--old-url) не отвечает
 # Подготовленный каталог отмечается .restore-state; запуск берёт именно его без повторного копирования.
+# Состояния: prepared (базу ещё можно заменить) → starting (запуск пытались, замена запрещена) → started.
 #
 # Параметры: --from КАТАЛОГ (по умолчанию /srv/storage/kzph-backups), --db ФАЙЛ и --config ФАЙЛ (по
 # умолчанию самая свежая копия и её парный набор той же метки; без пары — только явный --config), --old-url (старый прод, который обязан молчать перед
@@ -63,18 +64,27 @@ if [ -f "$STATE" ]; then
   [ "$st_rehearsal" = "$REHEARSAL" ] || die "каталог $TO подготовлен в другом режиме (rehearsal=$st_rehearsal)"
 fi
 prepare=1
-if [ "$st_state" = "started" ]; then
-  [ -z "$DB$CONFIG" ] || die "экземпляр в $TO уже запускался — его база живая, повторная подготовка запрещена"
-  prepare=0
-elif [ "$st_state" = "prepared" ]; then
-  [ -n "$DB$CONFIG" ] || prepare=0
-elif [ -e "$TO/data/prices.db" ]; then
-  die "в $TO уже есть data/prices.db без отметки подготовки — это чужая база, восстановление её не перезаписывает"
-fi
+case "$st_state" in
+  starting|started)
+    # starting — запуск уже пытались: контейнер мог стартовать и писать в базу, даже если проверки потом
+    # не прошли или shell прервали (P17ER-03). Такая база считается живой: только повторный --start.
+    [ -z "$DB$CONFIG" ] || die "экземпляр в $TO уже запускался ($st_state) — его база могла стать живой, повторная подготовка запрещена"
+    prepare=0 ;;
+  prepared)
+    [ -n "$DB$CONFIG" ] || prepare=0 ;;
+  "")
+    [ -e "$TO/data/prices.db" ] && \
+      die "в $TO уже есть data/prices.db без отметки подготовки — это чужая база, восстановление её не перезаписывает" ;;
+  *)
+    die "неизвестное состояние каталога $TO: $st_state" ;;
+esac
 
-write_state() {  # write_state prepared|started
+write_state() {  # write_state prepared|starting|started — атомарно и на диск: прерванный скрипт не оставит полфайла
   (umask 077 && printf 'state=%s\nrehearsal=%s\ndb=%s\nconfig=%s\nn_products=%s\nn_observations=%s\nn_watches=%s\n' \
-    "$1" "$REHEARSAL" "$st_db" "$st_config" "$n_products" "$n_observations" "$n_watches" > "$STATE")
+    "$1" "$REHEARSAL" "$st_db" "$st_config" "$n_products" "$n_observations" "$n_watches" > "$STATE.tmp")
+  sync "$STATE.tmp" 2>/dev/null || sync
+  mv -f "$STATE.tmp" "$STATE"
+  sync "$TO" 2>/dev/null || sync
 }
 
 rehearsalize() {  # изолировать развёрнутую конфигурацию репетиции
@@ -194,6 +204,8 @@ if [ "$REHEARSAL" = 0 ]; then
     die "старый прод ($OLD_URL) ещё отвечает — сначала остановите его и запретите автозапуск (restart=no)"
   fi
 fi
+# Отметка «запуск пытались» — ДО compose up: с этой секунды база может стать живой (P17ER-03)
+write_state starting
 "${compose[@]}" up -d
 [ -n "$container" ] || container=$("${compose[@]}" ps --format '{{.Name}}' | grep -v -i watchtower | head -1)
 

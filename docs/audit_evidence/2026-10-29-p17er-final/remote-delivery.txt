@@ -1,0 +1,8 @@
+{
+  "exit": 1,
+  "target_quick_check_ok": false,
+  "last_delivery_outcome": "failed",
+  "old_backups_remaining": 16,
+  "reported_done": false,
+  "remote_quick_check_called": false
+}

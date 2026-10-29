@@ -1,0 +1,13 @@
+{
+  "start_exit": 1,
+  "compose_up_ran": true,
+  "state_after_poststart_failure": "state=prepared",
+  "replacement_exit": 0,
+  "runtime_data_preserved": false,
+  "app_was_stopped": false
+}
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-29-p17er-final/late_start_failure.py", line 24, in <module>
+    assert retry.returncode!=0 and kept,'Post-start failure leaves prepared state and permits replacing a database already used by the app'
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Post-start failure leaves prepared state and permits replacing a database already used by the app

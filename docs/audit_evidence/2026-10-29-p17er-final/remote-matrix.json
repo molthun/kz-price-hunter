@@ -1,0 +1,23 @@
+[
+  {
+    "fault": "healthy",
+    "exit": 0,
+    "outcome": "ok",
+    "old_copies": 13,
+    "remote_quick_check_invoked": true
+  },
+  {
+    "fault": "corrupt",
+    "exit": 1,
+    "outcome": "failed",
+    "old_copies": 16,
+    "remote_quick_check_invoked": true
+  },
+  {
+    "fault": "remote_no_python",
+    "exit": 1,
+    "outcome": "failed",
+    "old_copies": 16,
+    "remote_quick_check_invoked": true
+  }
+]

@@ -1,0 +1,7 @@
+test_documented_prepare_then_start (__main__.Audit.test_documented_prepare_then_start) ... {"case": "documented_prepare_then_start", "prepare_exit": 0, "start_exit": 0, "start_stderr": "", "docker_compose_called": true}
+ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.741s
+
+OK

@@ -1,0 +1,36 @@
+{
+  "observed_at": "2026-10-29T14:40:35.928371+00:00",
+  "diag": {
+    "problems": [
+      {
+        "severity": "warning",
+        "code": "error_rate",
+        "problem": "26 ошибок за час, больше всего в «http»",
+        "meaning": "Смотрите errors.last: там последние сообщения с временем и компонентом."
+      }
+    ],
+    "queue": {
+      "size": 0,
+      "failures": 0,
+      "redis_active": true,
+      "worker_running": true
+    }
+  },
+  "version": {
+    "version": "6.5.2",
+    "app_name": "KZ Price Hunter",
+    "release_date": "2026-10-29",
+    "author": "Advanced Agentic Coding"
+  },
+  "healthy": "healthy",
+  "script_sha256": {
+    "restore_prod.sh": "6fe55229f062acfe386100f5bc4b8e77d5f2ca5c087670452877cbfb798b2fb3",
+    "backup_to_nas.sh": "c6dad6a5d5d12ebecde0f1ad1671c23790a3e2e7293a315c0ef44b3d26e07861",
+    "verify_public.sh": "b2291a31c352223456c1b05dbc140bc93ecb3ee834c2b2c4d35a659bec9185d1"
+  },
+  "scripts_match_653_snapshot": {
+    "restore_prod.sh": true,
+    "backup_to_nas.sh": true,
+    "verify_public.sh": true
+  }
+}
