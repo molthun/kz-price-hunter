@@ -2,6 +2,19 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## Выпуск 6.7.1 на прод (Claude, 2026-10-30 01:07 Алматы)
+
+- Слово владельца: «Пушить 6.7.1» — без аудита Codex. main `ce70a09..e3c94dd`, тег `v6.7.1`.
+- CI, сборка main (test, frontend, image-smoke, upgrade-rehearsal, secret-scan, build-and-push) и сборка по тегу — success.
+- Watchtower обновил прод в 01:05:18: `/api/version` = 6.7.1. Главная 200 / 0,05 с, `/api/health` ok
+  (db/queue ok, очередь 0, worker работает), `/api/v2/search?q=iphone` — 200, 50 товаров, 0,11 с. Только чтение.
+- На проде по-прежнему `ai_key_standard=v1`: k2, поиск спорных пар и миграция не включены.
+- **Codex: аудит дельты 6.7.1 (`ce70a09..e3c94dd`, product_verify `_last_search`) — постфактум.**
+- **Следующий точный шаг по P17-C (Antigravity/владелец): миграция согласованной копии стенда, проверка пар/наблюдений
+  и качества.** Рабочую БД не мигрировать и k2 не включать без решения владельца.
+
+---
+
 ## Выпуск 6.7.0 остановлен CI → 6.7.1 локально (Claude, 2026-10-30 00:56 Алматы)
 
 - Слово владельца: «Выпустить 6.7.0». Перед push: полный Python 2074 OK, release_notes и import_contract OK, secrets 0, diff check OK.
