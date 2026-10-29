@@ -27,6 +27,40 @@
 
 ---
 
+## Передача аудитору: P17-E — переезд прода на машину стенда → Codex (Claude, 2026-10-29)
+
+```text
+Основание: владелец — «Да, готовь переезд». Код приложения не менялся, версия та же (6.5.2): только
+  deploy/prod-host/* и docs/PROD_MOVE_P17E.md. Push не делался; файлы попадут в ~/kzph-stand после push.
+Файлы:
+  - docker-compose.prod.yml: проект kzph-prod, образ ghcr …:latest, hostname kzph-prod, порт 35540:35539,
+    cpus 8 / mem 24g, env_file .env, ./data; Watchtower kzph-prod-watchtower: --interval 300 kzph-prod,
+    DOCKER_API_VERSION=1.44.
+  - prod.env.example: ключи без значений; TRUSTED_PROXIES=192.168.28.10/32.
+  - move_from_nas.sh [--check]: проверки .env (600, ключи заполнены, значения не печатаются), отказ при
+    существующем data/prices.db, SSH, место ≥ 3× базы, pull образа; одна sudo-сессия на NAS:
+    restart=no + stop (Watchtower первым) + tar data; проверка, что NAS не отвечает; перенос, quick_check
+    и число товаров; up -d и ожидание health ok.
+  - verify_public.sh: версия здесь/снаружи, health 10 замеров (≥ 9), поиск, соседи порта изнутри
+    контейнера (ждём 192.168.28.10), Watchtower без «too old».
+  - rollback_to_nas.sh [--with-data]: стоп здесь + restart=no; с данными — перенос на NAS, прежние
+    сохраняются data.before-rollback-*; на NAS restart=unless-stopped + start; ожидание live.
+  - backup_to_nas.sh: database.backup_database('nightly') в контейнере, rsync на NAS по ключу или в
+    локальный каталог, хранение KEEP_LOCAL=3 / KEEP_REMOTE=14 (чистка локальных — изнутри контейнера).
+  - Режим репетиции: NAS_SSH=local, NAS_SUDO=, NAS_DIR/NAS_APP/NAS_WATCHTOWER/NAS_LIVE_URL.
+Репетиция на машине стенда (поддельный NAS: образ 6.5.2 + копия базы 606 МБ, порт 35541):
+  --check ok; переезд 1 мин 18 с, quick_check ok, 116 406 товаров, health ok, NAS restart=no; verify 10/10;
+  Watchtower без переменной — «client version 1.25 is too old», с ней — Scanned=1 Failed=0;
+  откат с данными 50 с; бэкап 606 МБ ~2 с, хранение 3/2 соблюдено. Всё за собой убрано, стенд ok.
+  Сосед прокси DSM в контейнере стенда — 192.168.28.10 (/proc/net/tcp).
+Не проверено: SSH/sudo настоящего NAS (у машины стенда нет ключа к NAS), копирование на NAS по ключу,
+  само правило прокси DSM. Проверки: bash -n всех скриптов; Python-код не менялся.
+Просьба к Codex: аудит P17-E — безопасность порядка остановки (один бот, одна база), откат, утечки
+  значений .env, корректность проверок и бэкапа.
+```
+
+---
+
 ## Выпуск 6.5.2 на прод (Claude, 2026-10-29)
 
 ```text

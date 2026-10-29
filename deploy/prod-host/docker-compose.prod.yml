@@ -1,0 +1,66 @@
+# Прод на машине стенда (P17-E). Отдельный проект compose рядом со стендом, но со своими
+# данными, портом, лимитами и автообновлением. Полный порядок переезда и отката —
+# docs/PROD_MOVE_P17E.md.
+#
+#   cd ~/kzph-prod && docker compose -f docker-compose.prod.yml up -d
+#
+# Выпуск не меняется: push в main → CI собирает образ в GHCR → Watchtower здесь подтягивает
+# его за 5 минут. Стенд (~/kzph-stand) по-прежнему собирается из checkout и на прод не влияет.
+
+name: kzph-prod
+
+services:
+  app:
+    image: ghcr.io/molthun/kz-price-hunter:latest
+    container_name: kzph-prod
+    # Постоянное имя хоста: им подписываются захваты очереди и планировщика. С именем по
+    # умолчанию (id контейнера) каждое пересоздание выглядело бы как чужой хост.
+    hostname: kzph-prod
+    restart: unless-stopped
+    env_file: .env
+
+    # Машина: 16 потоков, 61 ГБ. Стенду оставлено 4 CPU / 15 ГБ (docker-compose.stand.yml),
+    # проду — с запасом, но не вся машина: рядом стенд, LM Studio и рабочий стол.
+    cpus: 8
+    mem_limit: 24g
+
+    environment:
+      - DATA_DIR=/app/data
+      - TZ=Asia/Almaty
+      - PORT=35539
+      - ALLOW_DEV_LOGIN=0
+
+    ports:
+      # 35539 на хосте занят стендом. Обратный прокси DSM на NAS ведёт shop.molthun.ru сюда:
+      # http://192.168.28.25:35540
+      - "35540:35539"
+
+    volumes:
+      # Только локальный NVMe: SQLite на сетевых шарах ведёт себя непредсказуемо
+      - ./data:/app/data
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: kzph-prod-watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      # Docker 29 на этой машине не принимает API клиента ниже 1.44, а Watchtower 1.7.1 по
+      # умолчанию говорит на 1.25: без этой строки он падает «client version 1.25 is too old»
+      # и прод перестаёт обновляться (проверено 29.10.2026)
+      - DOCKER_API_VERSION=1.44
+    # Только прод: стенд (kzph-stand) собирается локально и обновляться из GHCR не должен
+    command: --interval 300 kzph-prod
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
