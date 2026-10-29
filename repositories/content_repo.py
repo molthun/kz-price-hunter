@@ -16,6 +16,7 @@ from domain.social_content import (
     ExtractedOfferCandidate,
     SocialContentExtractor,
 )
+from domain.vision_extraction import VisionCandidate, VisionExtractionEngine
 from repositories.base import BaseRepository
 
 logger = logging.getLogger("kz_price_hunter.repositories.content")
@@ -143,6 +144,43 @@ class ContentObservationRepository(BaseRepository):
         return cur.rowcount or 0
 
     @staticmethod
+    def extract_vision_candidates(observation: ContentObservation) -> List[VisionCandidate]:
+        """Извлекает кандидатов из медиа/OCR/vision-разметки наблюдения (S2-E10)."""
+        return VisionExtractionEngine.extract_from_observation(observation)
+
+    @staticmethod
     def extract_candidates(observation: ContentObservation) -> List[ExtractedOfferCandidate]:
-        """Детерминированно извлекает кандидатов-предложения из текста наблюдения."""
-        return SocialContentExtractor.extract_candidates(observation)
+        """Детерминированно извлекает кандидатов-предложения из текста и медиа наблюдения."""
+        text_candidates = list(SocialContentExtractor.extract_candidates(observation))
+        meta = observation.raw_metadata or {}
+        has_vision_input = bool(
+            meta.get("vision_items")
+            or meta.get("ocr_text")
+            or meta.get("image_text")
+        )
+        if not has_vision_input:
+            return text_candidates
+
+        seen = {(c.raw_title.strip().lower(), round(float(c.price), 2)) for c in text_candidates}
+        vision_candidates = VisionExtractionEngine.extract_from_observation(observation)
+        for vc in vision_candidates:
+            if not vc.publishable or vc.price is None or vc.price <= 0:
+                continue
+            key = (vc.raw_title.strip().lower(), round(float(vc.price), 2))
+            if key in seen:
+                continue
+            seen.add(key)
+            text_candidates.append(
+                ExtractedOfferCandidate(
+                    raw_title=vc.raw_title,
+                    price=float(vc.price),
+                    old_price=float(vc.old_price) if vc.old_price else None,
+                    condition=vc.condition,
+                    city=vc.city,
+                    availability=vc.availability,
+                    confidence=float(vc.confidence),
+                    expires_at=observation.expires_at,
+                    raw_snippet=vc.raw_snippet or vc.raw_title,
+                )
+            )
+        return text_candidates

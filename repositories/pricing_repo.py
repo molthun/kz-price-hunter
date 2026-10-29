@@ -19,6 +19,7 @@ from domain.condition import (
     build_condition_breakdown,
 )
 from domain.models import Condition, Offer, Seller
+from domain.price_history_v2 import ProductPriceHistoryReport, build_price_history_series
 from repositories.base import BaseRepository
 from repositories.offer_repo import OfferRepository
 from repositories.product_repo import ProductRepository
@@ -181,3 +182,103 @@ class PricingRepository(BaseRepository):
 
         results.sort(key=lambda x: x["savings_amount"], reverse=True)
         return results[:limit]
+
+    def get_product_price_history(
+        self,
+        product_id: str,
+        seller_id: Optional[str] = None,
+        channel_id: Optional[str] = None,
+        channel_type: Optional[str] = None,
+        condition: Optional[str] = None,
+        city: Optional[str] = None,
+        limit_per_series: int = 90,
+        limit_per_offer: Optional[int] = None,
+    ) -> Optional[ProductPriceHistoryReport]:
+        """
+        Price History 2.0 (S2-E26): возвращает изолированные ценовые линии по
+        (product_id, seller_id, channel_id, condition) из offer_price_history.
+        """
+        product = self.product_repo.get_by_id(product_id)
+        if not product:
+            return None
+
+        eff_limit = int(limit_per_offer or limit_per_series or 90)
+        where_extra = ""
+        params: list = [product_id]
+        # Измерения точки — на момент наблюдения (V02). Для строк, записанных до появления
+        # колонок, их нет, и остаётся только текущее предложение. Префикс h. заменяется на o.
+        # в запросе-подстановке по offers.
+        if seller_id:
+            where_extra += " AND {seller_id} = ?"
+            params.append(seller_id)
+        if channel_id:
+            where_extra += " AND {channel_id} = ?"
+            params.append(channel_id)
+        if channel_type:
+            where_extra += " AND LOWER(COALESCE(c.channel_type, '')) = ?"
+            params.append(str(channel_type).strip().lower())
+        if condition:
+            where_extra += " AND UPPER(COALESCE({condition}, 'NEW')) = ?"
+            params.append(Condition.normalize(condition, default=Condition.NEW))
+        if city and city != "Казахстан":
+            where_extra += " AND ({city} = ? OR {city} = 'Казахстан')"
+            params.append(city)
+        snapshot = {col: f"COALESCE(oph.{col}, o.{col})" for col in
+                    ("product_id", "seller_id", "channel_id", "condition", "city")}
+        current = {col: f"o.{col}" for col in snapshot}
+
+        h = snapshot
+        sql = f"""
+        SELECT
+            {h['product_id']} AS product_id,
+            o.id AS offer_id,
+            {h['seller_id']} AS seller_id,
+            s.name AS seller_name,
+            {h['channel_id']} AS channel_id,
+            c.channel_type,
+            c.name AS channel_name,
+            {h['condition']} AS condition,
+            {h['city']} AS city,
+            o.currency,
+            oph.price,
+            oph.old_price,
+            oph.observed_at
+        FROM offer_price_history oph
+        JOIN offers o ON o.id = oph.offer_id
+        LEFT JOIN sellers s ON s.id = {h['seller_id']}
+        LEFT JOIN channels c ON c.id = {h['channel_id']}
+        WHERE {h['product_id']} = ?{where_extra.format(**h)}
+        ORDER BY oph.observed_at ASC
+        """
+        rows = [dict(r) for r in self.fetchall(sql, params)]
+
+        # Если таблица offer_price_history для офферов ещё пуста, подставляем текущие наблюдения из offers
+        if not rows:
+            fallback_sql = f"""
+            SELECT
+                o.product_id,
+                o.id AS offer_id,
+                o.seller_id,
+                s.name AS seller_name,
+                o.channel_id,
+                c.channel_type,
+                c.name AS channel_name,
+                o.condition,
+                o.city,
+                o.currency,
+                o.price,
+                o.old_price,
+                o.observed_at
+            FROM offers o
+            LEFT JOIN sellers s ON s.id = o.seller_id
+            LEFT JOIN channels c ON c.id = o.channel_id
+            WHERE o.product_id = ? AND o.is_active = 1{where_extra.format(**current)}
+            """
+            rows = [dict(r) for r in self.fetchall(fallback_sql, params)]
+
+        return build_price_history_series(
+            rows,
+            product_id=product.id,
+            title=product.title,
+            limit_per_series=eff_limit,
+        )

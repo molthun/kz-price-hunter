@@ -70,6 +70,29 @@ class SellerIdentityRepository(BaseRepository):
         rows = self.fetchall(sql, (seller_id,))
         return [SellerIdentity.from_row(r) for r in rows]
 
+    get_identities_for_seller = get_identities_by_seller
+
+    def sync_identities_from_seller(self, seller: Any, source: str = "seller_sync") -> List[SellerIdentity]:
+        """Syncs strong identity keys (domain, phone, bin, legal_name) from a Seller record."""
+        synced: List[SellerIdentity] = []
+        for itype, val in (
+            (IdentityType.DOMAIN, getattr(seller, "domain", None)),
+            (IdentityType.PHONE, getattr(seller, "phone", None)),
+            (IdentityType.BIN, getattr(seller, "bin", None)),
+            (IdentityType.LEGAL_NAME, getattr(seller, "legal_name", None)),
+        ):
+            if val and str(val).strip():
+                synced.append(
+                    self.add_identity_values(
+                        seller.id,
+                        itype,
+                        str(val).strip(),
+                        confidence=0.95,
+                        source=source,
+                    )
+                )
+        return synced
+
     def find_sellers_by_identity(self, identity_type: str, identity_value: str) -> List[str]:
         """Finds all seller_ids matching the given identity key/value pair."""
         sql = """
@@ -236,10 +259,16 @@ class SellerIdentityRepository(BaseRepository):
         История дороже самой строки предложения: она копится месяцами и при слиянии теряться
         не должна. Совпадающие моменты наблюдения отбрасываются (у победителя они уже есть).
         """
+        # Состояние/город/товар точки сохраняются как были; продавец и канал — победителя:
+        # слияние подтверждает, что это один и тот же продавец (V02)
         self.execute(
-            """INSERT OR IGNORE INTO offer_price_history (offer_id, price, old_price, observed_at)
-               SELECT ?, price, old_price, observed_at FROM offer_price_history WHERE offer_id = ?""",
-            (winner_id, loser_id),
+            """INSERT OR IGNORE INTO offer_price_history
+                   (offer_id, price, old_price, observed_at, product_id, seller_id, channel_id, condition, city)
+               SELECT ?, h.price, h.old_price, h.observed_at, h.product_id, w.seller_id, w.channel_id,
+                      h.condition, h.city
+               FROM offer_price_history h LEFT JOIN offers w ON w.id = ?
+               WHERE h.offer_id = ?""",
+            (winner_id, winner_id, loser_id),
         )
         self.execute("DELETE FROM offer_price_history WHERE offer_id = ?", (loser_id,))
         self.execute("DELETE FROM offers WHERE id = ?", (loser_id,))
@@ -296,6 +325,8 @@ class SellerIdentityRepository(BaseRepository):
             if tc:
                 # Merge offers into existing target channel and remove source channel
                 self._move_offers_to_channel(sc["id"], tc["id"], target_seller_id, now)
+                self.execute("UPDATE offer_price_history SET channel_id = ? WHERE channel_id = ?",
+                             (tc["id"], sc["id"]))
                 self.execute("DELETE FROM channels WHERE id = ?", (sc["id"],))
             else:
                 # No conflict: simply reparent channel to target_seller_id
@@ -305,6 +336,12 @@ class SellerIdentityRepository(BaseRepository):
         self.execute(
             "UPDATE offers SET seller_id = ?, updated_at = ? WHERE seller_id = ?",
             (target_seller_id, now, source_seller_id),
+        )
+        # Точки истории — за продавцом-победителем: иначе его линия цены ссылалась бы на
+        # деактивированного продавца
+        self.execute(
+            "UPDATE offer_price_history SET seller_id = ? WHERE seller_id = ?",
+            (target_seller_id, source_seller_id),
         )
 
         # 3. Copy/migrate identity footprints

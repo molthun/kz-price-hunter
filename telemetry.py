@@ -17,6 +17,7 @@
 без него данные копятся в ограниченном буфере до явного flush() — так тесты не пишут
 в рабочую prices.db.
 """
+import contextlib
 import contextvars
 import datetime
 import json
@@ -41,8 +42,56 @@ current_request_id: contextvars.ContextVar[Optional[str]] = contextvars.ContextV
 current_shop: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar("current_shop", default=None)
 current_city: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar("current_city", default=None)
 current_category: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar("current_category", default=None)
+# Сквозные идентификаторы Search Platform 2.0 (S2-E24): seller_id / source_id / offer_id
+current_seller_id: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar("current_seller_id", default=None)
+current_source_id: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar("current_source_id", default=None)
+current_offer_id: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar("current_offer_id", default=None)
 # Сводка HTTP текущей категории обхода (dict, изменяется на месте): связывает страницы с итогом категории
 current_http_trace: contextvars.ContextVar[Optional[Dict[str, Any]]] = contextvars.ContextVar("current_http_trace", default=None)
+
+
+@contextlib.contextmanager
+def correlation_context(
+    *,
+    request_id: Optional[str] = None,
+    scan_id: Optional[str] = None,
+    seller_id: Optional[str] = None,
+    source_id: Optional[str] = None,
+    offer_id: Optional[str] = None,
+    shop: Optional[str] = None,
+    city: Optional[str] = None,
+    category: Optional[str] = None,
+):
+    """Устанавливает сквозные идентификаторы корреляции (S2-E24) на время блока."""
+    tokens = []
+    for var, val in (
+        (current_request_id, request_id),
+        (current_scan_id, scan_id),
+        (current_seller_id, seller_id),
+        (current_source_id, source_id),
+        (current_offer_id, offer_id),
+        (current_shop, shop),
+        (current_city, city),
+        (current_category, category),
+    ):
+        if val is not None:
+            tokens.append((var, var.set(val)))
+    try:
+        yield
+    finally:
+        for var, tok in reversed(tokens):
+            var.reset(tok)
+
+
+def get_correlation_ids() -> Dict[str, Optional[str]]:
+    """Возвращает текущие сквозные идентификаторы корреляции (S2-E24)."""
+    return {
+        "request_id": current_request_id.get(),
+        "scan_id": current_scan_id.get(),
+        "seller_id": current_seller_id.get(),
+        "source_id": current_source_id.get(),
+        "offer_id": current_offer_id.get(),
+    }
 
 # Типы событий
 EVENT_HTTP_REQUEST = "http_request"
@@ -376,6 +425,9 @@ class TelemetryService:
         category: Optional[str] = None,
         scan_id: Optional[str] = None,
         request_id: Optional[str] = None,
+        seller_id: Optional[str] = None,
+        source_id: Optional[str] = None,
+        offer_id: Optional[str] = None,
         data: Optional[Dict[str, Any]] = None,
         throttle_key: Optional[str] = None,
         throttle_per_minute: int = MAX_HTTP_DIAG_EVENTS_PER_MINUTE,
@@ -391,6 +443,19 @@ class TelemetryService:
             now = datetime.datetime.now(datetime.timezone.utc)
             if throttle_key is not None and not self._allow(now, throttle_key, throttle_per_minute):
                 return None
+            eff_seller_id = seller_id or current_seller_id.get()
+            eff_source_id = source_id or current_source_id.get()
+            eff_offer_id = offer_id or current_offer_id.get()
+            payload_obj: Any = data
+            if any((eff_seller_id, eff_source_id, eff_offer_id)):
+                base_dict = dict(data) if isinstance(data, dict) else ({"text": data} if data is not None else {})
+                if eff_seller_id and "seller_id" not in base_dict:
+                    base_dict["seller_id"] = eff_seller_id
+                if eff_source_id and "source_id" not in base_dict:
+                    base_dict["source_id"] = eff_source_id
+                if eff_offer_id and "offer_id" not in base_dict:
+                    base_dict["offer_id"] = eff_offer_id
+                payload_obj = base_dict
             event = {
                 "event_id": str(uuid.uuid4()),
                 "timestamp": now.strftime(_EVENT_TS_FORMAT),
@@ -402,11 +467,14 @@ class TelemetryService:
                 "category": category or current_category.get(),
                 "scan_id": scan_id or current_scan_id.get(),
                 "request_id": request_id or current_request_id.get(),
+                "seller_id": eff_seller_id,
+                "source_id": eff_source_id,
+                "offer_id": eff_offer_id,
                 "message": sanitize_text(message)[:1000],
                 # Поле city в данных — тоже только канонический город (B02), на границе телеметрии
                 "data_json": sanitize_payload(
-                    {**data, **{k: canonical_city(data[k]) for k in ("city", "requested_city") if k in data}}
-                    if isinstance(data, dict) else data) if data else None,
+                    {**payload_obj, **{k: canonical_city(payload_obj[k]) for k in ("city", "requested_city") if k in payload_obj}}
+                    if isinstance(payload_obj, dict) else payload_obj) if payload_obj else None,
             }
             with self._lock:
                 self._buffer.append(event)

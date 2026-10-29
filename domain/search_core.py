@@ -7,13 +7,14 @@ availability/freshness filtering, and relevance ranking for KZ Price Hunter 2.0.
 from __future__ import annotations
 
 import datetime
+import json
 import logging
 import re
 import time
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 
-import data_quality
+from domain.freshness_v2 import offer_freshness
 from domain.models import CanonicalProduct, Condition
 from domain.query_parser import ParsedQuery, QueryParser
 
@@ -56,9 +57,36 @@ class AggregatedOffer:
     freshness: str = "fresh"
     is_purchasable: bool = True
     expires_at: Optional[str] = None
+    # Условия оплаты — только сохранённые в предложении; тип площадки их не доказывает (V05)
+    installment_available: bool = False
+    installment_months: Optional[int] = None
+    credit_available: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
+
+
+def offer_payment_terms(row: Dict[str, Any]) -> Dict[str, Any]:
+    """Подтверждённые данными условия рассрочки/кредита — по тем же полям, что Offer.from_row."""
+    payments = row.get("payment_methods_json") or "[]"
+    if isinstance(payments, str):
+        try:
+            payments = json.loads(payments)
+        except Exception:
+            payments = []
+    if not isinstance(payments, (list, tuple, set)):
+        payments = []
+    months = row.get("installment_months")
+    try:
+        months = int(months) if months is not None else None
+    except (TypeError, ValueError):
+        months = None
+    return {
+        "installment_available": bool(row.get("installment_available")) or bool(months and months > 0)
+        or "installment" in payments,
+        "installment_months": months if months and months > 0 else None,
+        "credit_available": bool(row.get("credit_available")) or "credit" in payments,
+    }
 
 
 @dataclass
@@ -185,8 +213,8 @@ class SearchCore:
                 for od in offers_data:
                     # C-E11-03: Assess freshness and purchasability
                     obs_at = od.get("observed_at")
-                    f_info = data_quality.freshness(obs_at, now=now)
-                    f_state = f_info.get("freshness", "unknown")
+                    # Метка свежести — по тому же правилу, что доступность (V03)
+                    f_state = offer_freshness(od, now=now).legacy_freshness
                     price_val = float(od["price"])
                     expires_at = od.get("expires_at")
                     # S2-E08, C08: наличие, свежесть, цена, TTL и активность — общим правилом
@@ -213,6 +241,7 @@ class SearchCore:
                         freshness=f_state,
                         is_purchasable=purchasable,
                         expires_at=expires_at,
+                        **offer_payment_terms(od),
                     )
                     aggregated_offers.append(agg_off)
 

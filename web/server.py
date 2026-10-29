@@ -1,5 +1,7 @@
 from __future__ import annotations
 import asyncio
+import contextvars
+import functools
 import concurrent.futures
 import gzip
 import weakref
@@ -246,9 +248,13 @@ async def privacy_handler(request):
 _db_executor = concurrent.futures.ThreadPoolExecutor(max_workers=16, thread_name_prefix="kzph-db")
 
 async def run_db(func, *args):
-    """Выполняет операцию с SQLite в выделенном пуле потоков базы данных, не блокируя event loop."""
+    """Выполняет операцию с SQLite в выделенном пуле потоков базы данных, не блокируя event loop.
+
+    run_in_executor, в отличие от asyncio.to_thread, контекст не переносит: без copy_context
+    события из пула теряли request_id/scan_id/source_id своего запроса (V07)."""
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(_db_executor, func, *args)
+    ctx = contextvars.copy_context()
+    return await loop.run_in_executor(_db_executor, functools.partial(ctx.run, func, *args))
 
 @routes.get("/api/version")
 async def version_handler(request):
@@ -1091,6 +1097,7 @@ def _get_seller_v2_sync(id_or_slug, city, condition, category, limit, offset):
     from repositories.seller_repo import SellerRepository
     from repositories.channel_repo import ChannelRepository
     from repositories.offer_repo import OfferRepository
+    from repositories.seller_identity_repo import SellerIdentityRepository
     from domain.seller_showcase import group_seller_offers_by_product, build_seller_showcase
 
     conn = get_connection()
@@ -1102,6 +1109,9 @@ def _get_seller_v2_sync(id_or_slug, city, condition, category, limit, offset):
 
         chan_repo = ChannelRepository(conn)
         channels = chan_repo.list_by_seller(seller.id)
+
+        identity_repo = SellerIdentityRepository(conn)
+        identities = identity_repo.get_identities_for_seller(seller.id)
 
         offer_repo = OfferRepository(conn)
         raw_offers = offer_repo.get_active_offers_with_details_for_seller(
@@ -1130,6 +1140,7 @@ def _get_seller_v2_sync(id_or_slug, city, condition, category, limit, offset):
             available_cities=aggs["cities"],
             available_categories=aggs["categories"],
             conditions_breakdown=aggs["conditions_breakdown"],
+            verified_identities=identities,
         )
         showcase["ok"] = True
         showcase["pagination"] = {
@@ -1346,6 +1357,302 @@ async def resolve_discovery_task_handler(request):
         return web.json_response({"error": "Ошибка обновления статуса задачи"}, status=500)
     finally:
         conn.close()
+
+
+# ===== Price History 2.0 (S2-E26), AI Search Assistant (S2-E22), Seller Onboarding (S2-E27), Monitoring 2.0 (S2-E23/E24) =====
+
+@routes.get("/api/v2/products/{product_id}/history")
+async def product_price_history_v2_handler(request):
+    """История цен 2.0 в разрезе (товар, продавец, канал, состояние) без смешения каналов (S2-E26)."""
+    product_id = request.match_info.get("product_id", "").strip()
+    if not product_id:
+        return web.json_response({"ok": False, "error": "product_id обязателен"}, status=400)
+
+    condition = request.query.get("condition")
+    seller_id = request.query.get("seller_id")
+    channel_type = request.query.get("channel_type")
+    limit = _int_param(request, "limit", 500, minimum=1, maximum=2000)
+
+    def _load():
+        from database import get_connection
+        from repositories.pricing_repo import PricingRepository
+
+        conn = get_connection()
+        try:
+            repo = PricingRepository(conn)
+            report = repo.get_product_price_history(
+                product_id=product_id,
+                condition=condition,
+                seller_id=seller_id,
+                channel_type=channel_type,
+                limit_per_offer=limit,
+            )
+            return report.to_dict() if report else None
+        finally:
+            conn.close()
+
+    try:
+        data = await asyncio.to_thread(_load)
+        if not data:
+            return web.json_response({"ok": False, "error": "Товар не найден"}, status=404)
+        data["ok"] = True
+        return web.json_response(data)
+    except Exception as e:
+        print(f"[API product price history v2] Ошибка: {e}")
+        return web.json_response({"ok": False, "error": "Ошибка загрузки истории цен"}, status=500)
+
+
+@routes.get("/api/v2/search/assistant")
+@routes.post("/api/v2/search/assistant")
+async def search_assistant_v2_handler(request):
+    """AI-помощник выбора поверх Search Core 2.0 (S2-E22) — строго по реальным предложениям БД."""
+    wait = search_limiter.retry_after(f"ip:{client_ip(request)}")
+    if wait:
+        return web.json_response({"error": f"Слишком много запросов, повторите через {int(wait) + 1} сек"}, status=429)
+
+    body = {}
+    if request.method == "POST" and request.can_read_body:
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+
+    query = (body.get("q") or body.get("query") or request.query.get("q") or "").strip()
+    if not query:
+        return web.json_response({"ok": False, "error": "Параметр q (запрос) обязателен"}, status=400)
+
+    city = body.get("city") or request.query.get("city")
+    condition = body.get("condition") or request.query.get("condition")
+    channel_type = body.get("channel_type") or request.query.get("channel_type")
+
+    def _float_opt(val):
+        if val is None or val == "":
+            return None
+        try:
+            return float(val)
+        except (TypeError, ValueError):
+            return None
+
+    min_price = _float_opt(body.get("min_price") if "min_price" in body else request.query.get("min_price"))
+    max_price = _float_opt(body.get("max_price") if "max_price" in body else request.query.get("max_price"))
+    limit = _int_param(request, "limit", int(body.get("limit", 20) or 20), minimum=1, maximum=50)
+
+    def _run():
+        from database import get_connection
+        from domain.search_assistant import SearchAssistant
+        from domain.search_core import SearchCore
+        from repositories.search_repo import SearchRepository
+
+        conn = get_connection()
+        try:
+            assistant = SearchAssistant(SearchCore(SearchRepository(conn)))
+            resp = assistant.ask(
+                query=query,
+                city=city,
+                condition=condition,
+                channel_type=channel_type,
+                min_price=min_price,
+                max_price=max_price,
+                limit=limit,
+            )
+            res_dict = resp.to_dict()
+            res_dict["ok"] = True
+            return res_dict
+        finally:
+            conn.close()
+
+    try:
+        data = await asyncio.to_thread(_run)
+        return web.json_response(data)
+    except Exception as e:
+        print(f"[API search assistant v2] Ошибка: {e}")
+        return web.json_response({"ok": False, "error": "Ошибка помощника поиска"}, status=500)
+
+
+@routes.post("/api/v2/sellers/register")
+async def register_seller_v2_handler(request):
+    """Публичная форма «Добавить магазин» (S2-E27): профилирование и постановка в очередь REVIEW_REQUIRED."""
+    wait = search_limiter.retry_after(f"onboard:{client_ip(request)}")
+    if wait:
+        return web.json_response({"ok": False, "error": f"Слишком много заявок, повторите через {int(wait) + 1} сек"}, status=429)
+
+    try:
+        body = await request.json()
+    except Exception:
+        return web.json_response({"ok": False, "error": "Ожидается JSON с данными магазина"}, status=400)
+
+    if not isinstance(body, dict):
+        return web.json_response({"ok": False, "error": "Некорректный формат заявки"}, status=400)
+
+    from domain.seller_onboarding import SellerOnboardingSubmission, validate_onboarding_submission
+
+    raw_mp = body.get("marketplace_links") or []
+    if isinstance(raw_mp, str):
+        mp_list = [s.strip() for s in raw_mp.replace(",", "\n").splitlines() if s.strip()]
+    elif isinstance(raw_mp, list):
+        mp_list = [str(s).strip() for s in raw_mp if str(s).strip()]
+    else:
+        mp_list = []
+
+    submission = SellerOnboardingSubmission(
+        name=str(body.get("name") or "").strip(),
+        city=str(body.get("city") or "Алматы").strip(),
+        website_url=body.get("website_url") or body.get("website"),
+        instagram=body.get("instagram"),
+        telegram=body.get("telegram"),
+        whatsapp=body.get("whatsapp"),
+        phone=body.get("phone"),
+        marketplace_links=mp_list,
+        marketplace_seller_id=body.get("marketplace_seller_id"),
+        bin=body.get("bin"),
+        legal_name=body.get("legal_name"),
+        contact_person=body.get("contact_person"),
+        comment=body.get("comment"),
+    )
+
+    valid, errors = validate_onboarding_submission(submission)
+    if not valid:
+        return web.json_response({"ok": False, "errors": errors, "error": "; ".join(errors)}, status=400)
+
+    def _submit():
+        from database import get_connection
+        from repositories.candidate_repo import CandidateRepository
+
+        conn = get_connection()
+        try:
+            repo = CandidateRepository(conn)
+            res = repo.submit_self_registration(submission)
+            conn.commit()
+            return res.to_dict()
+        finally:
+            conn.close()
+
+    try:
+        result = await asyncio.to_thread(_submit)
+        result["ok"] = True
+        return web.json_response(result, status=201)
+    except ValueError as ve:
+        return web.json_response({"ok": False, "error": str(ve)}, status=400)
+    except Exception as e:
+        print(f"[API register seller v2] Ошибка: {e}")
+        return web.json_response({"ok": False, "error": "Не удалось сохранить заявку магазина"}, status=500)
+
+
+@routes.get("/api/v2/admin/onboarding")
+@require_admin
+async def admin_list_onboarding_handler(request):
+    """Список заявок магазинов на подключение и кандидатов в очереди модерации (S2-E27)."""
+    status = request.query.get("status")
+    source_type = request.query.get("source_type")
+    limit = _int_param(request, "limit", 50, minimum=1, maximum=200)
+
+    def _load():
+        from database import get_connection
+        from repositories.candidate_repo import CandidateRepository
+
+        conn = get_connection()
+        try:
+            repo = CandidateRepository(conn)
+            candidates = repo.find_candidates(status=status, source_type=source_type, limit=limit)
+            items = []
+            for c in candidates:
+                c_dict = c.to_dict()
+                profiles = repo.get_source_profiles_for_candidate(c.id)
+                c_dict["profiles"] = [p.to_dict() for p in profiles]
+                items.append(c_dict)
+            return items
+        finally:
+            conn.close()
+
+    try:
+        items = await asyncio.to_thread(_load)
+        return web.json_response({"ok": True, "candidates": items, "total": len(items)})
+    except Exception as e:
+        print(f"[API admin onboarding list] Ошибка: {e}")
+        return web.json_response({"ok": False, "error": "Ошибка чтения очереди заявок"}, status=500)
+
+
+@routes.post("/api/v2/admin/onboarding/{candidate_id}/decision")
+@require_admin
+async def admin_onboarding_decision_handler(request):
+    """Одобрение или отклонение заявки магазина (REVIEW_REQUIRED -> APPROVED -> INDEXED, S2-E27)."""
+    candidate_id = request.match_info.get("candidate_id", "").strip()
+    try:
+        body = await request.json()
+    except Exception:
+        return web.json_response({"ok": False, "error": "Требуется JSON-тело"}, status=400)
+
+    decision = str(body.get("decision") or "APPROVED").strip().upper()
+    if decision not in ("APPROVED", "REJECTED"):
+        return web.json_response({"ok": False, "error": "decision должен быть APPROVED или REJECTED"}, status=400)
+
+    # Явное подтверждение модератором, что заявка — это уже известный продавец (V01)
+    merge_seller_id = str(body.get("seller_id") or "").strip() or None
+
+    user = request.get("user") or {}
+    actor = str(user.get("username") or user.get("id") or "admin")
+
+    def _decide():
+        from database import get_connection
+        from repositories.candidate_repo import CandidateRepository
+
+        conn = get_connection()
+        try:
+            repo = CandidateRepository(conn)
+            existing = repo.get_candidate_by_id(candidate_id)
+            if not existing:
+                return None, None
+            seller = repo.approve_onboarding_candidate(candidate_id, decision=decision, actor=actor,
+                                                       seller_id=merge_seller_id)
+            updated_cand = repo.get_candidate_by_id(candidate_id)
+            conn.commit()
+            return (
+                updated_cand.to_dict() if updated_cand else None,
+                seller.to_dict() if seller else None,
+            )
+        finally:
+            conn.close()
+
+    try:
+        cand_dict, seller_dict = await asyncio.to_thread(_decide)
+        if cand_dict is None:
+            return web.json_response({"ok": False, "error": "Заявка не найдена"}, status=404)
+        return web.json_response({
+            "ok": True,
+            "decision": decision,
+            "candidate": cand_dict,
+            "seller": seller_dict,
+        })
+    except ValueError as ve:
+        return web.json_response({"ok": False, "error": str(ve)}, status=400)
+    except Exception as e:
+        print(f"[API admin onboarding decision] Ошибка: {e}")
+        return web.json_response({"ok": False, "error": "Ошибка применения решения по заявке"}, status=500)
+
+
+@routes.get("/api/v2/monitoring/overview")
+@require_admin
+async def monitoring_overview_v2_handler(request):
+    """Четырёхуровневый центр мониторинга и наблюдаемости (Seller / Source / Channel / Offer, S2-E23/E24)."""
+    def _build():
+        from database import get_connection
+        from domain.monitoring_v2 import build_monitoring_overview_v2
+
+        conn = get_connection()
+        try:
+            overview = build_monitoring_overview_v2(conn)
+            res = overview.to_dict()
+            res["ok"] = True
+            return res
+        finally:
+            conn.close()
+
+    try:
+        data = await asyncio.to_thread(_build)
+        return web.json_response(data)
+    except Exception as e:
+        print(f"[API monitoring overview v2] Ошибка: {e}")
+        return web.json_response({"ok": False, "error": "Ошибка построения сводки мониторинга 2.0"}, status=500)
 
 
 # ===== Авторизация =====
@@ -2247,6 +2554,9 @@ async def _scan_shop_categories(key, scraper, categories, shop_name, candidate_s
     await run_db(record_shop_scan_start, key)
     scan_state["current_shop"] = shop_name
     token_shop = current_shop.set(shop_name)
+    # Источник данных обхода — магазин: его ключ связывает страницы, категории и итог (S2-E24, V07)
+    from telemetry import current_source_id
+    token_source = current_source_id.set(f"shop:{key}")
 
     try:
         for cat in categories:
@@ -2364,6 +2674,7 @@ async def _scan_shop_categories(key, scraper, categories, shop_name, candidate_s
                 scan_state["progress_pct"] = int((scan_state["current_step"] / max(1, scan_state["total_steps"])) * 100)
     finally:
         current_shop.reset(token_shop)
+        current_source_id.reset(token_source)
 
     duration = time.monotonic() - started
     error = "; ".join(failed_categories[:3]) or None
@@ -3688,12 +3999,48 @@ def _invalidate_stats_caches() -> None:
     _stats_caches[:] = alive
 
 
+def _current_request_id() -> str:
+    from telemetry import current_request_id
+    return current_request_id.get() or ""
+
+
+def _request_correlation_ids(request) -> dict:
+    """Сквозные ID запроса (S2-E24, V07): свой request_id у каждого запроса и продавец, если
+    запрос о нём (витрина продавца, фильтр seller_id). Значения из адреса — только метки
+    телеметрии: длина ограничена, на доступ они не влияют."""
+    ids = {"request_id": uuid.uuid4().hex[:16]}
+    seller = request.match_info.get("id_or_slug") or request.query.get("seller_id")
+    if seller:
+        ids["seller_id"] = str(seller).strip()[:100] or None
+    return ids
+
+
 @web.middleware
 async def telemetry_middleware(request, handler):
-    """Необработанные исключения обработчиков → system_error (маршрут-шаблон, без параметров и тела; P01)."""
+    """Необработанные исключения обработчиков → system_error (маршрут-шаблон, без параметров и тела; P01).
+
+    Здесь же каждому запросу выдаётся request_id: он попадает во все события запроса, включая
+    задачи и пулы потоков, и в заголовок ответа X-Request-ID. Контекст сбрасывается по выходе —
+    keep-alive соединение обслуживает запросы в одной задаче, и без сброса ID утекал бы в следующий.
+    """
+    from telemetry import correlation_context
+    ids = _request_correlation_ids(request)
+    with correlation_context(**ids):
+        response = await _telemetry_guarded(request, handler)
+    try:
+        response.headers["X-Request-ID"] = ids["request_id"]
+    except Exception:
+        pass
+    return response
+
+
+async def _telemetry_guarded(request, handler):
     try:
         return await handler(request)
-    except (web.HTTPException, asyncio.CancelledError):
+    except web.HTTPException as exc:
+        exc.headers.setdefault("X-Request-ID", _current_request_id())
+        raise
+    except asyncio.CancelledError:
         raise
     except Exception as e:
         from telemetry import telemetry, COMPONENT_SYSTEM

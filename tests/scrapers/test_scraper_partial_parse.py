@@ -81,6 +81,96 @@ class PartialParseTest(unittest.TestCase):
         alser = scrape(AlserScraper, "alser", ALSER_URL, [alser_page(5, "5 товаров")])
         self.assertTrue(evrika.complete and alser.complete)
 
+    def test_evrika_broken_card_then_out_of_stock_only_last_page_is_limited_with_unparsed(self):
+        """A01 (пустая последняя страница): поломка на 1-й странице не теряется, если на 2-й только «Нет в наличии»."""
+        pages = [
+            evrika_page(2, "3 товара", broken_price=1),
+            evrika_page(1, "3 товара", start=2, out_of_stock=1),
+        ]
+        result = scrape(EvrikaScraper, "evrika", EVRIKA_URL, pages)
+        self.assertEqual(len(result), 1)
+        self.assertFalse(result.complete)
+        self.assertTrue(result.limited)
+        self.assertEqual(result.unparsed, 1)
+
+    def test_alser_broken_card_then_out_of_stock_only_last_page_is_limited_with_unparsed(self):
+        """A01 (пустая последняя страница): для Alser накопленный unparsed блокирует complete и при пустом items."""
+        first = alser_page(2, "3 товара").replace("info-container-product-price", "renamed-price", 1)
+        last = alser_page(1, "3 товара", start=2).replace("499 990 ₸", "Нет в наличии")
+        result = scrape(AlserScraper, "alser", ALSER_URL, [first, last])
+        self.assertEqual(len(result), 1)
+        self.assertFalse(result.complete)
+        self.assertTrue(result.limited)
+        self.assertEqual(result.unparsed, 1)
+
+    def test_out_of_stock_only_last_page_after_clean_first_page_is_complete(self):
+        """Допустимый пропуск «Нет в наличии» на последней странице без поломок даёт complete=True."""
+        evrika = scrape(
+            EvrikaScraper,
+            "evrika",
+            EVRIKA_URL,
+            [evrika_page(2, "3 товара"), evrika_page(1, "3 товара", start=2, out_of_stock=1)],
+        )
+        self.assertEqual(len(evrika), 2)
+        self.assertTrue(evrika.complete)
+        self.assertFalse(evrika.limited)
+        self.assertEqual(evrika.unparsed, 0)
+
+        alser = scrape(
+            AlserScraper,
+            "alser",
+            ALSER_URL,
+            [
+                alser_page(2, "3 товара"),
+                alser_page(1, "3 товара", start=2).replace("499 990 ₸", "Нет в наличии"),
+            ],
+        )
+        self.assertEqual(len(alser), 2)
+        self.assertTrue(alser.complete)
+        self.assertFalse(alser.limited)
+        self.assertEqual(alser.unparsed, 0)
+
+    def test_unparsed_preserved_across_all_non_complete_exit_branches(self):
+        """Накопленный unparsed сохраняется во всех ветках выхода PagedScraper (UnconfirmedEnd, ошибка, дубли, лимит)."""
+        page1_broken = evrika_page(2, "4 товара", broken_price=1)
+
+        # 1. UnconfirmedEnd на второй странице (404)
+        res_unconfirmed = scrape(EvrikaScraper, "evrika", EVRIKA_URL, [page1_broken])
+        self.assertFalse(res_unconfirmed.complete)
+        self.assertTrue(res_unconfirmed.limited)
+        self.assertEqual(res_unconfirmed.unparsed, 1)
+
+        # 2. ValueError на полностью сломанной второй странице
+        res_err = scrape(
+            EvrikaScraper,
+            "evrika",
+            EVRIKA_URL,
+            [page1_broken, evrika_page(2, "4 товара", start=2, broken_price=2)],
+        )
+        self.assertFalse(res_err.complete)
+        self.assertEqual(res_err.error, "Страница 2: ValueError")
+        self.assertEqual(res_err.unparsed, 1)
+
+        # 3. Дубликаты на второй странице (not fresh)
+        res_dup = scrape(
+            EvrikaScraper,
+            "evrika",
+            EVRIKA_URL,
+            [page1_broken, evrika_page(1, "4 товара", start=0)],
+        )
+        self.assertFalse(res_dup.complete)
+        self.assertTrue(res_dup.limited)
+        self.assertEqual(res_dup.unparsed, 1)
+
+        # 4. Достигнут лимит страниц (max_pages=1)
+        scraper = EvrikaScraper()
+        scraper.PAGE_DELAY_SECONDS = 0
+        with patch("scrapers.evrika.requests.get", return_value=Mock(status_code=200, text=page1_broken)):
+            res_limit = scraper._scrape_sync("Категория", EVRIKA_URL, max_pages=1)
+        self.assertFalse(res_limit.complete)
+        self.assertTrue(res_limit.limited)
+        self.assertEqual(res_limit.unparsed, 1)
+
 
 class WindowedPagerTest(unittest.TestCase):
     """A02: наибольшая видимая ссылка пагинатора — не доказательство последней страницы."""

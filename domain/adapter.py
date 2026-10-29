@@ -324,7 +324,7 @@ def sync_legacy_product_to_v2(
 
     # Check previous price to see if history record is needed
     cur = conn.execute(
-        "SELECT price, old_price FROM offers WHERE id = ?",
+        "SELECT price, old_price, product_id, seller_id, channel_id, condition, city FROM offers WHERE id = ?",
         (offer_id,),
     )
     existing_offer = cur.fetchone()
@@ -377,14 +377,19 @@ def sync_legacy_product_to_v2(
         ),
     )
 
-    # 5. Price History: only if price or old_price changed (or first observation)
-    if existing_offer is None or existing_offer[0] != price or existing_offer[1] != old_price:
+    # 5. Price History: при первой точке, смене цены или смене измерений линии (товар, продавец,
+    # канал, состояние, город). Измерения пишутся в саму точку: история не пересчитывается по
+    # текущему предложению (V02)
+    dims = (product_id, seller_id, channel_id, condition, city)
+    if (existing_offer is None or existing_offer[0] != price or existing_offer[1] != old_price
+            or tuple(existing_offer[2:7]) != dims):
         conn.execute(
             """
-            INSERT OR REPLACE INTO offer_price_history (offer_id, price, old_price, observed_at)
-            VALUES (?, ?, ?, ?)
+            INSERT OR REPLACE INTO offer_price_history
+                (offer_id, price, old_price, observed_at, product_id, seller_id, channel_id, condition, city)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (offer_id, price, old_price, timestamp),
+            (offer_id, price, old_price, timestamp, *dims),
         )
 
     return True

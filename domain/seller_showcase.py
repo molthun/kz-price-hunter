@@ -6,8 +6,9 @@ and groups multi-channel offers per product.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 from domain.models import Channel, Seller
+from domain.provenance import build_offer_provenance, build_seller_provenance
 
 
 def is_offer_expired(expires_at: Optional[str], now: Optional[datetime] = None) -> bool:
@@ -86,6 +87,7 @@ def group_seller_offers_by_product(offers_with_details: List[Dict[str, Any]], no
 
         grp["conditions"].add(condition)
         grp["cities"].add(city)
+        prov = build_offer_provenance(row, now=now)
 
         grp["channels"].append({
             "offer_id": row.get("id"),
@@ -100,8 +102,14 @@ def group_seller_offers_by_product(offers_with_details: List[Dict[str, Any]], no
             "city": city,
             "url": str(row.get("url") or "").strip(),
             "external_sku": row.get("external_sku"),
+            "observed_at": prov.observed_at,
             "expires_at": row.get("expires_at"),
             "published_at": row.get("published_at"),
+            "freshness": prov.freshness,
+            "legacy_freshness": prov.legacy_freshness,
+            "source_freshness_type": prov.source_freshness_type,
+            "age_hours": prov.age_hours,
+            "provenance": prov.to_dict(),
             "is_purchasable": purchasable,
             "is_expired": expired,
         })
@@ -134,6 +142,9 @@ def build_seller_showcase(
     available_cities: List[str],
     available_categories: List[str],
     conditions_breakdown: Optional[Dict[str, int]] = None,
+    identities: Iterable[Any] = (),
+    verified_identities: Iterable[Any] = (),
+    now: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """
     Builds the complete serializable seller showcase profile.
@@ -146,8 +157,19 @@ def build_seller_showcase(
     min_p = min((p["min_price"] for p in grouped_products if p["min_price"] > 0), default=0.0)
     max_p = max((p["max_price"] for p in grouped_products), default=0.0)
 
+    flat_offers = [ch for p in grouped_products for ch in p.get("channels", [])]
+    eff_identities = list(identities) or list(verified_identities)
+    seller_prov = build_seller_provenance(
+        seller=seller,
+        channels=channels,
+        identities=eff_identities,
+        offers=flat_offers,
+        now=now,
+    )
+
     return {
         "seller": seller.to_dict(),
+        "provenance": seller_prov.to_dict(),
         "channels": [c.to_dict() for c in channels],
         "channel_types_summary": channel_types_summary,
         "stats": {

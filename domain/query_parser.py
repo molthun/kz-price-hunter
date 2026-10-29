@@ -238,9 +238,10 @@ class QueryParser:
                 text = pat.sub(" ", text)
 
         # 2. Price range extraction
-        # "от 100000 до 500000", "от 100k", "до 500 000 тг"
+        # "от 100000 до 500000", "от 100k", "до 500 000 тг", "до 400 тысяч"
+        price_unit_re = r"(?:k|к|тысяч[аи]?|тыс\.?)"
         price_range_pat = re.compile(
-            r"\b(?:от\s+(\d[\d\s]*(?:k|к)?))?\s*(?:до\s+(\d[\d\s]*(?:k|к)?))\s*(?:тг|тенге|kzt)?\b",
+            rf"\b(?:от\s+(\d[\d\s]*(?:\s*{price_unit_re})?))?\s*(?:до\s+(\d[\d\s]*(?:\s*{price_unit_re})?))\s*(?:тг|тенге|kzt|₸)?\b",
             re.IGNORECASE,
         )
         range_match = price_range_pat.search(text)
@@ -252,15 +253,15 @@ class QueryParser:
                 extracted_max_price = cls._parse_price_val(p_to)
             text = price_range_pat.sub(" ", text)
         else:
-            # Standalone "до 500000"
-            to_pat = re.compile(r"\bдо\s+(\d[\d\s]*(?:k|к)?)\s*(?:тг|тенге|kzt)?\b", re.IGNORECASE)
+            # Standalone "до 500000" / "до 400 тысяч"
+            to_pat = re.compile(rf"\bдо\s+(\d[\d\s]*(?:\s*{price_unit_re})?)\s*(?:тг|тенге|kzt|₸)?\b", re.IGNORECASE)
             to_match = to_pat.search(text)
             if to_match:
                 extracted_max_price = cls._parse_price_val(to_match.group(1))
                 text = to_pat.sub(" ", text)
 
-            # Standalone "от 100000"
-            from_pat = re.compile(r"\bот\s+(\d[\d\s]*(?:k|к)?)\s*(?:тг|тенге|kzt)?\b", re.IGNORECASE)
+            # Standalone "от 100000" / "от 100 тысяч"
+            from_pat = re.compile(rf"\bот\s+(\d[\d\s]*(?:\s*{price_unit_re})?)\s*(?:тг|тенге|kzt|₸)?\b", re.IGNORECASE)
             from_match = from_pat.search(text)
             if from_match:
                 extracted_min_price = cls._parse_price_val(from_match.group(1))
@@ -355,9 +356,11 @@ class QueryParser:
             return None
         cleaned = raw_str.lower().replace(" ", "").replace("\xa0", "")
         multiplier = 1.0
-        if cleaned.endswith("k") or cleaned.endswith("к"):
-            multiplier = 1000.0
-            cleaned = cleaned[:-1]
+        for suffix in ("тысяча", "тысячи", "тысяч", "тыс.", "тыс", "k", "к"):
+            if cleaned.endswith(suffix):
+                multiplier = 1000.0
+                cleaned = cleaned[: -len(suffix)]
+                break
         try:
             return float(cleaned) * multiplier
         except (ValueError, TypeError):

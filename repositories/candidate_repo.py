@@ -24,6 +24,7 @@ from domain.seller_identity import (
 )
 from domain.source_profiler import SourceProfile, SourceProfiler
 from repositories.base import BaseRepository
+from repositories.channel_repo import ChannelRepository
 from repositories.seller_identity_repo import SellerIdentityRepository
 from repositories.seller_repo import SellerRepository
 
@@ -39,6 +40,7 @@ class CandidateRepository(BaseRepository):
         super().__init__(conn)
         self.seller_repo = SellerRepository(conn)
         self.identity_repo = SellerIdentityRepository(conn)
+        self.channel_repo = ChannelRepository(conn)
 
     def save_candidate(self, candidate: SellerCandidate) -> SellerCandidate:
         sql = """
@@ -407,3 +409,238 @@ class CandidateRepository(BaseRepository):
 
         self.save_candidate(candidate)
         return candidate
+
+    def submit_self_registration(self, submission: Any) -> Any:
+        """
+        Принимает заявку «Добавить магазин» (S2-E27):
+        1. Профилирует переданные каналы (сайт, соцсети, маркетплейсы) с observed=False.
+        2. Проверяет совпадения с уже известными продавцами в Seller Graph.
+        3. Всегда ставит кандидата в очередь проверки (`REVIEW_REQUIRED`), чтобы саморегистрация
+           не попадала в боевой индекс без подтверждения (`REVIEW_REQUIRED` -> `APPROVED` -> `INDEXED`).
+        """
+        from domain.seller_onboarding import OnboardingResult, prepare_onboarding_candidate
+
+        candidate, profiles, channels_detected = prepare_onboarding_candidate(submission)
+        self.save_candidate(candidate)
+        for prof in profiles:
+            self.save_source_profile(prof)
+
+        candidate_dict = {
+            "name": candidate.name,
+            "legal_name": candidate.legal_name,
+            "phone": candidate.phone,
+            "domain": candidate.domain,
+            "bin": candidate.bin,
+            "marketplace_seller_id": candidate.marketplace_seller_id,
+        }
+
+        # Существующий продавец привязывается к заявке только по AUTO_MATCH. REVIEW — лишь
+        # подсказка модератору: подтвердить её он может явно (seller_id в решении), иначе при
+        # одобрении создаётся новый продавец (V01 аудита 6.5.0)
+        matched_seller_id: Optional[str] = None
+        suggested_seller_id: Optional[str] = None
+        match_explanation = "Новый магазин — ожидает проверки модератором"
+        best_confidence = 0.7
+
+        potential_sellers = self._find_potential_sellers(candidate_dict)
+        best_review = None
+        for seller in potential_sellers:
+            match_res = self.identity_repo.match_candidate(candidate_dict, seller)
+            if match_res.decision == MatchDecision.AUTO_MATCH:
+                matched_seller_id = suggested_seller_id = seller.id
+                match_explanation = match_res.explanation
+                best_confidence = match_res.confidence
+                break
+            if match_res.decision == MatchDecision.REVIEW and (
+                    best_review is None or match_res.confidence > best_review.confidence):
+                best_review = match_res
+                suggested_seller_id = seller.id
+                match_explanation = f"Возможно, это {seller.id}: {match_res.explanation}"
+                best_confidence = match_res.confidence
+
+        candidate.matched_seller_id = matched_seller_id
+        candidate.status = CandidateStatus.REVIEW_REQUIRED
+        candidate.notes = f"Саморегистрация S2-E27 ({match_explanation})"
+        self.save_candidate(candidate)
+
+        # В очереди — только реальный продавец-подсказка или ничего: придуманный по имени ID
+        # мог совпасть с чужим продавцом
+        queue_id = self.identity_repo.add_to_review_queue(
+            candidate_seller_id=candidate.id,
+            matched_seller_id=suggested_seller_id,
+            reason=f"Заявка «Добавить магазин»: {match_explanation}",
+            confidence=best_confidence,
+            details={
+                "candidate_name": candidate.name,
+                "city": candidate.city,
+                "source_type": candidate.source_type,
+                "channels_detected": channels_detected,
+            },
+        )
+
+        return OnboardingResult(
+            candidate=candidate,
+            profiles=profiles,
+            channels_detected=channels_detected,
+            matched_seller_id=matched_seller_id,
+            match_explanation=match_explanation,
+            review_queue_id=queue_id if isinstance(queue_id, str) else getattr(queue_id, "id", None),
+        )
+
+    def approve_onboarding_candidate(
+        self,
+        candidate_id: str,
+        decision: str = "APPROVED",
+        actor: Optional[str] = None,
+        seller_id: Optional[str] = None,
+    ) -> Optional[Seller]:
+        """
+        Подтверждает или отклоняет заявку магазина (S2-E27).
+        При подтверждении атомарно переводит кандидата `REVIEW_REQUIRED` -> `APPROVED` -> `INDEXED`,
+        создаёт или обновляет запись `Seller`, привязывает ключи идентичности и создаёт каналы (`Channel`).
+
+        Существующий продавец дополняется только по подтверждённому сопоставлению: AUTO_MATCH при
+        подаче заявки или явный `seller_id` модератора. Иначе создаётся новый продавец с ID от
+        самой заявки — совпадение префикса домена или имени чужого продавца не перезаписывает (V01).
+        Повторное одобрение возвращает того же продавца.
+        """
+
+        candidate = self.get_candidate_by_id(candidate_id)
+        if not candidate:
+            return None
+
+        norm_dec = (decision or "").strip().upper()
+        if norm_dec not in ("APPROVED", "REJECTED"):
+            raise ValueError(f"Decision must be APPROVED or REJECTED, got {decision}")
+
+        # Повторное одобрение уже подключённой заявки ничего не меняет и возвращает того же
+        # продавца (V01): заявка в INDEXED обратно в APPROVED не переводится
+        if norm_dec == "APPROVED" and candidate.status == CandidateStatus.INDEXED and candidate.matched_seller_id:
+            if seller_id and seller_id != candidate.matched_seller_id:
+                raise ValueError("Заявка уже подключена к другому продавцу")
+            existing = self.seller_repo.get_by_id(candidate.matched_seller_id)
+            if existing is not None:
+                return existing
+
+        self.execute("SAVEPOINT onboarding_decision")
+        try:
+            # Close any pending review queue items for this candidate
+            pending_rows = self.fetchall(
+                "SELECT id FROM seller_review_queue WHERE candidate_seller_id = ? AND status = 'PENDING'",
+                (candidate_id,),
+            )
+            for prow in pending_rows:
+                self.identity_repo.resolve_review(prow["id"], norm_dec, actor=actor)
+
+            if norm_dec == "REJECTED":
+                self.update_candidate_status(
+                    candidate_id,
+                    CandidateStatus.REJECTED,
+                    notes="Заявка отклонена модератором" + (f" ({actor})" if actor else ""),
+                )
+                self.execute("RELEASE SAVEPOINT onboarding_decision")
+                return None
+
+            # 1. Create or update Seller
+            seller: Optional[Seller] = None
+            target_id = seller_id or candidate.matched_seller_id
+            if target_id:
+                seller = self.seller_repo.get_by_id(target_id)
+                if seller is None and seller_id:
+                    raise ValueError(f"Продавец {seller_id} не найден")
+
+            if not seller:
+                new_id = self._onboarded_seller_id(candidate.id)
+                existing = self.seller_repo.get_by_id(new_id)
+                if existing is not None and (existing.metadata or {}).get("onboarded_from") != candidate.id:
+                    raise ValueError(f"ID {new_id} уже занят другим продавцом")
+                seller = existing or Seller(
+                    id=new_id,
+                    slug=self._free_seller_slug(candidate),
+                    name=candidate.name,
+                    legal_name=candidate.legal_name,
+                    bin=candidate.bin,
+                    domain=candidate.domain,
+                    phone=candidate.phone,
+                    is_active=True,
+                    metadata={"city": candidate.city, "onboarded_from": candidate.id},
+                )
+            else:
+                seller.legal_name = seller.legal_name or candidate.legal_name
+                seller.bin = seller.bin or candidate.bin
+                seller.domain = seller.domain or candidate.domain
+                seller.phone = seller.phone or candidate.phone
+                seller.is_active = True
+
+            self.seller_repo.save_or_update(seller)
+            self.identity_repo.sync_identities_from_seller(seller, source="self_registration_approved")
+
+            if candidate.marketplace_seller_id:
+                self.identity_repo.add_identity_values(
+                    seller.id,
+                    IdentityType.MARKETPLACE_SELLER_ID,
+                    candidate.marketplace_seller_id,
+                    confidence=0.95,
+                    source="self_registration_approved",
+                )
+
+            # 2. Register channels from candidate metadata
+            meta = candidate.raw_metadata or {}
+            channels_list = meta.get("channels_detected") or []
+            for ch in channels_list:
+                ch_type = ch.get("channel_type")
+                ch_url = ch.get("url")
+                ch_handle = ch.get("handle")
+                if ch_type and ch_url:
+                    self.channel_repo.get_or_create(
+                        seller_id=seller.id,
+                        channel_type=ch_type,
+                        name=f"{seller.name} ({ch_type})",
+                        external_store_id=ch_handle,
+                        base_url=ch_url,
+                    )
+
+            # Link source profiles to seller
+            for prof in self.get_source_profiles_for_candidate(candidate.id):
+                prof.seller_id = seller.id
+                self.save_source_profile(prof)
+
+            # 3. Advance status: REVIEW_REQUIRED -> APPROVED -> INDEXED
+            if candidate.status != CandidateStatus.APPROVED:
+                self.update_candidate_status(
+                    candidate.id,
+                    CandidateStatus.APPROVED,
+                    matched_seller_id=seller.id,
+                    notes="Заявка одобрена" + (f" ({actor})" if actor else ""),
+                )
+            self.update_candidate_status(
+                candidate.id,
+                CandidateStatus.INDEXED,
+                matched_seller_id=seller.id,
+                notes="Магазин подключён к индексу" + (f" ({actor})" if actor else ""),
+            )
+            self.execute("RELEASE SAVEPOINT onboarding_decision")
+            return seller
+        except Exception:
+            self.execute("ROLLBACK TO SAVEPOINT onboarding_decision")
+            self.execute("RELEASE SAVEPOINT onboarding_decision")
+            raise
+
+    @staticmethod
+    def _onboarded_seller_id(candidate_id: str) -> str:
+        """ID продавца из заявки: производный от уникального ID заявки, а не от домена/имени."""
+        suffix = candidate_id[len("cand_"):] if candidate_id.startswith("cand_") else candidate_id
+        return f"seller_{suffix}"
+
+    def _free_seller_slug(self, candidate: SellerCandidate) -> str:
+        """Читаемый slug по домену целиком (example-com, а не example) или имени; занятый — с
+        суффиксом от заявки. slug в таблице уникален, чужой занимать нельзя."""
+        import hashlib
+        import re
+
+        base = re.sub(r"[^a-z0-9]+", "-", (candidate.domain or candidate.name or "").lower()).strip("-")
+        base = base or "seller"
+        slug = base
+        if self.fetchone("SELECT 1 FROM sellers WHERE slug = ?", (slug,)):
+            slug = f"{base}-{hashlib.sha256(candidate.id.encode()).hexdigest()[:8]}"
+        return slug

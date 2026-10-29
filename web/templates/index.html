@@ -2165,12 +2165,84 @@
       </div>
 
       <!-- Footer -->
-      <div class="p-3 sm:p-4 border-t border-slate-800 bg-slate-900/40 flex items-center justify-between">
+      <div class="p-3 sm:p-4 border-t border-slate-800 bg-slate-900/40 flex items-center justify-between gap-2">
         <span class="text-[11px] text-slate-500" id="modalSellerFooterInfo"></span>
-        <button onclick="closeSellerModal()" class="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white transition cursor-pointer">
-          Закрыть
+        <div class="flex items-center gap-2">
+          <button onclick="openRegisterSellerModal()" class="px-3.5 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-xs font-semibold text-emerald-300 transition cursor-pointer">
+            <i class="fa-solid fa-plus mr-1"></i>Добавить магазин
+          </button>
+          <button onclick="closeSellerModal()" class="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white transition cursor-pointer">
+            Закрыть
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно саморегистрации магазина (S2-E27: Добавить магазин) -->
+  <div id="modalRegisterSeller" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 hidden" onclick="if(event.target === this) closeRegisterSellerModal()">
+    <div class="glass max-w-lg w-full rounded-2xl border border-slate-700 max-h-[92vh] flex flex-col shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between p-4 sm:p-5 border-b border-slate-800 bg-slate-900/60">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+            <i class="fa-solid fa-shop"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white">Добавить магазин</h3>
+            <p class="text-[11px] text-slate-400">Заявка попадёт в очередь проверки и профилирования каталога</p>
+          </div>
+        </div>
+        <button onclick="closeRegisterSellerModal()" class="text-slate-400 hover:text-white cursor-pointer text-lg p-1.5 rounded-lg hover:bg-slate-800/60 transition">
+          <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
+      <form id="formRegisterSeller" onsubmit="submitRegisterSellerForm(event)" class="p-4 sm:p-5 overflow-y-auto space-y-3 text-xs text-slate-200">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1">Название магазина *</label>
+            <input type="text" id="regSellerName" required placeholder="Например, 4mobile.kz" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:border-emerald-500">
+          </div>
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1">Город</label>
+            <input type="text" id="regSellerCity" value="Алматы" placeholder="Алматы / Астана" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:border-emerald-500">
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1">Сайт магазина</label>
+            <input type="text" id="regSellerWebsite" placeholder="https://example.kz" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:border-emerald-500">
+          </div>
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1">Телефон / WhatsApp</label>
+            <input type="text" id="regSellerPhone" placeholder="+7 777 000 00 00" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:border-emerald-500">
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1">Instagram</label>
+            <input type="text" id="regSellerInstagram" placeholder="@shop_handle" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:border-emerald-500">
+          </div>
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1">Telegram-канал</label>
+            <input type="text" id="regSellerTelegram" placeholder="@shop_channel" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:border-emerald-500">
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1">Ссылка на маркетплейс (Kaspi и др.)</label>
+            <input type="text" id="regSellerMarketplace" placeholder="https://kaspi.kz/shop/..." class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:border-emerald-500">
+          </div>
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1">БИН / ИИН (опционально, 12 цифр)</label>
+            <input type="text" id="regSellerBin" maxlength="12" placeholder="123456789012" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:border-emerald-500">
+          </div>
+        </div>
+        <div id="regSellerStatusMsg" class="hidden p-2.5 rounded-xl text-xs"></div>
+        <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+          <button type="button" onclick="closeRegisterSellerModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium cursor-pointer">Отмена</button>
+          <button type="submit" id="btnSubmitRegisterSeller" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold cursor-pointer">Отправить на проверку</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -2778,6 +2850,18 @@
           return `<span class="px-2 py-0.5 rounded-full text-[11px] font-medium border ${badgeClass}">${escapeHtml(cond)}: ${cnt}</span>`;
         }).join(' ');
 
+        // Render Provenance Facts (S2-E28: проверяемые факты без значка «Проверенный продавец»)
+        const sellerProvenance = data.provenance || {};
+        const provenanceFacts = Array.isArray(sellerProvenance.facts) ? sellerProvenance.facts : [];
+        const provenanceHtml = provenanceFacts.length ? `
+          <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-1.5">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Проверяемые сведения о продавце</div>
+            <div class="flex flex-wrap gap-1.5">
+              ${provenanceFacts.map(f => `<span class="px-2 py-0.5 rounded-lg bg-slate-900 border border-slate-700/80 text-[11px] text-slate-300">${escapeHtml(f)}</span>`).join('')}
+            </div>
+          </div>
+        ` : '';
+
         // Render Products List
         const productsHtml = products.length ? products.map(p => {
           const chList = (p.channels || []).map(ch => {
@@ -2788,13 +2872,15 @@
               ch.is_expired ? '<span class="text-[10px] text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded">Истекло</span>' :
               '<span class="text-[10px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">Нет в наличии</span>'
             ) : '';
+            const ageLabel = ch.provenance && ch.provenance.age_label ? `<span class="text-[10px] text-slate-500">${escapeHtml(ch.provenance.age_label)}</span>` : '';
             return `
               <div class="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-slate-950/40 border border-slate-800/80 text-xs">
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
                   <span class="font-medium text-slate-300">${escapeHtml(chName)}</span>
                   ${condBadge}
                   ${statusBadge}
                   <span class="text-[10px] text-slate-500 font-mono">${escapeHtml(ch.city || '')}</span>
+                  ${ageLabel}
                 </div>
                 <div class="flex items-center gap-3">
                   <span class="font-bold ${ch.is_purchasable === false ? 'text-slate-500 line-through' : 'text-slate-100'}">${fmtPrice(ch.price)}</span>
@@ -2846,6 +2932,7 @@
         `;
 
         body.innerHTML = `
+          ${provenanceHtml}
           <!-- Каналы -->
           <div class="space-y-2">
             <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Точки продаж и каналы (${channels.length})</div>
@@ -2887,6 +2974,70 @@
     function closeSellerModal() {
       const modal = document.getElementById('modalSellerShowcase');
       if (modal) modal.classList.add('hidden');
+    }
+
+    function openRegisterSellerModal() {
+      const modal = document.getElementById('modalRegisterSeller');
+      const msg = document.getElementById('regSellerStatusMsg');
+      if (msg) {
+        msg.classList.add('hidden');
+        msg.textContent = '';
+      }
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeRegisterSellerModal() {
+      const modal = document.getElementById('modalRegisterSeller');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function submitRegisterSellerForm(event) {
+      if (event) event.preventDefault();
+      const msg = document.getElementById('regSellerStatusMsg');
+      const btn = document.getElementById('btnSubmitRegisterSeller');
+      const mpVal = (document.getElementById('regSellerMarketplace')?.value || '').trim();
+      const payload = {
+        name: (document.getElementById('regSellerName')?.value || '').trim(),
+        city: (document.getElementById('regSellerCity')?.value || 'Алматы').trim(),
+        website_url: (document.getElementById('regSellerWebsite')?.value || '').trim() || null,
+        phone: (document.getElementById('regSellerPhone')?.value || '').trim() || null,
+        whatsapp: (document.getElementById('regSellerPhone')?.value || '').trim() || null,
+        instagram: (document.getElementById('regSellerInstagram')?.value || '').trim() || null,
+        telegram: (document.getElementById('regSellerTelegram')?.value || '').trim() || null,
+        marketplace_links: mpVal ? [mpVal] : [],
+        bin: (document.getElementById('regSellerBin')?.value || '').trim() || null
+      };
+      if (btn) btn.disabled = true;
+      try {
+        const resp = await fetch('/api/v2/sellers/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data.ok) {
+          if (msg) {
+            msg.className = 'p-2.5 rounded-xl text-xs bg-rose-500/15 border border-rose-500/30 text-rose-300';
+            msg.textContent = data.error || 'Ошибка отправки заявки';
+            msg.classList.remove('hidden');
+          }
+          return;
+        }
+        if (msg) {
+          msg.className = 'p-2.5 rounded-xl text-xs bg-emerald-500/15 border border-emerald-500/30 text-emerald-300';
+          msg.textContent = `Заявка принята (${data.candidate?.id || 'REVIEW_REQUIRED'}). Найдено каналов: ${(data.channels_detected || []).length}.`;
+          msg.classList.remove('hidden');
+        }
+        document.getElementById('formRegisterSeller')?.reset();
+      } catch (err) {
+        if (msg) {
+          msg.className = 'p-2.5 rounded-xl text-xs bg-rose-500/15 border border-rose-500/30 text-rose-300';
+          msg.textContent = err.message || 'Сетевая ошибка';
+          msg.classList.remove('hidden');
+        }
+      } finally {
+        if (btn) btn.disabled = false;
+      }
     }
 
     function openProductDetailsModalFromData(encodedStr) {

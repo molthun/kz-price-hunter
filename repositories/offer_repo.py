@@ -97,11 +97,14 @@ class OfferRepository(BaseRepository):
         observed_at: Optional[str] = None,
     ) -> OfferPriceHistory:
         obs_time = observed_at or utc_now_iso()
+        # Измерения линии берутся из предложения в момент наблюдения (V02)
         sql = """
-        INSERT OR REPLACE INTO offer_price_history (offer_id, price, old_price, observed_at)
-        VALUES (?, ?, ?, ?)
+        INSERT OR REPLACE INTO offer_price_history
+            (offer_id, price, old_price, observed_at, product_id, seller_id, channel_id, condition, city)
+        SELECT ?, ?, ?, ?, o.product_id, o.seller_id, o.channel_id, o.condition, o.city
+        FROM (SELECT 1) LEFT JOIN offers o ON o.id = ?
         """
-        self.execute(sql, (offer_id, price, old_price, obs_time))
+        self.execute(sql, (offer_id, price, old_price, obs_time, offer_id))
         return OfferPriceHistory(
             offer_id=offer_id,
             price=price,

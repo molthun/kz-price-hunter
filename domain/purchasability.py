@@ -5,7 +5,9 @@
   * наличие — in_stock или preorder;
   * срок (TTL) не истёк: истёкшим считается now >= expires_at;
   * само предложение, его канал и продавец активны (если признак известен);
-  * наблюдение не устарело (Stale по data_quality.freshness от observed_at, иначе updated_at).
+  * наблюдение не устарело: возраст observed_at (иначе updated_at) не больше предела для типа
+    канала и состояния (domain.freshness_v2: сайт 72 ч, еда 12 ч, объявления и соцсети 7 дн.).
+    Нечитаемое время — отсутствие данных, а не «устарело».
 
 SQL-фильтры кандидатов строятся из тех же порогов (sql_purchasable_conditions), чтобы отбор до
 LIMIT и итоговая карточка не расходились.
@@ -16,7 +18,6 @@ from __future__ import annotations
 import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-import data_quality
 
 PURCHASABLE_AVAILABILITY = ("in_stock", "preorder")
 
@@ -61,14 +62,22 @@ def offer_purchasable(row: Dict[str, Any], now: Optional[datetime.datetime] = No
     if any(_inactive(row.get(k)) for k in ("is_active", "channel_is_active", "seller_is_active")):
         return False
     observed = row.get("observed_at") or row.get("updated_at")
-    if observed and data_quality.freshness(observed, now=moment)["freshness"] == data_quality.STALE:
-        return False
+    if observed:
+        from domain.freshness_v2 import _parse_iso_utc, purchasable_max_age_hours
+        seen = _parse_iso_utc(observed)
+        limit = purchasable_max_age_hours(row.get("channel_type"), row.get("condition"))
+        if seen is not None and (moment - seen).total_seconds() / 3600.0 > limit:
+            return False
     return True
 
 
-def sql_purchasable_conditions(now: Optional[datetime.datetime] = None, offer: str = "o") -> Tuple[List[str], list]:
-    """Те же условия в SQL для отбора кандидатов до LIMIT (алиас предложения — offer)."""
+def sql_purchasable_conditions(now: Optional[datetime.datetime] = None, offer: str = "o",
+                               channel: Optional[str] = None) -> Tuple[List[str], list]:
+    """Те же условия в SQL для отбора кандидатов до LIMIT (алиас предложения — offer, канала —
+    channel; без канала порог свежести — как у строки без channel_type в Python)."""
+    from domain.freshness_v2 import sql_purchasable_max_age_hours
     moment = utc_now(now).isoformat()
+    max_age = sql_purchasable_max_age_hours(channel, offer)
     seen = f"COALESCE(NULLIF({offer}.observed_at, ''), {offer}.updated_at)"
     conditions = [
         f"{offer}.price > 0",
@@ -77,6 +86,6 @@ def sql_purchasable_conditions(now: Optional[datetime.datetime] = None, offer: s
         # Нечитаемое время, как и в Python, не делает предложение недоступным
         f"(julianday({offer}.expires_at) IS NULL OR julianday({offer}.expires_at) > julianday(?))",
         # Как в Python: пустое observed_at — берётся updated_at (F02)
-        f"(julianday({seen}) IS NULL OR julianday({seen}) >= julianday(?) - ?)",
+        f"(julianday({seen}) IS NULL OR julianday({seen}) >= julianday(?) - {max_age} / 24.0)",
     ]
-    return conditions, [moment, moment, data_quality.AGING_HOURS / 24.0]
+    return conditions, [moment, moment]

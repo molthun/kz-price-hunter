@@ -43,6 +43,7 @@ def _record_dual_write_error(pid: str, err: Exception) -> None:
             COMPONENT_SYSTEM,
             f"Dual-write v2 failed for product {pid}: {err}",
             data={"product_id": pid, "error": str(err)},
+            offer_id=f"off_{pid}",  # сквозной ID предложения V2 (S2-E24, V07)
         )
     except Exception:
         pass

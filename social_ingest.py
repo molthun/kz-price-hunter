@@ -72,7 +72,18 @@ def ingest_source(source: SocialSource,
                   connector: Optional[Any] = None,
                   conn: Optional[Any] = None,
                   now_iso: Optional[str] = None) -> IngestResult:
-    """Один проход по источнику. Не бросает исключений коннектора — только фиксирует статус."""
+    """Один проход по источнику. Не бросает исключений коннектора — только фиксирует статус.
+
+    События прохода несут source_id и seller_id источника (S2-E24, V07)."""
+    from telemetry import correlation_context
+    with correlation_context(source_id=source.id, seller_id=getattr(source, "seller_id", None) or None):
+        return _ingest_source(source, connector=connector, conn=conn, now_iso=now_iso)
+
+
+def _ingest_source(source: SocialSource,
+                   connector: Optional[Any] = None,
+                   conn: Optional[Any] = None,
+                   now_iso: Optional[str] = None) -> IngestResult:
     result = IngestResult(
         source_id=source.id, platform=source.platform, handle=source.handle,
         status=IngestStatus.ERROR)

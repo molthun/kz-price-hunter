@@ -269,6 +269,16 @@ class PagedScraper:
         unparsed = 0  # неразобранные карточки во всей категории (A01)
         started = time.monotonic()
 
+        def _finish_end_of_catalog() -> ScanResult:
+            if unparsed:
+                # Магазин подтвердил конец, но часть карточек не разобрана: отсутствие товара
+                # могло быть ошибкой разбора — обход не полный, сверка ничего не снимет (A01)
+                self._report_scrape(category_name, products, pages_scraped, started,
+                                    f"конец каталога, но не разобрано карточек: {unparsed}")
+                return ScanResult(products, limited=True, unparsed=unparsed)
+            self._report_scrape(category_name, products, pages_scraped, started, "завершено")
+            return ScanResult(products, complete=True)
+
         for page in range(1, limit + 1):
             if page > 1 and self.PAGE_DELAY_SECONDS:
                 time.sleep(self.PAGE_DELAY_SECONDS)
@@ -276,7 +286,7 @@ class PagedScraper:
                 items = self._fetch_page_with_retry(category_name, category_url, page)
                 pages_scraped += 1
             except UnconfirmedEnd:
-                result = ScanResult(products, limited=bool(products),
+                result = ScanResult(products, limited=bool(products), unparsed=unparsed,
                                     error=None if products else "Карточки не найдены на первой странице")
                 self._report_scrape(category_name, products, pages_scraped,
                                     started, "конец каталога не подтверждён")
@@ -284,35 +294,29 @@ class PagedScraper:
             except Exception as e:
                 self._report_scrape(category_name, products, pages_scraped,
                                     started, f"ошибка: {type(e).__name__}")
-                return ScanResult(products, error=f"Страница {page}: {type(e).__name__}")
-
-            if not items:
-                complete = bool(products) and getattr(items, "complete", False)
-                self._report_scrape(category_name, products, pages_scraped, started,
-                                    "завершено" if complete else "пустая выдача: полнота не подтверждена")
-                return ScanResult(products, complete=complete,
-                                  error=None if complete else "Пустая выдача: полнота не подтверждена")
+                return ScanResult(products, unparsed=unparsed, error=f"Страница {page}: {type(e).__name__}")
 
             unparsed += int(getattr(items, "unparsed", 0) or 0)
+            if not items:
+                if products and getattr(items, "complete", False):
+                    return _finish_end_of_catalog()
+                self._report_scrape(category_name, products, pages_scraped, started,
+                                    "пустая выдача: полнота не подтверждена")
+                return ScanResult(products, limited=bool(products), unparsed=unparsed,
+                                  error="Пустая выдача: полнота не подтверждена")
+
             fresh = [i for i in items if i.get("id") and i["id"] not in seen_ids]
             if not fresh:
                 # Страница повторяет уже собранные товары — каталог закончился
                 self._report_scrape(category_name, products, pages_scraped, started,
                                     "дубликаты, остановка")
-                return ScanResult(products, limited=True)
+                return ScanResult(products, limited=True, unparsed=unparsed)
 
             seen_ids.update(i["id"] for i in fresh)
             products.extend(fresh)
             if getattr(items, "complete", False):
-                if unparsed:
-                    # Магазин подтвердил конец, но часть карточек не разобрана: отсутствие товара
-                    # могло быть ошибкой разбора — обход не полный, сверка ничего не снимет (A01)
-                    self._report_scrape(category_name, products, pages_scraped, started,
-                                        f"конец каталога, но не разобрано карточек: {unparsed}")
-                    return ScanResult(products, limited=True, unparsed=unparsed)
-                self._report_scrape(category_name, products, pages_scraped, started, "завершено")
-                return ScanResult(products, complete=True)
+                return _finish_end_of_catalog()
 
         self._report_scrape(category_name, products, pages_scraped, started,
                             "достигнут лимит страниц")
-        return ScanResult(products, limited=True)
+        return ScanResult(products, limited=True, unparsed=unparsed)

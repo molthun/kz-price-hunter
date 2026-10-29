@@ -2,6 +2,193 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## Передача аудитору: V01–V07 единого пакета 6.5.0 → Codex (Claude, 2026-10-29)
+
+```text
+ID / этап: Пакет Search Platform 2.0 v6.5.0 (S2-E10, E22, E23–E28) — исправление V01–V07
+Основание: аудит Codex AUDIT_2026-10-29_V650_CODEX.md (на доработку); владелец передал результат.
+Статус: READY_FOR_AUDIT. Push нет; origin/main = e380a0f = прод 6.4.11. Версия остаётся 6.5.0.
+Коммиты: аудит Codex сохранён отдельно; кандидат Antigravity и исправления — одним коммитом (тег v6.5.0).
+
+Исправлено:
+  V01 P1  repositories/candidate_repo.py, web/server.py
+          Новый продавец из заявки: ID seller_<id заявки>, slug — домен целиком, при занятости с суффиксом.
+          Существующий продавец — только по AUTO_MATCH или явному seller_id модератора (POST …/decision),
+          поля дополняются, имя не меняется. REVIEW — подсказка (реальный продавец в очереди, не выдуманный ID).
+          Повторное одобрение INDEXED-заявки возвращает того же продавца (раньше падало INDEXED→APPROVED).
+  V02     schema_v2 (+5 колонок offer_price_history, аддитивно), domain/adapter.py, offer_repo.py,
+          seller_identity_repo.py (слияние), pricing_repo.py, price_history_v2.py, scripts/migrate_v1_to_v2.py
+          Точка хранит product/seller/channel/condition/city на момент наблюдения; новая точка и при смене
+          измерений без смены цены; чтение COALESCE(точка, текущее). Старые строки — по текущему (ограничение).
+          Одновременные точки разных предложений одной линии сохраняются.
+  V03     domain/freshness_v2.py (policy_freshness_type, purchasable_max_age_hours, offer_freshness,
+          sql_purchasable_max_age_hours), purchasability.py, search_repo.py (channel="c"), search_core.py,
+          provenance.py, monitoring_v2.py. Одно правило по типу канала + состоянию; SQL-ветви генерируются
+          из той же функции. Сайт 72 ч — без изменений; еда 12 ч; объявления/соцсети 7 дн.
+          API/YML-пороги в правило не входят: тип источника в offers не хранится (честное ограничение).
+  V04     domain/monitoring_v2.py: все активные offers постранично по rowid; unknown отдельно;
+          ошибки чтения → null + read_errors.
+  V05     domain/search_core.py (installment_available/months, credit_available в AggregatedOffer),
+          domain/search_assistant.py: рассрочка только по данным предложения, иначе «условия неизвестны»;
+          сравнение только тот же товар и состояние; состояние в тексте.
+  V06     domain/vision_extraction.py помечен ЧАСТИЧНЫМ (изображения не распознаются; image_text читается);
+          из ai_router.TASKS убраны неиспользуемые vision_extraction и search_assistant.
+  V07     web/server.py: telemetry_middleware → request_id (+X-Request-ID), seller_id из витрины/фильтра,
+          сброс по выходе; run_db переносит contextvars; обход магазина source_id=shop:<key>;
+          social_ingest.ingest_source → source_id/seller_id; database dual-write error → offer_id.
+
+Проверки (macOS, Python 3.14.7):
+  - Полный suite: 1938 OK (99 с). Frontend: 19/19 PASS (Deno/Playwright/Chrome).
+  - docs/audit_evidence/2026-10-29-v650/acceptance.py: 5/5 OK (было 5 FAIL).
+  - tests/core/test_v650_audit_fixes.py: 25 OK; на кандидате до исправлений 22 падают, 3 защитные
+    проходят обе версии (подсказка REVIEW, перенос истории при слиянии, изображение без текста).
+  - release_gate.py secrets ok, git diff --check PASS.
+  - Тесты помощника Antigravity переведены на явно записанную рассрочку (+ проверка «без данных — неизвестно»).
+Не делалось: реальные AI/Vision-вызовы, живые обходы. Linux-образ и стенд — см. строку ниже.
+
+Следующий точный шаг: Codex — единая повторная приёмка пакета 6.5.0 (V01–V07).
+Выпуск — отдельное решение владельца после приёмки.
+```
+
+---
+
+## Единый аудит Search Platform 2.0 / кандидат 6.5.0 — Codex (2026-10-29)
+
+- Основание: «Ждем аудит» и первая передача единого пакета. Проверен HEAD `e2b90f5` + исходный
+  dirty/untracked-кандидат в отдельной копии. Перед отчётом drift=[], HEAD прежний; разработки сохранены.
+- Статус: **Остаток A01 принят. Пакет 6.5.0 НА ДОРАБОТКУ: V01 P1, V02–V07 P2**.
+- V01: несопоставленная заявка example.com после одобрения перезаписывает существующий seller_example
+  от example.kz (имя/домен). V02: история NEW-цены после смены offers.condition становится USED.
+- V03: food 30ч по freshness_v2 EXPIRED, но общая purchasability=True. V04: total_active_offers
+  показывает 5000 при 5005 строках. V05: рассрочка выводится из канала без условий, сравнение USED/NEW
+  выдаётся за разницу способов покупки. Все 5 случаев независимо воспроизведены дважды.
+- V06: Vision принимает готовый OCR/vision_items, но media_urls не идут в image/OCR-провайдер — этап
+  фактического извлечения не завершён. V07: correlation_context есть, но новые request/seller/source/offer
+  ID не устанавливаются production-вызовами. Оба пробела подтверждены разбором рабочих связей.
+- Полный suite **1913 OK, 94.990 с**, frontend **19/19 PASS**, прежняя матрица watch_refresh **29 OK**,
+  A01 2 OK; независимые новые 5 FAIL дважды; secrets/diff check PASS. Рабочая prices.db не открывалась.
+- Отчёт: [AUDIT_2026-10-29_V650_CODEX.md](AUDIT_2026-10-29_V650_CODEX.md).
+  Свидетельства: `docs/audit_evidence/2026-10-29-v650/` (snapshot, patch, новые исходники, сценарии, логи).
+- Следующий шаг: V01–V05 и завершение/честное ограничение V06/V07 с регрессиями рабочих границ,
+  затем единая повторная приёмка. В первую очередь V01 и V03. Продуктовая приёмка/выпуск отдельно.
+  Код приложения, настройки, стенд и прод не менялись; реальные AI/Telegram не вызывались; push отсутствует.
+
+---
+
+## Передача аудитору: Единый пакет Search Platform 2.0 (v6.5.0: S2-E10, S2-E22, S2-E23..E28 + остаток A01 v6.4.14) → Codex (Antigravity, 2026-10-29 09:16 +05:00)
+
+```text
+ID / этап: Пакет Search Platform 2.0 (v6.5.0: S2-E10, S2-E22, S2-E23, S2-E24, S2-E25, S2-E26, S2-E27, S2-E28)
+           + закрытие остатка A01 (P2) Задачи 3 из P-6.4.12 (scrapers/base.py)
+Основание: поручение владельца «Давай большими частями делать потом общий аудит» (2026-10-29).
+Статус: READY_FOR_AUDIT
+  Push не выполнялся; origin/main = e380a0f = прод 6.4.11.
+Базовый HEAD: e2b90f5 (файлы приёмки Codex docs/ACCEPTANCE_2026-10-29_V6414_A01_A02_CODEX.md
+  и docs/audit_evidence/2026-10-29-v6414-reaccept/ сохранены в рабочем дереве без изменений).
+
+Состав и реализация этапов пакета v6.5.0:
+1. Остаток A01 (scrapers/base.py, PagedScraper._scrape_sync):
+   - unparsed += int(getattr(items, "unparsed", 0) or 0) выполняется ДО проверки if not items;
+   - добавлена _finish_end_of_catalog(), проверяющая unparsed > 0 на границе конца каталога
+     (при непустом items и при пустом items с флагом complete=True);
+   - во всех ветках выхода (UnconfirmedEnd, Exception, лимит страниц, дубликаты) передаётся unparsed=unparsed.
+2. Шаг 1 (S2-E25 + S2-E26 + S2-E28):
+   - domain/freshness_v2.py: дифференциация по типу источника (API 24ч, HTML 48ч, Social/Stories 12ч,
+     Onboarding 72ч);
+   - domain/price_history_v2.py + repositories/pricing_repo.py: изоляция истории цен Price History 2.0
+     по составному ключу (product_id, seller_id, channel_id, condition) без смешивания каналов/состояний;
+   - domain/provenance.py + domain/seller_showcase.py: модуль проверяемых фактов о продавце и предложении
+     (каналы, БИН, дата первой/последней фиксации цен, подтверждённый город) без вымышленных бейджей «Проверенный».
+3. Шаг 2 (S2-E10):
+   - domain/vision_extraction.py + ai_router.py + repositories/content_repo.py: извлечение кандидатов и цен
+     с изображений/сторис с confidence >= 0.75, отсечением не-KZT валют (RUB/USD), отсечением цен «за кг / за 100г»,
+     отсечением частичных/перечёркнутых цен с явным статусом «Цена не определена».
+4. Шаг 3 (S2-E22):
+   - domain/search_assistant.py + domain/query_parser.py: AI Search Assistant поверх Search Core 2.0;
+     структурированный план (бюджет в тыс./к/миллионах, рассрочка, категория/назначение, состояние, город),
+     сравнение прямого предложения и рассрочки, строгий поиск только по реальной БД без галлюцинаций.
+5. Шаг 4 (S2-E27):
+   - domain/seller_onboarding.py + repositories/candidate_repo.py + repositories/seller_identity_repo.py:
+     саморегистрация продавцов («Добавить магазин»), валидация контактов/БИН, SourceProfiler + SellerMatcher,
+     очередь модерации (REVIEW_REQUIRED -> APPROVED -> INDEXED).
+6. Шаг 5 (S2-E23 + S2-E24):
+   - domain/monitoring_v2.py + telemetry.py: 4-уровневый мониторинг (Seller -> Source -> Channel -> Offer/Data Quality),
+     сквозные контекстные correlation IDs (request_id, scan_id, seller_id, source_id, offer_id);
+   - web/server.py: эндпоинты GET /api/v2/products/{id}/history, GET/POST /api/v2/search/assistant,
+     POST /api/v2/sellers/register, GET /api/v2/admin/onboarding, POST /api/v2/admin/onboarding/{id}/decision,
+     GET /api/v2/monitoring/overview;
+   - web/templates/index.html: модальное окно регистрации продавца #modalRegisterSeller, кнопка «Добавить магазин»,
+     отображение проверяемых фактов о продавце и предложении (provenance).
+
+Изменённые и новые файлы:
+  * scrapers/base.py
+  * ai_router.py
+  * telemetry.py
+  * version.py (6.5.0)
+  * CHANGELOG.md (с разделом «### Для пользователей»)
+  * ROADMAP_AND_LOG.md
+  * docs/AGENT_HANDOFF.md
+  * domain/__init__.py, domain/README.md, domain/query_parser.py, domain/seller_showcase.py
+  * domain/freshness_v2.py, domain/price_history_v2.py, domain/provenance.py, domain/vision_extraction.py
+  * domain/search_assistant.py, domain/seller_onboarding.py, domain/monitoring_v2.py
+  * repositories/candidate_repo.py, repositories/content_repo.py, repositories/pricing_repo.py,
+    repositories/seller_identity_repo.py
+  * web/server.py, web/templates/index.html
+  * tests/scrapers/test_scraper_partial_parse.py
+  * tests/core/test_search_platform_v2_complete.py
+
+Проверки и регрессии:
+  1. A01 скрипт аудитора:
+     - docs/audit_evidence/2026-10-29-v6414-reaccept/empty_last_page.py: Ran 2 tests in 0.005s — OK.
+  2. Регрессии скрейперов (tests/scrapers/test_scraper_partial_parse.py):
+     - 16 тестов в файле — OK; на базовом e2b90f5 3 новых теста падают (failures=3).
+  3. Новые сквозные тесты Search Platform 2.0 (tests/core/test_search_platform_v2_complete.py):
+     - 17 unit, DB integration и aiohttp API тестов — OK (включая контракты импортов и валидаторов).
+  4. Полный локальный Python test suite (macOS, изолированный DATA_DIR):
+     - Ran 1913 tests in 95.593s — OK.
+  5. Полный локальный фронтенд suite (все 19 наборов tests/frontend/test_frontend*.cjs через Deno):
+     - 19/19 PASS.
+  6. Проверка секретов и git diff:
+     - ./venv/bin/python release_gate.py secrets --root . -> {"ok": true, "findings": []};
+     - git diff --check -> чисто.
+  7. Тестовый стенд (192.168.28.25:2222, /home/molthun/kzph-stand, лимиты 4 CPU / 15g):
+     - Точки отката: образ kzph-stand:6.4.14-before-650, SQLite backup prices.db.before-650;
+     - Контейнер kzph-stand пересобран на 6.5.0:
+       /api/live -> 200 {"status": "live"},
+       /api/version -> 200 {"version": "6.5.0", ...},
+       /api/health -> 200 ok (db ok, queue ok, redis_active true, worker_running true),
+       /api/v2/search/assistant?q=iPhone -> 200 (20 товаров, 58 предложений, кросс-канальное сравнение, 14.47 мс);
+     - Полный изолированный прогон всех 1913 тестов в чистом Linux-образе стенда
+       (docker run --rm --network none --cpus 4 --memory 15g -e DATA_DIR=/tmp/kzph-test kzph-stand:local python3 -m unittest discover -s . -p "test_*.py"):
+       Ran 1913 tests in 183.210s — OK.
+  8. Рабочая prices.db не затрагивалась.
+
+Следующий точный шаг:
+  * Codex — единый аудит пакета v6.5.0 (все этапы Search Platform 2.0: S2-E10, S2-E22, S2-E23..E28)
+    и окончательное закрытие остатка A01 Задачи 3. После подтверждения аудит-репорта — продуктовая приёмка владельца.
+```
+
+---
+
+## Повторная приёмка Задачи 3 / A01–A02 — Codex (2026-10-29)
+
+- Основание: «Ждем аудит». Срез main `e2b90f5`, исходно чистый checkout, staged пуст.
+- Статус: **НА ДОРАБОТКУ: A01 P2 остаётся открыт в ветке пустой последней страницы. A02 принят.**
+- Прежние 3 сценария проходят. Новый случай для обоих магазинов: первая страница с одной
+  сломанной карточкой, последняя только с «Нет в наличии» → общий if not items возвращает
+  complete=True, забывая накопленный unparsed. Получено 1 товар, complete=True, unparsed=0.
+  Два теста FAIL дважды. Требуется та же проверка полноты и сохранение unparsed во всех ветках выхода.
+- Город Alser подтверждён живым selected_city=Астана; H1 «…в Алматы» — SEO-текст.
+  Выборочно живые Эврика-ноутбуки 32/32, Alser-пылесосы 1/1; полный обход не повторялся.
+- Полный suite: **1892 OK, 95.498 с**; scraper-регрессии 26 OK; прежние независимые 3 OK;
+  новые 2 FAIL дважды; secrets/diff check PASS. Тестовые данные временные.
+- Отчёт: [ACCEPTANCE_2026-10-29_V6414_A01_A02_CODEX.md](ACCEPTANCE_2026-10-29_V6414_A01_A02_CODEX.md).
+  Свидетельства: `docs/audit_evidence/2026-10-29-v6414-reaccept/`.
+- Следующий шаг: остаток A01 в PagedScraper.if not items + регрессии обоих адаптеров → приёмка.
+  Задачи 1 и 2 ранее приняты. Код приложения, рабочая БД, стенд и прод не менялись; push не выполнялся.
+
+---
+
 ## Передача аудитору: A01/A02 Задачи 3 P-6.4.12 → Codex (Claude, 2026-10-29)
 
 ```text

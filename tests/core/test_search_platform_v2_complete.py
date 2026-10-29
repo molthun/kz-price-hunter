@@ -1,0 +1,709 @@
+"""
+Комплексные тесты завершающих этапов KZ Price Hunter 2.0 (Search Platform v6.5.0):
+- S2-E10: Vision Extraction (8 обязательных сценариев + порог уверенности + запрет галлюцинаций на закрытых ценах)
+- S2-E22: AI Search Assistant поверх Search Core 2.0
+- S2-E23 & S2-E24: Monitoring Center 2.0 (4 уровня) и сквозная корреляция (request_id/scan_id/seller_id/source_id/offer_id)
+- S2-E25: Source-Type Freshness (разный срок жизни по типу источника)
+- S2-E26: Price History 2.0 в разрезе (товар, продавец, канал, состояние)
+- S2-E27: Саморегистрация продавцов («Добавить магазин»: REVIEW_REQUIRED -> APPROVED -> INDEXED)
+- S2-E28: Проверяемые факты о продавце и предложении (без субъективного значка «Проверенный продавец»)
+"""
+
+from tests import test_support  # noqa: F401
+import datetime
+import json
+import os
+import sqlite3
+import tempfile
+import unittest
+from unittest.mock import patch
+
+from database import get_connection, init_db
+from domain.discovery import CandidateStatus
+from domain.freshness_v2 import (
+    FreshnessStateV2,
+    SourceFreshnessType,
+    evaluate_offer_freshness,
+    infer_source_freshness_type,
+)
+from domain.models import (
+    Availability,
+    CanonicalProduct,
+    Channel,
+    ChannelType,
+    Condition,
+    Offer,
+    Seller,
+)
+from domain.monitoring_v2 import build_monitoring_overview_v2
+from domain.price_history_v2 import build_price_history_series, make_price_series_key
+from domain.provenance import build_offer_provenance, build_seller_provenance
+from domain.search_assistant import SearchAssistant
+from domain.search_core import SearchCore, SearchOutcome
+from domain.seller_identity import IdentityType, SellerIdentity
+from domain.seller_onboarding import (
+    SellerOnboardingSubmission,
+    prepare_onboarding_candidate,
+    validate_onboarding_submission,
+)
+from domain.seller_showcase import build_seller_showcase, group_seller_offers_by_product
+from domain.social_content import ContentObservation, ContentType
+from domain.vision_extraction import (
+    MIN_VISION_PUBLISH_CONFIDENCE,
+    PRICE_NOT_DETERMINED,
+    VisionCandidate,
+    VisionExtractionEngine,
+)
+from repositories.candidate_repo import CandidateRepository
+from repositories.channel_repo import ChannelRepository
+from repositories.content_repo import ContentObservationRepository
+from repositories.offer_repo import OfferRepository
+from repositories.pricing_repo import PricingRepository
+from repositories.product_repo import ProductRepository
+from repositories.search_repo import SearchRepository
+from repositories.seller_repo import SellerRepository
+from telemetry import correlation_context, get_correlation_ids, telemetry
+
+
+class TestVisionExtractionS2E10(unittest.TestCase):
+    """Проверка 8 обязательных сценариев S2-E10 Vision Extraction."""
+
+    def test_case1_single_item_single_price(self):
+        obs = ContentObservation(
+            seller_id="seller_1",
+            channel_id="chan_1",
+            content_type=ContentType.POST,
+            media_urls=["https://example.kz/img1.jpg"],
+            raw_metadata={"ocr_text": "iPhone 16 Pro 256GB Natural Titanium — 549 990 ₸"},
+        )
+        items = VisionExtractionEngine.extract_from_observation(obs)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0].price, 549990.0)
+        self.assertEqual(items[0].currency, "KZT")
+        self.assertTrue(items[0].publishable)
+        self.assertEqual(items[0].status_label, "Цена определена")
+
+    def test_case2_five_items_on_single_image(self):
+        ocr_lines = "\n".join([
+            "1. Маргарита 30 см — 2 800 ₸",
+            "2. Пепперони 35 см — 3 400 ₸",
+            "3. Четыре сыра 30 см — 3 600 ₸",
+            "4. Мясная 40 см — 4 500 ₸",
+            "5. Цезарь ролл — 1 900 ₸",
+        ])
+        items = VisionExtractionEngine.extract_from_ocr_text(ocr_lines, city="Алматы")
+        self.assertEqual(len(items), 5)
+        prices = [it.price for it in items]
+        self.assertEqual(prices, [2800.0, 3400.0, 3600.0, 4500.0, 1900.0])
+        self.assertTrue(all(it.publishable for it in items))
+
+    def test_case3_strikethrough_old_price(self):
+        items = VisionExtractionEngine.extract_from_ocr_text(
+            "Наушники AirPods Pro 2 ~~139 990~~ 109 990 ₸"
+        )
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0].price, 109990.0)
+        self.assertEqual(items[0].old_price, 139990.0)
+        self.assertTrue(items[0].publishable)
+
+    def test_case4_discount_price_keywords(self):
+        items = VisionExtractionEngine.extract_from_ocr_text(
+            "Кофемашина DeLonghi Magnifica было 299 000 стало 239 000 тг"
+        )
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0].price, 239000.0)
+        self.assertEqual(items[0].old_price, 299000.0)
+        self.assertTrue(items[0].publishable)
+
+    def test_case5_occluded_price_never_guessed(self):
+        # 5a: OCR text with sticker-occluded digits
+        items_ocr = VisionExtractionEngine.extract_from_ocr_text(
+            "iPhone 16 Pro Max 256GB — 54* *** ₸"
+        )
+        self.assertEqual(len(items_ocr), 1)
+        self.assertFalse(items_ocr[0].price_determined)
+        self.assertIsNone(items_ocr[0].price)
+        self.assertEqual(items_ocr[0].status_label, PRICE_NOT_DETERMINED)
+        self.assertFalse(items_ocr[0].publishable)
+
+        # 5b: Structured vision payload where model flagged occlusion but tried to guess a number
+        items_struct = VisionExtractionEngine.extract_from_structured([
+            {
+                "raw_title": "PlayStation 5 Slim",
+                "price": 249990,
+                "is_price_occluded": True,
+                "confidence": 0.95,
+            }
+        ])
+        self.assertEqual(len(items_struct), 1)
+        self.assertIsNone(items_struct[0].price)
+        self.assertEqual(items_struct[0].status_label, PRICE_NOT_DETERMINED)
+        self.assertFalse(items_struct[0].publishable)
+
+    def test_case6_different_currencies_separated(self):
+        text = "\n".join([
+            "MacBook Air M3 16/512 — 620 000 ₸",
+            "Чехол силиконовый — 1 500 ₽",
+            "iPad Pro M4 — 999 $",
+        ])
+        items = VisionExtractionEngine.extract_from_ocr_text(text)
+        self.assertEqual(len(items), 3)
+        by_curr = {it.currency: it for it in items}
+        self.assertTrue(by_curr["KZT"].publishable)
+        self.assertFalse(by_curr["RUB"].publishable)
+        self.assertEqual(by_curr["RUB"].rejection_reason, "foreign_currency:RUB")
+        self.assertFalse(by_curr["USD"].publishable)
+        self.assertEqual(by_curr["USD"].rejection_reason, "foreign_currency:USD")
+
+    def test_case7_unit_price_per_kg_and_100g(self):
+        items = VisionExtractionEngine.extract_from_ocr_text(
+            "Форель охлажденная — 6 500 ₸ за кг\nОрехи кешью — 950 ₸ за 100 г"
+        )
+        self.assertEqual(len(items), 2)
+        self.assertEqual(items[0].price, 6500.0)
+        self.assertEqual(items[0].unit, "kg")
+        self.assertEqual(items[1].price, 950.0)
+        self.assertEqual(items[1].unit, "g")
+        self.assertEqual(items[1].quantity, 100.0)
+
+    def test_case8_size_and_volume_not_confused_with_price(self):
+        items = VisionExtractionEngine.extract_from_ocr_text(
+            "Пицца Пепперони 40 см 4 500 ₸\nШампунь профессиональный 500 мл 3 200 ₸"
+        )
+        self.assertEqual(len(items), 2)
+        self.assertEqual(items[0].price, 4500.0)
+        self.assertIn("40 см", items[0].raw_title)
+        self.assertEqual(items[1].price, 3200.0)
+        self.assertIn("500 мл", items[1].raw_title)
+
+    def test_confidence_threshold_blocks_low_confidence(self):
+        cand = VisionCandidate(
+            raw_title="Samsung Galaxy S24",
+            price=350000.0,
+            confidence=MIN_VISION_PUBLISH_CONFIDENCE - 0.05,
+        )
+        VisionExtractionEngine.validate_candidate(cand)
+        self.assertFalse(cand.publishable)
+        self.assertEqual(cand.rejection_reason, "low_confidence")
+
+
+class TestFreshnessAndProvenanceS2E25E28(unittest.TestCase):
+    """Проверка S2-E25 (Source-Type Freshness) и S2-E28 (Factual Provenance)."""
+
+    def test_source_type_freshness_windows(self):
+        now = datetime.datetime(2026, 10, 29, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        fifty_hours_ago = (now - datetime.timedelta(hours=50)).isoformat()
+
+        # 50 hours is STALE for retail_api (fresh <= 12h, aging <= 36h, stale <= 72h),
+        # AGING for website (fresh <= 26h, aging <= 72h), and FRESH for instagram_post (<= 72h)
+        res_api = evaluate_offer_freshness(
+            observed_at=fifty_hours_ago,
+            source_type=SourceFreshnessType.RETAIL_API,
+            now=now,
+        )
+        self.assertEqual(res_api.state, FreshnessStateV2.STALE)
+        self.assertFalse(res_api.is_purchasable_freshness)
+
+        res_web = evaluate_offer_freshness(
+            observed_at=fifty_hours_ago,
+            source_type=SourceFreshnessType.WEBSITE,
+            now=now,
+        )
+        self.assertEqual(res_web.state, FreshnessStateV2.AGING)
+        self.assertTrue(res_web.is_purchasable_freshness)
+
+        res_ig = evaluate_offer_freshness(
+            observed_at=fifty_hours_ago,
+            source_type=SourceFreshnessType.INSTAGRAM_POST,
+            now=now,
+        )
+        self.assertEqual(res_ig.state, FreshnessStateV2.FRESH)
+
+        # Story with expired TTL -> EXPIRED
+        expired_iso = (now - datetime.timedelta(minutes=5)).isoformat()
+        res_story = evaluate_offer_freshness(
+            observed_at=fifty_hours_ago,
+            expires_at=expired_iso,
+            source_type=SourceFreshnessType.STORY,
+            now=now,
+        )
+        self.assertEqual(res_story.state, FreshnessStateV2.EXPIRED)
+        self.assertTrue(res_story.is_expired)
+
+        # Food menu: fresh <= 4h, aging <= 12h, stale <= 24h, >24h expired
+        twenty_hours_ago = (now - datetime.timedelta(hours=20)).isoformat()
+        src_food = infer_source_freshness_type(category="Доставка еды и пиццы", channel_type="website")
+        self.assertEqual(src_food, SourceFreshnessType.FOOD)
+        res_food = evaluate_offer_freshness(
+            observed_at=twenty_hours_ago,
+            source_type=src_food,
+            now=now,
+        )
+        self.assertEqual(res_food.state, FreshnessStateV2.STALE)
+
+    def test_provenance_has_factual_fields_and_no_verified_badge(self):
+        seller = Seller(
+            id="seller_4mobile",
+            slug="4mobile",
+            name="4mobile.kz",
+            legal_name="ТОО 4Mobile",
+            bin="123456789012",
+            domain="4mobile.kz",
+            phone="+77011112233",
+        )
+        channels = [
+            Channel(
+                id="chan_4mobile_web",
+                seller_id="seller_4mobile",
+                channel_type=ChannelType.WEBSITE,
+                name="4mobile.kz",
+                base_url="https://4mobile.kz",
+            ),
+            Channel(
+                id="chan_4mobile_kaspi",
+                seller_id="seller_4mobile",
+                channel_type=ChannelType.MARKETPLACE,
+                name="Kaspi Магазин",
+                base_url="https://kaspi.kz/shop/4mobile",
+            ),
+        ]
+        identities = [
+            SellerIdentity(
+                id="id_1",
+                seller_id="seller_4mobile",
+                identity_type=IdentityType.BIN,
+                identity_value="123456789012",
+                confidence=1.0,
+            )
+        ]
+        prov = build_seller_provenance(seller, channels, identities=identities)
+        prov_json = json.dumps(prov.to_dict(), ensure_ascii=False)
+        self.assertNotIn("Проверенный продавец", prov_json)
+        self.assertTrue(prov.bin_found)
+        self.assertTrue(prov.website_found)
+        self.assertTrue(any("БИН" in f for f in prov.facts))
+
+        now = datetime.datetime(2026, 10, 29, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        off_prov = build_offer_provenance(
+            {
+                "id": "off_1",
+                "channel_type": ChannelType.WEBSITE,
+                "channel_name": "4mobile.kz",
+                "url": "https://4mobile.kz/p/iphone-16-pro",
+                "observed_at": (now - datetime.timedelta(hours=2)).isoformat(),
+            },
+            now=now,
+        )
+        self.assertEqual(off_prov.channel_type, ChannelType.WEBSITE)
+        self.assertEqual(off_prov.freshness, FreshnessStateV2.FRESH)
+        self.assertNotIn("Проверенный продавец", json.dumps(off_prov.to_dict(), ensure_ascii=False))
+
+
+class TestDatabasePlatformV2Complete(unittest.TestCase):
+    """Интеграционные тесты S2-E22, S2-E23, S2-E24, S2-E26, S2-E27, S2-E28 и API v2 на временной БД."""
+
+    def setUp(self):
+        self.tmp_dir = tempfile.TemporaryDirectory()
+        self.env_patch = patch.dict(os.environ, {"DATA_DIR": self.tmp_dir.name})
+        self.env_patch.start()
+        from pathlib import Path
+        import config
+        import database
+        self.db_path = Path(self.tmp_dir.name) / "test_prices.db"
+        self.db_patch1 = patch.object(config, "DB_PATH", self.db_path)
+        self.db_patch2 = patch.object(database, "DB_PATH", self.db_path)
+        self.db_patch1.start()
+        self.db_patch2.start()
+        init_db()
+        self.conn = get_connection()
+        self._seed_multi_channel_data()
+
+    def tearDown(self):
+        self.conn.close()
+        self.db_patch2.stop()
+        self.db_patch1.stop()
+        self.env_patch.stop()
+        self.tmp_dir.cleanup()
+
+    def _seed_multi_channel_data(self):
+        seller_repo = SellerRepository(self.conn)
+        chan_repo = ChannelRepository(self.conn)
+        prod_repo = ProductRepository(self.conn)
+        offer_repo = OfferRepository(self.conn)
+
+        # Seller: 4mobile with both direct website (499k) and Kaspi marketplace (539k)
+        s_4m = Seller(
+            id="seller_4mobile",
+            slug="4mobile",
+            name="4mobile.kz",
+            legal_name="ТОО 4Mobile",
+            bin="123456789012",
+            domain="4mobile.kz",
+            phone="+77011112233",
+            is_active=True,
+        )
+        seller_repo.save_or_update(s_4m)
+
+        c_direct = chan_repo.get_or_create(
+            seller_id=s_4m.id,
+            channel_type=ChannelType.WEBSITE,
+            name="4mobile.kz (сайт)",
+            external_store_id="4mobile_web",
+            base_url="https://4mobile.kz",
+        )
+        c_kaspi = chan_repo.get_or_create(
+            seller_id=s_4m.id,
+            channel_type=ChannelType.MARKETPLACE,
+            name="Kaspi Магазин (4mobile)",
+            external_store_id="4mobile_kaspi",
+            base_url="https://kaspi.kz/shop/4mobile",
+        )
+
+        # Product 1: iPhone 16 Pro 256GB
+        p_iphone = CanonicalProduct(
+            id="prod_iphone16pro_256",
+            canonical_key="apple_iphone_16_pro_256gb",
+            title="Смартфон Apple iPhone 16 Pro 256GB Natural Titanium",
+            brand="Apple",
+            category="Смартфоны и гаджеты",
+            model="iphone-16-pro-256",
+        )
+        prod_repo.save_or_update(p_iphone)
+
+        now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        o_direct = Offer(
+            id="off_4m_direct_iphone16pro",
+            product_id=p_iphone.id,
+            seller_id=s_4m.id,
+            channel_id=c_direct.id,
+            external_sku="iphone16pro_256_direct",
+            price=499000.0,
+            old_price=529000.0,
+            condition=Condition.NEW,
+            availability=Availability.IN_STOCK,
+            city="Алматы",
+            url="https://4mobile.kz/iphone-16-pro-256",
+            observed_at=now_iso,
+            is_active=True,
+        )
+        o_kaspi = Offer(
+            id="off_4m_kaspi_iphone16pro",
+            product_id=p_iphone.id,
+            seller_id=s_4m.id,
+            channel_id=c_kaspi.id,
+            external_sku="iphone16pro_256_kaspi",
+            price=539000.0,
+            old_price=559000.0,
+            condition=Condition.NEW,
+            availability=Availability.IN_STOCK,
+            city="Алматы",
+            url="https://kaspi.kz/shop/p/iphone-16-pro-256",
+            observed_at=now_iso,
+            is_active=True,
+        )
+        o_used = Offer(
+            id="off_4m_used_iphone16pro",
+            product_id=p_iphone.id,
+            seller_id=s_4m.id,
+            channel_id=c_direct.id,
+            external_sku="iphone16pro_256_used",
+            price=420000.0,
+            condition=Condition.USED,
+            availability=Availability.IN_STOCK,
+            city="Алматы",
+            url="https://4mobile.kz/used/iphone-16-pro-256",
+            observed_at=now_iso,
+            is_active=True,
+        )
+        for off in (o_direct, o_kaspi, o_used):
+            offer_repo.save_or_update(off)
+            offer_repo.add_price_observation(off.id, off.price, off.old_price, off.observed_at)
+
+        # Product 2: Laptop for accountant under 400k
+        p_laptop = CanonicalProduct(
+            id="prod_lenovo_thinkbook_16",
+            canonical_key="lenovo_thinkbook_16_g6",
+            title="Ноутбук Lenovo ThinkBook 16 G6 16GB/512GB",
+            brand="Lenovo",
+            category="Ноутбуки и ПК",
+            model="thinkbook-16-g6",
+        )
+        prod_repo.save_or_update(p_laptop)
+        o_laptop = Offer(
+            id="off_4m_laptop_thinkbook",
+            product_id=p_laptop.id,
+            seller_id=s_4m.id,
+            channel_id=c_direct.id,
+            external_sku="thinkbook_16_direct",
+            price=329990.0,
+            old_price=369990.0,
+            condition=Condition.NEW,
+            availability=Availability.IN_STOCK,
+            city="Алматы",
+            url="https://4mobile.kz/lenovo-thinkbook-16",
+            observed_at=now_iso,
+            is_active=True,
+        )
+        offer_repo.save_or_update(o_laptop)
+        offer_repo.add_price_observation(o_laptop.id, o_laptop.price, o_laptop.old_price, o_laptop.observed_at)
+        self.conn.commit()
+
+    def test_price_history_v2_isolates_channels_and_conditions_s2_e26(self):
+        pricing_repo = PricingRepository(self.conn)
+        report = pricing_repo.get_product_price_history("prod_iphone16pro_256")
+        self.assertIsNotNone(report)
+        # 3 isolated series: (4mobile, own_website, new), (4mobile, marketplace, new), (4mobile, own_website, used)
+        self.assertEqual(report.series_count, 3)
+
+        report_new = pricing_repo.get_product_price_history("prod_iphone16pro_256", condition="new")
+        self.assertEqual(report_new.series_count, 2)
+        by_channel = {s.channel_type: s for s in report_new.series}
+        self.assertEqual(by_channel[ChannelType.WEBSITE].current_price, 499000.0)
+        self.assertEqual(by_channel[ChannelType.MARKETPLACE].current_price, 539000.0)
+        # Keys are distinct so direct and marketplace lines never merge
+        self.assertNotEqual(
+            by_channel[ChannelType.WEBSITE].series_key,
+            by_channel[ChannelType.MARKETPLACE].series_key,
+        )
+
+    def test_search_assistant_budget_and_installment_s2_e22(self):
+        assistant = SearchAssistant(SearchCore(SearchRepository(self.conn)))
+
+        # 1. "ноутбук для бухгалтера до 400 тысяч"
+        resp_laptop = assistant.ask("ноутбук для бухгалтера до 400 тысяч")
+        self.assertEqual(resp_laptop.outcome, SearchOutcome.FOUND)
+        self.assertEqual(resp_laptop.plan.use_case, "office_accounting")
+        self.assertEqual(resp_laptop.plan.max_price, 400000.0)
+        self.assertIsNotNone(resp_laptop.best_overall_offer)
+        self.assertEqual(resp_laptop.best_overall_offer["price"], 329990.0)
+        self.assertIn("Lenovo ThinkBook 16", resp_laptop.explanation)
+
+        # 2a. Без записанных условий рассрочки тип площадки (Kaspi) её не доказывает (V05)
+        resp_unknown = assistant.ask("где дешевле купить iPhone 16 Pro, если мне нужна рассрочка?", condition="new")
+        self.assertIsNone(resp_unknown.best_installment_offer)
+        self.assertIsNone(resp_unknown.cross_channel_comparison)
+        self.assertIn("Условия рассрочки по найденным предложениям неизвестны", resp_unknown.explanation)
+
+        # 2. "где дешевле купить iPhone 16 Pro, если мне нужна рассрочка?" — рассрочка записана в предложении
+        self.conn.execute("UPDATE offers SET installment_available = 1, installment_months = 12 "
+                          "WHERE id = 'off_4m_kaspi_iphone16pro'")
+        self.conn.commit()
+        resp_iphone = assistant.ask("где дешевле купить iPhone 16 Pro, если мне нужна рассрочка?", condition="new")
+        self.assertEqual(resp_iphone.outcome, SearchOutcome.FOUND)
+        self.assertTrue(resp_iphone.plan.needs_installment)
+        self.assertEqual(resp_iphone.best_overall_offer["price"], 499000.0)
+        self.assertIsNotNone(resp_iphone.best_installment_offer)
+        self.assertEqual(resp_iphone.best_installment_offer["price"], 539000.0)
+        self.assertIsNotNone(resp_iphone.cross_channel_comparison)
+        self.assertEqual(resp_iphone.cross_channel_comparison["price_difference"], 40000.0)
+        self.assertIn("499 000", resp_iphone.explanation)
+        self.assertIn("539 000", resp_iphone.explanation)
+
+        # 3. Защита от галлюцинаций при отсутствии товара в БД
+        resp_none = assistant.ask("квантовый гипердвигатель до 500 тысяч")
+        self.assertEqual(resp_none.outcome, SearchOutcome.NOT_FOUND)
+        self.assertEqual(resp_none.total_products, 0)
+        self.assertIsNone(resp_none.best_overall_offer)
+        self.assertIn("не найдено", resp_none.explanation)
+
+    def test_seller_self_registration_lifecycle_s2_e27(self):
+        cand_repo = CandidateRepository(self.conn)
+
+        # Invalid submission (no channels)
+        bad_sub = SellerOnboardingSubmission(name="Пустой Магазин", city="Астана")
+        ok, errs = validate_onboarding_submission(bad_sub)
+        self.assertFalse(ok)
+        self.assertTrue(len(errs) >= 1)
+
+        # Valid submission with website, Instagram, Telegram, WhatsApp, Kaspi link, and BIN
+        sub = SellerOnboardingSubmission(
+            name="TechPoint Astana",
+            city="Астана",
+            website_url="https://techpoint.kz/catalog.xml",
+            instagram="@techpoint_kz",
+            telegram="https://t.me/techpoint_astana",
+            whatsapp="+7 (702) 555-44-33",
+            marketplace_links=["https://kaspi.kz/shop/info/merchant/techpoint_id/address-tab/"],
+            bin="987654321098",
+            legal_name="ТОО TechPoint KZ",
+        )
+        res = cand_repo.submit_self_registration(sub)
+        self.conn.commit()
+
+        self.assertEqual(res.candidate.status, CandidateStatus.REVIEW_REQUIRED)
+        self.assertEqual(res.candidate.city, "Астана")
+        self.assertEqual(res.candidate.bin, "987654321098")
+        self.assertEqual(res.candidate.marketplace_seller_id, "techpoint_id")
+        self.assertEqual(len(res.channels_detected), 5)
+        self.assertTrue(all(p.observed is False for p in res.profiles))
+        self.assertIsNotNone(res.review_queue_id)
+
+        # Admin approves -> REVIEW_REQUIRED -> APPROVED -> INDEXED, creates Seller and Channels
+        seller = cand_repo.approve_onboarding_candidate(res.candidate.id, decision="APPROVED", actor="owner")
+        self.conn.commit()
+        self.assertIsNotNone(seller)
+        self.assertEqual(seller.name, "TechPoint Astana")
+        self.assertEqual(seller.bin, "987654321098")
+
+        updated_cand = cand_repo.get_candidate_by_id(res.candidate.id)
+        self.assertEqual(updated_cand.status, CandidateStatus.INDEXED)
+        self.assertEqual(updated_cand.matched_seller_id, seller.id)
+
+        channels = ChannelRepository(self.conn).list_by_seller(seller.id)
+        self.assertEqual(len(channels), 5)
+
+    def test_monitoring_center_v2_and_correlation_ids_s2_e23_e24(self):
+        with correlation_context(
+            request_id="req_test_1",
+            scan_id="scan_test_2",
+            seller_id="seller_4mobile",
+            source_id="src_4mobile_yml",
+            offer_id="off_4m_direct_iphone16pro",
+        ):
+            ids = get_correlation_ids()
+            self.assertEqual(ids["request_id"], "req_test_1")
+            self.assertEqual(ids["scan_id"], "scan_test_2")
+            self.assertEqual(ids["seller_id"], "seller_4mobile")
+            self.assertEqual(ids["source_id"], "src_4mobile_yml")
+            self.assertEqual(ids["offer_id"], "off_4m_direct_iphone16pro")
+
+            ev = telemetry.record_event("test_v2_trace", "INFO", "search", "Проверка сквозных ID")
+            self.assertIsNotNone(ev)
+            self.assertEqual(ev["seller_id"], "seller_4mobile")
+            self.assertEqual(ev["source_id"], "src_4mobile_yml")
+            self.assertEqual(ev["offer_id"], "off_4m_direct_iphone16pro")
+
+            overview = build_monitoring_overview_v2(self.conn)
+            self.assertGreaterEqual(overview.seller_level["active_sellers"], 1)
+            self.assertGreaterEqual(overview.channel_level["cross_channel_discrepancies_count"], 1)
+            disc = overview.channel_level["cross_channel_discrepancies"][0]
+            self.assertEqual(disc["seller_id"], "seller_4mobile")
+            self.assertEqual(disc["price_diff"], 40000.0)
+            self.assertGreaterEqual(overview.offer_level["fresh_offers"], 4)
+            self.assertIn(SourceFreshnessType.WEBSITE, overview.offer_level["by_source_freshness_type"])
+
+        # Context restored after exiting block
+        self.assertIsNone(get_correlation_ids()["seller_id"])
+
+    def test_content_repo_integrates_vision_candidates(self):
+        repo = ContentObservationRepository(self.conn)
+        obs = ContentObservation(
+            seller_id="seller_4mobile",
+            channel_id="chan_4mobile_web",
+            content_type=ContentType.STORY,
+            text="Свежее поступление!",
+            media_urls=["https://example.kz/story1.jpg"],
+            raw_metadata={
+                "ocr_text": "\n".join([
+                    "iPhone 16 128GB Black — 419 990 ₸",
+                    "iPhone 16 Pro Max — 65* *** ₸",  # occluded price -> must NOT become an offer
+                    "AirPods 4 — 150 $",              # USD -> must NOT become a KZT offer
+                ])
+            },
+        )
+        repo.save_observation(obs)
+        extracted = repo.extract_candidates(obs)
+        self.assertEqual(len(extracted), 1)
+        self.assertEqual(extracted[0].price, 419990.0)
+        self.assertIn("iPhone 16 128GB", extracted[0].raw_title)
+
+    def test_api_v2_endpoints_history_assistant_onboarding_monitoring(self):
+        import asyncio
+        from aiohttp.test_utils import TestClient, TestServer
+        import web.server as srv
+
+        async def _run_api_checks():
+            app = srv. web.Application()
+            app.add_routes(srv.routes)
+            async with TestClient(TestServer(app)) as client:
+                # 1. GET /api/v2/products/{id}/history (S2-E26)
+                r_hist = await client.get("/api/v2/products/prod_iphone16pro_256/history?condition=new")
+                self.assertEqual(r_hist.status, 200)
+                d_hist = await r_hist.json()
+                self.assertTrue(d_hist["ok"])
+                self.assertEqual(d_hist["series_count"], 2)
+
+                # 2. GET /api/v2/search/assistant (S2-E22); рассрочка записана в предложении (V05)
+                self.conn.execute("UPDATE offers SET installment_available = 1 "
+                                  "WHERE id = 'off_4m_kaspi_iphone16pro'")
+                self.conn.commit()
+                r_ass = await client.get(
+                    "/api/v2/search/assistant",
+                    params={"q": "где дешевле купить iPhone 16 Pro, если мне нужна рассрочка?", "condition": "new"},
+                )
+                self.assertEqual(r_ass.status, 200)
+                d_ass = await r_ass.json()
+                self.assertTrue(d_ass["ok"])
+                self.assertEqual(d_ass["best_overall_offer"]["price"], 499000.0)
+                self.assertEqual(d_ass["best_installment_offer"]["price"], 539000.0)
+
+                # 3. POST /api/v2/sellers/register (S2-E27)
+                r_reg = await client.post(
+                    "/api/v2/sellers/register",
+                    json={
+                        "name": "Almaty Gadget Store",
+                        "city": "Алматы",
+                        "website_url": "https://almatygadget.kz",
+                        "instagram": "@almatygadget",
+                        "phone": "+7 701 999 88 77",
+                        "bin": "112233445566",
+                    },
+                )
+                self.assertEqual(r_reg.status, 201)
+                d_reg = await r_reg.json()
+                self.assertTrue(d_reg["ok"])
+                self.assertEqual(d_reg["candidate"]["status"], "REVIEW_REQUIRED")
+
+                # 4. GET /api/v2/seller/{slug} includes factual provenance without fake badge (S2-E28)
+                r_sel = await client.get("/api/v2/seller/4mobile")
+                self.assertEqual(r_sel.status, 200)
+                d_sel = await r_sel.json()
+                self.assertTrue(d_sel["ok"])
+                self.assertIn("provenance", d_sel)
+                self.assertNotIn("Проверенный продавец", json.dumps(d_sel, ensure_ascii=False))
+
+                # 5. Admin routes require admin (401/403 when anonymous)
+                r_mon_anon = await client.get("/api/v2/monitoring/overview")
+                self.assertIn(r_mon_anon.status, (401, 403))
+
+            # Now test admin routes with an authenticated admin middleware
+            import auth
+            @srv.web.middleware
+            async def fake_admin_mw(request, handler):
+                request["user"] = {"id": 1, "username": "owner"}
+                return await handler(request)
+
+            admin_app = srv.web.Application(middlewares=[fake_admin_mw])
+            admin_app.add_routes(srv.routes)
+            with patch.object(auth, "ADMIN_TELEGRAM_IDS", {1}):
+                async with TestClient(TestServer(admin_app)) as admin_client:
+                    cand_id = d_reg["candidate"]["id"]
+                    r_list = await admin_client.get("/api/v2/admin/onboarding?status=REVIEW_REQUIRED")
+                    self.assertEqual(r_list.status, 200)
+                    d_list = await r_list.json()
+                    self.assertTrue(any(c["id"] == cand_id for c in d_list["candidates"]))
+
+                    r_dec = await admin_client.post(
+                        f"/api/v2/admin/onboarding/{cand_id}/decision",
+                        json={"decision": "APPROVED"},
+                    )
+                    self.assertEqual(r_dec.status, 200)
+                    d_dec = await r_dec.json()
+                    self.assertTrue(d_dec["ok"])
+                    self.assertEqual(d_dec["candidate"]["status"], "INDEXED")
+                    self.assertIsNotNone(d_dec["seller"])
+
+                    r_mon = await admin_client.get("/api/v2/monitoring/overview")
+                    self.assertEqual(r_mon.status, 200)
+                    d_mon = await r_mon.json()
+                    self.assertTrue(d_mon["ok"])
+                    self.assertIn("seller_level", d_mon)
+                    self.assertIn("source_level", d_mon)
+                    self.assertIn("channel_level", d_mon)
+                    self.assertIn("offer_level", d_mon)
+
+        asyncio.run(_run_api_checks())
+
+
+if __name__ == "__main__":
+    unittest.main()

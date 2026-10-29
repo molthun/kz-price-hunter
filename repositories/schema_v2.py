@@ -343,6 +343,11 @@ def init_schema_v2(conn: sqlite3.Connection) -> None:
     _ensure_column(conn, "offers", "pickup_available", "INTEGER DEFAULT 0")
     _ensure_column(conn, "offers", "expires_at", "TEXT")
     _ensure_column(conn, "seller_candidates", "discovery_task_id", "TEXT")
+    # Измерения точки истории на момент наблюдения (V02 аудита 6.5.0): без них линия цены
+    # строилась по ТЕКУЩЕМУ предложению, и смена NEW→USED переписывала всё его прошлое.
+    # У прежних строк колонки пусты — для них остаётся только текущее предложение.
+    for column in ("product_id", "seller_id", "channel_id", "condition", "city"):
+        _ensure_column(conn, "offer_price_history", column, "TEXT")
 
     # C-E11-02: Ensure existing canonical_products rows are indexed in FTS on initial creation
     cur = conn.cursor()

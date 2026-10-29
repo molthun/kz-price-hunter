@@ -173,8 +173,10 @@ def migrate_products_and_history(
                 ]
                 conn.executemany(
                     """
-                    INSERT OR REPLACE INTO offer_price_history (offer_id, price, old_price, observed_at)
-                    VALUES (?, ?, ?, ?)
+                    INSERT OR REPLACE INTO offer_price_history
+                        (offer_id, price, old_price, observed_at, product_id, seller_id, channel_id, condition, city)
+                    SELECT ?, ?, ?, ?, o.product_id, o.seller_id, o.channel_id, o.condition, o.city
+                    FROM (SELECT 1) LEFT JOIN offers o ON o.id = ?1
                     """,
                     obs_tuples,
                 )

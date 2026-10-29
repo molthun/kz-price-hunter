@@ -150,7 +150,7 @@ class SearchRepository(BaseRepository):
         # A05, B10, C07, R07, R09: ключ сортировки до LIMIT — цена только покупаемых предложений,
         # по тому же правилу и моменту, что итоговая карточка (domain.purchasability)
         from domain.purchasability import sql_purchasable_conditions
-        purchasable_sql, purchasable_params = sql_purchasable_conditions(now)
+        purchasable_sql, purchasable_params = sql_purchasable_conditions(now, channel="c")
         order_conditions = list(exists_conditions) + purchasable_sql
 
         order_by_sql = "rank ASC"
