@@ -1,0 +1,6 @@
+# Настройки ночной копии прода (backup_to_nas.sh). Копии — на отдельный HDD машины стенда.
+CONTAINER=kz-price-hunter
+BACKUP_TARGET=/srv/storage/kzph-backups
+# В data/backups на NVMe — 2 последние, на /srv/storage — 14 (около 31 ГБ)
+KEEP_LOCAL=2
+KEEP_REMOTE=14

@@ -1,0 +1,54 @@
+# Действующий compose прода на машине стенда (~/kzph-prod/compose.yaml) на 29.10.2026 — копия для аудита.
+# Это compose с NAS, перенесённый владельцем, с правками Claude: порт 35540, TRUSTED_PROXIES,
+# DIAG_TOKEN через .env, DOCKER_API_VERSION у Watchtower. Секретов нет: только ссылки ${…} на .env.
+version: '3.8'
+
+services:
+  kz-price-hunter:
+    image: ghcr.io/molthun/kz-price-hunter:latest
+    container_name: kz-price-hunter
+    restart: unless-stopped
+    ports:
+      # 35539 на этой машине занят стендом; прокси DSM ведёт сюда: 192.168.28.25:35540
+      - "35540:35539"
+    environment:
+      - DATA_DIR=/app/data
+      - TZ=Asia/Almaty
+      - PORT=35539
+      - APP_URL=https://shop.molthun.ru
+      # Канонический адрес сайта для проверки Origin/CSRF и Secure-cookie
+      - PUBLIC_ORIGIN=https://shop.molthun.ru
+      # Прокси DSM приходит с NAS по локальной сети (проверено на стенде за тем же прокси)
+      - TRUSTED_PROXIES=192.168.28.10/32
+      - ALLOW_DEV_LOGIN=0
+      # Токен бота от @BotFather (вход на сайте и уведомления)
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      # Ваш Telegram ID (узнать у @userinfobot); несколько админов — через запятую
+      - ADMIN_TELEGRAM_IDS=${ADMIN_TELEGRAM_IDS}
+      # Значение — только в .env (права 600)
+      - DIAG_TOKEN=${DIAG_TOKEN}
+    volumes:
+      - ./data:/app/data
+    # Ротация логов: не больше 3 файлов по 10 МБ
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: kz-price-watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      # Docker 29 не принимает API 1.25 из Watchtower 1.7.1 — без этого прод не обновляется
+      - DOCKER_API_VERSION=1.44
+    command: --interval 300 kz-price-hunter
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"

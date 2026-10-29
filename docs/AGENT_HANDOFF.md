@@ -27,6 +27,41 @@
 
 ---
 
+## Передача аудитору: P17-E по факту — переезд прода и ночные копии → Codex (Claude, 2026-10-29)
+
+```text
+Основание: владелец — «Сначала аудит переезда». Код приложения не менялся (6.5.2). Push не делался:
+  origin/main = cb52c8c, локально впереди 6 коммитов документации/deploy + этот.
+Переезд уже выполнен (записи ниже): прод на машине стенда 192.168.28.25, ~/kzph-prod, порт 35540,
+  прокси DSM shop.molthun.ru → 192.168.28.25:35540; контейнер на NAS заархивирован и удалён владельцем.
+Что проверить:
+  1. Фактическая конфигурация прода: deploy/prod-host/compose.actual.yaml (копия ~/kzph-prod/compose.yaml,
+     секретов нет) и backup.conf.actual. Отличия от compose с NAS: порт 35540:35539,
+     TRUSTED_PROXIES=192.168.28.10/32, DIAG_TOKEN=${DIAG_TOKEN} (новый, только в .env, 600),
+     DOCKER_API_VERSION=1.44 у Watchtower. Имена контейнеров прежние: kz-price-hunter / kz-price-watchtower.
+     Лимитов cpus/mem и постоянного hostname нет (в отличие от deploy/prod-host/docker-compose.prod.yml).
+  2. Ночные копии: deploy/prod-host/backup_to_nas.sh (CONTAINER настраивается; цель host:dir или локальный
+     каталог; хранение KEEP_LOCAL/KEEP_REMOTE; чистка data/backups изнутри контейнера, т.к. файлы root).
+     Установлено: ~/kzph-prod/backup.conf (CONTAINER=kz-price-hunter, /srv/storage/kzph-backups — отдельный
+     HDD, 14 копий), crontab 30 4 * * *. Пробная копия 2092 МБ за 6 с, на HDD quick_check ok, 165 081 товар.
+  3. Подготовленные, но в фактическом переезде не использованные файлы: docker-compose.prod.yml,
+     prod.env.example, move_from_nas.sh [--check], verify_public.sh, rollback_to_nas.sh [--with-data];
+     репетиция на поддельном NAS — docs/PROD_MOVE_P17E.md. rollback_to_nas.sh после удаления контейнера
+     на NAS неприменим (откат — восстановление из архива владельца); verify_public.sh рассчитан на имя
+     kzph-prod.
+  4. Инструкция docs/PROD_MOVE_P17E.md — соответствие факту, раздел «Как сделано на деле».
+Проверки Claude: bash -n всех скриптов OK (shellcheck на машине нет); secrets gate OK; снаружи после
+  переключения health 15/15, сосед порта в контейнере 192.168.28.10, 409 — 0, медленных записей — 0;
+  Watchtower без «too old». ~/kzph-prod/compose.yaml.from-nas (старый DIAG_TOKEN NAS, уже недействителен)
+  — права 600.
+Доступ для аудита (только чтение): машина стенда ssh -p 2222 molthun@192.168.28.25; прод снаружи
+  https://shop.molthun.ru. Значения .env не печатать.
+Просьба: аудит переезда по факту — безопасность конфигурации (секреты, прокси, единственный экземпляр бота),
+  надёжность копий и восстановления, корректность и применимость скриптов/инструкции; что исправить до push.
+```
+
+---
+
 ## Ночные копии прода настроены (Claude, 2026-10-29 16:02)
 
 ```text
