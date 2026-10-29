@@ -326,6 +326,74 @@ class TelemetryFlushStatementsTest(_DbCase):
         self.assertIsInstance(samples[0][0], float)
 
 
+class FailedOfferOwnershipTest(_DbCase):
+    """V651-01: неуспешное предложение не закрепляет название общего товара и не теряет продавца."""
+
+    def pair(self):
+        # city=None legacy допускает, а offers.city — NOT NULL: штатная ошибка v2 без подстроенных триггеров
+        bad = dict(id="bad", shop="Sulpak", title="Bad failed offer title", category="Bad category", price=1000,
+                   url="https://example.kz/bad", city=None, canonical_key="audit-shared")
+        good = dict(bad, id="good", title="Valid offer title", category="Valid category", city="Алматы",
+                    url="https://example.kz/good")
+        return bad, good
+
+    def state(self):
+        with database.get_connection() as conn:
+            canonical = [tuple(r) for r in conn.execute(
+                "SELECT title, category, title_offer_id FROM canonical_products")]
+            offers = [r[0] for r in conn.execute("SELECT id FROM offers ORDER BY id")]
+            history = [r[0] for r in conn.execute("SELECT DISTINCT offer_id FROM offer_price_history")]
+            sellers = [r[0] for r in conn.execute("SELECT id FROM sellers")]
+            channels = [r[0] for r in conn.execute("SELECT id FROM channels")]
+        return canonical, offers, history, sellers, channels
+
+    def assert_good_owns(self, title="Valid offer title"):
+        canonical, offers, history, sellers, channels = self.state()
+        self.assertEqual(offers, ["off_good"])
+        self.assertEqual(canonical, [(title, "Valid category", "off_good")])
+        self.assertEqual(history, ["off_good"])
+        self.assertEqual(sellers, ["seller_sulpak"])
+        self.assertEqual(len(channels), 1)
+        with database.get_connection() as conn:
+            conn.execute("INSERT INTO canonical_products_fts(canonical_products_fts) VALUES('integrity-check')")
+            hits = conn.execute("SELECT count(*) FROM canonical_products_fts WHERE canonical_products_fts MATCH 'Bad'"
+                                ).fetchone()[0]
+        self.assertEqual(hits, 0, "полнотекстовый индекс хранит название неуспешного предложения")
+
+    def test_chunk_fallback_rolls_back_failed_item(self):
+        bad, good = self.pair()
+        database.reset_dual_write_stats()
+        self.assertEqual(self.write_chunk([bad, good], NOW_1, 1000.0), 2)
+        stats = database.get_dual_write_stats()
+        self.assertEqual((stats["total"], stats["failures"]), (2, 1))
+        self.assert_good_owns()
+        # Следующий обход исправного предложения обновляет название
+        self.write_chunk([dict(good, title="Valid offer title v2")], NOW_2, 2000.0)
+        self.assert_good_owns("Valid offer title v2")
+
+    def test_direct_sync_path_is_atomic(self):
+        bad, good = self.pair()
+        database.reset_dual_write_stats()
+        database.save_or_update_product(bad)
+        database.save_or_update_product(good)
+        self.assertEqual(database.get_dual_write_stats()["failures"], 1)
+        self.assert_good_owns()
+
+    def test_failed_write_does_not_mark_seller_seen(self):
+        from domain.adapter import prepare_legacy_offer_v2, write_legacy_offers_v2
+        bad, good = self.pair()
+        seen = set()
+        with database.get_connection() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            with self.assertRaises(sqlite3.IntegrityError):
+                write_legacy_offers_v2(conn, [prepare_legacy_offer_v2(bad)], NOW_1, seen_sellers=seen)
+            self.assertEqual(seen, set())
+            write_legacy_offers_v2(conn, [prepare_legacy_offer_v2(good)], NOW_1, seen_sellers=seen)
+            conn.commit()
+        self.assertEqual(len(seen), 1)
+        self.assert_good_owns()
+
+
 class GilSwitchIntervalTest(unittest.TestCase):
     def test_default_and_bounds(self):
         with patch.dict(os.environ, {"GIL_SWITCH_INTERVAL": ""}):

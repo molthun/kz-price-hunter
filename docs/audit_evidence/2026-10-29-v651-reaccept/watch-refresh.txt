@@ -1,0 +1,159 @@
+[System] 📡 Модуль онлайн-логирования активирован.
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+test_background_watch_refresh_failure_keeps_remaining_jobs_for_retry (__main__.Mechanism.test_background_watch_refresh_failure_keeps_remaining_jobs_for_retry)
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+P-6.4.12 / Задача 1: при сбое фонового drain невыполненные задания остаются и повторяются. ... /Users/molthun/Documents/kz-price-hunter/web/server.py:4084: NotAppKeyWarning: It is recommended to use web.AppKey instances for keys.
+https://docs.aiohttp.org/en/stable/web_advanced.html#application-s-config
+  app["stats_cache"] = BoundedTTLCache(maxsize=128, ttl=STATS_CACHE_TTL_SECONDS)
+[Auth] ⚠️ ADMIN_TELEGRAM_IDS не задан — администраторов нет, общие настройки и логи недоступны
+[Auth] ⚠️ TELEGRAM_BOT_TOKEN не задан — вход через Telegram и уведомления отключены
+[Queue] ℹ️ Кэш работает в памяти (In-Memory Bounded TTLCache)
+/Users/molthun/Documents/kz-price-hunter/web/server.py:3945: NotAppKeyWarning: It is recommended to use web.AppKey instances for keys.
+https://docs.aiohttp.org/en/stable/web_advanced.html#application-s-config
+  app["startup_watch_refresh_task"] = startup_refresh_task
+[System] Пул рабочих потоков: 32 (ядер: 10)
+[Queue] ⚡ Фоновый Single DB-Writer Worker запущен
+[Telegram Bot] ⚠️ TELEGRAM_BOT_TOKEN не задан — интерактивный бот отключен
+[DB] G03: фоновое обновление памяти наблюдений запущено (1201 заданий, страницами по 500)
+[DB] G03: фоновое обновление памяти наблюдений — 500/1201
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+/Users/molthun/Documents/kz-price-hunter/auth.py:187: NotAppKeyWarning: It is recommended to use web.RequestKey instances for keys.
+https://docs.aiohttp.org/en/stable/web_advanced.html#request-s-storage
+  request["user"] = None
+[Queue] Single DB-Writer Worker остановлен
+ok
+test_base_already_repaired_by_646_gets_memory_fixed (__main__.Mechanism.test_base_already_repaired_by_646_gets_memory_fixed)
+[DB] G03: память наблюдений обновлена по 1 снятым товарам
+G03-B: offers уже сняла 6.4.6, память осталась «в продаже» — разовый досев заданий. ... ok
+test_concurrent_refresh_after_first_completes_gives_one_event (__main__.Mechanism.test_concurrent_refresh_after_first_completes_gives_one_event)
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+G05: оба прочли retire → первый завершил событие и удаление → второй продолжил → одно событие. ... ok
+test_concurrent_refresh_interleaved_gives_one_event (__main__.Mechanism.test_concurrent_refresh_interleaved_gives_one_event)
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+G05, обратное чередование: оба идут одновременно после чтения retire — одно событие. ... ok
+test_deferred_refresh_after_return_applies_transition_in_order (__main__.Mechanism.test_deferred_refresh_after_return_applies_transition_in_order)
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+G04: задание выполняется уже после возврата (возврат без проверки наблюдений) — порядок сохранён. ... ok
+test_failed_job_delete_after_event_does_not_duplicate (__main__.Mechanism.test_failed_job_delete_after_event_does_not_duplicate)
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+G05: событие и outbox записаны → удаление задания падает → повтор → ровно одно событие. ... ok
+test_failed_retired_watch_refresh_in_queue_is_retried (__main__.Mechanism.test_failed_retired_watch_refresh_in_queue_is_retried)
+[Watches] Ошибка проверки снятых товаров: OperationalError
+Сбой обновления памяти в очереди: задача и задание остаются, повтор доводит до конца. ... Повтор задачи task_9c50b746bb4d4720887dc099027d8bbc (Contract), попытка 1
+ok
+test_full_scan_without_item_retires_it_everywhere_and_return_restores (__main__.Mechanism.test_full_scan_without_item_retires_it_everywhere_and_return_restores) ... ok
+test_independent_seller_channel_is_not_retired (__main__.Mechanism.test_independent_seller_channel_is_not_retired) ... ok
+test_item_confirmed_by_another_active_source_stays (__main__.Mechanism.test_item_confirmed_by_another_active_source_stays) ... ok
+test_limited_and_failed_scans_do_not_retire (__main__.Mechanism.test_limited_and_failed_scans_do_not_retire) ... Задача task_f9c68620c08842968d51f4f9f264b2be (Contract) превысила лимит повторов и помещена в dead-letter
+ok
+test_memory_repair_survives_failure_and_restart (__main__.Mechanism.test_memory_repair_survives_failure_and_restart)
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+[DB] G03: память наблюдений обновлена по 1 снятым товарам
+G03-A: сбой обновления памяти при старте повторяется следующим стартом. ... ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений обновлена по 1 снятым товарам
+test_migrate_pending_job_from_pre_phase_schema (__main__.Mechanism.test_migrate_pending_job_from_pre_phase_schema) ... ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+test_old_ack_cannot_delete_new_current_generation (__main__.Mechanism.test_old_ack_cannot_delete_new_current_generation) ... ok
+test_old_retry_after_newer_full_scan_does_not_retire (__main__.Mechanism.test_old_retry_after_newer_full_scan_does_not_retire) ... Задача task_d2cabc20d25545118e58a6168bb6dbb9 (Contract) превысила лимит повторов и помещена в dead-letter
+ok
+test_return_before_deferred_refresh_still_notifies_once (__main__.Mechanism.test_return_before_deferred_refresh_still_notifies_once)
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[DB] G03: память наблюдений не обновлена, повтор при следующем старте: OperationalError
+G04: сбой при старте → товар вернулся раньше повтора → повтор; одно «снова в продаже». ... ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+test_rollback_ack_delete (__main__.Mechanism.test_rollback_ack_delete) ... ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+test_rollback_event_insert (__main__.Mechanism.test_rollback_event_insert) ... ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+test_rollback_outbox_insert (__main__.Mechanism.test_rollback_outbox_insert) ... ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+test_rollback_phase_change (__main__.Mechanism.test_rollback_phase_change) ... ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+test_rollback_state_after_event (__main__.Mechanism.test_rollback_state_after_event) ... ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+test_sigkill_after_event_commit (__main__.Mechanism.test_sigkill_after_event_commit) ... Executing <Task pending name='Task-148' coro=<Mechanism.test_sigkill_after_event_commit() running at /Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-29-v6413-task1/mechanism.py:81> wait_for=<Future pending cb=[Task.task_wakeup()] created at /opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py:460> cb=[_run_until_complete_cb() at /opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py:181] created at /opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:110> took 0.115 seconds
+[DB] G03: память наблюдений обновлена по 1 снятым товарам
+ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+test_sigkill_after_retire_commit (__main__.Mechanism.test_sigkill_after_retire_commit) ... Executing <Task pending name='Task-158' coro=<Mechanism.test_sigkill_after_retire_commit() running at /Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-29-v6413-task1/mechanism.py:80> wait_for=<Future pending cb=[Task.task_wakeup()] created at /opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py:460> cb=[_run_until_complete_cb() at /opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py:181] created at /opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:110> took 0.107 seconds
+[DB] G03: память наблюдений обновлена по 1 снятым товарам
+ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+test_stale_generation_is_noop (__main__.Mechanism.test_stale_generation_is_noop) ... ok
+test_stale_refresh_does_not_confirm_a_newer_retirement (__main__.Mechanism.test_stale_refresh_does_not_confirm_a_newer_retirement)
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+Поколение: новое снятие во время старой обработки не подтверждается старым вызовом. ... ok
+test_startup_repair_updates_watch_memory_so_return_notifies (__main__.Mechanism.test_startup_repair_updates_watch_memory_so_return_notifies)
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+G02: старая база + наблюдение → init_db → возврат по прежней цене → одно «снова в продаже». ... ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+test_startup_repairs_offers_retired_before_the_fix (__main__.Mechanism.test_startup_repairs_offers_retired_before_the_fix) ... ok
+test_startup_with_20000_watch_refresh_jobs_opens_port_before_background_drain_finishes (__main__.Mechanism.test_startup_with_20000_watch_refresh_jobs_opens_port_before_background_drain_finishes)
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+[Auth] ⚠️ ADMIN_TELEGRAM_IDS не задан — администраторов нет, общие настройки и логи недоступны
+[Auth] ⚠️ TELEGRAM_BOT_TOKEN не задан — вход через Telegram и уведомления отключены
+[Queue] ℹ️ Кэш работает в памяти (In-Memory Bounded TTLCache)
+[System] Пул рабочих потоков: 32 (ядер: 10)
+[Queue] ⚡ Фоновый Single DB-Writer Worker запущен
+[Telegram Bot] ⚠️ TELEGRAM_BOT_TOKEN не задан — интерактивный бот отключен
+[DB] G03: фоновое обновление памяти наблюдений запущено (20501 заданий, страницами по 500)
+[DB] G03: фоновое обновление памяти наблюдений — 500/20501
+[DB] G03: фоновое обновление памяти наблюдений — 1000/20501
+[DB] G03: фоновое обновление памяти наблюдений — 1500/20501
+[DB] G03: фоновое обновление памяти наблюдений — 2000/20501
+[DB] G03: фоновое обновление памяти наблюдений — 2500/20501
+[DB] G03: фоновое обновление памяти наблюдений — 3000/20501
+[DB] G03: фоновое обновление памяти наблюдений — 3500/20501
+[DB] G03: фоновое обновление памяти наблюдений — 4000/20501
+[DB] G03: фоновое обновление памяти наблюдений — 4500/20501
+[DB] G03: фоновое обновление памяти наблюдений — 5000/20501
+[DB] G03: фоновое обновление памяти наблюдений — 5500/20501
+[DB] G03: фоновое обновление памяти наблюдений — 6000/20501
+[DB] G03: фоновое обновление памяти наблюдений — 6500/20501
+[DB] G03: фоновое обновление памяти наблюдений — 7000/20501
+[DB] G03: фоновое обновление памяти наблюдений — 7500/20501
+[DB] G03: фоновое обновление памяти наблюдений — 8000/20501
+[DB] G03: фоновое обновление памяти наблюдений — 8500/20501
+[DB] G03: фоновое обновление памяти наблюдений — 9000/20501
+[DB] G03: фоновое обновление памяти наблюдений — 9500/20501
+[DB] G03: фоновое обновление памяти наблюдений — 10000/20501
+[DB] G03: фоновое обновление памяти наблюдений — 10500/20501
+[DB] G03: фоновое обновление памяти наблюдений — 11000/20501
+[DB] G03: фоновое обновление памяти наблюдений — 11500/20501
+[DB] G03: фоновое обновление памяти наблюдений — 12000/20501
+[DB] G03: фоновое обновление памяти наблюдений — 12500/20501
+[DB] G03: фоновое обновление памяти наблюдений — 13000/20501
+[DB] G03: фоновое обновление памяти наблюдений — 13500/20501
+[DB] G03: фоновое обновление памяти наблюдений — 14000/20501
+[DB] G03: фоновое обновление памяти наблюдений — 14500/20501
+[DB] G03: фоновое обновление памяти наблюдений — 15000/20501
+[DB] G03: фоновое обновление памяти наблюдений — 15500/20501
+[DB] G03: фоновое обновление памяти наблюдений — 16000/20501
+[DB] G03: фоновое обновление памяти наблюдений — 16500/20501
+[DB] G03: фоновое обновление памяти наблюдений — 17000/20501
+[DB] G03: фоновое обновление памяти наблюдений — 17500/20501
+[DB] G03: фоновое обновление памяти наблюдений — 18000/20501
+[DB] G03: фоновое обновление памяти наблюдений — 18500/20501
+[DB] G03: фоновое обновление памяти наблюдений — 19000/20501
+[DB] G03: фоновое обновление памяти наблюдений — 19500/20501
+[DB] G03: фоновое обновление памяти наблюдений — 20000/20501
+[DB] G03: фоновое обновление памяти наблюдений — 20500/20501
+[DB] G03: фоновое обновление памяти наблюдений — 20501/20501
+[DB] G03: память наблюдений обновлена по 20501 снятым товарам
+[Queue] Single DB-Writer Worker остановлен
+P-6.4.12 / Задача 1: база с 20 000+ заданиями watch_refresh не держит порт закрытым при старте. ... ok
+[DB] G01: снято 1 предложений V2, которых уже нет в каталоге
+test_two_processes_stale_retire_snapshot (__main__.Mechanism.test_two_processes_stale_retire_snapshot) ... Executing <Task finished name='Task-333' coro=<Mechanism.test_two_processes_stale_retire_snapshot() done, defined at /Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-29-v6413-task1/mechanism.py:42> result=None created at /opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:110> took 0.143 seconds
+ok
+
+----------------------------------------------------------------------
+Ran 29 tests in 3.430s
+
+OK

@@ -303,22 +303,45 @@ def write_legacy_offers_v2(
 
     Дробные значения обратно из базы через JSON не читаются: SQLite 3.46 выводит REAL в JSON
     с 15 значащими цифрами. Цены (до 10 млн, не больше 15 значащих цифр) переносятся без потерь.
-    Должно выполняться внутри открытой транзакции.
+
+    Запись атомарна (V651-01): все операторы идут в своей точке сохранения, и при ошибке откатываются
+    целиком. Иначе канонический товар, записанный раньше упавшего предложения, оставался закреплённым
+    за предложением, которого нет в offers, и исправные предложения уже не могли поправить его
+    название. seen_sellers пополняется только после успеха: пропуск продавца, чья запись откатилась,
+    потерял бы его для следующего товара.
     """
     if not items:
         return
 
     # 1–2. Продавцы и каналы — по разу на ключ (продавец, домен, канал), в порядке первого появления
     sellers: List[Dict[str, Any]] = []
+    new_keys: List[Tuple] = []
     for it in items:
         key = (it["seller_id"], it["domain"], it["channel_id"])
-        if seen_sellers is not None and key in seen_sellers:
+        if (seen_sellers is not None and key in seen_sellers) or key in new_keys:
             continue
-        if seen_sellers is not None:
-            seen_sellers.add(key)
-        elif any((s["seller_id"], s["domain"], s["channel_id"]) == key for s in sellers):
-            continue
+        new_keys.append(key)
         sellers.append(it)
+
+    conn.execute("SAVEPOINT legacy_offers_v2")
+    try:
+        _write_legacy_offers_v2(conn, items, sellers, timestamp)
+    except BaseException:
+        conn.execute("ROLLBACK TO legacy_offers_v2")
+        conn.execute("RELEASE legacy_offers_v2")
+        raise
+    conn.execute("RELEASE legacy_offers_v2")
+    if seen_sellers is not None:
+        seen_sellers.update(new_keys)
+
+
+def _write_legacy_offers_v2(
+    conn: sqlite3.Connection,
+    items: List[Dict[str, Any]],
+    sellers: List[Dict[str, Any]],
+    timestamp: str,
+) -> None:
+    """Операторы write_legacy_offers_v2; выполняются внутри её точки сохранения."""
 
     if sellers:
         # Строка без домена домен не трогает: COALESCE оставляет прежний, а вставка — NULL
@@ -467,7 +490,8 @@ def sync_legacy_product_to_v2(
     """
     Saves or updates a legacy product dict into the v2 tables:
     sellers, channels, canonical_products, offers, offer_price_history.
-    Must be executed within an active transaction.
+    Должно выполняться внутри открытой транзакции. Запись товара атомарна: при ошибке
+    в v2 не остаётся ничего из этого товара (V651-01).
     """
     item = prepare_legacy_offer_v2(product, canonical_key=canonical_key)
     if item is None:

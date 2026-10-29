@@ -2315,20 +2315,18 @@ def _save_products_chunk(conn, chunk: List[Dict[str, Any]], now: str, observed_s
 
 def _write_products_chunk_v2(conn, v2_items: List[Dict[str, Any]], now: str) -> None:
     """Двойная запись порции в v2. Сбой наборной записи не теряет остальные товары: она
-    откатывается к точке сохранения и повторяется по одному товару, как прежде, — сбой
-    одного товара учитывается как сбой его двойной записи, остальные записываются."""
+    откатывается целиком (write_legacy_offers_v2 атомарна) и повторяется по одному товару, —
+    сбой одного товара откатывает только его записи и учитывается как сбой его двойной записи,
+    остальные записываются (V651-01)."""
     from domain.adapter import write_legacy_offers_v2
 
     if not conn.in_transaction:
         conn.execute("BEGIN")  # RELEASE внешней точки сохранения зафиксировал бы транзакцию
-    conn.execute("SAVEPOINT dual_write_v2")
     try:
         write_legacy_offers_v2(conn, v2_items, now, seen_sellers=set())
-        conn.execute("RELEASE dual_write_v2")
         return
     except Exception:
-        conn.execute("ROLLBACK TO dual_write_v2")
-        conn.execute("RELEASE dual_write_v2")
+        pass
     seen_sellers: set = set()
     for item in v2_items:
         try:

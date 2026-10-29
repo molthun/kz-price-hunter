@@ -1,0 +1,46 @@
+test_650_control (__main__.Audit.test_650_control) ... Dual-write v2 failed for product bad: NOT NULL constraint failed: offers.city
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{'version': '6.5.0', 'canonical': ('Valid offer title', 'Valid category', None), 'offers': ['off_good'], 'dual_write': {'total': 2, 'failures': 1, 'last_error': 'NOT NULL constraint failed: offers.city'}}
+ok
+test_651_failed_item_cannot_own_title (__main__.Audit.test_651_failed_item_cannot_own_title) ... Dual-write v2 failed for product bad: NOT NULL constraint failed: offers.city
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{'version': '6.5.1', 'canonical': ('Bad failed offer title', 'Bad category', 'off_bad'), 'offers': ['off_good'], 'dual_write': {'total': 3, 'failures': 1, 'last_error': 'NOT NULL constraint failed: offers.city'}}
+FAIL
+
+======================================================================
+FAIL: test_651_failed_item_cannot_own_title (__main__.Audit.test_651_failed_item_cannot_own_title)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-29-v651-reaccept/fallback_owner.py", line 38, in test_651_failed_item_cannot_own_title
+    def test_651_failed_item_cannot_own_title(self):self.check(False)
+                                                    ~~~~~~~~~~^^^^^^^
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-29-v651-reaccept/fallback_owner.py", line 36, in check
+    self.assertEqual(tuple(row[:2]),('Valid offer title','Valid category'),'failed V2 item permanently owns canonical title/category')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: ('Bad failed offer title', 'Bad category') != ('Valid offer title', 'Valid category')
+
+First differing element 0:
+'Bad failed offer title'
+'Valid offer title'
+
+- ('Bad failed offer title', 'Bad category')
+?   ^  -------                ^
+
++ ('Valid offer title', 'Valid category')
+?   ^ ++                 ^ ++
+ : failed V2 item permanently owns canonical title/category
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.102s
+
+FAILED (failures=1)

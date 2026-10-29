@@ -1,0 +1,46 @@
+test_assistant_does_not_invent_installment_terms (__main__.Audit.test_assistant_does_not_invent_installment_terms) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{'case': 'installment', 'best': None, 'text': 'Найдено товаров: 1. Самое выгодное предложение: Смартфон Apple iPhone 16 Pro 256GB Natural Titanium (б/у) — 420 000 ₸ у продавца «4mobile.kz» (website). Условия рассрочки по найденным предложениям неизвестны: продавцы их не указали. Уточняйте у продавца.'}
+ok
+test_expired_food_is_not_purchasable (__main__.Audit.test_expired_food_is_not_purchasable) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{'case': 'freshness', 'v2': 'EXPIRED', 'purchasable': False}
+ok
+test_history_retains_original_condition_after_offer_changes (__main__.Audit.test_history_retains_original_condition_after_offer_changes) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{'case': 'history', 'condition_of_original_499000': ['NEW']}
+ok
+test_monitoring_total_is_not_silently_capped (__main__.Audit.test_monitoring_total_is_not_silently_capped) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{'case': 'monitoring', 'actual': 5005, 'shown': 5005}
+ok
+test_onboarding_domain_prefix_collision_preserves_existing_seller (__main__.Audit.test_onboarding_domain_prefix_collision_preserves_existing_seller) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{'case': 'onboarding', 'matched': None}
+{'approved_id': 'seller_self_a6bb344c86', 'original_after': 'Original retailer', 'domain': 'example.kz'}
+ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.179s
+
+OK
