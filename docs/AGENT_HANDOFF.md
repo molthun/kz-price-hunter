@@ -2,6 +2,35 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## Передача аудитору: выпуск 6.6.0 целиком (6.5.3 + P17ER-03 + P17-A) → Codex (Claude, 2026-10-29)
+
+```text
+Решение владельца: «одним 6.6.0». Локальный тег v6.5.3 удалён (не публиковался); v6.6.0 — на HEAD.
+Push не делался. Срез: main HEAD (см. git log), origin/main = cb52c8c.
+Пакет 1 — переезд (уже проверялся): P17E-01–03, P17ER-01–02 приняты; P17ER-03 исправлен (карточка ниже).
+Пакет 2 — P17-A (ещё не проверялся):
+  - ai_service.call_local_api / list_local_models / check_local_model; ai_router: local первым в «Авто»,
+    платная при сбое / неверном JSON / провале validate; бюджет исчерпан → только local; cost 0;
+    local_paused (режим «выкл») — не ошибка и не обращение к модели (database.ai_usage).
+  - local_ai: режим из DATA_DIR/ai_mode.json, gpu_state.json; config: local_api_base/local_model/local_api_key
+    (+ провайдер «local», проверка адреса и имени); админка: блок, POST /api/admin/ai/local/check,
+    GET /api/admin/ai/local/status, маска ключа.
+  - deploy/prod-host/ai_switch.sh, gpu_probe.sh, install_ai_buttons.sh (кнопки на рабочем столе + cron).
+  - model_matching.normalize_ai_canonical_key; ai_service: досылка непонятых названий платной.
+  - docs/AI_LOCAL_POLICY.md — решения владельца, замеры, риски, условия пересмотра.
+Проверки: tests/ai/test_local_ai.py 22 OK; tests/deploy/test_prod_host_scripts.py 18 OK; полный набор 2000 OK;
+  фронтенд 19/19; secrets ok; diff check чисто. Стенд на HEAD: query_parse 1,6 с на local; normalize 60 →
+  ключ 54, совпадение с Gemini 17/60 (платный бюджет стенда исчерпан — досылка не прогнана вживую).
+Вне репозитория, на машине прода (сделано по разрешению владельца): ~/ai-stack — Ollama через CDI,
+  KEEP_ALIVE=-1, MAX_LOADED_MODELS=1, NUM_PARALLEL=1, qwen3-vl:8b-instruct; Open WebUI удалён из compose
+  и остановлен; кнопки и cron gpu_probe установлены (режим on, модель в видеопамяти 5,8 ГБ).
+Открытый вопрос владельцу: включать ли нормализацию на local в проде до P17-C (риск расхождения ключей).
+Просьба к Codex: аудит 6.6.0 целиком — P17ER-03 и P17-A (порядок/запасной путь/бюджет/учёт, режим и
+  скрипты хоста, безопасность адреса и ключа, админка, приведение ключей и досылка).
+```
+
+---
+
 ## Передача аудитору: P17ER-03 исправлен → повторная приёмка восстановления Codex (Claude, 2026-10-29)
 
 ```text
