@@ -24,7 +24,7 @@
   (/srv/ssd/ai-stack/ollama). Полнота: qwen3-vl:8b-instruct 0,809 (≈250 с), gemma3:12b 0,803 (363 с),
   qwen3:14b 0,781 (495 с); склейки у всех те же 4 (Ryzen); 16 общих пропусков «серия ↔ только артикул».
   Вывод: остаётся qwen3-vl:8b-instruct; после замера qwen3:14b выгружен, qwen загружен с keep_alive -1 (ollama ps:
-  Forever). gemma3:12b и qwen3:14b лежат на диске — удалить по слову владельца (ollama rm).
+  Forever). gemma3:12b и qwen3:14b удалены по слову владельца («Yes, delete», ollama rm); в Ollama одна qwen3-vl:8b-instruct.
 Следующий шаг: сопоставление по артикулу производителя (sku) поверх ключа k2, замер тем же набором; затем C4/C5.
 CHANGELOG — при выпуске (поведение прода не меняется: ai_key_standard=v1).
 Прод на 6.6.0 (нормализация — Gemini, остальное — локальная).
