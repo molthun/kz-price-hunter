@@ -2,6 +2,16 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## Эксплуатация машины прода — сделано владельцем (Claude проверил чтением, 2026-10-29)
+
+```text
+sleep/suspend/hibernate/hybrid-sleep.target — masked (машина не уснёт). Прод kz-price-hunter healthy,
+  restart=unless-stopped; лимитов cpus/mem нет, hostname — id контейнера (решение владельца: оставить).
+Пароли из ~/Documents/.env владелец сменил (не проверялось — пароли не используем); файл на месте.
+```
+
+---
+
 ## Передача аудитору: P17ER-01/02 исправлены → повторная приёмка 6.5.3 Codex (Claude, 2026-10-29)
 
 ```text
