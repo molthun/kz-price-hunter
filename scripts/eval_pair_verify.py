@@ -7,6 +7,8 @@ Gemini не идеален, поэтому сомнительные ответы
 
     python3 scripts/eval_pair_verify.py --report /tmp/eval_qwen3.json --search http://192.168.28.25:8888 \
         --base http://192.168.28.25:11434/v1 --model qwen3-vl:8b-instruct --out /tmp/verify.json
+
+Медленный ночной замер (поисковики за SearXNG блокируют частые запросы): --interval 90.
 """
 from __future__ import annotations
 
@@ -58,7 +60,8 @@ async def run(report, pairs, search_base, base, model):
     for kind, items in pairs.items():
         for a, b in items:
             verdict = await pv.verify_pair(a, report["fields"][a], b, report["fields"][b], search, ask)
-            out.append({"kind": kind, "a": a, "b": b, **verdict})
+            out.append({"kind": kind, "a": a, "b": b, "at": time.strftime("%H:%M:%S"), **verdict})
+            print(f"{out[-1]['at']} {kind} {verdict['decision']} | {verdict.get('reason', '')[:60]}", flush=True)
     return out
 
 
@@ -71,8 +74,12 @@ def main():
     ap.add_argument("--positives", type=int, default=25)
     ap.add_argument("--negatives", type=int, default=25)
     ap.add_argument("--seed", type=int, default=651)
+    ap.add_argument("--interval", type=float, help="пауза между запросами поиска, с (по умолчанию — как в сервисе)")
     ap.add_argument("--out")
     args = ap.parse_args()
+    if args.interval is not None:
+        import product_verify
+        product_verify.SEARCH_MIN_INTERVAL = args.interval
     report = json.loads(Path(args.report).read_text(encoding="utf-8"))
     missed, hard = pick_pairs(report, args.positives, args.negatives, args.seed)
     started = time.monotonic()
