@@ -2,6 +2,43 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## P17-C4: Запуск репетиции миграции базы стенда в k2 — Antigravity (2026-10-30 01:25 Алматы)
+
+- **Исполнитель**: Antigravity (основной разработчик).
+- **Срез**: `main 9494683` (локально), на стенде запущен образ `ghcr.io/molthun/kz-price-hunter:latest` (6.7.1).
+- **Исходный снимок базы стенда**:
+  - Создан через официальный SQLite Backup API (`src.backup(dst)` при активном WAL): `/home/molthun/kzph-stand/stand-data/snapshot_before_k2.db` (635 МБ, время создания 0.91 с).
+  - Проверка целостности: `PRAGMA integrity_check` → **ok**.
+  - Исходные метрики снимка:
+    * `title_canonical_cache`: 20 133 названия;
+    * `products`: 117 193 предложения (47 297 уникальных названий с магазинами);
+    * Кросс-магазинные группы до миграции: 684 группы, 1 894 кросс-магазинные пары названий между 1 873 уникальными товарами.
+- **Подготовка тестовой копии стенда (`stand-data/prices_k2.db`)**:
+  - Скопирована из неизменяемого снимка `snapshot_before_k2.db`;
+  - Выполнен `database.init_db()` (созданы таблицы `title_articles`, `identity_aliases`, `title_fields`);
+  - Вставлены контрольные наблюдения пользователя `999999` для проверки сохранности после переноса ключей:
+    * Watch 1: MODEL на прежний ключ V2 `norm:Смартфоны:смартфон_tecno_camon_12_64gb_dawn_blue_cc7` (до миграции: `matches=True`);
+    * Watch 2: PRODUCT на прежний `canonical_product_id` `prod_a97ef4512ed0e504` (до миграции: `matches=True`);
+    * Watch 3: PRODUCT на legacy offer SKU `shopkz_142575@astana` (до миграции: `matches=True`);
+    * Watch 4: MODEL на несвязанный товар (до миграции: `matches=False`).
+- **Запуск миграции кэша**:
+  - Запущен отдельный фоновый Docker-контейнер `kzph-k2-migration` (`ghcr.io/molthun/kz-price-hunter:latest`):
+    `python3 scripts/migrate_to_k2.py --db /app/data/prices_k2.db --base http://192.168.28.25:11434/v1 --model qwen3-vl:8b-instruct --batch-size 20 --check-pairs --out /app/data/migration_report_full.json`
+  - Прогон обрабатывает 20 133 названий пачками по 20 через локальную модель `qwen3-vl:8b-instruct` (GPU RTX 4070 загружен на 97%, VRAM 7.2 ГБ).
+  - Каждая завершённая пачка атомарно коммитит `title_fields`, `title_articles`, обновляет `title_canonical_cache` и связывает прежние ID через `identity_aliases`.
+  - По завершении будет сформирован итоговый отчёт `migration_report_full.json` со сравнением пар до и после (`retained_pairs_count`, `dropped_pairs_count`, `added_pairs_count`).
+- **Состояние прода и стенда**:
+  - Прод (`kzph-prod` на порту 35540, v6.7.1) и стенд (`kzph-stand` на порту 35539, v6.6.0) работают штатно, запросы не прерывались;
+  - Рабочая база прода (`/home/molthun/kzph-prod/data/prices.db`) не затрагивалась;
+  - Оригинальная база стенда (`stand-data/prices.db`) и эталонный снимок (`stand-data/snapshot_before_k2.db`) не изменяются.
+- **Следующий точный шаг**:
+  1. Дождаться завершения контейнера `kzph-k2-migration` или проверить промежуточный прогресс;
+  2. Проверить контрольные наблюдения пользователя `999999` (`matches` должны остаться `True` через `identity_aliases`);
+  3. Проанализировать отчёт сохранения пар (`migration_report_full.json`);
+  4. Передать результаты Codex на аудит качества миграции и сопоставления P17-C.
+
+---
+
 ## Приёмка дельты 6.7.1 — Codex (2026-10-30)
 
 - Основание: «Ждем аудит»; текущая передача — постфактум проверить `ce70a09..e3c94dd`.
