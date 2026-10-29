@@ -1269,9 +1269,9 @@ async def normalize_product_titles_batch(
             try:
                 retried = await ai_router.run("normalize", retry_prompt, config=paid, validate=_normalize_reply)
                 new_cached.update(_normalize_items(retried["result"], leftovers))
+                calls += 1   # досылка, которая не состоялась (бюджет, сбой), не отнимает вызов у локальной
             except ai_router.AIUnavailable:
                 pass
-            calls += 1
         results.update(new_cached)
         if new_cached:
             await asyncio.to_thread(save_cached_canonical_keys_batch, new_cached)
