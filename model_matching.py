@@ -197,6 +197,30 @@ def valid_ai_canonical_key(key: str) -> bool:
     return bool(isinstance(key, str) and _RE_AI_KEY.match(key))
 
 
+# Заглушки «нет значения», которыми модели заполняют пустую часть ключа. Gemini пишет «null» (в кэше на
+# 29.10.2026 — 2068 таких ключей), локальная qwen3-vl — «0». Для одного товара ключи разных моделей обязаны
+# совпадать, иначе сравнение цен между магазинами теряет пары (P17-A).
+_KEY_PLACEHOLDERS = {"0", "null", "none", "nil", "n/a", "na", "-", "unknown", "noname", "no name", "нет"}
+
+
+def normalize_ai_canonical_key(raw) -> Optional[str]:
+    """Ключ из ответа модели к единому виду или None.
+
+    Пустышка в конце (объём, память) приводится к «null», как у прежних ключей. Пустышка вместо бренда
+    или модели — ключ отвергается: «0:0:0» склеил бы между собой совершенно разные товары.
+    """
+    if not isinstance(raw, str):
+        return None
+    key = re.sub(r"\s+", " ", raw.strip().lower())
+    parts = [p.strip() for p in key.split(":")]
+    if len(parts) < 2 or parts[0] in _KEY_PLACEHOLDERS or parts[1] in _KEY_PLACEHOLDERS:
+        return None
+    if len(parts) >= 3 and parts[2] in _KEY_PLACEHOLDERS:
+        parts[2] = "null"
+    key = ":".join(parts)
+    return key if valid_ai_canonical_key(key) else None
+
+
 def same_model(left, right):
     """Сравнивает две модели: сначала по каноническому ключу, затем консервативно по токенам.
 

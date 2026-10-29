@@ -13,7 +13,7 @@ import asyncio
 import contextvars
 import os
 import re
-from model_matching import valid_ai_canonical_key
+from model_matching import valid_ai_canonical_key, normalize_ai_canonical_key
 import json
 import time
 from typing import Optional, Dict, Any, List, Tuple
@@ -1261,10 +1261,10 @@ async def normalize_product_titles_batch(
                 if not isinstance(item, dict):
                     continue
                 orig = item.get("title")
-                raw_key = item.get("canonical_key")
-                ckey = re.sub(r"\s+", " ", raw_key.strip().lower()) if isinstance(raw_key, str) else ""
-                # Ответ AI — недоверенные данные: принимается только ключ строгого формата
-                if orig in chunk and valid_ai_canonical_key(ckey):
+                # Ответ AI — недоверенные данные: принимается только ключ строгого формата; заглушки «0»/«none»
+                # приводятся к прежнему «null», пустышка вместо бренда или модели отвергается (P17-A)
+                ckey = normalize_ai_canonical_key(item.get("canonical_key"))
+                if orig in chunk and ckey:
                     new_cached[orig] = ckey
         results.update(new_cached)
         if new_cached:
