@@ -992,6 +992,19 @@ def _create_schema(cursor) -> None:
         )
     """)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_web_search_attempts_day ON web_search_attempts(day)")
+    # Прежние идентичности товара после переноса ключа (P17CR-02): старый канонический ключ / товар V2 → новый.
+    # Наблюдения MODEL и PRODUCT хранят цель в старом виде; предложение несёт свои прежние ключи и товары,
+    # и наблюдение продолжает его узнавать. Записи не удаляются: цепочки A → B → C разрешаются целиком
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS identity_aliases (
+            kind TEXT NOT NULL,
+            old_id TEXT NOT NULL,
+            new_id TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (kind, old_id, new_id)
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_identity_aliases_new ON identity_aliases(kind, new_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_web_search_cache_created ON web_search_cache(created_at)")
     # Названия, которые уже отправлялись в AI: неудачи не повторяются при каждом обходе
     cursor.execute("""
@@ -2360,6 +2373,7 @@ def rekey_titles_conn(conn, new_keys: Dict[str, str]) -> Dict[str, int]:
                      [(k, _title_hash(t)) for t, k in rows])
     has_v2 = _has_table(conn, "offers") and _has_table(conn, "canonical_products")
     history_cols = _columns(conn, "offer_price_history") if _has_table(conn, "offer_price_history") else set()
+    aliases = []
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     for title, key in rows:
         cur = conn.execute("SELECT * FROM products WHERE title = ?", (title,))
@@ -2369,6 +2383,7 @@ def rekey_titles_conn(conn, new_keys: Dict[str, str]) -> Dict[str, int]:
             continue
         conn.execute("UPDATE products SET canonical_key = ? WHERE title = ?", (key, title))
         stats["products"] += len(products)
+        aliases += [("key", p["canonical_key"], key) for p in products if p.get("canonical_key") and p["canonical_key"] != key]
         if not has_v2:
             continue
         # Канонический товар с этим ключом уже может быть (ключ уникален) — тогда предложение идёт к нему
@@ -2380,6 +2395,11 @@ def rekey_titles_conn(conn, new_keys: Dict[str, str]) -> Dict[str, int]:
             if current is None or current[0] == new_pid:
                 continue                            # предложения нет (цена вне диапазона) или оно уже на месте
             old_pid = current[0]
+            old_cp = conn.execute("SELECT canonical_key FROM canonical_products WHERE id = ?", (old_pid,)).fetchone()
+            aliases.append(("product", old_pid, new_pid))
+            if old_cp and old_cp[0] and old_cp[0] != key:
+                aliases.append(("key", old_cp[0], key))
+            _move_watch_state(conn, old_pid, new_pid)
             conn.execute("""INSERT INTO canonical_products (id, canonical_key, title, category, description,
                                 image_url, title_offer_id, created_at, updated_at)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING""",
@@ -2393,7 +2413,75 @@ def rekey_titles_conn(conn, new_keys: Dict[str, str]) -> Dict[str, int]:
                 cur = conn.execute("UPDATE offer_price_history SET product_id = ? WHERE offer_id = ? AND product_id = ?",
                                    (new_pid, offer_id, old_pid))
                 stats["history"] += cur.rowcount
+    if aliases and _has_table(conn, "identity_aliases"):
+        conn.executemany("INSERT OR IGNORE INTO identity_aliases (kind, old_id, new_id) VALUES (?, ?, ?)",
+                         list(dict.fromkeys(aliases)))
+    stats["aliases"] = len(set(aliases))
     return stats
+
+
+def _move_watch_state(conn, old_pid: str, new_pid: str) -> None:
+    """Память межпродавцовых наблюдений ведётся по каноническому товару (_watch_scope_id): при переносе
+    предложения на новый товар она копируется на него с объединением известных продавцов, каналов и
+    предложений. Иначе пустая память на новом товаре приняла бы всех известных продавцов за новых и разослала
+    ложные «новый продавец / новое предложение» (P17CR-02). Прежняя память остаётся для оставшихся предложений."""
+    if not _has_table(conn, "watch_state"):
+        return
+    cur = conn.execute("SELECT * FROM watch_state WHERE product_id = ? OR product_id LIKE ?",
+                       (old_pid, old_pid.replace("%", "") + ":%"))
+    names = [d[0] for d in cur.description]
+    for row in [dict(zip(names, r)) for r in cur.fetchall()]:
+        scope = new_pid + row["product_id"][len(old_pid):]
+        found = conn.execute("SELECT * FROM watch_state WHERE watch_id = ? AND product_id = ?",
+                             (row["watch_id"], scope))
+        target = found.fetchone()
+        merged = dict(row, product_id=scope)
+        if target:
+            target = dict(zip([d[0] for d in found.description], target))
+            merged = dict(target)
+            for col in ("known_sellers", "known_channels", "known_offers"):
+                if col in row:
+                    try:
+                        union = set(json.loads(row[col] or "[]")) | set(json.loads(target[col] or "[]"))
+                    except (TypeError, ValueError):
+                        continue
+                    merged[col] = json.dumps(sorted(union), ensure_ascii=False)
+            prices = [v for v in (row.get("min_price"), target.get("min_price")) if v is not None]
+            merged["min_price"] = min(prices) if prices else None
+        cols = list(merged)
+        conn.execute(f"INSERT OR REPLACE INTO watch_state ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})",
+                     [merged[c] for c in cols])
+
+
+def _former_identities(conn, kind: str, values: Iterable[str]) -> Dict[str, List[str]]:
+    """{текущий id: [все прежние id]} по identity_aliases, с цепочками A → B → C (P17CR-02)."""
+    current = {v for v in values if v}
+    if not current or not _has_table(conn, "identity_aliases"):
+        return {}
+    olds_of: Dict[str, set] = {}
+    frontier, seen = set(current), set(current)
+    for _ in range(20):                               # глубина цепочек переносов ограничена
+        if not frontier:
+            break
+        rows = conn.execute("SELECT old_id, new_id FROM identity_aliases WHERE kind = ? AND new_id IN "
+                            "(SELECT value FROM json_each(?))", (kind, json.dumps(sorted(frontier)))).fetchall()
+        frontier = set()
+        for old, new in rows:
+            olds_of.setdefault(new, set()).add(old)
+            if old not in seen:
+                seen.add(old)
+                frontier.add(old)
+    out: Dict[str, List[str]] = {}
+    for value in current:
+        acc, stack = set(), [value]
+        while stack:
+            for old in olds_of.get(stack.pop(), ()):
+                if old not in acc and old != value:
+                    acc.add(old)
+                    stack.append(old)
+        if acc:
+            out[value] = sorted(acc)
+    return out
 
 
 def titles_with_canonical_key(key: str, limit: int = 1000) -> List[str]:
@@ -4465,6 +4553,13 @@ def watched_offers(product_ids: List[str], now: Optional[datetime.datetime] = No
                     r["product_id"] = r.get("id")
                     r["canonical_product_id"] = r.get("id")
                     rows.append(r)
+
+            # Прежние ключи и товары предложения (P17CR-02): наблюдения со старой целью продолжают его узнавать
+            former_keys = _former_identities(conn, "key", [r.get("canonical_key") for r in rows])
+            former_pids = _former_identities(conn, "product", [r.get("canonical_product_id") for r in rows])
+            for r in rows:
+                r["former_keys"] = former_keys.get(r.get("canonical_key") or "", [])
+                r["former_product_ids"] = former_pids.get(r.get("canonical_product_id") or "", [])
 
             alert_ids = list(dict.fromkeys(chunk + list(found_ids)))
             alert_placeholders = ",".join("?" * len(alert_ids))

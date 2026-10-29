@@ -252,10 +252,13 @@ def matches(watch: Dict[str, Any], offer: Dict[str, Any]) -> bool:
         offer_pid = str(offer.get("id") or "")
         return (offer_pid == watch["target"] or
                 str(offer.get("canonical_product_id") or "") == watch["target"] or
-                str(offer.get("product_id") or "") == watch["target"])
+                str(offer.get("product_id") or "") == watch["target"] or
+                # Канонический товар сменился переносом ключа (P17-C): цель — прежний товар этого предложения
+                watch["target"] in (offer.get("former_product_ids") or ()))
     if kind == MODEL:
         return (str(offer.get("canonical_key") or "").lower() == target or
-                str(offer.get("model") or "").lower() == target)
+                str(offer.get("model") or "").lower() == target or
+                target in {str(k).lower() for k in (offer.get("former_keys") or ())})
     if kind == CATEGORY:
         return target in str(offer.get("category") or "").lower()
     if kind == SEARCH:

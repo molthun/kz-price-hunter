@@ -155,6 +155,74 @@ class MigrateToK2Test(_FullSchemaCase):
         self.assertEqual(database.get_cached_canonical_keys_batch([T1])[T1], "old:a")
 
 
+class BatchOrderSafetyTest(unittest.TestCase):
+    """P17CR-01: 128 и 256 ГБ не попадают в одну группу ни при каком порядке и размере пачки,
+    в пробном и настоящем прогоне, при повторном запуске и с уже сохранённым ключом без объёма."""
+
+    @staticmethod
+    def phone(cap=None):
+        return {"brand": "Samsung", "model": "SM-S911B", "sku": None, "unbranded": False,
+                "variants": [] if cap is None else [{"value": cap, "unit": "gb"}]}
+
+    def run_case(self, order, batch_size, dry_run, fixed_unknown=False):
+        tmp = tempfile.TemporaryDirectory()
+        data = Path(tmp.name)
+        db_path = str(data / "prices.db")
+        patches = [patch.object(database, "DB_PATH", type(DB_PATH)(db_path)),
+                   patch.object(config, "DATA_DIR", data),
+                   patch.object(config, "SETTINGS_FILE", data / "settings.json")]
+        for p in patches:
+            p.start()
+        try:
+            database.init_db()
+            fields = {"Unknown capacity": self.phone(), "Phone 128": self.phone(128), "Phone 256": self.phone(256)}
+            for i, title in enumerate(order):
+                database.save_or_update_product({"id": f"p{i}", "shop": ["Sulpak", "DNS Казахстан", "Mechta"][i],
+                                                 "city": "Алматы", "title": title, "price": 1000,
+                                                 "url": f"https://example.kz/{i}", "canonical_key": f"old:p{i}"})
+                database.save_cached_canonical_keys_batch({title: f"old:p{i}"})
+                with database.get_connection() as conn:
+                    conn.execute("UPDATE title_canonical_cache SET created_at = ? WHERE title = ?",
+                                 (f"2026-01-01 00:00:0{i}", title))
+                    conn.commit()
+            database.save_title_fields_batch(fields, "k2", "local", "fake")
+            if fixed_unknown:      # уже переведённое unknown с ключом без объёма, видимое через title_articles
+                key = pk.build_key(fields["Unknown capacity"], "Unknown capacity")
+                database.rekey_titles({"Unknown capacity": key})
+                database.save_title_articles_batch([(a, _hash("Unknown capacity"), key)
+                                                    for a in pk.article_tokens(fields["Unknown capacity"])])
+            results = []
+            for _ in range(1 if dry_run else 2):         # настоящий прогон — дважды (повтор/возобновление)
+                with patch("ai_service._call_local_api", side_effect=AssertionError("модель не нужна")):
+                    results.append(asyncio.run(mig.run_migration(db_path, "http://unused", "fake", batch_size=batch_size,
+                                                                 rescore_only=True, dry_run=dry_run)))
+            keys = database.get_cached_canonical_keys_batch(list(fields))
+            with database.get_connection() as conn:
+                v2 = {r[0]: r[1] for r in conn.execute(
+                    "SELECT pr.title, cp.canonical_key FROM products pr JOIN offers o ON o.id = 'off_' || pr.id "
+                    "JOIN canonical_products cp ON cp.id = o.product_id")}
+            return keys, v2, results
+        finally:
+            for p in reversed(patches):
+                p.stop()
+            tmp.cleanup()
+
+    def test_all_orders_batch_sizes_and_modes(self):
+        import itertools
+        titles = ["Unknown capacity", "Phone 128", "Phone 256"]
+        for order in itertools.permutations(titles):
+            for batch_size in (1, 2, 3):
+                for fixed_unknown in (False, True):
+                    with self.subTest(order=order, batch_size=batch_size, fixed_unknown=fixed_unknown):
+                        keys, v2, _ = self.run_case(order, batch_size, dry_run=False, fixed_unknown=fixed_unknown)
+                        self.assertNotEqual(keys["Phone 128"], keys["Phone 256"])
+                        self.assertTrue(keys["Phone 128"].endswith(":128gb"), keys)
+                        self.assertTrue(keys["Phone 256"].endswith(":256gb"), keys)
+                        self.assertEqual(v2, keys, "V2 совпадает с кэшем")
+                        _, _, (dry,) = self.run_case(order, batch_size, dry_run=True, fixed_unknown=fixed_unknown)
+                        self.assertEqual(dry["with_k2_key"], 3)
+
+
 class PairsMetricTest(unittest.TestCase):
     """P17C-07: единица метрики — пары названий с предложениями хотя бы в двух разных магазинах."""
 

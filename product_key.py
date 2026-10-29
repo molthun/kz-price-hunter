@@ -351,7 +351,10 @@ def link_by_article(
     verdicts = pair_verdicts or {}
     titles = sorted(t for t, (_, key) in entries.items() if key)
     parent = {t: t for t in titles}
-    variants = {t: ({_variants_of(entries[t][1])} - {""}) for t in titles}
+    # Варианты — из сохранённых полей и названия, а не из назначенного ключа: сохранённое 128 ГБ могло
+    # получить ключ без объёма от прежней группы, и тогда 256 ГБ присоединялся бы к нему (P17CR-01)
+    own_variants = {t: _fields_variants(entries[t][0], t, entries[t][1]) for t in titles}
+    variants = {t: ({own_variants[t]} - {""}) for t in titles}
     members = {t: {t} for t in titles}
 
     def root(t):
@@ -408,8 +411,26 @@ def link_by_article(
         pool = [entries[t][1] for t in group if t in fixed] or [entries[t][1] for t in group]
         best = sorted(set(pool), key=lambda k: (0 if _variants_of(k) else 1, -pool.count(k), len(k), k))[0]
         for t in group:
-            out[t] = entries[t][1] if t in fixed else best
+            if t in fixed:
+                out[t] = entries[t][1]
+            elif own_variants[t] and _variants_of(best) != own_variants[t]:
+                # Ключ группы без объёма не стирает известный объём нового названия: сохранённый ключ без
+                # вариантов не должен стать общим для 128 и 256 (P17CR-01). Берётся ключ группы с тем же
+                # объёмом, иначе — собственный.
+                same = sorted(k for k in set(pool) if _variants_of(k) == own_variants[t])
+                out[t] = same[0] if same else entries[t][1]
+            else:
+                out[t] = best
     return out
+
+
+def _fields_variants(fields: Any, title: str, key: str) -> str:
+    """Варианты названия по его полям (с объёмом и диагональю из названия); без полей — из ключа."""
+    if isinstance(fields, dict):
+        built = build_key(fields, title)
+        if built:
+            return _variants_of(built)
+    return _variants_of(key)
 
 
 def resolve_keys_with_articles(

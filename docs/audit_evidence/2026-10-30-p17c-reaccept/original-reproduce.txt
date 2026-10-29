@@ -1,0 +1,96 @@
+test_C01_different_verdict_vetoes_article_link (__main__.Audit.test_C01_different_verdict_vetoes_article_link) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{"case": "different_veto", "base": {"A": "k2:samsung:galaxys24", "B": "k2:samsung:galaxys24ultra"}, "linked": {"A": "k2:samsung:galaxys24", "B": "k2:samsung:galaxys24ultra"}}
+ok
+test_C01_variant_bridge_does_not_merge_128_and_256 (__main__.Audit.test_C01_variant_bridge_does_not_merge_128_and_256) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{"case": "variant_bridge", "base": {"phone A": "k2:samsung:sms911b:128gb", "phone B": "k2:samsung:sms911b", "phone C": "k2:samsung:sms911b:256gb"}, "linked": {"phone A": "k2:samsung:sms911b:128gb", "phone B": "k2:samsung:sms911b", "phone C": "k2:samsung:sms911b:256gb"}}
+ok
+test_C02_migration_updates_v2 (__main__.Audit.test_C02_migration_updates_v2) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 2
+[C4] Из них уже сохранены поля: 2
+[C4] Обработка 2 названий пачками по 20...
+[C4] Прогресс: 2/2 (100%) | Скорость: 3302.4 наим/с | ETA: 0 с | С ключом k2: 2
+[C4] Расчёт сравнения пар до и после миграции...
+[C4] Пар было: 0 | Стало: 1 | Сохранилось: 0 (нет пар — не определено) | Разошлось: 0 | Новых: 1
+{"case": "v2_migration", "legacy": [["Audit phone shop A", "k2:samsung:sms911b:128gb"], ["Audit phone shop B", "k2:samsung:sms911b:128gb"]], "v2": [["audit_0", "k2:samsung:sms911b:128gb"], ["audit_1", "k2:samsung:sms911b:128gb"]]}
+ok
+test_C02_verified_union_updates_v2 (__main__.Audit.test_C02_verified_union_updates_v2) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{"case": "verified_union", "legacy": ["k2:samsung:sms911b:128gb", "k2:samsung:sms911b:128gb"], "v2": ["k2:samsung:sms911b:128gb", "k2:samsung:sms911b:128gb"]}
+ok
+test_C03_empty_searches_consume_daily_quota (__main__.Audit.test_C03_empty_searches_consume_daily_quota) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{"case": "search_limit", "network_attempts": 1, "daily_counter": 1, "limit": 1}
+ok
+test_C04_temporary_search_failure_is_retried (__main__.Audit.test_C04_temporary_search_failure_is_retried) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{"case": "queue_retry", "first": "unknown", "status": "pending", "requeue_result": false, "pending": 0}
+FAIL
+test_C05_verifier_respects_local_off (__main__.Audit.test_C05_verifier_respects_local_off) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{"case": "verifier_pause", "paused": true, "outgoing_calls": 0, "reply": null}
+ok
+test_C06_rescore_rebuilds_existing_k2 (__main__.Audit.test_C06_rescore_rebuilds_existing_k2) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 1
+[C4] Из них уже сохранены поля: 1
+[C4] Обработка 1 названий пачками по 20...
+[C4] Прогресс: 1/1 (100%) | Скорость: 2718.3 наим/с | ETA: 0 с | С ключом k2: 1
+{"case": "rescore", "result": {"total_titles": 1, "processed_titles": 1, "with_k2_key": 1, "api_calls": 0, "api_failures": 0, "seconds": 0.0, "dry_run": false}, "key": "k2:samsung:sms911b:128gb", "expected": "k2:samsung:sms911b:128gb"}
+ok
+test_C07_pairs_include_equal_multishop_sets (__main__.Audit.test_C07_pairs_include_equal_multishop_sets) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{"case": "pair_metric", "result": {"unit": "пары названий с предложениями хотя бы в двух разных магазинах", "valid": true, "old_pairs_count": 1, "new_pairs_count": 0, "retained_pairs_count": 0, "retention_rate": 0.0, "dropped_pairs_count": 1, "added_pairs_count": 0, "dropped_examples": [{"a": "A", "b": "B", "old_key": "old:group", "new_key_a": "k2:a:1", "new_key_b": "k2:a:2"}]}}
+ok
+
+======================================================================
+FAIL: test_C04_temporary_search_failure_is_retried (__main__.Audit.test_C04_temporary_search_failure_is_retried)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-29-p17c/reproduce.py", line 63, in test_C04_temporary_search_failure_is_retried
+    self.assertTrue(pending,'temporary failure must remain retryable')
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: [] is not true : temporary failure must remain retryable
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.327s
+
+FAILED (failures=1)

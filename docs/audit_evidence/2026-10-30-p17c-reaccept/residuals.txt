@@ -1,0 +1,50 @@
+test_rekey_keeps_persisted_product_and_model_watches (__main__.Audit.test_rekey_keeps_persisted_product_and_model_watches) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{"case": "watches_after_rekey", "old_pid": "prod_292db2357416b986", "new_pid": "prod_48c3c3b8a43e90c2", "persisted_targets": [{"kind": "model", "target": "audit:device:128gb"}, {"kind": "product", "target": "prod_292db2357416b986"}], "before_matches": [true, true], "after_matches": [false, false]}
+FAIL
+test_unknown_first_batches_keep_128_and_256_separate (__main__.Audit.test_unknown_first_batches_keep_128_and_256_separate) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 2173.5 наим/с | ETA: 0 с | С ключом k2: 3
+{"case": "unknown_first_migration", "keys": {"Phone 128": "k2:samsung:sms911b", "Unknown capacity": "k2:samsung:sms911b", "Phone 256": "k2:samsung:sms911b"}}
+FAIL
+
+======================================================================
+FAIL: test_rekey_keeps_persisted_product_and_model_watches (__main__.Audit.test_rekey_keeps_persisted_product_and_model_watches)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-30-p17c-reaccept/residuals.py", line 34, in test_rekey_keeps_persisted_product_and_model_watches
+    self.assertEqual(after_matches,[True,True],'existing watches must follow rekey or resolve through a persistent alias')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: [False, False] != [True, True]
+
+First differing element 0:
+False
+True
+
+- [False, False]
++ [True, True] : existing watches must follow rekey or resolve through a persistent alias
+
+======================================================================
+FAIL: test_unknown_first_batches_keep_128_and_256_separate (__main__.Audit.test_unknown_first_batches_keep_128_and_256_separate)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-30-p17c-reaccept/residuals.py", line 22, in test_unknown_first_batches_keep_128_and_256_separate
+    self.assertNotEqual(keys['Phone 128'],keys['Phone 256'],'unknown-first batch must not erase capacity and merge 128/256')
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'k2:samsung:sms911b' == 'k2:samsung:sms911b' : unknown-first batch must not erase capacity and merge 128/256
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.156s
+
+FAILED (failures=2)
