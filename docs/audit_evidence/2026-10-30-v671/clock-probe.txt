@@ -1,0 +1,10 @@
+PASS first_at_zero: starts=[0.0, 90.0], waits=[90.0]
+PASS fresh_boot: starts=[30.0, 120.0], waits=[90.0]
+PASS long_uptime: starts=[100000.0, 100090.0], waits=[90.0]
+PASS request_takes_15s: starts=[30.0, 120.0], waits=[75.0]
+PASS interval_already_elapsed: starts=[30.0, 130.0], waits=[]
+PASS zero_interval: starts=[0.0, 0.0], waits=[]
+PASS unavailable_still_throttled: starts=[30.0, 120.0], waits=[90.0]
+PASS three_concurrent_requests: starts=[30.0, 120.0, 210.0], waits=[75.0, 75.0]
+CONTROL ce70a09 reproduces defect: starts=[90.0, 180.0], waits=[60.0, 90.0]
+RESULT: 8/8 current scenarios PASS; previous-version defect reproduced
