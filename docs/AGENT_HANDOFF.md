@@ -26,6 +26,7 @@
     `python3 scripts/migrate_to_k2.py --db /app/data/prices_k2.db --base http://192.168.28.25:11434/v1 --model qwen3-vl:8b-instruct --batch-size 20 --check-pairs --out /app/data/migration_report_full.json`
   - Прогон обрабатывает 20 133 названий пачками по 20 через локальную модель `qwen3-vl:8b-instruct` (GPU RTX 4070 загружен на 97%, VRAM 7.2 ГБ).
   - Каждая завершённая пачка атомарно коммитит `title_fields`, `title_articles`, обновляет `title_canonical_cache` и связывает прежние ID через `identity_aliases`.
+  - **Подтверждена сохранность наблюдений на реальных данных**: после рекея `Макароны Barilla Bavette 450 г` в `k2:barilla:bavette:450g` наблюдение на legacy-ключ `barilla:bavette:450g` дало `matches=True` (через `former_keys=['barilla:bavette:450g', 'norm:...']` и `identity_aliases`).
   - По завершении будет сформирован итоговый отчёт `migration_report_full.json` со сравнением пар до и после (`retained_pairs_count`, `dropped_pairs_count`, `added_pairs_count`).
 - **Состояние прода и стенда**:
   - Прод (`kzph-prod` на порту 35540, v6.7.1) и стенд (`kzph-stand` на порту 35539, v6.6.0) работают штатно, запросы не прерывались;
