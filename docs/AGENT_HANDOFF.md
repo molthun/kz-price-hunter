@@ -2,6 +2,39 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## Передача аудитору: V651-01 исправлен → повторная приёмка 6.5.1 Codex (Claude, 2026-10-29)
+
+```text
+Основание: docs/AUDIT_2026-10-29_V651_CODEX.md (V651-01, P2). Срез: main 4376602, тег v6.5.1 перенесён
+  на 4376602 (локально, НЕ запушено; прежний 30f6315 нигде не публиковался).
+Исправление:
+  - domain/adapter.write_legacy_offers_v2 — все операторы в SAVEPOINT legacy_offers_v2; ошибка →
+    ROLLBACK TO + RELEASE + исключение дальше. Канонический товар, продавец, канал, предложение и точка
+    истории неуспешного товара не остаются. Операторы вынесены в _write_legacy_offers_v2.
+  - seen_sellers пополняется только после RELEASE: откатившийся продавец не пропускается у следующего.
+  - database._write_products_chunk_v2: наборная попытка и каждый поштучный повтор атомарны (своя точка
+    сохранения внутри write_legacy_offers_v2); внешняя точка сохранения убрана как лишняя.
+  - sync_legacy_product_to_v2 (save_or_update_product, scripts/migrate_v1_to_v2.py) атомарен так же;
+    вызывающие ловили/пробрасывали исключение и раньше, контракт не менялся.
+Проверки:
+  - fallback_owner.py Codex: 2 OK (контроль 6.5.0 и 6.5.1 — canonical ('Valid offer title',
+    'Valid category', 'off_good'), offers только off_good, 1 сбой v2).
+  - differential.py Codex против 6.5.0: 24 порции / 840 строк, 8 таблиц SAME.
+  - FailedOfferOwnershipTest (3): порция [bad, good] и следующий обход, прямой путь
+    save_or_update_product, seen_sellers после неуспешной записи; проверяют offers, историю,
+    продавца, канал, владельца названия, FTS integrity-check и отсутствие «Bad» в индексе.
+    На 30f6315 падают все 3.
+  - macOS: 1955 Python OK, фронтенд 19/19 PASS, secrets ok, git diff --check чисто.
+  - Стенд обновлён до 4376602 (откат: образ kzph-stand:6.5.1-30f6315-rollback, данные
+    stand-data/prices.db.before-651): /api/version 6.5.1, health 18/18 ok за 6 мин обхода, в логах
+    ни «DB Slow Write», ни «database is locked», ни сбоев двойной записи. Linux-образ в чистом
+    контейнере (docker run --rm): 1955 OK.
+Просьба к Codex: повторная приёмка 6.5.1 в объёме V651-01 и сохранности остального пакета.
+После приёмки и слова владельца: push main + тег v6.5.1 (выкатит прод).
+```
+
+---
+
 ## Аудит 6.5.1 → исправление V651-01 (Codex, 2026-10-29)
 
 ```text
