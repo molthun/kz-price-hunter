@@ -1,0 +1,1191 @@
+test_conflicting_capacity_and_weak_article_do_not_join (tests.core.test_product_key.LinkByArticleTest.test_conflicting_capacity_and_weak_article_do_not_join) ... ok
+test_resolve_keys_with_articles_incompatible_not_joined (tests.core.test_product_key.LinkByArticleTest.test_resolve_keys_with_articles_incompatible_not_joined) ... ok
+test_resolve_keys_with_articles_preserves_existing (tests.core.test_product_key.LinkByArticleTest.test_resolve_keys_with_articles_preserves_existing) ... ok
+test_saved_keys_are_not_changed (tests.core.test_product_key.LinkByArticleTest.test_saved_keys_are_not_changed) ... ok
+test_series_and_article_in_model_join (tests.core.test_product_key.LinkByArticleTest.test_series_and_article_in_model_join) ... ok
+test_shared_accessory_does_not_join_different_models (tests.core.test_product_key.LinkByArticleTest.test_shared_accessory_does_not_join_different_models) ... ok
+test_different_verdict_vetoes_and_same_overrides_only_models (tests.core.test_product_key.LinkGroupSafetyTest.test_different_verdict_vetoes_and_same_overrides_only_models) ... ok
+test_fixed_existing_128_and_new_256_stay_apart_across_batches (tests.core.test_product_key.LinkGroupSafetyTest.test_fixed_existing_128_and_new_256_stay_apart_across_batches) ... ok
+test_unknown_variant_does_not_bridge_128_and_256_in_any_order (tests.core.test_product_key.LinkGroupSafetyTest.test_unknown_variant_does_not_bridge_128_and_256_in_any_order) ... ok
+test_unknown_variant_joins_single_capacity_and_takes_specific_key (tests.core.test_product_key.LinkGroupSafetyTest.test_unknown_variant_joins_single_capacity_and_takes_specific_key) ... ok
+test_verdict_loader_and_disputed_callback (tests.core.test_product_key.LinkGroupSafetyTest.test_verdict_loader_and_disputed_callback) ... ok
+test_capacity_and_diagonal_from_title (tests.core.test_product_key.SameFieldsSameKeyTest.test_capacity_and_diagonal_from_title)
+Модель через раз пропускает объём в variants — код берёт его из названия (замер C2). ... ok
+test_different_model_spellings_give_one_key (tests.core.test_product_key.SameFieldsSameKeyTest.test_different_model_spellings_give_one_key)
+Так одно и то же извлекают разные модели — ключ обязан совпасть. ... ok
+test_empty_and_unbranded_give_no_key (tests.core.test_product_key.SameFieldsSameKeyTest.test_empty_and_unbranded_give_no_key) ... ok
+test_keys_for_only_batch_titles (tests.core.test_product_key.SameFieldsSameKeyTest.test_keys_for_only_batch_titles) ... ok
+test_no_placeholder_leaks_into_key (tests.core.test_product_key.SameFieldsSameKeyTest.test_no_placeholder_leaks_into_key) ... ok
+test_sku_and_edition_not_glued_into_model (tests.core.test_product_key.SameFieldsSameKeyTest.test_sku_and_edition_not_glued_into_model) ... ok
+test_sku_when_no_model_and_translit_brand (tests.core.test_product_key.SameFieldsSameKeyTest.test_sku_when_no_model_and_translit_brand) ... ok
+test_units_and_numbers (tests.core.test_product_key.SameFieldsSameKeyTest.test_units_and_numbers) ... ok
+test_all_orders_batch_sizes_and_modes (tests.core.test_migrate_to_k2.BatchOrderSafetyTest.test_all_orders_batch_sizes_and_modes) ... ok
+test_dry_run_is_read_only_and_matches_real_pass (tests.core.test_migrate_to_k2.MigrateToK2Test.test_dry_run_is_read_only_and_matches_real_pass)
+Пробный прогон не пишет и не меняет режим журнала; прогноз совпадает с проходом при любом размере пачки. ... ok
+test_find_titles_to_migrate_skips_k2 (tests.core.test_migrate_to_k2.MigrateToK2Test.test_find_titles_to_migrate_skips_k2) ... ok
+test_local_off_blocks_model_calls (tests.core.test_migrate_to_k2.MigrateToK2Test.test_local_off_blocks_model_calls)
+Миграция идёт через общий путь локальной модели: при «AI выкл» к модели не обращается (P17C-05). ... ok
+test_migration_moves_legacy_and_v2_together (tests.core.test_migrate_to_k2.MigrateToK2Test.test_migration_moves_legacy_and_v2_together)
+P17C-02: после миграции предложения V2 на тех же канонических товарах, что и products. ... ok
+test_price_history_follows_offer (tests.core.test_migrate_to_k2.MigrateToK2Test.test_price_history_follows_offer)
+История цен переезжает с предложением на новый канонический товар, а не теряется. ... ok
+test_rescore_only_rebuilds_existing_k2 (tests.core.test_migrate_to_k2.MigrateToK2Test.test_rescore_only_rebuilds_existing_k2)
+P17C-06: пересборка видит и уже переведённые k2-записи и не вызывает модель. ... ok
+test_against_brute_force (tests.core.test_migrate_to_k2.PairsMetricTest.test_against_brute_force) ... ok
+test_identical_and_overlapping_multishop_sets_count (tests.core.test_migrate_to_k2.PairsMetricTest.test_identical_and_overlapping_multishop_sets_count) ... ok
+test_moved_pairs (tests.core.test_migrate_to_k2.PairsMetricTest.test_moved_pairs) ... ok
+test_single_shop_is_not_a_pair_and_no_pairs_is_not_100 (tests.core.test_migrate_to_k2.PairsMetricTest.test_single_shop_is_not_a_pair_and_no_pairs_is_not_100) ... ok
+test_attempts_exhausted_then_reopened_later (tests.ai.test_product_verify.AuditP17CTest.test_attempts_exhausted_then_reopened_later) ... ok
+test_daily_limit_counts_every_real_attempt (tests.ai.test_product_verify.AuditP17CTest.test_daily_limit_counts_every_real_attempt) ... ok
+test_disputed_queue_different_verdict_keeps_keys (tests.ai.test_product_verify.AuditP17CTest.test_disputed_queue_different_verdict_keeps_keys) ... ok
+test_disputed_queue_lifecycle (tests.ai.test_product_verify.AuditP17CTest.test_disputed_queue_lifecycle) ... ok
+test_local_off_and_global_switch_block_model (tests.ai.test_product_verify.AuditP17CTest.test_local_off_and_global_switch_block_model) ... ok
+test_model_off_is_transient_and_no_evidence_waits_a_week (tests.ai.test_product_verify.AuditP17CTest.test_model_off_is_transient_and_no_evidence_waits_a_week) ... ok
+test_normalize_pipeline_respects_saved_different (tests.ai.test_product_verify.AuditP17CTest.test_normalize_pipeline_respects_saved_different)
+Конвейер нормализации загружает сохранённые вердикты: «разные» запрещает связь по артикулу. ... ok
+test_pause_between_searches (tests.ai.test_product_verify.AuditP17CTest.test_pause_between_searches)
+Второй поиск ждёт заданную паузу (решение владельца — «только SearXNG с таймаутом»). ... ok
+test_reservation_is_atomic_between_processes (tests.ai.test_product_verify.AuditP17CTest.test_reservation_is_atomic_between_processes) ... ok
+test_same_moves_whole_group_including_v2 (tests.ai.test_product_verify.AuditP17CTest.test_same_moves_whole_group_including_v2) ... ok
+test_same_with_variant_conflict_is_not_merged (tests.ai.test_product_verify.AuditP17CTest.test_same_with_variant_conflict_is_not_merged) ... ok
+test_search_base_validation (tests.ai.test_product_verify.AuditP17CTest.test_search_base_validation) ... ok
+test_suspended_engines_mean_search_unavailable (tests.ai.test_product_verify.AuditP17CTest.test_suspended_engines_mean_search_unavailable)
+Пустая выдача при приостановленных поисковиках — «поиск недоступен», а не «ничего не найдено». ... ok
+test_transient_failure_retries_with_backoff_then_resolves (tests.ai.test_product_verify.AuditP17CTest.test_transient_failure_retries_with_backoff_then_resolves) ... ok
+test_utc_day_boundary_frees_limit (tests.ai.test_product_verify.AuditP17CTest.test_utc_day_boundary_frees_limit) ... ok
+test_verdict_and_search_cached_and_daily_limit (tests.ai.test_product_verify.AuditP17CTest.test_verdict_and_search_cached_and_daily_limit) ... ok
+test_worker_skips_queue_when_limit_zero_or_ai_off (tests.ai.test_product_verify.AuditP17CTest.test_worker_skips_queue_when_limit_zero_or_ai_off)
+Воркер: предел 0 не превращается в 300, «AI выкл» — пары остаются в очереди (P17C-03/05). ... /opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/re/_parser.py:176: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x10b98a4d0>
+  def append(self, code):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/re/_parser.py:176: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x10b98a3e0>
+  def append(self, code):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 2211.5 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 3540.9 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 15345.3 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 2601.3 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 4100.5 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 14070.8 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 2569.6 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 3213.3 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 16921.3 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 2782.2 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 4034.5 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 17578.2 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 4109.8 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 6773.3 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 23848.9 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 4380.6 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 7444.9 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 26421.9 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 586.0 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 4336.3 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 16263.9 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 2571.5 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 3903.5 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 14604.5 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 2721.7 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 3532.2 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 17049.5 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 2692.3 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 3847.4 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 17274.4 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 3947.6 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 7479.0 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 15493.9 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 3924.3 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 6036.7 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 24853.2 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 2152.9 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 3096.4 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 14990.6 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 2368.3 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 3477.1 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 13262.1 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 2662.5 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 3628.5 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 17526.8 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 2744.8 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 4114.5 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 17179.7 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 3277.3 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 6550.2 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 24733.7 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 3926.5 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 7066.5 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 22995.7 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 2015.7 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 3276.2 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 15015.6 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 2576.3 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 3736.8 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 12480.5 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 2687.5 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 5012.5 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 17839.4 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 3370.3 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 4943.0 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 14996.9 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 4055.0 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 7072.0 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 24930.8 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 4234.5 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 7435.7 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 24930.6 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 2290.2 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 3145.1 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 14619.3 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 2387.6 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 3496.2 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 13230.4 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 2371.3 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 3067.2 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 15848.5 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 2784.2 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 3723.6 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 16143.4 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 4123.2 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 6689.0 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 23960.1 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 4115.9 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 6520.6 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 26105.8 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 2145.4 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 4155.4 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 15497.1 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 2478.8 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 4146.0 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 13430.3 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 1807.1 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 5086.5 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 16427.1 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 3407.0 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 4958.7 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 2...
+[C4] Прогресс: 3/3 (100%) | Скорость: 15758.4 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 3897.4 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 7340.2 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 24810.4 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 3101.4 наим/с | ETA: 0 с | С ключом k2: 3
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 7272.7 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 3...
+[C4] Прогресс: 3/3 (100%) | Скорость: 26373.6 наим/с | ETA: 0 с | С ключом k2: 3
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 2
+[C4] Из них уже сохранены поля: 0
+[C4] Обработка 2 названий пачками по 1...
+[C4] Прогресс: 2/2 (100%) | Скорость: 1502.2 наим/с | ETA: 0 с | С ключом k2: 2
+[C4] Расчёт сравнения пар до и после миграции...
+[C4] Пар было: 0 | Стало: 1 | Сохранилось: 0 (нет пар — не определено) | Разошлось: 0 | Новых: 1
+[C4] Найдено названий для миграции: 2
+[C4] Из них уже сохранены поля: 0
+[C4] Обработка 2 названий пачками по 1...
+[C4] Прогресс: 2/2 (100%) | Скорость: 1706.5 наим/с | ETA: 0 с | С ключом k2: 2
+[C4] Расчёт сравнения пар до и после миграции...
+[C4] Пар было: 0 | Стало: 1 | Сохранилось: 0 (нет пар — не определено) | Разошлось: 0 | Новых: 1
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 1
+[C4] Из них уже сохранены поля: 0
+[C4] Обработка 1 названий пачками по 20...
+[C4] Прогресс: 1/1 (100%) | Скорость: 6071.4 наим/с | ETA: 0 с | С ключом k2: 0
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 2
+[C4] Из них уже сохранены поля: 0
+[C4] Обработка 2 названий пачками по 20...
+[C4] Прогресс: 2/2 (100%) | Скорость: 2502.2 наим/с | ETA: 0 с | С ключом k2: 2
+[C4] Расчёт сравнения пар до и после миграции...
+[C4] Пар было: 0 | Стало: 1 | Сохранилось: 0 (нет пар — не определено) | Разошлось: 0 | Новых: 1
+[C4] Найдено названий для миграции: 0
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 1
+[C4] Из них уже сохранены поля: 0
+[C4] Обработка 1 названий пачками по 20...
+[C4] Прогресс: 1/1 (100%) | Скорость: 1402.3 наим/с | ETA: 0 с | С ключом k2: 1
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 1
+[C4] Из них уже сохранены поля: 1
+[C4] Обработка 1 названий пачками по 20...
+[C4] Прогресс: 1/1 (100%) | Скорость: 1539.1 наим/с | ETA: 0 с | С ключом k2: 1
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[Verify] Поисковики не ответили: 1
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[System] 📡 Модуль онлайн-логирования активирован.
+ok
+test_disputed_queue_different_verdict_keeps_keys (tests.ai.test_product_verify.CachedVerifyTest.test_disputed_queue_different_verdict_keeps_keys) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ok
+test_disputed_queue_lifecycle (tests.ai.test_product_verify.CachedVerifyTest.test_disputed_queue_lifecycle) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ok
+test_pause_between_searches (tests.ai.test_product_verify.CachedVerifyTest.test_pause_between_searches)
+Второй поиск ждёт заданную паузу (решение владельца — «только SearXNG с таймаутом»). ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ok
+test_search_base_validation (tests.ai.test_product_verify.CachedVerifyTest.test_search_base_validation) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ok
+test_suspended_engines_mean_search_unavailable (tests.ai.test_product_verify.CachedVerifyTest.test_suspended_engines_mean_search_unavailable)
+Пустая выдача при приостановленных поисковиках — «поиск недоступен», а не «ничего не найдено». ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[Verify] Поисковики не ответили: 1
+ok
+test_verdict_and_search_cached_and_daily_limit (tests.ai.test_product_verify.CachedVerifyTest.test_verdict_and_search_cached_and_daily_limit) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ok
+test_different_is_kept (tests.ai.test_product_verify.VerifyPairTest.test_different_is_kept) ... ok
+test_low_confidence_or_foreign_evidence_is_unknown (tests.ai.test_product_verify.VerifyPairTest.test_low_confidence_or_foreign_evidence_is_unknown) ... ok
+test_no_search_or_nothing_found_does_not_ask_model (tests.ai.test_product_verify.VerifyPairTest.test_no_search_or_nothing_found_does_not_ask_model) ... ok
+test_pair_hash_ignores_order (tests.ai.test_product_verify.VerifyPairTest.test_pair_hash_ignores_order) ... ok
+test_same_with_evidence_from_results (tests.ai.test_product_verify.VerifyPairTest.test_same_with_evidence_from_results) ... ok
+test_search_text_is_untrusted_block (tests.ai.test_product_verify.VerifyPairTest.test_search_text_is_untrusted_block) ... ok
+test_back_in_stock_keeps_offer_memory (tests.notifications.test_watch_identity.WatchIdentityTest.test_back_in_stock_keeps_offer_memory) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ok
+test_filters_and_unrelated_offers_not_widened (tests.notifications.test_watch_identity.WatchIdentityTest.test_filters_and_unrelated_offers_not_widened) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ok
+test_model_and_product_watches_follow_rekey_and_rerun (tests.notifications.test_watch_identity.WatchIdentityTest.test_model_and_product_watches_follow_rekey_and_rerun) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ok
+test_price_drop_and_back_in_stock_after_rekey_without_spam (tests.notifications.test_watch_identity.WatchIdentityTest.test_price_drop_and_back_in_stock_after_rekey_without_spam) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ok
+test_same_merge_and_split_keep_old_target_tracking_everything (tests.notifications.test_watch_identity.WatchIdentityTest.test_same_merge_and_split_keep_old_target_tracking_everything)
+При разделении группы наблюдение на прежний ключ следит за всеми её бывшими товарами. ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ok
+
+----------------------------------------------------------------------
+Ran 64 tests in 4.488s
+
+OK
