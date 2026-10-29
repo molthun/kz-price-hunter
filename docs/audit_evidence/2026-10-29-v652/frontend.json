@@ -1,0 +1,78 @@
+[
+  {
+    "test": "test_frontend.cjs",
+    "returncode": 0
+  },
+  {
+    "test": "test_frontend_ai_models.cjs",
+    "returncode": 0
+  },
+  {
+    "test": "test_frontend_auth.cjs",
+    "returncode": 0
+  },
+  {
+    "test": "test_frontend_changelog.cjs",
+    "returncode": 0
+  },
+  {
+    "test": "test_frontend_format.cjs",
+    "returncode": 0
+  },
+  {
+    "test": "test_frontend_modal_image.cjs",
+    "returncode": 0
+  },
+  {
+    "test": "test_frontend_notices.cjs",
+    "returncode": 0
+  },
+  {
+    "test": "test_frontend_p04.cjs",
+    "returncode": 0
+  },
+  {
+    "test": "test_frontend_p05.cjs",
+    "returncode": 0
+  },
+  {
+    "test": "test_frontend_p06.cjs",
+    "returncode": 0
+  },
+  {
+    "test": "test_frontend_p07.cjs",
+    "returncode": 0
+  },
+  {
+    "test": "test_frontend_p07_v2.cjs",
+    "returncode": 0
+  },
+  {
+    "test": "test_frontend_p09_ai.cjs",
+    "returncode": 0
+  },
+  {
+    "test": "test_frontend_p10.cjs",
+    "returncode": 0
+  },
+  {
+    "test": "test_frontend_p12.cjs",
+    "returncode": 0
+  },
+  {
+    "test": "test_frontend_p13.cjs",
+    "returncode": 0
+  },
+  {
+    "test": "test_frontend_security.cjs",
+    "returncode": 0
+  },
+  {
+    "test": "test_frontend_seller_modal.cjs",
+    "returncode": 0
+  },
+  {
+    "test": "test_frontend_social_no_permalink.cjs",
+    "returncode": 0
+  }
+]

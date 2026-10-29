@@ -1,0 +1,70 @@
+test_additive_upgrade_preserves_old_rows (__main__.Audit.test_additive_upgrade_preserves_old_rows) ... ok
+test_cooldown_preserves_sample_and_p95 (__main__.Audit.test_cooldown_preserves_sample_and_p95) ... ok
+test_exact_once_and_other_key (__main__.Audit.test_exact_once_and_other_key) ... ok
+test_failed_upsert_restores_legacy_samples (__main__.Audit.test_failed_upsert_restores_legacy_samples) ... ok
+test_full_flush_failure_rolls_back_migration (__main__.Audit.test_full_flush_failure_rolls_back_migration) ... [Telemetry] Сброс в БД не удался (IntegrityError), данные телеметрии пропущены
+ok
+test_old_new_p95_differential (__main__.Audit.test_old_new_p95_differential) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{'p95_max_delta_ms': 0.010000000000218279, 'flushes': 15, 'requests': 1950}
+ok
+test_prune_all_bucket_types_boundary (__main__.Audit.test_prune_all_bucket_types_boundary) ... ok
+test_wal_limit_reuse_and_pinned_reader (__main__.Audit.test_wal_limit_reuse_and_pinned_reader) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{'limit': 65536, 'pinned_wal': 304912, 'reused_wal': 65536}
+ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.320s
+
+OK
