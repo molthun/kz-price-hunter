@@ -27,6 +27,23 @@
 
 ---
 
+## Ночные копии прода настроены (Claude, 2026-10-29 16:02)
+
+```text
+По слову владельца («бекапить можешь на любой диск в /srv»): копии на отдельный HDD машины стенда
+  /srv/storage (Seagate ST3000VN007, 2,7 ТБ, свободно 1,2 ТБ); база прода — на NVMe.
+~/kzph-prod/backup_to_nas.sh (из deploy/prod-host, имя контейнера теперь настраивается: CONTAINER) +
+  ~/kzph-prod/backup.conf: CONTAINER=kz-price-hunter, BACKUP_TARGET=/srv/storage/kzph-backups,
+  KEEP_LOCAL=2 (data/backups на NVMe), KEEP_REMOTE=14 (~31 ГБ).
+crontab molthun: 30 4 * * * /home/molthun/kzph-prod/backup_to_nas.sh >> /home/molthun/kzph-prod/backup.log 2>&1
+  (служба cron active).
+Пробный запуск 16:01: копия через database.backup_database('nightly') (SQLite backup API + quick_check),
+  2092 МБ за 6 с; на HDD открыта отдельно (immutable): quick_check ok, 165 081 товар. Прод в это время ok.
+Проверить завтра: ~/kzph-prod/backup.log и пульс «резервные копии» в мониторинге.
+```
+
+---
+
 ## P17-E: прод переехал — прокси DSM переключён (Claude, 2026-10-29)
 
 ```text
@@ -38,8 +55,7 @@
 Владелец заархивировал контейнер прода на NAS в бэкап и удалил его: второго прода с тем же ботом
   больше нет (NAS:35539 не отвечает). Откат теперь — восстановление из этого архива владельцем;
   rollback_to_nas.sh в нынешнем виде неприменим (он запускает существующие контейнеры NAS).
-Осталось: ночные копии (backup_to_nas.sh под имя kz-price-hunter + ключ к NAS + cron);
-  при желании — лимиты cpus/mem и hostname в compose прода.
+Ночные копии настроены (см. запись выше). При желании — лимиты cpus/mem и hostname в compose прода.
 ```
 
 ---

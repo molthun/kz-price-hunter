@@ -92,6 +92,19 @@ NAS: вход из интернета, ночные копии базы, хол�
 6. Прежние данные NAS (`/volume1/docker/kz-price-hunter/data`) оставьте хотя бы на 2 недели как резерв.
    Архив `move-*.tar` на NAS можно удалить после успешной проверки.
 
+## Как сделано на деле (29.10.2026)
+
+Владелец перенёс в `~/kzph-prod` свой compose и `.env` с NAS, а не `docker-compose.prod.yml`. Поэтому контейнеры
+называются по-прежнему: `kz-price-hunter` и `kz-price-watchtower`. Claude правил в них:
+- порт `35540`;
+- `TRUSTED_PROXIES=192.168.28.10/32`;
+- новый `DIAG_TOKEN` — только в `.env`;
+- `DOCKER_API_VERSION=1.44` у Watchtower.
+
+Контейнер на NAS владелец заархивировал и удалил. Откатиться можно только восстановлением из этого архива,
+`rollback_to_nas.sh` для этого не подходит. Ночные копии идут на отдельный HDD машины стенда:
+`backup.conf` с `CONTAINER=kz-price-hunter` и `BACKUP_TARGET=/srv/storage/kzph-backups`, cron в 04:30.
+
 ## Откат
 
 ```bash

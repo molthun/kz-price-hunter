@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Ночная копия базы прода на NAS (P17-E). Запускается cron на машине стенда:
+# Ночная копия базы прода на другой диск или на NAS (P17-E). Запускается cron на машине стенда:
 #
-# Цель — host:каталог (SSH-ключ к NAS) или локальный каталог. Задаётся в backup.conf: BACKUP_TARGET=…
+# Цель — host:каталог (SSH-ключ к NAS) или локальный каталог на другом диске, например
+# /srv/storage/kzph-backups. Задаётся в backup.conf рядом со скриптом: BACKUP_TARGET=…, CONTAINER=…
 #
 #   30 4 * * * /home/molthun/kzph-prod/backup_to_nas.sh >> /home/molthun/kzph-prod/backup.log 2>&1
 #
@@ -13,11 +14,13 @@ set -euo pipefail
 BACKUP_TARGET="${BACKUP_TARGET:-molthun@192.168.28.10:/volume1/Backup/kzph-prod}"
 KEEP_LOCAL="${KEEP_LOCAL:-3}"
 KEEP_REMOTE="${KEEP_REMOTE:-14}"
+# Имя контейнера прода: kzph-prod по deploy/prod-host, kz-price-hunter — если перенесён compose с NAS
+CONTAINER="${CONTAINER:-kzph-prod}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 [ -f "$HERE/backup.conf" ] && . "$HERE/backup.conf"
 
 echo "$(date '+%F %T') старт"
-path=$(docker exec kzph-prod python3 -c "import database; print(database.backup_database('nightly') or '')")
+path=$(docker exec "$CONTAINER" python3 -c "import database; print(database.backup_database('nightly') or '')")
 [ -n "$path" ] || { echo "копия не создана"; exit 1; }
 file="$HERE/data/backups/$(basename "$path")"
 [ -f "$file" ] || { echo "нет файла $file"; exit 1; }
@@ -37,6 +40,6 @@ else
   (cd "$BACKUP_TARGET" && ls -1t prices-nightly-*.db 2>/dev/null | tail -n +$((KEEP_REMOTE + 1)) | xargs -r rm -f)
 fi
 # Каталог backups создаёт приложение от root внутри контейнера: чистится тоже изнутри
-docker exec kzph-prod sh -c \
+docker exec "$CONTAINER" sh -c \
   "ls -1t /app/data/backups/prices-nightly-*.db 2>/dev/null | tail -n +$((KEEP_LOCAL + 1)) | xargs -r rm -f"
 echo "$(date '+%F %T') готово: $(basename "$file") ($(($(stat -c %s "$file") / 1048576)) МБ) → $BACKUP_TARGET"
