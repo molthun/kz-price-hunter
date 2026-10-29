@@ -2,6 +2,28 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## P17-C шаг 4 (C4) завершён: скрипт миграции базы кэша в k2 (Antigravity, 2026-10-29 23:45 +05)
+
+```text
+Исполнитель: Antigravity (основной разработчик).
+Сделано:
+  - scripts/migrate_to_k2.py: скрипт пакетного перевода базы кэша (~19,7 тыс. названий) в стандарт k2:
+    * опрос локальной модели пачками по --batch-size с расчётом скорости и ETA;
+    * возобновление (resume): пропуск уже сохранённых полей в title_fields;
+    * режим --rescore-only для мгновенной пересборки без вызовов AI;
+    * режим --dry-run для безопасного расчёта и отчёта без записи в БД;
+    * режим --check-pairs: сравнение пар между магазинами (retained, dropped, added, retention_rate);
+    * связывание артикулов через resolve_keys_with_articles и сохранение в title_articles;
+    * атомарное обновление title_canonical_cache и products.canonical_key;
+  - тесты: tests/core/test_migrate_to_k2.py (4 OK: пропуск k2, расчёт пар, полный цикл миграции и rescore, dry-run), полный suite: 2040 OK (124.752 с).
+Следующие шаги разработки (Antigravity), по порядку:
+  1. Утром: проверка итогов ночного замера SearXNG (/tmp/verify_night.json на стенде) и первой ночной копии прода (backup_deliveries).
+  2. Запуск миграции кэша на стенде (ночью/утром): scripts/migrate_to_k2.py --db ... --base http://192.168.28.25:11434/v1 --model qwen3-vl:8b-instruct --check-pairs.
+  3. Передача Codex на аудит всего P17-C (C1–C4, C7) → выпуск (SemVer, CHANGELOG) → C5 теневой режим.
+```
+
+---
+
 ## P17-C шаг 3 завершён: проверка поиском в конвейер (Antigravity, 2026-10-29 23:28 +05)
 
 ```text
