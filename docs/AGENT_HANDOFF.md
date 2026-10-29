@@ -27,6 +27,20 @@
 
 ---
 
+## P17-E: прод переехал — прокси DSM переключён (Claude, 2026-10-29)
+
+```text
+Владелец переключил обратный прокси DSM shop.molthun.ru → 192.168.28.25:35540. Проверка снаружи (чтение):
+  /api/version 6.5.2; главная 200 за 0,16 с, /api/products?search 0,06 с, /api/v2/search 0,12 с, /api/live 0,03 с;
+  /api/health 15/15 ok (на NAS после 6.5.2 было 22/30). Сосед порта в контейнере — 192.168.28.10 (TRUSTED_PROXIES
+  верен). Конфликтов бота (409) — 0, «DB Slow Write»/«database is locked» за 15 мин — 0.
+  docker stats: kz-price-hunter CPU ~100 % (идёт волна обхода 19 магазинов), 610 МБ; kzph-stand 17 %, 585 МБ.
+Осталось: restart=no старым контейнерам на NAS (владелец); ночные копии (backup_to_nas.sh под имя
+  kz-price-hunter + ключ к NAS + cron); при желании — лимиты cpus/mem и hostname в compose прода.
+```
+
+---
+
 ## P17-E: прод запущен на машине стенда (владелец + Claude, 2026-10-29 15:54)
 
 ```text
