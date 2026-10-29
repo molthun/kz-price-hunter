@@ -6,7 +6,7 @@
 
 ---
 
-## [Не выпущено] 6.5.0 — Завершение архитектуры KZ Price Hunter 2.0: Search Platform (S2-E10, S2-E22, S2-E23..E28) (Antigravity, 29.10.2026)
+## [Выпущено] 6.5.0 — Завершение архитектуры KZ Price Hunter 2.0: Search Platform (S2-E10, S2-E22, S2-E23..E28) (Antigravity, 29.10.2026)
 
 - 🖼️ **S2-E10 Vision Extraction (`domain/vision_extraction.py`, `repositories/content_repo.py`)**: извлечение кандидатов и цен из изображений/сторис/прайс-листов с порогом уверенности `0.75`, защитой от закрытых цен (`«Цена не определена»`, `publishable=False`), разделением валют (`KZT` vs `RUB`/`USD`), ценами за кг/100 г и размерами рядом с ценой.
 - 🤖 **S2-E22 AI Search Assistant (`domain/search_assistant.py`, `/api/v2/search/assistant`)**: разбор естественных запросов с бюджетом, назначением и рассрочкой поверх `SearchCore` строго по данным БД без галлюцинаций, со сравнением прямой цены и цены на маркетплейсе.
@@ -14,9 +14,10 @@
 - 🏪 **S2-E27 Саморегистрация «Добавить магазин» (`domain/seller_onboarding.py`, `repositories/candidate_repo.py`, `/api/v2/sellers/register`, `/api/v2/admin/onboarding`)**: публичная форма подключения магазина с автопрофилированием источников и модерацией `REVIEW_REQUIRED → APPROVED → INDEXED`.
 - 📡 **S2-E23 & S2-E24 Monitoring Center 2.0 и сквозная корреляция (`domain/monitoring_v2.py`, `telemetry.py`, `/api/v2/monitoring/overview`)**: 4 уровня мониторинга (`Seller / Source / Channel / Offer`) и сквозные `request_id / scan_id / seller_id / source_id / offer_id`.
 - 🧪 **Проверено**: `tests/core/test_search_platform_v2_complete.py` (17 тестов OK), полный Python test suite и 19 фронтенд-тестов. Не выпущено, ждёт комплексного аудита Codex.
+- 🚀 **Выпуск 29.10.2026 по слову владельца («Пушь на прод»)**: Codex принял исправления (ACCEPTANCE_2026-10-29_V650_V01_V07_CODEX.md). В origin ушли main `1b33330` и теги v6.4.12–v6.5.0, CI и сборка образа зелёные. Прод переключился на 6.5.0 около 10:21 (Asia/Almaty), health ok. Перед переключением 6.4.11 отдавал 503 «db unready» — ту самую нагрузку, которую чинит 6.4.12. Vision остаётся частичным.
 - 🛡 **Единый аудит Codex — на доработку (V01 P1, V02–V07 P2); исправлено Claude 29.10.2026.** Одобрение заявки не перезаписывает чужого продавца. История цен хранит измерения момента наблюдения. Свежесть — одно правило в Python/SQL для всех путей. Мониторинг считает весь каталог, а ошибки чтения показывает. Помощник не выдумывает рассрочку и не сравнивает б/у с новым. Vision помечен частичным. request_id/source_id/seller_id/offer_id ставятся в рабочих путях. Проверки: 1938 Python OK, 19/19 фронтенд, сценарии Codex 5/5, новые 25 регрессий (22 падают на кандидате). Ждёт повторной приёмки.
 
-## [Не выпущено] 6.4.14 — восстановление адаптеров Эврики и Alser, Задача 3 из P-6.4.12 (Antigravity, 29.10.2026)
+## [Выпущено] 6.4.14 — восстановление адаптеров Эврики и Alser, Задача 3 из P-6.4.12 (Antigravity, 29.10.2026)
 
 - 🔍 **Диагностика по `source_scans` и живым сайтам**: оба магазина падали ещё на 6.4.1 до выпуска 6.4.11 из-за изменений на стороне самих витрин:
   - `evrika.com`: `back.evrika.com` теперь делает 301-редирект на `evrika.com` и отдаёт Next.js SSR HTML вместо JSON `{"products": "..."}`, из-за чего `r.json()` падал с `JSONDecodeError` на всех 9 категориях (`0` товаров в БД).
@@ -24,13 +25,13 @@
 - 🛠️ **Исправлено**: `scrapers/evrika.py` переведён на разбор Next.js HTML (`.productCard-ui`, `[class*="quantityOfProducts"]`, `ul.pagination`) с извлечением `old_price_on_site` из `[class*="costContainer"] [class*="oldPrice"]` и `data-original-src`; `config.ALSER_CATEGORIES` и `SOURCES.md` обновлены под действующие разделы каталога `alser.kz`; в обоих адаптерах сломанная вёрстка карточек при наличии контейнеров в DOM выбрасывает `ValueError` и никогда не маскируется под `complete=True`. По замечаниям аудита Codex (A01, A02, город Alser) добавлен учёт неразобранных карточек `ScanResult.unparsed` во всех ветках выхода `PagedScraper._scrape_sync` (включая ветку пустой последней страницы `if not items`), полнота по числу увиденных уникальных карточек против счётчика категории и проверка `currentCity` для Alser.
 - 🧪 **Проверено**: живой прогон всех 9 категорий Эврики (`479` товаров, все `complete=True`) и всех 6 категорий Alser (`131` товар, все `complete=True`); добавлены 4 регрессионных теста в `tests/scrapers/test_scraper_completeness.py` и 16 тестов в `tests/scrapers/test_scraper_partial_parse.py`. Не выпущено, ждёт приёмки Codex.
 
-## [Не выпущено] 6.4.13 — быстрый старт порта и фоновый разбор watch_refresh, Задача 1 из P-6.4.12 (Antigravity, 29.10.2026)
+## [Выпущено] 6.4.13 — быстрый старт порта и фоновый разбор watch_refresh, Задача 1 из P-6.4.12 (Antigravity, 29.10.2026)
 
 - 🔍 **По логам первого старта 6.4.11 на проде**: стартовый `drain_watch_refresh` разбирал `20 725` снятых товаров прямо внутри `init_db()` до открытия HTTP-порта, из-за чего контейнер несколько минут висел в `starting`, а снаружи отдавался `502`.
 - 🛠️ **Исправлено**: в `database.init_db()` оставлен только быстрый транзакционный `sync_retired_offers()`; разбор `watch_refresh` вынесен в фоновую задачу `startup_watch_refresh_worker` (`web/server.py` → `background_tasks`) через `run_db` страницами по `500` (`drain_watch_refresh(page=500, max_pages=1)`) с логом прогресса `[DB] G03: фоновое обновление памяти наблюдений — {done}/{total}`. Семантика `watch_refresh` (`retire`/`current`, `gen`) не изменена.
 - 🧪 **Проверено**: добавлены 2 регрессионных теста в `tests/core/test_offer_retirement.py` (`20 501` задание — `/api/live` отвечает `200` до завершения фонового `drain`; сбой на 2-й странице сохраняет остаток для повтора; оба теста падают на `72e1f73`).
 
-## [Не выпущено] 6.4.12 — устранение длительного удержания write-транзакций SQLite, Задача 2 из P-6.4.12 (Antigravity, 28.10.2026)
+## [Выпущено] 6.4.12 — устранение длительного удержания write-транзакций SQLite, Задача 2 из P-6.4.12 (Antigravity, 28.10.2026)
 
 - 🔍 **По логам первого старта 6.4.11 на проде**: зафиксировано одно сообщение `[Queue Worker] Захват не продлён: OperationalError` во время волны обхода.
 - 🛠️ **Исправлено**: добавлен встроенный трекинг длительности write-транзакций SQLite (`/api/diag` → `database.write_tx`), условные `WHEN`-триггеры FTS5 (`products_au`, `canonical_products_au`), индексы `idx_product_sources_shop_url` и `idx_offers_ext_sku`, дифференциальная сверка `_reconcile_source_conn`, уменьшенный `SPOOL_CHUNK_SIZE=100` с кэшированием `seen_sellers` и `canonical_key` внутри пачки, вынос `watched_offers` из-под `BEGIN IMMEDIATE` в `_apply_retire_transition`, батчирование `refresh_retired_watches` и `update_products_canonical_keys`, согласование `_keep_queue_claim` с продлением захвата в `spool_apply_chunk`/`spool_finish_core`.
