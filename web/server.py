@@ -1905,10 +1905,13 @@ async def get_admin_config_handler(request):
     if settings_masked.get("openai_api_key"):
         k = settings_masked["openai_api_key"]
         settings_masked["openai_api_key"] = k[:4] + "..." + k[-4:] if len(k) > 8 else "***"
+    if settings_masked.get("local_api_key"):
+        settings_masked["local_api_key"] = "***"
     return web.json_response({
         "settings": settings_masked,
         "bot": {"configured": bool(get_bot_token()), "username": bot_username},
-        "ai": {k: v for k, v in get_ai_config().items() if k not in ("gemini_api_key", "openai_api_key")}
+        "ai": {k: v for k, v in get_ai_config().items()
+               if k not in ("gemini_api_key", "openai_api_key", "local_api_key")}
     })
 
 # Настройки со своей процедурой перехода: их нельзя менять общим сохранением, иначе шаг включения
@@ -1931,7 +1934,7 @@ async def post_admin_config_handler(request):
                 {"status": "error",
                  "message": f"Эти настройки меняются своим переключателем: {where}"}, status=400)
         current = load_settings()
-        for k in ("gemini_api_key", "openai_api_key"):
+        for k in ("gemini_api_key", "openai_api_key", "local_api_key"):
             if k in data and ("..." in str(data[k]) or "***" in str(data[k])):
                 data[k] = current.get(k, "")
         saved = save_settings(data)
@@ -1941,7 +1944,7 @@ async def post_admin_config_handler(request):
         if any(k.startswith(("gemini_", "openai_", "ai_")) for k in (data or {})):
             ai_service.clear_model_cooldowns()
         public_settings = dict(saved)
-        for key in ("gemini_api_key", "openai_api_key"):
+        for key in ("gemini_api_key", "openai_api_key", "local_api_key"):
             if public_settings.get(key):
                 public_settings[key] = "***"
         return web.json_response({"status": "ok", "settings": public_settings})
@@ -3655,6 +3658,46 @@ async def admin_ai_models_handler(request):
                     "их вы задаёте сами, в долларах за миллион токенов."}
     _AI_MODELS_CACHE.update({"at": _time.time(), "data": data})
     return web.json_response({"status": "ok", "cached": False, **data},
+                             dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
+@routes.get("/api/admin/ai/local/status")
+@require_admin
+async def admin_local_ai_status_handler(request):
+    """Пауза локальной модели сейчас, свежесть проверки видеокарты и расписание (P17-A)."""
+    import local_ai
+    return web.json_response(await asyncio.to_thread(local_ai.status),
+                             dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
+@routes.post("/api/admin/ai/local/check")
+@require_admin
+async def admin_local_ai_check_handler(request):
+    """Проверка подключения из админки: есть ли модель на сервере и отвечает ли она JSON.
+
+    Адрес и модель берутся из формы (проверить до сохранения), ключ в маске — из сохранённых настроек.
+    Наружу уходят только имена моделей и время ответа.
+    """
+    import ai_service
+    import local_ai
+    from urllib.parse import urlparse
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    cfg = get_ai_config()
+    base = str(body.get("api_base") or cfg.get("local_api_base") or "").strip()
+    model = str(body.get("model") or cfg.get("local_model") or "").strip()
+    key = str(body.get("api_key") or "").strip()
+    if not key or "***" in key or "..." in key:
+        key = cfg.get("local_api_key") or ""
+    parsed = urlparse(base)
+    if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username or parsed.password:
+        return web.json_response({"status": "error", "message": "Адрес: http(s)://хост:порт/v1"}, status=400)
+    if not model:
+        return web.json_response({"status": "error", "message": "Укажите модель"}, status=400)
+    check = await ai_service.check_local_model(base, model, key)
+    return web.json_response({"status": "ok", "check": check, "local": await asyncio.to_thread(local_ai.status)},
                              dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
 
 

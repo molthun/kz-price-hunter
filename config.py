@@ -306,6 +306,12 @@ SYSTEM_DEFAULTS = {
     "gemini_model": "gemini-3.5-flash-lite",
     "openai_model_mode": "auto",
     "openai_model": "gpt-4o-mini",
+    # Локальная модель (P17-A): OpenAI-совместимый сервер в своей сети — Ollama на машине прода,
+    # например http://192.168.28.25:11434/v1. Пустой адрес — локальная модель выключена. Модель задаётся
+    # явно: «Авто»-выбор дешёвой модели из списка для своего сервера не имеет смысла. Ключ необязателен.
+    "local_api_base": "",
+    "local_model": "",
+    "local_api_key": "",
     # Шаг включения адаптивного планировщика (P11). По умолчанию выключено: обходы идут прежним порядком,
     # расширение — только вручную владельцем, откат — автоматический по согласованным порогам.
     "adaptive_scheduler_stage": "off",
@@ -528,7 +534,11 @@ def get_ai_config():
     openai_base = OPENAI_API_BASE or str(sys_settings.get("openai_api_base", "https://api.openai.com/v1")).strip()
     ai_enabled = bool(sys_settings.get("ai_search_enabled", True))
     selection = sys_settings.get("ai_provider", "auto")
-    available = bool(gemini_key if selection == "gemini" else openai_key if selection == "openai" else gemini_key or openai_key)
+    local_base = str(sys_settings.get("local_api_base", "") or "").strip()
+    local_model = str(sys_settings.get("local_model", "") or "").strip()
+    has_local = bool(local_base and local_model)
+    available = bool(gemini_key if selection == "gemini" else openai_key if selection == "openai"
+                     else has_local if selection == "local" else gemini_key or openai_key or has_local)
     return {
         "ai_provider": selection,
         "gemini_model_mode": sys_settings.get("gemini_model_mode", "auto"),
@@ -538,10 +548,15 @@ def get_ai_config():
         "gemini_api_key": gemini_key,
         "openai_api_key": openai_key,
         "openai_api_base": openai_base,
+        "local_api_base": local_base,
+        "local_model": local_model,
+        "local_api_key": str(sys_settings.get("local_api_key", "") or "").strip(),
+        "has_local": has_local,
         "ai_search_enabled": ai_enabled,
         "has_ai": available,
         "configured": available,
-        "provider": selection if selection != "auto" else ("gemini" if gemini_key else ("openai" if openai_key else "none")),
+        "provider": selection if selection != "auto" else ("local" if has_local else "gemini" if gemini_key
+                                                          else ("openai" if openai_key else "none")),
         "enabled": ai_enabled
     }
 
@@ -686,7 +701,7 @@ def _validate_settings(new_settings):
         # блокировать сохранение всех настроек разом (регрессия 5.13.0)
         if timezones.known(clean["daily_digest_timezone"]) is False:
             raise ValueError(f"Неизвестный часовой пояс: {clean['daily_digest_timezone']}")
-    for name, choices in (("ai_provider", {"auto", "gemini", "openai"}),
+    for name, choices in (("ai_provider", {"auto", "gemini", "openai", "local"}),
                           ("gemini_model_mode", {"auto", "manual"}),
                           ("openai_model_mode", {"auto", "manual"}),
                           ("adaptive_scheduler_stage", {"off", "canary_one", "canary_few", "all"}),
@@ -699,6 +714,18 @@ def _validate_settings(new_settings):
         model = merged[f"{provider}_model"]
         if merged[f"{provider}_model_mode"] == "manual" and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,149}", model):
             raise ValueError(f"Укажите корректное имя модели {provider}")
+    # Локальная модель: адрес — только http(s) без логина в адресе (ключ — отдельным полем), имя модели —
+    # как у остальных провайдеров (у Ollama допустимы «:» и «/»: qwen3-vl:8b)
+    base = merged.get("local_api_base") or ""
+    if base:
+        from urllib.parse import urlparse
+        parsed = urlparse(base)
+        if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username or parsed.password:
+            raise ValueError("Адрес локальной модели: http(s)://хост:порт/v1, без логина и пароля в адресе")
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,149}", merged.get("local_model") or ""):
+            raise ValueError("Укажите имя локальной модели, например qwen3-vl:8b")
+    if merged.get("ai_provider") == "local" and not base:
+        raise ValueError("Провайдер «локальная модель» выбран, но адрес не задан")
     interval = clean.get("scan_interval_minutes")
     if interval is not None and not (SCAN_INTERVAL_MIN_MINUTES <= interval <= SCAN_INTERVAL_MAX_MINUTES):
         raise ValueError(f"Интервал автообновления должен быть от {SCAN_INTERVAL_MIN_MINUTES} минут до 30 дней")

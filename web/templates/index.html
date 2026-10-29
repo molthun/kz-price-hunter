@@ -1532,11 +1532,36 @@
             <div class="md:col-span-3">
               <label for="selectAiProvider" class="block text-xs font-medium text-slate-300 mb-1">Провайдер AI</label>
               <select id="selectAiProvider" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
-                <option value="auto">Авто — Gemini, при сбое OpenAI</option>
+                <option value="auto">Авто — локальная модель (если задана), при паузе или сбое Gemini, затем OpenAI</option>
+                <option value="local">Только локальная модель (Ollama)</option>
                 <option value="gemini">Только Google Gemini</option>
                 <option value="openai">Только OpenAI / совместимый сервис</option>
               </select>
-              <p class="text-[11px] text-slate-400 mt-1">Ручной выбор использует только выбранного провайдера. Для него должен быть задан ключ.</p>
+              <p class="text-[11px] text-slate-400 mt-1">Ручной выбор использует только выбранного провайдера. Для него должен быть задан ключ (у локальной модели — адрес).</p>
+            </div>
+
+            <div class="md:col-span-3 rounded-xl border border-slate-700 p-3">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <span class="text-xs font-semibold text-slate-200">Локальная модель (Ollama)</span>
+                <button type="button" onclick="checkLocalAi()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 transition cursor-pointer">Проверить подключение</button>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-1">Свой сервер моделей, без оплаты за вызов. В режиме «Авто» идёт первой для всех задач; на паузе или при сбое задачу берёт платная модель. Пустой адрес — локальная модель выключена.</p>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
+                <div>
+                  <label for="inputLocalApiBase" class="block text-xs text-slate-300 mb-1">Адрес (OpenAI-совместимый API)</label>
+                  <input id="inputLocalApiBase" placeholder="http://192.168.28.25:11434/v1" maxlength="200" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono">
+                </div>
+                <div>
+                  <label for="inputLocalModel" class="block text-xs text-slate-300 mb-1">Модель</label>
+                  <input id="inputLocalModel" placeholder="qwen3-vl:8b-instruct" maxlength="150" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono">
+                </div>
+                <div>
+                  <label for="inputLocalApiKey" class="block text-xs text-slate-300 mb-1">Ключ (необязательно)</label>
+                  <input type="password" id="inputLocalApiKey" placeholder="у Ollama не нужен" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono">
+                </div>
+              </div>
+              <p class="text-[10px] text-slate-400 mt-2">Включается и выключается кнопками «AI вкл» и «AI выкл» на рабочем столе сервера. Если видеокарту заняла игра, а «выкл» не нажали, локальная модель выключается сама. Обратно включается через час, если видеокарта свободна.</p>
+              <div id="localAiStatus" class="text-[11px] text-slate-300 mt-2"></div>
             </div>
             <div class="md:col-span-1">
               <label class="block text-xs font-medium text-slate-300 mb-1 flex items-center justify-between">
@@ -6080,6 +6105,53 @@
       }
     }
 
+    // Локальная модель (P17-A): состояние паузы и проверка подключения. Ключи и значения настроек не печатаются.
+    function renderLocalAiStatus(st, check) {
+      const box = document.getElementById('localAiStatus');
+      if (!box) return;
+      const parts = [];
+      if (st) {
+        const m = st.mode || {};
+        parts.push(m.on ? `▶ Локальная модель ${escapeHtml(m.label || 'включена')}`
+                        : `⏸ Локальная модель ${escapeHtml(m.label || 'выключена')} — работают платные`);
+        const g = st.gpu || {};
+        parts.push(g.fresh ? `видеокарта: ${g.busy ? 'занята другой программой' : 'свободна'} (${g.age_seconds} с назад)`
+                           : '⚠️ проверка видеокарты не работает — автоматическое выключение для игр не сработает');
+      }
+      if (check) {
+        if (check.error) parts.push(`❌ сервер: ${escapeHtml(check.error)}`);
+        else if (!check.model_present) parts.push(`❌ модели нет на сервере; есть: ${escapeHtml((check.models || []).join(', ') || '—')}`);
+        else parts.push(check.answered ? `✅ модель ответила за ${check.latency_ms} мс` : '❌ модель не ответила JSON');
+      }
+      box.innerHTML = parts.join(' · ');
+    }
+
+    async function loadLocalAiStatus() {
+      try {
+        const res = await fetch('/api/admin/ai/local/status');
+        if (res.ok) renderLocalAiStatus(await res.json(), null);
+      } catch (e) { /* блок состояния необязателен */ }
+    }
+
+    async function checkLocalAi() {
+      const box = document.getElementById('localAiStatus');
+      if (box) box.textContent = 'Проверяю подключение…';
+      try {
+        const res = await fetch('/api/admin/ai/local/check', {
+          method: 'POST', headers: {'Content-Type': 'application/json', 'X-KZPH-Request': '1'},
+          body: JSON.stringify({
+            api_base: document.getElementById('inputLocalApiBase').value.trim(),
+            model: document.getElementById('inputLocalModel').value.trim(),
+            api_key: document.getElementById('inputLocalApiKey').value.trim(),
+          }),
+        });
+        const data = await res.json();
+        renderLocalAiStatus(data.local || null, data.check || {error: data.message || 'ошибка проверки'});
+      } catch (e) {
+        renderLocalAiStatus(null, {error: 'сервер не ответил'});
+      }
+    }
+
     async function loadAdminSettings() {
       try {
         const res = await fetch('/api/admin/config');
@@ -6104,6 +6176,10 @@
         if (oKeyInput && s.openai_api_key) oKeyInput.value = s.openai_api_key;
         const oBaseInput = document.getElementById('inputOpenAiApiBase');
         if (oBaseInput && s.openai_api_base) oBaseInput.value = s.openai_api_base;
+        document.getElementById('inputLocalApiBase').value = s.local_api_base || '';
+        document.getElementById('inputLocalModel').value = s.local_model || '';
+        document.getElementById('inputLocalApiKey').value = s.local_api_key || '';
+        loadLocalAiStatus();
 
         const aiBadge = document.getElementById('adminAiStatusBadge');
         if (aiBadge) {
@@ -6872,6 +6948,9 @@
         gemini_api_key: gKeyInput ? gKeyInput.value.trim() : '',
         openai_api_key: oKeyInput ? oKeyInput.value.trim() : '',
         openai_api_base: oBaseInput ? oBaseInput.value.trim() : '',
+        local_api_base: document.getElementById('inputLocalApiBase').value.trim(),
+        local_model: document.getElementById('inputLocalModel').value.trim(),
+        local_api_key: document.getElementById('inputLocalApiKey').value.trim(),
         ai_model_prices: collectAiPrices()
       };
 

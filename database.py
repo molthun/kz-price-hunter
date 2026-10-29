@@ -4105,7 +4105,9 @@ def ai_usage(days: int = 7, now: Optional[datetime.datetime] = None) -> Dict[str
             totals["cache_hits"] += item["cache_hits"]
             totals["fallbacks"] += item["fallbacks"]
             totals["errors"] += item["errors"]
-            if item["provider"] not in ("none", "cache"):
+            # «Пауза локальной модели» (P17-A) — модель не вызывалась, это не обращение к провайдеру
+            called = item["provider"] not in ("none", "cache") and item["outcome"] != "local_paused"
+            if called:
                 totals["provider_calls"] += item["requests"]
                 if item["cost_usd"] is None and item["input_tokens"] + item["output_tokens"]:
                     priced = False
@@ -4122,10 +4124,10 @@ def ai_usage(days: int = 7, now: Optional[datetime.datetime] = None) -> Dict[str
             task["fallbacks"] += item["fallbacks"]
             task["cost_usd"] += item["cost_usd"] or 0.0
             task["latency_sum_ms"] += item["latency_sum_ms"]
-            if item["provider"] not in ("none", "cache"):
+            if called:
                 task["provider_calls"] += item["requests"]
 
-            if item["provider"] in ("none", "cache"):
+            if not called:
                 continue
             model = by_model.setdefault(f'{item["provider"]}/{item["model"]}',
                                         {"requests": 0, "input_tokens": 0, "output_tokens": 0,

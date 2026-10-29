@@ -36,6 +36,10 @@ TASKS: Dict[str, Dict[str, Any]] = {
 }
 
 PROVIDERS = ("gemini", "openai")
+# Локальная модель (P17-A) — свой сервер, без денег. Решение владельца 29.10.2026: в режиме «Авто» она
+# первая для ВСЕХ задач, а не ответила — запасной платный провайдер в рамках бюджета, в том числе у
+# фоновых задач, которым платный запасной иначе запрещён (запрет — про второй платный, а не про первый).
+LOCAL = "local"
 
 # Доля дневного бюджета вызовов, доступная внутренним задачам: людям всегда остаётся запас
 INTERNAL_BUDGET_SHARE = 0.7
@@ -103,17 +107,21 @@ def providers_for(task: str, config: Dict[str, Any]) -> list:
     """Порядок провайдеров для задачи.
 
     Если администратор явно назвал провайдера, запасного нет: выбор — это решение о деньгах и данных,
-    и обходить его молча нельзя. Запасной возможен только в режиме «auto» и только у задач, которым
-    это разрешено политикой (фоновая работа проекта к платному провайдеру сама не уходит).
+    и обходить его молча нельзя. Запасной возможен только в режиме «auto». Платный второй — только у задач,
+    которым это разрешено политикой (фоновая работа проекта ко второму платному сама не уходит).
+    Локальная модель, если настроена, идёт первой, а за ней — платные по тем же правилам.
     """
     selection = config.get("ai_provider", "auto")
     keys = {"gemini": config.get("gemini_api_key"), "openai": config.get("openai_api_key")}
+    has_local = bool(config.get("has_local") or (config.get("local_api_base") and config.get("local_model")))
+    if selection == LOCAL:
+        return [LOCAL] if has_local else []
     if selection in PROVIDERS:
         return [selection] if keys.get(selection) else []
     order = [p for p in PROVIDERS if keys.get(p)]
     if not task_config(task)["fallback"]:
         order = order[:1]
-    return order
+    return ([LOCAL] if has_local else []) + order
 
 
 def budget_allows(task: str) -> bool:
@@ -162,24 +170,38 @@ async def run(task: str, prompt: str, *, deterministic: Optional[Callable[[], An
     config = config or get_ai_config()
     enabled = config.get("enabled", config.get("ai_search_enabled", True))
     # Вызывающий может передать урезанную конфигурацию: наличие AI тогда определяется по ключам
-    has_ai = config.get("has_ai", bool(config.get("gemini_api_key") or config.get("openai_api_key")))
+    has_ai = config.get("has_ai", bool(config.get("gemini_api_key") or config.get("openai_api_key")
+                                       or config.get("has_local")))
     if not enabled or not has_ai:
         record_usage(task, provider="none", model="none", outcome="disabled")
         raise AIUnavailable("AI выключен или не настроен")
-    if not budget_allows(task):
-        record_usage(task, provider="none", model="none", outcome="budget_exhausted")
-        raise AIUnavailable("Дневной бюджет AI исчерпан")
 
     order = providers_for(task, config)
     if not order:
         record_usage(task, provider="none", model="none", outcome="no_provider")
         raise AIUnavailable("Нет доступного провайдера")
+    # Дневной бюджет — про деньги: исчерпан он — платные выпадают, локальная модель остаётся
+    if not budget_allows(task):
+        order = [p for p in order if p == LOCAL]
+        if not order:
+            record_usage(task, provider="none", model="none", outcome="budget_exhausted")
+            raise AIUnavailable("Дневной бюджет AI исчерпан")
 
     last_error = None
     for index, provider in enumerate(order):
         # В режиме «Авто» модель выбирается из списка провайдера, а не берётся из зашитого имени:
         # зашитое уже успело устареть и дать тысячу отказов подряд (24.09.2026)
-        if str(config.get(f"{provider}_model_mode") or "auto") == "manual":
+        if provider == LOCAL:
+            model = config.get("local_model") or LOCAL   # у своего сервера модель задана явно
+            # Локальная модель выключена — кнопкой «AI выкл» на сервере или автоматически, когда видеокарту
+            # заняла игра (docs/AI_LOCAL_POLICY.md): не зовём совсем, задача сразу уходит к следующему
+            import local_ai
+            paused = local_ai.pause_reason()
+            if paused:
+                record_usage(task, provider=LOCAL, model=model, outcome="local_paused", error=paused)
+                last_error = "local_paused"
+                continue
+        elif str(config.get(f"{provider}_model_mode") or "auto") == "manual":
             model = config.get(f"{provider}_model") or provider
         else:
             model = await ai_service.auto_model(provider, config) or config.get(f"{provider}_model") or provider
@@ -187,7 +209,12 @@ async def run(task: str, prompt: str, *, deterministic: Optional[Callable[[], An
         calls: list = []
         token = ai_service.usage_sink.set(calls)
         try:
-            if provider == "gemini":
+            if provider == LOCAL:
+                data = await ai_service.call_local_api(prompt, config.get("local_api_base") or "", model,
+                                                       config.get("local_api_key") or "",
+                                                       timeout=cfg["timeout"],
+                                                       scan=audience(task) == INTERNAL)
+            elif provider == "gemini":
                 data = await ai_service.call_gemini_api(prompt, config["gemini_api_key"],
                                                         timeout=cfg["timeout"],
                                                         scan=audience(task) == INTERNAL,
@@ -288,7 +315,8 @@ def record_usage(task: str, provider: str, model: str, outcome: str, latency_ms:
         database.record_ai_usage(
             task=task, audience=audience(task), provider=provider, model=model, outcome=outcome,
             input_tokens=int(tokens.get("input") or 0), output_tokens=int(tokens.get("output") or 0),
-            cost=estimate_cost(model, tokens.get("input") or 0, tokens.get("output") or 0),
+            # Свой сервер денег не стоит: 0, а не «цена неизвестна»
+            cost=0.0 if provider == LOCAL else estimate_cost(model, tokens.get("input") or 0, tokens.get("output") or 0),
             latency_ms=latency_ms, error=error, cache_hit=cache_hit, fallback=fallback)
     except Exception:
         pass

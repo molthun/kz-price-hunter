@@ -124,7 +124,8 @@ class LegacySettingsFileTest(unittest.TestCase):
 
 class SystemSettingsTest(unittest.TestCase):
     def test_every_system_parameter_validates(self):
-        skip = {"gemini_model", "openai_model"}  # проверяются вместе с режимом manual
+        # Проверяются вместе: модель — с режимом manual, адрес локальной модели — с её именем (tests/ai/test_local_ai.py)
+        skip = {"gemini_model", "openai_model", "local_api_base"}
         for key, default in SYSTEM_DEFAULTS.items():
             if key in skip:
                 continue

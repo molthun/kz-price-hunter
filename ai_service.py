@@ -663,6 +663,140 @@ async def _call_openai_api(prompt: str, api_key: str, api_base: str,
     return None
 
 
+# ---------------------------------------------------------------------------
+# Локальная модель (P17-A): OpenAI-совместимый сервер в своей сети (Ollama на машине прода).
+# Одна модель на все задачи; видеокарта общая для прода и стенда, поэтому одновременно идёт не больше
+# LOCAL_MAX_ACTIVE запросов из процесса, остальные ждут своей очереди в пределах таймаута задачи.
+# Дневной лимит вызовов существует ради денег — локальные вызовы его не расходуют (решение владельца
+# 29.10.2026). Модель выгружается из видеопамяти самим Ollama через 5 минут простоя (OLLAMA_KEEP_ALIVE).
+# ---------------------------------------------------------------------------
+
+LOCAL_MAX_ACTIVE = 1
+# Первый запрос после простоя заново загружает модель в видеопамять — это несколько секунд сверх ответа
+LOCAL_MIN_TIMEOUT_SECONDS = 20.0
+_local_slots: Dict[int, asyncio.Semaphore] = {}
+
+
+def _local_slot() -> asyncio.Semaphore:
+    loop = asyncio.get_running_loop()
+    slot = _local_slots.get(id(loop))
+    if slot is None:
+        slot = _local_slots[id(loop)] = asyncio.Semaphore(LOCAL_MAX_ACTIVE)
+    return slot
+
+
+def _local_headers(api_key: str) -> Dict[str, str]:
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    return headers
+
+
+async def call_local_api(prompt: str, api_base: str, model: str, api_key: str = "", *,
+                         timeout: float = DEFAULT_TIMEOUT_SECONDS, scan: bool = False):
+    """Вызов локальной модели с тем же учётом, что у платных (usage_sink, телеметрия), но без бюджета."""
+    purpose = "normalize" if scan else "user"
+    info: Dict[str, Any] = {}
+    token = _call_info.set(info)
+    started = time.monotonic()
+    budget = max(float(timeout), LOCAL_MIN_TIMEOUT_SECONDS)
+    result = None
+    try:
+        slot = _local_slot()
+        try:
+            await asyncio.wait_for(slot.acquire(), timeout=budget)
+        except asyncio.TimeoutError:
+            info["failure"] = "busy"   # GPU занят другим запросом всё время ожидания — пусть решит запасной
+            return None
+        try:
+            remaining = max(1.0, budget - (time.monotonic() - started))
+            result = await _call_local_api(prompt, api_base, model, api_key, remaining)
+            return result
+        finally:
+            slot.release()
+    finally:
+        _call_info.reset(token)
+        outcome = "ok" if result is not None else info.pop("failure", None) or "empty"
+        info.pop("failure", None)
+        duration_ms = (time.monotonic() - started) * 1000.0
+        _record_ai("local", purpose, outcome, duration_ms, info)
+        sink = usage_sink.get()
+        if sink is not None:
+            sink.append({"provider": "local", "outcome": outcome, "duration_ms": duration_ms, **info})
+
+
+async def _call_local_api(prompt: str, api_base: str, model: str, api_key: str,
+                          timeout_seconds: float) -> Optional[Dict[str, Any]]:
+    url = f"{api_base.rstrip('/')}/chat/completions"
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": "You are a helpful JSON parser for e-commerce search queries."},
+            {"role": "user", "content": prompt},
+        ],
+        "response_format": {"type": "json_object"},
+        "temperature": 0.1,
+        "max_tokens": MAX_OUTPUT_TOKENS,
+        # Без этого qwen3 сначала «рассуждает»: на стенде 43 с вместо 4 с на тот же ответ (29.10.2026)
+        "reasoning_effort": "none",
+    }
+    try:
+        timeout = aiohttp.ClientTimeout(total=timeout_seconds, connect=min(5.0, timeout_seconds))
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.post(url, json=payload, headers=_local_headers(api_key)) as resp:
+                _note_call(http_status=resp.status, model=model)
+                if resp.status != 200:
+                    print(f"[AI Service] Локальная модель ответила HTTP {resp.status} ({model})")
+                    _note_call(failure=f"http_{resp.status}")
+                    return None
+                data = await resp.json(content_type=None)
+    except Exception as e:                          # сервер выключен, сеть, таймаут, не JSON
+        print(f"[AI Service] Локальная модель недоступна ({model}): {type(e).__name__}")
+        _note_call(failure="timeout" if isinstance(e, asyncio.TimeoutError) else "error", error=type(e).__name__)
+        return None
+    usage = (data or {}).get("usage") or {}
+    _note_call(input_tokens=usage.get("prompt_tokens"), output_tokens=usage.get("completion_tokens"))
+    choices = (data or {}).get("choices") or []
+    content = (choices[0].get("message") or {}).get("content", "") if choices else ""
+    parsed = _extract_json_from_text(content or "")
+    if parsed is None:
+        _note_call(failure="bad_json")
+    return parsed
+
+
+async def list_local_models(api_base: str, api_key: str = "",
+                            timeout: float = MODELS_TIMEOUT_SECONDS) -> Dict[str, Any]:
+    """Модели локального сервера (у Ollama /v1/models отвечает и без ключа)."""
+    if not api_base:
+        return {"models": [], "error": "адрес локальной модели не задан"}
+    try:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session:
+            async with session.get(f"{api_base.rstrip('/')}/models", headers=_local_headers(api_key)) as resp:
+                if resp.status != 200:
+                    return {"models": [], "error": f"локальный сервер ответил HTTP {resp.status}"}
+                data = await resp.json(content_type=None)
+    except Exception as e:
+        return {"models": [], "error": f"{type(e).__name__}"}
+    models = [{"name": str(i.get("id")), "title": str(i.get("id"))} for i in (data or {}).get("data", []) if i.get("id")]
+    models.sort(key=lambda m: m["name"])
+    return {"models": models, "error": None}
+
+
+async def check_local_model(api_base: str, model: str, api_key: str = "") -> Dict[str, Any]:
+    """Проверка подключения из админки: модель есть на сервере и отвечает JSON. Промпт — служебный."""
+    listing = await list_local_models(api_base, api_key)
+    names = [m["name"] for m in listing["models"]]
+    result: Dict[str, Any] = {"models": names, "error": listing["error"], "model_present": model in names,
+                              "answered": False, "latency_ms": None}
+    if listing["error"] or model not in names:
+        return result
+    started = time.monotonic()
+    reply = await _call_local_api('Верни JSON {"ok": true}.', api_base, model, api_key, 60.0)
+    result["latency_ms"] = round((time.monotonic() - started) * 1000)
+    result["answered"] = isinstance(reply, dict)
+    return result
+
+
 def clean_ai_json_response(text: str) -> str:
     """Очищает текстовый ответ LLM от markdown-разметки (```json ... ```)."""
     if not text:
