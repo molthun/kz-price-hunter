@@ -86,5 +86,48 @@ class SameFieldsSameKeyTest(unittest.TestCase):
         self.assertEqual(pk.keys_for(items, ["A", "B"]), {"A": "k2:apple:iphone15", "B": None})
 
 
+
+class LinkByArticleTest(unittest.TestCase):
+    """Связь по артикулу производителя (замер C3): серия и артикул в поле модели — один товар."""
+
+    def _keys(self, items):
+        entries = {t: (f, pk.build_key(f, t)) for t, f in items.items()}
+        return pk.link_by_article(entries)
+
+    def test_series_and_article_in_model_join(self):
+        keys = self._keys({
+            "SSD 128GB Transcend TS128GMTE110S M2": {"brand": "Transcend", "model": "TS128GMTE110S", "sku": None},
+            "SSD 128GB Transcend MTE110S (TS128GMTE110S)": {"brand": "Transcend", "model": "MTE110S",
+                                                             "sku": "TS128GMTE110S"},
+        })
+        self.assertEqual(len(set(keys.values())), 1)
+
+    def test_shared_accessory_does_not_join_different_models(self):
+        keys = self._keys({
+            "Jabra Evolve2 65 Flex Link380a MS Stereo": {"brand": "Jabra", "model": "Evolve2 65",
+                                                        "sku": "Link380a MS Stereo"},
+            "Jabra Evolve2 85 Link380a MS Stereo": {"brand": "Jabra", "model": "Evolve2 85",
+                                                   "sku": "Link380a MS Stereo"},
+        })
+        self.assertEqual(len(set(keys.values())), 2)
+
+    def test_conflicting_capacity_and_weak_article_do_not_join(self):
+        keys = self._keys({
+            "SSD Transcend M2 128GB (TS128GMTE110S)": {"brand": "Transcend", "model": "M2", "sku": "TS128GMTE110S"},
+            "SSD Transcend M2 256GB (TS128GMTE110S)": {"brand": "Transcend", "model": "M2", "sku": "TS128GMTE110S"},
+            "SSD Transcend M2 512GB": {"brand": "Transcend", "model": "M2", "sku": None},
+        })
+        self.assertEqual(len(set(keys.values())), 3)
+        self.assertEqual(pk.article_tokens({"brand": "Kingston", "model": "DDR4", "sku": "M2"}), [])
+
+    def test_saved_keys_are_not_changed(self):
+        a = {"brand": "Transcend", "model": "TS128GMTE110S", "sku": None}
+        b = {"brand": "Transcend", "model": "MTE110S", "sku": "TS128GMTE110S"}
+        entries = {"old": (a, pk.build_key(a, "old 128GB")), "new": (b, pk.build_key(b, "new 128GB"))}
+        keys = pk.link_by_article(entries, fixed={"old"})
+        self.assertEqual(keys["old"], entries["old"][1])
+        self.assertEqual(keys["new"], entries["old"][1])
+
+
 if __name__ == "__main__":
     unittest.main()

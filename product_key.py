@@ -254,3 +254,88 @@ def keys_for(items: Iterable[Dict[str, Any]], titles: Iterable[str]) -> Dict[str
         if isinstance(item, dict) and item.get("title") in allowed:
             found[item["title"]] = build_key(item, item["title"])
     return found
+
+
+# Связь по артикулу производителя (P17-C3). Модель по-разному решает, что писать в «модель»: серию («MTE110S»)
+# или артикул («TS128GMTE110S»), — и один товар получает два ключа. По замеру это главный остаток пропусков
+# у всех проверенных моделей. Если у двух названий одного бренда совпадает «сильный» артикул (от 6 знаков,
+# буквы и цифры) и объём/диагональ не противоречат, это один товар — у него один ключ.
+_STRONG_ARTICLE = re.compile(r"^(?=.*[a-z])(?=.*[0-9])[a-z0-9.]{6,}$")
+
+
+def article_tokens(fields: Any) -> List[str]:
+    """«бренд:артикул» из полей sku и model, только сильные артикулы (общие «m2», «ddr4» не годятся)."""
+    if not isinstance(fields, dict) or fields.get("unbranded") is True:
+        return []
+    brand = brand_token(fields.get("brand"))
+    if not brand:
+        return []
+    # Только поля целиком, без разбора на части: модель записывает в артикул и имена комплектующих
+    # («Evolve2 65 Link380a» и «Evolve2 85 Link380a» — разные гарнитуры с одним адаптером, замер C3)
+    candidates = [fields.get("sku"), fields.get("model")]
+    found = set()
+    for value in candidates:
+        token = model_token(value, brand)
+        if token and _STRONG_ARTICLE.match(token):
+            found.add(f"{brand}:{token}")
+    return sorted(found)
+
+
+def _variants_of(key: str) -> str:
+    parts = key.split(":", 3)
+    return parts[3] if len(parts) > 3 else ""
+
+
+def _identity_of(key: str) -> str:
+    parts = key.split(":", 3)
+    return parts[2] if len(parts) > 2 else ""
+
+
+def _compatible(a: str, b: str, article: str) -> bool:
+    """Общий артикул связывает, только если ключи не противоречат: варианты те же (или у одного их нет),
+    а модели совпадают, одна содержит другую или модель и есть этот артикул. Иначе общий «артикул» — чужое
+    поле: «Link380a MS Stereo» у Evolve2 65 и Evolve2 85."""
+    va, vb = _variants_of(a), _variants_of(b)
+    if va and vb and va != vb:
+        return False
+    ia, ib = _identity_of(a), _identity_of(b)
+    token = article.split(":", 1)[-1]
+    return ia == ib or ia in ib or ib in ia or token in (ia, ib)
+
+
+def link_by_article(entries: Dict[str, Any], fixed: Iterable[str] = ()) -> Dict[str, str]:
+    """{название: (поля, ключ)} → {название: ключ} с общим ключом у названий одного артикула.
+
+    Ключ группы — самый частый в ней (затем короткий, затем по алфавиту); если в группе есть названия из fixed
+    (их ключи уже сохранены и используются), берётся самый частый из их ключей: прежние ключи не меняются."""
+    fixed = set(fixed)
+    titles = [t for t, (_, key) in entries.items() if key]
+    parent = {t: t for t in titles}
+
+    def root(t):
+        while parent[t] != t:
+            parent[t] = parent[parent[t]]
+            t = parent[t]
+        return t
+
+    by_article: Dict[str, List[str]] = {}
+    for t in titles:
+        for art in article_tokens(entries[t][0]):
+            by_article.setdefault(art, []).append(t)
+    for article, members in by_article.items():
+        for i, first in enumerate(members):
+            for other in members[i + 1:]:
+                a, b = root(first), root(other)
+                if a != b and _compatible(entries[first][1], entries[other][1], article):
+                    parent[b] = a
+    groups: Dict[str, List[str]] = {}
+    for t in titles:
+        groups.setdefault(root(t), []).append(t)
+    out = {}
+    for members in groups.values():
+        pool = [entries[t][1] for t in members if t in fixed] or [entries[t][1] for t in members]
+        best = sorted(set(pool), key=lambda k: (-pool.count(k), len(k), k))[0]
+        for t in members:
+            out[t] = entries[t][1] if t in fixed else best
+    return out
+

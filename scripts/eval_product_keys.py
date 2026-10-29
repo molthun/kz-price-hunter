@@ -70,9 +70,12 @@ async def candidate_fields(titles, base: str, model: str, key: str = ""):
     return fields, failures, calls, time.monotonic() - started
 
 
-def keys_from_fields(fields):
+def keys_from_fields(fields, link_articles=True):
     import product_key
-    return {t: k for t, k in product_key.keys_for(fields.values(), fields).items() if k}
+    keys = {t: k for t, k in product_key.keys_for(fields.values(), fields).items() if k}
+    if link_articles:
+        keys = product_key.link_by_article({t: (fields[t], k) for t, k in keys.items()})
+    return keys
 
 
 def score(groups, keys):
@@ -103,6 +106,7 @@ def main():
     ap.add_argument("--base")
     ap.add_argument("--model")
     ap.add_argument("--rescore", help="прошлый --out: пересобрать ключи из его полей без вызовов модели")
+    ap.add_argument("--no-articles", action="store_true", help="без связи по артикулу (link_by_article)")
     ap.add_argument("--groups", type=int, default=80)
     ap.add_argument("--seed", type=int, default=651)
     ap.add_argument("--out")
@@ -118,7 +122,7 @@ def main():
         titles = sorted({t for ts in groups.values() for t in ts})
         fields, failures, calls, elapsed = asyncio.run(candidate_fields(titles, args.base, args.model))
         model = args.model
-    keys = keys_from_fields(fields)
+    keys = keys_from_fields(fields, not args.no_articles)
     result = {"model": model, "calls": calls, "bad_json_calls": failures, "seconds": round(elapsed, 1),
               **score(groups, keys)}
     missed = []
