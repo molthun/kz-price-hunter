@@ -40,6 +40,8 @@ PROVIDERS = ("gemini", "openai")
 # первая для ВСЕХ задач, а не ответила — запасной платный провайдер в рамках бюджета, в том числе у
 # фоновых задач, которым платный запасной иначе запрещён (запрет — про второй платный, а не про первый).
 LOCAL = "local"
+# Задачи, которые идут на локальную модель только по отдельному включению в админке (решение 29.10.2026)
+LOCAL_OPT_IN_TASKS = ("normalize",)
 
 # Доля дневного бюджета вызовов, доступная внутренним задачам: людям всегда остаётся запас
 INTERNAL_BUDGET_SHARE = 0.7
@@ -121,6 +123,10 @@ def providers_for(task: str, config: Dict[str, Any]) -> list:
     order = [p for p in PROVIDERS if keys.get(p)]
     if not task_config(task)["fallback"]:
         order = order[:1]
+    # Нормализация названий — на локальную только по явному включению (local_normalize_enabled): ключи разных
+    # моделей для одного товара расходятся, и до проверки качества (P17-C) она остаётся на платной
+    if task in LOCAL_OPT_IN_TASKS and not config.get("local_normalize_enabled"):
+        has_local = False
     return ([LOCAL] if has_local else []) + order
 
 

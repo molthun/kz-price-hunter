@@ -1560,6 +1560,11 @@
                   <input type="password" id="inputLocalApiKey" placeholder="у Ollama не нужен" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono">
                 </div>
               </div>
+              <label class="flex items-start gap-2 mt-3 cursor-pointer">
+                <input type="checkbox" id="checkLocalNormalize" class="mt-0.5">
+                <span class="text-xs text-slate-300">Нормализация названий тоже на локальной модели
+                  <span class="block text-[10px] text-slate-400">Пока выключено: ключи локальной модели для одного товара часто не совпадают с прежними ключами Gemini, и сравнение цен между магазинами теряло бы пары. Включать после проверки качества (P17-C).</span></span>
+              </label>
               <p class="text-[10px] text-slate-400 mt-2">Включается и выключается кнопками «AI вкл» и «AI выкл» на рабочем столе сервера. Если видеокарту заняла игра, а «выкл» не нажали, локальная модель выключается сама. Обратно включается через час, если видеокарта свободна.</p>
               <div id="localAiStatus" class="text-[11px] text-slate-300 mt-2"></div>
             </div>
@@ -6179,6 +6184,7 @@
         document.getElementById('inputLocalApiBase').value = s.local_api_base || '';
         document.getElementById('inputLocalModel').value = s.local_model || '';
         document.getElementById('inputLocalApiKey').value = s.local_api_key || '';
+        document.getElementById('checkLocalNormalize').checked = s.local_normalize_enabled === true;
         loadLocalAiStatus();
 
         const aiBadge = document.getElementById('adminAiStatusBadge');
@@ -6951,6 +6957,7 @@
         local_api_base: document.getElementById('inputLocalApiBase').value.trim(),
         local_model: document.getElementById('inputLocalModel').value.trim(),
         local_api_key: document.getElementById('inputLocalApiKey').value.trim(),
+        local_normalize_enabled: document.getElementById('checkLocalNormalize').checked,
         ai_model_prices: collectAiPrices()
       };
 

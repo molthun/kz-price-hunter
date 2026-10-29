@@ -312,6 +312,10 @@ SYSTEM_DEFAULTS = {
     "local_api_base": "",
     "local_model": "",
     "local_api_key": "",
+    # Нормализация названий (99,9 % вызовов AI) на локальной модели. Выключено решением владельца 29.10.2026:
+    # ключи локальной совпали с прежними ключами Gemini у 17 из 60 названий, и сопоставление между магазинами
+    # теряло бы пары. Включать после проверки качества (P17-C), см. docs/AI_LOCAL_POLICY.md.
+    "local_normalize_enabled": False,
     # Шаг включения адаптивного планировщика (P11). По умолчанию выключено: обходы идут прежним порядком,
     # расширение — только вручную владельцем, откат — автоматический по согласованным порогам.
     "adaptive_scheduler_stage": "off",
@@ -552,6 +556,7 @@ def get_ai_config():
         "local_model": local_model,
         "local_api_key": str(sys_settings.get("local_api_key", "") or "").strip(),
         "has_local": has_local,
+        "local_normalize_enabled": bool(sys_settings.get("local_normalize_enabled", False)),
         "ai_search_enabled": ai_enabled,
         "has_ai": available,
         "configured": available,

@@ -84,6 +84,7 @@ class ConfigTest(_DbCase):
         with patch.object(config, "GEMINI_API_KEY", ""), patch.object(config, "OPENAI_API_KEY", ""):
             cfg = config.get_ai_config()
         self.assertTrue(cfg["has_local"])
+        self.assertFalse(cfg["local_normalize_enabled"], "по умолчанию нормализация на платной")
         self.assertTrue(cfg["has_ai"])
         self.assertEqual(cfg["provider"], "local")
         for bad in ({"local_api_base": "ftp://x/v1"}, {"local_api_base": "http://u:p@host:1/v1"},
@@ -103,7 +104,7 @@ class RouterLocalTest(_DbCase):
                        "openai_api_base": "https://api.openai.com/v1",
                        "gemini_model": "gemini-2.5-flash", "openai_model": "gpt-4o-mini",
                        "local_api_base": "http://ollama:11434/v1", "local_model": "qwen3-vl:8b-instruct",
-                       "local_api_key": "", "has_local": True}
+                       "local_api_key": "", "has_local": True, "local_normalize_enabled": True}
         self.calls = []
 
     def run_task(self, task="normalize", local=None, gemini=None, paused=None):
@@ -202,6 +203,19 @@ class RouterLocalTest(_DbCase):
         self.config["ai_provider"] = "gemini"
         self.assertEqual(self.run_task("query_parse", local={"ok": 1}, gemini={"ok": 2})["provider"], "gemini")
         self.assertEqual(self.calls, ["gemini"])
+
+    def test_normalize_stays_paid_until_enabled(self):
+        """Решение 29.10.2026: нормализация на локальной — только по включению в админке."""
+        self.config["local_normalize_enabled"] = False
+        self.assertEqual(ai_router.providers_for("normalize", self.config), ["gemini"])
+        self.assertEqual(ai_router.providers_for("query_parse", self.config), ["local", "gemini", "openai"])
+        self.assertEqual(ai_router.providers_for("category_classify", self.config)[0], "local")
+        r = self.run_task("normalize", local={"ok": 1}, gemini={"ok": 2})
+        self.assertEqual(r["provider"], "gemini")
+        self.assertEqual(self.calls, ["gemini"])
+        # Явный выбор «только локальная» — решение администратора, включая нормализацию
+        self.config["ai_provider"] = "local"
+        self.assertEqual(ai_router.providers_for("normalize", self.config), ["local"])
 
     def test_without_local_nothing_changes(self):
         self.config.update(local_api_base="", local_model="", has_local=False)
