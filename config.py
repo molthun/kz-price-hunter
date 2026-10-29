@@ -442,6 +442,35 @@ def worker_thread_count() -> int:
         return int(raw)
     cores = effective_cpu_count()
     return max(WORKER_THREADS_MIN, min(WORKER_THREADS_MAX, cores * WORKER_THREADS_PER_CORE))
+# Интервал переключения GIL. По умолчанию CPython отдаёт интерпретатор другому потоку раз в 5 мс.
+# Поток записи в SQLite отпускает GIL на каждом вызове sqlite3 и потом ждёт его обратно, пока потоки
+# разбора страниц считают, — а блокировку базы всё это время держит. Замер на копии базы прода:
+# порция из 100 товаров при 6 счётных потоках — 165 с при 5 мс, 22 с при 1 мс, 5 с при 0,2 мс
+# (без нагрузки 0,05 с). Короче интервал — быстрее возврат GIL писателю. GIL_SWITCH_INTERVAL
+# (секунды) переопределяет значение; «0» или пусто — по умолчанию проекта.
+GIL_SWITCH_INTERVAL_DEFAULT = 0.0005
+GIL_SWITCH_INTERVAL_MIN = 0.0001
+GIL_SWITCH_INTERVAL_MAX = 0.05
+
+
+def gil_switch_interval() -> float:
+    """Интервал переключения GIL из GIL_SWITCH_INTERVAL в допустимых границах."""
+    raw = (os.getenv("GIL_SWITCH_INTERVAL") or "").strip().replace(",", ".")
+    try:
+        value = float(raw) if raw else 0.0
+    except ValueError:
+        value = 0.0
+    if value <= 0:
+        return GIL_SWITCH_INTERVAL_DEFAULT
+    return min(GIL_SWITCH_INTERVAL_MAX, max(GIL_SWITCH_INTERVAL_MIN, value))
+
+
+def apply_gil_switch_interval() -> float:
+    """Ставит интервал переключения GIL процессу; возвращает действующее значение."""
+    import sys
+    sys.setswitchinterval(gil_switch_interval())
+    return sys.getswitchinterval()
+
 DEV_ADMIN_ID = -1  # Reserved local principal; Telegram user IDs are positive.
 
 # Empty means no forwarded headers are trusted. Use exact proxy IPs where possible.

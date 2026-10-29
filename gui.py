@@ -27,6 +27,8 @@ def open_browser(url):
         pass
 
 def main():
+    from config import apply_gil_switch_interval
+    switch = apply_gil_switch_interval()
     app = create_app()
     local_ip = get_local_ip()
 
@@ -37,6 +39,7 @@ def main():
     print("🚀 KZ Price Hunter — Web GUI Dashboard запущен!")
     print(f"💻 На этом Mac:        {local_url}")
     print(f"📱 В локальной сети:    {network_url}")
+    print(f"⚙️ Интервал переключения GIL: {switch * 1000:.2f} мс")
     print("=" * 62)
     print("ℹ️ Вы можете открыть ссылку с телефона или любого устройства")
     print("   подключенного к той же Wi-Fi сети!\n")

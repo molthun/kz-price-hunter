@@ -343,6 +343,9 @@ def init_schema_v2(conn: sqlite3.Connection) -> None:
     _ensure_column(conn, "offers", "pickup_available", "INTEGER DEFAULT 0")
     _ensure_column(conn, "offers", "expires_at", "TEXT")
     _ensure_column(conn, "seller_candidates", "discovery_task_id", "TEXT")
+    # Предложение, задающее название и категорию канонического товара (6.5.1): без него каждое
+    # предложение другого магазина переписывало название общего товара и его FTS при каждом обходе
+    _ensure_column(conn, "canonical_products", "title_offer_id", "TEXT")
     # Измерения точки истории на момент наблюдения (V02 аудита 6.5.0): без них линия цены
     # строилась по ТЕКУЩЕМУ предложению, и смена NEW→USED переписывала всё его прошлое.
     # У прежних строк колонки пусты — для них остаётся только текущее предложение.

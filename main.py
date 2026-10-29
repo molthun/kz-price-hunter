@@ -68,4 +68,6 @@ if __name__ == "__main__":
     parser.add_argument("--once", action="store_true", help="Выполнить один цикл и завершить работу")
     args = parser.parse_args()
 
+    from config import apply_gil_switch_interval
+    apply_gil_switch_interval()
     asyncio.run(main_loop(run_once=args.once))

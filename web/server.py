@@ -256,6 +256,20 @@ async def run_db(func, *args):
     ctx = contextvars.copy_context()
     return await loop.run_in_executor(_db_executor, functools.partial(ctx.run, func, *args))
 
+# Свой маленький пул для проверки готовности: пока потоки kzph-db ждут блокировку записи
+# (busy_timeout 15 с), лёгкое чтение health стояло за ними в очереди и не укладывалось
+# в 1,5 с — прод отвечал 503 «db unready» при живой базе (6.5.1).
+_health_executor = concurrent.futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix="kzph-health")
+
+async def run_health(func, *args):
+    """Выполняет проверку готовности в отдельном пуле, не зависящем от очереди записей."""
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(_health_executor, functools.partial(func, *args))
+
+def _health_queue_stats_sync():
+    import database
+    return database.spool_stats()
+
 @routes.get("/api/version")
 async def version_handler(request):
     return web.json_response(get_version_info())
@@ -312,10 +326,10 @@ async def health_handler(request):
     """
     from queue_service import product_queue
     try:
-        ok = await asyncio.wait_for(run_db(_check_db_readiness_sync), timeout=1.5)
+        ok = await asyncio.wait_for(run_health(_check_db_readiness_sync), timeout=1.5)
         worker_ok = product_queue.is_worker_running
         try:
-            stats = await asyncio.wait_for(product_queue.stats(), timeout=1.5)
+            stats = await asyncio.wait_for(run_health(_health_queue_stats_sync), timeout=1.5)
         except Exception:
             stats = None
         if not (ok and worker_ok and stats is not None):

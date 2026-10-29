@@ -654,14 +654,24 @@ class TelemetryService:
                     conn.execute("BEGIN IMMEDIATE")
                     try:
                         if events:
-                            conn.executemany(
+                            # Один оператор на пачку (json_each), а не шаг на событие: под блокировкой
+                            # записи каждый шаг SQLite отпускает GIL, и под нагрузкой обхода сброс
+                            # держал базу до 24 с (6.5.1)
+                            conn.execute(
                                 """INSERT OR IGNORE INTO telemetry_events(
                                     event_id, timestamp, type, severity, component,
                                     shop, city, category, scan_id, request_id, message, data_json
-                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                                [(e["event_id"], e["timestamp"], e["type"], e["severity"], e["component"],
-                                  e["shop"], e["city"], e["category"], e["scan_id"], e["request_id"],
-                                  e["message"], e["data_json"]) for e in events],
+                                ) SELECT json_extract(value, '$[0]'), json_extract(value, '$[1]'),
+                                         json_extract(value, '$[2]'), json_extract(value, '$[3]'),
+                                         json_extract(value, '$[4]'), json_extract(value, '$[5]'),
+                                         json_extract(value, '$[6]'), json_extract(value, '$[7]'),
+                                         json_extract(value, '$[8]'), json_extract(value, '$[9]'),
+                                         json_extract(value, '$[10]'), json_extract(value, '$[11]')
+                                  FROM json_each(?)""",
+                                (json.dumps([[e["event_id"], e["timestamp"], e["type"], e["severity"],
+                                              e["component"], e["shop"], e["city"], e["category"],
+                                              e["scan_id"], e["request_id"], e["message"], e["data_json"]]
+                                             for e in events], ensure_ascii=False),),
                             )
                         for key, agg in http.items():
                             self._flush_aggregate(conn, key, agg)
@@ -695,14 +705,20 @@ class TelemetryService:
         p95 = None
         if agg.latencies:
             # Слияние равномерной выборки из БД (stored_total запросов) и окна (agg.total), A03
-            stored = [r[0] for r in conn.execute(
-                f"SELECT latency_ms FROM telemetry_http_samples WHERE {where}", key)]
+            # Выборка читается и пишется одним оператором (json_group_array / json_each), а не шагом
+            # на значение: до 500 значений на ключ — до тысячи возвратов GIL под блокировкой (6.5.1).
+            # Через JSON задержка сохраняет 15 значащих цифр — для миллисекунд с запасом.
+            stored = json.loads(conn.execute(
+                f"SELECT json_group_array(latency_ms) FROM telemetry_http_samples WHERE {where}",
+                key).fetchone()[0] or "[]")
             merged = merge_reservoirs(stored, stored_total, agg.latencies, agg.total, MAX_SAMPLES_PER_BUCKET)
             conn.execute(f"DELETE FROM telemetry_http_samples WHERE {where}", key)
-            conn.executemany(
-                "INSERT INTO telemetry_http_samples(bucket_type, bucket_start, host, shop, latency_ms) VALUES (?, ?, ?, ?, ?)",
-                [(*key, v) for v in merged],
-            )
+            if merged:
+                conn.execute(
+                    "INSERT INTO telemetry_http_samples(bucket_type, bucket_start, host, shop, latency_ms) "
+                    "SELECT ?, ?, ?, ?, value FROM json_each(?)",
+                    (*key, json.dumps(list(merged))),
+                )
             p95 = calculate_p95(merged)
 
         conn.execute(

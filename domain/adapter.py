@@ -11,7 +11,7 @@ import logging
 import os
 import re
 import sqlite3
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from domain.models import (
     Availability,
@@ -189,21 +189,18 @@ def resolve_seller_and_channel_meta(shop_name: str, shop_key: Optional[str] = No
     return slug, cleaned_name or "Неизвестный продавец", ChannelType.WEBSITE
 
 
-def sync_legacy_product_to_v2(
-    conn: sqlite3.Connection,
+def prepare_legacy_offer_v2(
     product: Dict[str, Any],
-    now: Optional[str] = None,
     canonical_key: Optional[str] = None,
-    seen_sellers: Optional[set] = None,
-) -> bool:
-    """
-    Saves or updates a legacy product dict into the v2 tables:
-    sellers, channels, canonical_products, offers, offer_price_history.
-    Must be executed within an active transaction.
+) -> Optional[Dict[str, Any]]:
+    """Значения v2 для товара legacy без обращения к базе: продавец, канал, канонический товар
+    и предложение. None — цена вне допустимого диапазона, записывать нечего.
+
+    Считается до захвата блокировки записи: разбор названия и адреса — чистый Python, а под
+    блокировкой каждый шаг ждёт GIL наравне с потоками обхода (6.5.1).
     """
     from model_matching import extract_canonical_key
 
-    timestamp = now or utc_now_iso()
     pid = str(product["id"])
     shop_name = product.get("shop", "Белый Ветер")
     city = product.get("city", "Казахстан")
@@ -219,7 +216,7 @@ def sync_legacy_product_to_v2(
         price = 0.0
 
     if price <= 0 or price > 10_000_000:
-        return False
+        return None
 
     old_price_val = product.get("old_price_on_site") or product.get("old_price")
     try:
@@ -247,87 +244,169 @@ def sync_legacy_product_to_v2(
         from domain.seller_identity import normalize_domain
         norm_dom = normalize_domain(url)
 
-    seller_cache_key = (seller_id, norm_dom, channel_id)
-    if seen_sellers is None or seller_cache_key not in seen_sellers:
-        if norm_dom:
-            conn.execute(
-                """
-                INSERT INTO sellers (id, slug, name, domain, is_active, created_at, updated_at)
-                VALUES (?, ?, ?, ?, 1, ?, ?)
-                ON CONFLICT(id) DO UPDATE SET
-                    domain = COALESCE(sellers.domain, excluded.domain),
-                    updated_at = excluded.updated_at
-                """,
-                (seller_id, seller_slug, seller_name, norm_dom, timestamp, timestamp),
-            )
-            # Идентификатор строится из самого отпечатка, а не только из продавца: иначе второй домен
-            # того же продавца конфликтует по первичному ключу, предложение ON CONFLICT ниже его не
-            # покрывает, и товар вообще не попадает в v2. Тот же приём уже применён в merge_sellers.
-            ident_digest = hashlib.sha256(
-                f"{seller_id}:domain:{norm_dom}".encode("utf-8")
-            ).hexdigest()[:16]
-            ident_id = f"ident_{ident_digest}"
-            conn.execute(
-                """
-                INSERT INTO seller_identities (id, seller_id, identity_type, identity_value, confidence, source, created_at)
-                VALUES (?, ?, 'domain', ?, 1.0, 'product_url', ?)
-                ON CONFLICT(identity_type, identity_value, seller_id) DO NOTHING
-                """,
-                (ident_id, seller_id, norm_dom, timestamp),
-            )
-        else:
-            conn.execute(
-                """
-                INSERT INTO sellers (id, slug, name, is_active, created_at, updated_at)
-                VALUES (?, ?, ?, 1, ?, ?)
-                ON CONFLICT(id) DO UPDATE SET updated_at = excluded.updated_at
-                """,
-                (seller_id, seller_slug, seller_name, timestamp, timestamp),
-            )
-
-        conn.execute(
-            """
-            INSERT INTO channels (id, seller_id, channel_type, name, is_active, created_at)
-            VALUES (?, ?, ?, ?, 1, ?)
-            ON CONFLICT(id) DO NOTHING
-            """,
-            (channel_id, seller_id, channel_type, f"{seller_name} ({channel_type})", timestamp),
-        )
-        if seen_sellers is not None:
-            seen_sellers.add(seller_cache_key)
+    ident_id = None
+    if norm_dom:
+        # Идентификатор строится из самого отпечатка, а не только из продавца: иначе второй домен
+        # того же продавца конфликтует по первичному ключу, предложение ON CONFLICT ниже его не
+        # покрывает, и товар вообще не попадает в v2. Тот же приём уже применён в merge_sellers.
+        ident_digest = hashlib.sha256(f"{seller_id}:domain:{norm_dom}".encode("utf-8")).hexdigest()[:16]
+        ident_id = f"ident_{ident_digest}"
 
     # 3. Canonical Product
     hash_id = hashlib.sha256(canonical_key.encode("utf-8")).hexdigest()[:16]
-    product_id = f"prod_{hash_id}"
 
+    return {
+        "seller_id": seller_id,
+        "seller_slug": seller_slug,
+        "seller_name": seller_name,
+        "domain": norm_dom,
+        "ident_id": ident_id,
+        "channel_id": channel_id,
+        "channel_type": channel_type,
+        "channel_name": f"{seller_name} ({channel_type})",
+        "product_id": f"prod_{hash_id}",
+        "canonical_key": canonical_key,
+        "title": title,
+        "category": category,
+        "description": description,
+        "image_url": image_url,
+        # 4. Offer: устойчивый идентификатор из идентификатора товара legacy
+        "offer_id": f"off_{pid}",
+        "external_sku": pid,
+        "url": url,
+        "price": price,
+        "old_price": old_price,
+        "condition": Condition.normalize(product.get("condition"), default=Condition.NEW),
+        "availability": Availability.normalize(product.get("availability"), default=Availability.IN_STOCK),
+        "city": city,
+        "published_at": product.get("published_at"),
+    }
+
+
+def _json_param(rows) -> str:
+    return json.dumps(rows, ensure_ascii=False)
+
+
+def write_legacy_offers_v2(
+    conn: sqlite3.Connection,
+    items: List[Dict[str, Any]],
+    timestamp: str,
+    seen_sellers: Optional[set] = None,
+) -> None:
+    """Пишет подготовленные prepare_legacy_offer_v2 предложения в таблицы v2 наборными операторами.
+
+    Порядок и смысл записи те же, что у прежней записи по одному товару: продавцы, отпечатки,
+    каналы, канонические товары, предложения, история. Каждый оператор берёт все строки порции
+    из одного JSON-параметра (json_each), поэтому на порцию приходится несколько вызовов SQLite,
+    а не ~6 на товар: каждый вызов отпускает GIL, и под нагрузкой обхода возврат GIL писателю
+    растягивал удержание блокировки записи до минуты (6.5.1).
+
+    Дробные значения обратно из базы через JSON не читаются: SQLite 3.46 выводит REAL в JSON
+    с 15 значащими цифрами. Цены (до 10 млн, не больше 15 значащих цифр) переносятся без потерь.
+    Должно выполняться внутри открытой транзакции.
+    """
+    if not items:
+        return
+
+    # 1–2. Продавцы и каналы — по разу на ключ (продавец, домен, канал), в порядке первого появления
+    sellers: List[Dict[str, Any]] = []
+    for it in items:
+        key = (it["seller_id"], it["domain"], it["channel_id"])
+        if seen_sellers is not None and key in seen_sellers:
+            continue
+        if seen_sellers is not None:
+            seen_sellers.add(key)
+        elif any((s["seller_id"], s["domain"], s["channel_id"]) == key for s in sellers):
+            continue
+        sellers.append(it)
+
+    if sellers:
+        # Строка без домена домен не трогает: COALESCE оставляет прежний, а вставка — NULL
+        conn.execute(
+            """
+            INSERT INTO sellers (id, slug, name, domain, is_active, created_at, updated_at)
+            SELECT json_extract(value, '$.seller_id'), json_extract(value, '$.seller_slug'),
+                   json_extract(value, '$.seller_name'), json_extract(value, '$.domain'), 1, ?1, ?1
+            FROM json_each(?2) WHERE true
+            ON CONFLICT(id) DO UPDATE SET
+                domain = COALESCE(sellers.domain, excluded.domain),
+                updated_at = excluded.updated_at
+            """,
+            (timestamp, _json_param(sellers)),
+        )
+        idents = [s for s in sellers if s["domain"]]
+        if idents:
+            conn.execute(
+                """
+                INSERT INTO seller_identities (id, seller_id, identity_type, identity_value, confidence, source, created_at)
+                SELECT json_extract(value, '$.ident_id'), json_extract(value, '$.seller_id'), 'domain',
+                       json_extract(value, '$.domain'), 1.0, 'product_url', ?1
+                FROM json_each(?2) WHERE true
+                ON CONFLICT(identity_type, identity_value, seller_id) DO NOTHING
+                """,
+                (timestamp, _json_param(idents)),
+            )
+        conn.execute(
+            """
+            INSERT INTO channels (id, seller_id, channel_type, name, is_active, created_at)
+            SELECT json_extract(value, '$.channel_id'), json_extract(value, '$.seller_id'),
+                   json_extract(value, '$.channel_type'), json_extract(value, '$.channel_name'), 1, ?1
+            FROM json_each(?2) WHERE true
+            ON CONFLICT(id) DO NOTHING
+            """,
+            (timestamp, _json_param(sellers)),
+        )
+
+    # 3. Канонический товар. Название и категорию задаёт одно предложение — первое записавшее
+    # (title_offer_id): предложения разных магазинов делят канонический товар, и прежняя запись
+    # переписывала его название чужим при каждом обходе, а с ним и полнотекстовый индекс (6.5.1).
     conn.execute(
         """
         INSERT INTO canonical_products (
-            id, canonical_key, title, category, description, image_url, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            id, canonical_key, title, category, description, image_url, title_offer_id, created_at, updated_at
+        )
+        SELECT json_extract(value, '$.product_id'), json_extract(value, '$.canonical_key'),
+               json_extract(value, '$.title'), json_extract(value, '$.category'),
+               json_extract(value, '$.description'), json_extract(value, '$.image_url'),
+               json_extract(value, '$.offer_id'), ?1, ?1
+        FROM json_each(?2) WHERE true
         ON CONFLICT(id) DO UPDATE SET
-            title = excluded.title,
-            category = excluded.category,
+            title = CASE WHEN canonical_products.title_offer_id IS NULL
+                           OR canonical_products.title_offer_id = excluded.title_offer_id
+                         THEN excluded.title ELSE canonical_products.title END,
+            category = CASE WHEN canonical_products.title_offer_id IS NULL
+                              OR canonical_products.title_offer_id = excluded.title_offer_id
+                            THEN excluded.category ELSE canonical_products.category END,
+            title_offer_id = COALESCE(canonical_products.title_offer_id, excluded.title_offer_id),
             description = CASE WHEN excluded.description != '' THEN excluded.description ELSE canonical_products.description END,
             image_url = CASE WHEN excluded.image_url != '' THEN excluded.image_url ELSE canonical_products.image_url END,
             updated_at = excluded.updated_at
         """,
-        (product_id, canonical_key, title, category, description, image_url, timestamp, timestamp),
+        (timestamp, _json_param(items)),
     )
 
-    # 4. Offer
-    # Stable offer ID derived from legacy product ID
-    offer_id = f"off_{pid}"
-    condition = Condition.normalize(product.get("condition"), default=Condition.NEW)
-    availability = Availability.normalize(product.get("availability"), default=Availability.IN_STOCK)
+    # 4. Прежние значения предложений — одним чтением: json_group_array отдаёт одну строку
+    offer_ids = list(dict.fromkeys(it["offer_id"] for it in items))
+    row = conn.execute(
+        """
+        SELECT json_group_array(json_array(id, price, old_price, product_id, seller_id, channel_id, condition, city))
+        FROM offers WHERE id IN (SELECT value FROM json_each(?))
+        """,
+        (_json_param(offer_ids),),
+    ).fetchone()
+    state: Dict[str, Tuple] = {r[0]: tuple(r[1:]) for r in json.loads(row[0] or "[]")}
 
-
-    # Check previous price to see if history record is needed
-    cur = conn.execute(
-        "SELECT price, old_price, product_id, seller_id, channel_id, condition, city FROM offers WHERE id = ?",
-        (offer_id,),
-    )
-    existing_offer = cur.fetchone()
+    # 5. Price History: при первой точке, смене цены или смене измерений линии (товар, продавец,
+    # канал, состояние, город). Измерения пишутся в саму точку: история не пересчитывается по
+    # текущему предложению (V02). Повтор предложения в порции сравнивается с предыдущей записью.
+    history: List[Dict[str, Any]] = []
+    for it in items:
+        dims = (it["product_id"], it["seller_id"], it["channel_id"], it["condition"], it["city"])
+        existing = state.get(it["offer_id"])
+        if (existing is None or existing[0] != it["price"] or existing[1] != it["old_price"]
+                or tuple(existing[2:7]) != dims):
+            history.append(it)
+        state[it["offer_id"]] = (it["price"], it["old_price"], *dims)
 
     conn.execute(
         """
@@ -336,12 +415,15 @@ def sync_legacy_product_to_v2(
             url, image_url, price, old_price, currency, condition,
             availability, city, published_at, observed_at, is_active,
             created_at, updated_at
-        ) VALUES (
-            ?, ?, ?, ?, ?,
-            ?, ?, ?, ?, 'KZT', ?,
-            ?, ?, ?, ?, 1,
-            ?, ?
         )
+        SELECT json_extract(value, '$.offer_id'), json_extract(value, '$.product_id'),
+               json_extract(value, '$.seller_id'), json_extract(value, '$.channel_id'),
+               json_extract(value, '$.external_sku'), json_extract(value, '$.url'),
+               json_extract(value, '$.image_url'), json_extract(value, '$.price'),
+               json_extract(value, '$.old_price'), 'KZT', json_extract(value, '$.condition'),
+               json_extract(value, '$.availability'), json_extract(value, '$.city'),
+               json_extract(value, '$.published_at'), ?1, 1, ?1, ?1
+        FROM json_each(?2) WHERE true
         ON CONFLICT(id) DO UPDATE SET
             product_id = excluded.product_id,
             seller_id = excluded.seller_id,
@@ -357,39 +439,38 @@ def sync_legacy_product_to_v2(
             is_active = 1,
             updated_at = excluded.updated_at
         """,
-        (
-            offer_id,
-            product_id,
-            seller_id,
-            channel_id,
-            pid,
-            url,
-            image_url,
-            price,
-            old_price,
-            condition,
-            availability,
-            city,
-            product.get("published_at"),
-            timestamp,
-            timestamp,
-            timestamp,
-        ),
+        (timestamp, _json_param(items)),
     )
 
-    # 5. Price History: при первой точке, смене цены или смене измерений линии (товар, продавец,
-    # канал, состояние, город). Измерения пишутся в саму точку: история не пересчитывается по
-    # текущему предложению (V02)
-    dims = (product_id, seller_id, channel_id, condition, city)
-    if (existing_offer is None or existing_offer[0] != price or existing_offer[1] != old_price
-            or tuple(existing_offer[2:7]) != dims):
+    if history:
         conn.execute(
             """
             INSERT OR REPLACE INTO offer_price_history
                 (offer_id, price, old_price, observed_at, product_id, seller_id, channel_id, condition, city)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            SELECT json_extract(value, '$.offer_id'), json_extract(value, '$.price'),
+                   json_extract(value, '$.old_price'), ?1, json_extract(value, '$.product_id'),
+                   json_extract(value, '$.seller_id'), json_extract(value, '$.channel_id'),
+                   json_extract(value, '$.condition'), json_extract(value, '$.city')
+            FROM json_each(?2)
             """,
-            (offer_id, price, old_price, timestamp, *dims),
+            (timestamp, _json_param(history)),
         )
 
+
+def sync_legacy_product_to_v2(
+    conn: sqlite3.Connection,
+    product: Dict[str, Any],
+    now: Optional[str] = None,
+    canonical_key: Optional[str] = None,
+    seen_sellers: Optional[set] = None,
+) -> bool:
+    """
+    Saves or updates a legacy product dict into the v2 tables:
+    sellers, channels, canonical_products, offers, offer_price_history.
+    Must be executed within an active transaction.
+    """
+    item = prepare_legacy_offer_v2(product, canonical_key=canonical_key)
+    if item is None:
+        return False
+    write_legacy_offers_v2(conn, [item], now or utc_now_iso(), seen_sellers=seen_sellers)
     return True

@@ -2124,36 +2124,39 @@ def get_price_history_batch(product_ids: List[str]) -> Dict[str, Dict[str, Any]]
 
 
 def _price_history_conn(conn, ids: List[str]) -> Dict[str, Dict[str, Any]]:
+    """Прежние цены товаров порции — одним чтением (json_group_array отдаёт одну строку).
+
+    Чтение идёт под блокировкой записи: построчная выборка отпускала бы GIL на каждой строке (6.5.1).
+    """
     history: Dict[str, Dict[str, Any]] = {}
-    cursor = conn.cursor()
-    # Порциями, чтобы не упереться в лимит параметров SQLite
-    for i in range(0, len(ids), 500):
-        chunk = ids[i:i + 500]
-        placeholders = ",".join("?" * len(chunk))
-        cursor.execute(
-            f"SELECT id, current_price, first_seen_price, is_active FROM products WHERE id IN ({placeholders})",
-            chunk
-        )
-        for row in cursor.fetchall():
-            history[row["id"]] = {
-                "old_price": row["current_price"],
-                "first_seen_price": row["first_seen_price"],
-                # снят прежней сверкой: возврат — повод проверить наблюдения «снова в продаже» (G01)
-                "was_active": row["is_active"],
-            }
+    if not ids:
+        return history
+    row = conn.execute(
+        "SELECT json_group_array(json_array(id, current_price, first_seen_price, is_active)) "
+        "FROM products WHERE id IN (SELECT value FROM json_each(?))",
+        (json.dumps(list(ids), ensure_ascii=False),),
+    ).fetchone()
+    for pid, current_price, first_seen_price, is_active in json.loads(row[0] or "[]"):
+        history[pid] = {
+            "old_price": current_price,
+            "first_seen_price": first_seen_price,
+            # снят прежней сверкой: возврат — повод проверить наблюдения «снова в продаже» (G01)
+            "was_active": is_active,
+        }
     return history
 
-def _save_products_chunk(conn, chunk: List[Dict[str, Any]], now: str, observed_seq: Optional[float] = None) -> int:
-    """Записывает порцию товаров в открытой транзакции conn, не фиксируя её (R04/R05).
 
-    observed_seq — когда данные получены (момент приёма задачи). Товар, у которого уже сохранено
-    более свежее наблюдение, не трогается (F01); None — запись без метки, как прежде.
+def _prepare_products_chunk(chunk: List[Dict[str, Any]]) -> List[Optional[Dict[str, Any]]]:
+    """Значения записи порции без обращения к базе; None — товар с недопустимой ценой.
+
+    Вызывается до захвата блокировки записи: разбор названий, ключей и продавцов — чистый Python,
+    а под блокировкой он ждал бы GIL наравне с потоками обхода (6.5.1). Ошибка подготовки v2
+    не роняет порцию: она сохраняется и учитывается как сбой двойной записи этого товара.
     """
     from model_matching import extract_canonical_key
 
-    cursor = conn.cursor()
-    updated_count = 0
-    seen_sellers: set = set()
+    dual = os.environ.get("DUAL_WRITE_V2", "1") != "0"
+    prepared: List[Optional[Dict[str, Any]]] = []
     for p in chunk:
         pid = str(p["id"])
         shop = p.get("shop", "Белый Ветер")
@@ -2172,46 +2175,166 @@ def _save_products_chunk(conn, chunk: List[Dict[str, Any]], now: str, observed_s
         except (TypeError, ValueError):
             current_price = 0
         if current_price > 10_000_000 or current_price <= 0:
+            prepared.append(None)
             continue
         canonical_key = p.get("canonical_key") or extract_canonical_key(title)
-        old_on_site = site_old_price(p.get("old_price_on_site"), current_price)
-
-        cursor.execute("SELECT current_price, min_price, max_price, old_price_on_site, observed_seq "
-                       "FROM products WHERE id = ?", (pid,))
-        existing = cursor.fetchone()
-        if (observed_seq is not None and existing is not None and existing["observed_seq"] is not None
-                and existing["observed_seq"] > observed_seq):
-            continue  # F01: сохранено более свежее наблюдение — старые данные его не откатывают
-        _record_observation(cursor, pid, existing, current_price, old_on_site, now)
-
-        if existing is None:
-            cursor.execute("""
-                INSERT INTO products (id, shop, city, title, category, url, image_url, description, current_price, old_price_on_site, first_seen_price, min_price, max_price, canonical_key, created_at, updated_at, observed_seq)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (pid, shop, city, title, category, url, image_url, description, current_price, old_on_site, current_price, current_price, current_price, canonical_key, now, now, observed_seq))
-        else:
-            min_price = min(existing["min_price"], current_price)
-            max_price = max(existing["max_price"], current_price)
-            cursor.execute("""
-                UPDATE products
-                SET is_active = 1, shop = ?, city = ?, title = ?, category = ?, url = ?, image_url = ?,
-                    description = CASE WHEN ? != '' THEN ? ELSE description END,
-                    current_price = ?, old_price_on_site = ?, min_price = ?, max_price = ?, canonical_key = COALESCE(?, canonical_key), updated_at = ?,
-                    observed_seq = COALESCE(?, observed_seq)
-                WHERE id = ?
-            """, (shop, city, title, category, url, image_url, description, description, current_price, old_on_site, min_price, max_price, canonical_key, now, observed_seq, pid))
-        if os.environ.get("DUAL_WRITE_V2", "1") != "0":
-            _DUAL_WRITE_STATS["total"] += 1
+        item: Dict[str, Any] = {
+            "id": pid, "shop": shop, "city": city, "title": title, "category": category, "url": url,
+            "image_url": image_url, "description": description, "price": current_price,
+            "old_on_site": site_old_price(p.get("old_price_on_site"), current_price),
+            "canonical_key": canonical_key, "dual": dual, "v2": None, "v2_error": None,
+        }
+        if dual:
             try:
-                from domain.adapter import sync_legacy_product_to_v2
-                sync_legacy_product_to_v2(
-                    conn, p, now, canonical_key=canonical_key, seen_sellers=seen_sellers
-                )
+                from domain.adapter import prepare_legacy_offer_v2
+                item["v2"] = prepare_legacy_offer_v2(p, canonical_key=canonical_key)
             except Exception as e:
-                _record_dual_write_error(pid, e)
+                item["v2_error"] = e
+        prepared.append(item)
+    return prepared
 
+
+def _save_products_chunk(conn, chunk: List[Dict[str, Any]], now: str, observed_seq: Optional[float] = None,
+                         prepared: Optional[List[Optional[Dict[str, Any]]]] = None) -> int:
+    """Записывает порцию товаров в открытой транзакции conn, не фиксируя её (R04/R05).
+
+    observed_seq — когда данные получены (момент приёма задачи). Товар, у которого уже сохранено
+    более свежее наблюдение, не трогается (F01); None — запись без метки, как прежде.
+
+    Запись наборная (6.5.1): прежние значения читаются одним запросом, решения по каждому товару
+    принимаются в Python в порядке порции (повтор товара видит предыдущую запись), а наблюдения,
+    новые товары и обновления пишутся по одному оператору из JSON-параметра. Прежняя запись делала
+    ~6 вызовов SQLite на товар; каждый отпускает GIL, и под нагрузкой обхода удержание блокировки
+    записи порцией доходило до минуты. observed_seq передаётся параметром, а не через JSON: дробные
+    числа в JSON у SQLite 3.46 теряют знаки, а от точной метки зависят F01 и spool_superseded.
+    prepared — результат _prepare_products_chunk, посчитанный до блокировки.
+    """
+    if prepared is None:
+        prepared = _prepare_products_chunk(chunk)
+    items = [it for it in prepared if it is not None]
+    if not items:
+        return 0
+
+    ids = list(dict.fromkeys(it["id"] for it in items))
+    row = conn.execute(
+        "SELECT json_group_array(json_array(id, current_price, min_price, max_price, old_price_on_site, "
+        "?1 IS NOT NULL AND observed_seq IS NOT NULL AND observed_seq > ?1)) "
+        "FROM products WHERE id IN (SELECT value FROM json_each(?2))",
+        (observed_seq, json.dumps(ids, ensure_ascii=False)),
+    ).fetchone()
+    state: Dict[str, Dict[str, Any]] = {}
+    newer: set = set()
+    for pid, price, min_price, max_price, old_on_site, is_newer in json.loads(row[0] or "[]"):
+        state[pid] = {"price": price, "old": old_on_site, "min": min_price, "max": max_price}
+        if is_newer:
+            newer.add(pid)  # F01: сохранено более свежее наблюдение — старые данные его не откатывают
+
+    observations: List[List[Any]] = []
+    rows: Dict[str, Dict[str, Any]] = {}
+    v2_items: List[Dict[str, Any]] = []
+    updated_count = 0
+    for it in items:
+        pid = it["id"]
+        if pid in newer:
+            continue
+        existing = state.get(pid)
+        price, old_on_site = it["price"], it["old_on_site"]
+        # Наблюдение пишется для нового предложения и при изменении цены или зачёркнутой цены
+        if existing is None or existing["price"] != price or (existing["old"] or 0) != old_on_site:
+            observations.append([pid, price, old_on_site])
+        fields = {k: it[k] for k in ("shop", "city", "title", "category", "url", "image_url")}
+        if existing is None:
+            out = {"insert": True, **fields, "description": it["description"], "price": price,
+                   "old": old_on_site, "first_seen": price, "min": price, "max": price,
+                   "canonical_key": it["canonical_key"]}
+            rows[pid] = out
+        else:
+            # Повтор товара в порции складывается в одну строку с тем же итогом, что две записи подряд:
+            # описание и ключ — последние непустые, прежние сохраняются, если новых нет
+            out = rows.setdefault(pid, {"insert": False, "description": "", "canonical_key": None})
+            out.update(fields, price=price, old=old_on_site,
+                       min=min(existing["min"], price), max=max(existing["max"], price))
+            if it["description"] != "":
+                out["description"] = it["description"]
+            if it["canonical_key"] is not None:
+                out["canonical_key"] = it["canonical_key"]
+        state[pid] = {"price": price, "old": old_on_site, "min": out["min"], "max": out["max"]}
+        if it["dual"]:
+            _DUAL_WRITE_STATS["total"] += 1
+            if it["v2_error"] is not None:
+                _record_dual_write_error(pid, it["v2_error"])
+            elif it["v2"] is not None:
+                v2_items.append(it["v2"])
         updated_count += 1
+
+    if observations:
+        conn.execute(
+            "INSERT INTO price_observations (product_id, price, old_price_on_site, observed_at) "
+            "SELECT json_extract(value, '$[0]'), json_extract(value, '$[1]'), json_extract(value, '$[2]'), ?1 "
+            "FROM json_each(?2)",
+            (now, json.dumps(observations, ensure_ascii=False)),
+        )
+    inserts = [{"id": pid, **r} for pid, r in rows.items() if r["insert"]]
+    if inserts:
+        conn.execute("""
+            INSERT INTO products (id, shop, city, title, category, url, image_url, description, current_price, old_price_on_site, first_seen_price, min_price, max_price, canonical_key, created_at, updated_at, observed_seq)
+            SELECT json_extract(value, '$.id'), json_extract(value, '$.shop'), json_extract(value, '$.city'),
+                   json_extract(value, '$.title'), json_extract(value, '$.category'), json_extract(value, '$.url'),
+                   json_extract(value, '$.image_url'), json_extract(value, '$.description'),
+                   json_extract(value, '$.price'), json_extract(value, '$.old'), json_extract(value, '$.first_seen'),
+                   json_extract(value, '$.min'), json_extract(value, '$.max'), json_extract(value, '$.canonical_key'),
+                   ?1, ?1, ?2
+            FROM json_each(?3)
+        """, (now, observed_seq, json.dumps(inserts, ensure_ascii=False)))
+    updates = [{"id": pid, **r} for pid, r in rows.items() if not r["insert"]]
+    if updates:
+        conn.execute("""
+            UPDATE products
+            SET is_active = 1, shop = j.shop, city = j.city, title = j.title, category = j.category,
+                url = j.url, image_url = j.image_url,
+                description = CASE WHEN j.description != '' THEN j.description ELSE products.description END,
+                current_price = j.price, old_price_on_site = j.old, min_price = j.min, max_price = j.max,
+                canonical_key = COALESCE(j.canonical_key, products.canonical_key), updated_at = ?1,
+                observed_seq = COALESCE(?2, products.observed_seq)
+            FROM (SELECT json_extract(value, '$.id') AS id, json_extract(value, '$.shop') AS shop,
+                         json_extract(value, '$.city') AS city, json_extract(value, '$.title') AS title,
+                         json_extract(value, '$.category') AS category, json_extract(value, '$.url') AS url,
+                         json_extract(value, '$.image_url') AS image_url,
+                         json_extract(value, '$.description') AS description,
+                         json_extract(value, '$.price') AS price, json_extract(value, '$.old') AS old,
+                         json_extract(value, '$.min') AS min, json_extract(value, '$.max') AS max,
+                         json_extract(value, '$.canonical_key') AS canonical_key
+                  FROM json_each(?3)) AS j
+            WHERE products.id = j.id
+        """, (now, observed_seq, json.dumps(updates, ensure_ascii=False)))
+
+    if v2_items:
+        _write_products_chunk_v2(conn, v2_items, now)
     return updated_count
+
+
+def _write_products_chunk_v2(conn, v2_items: List[Dict[str, Any]], now: str) -> None:
+    """Двойная запись порции в v2. Сбой наборной записи не теряет остальные товары: она
+    откатывается к точке сохранения и повторяется по одному товару, как прежде, — сбой
+    одного товара учитывается как сбой его двойной записи, остальные записываются."""
+    from domain.adapter import write_legacy_offers_v2
+
+    if not conn.in_transaction:
+        conn.execute("BEGIN")  # RELEASE внешней точки сохранения зафиксировал бы транзакцию
+    conn.execute("SAVEPOINT dual_write_v2")
+    try:
+        write_legacy_offers_v2(conn, v2_items, now, seen_sellers=set())
+        conn.execute("RELEASE dual_write_v2")
+        return
+    except Exception:
+        conn.execute("ROLLBACK TO dual_write_v2")
+        conn.execute("RELEASE dual_write_v2")
+    seen_sellers: set = set()
+    for item in v2_items:
+        try:
+            write_legacy_offers_v2(conn, [item], now, seen_sellers=seen_sellers)
+        except Exception as e:
+            _record_dual_write_error(item["external_sku"], e)
 
 
 def save_or_update_products_batch(products: List[Dict[str, Any]]) -> int:
@@ -2226,10 +2349,11 @@ def save_or_update_products_batch(products: List[Dict[str, Any]]) -> int:
 
     for i in range(0, len(products), chunk_size):
         chunk = products[i:i + chunk_size]
+        prepared = _prepare_products_chunk(chunk)
         for attempt in range(3):
             try:
                 with get_connection() as conn:
-                    updated_count += _save_products_chunk(conn, chunk, now, observed_seq)
+                    updated_count += _save_products_chunk(conn, chunk, now, observed_seq, prepared=prepared)
                     conn.commit()
                 break
             except sqlite3.OperationalError as e:
@@ -4600,6 +4724,13 @@ def spool_apply_chunk(task_id: str, token: str, chunk_no: int, chunk: List[Dict[
 
     False — захват потерян, ничего не записано. Уже записанная порция повторно не пишется.
     """
+    # Подготовка — до захвата блокировки: под ней чистый Python ждёт GIL наравне с обходом (6.5.1)
+    prepared: Optional[List[Optional[Dict[str, Any]]]] = None
+    prepare_error: Optional[BaseException] = None
+    try:
+        prepared = _prepare_products_chunk(chunk)
+    except Exception as e:
+        prepare_error = e  # как прежде: всплывает только при живом захвате и непройденной порции
     now = time.time()
     now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
     with get_connection() as conn:
@@ -4612,10 +4743,12 @@ def spool_apply_chunk(task_id: str, token: str, chunk_no: int, chunk: List[Dict[
             if claim["stage"] != "core" or claim["core_done"] > chunk_no:
                 conn.rollback()
                 return True
+            if prepare_error is not None:
+                raise prepare_error
             history = _price_history_conn(conn, [str(p["id"]) for p in chunk])
             # Метка наблюдения — момент приёма задачи: повтор давнего отказа не откатит товар,
             # уже записанный более поздним обходом (F01)
-            _save_products_chunk(conn, chunk, now_iso, claim["created_at"])
+            _save_products_chunk(conn, chunk, now_iso, claim["created_at"], prepared=prepared)
             conn.execute("INSERT OR REPLACE INTO product_queue_history (task_id, chunk_no, history) VALUES (?, ?, ?)",
                          (task_id, chunk_no, json.dumps(history, ensure_ascii=False)))
             conn.execute("UPDATE product_queue_spool SET core_done = ?, claim_expires_at = ?, updated_at = ? "
