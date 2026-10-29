@@ -324,6 +324,9 @@ SYSTEM_DEFAULTS = {
     # Пустой адрес — проверка выключена. Предел — поисков в сутки (кэш по запросу их не тратит)
     "search_api_base": "",
     "search_daily_limit": 300,
+    # Пауза между поисками, с: поисковики за SearXNG блокируют частые запросы (решение владельца 29.10.2026 —
+    # «только SearXNG с таймаутом», docs/AI_LOCAL_POLICY.md)
+    "search_interval_seconds": 90,
     # Шаг включения адаптивного планировщика (P11). По умолчанию выключено: обходы идут прежним порядком,
     # расширение — только вручную владельцем, откат — автоматический по согласованным порогам.
     "adaptive_scheduler_stage": "off",
@@ -568,6 +571,7 @@ def get_ai_config():
         "ai_key_standard": str(sys_settings.get("ai_key_standard") or "v1"),
         "search_api_base": str(sys_settings.get("search_api_base", "") or "").strip(),
         "search_daily_limit": int(sys_settings.get("search_daily_limit", 300) or 0),
+        "search_interval_seconds": int(sys_settings.get("search_interval_seconds", 90) or 90),
         "ai_search_enabled": ai_enabled,
         "has_ai": available,
         "configured": available,
@@ -650,6 +654,7 @@ SETTING_RANGES = {
     "arbitrage_min_drop_pct": (1, 99, "Арбитраж: разница, %"),
     "arbitrage_min_diff_kzt": (0, _KZT_MAX, "Арбитраж: выгода"),
     "search_daily_limit": (0, 5000, "Поисков в сутки"),
+    "search_interval_seconds": (5, 3600, "Пауза между поисками, с"),
     "candidate_min_item_price_kzt": (0, _KZT_MAX, "Порог кандидатов: мин. цена"),
     "candidate_drop_pct": (1, 99, "Порог кандидатов: скидка, %"),
     "candidate_min_savings_kzt": (0, _KZT_MAX, "Порог кандидатов: выгода"),

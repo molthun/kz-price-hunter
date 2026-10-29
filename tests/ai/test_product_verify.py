@@ -99,7 +99,7 @@ class CachedVerifyTest(unittest.TestCase):
     def test_verdict_and_search_cached_and_daily_limit(self):
         calls = []
 
-        async def fake_search(base, query, limit=pv.RESULTS_PER_QUERY):
+        async def fake_search(base, query, limit=pv.RESULTS_PER_QUERY, min_interval=None):
             calls.append(query)
             return RESULTS
 
@@ -154,9 +154,34 @@ class CachedVerifyTest(unittest.TestCase):
     def test_search_base_validation(self):
         with self.assertRaises(ValueError):
             config.save_settings({"search_api_base": "http://user:pw@host:8888"})
-        config.save_settings({"search_api_base": "http://192.168.28.25:8888", "search_daily_limit": 100})
+        self.assertEqual(config.get_ai_config()["search_interval_seconds"], 90)
+        with self.assertRaises(ValueError):
+            config.save_settings({"search_interval_seconds": 1})
+        config.save_settings({"search_api_base": "http://192.168.28.25:8888", "search_daily_limit": 100,
+                              "search_interval_seconds": 120})
         cfg = config.get_ai_config()
-        self.assertEqual((cfg["search_api_base"], cfg["search_daily_limit"]), ("http://192.168.28.25:8888", 100))
+        self.assertEqual((cfg["search_api_base"], cfg["search_daily_limit"], cfg["search_interval_seconds"]),
+                         ("http://192.168.28.25:8888", 100, 120))
+
+    def test_pause_between_searches(self):
+        """Второй поиск ждёт заданную паузу (решение владельца — «только SearXNG с таймаутом»)."""
+        slept = []
+
+        async def fake_request(*args):
+            return []
+
+        async def fake_sleep(seconds):
+            slept.append(seconds)
+
+        async def scenario():
+            await pv.searxng_search("http://s", "a", min_interval=90)
+            await pv.searxng_search("http://s", "b", min_interval=90)
+
+        with patch.object(pv, "_searxng_request", fake_request), patch.object(pv.asyncio, "sleep", fake_sleep), \
+                patch.object(pv, "_last_search", 0.0):
+            run(scenario())
+        self.assertEqual(len(slept), 1)
+        self.assertGreater(slept[0], 89)
 
 
 if __name__ == "__main__":

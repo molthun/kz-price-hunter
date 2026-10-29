@@ -55,6 +55,9 @@ C7 код (слово владельца «Yes, build it»), push не дела�
 Выбор владельца — «Slow SearXNG». Ночной замер запущен 29.10 22:58 (+05): nohup на машине стенда, sleep 3600,
   затем eval_pair_verify.py --interval 90 → ~/kzph-stand/searx-night/run.log и /tmp/verify_night.json
   (kzph-stand; файл /tmp/eval_qwen3.json исчезнет при пересоздании контейнера). Утром: разобрать итог.
+Решение владельца: «только SearXNG с таймаутом», «как будет альтернатива — решим, пока что есть».
+  Пауза — настройка search_interval_seconds (90 с по умолчанию, 5–3600), передаётся в verify_pair_cached
+  (min_interval); регрессия test_pause_between_searches. 2030 тестов OK.
 CHANGELOG — при выпуске (поведение прода не меняется: ai_key_standard=v1).
 Прод на 6.6.0 (нормализация — Gemini, остальное — локальная).
 ```

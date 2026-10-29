@@ -23,9 +23,10 @@ SEARCH_TIMEOUT = 15.0
 RESULTS_PER_QUERY = 6
 # Поисковики за SearXNG приостанавливают выдачу при частых запросах: на замере C7 после ~80 запросов
 # за 4 минуты DuckDuckGo, Brave и Google CSE отвечали «too many requests» и 3 минуты не искали, а DuckDuckGo
-# стал требовать капчу. Поэтому запросы идут не чаще одного в SEARCH_MIN_INTERVAL секунд из процесса
-# (до 4300 в сутки — больше предела search_daily_limit).
-SEARCH_MIN_INTERVAL = 20.0
+# стал требовать капчу. Поэтому запросы идут не чаще одного в SEARCH_MIN_INTERVAL секунд из процесса.
+# Решение владельца 29.10.2026: «только SearXNG с таймаутом» — пауза задаётся настройкой search_interval_seconds
+# (по умолчанию 90 с, до 960 поисков в сутки), это значение — для вызовов без настройки.
+SEARCH_MIN_INTERVAL = 90.0
 _last_search = 0.0
 _search_lock = None
 MIN_CONFIDENCE = 0.8
@@ -74,7 +75,8 @@ def queries_for(fields_a: Dict[str, Any], fields_b: Dict[str, Any]) -> List[str]
     return out[:2]
 
 
-async def searxng_search(base: str, query: str, limit: int = RESULTS_PER_QUERY) -> Optional[List[Dict[str, str]]]:
+async def searxng_search(base: str, query: str, limit: int = RESULTS_PER_QUERY,
+                         min_interval: Optional[float] = None) -> Optional[List[Dict[str, str]]]:
     """Выдача SearXNG в JSON: [{title, url, content}] или None при недоступности поиска.
 
     Пустая выдача, когда поисковики приостановили ответы (unresponsive_engines), — тоже None: это «поиск
@@ -87,7 +89,8 @@ async def searxng_search(base: str, query: str, limit: int = RESULTS_PER_QUERY) 
         _search_lock = asyncio.Lock()
     url = f"{base.rstrip('/')}/search"
     async with _search_lock:
-        wait = _last_search + SEARCH_MIN_INTERVAL - time.monotonic()
+        pause = SEARCH_MIN_INTERVAL if min_interval is None else min_interval
+        wait = _last_search + pause - time.monotonic()
         if wait > 0:
             await asyncio.sleep(wait)
         _last_search = time.monotonic()
@@ -173,6 +176,7 @@ async def verify_pair(title_a: str, fields_a: Dict[str, Any], title_b: str, fiel
 
 async def verify_pair_cached(title_a: str, fields_a: Dict[str, Any], title_b: str, fields_b: Dict[str, Any],
                              search_base: str, ask: Ask, daily_limit: int, model: Optional[str] = None,
+                             min_interval: Optional[float] = None,
                              min_confidence: float = MIN_CONFIDENCE) -> Dict[str, Any]:
     """verify_pair с кэшем в базе: вердикт по паре и выдача по запросу берутся без повторного поиска,
     «неясно» не сохраняется (повторится при следующей проверке), суточный предел поисков соблюдается."""
@@ -188,7 +192,7 @@ async def verify_pair_cached(title_a: str, fields_a: Dict[str, Any], title_b: st
             return hit
         if database.web_searches_today() >= daily_limit:
             return None
-        found = await searxng_search(search_base, query)
+        found = await searxng_search(search_base, query, min_interval=min_interval)
         if found:                                   # пустую выдачу не кэшируем: повторится в следующий раз
             database.save_web_search(query, found)
         return found
