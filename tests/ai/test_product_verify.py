@@ -177,8 +177,15 @@ class CachedVerifyTest(unittest.TestCase):
             await pv.searxng_search("http://s", "a", min_interval=90)
             await pv.searxng_search("http://s", "b", min_interval=90)
 
+        # Машина только загрузилась (monotonic < паузы, как на свежем раннере CI): первый поиск не ждёт
         with patch.object(pv, "_searxng_request", fake_request), patch.object(pv.asyncio, "sleep", fake_sleep), \
-                patch.object(pv, "_last_search", 0.0):
+                patch.object(pv, "_last_search", None), patch("time.monotonic", return_value=30.0):
+            run(scenario())
+        self.assertEqual(slept, [90.0])
+
+        slept.clear()
+        with patch.object(pv, "_searxng_request", fake_request), patch.object(pv.asyncio, "sleep", fake_sleep), \
+                patch.object(pv, "_last_search", None):
             run(scenario())
         self.assertEqual(len(slept), 1)
         self.assertGreater(slept[0], 89)

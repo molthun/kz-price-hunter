@@ -27,7 +27,8 @@ RESULTS_PER_QUERY = 6
 # Решение владельца 29.10.2026: «только SearXNG с таймаутом» — пауза задаётся настройкой search_interval_seconds
 # (по умолчанию 90 с, до 960 поисков в сутки), это значение — для вызовов без настройки.
 SEARCH_MIN_INTERVAL = 90.0
-_last_search = 0.0
+# None — поиска ещё не было: monotonic отсчитывается от загрузки машины, и 0.0 сразу после неё дал бы лишнюю паузу
+_last_search = None
 _search_lock = None
 MIN_CONFIDENCE = 0.8
 SAME, DIFFERENT, UNKNOWN = "same", "different", "unknown"
@@ -90,7 +91,7 @@ async def searxng_search(base: str, query: str, limit: int = RESULTS_PER_QUERY,
     url = f"{base.rstrip('/')}/search"
     async with _search_lock:
         pause = SEARCH_MIN_INTERVAL if min_interval is None else min_interval
-        wait = _last_search + pause - time.monotonic()
+        wait = 0 if _last_search is None else _last_search + pause - time.monotonic()
         if wait > 0:
             await asyncio.sleep(wait)
         _last_search = time.monotonic()
