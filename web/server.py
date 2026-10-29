@@ -2443,6 +2443,46 @@ async def ai_normalize_background_worker(app):
             from telemetry import telemetry, COMPONENT_AI
             telemetry.record_system_error(COMPONENT_AI, "ai_normalize_worker", e)
 
+async def disputed_pairs_background_worker(app):
+    """Фоновая проверка спорных пар товаров через третий источник истины (P17-C7).
+
+    Работает только при настроенном search_api_base (SearXNG).
+    Пауза между запросами задается search_interval_seconds (по умолчанию 90 с),
+    суточный лимит — search_daily_limit (по умолчанию 300).
+    """
+    import product_verify
+    while True:
+        try:
+            cfg = load_settings()
+            search_base = (cfg.get("search_api_base") or "").strip()
+            interval = float(cfg.get("search_interval_seconds") or 90.0)
+            daily_limit = int(cfg.get("search_daily_limit") or 300)
+            model = cfg.get("local_model") or ""
+
+            # Если поиск не настроен или выключен — ждём
+            if not search_base:
+                await asyncio.sleep(30.0)
+                continue
+
+            ask = product_verify.make_local_ask(cfg)
+            res = await product_verify.process_disputed_queue_tick(
+                search_base=search_base,
+                ask=ask,
+                daily_limit=daily_limit,
+                model=model,
+                min_interval=interval,
+            )
+            if res and res.get("decision"):
+                print(f"[Verify] Спорная пара {res.get('pair_hash')[:8]} обработана: {res.get('decision')}")
+            # Пауза до следующей проверки очереди
+            await asyncio.sleep(min(30.0, max(5.0, interval)))
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            print(f"[Verify] Ошибка фоновой проверки спорных пар: {type(e).__name__}")
+            await asyncio.sleep(30.0)
+
+
 def get_categories_overview():
     """Возвращает информацию обо всех мастер-категориях: количество товаров в базе, статус волн, магазины."""
     from database import get_connection
@@ -3993,6 +4033,7 @@ async def background_tasks(app):
         startup_refresh_task,
         asyncio.create_task(auto_scan_background_worker(app)),
         asyncio.create_task(ai_normalize_background_worker(app)),
+        asyncio.create_task(disputed_pairs_background_worker(app)),
         asyncio.create_task(notification_worker()),
         asyncio.create_task(run_telegram_bot_task()),
     ]

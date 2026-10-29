@@ -1326,7 +1326,7 @@ def _normalize_items(ai_res, chunk: List[str], standard: str = "v1", provider: O
         import hashlib
         import product_key
         from database import (save_title_fields_batch, find_titles_by_articles,
-                              save_title_articles_batch)
+                              save_title_articles_batch, enqueue_disputed_pair)
         fields = {item["title"]: {k: item.get(k) for k in product_key.FIELDS_SCHEMA}
                   for item in ai_res["items"] if isinstance(item, dict) and item.get("title") in chunk}
         if not fields:
@@ -1337,7 +1337,7 @@ def _normalize_items(ai_res, chunk: List[str], standard: str = "v1", provider: O
             for art in product_key.article_tokens(f):
                 articles.add(art)
         existing = find_titles_by_articles(articles) if articles else []
-        keys = product_key.resolve_keys_with_articles(fields, existing)
+        keys = product_key.resolve_keys_with_articles(fields, existing, on_disputed=enqueue_disputed_pair)
         article_rows = []
         for t, k in keys.items():
             if not k:

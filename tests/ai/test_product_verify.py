@@ -183,6 +183,57 @@ class CachedVerifyTest(unittest.TestCase):
         self.assertEqual(len(slept), 1)
         self.assertGreater(slept[0], 89)
 
+    def test_disputed_queue_lifecycle(self):
+        # 1. Постановка в очередь
+        self.assertTrue(database.enqueue_disputed_pair(TS_A, TS_B, "test_reason"))
+        self.assertFalse(database.enqueue_disputed_pair(TS_B, TS_A, "duplicate"), "дубликат не ставится")
+        pending = database.get_pending_disputed_pairs(limit=10)
+        self.assertEqual(len(pending), 1)
+        self.assertEqual(pending[0]["pair_hash"], pv.pair_hash(TS_A, TS_B))
+
+        # 2. Сохраняем поля и ключи
+        database.save_title_fields_batch({TS_A: FA, TS_B: FB}, "k2", "local", "qwen")
+        database.save_cached_canonical_keys_batch({TS_A: "k2:transcend:ts128", TS_B: "k2:transcend:mte110s"})
+
+        async def fake_search(base, query, limit=pv.RESULTS_PER_QUERY, min_interval=None):
+            return RESULTS
+
+        async def ask(prompt):
+            return {"same": True, "confidence": 0.95, "evidence": ["https://shop.example/ts128"],
+                    "reason": "один товар"}
+
+        with patch.object(pv, "searxng_search", fake_search):
+            res = run(pv.process_disputed_queue_tick(search_base="http://searx", ask=ask, daily_limit=10))
+
+        self.assertIsNotNone(res)
+        self.assertEqual(res["decision"], pv.SAME)
+        # Очередь освободилась
+        self.assertEqual(database.get_pending_disputed_pairs(), [])
+        # Ключи объединились
+        cached = database.get_cached_canonical_keys_batch([TS_A, TS_B])
+        self.assertEqual(cached[TS_A], cached[TS_B])
+
+    def test_disputed_queue_different_verdict_keeps_keys(self):
+        database.enqueue_disputed_pair(TS_A, TS_B, "test_diff")
+        database.save_title_fields_batch({TS_A: FA, TS_B: FB}, "k2", "local", "qwen")
+        database.save_cached_canonical_keys_batch({TS_A: "k2:transcend:ts128", TS_B: "k2:transcend:mte110s"})
+
+        async def fake_search(base, query, limit=pv.RESULTS_PER_QUERY, min_interval=None):
+            return RESULTS
+
+        async def ask(prompt):
+            return {"same": False, "confidence": 0.95, "evidence": ["https://shop.example/ts128"],
+                    "reason": "разные товары"}
+
+        with patch.object(pv, "searxng_search", fake_search):
+            res = run(pv.process_disputed_queue_tick(search_base="http://searx", ask=ask, daily_limit=10))
+
+        self.assertEqual(res["decision"], pv.DIFFERENT)
+        self.assertEqual(database.get_pending_disputed_pairs(), [])
+        cached = database.get_cached_canonical_keys_batch([TS_A, TS_B])
+        self.assertNotEqual(cached[TS_A], cached[TS_B])
+
+
 
 if __name__ == "__main__":
     unittest.main()

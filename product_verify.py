@@ -205,3 +205,71 @@ async def verify_pair_cached(title_a: str, fields_a: Dict[str, Any], title_b: st
 
 def dumps(verdict: Dict[str, Any]) -> str:
     return json.dumps(verdict, ensure_ascii=False, sort_keys=True)[:4000]
+
+
+def make_local_ask(config: Dict[str, Any]) -> Ask:
+    """Создаёт функцию ask для локальной модели по конфигурации приложения."""
+    import ai_service
+    base = config.get("local_api_base") or ""
+    model = config.get("local_model") or ""
+    key = config.get("local_api_key") or ""
+
+    async def _ask(prompt: str) -> Optional[Dict[str, Any]]:
+        return await ai_service._call_local_api(prompt, base, model, key, 90.0)
+
+    return _ask
+
+
+async def process_disputed_queue_tick(
+    search_base: str,
+    ask: Ask,
+    daily_limit: int = 300,
+    model: Optional[str] = None,
+    min_interval: Optional[float] = None,
+    min_confidence: float = MIN_CONFIDENCE,
+) -> Optional[Dict[str, Any]]:
+    """Обрабатывает одну спорную пару из очереди (P17-C7).
+
+    Возвращает dict с результатом верификации или None, если очередь пуста, поиск выключен или лимит исчерпан.
+    """
+    import database
+    if not search_base:
+        return None
+    if database.web_searches_today() >= daily_limit:
+        return None
+
+    pending = database.get_pending_disputed_pairs(limit=1)
+    if not pending:
+        return None
+    item = pending[0]
+    ph, title_a, title_b = item["pair_hash"], item["title_a"], item["title_b"]
+
+    fields_map = database.get_title_fields_for_titles([title_a, title_b])
+    fields_a = fields_map.get(title_a)
+    fields_b = fields_map.get(title_b)
+    if not fields_a or not fields_b:
+        database.update_disputed_pair_status(ph, "skipped")
+        return {"pair_hash": ph, "status": "skipped", "reason": "no_fields"}
+
+    verdict = await verify_pair_cached(
+        title_a, fields_a, title_b, fields_b,
+        search_base=search_base, ask=ask, daily_limit=daily_limit,
+        model=model, min_interval=min_interval, min_confidence=min_confidence,
+    )
+    decision = verdict.get("decision")
+    if decision == SAME:
+        cached = database.get_cached_canonical_keys_batch([title_a, title_b])
+        key_a, key_b = cached.get(title_a), cached.get(title_b)
+        pool = [k for k in (key_a, key_b) if k]
+        if pool:
+            # Преимущество k2-ключам, затем самым коротким
+            common_key = sorted(set(pool), key=lambda k: (0 if k.startswith("k2:") else 1, len(k), k))[0]
+            database.unify_canonical_keys(title_a, title_b, common_key)
+        database.update_disputed_pair_status(ph, "resolved")
+    elif decision == DIFFERENT:
+        database.update_disputed_pair_status(ph, "resolved")
+    else:
+        database.update_disputed_pair_status(ph, "unresolved")
+
+    return {"pair_hash": ph, "decision": decision, "verdict": verdict}
+

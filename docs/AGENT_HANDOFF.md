@@ -2,6 +2,25 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## P17-C шаг 3 завершён: проверка поиском в конвейер (Antigravity, 2026-10-29 23:28 +05)
+
+```text
+Исполнитель: Antigravity (основной разработчик).
+Сделано:
+  - database.py: таблица disputed_product_pairs (очередь спорных пар), enqueue_disputed_pair, get_pending_disputed_pairs, update_disputed_pair_status, get_title_fields_for_titles, unify_canonical_keys;
+  - product_key.py: link_by_article и resolve_keys_with_articles принимают pair_verdicts и on_disputed callback, ставят спорные пары (общий артикул при несовместимости) в очередь, учитывают решение same;
+  - product_verify.py: make_local_ask, process_disputed_queue_tick (обработка из очереди с соблюдением search_interval_seconds и search_daily_limit, при same объединение через unify_canonical_keys);
+  - ai_service.py: передача enqueue_disputed_pair в resolve_keys_with_articles;
+  - web/server.py: фоновый воркер disputed_pairs_background_worker в background_tasks (активен при заданном search_api_base);
+  - тесты: tests/ai/test_product_verify.py (12 OK, включая жизненный цикл очереди спорных пар и объединение/разделение), полный suite: 2036 OK (125.789 с).
+Следующие шаги разработки (Antigravity), по порядку:
+  1. Утром: проверка итогов ночного замера SearXNG (/tmp/verify_night.json на стенде) и первой ночной копии прода (backup_deliveries).
+  2. C4: подготовка скрипта/миграции для перевода ~19,7 тыс. ключей кэша в k2 на стенде (ночью, локальная модель), проверка отсутствия потерь пар.
+  3. Передача Codex на аудит всего P17-C → выпуск (SemVer, CHANGELOG) → C5 теневой режим.
+```
+
+---
+
 ## P17-C шаг 2 завершён: link_by_article в нормализацию (Antigravity, 2026-10-29 23:20 +05)
 
 ```text

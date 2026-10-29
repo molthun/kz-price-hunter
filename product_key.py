@@ -21,9 +21,10 @@
 """
 from __future__ import annotations
 
+import hashlib
 import re
 import unicodedata
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional
 
 KEY_VERSION = "k2"
 
@@ -303,11 +304,19 @@ def _compatible(a: str, b: str, article: str) -> bool:
     return ia == ib or ia in ib or ib in ia or token in (ia, ib)
 
 
-def link_by_article(entries: Dict[str, Any], fixed: Iterable[str] = ()) -> Dict[str, str]:
+def link_by_article(
+    entries: Dict[str, Any],
+    fixed: Iterable[str] = (),
+    pair_verdicts: Optional[Dict[str, str]] = None,
+    on_disputed: Optional[Callable[[str, str, str], Any]] = None,
+) -> Dict[str, str]:
     """{название: (поля, ключ)} → {название: ключ} с общим ключом у названий одного артикула.
 
     Ключ группы — самый частый в ней (затем короткий, затем по алфавиту); если в группе есть названия из fixed
-    (их ключи уже сохранены и используются), берётся самый частый из их ключей: прежние ключи не меняются."""
+    (их ключи уже сохранены и используются), берётся самый частый из их ключей: прежние ключи не меняются.
+    pair_verdicts — известные вердикты {pair_hash: 'same'|'different'|'unknown'} (P17-C7).
+    on_disputed — callback(title_a, title_b, reason) для спорных пар (общий артикул при несовместимости).
+    """
     fixed = set(fixed)
     titles = [t for t, (_, key) in entries.items() if key]
     parent = {t: t for t in titles}
@@ -326,8 +335,14 @@ def link_by_article(entries: Dict[str, Any], fixed: Iterable[str] = ()) -> Dict[
         for i, first in enumerate(members):
             for other in members[i + 1:]:
                 a, b = root(first), root(other)
-                if a != b and _compatible(entries[first][1], entries[other][1], article):
-                    parent[b] = a
+                if a != b:
+                    ph = hashlib.sha256(f"{min(first, other)}\n{max(first, other)}".encode("utf-8")).hexdigest()
+                    is_same = (pair_verdicts and pair_verdicts.get(ph) == "same")
+                    if is_same or _compatible(entries[first][1], entries[other][1], article):
+                        parent[b] = a
+                    else:
+                        if on_disputed and (not pair_verdicts or pair_verdicts.get(ph) != "different"):
+                            on_disputed(first, other, f"incompatible_article:{article}")
     groups: Dict[str, List[str]] = {}
     for t in titles:
         groups.setdefault(root(t), []).append(t)
@@ -343,11 +358,15 @@ def link_by_article(entries: Dict[str, Any], fixed: Iterable[str] = ()) -> Dict[
 def resolve_keys_with_articles(
     new_fields: Dict[str, Dict[str, Any]],
     existing_items: Iterable[Dict[str, Any]] = (),
+    pair_verdicts: Optional[Dict[str, str]] = None,
+    on_disputed: Optional[Callable[[str, str, str], Any]] = None,
 ) -> Dict[str, Optional[str]]:
     """Вычисляет ключи по стандарту k2 для new_fields с объединением по артикулам (P17-C3).
 
     existing_items — список уже сохранённых товаров [{'title': ..., 'fields': ..., 'canonical_key': ...}].
     Их ключи фиксированы (fixed) и не меняются.
+    pair_verdicts — кэш вердиктов третьего источника истины (P17-C7).
+    on_disputed — функция постановки спорных пар в очередь.
     Возвращает {title: key} для всех названий из new_fields.
     """
     entries: Dict[str, Any] = {}
@@ -369,7 +388,8 @@ def resolve_keys_with_articles(
             entries[title] = (fields, k)
 
     if entries:
-        linked = link_by_article(entries, fixed=fixed_titles)
+        linked = link_by_article(entries, fixed=fixed_titles, pair_verdicts=pair_verdicts,
+                                 on_disputed=on_disputed)
         return {t: linked.get(t) or base_keys.get(t) for t in new_fields}
     return base_keys
 

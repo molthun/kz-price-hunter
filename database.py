@@ -963,6 +963,20 @@ def _create_schema(cursor) -> None:
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    # Очередь спорных пар для проверки третьим источником истины (P17-C7):
+    # k2 ≠ Gemini в теневом режиме, общий артикул при несовместимых моделях.
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS disputed_product_pairs (
+            pair_hash TEXT PRIMARY KEY,
+            title_a TEXT NOT NULL,
+            title_b TEXT NOT NULL,
+            reason TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_disputed_pairs_status ON disputed_product_pairs(status, created_at)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_web_search_cache_created ON web_search_cache(created_at)")
     # Названия, которые уже отправлялись в AI: неудачи не повторяются при каждом обходе
     cursor.execute("""
@@ -2155,6 +2169,99 @@ def save_pair_verdict(pair_hash: str, title_a: str, title_b: str, verdict: Dict[
                             verdict_json = excluded.verdict_json, model = excluded.model, created_at = CURRENT_TIMESTAMP""",
                      (pair_hash, title_a[:500], title_b[:500], str(verdict.get("decision")),
                       json.dumps(verdict, ensure_ascii=False, sort_keys=True)[:4000], model))
+        conn.commit()
+
+
+def enqueue_disputed_pair(title_a: str, title_b: str, reason: str) -> bool:
+    """Ставит пару в очередь спорных для проверки поиском (P17-C7).
+
+    Возвращает True, если пара поставлена в очередь (новой), False если уже была или вердикт известен.
+    """
+    from product_verify import pair_hash, UNKNOWN
+    first, second = sorted((title_a.strip(), title_b.strip()))
+    if not first or not second or first == second:
+        return False
+    ph = pair_hash(first, second)
+    existing_verdict = get_pair_verdict(ph)
+    if existing_verdict and existing_verdict.get("decision") != UNKNOWN:
+        return False
+    with get_connection() as conn:
+        cur = conn.execute("""
+            INSERT OR IGNORE INTO disputed_product_pairs (pair_hash, title_a, title_b, reason, status)
+            VALUES (?, ?, ?, ?, 'pending')
+        """, (ph, first[:500], second[:500], reason[:100]))
+        conn.commit()
+        return cur.rowcount > 0
+
+
+def get_pending_disputed_pairs(limit: int = 10) -> List[Dict[str, Any]]:
+    """Список спорных пар, ожидающих проверки."""
+    with get_connection() as conn:
+        rows = conn.execute("""
+            SELECT pair_hash, title_a, title_b, reason, created_at
+            FROM disputed_product_pairs
+            WHERE status = 'pending'
+            ORDER BY created_at ASC
+            LIMIT ?
+        """, (int(limit),)).fetchall()
+        return [{"pair_hash": r[0], "title_a": r[1], "title_b": r[2], "reason": r[3], "created_at": r[4]}
+                for r in rows]
+
+
+def update_disputed_pair_status(pair_hash: str, status: str) -> None:
+    """Обновляет статус спорной пары ('resolved', 'failed', 'skipped')."""
+    with get_connection() as conn:
+        conn.execute("""
+            UPDATE disputed_product_pairs
+            SET status = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE pair_hash = ?
+        """, (status, pair_hash))
+        conn.commit()
+
+
+def get_title_fields_for_titles(titles: Iterable[str]) -> Dict[str, Dict[str, Any]]:
+    """Извлекает сохранённые fields_json из title_fields для списка названий."""
+    unique = list({t.strip() for t in titles if t and t.strip()})
+    if not unique:
+        return {}
+    hashes = {hashlib.sha256(t.encode("utf-8")).hexdigest(): t for t in unique}
+    results = {}
+    with get_connection() as conn:
+        cursor = conn.execute("""
+            SELECT title_hash, fields_json
+            FROM title_fields
+            WHERE title_hash IN (SELECT value FROM json_each(?))
+        """, (json.dumps(list(hashes), ensure_ascii=False),))
+        for row in cursor.fetchall():
+            orig_title = hashes.get(row[0])
+            if orig_title:
+                try:
+                    results[orig_title] = json.loads(row[1])
+                except Exception:
+                    pass
+    return results
+
+
+def unify_canonical_keys(title_a: str, title_b: str, common_key: str) -> None:
+    """Объединяет два названия под единый ключ при вердикте same из третьего источника истины."""
+    ta, tb = title_a.strip(), title_b.strip()
+    ha = hashlib.sha256(ta.encode("utf-8")).hexdigest()
+    hb = hashlib.sha256(tb.encode("utf-8")).hexdigest()
+    with get_connection() as conn:
+        conn.execute("""
+            INSERT INTO title_canonical_cache (title_hash, title, canonical_key)
+            VALUES (?, ?, ?)
+            ON CONFLICT(title_hash) DO UPDATE SET canonical_key = excluded.canonical_key
+        """, (ha, ta, common_key))
+        conn.execute("""
+            INSERT INTO title_canonical_cache (title_hash, title, canonical_key)
+            VALUES (?, ?, ?)
+            ON CONFLICT(title_hash) DO UPDATE SET canonical_key = excluded.canonical_key
+        """, (hb, tb, common_key))
+        conn.execute("UPDATE title_articles SET canonical_key = ? WHERE title_hash IN (?, ?)",
+                     (common_key, ha, hb))
+        conn.execute("UPDATE products SET canonical_key = ? WHERE title IN (?, ?)",
+                     (common_key, ta, tb))
         conn.commit()
 
 
