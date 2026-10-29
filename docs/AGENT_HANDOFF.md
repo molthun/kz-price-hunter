@@ -35,7 +35,20 @@
   SearXNG установлен по слову владельца («Yes, install»): сервис searxng в ~/ai-stack/compose.yaml (копия до
   правки — compose.yaml.bak-*), 192.168.28.25:8888, JSON, limiter off, 512m/1 CPU; настройки
   /srv/ssd/ai-stack/searxng/settings.yml (600). Копии без секрета — deploy/prod-host/ai-stack/. Проверено из
-  kz-price-hunter и kzph-stand. Следующий шаг C7: клиент поиска и сравнение моделью спорных пар, хранение вердиктов.
+  kz-price-hunter и kzph-stand.
+C7 код (слово владельца «Yes, build it»), push не делался:
+  - product_verify.py: queries_for → searxng_search (пауза 20 с; пустая выдача при приостановленных
+    поисковиках = недоступен) → VERIFY_PROMPT с untrusted_block → parse_verdict (порог 0,8; ссылки только
+    из выдачи) → verify_pair / verify_pair_cached;
+  - database: web_search_cache, product_pair_verdicts, web_searches_today;
+  - config: search_api_base (пусто = выключено), search_daily_limit 300;
+  - scripts/eval_pair_verify.py; tests/ai/test_product_verify.py (9); всего 2029 OK.
+  В нормализацию не подключено.
+Замер: прогон 1 — 23/23 верно (10 «разные» — ошибки Gemini), 0 ложных «один» из 25. Прогон 2 сорвали
+  поисковики: Brave и Google CSE — 429, DuckDuckGo — капча, Bing — мусор (выключен с Yandex и Qwant в
+  /etc/searxng/settings.yml; копия — deploy/prod-host/ai-stack/searxng.settings.example.yml).
+Владелец: только бесплатно — бесплатные прокси или бесплатная замена поисковику. Ограничитель и Redis не нужны:
+  они защищают от входящих запросов, а нас блокируют внешние поисковики (docs/AI_LOCAL_POLICY.md).
 CHANGELOG — при выпуске (поведение прода не меняется: ai_key_standard=v1).
 Прод на 6.6.0 (нормализация — Gemini, остальное — локальная).
 ```

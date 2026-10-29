@@ -929,6 +929,28 @@ def _create_schema(cursor) -> None:
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    # Третий источник истины (P17-C7): выдача поиска по запросу и вердикт «один товар / разные» по паре названий.
+    # Кэш поиска нужен и для суточного предела запросов (search_daily_limit)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS web_search_cache (
+            query_hash TEXT PRIMARY KEY,
+            query TEXT NOT NULL,
+            results_json TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS product_pair_verdicts (
+            pair_hash TEXT PRIMARY KEY,
+            title_a TEXT NOT NULL,
+            title_b TEXT NOT NULL,
+            decision TEXT NOT NULL,
+            verdict_json TEXT NOT NULL,
+            model TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_web_search_cache_created ON web_search_cache(created_at)")
     # Названия, которые уже отправлялись в AI: неудачи не повторяются при каждом обходе
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS title_ai_attempts (
@@ -1990,6 +2012,53 @@ def save_title_fields_batch(fields_by_title: Dict[str, Dict[str, Any]], key_vers
                         ON CONFLICT(title_hash) DO UPDATE SET fields_json = excluded.fields_json,
                             key_version = excluded.key_version, provider = excluded.provider, model = excluded.model,
                             created_at = CURRENT_TIMESTAMP""", (json.dumps(rows, ensure_ascii=False),))
+        conn.commit()
+
+
+def _query_hash(query: str) -> str:
+    return hashlib.sha256(" ".join(query.lower().split()).encode("utf-8")).hexdigest()
+
+
+def get_web_search(query: str, max_age_days: int = 30) -> Optional[List[Dict[str, Any]]]:
+    """Выдача поиска из кэша (P17-C7) или None, если запроса не было или запись старше max_age_days."""
+    with get_connection() as conn:
+        row = conn.execute("""SELECT results_json FROM web_search_cache WHERE query_hash = ?
+                              AND created_at >= datetime('now', ?)""",
+                           (_query_hash(query), f"-{int(max_age_days)} days")).fetchone()
+    return json.loads(row[0]) if row else None
+
+
+def save_web_search(query: str, results: List[Dict[str, Any]]) -> None:
+    with get_connection() as conn:
+        conn.execute("""INSERT INTO web_search_cache (query_hash, query, results_json) VALUES (?, ?, ?)
+                        ON CONFLICT(query_hash) DO UPDATE SET results_json = excluded.results_json,
+                            created_at = CURRENT_TIMESTAMP""",
+                     (_query_hash(query), query[:200], json.dumps(results, ensure_ascii=False)[:20000]))
+        conn.commit()
+
+
+def web_searches_today() -> int:
+    """Поисков за текущие сутки (UTC) — для предела search_daily_limit."""
+    with get_connection() as conn:
+        return conn.execute("SELECT COUNT(*) FROM web_search_cache WHERE created_at >= date('now')").fetchone()[0]
+
+
+def get_pair_verdict(pair_hash: str) -> Optional[Dict[str, Any]]:
+    with get_connection() as conn:
+        row = conn.execute("SELECT verdict_json FROM product_pair_verdicts WHERE pair_hash = ?", (pair_hash,)).fetchone()
+    return json.loads(row[0]) if row else None
+
+
+def save_pair_verdict(pair_hash: str, title_a: str, title_b: str, verdict: Dict[str, Any],
+                      model: Optional[str] = None) -> None:
+    """Вердикт по паре (P17-C7): последний заменяет прежний."""
+    with get_connection() as conn:
+        conn.execute("""INSERT INTO product_pair_verdicts (pair_hash, title_a, title_b, decision, verdict_json, model)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(pair_hash) DO UPDATE SET decision = excluded.decision,
+                            verdict_json = excluded.verdict_json, model = excluded.model, created_at = CURRENT_TIMESTAMP""",
+                     (pair_hash, title_a[:500], title_b[:500], str(verdict.get("decision")),
+                      json.dumps(verdict, ensure_ascii=False, sort_keys=True)[:4000], model))
         conn.commit()
 
 

@@ -320,6 +320,10 @@ SYSTEM_DEFAULTS = {
     # извлекает поля, ключ собирает product_key.py. Переключается только вместе с переводом базы ключей (C4):
     # старые и новые ключи между собой не совпадают, поэтому общим сохранением настроек не меняется.
     "ai_key_standard": "v1",
+    # Третий источник истины для спорных пар товаров (P17-C7): свой SearXNG, например http://192.168.28.25:8888.
+    # Пустой адрес — проверка выключена. Предел — поисков в сутки (кэш по запросу их не тратит)
+    "search_api_base": "",
+    "search_daily_limit": 300,
     # Шаг включения адаптивного планировщика (P11). По умолчанию выключено: обходы идут прежним порядком,
     # расширение — только вручную владельцем, откат — автоматический по согласованным порогам.
     "adaptive_scheduler_stage": "off",
@@ -562,6 +566,8 @@ def get_ai_config():
         "has_local": has_local,
         "local_normalize_enabled": bool(sys_settings.get("local_normalize_enabled", False)),
         "ai_key_standard": str(sys_settings.get("ai_key_standard") or "v1"),
+        "search_api_base": str(sys_settings.get("search_api_base", "") or "").strip(),
+        "search_daily_limit": int(sys_settings.get("search_daily_limit", 300) or 0),
         "ai_search_enabled": ai_enabled,
         "has_ai": available,
         "configured": available,
@@ -643,6 +649,7 @@ SETTING_RANGES = {
     "min_savings_kzt": (0, _KZT_MAX, "Мин. выгода"),
     "arbitrage_min_drop_pct": (1, 99, "Арбитраж: разница, %"),
     "arbitrage_min_diff_kzt": (0, _KZT_MAX, "Арбитраж: выгода"),
+    "search_daily_limit": (0, 5000, "Поисков в сутки"),
     "candidate_min_item_price_kzt": (0, _KZT_MAX, "Порог кандидатов: мин. цена"),
     "candidate_drop_pct": (1, 99, "Порог кандидатов: скидка, %"),
     "candidate_min_savings_kzt": (0, _KZT_MAX, "Порог кандидатов: выгода"),
@@ -735,6 +742,12 @@ def _validate_settings(new_settings):
             raise ValueError("Адрес локальной модели: http(s)://хост:порт/v1, без логина и пароля в адресе")
         if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,149}", merged.get("local_model") or ""):
             raise ValueError("Укажите имя локальной модели, например qwen3-vl:8b")
+    search_base = merged.get("search_api_base") or ""
+    if search_base:
+        from urllib.parse import urlparse
+        parsed = urlparse(search_base)
+        if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username or parsed.password:
+            raise ValueError("Адрес поиска: http(s)://хост:порт, без логина и пароля в адресе")
     if merged.get("ai_provider") == "local" and not base:
         raise ValueError("Провайдер «локальная модель» выбран, но адрес не задан")
     interval = clean.get("scan_interval_minutes")
