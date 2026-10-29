@@ -11,7 +11,7 @@
 
 - бренд — по справочнику синонимов (model_matching.BRAND_MAP + BRAND_ALIASES), иначе транслит;
 - модель и артикул — нижний регистр, только латиница и цифры, без пробелов, дефисов, цветов и маркетинга;
-- варианты — «число + единица» по таблице единиц (ГБ → gb, ТБ → gb×1024, мм → mm, л → l, дюйм → in),
+- варианты — «число + единица» по таблице единиц (ГБ → gb, ТБ и от 1000 ГБ → tb, дюйм и диагональ в см → in, л → l; габариты и частоты не входят),
   десятичная точка, сортировка, через «+»;
 - пустое — пусто: никаких «0»/«null»;
 - без бренда (или «без бренда») — ключа нет: товар не сравнивается автоматически, чтобы не склеить разное.
@@ -32,6 +32,7 @@ FIELDS_SCHEMA = {
     "brand": "бренд производителя как на упаковке; null, если бренда нет",
     "model": "серия и модель без бренда, цвета, комплектации и маркетинга; null, если нет",
     "sku": "артикул/код модели производителя (не артикул магазина); null, если нет",
+    "edition": "исполнение внутри модели, не меняющее сам товар: Gaming, Dual, OC, V3, Edition; null, если нет",
     "variants": "список отличающих исполнение характеристик: [{\"value\": число, \"unit\": \"гб|тб|мм|см|л|мл|г|кг|дюйм|вт|мач|шт\"}]",
     "unbranded": "true, если товар без бренда (noname, «без бренда»)",
 }
@@ -48,6 +49,8 @@ BRAND_ALIASES = {
     "кингстон": "kingston", "western digital": "wd", "вд": "wd", "сигейт": "seagate", "интел": "intel",
     "амд": "amd", "оппо": "oppo", "виво": "vivo", "реалми": "realme", "ван плюс": "oneplus",
     "one plus": "oneplus", "текно": "tecno", "инфиникс": "infinix", "моторола": "motorola", "нокиа": "nokia",
+    "яндекс": "yandex", "yandeks": "yandex", "сбер": "sber", "асрок": "asrock",
+    "patriot memory": "patriot", "patriotmemory": "patriot", "team group": "teamgroup",
 }
 
 # Заглушки «нет значения» в полях
@@ -61,7 +64,15 @@ _NOISE = {
     "black", "white", "gray", "grey", "blue", "green", "red", "silver", "gold", "purple", "pink",
     "beige", "yellow", "orange", "brown", "graphite", "midnight", "starlight", "titanium", "natural",
     "new", "новинка", "original", "оригинал", "global", "version", "eu", "ru", "kz",
+    # Имена линеек производителя чипа, которые одни магазины пишут, а другие нет (замер C2)
+    "geforce", "radeon",
 }
+
+# Единицы, которые отличают исполнение одной модели и поэтому входят в ключ. Длины (габариты), частоты и
+# прочее в ключ не идут: по замеру C2 модель записывала туда размеры корпуса и «3500 Гц» из «Ryzen 5 3500X»,
+# и одинаковые товары расходились по разным ключам. Диагональ — только в дюймах: «109 см» у телевизора и
+# «43"» в соседнем магазине — один товар, поэтому сантиметры ≥ 50 переводятся в дюймы.
+KEY_UNITS = {"gb", "mb", "l", "ml", "g", "kg", "in", "w", "mah", "pcs"}
 
 # Единицы: синоним → (каноническая единица, множитель)
 _UNITS = {
@@ -104,17 +115,28 @@ def brand_token(value: Any) -> Optional[str]:
     mapped = BRAND_ALIASES.get(text) or BRAND_MAP.get(text)
     if mapped:
         return mapped
+    text = re.sub(r"\s+(technology|technologies|electronics|memory|corporation|corp|inc|ltd|co)\.?$", "", text)
+    mapped = BRAND_ALIASES.get(text) or BRAND_MAP.get(text)
+    if mapped:
+        return mapped
     token = re.sub(r"[^a-z0-9]+", "", _latin(text))
     if not token or token in _EMPTY:
         return None
-    return BRAND_MAP.get(token, token)
+    return BRAND_ALIASES.get(token) or BRAND_MAP.get(token, token)
 
 
-def model_token(value: Any, brand: Optional[str] = None) -> Optional[str]:
-    """Модель или артикул: без бренда, цветов и маркетинга, только [a-z0-9] слитно."""
+def model_token(value: Any, brand: Optional[str] = None, drop: Iterable[Any] = ()) -> Optional[str]:
+    """Модель или артикул: без бренда, цветов и маркетинга, только [a-z0-9] слитно.
+
+    drop — поля, которые модель иногда приклеивает к модели (артикул, исполнение): их слова вычищаются,
+    чтобы «B850 PRO RS 90-MXBQK0» и «B850 PRO RS» дали одну модель (замер C2)."""
     text = _text(value)
     if text in _EMPTY:
         return None
+    for extra in drop:
+        extra_text = _text(extra)
+        if extra_text and extra_text not in _EMPTY and extra_text != text:
+            text = text.replace(extra_text, " ")
     words = re.findall(r"[a-zа-я0-9]+(?:[.,][0-9]+)?", text)
     kept = []
     for w in words:
@@ -139,8 +161,41 @@ def _fmt(number: float) -> str:
     return str(int(number)) if number == int(number) else f"{number:.3f}".rstrip("0").rstrip(".")
 
 
+# Объём памяти и диагональ код берёт из самого названия: по замеру C2 модель через раз не вписывала их в
+# variants («Kingston NV3 2 TB» → то с «2048gb», то без), и один товар расходился по двум ключам.
+_TITLE_VARIANT_RE = re.compile(r"(?<![\w.])(\d+(?:[.,]\d+)?)\s*(гб|gb|тб|tb|см|дюйм\w*|\"|''|”)(?![a-zа-я])")
+
+
+def title_variants(title: Any) -> List[Dict[str, Any]]:
+    """Объём (ГБ/ТБ) и диагональ (дюймы от 10, сантиметры 50–250) из названия в виде variants модели."""
+    text = _text(title)
+    # «4/128Gb», «8/256 ГБ» — оперативная и встроенная память одной записью
+    found = [{"value": float(first), "unit": unit}
+             for first, unit in re.findall(r"(?<![\w.])(\d+)\s*/\s*\d+\s*(гб|gb|тб|tb)(?![a-zа-я])", text)]
+    for number, unit in _TITLE_VARIANT_RE.findall(text):
+        value = float(number.replace(",", "."))
+        if unit in ("''", "”"):
+            unit = '"'
+        if unit.startswith("дюйм"):
+            unit = "дюйм"
+        if unit in ('"', "дюйм") and value < 10:
+            continue                                    # 2.5" и 3.5" у дисков — форм-фактор, не вариант
+        if unit == "см" and not 50 <= value <= 250:
+            continue                                    # габарит, а не диагональ
+        found.append({"value": value, "unit": unit})
+    return found
+
+
+def _storage(value_gb: float) -> str:
+    """1000 ГБ и 1 ТБ (1024 ГБ) — один объём: от 1000 ГБ — в терабайтах с одним знаком."""
+    if value_gb < 1000:
+        return _fmt(value_gb) + "gb"
+    tb = value_gb / 1024 if value_gb % 1024 == 0 else value_gb / 1000
+    return _fmt(round(tb, 1)) + "tb"
+
+
 def variant_tokens(variants: Any) -> List[str]:
-    """Варианты к виду «число+единица»: 128gb, 0.96l, 55in. Неизвестная единица или нет числа — пропуск."""
+    """Варианты к виду «число+единица»: 128gb, 2tb, 0.96l, 55in. Неизвестная единица или нет числа — пропуск."""
     out = set()
     for item in variants if isinstance(variants, list) else []:
         if isinstance(item, dict):
@@ -153,21 +208,40 @@ def variant_tokens(variants: Any) -> List[str]:
         if number is None or number <= 0 or unit not in _UNITS:
             continue
         canon, mult = _UNITS[unit]
-        out.add(_fmt(number * mult) + canon)
+        value_c = number * mult
+        if canon == "mm" and 500 <= value_c <= 2500:
+            canon, value_c = "in", round(value_c / 25.4)       # диагональ экрана в сантиметрах
+        if canon not in KEY_UNITS:
+            continue
+        out.add(_storage(value_c) if canon == "gb" else _fmt(value_c) + canon)
     return sorted(out)[:4]
 
 
-def build_key(fields: Any) -> Optional[str]:
-    """Ключ по стандарту из полей модели или None (без бренда, без модели и артикула, мусор)."""
+def build_key(fields: Any, title: Any = None) -> Optional[str]:
+    """Ключ по стандарту из полей модели или None (без бренда, без модели и артикула, мусор).
+
+    title — исходное название: объём и диагональ из него заменяют то, что модель записала в variants
+    в тех же единицах (память и дюймы), остальные варианты берутся от модели."""
     if not isinstance(fields, dict) or fields.get("unbranded") is True:
         return None
     brand = brand_token(fields.get("brand"))
     if not brand:
         return None
-    identity = model_token(fields.get("model"), brand) or model_token(fields.get("sku"), brand)
+    identity = (model_token(fields.get("model"), brand, (fields.get("sku"), fields.get("edition")))
+                or model_token(fields.get("sku"), brand))
     if not identity:
         return None
     variants = variant_tokens(fields.get("variants"))
+    from_title = variant_tokens(title_variants(title)) if title else []
+    if from_title:
+        own = {"in"} if any(v.endswith("in") for v in from_title) else set()
+        if any(v.endswith(("gb", "tb")) for v in from_title):
+            own |= {"gb", "tb"}
+        variants = sorted({v for v in variants if re.sub(r"^[0-9.]+", "", v) not in own} | set(from_title))[:4]
+    # Диагональ, которая уже есть в номере модели (65E7S, 27GP850, U11), в ключ не идёт: одни магазины
+    # пишут «65"», другие нет, и один телевизор расходился по двум ключам (замер C2)
+    variants = [v for v in variants
+                if not (v.endswith("in") and re.search(rf"(?<![0-9]){re.escape(v[:-2].split('.')[0])}(?![0-9])", identity))]
     key = f"{KEY_VERSION}:{brand}:{identity}"
     return f"{key}:{'+'.join(variants)}" if variants else key
 
@@ -178,5 +252,5 @@ def keys_for(items: Iterable[Dict[str, Any]], titles: Iterable[str]) -> Dict[str
     found: Dict[str, Optional[str]] = {}
     for item in items or []:
         if isinstance(item, dict) and item.get("title") in allowed:
-            found[item["title"]] = build_key(item)
+            found[item["title"]] = build_key(item, item["title"])
     return found

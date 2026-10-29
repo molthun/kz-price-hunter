@@ -20,9 +20,46 @@ class SameFieldsSameKeyTest(unittest.TestCase):
 
     def test_units_and_numbers(self):
         self.assertEqual(pk.variant_tokens([{"value": "0,96", "unit": "л"}]), ["0.96l"])
-        self.assertEqual(pk.variant_tokens([{"value": 1, "unit": "ТБ"}]), ["1024gb"])
+        self.assertEqual(pk.variant_tokens([{"value": 1, "unit": "ТБ"}]), ["1tb"])
+        self.assertEqual(pk.variant_tokens([{"value": 1000, "unit": "гб"}]), ["1tb"])
         self.assertEqual(pk.variant_tokens([{"value": 55, "unit": "дюйм"}, {"value": 8, "unit": "гб"}]), ["55in", "8gb"])
-        self.assertEqual(pk.variant_tokens([{"value": 30, "unit": "см"}]), ["300mm"])
+        # Габариты и частоты в ключ не входят (замер C2), диагональ в сантиметрах — в дюймах
+        self.assertEqual(pk.variant_tokens([{"value": 30, "unit": "см"}]), [])
+        self.assertEqual(pk.variant_tokens([{"value": 3500, "unit": "гц"}]), [])
+        self.assertEqual(pk.variant_tokens([{"value": 109, "unit": "см"}]), ["43in"])
+
+    def test_sku_and_edition_not_glued_into_model(self):
+        a = {"brand": "ASRock", "model": "B850 PRO RS 90-MXBQK0", "sku": "90-MXBQK0", "variants": []}
+        b = {"brand": "ASRock", "model": "B850 Pro RS", "sku": None, "variants": []}
+        self.assertEqual(pk.build_key(a), pk.build_key(b))
+        c = {"brand": "Afox", "model": "GeForce GTX 1050 Ti Gaming", "edition": "Gaming", "variants": []}
+        d = {"brand": "AFOX", "model": "GTX 1050Ti", "variants": []}
+        self.assertEqual(pk.build_key(c), pk.build_key(d))
+        self.assertEqual(pk.brand_token("Яндекс"), pk.brand_token("Yandex"))
+
+    def test_capacity_and_diagonal_from_title(self):
+        """Модель через раз пропускает объём в variants — код берёт его из названия (замер C2)."""
+        bare = {"brand": "Kingston", "model": "NV3", "variants": []}
+        full = {"brand": "Kingston", "model": "NV3", "variants": [{"value": 2048, "unit": "гб"}]}
+        self.assertEqual(pk.build_key(bare, "SSD накопитель 2 TB Kingston NV3, M.2 2230"),
+                         pk.build_key(full, "Твердотельный накопитель SSD Kingston NV3 2TB"))
+        self.assertEqual(pk.build_key(bare, "SSD Kingston NV3 2Tb"), "k2:kingston:nv3:2tb")
+        # 1000 ГБ и 1 ТБ — один объём; 2.5" у диска — не диагональ
+        self.assertEqual(pk.build_key(bare, 'SSD 2.5" Kingston NV3 1000GB'), "k2:kingston:nv3:1tb")
+        tv = {"brand": "Konka", "model": "KT-Q682WB", "variants": []}
+        self.assertEqual(pk.build_key(tv, 'Телевизор 55" (140 см) Konka KT-Q682WB'), "k2:konka:ktq682wb:55in")
+        self.assertEqual(pk.build_key(tv, "Konka KT-Q682WB 140 см черный"), "k2:konka:ktq682wb:55in")
+        # Диагональ, уже входящая в номер модели, не дублируется: одни магазины её пишут, другие нет
+        hisense = {"brand": "Hisense", "model": "65E7S", "variants": []}
+        self.assertEqual(pk.build_key(hisense, 'Телевизор Hisense 65" QLED 65E7S'),
+                         pk.build_key(hisense, "Телевизор Hisense 65E7S RU"))
+        phone = {"brand": "Vivo", "model": "V25E", "variants": []}
+        self.assertEqual(pk.build_key(phone, "Смартфон Vivo V25E 8/128Gb"), "k2:vivo:v25e:128gb+8gb")
+        self.assertEqual(pk.brand_token("Kingston Technology"), "kingston")
+        self.assertEqual(pk.brand_token("Patriot Memory"), "patriot")
+        # Остальные варианты от модели сохраняются
+        kettle = {"brand": "Tefal", "model": "KO1501", "variants": [{"value": 1.7, "unit": "л"}]}
+        self.assertEqual(pk.build_key(kettle, "Чайник Tefal KO1501 1,7 л"), "k2:tefal:ko1501:1.7l")
         self.assertEqual(pk.variant_tokens([{"value": 0, "unit": "гб"}, {"value": 5, "unit": "попугаев"}, "много"]), [])
 
     def test_empty_and_unbranded_give_no_key(self):

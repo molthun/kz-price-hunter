@@ -11,6 +11,9 @@ Gemini не идеален, поэтому самые «подозрительн
         --groups 80 --out /tmp/eval.json
 
 Ключ проверяемой модели строится по стандарту k2: подсказка K2_NORMALIZE_PROMPT → поля → product_key.build_key.
+Поля модели сохраняются в --out (fields). Правки правил ключа проверяются без новых вызовов модели:
+
+    python3 scripts/eval_product_keys.py --rescore /tmp/eval.json --out /tmp/eval_rules.json
 """
 from __future__ import annotations
 
@@ -48,11 +51,11 @@ def load_groups(db_path: str, groups: int, seed: int):
     return {k: sorted(by_key[k]) for k in chosen}
 
 
-async def candidate_keys(titles, base: str, model: str, key: str = ""):
+async def candidate_fields(titles, base: str, model: str, key: str = ""):
     import ai_router
     import ai_service
     import product_key
-    keys, failures, calls, started = {}, 0, 0, time.monotonic()
+    fields, failures, calls, started = {}, 0, 0, time.monotonic()
     for i in range(0, len(titles), 20):
         chunk = titles[i:i + 20]
         prompt = ai_service.K2_NORMALIZE_PROMPT + "\n\nНормализуй товары, перечисленные в блоке данных ниже.\n" + \
@@ -62,8 +65,14 @@ async def candidate_keys(titles, base: str, model: str, key: str = ""):
         if not (isinstance(reply, dict) and isinstance(reply.get("items"), list)):
             failures += 1
             continue
-        keys.update({t: k for t, k in product_key.keys_for(reply["items"], chunk).items() if k})
-    return keys, failures, calls, time.monotonic() - started
+        allowed = set(chunk)
+        fields.update({it["title"]: it for it in reply["items"] if isinstance(it, dict) and it.get("title") in allowed})
+    return fields, failures, calls, time.monotonic() - started
+
+
+def keys_from_fields(fields):
+    import product_key
+    return {t: k for t, k in product_key.keys_for(fields.values(), fields).items() if k}
 
 
 def score(groups, keys):
@@ -91,16 +100,26 @@ def score(groups, keys):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--db", default="/app/data/prices.db")
-    ap.add_argument("--base", required=True)
-    ap.add_argument("--model", required=True)
+    ap.add_argument("--base")
+    ap.add_argument("--model")
+    ap.add_argument("--rescore", help="прошлый --out: пересобрать ключи из его полей без вызовов модели")
     ap.add_argument("--groups", type=int, default=80)
     ap.add_argument("--seed", type=int, default=651)
     ap.add_argument("--out")
     args = ap.parse_args()
-    groups = load_groups(args.db, args.groups, args.seed)
-    titles = sorted({t for ts in groups.values() for t in ts})
-    keys, failures, calls, elapsed = asyncio.run(candidate_keys(titles, args.base, args.model))
-    result = {"model": args.model, "calls": calls, "bad_json_calls": failures, "seconds": round(elapsed, 1),
+    if args.rescore:
+        prev = json.loads(Path(args.rescore).read_text(encoding="utf-8"))
+        groups, fields = prev["reference_groups"], prev["fields"]
+        model, calls, failures, elapsed = prev["model"], 0, prev["bad_json_calls"], 0.0
+    else:
+        if not (args.base and args.model):
+            ap.error("нужны --base и --model (или --rescore)")
+        groups = load_groups(args.db, args.groups, args.seed)
+        titles = sorted({t for ts in groups.values() for t in ts})
+        fields, failures, calls, elapsed = asyncio.run(candidate_fields(titles, args.base, args.model))
+        model = args.model
+    keys = keys_from_fields(fields)
+    result = {"model": model, "calls": calls, "bad_json_calls": failures, "seconds": round(elapsed, 1),
               **score(groups, keys)}
     missed = []
     for g, ts in groups.items():
@@ -108,10 +127,13 @@ def main():
         if len(set(cand.values())) > 1 and len(missed) < 15:
             missed.append({"gemini": g, "candidate": cand})
     result["missed_examples"] = missed
+    result["reference_groups"] = groups
+    result["fields"] = fields
     text = json.dumps(result, ensure_ascii=False, indent=2)
     if args.out:
         Path(args.out).write_text(text, encoding="utf-8")
-    print(json.dumps({k: v for k, v in result.items() if not k.endswith("examples")}, ensure_ascii=False))
+    print(json.dumps({k: v for k, v in result.items() if k not in ("reference_groups", "fields")
+                      and not k.endswith("examples")}, ensure_ascii=False))
 
 
 if __name__ == "__main__":
