@@ -2,6 +2,53 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## Передача разработки P17-C → Antigravity (Claude, 2026-10-29 23:10 +05)
+
+```text
+Основание: владелец — «передай разработку Antigravity. Ты только лечить что диагностировал Codex».
+  С этого момента Claude берёт только исправления по аудиту Codex; разработку P17-C/C7 ведёт Antigravity.
+Состояние: локальный main = ab5e4a9, origin/main = 2b061e2 (v6.6.0, прод). Не запушено 17 коммитов
+  ce83a04..ab5e4a9 (документы 6.6.0, P17-C1–C3, C7, SearXNG). Push — только после приёмки Codex и слова владельца.
+  Поведение прода в этих коммитах не меняется: ai_key_standard=v1, search_api_base пуст, local_normalize_enabled=False.
+  Тесты: 2030 OK (локально, Python 3.14). Фронтенд-наборы не гонялись — UI не менялся.
+Что готово (подробности — карточка ниже, docs/AI_LOCAL_POLICY.md, DEVELOPMENT_PLAN P17-C):
+  - product_key.py — стандарт k2 + link_by_article (связь по артикулу; защита от склеек по общему «адаптеру»);
+  - ai_service K2_NORMALIZE_PROMPT, title_fields; ai_key_standard v1|k2 (защищённая настройка);
+  - product_verify.py — третий источник истины: SearXNG → локальная модель → вердикт (порог 0,8, ссылки только
+    из выдачи), web_search_cache / product_pair_verdicts, search_api_base / search_daily_limit (300) /
+    search_interval_seconds (90);
+  - scripts/eval_product_keys.py (--rescore, --no-articles), scripts/eval_pair_verify.py (--interval).
+Замеры: полнота ключей qwen3-vl:8b-instruct 0,874 без склеек; модели крупнее не лучше (удалены).
+  Проверка поиском: пока поисковики отвечают — 23/23 спорных пар верно, 0 ложных «один».
+  После ~80 запросов поисковики блокируют SearXNG → решение владельца: «только SearXNG с таймаутом,
+  как будет альтернатива — решим».
+Хост (машина прода 192.168.28.25, сделано по слову владельца): Ollama — одна qwen3-vl:8b-instruct (keep_alive -1);
+  SearXNG в ~/ai-stack (192.168.28.25:8888, JSON; bing/yandex/qwant выключены; настройки
+  /srv/ssd/ai-stack/searxng/settings.yml принадлежат контейнеру, правка — docker exec searxng).
+Идёт сейчас: ночной замер медленного SearXNG (nohup на хосте, старт 23:58 +05, ~2,5 ч) →
+  ~/kzph-stand/searx-night/run.log и /tmp/verify_night.json в kzph-stand. НЕ пересоздавать kzph-stand до его
+  конца: /tmp/eval_qwen3.json (вход замера) и отчёт живут в контейнере. Итог записать в AI_LOCAL_POLICY.md.
+Стенд: checkout ~/kzph-stand = dd691e9 (detached), но в /app контейнера вручную положены product_key.py,
+  ai_service.py, product_verify.py, scripts/eval_*.py из ab5e4a9. После ночного замера синхронизировать
+  обычным путём: git bundle a812522..main → git fetch … main:refs/remotes/bundle/main → checkout --detach →
+  docker compose -f docker-compose.stand.yml up -d --build.
+Следующие шаги разработки (Antigravity), по порядку:
+  1. Утром — итог ночного замера SearXNG; проверка первой ночной копии прода (backup_deliveries, «Доставка на
+     другой диск»).
+  2. link_by_article в нормализацию: таблица/индекс артикулов при title_fields (brand:article → title_hash, key),
+     новое название с известным артикулом получает ключ существующей группы; прежние ключи не меняются (fixed).
+  3. Проверку поиском — в конвейер: очередь спорных пар (k2 ≠ Gemini в теневом режиме; общий артикул при
+     несовместимых моделях), не чаще search_interval_seconds, не больше search_daily_limit; вердикт same → общий
+     ключ, unknown → не склеивать.
+  4. C4 — перевод ~19,7 тыс. ключей кэша в k2 на стенде (ночью, локальная модель), проверка, что сравнение
+     цен не теряет пары.
+  5. Передача Codex на аудит всего P17-C → выпуск (SemVer, CHANGELOG с «Для пользователей») → C5 теневой режим.
+Безопасность: секретов в репозитории нет (SearXNG secret_key только на сервере). Не повторять DIAG_TOKEN и
+  пароли из ~/Documents/.env, засвеченные ранее.
+```
+
+---
+
 ## P17-C в работе: стандарт ключа товара (Claude, 2026-10-29)
 
 ```text
