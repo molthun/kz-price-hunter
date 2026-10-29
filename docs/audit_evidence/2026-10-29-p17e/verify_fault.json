@@ -1,0 +1,6 @@
+{
+  "search_http_500_simulated": true,
+  "script_exit": 0,
+  "reported_success": true,
+  "stdout": "Версия здесь / снаружи {\"version\":\"6.5.2\"} / {\"version\":\"6.5.2\"}\nhealth снаружи (из 10)    10\nПоиск, с                     0.01—\nСоседи порта (ждём 192.168.28.10) 192.168.28.10\nWatchtower                         работает\nИТОГ: прод на новой машине работает\n"
+}

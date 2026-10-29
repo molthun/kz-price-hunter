@@ -1,0 +1,204 @@
+{
+  "observed_at": "2026-10-29T11:22:32.857845+00:00",
+  "containers": [
+    {
+      "name": "kz-price-hunter",
+      "healthy": "healthy",
+      "hostname": "3a26f0613230",
+      "memory_bytes": 0,
+      "nano_cpus": 0,
+      "restart": "unless-stopped",
+      "mounts": [
+        {
+          "source": "/home/molthun/kzph-prod/data",
+          "target": "/app/data"
+        }
+      ],
+      "safe_env": {
+        "DATA_DIR": "/app/data",
+        "PUBLIC_ORIGIN": "https://shop.molthun.ru",
+        "APP_URL": "https://shop.molthun.ru",
+        "TRUSTED_PROXIES": "192.168.28.10/32",
+        "ALLOW_DEV_LOGIN": "0",
+        "DOCKER_API_VERSION": null
+      },
+      "command": [
+        "python3",
+        "gui.py"
+      ]
+    },
+    {
+      "name": "kzph-stand",
+      "healthy": "healthy",
+      "hostname": "d921a8296c27",
+      "memory_bytes": 16106127360,
+      "nano_cpus": 4000000000,
+      "restart": "no",
+      "mounts": [
+        {
+          "source": "/home/molthun/kzph-stand/stand-data",
+          "target": "/app/data"
+        }
+      ],
+      "safe_env": {
+        "DATA_DIR": "/app/data",
+        "PUBLIC_ORIGIN": "https://shdev.molthun.ru",
+        "APP_URL": "https://shdev.molthun.ru",
+        "TRUSTED_PROXIES": "192.168.28.10/32",
+        "ALLOW_DEV_LOGIN": "0",
+        "DOCKER_API_VERSION": null
+      },
+      "command": [
+        "python3",
+        "gui.py"
+      ]
+    },
+    {
+      "name": "kz-price-watchtower",
+      "healthy": "healthy",
+      "hostname": "93017ab4130d",
+      "memory_bytes": 0,
+      "nano_cpus": 0,
+      "restart": "unless-stopped",
+      "mounts": [
+        {
+          "source": "/var/run/docker.sock",
+          "target": "/var/run/docker.sock"
+        }
+      ],
+      "safe_env": {
+        "DATA_DIR": null,
+        "PUBLIC_ORIGIN": null,
+        "APP_URL": null,
+        "TRUSTED_PROXIES": null,
+        "ALLOW_DEV_LOGIN": null,
+        "DOCKER_API_VERSION": "1.44"
+      },
+      "command": [
+        "--interval",
+        "300",
+        "kz-price-hunter"
+      ]
+    }
+  ],
+  "prod_stand_same_bot": false,
+  "diag": {
+    "problems": [
+      {
+        "severity": "warning",
+        "code": "error_rate",
+        "problem": "48 ошибок за час, больше всего в «http»",
+        "meaning": "Смотрите errors.last: там последние сообщения с временем и компонентом."
+      }
+    ],
+    "queue": {
+      "size": 0,
+      "failures": 0,
+      "redis_active": true,
+      "worker_running": true
+    },
+    "journal_mode": "wal",
+    "error_components": {
+      "http": 45,
+      "scraper": 2,
+      "system": 1
+    }
+  },
+  "cron": "30 4 * * * /home/molthun/kzph-prod/backup_to_nas.sh >> /home/molthun/kzph-prod/backup.log 2>&1",
+  "files": {
+    ".env": {
+      "mode": "0o600"
+    },
+    ".env.from-nas": {
+      "mode": "0o600"
+    },
+    "compose.yaml.from-nas": {
+      "mode": "0o600"
+    },
+    "backup.conf": {
+      "mode": "0o664"
+    },
+    "backup_to_nas.sh": {
+      "mode": "0o755"
+    }
+  },
+  "backup_mount": "/srv/storage /dev/sdb1 ext4",
+  "data_mount": "/ /dev/nvme0n1p2 ext4",
+  "hdd_backups": 1,
+  "latest_backup": {
+    "filename": "prices-nightly-20261029T110156387693Z-26c8a4.db",
+    "bytes": 2194223104,
+    "quick_check": "ok",
+    "products": 165081,
+    "foreign_key_violations": 0,
+    "mode": "0o644"
+  },
+  "storage_parent_mode": "0o700",
+  "health": [
+    {
+      "http": 200,
+      "status": "ok",
+      "seconds": 0.012
+    },
+    {
+      "http": 200,
+      "status": "ok",
+      "seconds": 0.044
+    },
+    {
+      "http": 200,
+      "status": "ok",
+      "seconds": 0.012
+    },
+    {
+      "http": 200,
+      "status": "ok",
+      "seconds": 0.013
+    },
+    {
+      "http": 200,
+      "status": "ok",
+      "seconds": 0.013
+    },
+    {
+      "http": 200,
+      "status": "ok",
+      "seconds": 0.013
+    },
+    {
+      "http": 200,
+      "status": "ok",
+      "seconds": 0.013
+    },
+    {
+      "http": 200,
+      "status": "ok",
+      "seconds": 0.013
+    },
+    {
+      "http": 200,
+      "status": "ok",
+      "seconds": 1.84
+    },
+    {
+      "http": 200,
+      "status": "ok",
+      "seconds": 0.014
+    }
+  ],
+  "kz-price-hunter_logs": {
+    "DB Slow Write": 0,
+    "database is locked": 0,
+    "409 Conflict": 0,
+    "too old": 0
+  },
+  "kz-price-watchtower_logs": {
+    "DB Slow Write": 0,
+    "database is locked": 0,
+    "409 Conflict": 0,
+    "too old": 0
+  },
+  "nas_proxy_peer_seen": true,
+  "/api/diag_anonymous": 404,
+  "/api/admin/monitoring_anonymous": 401
+}

@@ -1080,6 +1080,41 @@ def _check_is_stale(check: Dict[str, Any], moment: datetime.datetime) -> bool:
     return (moment - checked).total_seconds() > 2 * backup_health.VERIFY_INTERVAL_HOURS * 3600
 
 
+def delivery_state(now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
+    """Доставка ночной копии на другой диск (P17E-02).
+
+    Пока доставок не было вовсе — «не настроена» (стенд, разработка) и общий статус она не портит.
+    После первой записи молчание тоже сигнал: пропущенный cron, остановленный контейнер или сбой
+    до записи итога видны как просроченная доставка, а не как «всё хорошо».
+    """
+    import backup_health
+    import database
+    moment = now or _now()
+    rows = database.backup_deliveries(limit=20)
+    if not rows:
+        return {"configured": False, "status": UNKNOWN, "reason": "Доставка копий на другой диск не настроена",
+                "last": None, "last_ok": None, "age_hours": None, "recent": []}
+    last = rows[0]
+    last_ok = next((r for r in rows if r["outcome"] == "ok"), None)
+    age_hours = None
+    if last_ok:
+        seen = datetime.datetime.fromisoformat(last_ok["delivered_at"])
+        if seen.tzinfo is None:
+            seen = seen.replace(tzinfo=datetime.timezone.utc)
+        age_hours = max(0.0, (moment - seen).total_seconds() / 3600)
+    if last["outcome"] != "ok":
+        status, reason = DEGRADED, f"Доставка копии не удалась: {last.get('detail') or 'причина не записана'}"
+    elif age_hours is None or age_hours > backup_health.DELIVERY_STALE_HOURS:
+        status = DEGRADED
+        reason = (f"Свежей доставки копии нет {age_hours:.0f} ч (ждём раз в сутки)" if age_hours is not None
+                  else "Успешной доставки копии ещё не было")
+    else:
+        status = HEALTHY
+        reason = f"Копия доставлена {age_hours:.0f} ч назад в {last_ok.get('target') or '—'}"
+    return {"configured": True, "status": status, "reason": reason, "last": last, "last_ok": last_ok,
+            "age_hours": round(age_hours, 1) if age_hours is not None else None, "recent": rows[:10]}
+
+
 def backup_section(now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
     """Резервные копии и сроки хранения (P15): свежесть, результат последней настоящей проверки, объёмы.
 
@@ -1126,6 +1161,13 @@ def backup_section(now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
         status = HEALTHY
         reason = f"Копия {newest['age_hours']:.0f} ч назад, её проверка пройдена"
 
+    # Свежая копия на том же NVMe не должна прятать сорванную доставку на другой диск (P17E-02)
+    delivery = delivery_state(moment)
+    if delivery["configured"]:
+        status = worst([status, delivery["status"]])
+        if delivery["status"] != HEALTHY:
+            reason = f"{reason}; {delivery['reason']}"
+
     return {
         "status": status, "reason": reason,
         "backups": backups[:10],
@@ -1135,6 +1177,7 @@ def backup_section(now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
         "last_confirmed": confirmed,
         "total_size_bytes": sum(b["size_bytes"] for b in backups),
         "checks": checks,
+        "delivery": delivery,
         "retention": backup_health.retention_policy(),
         "usage": database.retention_usage(),
         "note": "Проверка открывает копию, читает схему и разворачивает её во временную базу, после чего "

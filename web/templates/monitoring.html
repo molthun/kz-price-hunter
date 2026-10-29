@@ -484,7 +484,11 @@
     box.innerHTML = card('Резервные копии', `<p class="text-sm mb-2">${esc(s.reason)}</p>` + kv([
         ['Копий', num((s.backups || []).length)],
         ['Занимают', mb(s.total_size_bytes)],
-        ['Последняя копия', s.newest ? `${num(Math.round(s.newest.age_hours))} ч назад` : '—']]) +
+        ['Последняя копия', s.newest ? `${num(Math.round(s.newest.age_hours))} ч назад` : '—'],
+        // Доставка на другой диск — отдельная строка: свежая копия рядом с базой её не заменяет (P17E-02)
+        ['Доставка на другой диск', s.delivery && s.delivery.configured
+          ? `${s.delivery.status === 'healthy' ? '' : '⚠️ '}${esc(s.delivery.reason)}`
+          : 'не настроена']]) +
       (backups ? `<div class="overflow-x-auto mt-2"><table class="w-full text-sm"><thead class="text-xs text-slate-400 text-left"><tr>
           <th class="pb-1 pr-3">Файл</th><th class="pb-1 pr-3 text-right">Размер</th>
           <th class="pb-1 pr-3 text-right">Возраст</th></tr></thead><tbody>${backups}</tbody></table></div>` : '') +

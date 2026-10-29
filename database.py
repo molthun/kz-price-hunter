@@ -1359,6 +1359,19 @@ def _create_schema(cursor) -> None:
     # Проверка относится к конкретному файлу: успешная проверка вчерашней копии ничего не говорит
     # о сегодняшней, поэтому вместе с результатом хранятся размер и время изменения файла (P15 L01)
     _add_column(cursor, "backup_checks", "file_size", "INTEGER")
+    # Доставка копии на другой диск или хост (P17E-02): копия рядом с базой ничего не скажет об отказе
+    # NVMe, поэтому успех и сбой переноса — отдельные записи, которые видит мониторинг
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS backup_deliveries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            delivered_at TEXT NOT NULL,
+            outcome TEXT NOT NULL,
+            target TEXT,
+            file TEXT,
+            size_bytes INTEGER,
+            detail TEXT
+        )
+    """)
     _add_column(cursor, "backup_checks", "file_mtime", "REAL")
 
     cursor.execute("""
@@ -4568,6 +4581,31 @@ def record_backup_check(kind: str, ok: bool, file: Optional[str] = None, detail:
         conn.execute("DELETE FROM backup_checks WHERE id NOT IN "
                      "(SELECT id FROM backup_checks ORDER BY id DESC LIMIT 100)")
         conn.commit()
+
+
+def record_backup_delivery(outcome: str, target: str = "", file: str = "", size_bytes: Any = None,
+                           detail: str = "", now: Optional[datetime.datetime] = None) -> None:
+    """Итог доставки ночной копии на другой диск (P17E-02). Зовётся скриптом копирования через
+    docker exec: «ok» — только после проверки конечного файла, всё остальное — сбой с причиной."""
+    moment = (now or datetime.datetime.now(datetime.timezone.utc)).isoformat()
+    try:
+        size = int(size_bytes) if size_bytes not in (None, "") else None
+    except (TypeError, ValueError):
+        size = None
+    with get_connection() as conn:
+        conn.execute("INSERT INTO backup_deliveries (delivered_at, outcome, target, file, size_bytes, detail) "
+                     "VALUES (?, ?, ?, ?, ?, ?)",
+                     (moment, "ok" if outcome == "ok" else "failed", str(target or "")[:200],
+                      str(file or "")[:200], size, str(detail or "")[:300] or None))
+        conn.execute("DELETE FROM backup_deliveries WHERE id NOT IN "
+                     "(SELECT id FROM backup_deliveries ORDER BY id DESC LIMIT 200)")
+        conn.commit()
+
+
+def backup_deliveries(limit: int = 10) -> List[Dict[str, Any]]:
+    with get_connection() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT * FROM backup_deliveries ORDER BY id DESC LIMIT ?", (max(1, int(limit)),))]
 
 
 def backup_checks(limit: int = 10) -> List[Dict[str, Any]]:

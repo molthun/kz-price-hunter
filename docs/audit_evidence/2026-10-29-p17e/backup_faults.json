@@ -1,0 +1,29 @@
+[
+  {
+    "case": "healthy",
+    "script_exit": 0,
+    "target_copies": 1,
+    "target_quick_check_ok": true,
+    "local_backup_heartbeat": "nightly: ok",
+    "source_and_target_same_device": true,
+    "reported_done": true
+  },
+  {
+    "case": "transfer_failure",
+    "script_exit": 23,
+    "target_copies": 0,
+    "target_quick_check_ok": false,
+    "local_backup_heartbeat": "nightly: ok",
+    "source_and_target_same_device": true,
+    "reported_done": false
+  },
+  {
+    "case": "corrupt_destination",
+    "script_exit": 0,
+    "target_copies": 1,
+    "target_quick_check_ok": false,
+    "local_backup_heartbeat": "nightly: ok",
+    "source_and_target_same_device": true,
+    "reported_done": true
+  }
+]
