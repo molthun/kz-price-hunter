@@ -1,0 +1,11 @@
+test_alser_prior_partial_parse_then_empty_final_page (__main__.EmptyLastPage.test_alser_prior_partial_parse_then_empty_final_page) ... [Alser] Category: 1 товаров за 2 стр. (0.0с) — конец каталога, но не разобрано карточек: 1
+{'shop': 'alser', 'saved': 1, 'complete': False, 'unparsed': 1}
+ok
+test_evrika_prior_partial_parse_then_empty_final_page (__main__.EmptyLastPage.test_evrika_prior_partial_parse_then_empty_final_page) ... [Эврика] Category: 1 товаров за 2 стр. (0.0с) — конец каталога, но не разобрано карточек: 1
+{'shop': 'evrika', 'saved': 1, 'complete': False, 'unparsed': 1}
+ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.004s
+
+OK

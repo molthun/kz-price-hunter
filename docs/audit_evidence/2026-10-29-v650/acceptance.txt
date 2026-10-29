@@ -1,0 +1,94 @@
+test_assistant_does_not_invent_installment_terms (__main__.Audit.test_assistant_does_not_invent_installment_terms) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{'case': 'installment', 'best': {'product_id': 'prod_iphone16pro_256', 'product_title': 'Смартфон Apple iPhone 16 Pro 256GB Natural Titanium', 'id': 'off_4m_kaspi_iphone16pro', 'seller_id': 'seller_4mobile', 'seller_name': '4mobile.kz', 'seller_slug': '4mobile', 'seller_rating': None, 'channel_id': 'chan_4mobile_marketplace_4mobile_kaspi', 'channel_type': 'marketplace', 'channel_name': 'Kaspi Магазин (4mobile)', 'price': 539000.0, 'old_price': 559000.0, 'condition': 'NEW', 'availability': 'in_stock', 'city': 'Алматы', 'url': 'https://kaspi.kz/shop/p/iphone-16-pro-256', 'image_url': None, 'observed_at': '2026-10-29T04:20:02.216601+00:00', 'freshness': 'fresh', 'is_purchasable': True, 'expires_at': None}, 'text': 'Найдено товаров: 1. Самое выгодное предложение: Смартфон Apple iPhone 16 Pro 256GB Natural Titanium — 420 000 ₸ у продавца «4mobile.kz» (website). Лучший вариант с возможностью рассрочки/маркетплейса: Смартфон Apple iPhone 16 Pro 256GB Natural Titanium за 539 000 ₸ («4mobile.kz», Kaspi Магазин (4mobile)). Напрямую у «4mobile.kz» (website): 420 000 ₸  через «4mobile.kz» (Kaspi Магазин (4mobile)  рассрочка): 539 000 ₸ (разница 119 000 ₸).'}
+FAIL
+test_expired_food_is_not_purchasable (__main__.Audit.test_expired_food_is_not_purchasable) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{'case': 'freshness', 'v2': 'EXPIRED', 'purchasable': True}
+FAIL
+test_history_retains_original_condition_after_offer_changes (__main__.Audit.test_history_retains_original_condition_after_offer_changes) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{'case': 'history', 'condition_of_original_499000': []}
+FAIL
+test_monitoring_total_is_not_silently_capped (__main__.Audit.test_monitoring_total_is_not_silently_capped) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{'case': 'monitoring', 'actual': 5005, 'shown': 5000}
+FAIL
+test_onboarding_domain_prefix_collision_preserves_existing_seller (__main__.Audit.test_onboarding_domain_prefix_collision_preserves_existing_seller) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{'case': 'onboarding', 'matched': None}
+{'approved_id': 'seller_example', 'original_after': 'Unrelated Outlet', 'domain': 'example.com'}
+FAIL
+
+======================================================================
+FAIL: test_assistant_does_not_invent_installment_terms (__main__.Audit.test_assistant_does_not_invent_installment_terms)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph650-audit-ev73_lzd/audit-results/acceptance.py", line 56, in test_assistant_does_not_invent_installment_terms
+    self.assertIsNone(r.best_installment_offer,'channel type alone is not proof of installment availability')
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'product_id': 'prod_iphone16pro_256', 'product_title': 'Смартфон Apple iPhone 16 Pro 256GB Natural Titanium', 'id': 'off_4m_kaspi_iphone16pro', 'seller_id': 'seller_4mobile', 'seller_name': '4mobile.kz', 'seller_slug': '4mobile', 'seller_rating': None, 'channel_id': 'chan_4mobile_marketplace_4mobile_kaspi', 'channel_type': 'marketplace', 'channel_name': 'Kaspi Магазин (4mobile)', 'price': 539000.0, 'old_price': 559000.0, 'condition': 'NEW', 'availability': 'in_stock', 'city': 'Алматы', 'url': 'https://kaspi.kz/shop/p/iphone-16-pro-256', 'image_url': None, 'observed_at': '2026-10-29T04:20:02.216601+00:00', 'freshness': 'fresh', 'is_purchasable': True, 'expires_at': None} is not None : channel type alone is not proof of installment availability
+
+======================================================================
+FAIL: test_expired_food_is_not_purchasable (__main__.Audit.test_expired_food_is_not_purchasable)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph650-audit-ev73_lzd/audit-results/acceptance.py", line 42, in test_expired_food_is_not_purchasable
+    self.assertFalse(old,'expired V2 food remains purchasable in real shared policy')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: True is not false : expired V2 food remains purchasable in real shared policy
+
+======================================================================
+FAIL: test_history_retains_original_condition_after_offer_changes (__main__.Audit.test_history_retains_original_condition_after_offer_changes)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph650-audit-ev73_lzd/audit-results/acceptance.py", line 34, in test_history_retains_original_condition_after_offer_changes
+    self.assertIn('NEW',old,'historical NEW price was relabelled as USED')
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'NEW' not found in [] : historical NEW price was relabelled as USED
+
+======================================================================
+FAIL: test_monitoring_total_is_not_silently_capped (__main__.Audit.test_monitoring_total_is_not_silently_capped)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph650-audit-ev73_lzd/audit-results/acceptance.py", line 51, in test_monitoring_total_is_not_silently_capped
+    self.assertEqual(shown,actual,'monitoring reports sample size as total')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 5000 != 5005 : monitoring reports sample size as total
+
+======================================================================
+FAIL: test_onboarding_domain_prefix_collision_preserves_existing_seller (__main__.Audit.test_onboarding_domain_prefix_collision_preserves_existing_seller)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph650-audit-ev73_lzd/audit-results/acceptance.py", line 27, in test_onboarding_domain_prefix_collision_preserves_existing_seller
+    self.assertEqual(original.name,'Original retailer','unmatched registration overwrote an existing seller')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'Unrelated Outlet' != 'Original retailer'
+- Unrelated Outlet
++ Original retailer
+ : unmatched registration overwrote an existing seller
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.166s
+
+FAILED (failures=5)

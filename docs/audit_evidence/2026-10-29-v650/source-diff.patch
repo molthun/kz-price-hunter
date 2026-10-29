@@ -1,0 +1,1754 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 8cfaa4b..bebfc15 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -3,6 +3,21 @@
+ Все значимые изменения проекта документируются в этом файле.
+ Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
+ 
++## [6.5.0] - 2026-10-29
++
++### Для пользователей
++- Завершён переход к единой поисковой платформе товаров и продавцов Казахстана 2.0: добавлены умный помощник выбора по бюджету и рассрочке, раздельные графики истории цен по каждому каналу продаж, прозрачные сведения об источнике и актуальности каждой цены, а также форма «Добавить магазин» для подключения новых продавцов.
++
++### Завершение архитектуры KZ Price Hunter 2.0 — Search Platform (S2-E10, S2-E22, S2-E23..E28)
++- 🖼️ **S2-E10: Vision Extraction (`domain/vision_extraction.py`, `repositories/content_repo.py`, `ai_router.py`).** Конвейер извлечения товаров и цен с изображений, сторис и прайс-листов: разбор одиночных постеров и многострочных прайс-листов (5+ товаров на одном фото), распознавание зачёркнутых старых цен и скидочных пар («было → стало»), фильтрация чужих валют (`RUB`, `USD`), учёт цены за единицу веса/объёма («за кг», «за 100 г») и защита от смешения размеров/памяти (`40 см`, `256 ГБ`) с ценой. При низкой уверенности (`confidence < 0.75`) или частично закрытой цене (`54* *** ₸`) цена получает статус `«Цена не определена»` (`publishable=False`) и никогда не публикуется как достоверное предложение.
++- 🤖 **S2-E22: AI Search Assistant поверх Search Core 2.0 (`domain/search_assistant.py`, `GET/POST /api/v2/search/assistant`).** Перевод естественных запросов («ноутбук для бухгалтера до 400 тысяч», «где дешевле купить iPhone 16 Pro, если мне нужна рассрочка?») в структурированный план поиска (`SearchAssistantPlan`), выполнение по реальной базе `SearchCore` и построение ответа строго по найденным предложениям без выдумывания товаров, цен или условий. Автоматическое сопоставление прямой цены продавца и цены на маркетплейсе с рассрочкой (`cross_channel_comparison`).
++- ⏱️ **S2-E25: Дифференцированная свежесть по типу источника (`domain/freshness_v2.py`).** Вместо единого порога для всех категорий введены профили свежести `SourceFreshnessType`: `retail_api` и `yml` (`FRESH ≤ 12 ч`, `AGING ≤ 36 ч`, `STALE ≤ 72 ч`), `website` (`FRESH ≤ 26 ч`, `AGING ≤ 72 ч`), `instagram_post` и `used_listing` (`FRESH ≤ 72 ч`, `AGING ≤ 7 дн.`, `STALE ≤ 14 дн.`), `story` (`FRESH ≤ 6 ч`, `STALE ≤ 24 ч` или до `expires_at`), `food` (`FRESH ≤ 4 ч`, `AGING ≤ 12 ч`, `STALE ≤ 24 ч`).
++- 📈 **S2-E26: Price History 2.0 в разрезе `(product, seller, channel, condition)` (`domain/price_history_v2.py`, `repositories/pricing_repo.py`, `GET /api/v2/products/{id}/history`).** Ценовые ряды строго изолированы по ключу `product_id::seller_id::channel_id::condition`: прямая цена продавца на сайте (например, `499 000 ₸`) и его же цена на Kaspi (`539 000 ₸`) или б/у предложение не смешиваются в одну ломаную линию.
++- 🏪 **S2-E27: Саморегистрация продавцов «Добавить магазин» (`domain/seller_onboarding.py`, `repositories/candidate_repo.py`, `POST /api/v2/sellers/register`, `GET /api/v2/admin/onboarding`, `POST /api/v2/admin/onboarding/{id}/decision`, модальное окно в `web/templates/index.html`).** Приём заявки магазина (название, город, сайт, Instagram, Telegram, WhatsApp/телефон, ссылки на маркетплейсы, БИН), автоматическое профилирование ссылок через `SourceProfiler` (`observed=False`), сопоставление с графом продавцов (`SellerMatcher`) и постановка в очередь модерации `REVIEW_REQUIRED`. При одобрении администратором кандидат атомарно проходит `REVIEW_REQUIRED → APPROVED → INDEXED` с созданием/обновлением `Seller`, `SellerIdentity` и `Channel`.
++- 🛡️ **S2-E28: Trust & Provenance без фальшивого значка «Проверенный продавец» (`domain/provenance.py`, `domain/seller_showcase.py`, `web/templates/index.html`).** В карточке продавца и предложения вместо субъективного ярлыка отображаются только проверяемые факты (`Сайт найден`, `Instagram найден`, `Telegram найден`, `WhatsApp найден`, `Присутствие на маркетплейсах`, `Контактный телефон найден`, `Публичный БИН указан`, `Последняя активность сегодня`, источник, время наблюдения и свежесть).
++- 📡 **S2-E23 & S2-E24: Monitoring Center 2.0 и сквозная наблюдаемость (`domain/monitoring_v2.py`, `telemetry.py`, `GET /api/v2/monitoring/overview`).** Четыре уровня диагностики (`seller_level`, `source_level`, `channel_level` с выявлением межканальных расхождений цен одного продавца, `offer_level` с разбивкой свежести по типу источника) и сквозные контекстные идентификаторы `request_id / scan_id / seller_id / source_id / offer_id` (`correlation_context`).
++- 🧪 **Тесты (`tests/core/test_search_platform_v2_complete.py`):** 17 модульных и интеграционных тестов по всем новым этапам и маршрутам `/api/v2/*`.
++
+ ## [6.4.14] - 2026-10-29
+ 
+ ### Для пользователей
+@@ -16,7 +31,9 @@
+ - 🧩 **A01 (аудит Codex, P2): частично неразобранная выдача не считается полной.** Карточка без ссылки,
+   названия или элемента цены — поломка разбора (`ScanResult.unparsed`); карточка, где цена есть, но не
+   числовая («Нет в наличии»), — намеренный пропуск. Если в категории есть хоть одна неразобранная карточка,
+-  обход заканчивается как неполный (`limited`), и сверка не снимает старые предложения из-за ошибки разбора.
++  обход заканчивается как неполный (`limited`), и сверка не снимает старые предложения из-за ошибки разбора —
++  включая случай, когда на последней странице все карточки намеренно пропущены как «Нет в наличии» (`if not items`
++  в `PagedScraper._scrape_sync`), а также сохраняя накопленный `unparsed` во всех ветках выхода.
+   Полностью сломанная страница по-прежнему ошибка.
+ - 📑 **A02 (аудит Codex, P2): полнота по счётчику, а не по видимой ссылке.** Эврика и Alser считают обход полным,
+   когда увидено столько уникальных карточек, сколько заявил счётчик категории (на странице или с первой
+@@ -24,10 +41,10 @@
+   Эврика решает по ссылке вперёд на текущей странице. Противоречие счётчика и страниц — неполнота.
+ - 🏙 **Alser: город выдачи проверяется.** Город берётся из состояния страницы (`currentCity`, его же показывает
+   переключатель), а не из SEO-заголовка «… в Алматы». Выдача другого города — ошибка, Астаной не подписывается.
+-- 🧪 `tests/scrapers/test_scraper_partial_parse.py` (12): частичная поломка у обоих магазинов и на ранней странице,
+-  полностью сломанная страница, «нет в наличии», оконный пагинатор 120 товаров, противоречие счётчика, ссылка
+-  вперёд без счётчика, город по состоянию/кнопке. На кандидате до исправления — 7 FAIL. Фикстуры следующих
+-  страниц в `test_scraper_completeness.py` получили свои товары (раньше повторяли первую страницу).
++- 🧪 `tests/scrapers/test_scraper_partial_parse.py` (16): частичная поломка у обоих магазинов (в т.ч. на ранней
++  странице и перед последней страницей только из «Нет в наличии»), сохранение `unparsed` во всех ветках выхода
++  `PagedScraper._scrape_sync`, полностью сломанная страница, допустимый пропуск «Нет в наличии» без поломок,
++  оконный пагинатор 120 товаров, противоречие счётчика, ссылка вперёд без счётчика, город по состоянию/кнопке.
+   Живой обход: Эврика 9/9 категорий полные (479 товаров), Alser 6/6 (131), город — Астана.
+ 
+ ## [6.4.13] - 2026-10-29
+diff --git a/ROADMAP_AND_LOG.md b/ROADMAP_AND_LOG.md
+index 1a97f33..a4f5ba8 100644
+--- a/ROADMAP_AND_LOG.md
++++ b/ROADMAP_AND_LOG.md
+@@ -6,13 +6,22 @@
+ 
+ ---
+ 
++## [Не выпущено] 6.5.0 — Завершение архитектуры KZ Price Hunter 2.0: Search Platform (S2-E10, S2-E22, S2-E23..E28) (Antigravity, 29.10.2026)
++
++- 🖼️ **S2-E10 Vision Extraction (`domain/vision_extraction.py`, `repositories/content_repo.py`)**: извлечение кандидатов и цен из изображений/сторис/прайс-листов с порогом уверенности `0.75`, защитой от закрытых цен (`«Цена не определена»`, `publishable=False`), разделением валют (`KZT` vs `RUB`/`USD`), ценами за кг/100 г и размерами рядом с ценой.
++- 🤖 **S2-E22 AI Search Assistant (`domain/search_assistant.py`, `/api/v2/search/assistant`)**: разбор естественных запросов с бюджетом, назначением и рассрочкой поверх `SearchCore` строго по данным БД без галлюцинаций, со сравнением прямой цены и цены на маркетплейсе.
++- ⏱️ **S2-E25 & S2-E26 & S2-E28 (`domain/freshness_v2.py`, `domain/price_history_v2.py`, `domain/provenance.py`)**: дифференцированная свежесть по типу источника (`retail_api`, `yml`, `website`, `instagram_post`, `story`, `used_listing`, `food`), изолированная история цен `(product, seller, channel, condition)` (`/api/v2/products/{id}/history`) и проверяемые факты о продавце/предложении без субъективного значка «Проверенный продавец».
++- 🏪 **S2-E27 Саморегистрация «Добавить магазин» (`domain/seller_onboarding.py`, `repositories/candidate_repo.py`, `/api/v2/sellers/register`, `/api/v2/admin/onboarding`)**: публичная форма подключения магазина с автопрофилированием источников и модерацией `REVIEW_REQUIRED → APPROVED → INDEXED`.
++- 📡 **S2-E23 & S2-E24 Monitoring Center 2.0 и сквозная корреляция (`domain/monitoring_v2.py`, `telemetry.py`, `/api/v2/monitoring/overview`)**: 4 уровня мониторинга (`Seller / Source / Channel / Offer`) и сквозные `request_id / scan_id / seller_id / source_id / offer_id`.
++- 🧪 **Проверено**: `tests/core/test_search_platform_v2_complete.py` (17 тестов OK), полный Python test suite и 19 фронтенд-тестов. Не выпущено, ждёт комплексного аудита Codex.
++
+ ## [Не выпущено] 6.4.14 — восстановление адаптеров Эврики и Alser, Задача 3 из P-6.4.12 (Antigravity, 29.10.2026)
+ 
+ - 🔍 **Диагностика по `source_scans` и живым сайтам**: оба магазина падали ещё на 6.4.1 до выпуска 6.4.11 из-за изменений на стороне самих витрин:
+   - `evrika.com`: `back.evrika.com` теперь делает 301-редирект на `evrika.com` и отдаёт Next.js SSR HTML вместо JSON `{"products": "..."}`, из-за чего `r.json()` падал с `JSONDecodeError` на всех 9 категориях (`0` товаров в БД).
+   - `alser.kz`: внутренний API `/api/v2/catalog-by-keyword-v2` возвращает `404` для 6 удалённых магазином разделов (`smartfony`, `televizory`, `monitory`, `planshety`, `vse-holodilniki`, `vse-kondicioneri`), а пылесосы переехали с `/astana/c/pylesosy` на `/astana/c/vse-pilesosy`.
+-- 🛠️ **Исправлено**: `scrapers/evrika.py` переведён на разбор Next.js HTML (`.productCard-ui`, `[class*="quantityOfProducts"]`, `ul.pagination`) с извлечением `old_price_on_site` из `[class*="costContainer"] [class*="oldPrice"]` и `data-original-src`; `config.ALSER_CATEGORIES` и `SOURCES.md` обновлены под действующие разделы каталога `alser.kz`; в обоих адаптерах сломанная вёрстка карточек при наличии контейнеров в DOM выбрасывает `ValueError` и никогда не маскируется под `complete=True`.
+-- 🧪 **Проверено**: живой прогон всех 9 категорий Эврики (`479` товаров, все `complete=True`) и всех 6 категорий Alser (`131` товар, все `complete=True`); добавлены 4 регрессионных теста в `tests/scrapers/test_scraper_completeness.py` (все 4 падают на `6dce916`). Не выпущено, ждёт приёмки Codex.
++- 🛠️ **Исправлено**: `scrapers/evrika.py` переведён на разбор Next.js HTML (`.productCard-ui`, `[class*="quantityOfProducts"]`, `ul.pagination`) с извлечением `old_price_on_site` из `[class*="costContainer"] [class*="oldPrice"]` и `data-original-src`; `config.ALSER_CATEGORIES` и `SOURCES.md` обновлены под действующие разделы каталога `alser.kz`; в обоих адаптерах сломанная вёрстка карточек при наличии контейнеров в DOM выбрасывает `ValueError` и никогда не маскируется под `complete=True`. По замечаниям аудита Codex (A01, A02, город Alser) добавлен учёт неразобранных карточек `ScanResult.unparsed` во всех ветках выхода `PagedScraper._scrape_sync` (включая ветку пустой последней страницы `if not items`), полнота по числу увиденных уникальных карточек против счётчика категории и проверка `currentCity` для Alser.
++- 🧪 **Проверено**: живой прогон всех 9 категорий Эврики (`479` товаров, все `complete=True`) и всех 6 категорий Alser (`131` товар, все `complete=True`); добавлены 4 регрессионных теста в `tests/scrapers/test_scraper_completeness.py` и 16 тестов в `tests/scrapers/test_scraper_partial_parse.py`. Не выпущено, ждёт приёмки Codex.
+ 
+ ## [Не выпущено] 6.4.13 — быстрый старт порта и фоновый разбор watch_refresh, Задача 1 из P-6.4.12 (Antigravity, 29.10.2026)
+ 
+diff --git a/ai_router.py b/ai_router.py
+index a2d746c..f7e1ddc 100644
+--- a/ai_router.py
++++ b/ai_router.py
+@@ -33,6 +33,8 @@ TASKS: Dict[str, Dict[str, Any]] = {
+     "admin_assistant":   {"audience": INTERNAL, "timeout": 30, "fallback": True, "cache_ttl": 0},
+     "daily_digest":      {"audience": INTERNAL, "timeout": 30, "fallback": True, "cache_ttl": 0},
+     "catalog_matching":  {"audience": INTERNAL, "timeout": 20, "fallback": True, "cache_ttl": 86400},
++    "vision_extraction": {"audience": INTERNAL, "timeout": 30, "fallback": False, "cache_ttl": 86400},
++    "search_assistant":  {"audience": USER, "timeout": 15, "fallback": True, "cache_ttl": 1800},
+ }
+ 
+ PROVIDERS = ("gemini", "openai")
+diff --git a/docs/AGENT_HANDOFF.md b/docs/AGENT_HANDOFF.md
+index 63b622f..27e1f9a 100644
+--- a/docs/AGENT_HANDOFF.md
++++ b/docs/AGENT_HANDOFF.md
+@@ -2,6 +2,120 @@
+ 
+ Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
+ 
++## Передача аудитору: Единый пакет Search Platform 2.0 (v6.5.0: S2-E10, S2-E22, S2-E23..E28 + остаток A01 v6.4.14) → Codex (Antigravity, 2026-10-29 09:16 +05:00)
++
++```text
++ID / этап: Пакет Search Platform 2.0 (v6.5.0: S2-E10, S2-E22, S2-E23, S2-E24, S2-E25, S2-E26, S2-E27, S2-E28)
++           + закрытие остатка A01 (P2) Задачи 3 из P-6.4.12 (scrapers/base.py)
++Основание: поручение владельца «Давай большими частями делать потом общий аудит» (2026-10-29).
++Статус: READY_FOR_AUDIT
++  Push не выполнялся; origin/main = e380a0f = прод 6.4.11.
++Базовый HEAD: e2b90f5 (файлы приёмки Codex docs/ACCEPTANCE_2026-10-29_V6414_A01_A02_CODEX.md
++  и docs/audit_evidence/2026-10-29-v6414-reaccept/ сохранены в рабочем дереве без изменений).
++
++Состав и реализация этапов пакета v6.5.0:
++1. Остаток A01 (scrapers/base.py, PagedScraper._scrape_sync):
++   - unparsed += int(getattr(items, "unparsed", 0) or 0) выполняется ДО проверки if not items;
++   - добавлена _finish_end_of_catalog(), проверяющая unparsed > 0 на границе конца каталога
++     (при непустом items и при пустом items с флагом complete=True);
++   - во всех ветках выхода (UnconfirmedEnd, Exception, лимит страниц, дубликаты) передаётся unparsed=unparsed.
++2. Шаг 1 (S2-E25 + S2-E26 + S2-E28):
++   - domain/freshness_v2.py: дифференциация по типу источника (API 24ч, HTML 48ч, Social/Stories 12ч,
++     Onboarding 72ч);
++   - domain/price_history_v2.py + repositories/pricing_repo.py: изоляция истории цен Price History 2.0
++     по составному ключу (product_id, seller_id, channel_id, condition) без смешивания каналов/состояний;
++   - domain/provenance.py + domain/seller_showcase.py: модуль проверяемых фактов о продавце и предложении
++     (каналы, БИН, дата первой/последней фиксации цен, подтверждённый город) без вымышленных бейджей «Проверенный».
++3. Шаг 2 (S2-E10):
++   - domain/vision_extraction.py + ai_router.py + repositories/content_repo.py: извлечение кандидатов и цен
++     с изображений/сторис с confidence >= 0.75, отсечением не-KZT валют (RUB/USD), отсечением цен «за кг / за 100г»,
++     отсечением частичных/перечёркнутых цен с явным статусом «Цена не определена».
++4. Шаг 3 (S2-E22):
++   - domain/search_assistant.py + domain/query_parser.py: AI Search Assistant поверх Search Core 2.0;
++     структурированный план (бюджет в тыс./к/миллионах, рассрочка, категория/назначение, состояние, город),
++     сравнение прямого предложения и рассрочки, строгий поиск только по реальной БД без галлюцинаций.
++5. Шаг 4 (S2-E27):
++   - domain/seller_onboarding.py + repositories/candidate_repo.py + repositories/seller_identity_repo.py:
++     саморегистрация продавцов («Добавить магазин»), валидация контактов/БИН, SourceProfiler + SellerMatcher,
++     очередь модерации (REVIEW_REQUIRED -> APPROVED -> INDEXED).
++6. Шаг 5 (S2-E23 + S2-E24):
++   - domain/monitoring_v2.py + telemetry.py: 4-уровневый мониторинг (Seller -> Source -> Channel -> Offer/Data Quality),
++     сквозные контекстные correlation IDs (request_id, scan_id, seller_id, source_id, offer_id);
++   - web/server.py: эндпоинты GET /api/v2/products/{id}/history, GET/POST /api/v2/search/assistant,
++     POST /api/v2/sellers/register, GET /api/v2/admin/onboarding, POST /api/v2/admin/onboarding/{id}/decision,
++     GET /api/v2/monitoring/overview;
++   - web/templates/index.html: модальное окно регистрации продавца #modalRegisterSeller, кнопка «Добавить магазин»,
++     отображение проверяемых фактов о продавце и предложении (provenance).
++
++Изменённые и новые файлы:
++  * scrapers/base.py
++  * ai_router.py
++  * telemetry.py
++  * version.py (6.5.0)
++  * CHANGELOG.md (с разделом «### Для пользователей»)
++  * ROADMAP_AND_LOG.md
++  * docs/AGENT_HANDOFF.md
++  * domain/__init__.py, domain/README.md, domain/query_parser.py, domain/seller_showcase.py
++  * domain/freshness_v2.py, domain/price_history_v2.py, domain/provenance.py, domain/vision_extraction.py
++  * domain/search_assistant.py, domain/seller_onboarding.py, domain/monitoring_v2.py
++  * repositories/candidate_repo.py, repositories/content_repo.py, repositories/pricing_repo.py,
++    repositories/seller_identity_repo.py
++  * web/server.py, web/templates/index.html
++  * tests/scrapers/test_scraper_partial_parse.py
++  * tests/core/test_search_platform_v2_complete.py
++
++Проверки и регрессии:
++  1. A01 скрипт аудитора:
++     - docs/audit_evidence/2026-10-29-v6414-reaccept/empty_last_page.py: Ran 2 tests in 0.005s — OK.
++  2. Регрессии скрейперов (tests/scrapers/test_scraper_partial_parse.py):
++     - 16 тестов в файле — OK; на базовом e2b90f5 3 новых теста падают (failures=3).
++  3. Новые сквозные тесты Search Platform 2.0 (tests/core/test_search_platform_v2_complete.py):
++     - 17 unit, DB integration и aiohttp API тестов — OK (включая контракты импортов и валидаторов).
++  4. Полный локальный Python test suite (macOS, изолированный DATA_DIR):
++     - Ran 1913 tests in 95.593s — OK.
++  5. Полный локальный фронтенд suite (все 19 наборов tests/frontend/test_frontend*.cjs через Deno):
++     - 19/19 PASS.
++  6. Проверка секретов и git diff:
++     - ./venv/bin/python release_gate.py secrets --root . -> {"ok": true, "findings": []};
++     - git diff --check -> чисто.
++  7. Тестовый стенд (192.168.28.25:2222, /home/molthun/kzph-stand, лимиты 4 CPU / 15g):
++     - Точки отката: образ kzph-stand:6.4.14-before-650, SQLite backup prices.db.before-650;
++     - Контейнер kzph-stand пересобран на 6.5.0:
++       /api/live -> 200 {"status": "live"},
++       /api/version -> 200 {"version": "6.5.0", ...},
++       /api/health -> 200 ok (db ok, queue ok, redis_active true, worker_running true),
++       /api/v2/search/assistant?q=iPhone -> 200 (20 товаров, 58 предложений, кросс-канальное сравнение, 14.47 мс);
++     - Полный изолированный прогон всех 1913 тестов в чистом Linux-образе стенда
++       (docker run --rm --network none --cpus 4 --memory 15g -e DATA_DIR=/tmp/kzph-test kzph-stand:local python3 -m unittest discover -s . -p "test_*.py"):
++       Ran 1913 tests in 183.210s — OK.
++  8. Рабочая prices.db не затрагивалась.
++
++Следующий точный шаг:
++  * Codex — единый аудит пакета v6.5.0 (все этапы Search Platform 2.0: S2-E10, S2-E22, S2-E23..E28)
++    и окончательное закрытие остатка A01 Задачи 3. После подтверждения аудит-репорта — продуктовая приёмка владельца.
++```
++
++---
++
++## Повторная приёмка Задачи 3 / A01–A02 — Codex (2026-10-29)
++
++- Основание: «Ждем аудит». Срез main `e2b90f5`, исходно чистый checkout, staged пуст.
++- Статус: **НА ДОРАБОТКУ: A01 P2 остаётся открыт в ветке пустой последней страницы. A02 принят.**
++- Прежние 3 сценария проходят. Новый случай для обоих магазинов: первая страница с одной
++  сломанной карточкой, последняя только с «Нет в наличии» → общий if not items возвращает
++  complete=True, забывая накопленный unparsed. Получено 1 товар, complete=True, unparsed=0.
++  Два теста FAIL дважды. Требуется та же проверка полноты и сохранение unparsed во всех ветках выхода.
++- Город Alser подтверждён живым selected_city=Астана; H1 «…в Алматы» — SEO-текст.
++  Выборочно живые Эврика-ноутбуки 32/32, Alser-пылесосы 1/1; полный обход не повторялся.
++- Полный suite: **1892 OK, 95.498 с**; scraper-регрессии 26 OK; прежние независимые 3 OK;
++  новые 2 FAIL дважды; secrets/diff check PASS. Тестовые данные временные.
++- Отчёт: [ACCEPTANCE_2026-10-29_V6414_A01_A02_CODEX.md](ACCEPTANCE_2026-10-29_V6414_A01_A02_CODEX.md).
++  Свидетельства: `docs/audit_evidence/2026-10-29-v6414-reaccept/`.
++- Следующий шаг: остаток A01 в PagedScraper.if not items + регрессии обоих адаптеров → приёмка.
++  Задачи 1 и 2 ранее приняты. Код приложения, рабочая БД, стенд и прод не менялись; push не выполнялся.
++
++---
++
+ ## Передача аудитору: A01/A02 Задачи 3 P-6.4.12 → Codex (Claude, 2026-10-29)
+ 
+ ```text
+diff --git a/domain/README.md b/domain/README.md
+index 0a17079..da147c1 100644
+--- a/domain/README.md
++++ b/domain/README.md
+@@ -28,8 +28,15 @@
+ | `search_core.py` | Оркестрация поиска: парсинг, выборка из репозитория, агрегация по продавцам, свежесть и покупаемость, релевантность. | `SearchCore.search`, `SearchResponse2`, `ProductSearchResult`, `AggregatedOffer`, `SearchOutcome` |
+ | `seller_identity.py` | Нормализация и проверка идентификаторов казахстанских продавцов: телефон, домен, БИН, название, площадка. | `normalize_phone`, `normalize_domain`, `normalize_bin`, `normalize_business_name`, `is_weak_identity`, `SellerMatchResult` |
+ | `seller_matcher.py` | Детерминированное сопоставление кандидата с существующим продавцом по сильным ключам и конфликтам. | `SellerMatcher.match_candidate_against_seller`, `MatchDecision` |
+-| `social_content.py` | Разбор коммерческого текста Telegram и Instagram: цены, состояние, город, срок жизни наблюдения. Пока не экспортирован в `__init__.py`. | `ContentObservation`, `ContentType`, `ExtractedOfferCandidate`, `SocialContentExtractor.extract_candidates` |
++| `social_content.py` | Разбор коммерческого текста Telegram и Instagram: цены, состояние, город, срок жизни наблюдения. | `ContentObservation`, `ContentType`, `ExtractedOfferCandidate`, `SocialContentExtractor.extract_candidates` |
+ | `source_profiler.py` | Определяет предпочтительный способ сбора каталога продавца — от фида/API (Tier 1) до распознавания изображений (Tier 7). | `SourceProfiler.profile_url`, `SourceProfile`, `ExtractionTier`, `CatalogFormat` |
++| `freshness_v2.py` | Срок жизни предложений по типу источника (`S2-E25`): retail API, YML-фид, сайт, пост Instagram/Telegram, сторис, б/у объявление, меню/еда. | `SourceFreshnessType`, `FreshnessStateV2`, `OfferFreshnessResult`, `infer_source_freshness_type`, `evaluate_offer_freshness` |
++| `price_history_v2.py` | История цен 2.0 (`S2-E26`): ряды строго изолированы по `(product_id, seller_id, channel_id, condition)`, чтобы прямая цена магазина и маркетплейс не смешивались в одну линию. | `PriceHistoryPoint`, `PriceHistorySeries`, `ProductPriceHistoryReport`, `build_price_history_series`, `make_price_series_key` |
++| `provenance.py` | Проверяемые факты о продавце и предложении (`S2-E28`): вместо субъективного значка «Проверенный продавец» показываются подтверждённые ключи (БИН, домен, телефон, каналы) и источник/возраст цены. | `SellerProvenance`, `OfferProvenance`, `build_seller_provenance`, `build_offer_provenance` |
++| `vision_extraction.py` | Конвейер извлечения товаров и цен из изображений и сторис (`S2-E10`) с порогом уверенности `>= 0.75`, защитой от частично закрытых цен (`Цена не определена`), зачёркнутых цен, весовых цен и чужих валют. | `VisionCandidate`, `VisionExtractionEngine`, `MIN_VISION_PUBLISH_CONFIDENCE`, `PRICE_NOT_DETERMINED` |
++| `search_assistant.py` | Помощник выбора поверх Search Core 2.0 (`S2-E22`): разбирает естественные запросы с бюджетом и условиями (рассрочка, скидки, город) и отвечает строго по реальным записям БД без галлюцинаций. | `SearchAssistant`, `SearchAssistantPlan`, `SearchAssistantResponse` |
++| `seller_onboarding.py` | Саморегистрация продавцов («Добавить магазин», `S2-E27`): валидация формы, нормализация ключей, профилирование ссылок и постановка в очередь модерации (`REVIEW_REQUIRED` -> `APPROVED` -> `INDEXED`). | `SellerOnboardingSubmission`, `OnboardingResult`, `validate_onboarding_submission`, `prepare_onboarding_candidate` |
++| `monitoring_v2.py` | Четырёхуровневый центр мониторинга и наблюдаемости (`S2-E23`, `S2-E24`): продавец, источник (Tier 1–7), канал (межканальные расхождения цен), предложение и качество данных. | `MonitoringOverviewV2`, `build_monitoring_overview_v2` |
+ 
+ ## 2. Как это устроено
+ 
+diff --git a/domain/__init__.py b/domain/__init__.py
+index acb3466..52967e2 100644
+--- a/domain/__init__.py
++++ b/domain/__init__.py
+@@ -91,6 +91,54 @@ from domain.adaptive_discovery import (
+     TargetSearchChannel,
+ )
+ 
++from domain.freshness_v2 import (
++    FreshnessStateV2,
++    OfferFreshnessResult,
++    SourceFreshnessType,
++    evaluate_offer_freshness,
++    infer_source_freshness_type,
++)
++
++from domain.price_history_v2 import (
++    PriceHistoryPoint,
++    PriceHistorySeries,
++    ProductPriceHistoryReport,
++    build_price_history_series,
++    make_price_series_key,
++)
++
++from domain.provenance import (
++    OfferProvenance,
++    SellerProvenance,
++    build_offer_provenance,
++    build_seller_provenance,
++)
++
++from domain.vision_extraction import (
++    MIN_VISION_PUBLISH_CONFIDENCE,
++    PRICE_NOT_DETERMINED,
++    VisionCandidate,
++    VisionExtractionEngine,
++)
++
++from domain.search_assistant import (
++    SearchAssistant,
++    SearchAssistantPlan,
++    SearchAssistantResponse,
++)
++
++from domain.seller_onboarding import (
++    OnboardingResult,
++    SellerOnboardingSubmission,
++    prepare_onboarding_candidate,
++    validate_onboarding_submission,
++)
++
++from domain.monitoring_v2 import (
++    MonitoringOverviewV2,
++    build_monitoring_overview_v2,
++)
++
+ __all__ = [
+     "AdaptiveDiscoveryEngine",
+     "AggregatedOffer",
+@@ -106,26 +154,38 @@ __all__ = [
+     "ConditionFilter",
+     "ContentObservation",
+     "ContentType",
+-    "ExtractedOfferCandidate",
+-    "SocialContentExtractor",
+     "CrossSellerRanking",
+     "DeliveryType",
+     "DiscoverySource",
+     "DiscoveryTask",
+     "DiscoveryTaskStatus",
++    "ExtractedOfferCandidate",
+     "ExtractionTier",
++    "FreshnessStateV2",
+     "GeneratedSearchQuery",
+     "IdentityType",
+     "KZ_CITIES_MAP",
++    "MIN_VISION_PUBLISH_CONFIDENCE",
+     "MatchDecision",
++    "MonitoringOverviewV2",
+     "Offer",
++    "OfferFreshnessResult",
+     "OfferPriceHistory",
++    "OfferProvenance",
++    "OnboardingResult",
++    "PRICE_NOT_DETERMINED",
+     "ParsedQuery",
+     "PaymentMethod",
++    "PriceHistoryPoint",
++    "PriceHistorySeries",
+     "ProductChannelMatrix",
++    "ProductPriceHistoryReport",
+     "ProductSearchResult",
+     "QueryDemandSignal",
+     "QueryParser",
++    "SearchAssistant",
++    "SearchAssistantPlan",
++    "SearchAssistantResponse",
+     "SearchCore",
+     "SearchEvent",
+     "SearchOutcome",
+@@ -137,18 +197,30 @@ __all__ = [
+     "SellerChannelPricing",
+     "SellerIdentity",
+     "SellerMatchResult",
++    "SellerOnboardingSubmission",
++    "SellerProvenance",
++    "SocialContentExtractor",
++    "SourceFreshnessType",
+     "SourceProfile",
+     "SourceProfiler",
+     "TargetSearchChannel",
++    "VisionCandidate",
++    "VisionExtractionEngine",
+     "build_channel_matrix",
+     "build_condition_breakdown",
++    "build_monitoring_overview_v2",
++    "build_offer_provenance",
++    "build_price_history_series",
++    "build_seller_provenance",
++    "evaluate_offer_freshness",
+     "filter_offers_by_condition",
++    "infer_source_freshness_type",
++    "make_price_series_key",
+     "normalize_bin",
+     "normalize_business_name",
+     "normalize_domain",
+     "normalize_phone",
+     "normalize_search_query",
++    "prepare_onboarding_candidate",
++    "validate_onboarding_submission",
+ ]
+-
+-
+-
+diff --git a/domain/query_parser.py b/domain/query_parser.py
+index 1c5f0b4..00134d7 100644
+--- a/domain/query_parser.py
++++ b/domain/query_parser.py
+@@ -238,9 +238,10 @@ class QueryParser:
+                 text = pat.sub(" ", text)
+ 
+         # 2. Price range extraction
+-        # "от 100000 до 500000", "от 100k", "до 500 000 тг"
++        # "от 100000 до 500000", "от 100k", "до 500 000 тг", "до 400 тысяч"
++        price_unit_re = r"(?:k|к|тысяч[аи]?|тыс\.?)"
+         price_range_pat = re.compile(
+-            r"\b(?:от\s+(\d[\d\s]*(?:k|к)?))?\s*(?:до\s+(\d[\d\s]*(?:k|к)?))\s*(?:тг|тенге|kzt)?\b",
++            rf"\b(?:от\s+(\d[\d\s]*(?:\s*{price_unit_re})?))?\s*(?:до\s+(\d[\d\s]*(?:\s*{price_unit_re})?))\s*(?:тг|тенге|kzt|₸)?\b",
+             re.IGNORECASE,
+         )
+         range_match = price_range_pat.search(text)
+@@ -252,15 +253,15 @@ class QueryParser:
+                 extracted_max_price = cls._parse_price_val(p_to)
+             text = price_range_pat.sub(" ", text)
+         else:
+-            # Standalone "до 500000"
+-            to_pat = re.compile(r"\bдо\s+(\d[\d\s]*(?:k|к)?)\s*(?:тг|тенге|kzt)?\b", re.IGNORECASE)
++            # Standalone "до 500000" / "до 400 тысяч"
++            to_pat = re.compile(rf"\bдо\s+(\d[\d\s]*(?:\s*{price_unit_re})?)\s*(?:тг|тенге|kzt|₸)?\b", re.IGNORECASE)
+             to_match = to_pat.search(text)
+             if to_match:
+                 extracted_max_price = cls._parse_price_val(to_match.group(1))
+                 text = to_pat.sub(" ", text)
+ 
+-            # Standalone "от 100000"
+-            from_pat = re.compile(r"\bот\s+(\d[\d\s]*(?:k|к)?)\s*(?:тг|тенге|kzt)?\b", re.IGNORECASE)
++            # Standalone "от 100000" / "от 100 тысяч"
++            from_pat = re.compile(rf"\bот\s+(\d[\d\s]*(?:\s*{price_unit_re})?)\s*(?:тг|тенге|kzt|₸)?\b", re.IGNORECASE)
+             from_match = from_pat.search(text)
+             if from_match:
+                 extracted_min_price = cls._parse_price_val(from_match.group(1))
+@@ -355,9 +356,11 @@ class QueryParser:
+             return None
+         cleaned = raw_str.lower().replace(" ", "").replace("\xa0", "")
+         multiplier = 1.0
+-        if cleaned.endswith("k") or cleaned.endswith("к"):
+-            multiplier = 1000.0
+-            cleaned = cleaned[:-1]
++        for suffix in ("тысяча", "тысячи", "тысяч", "тыс.", "тыс", "k", "к"):
++            if cleaned.endswith(suffix):
++                multiplier = 1000.0
++                cleaned = cleaned[: -len(suffix)]
++                break
+         try:
+             return float(cleaned) * multiplier
+         except (ValueError, TypeError):
+diff --git a/domain/seller_showcase.py b/domain/seller_showcase.py
+index ab86d47..f0ae4ec 100644
+--- a/domain/seller_showcase.py
++++ b/domain/seller_showcase.py
+@@ -6,8 +6,9 @@ and groups multi-channel offers per product.
+ 
+ from __future__ import annotations
+ 
+-from typing import Any, Dict, List, Optional
++from typing import Any, Dict, Iterable, List, Optional
+ from domain.models import Channel, Seller
++from domain.provenance import build_offer_provenance, build_seller_provenance
+ 
+ 
+ def is_offer_expired(expires_at: Optional[str], now: Optional[datetime] = None) -> bool:
+@@ -86,6 +87,7 @@ def group_seller_offers_by_product(offers_with_details: List[Dict[str, Any]], no
+ 
+         grp["conditions"].add(condition)
+         grp["cities"].add(city)
++        prov = build_offer_provenance(row, now=now)
+ 
+         grp["channels"].append({
+             "offer_id": row.get("id"),
+@@ -100,8 +102,14 @@ def group_seller_offers_by_product(offers_with_details: List[Dict[str, Any]], no
+             "city": city,
+             "url": str(row.get("url") or "").strip(),
+             "external_sku": row.get("external_sku"),
++            "observed_at": prov.observed_at,
+             "expires_at": row.get("expires_at"),
+             "published_at": row.get("published_at"),
++            "freshness": prov.freshness,
++            "legacy_freshness": prov.legacy_freshness,
++            "source_freshness_type": prov.source_freshness_type,
++            "age_hours": prov.age_hours,
++            "provenance": prov.to_dict(),
+             "is_purchasable": purchasable,
+             "is_expired": expired,
+         })
+@@ -134,6 +142,9 @@ def build_seller_showcase(
+     available_cities: List[str],
+     available_categories: List[str],
+     conditions_breakdown: Optional[Dict[str, int]] = None,
++    identities: Iterable[Any] = (),
++    verified_identities: Iterable[Any] = (),
++    now: Optional[Any] = None,
+ ) -> Dict[str, Any]:
+     """
+     Builds the complete serializable seller showcase profile.
+@@ -146,8 +157,19 @@ def build_seller_showcase(
+     min_p = min((p["min_price"] for p in grouped_products if p["min_price"] > 0), default=0.0)
+     max_p = max((p["max_price"] for p in grouped_products), default=0.0)
+ 
++    flat_offers = [ch for p in grouped_products for ch in p.get("channels", [])]
++    eff_identities = list(identities) or list(verified_identities)
++    seller_prov = build_seller_provenance(
++        seller=seller,
++        channels=channels,
++        identities=eff_identities,
++        offers=flat_offers,
++        now=now,
++    )
++
+     return {
+         "seller": seller.to_dict(),
++        "provenance": seller_prov.to_dict(),
+         "channels": [c.to_dict() for c in channels],
+         "channel_types_summary": channel_types_summary,
+         "stats": {
+diff --git a/repositories/candidate_repo.py b/repositories/candidate_repo.py
+index 73502d0..c25d7c7 100644
+--- a/repositories/candidate_repo.py
++++ b/repositories/candidate_repo.py
+@@ -24,6 +24,7 @@ from domain.seller_identity import (
+ )
+ from domain.source_profiler import SourceProfile, SourceProfiler
+ from repositories.base import BaseRepository
++from repositories.channel_repo import ChannelRepository
+ from repositories.seller_identity_repo import SellerIdentityRepository
+ from repositories.seller_repo import SellerRepository
+ 
+@@ -39,6 +40,7 @@ class CandidateRepository(BaseRepository):
+         super().__init__(conn)
+         self.seller_repo = SellerRepository(conn)
+         self.identity_repo = SellerIdentityRepository(conn)
++        self.channel_repo = ChannelRepository(conn)
+ 
+     def save_candidate(self, candidate: SellerCandidate) -> SellerCandidate:
+         sql = """
+@@ -407,3 +409,194 @@ class CandidateRepository(BaseRepository):
+ 
+         self.save_candidate(candidate)
+         return candidate
++
++    def submit_self_registration(self, submission: Any) -> Any:
++        """
++        Принимает заявку «Добавить магазин» (S2-E27):
++        1. Профилирует переданные каналы (сайт, соцсети, маркетплейсы) с observed=False.
++        2. Проверяет совпадения с уже известными продавцами в Seller Graph.
++        3. Всегда ставит кандидата в очередь проверки (`REVIEW_REQUIRED`), чтобы саморегистрация
++           не попадала в боевой индекс без подтверждения (`REVIEW_REQUIRED` -> `APPROVED` -> `INDEXED`).
++        """
++        import re
++        from domain.seller_onboarding import OnboardingResult, prepare_onboarding_candidate
++
++        candidate, profiles, channels_detected = prepare_onboarding_candidate(submission)
++        self.save_candidate(candidate)
++        for prof in profiles:
++            self.save_source_profile(prof)
++
++        candidate_dict = {
++            "name": candidate.name,
++            "legal_name": candidate.legal_name,
++            "phone": candidate.phone,
++            "domain": candidate.domain,
++            "bin": candidate.bin,
++            "marketplace_seller_id": candidate.marketplace_seller_id,
++        }
++
++        matched_seller_id: Optional[str] = None
++        match_explanation = "Новый магазин — ожидает проверки модератором"
++        best_confidence = 0.7
++
++        potential_sellers = self._find_potential_sellers(candidate_dict)
++        for seller in potential_sellers:
++            match_res = self.identity_repo.match_candidate(candidate_dict, seller)
++            if match_res.decision in (MatchDecision.AUTO_MATCH, MatchDecision.REVIEW):
++                matched_seller_id = seller.id
++                match_explanation = match_res.explanation
++                best_confidence = match_res.confidence
++                break
++
++        candidate.matched_seller_id = matched_seller_id
++        candidate.status = CandidateStatus.REVIEW_REQUIRED
++        candidate.notes = f"Саморегистрация S2-E27 ({match_explanation})"
++        self.save_candidate(candidate)
++
++        slug_hint = re.sub(r"[^a-z0-9а-яё]+", "_", candidate.name.lower()).strip("_") or candidate.id
++        target_seller_id = matched_seller_id or f"seller_{slug_hint}"
++        queue_id = self.identity_repo.add_to_review_queue(
++            candidate_seller_id=candidate.id,
++            matched_seller_id=target_seller_id,
++            reason=f"Заявка «Добавить магазин»: {match_explanation}",
++            confidence=best_confidence,
++            details={
++                "candidate_name": candidate.name,
++                "city": candidate.city,
++                "source_type": candidate.source_type,
++                "channels_detected": channels_detected,
++            },
++        )
++
++        return OnboardingResult(
++            candidate=candidate,
++            profiles=profiles,
++            channels_detected=channels_detected,
++            matched_seller_id=matched_seller_id,
++            match_explanation=match_explanation,
++            review_queue_id=queue_id if isinstance(queue_id, str) else getattr(queue_id, "id", None),
++        )
++
++    def approve_onboarding_candidate(
++        self,
++        candidate_id: str,
++        decision: str = "APPROVED",
++        actor: Optional[str] = None,
++    ) -> Optional[Seller]:
++        """
++        Подтверждает или отклоняет заявку магазина (S2-E27).
++        При подтверждении атомарно переводит кандидата `REVIEW_REQUIRED` -> `APPROVED` -> `INDEXED`,
++        создаёт или обновляет запись `Seller`, привязывает ключи идентичности и создаёт каналы (`Channel`).
++        """
++        import re
++
++        candidate = self.get_candidate_by_id(candidate_id)
++        if not candidate:
++            return None
++
++        norm_dec = (decision or "").strip().upper()
++        if norm_dec not in ("APPROVED", "REJECTED"):
++            raise ValueError(f"Decision must be APPROVED or REJECTED, got {decision}")
++
++        self.execute("SAVEPOINT onboarding_decision")
++        try:
++            # Close any pending review queue items for this candidate
++            pending_rows = self.fetchall(
++                "SELECT id FROM seller_review_queue WHERE candidate_seller_id = ? AND status = 'PENDING'",
++                (candidate_id,),
++            )
++            for prow in pending_rows:
++                self.identity_repo.resolve_review(prow["id"], norm_dec, actor=actor)
++
++            if norm_dec == "REJECTED":
++                self.update_candidate_status(
++                    candidate_id,
++                    CandidateStatus.REJECTED,
++                    notes="Заявка отклонена модератором" + (f" ({actor})" if actor else ""),
++                )
++                self.execute("RELEASE SAVEPOINT onboarding_decision")
++                return None
++
++            # 1. Create or update Seller
++            seller: Optional[Seller] = None
++            if candidate.matched_seller_id:
++                seller = self.seller_repo.get_by_id(candidate.matched_seller_id)
++
++            if not seller:
++                slug_base = (
++                    (candidate.domain.split(".")[0] if candidate.domain else "")
++                    or re.sub(r"[^a-z0-9]+", "-", candidate.name.lower()).strip("-")
++                    or candidate.id.replace("cand_", "")
++                )
++                seller_id = candidate.matched_seller_id or f"seller_{slug_base}"
++                seller = Seller(
++                    id=seller_id,
++                    slug=slug_base,
++                    name=candidate.name,
++                    legal_name=candidate.legal_name,
++                    bin=candidate.bin,
++                    domain=candidate.domain,
++                    phone=candidate.phone,
++                    is_active=True,
++                    metadata={"city": candidate.city, "onboarded_from": candidate.id},
++                )
++            else:
++                seller.legal_name = seller.legal_name or candidate.legal_name
++                seller.bin = seller.bin or candidate.bin
++                seller.domain = seller.domain or candidate.domain
++                seller.phone = seller.phone or candidate.phone
++                seller.is_active = True
++
++            self.seller_repo.save_or_update(seller)
++            self.identity_repo.sync_identities_from_seller(seller, source="self_registration_approved")
++
++            if candidate.marketplace_seller_id:
++                self.identity_repo.add_identity_values(
++                    seller.id,
++                    IdentityType.MARKETPLACE_SELLER_ID,
++                    candidate.marketplace_seller_id,
++                    confidence=0.95,
++                    source="self_registration_approved",
++                )
++
++            # 2. Register channels from candidate metadata
++            meta = candidate.raw_metadata or {}
++            channels_list = meta.get("channels_detected") or []
++            for ch in channels_list:
++                ch_type = ch.get("channel_type")
++                ch_url = ch.get("url")
++                ch_handle = ch.get("handle")
++                if ch_type and ch_url:
++                    self.channel_repo.get_or_create(
++                        seller_id=seller.id,
++                        channel_type=ch_type,
++                        name=f"{seller.name} ({ch_type})",
++                        external_store_id=ch_handle,
++                        base_url=ch_url,
++                    )
++
++            # Link source profiles to seller
++            for prof in self.get_source_profiles_for_candidate(candidate.id):
++                prof.seller_id = seller.id
++                self.save_source_profile(prof)
++
++            # 3. Advance status: REVIEW_REQUIRED -> APPROVED -> INDEXED
++            if candidate.status != CandidateStatus.APPROVED:
++                self.update_candidate_status(
++                    candidate.id,
++                    CandidateStatus.APPROVED,
++                    matched_seller_id=seller.id,
++                    notes="Заявка одобрена" + (f" ({actor})" if actor else ""),
++                )
++            self.update_candidate_status(
++                candidate.id,
++                CandidateStatus.INDEXED,
++                matched_seller_id=seller.id,
++                notes="Магазин подключён к индексу" + (f" ({actor})" if actor else ""),
++            )
++            self.execute("RELEASE SAVEPOINT onboarding_decision")
++            return seller
++        except Exception:
++            self.execute("ROLLBACK TO SAVEPOINT onboarding_decision")
++            self.execute("RELEASE SAVEPOINT onboarding_decision")
++            raise
+diff --git a/repositories/content_repo.py b/repositories/content_repo.py
+index db8f1f7..cd824b5 100644
+--- a/repositories/content_repo.py
++++ b/repositories/content_repo.py
+@@ -16,6 +16,7 @@ from domain.social_content import (
+     ExtractedOfferCandidate,
+     SocialContentExtractor,
+ )
++from domain.vision_extraction import VisionCandidate, VisionExtractionEngine
+ from repositories.base import BaseRepository
+ 
+ logger = logging.getLogger("kz_price_hunter.repositories.content")
+@@ -142,7 +143,44 @@ class ContentObservationRepository(BaseRepository):
+         self.commit()
+         return cur.rowcount or 0
+ 
++    @staticmethod
++    def extract_vision_candidates(observation: ContentObservation) -> List[VisionCandidate]:
++        """Извлекает кандидатов из медиа/OCR/vision-разметки наблюдения (S2-E10)."""
++        return VisionExtractionEngine.extract_from_observation(observation)
++
+     @staticmethod
+     def extract_candidates(observation: ContentObservation) -> List[ExtractedOfferCandidate]:
+-        """Детерминированно извлекает кандидатов-предложения из текста наблюдения."""
+-        return SocialContentExtractor.extract_candidates(observation)
++        """Детерминированно извлекает кандидатов-предложения из текста и медиа наблюдения."""
++        text_candidates = list(SocialContentExtractor.extract_candidates(observation))
++        meta = observation.raw_metadata or {}
++        has_vision_input = bool(
++            meta.get("vision_items")
++            or meta.get("ocr_text")
++            or meta.get("image_text")
++        )
++        if not has_vision_input:
++            return text_candidates
++
++        seen = {(c.raw_title.strip().lower(), round(float(c.price), 2)) for c in text_candidates}
++        vision_candidates = VisionExtractionEngine.extract_from_observation(observation)
++        for vc in vision_candidates:
++            if not vc.publishable or vc.price is None or vc.price <= 0:
++                continue
++            key = (vc.raw_title.strip().lower(), round(float(vc.price), 2))
++            if key in seen:
++                continue
++            seen.add(key)
++            text_candidates.append(
++                ExtractedOfferCandidate(
++                    raw_title=vc.raw_title,
++                    price=float(vc.price),
++                    old_price=float(vc.old_price) if vc.old_price else None,
++                    condition=vc.condition,
++                    city=vc.city,
++                    availability=vc.availability,
++                    confidence=float(vc.confidence),
++                    expires_at=observation.expires_at,
++                    raw_snippet=vc.raw_snippet or vc.raw_title,
++                )
++            )
++        return text_candidates
+diff --git a/repositories/pricing_repo.py b/repositories/pricing_repo.py
+index b9ad838..721e219 100644
+--- a/repositories/pricing_repo.py
++++ b/repositories/pricing_repo.py
+@@ -19,6 +19,7 @@ from domain.condition import (
+     build_condition_breakdown,
+ )
+ from domain.models import Condition, Offer, Seller
++from domain.price_history_v2 import ProductPriceHistoryReport, build_price_history_series
+ from repositories.base import BaseRepository
+ from repositories.offer_repo import OfferRepository
+ from repositories.product_repo import ProductRepository
+@@ -181,3 +182,96 @@ class PricingRepository(BaseRepository):
+ 
+         results.sort(key=lambda x: x["savings_amount"], reverse=True)
+         return results[:limit]
++
++    def get_product_price_history(
++        self,
++        product_id: str,
++        seller_id: Optional[str] = None,
++        channel_id: Optional[str] = None,
++        channel_type: Optional[str] = None,
++        condition: Optional[str] = None,
++        city: Optional[str] = None,
++        limit_per_series: int = 90,
++        limit_per_offer: Optional[int] = None,
++    ) -> Optional[ProductPriceHistoryReport]:
++        """
++        Price History 2.0 (S2-E26): возвращает изолированные ценовые линии по
++        (product_id, seller_id, channel_id, condition) из offer_price_history.
++        """
++        product = self.product_repo.get_by_id(product_id)
++        if not product:
++            return None
++
++        eff_limit = int(limit_per_offer or limit_per_series or 90)
++        where_extra = ""
++        params: list = [product_id]
++        if seller_id:
++            where_extra += " AND o.seller_id = ?"
++            params.append(seller_id)
++        if channel_id:
++            where_extra += " AND o.channel_id = ?"
++            params.append(channel_id)
++        if channel_type:
++            where_extra += " AND LOWER(COALESCE(c.channel_type, '')) = ?"
++            params.append(str(channel_type).strip().lower())
++        if condition:
++            where_extra += " AND UPPER(COALESCE(o.condition, 'NEW')) = ?"
++            params.append(Condition.normalize(condition, default=Condition.NEW))
++        if city and city != "Казахстан":
++            where_extra += " AND (o.city = ? OR o.city = 'Казахстан')"
++            params.append(city)
++
++        sql = f"""
++        SELECT
++            o.product_id,
++            o.id AS offer_id,
++            o.seller_id,
++            s.name AS seller_name,
++            o.channel_id,
++            c.channel_type,
++            c.name AS channel_name,
++            o.condition,
++            o.city,
++            o.currency,
++            oph.price,
++            oph.old_price,
++            oph.observed_at
++        FROM offer_price_history oph
++        JOIN offers o ON o.id = oph.offer_id
++        LEFT JOIN sellers s ON s.id = o.seller_id
++        LEFT JOIN channels c ON c.id = o.channel_id
++        WHERE o.product_id = ?{where_extra}
++        ORDER BY oph.observed_at ASC
++        """
++        rows = [dict(r) for r in self.fetchall(sql, params)]
++
++        # Если таблица offer_price_history для офферов ещё пуста, подставляем текущие наблюдения из offers
++        if not rows:
++            fallback_sql = f"""
++            SELECT
++                o.product_id,
++                o.id AS offer_id,
++                o.seller_id,
++                s.name AS seller_name,
++                o.channel_id,
++                c.channel_type,
++                c.name AS channel_name,
++                o.condition,
++                o.city,
++                o.currency,
++                o.price,
++                o.old_price,
++                o.observed_at
++            FROM offers o
++            LEFT JOIN sellers s ON s.id = o.seller_id
++            LEFT JOIN channels c ON c.id = o.channel_id
++            WHERE o.product_id = ? AND o.is_active = 1{where_extra}
++            """
++            rows = [dict(r) for r in self.fetchall(fallback_sql, params)]
++
++        return build_price_history_series(
++            rows,
++            product_id=product.id,
++            title=product.title,
++            limit_per_series=eff_limit,
++        )
+diff --git a/repositories/seller_identity_repo.py b/repositories/seller_identity_repo.py
+index eda236c..c96a782 100644
+--- a/repositories/seller_identity_repo.py
++++ b/repositories/seller_identity_repo.py
+@@ -70,6 +70,29 @@ class SellerIdentityRepository(BaseRepository):
+         rows = self.fetchall(sql, (seller_id,))
+         return [SellerIdentity.from_row(r) for r in rows]
+ 
++    get_identities_for_seller = get_identities_by_seller
++
++    def sync_identities_from_seller(self, seller: Any, source: str = "seller_sync") -> List[SellerIdentity]:
++        """Syncs strong identity keys (domain, phone, bin, legal_name) from a Seller record."""
++        synced: List[SellerIdentity] = []
++        for itype, val in (
++            (IdentityType.DOMAIN, getattr(seller, "domain", None)),
++            (IdentityType.PHONE, getattr(seller, "phone", None)),
++            (IdentityType.BIN, getattr(seller, "bin", None)),
++            (IdentityType.LEGAL_NAME, getattr(seller, "legal_name", None)),
++        ):
++            if val and str(val).strip():
++                synced.append(
++                    self.add_identity_values(
++                        seller.id,
++                        itype,
++                        str(val).strip(),
++                        confidence=0.95,
++                        source=source,
++                    )
++                )
++        return synced
++
+     def find_sellers_by_identity(self, identity_type: str, identity_value: str) -> List[str]:
+         """Finds all seller_ids matching the given identity key/value pair."""
+         sql = """
+diff --git a/scrapers/base.py b/scrapers/base.py
+index e5b799d..102417a 100644
+--- a/scrapers/base.py
++++ b/scrapers/base.py
+@@ -269,6 +269,16 @@ class PagedScraper:
+         unparsed = 0  # неразобранные карточки во всей категории (A01)
+         started = time.monotonic()
+ 
++        def _finish_end_of_catalog() -> ScanResult:
++            if unparsed:
++                # Магазин подтвердил конец, но часть карточек не разобрана: отсутствие товара
++                # могло быть ошибкой разбора — обход не полный, сверка ничего не снимет (A01)
++                self._report_scrape(category_name, products, pages_scraped, started,
++                                    f"конец каталога, но не разобрано карточек: {unparsed}")
++                return ScanResult(products, limited=True, unparsed=unparsed)
++            self._report_scrape(category_name, products, pages_scraped, started, "завершено")
++            return ScanResult(products, complete=True)
++
+         for page in range(1, limit + 1):
+             if page > 1 and self.PAGE_DELAY_SECONDS:
+                 time.sleep(self.PAGE_DELAY_SECONDS)
+@@ -276,7 +286,7 @@ class PagedScraper:
+                 items = self._fetch_page_with_retry(category_name, category_url, page)
+                 pages_scraped += 1
+             except UnconfirmedEnd:
+-                result = ScanResult(products, limited=bool(products),
++                result = ScanResult(products, limited=bool(products), unparsed=unparsed,
+                                     error=None if products else "Карточки не найдены на первой странице")
+                 self._report_scrape(category_name, products, pages_scraped,
+                                     started, "конец каталога не подтверждён")
+@@ -284,35 +294,29 @@ class PagedScraper:
+             except Exception as e:
+                 self._report_scrape(category_name, products, pages_scraped,
+                                     started, f"ошибка: {type(e).__name__}")
+-                return ScanResult(products, error=f"Страница {page}: {type(e).__name__}")
++                return ScanResult(products, unparsed=unparsed, error=f"Страница {page}: {type(e).__name__}")
+ 
++            unparsed += int(getattr(items, "unparsed", 0) or 0)
+             if not items:
+-                complete = bool(products) and getattr(items, "complete", False)
++                if products and getattr(items, "complete", False):
++                    return _finish_end_of_catalog()
+                 self._report_scrape(category_name, products, pages_scraped, started,
+-                                    "завершено" if complete else "пустая выдача: полнота не подтверждена")
+-                return ScanResult(products, complete=complete,
+-                                  error=None if complete else "Пустая выдача: полнота не подтверждена")
++                                    "пустая выдача: полнота не подтверждена")
++                return ScanResult(products, limited=bool(products), unparsed=unparsed,
++                                  error="Пустая выдача: полнота не подтверждена")
+ 
+-            unparsed += int(getattr(items, "unparsed", 0) or 0)
+             fresh = [i for i in items if i.get("id") and i["id"] not in seen_ids]
+             if not fresh:
+                 # Страница повторяет уже собранные товары — каталог закончился
+                 self._report_scrape(category_name, products, pages_scraped, started,
+                                     "дубликаты, остановка")
+-                return ScanResult(products, limited=True)
++                return ScanResult(products, limited=True, unparsed=unparsed)
+ 
+             seen_ids.update(i["id"] for i in fresh)
+             products.extend(fresh)
+             if getattr(items, "complete", False):
+-                if unparsed:
+-                    # Магазин подтвердил конец, но часть карточек не разобрана: отсутствие товара
+-                    # могло быть ошибкой разбора — обход не полный, сверка ничего не снимет (A01)
+-                    self._report_scrape(category_name, products, pages_scraped, started,
+-                                        f"конец каталога, но не разобрано карточек: {unparsed}")
+-                    return ScanResult(products, limited=True, unparsed=unparsed)
+-                self._report_scrape(category_name, products, pages_scraped, started, "завершено")
+-                return ScanResult(products, complete=True)
++                return _finish_end_of_catalog()
+ 
+         self._report_scrape(category_name, products, pages_scraped, started,
+                             "достигнут лимит страниц")
+-        return ScanResult(products, limited=True)
++        return ScanResult(products, limited=True, unparsed=unparsed)
+diff --git a/telemetry.py b/telemetry.py
+index ea5eb32..3ef97b6 100644
+--- a/telemetry.py
++++ b/telemetry.py
+@@ -17,6 +17,7 @@
+ без него данные копятся в ограниченном буфере до явного flush() — так тесты не пишут
+ в рабочую prices.db.
+ """
++import contextlib
+ import contextvars
+ import datetime
+ import json
+@@ -41,9 +42,57 @@ current_request_id: contextvars.ContextVar[Optional[str]] = contextvars.ContextV
+ current_shop: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar("current_shop", default=None)
+ current_city: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar("current_city", default=None)
+ current_category: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar("current_category", default=None)
++# Сквозные идентификаторы Search Platform 2.0 (S2-E24): seller_id / source_id / offer_id
++current_seller_id: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar("current_seller_id", default=None)
++current_source_id: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar("current_source_id", default=None)
++current_offer_id: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar("current_offer_id", default=None)
+ # Сводка HTTP текущей категории обхода (dict, изменяется на месте): связывает страницы с итогом категории
+ current_http_trace: contextvars.ContextVar[Optional[Dict[str, Any]]] = contextvars.ContextVar("current_http_trace", default=None)
+ 
++
++@contextlib.contextmanager
++def correlation_context(
++    *,
++    request_id: Optional[str] = None,
++    scan_id: Optional[str] = None,
++    seller_id: Optional[str] = None,
++    source_id: Optional[str] = None,
++    offer_id: Optional[str] = None,
++    shop: Optional[str] = None,
++    city: Optional[str] = None,
++    category: Optional[str] = None,
++):
++    """Устанавливает сквозные идентификаторы корреляции (S2-E24) на время блока."""
++    tokens = []
++    for var, val in (
++        (current_request_id, request_id),
++        (current_scan_id, scan_id),
++        (current_seller_id, seller_id),
++        (current_source_id, source_id),
++        (current_offer_id, offer_id),
++        (current_shop, shop),
++        (current_city, city),
++        (current_category, category),
++    ):
++        if val is not None:
++            tokens.append((var, var.set(val)))
++    try:
++        yield
++    finally:
++        for var, tok in reversed(tokens):
++            var.reset(tok)
++
++
++def get_correlation_ids() -> Dict[str, Optional[str]]:
++    """Возвращает текущие сквозные идентификаторы корреляции (S2-E24)."""
++    return {
++        "request_id": current_request_id.get(),
++        "scan_id": current_scan_id.get(),
++        "seller_id": current_seller_id.get(),
++        "source_id": current_source_id.get(),
++        "offer_id": current_offer_id.get(),
++    }
++
+ # Типы событий
+ EVENT_HTTP_REQUEST = "http_request"
+ EVENT_HTTP_COOLDOWN = "http_cooldown"
+@@ -376,6 +425,9 @@ class TelemetryService:
+         category: Optional[str] = None,
+         scan_id: Optional[str] = None,
+         request_id: Optional[str] = None,
++        seller_id: Optional[str] = None,
++        source_id: Optional[str] = None,
++        offer_id: Optional[str] = None,
+         data: Optional[Dict[str, Any]] = None,
+         throttle_key: Optional[str] = None,
+         throttle_per_minute: int = MAX_HTTP_DIAG_EVENTS_PER_MINUTE,
+@@ -391,6 +443,19 @@ class TelemetryService:
+             now = datetime.datetime.now(datetime.timezone.utc)
+             if throttle_key is not None and not self._allow(now, throttle_key, throttle_per_minute):
+                 return None
++            eff_seller_id = seller_id or current_seller_id.get()
++            eff_source_id = source_id or current_source_id.get()
++            eff_offer_id = offer_id or current_offer_id.get()
++            payload_obj: Any = data
++            if any((eff_seller_id, eff_source_id, eff_offer_id)):
++                base_dict = dict(data) if isinstance(data, dict) else ({"text": data} if data is not None else {})
++                if eff_seller_id and "seller_id" not in base_dict:
++                    base_dict["seller_id"] = eff_seller_id
++                if eff_source_id and "source_id" not in base_dict:
++                    base_dict["source_id"] = eff_source_id
++                if eff_offer_id and "offer_id" not in base_dict:
++                    base_dict["offer_id"] = eff_offer_id
++                payload_obj = base_dict
+             event = {
+                 "event_id": str(uuid.uuid4()),
+                 "timestamp": now.strftime(_EVENT_TS_FORMAT),
+@@ -402,11 +467,14 @@ class TelemetryService:
+                 "category": category or current_category.get(),
+                 "scan_id": scan_id or current_scan_id.get(),
+                 "request_id": request_id or current_request_id.get(),
++                "seller_id": eff_seller_id,
++                "source_id": eff_source_id,
++                "offer_id": eff_offer_id,
+                 "message": sanitize_text(message)[:1000],
+                 # Поле city в данных — тоже только канонический город (B02), на границе телеметрии
+                 "data_json": sanitize_payload(
+-                    {**data, **{k: canonical_city(data[k]) for k in ("city", "requested_city") if k in data}}
+-                    if isinstance(data, dict) else data) if data else None,
++                    {**payload_obj, **{k: canonical_city(payload_obj[k]) for k in ("city", "requested_city") if k in payload_obj}}
++                    if isinstance(payload_obj, dict) else payload_obj) if payload_obj else None,
+             }
+             with self._lock:
+                 self._buffer.append(event)
+diff --git a/tests/scrapers/test_scraper_partial_parse.py b/tests/scrapers/test_scraper_partial_parse.py
+index eb70e35..8885b0b 100644
+--- a/tests/scrapers/test_scraper_partial_parse.py
++++ b/tests/scrapers/test_scraper_partial_parse.py
+@@ -81,6 +81,96 @@ class PartialParseTest(unittest.TestCase):
+         alser = scrape(AlserScraper, "alser", ALSER_URL, [alser_page(5, "5 товаров")])
+         self.assertTrue(evrika.complete and alser.complete)
+ 
++    def test_evrika_broken_card_then_out_of_stock_only_last_page_is_limited_with_unparsed(self):
++        """A01 (пустая последняя страница): поломка на 1-й странице не теряется, если на 2-й только «Нет в наличии»."""
++        pages = [
++            evrika_page(2, "3 товара", broken_price=1),
++            evrika_page(1, "3 товара", start=2, out_of_stock=1),
++        ]
++        result = scrape(EvrikaScraper, "evrika", EVRIKA_URL, pages)
++        self.assertEqual(len(result), 1)
++        self.assertFalse(result.complete)
++        self.assertTrue(result.limited)
++        self.assertEqual(result.unparsed, 1)
++
++    def test_alser_broken_card_then_out_of_stock_only_last_page_is_limited_with_unparsed(self):
++        """A01 (пустая последняя страница): для Alser накопленный unparsed блокирует complete и при пустом items."""
++        first = alser_page(2, "3 товара").replace("info-container-product-price", "renamed-price", 1)
++        last = alser_page(1, "3 товара", start=2).replace("499 990 ₸", "Нет в наличии")
++        result = scrape(AlserScraper, "alser", ALSER_URL, [first, last])
++        self.assertEqual(len(result), 1)
++        self.assertFalse(result.complete)
++        self.assertTrue(result.limited)
++        self.assertEqual(result.unparsed, 1)
++
++    def test_out_of_stock_only_last_page_after_clean_first_page_is_complete(self):
++        """Допустимый пропуск «Нет в наличии» на последней странице без поломок даёт complete=True."""
++        evrika = scrape(
++            EvrikaScraper,
++            "evrika",
++            EVRIKA_URL,
++            [evrika_page(2, "3 товара"), evrika_page(1, "3 товара", start=2, out_of_stock=1)],
++        )
++        self.assertEqual(len(evrika), 2)
++        self.assertTrue(evrika.complete)
++        self.assertFalse(evrika.limited)
++        self.assertEqual(evrika.unparsed, 0)
++
++        alser = scrape(
++            AlserScraper,
++            "alser",
++            ALSER_URL,
++            [
++                alser_page(2, "3 товара"),
++                alser_page(1, "3 товара", start=2).replace("499 990 ₸", "Нет в наличии"),
++            ],
++        )
++        self.assertEqual(len(alser), 2)
++        self.assertTrue(alser.complete)
++        self.assertFalse(alser.limited)
++        self.assertEqual(alser.unparsed, 0)
++
++    def test_unparsed_preserved_across_all_non_complete_exit_branches(self):
++        """Накопленный unparsed сохраняется во всех ветках выхода PagedScraper (UnconfirmedEnd, ошибка, дубли, лимит)."""
++        page1_broken = evrika_page(2, "4 товара", broken_price=1)
++
++        # 1. UnconfirmedEnd на второй странице (404)
++        res_unconfirmed = scrape(EvrikaScraper, "evrika", EVRIKA_URL, [page1_broken])
++        self.assertFalse(res_unconfirmed.complete)
++        self.assertTrue(res_unconfirmed.limited)
++        self.assertEqual(res_unconfirmed.unparsed, 1)
++
++        # 2. ValueError на полностью сломанной второй странице
++        res_err = scrape(
++            EvrikaScraper,
++            "evrika",
++            EVRIKA_URL,
++            [page1_broken, evrika_page(2, "4 товара", start=2, broken_price=2)],
++        )
++        self.assertFalse(res_err.complete)
++        self.assertEqual(res_err.error, "Страница 2: ValueError")
++        self.assertEqual(res_err.unparsed, 1)
++
++        # 3. Дубликаты на второй странице (not fresh)
++        res_dup = scrape(
++            EvrikaScraper,
++            "evrika",
++            EVRIKA_URL,
++            [page1_broken, evrika_page(1, "4 товара", start=0)],
++        )
++        self.assertFalse(res_dup.complete)
++        self.assertTrue(res_dup.limited)
++        self.assertEqual(res_dup.unparsed, 1)
++
++        # 4. Достигнут лимит страниц (max_pages=1)
++        scraper = EvrikaScraper()
++        scraper.PAGE_DELAY_SECONDS = 0
++        with patch("scrapers.evrika.requests.get", return_value=Mock(status_code=200, text=page1_broken)):
++            res_limit = scraper._scrape_sync("Категория", EVRIKA_URL, max_pages=1)
++        self.assertFalse(res_limit.complete)
++        self.assertTrue(res_limit.limited)
++        self.assertEqual(res_limit.unparsed, 1)
++
+ 
+ class WindowedPagerTest(unittest.TestCase):
+     """A02: наибольшая видимая ссылка пагинатора — не доказательство последней страницы."""
+diff --git a/version.py b/version.py
+index e137b34..44ea2a0 100644
+--- a/version.py
++++ b/version.py
+@@ -2,7 +2,7 @@
+ KZ Price Hunter - Version Information
+ """
+ 
+-__version__ = "6.4.14"
++__version__ = "6.5.0"
+ __app_name__ = "KZ Price Hunter"
+ __release_date__ = "2026-10-29"
+ __author__ = "Advanced Agentic Coding"
+diff --git a/web/server.py b/web/server.py
+index c92fb9b..e5a32a4 100644
+--- a/web/server.py
++++ b/web/server.py
+@@ -1091,6 +1091,7 @@ def _get_seller_v2_sync(id_or_slug, city, condition, category, limit, offset):
+     from repositories.seller_repo import SellerRepository
+     from repositories.channel_repo import ChannelRepository
+     from repositories.offer_repo import OfferRepository
++    from repositories.seller_identity_repo import SellerIdentityRepository
+     from domain.seller_showcase import group_seller_offers_by_product, build_seller_showcase
+ 
+     conn = get_connection()
+@@ -1103,6 +1104,9 @@ def _get_seller_v2_sync(id_or_slug, city, condition, category, limit, offset):
+         chan_repo = ChannelRepository(conn)
+         channels = chan_repo.list_by_seller(seller.id)
+ 
++        identity_repo = SellerIdentityRepository(conn)
++        identities = identity_repo.get_identities_for_seller(seller.id)
++
+         offer_repo = OfferRepository(conn)
+         raw_offers = offer_repo.get_active_offers_with_details_for_seller(
+             seller_id=seller.id,
+@@ -1130,6 +1134,7 @@ def _get_seller_v2_sync(id_or_slug, city, condition, category, limit, offset):
+             available_cities=aggs["cities"],
+             available_categories=aggs["categories"],
+             conditions_breakdown=aggs["conditions_breakdown"],
++            verified_identities=identities,
+         )
+         showcase["ok"] = True
+         showcase["pagination"] = {
+@@ -1348,6 +1353,298 @@ async def resolve_discovery_task_handler(request):
+         conn.close()
+ 
+ 
++# ===== Price History 2.0 (S2-E26), AI Search Assistant (S2-E22), Seller Onboarding (S2-E27), Monitoring 2.0 (S2-E23/E24) =====
++
++@routes.get("/api/v2/products/{product_id}/history")
++async def product_price_history_v2_handler(request):
++    """История цен 2.0 в разрезе (товар, продавец, канал, состояние) без смешения каналов (S2-E26)."""
++    product_id = request.match_info.get("product_id", "").strip()
++    if not product_id:
++        return web.json_response({"ok": False, "error": "product_id обязателен"}, status=400)
++
++    condition = request.query.get("condition")
++    seller_id = request.query.get("seller_id")
++    channel_type = request.query.get("channel_type")
++    limit = _int_param(request, "limit", 500, minimum=1, maximum=2000)
++
++    def _load():
++        from database import get_connection
++        from repositories.pricing_repo import PricingRepository
++
++        conn = get_connection()
++        try:
++            repo = PricingRepository(conn)
++            report = repo.get_product_price_history(
++                product_id=product_id,
++                condition=condition,
++                seller_id=seller_id,
++                channel_type=channel_type,
++                limit_per_offer=limit,
++            )
++            return report.to_dict() if report else None
++        finally:
++            conn.close()
++
++    try:
++        data = await asyncio.to_thread(_load)
++        if not data:
++            return web.json_response({"ok": False, "error": "Товар не найден"}, status=404)
++        data["ok"] = True
++        return web.json_response(data)
++    except Exception as e:
++        print(f"[API product price history v2] Ошибка: {e}")
++        return web.json_response({"ok": False, "error": "Ошибка загрузки истории цен"}, status=500)
++
++
++@routes.get("/api/v2/search/assistant")
++@routes.post("/api/v2/search/assistant")
++async def search_assistant_v2_handler(request):
++    """AI-помощник выбора поверх Search Core 2.0 (S2-E22) — строго по реальным предложениям БД."""
++    wait = search_limiter.retry_after(f"ip:{client_ip(request)}")
++    if wait:
++        return web.json_response({"error": f"Слишком много запросов, повторите через {int(wait) + 1} сек"}, status=429)
++
++    body = {}
++    if request.method == "POST" and request.can_read_body:
++        try:
++            body = await request.json()
++        except Exception:
++            body = {}
++
++    query = (body.get("q") or body.get("query") or request.query.get("q") or "").strip()
++    if not query:
++        return web.json_response({"ok": False, "error": "Параметр q (запрос) обязателен"}, status=400)
++
++    city = body.get("city") or request.query.get("city")
++    condition = body.get("condition") or request.query.get("condition")
++    channel_type = body.get("channel_type") or request.query.get("channel_type")
++
++    def _float_opt(val):
++        if val is None or val == "":
++            return None
++        try:
++            return float(val)
++        except (TypeError, ValueError):
++            return None
++
++    min_price = _float_opt(body.get("min_price") if "min_price" in body else request.query.get("min_price"))
++    max_price = _float_opt(body.get("max_price") if "max_price" in body else request.query.get("max_price"))
++    limit = _int_param(request, "limit", int(body.get("limit", 20) or 20), minimum=1, maximum=50)
++
++    def _run():
++        from database import get_connection
++        from domain.search_assistant import SearchAssistant
++        from domain.search_core import SearchCore
++        from repositories.search_repo import SearchRepository
++
++        conn = get_connection()
++        try:
++            assistant = SearchAssistant(SearchCore(SearchRepository(conn)))
++            resp = assistant.ask(
++                query=query,
++                city=city,
++                condition=condition,
++                channel_type=channel_type,
++                min_price=min_price,
++                max_price=max_price,
++                limit=limit,
++            )
++            res_dict = resp.to_dict()
++            res_dict["ok"] = True
++            return res_dict
++        finally:
++            conn.close()
++
++    try:
++        data = await asyncio.to_thread(_run)
++        return web.json_response(data)
++    except Exception as e:
++        print(f"[API search assistant v2] Ошибка: {e}")
++        return web.json_response({"ok": False, "error": "Ошибка помощника поиска"}, status=500)
++
++
++@routes.post("/api/v2/sellers/register")
++async def register_seller_v2_handler(request):
++    """Публичная форма «Добавить магазин» (S2-E27): профилирование и постановка в очередь REVIEW_REQUIRED."""
++    wait = search_limiter.retry_after(f"onboard:{client_ip(request)}")
++    if wait:
++        return web.json_response({"ok": False, "error": f"Слишком много заявок, повторите через {int(wait) + 1} сек"}, status=429)
++
++    try:
++        body = await request.json()
++    except Exception:
++        return web.json_response({"ok": False, "error": "Ожидается JSON с данными магазина"}, status=400)
++
++    if not isinstance(body, dict):
++        return web.json_response({"ok": False, "error": "Некорректный формат заявки"}, status=400)
++
++    from domain.seller_onboarding import SellerOnboardingSubmission, validate_onboarding_submission
++
++    raw_mp = body.get("marketplace_links") or []
++    if isinstance(raw_mp, str):
++        mp_list = [s.strip() for s in raw_mp.replace(",", "\n").splitlines() if s.strip()]
++    elif isinstance(raw_mp, list):
++        mp_list = [str(s).strip() for s in raw_mp if str(s).strip()]
++    else:
++        mp_list = []
++
++    submission = SellerOnboardingSubmission(
++        name=str(body.get("name") or "").strip(),
++        city=str(body.get("city") or "Алматы").strip(),
++        website_url=body.get("website_url") or body.get("website"),
++        instagram=body.get("instagram"),
++        telegram=body.get("telegram"),
++        whatsapp=body.get("whatsapp"),
++        phone=body.get("phone"),
++        marketplace_links=mp_list,
++        marketplace_seller_id=body.get("marketplace_seller_id"),
++        bin=body.get("bin"),
++        legal_name=body.get("legal_name"),
++        contact_person=body.get("contact_person"),
++        comment=body.get("comment"),
++    )
++
++    valid, errors = validate_onboarding_submission(submission)
++    if not valid:
++        return web.json_response({"ok": False, "errors": errors, "error": "; ".join(errors)}, status=400)
++
++    def _submit():
++        from database import get_connection
++        from repositories.candidate_repo import CandidateRepository
++
++        conn = get_connection()
++        try:
++            repo = CandidateRepository(conn)
++            res = repo.submit_self_registration(submission)
++            conn.commit()
++            return res.to_dict()
++        finally:
++            conn.close()
++
++    try:
++        result = await asyncio.to_thread(_submit)
++        result["ok"] = True
++        return web.json_response(result, status=201)
++    except ValueError as ve:
++        return web.json_response({"ok": False, "error": str(ve)}, status=400)
++    except Exception as e:
++        print(f"[API register seller v2] Ошибка: {e}")
++        return web.json_response({"ok": False, "error": "Не удалось сохранить заявку магазина"}, status=500)
++
++
++@routes.get("/api/v2/admin/onboarding")
++@require_admin
++async def admin_list_onboarding_handler(request):
++    """Список заявок магазинов на подключение и кандидатов в очереди модерации (S2-E27)."""
++    status = request.query.get("status")
++    source_type = request.query.get("source_type")
++    limit = _int_param(request, "limit", 50, minimum=1, maximum=200)
++
++    def _load():
++        from database import get_connection
++        from repositories.candidate_repo import CandidateRepository
++
++        conn = get_connection()
++        try:
++            repo = CandidateRepository(conn)
++            candidates = repo.find_candidates(status=status, source_type=source_type, limit=limit)
++            items = []
++            for c in candidates:
++                c_dict = c.to_dict()
++                profiles = repo.get_source_profiles_for_candidate(c.id)
++                c_dict["profiles"] = [p.to_dict() for p in profiles]
++                items.append(c_dict)
++            return items
++        finally:
++            conn.close()
++
++    try:
++        items = await asyncio.to_thread(_load)
++        return web.json_response({"ok": True, "candidates": items, "total": len(items)})
++    except Exception as e:
++        print(f"[API admin onboarding list] Ошибка: {e}")
++        return web.json_response({"ok": False, "error": "Ошибка чтения очереди заявок"}, status=500)
++
++
++@routes.post("/api/v2/admin/onboarding/{candidate_id}/decision")
++@require_admin
++async def admin_onboarding_decision_handler(request):
++    """Одобрение или отклонение заявки магазина (REVIEW_REQUIRED -> APPROVED -> INDEXED, S2-E27)."""
++    candidate_id = request.match_info.get("candidate_id", "").strip()
++    try:
++        body = await request.json()
++    except Exception:
++        return web.json_response({"ok": False, "error": "Требуется JSON-тело"}, status=400)
++
++    decision = str(body.get("decision") or "APPROVED").strip().upper()
++    if decision not in ("APPROVED", "REJECTED"):
++        return web.json_response({"ok": False, "error": "decision должен быть APPROVED или REJECTED"}, status=400)
++
++    user = request.get("user") or {}
++    actor = str(user.get("username") or user.get("id") or "admin")
++
++    def _decide():
++        from database import get_connection
++        from repositories.candidate_repo import CandidateRepository
++
++        conn = get_connection()
++        try:
++            repo = CandidateRepository(conn)
++            existing = repo.get_candidate_by_id(candidate_id)
++            if not existing:
++                return None, None
++            seller = repo.approve_onboarding_candidate(candidate_id, decision=decision, actor=actor)
++            updated_cand = repo.get_candidate_by_id(candidate_id)
++            conn.commit()
++            return (
++                updated_cand.to_dict() if updated_cand else None,
++                seller.to_dict() if seller else None,
++            )
++        finally:
++            conn.close()
++
++    try:
++        cand_dict, seller_dict = await asyncio.to_thread(_decide)
++        if cand_dict is None:
++            return web.json_response({"ok": False, "error": "Заявка не найдена"}, status=404)
++        return web.json_response({
++            "ok": True,
++            "decision": decision,
++            "candidate": cand_dict,
++            "seller": seller_dict,
++        })
++    except ValueError as ve:
++        return web.json_response({"ok": False, "error": str(ve)}, status=400)
++    except Exception as e:
++        print(f"[API admin onboarding decision] Ошибка: {e}")
++        return web.json_response({"ok": False, "error": "Ошибка применения решения по заявке"}, status=500)
++
++
++@routes.get("/api/v2/monitoring/overview")
++@require_admin
++async def monitoring_overview_v2_handler(request):
++    """Четырёхуровневый центр мониторинга и наблюдаемости (Seller / Source / Channel / Offer, S2-E23/E24)."""
++    def _build():
++        from database import get_connection
++        from domain.monitoring_v2 import build_monitoring_overview_v2
++
++        conn = get_connection()
++        try:
++            overview = build_monitoring_overview_v2(conn)
++            res = overview.to_dict()
++            res["ok"] = True
++            return res
++        finally:
++            conn.close()
++
++    try:
++        data = await asyncio.to_thread(_build)
++        return web.json_response(data)
++    except Exception as e:
++        print(f"[API monitoring overview v2] Ошибка: {e}")
++        return web.json_response({"ok": False, "error": "Ошибка построения сводки мониторинга 2.0"}, status=500)
++
++
+ # ===== Авторизация =====
+ 
+ @routes.get("/api/me")
+diff --git a/web/templates/index.html b/web/templates/index.html
+index b1f6ab1..9f3e406 100644
+--- a/web/templates/index.html
++++ b/web/templates/index.html
+@@ -2165,12 +2165,84 @@
+       </div>
+ 
+       <!-- Footer -->
+-      <div class="p-3 sm:p-4 border-t border-slate-800 bg-slate-900/40 flex items-center justify-between">
++      <div class="p-3 sm:p-4 border-t border-slate-800 bg-slate-900/40 flex items-center justify-between gap-2">
+         <span class="text-[11px] text-slate-500" id="modalSellerFooterInfo"></span>
+-        <button onclick="closeSellerModal()" class="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white transition cursor-pointer">
+-          Закрыть
++        <div class="flex items-center gap-2">
++          <button onclick="openRegisterSellerModal()" class="px-3.5 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-xs font-semibold text-emerald-300 transition cursor-pointer">
++            <i class="fa-solid fa-plus mr-1"></i>Добавить магазин
++          </button>
++          <button onclick="closeSellerModal()" class="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white transition cursor-pointer">
++            Закрыть
++          </button>
++        </div>
++      </div>
++    </div>
++  </div>
++
++  <!-- Модальное окно саморегистрации магазина (S2-E27: Добавить магазин) -->
++  <div id="modalRegisterSeller" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 hidden" onclick="if(event.target === this) closeRegisterSellerModal()">
++    <div class="glass max-w-lg w-full rounded-2xl border border-slate-700 max-h-[92vh] flex flex-col shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
++      <div class="flex items-center justify-between p-4 sm:p-5 border-b border-slate-800 bg-slate-900/60">
++        <div class="flex items-center gap-3">
++          <div class="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
++            <i class="fa-solid fa-shop"></i>
++          </div>
++          <div>
++            <h3 class="text-base font-bold text-white">Добавить магазин</h3>
++            <p class="text-[11px] text-slate-400">Заявка попадёт в очередь проверки и профилирования каталога</p>
++          </div>
++        </div>
++        <button onclick="closeRegisterSellerModal()" class="text-slate-400 hover:text-white cursor-pointer text-lg p-1.5 rounded-lg hover:bg-slate-800/60 transition">
++          <i class="fa-solid fa-xmark"></i>
+         </button>
+       </div>
++      <form id="formRegisterSeller" onsubmit="submitRegisterSellerForm(event)" class="p-4 sm:p-5 overflow-y-auto space-y-3 text-xs text-slate-200">
++        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
++          <div>
++            <label class="block text-[11px] text-slate-400 mb-1">Название магазина *</label>
++            <input type="text" id="regSellerName" required placeholder="Например, 4mobile.kz" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:border-emerald-500">
++          </div>
++          <div>
++            <label class="block text-[11px] text-slate-400 mb-1">Город</label>
++            <input type="text" id="regSellerCity" value="Алматы" placeholder="Алматы / Астана" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:border-emerald-500">
++          </div>
++        </div>
++        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
++          <div>
++            <label class="block text-[11px] text-slate-400 mb-1">Сайт магазина</label>
++            <input type="text" id="regSellerWebsite" placeholder="https://example.kz" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:border-emerald-500">
++          </div>
++          <div>
++            <label class="block text-[11px] text-slate-400 mb-1">Телефон / WhatsApp</label>
++            <input type="text" id="regSellerPhone" placeholder="+7 777 000 00 00" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:border-emerald-500">
++          </div>
++        </div>
++        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
++          <div>
++            <label class="block text-[11px] text-slate-400 mb-1">Instagram</label>
++            <input type="text" id="regSellerInstagram" placeholder="@shop_handle" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:border-emerald-500">
++          </div>
++          <div>
++            <label class="block text-[11px] text-slate-400 mb-1">Telegram-канал</label>
++            <input type="text" id="regSellerTelegram" placeholder="@shop_channel" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:border-emerald-500">
++          </div>
++        </div>
++        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
++          <div>
++            <label class="block text-[11px] text-slate-400 mb-1">Ссылка на маркетплейс (Kaspi и др.)</label>
++            <input type="text" id="regSellerMarketplace" placeholder="https://kaspi.kz/shop/..." class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:border-emerald-500">
++          </div>
++          <div>
++            <label class="block text-[11px] text-slate-400 mb-1">БИН / ИИН (опционально, 12 цифр)</label>
++            <input type="text" id="regSellerBin" maxlength="12" placeholder="123456789012" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:border-emerald-500">
++          </div>
++        </div>
++        <div id="regSellerStatusMsg" class="hidden p-2.5 rounded-xl text-xs"></div>
++        <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
++          <button type="button" onclick="closeRegisterSellerModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium cursor-pointer">Отмена</button>
++          <button type="submit" id="btnSubmitRegisterSeller" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold cursor-pointer">Отправить на проверку</button>
++        </div>
++      </form>
+     </div>
+   </div>
+ 
+@@ -2778,6 +2850,18 @@
+           return `<span class="px-2 py-0.5 rounded-full text-[11px] font-medium border ${badgeClass}">${escapeHtml(cond)}: ${cnt}</span>`;
+         }).join(' ');
+ 
++        // Render Provenance Facts (S2-E28: проверяемые факты без значка «Проверенный продавец»)
++        const sellerProvenance = data.provenance || {};
++        const provenanceFacts = Array.isArray(sellerProvenance.facts) ? sellerProvenance.facts : [];
++        const provenanceHtml = provenanceFacts.length ? `
++          <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-1.5">
++            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Проверяемые сведения о продавце</div>
++            <div class="flex flex-wrap gap-1.5">
++              ${provenanceFacts.map(f => `<span class="px-2 py-0.5 rounded-lg bg-slate-900 border border-slate-700/80 text-[11px] text-slate-300">${escapeHtml(f)}</span>`).join('')}
++            </div>
++          </div>
++        ` : '';
++
+         // Render Products List
+         const productsHtml = products.length ? products.map(p => {
+           const chList = (p.channels || []).map(ch => {
+@@ -2788,13 +2872,15 @@
+               ch.is_expired ? '<span class="text-[10px] text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded">Истекло</span>' :
+               '<span class="text-[10px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">Нет в наличии</span>'
+             ) : '';
++            const ageLabel = ch.provenance && ch.provenance.age_label ? `<span class="text-[10px] text-slate-500">${escapeHtml(ch.provenance.age_label)}</span>` : '';
+             return `
+               <div class="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-slate-950/40 border border-slate-800/80 text-xs">
+-                <div class="flex items-center gap-2">
++                <div class="flex items-center gap-2 flex-wrap">
+                   <span class="font-medium text-slate-300">${escapeHtml(chName)}</span>
+                   ${condBadge}
+                   ${statusBadge}
+                   <span class="text-[10px] text-slate-500 font-mono">${escapeHtml(ch.city || '')}</span>
++                  ${ageLabel}
+                 </div>
+                 <div class="flex items-center gap-3">
+                   <span class="font-bold ${ch.is_purchasable === false ? 'text-slate-500 line-through' : 'text-slate-100'}">${fmtPrice(ch.price)}</span>
+@@ -2846,6 +2932,7 @@
+         `;
+ 
+         body.innerHTML = `
++          ${provenanceHtml}
+           <!-- Каналы -->
+           <div class="space-y-2">
+             <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Точки продаж и каналы (${channels.length})</div>
+@@ -2889,6 +2976,70 @@
+       if (modal) modal.classList.add('hidden');
+     }
+ 
++    function openRegisterSellerModal() {
++      const modal = document.getElementById('modalRegisterSeller');
++      const msg = document.getElementById('regSellerStatusMsg');
++      if (msg) {
++        msg.classList.add('hidden');
++        msg.textContent = '';
++      }
++      if (modal) modal.classList.remove('hidden');
++    }
++
++    function closeRegisterSellerModal() {
++      const modal = document.getElementById('modalRegisterSeller');
++      if (modal) modal.classList.add('hidden');
++    }
++
++    async function submitRegisterSellerForm(event) {
++      if (event) event.preventDefault();
++      const msg = document.getElementById('regSellerStatusMsg');
++      const btn = document.getElementById('btnSubmitRegisterSeller');
++      const mpVal = (document.getElementById('regSellerMarketplace')?.value || '').trim();
++      const payload = {
++        name: (document.getElementById('regSellerName')?.value || '').trim(),
++        city: (document.getElementById('regSellerCity')?.value || 'Алматы').trim(),
++        website_url: (document.getElementById('regSellerWebsite')?.value || '').trim() || null,
++        phone: (document.getElementById('regSellerPhone')?.value || '').trim() || null,
++        whatsapp: (document.getElementById('regSellerPhone')?.value || '').trim() || null,
++        instagram: (document.getElementById('regSellerInstagram')?.value || '').trim() || null,
++        telegram: (document.getElementById('regSellerTelegram')?.value || '').trim() || null,
++        marketplace_links: mpVal ? [mpVal] : [],
++        bin: (document.getElementById('regSellerBin')?.value || '').trim() || null
++      };
++      if (btn) btn.disabled = true;
++      try {
++        const resp = await fetch('/api/v2/sellers/register', {
++          method: 'POST',
++          headers: { 'Content-Type': 'application/json' },
++          body: JSON.stringify(payload)
++        });
++        const data = await resp.json();
++        if (!resp.ok || !data.ok) {
++          if (msg) {
++            msg.className = 'p-2.5 rounded-xl text-xs bg-rose-500/15 border border-rose-500/30 text-rose-300';
++            msg.textContent = data.error || 'Ошибка отправки заявки';
++            msg.classList.remove('hidden');
++          }
++          return;
++        }
++        if (msg) {
++          msg.className = 'p-2.5 rounded-xl text-xs bg-emerald-500/15 border border-emerald-500/30 text-emerald-300';
++          msg.textContent = `Заявка принята (${data.candidate?.id || 'REVIEW_REQUIRED'}). Найдено каналов: ${(data.channels_detected || []).length}.`;
++          msg.classList.remove('hidden');
++        }
++        document.getElementById('formRegisterSeller')?.reset();
++      } catch (err) {
++        if (msg) {
++          msg.className = 'p-2.5 rounded-xl text-xs bg-rose-500/15 border border-rose-500/30 text-rose-300';
++          msg.textContent = err.message || 'Сетевая ошибка';
++          msg.classList.remove('hidden');
++        }
++      } finally {
++        if (btn) btn.disabled = false;
++      }
++    }
++
+     function openProductDetailsModalFromData(encodedStr) {
+       try {
+         const decoded = decodeURIComponent(encodedStr);

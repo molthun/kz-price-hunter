@@ -1,0 +1,37 @@
+test_alser_prior_partial_parse_then_empty_final_page (__main__.EmptyLastPage.test_alser_prior_partial_parse_then_empty_final_page) ... [Alser] Category: 1 товаров за 2 стр. (0.0с) — завершено
+{'shop': 'alser', 'saved': 1, 'complete': True, 'unparsed': 0}
+FAIL
+test_evrika_prior_partial_parse_then_empty_final_page (__main__.EmptyLastPage.test_evrika_prior_partial_parse_then_empty_final_page) ... [Эврика] Category: 1 товаров за 2 стр. (0.0с) — завершено
+{'shop': 'evrika', 'saved': 1, 'complete': True, 'unparsed': 0}
+FAIL
+
+======================================================================
+FAIL: test_alser_prior_partial_parse_then_empty_final_page (__main__.EmptyLastPage.test_alser_prior_partial_parse_then_empty_final_page)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-29-v6414-reaccept/empty_last_page.py", line 23, in test_alser_prior_partial_parse_then_empty_final_page
+    self.check(AlserScraper,'alser','https://alser.kz/astana/c/noutbuki',[first,last])
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-29-v6414-reaccept/empty_last_page.py", line 16, in check
+    self.assertFalse(r.complete,'unparsed earlier card was forgotten on an empty final page')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: True is not false : unparsed earlier card was forgotten on an empty final page
+
+======================================================================
+FAIL: test_evrika_prior_partial_parse_then_empty_final_page (__main__.EmptyLastPage.test_evrika_prior_partial_parse_then_empty_final_page)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-29-v6414-reaccept/empty_last_page.py", line 18, in test_evrika_prior_partial_parse_then_empty_final_page
+    self.check(EvrikaScraper,'evrika','https://evrika.com/catalog/nur-sultan-astana/smartfony',[
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     evrika_page(2,'3 товара',broken_price=1),evrika_page(1,'3 товара',start=2,out_of_stock=1)])
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-29-v6414-reaccept/empty_last_page.py", line 16, in check
+    self.assertFalse(r.complete,'unparsed earlier card was forgotten on an empty final page')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: True is not false : unparsed earlier card was forgotten on an empty final page
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.005s
+
+FAILED (failures=2)

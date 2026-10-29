@@ -1,0 +1,557 @@
+"""
+Vision Extraction Pipeline (S2-E10, KZ Price Hunter 2.0).
+
+Цепочка обработки там, где цена и товары находятся на изображении или сторис:
+  Image / OCR / Vision JSON
+    ↓
+  VisionCandidate (structured candidate)
+    ↓
+  Validation (валюта, частичное перекрытие цены, порог confidence, единицы измерения)
+    ↓
+  Product matching (extract_canonical_key)
+    ↓
+  ExtractedOfferCandidate / Offer (только для publishable=True)
+
+Правило этапа 10:
+  При низкой уверенности или частично закрытой цене — НЕ публиковать цену как достоверную
+  (publishable=False, price_determined=False, status_label="Цена не определена").
+  Рубли (RUB) и доллары (USD) не выдаются за тенге (KZT).
+"""
+
+from __future__ import annotations
+
+import re
+from dataclasses import asdict, dataclass, field
+from typing import Any, Dict, Iterable, List, Optional, Tuple
+
+from domain.models import Availability, Condition
+from domain.social_content import ContentObservation, ExtractedOfferCandidate
+from model_matching import extract_canonical_key
+
+MIN_VISION_PUBLISH_CONFIDENCE = 0.75
+STATUS_PRICE_UNDETERMINED = "Цена не определена"
+PRICE_NOT_DETERMINED = STATUS_PRICE_UNDETERMINED
+STATUS_PRICE_DETERMINED = "Цена определена"
+
+
+@dataclass
+class VisionCandidate:
+    raw_title: str
+    price: Optional[float] = None
+    old_price: Optional[float] = None
+    currency: str = "KZT"
+    condition: str = Condition.NEW
+    availability: str = Availability.IN_STOCK
+    city: str = "Казахстан"
+    confidence: float = 0.85
+    price_determined: bool = True
+    publishable: bool = True
+    status_label: str = STATUS_PRICE_DETERMINED
+    rejection_reason: Optional[str] = None
+    is_discount: bool = False
+    is_unit_price: bool = False
+    quantity: Optional[float] = None
+    unit: Optional[str] = None
+    size_or_volume: Optional[str] = None
+    canonical_key: Optional[str] = None
+    raw_snippet: str = ""
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+    def to_offer_candidate(self, expires_at: Optional[str] = None) -> Optional[ExtractedOfferCandidate]:
+        """Превращает подтверждённого Vision-кандидата в ExtractedOfferCandidate.
+        Если цена не определена или уверенность ниже порога — возвращает None.
+        """
+        if not self.publishable or not self.price_determined or self.price is None or self.price <= 0:
+            return None
+        if self.currency != "KZT":
+            return None
+        return ExtractedOfferCandidate(
+            raw_title=self.raw_title,
+            price=float(self.price),
+            old_price=float(self.old_price) if self.old_price and self.old_price > self.price else None,
+            condition=self.condition,
+            city=self.city,
+            availability=self.availability,
+            confidence=self.confidence,
+            expires_at=expires_at,
+            raw_snippet=self.raw_snippet or self.raw_title,
+        )
+
+
+class VisionExtractionEngine:
+    """
+    Детерминированный разбор и валидация результатов OCR / мультимодального чтения изображений.
+    Обрабатывает как структурированные ответы Vision-модели, так и сырой OCR-текст с картинок/сторис.
+    """
+
+    # Частично закрытая/нечитаемая цена на фото (стикер, палец, блик, звёздочки, вопросы)
+    OCCLUDED_PRICE_RE = re.compile(
+        r"(?:\d+\s*[*?xхXХ_#]+\s*(?:\d+|\b)|[*?xхXХ_#]{2,})\s*(?:₸|тг|тенге|kzt|руб|₽|\$|usd)?",
+        re.IGNORECASE,
+    )
+
+    # Валюты: KZT, RUB, USD
+    RUB_RE = re.compile(
+        r"(?:(\d[\d\s\u00a0]*)\s*(?:₽|руб(?:л(?:ей|я|ь))?|rub\b)|(?:₽|rub)\s*(\d[\d\s\u00a0]*))",
+        re.IGNORECASE,
+    )
+    USD_RE = re.compile(
+        r"(?:\$\s*(\d[\d\s\u00a0]*(?:[.,]\d+)?)|(\d[\d\s\u00a0]*(?:[.,]\d+)?)\s*(?:\$|usd\b|долл(?:ар(?:ов|а)?)?))",
+        re.IGNORECASE,
+    )
+    KZT_RE = re.compile(
+        r"(\d{1,3}(?:[\s\u00a0]\d{3})+|\d{2,9})\s*(?:₸|тг\b|тенге|kzt\b)",
+        re.IGNORECASE,
+    )
+
+    # Единицы измерения и цена за вес/объём («за кг», «/кг», «за 100 г», «за л»)
+    UNIT_PRICE_RE = re.compile(
+        r"(?:за\s*(\d+(?:[.,]\d+)?)?\s*|/\s*)(кг|kg|г|гр|л|л\.|шт|уп)\b",
+        re.IGNORECASE,
+    )
+
+    # Размер или объём рядом с товаром, которые нельзя принимать за цену
+    SIZE_VOLUME_RE = re.compile(
+        r"\b(\d+(?:[.,]\d+)?\s*(?:gb|гб|tb|тб|mb|мб|л|л\.|мл|ml|кг|kg|г|гр|см|мм|размер|size|дюйм|\"|''))\b",
+        re.IGNORECASE,
+    )
+
+    # Зачёркнутая старая цена (HTML/Markdown/OCR-маркеры зачёркивания или «было → стало»)
+    STRIKETHROUGH_RE = re.compile(
+        r"(?:~~|<s>|<strike>|<del>|\[зачеркнуто\]|\(старая цена\))\s*(\d[\d\s\u00a0]*)\s*(?:₸|тг|тенге|kzt)?\s*(?:~~|</s>|</strike>|</del>)?",
+        re.IGNORECASE,
+    )
+    OLD_NEW_PAIR_RE = re.compile(
+        r"(?:было|старая(?:\s+цена)?|вместо)\s*[:\-]?\s*(\d{1,3}(?:[\s\u00a0]\d{3})+|\d{3,9})\s*(?:₸|тг|тенге|kzt)?.*?"
+        r"(?:стало|новая(?:\s+цена)?|по\s+акции|скидка|цена|→|->)\s*[:\-]?\s*(\d{1,3}(?:[\s\u00a0]\d{3})+|\d{3,9})",
+        re.IGNORECASE,
+    )
+    ARROW_PAIR_RE = re.compile(
+        r"(\d{1,3}(?:[\s\u00a0]\d{3})+|\d{3,9})\s*(?:₸|тг|тенге|kzt)?\s*(?:→|->|=>)\s*"
+        r"(\d{1,3}(?:[\s\u00a0]\d{3})+|\d{3,9})\s*(?:₸|тг|тенге|kzt)?",
+        re.IGNORECASE,
+    )
+    DISCOUNT_WORD_RE = re.compile(r"(?:скидк[аи]|акци[яи]|распродаж|sale|-\s*\d+\s*%)", re.IGNORECASE)
+
+    @staticmethod
+    def _parse_num(raw: Any) -> Optional[float]:
+        if raw is None:
+            return None
+        if isinstance(raw, (int, float)):
+            return float(raw) if raw > 0 else None
+        digits = re.sub(r"[^\d.]", "", str(raw).replace(",", "."))
+        if not digits or digits.count(".") > 1:
+            return None
+        try:
+            val = float(digits)
+            return val if val > 0 else None
+        except ValueError:
+            return None
+
+    @classmethod
+    def _normalize_unit(cls, raw_unit: str) -> str:
+        u = raw_unit.strip().lower().rstrip(".")
+        if u in ("кг", "kg"):
+            return "kg"
+        if u in ("г", "гр"):
+            return "g"
+        if u in ("л",):
+            return "l"
+        if u in ("мл", "ml"):
+            return "ml"
+        if u in ("шт",):
+            return "pcs"
+        return u
+
+    @classmethod
+    def validate_candidate(
+        cls,
+        candidate: VisionCandidate,
+        *,
+        min_confidence: float = MIN_VISION_PUBLISH_CONFIDENCE,
+    ) -> VisionCandidate:
+        """Проверяет кандидата: уверенность, читаемость цены, валюту и сопоставление с моделью."""
+        candidate.condition = Condition.normalize(candidate.condition, default=Condition.NEW)
+        candidate.currency = (candidate.currency or "KZT").strip().upper()
+        title_clean = " ".join((candidate.raw_title or "").split())
+        candidate.raw_title = title_clean
+
+        if title_clean and not candidate.canonical_key:
+            candidate.canonical_key = extract_canonical_key(title_clean)
+
+        # 1. Проверка частично закрытой или отсутствующей цены
+        if (
+            not candidate.price_determined
+            or candidate.price is None
+            or candidate.price <= 0
+            or cls.OCCLUDED_PRICE_RE.search(candidate.raw_snippet or "")
+        ):
+            candidate.price = None
+            candidate.price_determined = False
+            candidate.publishable = False
+            candidate.status_label = STATUS_PRICE_UNDETERMINED
+            candidate.rejection_reason = candidate.rejection_reason or "occluded_or_missing_price"
+            return candidate
+
+        # 2. Проверка порога уверенности
+        if candidate.confidence < min_confidence:
+            candidate.price_determined = False
+            candidate.publishable = False
+            candidate.status_label = STATUS_PRICE_UNDETERMINED
+            candidate.rejection_reason = "low_confidence"
+            return candidate
+
+        # 3. Проверка названия
+        if len(title_clean) < 2:
+            candidate.publishable = False
+            candidate.status_label = STATUS_PRICE_UNDETERMINED
+            candidate.rejection_reason = "empty_title"
+            return candidate
+
+        # 4. Проверка валюты: не публикуем RUB/USD как тенге
+        if candidate.currency != "KZT":
+            candidate.publishable = False
+            candidate.rejection_reason = f"foreign_currency:{candidate.currency}"
+            return candidate
+
+        # 5. Старая цена должна быть строго выше текущей
+        if candidate.old_price is not None and candidate.old_price <= candidate.price:
+            candidate.old_price = None
+
+        if candidate.old_price and candidate.old_price > candidate.price:
+            candidate.is_discount = True
+
+        candidate.publishable = True
+        candidate.price_determined = True
+        candidate.status_label = STATUS_PRICE_DETERMINED
+        return candidate
+
+    @classmethod
+    def extract_from_structured(
+        cls,
+        items: Iterable[Dict[str, Any]],
+        *,
+        default_city: str = "Казахстан",
+        min_confidence: float = MIN_VISION_PUBLISH_CONFIDENCE,
+    ) -> List[VisionCandidate]:
+        """Преобразует структурированный JSON-ответ Vision/OCR в проверенные VisionCandidate."""
+        results: List[VisionCandidate] = []
+        for raw in items:
+            if not isinstance(raw, dict):
+                continue
+            title = str(raw.get("title") or raw.get("raw_title") or raw.get("product") or "").strip()
+            snippet = str(raw.get("raw_snippet") or raw.get("text") or title).strip()
+            raw_price = raw.get("price")
+            price_str = str(raw_price) if raw_price is not None else ""
+
+            occluded = (
+                bool(raw.get("occluded"))
+                or bool(raw.get("is_price_occluded"))
+                or bool(cls.OCCLUDED_PRICE_RE.search(price_str))
+                or bool(cls.OCCLUDED_PRICE_RE.search(snippet))
+            )
+            price_val = None if occluded else cls._parse_num(raw_price)
+            old_price_val = cls._parse_num(raw.get("old_price"))
+            conf = float(raw.get("confidence", 0.85) or 0.0)
+            currency = str(raw.get("currency") or "KZT").strip().upper()
+
+            unit = raw.get("unit")
+            qty = cls._parse_num(raw.get("quantity"))
+            is_unit = bool(raw.get("is_unit_price") or unit == "kg")
+            size_vol = raw.get("size_or_volume")
+
+            cand = VisionCandidate(
+                raw_title=title,
+                price=price_val,
+                old_price=old_price_val,
+                currency=currency,
+                condition=str(raw.get("condition") or Condition.NEW),
+                availability=str(raw.get("availability") or Availability.IN_STOCK),
+                city=str(raw.get("city") or default_city),
+                confidence=conf,
+                price_determined=not occluded and price_val is not None,
+                is_discount=bool(raw.get("is_discount") or (old_price_val and price_val and old_price_val > price_val)),
+                is_unit_price=is_unit,
+                quantity=qty,
+                unit=cls._normalize_unit(unit) if unit else None,
+                size_or_volume=str(size_vol) if size_vol else None,
+                raw_snippet=snippet,
+            )
+            results.append(cls.validate_candidate(cand, min_confidence=min_confidence))
+        return results
+
+    @classmethod
+    def extract_from_ocr_text(
+        cls,
+        ocr_text: str,
+        *,
+        default_city: str = "Казахстан",
+        city: Optional[str] = None,
+        base_confidence: float = 0.85,
+        min_confidence: float = MIN_VISION_PUBLISH_CONFIDENCE,
+    ) -> List[VisionCandidate]:
+        """Детерминированный разбор текста с изображения (OCR / подпись сторис).
+
+        Поддерживает:
+          * многострочный постер одного товара («IPHONE 15 PRO \\n 256GB \\n 399 990 ₸»);
+          * прайс-лист из нескольких товаров (по одному на строку или блок);
+          * старую зачёркнутую цену и скидочную цену;
+          * частично закрытую цену («399 *** ₸» → Цена не определена);
+          * валюты KZT / RUB / USD;
+          * цену за кг/вес и размер/объём рядом с ценой.
+        """
+        if not ocr_text or not ocr_text.strip():
+            return []
+
+        raw_lines = [ln.strip() for ln in ocr_text.splitlines() if ln.strip()]
+        if not raw_lines:
+            return []
+
+        # Определяем, является ли текст многострочной карточкой одного товара (напр., IPHONE 15 PRO / 256GB / 399 990 ₸)
+        # или списком из нескольких товаров, где в строках есть свои цены.
+        lines_with_price_or_occluded = [
+            idx for idx, ln in enumerate(raw_lines) if cls._line_has_price_signal(ln)
+        ]
+
+        blocks: List[str] = []
+        if len(lines_with_price_or_occluded) == 1 and len(raw_lines) <= 5:
+            blocks = [" ".join(raw_lines)]
+        elif len(lines_with_price_or_occluded) > 1:
+            # Собираем неценовые строки-заголовки перед ценовой строкой в один блок
+            buf: List[str] = []
+            for idx, ln in enumerate(raw_lines):
+                buf.append(ln)
+                if idx in lines_with_price_or_occluded:
+                    blocks.append(" ".join(buf))
+                    buf = []
+            if buf and blocks:
+                blocks[-1] = blocks[-1] + " " + " ".join(buf)
+        else:
+            blocks = raw_lines
+
+        eff_city = city or default_city
+        candidates: List[VisionCandidate] = []
+        for block in blocks:
+            cand = cls._parse_single_block(
+                block,
+                default_city=eff_city,
+                base_confidence=base_confidence,
+                min_confidence=min_confidence,
+            )
+            if cand is not None:
+                candidates.append(cand)
+        return candidates
+
+    @classmethod
+    def _line_has_price_signal(cls, line: str) -> bool:
+        if cls.OCCLUDED_PRICE_RE.search(line):
+            return True
+        if cls.KZT_RE.search(line) or cls.RUB_RE.search(line) or cls.USD_RE.search(line):
+            return True
+        if cls.OLD_NEW_PAIR_RE.search(line) or cls.ARROW_PAIR_RE.search(line) or cls.STRIKETHROUGH_RE.search(line):
+            return True
+        return False
+
+    @classmethod
+    def _parse_single_block(
+        cls,
+        block: str,
+        *,
+        default_city: str,
+        base_confidence: float,
+        min_confidence: float,
+    ) -> Optional[VisionCandidate]:
+        snippet = block.strip()
+        working = snippet
+
+        # 1. Извлекаем размер/объём («256GB», «1.5 л», «42 размер»), чтобы цифры объёма не склеились с ценой
+        size_matches = cls.SIZE_VOLUME_RE.findall(working)
+        size_or_volume = ", ".join(m.strip() for m in size_matches) if size_matches else None
+
+        # Маскируем токены памяти/объёма при поиске цен, сохраняя их в названии
+        masked = cls.SIZE_VOLUME_RE.sub(lambda m: "S" * len(m.group(0)), working)
+
+        # 2. Проверяем цену за единицу веса/объёма («за кг», «/кг»)
+        is_unit_price = False
+        unit: Optional[str] = None
+        quantity: Optional[float] = None
+        unit_m = cls.UNIT_PRICE_RE.search(working)
+        if unit_m:
+            raw_qty, raw_u = unit_m.group(1), unit_m.group(2)
+            unit = cls._normalize_unit(raw_u)
+            quantity = float(raw_qty.replace(",", ".")) if raw_qty else 1.0
+            if unit in ("kg", "g"):
+                is_unit_price = True
+
+        # 3. Проверяем частично закрытую цену («399 *** ₸», «45_ 000 ₸»)
+        occluded_m = cls.OCCLUDED_PRICE_RE.search(masked)
+        if occluded_m:
+            title_part = working[: occluded_m.start()].strip(" -—:•|,\t")
+            if not title_part:
+                title_part = re.sub(cls.OCCLUDED_PRICE_RE, "", working).strip(" -—:•|,\t")
+            cand = VisionCandidate(
+                raw_title=title_part or "Товар на фото",
+                price=None,
+                currency="KZT",
+                city=default_city,
+                confidence=min(base_confidence, 0.4),
+                price_determined=False,
+                publishable=False,
+                status_label=STATUS_PRICE_UNDETERMINED,
+                rejection_reason="occluded_or_missing_price",
+                is_unit_price=is_unit_price,
+                quantity=quantity,
+                unit=unit,
+                size_or_volume=size_or_volume,
+                raw_snippet=snippet,
+            )
+            return cls.validate_candidate(cand, min_confidence=min_confidence)
+
+        # 4. Проверяем иностранные валюты (RUB / USD)
+        rub_m = cls.RUB_RE.search(masked)
+        if rub_m and not cls.KZT_RE.search(masked):
+            raw_val = rub_m.group(1) or rub_m.group(2)
+            price_val = cls._parse_num(raw_val)
+            title_part = (working[: rub_m.start()] + " " + working[rub_m.end() :]).strip(" -—:•|,\t")
+            cand = VisionCandidate(
+                raw_title=title_part or "Товар",
+                price=price_val,
+                currency="RUB",
+                city=default_city,
+                confidence=base_confidence,
+                price_determined=price_val is not None,
+                is_unit_price=is_unit_price,
+                quantity=quantity,
+                unit=unit,
+                size_or_volume=size_or_volume,
+                raw_snippet=snippet,
+            )
+            return cls.validate_candidate(cand, min_confidence=min_confidence)
+
+        usd_m = cls.USD_RE.search(masked)
+        if usd_m and not cls.KZT_RE.search(masked):
+            raw_val = usd_m.group(1) or usd_m.group(2)
+            price_val = cls._parse_num(raw_val)
+            title_part = (working[: usd_m.start()] + " " + working[usd_m.end() :]).strip(" -—:•|,\t")
+            cand = VisionCandidate(
+                raw_title=title_part or "Товар",
+                price=price_val,
+                currency="USD",
+                city=default_city,
+                confidence=base_confidence,
+                price_determined=price_val is not None,
+                is_unit_price=is_unit_price,
+                quantity=quantity,
+                unit=unit,
+                size_or_volume=size_or_volume,
+                raw_snippet=snippet,
+            )
+            return cls.validate_candidate(cand, min_confidence=min_confidence)
+
+        # 5. Проверяем зачёркнутую старую цену и скидочные пары в KZT
+        old_price_val: Optional[float] = None
+        price_val: Optional[float] = None
+        cut_spans: List[Tuple[int, int]] = []
+
+        pair_m = cls.OLD_NEW_PAIR_RE.search(masked) or cls.ARROW_PAIR_RE.search(masked)
+        if pair_m:
+            first_p = cls._parse_num(pair_m.group(1))
+            second_p = cls._parse_num(pair_m.group(2))
+            if first_p and second_p:
+                old_price_val = max(first_p, second_p)
+                price_val = min(first_p, second_p)
+                cut_spans.append((pair_m.start(), pair_m.end()))
+
+        if price_val is None:
+            strike_m = cls.STRIKETHROUGH_RE.search(masked)
+            if strike_m:
+                old_price_val = cls._parse_num(strike_m.group(1))
+                cut_spans.append((strike_m.start(), strike_m.end()))
+                masked_no_strike = (
+                    masked[: strike_m.start()] + (" " * (strike_m.end() - strike_m.start())) + masked[strike_m.end() :]
+                )
+            else:
+                masked_no_strike = masked
+
+            kzt_matches = list(cls.KZT_RE.finditer(masked_no_strike))
+            if kzt_matches:
+                vals = []
+                for km in kzt_matches:
+                    v = cls._parse_num(km.group(1))
+                    if v is not None:
+                        vals.append((v, km.start(), km.end()))
+                if len(vals) >= 2 and old_price_val is None:
+                    old_price_val = max(v[0] for v in vals)
+                    price_val = min(v[0] for v in vals)
+                    for _, s, e in vals:
+                        cut_spans.append((s, e))
+                elif len(vals) == 1:
+                    price_val = vals[0][0]
+                    cut_spans.append((vals[0][1], vals[0][2]))
+
+        if price_val is None:
+            return None
+
+        # Вырезаем ценовые фрагменты и служебные слова скидки/единиц из заголовка
+        chars = list(working)
+        for s, e in cut_spans:
+            for i in range(max(0, s), min(len(chars), e)):
+                chars[i] = " "
+        title_raw = "".join(chars)
+        title_raw = cls.UNIT_PRICE_RE.sub(" ", title_raw)
+        title_raw = re.sub(
+            r"\b(?:было|стало|старая\s+цена|новая\s+цена|по\s+акции|скидка\s*-?\d*%?|цена|стоимость)\b",
+            " ",
+            title_raw,
+            flags=re.IGNORECASE,
+        )
+        title_raw = re.sub(r"[~—–\-:|•/]+$", " ", title_raw)
+        title_clean = " ".join(title_raw.split()).strip(" -—:•|,")
+
+        is_discount = bool(
+            (old_price_val and old_price_val > price_val) or cls.DISCOUNT_WORD_RE.search(working)
+        )
+
+        cand = VisionCandidate(
+            raw_title=title_clean,
+            price=price_val,
+            old_price=old_price_val if old_price_val and old_price_val > price_val else None,
+            currency="KZT",
+            city=default_city,
+            confidence=base_confidence,
+            price_determined=True,
+            is_discount=is_discount,
+            is_unit_price=is_unit_price,
+            quantity=quantity,
+            unit=unit,
+            size_or_volume=size_or_volume,
+            raw_snippet=snippet,
+        )
+        return cls.validate_candidate(cand, min_confidence=min_confidence)
+
+    @classmethod
+    def extract_from_observation(
+        cls,
+        observation: ContentObservation,
+        *,
+        default_city: str = "Казахстан",
+        min_confidence: float = MIN_VISION_PUBLISH_CONFIDENCE,
+    ) -> List[VisionCandidate]:
+        """Извлекает Vision-кандидатов из ContentObservation (raw_metadata['vision_items'] или ocr_text)."""
+        meta = observation.raw_metadata if isinstance(observation.raw_metadata, dict) else {}
+        if isinstance(meta.get("vision_items"), list):
+            return cls.extract_from_structured(
+                meta["vision_items"],
+                default_city=default_city,
+                min_confidence=min_confidence,
+            )
+        ocr_text = str(meta.get("ocr_text") or observation.text or "").strip()
+        if not ocr_text:
+            return []
+        return cls.extract_from_ocr_text(
+            ocr_text,
+            default_city=default_city,
+            min_confidence=min_confidence,
+        )

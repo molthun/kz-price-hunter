@@ -1,0 +1,248 @@
+"""
+Trust & Provenance (S2-E28, KZ Price Hunter 2.0).
+
+Правило этапа 28:
+  НЕ делать голословную надпись «Проверенный продавец» только потому, что продавец найден
+  в нескольких источниках.
+  Вместо этого показывать проверяемые факты (Provenance):
+    * Физический адрес найден
+    * Сайт найден
+    * Instagram найден
+    * Telegram найден
+    * WhatsApp найден
+    * Присутствие на маркетплейсах
+    * Контактный телефон найден
+    * Публичный БИН указан
+    * Последняя активность сегодня
+  И для каждого Offer:
+    * source
+    * observed_at
+    * published_at
+    * freshness (FRESH / AGING / STALE / EXPIRED / UNKNOWN)
+"""
+
+from __future__ import annotations
+
+import datetime
+from dataclasses import asdict, dataclass, field
+from typing import Any, Dict, Iterable, List, Optional
+
+from domain.freshness_v2 import evaluate_offer_freshness
+from domain.models import Channel, ChannelType, Seller
+from domain.purchasability import utc_now
+from domain.seller_identity import IdentityType
+
+
+MARKETPLACE_CHANNEL_TYPES = {
+    ChannelType.KASPI,
+    ChannelType.FORTE,
+    ChannelType.HALYK,
+    ChannelType.MARKETPLACE,
+}
+
+
+@dataclass
+class SellerProvenance:
+    seller_id: str
+    physical_address_found: bool = False
+    website_found: bool = False
+    instagram_found: bool = False
+    telegram_found: bool = False
+    whatsapp_found: bool = False
+    marketplace_presence: List[str] = field(default_factory=list)
+    phone_found: bool = False
+    bin_found: bool = False
+    active_today: bool = False
+    last_observed_at: Optional[str] = None
+    fact_labels: List[str] = field(default_factory=list)
+
+    @property
+    def facts(self) -> List[str]:
+        return self.fact_labels
+
+    def to_dict(self) -> Dict[str, Any]:
+        res = asdict(self)
+        res["facts"] = list(self.fact_labels)
+        return res
+
+
+@dataclass
+class OfferProvenance:
+    offer_id: Optional[str]
+    source: str
+    channel_type: str
+    observed_at: Optional[str]
+    published_at: Optional[str]
+    expires_at: Optional[str]
+    freshness: str
+    legacy_freshness: str
+    source_freshness_type: str
+    age_hours: Optional[float]
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+def build_offer_provenance(
+    row: Dict[str, Any],
+    *,
+    now: Optional[datetime.datetime] = None,
+) -> OfferProvenance:
+    """Формирует паспорт происхождения (provenance) и свежести конкретного предложения."""
+    channel_type = str(row.get("channel_type") or ChannelType.WEBSITE).strip().lower()
+    raw_payload = row.get("raw_payload") if isinstance(row.get("raw_payload"), dict) else {}
+    source_label = (
+        str(row.get("source") or "").strip()
+        or str(raw_payload.get("source") or "").strip()
+        or str(row.get("channel_name") or "").strip()
+        or channel_type
+    )
+    observed_at = row.get("observed_at") or row.get("updated_at")
+    published_at = row.get("published_at")
+    expires_at = row.get("expires_at")
+    condition = row.get("condition")
+    content_type = row.get("content_type") or raw_payload.get("content_type")
+    source_type = row.get("source_type") or raw_payload.get("source_type")
+
+    fresh_info = evaluate_offer_freshness(
+        observed_at,
+        source_type=source_type,
+        channel_type=channel_type,
+        condition=condition,
+        content_type=content_type,
+        expires_at=expires_at,
+        now=now,
+    )
+
+    return OfferProvenance(
+        offer_id=row.get("id") or row.get("offer_id"),
+        source=source_label,
+        channel_type=channel_type,
+        observed_at=observed_at,
+        published_at=published_at,
+        expires_at=expires_at,
+        freshness=fresh_info.state,
+        legacy_freshness=fresh_info.legacy_freshness,
+        source_freshness_type=fresh_info.source_type,
+        age_hours=fresh_info.age_hours,
+    )
+
+
+def build_seller_provenance(
+    seller: Seller,
+    channels: Iterable[Channel] = (),
+    identities: Iterable[Any] = (),
+    offers: Iterable[Dict[str, Any]] = (),
+    *,
+    now: Optional[datetime.datetime] = None,
+) -> SellerProvenance:
+    """Собирает проверяемые факты о продавце без присвоения оценочного ярлыка «Проверенный продавец»."""
+    moment = utc_now(now)
+    meta = seller.metadata if isinstance(seller.metadata, dict) else {}
+
+    channel_list = list(channels)
+    ctype_set = {str(c.channel_type or "").lower() for c in channel_list}
+
+    id_types: set[str] = set()
+    for ident in identities:
+        if isinstance(ident, dict):
+            it = str(ident.get("identity_type") or "").lower()
+        else:
+            it = str(getattr(ident, "identity_type", "") or "").lower()
+        if it:
+            id_types.add(it)
+
+    has_address = bool(
+        meta.get("address")
+        or meta.get("physical_address")
+        or meta.get("2gis_url")
+        or ChannelType.PHYSICAL_STORE in ctype_set
+        or "address" in id_types
+    )
+    has_website = bool(
+        seller.domain
+        or any(
+            c.channel_type in (ChannelType.DIRECT, ChannelType.WEBSITE) and c.base_url
+            for c in channel_list
+        )
+        or IdentityType.DOMAIN in id_types
+    )
+    has_instagram = bool(
+        meta.get("instagram")
+        or ChannelType.INSTAGRAM in ctype_set
+        or "instagram" in id_types
+    )
+    has_telegram = bool(
+        meta.get("telegram")
+        or ChannelType.TELEGRAM in ctype_set
+        or "telegram" in id_types
+    )
+    has_whatsapp = bool(
+        meta.get("whatsapp")
+        or ChannelType.WHATSAPP in ctype_set
+        or "whatsapp" in id_types
+    )
+    has_phone = bool(seller.phone or meta.get("phone") or IdentityType.PHONE in id_types)
+    has_bin = bool(seller.bin or meta.get("bin") or IdentityType.BIN in id_types)
+
+    marketplaces = sorted(
+        {
+            c.channel_type
+            for c in channel_list
+            if str(c.channel_type or "").lower() in MARKETPLACE_CHANNEL_TYPES
+        }
+    )
+    if not marketplaces and IdentityType.MARKETPLACE_SELLER_ID in id_types:
+        marketplaces = ["marketplace"]
+
+    latest_obs: Optional[str] = None
+    active_today = False
+    for row in offers:
+        obs = str(row.get("observed_at") or row.get("updated_at") or "").strip()
+        if not obs:
+            continue
+        if latest_obs is None or obs > latest_obs:
+            latest_obs = obs
+        try:
+            dt = datetime.datetime.fromisoformat(obs.replace("Z", "+00:00").replace(" ", "T", 1))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=datetime.timezone.utc)
+            if (moment - dt).total_seconds() <= 24 * 3600:
+                active_today = True
+        except ValueError:
+            continue
+
+    facts: List[str] = []
+    if has_address:
+        facts.append("Физический адрес найден")
+    if has_website:
+        facts.append("Сайт найден")
+    if has_instagram:
+        facts.append("Instagram найден")
+    if has_telegram:
+        facts.append("Telegram найден")
+    if has_whatsapp:
+        facts.append("WhatsApp найден")
+    if marketplaces:
+        facts.append(f"Присутствие на маркетплейсах ({', '.join(marketplaces)})")
+    if has_phone:
+        facts.append("Контактный телефон найден")
+    if has_bin:
+        facts.append("Публичный БИН указан")
+    if active_today:
+        facts.append("Последняя активность сегодня")
+
+    return SellerProvenance(
+        seller_id=seller.id,
+        physical_address_found=has_address,
+        website_found=has_website,
+        instagram_found=has_instagram,
+        telegram_found=has_telegram,
+        whatsapp_found=has_whatsapp,
+        marketplace_presence=marketplaces,
+        phone_found=has_phone,
+        bin_found=has_bin,
+        active_today=active_today,
+        last_observed_at=latest_obs,
+        fact_labels=facts,
+    )
