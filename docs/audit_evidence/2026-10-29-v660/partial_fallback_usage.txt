@@ -1,0 +1,32 @@
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{
+  "normalized": {
+    "Synthetic catalogue item A": "brand:modela:null",
+    "Synthetic catalogue item B": "brand:modelb:null"
+  },
+  "usage": [
+    {
+      "provider": "gemini",
+      "outcome": "ok",
+      "requests": 1,
+      "fallbacks": 0
+    },
+    {
+      "provider": "local",
+      "outcome": "ok",
+      "requests": 1,
+      "fallbacks": 0
+    }
+  ],
+  "total_fallbacks": 0
+}
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-29-v660/partial_fallback_usage.py", line 18, in <module>
+    assert len(result)==2 and sum(r['fallbacks'] for r in rows)==1,'Successful paid retry after partial local answer is not recorded as fallback'
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Successful paid retry after partial local answer is not recorded as fallback

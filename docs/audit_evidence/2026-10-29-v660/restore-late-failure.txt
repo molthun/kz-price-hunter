@@ -1,0 +1,8 @@
+{
+  "start_exit": 1,
+  "compose_up_ran": true,
+  "state_after_poststart_failure": "state=starting",
+  "replacement_exit": 1,
+  "runtime_data_preserved": true,
+  "app_was_stopped": false
+}

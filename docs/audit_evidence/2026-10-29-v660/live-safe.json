@@ -1,0 +1,47 @@
+{
+  "observed_at": "2026-10-29T15:10:15.531878+00:00",
+  "problems": [],
+  "queue": {
+    "size": 0,
+    "failures": 0,
+    "redis_active": true,
+    "worker_running": true
+  },
+  "version": {
+    "version": "6.5.2",
+    "app_name": "KZ Price Hunter",
+    "release_date": "2026-10-29",
+    "author": "Advanced Agentic Coding"
+  },
+  "prod_health": "healthy",
+  "host_scripts": {
+    "restore_prod.sh": "6fe55229f062acfe386100f5bc4b8e77d5f2ca5c087670452877cbfb798b2fb3",
+    "backup_to_nas.sh": "c6dad6a5d5d12ebecde0f1ad1671c23790a3e2e7293a315c0ef44b3d26e07861",
+    "verify_public.sh": "b2291a31c352223456c1b05dbc140bc93ecb3ee834c2b2c4d35a659bec9185d1",
+    "ai_switch.sh": "569e708563cc55f38f0fddd86835c2c6fa0bee2a4c079c7c6cefdca5f5e81878",
+    "gpu_probe.sh": "cca83aa374bf15649445cb961139eaead4dad8bf42f740fd2b619da4188d2ac0"
+  },
+  "ollama": {
+    "running": true,
+    "ports": {
+      "11434/tcp": [
+        {
+          "HostIp": "",
+          "HostPort": "11434"
+        }
+      ]
+    },
+    "safe_env": {
+      "OLLAMA_KEEP_ALIVE": "-1",
+      "OLLAMA_MAX_LOADED_MODELS": "1",
+      "OLLAMA_NUM_PARALLEL": "1"
+    }
+  },
+  "scripts_match_checkout": {
+    "restore_prod.sh": false,
+    "backup_to_nas.sh": true,
+    "verify_public.sh": true,
+    "ai_switch.sh": true,
+    "gpu_probe.sh": true
+  }
+}

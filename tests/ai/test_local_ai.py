@@ -223,6 +223,131 @@ class RouterLocalTest(_DbCase):
         self.assertEqual(ai_router.providers_for("normalize", self.config), ["gemini"])
 
 
+class QueuedPauseTest(_DbCase):
+    """V660-01: запрос, ждавший места к локальной модели, после «AI выкл» к ней не обращается."""
+
+    def setUp(self):
+        super().setUp()
+        self.config = {"enabled": True, "has_ai": True, "ai_search_enabled": True, "ai_provider": "auto",
+                       "gemini_api_key": "g", "openai_api_key": "", "has_local": True, "local_api_key": "",
+                       "local_model": "m", "local_normalize_enabled": True}
+
+    def set_mode(self, mode):
+        (self.data / "ai_mode.json").write_text(json.dumps({"mode": mode, "since": "2026-10-29T12:00:00Z", "by": "button"}))
+
+    def test_waiting_requests_respect_switch_off(self):
+        hits = []
+
+        async def main():
+            gate = asyncio.Event()
+
+            async def model(request):
+                body = await request.json()
+                hits.append(body["messages"][-1]["content"])
+                await gate.wait()
+                return web.json_response({"choices": [{"message": {"content": '{"ok": "local"}'}}]})
+
+            app = web.Application()
+            app.router.add_post("/v1/chat/completions", model)
+            server = TestServer(app)
+            await server.start_server()
+            self.config["local_api_base"] = str(server.make_url("/v1"))
+            paid = []
+
+            async def fake_gemini(prompt, key, *, timeout=30, scan=False, model=None):
+                paid.append(prompt)
+                return {"ok": "paid"}
+
+            try:
+                with patch.object(ai_service, "call_gemini_api", fake_gemini):
+                    first = asyncio.create_task(ai_router.run("query_parse", "first", config=dict(self.config)))
+                    while not hits:
+                        await asyncio.sleep(0.01)
+                    waiting = [asyncio.create_task(ai_router.run("query_parse", f"queued{i}", config=dict(self.config)))
+                               for i in range(2)]
+                    await asyncio.sleep(0.2)          # оба ждут места к модели
+                    self.set_mode("off")
+                    gate.set()
+                    results = await asyncio.gather(first, *waiting)
+                    # Включили обратно — следующий запрос снова идёт на локальную, слот не потерян
+                    self.set_mode("on")
+                    after = await ai_router.run("query_parse", "after-on", config=dict(self.config))
+                    explicit = dict(self.config, ai_provider="local")
+                    self.set_mode("off")
+                    with self.assertRaises(ai_router.AIUnavailable):
+                        await ai_router.run("query_parse", "explicit", config=explicit)
+            finally:
+                await server.close()
+            return results, after, paid
+
+        results, after, paid = asyncio.run(main())
+        self.assertEqual([r["provider"] for r in results], ["local", "gemini", "gemini"])
+        self.assertTrue(all(r["fallback_used"] for r in results[1:]))
+        self.assertEqual(sum(1 for h in hits if "queued" in h), 0, "ожидавший запрос дошёл до модели после «выкл»")
+        self.assertEqual(after["provider"], "local")
+        self.assertFalse(any("explicit" in h for h in hits))
+        self.assertEqual(len(paid), 2)
+        with database.get_connection() as conn:
+            paused = conn.execute("SELECT SUM(requests), SUM(errors) FROM ai_usage WHERE outcome = 'local_paused'").fetchone()
+        self.assertEqual((paused[0], paused[1]), (3, 0))
+        self.assertEqual(database.ai_usage(days=1)["totals"]["provider_calls"], 4)
+
+
+class ResendFallbackUsageTest(_DbCase):
+    """V660-02: платная досылка после частичного ответа локальной учитывается как переход."""
+
+    def run_batch(self, local_keys, gemini_keys, budget=True):
+        creds = {"has_ai": True, "ai_search_enabled": True, "enabled": True, "ai_provider": "auto",
+                 "has_local": True, "local_api_base": "http://h:1/v1", "local_model": "m", "local_api_key": "",
+                 "gemini_api_key": "g", "openai_api_key": "", "local_normalize_enabled": True}
+        calls = []
+
+        def reply(keys, prompt):
+            titles = [l[2:] for l in prompt.split("\n") if l.startswith("- ") and "->" not in l]
+            return {"items": [{"title": t, "canonical_key": keys.get(t, "")} for t in titles]}
+
+        async def fake_local(prompt, base, model, key="", *, timeout=30, scan=False):
+            calls.append("local")
+            return reply(local_keys, prompt)
+
+        async def fake_gemini(prompt, key, *, timeout=30, scan=False, model=None):
+            calls.append("gemini")
+            return reply(gemini_keys, prompt)
+
+        titles = ["Бассейн Bestway 55001", "Вешалка кованая"]
+        with patch.object(ai_service, "_get_api_credentials", return_value=creds), \
+             patch.object(ai_service, "call_local_api", fake_local), \
+             patch.object(ai_service, "call_gemini_api", fake_gemini), \
+             patch.object(local_ai, "pause_reason", return_value=None), \
+             patch.object(ai_router, "budget_allows", return_value=budget), \
+             patch("model_matching.extract_canonical_key", return_value=None):
+            res = asyncio.run(ai_service.normalize_product_titles_batch(titles, for_scan=True))
+        with database.get_connection() as conn:
+            rows = {(r[0], r[1]): (r[2], r[3]) for r in conn.execute(
+                "SELECT provider, outcome, SUM(requests), SUM(fallbacks) FROM ai_usage GROUP BY provider, outcome")}
+        return res, calls, rows
+
+    def test_partial_local_then_paid_is_one_fallback(self):
+        res, calls, rows = self.run_batch({"Бассейн Bestway 55001": "bestway:55001:0"},
+                                          {"Вешалка кованая": "unbranded:wardrobe:forged"})
+        self.assertEqual(calls, ["local", "gemini"])
+        self.assertEqual(rows[("local", "ok")], (1, 0))
+        self.assertEqual(rows[("gemini", "ok")], (1, 1))
+        self.assertEqual(res["Вешалка кованая"], "unbranded:wardrobe:forged")
+
+    def test_full_local_has_no_paid_and_no_fallback(self):
+        res, calls, rows = self.run_batch({"Бассейн Bestway 55001": "bestway:55001:0",
+                                           "Вешалка кованая": "kovka:wardrobe:forged"}, {})
+        self.assertEqual(calls, ["local"])
+        self.assertEqual(sum(f for _, f in rows.values()), 0)
+
+    def test_budget_exhausted_resend_records_no_fake_paid_call(self):
+        res, calls, rows = self.run_batch({"Бассейн Bestway 55001": "bestway:55001:0"}, {}, budget=False)
+        self.assertEqual(calls, ["local"])
+        self.assertNotIn(("gemini", "ok"), rows)
+        self.assertEqual(sum(n for (prov, _), (n, _) in rows.items() if prov == "gemini"), 0)
+
+
 class CanonicalKeyTest(unittest.TestCase):
     """Ключи разных моделей к единому виду: иначе один товар от Gemini и от локальной не совпадёт."""
 

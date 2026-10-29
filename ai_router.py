@@ -145,12 +145,16 @@ def budget_allows(task: str) -> bool:
 async def run(task: str, prompt: str, *, deterministic: Optional[Callable[[], Any]] = None,
               validate: Optional[Callable[[Any], Any]] = None,
               cache_key: Optional[str] = None,
-              config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+              config: Optional[Dict[str, Any]] = None,
+              fallback_from: Optional[str] = None) -> Dict[str, Any]:
     """Выполняет AI-задачу по политике: сначала без модели, затем провайдер, затем запасной.
 
     Провайдеры проекта возвращают уже разобранный ответ модели (или None, если ответа нет и разобрать
     нечего). `validate` — необязательная проверка содержимого: вернуть None или бросить исключение
     означает «модель ответила не тем», и задача переходит к следующему провайдеру.
+
+    fallback_from — этот вызов продолжает работу другого провайдера (досылка после частичного отказа
+    локальной модели, V660-02): успешный ответ учитывается как переход на запасной, а не как первый выбор.
 
     Возвращает {"result", "source", "provider", "model", "fallback_used"}. Источник "deterministic"
     означает, что модель не вызывалась, "cache" — ответ взят из кэша.
@@ -243,6 +247,13 @@ async def run(task: str, prompt: str, *, deterministic: Optional[Callable[[], An
         if data is None:
             local_refusal = info.get("provider_called") is False
             outcome = info.get("outcome") or "empty"
+            if local_refusal and outcome == "local_paused":
+                # Режим выключили, пока запрос ждал места к локальной модели (V660-01): тот же учёт, что у
+                # проверки до вызова, — не ошибка и не обращение; дальше разрешённый платный провайдер
+                record_usage(task, provider=LOCAL, model=model, outcome="local_paused",
+                             error=info.get("paused_reason") or "local_paused")
+                last_error = "local_paused"
+                continue
             if local_refusal:
                 # Отказ своего бюджета или занятость — не обращение к провайдеру и не его ошибка (H03).
                 # Исчерпанная квота не лечится вторым провайдером, поэтому запасной не пробуем.
@@ -277,12 +288,13 @@ async def run(task: str, prompt: str, *, deterministic: Optional[Callable[[], An
                 last_error = "empty_result"
                 continue
 
+        fell_back = index > 0 or bool(fallback_from)
         record_usage(task, provider=provider, model=model, outcome="ok", latency_ms=latency_ms,
-                     tokens=tokens, fallback=index > 0)
+                     tokens=tokens, fallback=fell_back)
         if cache_key and cfg["cache_ttl"]:
             _cache_put(task, cache_key, value, cfg["cache_ttl"])
         return {"result": value, "source": "provider", "provider": provider, "model": model,
-                "fallback_used": index > 0}
+                "fallback_used": fell_back}
 
     raise AIUnavailable(f"Провайдеры недоступны ({last_error or 'нет ответа'})")
 

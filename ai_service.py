@@ -292,7 +292,7 @@ def _record_ai(provider: str, purpose: str, outcome: str, duration_ms: float = 0
         from telemetry import telemetry, EVENT_AI_QUERY, SEVERITY_INFO, SEVERITY_WARNING, COMPONENT_AI
         severity = SEVERITY_INFO if outcome in ("ok", "skipped_busy") else SEVERITY_WARNING
         data = {"provider": provider, "purpose": purpose, "outcome": outcome,
-                "provider_called": outcome not in ("skipped_busy", "budget_exhausted"),
+                "provider_called": outcome not in ("skipped_busy", "budget_exhausted", "local_paused"),
                 "duration_ms": round(duration_ms, 1), **(info or {})}
         throttle = f"ai:{purpose}:{outcome}" if outcome in ("skipped_busy", "budget_exhausted") else None
         telemetry.record_event(EVENT_AI_QUERY, severity, COMPONENT_AI, f"AI {provider}/{purpose}: {outcome}",
@@ -709,6 +709,15 @@ async def call_local_api(prompt: str, api_base: str, model: str, api_key: str = 
             info["failure"] = "busy"   # GPU занят другим запросом всё время ожидания — пусть решит запасной
             return None
         try:
+            # Пока ждали место, могли нажать «AI выкл» или проверка видеокарты выключила модель для игры:
+            # режим проверяется ещё раз прямо перед сетевым вызовом, иначе ожидавший запрос заново загрузил
+            # бы модель в видеопамять во время игры (V660-01). Это отказ до обращения к модели.
+            import local_ai
+            paused = local_ai.pause_reason()
+            if paused:
+                info["failure"] = "local_paused"
+                info["paused_reason"] = paused
+                return None
             remaining = max(1.0, budget - (time.monotonic() - started))
             result = await _call_local_api(prompt, api_base, model, api_key, remaining)
             return result
@@ -722,7 +731,10 @@ async def call_local_api(prompt: str, api_base: str, model: str, api_key: str = 
         _record_ai("local", purpose, outcome, duration_ms, info)
         sink = usage_sink.get()
         if sink is not None:
-            sink.append({"provider": "local", "outcome": outcome, "duration_ms": duration_ms, **info})
+            entry = {"provider": "local", "outcome": outcome, "duration_ms": duration_ms, **info}
+            if outcome == "local_paused":
+                entry["provider_called"] = False   # модель не вызывалась: не её ошибка и не обращение
+            sink.append(entry)
 
 
 async def _call_local_api(prompt: str, api_base: str, model: str, api_key: str,
@@ -1267,7 +1279,9 @@ async def normalize_product_titles_batch(
                 "Нормализуй товары, перечисленные в блоке данных ниже.\n"
                 + ai_router.untrusted_block("\n".join(f"- {t}" for t in leftovers), "НАЗВАНИЯ"))
             try:
-                retried = await ai_router.run("normalize", retry_prompt, config=paid, validate=_normalize_reply)
+                # Досылка — продолжение после частичного отказа локальной: в учёте это переход (V660-02)
+                retried = await ai_router.run("normalize", retry_prompt, config=paid, validate=_normalize_reply,
+                                              fallback_from=ai_router.LOCAL)
                 new_cached.update(_normalize_items(retried["result"], leftovers))
                 calls += 1   # досылка, которая не состоялась (бюджет, сбой), не отнимает вызов у локальной
             except ai_router.AIUnavailable:
