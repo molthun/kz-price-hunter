@@ -1323,13 +1323,31 @@ def _normalize_items(ai_res, chunk: List[str], standard: str = "v1", provider: O
     if not (isinstance(ai_res, dict) and isinstance(ai_res.get("items"), list)):
         return found
     if standard == "k2":
+        import hashlib
         import product_key
-        from database import save_title_fields_batch
+        from database import (save_title_fields_batch, find_titles_by_articles,
+                              save_title_articles_batch)
         fields = {item["title"]: {k: item.get(k) for k in product_key.FIELDS_SCHEMA}
                   for item in ai_res["items"] if isinstance(item, dict) and item.get("title") in chunk}
-        if fields:
-            save_title_fields_batch(fields, product_key.KEY_VERSION, provider, model)
-        return {t: k for t, k in product_key.keys_for(ai_res["items"], chunk).items() if k}
+        if not fields:
+            return {}
+        save_title_fields_batch(fields, product_key.KEY_VERSION, provider, model)
+        articles = set()
+        for f in fields.values():
+            for art in product_key.article_tokens(f):
+                articles.add(art)
+        existing = find_titles_by_articles(articles) if articles else []
+        keys = product_key.resolve_keys_with_articles(fields, existing)
+        article_rows = []
+        for t, k in keys.items():
+            if not k:
+                continue
+            th = hashlib.sha256(t.strip().encode("utf-8")).hexdigest()
+            for art in product_key.article_tokens(fields.get(t)):
+                article_rows.append((art, th, k))
+        if article_rows:
+            save_title_articles_batch(article_rows)
+        return {t: k for t, k in keys.items() if k}
     for item in ai_res["items"]:
         if not isinstance(item, dict):
             continue

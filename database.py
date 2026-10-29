@@ -9,7 +9,7 @@ import secrets
 import datetime
 import logging
 import threading
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple, Iterable
 from config import DB_PATH, get_scan_interval_seconds, merge_user_settings
 
 logger = logging.getLogger("kz_price_hunter.database")
@@ -929,6 +929,19 @@ def _create_schema(cursor) -> None:
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    # Связь артикула производителя с товаром и ключом (P17-C3 / link_by_article):
+    # brand:article -> title_hash, canonical_key. Новое название с известным артикулом
+    # получает ключ существующей группы товаров, прежние ключи не меняются (fixed).
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS title_articles (
+            article TEXT NOT NULL,
+            title_hash TEXT NOT NULL,
+            canonical_key TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (article, title_hash)
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_title_articles_title_hash ON title_articles(title_hash)")
     # Третий источник истины (P17-C7): выдача поиска по запросу и вердикт «один товар / разные» по паре названий.
     # Кэш поиска нужен и для суточного предела запросов (search_daily_limit)
     cursor.execute("""
@@ -2013,6 +2026,89 @@ def save_title_fields_batch(fields_by_title: Dict[str, Dict[str, Any]], key_vers
                             key_version = excluded.key_version, provider = excluded.provider, model = excluded.model,
                             created_at = CURRENT_TIMESTAMP""", (json.dumps(rows, ensure_ascii=False),))
         conn.commit()
+
+
+def save_title_articles_batch(entries: List[Tuple[str, str, str]]) -> None:
+    """Связи артикулов производителей с товарами и каноническими ключами (P17-C3 / link_by_article).
+
+    entries — список (article, title_hash, canonical_key).
+    """
+    rows = [(str(art).strip().lower(), str(th).strip(), str(ck).strip())
+            for art, th, ck in (entries or []) if art and th and ck]
+    if not rows:
+        return
+    with get_connection() as conn:
+        conn.execute("""INSERT INTO title_articles (article, title_hash, canonical_key)
+                        SELECT json_extract(value, '$[0]'), json_extract(value, '$[1]'), json_extract(value, '$[2]')
+                        FROM json_each(?) WHERE true
+                        ON CONFLICT(article, title_hash) DO UPDATE SET canonical_key = excluded.canonical_key,
+                            created_at = CURRENT_TIMESTAMP""", (json.dumps(rows, ensure_ascii=False),))
+        conn.commit()
+
+
+def find_titles_by_articles(articles: Iterable[str]) -> List[Dict[str, Any]]:
+    """Поиск существующих товаров с сохраненными полями по артикулам производителя.
+
+    Возвращает [{'article': str, 'title_hash': str, 'canonical_key': str, 'title': str, 'fields': dict}].
+    """
+    cleaned = list({str(a).strip().lower() for a in (articles or []) if a and str(a).strip()})
+    if not cleaned:
+        return []
+    with get_connection() as conn:
+        cursor = conn.execute("""
+            SELECT a.article, a.title_hash, a.canonical_key, f.title, f.fields_json
+            FROM title_articles a
+            JOIN title_fields f ON f.title_hash = a.title_hash
+            WHERE a.article IN (SELECT value FROM json_each(?))
+        """, (json.dumps(cleaned, ensure_ascii=False),))
+        results = []
+        for row in cursor.fetchall():
+            try:
+                fields = json.loads(row[4])
+            except Exception:
+                fields = {}
+            results.append({
+                "article": row[0],
+                "title_hash": row[1],
+                "canonical_key": row[2],
+                "title": row[3],
+                "fields": fields,
+            })
+        return results
+
+
+def rebuild_title_articles_from_fields() -> int:
+    """Пересобирает title_articles из title_fields и title_canonical_cache.
+
+    Возвращает количество созданных связей.
+    """
+    import product_key
+    with get_connection() as conn:
+        rows = conn.execute("""
+            SELECT f.title_hash, f.title, f.fields_json, c.canonical_key
+            FROM title_fields f
+            JOIN title_canonical_cache c ON c.title_hash = f.title_hash
+            WHERE c.canonical_key != ''
+        """).fetchall()
+        entries = []
+        for th, title, fields_raw, ckey in rows:
+            try:
+                fields = json.loads(fields_raw)
+            except Exception:
+                continue
+            if not isinstance(fields, dict):
+                continue
+            for art in product_key.article_tokens(fields):
+                entries.append((art, th, ckey))
+        if entries:
+            conn.execute("DELETE FROM title_articles")
+            conn.execute("""INSERT INTO title_articles (article, title_hash, canonical_key)
+                            SELECT json_extract(value, '$[0]'), json_extract(value, '$[1]'), json_extract(value, '$[2]')
+                            FROM json_each(?) WHERE true
+                            ON CONFLICT(article, title_hash) DO UPDATE SET canonical_key = excluded.canonical_key,
+                                created_at = CURRENT_TIMESTAMP""", (json.dumps(entries, ensure_ascii=False),))
+            conn.commit()
+        return len(entries)
 
 
 def _query_hash(query: str) -> str:

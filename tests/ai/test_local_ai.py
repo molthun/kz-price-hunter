@@ -456,6 +456,42 @@ class NormalizeK2Test(_DbCase):
         import web.server as server
         self.assertIn("ai_key_standard", server.GUARDED_SETTINGS)
 
+    def test_k2_link_by_article_joins_with_db_existing_group(self):
+        # Первый товар нормализуется и сохраняет свой ключ и артикул в БД
+        item1 = [{"title": "SSD 128GB Transcend TS128GMTE110S M2", "brand": "Transcend", "model": "TS128GMTE110S",
+                  "sku": None, "variants": [{"value": 128, "unit": "ГБ"}], "unbranded": False}]
+        res1, _ = self.run_batch("k2", item1)
+        self.assertEqual(res1["SSD 128GB Transcend TS128GMTE110S M2"], "k2:transcend:ts128gmte110s:128gb")
+
+        with database.get_connection() as conn:
+            articles = [(r[0], r[1]) for r in conn.execute("SELECT article, canonical_key FROM title_articles").fetchall()]
+        self.assertEqual(articles, [("transcend:ts128gmte110s", "k2:transcend:ts128gmte110s:128gb")])
+
+        # Второй товар нормализуется позже: у него модель MTE110S, но sku TS128GMTE110S — он должен получить
+        # существующий ключ группы из БД, а прежний ключ не должен измениться
+        item2 = [{"title": "SSD 128GB Transcend MTE110S (TS128GMTE110S)", "brand": "Transcend", "model": "MTE110S",
+                  "sku": "TS128GMTE110S", "variants": [{"value": 128, "unit": "ГБ"}], "unbranded": False}]
+        res2, _ = self.run_batch("k2", item2)
+        self.assertEqual(res2["SSD 128GB Transcend MTE110S (TS128GMTE110S)"], "k2:transcend:ts128gmte110s:128gb")
+
+        with database.get_connection() as conn:
+            cached = dict(conn.execute("SELECT title, canonical_key FROM title_canonical_cache").fetchall())
+        self.assertEqual(cached["SSD 128GB Transcend TS128GMTE110S M2"], "k2:transcend:ts128gmte110s:128gb")
+        self.assertEqual(cached["SSD 128GB Transcend MTE110S (TS128GMTE110S)"], "k2:transcend:ts128gmte110s:128gb")
+
+    def test_k2_rebuild_title_articles_from_fields(self):
+        item = [{"title": "SSD 128GB Transcend TS128GMTE110S M2", "brand": "Transcend", "model": "TS128GMTE110S",
+                 "sku": None, "variants": [{"value": 128, "unit": "ГБ"}], "unbranded": False}]
+        self.run_batch("k2", item)
+        with database.get_connection() as conn:
+            conn.execute("DELETE FROM title_articles")
+            self.assertEqual(conn.execute("SELECT count(*) FROM title_articles").fetchone()[0], 0)
+        created = database.rebuild_title_articles_from_fields()
+        self.assertEqual(created, 1)
+        with database.get_connection() as conn:
+            self.assertEqual(conn.execute("SELECT count(*) FROM title_articles").fetchone()[0], 1)
+
+
 
 class LocalCallTest(_DbCase):
     """Настоящий HTTP-вызов к поддельному OpenAI-совместимому серверу."""

@@ -2,6 +2,24 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## P17-C шаг 2 завершён: link_by_article в нормализацию (Antigravity, 2026-10-29 23:20 +05)
+
+```text
+Исполнитель: Antigravity (основной разработчик).
+Сделано:
+  - database.py: таблица title_articles (brand:article → title_hash, canonical_key), функции save_title_articles_batch, find_titles_by_articles, rebuild_title_articles_from_fields;
+  - product_key.py: функция resolve_keys_with_articles — связывание новых названий с учетом fixed записей из БД (существующие ключи не меняются);
+  - ai_service.py: _normalize_items при k2 находит существующие артикулы в title_articles, выполняет link_by_article с сохранением существующих ключей, сохраняет новые артикулы в title_articles;
+  - тесты: tests/core/test_product_key.py (14 OK), tests/ai/test_local_ai.py (32 OK), полный тестовый набор: 2034 OK (126.674 с).
+Следующие шаги разработки (Antigravity), по порядку:
+  1. Шаг 3: проверку поиском (product_verify) — в конвейер: очередь спорных пар (общий артикул при несовместимых моделях; расхождение k2 vs v1 в теневом режиме C5), пауза search_interval_seconds, суточный лимит search_daily_limit; вердикт same → объединение, unknown/differs → раздельные ключи.
+  2. Утром: проверка итогов ночного замера SearXNG (/tmp/verify_night.json на стенде) и первой ночной копии прода (backup_deliveries).
+  3. C4: перевод ~19,7 тыс. ключей кэша в k2 на стенде.
+  4. Передача Codex на аудит всего P17-C.
+```
+
+---
+
 ## Передача разработки P17-C → Antigravity (Claude, 2026-10-29 23:10 +05)
 
 ```text

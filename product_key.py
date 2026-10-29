@@ -339,3 +339,38 @@ def link_by_article(entries: Dict[str, Any], fixed: Iterable[str] = ()) -> Dict[
             out[t] = entries[t][1] if t in fixed else best
     return out
 
+
+def resolve_keys_with_articles(
+    new_fields: Dict[str, Dict[str, Any]],
+    existing_items: Iterable[Dict[str, Any]] = (),
+) -> Dict[str, Optional[str]]:
+    """Вычисляет ключи по стандарту k2 для new_fields с объединением по артикулам (P17-C3).
+
+    existing_items — список уже сохранённых товаров [{'title': ..., 'fields': ..., 'canonical_key': ...}].
+    Их ключи фиксированы (fixed) и не меняются.
+    Возвращает {title: key} для всех названий из new_fields.
+    """
+    entries: Dict[str, Any] = {}
+    fixed_titles = set()
+
+    for item in existing_items:
+        t = item.get("title")
+        f = item.get("fields")
+        k = item.get("canonical_key")
+        if t and isinstance(f, dict) and k and t not in new_fields:
+            entries[t] = (f, k)
+            fixed_titles.add(t)
+
+    base_keys: Dict[str, Optional[str]] = {}
+    for title, fields in new_fields.items():
+        k = build_key(fields, title)
+        base_keys[title] = k
+        if k:
+            entries[title] = (fields, k)
+
+    if entries:
+        linked = link_by_article(entries, fixed=fixed_titles)
+        return {t: linked.get(t) or base_keys.get(t) for t in new_fields}
+    return base_keys
+
+

@@ -128,6 +128,25 @@ class LinkByArticleTest(unittest.TestCase):
         self.assertEqual(keys["old"], entries["old"][1])
         self.assertEqual(keys["new"], entries["old"][1])
 
+    def test_resolve_keys_with_articles_preserves_existing(self):
+        old_fields = {"brand": "Transcend", "model": "TS128GMTE110S", "sku": None,
+                      "variants": [{"value": 128, "unit": "гб"}]}
+        new_fields = {"brand": "Transcend", "model": "MTE110S", "sku": "TS128GMTE110S",
+                      "variants": [{"value": 128, "unit": "гб"}]}
+        existing = [{"title": "Old SSD 128GB", "fields": old_fields,
+                     "canonical_key": "k2:transcend:ts128gmte110s:128gb"}]
+        batch = {"New SSD 128GB": new_fields}
+        res = pk.resolve_keys_with_articles(batch, existing)
+        self.assertEqual(res["New SSD 128GB"], "k2:transcend:ts128gmte110s:128gb")
+
+    def test_resolve_keys_with_articles_incompatible_not_joined(self):
+        existing = [{"title": "Jabra 65", "fields": {"brand": "Jabra", "model": "Evolve2 65", "sku": "Link380a MS"},
+                     "canonical_key": "k2:jabra:evolve265"}]
+        batch = {"Jabra 85": {"brand": "Jabra", "model": "Evolve2 85", "sku": "Link380a MS"}}
+        res = pk.resolve_keys_with_articles(batch, existing)
+        self.assertEqual(res["Jabra 85"], "k2:jabra:evolve285")
+
+
 
 if __name__ == "__main__":
     unittest.main()
