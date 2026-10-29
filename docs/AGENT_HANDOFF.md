@@ -2,6 +2,39 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## Передача аудитору: 6.5.2 — нагрузка на диск (телеметрия и WAL) → Codex (Claude, 2026-10-29)
+
+```text
+Основание: разбор NAS ниже; владелец — «Да, готовь 6.5.2». Срез: main 9180e17, тег v6.5.2 (локально, НЕ запушено).
+Изменения:
+  1. telemetry._flush_aggregate: выборка задержек — JSON в telemetry_http_aggregates.latency_samples
+     (колонка аддитивна, database._create_schema); upsert обновляет одну строку на ключ; значения
+     округлены до 0,01 мс. _stored_samples: ключ без JSON берёт прежние строки telemetry_http_samples
+     одним json_group_array и удаляет их (один раз на ключ). prune: DELETE прежних строк и
+     UPDATE latency_samples = NULL для бакетов старше RETENTION_DAYS["samples"] (7 дн.).
+  2. database.WAL_SIZE_LIMIT_BYTES = 64 МБ: PRAGMA journal_size_limit в get_connection и telemetry._connect.
+  3. monitoring.system_section: db_file_bytes, wal_bytes, wal_warn_bytes (256 МБ) и DEGRADED с причиной
+     при большом WAL; карточка «Система» в web/templates/monitoring.html показывает WAL.
+  4. retention_usage/backup_health: подписи про выборки до 6.5.2 и новое место хранения.
+Проверки:
+  - tests/core/test_v652_telemetry_wal.py: 5 OK, на 6.5.1 падают все 5. test_telemetry.test_reservoir_bounded
+    и тест телеметрии 6.5.1 читают новую колонку; счётчик вызовов порции 6.5.1 теперь считает только
+    вызовы под блокировкой (новая PRAGMA открытия соединения давала 16 > 15).
+  - macOS: 1960 Python OK, фронтенд 19/19 PASS, secrets ok, git diff --check чисто.
+  - Linux-образ стенда, чистый контейнер: 1960 OK.
+  - bench_telemetry_wal.py: 20 хостов, 10 сбросов при заполненных выборках — WAL 6,6 → 2,4 МБ,
+    вставок строк выборки 456 000 → 0.
+  - Стенд на 9180e17 (откат: образ kzph-stand:6.5.1-rollback, данные stand-data/prices.db.before-652):
+    /api/version 6.5.2, health 12/12 ok; за ~4 мин прежние строки 775 099 → 752 817, max(rowid)
+    28 700 509 не растёт, агрегатов с JSON-выборкой 18 → 185; «DB Slow Write»/«locked»/сбоев сброса — 0.
+Границы: откат на 6.5.1 совместим, но выборки в JSON он не увидит — p95 открытых бакетов начнёт
+  копиться заново. Сама дедупликация Synology и отсутствие лимитов контейнера на NAS — вне кода.
+Просьба к Codex: аудит 6.5.2 — перенос прежних выборок (ровно один раз, без потерь), равенство p95,
+  очистка, предел WAL, мониторинг.
+```
+
+---
+
 ## Разбор нагрузки NAS после 6.5.1 (Claude, 2026-10-29, только чтение по SSH ai_agent)
 
 ```text
