@@ -2,6 +2,50 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## Передача аудитору: 6.5.1 — блокировки записи под нагрузкой обхода → Codex (Claude, 2026-10-29)
+
+```text
+Основание: логи прода 6.5.0 (прислал владелец) и разбор ниже, в карточке выпуска; владелец — «Да, готовь 6.5.1».
+Срез: main 30f6315, тег v6.5.1 (локально, НЕ запушено). Свидетельства: docs/audit_evidence/2026-10-29-v651/.
+Изменения:
+  1. config.gil_switch_interval/apply_gil_switch_interval — 0,5 мс при старте gui.py и main.py
+     (GIL_SWITCH_INTERVAL, границы 0,1–50 мс).
+  2. web/server.py: /api/health проверяет базу и очередь в своём пуле _health_executor (2 потока).
+  3. database._save_products_chunk: _prepare_products_chunk до BEGIN IMMEDIATE; под блокировкой одно
+     чтение json_group_array, затем INSERT price_observations / INSERT products / UPDATE products FROM
+     json_each — по оператору на порцию. Решения F01, наблюдение, min/max, повтор товара — в Python
+     в порядке порции. observed_seq — параметром (JSON SQLite 3.46 даёт 15 знаков). _price_history_conn —
+     тоже одним чтением. spool_apply_chunk: ошибка подготовки всплывает только при живом захвате.
+  4. domain/adapter: prepare_legacy_offer_v2 + write_legacy_offers_v2; sync_legacy_product_to_v2 теперь
+     обёртка над ними. Сбой наборной двойной записи → ROLLBACK TO SAVEPOINT и повтор по одному товару.
+  5. canonical_products.title_offer_id (аддитивно): название и категорию меняет только предложение,
+     первым записавшее товар; строки до 6.5.1 закрепляются за первым записавшим после обновления.
+  6. telemetry.flush: события и выборка задержек — по оператору на пачку, без executemany.
+Проверки:
+  - macOS: 1952 Python OK (+14 в tests/core/test_v651_write_contention.py; на коде 6.5.0 падают 11,
+    3 защитных проходят на обеих), фронтенд 19/19 PASS, secrets ok, git diff --check чисто.
+  - Linux-образ стенда в чистом контейнере (docker run --rm, без .env): 1952 OK.
+    Внимание: внутри работающего kzph-stand (docker exec) 33 теста прав/прокси падают из-за его
+    окружения (ADMIN_TELEGRAM_IDS, TRUSTED_PROXIES, ALLOW_DEV_LOGIN) — это не регрессия.
+  - Равенство с 6.5.0 на живых данных (eq_run.py/eq_cmp.py): 12 порций, 1262 товара — products,
+    price_observations, offers, offer_price_history, canonical_products (без title/category), sellers,
+    seller_identities, channels совпадают; FTS integrity-check проходит.
+  - Нагрузка (bench_v651_under_load.py), порция 100 товаров при 6 счётных потоках: под блокировкой
+    6.5.0 — 161–166 с; 6.5.1 при 5 мс — 2,8–3,0 с; при 0,5 мс — 0,33–0,46 с.
+  - Стенд обновлён до 30f6315: /api/version 6.5.1, лог «Интервал переключения GIL: 0.50 мс»,
+    колонка title_offer_id есть. Живой обход (31 категория за 7 мин): health 36/36 ok, максимум 0,06 с,
+    ни одной строки «DB Slow Write» или «database is locked». Откат стенда: образ kzph-stand:6.5.0-rollback,
+    данные stand-data/prices.db.before-651.
+Границы: волна на стенде меньше прод-волны (3 магазина против десятков), основная нагрузочная оценка —
+  синтетический бенчмарк. Telemetry: задержки в выборке через JSON хранят 15 значащих цифр.
+  Название канонического товара не переходит к другому предложению, если первое снято навсегда.
+Просьба к Codex: единый аудит 6.5.1; особенно — равенство наборной записи прежней (повторы в порции,
+  F01, observed_seq, FTS-триггеры, запасной путь двойной записи) и правило title_offer_id.
+После приёмки и слова владельца: push main + тег v6.5.1 (выкатит прод через Watchtower).
+```
+
+---
+
 ## Выпуск 6.4.12–6.5.0 на прод (Claude, 2026-10-29)
 
 ```text
