@@ -916,6 +916,19 @@ def _create_schema(cursor) -> None:
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    # Поля товара, извлечённые AI по стандарту ключа (P17-C): бренд, модель, артикул, варианты. Ключ из них
+    # собирает product_key.py; поля хранятся, чтобы при смене правил пересобрать ключи без повторных вызовов модели
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS title_fields (
+            title_hash TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            fields_json TEXT NOT NULL,
+            key_version TEXT NOT NULL,
+            provider TEXT,
+            model TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
     # Названия, которые уже отправлялись в AI: неудачи не повторяются при каждом обходе
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS title_ai_attempts (
@@ -1960,6 +1973,25 @@ def save_cached_canonical_keys_batch(mapping: Dict[str, str]):
             ON CONFLICT(title_hash) DO UPDATE SET canonical_key = excluded.canonical_key
         """, rows)
         conn.commit()
+
+def save_title_fields_batch(fields_by_title: Dict[str, Dict[str, Any]], key_version: str,
+                            provider: Optional[str] = None, model: Optional[str] = None) -> None:
+    """Поля товара от AI по стандарту ключа (P17-C): последняя запись по названию заменяет прежнюю."""
+    rows = [(hashlib.sha256(t.strip().encode("utf-8")).hexdigest(), t.strip(),
+             json.dumps(f, ensure_ascii=False, sort_keys=True)[:2000], key_version, provider, model)
+            for t, f in (fields_by_title or {}).items() if t and isinstance(f, dict)]
+    if not rows:
+        return
+    with get_connection() as conn:
+        conn.execute("""INSERT INTO title_fields (title_hash, title, fields_json, key_version, provider, model)
+                        SELECT json_extract(value, '$[0]'), json_extract(value, '$[1]'), json_extract(value, '$[2]'),
+                               json_extract(value, '$[3]'), json_extract(value, '$[4]'), json_extract(value, '$[5]')
+                        FROM json_each(?) WHERE true
+                        ON CONFLICT(title_hash) DO UPDATE SET fields_json = excluded.fields_json,
+                            key_version = excluded.key_version, provider = excluded.provider, model = excluded.model,
+                            created_at = CURRENT_TIMESTAMP""", (json.dumps(rows, ensure_ascii=False),))
+        conn.commit()
+
 
 def _title_hash(title: str) -> str:
     return hashlib.sha256(title.strip().encode("utf-8")).hexdigest()

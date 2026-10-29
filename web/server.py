@@ -1919,6 +1919,8 @@ async def get_admin_config_handler(request):
 GUARDED_SETTINGS = {
     "adaptive_scheduler_stage": "POST /api/admin/scheduler/rollout",
     "ai_matching_mode": "POST /api/admin/monitoring/matching/ai",
+    # Меняется только вместе с переводом базы ключей (P17-C4): иначе старые и новые ключи перестанут совпадать
+    "ai_key_standard": "перевод базы ключей (P17-C4)",
 }
 
 

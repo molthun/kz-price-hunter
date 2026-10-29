@@ -143,6 +143,8 @@ class SystemSettingsTest(unittest.TestCase):
                     value = 60
                 if key == "daily_digest_timezone":
                     value = "UTC"
+                if key == "ai_key_standard":
+                    value = "k2"
                 clean = config._validate_settings({key: value})
                 self.assertIn(key, clean)
 

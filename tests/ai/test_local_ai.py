@@ -405,6 +405,58 @@ class NormalizeFallbackTest(_DbCase):
         self.assertEqual(res["Вешалка кованая"], "")
 
 
+class NormalizeK2Test(_DbCase):
+    """P17-C1: стандарт k2 — модель отдаёт поля, ключ собирает product_key, поля сохраняются."""
+
+    def run_batch(self, standard, reply_items):
+        creds = {"has_ai": True, "ai_search_enabled": True, "enabled": True, "ai_provider": "auto",
+                 "has_local": True, "local_api_base": "http://h:1/v1", "local_model": "qwen3-vl:8b-instruct",
+                 "local_api_key": "", "gemini_api_key": "", "openai_api_key": "",
+                 "local_normalize_enabled": True, "ai_key_standard": standard}
+        prompts = []
+
+        async def fake_run(task, prompt, *, config=None, validate=None, **kw):
+            prompts.append(prompt)
+            return {"result": {"items": reply_items}, "provider": "local", "model": "qwen3-vl:8b-instruct",
+                    "source": "provider", "fallback_used": False}
+
+        titles = [i["title"] for i in reply_items]
+        with patch.object(ai_service, "_get_api_credentials", return_value=creds), \
+             patch.object(ai_router, "run", fake_run), \
+             patch("model_matching.extract_canonical_key", return_value=None):
+            res = asyncio.run(ai_service.normalize_product_titles_batch(titles, for_scan=True))
+        return res, prompts
+
+    def test_k2_builds_standard_keys_and_saves_fields(self):
+        items = [{"title": "Самсунг Galaxy S24 Ultra 256ГБ черный", "brand": "Самсунг", "model": "Galaxy S24 Ultra Black",
+                  "sku": None, "variants": [{"value": 256, "unit": "ГБ"}], "unbranded": False},
+                 {"title": "Стремянка 6 ступеней", "brand": None, "model": None, "sku": None, "variants": [],
+                  "unbranded": True}]
+        res, prompts = self.run_batch("k2", items)
+        self.assertIn("variants", prompts[0])
+        self.assertEqual(res["Самсунг Galaxy S24 Ultra 256ГБ черный"], "k2:samsung:galaxys24ultra:256gb")
+        self.assertEqual(res["Стремянка 6 ступеней"], "", "без бренда — без ключа")
+        with database.get_connection() as conn:
+            rows = {r[0]: (r[1], r[2], r[3]) for r in conn.execute(
+                "SELECT title, key_version, provider, model FROM title_fields")}
+            cached = dict(conn.execute("SELECT title, canonical_key FROM title_canonical_cache").fetchall())
+        self.assertEqual(rows["Самсунг Galaxy S24 Ultra 256ГБ черный"], ("k2", "local", "qwen3-vl:8b-instruct"))
+        self.assertIn("Стремянка 6 ступеней", rows, "поля сохраняются и для товара без ключа")
+        self.assertEqual(cached, {"Самсунг Galaxy S24 Ultra 256ГБ черный": "k2:samsung:galaxys24ultra:256gb"})
+
+    def test_v1_by_default_unchanged(self):
+        self.assertEqual(config.get_ai_config()["ai_key_standard"], "v1")
+        res, prompts = self.run_batch("v1", [{"title": "Apple iPhone 15 128GB", "canonical_key": "apple:iphone 15:128gb"}])
+        self.assertEqual(res["Apple iPhone 15 128GB"], "apple:iphone 15:128gb")
+        self.assertIn("canonical_key", prompts[0])
+        with database.get_connection() as conn:
+            self.assertEqual(conn.execute("SELECT count(*) FROM title_fields").fetchone()[0], 0)
+
+    def test_standard_is_guarded_from_general_save(self):
+        import web.server as server
+        self.assertIn("ai_key_standard", server.GUARDED_SETTINGS)
+
+
 class LocalCallTest(_DbCase):
     """Настоящий HTTP-вызов к поддельному OpenAI-совместимому серверу."""
 

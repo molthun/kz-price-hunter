@@ -316,6 +316,10 @@ SYSTEM_DEFAULTS = {
     # ключи локальной совпали с прежними ключами Gemini у 17 из 60 названий, и сопоставление между магазинами
     # теряло бы пары. Включать после проверки качества (P17-C), см. docs/AI_LOCAL_POLICY.md.
     "local_normalize_enabled": False,
+    # Стандарт ключа из AI-нормализации (P17-C): v1 — модель пишет строку ключа сама (как было); k2 — модель
+    # извлекает поля, ключ собирает product_key.py. Переключается только вместе с переводом базы ключей (C4):
+    # старые и новые ключи между собой не совпадают, поэтому общим сохранением настроек не меняется.
+    "ai_key_standard": "v1",
     # Шаг включения адаптивного планировщика (P11). По умолчанию выключено: обходы идут прежним порядком,
     # расширение — только вручную владельцем, откат — автоматический по согласованным порогам.
     "adaptive_scheduler_stage": "off",
@@ -557,6 +561,7 @@ def get_ai_config():
         "local_api_key": str(sys_settings.get("local_api_key", "") or "").strip(),
         "has_local": has_local,
         "local_normalize_enabled": bool(sys_settings.get("local_normalize_enabled", False)),
+        "ai_key_standard": str(sys_settings.get("ai_key_standard") or "v1"),
         "ai_search_enabled": ai_enabled,
         "has_ai": available,
         "configured": available,
@@ -710,7 +715,8 @@ def _validate_settings(new_settings):
                           ("gemini_model_mode", {"auto", "manual"}),
                           ("openai_model_mode", {"auto", "manual"}),
                           ("adaptive_scheduler_stage", {"off", "canary_one", "canary_few", "all"}),
-                          ("ai_matching_mode", {"off", "shadow", "on"})):
+                          ("ai_matching_mode", {"off", "shadow", "on"}),
+                          ("ai_key_standard", {"v1", "k2"})):
         if name in clean and clean[name] not in choices:
             raise ValueError(f"Некорректный режим: {name}")
     merged = {**load_settings(), **clean}

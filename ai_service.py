@@ -1240,6 +1240,11 @@ async def normalize_product_titles_batch(
         "}"
     )
 
+    # Стандарт ключа (P17-C): k2 — модель извлекает поля, ключ собирает product_key.py одинаково для любой модели
+    standard = str(creds.get("ai_key_standard") or "v1")
+    if standard == "k2":
+        system_prompt = K2_NORMALIZE_PROMPT
+
     calls = 0
     for i in range(0, len(missing_for_ai), 20):
         if max_ai_calls is not None and calls >= max_ai_calls:
@@ -1253,10 +1258,11 @@ async def normalize_product_titles_batch(
         full_prompt = system_prompt + "\n\n" + user_prompt
 
         # Через роутер: у задачи «нормализация» свой бюджет, запрет запасного провайдера и учёт (P08 H02)
-        ai_res, attempted, provider = None, False, None
+        ai_res, attempted, provider, used_model = None, False, None, None
         try:
             routed = await ai_router.run("normalize", full_prompt, config=creds, validate=_normalize_reply)
-            ai_res, attempted, provider = routed["result"], True, routed.get("provider")
+            ai_res, attempted = routed["result"], True
+            provider, used_model = routed.get("provider"), routed.get("model")
         except ai_router.AIUnavailable:
             attempted = True
         calls += 1
@@ -1265,7 +1271,7 @@ async def normalize_product_titles_batch(
             # Бюджет исчерпан — вызова по сути не было: оставляем названия на потом, не помечая попыткой
             break
 
-        new_cached = _normalize_items(ai_res, chunk)
+        new_cached = _normalize_items(ai_res, chunk, standard, provider, used_model)
         # Локальная ответила, но часть названий «не поняла» (нет ключа или пустышка) — эти названия
         # досылаются платной модели в рамках бюджета, как и весь вызов при сбое локальной (P17-A).
         # Явный выбор «только локальная» — без досылки: обходить решение администратора нельзя.
@@ -1282,7 +1288,8 @@ async def normalize_product_titles_batch(
                 # Досылка — продолжение после частичного отказа локальной: в учёте это переход (V660-02)
                 retried = await ai_router.run("normalize", retry_prompt, config=paid, validate=_normalize_reply,
                                               fallback_from=ai_router.LOCAL)
-                new_cached.update(_normalize_items(retried["result"], leftovers))
+                new_cached.update(_normalize_items(retried["result"], leftovers, standard,
+                                                   retried.get("provider"), retried.get("model")))
                 calls += 1   # досылка, которая не состоялась (бюджет, сбой), не отнимает вызов у локальной
             except ai_router.AIUnavailable:
                 pass
@@ -1303,22 +1310,61 @@ def _normalize_reply(value):
     return value if isinstance(value, dict) and isinstance(value.get("items"), list) else None
 
 
-def _normalize_items(ai_res, chunk: List[str]) -> Dict[str, str]:
+def _normalize_items(ai_res, chunk: List[str], standard: str = "v1", provider: Optional[str] = None,
+                     model: Optional[str] = None) -> Dict[str, str]:
     """Ключи из ответа нормализации только для названий этого пакета.
 
-    Ответ AI — недоверенные данные: принимается только ключ строгого формата; заглушки «0»/«none»
-    приводятся к прежнему «null», пустышка вместо бренда или модели отвергается (P17-A).
+    v1: модель пишет строку ключа; заглушки «0»/«none» приводятся к «null», пустышка вместо бренда или модели
+    отвергается (P17-A). k2: модель возвращает поля, ключ собирает product_key.build_key, а сами поля
+    сохраняются в title_fields — ключи можно пересобрать без повторных вызовов модели (P17-C).
+    Ответ AI — недоверенные данные в обоих случаях.
     """
     found: Dict[str, str] = {}
-    if isinstance(ai_res, dict) and isinstance(ai_res.get("items"), list):
-        for item in ai_res["items"]:
-            if not isinstance(item, dict):
-                continue
-            orig = item.get("title")
-            ckey = normalize_ai_canonical_key(item.get("canonical_key"))
-            if orig in chunk and ckey:
-                found[orig] = ckey
+    if not (isinstance(ai_res, dict) and isinstance(ai_res.get("items"), list)):
+        return found
+    if standard == "k2":
+        import product_key
+        from database import save_title_fields_batch
+        fields = {item["title"]: {k: item.get(k) for k in product_key.FIELDS_SCHEMA}
+                  for item in ai_res["items"] if isinstance(item, dict) and item.get("title") in chunk}
+        if fields:
+            save_title_fields_batch(fields, product_key.KEY_VERSION, provider, model)
+        return {t: k for t, k in product_key.keys_for(ai_res["items"], chunk).items() if k}
+    for item in ai_res["items"]:
+        if not isinstance(item, dict):
+            continue
+        orig = item.get("title")
+        ckey = normalize_ai_canonical_key(item.get("canonical_key"))
+        if orig in chunk and ckey:
+            found[orig] = ckey
     return found
+
+
+# Подсказка нормализации по стандарту ключа k2 (P17-C): только поля, строку ключа собирает код
+K2_NORMALIZE_PROMPT = (
+    "Ты эксперт по каталогам товаров, техники и потребительских товаров в Казахстане. "
+    "Для каждого товара извлеки поля, по которым один и тот же товар узнаётся в разных магазинах.\n"
+    "Поля:\n"
+    "- brand: бренд производителя как на упаковке (латиницей, если он так пишется); null, если бренда нет;\n"
+    "- model: серия и модель БЕЗ бренда, цвета, типа товара, комплектации и маркетинга "
+    "(«Galaxy S24 Ultra», «RTX 4060 Dual», «KT-1351»); null, если модели нет;\n"
+    "- sku: артикул или код модели производителя (не артикул магазина в скобках); null, если нет;\n"
+    "- variants: только характеристики, отличающие исполнение одной модели: память, объём, диагональ, "
+    "вес или объём упаковки, мощность. Каждая — {\"value\": число, \"unit\": одна из "
+    "гб, тб, мб, мм, см, м, л, мл, г, кг, дюйм, вт, мач, шт, гц}. Пустой список, если нет;\n"
+    "- unbranded: true, если у товара нет бренда.\n"
+    "Не выдумывай: чего нет в названии — null. Цвет в поля не попадает.\n"
+    "Примеры:\n"
+    "- «Смартфон Apple iPhone 15 128Gb черный» → {\"brand\": \"Apple\", \"model\": \"iPhone 15\", \"sku\": null, "
+    "\"variants\": [{\"value\": 128, \"unit\": \"гб\"}], \"unbranded\": false}\n"
+    "- «Телевизор Samsung 55CU7100 4K» → {\"brand\": \"Samsung\", \"model\": \"CU7100\", \"sku\": \"55CU7100\", "
+    "\"variants\": [{\"value\": 55, \"unit\": \"дюйм\"}], \"unbranded\": false}\n"
+    "- «Кондиционер для белья Vernel Max свежий бриз 0,96 л» → {\"brand\": \"Vernel\", \"model\": \"Max свежий бриз\", "
+    "\"sku\": null, \"variants\": [{\"value\": 0.96, \"unit\": \"л\"}], \"unbranded\": false}\n"
+    "- «Стремянка (6 ступеней)» → {\"brand\": null, \"model\": null, \"sku\": null, \"variants\": [], \"unbranded\": true}\n\n"
+    "Ответь строго JSON: {\"items\": [{\"title\": \"исходное название\", \"brand\": ..., \"model\": ..., "
+    "\"sku\": ..., \"variants\": [...], \"unbranded\": ...}]}"
+)
 
 
 def _budget_exhausted() -> bool:
