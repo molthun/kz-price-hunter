@@ -1,0 +1,22 @@
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+products 70 SAME
+price_observations 269 SAME
+offers 70 SAME
+offer_price_history 289 SAME
+canonical_products 9 SAME
+sellers 3 SAME
+seller_identities 6 SAME
+channels 3 SAME
+24 chunks / 840 input rows / actual 6.5.0 vs 6.5.1: PASS
+{"cpu_threads": 6, "products": 100, "switch_seconds": 0.0005, "prepare_seconds": 0.03844583299360238, "transaction_seconds": 0.11165179201634601}

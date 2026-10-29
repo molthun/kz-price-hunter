@@ -1,0 +1,33 @@
+test_existing_rows_and_fts_restored_after_late_failure (__main__.Atomicity.test_existing_rows_and_fts_restored_after_late_failure) ... ok
+test_inner_savepoint_failure_preserves_outer_work (__main__.Atomicity.test_inner_savepoint_failure_preserves_outer_work) ... ok
+test_new_batch_late_failure_leaves_no_v2_rows (__main__.Atomicity.test_new_batch_late_failure_leaves_no_v2_rows) ... ok
+test_success_does_not_commit_outer_transaction (__main__.Atomicity.test_success_does_not_commit_outer_transaction) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.126s
+
+OK
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
