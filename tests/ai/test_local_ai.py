@@ -209,6 +209,63 @@ class RouterLocalTest(_DbCase):
         self.assertEqual(ai_router.providers_for("normalize", self.config), ["gemini"])
 
 
+class CanonicalKeyTest(unittest.TestCase):
+    """Ключи разных моделей к единому виду: иначе один товар от Gemini и от локальной не совпадёт."""
+
+    def test_placeholders(self):
+        from model_matching import normalize_ai_canonical_key as norm
+        cases = {"bestway:55001:0": "bestway:55001:null", "SJCAM:C300:null": "sjcam:c300:null",
+                 "sharkoon:elbrus 2:none": "sharkoon:elbrus 2:null", "apple:iphone 15:128gb": "apple:iphone 15:128gb",
+                 "lg:27gp850:n/a": "lg:27gp850:null", "a:b": "a:b",
+                 "0:0:0": None, "null:wardrobe:x": None, "brand:0:1": None, "none:none": None,
+                 "плохой ключ": None, None: None, 42: None}
+        for raw, want in cases.items():
+            with self.subTest(raw=raw):
+                self.assertEqual(norm(raw), want)
+
+
+class NormalizeFallbackTest(_DbCase):
+    """«Не поняла»: названия без ключа от локальной модели досылаются платной (одна пачка, в бюджете)."""
+
+    def run_normalize(self, local_items, paid_items, provider_choice="auto"):
+        from model_matching import extract_canonical_key  # noqa: F401
+        sent = []
+
+        async def fake_run(task, prompt, *, config=None, validate=None, **kw):
+            local = bool(config.get("has_local"))
+            titles = [l[2:] for l in prompt.split("\n") if l.startswith("- ") and "->" not in l]
+            sent.append(("local" if local else "paid", titles))
+            items = local_items if local else paid_items
+            return {"result": {"items": [{"title": t, "canonical_key": items.get(t)} for t in titles]},
+                    "provider": "local" if local else "gemini", "model": "m", "source": "provider",
+                    "fallback_used": not local}
+
+        creds = {"has_ai": True, "ai_search_enabled": True, "ai_provider": provider_choice, "has_local": True,
+                 "local_api_base": "http://h:1/v1", "local_model": "m", "gemini_api_key": "g", "openai_api_key": ""}
+        titles = ["Бассейн Bestway 55001", "Вешалка кованая", "Кресло Sharkoon Elbrus 2"]
+        with patch.object(ai_service, "_get_api_credentials", return_value=creds), \
+             patch.object(ai_router, "run", fake_run), \
+             patch("model_matching.extract_canonical_key", return_value=None):
+            res = asyncio.run(ai_service.normalize_product_titles_batch(titles, for_scan=True))
+        return res, sent
+
+    def test_misunderstood_titles_go_to_paid(self):
+        local = {"Бассейн Bestway 55001": "bestway:55001:0", "Вешалка кованая": "0:0:0",
+                 "Кресло Sharkoon Elbrus 2": ""}
+        paid = {"Вешалка кованая": "unbranded:wardrobe:forged", "Кресло Sharkoon Elbrus 2": "sharkoon:elbrus 2:null"}
+        res, sent = self.run_normalize(local, paid)
+        self.assertEqual(res["Бассейн Bestway 55001"], "bestway:55001:null")
+        self.assertEqual(res["Вешалка кованая"], "unbranded:wardrobe:forged")
+        self.assertEqual(res["Кресло Sharkoon Elbrus 2"], "sharkoon:elbrus 2:null")
+        self.assertEqual([who for who, _ in sent], ["local", "paid"])
+        self.assertEqual(sorted(sent[1][1]), ["Вешалка кованая", "Кресло Sharkoon Elbrus 2"])
+
+    def test_explicit_local_choice_does_not_resend(self):
+        res, sent = self.run_normalize({"Бассейн Bestway 55001": "bestway:55001:0"}, {}, provider_choice="local")
+        self.assertEqual([who for who, _ in sent], ["local"])
+        self.assertEqual(res["Вешалка кованая"], "")
+
+
 class LocalCallTest(_DbCase):
     """Настоящий HTTP-вызов к поддельному OpenAI-совместимому серверу."""
 

@@ -13,7 +13,7 @@ import asyncio
 import contextvars
 import os
 import re
-from model_matching import valid_ai_canonical_key, normalize_ai_canonical_key
+from model_matching import normalize_ai_canonical_key
 import json
 import time
 from typing import Optional, Dict, Any, List, Tuple
@@ -1241,12 +1241,10 @@ async def normalize_product_titles_batch(
         full_prompt = system_prompt + "\n\n" + user_prompt
 
         # Через роутер: у задачи «нормализация» свой бюджет, запрет запасного провайдера и учёт (P08 H02)
-        ai_res, attempted = None, False
+        ai_res, attempted, provider = None, False, None
         try:
-            routed = await ai_router.run("normalize", full_prompt, config=creds,
-                                         validate=lambda v: v if isinstance(v, dict) and
-                                         isinstance(v.get("items"), list) else None)
-            ai_res, attempted = routed["result"], True
+            routed = await ai_router.run("normalize", full_prompt, config=creds, validate=_normalize_reply)
+            ai_res, attempted, provider = routed["result"], True, routed.get("provider")
         except ai_router.AIUnavailable:
             attempted = True
         calls += 1
@@ -1255,17 +1253,25 @@ async def normalize_product_titles_batch(
             # Бюджет исчерпан — вызова по сути не было: оставляем названия на потом, не помечая попыткой
             break
 
-        new_cached = {}
-        if isinstance(ai_res, dict) and isinstance(ai_res.get("items"), list):
-            for item in ai_res["items"]:
-                if not isinstance(item, dict):
-                    continue
-                orig = item.get("title")
-                # Ответ AI — недоверенные данные: принимается только ключ строгого формата; заглушки «0»/«none»
-                # приводятся к прежнему «null», пустышка вместо бренда или модели отвергается (P17-A)
-                ckey = normalize_ai_canonical_key(item.get("canonical_key"))
-                if orig in chunk and ckey:
-                    new_cached[orig] = ckey
+        new_cached = _normalize_items(ai_res, chunk)
+        # Локальная ответила, но часть названий «не поняла» (нет ключа или пустышка) — эти названия
+        # досылаются платной модели в рамках бюджета, как и весь вызов при сбое локальной (P17-A).
+        # Явный выбор «только локальная» — без досылки: обходить решение администратора нельзя.
+        leftovers = [t for t in chunk if t not in new_cached]
+        paid = {**creds, "has_local": False, "local_api_base": "", "local_model": "",
+                "has_ai": bool(creds.get("gemini_api_key") or creds.get("openai_api_key"))}
+        if (provider == ai_router.LOCAL and leftovers and paid["has_ai"]
+                and creds.get("ai_provider", "auto") == "auto"
+                and (max_ai_calls is None or calls < max_ai_calls)):
+            retry_prompt = system_prompt + "\n\n" + (
+                "Нормализуй товары, перечисленные в блоке данных ниже.\n"
+                + ai_router.untrusted_block("\n".join(f"- {t}" for t in leftovers), "НАЗВАНИЯ"))
+            try:
+                retried = await ai_router.run("normalize", retry_prompt, config=paid, validate=_normalize_reply)
+                new_cached.update(_normalize_items(retried["result"], leftovers))
+            except ai_router.AIUnavailable:
+                pass
+            calls += 1
         results.update(new_cached)
         if new_cached:
             await asyncio.to_thread(save_cached_canonical_keys_batch, new_cached)
@@ -1276,6 +1282,29 @@ async def normalize_product_titles_batch(
             results.setdefault(t, "")
 
     return results
+
+
+def _normalize_reply(value):
+    """Проверка ответа нормализации для роутера: нужен объект со списком items."""
+    return value if isinstance(value, dict) and isinstance(value.get("items"), list) else None
+
+
+def _normalize_items(ai_res, chunk: List[str]) -> Dict[str, str]:
+    """Ключи из ответа нормализации только для названий этого пакета.
+
+    Ответ AI — недоверенные данные: принимается только ключ строгого формата; заглушки «0»/«none»
+    приводятся к прежнему «null», пустышка вместо бренда или модели отвергается (P17-A).
+    """
+    found: Dict[str, str] = {}
+    if isinstance(ai_res, dict) and isinstance(ai_res.get("items"), list):
+        for item in ai_res["items"]:
+            if not isinstance(item, dict):
+                continue
+            orig = item.get("title")
+            ckey = normalize_ai_canonical_key(item.get("canonical_key"))
+            if orig in chunk and ckey:
+                found[orig] = ckey
+    return found
 
 
 def _budget_exhausted() -> bool:
