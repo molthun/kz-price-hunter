@@ -13,8 +13,11 @@ Watchtower на машине прода (kz-price-watchtower, DOCKER_API_VERSION
 Снаружи: /api/version 6.6.0, главная 0,05 с, /api/products?search 0,04 с, /api/v2/search 0,06 с, health 15/15;
   verify_public.sh — версия, health 10/10, поиск 50, сосед 192.168.28.10, Watchtower — «прод работает»;
   409/ошибок в логах — 0.
-Не сделано (решение владельца): local_api_base/local_model в настройках прода не заданы — локальная модель
-  на проде не используется до настройки в админке. Кнопки/cron/модель на машине уже работают (режим on).
+Локальная модель на проде подключена по слову владельца («Да, подключи»), 29.10.2026 ~20:45: config.save_settings
+  в контейнере kz-price-hunter — local_api_base=http://192.168.28.25:11434/v1, local_model=qwen3-vl:8b-instruct,
+  local_normalize_enabled=False (нормализация на Gemini). check_local_model: модель есть, ответ 186 мс.
+  Порядок: normalize → gemini; query_parse/consultant/daily_digest → local, gemini, openai; category_classify →
+  local, gemini. Пробный query_parse на проде: 1,7 с, local/ok, результат верный. Режим «включена кнопкой».
 Проверить утром: backup.log и backup_deliveries (первая запись после 04:30), строка «Доставка на другой диск».
 ```
 
