@@ -27,6 +27,27 @@
 
 ---
 
+## P17-E: прод запущен на машине стенда (владелец + Claude, 2026-10-29 15:54)
+
+```text
+Владелец сам перенёс compose.yaml, .env и data с NAS в /home/molthun/kzph-prod (рядом с kzph-stand,
+  стенд не тронут) и остановил прод на NAS (NAS:35539 не отвечает). По просьбе владельца Claude:
+  - сохранил исходники как compose.yaml.from-nas и .env.from-nas (600);
+  - compose.yaml: порт 35540:35539; TRUSTED_PROXIES=192.168.28.10/32 (было 172.26.0.1/16);
+    DIAG_TOKEN=${DIAG_TOKEN} — новый токен (48 hex) только в .env; у Watchtower DOCKER_API_VERSION=1.44;
+  - .env: права 600, добавлен DIAG_TOKEN, TRUSTED_PROXIES приведён к 192.168.28.10/32 (значения не выводились);
+  - база: quick_check ok, 164 958 товаров, последняя запись 10:32Z; docker compose up -d.
+Итог: kz-price-hunter (6.5.2) health ok локально, queue_size 330, бот запущен, 409 нет, волна обхода
+  стартовала (19 магазинов); kz-price-watchtower без «too old». NAS видит 192.168.28.25:35540 (200 за 4 мс).
+  Снаружи shop.molthun.ru — 502: правило прокси DSM ещё ведёт на localhost:35539 → владелец переключает
+  на 192.168.28.25:35540. Имена контейнеров — прежние (kz-price-hunter / kz-price-watchtower), не kzph-prod
+  из deploy/prod-host: verify_public.sh для них нужно запускать с заменой имени.
+Не сделано: лимиты cpus/mem и постоянный hostname в compose владельца; cron ночных копий; NAS-контейнерам
+  restart=no (на NAS это делает владелец — иначе после перезагрузки NAS поднимется второй прод с тем же ботом).
+```
+
+---
+
 ## Передача аудитору: P17-E — переезд прода на машину стенда → Codex (Claude, 2026-10-29)
 
 ```text
