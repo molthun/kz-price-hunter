@@ -2450,17 +2450,19 @@ async def disputed_pairs_background_worker(app):
     Пауза между запросами задается search_interval_seconds (по умолчанию 90 с),
     суточный лимит — search_daily_limit (по умолчанию 300).
     """
+    import config as app_config
     import product_verify
     while True:
         try:
-            cfg = load_settings()
+            # Значения — из get_ai_config: предел 0 означает «поиск запрещён», а не «по умолчанию 300» (P17C-03)
+            cfg = app_config.get_ai_config()
             search_base = (cfg.get("search_api_base") or "").strip()
-            interval = float(cfg.get("search_interval_seconds") or 90.0)
-            daily_limit = int(cfg.get("search_daily_limit") or 300)
+            interval = float(cfg.get("search_interval_seconds") or 90)
+            daily_limit = int(cfg.get("search_daily_limit") or 0)
             model = cfg.get("local_model") or ""
 
-            # Если поиск не настроен или выключен — ждём
-            if not search_base:
+            # Поиск не настроен, предел нулевой, AI выключен, «AI выкл» или игра — пары ждут в очереди (P17C-05)
+            if not search_base or daily_limit <= 0 or product_verify.verification_pause_reason(cfg):
                 await asyncio.sleep(30.0)
                 continue
 

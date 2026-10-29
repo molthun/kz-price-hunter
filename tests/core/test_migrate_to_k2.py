@@ -1,177 +1,202 @@
 from tests import test_support  # noqa: F401  isolates DATA_DIR
+"""P17-C4: миграция ключей в k2 на полной схеме базы (legacy + V2), аудит P17C-02/06/07."""
 import asyncio
+import hashlib
+import os
 import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
+import config
+import database
+import product_key as pk
 import scripts.migrate_to_k2 as mig
+from database import DB_PATH
+
+T1 = "SSD 128GB Transcend TS128GMTE110S M2"
+T2 = "SSD 128GB Transcend MTE110S (TS128GMTE110S)"
+FIELDS = {
+    T1: {"brand": "Transcend", "model": "TS128GMTE110S", "sku": None,
+         "variants": [{"value": 128, "unit": "ГБ"}], "unbranded": False},
+    T2: {"brand": "Transcend", "model": "MTE110S", "sku": "TS128GMTE110S",
+         "variants": [{"value": 128, "unit": "ГБ"}], "unbranded": False},
+}
 
 
-class MigrateToK2Test(unittest.TestCase):
+def _hash(title):
+    return hashlib.sha256(title.encode("utf-8")).hexdigest()
+
+
+class _FullSchemaCase(unittest.TestCase):
+    """Настоящая схема приложения: товары пишутся save_or_update_product с двойной записью V2."""
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
-        self.db_path = str(Path(self.tmp.name) / "test_prices.db")
-        self.conn = sqlite3.connect(self.db_path)
-        self.conn.execute("""
-            CREATE TABLE title_canonical_cache (
-                title_hash TEXT PRIMARY KEY,
-                title TEXT NOT NULL,
-                canonical_key TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        self.conn.execute("""
-            CREATE TABLE title_fields (
-                title_hash TEXT PRIMARY KEY,
-                title TEXT NOT NULL,
-                fields_json TEXT NOT NULL,
-                key_version TEXT NOT NULL,
-                provider TEXT,
-                model TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        self.conn.execute("""
-            CREATE TABLE title_articles (
-                article TEXT NOT NULL,
-                title_hash TEXT NOT NULL,
-                canonical_key TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (article, title_hash)
-            )
-        """)
-        self.conn.execute("""
-            CREATE TABLE products (
-                id INTEGER PRIMARY KEY,
-                title TEXT NOT NULL,
-                shop TEXT NOT NULL,
-                canonical_key TEXT
-            )
-        """)
-        self.conn.commit()
+        self.data = Path(self.tmp.name)
+        self.db_path = str(self.data / "prices.db")
+        self.patches = [patch.object(database, "DB_PATH", type(DB_PATH)(self.db_path)),
+                        patch.object(config, "DATA_DIR", self.data),
+                        patch.object(config, "SETTINGS_FILE", self.data / "settings.json")]
+        for p in self.patches:
+            p.start()
+        database.init_db()
 
     def tearDown(self):
-        self.conn.close()
+        for p in reversed(self.patches):
+            p.stop()
         self.tmp.cleanup()
 
+    def add_product(self, pid, title, shop, key, price=1000):
+        database.save_or_update_product({"id": pid, "shop": shop, "city": "Алматы", "title": title,
+                                         "price": price, "canonical_key": key, "url": f"https://example.kz/{pid}"})
+        database.save_cached_canonical_keys_batch({title: key})
+
+    def identities(self):
+        with database.get_connection() as conn:
+            legacy = {r[0]: r[1] for r in conn.execute("SELECT id, canonical_key FROM products")}
+            v2 = {r[0]: r[1] for r in conn.execute(
+                "SELECT o.external_sku, p.canonical_key FROM offers o JOIN canonical_products p ON p.id = o.product_id")}
+        return legacy, v2
+
+    def run_migration(self, **kw):
+        return asyncio.run(mig.run_migration(self.db_path, "http://fake", "qwen3-vl:8b-instruct", **kw))
+
+
+def fake_reply(*titles):
+    async def call(prompt, base, model, key, timeout):
+        return {"items": [{"title": t, **FIELDS[t]} for t in titles]}
+    return call
+
+
+class MigrateToK2Test(_FullSchemaCase):
     def test_find_titles_to_migrate_skips_k2(self):
-        self.conn.execute("INSERT INTO title_canonical_cache VALUES ('h1', 'Item 1', 'old:key1', CURRENT_TIMESTAMP)")
-        self.conn.execute("INSERT INTO title_canonical_cache VALUES ('h2', 'Item 2', 'k2:brand:mod2', CURRENT_TIMESTAMP)")
-        self.conn.execute("INSERT INTO title_canonical_cache VALUES ('h3', 'Item 3', 'old:key3', CURRENT_TIMESTAMP)")
-        self.conn.commit()
+        database.save_cached_canonical_keys_batch({"Item 1": "old:key1", "Item 2": "k2:brand:mod2",
+                                                   "Item 3": "old:key3"})
+        conn = mig.get_db_connection(self.db_path)
+        try:
+            self.assertEqual(sorted(t for t, _ in mig.find_titles_to_migrate(conn)), ["Item 1", "Item 3"])
+            self.assertEqual(len(mig.find_titles_to_migrate(conn, limit=1)), 1)
+        finally:
+            conn.close()
 
-        items = mig.find_titles_to_migrate(self.conn)
-        self.assertEqual(len(items), 2)
-        self.assertEqual([t for t, _ in items], ["Item 1", "Item 3"])
-
-        limited = mig.find_titles_to_migrate(self.conn, limit=1)
-        self.assertEqual(len(limited), 1)
-        self.assertEqual(limited[0][0], "Item 1")
-
-    def test_check_pairs_comparison(self):
-        # 3 товара: A и B склеивались в old_keys, но расходятся в new_keys; B и C склеиваются в new_keys
-        old_keys = {"A": "gemini:iphone15", "B": "gemini:iphone15", "C": "gemini:other"}
-        new_keys = {"A": "k2:apple:iphone15", "B": "k2:apple:iphone15plus", "C": "k2:apple:iphone15plus"}
-        shops = {"A": ["shop1"], "B": ["shop2"], "C": ["shop3"]}
-
-        comp = mig.check_pairs_comparison(old_keys, new_keys, shops)
-        self.assertEqual(comp["old_pairs_count"], 1)  # (A, B)
-        self.assertEqual(comp["new_pairs_count"], 1)  # (B, C)
-        self.assertEqual(comp["retained_pairs_count"], 0)
-        self.assertEqual(comp["dropped_pairs_count"], 1)
-        self.assertEqual(comp["added_pairs_count"], 1)
-
-    def test_run_migration_full_and_rescore(self):
-        import hashlib
-        t1 = "SSD 128GB Transcend TS128GMTE110S M2"
-        t2 = "SSD 128GB Transcend MTE110S (TS128GMTE110S)"
-        h1 = hashlib.sha256(t1.encode("utf-8")).hexdigest()
-        h2 = hashlib.sha256(t2.encode("utf-8")).hexdigest()
-        self.conn.execute("INSERT INTO title_canonical_cache VALUES (?, ?, 'transcend:mte110s:128gb', CURRENT_TIMESTAMP)", (h1, t1))
-        self.conn.execute("INSERT INTO title_canonical_cache VALUES (?, ?, 'transcend:ts128gmte110s:128gb', CURRENT_TIMESTAMP)", (h2, t2))
-        self.conn.execute("INSERT INTO products VALUES (1, ?, 'mechta', 'old1')", (t1,))
-        self.conn.execute("INSERT INTO products VALUES (2, ?, 'sulpak', 'old2')", (t2,))
-        self.conn.commit()
-
-        mock_reply = {
-            "items": [
-                {"title": t1, "brand": "Transcend", "model": "TS128GMTE110S", "sku": None,
-                 "variants": [{"value": 128, "unit": "ГБ"}], "unbranded": False},
-                {"title": t2, "brand": "Transcend", "model": "MTE110S", "sku": "TS128GMTE110S",
-                 "variants": [{"value": 128, "unit": "ГБ"}], "unbranded": False},
-            ]
-        }
-
-        async def fake_call(prompt, base, model, key, timeout):
-            return mock_reply
-
-        with patch("ai_service._call_local_api", fake_call):
-            res = asyncio.run(mig.run_migration(
-                db_path=self.db_path,
-                base="http://fake",
-                model="qwen3-vl:8b-instruct",
-                check_pairs=True,
-            ))
-
-        self.assertEqual(res["total_titles"], 2)
+    def test_migration_moves_legacy_and_v2_together(self):
+        """P17C-02: после миграции предложения V2 на тех же канонических товарах, что и products."""
+        self.add_product("a1", T1, "Sulpak", "transcend:mte110s:128gb")
+        self.add_product("b1", T2, "DNS Казахстан", "transcend:ts128gmte110s:128gb")
+        with patch("ai_service._call_local_api", fake_reply(T1, T2)):
+            res = self.run_migration(check_pairs=True)
         self.assertEqual(res["with_k2_key"], 2)
+        legacy, v2 = self.identities()
+        self.assertEqual(len(set(legacy.values())), 1)
+        self.assertTrue(next(iter(legacy.values())).startswith("k2:transcend:"))
+        self.assertEqual(v2, legacy)
+        # Повтор не меняет ничего и не требует модели
+        with patch("ai_service._call_local_api", side_effect=AssertionError("модель не нужна")):
+            self.assertEqual(self.run_migration()["status"], "nothing_to_migrate")
+        self.assertEqual(self.identities(), (legacy, v2))
 
-        # Проверяем, что в БД обновились кэш и товары
-        c_rows = dict(self.conn.execute("SELECT title, canonical_key FROM title_canonical_cache").fetchall())
-        self.assertTrue(c_rows[t1].startswith("k2:transcend:"))
-        # Благодаря link_by_article они должны получить одинаковый ключ!
-        self.assertEqual(c_rows[t1], c_rows[t2])
+    def test_price_history_follows_offer(self):
+        """История цен переезжает с предложением на новый канонический товар, а не теряется."""
+        self.add_product("a1", T1, "Sulpak", "transcend:old:128gb", price=1000)
+        self.add_product("a1", T1, "Sulpak", "transcend:old:128gb", price=900)
+        with database.get_connection() as conn:
+            before = conn.execute("SELECT COUNT(*) FROM offer_price_history WHERE offer_id = 'off_a1'").fetchone()[0]
+        with patch("ai_service._call_local_api", fake_reply(T1)):
+            self.run_migration()
+        with database.get_connection() as conn:
+            new_pid = conn.execute("SELECT product_id FROM offers WHERE id = 'off_a1'").fetchone()[0]
+            moved = conn.execute("SELECT COUNT(*) FROM offer_price_history WHERE offer_id = 'off_a1' "
+                                 "AND COALESCE(product_id, ?) = ?", (new_pid, new_pid)).fetchone()[0]
+        self.assertGreaterEqual(before, 2)
+        self.assertEqual(moved, before)
 
-        p_rows = dict(self.conn.execute("SELECT title, canonical_key FROM products").fetchall())
-        self.assertEqual(p_rows[t1], c_rows[t1])
-        self.assertEqual(p_rows[t2], c_rows[t2])
-
-        # Проверяем, что в title_fields и title_articles сохранились записи
-        tf_count = self.conn.execute("SELECT count(*) FROM title_fields").fetchone()[0]
-        ta_count = self.conn.execute("SELECT count(*) FROM title_articles").fetchone()[0]
-        self.assertEqual(tf_count, 2)
-        self.assertGreaterEqual(ta_count, 1)
-
-        # Проверяем rescore-only: не должен вызывать AI вообще
-        with patch("ai_service._call_local_api", side_effect=RuntimeError("AI must not be called")):
-            res2 = asyncio.run(mig.run_migration(
-                db_path=self.db_path,
-                base="http://fake",
-                model="qwen3-vl:8b-instruct",
-                rescore_only=True,
-            ))
-        self.assertEqual(res2["status"], "nothing_to_migrate")
-
-    def test_dry_run_does_not_modify_db(self):
-        import hashlib
-        t = "SSD 128GB Transcend TS128GMTE110S"
-        h = hashlib.sha256(t.encode("utf-8")).hexdigest()
-        self.conn.execute("INSERT INTO title_canonical_cache VALUES (?, ?, 'old:key', CURRENT_TIMESTAMP)", (h, t))
-        self.conn.commit()
-
-        mock_reply = {
-            "items": [
-                {"title": t, "brand": "Transcend", "model": "TS128GMTE110S", "sku": None,
-                 "variants": [{"value": 128, "unit": "ГБ"}], "unbranded": False}
-            ]
-        }
-
-        with patch("ai_service._call_local_api", AsyncMock(return_value=mock_reply)):
-            res = asyncio.run(mig.run_migration(
-                db_path=self.db_path,
-                base="http://fake",
-                model="qwen3-vl:8b-instruct",
-                dry_run=True,
-            ))
-
+    def test_rescore_only_rebuilds_existing_k2(self):
+        """P17C-06: пересборка видит и уже переведённые k2-записи и не вызывает модель."""
+        self.add_product("a1", T1, "Sulpak", "k2:transcend:wrong")
+        database.save_title_fields_batch({T1: FIELDS[T1]}, "k2", "local", "fake")
+        with patch("ai_service._call_local_api", side_effect=AssertionError("модель не нужна")):
+            res = self.run_migration(rescore_only=True)
+        expected = pk.build_key(FIELDS[T1], T1)
         self.assertEqual(res["with_k2_key"], 1)
-        # БД не должна измениться
-        cur_key = self.conn.execute("SELECT canonical_key FROM title_canonical_cache WHERE title_hash = ?", (h,)).fetchone()[0]
-        self.assertEqual(cur_key, "old:key")
-        self.assertEqual(self.conn.execute("SELECT count(*) FROM title_fields").fetchone()[0], 0)
+        self.assertEqual(database.get_cached_canonical_keys_batch([T1])[T1], expected)
+        self.assertEqual(self.identities()[1]["a1"], expected)
 
+    def test_dry_run_is_read_only_and_matches_real_pass(self):
+        """Пробный прогон не пишет и не меняет режим журнала; прогноз совпадает с проходом при любом размере пачки."""
+        self.add_product("a1", T1, "Sulpak", "old:a")
+        self.add_product("b1", T2, "DNS Казахстан", "old:b")
+        with sqlite3.connect(self.db_path) as raw:
+            raw.execute("PRAGMA journal_mode = DELETE")
+        mtime = os.path.getmtime(self.db_path)
+        with patch("ai_service._call_local_api", AsyncMock(side_effect=lambda p, *a: {"items": [
+                {"title": t, **FIELDS[t]} for t in (T1, T2) if t in p]})):
+            dry = self.run_migration(dry_run=True, batch_size=1, check_pairs=True)
+        with sqlite3.connect(self.db_path) as raw:
+            self.assertEqual(raw.execute("PRAGMA journal_mode").fetchone()[0], "delete")
+        self.assertEqual(os.path.getmtime(self.db_path), mtime)
+        self.assertEqual(database.get_cached_canonical_keys_batch([T1])[T1], "old:a")
+        with patch("ai_service._call_local_api", AsyncMock(side_effect=lambda p, *a: {"items": [
+                {"title": t, **FIELDS[t]} for t in (T1, T2) if t in p]})):
+            real = self.run_migration(batch_size=1, check_pairs=True)
+        self.assertEqual(dry["with_k2_key"], real["with_k2_key"])
+        self.assertEqual(dry["pairs_comparison"]["new_pairs_count"], real["pairs_comparison"]["new_pairs_count"])
+        keys = database.get_cached_canonical_keys_batch([T1, T2])
+        self.assertEqual(keys[T1], keys[T2])
+
+    def test_local_off_blocks_model_calls(self):
+        """Миграция идёт через общий путь локальной модели: при «AI выкл» к модели не обращается (P17C-05)."""
+        (self.data / "ai_mode.json").write_text('{"mode": "off"}')
+        self.add_product("a1", T1, "Sulpak", "old:a")
+        with patch("ai_service._call_local_api", side_effect=AssertionError("«AI выкл» нарушен")):
+            res = self.run_migration()
+        self.assertEqual((res["api_failures"], res["with_k2_key"]), (1, 0))
+        self.assertEqual(database.get_cached_canonical_keys_batch([T1])[T1], "old:a")
+
+
+class PairsMetricTest(unittest.TestCase):
+    """P17C-07: единица метрики — пары названий с предложениями хотя бы в двух разных магазинах."""
+
+    def test_moved_pairs(self):
+        old = {"A": "gemini:iphone15", "B": "gemini:iphone15", "C": "gemini:other"}
+        new = {"A": "k2:apple:iphone15", "B": "k2:apple:iphone15plus", "C": "k2:apple:iphone15plus"}
+        comp = mig.check_pairs_comparison(old, new, {"A": ["shop1"], "B": ["shop2"], "C": ["shop3"]})
+        self.assertEqual((comp["old_pairs_count"], comp["new_pairs_count"], comp["retained_pairs_count"],
+                          comp["dropped_pairs_count"], comp["added_pairs_count"]), (1, 1, 0, 1, 1))
+
+    def test_identical_and_overlapping_multishop_sets_count(self):
+        for shops in ({"A": ["shop1", "shop2"], "B": ["shop1", "shop2"]},
+                      {"A": ["shop1", "shop2"], "B": ["shop2", "shop3"]},
+                      {"A": ["shop1"], "B": ["shop1", "shop2"]}):
+            with self.subTest(shops=shops):
+                comp = mig.check_pairs_comparison({"A": "old:g", "B": "old:g"}, {"A": "k2:a:1", "B": "k2:a:2"}, shops)
+                self.assertEqual((comp["old_pairs_count"], comp["dropped_pairs_count"]), (1, 1))
+                self.assertEqual(comp["retention_rate"], 0.0)
+
+    def test_single_shop_is_not_a_pair_and_no_pairs_is_not_100(self):
+        comp = mig.check_pairs_comparison({"A": "old:g", "B": "old:g"}, {"A": "k2:a:1", "B": "k2:a:2"},
+                                          {"A": ["shop1"], "B": ["shop1"]})
+        self.assertEqual(comp["old_pairs_count"], 0)
+        self.assertIsNone(comp["retention_rate"])
+        self.assertFalse(comp["valid"])
+
+    def test_against_brute_force(self):
+        import itertools
+        import random
+        rnd = random.Random(7)
+        titles = [f"T{i}" for i in range(12)]
+        shops = {t: rnd.sample(["s1", "s2", "s3"], rnd.randint(1, 2)) for t in titles}
+        old = {t: f"old:{rnd.randint(0, 3)}" for t in titles}
+        new = {t: f"k2:{rnd.randint(0, 3)}" for t in titles}
+
+        def brute(keys):
+            return {(a, b) for a, b in itertools.combinations(sorted(titles), 2)
+                    if keys[a] == keys[b] and any(x != y for x in shops[a] for y in shops[b])}
+        comp = mig.check_pairs_comparison(old, new, shops)
+        self.assertEqual(comp["old_pairs_count"], len(brute(old)))
+        self.assertEqual(comp["new_pairs_count"], len(brute(new)))
+        self.assertEqual(comp["retained_pairs_count"], len(brute(old) & brute(new)))
 
 
 if __name__ == "__main__":

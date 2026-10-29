@@ -53,9 +53,9 @@ def _text(value: Any) -> str:
 
 
 def pair_hash(title_a: str, title_b: str) -> str:
-    """Пара без порядка: (a, b) и (b, a) — одна запись."""
-    first, second = sorted((title_a.strip(), title_b.strip()))
-    return hashlib.sha256(f"{first}\n{second}".encode("utf-8")).hexdigest()
+    """Пара без порядка: (a, b) и (b, a) — одна запись. Тот же хэш, что у product_key (вердикты связи)."""
+    import product_key
+    return product_key.pair_hash(title_a, title_b)
 
 
 def queries_for(fields_a: Dict[str, Any], fields_b: Dict[str, Any]) -> List[str]:
@@ -159,18 +159,23 @@ async def verify_pair(title_a: str, fields_a: Dict[str, Any], title_b: str, fiel
     """Один ли товар: поиск по артикулам/моделям, затем сравнение моделью. Без поиска или выдачи — «неясно»."""
     queries = queries_for(fields_a or {}, fields_b or {})
     if not queries:
-        return {"decision": UNKNOWN, "reason": "нечего искать: нет ни артикула, ни бренда с моделью", "queries": []}
+        return {"decision": UNKNOWN, "reason": "нечего искать: нет ни артикула, ни бренда с моделью", "queries": [],
+                "transient": False}
     results: Dict[str, List[Dict[str, str]]] = {}
     for query in queries:
         found = await search(query)
         if found is None:
-            return {"decision": UNKNOWN, "reason": "поиск недоступен", "queries": queries}
+            # Поиск выключен, недоступен или исчерпан предел суток — повторить позже (P17C-04)
+            return {"decision": UNKNOWN, "reason": "поиск недоступен", "queries": queries, "transient": True}
         results[query] = found
     urls = [r["url"] for items in results.values() for r in items]
     if not urls:
-        return {"decision": UNKNOWN, "reason": "поиск ничего не нашёл", "queries": queries}
-    verdict = parse_verdict(await ask(build_prompt(title_a, title_b, results)), urls, min_confidence)
+        return {"decision": UNKNOWN, "reason": "поиск ничего не нашёл", "queries": queries, "transient": False}
+    reply = await ask(build_prompt(title_a, title_b, results))
+    verdict = parse_verdict(reply, urls, min_confidence)
     verdict["queries"] = queries
+    # Модель выключена («AI выкл», игра), занята или не ответила — это не «нет оснований», а временный отказ
+    verdict["transient"] = reply is None
     return verdict
 
 
@@ -190,7 +195,8 @@ async def verify_pair_cached(title_a: str, fields_a: Dict[str, Any], title_b: st
         hit = database.get_web_search(query)
         if hit is not None:
             return hit
-        if database.web_searches_today() >= daily_limit:
+        # Попытка занимается до запроса и тратится при любом исходе: пустая выдача, таймаут, HTTP-ошибка (P17C-03)
+        if not database.reserve_web_search(query, daily_limit):
             return None
         found = await searxng_search(search_base, query, min_interval=min_interval)
         if found:                                   # пустую выдачу не кэшируем: повторится в следующий раз
@@ -208,16 +214,35 @@ def dumps(verdict: Dict[str, Any]) -> str:
 
 
 def make_local_ask(config: Dict[str, Any]) -> Ask:
-    """Создаёт функцию ask для локальной модели по конфигурации приложения."""
+    """Функция ask для локальной модели по конфигурации приложения (P17C-05).
+
+    Только через общий путь ai_service.call_local_api: «AI выкл» и выключение при игре соблюдаются и для
+    запроса, ждавшего очереди; к модели один запрос за раз вместе с пользовательскими задачами; учёт — как у
+    фоновой нормализации. При выключенном AI в настройках или без локальной модели к ней не обращается.
+    Платная модель сюда не подключается: вердикт без локальной откладывается."""
     import ai_service
     base = config.get("local_api_base") or ""
     model = config.get("local_model") or ""
     key = config.get("local_api_key") or ""
+    enabled = config.get("ai_search_enabled", True) is not False
 
     async def _ask(prompt: str) -> Optional[Dict[str, Any]]:
-        return await ai_service._call_local_api(prompt, base, model, key, 90.0)
+        if not (enabled and base and model):
+            return None
+        return await ai_service.call_local_api(prompt, base, model, key, timeout=90.0, scan=True)
 
     return _ask
+
+
+def verification_pause_reason(config: Dict[str, Any]) -> Optional[str]:
+    """Почему фоновая проверка пар сейчас не идёт (None — можно): выключен AI, нет локальной модели,
+    «AI выкл» или игра на видеокарте. Пары остаются в очереди и проверяются после включения (P17C-05)."""
+    if config.get("ai_search_enabled", True) is False:
+        return "AI выключен в настройках"
+    if not (config.get("local_api_base") and config.get("local_model")):
+        return "локальная модель не настроена"
+    import local_ai
+    return local_ai.pause_reason()
 
 
 async def process_disputed_queue_tick(
@@ -230,13 +255,14 @@ async def process_disputed_queue_tick(
 ) -> Optional[Dict[str, Any]]:
     """Обрабатывает одну спорную пару из очереди (P17-C7).
 
-    Возвращает dict с результатом верификации или None, если очередь пуста, поиск выключен или лимит исчерпан.
-    """
+    Возвращает dict с результатом или None, если поиск выключен, предел суток исчерпан или пора проверять
+    нечего. «Неясно» не исключает пару: временный отказ — повтор с нарастающей паузой, отсутствие
+    оснований — через неделю (database.defer_disputed_pair, P17C-04)."""
     import database
-    if not search_base:
+    if not search_base or int(daily_limit) <= 0:
         return None
-    if database.web_searches_today() >= daily_limit:
-        return None
+    if database.web_searches_today() >= int(daily_limit):
+        return None                                 # пары не трогаются: проверятся в следующие сутки
 
     pending = database.get_pending_disputed_pairs(limit=1)
     if not pending:
@@ -248,7 +274,7 @@ async def process_disputed_queue_tick(
     fields_a = fields_map.get(title_a)
     fields_b = fields_map.get(title_b)
     if not fields_a or not fields_b:
-        database.update_disputed_pair_status(ph, "skipped")
+        database.update_disputed_pair_status(ph, "skipped", "no_fields")
         return {"pair_hash": ph, "status": "skipped", "reason": "no_fields"}
 
     verdict = await verify_pair_cached(
@@ -257,19 +283,30 @@ async def process_disputed_queue_tick(
         model=model, min_interval=min_interval, min_confidence=min_confidence,
     )
     decision = verdict.get("decision")
+    status = "resolved"
     if decision == SAME:
+        import product_key
         cached = database.get_cached_canonical_keys_batch([title_a, title_b])
         key_a, key_b = cached.get(title_a), cached.get(title_b)
         pool = [k for k in (key_a, key_b) if k]
+        va, vb = (product_key._variants_of(k) if k else "" for k in (key_a, key_b))
+        if va and vb and va != vb:
+            # «Один товар» при разном объёме или диагонали — ошибка извлечения или вердикта: не склеивать (P17C-01)
+            database.update_disputed_pair_status(ph, "unresolved", "same_but_variant_conflict")
+            return {"pair_hash": ph, "decision": decision, "status": "unresolved", "verdict": verdict}
         if pool:
-            # Преимущество k2-ключам, затем самым коротким
-            common_key = sorted(set(pool), key=lambda k: (0 if k.startswith("k2:") else 1, len(k), k))[0]
-            database.unify_canonical_keys(title_a, title_b, common_key)
-        database.update_disputed_pair_status(ph, "resolved")
+            # Преимущество k2-ключам, затем ключам с вариантами, затем самым коротким
+            common_key = sorted(set(pool), key=lambda k: (0 if k.startswith("k2:") else 1,
+                                                          0 if product_key._variants_of(k) else 1, len(k), k))[0]
+            # Группа второго ключа переходит целиком: «один товар» — это одна группа, а не две пары названий
+            moved = {title_a: common_key, title_b: common_key}
+            for other in set(pool) - {common_key}:
+                moved.update({t: common_key for t in database.titles_with_canonical_key(other)})
+            database.rekey_titles(moved)
+        database.update_disputed_pair_status(ph, "resolved", "same")
     elif decision == DIFFERENT:
-        database.update_disputed_pair_status(ph, "resolved")
+        database.update_disputed_pair_status(ph, "resolved", "different")
     else:
-        database.update_disputed_pair_status(ph, "unresolved")
+        status = database.defer_disputed_pair(ph, bool(verdict.get("transient")), verdict.get("reason") or "")
 
-    return {"pair_hash": ph, "decision": decision, "verdict": verdict}
-
+    return {"pair_hash": ph, "decision": decision, "status": status, "verdict": verdict}

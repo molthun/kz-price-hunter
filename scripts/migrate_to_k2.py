@@ -33,21 +33,37 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 
-def get_db_connection(db_path: str) -> sqlite3.Connection:
-    conn = sqlite3.connect(db_path, timeout=60.0)
-    conn.execute("PRAGMA journal_mode = WAL")
+def get_db_connection(db_path: str, read_only: bool = False) -> sqlite3.Connection:
+    """Пробный прогон открывает базу только для чтения и не меняет режим журнала (замечание аудита P17-C)."""
+    if read_only:
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=60.0)
+    else:
+        conn = sqlite3.connect(db_path, timeout=60.0)
+        conn.execute("PRAGMA journal_mode = WAL")
     conn.execute("PRAGMA busy_timeout = 60000")
     return conn
 
 
-def find_titles_to_migrate(conn: sqlite3.Connection, limit: Optional[int] = None) -> List[Tuple[str, str]]:
-    """Список (title, canonical_key) из title_canonical_cache, где ключ не k2."""
-    query = """
-        SELECT title, canonical_key
-        FROM title_canonical_cache
-        WHERE canonical_key != '' AND canonical_key NOT LIKE 'k2:%'
-        ORDER BY created_at ASC
-    """
+def find_titles_to_migrate(conn: sqlite3.Connection, limit: Optional[int] = None,
+                           rescore_only: bool = False) -> List[Tuple[str, str]]:
+    """Список (title, canonical_key) из title_canonical_cache.
+
+    Первичная миграция — ключи ещё не в k2. Пересборка (--rescore-only) — все названия с сохранёнными полями,
+    включая уже переведённые в k2: она нужна именно при смене правил ключа (P17C-06)."""
+    if rescore_only:
+        query = """
+            SELECT c.title, c.canonical_key
+            FROM title_canonical_cache c JOIN title_fields f ON f.title_hash = c.title_hash
+            WHERE c.canonical_key != ''
+            ORDER BY c.created_at ASC, c.title ASC
+        """
+    else:
+        query = """
+            SELECT title, canonical_key
+            FROM title_canonical_cache
+            WHERE canonical_key != '' AND canonical_key NOT LIKE 'k2:%'
+            ORDER BY created_at ASC, title ASC
+        """
     if limit is not None and limit > 0:
         query += f" LIMIT {int(limit)}"
     return conn.execute(query).fetchall()
@@ -103,7 +119,10 @@ async def fetch_fields_batch(
     key: str = "",
     timeout: float = 120.0,
 ) -> Tuple[Dict[str, Dict[str, Any]], int]:
-    """Запрашивает извлечение полей у локальной модели для пачки названий."""
+    """Запрашивает извлечение полей у локальной модели для пачки названий.
+
+    Через общий путь call_local_api: «AI выкл» и проверка видеокарты при игре соблюдаются, один запрос
+    к модели за раз, учёт — как у фоновой нормализации (P17C-05)."""
     import ai_router
     import ai_service
     import product_key
@@ -111,7 +130,7 @@ async def fetch_fields_batch(
     prompt = (ai_service.K2_NORMALIZE_PROMPT + "\n\n"
               + "Нормализуй товары, перечисленные в блоке данных ниже.\n"
               + ai_router.untrusted_block("\n".join(f"- {t}" for t in titles), "НАЗВАНИЯ"))
-    reply = await ai_service._call_local_api(prompt, base, model, key, timeout)
+    reply = await ai_service.call_local_api(prompt, base, model, key, timeout=timeout, scan=True)
     if not (isinstance(reply, dict) and isinstance(reply.get("items"), list)):
         return {}, 1
 
@@ -123,12 +142,26 @@ async def fetch_fields_batch(
     return fields, 0
 
 
+def _pair_decisions(conn: sqlite3.Connection, hashes: List[str]) -> Dict[str, str]:
+    found: Dict[str, str] = {}
+    for i in range(0, len(hashes), 500):
+        for ph, decision in conn.execute(
+                "SELECT pair_hash, decision FROM product_pair_verdicts WHERE pair_hash IN (SELECT value FROM json_each(?))",
+                (json.dumps(hashes[i:i + 500]),)):
+            found[ph] = decision
+    return found
+
+
 def resolve_batch_keys(
     conn: sqlite3.Connection,
     batch_fields: Dict[str, Dict[str, Any]],
+    planned: Optional[Dict[str, Dict[str, Any]]] = None,
 ) -> Dict[str, Optional[str]]:
-    """Разрешает ключи для пачки с связыванием по артикулам и сохранением fixed."""
-    import database
+    """Разрешает ключи для пачки с связыванием по артикулам и сохранением fixed.
+
+    planned — названия прошлых пачек пробного прогона ({title: {"fields", "canonical_key"}}): пробный прогон
+    ничего не пишет, поэтому их связи учитываются из памяти, и прогноз совпадает с настоящим проходом.
+    Сохранённые вердикты «разные / один товар» учитываются так же, как в конвейере (P17C-01)."""
     import product_key
 
     articles = set()
@@ -155,7 +188,15 @@ def resolve_batch_keys(
                 "title": r[3], "fields": f_dict,
             })
 
-    return product_key.resolve_keys_with_articles(batch_fields, existing)
+    if planned:
+        known = {item["title"] for item in existing}
+        for title, item in planned.items():
+            if title not in known and title not in batch_fields and \
+                    articles.intersection(product_key.article_tokens(item["fields"])):
+                existing.append({"title": title, "fields": item["fields"], "canonical_key": item["canonical_key"]})
+
+    return product_key.resolve_keys_with_articles(
+        batch_fields, existing, pair_verdicts=lambda hashes: _pair_decisions(conn, hashes))
 
 
 def save_migrated_batch(
@@ -165,11 +206,22 @@ def save_migrated_batch(
     model_name: str,
     dry_run: bool = False,
 ) -> None:
-    """Сохраняет title_fields, title_articles, title_canonical_cache и products.canonical_key."""
-    import product_key
+    """Сохраняет title_fields, title_articles и переносит ключи названий одной транзакцией на пачку.
 
+    Перенос ключа — database.rekey_titles_conn: кэш ключей, products и V2 (offers, канонический товар,
+    история цен) вместе, иначе поиск V2 остаётся на старых группах (P17C-02)."""
     if dry_run or not batch_fields:
         return
+    try:
+        _save_migrated_batch(conn, batch_fields, keys, model_name)
+    except BaseException:
+        conn.rollback()                             # пачка применяется целиком или не применяется
+        raise
+
+
+def _save_migrated_batch(conn, batch_fields, keys, model_name) -> None:
+    import database
+    import product_key
 
     # 1. title_fields
     fields_rows = [
@@ -188,26 +240,14 @@ def save_migrated_batch(
                 created_at = CURRENT_TIMESTAMP
         """, (json.dumps(fields_rows, ensure_ascii=False),))
 
-    # 2. title_articles и title_canonical_cache
+    # 2. title_articles и перенос ключей
     articles_rows = []
-    cache_rows = []
-    prod_updates = []
     for t, k in keys.items():
         if not k:
             continue
         th = hashlib.sha256(t.strip().encode("utf-8")).hexdigest()
-        cache_rows.append((th, t.strip(), k))
-        prod_updates.append((k, t.strip()))
         for art in product_key.article_tokens(batch_fields.get(t)):
             articles_rows.append((art.strip().lower(), th, k))
-
-    if cache_rows:
-        conn.execute("""
-            INSERT INTO title_canonical_cache (title_hash, title, canonical_key)
-            SELECT json_extract(value, '$[0]'), json_extract(value, '$[1]'), json_extract(value, '$[2]')
-            FROM json_each(?) WHERE true
-            ON CONFLICT(title_hash) DO UPDATE SET canonical_key = excluded.canonical_key
-        """, (json.dumps(cache_rows, ensure_ascii=False),))
 
     if articles_rows:
         conn.execute("""
@@ -218,10 +258,31 @@ def save_migrated_batch(
                 created_at = CURRENT_TIMESTAMP
         """, (json.dumps(articles_rows, ensure_ascii=False),))
 
-    if prod_updates:
-        conn.executemany("UPDATE products SET canonical_key = ? WHERE title = ?", prod_updates)
-
+    database.rekey_titles_conn(conn, {t: k for t, k in keys.items() if k})
     conn.commit()
+
+
+def _cross_shop(shops_a: Set[str], shops_b: Set[str]) -> bool:
+    """Два названия можно сравнить по цене между магазинами: есть магазин у A и другой магазин у B.
+
+    Разность множеств магазинов для этого не годится: у A и B с одинаковыми {shop1, shop2} она пуста,
+    хотя пары предложений shop1↔shop2 существуют (P17C-07)."""
+    return bool(shops_a) and bool(shops_b) and len(shops_a | shops_b) >= 2
+
+
+def _pairs(keys: Dict[str, str], title_shops: Dict[str, List[str]]) -> Set[Tuple[str, str]]:
+    groups: Dict[str, List[str]] = defaultdict(list)
+    for t, k in keys.items():
+        if k and title_shops.get(t):
+            groups[k].append(t)
+    pairs: Set[Tuple[str, str]] = set()
+    for ts in groups.values():
+        tlist = sorted(ts)
+        for i, a in enumerate(tlist):
+            for b in tlist[i + 1:]:
+                if _cross_shop(set(title_shops[a]), set(title_shops[b])):
+                    pairs.add((a, b))
+    return pairs
 
 
 def check_pairs_comparison(
@@ -229,56 +290,29 @@ def check_pairs_comparison(
     new_keys: Dict[str, str],
     title_shops: Dict[str, List[str]],
 ) -> Dict[str, Any]:
-    """Сравнивает пары (title_a, title_b) из разных магазинов, склеенные до и после."""
-    # Собираем пары старых ключей
-    old_groups = defaultdict(set)
-    for t, k in old_keys.items():
-        if k and title_shops.get(t):
-            old_groups[k].add(t)
+    """Сохранность сравнения цен: пары названий, сравнимых между разными магазинами, до и после.
 
-    old_pairs: Set[Tuple[str, str]] = set()
-    for ts in old_groups.values():
-        tlist = sorted(ts)
-        for i in range(len(tlist)):
-            for j in range(i + 1, len(tlist)):
-                a, b = tlist[i], tlist[j]
-                # Считаем парой только если товары пересекаются по магазинам (из разных магазинов)
-                shops_a = set(title_shops.get(a, []))
-                shops_b = set(title_shops.get(b, []))
-                if shops_a - shops_b or shops_b - shops_a:
-                    old_pairs.add((a, b))
-
-    # Собираем пары новых ключей
-    new_groups = defaultdict(set)
-    for t, k in new_keys.items():
-        if k and title_shops.get(t):
-            new_groups[k].add(t)
-
-    new_pairs: Set[Tuple[str, str]] = set()
-    for ts in new_groups.values():
-        tlist = sorted(ts)
-        for i in range(len(tlist)):
-            for j in range(i + 1, len(tlist)):
-                a, b = tlist[i], tlist[j]
-                shops_a = set(title_shops.get(a, []))
-                shops_b = set(title_shops.get(b, []))
-                if shops_a - shops_b or shops_b - shops_a:
-                    new_pairs.add((a, b))
-
+    Единица метрики — пара названий с общим ключом, у которых есть предложения хотя бы в двух разных
+    магазинах (одно название в нескольких магазинах — само по себе не пара). Без пар до миграции
+    сохранность не определена: retention_rate = None и valid = False, а не 100 %.
+    Названия, ключ которых миграция не дала, считаются разошедшимися."""
+    old_pairs = _pairs(old_keys, title_shops)
+    new_pairs = _pairs(new_keys, title_shops)
     kept = old_pairs & new_pairs
     dropped = old_pairs - new_pairs
     added = new_pairs - old_pairs
-
     return {
+        "unit": "пары названий с предложениями хотя бы в двух разных магазинах",
+        "valid": bool(old_pairs),
         "old_pairs_count": len(old_pairs),
         "new_pairs_count": len(new_pairs),
         "retained_pairs_count": len(kept),
-        "retention_rate": round(len(kept) / len(old_pairs), 4) if old_pairs else 1.0,
+        "retention_rate": round(len(kept) / len(old_pairs), 4) if old_pairs else None,
         "dropped_pairs_count": len(dropped),
         "added_pairs_count": len(added),
         "dropped_examples": [{"a": a, "b": b, "old_key": old_keys.get(a),
                               "new_key_a": new_keys.get(a), "new_key_b": new_keys.get(b)}
-                             for a, b in list(dropped)[:10]],
+                             for a, b in sorted(dropped)[:10]],
     }
 
 
@@ -293,9 +327,9 @@ async def run_migration(
     check_pairs: bool = False,
     out_file: Optional[str] = None,
 ) -> Dict[str, Any]:
-    conn = get_db_connection(db_path)
+    conn = get_db_connection(db_path, read_only=dry_run)
     try:
-        raw_items = find_titles_to_migrate(conn, limit=limit)
+        raw_items = find_titles_to_migrate(conn, limit=limit, rescore_only=rescore_only)
         print(f"[C4] Найдено названий для миграции: {len(raw_items)}")
         if not raw_items:
             return {"total": 0, "status": "nothing_to_migrate"}
@@ -310,6 +344,7 @@ async def run_migration(
         title_shops = load_products_shops(conn, titles_all) if check_pairs else {}
 
         all_new_keys: Dict[str, str] = {}
+        planned: Dict[str, Dict[str, Any]] = {}
         all_fields: Dict[str, Dict[str, Any]] = dict(saved_fields)
         api_failures = 0
         api_calls = 0
@@ -343,10 +378,12 @@ async def run_migration(
                     chunk_fields[t] = all_fields[t]
 
             # Разрешаем ключи для пачки
-            keys = resolve_batch_keys(conn, chunk_fields)
+            keys = resolve_batch_keys(conn, chunk_fields, planned if dry_run else None)
             for t, k in keys.items():
                 if k:
                     all_new_keys[t] = k
+                    if dry_run:
+                        planned[t] = {"fields": chunk_fields[t], "canonical_key": k}
 
             # Сохраняем в БД
             save_migrated_batch(conn, chunk_fields, keys, model, dry_run=dry_run)
@@ -374,8 +411,10 @@ async def run_migration(
             print("[C4] Расчёт сравнения пар до и после миграции...")
             pairs_stat = check_pairs_comparison(old_keys, all_new_keys, title_shops)
             result["pairs_comparison"] = pairs_stat
+            rate = pairs_stat["retention_rate"]
             print(f"[C4] Пар было: {pairs_stat['old_pairs_count']} | Стало: {pairs_stat['new_pairs_count']} | "
-                  f"Сохранилось: {pairs_stat['retained_pairs_count']} ({pairs_stat['retention_rate']*100:.1f}%) | "
+                  f"Сохранилось: {pairs_stat['retained_pairs_count']} "
+                  f"({'нет пар — не определено' if rate is None else f'{rate*100:.1f}%'}) | "
                   f"Разошлось: {pairs_stat['dropped_pairs_count']} | Новых: {pairs_stat['added_pairs_count']}")
 
         if out_file:

@@ -977,6 +977,21 @@ def _create_schema(cursor) -> None:
         )
     """)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_disputed_pairs_status ON disputed_product_pairs(status, created_at)")
+    # Повтор спорной пары после временного отказа (P17C-04): число попыток, время следующей и причина последней
+    _add_column(cursor, "disputed_product_pairs", "attempts", "INTEGER NOT NULL DEFAULT 0")
+    _add_column(cursor, "disputed_product_pairs", "next_attempt_at", "TIMESTAMP")
+    _add_column(cursor, "disputed_product_pairs", "last_reason", "TEXT")
+    # Попытки поиска для суточного предела (P17C-03): каждая настоящая попытка резервируется до запроса —
+    # и пустая выдача, и отказ поиска; попадание в кэш выдачи попытку не тратит
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS web_search_attempts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            day TEXT NOT NULL,
+            query_hash TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_web_search_attempts_day ON web_search_attempts(day)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_web_search_cache_created ON web_search_cache(created_at)")
     # Названия, которые уже отправлялись в AI: неудачи не повторяются при каждом обходе
     cursor.execute("""
@@ -2148,9 +2163,32 @@ def save_web_search(query: str, results: List[Dict[str, Any]]) -> None:
 
 
 def web_searches_today() -> int:
-    """Поисков за текущие сутки (UTC) — для предела search_daily_limit."""
+    """Попыток поиска за текущие сутки UTC — для предела search_daily_limit (P17C-03)."""
     with get_connection() as conn:
-        return conn.execute("SELECT COUNT(*) FROM web_search_cache WHERE created_at >= date('now')").fetchone()[0]
+        return conn.execute("SELECT COUNT(*) FROM web_search_attempts WHERE day = date('now')").fetchone()[0]
+
+
+def reserve_web_search(query: str, daily_limit: int) -> bool:
+    """Занять одну попытку поиска из суточного предела до настоящего запроса (P17C-03).
+
+    Проверка и запись — в одной транзакции BEGIN IMMEDIATE: два исполнителя (воркер и скрипт, два процесса)
+    не займут последнюю попытку оба. Предел 0 и меньше — поиск запрещён. Сутки — по UTC."""
+    if int(daily_limit) <= 0:
+        return False
+    with get_connection() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            used = conn.execute("SELECT COUNT(*) FROM web_search_attempts WHERE day = date('now')").fetchone()[0]
+            if used >= int(daily_limit):
+                conn.rollback()
+                return False
+            conn.execute("INSERT INTO web_search_attempts (day, query_hash) VALUES (date('now'), ?)",
+                         (_query_hash(query),))
+            conn.commit()
+            return True
+        except BaseException:
+            conn.rollback()
+            raise
 
 
 def get_pair_verdict(pair_hash: str) -> Optional[Dict[str, Any]]:
@@ -2172,11 +2210,34 @@ def save_pair_verdict(pair_hash: str, title_a: str, title_b: str, verdict: Dict[
         conn.commit()
 
 
+def get_pair_decisions(pair_hashes: Iterable[str]) -> Dict[str, str]:
+    """Решения третьего источника по парам {pair_hash: 'same'|'different'} — для запрета и разрешения связи
+    по артикулу (P17C-01). «Неясно» не сохраняется и сюда не попадает."""
+    hashes = list({h for h in (pair_hashes or []) if h})
+    found: Dict[str, str] = {}
+    if not hashes:
+        return found
+    with get_connection() as conn:
+        for chunk in _chunks(hashes):
+            for ph, decision in conn.execute(
+                    "SELECT pair_hash, decision FROM product_pair_verdicts WHERE pair_hash IN (SELECT value FROM json_each(?))",
+                    (json.dumps(chunk),)):
+                found[ph] = decision
+    return found
+
+
+DISPUTED_MAX_ATTEMPTS = 8
+DISPUTED_RETRY_MINUTES = 15            # временный отказ: 15 мин, 30, 60 … не дольше суток
+DISPUTED_NO_EVIDENCE_DAYS = 7          # выдача была, но оснований для решения нет: проверить через неделю
+DISPUTED_REOPEN_DAYS = 7               # «не решено» снова в очередь, если пара встретилась позже недели
+
+
 def enqueue_disputed_pair(title_a: str, title_b: str, reason: str) -> bool:
     """Ставит пару в очередь спорных для проверки поиском (P17-C7).
 
-    Возвращает True, если пара поставлена в очередь (новой), False если уже была или вердикт известен.
-    """
+    Возвращает True, если пара поставлена или снова открыта. Пара с окончательным вердиктом не ставится.
+    Пара в статусе «не решено» (исчерпаны попытки) снова открывается, если встретилась позже
+    DISPUTED_REOPEN_DAYS: временный сбой не исключает её из обработки навсегда (P17C-04)."""
     from product_verify import pair_hash, UNKNOWN
     first, second = sorted((title_a.strip(), title_b.strip()))
     if not first or not second or first == second:
@@ -2187,36 +2248,66 @@ def enqueue_disputed_pair(title_a: str, title_b: str, reason: str) -> bool:
         return False
     with get_connection() as conn:
         cur = conn.execute("""
-            INSERT OR IGNORE INTO disputed_product_pairs (pair_hash, title_a, title_b, reason, status)
+            INSERT INTO disputed_product_pairs (pair_hash, title_a, title_b, reason, status)
             VALUES (?, ?, ?, ?, 'pending')
-        """, (ph, first[:500], second[:500], reason[:100]))
+            ON CONFLICT(pair_hash) DO UPDATE SET status = 'pending', attempts = 0, next_attempt_at = NULL,
+                reason = excluded.reason, updated_at = CURRENT_TIMESTAMP
+            WHERE disputed_product_pairs.status = 'unresolved'
+              AND disputed_product_pairs.updated_at < datetime('now', ?)
+        """, (ph, first[:500], second[:500], reason[:100], f"-{DISPUTED_REOPEN_DAYS} days"))
         conn.commit()
         return cur.rowcount > 0
 
 
 def get_pending_disputed_pairs(limit: int = 10) -> List[Dict[str, Any]]:
-    """Список спорных пар, ожидающих проверки."""
+    """Спорные пары, которые пора проверять: ожидающие и отложенные, чьё время повтора наступило."""
     with get_connection() as conn:
         rows = conn.execute("""
-            SELECT pair_hash, title_a, title_b, reason, created_at
+            SELECT pair_hash, title_a, title_b, reason, created_at, attempts
             FROM disputed_product_pairs
-            WHERE status = 'pending'
-            ORDER BY created_at ASC
+            WHERE status = 'pending' AND (next_attempt_at IS NULL OR next_attempt_at <= datetime('now'))
+            ORDER BY COALESCE(next_attempt_at, created_at) ASC, created_at ASC
             LIMIT ?
         """, (int(limit),)).fetchall()
-        return [{"pair_hash": r[0], "title_a": r[1], "title_b": r[2], "reason": r[3], "created_at": r[4]}
-                for r in rows]
+        return [{"pair_hash": r[0], "title_a": r[1], "title_b": r[2], "reason": r[3], "created_at": r[4],
+                 "attempts": r[5]} for r in rows]
 
 
-def update_disputed_pair_status(pair_hash: str, status: str) -> None:
-    """Обновляет статус спорной пары ('resolved', 'failed', 'skipped')."""
+def update_disputed_pair_status(pair_hash: str, status: str, reason: Optional[str] = None) -> None:
+    """Окончательный статус спорной пары ('resolved', 'skipped', 'unresolved')."""
     with get_connection() as conn:
         conn.execute("""
             UPDATE disputed_product_pairs
-            SET status = ?, updated_at = CURRENT_TIMESTAMP
+            SET status = ?, last_reason = COALESCE(?, last_reason), updated_at = CURRENT_TIMESTAMP
             WHERE pair_hash = ?
-        """, (status, pair_hash))
+        """, (status, reason, pair_hash))
         conn.commit()
+
+
+def defer_disputed_pair(pair_hash: str, transient: bool, reason: str = "") -> str:
+    """Отложить пару без решения (P17C-04) и вернуть её новый статус.
+
+    transient — временный отказ (поиск недоступен, предел суток, модель выключена или не ответила): повтор через
+    15 мин, 30, 60 … не дольше суток. Иначе выдача была, но оснований нет: повтор через неделю. После
+    DISPUTED_MAX_ATTEMPTS попыток — «не решено» до новой встречи пары (enqueue_disputed_pair)."""
+    with get_connection() as conn:
+        row = conn.execute("SELECT attempts FROM disputed_product_pairs WHERE pair_hash = ?", (pair_hash,)).fetchone()
+        attempts = (row[0] if row else 0) + 1
+        if attempts >= DISPUTED_MAX_ATTEMPTS:
+            status, delay = "unresolved", None
+        elif transient:
+            status, delay = "pending", f"+{min(24 * 60, DISPUTED_RETRY_MINUTES * 2 ** (attempts - 1))} minutes"
+        else:
+            status, delay = "pending", f"+{DISPUTED_NO_EVIDENCE_DAYS} days"
+        conn.execute("""
+            UPDATE disputed_product_pairs
+            SET status = ?, attempts = ?, last_reason = ?,
+                next_attempt_at = CASE WHEN ? IS NULL THEN NULL ELSE datetime('now', ?) END,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE pair_hash = ?
+        """, (status, attempts, reason[:200], delay, delay, pair_hash))
+        conn.commit()
+    return status
 
 
 def get_title_fields_for_titles(titles: Iterable[str]) -> Dict[str, Dict[str, Any]]:
@@ -2242,27 +2333,93 @@ def get_title_fields_for_titles(titles: Iterable[str]) -> Dict[str, Dict[str, An
     return results
 
 
-def unify_canonical_keys(title_a: str, title_b: str, common_key: str) -> None:
-    """Объединяет два названия под единый ключ при вердикте same из третьего источника истины."""
-    ta, tb = title_a.strip(), title_b.strip()
-    ha = hashlib.sha256(ta.encode("utf-8")).hexdigest()
-    hb = hashlib.sha256(tb.encode("utf-8")).hexdigest()
+def rekey_titles_conn(conn, new_keys: Dict[str, str]) -> Dict[str, int]:
+    """Перенос идентичности товара на новый канонический ключ — legacy и V2 вместе (P17C-02).
+
+    Ключ в products не единственное место идентичности: поиск V2, витрины и наблюдения читают offers,
+    а предложение принадлежит каноническому товару prod_<sha(ключ)>. Поэтому по каждому названию:
+    кэш ключей, title_articles, products.canonical_key; канонический товар под новым ключом (создаётся из
+    данных товара, если его ещё нет); offers.product_id предложений этих товаров; product_id точек истории
+    цен этих предложений — история идёт за предложением и не теряется. Прежний канонический товар не
+    удаляется: на нём могут остаться предложения других названий; если он отдавал название переехавшему
+    предложению, право названия освобождается для оставшихся.
+
+    Выполняется в транзакции вызывающего (без commit): перенос всей порции применяется или откатывается целиком.
+    """
+    from domain.adapter import canonical_product_id
+    rows = [(t.strip(), k) for t, k in (new_keys or {}).items() if t and t.strip() and k]
+    stats = {"titles": len(rows), "products": 0, "offers": 0, "history": 0}
+    if not rows:
+        return stats
+    conn.execute("""INSERT INTO title_canonical_cache (title_hash, title, canonical_key)
+                    SELECT json_extract(value, '$[0]'), json_extract(value, '$[1]'), json_extract(value, '$[2]')
+                    FROM json_each(?) WHERE true
+                    ON CONFLICT(title_hash) DO UPDATE SET canonical_key = excluded.canonical_key""",
+                 (json.dumps([(_title_hash(t), t, k) for t, k in rows], ensure_ascii=False),))
+    conn.executemany("UPDATE title_articles SET canonical_key = ? WHERE title_hash = ?",
+                     [(k, _title_hash(t)) for t, k in rows])
+    has_v2 = _has_table(conn, "offers") and _has_table(conn, "canonical_products")
+    history_cols = _columns(conn, "offer_price_history") if _has_table(conn, "offer_price_history") else set()
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    for title, key in rows:
+        cur = conn.execute("SELECT * FROM products WHERE title = ?", (title,))
+        names = [d[0] for d in cur.description]
+        products = [dict(zip(names, r)) for r in cur.fetchall()]       # и без row_factory (скрипт миграции)
+        if not products:
+            continue
+        conn.execute("UPDATE products SET canonical_key = ? WHERE title = ?", (key, title))
+        stats["products"] += len(products)
+        if not has_v2:
+            continue
+        # Канонический товар с этим ключом уже может быть (ключ уникален) — тогда предложение идёт к нему
+        existing_cp = conn.execute("SELECT id FROM canonical_products WHERE canonical_key = ?", (key,)).fetchone()
+        new_pid = existing_cp[0] if existing_cp else canonical_product_id(key)
+        for product in products:
+            offer_id = f"off_{product['id']}"
+            current = conn.execute("SELECT product_id FROM offers WHERE id = ?", (offer_id,)).fetchone()
+            if current is None or current[0] == new_pid:
+                continue                            # предложения нет (цена вне диапазона) или оно уже на месте
+            old_pid = current[0]
+            conn.execute("""INSERT INTO canonical_products (id, canonical_key, title, category, description,
+                                image_url, title_offer_id, created_at, updated_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING""",
+                         (new_pid, key, product["title"], product.get("category") or "", product.get("description") or "",
+                          product.get("image_url") or "", offer_id, now, now))
+            conn.execute("UPDATE offers SET product_id = ?, updated_at = ? WHERE id = ?", (new_pid, now, offer_id))
+            conn.execute("UPDATE canonical_products SET title_offer_id = NULL WHERE id = ? AND title_offer_id = ?",
+                         (old_pid, offer_id))
+            stats["offers"] += 1
+            if "product_id" in history_cols:
+                cur = conn.execute("UPDATE offer_price_history SET product_id = ? WHERE offer_id = ? AND product_id = ?",
+                                   (new_pid, offer_id, old_pid))
+                stats["history"] += cur.rowcount
+    return stats
+
+
+def titles_with_canonical_key(key: str, limit: int = 1000) -> List[str]:
+    """Названия из кэша ключей с этим ключом — участники группы при объединении (P17-C7)."""
     with get_connection() as conn:
-        conn.execute("""
-            INSERT INTO title_canonical_cache (title_hash, title, canonical_key)
-            VALUES (?, ?, ?)
-            ON CONFLICT(title_hash) DO UPDATE SET canonical_key = excluded.canonical_key
-        """, (ha, ta, common_key))
-        conn.execute("""
-            INSERT INTO title_canonical_cache (title_hash, title, canonical_key)
-            VALUES (?, ?, ?)
-            ON CONFLICT(title_hash) DO UPDATE SET canonical_key = excluded.canonical_key
-        """, (hb, tb, common_key))
-        conn.execute("UPDATE title_articles SET canonical_key = ? WHERE title_hash IN (?, ?)",
-                     (common_key, ha, hb))
-        conn.execute("UPDATE products SET canonical_key = ? WHERE title IN (?, ?)",
-                     (common_key, ta, tb))
-        conn.commit()
+        return [r[0] for r in conn.execute(
+            "SELECT title FROM title_canonical_cache WHERE canonical_key = ? ORDER BY title LIMIT ?", (key, int(limit)))]
+
+
+def rekey_titles(new_keys: Dict[str, str]) -> Dict[str, int]:
+    """rekey_titles_conn в своей транзакции."""
+    with get_connection() as conn:
+        try:
+            stats = rekey_titles_conn(conn, new_keys)
+            conn.commit()
+        except BaseException:
+            conn.rollback()
+            raise
+    return stats
+
+
+def unify_canonical_keys(title_a: str, title_b: str, common_key: str) -> Dict[str, int]:
+    """Объединяет два названия под единый ключ при вердикте same из третьего источника истины.
+
+    Идентичность переносится и в V2 (offers, канонический товар, история цен) — P17C-02."""
+    return rekey_titles({title_a: common_key, title_b: common_key})
 
 
 def _title_hash(title: str) -> str:

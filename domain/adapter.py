@@ -189,6 +189,11 @@ def resolve_seller_and_channel_meta(shop_name: str, shop_key: Optional[str] = No
     return slug, cleaned_name or "Неизвестный продавец", ChannelType.WEBSITE
 
 
+def canonical_product_id(canonical_key: str) -> str:
+    """Идентификатор канонического товара V2 по ключу: один ключ — один товар (и при переносе ключа, P17C-02)."""
+    return f"prod_{hashlib.sha256(canonical_key.encode('utf-8')).hexdigest()[:16]}"
+
+
 def prepare_legacy_offer_v2(
     product: Dict[str, Any],
     canonical_key: Optional[str] = None,
@@ -253,7 +258,6 @@ def prepare_legacy_offer_v2(
         ident_id = f"ident_{ident_digest}"
 
     # 3. Canonical Product
-    hash_id = hashlib.sha256(canonical_key.encode("utf-8")).hexdigest()[:16]
 
     return {
         "seller_id": seller_id,
@@ -264,7 +268,7 @@ def prepare_legacy_offer_v2(
         "channel_id": channel_id,
         "channel_type": channel_type,
         "channel_name": f"{seller_name} ({channel_type})",
-        "product_id": f"prod_{hash_id}",
+        "product_id": canonical_product_id(canonical_key),
         "canonical_key": canonical_key,
         "title": title,
         "category": category,

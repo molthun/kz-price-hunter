@@ -1,0 +1,185 @@
+test_C01_different_verdict_vetoes_article_link (__main__.Audit.test_C01_different_verdict_vetoes_article_link) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{"case": "different_veto", "base": {"A": "k2:samsung:galaxys24", "B": "k2:samsung:galaxys24ultra"}, "linked": {"A": "k2:samsung:galaxys24", "B": "k2:samsung:galaxys24"}}
+FAIL
+test_C01_variant_bridge_does_not_merge_128_and_256 (__main__.Audit.test_C01_variant_bridge_does_not_merge_128_and_256) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{"case": "variant_bridge", "base": {"phone A": "k2:samsung:sms911b:128gb", "phone B": "k2:samsung:sms911b", "phone C": "k2:samsung:sms911b:256gb"}, "linked": {"phone A": "k2:samsung:sms911b", "phone B": "k2:samsung:sms911b", "phone C": "k2:samsung:sms911b"}}
+FAIL
+test_C02_migration_updates_v2 (__main__.Audit.test_C02_migration_updates_v2) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 2
+[C4] Из них уже сохранены поля: 2
+[C4] Обработка 2 названий пачками по 20...
+[C4] Прогресс: 2/2 (100%) | Скорость: 5887.4 наим/с | ETA: 0 с | С ключом k2: 2
+[C4] Расчёт сравнения пар до и после миграции...
+[C4] Пар было: 0 | Стало: 1 | Сохранилось: 0 (100.0%) | Разошлось: 0 | Новых: 1
+{"case": "v2_migration", "legacy": [["Audit phone shop A", "k2:samsung:sms911b:128gb"], ["Audit phone shop B", "k2:samsung:sms911b:128gb"]], "v2": [["audit_0", "audit:old0:128gb"], ["audit_1", "audit:old1:128gb"]]}
+FAIL
+test_C02_verified_union_updates_v2 (__main__.Audit.test_C02_verified_union_updates_v2) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{"case": "verified_union", "legacy": ["k2:samsung:sms911b:128gb", "k2:samsung:sms911b:128gb"], "v2": ["audit:before1:128gb", "audit:before0:128gb"]}
+FAIL
+test_C03_empty_searches_consume_daily_quota (__main__.Audit.test_C03_empty_searches_consume_daily_quota) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{"case": "search_limit", "network_attempts": 6, "daily_counter": 0, "limit": 1}
+FAIL
+test_C04_temporary_search_failure_is_retried (__main__.Audit.test_C04_temporary_search_failure_is_retried) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{"case": "queue_retry", "first": "unknown", "status": "unresolved", "requeue_result": false, "pending": 0}
+FAIL
+test_C05_verifier_respects_local_off (__main__.Audit.test_C05_verifier_respects_local_off) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{"case": "verifier_pause", "paused": true, "outgoing_calls": 1, "reply": {"same": true}}
+FAIL
+test_C06_rescore_rebuilds_existing_k2 (__main__.Audit.test_C06_rescore_rebuilds_existing_k2) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 0
+{"case": "rescore", "result": {"total": 0, "status": "nothing_to_migrate"}, "key": "k2:samsung:wrong", "expected": "k2:samsung:sms911b:128gb"}
+FAIL
+test_C07_pairs_include_equal_multishop_sets (__main__.Audit.test_C07_pairs_include_equal_multishop_sets) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+{"case": "pair_metric", "result": {"old_pairs_count": 0, "new_pairs_count": 0, "retained_pairs_count": 0, "retention_rate": 1.0, "dropped_pairs_count": 0, "added_pairs_count": 0, "dropped_examples": []}}
+FAIL
+
+======================================================================
+FAIL: test_C01_different_verdict_vetoes_article_link (__main__.Audit.test_C01_different_verdict_vetoes_article_link)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-29-p17c/reproduce.py", line 25, in test_C01_different_verdict_vetoes_article_link
+    self.assertNotEqual(linked['A'],linked['B'],'explicit different verdict must prevent union')
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'k2:samsung:galaxys24' == 'k2:samsung:galaxys24' : explicit different verdict must prevent union
+
+======================================================================
+FAIL: test_C01_variant_bridge_does_not_merge_128_and_256 (__main__.Audit.test_C01_variant_bridge_does_not_merge_128_and_256)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-29-p17c/reproduce.py", line 18, in test_C01_variant_bridge_does_not_merge_128_and_256
+    self.assertNotEqual(linked['phone A'],linked['phone C'],'missing variant must not bridge contradictory capacities')
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'k2:samsung:sms911b' == 'k2:samsung:sms911b' : missing variant must not bridge contradictory capacities
+
+======================================================================
+FAIL: test_C02_migration_updates_v2 (__main__.Audit.test_C02_migration_updates_v2)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-29-p17c/reproduce.py", line 35, in test_C02_migration_updates_v2
+    self.assertEqual({r[1] for r in v2},{r[1] for r in legacy},'V2 canonical identity must agree after migration')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Items in the first set but not the second:
+'audit:old1:128gb'
+'audit:old0:128gb'
+Items in the second set but not the first:
+'k2:samsung:sms911b:128gb' : V2 canonical identity must agree after migration
+
+======================================================================
+FAIL: test_C02_verified_union_updates_v2 (__main__.Audit.test_C02_verified_union_updates_v2)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-29-p17c/reproduce.py", line 44, in test_C02_verified_union_updates_v2
+    self.assertEqual(set(v2),set(legacy),'same verdict must not leave V2 identities unchanged')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Items in the first set but not the second:
+'audit:before0:128gb'
+'audit:before1:128gb'
+Items in the second set but not the first:
+'k2:samsung:sms911b:128gb' : same verdict must not leave V2 identities unchanged
+
+======================================================================
+FAIL: test_C03_empty_searches_consume_daily_quota (__main__.Audit.test_C03_empty_searches_consume_daily_quota)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-29-p17c/reproduce.py", line 54, in test_C03_empty_searches_consume_daily_quota
+    self.assertLessEqual(len(calls),1,'empty responses still count as real search attempts')
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 6 not less than or equal to 1 : empty responses still count as real search attempts
+
+======================================================================
+FAIL: test_C04_temporary_search_failure_is_retried (__main__.Audit.test_C04_temporary_search_failure_is_retried)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-29-p17c/reproduce.py", line 63, in test_C04_temporary_search_failure_is_retried
+    self.assertTrue(pending,'temporary failure must remain retryable')
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: [] is not true : temporary failure must remain retryable
+
+======================================================================
+FAIL: test_C05_verifier_respects_local_off (__main__.Audit.test_C05_verifier_respects_local_off)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-29-p17c/reproduce.py", line 69, in test_C05_verifier_respects_local_off
+    self.assertEqual(calls,[],'verification must not bypass local off/global AI switch')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: [1] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+1
+
+- [1]
+?  -
+
++ [] : verification must not bypass local off/global AI switch
+
+======================================================================
+FAIL: test_C06_rescore_rebuilds_existing_k2 (__main__.Audit.test_C06_rescore_rebuilds_existing_k2)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-29-p17c/reproduce.py", line 75, in test_C06_rescore_rebuilds_existing_k2
+    self.assertEqual(key,pk.build_key(fields(128),title),'rescore must rebuild already-k2 titles from saved fields')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'k2:samsung:wrong' != 'k2:samsung:sms911b:128gb'
+- k2:samsung:wrong
++ k2:samsung:sms911b:128gb
+ : rescore must rebuild already-k2 titles from saved fields
+
+======================================================================
+FAIL: test_C07_pairs_include_equal_multishop_sets (__main__.Audit.test_C07_pairs_include_equal_multishop_sets)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-29-p17c/reproduce.py", line 79, in test_C07_pairs_include_equal_multishop_sets
+    self.assertGreater(res['dropped_pairs_count'],0,'cross-shop pairs exist even with identical multishop sets')
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 not greater than 0 : cross-shop pairs exist even with identical multishop sets
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.323s
+
+FAILED (failures=9)

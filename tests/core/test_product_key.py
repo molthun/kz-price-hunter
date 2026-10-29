@@ -148,5 +148,68 @@ class LinkByArticleTest(unittest.TestCase):
 
 
 
+
+class LinkGroupSafetyTest(unittest.TestCase):
+    """Аудит P17C-01: совместимость проверяется для всей группы; «разные» запрещает связь."""
+
+    @staticmethod
+    def phone(cap=None, model="SM-S911B", sku=None):
+        return {"brand": "Samsung", "model": model, "sku": sku, "unbranded": False,
+                "variants": [] if cap is None else [{"value": cap, "unit": "gb"}]}
+
+    def test_unknown_variant_does_not_bridge_128_and_256_in_any_order(self):
+        import itertools
+        fields = {"phone A": self.phone(128), "phone B": self.phone(), "phone C": self.phone(256)}
+        for order in itertools.permutations(fields):
+            keys = pk.resolve_keys_with_articles({t: fields[t] for t in order})
+            self.assertNotEqual(keys["phone A"], keys["phone C"], order)
+            # Название без объёма неоднозначно: ни к одному из исполнений не прикрепляется
+            self.assertNotIn(keys["phone B"], (keys["phone A"], keys["phone C"]), order)
+
+    def test_unknown_variant_joins_single_capacity_and_takes_specific_key(self):
+        keys = pk.resolve_keys_with_articles({"A": self.phone(128), "B": self.phone(), "D": self.phone(128)})
+        self.assertEqual(len(set(keys.values())), 1)
+        self.assertTrue(keys["B"].endswith(":128gb"), "ключ группы — с объёмом, а не самый короткий")
+
+    def test_fixed_existing_128_and_new_256_stay_apart_across_batches(self):
+        first = pk.resolve_keys_with_articles({"A": self.phone(128)})
+        existing = [{"title": "A", "fields": self.phone(128), "canonical_key": first["A"]}]
+        second = pk.resolve_keys_with_articles({"B": self.phone(), "C": self.phone(256)}, existing)
+        self.assertNotEqual(second["C"], first["A"])
+        self.assertNotIn(second["B"], (first["A"], second["C"]))
+        third = pk.resolve_keys_with_articles({"E": self.phone()}, existing)   # только 128 рядом — присоединяется
+        self.assertEqual(third["E"], first["A"])
+
+    def test_different_verdict_vetoes_and_same_overrides_only_models(self):
+        a = self.phone(model="Galaxy S24", sku="ABC123456")
+        b = self.phone(model="Galaxy S24 Ultra", sku="ABC123456")
+        ph = pk.pair_hash("A", "B")
+        linked = pk.link_by_article({"A": (a, pk.build_key(a)), "B": (b, pk.build_key(b))}, pair_verdicts={ph: "different"})
+        self.assertNotEqual(linked["A"], linked["B"])
+        # «Разные» для одной пары не даёт склеить их и через третье название
+        c = self.phone(model="ABC123456", sku="ABC123456")
+        entries = {"A": (a, pk.build_key(a)), "B": (b, pk.build_key(b)), "C": (c, pk.build_key(c))}
+        linked = pk.link_by_article(entries, pair_verdicts={ph: "different"})
+        self.assertNotEqual(linked["A"], linked["B"])
+        # «Один товар» снимает проверку моделей, но не противоречие объёмов
+        x, y = self.phone(128, "Galaxy S24", "ABC123456"), self.phone(256, "Galaxy S24 Ultra", "ABC123456")
+        linked = pk.link_by_article({"X": (x, pk.build_key(x)), "Y": (y, pk.build_key(y))},
+                                    pair_verdicts={pk.pair_hash("X", "Y"): "same"})
+        self.assertNotEqual(linked["X"], linked["Y"])
+
+    def test_verdict_loader_and_disputed_callback(self):
+        a = self.phone(model="Galaxy S24", sku="ABC123456")
+        b = self.phone(model="Galaxy S24 Ultra", sku="ABC123456")
+        asked, disputed = [], []
+
+        def loader(hashes):
+            asked.extend(hashes)
+            return {}
+        pk.resolve_keys_with_articles({"A": a, "B": b}, pair_verdicts=loader,
+                                      on_disputed=lambda x, y, r: disputed.append((x, y, r)))
+        self.assertEqual(asked, [pk.pair_hash("A", "B")])
+        self.assertEqual(disputed, [("A", "B", "incompatible_article:samsung:abc123456")])
+
+
 if __name__ == "__main__":
     unittest.main()

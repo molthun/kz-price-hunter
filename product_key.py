@@ -294,14 +294,38 @@ def _identity_of(key: str) -> str:
 
 def _compatible(a: str, b: str, article: str) -> bool:
     """Общий артикул связывает, только если ключи не противоречат: варианты те же (или у одного их нет),
-    а модели совпадают, одна содержит другую или модель и есть этот артикул. Иначе общий «артикул» — чужое
-    поле: «Link380a MS Stereo» у Evolve2 65 и Evolve2 85."""
+    а модели совпадают или модель одного из названий и есть этот артикул. Иначе общий «артикул» — чужое
+    поле: «Link380a MS Stereo» у Evolve2 65 и Evolve2 85.
+
+    «Одна модель содержит другую» не связывает: так Galaxy S24 склеивался с Galaxy S24 Ultra (аудит P17C-01);
+    на замере C3 это правило ни одной пары не добавляло (полнота 0,874 с ним и без него)."""
     va, vb = _variants_of(a), _variants_of(b)
     if va and vb and va != vb:
         return False
     ia, ib = _identity_of(a), _identity_of(b)
     token = article.split(":", 1)[-1]
-    return ia == ib or ia in ib or ib in ia or token in (ia, ib)
+    return ia == ib or token in (ia, ib)
+
+
+def pair_hash(title_a: str, title_b: str) -> str:
+    """Пара названий без порядка: (a, b) и (b, a) — одна запись (вердикты и очередь P17-C7)."""
+    first, second = sorted((str(title_a).strip(), str(title_b).strip()))
+    return hashlib.sha256(f"{first}\n{second}".encode("utf-8")).hexdigest()
+
+
+def article_pairs(entries: Dict[str, Any]) -> List[tuple]:
+    """Пары названий с общим артикулом — кандидаты на связь; по ним загружаются известные вердикты."""
+    by_article: Dict[str, List[str]] = {}
+    for t in sorted(entries):
+        if entries[t][1]:
+            for art in article_tokens(entries[t][0]):
+                by_article.setdefault(art, []).append(t)
+    pairs = set()
+    for members in by_article.values():
+        for i, first in enumerate(members):
+            for other in members[i + 1:]:
+                pairs.add((first, other))
+    return sorted(pairs)
 
 
 def link_by_article(
@@ -312,14 +336,23 @@ def link_by_article(
 ) -> Dict[str, str]:
     """{название: (поля, ключ)} → {название: ключ} с общим ключом у названий одного артикула.
 
-    Ключ группы — самый частый в ней (затем короткий, затем по алфавиту); если в группе есть названия из fixed
-    (их ключи уже сохранены и используются), берётся самый частый из их ключей: прежние ключи не меняются.
-    pair_verdicts — известные вердикты {pair_hash: 'same'|'different'|'unknown'} (P17-C7).
-    on_disputed — callback(title_a, title_b, reason) для спорных пар (общий артикул при несовместимости).
+    Совместимость проверяется для всей объединяемой группы, а не для отдельной пары (P17C-01):
+    - в группе не больше одного набора вариантов (объём, диагональ): название без вариантов не служит мостом
+      между 128 и 256 ГБ. Если у его соседей по артикулу разные варианты, оно не связывается ни с кем;
+    - подтверждённый вердикт «разные» (pair_verdicts, P17-C7) запрещает объединение групп, в которых есть эта пара;
+    - вердикт «один товар» снимает только проверку моделей, но не противоречие вариантов.
+
+    Обход идёт в порядке артикулов и названий, поэтому результат не зависит от порядка входа.
+    Ключ группы — из fixed (уже сохранённые и используемые ключи не меняются), иначе ключ с вариантами,
+    затем самый частый, короткий и по алфавиту.
+    on_disputed — callback(title_a, title_b, reason) для пар с общим артикулом, которые объединить нельзя.
     """
     fixed = set(fixed)
-    titles = [t for t, (_, key) in entries.items() if key]
+    verdicts = pair_verdicts or {}
+    titles = sorted(t for t, (_, key) in entries.items() if key)
     parent = {t: t for t in titles}
+    variants = {t: ({_variants_of(entries[t][1])} - {""}) for t in titles}
+    members = {t: {t} for t in titles}
 
     def root(t):
         while parent[t] != t:
@@ -331,26 +364,50 @@ def link_by_article(
     for t in titles:
         for art in article_tokens(entries[t][0]):
             by_article.setdefault(art, []).append(t)
-    for article, members in by_article.items():
-        for i, first in enumerate(members):
-            for other in members[i + 1:]:
+
+    # Название без вариантов, у соседей которого по артикулу разные варианты, неоднозначно: не связывается
+    neighbour_variants: Dict[str, set] = {t: set() for t in titles}
+    for group in by_article.values():
+        for t in group:
+            for other in group:
+                if other != t:
+                    neighbour_variants[t] |= variants[other]
+    ambiguous = {t for t in titles if not variants[t] and len(neighbour_variants[t]) > 1}
+
+    def different(group_a, group_b) -> bool:
+        return any(verdicts.get(pair_hash(x, y)) == "different" for x in group_a for y in group_b)
+
+    for article in sorted(by_article):
+        group = by_article[article]
+        for i, first in enumerate(group):
+            for other in group[i + 1:]:
                 a, b = root(first), root(other)
-                if a != b:
-                    ph = hashlib.sha256(f"{min(first, other)}\n{max(first, other)}".encode("utf-8")).hexdigest()
-                    is_same = (pair_verdicts and pair_verdicts.get(ph) == "same")
-                    if is_same or _compatible(entries[first][1], entries[other][1], article):
-                        parent[b] = a
-                    else:
-                        if on_disputed and (not pair_verdicts or pair_verdicts.get(ph) != "different"):
-                            on_disputed(first, other, f"incompatible_article:{article}")
+                if a == b:
+                    continue
+                verdict = verdicts.get(pair_hash(first, other))
+                if first in ambiguous or other in ambiguous:
+                    reason = "ambiguous_variants"
+                elif len(variants[a] | variants[b]) > 1:
+                    reason = "variant_conflict"
+                elif different(members[a], members[b]):
+                    reason = None                       # уже решено третьим источником — не спорная
+                elif verdict == "same" or _compatible(entries[first][1], entries[other][1], article):
+                    parent[b] = a
+                    variants[a] |= variants.pop(b)
+                    members[a] |= members.pop(b)
+                    continue
+                else:
+                    reason = "incompatible_article"
+                if reason and on_disputed and verdict not in ("same", "different"):
+                    on_disputed(first, other, f"{reason}:{article}")
     groups: Dict[str, List[str]] = {}
     for t in titles:
         groups.setdefault(root(t), []).append(t)
     out = {}
-    for members in groups.values():
-        pool = [entries[t][1] for t in members if t in fixed] or [entries[t][1] for t in members]
-        best = sorted(set(pool), key=lambda k: (-pool.count(k), len(k), k))[0]
-        for t in members:
+    for group in groups.values():
+        pool = [entries[t][1] for t in group if t in fixed] or [entries[t][1] for t in group]
+        best = sorted(set(pool), key=lambda k: (0 if _variants_of(k) else 1, -pool.count(k), len(k), k))[0]
+        for t in group:
             out[t] = entries[t][1] if t in fixed else best
     return out
 
@@ -358,14 +415,16 @@ def link_by_article(
 def resolve_keys_with_articles(
     new_fields: Dict[str, Dict[str, Any]],
     existing_items: Iterable[Dict[str, Any]] = (),
-    pair_verdicts: Optional[Dict[str, str]] = None,
+    pair_verdicts: Any = None,
     on_disputed: Optional[Callable[[str, str, str], Any]] = None,
 ) -> Dict[str, Optional[str]]:
     """Вычисляет ключи по стандарту k2 для new_fields с объединением по артикулам (P17-C3).
 
     existing_items — список уже сохранённых товаров [{'title': ..., 'fields': ..., 'canonical_key': ...}].
     Их ключи фиксированы (fixed) и не меняются.
-    pair_verdicts — кэш вердиктов третьего источника истины (P17-C7).
+    pair_verdicts — вердикты третьего источника истины (P17-C7): словарь {pair_hash: decision} или функция,
+    которая по списку pair_hash пар с общим артикулом возвращает такой словарь (так конвейер загружает
+    сохранённые вердикты из базы только для нужных пар).
     on_disputed — функция постановки спорных пар в очередь.
     Возвращает {title: key} для всех названий из new_fields.
     """
@@ -388,7 +447,10 @@ def resolve_keys_with_articles(
             entries[title] = (fields, k)
 
     if entries:
-        linked = link_by_article(entries, fixed=fixed_titles, pair_verdicts=pair_verdicts,
+        verdicts = pair_verdicts
+        if callable(pair_verdicts):
+            verdicts = pair_verdicts([pair_hash(a, b) for a, b in article_pairs(entries)]) or {}
+        linked = link_by_article(entries, fixed=fixed_titles, pair_verdicts=verdicts,
                                  on_disputed=on_disputed)
         return {t: linked.get(t) or base_keys.get(t) for t in new_fields}
     return base_keys

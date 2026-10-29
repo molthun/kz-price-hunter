@@ -235,5 +235,201 @@ class CachedVerifyTest(unittest.TestCase):
 
 
 
+
+class AuditP17CTest(CachedVerifyTest):
+    """Аудит P17-C: предел поиска (P17C-03), повтор очереди (P17C-04), «AI выкл» (P17C-05), «один товар»."""
+
+    def test_daily_limit_counts_every_real_attempt(self):
+        calls = []
+
+        async def empty(base, query, limit=pv.RESULTS_PER_QUERY, min_interval=None):
+            calls.append(query)
+            return [] if len(calls) % 2 else None       # пустая выдача и отказ поиска — тоже попытки
+
+        async def ask(prompt):
+            raise AssertionError("без выдачи модель не спрашивается")
+
+        with patch.object(pv, "searxng_search", empty):
+            for i in range(3):
+                run(pv.verify_pair_cached(f"A{i}", {"brand": "Samsung", "model": f"Model{i}23"}, f"B{i}",
+                                          {"brand": "Samsung", "model": f"Model{i}56"}, "http://s", ask, daily_limit=3))
+        self.assertEqual(len(calls), 3)
+        self.assertEqual(database.web_searches_today(), 3)
+        self.assertFalse(database.reserve_web_search("ещё", 3))
+        self.assertFalse(database.reserve_web_search("ноль", 0), "предел 0 — поиск запрещён, а не «по умолчанию»")
+
+    def test_reservation_is_atomic_between_processes(self):
+        import subprocess
+        import sys
+        code = ("import sys; from pathlib import Path; from unittest.mock import patch; import database, config;"
+                "p=patch.object(database,'DB_PATH',type(database.DB_PATH)(sys.argv[1])); p.start();"
+                "print(sum(database.reserve_web_search(f'q{i}', 5) for i in range(5)))")
+        db = str(database.DB_PATH)
+        procs = [subprocess.Popen([sys.executable, "-c", code, db], stdout=subprocess.PIPE, text=True,
+                                  env={**__import__("os").environ, "PYTHONPATH": "."}) for _ in range(3)]
+        got = sum(int(p.communicate(timeout=60)[0].strip().splitlines()[-1]) for p in procs)
+        self.assertEqual(got, 5)
+        self.assertEqual(database.web_searches_today(), 5)
+
+    def test_utc_day_boundary_frees_limit(self):
+        self.assertTrue(database.reserve_web_search("вчера", 1))
+        with database.get_connection() as conn:
+            conn.execute("UPDATE web_search_attempts SET day = date('now', '-1 day')")
+            conn.commit()
+        self.assertEqual(database.web_searches_today(), 0)
+        self.assertTrue(database.reserve_web_search("сегодня", 1))
+
+    def _queue_pair(self):
+        database.save_title_fields_batch({TS_A: FA, TS_B: FB}, "k2", "local", "qwen")
+        database.save_cached_canonical_keys_batch({TS_A: "k2:transcend:ts128gmte110s:128gb",
+                                                   TS_B: "k2:transcend:mte110s:128gb"})
+        self.assertTrue(database.enqueue_disputed_pair(TS_A, TS_B, "audit"))
+
+    def _tick(self, results, reply):
+        async def search(base, query, limit=pv.RESULTS_PER_QUERY, min_interval=None):
+            return results
+
+        async def ask(prompt):
+            return reply
+        with patch.object(pv, "searxng_search", search):
+            return run(pv.process_disputed_queue_tick("http://s", ask, daily_limit=50))
+
+    def _shift(self, minutes):
+        with database.get_connection() as conn:
+            conn.execute("UPDATE disputed_product_pairs SET next_attempt_at = datetime(next_attempt_at, ?)",
+                         (f"-{minutes} minutes",))
+            conn.commit()
+
+    def test_transient_failure_retries_with_backoff_then_resolves(self):
+        self._queue_pair()
+        first = self._tick(None, None)
+        self.assertEqual((first["decision"], first["status"]), (pv.UNKNOWN, "pending"))
+        self.assertEqual(database.get_pending_disputed_pairs(), [], "не в каждом tick: ждёт паузы")
+        self.assertIsNone(self._tick(RESULTS, None))
+        self._shift(16)
+        done = self._tick(RESULTS, {"same": True, "confidence": 0.95, "evidence": ["https://shop.example/ts128"]})
+        self.assertEqual((done["decision"], done["status"]), (pv.SAME, "resolved"))
+        keys = database.get_cached_canonical_keys_batch([TS_A, TS_B])
+        self.assertEqual(keys[TS_A], keys[TS_B])
+
+    def test_model_off_is_transient_and_no_evidence_waits_a_week(self):
+        self._queue_pair()
+        res = self._tick(RESULTS, None)                 # модель выключена или не ответила
+        self.assertTrue(res["verdict"]["transient"])
+        with database.get_connection() as conn:
+            delay = conn.execute("SELECT (julianday(next_attempt_at) - julianday('now')) * 1440 "
+                                 "FROM disputed_product_pairs").fetchone()[0]
+        self.assertLess(delay, 20)
+        self._shift(20)
+        res = self._tick(RESULTS, {"same": None, "confidence": 0.2})   # выдача есть, оснований нет
+        self.assertFalse(res["verdict"]["transient"])
+        with database.get_connection() as conn:
+            delay = conn.execute("SELECT (julianday(next_attempt_at) - julianday('now')) FROM disputed_product_pairs").fetchone()[0]
+        self.assertGreater(delay, 6.9)
+
+    def test_attempts_exhausted_then_reopened_later(self):
+        self._queue_pair()
+        ph = pv.pair_hash(TS_A, TS_B)
+        for _ in range(database.DISPUTED_MAX_ATTEMPTS):
+            status = database.defer_disputed_pair(ph, True, "поиск недоступен")
+        self.assertEqual(status, "unresolved")
+        self.assertFalse(database.enqueue_disputed_pair(TS_A, TS_B, "сразу"), "без паузы не открывается")
+        with database.get_connection() as conn:
+            conn.execute("UPDATE disputed_product_pairs SET updated_at = datetime('now', '-8 days')")
+            conn.commit()
+        self.assertTrue(database.enqueue_disputed_pair(TS_A, TS_B, "через неделю"))
+        self.assertEqual(len(database.get_pending_disputed_pairs()), 1)
+
+    def test_same_with_variant_conflict_is_not_merged(self):
+        database.save_title_fields_batch({TS_A: FA, TS_B: FB}, "k2", "local", "qwen")
+        database.save_cached_canonical_keys_batch({TS_A: "k2:transcend:mte110s:128gb",
+                                                   TS_B: "k2:transcend:mte110s:256gb"})
+        database.enqueue_disputed_pair(TS_A, TS_B, "audit")
+        res = self._tick(RESULTS, {"same": True, "confidence": 0.99, "evidence": ["https://shop.example/ts128"]})
+        self.assertEqual(res["status"], "unresolved")
+        keys = database.get_cached_canonical_keys_batch([TS_A, TS_B])
+        self.assertNotEqual(keys[TS_A], keys[TS_B])
+
+    def test_same_moves_whole_group_including_v2(self):
+        for pid, title, shop, key in (("a", TS_A, "Sulpak", "k2:transcend:ts128gmte110s:128gb"),
+                                      ("b", TS_B, "DNS Казахстан", "k2:transcend:mte110s:128gb"),
+                                      ("c", "Transcend MTE110S 128 ГБ", "Mechta", "k2:transcend:mte110s:128gb")):
+            database.save_or_update_product({"id": pid, "shop": shop, "city": "Алматы", "title": title, "price": 9000,
+                                             "canonical_key": key, "url": f"https://e.kz/{pid}"})
+            database.save_cached_canonical_keys_batch({title: key})
+        database.save_title_fields_batch({TS_A: FA, TS_B: FB}, "k2", "local", "qwen")
+        database.enqueue_disputed_pair(TS_A, TS_B, "audit")
+        self._tick(RESULTS, {"same": True, "confidence": 0.99, "evidence": ["https://shop.example/ts128"]})
+        with database.get_connection() as conn:
+            legacy = {r[0] for r in conn.execute("SELECT canonical_key FROM products")}
+            v2 = {r[0] for r in conn.execute("SELECT p.canonical_key FROM offers o JOIN canonical_products p "
+                                             "ON p.id = o.product_id")}
+        self.assertEqual(len(legacy), 1)
+        self.assertEqual(v2, legacy)
+
+    def test_local_off_and_global_switch_block_model(self):
+        import ai_service
+        import local_ai
+        calls = []
+
+        async def provider(*a, **kw):
+            calls.append(1)
+            return {"same": True}
+        cfg = {"local_api_base": "http://fake/v1", "local_model": "fake", "ai_search_enabled": True}
+        (Path(config.DATA_DIR) / "ai_mode.json").write_text('{"mode": "off"}')
+        with patch.object(ai_service, "_call_local_api", provider):
+            self.assertIsNone(run(pv.make_local_ask(cfg)("prompt")))
+            self.assertEqual(pv.verification_pause_reason(cfg), local_ai.pause_reason())
+            (Path(config.DATA_DIR) / "ai_mode.json").write_text('{"mode": "on"}')
+            self.assertIsNone(run(pv.make_local_ask({**cfg, "ai_search_enabled": False})("prompt")))
+            self.assertEqual(pv.verification_pause_reason({**cfg, "ai_search_enabled": False}), "AI выключен в настройках")
+            self.assertEqual(calls, [])
+            self.assertEqual(run(pv.make_local_ask(cfg)("prompt")), {"same": True})
+            self.assertIsNone(pv.verification_pause_reason(cfg))
+        self.assertEqual(calls, [1])
+
+
+    def test_worker_skips_queue_when_limit_zero_or_ai_off(self):
+        """Воркер: предел 0 не превращается в 300, «AI выкл» — пары остаются в очереди (P17C-03/05)."""
+        from web import server
+        ticks = []
+
+        async def tick(**kw):
+            ticks.append(kw)
+            return None
+
+        async def stop(_seconds):
+            raise asyncio.CancelledError
+
+        base = {"search_api_base": "http://s", "search_interval_seconds": 90, "local_api_base": "http://fake/v1",
+                "local_model": "fake", "ai_search_enabled": True}
+        for cfg, mode, expected in (({**base, "search_daily_limit": 0}, "on", 0),
+                                    ({**base, "search_daily_limit": 10}, "off", 0),
+                                    ({**base, "search_daily_limit": 10}, "on", 1)):
+            ticks.clear()
+            (Path(config.DATA_DIR) / "ai_mode.json").write_text(f'{{"mode": "{mode}"}}')
+            with patch.object(config, "get_ai_config", return_value=cfg), \
+                    patch.object(pv, "process_disputed_queue_tick", tick), patch.object(server.asyncio, "sleep", stop):
+                run(server.disputed_pairs_background_worker(None))
+            self.assertEqual(len(ticks), expected, (cfg["search_daily_limit"], mode))
+        self.assertEqual(ticks[0]["daily_limit"], 10)
+
+
+    def test_normalize_pipeline_respects_saved_different(self):
+        """Конвейер нормализации загружает сохранённые вердикты: «разные» запрещает связь по артикулу."""
+        import ai_service
+        a, b = "Samsung Galaxy S24 (ABC123456)", "Samsung Galaxy S24 FE (ABC123456)"
+        item = lambda t, m: {"title": t, "brand": "Samsung", "model": m, "sku": "ABC123456", "variants": []}
+        first = ai_service._normalize_items({"items": [item(a, "ABC123456")]}, [a], "k2", "local", "m")
+        database.save_pair_verdict(pv.pair_hash(a, b), a, b, {"decision": pv.DIFFERENT}, "m")
+        second = ai_service._normalize_items({"items": [item(b, "Galaxy S24 FE")]}, [b], "k2", "local", "m")
+        self.assertNotEqual(first[a], second[b])
+        self.assertEqual(database.get_pending_disputed_pairs(), [], "решённая пара не ставится в очередь")
+        # Без вердикта та же пара связалась бы по артикулу
+        c = "Samsung Galaxy S24 (ABC123456) black"
+        third = ai_service._normalize_items({"items": [item(c, "Galaxy S24")]}, [c], "k2", "local", "m")
+        self.assertEqual(third[c], first[a])
+
+
 if __name__ == "__main__":
     unittest.main()
