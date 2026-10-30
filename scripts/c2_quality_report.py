@@ -106,7 +106,12 @@ def lookup(item, keys, inputs):
     if found:
         return found if (item["a"], item["b"]) in keys else (found[1], found[0], found[3], found[2])
     a, b = inputs.get(item["a"]), inputs.get(item["b"])
-    return (a["old"], b["old"], a["new"], b["new"]) if a and b else None
+    if not a or not b:
+        return None
+    # None — названия нет в снимке (синтетическая пара); пустой ключ после no_identity — это "", такой товар есть
+    if a["old"] is None and a["new"] is None or b["old"] is None and b["new"] is None:
+        return None
+    return (a["old"], b["old"], a["new"], b["new"])
 
 
 def confusion(rows, side, packaging=None):

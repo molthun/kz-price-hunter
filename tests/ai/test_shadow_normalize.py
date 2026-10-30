@@ -841,6 +841,16 @@ class C2QualityReportTest(unittest.TestCase):
         self.assertEqual((added["packaging_same"]["n"], added["packaging_same"]["of"]), (2, 3))
         self.assertEqual((added["packaging_different"]["n"], added["packaging_different"]["of"]), (1, 3))
 
+    def test_title_absent_from_snapshot_is_not_a_known_pair(self):
+        """Нет в снимке и пустой ключ после no_identity — разные случаи (P3 проверки Codex)."""
+        data, sample = self.data(), self.sample()
+        data["eval_inputs"].update({"n1": {"old": None, "new": None}, "n2": {"old": None, "new": None},
+                                    "e1": {"old": "b:e", "new": ""}, "e2": {"old": "b:e", "new": ""}})
+        sample["pairs"] += [{"a": "n1", "b": "n2", "label": "same", "strata": ["old_set"]},
+                            {"a": "e1", "b": "e2", "label": "same", "strata": ["old_set"]}]
+        report, _ = c2.build(data, sample)
+        self.assertEqual(report["labels"]["without_keys"], 1)
+
     def test_labelled_sample_file_is_consistent(self):
         sample = json.loads((ROOT / "scripts" / "k2_labeled_sample.json").read_text(encoding="utf-8"))
         self.assertIn("OEM", sample["convention"]["packaging"])
