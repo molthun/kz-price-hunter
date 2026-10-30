@@ -1,0 +1,42 @@
+test_class_mark_does_not_depend_on_model_word_placement (__main__.Residuals.test_class_mark_does_not_depend_on_model_word_placement) ... ok
+test_ram_frequency_is_not_manufacturer_part_number (__main__.Residuals.test_ram_frequency_is_not_manufacturer_part_number) ... ok
+test_rescore_old_article_keys_keeps_box_mark (__main__.Residuals.test_rescore_old_article_keys_keeps_box_mark) ... ok
+test_worker_checks_box_for_member_without_fields (__main__.Residuals.test_worker_checks_box_for_member_without_fields) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.181s
+
+OK
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+MARK_PLACEMENT wifi k2:asrock:b850mx.wifi k2:asrock:b850mx.wifi conflict= False SAME-linked= {'Материнская плата ASRock B850M-X WIFI': 'k2:asrock:b850mx.wifi', 'ASRock B850M-X WIFI': 'k2:asrock:b850mx.wifi'}
+MARK_PLACEMENT flex k2:jabra:evolve265.flex.link380a.ms k2:jabra:evolve265.flex.link380a.ms conflict= False SAME-linked= {'Jabra Evolve2 65 Flex Link380a MS Stereo': 'k2:jabra:evolve265.flex.link380a.ms', 'Гарнитура Jabra Evolve2 65 Flex Link380a MS Stereo': 'k2:jabra:evolve265.flex.link380a.ms'}
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+RAM_FREQUENCY_AS_SKU k2:kingston:furybeast:16gb+ddr4 k2:kingston:valueram:16gb+ddr4
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3, в исходном снимке audit-rules: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 1510.2 наим/с | ETA: 0 с | С ключом k2: 3
+RESCORE_OLD_ANCHOR {'Процессор AMD Ryzen 7 7700X OEM': 'k2:amd:ryzen77700x', 'AMD Ryzen 7 7700X BOX black': 'k2:amd:ryzen77700x.box', 'AMD Ryzen 7 7700X BOX white': 'k2:amd:ryzen77700x.box'} [('off_p0', 'prod_e8a5eb9b35cf6011'), ('off_p1', 'prod_e8a5eb9b35cf6011'), ('off_p2', 'prod_41e69e8e3827a543')] {'run_id': 'audit-rules', 'baseline_created_at': '2026-10-30T18:11:47Z', 'baseline_titles': 3, 'actual_k2_keys': 3, 'actual_legacy_keys': 0, 'actual_no_key': 0, 'cumulative': {'api_calls': 0, 'api_failures': 0, 'failed_titles': 0, 'missing_titles': 0, 'seconds': 0.0, 'api_started': 0, 'api_unfinished': 0}}
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+BOX_MEMBER_NO_FIELDS unresolved {'AMD Ryzen 7 7700X OEM': 'amd:ryzen7 7700x:oem', 'Процессор AMD Ryzen 7 7700X OEM': 'amd:ryzen77700x:oem', 'AMD Ryzen 7 7700X BOX': 'amd:ryzen77700x:oem'} [('off_p0', 'prod_716caf02e3d55a4e'), ('off_p1', 'prod_6f86493b454c204a'), ('off_p2', 'prod_6f86493b454c204a')]

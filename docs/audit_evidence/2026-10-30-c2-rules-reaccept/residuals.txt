@@ -1,0 +1,26 @@
+test_core_ultra_box_without_fields_is_not_moved_into_oem_group (__main__.Residuals.test_core_ultra_box_without_fields_is_not_moved_into_oem_group) ... FAIL
+
+======================================================================
+FAIL: test_core_ultra_box_without_fields_is_not_moved_into_oem_group (__main__.Residuals.test_core_ultra_box_without_fields_is_not_moved_into_oem_group)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-30-c2-rules-reaccept/residuals.py", line 40, in test_core_ultra_box_without_fields_is_not_moved_into_oem_group
+    self.assertEqual(result['status'], 'unresolved', 'explicit BOX member moved into OEM group')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'resolved' != 'unresolved'
+- resolved
++ unresolved
+? ++
+ : explicit BOX member moved into OEM group
+
+----------------------------------------------------------------------
+Ran 1 test in 0.110s
+
+FAILED (failures=1)
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+CORE_ULTRA_BOX title_marks= frozenset() own_key_if_fields= k2:intel:coreultra7265k.box status= resolved keys= {'Intel Core Ultra 7 265K BOX': 'intel:coreultra7265k:oem', 'Процессор Intel Core Ultra 7 265K OEM': 'intel:coreultra7265k:oem', 'Intel Core Ultra 7 265K OEM': 'intel:coreultra7265k:oem'} offers= [('off_p0', 'prod_0341d6861f6f601b'), ('off_p1', 'prod_0341d6861f6f601b'), ('off_p2', 'prod_0341d6861f6f601b')]

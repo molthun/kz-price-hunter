@@ -1,0 +1,18 @@
+test_interrupted_ledger_upgrade_preserves_consistent_counters (__main__.Boundary.test_interrupted_ledger_upgrade_preserves_consistent_counters) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.076s
+
+OK
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 0, в исходном снимке old: 1
+[C4] Из них уже сохранены поля: 0
+[C4] Обработка 0 названий пачками по 20...
+[C4] Расчёт сравнения пар до и после миграции по всему исходному снимку...
+[C4] Пар было: 0 | Стало: 0 | Сохранилось: 0 (нет пар — не определено) | Разошлось: 0 | Новых: 0
+AFTER_INTERRUPTED_UPGRADE {'api_calls': 3, 'api_failures': 1, 'failed_titles': 2, 'missing_titles': 1, 'seconds': 7.0, 'api_started': 3, 'api_unfinished': 0}
