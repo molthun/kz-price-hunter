@@ -1,5 +1,5 @@
 {
-"version": 2,
+"version": 3,
 "protocol": "Разметка Claude 30.10.2026 по названиям вслепую: без ключей, полей, ответов модели и слоя; порядок перемешан. Источник указан только у пяти пар из аудита C2A-01; остальные метки — чтение названий, производителя не проверял.",
 "convention": {
 "same": "одна модель и одинаковые память, объём, диагональ, ревизия; цвет не различает (так устроен k2)",
@@ -3708,6 +3708,1207 @@
 "strata": [
 "dropped_both_k2"
 ]
-}
+},
+{
+"a": "Наушники Defender FreeMotion B665 бежевый",
+"b": "Наушники-гарнитура беспроводные Defender FreeMotion B665 бежевый (63666)",
+"label": "same",
+"strata": [
+"holdout_added"
 ]
+},
+{
+"a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Black, 128 ГБ Tecno, SPARK",
+"b": "Смартфон Tecno Spark 50, 4 GB, 128 GB, Aurora Purple (KN4N)",
+"label": "different",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Intel Core i3 14100 OEM",
+"b": "Процессор Intel Core i3 14100, LGA1700, OEM",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Gray, 128 ГБ Tecno, SPARK",
+"b": "Смартфон Tecno Spark 50, 8 GB, 128 GB, Aurora Purple (KN4N)",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "DDR-5 DIMM 16 GB 5600 MHz Transcend, BOX (JM5600ALE-16G)",
+"b": "Оперативная память 16Gb Transcend JM5600ALE-16G",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "USB HUB 4-port USB 3.0 TP-LINK UH400, Black",
+"b": "Концентратор Tp-Link UH400 4 порта, 5 Гбит/с TP-Link",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Смартфон TECNO SPARK 50 8 ГБ/256 ГБ 256 ГБ, 6.78’’, 8 Гб, Blue, 256 ГБ Tecno, SPARK",
+"b": "Смартфон Tecno Spark 50, 8 GB, 256 GB, Halo Blue (KN4N)",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Гарнитура Razer Opus X - Green",
+"b": "Наушники Razer Opus X RZ04-03760400-R3M1 зеленые",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Видеокарта  Afox GT 610 (AF610-2048D3L7-V8/AF610-2048D3L7-V6)",
+"b": "Видеокарта AFOX GT610 2GB D3 LP Single Fan (AF610-2048D3L8)",
+"label": "uncertain",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Смартфон Camon 50 (CN5) 256 ГБ, 6.78’’, 12 Гб, черный Tecno",
+"b": "Смартфон Tecno Camon 50, 8 GB, 256 GB, Moonshadow Black (CN5)",
+"label": "different",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "MAXSUN плата Challenger B460M-D LGA1200 mATX",
+"b": "Материнская плата Socket1200, MATX, iB460 (HDMI, DP) MaxSun Challenger B460M-D, 2DDR4, PCIx16, PCIx1 (MS-Challenger B460M-D)",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Процессор AMD Ryzen 9 7900X OEM",
+"b": "Процессор CPU AM5 AMD Ryzen 9 7900X OEM",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Монитор 23.8\" Sanc M2453KJ V3 IPS",
+"b": "Монитор 23.8\" Sanc M2453KJ V3, Black",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Гарнитура HyperX Cloud III, Black-Red",
+"b": "Наушники-гарнитура HyperX BS7C1AA Cloud III белый",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Смартфон TECNO CAMON 50 8 ГБ/256 ГБ 256 ГБ, 6.78’’, 8 Гб, серебристый Tecno, CAMON",
+"b": "Смартфон Tecno Camon 50, 8 GB, 256 GB, Malachite Green (CN5)",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Процессор Intel Core i9 13900F, LGA1700, OEM",
+"b": "Процессор Intel Core i9-13900F OEM",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Процессор CPU S-1700 Intel Core i9 13900K OEM",
+"b": "Процессор Intel Core i9-13900K SRMBH (SRMBH-OEM)",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Компьютерный корпус Thermaltake TR300 TG Black без Б/П",
+"b": "Компьютерный корпус Thermaltake TR300 TG Snow без Б/П",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Смартфон TECNO SPARK 50 8 ГБ/256 ГБ 256 ГБ, 6.78’’, 8 Гб, черный, 256 ГБ Tecno, SPARK",
+"b": "Смартфон Tecno Spark 50, 8 GB, 256 GB, Titanium Grey (KN4N)",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Монитор 24,5\" PHILIPS 25M2N3200W (00/01)",
+"b": "Монитор 24.5\" Philips 25M2N3200W/01, Black",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Смартфон TECNO POVA 8 5G 8 ГБ/256 ГБ 256 ГБ, 8 Гб, Black, 256 ГБ Tecno, POVA",
+"b": "Смартфон Tecno Pova 8 5G, 8 GB, 256 GB, Arc White (LK6)",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Видеокарта MaxSun MS-RX550 TF 4G",
+"b": "Видеокарта MaxSun RX 550, 4 GB, Radeon RX 550",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Карта памяти Canvas Go Plus A2 U3 V30 64 ГБ Kingston Technology",
+"b": "Карта памяти Micro SDXC 64GB Kingston Canvas Go! Plus, Class 10 UHS-I U3 V30 A2",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Intel Core Ultra 5 245K BOX",
+"b": "Процессор CPU S-1851 Intel Core Ultra 5 245K OEM",
+"label": "different",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Patch cord RJ-45 5е cat Cablexpert PP12-0.5M, UTP, 0.5m, Gray",
+"b": "Патч-корд Cablexpert PP12 2 м Cablexpert",
+"label": "different",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Сетевой фильтр Defender DFS-753, 5 розеток, 3м, USB, Black",
+"b": "Фильтр сетевой Defender DFS 753 3 м, пластик Defender",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Gray, 128 ГБ Tecno, SPARK",
+"b": "Смартфон Tecno Spark 50, 8 GB, 128 GB, Aurora Purple (KN4N)",
+"label": "different",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Bluetooth гарнитура Jabra Evolve2 65, Link380a MS Stereo, Black",
+"b": "Jabra Evolve2 65, Link380a MS Mono Black (26599-899-999)",
+"label": "different",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Модуль памяти Apacer Panther AH5U16G60C6227BAA-1 DDR5 16GB",
+"b": "Оперативная память Apacer Panther DDR5 16GB 6000 МГц (AH5U16G60C6227BAA-1)",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Blackview Tab 80 Kids 10.1 дюйм 4 Гб64 Гб голубой",
+"b": "Планшет BlackView Tab 80 Kids 4G 10.1\" 4/64GB Pink",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Процессор Intel Core i7-12700 (2.1GHz, 25MB, LGA1700) box (BX8071512700SRL4Q)",
+"b": "Процессор Intel Core i7-12700 oem",
+"label": "different",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Intel Celeron G5905 BOX",
+"b": "Процессор Intel Celeron G5905 BOX (SRK27)",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Intel Core i5 14600K OEM",
+"b": "Процессор CPU S-1700 Intel Core i5-14600K OEM",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Телевизор Hisense 43E7S 43\" (43E7S)",
+"b": "Телевизор Hisense 43E7S RU",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Tp-Link Archer C80 AC1900 MU-MIMO Wi-Fi роутер (Archer C80)",
+"b": "Маршрутизатор TP-Link Archer C80",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Gray, 128 ГБ Tecno, SPARK",
+"b": "Смартфон Tecno Spark 50, 4 GB, 128 GB, Halo Blue (KN4N)",
+"label": "different",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Маршрутизатор TP-Link TL-WR841N",
+"b": "Маршрутизатор беспроводной 300M Tp-Link TL-WR841N (TL-WR841N(RU) (TL-WR841N(RU))",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Patch cord RJ-45 5е cat Cablexpert PP12-1M, UTP, 1m, Black",
+"b": "Патч-корд Cablexpert PP12 1 м Cablexpert",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Intel Core i5 12400 OEM",
+"b": "Процессор CPU S-1700 Intel Core i5 12400 OEM",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Gray, 128 ГБ Tecno, SPARK",
+"b": "Смартфон Tecno Spark 50, 6 GB, 128 GB, Halo Blue (KN4N)",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Телевизор QLED ЯНДЕКС 65 Бейсик YNDX-00081 (4K Smart)",
+"b": "Телевизор Яндекс Бейсик с Алисой 65\" YNDX-00081 LED 4K UHD Smart",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Процессор CPU S-1700 Intel Core i9 13900KF OEM",
+"b": "Процессор Intel Core i9 13900KF, LGA1700, OEM",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Телевизор Яндекc Про MiniLED 65\" YNDX-00104 QLED 4K UHD Smart",
+"b": "Яндекс Про MiniLED YNDX-00104 165 см черный",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Телевизор Яндекc Про MiniLED 65\" YNDX-00104 QLED 4K UHD Smart",
+"b": "Телевизор Яндекс Про 65\" YNDX-00104 MiniLED 4K UHD Black",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Intel Core i5 CORE I5 12400 OEM",
+"b": "Процессор Intel Core i5-12400 oem",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Материнская плата MaxSun Challenger B760M D5",
+"b": "Материнская плата MaxSun Challenger B760M D5 (MS-Challenger B760M D5)",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "AFOX AF1050TI-4096D5H7-V9 4 Гб",
+"b": "Видеокарта Afox GTX 1050Ti (AF1050TI-4096D5H7-V9)",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "ASRock B760M Pro-A/D4 (90-MXBNC0-A0UAYZ)",
+"b": "Материнская плата ASRock B760M Pro-A/D4 micro ATX ASRock, Pro",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Монитор 27\" FHD Viewsonic VA2732-H-2 черный",
+"b": "Монитор 27\" ViewSonic VA2732-H-2 1920x1080 16:9 IPS 100ГЦ (HDMI+VGA) Black",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Материнская плата ASRock B760M PRO RS/D4 WIFI",
+"b": "Материнская плата ASRock B760M Pro RS/D4, LGA1700  (90-MXBKL0-A0UAYZ)",
+"label": "different",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Intel Core i5 12400 OEM",
+"b": "Процессор Intel Core i5-12400 oem",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "RP-HJE125E-A Наушники-вкладыши канального типа (синий) (RP-HJE125E-A)",
+"b": "Наушники Panasonic RP-HJE125 фиолетовый",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Телевизор 85\" (216 см) TCL 85C6K QLED 4K UHD Black",
+"b": "Телевизор TCL QD-MiniLED 85C6K UHD Android TV",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Black, 128 ГБ Tecno, SPARK",
+"b": "Смартфон Tecno Spark 50, 6 GB, 128 GB, Halo Blue (KN4N)",
+"label": "different",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Клавиатура Ajazz 308i Cat, Mist Blue, Bluetooth",
+"b": "Клавиатура беспроводная Ajazz 308i Cat мембранная, беспроводной Ajazz",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Наушники SOUNDCORE Liberty 4 PRO A3954 Black/Черный TWS",
+"b": "Наушники Soundcore Liberty 4 Pro Black (A3954-BK)",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Гарнитура LOGITECH G335 White",
+"b": "Наушники игровые Logitech G335 WHITE, 3.5mm (981-001018)",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Blackview Tab 80 Kids 10.1 дюйм 4 Гб64 Гб голубой",
+"b": "Планшет BlackView Tab 80 Kids 4G 10.1\" 4/64GB Blue",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Телевизор MiniLED ЯНДЕКС 55 Про YNDX-00103 (4K Smart)",
+"b": "Телевизор Яндекc Про MiniLED 55\" YNDX-00103 QLED 4K UHD Smart",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "ТВ Станция Бейсик Яндекс YNDX-00075 с Алисой на YaGPT 50\"",
+"b": "Телевизор ЯНДЕКС 50 YNDX-00075 (4K Smart)",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Patch cord RJ-45 5е cat Cablexpert PP12-5M/V, UTP, 5m, Violet",
+"b": "Патч-корд Cablexpert PP12 1 м Cablexpert",
+"label": "different",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Гарнитура Fanvil HT301U",
+"b": "Гарнитура Fanvil HT301U (HT301U)",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Наушники-гарнитура Defender Aura HN-102 Чёрный",
+"b": "Наушники-гарнитура проводные Defender Aura HN-102 (черный) 85 дБ Defender",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Материнская плата ASRock B650M PG LIGHTNING",
+"b": "Материнская плата ASRock B650M-H/M.2+ (90-MXBMS0-A0UAYZ)",
+"label": "different",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Смарт-часы GARMIN Fenix 8 47mm ,AMOLED, сапфир, светлый титан 010-02904-40",
+"b": "Смарт-часы Garmin Fenix 8 010-02907-21 51mm Sapphire Titanium with Amp Yellow/Graphite Silicone Band",
+"label": "different",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Purple, 128 ГБ Tecno, SPARK",
+"b": "Смартфон Tecno Spark 50, 8 GB, 128 GB, Ink Black (KN4N)",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Apple AirPods Max Starlight беспроводные наушники (MWW53)",
+"b": "Наушники APPLE AirPods MAX (MWW43ZE/A) Midnight",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Маршрутизатор TP-Link Archer MR400 (Archer MR400)",
+"b": "Маршрутизатор TP-Link Archer MR400 ver.5.0",
+"label": "uncertain",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Гарнитура Defender Gryphon 750, Black",
+"b": "Наушники Defender Gryphon 750 черный",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "AMD Ryzen 7 9850X3D BOX",
+"b": "Процессор AMD Ryzen 7 9850X3D, AM5, OEM",
+"label": "different",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Корпус Ocypus Gamma C52 BK Черный Gamma-C52-BKD000XX-GL",
+"b": "Корпус Ocypus Gamma C52 BK, Black",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "EarPods USB-C",
+"b": "Наушники APPLE EarPods with Lightning Connector (MWTY3ZM/A)",
+"label": "different",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Смартфон Camon 50 (CN5) 256 ГБ, 6.78’’, 12 Гб, зеленый Tecno",
+"b": "Смартфон Tecno Camon 50, 12 GB, 256 GB, Nebula Titanium (CN5)",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Bluetooth гарнитура Defender FreeMotion B665, Beige",
+"b": "Наушники-гарнитура беспроводные Defender FreeMotion B665 бежевый (63666)",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Монитор 27\" Philips Evnia 27M2N3501PA/01, White",
+"b": "Монитор PHILIPS 27M2N3501PA/01",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Телевизор Hisense 43\" QLED 43E7S UHD Smart",
+"b": "Телевизор Hisense 43E7S RU",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Гарнитура Defender Ghost LED, White",
+"b": "Игровая гарнитура Defender Ghost LED белый, LED, провод 1.8м (64605)",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Наушники Poly Blackwire 3310 8x216aa",
+"b": "Наушники Poly Blackwire 3310 USB-C 8X216AA Black",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Gray, 128 ГБ Tecno, SPARK",
+"b": "Смартфон Tecno Spark 50, 4 GB, 128 GB, Halo Blue (KN4N)",
+"label": "different",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Гарнитура Edifier GX Серый",
+"b": "Гарнитура Edifier GX, Black-Grey",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Мышь Genius NX-7005 беспроводной, оптическая, 10 × 5,8 × 3,9 см Genius",
+"b": "Мышь Genius NX-7005, Blue, USB",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Наушники Jabra Evolve2 85 Link380a MS Stereo Stand 28599-999-989 Black",
+"b": "Наушники Jabra Evolve2 85, Link380a Stereo Black (28599-999-999)",
+"label": "uncertain",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Смартфон TECNO POVA 8 Pro 5G 8 ГБ/256 ГБ 256 ГБ, 6.78’’, 8 Гб, White, 256 ГБ Tecno, POVA",
+"b": "Смартфон Tecno Pova 8 Pro 5G, 8 GB, 256 GB, Arc White (LK7)",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Intel Core i5 13400 OEM",
+"b": "Процессор CPU S-1700 Intel Core i5-13400 OEM",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Телевизор 55\" (140 см) Hisense 55U7S QLED UHD Black",
+"b": "Телевизор HISENSE MiniLED 55U7S UHD SMART",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Наушники APPLE AirPods MAX (MWW43ZE/A) Midnight",
+"b": "Наушники Apple AirPods Max Pink",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Наушники TECNO True 1 Air TU01 Air Creamy White",
+"b": "Наушники TECNO True 1 Air черный",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Корпус Sharkoon ELITE SHARK CA300T BE, Black",
+"b": "Корпус для ПК Sharkoon ELITE SHARK CA300T Bk",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Процессор AMD Ryzen 5 7600 oem",
+"b": "Процессор CPU AM5 AMD Ryzen 5 7600 OEM",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Процессор Intel Core i3 10105",
+"b": "Процессор Intel Сore i3-10105 oem",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Смартфон TECNO CAMON 50 8 ГБ/256 ГБ 256 ГБ, 6.78’’, 8 Гб, серебристый Tecno, CAMON",
+"b": "Смартфон Tecno Camon 50, 12 GB, 256 GB, Nebula Titanium (CN5)",
+"label": "different",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Intel Core i7-10700 OEM",
+"b": "Процессор Intel Core i7 10700K",
+"label": "different",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Patch cord RJ-45 5е cat Cablexpert PP12-3M, UTP, 3m, Black",
+"b": "Патч-корд Cablexpert PP12 3 м Cablexpert",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Purple, 128 ГБ Tecno, SPARK",
+"b": "Смартфон Tecno Spark 50, 8 GB, 128 GB, Titanium Grey (KN4N)",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Смартфон TECNO SPARK 50 4 ГБ/128 ГБ 128 ГБ, 6.78’’, 4 Гб, Black, 128 ГБ Tecno, SPARK",
+"b": "Смартфон Tecno Spark 50, 8 GB, 128 GB, Titanium Grey (KN4N)",
+"label": "different",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Модем TP-Link Archer VR600",
+"b": "Модем TP-Link Archer VR600 (Archer VR600)",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Процессор AMD Ryzen 5 5600 oem",
+"b": "Процессор CPU AM4 AMD Ryzen 5 5600 OEM",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Black, 128 ГБ Tecno, SPARK",
+"b": "Смартфон Tecno Spark 50, 6 GB, 128 GB, Aurora Purple (KN4N)",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Смартфон Camon 50 (CN5) 256 ГБ, 6.78’’, 12 Гб, черный Tecno",
+"b": "Смартфон Tecno Camon 50, 8 GB, 256 GB, Nebula Titanium (CN5)",
+"label": "different",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Гарнитура Defender Warhead G-160, Black",
+"b": "Игровая гарнитура стерео Defender Warhead G-160 черный, кабель 2,5 м (64113)",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Patch cord RJ-45 5е cat Cablexpert PP12-0.5M/B, UTP, 0.5m, Blue",
+"b": "Патч-корд Cablexpert PP12 5 м Cablexpert",
+"label": "different",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Процессор Intel Core i5-12600 (3.3GHz, 18MB, LGA1700) tray (CM8071504647406SRL5T)",
+"b": "Процессор Intel Сore i5-12600 oem",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Телевизор Dreame 55Q100, 55\"",
+"b": "Телевизор Dreame Vivid 55\" 55Q100 QLED 4K UHD Black",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "DDR-4 DIMM 8 GB 2666 MHz Geil Pristine Series, BOX (GP48GB2666C19SC)",
+"b": "Оперативная память 8GB GEIL PRISTINE SERIES GP48GB3200C22SC",
+"label": "different",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Беспроводной маршрутизатор MikroTik RB941-2nD (RB941-2nD)",
+"b": "Маршрутизатор MikroTik hAP lite RB941-2nD",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Gray, 128 ГБ Tecno, SPARK",
+"b": "Смартфон Tecno Spark 50, 8 GB, 128 GB, Titanium Grey (KN4N)",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Intel Core i3 13100F OEM",
+"b": "Процессор Intel Сore i3-13100F oem",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Телевизор HISENSE QLED 50E7S UHD SMART",
+"b": "Телевизор Hisense 50\" QLED 50E7S UHD Smart",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Intel Core i3 10105 OEM",
+"b": "Процессор Intel Core i3 10105, LGA1200, OEM",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Black, 128 ГБ Tecno, SPARK",
+"b": "Смартфон Tecno Spark 50, 8 GB, 128 GB, Aurora Purple (KN4N)",
+"label": "different",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Процессор Intel Core i5 10500",
+"b": "Процессор Intel Core i5 10500, LGA1200, OEM",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "AirPods Max 2",
+"b": "Наушники APPLE AirPods MAX (MWW63ZE/A) Blue",
+"label": "uncertain",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Видеокарта MaxSun MS-RX550 TF 4G (MS-RX550 TF 4G)",
+"b": "Видеокарта MaxSun RX 550, 4 GB, Radeon RX 550",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Телевизор HISENSE QLED 43E77SL UHD SMART",
+"b": "Телевизор Hisense 43E77SL 43\" (43E77SL)",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Процессор Intel Core i7 13700F, LGA1700, BOX",
+"b": "Процессор Intel Core i7 13700F, LGA1700, OEM (i7-13700F)",
+"label": "different",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Black, 128 ГБ Tecno, SPARK",
+"b": "Смартфон Tecno Spark 50, 4 GB, 128 GB, Halo Blue (KN4N)",
+"label": "different",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Intel Core i7 Core i7-12700 OEM",
+"b": "Процессор Intel Core i7-12700 (2.1GHz, 25MB, LGA1700) box (BX8071512700SRL4Q)",
+"label": "different",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Gray, 128 ГБ Tecno, SPARK",
+"b": "Смартфон Tecno Spark 50, 8 GB, 128 GB, Halo Blue (KN4N)",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Материнская плата ASRock B760M Steel Legend WiFi (90-MXBL70-A0UAYZ)",
+"b": "Материнская плата ASRock B760M Steel Legend WiFi, LGA1700",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Процессор CPU S-1700 Intel Core i3-14100F OEM",
+"b": "Процессор Intel Core i3 14100F (SRMX2-OEM)",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Процессор CPU S-1700 Intel Core i5-14600K OEM",
+"b": "Процессор Intel Core i5 14600K, LGA1700, Tray (CM8071504821015)",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Процессор Intel Core i5 14400F, LGA1700, OEM",
+"b": "Процессор Intel Сore i5 -14400F oem",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "AFOX GT710 AF710-2048D3L5 2GB",
+"b": "Видеокарта 2 GB Afox GT 710 (AF710-2048D3L5-V3)",
+"label": "uncertain",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Смартфон TECNO SPARK 50 Pro 8 ГБ/256 ГБ 256 ГБ, 6.78’’, 8 Гб, титановый серый Tecno, SPARK",
+"b": "Смартфон Tecno Spark 50 Pro, 8 GB, 256 GB, Titanium Grey (KO5)",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Гарнитура Razer Kaira X for Xbox - Pulse Red RZ04-03970500-R3M1",
+"b": "Гарнитура Razer Kaira X for Xbox, Blue",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Внешний жесткий диск 2 TB 2.5\", Apacer AC237, Blue",
+"b": "Внешний жёсткий диск Apacer AC237 2 ТБ, 2.5\" Apacer",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Процессор Intel Core i5-14400",
+"b": "Процессор Intel Core i5-14400 (CM8071504821112SRN46)",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Black, 128 ГБ Tecno, SPARK",
+"b": "Смартфон Tecno Spark 50, 8 GB, 128 GB, Halo Blue (KN4N)",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Монитор 23.6\" ViewSonic VX2418C, Black",
+"b": "Монитор Viewsonic VX2418C",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Purple, 128 ГБ Tecno, SPARK",
+"b": "Смартфон Tecno Spark 50, 6 GB, 128 GB, Titanium Grey (KN4N)",
+"label": "different",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Видеокарта 2 GB OCPC GT 730 OCVNGT730G2",
+"b": "Видеокарта OCPC GT 730 2GB (OCVNGT730G2)",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Apple AirPods Max Midnight беспроводные наушники (MWW43)",
+"b": "Наушники APPLE AirPods MAX (MWW63ZE/A) Blue",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Гарнитура HyperX Cloud Flight 2 Wireless - White (B5VC5AA)",
+"b": "Игровая гарнитура HyperX CLOUD Flight 2 Wireless B5VC4AA (Black)",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "ASRock B850M PRO RS WIFI DDR5",
+"b": "Материнская плата ASRock B850M PRO RS, AM5",
+"label": "different",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Материнская плата ASRock Z690 PHANTOM GAMING 4/D5 (Z690 PHANTOM GAMING 4/D5)",
+"b": "Материнская плата ASRock Z690 Phantom Gaming 4/D5, LGA1700",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Процессор Intel Core i5 10400 OEM",
+"b": "Процессор Intel Core i5 10400, LGA1200, OEM (SRH3C)",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Intel Pentium G7400 BOX",
+"b": "Процессор CPU S-1700 Intel Pentium Gold G7400 OEM",
+"label": "different",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Беспроводные наушники Xiaomi OpenWear Stereo, бежевый Xiaomi, OpenWear",
+"b": "Наушники Xiaomi OpenWear Stereo Cosmic Gray",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Смарт-часы GARMIN Fenix 8 47mm, AMOLED, сапфир, светлые, оранжевый силикон, 010-02904-11",
+"b": "Смарт-часы Garmin Fenix 8 010-02905-40 51mm Black with Chestnut Leather Band",
+"label": "different",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Телевизор HISENSE QLED 43E77SL UHD SMART",
+"b": "Телевизор Hisense 43\" QLED 43E77SL UHD Smart",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Bluetooth гарнитура Razer Barracuda, Quartz Pink",
+"b": "Игровая гарнитура RAZER Barracuda (RZ04-03790100-R3M1) Черный",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Intel Core Ultra 5 245KF 1851 OEM",
+"b": "Процессор Intel Core Ultra 5 245KF TRAY (AT8076806414)",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Bluetooth гарнитура Defender FreeMotion B640, Beige",
+"b": "Наушники Defender FreeMotion B640 Beige бежевый",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Телевизор HISENSE QLED 50E7Q UHD SMART",
+"b": "Телевизор Hisense 50E7Q (50E7Q RU)",
+"label": "same",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Процессор Intel Core i7 12700, LGA1700, BOX",
+"b": "Процессор Intel Core i7-12700 (2.1GHz, 25MB, LGA1700) tray (CM8071504555019SRL4Q)",
+"label": "different",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Процессор AMD Ryzen 7 PRO 4750G TRAY",
+"b": "Процессор AMD Ryzen 7 PRO 4750G, AM4, OEM",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Корпус Ocypus Iota C50 BK Curve ARGB Digital, Black",
+"b": "Корпус Ocypus Iota C50 WH Curve ARGB Digital Белый Iota-C50-WHD300CD-GL",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+},
+{
+"a": "Смартфон Camon 50 (CN5) 256 ГБ, 6.78’’, 8 Гб, зеленый Tecno",
+"b": "Смартфон Tecno Camon 50, 12 GB, 256 GB, Moonshadow Black (CN5)",
+"label": "different",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Black, 128 ГБ Tecno, SPARK",
+"b": "Смартфон Tecno Spark 50, 4 GB, 128 GB, Ink Black (KN4N)",
+"label": "different",
+"strata": [
+"holdout_dropped_both_k2"
+]
+},
+{
+"a": "Intel Core i7 13700KF OEM",
+"b": "Процессор Intel Core i7 13700KF, LGA1700, OEM",
+"label": "same",
+"strata": [
+"holdout_added"
+]
+}
+],
+"holdout": "Отложенная выборка seed 20261031: 90 новых и 60 потерянных k2-пар, не входивших в первую разметку. Размечена вслепую ПОСЛЕ изменения правил и на их подбор не влияла; OEM/BOX в ней уже different."
 }

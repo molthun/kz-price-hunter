@@ -217,6 +217,71 @@ def build(data, sample):
     }, reg
 
 
+def pair_keys_now(pair_fields, a, b, legacy_a, legacy_b):
+    """Ключи пары по нынешним правилам из сохранённых полей. Связь по артикулу — только внутри пары: группы каталога
+    здесь нет, это оценка правил, а не пересборка копии. Без полей остаётся прежний ключ."""
+    fa, fb = pair_fields.get(a), pair_fields.get(b)
+    entries = {t: f for t, f in ((a, fa), (b, fb)) if isinstance(f, dict)}
+    keys = product_key.resolve_keys_with_articles(entries) if entries else {}
+    return keys.get(a) or (None if fa else legacy_a), keys.get(b) or (None if fb else legacy_b)
+
+
+def rules_now(data, sample):
+    """Та же оценка после изменения правил: ключи пересчитаны, метки и размеры слоёв прежние."""
+    fields, old = {}, {}
+    for p in data["dropped"]:
+        fields.update({p["a"]: p["fields_a"], p["b"]: p["fields_b"]})
+        old[(p["a"], p["b"])] = (p["new_a"], p["new_b"])
+    for p in data["added"]:
+        fields.update({p["a"]: p["fields_a"], p["b"]: p["fields_b"]})
+        old[(p["a"], p["b"])] = (p["new"], p["new"])
+    for title, row in data["eval_inputs"].items():
+        fields.setdefault(title, row["fields"])
+    keys, inputs = pair_keys(data), data["eval_inputs"]
+
+    def outcome(rows):
+        counts = collections.Counter()
+        for row in rows:
+            found = lookup(row, keys, inputs)
+            label = "different" if row["label"] == "packaging" else row["label"]
+            if not found or label == "uncertain":
+                counts["excluded"] += 1
+                continue
+            now_a, now_b = pair_keys_now(fields, row["a"], row["b"], found[2], found[3])
+            before = bool(found[2]) and found[2] == found[3]
+            now = bool(now_a) and now_a == now_b
+            side = "tp" if label == "same" else "fp"
+            counts[f"before_{side}"] += before
+            counts[f"now_{side}"] += now
+            counts[f"{'true' if label == 'same' else 'false'}_total"] += 1
+        return {k: counts.get(k, 0) for k in ("before_tp", "now_tp", "before_fp", "now_fp", "true_total", "false_total", "excluded")}
+
+    pick = lambda name: [r for r in sample["pairs"] if name in r["strata"]]
+    strata = {"holdout_added": outcome(pick("holdout_added")), "holdout_dropped_both_k2": outcome(pick("holdout_dropped_both_k2")),
+              "tuned_added": outcome(pick("added")), "tuned_dropped_both_k2": outcome(pick("dropped_both_k2")),
+              "retained_pool": outcome(pick("retained") + pick("retained_pool")),
+              "dropped_mixed": outcome(pick("dropped_mixed"))}
+    sizes = {"retained": data["pairs"]["retained"], "added": data["pairs"]["added"], "both": 0, "mixed": 0}
+    for p in data["dropped"]:
+        sizes["both" if p["fields_a"] and p["fields_b"] else "mixed"] += 1
+
+    def per_pair(stat, name):
+        return stat[name] / max(1, stat["true_total"] + stat["false_total"])
+    ret, add, both, mixed = (strata["retained_pool"], strata["holdout_added"], strata["holdout_dropped_both_k2"], strata["dropped_mixed"])
+    estimate = {}
+    for name in ("tp", "fp"):
+        estimate[f"now_{name}"] = round(sizes["retained"] * per_pair(ret, f"now_{name}") + sizes["added"] * per_pair(add, f"now_{name}")
+                                        + sizes["both"] * per_pair(both, f"now_{name}") + sizes["mixed"] * per_pair(mixed, f"now_{name}"))
+        estimate[f"copy_{name}"] = round(sizes["retained"] * per_pair(ret, f"before_{name}") + sizes["added"] * per_pair(add, f"before_{name}")
+                                         + sizes["both"] * per_pair(both, f"before_{name}") + sizes["mixed"] * per_pair(mixed, f"before_{name}"))
+    together = sum(1 for p in data["added"] if (lambda k: k[0] and k[0] == k[1])(pair_keys_now(fields, p["a"], p["b"], p["new"], p["new"])))
+    rejoined = sum(1 for p in data["dropped"] if p["fields_a"] and p["fields_b"]
+                   and (lambda k: k[0] and k[0] == k[1])(pair_keys_now(fields, p["a"], p["b"], p["new_a"], p["new_b"])))
+    return {"strata": strata, "sizes": sizes, "catalog_estimate": estimate,
+            "added_still_together": together, "dropped_both_k2_rejoined": rejoined,
+            "limits": "Только пары прежних слоёв: пары, которые правила могли соединить заново вне их, не видны; нужна пересборка копии."}
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--data", default=str(DEFAULT_DATA))
@@ -227,6 +292,9 @@ def main():
     report, reg = build(json.loads(Path(args.data).read_text(encoding="utf-8")),
                         json.loads(Path(args.labels).read_text(encoding="utf-8")))
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+    Path(args.out).write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
+    report["rules_now"] = rules_now(json.loads(Path(args.data).read_text(encoding="utf-8")),
+                                    json.loads(Path(args.labels).read_text(encoding="utf-8")))
     Path(args.out).write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
     if args.registry:
         Path(args.registry).write_text(json.dumps(reg, ensure_ascii=False), encoding="utf-8")

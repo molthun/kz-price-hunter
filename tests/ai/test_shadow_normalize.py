@@ -127,6 +127,102 @@ class KeyRulesTest(unittest.TestCase):
                 self.assertEqual(product_key.compare_keys(primary, sk), expected)
 
 
+class ClassRulesTest(unittest.TestCase):
+    """Правила задачи качества ключей: что разделяется и что при этом не должно разойтись."""
+    def key(self, title, brand, model, sku=None, **kw):
+        return product_key.build_key({"brand": brand, "model": model, "sku": sku, "edition": None,
+                                      "variants": [], "unbranded": False, **kw}, title)
+
+    def test_packaging(self):
+        oem = self.key("AMD Ryzen 5 7600X OEM", "AMD", "Ryzen 5 7600X")
+        tray = self.key("Процессор AMD Ryzen 5 7600X Tray", "AMD", "Ryzen 5 7600X")
+        box = self.key("AMD Ryzen 5 7600X BOX", "AMD", "Ryzen 5 7600X")
+        wof = self.key("AMD Ryzen 5 7600X WOF", "AMD", "Ryzen 5 7600X")
+        cooler = self.key("Процессор AMD Ryzen 5 7600X, OEM - с кулером", "AMD", "Ryzen 5 7600X")
+        self.assertEqual(oem, tray)
+        self.assertEqual(box, wof)
+        self.assertEqual(box, cooler)
+        self.assertNotEqual(oem, box)
+        self.assertEqual(self.key("DDR-5 Kingston Fury, BOX (KF560C36BBEAK2-64)", "Kingston", "Fury", "KF560C36BBEAK2-64"),
+                         self.key("Память DIMM DDR5 Kingston KF560C36BBEAK2-64", "Kingston", "Fury", "KF560C36BBEAK2-64"),
+                         "у памяти box — не поставка процессора")
+
+    def test_cable_length(self):
+        one = self.key("Patch cord RJ-45 Cablexpert PP12-1M/G, UTP, 1m, Green", "Cablexpert", "PP12-1M/G")
+        same = self.key("Патч-корд Cablexpert PP12 1 м Cablexpert", "Cablexpert", "PP12")
+        half = self.key("Patch cord RJ-45 Cablexpert PP12-0.5M/O, UTP, 0.5m", "Cablexpert", "PP12-0.5M/O")
+        self.assertEqual(one, same)
+        self.assertEqual(one, "k2:cablexpert:pp12:1m")
+        self.assertNotEqual(one, half)
+        self.assertNotEqual(self.key("Сетевой фильтр Defender ES Largo, 5м", "Defender", "ES Largo"),
+                            self.key("Фильтр сетевой Defender ES Largo 1.8 м", "Defender", "ES Largo"))
+
+    def test_watch_size(self):
+        self.assertNotEqual(self.key("Смарт-часы GARMIN Fenix 8 47mm", "Garmin", "Fenix 8"),
+                            self.key("Смарт-часы Garmin Fenix 8 43mm", "Garmin", "Fenix 8"))
+        self.assertEqual(self.key("Смарт-часы Garmin Fenix 8 51 мм", "Garmin", "Fenix 8"),
+                         self.key("Смарт-часы GARMIN Fenix 8 51mm", "Garmin", "Fenix 8"))
+
+    def test_memory_identified_by_code(self):
+        self.assertNotEqual(self.key("Оперативная память 32 GB kit Kingston Fury Beast KF560C30BBEK2-32", "Kingston", "Fury Beast"),
+                            self.key("Оперативная память 32 GB Kingston Fury Beast KF432C16BB1K2/32", "Kingston", "Fury Beast"))
+        self.assertEqual(self.key("Оперативная память 8Gb Transcend TS3200HLB-8G", "Transcend", "TS3200HLB-8G"),
+                         self.key("Память оперативная DDR4 Desktop Transcend 8Гб (TS3200HLB-8G)", "Transcend", "TS3200HLB"))
+        self.assertNotEqual(self.key("DDR-4 DIMM 16 GB Netac Basic, BOX (NTBSD4P32SP-16)", "Netac", "Basic"),
+                            self.key("Оперативная память 16Gb Netac Basic NTBSD5P56SP-16", "Netac", "Basic"))
+
+    def test_board_wifi_and_headset_modification(self):
+        self.assertNotEqual(self.key("ASRock B850M-X WIFI R2.0", "ASRock", "B850M-X"),
+                            self.key("Материнская плата ASRock B850M-X R2.0, AM5", "ASRock", "B850M-X"))
+        self.assertNotEqual(self.key("Гарнитура Jabra Evolve2 85 Link380a MS Stereo", "Jabra", "Evolve2 85"),
+                            self.key("Гарнитура Jabra Evolve2 85 Link380c MS Stereo", "Jabra", "Evolve2 85"))
+        self.assertNotEqual(self.key("Гарнитура Jabra Evolve2 85 Link380a MS Stereo", "Jabra", "Evolve2 85"),
+                            self.key("Гарнитура Jabra Evolve2 85 Link380a UC Stereo", "Jabra", "Evolve2 85"))
+        self.assertNotEqual(self.key("Гарнитура Jabra Evolve2 65 Flex Link380a", "Jabra", "Evolve2 65"),
+                            self.key("Гарнитура Jabra Evolve2 65 Link380a", "Jabra", "Evolve2 65"))
+
+    def test_accessory_is_not_the_device(self):
+        self.assertNotEqual(self.key("Игровая приставка Sony PlayStation 5 Белый +Геймпад", "Sony", "PlayStation 5"),
+                            self.key("Пульт для Sony PlayStation 5, White", "Sony", "PlayStation 5"))
+
+    def test_marketing_and_stray_variants_do_not_split(self):
+        self.assertEqual(self.key("Телевизор HISENSE QLED 50E7S UHD SMART", "Hisense", "QLED 50E7S"),
+                         self.key("Телевизор Hisense QLED 50E7S 50\" (50E7S)", "Hisense", "50E7S"))
+        phone = [{"value": 256, "unit": "гб"}, {"value": 8, "unit": "гб"}]
+        self.assertEqual(self.key("Смартфон TECNO SPARK 50 Pro 8 ГБ/256 ГБ, 6.78’’", "Tecno", "Spark 50 Pro",
+                                  variants=phone + [{"value": 6.78, "unit": "дюйм"}]),
+                         self.key("Смартфон Tecno Spark 50 Pro, 8 GB, 256 GB", "Tecno", "Spark 50 Pro", variants=phone))
+        self.assertEqual(self.key("SSD LEXAR NS100 512GB, 2.5”, SATA (6Gb/s)", "Lexar", "NS100"),
+                         self.key("SSD накопитель 512GB LEXAR NS100", "Lexar", "NS100"))
+
+    def test_marks_are_not_undone_by_article_link(self):
+        """Метка ставится в build_key, но модель-артикул связывает названия: связь должна учитывать метки."""
+        for a, b, fields_ in (("AMD Ryzen 7 7700X BOX", "Процессор AMD Ryzen 7 7700X OEM",
+                               {"brand": "AMD", "model": "Ryzen 7 7700X", "sku": None}),
+                              ("ASRock B850M-X WIFI R2.0", "Материнская плата ASRock B850M-X R2.0",
+                               {"brand": "ASRock", "model": "B850M-X", "sku": None}),
+                              ("Игровая приставка Sony PlayStation 5", "Пульт для Sony PlayStation 5",
+                               {"brand": "Sony", "model": "PlayStation 5", "sku": None})):
+            with self.subTest(a=a):
+                f = {**fields_, "variants": [], "unbranded": False}
+                keys = product_key.resolve_keys_with_articles({a: f, b: f})
+                self.assertNotEqual(keys[a], keys[b])
+
+    def test_same_verdict_cannot_merge_marks(self):
+        self.assertTrue(product_key.keys_conflict("k2:amd:ryzen77700", "k2:amd:ryzen77700.box"))
+        self.assertTrue(product_key.keys_conflict("k2:asrock:b850mx", "k2:asrock:b850mx.wifi"))
+        self.assertFalse(product_key.keys_conflict("k2:amd:ryzen77700.box", "k2:amd:ryzen77700.box"))
+
+    def test_board_with_ddr_is_not_memory(self):
+        self.assertEqual(self.key("ASRock B850M PRO RS WIFI DDR5", "ASRock", "B850M PRO RS"), "k2:asrock:b850mprors.wifi")
+
+    def test_adapter_in_sku_does_not_link_models(self):
+        f = {"brand": "Jabra", "sku": "Link380a MS Stereo", "variants": [], "unbranded": False}
+        keys = product_key.resolve_keys_with_articles({"Jabra Evolve2 65": {**f, "model": "Evolve2 65"},
+                                                       "Jabra Evolve2 85": {**f, "model": "Evolve2 85"}})
+        self.assertNotEqual(keys["Jabra Evolve2 65"], keys["Jabra Evolve2 85"])
+
+
 class CompletenessTest(unittest.TestCase):
     def test_only_confirmed_absence_is_no_identity(self):
         cases = [({}, "incomplete"), ({"title": "x"}, "incomplete"),
@@ -850,6 +946,20 @@ class C2QualityReportTest(unittest.TestCase):
                             {"a": "e1", "b": "e2", "label": "same", "strata": ["old_set"]}]
         report, _ = c2.build(data, sample)
         self.assertEqual(report["labels"]["without_keys"], 1)
+
+    def test_rules_now_uses_current_rules_with_same_labels(self):
+        """Ключи пересчитываются из полей, метки прежние; без полей остаётся прежний ключ."""
+        cpu = {"brand": "AMD", "model": "Ryzen 7 7700", "sku": None, "variants": [], "unbranded": False}
+        data = {"dropped": [{"a": "t1", "b": "t2", "old": "x:y", "new_a": "k2:x:y", "new_b": "x:y", "fields_a": self.FIELDS, "fields_b": None}],
+                "added": [{"a": "AMD Ryzen 7 7700 BOX", "b": "AMD Ryzen 7 7700 OEM", "new": "k2:amd:ryzen77700", "old_a": "a:b", "old_b": "a:c",
+                           "fields_a": cpu, "fields_b": cpu}],
+                "eval_inputs": {}, "pairs": {"retained": 0, "added": 1, "dropped": 1}, "key_counts": {}}
+        sample = {"pairs": [{"a": "AMD Ryzen 7 7700 BOX", "b": "AMD Ryzen 7 7700 OEM", "label": "packaging", "strata": ["holdout_added"]},
+                            {"a": "t1", "b": "t2", "label": "same", "strata": ["dropped_mixed"]}]}
+        out = c2.rules_now(data, sample)
+        self.assertEqual((out["strata"]["holdout_added"]["before_fp"], out["strata"]["holdout_added"]["now_fp"]), (1, 0))
+        self.assertEqual(out["strata"]["dropped_mixed"]["now_tp"], 0, "без полей пара не восстанавливается")
+        self.assertEqual(out["added_still_together"], 0)
 
     def test_labelled_sample_file_is_consistent(self):
         sample = json.loads((ROOT / "scripts" / "k2_labeled_sample.json").read_text(encoding="utf-8"))

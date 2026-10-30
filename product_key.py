@@ -66,6 +66,8 @@ _NOISE = {
     "black", "white", "gray", "grey", "blue", "green", "red", "silver", "gold", "purple", "pink",
     "beige", "yellow", "orange", "brown", "graphite", "midnight", "starlight", "titanium", "natural",
     "new", "новинка", "original", "оригинал", "global", "version", "eu", "ru", "kz",
+    # Маркетинг телевизоров: «QLED 50E7S» и «50E7S» — одна модель (разбор потерь C2)
+    "qled", "oled", "miniled", "led", "uhd", "fhd", "smart", "tv", "4k",
     # Имена линеек производителя чипа, которые одни магазины пишут, а другие нет (замер C2)
     "geforce", "radeon",
 }
@@ -165,7 +167,7 @@ def _fmt(number: float) -> str:
 
 # Объём памяти и диагональ код берёт из самого названия: по замеру C2 модель через раз не вписывала их в
 # variants («Kingston NV3 2 TB» → то с «2048gb», то без), и один товар расходился по двум ключам.
-_TITLE_VARIANT_RE = re.compile(r"(?<![\w.])(\d+(?:[.,]\d+)?)\s*(гб|gb|тб|tb|см|дюйм\w*|\"|''|”)(?![a-zа-я])")
+_TITLE_VARIANT_RE = re.compile(r"(?<![\w.])(\d+(?:[.,]\d+)?)\s*(гб|gb|тб|tb|см|дюйм\w*|\"|''|”)(?![a-zа-я])(?!/s\b)")
 
 
 def title_variants(title: Any) -> List[Dict[str, Any]]:
@@ -213,8 +215,8 @@ def variant_tokens(variants: Any) -> List[str]:
         value_c = number * mult
         if canon == "mm" and 500 <= value_c <= 2500:
             canon, value_c = "in", round(value_c / 25.4)       # диагональ экрана в сантиметрах
-        if canon not in KEY_UNITS:
-            continue
+        if canon not in KEY_UNITS or (canon == "in" and value_c < 10):
+            continue                                        # экран телефона (6.78") не отличает его варианты
         out.add(_storage(value_c) if canon == "gb" else _fmt(value_c) + canon)
     return sorted(out)[:4]
 
@@ -232,6 +234,26 @@ _COMPONENT_WORD_RE = re.compile(r"процессор|видеокарт|(?<![a-z
 _SYSTEM_PARTS = (r"(?<![a-z])ram(?![a-z])|озу", r"ssd|hdd|nvme", r"dvd", r"(?<![a-z0-9])\d{3,4}\s?(?:w|вт)(?![a-z])",
                  r"windows|win ?1[01]|freedos|dos(?![a-z])")
 SYSTEM_MARK = ".system"
+_MARK_RE = re.compile(r"\.(system|box|wifi|flex|acc|ms|uc|link\d+[a-z]?)(?=\.|$)")
+# Правила задачи качества ключей (разбор ложных склеек C2). Действуют только в своём классе товаров: в других
+# те же слова ничего не значат
+_CPU_RE = re.compile(r"^(?:ryzen|athlon|threadripper|epyc|core|i[3579]\d|xeon|pentium|celeron)")
+_BOX_RE = re.compile(r"(?<![a-z])(?:box|wof)(?![a-z])|бокс|с кулером|with\b.*\bcooler")
+_CABLE_RE = re.compile(r"кабел|патч|patch cord|шнур|удлинител|сетевой фильтр|фильтр сетевой")
+_LENGTH_RE = re.compile(r"(?<![\w.,])(\d+(?:[.,]\d+)?)\s?(?:м|m)(?![a-zа-я0-9])")
+_LENGTH_IN_CODE_RE = re.compile(r"[-\s]?\d+(?:[.,]\d+)?\s?[mм](?:/[a-z]{1,2})?(?![a-zа-я0-9])")
+_WATCH_RE = re.compile(r"часы|watch|fenix|forerunner|epix")
+_WATCH_SIZE_RE = re.compile(r"(?<![\d.,])(3[89]|4\d|5[0-5])\s?(?:мм|mm)(?![a-zа-я])")
+_RAM_RE = re.compile(r"оперативн|память\b.*\b(?:ddr|dimm)|модул\w* памяти|(?<![a-z])(?:dimm|ddr-?[345])(?![a-z])")
+_RAM_CODE_RE = re.compile(r"(?<![a-z0-9])[a-z]{2,}\d[a-z0-9/-]{5,}")
+_DDR_RE = re.compile(r"(?<![a-z])ddr-?([345])(?![0-9])")
+_BOARD_BRANDS = {"asrock", "asus", "msi", "gigabyte", "maxsun", "biostar"}
+_CHIPSET_RE = re.compile(r"^[abhxz]\d{3}")
+_WIFI_RE = re.compile(r"wi-?fi")
+_BOARD_RE = re.compile(r"материнск")
+_ACCESSORY_RE = re.compile(r"^\W*(?:пульт|геймпад|контроллер|чехол|стекло|пл[её]нка|ремешок|держатель|сумка|зарядн\w*)(?![a-zа-я])")
+_ADAPTER_RE = re.compile(r"(?<![a-z0-9])link\s?(\d{2,3}[a-z]?)(?![a-z0-9])")
+_PLATFORM_RE = re.compile(r"(?<![a-z])(ms|uc)(?![a-z])")
 _CHIP_IN_TITLE_RE = re.compile(r"ryzen|athlon|threadripper|epyc|core\s?i\d|(?<![a-z0-9])i[3579]-\d|xeon|pentium|celeron|"
                                r"(?<![a-z0-9])(?:rtx|gtx|rx)\s?\d")
 _SPEED_CLASS_RE = re.compile(r"карт\w* памяти|micro ?sd|sdxc|sdhc|(?<![a-z0-9])[ua][123](?![a-z0-9])")
@@ -275,6 +297,48 @@ def _short_sku_suffix(fields: Dict[str, Any], identity: str, brand: str, title: 
     return sku if identity + sku in compact else ""
 
 
+def _strong_code(fields: Dict[str, Any], brand: str, title: str) -> Optional[str]:
+    """Полный код производителя: из поля артикула, иначе из названия."""
+    sku = model_token(fields.get("sku"), brand)
+    if sku and _STRONG_ARTICLE.match(sku):
+        return sku
+    found = _RAM_CODE_RE.search(title)
+    return re.sub(r"[^a-z0-9]", "", found.group(0)) if found else None
+
+
+def _class_marks(identity: str, brand: str, title: str) -> str:
+    """Метки того, что внутри класса товаров делает его другим товаром, а ключ по модели не видит: поставка процессора
+    (решение владельца: OEM и BOX разные), Wi-Fi платы, адаптер и платформа гарнитуры, аксессуар к товару."""
+    marks = []
+    if _CPU_RE.match(identity) and _BOX_RE.search(title):
+        marks.append("box")
+    if brand in _BOARD_BRANDS and _CHIPSET_RE.match(identity) and _WIFI_RE.search(title) and "wifi" not in identity:
+        marks.append("wifi")
+    if brand == "jabra":
+        if "flex" in title and "flex" not in identity:
+            marks.append("flex")
+        adapter, platform = _ADAPTER_RE.search(title), _PLATFORM_RE.search(title)
+        marks += [f"link{adapter.group(1)}"] if adapter else []
+        marks += [platform.group(1)] if platform else []
+    if _ACCESSORY_RE.search(title):
+        marks.append("acc")
+    return "".join(f".{m}" for m in marks)
+
+
+def _class_variants(title: str, ram_without_code: bool) -> List[str]:
+    """Размеры, которые только в своём классе отличают товар: длина кабеля, диаметр часов, тип памяти без кода."""
+    if _CABLE_RE.search(title):
+        found = _LENGTH_RE.search(title)
+        return [f"{_fmt(float(found.group(1).replace(',', '.')))}m"] if found else []
+    if _WATCH_RE.search(title):
+        found = _WATCH_SIZE_RE.findall(title)
+        return [f"{found[-1]}mm"] if found else []
+    if ram_without_code:
+        found = _DDR_RE.search(title)
+        return [f"ddr{found.group(1)}"] if found else []
+    return []
+
+
 def build_key(fields: Any, title: Any = None) -> Optional[str]:
     """Ключ по стандарту из полей модели или None (без бренда, без модели и артикула, мусор).
 
@@ -285,15 +349,24 @@ def build_key(fields: Any, title: Any = None) -> Optional[str]:
     brand = brand_token(fields.get("brand"))
     if not brand:
         return None
-    identity = (model_token(fields.get("model"), brand, (fields.get("sku"), fields.get("edition")))
-                or model_token(fields.get("sku"), brand))
+    text = _text(title)
+    model, sku = fields.get("model"), fields.get("sku")
+    if _CABLE_RE.search(text):
+        # Длина и цвет в коде кабеля (PP12-3M/B) — не другая модель: длина уйдёт в варианты
+        model, sku = (_LENGTH_IN_CODE_RE.sub("", _text(v)) if isinstance(v, str) else v for v in (model, sku))
+    identity = model_token(model, brand, (sku, fields.get("edition"))) or model_token(sku, brand)
     if not identity:
         return None
+    is_ram = bool(_RAM_RE.search(text)) and not _BOARD_RE.search(text) and not _CHIPSET_RE.match(identity)
+    ram_code = _strong_code(fields, brand, text) if is_ram else None
+    # У памяти линейка (Fury Beast) объединяет разные частоты и типы, товар определяет только код
+    identity = ram_code or identity
     identity += _short_sku_suffix(fields, identity, brand, title)
     revision = _revision(fields, identity, title)
     if revision:
         identity = re.sub(rf"(?:v|ver|rev)\.?{re.escape(revision[1:])}$", "", identity) or identity
     plain_identity = identity                           # метки не участвуют в проверке «диагональ в номере модели»
+    identity += _class_marks(plain_identity, brand, text)
     if revision:
         identity += f".{revision}"
     if _is_system(plain_identity, title):
@@ -307,6 +380,7 @@ def build_key(fields: Any, title: Any = None) -> Optional[str]:
         variants = sorted({v for v in variants if re.sub(r"^[0-9.]+", "", v) not in own} | set(from_title))[:4]
     # Диагональ, которая уже есть в номере модели (65E7S, 27GP850, U11), в ключ не идёт: одни магазины
     # пишут «65"», другие нет, и один телевизор расходился по двум ключам (замер C2)
+    variants = sorted(set(variants) | set(_class_variants(text, is_ram and not ram_code)))[:4]
     variants = [v for v in variants
                 if not (v.endswith("in") and re.search(rf"(?<![0-9]){re.escape(v[:-2].split('.')[0])}(?![0-9])", plain_identity))]
     key = f"{KEY_VERSION}:{brand}:{identity}"
@@ -357,6 +431,11 @@ def fields_usable(fields: Any) -> bool:
     return no_key_reason(fields) != "incomplete"
 
 
+def marks_of(key: str) -> frozenset:
+    """Метки класса в идентичности ключа: то, что делает товар другим при той же модели (без ревизии)."""
+    return frozenset(_MARK_RE.findall(_identity_of(key)))
+
+
 def is_system_key(key: str) -> bool:
     return _identity_of(key).endswith(SYSTEM_MARK)
 
@@ -403,7 +482,7 @@ def keys_conflict(a: str, b: str) -> bool:
     """Ключи заведомо о разном, и никакой вердикт их не склеит: варианты, ревизия, компонент и готовый компьютер.
     Работает и со старым форматом (аудит C45R-01)."""
     va, vb, ra, rb = _key_variants(a), _key_variants(b), revision_of(a), revision_of(b)
-    return bool((va and vb and va != vb) or (ra and rb and ra != rb) or is_system_key(a) != is_system_key(b))
+    return bool((va and vb and va != vb) or (ra and rb and ra != rb) or marks_of(a) != marks_of(b))
 
 
 def _title_revision(title: str) -> str:
@@ -595,7 +674,8 @@ def link_by_article(
     # Ревизия и «готовый компьютер» — тоже по полям: ключ мог быть назначен прежней группой (аудит C45-01)
     own_keys = {t: _fields_key(entries[t][0], t, entries[t][1]) for t in titles}
     revisions = {t: ({revision_of(own_keys[t])} - {""}) for t in titles}
-    systems = {t: is_system_key(own_keys[t]) for t in titles}
+    # Метки (компьютер, поставка, Wi-Fi, адаптер, аксессуар) различают товар, и общий артикул этого не отменяет
+    marks = {t: marks_of(own_keys[t]) for t in titles}
     members = {t: {t} for t in titles}
 
     def root(t):
@@ -629,8 +709,8 @@ def link_by_article(
                 if a == b:
                     continue
                 verdict = verdicts.get(pair_hash(first, other))
-                if systems[first] != systems[other]:
-                    continue                            # процессор и компьютер с ним: не спор, а разные товары
+                if marks[first] != marks[other]:
+                    continue                            # процессор и компьютер с ним, OEM и BOX: не спор, а разные товары
                 if first in ambiguous or other in ambiguous:
                     reason = "ambiguous_variants"
                 elif len(variants[a] | variants[b]) > 1:

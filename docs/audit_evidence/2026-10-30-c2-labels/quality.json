@@ -1,14 +1,14 @@
 {
  "labels": {
-  "pairs": 459,
+  "pairs": 609,
   "without_keys": 2,
   "by_label": {
-   "same": 326,
-   "different": 69,
-   "uncertain": 24,
+   "same": 438,
+   "different": 102,
+   "uncertain": 29,
    "packaging": 40
   },
-  "unique_titles": 638
+  "unique_titles": 848
  },
  "strata_sizes": {
   "retained": 899,
@@ -1118,16 +1118,89 @@
    "identity_differs_other": 181
   },
   "added": {
-   "old_format_only": 155,
-   "old_variant_differs": 1966,
+   "old_format_only": 157,
+   "old_variant_differs": 1967,
    "same_identity_new_old_empty": 0,
-   "own_keys_equal_old_identity_differs": 468,
-   "linked_by_article": 106
+   "own_keys_equal_old_identity_differs": 319,
+   "linked_by_article": 252
   }
  },
  "titles": {
   "k2": 18461,
   "legacy": 1104,
   "empty": 568
+ },
+ "rules_now": {
+  "strata": {
+   "holdout_added": {
+    "before_tp": 70,
+    "now_tp": 69,
+    "before_fp": 18,
+    "now_fp": 3,
+    "true_total": 70,
+    "false_total": 18,
+    "excluded": 2
+   },
+   "holdout_dropped_both_k2": {
+    "before_tp": 0,
+    "now_tp": 21,
+    "before_fp": 0,
+    "now_fp": 0,
+    "true_total": 42,
+    "false_total": 15,
+    "excluded": 3
+   },
+   "tuned_added": {
+    "before_tp": 73,
+    "now_tp": 71,
+    "before_fp": 22,
+    "now_fp": 0,
+    "true_total": 73,
+    "false_total": 22,
+    "excluded": 5
+   },
+   "tuned_dropped_both_k2": {
+    "before_tp": 0,
+    "now_tp": 14,
+    "before_fp": 0,
+    "now_fp": 0,
+    "true_total": 42,
+    "false_total": 12,
+    "excluded": 6
+   },
+   "retained_pool": {
+    "before_tp": 45,
+    "now_tp": 45,
+    "before_fp": 7,
+    "now_fp": 1,
+    "true_total": 45,
+    "false_total": 7,
+    "excluded": 0
+   },
+   "dropped_mixed": {
+    "before_tp": 0,
+    "now_tp": 0,
+    "before_fp": 0,
+    "now_fp": 0,
+    "true_total": 27,
+    "false_total": 30,
+    "excluded": 3
+   }
+  },
+  "sizes": {
+   "retained": 899,
+   "added": 2695,
+   "both": 411,
+   "mixed": 660
+  },
+  "catalog_estimate": {
+   "now_tp": 3043,
+   "copy_tp": 2922,
+   "now_fp": 109,
+   "copy_fp": 672
+  },
+  "added_still_together": 2143,
+  "dropped_both_k2_rejoined": 139,
+  "limits": "Только пары прежних слоёв: пары, которые правила могли соединить заново вне их, не видны; нужна пересборка копии."
  }
 }
