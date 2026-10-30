@@ -1,0 +1,11 @@
+{
+  "at": "2026-10-30T15:36:56.345809+00:00",
+  "problems": [],
+  "diag_status": "ok",
+  "version": "6.7.1",
+  "flags": {
+    "ai_key_standard": "v1",
+    "local_normalize_enabled": false
+  },
+  "search_configured": false
+}

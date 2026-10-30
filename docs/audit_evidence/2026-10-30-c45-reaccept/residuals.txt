@@ -1,0 +1,92 @@
+test_compare_preserves_units (__main__.Residuals.test_compare_preserves_units) ... FAIL
+test_incomplete_item_does_not_clear_known_identity (__main__.Residuals.test_incomplete_item_does_not_clear_known_identity) ... FAIL
+test_real_mismatch_neighbor_reaches_verdict (__main__.Residuals.test_real_mismatch_neighbor_reaches_verdict) ... ok
+test_resume_keeps_counters_for_committed_batches (__main__.Residuals.test_resume_keeps_counters_for_committed_batches) ... FAIL
+test_same_verdict_respects_revisions_with_legacy_keys (__main__.Residuals.test_same_verdict_respects_revisions_with_legacy_keys) ... FAIL
+
+======================================================================
+FAIL: test_compare_preserves_units (__main__.Residuals.test_compare_preserves_units)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-30-c45-reaccept/residuals.py", line 68, in test_compare_preserves_units
+    self.assertTrue(all(v != 'matched' for v in actual), 'numeric equality erased unit and capacity differences')
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true : numeric equality erased unit and capacity differences
+
+======================================================================
+FAIL: test_incomplete_item_does_not_clear_known_identity (__main__.Residuals.test_incomplete_item_does_not_clear_known_identity)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-30-c45-reaccept/residuals.py", line 61, in test_incomplete_item_does_not_clear_known_identity
+    self.assertEqual(actual, old, 'missing schema fields treated as confirmed absence of brand')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: None != 'samsung:galaxy s24:256gb' : missing schema fields treated as confirmed absence of brand
+
+======================================================================
+FAIL: test_resume_keeps_counters_for_committed_batches (__main__.Residuals.test_resume_keeps_counters_for_committed_batches)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-30-c45-reaccept/residuals.py", line 85, in test_resume_keeps_counters_for_committed_batches
+    self.assertEqual(report['run']['cumulative']['api_calls'], 2, 'first committed batch vanished from cumulative counters')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 2 : first committed batch vanished from cumulative counters
+
+======================================================================
+FAIL: test_same_verdict_respects_revisions_with_legacy_keys (__main__.Residuals.test_same_verdict_respects_revisions_with_legacy_keys)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-30-c45-reaccept/residuals.py", line 48, in test_same_verdict_respects_revisions_with_legacy_keys
+    self.assertEqual(len(set(actual.values())), 2, 'legacy cache bypasses new revision guard despite shadow fields')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 2 : legacy cache bypasses new revision guard despite shadow fields
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.216s
+
+FAILED (failures=4)
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+UNITS [(('kingston:memory:1gb', 'k2:kingston:memory:1tb'), 'matched'), (('brand:food:85g', 'k2:brand:food:85ml'), 'matched')]
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 1, в исходном снимке k2: 1
+[C4] Из них уже сохранены поля: 0
+[C4] Обработка 1 названий пачками по 20...
+[C4] Прогресс: 1/1 (100%) | Скорость: 2183.0 наим/с | ETA: 0 с | С ключом k2: 0
+INCOMPLETE_RESPONSE key= None no_identity= 1 incomplete= 0
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+VALID_MISMATCH_NEIGHBOR {'pair_hash': '084da433db4bcbb9ae40005eb27320c938424acf30c369a08f7bd5b11722e523', 'decision': 'different', 'status': 'resolved', 'verdict': {'decision': 'different'}, 'fields_source': {'a': 'shadow', 'b': 'shadow'}}
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 2, в исходном снимке resume: 2
+[C4] Из них уже сохранены поля: 0
+[C4] Обработка 2 названий пачками по 1...
+[C4] Найдено названий для миграции: 1, в исходном снимке resume: 2
+[C4] Из них уже сохранены поля: 0
+[C4] Обработка 1 названий пачками по 1...
+[C4] Прогресс: 1/1 (100%) | Скорость: 2395.4 наим/с | ETA: 0 с | С ключом k2: 1
+CRASH_RESUME {'run_id': 'resume', 'baseline_created_at': '2026-10-30T15:34:38Z', 'baseline_titles': 2, 'actual_k2_keys': 2, 'actual_legacy_keys': 0, 'actual_no_key': 0, 'cumulative': {'api_calls': 1, 'api_failures': 0, 'failed_titles': 0, 'missing_titles': 0, 'seconds': 0.0}}
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+LEGACY_REVISIONS {'pair_hash': 'e8f1efd4e53861632e47f2d96045e59bced627f9d9087768d441fa68123e10bd', 'decision': 'same', 'status': 'resolved', 'verdict': {'decision': 'same'}, 'fields_source': {'a': 'shadow', 'b': 'shadow'}} {'Sanc M2442PH V3 23.8"': 'sanc:m2442ph v2:23.8', 'Sanc M2442PH V2 23.8"': 'sanc:m2442ph v2:23.8'} V2 product_ids ['prod_8490e815fd0a844d', 'prod_8490e815fd0a844d']
