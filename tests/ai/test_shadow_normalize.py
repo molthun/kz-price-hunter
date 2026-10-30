@@ -1,0 +1,400 @@
+from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+
+import asyncio
+import json
+import sqlite3
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+import ai_service
+import database
+import monitoring
+import product_key
+import product_verify
+from scripts import migrate_to_k2 as mig
+from tests.ai.test_local_ai import _DbCase
+
+CREDS = {"local_api_base": "http://unused/v1", "local_model": "fake", "has_local": True}
+ROOT = Path(__file__).resolve().parents[2]
+PAIRS = json.loads((ROOT / "scripts" / "k2_verified_pairs.json").read_text(encoding="utf-8"))["pairs"]
+
+
+def fields(model="Galaxy S24", **kw):
+    return {"brand": "Samsung", "model": model, "sku": None, "edition": None,
+            "variants": [{"value": 256, "unit": "gb"}], "unbranded": False, **kw}
+
+
+def shadow(titles, primary, items, standard="k2"):
+    async def reply(*args, **kwargs):
+        return items if items is None or not isinstance(items, list) else {"items": items}
+    with patch.object(ai_service, "call_local_api", reply):
+        asyncio.run(ai_service._run_shadow_normalize(titles, CREDS, primary, standard))
+
+
+def working_tables():
+    with database.get_connection() as conn:
+        out = {}
+        for name in ("title_fields", "title_articles", "title_canonical_cache", "identity_aliases", "products"):
+            out[name] = [tuple(r) for r in conn.execute(f"SELECT * FROM {name} ORDER BY 1, 2")]
+    return out
+
+
+class KeyRulesTest(unittest.TestCase):
+    def test_verified_pairs(self):
+        for pair in PAIRS:
+            with self.subTest(a=pair["a"], b=pair["b"]):
+                keys = product_key.resolve_keys_with_articles({pair["a"]: pair["fields_a"], pair["b"]: pair["fields_b"]})
+                self.assertEqual(keys[pair["a"]] == keys[pair["b"]], pair["same"], keys)
+
+    def test_verified_pairs_across_batches_keep_apart(self):
+        """Порядок и сохранённый ключ не склеивают: вторая сторона приходит, когда первая уже в базе."""
+        for pair in (p for p in PAIRS if not p["same"]):
+            for first, second in ((pair["a"], pair["b"]), (pair["b"], pair["a"])):
+                fa, fb = pair["fields_a"] if first == pair["a"] else pair["fields_b"], \
+                    pair["fields_b"] if first == pair["a"] else pair["fields_a"]
+                stored = {"title": first, "fields": fa, "canonical_key": product_key.build_key(fa, first)}
+                with self.subTest(first=first):
+                    keys = product_key.resolve_keys_with_articles({second: fb}, [stored])
+                    self.assertNotEqual(keys[second], stored["canonical_key"])
+
+    def test_revision_not_bridged_by_title_without_revision(self):
+        """Название без ревизии с общим артикулом — спорное, а не мост между V2 и V3."""
+        base = {"brand": "Sanc", "model": "M2442PH", "sku": "M2442PH", "edition": None, "variants": [], "unbranded": False}
+        entries = {"a V2": {**base, "edition": "V2"}, "b V3": {**base, "edition": "V3"}, "c": base}
+        disputed = []
+        keys = product_key.resolve_keys_with_articles(entries, on_disputed=lambda a, b, r: disputed.append(r))
+        self.assertEqual(len(set(keys.values())), 3, keys)
+        self.assertTrue(any(r.startswith("revision_unknown") for r in disputed), disputed)
+
+    def test_same_verdict_cannot_merge_component_and_system(self):
+        pair = PAIRS[0]
+        verdicts = {product_key.pair_hash(pair["a"], pair["b"]): "same"}
+        keys = product_key.resolve_keys_with_articles({pair["a"]: pair["fields_a"], pair["b"]: pair["fields_b"]},
+                                                      pair_verdicts=verdicts)
+        self.assertNotEqual(keys[pair["a"]], keys[pair["b"]])
+
+    def test_ordinary_laptop_word_does_not_split(self):
+        base = {"brand": "Asus", "model": "X515", "sku": None, "edition": None, "variants": [], "unbranded": False}
+        self.assertEqual(product_key.build_key(base, "Ноутбук Asus X515"), product_key.build_key(base, "Asus X515"))
+
+    def test_bluetooth_version_is_not_revision(self):
+        base = {"brand": "JBL", "model": "Tune 520", "sku": None, "edition": None, "variants": [], "unbranded": False}
+        self.assertEqual(product_key.build_key(base, "JBL Tune 520 Bluetooth V5.3"), "k2:jbl:tune520")
+
+    def test_component_word_is_not_system(self):
+        base = {"brand": "Intel", "model": "Core i3-12100", "sku": None, "edition": None, "variants": [], "unbranded": False}
+        self.assertEqual(product_key.build_key(base, "Процессор Intel CPU Desktop Core i3-12100, LGA1700, Tray"),
+                         "k2:intel:corei312100")
+        self.assertTrue(product_key.is_system_key(product_key.build_key(base, "Компьютер Core i3-12100 16GB")))
+
+    def test_memory_card_speed_class_is_not_revision(self):
+        base = {"brand": "Kingston", "model": "Canvas Go Plus", "sku": None, "edition": None, "variants": [], "unbranded": False}
+        self.assertEqual(product_key.build_key(base, "Карта памяти Canvas Go Plus V30 64 ГБ Kingston"),
+                         "k2:kingston:canvasgoplus:64gb")
+
+    def test_title_revision_beats_model_answer(self):
+        base = {"brand": "Afox", "model": "GTX 1050 Ti", "sku": None, "edition": "V2", "variants": [], "unbranded": False}
+        self.assertEqual(product_key.revision_of(product_key.build_key(base, "Видеокарта Afox GTX 1050 Ti V9, 4 GB")), "v9")
+
+    def test_compare_keys(self):
+        cases = [("samsung:galaxy s24:256gb", "k2:samsung:galaxys24:256gb", "matched"),
+                 ("aoc:27b31h:27", "k2:aoc:27b31h", "matched"),
+                 ("aoc:24b3:23.8", "k2:aoc:24b3:23.8in", "matched"),
+                 ("samsung:galaxy s24:256gb", "k2:samsung:galaxys24ultra:256gb", "mismatch"),
+                 ("samsung:galaxy s24:128gb", "k2:samsung:galaxys24:256gb", "mismatch"),
+                 ("unknown:chechevitsa:1kg", "k2:x:y", "incomparable"),
+                 ("k2:a:b", "k2:a:c", "mismatch")]
+        for primary, sk, expected in cases:
+            with self.subTest(primary=primary):
+                self.assertEqual(product_key.compare_keys(primary, sk), expected)
+
+
+class ShadowIsolationTest(_DbCase):
+    def test_shadow_never_touches_working_tables(self):
+        title, other = "Samsung Galaxy S24 256GB", "Samsung Galaxy S24 256 ГБ"
+        primary = product_key.build_key(fields(), title)
+        database.save_cached_canonical_keys_batch({title: primary, other: primary})
+        database.save_title_fields_batch({title: fields(), other: fields()}, "k2", "gemini", "primary")
+        before = working_tables()
+        shadow([title], {title: primary}, [{"title": title, **fields("Galaxy S24 Ultra")}])    # расхождение
+        self.assertEqual(working_tables(), before)
+        shadow([title], {title: primary}, None)                                                # сбой
+        shadow([title], {title: primary}, "мусор")                                             # не тот вид
+        self.assertEqual(working_tables(), before)
+        self.assertEqual(database.get_title_fields_for_titles([title])[title], fields())
+        self.assertEqual(database.shadow_keys_for_titles([title])[title], "k2:samsung:galaxys24ultra:256gb")
+
+    def test_reverse_completion_order_keeps_primary_fields(self):
+        """Тень успела раньше основной и наоборот — рабочими остаются поля основной."""
+        title = "Samsung Galaxy S24 256GB"
+        shadow([title], {}, [{"title": title, **fields("Galaxy S24 Ultra")}])
+        database.save_title_fields_batch({title: fields()}, "k2", "gemini", "primary")
+        shadow([title], {title: "k2:samsung:galaxys24:256gb"}, [{"title": title, **fields("Galaxy S24 Ultra")}])
+        saved = database.get_title_fields_with_source([title])[title]
+        self.assertEqual((saved["source"], saved["fields"]), ("primary", fields()))
+
+
+class ShadowComparisonTest(_DbCase):
+    def test_v1_format_is_not_a_mismatch(self):
+        title = "Samsung Galaxy S24 256GB"
+        shadow([title], {title: "samsung:galaxy s24:256gb"}, [{"title": title, **fields()}], "v1")
+        summary = database.normalize_shadow_summary()
+        self.assertEqual((summary["matched"], summary["mismatch"]), (1, 0))
+
+    def test_unparsable_legacy_key_is_separate(self):
+        title = "Samsung Galaxy S24 256GB"
+        shadow([title], {title: "unknown:galaxy:256gb"}, [{"title": title, **fields()}], "v1")
+        summary = database.normalize_shadow_summary()
+        self.assertEqual(summary["by_kind"].get("incomparable"), 1)
+        self.assertIsNone(summary["match_rate"])
+
+    def test_shadow_key_uses_article_link_across_chunks(self):
+        """Как у основной: второе название связывается с первым по артикулу и в другой пачке."""
+        a, b = "Transcend MTE110S 128GB", "Transcend TS128GMTE110S 128GB"
+        fa = {"brand": "Transcend", "model": "TS128GMTE110S", "sku": None, "variants": [{"value": 128, "unit": "ГБ"}], "unbranded": False}
+        fb = {**fa, "model": "MTE110S", "sku": "TS128GMTE110S"}
+        key = product_key.build_key(fa, a)
+        shadow([a], {a: key}, [{"title": a, **fa}])
+        shadow([b], {b: key}, [{"title": b, **fb}])
+        summary = database.normalize_shadow_summary()
+        self.assertEqual((summary["matched"], summary["mismatch"]), (2, 0))
+
+
+class ShadowQueueTest(_DbCase):
+    A, B = "Samsung Galaxy S24 256GB black", "Samsung Galaxy S24 256GB white"
+
+    def tick(self, ask=None):
+        async def no_ask(prompt):
+            raise AssertionError("модель проверки не нужна")
+        return asyncio.run(product_verify.process_disputed_queue_tick("http://unused", ask or no_ask, daily_limit=10))
+
+    def test_missed_match_between_groups_is_enqueued(self):
+        primary = {self.A: "samsung:sm-s921b:256gb", self.B: "samsung:galaxy s24:256gb"}
+        database.save_cached_canonical_keys_batch(primary)
+        shadow([self.A], {self.A: primary[self.A]}, [{"title": self.A, **fields()}], "v1")
+        shadow([self.B], {self.B: primary[self.B]}, [{"title": self.B, **fields()}], "v1")      # другая пачка
+        pending = database.get_pending_disputed_pairs()
+        self.assertEqual(len(pending), 1)
+        self.assertIn("missed", pending[0]["reason"])
+
+    def test_suspect_merge_is_enqueued_only_when_shadow_differs(self):
+        primary = "samsung:galaxy s24:256gb"
+        database.save_cached_canonical_keys_batch({self.A: primary, self.B: primary})
+        shadow([self.A, self.B], {self.A: primary, self.B: primary},
+               [{"title": self.A, **fields("Galaxy S24 Ultra")}, {"title": self.B, **fields("Galaxy S24 Ultra")}], "v1")
+        self.assertEqual(database.get_pending_disputed_pairs(), [], "теневые ключи одинаковы: разделять нечего")
+        shadow([self.A], {self.A: primary}, [{"title": self.A, **fields("Galaxy S24 FE")}], "v1")
+        self.assertEqual(len(database.get_pending_disputed_pairs()), 1)
+
+    def test_neighbour_without_fields_gets_shadow_fields_and_reaches_verdict(self):
+        """Сквозной путь: тень → очередь → воркер → вердикт; сеть подменена, очередь и статусы настоящие."""
+        primary = "samsung:galaxy s24:256gb"
+        database.save_cached_canonical_keys_batch({self.A: primary, self.B: primary})
+
+        async def reply(prompt, *args, **kwargs):
+            if self.B in prompt and self.A not in prompt:
+                return {"items": [{"title": self.B, **fields()}]}
+            return {"items": [{"title": self.A, **fields("Galaxy S24 Ultra")}]}
+        with patch.object(ai_service, "call_local_api", reply):
+            asyncio.run(ai_service._run_shadow_normalize([self.A], CREDS, {self.A: primary}, "v1"))
+        self.assertEqual(len(database.get_pending_disputed_pairs()), 1)
+        self.assertEqual(database.get_title_fields_for_titles([self.A, self.B]), {}, "рабочие поля пусты")
+
+        async def verify(*args, **kwargs):
+            return {"decision": product_verify.DIFFERENT}
+        with patch.object(product_verify, "verify_pair_cached", verify):
+            result = self.tick()
+        self.assertEqual(result["status"], "resolved")
+        self.assertEqual(result["fields_source"], {"a": "shadow", "b": "shadow"})
+
+    def test_pair_without_fields_waits_and_is_not_lost(self):
+        database.enqueue_disputed_pair(self.A, self.B, "shadow_mismatch:split")
+        result = self.tick()
+        self.assertEqual((result["status"], result["reason"]), ("pending", "no_fields"))
+        with database.get_connection() as conn:
+            row = conn.execute("SELECT status, next_attempt_at FROM disputed_product_pairs").fetchone()
+        self.assertEqual(row[0], "pending")
+        self.assertIsNotNone(row[1])
+
+    def test_old_skipped_pair_reopens(self):
+        database.enqueue_disputed_pair(self.A, self.B, "x")
+        ph = database.get_pending_disputed_pairs()[0]["pair_hash"]
+        database.update_disputed_pair_status(ph, "skipped", "no_fields")
+        self.assertTrue(database.enqueue_disputed_pair(self.A, self.B, "x"))
+        self.assertEqual(len(database.get_pending_disputed_pairs()), 1)
+
+    def test_same_verdict_does_not_merge_revisions(self):
+        a, b = "Sanc M2442PH V2", "Sanc M2442PH V3"
+        base = {"brand": "Sanc", "model": "M2442PH", "sku": None, "variants": [], "unbranded": False}
+        fa, fb = {**base, "edition": "V2"}, {**base, "edition": "V3"}
+        database.save_title_fields_batch({a: fa, b: fb}, "k2", "gemini", "m")
+        database.save_cached_canonical_keys_batch({a: product_key.build_key(fa, a), b: product_key.build_key(fb, b)})
+        database.enqueue_disputed_pair(a, b, "x")
+
+        async def verify(*args, **kwargs):
+            return {"decision": product_verify.SAME}
+        with patch.object(product_verify, "verify_pair_cached", verify):
+            result = self.tick()
+        self.assertEqual(result["status"], "unresolved")
+        keys = database.get_cached_canonical_keys_batch([a, b])
+        self.assertNotEqual(keys[a], keys[b])
+
+
+class ShadowMetricsTest(_DbCase):
+    def test_aggregates_cover_all_rows(self):
+        for i in range(200):
+            database.record_normalize_shadow("matched", f"p{i}", f"s{i}", f"t{i}")
+            database.record_normalize_shadow("matched", f"p{i}", f"s{i}", f"t{i}")
+        for i in range(201):
+            database.record_normalize_shadow("mismatch", f"x{i}", f"y{i}", f"u{i}")
+        summary = database.normalize_shadow_summary()
+        self.assertEqual((summary["total"], summary["matched"], summary["mismatch"]), (601, 400, 201))
+        self.assertAlmostEqual(summary["match_rate"], 400 / 601, places=3)
+        self.assertEqual(len(summary["breakdown"]), 200)
+        self.assertEqual(monitoring.normalize_shadow_section()["status"], monitoring.DEGRADED)
+
+    def test_failures_are_visible_and_limit_health(self):
+        a, b = "Samsung Galaxy S24 256GB", "Samsung Galaxy S25 256GB"
+        shadow([a], {a: product_key.build_key(fields(), a)}, [{"title": a, **fields()}])
+        shadow([b], {b: product_key.build_key(fields("Galaxy S25"), b)}, None)
+        data = monitoring.normalize_shadow_section()
+        self.assertEqual((data["total"], data["match_rate"], data["coverage"]), (2, 1.0, 0.5))
+        self.assertEqual(data["by_kind"]["failed"], 1)
+        self.assertEqual(data["status"], monitoring.DEGRADED)
+
+    def test_each_outcome_has_its_kind(self):
+        t1, t2, t3 = "Samsung Galaxy S24 256GB", "Без бренда 1", "Без ответа"
+        shadow([t1, t2, t3], {t1: "k2:samsung:galaxys24:256gb"},
+               [{"title": t1, **fields()}, {"title": t2, "brand": None, "model": None, "unbranded": True}])
+        shadow([t1], {t1: "k2:x:y"}, "мусор")
+        with patch("local_ai.pause_reason", return_value="выкл"):
+            shadow([t1], {t1: "k2:x:y"}, None)
+        kinds = database.normalize_shadow_summary()["by_kind"]
+        self.assertEqual({k: kinds.get(k) for k in ("matched", "both_empty", "missing", "invalid", "paused", "scheduled")},
+                         {"matched": 1, "both_empty": 1, "missing": 1, "invalid": 1, "paused": 1, "scheduled": 5})
+
+    def test_exception_marks_rest_as_failed(self):
+        async def boom(*args, **kwargs):
+            raise RuntimeError("x")
+        with patch.object(ai_service, "call_local_api", boom):
+            asyncio.run(ai_service._run_shadow_normalize(["a", "b"], CREDS, {}, "k2"))
+        self.assertEqual(database.normalize_shadow_summary()["by_kind"]["failed"], 2)
+
+
+class MigrationIdentityAndBaselineTest(_DbCase):
+    OLD = "unknown:chechevitsa krasnaya:1kg"
+    LENTIL, BEAN = "Чечевица красная кг", "Фасоль красная кг"
+    UNBRANDED = {"brand": None, "model": "красная", "sku": None, "unbranded": True, "variants": []}
+
+    def add_product(self, pid, title, shop, key):
+        database.save_or_update_product({"id": pid, "shop": shop, "city": "Алматы", "title": title, "price": 1000,
+                                         "canonical_key": key, "url": f"https://example.kz/{pid}"})
+
+    def migrate(self, **kw):
+        return asyncio.run(mig.run_migration(str(database.DB_PATH), "http://fake", "m", **kw))
+
+    def seed(self):
+        database.save_cached_canonical_keys_batch({self.LENTIL: self.OLD, self.BEAN: self.OLD})
+        self.add_product("p1", self.LENTIL, "shop1", self.OLD)
+        self.add_product("p2", self.BEAN, "shop2", self.OLD)
+
+    def test_confirmed_no_identity_drops_old_comparison_and_repeat_is_stable(self):
+        self.seed()
+        database.save_title_fields_batch({self.LENTIL: self.UNBRANDED, self.BEAN: self.UNBRANDED}, "k2", "local", "m")
+        first = self.migrate(rescore_only=True, check_pairs=True)
+        self.assertEqual(database.get_cached_canonical_keys_batch([self.LENTIL, self.BEAN]), {})
+        with database.get_connection() as conn:
+            keys = [r[0] for r in conn.execute("SELECT canonical_key FROM products ORDER BY id")]
+        self.assertEqual(len(set(keys)), 2, "две позиции больше не в одной группе")
+        self.assertTrue(all(k.startswith("nokey:") for k in keys))
+        self.assertEqual(first["no_identity_titles"], 2)
+        self.assertEqual(first["pairs_comparison"]["new_pairs_count"], 0)
+        second = self.migrate(rescore_only=True)
+        self.assertEqual(second["no_identity_titles"], 2)
+        with database.get_connection() as conn:
+            self.assertEqual([r[0] for r in conn.execute("SELECT canonical_key FROM products ORDER BY id")], keys)
+
+    def test_model_failure_and_skip_keep_old_key_and_retry(self):
+        self.seed()
+
+        async def fail(prompt, *a, **k):
+            return None
+        with patch.object(ai_service, "call_local_api", fail):
+            report = self.migrate()
+        self.assertEqual((report["failed_titles"], report["no_identity_titles"]), (2, 0))
+
+        async def partial(prompt, *a, **k):
+            return {"items": [{"title": self.LENTIL, **self.UNBRANDED}]}
+        with patch.object(ai_service, "call_local_api", partial):
+            report = self.migrate()
+        self.assertEqual((report["missing_titles"], report["no_identity_titles"]), (1, 1))
+        self.assertEqual(database.get_cached_canonical_keys_batch([self.BEAN]), {self.BEAN: self.OLD})
+        self.assertEqual(report["run"]["cumulative"]["failed_titles"], 2)
+        self.assertEqual(report["run"]["cumulative"]["missing_titles"], 1)
+
+    def test_resume_compares_with_full_baseline(self):
+        """Как на стенде: часть уже переведена в прошлом запуске, отчёт всё равно по всему снимку."""
+        a, b, c = "Samsung Galaxy S24 256GB A", "Samsung Galaxy S24 256GB B", "Samsung Galaxy S25 256GB"
+        old = {a: "samsung:s24", b: "samsung:s24", c: "samsung:s25"}
+        database.save_cached_canonical_keys_batch(old)
+        for pid, (t, shop) in enumerate(((a, "s1"), (b, "s2"), (c, "s3"))):
+            self.add_product(f"p{pid}", t, shop, old[t])
+
+        async def only_a(prompt, *x, **k):
+            return {"items": [{"title": a, **fields()}]}
+
+        async def rest(prompt, *x, **k):
+            return {"items": [{"title": b, **fields()}, {"title": c, **fields("Galaxy S25")}]}
+        with patch.object(ai_service, "call_local_api", only_a):
+            self.migrate(limit=1, batch_size=1)
+        with patch.object(ai_service, "call_local_api", rest):
+            report = self.migrate(check_pairs=True)
+        self.assertEqual(report["total_titles"], 2, "этот запуск")
+        self.assertEqual(report["run"]["baseline_titles"], 3)
+        self.assertEqual(report["run"]["actual_k2_keys"], 3)
+        self.assertEqual(report["pairs_comparison"]["old_pairs_count"], 1)
+        self.assertEqual(report["pairs_comparison"]["retained_pairs_count"], 1)
+
+    def test_remaining_legacy_keys_count_as_actual(self):
+        self.seed()
+
+        async def fail(prompt, *a, **k):
+            return None
+        with patch.object(ai_service, "call_local_api", fail):
+            report = self.migrate(check_pairs=True)
+        self.assertEqual(report["run"]["actual_legacy_keys"], 2)
+        self.assertEqual(report["pairs_comparison"]["retained_pairs_count"], 1, "сравнение ещё работает по старому ключу")
+
+    def test_baseline_is_unchanged_and_dry_run_writes_nothing(self):
+        self.seed()
+        dry = self.migrate(dry_run=True)
+        self.assertEqual(dry["run"]["baseline_titles"], 2)
+        with database.get_connection() as conn:
+            self.assertIsNone(conn.execute("SELECT 1 FROM sqlite_master WHERE name = 'k2_migration_runs'").fetchone())
+
+        async def fail(prompt, *a, **k):
+            return None
+        with patch.object(ai_service, "call_local_api", fail):
+            self.migrate()
+        database.save_cached_canonical_keys_batch({"Новое название": "x:y"})
+        with patch.object(ai_service, "call_local_api", fail):
+            self.assertEqual(self.migrate()["run"]["baseline_titles"], 2)
+            self.assertEqual(self.migrate(run_id="new")["run"]["baseline_titles"], 3)
+
+    def test_verified_set_evaluation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "set.json"
+            path.write_text(json.dumps({"version": 7, "pairs": [
+                {"a": "A", "b": "B", "same": True}, {"a": "A", "b": "C", "same": True},
+                {"a": "A", "b": "D", "same": False}, {"a": "E", "b": "F", "same": False},
+                {"a": "A", "b": "нет в базе", "same": True}, {"a": "G", "b": "H", "same": True}]}))
+            out = mig.evaluate_verified_pairs(str(path), {"A": "k", "B": "k", "C": "x", "D": "k", "E": "e", "F": "f", "G": "", "H": ""})
+        self.assertEqual((out["same_found"], out["same_lost"], out["different_kept_apart"], out["absent_in_db"]), (1, 2, 1, 1))
+        self.assertEqual(out["false_merges"], [{"a": "A", "b": "D", "key": "k"}])
+        self.assertEqual(out["recall"], 0.3333)
+
+
+if __name__ == "__main__":
+    unittest.main()

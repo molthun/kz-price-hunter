@@ -1025,6 +1025,28 @@ def _create_schema(cursor) -> None:
             PRIMARY KEY (day, kind, primary_key, shadow_key)
         )
     """)
+    # Поля и ключ теневой модели (аудит C45-02): отдельно от рабочих title_fields, которые читают связь по
+    # артикулам, проверка пар и пересборка. Рабочие поля, артикулы, ключи и группы тень не меняет
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS title_fields_shadow (
+            title_hash TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            fields_json TEXT NOT NULL,
+            shadow_key TEXT,
+            key_version TEXT NOT NULL,
+            provider TEXT,
+            model TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_title_fields_shadow_key ON title_fields_shadow(shadow_key)")
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS shadow_title_articles (
+            article TEXT NOT NULL,
+            title_hash TEXT NOT NULL,
+            PRIMARY KEY (article, title_hash)
+        )
+    """)
     cursor.execute("CREATE TABLE IF NOT EXISTS schema_metadata (name TEXT PRIMARY KEY, value TEXT)")
     # Пользователи (вход через Telegram) и их личные настройки
     cursor.execute("""
@@ -2082,6 +2104,76 @@ def save_title_fields_batch(fields_by_title: Dict[str, Dict[str, Any]], key_vers
         conn.commit()
 
 
+def save_shadow_fields_batch(fields_by_title: Dict[str, Dict[str, Any]], keys: Dict[str, Optional[str]],
+                             key_version: str, provider: str, model: str) -> None:
+    """Поля и ключ теневой модели — только в теневые таблицы (аудит C45-02)."""
+    import product_key
+    rows = [(_title_hash(t), t.strip(), json.dumps(f, ensure_ascii=False, sort_keys=True)[:2000],
+             keys.get(t), key_version, provider, model)
+            for t, f in (fields_by_title or {}).items() if t and t.strip() and isinstance(f, dict)]
+    if not rows:
+        return
+    with get_connection() as conn:
+        conn.executemany("""INSERT INTO title_fields_shadow (title_hash, title, fields_json, shadow_key, key_version, provider, model)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                            ON CONFLICT(title_hash) DO UPDATE SET fields_json = excluded.fields_json,
+                                shadow_key = excluded.shadow_key, key_version = excluded.key_version,
+                                provider = excluded.provider, model = excluded.model,
+                                created_at = CURRENT_TIMESTAMP""", rows)
+        conn.executemany("DELETE FROM shadow_title_articles WHERE title_hash = ?", [(r[0],) for r in rows])
+        conn.executemany("INSERT OR IGNORE INTO shadow_title_articles (article, title_hash) VALUES (?, ?)",
+                         [(art, _title_hash(t)) for t, f in fields_by_title.items() if t and t.strip()
+                          for art in product_key.article_tokens(f)])
+        conn.commit()
+
+
+def shadow_items_by_articles(articles: Iterable[str]) -> List[Dict[str, Any]]:
+    """Теневые записи с этими артикулами: связь по артикулу в тени идёт по теневым данным (аудит C45-04)."""
+    unique = sorted({a for a in articles if a})
+    if not unique:
+        return []
+    with get_connection() as conn:
+        rows = conn.execute("""SELECT DISTINCT s.title, s.fields_json, s.shadow_key
+                               FROM shadow_title_articles a JOIN title_fields_shadow s ON s.title_hash = a.title_hash
+                               WHERE a.article IN (SELECT value FROM json_each(?)) AND s.shadow_key IS NOT NULL""",
+                            (json.dumps(unique, ensure_ascii=False),)).fetchall()
+    return [{"title": r[0], "fields": json.loads(r[1]), "canonical_key": r[2]} for r in rows]
+
+
+def shadow_keys_for_titles(titles: Iterable[str]) -> Dict[str, Optional[str]]:
+    """{название: теневой ключ} для названий, у которых есть теневая запись."""
+    by_hash = {_title_hash(t): t for t in titles if t and t.strip()}
+    found: Dict[str, Optional[str]] = {}
+    with get_connection() as conn:
+        for chunk in _chunks(list(by_hash)):
+            marks = ",".join("?" * len(chunk))
+            for th, key in conn.execute(f"SELECT title_hash, shadow_key FROM title_fields_shadow WHERE title_hash IN ({marks})", chunk):
+                found[by_hash[th]] = key
+    return found
+
+
+def titles_with_shadow_key(key: str, limit: int = 5) -> List[str]:
+    with get_connection() as conn:
+        return [r[0] for r in conn.execute(
+            "SELECT title FROM title_fields_shadow WHERE shadow_key = ? ORDER BY title LIMIT ?", (key, int(limit)))]
+
+
+def get_title_fields_with_source(titles: Iterable[str]) -> Dict[str, Dict[str, Any]]:
+    """{название: {"fields", "source"}} для проверки пары: рабочие поля, иначе теневые, с указанием откуда (C45-02)."""
+    found = {t: {"fields": f, "source": "primary"} for t, f in get_title_fields_for_titles(titles).items()}
+    rest = {_title_hash(t): t.strip() for t in titles if t and t.strip() and t.strip() not in found}
+    if rest:
+        with get_connection() as conn:
+            for chunk in _chunks(list(rest)):
+                marks = ",".join("?" * len(chunk))
+                for th, raw in conn.execute(f"SELECT title_hash, fields_json FROM title_fields_shadow WHERE title_hash IN ({marks})", chunk):
+                    try:
+                        found[rest[th]] = {"fields": json.loads(raw), "source": "shadow"}
+                    except ValueError:
+                        pass
+    return found
+
+
 def save_title_articles_batch(entries: List[Tuple[str, str, str]]) -> None:
     """Связи артикулов производителей с товарами и каноническими ключами (P17-C3 / link_by_article).
 
@@ -2262,7 +2354,8 @@ def enqueue_disputed_pair(title_a: str, title_b: str, reason: str) -> bool:
 
     Возвращает True, если пара поставлена или снова открыта. Пара с окончательным вердиктом не ставится.
     Пара в статусе «не решено» (исчерпаны попытки) снова открывается, если встретилась позже
-    DISPUTED_REOPEN_DAYS: временный сбой не исключает её из обработки навсегда (P17C-04)."""
+    DISPUTED_REOPEN_DAYS: временный сбой не исключает её из обработки навсегда (P17C-04). Прежние записи
+    «skipped» (раньше так терялись пары без полей, C45-05) открываются при любой новой встрече."""
     from product_verify import pair_hash, UNKNOWN
     first, second = sorted((title_a.strip(), title_b.strip()))
     if not first or not second or first == second:
@@ -2277,8 +2370,9 @@ def enqueue_disputed_pair(title_a: str, title_b: str, reason: str) -> bool:
             VALUES (?, ?, ?, ?, 'pending')
             ON CONFLICT(pair_hash) DO UPDATE SET status = 'pending', attempts = 0, next_attempt_at = NULL,
                 reason = excluded.reason, updated_at = CURRENT_TIMESTAMP
-            WHERE disputed_product_pairs.status = 'unresolved'
-              AND disputed_product_pairs.updated_at < datetime('now', ?)
+            WHERE disputed_product_pairs.status = 'skipped'
+               OR (disputed_product_pairs.status = 'unresolved'
+                   AND disputed_product_pairs.updated_at < datetime('now', ?))
         """, (ph, first[:500], second[:500], reason[:100], f"-{DISPUTED_REOPEN_DAYS} days"))
         conn.commit()
         return cur.rowcount > 0
@@ -2429,6 +2523,25 @@ def rekey_titles_conn(conn, new_keys: Dict[str, str]) -> Dict[str, int]:
         conn.executemany("INSERT OR IGNORE INTO identity_aliases (kind, old_id, new_id) VALUES (?, ?, ?)",
                          list(dict.fromkeys(aliases)))
     stats["aliases"] = len(set(aliases))
+    return stats
+
+
+def no_identity_key(title: str) -> str:
+    """Ключ товара без подтверждённой идентичности: свой у каждого названия, ни с чем не сравнивается."""
+    return f"nokey:{_title_hash(title.strip())[:16]}"
+
+
+def clear_title_identity_conn(conn, titles: Iterable[str]) -> Dict[str, int]:
+    """Отключить автоматическое сравнение у названий без бренда (аудит C45-03), в транзакции вызывающего.
+
+    Прежний общий ключ снимается во всех слоях: предложения переезжают на собственный товар через тот же перенос,
+    поэтому товар остаётся в поиске, история цен идёт за предложением, а aliases сохраняют наблюдения. В кэше ключа
+    остаётся пусто: это «ключа нет», повторная миграция такие названия не запрашивает."""
+    unique = sorted({t.strip() for t in titles if t and t.strip()})
+    stats = rekey_titles_conn(conn, {t: no_identity_key(t) for t in unique})
+    conn.executemany("UPDATE title_canonical_cache SET canonical_key = '' WHERE title_hash = ?",
+                     [(_title_hash(t),) for t in unique])
+    conn.executemany("DELETE FROM title_articles WHERE title_hash = ?", [(_title_hash(t),) for t in unique])
     return stats
 
 
@@ -4915,29 +5028,36 @@ def record_normalize_shadow(kind: str, primary_key: str, shadow_key: str, exampl
 
 
 def normalize_shadow_summary(days: int = 7, now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
-    """Сводка теневой нормализации (P17-C5): совпадения, расхождения, доля совпадений и примеры."""
+    """Сводка теневой нормализации (P17-C5): итоги по всем строкам периода, примеры — ограниченно (C45-06).
+
+    total — все исходы по названиям, включая сбои: сбой не исчезает из отчёта (C45-07). match_rate считается
+    только по сравнимым исходам (совпало/расходится), coverage — доля запланированных названий, у которых
+    теневой ключ действительно сравнён. scheduled — запись о постановке, не исход: в total не входит."""
     moment = now or datetime.datetime.now(datetime.timezone.utc)
     since = (moment - datetime.timedelta(days=max(1, int(days)))).strftime("%Y-%m-%d")
-    matched, mismatch, rows = 0, 0, []
+    counts: Dict[str, int] = {}
+    rows: List[Dict[str, Any]] = []
     try:
         with get_connection() as conn:
-            for row in conn.execute("SELECT * FROM normalize_shadow WHERE day >= ? ORDER BY count DESC LIMIT 200", (since,)):
-                item = dict(row)
-                rows.append(item)
-                if item["kind"] == "matched":
-                    matched += int(item["count"])
-                else:
-                    mismatch += int(item["count"])
+            for kind, count in conn.execute("SELECT kind, SUM(count) FROM normalize_shadow WHERE day >= ? GROUP BY kind", (since,)):
+                counts[kind] = int(count)
+            rows = [dict(row) for row in conn.execute(
+                "SELECT * FROM normalize_shadow WHERE day >= ? AND kind != 'scheduled' ORDER BY count DESC, day DESC LIMIT 200", (since,))]
     except Exception:
         pass
-    total = matched + mismatch
-    match_rate = round(matched / total, 4) if total > 0 else None
+    matched, mismatch = counts.get("matched", 0), counts.get("mismatch", 0)
+    compared = matched + mismatch
+    scheduled = counts.get("scheduled", 0)
     return {
         "days": days,
         "matched": matched,
         "mismatch": mismatch,
-        "total": total,
-        "match_rate": match_rate,
+        "total": sum(v for k, v in counts.items() if k != "scheduled"),
+        "match_rate": round(matched / compared, 4) if compared > 0 else None,
+        "scheduled": scheduled,
+        "compared": compared,
+        "coverage": round(compared / scheduled, 4) if scheduled > 0 else None,
+        "by_kind": counts,
         "breakdown": rows,
     }
 

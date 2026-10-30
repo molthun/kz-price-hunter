@@ -5,7 +5,12 @@
 2. Для названий без сохранённых полей запрашивает у локальной модели поля по схеме (K2_NORMALIZE_PROMPT).
 3. Сохраняет поля в title_fields, связывает по артикулам через resolve_keys_with_articles и сохраняет связи в title_articles.
 4. Обновляет title_canonical_cache и products.canonical_key новыми ключами.
-5. При --check-pairs сравнивает пары товаров между магазинами до и после миграции.
+5. Название без подтверждённой идентичности (нет бренда) теряет прежний общий ключ и не сравнивается автоматически.
+6. При --check-pairs сравнивает пары товаров между магазинами до и после миграции.
+
+Исходный снимок ключей фиксируется при первом запуске прохода (--run-id) и не меняется при возобновлении: отчёт
+всегда сравнивает весь исходный набор с фактическими ключами, а ошибки и пропуски накапливаются (аудит C45-08).
+--verified-set добавляет оценку по проверенным парам (критерии C2).
 
 Запуск на машине стенда/прода:
     python3 scripts/migrate_to_k2.py --db /app/data/prices.db --base http://192.168.28.25:11434/v1 \
@@ -54,7 +59,6 @@ def find_titles_to_migrate(conn: sqlite3.Connection, limit: Optional[int] = None
         query = """
             SELECT c.title, c.canonical_key
             FROM title_canonical_cache c JOIN title_fields f ON f.title_hash = c.title_hash
-            WHERE c.canonical_key != ''
             ORDER BY c.created_at ASC, c.title ASC
         """
     else:
@@ -259,6 +263,8 @@ def _save_migrated_batch(conn, batch_fields, keys, model_name) -> None:
         """, (json.dumps(articles_rows, ensure_ascii=False),))
 
     database.rekey_titles_conn(conn, {t: k for t, k in keys.items() if k})
+    database.clear_title_identity_conn(conn, [t for t, k in keys.items() if not k and t in batch_fields
+                                              and product_key.no_key_reason(batch_fields[t]) == "no_identity"])
     conn.commit()
 
 
@@ -316,6 +322,74 @@ def check_pairs_comparison(
     }
 
 
+def _baseline_tables(conn: sqlite3.Connection) -> None:
+    conn.execute("""CREATE TABLE IF NOT EXISTS k2_migration_runs (
+        run_id TEXT PRIMARY KEY, created_at TEXT NOT NULL, api_calls INTEGER NOT NULL DEFAULT 0,
+        api_failures INTEGER NOT NULL DEFAULT 0, failed_titles INTEGER NOT NULL DEFAULT 0,
+        missing_titles INTEGER NOT NULL DEFAULT 0, seconds REAL NOT NULL DEFAULT 0)""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS k2_migration_baseline (
+        run_id TEXT NOT NULL, title TEXT NOT NULL, old_key TEXT NOT NULL, PRIMARY KEY (run_id, title))""")
+
+
+def load_baseline(conn: sqlite3.Connection, run_id: str, read_only: bool) -> Tuple[Dict[str, str], Dict[str, Any]]:
+    """Неизменяемый снимок {название: ключ} всего кэша на первый запуск прохода и его счётчики.
+
+    Пробный прогон ничего не пишет: снимок берётся из памяти, если прохода ещё не было."""
+    has_tables = conn.execute("SELECT 1 FROM sqlite_master WHERE name = 'k2_migration_runs'").fetchone()
+    if not read_only:
+        _baseline_tables(conn)
+    run = conn.execute("SELECT created_at, api_calls, api_failures, failed_titles, missing_titles, seconds "
+                       "FROM k2_migration_runs WHERE run_id = ?", (run_id,)).fetchone() if has_tables or not read_only else None
+    names = ("created_at", "api_calls", "api_failures", "failed_titles", "missing_titles", "seconds")
+    if run:
+        rows = conn.execute("SELECT title, old_key FROM k2_migration_baseline WHERE run_id = ?", (run_id,)).fetchall()
+        return dict(rows), dict(zip(names, run))
+    created = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    rows = conn.execute("SELECT title, canonical_key FROM title_canonical_cache").fetchall()
+    if not read_only:
+        conn.execute("INSERT INTO k2_migration_runs (run_id, created_at) VALUES (?, ?)", (run_id, created))
+        conn.executemany("INSERT INTO k2_migration_baseline (run_id, title, old_key) VALUES (?, ?, ?)",
+                         [(run_id, t, k) for t, k in rows])
+        conn.commit()
+    return dict(rows), dict(zip(names, (created, 0, 0, 0, 0, 0.0)))
+
+
+def actual_keys(conn: sqlite3.Connection, titles: Iterable[str], planned: Dict[str, str]) -> Dict[str, str]:
+    """Фактические ключи названий сейчас; planned — поверх них в пробном прогоне (пусто — ключа нет)."""
+    found: Dict[str, str] = {}
+    unique = list(titles)
+    for i in range(0, len(unique), 500):
+        for t, k in conn.execute("SELECT title, canonical_key FROM title_canonical_cache WHERE title IN "
+                                 "(SELECT value FROM json_each(?))", (json.dumps(unique[i:i + 500], ensure_ascii=False),)):
+            found[t] = k
+    found.update(planned)
+    return found
+
+
+def evaluate_verified_pairs(path: str, keys: Dict[str, str]) -> Dict[str, Any]:
+    """Оценка по проверенным парам (критерии C2): полнота на положительных и ложные склейки на отрицательных.
+
+    Пары, которых нет в этой базе или у которых нет ключа, считаются отдельно и в долю полноты не входят как успех."""
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    tp, fn, tn, false_merges, absent = 0, 0, 0, [], 0
+    for pair in data["pairs"]:
+        a, b = pair["a"], pair["b"]
+        if a not in keys or b not in keys:
+            absent += 1
+        elif pair["same"]:
+            if keys[a] and keys[a] == keys[b]:
+                tp += 1
+            else:
+                fn += 1
+        elif keys[a] and keys[a] == keys[b]:
+            false_merges.append({"a": a, "b": b, "key": keys[a]})
+        else:
+            tn += 1
+    return {"version": data.get("version"), "pairs": len(data["pairs"]), "absent_in_db": absent,
+            "same_found": tp, "same_lost": fn, "different_kept_apart": tn, "false_merges": false_merges,
+            "recall": round(tp / (tp + fn), 4) if tp + fn else None}
+
+
 async def run_migration(
     db_path: str,
     base: str,
@@ -326,24 +400,29 @@ async def run_migration(
     rescore_only: bool = False,
     check_pairs: bool = False,
     out_file: Optional[str] = None,
+    run_id: str = "k2",
+    verified_set: Optional[str] = None,
 ) -> Dict[str, Any]:
     conn = get_db_connection(db_path, read_only=dry_run)
     try:
+        import product_key
+        baseline, totals = load_baseline(conn, run_id, read_only=dry_run)
         raw_items = find_titles_to_migrate(conn, limit=limit, rescore_only=rescore_only)
-        print(f"[C4] Найдено названий для миграции: {len(raw_items)}")
-        if not raw_items:
+        print(f"[C4] Найдено названий для миграции: {len(raw_items)}, в исходном снимке {run_id}: {len(baseline)}")
+        if not raw_items and not check_pairs and not verified_set:
             return {"total": 0, "status": "nothing_to_migrate"}
 
         titles_all = [t for t, _ in raw_items]
-        old_keys = dict(raw_items)
 
         # Проверяем, у кого поля уже есть
         saved_fields = load_existing_fields(conn, titles_all)
         print(f"[C4] Из них уже сохранены поля: {len(saved_fields)}")
 
-        title_shops = load_products_shops(conn, titles_all) if check_pairs else {}
-
         all_new_keys: Dict[str, str] = {}
+        no_identity: Set[str] = set()
+        incomplete: Set[str] = set()
+        failed_titles = 0
+        missing_titles = 0
         planned: Dict[str, Dict[str, Any]] = {}
         all_fields: Dict[str, Dict[str, Any]] = dict(saved_fields)
         api_failures = 0
@@ -351,9 +430,9 @@ async def run_migration(
         started = time.monotonic()
 
         # Разделяем на те, что требуют вызова модели, и те, у кого поля уже есть
-        missing_titles = [t for t in titles_all if t not in saved_fields]
-        if rescore_only and missing_titles:
-            print(f"[C4] --rescore-only: пропуск {len(missing_titles)} названий без полей")
+        without_fields = [t for t in titles_all if t not in saved_fields]
+        if rescore_only and without_fields:
+            print(f"[C4] --rescore-only: пропуск {len(without_fields)} названий без полей")
             titles_to_process = [t for t in titles_all if t in saved_fields]
         else:
             titles_to_process = titles_all
@@ -370,6 +449,9 @@ async def run_migration(
                 fetched, fails = await fetch_fields_batch(to_fetch, base, model)
                 api_calls += 1
                 api_failures += fails
+                # Отказ модели и пропуск названия в ответе — не «нет бренда»: прежний ключ остаётся до повтора
+                failed_titles += len(to_fetch) if fails else 0
+                missing_titles += 0 if fails else len(set(to_fetch) - set(fetched))
                 all_fields.update(fetched)
                 chunk_fields.update(fetched)
 
@@ -384,6 +466,10 @@ async def run_migration(
                     all_new_keys[t] = k
                     if dry_run:
                         planned[t] = {"fields": chunk_fields[t], "canonical_key": k}
+                elif product_key.no_key_reason(chunk_fields.get(t)) == "no_identity":
+                    no_identity.add(t)
+                else:
+                    incomplete.add(t)
 
             # Сохраняем в БД
             save_migrated_batch(conn, chunk_fields, keys, model, dry_run=dry_run)
@@ -397,19 +483,50 @@ async def run_migration(
                       f"Скорость: {rate:.1f} наим/с | ETA: {eta:.0f} с | С ключом k2: {len(all_new_keys)}")
 
         total_elapsed = time.monotonic() - started
+        totals = {**totals, "api_calls": totals["api_calls"] + api_calls,
+                  "api_failures": totals["api_failures"] + api_failures,
+                  "failed_titles": totals["failed_titles"] + failed_titles,
+                  "missing_titles": totals["missing_titles"] + missing_titles,
+                  "seconds": round(totals["seconds"] + total_elapsed, 1)}
+        if not dry_run:
+            conn.execute("""UPDATE k2_migration_runs SET api_calls = ?, api_failures = ?, failed_titles = ?,
+                            missing_titles = ?, seconds = ? WHERE run_id = ?""",
+                         (totals["api_calls"], totals["api_failures"], totals["failed_titles"],
+                          totals["missing_titles"], totals["seconds"], run_id))
+            conn.commit()
+        current = actual_keys(conn, baseline, {**(all_new_keys if dry_run else {}),
+                                               **({t: "" for t in no_identity} if dry_run else {})})
         result: Dict[str, Any] = {
+            # Этот запуск
             "total_titles": len(titles_all),
             "processed_titles": len(titles_to_process),
             "with_k2_key": len(all_new_keys),
+            "no_identity_titles": len(no_identity),
+            "incomplete_titles": len(incomplete),
+            "failed_titles": failed_titles,
+            "missing_titles": missing_titles,
             "api_calls": api_calls,
             "api_failures": api_failures,
             "seconds": round(total_elapsed, 1),
             "dry_run": dry_run,
+            # Весь проход: фактическое состояние исходного снимка и накопленные счётчики
+            "run": {"run_id": run_id, "baseline_created_at": totals["created_at"], "baseline_titles": len(baseline),
+                    "actual_k2_keys": sum(1 for k in current.values() if k.startswith("k2:")),
+                    "actual_legacy_keys": sum(1 for k in current.values() if k and not k.startswith("k2:")),
+                    "actual_no_key": sum(1 for k in current.values() if not k),
+                    "cumulative": {k: totals[k] for k in ("api_calls", "api_failures", "failed_titles",
+                                                          "missing_titles", "seconds")}},
         }
+        if not raw_items:
+            result["status"] = "nothing_to_migrate"
+
+        if verified_set:
+            result["verified_pairs"] = evaluate_verified_pairs(verified_set, current)
 
         if check_pairs:
-            print("[C4] Расчёт сравнения пар до и после миграции...")
-            pairs_stat = check_pairs_comparison(old_keys, all_new_keys, title_shops)
+            print("[C4] Расчёт сравнения пар до и после миграции по всему исходному снимку...")
+            title_shops = load_products_shops(conn, baseline)
+            pairs_stat = check_pairs_comparison(baseline, current, title_shops)
             result["pairs_comparison"] = pairs_stat
             rate = pairs_stat["retention_rate"]
             print(f"[C4] Пар было: {pairs_stat['old_pairs_count']} | Стало: {pairs_stat['new_pairs_count']} | "
@@ -437,6 +554,8 @@ def main():
     ap.add_argument("--rescore-only", action="store_true", help="Пересборка только названий с сохранёнными полями")
     ap.add_argument("--check-pairs", action="store_true", help="Сравнение пар предложений до и после")
     ap.add_argument("--out", default=None, help="Путь к JSON-файлу отчёта")
+    ap.add_argument("--run-id", default="k2", help="Проход миграции: его исходный снимок не меняется при возобновлении")
+    ap.add_argument("--verified-set", default=None, help="JSON проверенных пар для оценки по критериям C2")
     args = ap.parse_args()
 
     asyncio.run(run_migration(
@@ -449,6 +568,8 @@ def main():
         rescore_only=args.rescore_only,
         check_pairs=args.check_pairs,
         out_file=args.out,
+        run_id=args.run_id,
+        verified_set=args.verified_set,
     ))
 
 

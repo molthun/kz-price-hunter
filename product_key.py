@@ -14,7 +14,8 @@
 - варианты — «число + единица» по таблице единиц (ГБ → gb, ТБ и от 1000 ГБ → tb, дюйм и диагональ в см → in, л → l; габариты и частоты не входят),
   десятичная точка, сортировка, через «+»;
 - пустое — пусто: никаких «0»/«null»;
-- без бренда (или «без бренда») — ключа нет: товар не сравнивается автоматически, чтобы не склеить разное.
+- без бренда (или «без бренда») — ключа нет: товар не сравнивается автоматически, чтобы не склеить разное;
+- ревизия и готовый компьютер — метки в конце идентичности: «m2442ph.v3», «ryzen55600gt.system» (аудит C45-01).
 
 Префикс «k2:» — версия правил. Если правила поменяются, ключи пересобираются из сохранённых полей без
 повторных вызовов модели (KEY_VERSION).
@@ -33,7 +34,7 @@ FIELDS_SCHEMA = {
     "brand": "бренд производителя как на упаковке; null, если бренда нет",
     "model": "серия и модель без бренда, цвета, комплектации и маркетинга; null, если нет",
     "sku": "артикул/код модели производителя (не артикул магазина); null, если нет",
-    "edition": "исполнение внутри модели, не меняющее сам товар: Gaming, Dual, OC, V3, Edition; null, если нет",
+    "edition": "исполнение внутри модели: Gaming, Dual, OC, Edition, ревизия V2/V3; null, если нет (ревизию код добавит в ключ)",
     "variants": "список отличающих исполнение характеристик: [{\"value\": число, \"unit\": \"гб|тб|мм|см|л|мл|г|кг|дюйм|вт|мач|шт\"}]",
     "unbranded": "true, если товар без бренда (noname, «без бренда»)",
 }
@@ -218,6 +219,60 @@ def variant_tokens(variants: Any) -> List[str]:
     return sorted(out)[:4]
 
 
+# Ревизия (V2, V3, rev 1.1) — другой товар, а не оформление: Sanc M2442PH V2 и V3 склеивались (аудит C45-01).
+# Только как отдельное слово: «NV3» и «V3» внутри артикула ревизией не считаются.
+_REVISION_RE = re.compile(r"(?<![a-z0-9.])(?:v|ver|rev)\.?\s?(\d{1,2}(?:\.\d)?)(?![a-z0-9])")
+_REVISION_MARK_RE = re.compile(r"\.(v\d{1,2}(?:\.\d)?)(?:\.system)?$")
+# Названия процессоров и видеокарт: у готового компьютера с таким чипом та же «модель», что у самого чипа
+_COMPONENT_RE = re.compile(r"^(?:ryzen|athlon|threadripper|epyc|core[iu]?\d|corei|i[3579]\d|xeon|pentium|celeron|"
+                           r"rtx\d|gtx\d|rx\d|arc[ab]\d)")
+_SYSTEM_WORD_RE = re.compile(r"компьютер|системн\w* блок|системник|(?<![a-zа-я0-9])пк(?![a-zа-я0-9])|неттоп|ноутбук|"
+                             r"моноблок|сборка|laptop|notebook|mini ?pc|workstation")
+_COMPONENT_WORD_RE = re.compile(r"процессор|видеокарт|(?<![a-z0-9])(?:cpu|gpu)(?![a-z0-9])")
+_SYSTEM_PARTS = (r"(?<![a-z])ram(?![a-z])|озу", r"ssd|hdd|nvme", r"dvd", r"(?<![a-z0-9])\d{3,4}\s?(?:w|вт)(?![a-z])",
+                 r"windows|win ?1[01]|freedos|dos(?![a-z])")
+SYSTEM_MARK = ".system"
+_SPEED_CLASS_RE = re.compile(r"карт\w* памяти|micro ?sd|sdxc|sdhc|(?<![a-z0-9])[ua][123](?![a-z0-9])")
+
+
+def _revision(fields: Dict[str, Any], identity: str, title: Any) -> Optional[str]:
+    """Ревизия: сначала из названия, сразу за концом модели («M2442PH V3», но не «Bluetooth V5»), оно надёжнее
+    ответа модели; затем из edition, артикула и модели. Вид — v<номер>. У карт памяти V30 — класс скорости."""
+    text = _text(title)
+    if _SPEED_CLASS_RE.search(text):
+        return None
+    words = re.findall(r"[a-zа-я0-9]+(?:[.,][0-9]+)?", text)
+    for i, word in enumerate(words[1:], 1):
+        found = re.fullmatch(r"(?:v|ver|rev)(\d{1,2}(?:\.\d)?)", word)
+        if found and identity.endswith(_latin(words[i - 1])):
+            return "v" + found.group(1)
+    for name in ("edition", "sku", "model"):
+        found = _REVISION_RE.search(_text(fields.get(name)))
+        if found:
+            return "v" + found.group(1)
+    return None
+
+
+def _is_system(identity: str, title: Any) -> bool:
+    """Готовый компьютер с процессором или видеокартой в названии, а не сам чип: слово или хотя бы две части сборки.
+    Для остальных товаров не применяется: «Ноутбук Asus X515» и «Asus X515» — один товар (аудит C45-01)."""
+    if not _COMPONENT_RE.match(identity):
+        return False
+    text = _text(title)
+    parts = sum(bool(re.search(p, text)) for p in _SYSTEM_PARTS)
+    return parts >= 2 or (bool(_SYSTEM_WORD_RE.search(text)) and not _COMPONENT_WORD_RE.search(text))
+
+
+def _short_sku_suffix(fields: Dict[str, Any], identity: str, brand: str, title: Any) -> str:
+    """Короткий номер в поле артикула, стоящий в названии сразу за моделью: model «Ryzen 5», sku «7600X», название
+    «AMD Ryzen 5 7600X BOX» — это Ryzen 5 7600X, а не Ryzen 5 (потеря правильной пары, аудит C45-08)."""
+    sku = model_token(fields.get("sku"), brand)
+    if not sku or _STRONG_ARTICLE.match(sku) or not re.search(r"\d", sku) or sku in identity:
+        return ""
+    compact = re.sub(r"[^a-z0-9]+", "", _latin(_text(title)))
+    return sku if identity + sku in compact else ""
+
+
 def build_key(fields: Any, title: Any = None) -> Optional[str]:
     """Ключ по стандарту из полей модели или None (без бренда, без модели и артикула, мусор).
 
@@ -232,6 +287,15 @@ def build_key(fields: Any, title: Any = None) -> Optional[str]:
                 or model_token(fields.get("sku"), brand))
     if not identity:
         return None
+    identity += _short_sku_suffix(fields, identity, brand, title)
+    revision = _revision(fields, identity, title)
+    if revision:
+        identity = re.sub(rf"(?:v|ver|rev)\.?{re.escape(revision[1:])}$", "", identity) or identity
+    plain_identity = identity                           # метки не участвуют в проверке «диагональ в номере модели»
+    if revision:
+        identity += f".{revision}"
+    if _is_system(plain_identity, title):
+        identity += SYSTEM_MARK
     variants = variant_tokens(fields.get("variants"))
     from_title = variant_tokens(title_variants(title)) if title else []
     if from_title:
@@ -242,7 +306,7 @@ def build_key(fields: Any, title: Any = None) -> Optional[str]:
     # Диагональ, которая уже есть в номере модели (65E7S, 27GP850, U11), в ключ не идёт: одни магазины
     # пишут «65"», другие нет, и один телевизор расходился по двум ключам (замер C2)
     variants = [v for v in variants
-                if not (v.endswith("in") and re.search(rf"(?<![0-9]){re.escape(v[:-2].split('.')[0])}(?![0-9])", identity))]
+                if not (v.endswith("in") and re.search(rf"(?<![0-9]){re.escape(v[:-2].split('.')[0])}(?![0-9])", plain_identity))]
     key = f"{KEY_VERSION}:{brand}:{identity}"
     return f"{key}:{'+'.join(variants)}" if variants else key
 
@@ -255,6 +319,61 @@ def keys_for(items: Iterable[Dict[str, Any]], titles: Iterable[str]) -> Dict[str
         if isinstance(item, dict) and item.get("title") in allowed:
             found[item["title"]] = build_key(item, item["title"])
     return found
+
+
+def no_key_reason(fields: Any) -> Optional[str]:
+    """Почему ключа нет: 'no_identity' — модель подтвердила, что бренда нет (сравнивать нельзя);
+    'incomplete' — бренд есть, а модели нет (извлечение неполное); None — ключ строится."""
+    if not isinstance(fields, dict):
+        return "incomplete"
+    if build_key(fields):
+        return None
+    return "no_identity" if fields.get("unbranded") is True or not brand_token(fields.get("brand")) else "incomplete"
+
+
+def is_system_key(key: str) -> bool:
+    return _identity_of(key).endswith(SYSTEM_MARK)
+
+
+def revision_of(key: str) -> str:
+    """Ревизия по ключу: «v3» у …m2442ph.v3, иначе пусто."""
+    found = _REVISION_MARK_RE.search(_identity_of(key))
+    return found.group(1) if found else ""
+
+
+def keys_conflict(a: str, b: str) -> bool:
+    """Ключи заведомо о разном, и никакой вердикт их не склеит: варианты, ревизия, компонент и готовый компьютер."""
+    va, vb, ra, rb = _variants_of(a), _variants_of(b), revision_of(a), revision_of(b)
+    return bool((va and vb and va != vb) or (ra and rb and ra != rb) or is_system_key(a) != is_system_key(b))
+
+
+def compare_keys(primary: str, shadow: str) -> str:
+    """Сравнение ключа основной и теневой модели: matched, mismatch или incomparable (аудит C45-04).
+
+    k2 с k2 — строкой. Старый строковый ключ разбирается теми же правилами: «samsung:galaxy s24:256gb» и
+    «k2:samsung:galaxys24:256gb» — один товар, разница формата не ошибка модели. Старый ключ, который разобрать
+    нельзя (нет бренда, norm:, unknown:), с k2 несопоставим и в долю совпадений не входит."""
+    if primary == shadow:
+        return "matched"
+    if primary.startswith(f"{KEY_VERSION}:"):
+        return "mismatch"
+    parts = primary.split(":")
+    if len(parts) < 2 or parts[0] in ("norm", "unknown"):
+        return "incomparable"
+    brand = brand_token(parts[0])
+    identity = model_token(parts[1], brand)
+    if not brand or not identity:
+        return "incomparable"
+    if shadow.split(":", 2)[1] != brand or _identity_of(shadow) != identity:
+        return "mismatch"
+
+    def numbers(tokens):
+        return {m.group(0) for m in (re.match(r"\d+(?:\.\d+)?", t) for t in tokens) if m}
+    old = set()
+    for token in parts[2:]:
+        old |= numbers(variant_tokens([token]) or [token])
+    new = numbers(_variants_of(shadow).split("+"))
+    return "mismatch" if old and new and old != new else "matched"
 
 
 # Связь по артикулу производителя (P17-C3). Модель по-разному решает, что писать в «модель»: серию («MTE110S»)
@@ -355,6 +474,10 @@ def link_by_article(
     # получить ключ без объёма от прежней группы, и тогда 256 ГБ присоединялся бы к нему (P17CR-01)
     own_variants = {t: _fields_variants(entries[t][0], t, entries[t][1]) for t in titles}
     variants = {t: ({own_variants[t]} - {""}) for t in titles}
+    # Ревизия и «готовый компьютер» — тоже по полям: ключ мог быть назначен прежней группой (аудит C45-01)
+    own_keys = {t: _fields_key(entries[t][0], t, entries[t][1]) for t in titles}
+    revisions = {t: ({revision_of(own_keys[t])} - {""}) for t in titles}
+    systems = {t: is_system_key(own_keys[t]) for t in titles}
     members = {t: {t} for t in titles}
 
     def root(t):
@@ -388,15 +511,22 @@ def link_by_article(
                 if a == b:
                     continue
                 verdict = verdicts.get(pair_hash(first, other))
+                if systems[first] != systems[other]:
+                    continue                            # процессор и компьютер с ним: не спор, а разные товары
                 if first in ambiguous or other in ambiguous:
                     reason = "ambiguous_variants"
                 elif len(variants[a] | variants[b]) > 1:
                     reason = "variant_conflict"
+                elif len(revisions[a] | revisions[b]) > 1:
+                    reason = "revision_conflict"
                 elif different(members[a], members[b]):
                     reason = None                       # уже решено третьим источником — не спорная
+                elif bool(revisions[a]) != bool(revisions[b]) and verdict != "same":
+                    reason = "revision_unknown"         # ревизия известна только у одного: решает проверка
                 elif verdict == "same" or _compatible(entries[first][1], entries[other][1], article):
                     parent[b] = a
                     variants[a] |= variants.pop(b)
+                    revisions[a] |= revisions.pop(b)
                     members[a] |= members.pop(b)
                     continue
                 else:
@@ -424,13 +554,14 @@ def link_by_article(
     return out
 
 
+def _fields_key(fields: Any, title: str, key: str) -> str:
+    """Ключ названия по его собственным полям; без полей — назначенный."""
+    return (build_key(fields, title) if isinstance(fields, dict) else None) or key
+
+
 def _fields_variants(fields: Any, title: str, key: str) -> str:
     """Варианты названия по его полям (с объёмом и диагональю из названия); без полей — из ключа."""
-    if isinstance(fields, dict):
-        built = build_key(fields, title)
-        if built:
-            return _variants_of(built)
-    return _variants_of(key)
+    return _variants_of(_fields_key(fields, title, key))
 
 
 def resolve_keys_with_articles(

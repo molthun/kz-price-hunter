@@ -1,0 +1,222 @@
+{
+ "version": 1,
+ "note": "Проверенные пары для критериев C2: same — один товар. Дополнять при разборе потерь и новых объединений копии стенда.",
+ "pairs": [
+  {
+   "a": "AMD Ryzen 5 5600GT BOX",
+   "b": "Ryzen 5 5600GT-3.6GHz/A520/RAM 8GB/SSD 512GB/no DVD/400W",
+   "same": false,
+   "fields_a": {
+    "brand": "AMD",
+    "model": "Ryzen 5 5600GT",
+    "sku": null,
+    "edition": null,
+    "variants": [],
+    "unbranded": false
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "model": "Ryzen 5 5600GT",
+    "sku": null,
+    "edition": null,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 8
+     },
+     {
+      "unit": "гб",
+      "value": 512
+     }
+    ],
+    "unbranded": false
+   },
+   "note": "процессор и готовый компьютер, копия стенда C45-01"
+  },
+  {
+   "a": "AMD Ryzen 5 5600GT OEM",
+   "b": "Ryzen 5 5600GT-3.6GHz/A520/RAM 8GB/SSD 512GB/no DVD/400W",
+   "same": false,
+   "fields_a": {
+    "brand": "AMD",
+    "model": "Ryzen 5 5600GT",
+    "sku": null,
+    "edition": "OEM",
+    "variants": [],
+    "unbranded": false
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "model": "Ryzen 5 5600GT",
+    "sku": null,
+    "edition": null,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 8
+     },
+     {
+      "unit": "гб",
+      "value": 512
+     }
+    ],
+    "unbranded": false
+   },
+   "note": "процессор и готовый компьютер, копия стенда C45-01"
+  },
+  {
+   "a": "23.8\" Sanc M2442PH V2 черный",
+   "b": "Монитор 23.8\" Sanc M2442PH V3, Black",
+   "same": false,
+   "fields_a": {
+    "brand": "Sanc",
+    "model": "M2442PH",
+    "sku": null,
+    "edition": "V2",
+    "variants": [],
+    "unbranded": false
+   },
+   "fields_b": {
+    "brand": "Sanc",
+    "model": "M2442PH",
+    "sku": null,
+    "edition": "V3",
+    "variants": [],
+    "unbranded": false
+   },
+   "note": "разные ревизии, копия стенда C45-01"
+  },
+  {
+   "a": "23.8\" Sanc M2442PH V2 черный",
+   "b": "Монитор 23.8\" Sanc M2442PH V3",
+   "same": false,
+   "fields_a": {
+    "brand": "Sanc",
+    "model": "M2442PH",
+    "sku": null,
+    "edition": "V2",
+    "variants": [],
+    "unbranded": false
+   },
+   "fields_b": {
+    "brand": "Sanc",
+    "model": "M2442PH",
+    "sku": "M2442PH V3",
+    "edition": null,
+    "variants": [],
+    "unbranded": false
+   },
+   "note": "ревизия только в артикуле, копия стенда"
+  },
+  {
+   "a": "Samsung Galaxy S24 256GB",
+   "b": "Samsung Galaxy S24 Ultra 256GB",
+   "same": false,
+   "fields_a": {
+    "brand": "Samsung",
+    "model": "Galaxy S24",
+    "sku": null,
+    "edition": null,
+    "variants": [],
+    "unbranded": false
+   },
+   "fields_b": {
+    "brand": "Samsung",
+    "model": "Galaxy S24 Ultra",
+    "sku": null,
+    "edition": null,
+    "variants": [],
+    "unbranded": false
+   },
+   "note": "разные модели, аудит P17C-01"
+  },
+  {
+   "a": "23.8\" Sanc M2442PH V3 белый",
+   "b": "Монитор 23.8\" Sanc M2442PH V3, Black",
+   "same": true,
+   "fields_a": {
+    "brand": "Sanc",
+    "model": "M2442PH",
+    "sku": null,
+    "edition": "V3",
+    "variants": [],
+    "unbranded": false
+   },
+   "fields_b": {
+    "brand": "Sanc",
+    "model": "M2442PH",
+    "sku": null,
+    "edition": "V3",
+    "variants": [],
+    "unbranded": false
+   },
+   "note": "одна ревизия, разный цвет"
+  },
+  {
+   "a": "AMD Ryzen 5 7600X BOX",
+   "b": "Процессор AMD Ryzen 5 7600X box",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "model": "Ryzen 5",
+    "sku": "7600X",
+    "edition": null,
+    "variants": [],
+    "unbranded": false
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "model": "Ryzen 5 7600X",
+    "sku": null,
+    "edition": null,
+    "variants": [],
+    "unbranded": false
+   },
+   "note": "потеря правильной пары, C45-08"
+  },
+  {
+   "a": "23.8\" AOC 24B3CA2/01 черный",
+   "b": "Монитор 23,8\" AOC 24B3CA2/01 IPS",
+   "same": true,
+   "fields_a": {
+    "brand": "AOC",
+    "model": "24B3CA2/01",
+    "sku": null,
+    "edition": null,
+    "variants": [],
+    "unbranded": false
+   },
+   "fields_b": {
+    "brand": "AOC",
+    "model": "24B3CA2",
+    "sku": "24B3CA2/01",
+    "edition": null,
+    "variants": [],
+    "unbranded": false
+   },
+   "note": "один монитор, копия стенда"
+  },
+  {
+   "a": "Kingston NV3 2 TB",
+   "b": "SSD Kingston NV3 2TB",
+   "same": true,
+   "fields_a": {
+    "brand": "Kingston",
+    "model": "NV3",
+    "sku": null,
+    "edition": null,
+    "variants": [],
+    "unbranded": false
+   },
+   "fields_b": {
+    "brand": "Kingston",
+    "model": "NV3",
+    "sku": null,
+    "edition": null,
+    "variants": [],
+    "unbranded": false
+   },
+   "note": "«NV3» — не ревизия V3"
+  }
+ ]
+}

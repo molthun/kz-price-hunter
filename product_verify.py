@@ -271,12 +271,15 @@ async def process_disputed_queue_tick(
     item = pending[0]
     ph, title_a, title_b = item["pair_hash"], item["title_a"], item["title_b"]
 
-    fields_map = database.get_title_fields_for_titles([title_a, title_b])
-    fields_a = fields_map.get(title_a)
-    fields_b = fields_map.get(title_b)
-    if not fields_a or not fields_b:
-        database.update_disputed_pair_status(ph, "skipped", "no_fields")
-        return {"pair_hash": ph, "status": "skipped", "reason": "no_fields"}
+    # Рабочие поля, иначе теневые: откуда они, видно в результате (аудит C45-02)
+    fields_map = database.get_title_fields_with_source([title_a, title_b])
+    item_a, item_b = fields_map.get(title_a), fields_map.get(title_b)
+    if not item_a or not item_b:
+        # Поля могут появиться позже: пара ждёт с повтором, а не теряется навсегда (аудит C45-05)
+        status = database.defer_disputed_pair(ph, True, "no_fields")
+        return {"pair_hash": ph, "status": status, "reason": "no_fields"}
+    fields_a, fields_b = item_a["fields"], item_b["fields"]
+    sources = {"a": item_a["source"], "b": item_b["source"]}
 
     verdict = await verify_pair_cached(
         title_a, fields_a, title_b, fields_b,
@@ -290,11 +293,12 @@ async def process_disputed_queue_tick(
         cached = database.get_cached_canonical_keys_batch([title_a, title_b])
         key_a, key_b = cached.get(title_a), cached.get(title_b)
         pool = [k for k in (key_a, key_b) if k]
-        va, vb = (product_key._variants_of(k) if k else "" for k in (key_a, key_b))
-        if va and vb and va != vb:
-            # «Один товар» при разном объёме или диагонали — ошибка извлечения или вердикта: не склеивать (P17C-01)
+        if key_a and key_b and product_key.keys_conflict(key_a, key_b):
+            # «Один товар» при разном объёме, диагонали или ревизии, у чипа и компьютера с ним — ошибка извлечения
+            # или вердикта: не склеивать (P17C-01, C45-01)
             database.update_disputed_pair_status(ph, "unresolved", "same_but_variant_conflict")
-            return {"pair_hash": ph, "decision": decision, "status": "unresolved", "verdict": verdict}
+            return {"pair_hash": ph, "decision": decision, "status": "unresolved", "verdict": verdict,
+                    "fields_source": sources}
         if pool:
             # Преимущество k2-ключам, затем ключам с вариантами, затем самым коротким
             common_key = sorted(set(pool), key=lambda k: (0 if k.startswith("k2:") else 1,
@@ -310,4 +314,4 @@ async def process_disputed_queue_tick(
     else:
         status = database.defer_disputed_pair(ph, bool(verdict.get("transient")), verdict.get("reason") or "")
 
-    return {"pair_hash": ph, "decision": decision, "status": status, "verdict": verdict}
+    return {"pair_hash": ph, "decision": decision, "status": status, "verdict": verdict, "fields_source": sources}

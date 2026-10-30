@@ -986,6 +986,9 @@ def _matching_ai_view() -> Dict[str, Any]:
     }
 
 
+NORMALIZE_SHADOW_MIN_COVERAGE = 0.8
+
+
 def normalize_shadow_section(days: int = 7, now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
     """Сводка теневой нормализации локальной моделью (P17-C5).
 
@@ -997,14 +1000,21 @@ def normalize_shadow_section(days: int = 7, now: Optional[datetime.datetime] = N
     matched = data.get("matched", 0)
     rate = data.get("match_rate")
 
+    compared, coverage = data.get("compared", 0), data.get("coverage")
     if total == 0:
         status, reason = UNKNOWN, f"За {days} дн. теневых сравнений не производилось"
-    elif rate is not None and rate >= 0.85:
+    elif rate is None:
+        status, reason = DEGRADED, f"Ни одного сравнимого результата из {total}: {data.get('by_kind')}"
+    elif coverage is not None and coverage < NORMALIZE_SHADOW_MIN_COVERAGE:
+        # Высокая доля совпадений на малой части выборки ничего не доказывает (аудит C45-07)
+        status = DEGRADED
+        reason = f"Сравнена только {coverage * 100:.1f}% выборки ({compared}/{data.get('scheduled')}): {data.get('by_kind')}"
+    elif rate >= 0.85:
         status = HEALTHY
-        reason = f"Совпадение ключей локальной модели: {rate * 100:.1f}% ({matched}/{total})"
+        reason = f"Совпадение ключей локальной модели: {rate * 100:.1f}% ({matched}/{compared})"
     else:
         status = DEGRADED
-        reason = f"Низкое совпадение ключей: {rate * 100:.1f}% ({matched}/{total}), требуется калибровка"
+        reason = f"Низкое совпадение ключей: {rate * 100:.1f}% ({matched}/{compared}), требуется калибровка"
 
     return {"status": status, "reason": reason, **data}
 
