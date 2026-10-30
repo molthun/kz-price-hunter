@@ -3,9 +3,9 @@
   "pairs": 530,
   "without_keys": 2,
   "by_label": {
-   "uncertain": 31,
-   "different": 102,
-   "same": 369,
+   "uncertain": 29,
+   "different": 103,
+   "same": 370,
    "packaging": 28
   },
   "unique_titles": 817
@@ -26,18 +26,18 @@
   "pairs": 280,
   "baseline": {
    "tp": 94,
-   "fn": 88,
+   "fn": 89,
    "fp": 81,
-   "tn": 4,
-   "uncertain": 13,
+   "tn": 5,
+   "uncertain": 11,
    "packaging": 0
   },
   "candidate": {
-   "tp": 145,
+   "tp": 146,
    "fn": 37,
-   "fp": 7,
+   "fp": 8,
    "tn": 78,
-   "uncertain": 13,
+   "uncertain": 11,
    "packaging": 0
   }
  },
@@ -69,12 +69,12 @@
      "excluded": 3
     },
     "added": {
-     "n": 88,
-     "of": 92,
-     "rate": 0.9565,
-     "low": 0.8935,
-     "high": 0.983,
-     "excluded": 8
+     "n": 89,
+     "of": 94,
+     "rate": 0.9468,
+     "low": 0.8815,
+     "high": 0.9771,
+     "excluded": 6
     }
    },
    "layers": {
@@ -138,21 +138,21 @@
     "added": {
      "size": 2280,
      "known": 226,
-     "known_same": 199,
-     "known_different": 6,
-     "known_open": 21,
+     "known_same": 201,
+     "known_different": 9,
+     "known_open": 16,
      "pool": 2054,
      "drawn": 100,
-     "drawn_same": 88,
-     "drawn_different": 4,
-     "drawn_open": 8,
-     "true": 2006.5,
-     "false": 88.2,
-     "open": 185.3,
-     "true_low": 1768.1,
-     "true_high": 2251.0,
-     "false_low": 29.0,
-     "false_high": 511.9
+     "drawn_same": 89,
+     "drawn_different": 5,
+     "drawn_open": 6,
+     "true": 2029.1,
+     "false": 111.7,
+     "open": 139.2,
+     "true_low": 1794.9,
+     "true_high": 2238.3,
+     "false_low": 41.7,
+     "false_high": 485.1
     }
    },
    "baseline": {
@@ -165,20 +165,20 @@
     "false_high": 897
    },
    "candidate": {
-    "true": 2965,
-    "false": 134,
-    "open": 185,
-    "true_low": 2602,
-    "true_high": 3243,
-    "false_low": 41,
-    "false_high": 682
+    "true": 2987,
+    "false": 158,
+    "open": 139,
+    "true_low": 2629,
+    "true_high": 3231,
+    "false_low": 53,
+    "false_high": 655
    },
    "baseline_true_kept": 0.739,
    "baseline_true_kept_low": 0.614,
-   "candidate_vs_baseline_true": 2.287,
-   "candidate_vs_baseline_true_low": 1.716,
-   "false_merges_ratio": 0.216,
-   "false_merges_ratio_high": 1.503
+   "candidate_vs_baseline_true": 2.304,
+   "candidate_vs_baseline_true_low": 1.734,
+   "false_merges_ratio": 0.254,
+   "false_merges_ratio_high": 1.444
   },
   "packaging_excluded": {
    "share_true_by_stratum": {
@@ -207,12 +207,12 @@
      "excluded": 6
     },
     "added": {
-     "n": 88,
-     "of": 92,
-     "rate": 0.9565,
-     "low": 0.8935,
-     "high": 0.983,
-     "excluded": 8
+     "n": 89,
+     "of": 94,
+     "rate": 0.9468,
+     "low": 0.8815,
+     "high": 0.9771,
+     "excluded": 6
     }
    },
    "layers": {
@@ -276,21 +276,21 @@
     "added": {
      "size": 2280,
      "known": 226,
-     "known_same": 199,
-     "known_different": 4,
-     "known_open": 23,
+     "known_same": 201,
+     "known_different": 7,
+     "known_open": 18,
      "pool": 2054,
      "drawn": 100,
-     "drawn_same": 88,
-     "drawn_different": 4,
-     "drawn_open": 8,
-     "true": 2006.5,
-     "false": 86.2,
-     "open": 187.3,
-     "true_low": 1768.1,
-     "true_high": 2253.0,
-     "false_low": 27.0,
-     "false_high": 511.9
+     "drawn_same": 89,
+     "drawn_different": 5,
+     "drawn_open": 6,
+     "true": 2029.1,
+     "false": 109.7,
+     "open": 141.2,
+     "true_low": 1794.9,
+     "true_high": 2240.3,
+     "false_low": 39.7,
+     "false_high": 485.1
     }
    },
    "baseline": {
@@ -303,20 +303,20 @@
     "false_high": 897
    },
    "candidate": {
-    "true": 2965,
-    "false": 131,
-    "open": 188,
-    "true_low": 2602,
-    "true_high": 3246,
-    "false_low": 38,
-    "false_high": 682
+    "true": 2987,
+    "false": 155,
+    "open": 142,
+    "true_low": 2629,
+    "true_high": 3234,
+    "false_low": 50,
+    "false_high": 655
    },
    "baseline_true_kept": 0.739,
    "baseline_true_kept_low": 0.606,
-   "candidate_vs_baseline_true": 2.287,
-   "candidate_vs_baseline_true_low": 1.694,
-   "false_merges_ratio": 0.218,
-   "false_merges_ratio_high": 1.573
+   "candidate_vs_baseline_true": 2.304,
+   "candidate_vs_baseline_true_low": 1.711,
+   "false_merges_ratio": 0.258,
+   "false_merges_ratio_high": 1.511
   },
   "packaging_same": {
    "share_true_by_stratum": {
@@ -345,12 +345,12 @@
      "excluded": 3
     },
     "added": {
-     "n": 88,
-     "of": 92,
-     "rate": 0.9565,
-     "low": 0.8935,
-     "high": 0.983,
-     "excluded": 8
+     "n": 89,
+     "of": 94,
+     "rate": 0.9468,
+     "low": 0.8815,
+     "high": 0.9771,
+     "excluded": 6
     }
    },
    "layers": {
@@ -414,21 +414,21 @@
     "added": {
      "size": 2280,
      "known": 226,
-     "known_same": 201,
-     "known_different": 4,
-     "known_open": 21,
+     "known_same": 203,
+     "known_different": 7,
+     "known_open": 16,
      "pool": 2054,
      "drawn": 100,
-     "drawn_same": 88,
-     "drawn_different": 4,
-     "drawn_open": 8,
-     "true": 2008.5,
-     "false": 86.2,
-     "open": 185.3,
-     "true_low": 1770.1,
-     "true_high": 2253.0,
-     "false_low": 27.0,
-     "false_high": 509.9
+     "drawn_same": 89,
+     "drawn_different": 5,
+     "drawn_open": 6,
+     "true": 2031.1,
+     "false": 109.7,
+     "open": 139.2,
+     "true_low": 1796.9,
+     "true_high": 2240.3,
+     "false_low": 39.7,
+     "false_high": 483.1
     }
    },
    "baseline": {
@@ -441,20 +441,20 @@
     "false_high": 878
    },
    "candidate": {
-    "true": 2968,
-    "false": 131,
-    "open": 185,
-    "true_low": 2605,
-    "true_high": 3246,
-    "false_low": 38,
-    "false_high": 679
+    "true": 2990,
+    "false": 155,
+    "open": 139,
+    "true_low": 2632,
+    "true_high": 3234,
+    "false_low": 50,
+    "false_high": 652
    },
    "baseline_true_kept": 0.728,
    "baseline_true_kept_low": 0.606,
-   "candidate_vs_baseline_true": 2.252,
-   "candidate_vs_baseline_true_low": 1.695,
-   "false_merges_ratio": 0.218,
-   "false_merges_ratio_high": 1.566
+   "candidate_vs_baseline_true": 2.269,
+   "candidate_vs_baseline_true_low": 1.713,
+   "false_merges_ratio": 0.258,
+   "false_merges_ratio_high": 1.504
   },
   "packaging_different": {
    "share_true_by_stratum": {
@@ -483,12 +483,12 @@
      "excluded": 3
     },
     "added": {
-     "n": 88,
-     "of": 92,
-     "rate": 0.9565,
-     "low": 0.8935,
-     "high": 0.983,
-     "excluded": 8
+     "n": 89,
+     "of": 94,
+     "rate": 0.9468,
+     "low": 0.8815,
+     "high": 0.9771,
+     "excluded": 6
     }
    },
    "layers": {
@@ -552,21 +552,21 @@
     "added": {
      "size": 2280,
      "known": 226,
-     "known_same": 199,
-     "known_different": 6,
-     "known_open": 21,
+     "known_same": 201,
+     "known_different": 9,
+     "known_open": 16,
      "pool": 2054,
      "drawn": 100,
-     "drawn_same": 88,
-     "drawn_different": 4,
-     "drawn_open": 8,
-     "true": 2006.5,
-     "false": 88.2,
-     "open": 185.3,
-     "true_low": 1768.1,
-     "true_high": 2251.0,
-     "false_low": 29.0,
-     "false_high": 511.9
+     "drawn_same": 89,
+     "drawn_different": 5,
+     "drawn_open": 6,
+     "true": 2029.1,
+     "false": 111.7,
+     "open": 139.2,
+     "true_low": 1794.9,
+     "true_high": 2238.3,
+     "false_low": 41.7,
+     "false_high": 485.1
     }
    },
    "baseline": {
@@ -579,20 +579,20 @@
     "false_high": 897
    },
    "candidate": {
-    "true": 2965,
-    "false": 134,
-    "open": 185,
-    "true_low": 2602,
-    "true_high": 3243,
-    "false_low": 41,
-    "false_high": 682
+    "true": 2987,
+    "false": 158,
+    "open": 139,
+    "true_low": 2629,
+    "true_high": 3231,
+    "false_low": 53,
+    "false_high": 655
    },
    "baseline_true_kept": 0.739,
    "baseline_true_kept_low": 0.614,
-   "candidate_vs_baseline_true": 2.287,
-   "candidate_vs_baseline_true_low": 1.716,
-   "false_merges_ratio": 0.216,
-   "false_merges_ratio_high": 1.503
+   "candidate_vs_baseline_true": 2.304,
+   "candidate_vs_baseline_true_low": 1.734,
+   "false_merges_ratio": 0.254,
+   "false_merges_ratio_high": 1.444
   }
  },
  "candidate_false_merges": [
@@ -600,6 +600,14 @@
    "a": "Игровая приставка Sony PlayStation 5 Slim + Геймпад + GTA V",
    "b": "Игровая приставка Sony PlayStation 5 Slim + геймпад Белый",
    "key": "k2:sony:playstation5slim",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Коврик для мыши 2E Gaming Pro Speed XL",
+   "b": "Коврик для мыши Gaming Pro Speed полиэстер, резина, 36×27.5 см, 36 × 27.5 × 0,3 см 2Е",
+   "key": "k2:2e:gamingprospeed",
    "strata": [
     "added"
    ]
@@ -1035,13 +1043,13 @@
     "excluded": 0
    },
    "tuned_added": {
-    "before_tp": 88,
-    "now_tp": 88,
-    "before_fp": 4,
-    "now_fp": 4,
-    "true_total": 88,
-    "false_total": 4,
-    "excluded": 8
+    "before_tp": 89,
+    "now_tp": 89,
+    "before_fp": 5,
+    "now_fp": 5,
+    "true_total": 89,
+    "false_total": 5,
+    "excluded": 6
    },
    "tuned_dropped_both_k2": {
     "before_tp": 0,

@@ -1074,11 +1074,11 @@
     {
       "a": "Коврик для мыши 2E Gaming Pro Speed XL",
       "b": "Коврик для мыши Gaming Pro Speed полиэстер, резина, 36×27.5 см, 36 × 27.5 × 0,3 см 2Е",
-      "label": "uncertain",
+      "label": "different",
       "strata": [
         "added"
       ],
-      "note": "2E Gaming Pro Speed XL vs Medium 36x27.5cm (dimensions unspecified in XL)"
+      "note": "XL — 800×450 мм, 360×275 мм — размер M"
     },
     {
       "a": "Процессор CPU S-1851 Intel Core Ultra 7 265K OEM",
@@ -1542,11 +1542,11 @@
     {
       "a": "Наушники SOUNDCORE Liberty 5 Pro (D1203G31), Голубой TWS",
       "b": "Наушники soundcore Liberty 5 Pro D1203G21",
-      "label": "uncertain",
+      "label": "same",
       "strata": [
         "added"
       ],
-      "note": "значение кодов G21/G31 источником не подтверждено"
+      "note": "G31 голубой, G21 белый: разница в цвете (коды по карточкам магазинов)"
     },
     {
       "a": "Наушники Soundcore P40i A3955 TWS Navy Blue",
@@ -4915,7 +4915,8 @@
     {
       "a": "Гарнитура JABRA Evolve2 50, USB C/A, MS Stereo (25089-999-799)",
       "b": "Наушники Jabra Evolve2 50 USB-C MS Stereo черный",
-      "label": "uncertain"
+      "label": "different",
+      "note": "разные исполнения: 25089-999-799 — USB-C/A, 25089-999-899 — USB-C"
     },
     {
       "a": "Гарнитура A4Tech Bloody G430, 1.8m, LED, Black (G430/BLACK)",
@@ -5250,7 +5251,8 @@
     {
       "a": "AirPods Max 2",
       "b": "Apple AirPods Max Orange беспроводные наушники (MWW73)",
-      "label": "uncertain"
+      "label": "different",
+      "note": "MWW73 — USB-C 2024 года на H1; AirPods Max 2 — поколение 2026 года на H2"
     },
     {
       "a": "Корпус Ocypus Gamma C60 BK ARGB Gamma-C60-BKG400XX-GL",
@@ -6347,8 +6349,8 @@
     {
       "a": "Наушники SOUNDCORE Liberty 5 Pro (D1203G31), Голубой TWS",
       "b": "Наушники soundcore Liberty 5 Pro D1203G11",
-      "label": "uncertain",
-      "note": "значение кодов G11/G31 источником не подтверждено"
+      "label": "same",
+      "note": "G31 голубой, G11 чёрный: разница в цвете (коды по карточкам магазинов)"
     },
     {
       "a": "AMD Ryzen 5 5600 OEM",
@@ -6499,7 +6501,8 @@
     {
       "a": "Батарейка дисковая литиевая PANASONIC LRV08/1B",
       "b": "Батарейка щелочная LRV08 LRV08, щелочной, 1 шт. Panasonic",
-      "label": "uncertain"
+      "label": "same",
+      "note": "LRV08/1B — щелочная 12 В, одна штука; «литиевая» в первом названии ошибочна"
     },
     {
       "a": "SSD накопитель 4 TB Adata XPG Gammix S70 Blade, M.2, PCIe 4.0",
@@ -7320,7 +7323,8 @@
     {
       "a": "AirPods Max 2",
       "b": "Наушники APPLE AirPods MAX (MWW63ZE/A) Blue",
-      "label": "uncertain"
+      "label": "different",
+      "note": "MWW63 — USB-C 2024 года на H1; AirPods Max 2 — поколение 2026 года на H2"
     },
     {
       "a": "Видеокарта MaxSun MS-RX550 TF 4G (MS-RX550 TF 4G)",
@@ -7485,5 +7489,6 @@
       "b": "Процессор Intel Core i7 13700KF, LGA1700, OEM",
       "label": "same"
     }
-  ]
+  ],
+  "open_added_review": "Открытые пары added разобраны по источникам 31.10.2026 (Claude): только подтверждённые, в любую сторону; см. label_changes.json. Исполнитель знал итоги, проверка не независимая."
 }

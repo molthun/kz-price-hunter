@@ -436,6 +436,93 @@
    "now": "different",
    "reason": "6 ГБ и 8 ГБ памяти",
    "sources": []
+  },
+  {
+   "a": "Наушники SOUNDCORE Liberty 5 Pro (D1203G31), Голубой TWS",
+   "b": "Наушники soundcore Liberty 5 Pro D1203G21",
+   "where": "open_added/pairs",
+   "was": "uncertain",
+   "now": "same",
+   "reason": "G31 голубой, G21 белый: разница в цвете (коды по карточкам магазинов)",
+   "sources": [
+    "https://www.ceneo.pl/196456029",
+    "https://www.ceneo.pl/196455960",
+    "https://www.ceneo.pl/196456001",
+    "https://www.heavins.ie/products/soundcore-liberty-5-pro-ear-buds-white-d1203g21"
+   ]
+  },
+  {
+   "a": "Наушники SOUNDCORE Liberty 5 Pro (D1203G31), Голубой TWS",
+   "b": "Наушники soundcore Liberty 5 Pro D1203G11",
+   "where": "open_added/known_pairs",
+   "was": "uncertain",
+   "now": "same",
+   "reason": "G31 голубой, G11 чёрный: разница в цвете (коды по карточкам магазинов)",
+   "sources": [
+    "https://www.ceneo.pl/196456029",
+    "https://www.ceneo.pl/196455960",
+    "https://www.ceneo.pl/196456001",
+    "https://www.heavins.ie/products/soundcore-liberty-5-pro-ear-buds-white-d1203g21"
+   ]
+  },
+  {
+   "a": "Батарейка дисковая литиевая PANASONIC LRV08/1B",
+   "b": "Батарейка щелочная LRV08 LRV08, щелочной, 1 шт. Panasonic",
+   "where": "open_added/known_pairs",
+   "was": "uncertain",
+   "now": "same",
+   "reason": "LRV08/1B — щелочная 12 В, одна штука; «литиевая» в первом названии ошибочна",
+   "sources": [
+    "https://www.panasonic.com/nz/business/batteries-and-energy-solutions/batteries/consumer-batteries/lr-v08-1bpa.html"
+   ]
+  },
+  {
+   "a": "Гарнитура JABRA Evolve2 50, USB C/A, MS Stereo (25089-999-799)",
+   "b": "Наушники Jabra Evolve2 50 USB-C MS Stereo черный",
+   "where": "open_added/known_pairs",
+   "was": "uncertain",
+   "now": "different",
+   "reason": "разные исполнения: 25089-999-799 — USB-C/A, 25089-999-899 — USB-C",
+   "sources": [
+    "https://www.cdw.com/product/jabra-evolve2-50-ms-stereo-headset/8366697",
+    "https://www.aztekc.com/evolve2-50-usb-c-ms-stereo-jabra/p"
+   ]
+  },
+  {
+   "a": "Коврик для мыши 2E Gaming Pro Speed XL",
+   "b": "Коврик для мыши Gaming Pro Speed полиэстер, резина, 36×27.5 см, 36 × 27.5 × 0,3 см 2Е",
+   "where": "open_added/pairs",
+   "was": "uncertain",
+   "now": "different",
+   "reason": "XL — 800×450 мм, 360×275 мм — размер M",
+   "sources": [
+    "https://e-katalog.kz/ua/2E-GAMING-PRO-MOUSE-PAD-SPEED-XL.htm",
+    "https://metromart.ge/shop/product/2647-Mousepad-2E-Gaming-PRO-Speed-2E-SPEED-M-BK-PRO-Black-22690"
+   ]
+  },
+  {
+   "a": "AirPods Max 2",
+   "b": "Apple AirPods Max Orange беспроводные наушники (MWW73)",
+   "where": "open_added/known_pairs",
+   "was": "uncertain",
+   "now": "different",
+   "reason": "MWW73 — USB-C 2024 года на H1; AirPods Max 2 — поколение 2026 года на H2",
+   "sources": [
+    "https://9to5mac.com/2026/03/16/apple-unveils-airpods-max-2-with-h2-chip-live-translation-more/",
+    "https://www.bestbuy.com/product/apple-airpods-max-usb-c-orange/JJGCQ3ZZ5H"
+   ]
+  },
+  {
+   "a": "AirPods Max 2",
+   "b": "Наушники APPLE AirPods MAX (MWW63ZE/A) Blue",
+   "where": "open_added/known_pairs",
+   "was": "uncertain",
+   "now": "different",
+   "reason": "MWW63 — USB-C 2024 года на H1; AirPods Max 2 — поколение 2026 года на H2",
+   "sources": [
+    "https://9to5mac.com/2026/03/16/apple-unveils-airpods-max-2-with-h2-chip-live-translation-more/",
+    "https://lcd-phone.com/en/apple-store/33248-airpods-max-usb-c-2024-blue-retail-box-apple-mww63zma-0195949544309.html"
+   ]
   }
  ],
  "confirmed_by_source": [
@@ -471,5 +558,11 @@
     "https://gamesbeat.com/razer-roblox-partner-peripherals-bundled-digital-item/"
    ]
   }
- ]
+ ],
+ "open_added_kept": {
+  "упаковка только с одной стороны": "по названию не решить; нужна карточка предложения или правило владельца",
+  "Edifier W820NB Plus EDF200118 и v.2025": "связь кода с версией 2025 только в выдаче поиска, страница магазина не открылась (403)",
+  "AFOX AF1660S H4-V2 и H7-V2": "различие кодов источником не описано",
+  "AFOX GT 740, MaxSun RX 550": "во втором названии нет кода карты, источник этого не решит"
+ }
 }
