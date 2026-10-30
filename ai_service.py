@@ -54,7 +54,7 @@ def should_use_ai_parsing(query: str) -> bool:
     """
     if not query or len(query.strip()) < 3:
         return False
-    
+
     q = query.strip().lower()
     for pattern in _NL_PATTERNS:
         if pattern.search(q):
@@ -1297,6 +1297,15 @@ async def normalize_product_titles_batch(
         if new_cached:
             await asyncio.to_thread(save_cached_canonical_keys_batch, new_cached)
 
+        # Теневой режим на проде (P17-C5): если основная модель — платная (Gemini/OpenAI),
+        # а локальная доступна и не отключена, параллельно в фоне запрашиваем поля у локальной модели,
+        # сравниваем с ключом основной и пишем в normalize_shadow; расхождения ставим в очередь спорных пар.
+        if (provider != ai_router.LOCAL and creds.get("has_local") and creds.get("local_api_base")
+                and creds.get("local_model")):
+            import local_ai
+            if not local_ai.pause_reason():
+                asyncio.create_task(_run_shadow_normalize(chunk, creds, new_cached, standard))
+
         # Все названия пакета помечаются попыткой: без ключа они не уйдут в AI еще AI_RETRY_DAYS дней
         await asyncio.to_thread(record_ai_attempts, chunk)
         for t in chunk:
@@ -1389,6 +1398,74 @@ K2_NORMALIZE_PROMPT = (
     "Ответь строго JSON: {\"items\": [{\"title\": \"исходное название\", \"brand\": ..., \"model\": ..., "
     "\"sku\": ..., \"variants\": [...], \"unbranded\": ...}]}"
 )
+
+
+async def _run_shadow_normalize(chunk: List[str], creds: Dict[str, Any],
+                                primary_cached: Dict[str, str], standard: str) -> None:
+    """Фоновая теневая нормализация локальной моделью (P17-C5).
+
+    Запрашивает извлечение полей у локальной модели, строит теневой ключ через product_key.build_key,
+    сравнивает с ключом основной модели, сохраняет статистику в normalize_shadow и ставит
+    расхождения в очередь disputed_product_pairs для разрешения через SearXNG.
+    Fail-safe: любые ошибки локальной модели изолированы и не затрагивают основной конвейер.
+    """
+    try:
+        import ai_router
+        import product_key
+        import database
+
+        base = creds.get("local_api_base") or ""
+        model = creds.get("local_model") or ""
+        key = creds.get("local_api_key") or ""
+        if not base or not model:
+            return
+
+        prompt = (K2_NORMALIZE_PROMPT + "\n\n"
+                  + "Нормализуй товары, перечисленные в блоке данных ниже.\n"
+                  + ai_router.untrusted_block("\n".join(f"- {t}" for t in chunk), "НАЗВАНИЯ"))
+
+        reply = await call_local_api(prompt, base, model, key, timeout=60.0, scan=True)
+        if not (isinstance(reply, dict) and isinstance(reply.get("items"), list)):
+            return
+
+        allowed = set(chunk)
+        fields = {}
+        for item in reply["items"]:
+            if isinstance(item, dict) and item.get("title") in allowed:
+                fields[item["title"]] = {k: item.get(k) for k in product_key.FIELDS_SCHEMA}
+
+        if fields:
+            # Сохраняем поля локальной модели (для анализа и будущего мгновенного rescore)
+            database.save_title_fields_batch(fields, product_key.KEY_VERSION, provider="local", model=model)
+
+        # Сравниваем полученные ключи
+        for t in chunk:
+            pk = primary_cached.get(t) or ""
+            f = fields.get(t)
+            sk = product_key.build_key(f, t) if f else ""
+
+            # Сопоставляем ключи: при v1 от Gemini и k2 от локальной нормализуем префикс k2: для чистого сравнения
+            clean_pk = pk[3:] if pk.startswith("k2:") else pk
+            clean_sk = sk[3:] if sk.startswith("k2:") else sk
+
+            if clean_pk and clean_sk:
+                if clean_pk == clean_sk:
+                    database.record_normalize_shadow("matched", pk, sk, t)
+                else:
+                    database.record_normalize_shadow("mismatch", pk, sk, t)
+                    # Если у локальной модели есть другой товар под тем же ключом sk,
+                    # или у основной модели под ключом pk есть другие товары в базе — ставим эту пару в очередь спорных
+                    other_titles = database.titles_with_canonical_key(pk, limit=5)
+                    for other in other_titles:
+                        if other != t:
+                            database.enqueue_disputed_pair(t, other, f"shadow_mismatch: {clean_pk} vs {clean_sk}")
+            elif pk and not sk:
+                database.record_normalize_shadow("shadow_empty", pk, "", t)
+            elif not pk and sk:
+                database.record_normalize_shadow("primary_empty", "", sk, t)
+    except Exception as e:
+        # Теневой режим никогда не должен поднимать исключение наружу
+        print(f"[Shadow Normalize] Сбой теневой нормализации: {type(e).__name__}")
 
 
 def _budget_exhausted() -> bool:

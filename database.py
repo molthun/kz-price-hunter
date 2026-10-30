@@ -1013,6 +1013,18 @@ def _create_schema(cursor) -> None:
             attempted_at TIMESTAMP NOT NULL
         )
     """)
+    # Теневой режим нормализации (P17-C5): сравнение ключей основной и теневой модели
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS normalize_shadow (
+            day TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            primary_key TEXT NOT NULL,
+            shadow_key TEXT NOT NULL,
+            count INTEGER NOT NULL DEFAULT 0,
+            example_title TEXT,
+            PRIMARY KEY (day, kind, primary_key, shadow_key)
+        )
+    """)
     cursor.execute("CREATE TABLE IF NOT EXISTS schema_metadata (name TEXT PRIMARY KEY, value TEXT)")
     # Пользователи (вход через Telegram) и их личные настройки
     cursor.execute("""
@@ -4884,6 +4896,50 @@ def record_matching_shadow(kind: str, reason: str, left: str, right: str,
             conn.commit()
     except Exception:
         pass
+
+
+def record_normalize_shadow(kind: str, primary_key: str, shadow_key: str, example_title: str,
+                            now: Optional[datetime.datetime] = None) -> None:
+    """Учёт теневой нормализации (P17-C5). Fail-open: ошибка записи не мешает основной нормализации."""
+    try:
+        moment = now or datetime.datetime.now(datetime.timezone.utc)
+        with get_connection() as conn:
+            conn.execute("""
+                INSERT INTO normalize_shadow (day, kind, primary_key, shadow_key, count, example_title)
+                VALUES (?, ?, ?, ?, 1, ?)
+                ON CONFLICT(day, kind, primary_key, shadow_key) DO UPDATE SET count = count + 1
+            """, (moment.strftime("%Y-%m-%d"), kind, str(primary_key)[:150], str(shadow_key)[:150], str(example_title)[:200]))
+            conn.commit()
+    except Exception:
+        pass
+
+
+def normalize_shadow_summary(days: int = 7, now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
+    """Сводка теневой нормализации (P17-C5): совпадения, расхождения, доля совпадений и примеры."""
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    since = (moment - datetime.timedelta(days=max(1, int(days)))).strftime("%Y-%m-%d")
+    matched, mismatch, rows = 0, 0, []
+    try:
+        with get_connection() as conn:
+            for row in conn.execute("SELECT * FROM normalize_shadow WHERE day >= ? ORDER BY count DESC LIMIT 200", (since,)):
+                item = dict(row)
+                rows.append(item)
+                if item["kind"] == "matched":
+                    matched += int(item["count"])
+                else:
+                    mismatch += int(item["count"])
+    except Exception:
+        pass
+    total = matched + mismatch
+    match_rate = round(matched / total, 4) if total > 0 else None
+    return {
+        "days": days,
+        "matched": matched,
+        "mismatch": mismatch,
+        "total": total,
+        "match_rate": match_rate,
+        "breakdown": rows,
+    }
 
 
 def matching_shadow(days: int = 7, now: Optional[datetime.datetime] = None) -> Dict[str, Any]:

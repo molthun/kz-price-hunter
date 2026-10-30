@@ -3671,6 +3671,19 @@ async def monitoring_matching_handler(request):
     return web.json_response(data, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
 
 
+@routes.get("/api/admin/monitoring/normalize_shadow")
+@require_admin
+async def monitoring_normalize_shadow_handler(request):
+    """Теневой отчёт нормализации товаров (P17-C5): совпадения ключей Gemini и локальной модели."""
+    import monitoring
+    try:
+        days = max(1, min(90, int(request.query.get("days") or 7)))
+    except ValueError:
+        days = 7
+    data = await asyncio.to_thread(monitoring.normalize_shadow_section, days)
+    return web.json_response(data, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
 _AI_MODELS_CACHE: Dict[str, Any] = {"at": 0.0, "data": None}
 AI_MODELS_CACHE_SECONDS = 300
 

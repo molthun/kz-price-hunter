@@ -491,6 +491,52 @@ class NormalizeK2Test(_DbCase):
         with database.get_connection() as conn:
             self.assertEqual(conn.execute("SELECT count(*) FROM title_articles").fetchone()[0], 1)
 
+    def test_shadow_normalize_compares_and_enqueues_mismatch(self):
+        """P17-C5: теневая нормализация локальной моделью сравнивает ключи и пишет в normalize_shadow."""
+        titles = ["Смартфон Samsung S24 256GB", "Монитор AOC 24B1"]
+        creds = {"has_ai": True, "ai_search_enabled": True, "enabled": True, "ai_provider": "gemini",
+                 "has_local": True, "local_api_base": "http://h:1/v1", "local_model": "qwen3-vl:8b-instruct",
+                 "gemini_api_key": "fake_gemini", "openai_api_key": ""}
+
+        # Заранее кладём в базу другой товар с тем же ключом aoc:24b1:24
+        database.save_cached_canonical_keys_batch({"Монитор AOC 24B1 черный": "aoc:24b1:24"})
+
+        # Основная модель вернула ключи
+        primary_cached = {
+            "Смартфон Samsung S24 256GB": "samsung:s24:256gb",
+            "Монитор AOC 24B1": "aoc:24b1:24",
+        }
+
+        # Локальная модель в тени возвращает поля (один совпал, один расходится)
+        local_reply = {
+            "items": [
+                {"title": "Смартфон Samsung S24 256GB", "brand": "Samsung", "model": "s24", "sku": None,
+                 "variants": [{"value": 256, "unit": "ГБ"}], "unbranded": False},
+                {"title": "Монитор AOC 24B1", "brand": "AOC", "model": "24b1h", "sku": "24B1H",
+                 "variants": [{"value": 24, "unit": "дюйм"}], "unbranded": False},
+            ]
+        }
+
+        async def fake_call_local(*args, **kwargs):
+            return local_reply
+
+        with patch.object(ai_service, "call_local_api", fake_call_local), \
+             patch("local_ai.pause_reason", return_value=None):
+            asyncio.run(ai_service._run_shadow_normalize(titles, creds, primary_cached, "v1"))
+
+        summary = database.normalize_shadow_summary(days=1)
+        self.assertEqual(summary["total"], 2)
+        self.assertEqual(summary["matched"], 1)
+        self.assertEqual(summary["mismatch"], 1)
+        self.assertEqual(summary["match_rate"], 0.5)
+
+        # Расхождение должно было поставить в очередь спорную пару
+        pending = database.get_pending_disputed_pairs(limit=10)
+        self.assertEqual(len(pending), 1)
+        self.assertEqual(sorted([pending[0]["title_a"], pending[0]["title_b"]]),
+                         ["Монитор AOC 24B1", "Монитор AOC 24B1 черный"])
+        self.assertIn("shadow_mismatch", pending[0]["reason"])
+
 
 
 class LocalCallTest(_DbCase):

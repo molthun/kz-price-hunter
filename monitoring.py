@@ -986,6 +986,29 @@ def _matching_ai_view() -> Dict[str, Any]:
     }
 
 
+def normalize_shadow_section(days: int = 7, now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
+    """Сводка теневой нормализации локальной моделью (P17-C5).
+
+    Показывает совпадения и расхождения ключей основной и локальной модели.
+    """
+    import database
+    data = database.normalize_shadow_summary(days=days, now=now)
+    total = data.get("total", 0)
+    matched = data.get("matched", 0)
+    rate = data.get("match_rate")
+
+    if total == 0:
+        status, reason = UNKNOWN, f"За {days} дн. теневых сравнений не производилось"
+    elif rate is not None and rate >= 0.85:
+        status = HEALTHY
+        reason = f"Совпадение ключей локальной модели: {rate * 100:.1f}% ({matched}/{total})"
+    else:
+        status = DEGRADED
+        reason = f"Низкое совпадение ключей: {rate * 100:.1f}% ({matched}/{total}), требуется калибровка"
+
+    return {"status": status, "reason": reason, **data}
+
+
 SCHEDULER_SHADOW_DAYS = 7
 SCHEDULER_PLAN_LIMIT = 15
 
