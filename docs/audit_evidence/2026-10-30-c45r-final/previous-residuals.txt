@@ -1,0 +1,56 @@
+test_compare_preserves_units (__main__.Residuals.test_compare_preserves_units) ... ok
+test_incomplete_item_does_not_clear_known_identity (__main__.Residuals.test_incomplete_item_does_not_clear_known_identity) ... ok
+test_real_mismatch_neighbor_reaches_verdict (__main__.Residuals.test_real_mismatch_neighbor_reaches_verdict) ... ok
+test_resume_keeps_counters_for_committed_batches (__main__.Residuals.test_resume_keeps_counters_for_committed_batches) ... ok
+test_same_verdict_respects_revisions_with_legacy_keys (__main__.Residuals.test_same_verdict_respects_revisions_with_legacy_keys) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.214s
+
+OK
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+UNITS [(('kingston:memory:1gb', 'k2:kingston:memory:1tb'), 'mismatch'), (('brand:food:85g', 'k2:brand:food:85ml'), 'mismatch')]
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 1, в исходном снимке k2: 1
+[C4] Из них уже сохранены поля: 0
+[C4] Обработка 1 названий пачками по 20...
+[C4] Прогресс: 1/1 (100%) | Скорость: 9868.4 наим/с | ETA: 0 с | С ключом k2: 0
+INCOMPLETE_RESPONSE key= samsung:galaxy s24:256gb no_identity= 0 incomplete= 1
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+VALID_MISMATCH_NEIGHBOR {'pair_hash': '084da433db4bcbb9ae40005eb27320c938424acf30c369a08f7bd5b11722e523', 'decision': 'different', 'status': 'resolved', 'verdict': {'decision': 'different'}, 'fields_source': {'a': 'shadow', 'b': 'shadow'}}
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 2, в исходном снимке resume: 2
+[C4] Из них уже сохранены поля: 0
+[C4] Обработка 2 названий пачками по 1...
+[C4] Найдено названий для миграции: 1, в исходном снимке resume: 2
+[C4] Из них уже сохранены поля: 0
+[C4] Обработка 1 названий пачками по 1...
+[C4] Прогресс: 1/1 (100%) | Скорость: 2070.9 наим/с | ETA: 0 с | С ключом k2: 1
+CRASH_RESUME {'run_id': 'resume', 'baseline_created_at': '2026-10-30T15:47:28Z', 'baseline_titles': 2, 'actual_k2_keys': 2, 'actual_legacy_keys': 0, 'actual_no_key': 0, 'cumulative': {'api_calls': 2, 'api_failures': 0, 'failed_titles': 0, 'missing_titles': 0, 'seconds': 0.0, 'api_started': 2, 'api_unfinished': 0}}
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+LEGACY_REVISIONS {'pair_hash': 'e8f1efd4e53861632e47f2d96045e59bced627f9d9087768d441fa68123e10bd', 'decision': 'same', 'status': 'unresolved', 'verdict': {'decision': 'same'}, 'fields_source': {'a': 'shadow', 'b': 'shadow'}} {'Sanc M2442PH V3 23.8"': 'sanc:m2442ph v3:23.8', 'Sanc M2442PH V2 23.8"': 'sanc:m2442ph v2:23.8'} V2 product_ids ['prod_8490e815fd0a844d', 'prod_424090bdf3fe8ece']

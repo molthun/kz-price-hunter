@@ -1,0 +1,44 @@
+test_member_without_fields_retains_capacity_guard (__main__.Residuals.test_member_without_fields_retains_capacity_guard) ... FAIL
+test_previous_ledger_schema_can_resume (__main__.Residuals.test_previous_ledger_schema_can_resume) ... FAIL
+
+======================================================================
+FAIL: test_member_without_fields_retains_capacity_guard (__main__.Residuals.test_member_without_fields_retains_capacity_guard)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-30-c45r-final/residuals.py", line 41, in test_member_without_fields_retains_capacity_guard
+    self.assertEqual(result['status'], 'unresolved', 'known 256GB member moved into new 128GB group')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'resolved' != 'unresolved'
+- resolved
++ unresolved
+? ++
+ : known 256GB member moved into new 128GB group
+
+======================================================================
+FAIL: test_previous_ledger_schema_can_resume (__main__.Residuals.test_previous_ledger_schema_can_resume)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-30-c45r-final/residuals.py", line 66, in test_previous_ledger_schema_can_resume
+    self.assertIsNone(error, 'CREATE TABLE IF NOT EXISTS does not upgrade existing ledger')
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'OperationalError: no such column: api_started' is not None : CREATE TABLE IF NOT EXISTS does not upgrade existing ledger
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.116s
+
+FAILED (failures=2)
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+MEMBER_256_NO_FIELDS status= resolved keys= {'Samsung Galaxy S24 128GB white': 'samsung:s24-a', 'Samsung Galaxy S24 128GB black': 'samsung:s24-a', 'Samsung Galaxy S24 256GB blue': 'samsung:s24-a'} offers= [('off_p0', 'prod_8163b3edceeaae28'), ('off_p1', 'prod_8163b3edceeaae28'), ('off_p2', 'prod_8163b3edceeaae28')]
+CAPACITY_FROM_TITLE [{'value': 256.0, 'unit': 'gb'}]
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+OLD_LEDGER_RESUME error= OperationalError: no such column: api_started report= None
