@@ -246,6 +246,20 @@ def verification_pause_reason(config: Dict[str, Any]) -> Optional[str]:
     return local_ai.pause_reason()
 
 
+def _merge_conflict(title_a, fields_a, key_a, title_b, fields_b, key_b) -> bool:
+    """Противоречат ли друг другу пара и группы, которые вердикт «один товар» объединил бы целиком (C45R-01)."""
+    import database
+    import product_key
+    group_a, group_b = [(title_a, fields_a, key_a)], [(title_b, fields_b, key_b)]
+    if key_a != key_b:
+        members = {key: [t for t in database.titles_with_canonical_key(key) if t not in (title_a, title_b)]
+                   for key in (key_a, key_b) if key}
+        known = database.get_title_fields_with_source([t for ts in members.values() for t in ts])
+        for group, key in ((group_a, key_a), (group_b, key_b)):
+            group += [(t, (known.get(t) or {}).get("fields"), key) for t in members.get(key, ())]
+    return product_key.identities_conflict(group_a, group_b)
+
+
 async def process_disputed_queue_tick(
     search_base: str,
     ask: Ask,
@@ -293,9 +307,9 @@ async def process_disputed_queue_tick(
         cached = database.get_cached_canonical_keys_batch([title_a, title_b])
         key_a, key_b = cached.get(title_a), cached.get(title_b)
         pool = [k for k in (key_a, key_b) if k]
-        if key_a and key_b and product_key.keys_conflict(key_a, key_b):
+        if _merge_conflict(title_a, fields_a, key_a, title_b, fields_b, key_b):
             # «Один товар» при разном объёме, диагонали или ревизии, у чипа и компьютера с ним — ошибка извлечения
-            # или вердикта: не склеивать (P17C-01, C45-01)
+            # или вердикта: не склеивать (P17C-01, C45-01). Идентичность — по полям и названиям всех, кто переедет
             database.update_disputed_pair_status(ph, "unresolved", "same_but_variant_conflict")
             return {"pair_hash": ph, "decision": decision, "status": "unresolved", "verdict": verdict,
                     "fields_source": sources}

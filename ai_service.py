@@ -1463,8 +1463,10 @@ async def _shadow_fields(titles: List[str], base: str, model: str, key: str):
     if not (isinstance(reply, dict) and isinstance(reply.get("items"), list)):
         return False
     allowed = set(titles)
+    # Неполный элемент ответа — «missing» в учёте, а не сравнение с пустым ключом (C45R-02)
     return {item["title"]: {k: item.get(k) for k in product_key.FIELDS_SCHEMA}
-            for item in reply["items"] if isinstance(item, dict) and item.get("title") in allowed}
+            for item in reply["items"] if isinstance(item, dict) and item.get("title") in allowed
+            and product_key.fields_usable(item)}
 
 
 def _shadow_compare(chunk, fields, primary_cached, model, mark) -> None:

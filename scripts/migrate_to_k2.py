@@ -141,7 +141,8 @@ async def fetch_fields_batch(
     allowed = set(titles)
     fields = {}
     for item in reply["items"]:
-        if isinstance(item, dict) and item.get("title") in allowed:
+        # Обрезанный элемент или неверные типы — не ответ: название останется на повтор со своим ключом (C45R-02)
+        if isinstance(item, dict) and item.get("title") in allowed and product_key.fields_usable(item):
             fields[item["title"]] = {k: item.get(k) for k in product_key.FIELDS_SCHEMA}
     return fields, 0
 
@@ -209,21 +210,24 @@ def save_migrated_batch(
     keys: Dict[str, Optional[str]],
     model_name: str,
     dry_run: bool = False,
+    progress: Optional[Tuple[str, Dict[str, Any]]] = None,
 ) -> None:
     """Сохраняет title_fields, title_articles и переносит ключи названий одной транзакцией на пачку.
+
+    progress — (проход, счётчики пачки): учёт коммитится вместе с данными пачки (аудит C45R-04).
 
     Перенос ключа — database.rekey_titles_conn: кэш ключей, products и V2 (offers, канонический товар,
     история цен) вместе, иначе поиск V2 остаётся на старых группах (P17C-02)."""
     if dry_run or not batch_fields:
         return
     try:
-        _save_migrated_batch(conn, batch_fields, keys, model_name)
+        _save_migrated_batch(conn, batch_fields, keys, model_name, progress)
     except BaseException:
         conn.rollback()                             # пачка применяется целиком или не применяется
         raise
 
 
-def _save_migrated_batch(conn, batch_fields, keys, model_name) -> None:
+def _save_migrated_batch(conn, batch_fields, keys, model_name, progress=None) -> None:
     import database
     import product_key
 
@@ -265,6 +269,8 @@ def _save_migrated_batch(conn, batch_fields, keys, model_name) -> None:
     database.rekey_titles_conn(conn, {t: k for t, k in keys.items() if k})
     database.clear_title_identity_conn(conn, [t for t, k in keys.items() if not k and t in batch_fields
                                               and product_key.no_key_reason(batch_fields[t]) == "no_identity"])
+    if progress:
+        _add_progress(conn, *progress)
     conn.commit()
 
 
@@ -326,9 +332,21 @@ def _baseline_tables(conn: sqlite3.Connection) -> None:
     conn.execute("""CREATE TABLE IF NOT EXISTS k2_migration_runs (
         run_id TEXT PRIMARY KEY, created_at TEXT NOT NULL, api_calls INTEGER NOT NULL DEFAULT 0,
         api_failures INTEGER NOT NULL DEFAULT 0, failed_titles INTEGER NOT NULL DEFAULT 0,
-        missing_titles INTEGER NOT NULL DEFAULT 0, seconds REAL NOT NULL DEFAULT 0)""")
+        missing_titles INTEGER NOT NULL DEFAULT 0, seconds REAL NOT NULL DEFAULT 0,
+        api_started INTEGER NOT NULL DEFAULT 0)""")
     conn.execute("""CREATE TABLE IF NOT EXISTS k2_migration_baseline (
         run_id TEXT NOT NULL, title TEXT NOT NULL, old_key TEXT NOT NULL, PRIMARY KEY (run_id, title))""")
+
+
+COUNTERS = ("api_calls", "api_failures", "failed_titles", "missing_titles", "seconds", "api_started")
+
+
+def _add_progress(conn: sqlite3.Connection, run_id: str, delta: Dict[str, Any]) -> None:
+    """Прибавить счётчики к проходу в текущей транзакции."""
+    names = [k for k in COUNTERS if delta.get(k)]
+    if names:
+        conn.execute(f"UPDATE k2_migration_runs SET {', '.join(f'{k} = {k} + ?' for k in names)} WHERE run_id = ?",
+                     [delta[k] for k in names] + [run_id])
 
 
 def load_baseline(conn: sqlite3.Connection, run_id: str, read_only: bool) -> Tuple[Dict[str, str], Dict[str, Any]]:
@@ -338,9 +356,9 @@ def load_baseline(conn: sqlite3.Connection, run_id: str, read_only: bool) -> Tup
     has_tables = conn.execute("SELECT 1 FROM sqlite_master WHERE name = 'k2_migration_runs'").fetchone()
     if not read_only:
         _baseline_tables(conn)
-    run = conn.execute("SELECT created_at, api_calls, api_failures, failed_titles, missing_titles, seconds "
-                       "FROM k2_migration_runs WHERE run_id = ?", (run_id,)).fetchone() if has_tables or not read_only else None
-    names = ("created_at", "api_calls", "api_failures", "failed_titles", "missing_titles", "seconds")
+    names = ("created_at",) + COUNTERS
+    run = conn.execute(f"SELECT {', '.join(names)} FROM k2_migration_runs WHERE run_id = ?",
+                       (run_id,)).fetchone() if has_tables or not read_only else None
     if run:
         rows = conn.execute("SELECT title, old_key FROM k2_migration_baseline WHERE run_id = ?", (run_id,)).fetchall()
         return dict(rows), dict(zip(names, run))
@@ -351,7 +369,7 @@ def load_baseline(conn: sqlite3.Connection, run_id: str, read_only: bool) -> Tup
         conn.executemany("INSERT INTO k2_migration_baseline (run_id, title, old_key) VALUES (?, ?, ?)",
                          [(run_id, t, k) for t, k in rows])
         conn.commit()
-    return dict(rows), dict(zip(names, (created, 0, 0, 0, 0, 0.0)))
+    return dict(rows), dict(zip(names, (created, 0, 0, 0, 0, 0.0, 0)))
 
 
 def actual_keys(conn: sqlite3.Connection, titles: Iterable[str], planned: Dict[str, str]) -> Dict[str, str]:
@@ -415,7 +433,9 @@ async def run_migration(
         titles_all = [t for t, _ in raw_items]
 
         # Проверяем, у кого поля уже есть
-        saved_fields = load_existing_fields(conn, titles_all)
+        # Сохранённый неполный ответ (раньше такие записывались) — не поля: название запрашивается заново (C45R-02)
+        saved_fields = {t: f for t, f in load_existing_fields(conn, titles_all).items()
+                        if rescore_only or product_key.fields_usable(f)}
         print(f"[C4] Из них уже сохранены поля: {len(saved_fields)}")
 
         all_new_keys: Dict[str, str] = {}
@@ -442,16 +462,28 @@ async def run_migration(
         for i in range(0, len(titles_to_process), batch_size):
             chunk = titles_to_process[i:i + batch_size]
             chunk_fields: Dict[str, Dict[str, Any]] = {}
+            batch_started = time.monotonic()
+            delta: Dict[str, Any] = {}
 
             # Собираем поля: берем сохранённые или запрашиваем у модели
             to_fetch = [t for t in chunk if t not in all_fields]
             if to_fetch:
+                if not dry_run:
+                    # Начатая попытка фиксируется до вызова: при обрыве разница started − calls показывает, сколько
+                    # вызовов завершилось неизвестно чем (аудит C45R-04)
+                    _add_progress(conn, run_id, {"api_started": 1})
+                    conn.commit()
+                totals["api_started"] += 1
                 fetched, fails = await fetch_fields_batch(to_fetch, base, model)
+                skipped = 0 if fails else len(set(to_fetch) - set(fetched))
+                # Отказ модели и неполный или отсутствующий ответ — не «нет бренда»: прежний ключ остаётся до повтора
+                delta = {"api_calls": 1, "api_failures": fails,
+                         "failed_titles": len(to_fetch) if fails else 0, "missing_titles": skipped}
                 api_calls += 1
                 api_failures += fails
-                # Отказ модели и пропуск названия в ответе — не «нет бренда»: прежний ключ остаётся до повтора
-                failed_titles += len(to_fetch) if fails else 0
-                missing_titles += 0 if fails else len(set(to_fetch) - set(fetched))
+                failed_titles += delta["failed_titles"]
+                missing_titles += skipped
+                incomplete.update(set(to_fetch) - set(fetched))
                 all_fields.update(fetched)
                 chunk_fields.update(fetched)
 
@@ -471,8 +503,17 @@ async def run_migration(
                 else:
                     incomplete.add(t)
 
-            # Сохраняем в БД
-            save_migrated_batch(conn, chunk_fields, keys, model, dry_run=dry_run)
+            # Сохраняем в БД: счётчики пачки — той же транзакцией, что и её данные
+            delta["seconds"] = time.monotonic() - batch_started
+            if dry_run:
+                pass
+            elif chunk_fields:
+                save_migrated_batch(conn, chunk_fields, keys, model, progress=(run_id, delta))
+            else:
+                _add_progress(conn, run_id, delta)
+                conn.commit()
+            for name, value in delta.items():
+                totals[name] += value
 
             done = min(i + batch_size, len(titles_to_process))
             elapsed = time.monotonic() - started
@@ -483,17 +524,6 @@ async def run_migration(
                       f"Скорость: {rate:.1f} наим/с | ETA: {eta:.0f} с | С ключом k2: {len(all_new_keys)}")
 
         total_elapsed = time.monotonic() - started
-        totals = {**totals, "api_calls": totals["api_calls"] + api_calls,
-                  "api_failures": totals["api_failures"] + api_failures,
-                  "failed_titles": totals["failed_titles"] + failed_titles,
-                  "missing_titles": totals["missing_titles"] + missing_titles,
-                  "seconds": round(totals["seconds"] + total_elapsed, 1)}
-        if not dry_run:
-            conn.execute("""UPDATE k2_migration_runs SET api_calls = ?, api_failures = ?, failed_titles = ?,
-                            missing_titles = ?, seconds = ? WHERE run_id = ?""",
-                         (totals["api_calls"], totals["api_failures"], totals["failed_titles"],
-                          totals["missing_titles"], totals["seconds"], run_id))
-            conn.commit()
         current = actual_keys(conn, baseline, {**(all_new_keys if dry_run else {}),
                                                **({t: "" for t in no_identity} if dry_run else {})})
         result: Dict[str, Any] = {
@@ -514,8 +544,8 @@ async def run_migration(
                     "actual_k2_keys": sum(1 for k in current.values() if k.startswith("k2:")),
                     "actual_legacy_keys": sum(1 for k in current.values() if k and not k.startswith("k2:")),
                     "actual_no_key": sum(1 for k in current.values() if not k),
-                    "cumulative": {k: totals[k] for k in ("api_calls", "api_failures", "failed_titles",
-                                                          "missing_titles", "seconds")}},
+                    "cumulative": {**{k: totals[k] for k in COUNTERS}, "seconds": round(totals["seconds"], 1),
+                                   "api_unfinished": totals["api_started"] - totals["api_calls"]}},
         }
         if not raw_items:
             result["status"] = "nothing_to_migrate"

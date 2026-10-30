@@ -102,6 +102,15 @@ class KeyRulesTest(unittest.TestCase):
         cases = [("samsung:galaxy s24:256gb", "k2:samsung:galaxys24:256gb", "matched"),
                  ("aoc:27b31h:27", "k2:aoc:27b31h", "matched"),
                  ("aoc:24b3:23.8", "k2:aoc:24b3:23.8in", "matched"),
+                 ("kingston:memory:1gb", "k2:kingston:memory:1tb", "mismatch"),
+                 ("brand:food:85g", "k2:brand:food:85ml", "mismatch"),
+                 ("brand:food:1kg", "k2:brand:food:1000g", "matched"),
+                 ("brand:drink:0.5l", "k2:brand:drink:500ml", "matched"),
+                 ("kingston:nv3:1000gb", "k2:kingston:nv3:1tb", "matched"),
+                 ("brand:food:5", "k2:brand:food:5g", "incomparable"),
+                 ("brand:phone:8/256gb", "k2:brand:phone:256gb", "incomparable"),
+                 ("samsung:galaxy s24", "k2:samsung:galaxys24:256gb", "incomparable"),
+                 ("samsung:galaxy s24:box", "k2:samsung:galaxys24", "matched"),
                  ("samsung:galaxy s24:256gb", "k2:samsung:galaxys24ultra:256gb", "mismatch"),
                  ("samsung:galaxy s24:128gb", "k2:samsung:galaxys24:256gb", "mismatch"),
                  ("unknown:chechevitsa:1kg", "k2:x:y", "incomparable"),
@@ -109,6 +118,25 @@ class KeyRulesTest(unittest.TestCase):
         for primary, sk, expected in cases:
             with self.subTest(primary=primary):
                 self.assertEqual(product_key.compare_keys(primary, sk), expected)
+
+
+class CompletenessTest(unittest.TestCase):
+    def test_only_confirmed_absence_is_no_identity(self):
+        cases = [({}, "incomplete"), ({"title": "x"}, "incomplete"),
+                 ({"brand": None, "model": None}, "incomplete"),
+                 ({"brand": None, "model": "x", "unbranded": None}, "incomplete"),
+                 ({"brand": None, "model": "x", "unbranded": False}, "incomplete"),
+                 ({"brand": "Bosch", "model": None, "unbranded": False}, "incomplete"),
+                 ({"brand": "Bosch", "model": None, "unbranded": True}, "incomplete"),
+                 ({"brand": "Bosch", "model": ["x"], "unbranded": False}, "incomplete"),
+                 ({"brand": "Bosch", "model": "x", "variants": "256", "unbranded": False}, "incomplete"),
+                 ({"brand": "Bosch", "model": "x", "unbranded": "нет"}, "incomplete"),
+                 ({"brand": None, "model": None, "unbranded": True}, "no_identity"),
+                 ({"brand": "noname", "model": "x", "unbranded": False}, "no_identity"),
+                 ({"brand": "Bosch", "model": "x"}, None)]
+        for fields_, expected in cases:
+            with self.subTest(fields=fields_):
+                self.assertEqual(product_key.no_key_reason(fields_), expected)
 
 
 class ShadowIsolationTest(_DbCase):
@@ -242,6 +270,98 @@ class ShadowQueueTest(_DbCase):
         self.assertNotEqual(keys[a], keys[b])
 
 
+class SameVerdictOnLegacyKeysTest(_DbCase):
+    """Вердикт «один товар» при старых ключах: защита идёт по полям и названиям, отказ ничего не меняет (C45R-01)."""
+    def product(self, pid, title, key, shop):
+        database.save_or_update_product({"id": pid, "title": title, "canonical_key": key, "shop": shop,
+                                         "city": "Алматы", "price": 1000, "url": f"https://example.kz/{pid}"})
+
+    def tick(self, decision=None):
+        async def verify(*args, **kwargs):
+            return {"decision": decision or product_verify.SAME}
+
+        async def ask(prompt):
+            raise AssertionError("не нужна")
+        with patch.object(product_verify, "verify_pair_cached", verify):
+            return asyncio.run(product_verify.process_disputed_queue_tick("http://unused", ask, daily_limit=10))
+
+    def state(self):
+        with database.get_connection() as conn:
+            return {name: [tuple(r) for r in conn.execute(f"SELECT * FROM {name} ORDER BY 1, 2")]
+                    for name in ("title_canonical_cache", "products", "offers", "offer_price_history", "identity_aliases")}
+
+    def case(self, keys, fields_by_title, shadow_fields=True):
+        database.save_cached_canonical_keys_batch(keys)
+        for i, (t, k) in enumerate(keys.items()):
+            self.product(f"p{i}", t, k, f"shop{i}")
+        if fields_by_title and shadow_fields:
+            database.save_shadow_fields_batch(fields_by_title, {t: product_key.build_key(f, t) for t, f in fields_by_title.items()},
+                                              "k2", "local", "m")
+        elif fields_by_title:
+            database.save_title_fields_batch(fields_by_title, "k2", "gemini", "m")
+
+    def sanc(self, edition):
+        return {"brand": "Sanc", "model": "M2442PH", "sku": None, "edition": edition, "variants": [], "unbranded": False}
+
+    def assert_refused(self, a, b):
+        database.enqueue_disputed_pair(a, b, "x")
+        before = self.state()
+        result = self.tick()
+        self.assertEqual(result["status"], "unresolved")
+        self.assertEqual(self.state(), before)
+
+    def test_v1_v1_revisions_shadow_and_working_fields(self):
+        a, b = 'Sanc M2442PH V2 23.8"', 'Sanc M2442PH V3 23.8"'
+        keys = {a: "sanc:m2442ph v2:23.8", b: "sanc:m2442ph v3:23.8"}
+        for use_shadow in (True, False):
+            with self.subTest(shadow=use_shadow):
+                self.case(keys, {a: self.sanc("V2"), b: self.sanc("V3")}, use_shadow)
+                self.assert_refused(a, b)
+                with database.get_connection() as conn:
+                    conn.execute("DELETE FROM disputed_product_pairs")
+                    conn.execute("DELETE FROM title_fields")
+                    conn.execute("DELETE FROM title_fields_shadow")
+                    conn.commit()
+
+    def test_v1_and_old_k2_without_marks(self):
+        a, b = "Sanc M2442PH 23.8 черный", "Sanc M2442PH 23.8 белый"
+        self.case({a: "sanc:m2442ph:23.8", b: "k2:sanc:m2442ph:23.8in"}, {a: self.sanc("V2"), b: self.sanc("V3")})
+        self.assert_refused(a, b)
+
+    def test_old_k2_component_and_system(self):
+        a, b = "AMD Ryzen 5 5600GT BOX", "Ryzen 5 5600GT-3.6GHz/A520/RAM 8GB/SSD 512GB/no DVD/400W"
+        fa = {"brand": "AMD", "model": "Ryzen 5 5600GT", "sku": None, "variants": [], "unbranded": False}
+        self.case({a: "k2:amd:ryzen55600gt", b: "k2:amd:ryzen55600gt:512gb"}, {a: fa, b: fa})
+        self.assert_refused(a, b)
+
+    def test_legacy_keys_with_different_capacity_without_fields(self):
+        a, b = "Телефон X 128", "Телефон X 256"
+        self.case({a: "brand:x:128gb", b: "brand:x:256gb"}, {a: {"brand": "Brand", "model": "X", "variants": []},
+                                                             b: {"brand": "Brand", "model": "X", "variants": []}})
+        self.assert_refused(a, b)
+
+    def test_group_member_conflict_blocks_whole_merge(self):
+        """Сама пара не спорит, но второй ключ переехал бы вместе с участником другой ревизии."""
+        a, b, member = 'Sanc M2442PH V2', 'Sanc M2442PH черный', 'Sanc M2442PH V3 белый'
+        self.case({a: "sanc:m2442ph v2:23.8", b: "sanc:m2442ph:23.8", member: "sanc:m2442ph:23.8"},
+                  {a: self.sanc("V2"), b: self.sanc(None), member: self.sanc("V3")})
+        self.assert_refused(a, b)
+
+    def test_member_without_fields_checked_by_title(self):
+        a, b, member = 'Sanc M2442PH V2', 'Sanc M2442PH черный', 'Монитор Sanc M2442PH V3'
+        self.case({a: "sanc:m2442ph v2:23.8", b: "sanc:m2442ph:23.8", member: "sanc:m2442ph:23.8"},
+                  {a: self.sanc("V2"), b: self.sanc(None)})
+        self.assert_refused(a, b)
+
+    def test_compatible_legacy_pair_still_merges(self):
+        a, b = "Samsung Galaxy S24 256GB black", "Samsung S24 256 ГБ"
+        self.case({a: "samsung:galaxy s24:256gb", b: "samsung:sm-s921b:256gb"}, {a: fields(), b: fields()})
+        database.enqueue_disputed_pair(a, b, "x")
+        self.assertEqual(self.tick()["status"], "resolved")
+        keys = database.get_cached_canonical_keys_batch([a, b])
+        self.assertEqual(keys[a], keys[b])
+
+
 class ShadowMetricsTest(_DbCase):
     def test_aggregates_cover_all_rows(self):
         for i in range(200):
@@ -333,6 +453,108 @@ class MigrationIdentityAndBaselineTest(_DbCase):
         self.assertEqual(database.get_cached_canonical_keys_batch([self.BEAN]), {self.BEAN: self.OLD})
         self.assertEqual(report["run"]["cumulative"]["failed_titles"], 2)
         self.assertEqual(report["run"]["cumulative"]["missing_titles"], 1)
+
+    def test_bad_item_keeps_identity_and_is_retried(self):
+        """Обрезанный элемент, неверные типы, неопределённый unbranded: кэш и V2 прежние, название на повторе."""
+        title, old = "Samsung Galaxy S24 256GB", "samsung:galaxy s24:256gb"
+        self.add_product("phone", title, "shop1", old)
+        database.save_cached_canonical_keys_batch({title: old})
+        with database.get_connection() as conn:
+            offer = tuple(conn.execute("SELECT id, product_id FROM offers").fetchone())
+        bad = [{"title": title}, {"title": title, "brand": ["x"], "model": "m"},
+               {"title": title, "brand": None, "model": None}, {"title": title, "brand": None, "model": "m", "unbranded": "?"}]
+        for item in bad:
+            with self.subTest(item=item):
+                async def reply(*a, **k):
+                    return {"items": [item]}
+                with patch.object(ai_service, "call_local_api", reply):
+                    report = self.migrate()
+                self.assertEqual(database.get_cached_canonical_keys_batch([title]), {title: old})
+                self.assertEqual((report["no_identity_titles"], report["incomplete_titles"], report["missing_titles"]), (0, 1, 1))
+                self.assertEqual(database.get_title_fields_for_titles([title]), {})
+                with database.get_connection() as conn:
+                    self.assertEqual(tuple(conn.execute("SELECT id, product_id FROM offers").fetchone()), offer)
+
+        async def good(*a, **k):
+            return {"items": [{"title": title, **fields()}]}
+        with patch.object(ai_service, "call_local_api", good):
+            self.assertEqual(self.migrate()["with_k2_key"], 1)
+        self.assertTrue(database.get_cached_canonical_keys_batch([title])[title].startswith("k2:"))
+
+    def test_stored_incomplete_fields_are_refetched_not_cleared(self):
+        """Записи прежних прогонов: все поля пусты. Пересборка ключ не снимает, обычный проход спросит заново."""
+        title, old = "Samsung Galaxy S24 256GB", "samsung:galaxy s24:256gb"
+        self.add_product("phone", title, "shop1", old)
+        database.save_cached_canonical_keys_batch({title: old})
+        database.save_title_fields_batch({title: {k: None for k in product_key.FIELDS_SCHEMA}}, "k2", "local", "m")
+        report = self.migrate(rescore_only=True)
+        self.assertEqual((report["no_identity_titles"], report["incomplete_titles"]), (0, 1))
+        self.assertEqual(database.get_cached_canonical_keys_batch([title]), {title: old})
+
+        async def good(*a, **k):
+            return {"items": [{"title": title, **fields()}]}
+        with patch.object(ai_service, "call_local_api", good):
+            self.assertEqual(self.migrate()["with_k2_key"], 1)
+
+    def two_titles(self):
+        a, b = "Samsung Galaxy S24 256GB A", "Samsung Galaxy S24 256GB B"
+        database.save_cached_canonical_keys_batch({a: "samsung:a", b: "samsung:b"})
+        return a, b
+
+    def test_interrupt_after_commit_keeps_counters_once(self):
+        self.two_titles()
+
+        async def reply(titles, *a, **k):
+            return {t: fields() for t in titles}, 0
+        original = mig.save_migrated_batch
+
+        def stop(*a, **k):
+            original(*a, **k)
+            raise KeyboardInterrupt()
+        with patch.object(mig, "fetch_fields_batch", reply), patch.object(mig, "save_migrated_batch", stop):
+            with self.assertRaises(KeyboardInterrupt):
+                self.migrate(batch_size=1, run_id="r")
+        with patch.object(mig, "fetch_fields_batch", reply):
+            report = self.migrate(batch_size=1, run_id="r")
+        cumulative = report["run"]["cumulative"]
+        self.assertEqual((cumulative["api_calls"], cumulative["api_started"], cumulative["api_unfinished"]), (2, 2, 0))
+        self.assertEqual(report["api_calls"], 1, "этот запуск")
+
+    def test_interrupt_during_model_call_is_unfinished_attempt(self):
+        self.two_titles()
+
+        async def boom(titles, *a, **k):
+            raise KeyboardInterrupt()
+
+        async def reply(titles, *a, **k):
+            return {t: fields() for t in titles}, 0
+        with patch.object(mig, "fetch_fields_batch", boom), self.assertRaises(KeyboardInterrupt):
+            self.migrate(batch_size=1, run_id="r")
+        with patch.object(mig, "fetch_fields_batch", reply):
+            cumulative = self.migrate(batch_size=1, run_id="r")["run"]["cumulative"]
+        self.assertEqual((cumulative["api_calls"], cumulative["api_started"], cumulative["api_unfinished"]), (2, 3, 1))
+
+    def test_failed_save_rolls_back_counters_with_data(self):
+        a, _ = self.two_titles()
+
+        async def reply(titles, *x, **k):
+            return {t: fields() for t in titles}, 0
+        with patch.object(mig, "fetch_fields_batch", reply), \
+                patch.object(database, "rekey_titles_conn", side_effect=RuntimeError("сбой")), self.assertRaises(RuntimeError):
+            self.migrate(batch_size=1, run_id="r")
+        with database.get_connection() as conn:
+            row = conn.execute("SELECT api_calls, api_started FROM k2_migration_runs").fetchone()
+        self.assertEqual(tuple(row), (0, 1), "данных нет — вызов завершён неизвестно чем")
+        self.assertEqual(database.get_title_fields_for_titles([a]), {})
+
+    def test_interrupt_in_batch_without_fields_keeps_failure(self):
+        self.two_titles()
+
+        async def fail(titles, *a, **k):
+            return {}, 1
+        with patch.object(mig, "fetch_fields_batch", fail):
+            cumulative = self.migrate(batch_size=1, run_id="r")["run"]["cumulative"]
+        self.assertEqual((cumulative["api_calls"], cumulative["api_failures"], cumulative["failed_titles"]), (2, 2, 2))
 
     def test_resume_compares_with_full_baseline(self):
         """Как на стенде: часть уже переведена в прошлом запуске, отчёт всё равно по всему снимку."""

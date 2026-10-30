@@ -322,13 +322,37 @@ def keys_for(items: Iterable[Dict[str, Any]], titles: Iterable[str]) -> Dict[str
 
 
 def no_key_reason(fields: Any) -> Optional[str]:
-    """Почему ключа нет: 'no_identity' — модель подтвердила, что бренда нет (сравнивать нельзя);
-    'incomplete' — бренд есть, а модели нет (извлечение неполное); None — ключ строится."""
-    if not isinstance(fields, dict):
+    """Почему ключа нет: 'no_identity' — модель подтвердила отсутствие бренда, сравнивать нельзя;
+    'incomplete' — ответ неполный или противоречивый, прежняя идентичность не снимается (аудит C45R-02);
+    None — ключ строится. Отсутствующее поле — не подтверждение: подтверждает только unbranded=true
+    или явно записанная пустышка вместо бренда («noname»)."""
+    if not fields_well_formed(fields):
         return "incomplete"
     if build_key(fields):
         return None
-    return "no_identity" if fields.get("unbranded") is True or not brand_token(fields.get("brand")) else "incomplete"
+    brand = fields.get("brand")
+    if brand_token(brand):
+        return "incomplete"                             # бренд есть, а модели нет, или «без бренда» при бренде
+    if fields.get("unbranded") is True or (isinstance(brand, str) and brand.strip()):
+        return "no_identity"
+    return "incomplete"
+
+
+def fields_well_formed(fields: Any) -> bool:
+    """Поля ответа модели правильных типов, и обязательные brand и model присутствуют (null допустим)."""
+    if not isinstance(fields, dict) or "brand" not in fields or "model" not in fields:
+        return False
+    for name in ("brand", "model", "sku", "edition"):
+        value = fields.get(name)
+        if value is not None and (isinstance(value, bool) or not isinstance(value, (str, int, float))):
+            return False
+    return (fields.get("variants") is None or isinstance(fields["variants"], list)) \
+        and (fields.get("unbranded") is None or isinstance(fields["unbranded"], bool))
+
+
+def fields_usable(fields: Any) -> bool:
+    """Ответ можно принять: из него строится ключ или он подтверждает отсутствие идентичности."""
+    return no_key_reason(fields) != "incomplete"
 
 
 def is_system_key(key: str) -> bool:
@@ -336,23 +360,84 @@ def is_system_key(key: str) -> bool:
 
 
 def revision_of(key: str) -> str:
-    """Ревизия по ключу: «v3» у …m2442ph.v3, иначе пусто."""
-    found = _REVISION_MARK_RE.search(_identity_of(key))
-    return found.group(1) if found else ""
+    """Ревизия по ключу: «v3» у …m2442ph.v3 и у старого формата «sanc:m2442ph v3:23.8», иначе пусто."""
+    if key.startswith(f"{KEY_VERSION}:"):
+        found = _REVISION_MARK_RE.search(_identity_of(key))
+        return found.group(1) if found else ""
+    parts = key.split(":")
+    found = _REVISION_RE.search(parts[1]) if len(parts) > 1 else None
+    return f"v{found.group(1)}" if found else ""
+
+
+def _unit_class(token: str) -> str:
+    """Единицы одной величины к одной: 1 кг = 1000 г, 1 л = 1000 мл (ГБ и ТБ приводит variant_tokens)."""
+    found = re.fullmatch(r"(\d+(?:\.\d+)?)(kg|l)", token)
+    return f"{_fmt(float(found.group(1)) * 1000)}{'g' if found.group(2) == 'kg' else 'ml'}" if found else token
+
+
+def _key_variants(key: str) -> Optional[set]:
+    """Варианты ключа с единицами; None — в старом ключе есть число, единицу которого не восстановить.
+
+    Голое число от 10 в старом формате — диагональ, так писала её подсказка v1 («lg:27gp850:27»)."""
+    if key.startswith(f"{KEY_VERSION}:"):
+        return {_unit_class(v) for v in _variants_of(key).split("+") if v}
+    found = set()
+    for token in key.split(":")[2:]:
+        token = token.strip().lower()
+        if not re.search(r"\d", token):
+            continue                                    # box, oem — не варианты
+        if re.fullmatch(r"\d+(?:\.\d+)?", token):
+            if float(token) < 10:
+                return None
+            token += "in"
+        typed = variant_tokens([token])
+        if not typed:
+            return None
+        found.add(_unit_class(typed[0]))
+    return found
 
 
 def keys_conflict(a: str, b: str) -> bool:
-    """Ключи заведомо о разном, и никакой вердикт их не склеит: варианты, ревизия, компонент и готовый компьютер."""
-    va, vb, ra, rb = _variants_of(a), _variants_of(b), revision_of(a), revision_of(b)
+    """Ключи заведомо о разном, и никакой вердикт их не склеит: варианты, ревизия, компонент и готовый компьютер.
+    Работает и со старым форматом (аудит C45R-01)."""
+    va, vb, ra, rb = _key_variants(a), _key_variants(b), revision_of(a), revision_of(b)
     return bool((va and vb and va != vb) or (ra and rb and ra != rb) or is_system_key(a) != is_system_key(b))
 
 
+def _title_revision(title: str) -> str:
+    """Ревизия по одному названию, когда полей нет: грубо, но ошибка здесь только откажет в объединении."""
+    text = _text(title)
+    found = None if _SPEED_CLASS_RE.search(text) else _REVISION_RE.search(text)
+    return f"v{found.group(1)}" if found else ""
+
+
+def identities_conflict(group_a: Iterable[tuple], group_b: Iterable[tuple]) -> bool:
+    """Можно ли объединить две группы [(название, поля или None, сохранённый ключ или None)].
+
+    Собственная идентичность считается по полям и названию, а не по назначенному ключу: старый или устаревший
+    ключ не знает о ревизии, а участник группы мог попасть в неё ошибочно (аудит C45R-01)."""
+    def profile(items):
+        out = set()
+        for title, fields, key in items:
+            own = build_key(fields, title) if isinstance(fields, dict) else None
+            out.add((own or "", key or "", _title_revision(title)))
+        return out
+    first, second = profile(group_a), profile(group_b)
+    for own_a, key_a, rev_a in first:
+        for own_b, key_b, rev_b in second:
+            if (own_a and own_b and keys_conflict(own_a, own_b)) or (key_a and key_b and keys_conflict(key_a, key_b)) \
+                    or (rev_a and rev_b and rev_a != rev_b):
+                return True
+    return False
+
+
 def compare_keys(primary: str, shadow: str) -> str:
-    """Сравнение ключа основной и теневой модели: matched, mismatch или incomparable (аудит C45-04).
+    """Сравнение ключа основной и теневой модели: matched, mismatch или incomparable (аудит C45-04, C45R-03).
 
     k2 с k2 — строкой. Старый строковый ключ разбирается теми же правилами: «samsung:galaxy s24:256gb» и
-    «k2:samsung:galaxys24:256gb» — один товар, разница формата не ошибка модели. Старый ключ, который разобрать
-    нельзя (нет бренда, norm:, unknown:), с k2 несопоставим и в долю совпадений не входит."""
+    «k2:samsung:galaxys24:256gb» — один товар, разница формата не ошибка модели. Варианты сравниваются с единицами:
+    1 ГБ и 1 ТБ, 85 г и 85 мл — разное. Что из старого ключа не разобрать однозначно (нет бренда, norm:, unknown:,
+    число без единицы, вариант есть только с одной стороны) — несопоставимо и в долю совпадений не входит."""
     if primary == shadow:
         return "matched"
     if primary.startswith(f"{KEY_VERSION}:"):
@@ -366,14 +451,14 @@ def compare_keys(primary: str, shadow: str) -> str:
         return "incomparable"
     if shadow.split(":", 2)[1] != brand or _identity_of(shadow) != identity:
         return "mismatch"
-
-    def numbers(tokens):
-        return {m.group(0) for m in (re.match(r"\d+(?:\.\d+)?", t) for t in tokens) if m}
-    old = set()
-    for token in parts[2:]:
-        old |= numbers(variant_tokens([token]) or [token])
-    new = numbers(_variants_of(shadow).split("+"))
-    return "mismatch" if old and new and old != new else "matched"
+    old, new = _key_variants(primary), _key_variants(shadow)
+    if old is None:
+        return "incomparable"
+    # Диагональ, которая уже есть в номере модели, в k2 не пишется («aoc:27b31h:27» и «k2:aoc:27b31h»)
+    old = {v for v in old if not (v.endswith("in") and re.search(rf"(?<![0-9]){re.escape(v[:-2].split('.')[0])}(?![0-9])", identity))}
+    if old == new:
+        return "matched"
+    return "mismatch" if old and new else "incomparable"
 
 
 # Связь по артикулу производителя (P17-C3). Модель по-разному решает, что писать в «модель»: серию («MTE110S»)
