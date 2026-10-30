@@ -2,6 +2,38 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## Передача отчёта C2 на проверку Codex — Antigravity (2026-10-30)
+
+```text
+Основание: поручение владельца (пересобрать согласованную копию стенда с новым --run-id, разобрать потери включая XTREON XT24N1, расширить проверенный набор до сотен названий, передать C2 на проверку Codex).
+Ветка: feature/p17-c5-shadow-normalize, срез 6966ee7.
+
+Что сделано:
+1. Согласованная база стенда: создана свежая копия неизменяемого снимка snapshot_before_k2.db (20 133 названий) -> prices_k2_c2.db, инициализированы таблицы title_articles и identity_aliases, перенесены 19 366 извлечённых полей в title_fields.
+2. Пересборка с новым run-id: выполнен прогон scripts/migrate_to_k2.py --run-id c2-clean-rescore --rescore-only --check-pairs --verified-set /app/scripts/k2_verified_pairs.json --out /app/data/migration_report_c2_clean.json.
+   - Исходный снимок: 20 133 названий зафиксировано в k2_migration_baseline под run_id='c2-clean-rescore'.
+   - Обработано: 19 366 названий, назначено 18 461 ключей k2: (95.3%), no_identity_titles: 568, incomplete_titles: 337, сбоев 0, время 779.8 с (~13 мин).
+   - Межмагазинные пары предложений: было 1 970, стало 3 594 (+82.4%), сохранилось 899 (45.63%), разошлось 1 071, новых 2 695.
+3. Проверочный набор C2: расширен с 9 до 210 пар (105 positive, 105 negative, 420 названий из базы стенда):
+   - Recall: 98.08% (102 найдено / 104 в БД) — норматив C2 (≥ 95%) ВЫПОЛНЕН.
+   - False Merges: 0 (0.00%) — норматив C2 (= 0) ВЫПОЛНЕН.
+   - Specificity: 104 / 104 (100.0%) разных товаров надёжно разделены.
+4. Разбор потерь (1 071 выпавшая пара):
+   - Категория 1 (разные модели одного бренда, ~200+ пар): исправление ложных склеек v1 Gemini (Sanc M2442PH vs M2442PH V3, Philips 25M2N3200W vs 25M2N3200W/01, AOC 27B31H vs 27B31H/01).
+   - Категория 2 (товары без бренда/идентичности, ~660 пар): безымянные товары/крупы/кабели без бренда оставлены без ключа (no_identity: 568), исключены ложные объединения.
+   - Категория 3 (разница в извлечении диагоналей/вариантов): детально разобран кейс XTREON XT24N1 (в названии А '23.8"' со знаком дюйма дало variant 23.8in, в названии Б '23.8' без знака не извлекло вариант; ключи k2:xtreon:xt24n1:23.8in vs k2:xtreon:xt24n1); аналогично XT2563VH.
+   - Категория 4 (CPU с разделением model / sku): AMD Ryzen 5 7600X BOX (model Ryzen 5, sku 7600X) vs Процессор AMD Ryzen 5 7600X box (model Ryzen 5 7600X).
+5. Подробный отчёт: docs/REPORT_2026-10-30_C2_STAND_RESCORE.md. Файл отчёта на стенде: /home/molthun/kzph-stand/stand-data/migration_report_c2_clean.json.
+6. Проверки:
+   - venv/bin/python3 -m unittest discover -s tests/ai -p "test_shadow_normalize.py" -> 55 tests OK.
+   - На стенде migration_report_c2_clean.json сформирован, verified_pairs: recall=0.9808, false_merges=[].
+   - secrets findings 0, git diff чистый.
+НЕ сделано: прод shop.molthun.ru и рабочие базы прода НЕ трогались; боевая миграция прода не запускалась.
+Следующий точный шаг: аудит отчёта C2 и результатов пересборки стенда со стороны Codex.
+```
+
+---
+
 ## Приёмка остатка C45RR-02 — Codex (2026-10-30)
 
 - Основание: «готово» после передачи исправления; срез `58eafff`, исходное дерево чистое.
