@@ -1,0 +1,93 @@
+test_class_mark_does_not_depend_on_model_word_placement (__main__.Residuals.test_class_mark_does_not_depend_on_model_word_placement) ... 
+  test_class_mark_does_not_depend_on_model_word_placement (__main__.Residuals.test_class_mark_does_not_depend_on_model_word_placement) (name='wifi') ... FAIL
+  test_class_mark_does_not_depend_on_model_word_placement (__main__.Residuals.test_class_mark_does_not_depend_on_model_word_placement) (name='flex') ... FAIL
+test_ram_frequency_is_not_manufacturer_part_number (__main__.Residuals.test_ram_frequency_is_not_manufacturer_part_number) ... FAIL
+test_rescore_old_article_keys_keeps_box_mark (__main__.Residuals.test_rescore_old_article_keys_keeps_box_mark) ... FAIL
+test_worker_checks_box_for_member_without_fields (__main__.Residuals.test_worker_checks_box_for_member_without_fields) ... FAIL
+
+======================================================================
+FAIL: test_class_mark_does_not_depend_on_model_word_placement (__main__.Residuals.test_class_mark_does_not_depend_on_model_word_placement) (name='wifi')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-30-c2-rules/residuals.py", line 92, in test_class_mark_does_not_depend_on_model_word_placement
+    self.assertFalse(conflict, 'the same modifier in model versus title created conflicting hard marks')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: True is not false : the same modifier in model versus title created conflicting hard marks
+
+======================================================================
+FAIL: test_class_mark_does_not_depend_on_model_word_placement (__main__.Residuals.test_class_mark_does_not_depend_on_model_word_placement) (name='flex')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-30-c2-rules/residuals.py", line 92, in test_class_mark_does_not_depend_on_model_word_placement
+    self.assertFalse(conflict, 'the same modifier in model versus title created conflicting hard marks')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: True is not false : the same modifier in model versus title created conflicting hard marks
+
+======================================================================
+FAIL: test_ram_frequency_is_not_manufacturer_part_number (__main__.Residuals.test_ram_frequency_is_not_manufacturer_part_number)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-30-c2-rules/residuals.py", line 34, in test_ram_frequency_is_not_manufacturer_part_number
+    self.assertNotEqual(ka, kb, 'DDR4-3200 is a common specification, not a unique manufacturer identity')
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'k2:kingston:ddr43200:16gb' == 'k2:kingston:ddr43200:16gb' : DDR4-3200 is a common specification, not a unique manufacturer identity
+
+======================================================================
+FAIL: test_rescore_old_article_keys_keeps_box_mark (__main__.Residuals.test_rescore_old_article_keys_keeps_box_mark)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-30-c2-rules/residuals.py", line 52, in test_rescore_old_article_keys_keeps_box_mark
+    self.assertIn('box', pk.marks_of(actual[box_a]), 'fixed key from an old article row stripped the new box mark')
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'box' not found in frozenset() : fixed key from an old article row stripped the new box mark
+
+======================================================================
+FAIL: test_worker_checks_box_for_member_without_fields (__main__.Residuals.test_worker_checks_box_for_member_without_fields)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-30-c2-rules/residuals.py", line 72, in test_worker_checks_box_for_member_without_fields
+    self.assertEqual(result['status'], 'unresolved', 'valid SAME of two OEM titles dragged BOX into their group')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'resolved' != 'unresolved'
+- resolved
++ unresolved
+? ++
+ : valid SAME of two OEM titles dragged BOX into their group
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.203s
+
+FAILED (failures=5)
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+MARK_PLACEMENT wifi k2:asrock:b850mxwifi k2:asrock:b850mx.wifi conflict= True SAME-linked= {'Материнская плата ASRock B850M-X WIFI': 'k2:asrock:b850mxwifi', 'ASRock B850M-X WIFI': 'k2:asrock:b850mx.wifi'}
+MARK_PLACEMENT flex k2:jabra:evolve265flex.link380a.ms k2:jabra:evolve265.flex.link380a.ms conflict= True SAME-linked= {'Jabra Evolve2 65 Flex Link380a MS Stereo': 'k2:jabra:evolve265flex.link380a.ms', 'Гарнитура Jabra Evolve2 65 Flex Link380a MS Stereo': 'k2:jabra:evolve265.flex.link380a.ms'}
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+RAM_FREQUENCY_AS_SKU k2:kingston:ddr43200:16gb k2:kingston:ddr43200:16gb
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 3, в исходном снимке audit-rules: 3
+[C4] Из них уже сохранены поля: 3
+[C4] Обработка 3 названий пачками по 1...
+[C4] Прогресс: 3/3 (100%) | Скорость: 2201.0 наим/с | ETA: 0 с | С ключом k2: 3
+RESCORE_OLD_ANCHOR {'Процессор AMD Ryzen 7 7700X OEM': 'k2:amd:ryzen77700x', 'AMD Ryzen 7 7700X BOX black': 'k2:amd:ryzen77700x', 'AMD Ryzen 7 7700X BOX white': 'k2:amd:ryzen77700x'} [('off_p0', 'prod_41e69e8e3827a543'), ('off_p1', 'prod_41e69e8e3827a543'), ('off_p2', 'prod_41e69e8e3827a543')] {'run_id': 'audit-rules', 'baseline_created_at': '2026-10-30T18:00:05Z', 'baseline_titles': 3, 'actual_k2_keys': 3, 'actual_legacy_keys': 0, 'actual_no_key': 0, 'cumulative': {'api_calls': 0, 'api_failures': 0, 'failed_titles': 0, 'missing_titles': 0, 'seconds': 0.0, 'api_started': 0, 'api_unfinished': 0}}
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+BOX_MEMBER_NO_FIELDS resolved {'AMD Ryzen 7 7700X OEM': 'amd:ryzen77700x:oem', 'Процессор AMD Ryzen 7 7700X OEM': 'amd:ryzen77700x:oem', 'AMD Ryzen 7 7700X BOX': 'amd:ryzen77700x:oem'} [('off_p0', 'prod_6f86493b454c204a'), ('off_p1', 'prod_6f86493b454c204a'), ('off_p2', 'prod_6f86493b454c204a')]
