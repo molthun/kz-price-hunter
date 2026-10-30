@@ -1,0 +1,73 @@
+test_component_and_system_are_separate (previous_audit.Residuals.test_component_and_system_are_separate) ... ok
+test_failed_shadow_is_visible_in_health (previous_audit.Residuals.test_failed_shadow_is_visible_in_health) ... ok
+test_metrics_include_all_rows (previous_audit.Residuals.test_metrics_include_all_rows) ... ok
+test_revision_is_part_of_identity (previous_audit.Residuals.test_revision_is_part_of_identity) ... ok
+test_shadow_discovers_new_cross_group_pair (previous_audit.Residuals.test_shadow_discovers_new_cross_group_pair) ... ok
+test_shadow_preserves_primary_fields (previous_audit.Residuals.test_shadow_preserves_primary_fields) ... ok
+test_unbranded_migration_drops_old_automatic_key (previous_audit.Residuals.test_unbranded_migration_drops_old_automatic_key) ... ok
+test_v1_format_is_not_semantic_mismatch (previous_audit.Residuals.test_v1_format_is_not_semantic_mismatch) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.924s
+
+OK
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+CPU_AND_SYSTEM resolved: {'AMD Ryzen 5 5600GT BOX': 'k2:amd:ryzen55600gt', 'Ryzen 5 5600GT-3.6GHz/A520/RAM 8GB/SSD 512GB/no DVD/400W': 'k2:amd:ryzen55600gt.system:512gb+8gb'}
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+AFTER_FAILED_SHADOW: {'status': 'degraded', 'total': 2, 'match_rate': 1.0}
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ALL_ROWS actual: {'total': 601, 'matched': 400, 'mismatch': 201, 'match_rate': 0.6656} expected total=601 matched=400 mismatch=201
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+REVISIONS keys: k2:sanc:m2442ph.v2:23.8in k2:sanc:m2442ph.v3:23.8in
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+NEW_CROSS_GROUP_PAIR pending: [{'pair_hash': '084da433db4bcbb9ae40005eb27320c938424acf30c369a08f7bd5b11722e523', 'title_a': 'Samsung Galaxy S24 256GB black', 'title_b': 'Samsung Galaxy S24 256GB white', 'reason': 'shadow_mismatch:missed samsung:sm-s921b:256gb vs samsung:galaxy s24:256gb', 'created_at': '2026-10-30 16:11:57', 'attempts': 0}]
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+PRIMARY_FIELDS after shadow: Galaxy S24 cached: k2:samsung:galaxys24:256gb rescore: k2:samsung:galaxys24:256gb
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 1, в исходном снимке k2: 1
+[C4] Из них уже сохранены поля: 1
+[C4] Обработка 1 названий пачками по 20...
+[C4] Прогресс: 1/1 (100%) | Скорость: 1767.4 наим/с | ETA: 0 с | С ключом k2: 0
+UNBRANDED after migration: None report: {'total_titles': 1, 'processed_titles': 1, 'with_k2_key': 0, 'no_identity_titles': 1, 'incomplete_titles': 0, 'failed_titles': 0, 'missing_titles': 0, 'api_calls': 0, 'api_failures': 0, 'seconds': 0.0, 'dry_run': False, 'run': {'run_id': 'k2', 'baseline_created_at': '2026-10-30T16:11:57Z', 'baseline_titles': 1, 'actual_k2_keys': 0, 'actual_legacy_keys': 0, 'actual_no_key': 1, 'cumulative': {'api_calls': 0, 'api_failures': 0, 'failed_titles': 0, 'missing_titles': 0, 'seconds': 0.0, 'api_started': 0, 'api_unfinished': 0}}}
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+SAME_MODEL v1/k2: {'days': 7, 'matched': 1, 'mismatch': 0, 'total': 1, 'match_rate': 1.0, 'scheduled': 1, 'compared': 1, 'coverage': 1.0, 'by_kind': {'matched': 1, 'scheduled': 1}, 'breakdown': [{'day': '2026-10-30', 'kind': 'matched', 'primary_key': 'samsung:galaxy s24:256gb', 'shadow_key': 'k2:samsung:galaxys24:256gb', 'count': 1, 'example_title': 'Samsung Galaxy S24 256GB'}]}

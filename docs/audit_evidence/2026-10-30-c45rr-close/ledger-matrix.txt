@@ -1,0 +1,16 @@
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+PASS dry-run matrix: inferred counters valid; DB hash unchanged
+PASS 0 zero_backfill calls= 3 started= 3 unfinished= 0
+PASS 0 partial_backfill calls= 3 started= 3 unfinished= 0
+PASS 0 real_unfinished calls= 3 started= 5 unfinished= 2
+PASS 0 zero_calls calls= 0 started= 0 unfinished= 0
+PASS 1 zero_backfill calls= 3 started= 3 unfinished= 0
+PASS 1 partial_backfill calls= 3 started= 3 unfinished= 0
+PASS 1 real_unfinished calls= 3 started= 5 unfinished= 2
+PASS 1 zero_calls calls= 0 started= 0 unfinished= 0
+PASS repair and repeated reopen: baseline/other counters preserved in all four cases
