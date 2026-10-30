@@ -1,0 +1,27 @@
+{
+ "replay_two_review_stages": true,
+ "changed": 7,
+ "membership_and_order_unchanged": true,
+ "all_five_sensitivity_scenarios_independently_reproduced": true,
+ "packaging_p3_fixed": true,
+ "as_is": {
+  "true": 2987,
+  "false": 158,
+  "open": 139,
+  "false_high": 655,
+  "false_ratio": 0.254,
+  "false_ratio_high": 1.444,
+  "true_ratio_low": 1.734
+ },
+ "remaining_open_added": 22,
+ "all_open_same": {
+  "true": 3126,
+  "false": 158,
+  "open": 0,
+  "false_high": 480,
+  "false_ratio": 0.254,
+  "false_ratio_high": 1.058,
+  "true_ratio_low": 1.849
+ },
+ "label_review_limit": "Numeric reproduction does not validate the Jabra different label; see separate source review."
+}

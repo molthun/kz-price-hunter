@@ -1,0 +1,21 @@
+{
+  "pair": [
+    {
+      "a": "Гарнитура JABRA Evolve2 50, USB C/A, MS Stereo (25089-999-799)",
+      "b": "Наушники Jabra Evolve2 50 USB-C MS Stereo черный",
+      "label": "different",
+      "note": "разные исполнения: 25089-999-799 — USB-C/A, 25089-999-899 — USB-C"
+    }
+  ],
+  "candidate_if_uncertain": {
+    "true": 2987,
+    "false": 157,
+    "open": 140,
+    "true_low": 2629,
+    "true_high": 3232,
+    "false_low": 52,
+    "false_high": 655
+  },
+  "false_merges_ratio": 0.252,
+  "false_merges_ratio_high": 1.444
+}

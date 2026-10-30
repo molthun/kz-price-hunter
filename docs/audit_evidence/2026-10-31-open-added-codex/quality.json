@@ -1,0 +1,1086 @@
+{
+ "labels": {
+  "pairs": 530,
+  "without_keys": 2,
+  "by_label": {
+   "uncertain": 29,
+   "different": 103,
+   "same": 370,
+   "packaging": 28
+  },
+  "unique_titles": 817
+ },
+ "strata_sizes": {
+  "retained": 1004,
+  "dropped_mixed": 522,
+  "dropped_both_k2": 444,
+  "added": 2280
+ },
+ "known_by_layer": {
+  "retained": 105,
+  "dropped_mixed": 46,
+  "dropped_both_k2": 160,
+  "added": 226
+ },
+ "random_sample": {
+  "pairs": 280,
+  "baseline": {
+   "tp": 94,
+   "fn": 89,
+   "fp": 81,
+   "tn": 5,
+   "uncertain": 11,
+   "packaging": 0
+  },
+  "candidate": {
+   "tp": 146,
+   "fn": 37,
+   "fp": 8,
+   "tn": 78,
+   "uncertain": 11,
+   "packaging": 0
+  }
+ },
+ "weighted": {
+  "owner_decision": {
+   "share_true_by_stratum": {
+    "retained": {
+     "n": 57,
+     "of": 60,
+     "rate": 0.95,
+     "low": 0.863,
+     "high": 0.9829,
+     "excluded": 0
+    },
+    "dropped_mixed": {
+     "n": 16,
+     "of": 58,
+     "rate": 0.2759,
+     "low": 0.1775,
+     "high": 0.402,
+     "excluded": 2
+    },
+    "dropped_both_k2": {
+     "n": 21,
+     "of": 57,
+     "rate": 0.3684,
+     "low": 0.2552,
+     "high": 0.4982,
+     "excluded": 3
+    },
+    "added": {
+     "n": 89,
+     "of": 94,
+     "rate": 0.9468,
+     "low": 0.8815,
+     "high": 0.9771,
+     "excluded": 6
+    }
+   },
+   "layers": {
+    "retained": {
+     "size": 1004,
+     "known": 105,
+     "known_same": 104,
+     "known_different": 1,
+     "known_open": 0,
+     "pool": 899,
+     "drawn": 60,
+     "drawn_same": 57,
+     "drawn_different": 3,
+     "drawn_open": 0,
+     "true": 958.0,
+     "false": 46.0,
+     "open": 0.0,
+     "true_low": 834.1,
+     "true_high": 992.4,
+     "false_low": 11.6,
+     "false_high": 169.9
+    },
+    "dropped_mixed": {
+     "size": 522,
+     "known": 46,
+     "known_same": 16,
+     "known_different": 27,
+     "known_open": 3,
+     "pool": 476,
+     "drawn": 60,
+     "drawn_same": 16,
+     "drawn_different": 42,
+     "drawn_open": 2,
+     "true": 142.9,
+     "false": 360.2,
+     "open": 18.9,
+     "true_low": 84.1,
+     "true_high": 245.7,
+     "false_low": 276.3,
+     "false_high": 437.9
+    },
+    "dropped_both_k2": {
+     "size": 444,
+     "known": 160,
+     "known_same": 96,
+     "known_different": 45,
+     "known_open": 19,
+     "pool": 284,
+     "drawn": 60,
+     "drawn_same": 21,
+     "drawn_different": 36,
+     "drawn_open": 3,
+     "true": 195.4,
+     "false": 215.4,
+     "open": 33.2,
+     "true_low": 154.8,
+     "true_high": 278.2,
+     "false_low": 165.8,
+     "false_high": 289.2
+    },
+    "added": {
+     "size": 2280,
+     "known": 226,
+     "known_same": 201,
+     "known_different": 9,
+     "known_open": 16,
+     "pool": 2054,
+     "drawn": 100,
+     "drawn_same": 89,
+     "drawn_different": 5,
+     "drawn_open": 6,
+     "true": 2029.1,
+     "false": 111.7,
+     "open": 139.2,
+     "true_low": 1794.9,
+     "true_high": 2238.3,
+     "false_low": 41.7,
+     "false_high": 485.1
+    }
+   },
+   "baseline": {
+    "true": 1296,
+    "false": 622,
+    "open": 52,
+    "true_low": 1073,
+    "true_high": 1516,
+    "false_low": 454,
+    "false_high": 897
+   },
+   "candidate": {
+    "true": 2987,
+    "false": 158,
+    "open": 139,
+    "true_low": 2629,
+    "true_high": 3231,
+    "false_low": 53,
+    "false_high": 655
+   },
+   "baseline_true_kept": 0.739,
+   "baseline_true_kept_low": 0.614,
+   "candidate_vs_baseline_true": 2.304,
+   "candidate_vs_baseline_true_low": 1.734,
+   "false_merges_ratio": 0.254,
+   "false_merges_ratio_high": 1.444
+  },
+  "packaging_excluded": {
+   "share_true_by_stratum": {
+    "retained": {
+     "n": 57,
+     "of": 60,
+     "rate": 0.95,
+     "low": 0.863,
+     "high": 0.9829,
+     "excluded": 0
+    },
+    "dropped_mixed": {
+     "n": 16,
+     "of": 58,
+     "rate": 0.2759,
+     "low": 0.1775,
+     "high": 0.402,
+     "excluded": 2
+    },
+    "dropped_both_k2": {
+     "n": 21,
+     "of": 54,
+     "rate": 0.3889,
+     "low": 0.2704,
+     "high": 0.5221,
+     "excluded": 6
+    },
+    "added": {
+     "n": 89,
+     "of": 94,
+     "rate": 0.9468,
+     "low": 0.8815,
+     "high": 0.9771,
+     "excluded": 6
+    }
+   },
+   "layers": {
+    "retained": {
+     "size": 1004,
+     "known": 105,
+     "known_same": 104,
+     "known_different": 0,
+     "known_open": 1,
+     "pool": 899,
+     "drawn": 60,
+     "drawn_same": 57,
+     "drawn_different": 3,
+     "drawn_open": 0,
+     "true": 958.0,
+     "false": 45.0,
+     "open": 1.0,
+     "true_low": 834.1,
+     "true_high": 993.4,
+     "false_low": 10.6,
+     "false_high": 169.9
+    },
+    "dropped_mixed": {
+     "size": 522,
+     "known": 46,
+     "known_same": 16,
+     "known_different": 27,
+     "known_open": 3,
+     "pool": 476,
+     "drawn": 60,
+     "drawn_same": 16,
+     "drawn_different": 42,
+     "drawn_open": 2,
+     "true": 142.9,
+     "false": 360.2,
+     "open": 18.9,
+     "true_low": 84.1,
+     "true_high": 245.7,
+     "false_low": 276.3,
+     "false_high": 437.9
+    },
+    "dropped_both_k2": {
+     "size": 444,
+     "known": 160,
+     "known_same": 96,
+     "known_different": 39,
+     "known_open": 25,
+     "pool": 284,
+     "drawn": 60,
+     "drawn_same": 21,
+     "drawn_different": 33,
+     "drawn_open": 6,
+     "true": 195.4,
+     "false": 195.2,
+     "open": 53.4,
+     "true_low": 154.8,
+     "true_high": 297.4,
+     "false_low": 146.6,
+     "false_high": 289.2
+    },
+    "added": {
+     "size": 2280,
+     "known": 226,
+     "known_same": 201,
+     "known_different": 7,
+     "known_open": 18,
+     "pool": 2054,
+     "drawn": 100,
+     "drawn_same": 89,
+     "drawn_different": 5,
+     "drawn_open": 6,
+     "true": 2029.1,
+     "false": 109.7,
+     "open": 141.2,
+     "true_low": 1794.9,
+     "true_high": 2240.3,
+     "false_low": 39.7,
+     "false_high": 485.1
+    }
+   },
+   "baseline": {
+    "true": 1296,
+    "false": 600,
+    "open": 73,
+    "true_low": 1073,
+    "true_high": 1537,
+    "false_low": 433,
+    "false_high": 897
+   },
+   "candidate": {
+    "true": 2987,
+    "false": 155,
+    "open": 142,
+    "true_low": 2629,
+    "true_high": 3234,
+    "false_low": 50,
+    "false_high": 655
+   },
+   "baseline_true_kept": 0.739,
+   "baseline_true_kept_low": 0.606,
+   "candidate_vs_baseline_true": 2.304,
+   "candidate_vs_baseline_true_low": 1.711,
+   "false_merges_ratio": 0.258,
+   "false_merges_ratio_high": 1.511
+  },
+  "packaging_same": {
+   "share_true_by_stratum": {
+    "retained": {
+     "n": 57,
+     "of": 60,
+     "rate": 0.95,
+     "low": 0.863,
+     "high": 0.9829,
+     "excluded": 0
+    },
+    "dropped_mixed": {
+     "n": 16,
+     "of": 58,
+     "rate": 0.2759,
+     "low": 0.1775,
+     "high": 0.402,
+     "excluded": 2
+    },
+    "dropped_both_k2": {
+     "n": 24,
+     "of": 57,
+     "rate": 0.4211,
+     "low": 0.3019,
+     "high": 0.5502,
+     "excluded": 3
+    },
+    "added": {
+     "n": 89,
+     "of": 94,
+     "rate": 0.9468,
+     "low": 0.8815,
+     "high": 0.9771,
+     "excluded": 6
+    }
+   },
+   "layers": {
+    "retained": {
+     "size": 1004,
+     "known": 105,
+     "known_same": 105,
+     "known_different": 0,
+     "known_open": 0,
+     "pool": 899,
+     "drawn": 60,
+     "drawn_same": 57,
+     "drawn_different": 3,
+     "drawn_open": 0,
+     "true": 959.0,
+     "false": 45.0,
+     "open": 0.0,
+     "true_low": 835.1,
+     "true_high": 993.4,
+     "false_low": 10.6,
+     "false_high": 168.9
+    },
+    "dropped_mixed": {
+     "size": 522,
+     "known": 46,
+     "known_same": 16,
+     "known_different": 27,
+     "known_open": 3,
+     "pool": 476,
+     "drawn": 60,
+     "drawn_same": 16,
+     "drawn_different": 42,
+     "drawn_open": 2,
+     "true": 142.9,
+     "false": 360.2,
+     "open": 18.9,
+     "true_low": 84.1,
+     "true_high": 245.7,
+     "false_low": 276.3,
+     "false_high": 437.9
+    },
+    "dropped_both_k2": {
+     "size": 444,
+     "known": 160,
+     "known_same": 102,
+     "known_different": 39,
+     "known_open": 19,
+     "pool": 284,
+     "drawn": 60,
+     "drawn_same": 24,
+     "drawn_different": 33,
+     "drawn_open": 3,
+     "true": 215.6,
+     "false": 195.2,
+     "open": 33.2,
+     "true_low": 172.3,
+     "true_high": 297.4,
+     "false_low": 146.6,
+     "false_high": 271.7
+    },
+    "added": {
+     "size": 2280,
+     "known": 226,
+     "known_same": 203,
+     "known_different": 7,
+     "known_open": 16,
+     "pool": 2054,
+     "drawn": 100,
+     "drawn_same": 89,
+     "drawn_different": 5,
+     "drawn_open": 6,
+     "true": 2031.1,
+     "false": 109.7,
+     "open": 139.2,
+     "true_low": 1796.9,
+     "true_high": 2240.3,
+     "false_low": 39.7,
+     "false_high": 483.1
+    }
+   },
+   "baseline": {
+    "true": 1318,
+    "false": 600,
+    "open": 52,
+    "true_low": 1092,
+    "true_high": 1537,
+    "false_low": 433,
+    "false_high": 878
+   },
+   "candidate": {
+    "true": 2990,
+    "false": 155,
+    "open": 139,
+    "true_low": 2632,
+    "true_high": 3234,
+    "false_low": 50,
+    "false_high": 652
+   },
+   "baseline_true_kept": 0.728,
+   "baseline_true_kept_low": 0.606,
+   "candidate_vs_baseline_true": 2.269,
+   "candidate_vs_baseline_true_low": 1.713,
+   "false_merges_ratio": 0.258,
+   "false_merges_ratio_high": 1.504
+  },
+  "packaging_different": {
+   "share_true_by_stratum": {
+    "retained": {
+     "n": 57,
+     "of": 60,
+     "rate": 0.95,
+     "low": 0.863,
+     "high": 0.9829,
+     "excluded": 0
+    },
+    "dropped_mixed": {
+     "n": 16,
+     "of": 58,
+     "rate": 0.2759,
+     "low": 0.1775,
+     "high": 0.402,
+     "excluded": 2
+    },
+    "dropped_both_k2": {
+     "n": 21,
+     "of": 57,
+     "rate": 0.3684,
+     "low": 0.2552,
+     "high": 0.4982,
+     "excluded": 3
+    },
+    "added": {
+     "n": 89,
+     "of": 94,
+     "rate": 0.9468,
+     "low": 0.8815,
+     "high": 0.9771,
+     "excluded": 6
+    }
+   },
+   "layers": {
+    "retained": {
+     "size": 1004,
+     "known": 105,
+     "known_same": 104,
+     "known_different": 1,
+     "known_open": 0,
+     "pool": 899,
+     "drawn": 60,
+     "drawn_same": 57,
+     "drawn_different": 3,
+     "drawn_open": 0,
+     "true": 958.0,
+     "false": 46.0,
+     "open": 0.0,
+     "true_low": 834.1,
+     "true_high": 992.4,
+     "false_low": 11.6,
+     "false_high": 169.9
+    },
+    "dropped_mixed": {
+     "size": 522,
+     "known": 46,
+     "known_same": 16,
+     "known_different": 27,
+     "known_open": 3,
+     "pool": 476,
+     "drawn": 60,
+     "drawn_same": 16,
+     "drawn_different": 42,
+     "drawn_open": 2,
+     "true": 142.9,
+     "false": 360.2,
+     "open": 18.9,
+     "true_low": 84.1,
+     "true_high": 245.7,
+     "false_low": 276.3,
+     "false_high": 437.9
+    },
+    "dropped_both_k2": {
+     "size": 444,
+     "known": 160,
+     "known_same": 96,
+     "known_different": 45,
+     "known_open": 19,
+     "pool": 284,
+     "drawn": 60,
+     "drawn_same": 21,
+     "drawn_different": 36,
+     "drawn_open": 3,
+     "true": 195.4,
+     "false": 215.4,
+     "open": 33.2,
+     "true_low": 154.8,
+     "true_high": 278.2,
+     "false_low": 165.8,
+     "false_high": 289.2
+    },
+    "added": {
+     "size": 2280,
+     "known": 226,
+     "known_same": 201,
+     "known_different": 9,
+     "known_open": 16,
+     "pool": 2054,
+     "drawn": 100,
+     "drawn_same": 89,
+     "drawn_different": 5,
+     "drawn_open": 6,
+     "true": 2029.1,
+     "false": 111.7,
+     "open": 139.2,
+     "true_low": 1794.9,
+     "true_high": 2238.3,
+     "false_low": 41.7,
+     "false_high": 485.1
+    }
+   },
+   "baseline": {
+    "true": 1296,
+    "false": 622,
+    "open": 52,
+    "true_low": 1073,
+    "true_high": 1516,
+    "false_low": 454,
+    "false_high": 897
+   },
+   "candidate": {
+    "true": 2987,
+    "false": 158,
+    "open": 139,
+    "true_low": 2629,
+    "true_high": 3231,
+    "false_low": 53,
+    "false_high": 655
+   },
+   "baseline_true_kept": 0.739,
+   "baseline_true_kept_low": 0.614,
+   "candidate_vs_baseline_true": 2.304,
+   "candidate_vs_baseline_true_low": 1.734,
+   "false_merges_ratio": 0.254,
+   "false_merges_ratio_high": 1.444
+  }
+ },
+ "candidate_false_merges": [
+  {
+   "a": "Игровая приставка Sony PlayStation 5 Slim + Геймпад + GTA V",
+   "b": "Игровая приставка Sony PlayStation 5 Slim + геймпад Белый",
+   "key": "k2:sony:playstation5slim",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Коврик для мыши 2E Gaming Pro Speed XL",
+   "b": "Коврик для мыши Gaming Pro Speed полиэстер, резина, 36×27.5 см, 36 × 27.5 × 0,3 см 2Е",
+   "key": "k2:2e:gamingprospeed",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Apple EarPods проводные наушники (USB-C)",
+   "b": "EarPods LIGHTNING",
+   "key": "k2:apple:earpods",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "AFOX GT 1030 (AF1030-2048D5L8) 2 Гб",
+   "b": "Видеокарта Afox GT 1030 2 GB (AF1030-2048D5L7)",
+   "key": "k2:afox:gt1030:2gb",
+   "strata": [
+    "retained"
+   ]
+  },
+  {
+   "a": "Смарт-часы GARMIN Fenix 8 47mm, AMOLED, сапфир, темный силикон 010-02904-21",
+   "b": "Смарт-часы Garmin Fenix 8 010-02904-00 47mm AMOLED Slate Gray with Black Silicone Band",
+   "key": "k2:garmin:fenix8:47mm",
+   "strata": [
+    "retained"
+   ]
+  },
+  {
+   "a": "Наушники APPLE EarPods with Lightning Connector (MWTY3ZM/A)",
+   "b": "Наушники Apple EarPods Headphone Plug (MWU53ZM/A)",
+   "key": "k2:apple:earpods",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "SSD накопитель 256 GB Kingston KC600 (SKC600MS/256G), mSATA, SATA III",
+   "b": "SSD накопитель 256 GB Kingston KC600 SKC600/256G",
+   "key": "k2:kingston:kc600:256gb",
+   "strata": [
+    "retained"
+   ]
+  },
+  {
+   "a": "Jabra Evolve2 65, Link380a MS Stereo Stand Black (26599-999-989)",
+   "b": "Наушники Jabra Evolve2 65 Link380a MS Mono 26599-899-999 Black",
+   "key": "k2:jabra:evolve265.link380a.ms",
+   "strata": [
+    "added"
+   ]
+  }
+ ],
+ "candidate_lost_true_pairs": [
+  {
+   "a": "Смартфон Realme C25Y 4/128 Grey",
+   "b": "Смартфон realme C25Y, 128 GB, Glacier Blue (RMX3269)",
+   "new_a": "k2:realme:c25y:128gb+4gb",
+   "new_b": "k2:realme:c25y:128gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Смартфон Infinix Note 50 PRO 12/256GB Ench Purple",
+   "b": "Смартфон Infinix Note 50 PRO 12/256GB Shadow Black",
+   "new_a": "infinix:note 50 pro:256gb",
+   "new_b": "k2:infinix:note50pro:12gb+256gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Телевизор Яндекс YNDX-00076 - Умный телевизор с Алисой 55\"",
+   "b": "Яндекс Бейсик с Алисой YNDX-00076 140 см черный",
+   "new_a": "k2:yandex:yndx00076:55in",
+   "new_b": "k2:yandex:beysiksalisoyyndx00076:55in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Телевизор MiniLED ЯНДЕКС 65 Про YNDX-00104 (4K Smart)",
+   "b": "Телевизор Яндекс Про 65\" YNDX-00104 MiniLED 4K UHD Black",
+   "new_a": "k2:yandex:yndx00104:65in",
+   "new_b": "k2:yandekspro:yndx00104:65in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Оперативная память 16Gb Kingston FURY Beast Black AMD RGB KF556C36BBEA-16",
+   "b": "Оперативная память Kingston 16GB 5600MT/s DDR5 CL36 DIMM FURY Beast RGB EXPO (KF556C36BBEA-16)",
+   "new_a": "k2:kingston:kf556c36bbea16:16gb",
+   "new_b": "kingston:fury beast:16gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Смартфон Realme C25Y 4/128 Grey",
+   "b": "Смартфон realme C25Y, 128 GB, Metal Grey (RMX3269)",
+   "new_a": "k2:realme:c25y:128gb+4gb",
+   "new_b": "k2:realme:c25y:128gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Blackview Tab 80 Kids 10.1 дюйм 4 Гб64 Гб розовый",
+   "b": "Планшет BlackView Tab 80 Kids 4G 10.1\" 4/64GB Blue",
+   "new_a": "k2:blackview:tab80kids:10.1in+4gb",
+   "new_b": "k2:blackview:tab80kids:10.1in+4gb+64gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Телевизор Dreame 86S100, 86\"",
+   "b": "Телевизор Dreame Aura 86\" 86S100 QLED 4K UHD Black",
+   "new_a": "k2:dreame:86s100",
+   "new_b": "k2:dreame:aura86s100",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Монитор 27'' XG Darknet Pro 360HZ",
+   "b": "Монитор Игровой 27\" XG Darknet Pro 1920x1080 16:9 IPS 360ГЦ (2HDMI+2DP) Black",
+   "new_a": "k2:xg:darknetpro360hz:27in",
+   "new_b": "xg:darknet pro:27",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Монитор 27\" AOC 27G42E, Black",
+   "b": "Монитор Игровой 27\" AOC 27G42E 1920x1080 16:9 IPS 180ГЦ (HDMI+DP) Black",
+   "new_a": "k2:aoc:27g42e",
+   "new_b": "aoc:27g42e:27",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "OSCAL Pad 30 10.1 дюйм 4 Гб128 Гб зеленый + подарок",
+   "b": "Планшет Oscal Pad 30 WiFi, 10.1\",  4 GB, 128 GB, Horizon Blue",
+   "new_a": "k2:oscal:pad30:10.1in+4gb",
+   "new_b": "k2:oscal:pad30wifi:10.1in+128gb+4gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Монитор 23,8\" X-game 1T238IPS 1920x1080 16:9 IPS 100ГЦ (HDMI+DP+ VGA) Black",
+   "b": "Монитор 23.8\" X-Game 1T238IPS, Black",
+   "new_a": "x-game:1t238ips:23.8",
+   "new_b": "k2:xgame:1t238ips:23.8in",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Телевизор Dreame 65Q100, 65\"",
+   "b": "Телевизор Dreame Vivid 65\" 65Q100 QLED 4K UHD Black",
+   "new_a": "k2:dreame:65q100",
+   "new_b": "k2:dreame:vividq100:65in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "SSD накопитель 256 GB Kingston KC600 SKC600/256G",
+   "b": "Твердотельный накопитель 256GB SSD Kingston KC600 2.5” SATA3 (SKC600/256G)",
+   "new_a": "k2:kingston:kc600:256gb",
+   "new_b": "kingston:kc600:256gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Телевизор ЯНДЕКС 65 YNDX-00077 (4K Smart)",
+   "b": "Телевизор Яндекс Бейсик с Алисой 65\" YNDX-00077 LED 4K UHD Black",
+   "new_a": "k2:yandex:yndx00077",
+   "new_b": "k2:yandex:yndx00077:65in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Телевизор 98\" (249 см) TCL 98C6K QLED 4K UHD Black",
+   "b": "Телевизор TCL QD-MiniLED 98C6K UHD Android TV",
+   "new_a": "k2:tcl:98c6k",
+   "new_b": "k2:tcl:qd98c6k",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Видеокарта MaxSun MS-GTX1050Ti TF 4G",
+   "b": "Видеокарта Maxsun MS-GTX1050Ti TF 4G [4 ГБ, GDDR5, 128 бит, DVI, HDMI, DisplayPort]",
+   "new_a": "k2:maxsun:gtx1050ti:4gb",
+   "new_b": "maxsun:gtx1050ti:4gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Наушники Soundcore P40i A3955 TWS Navy Blue",
+   "b": "Наушники Soundcore P40i Blue (A3955-BLU)",
+   "new_a": "k2:soundcore:p40ia3955",
+   "new_b": "k2:soundcore:p40i",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Оперативная память 16Gb Transcend JM4800ALE-16G",
+   "b": "Память оперативная DDR5 Desktop Transcend  JM4800ALE-16G (JM4800ALE-16G)",
+   "new_a": "k2:transcend:jm4800ale16g:16gb",
+   "new_b": "transcend:jm4800ale:16gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Планшет DOOGEE U11 11\" 4GB/128GB Wi-Fi Grey",
+   "b": "Планшет Doogee U11 11\" 4/128Gb Black",
+   "new_a": "k2:doogee:u11:128gb+4gb",
+   "new_b": "doogee:u11:128gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "OSCAL Pad 30 10.1 дюйм 4 Гб128 Гб синий + подарок",
+   "b": "Планшет Oscal Pad 30 WiFi, 10.1\", 4 GB, 128 GB, Hazel Green",
+   "new_a": "k2:oscal:pad30:10.1in+4gb",
+   "new_b": "k2:oscal:pad30wifi:10.1in+128gb+4gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "SSD накопитель 256 GB Patriot P210, 2.5\", SATA III",
+   "b": "Твердотельный накопитель SSD 2.5\" SATA III Patriot  256GB P210 530/460 P210S256G25 (P210S256G25)",
+   "new_a": "k2:patriot:p210:256gb",
+   "new_b": "patriot:p210:256gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "OSCAL Pad 30 10.1 дюйм 4 Гб128 Гб серый + подарок",
+   "b": "Планшет Oscal Pad 30 WiFi, 10.1\", 4 GB, 128 GB, Cosmic Grey",
+   "new_a": "k2:oscal:pad30:10.1in+4gb",
+   "new_b": "k2:oscal:pad30wifi:10.1in+128gb+4gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Процессор AMD Ryzen 5 5600X, AM4, OEM",
+   "b": "Процессор CPU AM4 AMD Ryzen 5 5600X OEM v3",
+   "new_a": "k2:amd:ryzen55600x",
+   "new_b": "k2:amd:ryzen55600x.v3",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Твердотельный накопитель SSD Kingston 1TB M.2 (NV3 SNV3S/1000G) (SNV3S/1000G)",
+   "b": "Твердотельный накопитель SSD Kingston NV3 1 ТБ, M.2 2280, нет Kingston Technology",
+   "new_a": "kingston:nv3:1tb",
+   "new_b": "k2:kingston:nv3:1tb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Телевизор MiniLED ЯНДЕКС 55 Про YNDX-00103 (4K Smart)",
+   "b": "Телевизор Яндекс YNDX-00103 - Умный телевизор с Алисой 55\"",
+   "new_a": "k2:yandex:55pro",
+   "new_b": "k2:yandex:pro:55in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Телевизор Яндекс YNDX-00104 - Умный телевизор с Алисой 65\"",
+   "b": "Яндекс Про MiniLED YNDX-00104 165 см черный",
+   "new_a": "k2:yandex:yndx00104:65in",
+   "new_b": "k2:yandekspro:yndx00104:65in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "SSD накопитель 2 TB Kingston NV3, M.2, PCIe 4.0",
+   "b": "Твердотельный накопитель SSD Kingston NV3 2TB M.2 (SNV3S/2000G)",
+   "new_a": "k2:kingston:nv3:2tb",
+   "new_b": "kingston:nv3:2tb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Оперативная память Kingston FURY Beast EXPO DDR5 16GB 6000MT/s, White (KF560C36BWE2-16)",
+   "b": "Оперативная память Kingston FURY Beast White KF560C36BWE2-16",
+   "new_a": "k2:kingston:kf560c36bwe216:16gb",
+   "new_b": "k2:kingston:kf560c36bwe216",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Телевизор Яндекc Про MiniLED 75\" YNDX-00105 QLED 4K UHD Smart",
+   "b": "Телевизор Яндекс Про 75\" YNDX-00105 MiniLED 4K UHD Black",
+   "new_a": "k2:yandex:yndx00105:75in",
+   "new_b": "k2:yandekspro:yndx00105:75in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Монитор 27\" PHILIPS 27E1N1800AE/01",
+   "b": "Монитор 27\" Philips 27E1N1800AE/01, Black",
+   "new_a": "k2:philips:27e1n1800ae01",
+   "new_b": "k2:philips:27e1n1800",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "SSD накопитель SATA  256 GB Patriot P210 P210S256G25",
+   "b": "Твердотельный накопитель SSD 2.5\" SATA III Patriot  256GB P210 530/460 P210S256G25 (P210S256G25)",
+   "new_a": "k2:patriot:p210:256gb",
+   "new_b": "patriot:p210:256gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Оперативная память 16GB DDR5 4800MHz NOMAD UDIMM NMD4800D5U40-16GB Bulk Pack FULL совместимость! (NMD4800D5U40-16GB)",
+   "b": "Оперативная память 16GB NOMAD NMD4800D5U40-16GB",
+   "new_a": "nomad:nmd4800d5u40:16gb",
+   "new_b": "k2:nomad:nmd4800d5u4016gb:16gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "SSD накопитель 500Gb Netac NV3000 NT01NV3000-500-E4X",
+   "b": "Твердотельный накопитель SSD 500Gb, M.2 2280, Netac NV3000, NVMe, PCIe 3x4, 3100R/2100W (NT01NV3000-500-E4X)",
+   "new_a": "k2:netac:nv3000nt01nv3000500e4x:500gb",
+   "new_b": "netac:nv3000:500gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Монитор 27\" PHILIPS 27E1N1200A/01/00",
+   "b": "Монитор 27\" Philips 27E1N1200A/01, Black",
+   "new_a": "k2:philips:27e1n1200a",
+   "new_b": "k2:philips:27e1n1200a01",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Смартфон Tecno Spark 8P 4/128GB Tahiti gold",
+   "b": "Смартфон Tecno Spark 8P, 128GB, Turquoise Cyan (KG7n)",
+   "new_a": "k2:tecno:spark8p:128gb+4gb",
+   "new_b": "k2:tecno:spark8p:128gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Планшет Oscal Pad 9 10.1\" 4/128Gb Sierra Blue",
+   "b": "Планшет Oscal Pad 9, 10.1\", 4 GB, 128 GB, WiFi+4G, Titanium Grey",
+   "new_a": "oscal:pad 9:128gb",
+   "new_b": "k2:oscal:pad9:10.1in+128gb+4gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  }
+ ],
+ "registry_counts": {
+  "dropped": {
+   "missing_fields_one_side": 521,
+   "missing_fields_both": 0,
+   "legacy_with_fields": 1,
+   "no_identity": 0,
+   "variant_one_side": 18,
+   "variant_conflict": 114,
+   "revision_differs": 23,
+   "system_vs_component": 0,
+   "identity_differs_shared_code": 80,
+   "identity_differs_other": 209
+  },
+  "added": {
+   "old_format_only": 173,
+   "old_variant_differs": 1631,
+   "same_identity_new_old_empty": 0,
+   "own_keys_equal_old_identity_differs": 383,
+   "linked_by_article": 93
+  }
+ },
+ "titles": {
+  "k2": 18867,
+  "legacy": 682,
+  "empty": 584
+ },
+ "rules_now": {
+  "strata": {
+   "holdout_added": {
+    "before_tp": 0,
+    "now_tp": 0,
+    "before_fp": 0,
+    "now_fp": 0,
+    "true_total": 0,
+    "false_total": 0,
+    "excluded": 0
+   },
+   "holdout_dropped_both_k2": {
+    "before_tp": 0,
+    "now_tp": 0,
+    "before_fp": 0,
+    "now_fp": 0,
+    "true_total": 0,
+    "false_total": 0,
+    "excluded": 0
+   },
+   "tuned_added": {
+    "before_tp": 89,
+    "now_tp": 89,
+    "before_fp": 5,
+    "now_fp": 5,
+    "true_total": 89,
+    "false_total": 5,
+    "excluded": 6
+   },
+   "tuned_dropped_both_k2": {
+    "before_tp": 0,
+    "now_tp": 3,
+    "before_fp": 0,
+    "now_fp": 0,
+    "true_total": 21,
+    "false_total": 36,
+    "excluded": 3
+   },
+   "retained_pool": {
+    "before_tp": 57,
+    "now_tp": 57,
+    "before_fp": 3,
+    "now_fp": 3,
+    "true_total": 57,
+    "false_total": 3,
+    "excluded": 0
+   },
+   "dropped_mixed": {
+    "before_tp": 0,
+    "now_tp": 0,
+    "before_fp": 0,
+    "now_fp": 0,
+    "true_total": 16,
+    "false_total": 42,
+    "excluded": 2
+   }
+  },
+  "added_still_together": 2260,
+  "dropped_both_k2_rejoined": 28,
+  "limits": "Только пары прежних слоёв: пары, которые правила могли соединить заново вне их, не видны; нужна пересборка копии."
+ }
+}

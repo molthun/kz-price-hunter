@@ -1546,7 +1546,7 @@
       "strata": [
         "added"
       ],
-      "note": "G31 голубой, G21 белый: разница в цвете (коды по карточкам магазинов)"
+      "note": "G31 голубой, G21 белый: разница в цвете"
     },
     {
       "a": "Наушники Soundcore P40i A3955 TWS Navy Blue",
@@ -4915,8 +4915,7 @@
     {
       "a": "Гарнитура JABRA Evolve2 50, USB C/A, MS Stereo (25089-999-799)",
       "b": "Наушники Jabra Evolve2 50 USB-C MS Stereo черный",
-      "label": "different",
-      "note": "разные исполнения: 25089-999-799 — USB-C/A, 25089-999-899 — USB-C"
+      "label": "uncertain"
     },
     {
       "a": "Гарнитура A4Tech Bloody G430, 1.8m, LED, Black (G430/BLACK)",
@@ -6350,7 +6349,7 @@
       "a": "Наушники SOUNDCORE Liberty 5 Pro (D1203G31), Голубой TWS",
       "b": "Наушники soundcore Liberty 5 Pro D1203G11",
       "label": "same",
-      "note": "G31 голубой, G11 чёрный: разница в цвете (коды по карточкам магазинов)"
+      "note": "G31 голубой, G11 чёрный: разница в цвете"
     },
     {
       "a": "AMD Ryzen 5 5600 OEM",

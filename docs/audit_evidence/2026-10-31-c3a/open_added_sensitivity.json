@@ -1,43 +1,43 @@
 {
  "open_fresh": 6,
  "open_fresh_cpu": 4,
- "open_known": 16,
+ "open_known": 17,
  "open_known_cpu": 12,
  "as_is": {
   "true": 2987,
-  "false": 158,
-  "open": 139,
+  "false": 157,
+  "open": 140,
   "false_high": 655,
-  "false_ratio": 0.254,
+  "false_ratio": 0.252,
   "false_ratio_high": 1.444,
   "true_ratio_low": 1.734
  },
  "cpu_unspecified_same": {
   "true": 3081,
-  "false": 158,
-  "open": 45,
+  "false": 157,
+  "open": 46,
   "false_high": 539,
-  "false_ratio": 0.254,
+  "false_ratio": 0.252,
   "false_ratio_high": 1.189,
   "true_ratio_low": 1.81
  },
  "cpu_unspecified_different": {
   "true": 2987,
-  "false": 252,
-  "open": 45,
+  "false": 251,
+  "open": 46,
   "false_high": 655,
-  "false_ratio": 0.405,
+  "false_ratio": 0.404,
   "false_ratio_high": 1.444,
   "true_ratio_low": 1.734
  },
  "all_open_same": {
-  "true": 3126,
-  "false": 158,
+  "true": 3127,
+  "false": 157,
   "open": 0,
-  "false_high": 480,
-  "false_ratio": 0.254,
-  "false_ratio_high": 1.058,
-  "true_ratio_low": 1.849
+  "false_high": 479,
+  "false_ratio": 0.252,
+  "false_ratio_high": 1.056,
+  "true_ratio_low": 1.85
  },
  "all_open_different": {
   "true": 2987,
