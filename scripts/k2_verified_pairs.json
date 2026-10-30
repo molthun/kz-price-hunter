@@ -2794,12 +2794,12 @@
   },
   {
    "a": "ASRock B760M Pro-A/D4 (90-MXBNC0-A0UAYZ)",
-   "b": "Материнская плата ASRock B760M PRO-A/D4 (B760M PRO-A/D4)",
+   "b": "ASRock B760M PRO-A/D4 WIFI",
    "same": false,
    "fields_a": {
     "brand": "ASRock",
     "edition": null,
-    "model": "B760M Pro-A",
+    "model": "B760M Pro-A/D4",
     "sku": "90-MXBNC0-A0UAYZ",
     "unbranded": false,
     "variants": []
@@ -2807,12 +2807,12 @@
    "fields_b": {
     "brand": "ASRock",
     "edition": null,
-    "model": "B760M PRO-A/D4",
-    "sku": "B760M PRO-A/D4",
+    "model": "B760M PRO-A/D4 WIFI",
+    "sku": null,
     "unbranded": false,
     "variants": []
    },
-   "note": "stand dropped verified diff: b760m pro-a != b760m pro-a/d4"
+   "note": "ASRock B760M Pro-A/D4 vs B760M PRO-A/D4 WIFI: diff wifi edition"
   },
   {
    "a": "ASRock H510M-H2/M.2 SE",
