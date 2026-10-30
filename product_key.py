@@ -232,6 +232,8 @@ _COMPONENT_WORD_RE = re.compile(r"процессор|видеокарт|(?<![a-z
 _SYSTEM_PARTS = (r"(?<![a-z])ram(?![a-z])|озу", r"ssd|hdd|nvme", r"dvd", r"(?<![a-z0-9])\d{3,4}\s?(?:w|вт)(?![a-z])",
                  r"windows|win ?1[01]|freedos|dos(?![a-z])")
 SYSTEM_MARK = ".system"
+_CHIP_IN_TITLE_RE = re.compile(r"ryzen|athlon|threadripper|epyc|core\s?i\d|(?<![a-z0-9])i[3579]-\d|xeon|pentium|celeron|"
+                               r"(?<![a-z0-9])(?:rtx|gtx|rx)\s?\d")
 _SPEED_CLASS_RE = re.compile(r"карт\w* памяти|micro ?sd|sdxc|sdhc|(?<![a-z0-9])[ua][123](?![a-z0-9])")
 
 
@@ -411,22 +413,53 @@ def _title_revision(title: str) -> str:
     return f"v{found.group(1)}" if found else ""
 
 
+def _title_is_system(title: str) -> bool:
+    """Готовый компьютер по одному названию, когда полей нет: чип в тексте и признаки сборки (грубо, как и ревизия)."""
+    text = _text(title)
+    if not _CHIP_IN_TITLE_RE.search(text):
+        return False
+    parts = sum(bool(re.search(p, text)) for p in _SYSTEM_PARTS)
+    return parts >= 2 or (bool(_SYSTEM_WORD_RE.search(text)) and not _COMPONENT_WORD_RE.search(text))
+
+
+def _capacity_conflict(first: Iterable[str], second: Iterable[str]) -> bool:
+    """Объём и диагональ, известные из названия, сравниваются по своей величине: прочие варианты модели
+    (мощность, вес) в названии не ищутся, и их отсутствие противоречием не считается."""
+    def of_class(tokens, suffixes):
+        return {t for t in tokens if t.endswith(suffixes)}
+    for suffixes in (("gb", "tb"), ("in",)):
+        a, b = of_class(first, suffixes), of_class(second, suffixes)
+        if a and b and a != b:
+            return True
+    return False
+
+
 def identities_conflict(group_a: Iterable[tuple], group_b: Iterable[tuple]) -> bool:
     """Можно ли объединить две группы [(название, поля или None, сохранённый ключ или None)].
 
     Собственная идентичность считается по полям и названию, а не по назначенному ключу: старый или устаревший
-    ключ не знает о ревизии, а участник группы мог попасть в неё ошибочно (аудит C45R-01)."""
+    ключ не знает о ревизии, а участник группы мог попасть в неё ошибочно (аудит C45R-01). У участника без полей
+    объём, диагональ, ревизия и признаки сборки берутся из названия (аудит C45RR-01): ошибка этой грубой проверки
+    только откажет в объединении."""
     def profile(items):
         out = set()
         for title, fields, key in items:
-            own = build_key(fields, title) if isinstance(fields, dict) else None
-            out.add((own or "", key or "", _title_revision(title)))
+            own = (build_key(fields, title) if isinstance(fields, dict) else None) or ""
+            # У всех, не только без полей: диагональ из номера модели (24B1) в ключ не входит, но в названии видна
+            from_title = frozenset(variant_tokens(title_variants(title)))
+            system = is_system_key(own) if own else _title_is_system(title)
+            out.add((own, key or "", _title_revision(title), from_title, system))
         return out
+
+    def known(own, key):
+        return (_key_variants(own) if own else None) or (_key_variants(key) if key else None) or set()
     first, second = profile(group_a), profile(group_b)
-    for own_a, key_a, rev_a in first:
-        for own_b, key_b, rev_b in second:
+    for own_a, key_a, rev_a, title_a, system_a in first:
+        for own_b, key_b, rev_b, title_b, system_b in second:
             if (own_a and own_b and keys_conflict(own_a, own_b)) or (key_a and key_b and keys_conflict(key_a, key_b)) \
-                    or (rev_a and rev_b and rev_a != rev_b):
+                    or (rev_a and rev_b and rev_a != rev_b) or system_a != system_b \
+                    or _capacity_conflict(title_a, title_b | known(own_b, key_b)) \
+                    or _capacity_conflict(title_b, title_a | known(own_a, key_a)):
                 return True
     return False
 

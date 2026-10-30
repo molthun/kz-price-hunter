@@ -353,6 +353,53 @@ class SameVerdictOnLegacyKeysTest(_DbCase):
                   {a: self.sanc("V2"), b: self.sanc(None)})
         self.assert_refused(a, b)
 
+    def memory(self, gb):
+        return {"brand": "Samsung", "model": "Galaxy S24", "sku": None, "edition": None,
+                "variants": [{"value": gb, "unit": "gb"}], "unbranded": False}
+
+    def test_member_without_fields_capacity_on_either_side(self):
+        """Вердикт по паре верен, но группа тянет за собой товар с другим объёмом в названии (C45RR-01)."""
+        a, b, hidden = "Samsung Galaxy S24 128GB black", "Samsung Galaxy S24 128GB white", "Samsung Galaxy S24 256GB blue"
+        sides = {"во второй группе": {a: "samsung:s24-a", b: "samsung:s24-b", hidden: "samsung:s24-b"},
+                 "в первой группе": {a: "samsung:s24-a", b: "samsung:s24-b", hidden: "samsung:s24-a"}}
+        for name, keys in sides.items():
+            with self.subTest(name):
+                self.case(keys, {a: self.memory(128), b: self.memory(128)}, False)
+                self.assert_refused(a, b)
+                with database.get_connection() as conn:
+                    conn.execute("DELETE FROM disputed_product_pairs")
+                    conn.commit()
+
+    def test_member_without_fields_diagonal_and_system(self):
+        mon = {"brand": "AOC", "model": "24B1", "sku": None, "edition": None, "variants": [], "unbranded": False}
+        a, b, hidden = 'Монитор AOC 24B1 24"', 'AOC 24B1 24" черный', 'AOC 24B1 27"'
+        self.case({a: "aoc:a", b: "aoc:b", hidden: "aoc:b"}, {a: mon, b: mon}, False)
+        self.assert_refused(a, b)
+        chip = {"brand": "AMD", "model": "Ryzen 5 5600GT", "sku": None, "edition": None, "variants": [], "unbranded": False}
+        c, d, pc = "AMD Ryzen 5 5600GT BOX", "Процессор AMD Ryzen 5 5600GT", "Ryzen 5 5600GT/A520/RAM 8GB/SSD 512GB/400W"
+        self.case({c: "amd:a", d: "amd:b", pc: "amd:b"}, {c: chip, d: chip}, False)
+        self.assert_refused(c, d)
+
+    def test_member_without_fields_capacity_against_legacy_key(self):
+        a, b, hidden = "Телефон X белый", "Телефон X черный", "Телефон X 256GB"
+        f = {"brand": "Brand", "model": "X", "variants": []}
+        self.case({a: "brand:a:128gb", b: "brand:b", hidden: "brand:b"}, {a: f, b: f}, False)
+        self.assert_refused(a, b)
+
+    def test_member_without_fields_and_same_capacity_merges(self):
+        a, b, other = "Samsung Galaxy S24 128GB black", "Samsung Galaxy S24 128GB white", "Смартфон Samsung Galaxy S24 128 ГБ"
+        self.case({a: "samsung:s24-a", b: "samsung:s24-b", other: "samsung:s24-b"},
+                  {a: self.memory(128), b: self.memory(128)}, False)
+        database.enqueue_disputed_pair(a, b, "x")
+        self.assertEqual(self.tick()["status"], "resolved")
+        self.assertEqual(len(set(database.get_cached_canonical_keys_batch([a, b, other]).values())), 1)
+
+    def test_model_extra_variant_is_not_conflict_with_title(self):
+        """Название знает только объём: мощность от модели противоречием не считается."""
+        a, b, other = "Пылесос X 2 л", "Пылесос X белый", "Пылесос X"
+        f = {"brand": "Brand", "model": "X", "variants": [{"value": 2000, "unit": "вт"}]}
+        self.assertFalse(product_key.identities_conflict([(a, f, "brand:a")], [(b, f, "brand:b"), (other, None, "brand:b")]))
+
     def test_compatible_legacy_pair_still_merges(self):
         a, b = "Samsung Galaxy S24 256GB black", "Samsung S24 256 ГБ"
         self.case({a: "samsung:galaxy s24:256gb", b: "samsung:sm-s921b:256gb"}, {a: fields(), b: fields()})
@@ -555,6 +602,57 @@ class MigrationIdentityAndBaselineTest(_DbCase):
         with patch.object(mig, "fetch_fields_batch", fail):
             cumulative = self.migrate(batch_size=1, run_id="r")["run"]["cumulative"]
         self.assertEqual((cumulative["api_calls"], cumulative["api_failures"], cumulative["failed_titles"]), (2, 2, 2))
+
+    OLD_LEDGER = """CREATE TABLE k2_migration_runs (
+        run_id TEXT PRIMARY KEY, created_at TEXT NOT NULL, api_calls INTEGER NOT NULL DEFAULT 0,
+        api_failures INTEGER NOT NULL DEFAULT 0, failed_titles INTEGER NOT NULL DEFAULT 0,
+        missing_titles INTEGER NOT NULL DEFAULT 0, seconds REAL NOT NULL DEFAULT 0)"""
+
+    def old_ledger(self, title, old):
+        """Проход прежней версии скрипта: точная схема учёта, снимок и счётчики."""
+        database.save_cached_canonical_keys_batch({title: old})
+        with database.get_connection() as conn:
+            conn.execute(self.OLD_LEDGER)
+            conn.execute("""CREATE TABLE k2_migration_baseline (
+                run_id TEXT NOT NULL, title TEXT NOT NULL, old_key TEXT NOT NULL, PRIMARY KEY (run_id, title))""")
+            conn.execute("INSERT INTO k2_migration_runs VALUES ('old', '2026-10-30T15:00:00Z', 3, 1, 2, 1, 7.0)")
+            conn.execute("INSERT INTO k2_migration_baseline VALUES ('old', ?, ?)", (title, old))
+            conn.commit()
+
+    def ledger_columns(self):
+        with database.get_connection() as conn:
+            return [r[1] for r in conn.execute("PRAGMA table_info(k2_migration_runs)")]
+
+    def test_old_ledger_resumes_with_counters_and_baseline(self):
+        title, old = "Samsung Galaxy S24 256GB", "samsung:galaxy s24:256gb"
+        self.old_ledger(title, old)
+
+        async def good(*a, **k):
+            return {"items": [{"title": title, **fields()}]}
+        with patch.object(ai_service, "call_local_api", good):
+            report = self.migrate(run_id="old", check_pairs=True)
+        cumulative = report["run"]["cumulative"]
+        self.assertEqual((cumulative["api_calls"], cumulative["api_started"], cumulative["api_unfinished"]), (4, 4, 0))
+        self.assertEqual((cumulative["api_failures"], cumulative["failed_titles"], cumulative["missing_titles"]), (1, 2, 1))
+        self.assertEqual((report["run"]["baseline_created_at"], report["run"]["baseline_titles"]), ("2026-10-30T15:00:00Z", 1))
+        again = self.migrate(run_id="old", check_pairs=True)                  # повторное открытие обновлённой схемы
+        self.assertEqual(again["run"]["cumulative"]["api_started"], 4)
+        self.assertEqual(self.ledger_columns().count("api_started"), 1)
+
+    def test_old_ledger_dry_run_changes_nothing(self):
+        title, old = "Samsung Galaxy S24 256GB", "samsung:galaxy s24:256gb"
+        self.old_ledger(title, old)
+        before = self.ledger_columns()
+
+        async def good(*a, **k):
+            return {"items": [{"title": title, **fields()}]}
+        with patch.object(ai_service, "call_local_api", good):
+            report = self.migrate(run_id="old", dry_run=True)
+        self.assertEqual(self.ledger_columns(), before)
+        cumulative = report["run"]["cumulative"]
+        self.assertEqual((cumulative["api_calls"], cumulative["api_started"], cumulative["api_unfinished"]), (4, 4, 0))
+        with database.get_connection() as conn:
+            self.assertEqual(tuple(conn.execute("SELECT api_calls FROM k2_migration_runs").fetchone()), (3,))
 
     def test_resume_compares_with_full_baseline(self):
         """Как на стенде: часть уже переведена в прошлом запуске, отчёт всё равно по всему снимку."""

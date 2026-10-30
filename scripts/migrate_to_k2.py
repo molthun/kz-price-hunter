@@ -328,6 +328,10 @@ def check_pairs_comparison(
     }
 
 
+def _has_column(conn: sqlite3.Connection, table: str, column: str) -> bool:
+    return any(row[1] == column for row in conn.execute(f"PRAGMA table_info({table})"))
+
+
 def _baseline_tables(conn: sqlite3.Connection) -> None:
     conn.execute("""CREATE TABLE IF NOT EXISTS k2_migration_runs (
         run_id TEXT PRIMARY KEY, created_at TEXT NOT NULL, api_calls INTEGER NOT NULL DEFAULT 0,
@@ -336,6 +340,12 @@ def _baseline_tables(conn: sqlite3.Connection) -> None:
         api_started INTEGER NOT NULL DEFAULT 0)""")
     conn.execute("""CREATE TABLE IF NOT EXISTS k2_migration_baseline (
         run_id TEXT NOT NULL, title TEXT NOT NULL, old_key TEXT NOT NULL, PRIMARY KEY (run_id, title))""")
+    if not _has_column(conn, "k2_migration_runs", "api_started"):
+        # Проход прежней версии (аудит C45RR-02): она считала только завершённые вызовы, поэтому начатых столько же,
+        # и незавершённых не появляется. Снимок и счётчики прохода не трогаются
+        conn.execute("ALTER TABLE k2_migration_runs ADD COLUMN api_started INTEGER NOT NULL DEFAULT 0")
+        conn.execute("UPDATE k2_migration_runs SET api_started = api_calls")
+        conn.commit()
 
 
 COUNTERS = ("api_calls", "api_failures", "failed_titles", "missing_titles", "seconds", "api_started")
@@ -357,8 +367,12 @@ def load_baseline(conn: sqlite3.Connection, run_id: str, read_only: bool) -> Tup
     if not read_only:
         _baseline_tables(conn)
     names = ("created_at",) + COUNTERS
-    run = conn.execute(f"SELECT {', '.join(names)} FROM k2_migration_runs WHERE run_id = ?",
-                       (run_id,)).fetchone() if has_tables or not read_only else None
+    run = None
+    if has_tables or not read_only:
+        # Пробный прогон схему не обновляет: у прохода прежней версии колонки может не быть
+        started = "api_started" if _has_column(conn, "k2_migration_runs", "api_started") else "api_calls AS api_started"
+        columns = [started if name == "api_started" else name for name in names]
+        run = conn.execute(f"SELECT {', '.join(columns)} FROM k2_migration_runs WHERE run_id = ?", (run_id,)).fetchone()
     if run:
         rows = conn.execute("SELECT title, old_key FROM k2_migration_baseline WHERE run_id = ?", (run_id,)).fetchall()
         return dict(rows), dict(zip(names, run))
