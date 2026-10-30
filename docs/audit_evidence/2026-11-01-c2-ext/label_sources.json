@@ -1,0 +1,314 @@
+[
+  {
+    "idx": 64,
+    "a": "Процессор Intel Core i7 12700K",
+    "b": "Процессор Intel Core i7-12700K oem",
+    "label": "uncertain",
+    "note": "Процессор core i7 12700k: упаковка указана только с одной стороны (none)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 70,
+    "a": "Процессор CPU S-1700 Intel Core i5 13400 OEM v2",
+    "b": "Процессор Intel Core i5 13400",
+    "label": "uncertain",
+    "note": "Процессор core i5 13400: упаковка указана только с одной стороны (oem)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 72,
+    "a": "Стабилизатор SVC AVR-1000-L",
+    "b": "Стабилизатор SVC AVR-1000-S 500 Вт, 1 м, релейный SVC",
+    "label": "different",
+    "note": "Стабилизатор SVC AVR-1000-L vs SVC AVR-1000-S — разные модели стабилизатора (L с цифровым дисплеем, S со стрелочным)",
+    "source_explanation": "Каталог SVC: модели AVR-1000-L и AVR-1000-S имеют разную индикацию и конструктив."
+  },
+  {
+    "idx": 92,
+    "a": "Процессор Intel Core i7 12700",
+    "b": "Процессор Intel Core i7-12700 oem",
+    "label": "uncertain",
+    "note": "Процессор core i7 12700: упаковка указана только с одной стороны (none)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 120,
+    "a": "SSD накопитель 1 TB Kingston NV3, M.2 2230, PCIe 4.0",
+    "b": "SSD накопитель 1Tb Kingston NV3 SNV3S/1000G",
+    "label": "different",
+    "note": "Kingston NV3 M.2 2230 vs M.2 2280 — разные физические форм-факторы накопителя (30 мм против 80 мм)",
+    "source_explanation": "Kingston NV3 datasheet: 2230 компактный формат для handheld-консолей/ультрабуков, 2280 полноразмерный."
+  },
+  {
+    "idx": 121,
+    "a": "Процессор Intel Core i7 13700KF, LGA1700, OEM",
+    "b": "Процессор Intel Core i7-13700KF BX8071513700KF",
+    "label": "packaging",
+    "note": "Процессор core i7 13700kf: разная упаковка (OEM vs BOX)",
+    "source_explanation": "BOX против OEM поставки"
+  },
+  {
+    "idx": 123,
+    "a": "Процессор CPU S-1700 Intel Core i5-14400 OEM",
+    "b": "Процессор Intel Core i5-14400",
+    "label": "uncertain",
+    "note": "Процессор core i5 14400: упаковка указана только с одной стороны (oem)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 205,
+    "a": "Процессор Intel Core i7 12700F",
+    "b": "Процессор Intel Core i7-12700F oem",
+    "label": "uncertain",
+    "note": "Процессор core i7 12700f: упаковка указана только с одной стороны (none)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 224,
+    "a": "Процессор (CPU) Intel Core i9 13900KF (I9-13900KF)",
+    "b": "Процессор Intel Core i9-13900KF OEM",
+    "label": "uncertain",
+    "note": "Процессор core i9 13900kf: упаковка указана только с одной стороны (none)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 229,
+    "a": "AMD Ryzen 7 7700X OEM",
+    "b": "Процессор AMD Ryzen 7 7700X Ryzen 7, 4.5 ГГц AMD",
+    "label": "uncertain",
+    "note": "Процессор ryzen 7 7700x: упаковка указана только с одной стороны (oem)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 250,
+    "a": "Intel Core i5 10500",
+    "b": "Процессор Intel Core i5 10500, LGA1200, OEM",
+    "label": "uncertain",
+    "note": "Процессор core i5 10500: упаковка указана только с одной стороны (none)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 258,
+    "a": "Процессор Intel Core i7 Processor 14700F  (i7-14700F)",
+    "b": "Процессор Intel Сore i7-14700F oem",
+    "label": "uncertain",
+    "note": "Процессор : упаковка указана только с одной стороны (none)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 260,
+    "a": "Процессор Intel Core i5 14400, LGA1700, OEM (i5-14400)",
+    "b": "Процессор Intel Core i5-14400",
+    "label": "uncertain",
+    "note": "Процессор core i5 14400: упаковка указана только с одной стороны (oem)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 263,
+    "a": "Процессор Intel Core i5 13400",
+    "b": "Процессор Intel Core i5 13400, LGA1700, OEM (i5-13400)",
+    "label": "uncertain",
+    "note": "Процессор core i5 13400: упаковка указана только с одной стороны (none)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 268,
+    "a": "SSD накопитель 1 TB Kingston NV3, M.2 2230, PCIe 4.0",
+    "b": "Твердотельный накопитель SSD Kingston NV3 1 ТБ, M.2 2280, нет Kingston Technology",
+    "label": "different",
+    "note": "Kingston NV3 M.2 2230 vs M.2 2280 — разные физические форм-факторы накопителя (30 мм против 80 мм)",
+    "source_explanation": "Kingston NV3 datasheet: 2230 компактный формат для handheld-консолей/ультрабуков, 2280 полноразмерный."
+  },
+  {
+    "idx": 313,
+    "a": "Процессор Intel Core i3 10105",
+    "b": "Процессор Intel Core i3 10105, LGA1200 Tray (i3-10105)",
+    "label": "uncertain",
+    "note": "Процессор core i3 10105: упаковка указана только с одной стороны (none)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 314,
+    "a": "Процессор AMD Ryzen 7 7700 Ryzen 7, 3.8 ГГц AMD",
+    "b": "Процессор CPU AM5 AMD Ryzen 7 7700 OEM",
+    "label": "uncertain",
+    "note": "Процессор ryzen 7 7700: упаковка указана только с одной стороны (none)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 321,
+    "a": "Процессор Intel Core i7 12700",
+    "b": "Процессор Intel Core i7 12700 (CM807150455501) OEM (CM8071504555019)",
+    "label": "uncertain",
+    "note": "Процессор core i7 12700: упаковка указана только с одной стороны (none)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 333,
+    "a": "AMD Ryzen 9 7950X OEM",
+    "b": "Процессор AMD Ryzen 9 7950X (100-000000514)",
+    "label": "uncertain",
+    "note": "Процессор ryzen 9 7950x: упаковка указана только с одной стороны (oem)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 346,
+    "a": "Процессор Intel Core i5 12400F 1700 (i5-12400F)",
+    "b": "Процессор Intel Core i5-12400F oem",
+    "label": "uncertain",
+    "note": "Процессор core i5 12400f: упаковка указана только с одной стороны (none)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 347,
+    "a": "Процессор CPU S-1700 Intel Core i9-14900K OEM",
+    "b": "Процессор Intel Core i9 14900K Core i9, 3.2 ГГц Intel",
+    "label": "uncertain",
+    "note": "Процессор core i9 14900k: упаковка указана только с одной стороны (oem)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 375,
+    "a": "Intel Pentium Gold G6400 OEM",
+    "b": "Процессор Pentium Gold G6400",
+    "label": "uncertain",
+    "note": "Процессор pentium g6400: упаковка указана только с одной стороны (oem)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 381,
+    "a": "Процессор Intel Core i7 12700K",
+    "b": "Процессор Intel Core i7 12700K, LGA1700, OEM (i7-12700K)",
+    "label": "uncertain",
+    "note": "Процессор core i7 12700k: упаковка указана только с одной стороны (none)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 394,
+    "a": "Intel Core i5 13400 OEM",
+    "b": "Процессор Intel Core i5 13400",
+    "label": "uncertain",
+    "note": "Процессор core i5 13400: упаковка указана только с одной стороны (oem)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 455,
+    "a": "Процессор Intel Core i5 11400",
+    "b": "Процессор Intel Core i5 11400, LGA1200, OEM",
+    "label": "uncertain",
+    "note": "Процессор core i5 11400: упаковка указана только с одной стороны (none)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 485,
+    "a": "Компьютер Nomad Universal T NMD-37633",
+    "b": "Системный блок Nomad Universal T (NMD-37634) - корпус может менятся",
+    "label": "different",
+    "note": "Nomad Universal T сборки с разными артикулами: NMD-37633 vs NMD-37634",
+    "source_explanation": "Номенклатура Nomad: разные номера артикулов соответствуют разным конфигурациям."
+  },
+  {
+    "idx": 501,
+    "a": "Процессор Intel Core i5 10500",
+    "b": "Процессор Intel Core i5 10500, LGA1200, OEM (SRH3A)",
+    "label": "uncertain",
+    "note": "Процессор core i5 10500: упаковка указана только с одной стороны (none)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 530,
+    "a": "Процессор (CPU) Intel Core i9 13900KF (I9-13900KF)",
+    "b": "Процессор CPU S-1700 Intel Core i9 13900KF OEM",
+    "label": "uncertain",
+    "note": "Процессор core i9 13900kf: упаковка указана только с одной стороны (none)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 539,
+    "a": "Процессор Intel Core i9 12900KF (i9-12900KF)",
+    "b": "Процессор Intel Core i9 12900KF, LGA1700, OEM",
+    "label": "uncertain",
+    "note": "Процессор core i9 12900kf: упаковка указана только с одной стороны (none)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 544,
+    "a": "Процессор AMD Ryzen 5 4500 Ryzen 5, 3.6 ГГц AMD",
+    "b": "Процессор CPU AM4 AMD Ryzen 5 4500 OEM",
+    "label": "uncertain",
+    "note": "Процессор ryzen 5 4500: упаковка указана только с одной стороны (none)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 548,
+    "a": "Процессор Core i5-12600K (CM8071504555227SRL4T)",
+    "b": "Процессор Intel Core i5-12600K",
+    "label": "uncertain",
+    "note": "Процессор core i5 12600k: упаковка указана только с одной стороны (oem)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 551,
+    "a": "Процессор AMD Ryzen 5 7500F",
+    "b": "Процессор AMD Ryzen 5 7500F, AM5, OEM",
+    "label": "uncertain",
+    "note": "Процессор ryzen 5 7500f: упаковка указана только с одной стороны (none)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 554,
+    "a": "Процессор AMD Ryzen 5 5600 Ryzen 5, 3.5 ГГц AMD",
+    "b": "Процессор AMD Ryzen 5 5600 oem",
+    "label": "uncertain",
+    "note": "Процессор ryzen 5 5600: упаковка указана только с одной стороны (none)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 558,
+    "a": "Процессор Intel Core i5 13400, LGA1700, OEM",
+    "b": "Процессор Intel Core i5-13400",
+    "label": "uncertain",
+    "note": "Процессор core i5 13400: упаковка указана только с одной стороны (oem)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 593,
+    "a": "Intel Core i5 13400 OEM",
+    "b": "Процессор Intel Core i5-13400",
+    "label": "uncertain",
+    "note": "Процессор core i5 13400: упаковка указана только с одной стороны (oem)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 599,
+    "a": "AirPods Max 2",
+    "b": "Наушники Apple AirPods Max Pink",
+    "label": "uncertain",
+    "note": "AirPods Max: поколение второго не указано (Lightning 2020 vs USB-C 2024)",
+    "source_explanation": "В названии первого указано AirPods Max 2, во втором поколение/партномер не указан."
+  },
+  {
+    "idx": 667,
+    "a": "Процессор Intel Core i5 14400, LGA1700, OEM",
+    "b": "Процессор Intel Core i5-14400",
+    "label": "uncertain",
+    "note": "Процессор core i5 14400: упаковка указана только с одной стороны (oem)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 707,
+    "a": "Процессор Intel Celeron G5905",
+    "b": "Процессор Intel Celeron G5905, LGA1200, OEM (G5905)",
+    "label": "uncertain",
+    "note": "Процессор celeron g5905: упаковка указана только с одной стороны (none)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  },
+  {
+    "idx": 727,
+    "a": "Процессор Intel Core i7-12700F (i7-12700F)",
+    "b": "Процессор Intel Core i7-12700F oem",
+    "label": "uncertain",
+    "note": "Процессор core i7 12700f: упаковка указана только с одной стороны (none)",
+    "source_explanation": "Конвенция C2: упаковка с одной стороны не домысливается"
+  }
+]

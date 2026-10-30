@@ -1,0 +1,19 @@
+{
+  "seed": 20261101,
+  "n_added": 500,
+  "n_retained": 240,
+  "total_drawn": 740,
+  "stand_file": "docs/audit_evidence/2026-10-30-c3/stand-data.json",
+  "stand_sha256": "914afd085d0cb6cdceb0833436349d13e941bc88be1b612fddd2dc66cc7cf5db",
+  "labels_source": "scripts/k2_labeled_sample.json",
+  "labels_sha256": "87262f263043e76aec58efdf91a729bbae4aff3ab58f1c49bdfbc531cc49b6e0",
+  "raw_drawn_sha256": "e4f99a951fd629deaace23a19325b9ccd16b2b455e6e5db00081e6272c781d7f",
+  "unlabeled_sha256": "505efd1d20a0df0e8fbc55e31943d0a468db194c98861d337a1fadc49d0ce49c",
+  "pool_sizes": {
+    "stand_added_total": 2280,
+    "clean_pool_added": 1914,
+    "stand_retained_total": 1004,
+    "clean_pool_retained": 839,
+    "isolated_existing_pairs": 888
+  }
+}
