@@ -188,7 +188,7 @@ def build(data, sample):
     lost = [{"a": r["a"], "b": r["b"], "new_a": r["keys"][2], "new_b": r["keys"][3], "strata": r["strata"]}
             for r in random_rows if r["label"] == "same" and r["keys"][2] != r["keys"][3]]
     merged = [{"a": r["a"], "b": r["b"], "key": r["keys"][2], "strata": r["strata"]}
-              for r in random_rows if r["label"] == "different" and r["keys"][2] and r["keys"][2] == r["keys"][3]]
+              for r in random_rows if r["label"] in ("different", "packaging") and r["keys"][2] and r["keys"][2] == r["keys"][3]]
     return {
         "labels": {"pairs": len(rows), "without_keys": len(rows) - len(known),
                    "by_label": dict(collections.Counter(r["label"] for r in rows)),
@@ -196,10 +196,12 @@ def build(data, sample):
         "strata_sizes": strata_sizes,
         "random_sample": {
             "pairs": len(random_rows),
-            "baseline": confusion(random_rows, 0),
-            "candidate": confusion(random_rows, 2),
+            "baseline": confusion(random_rows, 0, packaging=False),
+            "candidate": confusion(random_rows, 2, packaging=False),
         },
-        "weighted": {"packaging_excluded": weighted_estimate(random_rows, strata_sizes, None),
+        # Решение владельца 30.10.2026: OEM/Tray и BOX — разные товары. Остальные сценарии — для сравнения
+        "weighted": {"owner_decision": weighted_estimate(random_rows, strata_sizes, False),
+                     "packaging_excluded": weighted_estimate(random_rows, strata_sizes, None),
                      "packaging_same": weighted_estimate(random_rows, strata_sizes, True),
                      "packaging_different": weighted_estimate(random_rows, strata_sizes, False)},
         "candidate_false_merges": merged,

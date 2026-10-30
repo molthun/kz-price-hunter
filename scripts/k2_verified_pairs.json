@@ -1,6 +1,6 @@
 {
- "version": 3,
- "note": "Метки пересмотрены вслепую по названиям (аудит C2A-01, протокол в scripts/k2_labeled_sample.json). same: true/false, null — uncertain или packaging (OEM/BOX), в полноту и склейки не входят. regression: положительная пара, которую обязан сохранять код. Набор собран из потерянных и новых пар, поэтому для оценки качества каталога не годится: она считается по случайной выборке, scripts/c2_quality_report.py.",
+ "version": 4,
+ "note": "Метки пересмотрены вслепую по названиям (аудит C2A-01, протокол в scripts/k2_labeled_sample.json). same: true/false, false у packaging: OEM/Tray и BOX — разные товары (решение владельца 30.10.2026); null — uncertain, в полноту и склейки не входит. regression: положительная пара, которую обязан сохранять код. Набор собран из потерянных и новых пар, поэтому для оценки качества каталога не годится: она считается по случайной выборке, scripts/c2_quality_report.py.",
  "pairs": [
   {
    "a": "AMD Ryzen 5 5600GT BOX",
@@ -692,7 +692,7 @@
   {
    "a": "AMD Athlon 200GE Raven Ridge BOX",
    "b": "Процессор AMD Athlon 200GE, AM4, OEM",
-   "same": null,
+   "same": false,
    "fields_a": {
     "brand": "AMD",
     "edition": null,
@@ -715,7 +715,7 @@
   {
    "a": "AMD Athlon 200GE Raven Ridge BOX",
    "b": "Процессор AMD Athlon 200GE, AM4, OEM (YD200GC6M2OFB)",
-   "same": null,
+   "same": false,
    "fields_a": {
     "brand": "AMD",
     "edition": null,
@@ -899,7 +899,7 @@
   {
    "a": "AMD Ryzen 3 4100 BOX",
    "b": "Процессор AMD Ryzen 3 4100, AM4, OEM",
-   "same": null,
+   "same": false,
    "fields_a": {
     "brand": "AMD",
     "edition": null,
@@ -922,7 +922,7 @@
   {
    "a": "AMD Ryzen 3 4100 BOX",
    "b": "Процессор AMD Ryzen 3 4100, AM4, OEM (100-000000510)",
-   "same": null,
+   "same": false,
    "fields_a": {
     "brand": "AMD",
     "edition": null,
@@ -945,7 +945,7 @@
   {
    "a": "AMD Ryzen 3 4100 BOX",
    "b": "Процессор AMD Ryzen 3 4100, AM4, OEM - с кулером",
-   "same": null,
+   "same": false,
    "fields_a": {
     "brand": "AMD",
     "edition": null,
@@ -991,7 +991,7 @@
   {
    "a": "AMD Ryzen 3 4100 OEM",
    "b": "Процессор AMD Ryzen 3 4100, AM4, BOX (100-100000510BOX)",
-   "same": null,
+   "same": false,
    "fields_a": {
     "brand": "AMD",
     "edition": null,
@@ -1060,7 +1060,7 @@
   {
    "a": "AMD Ryzen 3 4100 OEM",
    "b": "Процессор AMD Ryzen 3 4100, AM4, OEM - с кулером",
-   "same": null,
+   "same": false,
    "fields_a": {
     "brand": "AMD",
     "edition": null,
@@ -1083,7 +1083,7 @@
   {
    "a": "AMD Ryzen 3 4100 OEM",
    "b": "Процессор AMD Ryzen 3 4100, BOX",
-   "same": null,
+   "same": false,
    "fields_a": {
     "brand": "AMD",
     "edition": null,
@@ -1336,7 +1336,7 @@
   {
    "a": "AMD Ryzen 5 5500 BOX",
    "b": "Процессор AMD Ryzen 5 5500 OEM",
-   "same": null,
+   "same": false,
    "fields_a": {
     "brand": "AMD",
     "edition": null,
@@ -1359,7 +1359,7 @@
   {
    "a": "AMD Ryzen 5 5500 BOX",
    "b": "Процессор AMD Ryzen 5 5500, AM4, OEM",
-   "same": null,
+   "same": false,
    "fields_a": {
     "brand": "AMD",
     "edition": null,
@@ -1382,7 +1382,7 @@
   {
    "a": "AMD Ryzen 5 5500 BOX",
    "b": "Процессор CPU AM4 AMD Ryzen 5 5500 OEM",
-   "same": null,
+   "same": false,
    "fields_a": {
     "brand": "AMD",
     "edition": null,
@@ -1451,7 +1451,7 @@
   {
    "a": "AMD Ryzen 5 5500GT BOX",
    "b": "Процессор AMD Ryzen 5 5500GT, AM4, OEM",
-   "same": null,
+   "same": false,
    "fields_a": {
     "brand": "AMD",
     "edition": null,
@@ -1474,7 +1474,7 @@
   {
    "a": "AMD Ryzen 5 5500GT BOX",
    "b": "Процессор AMD Ryzen 5 5500GT, AM4, with Wraith Stealth Cooler, OEM (100-000001489)",
-   "same": null,
+   "same": false,
    "fields_a": {
     "brand": "AMD",
     "edition": null,
@@ -1750,7 +1750,7 @@
   {
    "a": "AMD Ryzen 5 7600 BOX",
    "b": "Процессор AMD Ryzen 5 7600 oem",
-   "same": null,
+   "same": false,
    "fields_a": {
     "brand": "AMD",
     "edition": null,
@@ -1796,7 +1796,7 @@
   {
    "a": "AMD Ryzen 5 7600 BOX",
    "b": "Процессор AMD Ryzen 5 7600, AM5, OEM (100-000001015)",
-   "same": null,
+   "same": false,
    "fields_a": {
     "brand": "AMD",
     "edition": null,
@@ -1819,7 +1819,7 @@
   {
    "a": "AMD Ryzen 5 7600 BOX",
    "b": "Процессор CPU AM5 AMD Ryzen 5 7600 OEM",
-   "same": null,
+   "same": false,
    "fields_a": {
     "brand": "AMD",
     "edition": null,
@@ -1842,7 +1842,7 @@
   {
    "a": "AMD Ryzen 5 7600X OEM",
    "b": "Процессор AMD Ryzen 5 7600X AM5, BOX (100-100000593WOF)",
-   "same": null,
+   "same": false,
    "fields_a": {
     "brand": "AMD",
     "edition": null,
@@ -1865,7 +1865,7 @@
   {
    "a": "AMD Ryzen 5 7600X OEM",
    "b": "Процессор AMD Ryzen 5 7600X box",
-   "same": null,
+   "same": false,
    "fields_a": {
     "brand": "AMD",
     "edition": null,
@@ -1980,7 +1980,7 @@
   {
    "a": "AMD Ryzen 5 7600X WOF",
    "b": "Процессор AMD Ryzen 5 7600X OEM",
-   "same": null,
+   "same": false,
    "fields_a": {
     "brand": "AMD",
     "edition": null,
@@ -2026,7 +2026,7 @@
   {
    "a": "AMD Ryzen 5 7600X WOF",
    "b": "Процессор AMD Ryzen 5 7600X, AM5, OEM",
-   "same": null,
+   "same": false,
    "fields_a": {
     "brand": "AMD",
     "edition": null,
@@ -2049,7 +2049,7 @@
   {
    "a": "AMD Ryzen 5 7600X WOF",
    "b": "Процессор AMD Ryzen 5 7600X, AM5, OEM (100-000000593)",
-   "same": null,
+   "same": false,
    "fields_a": {
     "brand": "AMD",
     "edition": null,
@@ -2072,7 +2072,7 @@
   {
    "a": "AMD Ryzen 5 7600X WOF",
    "b": "Процессор CPU AM5 AMD Ryzen 5 7600X OEM",
-   "same": null,
+   "same": false,
    "fields_a": {
     "brand": "AMD",
     "edition": null,
@@ -2348,7 +2348,7 @@
   {
    "a": "AMD Ryzen 5 Ryzen 5 7600 OEM",
    "b": "Процессор AMD Ryzen 5 7600 BOX",
-   "same": null,
+   "same": false,
    "fields_a": {
     "brand": "AMD",
     "edition": null,
@@ -2371,7 +2371,7 @@
   {
    "a": "AMD Ryzen 5 Ryzen 5 7600 OEM",
    "b": "Процессор AMD Ryzen 5 7600, AM5, BOX (100-100001015BOX)",
-   "same": null,
+   "same": false,
    "fields_a": {
     "brand": "AMD",
     "edition": null,
@@ -2601,7 +2601,7 @@
   {
    "a": "AMD Ryzen 7 5700G BOX",
    "b": "Процессор AMD Ryzen 7 5700G, AM4, OEM",
-   "same": null,
+   "same": false,
    "fields_a": {
     "brand": "AMD",
     "edition": null,

@@ -21,21 +21,70 @@
   "baseline": {
    "tp": 114,
    "fn": 73,
-   "fp": 42,
-   "tn": 14,
+   "fp": 49,
+   "tn": 22,
    "uncertain": 14,
-   "packaging": 15
+   "packaging": 0
   },
   "candidate": {
    "tp": 118,
    "fn": 69,
-   "fp": 14,
+   "fp": 29,
    "tn": 42,
    "uncertain": 14,
-   "packaging": 15
+   "packaging": 0
   }
  },
  "weighted": {
+  "owner_decision": {
+   "share_true_by_stratum": {
+    "retained": {
+     "n": 45,
+     "of": 52,
+     "rate": 0.8654,
+     "low": 0.7473,
+     "high": 0.9332,
+     "excluded": 0
+    },
+    "dropped_mixed": {
+     "n": 27,
+     "of": 57,
+     "rate": 0.4737,
+     "low": 0.3499,
+     "high": 0.6008,
+     "excluded": 3
+    },
+    "dropped_both_k2": {
+     "n": 42,
+     "of": 54,
+     "rate": 0.7778,
+     "low": 0.6506,
+     "high": 0.868,
+     "excluded": 6
+    },
+    "added": {
+     "n": 73,
+     "of": 95,
+     "rate": 0.7684,
+     "low": 0.6742,
+     "high": 0.8418,
+     "excluded": 5
+    }
+   },
+   "baseline": {
+    "true": 1410,
+    "false": 560
+   },
+   "candidate": {
+    "true": 2849,
+    "false": 745
+   },
+   "baseline_true_kept": 0.552,
+   "candidate_vs_baseline_true": 2.02,
+   "candidate_vs_baseline_true_low": 1.563,
+   "false_merges_ratio": 1.331,
+   "false_merges_ratio_high": 2.926
+  },
   "packaging_excluded": {
    "share_true_by_stratum": {
     "retained": {
@@ -202,9 +251,33 @@
    ]
   },
   {
+   "a": "Процессор AMD Ryzen 3 4100, AM4, OEM (100-000000510)",
+   "b": "Процессор AMD Ryzen 3 4100, BOX",
+   "key": "k2:amd:ryzen34100",
+   "strata": [
+    "retained"
+   ]
+  },
+  {
    "a": "ASRock B850M-X WIFI R2.0",
    "b": "Материнская плата ASRock B850M-X R2.0, AM5",
    "key": "k2:asrock:b850mx",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Intel Core i7 CORE I7-14700KF WOF",
+   "b": "Процессор CPU S-1700 Intel Core i7-14700KF OEM",
+   "key": "k2:intel:corei714700kf",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Intel Core Ultra 7 265KF BOX",
+   "b": "Процессор Intel Сore Ultra 7 265KF oem (265KF oem)",
+   "key": "k2:intel:coreultra7265kf",
    "strata": [
     "added"
    ]
@@ -218,9 +291,41 @@
    ]
   },
   {
+   "a": "Процессор AMD Ryzen 3 4100, AM4, BOX (100-100000510BOX)",
+   "b": "Процессор AMD Ryzen 3 4100, AM4, OEM",
+   "key": "k2:amd:ryzen34100",
+   "strata": [
+    "retained"
+   ]
+  },
+  {
+   "a": "Процессор AMD Ryzen 3 4100, AM4, OEM (100-000000510)",
+   "b": "Процессор AMD Ryzen 3 4100, AM4, OEM - с кулером",
+   "key": "k2:amd:ryzen34100",
+   "strata": [
+    "retained"
+   ]
+  },
+  {
+   "a": "AMD Ryzen 7 7700X BOX",
+   "b": "Процессор CPU AM5 AMD Ryzen 7 7700X OEM",
+   "key": "k2:amd:ryzen77700x",
+   "strata": [
+    "added"
+   ]
+  },
+  {
    "a": "Сетевой фильтр Defender ES Largo, 5 розеток, 5м, Black",
    "b": "Фильтр сетевой Defender ES Largo 1.8 м, пластик Defender",
    "key": "k2:defender:eslargo",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Процессор AMD Ryzen 5 7600 BOX",
+   "b": "Процессор AMD Ryzen 5 7600, AM5, OEM (100-000001015)",
+   "key": "k2:amd:ryzen57600",
    "strata": [
     "added"
    ]
@@ -231,6 +336,22 @@
    "key": "k2:cablexpert:pp12",
    "strata": [
     "added"
+   ]
+  },
+  {
+   "a": "Процессор AMD Ryzen 3 4100, AM4, BOX (100-100000510BOX)",
+   "b": "Процессор AMD Ryzen 3 4100, AM4, OEM - с кулером",
+   "key": "k2:amd:ryzen34100",
+   "strata": [
+    "retained"
+   ]
+  },
+  {
+   "a": "Процессор AMD Ryzen 5 7600X AM5, BOX (100-100000593WOF)",
+   "b": "Процессор CPU AM5 AMD Ryzen 5 7600X OEM",
+   "key": "k2:amd:ryzen57600x",
+   "strata": [
+    "retained"
    ]
   },
   {
@@ -247,6 +368,14 @@
    "key": "k2:garmin:fenix8",
    "strata": [
     "added"
+   ]
+  },
+  {
+   "a": "Процессор AMD Ryzen 5 5500GT, AM4, OEM",
+   "b": "Процессор AMD Ryzen 5 5500GT, AM4, with Wraith Stealth Cooler, OEM (100-000001489)",
+   "key": "k2:amd:ryzen55500gt",
+   "strata": [
+    "retained"
    ]
   },
   {
@@ -282,9 +411,49 @@
    ]
   },
   {
+   "a": "Intel Core i3 13100 BOX",
+   "b": "Процессор CPU S-1700 Intel Core i3 13100 OEM",
+   "key": "k2:intel:corei313100",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Intel Core i5 I5-14500 WOF",
+   "b": "Процессор Intel Core i5 14500, LGA1700, OEM (i5-14500)",
+   "key": "k2:intel:corei514500",
+   "strata": [
+    "added"
+   ]
+  },
+  {
    "a": "Гарнитура JABRA Evolve2 55 Link380c MS Stereo Stand 25599-999-889 Black",
    "b": "Гарнитура Jabra Evolve2 55 Link380a MS Stereo",
    "key": "k2:jabra:evolve255",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Процессор AMD Ryzen 5 7600X AM5, BOX (100-100000593WOF)",
+   "b": "Процессор AMD Ryzen 5 7600X, AM5, OEM",
+   "key": "k2:amd:ryzen57600x",
+   "strata": [
+    "retained"
+   ]
+  },
+  {
+   "a": "AMD Ryzen 9 7900X BOX",
+   "b": "Процессор AMD Ryzen 9 7900X OEM",
+   "key": "k2:amd:ryzen97900x",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "AMD Ryzen 7 7700 BOX",
+   "b": "Процессор AMD Ryzen 7 7700, AM5, OEM",
+   "key": "k2:amd:ryzen77700",
    "strata": [
     "added"
    ]
