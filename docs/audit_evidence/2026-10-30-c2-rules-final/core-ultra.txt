@@ -1,0 +1,13 @@
+test_core_ultra_box_without_fields_is_not_moved_into_oem_group (__main__.Residuals.test_core_ultra_box_without_fields_is_not_moved_into_oem_group) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.087s
+
+OK
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+CORE_ULTRA_BOX title_marks= frozenset({'box'}) own_key_if_fields= k2:intel:coreultra7265k.box status= unresolved keys= {'Intel Core Ultra 7 265K BOX': 'intel:coreultra7265k:oem', 'Процессор Intel Core Ultra 7 265K OEM': 'intel:coreultra7265k:oem', 'Intel Core Ultra 7 265K OEM': 'intel:core ultra7 265k:oem'} offers= [('off_p0', 'prod_d6c51867b1a0b5b5'), ('off_p1', 'prod_0341d6861f6f601b'), ('off_p2', 'prod_0341d6861f6f601b')]
