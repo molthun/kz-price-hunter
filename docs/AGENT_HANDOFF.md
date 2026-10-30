@@ -2,6 +2,34 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## P17-C5: Реализован теневой режим нормализации локальной моделью — Antigravity (2026-10-30 13:12 Алматы)
+
+- **Исполнитель**: Antigravity (основной разработчик).
+- **Ветка разработки**: `feature/p17-c5-shadow-normalize` (коммит `e84d39c`). `main` оставлен чистым.
+- **Сделано в рамках шага C5**:
+  - `database.py`:
+    * Добавлена таблица `normalize_shadow` (`day, kind, primary_key, shadow_key, count, example_title`);
+    * Функции `record_normalize_shadow` (fail-open) и `normalize_shadow_summary` (статистика совпадений/расхождений, match_rate и примеры).
+  - `ai_service.py`:
+    * Реализована фоновая корутина `_run_shadow_normalize`: при нормализации платной моделью (Gemini/OpenAI) параллельно в фоне запрашивает поля у локальной модели (`K2_NORMALIZE_PROMPT`), строит теневой ключ через `product_key.build_key`, сохраняет поля в `title_fields` и пишет статус в `normalize_shadow`;
+    * Если ключи расходятся, спорная пара автоматически ставится в очередь `disputed_product_pairs` для разрешения через SearXNG;
+    * Проверяется `local_ai.pause_reason()` (при паузе AI или игре теневой запрос не отправляется); ошибки изолированы и не влияют на основной конвейер.
+  - `monitoring.py` & `web/server.py`:
+    * Добавлена функция `normalize_shadow_section` и эндпоинт админки `GET /api/admin/monitoring/normalize_shadow` с расчётом match_rate и статусом `healthy`/`degraded`/`unknown`.
+  - Тесты:
+    * Регрессионный тест в `tests/ai/test_local_ai.py` (`test_shadow_normalize_compares_and_enqueues_mismatch`) подтверждает сопоставление, расчёт match_rate и постановку расхождений в очередь;
+    * Полный набор тестов: **2075 OK** (130.892 с);
+    * `release_gate secrets` — 0 findings, `git diff --check` — чисто.
+- **Статус стенда и миграции (P17-C4)**:
+  - Миграция стенда в k2 продолжается: **3 584 / 20 133 (17.8%)**, сгенерировано 3 241 ключ k2, 1 387 артикулов, 9 352 алиасов;
+  - GPU RTX 4070 загружен на 95% (78°C, ~195 Вт).
+- **Следующий точный шаг**:
+  1. Дождаться завершения контейнера `kzph-k2-migration` на стенде (~5 часов);
+  2. Проверить отчёт `migration_report_full.json` (сохранность 1 894 пар);
+  3. Передать результаты Codex на аудит качества P17-C4/C7 перед слиянием ветки `feature/p17-c5-shadow-normalize` и включением на проде.
+
+---
+
 ## P17-C4: Возобновление миграции стенда в k2 и анализ ночных результатов — Antigravity (2026-10-30 13:00 Алматы)
 
 - **Исполнитель**: Antigravity (основной разработчик).
