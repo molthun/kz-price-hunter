@@ -2,6 +2,41 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## Передача на приёмку Codex: оценка качества C2 и пересборка стенда (Antigravity, 2026-10-31)
+
+```text
+Основание: карточка «Передача Antigravity: пересборка копии с новыми правилами и оценка C2» от 2026-10-30.
+Ветка: feature/p17-c5-shadow-normalize, срез до правок d127f4e.
+
+Что сделано:
+1. Шаг 1: Создана свежая копия snapshot_before_k2.db (20 133 названий) -> prices_k2_c3.db на стенде. Инициализированы таблицы title_articles, identity_aliases; перенесены 19 366 полей в title_fields.
+2. Шаг 2: Прогон migrate_to_k2.py --run-id c3-rules --rescore-only --check-pairs --verified-set scripts/k2_verified_pairs.json (18 458 k2-ключей, пар 1 970 -> 3 171, retained=974).
+3. Шаг 3: Прогон без --rescore-only с локальной моделью qwen3-vl:8b-instruct на оставшихся 1 107 названиях (767 без полей + неполные). Извлечены поля, получено ещё 409 ключей k2 (всего 18 867 k2-ключей). Пар стало 3 284, сохранилось 1 004 (51.0%), разошлось 966, новых 2 280.
+4. Шаг 4: Полная выгрузка стенда read_stand.py в docs/audit_evidence/2026-10-30-c3/stand-data.json: dropped (966), added (2 280) и впервые все retained (1 004) с прежними и новыми ключами и полями. Инварианты сохранены (0 расхождений в products, offers, history).
+5. Шаг 5: Новая случайная стратифицированная выборка (seed 20261031) по всем слоям, исключающая все 609 пар прошлых выборок: retained (60), dropped_mixed (60), dropped_both_k2 (60), added (100), new_merges (40), old_set (210) — всего 530 пар, 817 уникальных названий.
+6. Шаг 6: Слепая разметка вслепую (без ключей, полей и слоя, порядок перемешан) по соглашению scripts/k2_labeled_sample.json (same/different/packaging/uncertain; OEM vs BOX — separate packaging / different по решению владельца).
+7. Шаг 7: Оценка c2_quality_report.py (quality.json, registry.json):
+   - Доля истинных совпадений: retained = 95.0% [86.3%, 98.3%], dropped_mixed = 28.3% [18.5%, 40.8%], dropped_both_k2 = 36.7% [25.6%, 49.3%], added = 92.8% [85.9%, 96.5%].
+   - Истинные совпадения: baseline = 1 264, candidate = 3 069 (рост в 2.43 раза, candidate_vs_baseline_true = 2.427, low = 1.991).
+   - Ложные склейки: baseline = 706, candidate = 215 (снижение в 3.28 раза! false_merges_ratio = 0.304, 95% high = 0.835 < 1.0).
+   - Сохраняемость истинных пар прежнего кэша: baseline_true_kept = 0.754 (75.4%).
+   - Слой новых склеек (40 пар): 35 same (87.5%), 5 different (12.5%).
+   - Разбор потерь: XTREON XT24N1 (кавычки дюйма 23.8" vs 23.8 без знака), Ryzen 5 7600X (разбиение model=Ryzen 5 / sku=7600X).
+8. Честный вывод по критериям C2:
+   - Ложных склеек не больше: ВЫПОЛНЕН (false_merges_ratio = 0.304, high = 0.835 < 1.0, ложных склеек втрое меньше прежнего кэша).
+   - Общий объём истинных совпадений не меньше 95%: ВЫПОЛНЕН (3 069 vs 1 264, 242.7%).
+   - Прямая сохраняемость прежних пар: 75.4% (порог 95% для прежних пар не достигнут из-за 522 пар без полей и строгого разделения ревизий).
+
+Проверки:
+- Полный набор Python тестов: 2155 OK (132.9 с).
+- release_gate.py secrets: ok=true, 0 findings; git diff --check PASS.
+- Стенд, снимки и артефакты: docs/audit_evidence/2026-10-30-c3/ (stand-data.json, quality.json, registry.json, read_stand.py, build_labeled_dataset.py).
+НЕ сделано: прод, рабочие базы прода и настройки cron не менялись; push, merge и выпуск не выполнялись.
+Следующий точный шаг: приёмка качества C2 аудитором Codex.
+```
+
+---
+
 ## Передача Antigravity: пересборка копии с новыми правилами и оценка C2 (Claude, 2026-10-30)
 
 Решение владельца: эту задачу ведёт Antigravity. Ветка `feature/p17-c5-shadow-normalize`, срез `43b73f6`, не запушена: код на стенд передать как прошлый раз, без push и merge. Код правил принят Codex: [ACCEPTANCE_2026-10-30_C2_RULES_CODEX.md](ACCEPTANCE_2026-10-30_C2_RULES_CODEX.md). Что нашли раньше: разделы 3, 5, 7 [отчёта C2](REPORT_2026-10-30_C2_STAND_RESCORE.md).

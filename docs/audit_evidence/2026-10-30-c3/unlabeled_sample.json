@@ -1,0 +1,2242 @@
+[
+  {
+    "a": "AirPods Max 2",
+    "b": "Наушники Apple AirPods Max Silver",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "Оперативная память 32GB Apacer Panther RGB AH5U32G52C5229BAA-1",
+    "b": "Оперативная память Apacer Panther DDR5 32GB (Kit 2x16GB) 5200MHz (AH5U32G52C5227BAA-2)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "SO-DIMM 8 GB DDR5 PC44800/5600 MHz Transcend JM5600ASG-8G, BOX",
+    "b": "Оперативная память Transcend JM5600ASG-8G",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Телевизор Artel 50\" 50AU20K LED 4K UHD Black",
+    "b": "Телевизор LED ARTEL 50AU20K UHD SMART (KZ)",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Процессор AMD Ryzen 7 5700X, AM4, OEM",
+    "b": "Процессор CPU AM4 AMD Ryzen 7 5700X OEM",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "27\" Sanc M2763VTB черный",
+    "b": "Монитор SANC M2763VTB 27 FHD/VA/1ms/280Hz",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Телевизор QLED ЯНДЕКС 55 Бейсик YNDX-00080 (4K Smart)",
+    "b": "Телевизор Яндекс Бейсик QLED + 55\" (YNDX-00080)",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Материнская плата ASRock Z890 NOVA WIFI  (90-MXBPS0-A0UAYZ)",
+    "b": "Материнская плата ASRock Z890 Nova WiFi, LGA1851",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Гарнитура HyperX Cloud III S - Gaming Headset (White-Pink) DG0R2AA",
+    "b": "Наушники HyperX Cloud III S Wireless Gaming Headset A59Z0AA Red",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Skyline 43LT5900 109 см черный",
+    "b": "Телевизор 43\" (109 см) Skyline 43LT5900 LED FullHD Black",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Смартфон Realme C25Y 4/128 Grey",
+    "b": "Смартфон realme C25Y, 128 GB, Glacier Blue (RMX3269)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "USB Флешка 64GB Apacer AH336, Black",
+    "b": "Флеш-накопитель Apacer AH336 64 ГБ Apacer",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Процессор Intel Core i7-12700K OEM (CM8071504553828)",
+    "b": "Процессор Intel Core i7-12700K oem",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Комплект модулей памяти 32Gb kit Kingston FURY Beast RGB KF432C16BB12AK2/32",
+    "b": "Оперативная память Kingston 32GB 3600MT/s DDR4 CL18 DIMM (Kit of 2) FURY Beast RGB (KF436C18BB2AK2/32)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "DDR-5 DIMM 8 GB 5600 MHz Kingston Fury Beast RGB, BOX (KF556C40BBA-8)",
+    "b": "Оперативная память Kingston 8GB 6000MT/s DDR5 CL36 DIMM FURY Beast RGB EXPO (KF560C36BBEA-8)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Смартфон Infinix Note 50 PRO 12/256GB Ench Purple",
+    "b": "Смартфон Infinix Note 50 PRO 12/256GB Shadow Black",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Наушники Soundcore P40i A3955 TWS Black",
+    "b": "Наушники soundcore P40i Purple",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Patch cord RJ-45 5е cat Cablexpert PP12-5M/RO, UTP, 5m, Pink",
+    "b": "Патч-корд Cablexpert PP12 5 м Cablexpert",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Blue, 128 ГБ Tecno, SPARK",
+    "b": "Смартфон Tecno Spark 50, 8 GB, 128 GB, Aurora Purple (KN4N)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Оперативная память 16Gb Kingston Fury Beast KF432C16BB1/16WP",
+    "b": "Оперативная память Kingston 16GB 5600MT/s DDR5 CL36 DIMM FURY Beast Black EXPO (KF556C36BBE-16)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Маршрутизатор MikroTik hAP ac (RB962UiGS-5HacT2HnT)",
+    "b": "Маршрутизатор MikroTik hAP ac RB962UiGS-5HacT2HnT",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "Bluetooth гарнитура Edifier W820NB Plus EDF200118, Grey",
+    "b": "Наушники Edifier W820NB Plus v.2025 бежевый",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "AFOX GT 1030 (AF1030-2048D5L8) 2 Гб",
+    "b": "Видеокарта Afox GT 1030 AF1030-2048D5L8, 2 GB, GeForce GT1030",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Телевизор Яндекс YNDX-00076 - Умный телевизор с Алисой 55\"",
+    "b": "Яндекс Бейсик с Алисой YNDX-00076 140 см черный",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Беспроводной маршрутизатор серии N (TL-WR845N)",
+    "b": "Маршрутизатор TP-Link TL-WR845N",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Оперативная память Kingston FURY Beast Black RGB KF560C36BBE2A-16",
+    "b": "Оперативная память Kingston FURY Beast EXPO DDR5 16GB 6000MT/s, White (KF560C36BWE2-16)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Процессор Intel Core i5 10400, LGA1200, OEM",
+    "b": "Процессор Intel Core i5 10400F",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "DDR-5 DIMM 16 GB 5600 MHz Kingston Fury Beast, BOX (KF556C36BBE-16)",
+    "b": "Оперативная память Kingston FURY Beast Black RGB KF560C36BBE2A-16",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Процессор Intel Core i7 12700K, LGA1700, OEM",
+    "b": "Процессор Intel Core i7-12700K oem",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Гарнитура Razer Barracuda X 2022 Roblox Edition",
+    "b": "Наушники Razer Barracuda X 2022 Quartz Pink RZ04-04430300-R3M1 розовые",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "Оперативная память 16 GB Apacer Panther RGB AH5U16G56C5229BAA-1",
+    "b": "Оперативная память Apacer Panther DDR5 16GB 6000 МГц (AH5U16G60C6227BAA-1)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Гарнитура HyperX Cloud Stinger 3 Wireless PC White BS1T9AA",
+    "b": "Наушники-гарнитура игровые HyperX Cloud Stinger 3 Wirelesss Xbox, черный (BS1U0AA)",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "Телевизор MiniLED ЯНДЕКС 65 Про YNDX-00104 (4K Smart)",
+    "b": "Телевизор Яндекс Про 65\" YNDX-00104 MiniLED 4K UHD Black",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Shivaki S43MQ9700 109 см черный",
+    "b": "Телевизор Shivaki KZ 43\" 4K QLED S43MQ9700",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "AMD Ryzen 5 Ryzen 5 8600G OEM",
+    "b": "Процессор AMD Ryzen 5 8600G oem",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Коврик для мыши Defender Black XXL",
+    "b": "Коврик игровой Defender Black XXL Defender",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Оперативная память 16Gb Kingston FURY Beast Black AMD RGB KF556C36BBEA-16",
+    "b": "Оперативная память Kingston 16GB 5600MT/s DDR5 CL36 DIMM FURY Beast RGB EXPO (KF556C36BBEA-16)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Моноблок 27\" Philips 27B2A4000E/93 White",
+    "b": "Моноблок Philips 27B2A4000E/93 27\" - White (27\" Philips 27B2A4000E/93 White)",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Компьютерный корпус Gamemax Infinity Mini 3 ARGB Fans + Controller Black без Б/П",
+    "b": "Корпус GameMax Infinity Mini BK, Black",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Intel Core i7 9700KF OEM",
+    "b": "Процессор CPU S-1151 Intel Core i7 9700KF OEM",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Смарт-часы GARMIN Forerunner 570 42mm, черные 010-02970-00",
+    "b": "Смарт-часы Garmin Forerunner 570 42мм Cloud Blue",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Смартфон Realme C25Y 4/128 Grey",
+    "b": "Смартфон realme C25Y, 128 GB, Metal Grey (RMX3269)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Маршрутизатор Mercusys MR80X",
+    "b": "Маршрутизатор Mercusys MR80X (MR80X)",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Оперативная память 16Gb Kingston FURY Beast Black AMD RGB KF556C36BBEA-16",
+    "b": "Оперативная память Kingston 16GB 3600MT/s DDR4 CL17 DIMM (Kit of 2) FURY Beast Black, EAN: 740617319781 (KF436C17BBK2/16)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Gray, 128 ГБ Tecno, SPARK",
+    "b": "Смартфон Tecno Spark 50, 6 GB, 128 GB, Aurora Purple (KN4N)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Клавиатура A4Tech Fstyler FX61 мембранная, мультимедийный, проводной, 1.5 м, пластик A4Tech, Fstyler",
+    "b": "Клавиатура A4Tech Fstyler FX61, Grey, USB",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "Оперативная память 32GB Kit Kingston FURY Beast White RGB EXPO KF560C30BWEAK2-32 White",
+    "b": "Оперативная память KINGSTON DRAM 32GB 3200MHz DDR4 CL16 DIMM (Kit of 2) FURY Beast Black  (KF432C16BBK2/32)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "DDR-5 DIMM 16 GB 5600 MHz Kingston Fury Beast, BOX (KF556C36BBE-16)",
+    "b": "Оперативная память Kingston FURY Beast KF432C16BB1/16 DDR4 16GB 3200MHz (KF432C16BB1/16)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Процессор Intel Core i7 12700K",
+    "b": "Процессор Intel Core i7-12700K OEM (CM8071504553828)",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Оперативная память Kingston FURY Beast Black EXPO KF560C30BBE-16",
+    "b": "Оперативная память Kingston FURY Beast RGB EXPO DDR5 16GB 6000MT/s (KF560C36BBE2A-16)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Оперативная память 16Gb Kingston FURY Beast Black AMD RGB KF556C36BBEA-16",
+    "b": "Оперативная память Kingston FURY Beast RGB DDR5 16GB 6000MT/s - White (KF560C30BWEA-16)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Процессор Intel Celeron G5905 BOX (SRK27)",
+    "b": "Процессор Intel Celeron G5905, LGA1200, OEM",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Blackview Tab 80 Kids 10.1 дюйм 4 Гб64 Гб розовый",
+    "b": "Планшет BlackView Tab 80 Kids 4G 10.1\" 4/64GB Blue",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Процессор Intel Core i7 12700, LGA1700, OEM",
+    "b": "Процессор Intel Core i7-12700 (2.1GHz, 25MB, LGA1700) box (BX8071512700SRL4Q)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Принтер Xerox C310DNI",
+    "b": "Принтер Xerox C310DNI (C310DNI)",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Смартфон Camon 50 (CN5) 256 ГБ, 6.78’’, 12 Гб, золотой Tecno",
+    "b": "Смартфон Tecno Camon 50, 12 GB, 256 GB, Nebula Titanium (CN5)",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Беспроводная игровая гарнитура Razer BlackShark V3 106 дБ Razer, BlackShark",
+    "b": "Гарнитура Razer BlackShark V3 Black",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Корпус Ocypus Gamma C60 WH ARGB Gamma-C60-WHG400XX-GL",
+    "b": "Корпус Ocypus Gamma C60 WH, White",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Наушники CANYON BTHS-3 Beige",
+    "b": "Наушники Canyon BTHS-3 CNS-CBTHS3BE Beige",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "ASRock B850 PRO RS WIFI DDR5",
+    "b": "Материнская плата ASRock B850 PRO RS WiFi, AM5",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Процессор CPU S-1851 Intel Core Ultra 7 265K OEM",
+    "b": "Процессор Intel Core Ultra 7 265K, LGA1851, OEM",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "Оперативная память 32 GB kit Kingston Fury Beast Black RGB (EXPO) KF556C36BBEAK2-32",
+    "b": "Оперативная память Kingston Fury Beast (AMD), DDR5 32 GB kit (2x16GB) 6000MHz (KF560C30BWEK2-32)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Модем TP-Link TD-W9970",
+    "b": "Модем беспроводной VDSL2/ADSL2+ 300M Tp-Link TD-W9970  (TD-W9970(EU))",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Наушники TECNO Buds 4 BD04 Black",
+    "b": "Наушники TECNO Buds 4 BD04 Midnight Blue",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Мышь Defender Standard MB-580, Black, USB",
+    "b": "Мышь проводная Defender Standard MB-580 проводной, оптическая, 1.8 м, 11,3 × 6,2 × 3,6 см Defender",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "Телевизор Яндекс YNDX-00080 - Умный телевизор с Алисой 55\"",
+    "b": "Телевизор Яндекс Бейсик QLED + 55\" (YNDX-00080)",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "Телевизор Яндекс Бейсик QLED + 65\" (YNDX-00081)",
+    "b": "Яндекс Бейсик QLED + YNDX-00081 165 см черный",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "AMD Ryzen 7 8700G BOX",
+    "b": "Процессор AMD Ryzen 7 8700G BOX",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Наушники SOUNDCORE Space One 2 (D1402G11), Черный",
+    "b": "Наушники Soundcore Space One 2 D1402G11 черный",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "ASRock B850M-X R2.0",
+    "b": "Материнская плата ASRock B850M-X R2.0, AM5",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Оперативная память 32Gb Kit Kingston Fury Beast KF432C16BB1K2/32WP",
+    "b": "Оперативная память KINGSTON DRAM 32GB 3200MHz DDR4 CL16 DIMM (Kit of 2) FURY Beast Black  (KF432C16BBK2/32)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Гарнитура Razer Barracuda X 2022 Roblox Edition",
+    "b": "Наушники Razer Barracuda X 2022 Roblox Edition черный",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Гарнитура для колл-центра Jabra Evolve 75 SE Stereo MS, Link380a (7599-842-109)",
+    "b": "Наушники Jabra Evolve 75 SE Link380a MS Stereo 7599-842-109 Black",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Процессор Intel Core i5 14400 (SRN46-OEM)",
+    "b": "Процессор Intel Сore i5-14400 oem",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Телевизор Dreame 86S100, 86\"",
+    "b": "Телевизор Dreame Aura 86\" 86S100 QLED 4K UHD Black",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Материнская плата ASRock B650M (B650M-H/M.2+)",
+    "b": "Материнская плата ASRock B650M-H/M.2+ D5",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "Монитор 27'' XG Darknet Pro 360HZ",
+    "b": "Монитор Игровой 27\" XG Darknet Pro 1920x1080 16:9 IPS 360ГЦ (2HDMI+2DP) Black",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "SSD накопитель 480 GB Apacer AS340X AP480GAS340XC-1",
+    "b": "Твердотельный накопитель SSD Apacer AS340X 480GB SATA (AP480GAS340XC-1)",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Intel Core i7 13700F OEM",
+    "b": "Процессор Intel Core i7-13700F (SRMBB)",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Монитор 27\" AOC 27G42E, Black",
+    "b": "Монитор Игровой 27\" AOC 27G42E 1920x1080 16:9 IPS 180ГЦ (HDMI+DP) Black",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Процессор Intel Core i3 12100F, LGA1700, OEM - без встроенного видео (i3-12100F)",
+    "b": "Процессор Intel Core i3-12100F oem",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "AMD Ryzen 7 7700X OEM",
+    "b": "Процессор AMD Ryzen 7 7700X, AM5, OEM",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Оперативная память 32 GB kit Kingston Fury Beast Black RGB (EXPO) KF556C36BBEAK2-32",
+    "b": "Оперативная память Kingston FURY Beast Black EXPO 32GB 6000MT/s DDR5 DIMM (KF560C30BBE-32)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "AMD Ryzen 7 7700 OEM",
+    "b": "Процессор AMD Ryzen 7 7700, AM5, OEM",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "AFOX GT 240 (AF240-1024D3L2-V3) 1 Гб",
+    "b": "Видеокарта Afox GT 240 V2, 1 GB, GeForce GT 240",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Монитор 27\" AOC 27G4HRE, Black",
+    "b": "Монитор 27\" AOC 27G4HRE/01",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Монитор 27\" Sanc M2753FKG, Black",
+    "b": "Монитор SANC M2753FKG 27 FHD/IPS/1ms/120Hz",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Гарнитура Razer Kaira X for Xbox - Pulse Red RZ04-03970500-R3M1",
+    "b": "Наушники Razer Kaira X for Xbox RZ04-03970300-R3M1 White",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "OSCAL Pad 30 10.1 дюйм 4 Гб128 Гб зеленый + подарок",
+    "b": "Планшет Oscal Pad 30 WiFi, 10.1\",  4 GB, 128 GB, Horizon Blue",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Black, 128 ГБ Tecno, SPARK",
+    "b": "Смартфон Tecno Spark 50, 8 GB, 128 GB, Titanium Grey (KN4N)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Материнская плата ASRock X570 PRO4",
+    "b": "Материнская плата ASRock X570 Pro4, AM4",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Монитор 23,8\" X-game 1T238IPS 1920x1080 16:9 IPS 100ГЦ (HDMI+DP+ VGA) Black",
+    "b": "Монитор 23.8\" X-Game 1T238IPS, Black",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Маршрутизатор TP-Link Archer AX1500",
+    "b": "Маршрутизатор беспроводной TP-Link Archer AX1500 (Archer AX1500)",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Процессор Intel Core i3 10100F, LGA1200, BOX",
+    "b": "Процессор Intel Core i3 10100F, LGA1200, OEM (SRH8U)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Оперативная память 32 GB kit Kingston Fury Beast Black (EXPO) KF556C36BBEK2-32",
+    "b": "Оперативная память Kingston FURY Beast Black EXPO 32GB 6000MT/s DDR5 DIMM (KF560C30BBE-32)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Материнская плата ASRock B760M-HDV/M.2 D4, LGA1700",
+    "b": "Материнская плата ASRock B760M-HDV/M.2 D4, iB760,S1700,mATX (90-MXBL40-A0UAYZ)",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Игровая приставка Sony PlayStation 5 Slim + Геймпад + GTA V",
+    "b": "Игровая приставка Sony PlayStation 5 Slim + геймпад Белый",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "AMD Ryzen 7 8700G OEM",
+    "b": "Процессор AMD Ryzen 7 8700G, AM5, OEM",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Процессор CPU S-1200 Intel Core i3 10105F TRAY",
+    "b": "Процессор Intel Core i3 10105F, LGA1200, OEM (i3-10105F)",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "Материнская плата ASRock B760M-H2/M.2 (90-MXBN00-A0UAYZ)",
+    "b": "Материнская плата ASRock B760M-H2/M.2 D5",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Наушники PANASONIC RP HJE 125 E P",
+    "b": "Наушники Panasonic RP-HJE125E-P розовые",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "Телевизор Яндекс YNDX-00103 - Умный телевизор с Алисой 55\"",
+    "b": "Телевизор Яндекс Про MiniLED 55\" (YNDX-00103)",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "Материнская плата ASRock B650 PG Lightning, AM5",
+    "b": "Материнская плата ASRock B650 PG Lightning, AM5,ATX (90-MXBK20-A0UAYZ)",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Монитор 24.1\" ZOWIE XL2566X+ Dark Grey",
+    "b": "Монитор ZOWIE XL2566X+ (9H.LMRLB.QB) 24.1 FHD/TN/1ms/400Hz",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Процессор CPU S-1700 Intel Core i7-13700K OEM",
+    "b": "Процессор Intel Core i7 13700K, LGA1700, OEM (SRMB8-OEM)",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "Оперативная память Kingston FURY Beast Black EXPO 32GB 6000MT/s DDR5 DIMM (KF560C30BBE-32)",
+    "b": "Оперативная память Kingston FURY Beast White RGB KF552C40BWA-32",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Телевизор Яндекс Бейсик 65\" YNDX-00081 QLED 4K UHD Black",
+    "b": "Телевизор Яндекс Бейсик QLED + 65\" (YNDX-00081)",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "Наушники Edifier P180 Plus (P180 Plus)",
+    "b": "Наушники Edifier P180 Plus 97 дБ, 1.2 м Edifier",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Кабель питания (розетка-системный блок) Cablexpert PC-186, 1.8m, OEM",
+    "b": "Кабель питания C13 Cablexpert PC-186 1.8 м, до 6 А Cablexpert",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Процессор Intel Core i5 14600KF, LGA1700, OEM",
+    "b": "Процессор Intel Core i5 14600KF, LGA1700, Tray (CM8071504821014)",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Смарт телевизор Dahua LTV43-QSD400 43\" QLED (DHI-LTV43-QSD400)",
+    "b": "Телевизор Dahua 43\" DHI-LTV43-QSD400 QLED 4K UHD Black",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "Оперативная память 64 GB kit Kingston Fury Beast White KF560C36BBEK2-64",
+    "b": "Оперативная память DIMM DDR5 64 GB kit (KF556C36BWEK2-64)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Intel Core i5-10400 BOX",
+    "b": "Процессор CPU S-1200 Intel Core i5 10400 BOX",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "TP-Link Archer AX10 AX1500 Wi‑Fi 6 гигабитный роутер(089221) (Archer AX10)",
+    "b": "Маршрутизатор TP-Link Archer AX10",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Оперативная память 32 GB kit Kingston Fury Beast Black RGB (EXPO) KF556C36BBEAK2-32",
+    "b": "Оперативная память DIMM Kingston Fury Beast RGB DDR5 32 GB 6000MHz (KF560C36BBE2A-32)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Монитор 24\" GameMax GMX24C144, Black",
+    "b": "Монитор 24\" ЖК GameMax GMX24C144",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Гарнитура Jabra Evolve2 85 Link380a MS Stereo Black",
+    "b": "Наушники Jabra Evolve2 85 Link380a UC Stereo Black 28599-989-999",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "SO-DIMM 16GB DDR5 PC44800/5600MHz Kingston, BOX (KVR56S46BS8-16)",
+    "b": "Оперативная память 16 GB Kingston KVR56S46BS8-16",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "Коврик для мыши 2E Gaming Pro Speed XL",
+    "b": "Коврик для мыши Gaming Pro Speed полиэстер, резина, 36×27.5 см, 36 × 27.5 × 0,3 см 2Е",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Процессор CPU S-1851 Intel Core Ultra 7 265K OEM",
+    "b": "Процессор Intel Core Ultra 7 265K TRAY",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Видеокарта AFOX GT730 4GB D3 LP Single Fan AF730-4096D3L6",
+    "b": "Видеокарта Afox GT730, (AF730-4096D3L5) [4 ГБ, GDDR3, 128 бит, 700 МГц, VGA, DVI, HDMI]",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Intel Core i7 13700F OEM",
+    "b": "Процессор Intel Core i7 13700F, LGA1700, OEM",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Наушники AULA A700 черно-красный",
+    "b": "Наушники с микрофоном AULA A700 - Black & Red (A700 Black & Red)",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Комплект модулей памяти Kingston FURY Beast KF432C16BBK2/16 DDR4 16GB (Kit 2x8GB) 3200MHz (KF432C16BBK2/16)",
+    "b": "Оперативная память 16Gb Kingston FURY Beast Black AMD RGB KF556C36BBEA-16",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Оперативная память Kingston FURY Beast DDR5 32GB 5600MT/s - Black (KF556C36BBE2-32)",
+    "b": "Оперативная память Kingston FURY Beast White RGB KF552C40BWA-32",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Оперативная память 32Gb Kit Kingston Fury Beast KF432C16BB1K2/32WP",
+    "b": "Оперативная память Kingston Fury Beast DDR5 - 2x 16ГБ 6400МГц (KF564C32BBEAK2-32)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Телевизор Dreame 65Q100, 65\"",
+    "b": "Телевизор Dreame Vivid 65\" 65Q100 QLED 4K UHD Black",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Оперативная память 32 GB kit Kingston Fury Beast KF560C30BWEK2-32",
+    "b": "Оперативная память Kingston 32GB 5600MT/s DDR5 CL36 DIMM (Kit of 2) FURY Beast RGB EXPO (KF556C36BBEAK2-32)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Гарнитура TWS Edifier NeoBuds Plus, Starlight (NeoBuds Plus Starlight)",
+    "b": "Наушники Edifier NeoBuds Plus Black",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Оперативная память 16Gb Kingston Fury Beast KF432C16BB1/16WP",
+    "b": "Оперативная память Kingston FURY Beast EXPO DDR5 16GB 5600MT/s, White (KF556C36BWE-16)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Intel Core i3 14100F OEM",
+    "b": "Процессор Intel Core i3 14100F, LGA1700, OEM (i3-14100F)",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "DDR-4 DIMM 16 GB 3200 MHz Kingston Fury Beast RGB, BOX (KF432C16BB12A/16WP)",
+    "b": "Оперативная память Kingston FURY Beast RGB XMP DDR5 16GB 5200MT/s (KF552C40BBA-16)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "27\" BenQ 9H.LGXLA.CPE черный",
+    "b": "Монитор 27\" Benq BL2780",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "Гарнитура Rapoo H101 100 дБ Rapoo",
+    "b": "Наушники Rapoo H101 черный",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Gray, 128 ГБ Tecno, SPARK",
+    "b": "Смартфон Tecno Spark 50, 4 GB, 128 GB, Titanium Grey (KN4N)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Корпус Cougar FV270, White",
+    "b": "Корпус для ПК Cougar FV270 WH",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "AFOX GT 240 AF240-1024D3L2-V2 1 Гб",
+    "b": "Видеокарта Afox GT240, 1 GB (AF240-1024D3L2-V3)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Процессор Intel Core Ultra 7 265KF TRAY",
+    "b": "Процессор Intel Сore Ultra 7 265KF oem (265KF oem)",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "ASRock Z890 PRO RS WIFI",
+    "b": "Материнская плата ASRock Z890 PRO RS WIFI WHITE  (Z890 PRO RS WIFI WHITE) - 68651 (90-MXBQC0-A0UAYZ)",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "Смарт телевизор Dahua LTV50-QSD400 50\" QLED (DHI-LTV50-QSD400)",
+    "b": "Телевизор Dahua DHI-LTV50-QSD400 50\" QLED",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "SSD накопитель 256 GB Kingston KC600 SKC600/256G",
+    "b": "Твердотельный накопитель 256GB SSD Kingston KC600 2.5” SATA3 (SKC600/256G)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Видеокарта 8 GB Afox RX 580 2048SP AFRX580-8192D5H3-V3",
+    "b": "Видеокарта Afox RX 580, 8 GB, Radeon RX 580",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Процессор AMD Ryzen 9 9950X, AM5, OEM",
+    "b": "Процессор CPU AM5 AMD Ryzen 9 9950X OEM",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "Телевизор Dahua 24\" DHI-LTV24-SD100 LED HD Black",
+    "b": "Телевизор Dahua DHI-LTV24-SD100 24\" HD",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Наушники Panasonic RP-HJE125E-P",
+    "b": "Наушники Panasonic RP-HJE125E-P розовые",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Корпус Sharkoon Pure Steel RGB, Black",
+    "b": "Корпус для ПК Sharkoon PURE STEEL RGB Bk",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Наушники беспроводные Elari BeatBand 100 дБ Elari",
+    "b": "Наушники-вкладыши беспроводные ELARI BeatBand белый",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Оперативная память Kingston FURY Beast Black EXPO 32GB 6000MT/s DDR5 DIMM (KF560C30BBE-32)",
+    "b": "Оперативная память Kingston FURY Beast Black EXPO KF560C30BBE-32",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "AMD Ryzen 7 7800X3D OEM",
+    "b": "Процессор CPU AMD Ryzen 7 7800X3D, 4.2GHz/ 8core/ 16thread/ 8+96Mb/ 120W Socket AM5 (100-000000910)",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Процессор AMD Ryzen 7 7800X3D oem",
+    "b": "Процессор AMD Ryzen 7 7800X3D, AM5, OEM",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Телевизор ЯНДЕКС 65 YNDX-00077 (4K Smart)",
+    "b": "Телевизор Яндекс Бейсик с Алисой 65\" YNDX-00077 LED 4K UHD Black",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Телевизор 98\" (249 см) TCL 98C6K QLED 4K UHD Black",
+    "b": "Телевизор TCL QD-MiniLED 98C6K UHD Android TV",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Корпус Thermaltake The Tower 200 Bumblebee, Yellow",
+    "b": "Корпус для ПК Thermaltake The Tower 200 Bumblebee",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Видеокарта MaxSun MS-GTX1050Ti TF 4G",
+    "b": "Видеокарта Maxsun MS-GTX1050Ti TF 4G [4 ГБ, GDDR5, 128 бит, DVI, HDMI, DisplayPort]",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Оперативная память Kingston 16GB 5600MT/s DDR5 CL36 DIMM FURY Beast RGB EXPO (KF556C36BBEA-16)",
+    "b": "Оперативная память Kingston FURY Beast Black RGB KF560C36BBE2A-16",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Наушники SOUNDCORE Liberty 5 A3957G51 Розовый TWS",
+    "b": "Наушники Soundcore Liberty 5 A3957 Blue",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Оперативная память Kingston FURY Beast Black EXPO KF560C30BBE-16",
+    "b": "Оперативная память Kingston FURY Beast EXPO DDR5 16GB 6000MT/s, White (KF560C36BWE2-16)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Видеокарта Afox GTX 1050 Ti  V8, 4 GB, GeForce GTX 1050 Ti",
+    "b": "Видеокарта Afox GeForce GTX 1050TI (AF1050TI-4096D5H7-V8) [4 ГБ, GDDR5, 128 бит, DVI, HDMI, DisplayPort]",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "Телевизор HISENSE QLED 65E7S UHD SMART",
+    "b": "Телевизор Hisense 65E7S RU",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Компьютерный корпус Cougar CFV235 без Б/П",
+    "b": "Корпус Cougar CFV235, Black",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Kieslect Lady Watch Lora 2 фиолетовый-фиолетовый",
+    "b": "Смарт-часы Kieslect Lady Watch Lora 2, Gold",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "MAXSUN Challenger B450M",
+    "b": "Материнская плата MaxSun Challenger B450M (MS-Challenger B450M)",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "SSD накопитель 4 TB AGI AI238, 2.5\", SATA III",
+    "b": "Твердотельный накопитель SSD AGI AI238 4TB, 2.5\", SATA III (AGI4K0GIMAI238)",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Компьютерный корпус Thermaltake The Tower 200",
+    "b": "Корпус Thermaltake The Tower 200, Turquoise",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Гарнитура Bluetooth Edifier ES850NB (ES850NB Ivory)",
+    "b": "Наушники Edifier ES850NB Ivory",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Intel Core i5 13600KF OEM",
+    "b": "Процессор Intel Core i5 13600KF, LGA1700, OEM",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Процессор Intel Core i7-12700 (2.1GHz, 25MB, LGA1700) tray (CM8071504555019SRL4Q)",
+    "b": "Процессор Intel Core i7-12700 oem",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Наушники 1MORE Neo EO007 Зелёный",
+    "b": "Наушники 1MORE Neo EO007 Сиреневый",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "SO-DIMM 16GB DDR5 PC38400/4800MHz AMD Radeon R5 Entertainment Series, BOX (R5516G4800S2S-U)",
+    "b": "Оперативная память 16GB DDR5 4800MHz AMD Radeon R5 Entertainment Series, PC5-38400, CL40, 1.1V, R5516G4800U1S-U (R5516G4800U1S-U)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Смарт-часы TTEC Tempus Pro 46mm Розовое золото",
+    "b": "Смарт-часы TTEC Tempus Pro 46mm, чёрный",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Наушники SOUNDCORE Liberty 5 Pro (D1203G31), Голубой TWS",
+    "b": "Наушники soundcore Liberty 5 Pro D1203G21",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Наушники Soundcore P40i A3955 TWS Navy Blue",
+    "b": "Наушники Soundcore P40i Blue (A3955-BLU)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Планшет DOOGEE Tab A9 10,1\" 3GB/64GB Wi-Fi Grey",
+    "b": "Планшет Doogee Tab A9 2025 Wi-Fi 10.1\" 3/64Gb Grey",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Процессор Intel Core i3-12100F (CM8071504651013)",
+    "b": "Процессор Intel Core i3-12100F oem",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "AMD Ryzen 7 7700 OEM",
+    "b": "Процессор AMD Ryzen 7 7700 oem",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Проектор Epson EB-FH06",
+    "b": "Проектор Epson EB-FH06 LCD, 6000 часов, 30,2 × 25,2 × 9,2 см Epson",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Телевизор Dreame Aura Mini LED 4K S100 65\" (65S100)",
+    "b": "Телевизор Dreame Aura Mini LED 4K TV 65S100 65\" (65S100)",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "Оперативная память 16Gb Transcend JM4800ALE-16G",
+    "b": "Память оперативная DDR5 Desktop Transcend  JM4800ALE-16G (JM4800ALE-16G)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Процессор CPU S-1700 Intel Core i7-13700F OEM",
+    "b": "Процессор Intel Core i7 13700F, LGA1700, OEM (i7-13700F)",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Оперативная память 32 GB kit Kingston Fury Beast KF560C30BWEK2-32",
+    "b": "Оперативная память Kingston Fury Beast (AMD+Intel), DIMM DDR5 32 GB kit (2x16GB) <6000MHz> (KF560C36BBE2K2-32)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Apple EarPods проводные наушники (USB-C)",
+    "b": "EarPods LIGHTNING",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Видеокарта Afox GTX 1050Ti (AF1050TI-4096D5H7-V9)",
+    "b": "Видеокарта Afox GTX1050Ti GAMING 4GB D5 Dual Fan (AF1050TI-4096D5H5-V10) [4 ГБ, GDDR5, 128 бит, DVI, HDMI, DisplayPort]",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Gray, 128 ГБ Tecno, SPARK",
+    "b": "Смартфон Tecno Spark 50, 8 GB, 128 GB, Ink Black (KN4N)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Оперативная память 64GB Kit Kingston FURY Beast White EXPO KF556C36BWEK2-64",
+    "b": "Оперативная память DIMM DDR5 64 GB kit (KF556C36BWEK2-64)",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "23.8\" Sanc M2442PH белый",
+    "b": "Монитор 23.8\" Sanc M2442PH V3",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Клавиатура Glorious GMMK 2 Full Size игровая, механическая, мультимедийный, проводной, 1.8 м, алюминий, пластик Glorious",
+    "b": "Клавиатура Glorious GMMK 2 Full Size, Black, USB",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Видеокарта Afox GT240 (AF240-1024D3L2-V2) [1 ГБ, DDR3, 128 бит, 550 МГц, VGA, DVI, HDMI]",
+    "b": "Видеокарта Afox GT240, 1 GB (AF240-1024D3L2-V3)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "WiFi маршрутизатор D-Link DIR-620S/RU/B1A (DIR-620S/RU/B1A)",
+    "b": "Маршрутизатор D-Link DIR-620S/RU/B1A",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Intel Core i3 8100 OEM",
+    "b": "Процессор CPU S-1151 Intel Core i3 8100 OEM",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Планшет DOOGEE U11 11\" 4GB/128GB Wi-Fi Grey",
+    "b": "Планшет Doogee U11 11\" 4/128Gb Black",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Процессор AMD Ryzen 7 9800X3D, AM5, OEM",
+    "b": "Процессор CPU AM5 AMD Ryzen 7 9800X3D OEM",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Оперативная память 32GB Kit Kingston FURY Beast White RGB EXPO KF560C30BWEAK2-32 White",
+    "b": "Оперативная память Kingston FURY Beast DDR5 32GB 5600MT/s - Black (KF556C36BBE2-32)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Intel Core i5 14600K OEM",
+    "b": "Процессор Intel Core i5 14600K, LGA1700, Tray (CM8071504821015)",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Оперативная память 32 GB kit Kingston Fury Beast Black (EXPO) KF556C36BBEK2-32",
+    "b": "Оперативная память Kingston Fury Beast DDR4 DIMM 32Gb KIT (2x16) 3200MHz (KF432C16BB1K2/32WP)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Гарнитура Razer Barracuda X 2022 - Quartz Pink RZ04-04430300-R3M1",
+    "b": "Наушники Razer Barracuda X 2022 Roblox Edition RZ04-04430400-R3M1",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "DDR-4 DIMM 16GB/3200MHz PC25600 Apacer, BOX (EL.16G21.GSH)",
+    "b": "Оперативная память 16 GB Apacer EL.16G21.GSH",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "DDR-5 DIMM 16 GB 5600 MHz Kingston Fury Beast, BOX (KF556C36BBE-16)",
+    "b": "Оперативная память KINGSTON DRAM 16GB 3600MHz DDR4 CL18 DIMM FURY Beast Black (KF436C18BB/16)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Телевизор 65\" (165 см) TCL 65V6C LED 4K UHD Black",
+    "b": "Телевизор TCL 65V6C UHD Android TV",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "OSCAL Pad 30 10.1 дюйм 4 Гб128 Гб синий + подарок",
+    "b": "Планшет Oscal Pad 30 WiFi, 10.1\", 4 GB, 128 GB, Hazel Green",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Процессор CPU S-1700 Intel Core i7-13700F OEM",
+    "b": "Процессор Intel Core i7 13700F, LGA1700, OEM",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "DDR-5 DIMM 16 GB 5600 MHz Kingston Fury Beast, BOX (KF556C36BBE-16)",
+    "b": "Оперативная память Kingston FURY Beast Black EXPO KF560C30BBE-16",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Корпус DeepCool CG580 4F, Black",
+    "b": "Корпус для ПК Deepcool CG580 4F WH",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "Наушники Soundcore P40i Blue (A3955-BLU)",
+    "b": "Наушники soundcore P40i Purple",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Карта памяти Canvas Select Plus A1 U1 V10 128 ГБ Kingston Technology",
+    "b": "Карта памяти SDXC 128 GB Kingston Canvas Select Plus, Class 10 UHS-I U1",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Зарядное устройство  SJCAM SJ301, для двух аккумуляторных батарей",
+    "b": "Зарядное устройство Sjcam SJ301 Sjcam",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Оперативная память 16 GB kit Kingston Fury Beast KF560C36BBEK2-16",
+    "b": "Оперативная память Kingston Fury Beast DDR4 DIMM 16Gb 3200MHz (KF432C16BB1/16WP)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "SSD накопитель 256 GB AMD Radeon R3,  2.5\", SATA III",
+    "b": "Твердотельный накопитель 256GB SDD AMD RADEON R3 Series M.2 PCIe 3.0 2280 (R3MP30256G8)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Оперативная память  Kingston Fury Beast 16Gb (8x2) 5600MHz DDR5 DIMM, CL40, 1.25v (KF556C40BBK2-16)",
+    "b": "Оперативная память Kingston FURY Beast Black RGB KF560C36BBE2A-16",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Оперативная память 16GB NOMAD NMD5600D5U46-16GBRGB",
+    "b": "Оперативная память NOMAD NMD5600D5U46-16GBHSW DDR5 16GB 5600MHz - White (NMD5600D5U46-16GBHSW)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "SSD накопитель 256 GB Patriot P210, 2.5\", SATA III",
+    "b": "Твердотельный накопитель SSD 2.5\" SATA III Patriot  256GB P210 530/460 P210S256G25 (P210S256G25)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Оперативная память 16 GB kit Kingston Fury Beast KF560C36BBEK2-16",
+    "b": "Оперативная память Kingston FURY Beast EXPO DDR5 16GB 5600MT/s, White (KF556C36BWE-16)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Комплект модулей памяти 32Gb kit Kingston FURY Beast RGB KF432C16BB12AK2/32",
+    "b": "Комплект оперативной памяти Kingston Fury Beast Beast White EXPO DDR5 DIMM 32Gb KIT (2x16Gb) 6000MHz (KF560C36BWE2K2-32)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Смартфон TECNO CAMON 50 Ultra 5G 12 ГБ/256 ГБ 256 ГБ, 6.78’’, 12 Гб, Silver, 256 ГБ Tecno, CAMON",
+    "b": "Смартфон Tecno Camon 50 Ultra 5G, 8 GB, 256 GB, Moonshadow Black (CN7C)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Телевизор 55\" (140 см) TCL 55P8K QLED 4K UHD Black",
+    "b": "Телевизор TCL 55P8K UHD Android TV",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Комплект модулей памяти Kingston FURY Beast KF432C16BBK2/16 DDR4 16GB (Kit 2x8GB) 3200MHz (KF432C16BBK2/16)",
+    "b": "Оперативная память Kingston FURY Beast Black RGB KF560C36BBE2A-16",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "OSCAL Pad 30 10.1 дюйм 4 Гб128 Гб серый + подарок",
+    "b": "Планшет Oscal Pad 30 WiFi, 10.1\", 4 GB, 128 GB, Cosmic Grey",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Материнская плата MaxSun Challenger B450M",
+    "b": "Материнская плата MaxSun Challenger B450M (MS-Challenger B450M)",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Оперативная память Kingston 16GB 3200MT/s DDR4 CL16 DIMM 1Gx8 FURY Beast RGB (KF432C16BB12A/16)",
+    "b": "Оперативная память Kingston FURY Beast Black RGB KF560C36BBE2A-16",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Модуль памяти Kingston Fury Beast KF552C40BBK2-16 DDR5 DIMM 16Gb Kit(2x8) 5200 MHz CL40 (KF552C40BBK2-16)",
+    "b": "Оперативная память Kingston FURY Beast White KF560C36BWE2-16",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Телевизор Яндекс Бейсик 65\" YNDX-00081 QLED 4K UHD Black",
+    "b": "Яндекс Бейсик QLED + YNDX-00081 165 см черный",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "AFOX GT 1030 (AF1030-2048D5L8) 2 Гб",
+    "b": "Видеокарта Afox GT 1030 2 GB (AF1030-2048D5L7)",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "SSD накопитель 1 TB Kingston NV3, M.2, PCIe 4.0, OEM",
+    "b": "SSD накопитель 1Tb Kingston NV3 SNV3S/1000G",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Маршрутизатор Mercusys MW305R (MW305R)",
+    "b": "Маршрутизатор Mercusys MW305R 802.11b: до 11 Мбит/с, 802.11g: до 54 Мбит/с, 802.11n: до 300 Мбит/с Mercusys",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Intel Pentium Gold G7400 OEM",
+    "b": "Процессор CPU S-1700 Intel Pentium Gold G7400 OEM",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "DDR-4 DIMM 16 GB 3200 MHz Geil Pristine Series, BOX (GP416GB3200C22SC)",
+    "b": "Оперативная память 16GB GEIL GP416GB3200C22SC",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "Наушники Soundcore Liberty 5 A3957 Blue",
+    "b": "Наушники soundcore Liberty 5 - Blue (A3957-BLU)",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Модуль памяти 16GB Kingston Fury Beast Black AMD KF556C36BBE-16",
+    "b": "Оперативная память Kingston DRAM 16GB 5600MHz DDR5 CL40 DIMM FURY Beast Black  (KF556C40BB-16)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Телевизор HISENSE QLED 75E7S PRO UHD SMART",
+    "b": "Телевизор Hisense 75E7S (75E7S RU)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Видеокарта MaxSun MS-RX550 TF 4G",
+    "b": "Видеокарта MaxSun MS-RX550 TF 4G (MS-RX550 TF 4G)",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "SMART 50UP77 127 см черный",
+    "b": "Телевизор SMART 50UP77 127 см черный",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "Процессор CPU S-1700 Intel Pentium Gold G7400 OEM",
+    "b": "Процессор Intel Pentium G7400 oem",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Процессор AMD Ryzen 5 5600X, AM4, OEM",
+    "b": "Процессор CPU AM4 AMD Ryzen 5 5600X OEM v3",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Твердотельный накопитель SSD Kingston 1TB M.2 (NV3 SNV3S/1000G) (SNV3S/1000G)",
+    "b": "Твердотельный накопитель SSD Kingston NV3 1 ТБ, M.2 2280, нет Kingston Technology",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Оперативная память Kingston FURY Beast White RGB KF552C40BWA-32",
+    "b": "Оперативная память Kingston Fury Beast (AMD+Intel), DIMM DDR5 32 GB kit (2x16GB) <6000MHz> (KF560C36BBE2K2-32)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Гарнитура Razer Kaira X for Xbox - Pulse Red RZ04-03970500-R3M1",
+    "b": "Наушники Razer Kaira X for Xbox красный",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "DDR-5 DIMM 16 GB 5600 MHz Kingston Fury Beast, BOX (KF556C36BBE-16)",
+    "b": "Оперативная память Kingston FURY Beast RGB EXPO DDR5 16GB 6000MT/s (KF560C36BBE2A-16)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Процессор CPU S-1700 Intel Core i5 13400F OEM",
+    "b": "Процессор Intel Core i5 13400F, LGA1700, OEM",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Наушники SOUNDCORE Liberty 4 NC A3947G61 голубой TWS",
+    "b": "Наушники Soundcore Liberty 4 NC Navy Blue (A3947-BLU)",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Телевизор MiniLED ЯНДЕКС 55 Про YNDX-00103 (4K Smart)",
+    "b": "Телевизор Яндекс YNDX-00103 - Умный телевизор с Алисой 55\"",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Intel Core i3 10100F OEM",
+    "b": "Процессор CPU S-1200 Intel Core i3 10100F OEM",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Телевизор Яндекс YNDX-00104 - Умный телевизор с Алисой 65\"",
+    "b": "Яндекс Про MiniLED YNDX-00104 165 см черный",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Модем TP-Link Archer VR400 802.11a: до 54 Мбит/с, 802.11ac: до 867 Мбит/с, 802.11b: до 11 Мбит/с, 802.11g: до 54 Мбит/с, 802.11n: до 300 Мбит/с TP-Link",
+    "b": "Модем Tp-Link Archer VR400 N (Archer VR400(EU))",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "ASRock B760M PRO RS/D4",
+    "b": "Материнская плата ASRock B760M Pro RS/D4, LGA1700",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Qwatt Q32YH-PB 81 см черный",
+    "b": "Телевизор LCD QWATT Q32YH-PB ЧЕРНЫЙ",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "SSD накопитель 256 GB AGI AI238, SATA III",
+    "b": "Твердотельный накопитель AGI AI238, 256Gb SATA, 530 Read, 510 Write, AGI256G25AI238-CB AGI, Retail",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Оперативная память 16Gb Kingston FURY Beast Black AMD RGB KF556C36BBEA-16",
+    "b": "Оперативная память Kingston 16GB 3200MT/s DDR4 CL16 DIMM 1Gx8 FURY Beast RGB (KF432C16BB12A/16)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Наушники SOUNDCORE Liberty 4 NC A3947 Black/черный TWS",
+    "b": "Наушники soundcore Liberty 4 NC - Black (A3947-BK)",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "SSD накопитель 2 TB Kingston NV3, M.2, PCIe 4.0",
+    "b": "Твердотельный накопитель SSD Kingston NV3 2TB M.2 (SNV3S/2000G)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Смарт-часы GARMIN Fenix 8 47mm, AMOLED, сапфир, темный силикон 010-02904-21",
+    "b": "Смарт-часы Garmin Fenix 8 010-02904-00 47mm AMOLED Slate Gray with Black Silicone Band",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Телевизор Яндекс Бейсик LED 4K UHD Smart 65\" YNDX-00077",
+    "b": "Телевизор Яндекс Бейсик с Алисой 65\" YNDX-00077 LED 4K UHD Black",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Intel Core Ultra 7 265K OEM",
+    "b": "Процессор Intel Core Ultra 7 265K, LGA1851, OEM",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "Комплект модулей памяти 32Gb kit Kingston FURY Beast RGB KF432C16BB12AK2/32",
+    "b": "Оперативная память Kingston Fury Beast RGB (AMD), DDR5 32 GB kit (2x16GB) 6000MHz (KF560C30BBEAK2-32) ( KF560C30BBEAK2-32)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Оперативная память Kingston FURY Beast EXPO DDR5 16GB 6000MT/s, White (KF560C36BWE2-16)",
+    "b": "Оперативная память Kingston FURY Beast White KF560C36BWE2-16",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Игровые наушники AverMedia Live Gamer WAVES 510  (40AAGH510ASK)",
+    "b": "Наушники AverMedia Live Gamer WAVES 510 - GH510",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "DDR-5 DIMM 8 GB 5600 MHz Kingston Fury Beast RGB, BOX (KF556C40BBA-8)",
+    "b": "ОЗУ Kingston Fury Beast RGB 8Gb 5600MHz DDR5 DIMM, CL40, 1.25v,  KF556C40BBA-8",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Видеокарта 4 GB Afox GTX 1050Ti AF1050TI-4096D5H7-V8",
+    "b": "Видеокарта Afox GTX 1050 Ti  V8, 4 GB, GeForce GTX 1050 Ti",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "Процессор Intel Core i5 12400, LGA1700, OEM",
+    "b": "Процессор Intel Core i5 12400, LGA1700, OEM (SRL5Y-OEM)",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "DDR-5 DIMM 16 GB 5600 MHz Kingston Fury Beast, BOX (KF556C36BBE-16)",
+    "b": "Оперативная память Kingston Fury Beast RGB DDR4 16Gb 3200 MHz (KF432C16BB2A/16)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Телевизор Яндекc Про MiniLED 75\" YNDX-00105 QLED 4K UHD Smart",
+    "b": "Телевизор Яндекс Про 75\" YNDX-00105 MiniLED 4K UHD Black",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "DREAME Smart 32Q10 81 см черный",
+    "b": "Телевизор DREAME QLED 32Q10 FullHD Google TV",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "SSD накопитель 2 TB Corsair MP600 PRO LPX White, M2, PCIe 4.0",
+    "b": "Твердотельный накопитель SSD Corsair MP600 PRO LPX, M2 2TB (CSSD-F2000GBMP600PLP)",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Корпус Ocypus Gamma C72 WH Белый Gamma-C72-WHD000XX-GL",
+    "b": "Корпус Ocypus Gamma C72 WH, White",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Маршрутизатор TP-Link Archer C24",
+    "b": "Маршрутизатор TP-Link Archer C24 (Archer C24)",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Оперативная память Kingston FURY Beast Black RGB KF560C36BBE2A-16",
+    "b": "Оперативная память Kingston Fury Beast DDR4 DIMM 16Gb 3200MHz (KF432C16BB1/16WP)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Наушники APPLE EarPods with Lightning Connector (MWTY3ZM/A)",
+    "b": "Наушники Apple EarPods Headphone Plug (MWU53ZM/A)",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Смартфон Camon 50 (CN5) 256 ГБ, 6.78’’, 12 Гб, золотой Tecno",
+    "b": "Смартфон Tecno Camon 50, 8 GB, 256 GB, Malachite Green (CN5)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Оперативная память Kingston FURY Beast RGB EXPO DDR5 16GB 6000MT/s (KF560C36BBE2A-16)",
+    "b": "Оперативная память Kingston FURY Beast White KF560C36BWE2-16",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "SO-DIMM 16GB DDR4 PC19200/2400MHz GeiL, OEM",
+    "b": "Оперативная память 16GB GEIL 2400Mhz DDR4 PC4-19200 (GP416GB2400C17SC)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Оперативная память 16Gb Kingston FURY Beast Black AMD RGB KF556C36BBEA-16",
+    "b": "Оперативная память Kingston Fury Beast RGB DDR4 DIMM 16Gb 3200MHz (KF432C16BB12A/16WP)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Смарт-часы GARMIN Forerunner 570 42mm, черные 010-02970-00",
+    "b": "Смарт-часы Garmin Forerunner 570 42мм Imperial Purple",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "SSD накопитель 256 GB Kingston KC600 (SKC600MS/256G), mSATA, SATA III",
+    "b": "SSD накопитель 256 GB Kingston KC600 SKC600/256G",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Материнская плата ASRock H610M-HDV",
+    "b": "Материнская плата ASRock H610M-HDV, LGA1700 (H610M-HDV)",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Видеокарта AFOX GT740 4GB D3 LP Single Fan AF740-4096D3L3",
+    "b": "Видеокарта Afox GT 740, 4 GB, GeForce GT 740",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Монитор 27\" PHILIPS 27E1N1800AE/01",
+    "b": "Монитор 27\" Philips 27E1N1800AE/01, Black",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Корпус Ocypus Iota C50 BK Curve ARGB Digital Черный Iota-C50-BKD300CD-GL",
+    "b": "Корпус Ocypus Iota C50 WH Curve ARGB Digital, White",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Корпус Cougar FV270, Black",
+    "b": "Корпус для ПК Cougar FV270",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Оперативная память 16Gb Kingston Fury Beast KF432C16BB1/16WP",
+    "b": "Оперативная память Kingston FURY Beast EXPO DDR5 16GB 6000MT/s, White (KF560C36BWE2-16)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Наушники JBL Tune 720BT - Purple (JBLT720BTPUR)",
+    "b": "Наушники JBL Tune 720BT JBLT720BTBLU Blue",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Мышь Genius NX-7015, Chocolate, USB",
+    "b": "Мышь беспроводная Genius NX-7015 беспроводной, оптическая, 10 × 5,8 × 3,9 см Genius",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Смартфон TECNO CAMON 50 Ultra 5G 8 ГБ/256 ГБ 256 ГБ, 6.78’’, 8 Гб, Black, 256 ГБ Tecno, CAMON",
+    "b": "Смартфон Tecno Camon 50 Ultra 5G, 8 GB, 256 GB, Nebula Titanium (CN7C)",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "Оперативная память 16GB NOMAD NMD5600D5U46-16GB",
+    "b": "Оперативная память NOMAD RGB NMD5600D5U46-16GBRGBW DDR5 16GB 5600MHz - White (NMD5600D5U46-16GBRGBW)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Маршрутизатор TP-Link Archer AX20",
+    "b": "Маршрутизатор TP-Link Archer AX20(EU) (Archer AX20(EU))",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Смартфон TECNO CAMON 50 8 ГБ/256 ГБ 256 ГБ, 6.78’’, 8 Гб, серебристый Tecno, CAMON",
+    "b": "Смартфон Tecno Camon 50, 8 GB, 256 GB, Nebula Titanium (CN5)",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Процессор Intel Core Ultra 5 245KF TRAY (AT8076806414)",
+    "b": "Процессор Intel Core Ultra 5 245KF, LGA1851, OEM",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Наушники JBL Tune 720BT - Purple (JBLT720BTPUR)",
+    "b": "Наушники JBL Tune 720BT JBLT720BTBLK Black",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Материнская плата ASRock B760M PRO RS/D4",
+    "b": "Материнская плата ASRock B760M Pro RS/D4 WiFi (90-MXBKZ0-A0UAYZ)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "DDR-4 DIMM 8GB/3200MHz AMD Radeon R9 Gamer, BOX (R948G3206U2S-U)",
+    "b": "Оперативная память 8 GB AMD R9 Gamers Series R948G3206U2S-U",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Видеокарта 2 GB Afox R5 220 AFR5220-2048D3L5",
+    "b": "Видеокарта Afox Radeon R5 220 (AFR5220-2048D3L5) [2 ГБ, GDDR3, 64 бит, 650 МГц, VGA, DVI, HDMI] [AFR5220-2048D3L5]",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "SSD накопитель SATA  256 GB Patriot P210 P210S256G25",
+    "b": "Твердотельный накопитель SSD 2.5\" SATA III Patriot  256GB P210 530/460 P210S256G25 (P210S256G25)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Bluetooth гарнитура Defender CyberDots 290, White",
+    "b": "Наушники Defender CyberDots 290 белый",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Компьютерный корпус Zalman P30 AIR Black без Б/П",
+    "b": "Корпус Zalman P30 AIR, Black",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Оперативная память Kingston 16GB 3600MT/s DDR4 CL17 DIMM (Kit of 2) FURY Beast Black, EAN: 740617319781 (KF436C17BBK2/16)",
+    "b": "Оперативная память Kingston FURY Beast Black EXPO KF560C30BBE-16",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Оперативная память 16GB DDR5 4800MHz NOMAD UDIMM NMD4800D5U40-16GB Bulk Pack FULL совместимость! (NMD4800D5U40-16GB)",
+    "b": "Оперативная память 16GB NOMAD NMD4800D5U40-16GB",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "SO-DIMM 16GB DDR4 PC19200/2400MHz GeiL, OEM",
+    "b": "Оперативная память 16GB GEIL 3200MHz DDR4 PC4-24600 Bulk Pack (GN416GB3200C22S)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Видеокарта 2 GB Afox GT 710 (AF710-2048D3L5-V3)",
+    "b": "Видеокарта Afox GT 710 V3, 2 GB, GeForce GT 710",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "ОЗУ Kingston Fury Beast RGB 8Gb 5600MHz DDR5 DIMM, CL40, 1.25v,  KF556C40BBA-8",
+    "b": "Оперативная память Kingston FURY Beast Black XMP 8GB DDR5 5600MHz (KF556C40BB-8)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Ноутбук Tecno MEGABOOK K16S 16\" FHD i3-1315U 8GB 512GB Win 11 Tecno MEGABOOK K16S",
+    "b": "Ноутбук Tecno Megabook K16SAA 512GB 8GB",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "Зарядное устройство SVC NUC-08-100 W, универсальное, 100 W",
+    "b": "Зарядное устройство SVC NUC-08-100W 100 Вт, 220 В, 5 В/2 A SVC",
+    "strata": [
+      "new_merges"
+    ]
+  },
+  {
+    "a": "SSD накопитель 500Gb Netac NV3000 NT01NV3000-500-E4X",
+    "b": "Твердотельный накопитель SSD 500Gb, M.2 2280, Netac NV3000, NVMe, PCIe 3x4, 3100R/2100W (NT01NV3000-500-E4X)",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "SSD накопитель 1TB Transcend TS1TMTE245S",
+    "b": "Твердотельный накопитель SSD 1TB Transcend (TS1TMTE245S)",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Монитор 27\" PHILIPS 27E1N1200A/01/00",
+    "b": "Монитор 27\" Philips 27E1N1200A/01, Black",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Гарнитура Razer Hammerhead True Wireless Pro (RZ12-03440100-R3G1)",
+    "b": "Наушники Razer Hammerhead True Wireless Pro RZ12-03440100-R3G1 черные",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Смартфон TECNO CAMON 50 8 ГБ/256 ГБ 256 ГБ, 6.78’’, 8 Гб, темно-зеленый Tecno, CAMON",
+    "b": "Смартфон Tecno Camon 50, 12 GB, 256 GB, Moonshadow Black (CN5)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Bluetooth гарнитура Defender FreeMotion B640, Black",
+    "b": "Наушники беспроводные Defender FreeMotion B640 105 дБ Defender",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Процессор AMD Ryzen 9 9950X3D2 OEM",
+    "b": "Процессор CPU AM5 AMD Ryzen 9 9950X3D2 OEM",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Смартфон Tecno Spark 8P 4/128GB Tahiti gold",
+    "b": "Смартфон Tecno Spark 8P, 128GB, Turquoise Cyan (KG7n)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Jabra Evolve2 65, Link380a MS Stereo Stand Black (26599-999-989)",
+    "b": "Наушники Jabra Evolve2 65 Link380a MS Mono 26599-899-999 Black",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Artel 43AU20H-KZ 109 см черный",
+    "b": "Телевизор Artel 43\" 43AU20H LED Full HD Black",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "ТВ Станция Бейсик Яндекс YNDX-00077 с Алисой на YaGPT 65\"",
+    "b": "Телевизор Яндекс Бейсик с Алисой 65\" YNDX-00077 LED 4K UHD Black",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Материнская плата ASRock B760M Pro RS/D4, LGA1700",
+    "b": "Материнская плата ASRock B760M Pro RS/D4, LGA1700  (90-MXBKL0-A0UAYZ)",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Процессор Intel Core i5 14400 (SRN46-OEM)",
+    "b": "Процессор Intel Core i5-14400",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "AFOX GT 240 (AF240-1024D3L2-V3) 1 Гб",
+    "b": "Видеокарта Afox GT 240 V3, 1 GB, GeForce GT 240",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Комплект модулей памяти Kingston FURY Beast KF432C16BBK2/16 DDR4 16GB (Kit 2x8GB) 3200MHz (KF432C16BBK2/16)",
+    "b": "Оперативная память Kingston FURY Beast Black EXPO KF560C30BBE-16",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Кулер DeepCool Ice Edge Mini FS v2.0 (LGA1700)",
+    "b": "Кулер для процессора Deepcool Ice Edge Mini FS v2.0 алюминий, медь, 2200 об/мин, 10,5 × 11 × 6,5 см Deepcool",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Планшет Oscal Pad 9 10.1\" 4/128Gb Sierra Blue",
+    "b": "Планшет Oscal Pad 9, 10.1\", 4 GB, 128 GB, WiFi+4G, Titanium Grey",
+    "strata": [
+      "dropped_mixed"
+    ]
+  },
+  {
+    "a": "Смартфон Camon 50 (CN5) 256 ГБ, 6.78’’, 12 Гб, зеленый Tecno",
+    "b": "Смартфон Tecno Camon 50, 8 GB, 256 GB, Nebula Titanium (CN5)",
+    "strata": [
+      "dropped_both_k2"
+    ]
+  },
+  {
+    "a": "Маршрутизатор TP-Link Archer VR600 802.11a: до 54 Мбит/с, 802.11ac: до 867 Мбит/с, 802.11n: до 300 Мбит/с TP-Link",
+    "b": "Модем TP-Link Archer VR600",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Процессор AMD Ryzen 7 7700X OEM",
+    "b": "Процессор AMD Ryzen 7 7700X Ryzen 7, 4.5 ГГц AMD",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "a": "Apple EarPods проводные наушники (USB-C)",
+    "b": "Наушники APPLE EarPods with USB-C (MYQY3ZM/A)",
+    "strata": [
+      "retained"
+    ]
+  },
+  {
+    "a": "Процессор CPU S-1851 Intel Core Ultra 7 270K Plus OEM",
+    "b": "Процессор Intel Core Ultra 7 270K Plus (AT807683B9B4884)",
+    "strata": [
+      "new_merges"
+    ]
+  }
+]

@@ -1,0 +1,134 @@
+{
+  "total_titles": 1107,
+  "processed_titles": 1107,
+  "with_k2_key": 409,
+  "no_identity_titles": 16,
+  "incomplete_titles": 682,
+  "failed_titles": 480,
+  "missing_titles": 202,
+  "api_calls": 56,
+  "api_failures": 24,
+  "seconds": 1507.2,
+  "dry_run": false,
+  "run": {
+    "run_id": "c3-rules",
+    "baseline_created_at": "2026-10-30T18:28:38Z",
+    "baseline_titles": 20133,
+    "actual_k2_keys": 18867,
+    "actual_legacy_keys": 682,
+    "actual_no_key": 584,
+    "cumulative": {
+      "api_calls": 56,
+      "api_failures": 24,
+      "failed_titles": 480,
+      "missing_titles": 202,
+      "seconds": 1492.0,
+      "api_started": 56,
+      "api_unfinished": 0
+    }
+  },
+  "verified_pairs": {
+    "version": 4,
+    "pairs": 210,
+    "absent_in_db": 2,
+    "undecided": 13,
+    "same_found": 101,
+    "same_lost": 54,
+    "different_kept_apart": 38,
+    "false_merges": [
+      {
+        "a": "AMD Ryzen 3 4100 BOX",
+        "b": "Процессор AMD Ryzen 3 4100, AM4, OEM - с кулером",
+        "key": "k2:amd:ryzen34100.box"
+      },
+      {
+        "a": "AMD Ryzen 5 5500GT BOX",
+        "b": "Процессор AMD Ryzen 5 5500GT, AM4, with Wraith Stealth Cooler, OEM (100-000001489)",
+        "key": "k2:amd:ryzen55500gt.box"
+      }
+    ],
+    "recall": 0.6516
+  },
+  "pairs_comparison": {
+    "unit": "пары названий с предложениями хотя бы в двух разных магазинах",
+    "valid": true,
+    "old_pairs_count": 1970,
+    "new_pairs_count": 3284,
+    "retained_pairs_count": 1004,
+    "retention_rate": 0.5096,
+    "dropped_pairs_count": 966,
+    "added_pairs_count": 2280,
+    "dropped_examples": [
+      {
+        "a": "23.8\" Sanc M2442PH V3 черный",
+        "b": "Монитор Игровой 23,8\" Sanc M2442PH V3 1920x1080 16:9 IPS 200ГЦ (2HDMI+DP) Black",
+        "old_key": "sanc:m2442ph v3:23.8",
+        "new_key_a": "k2:sanc:m2442ph.v3:23.8in",
+        "new_key_b": "sanc:m2442ph v3:23.8"
+      },
+      {
+        "a": "23.8\" Sanc M2442PH белый",
+        "b": "Монитор 23.8\" Sanc M2442PH V3",
+        "old_key": "sanc:m2442ph:23.8",
+        "new_key_a": "k2:sanc:m2442ph:23.8in",
+        "new_key_b": "k2:sanc:m2442ph.v3:23.8in"
+      },
+      {
+        "a": "23.8\" Sanc M2453KJ черный",
+        "b": "Монитор 23.8\" Sanc M2453KJ V3, Black",
+        "old_key": "sanc:m2453kj:23.8",
+        "new_key_a": "k2:sanc:m2453kj:23.8in",
+        "new_key_b": "k2:sanc:m2453kj.v3:23.8in"
+      },
+      {
+        "a": "23.8\" XTREON XT24N1 черный",
+        "b": "Монитор XTREON XT24N1 23.8 QHD/IPS/1ms/180Hz",
+        "old_key": "xtreon:xt24n1:23.8",
+        "new_key_a": "k2:xtreon:xt24n1:23.8in",
+        "new_key_b": "k2:xtreon:xt24n1"
+      },
+      {
+        "a": "24.5\" Philips 25M2N3200W (00/01) черный",
+        "b": "Монитор 24,5\" PHILIPS 25M2N3200W 1920x1080 16:9 VA 240ГЦ (2HDMI+DP) Black",
+        "old_key": "philips:25m2n3200w:24.5",
+        "new_key_a": "k2:philips:25m2n3200w:24.5in",
+        "new_key_b": "philips:25m2n3200w:24.5"
+      },
+      {
+        "a": "24.5\" Philips 25M2N3200W (00/01) черный",
+        "b": "Монитор 24.5\" Philips 25M2N3200W/01, Black",
+        "old_key": "philips:25m2n3200w:24.5",
+        "new_key_a": "k2:philips:25m2n3200w:24.5in",
+        "new_key_b": "k2:philips:25m2n3200w01:24.5in"
+      },
+      {
+        "a": "24.5\" XTREON XT2563VH черный",
+        "b": "Монитор XTREON XT2563VH 24.5 FHD/IPS/1ms/320Hz",
+        "old_key": "xtreon:xt2563vh:24.5",
+        "new_key_a": "k2:xtreon:xt2563vh:24.5in",
+        "new_key_b": "k2:xtreon:xt2563vh"
+      },
+      {
+        "a": "27\" NEO SO27FIW14NB черный",
+        "b": "Монитор 27'' Neo SO27FIW14NB 1920×1080 16:9 IPS 144ГЦ (HDMI+VGA) Black",
+        "old_key": "neo:so27fiw14nb:27",
+        "new_key_a": "k2:neo:so27fiw14nb",
+        "new_key_b": "neo:so27fiw14nb:27"
+      },
+      {
+        "a": "27\" Philips 27M2N3501PA/01 белый",
+        "b": "Монитор PHILIPS 27M2N3501PA/01",
+        "old_key": "philips:27m2n3501pa:27",
+        "new_key_a": "k2:philips:27m2n3501",
+        "new_key_b": "k2:philips:27m2n3501pa"
+      },
+      {
+        "a": "27\" Sanc M2753FKG черный",
+        "b": "Монитор Игровой 27\" Sanc M2753FKG 1920x1080 16:9 IPS 120ГЦ (HDMI+VGA) Black",
+        "old_key": "sanc:m2753fkg:27",
+        "new_key_a": "k2:sanc:m2753fkg:27in",
+        "new_key_b": "sanc:m2753fkg:27"
+      }
+    ]
+  }
+}

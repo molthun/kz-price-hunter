@@ -98,6 +98,8 @@ def pair_keys(data):
         keys[(p["a"], p["b"])] = (p["old"], p["old"], p["new_a"], p["new_b"])
     for p in data["added"]:
         keys[(p["a"], p["b"])] = (p["old_a"], p["old_b"], p["new"], p["new"])
+    for p in data.get("retained", []):
+        keys[(p["a"], p["b"])] = (p["old"], p["old"], p["new"], p["new"])
     return keys
 
 
