@@ -1,0 +1,1133 @@
+{
+ "labels": {
+  "pairs": 459,
+  "without_keys": 0,
+  "by_label": {
+   "same": 326,
+   "different": 69,
+   "uncertain": 24,
+   "packaging": 40
+  },
+  "unique_titles": 638
+ },
+ "strata_sizes": {
+  "retained": 899,
+  "dropped_mixed": 660,
+  "dropped_both_k2": 411,
+  "added": 2695
+ },
+ "random_sample": {
+  "pairs": 272,
+  "baseline": {
+   "tp": 114,
+   "fn": 73,
+   "fp": 49,
+   "tn": 22,
+   "uncertain": 14,
+   "packaging": 0
+  },
+  "candidate": {
+   "tp": 118,
+   "fn": 69,
+   "fp": 29,
+   "tn": 42,
+   "uncertain": 14,
+   "packaging": 0
+  }
+ },
+ "weighted": {
+  "owner_decision": {
+   "share_true_by_stratum": {
+    "retained": {
+     "n": 45,
+     "of": 52,
+     "rate": 0.8654,
+     "low": 0.7473,
+     "high": 0.9332,
+     "excluded": 0
+    },
+    "dropped_mixed": {
+     "n": 27,
+     "of": 57,
+     "rate": 0.4737,
+     "low": 0.3499,
+     "high": 0.6008,
+     "excluded": 3
+    },
+    "dropped_both_k2": {
+     "n": 42,
+     "of": 54,
+     "rate": 0.7778,
+     "low": 0.6506,
+     "high": 0.868,
+     "excluded": 6
+    },
+    "added": {
+     "n": 73,
+     "of": 95,
+     "rate": 0.7684,
+     "low": 0.6742,
+     "high": 0.8418,
+     "excluded": 5
+    }
+   },
+   "baseline": {
+    "true": 1410,
+    "false": 560
+   },
+   "candidate": {
+    "true": 2849,
+    "false": 745
+   },
+   "baseline_true_kept": 0.552,
+   "candidate_vs_baseline_true": 2.02,
+   "candidate_vs_baseline_true_low": 1.563,
+   "false_merges_ratio": 1.331,
+   "false_merges_ratio_high": 2.926
+  },
+  "packaging_excluded": {
+   "share_true_by_stratum": {
+    "retained": {
+     "n": 45,
+     "of": 45,
+     "rate": 1.0,
+     "low": 0.9213,
+     "high": 1.0,
+     "excluded": 7
+    },
+    "dropped_mixed": {
+     "n": 27,
+     "of": 57,
+     "rate": 0.4737,
+     "low": 0.3499,
+     "high": 0.6008,
+     "excluded": 3
+    },
+    "dropped_both_k2": {
+     "n": 42,
+     "of": 54,
+     "rate": 0.7778,
+     "low": 0.6506,
+     "high": 0.868,
+     "excluded": 6
+    },
+    "added": {
+     "n": 73,
+     "of": 87,
+     "rate": 0.8391,
+     "low": 0.7478,
+     "high": 0.9017,
+     "excluded": 13
+    }
+   },
+   "baseline": {
+    "true": 1531,
+    "false": 439
+   },
+   "candidate": {
+    "true": 3160,
+    "false": 434
+   },
+   "baseline_true_kept": 0.587,
+   "candidate_vs_baseline_true": 2.064,
+   "candidate_vs_baseline_true_low": 1.721,
+   "false_merges_ratio": 0.988,
+   "false_merges_ratio_high": 2.362
+  },
+  "packaging_same": {
+   "share_true_by_stratum": {
+    "retained": {
+     "n": 52,
+     "of": 52,
+     "rate": 1.0,
+     "low": 0.9312,
+     "high": 1.0,
+     "excluded": 0
+    },
+    "dropped_mixed": {
+     "n": 27,
+     "of": 57,
+     "rate": 0.4737,
+     "low": 0.3499,
+     "high": 0.6008,
+     "excluded": 3
+    },
+    "dropped_both_k2": {
+     "n": 42,
+     "of": 54,
+     "rate": 0.7778,
+     "low": 0.6506,
+     "high": 0.868,
+     "excluded": 6
+    },
+    "added": {
+     "n": 81,
+     "of": 95,
+     "rate": 0.8526,
+     "low": 0.7677,
+     "high": 0.9101,
+     "excluded": 5
+    }
+   },
+   "baseline": {
+    "true": 1531,
+    "false": 439
+   },
+   "candidate": {
+    "true": 3197,
+    "false": 397
+   },
+   "baseline_true_kept": 0.587,
+   "candidate_vs_baseline_true": 2.088,
+   "candidate_vs_baseline_true_low": 1.759,
+   "false_merges_ratio": 0.906,
+   "false_merges_ratio_high": 2.165
+  },
+  "packaging_different": {
+   "share_true_by_stratum": {
+    "retained": {
+     "n": 45,
+     "of": 52,
+     "rate": 0.8654,
+     "low": 0.7473,
+     "high": 0.9332,
+     "excluded": 0
+    },
+    "dropped_mixed": {
+     "n": 27,
+     "of": 57,
+     "rate": 0.4737,
+     "low": 0.3499,
+     "high": 0.6008,
+     "excluded": 3
+    },
+    "dropped_both_k2": {
+     "n": 42,
+     "of": 54,
+     "rate": 0.7778,
+     "low": 0.6506,
+     "high": 0.868,
+     "excluded": 6
+    },
+    "added": {
+     "n": 73,
+     "of": 95,
+     "rate": 0.7684,
+     "low": 0.6742,
+     "high": 0.8418,
+     "excluded": 5
+    }
+   },
+   "baseline": {
+    "true": 1410,
+    "false": 560
+   },
+   "candidate": {
+    "true": 2849,
+    "false": 745
+   },
+   "baseline_true_kept": 0.552,
+   "candidate_vs_baseline_true": 2.02,
+   "candidate_vs_baseline_true_low": 1.563,
+   "false_merges_ratio": 1.331,
+   "false_merges_ratio_high": 2.926
+  }
+ },
+ "candidate_false_merges": [
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-0.5M/O, UTP, 0.5m, Orange",
+   "b": "Патч-корд Cablexpert PP12 1 м Cablexpert",
+   "key": "k2:cablexpert:pp12",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Смарт-часы GARMIN Fenix 8 47mm ,AMOLED, сапфир, светлый титан 010-02904-40",
+   "b": "Смарт-часы Garmin Fenix 8 010-02903-00 43mm Silver with Whitestone Silicone band",
+   "key": "k2:garmin:fenix8",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Процессор AMD Ryzen 3 4100, AM4, OEM (100-000000510)",
+   "b": "Процессор AMD Ryzen 3 4100, BOX",
+   "key": "k2:amd:ryzen34100",
+   "strata": [
+    "retained"
+   ]
+  },
+  {
+   "a": "ASRock B850M-X WIFI R2.0",
+   "b": "Материнская плата ASRock B850M-X R2.0, AM5",
+   "key": "k2:asrock:b850mx",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Intel Core i7 CORE I7-14700KF WOF",
+   "b": "Процессор CPU S-1700 Intel Core i7-14700KF OEM",
+   "key": "k2:intel:corei714700kf",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Intel Core Ultra 7 265KF BOX",
+   "b": "Процессор Intel Сore Ultra 7 265KF oem (265KF oem)",
+   "key": "k2:intel:coreultra7265kf",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Беспроводная гарнитура Jabra Evolve2 85, Link380c UC Stereo Black (28599-989-899)  (28599-999-989)",
+   "b": "Гарнитура Jabra Evolve2 85 Link380a MS Stereo Stand Black",
+   "key": "k2:jabra:evolve285",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Процессор AMD Ryzen 3 4100, AM4, BOX (100-100000510BOX)",
+   "b": "Процессор AMD Ryzen 3 4100, AM4, OEM",
+   "key": "k2:amd:ryzen34100",
+   "strata": [
+    "retained"
+   ]
+  },
+  {
+   "a": "Процессор AMD Ryzen 3 4100, AM4, OEM (100-000000510)",
+   "b": "Процессор AMD Ryzen 3 4100, AM4, OEM - с кулером",
+   "key": "k2:amd:ryzen34100",
+   "strata": [
+    "retained"
+   ]
+  },
+  {
+   "a": "AMD Ryzen 7 7700X BOX",
+   "b": "Процессор CPU AM5 AMD Ryzen 7 7700X OEM",
+   "key": "k2:amd:ryzen77700x",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Сетевой фильтр Defender ES Largo, 5 розеток, 5м, Black",
+   "b": "Фильтр сетевой Defender ES Largo 1.8 м, пластик Defender",
+   "key": "k2:defender:eslargo",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Процессор AMD Ryzen 5 7600 BOX",
+   "b": "Процессор AMD Ryzen 5 7600, AM5, OEM (100-000001015)",
+   "key": "k2:amd:ryzen57600",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-3M/V, UTP, 3m, Violet",
+   "b": "Патч-корд Cablexpert PP12 15 м Cablexpert",
+   "key": "k2:cablexpert:pp12",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Процессор AMD Ryzen 3 4100, AM4, BOX (100-100000510BOX)",
+   "b": "Процессор AMD Ryzen 3 4100, AM4, OEM - с кулером",
+   "key": "k2:amd:ryzen34100",
+   "strata": [
+    "retained"
+   ]
+  },
+  {
+   "a": "Процессор AMD Ryzen 5 7600X AM5, BOX (100-100000593WOF)",
+   "b": "Процессор CPU AM5 AMD Ryzen 5 7600X OEM",
+   "key": "k2:amd:ryzen57600x",
+   "strata": [
+    "retained"
+   ]
+  },
+  {
+   "a": "Смарт-часы GARMIN Fenix 8 51mm, AMOLED, сапфир, темный силикон 010-02905-21",
+   "b": "Смарт-часы Garmin Fenix 8 010-02903-11 43mm Sapphire Soft Gold with Fog Gray/Dark Sandstone",
+   "key": "k2:garmin:fenix8",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Смарт-часы GARMIN Fenix 8 47mm ,AMOLED, сапфир, светлый титан 010-02904-40",
+   "b": "Смарт-часы Garmin Fenix 8 010-02903-11 43mm Sapphire Soft Gold with Fog Gray/Dark Sandstone",
+   "key": "k2:garmin:fenix8",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Процессор AMD Ryzen 5 5500GT, AM4, OEM",
+   "b": "Процессор AMD Ryzen 5 5500GT, AM4, with Wraith Stealth Cooler, OEM (100-000001489)",
+   "key": "k2:amd:ryzen55500gt",
+   "strata": [
+    "retained"
+   ]
+  },
+  {
+   "a": "Гарнитура Jabra Evolve2 85 Link380a MS Stereo Black",
+   "b": "Гарнитура Jabra Evolve2 85 Link380a UC Stereo Black (28599-989-999)",
+   "key": "k2:jabra:evolve285",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "DDR-4 DIMM 16 GB 3200 MHz Netac Basic, BOX (NTBSD4P32SP-16)",
+   "b": "Оперативная память 16Gb Netac Basic NTBSD5P56SP-16",
+   "key": "k2:netac:basic:16gb",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Игровая приставка Sony PlayStation 5 Белый +Геймпад + FIFA 23 +MK 11 ULT +UFC 4 +GTA V В цифровых версиях",
+   "b": "Пульт для Sony PlayStation 5, White",
+   "key": "k2:sony:playstation5",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Гарнитура Jabra Evolve2 65 Flex Link380a MS Stereo (26699-999-999)",
+   "b": "Наушники Jabra Evolve2 65 26599-999-899",
+   "key": "k2:jabra:evolve265",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Intel Core i3 13100 BOX",
+   "b": "Процессор CPU S-1700 Intel Core i3 13100 OEM",
+   "key": "k2:intel:corei313100",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Intel Core i5 I5-14500 WOF",
+   "b": "Процессор Intel Core i5 14500, LGA1700, OEM (i5-14500)",
+   "key": "k2:intel:corei514500",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Гарнитура JABRA Evolve2 55 Link380c MS Stereo Stand 25599-999-889 Black",
+   "b": "Гарнитура Jabra Evolve2 55 Link380a MS Stereo",
+   "key": "k2:jabra:evolve255",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Процессор AMD Ryzen 5 7600X AM5, BOX (100-100000593WOF)",
+   "b": "Процессор AMD Ryzen 5 7600X, AM5, OEM",
+   "key": "k2:amd:ryzen57600x",
+   "strata": [
+    "retained"
+   ]
+  },
+  {
+   "a": "AMD Ryzen 9 7900X BOX",
+   "b": "Процессор AMD Ryzen 9 7900X OEM",
+   "key": "k2:amd:ryzen97900x",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "AMD Ryzen 7 7700 BOX",
+   "b": "Процессор AMD Ryzen 7 7700, AM5, OEM",
+   "key": "k2:amd:ryzen77700",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Гарнитура Jabra Evolve2 55 Link380a MS Stereo",
+   "b": "Наушники Jabra Evolve2 55 Link380c MS Stereo Stand черный",
+   "key": "k2:jabra:evolve255",
+   "strata": [
+    "added"
+   ]
+  }
+ ],
+ "candidate_lost_true_pairs": [
+  {
+   "a": "Смартфон TECNO SPARK 50 Pro 8 ГБ/256 ГБ 256 ГБ, 6.78’’, 8 Гб, оранжевый Tecno, SPARK",
+   "b": "Смартфон Tecno Spark 50 Pro, 8 GB, 256 GB, Titanium Grey (KO5)",
+   "new_a": "k2:tecno:spark50pro:256gb+6.78in+8gb",
+   "new_b": "k2:tecno:spark50pro:256gb+8gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Оперативная память Transcend JM6400ALE-16G",
+   "b": "Память оперативная Transcend JM6400ALE-16G 16GB DDR5 (JM6400ALE-16G)",
+   "new_a": "k2:transcend:jm6400ale16g",
+   "new_b": "transcend:jm6400ale:16gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Телевизор Dreame 50Q100, 50\"",
+   "b": "Телевизор Dreame Vivid 50\" 50Q100 QLED 4K UHD Black",
+   "new_a": "k2:dreame:50q100",
+   "new_b": "k2:dreame:vivid50q100",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-3M/B, UTP, 3m, Blue",
+   "b": "Патч-корд Cablexpert PP12 3 м Cablexpert",
+   "new_a": "k2:cablexpert:pp123mb",
+   "new_b": "k2:cablexpert:pp12",
+   "strata": [
+    "dropped_both_k2",
+    "old_set"
+   ]
+  },
+  {
+   "a": "SSD накопитель 512GB Apacer AS2280P4 AP512GAS2280P4-1",
+   "b": "Твердотельный накопитель SSD 512 Gb M.2 PCIe Apacer AS2280P4  AP512GAS2280P4-1 (AP512GAS2280P4-1)",
+   "new_a": "k2:apacer:as2280p4:512gb",
+   "new_b": "apacer:as2280p4:512gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Комплект модулей памяти KF560C30BBEK2-32 2 × 16 ГБ, U-DIMM, 2 шт., 6000 МГц, DDR5 Kingston Technology, Fury Beast",
+   "b": "Оперативная память 32 GB kit Kingston Fury Beast KF560C30BBEK2-32",
+   "new_a": "kingston:kf560c30bbek2-32:32gb",
+   "new_b": "k2:kingston:furybeastkf560c30bbek2:32gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Монитор PHILIPS 27E2N2500/01",
+   "b": "Монитор Игровой 27\" PHILIPS 27E2N2500 2560x1440 16:9 IPS 120Гц (HDMI+DP) Black",
+   "new_a": "k2:philips:27e2n250001",
+   "new_b": "philips:27e2n2500:27",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "ASRock A520M-HVS",
+   "b": "Материнская плата ASRock A520M-HVS",
+   "new_a": "k2:asrock:a520m",
+   "new_b": "k2:asrock:a520mhvs",
+   "strata": [
+    "dropped_both_k2",
+    "old_set"
+   ]
+  },
+  {
+   "a": "Телевизор Dreame 65S100, 65\"",
+   "b": "Телевизор Dreame Aura 65\" 65S100 QLED 4K UHD Black",
+   "new_a": "k2:dreame:65s100",
+   "new_b": "k2:dreame:aura65s100",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "SSD накопитель 480Gb Kingston DC2000B SEDC2000BM8/480G",
+   "b": "Твердотельный накопитель SSD Kingston DC2000B 480GB M.2 (SEDC2000BM8/480G)",
+   "new_a": "k2:kingston:dc2000b:480gb",
+   "new_b": "kingston:dc2000b:480gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "ASRock B760 Pro RS/D4",
+   "b": "Материнская плата ASRock B760 PRO RS/D4",
+   "new_a": "k2:asrock:b760prors",
+   "new_b": "k2:asrock:b760",
+   "strata": [
+    "dropped_both_k2",
+    "old_set"
+   ]
+  },
+  {
+   "a": "Hisense 50E7Q 127 см черный",
+   "b": "Телевизор Hisense 50\" 50E7Q RU",
+   "new_a": "k2:hisense:50e7q",
+   "new_b": "k2:hisense:e7q:50in",
+   "strata": [
+    "dropped_both_k2",
+    "old_set"
+   ]
+  },
+  {
+   "a": "Карта памяти Canvas Select Plus A1 U1 V10 128 ГБ Kingston Technology",
+   "b": "Карта памяти Micro SDXC 128GB Kingston Canvas Select Plus, Class 10 UHS-I U1, адаптер",
+   "new_a": "k2:kingston:canvasselectplusa1u1v10:128gb",
+   "new_b": "k2:kingston:canvasselectplus:128gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Оперативная память 16GB NOMAD NMD5600D5U46-16GBRGB",
+   "b": "Оперативная память NOMAD RGB NMD5600D5U46-16GBRGBW DDR5 16GB 5600MHz - White (NMD5600D5U46-16GBRGBW)",
+   "new_a": "k2:nomad:nmd5600d5u46:16gb",
+   "new_b": "nomad:nmd5600d5u46:16gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Смартфон Tecno Pova 2 4/64GB Energy Blue",
+   "b": "Смартфон Tecno Pova 2, 64 GB, Energy Blue (LE7n)",
+   "new_a": "k2:tecno:pova2:4gb+64gb",
+   "new_b": "k2:tecno:pova2:64gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Телевизор Dreame QLED FHD Smart TV 32Q10 32\" (32Q10)",
+   "b": "Телевизор Dreame Smart 32\" 32Q10 QLED Full HD Black",
+   "new_a": "k2:dreame:qledfhdsmarttv32q10",
+   "new_b": "k2:dreame:32q10",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-7.5M/B, UTP, 7.5m, Blue",
+   "b": "Патч-корд Cablexpert PP12 7.5 м Cablexpert",
+   "new_a": "k2:cablexpert:pp127.5mb",
+   "new_b": "k2:cablexpert:pp12",
+   "strata": [
+    "dropped_both_k2",
+    "old_set"
+   ]
+  },
+  {
+   "a": "Видеокарта MaxSun MS-GTX1050Ti TF 4G (MS-GTX1050Ti TF 4G)",
+   "b": "Видеокарта Maxsun MS-GTX1050Ti TF 4G [4 ГБ, GDDR5, 128 бит, DVI, HDMI, DisplayPort]",
+   "new_a": "k2:maxsun:gtx1050ti:4gb",
+   "new_b": "maxsun:gtx1050ti:4gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Гарнитура Razer Barracuda - Quartz RZ04-03790300-R3M1",
+   "b": "Наушники Razer Barracuda Quartz RZ04-03790300-R3M1 розовый",
+   "new_a": "k2:razer:barracuda",
+   "new_b": "k2:razer:barracudaquartz",
+   "strata": [
+    "dropped_both_k2",
+    "old_set"
+   ]
+  },
+  {
+   "a": "Планшет Oscal Pad 30 Wi-Fi 10.1\" 4/128Gb Gray",
+   "b": "Планшет Oscal Pad 30 WiFi, 10.1\", 4 GB, 128 GB, Hazel Green",
+   "new_a": "oscal:pad 30:128gb",
+   "new_b": "k2:oscal:pad30wifi:10.1in+128gb+4gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Комплект оперативной памяти Hiksemi (Hikvision) Future RGB, DDR4 16 GB kit (2x8GB) 3200MHz (HSC416U32C5 8G*2)",
+   "b": "Оперативная память Hiksemi Future HSC416U32F3",
+   "new_a": "hiksemi:future:16gb",
+   "new_b": "k2:hiksemi:future:16gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Монитор 24,5\" PHILIPS 25M2N3200W (00/01)",
+   "b": "Монитор 24,5\" PHILIPS 25M2N3200W 1920x1080 16:9 VA 240ГЦ (2HDMI+DP) Black",
+   "new_a": "k2:philips:25m2n3200w:24.5in",
+   "new_b": "philips:25m2n3200w:24.5",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "SSD накопитель 512GB LEXAR NS100 LNS100-512RB",
+   "b": "Твердотельный накопитель LEXAR NS100 512GB SSD, 2.5”, SATA (6Gb/s) (LNS100-512RB)",
+   "new_a": "k2:lexar:ns100:512gb",
+   "new_b": "k2:lexar:ns100:512gb+6gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-5M/G, UTP, 5m, Green",
+   "b": "Патч-корд Cablexpert PP12 5 м Cablexpert",
+   "new_a": "k2:cablexpert:pp125mg",
+   "new_b": "k2:cablexpert:pp12",
+   "strata": [
+    "dropped_both_k2",
+    "old_set"
+   ]
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-1M/B, UTP, 1m, OEM, Blue",
+   "b": "Патч-корд Cablexpert PP12 1 м Cablexpert",
+   "new_a": "k2:cablexpert:rj455ecat",
+   "new_b": "k2:cablexpert:pp12",
+   "strata": [
+    "dropped_both_k2",
+    "old_set"
+   ]
+  },
+  {
+   "a": "Оперативная память 8Gb Transcend TS3200HLB-8G",
+   "b": "Память оперативная DDR4 Desktop Transcend 8Гб (TS3200HLB-8G)",
+   "new_a": "k2:transcend:ts3200hlb8g:8gb",
+   "new_b": "transcend:ts3200hlb:8gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Оперативная память 8Gb Transcend TS2666HLB-8G",
+   "b": "Память оперативная Desktop Transcend TS2666HLB-8G DDR4 8GB (TS2666HLB-8G)",
+   "new_a": "k2:transcend:ts2666hlb8g:8gb",
+   "new_b": "transcend:ts2666hlb:8gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Intel Core Ultra 5 235 OEM",
+   "b": "Процессор Intel Core Ultra 5 Processor 235 ем",
+   "new_a": "k2:intel:coreultra5235",
+   "new_b": "k2:intel:coreultra5processor235",
+   "strata": [
+    "dropped_both_k2",
+    "old_set"
+   ]
+  },
+  {
+   "a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Blue, 128 ГБ Tecno, SPARK",
+   "b": "Смартфон Tecno Spark 50, 8 GB, 128 GB, Halo Blue (KN4N)",
+   "new_a": "tecno:spark 50:128gb",
+   "new_b": "k2:tecno:spark50:128gb+8gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Монитор 27\" iiyama ProGraphic HB2701UHSNP-B1, Black",
+   "b": "Монитор iiyama ProGraphic HB2701UHSNP-B1 27\"",
+   "new_a": "k2:iiyama:prographichb2701uhsnp:27in",
+   "new_b": "k2:iiyama:prographic:27in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "SSD накопитель 2TB Apacer AP2TBAS2280Q4U-1",
+   "b": "Твердотельный накопитель SSD Apacer AS2280Q4U 2TB (AP2TBAS2280Q4U-1)",
+   "new_a": "k2:apacer:ap2tbas2280q4u1:2tb",
+   "new_b": "apacer:as2280q4u:2tb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Комплект оперативной памяти Kingston Fury Beast Beast White EXPO DDR5 DIMM 32Gb KIT (2x16Gb) 6000MHz (KF560C36BWE2K2-32)",
+   "b": "Оперативная память 32 GB kit Kingston Fury Beast KF560C30BWEK2-32",
+   "new_a": "kingston:fury beast:32gb",
+   "new_b": "k2:kingston:furybeast:32gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Монитор 23.8\" Sanc M2453FXG, Black",
+   "b": "Монитор Игровой 23,8\" Sanc M2453FXG 1920x1080 16:9 IPS 144ГЦ (HDMI+VGA) Black",
+   "new_a": "k2:sanc:m2453fxg:23.8in",
+   "new_b": "sanc:m2453fxg:23.8",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Телевизор Dreame 65S100, 65\"",
+   "b": "Телевизор Dreame Aura Mini LED 4K TV 65S100 65\" (65S100)",
+   "new_a": "k2:dreame:65s100",
+   "new_b": "k2:dreame:auraminiled4ks100:65in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Смартфон Vivo V25E 8/128Gb Sunrise Gold",
+   "b": "Смартфон vivo V25e, 128 GB, Sunrise Gold (V2201)",
+   "new_a": "k2:vivo:v25e:128gb+8gb",
+   "new_b": "k2:vivo:v25e:128gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Монитор 27\" PHILIPS 271V8AW/01/00 IPS",
+   "b": "Монитор 27\" Philips 271V8AW/01, White",
+   "new_a": "k2:philips:271v8aw:27in",
+   "new_b": "k2:philips:271v8aw01:27in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Телевизор HISENSE QLED 50E7S UHD SMART",
+   "b": "Телевизор Hisense QLED 50E7S 50\" (50E7S)",
+   "new_a": "k2:hisense:qled50e7s",
+   "new_b": "k2:hisense:50e7s",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "SSD накопитель 1 TB Corsair MP700 Elite with Heatsink, M.2, PCIe 5.0",
+   "b": "Твердотельный накопитель SSD Corsair MP700 Elite with Heatsink, 1TB M.2 (CSSD-F1000GBMP700EHS)",
+   "new_a": "k2:corsair:mp700elite:1tb",
+   "new_b": "corsair:mp700 elite:1tb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Картридж Europrint EPC-W1106A - Black",
+   "b": "Картридж с чипом EPC-W1106A, цвет черный Europrint",
+   "new_a": "k2:europrint:epcw1106a",
+   "new_b": "europrint:epc-w1106a:black",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "MAXSUN Challenger B450M",
+   "b": "Материнская плата MaxSun Challenger B450M (V0)",
+   "new_a": "k2:maxsun:challengerb450m",
+   "new_b": "k2:maxsun:b450m.v0",
+   "strata": [
+    "dropped_both_k2",
+    "old_set"
+   ]
+  },
+  {
+   "a": "Корпус Ocypus Gamma C52 WH Белый Gamma-C52-WHD000XX-GL",
+   "b": "Корпус Ocypus Gamma C52 WH, White",
+   "new_a": "k2:ocypus:gammac52",
+   "new_b": "k2:ocypus:gammac52wh",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "ASRock A520M-HVS",
+   "b": "Материнская плата ASRock A520M-HVS (90-MXBE60-A0UAYZ)",
+   "new_a": "k2:asrock:a520m",
+   "new_b": "k2:asrock:a520mhvs",
+   "strata": [
+    "dropped_both_k2",
+    "old_set"
+   ]
+  },
+  {
+   "a": "Оперативная память 8Gb Kingston KVR32N22S8/8WP",
+   "b": "Оперативная память Kingston KVR32N22S8/8WP, DDR4 DIMM 8Gb 3200MHz (KVR32N22S8/8WP)",
+   "new_a": "k2:kingston:kvr32n22s88wp:8gb",
+   "new_b": "kingston:kvr32n22s8:8gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "SSD накопитель 240 GB Patriot Burst Elite, 2.5\", SATA III",
+   "b": "Твердотельный накопитель SSD 2.5\" SATA III Patriot  240GB BURST ELITE 450/320 PBE240GS25SSDR (PBE240GS25SSDR)",
+   "new_a": "k2:patriot:burstelite:240gb",
+   "new_b": "patriot:burst elite:240gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Телевизор HISENSE QLED 50E7Q UHD SMART",
+   "b": "Телевизор Hisense 50\" 50E7Q RU",
+   "new_a": "k2:hisense:qled50e7q",
+   "new_b": "k2:hisense:e7q:50in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "OSCAL Pad 30 10.1 дюйм 4 Гб128 Гб зеленый + подарок",
+   "b": "Планшет Oscal Pad 30 WiFi, 10.1\", 4 GB, 128 GB, Hazel Green",
+   "new_a": "oscal:pad 30:128gb",
+   "new_b": "k2:oscal:pad30wifi:10.1in+128gb+4gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "AMD Ryzen 5 8500G OEM",
+   "b": "Процессор AMD Ryzen 5 8500G oem",
+   "new_a": "k2:amd:ryzen5",
+   "new_b": "k2:amd:ryzen58500g",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Монитор 27\" Sanc M2763VTB, Black",
+   "b": "Монитор SANC M2763VTB 27 FHD/VA/1ms/280Hz",
+   "new_a": "k2:sanc:m2763vtb:27in",
+   "new_b": "sanc:m2763vtb:27",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "SSD накопитель 256GB Apacer AS2280P4 AP256GAS2280P4-1",
+   "b": "Твердотельный накопитель  256GB SSD Apacer, M.2 2280, R1800MB/s, W1100MB/s, AP256GAS2280P4-1 (AP256GAS2280P4-1)",
+   "new_a": "k2:apacer:as2280p4:256gb",
+   "new_b": "apacer:as2280p4:256gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-7.5M/Y, UTP, 7.5m, Yellow",
+   "b": "Патч-корд Cablexpert PP12 7.5 м Cablexpert",
+   "new_a": "k2:cablexpert:pp127.5my",
+   "new_b": "k2:cablexpert:pp12",
+   "strata": [
+    "dropped_both_k2",
+    "old_set"
+   ]
+  },
+  {
+   "a": "Yasin LED-43G9 109 см черный",
+   "b": "Телевизор Yasin 43\" 43G9 LED FHD Black",
+   "new_a": "k2:yasin:led43g9",
+   "new_b": "k2:yasin:43g9",
+   "strata": [
+    "dropped_both_k2",
+    "old_set"
+   ]
+  },
+  {
+   "a": "Гарнитура Jabra Biz 1100 USB-A EDU stereo",
+   "b": "Гарнитура Jabra Biz 1100 USB-A EDU stereo (1159-0159-EDU)",
+   "new_a": "k2:jabra:biz1100usbaedu",
+   "new_b": "k2:jabra:biz1100",
+   "strata": [
+    "dropped_both_k2",
+    "old_set"
+   ]
+  },
+  {
+   "a": "27\" XTREON XT2760S MiniLED белый",
+   "b": "Монитор XTREON XT2760S 27 QHD/Mini LED/0,5ms/240-400Hz",
+   "new_a": "k2:xtreon:xt2760s:27in",
+   "new_b": "k2:xtreon:xt2760s",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Телевизор QLED ЯНДЕКС 65 Бейсик YNDX-00081 (4K Smart)",
+   "b": "Яндекс Бейсик QLED + YNDX-00081 165 см черный",
+   "new_a": "k2:yandex:65beysik",
+   "new_b": "k2:yandex:yndx00081:65in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Видеокарта AFOX GTX1050 4GB D5 Dual Fan AF1050-4096D5H4-V2",
+   "b": "Видеокарта Afox GTX1050 4GB D5 Dual Fan (AF1050-4096D5H4-V2) [4 ГБ, GDDR5, 128 бит, DVI, HDMI, DisplayPort]",
+   "new_a": "k2:afox:gtx1050.v2:4gb",
+   "new_b": "afox:gtx1050:4gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Оперативная память Transcend JM5600ALE-32G",
+   "b": "Память оперативная Transcend JM5600ALE-32G 32GB DDR5 (JM5600ALE-32G)",
+   "new_a": "k2:transcend:jm5600ale32g",
+   "new_b": "transcend:jm5600ale:32gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Телевизор MiniLED ЯНДЕКС 65 Про YNDX-00104 (4K Smart)",
+   "b": "Яндекс Про MiniLED YNDX-00104 165 см черный",
+   "new_a": "k2:yandex:yndx00104:65in",
+   "new_b": "k2:yandekspro:yndx00104:65in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "SSD накопитель 4 TB Adata XPG Gammix S70 Blade, M.2, PCIe 4.0",
+   "b": "Твердотельный накопитель SSD ADATA XPG GAMMIX S70 BLADE 4 ТБ M.2 (AGAMMIXS70B-4T-CS)",
+   "new_a": "k2:adata:gammixs70blade:4tb",
+   "new_b": "k2:adata:xpggammixs70blade:4tb",
+   "strata": [
+    "dropped_both_k2",
+    "old_set"
+   ]
+  },
+  {
+   "a": "Телевизор Яндекс YNDX-00105 - Умный телевизор с Алисой 75\"",
+   "b": "Телевизор Яндекс Про 75\" YNDX-00105 MiniLED 4K UHD Black",
+   "new_a": "k2:yandex:yndx00105:75in",
+   "new_b": "k2:yandekspro:yndx00105:75in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Смартфон TECNO SPARK 50 8 ГБ/256 ГБ 256 ГБ, 6.78’’, 8 Гб, Blue, 256 ГБ Tecno, SPARK",
+   "b": "Смартфон Tecno Spark 50, 8 GB, 256 GB, Aurora Purple (KN4N)",
+   "new_a": "k2:tecno:spark50:256gb+6.78in+8gb",
+   "new_b": "k2:tecno:spark50:256gb+8gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "DDR-5 DIMM 64 GB 6000 MHz Kingston Fury Beast RGB, 2x 32 GB Kit, Black, BOX (KF560C36BBEAK2-64)",
+   "b": "Оперативная память 64 GB kit Kingston Fury Beast White KF560C36BBEAK2-64",
+   "new_a": "k2:kingston:furybeastrgb:32gb+64gb",
+   "new_b": "k2:kingston:furybeast:64gb",
+   "strata": [
+    "dropped_both_k2",
+    "old_set"
+   ]
+  },
+  {
+   "a": "Монитор 27\" iiyama ProLite T2752MSC-W1, White",
+   "b": "Монитор жидкокристаллический Iiyama T2752MSC-B1 27'' 16:9 1920х1080(FHD) IPS, nonGLARE, 5ms, HDMI, DP, Black",
+   "new_a": "k2:iiyama:prolitet2752mscw1:27in",
+   "new_b": "k2:iiyama:t2752mscb1:27in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Black, 128 ГБ Tecno, SPARK",
+   "b": "Смартфон Tecno Spark 50, 6 GB, 128 GB, Titanium Grey (KN4N)",
+   "new_a": "k2:tecno:spark50:128gb+6.78in+6gb",
+   "new_b": "k2:tecno:spark50:128gb+6gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "27\" Sanc M2753FVF черный",
+   "b": "Монитор Игровой 27\" Sanc M2753FVF 1920x1080 16:9 IPS 280ГЦ (2HDMI+2DP) Black",
+   "new_a": "k2:sanc:m2753fvf:27in",
+   "new_b": "sanc:m2753fvf:27",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Смартфон Vivo V25E 8/128Gb Diamond Black",
+   "b": "Смартфон vivo V25e, 128 GB, Sunrise Gold (V2201)",
+   "new_a": "k2:vivo:v25e:128gb+8gb",
+   "new_b": "k2:vivo:v25e:128gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Монитор 23,8\" PHILIPS 24M2N3200NF/01 IPS 1920x1080 144Hz 0.5мс 300кд/м 1500:1 HDMI DP Черный",
+   "b": "Монитор 23.8\" Philips Evnia 24M2N3200NF/01, Black",
+   "new_a": "k2:philips:24m2n3200nf01:23.8in",
+   "new_b": "k2:philips:24m2n3200:23.8in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Материнская плата ASRock B650M PG LIGHTNING",
+   "b": "Материнская плата ASRock B650M PG Lightning (90-MXBMV0-A0UAYZ)",
+   "new_a": "k2:asrock:b650m",
+   "new_b": "k2:asrock:b650mpglightning",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "SSD накопитель 240 GB Netac SA500, 2.5\", SATA III",
+   "b": "Твердотельный накопитель SSD Netac NT01SA500-240-S3X 240GB  (NT01SA500-240-S3X)",
+   "new_a": "k2:netac:sa500:240gb",
+   "new_b": "netac:sa500:240gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Моноблок 27\" XG Atlas GL70",
+   "b": "Моноблок barebone Atlas GL70 27\", без процессора XG",
+   "new_a": "k2:xg:atlasgl70:27in",
+   "new_b": "k2:atlas:gl70:27in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  }
+ ],
+ "registry_counts": {
+  "dropped": {
+   "missing_fields_one_side": 660,
+   "missing_fields_both": 0,
+   "variant_one_side": 18,
+   "variant_conflict": 133,
+   "revision_differs": 23,
+   "system_vs_component": 0,
+   "identity_differs_shared_code": 56,
+   "identity_differs_other": 181
+  },
+  "added": {
+   "old_format_only": 155,
+   "old_variant_differs": 1966,
+   "same_identity_new_old_empty": 0,
+   "own_keys_equal_old_identity_differs": 468,
+   "linked_by_article": 106
+  }
+ },
+ "titles": {
+  "k2": 18461,
+  "legacy": 1104,
+  "empty": 568
+ }
+}

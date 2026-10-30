@@ -1,0 +1,7 @@
+PASS independently reproduced seeded samples: 60 / 60 / 100
+PASS 52 retained-pool pairs are valid, but not a random sample of all 899
+PASS independent confusion matrices: [{'fn': 73, 'tp': 114, 'fp': 49, 'tn': 22, 'uncertain': 14}, {'tp': 118, 'fn': 69, 'tn': 42, 'fp': 29, 'uncertain': 14}]
+PASS all five earlier manufacturer-supported label errors are corrected
+PASS independently confirmed 8 clear new false merges; other labels not all re-reviewed
+PASS registry contains exactly all 1071 dropped and 2695 added pairs with one structural cause each
+NOTE auxiliary without_keys= 0 but 2 old_set pairs have no keys; weighted/random strata unaffected

@@ -1,0 +1,101 @@
+{
+  "input_sha256": {
+    "docs/audit_evidence/2026-10-30-c2/stand-data.json": "3782591b53dd1a12566c9338abd15d57fb63c2456abf270a85ba00a5b4aa3de3",
+    "scripts/k2_labeled_sample.json": "a106d122d7b8ed02ec300329879d3e92aea31f332140047e5b7478be62668c26",
+    "scripts/k2_verified_pairs.json": "c2d82c97fc6761c16d2e7270f1fe47cb771af0cf1b178a975a7fbb9ab4aa537b"
+  },
+  "reviewed_false_merges": [
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-0.5M/O, UTP, 0.5m, Orange",
+      "b": "Патч-корд Cablexpert PP12 1 м Cablexpert",
+      "reason": "0.5 m versus 1 m",
+      "label": "different",
+      "candidate_key": "k2:cablexpert:pp12"
+    },
+    {
+      "a": "Смарт-часы GARMIN Fenix 8 47mm ,AMOLED, сапфир, светлый титан 010-02904-40",
+      "b": "Смарт-часы Garmin Fenix 8 010-02903-00 43mm Silver with Whitestone Silicone band",
+      "reason": "47 mm versus 43 mm",
+      "label": "different",
+      "candidate_key": "k2:garmin:fenix8"
+    },
+    {
+      "a": "Сетевой фильтр Defender ES Largo, 5 розеток, 5м, Black",
+      "b": "Фильтр сетевой Defender ES Largo 1.8 м, пластик Defender",
+      "reason": "5 m versus 1.8 m",
+      "label": "different",
+      "candidate_key": "k2:defender:eslargo"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-3M/V, UTP, 3m, Violet",
+      "b": "Патч-корд Cablexpert PP12 15 м Cablexpert",
+      "reason": "3 m versus 15 m",
+      "label": "different",
+      "candidate_key": "k2:cablexpert:pp12"
+    },
+    {
+      "a": "Смарт-часы GARMIN Fenix 8 51mm, AMOLED, сапфир, темный силикон 010-02905-21",
+      "b": "Смарт-часы Garmin Fenix 8 010-02903-11 43mm Sapphire Soft Gold with Fog Gray/Dark Sandstone",
+      "reason": "51 mm versus 43 mm",
+      "label": "different",
+      "candidate_key": "k2:garmin:fenix8"
+    },
+    {
+      "a": "Смарт-часы GARMIN Fenix 8 47mm ,AMOLED, сапфир, светлый титан 010-02904-40",
+      "b": "Смарт-часы Garmin Fenix 8 010-02903-11 43mm Sapphire Soft Gold with Fog Gray/Dark Sandstone",
+      "reason": "47 mm versus 43 mm",
+      "label": "different",
+      "candidate_key": "k2:garmin:fenix8"
+    },
+    {
+      "a": "DDR-4 DIMM 16 GB 3200 MHz Netac Basic, BOX (NTBSD4P32SP-16)",
+      "b": "Оперативная память 16Gb Netac Basic NTBSD5P56SP-16",
+      "reason": "DDR4 versus DDR5 identifiers",
+      "label": "different",
+      "candidate_key": "k2:netac:basic:16gb"
+    },
+    {
+      "a": "Игровая приставка Sony PlayStation 5 Белый +Геймпад + FIFA 23 +MK 11 ULT +UFC 4 +GTA V В цифровых версиях",
+      "b": "Пульт для Sony PlayStation 5, White",
+      "reason": "console bundle versus separate accessory",
+      "label": "different",
+      "candidate_key": "k2:sony:playstation5"
+    }
+  ],
+  "independent_confusion": [
+    {
+      "fn": 73,
+      "tp": 114,
+      "fp": 49,
+      "tn": 22,
+      "uncertain": 14
+    },
+    {
+      "tp": 118,
+      "fn": 69,
+      "tn": 42,
+      "fp": 29,
+      "uncertain": 14
+    }
+  ],
+  "seed_reproduced": true,
+  "retained_full_population_sampled": false,
+  "all_labels_independently_reviewed": false,
+  "absent_old_set_pairs": [
+    {
+      "a": "Kingston NV3 2 TB",
+      "b": "SSD Kingston NV3 2TB",
+      "strata": [
+        "old_set"
+      ]
+    },
+    {
+      "a": "Samsung Galaxy S24 256GB",
+      "b": "Samsung Galaxy S24 Ultra 256GB",
+      "strata": [
+        "old_set"
+      ]
+    }
+  ],
+  "reported_without_keys": 0
+}
