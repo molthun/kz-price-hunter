@@ -1,0 +1,6 @@
+control 1 model True
+control 2 product True
+control 3 product True
+control 4 model False
+PASS 4 control identity matches; alias lookup and matches are real application functions.
+Not checked: complete watched_offers query, delivery, original watch_state notifications.

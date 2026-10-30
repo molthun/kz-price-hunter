@@ -1,0 +1,77 @@
+{
+  "watches": [
+    {
+      "id": 1,
+      "kind": "model",
+      "target": "norm:Смартфоны:смартфон_tecno_camon_12_64gb_dawn_blue_cc7",
+      "city": "Астана",
+      "shops": "[]",
+      "sellers": "[]",
+      "channels": "[]",
+      "item_conditions": "[]"
+    },
+    {
+      "id": 2,
+      "kind": "product",
+      "target": "prod_a97ef4512ed0e504",
+      "city": "Астана",
+      "shops": "[]",
+      "sellers": "[]",
+      "channels": "[]",
+      "item_conditions": "[]"
+    },
+    {
+      "id": 3,
+      "kind": "product",
+      "target": "shopkz_142575@astana",
+      "city": null,
+      "shops": "[]",
+      "sellers": "[]",
+      "channels": "[]",
+      "item_conditions": "[]"
+    },
+    {
+      "id": 4,
+      "kind": "model",
+      "target": "barilla:bavette:450g",
+      "city": null,
+      "shops": "[]",
+      "sellers": "[]",
+      "channels": "[]",
+      "item_conditions": "[]"
+    }
+  ],
+  "offer": {
+    "id": "off_shopkz_142575@astana",
+    "external_sku": "shopkz_142575@astana",
+    "canonical_product_id": "prod_c5721392850c56b6",
+    "canonical_key": "k2:tecno:camon12:64gb"
+  },
+  "aliases": [
+    [
+      "key",
+      "norm:Смартфоны:смартфон_tecno_camon_12_64gb_dawn_blue_cc7",
+      "k2:tecno:camon12:64gb"
+    ],
+    [
+      "key",
+      "norm:Смартфоны:смартфон_tecno_camon_12_64gb_sky_cyan_cc7",
+      "k2:tecno:camon12:64gb"
+    ],
+    [
+      "key",
+      "tecno:camon 12:64gb",
+      "k2:tecno:camon12:64gb"
+    ],
+    [
+      "product",
+      "prod_660721986d16f791",
+      "prod_c5721392850c56b6"
+    ],
+    [
+      "product",
+      "prod_a97ef4512ed0e504",
+      "prod_c5721392850c56b6"
+    ]
+  ]
+}

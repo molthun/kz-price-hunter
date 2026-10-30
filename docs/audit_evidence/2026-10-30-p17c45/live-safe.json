@@ -1,0 +1,16 @@
+{
+  "at": "2026-10-30T15:07:16.259520+00:00",
+  "problems": [],
+  "diag_status": "ok",
+  "version": {
+    "version": "6.7.1",
+    "app_name": "KZ Price Hunter",
+    "release_date": "2026-10-30",
+    "author": "Advanced Agentic Coding"
+  },
+  "flags": {
+    "ai_key_standard": "v1",
+    "local_normalize_enabled": false
+  },
+  "search_configured": false
+}

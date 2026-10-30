@@ -1,0 +1,171 @@
+test_component_and_system_are_separate (__main__.Residuals.test_component_and_system_are_separate) ... FAIL
+test_enqueued_v1_neighbor_can_reach_verification (__main__.Residuals.test_enqueued_v1_neighbor_can_reach_verification) ... FAIL
+test_failed_shadow_is_visible_in_health (__main__.Residuals.test_failed_shadow_is_visible_in_health) ... FAIL
+test_metrics_include_all_rows (__main__.Residuals.test_metrics_include_all_rows) ... FAIL
+test_revision_is_part_of_identity (__main__.Residuals.test_revision_is_part_of_identity) ... FAIL
+test_shadow_discovers_new_cross_group_pair (__main__.Residuals.test_shadow_discovers_new_cross_group_pair) ... FAIL
+test_shadow_preserves_primary_fields (__main__.Residuals.test_shadow_preserves_primary_fields) ... FAIL
+test_unbranded_migration_drops_old_automatic_key (__main__.Residuals.test_unbranded_migration_drops_old_automatic_key) ... FAIL
+test_v1_format_is_not_semantic_mismatch (__main__.Residuals.test_v1_format_is_not_semantic_mismatch) ... FAIL
+
+======================================================================
+FAIL: test_component_and_system_are_separate (__main__.Residuals.test_component_and_system_are_separate)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-30-p17c45/reproduce.py", line 118, in test_component_and_system_are_separate
+    self.assertNotEqual(resolved[p['a']], resolved[p['b']], 'bare processor merged with full computer')
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'k2:amd:ryzen55600gt:512gb+8gb' == 'k2:amd:ryzen55600gt:512gb+8gb' : bare processor merged with full computer
+
+======================================================================
+FAIL: test_enqueued_v1_neighbor_can_reach_verification (__main__.Residuals.test_enqueued_v1_neighbor_can_reach_verification)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-30-p17c45/reproduce.py", line 84, in test_enqueued_v1_neighbor_can_reach_verification
+    self.assertNotEqual(result.get('status'), 'skipped', 'queued neighbor lacks fields; permanently skipped')
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'skipped' == 'skipped' : queued neighbor lacks fields; permanently skipped
+
+======================================================================
+FAIL: test_failed_shadow_is_visible_in_health (__main__.Residuals.test_failed_shadow_is_visible_in_health)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-30-p17c45/reproduce.py", line 92, in test_failed_shadow_is_visible_in_health
+    self.assertEqual(data['total'], 2, 'failed request omitted from comparison coverage')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 2 : failed request omitted from comparison coverage
+
+======================================================================
+FAIL: test_metrics_include_all_rows (__main__.Residuals.test_metrics_include_all_rows)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-30-p17c45/reproduce.py", line 72, in test_metrics_include_all_rows
+    self.assertEqual(summary['total'], 601, 'top-200 samples truncated aggregate')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 400 != 601 : top-200 samples truncated aggregate
+
+======================================================================
+FAIL: test_revision_is_part_of_identity (__main__.Residuals.test_revision_is_part_of_identity)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-30-p17c45/reproduce.py", line 111, in test_revision_is_part_of_identity
+    self.assertNotEqual(ka, kb, 'explicitly different revisions collapsed')
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'k2:sanc:m2442ph:23.8in' == 'k2:sanc:m2442ph:23.8in' : explicitly different revisions collapsed
+
+======================================================================
+FAIL: test_shadow_discovers_new_cross_group_pair (__main__.Residuals.test_shadow_discovers_new_cross_group_pair)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-30-p17c45/reproduce.py", line 61, in test_shadow_discovers_new_cross_group_pair
+    self.assertEqual(len(pending), 1, 'shared shadow key across two primary groups never enqueued')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1 : shared shadow key across two primary groups never enqueued
+
+======================================================================
+FAIL: test_shadow_preserves_primary_fields (__main__.Residuals.test_shadow_preserves_primary_fields)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-30-p17c45/reproduce.py", line 45, in test_shadow_preserves_primary_fields
+    self.assertEqual(saved, primary_fields, 'shadow overwrote authoritative fields')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'brand': 'Samsung', 'edition': None, 'model': 'Galaxy S24 Ultr[75 chars]56}]} != {'brand': 'Samsung', 'model': 'Galaxy S24', 'sku': None, 'editi[69 chars]alse}
+  {'brand': 'Samsung',
+   'edition': None,
+-  'model': 'Galaxy S24 Ultra',
+?                      ------
+
++  'model': 'Galaxy S24',
+   'sku': None,
+   'unbranded': False,
+   'variants': [{'unit': 'gb', 'value': 256}]} : shadow overwrote authoritative fields
+
+======================================================================
+FAIL: test_unbranded_migration_drops_old_automatic_key (__main__.Residuals.test_unbranded_migration_drops_old_automatic_key)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-30-p17c45/reproduce.py", line 102, in test_unbranded_migration_drops_old_automatic_key
+    self.assertFalse(actual, 'unbranded still automatically comparable under legacy key')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'unknown:chechevitsa krasnaya:1kg' is not false : unbranded still automatically comparable under legacy key
+
+======================================================================
+FAIL: test_v1_format_is_not_semantic_mismatch (__main__.Residuals.test_v1_format_is_not_semantic_mismatch)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-30-p17c45/reproduce.py", line 52, in test_v1_format_is_not_semantic_mismatch
+    self.assertEqual(summary['matched'], 1, 'same fields differ only by v1 formatting')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1 : same fields differ only by v1 formatting
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.863s
+
+FAILED (failures=9)
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+CPU_AND_SYSTEM resolved: {'AMD Ryzen 5 5600GT BOX': 'k2:amd:ryzen55600gt:512gb+8gb', 'Ryzen 5 5600GT-3.6GHz/A520/RAM 8GB/SSD 512GB/no DVD/400W': 'k2:amd:ryzen55600gt:512gb+8gb'}
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ENQUEUED_V1_NEIGHBOR: {'pair_hash': '084da433db4bcbb9ae40005eb27320c938424acf30c369a08f7bd5b11722e523', 'status': 'skipped', 'reason': 'no_fields'}
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+AFTER_FAILED_SHADOW: {'status': 'healthy', 'total': 1, 'match_rate': 1.0}
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ALL_ROWS actual: {'total': 400, 'matched': 400, 'mismatch': 0, 'match_rate': 1.0} expected total=601 matched=400 mismatch=201
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+REVISIONS keys: k2:sanc:m2442ph:23.8in k2:sanc:m2442ph:23.8in
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+NEW_CROSS_GROUP_PAIR pending: []
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+PRIMARY_FIELDS after shadow: Galaxy S24 Ultra cached: k2:samsung:galaxys24:256gb rescore: k2:samsung:galaxys24ultra:256gb
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 1
+[C4] Из них уже сохранены поля: 1
+[C4] Обработка 1 названий пачками по 20...
+[C4] Прогресс: 1/1 (100%) | Скорость: 1371.0 наим/с | ETA: 0 с | С ключом k2: 0
+UNBRANDED after migration: unknown:chechevitsa krasnaya:1kg report: {'total_titles': 1, 'processed_titles': 1, 'with_k2_key': 0, 'api_calls': 0, 'api_failures': 0, 'seconds': 0.0, 'dry_run': False}
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+SAME_MODEL v1/k2: {'days': 7, 'matched': 0, 'mismatch': 1, 'total': 1, 'match_rate': 0.0, 'breakdown': [{'day': '2026-10-30', 'kind': 'mismatch', 'primary_key': 'samsung:galaxy s24:256gb', 'shadow_key': 'k2:samsung:galaxys24:256gb', 'count': 1, 'example_title': 'Samsung Galaxy S24 256GB'}]}

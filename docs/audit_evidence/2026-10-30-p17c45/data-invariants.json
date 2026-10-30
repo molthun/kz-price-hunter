@@ -1,0 +1,26 @@
+{
+  "products": {
+    "excluded_columns": [
+      "canonical_key"
+    ],
+    "main_minus_baseline": 0,
+    "baseline_minus_main": 0
+  },
+  "offers": {
+    "excluded_columns": [
+      "product_id",
+      "updated_at"
+    ],
+    "main_minus_baseline": 0,
+    "baseline_minus_main": 0
+  },
+  "offer_price_history": {
+    "excluded_columns": [
+      "product_id"
+    ],
+    "main_minus_baseline": 0,
+    "baseline_minus_main": 0
+  },
+  "main_dangling_owner": 219,
+  "baseline_dangling_owner": 219
+}

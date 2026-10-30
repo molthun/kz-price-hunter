@@ -1,0 +1,30 @@
+[
+  {
+    "title": "Монитор 23.8\" Sanc M2442PH V3, Black",
+    "shop": "Белый Ветер",
+    "canonical_key": "k2:sanc:m2442ph:23.8in",
+    "product_id": "prod_cc9007bd0823a279",
+    "v2_key": "k2:sanc:m2442ph:23.8in"
+  },
+  {
+    "title": "23.8\" Sanc M2442PH V2 черный",
+    "shop": "Kaspi Магазин",
+    "canonical_key": "k2:sanc:m2442ph:23.8in",
+    "product_id": "prod_cc9007bd0823a279",
+    "v2_key": "k2:sanc:m2442ph:23.8in"
+  },
+  {
+    "title": "AMD Ryzen 5 5600GT BOX",
+    "shop": "Kaspi Магазин",
+    "canonical_key": "k2:amd:ryzen55600gt:512gb+8gb",
+    "product_id": "prod_113ef6f8e2ea3075",
+    "v2_key": "k2:amd:ryzen55600gt:512gb+8gb"
+  },
+  {
+    "title": "Ryzen 5 5600GT-3.6GHz/A520/RAM 8GB/SSD 512GB/no DVD/400W",
+    "shop": "ANTS",
+    "canonical_key": "k2:amd:ryzen55600gt:512gb+8gb",
+    "product_id": "prod_113ef6f8e2ea3075",
+    "v2_key": "k2:amd:ryzen55600gt:512gb+8gb"
+  }
+]
