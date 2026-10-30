@@ -246,6 +246,7 @@ _WATCH_RE = re.compile(r"часы|watch|fenix|forerunner|epix")
 _WATCH_SIZE_RE = re.compile(r"(?<![\d.,])(3[89]|4\d|5[0-5])\s?(?:мм|mm)(?![a-zа-я])")
 _RAM_RE = re.compile(r"оперативн|память\b.*\b(?:ddr|dimm)|модул\w* памяти|(?<![a-z])(?:dimm|ddr-?[345])(?![a-z])")
 _RAM_CODE_RE = re.compile(r"(?<![a-z0-9])[a-z]{2,}\d[a-z0-9/-]{5,}")
+_RAM_SPEC_RE = re.compile(r"(?:lp)?ddr-?\d|pc\d|sodimm|udimm|dimm")
 _DDR_RE = re.compile(r"(?<![a-z])ddr-?([345])(?![0-9])")
 _BOARD_BRANDS = {"asrock", "asus", "msi", "gigabyte", "maxsun", "biostar"}
 _CHIPSET_RE = re.compile(r"^[abhxz]\d{3}")
@@ -254,6 +255,8 @@ _BOARD_RE = re.compile(r"материнск")
 _ACCESSORY_RE = re.compile(r"^\W*(?:пульт|геймпад|контроллер|чехол|стекло|пл[её]нка|ремешок|держатель|сумка|зарядн\w*)(?![a-zа-я])")
 _ADAPTER_RE = re.compile(r"(?<![a-z0-9])link\s?(\d{2,3}[a-z]?)(?![a-z0-9])")
 _PLATFORM_RE = re.compile(r"(?<![a-z])(ms|uc)(?![a-z])")
+_GPU_IN_TITLE_RE = re.compile(r"(?<![a-z0-9])(?:rtx|gtx|rx)\s?\d|видеокарт")
+_CHIPSET_IN_TITLE_RE = re.compile(r"(?<![a-z0-9])[abhxz]\d{3}m?(?![0-9])")
 _CHIP_IN_TITLE_RE = re.compile(r"ryzen|athlon|threadripper|epyc|core\s?i\d|(?<![a-z0-9])i[3579]-\d|xeon|pentium|celeron|"
                                r"(?<![a-z0-9])(?:rtx|gtx|rx)\s?\d")
 _SPEED_CLASS_RE = re.compile(r"карт\w* памяти|micro ?sd|sdxc|sdhc|(?<![a-z0-9])[ua][123](?![a-z0-9])")
@@ -300,10 +303,17 @@ def _short_sku_suffix(fields: Dict[str, Any], identity: str, brand: str, title: 
 def _strong_code(fields: Dict[str, Any], brand: str, title: str) -> Optional[str]:
     """Полный код производителя: из поля артикула, иначе из названия."""
     sku = model_token(fields.get("sku"), brand)
-    if sku and _STRONG_ARTICLE.match(sku):
+    if sku and _STRONG_ARTICLE.match(sku) and not _RAM_SPEC_RE.match(sku):
         return sku
-    found = _RAM_CODE_RE.search(title)
-    return re.sub(r"[^a-z0-9]", "", found.group(0)) if found else None
+    return _title_ram_code(title)
+
+
+def _title_ram_code(title: str) -> Optional[str]:
+    """Первый код производителя в названии. DDR4-3200 и PC4-25600 — стандарт, он общий у разных моделей (C2R-01)."""
+    for found in _RAM_CODE_RE.findall(title):
+        if not _RAM_SPEC_RE.match(found):
+            return re.sub(r"[^a-z0-9]", "", found)
+    return None
 
 
 def _class_marks(identity: str, brand: str, title: str) -> str:
@@ -312,10 +322,10 @@ def _class_marks(identity: str, brand: str, title: str) -> str:
     marks = []
     if _CPU_RE.match(identity) and _BOX_RE.search(title):
         marks.append("box")
-    if brand in _BOARD_BRANDS and _CHIPSET_RE.match(identity) and _WIFI_RE.search(title) and "wifi" not in identity:
+    if brand in _BOARD_BRANDS and _CHIPSET_RE.match(identity) and (_WIFI_RE.search(title) or "wifi" in identity):
         marks.append("wifi")
     if brand == "jabra":
-        if "flex" in title and "flex" not in identity:
+        if "flex" in title or "flex" in identity:
             marks.append("flex")
         adapter, platform = _ADAPTER_RE.search(title), _PLATFORM_RE.search(title)
         marks += [f"link{adapter.group(1)}"] if adapter else []
@@ -366,7 +376,13 @@ def build_key(fields: Any, title: Any = None) -> Optional[str]:
     if revision:
         identity = re.sub(rf"(?:v|ver|rev)\.?{re.escape(revision[1:])}$", "", identity) or identity
     plain_identity = identity                           # метки не участвуют в проверке «диагональ в номере модели»
-    identity += _class_marks(plain_identity, brand, text)
+    marks = _class_marks(plain_identity, brand, text)
+    # Модификатор один независимо от того, записала ли его модель в model: «b850mxwifi» и «b850mx» с Wi-Fi (C2R-04)
+    for word in ("wifi", "flex"):
+        if f".{word}" in marks:
+            identity = identity.replace(word, "") or identity
+    plain_identity = identity
+    identity += marks
     if revision:
         identity += f".{revision}"
     if _is_system(plain_identity, title):
@@ -501,13 +517,46 @@ def _title_is_system(title: str) -> bool:
     return parts >= 2 or (bool(_SYSTEM_WORD_RE.search(text)) and not _COMPONENT_WORD_RE.search(text))
 
 
+def _title_marks(title: str) -> frozenset:
+    """Метки по одному названию, когда полей нет: грубо, ошибка здесь только откажет в объединении (C2R-03)."""
+    text = _text(title)
+    marks = set()
+    if _title_is_system(title):
+        marks.add("system")
+    if _BOX_RE.search(text) and _CHIP_IN_TITLE_RE.search(text) and not _GPU_IN_TITLE_RE.search(text):
+        marks.add("box")
+    if _WIFI_RE.search(text) and (_BOARD_RE.search(text) or _CHIPSET_IN_TITLE_RE.search(text)):
+        marks.add("wifi")
+    if "jabra" in text:
+        marks |= {"flex"} if "flex" in text else set()
+        adapter, platform = _ADAPTER_RE.search(text), _PLATFORM_RE.search(text)
+        marks |= {f"link{adapter.group(1)}"} if adapter else set()
+        marks |= {platform.group(1)} if platform else set()
+    if _ACCESSORY_RE.search(text):
+        marks.add("acc")
+    return frozenset(marks)
+
+
+def _title_sizes(title: str) -> frozenset:
+    """Объём, диагональ и классовые размеры, известные из самого названия."""
+    text = _text(title)
+    ram = bool(_RAM_RE.search(text)) and not _BOARD_RE.search(text) and not _CHIPSET_IN_TITLE_RE.search(text)
+    return frozenset(variant_tokens(title_variants(title))) | frozenset(_class_variants(text, ram))
+
+
+def _size_class(token: str) -> str:
+    if token.startswith("ddr"):
+        return "ddr"
+    unit = re.sub(r"^[0-9.]+", "", token)
+    return "memory" if unit in ("gb", "tb") else unit
+
+
 def _capacity_conflict(first: Iterable[str], second: Iterable[str]) -> bool:
-    """Объём и диагональ, известные из названия, сравниваются по своей величине: прочие варианты модели
-    (мощность, вес) в названии не ищутся, и их отсутствие противоречием не считается."""
-    def of_class(tokens, suffixes):
-        return {t for t in tokens if t.endswith(suffixes)}
-    for suffixes in (("gb", "tb"), ("in",)):
-        a, b = of_class(first, suffixes), of_class(second, suffixes)
+    """Размеры, известные из названия, сравниваются по своей величине: прочие варианты модели (мощность, вес) в
+    названии не ищутся, и их отсутствие противоречием не считается."""
+    for size_class in ("memory", "in", "m", "mm", "ddr"):
+        a = {t for t in first if _size_class(t) == size_class}
+        b = {t for t in second if _size_class(t) == size_class}
         if a and b and a != b:
             return True
     return False
@@ -525,18 +574,19 @@ def identities_conflict(group_a: Iterable[tuple], group_b: Iterable[tuple]) -> b
         for title, fields, key in items:
             own = (build_key(fields, title) if isinstance(fields, dict) else None) or ""
             # У всех, не только без полей: диагональ из номера модели (24B1) в ключ не входит, но в названии видна
-            from_title = frozenset(variant_tokens(title_variants(title)))
-            system = is_system_key(own) if own else _title_is_system(title)
-            out.add((own, key or "", _title_revision(title), from_title, system))
+            marks = marks_of(own) if own else _title_marks(title)
+            code = _title_ram_code(_text(title)) if _RAM_RE.search(_text(title)) else None
+            out.add((own, key or "", _title_revision(title), _title_sizes(title), marks, code))
         return out
 
     def known(own, key):
         return (_key_variants(own) if own else None) or (_key_variants(key) if key else None) or set()
     first, second = profile(group_a), profile(group_b)
-    for own_a, key_a, rev_a, title_a, system_a in first:
-        for own_b, key_b, rev_b, title_b, system_b in second:
+    for own_a, key_a, rev_a, title_a, marks_a, code_a in first:
+        for own_b, key_b, rev_b, title_b, marks_b, code_b in second:
             if (own_a and own_b and keys_conflict(own_a, own_b)) or (key_a and key_b and keys_conflict(key_a, key_b)) \
-                    or (rev_a and rev_b and rev_a != rev_b) or system_a != system_b \
+                    or (rev_a and rev_b and rev_a != rev_b) or marks_a != marks_b \
+                    or (code_a and code_b and code_a != code_b) \
                     or _capacity_conflict(title_a, title_b | known(own_b, key_b)) \
                     or _capacity_conflict(title_b, title_a | known(own_a, key_a)):
                 return True
@@ -741,6 +791,12 @@ def link_by_article(
         for t in group:
             if t in fixed:
                 out[t] = entries[t][1]
+            elif not _key_fits(best, t, marks, own_keys):
+                # Сохранённый ключ прежних правил не снимает метку или ревизию: новый BOX не получает ключ без .box,
+                # иначе несовместимая группа OEM окажется с той же строкой (C2R-02)
+                fitting = sorted(k for k in set(pool) if _key_fits(k, t, marks, own_keys)
+                                 and (not own_variants[t] or _variants_of(k) == own_variants[t]))
+                out[t] = fitting[0] if fitting else own_keys[t]
             elif own_variants[t] and _variants_of(best) != own_variants[t]:
                 # Ключ группы без объёма не стирает известный объём нового названия: сохранённый ключ без
                 # вариантов не должен стать общим для 128 и 256 (P17CR-01). Берётся ключ группы с тем же
@@ -750,6 +806,12 @@ def link_by_article(
             else:
                 out[t] = best
     return out
+
+
+def _key_fits(key: str, title: str, marks: Dict[str, frozenset], own_keys: Dict[str, str]) -> bool:
+    """Ключ группы сохраняет обязательные метки названия и его ревизию, если она известна."""
+    revision = revision_of(own_keys[title])
+    return marks_of(key) == marks[title] and (not revision or revision_of(key) == revision)
 
 
 def _fields_key(fields: Any, title: str, key: str) -> str:

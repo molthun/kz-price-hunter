@@ -216,6 +216,24 @@ class ClassRulesTest(unittest.TestCase):
     def test_board_with_ddr_is_not_memory(self):
         self.assertEqual(self.key("ASRock B850M PRO RS WIFI DDR5", "ASRock", "B850M PRO RS"), "k2:asrock:b850mprors.wifi")
 
+    def test_memory_speed_standard_is_not_a_code(self):
+        fury = self.key("Оперативная память Kingston DDR4-3200 Fury Beast 16GB", "Kingston", "Fury Beast")
+        value = self.key("Оперативная память Kingston DDR4-3200 ValueRAM 16GB", "Kingston", "ValueRAM")
+        self.assertNotEqual(fury, value)
+        self.assertEqual(fury, "k2:kingston:furybeast:16gb+ddr4")
+        self.assertEqual(self.key("Оперативная память PC4-25600 DDR4-3200 Kingston KF432C16BB1/16", "Kingston", "Fury"),
+                         "k2:kingston:kf432c16bb116", "настоящий код после стандарта находится")
+        self.assertEqual(self.key("Оперативная память DDR5 Kingston", "Kingston", "Fury", "DDR5-5600"),
+                         "k2:kingston:fury:ddr5", "стандарт в поле артикула — тоже не код")
+
+    def test_modifier_placement_gives_one_key(self):
+        self.assertEqual(self.key("ASRock B850M-X WIFI", "ASRock", "B850M-X WIFI"),
+                         self.key("Материнская плата ASRock B850M-X WIFI", "ASRock", "B850M-X"))
+        self.assertEqual(self.key("Jabra Evolve2 65 Flex Link380a MS Stereo", "Jabra", "Evolve2 65 Flex"),
+                         self.key("Гарнитура Jabra Evolve2 65 Flex Link380a MS Stereo", "Jabra", "Evolve2 65"))
+        self.assertNotEqual(self.key("ASRock B850M-X WIFI", "ASRock", "B850M-X WIFI"),
+                            self.key("ASRock B850M-X", "ASRock", "B850M-X"))
+
     def test_adapter_in_sku_does_not_link_models(self):
         f = {"brand": "Jabra", "sku": "Link380a MS Stereo", "variants": [], "unbranded": False}
         keys = product_key.resolve_keys_with_articles({"Jabra Evolve2 65": {**f, "model": "Evolve2 65"},
@@ -502,6 +520,31 @@ class SameVerdictOnLegacyKeysTest(_DbCase):
         a, b, other = "Пылесос X 2 л", "Пылесос X белый", "Пылесос X"
         f = {"brand": "Brand", "model": "X", "variants": [{"value": 2000, "unit": "вт"}]}
         self.assertFalse(product_key.identities_conflict([(a, f, "brand:a")], [(b, f, "brand:b"), (other, None, "brand:b")]))
+
+    def cpu(self):
+        return {"brand": "AMD", "model": "Ryzen 7 7700X", "sku": None, "edition": None, "variants": [], "unbranded": False}
+
+    def test_member_without_fields_explicit_differences_on_either_side(self):
+        """Третий участник без полей: BOX, длина, размер, память, Wi-Fi — и в первой, и во второй группе (C2R-03)."""
+        cable = {"brand": "Cablexpert", "model": "PP12", "sku": None, "variants": [], "unbranded": False}
+        watch = {"brand": "Garmin", "model": "Fenix 8", "sku": None, "variants": [], "unbranded": False}
+        ram = {"brand": "Kingston", "model": "Fury", "sku": None, "variants": [], "unbranded": False}
+        board = {"brand": "ASRock", "model": "B850M-X", "sku": None, "variants": [], "unbranded": False}
+        cases = [("AMD Ryzen 7 7700X OEM", "Процессор AMD Ryzen 7 7700X OEM", "AMD Ryzen 7 7700X BOX", self.cpu()),
+                 ("Патч-корд Cablexpert PP12 1 м", "Patch cord Cablexpert PP12 1m", "Патч-корд Cablexpert PP12 3 м", cable),
+                 ("Смарт-часы Garmin Fenix 8 47mm", "Часы Garmin Fenix 8 47 мм", "Смарт-часы Garmin Fenix 8 43mm", watch),
+                 ("Оперативная память Kingston KF560C30BBE-16", "Память DDR5 DIMM Kingston (KF560C30BBE-16)",
+                  "Оперативная память Kingston KF432C16BB1/16", ram),
+                 ("Материнская плата ASRock B850M-X", "ASRock B850M-X материнская плата", "Материнская плата ASRock B850M-X WIFI", board)]
+        for a, b, hidden, f in cases:
+            for side in ("old-b", "old-a"):
+                with self.subTest(hidden=hidden, side=side):
+                    keys = {a: "x:a", b: "x:b", hidden: "x:b" if side == "old-b" else "x:a"}
+                    self.case(keys, {a: f, b: f}, False)
+                    self.assert_refused(a, b)
+                    with database.get_connection() as conn:
+                        conn.execute("DELETE FROM disputed_product_pairs")
+                        conn.commit()
 
     def test_compatible_legacy_pair_still_merges(self):
         a, b = "Samsung Galaxy S24 256GB black", "Samsung S24 256 ГБ"
@@ -806,6 +849,40 @@ class MigrationIdentityAndBaselineTest(_DbCase):
         self.partial_upgrade(title, old, started=5)
         report = self.migrate(run_id="old", rescore_only=True, check_pairs=True)["run"]["cumulative"]
         self.assertEqual((report["api_started"], report["api_unfinished"]), (5, 2))
+
+    def test_rescore_of_old_keys_keeps_marks(self):
+        """Настоящая пересборка: в кэше и артикулах прежний ключ без метки, все порядки и размеры пачек (C2R-02)."""
+        import hashlib
+        import itertools
+        cpu = {"brand": "AMD", "model": "Ryzen 7 7700X", "sku": None, "edition": None, "variants": [], "unbranded": False}
+        titles = ["AMD Ryzen 7 7700X BOX black", "AMD Ryzen 7 7700X BOX white", "Процессор AMD Ryzen 7 7700X OEM"]
+        old = "k2:amd:ryzen77700x"
+        for order, size, dry in itertools.product(itertools.permutations(titles), (1, 2, 3), (False, True)):
+            with self.subTest(order=order, size=size, dry=dry):
+                with database.get_connection() as conn:
+                    for table in ("title_fields", "title_articles", "title_canonical_cache", "products", "offers",
+                                  "k2_migration_runs", "k2_migration_baseline"):
+                        if conn.execute("SELECT 1 FROM sqlite_master WHERE name = ?", (table,)).fetchone():
+                            conn.execute(f"DELETE FROM {table}")
+                    conn.commit()
+                for i, t in enumerate(order):
+                    self.add_product(f"p{i}", t, f"shop{i}", old)
+                    database.save_title_fields_batch({t: cpu}, "k2", "local", "m")
+                    database.save_cached_canonical_keys_batch({t: old})
+                    database.save_title_articles_batch([(a, hashlib.sha256(t.encode()).hexdigest(), old) for a in product_key.article_tokens(cpu)])
+                self.migrate(rescore_only=True, batch_size=size, dry_run=dry)
+                if dry:
+                    self.assertEqual(set(database.get_cached_canonical_keys_batch(titles).values()), {old}, "пробный прогон не пишет")
+                    continue
+                self.migrate(rescore_only=True, batch_size=size)                 # повтор ничего не меняет
+                keys = database.get_cached_canonical_keys_batch(titles)
+                self.assertEqual(keys[titles[0]], "k2:amd:ryzen77700x.box")
+                self.assertEqual(keys[titles[1]], keys[titles[0]])
+                self.assertEqual(keys[titles[2]], old)
+                with database.get_connection() as conn:
+                    pids = {r[0]: r[1] for r in conn.execute("SELECT p.title, o.product_id FROM products p JOIN offers o ON o.id = 'off_' || p.id")}
+                self.assertEqual(pids[titles[0]], pids[titles[1]])
+                self.assertNotEqual(pids[titles[0]], pids[titles[2]])
 
     def test_resume_compares_with_full_baseline(self):
         """Как на стенде: часть уже переведена в прошлом запуске, отчёт всё равно по всему снимку."""
