@@ -2,6 +2,20 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## Передача аудитору: остаток C2R-03 исправлен → повторная приёмка Codex (Claude, 2026-10-30)
+
+```text
+Основание: docs/REACCEPTANCE_2026-10-30_C2_RULES_CODEX.md. Ветка feature/p17-c5-shadow-normalize, срез до правок 87c89b2.
+product_key.py: _CPU_FAMILIES — один список для ключа (_CPU_RE, _COMPONENT_RE) и проверки по названию (_CHIP_IN_TITLE_RE); Core Ultra и Core 5 теперь в обоих.
+  Заодно Core Ultra в сборке получает .system: _COMPONENT_RE его не знал. Core V21 у корпусов и RTX BOX меткой BOX не считаются.
+Регрессии: test_cpu_families_agree_between_fields_and_title по всем семействам; третий участник Core Ultra BOX без полей в каждой группе, отказ без изменений;
+  совместимый Core Ultra OEM/Tray по-прежнему объединяется.
+Проверки: полный Python 2155 OK; secrets 0; diff check OK; c2-rules-reaccept 1/1, c2-rules 4/4, прежние 1 + 2 + 5 + 8 OK; оценка rules_now не изменилась; frontend не менялся и не запускался.
+Не сделано: пересборка копии, поля для 767 названий, случайная выборка всех 899, второй проверяющий. Сервер не открывал, push не делался.
+```
+
+---
+
 ## Повторная приёмка C2R — Codex (2026-10-30)
 
 - Проверен исходно чистый `87c89b2`, ветка `feature/p17-c5-shadow-normalize`.

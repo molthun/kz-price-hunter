@@ -226,8 +226,9 @@ def variant_tokens(variants: Any) -> List[str]:
 _REVISION_RE = re.compile(r"(?<![a-z0-9.])(?:v|ver|rev)\.?\s?(\d{1,2}(?:\.\d)?)(?![a-z0-9])")
 _REVISION_MARK_RE = re.compile(r"\.(v\d{1,2}(?:\.\d)?)(?:\.system)?$")
 # Названия процессоров и видеокарт: у готового компьютера с таким чипом та же «модель», что у самого чипа
-_COMPONENT_RE = re.compile(r"^(?:ryzen|athlon|threadripper|epyc|core[iu]?\d|corei|i[3579]\d|xeon|pentium|celeron|"
-                           r"rtx\d|gtx\d|rx\d|arc[ab]\d)")
+# Семейства процессоров заданы в одном месте: ключ по полям и проверка по названию не должны расходиться (C2R-03)
+_CPU_FAMILIES = r"ryzen|athlon|threadripper|epyc|xeon|pentium|celeron"
+_COMPONENT_RE = re.compile(rf"^(?:{_CPU_FAMILIES}|core(?:[iu]?\d|i|ultra)|i[3579]\d|rtx\d|gtx\d|rx\d|arc[ab]\d)")
 _SYSTEM_WORD_RE = re.compile(r"компьютер|системн\w* блок|системник|(?<![a-zа-я0-9])пк(?![a-zа-я0-9])|неттоп|ноутбук|"
                              r"моноблок|сборка|laptop|notebook|mini ?pc|workstation")
 _COMPONENT_WORD_RE = re.compile(r"процессор|видеокарт|(?<![a-z0-9])(?:cpu|gpu)(?![a-z0-9])")
@@ -237,7 +238,7 @@ SYSTEM_MARK = ".system"
 _MARK_RE = re.compile(r"\.(system|box|wifi|flex|acc|ms|uc|link\d+[a-z]?)(?=\.|$)")
 # Правила задачи качества ключей (разбор ложных склеек C2). Действуют только в своём классе товаров: в других
 # те же слова ничего не значат
-_CPU_RE = re.compile(r"^(?:ryzen|athlon|threadripper|epyc|core|i[3579]\d|xeon|pentium|celeron)")
+_CPU_RE = re.compile(rf"^(?:{_CPU_FAMILIES}|core(?:[iu]?\d|i|ultra)|i[3579]\d)")
 _BOX_RE = re.compile(r"(?<![a-z])(?:box|wof)(?![a-z])|бокс|с кулером|with\b.*\bcooler")
 _CABLE_RE = re.compile(r"кабел|патч|patch cord|шнур|удлинител|сетевой фильтр|фильтр сетевой")
 _LENGTH_RE = re.compile(r"(?<![\w.,])(\d+(?:[.,]\d+)?)\s?(?:м|m)(?![a-zа-я0-9])")
@@ -257,8 +258,7 @@ _ADAPTER_RE = re.compile(r"(?<![a-z0-9])link\s?(\d{2,3}[a-z]?)(?![a-z0-9])")
 _PLATFORM_RE = re.compile(r"(?<![a-z])(ms|uc)(?![a-z])")
 _GPU_IN_TITLE_RE = re.compile(r"(?<![a-z0-9])(?:rtx|gtx|rx)\s?\d|видеокарт")
 _CHIPSET_IN_TITLE_RE = re.compile(r"(?<![a-z0-9])[abhxz]\d{3}m?(?![0-9])")
-_CHIP_IN_TITLE_RE = re.compile(r"ryzen|athlon|threadripper|epyc|core\s?i\d|(?<![a-z0-9])i[3579]-\d|xeon|pentium|celeron|"
-                               r"(?<![a-z0-9])(?:rtx|gtx|rx)\s?\d")
+_CHIP_IN_TITLE_RE = re.compile(rf"{_CPU_FAMILIES}|core\s?(?:i\s?\d|ultra|\d)|(?<![a-z0-9])i[3579][-\s]\d|(?<![a-z0-9])(?:rtx|gtx|rx)\s?\d")
 _SPEED_CLASS_RE = re.compile(r"карт\w* памяти|micro ?sd|sdxc|sdhc|(?<![a-z0-9])[ua][123](?![a-z0-9])")
 
 

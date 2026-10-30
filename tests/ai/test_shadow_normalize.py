@@ -234,6 +234,23 @@ class ClassRulesTest(unittest.TestCase):
         self.assertNotEqual(self.key("ASRock B850M-X WIFI", "ASRock", "B850M-X WIFI"),
                             self.key("ASRock B850M-X", "ASRock", "B850M-X"))
 
+    def test_cpu_families_agree_between_fields_and_title(self):
+        """Явный BOX виден одинаково с полями и без них для всех семейств (C2R-03)."""
+        cases = [("AMD", "Ryzen 7 7700X"), ("AMD", "Athlon 200GE"), ("AMD", "Threadripper 7960X"), ("AMD", "EPYC 7302"),
+                 ("Intel", "Core i7-14700K"), ("Intel", "Core Ultra 7 265K"), ("Intel", "Core 5 120"), ("Intel", "Xeon E5-2680"),
+                 ("Intel", "Pentium G7400"), ("Intel", "Celeron G5905")]
+        for brand, model in cases:
+            title = f"{brand} {model} BOX"
+            with self.subTest(title=title):
+                self.assertIn("box", product_key.marks_of(self.key(title, brand, model)))
+                self.assertIn("box", product_key._title_marks(title))
+                self.assertNotIn("box", product_key._title_marks(f"{brand} {model} OEM"))
+        self.assertEqual(product_key._title_marks("Корпус Thermaltake Core V21 BOX"), frozenset())
+        self.assertEqual(product_key._title_marks("Видеокарта Afox RTX 4060 BOX"), frozenset())
+
+    def test_core_ultra_system_is_not_the_chip(self):
+        self.assertTrue(product_key.is_system_key(self.key("Компьютер Core Ultra 7 265K/RAM 16GB/SSD 512GB", "Intel", "Core Ultra 7 265K")))
+
     def test_adapter_in_sku_does_not_link_models(self):
         f = {"brand": "Jabra", "sku": "Link380a MS Stereo", "variants": [], "unbranded": False}
         keys = product_key.resolve_keys_with_articles({"Jabra Evolve2 65": {**f, "model": "Evolve2 65"},
@@ -530,7 +547,9 @@ class SameVerdictOnLegacyKeysTest(_DbCase):
         watch = {"brand": "Garmin", "model": "Fenix 8", "sku": None, "variants": [], "unbranded": False}
         ram = {"brand": "Kingston", "model": "Fury", "sku": None, "variants": [], "unbranded": False}
         board = {"brand": "ASRock", "model": "B850M-X", "sku": None, "variants": [], "unbranded": False}
+        ultra = {"brand": "Intel", "model": "Core Ultra 7 265K", "sku": None, "edition": None, "variants": [], "unbranded": False}
         cases = [("AMD Ryzen 7 7700X OEM", "Процессор AMD Ryzen 7 7700X OEM", "AMD Ryzen 7 7700X BOX", self.cpu()),
+                 ("Intel Core Ultra 7 265K OEM", "Процессор Intel Core Ultra 7 265K OEM", "Intel Core Ultra 7 265K BOX", ultra),
                  ("Патч-корд Cablexpert PP12 1 м", "Patch cord Cablexpert PP12 1m", "Патч-корд Cablexpert PP12 3 м", cable),
                  ("Смарт-часы Garmin Fenix 8 47mm", "Часы Garmin Fenix 8 47 мм", "Смарт-часы Garmin Fenix 8 43mm", watch),
                  ("Оперативная память Kingston KF560C30BBE-16", "Память DDR5 DIMM Kingston (KF560C30BBE-16)",
@@ -545,6 +564,14 @@ class SameVerdictOnLegacyKeysTest(_DbCase):
                     with database.get_connection() as conn:
                         conn.execute("DELETE FROM disputed_product_pairs")
                         conn.commit()
+
+    def test_core_ultra_third_oem_member_still_merges(self):
+        a, b, other = "Intel Core Ultra 7 265K OEM", "Процессор Intel Core Ultra 7 265K OEM", "Intel Core Ultra 7 265K Tray"
+        f = {"brand": "Intel", "model": "Core Ultra 7 265K", "sku": None, "edition": None, "variants": [], "unbranded": False}
+        self.case({a: "intel:a", b: "intel:b", other: "intel:b"}, {a: f, b: f}, False)
+        database.enqueue_disputed_pair(a, b, "x")
+        self.assertEqual(self.tick()["status"], "resolved")
+        self.assertEqual(len(set(database.get_cached_canonical_keys_batch([a, b, other]).values())), 1)
 
     def test_compatible_legacy_pair_still_merges(self):
         a, b = "Samsung Galaxy S24 256GB black", "Samsung S24 256 ГБ"
