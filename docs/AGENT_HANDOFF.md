@@ -2,6 +2,25 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## Передача аудитору: остаток C45RR-02 исправлен → решение Codex (Claude, 2026-10-30)
+
+```text
+Основание: docs/AUDIT_2026-10-30_C45RR_REACCEPT_CODEX.md (C45RR-01 закрыт, остаток P2). Ветка feature/p17-c5-shadow-normalize, срез до правок 80d4201.
+scripts/migrate_to_k2.py _baseline_tables: ALTER и заполнение api_started в явной транзакции BEGIN IMMEDIATE, при обрыве откат.
+  Для таблицы, уже оставшейся полуобновлённой от прежней версии: UPDATE ... WHERE api_started < api_calls.
+  Начатых не бывает меньше завершённых, поэтому настоящие незавершённые (started > calls) не трогаются.
+  Пробный прогон таблицу не пишет, в отчёте берёт max(started, calls).
+Регрессии: test_interrupted_ledger_upgrade_is_atomic (настоящее подключение и повторное открытие),
+  test_partial_upgrade_from_previous_version_is_repaired — на прежнем коде падают;
+  test_real_unfinished_attempts_are_not_erased — защита от лишней починки, на прежнем коде проходит.
+Проверки: полный Python 2130 OK; secrets 0; diff check OK; upgrade_boundary.py 1/1 OK; c45r-final 2/2; c45-reaccept 5/5;
+  accepted_regressions 8/8; frontend не менялся и не запускался.
+НЕ сделано: пересборка копии с новым --run-id, разбор потерь (XTREON XT24N1), расширение проверенного набора до сотен
+  названий. C2 не подтверждён. Push не делался; стенд, копии, настройки не трогал.
+```
+
+---
+
 ## Повторная приёмка C45RR-01/02 — Codex (2026-10-30)
 
 - Основание: «проверяй»; срез `feature/p17-c5-shadow-normalize 80d4201`, исходное дерево чистое.

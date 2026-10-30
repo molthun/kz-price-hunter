@@ -654,6 +654,56 @@ class MigrationIdentityAndBaselineTest(_DbCase):
         with database.get_connection() as conn:
             self.assertEqual(tuple(conn.execute("SELECT api_calls FROM k2_migration_runs").fetchone()), (3,))
 
+    def test_interrupted_ledger_upgrade_is_atomic(self):
+        """Настоящее подключение: обрыв между добавлением колонки и заполнением не оставляет полуобновлённой схемы."""
+        title, old = "Samsung Galaxy S24 256GB", "samsung:galaxy s24:256gb"
+        self.old_ledger(title, old)
+        real = mig.get_db_connection(str(database.DB_PATH))
+
+        class Interrupted:
+            def execute(self, sql, *args):
+                if sql.startswith("UPDATE k2_migration_runs SET api_started"):
+                    raise KeyboardInterrupt()
+                return real.execute(sql, *args)
+
+            def __getattr__(self, name):
+                return getattr(real, name)
+        try:
+            with self.assertRaises(KeyboardInterrupt):
+                mig.load_baseline(Interrupted(), "old", read_only=False)
+        finally:
+            real.close()
+        self.assertNotIn("api_started", self.ledger_columns(), "откат убрал и колонку")
+        report = self.migrate(run_id="old", rescore_only=True, check_pairs=True)
+        cumulative = report["run"]["cumulative"]
+        self.assertEqual((cumulative["api_calls"], cumulative["api_started"], cumulative["api_unfinished"]), (3, 3, 0))
+        self.assertEqual((cumulative["api_failures"], cumulative["failed_titles"], cumulative["missing_titles"]), (1, 2, 1))
+        self.assertEqual(report["run"]["baseline_titles"], 1)
+
+    def partial_upgrade(self, title, old, started=0):
+        """Состояние после обрыва в прежней версии: колонка уже есть, значения не заполнены."""
+        self.old_ledger(title, old)
+        with database.get_connection() as conn:
+            conn.execute("ALTER TABLE k2_migration_runs ADD COLUMN api_started INTEGER NOT NULL DEFAULT 0")
+            conn.execute("UPDATE k2_migration_runs SET api_started = ?", (started,))
+            conn.commit()
+
+    def test_partial_upgrade_from_previous_version_is_repaired(self):
+        title, old = "Samsung Galaxy S24 256GB", "samsung:galaxy s24:256gb"
+        self.partial_upgrade(title, old)
+        dry = self.migrate(run_id="old", rescore_only=True, dry_run=True, check_pairs=True)["run"]["cumulative"]
+        self.assertEqual(dry["api_unfinished"], 0)
+        with database.get_connection() as conn:
+            self.assertEqual(conn.execute("SELECT api_started FROM k2_migration_runs").fetchone()[0], 0, "пробный прогон не пишет")
+        report = self.migrate(run_id="old", rescore_only=True, check_pairs=True)["run"]["cumulative"]
+        self.assertEqual((report["api_started"], report["api_unfinished"]), (3, 0))
+
+    def test_real_unfinished_attempts_are_not_erased(self):
+        title, old = "Samsung Galaxy S24 256GB", "samsung:galaxy s24:256gb"
+        self.partial_upgrade(title, old, started=5)
+        report = self.migrate(run_id="old", rescore_only=True, check_pairs=True)["run"]["cumulative"]
+        self.assertEqual((report["api_started"], report["api_unfinished"]), (5, 2))
+
     def test_resume_compares_with_full_baseline(self):
         """Как на стенде: часть уже переведена в прошлом запуске, отчёт всё равно по всему снимку."""
         a, b, c = "Samsung Galaxy S24 256GB A", "Samsung Galaxy S24 256GB B", "Samsung Galaxy S25 256GB"

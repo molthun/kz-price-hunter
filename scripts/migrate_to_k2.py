@@ -343,9 +343,21 @@ def _baseline_tables(conn: sqlite3.Connection) -> None:
     if not _has_column(conn, "k2_migration_runs", "api_started"):
         # Проход прежней версии (аудит C45RR-02): она считала только завершённые вызовы, поэтому начатых столько же,
         # и незавершённых не появляется. Снимок и счётчики прохода не трогаются
-        conn.execute("ALTER TABLE k2_migration_runs ADD COLUMN api_started INTEGER NOT NULL DEFAULT 0")
-        conn.execute("UPDATE k2_migration_runs SET api_started = api_calls")
-        conn.commit()
+        # ALTER сам по себе коммитится сразу, поэтому транзакция явная: колонка без заполнения не остаётся (C45RR-02)
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            conn.execute("ALTER TABLE k2_migration_runs ADD COLUMN api_started INTEGER NOT NULL DEFAULT 0")
+            conn.execute("UPDATE k2_migration_runs SET api_started = api_calls")
+            conn.commit()
+        except BaseException:
+            conn.rollback()
+            raise
+    else:
+        # Обновление, прерванное прежней версией скрипта. Начатых не бывает меньше завершённых, поэтому такие строки
+        # чинятся, а настоящие незавершённые попытки (начатых больше) не трогаются
+        cur = conn.execute("UPDATE k2_migration_runs SET api_started = api_calls WHERE api_started < api_calls")
+        if cur.rowcount:
+            conn.commit()
 
 
 COUNTERS = ("api_calls", "api_failures", "failed_titles", "missing_titles", "seconds", "api_started")
@@ -375,7 +387,9 @@ def load_baseline(conn: sqlite3.Connection, run_id: str, read_only: bool) -> Tup
         run = conn.execute(f"SELECT {', '.join(columns)} FROM k2_migration_runs WHERE run_id = ?", (run_id,)).fetchone()
     if run:
         rows = conn.execute("SELECT title, old_key FROM k2_migration_baseline WHERE run_id = ?", (run_id,)).fetchall()
-        return dict(rows), dict(zip(names, run))
+        counters = dict(zip(names, run))
+        counters["api_started"] = max(counters["api_started"], counters["api_calls"])  # пробный прогон не чинит таблицу
+        return dict(rows), counters
     created = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     rows = conn.execute("SELECT title, canonical_key FROM title_canonical_cache").fetchall()
     if not read_only:
