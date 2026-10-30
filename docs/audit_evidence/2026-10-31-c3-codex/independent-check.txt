@@ -1,0 +1,45 @@
+PASS core export, integrity, invariants, exact seeded selection/shuffle, 280-pair confusion, quality and registry reproduction
+FINDINGS: 2 manufacturer-backed label errors; 13 undecided labels converted to different; excluded-frame weights applied to full populations
+{
+ "retained": {
+  "population": 1004,
+  "sampling_frame": 899,
+  "excluded_known": 105,
+  "excluded_previous_labels": {
+   "same": 104,
+   "packaging": 1
+  }
+ },
+ "dropped_mixed": {
+  "population": 522,
+  "sampling_frame": 476,
+  "excluded_known": 46,
+  "excluded_previous_labels": {
+   "same": 18,
+   "different": 26,
+   "uncertain": 2
+  }
+ },
+ "dropped_both_k2": {
+  "population": 444,
+  "sampling_frame": 284,
+  "excluded_known": 160,
+  "excluded_previous_labels": {
+   "same": 97,
+   "uncertain": 19,
+   "different": 38,
+   "packaging": 6
+  }
+ },
+ "added": {
+  "population": 2280,
+  "sampling_frame": 2054,
+  "excluded_known": 226,
+  "excluded_previous_labels": {
+   "same": 214,
+   "uncertain": 6,
+   "packaging": 2,
+   "different": 4
+  }
+ }
+}

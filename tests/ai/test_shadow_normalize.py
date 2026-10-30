@@ -1009,7 +1009,7 @@ class C2QualityReportTest(unittest.TestCase):
     def test_registry_has_one_cause_per_pair_and_sums_match(self):
         report, registry = c2.build(self.data(), self.sample())
         self.assertEqual(report["registry_counts"]["dropped"],
-                         {"missing_fields_one_side": 1, "missing_fields_both": 0, "variant_one_side": 1, "variant_conflict": 1,
+                         {"missing_fields_one_side": 1, "missing_fields_both": 0, "legacy_with_fields": 0, "no_identity": 0, "variant_one_side": 1, "variant_conflict": 1,
                           "revision_differs": 1, "system_vs_component": 1, "identity_differs_shared_code": 1,
                           "identity_differs_other": 1})
         self.assertEqual(report["registry_counts"]["added"],
@@ -1065,12 +1065,43 @@ class C2QualityReportTest(unittest.TestCase):
         self.assertEqual(out["strata"]["dropped_mixed"]["now_tp"], 0, "без полей пара не восстанавливается")
         self.assertEqual(out["added_still_together"], 0)
 
+    def test_known_pairs_are_counted_as_census_not_as_fresh_share(self):
+        """C3A-02: свежая доля применяется только к остатку; известная часть слоя считается как есть."""
+        rows = [{"label": "same" if i < 1 else "different", "strata": ["dropped_both_k2"]} for i in range(10)]
+        rows += [{"label": "same", "strata": [name]} for name in ("retained", "dropped_mixed", "added")]
+        sizes = {"retained": 10, "dropped_mixed": 10, "dropped_both_k2": 110, "added": 10}
+        known = {"dropped_both_k2": ["same"] * 8 + ["different"] + ["uncertain"]}
+        out = c2.weighted_estimate(rows, sizes, False, known)
+        layer = out["layers"]["dropped_both_k2"]
+        self.assertEqual((layer["pool"], layer["true"], layer["false"], layer["open"]), (100, 18.0, 91.0, 1.0))
+        self.assertEqual(out["baseline"]["true"], 38, "10 + 10 + 18, а не 110 × 10 %")
+        self.assertGreaterEqual(layer["true_high"] - layer["true"], 1, "uncertain переписи входит в верхнюю границу")
+
+    def test_uncertain_counts_against_candidate_in_bounds(self):
+        rows = [{"label": "same", "strata": [n]} for n in ("retained", "dropped_mixed", "dropped_both_k2", "added")]
+        rows.append({"label": "uncertain", "strata": ["added"]})
+        sizes = {"retained": 10, "dropped_mixed": 10, "dropped_both_k2": 10, "added": 10}
+        out = c2.weighted_estimate(rows, sizes, False)
+        self.assertEqual(out["layers"]["added"]["open"], 5.0)
+        self.assertGreater(out["layers"]["added"]["false_high"], 5)
+        self.assertLess(out["layers"]["added"]["true_low"], 5)
+
+    def test_mixed_loss_without_fields_is_not_no_identity(self):
+        """C3A-03: нет полей, есть поля без k2 и подтверждённое отсутствие идентичности — разные причины."""
+        base = {"a": "a", "b": "b", "old": "x", "new_a": "k2:x", "fields_a": self.FIELDS}
+        self.assertEqual(c2.dropped_cause({**base, "new_b": "x", "fields_b": None}), "missing_fields_one_side")
+        self.assertEqual(c2.dropped_cause({**base, "new_b": "x", "fields_b": self.FIELDS}), "legacy_with_fields")
+        self.assertEqual(c2.dropped_cause({**base, "new_b": "", "fields_b": self.FIELDS}), "no_identity")
+
     def test_labelled_sample_file_is_consistent(self):
         sample = json.loads((ROOT / "scripts" / "k2_labeled_sample.json").read_text(encoding="utf-8"))
         self.assertIn("OEM", sample["convention"]["packaging"])
         self.assertEqual({row["label"] for row in sample["pairs"]}, {"same", "different", "uncertain", "packaging"})
         seen = {frozenset((row["a"], row["b"])) for row in sample["pairs"]}
         self.assertEqual(len(seen), len(sample["pairs"]), "пара размечена один раз")
+        undecided = {frozenset((row["a"], row["b"])) for row in PAIRS if row.get("same") is None}
+        labels = {frozenset((row["a"], row["b"])): row["label"] for row in sample["pairs"]}
+        self.assertEqual({labels[pair] for pair in undecided}, {"uncertain"}, "перенос не решает неопределённое за разметчика")
 
 
 if __name__ == "__main__":

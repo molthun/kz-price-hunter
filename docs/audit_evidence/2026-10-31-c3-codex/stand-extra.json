@@ -1,0 +1,42 @@
+{
+  "k2_products_cache_mismatch": 0,
+  "k2_offers_canonical_mismatch": 0,
+  "legacy_field_status": {
+    "fields_present": 210,
+    "missing": 472
+  },
+  "legacy_examples": [
+    {
+      "title": "Монитор Игровой 27\" AOC 27G42E 1920x1080 16:9 IPS 180ГЦ (HDMI+DP) Black",
+      "key": "aoc:27g42e:27",
+      "fields": null
+    },
+    {
+      "title": "Твердотельный накопитель SSD Kingston SKC600/512G SATA 7мм (SKC600/512G)",
+      "key": "kingston:kc600:512gb",
+      "fields": null
+    },
+    {
+      "title": "Твердотельный накопитель 256GB SSD Kingston KC600 2.5” SATA3 (SKC600/256G)",
+      "key": "kingston:kc600:256gb",
+      "fields": null
+    },
+    {
+      "title": "Твердотельный накопитель SSD 512 Gb mSATA 3.0 Kingston SKC600MS/512G 3D TLC (SKC600MS/512G)",
+      "key": "kingston:skc600ms:512gb",
+      "fields": null
+    }
+  ],
+  "ryzen7600_box": [
+    {
+      "title": "Процессор AMD Ryzen 5 7600X box",
+      "key": "k2:amd:ryzen57600x.box",
+      "fields": "{\"brand\": \"AMD\", \"edition\": null, \"model\": \"Ryzen 5 7600X\", \"sku\": null, \"unbranded\": false, \"variants\": []}"
+    },
+    {
+      "title": "AMD Ryzen 5 7600X BOX",
+      "key": "k2:amd:ryzen57600x.box",
+      "fields": "{\"brand\": \"AMD\", \"edition\": null, \"model\": \"Ryzen 5\", \"sku\": \"7600X\", \"unbranded\": false, \"variants\": []}"
+    }
+  ]
+}

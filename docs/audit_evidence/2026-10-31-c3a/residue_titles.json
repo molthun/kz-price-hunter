@@ -1,0 +1,1127 @@
+{
+ "note": "Только названия из 522 потерянных пар. Весь остаток копии — 682 названия (480 failed + 202 missing); полный список требует чтения копии на стенде и разрешения владельца.",
+ "pairs": 522,
+ "titles": 186,
+ "by_fields": {
+  "false": 185,
+  "true": 1
+ },
+ "rows": [
+  {
+   "title": "Комплект модулей памяти Kingston FURY Beast KF432C16BBK2/16 DDR4 16GB (Kit 2x8GB) 3200MHz (KF432C16BBK2/16)",
+   "key": "kingston:fury beast:16gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Комплект модулей памяти Kingston FURY Beast KF552C40BBK2-32 DDR5 32GB (Kit 2x16GB)  (KF552C40BBK2-32)",
+   "key": "kingston:fury beast:32gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Комплект модулей памяти Kingston FURY Beast White XMP KF552C40BWK2-32 DDR5 32GB (Kit 2x16GB) 5200MHz (KF552C40BWK2-32)",
+   "key": "kingston:fury beast:32gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Комплект оперативной памяти Kingston Fury Beast Beast White EXPO DDR5 DIMM 32Gb KIT (2x16Gb) 6000MHz (KF560C36BWE2K2-32)",
+   "key": "kingston:fury beast:32gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Комплект оперативной памяти Kingston Fury Beast RGB EXPO DDR5 DIMM 32G KIT (2x16) 6000MHz (KF560C36BBE2AK2-32)",
+   "key": "kingston:fury beast:32gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Модуль памяти Kingston FURY Beast White XMP EXPO KF552C40BW-16 DDR5 16GB 5200MHz (KF552C40BW-16)",
+   "key": "kingston:fury beast:16gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Модуль памяти Kingston Fury Beast KF552C40BBK2-16 DDR5 DIMM 16Gb Kit(2x8) 5200 MHz CL40 (KF552C40BBK2-16)",
+   "key": "kingston:fury beast:16gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Оперативная память  Kingston Fury Beast 16Gb (8x2) 5600MHz DDR5 DIMM, CL40, 1.25v (KF556C40BBK2-16)",
+   "key": "kingston:fury beast:16gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Оперативная память DIMM Kingston Fury Beast RGB DDR5 32 GB 6000MHz (KF560C36BBE2A-32)",
+   "key": "kingston:fury beast:32gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Оперативная память KINGSTON DRAM 16GB 3600MHz DDR4 CL18 DIMM FURY Beast Black (KF436C18BB/16)",
+   "key": "kingston:fury beast:16gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Оперативная память Kingston 16GB 3200MT/s DDR4 CL16 DIMM 1Gx8 FURY Beast RGB (KF432C16BB12A/16)",
+   "key": "kingston:fury beast:16gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Оперативная память Kingston 16GB 3600MT/s DDR4 CL17 DIMM (Kit of 2) FURY Beast Black, EAN: 740617319781 (KF436C17BBK2/16)",
+   "key": "kingston:fury beast:16gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Оперативная память Kingston 16GB 5600MT/s DDR5 CL36 DIMM FURY Beast Black EXPO (KF556C36BBE-16)",
+   "key": "kingston:fury beast:16gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Оперативная память Kingston 16GB 5600MT/s DDR5 CL36 DIMM FURY Beast RGB EXPO (KF556C36BBEA-16)",
+   "key": "kingston:fury beast:16gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Оперативная память Kingston 16GB 6000MT/s DDR5 CL36 DIMM (Kit of 2) FURY Beast Black EXPO (KF560C36BBEK2-16)",
+   "key": "kingston:fury beast:16gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Оперативная память Kingston 32GB 3600MT/s DDR4 CL18 DIMM (Kit of 2) FURY Beast RGB (KF436C18BB2AK2/32)",
+   "key": "kingston:fury beast:32gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Оперативная память Kingston 32GB 5600MT/s DDR5 CL36 DIMM (Kit of 2) FURY Beast RGB EXPO (KF556C36BBEAK2-32)",
+   "key": "kingston:fury beast:32gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Оперативная память Kingston DDR-4 DIMM 16GB/3600MHz Black (KF436C18BB2A/16)",
+   "key": "kingston:fury beast:16gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Оперативная память Kingston DRAM 16GB 5600MHz DDR5 CL40 DIMM FURY Beast Black  (KF556C40BB-16)",
+   "key": "kingston:fury beast:16gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Оперативная память Kingston FURY Beast Black EXPO DIMM DDR5 16GB 6000MT/s (KF560C30BBE-16)",
+   "key": "kingston:fury beast:16gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Оперативная память Kingston FURY Beast DDR5 32GB 5600MT/s - Black (KF556C36BBE2-32)",
+   "key": "kingston:fury beast:32gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Оперативная память Kingston FURY Beast EXPO RGB 16Гб (8x2) DIMM DDR5 5600MT/s KF556C36BBEAK2-16 (KF556C36BBEAK2-16)",
+   "key": "kingston:fury beast:16gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Оперативная память Kingston FURY Beast KF432C16BB1/16 DDR4 16GB 3200MHz (KF432C16BB1/16)",
+   "key": "kingston:fury beast:16gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Оперативная память Kingston FURY Beast RGB 32GB 3200MT/s DDR4 (Kit of 2) (KF432C16BB2AK2/32)",
+   "key": "kingston:fury beast:32gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Оперативная память Kingston FURY Beast RGB DDR5 16GB 6000MT/s - White (KF560C30BWEA-16)",
+   "key": "kingston:fury beast:16gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Оперативная память Kingston FURY Beast RGB EXPO DDR5 16GB 6000MT/s (KF560C36BBE2A-16)",
+   "key": "kingston:fury beast:16gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Оперативная память Kingston FURY Beast RGB XMP DDR5 32GB 5200MT/s, White (KF552C40BWA-32)",
+   "key": "kingston:fury beast:32gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Оперативная память Kingston Fury Beast (AMD), DDR5 32 GB kit (2x16GB) 6000MHz (KF560C30BWEK2-32)",
+   "key": "kingston:fury beast:32gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Оперативная память Kingston Fury Beast (AMD), DIMM DDR5 32 GB kit (2x16GB) <6000MHz> (KF560C30BBEK2-32)",
+   "key": "kingston:fury beast:32gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Оперативная память Kingston Fury Beast DDR4 DIMM 16Gb 3200MHz (KF432C16BB1/16WP)",
+   "key": "kingston:fury beast:16gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Оперативная память Kingston Fury Beast DDR4 DIMM 32Gb KIT (2x16) 3200MHz (KF432C16BB1K2/32WP)",
+   "key": "kingston:fury beast:32gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Оперативная память Kingston Fury Beast DDR5 - 2x 16ГБ 6400МГц (KF564C32BBEAK2-32)",
+   "key": "kingston:fury beast:32gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Оперативная память Kingston Fury Beast RGB (AMD), DDR5 32 GB kit (2x16GB) 6000MHz (KF560C30BBEAK2-32) ( KF560C30BBEAK2-32)",
+   "key": "kingston:fury beast:32gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Оперативная память Kingston Fury Beast RGB DDR4 16Gb 3200 MHz (KF432C16BB2A/16)",
+   "key": "kingston:fury beast:16gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Оперативная память Kingston Fury Beast RGB DDR4 DIMM 16Gb 3200MHz (KF432C16BB12A/16WP)",
+   "key": "kingston:fury beast:16gb",
+   "has_fields": false,
+   "pairs": 8
+  },
+  {
+   "title": "Оперативная память 16GB DDR5 5600MHz NOMAD UDIMM (NMD5600D5U46-16GB)",
+   "key": "nomad:nmd5600d5u46:16gb",
+   "has_fields": false,
+   "pairs": 5
+  },
+  {
+   "title": "Оперативная память NOMAD NMD5600D5U46-16GBHSB DDR5 16GB 5600MHz - Black (NMD5600D5U46-16GBHSB)",
+   "key": "nomad:nmd5600d5u46:16gb",
+   "has_fields": false,
+   "pairs": 5
+  },
+  {
+   "title": "Оперативная память NOMAD NMD5600D5U46-16GBHSW DDR5 16GB 5600MHz - White (NMD5600D5U46-16GBHSW)",
+   "key": "nomad:nmd5600d5u46:16gb",
+   "has_fields": false,
+   "pairs": 5
+  },
+  {
+   "title": "Оперативная память NOMAD RGB NMD5600D5U46-16GBRGBW DDR5 16GB 5600MHz - White (NMD5600D5U46-16GBRGBW)",
+   "key": "nomad:nmd5600d5u46:16gb",
+   "has_fields": false,
+   "pairs": 5
+  },
+  {
+   "title": "Твердотельный накопитель SSD Kingston 1TB M.2 (NV3 SNV3S/1000G) (SNV3S/1000G)",
+   "key": "kingston:nv3:1tb",
+   "has_fields": false,
+   "pairs": 5
+  },
+  {
+   "title": "Монитор Игровой 27\" Sanc M2753FVF 1920x1080 16:9 IPS 280ГЦ (2HDMI+2DP) Black",
+   "key": "sanc:m2753fvf:27",
+   "has_fields": false,
+   "pairs": 4
+  },
+  {
+   "title": "Видеокарта Maxsun MS-GT730 PH 2G [2 ГБ, GDDR3, 128 бит, VGA, DVI, HDMI]",
+   "key": "maxsun:gt730:2gb",
+   "has_fields": false,
+   "pairs": 3
+  },
+  {
+   "title": "Монитор 24,5\" PHILIPS 25M2N3200W 1920x1080 16:9 VA 240ГЦ (2HDMI+DP) Black",
+   "key": "philips:25m2n3200w:24.5",
+   "has_fields": false,
+   "pairs": 3
+  },
+  {
+   "title": "Монитор Игровой 27\" Sanc M2753FKG 1920x1080 16:9 IPS 120ГЦ (HDMI+VGA) Black",
+   "key": "sanc:m2753fkg:27",
+   "has_fields": false,
+   "pairs": 3
+  },
+  {
+   "title": "Монитор Игровой 27\" XG Crimson X 2560x1440 16:9 IPS 180ГЦ (HDMI+DP) White",
+   "key": "xg:crimson x:27",
+   "has_fields": false,
+   "pairs": 3
+  },
+  {
+   "title": "Оперативная память DIMM DDR5 64 GB kit (KF556C36BWEAK2-64)",
+   "key": "kingston:fury beast:64gb",
+   "has_fields": false,
+   "pairs": 3
+  },
+  {
+   "title": "Оперативная память Kingston FURY Beast Black DDR5 64GB (Kit of 2) 5600MT/s (KF556C36BBE2K2-64)",
+   "key": "kingston:fury beast:64gb",
+   "has_fields": false,
+   "pairs": 3
+  },
+  {
+   "title": "Оперативная память Kingston FURY Beast RGB DDR5 64GB (Kit of 2) 5600MT/s (KF556C36BBE2AK2-64)",
+   "key": "kingston:fury beast:64gb",
+   "has_fields": false,
+   "pairs": 3
+  },
+  {
+   "title": "Оперативная память Kingston Fury Beast Black EXPO 64Гб (KF560C30BBEK2-64)",
+   "key": "kingston:fury beast:64gb",
+   "has_fields": false,
+   "pairs": 3
+  },
+  {
+   "title": "Оперативная память Kingston Fury Beast DDR5 - 2x 32ГБ 6400МГц (KF564C32BBEAK2-64)",
+   "key": "kingston:fury beast:64gb",
+   "has_fields": false,
+   "pairs": 3
+  },
+  {
+   "title": "Оперативная память Kingston Fury Beast Expo, DDR-5 64GB/5600MHz 2x32Gb Kit (KF556C36BBEK2-64)",
+   "key": "kingston:fury beast:64gb",
+   "has_fields": false,
+   "pairs": 3
+  },
+  {
+   "title": "Твердотельный накопитель 256GB SDD AMD RADEON R3 Series M.2 PCIe 3.0 2280 (R3MP30256G8)",
+   "key": "amd:radeon r3:256gb",
+   "has_fields": false,
+   "pairs": 3
+  },
+  {
+   "title": "Твердотельный накопитель 256GB SSD Kingston KC600 2.5” SATA3 (SKC600/256G)",
+   "key": "kingston:kc600:256gb",
+   "has_fields": false,
+   "pairs": 3
+  },
+  {
+   "title": "Твердотельный накопитель SSD Kingston NV3 2TB M.2 (SNV3S/2000G)",
+   "key": "kingston:nv3:2tb",
+   "has_fields": false,
+   "pairs": 3
+  },
+  {
+   "title": "Blackview Tab 80 Kids Wi-Fi 10.1 дюйм 4 Гб64 Гб голубой",
+   "key": "blackview:tab 80 kids:64gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Видеокарта Afox GT730 (AF730-2048D3L6) [2 ГБ, GDDR3, 128 бит, VGA, DVI, HDMI]",
+   "key": "afox:gt730:2gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Видеокарта Maxsun MS-GTX1050Ti TF 4G [4 ГБ, GDDR5, 128 бит, DVI, HDMI, DisplayPort]",
+   "key": "maxsun:gtx1050ti:4gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Видеокарта Maxsun MS-GTX1650 TR 4GD6 [4 ГБ, GDDR6, 128 бит, DVI, HDMI, DisplayPort]",
+   "key": "maxsun:gtx1650:4gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Видеокарта Maxsun MS-RX550 TF 4G [4 ГБ, GDDR5, 128 бит, DVI, HDMI, DisplayPort]",
+   "key": "maxsun:rx550:4gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Видеокарта OCPC GT 210 (OCVNGT210G1XE) [1 ГБ, GDDR3, 64 бит, VGA, DVI, HDMI]",
+   "key": "ocpc:gt210:1gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Жесткий диск SSD 500GB Transcend TS500GMTS825S M2 (TS500GMTS825S)",
+   "key": "transcend:mts825s:500gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Жесткий диск SSD 512GB Transcend TS512GMTE110S (TS512GMTE110S)",
+   "key": "transcend:mte110s:512gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Монитор 24,5\" PHILIPS 25M2N5200U 1920x1080 16:9 IPS 390ГЦ (2HDMI+DP) Black",
+   "key": "philips:25m2n5200u:24.5",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Монитор 27\" AOC 27B3QA2 1920x1080 16:9 IPS 120ГЦ (HDMI+DP) Black",
+   "key": "aoc:27b3qa2:27",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Монитор 27\" X-Game OFLED27 1920x1080 16:9 IPS 75 ГЦ (HDMI+VGA) Black",
+   "key": "x-game:ofled27:27",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Монитор 43\" Dahua DHI-LM43-F400 3840x2160 16:9 IPS 60ГЦ (3HDMI) Black",
+   "key": "dahua:dhi-lm43-f400:43",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Монитор Игровой 23,8\" Sanc M2442PH V3 1920x1080 16:9 IPS 200ГЦ (2HDMI+DP) Black",
+   "key": "sanc:m2442ph v3:23.8",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Монитор Игровой 23,8\" Sanc M2453FXG 1920x1080 16:9 IPS 144ГЦ (HDMI+VGA) Black",
+   "key": "sanc:m2453fxg:23.8",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Монитор Игровой 24.5\" AOC 25G50Z 1920x1080 16:9 IPS 260Гц (HDMI+DP) Black",
+   "key": "aoc:25g50z:24.5",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Монитор Игровой 27\" AOC 27G42E 1920x1080 16:9 IPS 180ГЦ (HDMI+DP) Black",
+   "key": "aoc:27g42e:27",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Оперативная память 16GB DDR5 4800MHz AMD Radeon R5 Entertainment Series, PC5-38400, CL40, 1.1V, R5516G4800U1S-U (R5516G4800U1S-U)",
+   "key": "amd:r5-entertainment:16gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Оперативная память 4Gb DDR3 1600MHz AMD Radeon R5 Entertainment Series R534G1601U1SL-U (R534G1601U1SL-U)",
+   "key": "amd:radeon r5:4gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Оперативная память Apacer NOX TUF DDR-5 16GB/5600MHz (AH5U16G56C522UTAA-1)",
+   "key": "apacer:nox tuf:16gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Оперативная память Apacer NOX TUF DDR5 16GB 6000MHz (AH5U16G60C622UTAA-1)",
+   "key": "apacer:nox tuf:16gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Оперативная память Apacer Panther 16GB (AH5U16G52C5227BAA-1)",
+   "key": "apacer:panther:16gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Оперативная память DIMM Corsair Vengeance DDR5 32 GB kit (2x16GB) <6400MHz> (CMK32GX5M2B6400Z32)",
+   "key": "corsair:vengeance:32gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Оперативная память Kingston 16GB 5600MT/s DDR5 CL36 DIMM (Kit of 2) FURY Beast Black EXPO (KF556C36BBEK2-16)",
+   "key": "kingston:fury-beast:16gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Оперативная память Kingston FURY Beast RGB XMP DDR5 16GB 5200MT/s (KF552C40BBA-16)",
+   "key": "kingston:fury beast rgb:16gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Оперативная память Kingston Fury Beast KF552C40BB-16 DDR5 DIMM 16Gb 5200 MHz CL40 (8473302008) (KF552C40BB-16)",
+   "key": "kingston:fury-beast:16gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Оперативная память Kingston KF432C16BB2A/8 DDR4 8GB (KF432C16BB2A/8)",
+   "key": "kingston:kf432c16bb2a:8gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Оперативная память c радиатором AMD Radeon R5 4GB DDR3 (R5S34G1601U1S)",
+   "key": "amd:radeon r5:4gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Планшет Doogee Tab A9 2025 Wi-Fi 10.1\" 3/64Gb Black",
+   "key": "doogee:tab a9:64gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Планшет Doogee Tab A9 2025 Wi-Fi 10.1\" 3/64Gb Grey",
+   "key": "doogee:tab a9:64gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Планшет Doogee U11 11\" 4/128Gb Black",
+   "key": "doogee:u11:128gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Планшет Doogee U11 11\" 4/128Gb Grey",
+   "key": "doogee:u11:128gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Планшет Oscal Pad 9 10.1\" 4/128Gb Metallic Titanium Grey",
+   "key": "oscal:pad 9:128gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Планшет Oscal Pad 9 10.1\" 4/128Gb Sierra Blue",
+   "key": "oscal:pad 9:128gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Твердотельный накопитель  256GB SSD Apacer, M.2 2280, R1800MB/s, W1100MB/s, AP256GAS2280P4-1 (AP256GAS2280P4-1)",
+   "key": "apacer:as2280p4:256gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Твердотельный накопитель SSD 1Tb, SATA, Netac SA500 (NT01SA500-1T0-S3X)",
+   "key": "netac:sa500:1tb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Твердотельный накопитель SSD 2.5\" SATA III Patriot  256GB P210 530/460 P210S256G25 (P210S256G25)",
+   "key": "patriot:p210:256gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Твердотельный накопитель SSD 512 Gb M.2 PCIe Apacer AS2280P4  AP512GAS2280P4-1 (AP512GAS2280P4-1)",
+   "key": "apacer:as2280p4:512gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Твердотельный накопитель SSD Kingston DC2000B 480GB M.2 (SEDC2000BM8/480G)",
+   "key": "kingston:dc2000b:480gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Твердотельный накопитель SSD Kingston NV3 500GB (SNV3S/500G)",
+   "key": "kingston:nv3:500gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Телевизор 65\" (164  см) Яндекс YNDX-00098 MiniLED 4K UHD Black",
+   "key": "yandex:yndx-00098:65",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Телевизор Dreame  Aura Mini LED 4K TV 75S100 75\" (75S100)",
+   "key": "dreame:75s100:75",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "Флеш-накопитель USB Kingston DataTraveler Exodia 128 ГБ Kingston Technology",
+   "key": "kingston:datatraveler exodia:128gb",
+   "has_fields": false,
+   "pairs": 2
+  },
+  {
+   "title": "OSCAL Pad 200 LTE 13.4 дюйм 6 Гб128 Гб серый + подарок",
+   "key": "oscal:pad 200:128gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "OSCAL Pad 200 LTE 13.4 дюйм 6 Гб128 Гб синий + подарок",
+   "key": "oscal:pad 200:128gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "SSD  SANDISK Blue (M.2, 500GB, PCIe Gen4 NVMe 1.4b)",
+   "key": "sandisk:blue:500gb",
+   "has_fields": true,
+   "pairs": 1
+  },
+  {
+   "title": "Бумага Canon Zink Paper ZP-2030, 20 листов, клейкая",
+   "key": "canon:zp-2030:20sheets",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Видеокарта AFOX GTX1650 SUPER GAMING 4GB D6 Dual Fan (AF1650S-4096D6H3-V2)",
+   "key": "afox:gtx1650 super:4gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Видеокарта AFOX GTX1660 SUPER 6GB D6 Dual Fan (AF1660S-6144D6H7-V2)",
+   "key": "afox:gtx1660 super:6gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Видеокарта AFOX Geforce GTX1050 4GB GDDR5 ATX Dual Fan (AF1050-4096D5H4-V2)",
+   "key": "afox:gtx1050:4gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Видеокарта Afox GT730 (AF730-4096D3L6) [4 ГБ, GDDR3, 128 бит, VGA, DVI, HDMI]",
+   "key": "afox:gt730:4gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Видеокарта Afox GT730, (AF730-4096D3L5) [4 ГБ, GDDR3, 128 бит, 700 МГц, VGA, DVI, HDMI]",
+   "key": "afox:gt730:4gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Видеокарта Afox GTX1050 4GB D5 Dual Fan (AF1050-4096D5H4-V2) [4 ГБ, GDDR5, 128 бит, DVI, HDMI, DisplayPort]",
+   "key": "afox:gtx1050:4gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Видеокарта Afox GTX1050Ti GAMING 4GB D5 Dual Fan (AF1050TI-4096D5H5-V10) [4 ГБ, GDDR5, 128 бит, DVI, HDMI, DisplayPort]",
+   "key": "afox:gtx1050ti:4gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Видеокарта OCPC GTX 750 Ti (OCVNGTX750TIG4XG) [4 ГБ, GDDR5, 128 бит, VGA, DVI, HDMI]",
+   "key": "ocpc:gtx750ti:4gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Комплект оперативной памяти DIMM Hiksemi (Hikvision) Future, DDR4 32 GB kit (2x16GB) 3200MHz, White (HSC432U32F3 16G*2)",
+   "key": "hiksemi:future:32gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Комплект оперативной памяти DIMM Hiksemi (Hikvision) Sword RGB, DDR4 16 GB kit  (2x8GB) 3200MHz (HSC416U32B5 8G*2)",
+   "key": "hiksemi:sword:16gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Комплект оперативной памяти Hiksemi (Hikvision) Future RGB, DDR4 16 GB kit (2x8GB) 3200MHz (HSC416U32C5 8G*2)",
+   "key": "hiksemi:future:16gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Модуль памяти Netac NTBSD3P16SP-04 DDR3 4GB <PC3-12800/1600MHz> (NTBSD3P16SP-04)",
+   "key": "netac:ntbsd3p16sp-04:4gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Монитор 23,8\" AOC 24B3HA2 1920x1080 16:9 IPS 120ГЦ (2HDMI+DP) Black",
+   "key": "aoc:24b3ha2:23.8",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Монитор 23,8\" AOC 24B3QA2 1920x1080 16:9 IPS 120ГЦ (HDMI+DP) Black",
+   "key": "aoc:24b3qa2:23.8",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Монитор 23,8\" X-game 1T238IPS 1920x1080 16:9 IPS 100ГЦ (HDMI+DP+ VGA) Black",
+   "key": "x-game:1t238ips:23.8",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Монитор 24\" FHD Viewsonic VA24E1-H черный",
+   "key": "viewsonic:va24e1-h:24",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Монитор 27\" X-game OFLED27+ 1920x1080 16:9 IPS 100ГЦ (HDMI+VGA) Black",
+   "key": "x-game:ofled27+:27",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Монитор 27'' Neo SO27FIW14NB 1920×1080 16:9 IPS 144ГЦ (HDMI+VGA) Black",
+   "key": "neo:so27fiw14nb:27",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Монитор AOC 27B36X/01",
+   "key": "aoc:27b36x:27",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Монитор Игровой 23,8\" AOC 24G4HRE 1920x1080 16:9 IPS 200ГЦ (2HDMI+DP) Black",
+   "key": "aoc:24g4hre:23.8",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Монитор Игровой 24\" ViewSonic VX2418C 1920x1080 16:9 VA 180ГЦ (2HDMI+DP) Black",
+   "key": "viewsonic:vx2418c:24",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Монитор Игровой 27\" PHILIPS 27E2N1110 1920x1080 16:9 IPS 120Гц (HDMI+VGA) Black",
+   "key": "philips:27e2n1110:27",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Монитор Игровой 27\" PHILIPS 27E2N2500 2560x1440 16:9 IPS 120Гц (HDMI+DP) Black",
+   "key": "philips:27e2n2500:27",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Монитор Игровой 27\" Sanc M2742PH V3 1920x1080 16:9 IPS 200ГЦ (2HDMI+DP) Black",
+   "key": "sanc:m2742ph v3:27",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Монитор Игровой 27\" XG Darknet Pro 1920x1080 16:9 IPS 360ГЦ (2HDMI+2DP) Black",
+   "key": "xg:darknet pro:27",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Ноутбук Chuwi Corebook Plus [16\", Ryzen 5-7430U, 16 ГБ ОЗУ, 512 ГБ SSD, Windows 11 Home]",
+   "key": "chuwi:corebook plus:512gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память  8GB DDR4 3200MHz GEIL PC4-25600 GN48GB3200C22S Bulk Pack (GN48GB3200C22S)",
+   "key": "geil:gn48gb3200c22s:8gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память 16GB DDR5 4800MHz NOMAD UDIMM NMD4800D5U40-16GB Bulk Pack FULL совместимость! (NMD4800D5U40-16GB)",
+   "key": "nomad:nmd4800d5u40:16gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память 16GB GEIL 2400Mhz DDR4 PC4-19200 (GP416GB2400C17SC)",
+   "key": "geil:ddr4:16gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память 16GB GEIL 3200MHz DDR4 PC4-24600 Bulk Pack (GN416GB3200C22S)",
+   "key": "geil:ddr4:16gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память 32GB 3200MHz DDR4 Team Group ELITE PC4-25600 CL22 TED432G3200C2201 (TED432G3200C2201)",
+   "key": "teamgroup:elite:32gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память 32GB 4800MHz DDR5 Team Group ELITE PC5-38400 CL40 TED532G4800C4001 (TED532G4800C4001)",
+   "key": "teamgroup:elite:32gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память Apacer Panther DDR5 32GB (Kit 2x16GB) 5200MHz (AH5U32G52C5227BAA-2)",
+   "key": "apacer:panther:32gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память Apacer Panther DDR5 32GB (Kit 2x16GB) 6000 МГц (AH5U32G60C6227BAA-2)",
+   "key": "apacer:panther:32gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память Apacer Panther, DDR-5 DIMM 32GB \"2x16GB Kit\" 5600MHz (AH5U32G56C5227BAA-2)",
+   "key": "apacer:panther:32gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память Crucial CT16G56C46U5 DDR5, 16Gb, 5600Mts (CT16G56C46U5)",
+   "key": "crucial:ct16g56c46u5:16gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память GOODRAM 16GB 3200MHz CL22 DIMM (GR3200D464L22/16G)",
+   "key": "goodram:gr3200d464l22:16gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память Hiksemi (Hikvision) Armor DDR4 16 GB kit (2x8GB) 3200MHz, Black (HSC416U32D3)",
+   "key": "hiksemi:armor:16gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память Hiksemi (Hikvision) Future DDR4 16 GB kit (2x8GB) 3200MHz, White (HSC416U32F3)",
+   "key": "hiksemi:future:16gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память Hiksemi (Hikvision) Hiker, DDR4 16 GB 3200MHz (HSC416U32Z1 16G)",
+   "key": "hiksemi:hiker:16gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память Hiksemi (Hikvision) Hiker, DIMM DDR5 16 GB <5600MHz> (HSC516U56Z1)",
+   "key": "hiksemi:hiker:16gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память Hiksemi (Hikvision) Sword RGB DDR4 32 GB kit (2x16GB) 3200MHz (HSC432U32B5)",
+   "key": "hiksemi:sword:32gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память KINGSTON DRAM 8GB 3600MHz DDR4 CL17 DIMM FURY Beast Black  (KF436C17BB/8)",
+   "key": "kingston:fury beast:8gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память Kingston FURY Beast Black EXPO 8GB DDR5 5600MHz (KF556C36BBE-8)",
+   "key": "kingston:fury beast:8gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память Kingston FURY Beast Black Expo DDR5 8GB 6000MHz (KF560C30BBE-8)",
+   "key": "kingston:fury beast:8gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память Kingston FURY Beast Black XMP 8GB DDR5 5600MHz (KF556C40BB-8)",
+   "key": "kingston:fury beast:8gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память Kingston Fury Beast RGB 8Gb 5600MHz DDR5 DIMM, CL40, 1.25v,  (KF556C40BBA-8)",
+   "key": "kingston:fury beast:8gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память Kingston Fury Beast RGB DDR4 DIMM 8Gb 3200MHz (KF432C16BB2A/8WP)",
+   "key": "kingston:fury beast:8gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память Kingston KVR32N22D8/16WP DDR4 DIMM 16Gb 3200MHz (KVR32N22D8/16WP)",
+   "key": "kingston:kvr32n22d8:16gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память Kingston KVR32N22S8/8  DDR4 DIMM 8Gb 3200 MHz CL22 (KVR32N22S8/8)",
+   "key": "kingston:kvr32n22s8:8gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память Lexar LD5U16G56C46ST-BGS DDR5 16GB 5600MHz (LD5U16G56C46ST-BGS)",
+   "key": "lexar:ld5u16g56c46st:16gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память Netac Basic NTBSD5P56SP-16 DDR5 16Gb, 5600Mhz (NTBSD5P56SP-16)",
+   "key": "netac:ntbsd5p56sp:16gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память Patriot Memory DDR4 16Gb 2666MHz (PSD416G26662)",
+   "key": "patriot:psd416g26662:16gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память Patriot PSD416G3200K 16 Гб (PSD416G3200K)",
+   "key": "patriot:psd416g3200k:16gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память Team Group ELITE DDR5 32GB Kit (2x16GB) 6400MHz (TED532G6400C52DC01)",
+   "key": "teamgroup:elite:32gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память Transcend TS2GLA64V6E1 DDR5 16GB 5600 MT/s (TS2GLA64V6E1)",
+   "key": "transcend:ts2gla64v6e1:16gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Оперативная память с RGB подсветкой 32GB Kit (2x16GB) GEIL POLARIS RGB 5600Mhz DDR5 GOSW532GB5600C46DC White (GOSW532GB5600C46DC)",
+   "key": "geil:polaris rgb:32gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Память оперативная DDR4 Desktop Transcend 8Гб (TS3200HLB-8G)",
+   "key": "transcend:ts3200hlb:8gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Память оперативная DDR5 Desktop Transcend  JM4800ALE-16G (JM4800ALE-16G)",
+   "key": "transcend:jm4800ale:16gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Память оперативная Desktop Transcend DDR4 TS3200HLB-16G (TS3200HLB-16G)",
+   "key": "transcend:ts3200hlb:16gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Память оперативная Desktop Transcend TS2666HLB-8G DDR4 8GB (TS2666HLB-8G)",
+   "key": "transcend:ts2666hlb:8gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Память оперативная Desktop Transcend TS3200HLE-32G DDR4 32GB 3200 (TS3200HLE-32G)",
+   "key": "transcend:ts3200hle:32gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Память оперативная Desktop Transcend TS4GLA64V6E1 DDR5 32GB 5600 MT/s (TS4GLA64V6E1)",
+   "key": "transcend:ts4gla64v6e1:32gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Память оперативная Transcend JM5600ALE-16G 16GB DDR5 5600MHz (JM5600ALE-16G)",
+   "key": "transcend:jm5600ale:16gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Память оперативная Transcend JM5600ALE-32G 32GB DDR5 (JM5600ALE-32G)",
+   "key": "transcend:jm5600ale:32gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Память оперативная Transcend JM6400ALE-16G 16GB DDR5 (JM6400ALE-16G)",
+   "key": "transcend:jm6400ale:16gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Планшет Oscal Pad 60 Kids 10.1\" 4/128Gb Blue",
+   "key": "oscal:pad 60 kids:128gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Смартфон Infinix GT 30 PRO 12/256 Blade White",
+   "key": "infinix:gt 30 pro:256gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Смартфон Infinix Note 50 PRO 12/256GB Ench Purple",
+   "key": "infinix:note 50 pro:256gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Твердотельный накопитель  2000GB SSD Team Group CX2 2.5” (T253X6002T0C101)",
+   "key": "teamgroup:cx2:2000gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Твердотельный накопитель 1000GB SSD TeamGroup QX 2.5” SATA3 (T253X7001T0C101)",
+   "key": "teamgroup:qx:1000gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Твердотельный накопитель 128GB SSD AMD RADEON R5 (R5SL128G)",
+   "key": "amd:radeon r5:128gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Твердотельный накопитель 256GB SSD TeamGroup CX2 2.5” SATA3 (T253X6256G0C101)",
+   "key": "teamgroup:cx2:256gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Твердотельный накопитель Lexar NM620 1TB M.2 (LNM620X001T-RNNNG)",
+   "key": "lexar:nm620:1tb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Твердотельный накопитель SSD 2.5\" SATA III Patriot  240GB BURST ELITE 450/320 PBE240GS25SSDR (PBE240GS25SSDR)",
+   "key": "patriot:burst elite:240gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Твердотельный накопитель SSD 250GB (TS250GMTE115S)",
+   "key": "transcend:mte115s:250gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Твердотельный накопитель SSD 500Gb, M.2 2280, Netac NV3000, NVMe, PCIe 3x4, 3100R/2100W (NT01NV3000-500-E4X)",
+   "key": "netac:nv3000:500gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Твердотельный накопитель SSD 512 Gb SATA Patriot P220 P220S512G25 2.5\" 3D  (P220S512G25)",
+   "key": "patriot:p220:512gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Твердотельный накопитель SSD 512 Gb mSATA 3.0 Kingston SKC600MS/512G 3D TLC (SKC600MS/512G)",
+   "key": "kingston:skc600ms:512gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Твердотельный накопитель SSD AGI AI828 1TB, М.2, PCIe 4.0 (AGI1T0G44AI828-CB)",
+   "key": "agi:ai828:1tb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Твердотельный накопитель SSD Kingston FURY Renegade G5 4ТБ (SFYR2S/4T0)",
+   "key": "kingston:fury renegade g5:4tb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Твердотельный накопитель SSD Kingston SKC3000S/512G M.2 (SKC3000S/512G)",
+   "key": "kingston:kc3000:512gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Твердотельный накопитель SSD Kingston SKC600/512G SATA 7мм (SKC600/512G)",
+   "key": "kingston:kc600:512gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Твердотельный накопитель SSD Netac NT01SA500-240-S3X 240GB  (NT01SA500-240-S3X)",
+   "key": "netac:sa500:240gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Твердотельный накопитель SSD Team Group MP33 256Gb, M.2, NVMe 1.3, 1600/1000 MB/s (TM8FP6256G0C101)",
+   "key": "teamgroup:mp33:256gb",
+   "has_fields": false,
+   "pairs": 1
+  },
+  {
+   "title": "Флеш-накопитель USB Transcend JetFlash 730 128 ГБ, нет Transcend",
+   "key": "transcend:jetflash 730:128gb",
+   "has_fields": false,
+   "pairs": 1
+  }
+ ]
+}

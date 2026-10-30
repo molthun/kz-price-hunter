@@ -22,8 +22,10 @@ import product_key  # noqa: E402
 
 DEFAULT_DATA = ROOT / "docs/audit_evidence/2026-10-30-c2/stand-data.json"
 DEFAULT_LABELS = ROOT / "scripts/k2_labeled_sample.json"
-DROPPED_CAUSES = ("missing_fields_one_side", "missing_fields_both", "variant_one_side", "variant_conflict",
-                  "revision_differs", "system_vs_component", "identity_differs_shared_code", "identity_differs_other")
+# Пара, где хотя бы у одного названия нет ключа k2. Нет полей — проход их не получил; это не отсутствие бренда
+MIXED_CAUSES = ("missing_fields_one_side", "missing_fields_both", "legacy_with_fields", "no_identity")
+DROPPED_CAUSES = MIXED_CAUSES + ("variant_one_side", "variant_conflict", "revision_differs", "system_vs_component",
+                                 "identity_differs_shared_code", "identity_differs_other")
 ADDED_CAUSES = ("old_format_only", "old_variant_differs", "same_identity_new_old_empty", "own_keys_equal_old_identity_differs",
                 "linked_by_article")
 _CODE = re.compile(r"[a-z0-9][a-z0-9/._-]{4,}[a-z0-9]")
@@ -45,7 +47,9 @@ def dropped_cause(pair):
     a, b = pair["new_a"], pair["new_b"]
     if not (a and a.startswith("k2:") and b and b.startswith("k2:")):
         missing = (pair["fields_a"] is None) + (pair["fields_b"] is None)
-        return "missing_fields_both" if missing == 2 else "missing_fields_one_side"
+        if missing:
+            return "missing_fields_both" if missing == 2 else "missing_fields_one_side"
+        return "no_identity" if not a or not b else "legacy_with_fields"
     if product_key.is_system_key(a) != product_key.is_system_key(b):
         return "system_vs_component"
     ra, rb = product_key.revision_of(a), product_key.revision_of(b)
@@ -133,48 +137,87 @@ def confusion(rows, side, packaging=None):
     return {k: counts.get(k, 0) for k in ("tp", "fn", "fp", "tn", "uncertain", "packaging")}
 
 
-def _rate(n, total):
-    """Доля и 95 % интервал Уилсона."""
+def _rate(n, total, z=1.96):
+    """Доля и интервал Уилсона."""
     if not total:
         return None
-    z, p = 1.96, n / total
+    p = n / total
     center = (p + z * z / (2 * total)) / (1 + z * z / total)
     half = z * math.sqrt(p * (1 - p) / total + z * z / (4 * total * total)) / (1 + z * z / total)
     return {"n": n, "of": total, "rate": round(p, 4), "low": round(center - half, 4), "high": round(center + half, 4)}
 
 
-def weighted_estimate(rows, strata_sizes, packaging):
-    """Оценка на всём каталоге: доля настоящих совпадений в каждом слое, умноженная на его размер.
+def _layer_of(data):
+    """{пара: слой} по выгрузке. Слой — из самих ключей, а не из разметки."""
+    layers = {}
+    for p in data.get("retained", []):
+        layers[frozenset((p["a"], p["b"]))] = "retained"
+    for p in data["added"]:
+        layers[frozenset((p["a"], p["b"]))] = "added"
+    for p in data["dropped"]:
+        both = (p["new_a"] or "").startswith("k2:") and (p["new_b"] or "").startswith("k2:")
+        layers[frozenset((p["a"], p["b"]))] = "dropped_both_k2" if both else "dropped_mixed"
+    return layers
 
-    Прежний кэш сравнивает пары retained + dropped, k2 — retained + added, поэтому отношение настоящих совпадений и
-    число ложных считаются без всех 3594 проверок вручную. Интервалы — по границам Уилсона в слоях (грубая оценка)."""
-    share = {}
-    for stratum in strata_sizes:
-        labels = []
-        for row in rows:
-            if stratum not in row["strata"]:
-                continue
-            label = row["label"]
-            if label == "packaging" and packaging is not None:
-                label = "same" if packaging else "different"
-            labels.append(label)
+
+def _packed(label, packaging):
+    if label == "packaging" and packaging is not None:
+        return "same" if packaging else "different"
+    return label
+
+
+# Восемь интервалов (по два на четыре слоя) держатся одновременно с вероятностью не ниже 95 %: поправка Бонферрони, 0,05/8
+_JOINT_Z = 2.734
+
+
+def weighted_estimate(rows, strata_sizes, packaging, known=None):
+    """Оценка на всём каталоге: известная часть слоя считается как есть, случайная выборка распространяется только на остаток.
+
+    Пары, размеченные раньше, в новый отбор попасть не могли, поэтому свежая доля к ним не применяется (C3A-02). uncertain
+    не распределяется: точечно идёт отдельной строкой, а в границах считается против k2. Границы отношений — худшее сочетание
+    границ слоёв; сохранившиеся пары входят в обе стороны с противоположными краями, поэтому границы осторожнее заявленных 95 %."""
+    known = known or {}
+    share, layer = {}, {}
+    for stratum, size in strata_sizes.items():
+        labels = [_packed(row["label"], packaging) for row in rows if stratum in row["strata"]]
         same, diff = labels.count("same"), labels.count("different")
+        drawn = same + diff + labels.count("uncertain")
         share[stratum] = _rate(same, same + diff)
         share[stratum]["excluded"] = len(labels) - same - diff
+        counts = collections.Counter(_packed(label, packaging) for label in known.get(stratum, []))
+        k_same, k_diff, k_open = counts["same"], counts["different"], counts["uncertain"]
+        pool = size - sum(counts.values())
+        if packaging is None:
+            # Упаковка исключена из сравнения: такие пары не решены ни в одну сторону
+            k_open += counts["packaging"]
+        layer[stratum] = {
+            "size": size, "known": len(known.get(stratum, [])), "known_same": k_same, "known_different": k_diff, "known_open": k_open,
+            "pool": pool, "drawn": drawn, "drawn_same": same, "drawn_different": diff, "drawn_open": drawn - same - diff,
+            "true": k_same + pool * same / drawn,
+            "false": k_diff + pool * diff / drawn,
+            "open": k_open + pool * (drawn - same - diff) / drawn,
+            "true_low": k_same + pool * _rate(same, drawn, _JOINT_Z)["low"],
+            "true_high": k_same + k_open + pool * _rate(drawn - diff, drawn, _JOINT_Z)["high"],
+            "false_low": k_diff + pool * _rate(diff, drawn, _JOINT_Z)["low"],
+            "false_high": k_diff + k_open + pool * _rate(drawn - same, drawn, _JOINT_Z)["high"]}
 
     def total(names, field):
-        return sum(strata_sizes[n] * share[n][field] for n in names)
+        return sum(layer[n][field] for n in names)
     base, cand = ("retained", "dropped_mixed", "dropped_both_k2"), ("retained", "added")
-    size = lambda names: sum(strata_sizes[n] for n in names)
+
+    def side(names):
+        return {field: round(total(names, field)) for field in ("true", "false", "open", "true_low", "true_high", "false_low", "false_high")}
     return {"share_true_by_stratum": share,
-            "baseline": {"true": round(total(base, "rate")), "false": round(size(base) - total(base, "rate"))},
-            "candidate": {"true": round(total(cand, "rate")), "false": round(size(cand) - total(cand, "rate"))},
+            "layers": {name: {k: round(v, 1) for k, v in row.items()} for name, row in layer.items()},
+            "baseline": side(base), "candidate": side(cand),
             # Какая часть настоящих совпадений прежнего кэша сохранилась в k2: рост общего числа пар её не заменяет
-            "baseline_true_kept": round(strata_sizes["retained"] * share["retained"]["rate"] / total(base, "rate"), 3),
-            "candidate_vs_baseline_true": round(total(cand, "rate") / total(base, "rate"), 3),
-            "candidate_vs_baseline_true_low": round(total(cand, "low") / total(base, "high"), 3),
-            "false_merges_ratio": round((size(cand) - total(cand, "rate")) / max(1, size(base) - total(base, "rate")), 3),
-            "false_merges_ratio_high": round((size(cand) - total(cand, "low")) / max(1, size(base) - total(base, "high")), 3)}
+            "baseline_true_kept": round(layer["retained"]["true"] / total(base, "true"), 3),
+            "baseline_true_kept_low": round(layer["retained"]["true_low"]
+                                            / (layer["retained"]["true_low"] + total(base[1:], "true_high")), 3),
+            "candidate_vs_baseline_true": round(total(cand, "true") / total(base, "true"), 3),
+            "candidate_vs_baseline_true_low": round(total(cand, "true_low") / total(base, "true_high"), 3),
+            "false_merges_ratio": round(total(cand, "false") / max(1, total(base, "false")), 3),
+            "false_merges_ratio_high": round(total(cand, "false_high") / max(1, total(base, "false_low")), 3)}
 
 
 def build(data, sample):
@@ -186,12 +229,18 @@ def build(data, sample):
     known = [r for r in rows if r["keys"]]
     reg = registry(data)
     strata_sizes = {"retained": data["pairs"]["retained"],
-                    "dropped_mixed": sum(v for k, v in reg["dropped_counts"].items() if k.startswith("missing_fields")),
-                    "dropped_both_k2": sum(v for k, v in reg["dropped_counts"].items() if not k.startswith("missing_fields")),
+                    "dropped_mixed": sum(reg["dropped_counts"][k] for k in MIXED_CAUSES),
+                    "dropped_both_k2": sum(v for k, v in reg["dropped_counts"].items() if k not in MIXED_CAUSES),
                     "added": data["pairs"]["added"]}
     for row in rows:
         row["strata"] = ["retained" if s == "retained_pool" else s for s in row["strata"]]
     random_rows = [r for r in known if set(r["strata"]) & set(strata_sizes)]
+    # Пары, известные до отбора: полная перепись своей части слоя. В выборку они не входят
+    layers, census = _layer_of(data), collections.defaultdict(list)
+    for item in sample.get("known_pairs", []):
+        census[layers[frozenset((item["a"], item["b"]))]].append(item["label"])
+    drawn = {frozenset((r["a"], r["b"])) for r in random_rows}
+    assert not drawn & {frozenset((i["a"], i["b"])) for i in sample.get("known_pairs", [])}, "пара и в переписи, и в выборке"
     lost = [{"a": r["a"], "b": r["b"], "new_a": r["keys"][2], "new_b": r["keys"][3], "strata": r["strata"]}
             for r in random_rows if r["label"] == "same" and r["keys"][2] != r["keys"][3]]
     merged = [{"a": r["a"], "b": r["b"], "key": r["keys"][2], "strata": r["strata"]}
@@ -201,16 +250,17 @@ def build(data, sample):
                    "by_label": dict(collections.Counter(r["label"] for r in rows)),
                    "unique_titles": len({t for r in rows for t in (r["a"], r["b"])})},
         "strata_sizes": strata_sizes,
+        "known_by_layer": {name: len(census.get(name, [])) for name in strata_sizes},
         "random_sample": {
             "pairs": len(random_rows),
             "baseline": confusion(random_rows, 0, packaging=False),
             "candidate": confusion(random_rows, 2, packaging=False),
         },
         # Решение владельца 30.10.2026: OEM/Tray и BOX — разные товары. Остальные сценарии — для сравнения
-        "weighted": {"owner_decision": weighted_estimate(random_rows, strata_sizes, False),
-                     "packaging_excluded": weighted_estimate(random_rows, strata_sizes, None),
-                     "packaging_same": weighted_estimate(random_rows, strata_sizes, True),
-                     "packaging_different": weighted_estimate(random_rows, strata_sizes, False)},
+        "weighted": {"owner_decision": weighted_estimate(random_rows, strata_sizes, False, census),
+                     "packaging_excluded": weighted_estimate(random_rows, strata_sizes, None, census),
+                     "packaging_same": weighted_estimate(random_rows, strata_sizes, True, census),
+                     "packaging_different": weighted_estimate(random_rows, strata_sizes, False, census)},
         "candidate_false_merges": merged,
         "candidate_lost_true_pairs": lost,
         "registry_counts": {"dropped": reg["dropped_counts"], "added": reg["added_counts"]},
@@ -263,24 +313,10 @@ def rules_now(data, sample):
               "tuned_added": outcome(pick("added")), "tuned_dropped_both_k2": outcome(pick("dropped_both_k2")),
               "retained_pool": outcome(pick("retained") + pick("retained_pool")),
               "dropped_mixed": outcome(pick("dropped_mixed"))}
-    sizes = {"retained": data["pairs"]["retained"], "added": data["pairs"]["added"], "both": 0, "mixed": 0}
-    for p in data["dropped"]:
-        sizes["both" if p["fields_a"] and p["fields_b"] else "mixed"] += 1
-
-    def per_pair(stat, name):
-        return stat[name] / max(1, stat["true_total"] + stat["false_total"])
-    ret, add, both, mixed = (strata["retained_pool"], strata["holdout_added"], strata["holdout_dropped_both_k2"], strata["dropped_mixed"])
-    estimate = {}
-    for name in ("tp", "fp"):
-        estimate[f"now_{name}"] = round(sizes["retained"] * per_pair(ret, f"now_{name}") + sizes["added"] * per_pair(add, f"now_{name}")
-                                        + sizes["both"] * per_pair(both, f"now_{name}") + sizes["mixed"] * per_pair(mixed, f"now_{name}"))
-        estimate[f"copy_{name}"] = round(sizes["retained"] * per_pair(ret, f"before_{name}") + sizes["added"] * per_pair(add, f"before_{name}")
-                                         + sizes["both"] * per_pair(both, f"before_{name}") + sizes["mixed"] * per_pair(mixed, f"before_{name}"))
     together = sum(1 for p in data["added"] if (lambda k: k[0] and k[0] == k[1])(pair_keys_now(fields, p["a"], p["b"], p["new"], p["new"])))
     rejoined = sum(1 for p in data["dropped"] if p["fields_a"] and p["fields_b"]
                    and (lambda k: k[0] and k[0] == k[1])(pair_keys_now(fields, p["a"], p["b"], p["new_a"], p["new_b"])))
-    return {"strata": strata, "sizes": sizes, "catalog_estimate": estimate,
-            "added_still_together": together, "dropped_both_k2_rejoined": rejoined,
+    return {"strata": strata, "added_still_together": together, "dropped_both_k2_rejoined": rejoined,
             "limits": "Только пары прежних слоёв: пары, которые правила могли соединить заново вне их, не видны; нужна пересборка копии."}
 
 

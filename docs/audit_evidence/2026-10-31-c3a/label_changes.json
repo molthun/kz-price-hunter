@@ -1,0 +1,475 @@
+{
+ "changed": [
+  {
+   "a": "AirPods Max 2",
+   "b": "Наушники Apple AirPods Max Silver",
+   "where": "new_merges",
+   "was": "different",
+   "now": "uncertain",
+   "reason": "поколение второго не указано; как у соседних пар AirPods Max 2",
+   "sources": []
+  },
+  {
+   "a": "Гарнитура HyperX Cloud III S - Gaming Headset (White-Pink) DG0R2AA",
+   "b": "Наушники HyperX Cloud III S Wireless Gaming Headset A59Z0AA Red",
+   "where": "added",
+   "was": "different",
+   "now": "same",
+   "reason": "оба артикула — Wireless Cloud III S, разница в цвете (C3A-01)",
+   "sources": [
+    "https://www.hp.com/ca-en/shop/products/accessories/hyperx-cloud-iii-s-wireless-gaming-headset-white-pink-dg0r2aa",
+    "https://www.hp.com/us-en/shop/pdp/hyperx-cloud-iii-s-wireless-gaming-headset-%28black-red%29"
+   ]
+  },
+  {
+   "a": "Bluetooth гарнитура Edifier W820NB Plus EDF200118, Grey",
+   "b": "Наушники Edifier W820NB Plus v.2025 бежевый",
+   "where": "added",
+   "was": "same",
+   "now": "uncertain",
+   "reason": "v.2025: как у соседней пары W820NB",
+   "sources": []
+  },
+  {
+   "a": "Компьютерный корпус Gamemax Infinity Mini 3 ARGB Fans + Controller Black без Б/П",
+   "b": "Корпус GameMax Infinity Mini BK, Black",
+   "where": "dropped_both_k2",
+   "was": "different",
+   "now": "uncertain",
+   "reason": "комплект второго не указан; как у соседней пары Infinity Mini",
+   "sources": []
+  },
+  {
+   "a": "Intel Core i7 13700F OEM",
+   "b": "Процессор Intel Core i7-13700F (SRMBB)",
+   "where": "added",
+   "was": "same",
+   "now": "uncertain",
+   "reason": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары",
+   "sources": []
+  },
+  {
+   "a": "Гарнитура Razer Kaira X for Xbox - Pulse Red RZ04-03970500-R3M1",
+   "b": "Наушники Razer Kaira X for Xbox RZ04-03970300-R3M1 White",
+   "where": "added",
+   "was": "different",
+   "now": "same",
+   "reason": "цвета одной модели (C3A-01)",
+   "sources": [
+    "https://www.razer.com/console-headsets/razer-kaira-x-for-xbox"
+   ]
+  },
+  {
+   "a": "Видеокарта 8 GB Afox RX 580 2048SP AFRX580-8192D5H3-V3",
+   "b": "Видеокарта Afox RX 580, 8 GB, Radeon RX 580",
+   "where": "dropped_both_k2",
+   "was": "different",
+   "now": "uncertain",
+   "reason": "во втором названии нет ревизии; как у соседней пары AFRX580",
+   "sources": []
+  },
+  {
+   "a": "Наушники SOUNDCORE Liberty 5 Pro (D1203G31), Голубой TWS",
+   "b": "Наушники soundcore Liberty 5 Pro D1203G21",
+   "where": "added",
+   "was": "different",
+   "now": "uncertain",
+   "reason": "значение кодов G21/G31 источником не подтверждено",
+   "sources": []
+  },
+  {
+   "a": "Планшет DOOGEE Tab A9 10,1\" 3GB/64GB Wi-Fi Grey",
+   "b": "Планшет Doogee Tab A9 2025 Wi-Fi 10.1\" 3/64Gb Grey",
+   "where": "dropped_mixed",
+   "was": "same",
+   "now": "uncertain",
+   "reason": "модель 2025 года или прежняя",
+   "sources": []
+  },
+  {
+   "a": "Карта памяти Canvas Select Plus A1 U1 V10 128 ГБ Kingston Technology",
+   "b": "Карта памяти SDXC 128 GB Kingston Canvas Select Plus, Class 10 UHS-I U1",
+   "where": "dropped_both_k2",
+   "was": "same",
+   "now": "uncertain",
+   "reason": "microSD или SD: во втором названии неясно",
+   "sources": []
+  },
+  {
+   "a": "Видеокарта AFOX GT740 4GB D3 LP Single Fan AF740-4096D3L3",
+   "b": "Видеокарта Afox GT 740, 4 GB, GeForce GT 740",
+   "where": "added",
+   "was": "same",
+   "now": "uncertain",
+   "reason": "во втором названии нет артикула и ревизии",
+   "sources": []
+  },
+  {
+   "a": "Оперативная память 16GB NOMAD NMD5600D5U46-16GB",
+   "b": "Оперативная память NOMAD RGB NMD5600D5U46-16GBRGBW DDR5 16GB 5600MHz - White (NMD5600D5U46-16GBRGBW)",
+   "where": "dropped_mixed",
+   "was": "different",
+   "now": "uncertain",
+   "reason": "у первого артикул без суффикса исполнения",
+   "sources": []
+  },
+  {
+   "a": "Ноутбук Tecno MEGABOOK K16S 16\" FHD i3-1315U 8GB 512GB Win 11 Tecno MEGABOOK K16S",
+   "b": "Ноутбук Tecno Megabook K16SAA 512GB 8GB",
+   "where": "new_merges",
+   "was": "same",
+   "now": "uncertain",
+   "reason": "процессор второго не указан",
+   "sources": []
+  },
+  {
+   "a": "Процессор AMD Ryzen 7 7700X OEM",
+   "b": "Процессор AMD Ryzen 7 7700X Ryzen 7, 4.5 ГГц AMD",
+   "where": "added",
+   "was": "same",
+   "now": "uncertain",
+   "reason": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары",
+   "sources": []
+  },
+  {
+   "a": "AFOX GTX 1660 SUPER AF1660S-6144D6H4-V2 6 Гб",
+   "b": "Видеокарта Afox GTX 1660 Super (AF1660S-6144D6H7-V2) [6 ГБ, GDDR6, 192 бит, DVI, HDMI, DisplayPort]",
+   "where": "old_set",
+   "was": "different",
+   "now": "uncertain",
+   "reason": "в эталоне same: null; перенос C3 решил его за разметчика (C3A-01)",
+   "sources": []
+  },
+  {
+   "a": "AMD Ryzen 5 4500 OEM",
+   "b": "Процессор AMD Ryzen 5 4500 Ryzen 5, 3.6 ГГц AMD",
+   "where": "old_set",
+   "was": "same",
+   "now": "uncertain",
+   "reason": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары",
+   "sources": []
+  },
+  {
+   "a": "AMD Ryzen 5 5600 OEM",
+   "b": "Процессор AMD Ryzen 5 5600 Ryzen 5, 3.5 ГГц AMD",
+   "where": "old_set",
+   "was": "same",
+   "now": "uncertain",
+   "reason": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары",
+   "sources": []
+  },
+  {
+   "a": "AMD Ryzen 5 7500F OEM",
+   "b": "Процессор AMD Ryzen 5 7500F",
+   "where": "old_set",
+   "was": "same",
+   "now": "uncertain",
+   "reason": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары",
+   "sources": []
+  },
+  {
+   "a": "AFOX AF1050TI-4096D5H2",
+   "b": "Видеокарта Afox GTX 1050 Ti  V9, 4 GB, GeForce GTX 1050 Ti",
+   "where": "old_set",
+   "was": "different",
+   "now": "uncertain",
+   "reason": "в эталоне same: null; перенос C3 решил его за разметчика (C3A-01)",
+   "sources": []
+  },
+  {
+   "a": "ASRock H510M-H2/M.2 SE",
+   "b": "Материнская плата ASRock H510M-H2/M.2 SE D4",
+   "where": "old_set",
+   "was": "different",
+   "now": "uncertain",
+   "reason": "в эталоне same: null; перенос C3 решил его за разметчика (C3A-01)",
+   "sources": []
+  },
+  {
+   "a": "Garmin Fenix 8 43 51 мм Серебристый-оранжевый",
+   "b": "Смарт-часы GARMIN Fenix 8 51mm ,AMOLED, сапфир, титановый корпус, черный, кожаный ремешок каштанового цвета 010-02905-40",
+   "where": "old_set",
+   "was": "different",
+   "now": "uncertain",
+   "reason": "в эталоне same: null; перенос C3 решил его за разметчика (C3A-01)",
+   "sources": []
+  },
+  {
+   "a": "Garmin Fenix 8 43 51 мм Серебристый-оранжевый",
+   "b": "Смарт-часы GARMIN Fenix 8 51mm, AMOLED, сапфир, темный силикон 010-02905-21",
+   "where": "old_set",
+   "was": "different",
+   "now": "uncertain",
+   "reason": "в эталоне same: null; перенос C3 решил его за разметчика (C3A-01)",
+   "sources": []
+  },
+  {
+   "a": "Garmin Fenix 8 43 51 мм Серый",
+   "b": "Смарт-часы GARMIN Fenix 8 51mm ,AMOLED, сапфир, титановый корпус, черный, кожаный ремешок каштанового цвета 010-02905-40",
+   "where": "old_set",
+   "was": "different",
+   "now": "uncertain",
+   "reason": "в эталоне same: null; перенос C3 решил его за разметчика (C3A-01)",
+   "sources": []
+  },
+  {
+   "a": "Garmin Fenix 8 43 51 мм Серый",
+   "b": "Смарт-часы GARMIN Fenix 8 51mm, AMOLED, сапфир, темный силикон 010-02905-21",
+   "where": "old_set",
+   "was": "different",
+   "now": "uncertain",
+   "reason": "в эталоне same: null; перенос C3 решил его за разметчика (C3A-01)",
+   "sources": []
+  },
+  {
+   "a": "Garmin Fenix 8 43 51 мм Черный",
+   "b": "Смарт-часы GARMIN Fenix 8 51mm ,AMOLED, сапфир, титановый корпус, черный, кожаный ремешок каштанового цвета 010-02905-40",
+   "where": "old_set",
+   "was": "different",
+   "now": "uncertain",
+   "reason": "в эталоне same: null; перенос C3 решил его за разметчика (C3A-01)",
+   "sources": []
+  },
+  {
+   "a": "Garmin Fenix 8 43 51 мм Черный",
+   "b": "Смарт-часы GARMIN Fenix 8 51mm, AMOLED, сапфир, темный силикон 010-02905-21",
+   "where": "old_set",
+   "was": "different",
+   "now": "uncertain",
+   "reason": "в эталоне same: null; перенос C3 решил его за разметчика (C3A-01)",
+   "sources": []
+  },
+  {
+   "a": "Гарнитура A4Tech Bloody G575, 2m, USB, LED, Naraka (G575/NARAKA)",
+   "b": "Гарнитура A4Tech Bloody G575, Black",
+   "where": "old_set",
+   "was": "different",
+   "now": "uncertain",
+   "reason": "в эталоне same: null; перенос C3 решил его за разметчика (C3A-01)",
+   "sources": []
+  },
+  {
+   "a": "Гарнитура A4Tech Bloody G575, 2m, USB, LED, Naraka (G575/NARAKA)",
+   "b": "Гарнитура A4Tech Bloody G575, Grey",
+   "where": "old_set",
+   "was": "different",
+   "now": "uncertain",
+   "reason": "в эталоне same: null; перенос C3 решил его за разметчика (C3A-01)",
+   "sources": []
+  },
+  {
+   "a": "Гарнитура A4Tech Bloody G575, 2m, USB, LED, Naraka (G575/NARAKA)",
+   "b": "Гарнитура A4Tech Bloody G575, Punk Yellow",
+   "where": "old_set",
+   "was": "different",
+   "now": "uncertain",
+   "reason": "в эталоне same: null; перенос C3 решил его за разметчика (C3A-01)",
+   "sources": []
+  },
+  {
+   "a": "Гарнитура A4Tech Bloody G575, 2m, USB, LED, Naraka (G575/NARAKA)",
+   "b": "Наушники A4tech Bloody G575 Black",
+   "where": "old_set",
+   "was": "different",
+   "now": "uncertain",
+   "reason": "в эталоне same: null; перенос C3 решил его за разметчика (C3A-01)",
+   "sources": []
+  },
+  {
+   "a": "Процессор AMD Ryzen 5 4500 OEM (100-000000644)",
+   "b": "Процессор AMD Ryzen 5 4500 Ryzen 5, 3.6 ГГц AMD",
+   "where": "known",
+   "was": "same",
+   "now": "uncertain",
+   "reason": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары",
+   "sources": []
+  },
+  {
+   "a": "Комплект оперативной памяти Hiksemi (Hikvision) Future RGB, DDR4 16 GB kit (2x8GB) 3200MHz (HSC416U32C5 8G*2)",
+   "b": "Оперативная память Hiksemi Future HSC416U32F3",
+   "where": "known",
+   "was": "same",
+   "now": "uncertain",
+   "reason": "разные коды; комплект против неясной поставки",
+   "sources": []
+  },
+  {
+   "a": "AMD Ryzen 5 7500F OEM",
+   "b": "Процессор AMD Ryzen 5 7500F",
+   "where": "known",
+   "was": "same",
+   "now": "uncertain",
+   "reason": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары",
+   "sources": []
+  },
+  {
+   "a": "Intel Core i7 13700KF OEM",
+   "b": "Процессор Intel Core i7 Processor 13700KF 1700 (i7-13700KF)",
+   "where": "known",
+   "was": "same",
+   "now": "uncertain",
+   "reason": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары",
+   "sources": []
+  },
+  {
+   "a": "Процессор CPU S-1700 Intel Core i5-13400 OEM",
+   "b": "Процессор Intel Core i5 13400",
+   "where": "known",
+   "was": "same",
+   "now": "uncertain",
+   "reason": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары",
+   "sources": []
+  },
+  {
+   "a": "Комплект оперативной памяти Kingston Fury Beast Beast White EXPO DDR5 DIMM 32Gb KIT (2x16Gb) 6000MHz (KF560C36BWE2K2-32)",
+   "b": "Оперативная память 32 GB kit Kingston Fury Beast KF560C30BWEK2-32",
+   "where": "known",
+   "was": "same",
+   "now": "different",
+   "reason": "тайминги CL36 и CL30 в артикуле",
+   "sources": []
+  },
+  {
+   "a": "Intel Core i9 14900K OEM",
+   "b": "Процессор Intel Core i9 14900K Core i9, 3.2 ГГц Intel",
+   "where": "known",
+   "was": "same",
+   "now": "uncertain",
+   "reason": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары",
+   "sources": []
+  },
+  {
+   "a": "Наушники SOUNDCORE Liberty 5 Pro (D1203G31), Голубой TWS",
+   "b": "Наушники soundcore Liberty 5 Pro D1203G11",
+   "where": "known",
+   "was": "same",
+   "now": "uncertain",
+   "reason": "значение кодов G11/G31 источником не подтверждено",
+   "sources": []
+  },
+  {
+   "a": "AMD Ryzen 5 5600 OEM",
+   "b": "Процессор AMD Ryzen 5 5600 Ryzen 5, 3.5 ГГц AMD",
+   "where": "known",
+   "was": "same",
+   "now": "uncertain",
+   "reason": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары",
+   "sources": []
+  },
+  {
+   "a": "Intel Core i3 10105 OEM",
+   "b": "Процессор Intel Core i3 10105",
+   "where": "known",
+   "was": "same",
+   "now": "uncertain",
+   "reason": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары",
+   "sources": []
+  },
+  {
+   "a": "Процессор Intel Core i3 10105",
+   "b": "Процессор Intel Core i3 10105, LGA1200, OEM",
+   "where": "known",
+   "was": "same",
+   "now": "uncertain",
+   "reason": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары",
+   "sources": []
+  },
+  {
+   "a": "AMD Ryzen 5 4500 OEM",
+   "b": "Процессор AMD Ryzen 5 4500 Ryzen 5, 3.6 ГГц AMD",
+   "where": "known",
+   "was": "same",
+   "now": "uncertain",
+   "reason": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары",
+   "sources": []
+  },
+  {
+   "a": "Видеокарта MaxSun MS-RX550 TF 4G",
+   "b": "Видеокарта MaxSun RX 550, 4 GB, Radeon RX 550",
+   "where": "known",
+   "was": "same",
+   "now": "uncertain",
+   "reason": "во втором названии нет модели карты",
+   "sources": []
+  },
+  {
+   "a": "Процессор Intel Core i3 10105",
+   "b": "Процессор Intel Сore i3-10105 oem",
+   "where": "known",
+   "was": "same",
+   "now": "uncertain",
+   "reason": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары",
+   "sources": []
+  },
+  {
+   "a": "Процессор Intel Core i5 10500",
+   "b": "Процессор Intel Core i5 10500, LGA1200, OEM",
+   "where": "known",
+   "was": "same",
+   "now": "uncertain",
+   "reason": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары",
+   "sources": []
+  },
+  {
+   "a": "Видеокарта MaxSun MS-RX550 TF 4G (MS-RX550 TF 4G)",
+   "b": "Видеокарта MaxSun RX 550, 4 GB, Radeon RX 550",
+   "where": "known",
+   "was": "same",
+   "now": "uncertain",
+   "reason": "во втором названии нет модели карты",
+   "sources": []
+  },
+  {
+   "a": "Процессор Intel Core i5-14400",
+   "b": "Процессор Intel Core i5-14400 (CM8071504821112SRN46)",
+   "where": "known",
+   "was": "same",
+   "now": "uncertain",
+   "reason": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары",
+   "sources": []
+  },
+  {
+   "a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Black, 128 ГБ Tecno, SPARK",
+   "b": "Смартфон Tecno Spark 50, 8 GB, 128 GB, Halo Blue (KN4N)",
+   "where": "known",
+   "was": "same",
+   "now": "different",
+   "reason": "6 ГБ и 8 ГБ памяти",
+   "sources": []
+  }
+ ],
+ "confirmed_by_source": [
+  {
+   "pair": [
+    "27\" BenQ 9H.LGXLA.CPE черный",
+    "Монитор 27\" Benq BL2780"
+   ],
+   "label": "same",
+   "sources": [
+    "https://mts.ee/en/toode/benq-bl2780-686-cm-27-1920-x-1080-pixels-full-hd-led-black-229396169"
+   ]
+  },
+  {
+   "pair": [
+    "Материнская плата ASRock B760M-H2/M.2 (90-MXBN00-A0UAYZ)",
+    "Материнская плата ASRock B760M-H2/M.2 D5"
+   ],
+   "label": "same",
+   "note": "артикул описан как DDR5",
+   "sources": [
+    "https://www.terabyteshop.com.br/produto/30590/placa-mae-asrock-b760m-h2m2-chipset-b760-intel-lga-1700-matx-ddr5-90-mxbn00-a0uayz"
+   ]
+  },
+  {
+   "pair": [
+    "Гарнитура Razer Barracuda X 2022 - Quartz Pink RZ04-04430300-R3M1",
+    "Наушники Razer Barracuda X 2022 Roblox Edition RZ04-04430400-R3M1"
+   ],
+   "label": "different",
+   "note": "Roblox Edition — не только цвет: виртуальный предмет в комплекте",
+   "sources": [
+    "https://gamesbeat.com/razer-roblox-partner-peripherals-bundled-digital-item/"
+   ]
+  }
+ ]
+}

@@ -1,22 +1,22 @@
 {
-  "version": 4,
-  "protocol": "Разметка Antigravity 31.10.2026 по названиям вслепую: без ключей, полей, ответов модели и слоя; порядок перемешан. По поручению владельца передаётся на приёмку Codex.",
+  "version": 5,
+  "protocol": "Разметка Antigravity 31.10.2026 по названиям вслепую: без ключей, полей, ответов модели и слоя; порядок перемешан. По поручению владельца передаётся на приёмку Codex. Все 320 свежих и 537 прежних меток слоёв пересмотрены Claude 31.10.2026 по названиям, без ключей и слоёв (аудит C3A-01). Изменения и источники: docs/audit_evidence/2026-10-31-c3a/label_changes.json. Сплошной проверки по производителю не было.",
   "convention": {
     "same": "одна модель и одинаковые память, объём, диагональ, ревизия; цвет не различает (так устроен k2)",
     "different": "в названиях явно разные модель, память, ревизия, частота или тайминги в артикуле, адаптер, тип товара, длина",
     "packaging": "одна модель, разная поставка: OEM/Tray против BOX/WOF/с кулером. Решение владельца 30.10.2026: разные товары; метка отдельная для учёта",
     "uncertain": "по названию не решить; ни к какой стороне не относится"
   },
-  "sampling": "Случайно, seed 20261031: fresh retained 60 из 899, dropped_mixed 60 из 476, dropped_both_k2 60 из 284, added 100 из 2054, new_merges 40 из 439 (всего 320 свежих пар, не пересекающихся с прошлыми выборками). Плюс 210 пар прежнего проверенного набора (old_set).",
+  "sampling": "Случайно, seed 20261031: fresh retained 60 из 899, dropped_mixed 60 из 476, dropped_both_k2 60 из 284, added 100 из 2054, new_merges 40 из 414 (всего 320 свежих пар, не пересекающихся с прошлыми выборками). Плюс 210 пар прежнего проверенного набора (old_set).",
   "pairs": [
     {
       "a": "AirPods Max 2",
       "b": "Наушники Apple AirPods Max Silver",
-      "label": "different",
+      "label": "uncertain",
       "strata": [
         "new_merges"
       ],
-      "note": "AirPods Max 2 vs AirPods Max gen 1"
+      "note": "поколение второго не указано; как у соседних пар AirPods Max 2"
     },
     {
       "a": "Оперативная память 32GB Apacer Panther RGB AH5U32G52C5229BAA-1",
@@ -84,11 +84,11 @@
     {
       "a": "Гарнитура HyperX Cloud III S - Gaming Headset (White-Pink) DG0R2AA",
       "b": "Наушники HyperX Cloud III S Wireless Gaming Headset A59Z0AA Red",
-      "label": "different",
+      "label": "same",
       "strata": [
         "added"
       ],
-      "note": "HyperX Cloud III S Wired DG0R2AA vs Wireless A59Z0AA"
+      "note": "оба артикула — Wireless Cloud III S, разница в цвете (C3A-01)"
     },
     {
       "a": "Skyline 43LT5900 109 см черный",
@@ -201,11 +201,11 @@
     {
       "a": "Bluetooth гарнитура Edifier W820NB Plus EDF200118, Grey",
       "b": "Наушники Edifier W820NB Plus v.2025 бежевый",
-      "label": "same",
+      "label": "uncertain",
       "strata": [
         "added"
       ],
-      "note": "Edifier W820NB Plus EDF200118 (Grey vs Beige)"
+      "note": "v.2025: как у соседней пары W820NB"
     },
     {
       "a": "AFOX GT 1030 (AF1030-2048D5L8) 2 Гб",
@@ -354,11 +354,11 @@
     {
       "a": "Компьютерный корпус Gamemax Infinity Mini 3 ARGB Fans + Controller Black без Б/П",
       "b": "Корпус GameMax Infinity Mini BK, Black",
-      "label": "different",
+      "label": "uncertain",
       "strata": [
         "dropped_both_k2"
       ],
-      "note": "Gamemax Infinity Mini with 3 ARGB fans+controller vs basic Mini BK"
+      "note": "комплект второго не указан; как у соседней пары Infinity Mini"
     },
     {
       "a": "Intel Core i7 9700KF OEM",
@@ -714,11 +714,11 @@
     {
       "a": "Intel Core i7 13700F OEM",
       "b": "Процессор Intel Core i7-13700F (SRMBB)",
-      "label": "same",
+      "label": "uncertain",
       "strata": [
         "added"
       ],
-      "note": "Intel Core i7-13700F OEM (SRMBB)"
+      "note": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары"
     },
     {
       "a": "Монитор 27\" AOC 27G42E, Black",
@@ -795,11 +795,11 @@
     {
       "a": "Гарнитура Razer Kaira X for Xbox - Pulse Red RZ04-03970500-R3M1",
       "b": "Наушники Razer Kaira X for Xbox RZ04-03970300-R3M1 White",
-      "label": "different",
+      "label": "same",
       "strata": [
         "added"
       ],
-      "note": "Razer Kaira X for Xbox Pulse Red RZ04-03970500 vs White RZ04-03970300 distinct editions"
+      "note": "цвета одной модели (C3A-01)"
     },
     {
       "a": "OSCAL Pad 30 10.1 дюйм 4 Гб128 Гб зеленый + подарок",
@@ -1281,11 +1281,11 @@
     {
       "a": "Видеокарта 8 GB Afox RX 580 2048SP AFRX580-8192D5H3-V3",
       "b": "Видеокарта Afox RX 580, 8 GB, Radeon RX 580",
-      "label": "different",
+      "label": "uncertain",
       "strata": [
         "dropped_both_k2"
       ],
-      "note": "Afox RX 580 2048SP AFRX580-8192D5H3-V3 vs standard RX 580"
+      "note": "во втором названии нет ревизии; как у соседней пары AFRX580"
     },
     {
       "a": "Процессор AMD Ryzen 9 9950X, AM5, OEM",
@@ -1542,11 +1542,11 @@
     {
       "a": "Наушники SOUNDCORE Liberty 5 Pro (D1203G31), Голубой TWS",
       "b": "Наушники soundcore Liberty 5 Pro D1203G21",
-      "label": "different",
+      "label": "uncertain",
       "strata": [
         "added"
       ],
-      "note": "Soundcore Liberty 5 Pro D1203G31 vs D1203G21"
+      "note": "значение кодов G21/G31 источником не подтверждено"
     },
     {
       "a": "Наушники Soundcore P40i A3955 TWS Navy Blue",
@@ -1560,11 +1560,11 @@
     {
       "a": "Планшет DOOGEE Tab A9 10,1\" 3GB/64GB Wi-Fi Grey",
       "b": "Планшет Doogee Tab A9 2025 Wi-Fi 10.1\" 3/64Gb Grey",
-      "label": "same",
+      "label": "uncertain",
       "strata": [
         "dropped_mixed"
       ],
-      "note": "Doogee Tab A9 10.1-inch 3/64GB Wi-Fi"
+      "note": "модель 2025 года или прежняя"
     },
     {
       "a": "Процессор Intel Core i3-12100F (CM8071504651013)",
@@ -1839,11 +1839,11 @@
     {
       "a": "Карта памяти Canvas Select Plus A1 U1 V10 128 ГБ Kingston Technology",
       "b": "Карта памяти SDXC 128 GB Kingston Canvas Select Plus, Class 10 UHS-I U1",
-      "label": "same",
+      "label": "uncertain",
       "strata": [
         "dropped_both_k2"
       ],
-      "note": "Kingston Canvas Select Plus 128GB SDXC Class 10 UHS-I U1"
+      "note": "microSD или SD: во втором названии неясно"
     },
     {
       "a": "Зарядное устройство  SJCAM SJ301, для двух аккумуляторных батарей",
@@ -2460,11 +2460,11 @@
     {
       "a": "Видеокарта AFOX GT740 4GB D3 LP Single Fan AF740-4096D3L3",
       "b": "Видеокарта Afox GT 740, 4 GB, GeForce GT 740",
-      "label": "same",
+      "label": "uncertain",
       "strata": [
         "added"
       ],
-      "note": "Afox GT 740 4GB Single Fan AF740-4096D3L3"
+      "note": "во втором названии нет артикула и ревизии"
     },
     {
       "a": "Монитор 27\" PHILIPS 27E1N1800AE/01",
@@ -2532,11 +2532,11 @@
     {
       "a": "Оперативная память 16GB NOMAD NMD5600D5U46-16GB",
       "b": "Оперативная память NOMAD RGB NMD5600D5U46-16GBRGBW DDR5 16GB 5600MHz - White (NMD5600D5U46-16GBRGBW)",
-      "label": "different",
+      "label": "uncertain",
       "strata": [
         "dropped_mixed"
       ],
-      "note": "NOMAD DDR5 16GB non-RGB NMD5600D5U46-16GB vs RGB White NMD5600D5U46-16GBRGBW"
+      "note": "у первого артикул без суффикса исполнения"
     },
     {
       "a": "Маршрутизатор TP-Link Archer AX20",
@@ -2676,11 +2676,11 @@
     {
       "a": "Ноутбук Tecno MEGABOOK K16S 16\" FHD i3-1315U 8GB 512GB Win 11 Tecno MEGABOOK K16S",
       "b": "Ноутбук Tecno Megabook K16SAA 512GB 8GB",
-      "label": "same",
+      "label": "uncertain",
       "strata": [
         "new_merges"
       ],
-      "note": "Tecno Megabook K16S / K16SAA 8/512GB 16-inch FHD"
+      "note": "процессор второго не указан"
     },
     {
       "a": "Зарядное устройство SVC NUC-08-100 W, универсальное, 100 W",
@@ -2865,11 +2865,11 @@
     {
       "a": "Процессор AMD Ryzen 7 7700X OEM",
       "b": "Процессор AMD Ryzen 7 7700X Ryzen 7, 4.5 ГГц AMD",
-      "label": "same",
+      "label": "uncertain",
       "strata": [
         "added"
       ],
-      "note": "AMD Ryzen 7 7700X AM5 OEM"
+      "note": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары"
     },
     {
       "a": "Apple EarPods проводные наушники (USB-C)",
@@ -3072,7 +3072,7 @@
     {
       "a": "AFOX GTX 1660 SUPER AF1660S-6144D6H4-V2 6 Гб",
       "b": "Видеокарта Afox GTX 1660 Super (AF1660S-6144D6H7-V2) [6 ГБ, GDDR6, 192 бит, DVI, HDMI, DisplayPort]",
-      "label": "different",
+      "label": "uncertain",
       "strata": [
         "old_set"
       ],
@@ -3342,11 +3342,11 @@
     {
       "a": "AMD Ryzen 5 4500 OEM",
       "b": "Процессор AMD Ryzen 5 4500 Ryzen 5, 3.6 ГГц AMD",
-      "label": "same",
+      "label": "uncertain",
       "strata": [
         "old_set"
       ],
-      "note": "stand added verified same: amd ryzen 5 4500"
+      "note": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары"
     },
     {
       "a": "AMD Ryzen 5 4500 OEM",
@@ -3441,11 +3441,11 @@
     {
       "a": "AMD Ryzen 5 5600 OEM",
       "b": "Процессор AMD Ryzen 5 5600 Ryzen 5, 3.5 ГГц AMD",
-      "label": "same",
+      "label": "uncertain",
       "strata": [
         "old_set"
       ],
-      "note": "stand added verified same: amd ryzen 5 5600"
+      "note": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары"
     },
     {
       "a": "AMD Ryzen 5 5600 OEM",
@@ -3495,11 +3495,11 @@
     {
       "a": "AMD Ryzen 5 7500F OEM",
       "b": "Процессор AMD Ryzen 5 7500F",
-      "label": "same",
+      "label": "uncertain",
       "strata": [
         "old_set"
       ],
-      "note": "stand added verified same: amd ryzen 5 7500f"
+      "note": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары"
     },
     {
       "a": "AMD Ryzen 5 7500F OEM",
@@ -3891,7 +3891,7 @@
     {
       "a": "AFOX AF1050TI-4096D5H2",
       "b": "Видеокарта Afox GTX 1050 Ti  V9, 4 GB, GeForce GTX 1050 Ti",
-      "label": "different",
+      "label": "uncertain",
       "strata": [
         "old_set"
       ],
@@ -3990,7 +3990,7 @@
     {
       "a": "ASRock H510M-H2/M.2 SE",
       "b": "Материнская плата ASRock H510M-H2/M.2 SE D4",
-      "label": "different",
+      "label": "uncertain",
       "strata": [
         "old_set"
       ],
@@ -4035,7 +4035,7 @@
     {
       "a": "Garmin Fenix 8 43 51 мм Серебристый-оранжевый",
       "b": "Смарт-часы GARMIN Fenix 8 51mm ,AMOLED, сапфир, титановый корпус, черный, кожаный ремешок каштанового цвета 010-02905-40",
-      "label": "different",
+      "label": "uncertain",
       "strata": [
         "old_set"
       ],
@@ -4044,7 +4044,7 @@
     {
       "a": "Garmin Fenix 8 43 51 мм Серебристый-оранжевый",
       "b": "Смарт-часы GARMIN Fenix 8 51mm, AMOLED, сапфир, темный силикон 010-02905-21",
-      "label": "different",
+      "label": "uncertain",
       "strata": [
         "old_set"
       ],
@@ -4053,7 +4053,7 @@
     {
       "a": "Garmin Fenix 8 43 51 мм Серый",
       "b": "Смарт-часы GARMIN Fenix 8 51mm ,AMOLED, сапфир, титановый корпус, черный, кожаный ремешок каштанового цвета 010-02905-40",
-      "label": "different",
+      "label": "uncertain",
       "strata": [
         "old_set"
       ],
@@ -4062,7 +4062,7 @@
     {
       "a": "Garmin Fenix 8 43 51 мм Серый",
       "b": "Смарт-часы GARMIN Fenix 8 51mm, AMOLED, сапфир, темный силикон 010-02905-21",
-      "label": "different",
+      "label": "uncertain",
       "strata": [
         "old_set"
       ],
@@ -4071,7 +4071,7 @@
     {
       "a": "Garmin Fenix 8 43 51 мм Черный",
       "b": "Смарт-часы GARMIN Fenix 8 51mm ,AMOLED, сапфир, титановый корпус, черный, кожаный ремешок каштанового цвета 010-02905-40",
-      "label": "different",
+      "label": "uncertain",
       "strata": [
         "old_set"
       ],
@@ -4080,7 +4080,7 @@
     {
       "a": "Garmin Fenix 8 43 51 мм Черный",
       "b": "Смарт-часы GARMIN Fenix 8 51mm, AMOLED, сапфир, темный силикон 010-02905-21",
-      "label": "different",
+      "label": "uncertain",
       "strata": [
         "old_set"
       ],
@@ -4647,7 +4647,7 @@
     {
       "a": "Гарнитура A4Tech Bloody G575, 2m, USB, LED, Naraka (G575/NARAKA)",
       "b": "Гарнитура A4Tech Bloody G575, Black",
-      "label": "different",
+      "label": "uncertain",
       "strata": [
         "old_set"
       ],
@@ -4656,7 +4656,7 @@
     {
       "a": "Гарнитура A4Tech Bloody G575, 2m, USB, LED, Naraka (G575/NARAKA)",
       "b": "Гарнитура A4Tech Bloody G575, Grey",
-      "label": "different",
+      "label": "uncertain",
       "strata": [
         "old_set"
       ],
@@ -4665,7 +4665,7 @@
     {
       "a": "Гарнитура A4Tech Bloody G575, 2m, USB, LED, Naraka (G575/NARAKA)",
       "b": "Гарнитура A4Tech Bloody G575, Punk Yellow",
-      "label": "different",
+      "label": "uncertain",
       "strata": [
         "old_set"
       ],
@@ -4674,7 +4674,7 @@
     {
       "a": "Гарнитура A4Tech Bloody G575, 2m, USB, LED, Naraka (G575/NARAKA)",
       "b": "Наушники A4tech Bloody G575 Black",
-      "label": "different",
+      "label": "uncertain",
       "strata": [
         "old_set"
       ],
@@ -4778,6 +4778,2712 @@
         "old_set"
       ],
       "note": "stand dropped verified diff: apnx v1-w-bk-v1 != apnx v1"
+    }
+  ],
+  "known_pairs_note": "Пары слоёв, размеченные до отбора seed 20261031 и потому не имевшие шанса в него попасть: перепись известной части слоя (аудит C3A-02).",
+  "known_pairs": [
+    {
+      "a": "Наушники SOUNDCORE Liberty 5 A3957G51 Розовый TWS",
+      "b": "Наушники soundcore Liberty 5 - Blue (A3957-BLU)",
+      "label": "same"
+    },
+    {
+      "a": "Компьютерный корпус Aerocool APNX V1-W-BK-v1 без Б/П",
+      "b": "Корпус AeroCool APNX V1, Black-White",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 Pro 8 ГБ/256 ГБ 256 ГБ, 6.78’’, 8 Гб, оранжевый Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50 Pro, 8 GB, 256 GB, Titanium Grey (KO5)",
+      "label": "same"
+    },
+    {
+      "a": "Телевизор Яндекс YNDX-00104 - Умный телевизор с Алисой 65\"",
+      "b": "Телевизор Яндекс Про MiniLED 65\" (YNDX-00104)",
+      "label": "same"
+    },
+    {
+      "a": "Оперативная память Transcend JM6400ALE-16G",
+      "b": "Память оперативная Transcend JM6400ALE-16G 16GB DDR5 (JM6400ALE-16G)",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон TECNO CAMON 50 Ultra 5G 12 ГБ/256 ГБ 256 ГБ, 6.78’’, 12 Гб, Silver, 256 ГБ Tecno, CAMON",
+      "b": "Смартфон Tecno Camon 50 Ultra 5G, 8 GB, 256 GB, Nebula Titanium (CN7C)",
+      "label": "different"
+    },
+    {
+      "a": "Смартфон TECNO CAMON 50 12 ГБ/256 ГБ 256 ГБ, 6.78’’, 12 Гб, темно-зеленый Tecno, CAMON",
+      "b": "Смартфон Tecno Camon 50, 8 GB, 256 GB, Nebula Titanium (CN5)",
+      "label": "different"
+    },
+    {
+      "a": "AFOX GTX 1050 Ti AF1050TI-4096D5H7-V8 4 Гб",
+      "b": "Видеокарта Afox GTX 1050 Ti  V8, 4 GB, GeForce GTX 1050 Ti",
+      "label": "same"
+    },
+    {
+      "a": "Garmin Fenix 8 43 51 мм Черный",
+      "b": "Смарт-часы GARMIN Fenix 8 51mm ,AMOLED, сапфир, титановый корпус, черный, кожаный ремешок каштанового цвета 010-02905-40",
+      "label": "uncertain"
+    },
+    {
+      "a": "Телевизор Dreame 50Q100, 50\"",
+      "b": "Телевизор Dreame Vivid 50\" 50Q100 QLED 4K UHD Black",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 7 7700X OEM",
+      "b": "Процессор CPU AM5 AMD Ryzen 7 7700X OEM",
+      "label": "same"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-1M/V, UTP, 1m, Violet",
+      "b": "Патч-корд Cablexpert PP12 1 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 7500F OEM",
+      "b": "Процессор CPU AM5 AMD Ryzen 5 7500F OEM",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон Camon 50 (CN5) 256 ГБ, 6.78’’, 12 Гб, черный Tecno",
+      "b": "Смартфон Tecno Camon 50, 8 GB, 256 GB, Malachite Green (CN5)",
+      "label": "different"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-3M/B, UTP, 3m, Blue",
+      "b": "Патч-корд Cablexpert PP12 3 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Gray, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 6 GB, 128 GB, Titanium Grey (KN4N)",
+      "label": "different"
+    },
+    {
+      "a": "SSD накопитель 240GB Transcend TS240GSSD220S",
+      "b": "Жесткий диск SSD 240GB Transcend TS240GSSD220S (TS240GSSD220S)",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Purple, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 6 GB, 128 GB, Ink Black (KN4N)",
+      "label": "different"
+    },
+    {
+      "a": "Корпус Cougar FV270, White",
+      "b": "Корпус для ПК Cougar FV270",
+      "label": "same"
+    },
+    {
+      "a": "Гарнитура Edifier GX Серый (GX Grey)",
+      "b": "Гарнитура Edifier Gx Black",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 8400F OEM",
+      "b": "Процессор CPU AM5 AMD Ryzen 5 8400F OEM",
+      "label": "same"
+    },
+    {
+      "a": "AFOX GTX 1660 SUPER AF1660S-6144D6H4-V2 6 Гб",
+      "b": "Видеокарта Afox GTX 1660 Super (AF1660S-6144D6H7-V2) [6 ГБ, GDDR6, 192 бит, DVI, HDMI, DisplayPort]",
+      "label": "uncertain"
+    },
+    {
+      "a": "SSD накопитель 512GB Apacer AS2280P4 AP512GAS2280P4-1",
+      "b": "Твердотельный накопитель SSD 512 Gb M.2 PCIe Apacer AS2280P4  AP512GAS2280P4-1 (AP512GAS2280P4-1)",
+      "label": "same"
+    },
+    {
+      "a": "Комплект модулей памяти KF560C30BBEK2-32 2 × 16 ГБ, U-DIMM, 2 шт., 6000 МГц, DDR5 Kingston Technology, Fury Beast",
+      "b": "Оперативная память 32 GB kit Kingston Fury Beast KF560C30BBEK2-32",
+      "label": "same"
+    },
+    {
+      "a": "Монитор PHILIPS 27E2N2500/01",
+      "b": "Монитор Игровой 27\" PHILIPS 27E2N2500 2560x1440 16:9 IPS 120Гц (HDMI+DP) Black",
+      "label": "same"
+    },
+    {
+      "a": "AFOX AFRX570-8192D5H5-V2 8 Гб",
+      "b": "Видеокарта AFOX RX 570 GAMING 8GB Dual Fan AFRX570-8192D5H5-V2",
+      "label": "same"
+    },
+    {
+      "a": "Гарнитура JABRA Evolve2 50, USB C/A, MS Stereo (25089-999-799)",
+      "b": "Наушники Jabra Evolve2 50 USB-C MS Stereo черный",
+      "label": "uncertain"
+    },
+    {
+      "a": "Гарнитура A4Tech Bloody G430, 1.8m, LED, Black (G430/BLACK)",
+      "b": "Наушники A4Tech Bloody G430 коричневые",
+      "label": "same"
+    },
+    {
+      "a": "Гарнитура A4Tech Bloody G575, Grey",
+      "b": "Наушники A4tech Bloody G575 Black",
+      "label": "same"
+    },
+    {
+      "a": "Адаптер Wi-Fi Mercusys MW150US до 150 Мбит/с Mercusys",
+      "b": "Сетевая карта Mercusys MW150US",
+      "label": "same"
+    },
+    {
+      "a": "ASRock A520M-HVS",
+      "b": "Материнская плата ASRock A520M-HVS",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 4500 OEM",
+      "b": "Процессор AMD Ryzen 5 4500, AM4, OEM",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 3 4100, AM4, OEM (100-000000510)",
+      "b": "Процессор AMD Ryzen 3 4100, BOX",
+      "label": "packaging"
+    },
+    {
+      "a": "Маршрутизатор TP-Link Archer C6U",
+      "b": "Маршрутизатор TP-Link Archer C6U (Archer C6U)",
+      "label": "same"
+    },
+    {
+      "a": "Телевизор Dreame 65S100, 65\"",
+      "b": "Телевизор Dreame Aura 65\" 65S100 QLED 4K UHD Black",
+      "label": "same"
+    },
+    {
+      "a": "SSD накопитель 480Gb Kingston DC2000B SEDC2000BM8/480G",
+      "b": "Твердотельный накопитель SSD Kingston DC2000B 480GB M.2 (SEDC2000BM8/480G)",
+      "label": "same"
+    },
+    {
+      "a": "Комплект модулей памяти Kingston FURY Beast White XMP KF552C40BWK2-32 DDR5 32GB (Kit 2x16GB) 5200MHz (KF552C40BWK2-32)",
+      "b": "Оперативная память 32Gb Kit Kingston Fury Beast KF432C16BB1K2/32WP",
+      "label": "different"
+    },
+    {
+      "a": "ASRock B760 Pro RS/D4",
+      "b": "Материнская плата ASRock B760 PRO RS/D4",
+      "label": "same"
+    },
+    {
+      "a": "Garmin Fenix 8 43 51 мм Серебристый-оранжевый",
+      "b": "Смарт-часы GARMIN Fenix 8 51mm, AMOLED, сапфир, темный силикон 010-02905-21",
+      "label": "uncertain"
+    },
+    {
+      "a": "Hisense 50E7Q 127 см черный",
+      "b": "Телевизор Hisense 50\" 50E7Q RU",
+      "label": "same"
+    },
+    {
+      "a": "Гарнитура Jabra Evolve2 65 Flex Link380a MS Stereo",
+      "b": "Наушники Jabra Evolve2 65 Flex Link380a UC Stereo WLC 26699-989-989 Black",
+      "label": "different"
+    },
+    {
+      "a": "Карта памяти Canvas Select Plus A1 U1 V10 128 ГБ Kingston Technology",
+      "b": "Карта памяти Micro SDXC 128GB Kingston Canvas Select Plus, Class 10 UHS-I U1, адаптер",
+      "label": "same"
+    },
+    {
+      "a": "Гарнитура A4Tech Bloody G220, Black",
+      "b": "Наушники A4Tech Bloody G220 Black",
+      "label": "same"
+    },
+    {
+      "a": "Гарнитура A4Tech Bloody G575, 2m, USB, LED, Naraka (G575/NARAKA)",
+      "b": "Наушники A4tech Bloody G575 Black",
+      "label": "uncertain"
+    },
+    {
+      "a": "Оперативная память 16GB NOMAD NMD5600D5U46-16GBRGB",
+      "b": "Оперативная память NOMAD RGB NMD5600D5U46-16GBRGBW DDR5 16GB 5600MHz - White (NMD5600D5U46-16GBRGBW)",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 Ryzen 5 8500G OEM OEM",
+      "b": "Процессор AMD Ryzen 5 8500G 65W AM5 OEM (100-000000931)",
+      "label": "same"
+    },
+    {
+      "a": "70mai Maimo оранжевый",
+      "b": "Смарт-часы 70mai Maimo WT2105, Black (2 ремешка)",
+      "label": "same"
+    },
+    {
+      "a": "Wireless Router TP-Link TL-WR841NRU 300 Мбит/с 4 порта(090586) (TL-WR841N)",
+      "b": "Маршрутизатор TP-Link TL-WR841N",
+      "label": "same"
+    },
+    {
+      "a": "DDR-5 DIMM 64 GB 6000 MHz Kingston Fury Beast RGB, 2x 32 GB Kit, Black, BOX (KF560C36BBEAK2-64)",
+      "b": "Оперативная память DIMM DDR5 64 GB kit (KF556C36BWEAK2-64)",
+      "label": "different"
+    },
+    {
+      "a": "SSD накопитель 80GB Transcend TS80GMTS260I",
+      "b": "SSD накопитель Transcend MTS260I 80 ГБ, M.2 Transcend",
+      "label": "same"
+    },
+    {
+      "a": "Телевизор Hisense 50E7Q (50E7Q RU)",
+      "b": "Телевизор Hisense 50E7Q RU черный",
+      "label": "same"
+    },
+    {
+      "a": "Гарнитура Razer BlackShark V2 X, Green",
+      "b": "Наушники Razer Blackshark V2 X Quartz розовый",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Athlon 200GE, AM4, OEM",
+      "b": "Процессор AMD Athlon 200GE, AM4, OEM (YD200GC6M2OFB)",
+      "label": "same"
+    },
+    {
+      "a": "Оперативная память Kingston FURY Beast Black EXPO KF560C30BBE-16",
+      "b": "Оперативная память Kingston Fury Beast RGB DDR4 16Gb 3200 MHz (KF432C16BB2A/16)",
+      "label": "different"
+    },
+    {
+      "a": "AMD Ryzen 5 3500X OEM",
+      "b": "Процессор AMD Ryzen 5 3500X OEM (100-000000158)",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 Ryzen 5 8500G OEM OEM",
+      "b": "Процессор AMD Ryzen 5 8500G, AM5, OEM",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 4500 OEM",
+      "b": "Процессор CPU AM4 AMD Ryzen 5 4500 OEM",
+      "label": "same"
+    },
+    {
+      "a": "Оперативная память 16GB NOMAD NMD5600D5U46-16GBHSB Black",
+      "b": "Оперативная память NOMAD RGB NMD5600D5U46-16GBRGBW DDR5 16GB 5600MHz - White (NMD5600D5U46-16GBRGBW)",
+      "label": "different"
+    },
+    {
+      "a": "SSD накопитель 1Tb Netac N600S NT01N600S-001T-S3X",
+      "b": "Твердотельный накопитель SSD Netac 1TB 2.5 SATAIII (NT01N600S-001T-S3X)",
+      "label": "same"
+    },
+    {
+      "a": "SSD накопитель 256 GB AMD Radeon R3,  2.5\", SATA III",
+      "b": "SSD накопитель 256GB AMD RADEON R3 Series R3MP30256G8",
+      "label": "different"
+    },
+    {
+      "a": "Garmin Fenix 8 43 51 мм Серый",
+      "b": "Смарт-часы GARMIN Fenix 8 51mm, AMOLED, сапфир, темный силикон 010-02905-21",
+      "label": "uncertain"
+    },
+    {
+      "a": "AMD Ryzen 5 PRO 5650GE OEM",
+      "b": "Процессор AMD Ryzen 5 PRO 5650GE, AM4, OEM",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 5600, AM4, OEM (100-000000927)",
+      "b": "Процессор CPU AM4 AMD Ryzen 5 5600 OEM",
+      "label": "same"
+    },
+    {
+      "a": "ASRock H510M-H2/M.2 SE",
+      "b": "Материнская плата ASRock H510M-H2/M.2 SE D4",
+      "label": "uncertain"
+    },
+    {
+      "a": "AMD Ryzen 5 Ryzen 5 8600G OEM",
+      "b": "Процессор CPU AM5 AMD Ryzen 5 8600G OEM",
+      "label": "same"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-3M/Y, UTP, 3m, Yellow",
+      "b": "Патч-корд Cablexpert PP12 3 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "SSD накопитель 250 GB Transcend SSD225S, 2.5\", SATA III",
+      "b": "Жесткий диск SSD 250GB Transcend TS250GSSD225S (TS250GSSD225S)",
+      "label": "same"
+    },
+    {
+      "a": "Hisense 55E7Q 140 см черный",
+      "b": "Телевизор HISENSE QLED 55E7Q UHD SMART",
+      "label": "same"
+    },
+    {
+      "a": "Кабель питания iPower C7, 1.5m, OEM",
+      "b": "Кабель питания iPower С7 1.5 м iPower",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон Tecno Pova 2 4/64GB Energy Blue",
+      "b": "Смартфон Tecno Pova 2, 64 GB, Energy Blue (LE7n)",
+      "label": "same"
+    },
+    {
+      "a": "Телевизор Dreame QLED FHD Smart TV 32Q10 32\" (32Q10)",
+      "b": "Телевизор Dreame Smart 32\" 32Q10 QLED Full HD Black",
+      "label": "same"
+    },
+    {
+      "a": "SSD накопитель 1 TB Transcend MTS825S, M.2, SATA III",
+      "b": "SSD накопитель 1TB Transcend TS1TMTS825S M2",
+      "label": "same"
+    },
+    {
+      "a": "AFOX GT 240 AF240-1024D3L2-V2 1 Гб",
+      "b": "Видеокарта Afox GT 240 V2, 1 GB, GeForce GT 240",
+      "label": "same"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-7.5M/B, UTP, 7.5m, Blue",
+      "b": "Патч-корд Cablexpert PP12 7.5 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "Наушники-гарнитура Defender Phantom PRO белый",
+      "b": "Наушники-гарнитура беспроводные Defender Phantom PRO белый (64580)",
+      "label": "same"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-1M/G, UTP, 1m, Grey",
+      "b": "Патч-корд Cablexpert PP12 1 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "Intel Core i5 CPU Intel Core i5-10400 2,9GHz (4,3GHz) 12Mb 6/12 Core Comet Lake Intel UHD 630 65W FCLGA1200 Tray (CM8070104290715) OEM",
+      "b": "Процессор Intel Core i5 10400, LGA1200, OEM (SRH3C)",
+      "label": "same"
+    },
+    {
+      "a": "Оперативная память Kingston FURY Beast Black RGB KF560C36BBE2A-16",
+      "b": "Оперативная память Kingston FURY Beast RGB DDR5 16GB 6000MT/s - White (KF560C30BWEA-16)",
+      "label": "different"
+    },
+    {
+      "a": "Видеокарта MaxSun MS-GTX1050Ti TF 4G (MS-GTX1050Ti TF 4G)",
+      "b": "Видеокарта Maxsun MS-GTX1050Ti TF 4G [4 ГБ, GDDR5, 128 бит, DVI, HDMI, DisplayPort]",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 5500GT BOX",
+      "b": "Процессор AMD Ryzen 5 5500GT, AM4, with Wraith Stealth Cooler, OEM (100-000001489)",
+      "label": "packaging"
+    },
+    {
+      "a": "Оперативная память 32 GB kit Kingston Fury Beast KF560C30BWEK2-32",
+      "b": "Оперативная память Kingston 32GB 3600MT/s DDR4 CL18 DIMM (Kit of 2) FURY Beast RGB (KF436C18BB2AK2/32)",
+      "label": "different"
+    },
+    {
+      "a": "Вентилятор для корпуса Thermaltake Riing Quad 12 RGB TT Premium, 12cm, Black",
+      "b": "Кулер для компьютерного корпуса Riing Quad 12 RGB 1500 об/мин, 12 × 12 × 2,5 см Thermaltake",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 7 5700 OEM",
+      "b": "Процессор CPU AM4 AMD Ryzen 7 5700 OEM",
+      "label": "same"
+    },
+    {
+      "a": "Гарнитура Razer Barracuda - Quartz RZ04-03790300-R3M1",
+      "b": "Наушники Razer Barracuda Quartz RZ04-03790300-R3M1 розовый",
+      "label": "same"
+    },
+    {
+      "a": "SSD накопитель 2Tb Netac N600S NT01N600S-002T-S3X",
+      "b": "Твердотельный накопитель SSD Netac N600S2 ТБ, 2.5\" (NT01N600S-002T-S3X)",
+      "label": "same"
+    },
+    {
+      "a": "Планшет Oscal Pad 30 Wi-Fi 10.1\" 4/128Gb Gray",
+      "b": "Планшет Oscal Pad 30 WiFi, 10.1\", 4 GB, 128 GB, Hazel Green",
+      "label": "same"
+    },
+    {
+      "a": "Оперативная память Kingston FURY Beast White KF560C36BWE2-16",
+      "b": "Оперативная память Kingston Fury Beast AMD RGB White 16 ГБ (KF556C36BWEA-16)",
+      "label": "different"
+    },
+    {
+      "a": "DDR-5 DIMM 64 GB 6000 MHz Kingston Fury Beast RGB, 2x 32 GB Kit, Black, BOX (KF560C36BBEAK2-64)",
+      "b": "Оперативная память 64 GB kit Kingston Fury Beast White KF560C36BBEK2-64",
+      "label": "different"
+    },
+    {
+      "a": "Процессор Intel Core i7 14700, LGA1700, Tray (CM8071504820817)",
+      "b": "Процессор Intel Сore i7-14700 oem",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 Ryzen 5 7600 OEM",
+      "b": "Процессор AMD Ryzen 5 7600, AM5, OEM (100-000001015)",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 3400G OEM",
+      "b": "Процессор AMD Ryzen 5 3400G YD3400C5M4MFH",
+      "label": "same"
+    },
+    {
+      "a": "Bluetooth гарнитура Monster Mission V1 TWS, Grey",
+      "b": "Наушники TWS MONSTER Mission V1 (Black) (MH72004)",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 4500, AM4, OEM",
+      "b": "Процессор CPU AM4 AMD Ryzen 5 4500 OEM",
+      "label": "same"
+    },
+    {
+      "a": "AirPods Max 2",
+      "b": "Apple AirPods Max Orange беспроводные наушники (MWW73)",
+      "label": "uncertain"
+    },
+    {
+      "a": "Корпус Ocypus Gamma C60 BK ARGB Gamma-C60-BKG400XX-GL",
+      "b": "Корпус Ocypus Gamma C60 WH, White",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 3 4100, AM4, BOX (100-100000510BOX)",
+      "b": "Процессор AMD Ryzen 3 4100, AM4, OEM",
+      "label": "packaging"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 7500F 3,7Гц (5,0ГГц Turbo) Zen4 6-ядер 12-потоков AM5 100-000000597 (100-000000597)",
+      "b": "Процессор AMD Ryzen 5 7500F, AM5, OEM",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 4500 OEM (100-000000644)",
+      "b": "Процессор AMD Ryzen 5 4500 Ryzen 5, 3.6 ГГц AMD",
+      "label": "uncertain",
+      "note": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары"
+    },
+    {
+      "a": "AMD Ryzen 5 3400G OEM",
+      "b": "Процессор AMD Ryzen 5 3400G OEM (YD3400C5M4MFH)",
+      "label": "same"
+    },
+    {
+      "a": "SSD накопитель 512GB Transcend TS512GMTE110S",
+      "b": "SSD накопитель Transcend MTE110S 512 ГБ, M.2 Transcend",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 7500F OEM",
+      "b": "Процессор AMD Ryzen 5 7500F, AM5, OEM",
+      "label": "same"
+    },
+    {
+      "a": "Процессор CPU S-1851 Intel Core Ultra 5 225 OEM",
+      "b": "Процессор Intel Core Ultra 5 225, LGA1851, OEM",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 Ryzen 5 PRO 8600G OEM",
+      "b": "Процессор AMD Ryzen 5 PRO 8600G 100-000001239",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 7500F 3,7Гц (5,0ГГц Turbo) Zen4 6-ядер 12-потоков AM5 100-000000597 (100-000000597)",
+      "b": "Процессор CPU AM5 AMD Ryzen 5 7500F OEM",
+      "label": "same"
+    },
+    {
+      "a": "Игровая гарнитура A4Tech Bloody MOCI M660",
+      "b": "Наушники A4Tech Bloody MOCI M660 черно-оранжевые",
+      "label": "same"
+    },
+    {
+      "a": "Комплект оперативной памяти Hiksemi (Hikvision) Future RGB, DDR4 16 GB kit (2x8GB) 3200MHz (HSC416U32C5 8G*2)",
+      "b": "Оперативная память Hiksemi Future HSC416U32F3",
+      "label": "uncertain",
+      "note": "разные коды; комплект против неясной поставки"
+    },
+    {
+      "a": "Процессор AMD Ryzen 3 4100, AM4, OEM (100-000000510)",
+      "b": "Процессор AMD Ryzen 3 4100, AM4, OEM - с кулером",
+      "label": "packaging"
+    },
+    {
+      "a": "AMD Ryzen 3 1200 OEM",
+      "b": "Процессор AMD Ryzen 3 1200, AM4, OEM",
+      "label": "same"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-5M/R, UTP, 5m, Red",
+      "b": "Патч-корд Cablexpert PP12 5 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 8400F OEM",
+      "b": "Процессор CPU AMD Ryzen 5 8400F oem (100-000001591)",
+      "label": "same"
+    },
+    {
+      "a": "Беспроводная гарнитура Jabra Evolve2 65, Link380a MS Stereo Black (26599-999-999)",
+      "b": "Гарнитура Jabra Evolve2 65, Link380a MS Stereo",
+      "label": "same"
+    },
+    {
+      "a": "Беспроводной маршрутизатор Mercusys MR30G (MR30G(RU) V1.0/MR30G(RU) V1.2//MR30G(RU) V1.3)",
+      "b": "Маршрутизатор Mercusys MR30G",
+      "label": "same"
+    },
+    {
+      "a": "24.5\" Philips 25M2N3200W (00/01) черный",
+      "b": "Монитор 24.5\" Philips 25M2N3200W/01, Black",
+      "label": "same"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-2M/V, UTP, 2m, Violet",
+      "b": "Патч-корд Cablexpert PP12 2 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "Монитор 24,5\" PHILIPS 25M2N3200W (00/01)",
+      "b": "Монитор 24,5\" PHILIPS 25M2N3200W 1920x1080 16:9 VA 240ГЦ (2HDMI+DP) Black",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 7 7800X3D oem",
+      "b": "Процессор CPU AMD Ryzen 7 7800X3D, 4.2GHz/ 8core/ 16thread/ 8+96Mb/ 120W Socket AM5 (100-000000910)",
+      "label": "same"
+    },
+    {
+      "a": "SSD накопитель 512GB LEXAR NS100 LNS100-512RB",
+      "b": "Твердотельный накопитель LEXAR NS100 512GB SSD, 2.5”, SATA (6Gb/s) (LNS100-512RB)",
+      "label": "same"
+    },
+    {
+      "a": "AMD Athlon 200GE OEM",
+      "b": "Процессор AMD Athlon 200GE, AM4, OEM",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 5500 OEM",
+      "b": "Процессор CPU AM4 AMD Ryzen 5 5500 OEM",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 7500F OEM",
+      "b": "Процессор AMD Ryzen 5 7500F",
+      "label": "uncertain",
+      "note": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары"
+    },
+    {
+      "a": "SSD накопитель 512 GB AMD Radeon R3, M.2, SATA III",
+      "b": "SSD накопитель 512GB AMD RADEON R3 Series R3MS0512G8",
+      "label": "same"
+    },
+    {
+      "a": "Мышь Genius NX-7000, Blue, USB",
+      "b": "Мышь беспроводная Genius NX-7000 беспроводной, оптическая, 5,8 × 3,9 × 10 см Genius",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 3500X OEM (100-000000158)",
+      "b": "Процессор AMD Ryzen 5 3500X, AM4, OEM",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 5500 OEM",
+      "b": "Процессор AMD Ryzen 5 5500, AM4, OEM",
+      "label": "same"
+    },
+    {
+      "a": "ASRock B760M PRO-A/D4",
+      "b": "Материнская плата ASRock B760M PRO-A/D4",
+      "label": "same"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert, PP12-3M, UTP, 3m, Pink",
+      "b": "Патч-корд Cablexpert PP12 3 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-5M/G, UTP, 5m, Green",
+      "b": "Патч-корд Cablexpert PP12 5 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 5500X3D OEM",
+      "b": "Процессор CPU AM4 AMD Ryzen 5 5500X3D OEM",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 7600X OEM",
+      "b": "Процессор AMD Ryzen 5 7600X, AM5, OEM",
+      "label": "same"
+    },
+    {
+      "a": "Оперативная память 16 GB kit Kingston Fury Beast KF560C36BBEK2-16",
+      "b": "Оперативная память Kingston 16GB 3600MT/s DDR4 CL17 DIMM (Kit of 2) FURY Beast Black, EAN: 740617319781 (KF436C17BBK2/16)",
+      "label": "different"
+    },
+    {
+      "a": "AMD Ryzen 5 PRO 5650GE OEM",
+      "b": "Процессор CPU AM4 AMD Ryzen 5 PRO 5650GE OEM",
+      "label": "same"
+    },
+    {
+      "a": "Гарнитура Jabra Evolve2 65 Flex Link380a MS Stereo (26699-999-999)",
+      "b": "Наушники Jabra Evolve2 65 Flex Link380c MS Stereo Black",
+      "label": "different"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-5M/B, UTP, 5m, Blue",
+      "b": "Патч-корд Cablexpert PP12 5 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "Оперативная память Kingston 16GB 6000MT/s DDR5 CL36 DIMM (Kit of 2) FURY Beast Black EXPO (KF560C36BBEK2-16)",
+      "b": "Оперативная память Kingston FURY Beast Black EXPO KF560C30BBE-16",
+      "label": "different"
+    },
+    {
+      "a": "Монитор 27\" FHD Viewsonic VA2732-H-2 черный",
+      "b": "Монитор 27\" ViewSonic VA2732-H, Black",
+      "label": "uncertain"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-2M/R, UTP, 2m, Red",
+      "b": "Патч-корд Cablexpert PP12 2 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 Ryzen 5 5600XT OEM",
+      "b": "Процессор AMD Ryzen 5 5600XT, AM4, OEM",
+      "label": "same"
+    },
+    {
+      "a": "Комплект модулей памяти 32Gb kit Kingston FURY Beast RGB KF432C16BB12AK2/32",
+      "b": "Оперативная память Kingston FURY Beast RGB XMP DDR5 32GB 5200MT/s, White (KF552C40BWA-32)",
+      "label": "different"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 8500G, AM5, OEM",
+      "b": "Процессор CPU AM5 AMD Ryzen 5 8500G OEM",
+      "label": "same"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-1M/B, UTP, 1m, OEM, Blue",
+      "b": "Патч-корд Cablexpert PP12 1 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "Гарнитура A4Tech Bloody G575, Black",
+      "b": "Наушники A4tech Bloody G575 Black",
+      "label": "same"
+    },
+    {
+      "a": "Процессор Intel Celeron G5905 OEM",
+      "b": "Процессор Intel Celeron G5905, LGA1200, OEM",
+      "label": "same"
+    },
+    {
+      "a": "Оперативная память 32 GB kit Kingston Fury Beast RGB KF560C36BWE2AK2-32",
+      "b": "Оперативная память Kingston Fury Beast RGB (AMD), DDR5 32 GB kit (2x16GB) 6000MHz (KF560C30BBEAK2-32) ( KF560C30BBEAK2-32)",
+      "label": "different"
+    },
+    {
+      "a": "Hisense 50E7Q 127 см черный",
+      "b": "Телевизор HISENSE QLED 50E7Q UHD SMART",
+      "label": "same"
+    },
+    {
+      "a": "ASRock B760M PRO RS/D4",
+      "b": "Материнская плата ASRock B760M Pro RS/D4 WiFi (90-MXBKZ0-A0UAYZ)",
+      "label": "different"
+    },
+    {
+      "a": "Процессор Intel Core i7 14700K, LGA1700, OEM (SRN3X)",
+      "b": "Процессор Intel Core i7-14700K oem",
+      "label": "same"
+    },
+    {
+      "a": "Intel Core i7 13700KF OEM",
+      "b": "Процессор Intel Core i7 Processor 13700KF 1700 (i7-13700KF)",
+      "label": "uncertain",
+      "note": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары"
+    },
+    {
+      "a": "Оперативная память 8Gb Transcend TS3200HLB-8G",
+      "b": "Память оперативная DDR4 Desktop Transcend 8Гб (TS3200HLB-8G)",
+      "label": "same"
+    },
+    {
+      "a": "TCL 98C6K 249 см черный",
+      "b": "Телевизор TCL QD-MiniLED 98C6K UHD Android TV",
+      "label": "same"
+    },
+    {
+      "a": "Гарнитура HyperX Cloud III, USB, Black",
+      "b": "Наушники-гарнитура HyperX BS7C1AA Cloud III белый",
+      "label": "same"
+    },
+    {
+      "a": "Оперативная память 8Gb Transcend TS2666HLB-8G",
+      "b": "Память оперативная Desktop Transcend TS2666HLB-8G DDR4 8GB (TS2666HLB-8G)",
+      "label": "same"
+    },
+    {
+      "a": "Оперативная память 64 GB kit Kingston Fury Beast White KF560C36BBEAK2-64",
+      "b": "Оперативная память Kingston Fury Beast Expo, DDR-5 64GB/5600MHz 2x32Gb Kit (KF556C36BBEK2-64)",
+      "label": "different"
+    },
+    {
+      "a": "SSD накопитель 250 GB Transcend MTS825S, M.2, SATA III",
+      "b": "Жесткий диск SSD 250GB Transcend TS250GMTS825S M2 (TS250GMTS825S)",
+      "label": "same"
+    },
+    {
+      "a": "Модуль памяти 16GB Kingston Fury Beast Black AMD KF556C36BBE-16",
+      "b": "Оперативная память  Kingston Fury Beast 16Gb (8x2) 5600MHz DDR5 DIMM, CL40, 1.25v (KF556C40BBK2-16)",
+      "label": "different"
+    },
+    {
+      "a": "Процессор AMD Ryzen 3 4100, AM4, BOX (100-100000510BOX)",
+      "b": "Процессор AMD Ryzen 3 4100, AM4, OEM - с кулером",
+      "label": "packaging"
+    },
+    {
+      "a": "AMD Ryzen 3 4100 BOX",
+      "b": "Процессор AMD Ryzen 3 4100, AM4, OEM - с кулером",
+      "label": "packaging"
+    },
+    {
+      "a": "Процессор Intel Core i5 12400, LGA1700, OEM",
+      "b": "Процессор Intel Core i5-12400, LGA1700, Tray (CM8071504650608SRL5Y)",
+      "label": "same"
+    },
+    {
+      "a": "SSD накопитель 256 GB Patriot P300 P300P256GM28",
+      "b": "SSD накопитель 256 GB Patriot P300, M.2, PCIe 3.0",
+      "label": "same"
+    },
+    {
+      "a": "Коврик для мыши Defender Black XXL One",
+      "b": "Коврик игровой Defender Black XXL Defender",
+      "label": "same"
+    },
+    {
+      "a": "Intel Core Ultra 5 235 OEM",
+      "b": "Процессор Intel Core Ultra 5 Processor 235 ем",
+      "label": "same"
+    },
+    {
+      "a": "Intel Core i5-14400 OEM",
+      "b": "Процессор CPU S-1700 Intel Core i5-14400 OEM",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 8400F, AM5, OEM",
+      "b": "Процессор CPU AMD Ryzen 5 8400F oem (100-000001591)",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 PRO 5650GE, AM4, OEM",
+      "b": "Процессор CPU AM4 AMD Ryzen 5 PRO 5650GE OEM",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Blue, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 8 GB, 128 GB, Halo Blue (KN4N)",
+      "label": "same"
+    },
+    {
+      "a": "SSD накопитель 500 GB Transcend SSD225S, 2.5\", SATA III",
+      "b": "Жесткий диск SSD 500GB Transcend TS500GSSD225S (TS500GSSD225S)",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 5600 OEM",
+      "b": "Процессор AMD Ryzen 5 5600, AM4, OEM",
+      "label": "same"
+    },
+    {
+      "a": "Intel Core Ultra 7 270K Plus OEM",
+      "b": "Процессор CPU S-1851 Intel Core Ultra 7 270K Plus OEM",
+      "label": "same"
+    },
+    {
+      "a": "23.8\" Sanc M2442PH V3 черный",
+      "b": "Монитор 23.8\" Sanc M2442PH V3",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 7600 BOX",
+      "b": "Процессор AMD Ryzen 5 7600 BOX",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 7600X AM5, BOX (100-100000593WOF)",
+      "b": "Процессор CPU AM5 AMD Ryzen 5 7600X OEM",
+      "label": "packaging"
+    },
+    {
+      "a": "Монитор 27\" iiyama ProGraphic HB2701UHSNP-B1, Black",
+      "b": "Монитор iiyama ProGraphic HB2701UHSNP-B1 27\"",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 7500F, AM5, OEM",
+      "b": "Процессор CPU AM5 AMD Ryzen 5 7500F OEM",
+      "label": "same"
+    },
+    {
+      "a": "Процессор CPU S-1700 Intel Core i5-13400 OEM",
+      "b": "Процессор Intel Core i5 13400",
+      "label": "uncertain",
+      "note": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-5M/Y, UTP, 5m, Yellow",
+      "b": "Патч-корд Cablexpert PP12 5 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 5600, AM4, OEM",
+      "b": "Процессор AMD Ryzen 5 5600, AM4, OEM (100-000000927)",
+      "label": "same"
+    },
+    {
+      "a": "Гарнитура A4Tech Fstyler FH300U, White",
+      "b": "Наушники A4tech Fstyler FH300U-White",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 PRO 5650GE  (100-000000258)",
+      "b": "Процессор AMD Ryzen 5 PRO 5650GE, AM4, OEM",
+      "label": "same"
+    },
+    {
+      "a": "Материнская плата ASRock A520M-HVS",
+      "b": "Материнская плата ASRock A520M-HVS (90-MXBE60-A0UAYZ)",
+      "label": "same"
+    },
+    {
+      "a": "Компьютерный корпус Aerocool APNX V1-W-BK-v1 без Б/П",
+      "b": "Корпус AeroCool APNX V1, Black",
+      "label": "same"
+    },
+    {
+      "a": "SSD накопитель 2TB Apacer AP2TBAS2280Q4U-1",
+      "b": "Твердотельный накопитель SSD Apacer AS2280Q4U 2TB (AP2TBAS2280Q4U-1)",
+      "label": "same"
+    },
+    {
+      "a": "Процессор CPU S-1700 Intel Core i7-12700KF OEM",
+      "b": "Процессор Intel Core i7 12700KF, LGA1700, OEM",
+      "label": "same"
+    },
+    {
+      "a": "ASRock H610M-HDV/M.2",
+      "b": "Материнская плата ASRock H610M-HDV/M.2+D5",
+      "label": "different"
+    },
+    {
+      "a": "Смартфон Camon 50 (CN5) 256 ГБ, 6.78’’, 8 Гб, зеленый Tecno",
+      "b": "Смартфон Tecno Camon 50, 12 GB, 256 GB, Nebula Titanium (CN5)",
+      "label": "different"
+    },
+    {
+      "a": "Bluetooth гарнитура Edifier W820NB Plus EDF200118, Ivory",
+      "b": "Наушники Edifier W820NB Plus v.2025 бежевый",
+      "label": "uncertain"
+    },
+    {
+      "a": "AMD Ryzen 5 5600 OEM",
+      "b": "Процессор CPU AM4 AMD Ryzen 5 5600 OEM",
+      "label": "same"
+    },
+    {
+      "a": "Garmin Fenix 8 43 51 мм Черный",
+      "b": "Смарт-часы GARMIN Fenix 8 51mm, AMOLED, сапфир, темный силикон 010-02905-21",
+      "label": "uncertain"
+    },
+    {
+      "a": "AMD Ryzen 3 3200G OEM",
+      "b": "Процессор AMD Ryzen 3 3200G YD3200C5M4MFH",
+      "label": "same"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-15M, UTP, 15m, Blue",
+      "b": "Патч-корд Cablexpert PP12 15 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "Комплект оперативной памяти Kingston Fury Beast Beast White EXPO DDR5 DIMM 32Gb KIT (2x16Gb) 6000MHz (KF560C36BWE2K2-32)",
+      "b": "Оперативная память 32 GB kit Kingston Fury Beast KF560C30BWEK2-32",
+      "label": "different",
+      "note": "тайминги CL36 и CL30 в артикуле"
+    },
+    {
+      "a": "SSD накопитель 240 GB Transcend SSD220S, 2.5\", SATA III",
+      "b": "SSD накопитель 240GB Transcend TS240GSSD220S",
+      "label": "same"
+    },
+    {
+      "a": "Монитор 23.8\" Sanc M2453FXG, Black",
+      "b": "Монитор Игровой 23,8\" Sanc M2453FXG 1920x1080 16:9 IPS 144ГЦ (HDMI+VGA) Black",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 Ryzen 5 7600 OEM",
+      "b": "Процессор AMD Ryzen 5 7600 oem",
+      "label": "same"
+    },
+    {
+      "a": "Гарнитура Jabra Evolve2 65 Flex Link380a MS Stereo",
+      "b": "Гарнитура Jabra Evolve2 65 Flex Link380a MS Stereo (26699-999-999)",
+      "label": "same"
+    },
+    {
+      "a": "Оперативная память  Kingston Fury Beast 16Gb (8x2) 5600MHz DDR5 DIMM, CL40, 1.25v (KF556C40BBK2-16)",
+      "b": "Оперативная память 16Gb Kingston Fury Beast KF432C16BB1/16WP",
+      "label": "different"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 5500, AM4, OEM",
+      "b": "Процессор CPU AM4 AMD Ryzen 5 5500 OEM",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 3 3200G, AM4, OEM",
+      "b": "Процессор AMD Ryzen 3 3200G, AM4, Tray (YD3200C5M4MFH)",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 7600X OEM",
+      "b": "Процессор CPU AM5 AMD Ryzen 5 7600X OEM",
+      "label": "same"
+    },
+    {
+      "a": "Телевизор Dreame 65S100, 65\"",
+      "b": "Телевизор Dreame Aura Mini LED 4K TV 65S100 65\" (65S100)",
+      "label": "same"
+    },
+    {
+      "a": "DDR-4 DIMM 16 GB 3200 MHz Netac Basic, BOX (NTBSD4P32SP-16)",
+      "b": "Оперативная память DDR4 DIMM 16GB/3200Mhz PC4-25600 Netac Basic (NTBSD4P32SP-16)",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон Vivo V25E 8/128Gb Sunrise Gold",
+      "b": "Смартфон vivo V25e, 128 GB, Sunrise Gold (V2201)",
+      "label": "same"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-2M/R, UTP, 2m, Pink",
+      "b": "Патч-корд Cablexpert PP12 2 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "Монитор 27\" PHILIPS 271V8AW/01/00 IPS",
+      "b": "Монитор 27\" Philips 271V8AW/01, White",
+      "label": "same"
+    },
+    {
+      "a": "Видеокарта 2 GB Afox R5 220 AFR5220-2048D3L5",
+      "b": "Видеокарта AFOX R5 220 2GB (AFR5220-2048D3L5)",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 3 4100 OEM",
+      "b": "Процессор AMD Ryzen 3 4100, AM4, OEM (100-000000510)",
+      "label": "same"
+    },
+    {
+      "a": "Телевизор HISENSE QLED 50E7S UHD SMART",
+      "b": "Телевизор Hisense QLED 50E7S 50\" (50E7S)",
+      "label": "same"
+    },
+    {
+      "a": "Комплект модулей памяти 32Gb kit Kingston FURY Beast RGB KF432C16BB12AK2/32",
+      "b": "Оперативная память KINGSTON DRAM 32GB 3200MHz DDR4 CL16 DIMM (Kit of 2) FURY Beast Black  (KF432C16BBK2/32)",
+      "label": "uncertain"
+    },
+    {
+      "a": "Оперативная память  32Gb Kit (2x16Gb) 3200MHz DDR4 Team Group ELITE PC4-25600 CL22 TED432G3200C22DC01",
+      "b": "Оперативная память Team Group ELITE DDR5 32GB Kit (2x16GB) 6400MHz (TED532G6400C52DC01)",
+      "label": "different"
+    },
+    {
+      "a": "Наушники SOUNDCORE Liberty 4 NC A3947 White/белый TWS",
+      "b": "Наушники Soundcore Liberty 4 NC Navy Blue (A3947-BLU)",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Gray, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 4 GB, 128 GB, Titanium Grey (KN4N)",
+      "label": "different"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 4500 OEM (100-000000644)",
+      "b": "Процессор CPU AM4 AMD Ryzen 5 4500 OEM",
+      "label": "same"
+    },
+    {
+      "a": "Оперативная память Kingston FURY Beast KF432C16BB1/16 DDR4 16GB 3200MHz (KF432C16BB1/16)",
+      "b": "Оперативная память Kingston FURY Beast White KF560C36BWE2-16",
+      "label": "different"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-15M, UTP, 15m, Grey",
+      "b": "Патч-корд Cablexpert PP12 15 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "SSD накопитель 1 TB Corsair MP700 Elite with Heatsink, M.2, PCIe 5.0",
+      "b": "Твердотельный накопитель SSD Corsair MP700 Elite with Heatsink, 1TB M.2 (CSSD-F1000GBMP700EHS)",
+      "label": "same"
+    },
+    {
+      "a": "Intel Core i9 14900K OEM",
+      "b": "Процессор Intel Core i9 14900K Core i9, 3.2 ГГц Intel",
+      "label": "uncertain",
+      "note": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары"
+    },
+    {
+      "a": "Вентилятор для корпуса Thermaltake Riing Quad 12 RGB TT Premium, 12cm, White",
+      "b": "Кулер для компьютерного корпуса Riing Quad 12 RGB 1500 об/мин, 12 × 12 × 2,5 см Thermaltake",
+      "label": "same"
+    },
+    {
+      "a": "23.8\" AOC 24B3CA2/01 черный",
+      "b": "Монитор 23,8\" AOC 24B3CA2/01 IPS",
+      "label": "same"
+    },
+    {
+      "a": "Картридж Europrint EPC-W1106A - Black",
+      "b": "Картридж с чипом EPC-W1106A, цвет черный Europrint",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 7 PRO 4750G OEM",
+      "b": "Процессор CPU AM4 AMD Ryzen 7 PRO 4750G OEM",
+      "label": "same"
+    },
+    {
+      "a": "Материнская плата ASRock Z790 Pro RS (90-MXBK40-A0UAYZ)",
+      "b": "Материнская плата ASRock Z790 Pro RS, LGA1700",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 5600 OEM",
+      "b": "Процессор AMD Ryzen 5 5600, AM4, OEM (100-000000927)",
+      "label": "same"
+    },
+    {
+      "a": "MAXSUN Challenger B450M",
+      "b": "Материнская плата MaxSun Challenger B450M (V0)",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон Camon 50 (CN5) 256 ГБ, 6.78’’, 12 Гб, золотой Tecno",
+      "b": "Смартфон Tecno Camon 50, 8 GB, 256 GB, Moonshadow Black (CN5)",
+      "label": "different"
+    },
+    {
+      "a": "SSD накопитель Transcend TS250GMTS825S 250 ГБ, M.2 Transcend",
+      "b": "Жесткий диск SSD 250GB Transcend TS250GMTS825S M2 (TS250GMTS825S)",
+      "label": "same"
+    },
+    {
+      "a": "Гарнитура HyperX Cloud III - Gaming Headset (Lavender) DF7F0AA",
+      "b": "Гарнитура HyperX Cloud III, Black-Red",
+      "label": "same"
+    },
+    {
+      "a": "Intel Core i3 10100F OEM",
+      "b": "Процессор Intel Core i3 10100F, LGA1200, OEM",
+      "label": "same"
+    },
+    {
+      "a": "Корпус Ocypus Gamma C52 WH Белый Gamma-C52-WHD000XX-GL",
+      "b": "Корпус Ocypus Gamma C52 WH, White",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 5500GT, AM4, OEM",
+      "b": "Процессор AMD Ryzen 5 5500GT, AM4, with Wraith Stealth Cooler, OEM (100-000001489)",
+      "label": "packaging"
+    },
+    {
+      "a": "SSD накопитель 512 GB Netac N930E PRO, M.2, PCIe 3.0",
+      "b": "SSD накопитель 512Gb Netac N930E Pro NT01N930E-512G-E4X",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 7600X WOF",
+      "b": "Процессор AMD Ryzen 5 7600X box",
+      "label": "same"
+    },
+    {
+      "a": "AFOX R5 220 AFR5220-2048D3L5 2 ГБ",
+      "b": "Видеокарта 2 GB Afox R5 220 AFR5220-2048D3L5",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 3 4100 BOX",
+      "b": "Процессор AMD Ryzen 3 4100, BOX",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 5500 OEM",
+      "b": "Процессор AMD Ryzen 5 5500 OEM",
+      "label": "same"
+    },
+    {
+      "a": "23.8\" Sanc M2442PH V3 белый",
+      "b": "Монитор 23.8\" Sanc M2442PH V3, Black",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 8500G 65W AM5 OEM (100-000000931)",
+      "b": "Процессор AMD Ryzen 5 8500G, AM5, OEM",
+      "label": "same"
+    },
+    {
+      "a": "ASRock B760M PRO RS/D4",
+      "b": "Материнская плата ASRock B760M PRO RS/D4",
+      "label": "same"
+    },
+    {
+      "a": "SSD накопитель 240 GB Transcend SSD220S, 2.5\", SATA III",
+      "b": "Жесткий диск SSD 240GB Transcend TS240GSSD220S (TS240GSSD220S)",
+      "label": "same"
+    },
+    {
+      "a": "SSD накопитель 500 GB Transcend MTS825S, M.2, SATA III",
+      "b": "SSD накопитель 500GB Transcend TS500GMTS825S M2",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 5600, AM4, OEM",
+      "b": "Процессор CPU AM4 AMD Ryzen 5 5600 OEM",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 PRO 5650GE OEM",
+      "b": "Процессор AMD Ryzen 5 PRO 5650GE  (100-000000258)",
+      "label": "same"
+    },
+    {
+      "a": "ASRock A520M-HVS",
+      "b": "Материнская плата ASRock A520M-HVS (90-MXBE60-A0UAYZ)",
+      "label": "same"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-1M/O, UTP, 1m, Orange",
+      "b": "Патч-корд Cablexpert PP12 1 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "SSD накопитель Transcend TS1TMTS830S 1000 ГБ, M.2 2280 Transcend",
+      "b": "Жесткий диск SSD 1TB Transcend TS1TMTS830S (TS1TMTS830S)",
+      "label": "same"
+    },
+    {
+      "a": "23.8\" Sanc M2442PH V3 черный",
+      "b": "Монитор 23.8\" Sanc M2442PH V3, Black",
+      "label": "same"
+    },
+    {
+      "a": "Компьютерный корпус Gamemax Infinity Mini 3 ARGB Fans + Controller Black без Б/П",
+      "b": "Корпус GameMax Infinity Mini WH, White",
+      "label": "uncertain"
+    },
+    {
+      "a": "Garmin Fenix 8 43 51 мм Серебристый-оранжевый",
+      "b": "Смарт-часы GARMIN Fenix 8 51mm ,AMOLED, сапфир, титановый корпус, черный, кожаный ремешок каштанового цвета 010-02905-40",
+      "label": "uncertain"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-2M/B, UTP, 2m, Blue",
+      "b": "Патч-корд Cablexpert PP12 2 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "Оперативная память 32 GB kit Kingston Fury Beast Black RGB (EXPO) KF556C36BBEAK2-32",
+      "b": "Оперативная память Kingston Fury Beast DDR5 - 2x 16ГБ 6400МГц (KF564C32BBEAK2-32)",
+      "label": "different"
+    },
+    {
+      "a": "Оперативная память 8Gb Kingston KVR32N22S8/8WP",
+      "b": "Оперативная память Kingston KVR32N22S8/8WP, DDR4 DIMM 8Gb 3200MHz (KVR32N22S8/8WP)",
+      "label": "same"
+    },
+    {
+      "a": "SSD накопитель 240 GB Patriot Burst Elite, 2.5\", SATA III",
+      "b": "Твердотельный накопитель SSD 2.5\" SATA III Patriot  240GB BURST ELITE 450/320 PBE240GS25SSDR (PBE240GS25SSDR)",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 8400F OEM",
+      "b": "Процессор AMD Ryzen 5 8400F, AM5, OEM",
+      "label": "same"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-15M/Y, UTP, 15m, Yellow",
+      "b": "Патч-корд Cablexpert PP12 15 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 5600XT OEM",
+      "b": "Процессор AMD Ryzen 5 5600XT, AM4, OEM",
+      "label": "same"
+    },
+    {
+      "a": "SSD накопитель 500GB Transcend TS500GSSD225S",
+      "b": "Жесткий диск SSD 500GB Transcend TS500GSSD225S (TS500GSSD225S)",
+      "label": "same"
+    },
+    {
+      "a": "Гарнитура Jabra Evolve2 65 Flex Link380a MS Stereo (26699-999-999)",
+      "b": "Наушники Jabra Evolve2 65 Flex Link380a UC Stereo WLC 26699-989-989 Black",
+      "label": "different"
+    },
+    {
+      "a": "70mai Maimo белый",
+      "b": "Смарт-часы 70mai Maimo WT2105, Black (2 ремешка)",
+      "label": "same"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-2M/G, UTP, 2m, Green",
+      "b": "Патч-корд Cablexpert PP12 2 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "Процессор Intel Core Ultra 5 245KF TRAY",
+      "b": "Процессор Intel Core Ultra 5 245KF TRAY (AT8076806414)",
+      "label": "same"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-3M/G, UTP, 3m, Green",
+      "b": "Патч-корд Cablexpert PP12 3 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 4500 OEM",
+      "b": "Процессор AMD Ryzen 5 4500 OEM (100-000000644)",
+      "label": "same"
+    },
+    {
+      "a": "Телевизор HISENSE QLED 50E7Q UHD SMART",
+      "b": "Телевизор Hisense 50\" 50E7Q RU",
+      "label": "same"
+    },
+    {
+      "a": "OSCAL Pad 30 10.1 дюйм 4 Гб128 Гб зеленый + подарок",
+      "b": "Планшет Oscal Pad 30 WiFi, 10.1\", 4 GB, 128 GB, Hazel Green",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 8500G OEM",
+      "b": "Процессор AMD Ryzen 5 8500G oem",
+      "label": "same"
+    },
+    {
+      "a": "Оперативная память 16Gb Kingston FURY Beast Black AMD RGB KF556C36BBEA-16",
+      "b": "Оперативная память Kingston DDR-4 DIMM 16GB/3600MHz Black (KF436C18BB2A/16)",
+      "label": "different"
+    },
+    {
+      "a": "Процессор CPU AM5 AMD Ryzen 5 8400F OEM",
+      "b": "Процессор CPU AMD Ryzen 5 8400F oem (100-000001591)",
+      "label": "same"
+    },
+    {
+      "a": "Intel Core i9 14900K OEM",
+      "b": "Процессор CPU S-1700 Intel Core i9-14900K OEM",
+      "label": "same"
+    },
+    {
+      "a": "Монитор 27\" Sanc M2763VTB, Black",
+      "b": "Монитор SANC M2763VTB 27 FHD/VA/1ms/280Hz",
+      "label": "same"
+    },
+    {
+      "a": "Intel Core Ultra 5 245K OEM",
+      "b": "Процессор Intel Core Ultra 5 245K, LGA1851, OEM",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 7600X OEM",
+      "b": "Процессор AMD Ryzen 5 7600X OEM",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 8500G 65W AM5 OEM (100-000000931)",
+      "b": "Процессор CPU AM5 AMD Ryzen 5 8500G OEM",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 4500 OEM (100-000000644)",
+      "b": "Процессор AMD Ryzen 5 4500, AM4, OEM",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 7600 BOX",
+      "b": "Процессор AMD Ryzen 5 7600, AM5, BOX (100-100001015BOX)",
+      "label": "same"
+    },
+    {
+      "a": "SSD накопитель 256GB Apacer AS2280P4 AP256GAS2280P4-1",
+      "b": "Твердотельный накопитель  256GB SSD Apacer, M.2 2280, R1800MB/s, W1100MB/s, AP256GAS2280P4-1 (AP256GAS2280P4-1)",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 5600X OEM",
+      "b": "Процессор AMD Ryzen 5 5600X, AM4, OEM",
+      "label": "same"
+    },
+    {
+      "a": "Bluetooth гарнитура Defender FreeMotion B645, Black",
+      "b": "Наушники беспроводные Defender FreeMotion B645 105 дБ Defender",
+      "label": "same"
+    },
+    {
+      "a": "Процессор Intel Core i5 14400F OEM (i5-14400F)",
+      "b": "Процессор Intel Сore i5 -14400F oem",
+      "label": "same"
+    },
+    {
+      "a": "ТВ Станция Бейсик Яндекс YNDX-00077 с Алисой на YaGPT 65\"",
+      "b": "Телевизор Яндекс Бейсик с Алисой 65\" (YNDX-00077)",
+      "label": "same"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-7.5M/Y, UTP, 7.5m, Yellow",
+      "b": "Патч-корд Cablexpert PP12 7.5 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "Гарнитура A4Tech Bloody G575, 2m, USB, LED, Naraka (G575/NARAKA)",
+      "b": "Гарнитура A4Tech Bloody G575, Grey",
+      "label": "uncertain"
+    },
+    {
+      "a": "Оперативная память 32 GB kit Kingston Fury Beast Black RGB (EXPO) KF556C36BBEAK2-32",
+      "b": "Оперативная память Kingston Fury Beast DDR4 DIMM 32Gb KIT (2x16) 3200MHz (KF432C16BB1K2/32WP)",
+      "label": "different"
+    },
+    {
+      "a": "Процессор AMD Ryzen 3 4100, AM4, OEM",
+      "b": "Процессор AMD Ryzen 3 4100, AM4, OEM (100-000000510)",
+      "label": "same"
+    },
+    {
+      "a": "Монитор 27\" X-Game OFLED27 1920x1080 16:9 IPS 75 ГЦ (HDMI+VGA) Black",
+      "b": "Монитор 27'' X-game OFLED27+",
+      "label": "uncertain"
+    },
+    {
+      "a": "AMD Ryzen 3 4100 OEM",
+      "b": "Процессор AMD Ryzen 3 4100, AM4, OEM",
+      "label": "same"
+    },
+    {
+      "a": "Оперативная память 16GB DDR5 5600MHz NOMAD UDIMM (NMD5600D5U46-16GB)",
+      "b": "Оперативная память 16GB NOMAD NMD5600D5U46-16GBHSB Black",
+      "label": "uncertain"
+    },
+    {
+      "a": "Гарнитура A4Tech Bloody G575, 2m, USB, LED, Naraka (G575/NARAKA)",
+      "b": "Гарнитура A4Tech Bloody G575, Black",
+      "label": "uncertain"
+    },
+    {
+      "a": "Наушники Havit H670BT Beige",
+      "b": "Наушники Havit H670BT Silver",
+      "label": "same"
+    },
+    {
+      "a": "Процессор Intel Core i7-12700KF oem",
+      "b": "Процессор Intel Core i7-12700KF, LGA1700, OEM (CM8071504553829)",
+      "label": "same"
+    },
+    {
+      "a": "Yasin LED-43G9 109 см черный",
+      "b": "Телевизор Yasin 43\" 43G9 LED FHD Black",
+      "label": "same"
+    },
+    {
+      "a": "AMD Athlon 3000G OEM",
+      "b": "Процессор AMD Athlon 3000G YD3000C6M20FH",
+      "label": "same"
+    },
+    {
+      "a": "Модуль памяти 16GB Kingston Fury Beast Black AMD KF556C36BBE-16",
+      "b": "Оперативная память Kingston Fury Beast RGB DDR4 DIMM 16Gb 3200MHz (KF432C16BB12A/16WP)",
+      "label": "different"
+    },
+    {
+      "a": "Гарнитура Jabra Engage 55 MS Stereo USB-A EMEA",
+      "b": "Гарнитура Jabra Engage 55 UC Stereo USB-C EMEA",
+      "label": "different"
+    },
+    {
+      "a": "Гарнитура Jabra Biz 1100 USB-A EDU stereo",
+      "b": "Гарнитура Jabra Biz 1100 USB-A EDU stereo (1159-0159-EDU)",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон TECNO CAMON 50 8 ГБ/256 ГБ 256 ГБ, 6.78’’, 8 Гб, серебристый Tecno, CAMON",
+      "b": "Смартфон Tecno Camon 50, 12 GB, 256 GB, Malachite Green (CN5)",
+      "label": "different"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-5M/BK, UTP, 5m, Black",
+      "b": "Патч-корд Cablexpert PP12 5 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 7600X OEM",
+      "b": "Процессор AMD Ryzen 5 7600X, AM5, OEM (100-000000593)",
+      "label": "same"
+    },
+    {
+      "a": "Intel Core i3 13100 OEM",
+      "b": "Процессор  Intel Core i3-13100, LGA1700, OEM (CM8071505092202)",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 3 4100 BOX",
+      "b": "Процессор AMD Ryzen 3 4100, AM4, BOX (100-100000510BOX)",
+      "label": "same"
+    },
+    {
+      "a": "Корпус Sharkoon ELITE SHARK CA300T WE, White",
+      "b": "Корпус для ПК Sharkoon ELITE SHARK CA300T Bk",
+      "label": "same"
+    },
+    {
+      "a": "AFOX AF1050TI-4096D5H7-V9 4 Гб",
+      "b": "Видеокарта Afox GTX 1050 Ti  V9, 4 GB, GeForce GTX 1050 Ti",
+      "label": "same"
+    },
+    {
+      "a": "27\" XTREON XT2760S MiniLED белый",
+      "b": "Монитор XTREON XT2760S 27 QHD/Mini LED/0,5ms/240-400Hz",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 7500F OEM",
+      "b": "Процессор AMD Ryzen 5 7500F 3,7Гц (5,0ГГц Turbo) Zen4 6-ядер 12-потоков AM5 100-000000597 (100-000000597)",
+      "label": "same"
+    },
+    {
+      "a": "Гарнитура A4Tech Bloody G575, Punk Yellow",
+      "b": "Наушники A4tech Bloody G575 Black",
+      "label": "same"
+    },
+    {
+      "a": "Оперативная память 64 GB kit Kingston Fury Beast White KF560C36BBEAK2-64",
+      "b": "Оперативная память DIMM DDR5 64 GB kit (KF556C36BWEAK2-64)",
+      "label": "different"
+    },
+    {
+      "a": "AFOX AF1050TI-4096D5H7-V8 4 Гб",
+      "b": "Видеокарта Afox GTX 1050 Ti  V8, 4 GB, GeForce GTX 1050 Ti",
+      "label": "same"
+    },
+    {
+      "a": "Оперативная память 16Gb Kingston Fury Beast KF432C16BB1/16WP",
+      "b": "Оперативная память Kingston FURY Beast RGB EXPO DDR5 16GB 6000MT/s (KF560C36BBE2A-16)",
+      "label": "different"
+    },
+    {
+      "a": "23.8\" Sanc M2442PH V3 белый",
+      "b": "Монитор 23.8\" Sanc M2442PH V3",
+      "label": "same"
+    },
+    {
+      "a": "Intel Core i5 12500 OEM",
+      "b": "Процессор Intel Core i5-12500 oem",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 8600G, AM5, OEM (100-000001237)",
+      "b": "Процессор CPU AM5 AMD Ryzen 5 8600G OEM",
+      "label": "same"
+    },
+    {
+      "a": "Телевизор QLED ЯНДЕКС 65 Бейсик YNDX-00081 (4K Smart)",
+      "b": "Яндекс Бейсик QLED + YNDX-00081 165 см черный",
+      "label": "same"
+    },
+    {
+      "a": "Видеокарта AFOX GTX1050 4GB D5 Dual Fan AF1050-4096D5H4-V2",
+      "b": "Видеокарта Afox GTX1050 4GB D5 Dual Fan (AF1050-4096D5H4-V2) [4 ГБ, GDDR5, 128 бит, DVI, HDMI, DisplayPort]",
+      "label": "same"
+    },
+    {
+      "a": "ASRock B760M PRO RS/D4",
+      "b": "Материнская плата ASRock B760M PRO RS/D4 WIFI",
+      "label": "different"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 8400F, AM5, OEM",
+      "b": "Процессор CPU AM5 AMD Ryzen 5 8400F OEM",
+      "label": "same"
+    },
+    {
+      "a": "Наушники SOUNDCORE Liberty 5 Pro (D1203G31), Голубой TWS",
+      "b": "Наушники soundcore Liberty 5 Pro D1203G11",
+      "label": "uncertain",
+      "note": "значение кодов G11/G31 источником не подтверждено"
+    },
+    {
+      "a": "AMD Ryzen 5 5600 OEM",
+      "b": "Процессор AMD Ryzen 5 5600 Ryzen 5, 3.5 ГГц AMD",
+      "label": "uncertain",
+      "note": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары"
+    },
+    {
+      "a": "AMD Ryzen 5 7600X WOF",
+      "b": "Процессор AMD Ryzen 5 7600X AM5, BOX (100-100000593WOF)",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 7600X AM5, BOX (100-100000593WOF)",
+      "b": "Процессор AMD Ryzen 5 7600X, AM5, OEM",
+      "label": "packaging"
+    },
+    {
+      "a": "AMD Ryzen 7 PRO 4750G OEM",
+      "b": "Процессор AMD Ryzen 7 PRO 4750G TRAY",
+      "label": "same"
+    },
+    {
+      "a": "Корпус Ocypus Gamma C52 WH ARGB, White",
+      "b": "Корпус Ocypus Gamma C52 WH Белый Gamma-C52-WHD000XX-GL",
+      "label": "same"
+    },
+    {
+      "a": "AMD Athlon 200GE OEM",
+      "b": "Процессор AMD Athlon 200GE, AM4, OEM (YD200GC6M2OFB)",
+      "label": "same"
+    },
+    {
+      "a": "Корпус Zalman M4, Black",
+      "b": "Корпус для ПК Zalman M4 white",
+      "label": "same"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-7.5M, UTP, 7.5m, Grey",
+      "b": "Патч-корд Cablexpert PP12 7.5 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "Процессор Intel Core i3 14100F, LGA1700, OEM",
+      "b": "Процессор Intel Core i3-14100F Tray",
+      "label": "same"
+    },
+    {
+      "a": "Маршрутизатор TP-Link Archer C54",
+      "b": "Маршрутизатор TP-Link Archer C54 (Archer C54)",
+      "label": "same"
+    },
+    {
+      "a": "Оперативная память Transcend JM5600ALE-32G",
+      "b": "Память оперативная Transcend JM5600ALE-32G 32GB DDR5 (JM5600ALE-32G)",
+      "label": "same"
+    },
+    {
+      "a": "Процессор Intel Core i7-12700 (2.1GHz, 25MB, LGA1700) box (BX8071512700SRL4Q)",
+      "b": "Процессор Intel Core i7-12700 box",
+      "label": "same"
+    },
+    {
+      "a": "SSD накопитель 500 GB Transcend SSD225S, 2.5\", SATA III",
+      "b": "SSD накопитель 500GB Transcend TS500GSSD225S",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 PRO 5650GE  (100-000000258)",
+      "b": "Процессор CPU AM4 AMD Ryzen 5 PRO 5650GE OEM",
+      "label": "same"
+    },
+    {
+      "a": "Видеокарта AFOX RX 580 GAMING 8GB Dual Fan AFRX580-8192D5H3-V3",
+      "b": "Видеокарта Afox RX 580, 8 GB, Radeon RX 580",
+      "label": "uncertain"
+    },
+    {
+      "a": "AMD Ryzen 5 9600X OEM",
+      "b": "Процессор AMD Ryzen 5 9600X, AM5, OEM",
+      "label": "same"
+    },
+    {
+      "a": "Оперативная память 32 GB kit Kingston Fury Beast Black (EXPO) KF556C36BBEK2-32",
+      "b": "Оперативная память Kingston FURY Beast RGB XMP DDR5 32GB 5200MT/s, White (KF552C40BWA-32)",
+      "label": "different"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 7600X, AM5, OEM",
+      "b": "Процессор CPU AM5 AMD Ryzen 5 7600X OEM",
+      "label": "same"
+    },
+    {
+      "a": "Intel Core i5 CORE I5 12400 OEM",
+      "b": "Процессор Intel Core i5 12400, LGA1700, OEM (i5-12400)",
+      "label": "same"
+    },
+    {
+      "a": "Bluetooth гарнитура OLMIO TWE-02, Black",
+      "b": "Наушники-вкладыши беспроводные OLMIO \"TWE-02\" синий (39496)",
+      "label": "same"
+    },
+    {
+      "a": "Телевизор MiniLED ЯНДЕКС 65 Про YNDX-00104 (4K Smart)",
+      "b": "Яндекс Про MiniLED YNDX-00104 165 см черный",
+      "label": "same"
+    },
+    {
+      "a": "Marshall MAJOR V",
+      "b": "Наушники MARSHALL MAJOR V (black)",
+      "label": "same"
+    },
+    {
+      "a": "Intel Core i5-14400 OEM",
+      "b": "Процессор Intel Core i5 14400, LGA1700, OEM (i5-14400)",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 3400G OEM",
+      "b": "Процессор AMD Ryzen 5 3400G, AM4, OEM",
+      "label": "same"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-2M/Y, UTP, 2m, Yellow",
+      "b": "Патч-корд Cablexpert PP12 2 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 7 5700G OEM",
+      "b": "Процессор AMD Ryzen 7 5700G, AM4, OEM",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 8400F OEM",
+      "b": "Процессор AMD Ryzen 5 8400F Tray",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 3 3200G OEM",
+      "b": "Процессор AMD Ryzen 3 3200G, AM4, Tray (YD3200C5M4MFH)",
+      "label": "same"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-3M, UTP, 3m, Grey",
+      "b": "Патч-корд Cablexpert PP12 3 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "Батарейка дисковая литиевая PANASONIC LRV08/1B",
+      "b": "Батарейка щелочная LRV08 LRV08, щелочной, 1 шт. Panasonic",
+      "label": "uncertain"
+    },
+    {
+      "a": "SSD накопитель 4 TB Adata XPG Gammix S70 Blade, M.2, PCIe 4.0",
+      "b": "Твердотельный накопитель SSD ADATA XPG GAMMIX S70 BLADE 4 ТБ M.2 (AGAMMIXS70B-4T-CS)",
+      "label": "same"
+    },
+    {
+      "a": "Intel Core i3 10105 OEM",
+      "b": "Процессор Intel Core i3 10105",
+      "label": "uncertain",
+      "note": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары"
+    },
+    {
+      "a": "AFOX R5 220 AFR5220-2048D3L5 2 ГБ",
+      "b": "Видеокарта AFOX R5 220 2GB (AFR5220-2048D3L5)",
+      "label": "same"
+    },
+    {
+      "a": "SSD накопитель 512 GB AMD Radeon R3, 2.5\", SATA III",
+      "b": "SSD накопитель 512GB AMD RADEON R3 Series R3MS0512G8",
+      "label": "different"
+    },
+    {
+      "a": "Гарнитура Edifier WH950NB Ivory",
+      "b": "Наушники Edifier WH950NB Black",
+      "label": "same"
+    },
+    {
+      "a": "Телевизор Яндекс YNDX-00105 - Умный телевизор с Алисой 75\"",
+      "b": "Телевизор Яндекс Про 75\" YNDX-00105 MiniLED 4K UHD Black",
+      "label": "same"
+    },
+    {
+      "a": "Игровая гарнитура RAZER Barracuda (RZ04-03790300-R3M1) Розовый",
+      "b": "Наушники Razer Barracuda Quartz RZ04-03790300-R3M1 розовый",
+      "label": "same"
+    },
+    {
+      "a": "Процессор Intel Core i3 10105",
+      "b": "Процессор Intel Core i3 10105, LGA1200, OEM",
+      "label": "uncertain",
+      "note": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары"
+    },
+    {
+      "a": "Гарнитура Razer Barracuda - Quartz RZ04-03790300-R3M1",
+      "b": "Игровая гарнитура RAZER Barracuda (RZ04-03790300-R3M1) Розовый",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 Ryzen 5 7600 OEM",
+      "b": "Процессор CPU AM5 AMD Ryzen 5 7600 OEM",
+      "label": "same"
+    },
+    {
+      "a": "Garmin Forerunner 265 черный-бирюзовый",
+      "b": "Смарт-часы GARMIN FORERUNNER 265 010-02810-10",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 8 ГБ/256 ГБ 256 ГБ, 6.78’’, 8 Гб, Blue, 256 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 8 GB, 256 GB, Aurora Purple (KN4N)",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Blue, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 4 GB, 128 GB, Aurora Purple (KN4N)",
+      "label": "different"
+    },
+    {
+      "a": "AMD Ryzen 5 PRO 5650GE OEM",
+      "b": "Процессор AMD Ryzen 5 PRO 5650GE TRAY",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 Ryzen 5 8600G OEM",
+      "b": "Процессор AMD Ryzen 5 8600G, AM5, OEM (100-000001237)",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 Ryzen 5 8500G OEM OEM",
+      "b": "Процессор CPU AM5 AMD Ryzen 5 8500G OEM",
+      "label": "same"
+    },
+    {
+      "a": "27\" Sanc M2753FPF V3 черный",
+      "b": "Монитор 27\" Sanc M2753FPF V3, Black",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 9600X OEM",
+      "b": "Процессор CPU AM5 AMD Ryzen 5 9600X OEM",
+      "label": "same"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-5M, UTP, 5m, Grey",
+      "b": "Патч-корд Cablexpert PP12 5 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "Оперативная память 32 GB kit Kingston Fury Beast Black (EXPO) KF556C36BBEK2-32",
+      "b": "Оперативная память Kingston FURY Beast RGB 32GB 3200MT/s DDR4 (Kit of 2) (KF432C16BB2AK2/32)",
+      "label": "different"
+    },
+    {
+      "a": "DDR-5 DIMM 64 GB 6000 MHz Kingston Fury Beast RGB, 2x 32 GB Kit, Black, BOX (KF560C36BBEAK2-64)",
+      "b": "Оперативная память 64 GB kit Kingston Fury Beast White KF560C36BBEAK2-64",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 7600X, AM5, OEM (100-000000593)",
+      "b": "Процессор CPU AM5 AMD Ryzen 5 7600X OEM",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 3500X OEM",
+      "b": "Процессор AMD Ryzen 5 3500X, AM4, OEM",
+      "label": "same"
+    },
+    {
+      "a": "SSD накопитель 256 GB Patriot P220 P220S256G25",
+      "b": "SSD накопитель 256 GB Patriot P220, 2.5\", SATA III",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 4500 OEM",
+      "b": "Процессор AMD Ryzen 5 4500 Ryzen 5, 3.6 ГГц AMD",
+      "label": "uncertain",
+      "note": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары"
+    },
+    {
+      "a": "Монитор 27\" iiyama ProLite T2752MSC-W1, White",
+      "b": "Монитор жидкокристаллический Iiyama T2752MSC-B1 27'' 16:9 1920х1080(FHD) IPS, nonGLARE, 5ms, HDMI, DP, Black",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Black, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 6 GB, 128 GB, Titanium Grey (KN4N)",
+      "label": "same"
+    },
+    {
+      "a": "27\" Sanc M2753FVF черный",
+      "b": "Монитор Игровой 27\" Sanc M2753FVF 1920x1080 16:9 IPS 280ГЦ (2HDMI+2DP) Black",
+      "label": "same"
+    },
+    {
+      "a": "AMD Athlon 3000G OEM",
+      "b": "Процессор AMD Athlon 3000G, AM4, OEM (YD3000C6M2OFH)",
+      "label": "same"
+    },
+    {
+      "a": "AFOX AF1050TI-4096D5H2",
+      "b": "Видеокарта Afox GTX 1050 Ti  V9, 4 GB, GeForce GTX 1050 Ti",
+      "label": "uncertain"
+    },
+    {
+      "a": "Смартфон Vivo V25E 8/128Gb Diamond Black",
+      "b": "Смартфон vivo V25e, 128 GB, Sunrise Gold (V2201)",
+      "label": "same"
+    },
+    {
+      "a": "Монитор 23,8\" PHILIPS 24M2N3200NF/01 IPS 1920x1080 144Hz 0.5мс 300кд/м 1500:1 HDMI DP Черный",
+      "b": "Монитор 23.8\" Philips Evnia 24M2N3200NF/01, Black",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 7600X, AM5, OEM",
+      "b": "Процессор AMD Ryzen 5 7600X, AM5, OEM (100-000000593)",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 9600X, AM5, OEM",
+      "b": "Процессор CPU AM5 AMD Ryzen 5 9600X OEM",
+      "label": "same"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-1M/G, UTP, 1m, Green",
+      "b": "Патч-корд Cablexpert PP12 1 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "ASRock B650M PG Lightning",
+      "b": "Материнская плата ASRock B650M PG Lightning (90-MXBMV0-A0UAYZ)",
+      "label": "same"
+    },
+    {
+      "a": "23.8\" XTREON XT24N1 черный",
+      "b": "Монитор XTREON XT24N1 23.8 QHD/IPS/1ms/180Hz",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 3 4100, AM4, BOX (100-100000510BOX)",
+      "b": "Процессор AMD Ryzen 3 4100, BOX",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 7 9850X3D OEM",
+      "b": "Процессор CPU AM5 AMD Ryzen 7 9850X3D OEM",
+      "label": "same"
+    },
+    {
+      "a": "SSD накопитель 1 TB Hikvision HS-SSD-E1000/1024G",
+      "b": "Твердотельный накопитель SSD 1TB Hikvision E1000 M.2  (HS-SSD-E1000/1024G)",
+      "label": "same"
+    },
+    {
+      "a": "Гарнитура Jabra BIZ 1500 Mono USB черная",
+      "b": "Гарнитура Jabra Biz 1500 Mono, USB, Black",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 3 3200G OEM",
+      "b": "Процессор AMD Ryzen 3 3200G, AM4, OEM",
+      "label": "same"
+    },
+    {
+      "a": "Оперативная память 16GB NOMAD NMD5600D5U46-16GBRGB",
+      "b": "Оперативная память NOMAD NMD5600D5U46-16GBHSB DDR5 16GB 5600MHz - Black (NMD5600D5U46-16GBHSB)",
+      "label": "different"
+    },
+    {
+      "a": "Материнская плата ASRock B650M PG LIGHTNING",
+      "b": "Материнская плата ASRock B650M PG Lightning (90-MXBMV0-A0UAYZ)",
+      "label": "same"
+    },
+    {
+      "a": "Процессор CPU S-1200 Intel Core i3 10105F OEM",
+      "b": "Процессор Intel Core i3 10105F, LGA1200, OEM (i3-10105F)",
+      "label": "same"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-1M/Y, UTP, 1m, Yellow",
+      "b": "Патч-корд Cablexpert PP12 1 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "SSD накопитель 256 GB AMD Radeon R3, M.2, PCIe 3.0",
+      "b": "SSD накопитель 256GB AMD RADEON R3 Series R3MP30256G8",
+      "label": "same"
+    },
+    {
+      "a": "Оперативная память 64 GB kit Kingston Fury Beast White KF560C36BBEAK2-64",
+      "b": "Оперативная память Kingston FURY Beast RGB DDR5 64GB (Kit of 2) 5600MT/s (KF556C36BBE2AK2-64)",
+      "label": "different"
+    },
+    {
+      "a": "SSD накопитель 240 GB Netac SA500, 2.5\", SATA III",
+      "b": "Твердотельный накопитель SSD Netac NT01SA500-240-S3X 240GB  (NT01SA500-240-S3X)",
+      "label": "same"
+    },
+    {
+      "a": "SSD накопитель 256Gb Team Group MS30 TM8PS7256G0C101",
+      "b": "Твердотельный накопитель TeamGroup SSD MS30 256Гб (TM8PS7256G0C101)",
+      "label": "same"
+    },
+    {
+      "a": "AMD Ryzen 5 7600X BOX",
+      "b": "Процессор AMD Ryzen 5 7600X box",
+      "label": "same"
+    },
+    {
+      "a": "Гарнитура A4Tech Bloody G575, 2m, USB, LED, Naraka (G575/NARAKA)",
+      "b": "Гарнитура A4Tech Bloody G575, Punk Yellow",
+      "label": "uncertain"
+    },
+    {
+      "a": "Оперативная память 32GB Kit Kingston FURY Beast White RGB EXPO KF560C30BWEAK2-32 White",
+      "b": "Оперативная память Kingston Fury Beast DDR5 - 2x 16ГБ 6400МГц (KF564C32BBEAK2-32)",
+      "label": "different"
+    },
+    {
+      "a": "SSD накопитель 512 GB AMD Radeon R3, M.2, PCIe 3.0",
+      "b": "SSD накопитель 512GB AMD RADEON R3 Series R3MS0512G8",
+      "label": "different"
+    },
+    {
+      "a": "AFOX Afox GT 710 (AF710-2048D3L5-V3) 2 Гб",
+      "b": "Видеокарта Afox GT 710 V3, 2 GB, GeForce GT 710",
+      "label": "same"
+    },
+    {
+      "a": "Моноблок 27\" XG Atlas GL70",
+      "b": "Моноблок barebone Atlas GL70 27\", без процессора XG",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 3400G OEM (YD3400C5M4MFH)",
+      "b": "Процессор AMD Ryzen 5 3400G, AM4, OEM",
+      "label": "same"
+    },
+    {
+      "a": "23.8\" Dahua DHI-LM24-P301A черный",
+      "b": "Монитор 24\" Dahua DHI-LM24-P301A",
+      "label": "same"
+    },
+    {
+      "a": "Гарнитура Razer Kaira X for Xbox - Electric Volt RZ04-03970600-R3M1",
+      "b": "Гарнитура Razer Kaira X for Xbox, Black",
+      "label": "same"
+    },
+    {
+      "a": "Garmin Fenix 8 43 51 мм Серый",
+      "b": "Смарт-часы GARMIN Fenix 8 51mm ,AMOLED, сапфир, титановый корпус, черный, кожаный ремешок каштанового цвета 010-02905-40",
+      "label": "uncertain"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Gray, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 6 GB, 128 GB, Halo Blue (KN4N)",
+      "label": "different"
+    },
+    {
+      "a": "Наушники Defender FreeMotion B665 бежевый",
+      "b": "Наушники-гарнитура беспроводные Defender FreeMotion B665 бежевый (63666)",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Black, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 4 GB, 128 GB, Aurora Purple (KN4N)",
+      "label": "different"
+    },
+    {
+      "a": "Intel Core i3 14100 OEM",
+      "b": "Процессор Intel Core i3 14100, LGA1700, OEM",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Gray, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 8 GB, 128 GB, Aurora Purple (KN4N)",
+      "label": "same"
+    },
+    {
+      "a": "DDR-5 DIMM 16 GB 5600 MHz Transcend, BOX (JM5600ALE-16G)",
+      "b": "Оперативная память 16Gb Transcend JM5600ALE-16G",
+      "label": "same"
+    },
+    {
+      "a": "USB HUB 4-port USB 3.0 TP-LINK UH400, Black",
+      "b": "Концентратор Tp-Link UH400 4 порта, 5 Гбит/с TP-Link",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 8 ГБ/256 ГБ 256 ГБ, 6.78’’, 8 Гб, Blue, 256 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 8 GB, 256 GB, Halo Blue (KN4N)",
+      "label": "same"
+    },
+    {
+      "a": "Гарнитура Razer Opus X - Green",
+      "b": "Наушники Razer Opus X RZ04-03760400-R3M1 зеленые",
+      "label": "same"
+    },
+    {
+      "a": "Видеокарта  Afox GT 610 (AF610-2048D3L7-V8/AF610-2048D3L7-V6)",
+      "b": "Видеокарта AFOX GT610 2GB D3 LP Single Fan (AF610-2048D3L8)",
+      "label": "uncertain"
+    },
+    {
+      "a": "Смартфон Camon 50 (CN5) 256 ГБ, 6.78’’, 12 Гб, черный Tecno",
+      "b": "Смартфон Tecno Camon 50, 8 GB, 256 GB, Moonshadow Black (CN5)",
+      "label": "different"
+    },
+    {
+      "a": "MAXSUN плата Challenger B460M-D LGA1200 mATX",
+      "b": "Материнская плата Socket1200, MATX, iB460 (HDMI, DP) MaxSun Challenger B460M-D, 2DDR4, PCIx16, PCIx1 (MS-Challenger B460M-D)",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 9 7900X OEM",
+      "b": "Процессор CPU AM5 AMD Ryzen 9 7900X OEM",
+      "label": "same"
+    },
+    {
+      "a": "Монитор 23.8\" Sanc M2453KJ V3 IPS",
+      "b": "Монитор 23.8\" Sanc M2453KJ V3, Black",
+      "label": "same"
+    },
+    {
+      "a": "Гарнитура HyperX Cloud III, Black-Red",
+      "b": "Наушники-гарнитура HyperX BS7C1AA Cloud III белый",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон TECNO CAMON 50 8 ГБ/256 ГБ 256 ГБ, 6.78’’, 8 Гб, серебристый Tecno, CAMON",
+      "b": "Смартфон Tecno Camon 50, 8 GB, 256 GB, Malachite Green (CN5)",
+      "label": "same"
+    },
+    {
+      "a": "Процессор Intel Core i9 13900F, LGA1700, OEM",
+      "b": "Процессор Intel Core i9-13900F OEM",
+      "label": "same"
+    },
+    {
+      "a": "Процессор CPU S-1700 Intel Core i9 13900K OEM",
+      "b": "Процессор Intel Core i9-13900K SRMBH (SRMBH-OEM)",
+      "label": "same"
+    },
+    {
+      "a": "Компьютерный корпус Thermaltake TR300 TG Black без Б/П",
+      "b": "Компьютерный корпус Thermaltake TR300 TG Snow без Б/П",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 8 ГБ/256 ГБ 256 ГБ, 6.78’’, 8 Гб, черный, 256 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 8 GB, 256 GB, Titanium Grey (KN4N)",
+      "label": "same"
+    },
+    {
+      "a": "Монитор 24,5\" PHILIPS 25M2N3200W (00/01)",
+      "b": "Монитор 24.5\" Philips 25M2N3200W/01, Black",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон TECNO POVA 8 5G 8 ГБ/256 ГБ 256 ГБ, 8 Гб, Black, 256 ГБ Tecno, POVA",
+      "b": "Смартфон Tecno Pova 8 5G, 8 GB, 256 GB, Arc White (LK6)",
+      "label": "same"
+    },
+    {
+      "a": "Видеокарта MaxSun MS-RX550 TF 4G",
+      "b": "Видеокарта MaxSun RX 550, 4 GB, Radeon RX 550",
+      "label": "uncertain",
+      "note": "во втором названии нет модели карты"
+    },
+    {
+      "a": "Карта памяти Canvas Go Plus A2 U3 V30 64 ГБ Kingston Technology",
+      "b": "Карта памяти Micro SDXC 64GB Kingston Canvas Go! Plus, Class 10 UHS-I U3 V30 A2",
+      "label": "same"
+    },
+    {
+      "a": "Сетевой фильтр Defender DFS-753, 5 розеток, 3м, USB, Black",
+      "b": "Фильтр сетевой Defender DFS 753 3 м, пластик Defender",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Gray, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 8 GB, 128 GB, Aurora Purple (KN4N)",
+      "label": "different"
+    },
+    {
+      "a": "Bluetooth гарнитура Jabra Evolve2 65, Link380a MS Stereo, Black",
+      "b": "Jabra Evolve2 65, Link380a MS Mono Black (26599-899-999)",
+      "label": "different"
+    },
+    {
+      "a": "Модуль памяти Apacer Panther AH5U16G60C6227BAA-1 DDR5 16GB",
+      "b": "Оперативная память Apacer Panther DDR5 16GB 6000 МГц (AH5U16G60C6227BAA-1)",
+      "label": "same"
+    },
+    {
+      "a": "Blackview Tab 80 Kids 10.1 дюйм 4 Гб64 Гб голубой",
+      "b": "Планшет BlackView Tab 80 Kids 4G 10.1\" 4/64GB Pink",
+      "label": "same"
+    },
+    {
+      "a": "Intel Celeron G5905 BOX",
+      "b": "Процессор Intel Celeron G5905 BOX (SRK27)",
+      "label": "same"
+    },
+    {
+      "a": "Intel Core i5 14600K OEM",
+      "b": "Процессор CPU S-1700 Intel Core i5-14600K OEM",
+      "label": "same"
+    },
+    {
+      "a": "Телевизор Hisense 43E7S 43\" (43E7S)",
+      "b": "Телевизор Hisense 43E7S RU",
+      "label": "same"
+    },
+    {
+      "a": "Tp-Link Archer C80 AC1900 MU-MIMO Wi-Fi роутер (Archer C80)",
+      "b": "Маршрутизатор TP-Link Archer C80",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Gray, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 4 GB, 128 GB, Halo Blue (KN4N)",
+      "label": "different"
+    },
+    {
+      "a": "Маршрутизатор TP-Link TL-WR841N",
+      "b": "Маршрутизатор беспроводной 300M Tp-Link TL-WR841N (TL-WR841N(RU) (TL-WR841N(RU))",
+      "label": "same"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-1M, UTP, 1m, Black",
+      "b": "Патч-корд Cablexpert PP12 1 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "Intel Core i5 12400 OEM",
+      "b": "Процессор CPU S-1700 Intel Core i5 12400 OEM",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Gray, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 6 GB, 128 GB, Halo Blue (KN4N)",
+      "label": "same"
+    },
+    {
+      "a": "Телевизор QLED ЯНДЕКС 65 Бейсик YNDX-00081 (4K Smart)",
+      "b": "Телевизор Яндекс Бейсик с Алисой 65\" YNDX-00081 LED 4K UHD Smart",
+      "label": "same"
+    },
+    {
+      "a": "Процессор CPU S-1700 Intel Core i9 13900KF OEM",
+      "b": "Процессор Intel Core i9 13900KF, LGA1700, OEM",
+      "label": "same"
+    },
+    {
+      "a": "Телевизор Яндекc Про MiniLED 65\" YNDX-00104 QLED 4K UHD Smart",
+      "b": "Яндекс Про MiniLED YNDX-00104 165 см черный",
+      "label": "same"
+    },
+    {
+      "a": "Телевизор Яндекc Про MiniLED 65\" YNDX-00104 QLED 4K UHD Smart",
+      "b": "Телевизор Яндекс Про 65\" YNDX-00104 MiniLED 4K UHD Black",
+      "label": "same"
+    },
+    {
+      "a": "Intel Core i5 CORE I5 12400 OEM",
+      "b": "Процессор Intel Core i5-12400 oem",
+      "label": "same"
+    },
+    {
+      "a": "Материнская плата MaxSun Challenger B760M D5",
+      "b": "Материнская плата MaxSun Challenger B760M D5 (MS-Challenger B760M D5)",
+      "label": "same"
+    },
+    {
+      "a": "AFOX AF1050TI-4096D5H7-V9 4 Гб",
+      "b": "Видеокарта Afox GTX 1050Ti (AF1050TI-4096D5H7-V9)",
+      "label": "same"
+    },
+    {
+      "a": "ASRock B760M Pro-A/D4 (90-MXBNC0-A0UAYZ)",
+      "b": "Материнская плата ASRock B760M Pro-A/D4 micro ATX ASRock, Pro",
+      "label": "same"
+    },
+    {
+      "a": "Монитор 27\" FHD Viewsonic VA2732-H-2 черный",
+      "b": "Монитор 27\" ViewSonic VA2732-H-2 1920x1080 16:9 IPS 100ГЦ (HDMI+VGA) Black",
+      "label": "same"
+    },
+    {
+      "a": "Материнская плата ASRock B760M PRO RS/D4 WIFI",
+      "b": "Материнская плата ASRock B760M Pro RS/D4, LGA1700  (90-MXBKL0-A0UAYZ)",
+      "label": "different"
+    },
+    {
+      "a": "Intel Core i5 12400 OEM",
+      "b": "Процессор Intel Core i5-12400 oem",
+      "label": "same"
+    },
+    {
+      "a": "RP-HJE125E-A Наушники-вкладыши канального типа (синий) (RP-HJE125E-A)",
+      "b": "Наушники Panasonic RP-HJE125 фиолетовый",
+      "label": "same"
+    },
+    {
+      "a": "Телевизор 85\" (216 см) TCL 85C6K QLED 4K UHD Black",
+      "b": "Телевизор TCL QD-MiniLED 85C6K UHD Android TV",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Black, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 6 GB, 128 GB, Halo Blue (KN4N)",
+      "label": "different"
+    },
+    {
+      "a": "Клавиатура Ajazz 308i Cat, Mist Blue, Bluetooth",
+      "b": "Клавиатура беспроводная Ajazz 308i Cat мембранная, беспроводной Ajazz",
+      "label": "same"
+    },
+    {
+      "a": "Наушники SOUNDCORE Liberty 4 PRO A3954 Black/Черный TWS",
+      "b": "Наушники Soundcore Liberty 4 Pro Black (A3954-BK)",
+      "label": "same"
+    },
+    {
+      "a": "Гарнитура LOGITECH G335 White",
+      "b": "Наушники игровые Logitech G335 WHITE, 3.5mm (981-001018)",
+      "label": "same"
+    },
+    {
+      "a": "Blackview Tab 80 Kids 10.1 дюйм 4 Гб64 Гб голубой",
+      "b": "Планшет BlackView Tab 80 Kids 4G 10.1\" 4/64GB Blue",
+      "label": "same"
+    },
+    {
+      "a": "Телевизор MiniLED ЯНДЕКС 55 Про YNDX-00103 (4K Smart)",
+      "b": "Телевизор Яндекc Про MiniLED 55\" YNDX-00103 QLED 4K UHD Smart",
+      "label": "same"
+    },
+    {
+      "a": "ТВ Станция Бейсик Яндекс YNDX-00075 с Алисой на YaGPT 50\"",
+      "b": "Телевизор ЯНДЕКС 50 YNDX-00075 (4K Smart)",
+      "label": "same"
+    },
+    {
+      "a": "Гарнитура Fanvil HT301U",
+      "b": "Гарнитура Fanvil HT301U (HT301U)",
+      "label": "same"
+    },
+    {
+      "a": "Наушники-гарнитура Defender Aura HN-102 Чёрный",
+      "b": "Наушники-гарнитура проводные Defender Aura HN-102 (черный) 85 дБ Defender",
+      "label": "same"
+    },
+    {
+      "a": "Материнская плата ASRock B650M PG LIGHTNING",
+      "b": "Материнская плата ASRock B650M-H/M.2+ (90-MXBMS0-A0UAYZ)",
+      "label": "different"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Purple, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 8 GB, 128 GB, Ink Black (KN4N)",
+      "label": "same"
+    },
+    {
+      "a": "Apple AirPods Max Starlight беспроводные наушники (MWW53)",
+      "b": "Наушники APPLE AirPods MAX (MWW43ZE/A) Midnight",
+      "label": "same"
+    },
+    {
+      "a": "Маршрутизатор TP-Link Archer MR400 (Archer MR400)",
+      "b": "Маршрутизатор TP-Link Archer MR400 ver.5.0",
+      "label": "uncertain"
+    },
+    {
+      "a": "Гарнитура Defender Gryphon 750, Black",
+      "b": "Наушники Defender Gryphon 750 черный",
+      "label": "same"
+    },
+    {
+      "a": "Корпус Ocypus Gamma C52 BK Черный Gamma-C52-BKD000XX-GL",
+      "b": "Корпус Ocypus Gamma C52 BK, Black",
+      "label": "same"
+    },
+    {
+      "a": "EarPods USB-C",
+      "b": "Наушники APPLE EarPods with Lightning Connector (MWTY3ZM/A)",
+      "label": "different"
+    },
+    {
+      "a": "Смартфон Camon 50 (CN5) 256 ГБ, 6.78’’, 12 Гб, зеленый Tecno",
+      "b": "Смартфон Tecno Camon 50, 12 GB, 256 GB, Nebula Titanium (CN5)",
+      "label": "same"
+    },
+    {
+      "a": "Bluetooth гарнитура Defender FreeMotion B665, Beige",
+      "b": "Наушники-гарнитура беспроводные Defender FreeMotion B665 бежевый (63666)",
+      "label": "same"
+    },
+    {
+      "a": "Монитор 27\" Philips Evnia 27M2N3501PA/01, White",
+      "b": "Монитор PHILIPS 27M2N3501PA/01",
+      "label": "same"
+    },
+    {
+      "a": "Телевизор Hisense 43\" QLED 43E7S UHD Smart",
+      "b": "Телевизор Hisense 43E7S RU",
+      "label": "same"
+    },
+    {
+      "a": "Гарнитура Defender Ghost LED, White",
+      "b": "Игровая гарнитура Defender Ghost LED белый, LED, провод 1.8м (64605)",
+      "label": "same"
+    },
+    {
+      "a": "Наушники Poly Blackwire 3310 8x216aa",
+      "b": "Наушники Poly Blackwire 3310 USB-C 8X216AA Black",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Gray, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 4 GB, 128 GB, Halo Blue (KN4N)",
+      "label": "different"
+    },
+    {
+      "a": "Гарнитура Edifier GX Серый",
+      "b": "Гарнитура Edifier GX, Black-Grey",
+      "label": "same"
+    },
+    {
+      "a": "Мышь Genius NX-7005 беспроводной, оптическая, 10 × 5,8 × 3,9 см Genius",
+      "b": "Мышь Genius NX-7005, Blue, USB",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон TECNO POVA 8 Pro 5G 8 ГБ/256 ГБ 256 ГБ, 6.78’’, 8 Гб, White, 256 ГБ Tecno, POVA",
+      "b": "Смартфон Tecno Pova 8 Pro 5G, 8 GB, 256 GB, Arc White (LK7)",
+      "label": "same"
+    },
+    {
+      "a": "Intel Core i5 13400 OEM",
+      "b": "Процессор CPU S-1700 Intel Core i5-13400 OEM",
+      "label": "same"
+    },
+    {
+      "a": "Телевизор 55\" (140 см) Hisense 55U7S QLED UHD Black",
+      "b": "Телевизор HISENSE MiniLED 55U7S UHD SMART",
+      "label": "same"
+    },
+    {
+      "a": "Наушники APPLE AirPods MAX (MWW43ZE/A) Midnight",
+      "b": "Наушники Apple AirPods Max Pink",
+      "label": "same"
+    },
+    {
+      "a": "Наушники TECNO True 1 Air TU01 Air Creamy White",
+      "b": "Наушники TECNO True 1 Air черный",
+      "label": "same"
+    },
+    {
+      "a": "Корпус Sharkoon ELITE SHARK CA300T BE, Black",
+      "b": "Корпус для ПК Sharkoon ELITE SHARK CA300T Bk",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 7600 oem",
+      "b": "Процессор CPU AM5 AMD Ryzen 5 7600 OEM",
+      "label": "same"
+    },
+    {
+      "a": "Процессор Intel Core i3 10105",
+      "b": "Процессор Intel Сore i3-10105 oem",
+      "label": "uncertain",
+      "note": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары"
+    },
+    {
+      "a": "Смартфон TECNO CAMON 50 8 ГБ/256 ГБ 256 ГБ, 6.78’’, 8 Гб, серебристый Tecno, CAMON",
+      "b": "Смартфон Tecno Camon 50, 12 GB, 256 GB, Nebula Titanium (CN5)",
+      "label": "different"
+    },
+    {
+      "a": "Intel Core i7-10700 OEM",
+      "b": "Процессор Intel Core i7 10700K",
+      "label": "different"
+    },
+    {
+      "a": "Patch cord RJ-45 5е cat Cablexpert PP12-3M, UTP, 3m, Black",
+      "b": "Патч-корд Cablexpert PP12 3 м Cablexpert",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Purple, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 8 GB, 128 GB, Titanium Grey (KN4N)",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 4 ГБ/128 ГБ 128 ГБ, 6.78’’, 4 Гб, Black, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 8 GB, 128 GB, Titanium Grey (KN4N)",
+      "label": "different"
+    },
+    {
+      "a": "Модем TP-Link Archer VR600",
+      "b": "Модем TP-Link Archer VR600 (Archer VR600)",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 5600 oem",
+      "b": "Процессор CPU AM4 AMD Ryzen 5 5600 OEM",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Black, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 6 GB, 128 GB, Aurora Purple (KN4N)",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон Camon 50 (CN5) 256 ГБ, 6.78’’, 12 Гб, черный Tecno",
+      "b": "Смартфон Tecno Camon 50, 8 GB, 256 GB, Nebula Titanium (CN5)",
+      "label": "different"
+    },
+    {
+      "a": "Процессор Intel Core i5-12600 (3.3GHz, 18MB, LGA1700) tray (CM8071504647406SRL5T)",
+      "b": "Процессор Intel Сore i5-12600 oem",
+      "label": "same"
+    },
+    {
+      "a": "Телевизор Dreame 55Q100, 55\"",
+      "b": "Телевизор Dreame Vivid 55\" 55Q100 QLED 4K UHD Black",
+      "label": "same"
+    },
+    {
+      "a": "Беспроводной маршрутизатор MikroTik RB941-2nD (RB941-2nD)",
+      "b": "Маршрутизатор MikroTik hAP lite RB941-2nD",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Gray, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 8 GB, 128 GB, Titanium Grey (KN4N)",
+      "label": "same"
+    },
+    {
+      "a": "Intel Core i3 13100F OEM",
+      "b": "Процессор Intel Сore i3-13100F oem",
+      "label": "same"
+    },
+    {
+      "a": "Телевизор HISENSE QLED 50E7S UHD SMART",
+      "b": "Телевизор Hisense 50\" QLED 50E7S UHD Smart",
+      "label": "same"
+    },
+    {
+      "a": "Intel Core i3 10105 OEM",
+      "b": "Процессор Intel Core i3 10105, LGA1200, OEM",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Black, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 8 GB, 128 GB, Aurora Purple (KN4N)",
+      "label": "different"
+    },
+    {
+      "a": "Процессор Intel Core i5 10500",
+      "b": "Процессор Intel Core i5 10500, LGA1200, OEM",
+      "label": "uncertain",
+      "note": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары"
+    },
+    {
+      "a": "AirPods Max 2",
+      "b": "Наушники APPLE AirPods MAX (MWW63ZE/A) Blue",
+      "label": "uncertain"
+    },
+    {
+      "a": "Видеокарта MaxSun MS-RX550 TF 4G (MS-RX550 TF 4G)",
+      "b": "Видеокарта MaxSun RX 550, 4 GB, Radeon RX 550",
+      "label": "uncertain",
+      "note": "во втором названии нет модели карты"
+    },
+    {
+      "a": "Телевизор HISENSE QLED 43E77SL UHD SMART",
+      "b": "Телевизор Hisense 43E77SL 43\" (43E77SL)",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Black, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 4 GB, 128 GB, Halo Blue (KN4N)",
+      "label": "different"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Gray, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 8 GB, 128 GB, Halo Blue (KN4N)",
+      "label": "same"
+    },
+    {
+      "a": "Материнская плата ASRock B760M Steel Legend WiFi (90-MXBL70-A0UAYZ)",
+      "b": "Материнская плата ASRock B760M Steel Legend WiFi, LGA1700",
+      "label": "same"
+    },
+    {
+      "a": "Процессор CPU S-1700 Intel Core i3-14100F OEM",
+      "b": "Процессор Intel Core i3 14100F (SRMX2-OEM)",
+      "label": "same"
+    },
+    {
+      "a": "Процессор CPU S-1700 Intel Core i5-14600K OEM",
+      "b": "Процессор Intel Core i5 14600K, LGA1700, Tray (CM8071504821015)",
+      "label": "same"
+    },
+    {
+      "a": "Процессор Intel Core i5 14400F, LGA1700, OEM",
+      "b": "Процессор Intel Сore i5 -14400F oem",
+      "label": "same"
+    },
+    {
+      "a": "AFOX GT710 AF710-2048D3L5 2GB",
+      "b": "Видеокарта 2 GB Afox GT 710 (AF710-2048D3L5-V3)",
+      "label": "uncertain"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 Pro 8 ГБ/256 ГБ 256 ГБ, 6.78’’, 8 Гб, титановый серый Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50 Pro, 8 GB, 256 GB, Titanium Grey (KO5)",
+      "label": "same"
+    },
+    {
+      "a": "Гарнитура Razer Kaira X for Xbox - Pulse Red RZ04-03970500-R3M1",
+      "b": "Гарнитура Razer Kaira X for Xbox, Blue",
+      "label": "same"
+    },
+    {
+      "a": "Внешний жесткий диск 2 TB 2.5\", Apacer AC237, Blue",
+      "b": "Внешний жёсткий диск Apacer AC237 2 ТБ, 2.5\" Apacer",
+      "label": "same"
+    },
+    {
+      "a": "Процессор Intel Core i5-14400",
+      "b": "Процессор Intel Core i5-14400 (CM8071504821112SRN46)",
+      "label": "uncertain",
+      "note": "упаковка указана только с одной стороны: OEM/BOX по названию не решить, решение владельца — это разные товары"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Black, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 8 GB, 128 GB, Halo Blue (KN4N)",
+      "label": "different",
+      "note": "6 ГБ и 8 ГБ памяти"
+    },
+    {
+      "a": "Монитор 23.6\" ViewSonic VX2418C, Black",
+      "b": "Монитор Viewsonic VX2418C",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Purple, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 6 GB, 128 GB, Titanium Grey (KN4N)",
+      "label": "different"
+    },
+    {
+      "a": "Видеокарта 2 GB OCPC GT 730 OCVNGT730G2",
+      "b": "Видеокарта OCPC GT 730 2GB (OCVNGT730G2)",
+      "label": "same"
+    },
+    {
+      "a": "Apple AirPods Max Midnight беспроводные наушники (MWW43)",
+      "b": "Наушники APPLE AirPods MAX (MWW63ZE/A) Blue",
+      "label": "same"
+    },
+    {
+      "a": "Гарнитура HyperX Cloud Flight 2 Wireless - White (B5VC5AA)",
+      "b": "Игровая гарнитура HyperX CLOUD Flight 2 Wireless B5VC4AA (Black)",
+      "label": "same"
+    },
+    {
+      "a": "Материнская плата ASRock Z690 PHANTOM GAMING 4/D5 (Z690 PHANTOM GAMING 4/D5)",
+      "b": "Материнская плата ASRock Z690 Phantom Gaming 4/D5, LGA1700",
+      "label": "same"
+    },
+    {
+      "a": "Процессор Intel Core i5 10400 OEM",
+      "b": "Процессор Intel Core i5 10400, LGA1200, OEM (SRH3C)",
+      "label": "same"
+    },
+    {
+      "a": "Беспроводные наушники Xiaomi OpenWear Stereo, бежевый Xiaomi, OpenWear",
+      "b": "Наушники Xiaomi OpenWear Stereo Cosmic Gray",
+      "label": "same"
+    },
+    {
+      "a": "Телевизор HISENSE QLED 43E77SL UHD SMART",
+      "b": "Телевизор Hisense 43\" QLED 43E77SL UHD Smart",
+      "label": "same"
+    },
+    {
+      "a": "Bluetooth гарнитура Razer Barracuda, Quartz Pink",
+      "b": "Игровая гарнитура RAZER Barracuda (RZ04-03790100-R3M1) Черный",
+      "label": "same"
+    },
+    {
+      "a": "Intel Core Ultra 5 245KF 1851 OEM",
+      "b": "Процессор Intel Core Ultra 5 245KF TRAY (AT8076806414)",
+      "label": "same"
+    },
+    {
+      "a": "Bluetooth гарнитура Defender FreeMotion B640, Beige",
+      "b": "Наушники Defender FreeMotion B640 Beige бежевый",
+      "label": "same"
+    },
+    {
+      "a": "Телевизор HISENSE QLED 50E7Q UHD SMART",
+      "b": "Телевизор Hisense 50E7Q (50E7Q RU)",
+      "label": "same"
+    },
+    {
+      "a": "Процессор AMD Ryzen 7 PRO 4750G TRAY",
+      "b": "Процессор AMD Ryzen 7 PRO 4750G, AM4, OEM",
+      "label": "same"
+    },
+    {
+      "a": "Корпус Ocypus Iota C50 BK Curve ARGB Digital, Black",
+      "b": "Корпус Ocypus Iota C50 WH Curve ARGB Digital Белый Iota-C50-WHD300CD-GL",
+      "label": "same"
+    },
+    {
+      "a": "Смартфон Camon 50 (CN5) 256 ГБ, 6.78’’, 8 Гб, зеленый Tecno",
+      "b": "Смартфон Tecno Camon 50, 12 GB, 256 GB, Moonshadow Black (CN5)",
+      "label": "different"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Black, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 4 GB, 128 GB, Ink Black (KN4N)",
+      "label": "different"
+    },
+    {
+      "a": "Intel Core i7 13700KF OEM",
+      "b": "Процессор Intel Core i7 13700KF, LGA1700, OEM",
+      "label": "same"
     }
   ]
 }
