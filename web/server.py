@@ -3684,6 +3684,85 @@ async def monitoring_normalize_shadow_handler(request):
     return web.json_response(data, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
 
 
+@routes.get("/api/admin/matching/disputed")
+@require_admin
+async def admin_matching_disputed_handler(request):
+    """Список спорных пар товаров для ручной модерации человеком."""
+    import database
+    status = request.query.get("status")
+    search = request.query.get("search")
+    try:
+        limit = max(1, min(200, int(request.query.get("limit") or 50)))
+    except ValueError:
+        limit = 50
+    try:
+        offset = max(0, int(request.query.get("offset") or 0))
+    except ValueError:
+        offset = 0
+    data = await asyncio.to_thread(database.get_disputed_product_pairs, status, search, limit, offset)
+    return web.json_response(data, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
+@routes.post("/api/admin/matching/verdict")
+@require_admin
+async def admin_matching_verdict_handler(request):
+    """Применение решения человека по спорной паре (same, different, skip)."""
+    import database
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    pair_hash = str(body.get("pair_hash") or "").strip()
+    decision = str(body.get("decision") or "").strip()
+    notes = str(body.get("notes") or body.get("reason") or "").strip()
+
+    if not pair_hash:
+        return web.json_response({"status": "error", "message": "Параметр pair_hash обязателен"}, status=400)
+    if decision not in ("same", "different", "skip", "skipped"):
+        return web.json_response({"status": "error", "message": "Недопустимое решение (допустимо: same, different, skip)"}, status=400)
+
+    user = request.get("user") or {}
+    reviewer = user.get("username") or user.get("first_name") or (f"user_{user.get('id')}" if user.get("id") else "admin")
+
+    res = await asyncio.to_thread(database.resolve_disputed_pair_human, pair_hash, decision, reviewer, notes)
+    if not res.get("ok"):
+        return web.json_response({"status": "error", "message": res.get("error") or "Ошибка сохранения решения"}, status=400)
+
+    return web.json_response({"status": "ok", **res}, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
+@routes.post("/api/admin/matching/enqueue")
+@require_admin
+async def admin_matching_enqueue_handler(request):
+    """Ручная постановка пары названий в очередь спорных товаров."""
+    import database
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    title_a = str(body.get("title_a") or "").strip()
+    title_b = str(body.get("title_b") or "").strip()
+    reason = str(body.get("reason") or "manual_request").strip()
+
+    if not title_a or not title_b:
+        return web.json_response({"status": "error", "message": "Требуются title_a и title_b"}, status=400)
+    if title_a == title_b:
+        return web.json_response({"status": "error", "message": "Названия товаров совпадают"}, status=400)
+
+    ok = await asyncio.to_thread(database.enqueue_disputed_pair, title_a, title_b, reason, True)
+    ph = database.pair_hash(title_a, title_b)
+    return web.json_response({"status": "ok" if ok else "ignored", "enqueued": ok, "pair_hash": ph})
+
+
+@routes.get("/api/admin/matching/stats")
+@require_admin
+async def admin_matching_stats_handler(request):
+    """Сводка по очереди спорных товаров и ручным вердиктам."""
+    import database
+    stats = await asyncio.to_thread(database.get_disputed_pairs_stats)
+    return web.json_response({"status": "ok", "stats": stats})
+
+
 _AI_MODELS_CACHE: Dict[str, Any] = {"at": 0.0, "data": None}
 AI_MODELS_CACHE_SECONDS = 300
 

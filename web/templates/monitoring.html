@@ -61,7 +61,7 @@
   const QUALITY = { ok: 'норма', warning: 'предупреждение', degraded: 'деградация', failed: 'сбой', unknown: 'нет нормы' };
   const SECTIONS = [
     ['overview', 'Обзор'], ['shops', 'Магазины'], ['scanning', 'Сканирование'], ['search', 'Поиск'],
-    ['ai', 'AI'], ['telegram', 'Telegram'], ['system', 'Система'], ['events', 'События'],
+    ['matching', 'Склейка товаров'], ['ai', 'AI'], ['telegram', 'Telegram'], ['system', 'Система'], ['events', 'События'],
   ];
   let data = null, current = 'overview';
 
@@ -297,6 +297,80 @@
         ['Сброс телеметрии', `${t.flusher_alive ? 'работает' : 'не запущен'} · неудач ${num(t.failed_flushes)} · отброшено событий ${num(t.dropped_events)}`]]) +
         (errs ? details(`Системные ошибки за 24 ч (${num(s.errors_24h)})`, `<ul class="text-xs space-y-1">${errs}</ul>`) : '') +
         `<p class="text-xs text-slate-500 mt-2">${esc(s.note)}</p>`, s.status) + shadowBox;
+    },
+    matching() {
+      return `
+        <div id="matchingViewBox">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <div>
+              <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                <span>🔀 Модерация склеек товаров</span>
+              </h2>
+              <p class="text-xs text-slate-400">Спорные пары товаров, неоднозначные совпадения и ручное управление склейкой каталога</p>
+            </div>
+            <button id="btnToggleEnqueue" type="button" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold self-start sm:self-auto transition cursor-pointer">
+              + Добавить пару на проверку
+            </button>
+          </div>
+
+          <div id="enqueueFormCard" class="hidden mb-5 p-4 rounded-2xl bg-dark-900 border border-emerald-500/30 shadow-lg">
+            <h3 class="text-sm font-semibold text-white mb-2">Ручная постановка пары товаров на проверку</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+              <div>
+                <label class="block text-xs text-slate-400 mb-1">Название товара A</label>
+                <input id="inputTitleA" type="text" placeholder="Например: Смартфон Apple iPhone 15 128GB Black" class="w-full px-3 py-1.5 rounded-lg bg-dark-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-emerald-500">
+              </div>
+              <div>
+                <label class="block text-xs text-slate-400 mb-1">Название товара B</label>
+                <input id="inputTitleB" type="text" placeholder="Например: Apple iPhone 15 128GB Черный (A3090)" class="w-full px-3 py-1.5 rounded-lg bg-dark-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-emerald-500">
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="block text-xs text-slate-400 mb-1">Причина сомнения / комментарий (опционально)</label>
+              <input id="inputReason" type="text" placeholder="Например: подозрение на разные ревизии или цвета..." class="w-full px-3 py-1.5 rounded-lg bg-dark-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-emerald-500">
+            </div>
+            <div class="flex gap-2">
+              <button id="btnSubmitEnqueue" type="button" class="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold cursor-pointer">Поставить в очередь</button>
+              <button id="btnCancelEnqueue" type="button" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs cursor-pointer">Отмена</button>
+            </div>
+          </div>
+
+          <div id="matchingStatsBox" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+            <div class="p-3 rounded-xl bg-dark-900 border border-slate-800">
+              <span class="text-xs text-slate-400">Ожидают решения</span>
+              <p id="statPending" class="text-xl font-bold text-amber-300">—</p>
+            </div>
+            <div class="p-3 rounded-xl bg-dark-900 border border-slate-800">
+              <span class="text-xs text-slate-400">Склеено человеком</span>
+              <p id="statSame" class="text-xl font-bold text-emerald-300">—</p>
+            </div>
+            <div class="p-3 rounded-xl bg-dark-900 border border-slate-800">
+              <span class="text-xs text-slate-400">Разделено человеком</span>
+              <p id="statDiff" class="text-xl font-bold text-rose-300">—</p>
+            </div>
+            <div class="p-3 rounded-xl bg-dark-900 border border-slate-800">
+              <span class="text-xs text-slate-400">Всего в очереди</span>
+              <p id="statTotal" class="text-xl font-bold text-slate-200">—</p>
+            </div>
+          </div>
+
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <div class="flex flex-wrap gap-1 text-xs" id="matchingFilterTabs">
+              <button type="button" data-matching-filter="pending" class="px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 font-semibold cursor-pointer">Ожидают решения</button>
+              <button type="button" data-matching-filter="resolved" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-slate-200 border border-transparent font-medium cursor-pointer">Решённые</button>
+              <button type="button" data-matching-filter="skipped" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-slate-200 border border-transparent font-medium cursor-pointer">Отложенные</button>
+              <button type="button" data-matching-filter="all" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-slate-200 border border-transparent font-medium cursor-pointer">Все</button>
+            </div>
+            <div class="relative w-full sm:w-64">
+              <input id="matchingSearchInput" type="text" placeholder="Фильтр по названию или причине..." class="w-full px-3 py-1.5 rounded-lg bg-dark-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-slate-600">
+            </div>
+          </div>
+
+          <div id="matchingPairsContainer" class="space-y-4">
+            <p class="text-sm text-slate-500">Загружаю спорные пары…</p>
+          </div>
+        </div>
+      `;
     },
     events() {
       return `
@@ -612,6 +686,218 @@
     const d = await res.json().catch(() => ({}));
     if (!res.ok) { alert(d.message || 'Не удалось переключить режим'); return; }
     loadMatchingShadow();
+  }
+
+  let matchingFilter = 'pending';
+  let matchingSearch = '';
+  let matchingSearchTimeout = null;
+
+  function highlightDiff(titleA, titleB) {
+    if (!titleA || !titleB) return esc(titleA || '');
+    const tokensB = new Set(String(titleB).toLowerCase().split(/[\s,./;:()\[\]\-_"'+]+/).filter(Boolean));
+    return String(titleA).split(/(\s+|[-,./;:()\[\]_"'+]+)/).map(part => {
+      const clean = part.toLowerCase().trim();
+      if (clean && clean.length > 1 && !tokensB.has(clean) && !['для', 'под', 'gb', 'гб', 'черный', 'black'].includes(clean)) {
+        return `<span class="bg-amber-500/25 text-amber-200 px-1 py-0.5 rounded font-medium border border-amber-500/30">${esc(part)}</span>`;
+      }
+      return esc(part);
+    }).join('');
+  }
+
+  function renderFieldsBadges(fields) {
+    if (!fields || typeof fields !== 'object') return '<span class="text-xs text-slate-500">(поля не извлечены)</span>';
+    const badges = [];
+    if (fields.brand) badges.push(`<span class="px-1.5 py-0.5 rounded bg-sky-950/60 text-sky-300 border border-sky-800 text-[11px]">Бренд: <b>${esc(fields.brand)}</b></span>`);
+    if (fields.model) badges.push(`<span class="px-1.5 py-0.5 rounded bg-indigo-950/60 text-indigo-300 border border-indigo-800 text-[11px]">Модель: <b>${esc(fields.model)}</b></span>`);
+    if (fields.sku) badges.push(`<span class="px-1.5 py-0.5 rounded bg-purple-950/60 text-purple-300 border border-purple-800 text-[11px]">Артикул: <b>${esc(fields.sku)}</b></span>`);
+    if (fields.variant) badges.push(`<span class="px-1.5 py-0.5 rounded bg-amber-950/60 text-amber-300 border border-amber-800 text-[11px]">Вариант: <b>${esc(fields.variant)}</b></span>`);
+    return badges.length ? `<div class="flex flex-wrap gap-1.5 mt-1.5">${badges.join('')}</div>` : '<span class="text-xs text-slate-500">(поля пусты)</span>';
+  }
+
+  function renderOffersTags(offers) {
+    if (!offers || !offers.length) return '<span class="text-xs text-slate-500">Нет сохранённых предложений</span>';
+    return `<div class="flex flex-wrap gap-1.5 mt-1.5">` + offers.map(o => {
+      const priceStr = num(o.current_price) + ' ₸';
+      const link = o.url ? `<a href="${esc(o.url)}" target="_blank" rel="noopener" class="text-emerald-400 hover:underline">↗</a>` : '';
+      return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-dark-950 text-slate-300 text-xs border border-slate-800">
+        <span class="text-slate-400">${esc(o.shop)}:</span>
+        <b class="text-emerald-300">${priceStr}</b>
+        ${link}
+      </span>`;
+    }).join('') + `</div>`;
+  }
+
+  async function loadMatchingDisputes() {
+    const container = document.getElementById('matchingPairsContainer');
+    if (!container) return;
+
+    api('/api/admin/matching/stats').then(res => {
+      if (!res || !res.stats) return;
+      const s = res.stats;
+      const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = num(val); };
+      setEl('statPending', s.pending);
+      setEl('statSame', s.human_same);
+      setEl('statDiff', s.human_different);
+      setEl('statTotal', s.total);
+    }).catch(() => {});
+
+    const params = new URLSearchParams();
+    if (matchingFilter && matchingFilter !== 'all') params.set('status', matchingFilter);
+    if (matchingSearch) params.set('search', matchingSearch);
+    params.set('limit', '50');
+
+    const data = await api('/api/admin/matching/disputed?' + params.toString());
+    if (!data) {
+      container.innerHTML = '<p class="text-sm text-rose-300">Не удалось загрузить список спорных товаров.</p>';
+      return;
+    }
+
+    if (!data.items || !data.items.length) {
+      const emptyMsg = matchingFilter === 'pending'
+        ? 'Очередь чиста! Спорных товаров, ожидающих решения человека, сейчас нет.'
+        : 'Спорных товаров по данному фильтру не найдено.';
+      container.innerHTML = `<div class="p-8 rounded-2xl bg-dark-900 border border-slate-800 text-center"><p class="text-sm text-slate-400">${emptyMsg}</p></div>`;
+      return;
+    }
+
+    container.innerHTML = data.items.map(item => {
+      const ph = item.pair_hash;
+      const isPending = item.status === 'pending';
+      const isResolved = item.status === 'resolved';
+      const v = item.verdict || {};
+      const isSame = v.decision === 'same';
+      const isDiff = v.decision === 'different';
+
+      let statusBadge = `<span class="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-semibold">⏳ Ожидает решения</span>`;
+      if (isResolved) {
+        statusBadge = isSame
+          ? `<span class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-semibold">✅ Склеено (один товар)</span>`
+          : `<span class="px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 text-xs font-semibold">❌ Разделено (разные товары)</span>`;
+      } else if (item.status === 'skipped' || item.status === 'unresolved') {
+        statusBadge = `<span class="px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 text-xs font-semibold">⏸️ Отложено</span>`;
+      }
+
+      const keyStatus = item.same_key
+        ? `<div class="text-xs text-emerald-300 bg-emerald-950/40 border border-emerald-800/60 px-3 py-1.5 rounded-lg flex items-center gap-2 mt-3">
+             <span>🔗</span> <span><b>Сейчас склеены в каталоге под одним ключом</b></span>
+           </div>`
+        : `<div class="text-xs text-slate-400 bg-dark-950 border border-slate-800 px-3 py-1.5 rounded-lg flex items-center gap-2 mt-3">
+             <span>✂️</span> <span>Разные канонические ключи в каталоге</span>
+           </div>`;
+
+      let verdictInfo = '';
+      if (v && v.decision) {
+        const who = v.reviewer || v.source || 'человек';
+        const notes = v.reason ? ` · «${esc(v.reason)}»` : '';
+        verdictInfo = `
+          <div class="mt-3 p-2.5 rounded-xl bg-dark-950 border border-slate-800 text-xs text-slate-300">
+            <span class="text-slate-400">Предыдущий вердикт:</span>
+            <b class="${isSame ? 'text-emerald-300' : 'text-rose-300'}">${isSame ? 'Один товар (SAME)' : 'Разные товары (DIFFERENT)'}</b>
+            <span class="text-slate-500">(решил ${esc(who)}${notes})</span>
+          </div>`;
+      }
+
+      return `
+        <div id="card_${esc(ph)}" class="p-4 rounded-2xl bg-dark-900 border border-slate-800 shadow-sm transition hover:border-slate-700">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div class="flex items-center gap-2 flex-wrap">
+              ${statusBadge}
+              <span class="px-2 py-0.5 rounded bg-dark-950 text-slate-400 border border-slate-800 text-xs font-mono">Причина: ${esc(item.reason)}</span>
+            </div>
+            <span class="text-xs text-slate-500">${ago(item.updated_at || item.created_at)}</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="p-3 rounded-xl bg-dark-950/80 border border-slate-800/80 flex flex-col justify-between">
+              <div>
+                <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Товар 1</div>
+                <div class="text-sm font-medium text-white leading-relaxed break-words">${highlightDiff(item.title_a, item.title_b)}</div>
+                <div class="mt-2 text-xs text-slate-400 font-mono">Ключ: <span class="${item.same_key ? 'text-emerald-300' : 'text-slate-300'}">${esc(item.key_a || '—')}</span></div>
+                ${renderFieldsBadges(item.fields_a)}
+              </div>
+              <div class="mt-3 pt-2 border-t border-slate-800/60">
+                <div class="text-[11px] text-slate-500 font-medium">Предложения в магазинах:</div>
+                ${renderOffersTags(item.offers_a)}
+              </div>
+            </div>
+
+            <div class="p-3 rounded-xl bg-dark-950/80 border border-slate-800/80 flex flex-col justify-between">
+              <div>
+                <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Товар 2</div>
+                <div class="text-sm font-medium text-white leading-relaxed break-words">${highlightDiff(item.title_b, item.title_a)}</div>
+                <div class="mt-2 text-xs text-slate-400 font-mono">Ключ: <span class="${item.same_key ? 'text-emerald-300' : 'text-slate-300'}">${esc(item.key_b || '—')}</span></div>
+                ${renderFieldsBadges(item.fields_b)}
+              </div>
+              <div class="mt-3 pt-2 border-t border-slate-800/60">
+                <div class="text-[11px] text-slate-500 font-medium">Предложения в магазинах:</div>
+                ${renderOffersTags(item.offers_b)}
+              </div>
+            </div>
+          </div>
+
+          ${keyStatus}
+          ${verdictInfo}
+
+          <div class="mt-4 pt-3 border-t border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div class="grow max-w-md">
+              <input type="text" id="note_${esc(ph)}" placeholder="Заметка к решению (например: артикулы разные, но ревизия одна)..."
+                     class="w-full px-3 py-1.5 rounded-lg bg-dark-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-slate-500">
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <button type="button" data-matching-action="same" data-pair-hash="${esc(ph)}"
+                      class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition cursor-pointer shadow-sm">
+                ✓ Склеить (один товар)
+              </button>
+              <button type="button" data-matching-action="different" data-pair-hash="${esc(ph)}"
+                      class="px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold transition cursor-pointer shadow-sm">
+                ✕ Разделить (разные)
+              </button>
+              <button type="button" data-matching-action="skip" data-pair-hash="${esc(ph)}"
+                      class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition cursor-pointer">
+                Отложить
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function submitMatchingVerdict(pairHash, decision) {
+    const noteEl = document.getElementById('note_' + pairHash);
+    const notes = noteEl ? noteEl.value.trim() : '';
+
+    const res = await fetch('/api/admin/matching/verdict', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({pair_hash: pairHash, decision, notes}),
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      alert(d.message || 'Ошибка сохранения решения');
+      return;
+    }
+
+    loadMatchingDisputes();
+  }
+
+  async function enqueueMatchingPair(titleA, titleB, reason) {
+    const res = await fetch('/api/admin/matching/enqueue', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({title_a: titleA, title_b: titleB, reason}),
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      alert(d.message || 'Ошибка добавления пары');
+      return;
+    }
+    const card = document.getElementById('enqueueFormCard');
+    if (card) card.classList.add('hidden');
+    document.getElementById('inputTitleA').value = '';
+    document.getElementById('inputTitleB').value = '';
+    document.getElementById('inputReason').value = '';
+    loadMatchingDisputes();
   }
 
   // Какая модель работает на самом деле: в «Авто» её выбирает сервис из списка провайдера
@@ -954,6 +1240,7 @@
     if (current === 'ai') loadAiSpending();
     if (current === 'system') { loadEnvironment(); loadBackups(); loadNotices(); loadMatchingShadow(); }
     if (current === 'scanning') { loadRollout(); loadSchedulerShadow(); }
+    if (current === 'matching') { loadMatchingDisputes(); }
   }
 
   async function load() {
@@ -964,6 +1251,35 @@
   document.addEventListener('click', e => {
     const sec = e.target.closest('[data-section]');
     if (sec) { current = sec.dataset.section; history.replaceState(null, '', '#' + current); render(); return; }
+    const verdictBtn = e.target.closest('[data-matching-action]');
+    if (verdictBtn) {
+      submitMatchingVerdict(verdictBtn.dataset.pairHash, verdictBtn.dataset.matchingAction);
+      return;
+    }
+    const filterBtn = e.target.closest('[data-matching-filter]');
+    if (filterBtn) {
+      matchingFilter = filterBtn.dataset.matchingFilter;
+      document.querySelectorAll('[data-matching-filter]').forEach(b => {
+        b.className = b.dataset.matchingFilter === matchingFilter
+          ? 'px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 font-semibold cursor-pointer'
+          : 'px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-slate-200 border border-transparent font-medium cursor-pointer';
+      });
+      loadMatchingDisputes();
+      return;
+    }
+    if (e.target.id === 'btnToggleEnqueue' || e.target.id === 'btnCancelEnqueue') {
+      const form = document.getElementById('enqueueFormCard');
+      if (form) form.classList.toggle('hidden');
+      return;
+    }
+    if (e.target.id === 'btnSubmitEnqueue') {
+      const ta = (document.getElementById('inputTitleA').value || '').trim();
+      const tb = (document.getElementById('inputTitleB').value || '').trim();
+      const r = (document.getElementById('inputReason').value || '').trim();
+      if (!ta || !tb) { alert('Укажите оба названия товара'); return; }
+      enqueueMatchingPair(ta, tb, r);
+      return;
+    }
     const aiMatchBtn = e.target.closest('[data-matching-ai]');
     if (aiMatchBtn) { setMatchingAi(aiMatchBtn.dataset.matchingAi); return; }
     const rolloutBtn = e.target.closest('[data-rollout]');
@@ -992,6 +1308,15 @@
     if (e.target.id === 'dailyDay') { loadDaily(e.target.value, false); return; }
     if (e.target.id === 'dailyTelegram') { setDailyTelegram({enabled: e.target.checked}); return; }
     if (e.target.id === 'dailyHour') { setDailyTelegram({hour: Number(e.target.value)}); return; }
+  });
+  document.addEventListener('input', e => {
+    if (e.target.id === 'matchingSearchInput') {
+      clearTimeout(matchingSearchTimeout);
+      matchingSearchTimeout = setTimeout(() => {
+        matchingSearch = e.target.value.trim();
+        loadMatchingDisputes();
+      }, 300);
+    }
   });
   document.addEventListener('keydown', e => {
     if (e.key === 'Enter' && e.target.id === 'askQ') { askAssistant(); return; }

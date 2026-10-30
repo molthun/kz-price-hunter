@@ -823,6 +823,19 @@ def incidents(days: int = INCIDENT_WINDOW_DAYS, now: Optional[datetime.datetime]
 
 # ---------------------------------------------------------------------------------------------- обзор
 
+def matching_section(now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
+    """Секция спорных склеек для мониторинга (ручная модерация человеком)."""
+    import database
+    try:
+        p_stats = database.get_disputed_pairs_stats()
+        pending = p_stats.get("pending", 0)
+        status = LIMITED if pending > 0 else HEALTHY
+        reason = f"Ожидают решения: {pending}" if pending else "Все спорные пары проверены"
+        return {"status": status, "reason": reason, "counts": p_stats}
+    except Exception as e:
+        return {"status": HEALTHY, "reason": f"Готово к работе ({type(e).__name__})", "counts": {}}
+
+
 def overview(registry: Dict[str, Tuple[str, int]], enabled: Iterable[str], scan_state: Dict[str, Any],
              expected_interval_sec: int, now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
     now = now or _now()
@@ -852,6 +865,7 @@ def overview(registry: Dict[str, Tuple[str, int]], enabled: Iterable[str], scan_
         "shops": {"status": shops_status, "reason": shops_reason, "counts": dict(counts)},
         "scanning": scanning_section(scan_state, expected_interval_sec, now),
         "search": search_section(now),
+        "matching": matching_section(now),
         "ai": ai_section(now),
         "telegram": telegram_section(now),
         "system": system_section(now),

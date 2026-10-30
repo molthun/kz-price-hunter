@@ -2349,10 +2349,17 @@ DISPUTED_NO_EVIDENCE_DAYS = 7          # выдача была, но основ�
 DISPUTED_REOPEN_DAYS = 7               # «не решено» снова в очередь, если пара встретилась позже недели
 
 
-def enqueue_disputed_pair(title_a: str, title_b: str, reason: str) -> bool:
-    """Ставит пару в очередь спорных для проверки поиском (P17-C7).
+def pair_hash(title_a: str, title_b: str) -> str:
+    """Хэш пары названий без учёта порядка (a, b) == (b, a)."""
+    import product_key
+    return product_key.pair_hash(title_a, title_b)
 
-    Возвращает True, если пара поставлена или снова открыта. Пара с окончательным вердиктом не ставится.
+
+def enqueue_disputed_pair(title_a: str, title_b: str, reason: str, force: bool = False) -> bool:
+    """Ставит пару в очередь спорных для проверки поиском или человеком (P17-C7).
+
+    Возвращает True, если пара поставлена или снова открыта. Пара с окончательным вердиктом не ставится
+    (если не указан force=True).
     Пара в статусе «не решено» (исчерпаны попытки) снова открывается, если встретилась позже
     DISPUTED_REOPEN_DAYS: временный сбой не исключает её из обработки навсегда (P17C-04). Прежние записи
     «skipped» (раньше так терялись пары без полей, C45-05) открываются при любой новой встрече."""
@@ -2362,18 +2369,26 @@ def enqueue_disputed_pair(title_a: str, title_b: str, reason: str) -> bool:
         return False
     ph = pair_hash(first, second)
     existing_verdict = get_pair_verdict(ph)
-    if existing_verdict and existing_verdict.get("decision") != UNKNOWN:
+    if not force and existing_verdict and existing_verdict.get("decision") != UNKNOWN:
         return False
     with get_connection() as conn:
-        cur = conn.execute("""
-            INSERT INTO disputed_product_pairs (pair_hash, title_a, title_b, reason, status)
-            VALUES (?, ?, ?, ?, 'pending')
-            ON CONFLICT(pair_hash) DO UPDATE SET status = 'pending', attempts = 0, next_attempt_at = NULL,
-                reason = excluded.reason, updated_at = CURRENT_TIMESTAMP
-            WHERE disputed_product_pairs.status = 'skipped'
-               OR (disputed_product_pairs.status = 'unresolved'
-                   AND disputed_product_pairs.updated_at < datetime('now', ?))
-        """, (ph, first[:500], second[:500], reason[:100], f"-{DISPUTED_REOPEN_DAYS} days"))
+        if force:
+            cur = conn.execute("""
+                INSERT INTO disputed_product_pairs (pair_hash, title_a, title_b, reason, status)
+                VALUES (?, ?, ?, ?, 'pending')
+                ON CONFLICT(pair_hash) DO UPDATE SET status = 'pending', attempts = 0, next_attempt_at = NULL,
+                    reason = excluded.reason, updated_at = CURRENT_TIMESTAMP
+            """, (ph, first[:500], second[:500], reason[:100]))
+        else:
+            cur = conn.execute("""
+                INSERT INTO disputed_product_pairs (pair_hash, title_a, title_b, reason, status)
+                VALUES (?, ?, ?, ?, 'pending')
+                ON CONFLICT(pair_hash) DO UPDATE SET status = 'pending', attempts = 0, next_attempt_at = NULL,
+                    reason = excluded.reason, updated_at = CURRENT_TIMESTAMP
+                WHERE disputed_product_pairs.status = 'skipped'
+                   OR (disputed_product_pairs.status = 'unresolved'
+                       AND disputed_product_pairs.updated_at < datetime('now', ?))
+            """, (ph, first[:500], second[:500], reason[:100], f"-{DISPUTED_REOPEN_DAYS} days"))
         conn.commit()
         return cur.rowcount > 0
 
@@ -2427,6 +2442,278 @@ def defer_disputed_pair(pair_hash: str, transient: bool, reason: str = "") -> st
         """, (status, attempts, reason[:200], delay, delay, pair_hash))
         conn.commit()
     return status
+
+
+def get_product_offers_for_titles(titles: Iterable[str]) -> Dict[str, List[Dict[str, Any]]]:
+    """Возвращает предложения магазинов (магазин, цена, ссылка, изображение) для списка названий."""
+    unique = [t.strip() for t in titles if t and t.strip()]
+    if not unique:
+        return {}
+    res: Dict[str, List[Dict[str, Any]]] = {t: [] for t in unique}
+    with get_connection() as conn:
+        for chunk in _chunks(unique):
+            rows = conn.execute("""
+                SELECT title, shop, current_price, old_price_on_site, url, image_url, category
+                FROM products
+                WHERE title IN (SELECT value FROM json_each(?))
+                ORDER BY current_price ASC
+            """, (json.dumps(chunk, ensure_ascii=False),)).fetchall()
+            for r in rows:
+                t = r[0]
+                if t in res and len(res[t]) < 5:
+                    res[t].append({
+                        "shop": r[1] or "",
+                        "current_price": r[2] or 0,
+                        "old_price_on_site": r[3] or 0,
+                        "url": r[4] or "",
+                        "image_url": r[5] or "",
+                        "category": r[6] or "",
+                    })
+    return res
+
+
+def get_disputed_product_pairs(
+    status: Optional[str] = None,
+    search: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> Dict[str, Any]:
+    """Выборка спорных пар с детальной информацией для ручной модерации человеком."""
+    limit = max(1, min(200, int(limit)))
+    offset = max(0, int(offset))
+    status_filter = (status or "").strip().lower()
+    search_filter = (search or "").strip()
+
+    with get_connection() as conn:
+        counts = {
+            "all": conn.execute("SELECT COUNT(*) FROM disputed_product_pairs").fetchone()[0],
+            "pending": conn.execute("SELECT COUNT(*) FROM disputed_product_pairs WHERE status = 'pending'").fetchone()[0],
+            "resolved": conn.execute("SELECT COUNT(*) FROM disputed_product_pairs WHERE status = 'resolved'").fetchone()[0],
+            "skipped": conn.execute("SELECT COUNT(*) FROM disputed_product_pairs WHERE status IN ('skipped', 'unresolved')").fetchone()[0],
+        }
+
+        where_clauses = []
+        params: List[Any] = []
+
+        if status_filter == "pending":
+            where_clauses.append("status = 'pending'")
+        elif status_filter == "resolved":
+            where_clauses.append("status = 'resolved'")
+        elif status_filter in ("skipped", "unresolved"):
+            where_clauses.append("status IN ('skipped', 'unresolved')")
+
+        if search_filter:
+            where_clauses.append("(title_a LIKE ? OR title_b LIKE ? OR reason LIKE ?)")
+            pattern = f"%{search_filter}%"
+            params.extend([pattern, pattern, pattern])
+
+        where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+
+        total_filtered = conn.execute(
+            f"SELECT COUNT(*) FROM disputed_product_pairs {where_sql}", params
+        ).fetchone()[0]
+
+        query_sql = f"""
+            SELECT pair_hash, title_a, title_b, reason, status, created_at, updated_at,
+                   attempts, next_attempt_at, last_reason
+            FROM disputed_product_pairs
+            {where_sql}
+            ORDER BY CASE WHEN status = 'pending' THEN 0 ELSE 1 END,
+                     updated_at DESC, created_at DESC
+            LIMIT ? OFFSET ?
+        """
+        rows = conn.execute(query_sql, params + [limit, offset]).fetchall()
+
+    if not rows:
+        return {"items": [], "total": total_filtered, "counts": counts, "limit": limit, "offset": offset}
+
+    titles = set()
+    items_raw = []
+    for r in rows:
+        ph, ta, tb, reason, st, cat, uat, att, nat, lr = r
+        titles.add(ta)
+        titles.add(tb)
+        items_raw.append({
+            "pair_hash": ph,
+            "title_a": ta,
+            "title_b": tb,
+            "reason": reason,
+            "status": st,
+            "created_at": str(cat or ""),
+            "updated_at": str(uat or ""),
+            "attempts": att,
+            "next_attempt_at": str(nat or "") if nat else None,
+            "last_reason": lr,
+        })
+
+    keys_map = get_cached_canonical_keys_batch(list(titles))
+    fields_map = get_title_fields_with_source(list(titles))
+    offers_map = get_product_offers_for_titles(list(titles))
+
+    enriched = []
+    for item in items_raw:
+        ph = item["pair_hash"]
+        ta, tb = item["title_a"], item["title_b"]
+        verdict = get_pair_verdict(ph)
+
+        item["key_a"] = keys_map.get(ta) or ""
+        item["key_b"] = keys_map.get(tb) or ""
+        item["fields_a"] = (fields_map.get(ta) or {}).get("fields")
+        item["fields_b"] = (fields_map.get(tb) or {}).get("fields")
+        item["fields_source_a"] = (fields_map.get(ta) or {}).get("source")
+        item["fields_source_b"] = (fields_map.get(tb) or {}).get("source")
+        item["offers_a"] = offers_map.get(ta) or []
+        item["offers_b"] = offers_map.get(tb) or []
+        item["verdict"] = verdict
+        item["same_key"] = bool(item["key_a"] and item["key_a"] == item["key_b"])
+        enriched.append(item)
+
+    return {
+        "items": enriched,
+        "total": total_filtered,
+        "counts": counts,
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+def resolve_disputed_pair_human(
+    pair_hash: str,
+    decision: str,
+    reviewer: str = "human",
+    notes: str = "",
+) -> Dict[str, Any]:
+    """Решение спорной пары человеком (оператором/администратором).
+
+    Поддерживаемые решения:
+    - 'same': подтверждает, что товары одинаковые. Объединяет их канонические ключи через rekey_titles,
+      сохраняет вердикт в product_pair_verdicts и обновляет статус пары на 'resolved'.
+    - 'different': подтверждает, что товары разные. Если товары были объединены под одним ключом,
+      разделяет их (присваивая отдельный ключ), сохраняет вердикт в product_pair_verdicts
+      и обновляет статус пары на 'resolved'.
+    - 'skip' / 'skipped': откладывает пару без применения склейки/разделения со статусом 'skipped'.
+    """
+    decision = (decision or "").strip().lower()
+    if decision not in ("same", "different", "skip", "skipped"):
+        return {"ok": False, "error": f"Недопустимое решение: {decision}. Допустимы: same, different, skip"}
+
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT title_a, title_b, status FROM disputed_product_pairs WHERE pair_hash = ?",
+            (pair_hash,)
+        ).fetchone()
+
+    if not row:
+        return {"ok": False, "error": f"Спорная пара с хэшем {pair_hash} не найдена"}
+
+    title_a, title_b, current_status = row[0], row[1], row[2]
+
+    if decision in ("skip", "skipped"):
+        update_disputed_pair_status(pair_hash, "skipped", notes or "human_skipped")
+        return {"ok": True, "decision": "skipped", "pair_hash": pair_hash}
+
+    import product_key
+
+    if decision == "same":
+        cached = get_cached_canonical_keys_batch([title_a, title_b])
+        key_a, key_b = cached.get(title_a), cached.get(title_b)
+        pool = [k for k in (key_a, key_b) if k]
+
+        if pool:
+            common_key = sorted(
+                set(pool),
+                key=lambda k: (0 if k.startswith("k2:") else 1,
+                               0 if product_key._variants_of(k) else 1,
+                               len(k), k)
+            )[0]
+        else:
+            fields_map = get_title_fields_with_source([title_a, title_b])
+            fa = (fields_map.get(title_a) or {}).get("fields")
+            fb = (fields_map.get(title_b) or {}).get("fields")
+            common_key = product_key.build_key(fa, title_a) or product_key.build_key(fb, title_b)
+            if not common_key:
+                common_key = f"k2:human:{pair_hash[:16]}"
+
+        moved = {title_a: common_key, title_b: common_key}
+        for other in set(pool) - {common_key}:
+            for t in titles_with_canonical_key(other):
+                moved[t] = common_key
+
+        rekey_titles(moved)
+
+        verdict = {
+            "decision": "same",
+            "confidence": 1.0,
+            "same": True,
+            "source": "human",
+            "reviewer": reviewer,
+            "reason": notes or "Решение человека: один товар",
+            "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        }
+        save_pair_verdict(pair_hash, title_a, title_b, verdict, model=f"human:{reviewer}")
+        update_disputed_pair_status(pair_hash, "resolved", "human_same")
+        return {
+            "ok": True,
+            "decision": "same",
+            "pair_hash": pair_hash,
+            "canonical_key": common_key,
+            "titles_updated": len(moved),
+        }
+
+    elif decision == "different":
+        cached = get_cached_canonical_keys_batch([title_a, title_b])
+        key_a, key_b = cached.get(title_a), cached.get(title_b)
+        split_info = None
+
+        if key_a and key_b and key_a == key_b:
+            fields_map = get_title_fields_with_source([title_a, title_b])
+            fb = (fields_map.get(title_b) or {}).get("fields")
+            distinct_key = None
+            if fb:
+                cand = product_key.build_key(fb, title_b)
+                if cand and cand != key_a:
+                    distinct_key = cand
+            if not distinct_key:
+                distinct_key = f"{key_b}.diff_{_title_hash(title_b)[:8]}"
+
+            rekey_titles({title_b: distinct_key})
+            split_info = {"separated_title": title_b, "new_key": distinct_key, "previous_key": key_b}
+
+        verdict = {
+            "decision": "different",
+            "confidence": 1.0,
+            "same": False,
+            "source": "human",
+            "reviewer": reviewer,
+            "reason": notes or "Решение человека: разные товары",
+            "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        }
+        save_pair_verdict(pair_hash, title_a, title_b, verdict, model=f"human:{reviewer}")
+        update_disputed_pair_status(pair_hash, "resolved", "human_different")
+        return {
+            "ok": True,
+            "decision": "different",
+            "pair_hash": pair_hash,
+            "split": split_info,
+        }
+
+
+def get_disputed_pairs_stats() -> Dict[str, Any]:
+    """Сводка по спорным парам и вердиктам человека."""
+    with get_connection() as conn:
+        counts = {
+            "total": conn.execute("SELECT COUNT(*) FROM disputed_product_pairs").fetchone()[0],
+            "pending": conn.execute("SELECT COUNT(*) FROM disputed_product_pairs WHERE status = 'pending'").fetchone()[0],
+            "resolved": conn.execute("SELECT COUNT(*) FROM disputed_product_pairs WHERE status = 'resolved'").fetchone()[0],
+            "skipped": conn.execute("SELECT COUNT(*) FROM disputed_product_pairs WHERE status IN ('skipped', 'unresolved')").fetchone()[0],
+            "human_same": conn.execute(
+                "SELECT COUNT(*) FROM product_pair_verdicts WHERE decision = 'same' AND model LIKE 'human%'"
+            ).fetchone()[0],
+            "human_different": conn.execute(
+                "SELECT COUNT(*) FROM product_pair_verdicts WHERE decision = 'different' AND model LIKE 'human%'"
+            ).fetchone()[0],
+        }
+    return counts
 
 
 def get_title_fields_for_titles(titles: Iterable[str]) -> Dict[str, Dict[str, Any]]:
