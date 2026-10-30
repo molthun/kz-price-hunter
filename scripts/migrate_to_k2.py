@@ -417,10 +417,12 @@ def evaluate_verified_pairs(path: str, keys: Dict[str, str]) -> Dict[str, Any]:
 
     Пары, которых нет в этой базе или у которых нет ключа, считаются отдельно и в долю полноты не входят как успех."""
     data = json.loads(Path(path).read_text(encoding="utf-8"))
-    tp, fn, tn, false_merges, absent = 0, 0, 0, [], 0
+    tp, fn, tn, false_merges, absent, undecided = 0, 0, 0, [], 0, 0
     for pair in data["pairs"]:
         a, b = pair["a"], pair["b"]
-        if a not in keys or b not in keys:
+        if pair.get("same") is None:
+            undecided += 1                              # неясная разметка не считается ни одной из сторон (C2A-01)
+        elif a not in keys or b not in keys:
             absent += 1
         elif pair["same"]:
             if keys[a] and keys[a] == keys[b]:
@@ -431,7 +433,7 @@ def evaluate_verified_pairs(path: str, keys: Dict[str, str]) -> Dict[str, Any]:
             false_merges.append({"a": a, "b": b, "key": keys[a]})
         else:
             tn += 1
-    return {"version": data.get("version"), "pairs": len(data["pairs"]), "absent_in_db": absent,
+    return {"version": data.get("version"), "pairs": len(data["pairs"]), "absent_in_db": absent, "undecided": undecided,
             "same_found": tp, "same_lost": fn, "different_kept_apart": tn, "false_merges": false_merges,
             "recall": round(tp / (tp + fn), 4) if tp + fn else None}
 

@@ -13,6 +13,7 @@ import database
 import monitoring
 import product_key
 import product_verify
+from scripts import c2_quality_report as c2
 from scripts import migrate_to_k2 as mig
 from tests.ai.test_local_ai import _DbCase
 
@@ -43,14 +44,20 @@ def working_tables():
 
 class KeyRulesTest(unittest.TestCase):
     def test_verified_pairs(self):
+        """Регрессии известных случаев, а не оценка качества: она считается по случайной выборке (C2A-01).
+        Положительные пары вне regression здесь не требуются: их потери — предмет отчёта C2, а не зелёного теста."""
         for pair in PAIRS:
+            if pair["same"] is True and not pair.get("regression"):
+                continue
+            if pair["same"] is None:
+                continue
             with self.subTest(a=pair["a"], b=pair["b"]):
                 keys = product_key.resolve_keys_with_articles({pair["a"]: pair["fields_a"], pair["b"]: pair["fields_b"]})
                 self.assertEqual(keys[pair["a"]] == keys[pair["b"]], pair["same"], keys)
 
     def test_verified_pairs_across_batches_keep_apart(self):
         """Порядок и сохранённый ключ не склеивают: вторая сторона приходит, когда первая уже в базе."""
-        for pair in (p for p in PAIRS if not p["same"]):
+        for pair in (p for p in PAIRS if p["same"] is False):
             for first, second in ((pair["a"], pair["b"]), (pair["b"], pair["a"])):
                 fa, fb = pair["fields_a"] if first == pair["a"] else pair["fields_b"], \
                     pair["fields_b"] if first == pair["a"] else pair["fields_a"]
@@ -759,11 +766,85 @@ class MigrationIdentityAndBaselineTest(_DbCase):
             path.write_text(json.dumps({"version": 7, "pairs": [
                 {"a": "A", "b": "B", "same": True}, {"a": "A", "b": "C", "same": True},
                 {"a": "A", "b": "D", "same": False}, {"a": "E", "b": "F", "same": False},
-                {"a": "A", "b": "нет в базе", "same": True}, {"a": "G", "b": "H", "same": True}]}))
+                {"a": "A", "b": "нет в базе", "same": True}, {"a": "G", "b": "H", "same": True},
+                {"a": "A", "b": "B", "same": None}]}))
             out = mig.evaluate_verified_pairs(str(path), {"A": "k", "B": "k", "C": "x", "D": "k", "E": "e", "F": "f", "G": "", "H": ""})
         self.assertEqual((out["same_found"], out["same_lost"], out["different_kept_apart"], out["absent_in_db"]), (1, 2, 1, 1))
         self.assertEqual(out["false_merges"], [{"a": "A", "b": "D", "key": "k"}])
         self.assertEqual(out["recall"], 0.3333)
+        self.assertEqual(out["undecided"], 1)
+
+
+class C2QualityReportTest(unittest.TestCase):
+    """Оценка C2: одна формула для обеих сторон и реестр, где каждая пара имеет ровно одну причину (C2A-01/02)."""
+    FIELDS = {"brand": "B", "model": "M", "sku": None, "variants": [], "unbranded": False}
+
+    def data(self):
+        fields = self.FIELDS
+        dropped = [
+            {"a": "a1", "b": "b1", "old": "b:m", "new_a": "k2:b:m", "new_b": "b:m", "fields_a": fields, "fields_b": None},
+            {"a": "a2", "b": "b2", "old": "b:m", "new_a": "k2:b:m:128gb", "new_b": "k2:b:m:256gb", "fields_a": fields, "fields_b": fields},
+            {"a": "a3", "b": "b3", "old": "b:m", "new_a": "k2:b:m", "new_b": "k2:b:m:256gb", "fields_a": fields, "fields_b": fields},
+            {"a": "a4", "b": "b4", "old": "b:m", "new_a": "k2:b:m.v2", "new_b": "k2:b:m.v3", "fields_a": fields, "fields_b": fields},
+            {"a": "x CODE12345", "b": "y CODE12345", "old": "b:m", "new_a": "k2:b:m", "new_b": "k2:b:n", "fields_a": fields, "fields_b": fields},
+            {"a": "a6", "b": "b6", "old": "b:m", "new_a": "k2:b:m", "new_b": "k2:b:n", "fields_a": fields, "fields_b": fields},
+            {"a": "a7", "b": "b7", "old": "b:m", "new_a": "k2:b:m", "new_b": "k2:b:m.system", "fields_a": fields, "fields_b": fields},
+        ]
+        added = [{"a": "c1", "b": "d1", "new": "k2:b:m", "old_a": "b:m x", "old_b": "b:mx", "fields_a": fields, "fields_b": fields},
+                 {"a": "c2", "b": "d2", "new": "k2:b:m", "old_a": "b:m:1", "old_b": "b:m:2", "fields_a": fields, "fields_b": fields},
+                 {"a": "c3", "b": "d3", "new": "k2:b:m", "old_a": "b:a", "old_b": "b:c", "fields_a": fields, "fields_b": fields},
+                 {"a": "c4", "b": "d4", "new": "k2:b:m", "old_a": "b:a", "old_b": "b:c", "fields_a": fields,
+                  "fields_b": {**fields, "model": "Z"}}]
+        inputs = {"r1": {"old": "b:r", "new": "k2:b:r"}, "r2": {"old": "b:r", "new": "k2:b:r"}}
+        return {"dropped": dropped, "added": added, "eval_inputs": inputs, "key_counts": {"k2": 1, "legacy": 1, "empty": 0},
+                "pairs": {"before": 8, "after": 5, "retained": 1, "dropped": len(dropped), "added": len(added)}}
+
+    def sample(self):
+        rows = [("a1", "b1", "same", "dropped_mixed"), ("a2", "b2", "different", "dropped_both_k2"),
+                ("c1", "d1", "same", "added"), ("c3", "d3", "different", "added"),
+                ("c4", "d4", "packaging", "added"), ("c2", "d2", "uncertain", "added"),
+                ("r1", "r2", "same", "retained_pool")]
+        return {"pairs": [{"a": a, "b": b, "label": label, "strata": [stratum]} for a, b, label, stratum in rows]}
+
+    def test_registry_has_one_cause_per_pair_and_sums_match(self):
+        report, registry = c2.build(self.data(), self.sample())
+        self.assertEqual(report["registry_counts"]["dropped"],
+                         {"missing_fields_one_side": 1, "missing_fields_both": 0, "variant_one_side": 1, "variant_conflict": 1,
+                          "revision_differs": 1, "system_vs_component": 1, "identity_differs_shared_code": 1,
+                          "identity_differs_other": 1})
+        self.assertEqual(report["registry_counts"]["added"],
+                         {"old_format_only": 1, "old_variant_differs": 1, "same_identity_new_old_empty": 0,
+                          "own_keys_equal_old_identity_differs": 1, "linked_by_article": 1})
+        self.assertEqual(len(registry["dropped"]), 7)
+
+    def test_registry_rejects_wrong_total(self):
+        data = self.data()
+        data["pairs"]["dropped"] = 99
+        with self.assertRaises(AssertionError):
+            c2.registry(data)
+
+    def test_same_formula_for_baseline_and_candidate(self):
+        report, _ = c2.build(self.data(), self.sample())
+        sample = report["random_sample"]
+        # Прежний кэш: a1 вместе, a2 вместе (ложно), c1 и c3 врозь, r вместе. k2: a1 и a2 врозь, c1 и c3 вместе (c3 ложно), r вместе
+        self.assertEqual(sample["baseline"], {"tp": 2, "fn": 1, "fp": 1, "tn": 1, "uncertain": 1, "packaging": 1})
+        self.assertEqual(sample["candidate"], {"tp": 2, "fn": 1, "fp": 1, "tn": 1, "uncertain": 1, "packaging": 1})
+        self.assertEqual([m["a"] for m in report["candidate_false_merges"]], ["c3"])
+        self.assertEqual([m["a"] for m in report["candidate_lost_true_pairs"]], ["a1"])
+
+    def test_undecided_labels_never_count_and_packaging_is_a_scenario(self):
+        report, _ = c2.build(self.data(), self.sample())
+        added = {name: report["weighted"][name]["share_true_by_stratum"]["added"]
+                 for name in ("packaging_excluded", "packaging_same", "packaging_different")}
+        self.assertEqual((added["packaging_excluded"]["n"], added["packaging_excluded"]["of"]), (1, 2))
+        self.assertEqual((added["packaging_same"]["n"], added["packaging_same"]["of"]), (2, 3))
+        self.assertEqual((added["packaging_different"]["n"], added["packaging_different"]["of"]), (1, 3))
+
+    def test_labelled_sample_file_is_consistent(self):
+        sample = json.loads((ROOT / "scripts" / "k2_labeled_sample.json").read_text(encoding="utf-8"))
+        self.assertEqual({row["label"] for row in sample["pairs"]}, {"same", "different", "uncertain", "packaging"})
+        seen = {frozenset((row["a"], row["b"])) for row in sample["pairs"]}
+        self.assertEqual(len(seen), len(sample["pairs"]), "пара размечена один раз")
 
 
 if __name__ == "__main__":
