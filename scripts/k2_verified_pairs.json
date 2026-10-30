@@ -1,6 +1,6 @@
 {
- "version": 1,
- "note": "Проверенные пары для критериев C2: same — один товар. Дополнять при разборе потерь и новых объединений копии стенда.",
+ "version": 2,
+ "note": "Расширенный проверенный набор C2: 210 пар (105 positive, 105 negative).",
  "pairs": [
   {
    "a": "AMD Ryzen 5 5600GT BOX",
@@ -217,6 +217,5042 @@
     "unbranded": false
    },
    "note": "«NV3» — не ревизия V3"
+  },
+  {
+   "a": "23.8\" XTREON XT24N1 черный",
+   "b": "Монитор XTREON XT24N1 23.8 QHD/IPS/1ms/180Hz",
+   "same": true,
+   "fields_a": {
+    "brand": "XTREON",
+    "model": "XT24N1",
+    "sku": null,
+    "edition": null,
+    "variants": [
+     {
+      "value": 23.8,
+      "unit": "дюйм"
+     }
+    ],
+    "unbranded": false
+   },
+   "fields_b": {
+    "brand": "XTREON",
+    "model": "XT24N1",
+    "sku": null,
+    "edition": null,
+    "variants": [
+     {
+      "value": 23.8,
+      "unit": "дюйм"
+     }
+    ],
+    "unbranded": false
+   },
+   "note": "один монитор XTREON XT24N1 с нормализованной диагональю"
+  },
+  {
+   "a": "23.8\" Dahua DHI-LM24-P301A черный",
+   "b": "Монитор 24\" Dahua DHI-LM24-P301A",
+   "same": true,
+   "fields_a": {
+    "brand": "Dahua",
+    "edition": null,
+    "model": "DHI-LM24-P301A",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "Dahua",
+    "edition": null,
+    "model": "DHI-LM24-P301A",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: dahua dhi-lm24-p301a"
+  },
+  {
+   "a": "23.8\" Sanc M2442PH V3 черный",
+   "b": "Монитор 23.8\" Sanc M2442PH V3",
+   "same": true,
+   "fields_a": {
+    "brand": "Sanc",
+    "edition": "V3",
+    "model": "M2442PH",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "Sanc",
+    "edition": null,
+    "model": "M2442PH",
+    "sku": "M2442PH V3",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: sanc m2442ph"
+  },
+  {
+   "a": "27\" Sanc M2753FPF V3 черный",
+   "b": "Монитор 27\" Sanc M2753FPF V3, Black",
+   "same": true,
+   "fields_a": {
+    "brand": "Sanc",
+    "edition": "V3",
+    "model": "M2753FPF",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "Sanc",
+    "edition": "V3",
+    "model": "M2753FPF",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: sanc m2753fpf"
+  },
+  {
+   "a": "70mai Maimo белый",
+   "b": "Смарт-часы 70mai Maimo WT2105, Black (2 ремешка)",
+   "same": true,
+   "fields_a": {
+    "brand": "70mai",
+    "edition": null,
+    "model": "Maimo",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "70mai",
+    "edition": null,
+    "model": "Maimo",
+    "sku": "WT2105",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: 70mai maimo"
+  },
+  {
+   "a": "70mai Maimo оранжевый",
+   "b": "Смарт-часы 70mai Maimo WT2105, Black (2 ремешка)",
+   "same": true,
+   "fields_a": {
+    "brand": "70mai",
+    "edition": null,
+    "model": "Maimo",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "70mai",
+    "edition": null,
+    "model": "Maimo",
+    "sku": "WT2105",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: 70mai maimo"
+  },
+  {
+   "a": "AFOX AF1050TI-4096D5H7-V8 4 Гб",
+   "b": "Видеокарта Afox GTX 1050 Ti  V8, 4 GB, GeForce GTX 1050 Ti",
+   "same": true,
+   "fields_a": {
+    "brand": "Afox",
+    "edition": null,
+    "model": "GTX 1050 Ti",
+    "sku": "AF1050TI-4096D5H7-V8",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 4
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Afox",
+    "edition": "V8",
+    "model": "GTX 1050 Ti",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 4
+     }
+    ]
+   },
+   "note": "stand added verified same: afox gtx 1050 ti"
+  },
+  {
+   "a": "AFOX AF1050TI-4096D5H7-V9 4 Гб",
+   "b": "Видеокарта Afox GTX 1050 Ti  V9, 4 GB, GeForce GTX 1050 Ti",
+   "same": true,
+   "fields_a": {
+    "brand": "Afox",
+    "edition": null,
+    "model": "GTX 1050 Ti",
+    "sku": "AF1050TI-4096D5H7-V9",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 4
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Afox",
+    "edition": null,
+    "model": "GTX 1050 Ti",
+    "sku": "AF1050-4096D5H4-V2",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 4
+     }
+    ]
+   },
+   "note": "stand added verified same: afox gtx 1050 ti"
+  },
+  {
+   "a": "AFOX Afox GT 710 (AF710-2048D3L5-V3) 2 Гб",
+   "b": "Видеокарта Afox GT 710 V3, 2 GB, GeForce GT 710",
+   "same": true,
+   "fields_a": {
+    "brand": "Afox",
+    "edition": null,
+    "model": "GT 710",
+    "sku": "AF710-2048D3L5-V3",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 2
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Afox",
+    "edition": "V3",
+    "model": "GT 710",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 2
+     }
+    ]
+   },
+   "note": "stand added verified same: afox gt 710"
+  },
+  {
+   "a": "AFOX GT 240 AF240-1024D3L2-V2 1 Гб",
+   "b": "Видеокарта Afox GT 240 V2, 1 GB, GeForce GT 240",
+   "same": true,
+   "fields_a": {
+    "brand": "Afox",
+    "edition": null,
+    "model": "GT 240",
+    "sku": "AF240-1024D3L2-V2",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 1
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Afox",
+    "edition": "V2",
+    "model": "GT 240",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 1
+     }
+    ]
+   },
+   "note": "stand added verified same: afox gt 240"
+  },
+  {
+   "a": "AFOX GTX 1050 Ti AF1050TI-4096D5H7-V8 4 Гб",
+   "b": "Видеокарта Afox GTX 1050 Ti  V8, 4 GB, GeForce GTX 1050 Ti",
+   "same": true,
+   "fields_a": {
+    "brand": "Afox",
+    "edition": null,
+    "model": "GTX 1050 Ti",
+    "sku": "AF1050TI-4096D5H7-V8",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 4
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Afox",
+    "edition": "V8",
+    "model": "GTX 1050 Ti",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 4
+     }
+    ]
+   },
+   "note": "stand added verified same: afox gtx 1050 ti"
+  },
+  {
+   "a": "AFOX GTX 1660 SUPER AF1660S-6144D6H4-V2 6 Гб",
+   "b": "Видеокарта Afox GTX 1660 Super (AF1660S-6144D6H7-V2) [6 ГБ, GDDR6, 192 бит, DVI, HDMI, DisplayPort]",
+   "same": true,
+   "fields_a": {
+    "brand": "Afox",
+    "edition": null,
+    "model": "GTX 1660 SUPER",
+    "sku": "AF1660S-6144D6H4-V2",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 6
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Afox",
+    "edition": null,
+    "model": "GTX 1660 Super",
+    "sku": "AF1660S-6144D6H7-V2",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 6
+     }
+    ]
+   },
+   "note": "stand added verified same: afox gtx 1660 super"
+  },
+  {
+   "a": "AFOX R5 220 AFR5220-2048D3L5 2 ГБ",
+   "b": "Видеокарта 2 GB Afox R5 220 AFR5220-2048D3L5",
+   "same": true,
+   "fields_a": {
+    "brand": "Afox",
+    "edition": null,
+    "model": "R5 220",
+    "sku": "AFR5220-2048D3L5",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 2
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Afox",
+    "edition": null,
+    "model": "R5 220",
+    "sku": "AFR5220-2048D3L5",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 2
+     }
+    ]
+   },
+   "note": "stand added verified same: afox r5 220"
+  },
+  {
+   "a": "AFOX R5 220 AFR5220-2048D3L5 2 ГБ",
+   "b": "Видеокарта AFOX R5 220 2GB (AFR5220-2048D3L5)",
+   "same": true,
+   "fields_a": {
+    "brand": "Afox",
+    "edition": null,
+    "model": "R5 220",
+    "sku": "AFR5220-2048D3L5",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 2
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Afox",
+    "edition": null,
+    "model": "R5 220",
+    "sku": "AFR5220-2048D3L5",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 2
+     }
+    ]
+   },
+   "note": "stand added verified same: afox r5 220"
+  },
+  {
+   "a": "AMD Athlon 200GE OEM",
+   "b": "Процессор AMD Athlon 200GE, AM4, OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Athlon 200GE",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Athlon 200GE",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd athlon 200ge"
+  },
+  {
+   "a": "AMD Athlon 200GE OEM",
+   "b": "Процессор AMD Athlon 200GE, AM4, OEM (YD200GC6M2OFB)",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Athlon 200GE",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Athlon 200GE",
+    "sku": "YD200GC6M2OFB",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd athlon 200ge"
+  },
+  {
+   "a": "AMD Athlon 200GE Raven Ridge BOX",
+   "b": "Процессор AMD Athlon 200GE, AM4, OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Athlon 200GE",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Athlon 200GE",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd athlon 200ge"
+  },
+  {
+   "a": "AMD Athlon 200GE Raven Ridge BOX",
+   "b": "Процессор AMD Athlon 200GE, AM4, OEM (YD200GC6M2OFB)",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Athlon 200GE",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Athlon 200GE",
+    "sku": "YD200GC6M2OFB",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd athlon 200ge"
+  },
+  {
+   "a": "AMD Athlon 3000G OEM",
+   "b": "Процессор AMD Athlon 3000G YD3000C6M20FH",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Athlon 3000G",
+    "sku": null,
+    "unbranded": false,
+    "variants": null
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Athlon 3000G",
+    "sku": "YD3000C6M20FH",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd athlon 3000g"
+  },
+  {
+   "a": "AMD Athlon 3000G OEM",
+   "b": "Процессор AMD Athlon 3000G, AM4, OEM (YD3000C6M2OFH)",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Athlon 3000G",
+    "sku": null,
+    "unbranded": false,
+    "variants": null
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Athlon 3000G",
+    "sku": "YD3000C6M2OFH",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd athlon 3000g"
+  },
+  {
+   "a": "AMD Ryzen 3 1200 OEM",
+   "b": "Процессор AMD Ryzen 3 1200, AM4, OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 3 1200",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 3 1200",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 3 1200"
+  },
+  {
+   "a": "AMD Ryzen 3 3200G OEM",
+   "b": "Процессор AMD Ryzen 3 3200G YD3200C5M4MFH",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 3 3200G",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 3 3200G",
+    "sku": "YD3200C5M4MFH",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 3 3200g"
+  },
+  {
+   "a": "AMD Ryzen 3 3200G OEM",
+   "b": "Процессор AMD Ryzen 3 3200G, AM4, OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 3 3200G",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 3 3200G",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 3 3200g"
+  },
+  {
+   "a": "AMD Ryzen 3 3200G OEM",
+   "b": "Процессор AMD Ryzen 3 3200G, AM4, Tray (YD3200C5M4MFH)",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 3 3200G",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 3 3200G",
+    "sku": "YD3200C5M4MFH",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 3 3200g"
+  },
+  {
+   "a": "AMD Ryzen 3 4100 BOX",
+   "b": "Процессор AMD Ryzen 3 4100, AM4, BOX (100-100000510BOX)",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 3 4100",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 3 4100",
+    "sku": "100-100000510BOX",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 3 4100"
+  },
+  {
+   "a": "AMD Ryzen 3 4100 BOX",
+   "b": "Процессор AMD Ryzen 3 4100, AM4, OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 3 4100",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 3 4100",
+    "sku": null,
+    "unbranded": false,
+    "variants": null
+   },
+   "note": "stand added verified same: amd ryzen 3 4100"
+  },
+  {
+   "a": "AMD Ryzen 3 4100 BOX",
+   "b": "Процессор AMD Ryzen 3 4100, AM4, OEM (100-000000510)",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 3 4100",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 3 4100",
+    "sku": "100-000000510",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 3 4100"
+  },
+  {
+   "a": "AMD Ryzen 3 4100 BOX",
+   "b": "Процессор AMD Ryzen 3 4100, AM4, OEM - с кулером",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 3 4100",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 3 4100",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 3 4100"
+  },
+  {
+   "a": "AMD Ryzen 3 4100 BOX",
+   "b": "Процессор AMD Ryzen 3 4100, BOX",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 3 4100",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "BOX",
+    "model": "Ryzen 3 4100",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 3 4100"
+  },
+  {
+   "a": "AMD Ryzen 3 4100 OEM",
+   "b": "Процессор AMD Ryzen 3 4100, AM4, BOX (100-100000510BOX)",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 3 4100",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 3 4100",
+    "sku": "100-100000510BOX",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 3 4100"
+  },
+  {
+   "a": "AMD Ryzen 3 4100 OEM",
+   "b": "Процессор AMD Ryzen 3 4100, AM4, OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 3 4100",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 3 4100",
+    "sku": null,
+    "unbranded": false,
+    "variants": null
+   },
+   "note": "stand added verified same: amd ryzen 3 4100"
+  },
+  {
+   "a": "AMD Ryzen 3 4100 OEM",
+   "b": "Процессор AMD Ryzen 3 4100, AM4, OEM (100-000000510)",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 3 4100",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 3 4100",
+    "sku": "100-000000510",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 3 4100"
+  },
+  {
+   "a": "AMD Ryzen 3 4100 OEM",
+   "b": "Процессор AMD Ryzen 3 4100, AM4, OEM - с кулером",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 3 4100",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 3 4100",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 3 4100"
+  },
+  {
+   "a": "AMD Ryzen 3 4100 OEM",
+   "b": "Процессор AMD Ryzen 3 4100, BOX",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 3 4100",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "BOX",
+    "model": "Ryzen 3 4100",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 3 4100"
+  },
+  {
+   "a": "AMD Ryzen 5 3400G OEM",
+   "b": "Процессор AMD Ryzen 5 3400G OEM (YD3400C5M4MFH)",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 3400G",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 3400G",
+    "sku": "YD3400C5M4MFH",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 3400g"
+  },
+  {
+   "a": "AMD Ryzen 5 3400G OEM",
+   "b": "Процессор AMD Ryzen 5 3400G YD3400C5M4MFH",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 3400G",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 3400G",
+    "sku": "YD3400C5M4MFH",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 3400g"
+  },
+  {
+   "a": "AMD Ryzen 5 3400G OEM",
+   "b": "Процессор AMD Ryzen 5 3400G, AM4, OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 3400G",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 3400G",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 3400g"
+  },
+  {
+   "a": "AMD Ryzen 5 3500X OEM",
+   "b": "Процессор AMD Ryzen 5 3500X OEM (100-000000158)",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 3500X",
+    "sku": null,
+    "unbranded": false,
+    "variants": null
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 3500X",
+    "sku": "100-000000158",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 3500x"
+  },
+  {
+   "a": "AMD Ryzen 5 3500X OEM",
+   "b": "Процессор AMD Ryzen 5 3500X, AM4, OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 3500X",
+    "sku": null,
+    "unbranded": false,
+    "variants": null
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 3500X",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 3500x"
+  },
+  {
+   "a": "AMD Ryzen 5 3600 BOX",
+   "b": "Процессор AMD Ryzen 5 3600",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 3600",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 3600",
+    "sku": null,
+    "unbranded": false,
+    "variants": null
+   },
+   "note": "stand added verified same: amd ryzen 5 3600"
+  },
+  {
+   "a": "AMD Ryzen 5 4500 OEM",
+   "b": "Процессор AMD Ryzen 5 4500 OEM (100-000000644)",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 4500",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 4500",
+    "sku": "100-000000644",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 4500"
+  },
+  {
+   "a": "AMD Ryzen 5 4500 OEM",
+   "b": "Процессор AMD Ryzen 5 4500 Ryzen 5, 3.6 ГГц AMD",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 4500",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 4500",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 4500"
+  },
+  {
+   "a": "AMD Ryzen 5 4500 OEM",
+   "b": "Процессор AMD Ryzen 5 4500, AM4, OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 4500",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 4500",
+    "sku": null,
+    "unbranded": false,
+    "variants": null
+   },
+   "note": "stand added verified same: amd ryzen 5 4500"
+  },
+  {
+   "a": "AMD Ryzen 5 4500 OEM",
+   "b": "Процессор CPU AM4 AMD Ryzen 5 4500 OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 4500",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 4500",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 4500"
+  },
+  {
+   "a": "AMD Ryzen 5 5500 BOX",
+   "b": "Процессор AMD Ryzen 5 5500 OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 5500",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 5500",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 5500"
+  },
+  {
+   "a": "AMD Ryzen 5 5500 BOX",
+   "b": "Процессор AMD Ryzen 5 5500, AM4, OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 5500",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 5500",
+    "sku": null,
+    "unbranded": false,
+    "variants": null
+   },
+   "note": "stand added verified same: amd ryzen 5 5500"
+  },
+  {
+   "a": "AMD Ryzen 5 5500 BOX",
+   "b": "Процессор CPU AM4 AMD Ryzen 5 5500 OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 5500",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 5500",
+    "sku": null,
+    "unbranded": false,
+    "variants": null
+   },
+   "note": "stand added verified same: amd ryzen 5 5500"
+  },
+  {
+   "a": "AMD Ryzen 5 5500 OEM",
+   "b": "Процессор AMD Ryzen 5 5500, AM4, OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 5500",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 5500",
+    "sku": null,
+    "unbranded": false,
+    "variants": null
+   },
+   "note": "stand added verified same: amd ryzen 5 5500"
+  },
+  {
+   "a": "AMD Ryzen 5 5500 OEM",
+   "b": "Процессор CPU AM4 AMD Ryzen 5 5500 OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 5500",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 5500",
+    "sku": null,
+    "unbranded": false,
+    "variants": null
+   },
+   "note": "stand added verified same: amd ryzen 5 5500"
+  },
+  {
+   "a": "AMD Ryzen 5 5500GT BOX",
+   "b": "Процессор AMD Ryzen 5 5500GT, AM4, OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 5500GT",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 5500GT",
+    "sku": null,
+    "unbranded": false,
+    "variants": null
+   },
+   "note": "stand added verified same: amd ryzen 5 5500gt"
+  },
+  {
+   "a": "AMD Ryzen 5 5500GT BOX",
+   "b": "Процессор AMD Ryzen 5 5500GT, AM4, with Wraith Stealth Cooler, OEM (100-000001489)",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 5500GT",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 5500GT",
+    "sku": "100-000001489",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 5500gt"
+  },
+  {
+   "a": "AMD Ryzen 5 5500X3D OEM",
+   "b": "Процессор CPU AM4 AMD Ryzen 5 5500X3D OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 5500X3D",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 5500X3D",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 5500x3d"
+  },
+  {
+   "a": "AMD Ryzen 5 5600 OEM",
+   "b": "Процессор AMD Ryzen 5 5600 Ryzen 5, 3.5 ГГц AMD",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 5600",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 5600",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 5600"
+  },
+  {
+   "a": "AMD Ryzen 5 5600 OEM",
+   "b": "Процессор AMD Ryzen 5 5600, AM4, OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 5600",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 5600",
+    "sku": null,
+    "unbranded": false,
+    "variants": null
+   },
+   "note": "stand added verified same: amd ryzen 5 5600"
+  },
+  {
+   "a": "AMD Ryzen 5 5600 OEM",
+   "b": "Процессор AMD Ryzen 5 5600, AM4, OEM (100-000000927)",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 5600",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 5600",
+    "sku": "100-000000927",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 5600"
+  },
+  {
+   "a": "AMD Ryzen 5 5600 OEM",
+   "b": "Процессор CPU AM4 AMD Ryzen 5 5600 OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 5600",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 5600",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 5600"
+  },
+  {
+   "a": "AMD Ryzen 5 5600X OEM",
+   "b": "Процессор AMD Ryzen 5 5600X, AM4, OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 5600X",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 5600X",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 5600x"
+  },
+  {
+   "a": "AMD Ryzen 5 5600XT OEM",
+   "b": "Процессор AMD Ryzen 5 5600XT, AM4, OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 5600XT",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 5600XT",
+    "sku": null,
+    "unbranded": false,
+    "variants": null
+   },
+   "note": "stand added verified same: amd ryzen 5 5600xt"
+  },
+  {
+   "a": "AMD Ryzen 5 7500F OEM",
+   "b": "Процессор AMD Ryzen 5 7500F",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 7500F",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7500F",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 7500f"
+  },
+  {
+   "a": "AMD Ryzen 5 7500F OEM",
+   "b": "Процессор AMD Ryzen 5 7500F 3,7Гц (5,0ГГц Turbo) Zen4 6-ядер 12-потоков AM5 100-000000597 (100-000000597)",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 7500F",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7500F",
+    "sku": "100-000000597",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 7500f"
+  },
+  {
+   "a": "AMD Ryzen 5 7500F OEM",
+   "b": "Процессор AMD Ryzen 5 7500F, AM5, OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 7500F",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 7500F",
+    "sku": null,
+    "unbranded": false,
+    "variants": null
+   },
+   "note": "stand added verified same: amd ryzen 5 7500f"
+  },
+  {
+   "a": "AMD Ryzen 5 7500F OEM",
+   "b": "Процессор CPU AM5 AMD Ryzen 5 7500F OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 7500F",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 7500F",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 7500f"
+  },
+  {
+   "a": "AMD Ryzen 5 7600 BOX",
+   "b": "Процессор AMD Ryzen 5 7600 oem",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 7600"
+  },
+  {
+   "a": "AMD Ryzen 5 7600 BOX",
+   "b": "Процессор AMD Ryzen 5 7600, AM5, BOX (100-100001015BOX)",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600",
+    "sku": "100-100001015BOX",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 7600"
+  },
+  {
+   "a": "AMD Ryzen 5 7600 BOX",
+   "b": "Процессор AMD Ryzen 5 7600, AM5, OEM (100-000001015)",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600",
+    "sku": "100-000001015",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 7600"
+  },
+  {
+   "a": "AMD Ryzen 5 7600 BOX",
+   "b": "Процессор CPU AM5 AMD Ryzen 5 7600 OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 7600"
+  },
+  {
+   "a": "AMD Ryzen 5 7600X OEM",
+   "b": "Процессор AMD Ryzen 5 7600X AM5, BOX (100-100000593WOF)",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600X",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600X",
+    "sku": "100-100000593WOF",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 7600x"
+  },
+  {
+   "a": "AMD Ryzen 5 7600X OEM",
+   "b": "Процессор AMD Ryzen 5 7600X box",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600X",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600X",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 7600x"
+  },
+  {
+   "a": "AMD Ryzen 5 7600X OEM",
+   "b": "Процессор AMD Ryzen 5 7600X, AM5, OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600X",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 7600X",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 7600x"
+  },
+  {
+   "a": "AMD Ryzen 5 7600X OEM",
+   "b": "Процессор AMD Ryzen 5 7600X, AM5, OEM (100-000000593)",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600X",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600X",
+    "sku": "100-000000593",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 7600x"
+  },
+  {
+   "a": "AMD Ryzen 5 7600X OEM",
+   "b": "Процессор CPU AM5 AMD Ryzen 5 7600X OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600X",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 7600X",
+    "sku": null,
+    "unbranded": false,
+    "variants": null
+   },
+   "note": "stand added verified same: amd ryzen 5 7600x"
+  },
+  {
+   "a": "AMD Ryzen 5 7600X WOF",
+   "b": "Процессор AMD Ryzen 5 7600X AM5, BOX (100-100000593WOF)",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600X",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600X",
+    "sku": "100-100000593WOF",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 7600x"
+  },
+  {
+   "a": "AMD Ryzen 5 7600X WOF",
+   "b": "Процессор AMD Ryzen 5 7600X OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600X",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600X",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 7600x"
+  },
+  {
+   "a": "AMD Ryzen 5 7600X WOF",
+   "b": "Процессор AMD Ryzen 5 7600X box",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600X",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600X",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 7600x"
+  },
+  {
+   "a": "AMD Ryzen 5 7600X WOF",
+   "b": "Процессор AMD Ryzen 5 7600X, AM5, OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600X",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 7600X",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 7600x"
+  },
+  {
+   "a": "AMD Ryzen 5 7600X WOF",
+   "b": "Процессор AMD Ryzen 5 7600X, AM5, OEM (100-000000593)",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600X",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600X",
+    "sku": "100-000000593",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 7600x"
+  },
+  {
+   "a": "AMD Ryzen 5 7600X WOF",
+   "b": "Процессор CPU AM5 AMD Ryzen 5 7600X OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600X",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 7600X",
+    "sku": null,
+    "unbranded": false,
+    "variants": null
+   },
+   "note": "stand added verified same: amd ryzen 5 7600x"
+  },
+  {
+   "a": "AMD Ryzen 5 8400F OEM",
+   "b": "Процессор AMD Ryzen 5 8400F Tray",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 8400F",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 8400F",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 8400f"
+  },
+  {
+   "a": "AMD Ryzen 5 8400F OEM",
+   "b": "Процессор AMD Ryzen 5 8400F, AM5, OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 8400F",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 8400F",
+    "sku": null,
+    "unbranded": false,
+    "variants": null
+   },
+   "note": "stand added verified same: amd ryzen 5 8400f"
+  },
+  {
+   "a": "AMD Ryzen 5 8400F OEM",
+   "b": "Процессор CPU AM5 AMD Ryzen 5 8400F OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 8400F",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 8400F",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 8400f"
+  },
+  {
+   "a": "AMD Ryzen 5 8400F OEM",
+   "b": "Процессор CPU AMD Ryzen 5 8400F oem (100-000001591)",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 8400F",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 8400F",
+    "sku": "100-000001591",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 8400f"
+  },
+  {
+   "a": "AMD Ryzen 5 9600X OEM",
+   "b": "Процессор AMD Ryzen 5 9600X, AM5, OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 9600X",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 9600X",
+    "sku": null,
+    "unbranded": false,
+    "variants": null
+   },
+   "note": "stand added verified same: amd ryzen 5 9600x"
+  },
+  {
+   "a": "AMD Ryzen 5 9600X OEM",
+   "b": "Процессор CPU AM5 AMD Ryzen 5 9600X OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 9600X",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 9600X",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 9600x"
+  },
+  {
+   "a": "AMD Ryzen 5 PRO 5650GE OEM",
+   "b": "Процессор AMD Ryzen 5 PRO 5650GE  (100-000000258)",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 PRO 5650GE",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 PRO 5650GE",
+    "sku": "100-000000258",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 pro 5650ge"
+  },
+  {
+   "a": "AMD Ryzen 5 PRO 5650GE OEM",
+   "b": "Процессор AMD Ryzen 5 PRO 5650GE TRAY",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 PRO 5650GE",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 PRO 5650GE",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 pro 5650ge"
+  },
+  {
+   "a": "AMD Ryzen 5 PRO 5650GE OEM",
+   "b": "Процессор AMD Ryzen 5 PRO 5650GE, AM4, OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 PRO 5650GE",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 PRO 5650GE",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 pro 5650ge"
+  },
+  {
+   "a": "AMD Ryzen 5 PRO 5650GE OEM",
+   "b": "Процессор CPU AM4 AMD Ryzen 5 PRO 5650GE OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 PRO 5650GE",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 PRO 5650GE",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 pro 5650ge"
+  },
+  {
+   "a": "AMD Ryzen 5 Ryzen 5 5600XT OEM",
+   "b": "Процессор AMD Ryzen 5 5600XT, AM4, OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 5600XT",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 5600XT",
+    "sku": null,
+    "unbranded": false,
+    "variants": null
+   },
+   "note": "stand added verified same: amd ryzen 5 5600xt"
+  },
+  {
+   "a": "AMD Ryzen 5 Ryzen 5 7600 OEM",
+   "b": "Процессор AMD Ryzen 5 7600 BOX",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 7600"
+  },
+  {
+   "a": "AMD Ryzen 5 Ryzen 5 7600 OEM",
+   "b": "Процессор AMD Ryzen 5 7600, AM5, BOX (100-100001015BOX)",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600",
+    "sku": "100-100001015BOX",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 7600"
+  },
+  {
+   "a": "AMD Ryzen 5 Ryzen 5 7600 OEM",
+   "b": "Процессор AMD Ryzen 5 7600, AM5, OEM (100-000001015)",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600",
+    "sku": "100-000001015",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 7600"
+  },
+  {
+   "a": "AMD Ryzen 5 Ryzen 5 7600 OEM",
+   "b": "Процессор CPU AM5 AMD Ryzen 5 7600 OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 7600",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 7600"
+  },
+  {
+   "a": "AMD Ryzen 5 Ryzen 5 8500G OEM OEM",
+   "b": "Процессор AMD Ryzen 5 8500G 65W AM5 OEM (100-000000931)",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 8500G",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 8500G",
+    "sku": "100-000000931",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 8500g"
+  },
+  {
+   "a": "AMD Ryzen 5 Ryzen 5 8500G OEM OEM",
+   "b": "Процессор AMD Ryzen 5 8500G, AM5, OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 8500G",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 8500G",
+    "sku": null,
+    "unbranded": false,
+    "variants": null
+   },
+   "note": "stand added verified same: amd ryzen 5 8500g"
+  },
+  {
+   "a": "AMD Ryzen 5 Ryzen 5 8500G OEM OEM",
+   "b": "Процессор CPU AM5 AMD Ryzen 5 8500G OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 8500G",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 8500G",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 8500g"
+  },
+  {
+   "a": "AMD Ryzen 5 Ryzen 5 8600G OEM",
+   "b": "Процессор AMD Ryzen 5 8600G, AM5, OEM (100-000001237)",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 8600G",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 8600G",
+    "sku": "100-000001237",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 8600g"
+  },
+  {
+   "a": "AMD Ryzen 5 Ryzen 5 8600G OEM",
+   "b": "Процессор CPU AM5 AMD Ryzen 5 8600G OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 8600G",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 5 8600G",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 8600g"
+  },
+  {
+   "a": "AMD Ryzen 5 Ryzen 5 PRO 8600G OEM",
+   "b": "Процессор AMD Ryzen 5 PRO 8600G 100-000001239",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 PRO 8600G",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 5 PRO 8600G",
+    "sku": "100-000001239",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 5 pro 8600g"
+  },
+  {
+   "a": "AMD Ryzen 7 5700 OEM",
+   "b": "Процессор CPU AM4 AMD Ryzen 7 5700 OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 7 5700",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 7 5700",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 7 5700"
+  },
+  {
+   "a": "AMD Ryzen 7 5700G BOX",
+   "b": "Процессор AMD Ryzen 7 5700G, AM4, OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 7 5700G",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 7 5700G",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 7 5700g"
+  },
+  {
+   "a": "AMD Ryzen 7 5700G OEM",
+   "b": "Процессор AMD Ryzen 7 5700G, AM4, OEM",
+   "same": true,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Ryzen 7 5700G",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": "OEM",
+    "model": "Ryzen 7 5700G",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand added verified same: amd ryzen 7 5700g"
+  },
+  {
+   "a": "24.5\" Philips 25M2N3200W (00/01) черный",
+   "b": "Монитор 24.5\" Philips 25M2N3200W/01, Black",
+   "same": false,
+   "fields_a": {
+    "brand": "Philips",
+    "edition": null,
+    "model": "25M2N3200W",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "Philips",
+    "edition": null,
+    "model": "25M2N3200W/01",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: 25m2n3200w != 25m2n3200w/01"
+  },
+  {
+   "a": "AFOX AF1050TI-4096D5H2",
+   "b": "Видеокарта Afox GTX 1050 Ti  V9, 4 GB, GeForce GTX 1050 Ti",
+   "same": false,
+   "fields_a": {
+    "brand": "Afox",
+    "edition": null,
+    "model": "AF1050TI",
+    "sku": "AF1050TI-4096D5H2",
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "Afox",
+    "edition": null,
+    "model": "GTX 1050 Ti",
+    "sku": "AF1050-4096D5H4-V2",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 4
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: af1050ti != gtx 1050 ti"
+  },
+  {
+   "a": "AFOX AFRX570-8192D5H5-V2 8 Гб",
+   "b": "Видеокарта AFOX RX 570 GAMING 8GB Dual Fan AFRX570-8192D5H5-V2",
+   "same": false,
+   "fields_a": {
+    "brand": "Afox",
+    "edition": null,
+    "model": "AFRX570",
+    "sku": "AFRX570-8192D5H5-V2",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 8
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Afox",
+    "edition": "Gaming Dual Fan",
+    "model": "RX 570",
+    "sku": "AFRX570-8192D5H5-V2",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 8
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: afrx570 != rx 570"
+  },
+  {
+   "a": "ASRock A520M-HVS",
+   "b": "Материнская плата ASRock A520M-HVS",
+   "same": false,
+   "fields_a": {
+    "brand": "ASRock",
+    "edition": null,
+    "model": "A520M",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "ASRock",
+    "edition": null,
+    "model": "A520M-HVS",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: a520m != a520m-hvs"
+  },
+  {
+   "a": "ASRock A520M-HVS",
+   "b": "Материнская плата ASRock A520M-HVS (90-MXBE60-A0UAYZ)",
+   "same": false,
+   "fields_a": {
+    "brand": "ASRock",
+    "edition": null,
+    "model": "A520M",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "ASRock",
+    "edition": null,
+    "model": "A520M-HVS",
+    "sku": "90-MXBE60-A0UAYZ",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: a520m != a520m-hvs"
+  },
+  {
+   "a": "ASRock B650M PG Lightning",
+   "b": "Материнская плата ASRock B650M PG Lightning (90-MXBMV0-A0UAYZ)",
+   "same": false,
+   "fields_a": {
+    "brand": "ASRock",
+    "edition": "PG Lightning",
+    "model": "B650M",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "ASRock",
+    "edition": null,
+    "model": "B650M PG Lightning",
+    "sku": "90-MXBMV0-A0UAYZ",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: b650m != b650m pg lightning"
+  },
+  {
+   "a": "ASRock B760 Pro RS/D4",
+   "b": "Материнская плата ASRock B760 PRO RS/D4",
+   "same": false,
+   "fields_a": {
+    "brand": "ASRock",
+    "edition": null,
+    "model": "B760 Pro RS",
+    "sku": "D4",
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "ASRock",
+    "edition": "PRO RS/D4",
+    "model": "B760",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: b760 pro rs != b760"
+  },
+  {
+   "a": "ASRock B760M PRO RS/D4",
+   "b": "Материнская плата ASRock B760M PRO RS/D4",
+   "same": false,
+   "fields_a": {
+    "brand": "ASRock",
+    "edition": null,
+    "model": "B760M PRO RS/D4",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "ASRock",
+    "edition": "PRO RS/D4",
+    "model": "B760M",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: b760m pro rs/d4 != b760m"
+  },
+  {
+   "a": "ASRock B760M PRO RS/D4",
+   "b": "Материнская плата ASRock B760M PRO RS/D4 WIFI",
+   "same": false,
+   "fields_a": {
+    "brand": "ASRock",
+    "edition": null,
+    "model": "B760M PRO RS/D4",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "ASRock",
+    "edition": null,
+    "model": "B760M PRO RS",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "дюйм",
+      "value": 4
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: b760m pro rs/d4 != b760m pro rs"
+  },
+  {
+   "a": "ASRock B760M PRO RS/D4",
+   "b": "Материнская плата ASRock B760M Pro RS/D4 WiFi (90-MXBKZ0-A0UAYZ)",
+   "same": false,
+   "fields_a": {
+    "brand": "ASRock",
+    "edition": null,
+    "model": "B760M PRO RS/D4",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "ASRock",
+    "edition": null,
+    "model": "B760M Pro RS/D4 WiFi",
+    "sku": "90-MXBKZ0-A0UAYZ",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: b760m pro rs/d4 != b760m pro rs/d4 wifi"
+  },
+  {
+   "a": "ASRock B760M PRO-A/D4",
+   "b": "Материнская плата ASRock B760M PRO-A/D4",
+   "same": false,
+   "fields_a": {
+    "brand": "ASRock",
+    "edition": null,
+    "model": "B760M PRO-A",
+    "sku": "D4",
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "ASRock",
+    "edition": "PRO-A/D4",
+    "model": "B760M",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: b760m pro-a != b760m"
+  },
+  {
+   "a": "ASRock B760M Pro-A/D4 (90-MXBNC0-A0UAYZ)",
+   "b": "Материнская плата ASRock B760M PRO-A/D4 (B760M PRO-A/D4)",
+   "same": false,
+   "fields_a": {
+    "brand": "ASRock",
+    "edition": null,
+    "model": "B760M Pro-A",
+    "sku": "90-MXBNC0-A0UAYZ",
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "ASRock",
+    "edition": null,
+    "model": "B760M PRO-A/D4",
+    "sku": "B760M PRO-A/D4",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: b760m pro-a != b760m pro-a/d4"
+  },
+  {
+   "a": "ASRock H510M-H2/M.2 SE",
+   "b": "Материнская плата ASRock H510M-H2/M.2 SE D4",
+   "same": false,
+   "fields_a": {
+    "brand": "ASRock",
+    "edition": null,
+    "model": "H510M-H2/M.2",
+    "sku": "SE",
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "ASRock",
+    "edition": null,
+    "model": "H510M-H2/M.2 SE",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "дюйм",
+      "value": 4
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: h510m-h2/m.2 != h510m-h2/m.2 se"
+  },
+  {
+   "a": "ASRock H610M-HDV/M.2",
+   "b": "Материнская плата ASRock H610M-HDV/M.2+D5",
+   "same": false,
+   "fields_a": {
+    "brand": "ASRock",
+    "edition": null,
+    "model": "H610M-HDV/M.2",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "ASRock",
+    "edition": null,
+    "model": "H610M-HDV",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "дюйм",
+      "value": 4
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: h610m-hdv/m.2 != h610m-hdv"
+  },
+  {
+   "a": "Bluetooth гарнитура Monster Mission V1 TWS, Grey",
+   "b": "Наушники TWS MONSTER Mission V1 (Black) (MH72004)",
+   "same": false,
+   "fields_a": {
+    "brand": "Monster",
+    "edition": null,
+    "model": "Mission V1 TWS",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "MONSTER",
+    "edition": null,
+    "model": "Mission V1",
+    "sku": "MH72004",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: mission v1 tws != mission v1"
+  },
+  {
+   "a": "DDR-5 DIMM 64 GB 6000 MHz Kingston Fury Beast RGB, 2x 32 GB Kit, Black, BOX (KF560C36BBEAK2-64)",
+   "b": "Оперативная память 64 GB kit Kingston Fury Beast White KF560C36BBEAK2-64",
+   "same": false,
+   "fields_a": {
+    "brand": "Kingston",
+    "edition": null,
+    "model": "Fury Beast RGB",
+    "sku": "KF560C36BBEAK2-64",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 64
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Kingston",
+    "edition": null,
+    "model": "Fury Beast",
+    "sku": "KF560C36BBEAK2-64",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: fury beast rgb != fury beast"
+  },
+  {
+   "a": "DDR-5 DIMM 64 GB 6000 MHz Kingston Fury Beast RGB, 2x 32 GB Kit, Black, BOX (KF560C36BBEAK2-64)",
+   "b": "Оперативная память 64 GB kit Kingston Fury Beast White KF560C36BBEK2-64",
+   "same": false,
+   "fields_a": {
+    "brand": "Kingston",
+    "edition": null,
+    "model": "Fury Beast RGB",
+    "sku": "KF560C36BBEAK2-64",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 64
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Kingston",
+    "edition": null,
+    "model": "Fury Beast",
+    "sku": "KF560C36BBEK2-64",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: fury beast rgb != fury beast"
+  },
+  {
+   "a": "Garmin Fenix 8 43 51 мм Серебристый-оранжевый",
+   "b": "Смарт-часы GARMIN Fenix 8 51mm ,AMOLED, сапфир, титановый корпус, черный, кожаный ремешок каштанового цвета 010-02905-40",
+   "same": false,
+   "fields_a": {
+    "brand": "Garmin",
+    "edition": null,
+    "model": "Fenix 8 43",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "GARMIN",
+    "edition": null,
+    "model": "Fenix 8",
+    "sku": "010-02905-40",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: fenix 8 43 != fenix 8"
+  },
+  {
+   "a": "Garmin Fenix 8 43 51 мм Серебристый-оранжевый",
+   "b": "Смарт-часы GARMIN Fenix 8 51mm, AMOLED, сапфир, темный силикон 010-02905-21",
+   "same": false,
+   "fields_a": {
+    "brand": "Garmin",
+    "edition": null,
+    "model": "Fenix 8 43",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "GARMIN",
+    "edition": null,
+    "model": "Fenix 8",
+    "sku": "010-02905-21",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: fenix 8 43 != fenix 8"
+  },
+  {
+   "a": "Garmin Fenix 8 43 51 мм Серый",
+   "b": "Смарт-часы GARMIN Fenix 8 51mm ,AMOLED, сапфир, титановый корпус, черный, кожаный ремешок каштанового цвета 010-02905-40",
+   "same": false,
+   "fields_a": {
+    "brand": "Garmin",
+    "edition": null,
+    "model": "Fenix 8 43",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "GARMIN",
+    "edition": null,
+    "model": "Fenix 8",
+    "sku": "010-02905-40",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: fenix 8 43 != fenix 8"
+  },
+  {
+   "a": "Garmin Fenix 8 43 51 мм Серый",
+   "b": "Смарт-часы GARMIN Fenix 8 51mm, AMOLED, сапфир, темный силикон 010-02905-21",
+   "same": false,
+   "fields_a": {
+    "brand": "Garmin",
+    "edition": null,
+    "model": "Fenix 8 43",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "GARMIN",
+    "edition": null,
+    "model": "Fenix 8",
+    "sku": "010-02905-21",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: fenix 8 43 != fenix 8"
+  },
+  {
+   "a": "Garmin Fenix 8 43 51 мм Черный",
+   "b": "Смарт-часы GARMIN Fenix 8 51mm ,AMOLED, сапфир, титановый корпус, черный, кожаный ремешок каштанового цвета 010-02905-40",
+   "same": false,
+   "fields_a": {
+    "brand": "Garmin",
+    "edition": null,
+    "model": "Fenix 8 43",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "GARMIN",
+    "edition": null,
+    "model": "Fenix 8",
+    "sku": "010-02905-40",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: fenix 8 43 != fenix 8"
+  },
+  {
+   "a": "Garmin Fenix 8 43 51 мм Черный",
+   "b": "Смарт-часы GARMIN Fenix 8 51mm, AMOLED, сапфир, темный силикон 010-02905-21",
+   "same": false,
+   "fields_a": {
+    "brand": "Garmin",
+    "edition": null,
+    "model": "Fenix 8 43",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "GARMIN",
+    "edition": null,
+    "model": "Fenix 8",
+    "sku": "010-02905-21",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: fenix 8 43 != fenix 8"
+  },
+  {
+   "a": "Hisense 50E7Q 127 см черный",
+   "b": "Телевизор HISENSE QLED 50E7Q UHD SMART",
+   "same": false,
+   "fields_a": {
+    "brand": "Hisense",
+    "edition": null,
+    "model": "50E7Q",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "см",
+      "value": 127
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "HISENSE",
+    "edition": null,
+    "model": "QLED 50E7Q",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: 50e7q != qled 50e7q"
+  },
+  {
+   "a": "Hisense 50E7Q 127 см черный",
+   "b": "Телевизор Hisense 50\" 50E7Q RU",
+   "same": false,
+   "fields_a": {
+    "brand": "Hisense",
+    "edition": null,
+    "model": "50E7Q",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "см",
+      "value": 127
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Hisense",
+    "edition": null,
+    "model": "E7Q",
+    "sku": "50E7Q RU",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: 50e7q != e7q"
+  },
+  {
+   "a": "Hisense 55E7Q 140 см черный",
+   "b": "Телевизор HISENSE QLED 55E7Q UHD SMART",
+   "same": false,
+   "fields_a": {
+    "brand": "Hisense",
+    "edition": null,
+    "model": "55E7Q",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "см",
+      "value": 140
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "HISENSE",
+    "edition": null,
+    "model": "QLED 55E7Q",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: 55e7q != qled 55e7q"
+  },
+  {
+   "a": "Intel Core Ultra 5 235 OEM",
+   "b": "Процессор Intel Core Ultra 5 Processor 235 ем",
+   "same": false,
+   "fields_a": {
+    "brand": "Intel",
+    "edition": null,
+    "model": "Core Ultra 5 235",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "Intel",
+    "edition": null,
+    "model": "Core Ultra 5 Processor 235",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: core ultra 5 235 != core ultra 5 processor 235"
+  },
+  {
+   "a": "Intel Core Ultra 7 270K Plus OEM",
+   "b": "Процессор CPU S-1851 Intel Core Ultra 7 270K Plus OEM",
+   "same": false,
+   "fields_a": {
+    "brand": "Intel",
+    "edition": "Plus",
+    "model": "Core Ultra 7 270K",
+    "sku": null,
+    "unbranded": false,
+    "variants": null
+   },
+   "fields_b": {
+    "brand": "Intel",
+    "edition": "OEM",
+    "model": "Core Ultra 7 270K Plus",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: core ultra 7 270k != core ultra 7 270k plus"
+  },
+  {
+   "a": "MAXSUN Challenger B450M",
+   "b": "Материнская плата MaxSun Challenger B450M (V0)",
+   "same": false,
+   "fields_a": {
+    "brand": "MAXSUN",
+    "edition": null,
+    "model": "Challenger B450M",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "MaxSun",
+    "edition": "Challenger (V0)",
+    "model": "B450M",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: challenger b450m != b450m"
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-15M, UTP, 15m, Blue",
+   "b": "Патч-корд Cablexpert PP12 15 м Cablexpert",
+   "same": false,
+   "fields_a": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12-15M",
+    "sku": "PP12-15M",
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 15
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: pp12-15m != pp12"
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-15M, UTP, 15m, Grey",
+   "b": "Патч-корд Cablexpert PP12 15 м Cablexpert",
+   "same": false,
+   "fields_a": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12-15M",
+    "sku": "PP12-15M",
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 15
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: pp12-15m != pp12"
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-15M/Y, UTP, 15m, Yellow",
+   "b": "Патч-корд Cablexpert PP12 15 м Cablexpert",
+   "same": false,
+   "fields_a": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12-15M/Y",
+    "sku": "PP12-15M/Y",
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 15
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: pp12-15m/y != pp12"
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-1M/B, UTP, 1m, OEM, Blue",
+   "b": "Патч-корд Cablexpert PP12 1 м Cablexpert",
+   "same": false,
+   "fields_a": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "RJ-45 5е cat",
+    "sku": "PP12-1M/B",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 1
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 1
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: rj-45 5е cat != pp12"
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-1M/G, UTP, 1m, Green",
+   "b": "Патч-корд Cablexpert PP12 1 м Cablexpert",
+   "same": false,
+   "fields_a": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "RJ-45 5е cat",
+    "sku": "PP12-1M/G",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 1
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 1
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: rj-45 5е cat != pp12"
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-1M/G, UTP, 1m, Grey",
+   "b": "Патч-корд Cablexpert PP12 1 м Cablexpert",
+   "same": false,
+   "fields_a": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12-1M/G",
+    "sku": "PP12-1M/G",
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 1
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: pp12-1m/g != pp12"
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-1M/O, UTP, 1m, Orange",
+   "b": "Патч-корд Cablexpert PP12 1 м Cablexpert",
+   "same": false,
+   "fields_a": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12-1M/O",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 1
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 1
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: pp12-1m/o != pp12"
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-1M/V, UTP, 1m, Violet",
+   "b": "Патч-корд Cablexpert PP12 1 м Cablexpert",
+   "same": false,
+   "fields_a": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12-1M/V",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 1
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 1
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: pp12-1m/v != pp12"
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-1M/Y, UTP, 1m, Yellow",
+   "b": "Патч-корд Cablexpert PP12 1 м Cablexpert",
+   "same": false,
+   "fields_a": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "RJ-45 5е cat",
+    "sku": "PP12-1M/Y",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 1
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 1
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: rj-45 5е cat != pp12"
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-2M/B, UTP, 2m, Blue",
+   "b": "Патч-корд Cablexpert PP12 2 м Cablexpert",
+   "same": false,
+   "fields_a": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "RJ-45 5е cat",
+    "sku": "PP12-2M/B",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 2
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 2
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: rj-45 5е cat != pp12"
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-2M/G, UTP, 2m, Green",
+   "b": "Патч-корд Cablexpert PP12 2 м Cablexpert",
+   "same": false,
+   "fields_a": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "RJ-45 5е cat",
+    "sku": "PP12-2M/G",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 2
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 2
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: rj-45 5е cat != pp12"
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-2M/R, UTP, 2m, Pink",
+   "b": "Патч-корд Cablexpert PP12 2 м Cablexpert",
+   "same": false,
+   "fields_a": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12-2M/R",
+    "sku": "PP12-2M/R",
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 2
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: pp12-2m/r != pp12"
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-2M/R, UTP, 2m, Red",
+   "b": "Патч-корд Cablexpert PP12 2 м Cablexpert",
+   "same": false,
+   "fields_a": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "RJ-45 5е cat",
+    "sku": "PP12-2M/R",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 2
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 2
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: rj-45 5е cat != pp12"
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-2M/V, UTP, 2m, Violet",
+   "b": "Патч-корд Cablexpert PP12 2 м Cablexpert",
+   "same": false,
+   "fields_a": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12-2M/V",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 2
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 2
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: pp12-2m/v != pp12"
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-2M/Y, UTP, 2m, Yellow",
+   "b": "Патч-корд Cablexpert PP12 2 м Cablexpert",
+   "same": false,
+   "fields_a": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "RJ-45 5е cat",
+    "sku": "PP12-2M/Y",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 2
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 2
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: rj-45 5е cat != pp12"
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-3M, UTP, 3m, Grey",
+   "b": "Патч-корд Cablexpert PP12 3 м Cablexpert",
+   "same": false,
+   "fields_a": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12-3M",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 3
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 3
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: pp12-3m != pp12"
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-3M/B, UTP, 3m, Blue",
+   "b": "Патч-корд Cablexpert PP12 3 м Cablexpert",
+   "same": false,
+   "fields_a": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12-3M/B",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 3
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 3
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: pp12-3m/b != pp12"
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-3M/G, UTP, 3m, Green",
+   "b": "Патч-корд Cablexpert PP12 3 м Cablexpert",
+   "same": false,
+   "fields_a": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12-3M/G",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 3
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 3
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: pp12-3m/g != pp12"
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-3M/Y, UTP, 3m, Yellow",
+   "b": "Патч-корд Cablexpert PP12 3 м Cablexpert",
+   "same": false,
+   "fields_a": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12-3M/Y",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 3
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 3
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: pp12-3m/y != pp12"
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-5M, UTP, 5m, Grey",
+   "b": "Патч-корд Cablexpert PP12 5 м Cablexpert",
+   "same": false,
+   "fields_a": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12-5M",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 5
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 5
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: pp12-5m != pp12"
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-5M/B, UTP, 5m, Blue",
+   "b": "Патч-корд Cablexpert PP12 5 м Cablexpert",
+   "same": false,
+   "fields_a": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12-5M/B",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 5
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 5
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: pp12-5m/b != pp12"
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-5M/BK, UTP, 5m, Black",
+   "b": "Патч-корд Cablexpert PP12 5 м Cablexpert",
+   "same": false,
+   "fields_a": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12-5M/BK",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 5
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 5
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: pp12-5m/bk != pp12"
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-5M/G, UTP, 5m, Green",
+   "b": "Патч-корд Cablexpert PP12 5 м Cablexpert",
+   "same": false,
+   "fields_a": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12-5M/G",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 5
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 5
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: pp12-5m/g != pp12"
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-5M/R, UTP, 5m, Red",
+   "b": "Патч-корд Cablexpert PP12 5 м Cablexpert",
+   "same": false,
+   "fields_a": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12-5M/R",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 5
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 5
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: pp12-5m/r != pp12"
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-5M/Y, UTP, 5m, Yellow",
+   "b": "Патч-корд Cablexpert PP12 5 м Cablexpert",
+   "same": false,
+   "fields_a": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12-5M/Y",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 5
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 5
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: pp12-5m/y != pp12"
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-7.5M, UTP, 7.5m, Grey",
+   "b": "Патч-корд Cablexpert PP12 7.5 м Cablexpert",
+   "same": false,
+   "fields_a": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12-7.5M",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 7.5
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 7.5
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: pp12-7.5m != pp12"
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-7.5M/B, UTP, 7.5m, Blue",
+   "b": "Патч-корд Cablexpert PP12 7.5 м Cablexpert",
+   "same": false,
+   "fields_a": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12-7.5M/B",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 7.5
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 7.5
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: pp12-7.5m/b != pp12"
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert PP12-7.5M/Y, UTP, 7.5m, Yellow",
+   "b": "Патч-корд Cablexpert PP12 7.5 м Cablexpert",
+   "same": false,
+   "fields_a": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12-7.5M/Y",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 7.5
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 7.5
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: pp12-7.5m/y != pp12"
+  },
+  {
+   "a": "Patch cord RJ-45 5е cat Cablexpert, PP12-3M, UTP, 3m, Pink",
+   "b": "Патч-корд Cablexpert PP12 3 м Cablexpert",
+   "same": false,
+   "fields_a": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12-3M",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 3
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Cablexpert",
+    "edition": null,
+    "model": "PP12",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 3
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: pp12-3m != pp12"
+  },
+  {
+   "a": "SSD накопитель 1 TB Hikvision HS-SSD-E1000/1024G",
+   "b": "Твердотельный накопитель SSD 1TB Hikvision E1000 M.2  (HS-SSD-E1000/1024G)",
+   "same": false,
+   "fields_a": {
+    "brand": "Hikvision",
+    "edition": null,
+    "model": "HS-SSD-E1000",
+    "sku": "HS-SSD-E1000/1024G",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "тб",
+      "value": 1
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Hikvision",
+    "edition": null,
+    "model": "E1000",
+    "sku": "HS-SSD-E1000/1024G",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: hs-ssd-e1000 != e1000"
+  },
+  {
+   "a": "SSD накопитель 1 TB Transcend MTS825S, M.2, SATA III",
+   "b": "SSD накопитель 1TB Transcend TS1TMTS825S M2",
+   "same": false,
+   "fields_a": {
+    "brand": "Transcend",
+    "edition": null,
+    "model": "MTS825S",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "тб",
+      "value": 1
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Transcend",
+    "edition": null,
+    "model": "TS1TMTS825S",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "тб",
+      "value": 1
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: mts825s != ts1tmts825s"
+  },
+  {
+   "a": "SSD накопитель 1Tb Netac N600S NT01N600S-001T-S3X",
+   "b": "Твердотельный накопитель SSD Netac 1TB 2.5 SATAIII (NT01N600S-001T-S3X)",
+   "same": false,
+   "fields_a": {
+    "brand": "Netac",
+    "edition": null,
+    "model": "N600S",
+    "sku": "NT01N600S-001T-S3X",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "тб",
+      "value": 1
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Netac",
+    "edition": null,
+    "model": "NT01N600S",
+    "sku": "NT01N600S-001T-S3X",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: n600s != nt01n600s"
+  },
+  {
+   "a": "SSD накопитель 240 GB Transcend SSD220S, 2.5\", SATA III",
+   "b": "SSD накопитель 240GB Transcend TS240GSSD220S",
+   "same": false,
+   "fields_a": {
+    "brand": "Transcend",
+    "edition": null,
+    "model": "SSD220S",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 240
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Transcend",
+    "edition": null,
+    "model": "TS240GSSD220S",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 240
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: ssd220s != ts240gssd220s"
+  },
+  {
+   "a": "SSD накопитель 240 GB Transcend SSD220S, 2.5\", SATA III",
+   "b": "Жесткий диск SSD 240GB Transcend TS240GSSD220S (TS240GSSD220S)",
+   "same": false,
+   "fields_a": {
+    "brand": "Transcend",
+    "edition": null,
+    "model": "SSD220S",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 240
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Transcend",
+    "edition": null,
+    "model": "TS240GSSD220S",
+    "sku": "TS240GSSD220S",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 240
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: ssd220s != ts240gssd220s"
+  },
+  {
+   "a": "SSD накопитель 250 GB Transcend MTS825S, M.2, SATA III",
+   "b": "Жесткий диск SSD 250GB Transcend TS250GMTS825S M2 (TS250GMTS825S)",
+   "same": false,
+   "fields_a": {
+    "brand": "Transcend",
+    "edition": null,
+    "model": "MTS825S",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 250
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Transcend",
+    "edition": null,
+    "model": "TS250GMTS825S",
+    "sku": "TS250GMTS825S",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 250
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: mts825s != ts250gmts825s"
+  },
+  {
+   "a": "SSD накопитель 250 GB Transcend SSD225S, 2.5\", SATA III",
+   "b": "Жесткий диск SSD 250GB Transcend TS250GSSD225S (TS250GSSD225S)",
+   "same": false,
+   "fields_a": {
+    "brand": "Transcend",
+    "edition": null,
+    "model": "SSD225S",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 250
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Transcend",
+    "edition": null,
+    "model": "TS250GSSD225S",
+    "sku": "TS250GSSD225S",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 250
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: ssd225s != ts250gssd225s"
+  },
+  {
+   "a": "SSD накопитель 256 GB AMD Radeon R3,  2.5\", SATA III",
+   "b": "SSD накопитель 256GB AMD RADEON R3 Series R3MP30256G8",
+   "same": false,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Radeon R3",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 256
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "RADEON R3 Series",
+    "sku": "R3MP30256G8",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: radeon r3 != radeon r3 series"
+  },
+  {
+   "a": "SSD накопитель 256 GB AMD Radeon R3, M.2, PCIe 3.0",
+   "b": "SSD накопитель 256GB AMD RADEON R3 Series R3MP30256G8",
+   "same": false,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Radeon R3",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 256
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "RADEON R3 Series",
+    "sku": "R3MP30256G8",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: radeon r3 != radeon r3 series"
+  },
+  {
+   "a": "SSD накопитель 256 GB Patriot P220 P220S256G25",
+   "b": "SSD накопитель 256 GB Patriot P220, 2.5\", SATA III",
+   "same": false,
+   "fields_a": {
+    "brand": "Patriot",
+    "edition": null,
+    "model": "P220 P220S256G25",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "Patriot",
+    "edition": null,
+    "model": "P220",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 256
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: p220 p220s256g25 != p220"
+  },
+  {
+   "a": "SSD накопитель 256 GB Patriot P300 P300P256GM28",
+   "b": "SSD накопитель 256 GB Patriot P300, M.2, PCIe 3.0",
+   "same": false,
+   "fields_a": {
+    "brand": "Patriot",
+    "edition": null,
+    "model": "P300 P300P256GM28",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "Patriot",
+    "edition": null,
+    "model": "P300",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 256
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: p300 p300p256gm28 != p300"
+  },
+  {
+   "a": "SSD накопитель 256Gb Team Group MS30 TM8PS7256G0C101",
+   "b": "Твердотельный накопитель TeamGroup SSD MS30 256Гб (TM8PS7256G0C101)",
+   "same": false,
+   "fields_a": {
+    "brand": "TeamGroup",
+    "edition": null,
+    "model": "MS30 TM8PS7256G0C101",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "TeamGroup",
+    "edition": null,
+    "model": "MS30",
+    "sku": "TM8PS7256G0C101",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: ms30 tm8ps7256g0c101 != ms30"
+  },
+  {
+   "a": "SSD накопитель 2Tb Netac N600S NT01N600S-002T-S3X",
+   "b": "Твердотельный накопитель SSD Netac N600S2 ТБ, 2.5\" (NT01N600S-002T-S3X)",
+   "same": false,
+   "fields_a": {
+    "brand": "Netac",
+    "edition": null,
+    "model": "N600S",
+    "sku": "NT01N600S-002T-S3X",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "тб",
+      "value": 2
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Netac",
+    "edition": null,
+    "model": "N600S2",
+    "sku": "NT01N600S-002T-S3X",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: n600s != n600s2"
+  },
+  {
+   "a": "SSD накопитель 4 TB Adata XPG Gammix S70 Blade, M.2, PCIe 4.0",
+   "b": "Твердотельный накопитель SSD ADATA XPG GAMMIX S70 BLADE 4 ТБ M.2 (AGAMMIXS70B-4T-CS)",
+   "same": false,
+   "fields_a": {
+    "brand": "Adata",
+    "edition": null,
+    "model": "Gammix S70 Blade",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "тб",
+      "value": 4
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "ADATA",
+    "edition": null,
+    "model": "XPG GAMMIX S70 BLADE",
+    "sku": "AGAMMIXS70B-4T-CS",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: gammix s70 blade != xpg gammix s70 blade"
+  },
+  {
+   "a": "SSD накопитель 500 GB Transcend MTS825S, M.2, SATA III",
+   "b": "SSD накопитель 500GB Transcend TS500GMTS825S M2",
+   "same": false,
+   "fields_a": {
+    "brand": "Transcend",
+    "edition": null,
+    "model": "MTS825S",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 500
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Transcend",
+    "edition": null,
+    "model": "TS500GMTS825S",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 500
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: mts825s != ts500gmts825s"
+  },
+  {
+   "a": "SSD накопитель 500 GB Transcend SSD225S, 2.5\", SATA III",
+   "b": "SSD накопитель 500GB Transcend TS500GSSD225S",
+   "same": false,
+   "fields_a": {
+    "brand": "Transcend",
+    "edition": null,
+    "model": "SSD225S",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 500
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Transcend",
+    "edition": null,
+    "model": "TS500GSSD225S",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 500
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: ssd225s != ts500gssd225s"
+  },
+  {
+   "a": "SSD накопитель 500 GB Transcend SSD225S, 2.5\", SATA III",
+   "b": "Жесткий диск SSD 500GB Transcend TS500GSSD225S (TS500GSSD225S)",
+   "same": false,
+   "fields_a": {
+    "brand": "Transcend",
+    "edition": null,
+    "model": "SSD225S",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 500
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Transcend",
+    "edition": null,
+    "model": "TS500GSSD225S",
+    "sku": "TS500GSSD225S",
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 500
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: ssd225s != ts500gssd225s"
+  },
+  {
+   "a": "SSD накопитель 512 GB AMD Radeon R3, 2.5\", SATA III",
+   "b": "SSD накопитель 512GB AMD RADEON R3 Series R3MS0512G8",
+   "same": false,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Radeon R3",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 512
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "RADEON R3 Series",
+    "sku": "R3MS0512G8",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: radeon r3 != radeon r3 series"
+  },
+  {
+   "a": "SSD накопитель 512 GB AMD Radeon R3, M.2, PCIe 3.0",
+   "b": "SSD накопитель 512GB AMD RADEON R3 Series R3MS0512G8",
+   "same": false,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Radeon R3",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 512
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "RADEON R3 Series",
+    "sku": "R3MS0512G8",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: radeon r3 != radeon r3 series"
+  },
+  {
+   "a": "SSD накопитель 512 GB AMD Radeon R3, M.2, SATA III",
+   "b": "SSD накопитель 512GB AMD RADEON R3 Series R3MS0512G8",
+   "same": false,
+   "fields_a": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "Radeon R3",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 512
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "AMD",
+    "edition": null,
+    "model": "RADEON R3 Series",
+    "sku": "R3MS0512G8",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: radeon r3 != radeon r3 series"
+  },
+  {
+   "a": "SSD накопитель 512 GB Netac N930E PRO, M.2, PCIe 3.0",
+   "b": "SSD накопитель 512Gb Netac N930E Pro NT01N930E-512G-E4X",
+   "same": false,
+   "fields_a": {
+    "brand": "Netac",
+    "edition": null,
+    "model": "N930E PRO",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 512
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Netac",
+    "edition": null,
+    "model": "N930E Pro NT01N930E-512G-E4X",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: n930e pro != n930e pro nt01n930e-512g-e4x"
+  },
+  {
+   "a": "SSD накопитель 512GB Transcend TS512GMTE110S",
+   "b": "SSD накопитель Transcend MTE110S 512 ГБ, M.2 Transcend",
+   "same": false,
+   "fields_a": {
+    "brand": "Transcend",
+    "edition": null,
+    "model": "TS512GMTE110S",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "Transcend",
+    "edition": null,
+    "model": "MTE110S",
+    "sku": "512 ГБ",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: ts512gmte110s != mte110s"
+  },
+  {
+   "a": "SSD накопитель 80GB Transcend TS80GMTS260I",
+   "b": "SSD накопитель Transcend MTS260I 80 ГБ, M.2 Transcend",
+   "same": false,
+   "fields_a": {
+    "brand": "Transcend",
+    "edition": null,
+    "model": "TS80GMTS260I",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "гб",
+      "value": 80
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Transcend",
+    "edition": null,
+    "model": "MTS260I",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "ГБ",
+      "value": 80
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: ts80gmts260i != mts260i"
+  },
+  {
+   "a": "TCL 98C6K 249 см черный",
+   "b": "Телевизор TCL QD-MiniLED 98C6K UHD Android TV",
+   "same": false,
+   "fields_a": {
+    "brand": "TCL",
+    "edition": null,
+    "model": "98C6K",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "см",
+      "value": 249
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "TCL",
+    "edition": null,
+    "model": "QD-MiniLED 98C6K",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: 98c6k != qd-miniled 98c6k"
+  },
+  {
+   "a": "Yasin LED-43G9 109 см черный",
+   "b": "Телевизор Yasin 43\" 43G9 LED FHD Black",
+   "same": false,
+   "fields_a": {
+    "brand": "Yasin",
+    "edition": null,
+    "model": "LED-43G9",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "см",
+      "value": 109
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "Yasin",
+    "edition": null,
+    "model": "43G9",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: led-43g9 != 43g9"
+  },
+  {
+   "a": "Вентилятор для корпуса Thermaltake Riing Quad 12 RGB TT Premium, 12cm, Black",
+   "b": "Кулер для компьютерного корпуса Riing Quad 12 RGB 1500 об/мин, 12 × 12 × 2,5 см Thermaltake",
+   "same": false,
+   "fields_a": {
+    "brand": "Thermaltake",
+    "edition": "RGB TT Premium",
+    "model": "Riing Quad 12 RGB TT Premium",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "Thermaltake",
+    "edition": null,
+    "model": "Riing Quad 12 RGB",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "об/мин",
+      "value": 1500
+     },
+     {
+      "unit": "см",
+      "value": 12
+     },
+     {
+      "unit": "см",
+      "value": 12
+     },
+     {
+      "unit": "см",
+      "value": 2.5
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: riing quad 12 rgb tt premium != riing quad 12 rgb"
+  },
+  {
+   "a": "Вентилятор для корпуса Thermaltake Riing Quad 12 RGB TT Premium, 12cm, White",
+   "b": "Кулер для компьютерного корпуса Riing Quad 12 RGB 1500 об/мин, 12 × 12 × 2,5 см Thermaltake",
+   "same": false,
+   "fields_a": {
+    "brand": "Thermaltake",
+    "edition": "RGB TT Premium",
+    "model": "Riing Quad 12 RGB TT Premium",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "Thermaltake",
+    "edition": null,
+    "model": "Riing Quad 12 RGB",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "об/мин",
+      "value": 1500
+     },
+     {
+      "unit": "см",
+      "value": 12
+     },
+     {
+      "unit": "см",
+      "value": 12
+     },
+     {
+      "unit": "см",
+      "value": 2.5
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: riing quad 12 rgb tt premium != riing quad 12 rgb"
+  },
+  {
+   "a": "Гарнитура A4Tech Bloody G575, 2m, USB, LED, Naraka (G575/NARAKA)",
+   "b": "Гарнитура A4Tech Bloody G575, Black",
+   "same": false,
+   "fields_a": {
+    "brand": "A4Tech",
+    "edition": null,
+    "model": "G575",
+    "sku": "G575/NARAKA",
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "A4Tech",
+    "edition": null,
+    "model": "Bloody G575",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: g575 != bloody g575"
+  },
+  {
+   "a": "Гарнитура A4Tech Bloody G575, 2m, USB, LED, Naraka (G575/NARAKA)",
+   "b": "Гарнитура A4Tech Bloody G575, Grey",
+   "same": false,
+   "fields_a": {
+    "brand": "A4Tech",
+    "edition": null,
+    "model": "G575",
+    "sku": "G575/NARAKA",
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "A4Tech",
+    "edition": null,
+    "model": "Bloody G575",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: g575 != bloody g575"
+  },
+  {
+   "a": "Гарнитура A4Tech Bloody G575, 2m, USB, LED, Naraka (G575/NARAKA)",
+   "b": "Гарнитура A4Tech Bloody G575, Punk Yellow",
+   "same": false,
+   "fields_a": {
+    "brand": "A4Tech",
+    "edition": null,
+    "model": "G575",
+    "sku": "G575/NARAKA",
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "A4Tech",
+    "edition": null,
+    "model": "Bloody G575",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: g575 != bloody g575"
+  },
+  {
+   "a": "Гарнитура A4Tech Bloody G575, 2m, USB, LED, Naraka (G575/NARAKA)",
+   "b": "Наушники A4tech Bloody G575 Black",
+   "same": false,
+   "fields_a": {
+    "brand": "A4Tech",
+    "edition": null,
+    "model": "G575",
+    "sku": "G575/NARAKA",
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "A4tech",
+    "edition": null,
+    "model": "Bloody G575",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: g575 != bloody g575"
+  },
+  {
+   "a": "Гарнитура Jabra BIZ 1500 Mono USB черная",
+   "b": "Гарнитура Jabra Biz 1500 Mono, USB, Black",
+   "same": false,
+   "fields_a": {
+    "brand": "Jabra",
+    "edition": null,
+    "model": "BIZ 1500 Mono USB",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "Jabra",
+    "edition": null,
+    "model": "Biz 1500 Mono",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: biz 1500 mono usb != biz 1500 mono"
+  },
+  {
+   "a": "Гарнитура Jabra Biz 1100 USB-A EDU stereo",
+   "b": "Гарнитура Jabra Biz 1100 USB-A EDU stereo (1159-0159-EDU)",
+   "same": false,
+   "fields_a": {
+    "brand": "Jabra",
+    "edition": null,
+    "model": "Biz 1100 USB-A EDU",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "Jabra",
+    "edition": null,
+    "model": "Biz 1100",
+    "sku": "1159-0159-EDU",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: biz 1100 usb-a edu != biz 1100"
+  },
+  {
+   "a": "Гарнитура Jabra Engage 55 MS Stereo USB-A EMEA",
+   "b": "Гарнитура Jabra Engage 55 UC Stereo USB-C EMEA",
+   "same": false,
+   "fields_a": {
+    "brand": "Jabra",
+    "edition": null,
+    "model": "Engage 55",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "Jabra",
+    "edition": null,
+    "model": "Engage 55 UC",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: engage 55 != engage 55 uc"
+  },
+  {
+   "a": "Гарнитура Jabra Evolve2 65 Flex Link380a MS Stereo",
+   "b": "Наушники Jabra Evolve2 65 Flex Link380a UC Stereo WLC 26699-989-989 Black",
+   "same": false,
+   "fields_a": {
+    "brand": "Jabra",
+    "edition": null,
+    "model": "Evolve2 65",
+    "sku": "Link380a",
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "Jabra",
+    "edition": null,
+    "model": "Evolve2 65 Flex",
+    "sku": "26699-989-989",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: evolve2 65 != evolve2 65 flex"
+  },
+  {
+   "a": "Гарнитура Jabra Evolve2 65 Flex Link380a MS Stereo (26699-999-999)",
+   "b": "Наушники Jabra Evolve2 65 Flex Link380a UC Stereo WLC 26699-989-989 Black",
+   "same": false,
+   "fields_a": {
+    "brand": "Jabra",
+    "edition": null,
+    "model": "Evolve2 65",
+    "sku": "26699-999-999",
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "Jabra",
+    "edition": null,
+    "model": "Evolve2 65 Flex",
+    "sku": "26699-989-989",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: evolve2 65 != evolve2 65 flex"
+  },
+  {
+   "a": "Гарнитура Razer Barracuda - Quartz RZ04-03790300-R3M1",
+   "b": "Наушники Razer Barracuda Quartz RZ04-03790300-R3M1 розовый",
+   "same": false,
+   "fields_a": {
+    "brand": "Razer",
+    "edition": null,
+    "model": "Barracuda",
+    "sku": "RZ04-03790300-R3M1",
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "Razer",
+    "edition": null,
+    "model": "Barracuda Quartz",
+    "sku": "RZ04-03790300-R3M1",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: barracuda != barracuda quartz"
+  },
+  {
+   "a": "Игровая гарнитура RAZER Barracuda (RZ04-03790300-R3M1) Розовый",
+   "b": "Наушники Razer Barracuda Quartz RZ04-03790300-R3M1 розовый",
+   "same": false,
+   "fields_a": {
+    "brand": "RAZER",
+    "edition": null,
+    "model": "Barracuda",
+    "sku": "RZ04-03790300-R3M1",
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "Razer",
+    "edition": null,
+    "model": "Barracuda Quartz",
+    "sku": "RZ04-03790300-R3M1",
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: barracuda != barracuda quartz"
+  },
+  {
+   "a": "Кабель питания iPower C7, 1.5m, OEM",
+   "b": "Кабель питания iPower С7 1.5 м iPower",
+   "same": false,
+   "fields_a": {
+    "brand": "iPower",
+    "edition": null,
+    "model": "C7",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 1.5
+     }
+    ]
+   },
+   "fields_b": {
+    "brand": "iPower",
+    "edition": null,
+    "model": "С7",
+    "sku": null,
+    "unbranded": false,
+    "variants": [
+     {
+      "unit": "м",
+      "value": 1.5
+     }
+    ]
+   },
+   "note": "stand dropped verified diff: c7 != с7"
+  },
+  {
+   "a": "Коврик для мыши Defender Black XXL One",
+   "b": "Коврик игровой Defender Black XXL Defender",
+   "same": false,
+   "fields_a": {
+    "brand": "Defender",
+    "edition": null,
+    "model": "Black XXL One",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "Defender",
+    "edition": null,
+    "model": "Black XXL",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: black xxl one != black xxl"
+  },
+  {
+   "a": "Компьютерный корпус Aerocool APNX V1-W-BK-v1 без Б/П",
+   "b": "Корпус AeroCool APNX V1, Black",
+   "same": false,
+   "fields_a": {
+    "brand": "Aerocool",
+    "edition": null,
+    "model": "APNX V1-W-BK-v1",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AeroCool",
+    "edition": null,
+    "model": "APNX V1",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: apnx v1-w-bk-v1 != apnx v1"
+  },
+  {
+   "a": "Компьютерный корпус Aerocool APNX V1-W-BK-v1 без Б/П",
+   "b": "Корпус AeroCool APNX V1, Black-White",
+   "same": false,
+   "fields_a": {
+    "brand": "Aerocool",
+    "edition": null,
+    "model": "APNX V1-W-BK-v1",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "fields_b": {
+    "brand": "AeroCool",
+    "edition": null,
+    "model": "APNX V1",
+    "sku": null,
+    "unbranded": false,
+    "variants": []
+   },
+   "note": "stand dropped verified diff: apnx v1-w-bk-v1 != apnx v1"
   }
  ]
 }
