@@ -1,0 +1,40 @@
+{
+  "fresh_packaging": {
+    "size": 100,
+    "known": 0,
+    "known_same": 0,
+    "known_different": 0,
+    "known_open": 0,
+    "pool": 100,
+    "drawn": 1,
+    "drawn_same": 1,
+    "drawn_different": 0,
+    "drawn_open": 0,
+    "true": 100.0,
+    "false": 0.0,
+    "open": 0.0,
+    "true_low": 11.8,
+    "true_high": 100.0,
+    "false_low": 0.0,
+    "false_high": 88.2
+  },
+  "known_packaging": {
+    "size": 100,
+    "known": 1,
+    "known_same": 0,
+    "known_different": 0,
+    "known_open": 1,
+    "pool": 99,
+    "drawn": 1,
+    "drawn_same": 1,
+    "drawn_different": 0,
+    "drawn_open": 0,
+    "true": 99.0,
+    "false": 0.0,
+    "open": 1.0,
+    "true_low": 11.7,
+    "true_high": 100.0,
+    "false_low": 0.0,
+    "false_high": 88.3
+  }
+}

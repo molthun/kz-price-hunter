@@ -1,0 +1,38 @@
+{
+  "known_pairs_exact": true,
+  "same_selection_and_order": true,
+  "labels_and_review_ledger_reproduced": true,
+  "independent_owner_decision": {
+    "baseline": {
+      "true": 1296,
+      "false": 622,
+      "open": 52,
+      "true_low": 1073,
+      "true_high": 1516,
+      "false_low": 454,
+      "false_high": 897
+    },
+    "candidate": {
+      "true": 2965,
+      "false": 134,
+      "open": 185,
+      "true_low": 2602,
+      "true_high": 3243,
+      "false_low": 41,
+      "false_high": 682
+    },
+    "candidate_vs_baseline_true": 2.287,
+    "candidate_vs_baseline_true_low": 1.716,
+    "false_merges_ratio": 0.216,
+    "false_merges_ratio_high": 1.503,
+    "baseline_true_kept": 0.739,
+    "baseline_true_kept_low": 0.614
+  },
+  "live_residue_exact": true,
+  "residue_titles": 682,
+  "missing_fields": 472,
+  "fields_present": 210,
+  "in_lost_pairs": 186,
+  "not_in_lost_pairs": 496,
+  "limits": "Numeric reproduction assumes the submitted labels. All 530+537 label meanings were not independently certified."
+}

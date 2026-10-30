@@ -181,14 +181,14 @@ def weighted_estimate(rows, strata_sizes, packaging, known=None):
     for stratum, size in strata_sizes.items():
         labels = [_packed(row["label"], packaging) for row in rows if stratum in row["strata"]]
         same, diff = labels.count("same"), labels.count("different")
-        drawn = same + diff + labels.count("uncertain")
+        # Упаковка, исключённая из сравнения, не решена ни в одну сторону: и здесь, и в известной части это open
+        drawn = len(labels)
         share[stratum] = _rate(same, same + diff)
         share[stratum]["excluded"] = len(labels) - same - diff
         counts = collections.Counter(_packed(label, packaging) for label in known.get(stratum, []))
         k_same, k_diff, k_open = counts["same"], counts["different"], counts["uncertain"]
         pool = size - sum(counts.values())
         if packaging is None:
-            # Упаковка исключена из сравнения: такие пары не решены ни в одну сторону
             k_open += counts["packaging"]
         layer[stratum] = {
             "size": size, "known": len(known.get(stratum, [])), "known_same": k_same, "known_different": k_diff, "known_open": k_open,

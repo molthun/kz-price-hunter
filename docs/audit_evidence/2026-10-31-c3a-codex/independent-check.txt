@@ -1,0 +1,28 @@
+PASS known census membership/disjointness, unchanged sample order, 48-change replay, 13 uncertain labels, prior two confirmed errors
+PASS independent point estimates, all owner-decision layer bounds and ratios; live residue full 682-row equality and registry reasons
+{
+ "baseline": {
+  "true": 1296,
+  "false": 622,
+  "open": 52,
+  "true_low": 1073,
+  "true_high": 1516,
+  "false_low": 454,
+  "false_high": 897
+ },
+ "candidate": {
+  "true": 2965,
+  "false": 134,
+  "open": 185,
+  "true_low": 2602,
+  "true_high": 3243,
+  "false_low": 41,
+  "false_high": 682
+ },
+ "candidate_vs_baseline_true": 2.287,
+ "candidate_vs_baseline_true_low": 1.716,
+ "false_merges_ratio": 0.216,
+ "false_merges_ratio_high": 1.503,
+ "baseline_true_kept": 0.739,
+ "baseline_true_kept_low": 0.614
+}

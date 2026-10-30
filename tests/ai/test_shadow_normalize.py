@@ -1077,6 +1077,15 @@ class C2QualityReportTest(unittest.TestCase):
         self.assertEqual(out["baseline"]["true"], 38, "10 + 10 + 18, а не 110 × 10 %")
         self.assertGreaterEqual(layer["true_high"] - layer["true"], 1, "uncertain переписи входит в верхнюю границу")
 
+    def test_excluded_packaging_is_open_in_sample_and_in_census(self):
+        """Аудит C3A P3: упаковка, исключённая из сравнения, одинаково открыта в свежей и известной части."""
+        rows = [{"label": "same", "strata": [n]} for n in ("retained", "dropped_mixed", "dropped_both_k2", "added")]
+        rows.append({"label": "packaging", "strata": ["added"]})
+        sizes = {"retained": 10, "dropped_mixed": 10, "dropped_both_k2": 10, "added": 101}
+        layer = c2.weighted_estimate(rows, sizes, None, {"added": ["packaging"]})["layers"]["added"]
+        self.assertEqual((layer["known_open"], layer["pool"], layer["drawn"], layer["drawn_open"]), (1, 100, 2, 1))
+        self.assertEqual((layer["true"], layer["false"], layer["open"]), (50.0, 0.0, 51.0))
+
     def test_uncertain_counts_against_candidate_in_bounds(self):
         rows = [{"label": "same", "strata": [n]} for n in ("retained", "dropped_mixed", "dropped_both_k2", "added")]
         rows.append({"label": "uncertain", "strata": ["added"]})
