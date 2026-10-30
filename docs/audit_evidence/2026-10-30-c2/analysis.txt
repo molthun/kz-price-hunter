@@ -1,0 +1,58 @@
+{
+  "reference_sha256": "1926172145a9705435a93852a8d294b62f6a4d8fe0ea65e443a59b55c354140f",
+  "pair_count": 210,
+  "unique_titles": 291,
+  "positive_pairs": 105,
+  "negative_pairs": 105,
+  "positive_note_added": 100,
+  "negative_note_dropped": 99,
+  "baseline_original_labels": {
+    "version": 2,
+    "pairs": 210,
+    "absent_in_db": 2,
+    "same_found": 2,
+    "same_lost": 102,
+    "different_kept_apart": 5,
+    "recall": 0.0192,
+    "false_merges_count": 99
+  },
+  "candidate_original_labels": {
+    "version": 2,
+    "pairs": 210,
+    "absent_in_db": 2,
+    "same_found": 102,
+    "same_lost": 2,
+    "different_kept_apart": 104,
+    "recall": 0.9808,
+    "false_merges_count": 0
+  },
+  "baseline_five_corrections": {
+    "version": 2,
+    "pairs": 210,
+    "absent_in_db": 2,
+    "same_found": 7,
+    "same_lost": 102,
+    "different_kept_apart": 5,
+    "recall": 0.0642,
+    "false_merges_count": 94
+  },
+  "candidate_five_corrections": {
+    "version": 2,
+    "pairs": 210,
+    "absent_in_db": 2,
+    "same_found": 102,
+    "same_lost": 7,
+    "different_kept_apart": 99,
+    "recall": 0.9358,
+    "false_merges_count": 0
+  },
+  "correction_scope": "Illustration only; five audited labels corrected in memory, all other labels not fully reviewed.",
+  "dropped_partition": {
+    "empty_identity": 0,
+    "mixed_legacy_k2": 660,
+    "both_k2": 411
+  },
+  "mixed_pairs_with_missing_fields": 660,
+  "mixed_pairs_with_unbranded_true": 0,
+  "dataset_changed": false
+}

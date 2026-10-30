@@ -1,0 +1,120 @@
+{
+  "reference_sha256": "1926172145a9705435a93852a8d294b62f6a4d8fe0ea65e443a59b55c354140f",
+  "pair_count": 210,
+  "unique_titles": 291,
+  "positive_pairs": 105,
+  "negative_pairs": 105,
+  "positive_note_added": 100,
+  "negative_note_dropped": 99,
+  "baseline_original_labels": {
+    "version": 2,
+    "pairs": 210,
+    "absent_in_db": 2,
+    "same_found": 2,
+    "same_lost": 102,
+    "different_kept_apart": 5,
+    "recall": 0.0192,
+    "false_merges_count": 99
+  },
+  "candidate_original_labels": {
+    "version": 2,
+    "pairs": 210,
+    "absent_in_db": 2,
+    "same_found": 102,
+    "same_lost": 2,
+    "different_kept_apart": 104,
+    "recall": 0.9808,
+    "false_merges_count": 0
+  },
+  "reviewed_label_errors": [
+    {
+      "index_zero_based": 133,
+      "a": "Hisense 50E7Q 127 см черный",
+      "b": "Телевизор HISENSE QLED 50E7Q UHD SMART",
+      "recorded_same": false,
+      "reviewed_same": true,
+      "source": "https://ro.hisense.com/produse/televizoare/hi-qled-tv/TV-SET-50E7Q-HSN/p/000000000020015893",
+      "old_a": "hisense:50e7q:50",
+      "old_b": "hisense:50e7q:50",
+      "new_a": "k2:hisense:50e7q",
+      "new_b": "k2:hisense:qled50e7q"
+    },
+    {
+      "index_zero_based": 136,
+      "a": "Intel Core Ultra 5 235 OEM",
+      "b": "Процессор Intel Core Ultra 5 Processor 235 ем",
+      "recorded_same": false,
+      "reviewed_same": true,
+      "source": "https://cdrdv2-public.intel.com/839617/core-ultra-desktop-processors-series-2-product-brief.pdf",
+      "old_a": "intel:core ultra 5 235:oem",
+      "old_b": "intel:core ultra 5 235:oem",
+      "new_a": "k2:intel:coreultra5235",
+      "new_b": "k2:intel:coreultra5processor235"
+    },
+    {
+      "index_zero_based": 179,
+      "a": "SSD накопитель 256Gb Team Group MS30 TM8PS7256G0C101",
+      "b": "Твердотельный накопитель TeamGroup SSD MS30 256Гб (TM8PS7256G0C101)",
+      "recorded_same": false,
+      "reviewed_same": true,
+      "source": "https://images.teamgroupinc.com/products/ssd/m2/ms30/spec-sheet/ms30-en.pdf",
+      "old_a": "teamgroup:ms30:256gb",
+      "old_b": "teamgroup:ms30:256gb",
+      "new_a": "k2:teamgroup:ms30tm8ps7256g0c101:256gb",
+      "new_b": "k2:teamgroup:ms30:256gb"
+    },
+    {
+      "index_zero_based": 204,
+      "a": "Гарнитура Razer Barracuda - Quartz RZ04-03790300-R3M1",
+      "b": "Наушники Razer Barracuda Quartz RZ04-03790300-R3M1 розовый",
+      "recorded_same": false,
+      "reviewed_same": true,
+      "source": "https://www.razer.com/eu-en/gaming-headsets/razer-barracuda/RZ04-03790300-R3M1",
+      "old_a": "razer:barracuda:rz04-03790300-r3m1",
+      "old_b": "razer:barracuda:rz04-03790300-r3m1",
+      "new_a": "k2:razer:barracuda",
+      "new_b": "k2:razer:barracudaquartz"
+    },
+    {
+      "index_zero_based": 205,
+      "a": "Игровая гарнитура RAZER Barracuda (RZ04-03790300-R3M1) Розовый",
+      "b": "Наушники Razer Barracuda Quartz RZ04-03790300-R3M1 розовый",
+      "recorded_same": false,
+      "reviewed_same": true,
+      "source": "https://www.razer.com/eu-en/gaming-headsets/razer-barracuda/RZ04-03790300-R3M1",
+      "old_a": "razer:barracuda:rz04-03790300-r3m1",
+      "old_b": "razer:barracuda:rz04-03790300-r3m1",
+      "new_a": "k2:razer:barracuda",
+      "new_b": "k2:razer:barracudaquartz"
+    }
+  ],
+  "baseline_five_corrections": {
+    "version": 2,
+    "pairs": 210,
+    "absent_in_db": 2,
+    "same_found": 7,
+    "same_lost": 102,
+    "different_kept_apart": 5,
+    "recall": 0.0642,
+    "false_merges_count": 94
+  },
+  "candidate_five_corrections": {
+    "version": 2,
+    "pairs": 210,
+    "absent_in_db": 2,
+    "same_found": 102,
+    "same_lost": 7,
+    "different_kept_apart": 99,
+    "recall": 0.9358,
+    "false_merges_count": 0
+  },
+  "correction_scope": "Illustration only; five audited labels corrected in memory, all other labels not fully reviewed.",
+  "dropped_partition": {
+    "empty_identity": 0,
+    "mixed_legacy_k2": 660,
+    "both_k2": 411
+  },
+  "mixed_pairs_with_missing_fields": 660,
+  "mixed_pairs_with_unbranded_true": 0,
+  "dataset_changed": false
+}

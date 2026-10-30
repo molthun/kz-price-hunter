@@ -1,0 +1,122 @@
+{
+  "total_titles": 19366,
+  "processed_titles": 19366,
+  "with_k2_key": 18461,
+  "no_identity_titles": 568,
+  "incomplete_titles": 337,
+  "failed_titles": 0,
+  "missing_titles": 0,
+  "api_calls": 0,
+  "api_failures": 0,
+  "seconds": 779.8,
+  "dry_run": false,
+  "run": {
+    "run_id": "c2-clean-rescore",
+    "baseline_created_at": "2026-10-30T16:28:51Z",
+    "baseline_titles": 20133,
+    "actual_k2_keys": 18461,
+    "actual_legacy_keys": 1104,
+    "actual_no_key": 568,
+    "cumulative": {
+      "api_calls": 0,
+      "api_failures": 0,
+      "failed_titles": 0,
+      "missing_titles": 0,
+      "seconds": 2.7,
+      "api_started": 0,
+      "api_unfinished": 0
+    }
+  },
+  "verified_pairs": {
+    "version": 2,
+    "pairs": 210,
+    "absent_in_db": 2,
+    "same_found": 102,
+    "same_lost": 2,
+    "different_kept_apart": 104,
+    "false_merges": [],
+    "recall": 0.9808
+  },
+  "pairs_comparison": {
+    "unit": "пары названий с предложениями хотя бы в двух разных магазинах",
+    "valid": true,
+    "old_pairs_count": 1970,
+    "new_pairs_count": 3594,
+    "retained_pairs_count": 899,
+    "retention_rate": 0.4563,
+    "dropped_pairs_count": 1071,
+    "added_pairs_count": 2695,
+    "dropped_examples": [
+      {
+        "a": "23.8\" Sanc M2442PH V3 черный",
+        "b": "Монитор Игровой 23,8\" Sanc M2442PH V3 1920x1080 16:9 IPS 200ГЦ (2HDMI+DP) Black",
+        "old_key": "sanc:m2442ph v3:23.8",
+        "new_key_a": "k2:sanc:m2442ph.v3:23.8in",
+        "new_key_b": "sanc:m2442ph v3:23.8"
+      },
+      {
+        "a": "23.8\" Sanc M2442PH белый",
+        "b": "Монитор 23.8\" Sanc M2442PH V3",
+        "old_key": "sanc:m2442ph:23.8",
+        "new_key_a": "k2:sanc:m2442ph:23.8in",
+        "new_key_b": "k2:sanc:m2442ph.v3:23.8in"
+      },
+      {
+        "a": "23.8\" Sanc M2453KJ черный",
+        "b": "Монитор 23.8\" Sanc M2453KJ V3, Black",
+        "old_key": "sanc:m2453kj:23.8",
+        "new_key_a": "k2:sanc:m2453kj:23.8in",
+        "new_key_b": "k2:sanc:m2453kj.v3:23.8in"
+      },
+      {
+        "a": "23.8\" XTREON XT24N1 черный",
+        "b": "Монитор XTREON XT24N1 23.8 QHD/IPS/1ms/180Hz",
+        "old_key": "xtreon:xt24n1:23.8",
+        "new_key_a": "k2:xtreon:xt24n1:23.8in",
+        "new_key_b": "k2:xtreon:xt24n1"
+      },
+      {
+        "a": "24.5\" Philips 25M2N3200W (00/01) черный",
+        "b": "Монитор 24,5\" PHILIPS 25M2N3200W 1920x1080 16:9 VA 240ГЦ (2HDMI+DP) Black",
+        "old_key": "philips:25m2n3200w:24.5",
+        "new_key_a": "k2:philips:25m2n3200w:24.5in",
+        "new_key_b": "philips:25m2n3200w:24.5"
+      },
+      {
+        "a": "24.5\" Philips 25M2N3200W (00/01) черный",
+        "b": "Монитор 24.5\" Philips 25M2N3200W/01, Black",
+        "old_key": "philips:25m2n3200w:24.5",
+        "new_key_a": "k2:philips:25m2n3200w:24.5in",
+        "new_key_b": "k2:philips:25m2n3200w01:24.5in"
+      },
+      {
+        "a": "24.5\" XTREON XT2563VH черный",
+        "b": "Монитор XTREON XT2563VH 24.5 FHD/IPS/1ms/320Hz",
+        "old_key": "xtreon:xt2563vh:24.5",
+        "new_key_a": "k2:xtreon:xt2563vh:24.5in",
+        "new_key_b": "k2:xtreon:xt2563vh"
+      },
+      {
+        "a": "27\" NEO SO27FIW14NB черный",
+        "b": "Монитор 27'' Neo SO27FIW14NB 1920×1080 16:9 IPS 144ГЦ (HDMI+VGA) Black",
+        "old_key": "neo:so27fiw14nb:27",
+        "new_key_a": "k2:neo:so27fiw14nb",
+        "new_key_b": "neo:so27fiw14nb:27"
+      },
+      {
+        "a": "27\" Philips 27M2N3501PA/01 белый",
+        "b": "Монитор PHILIPS 27M2N3501PA/01",
+        "old_key": "philips:27m2n3501pa:27",
+        "new_key_a": "k2:philips:27m2n3501",
+        "new_key_b": "k2:philips:27m2n3501pa"
+      },
+      {
+        "a": "27\" Sanc M2753FKG черный",
+        "b": "Монитор Игровой 27\" Sanc M2753FKG 1920x1080 16:9 IPS 120ГЦ (HDMI+VGA) Black",
+        "old_key": "sanc:m2753fkg:27",
+        "new_key_a": "k2:sanc:m2753fkg:27in",
+        "new_key_b": "sanc:m2753fkg:27"
+      }
+    ]
+  }
+}
