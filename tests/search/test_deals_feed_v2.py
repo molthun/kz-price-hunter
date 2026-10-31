@@ -22,6 +22,7 @@ class TestDealsFeedAndFavorites(AioHTTPTestCase):
     async def get_application(self):
         app = web.Application()
         app.add_routes([
+            web.get("/", srv.index_handler),
             web.get("/deals", srv.deals_page_handler),
             web.get("/favorites", srv.favorites_page_handler),
             web.get("/profile", srv.profile_page_handler),
@@ -59,6 +60,53 @@ class TestDealsFeedAndFavorites(AioHTTPTestCase):
         self.assertIn('id="watchModalBackdrop"', text)
         self.assertIn('id="navLinkProfile"', text)
         self.assertIn('id="profileWatchesList"', text)
+
+    @unittest_run_loop
+    async def test_city_detection_and_theme_options_in_template(self):
+        """search_first.html contains city detection and theme selection in profile."""
+        resp = await self.client.get("/profile")
+        self.assertEqual(resp.status, 200)
+        text = await resp.text()
+        # City detection & binding
+        self.assertIn('id="btnGeoHeader"', text)
+        self.assertIn('id="profileCitySelect"', text)
+        self.assertIn('class="profile-city-chip"', text)
+        self.assertIn('detectUserLocation', text)
+        self.assertIn('KZ_CITY_COORDS', text)
+        self.assertIn('localStorage.setItem(\'kz_hunter_city\'', text)
+
+        # Theme selection in profile
+        self.assertIn('id="themeOptLight"', text)
+        self.assertIn('id="themeOptDark"', text)
+        self.assertIn('id="themeOptAuto"', text)
+        self.assertIn('selectTheme', text)
+        self.assertIn('applyThemeMode', text)
+
+    @unittest_run_loop
+    async def test_closed_development_gate_and_telegram_auth_elements(self):
+        """search_first.html contains closed development gate and Telegram auth widget."""
+        resp = await self.client.get("/")
+        self.assertEqual(resp.status, 200)
+        text = await resp.text()
+        self.assertIn('id="viewClosedDev"', text)
+        self.assertIn('id="closedDevTgWidget"', text)
+        self.assertIn('id="closedDevPendingContent"', text)
+        self.assertIn('onTelegramAuth', text)
+        self.assertIn('logout', text)
+
+    def test_is_confirmed_user_logic(self):
+        """is_confirmed_user correctly checks admin and approval status."""
+        from auth import is_confirmed_user
+
+        self.assertFalse(is_confirmed_user(None))
+        self.assertFalse(is_confirmed_user({"id": 999999, "settings": {}}))
+        self.assertFalse(is_confirmed_user({"id": 999999, "settings": {"is_approved": False}}))
+        self.assertTrue(is_confirmed_user({"id": 999999, "settings": {"is_approved": True}}))
+
+        # Admin is always confirmed
+        admin_id = 171013461
+        with unittest.mock.patch("auth.ADMIN_TELEGRAM_IDS", {admin_id}):
+            self.assertTrue(is_confirmed_user({"id": admin_id, "settings": {}}))
 
     @unittest_run_loop
     async def test_deals_v2_does_not_invent_identity_or_provenance(self):

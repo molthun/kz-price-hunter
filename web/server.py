@@ -147,7 +147,7 @@ from scrapers.french_house import FrenchHouseScraper
 from search_engine import get_best_price_summary
 import ai_service
 import data_quality
-from config import get_ai_config
+from config import get_ai_config, MAINTENANCE_DEV_MODE
 from notifier import prepare_deliveries, notification_worker, telegram_api
 from log_manager import install_log_interceptor, log_buffer
 from auth import (
@@ -156,6 +156,7 @@ from auth import (
     require_login,
     require_admin,
     is_admin,
+    is_confirmed_user,
     user_settings_for,
     verify_telegram_auth,
     set_session_cookie,
@@ -233,6 +234,7 @@ def _public_user(user):
         "last_name": user.get("last_name"),
         "photo_url": user.get("photo_url"),
         "is_admin": is_admin(user),
+        "is_confirmed": is_confirmed_user(user),
     }
 
 @routes.get("/")
@@ -2360,6 +2362,7 @@ async def me_handler(request):
             "dev_login": dev_login_allowed(request),
         },
         "shops": SHOP_KEYS,
+        "maintenance_mode": MAINTENANCE_DEV_MODE,
     })
 
 def _login_response(request, user):
@@ -2657,6 +2660,22 @@ async def admin_block_user_handler(request):
         return web.json_response({"status": "error", "message": "Пользователь не найден"}, status=404)
     set_user_blocked(user_id, blocked)
     return web.json_response({"status": "ok"})
+
+@routes.post("/api/admin/users/{user_id}/approve")
+@require_admin
+async def admin_approve_user_handler(request):
+    """Подтверждение или отзыв доступа пользователя администратором (режим закрытой разработки)."""
+    try:
+        user_id = int(request.match_info["user_id"])
+        data = await request.json()
+        approved = bool(data.get("approved", True))
+    except Exception:
+        return web.json_response({"status": "error", "message": "Некорректный запрос"}, status=400)
+    user = get_user(user_id)
+    if not user:
+        return web.json_response({"status": "error", "message": "Пользователь не найден"}, status=404)
+    save_user_settings(user_id, {"is_approved": approved})
+    return web.json_response({"status": "ok", "user_id": user_id, "is_approved": approved})
 
 
 @routes.get("/api/admin/queue/failures")

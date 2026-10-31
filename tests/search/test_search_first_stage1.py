@@ -542,14 +542,16 @@ class TestSearchFirstHttpEndpoints(AioHTTPTestCase):
         self.assertIn("--bg-page: #0b0f19", html)
         self.assertIn("--bg-card: #131b2e", html)
 
-        # 3. Theme toggle button in header and mobile navigation
-        self.assertIn('id="themeToggleBtn"', html)
-        self.assertIn("toggleTheme()", html)
-        self.assertIn("theme-icon-mobile", html)
+        # 3. Theme selection options in Profile (Light, Dark, Auto System)
+        self.assertIn('id="themeOptLight"', html)
+        self.assertIn('id="themeOptDark"', html)
+        self.assertIn('id="themeOptAuto"', html)
+        self.assertIn("selectTheme('light')", html)
+        self.assertIn("selectTheme('auto')", html)
 
-        # 4. JS theme toggle and persistence logic
-        self.assertIn("function toggleTheme()", html)
-        self.assertIn("localStorage.setItem('kz_theme'", html)
+        # 4. JS theme selection and persistence logic
+        self.assertIn("function selectTheme(", html)
+        self.assertIn("localStorage.setItem('kz_theme_mode'", html)
         self.assertIn("prefers-color-scheme: dark", html)
 
 

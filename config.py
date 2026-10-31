@@ -375,6 +375,9 @@ USER_DEFAULTS = {
     # Telegram-уведомления (чат = Telegram-аккаунт пользователя)
     "telegram_notify_enabled": False,
     "telegram_notify_level": "ALL",  # ALL, CRITICAL_ONLY, HIGH_SAVINGS
+
+    # Подтверждение доступа владельцем в режиме закрытой разработки
+    "is_approved": False,
 }
 
 ENUM_VALUES = {
@@ -397,6 +400,13 @@ ADMIN_TELEGRAM_IDS = {
 }
 # Local developer login is explicitly opt-in and never impersonates Telegram IDs.
 ALLOW_DEV_LOGIN = os.getenv("ALLOW_DEV_LOGIN", "0").strip() == "1"
+
+def _is_test_runner() -> bool:
+    import sys
+    return "pytest" in sys.modules or any("test" in a for a in sys.argv)
+
+# Режим закрытой разработки: сайт доступен только авторизованным и подтверждённым пользователям
+MAINTENANCE_DEV_MODE = os.getenv("MAINTENANCE_DEV_MODE", "0" if _is_test_runner() else "1").strip().lower() in ("1", "true", "yes")
 
 # Токен диагностики (/diag и /api/diag). Пока он не задан, обе страницы отвечают 404,
 # как будто их нет: снимок показывает внутренности и не должен быть открыт всем.

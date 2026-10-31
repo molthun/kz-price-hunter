@@ -12,7 +12,7 @@ from urllib.parse import urlparse
 
 from aiohttp import web
 
-from config import ADMIN_TELEGRAM_IDS, ALLOW_DEV_LOGIN, DEV_ADMIN_ID, get_bot_token, merge_user_settings, TRUSTED_PROXIES, PUBLIC_ORIGIN
+from config import ADMIN_TELEGRAM_IDS, ALLOW_DEV_LOGIN, DEV_ADMIN_ID, get_bot_token, merge_user_settings, TRUSTED_PROXIES, PUBLIC_ORIGIN, MAINTENANCE_DEV_MODE
 from database import get_session_user, SESSION_TTL_DAYS
 
 SESSION_COOKIE = "kzph_session"
@@ -61,6 +61,15 @@ def is_admin(user: Optional[Dict[str, Any]]) -> bool:
         return True
     # Локальный запуск без ADMIN_TELEGRAM_IDS: «Разработчик» — администратор
     return ALLOW_DEV_LOGIN and not ADMIN_TELEGRAM_IDS and int(user["id"]) == DEV_ADMIN_ID
+
+def is_confirmed_user(user: Optional[Dict[str, Any]]) -> bool:
+    """Проверяет, подтверждён ли пользователь владельцем (или является ли он администратором)."""
+    if not user:
+        return False
+    if is_admin(user):
+        return True
+    settings = user.get("settings") or {}
+    return bool(settings.get("is_approved") or settings.get("is_confirmed"))
 
 def user_settings_for(request: web.Request) -> Dict[str, Any]:
     """Личные настройки текущего пользователя, у гостей — значения по умолчанию."""
@@ -211,6 +220,19 @@ async def auth_middleware(request: web.Request, handler):
     # A developer session is only meaningful at the same direct local boundary.
     if request["user"] and int(request["user"]["id"]) == DEV_ADMIN_ID and not dev_login_allowed(request):
         request["user"] = None
+
+    # Закрытый режим разработки: доступ к функциональным API только подтверждённым пользователям
+    if MAINTENANCE_DEV_MODE and request.path.startswith("/api/"):
+        _allowed_api = ("/api/live", "/api/health", "/api/readiness", "/api/me", "/api/auth/", "/api/diag")
+        if not any(request.path == p or request.path.startswith(p) for p in _allowed_api):
+            if not is_confirmed_user(request["user"]):
+                return web.json_response({
+                    "status": "error",
+                    "message": "Сайт находится в режиме закрытой разработки. Доступ открыт только подтверждённым пользователям.",
+                    "maintenance": True,
+                    "authenticated": bool(request["user"]),
+                    "confirmed": False
+                }, status=403, headers={"Cache-Control": "no-store"})
     response = await handler(request)
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "DENY")

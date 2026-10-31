@@ -2165,6 +2165,280 @@
       color: #ef4444;
       background: rgba(239, 68, 68, 0.1);
     }
+
+    /* Geo Locate Buttons */
+    .btn-geo-header {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 0.95rem;
+      padding: 2px 4px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+      transition: transform 0.2s ease, opacity 0.2s ease;
+      line-height: 1;
+    }
+    .btn-geo-header:hover {
+      transform: scale(1.2);
+    }
+    .btn-geo-header.locating {
+      animation: spin-geo 1s infinite linear;
+    }
+    @keyframes spin-geo {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Header Auth Area */
+    .header-user-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 12px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-full);
+      text-decoration: none;
+      color: var(--text-main);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .header-user-btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--primary);
+    }
+    .header-user-avatar {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    /* Profile City Selector */
+    .profile-city-selector-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+    .profile-city-dropdown {
+      flex: 1;
+      min-width: 220px;
+      padding: 10px 14px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      color: var(--text-main);
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      outline: none;
+    }
+    .profile-city-dropdown:focus {
+      border-color: var(--primary);
+    }
+    .profile-city-chip {
+      padding: 6px 14px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-full);
+      color: var(--text-muted);
+      font-size: 0.84rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .profile-city-chip:hover {
+      color: var(--text-main);
+      border-color: var(--primary);
+    }
+    .profile-city-chip.active {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+    }
+
+    /* Profile Theme Options Grid */
+    .theme-options-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-top: 14px;
+    }
+    @media (max-width: 640px) {
+      .theme-options-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    .theme-option-card {
+      background: var(--bg-subtle);
+      border: 2px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+    .theme-option-card:hover {
+      border-color: var(--primary);
+      transform: translateY(-2px);
+    }
+    .theme-option-card.active {
+      border-color: var(--primary);
+      background: rgba(37, 99, 235, 0.08);
+      box-shadow: 0 0 0 1px var(--primary);
+    }
+    .theme-option-icon {
+      font-size: 1.8rem;
+      margin-bottom: 8px;
+    }
+    .theme-option-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: var(--text-main);
+      margin-bottom: 4px;
+    }
+    .theme-option-sub {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    /* Closed Development Layout */
+    .closed-dev-layout {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: calc(100vh - 220px);
+      padding: 24px 16px;
+    }
+    .closed-dev-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      max-width: 560px;
+      width: 100%;
+      padding: 36px 30px;
+      text-align: center;
+    }
+    .closed-dev-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .closed-dev-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 800;
+      font-size: 1.2rem;
+      color: var(--text-main);
+    }
+    .closed-dev-title {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: var(--text-main);
+      margin-bottom: 12px;
+      line-height: 1.3;
+    }
+    .closed-dev-text {
+      font-size: 0.94rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+    .closed-dev-login-box {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 22px 18px;
+      margin-top: 16px;
+    }
+    .closed-dev-login-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 14px;
+    }
+    .tg-widget-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 48px;
+      margin: 10px 0;
+    }
+    .closed-dev-help-text {
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      margin-top: 12px;
+      line-height: 1.4;
+    }
+    .pending-user-icon {
+      font-size: 3rem;
+      margin-bottom: 14px;
+    }
+    .pending-user-box {
+      background: var(--bg-subtle);
+      border: 1px dashed var(--primary);
+      border-radius: var(--radius-md);
+      padding: 16px 20px;
+      margin: 20px 0;
+      text-align: left;
+    }
+    .pending-user-name {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 4px;
+    }
+    .pending-user-meta {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      font-family: monospace;
+    }
+    .pending-user-status {
+      font-size: 0.88rem;
+      color: var(--text-main);
+    }
+    .closed-dev-subnote {
+      font-size: 0.86rem;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+    .closed-dev-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .btn-dev-login {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 9px 16px;
+      background: var(--bg-subtle);
+      border: 1px solid #f59e0b;
+      color: #f59e0b;
+      border-radius: var(--radius-md);
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: all 0.2s ease;
+    }
+    .btn-dev-login:hover {
+      background: rgba(245, 158, 11, 0.12);
+    }
   </style>
 </head>
 <body>
@@ -2187,9 +2461,6 @@
       </div>
 
       <div class="header-right">
-        <button id="themeToggleBtn" class="theme-toggle-btn" onclick="toggleTheme()" aria-label="Сменить тему оформления" title="Светлая / тёмная тема">
-          <span class="theme-icon">🌙</span>
-        </button>
         <div class="city-selector">
           <span>📍</span>
           <select id="globalCitySelect" onchange="onCityChanged(this.value)">
@@ -2199,7 +2470,13 @@
             <option value="Шымкент">Шымкент</option>
             <option value="Караганда">Караганда</option>
             <option value="Актобе">Актобе</option>
+            <option value="Павлодар">Павлодар</option>
+            <option value="Усть-Каменогорск">Усть-Каменогорск</option>
           </select>
+          <button id="btnGeoHeader" class="btn-geo-header" type="button" onclick="detectUserLocation()" title="Определить город по GPS / IP" aria-label="Определить город по GPS / IP">🎯</button>
+        </div>
+        <div id="headerAuthArea">
+          <!-- Populated by JS: user profile link or login btn -->
         </div>
         <a href="/dashboard" class="btn-legacy" title="Открыть классическую панель со всеми таблицами и сканерами">
           ⚙️ <span>Панель управления</span>
@@ -2597,13 +2874,83 @@
       <div class="profile-page-layout">
         <!-- User Status Card -->
         <div class="profile-card profile-user-card">
-          <div class="profile-avatar">👤</div>
-          <div class="profile-user-details">
-            <h1 class="profile-name" id="profileUserName">Мой профиль</h1>
-            <div class="profile-subtext" id="profileUserSubtext">Гостевой сеанс • Локальные настройки и избранное</div>
-            <div class="profile-badges-row">
+          <div class="profile-avatar" id="profileUserAvatar">👤</div>
+          <div class="profile-user-details" style="flex: 1;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px;">
+              <div>
+                <h1 class="profile-name" id="profileUserName">Мой профиль</h1>
+                <div class="profile-subtext" id="profileUserSubtext">Гостевой сеанс • Локальные настройки и избранное</div>
+              </div>
+              <div id="profileUserActionBtn">
+                <!-- Logout or Login button -->
+              </div>
+            </div>
+            <div class="profile-badges-row" style="margin-top: 10px;">
               <span class="badge" style="background: var(--bg-subtle); color: var(--text-muted);" id="profileCityBadge">📍 Город: Алматы</span>
               <span class="badge badge-condition-new" id="profileAuthBadge">✓ Локальный режим</span>
+            </div>
+            <div id="profileTelegramLoginArea" style="margin-top: 14px; display: none;"></div>
+          </div>
+        </div>
+
+        <!-- City Binding in Profile -->
+        <div class="profile-card">
+          <div class="profile-section-header">
+            <div>
+              <h2 class="profile-section-title">📍 Регион и привязка к городу в каталоге</h2>
+              <div class="profile-section-desc">Выбранный город сохраняется и применяется во всех поисках, ленте скидок и карточках товаров</div>
+            </div>
+          </div>
+          <div class="profile-city-selector-row">
+            <select id="profileCitySelect" class="profile-city-dropdown" onchange="onCityChanged(this.value)">
+              <option value="Все">Все города Казахстана</option>
+              <option value="Алматы">Алматы</option>
+              <option value="Астана">Астана</option>
+              <option value="Шымкент">Шымкент</option>
+              <option value="Караганда">Караганда</option>
+              <option value="Актобе">Актобе</option>
+              <option value="Павлодар">Павлодар</option>
+              <option value="Усть-Каменогорск">Усть-Каменогорск</option>
+            </select>
+            <button type="button" class="btn-primary" onclick="detectUserLocation()" style="white-space:nowrap;">
+              <span>🎯 Определить автоматически</span>
+            </button>
+          </div>
+          <div class="profile-city-chips" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;">
+            <button type="button" class="profile-city-chip" data-city="Алматы" onclick="onCityChanged('Алматы')">Алматы</button>
+            <button type="button" class="profile-city-chip" data-city="Астана" onclick="onCityChanged('Астана')">Астана</button>
+            <button type="button" class="profile-city-chip" data-city="Шымкент" onclick="onCityChanged('Шымкент')">Шымкент</button>
+            <button type="button" class="profile-city-chip" data-city="Караганда" onclick="onCityChanged('Караганда')">Караганда</button>
+            <button type="button" class="profile-city-chip" data-city="Актобе" onclick="onCityChanged('Актобе')">Актобе</button>
+            <button type="button" class="profile-city-chip" data-city="Павлодар" onclick="onCityChanged('Павлодар')">Павлодар</button>
+            <button type="button" class="profile-city-chip" data-city="Усть-Каменогорск" onclick="onCityChanged('Усть-Каменогорск')">Усть-Каменогорск</button>
+            <button type="button" class="profile-city-chip" data-city="Все" onclick="onCityChanged('Все')">Все города (РК)</button>
+          </div>
+        </div>
+
+        <!-- Theme Selector in Profile -->
+        <div class="profile-card">
+          <div class="profile-section-header">
+            <div>
+              <h2 class="profile-section-title">🎨 Тема оформления</h2>
+              <div class="profile-section-desc">Выберите тему интерфейса или автоматическое переключение</div>
+            </div>
+          </div>
+          <div class="theme-options-grid">
+            <div class="theme-option-card" id="themeOptLight" onclick="selectTheme('light')">
+              <div class="theme-option-icon">☀️</div>
+              <div class="theme-option-title">Светлая</div>
+              <div class="theme-option-sub">Всегда светлая тема</div>
+            </div>
+            <div class="theme-option-card" id="themeOptDark" onclick="selectTheme('dark')">
+              <div class="theme-option-icon">🌙</div>
+              <div class="theme-option-title">Тёмная</div>
+              <div class="theme-option-sub">Всегда тёмная тема</div>
+            </div>
+            <div class="theme-option-card" id="themeOptAuto" onclick="selectTheme('auto')">
+              <div class="theme-option-icon">💻</div>
+              <div class="theme-option-title">Системная (Авто)</div>
+              <div class="theme-option-sub">Подстраивается под систему</div>
             </div>
           </div>
         </div>
@@ -2653,6 +3000,65 @@
       </div>
     </section>
 
+    <!-- ============================================================= -->
+    <!-- VIEW: 7. CLOSED DEVELOPMENT GATE (MAINTENANCE)                -->
+    <!-- ============================================================= -->
+    <section id="viewClosedDev" class="view-section">
+      <div class="closed-dev-layout">
+        <div class="closed-dev-card">
+          <div class="closed-dev-header">
+            <div class="closed-dev-logo">
+              <span class="site-logo-icon">KZ</span>
+              <span class="closed-dev-logo-text">Price Hunter</span>
+            </div>
+            <span class="badge badge-super" id="closedDevBadge">🔒 Закрытая разработка</span>
+          </div>
+
+          <div id="closedDevGuestContent">
+            <h1 class="closed-dev-title">🛠 Платформа на этапе закрытого обновления</h1>
+            <p class="closed-dev-text">
+              В настоящее время сайт закрыт на разработку и тестирование новых функций.
+              Просмотр каталога, цен, скидок и поиск доступны только авторизованным и подтверждённым пользователям.
+            </p>
+            <div class="closed-dev-login-box">
+              <div class="closed-dev-login-title">Войдите через Telegram для доступа к платформе:</div>
+              <div id="closedDevTgWidget" class="tg-widget-container">
+                <!-- Telegram Login Widget rendered here -->
+              </div>
+              <div id="closedDevDevLoginContainer"></div>
+              <div id="closedDevTgHelp" class="closed-dev-help-text">
+                Если кнопка не отображается, убедитесь, что боту разрешён домен через @BotFather (/setdomain).
+              </div>
+            </div>
+          </div>
+
+          <div id="closedDevPendingContent" style="display: none;">
+            <div class="pending-user-icon">⏳</div>
+            <h1 class="closed-dev-title">Ожидание подтверждения владельцем</h1>
+            <p class="closed-dev-text">
+              Вы успешно авторизовались через Telegram. На период разработки доступ к поиску и данным каталога активируется вручную владельцем сервиса.
+            </p>
+            <div class="pending-user-box">
+              <div class="pending-user-name" id="pendingUserName">—</div>
+              <div class="pending-user-meta" id="pendingUserMeta">Telegram ID: —</div>
+              <div class="pending-user-status">Статус доступа: <strong style="color: #f59e0b;">⏳ На модерации</strong></div>
+            </div>
+            <p class="closed-dev-subnote">
+              Сообщите ваш Telegram ID владельцу проекта для подтверждения вашей учётной записи.
+            </p>
+            <div class="closed-dev-actions">
+              <button type="button" class="btn-primary" onclick="location.reload()">
+                🔄 Проверить статус доступа
+              </button>
+              <button type="button" class="btn-secondary" onclick="logout()">
+                🚪 Выйти из аккаунта
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <!-- Mobile Bottom Navigation Bar -->
@@ -2668,10 +3074,6 @@
     <button class="bottom-nav-item" id="bottomNavFavorites" type="button" onclick="navigateTo(null, '/favorites')">
       <div class="bottom-nav-icon" style="position:relative;">♡<span class="nav-fav-badge" id="favBadgeMobile" style="display:none;">0</span></div>
       <div>Избранное</div>
-    </button>
-    <button class="bottom-nav-item" id="bottomNavTheme" type="button" onclick="toggleTheme()" aria-label="Тема оформления" title="Переключить тему оформления">
-      <div class="bottom-nav-icon theme-icon-mobile">🌙</div>
-      <div class="theme-label-mobile">Тема</div>
     </button>
     <button class="bottom-nav-item" id="bottomNavProfile" type="button" onclick="navigateTo(null, '/profile')">
       <div class="bottom-nav-icon">👤</div>
@@ -2783,52 +3185,455 @@
       return 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><rect width="200" height="200" fill="' + bg + '"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="16" fill="' + fg + '">' + encodeURIComponent(text) + '</text></svg>';
     }
 
-    // Theme Management (Light / Dark)
-    function updateThemeUI(theme) {
-      const isDark = theme === 'dark';
-      const icon = isDark ? '☀️' : '🌙';
-      const tooltip = isDark ? 'Переключить на светлую тему' : 'Переключить на тёмную тему';
-
-      const headerBtn = document.getElementById('themeToggleBtn');
-      if (headerBtn) {
-        const iconSpan = headerBtn.querySelector('.theme-icon');
-        if (iconSpan) iconSpan.textContent = icon;
-        headerBtn.setAttribute('title', tooltip);
+    // =============================================================
+    // THEME MANAGEMENT (Light / Dark / Auto System)
+    // =============================================================
+    function applyThemeMode(mode) {
+      let effective = 'light';
+      if (mode === 'auto') {
+        const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        effective = isDark ? 'dark' : 'light';
+      } else {
+        effective = mode === 'dark' ? 'dark' : 'light';
       }
+      document.documentElement.setAttribute('data-theme', effective);
+      updateProfileThemeCards(mode);
+    }
 
-      const mobileIcon = document.querySelector('.theme-icon-mobile');
-      if (mobileIcon) mobileIcon.textContent = icon;
-      const mobileLabel = document.querySelector('.theme-label-mobile');
-      if (mobileLabel) mobileLabel.textContent = isDark ? 'Светлая' : 'Тёмная';
+    function selectTheme(mode) {
+      try {
+        localStorage.setItem('kz_theme_mode', mode);
+      } catch (e) {}
+      applyThemeMode(mode);
+      const labels = { light: 'Светлая тема', dark: 'Тёмная тема', auto: 'Системная тема (Авто)' };
+      showToast('🎨 Выбрана: ' + (labels[mode] || mode));
+    }
+
+    function updateProfileThemeCards(mode) {
+      ['light', 'dark', 'auto'].forEach(m => {
+        const el = document.getElementById('themeOpt' + m.charAt(0).toUpperCase() + m.slice(1));
+        if (el) el.classList.toggle('active', m === mode);
+      });
     }
 
     function initTheme() {
-      const current = document.documentElement.getAttribute('data-theme') || 'light';
-      updateThemeUI(current);
-    }
-
-    function toggleTheme() {
-      const current = document.documentElement.getAttribute('data-theme') || 'light';
-      const next = current === 'dark' ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', next);
+      let mode = 'auto';
       try {
-        localStorage.setItem('kz_theme', next);
+        mode = localStorage.getItem('kz_theme_mode') || localStorage.getItem('kz_theme') || 'auto';
       } catch (e) {}
-      updateThemeUI(next);
-      showToast(next === 'dark' ? 'Тёмная тема включена' : 'Светлая тема включена');
+      applyThemeMode(mode);
     }
 
-    try {
-      if (window.matchMedia) {
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-          if (!localStorage.getItem('kz_theme')) {
-            const next = e.matches ? 'dark' : 'light';
-            document.documentElement.setAttribute('data-theme', next);
-            updateThemeUI(next);
+    if (window.matchMedia) {
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+        const currentMode = localStorage.getItem('kz_theme_mode') || 'auto';
+        if (currentMode === 'auto') {
+          applyThemeMode('auto');
+        }
+      });
+    }
+
+    // =============================================================
+    // CITY AUTO-DETECTION & PERSISTENCE
+    // =============================================================
+    const KZ_CITY_COORDS = [
+      { name: 'Астана', lat: 51.169392, lon: 71.449074 },
+      { name: 'Алматы', lat: 43.238949, lon: 76.889709 },
+      { name: 'Шымкент', lat: 42.3417, lon: 69.5901 },
+      { name: 'Караганда', lat: 49.8019, lon: 73.1021 },
+      { name: 'Актобе', lat: 50.2839, lon: 57.1670 },
+      { name: 'Павлодар', lat: 52.2873, lon: 76.9674 },
+      { name: 'Усть-Каменогорск', lat: 49.9482, lon: 82.6285 }
+    ];
+
+    function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+      const R = 6371;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    }
+
+    const IP_GEO_SERVICES = [
+      'https://ipwho.is/',
+      'https://get.geojs.io/v1/ip/geo.json',
+      'https://ipapi.co/json/'
+    ];
+
+    function matchKzCity(ipCityRaw) {
+      const ipCity = (ipCityRaw || '').toLowerCase();
+      if (ipCity.includes('astana') || ipCity.includes('nur-sultan')) return 'Астана';
+      if (ipCity.includes('almat')) return 'Алматы';
+      if (ipCity.includes('shymk')) return 'Шымкент';
+      if (ipCity.includes('karagan')) return 'Караганда';
+      if (ipCity.includes('aktobe')) return 'Актобе';
+      if (ipCity.includes('pavlodar')) return 'Павлодар';
+      if (ipCity.includes('ust') || ipCity.includes('oskemen')) return 'Усть-Каменогорск';
+      return null;
+    }
+
+    async function fallbackIpLocation(silent = false) {
+      for (const url of IP_GEO_SERVICES) {
+        try {
+          const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+          if (!res.ok) continue;
+          const data = await res.json();
+          const matched = matchKzCity(data.city);
+          if (matched) {
+            setCity(matched, true);
+            if (!silent) showToast('📍 Город определен по IP: ' + matched);
+            return matched;
           }
-        });
+          if (data.city) break;
+        } catch (e) {}
       }
-    } catch (e) {}
+      if (!silent) showToast('Не удалось определить город по IP. Оставлен: ' + AppState.city);
+      return null;
+    }
+
+    async function detectUserLocation(silent = false) {
+      const geoBtn = document.getElementById('btnGeoHeader');
+      if (geoBtn) geoBtn.classList.add('locating');
+      if (!silent) showToast('Определяем местоположение…');
+
+      if (!window.isSecureContext || !navigator.geolocation) {
+        await fallbackIpLocation(silent);
+        if (geoBtn) geoBtn.classList.remove('locating');
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const uLat = pos.coords.latitude;
+          const uLon = pos.coords.longitude;
+          let closestCity = 'Алматы';
+          let minDist = Infinity;
+          KZ_CITY_COORDS.forEach(c => {
+            const d = getDistanceFromLatLonInKm(uLat, uLon, c.lat, c.lon);
+            if (d < minDist) {
+              minDist = d;
+              closestCity = c.name;
+            }
+          });
+          setCity(closestCity, true);
+          if (geoBtn) geoBtn.classList.remove('locating');
+          if (!silent) showToast(`🎯 Определен город: ${closestCity} (~${Math.round(minDist)} км)`);
+        },
+        async (err) => {
+          await fallbackIpLocation(silent);
+          if (geoBtn) geoBtn.classList.remove('locating');
+        },
+        { timeout: 7000 }
+      );
+    }
+
+    function setCity(city, saveStorage = true) {
+      if (!city) return;
+      AppState.city = city;
+      if (saveStorage) {
+        try {
+          localStorage.setItem('kz_hunter_city', city);
+          localStorage.setItem('kzph_city', city);
+        } catch (e) {}
+      }
+
+      // Sync header city selector
+      const cs = document.getElementById('globalCitySelect');
+      if (cs) {
+        if (!Array.from(cs.options).some(o => o.value === city)) {
+          const opt = document.createElement('option');
+          opt.value = city;
+          opt.textContent = city;
+          cs.appendChild(opt);
+        }
+        cs.value = city;
+      }
+
+      // Sync profile city selector
+      const ps = document.getElementById('profileCitySelect');
+      if (ps) {
+        if (!Array.from(ps.options).some(o => o.value === city)) {
+          const opt = document.createElement('option');
+          opt.value = city;
+          opt.textContent = city;
+          ps.appendChild(opt);
+        }
+        ps.value = city;
+      }
+
+      // Sync profile city badge
+      const cb = document.getElementById('profileCityBadge');
+      if (cb) cb.textContent = '📍 Город: ' + (city === 'Все' ? 'Все города (РК)' : city);
+
+      // Sync profile city chips
+      document.querySelectorAll('.profile-city-chip').forEach(chip => {
+        chip.classList.toggle('active', chip.dataset.city === city);
+      });
+    }
+
+    function onCityChanged(city) {
+      setCity(city, true);
+      showToast('📍 Город изменен: ' + (city === 'Все' ? 'Все города Казахстана' : city));
+      if (document.getElementById('viewResults').classList.contains('active')) {
+        AppState.page = 1;
+        updateSearchUrl();
+        executeSearch();
+      } else if (document.getElementById('viewDeals').classList.contains('active')) {
+        window.history.pushState({}, '', '/deals?city=' + encodeURIComponent(city));
+        loadDealsFeed(true);
+      } else if (document.getElementById('viewDetail').classList.contains('active')) {
+        window.history.pushState({}, '', window.location.pathname + '?city=' + encodeURIComponent(city));
+        handleRoute();
+      }
+    }
+
+    function initCity() {
+      const params = new URLSearchParams(window.location.search);
+      const urlCity = params.get('city');
+      if (urlCity) {
+        setCity(urlCity, true);
+        return;
+      }
+      let savedCity = null;
+      try {
+        savedCity = localStorage.getItem('kz_hunter_city') || localStorage.getItem('kzph_city');
+      } catch (e) {}
+      if (savedCity) {
+        setCity(savedCity, false);
+      } else {
+        setCity(DEFAULT_CITY, false);
+        // Automatic location detection on first visit
+        detectUserLocation(true);
+      }
+    }
+
+    // =============================================================
+    // AUTHENTICATION & CLOSED DEVELOPMENT GATE
+    // =============================================================
+    let currentUser = null;
+    let currentAuthConfig = null;
+    let isMaintenanceMode = false;
+
+    async function checkAuth() {
+      try {
+        const res = await fetch('/api/me');
+        if (!res.ok) return;
+        const data = await res.json();
+        currentUser = data.user;
+        currentAuthConfig = data.auth || {};
+        isMaintenanceMode = !!data.maintenance_mode;
+        updateAuthUI();
+      } catch (e) {
+        console.warn('Auth check error:', e);
+      }
+    }
+
+    function updateAuthUI() {
+      // 1. Header Auth area
+      const headerArea = document.getElementById('headerAuthArea');
+      if (headerArea) {
+        if (currentUser) {
+          const name = escapeHtml(currentUser.first_name || currentUser.username || 'Профиль');
+          const avatar = currentUser.photo_url
+            ? `<img src="${escapeHtml(currentUser.photo_url)}" alt="" class="header-user-avatar" />`
+            : `<span>👤</span>`;
+          const crown = currentUser.is_admin ? '<span title="Администратор">👑</span> ' : '';
+          headerArea.innerHTML = `
+            <a href="/profile" class="header-user-btn" onclick="navigateTo(event, '/profile')" title="Открыть профиль">
+              ${avatar}
+              <span>${crown}${name}</span>
+            </a>
+          `;
+        } else {
+          headerArea.innerHTML = `
+            <a href="/profile" class="header-user-btn" onclick="navigateTo(event, '/profile')" title="Войти через Telegram">
+              <span>👤</span>
+              <span>Войти</span>
+            </a>
+          `;
+        }
+      }
+
+      // 2. Profile View Auth Cards
+      const profileName = document.getElementById('profileUserName');
+      const profileSubtext = document.getElementById('profileUserSubtext');
+      const profileAvatar = document.getElementById('profileUserAvatar');
+      const profileAuthBadge = document.getElementById('profileAuthBadge');
+      const profileUserActionBtn = document.getElementById('profileUserActionBtn');
+
+      if (profileName) {
+        if (currentUser) {
+          const fullName = [currentUser.first_name, currentUser.last_name].filter(Boolean).join(' ');
+          profileName.textContent = fullName || currentUser.username || 'Пользователь';
+          if (profileSubtext) {
+            profileSubtext.textContent = `@${currentUser.username || '—'} • Telegram ID: ${currentUser.id}`;
+          }
+          if (profileAvatar) {
+            profileAvatar.innerHTML = currentUser.photo_url
+              ? `<img src="${escapeHtml(currentUser.photo_url)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" alt="" />`
+              : (currentUser.is_admin ? '👑' : '👤');
+          }
+          if (profileAuthBadge) {
+            if (currentUser.is_admin) {
+              profileAuthBadge.textContent = '👑 Администратор';
+              profileAuthBadge.className = 'badge badge-super';
+            } else if (currentUser.is_confirmed) {
+              profileAuthBadge.textContent = '✓ Доступ подтверждён';
+              profileAuthBadge.className = 'badge badge-condition-new';
+            } else {
+              profileAuthBadge.textContent = '⏳ Ожидает подтверждения';
+              profileAuthBadge.className = 'badge';
+              profileAuthBadge.style.background = '#f59e0b';
+              profileAuthBadge.style.color = '#000000';
+            }
+          }
+          if (profileUserActionBtn) {
+            profileUserActionBtn.innerHTML = `
+              <button type="button" class="btn-secondary" style="padding: 6px 14px; font-size: 0.85rem;" onclick="logout()">
+                🚪 Выйти
+              </button>
+            `;
+          }
+        } else {
+          profileName.textContent = 'Мой профиль';
+          if (profileSubtext) profileSubtext.textContent = 'Гостевой сеанс • Локальные настройки и избранное';
+          if (profileAvatar) profileAvatar.textContent = '👤';
+          if (profileAuthBadge) {
+            profileAuthBadge.textContent = 'Гость (локальный)';
+            profileAuthBadge.className = 'badge';
+            profileAuthBadge.style.background = 'var(--bg-subtle)';
+            profileAuthBadge.style.color = 'var(--text-muted)';
+          }
+          if (profileUserActionBtn) {
+            profileUserActionBtn.innerHTML = `
+              <button type="button" class="btn-primary" style="padding: 6px 14px; font-size: 0.85rem;" onclick="renderProfileLoginWidget()">
+                🔑 Войти через Telegram
+              </button>
+            `;
+          }
+        }
+      }
+
+      // 3. Closed Development Gate View
+      const guestContent = document.getElementById('closedDevGuestContent');
+      const pendingContent = document.getElementById('closedDevPendingContent');
+      if (guestContent && pendingContent) {
+        if (!currentUser) {
+          guestContent.style.display = 'block';
+          pendingContent.style.display = 'none';
+          renderTelegramWidget('closedDevTgWidget');
+          renderDevLoginBtn('closedDevDevLoginContainer');
+        } else if (!currentUser.is_confirmed) {
+          guestContent.style.display = 'none';
+          pendingContent.style.display = 'block';
+          const pName = document.getElementById('pendingUserName');
+          const pMeta = document.getElementById('pendingUserMeta');
+          if (pName) pName.textContent = [currentUser.first_name, currentUser.last_name].filter(Boolean).join(' ') || currentUser.username || 'Пользователь';
+          if (pMeta) pMeta.textContent = `@${currentUser.username || '—'} • Telegram ID: ${currentUser.id}`;
+        }
+      }
+    }
+
+    function renderProfileLoginWidget() {
+      const area = document.getElementById('profileTelegramLoginArea');
+      if (!area) return;
+      if (area.style.display === 'block') {
+        area.style.display = 'none';
+        return;
+      }
+      area.style.display = 'block';
+      area.innerHTML = '<div id="profileTgContainer" class="tg-widget-container"></div>';
+      renderTelegramWidget('profileTgContainer');
+    }
+
+    function renderTelegramWidget(containerId = 'closedDevTgWidget') {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      container.innerHTML = '';
+      const auth = currentAuthConfig || {};
+      if (auth.bot_username) {
+        const script = document.createElement('script');
+        script.async = true;
+        script.src = 'https://telegram.org/js/telegram-widget.js?22';
+        script.setAttribute('data-telegram-login', auth.bot_username);
+        script.setAttribute('data-size', 'large');
+        script.setAttribute('data-radius', '12');
+        script.setAttribute('data-request-access', 'write');
+        script.setAttribute('data-onauth', 'onTelegramAuth(user)');
+        container.appendChild(script);
+
+        const helpEl = document.getElementById('closedDevTgHelp');
+        if (helpEl) {
+          helpEl.innerHTML = `Официальный бот авторизации: <strong>@${escapeHtml(auth.bot_username)}</strong>. Если кнопка не отображается, убедитесь, что боту разрешён домен в BotFather (/setdomain).`;
+        }
+      } else {
+        container.innerHTML = '<span style="font-size:0.85rem; color:var(--text-muted);">Вход через Telegram настраивается на сервере (TELEGRAM_BOT_TOKEN)</span>';
+      }
+    }
+
+    function renderDevLoginBtn(containerId) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      container.innerHTML = '';
+      if (currentAuthConfig && currentAuthConfig.dev_login) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-dev-login';
+        btn.innerHTML = '💻 Вход разработчика (dev login)';
+        btn.onclick = devLogin;
+        container.appendChild(btn);
+      }
+    }
+
+    window.onTelegramAuth = async function(user) {
+      try {
+        showToast('Проверка авторизации Telegram…');
+        const res = await fetch('/api/auth/telegram', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(user)
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          showToast('❌ ' + (data.message || 'Ошибка авторизации'), true);
+          return;
+        }
+        showToast('✓ Успешный вход в систему!');
+        await checkAuth();
+        handleRoute();
+      } catch (err) {
+        showToast('❌ Ошибка сети при авторизации', true);
+      }
+    };
+
+    async function devLogin() {
+      try {
+        const res = await fetch('/api/auth/dev-login', { method: 'POST' });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          showToast('✓ Вход разработчика выполнен');
+          await checkAuth();
+          handleRoute();
+        } else {
+          showToast('❌ ' + (data.message || 'Ошибка dev-login'), true);
+        }
+      } catch (e) {
+        showToast('❌ Ошибка сети', true);
+      }
+    }
+
+    async function logout() {
+      try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+        showToast('Вы вышли из системы');
+        setTimeout(() => location.reload(), 300);
+      } catch (e) {
+        location.reload();
+      }
+    }
 
     function isValidOfferUrl(url) {
       try {
@@ -2932,18 +3737,23 @@
 
       closeMobileFilters(false);
 
-      // Выдача, товар и скидки воспроизводятся по URL: нет city — всегда город по умолчанию,
-      // «Все города» записываются явно как city=Все. Главная лишь хранит текущий выбор.
+      // Режим закрытой разработки: только авторизованные и подтверждённые пользователи
+      if (isMaintenanceMode && (!currentUser || !currentUser.is_confirmed)) {
+        showView('viewClosedDev');
+        updateNavState('');
+        renderTelegramWidget('closedDevTgWidget');
+        renderDevLoginBtn('closedDevDevLoginContainer');
+        return;
+      }
+
       const isProduct = pathname.startsWith('/product/');
       const isDeals = pathname === '/deals' || pathname.startsWith('/deals');
       const isFavorites = pathname === '/favorites' || pathname.startsWith('/favorites');
       const isProfile = pathname === '/profile' || pathname.startsWith('/profile');
       const isSearch = pathname === '/search' || params.has('q') || params.has('cat') || params.has('category');
 
-      if (isProduct || isSearch || isDeals) {
-        setCity(params.get('city') || DEFAULT_CITY);
-      } else if (params.get('city')) {
-        setCity(params.get('city'));
+      if (params.get('city')) {
+        setCity(params.get('city'), false);
       }
 
       if (isProduct) {
@@ -2979,12 +3789,16 @@
 
     function updateNavState(name) {
       document.querySelectorAll('.header-nav .nav-link').forEach(el => el.classList.remove('active'));
-      const hLink = document.getElementById('navLink' + name.charAt(0).toUpperCase() + name.slice(1));
-      if (hLink) hLink.classList.add('active');
+      if (name) {
+        const hLink = document.getElementById('navLink' + name.charAt(0).toUpperCase() + name.slice(1));
+        if (hLink) hLink.classList.add('active');
+      }
 
       document.querySelectorAll('.bottom-nav-item').forEach(el => el.classList.remove('active'));
-      const mItem = document.getElementById('bottomNav' + name.charAt(0).toUpperCase() + name.slice(1));
-      if (mItem) mItem.classList.add('active');
+      if (name) {
+        const mItem = document.getElementById('bottomNav' + name.charAt(0).toUpperCase() + name.slice(1));
+        if (mItem) mItem.classList.add('active');
+      }
     }
 
     function showView(viewId) {
@@ -2992,36 +3806,6 @@
       const activeEl = document.getElementById(viewId);
       if (activeEl) activeEl.classList.add('active');
       window.scrollTo(0, 0);
-    }
-
-    function setCity(city) {
-      AppState.city = city;
-      const cs = document.getElementById('globalCitySelect');
-      if (!cs) return;
-      if (!Array.from(cs.options).some(o => o.value === city)) {
-        const opt = document.createElement('option');
-        opt.value = city;
-        opt.textContent = city;
-        cs.appendChild(opt);
-      }
-      cs.value = city;
-    }
-
-    function onCityChanged(city) {
-      AppState.city = city;
-      if (document.getElementById('viewResults').classList.contains('active')) {
-        AppState.page = 1;
-        updateSearchUrl();
-        executeSearch();
-      } else if (document.getElementById('viewDeals').classList.contains('active')) {
-        window.history.pushState({}, '', '/deals?city=' + encodeURIComponent(city));
-        handleRoute();
-      } else if (document.getElementById('viewDetail').classList.contains('active')) {
-        window.history.pushState({}, '', window.location.pathname + '?city=' + encodeURIComponent(city));
-        handleRoute();
-      } else if (document.getElementById('viewDeals').classList.contains('active')) {
-        loadDealsFeed(true);
-      }
     }
 
     // -------------------------------------------------------------
@@ -4479,7 +5263,16 @@
 
     async function renderProfile() {
       const cityBadge = document.getElementById('profileCityBadge');
-      if (cityBadge) cityBadge.textContent = '📍 Город: ' + (AppState.city || 'Алматы');
+      if (cityBadge) cityBadge.textContent = '📍 Город: ' + (AppState.city === 'Все' ? 'Все города (РК)' : (AppState.city || 'Алматы'));
+
+      const profileCitySel = document.getElementById('profileCitySelect');
+      if (profileCitySel) profileCitySel.value = AppState.city || 'Алматы';
+      document.querySelectorAll('.profile-city-chip').forEach(c => c.classList.toggle('active', c.dataset.city === AppState.city));
+
+      const curThemeMode = localStorage.getItem('kz_theme_mode') || 'auto';
+      updateProfileThemeCards(curThemeMode);
+
+      updateAuthUI();
 
       const favSummary = document.getElementById('profileFavSummary');
       const favCount = Favorites.getAll().length;
@@ -4494,12 +5287,18 @@
       if (renderId !== profileRenderId) return;
 
       const authBadge = document.getElementById('profileAuthBadge');
-      if (authBadge) authBadge.textContent = WatchManager.status === 'guest' ? 'Гость' : (WatchManager.status === 'ok' ? '✓ Вход выполнен' : 'Статус неизвестен');
+      if (authBadge) {
+        if (currentUser) {
+          authBadge.textContent = currentUser.is_admin ? '👑 Администратор' : (currentUser.is_confirmed ? '✓ Доступ подтверждён' : '⏳ Ожидает подтверждения');
+        } else {
+          authBadge.textContent = 'Локальный гость';
+        }
+      }
 
       const notice = 'text-align: center; padding: 24px; color: var(--text-muted); font-size: 0.9rem;';
       let html = '';
       if (WatchManager.status === 'guest') {
-        html = `<div style="${notice}">Наблюдения за ценами работают после входа через Telegram.<br><a href="/dashboard" style="color:var(--primary); font-weight:600;">Войти</a></div>`;
+        html = `<div style="${notice}">Наблюдения за ценами работают после входа через Telegram.<br><button type="button" class="btn-primary" style="margin-top:8px;" onclick="renderProfileLoginWidget()">Войти через Telegram</button></div>`;
       } else if (WatchManager.status === 'error') {
         html = `<div style="${notice}">Не удалось загрузить наблюдения с сервера.<br><button class="btn-secondary" style="margin-top:8px;" onclick="renderProfile()">Повторить</button></div>`;
       } else if (!WatchManager.items.length) {
@@ -4615,10 +5414,12 @@
     });
 
     // Init on load
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
       initTheme();
+      initCity();
       Favorites.updateBadges();
       WatchManager.updateBadges();
+      await checkAuth();
       handleRoute();
     });
   </script>
