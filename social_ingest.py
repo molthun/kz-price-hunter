@@ -44,6 +44,7 @@ class IngestResult:
     posts: int = 0
     observations: int = 0
     candidates: int = 0
+    offers: int = 0
     error: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
@@ -55,6 +56,7 @@ class IngestResult:
             "posts": self.posts,
             "observations": self.observations,
             "candidates": self.candidates,
+            "offers": self.offers,
             "error": self.error,
         }
 
@@ -103,12 +105,20 @@ def _ingest_source(source: SocialSource,
         posts = active_connector.fetch(source.handle)
         result.posts = len(posts)
         observations = posts_to_observations(posts, source)
+
+        from domain.social_pipeline import SocialOfferPipeline
+        pipeline = SocialOfferPipeline(conn)
         candidate_count = 0
+        offer_count = 0
         for observation in observations:
             observations_repo.save_observation(observation)
-            candidate_count += len(observations_repo.extract_candidates(observation))
+            candidates = observations_repo.extract_candidates(observation)
+            candidate_count += len(candidates)
+            created_offers = pipeline.process_candidates(observation, candidates)
+            offer_count += len(created_offers)
         result.observations = len(observations)
         result.candidates = candidate_count
+        result.offers = offer_count
 
         if not posts:
             result.status = IngestStatus.EMPTY
@@ -145,7 +155,88 @@ def _ingest_source(source: SocialSource,
             conn.close()
 
 
-async def ingest_due_sources(limit: int = 5) -> List[IngestResult]:
+async def ingest_source_async(source: SocialSource,
+                              connector: Optional[Any] = None,
+                              conn: Optional[Any] = None,
+                              now_iso: Optional[str] = None,
+                              with_vision: bool = True) -> IngestResult:
+    """Асинхронный проход по источнику с поддержкой мультимодального Vision по фото."""
+    from telemetry import correlation_context
+    with correlation_context(source_id=source.id, seller_id=getattr(source, "seller_id", None) or None):
+        result = IngestResult(
+            source_id=source.id, platform=source.platform, handle=source.handle,
+            status=IngestStatus.ERROR)
+        if not source.enabled:
+            result.status = IngestStatus.DISABLED
+            return result
+
+        owns_connection = conn is None
+        if owns_connection:
+            from database import get_connection
+            conn = get_connection()
+        try:
+            sources = SocialSourceRepository(conn)
+            observations_repo = ContentObservationRepository(conn)
+            active_connector = connector or build_connector(source.platform)
+
+            posts = await asyncio.to_thread(active_connector.fetch, source.handle)
+            result.posts = len(posts)
+            observations = posts_to_observations(posts, source)
+
+            from domain.social_pipeline import SocialOfferPipeline
+            pipeline = SocialOfferPipeline(conn)
+            candidate_count = 0
+            offer_count = 0
+            for observation in observations:
+                observations_repo.save_observation(observation)
+                if with_vision:
+                    created_offers = await pipeline.process_observation_async(observation)
+                else:
+                    candidates = observations_repo.extract_candidates(observation)
+                    created_offers = pipeline.process_candidates(observation, candidates)
+                offer_count += len(created_offers)
+                candidate_count += len(created_offers)
+
+            result.observations = len(observations)
+            result.candidates = candidate_count
+            result.offers = offer_count
+
+            if not posts:
+                result.status = IngestStatus.EMPTY
+                sources.mark_fetch(source.id, IngestStatus.EMPTY, at=now_iso)
+            else:
+                result.status = IngestStatus.OK
+                sources.mark_fetch(source.id, IngestStatus.OK, at=now_iso)
+            return result
+        except ConnectorRateLimited as exc:
+            result.status = IngestStatus.RATE_LIMITED
+            result.error = str(exc)
+            SocialSourceRepository(conn).mark_fetch(source.id, IngestStatus.RATE_LIMITED,
+                                                    result.error, at=now_iso)
+            return result
+        except ConnectorUnavailable as exc:
+            result.status = IngestStatus.ERROR
+            result.error = str(exc)
+            SocialSourceRepository(conn).mark_fetch(source.id, IngestStatus.ERROR,
+                                                    result.error, at=now_iso)
+            return result
+        except Exception as exc:
+            logger.warning("social ingest async %s/%s failed: %s", source.platform, source.handle,
+                           type(exc).__name__)
+            result.status = IngestStatus.ERROR
+            result.error = _ingest_error_text(exc)
+            try:
+                SocialSourceRepository(conn).mark_fetch(source.id, IngestStatus.ERROR,
+                                                        result.error, at=now_iso)
+            except Exception:
+                pass
+            return result
+        finally:
+            if owns_connection:
+                conn.close()
+
+
+async def ingest_due_sources(limit: int = 5, with_vision: bool = False) -> List[IngestResult]:
     """Последовательно обходит включённые источники; вызывать из фоновой задачи/CLI."""
     from database import get_connection
     conn = get_connection()
@@ -156,7 +247,10 @@ async def ingest_due_sources(limit: int = 5) -> List[IngestResult]:
 
     results: List[IngestResult] = []
     for source in sources:
-        result = await asyncio.to_thread(ingest_source, source)
+        if with_vision:
+            result = await ingest_source_async(source, with_vision=True)
+        else:
+            result = await asyncio.to_thread(ingest_source, source)
         results.append(result)
         # Пауза между источниками: не создаём очередь запросов к одной платформе.
         await asyncio.sleep(1.0)

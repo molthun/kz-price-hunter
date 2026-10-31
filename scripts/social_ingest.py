@@ -56,6 +56,7 @@ def main(argv=None) -> int:
     parser.add_argument("--ingest", metavar="SOURCE_ID", help="собрать один источник")
     parser.add_argument("--once", action="store_true", help="собрать включённые источники по очереди")
     parser.add_argument("--limit", type=int, default=5, help="сколько источников забрать за --once")
+    parser.add_argument("--with-vision", action="store_true", help="задействовать мультимодальный Vision по фото")
     args = parser.parse_args(argv)
 
     init_db()
@@ -84,14 +85,20 @@ def main(argv=None) -> int:
             if source is None:
                 print(f"Источник {args.ingest} не найден", file=sys.stderr)
                 return 1
-            _print_result(ingest_source(source))
+            if args.with_vision:
+                from social_ingest import ingest_source_async
+                res = asyncio.run(ingest_source_async(source, with_vision=True))
+                _print_result(res)
+            else:
+                _print_result(ingest_source(source))
             return 0
         if args.once:
-            results = asyncio.run(ingest_due_sources(limit=args.limit))
+            results = asyncio.run(ingest_due_sources(limit=args.limit, with_vision=args.with_vision))
             for result in results:
                 _print_result(result)
             ok = sum(1 for r in results if r.status == IngestStatus.OK)
-            print(f"Готово: источников {len(results)}, успешно {ok}")
+            total_offers = sum(r.offers for r in results)
+            print(f"Готово: источников {len(results)}, успешно {ok}, создано предложений {total_offers}")
             return 0
         parser.print_help()
         return 0
