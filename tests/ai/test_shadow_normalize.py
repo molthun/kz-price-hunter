@@ -1,6 +1,7 @@
 from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
 
 import asyncio
+import collections
 import json
 import sqlite3
 import tempfile
@@ -1085,6 +1086,18 @@ class C2QualityReportTest(unittest.TestCase):
         layer = c2.weighted_estimate(rows, sizes, None, {"added": ["packaging"]})["layers"]["added"]
         self.assertEqual((layer["known_open"], layer["pool"], layer["drawn"], layer["drawn_open"]), (1, 100, 2, 1))
         self.assertEqual((layer["true"], layer["false"], layer["open"]), (50.0, 0.0, 51.0))
+
+    def test_second_phase_share_applies_only_to_its_pool(self):
+        """EXT-02: метки первого этапа и новых склеек — известная часть, доля расширения идёт только на его пул."""
+        layers = {frozenset(("a", "b")): "added", frozenset(("c", "d")): "added", frozenset(("e", "f")): "added", frozenset(("g", "h")): "retained"}
+        rows = [{"a": "a", "b": "b", "label": "different", "strata": ["added"]},
+                {"a": "c", "b": "d", "label": "same", "strata": ["new_merges"]},
+                {"a": "e", "b": "f", "label": "same", "strata": ["added"], "phase": "ext"},
+                {"a": "g", "b": "h", "label": "same", "strata": ["retained"]}]
+        census = collections.defaultdict(list)
+        out = c2._phase_rows(rows, layers, census)
+        self.assertEqual([r["a"] for r in out], ["e", "g"], "первый этап остаётся выборкой только там, где нет расширения")
+        self.assertEqual(sorted(census["added"]), ["different", "same"])
 
     def test_uncertain_counts_against_candidate_in_bounds(self):
         rows = [{"label": "same", "strata": [n]} for n in ("retained", "dropped_mixed", "dropped_both_k2", "added")]

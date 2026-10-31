@@ -874,7 +874,9 @@
     });
     const d = await res.json().catch(() => ({}));
     if (!res.ok) {
-      alert(d.message || 'Ошибка сохранения решения');
+      const listed = (d.conflicts || []).slice(0, 10).join('\n');
+      alert((d.message || 'Ошибка сохранения решения') + (listed ? '\n\n' + listed : ''));
+      loadMatchingDisputes();
       return;
     }
 

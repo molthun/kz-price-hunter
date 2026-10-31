@@ -187,6 +187,175 @@ class TestDisputedMatchingModeration(unittest.TestCase):
         self.assertEqual(stats["human_different"], 0)
 
 
+class TestHumanVerdictDurability(unittest.TestCase):
+    """Аудит MM-01–03: решение оператора не шире пары, переживает пересборку и применяется целиком."""
+    FIELDS = {"brand": "Apple", "model": "EarPods", "sku": None, "variants": [], "unbranded": False}
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self._old = database.DB_PATH
+        database.DB_PATH = Path(self._tmp.name) / "m.db"
+        database.init_db()
+
+    def tearDown(self):
+        database.DB_PATH = self._old
+        self._tmp.cleanup()
+
+    def _catalog(self, keys, fields=None):
+        database.save_cached_canonical_keys_batch(keys)
+        if fields:
+            database.save_title_fields_batch({t: fields for t in keys}, "k2", "local", "test")
+        for i, (title, key) in enumerate(keys.items()):
+            database.save_or_update_product({"id": f"p{i}", "title": title, "canonical_key": key, "shop": f"shop{i}",
+                                             "city": "Алматы", "price": 1000, "url": f"https://example.kz/{i}"})
+
+    def _state(self):
+        with database.get_connection() as conn:
+            return {t: [tuple(r) for r in conn.execute(f"SELECT * FROM {t} ORDER BY 1, 2")]
+                    for t in ("title_canonical_cache", "title_key_pins", "products", "offers", "offer_price_history",
+                              "identity_aliases", "product_pair_verdicts", "disputed_product_pairs")}
+
+    def _offer_product(self, pid):
+        with database.get_connection() as conn:
+            return conn.execute("SELECT product_id FROM offers WHERE id = ?", (f"off_{pid}",)).fetchone()[0]
+
+    def _rescore(self, batch_size):
+        import asyncio
+        from scripts import migrate_to_k2
+        asyncio.run(migrate_to_k2.run_migration(str(database.DB_PATH), "", "", rescore_only=True, batch_size=batch_size,
+                                                run_id=f"t{batch_size}"))
+
+    def test_same_refused_when_third_member_of_either_group_conflicts(self):
+        a, b, c = "Samsung Galaxy S24 128GB black", "Samsung Galaxy S24 128GB white", "Samsung Galaxy S24 256GB blue"
+        for keys in ({a: "s:a", b: "s:b", c: "s:b"}, {a: "s:a", c: "s:a", b: "s:b"}):
+            database.enqueue_disputed_pair(a, b, "r", force=True)
+            self._catalog(keys)
+            before = self._state()
+            res = database.resolve_disputed_pair_human(product_key.pair_hash(a, b), "same", "op")
+            self.assertFalse(res["ok"])
+            self.assertEqual(res["conflicts"], [c])
+            self.assertEqual(self._state(), before)
+
+    def test_same_refused_by_saved_different_of_third_member(self):
+        a, b, c = "Товар Альфа", "Товар Бета", "Товар Гамма"
+        self._catalog({a: "x:a", b: "x:b", c: "x:b"})
+        database.save_pair_verdict(product_key.pair_hash(a, c), a, c, {"decision": "different"}, "human:op")
+        database.enqueue_disputed_pair(a, b, "r", force=True)
+        res = database.resolve_disputed_pair_human(product_key.pair_hash(a, b), "same", "op")
+        self.assertEqual(res["conflicts"], [c])
+
+    def test_operator_may_merge_the_pair_itself_despite_its_titles(self):
+        a, b = "Samsung Galaxy S24 128GB", "Samsung Galaxy S24 256GB"
+        self._catalog({a: "s:a", b: "s:b"})
+        database.enqueue_disputed_pair(a, b, "r", force=True)
+        self.assertTrue(database.resolve_disputed_pair_human(product_key.pair_hash(a, b), "same", "op")["ok"])
+
+    def test_different_survives_rescore_in_any_batch_and_order(self):
+        a, b = "Apple EarPods USB-C", "Apple EarPods Lightning"
+        old = product_key.build_key(self.FIELDS, a)
+        self._catalog({a: old, b: old}, self.FIELDS)
+        database.enqueue_disputed_pair(a, b, "r", force=True)
+        database.resolve_disputed_pair_human(product_key.pair_hash(a, b), "different", "op")
+        expected = database.get_cached_canonical_keys_batch([a, b])
+        self.assertNotEqual(expected[a], expected[b])
+        for size in (1, 2, 50):
+            self._rescore(size)
+            self.assertEqual(database.get_cached_canonical_keys_batch([a, b]), expected)
+            self.assertNotEqual(self._offer_product("p0"), self._offer_product("p1"))
+
+    def test_different_splits_keys_that_differ_now_but_would_match_after_rescore(self):
+        a, b = "Apple EarPods USB-C", "Apple EarPods Lightning"
+        self._catalog({a: "apple:earpods:old", b: "apple:earpods:older"}, self.FIELDS)
+        database.enqueue_disputed_pair(a, b, "r", force=True)
+        database.resolve_disputed_pair_human(product_key.pair_hash(a, b), "different", "op")
+        self._rescore(2)
+        keys = database.get_cached_canonical_keys_batch([a, b])
+        self.assertNotEqual(keys[a], keys[b])
+
+    def test_pinned_key_survives_rescan_and_cache_writes(self):
+        a, b = "Apple EarPods USB-C", "Apple EarPods Lightning"
+        old = product_key.build_key(self.FIELDS, a)
+        self._catalog({a: old, b: old}, self.FIELDS)
+        database.enqueue_disputed_pair(a, b, "r", force=True)
+        separated = database.resolve_disputed_pair_human(product_key.pair_hash(a, b), "different", "op")["split"]
+        title, pinned = separated["separated_title"], separated["new_key"]
+        pid = "p0" if title == a else "p1"
+        database.save_cached_canonical_keys_batch({title: old})
+        database.save_cached_canonical_key(title, old)
+        database.update_products_canonical_keys([(old, pid)])
+        new_offer = {"id": "p9", "title": title, "canonical_key": old, "shop": "shop9", "city": "Алматы", "price": 900, "url": "https://example.kz/9"}
+        database.save_or_update_product(new_offer)
+        database.save_or_update_products_batch([{**new_offer, "id": "p10", "shop": "shop10", "url": "https://example.kz/10"}])
+        self.assertEqual(database.get_cached_canonical_keys_batch([title])[title], pinned)
+        with database.get_connection() as conn:
+            self.assertEqual({r[0] for r in conn.execute("SELECT canonical_key FROM products WHERE title = ?", (title,))}, {pinned})
+        self.assertEqual(self._offer_product("p9"), self._offer_product(pid))
+        self.assertEqual(self._offer_product("p10"), self._offer_product(pid))
+
+    def test_same_survives_rescore(self):
+        a, b = "Apple EarPods гарнитура", "Наушники EarPods"
+        other = dict(self.FIELDS, model="EarPods Other")
+        self._catalog({a: "k2:apple:earpods", b: "k2:apple:earpodsother"})
+        database.save_title_fields_batch({a: self.FIELDS, b: other}, "k2", "local", "test")
+        database.enqueue_disputed_pair(a, b, "r", force=True)
+        self.assertTrue(database.resolve_disputed_pair_human(product_key.pair_hash(a, b), "same", "op")["ok"])
+        self._rescore(1)
+        keys = database.get_cached_canonical_keys_batch([a, b])
+        self.assertEqual(keys[a], keys[b])
+        self.assertEqual(self._offer_product("p0"), self._offer_product("p1"))
+
+    def test_failure_at_each_step_leaves_previous_state(self):
+        a, b = "Товар Альфа", "Товар Бета"
+        ph = product_key.pair_hash(a, b)
+        self._catalog({a: "x:shared", b: "x:shared"})
+        database.enqueue_disputed_pair(a, b, "r", force=True)
+        before = self._state()
+        for target in ("save_pair_verdict", "rekey_titles_conn", "_pin_title_keys_conn"):
+            with unittest.mock.patch.object(database, target, side_effect=RuntimeError("сбой")):
+                with self.assertRaises(RuntimeError):
+                    database.resolve_disputed_pair_human(ph, "different", "op")
+            self.assertEqual(self._state(), before, target)
+
+    def test_second_operator_with_stale_card_is_refused(self):
+        a, b = "Товар Альфа", "Товар Бета"
+        ph = product_key.pair_hash(a, b)
+        self._catalog({a: "x:a", b: "x:b"})
+        database.enqueue_disputed_pair(a, b, "r", force=True)
+        self.assertTrue(database.resolve_disputed_pair_human(ph, "same", "first")["ok"])
+        state = self._state()
+        res = database.resolve_disputed_pair_human(ph, "different", "second")
+        self.assertFalse(res["ok"])
+        self.assertEqual(self._state(), state)
+        self.assertEqual(database.get_pair_verdict(ph)["reviewer"], "first")
+
+    def test_machine_verdict_does_not_replace_operator(self):
+        a, b = "Товар Альфа", "Товар Бета"
+        ph = product_key.pair_hash(a, b)
+        database.save_pair_verdict(ph, a, b, {"decision": "different", "source": "human"}, "human:op")
+        database.save_pair_verdict(ph, a, b, {"decision": "same"}, "local")
+        self.assertEqual(database.get_pair_verdict(ph)["decision"], "different")
+        database.save_pair_verdict(ph, a, b, {"decision": "same", "source": "human"}, "human:second")
+        self.assertEqual(database.get_pair_verdict(ph)["decision"], "same")
+
+    def test_worker_does_not_apply_result_when_operator_decided_during_check(self):
+        import asyncio
+        a, b = "Товар Альфа", "Товар Бета"
+        ph = product_key.pair_hash(a, b)
+        self._catalog({a: "x:a", b: "x:b"}, self.FIELDS)
+        database.enqueue_disputed_pair(a, b, "r", force=True)
+
+        async def racing(*args, **kwargs):
+            database.resolve_disputed_pair_human(ph, "different", "op")
+            return {"decision": "same", "confidence": 1.0}
+        before = None
+        with unittest.mock.patch.object(product_verify, "verify_pair_cached", racing):
+            out = asyncio.run(product_verify.process_disputed_queue_tick("http://search", None))
+        self.assertEqual(out["status"], "stale")
+        self.assertEqual(database.get_pair_verdict(ph)["decision"], "different")
+        keys = database.get_cached_canonical_keys_batch([a, b])
+        self.assertNotEqual(keys[a], keys[b])
+
+
 class TestDisputedMatchingWebAPI(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.tmp_dir = tempfile.mkdtemp()

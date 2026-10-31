@@ -1,0 +1,61 @@
+test_human_different_survives_real_rescore (__main__.Residuals.test_human_different_survives_real_rescore) ... FAIL
+test_valid_same_pair_does_not_move_conflicting_third_member (__main__.Residuals.test_valid_same_pair_does_not_move_conflicting_third_member) ... FAIL
+test_verdict_write_failure_rolls_back_identity_changes (__main__.Residuals.test_verdict_write_failure_rolls_back_identity_changes) ... FAIL
+
+======================================================================
+FAIL: test_human_different_survives_real_rescore (__main__.Residuals.test_human_different_survives_real_rescore)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-31-moderation-ext-codex/residuals.py", line 56, in test_human_different_survives_real_rescore
+    self.assertNotEqual(after[a],after[b],'persisted human DIFFERENT was undone by a normal rescore')
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'k2:apple:earpods' == 'k2:apple:earpods' : persisted human DIFFERENT was undone by a normal rescore
+
+======================================================================
+FAIL: test_valid_same_pair_does_not_move_conflicting_third_member (__main__.Residuals.test_valid_same_pair_does_not_move_conflicting_third_member)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-31-moderation-ext-codex/residuals.py", line 36, in test_valid_same_pair_does_not_move_conflicting_third_member
+    self.assertFalse(result['ok'],'SAME of the 128GB pair must not move the unseen 256GB member')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: True is not false : SAME of the 128GB pair must not move the unseen 256GB member
+
+======================================================================
+FAIL: test_verdict_write_failure_rolls_back_identity_changes (__main__.Residuals.test_verdict_write_failure_rolls_back_identity_changes)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-31-moderation-ext-codex/residuals.py", line 70, in test_verdict_write_failure_rolls_back_identity_changes
+    self.assertEqual(self.state(),before,'catalog changes committed without the matching verdict/status')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'tit[129 chars]sung:a:128gb', '2026-10-31 05:50:29'), ('5c015[2051 chars]ne)]} != {'tit[129 chars]sung:b:128gb', '2026-10-31 05:50:29'), ('5c015[1897 chars]ne)]}
+Diff is 5432 characters long. Set self.maxDiff to None to see it. : catalog changes committed without the matching verdict/status
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.165s
+
+FAILED (failures=3)
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 2, в исходном снимке human-audit: 2
+[C4] Из них уже сохранены поля: 2
+[C4] Обработка 2 названий пачками по 2...
+[C4] Прогресс: 2/2 (100%) | Скорость: 4015.7 наим/с | ETA: 0 с | С ключом k2: 2
+HUMAN_DIFFERENT_AFTER_RESCORE {'Apple EarPods Lightning': 'k2:apple:earpods', 'Apple EarPods USB-C': 'k2:apple:earpods.diff_dbd10113'} {'Apple EarPods Lightning': 'k2:apple:earpods', 'Apple EarPods USB-C': 'k2:apple:earpods'} [('off_p0', 'prod_43fd83cf99fcf477'), ('off_p1', 'prod_43fd83cf99fcf477')] different
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+HUMAN_SAME_WITH_HIDDEN_256 {'ok': True, 'decision': 'same', 'pair_hash': '94cb680b9a5026acd29b8a3b43276d6b95a067e6e482792cfbd8b6efec9f5ff0', 'canonical_key': 'samsung:s24-a', 'titles_updated': 3} {'Samsung Galaxy S24 128GB white': 'samsung:s24-a', 'Samsung Galaxy S24 128GB black': 'samsung:s24-a', 'Samsung Galaxy S24 256GB blue': 'samsung:s24-a'}
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+VERDICT_FAILURE_ALREADY_CHANGED_CATALOG {'Samsung Galaxy S24 128GB white': 'samsung:a:128gb', 'Samsung Galaxy S24 128GB black': 'samsung:a:128gb'}

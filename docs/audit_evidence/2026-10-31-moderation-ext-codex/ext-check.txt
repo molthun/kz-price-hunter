@@ -1,0 +1,3 @@
+PASS exact seeded selection, hashes, zero overlap, old rows, formula reproduction
+FINDINGS: six explicit SAME label errors; 40 excluded older added pairs absent from main/census estimate
+EXCLUDED {'uncertain': 2, 'same': 34, 'different': 4}

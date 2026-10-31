@@ -1,0 +1,441 @@
+{
+  "seed_and_exact_order_reproduced": true,
+  "pools": {
+    "added": 1914,
+    "retained": 839
+  },
+  "no_overlap": true,
+  "old_rows_unchanged": true,
+  "all_740_labels_exactly_generated_by_rules": true,
+  "explicit_same_errors": [
+    {
+      "idx": 108,
+      "a": "Беспроводная гарнитура Jabra Evolve2 65, Link380a MS Stereo Black (26599-999-999)",
+      "b": "Наушники Jabra Evolve2 65 Link380a MS Mono 26599-899-999 Black",
+      "label": "same",
+      "note": "Модель и характеристики товара совпадают",
+      "strata": [
+        "added"
+      ]
+    },
+    {
+      "idx": 210,
+      "a": "Гарнитура Jabra Evolve2 65, Link380a MS Stereo",
+      "b": "Наушники Jabra Evolve2 65 Link380a MS Mono 26599-899-999 Black",
+      "label": "same",
+      "note": "Модель и характеристики товара совпадают",
+      "strata": [
+        "added"
+      ]
+    },
+    {
+      "idx": 277,
+      "a": "Apple EarPods проводные наушники (Lightning Connector)",
+      "b": "EarPods USB-C",
+      "label": "same",
+      "note": "Модель и характеристики товара совпадают",
+      "strata": [
+        "added"
+      ]
+    },
+    {
+      "idx": 358,
+      "a": "EarPods USB-C",
+      "b": "Наушники Apple EarPods, Lightning Connector (MWTY3ZM/A)",
+      "label": "same",
+      "note": "Модель и характеристики товара совпадают",
+      "strata": [
+        "added"
+      ]
+    },
+    {
+      "idx": 595,
+      "a": "Apple EarPods проводные наушники (Lightning Connector)",
+      "b": "Наушники Apple EarPods Headphone Plug (MWU53ZM/A)",
+      "label": "same",
+      "note": "Модель и характеристики товара совпадают",
+      "strata": [
+        "added"
+      ]
+    },
+    {
+      "idx": 624,
+      "a": "Apple EarPods проводные наушники (USB-C)",
+      "b": "Наушники Apple EarPods Headphone Plug (MWU53ZM/A)",
+      "label": "same",
+      "note": "Модель и характеристики товара совпадают",
+      "strata": [
+        "added"
+      ]
+    }
+  ],
+  "excluded_old_added_not_counted_as_census": [
+    {
+      "a": "AirPods Max 2",
+      "b": "Наушники Apple AirPods Max Silver",
+      "label": "uncertain",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "поколение второго не указано; как у соседних пар AirPods Max 2"
+    },
+    {
+      "a": "Маршрутизатор MikroTik hAP ac (RB962UiGS-5HacT2HnT)",
+      "b": "Маршрутизатор MikroTik hAP ac RB962UiGS-5HacT2HnT",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "MikroTik hAP ac (RB962UiGS-5HacT2HnT)"
+    },
+    {
+      "a": "Процессор Intel Core i5 10400, LGA1200, OEM",
+      "b": "Процессор Intel Core i5 10400F",
+      "label": "different",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "Intel Core i5 10400 (with iGPU) vs Core i5 10400F (without iGPU)"
+    },
+    {
+      "a": "Гарнитура Razer Barracuda X 2022 Roblox Edition",
+      "b": "Наушники Razer Barracuda X 2022 Quartz Pink RZ04-04430300-R3M1 розовые",
+      "label": "different",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "Razer Barracuda X 2022 Roblox Edition vs Quartz Pink Edition"
+    },
+    {
+      "a": "Гарнитура HyperX Cloud Stinger 3 Wireless PC White BS1T9AA",
+      "b": "Наушники-гарнитура игровые HyperX Cloud Stinger 3 Wirelesss Xbox, черный (BS1U0AA)",
+      "label": "different",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "HyperX Cloud Stinger 3 Wireless PC BS1T9AA vs Xbox BS1U0AA"
+    },
+    {
+      "a": "Клавиатура A4Tech Fstyler FX61 мембранная, мультимедийный, проводной, 1.5 м, пластик A4Tech, Fstyler",
+      "b": "Клавиатура A4Tech Fstyler FX61, Grey, USB",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "A4Tech Fstyler FX61 keyboard"
+    },
+    {
+      "a": "Процессор CPU S-1851 Intel Core Ultra 7 265K OEM",
+      "b": "Процессор Intel Core Ultra 7 265K, LGA1851, OEM",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "Intel Core Ultra 7 265K LGA1851 OEM"
+    },
+    {
+      "a": "Мышь Defender Standard MB-580, Black, USB",
+      "b": "Мышь проводная Defender Standard MB-580 проводной, оптическая, 1.8 м, 11,3 × 6,2 × 3,6 см Defender",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "Defender Standard MB-580 USB mouse"
+    },
+    {
+      "a": "Телевизор Яндекс YNDX-00080 - Умный телевизор с Алисой 55\"",
+      "b": "Телевизор Яндекс Бейсик QLED + 55\" (YNDX-00080)",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "Яндекс YNDX-00080 55-inch Бейсик QLED"
+    },
+    {
+      "a": "Наушники SOUNDCORE Space One 2 (D1402G11), Черный",
+      "b": "Наушники Soundcore Space One 2 D1402G11 черный",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "Soundcore Space One 2 D1402G11 Black headphones"
+    },
+    {
+      "a": "Материнская плата ASRock B650M (B650M-H/M.2+)",
+      "b": "Материнская плата ASRock B650M-H/M.2+ D5",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "ASRock B650M-H/M.2+ AM5 DDR5"
+    },
+    {
+      "a": "Процессор CPU S-1200 Intel Core i3 10105F TRAY",
+      "b": "Процессор Intel Core i3 10105F, LGA1200, OEM (i3-10105F)",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "Intel Core i3 10105F TRAY = OEM"
+    },
+    {
+      "a": "Наушники PANASONIC RP HJE 125 E P",
+      "b": "Наушники Panasonic RP-HJE125E-P розовые",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "Panasonic RP-HJE125E-P pink"
+    },
+    {
+      "a": "Телевизор Яндекс YNDX-00103 - Умный телевизор с Алисой 55\"",
+      "b": "Телевизор Яндекс Про MiniLED 55\" (YNDX-00103)",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "Яндекс Про MiniLED 55 YNDX-00103"
+    },
+    {
+      "a": "Процессор CPU S-1700 Intel Core i7-13700K OEM",
+      "b": "Процессор Intel Core i7 13700K, LGA1700, OEM (SRMB8-OEM)",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "Intel Core i7-13700K LGA1700 OEM (SRMB8-OEM)"
+    },
+    {
+      "a": "Телевизор Яндекс Бейсик 65\" YNDX-00081 QLED 4K UHD Black",
+      "b": "Телевизор Яндекс Бейсик QLED + 65\" (YNDX-00081)",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "Яндекс Бейсик QLED 65 YNDX-00081"
+    },
+    {
+      "a": "Смарт телевизор Dahua LTV43-QSD400 43\" QLED (DHI-LTV43-QSD400)",
+      "b": "Телевизор Dahua 43\" DHI-LTV43-QSD400 QLED 4K UHD Black",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "Dahua DHI-LTV43-QSD400 43-inch QLED 4K"
+    },
+    {
+      "a": "Intel Core i5-10400 BOX",
+      "b": "Процессор CPU S-1200 Intel Core i5 10400 BOX",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "Intel Core i5-10400 BOX"
+    },
+    {
+      "a": "SO-DIMM 16GB DDR5 PC44800/5600MHz Kingston, BOX (KVR56S46BS8-16)",
+      "b": "Оперативная память 16 GB Kingston KVR56S46BS8-16",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "Kingston KVR56S46BS8-16 SO-DIMM 16GB DDR5 5600MHz"
+    },
+    {
+      "a": "27\" BenQ 9H.LGXLA.CPE черный",
+      "b": "Монитор 27\" Benq BL2780",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "BenQ BL2780 27-inch (9H.LGXLA.CPE)"
+    },
+    {
+      "a": "ASRock Z890 PRO RS WIFI",
+      "b": "Материнская плата ASRock Z890 PRO RS WIFI WHITE  (Z890 PRO RS WIFI WHITE) - 68651 (90-MXBQC0-A0UAYZ)",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "ASRock Z890 PRO RS WIFI (Black vs White)"
+    },
+    {
+      "a": "Процессор AMD Ryzen 9 9950X, AM5, OEM",
+      "b": "Процессор CPU AM5 AMD Ryzen 9 9950X OEM",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "AMD Ryzen 9 9950X AM5 OEM"
+    },
+    {
+      "a": "Оперативная память Kingston FURY Beast Black EXPO 32GB 6000MT/s DDR5 DIMM (KF560C30BBE-32)",
+      "b": "Оперативная память Kingston FURY Beast Black EXPO KF560C30BBE-32",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "Kingston FURY Beast Black EXPO 32GB 6000MT/s (KF560C30BBE-32)"
+    },
+    {
+      "a": "Видеокарта Afox GTX 1050 Ti  V8, 4 GB, GeForce GTX 1050 Ti",
+      "b": "Видеокарта Afox GeForce GTX 1050TI (AF1050TI-4096D5H7-V8) [4 ГБ, GDDR5, 128 бит, DVI, HDMI, DisplayPort]",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "Afox GTX 1050 Ti V8 AF1050TI-4096D5H7-V8"
+    },
+    {
+      "a": "Kieslect Lady Watch Lora 2 фиолетовый-фиолетовый",
+      "b": "Смарт-часы Kieslect Lady Watch Lora 2, Gold",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "Kieslect Lady Watch Lora 2 (Purple vs Gold)"
+    },
+    {
+      "a": "Телевизор Dreame Aura Mini LED 4K S100 65\" (65S100)",
+      "b": "Телевизор Dreame Aura Mini LED 4K TV 65S100 65\" (65S100)",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "Dreame Aura Mini LED 65S100 65-inch 4K"
+    },
+    {
+      "a": "Оперативная память 64GB Kit Kingston FURY Beast White EXPO KF556C36BWEK2-64",
+      "b": "Оперативная память DIMM DDR5 64 GB kit (KF556C36BWEK2-64)",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "Kingston FURY Beast White EXPO DDR5 64GB kit (KF556C36BWEK2-64)"
+    },
+    {
+      "a": "Гарнитура Razer Barracuda X 2022 - Quartz Pink RZ04-04430300-R3M1",
+      "b": "Наушники Razer Barracuda X 2022 Roblox Edition RZ04-04430400-R3M1",
+      "label": "different",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "Razer Barracuda X 2022 Quartz Pink RZ04-04430300 vs Roblox Edition RZ04-04430400"
+    },
+    {
+      "a": "Корпус DeepCool CG580 4F, Black",
+      "b": "Корпус для ПК Deepcool CG580 4F WH",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "DeepCool CG580 4F (Black vs White)"
+    },
+    {
+      "a": "DDR-4 DIMM 16 GB 3200 MHz Geil Pristine Series, BOX (GP416GB3200C22SC)",
+      "b": "Оперативная память 16GB GEIL GP416GB3200C22SC",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "Geil Pristine GP416GB3200C22SC DDR4 16GB 3200MHz"
+    },
+    {
+      "a": "SMART 50UP77 127 см черный",
+      "b": "Телевизор SMART 50UP77 127 см черный",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "SMART 50UP77 50-inch (127 cm) TV"
+    },
+    {
+      "a": "Гарнитура Razer Kaira X for Xbox - Pulse Red RZ04-03970500-R3M1",
+      "b": "Наушники Razer Kaira X for Xbox красный",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "Razer Kaira X for Xbox Pulse Red RZ04-03970500"
+    },
+    {
+      "a": "Наушники SOUNDCORE Liberty 4 NC A3947 Black/черный TWS",
+      "b": "Наушники soundcore Liberty 4 NC - Black (A3947-BK)",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "Soundcore Liberty 4 NC A3947 Black"
+    },
+    {
+      "a": "Intel Core Ultra 7 265K OEM",
+      "b": "Процессор Intel Core Ultra 7 265K, LGA1851, OEM",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "Intel Core Ultra 7 265K LGA1851 OEM"
+    },
+    {
+      "a": "Видеокарта 4 GB Afox GTX 1050Ti AF1050TI-4096D5H7-V8",
+      "b": "Видеокарта Afox GTX 1050 Ti  V8, 4 GB, GeForce GTX 1050 Ti",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "Afox GTX 1050 Ti V8 4GB (AF1050TI-4096D5H7-V8)"
+    },
+    {
+      "a": "Смартфон TECNO CAMON 50 Ultra 5G 8 ГБ/256 ГБ 256 ГБ, 6.78’’, 8 Гб, Black, 256 ГБ Tecno, CAMON",
+      "b": "Смартфон Tecno Camon 50 Ultra 5G, 8 GB, 256 GB, Nebula Titanium (CN7C)",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "Tecno Camon 50 Ultra 5G 8/256GB (Black vs Nebula Titanium CN7C)"
+    },
+    {
+      "a": "Видеокарта 2 GB Afox GT 710 (AF710-2048D3L5-V3)",
+      "b": "Видеокарта Afox GT 710 V3, 2 GB, GeForce GT 710",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "Afox GT 710 V3 2GB (AF710-2048D3L5-V3)"
+    },
+    {
+      "a": "Ноутбук Tecno MEGABOOK K16S 16\" FHD i3-1315U 8GB 512GB Win 11 Tecno MEGABOOK K16S",
+      "b": "Ноутбук Tecno Megabook K16SAA 512GB 8GB",
+      "label": "uncertain",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "процессор второго не указан"
+    },
+    {
+      "a": "Зарядное устройство SVC NUC-08-100 W, универсальное, 100 W",
+      "b": "Зарядное устройство SVC NUC-08-100W 100 Вт, 220 В, 5 В/2 A SVC",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "SVC NUC-08-100W 100W charger"
+    },
+    {
+      "a": "Процессор CPU S-1851 Intel Core Ultra 7 270K Plus OEM",
+      "b": "Процессор Intel Core Ultra 7 270K Plus (AT807683B9B4884)",
+      "label": "same",
+      "strata": [
+        "new_merges"
+      ],
+      "note": "Intel Core Ultra 7 270K Plus S-1851 OEM (AT807683B9B4884)"
+    }
+  ],
+  "excluded_40_labels": {
+    "uncertain": 2,
+    "same": 34,
+    "different": 4
+  },
+  "report_and_registry_equal": true,
+  "point_estimates_independently_reproduced": true
+}

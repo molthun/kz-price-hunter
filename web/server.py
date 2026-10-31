@@ -3726,7 +3726,8 @@ async def admin_matching_verdict_handler(request):
 
     res = await asyncio.to_thread(database.resolve_disputed_pair_human, pair_hash, decision, reviewer, notes)
     if not res.get("ok"):
-        return web.json_response({"status": "error", "message": res.get("error") or "Ошибка сохранения решения"}, status=400)
+        return web.json_response({"status": "error", "message": res.get("error") or "Ошибка сохранения решения",
+                                  "conflicts": res.get("conflicts") or []}, status=400)
 
     return web.json_response({"status": "ok", **res}, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
 

@@ -220,6 +220,22 @@ def weighted_estimate(rows, strata_sizes, packaging, known=None):
             "false_merges_ratio_high": round(total(cand, "false_high") / max(1, total(base, "false_low")), 3)}
 
 
+def _phase_rows(rows, layers, census):
+    """Строки для весов при двух этапах отбора (аудит EXT-02). Расширение выбиралось из остатка после первого этапа
+    и обзора новых склеек, поэтому в его слое всё, что уже размечено, — известная часть, а его доля идёт только на
+    действительный пул. Без расширения в слое строки первого этапа остаются выборкой."""
+    extended = {layers[frozenset((r["a"], r["b"]))] for r in rows if r.get("phase") == "ext"}
+    out = []
+    for row in rows:
+        layer = layers.get(frozenset((row["a"], row["b"])))
+        if layer in extended and row.get("phase") != "ext" and row["strata"] != ["old_set"]:
+            census[layer].append(row["label"])
+        elif row.get("phase") == "ext" or layer not in extended:
+            if set(row["strata"]) & {"retained", "dropped_mixed", "dropped_both_k2", "added"}:
+                out.append(row)
+    return out
+
+
 def build(data, sample):
     keys, inputs = pair_keys(data), data["eval_inputs"]
     rows = []
@@ -241,6 +257,7 @@ def build(data, sample):
         census[layers[frozenset((item["a"], item["b"]))]].append(item["label"])
     drawn = {frozenset((r["a"], r["b"])) for r in random_rows}
     assert not drawn & {frozenset((i["a"], i["b"])) for i in sample.get("known_pairs", [])}, "пара и в переписи, и в выборке"
+    weighted_rows = _phase_rows(known, layers, census)
     lost = [{"a": r["a"], "b": r["b"], "new_a": r["keys"][2], "new_b": r["keys"][3], "strata": r["strata"]}
             for r in random_rows if r["label"] == "same" and r["keys"][2] != r["keys"][3]]
     merged = [{"a": r["a"], "b": r["b"], "key": r["keys"][2], "strata": r["strata"]}
@@ -257,10 +274,10 @@ def build(data, sample):
             "candidate": confusion(random_rows, 2, packaging=False),
         },
         # Решение владельца 30.10.2026: OEM/Tray и BOX — разные товары. Остальные сценарии — для сравнения
-        "weighted": {"owner_decision": weighted_estimate(random_rows, strata_sizes, False, census),
-                     "packaging_excluded": weighted_estimate(random_rows, strata_sizes, None, census),
-                     "packaging_same": weighted_estimate(random_rows, strata_sizes, True, census),
-                     "packaging_different": weighted_estimate(random_rows, strata_sizes, False, census)},
+        "weighted": {"owner_decision": weighted_estimate(weighted_rows, strata_sizes, False, census),
+                     "packaging_excluded": weighted_estimate(weighted_rows, strata_sizes, None, census),
+                     "packaging_same": weighted_estimate(weighted_rows, strata_sizes, True, census),
+                     "packaging_different": weighted_estimate(weighted_rows, strata_sizes, False, census)},
         "candidate_false_merges": merged,
         "candidate_lost_true_pairs": lost,
         "registry_counts": {"dropped": reg["dropped_counts"], "added": reg["added_counts"]},

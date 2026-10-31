@@ -301,9 +301,16 @@ async def process_disputed_queue_tick(
         model=model, min_interval=min_interval, min_confidence=min_confidence,
     )
     decision = verdict.get("decision")
+    if database.get_disputed_pair_status(ph) != "pending":
+        # Пока шла проверка, пару решил оператор: его решение не переписывается (аудит MM-03)
+        return {"pair_hash": ph, "status": "stale", "reason": "decided_during_check"}
     status = "resolved"
     if decision == SAME:
         import product_key
+        if database.title_key_pins([title_a, title_b]):
+            database.update_disputed_pair_status(ph, "unresolved", "same_but_operator_pin")
+            return {"pair_hash": ph, "decision": decision, "status": "unresolved", "verdict": verdict,
+                    "fields_source": sources}
         cached = database.get_cached_canonical_keys_batch([title_a, title_b])
         key_a, key_b = cached.get(title_a), cached.get(title_b)
         pool = [k for k in (key_a, key_b) if k]

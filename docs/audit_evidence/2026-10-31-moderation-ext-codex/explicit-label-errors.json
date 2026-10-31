@@ -1,0 +1,62 @@
+[
+  {
+    "idx": 108,
+    "a": "Беспроводная гарнитура Jabra Evolve2 65, Link380a MS Stereo Black (26599-999-999)",
+    "b": "Наушники Jabra Evolve2 65 Link380a MS Mono 26599-899-999 Black",
+    "label": "same",
+    "note": "Модель и характеристики товара совпадают",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "idx": 210,
+    "a": "Гарнитура Jabra Evolve2 65, Link380a MS Stereo",
+    "b": "Наушники Jabra Evolve2 65 Link380a MS Mono 26599-899-999 Black",
+    "label": "same",
+    "note": "Модель и характеристики товара совпадают",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "idx": 277,
+    "a": "Apple EarPods проводные наушники (Lightning Connector)",
+    "b": "EarPods USB-C",
+    "label": "same",
+    "note": "Модель и характеристики товара совпадают",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "idx": 358,
+    "a": "EarPods USB-C",
+    "b": "Наушники Apple EarPods, Lightning Connector (MWTY3ZM/A)",
+    "label": "same",
+    "note": "Модель и характеристики товара совпадают",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "idx": 595,
+    "a": "Apple EarPods проводные наушники (Lightning Connector)",
+    "b": "Наушники Apple EarPods Headphone Plug (MWU53ZM/A)",
+    "label": "same",
+    "note": "Модель и характеристики товара совпадают",
+    "strata": [
+      "added"
+    ]
+  },
+  {
+    "idx": 624,
+    "a": "Apple EarPods проводные наушники (USB-C)",
+    "b": "Наушники Apple EarPods Headphone Plug (MWU53ZM/A)",
+    "label": "same",
+    "note": "Модель и характеристики товара совпадают",
+    "strata": [
+      "added"
+    ]
+  }
+]

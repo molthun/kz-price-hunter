@@ -46,7 +46,7 @@ const assert=require('node:assert/strict');
    }
    if(u.pathname==='/api/admin/monitoring')return route.fulfill({contentType:'application/json',body:JSON.stringify({
     status:'healthy',generated_at:new Date().toISOString(),open_incidents:[],shops:[],sections:{
-     overview:{status:'healthy',reason:'ok'},shops:{status:'healthy',reason:'ok',shops:[],counts:{healthy:1}},
+     overview:{status:'healthy',reason:'ok'},matching:{status:'healthy',reason:'ok',counts:{}},shops:{status:'healthy',reason:'ok',shops:[],counts:{healthy:1}},
      scanning:{status:'healthy',reason:'ok',state:{},recent:[]},
      search:{status:'healthy',reason:'ok',total:1,errors:0,not_found:0,by_source:{},p95_ms:1,note:''},
      ai:{status:'unknown',reason:'нет данных',outcomes:{},counts:{}},

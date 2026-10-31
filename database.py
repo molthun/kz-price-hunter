@@ -942,6 +942,16 @@ def _create_schema(cursor) -> None:
         )
     """)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_title_articles_title_hash ON title_articles(title_hash)")
+    # Ключ, закреплённый решением оператора (аудит MM-02): его не меняют ни пересборка, ни сканирование
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS title_key_pins (
+            title_hash TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            canonical_key TEXT NOT NULL,
+            pair_hash TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
     # Третий источник истины (P17-C7): выдача поиска по запросу и вердикт «один товар / разные» по паре названий.
     # Кэш поиска нужен и для суточного предела запросов (search_daily_limit)
     cursor.execute("""
@@ -2066,6 +2076,7 @@ def save_cached_canonical_key(title: str, canonical_key: str):
             INSERT INTO title_canonical_cache (title_hash, title, canonical_key)
             VALUES (?, ?, ?)
             ON CONFLICT(title_hash) DO UPDATE SET canonical_key = excluded.canonical_key
+            WHERE title_canonical_cache.title_hash NOT IN (SELECT title_hash FROM title_key_pins)
         """, (th, title.strip(), canonical_key.strip().lower()))
         conn.commit()
 
@@ -2082,6 +2093,7 @@ def save_cached_canonical_keys_batch(mapping: Dict[str, str]):
             INSERT INTO title_canonical_cache (title_hash, title, canonical_key)
             VALUES (?, ?, ?)
             ON CONFLICT(title_hash) DO UPDATE SET canonical_key = excluded.canonical_key
+            WHERE title_canonical_cache.title_hash NOT IN (SELECT title_hash FROM title_key_pins)
         """, rows)
         conn.commit()
 
@@ -2315,16 +2327,23 @@ def get_pair_verdict(pair_hash: str) -> Optional[Dict[str, Any]]:
 
 
 def save_pair_verdict(pair_hash: str, title_a: str, title_b: str, verdict: Dict[str, Any],
-                      model: Optional[str] = None) -> None:
-    """Вердикт по паре (P17-C7): последний заменяет прежний."""
-    with get_connection() as conn:
-        conn.execute("""INSERT INTO product_pair_verdicts (pair_hash, title_a, title_b, decision, verdict_json, model)
-                        VALUES (?, ?, ?, ?, ?, ?)
-                        ON CONFLICT(pair_hash) DO UPDATE SET decision = excluded.decision,
-                            verdict_json = excluded.verdict_json, model = excluded.model, created_at = CURRENT_TIMESTAMP""",
-                     (pair_hash, title_a[:500], title_b[:500], str(verdict.get("decision")),
-                      json.dumps(verdict, ensure_ascii=False, sort_keys=True)[:4000], model))
-        conn.commit()
+                      model: Optional[str] = None, conn=None) -> None:
+    """Вердикт по паре (P17-C7): последний заменяет прежний, но решение оператора заменяет только оператор.
+
+    conn — транзакция вызывающего, без commit (аудит MM-03)."""
+    sql = """INSERT INTO product_pair_verdicts (pair_hash, title_a, title_b, decision, verdict_json, model)
+             VALUES (?, ?, ?, ?, ?, ?)
+             ON CONFLICT(pair_hash) DO UPDATE SET decision = excluded.decision,
+                 verdict_json = excluded.verdict_json, model = excluded.model, created_at = CURRENT_TIMESTAMP
+             WHERE COALESCE(product_pair_verdicts.model, '') NOT LIKE 'human:%' OR excluded.model LIKE 'human:%'"""
+    args = (pair_hash, title_a[:500], title_b[:500], str(verdict.get("decision")),
+            json.dumps(verdict, ensure_ascii=False, sort_keys=True)[:4000], model)
+    if conn is not None:
+        conn.execute(sql, args)
+        return
+    with get_connection() as own:
+        own.execute(sql, args)
+        own.commit()
 
 
 def get_pair_decisions(pair_hashes: Iterable[str]) -> Dict[str, str]:
@@ -2577,125 +2596,175 @@ def get_disputed_product_pairs(
     }
 
 
+def get_disputed_pair_status(pair_hash: str) -> Optional[str]:
+    with get_connection() as conn:
+        row = conn.execute("SELECT status FROM disputed_product_pairs WHERE pair_hash = ?", (pair_hash,)).fetchone()
+    return row[0] if row else None
+
+
+def title_key_pins(titles: Optional[Iterable[str]] = None) -> Dict[str, str]:
+    """Закреплённые оператором ключи {название: ключ} — все или только для указанных названий."""
+    with get_connection() as conn:
+        return _title_key_pins_conn(conn, titles)
+
+
+def _title_key_pins_conn(conn, titles: Optional[Iterable[str]] = None) -> Dict[str, str]:
+    if not _has_table(conn, "title_key_pins"):              # копия базы до этой таблицы (скрипт миграции)
+        return {}
+    if titles is None:
+        return {r[0]: r[1] for r in conn.execute("SELECT title, canonical_key FROM title_key_pins")}
+    found: Dict[str, str] = {}
+    for chunk in _chunks([_title_hash(t.strip()) for t in titles if t and t.strip()]):
+        for title, key in conn.execute("SELECT title, canonical_key FROM title_key_pins WHERE title_hash IN (SELECT value FROM json_each(?))",
+                                       (json.dumps(chunk),)):
+            found[title] = key
+    return found
+
+
+def _all_title_key_pins() -> Dict[str, str]:
+    """Все закреплённые ключи для подготовки порции товаров: один запрос на порцию, отдельным соединением, чтобы не
+    держать блокировку записи вызывающего. Таблица маленькая: только решения оператора."""
+    conn = sqlite3.connect(DB_PATH, timeout=15)
+    try:
+        return {r[0]: r[1] for r in conn.execute("SELECT title, canonical_key FROM title_key_pins")}
+    except sqlite3.OperationalError:                        # база до этой таблицы
+        return {}
+    finally:
+        conn.close()
+
+
+def _pin_title_keys_conn(conn, keys: Dict[str, str], pair_hash: str) -> None:
+    conn.executemany("""INSERT INTO title_key_pins (title_hash, title, canonical_key, pair_hash) VALUES (?, ?, ?, ?)
+                        ON CONFLICT(title_hash) DO UPDATE SET canonical_key = excluded.canonical_key,
+                            pair_hash = excluded.pair_hash, created_at = CURRENT_TIMESTAMP""",
+                     [(_title_hash(t), t, k, pair_hash) for t, k in keys.items()])
+
+
+def _group_conflicts_conn(conn, title_a: str, title_b: str, key_a: Optional[str], key_b: Optional[str]) -> List[str]:
+    """Участники групп, которых SAME этой пары перенёс бы вопреки их идентичности или решению different (MM-01).
+
+    Саму пару решает оператор, поэтому она не проверяется: только все остальные сочетания двух групп."""
+    import product_key
+
+    def members(key):
+        return [r[0] for r in conn.execute("SELECT title FROM title_canonical_cache WHERE canonical_key = ?", (key,))] if key else []
+    side_a = {title_a, *members(key_a)}
+    side_b = {title_b, *members(key_b)}
+    titles = sorted(side_a | side_b)
+    fields: Dict[str, Any] = {}
+    for chunk in _chunks([_title_hash(t) for t in titles]):
+        for title, raw in conn.execute("SELECT title, fields_json FROM title_fields WHERE title_hash IN (SELECT value FROM json_each(?))",
+                                       (json.dumps(chunk),)):
+            fields[title] = json.loads(raw)
+    keys = {t: key_a for t in side_a}
+    keys.update({t: key_b for t in side_b})
+    crossed = {(x, y) for x in side_a for y in side_b if x != y and {x, y} != {title_a, title_b}}
+    found = set()
+    for x, y in crossed:
+        if product_key.identities_conflict([(x, fields.get(x), keys[x])], [(y, fields.get(y), keys[y])]):
+            found.update({x, y} - {title_a, title_b})
+    hashes = {product_key.pair_hash(x, y): (x, y) for x, y in crossed}
+    for chunk in _chunks(list(hashes)):
+        for (ph,) in conn.execute("""SELECT pair_hash FROM product_pair_verdicts
+                                     WHERE decision = 'different' AND pair_hash IN (SELECT value FROM json_each(?))""",
+                                  (json.dumps(chunk),)):
+            found.update(set(hashes[ph]) - {title_a, title_b})
+    return sorted(found)
+
+
+def _human_verdict(decision: str, reviewer: str, notes: str) -> Dict[str, Any]:
+    return {"decision": decision, "confidence": 1.0, "same": decision == "same", "source": "human", "reviewer": reviewer,
+            "reason": notes or ("Решение человека: один товар" if decision == "same" else "Решение человека: разные товары"),
+            "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+
+
 def resolve_disputed_pair_human(
     pair_hash: str,
     decision: str,
     reviewer: str = "human",
     notes: str = "",
 ) -> Dict[str, Any]:
-    """Решение спорной пары человеком (оператором/администратором).
+    """Решение спорной пары оператором: перенос, закрепление ключа, вердикт и статус одной транзакцией (MM-03).
 
-    Поддерживаемые решения:
-    - 'same': подтверждает, что товары одинаковые. Объединяет их канонические ключи через rekey_titles,
-      сохраняет вердикт в product_pair_verdicts и обновляет статус пары на 'resolved'.
-    - 'different': подтверждает, что товары разные. Если товары были объединены под одним ключом,
-      разделяет их (присваивая отдельный ключ), сохраняет вердикт в product_pair_verdicts
-      и обновляет статус пары на 'resolved'.
-    - 'skip' / 'skipped': откладывает пару без применения склейки/разделения со статусом 'skipped'.
-    """
+    - 'same': один товар. Группа второго ключа переходит целиком, поэтому при противоречии остальных участников
+      решение отклоняется без изменений и возвращает их список (MM-01). Перенесённые ключи закрепляются.
+    - 'different': разные товары. Если ключи совпадают или совпадут при пересборке, второе название получает
+      собственный закреплённый ключ, и пересборка его не вернёт (MM-02).
+    - 'skip' / 'skipped': отложить без изменения ключей.
+
+    Решённую пару повторно решить нельзя: сначала её возвращают в очередь, иначе устаревшая карточка второго
+    оператора молча заменила бы первое решение."""
     decision = (decision or "").strip().lower()
     if decision not in ("same", "different", "skip", "skipped"):
         return {"ok": False, "error": f"Недопустимое решение: {decision}. Допустимы: same, different, skip"}
-
-    with get_connection() as conn:
-        row = conn.execute(
-            "SELECT title_a, title_b, status FROM disputed_product_pairs WHERE pair_hash = ?",
-            (pair_hash,)
-        ).fetchone()
-
-    if not row:
-        return {"ok": False, "error": f"Спорная пара с хэшем {pair_hash} не найдена"}
-
-    title_a, title_b, current_status = row[0], row[1], row[2]
-
-    if decision in ("skip", "skipped"):
-        update_disputed_pair_status(pair_hash, "skipped", notes or "human_skipped")
-        return {"ok": True, "decision": "skipped", "pair_hash": pair_hash}
-
     import product_key
 
+    with get_connection() as conn:
+        conn.execute("BEGIN IMMEDIATE")                     # чтение и запись — под одной блокировкой писателя
+        try:
+            result = _resolve_disputed_pair_conn(conn, pair_hash, decision, reviewer, notes, product_key)
+            conn.commit() if result["ok"] else conn.rollback()
+            return result
+        except BaseException:
+            conn.rollback()
+            raise
+
+
+def _resolve_disputed_pair_conn(conn, pair_hash, decision, reviewer, notes, product_key) -> Dict[str, Any]:
+    row = conn.execute("SELECT title_a, title_b, status FROM disputed_product_pairs WHERE pair_hash = ?", (pair_hash,)).fetchone()
+    if not row:
+        return {"ok": False, "error": f"Спорная пара с хэшем {pair_hash} не найдена"}
+    title_a, title_b, current_status = row[0], row[1], row[2]
+    if current_status == "resolved":
+        return {"ok": False, "error": "Пара уже решена: обновите список или верните её в очередь"}
+
+    def set_status(status, reason):
+        conn.execute("""UPDATE disputed_product_pairs SET status = ?, last_reason = COALESCE(?, last_reason),
+                        updated_at = CURRENT_TIMESTAMP WHERE pair_hash = ?""", (status, reason, pair_hash))
+
+    if decision in ("skip", "skipped"):
+        set_status("skipped", notes or "human_skipped")
+        return {"ok": True, "decision": "skipped", "pair_hash": pair_hash}
+
+    def cached_key(title):
+        found = conn.execute("SELECT canonical_key FROM title_canonical_cache WHERE title_hash = ?", (_title_hash(title),)).fetchone()
+        return (found[0] if found else None) or None
+
+    def own_key(title):
+        found = conn.execute("SELECT fields_json FROM title_fields WHERE title_hash = ?", (_title_hash(title),)).fetchone()
+        return product_key.build_key(json.loads(found[0]), title) if found else None
+    key_a, key_b, own_a, own_b = cached_key(title_a), cached_key(title_b), own_key(title_a), own_key(title_b)
+
     if decision == "same":
-        cached = get_cached_canonical_keys_batch([title_a, title_b])
-        key_a, key_b = cached.get(title_a), cached.get(title_b)
+        conflicts = _group_conflicts_conn(conn, title_a, title_b, key_a, key_b) if key_a != key_b else []
+        if conflicts:
+            return {"ok": False, "error": "В группах есть другие товары, которые противоречат этому решению",
+                    "conflicts": conflicts}
         pool = [k for k in (key_a, key_b) if k]
-
-        if pool:
-            common_key = sorted(
-                set(pool),
-                key=lambda k: (0 if k.startswith("k2:") else 1,
-                               0 if product_key._variants_of(k) else 1,
-                               len(k), k)
-            )[0]
-        else:
-            fields_map = get_title_fields_with_source([title_a, title_b])
-            fa = (fields_map.get(title_a) or {}).get("fields")
-            fb = (fields_map.get(title_b) or {}).get("fields")
-            common_key = product_key.build_key(fa, title_a) or product_key.build_key(fb, title_b)
-            if not common_key:
-                common_key = f"k2:human:{pair_hash[:16]}"
-
+        common_key = sorted(set(pool), key=lambda k: (0 if k.startswith("k2:") else 1, 0 if product_key._variants_of(k) else 1,
+                                                      len(k), k))[0] if pool else (own_a or own_b or f"k2:human:{pair_hash[:16]}")
         moved = {title_a: common_key, title_b: common_key}
         for other in set(pool) - {common_key}:
-            for t in titles_with_canonical_key(other):
-                moved[t] = common_key
+            moved.update({r[0]: common_key for r in conn.execute("SELECT title FROM title_canonical_cache WHERE canonical_key = ?", (other,))})
+        _pin_title_keys_conn(conn, moved, pair_hash)
+        rekey_titles_conn(conn, moved)
+        save_pair_verdict(pair_hash, title_a, title_b, _human_verdict("same", reviewer, notes), model=f"human:{reviewer}", conn=conn)
+        set_status("resolved", "human_same")
+        return {"ok": True, "decision": "same", "pair_hash": pair_hash, "canonical_key": common_key, "titles_updated": len(moved)}
 
-        rekey_titles(moved)
-
-        verdict = {
-            "decision": "same",
-            "confidence": 1.0,
-            "same": True,
-            "source": "human",
-            "reviewer": reviewer,
-            "reason": notes or "Решение человека: один товар",
-            "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        }
-        save_pair_verdict(pair_hash, title_a, title_b, verdict, model=f"human:{reviewer}")
-        update_disputed_pair_status(pair_hash, "resolved", "human_same")
-        return {
-            "ok": True,
-            "decision": "same",
-            "pair_hash": pair_hash,
-            "canonical_key": common_key,
-            "titles_updated": len(moved),
-        }
-
-    elif decision == "different":
-        cached = get_cached_canonical_keys_batch([title_a, title_b])
-        key_a, key_b = cached.get(title_a), cached.get(title_b)
-        split_info = None
-
-        if key_a and key_b and key_a == key_b:
-            fields_map = get_title_fields_with_source([title_a, title_b])
-            fb = (fields_map.get(title_b) or {}).get("fields")
-            distinct_key = None
-            if fb:
-                cand = product_key.build_key(fb, title_b)
-                if cand and cand != key_a:
-                    distinct_key = cand
-            if not distinct_key:
-                distinct_key = f"{key_b}.diff_{_title_hash(title_b)[:8]}"
-
-            rekey_titles({title_b: distinct_key})
-            split_info = {"separated_title": title_b, "new_key": distinct_key, "previous_key": key_b}
-
-        verdict = {
-            "decision": "different",
-            "confidence": 1.0,
-            "same": False,
-            "source": "human",
-            "reviewer": reviewer,
-            "reason": notes or "Решение человека: разные товары",
-            "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        }
-        save_pair_verdict(pair_hash, title_a, title_b, verdict, model=f"human:{reviewer}")
-        update_disputed_pair_status(pair_hash, "resolved", "human_different")
-        return {
-            "ok": True,
-            "decision": "different",
-            "pair_hash": pair_hash,
-            "split": split_info,
-        }
+    split_info = None
+    # Разные сейчас ключи ещё не гарантия: собственные ключи могут совпасть при следующей пересборке (MM-02)
+    collides = (key_a and key_a == key_b) or not own_a or not own_b or own_a == own_b or own_a == key_b or own_b == key_a
+    if collides:
+        base = key_b or own_b or f"k2:human:{pair_hash[:16]}"
+        distinct_key = f"{base.split('.diff_')[0]}.diff_{_title_hash(title_b)[:8]}"
+        moved = {title_b: distinct_key}
+        _pin_title_keys_conn(conn, moved, pair_hash)
+        rekey_titles_conn(conn, moved)
+        split_info = {"separated_title": title_b, "new_key": distinct_key, "previous_key": key_b}
+    save_pair_verdict(pair_hash, title_a, title_b, _human_verdict("different", reviewer, notes), model=f"human:{reviewer}", conn=conn)
+    set_status("resolved", "human_different")
+    return {"ok": True, "decision": "different", "pair_hash": pair_hash, "split": split_info}
 
 
 def get_disputed_pairs_stats() -> Dict[str, Any]:
@@ -2757,6 +2826,8 @@ def rekey_titles_conn(conn, new_keys: Dict[str, str]) -> Dict[str, int]:
     stats = {"titles": len(rows), "products": 0, "offers": 0, "history": 0}
     if not rows:
         return stats
+    pins = _title_key_pins_conn(conn, [t for t, _ in rows])    # решение оператора сильнее пересборки (MM-02)
+    rows = [(t, pins.get(t, k)) for t, k in rows]
     conn.execute("""INSERT INTO title_canonical_cache (title_hash, title, canonical_key)
                     SELECT json_extract(value, '$[0]'), json_extract(value, '$[1]'), json_extract(value, '$[2]')
                     FROM json_each(?) WHERE true
@@ -2824,7 +2895,7 @@ def clear_title_identity_conn(conn, titles: Iterable[str]) -> Dict[str, int]:
     Прежний общий ключ снимается во всех слоях: предложения переезжают на собственный товар через тот же перенос,
     поэтому товар остаётся в поиске, история цен идёт за предложением, а aliases сохраняют наблюдения. В кэше ключа
     остаётся пусто: это «ключа нет», повторная миграция такие названия не запрашивает."""
-    unique = sorted({t.strip() for t in titles if t and t.strip()})
+    unique = sorted({t.strip() for t in titles if t and t.strip()} - set(_title_key_pins_conn(conn, titles)))
     stats = rekey_titles_conn(conn, {t: no_identity_key(t) for t in unique})
     conn.executemany("UPDATE title_canonical_cache SET canonical_key = '' WHERE title_hash = ?",
                      [(_title_hash(t),) for t in unique])
@@ -2972,7 +3043,8 @@ def update_products_canonical_keys(pairs: List[tuple]) -> int:
     for i in range(0, len(pairs), 200):
         chunk = pairs[i:i + 200]
         with get_connection() as conn:
-            conn.executemany("UPDATE products SET canonical_key = ? WHERE id = ?", chunk)
+            conn.executemany("""UPDATE products SET canonical_key = ? WHERE id = ?
+                                AND title NOT IN (SELECT title FROM title_key_pins)""", chunk)
             conn.commit()
     return len(pairs)
 
@@ -3039,7 +3111,7 @@ def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
             "current_price": 0,
             "price_changed": False
         }
-    canonical_key = p.get("canonical_key") or extract_canonical_key(title)
+    canonical_key = title_key_pins([title]).get(title.strip()) or p.get("canonical_key") or extract_canonical_key(title)
     old_on_site = site_old_price(p.get("old_price_on_site"), current_price)
 
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -3142,6 +3214,7 @@ def _prepare_products_chunk(chunk: List[Dict[str, Any]]) -> List[Optional[Dict[s
 
     dual = os.environ.get("DUAL_WRITE_V2", "1") != "0"
     prepared: List[Optional[Dict[str, Any]]] = []
+    pins = _all_title_key_pins()
     for p in chunk:
         pid = str(p["id"])
         shop = p.get("shop", "Белый Ветер")
@@ -3162,7 +3235,7 @@ def _prepare_products_chunk(chunk: List[Dict[str, Any]]) -> List[Optional[Dict[s
         if current_price > 10_000_000 or current_price <= 0:
             prepared.append(None)
             continue
-        canonical_key = p.get("canonical_key") or extract_canonical_key(title)
+        canonical_key = pins.get(title.strip()) or p.get("canonical_key") or extract_canonical_key(title)
         item: Dict[str, Any] = {
             "id": pid, "shop": shop, "city": city, "title": title, "category": category, "url": url,
             "image_url": image_url, "description": description, "price": current_price,

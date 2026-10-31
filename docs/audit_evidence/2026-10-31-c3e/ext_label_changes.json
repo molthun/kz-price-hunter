@@ -1,0 +1,331 @@
+[
+ {
+  "a": "Маршрутизатор TP-Link Archer C6",
+  "b": "Роутер TP-Link Archer C6 AC1300 (Archer C6-AC1300)",
+  "generator": "same",
+  "now": "uncertain",
+  "reason": "AC1200 или AC1300 не определить"
+ },
+ {
+  "a": "AFOX GT 730 (AF730-4096D3L6) 4 Гб",
+  "b": "Видеокарта Afox GT 730, 4 GB, GeForce GT 730",
+  "generator": "same",
+  "now": "uncertain",
+  "reason": "во втором нет кода карты"
+ },
+ {
+  "a": "Смарт-часы GARMIN Fenix 8 51mm ,AMOLED, сапфир, титановый корпус, черный, кожаный ремешок каштанового цвета 010-02905-40",
+  "b": "Смарт-часы Garmin Fenix 8 010-02907-21 51mm Sapphire Titanium with Amp Yellow/Graphite Silicone Band",
+  "generator": "same",
+  "now": "different",
+  "reason": "010-02905 AMOLED и 010-02907 Solar"
+ },
+ {
+  "a": "ASRock B760 Pro RS/D4",
+  "b": "Материнская плата ASRock B760 Pro RS, LGA1700",
+  "generator": "same",
+  "now": "different",
+  "reason": "RS/D4 — DDR4, RS — DDR5"
+ },
+ {
+  "a": "Xbox Series X 1TB черный + геймпад",
+  "b": "Игровая приставка Xbox Series X 1TB + Xbox Series X\\S Controller Wireless Robot White",
+  "generator": "same",
+  "now": "uncertain",
+  "reason": "геймпад в комплекте не определить"
+ },
+ {
+  "a": "Беспроводная гарнитура Jabra Evolve2 65, Link380a MS Stereo Black (26599-999-999)",
+  "b": "Наушники Jabra Evolve2 65 Link380a MS Mono 26599-899-999 Black",
+  "generator": "same",
+  "now": "different",
+  "reason": "Stereo и Mono"
+ },
+ {
+  "a": "SSD накопитель 1 TB Kingston NV3, M.2 2230, PCIe 4.0",
+  "b": "SSD накопитель 1Tb Kingston NV3 SNV3S/1000G",
+  "generator": "different",
+  "now": "uncertain",
+  "reason": "M.2 2230 в названии, код SNV3S не сверен"
+ },
+ {
+  "a": "Смарт часы GARMIN FENIX 9 51mm AMOLED, Titanium with pebble gray silicone band 010-04763-01",
+  "b": "Смарт-часы Garmin Fenix 9 51мм Серебристый, серый",
+  "generator": "same",
+  "now": "uncertain",
+  "reason": "во втором нет артикула"
+ },
+ {
+  "a": "Гарнитура Jabra EVOLVE 10 Stereo",
+  "b": "Гарнитура для ПК JABRA EVOLVE 10 (2699-820-109) USB-A",
+  "generator": "same",
+  "now": "uncertain",
+  "reason": "UC/MS и код не сверены"
+ },
+ {
+  "a": "27\" X-Game OFLED27 черный",
+  "b": "Монитор OFLED27+ 27\", 100 Гц X-Game",
+  "generator": "same",
+  "now": "different",
+  "reason": "OFLED27 и OFLED27+"
+ },
+ {
+  "a": "Смарт-часы GARMIN Fenix 8 51mm ,AMOLED, сапфир, титановый корпус, черный, кожаный ремешок каштанового цвета 010-02905-40",
+  "b": "Смарт-часы Garmin Fenix 8 010-02905-11 51мм Spark Orange",
+  "generator": "same",
+  "now": "uncertain",
+  "reason": "разный ремешок, артикулы не сверены"
+ },
+ {
+  "a": "AirPods Max 2",
+  "b": "Apple AirPods Max Starlight беспроводные наушники (MWW53)",
+  "generator": "same",
+  "now": "different",
+  "reason": "AirPods Max 2 и поколение 2024 года"
+ },
+ {
+  "a": "Корпус Ocypus Gamma C70 WH ARGB, White",
+  "b": "Корпус Ocypus Gamma C70 WH Gamma-C70-WHG400XX-GL",
+  "generator": "same",
+  "now": "uncertain",
+  "reason": "ARGB-исполнение не подтверждено"
+ },
+ {
+  "a": "Гарнитура Jabra Evolve2 65, Link380a MS Stereo",
+  "b": "Наушники Jabra Evolve2 65 Link380a MS Mono 26599-899-999 Black",
+  "generator": "same",
+  "now": "different",
+  "reason": "Stereo и Mono"
+ },
+ {
+  "a": "Видеокарта AFOX GT730 4GB D3 LP Single Fan AF730-4096D3L6",
+  "b": "Видеокарта Afox GT 730 4 GB (AF730-4096D3L5)",
+  "generator": "same",
+  "now": "uncertain",
+  "reason": "L6 и L5 не описаны"
+ },
+ {
+  "a": "Видеокарта AFOX GT730 4GB D3 LP Single Fan AF730-4096D3L6",
+  "b": "Видеокарта Afox GT 730, 4 GB, GeForce GT 730",
+  "generator": "same",
+  "now": "uncertain",
+  "reason": "во втором нет кода карты"
+ },
+ {
+  "a": "Смарт часы GARMIN FENIX 9 51mm AMOLED, Carbon gray DLC titanium with black silicone band 010-04763-11",
+  "b": "Смарт-часы Garmin Fenix 9 51мм Серебристый, серый",
+  "generator": "same",
+  "now": "uncertain",
+  "reason": "во втором нет артикула"
+ },
+ {
+  "a": "Apple EarPods проводные наушники (Lightning Connector)",
+  "b": "EarPods USB-C",
+  "generator": "same",
+  "now": "different",
+  "reason": "Lightning и USB-C"
+ },
+ {
+  "a": "Гарнитура Razer Barracuda X 2022 RZ04-04430100-R3M1",
+  "b": "Наушники Razer Barracuda X 2022 Roblox Edition RZ04-04430400-R3M1",
+  "generator": "same",
+  "now": "different",
+  "reason": "Roblox Edition с виртуальным предметом"
+ },
+ {
+  "a": "Гарнитура Jabra Evolve2 65 Flex Link380a MS Stereo (26699-999-999)",
+  "b": "Гарнитура Jabra Evolve2 65 Flex Link380a MS Stereo WLC",
+  "generator": "same",
+  "now": "different",
+  "reason": "WLC — комплект с беспроводной зарядкой"
+ },
+ {
+  "a": "Корпус Ocypus Gamma C70 BK ARGB, Black",
+  "b": "Корпус Ocypus Gamma C70 WH Gamma-C70-WHG400XX-GL",
+  "generator": "same",
+  "now": "uncertain",
+  "reason": "ARGB-исполнение не подтверждено"
+ },
+ {
+  "a": "Игровая приставка Sony PlayStation 5 Slim + геймпад + Mortal Kombat 1",
+  "b": "Игровая приставка Sony PlayStation 5 Slim + геймпад Белый",
+  "generator": "same",
+  "now": "different",
+  "reason": "разные комплекты PS5"
+ },
+ {
+  "a": "AMD Ryzen 9 7950X OEM",
+  "b": "Процессор AMD Ryzen 9 7950X (100-000000514)",
+  "generator": "uncertain",
+  "now": "same",
+  "reason": ""
+ },
+ {
+  "a": "Смарт-часы GARMIN Fenix 8 47mm, AMOLED, сапфир, светлые, оранжевый силикон, 010-02904-11",
+  "b": "Смарт-часы Garmin Fenix 8 010-02904-40 47mm Sapphire Bare Titanium, Graphite with Titanium Band",
+  "generator": "same",
+  "now": "uncertain",
+  "reason": "разный ремешок"
+ },
+ {
+  "a": "EarPods USB-C",
+  "b": "Наушники Apple EarPods, Lightning Connector (MWTY3ZM/A)",
+  "generator": "same",
+  "now": "different",
+  "reason": "USB-C и Lightning"
+ },
+ {
+  "a": "ASRock B650M PG Lightning",
+  "b": "Материнская плата ASRock B650M-H/M.2+ D5",
+  "generator": "same",
+  "now": "different",
+  "reason": "разные платы"
+ },
+ {
+  "a": "MAXSUN MS-RX550 TF 4G 4 Гб",
+  "b": "Видеокарта MaxSun RX 550, 4 GB, Radeon RX 550",
+  "generator": "same",
+  "now": "uncertain",
+  "reason": "во втором нет кода карты"
+ },
+ {
+  "a": "Гарнитура проводная Edifier K815 USB (K815 USB)",
+  "b": "Наушники Edifier K815 Black",
+  "generator": "same",
+  "now": "uncertain",
+  "reason": "K815 USB и без указания"
+ },
+ {
+  "a": "Материнская плата ASRock B650M (B650M-H/M.2+)",
+  "b": "Материнская плата ASRock B650M PG LIGHTNING",
+  "generator": "same",
+  "now": "different",
+  "reason": "разные платы"
+ },
+ {
+  "a": "AFOX GTX 1660 SUPER AF1660S-6144D6H4-V2 6 Гб",
+  "b": "Видеокарта 6GB AFOX GTX1660 SUPER D6 Dual Fan AF1660S-6144D6H7-V2",
+  "generator": "same",
+  "now": "uncertain",
+  "reason": "H4 и H7 не описаны"
+ },
+ {
+  "a": "AFOX GeForce GT 1030 LP 2Gb",
+  "b": "Видеокарта Afox GT 1030, 2 GB, GeForce GT1030",
+  "generator": "same",
+  "now": "uncertain",
+  "reason": "во втором нет кода карты"
+ },
+ {
+  "a": "Наушники SOUNDCORE Q11i A3005G21 (white)",
+  "b": "Наушники soundcore Q11i - White (A3004-WH)",
+  "generator": "same",
+  "now": "uncertain",
+  "reason": "A3005 и A3004 не описаны"
+ },
+ {
+  "a": "Смарт-часы GARMIN Fenix 8 47mm ,AMOLED, сапфир, светлый титан 010-02904-40",
+  "b": "Смарт-часы Garmin Fenix 8 010-02904-11 47mm Sapphire Titanium with Spark Orange/Graphite Silicone Band",
+  "generator": "same",
+  "now": "uncertain",
+  "reason": "разный ремешок"
+ },
+ {
+  "a": "Bluetooth Гарнитура Razer Opus (Late 2020) RZ04-03430100-R3M1",
+  "b": "Bluetooth Гарнитура Razer Opus, Black",
+  "generator": "same",
+  "now": "uncertain",
+  "reason": "издание Late 2020 во втором не указано"
+ },
+ {
+  "a": "AFOX GeForce GT 1030 LP 2Gb",
+  "b": "Видеокарта Afox GT 1030 2 GB (AF1030-2048D5L7)",
+  "generator": "same",
+  "now": "uncertain",
+  "reason": "в первом нет кода карты"
+ },
+ {
+  "a": "Apple AirPods Max Starlight беспроводные наушники (MWW53)",
+  "b": "Наушники Apple AirPods Max Pink",
+  "generator": "same",
+  "now": "different",
+  "reason": "Pink — поколение Lightning, Starlight — USB-C"
+ },
+ {
+  "a": "Смарт часы GARMIN FENIX 9 47mm AMOLED, Titanium with pebble gray silicone band 010-04762-01",
+  "b": "Смарт-часы Garmin Fenix 9 47мм Серебристый, серый",
+  "generator": "same",
+  "now": "uncertain",
+  "reason": "во втором нет артикула"
+ },
+ {
+  "a": "Гарнитура A4Tech Bloody G575, Naraka",
+  "b": "Наушники A4tech Bloody G575 Black",
+  "generator": "same",
+  "now": "uncertain",
+  "reason": "Naraka — цвет или издание"
+ },
+ {
+  "a": "Apple EarPods проводные наушники (Lightning Connector)",
+  "b": "Наушники Apple EarPods Headphone Plug (MWU53ZM/A)",
+  "generator": "same",
+  "now": "different",
+  "reason": "Lightning и Headphone Plug"
+ },
+ {
+  "a": "AirPods Max 2",
+  "b": "Наушники Apple AirPods Max Pink",
+  "generator": "uncertain",
+  "now": "different",
+  "reason": "AirPods Max 2 и поколение Lightning"
+ },
+ {
+  "a": "Видеокарта AFOX GT730 2GB D3 LP Single Fan AF730-2048D3L5",
+  "b": "Видеокарта Afox GT 730, 2 GB, GeForce GT 730",
+  "generator": "same",
+  "now": "uncertain",
+  "reason": "во втором нет кода карты"
+ },
+ {
+  "a": "Игровая гарнитура HYPERX 519T1AA Cloud Stinger 2",
+  "b": "Наушники-гарнитура HyperX 683L9AA Cloud Stinger 2 Wired",
+  "generator": "same",
+  "now": "uncertain",
+  "reason": "519T1AA и 683L9AA не сверены"
+ },
+ {
+  "a": "Apple EarPods проводные наушники (USB-C)",
+  "b": "Наушники Apple EarPods Headphone Plug (MWU53ZM/A)",
+  "generator": "same",
+  "now": "different",
+  "reason": "USB-C и Headphone Plug"
+ },
+ {
+  "a": "Смарт часы GARMIN FENIX 9 47mm AMOLED, Titanium with pebble gray silicone band 010-04762-01",
+  "b": "Смарт-часы Garmin Fenix 9 47мм Серый, черный",
+  "generator": "same",
+  "now": "uncertain",
+  "reason": "во втором нет артикула"
+ },
+ {
+  "a": "Компьютерный корпус Thermaltake The Tower 200 Snow",
+  "b": "Панель LCD Thermaltake The Tower 200, Black",
+  "generator": "same",
+  "now": "different",
+  "reason": "корпус и LCD-панель"
+ },
+ {
+  "a": "Ноутбук Tecno MEGABOOK K16S (K16SDA) [16\", Ryzen 5-7430U, 8 ГБ ОЗУ, 512 ГБ SSD, Windows 11 Home]",
+  "b": "Ноутбук Tecno MEGABOOK K16S 16\" FHD i3-1315U 8GB 512GB Win 11 Tecno MEGABOOK K16S",
+  "generator": "same",
+  "now": "different",
+  "reason": "Ryzen 5 и i3"
+ },
+ {
+  "a": "ASRock B650M-H/M.2+",
+  "b": "Материнская плата ASRock B650M PG LIGHTNING",
+  "generator": "same",
+  "now": "different",
+  "reason": "разные платы"
+ }
+]
