@@ -316,6 +316,23 @@ CREATE TABLE IF NOT EXISTS scheduler_plans (
     reasons TEXT NOT NULL DEFAULT '{}'
 );
 CREATE INDEX IF NOT EXISTS idx_scheduler_plans_generated ON scheduler_plans(generated_at DESC);
+
+-- 16. Categories Master Taxonomy (S2-E17): иерархическая таксономия категорий
+CREATE TABLE IF NOT EXISTS categories (
+    id TEXT PRIMARY KEY,
+    parent_id TEXT,
+    name TEXT NOT NULL,
+    icon TEXT NOT NULL DEFAULT '📦',
+    aliases_json TEXT NOT NULL DEFAULT '[]',
+    attributes_schema_json TEXT NOT NULL DEFAULT '{}',
+    search_priority INTEGER NOT NULL DEFAULT 50,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (parent_id) REFERENCES categories(id)
+);
+CREATE INDEX IF NOT EXISTS idx_categories_parent ON categories(parent_id);
+CREATE INDEX IF NOT EXISTS idx_categories_priority ON categories(search_priority DESC);
 """
 
 
@@ -373,5 +390,12 @@ def init_schema_v2(conn: sqlite3.Connection) -> None:
             fts_count = cur.fetchone()[0]
             if fts_count < prod_count:
                 rebuild_canonical_products_fts(conn)
+    except Exception:
+        pass
+
+    # S2-E17: Начальное заполнение мастер-таксономии категорий
+    try:
+        from repositories.category_repo import CategoryRepository
+        CategoryRepository(conn).seed_defaults_if_empty()
     except Exception:
         pass

@@ -2,6 +2,32 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## Search Platform 2.0: Этап 17 — Category Architecture — Antigravity (2026-10-31, завершён)
+
+- **Основание:** поручение владельца продолжать по очереди («Все по очереди. Пишем и охватываем тестами. Крупные этапы после разработки только охватываем аудитом остальное только авто тестами и стендом. Делаем»), план Search Platform 2.0 ([SEARCH_PLATFORM_PLAN.md](SEARCH_PLATFORM_PLAN.md) Этап 17).
+- **Исполнитель:** Antigravity (основной разработчик), ветка `main`.
+- **Область файлов:** `domain/category.py` (новый), `repositories/category_repo.py` (новый), `repositories/schema_v2.py`, `domain/search_core.py`, `repositories/search_repo.py`, `web/server.py`, `tests/core/test_category_architecture.py` (новый), `docs/AGENT_HANDOFF.md`, `ROADMAP_AND_LOG.md`.
+- **Что реализовано:**
+  1. Доменная модель `Category` (`id`, `parent_id`, `name`, `icon`, `aliases`, `attributes_schema`, `search_priority`, `is_active`).
+  2. Иерархическая мастер-таксономия (10 Root L1 категорий: Электроника, Бытовая техника, Одежда и обувь, Дом и дача, Продукты питания, Автотовары, Красота и здоровье, Спорт и отдых, Зоотовары, Детские товары + 25+ детальных L2 подкатегорий с алиасами и схемами атрибутов).
+  3. `TaxonomyMapper` для нормализации категорий магазинов, сопоставления по алиасам/slug/имени, построения дерева `build_tree()`, получения навигационной цепочки `get_breadcrumbs()` и резолва поддерева `get_subtree_ids()`.
+  4. Таблица `categories` в SQLite со схемой v2 и автосидированием через `CategoryRepository.seed_defaults_if_empty()` в `init_schema_v2()`.
+  5. Поддержка фильтрации по категории в `SearchRepository` и `SearchCore` с поиском по всему поддереву потомков и расчетом фасетов категорий `category_facets` в `SearchResponse2`.
+  6. HTTP API:
+     - `GET /api/v2/categories` (иерархическое дерево с подсчетом активных товаров `product_count` и поддержкой фильтрации по городу `city`, либо плоский список при `?tree=false`).
+     - `GET /api/v2/categories/{id_or_slug}` (детали категории, схема атрибутов, список прямых детей и хлебные крошки `breadcrumbs`).
+     - `GET /api/categories` (сохранена 100% обратная совместимость с отдачей топ активных категорий).
+     - Передача параметра `category` в `GET /api/v2/search`.
+  7. Автотесты:
+     - Новый сьют `tests/core/test_category_architecture.py` (18/18 OK).
+     - Полный сьют регрессии Python: **2320/2320 OK** (137.8 с).
+     - Браузерные тесты Playwright: **21/21 PASS**.
+     - Проверка секретов `release_gate.py secrets`: **PASS** (0 findings).
+     - Проверка форматирования `git diff --check`: **PASS**.
+- **Следующий точный шаг:** переход к следующему функциональному этапу Search Platform 2.0 (Этап 18 — Brand & Model Authority, либо выкатка на стенд по согласованию с владельцем).
+
+---
+
 ## Выпуск 6.9.3 — Claude (2026-10-31, опубликован по поручению владельца)
 
 - `main` и тег `v6.9.3` — `710fe0e17896724113d8dc7bcb2c316c6bcd8802`. CI, обе публикации образа: test, frontend, secret-scan, dependency-audit, upgrade-rehearsal, image-smoke, build-and-push — success.

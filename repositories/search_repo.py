@@ -105,6 +105,7 @@ class SearchRepository(BaseRepository):
         brand: Optional[str] = None,
         city: Optional[str] = None,
         condition: Optional[str] = None,
+        category: Optional[str] = None,
         channel_type: Optional[str] = None,
         seller_type: Optional[str] = None,
         min_price: Optional[float] = None,
@@ -200,6 +201,33 @@ class SearchRepository(BaseRepository):
             order_by_like = order_by_sql
             order_params = (list(exists_params) + purchasable_params) * 2
 
+        # S2-E17: Фильтрация по категории с учетом иерархии мастер-таксономии
+        cat_filter_sql = ""
+        cat_filter_params: list = []
+        if category and category.strip():
+            raw_c = category.strip()
+            try:
+                from domain.category import TaxonomyMapper
+                mapper = TaxonomyMapper()
+                target_cat = mapper.map_category(raw_c) or mapper.get_by_id(raw_c)
+            except Exception:
+                target_cat = None
+
+            if target_cat:
+                subtree = mapper.get_subtree_ids(target_cat.id)
+                names = {c.name.lower() for cid in subtree if (c := mapper.get_by_id(cid))}
+                names.update(cid.lower() for cid in subtree)
+                for cid in subtree:
+                    c = mapper.get_by_id(cid)
+                    if c:
+                        names.update(a.lower() for a in c.aliases)
+                placeholders = ",".join(["?"] * len(names))
+                cat_filter_sql = f"AND (LOWER(p.category) IN ({placeholders}) OR LOWER(COALESCE(p.category, '')) = ?)"
+                cat_filter_params = list(names) + [raw_c.lower()]
+            else:
+                cat_filter_sql = "AND (LOWER(COALESCE(p.category, '')) = ? OR LOWER(COALESCE(p.category, '')) LIKE ?)"
+                cat_filter_params = [raw_c.lower(), f"%{raw_c.lower()}%"]
+
         # -------------------------------------------------------------------
         # Step 1: Match Canonical Products
         # -------------------------------------------------------------------
@@ -213,11 +241,12 @@ class SearchRepository(BaseRepository):
                 FROM canonical_products_fts f
                 JOIN canonical_products p ON f.rowid = p.rowid
                 WHERE canonical_products_fts MATCH ?
+                  {cat_filter_sql}
                   {exists_sql}
                 ORDER BY {order_by_sql}
                 LIMIT ?
                 """
-                fts_params = [fts_query] + exists_params + order_params + [limit]
+                fts_params = [fts_query] + cat_filter_params + exists_params + order_params + [limit]
                 rows = self.fetchall(sql_fts, fts_params)
                 if rows:
                     used_fts = True
@@ -257,6 +286,10 @@ class SearchRepository(BaseRepository):
             if brand:
                 where_clauses.append("LOWER(COALESCE(brand, '')) = ?")
                 like_params.append(brand.lower())
+
+            if cat_filter_sql:
+                where_clauses.append(cat_filter_sql.lstrip("AND "))
+                like_params.extend(cat_filter_params)
 
             sql_like = f"""
             SELECT p.* FROM canonical_products p

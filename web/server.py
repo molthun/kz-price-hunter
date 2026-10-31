@@ -457,7 +457,103 @@ POPULAR_CATEGORIES = [
 
 @routes.get("/api/categories")
 async def categories_handler(request):
+    """Список популярных категорий (обратная совместимость)."""
+    try:
+        from database import get_connection
+        from repositories.category_repo import CategoryRepository
+        conn = get_connection()
+        try:
+            repo = CategoryRepository(conn)
+            cats = repo.list_all(active_only=True)
+            if cats:
+                # Берем до 20 категорий с наивысшим приоритетом
+                top = cats[:20]
+                return web.json_response([{"id": c.name, "name": c.name, "icon": c.icon} for c in top])
+        finally:
+            conn.close()
+    except Exception:
+        pass
     return web.json_response(POPULAR_CATEGORIES)
+
+
+@routes.get("/api/v2/categories")
+async def categories_v2_handler(request):
+    """Иерархическое дерево мастер-таксономии категорий 2.0 (S2-E17)."""
+    tree_mode = request.query.get("tree", "true").lower() in ("true", "1", "yes")
+    city = request.query.get("city")
+
+    def _load():
+        from database import get_connection
+        from repositories.category_repo import CategoryRepository
+        conn = get_connection()
+        try:
+            repo = CategoryRepository(conn)
+            mapper = repo.get_mapper()
+            counts = repo.count_products_by_category(city)
+            if tree_mode:
+                tree = mapper.build_tree()
+                for root in tree:
+                    root_count = sum(counts.get(c["id"], 0) + counts.get(c["name"], 0) for c in root.get("children", [])) + counts.get(root["id"], 0) + counts.get(root["name"], 0)
+                    root["product_count"] = root_count
+                    for child in root.get("children", []):
+                        child["product_count"] = counts.get(child["id"], 0) + counts.get(child["name"], 0)
+                return {"ok": True, "categories": tree}
+            else:
+                flat = []
+                for c in repo.list_all(active_only=True):
+                    d = c.to_dict()
+                    d["product_count"] = counts.get(c.id, 0) + counts.get(c.name, 0)
+                    flat.append(d)
+                return {"ok": True, "categories": flat}
+        finally:
+            conn.close()
+
+    try:
+        data = await asyncio.to_thread(_load)
+        return web.json_response(data)
+    except Exception as e:
+        print(f"[API categories v2] Ошибка: {e}")
+        return web.json_response({"ok": False, "error": "Ошибка получения категорий"}, status=500)
+
+
+@routes.get("/api/v2/categories/{id_or_slug}")
+async def get_category_v2_handler(request):
+    """Детальная информация о категории, атрибуты и навигационная цепочка (S2-E17)."""
+    cat_id = request.match_info.get("id_or_slug", "").strip()
+    if not cat_id:
+        return web.json_response({"ok": False, "error": "ID категории обязателен"}, status=400)
+
+    def _load():
+        from database import get_connection
+        from repositories.category_repo import CategoryRepository
+        conn = get_connection()
+        try:
+            repo = CategoryRepository(conn)
+            cat = repo.get_by_id(cat_id)
+            mapper = repo.get_mapper()
+            if not cat:
+                cat = mapper.map_category(cat_id)
+            if not cat:
+                return None
+            breadcrumbs = mapper.get_breadcrumbs(cat.id)
+            children = [c.to_dict() for c in repo.list_children(cat.id)]
+            return {
+                "ok": True,
+                "category": cat.to_dict(),
+                "breadcrumbs": breadcrumbs,
+                "children": children,
+            }
+        finally:
+            conn.close()
+
+    try:
+        data = await asyncio.to_thread(_load)
+        if not data:
+            return web.json_response({"ok": False, "error": "Категория не найдена"}, status=404)
+        return web.json_response(data)
+    except Exception as e:
+        print(f"[API category details v2] Ошибка: {e}")
+        return web.json_response({"ok": False, "error": "Ошибка получения категории"}, status=500)
 
 @routes.get("/api/stats")
 async def stats_handler(request):
@@ -990,6 +1086,7 @@ async def search_v2_handler(request):
     condition = request.query.get("condition")
     channel_type = request.query.get("channel_type")
     seller_type = request.query.get("seller_type")
+    category = request.query.get("category") or request.query.get("cat") or None
 
     min_price = None
     if "min_price" in request.query:
@@ -1024,6 +1121,7 @@ async def search_v2_handler(request):
             max_price=max_price,
             sort_by=sort_by,
             limit=limit,
+            category=category,
         )
         status_code = 500 if getattr(resp, "outcome", None) == "ERROR" else 200
         return web.json_response(resp.to_dict(), status=status_code)
@@ -1032,7 +1130,7 @@ async def search_v2_handler(request):
         return web.json_response({"error": "Ошибка поиска v2, попробуйте позже"}, status=500)
 
 
-def _run_search_v2_sync(query, city, condition, channel_type, seller_type, min_price, max_price, sort_by, limit):
+def _run_search_v2_sync(query, city, condition, channel_type, seller_type, min_price, max_price, sort_by, limit, category=None):
     from database import get_connection
     from domain.search_core import SearchCore
     from repositories.search_repo import SearchRepository
@@ -1050,6 +1148,7 @@ def _run_search_v2_sync(query, city, condition, channel_type, seller_type, min_p
             max_price=max_price,
             sort_by=sort_by,
             limit=limit,
+            category=category,
         )
         try:
             from repositories.search_analytics_repo import SearchAnalyticsRepository

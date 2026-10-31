@@ -153,11 +153,13 @@ class SearchResponse2:
     total_offers: int = 0
     latency_ms: float = 0.0
     outcome: str = SearchOutcome.NOT_FOUND
+    category_facets: List[Dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         res = asdict(self)
         res["parsed_query"] = self.parsed_query.to_dict()
         res["items"] = [item.to_dict() for item in self.items]
+        res["category_facets"] = self.category_facets
         return res
 
 
@@ -182,6 +184,7 @@ class SearchCore:
         sort_by: str = "relevance",
         limit: int = 50,
         now: Optional[datetime.datetime] = None,
+        category: Optional[str] = None,
     ) -> SearchResponse2:
         """
         Executes a 2.0 multi-merchant search query with error handling.
@@ -220,6 +223,7 @@ class SearchCore:
                 brand=parsed.detected_brand,
                 city=target_city,
                 condition=target_condition,
+                category=category,
                 channel_type=target_channel,
                 seller_type=seller_type,
                 min_price=target_min_price,
@@ -405,6 +409,30 @@ class SearchCore:
             else:
                 outcome = SearchOutcome.WEAK_MATCH
 
+            # 6. S2-E17: Category facets calculation
+            cat_counter: Dict[str, int] = {}
+            for pr in product_results:
+                c_name = (pr.product.category or "").strip()
+                if c_name:
+                    cat_counter[c_name] = cat_counter.get(c_name, 0) + 1
+
+            category_facets = []
+            try:
+                from domain.category import TaxonomyMapper
+                t_mapper = TaxonomyMapper()
+            except Exception:
+                t_mapper = None
+
+            for c_name, c_count in cat_counter.items():
+                matched = t_mapper.map_category(c_name) if t_mapper else None
+                category_facets.append({
+                    "id": matched.id if matched else c_name.lower().replace(" ", "_"),
+                    "name": matched.name if matched else c_name,
+                    "icon": matched.icon if matched else "📦",
+                    "count": c_count,
+                })
+            category_facets.sort(key=lambda x: -x["count"])
+
             return SearchResponse2(
                 query=query,
                 parsed_query=parsed,
@@ -413,6 +441,7 @@ class SearchCore:
                 total_offers=total_offers_count,
                 latency_ms=round(latency_ms, 2),
                 outcome=outcome,
+                category_facets=category_facets,
             )
 
         except Exception as e:
