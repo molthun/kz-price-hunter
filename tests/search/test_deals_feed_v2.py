@@ -243,3 +243,15 @@ class TestSearchFirstTemplateIntegrity(unittest.TestCase):
         self.assertIn('overflow-x: hidden', self.html)
         self.assertIn('min-width: 0', self.html)
         self.assertNotIn('autofocus', self.html)
+
+    def test_admin_only_dashboard_button_and_removed_help_text(self):
+        """Dashboard buttons are hidden by default for non-admins and bot help text is removed."""
+        self.assertNotIn('BotFather', self.html)
+        self.assertNotIn('Официальный бот авторизации', self.html)
+        self.assertNotIn('id="closedDevTgHelp"', self.html)
+
+        # Dashboard buttons exist with display: none for non-admins
+        self.assertIn('id="headerBtnDashboard"', self.html)
+        self.assertIn('id="navLinkDashboard"', self.html)
+        self.assertIn('id="profileAdminPanelCard"', self.html)
+        self.assertIn('is-admin-visible', self.html)

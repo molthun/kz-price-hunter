@@ -295,7 +295,7 @@
     }
 
     @media (min-width: 1024px) {
-      .btn-legacy {
+      .btn-legacy.is-admin-visible {
         display: inline-flex;
       }
     }
@@ -2570,7 +2570,7 @@
           <a href="/deals" class="nav-link" id="navLinkDeals" onclick="navigateTo(event, '/deals')">Скидки</a>
           <a href="/favorites" class="nav-link" id="navLinkFavorites" onclick="navigateTo(event, '/favorites')">Избранное <span class="nav-count-badge" id="favCountHeader">0</span></a>
           <a href="/profile" class="nav-link" id="navLinkProfile" onclick="navigateTo(event, '/profile')">Профиль</a>
-          <a href="/dashboard" class="nav-link" title="Панель управления">Панель</a>
+          <a href="/dashboard" class="nav-link" id="navLinkDashboard" title="Панель управления (Админка)" style="display: none;">Панель</a>
         </nav>
       </div>
 
@@ -2592,7 +2592,7 @@
         <div id="headerAuthArea">
           <!-- Populated by JS: user profile link or login btn -->
         </div>
-        <a href="/dashboard" class="btn-legacy" title="Открыть классическую панель со всеми таблицами и сканерами">
+        <a href="/dashboard" class="btn-legacy" id="headerBtnDashboard" title="Панель управления (Админка)" style="display: none;">
           ⚙️ <span>Панель управления</span>
         </a>
       </div>
@@ -3095,6 +3095,22 @@
           <div style="font-size: 1.2rem; color: var(--text-muted);">›</div>
         </div>
 
+        <!-- Admin Panel Access (Admins Only) -->
+        <div class="profile-card" id="profileAdminPanelCard" style="display: none; border-left: 4px solid var(--primary);">
+          <div class="profile-section-header">
+            <div>
+              <h2 class="profile-section-title">⚙️ Панель администрирования</h2>
+              <div class="profile-section-desc">Классическая панель управления, мониторинг цен, сканеры и системные настройки</div>
+            </div>
+            <span class="badge badge-super">👑 Администратор</span>
+          </div>
+          <div style="margin-top: 14px;">
+            <a href="/dashboard" class="btn-primary" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none;">
+              ⚙️ Открыть панель управления
+            </a>
+          </div>
+        </div>
+
         <!-- Privacy & Local Data Management -->
         <div class="profile-card">
           <h2 class="profile-section-title" style="margin-bottom: 12px;">🛡 Приватность и управление данными</h2>
@@ -3139,9 +3155,6 @@
                 <!-- Telegram Login Widget rendered here -->
               </div>
               <div id="closedDevDevLoginContainer"></div>
-              <div id="closedDevTgHelp" class="closed-dev-help-text">
-                Если кнопка не отображается, убедитесь, что боту разрешён домен через @BotFather (/setdomain).
-              </div>
             </div>
           </div>
 
@@ -3685,6 +3698,25 @@
           if (pMeta) pMeta.textContent = `@${currentUser.username || '—'} • Telegram ID: ${currentUser.id}`;
         }
       }
+
+      // 4. Admin-only dashboard controls
+      const isAdmin = !!(currentUser && currentUser.is_admin);
+      const navDashboard = document.getElementById('navLinkDashboard');
+      if (navDashboard) {
+        navDashboard.style.display = isAdmin ? 'inline-flex' : 'none';
+      }
+      const headerBtnDashboard = document.getElementById('headerBtnDashboard');
+      if (headerBtnDashboard) {
+        if (isAdmin) {
+          headerBtnDashboard.classList.add('is-admin-visible');
+        } else {
+          headerBtnDashboard.classList.remove('is-admin-visible');
+        }
+      }
+      const profileAdminCard = document.getElementById('profileAdminPanelCard');
+      if (profileAdminCard) {
+        profileAdminCard.style.display = isAdmin ? 'block' : 'none';
+      }
     }
 
     function renderProfileLoginWidget() {
@@ -3714,11 +3746,6 @@
         script.setAttribute('data-request-access', 'write');
         script.setAttribute('data-onauth', 'onTelegramAuth(user)');
         container.appendChild(script);
-
-        const helpEl = document.getElementById('closedDevTgHelp');
-        if (helpEl) {
-          helpEl.innerHTML = `Официальный бот авторизации: <strong>@${escapeHtml(auth.bot_username)}</strong>. Если кнопка не отображается, убедитесь, что боту разрешён домен в BotFather (/setdomain).`;
-        }
       } else {
         container.innerHTML = '<span style="font-size:0.85rem; color:var(--text-muted);">Вход через Telegram настраивается на сервере (TELEGRAM_BOT_TOKEN)</span>';
       }
