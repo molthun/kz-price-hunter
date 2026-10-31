@@ -1087,6 +1087,7 @@ async def search_v2_handler(request):
     channel_type = request.query.get("channel_type")
     seller_type = request.query.get("seller_type")
     category = request.query.get("category") or request.query.get("cat") or None
+    brand = request.query.get("brand") or None
 
     min_price = None
     if "min_price" in request.query:
@@ -1122,6 +1123,7 @@ async def search_v2_handler(request):
             sort_by=sort_by,
             limit=limit,
             category=category,
+            brand=brand,
         )
         status_code = 500 if getattr(resp, "outcome", None) == "ERROR" else 200
         return web.json_response(resp.to_dict(), status=status_code)
@@ -1130,7 +1132,7 @@ async def search_v2_handler(request):
         return web.json_response({"error": "Ошибка поиска v2, попробуйте позже"}, status=500)
 
 
-def _run_search_v2_sync(query, city, condition, channel_type, seller_type, min_price, max_price, sort_by, limit, category=None):
+def _run_search_v2_sync(query, city, condition, channel_type, seller_type, min_price, max_price, sort_by, limit, category=None, brand=None):
     from database import get_connection
     from domain.search_core import SearchCore
     from repositories.search_repo import SearchRepository
@@ -1149,6 +1151,7 @@ def _run_search_v2_sync(query, city, condition, channel_type, seller_type, min_p
             sort_by=sort_by,
             limit=limit,
             category=category,
+            brand=brand,
         )
         try:
             from repositories.search_analytics_repo import SearchAnalyticsRepository

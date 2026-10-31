@@ -6,6 +6,16 @@
 
 ---
 
+## [Search Platform 2.0: Этап 18] Search Results: Seller Grouping & Brand Authority (31.10.2026)
+- **Контекст:** реализация Этапа 18 Search Platform 2.0 согласно [SEARCH_PLATFORM_PLAN.md](docs/SEARCH_PLATFORM_PLAN.md) по поручению владельца («Все по очереди. Пишем и охватываем тестами. Крупные этапы после разработки только охватываем аудитом остальное только авто тестами и стендом. Делаем»).
+- **Реализация:**
+  - Доменная сущность `SellerOffersGroup`: группировка каналов одного продавца (direct, kaspi, forte, instagram и др.) внутри карточки товара `ProductSearchResult` для исключения ложного задвоения магазинов в поисковой выдаче.
+  - Агрегация ценовых ярусов на уровне продавцов: подсчет `new_sellers_count` и `used_sellers_count`, диапазон цен и выбор лучшего канала продавца `best_offer`.
+  - Brand Authority: расчет фасетов брендов `brand_facets` в `SearchResponse2` с нормализацией регистра и алиасов брендов (`BRAND_MAPPINGS`), поддержка точной фильтрации по бренду в SQL FTS/LIKE и в API `GET /api/v2/search?brand=...`.
+- **Тесты:** создан сьют `tests/core/test_search_results_grouping.py` (5 тестов). Полный регресс Python: **2325/2325 OK**; браузерный фронтенд Playwright: **21/21 PASS**; `release_gate.py secrets`: **PASS**; `git diff --check`: **PASS**. Ветка `main`.
+
+---
+
 ## [Search Platform 2.0: Этап 17] Category Architecture — Иерархическая таксономия категорий 2.0 (31.10.2026)
 - **Контекст:** планомерная реализация Search Platform 2.0 согласно [SEARCH_PLATFORM_PLAN.md](docs/SEARCH_PLATFORM_PLAN.md) по поручению владельца («Все по очереди. Пишем и охватываем тестами. Крупные этапы после разработки только охватываем аудитом остальное только авто тестами и стендом. Делаем»).
 - **Реализация:**

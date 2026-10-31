@@ -2,6 +2,22 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## Search Platform 2.0: Этап 18 — Search Results: Seller Grouping & Brand Authority — Antigravity (2026-10-31, завершён)
+
+- **Основание:** поручение владельца продолжать по очереди («Все по очереди. Пишем и охватываем тестами. Крупные этапы после разработки только охватываем аудитом остальное только авто тестами и стендом. Делаем»), план Search Platform 2.0 ([SEARCH_PLATFORM_PLAN.md](SEARCH_PLATFORM_PLAN.md) Этап 18).
+- **Исполнитель:** Antigravity (основной разработчик), ветка `main`.
+- **Область файлов:** `domain/search_core.py`, `repositories/search_repo.py`, `web/server.py`, `tests/core/test_search_results_grouping.py` (новый), `docs/AGENT_HANDOFF.md`, `ROADMAP_AND_LOG.md`.
+- **Что реализовано:**
+  1. Доменная сущность `SellerOffersGroup`: группировка каналов одного продавца внутри карточки товара `ProductSearchResult` (каналы Direct, Kaspi, Forte, Instagram и др. одного магазина объединяются, предотвращая ложное впечатление разных магазинов).
+  2. Агрегация ярусов «Новые» и «Б/у» на уровне продавцов: `new_sellers_count`, `used_sellers_count`, расчет диапазона цен продавца и лучшего предложения по каналам `best_channel_offer`.
+  3. Расчет фасетов брендов `brand_facets` в `SearchResponse2` (с нормализацией брендов через `BRAND_MAPPINGS` и подсчетом найденных товаров).
+  4. Поддержка фильтра `brand` в SQL FTS/LIKE и в HTTP API `GET /api/v2/search?brand=...`.
+  5. Покрытие автотестами в `tests/core/test_search_results_grouping.py` (5/5 OK) с изоляцией БД через `test_support`.
+  6. Прогон полного регресса: Python **2325/2325 OK** (140.9 с), браузерные тесты Playwright **21/21 PASS**, аудит секретов `release_gate.py secrets` PASS, `git diff --check` PASS.
+- **Следующий точный шаг:** переход к следующему функциональному этапу Search Platform 2.0 (Этап 19 — Seller page & Cross-Channel Showcase).
+
+---
+
 ## Search Platform 2.0: Этап 17 — Category Architecture — Antigravity (2026-10-31, завершён)
 
 - **Основание:** поручение владельца продолжать по очереди («Все по очереди. Пишем и охватываем тестами. Крупные этапы после разработки только охватываем аудитом остальное только авто тестами и стендом. Делаем»), план Search Platform 2.0 ([SEARCH_PLATFORM_PLAN.md](SEARCH_PLATFORM_PLAN.md) Этап 17).

@@ -114,10 +114,42 @@ def offer_payment_terms(row: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @dataclass
+class SellerOffersGroup:
+    """
+    Группировка каналов и предложений одного продавца для конкретного товара (S2-E18).
+    Позволяет покупателю видеть единого продавца с его каналами (магазин, Kaspi, Forte и т.д.),
+    исключая ложное задвоение магазинов в выдаче.
+    """
+    seller_id: str
+    seller_name: str
+    seller_slug: str
+    seller_rating: Optional[float] = None
+    is_private_seller: bool = False
+    min_price: float = 0.0
+    max_price: float = 0.0
+    offers_count: int = 0
+    channels_count: int = 0
+    channels_available: List[str] = field(default_factory=list)
+    best_offer: Optional[AggregatedOffer] = None
+    offers: List[AggregatedOffer] = field(default_factory=list)
+    has_new: bool = False
+    has_used: bool = False
+    best_new_price: Optional[float] = None
+    best_used_price: Optional[float] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        res = asdict(self)
+        res["best_offer"] = self.best_offer.to_dict() if self.best_offer else None
+        res["offers"] = [o.to_dict() for o in self.offers]
+        return res
+
+
+@dataclass
 class ProductSearchResult:
     """A canonical product aggregating multiple seller offers across channels."""
     product: CanonicalProduct
     offers: List[AggregatedOffer] = field(default_factory=list)
+    sellers: List[SellerOffersGroup] = field(default_factory=list)
     min_price: Optional[float] = None
     max_price: Optional[float] = None
     sellers_count: int = 0
@@ -134,11 +166,14 @@ class ProductSearchResult:
     is_used_only: bool = False
     new_offers_count: int = 0
     used_offers_count: int = 0
+    new_sellers_count: int = 0
+    used_sellers_count: int = 0
 
     def to_dict(self) -> Dict[str, Any]:
         res = asdict(self)
         res["product"] = self.product.to_dict()
         res["offers"] = [o.to_dict() for o in self.offers]
+        res["sellers"] = [s.to_dict() for s in self.sellers]
         res["best_offer"] = self.best_offer.to_dict() if self.best_offer else None
         return res
 
@@ -154,12 +189,14 @@ class SearchResponse2:
     latency_ms: float = 0.0
     outcome: str = SearchOutcome.NOT_FOUND
     category_facets: List[Dict[str, Any]] = field(default_factory=list)
+    brand_facets: List[Dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         res = asdict(self)
         res["parsed_query"] = self.parsed_query.to_dict()
         res["items"] = [item.to_dict() for item in self.items]
         res["category_facets"] = self.category_facets
+        res["brand_facets"] = self.brand_facets
         return res
 
 
@@ -185,6 +222,7 @@ class SearchCore:
         limit: int = 50,
         now: Optional[datetime.datetime] = None,
         category: Optional[str] = None,
+        brand: Optional[str] = None,
     ) -> SearchResponse2:
         """
         Executes a 2.0 multi-merchant search query with error handling.
@@ -205,6 +243,7 @@ class SearchCore:
             target_channel = channel_type or parsed.channel_type
             target_min_price = min_price if min_price is not None else parsed.min_price
             target_max_price = max_price if max_price is not None else parsed.max_price
+            target_brand = brand or parsed.detected_brand
 
             if target_city:
                 parsed.detected_city = target_city
@@ -216,11 +255,13 @@ class SearchCore:
                 parsed.min_price = target_min_price
             if target_max_price is not None:
                 parsed.max_price = target_max_price
+            if target_brand:
+                parsed.detected_brand = target_brand
 
             # 2. Search canonical products via repository
             raw_items = self.search_repo.search_products(
                 search_text=parsed.clean_query,
-                brand=parsed.detected_brand,
+                brand=target_brand,
                 city=target_city,
                 condition=target_condition,
                 category=category,
@@ -324,6 +365,59 @@ class SearchCore:
 
                 cond_breakdown = build_condition_breakdown(product.id, product.title, aggregated_offers).to_dict()
 
+                # S2-E18: Seller grouping — группировка каналов одного продавца внутри карточки товара
+                seller_map: Dict[str, List[AggregatedOffer]] = {}
+                for o in aggregated_offers:
+                    seller_map.setdefault(o.seller_id, []).append(o)
+
+                seller_groups: List[SellerOffersGroup] = []
+                new_sellers_set = set()
+                used_sellers_set = set()
+
+                for s_id, s_offers in seller_map.items():
+                    s_offers.sort(key=lambda x: (not x.is_purchasable, x.price))
+                    s_first = s_offers[0]
+                    s_prices = [x.price for x in s_offers]
+                    s_channels = list(dict.fromkeys(x.channel_type for x in s_offers if x.channel_type))
+
+                    s_purchasable = [x for x in s_offers if x.is_purchasable]
+                    s_best = s_purchasable[0] if s_purchasable else s_first
+
+                    s_new = [x for x in s_offers if x.condition == Condition.NEW]
+                    s_used = [x for x in s_offers if x.condition in (Condition.USED, Condition.REFURBISHED, Condition.OPEN_BOX)]
+
+                    if s_new:
+                        new_sellers_set.add(s_id)
+                    if s_used:
+                        used_sellers_set.add(s_id)
+
+                    s_new_p = [x for x in s_purchasable if x.condition == Condition.NEW]
+                    s_used_p = [x for x in s_purchasable if x.condition in (Condition.USED, Condition.REFURBISHED, Condition.OPEN_BOX)]
+
+                    best_np = min(x.price for x in s_new_p) if s_new_p else (min(x.price for x in s_new) if s_new else None)
+                    best_up = min(x.price for x in s_used_p) if s_used_p else (min(x.price for x in s_used) if s_used else None)
+
+                    seller_groups.append(SellerOffersGroup(
+                        seller_id=s_id,
+                        seller_name=s_first.seller_name,
+                        seller_slug=s_first.seller_slug,
+                        seller_rating=s_first.seller_rating,
+                        is_private_seller=s_first.is_private_seller,
+                        min_price=min(s_prices),
+                        max_price=max(s_prices),
+                        offers_count=len(s_offers),
+                        channels_count=len(s_channels),
+                        channels_available=s_channels,
+                        best_offer=s_best,
+                        offers=s_offers,
+                        has_new=bool(s_new),
+                        has_used=bool(s_used),
+                        best_new_price=best_np,
+                        best_used_price=best_up,
+                    ))
+
+                seller_groups.sort(key=lambda s: (not (s.best_offer and s.best_offer.is_purchasable), s.min_price))
+
                 # ---------------------------------------------------------------
                 # C-E11-05: Exact Model Match and Semantic Scoring
                 # ---------------------------------------------------------------
@@ -362,6 +456,7 @@ class SearchCore:
                 card = ProductSearchResult(
                     product=product,
                     offers=aggregated_offers,
+                    sellers=seller_groups,
                     min_price=min_p,
                     max_price=max_p,
                     sellers_count=len(unique_sellers),
@@ -378,6 +473,8 @@ class SearchCore:
                     is_used_only=is_used_only,
                     new_offers_count=len(new_purchasable),
                     used_offers_count=len(used_purchasable),
+                    new_sellers_count=len(new_sellers_set),
+                    used_sellers_count=len(used_sellers_set),
                 )
                 product_results.append(card)
                 total_offers_count += len(aggregated_offers)
@@ -433,6 +530,20 @@ class SearchCore:
                 })
             category_facets.sort(key=lambda x: -x["count"])
 
+            # 7. S2-E18: Brand facets calculation
+            from domain.query_parser import BRAND_MAPPINGS
+            brand_counter: Dict[str, int] = {}
+            for pr in product_results:
+                b_name = (pr.product.brand or "").strip()
+                if b_name:
+                    canon_b = BRAND_MAPPINGS.get(b_name.lower(), b_name)
+                    brand_counter[canon_b] = brand_counter.get(canon_b, 0) + 1
+
+            brand_facets = [
+                {"brand": b, "count": cnt}
+                for b, cnt in sorted(brand_counter.items(), key=lambda x: -x[1])
+            ]
+
             return SearchResponse2(
                 query=query,
                 parsed_query=parsed,
@@ -442,6 +553,7 @@ class SearchCore:
                 latency_ms=round(latency_ms, 2),
                 outcome=outcome,
                 category_facets=category_facets,
+                brand_facets=brand_facets,
             )
 
         except Exception as e:

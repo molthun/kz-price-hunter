@@ -228,6 +228,19 @@ class SearchRepository(BaseRepository):
                 cat_filter_sql = "AND (LOWER(COALESCE(p.category, '')) = ? OR LOWER(COALESCE(p.category, '')) LIKE ?)"
                 cat_filter_params = [raw_c.lower(), f"%{raw_c.lower()}%"]
 
+        # S2-E18: Фильтрация по бренду
+        brand_filter_sql = ""
+        brand_filter_params: list = []
+        if brand and brand.strip():
+            raw_b = brand.strip().lower()
+            from domain.query_parser import BRAND_MAPPINGS
+            canon_b = BRAND_MAPPINGS.get(raw_b, raw_b).lower()
+            brand_filter_sql = (
+                "AND (LOWER(COALESCE(p.brand, '')) = ? OR LOWER(COALESCE(p.brand, '')) = ? "
+                "OR LOWER(p.title) LIKE ? OR LOWER(p.title) LIKE ?)"
+            )
+            brand_filter_params = [raw_b, canon_b, f"%{raw_b}%", f"%{canon_b}%"]
+
         # -------------------------------------------------------------------
         # Step 1: Match Canonical Products
         # -------------------------------------------------------------------
@@ -242,11 +255,12 @@ class SearchRepository(BaseRepository):
                 JOIN canonical_products p ON f.rowid = p.rowid
                 WHERE canonical_products_fts MATCH ?
                   {cat_filter_sql}
+                  {brand_filter_sql}
                   {exists_sql}
                 ORDER BY {order_by_sql}
                 LIMIT ?
                 """
-                fts_params = [fts_query] + cat_filter_params + exists_params + order_params + [limit]
+                fts_params = [fts_query] + cat_filter_params + brand_filter_params + exists_params + order_params + [limit]
                 rows = self.fetchall(sql_fts, fts_params)
                 if rows:
                     used_fts = True
@@ -283,9 +297,9 @@ class SearchRepository(BaseRepository):
                     pat = f"%{st}%"
                     like_params.extend([pat, pat, pat, pat])
 
-            if brand:
-                where_clauses.append("LOWER(COALESCE(brand, '')) = ?")
-                like_params.append(brand.lower())
+            if brand_filter_sql:
+                where_clauses.append(brand_filter_sql.lstrip("AND "))
+                like_params.extend(brand_filter_params)
 
             if cat_filter_sql:
                 where_clauses.append(cat_filter_sql.lstrip("AND "))
