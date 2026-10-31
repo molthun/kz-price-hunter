@@ -2664,6 +2664,8 @@ async def admin_users_handler(request):
         "created_at": u["created_at"],
         "last_login_at": u["last_login_at"],
         "telegram_notify_enabled": bool(u["settings"].get("telegram_notify_enabled")),
+        "is_approved": bool(u["settings"].get("is_approved")),
+        "is_confirmed": is_confirmed_user(u),
     } for u in list_users()]
     return web.json_response(users)
 

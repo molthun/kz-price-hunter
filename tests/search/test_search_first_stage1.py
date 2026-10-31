@@ -409,6 +409,10 @@ class _NoCloseConn:
         self._conn = conn
     def close(self):
         pass
+    def __enter__(self):
+        return self
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
     def __getattr__(self, name):
         return getattr(self._conn, name)
 
@@ -553,6 +557,49 @@ class TestSearchFirstHttpEndpoints(AioHTTPTestCase):
         self.assertIn("function selectTheme(", html)
         self.assertIn("localStorage.setItem('kz_theme_mode'", html)
         self.assertIn("prefers-color-scheme: dark", html)
+
+    @unittest_run_loop
+    async def test_header_and_profile_admin_users(self):
+        resp = await self.client.get("/")
+        self.assertEqual(resp.status, 200)
+        html = await resp.text()
+
+        # Mobile header user name display
+        self.assertIn(".header-user-btn .header-user-name", html)
+        self.assertIn("display: inline-block !important", html)
+
+        # Profile admin users management card
+        self.assertIn('id="profileAdminUsersCard"', html)
+        self.assertIn("loadAdminUsersList()", html)
+        self.assertIn("adminSetApproved(", html)
+        self.assertIn("adminSetBlocked(", html)
+
+        # Admin users API response helper includes approval and confirmation status
+        from unittest.mock import patch
+        mock_users = [{
+            "id": 123456,
+            "username": "hunter_user",
+            "first_name": "Test",
+            "last_name": "Hunter",
+            "photo_url": "",
+            "settings": {"is_approved": True},
+            "is_blocked": 0,
+            "created_at": "2026-11-01T00:00:00Z",
+            "last_login_at": "2026-11-01T00:00:00Z",
+        }]
+        with patch("web.server.list_users", return_value=mock_users):
+            import auth
+            with patch.object(auth, "ADMIN_TELEGRAM_IDS", {1}):
+                from aiohttp.test_utils import make_mocked_request
+                req = make_mocked_request("GET", "/api/admin/users")
+                req["user"] = {"id": 1}
+                resp_api = await srv.admin_users_handler(req)
+                self.assertEqual(resp_api.status, 200)
+                import json
+                data = json.loads(resp_api.text)
+                self.assertEqual(len(data), 1)
+                self.assertTrue(data[0]["is_approved"])
+                self.assertTrue(data[0]["is_confirmed"])
 
 
 if __name__ == "__main__":
