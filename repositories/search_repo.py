@@ -9,7 +9,8 @@ import logging
 import re
 import sqlite3
 import datetime
-from typing import Any, Dict, List, Optional
+import time
+from typing import Any, Dict, List, Optional, Set
 
 from domain.models import CanonicalProduct
 from repositories.base import BaseRepository
@@ -70,6 +71,34 @@ class SearchRepository(BaseRepository):
     """
     Coordinates FTS5 index searches over Canonical Products and collects active offers.
     """
+
+    _cat_cache: Dict[str, Set[str]] = {}
+    _cat_cache_time: float = 0.0
+
+    def _get_db_categories_for_subtree(self, mapper, subtree_ids: Set[str]) -> Set[str]:
+        now = time.time()
+        if not SearchRepository._cat_cache or (now - SearchRepository._cat_cache_time > 300.0):
+            try:
+                cur = self.conn.execute(
+                    "SELECT DISTINCT category FROM canonical_products WHERE category IS NOT NULL AND category != ''"
+                )
+                cat_map: Dict[str, Set[str]] = {}
+                for row in cur.fetchall():
+                    raw_cat = row[0]
+                    mapped = mapper.map_category(raw_cat)
+                    if mapped:
+                        cat_map.setdefault(mapped.id, set()).add(raw_cat)
+                        if mapped.parent_id:
+                            cat_map.setdefault(mapped.parent_id, set()).add(raw_cat)
+                SearchRepository._cat_cache = cat_map
+                SearchRepository._cat_cache_time = now
+            except Exception:
+                return set()
+
+        result: Set[str] = set()
+        for cid in subtree_ids:
+            result.update(SearchRepository._cat_cache.get(cid, set()))
+        return result
 
     @classmethod
     def _build_fts_query(cls, text: str) -> str:
@@ -215,15 +244,22 @@ class SearchRepository(BaseRepository):
 
             if target_cat:
                 subtree = mapper.get_subtree_ids(target_cat.id)
-                names = {c.name.lower() for cid in subtree if (c := mapper.get_by_id(cid))}
+                names = {c.name for cid in subtree if (c := mapper.get_by_id(cid))}
+                names.update(c.name.lower() for cid in subtree if (c := mapper.get_by_id(cid)))
+                names.update(cid for cid in subtree)
                 names.update(cid.lower() for cid in subtree)
                 for cid in subtree:
                     c = mapper.get_by_id(cid)
                     if c:
+                        names.update(c.aliases)
                         names.update(a.lower() for a in c.aliases)
-                placeholders = ",".join(["?"] * len(names))
-                cat_filter_sql = f"AND (LOWER(p.category) IN ({placeholders}) OR LOWER(COALESCE(p.category, '')) = ?)"
-                cat_filter_params = list(names) + [raw_c.lower()]
+
+                # Добавляем все сырые категории магазинов из базы данных, отображающиеся в поддерево
+                db_raw_cats = self._get_db_categories_for_subtree(mapper, subtree)
+                all_matching = list(names.union(db_raw_cats))
+                placeholders = ",".join(["?"] * len(all_matching))
+                cat_filter_sql = f"AND (p.category IN ({placeholders}) OR LOWER(COALESCE(p.category, '')) = ?)"
+                cat_filter_params = all_matching + [raw_c.lower()]
             else:
                 cat_filter_sql = "AND (LOWER(COALESCE(p.category, '')) = ? OR LOWER(COALESCE(p.category, '')) LIKE ?)"
                 cat_filter_params = [raw_c.lower(), f"%{raw_c.lower()}%"]

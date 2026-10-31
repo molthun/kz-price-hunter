@@ -1,0 +1,17 @@
+{
+  "head": "5a29e79ea5bb6616edd5632e6e5f40fd81386359",
+  "head_unchanged": true,
+  "status": " M docs/AGENT_HANDOFF.md\n?? docs/ACCEPTANCE_2026-10-31_SP30_FINAL_CODEX.md\n?? docs/audit_evidence/2026-10-31-platform30-final/\n",
+  "tracked_changes": [
+    "docs/AGENT_HANDOFF.md"
+  ],
+  "staged_changes": [],
+  "product_code_unchanged": true,
+  "diff_check_exit": 0,
+  "diff_check_output": "",
+  "snapshot_code_files_checked": 426,
+  "snapshot_code_changed": [],
+  "json_parse": true,
+  "audit_python_ast_parse": true,
+  "decision": "Accepted on owner instruction with known P2 SP30-F01"
+}

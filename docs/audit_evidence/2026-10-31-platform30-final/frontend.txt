@@ -1,0 +1,63 @@
+
+test_frontend.cjs
+{"guest_hidden":true,"authenticated_card_rendered":true,"logout_hidden":true,"page_errors":[]}
+
+test_frontend_ai_models.cjs
+PASS: выбор модели из списка провайдера, цены к ней, отказ провайдера словами
+
+test_frontend_auth.cjs
+PASS: real browser dev login, session, settings POST Origin, logout, my data export/delete, privacy page; isolated DB
+
+test_frontend_changelog.cjs
+PASS: changelog modal — current version, order, escaping, load error
+
+test_frontend_discovery.cjs
+Discovery monitoring PASS
+
+test_frontend_format.cjs
+PASS: format module — escaping, prices, freshness badges
+
+test_frontend_matching_moderation.cjs
+PASS: ручная модерация — отказ с участниками группы, сбой записи и успешное решение
+
+test_frontend_modal_image.cjs
+PASS: modal photo recovers after a broken image, placeholder on error
+
+test_frontend_notices.cjs
+PASS: раздел обращений магазинов, ссылка на выгрузку, чужой текст экранирован
+
+test_frontend_p04.cjs
+PASS: P04 counters single writer + city scope, API error states (incl. version/users), shop icons collapse, tile/tab structure
+
+test_frontend_p05.cjs
+PASS: P05 settings — role navigation, shop status moved to monitoring, modes vs levels, custom indicator, advanced collapsed, reset
+
+test_frontend_p06.cjs
+PASS: P06 search analytics — точные доли, формула, таблицы запросов, экранирование, состояние ошибки
+
+test_frontend_p07.cjs
+PASS: P07 наблюдения — раздел после входа, создание, ошибка сервера, включение, удаление, экранирование
+
+test_frontend_p07_v2.cjs
+PASS: P07 V2 кнопка «следить» — состояние, создание, отмена, отказ сервера, гость
+
+test_frontend_p09_ai.cjs
+PASS: P09 AI-часть — режим, согласованные пороги, решения модели, экранирование
+
+test_frontend_p10.cjs
+PASS: P10 теневой планировщик — предложения с причинами, сравнение стратегий, без кнопок действий
+
+test_frontend_p12.cjs
+PASS: P12 помощник администратора — факты всегда видны, выдуманные числа не показываются
+
+test_frontend_p13.cjs
+PASS: P13 суточная сводка — цифры без AI, отклонённый пересказ, неполные сутки, отправка в Telegram
+
+test_frontend_security.cjs
+PASS: catalog/AI/log XSS, поисковый запрос как данные, URL schemes, роли, действия карточки
+
+test_frontend_seller_modal.cjs
+OK: Витрина продавца (Seller Modal) успешно проверена
+
+test_frontend_social_no_permalink.cjs
+OK: предложения без permalink не показывают кнопку магазина

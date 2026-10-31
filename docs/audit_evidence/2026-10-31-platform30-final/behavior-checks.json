@@ -1,0 +1,15 @@
+{
+  "checks": {
+    "invalid_inputs_not_measured": true,
+    "fallback_labeled": true,
+    "memory_failure_is_null": true,
+    "ui_unknown_not_green": true,
+    "ui_error_not_green": true,
+    "history_includes_indexes": true,
+    "100k_exact_count": true,
+    "100k_p95_below_100ms": true,
+    "seller_channel_valid": true,
+    "concurrency_flag_requires_overlap": false
+  },
+  "note": "False concurrency property is accepted as known P2 SP30-F01; no claim of technical closure."
+}

@@ -1,0 +1,11 @@
+{
+  "NOT_MEASURED": {
+    "badge": "⏳ NOT_MEASURED",
+    "classes": "px-2 py-0.5 rounded text-[11px] font-bold bg-slate-700/50 text-slate-300 border border-slate-600"
+  },
+  "ERROR_NO_SCHEMA": {
+    "badge": "❌ ERROR_NO_SCHEMA",
+    "classes": "px-2 py-0.5 rounded text-[11px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30"
+  },
+  "null": {}
+}

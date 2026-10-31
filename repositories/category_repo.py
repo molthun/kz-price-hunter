@@ -145,4 +145,18 @@ class CategoryRepository:
                 GROUP BY p.category
             """
             rows = self.conn.execute(sql).fetchall()
-        return {r[0]: int(r[1]) for r in rows}
+        mapper = self.get_mapper()
+        canonical_counts: Dict[str, int] = {}
+        for r in rows:
+            raw_cat = r[0]
+            cnt = int(r[1])
+            # Сохраняем сырой счетчик для прямой совместимости
+            canonical_counts[raw_cat] = canonical_counts.get(raw_cat, 0) + cnt
+            # И мапим в мастер-таксономию (id, name, parent_id)
+            mapped = mapper.map_category(raw_cat)
+            if mapped:
+                canonical_counts[mapped.id] = canonical_counts.get(mapped.id, 0) + cnt
+                canonical_counts[mapped.name] = canonical_counts.get(mapped.name, 0) + cnt
+                if mapped.parent_id:
+                    canonical_counts[mapped.parent_id] = canonical_counts.get(mapped.parent_id, 0) + cnt
+        return canonical_counts

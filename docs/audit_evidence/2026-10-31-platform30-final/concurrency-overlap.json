@@ -1,0 +1,35 @@
+{
+  "metrics": {
+    "name": "1k",
+    "target_offers": 1000,
+    "actual_offers": 1000,
+    "total_products": 200,
+    "total_sellers": 10,
+    "total_channels": 20,
+    "search_p95_ms": 5.41,
+    "search_avg_ms": 2.93,
+    "write_latency_1k_ms": 5.95,
+    "db_size_mb": 1.86,
+    "fts_size_mb": 0.04,
+    "price_history_size_mb": 0.23,
+    "backup_duration_s": 0.002,
+    "memory_mb": 62.7,
+    "startup_ms": 7.23,
+    "evaluated_at": "2026-10-31T16:41:38.248318+00:00",
+    "history_index_size_mb": 0.13,
+    "size_measurement_method": "dbstat",
+    "peak_rss_mb": 62.7,
+    "cold_startup_ms": 0.63,
+    "concurrency_verified": true,
+    "concurrency_write_latency_ms": 0.3,
+    "concurrency_errors": 0
+  },
+  "timing": {
+    "backup_start": 65816.8993805,
+    "backup_end": 65816.901770875,
+    "worker_search_sql_start": 65817.155105875,
+    "worker_write_start": 65817.160659083
+  },
+  "write_overlapped_backup": false,
+  "search_sql_started_during_backup": false
+}

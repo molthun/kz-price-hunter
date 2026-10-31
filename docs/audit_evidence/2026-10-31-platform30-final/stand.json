@@ -1,0 +1,52 @@
+{
+  "ssh_exit": 0,
+  "repo_head": "5a29e79ea5bb6616edd5632e6e5f40fd81386359",
+  "container_status": "running healthy",
+  "file_matches": {
+    "domain/scale_bench.py": true,
+    "scripts/benchmark_scale.py": true,
+    "web/templates/monitoring.html": true
+  },
+  "stderr": "",
+  "public": [
+    {
+      "path": "/api/version",
+      "status": 200,
+      "version": {
+        "version": "6.9.3",
+        "app_name": "KZ Price Hunter",
+        "release_date": "2026-10-31",
+        "author": "Advanced Agentic Coding"
+      }
+    },
+    {
+      "path": "/api/live",
+      "status": 200
+    },
+    {
+      "path": "/api/health",
+      "status": 200
+    },
+    {
+      "path": "/",
+      "status": 200
+    },
+    {
+      "path": "/monitoring",
+      "status": 200,
+      "matches_snapshot": true
+    },
+    {
+      "path": "/api/v2/search?q=Samsung&limit=1",
+      "status": 200
+    },
+    {
+      "path": "/api/v2/admin/scale/summary",
+      "status": 401
+    },
+    {
+      "path": "/api/v2/monitoring/overview",
+      "status": 401
+    }
+  ]
+}

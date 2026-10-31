@@ -219,12 +219,23 @@ class SearchAssistant:
         max_price: Optional[float] = None,
         limit: int = 20,
         now: Optional[datetime.datetime] = None,
+        history: Optional[List[Dict[str, str]]] = None,
     ) -> SearchAssistantResponse:
         """
         Выполняет запрос через SearchCore и формирует ответ только по реальным предложениям.
         """
+        effective_query = query
+        # Разрешение контекста диалога для коротких уточняющих реплик (S2-E22)
+        if history and len(query.strip().split()) <= 2:
+            for prev in reversed(history):
+                if prev.get("role") == "user" and prev.get("content"):
+                    prev_text = prev["content"].strip()
+                    if prev_text and prev_text != query:
+                        effective_query = f"{prev_text} {query}"
+                        break
+
         plan = self.build_plan(
-            query=query,
+            query=effective_query,
             city=city,
             condition=condition,
             channel_type=channel_type,

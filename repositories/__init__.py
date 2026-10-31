@@ -4,6 +4,7 @@ Repositories package for KZ Price Hunter 2.0.
 
 from repositories.base import BaseRepository
 from repositories.candidate_repo import CandidateRepository
+from repositories.category_repo import CategoryRepository
 from repositories.channel_repo import ChannelRepository
 from repositories.content_repo import ContentObservationRepository
 from repositories.discovery_repo import DiscoveryRepository
@@ -23,6 +24,7 @@ from repositories.telemetry_repo import TelemetryRepository
 __all__ = [
     "BaseRepository",
     "CandidateRepository",
+    "CategoryRepository",
     "ChannelRepository",
     "ContentObservationRepository",
     "DDL_V2",

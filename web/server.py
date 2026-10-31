@@ -785,8 +785,20 @@ async def ai_search_assistant_v2_handler(request):
     message = str(data.get("message") or "").strip()
     if not message:
         return web.json_response({"ok": False, "error": "Поле message обязательно"}, status=400)
+    if len(message) > 4000:
+        return web.json_response({"ok": False, "error": "Сообщение слишком длинное (максимум 4000 символов)"}, status=400)
 
-    history = data.get("history") or []
+    # Валидация истории диалога (до 10 последних сообщений, текст до 2000 символов)
+    raw_history = data.get("history")
+    history_cleaned: List[Dict[str, str]] = []
+    if isinstance(raw_history, list):
+        for item in raw_history[-10:]:
+            if isinstance(item, dict) and "role" in item and "content" in item:
+                history_cleaned.append({
+                    "role": str(item["role"])[:20],
+                    "content": str(item["content"])[:2000],
+                })
+
     city = str(data.get("city") or "Все").strip()
 
     # Rate limiting
@@ -814,6 +826,7 @@ async def ai_search_assistant_v2_handler(request):
                 query=message,
                 city=city if city not in ("Все", "Казахстан") else None,
                 limit=limit,
+                history=history_cleaned,
             )
             return res
         finally:
@@ -4674,6 +4687,48 @@ async def startup_watch_refresh_worker(app=None) -> int:
         return done
 
 
+async def freshness_reaper_background_worker(app):
+    """
+    Периодический фоновый списатель (Reaper) устаревших офферов (S2-E25, KZ Price Hunter 2.0).
+    Списывает просроченные предложения (TTL / TTL источника) раз в час пачками по 5000 без монопольных блокировок.
+    """
+    try:
+        await asyncio.sleep(60.0)  # Даем серверу запуститься и завершить первичный прогрев
+    except asyncio.CancelledError:
+        return
+
+    while True:
+        try:
+            def _reap_in_thread():
+                from database import get_connection
+                from domain.freshness_v2 import reap_expired_offers
+                conn = get_connection()
+                total_reaped = 0
+                try:
+                    while True:
+                        res = reap_expired_offers(conn, batch_size=5000, dry_run=False)
+                        reaped = res.get("reaped_count", 0)
+                        total_reaped += reaped
+                        if reaped == 0 or res.get("candidates_examined", 0) < 5000:
+                            break
+                    return total_reaped
+                finally:
+                    conn.close()
+
+            reaped = await asyncio.to_thread(_reap_in_thread)
+            if reaped > 0:
+                print(f"[Freshness Reaper] Фоново списано {reaped} устаревших предложений")
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            print(f"[Freshness Reaper] Ошибка периодического списания: {e}")
+
+        try:
+            await asyncio.sleep(3600.0)  # Повтор через 1 час
+        except asyncio.CancelledError:
+            break
+
+
 async def background_tasks(app):
     from queue_service import product_queue
     await product_queue.initialize()
@@ -4687,6 +4742,7 @@ async def background_tasks(app):
         asyncio.create_task(auto_scan_background_worker(app)),
         asyncio.create_task(ai_normalize_background_worker(app)),
         asyncio.create_task(disputed_pairs_background_worker(app)),
+        asyncio.create_task(freshness_reaper_background_worker(app)),
         asyncio.create_task(notification_worker()),
         asyncio.create_task(run_telegram_bot_task()),
     ]
