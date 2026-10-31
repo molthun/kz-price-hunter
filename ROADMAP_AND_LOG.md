@@ -6,6 +6,23 @@
 
 ---
 
+## [Search Platform 2.0: Этапы 25–26] Freshness Periodic Reaper & Price History 2.0 UI (31.10.2026)
+- **Контекст:** реализация Этапов 25 и 26 Search Platform 2.0 согласно [SEARCH_PLATFORM_PLAN.md](docs/SEARCH_PLATFORM_PLAN.md) по поручению владельца («Все по очереди. Пишем и охватываем тестами. Крупные этапы после разработки только охватываем аудитом остальное только авто тестами и стендом. Делаем. но не забывай обновлять стенд. на нем я визуально тестирую новые возможности после разработки»).
+- **Реализация:**
+  - **Этап 25 (Freshness Periodic Reaper & Auto-expiry)**:
+    - Доменная функция `reap_expired_offers` (`domain/freshness_v2.py`) для периодического списания предложений с истекшим сроком жизни (`expires_at <= now`) или превысивших предельный порог источника (Story > 24ч, Food > 24ч, Retail API/YML > 72ч, Website > 168ч, Social/Used > 336ч). Поддержка `dry_run` и телеметрии.
+    - Функция `get_freshness_stats` для подсчета распределения по состояниям свежести и кандидатов к списанию.
+    - HTTP API: `POST /api/v2/admin/freshness/reap` и `GET /api/v2/admin/freshness/stats` (защищены `@require_admin`).
+    - Мониторинг UI (`web/templates/monitoring.html`): блок списателя (Reaper 2.0) на Уровне 4 с кнопкой запуска списания, индикатором и автообновлением.
+  - **Этап 26 (Price History 2.0 в UI)**:
+    - В `web/templates/index.html` добавлено модальное окно `#modalProductHistory`: изолированные серии динамики цен по магазинам, каналам (Сайт, Kaspi, Forte, Halyk, Instagram, WhatsApp) и состояниям (Новое / Б.у.) без смешения данных.
+    - Фильтры каналов и состояний, векторный SVG график-спарклайн динамики цен и хронологическая таблица наблюдений.
+    - Кнопки «История цен 2.0» в карточках выдачи поиска 2.0 (`renderSearchV2ProductCards`) и витрине продавца.
+    - В `web/server.py` обеспечена обратная совместимость структуры ответа `/api/v2/products/{product_id}/history`.
+- **Тесты:** создан сьют `tests/core/test_freshness_reaper.py` (6 тестов). Полный регресс Python: **2342/2342 OK** (145.7 с); браузерные тесты Playwright: **21/21 PASS**; `release_gate.py secrets`: **PASS**; `git diff --check`: **PASS**. Ветка `main`.
+
+---
+
 ## [Search Platform 2.0: Этапы 23–24] Monitoring Center 2.0 & Observability + UI Showcase (31.10.2026)
 - **Контекст:** реализация Этапов 23–24 Search Platform 2.0 согласно [SEARCH_PLATFORM_PLAN.md](docs/SEARCH_PLATFORM_PLAN.md) и визуальная интеграция возможностей Search Platform 2.0 в UI стенда по поручению владельца («Делаем. но не забывай обновлять стенд. на нем я визуально тестирую новые возможности после разработки»).
 - **Реализация:**

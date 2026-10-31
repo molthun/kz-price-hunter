@@ -1630,6 +1630,7 @@ async def product_price_history_v2_handler(request):
         if not data:
             return web.json_response({"ok": False, "error": "Товар не найден"}, status=404)
         data["ok"] = True
+        data["report"] = dict(data)
         return web.json_response(data)
     except Exception as e:
         print(f"[API product price history v2] Ошибка: {e}")
@@ -2060,6 +2061,69 @@ async def monitoring_overview_v2_handler(request):
     except Exception as e:
         print(f"[API monitoring overview v2] Ошибка: {e}")
         return web.json_response({"ok": False, "error": "Ошибка построения сводки мониторинга 2.0"}, status=500)
+
+
+@routes.post("/api/v2/admin/freshness/reap")
+@require_admin
+async def admin_freshness_reap_handler(request):
+    """Периодический списатель (Reaper) устаревших офферов (S2-E25)."""
+    payload = {}
+    try:
+        if request.can_read_body:
+            payload = await request.json()
+    except Exception:
+        payload = {}
+
+    raw_batch = payload.get("batch_size") or request.query.get("batch_size") or 500
+    try:
+        batch_size = max(1, min(int(raw_batch), 5000))
+    except (TypeError, ValueError):
+        batch_size = 500
+
+    raw_dry = payload.get("dry_run", request.query.get("dry_run", False))
+    dry_run = str(raw_dry).strip().lower() in ("1", "true", "yes")
+
+    def _reap():
+        from database import get_connection
+        from domain.freshness_v2 import reap_expired_offers
+
+        conn = get_connection()
+        try:
+            return reap_expired_offers(conn, batch_size=batch_size, dry_run=dry_run)
+        finally:
+            conn.close()
+
+    try:
+        result = await asyncio.to_thread(_reap)
+        return web.json_response(result)
+    except Exception as e:
+        print(f"[API admin freshness reap] Ошибка: {e}")
+        return web.json_response({"ok": False, "error": "Ошибка списания устаревших предложений"}, status=500)
+
+
+@routes.get("/api/v2/admin/freshness/stats")
+@require_admin
+async def admin_freshness_stats_handler(request):
+    """Сводная статистика свежести предложений и кандидатов к списанию (S2-E25)."""
+    def _stats():
+        from database import get_connection
+        from domain.freshness_v2 import get_freshness_stats
+
+        conn = get_connection()
+        try:
+            data = get_freshness_stats(conn)
+            data["ok"] = True
+            return data
+        finally:
+            conn.close()
+
+    try:
+        result = await asyncio.to_thread(_stats)
+        return web.json_response(result)
+    except Exception as e:
+        print(f"[API admin freshness stats] Ошибка: {e}")
+        return web.json_response({"ok": False, "error": "Ошибка получения статистики свежести"}, status=500)
+
 
 
 # ===== Авторизация =====

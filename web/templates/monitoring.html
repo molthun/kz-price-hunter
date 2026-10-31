@@ -1604,6 +1604,49 @@
       : `<p class="text-amber-300">Пересказ не показан: ${esc(d.rejected || 'причина не указана')}. Цифры выше остаются в силе.</p>`;
   }
 
+  async function triggerFreshnessReaper(dryRun = false) {
+    const btn = document.getElementById('reaperActionBtn');
+    const alertBox = document.getElementById('reaperResultAlert');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Списание...';
+    }
+    try {
+      const res = await fetch('/api/v2/admin/freshness/reap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ batch_size: 500, dry_run: dryRun })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        if (alertBox) {
+          alertBox.className = 'text-xs p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300';
+          alertBox.innerHTML = `⚠️ Ошибка списания: ${esc(data.error || 'Сбой на сервере')}`;
+          alertBox.classList.remove('hidden');
+        }
+        return;
+      }
+      if (alertBox) {
+        alertBox.className = 'text-xs p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300';
+        const reaped = data.total_reaped || 0;
+        alertBox.innerHTML = `✅ Списатель завершил работу: списано <b>${num(reaped)}</b> офферов (проверено кандидатов: ${num(data.scanned_candidates || 0)}).`;
+        alertBox.classList.remove('hidden');
+      }
+      setTimeout(() => { loadPlatformV2(); }, 1200);
+    } catch (e) {
+      if (alertBox) {
+        alertBox.className = 'text-xs p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300';
+        alertBox.innerHTML = `⚠️ Сетевая ошибка: ${esc(String(e))}`;
+        alertBox.classList.remove('hidden');
+      }
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-broom text-[11px]"></i> <span>Списать истёкшие офферы</span>';
+      }
+    }
+  }
+
   async function loadPlatformV2() {
     const box = document.getElementById('platformV2Content');
     if (!box) return;
@@ -1828,6 +1871,22 @@
             </div>
           </div>
         ` : ''}
+        <div class="pt-3 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+              <span>🧹 Периодический списатель офферов (Reaper 2.0):</span>
+              <span id="reaperPendingBadge" class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400">Истёкших: ${num(off.expired_offers || 0)}</span>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-0.5">Автоматическое и ручное списание предложений с истекшим сроком жизни или TTL источника</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="triggerFreshnessReaper(false)" id="reaperActionBtn" class="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500 hover:text-dark-950 text-amber-300 text-xs font-semibold inline-flex items-center gap-1.5 transition cursor-pointer">
+              <i class="fa-solid fa-broom text-[11px]"></i>
+              <span>Списать истёкшие офферы</span>
+            </button>
+          </div>
+        </div>
+        <div id="reaperResultAlert" class="hidden text-xs p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300"></div>
       </div>
     `;
 

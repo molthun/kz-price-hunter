@@ -2217,6 +2217,71 @@
     </div>
   </div>
 
+  <!-- Модальное окно истории цен 2.0 (S2-E26: Price History 2.0 без смешения каналов) -->
+  <div id="modalProductHistory" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 hidden" onclick="if(event.target === this) closeProductHistoryModal()">
+    <div class="glass max-w-4xl w-full rounded-2xl border border-slate-700 max-h-[92vh] flex flex-col shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
+      <!-- Header -->
+      <div class="flex items-center justify-between p-4 sm:p-5 border-b border-slate-800 bg-slate-900/60">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 text-lg">
+            <i class="fa-solid fa-chart-line"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 class="text-base sm:text-lg font-bold text-white" id="modalProductHistoryTitle">История цен 2.0</h3>
+              <span id="modalProductHistoryBadge" class="text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-400/10 border border-emerald-400/20">Каналы изолированы</span>
+            </div>
+            <p class="text-xs text-slate-400" id="modalProductHistorySubtitle">Чистая динамика цен без смешивания прямых продаж и маркетплейсов</p>
+          </div>
+        </div>
+        <button onclick="closeProductHistoryModal()" class="text-slate-400 hover:text-white cursor-pointer text-lg p-1.5 rounded-lg hover:bg-slate-800/60 transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Filters & Summary toolbar -->
+      <div class="p-3 sm:px-6 bg-slate-900/40 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-slate-400 font-medium">Канал:</span>
+          <select id="modalProductHistoryChannelFilter" onchange="filterProductHistorySeries()" class="bg-slate-800 border border-slate-700 text-slate-200 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:border-emerald-500">
+            <option value="ALL">Все каналы</option>
+            <option value="website">🌐 Сайт магазина</option>
+            <option value="kaspi">🛒 Kaspi</option>
+            <option value="forte">🏦 Forte</option>
+            <option value="halyk">🏛 Halyk</option>
+            <option value="instagram">📷 Instagram</option>
+            <option value="whatsapp">💬 WhatsApp</option>
+          </select>
+
+          <span class="text-slate-400 font-medium ml-2">Состояние:</span>
+          <select id="modalProductHistoryConditionFilter" onchange="filterProductHistorySeries()" class="bg-slate-800 border border-slate-700 text-slate-200 rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:border-emerald-500">
+            <option value="ALL">Все состояния</option>
+            <option value="NEW">✨ Новое</option>
+            <option value="USED">♻️ Б/у</option>
+            <option value="REFURBISHED">🛠 Восстановленное</option>
+          </select>
+        </div>
+        <div id="modalProductHistoryStatsSummary" class="text-slate-400 text-[11px] font-mono"></div>
+      </div>
+
+      <!-- Body: Scrollable Series List -->
+      <div id="modalProductHistoryBody" class="p-4 sm:p-6 overflow-y-auto space-y-4 text-xs text-slate-300">
+        <div class="flex items-center justify-center py-12 text-slate-400">
+          <i class="fa-solid fa-spinner fa-spin text-2xl mr-2 text-emerald-400"></i>
+          <span>Загрузка истории цен по каналам...</span>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="p-3 sm:p-4 border-t border-slate-800 bg-slate-900/40 flex items-center justify-between gap-2">
+        <span class="text-[11px] text-slate-500" id="modalProductHistoryFooterInfo"></span>
+        <button onclick="closeProductHistoryModal()" class="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white transition cursor-pointer">
+          Закрыть
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Модальное окно саморегистрации магазина (S2-E27: Добавить магазин) -->
   <div id="modalRegisterSeller" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 hidden" onclick="if(event.target === this) closeRegisterSellerModal()">
     <div class="glass max-w-lg w-full rounded-2xl border border-slate-700 max-h-[92vh] flex flex-col shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
@@ -2947,6 +3012,10 @@
                   <div>
                     <div class="font-bold text-sm text-slate-100">${escapeHtml(p.title)}</div>
                     <div class="text-[11px] text-slate-400">${escapeHtml(p.category || '')} ${p.brand ? `• ${escapeHtml(p.brand)}` : ''}</div>
+                    <button type="button" onclick="openProductHistoryModal('${escapeHtml(p.product_id || p.id || '')}', '${escapeHtml(p.title || '')}')" class="text-[10px] text-slate-400 hover:text-emerald-400 font-medium inline-flex items-center gap-1 transition mt-0.5 cursor-pointer">
+                      <i class="fa-solid fa-chart-line text-[9px] text-emerald-400"></i>
+                      <span>История цен 2.0</span>
+                    </button>
                   </div>
                 </div>
                 <div class="text-right shrink-0">
@@ -3012,6 +3081,262 @@
     function closeSellerModal() {
       const modal = document.getElementById('modalSellerShowcase');
       if (modal) modal.classList.add('hidden');
+    }
+
+    // ===== S2-E26: Price History 2.0 (Изолированные ряды без смешения каналов) =====
+    let currentProductHistoryReport = null;
+
+    function closeProductHistoryModal() {
+      const modal = document.getElementById('modalProductHistory');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function openProductHistoryModal(productId, productTitle) {
+      if (!productId) return;
+      const modal = document.getElementById('modalProductHistory');
+      const body = document.getElementById('modalProductHistoryBody');
+      const titleEl = document.getElementById('modalProductHistoryTitle');
+      const subEl = document.getElementById('modalProductHistorySubtitle');
+      const footerEl = document.getElementById('modalProductHistoryFooterInfo');
+      const statsSummary = document.getElementById('modalProductHistoryStatsSummary');
+
+      if (!modal || !body) return;
+
+      modal.classList.remove('hidden');
+      body.innerHTML = `
+        <div class="flex items-center justify-center py-12 text-slate-400">
+          <i class="fa-solid fa-spinner fa-spin text-2xl mr-2 text-emerald-400"></i>
+          <span>Загрузка изолированных рядов цен по каналам...</span>
+        </div>
+      `;
+      if (titleEl) titleEl.textContent = productTitle || 'История цен товара';
+      if (subEl) subEl.textContent = 'Изолированные ряды по магазинам и каналам продаж (S2-E26)';
+      if (footerEl) footerEl.textContent = '';
+      if (statsSummary) statsSummary.textContent = '';
+
+      // Сброс фильтров
+      const chanFilter = document.getElementById('modalProductHistoryChannelFilter');
+      const condFilter = document.getElementById('modalProductHistoryConditionFilter');
+      if (chanFilter) chanFilter.value = 'ALL';
+      if (condFilter) condFilter.value = 'ALL';
+
+      try {
+        const resp = await fetch(`/api/v2/products/${encodeURIComponent(productId)}/history`);
+        const data = await resp.json();
+
+        if (!resp.ok || !data.ok) {
+          body.innerHTML = `
+            <div class="text-center py-10 space-y-2">
+              <i class="fa-solid fa-circle-exclamation text-3xl text-rose-400"></i>
+              <div class="text-sm font-semibold text-slate-200">${escapeHtml(data.error || 'История цен не найдена')}</div>
+              <div class="text-xs text-slate-500">Наблюдения по этому товару пока отсутствуют в архиве.</div>
+            </div>
+          `;
+          return;
+        }
+
+        currentProductHistoryReport = data.report || data;
+        if (titleEl && (currentProductHistoryReport.title || productTitle)) {
+          titleEl.textContent = currentProductHistoryReport.title || productTitle;
+        }
+
+        renderProductHistorySeriesList();
+      } catch (err) {
+        body.innerHTML = `
+          <div class="text-center py-10 space-y-2">
+            <i class="fa-solid fa-triangle-exclamation text-3xl text-rose-400"></i>
+            <div class="text-sm font-semibold text-slate-200">Ошибка сети при загрузке истории цен</div>
+            <div class="text-xs text-slate-500">${escapeHtml(String(err))}</div>
+          </div>
+        `;
+      }
+    }
+
+    function filterProductHistorySeries() {
+      renderProductHistorySeriesList();
+    }
+
+    function renderProductHistorySeriesList() {
+      if (!currentProductHistoryReport) return;
+      const body = document.getElementById('modalProductHistoryBody');
+      const footerEl = document.getElementById('modalProductHistoryFooterInfo');
+      const statsSummary = document.getElementById('modalProductHistoryStatsSummary');
+      if (!body) return;
+
+      const chanFilter = document.getElementById('modalProductHistoryChannelFilter');
+      const condFilter = document.getElementById('modalProductHistoryConditionFilter');
+      const selChan = chanFilter ? chanFilter.value : 'ALL';
+      const selCond = condFilter ? condFilter.value : 'ALL';
+
+      const allSeries = currentProductHistoryReport.series || [];
+      const filtered = allSeries.filter(s => {
+        if (selChan !== 'ALL' && s.channel_type !== selChan) return false;
+        if (selCond !== 'ALL') {
+          const normCond = (s.condition || 'NEW').toUpperCase();
+          if (selCond === 'NEW' && normCond !== 'NEW') return false;
+          if (selCond === 'USED' && !['USED', 'REFURBISHED', 'OPEN_BOX'].includes(normCond)) return false;
+          if (selCond === 'REFURBISHED' && normCond !== 'REFURBISHED') return false;
+        }
+        return true;
+      });
+
+      if (statsSummary) {
+        statsSummary.textContent = `Рядов: ${filtered.length} из ${allSeries.length} · Наблюдений: ${currentProductHistoryReport.total_observations || 0}`;
+      }
+      if (footerEl) {
+        footerEl.textContent = `Search Platform 2.0 • Товар: ${escapeHtml(currentProductHistoryReport.product_id || '')}`;
+      }
+
+      if (filtered.length === 0) {
+        body.innerHTML = `
+          <div class="text-center py-12 space-y-2 glass rounded-xl border border-slate-800 p-6">
+            <i class="fa-solid fa-filter-circle-xmark text-3xl text-slate-600 block mb-2"></i>
+            <div class="text-sm font-semibold text-slate-300">Нет ценовых рядов по выбранным фильтрам</div>
+            <div class="text-xs text-slate-500">Попробуйте выбрать «Все каналы» или «Все состояния».</div>
+          </div>
+        `;
+        return;
+      }
+
+      body.innerHTML = filtered.map(s => {
+        const chanType = s.channel_type || 'direct';
+        const chanIcon = chanType === 'website' ? '🌐 Сайт' :
+                         chanType === 'kaspi' ? '🛒 Kaspi' :
+                         chanType === 'forte' ? '🏦 Forte' :
+                         chanType === 'halyk' ? '🏛 Halyk' :
+                         chanType === 'instagram' ? '📷 Instagram' :
+                         chanType === 'whatsapp' ? '💬 WhatsApp' :
+                         chanType === 'classifieds' ? '📋 Объявление' : chanType;
+
+        const condBadge = s.condition === 'USED'
+          ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">♻️ Б/у</span>'
+          : s.condition === 'REFURBISHED'
+          ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">🛠 Восстановлен</span>'
+          : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✨ Новое</span>';
+
+        // Динамика изменения
+        let changeHtml = '';
+        if (s.change_amount < 0) {
+          changeHtml = `
+            <span class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+              <i class="fa-solid fa-arrow-down text-[10px]"></i>
+              <span>${fmtPrice(Math.abs(s.change_amount))} (-${Math.abs(s.change_pct).toFixed(1)}%)</span>
+            </span>
+          `;
+        } else if (s.change_amount > 0) {
+          changeHtml = `
+            <span class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center gap-1">
+              <i class="fa-solid fa-arrow-up text-[10px]"></i>
+              <span>+${fmtPrice(s.change_amount)} (+${s.change_pct.toFixed(1)}%)</span>
+            </span>
+          `;
+        } else {
+          changeHtml = `<span class="text-slate-500 text-[11px] font-mono">без колебаний</span>`;
+        }
+
+        // Векторный спарклайн SVG
+        const pts = s.points || [];
+        let sparklineSvg = '';
+        if (pts.length >= 2) {
+          const prices = pts.map(p => Number(p.price) || 0);
+          const minP = Math.min(...prices);
+          const maxP = Math.max(...prices);
+          const range = (maxP - minP) || 1;
+          const w = 240, h = 48, pad = 6;
+
+          const polyPoints = pts.map((p, idx) => {
+            const x = pad + (idx / (pts.length - 1)) * (w - pad * 2);
+            const normY = ((Number(p.price) || 0) - minP) / range;
+            const y = (h - pad) - normY * (h - pad * 2);
+            return `${x.toFixed(1)},${y.toFixed(1)}`;
+          }).join(' ');
+
+          const lastPt = pts[pts.length - 1];
+          const lastX = w - pad;
+          const lastY = (h - pad) - (((Number(lastPt.price) || 0) - minP) / range) * (h - pad * 2);
+          const strokeColor = s.change_amount < 0 ? '#10b981' : (s.change_amount > 0 ? '#f43f5e' : '#38bdf8');
+
+          sparklineSvg = `
+            <div class="mt-2 p-2 rounded-xl bg-slate-950 border border-slate-800/80">
+              <div class="flex items-center justify-between text-[10px] text-slate-500 mb-1 px-1">
+                <span>Мин: ${fmtPrice(minP)}</span>
+                <span class="text-slate-400 font-medium">Динамика цен (${pts.length} точек)</span>
+                <span>Макс: ${fmtPrice(maxP)}</span>
+              </div>
+              <svg viewBox="0 0 ${w} ${h}" class="w-full h-12 overflow-visible">
+                <polyline fill="none" stroke="${strokeColor}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="${polyPoints}" />
+                <circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="4" fill="${strokeColor}" />
+              </svg>
+            </div>
+          `;
+        } else if (pts.length === 1) {
+          sparklineSvg = `
+            <div class="text-[11px] text-slate-500 py-1.5 px-3 rounded-lg bg-slate-950/60 border border-slate-800/60 flex items-center justify-between">
+              <span>Единственный срез цены зафиксирован: <b class="text-slate-300">${escapeHtml(pts[0].observed_at ? pts[0].observed_at.slice(0, 10) : '—')}</b></span>
+              <span class="font-mono text-emerald-400">${fmtPrice(pts[0].price)}</span>
+            </div>
+          `;
+        }
+
+        // Хронологические срезы цен
+        const historyRows = pts.slice().reverse().map(pt => {
+          const dateStr = pt.observed_at ? new Date(pt.observed_at).toLocaleString('ru-RU', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'}) : '—';
+          return `
+            <tr class="border-t border-slate-800/60 text-[11px]">
+              <td class="py-1.5 pr-3 text-slate-400 font-mono">${escapeHtml(dateStr)}</td>
+              <td class="py-1.5 pr-3 text-right font-bold text-white font-mono">${fmtPrice(pt.price)}</td>
+              <td class="py-1.5 pr-3 text-right text-slate-500 font-mono">${pt.old_price ? fmtPrice(pt.old_price) : '—'}</td>
+            </tr>
+          `;
+        }).join('');
+
+        return `
+          <div class="glass p-4 sm:p-5 rounded-2xl border border-slate-800 bg-slate-900/60 hover:border-slate-700 transition space-y-3 shadow-lg">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+              <div class="space-y-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-sm font-bold text-white">${escapeHtml(s.seller_name || 'Магазин')}</span>
+                  <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">${chanIcon}</span>
+                  ${condBadge}
+                </div>
+                <div class="text-[11px] text-slate-400 flex items-center gap-2">
+                  <span>Город: <b class="text-slate-300">${escapeHtml(s.city || 'Казахстан')}</b></span>
+                  <span>•</span>
+                  <span>Серия: <span class="font-mono text-[10px] text-slate-500">${escapeHtml(s.series_key)}</span></span>
+                </div>
+              </div>
+
+              <div class="text-left sm:text-right shrink-0 flex sm:flex-col items-baseline sm:items-end justify-between gap-1">
+                <div class="text-base sm:text-lg font-black text-emerald-400 font-mono">${fmtPrice(s.latest_price || s.current_price)}</div>
+                ${changeHtml}
+              </div>
+            </div>
+
+            ${sparklineSvg}
+
+            ${pts.length > 0 ? `
+              <details class="group border-t border-slate-800/60 pt-2">
+                <summary class="cursor-pointer text-[11px] font-semibold text-slate-400 hover:text-slate-200 flex items-center justify-between select-none py-1">
+                  <span>Хронология срезов цен (${pts.length} точек)</span>
+                  <span class="group-open:rotate-180 transition-transform"><i class="fa-solid fa-chevron-down text-[10px]"></i></span>
+                </summary>
+                <div class="overflow-x-auto mt-2">
+                  <table class="w-full text-left">
+                    <thead class="text-[10px] text-slate-500 border-b border-slate-800">
+                      <tr>
+                        <th class="py-1 pr-3">Время наблюдения</th>
+                        <th class="py-1 pr-3 text-right">Цена</th>
+                        <th class="py-1 pr-3 text-right">Прежняя цена</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/40">${historyRows}</tbody>
+                  </table>
+                </div>
+              </details>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
     }
 
     function openRegisterSellerModal() {
@@ -5012,6 +5337,12 @@
                     <span class="inline-flex items-center gap-1"><i class="fa-solid fa-shop text-[10px] text-slate-500"></i> ${sellersCount} маг.</span>
                     <span>•</span>
                     <span class="inline-flex items-center gap-1"><i class="fa-solid fa-tags text-[10px] text-slate-500"></i> ${offersCount} предл.</span>
+                  </div>
+                  <div class="flex flex-wrap items-center gap-2 pt-1">
+                    <button type="button" onclick="openProductHistoryModal('${escapeHtml(p.id || it.product_id || '')}', '${escapeHtml(p.title || p.canonical_name || '')}')" class="px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium inline-flex items-center gap-1.5 transition cursor-pointer border border-slate-700/60">
+                      <i class="fa-solid fa-chart-line text-emerald-400"></i>
+                      <span>История цен 2.0</span>
+                    </button>
                   </div>
                 </div>
               </div>

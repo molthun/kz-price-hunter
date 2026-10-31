@@ -2,7 +2,39 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## Search Platform 2.0: Этапы 23–24 — Monitoring Center 2.0 & 4-Level Observability + UI Showcase — Antigravity (2026-10-31, завершён)
+## Search Platform 2.0: Этапы 25–26 — Freshness Periodic Reaper & Price History 2.0 UI — Antigravity (2026-10-31, завершён)
+
+- **Основание:** поручение владельца продолжать по очереди («Все по очереди. Пишем и охватываем тестами. Крупные этапы после разработки только охватываем аудитом остальное только авто тестами и стендом. Делаем. но не забывай обновлять стенд. на нем я визуально тестирую новые возможности после разработки»), план Search Platform 2.0 ([SEARCH_PLATFORM_PLAN.md](SEARCH_PLATFORM_PLAN.md) Этапы 25–26).
+- **Исполнитель:** Antigravity (основной разработчик), ветка `main`.
+- **Область файлов:** `domain/freshness_v2.py`, `domain/__init__.py`, `web/server.py`, `web/templates/index.html`, `web/templates/monitoring.html`, `tests/core/test_freshness_reaper.py` (новый), `docs/AGENT_HANDOFF.md`, `ROADMAP_AND_LOG.md`.
+- **Что реализовано:**
+  1. **Этап 25: Freshness Periodic Reaper & Auto-expiry (`domain/freshness_v2.py`)**:
+     - Реализована функция `reap_expired_offers(conn, *, now=None, batch_size=500, dry_run=False)`:
+       - Пакетное списание устаревших предложений (`is_active = 0`, установка `expires_at` и `updated_at`).
+       - Поддержка двух причин списания: по истечению явного срока жизни `expires_at <= now` (`ttl_expired`) и по превышению предельного возраста для типа источника (`source_threshold_expired`: Story > 24ч, Food > 24ч, Retail API/YML > 72ч, Website > 168ч, Classifieds/Instagram > 336ч).
+       - Интеграция с телеметрией `record_event("freshness.reaper_run", ...)`.
+     - Реализована функция `get_freshness_stats(conn, *, now=None)` для получения сводной статистики распределения офферов по состояниям (FRESH, AGING, STALE, EXPIRED, UNKNOWN) и количества кандидатов к списанию `pending_reap_count`.
+     - Добавлены эндпоинты в `web/server.py`:
+       - `POST /api/v2/admin/freshness/reap` (защищен `@require_admin`, запуск в `asyncio.to_thread`, поддержка `batch_size` и `dry_run`).
+       - `GET /api/v2/admin/freshness/stats` (защищен `@require_admin`, запуск в `asyncio.to_thread`).
+     - В `web/templates/monitoring.html` (Уровень 4) добавлен блок периодического списателя (Reaper 2.0) со счетчиком истёкших офферов, кнопкой запуска `triggerFreshnessReaper()`, индикатором загрузки и автообновлением сводки.
+  2. **Этап 26: Price History 2.0 в UI (`web/templates/index.html`)**:
+     - В `web/templates/index.html` добавлено модальное окно `#modalProductHistory`:
+       - Чистая динамика цен без смешивания каналов продаж: отдельные ряды по каждому магазину, каналу (Сайт, Kaspi, Forte, Halyk, Instagram, WhatsApp) и состоянию (Новое / Б.у.).
+       - Фильтрация рядов внутри модалки по каналу и по состоянию.
+       - Векторный SVG график-спарклайн динамики цен по историческим срезам с цветовой индикацией роста/снижения цены.
+       - Сворачиваемая таблица хронологии наблюдений цен со временем, ценой и старой ценой.
+     - Интеграция кнопки вызова «История цен 2.0» в карточки товаров поисковой выдачи 2.0 (`renderSearchV2ProductCards`) и в витрину продавца (`modalSellerShowcase`).
+     - В `web/server.py` (`/api/v2/products/{product_id}/history`) сохранена 100% совместимость контракта с вложенным и корневым представлением отчета.
+  3. **Автотесты**:
+     - Новый сьют `tests/core/test_freshness_reaper.py` (6/6 OK) с проверкой TTL expiry, порогов источников, dry_run, ролевого доступа админа (401/403/200) и изоляции рядов цен по каналам.
+     - Браузерные тесты Playwright: **21/21 PASS**.
+     - Полный сьют тестов Python: **2342/2342 OK** (145.7 с).
+     - Аудит секретов: `release_gate.py secrets` PASS (0 findings).
+     - Форматирование: `git diff --check` PASS.
+- **Следующий точный шаг:** синхронизация коммита на стенд `shdev.molthun.ru` через `git bundle` (порт 2222) и переход к следующему этапу Search Platform 2.0 (Этап 27 — Self-registration продавцов в UI / Заявки на подключение).
+
+---
 
 - **Основание:** поручение владельца («Делаем. но не забывай обновлять стенд. на нем я визуально тестирую новые возможности после разработки»), план Search Platform 2.0 ([SEARCH_PLATFORM_PLAN.md](SEARCH_PLATFORM_PLAN.md) Этапы 23–24).
 - **Исполнитель:** Antigravity (основной разработчик), ветка `main`.

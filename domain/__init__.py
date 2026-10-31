@@ -96,7 +96,9 @@ from domain.freshness_v2 import (
     OfferFreshnessResult,
     SourceFreshnessType,
     evaluate_offer_freshness,
+    get_freshness_stats,
     infer_source_freshness_type,
+    reap_expired_offers,
 )
 
 from domain.price_history_v2 import (
@@ -214,6 +216,7 @@ __all__ = [
     "build_seller_provenance",
     "evaluate_offer_freshness",
     "filter_offers_by_condition",
+    "get_freshness_stats",
     "infer_source_freshness_type",
     "make_price_series_key",
     "normalize_bin",
@@ -222,5 +225,6 @@ __all__ = [
     "normalize_phone",
     "normalize_search_query",
     "prepare_onboarding_candidate",
+    "reap_expired_offers",
     "validate_onboarding_submission",
 ]
