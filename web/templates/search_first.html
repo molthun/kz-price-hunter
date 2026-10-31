@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>KZ Price Hunter — Поиск лучших цен на товары в Казахстане</title>
   <meta name="description" content="Поисковик цен по сотням магазинов Казахстана. Сравнение предложений, реальные продавцы, рассрочка и скидки.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
@@ -108,7 +108,7 @@
       transition: background-color 0.2s ease, color 0.2s ease;
     }
 
-    @media (min-width: 768px) {
+    @media (min-width: 900px) {
       body {
         padding-bottom: 0;
       }
@@ -202,7 +202,7 @@
       gap: 8px;
     }
 
-    @media (min-width: 768px) {
+    @media (min-width: 900px) {
       .header-nav {
         display: flex;
       }
@@ -647,6 +647,7 @@
         left: 0;
         right: 0;
         bottom: 0;
+        width: auto;
         z-index: 1000;
         background: var(--bg-card);
         overflow-y: auto;
@@ -1269,7 +1270,7 @@
       z-index: 50;
     }
 
-    @media (min-width: 768px) {
+    @media (min-width: 900px) {
       .mobile-bottom-nav {
         display: none;
       }
@@ -1347,6 +1348,44 @@
       max-width: 480px;
       margin: 0 auto 20px;
     }
+  
+    /* На телефоне и планшете предложение — карточка: цена и переход к продавцу видны без горизонтальной прокрутки */
+    @media (max-width: 900px) {
+      .offers-table, .offers-table tbody, .offers-table tr, .offers-table td {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .offers-table thead {
+        display: none;
+      }
+      .offers-table tr {
+        padding: 12px 0;
+        border-bottom: 1px solid var(--border-color);
+      }
+      .offers-table td {
+        padding: 4px 0;
+        border: none;
+        text-align: left !important;
+      }
+      .offers-table td[data-label]::before {
+        content: attr(data-label) ": ";
+        color: var(--text-muted);
+      }
+    }
+
+    /* Самые узкие телефоны: шапка без текста логотипа, иначе выбор города выходит за экран */
+    @media (max-width: 400px) {
+      .site-logo span {
+        display: none;
+      }
+    }
+
+    /* Видимый фокус с клавиатуры поверх локальных outline: none, в обеих темах */
+    *:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
   </style>
 </head>
 <body>
@@ -1355,7 +1394,7 @@
   <header class="site-header">
     <div class="container header-inner">
       <div class="header-left">
-        <a href="/" class="site-logo" onclick="navigateTo(event, '/')">
+        <a href="/" class="site-logo" aria-label="KZ Price Hunter, на главную" onclick="navigateTo(event, '/')">
           <div class="site-logo-icon">KZ</div>
           <span>Price Hunter</span>
         </a>
@@ -1538,7 +1577,7 @@
         <aside class="filters-sidebar" id="filtersSidebar">
           <div class="filters-sidebar-header-mobile">
             <span style="font-weight:700; font-size:1.05rem;">Фильтры</span>
-            <button class="btn-close-filters-mobile" type="button" onclick="toggleMobileFilters()">✕ Закрыть</button>
+            <button class="btn-close-filters-mobile" id="closeFiltersBtn" type="button" onclick="closeMobileFilters()">✕ Закрыть</button>
           </div>
           <div class="filter-group">
             <div class="filter-title">Категории</div>
@@ -1599,10 +1638,10 @@
         <div class="results-content">
           <div class="results-top-meta">
             <div class="results-count-title" id="resultsCountTitle">
-              Результаты поиска <span id="resultsCountSubtitle"></span>
+              <span id="resultsCountText">Результаты поиска</span> <span id="resultsCountSubtitle"></span>
             </div>
             <div style="display:flex; align-items:center; gap:8px;">
-              <button class="mobile-filter-btn" type="button" onclick="toggleMobileFilters()">
+              <button class="mobile-filter-btn" type="button" aria-expanded="false" aria-controls="filtersSidebar" onclick="openMobileFilters()">
                 <span>⚙️</span> <span>Фильтры</span>
               </button>
               <select id="sortSelect" class="sort-select" onchange="onSortChanged(this.value)">
@@ -1626,7 +1665,7 @@
             <div class="state-icon">🔍</div>
             <div class="state-title">Ничего не найдено</div>
             <div class="state-desc">Попробуйте изменить запрос, проверить опечатки или сбросить фильтры.</div>
-            <button class="btn-apply-filters" style="display:inline-block; width:auto; padding:8px 20px;" onclick="resetAllFilters()">Сбросить фильтры</button>
+            <button class="btn-apply-filters" id="resultsEmptyAction" type="button" style="display:inline-block; width:auto; padding:8px 20px;">Сбросить фильтры</button>
           </div>
 
           <!-- Product Cards Container -->
@@ -1723,26 +1762,26 @@
 
   <!-- Mobile Bottom Navigation Bar -->
   <nav class="mobile-bottom-nav">
-    <div class="bottom-nav-item active" onclick="navigateTo(null, '/')">
+    <button class="bottom-nav-item active" type="button" onclick="navigateTo(null, '/')">
       <div class="bottom-nav-icon">🔍</div>
       <div>Поиск</div>
-    </div>
-    <div class="bottom-nav-item" onclick="showToast('Раздел «Скидки» появится на следующем этапе')">
+    </button>
+    <button class="bottom-nav-item" type="button" onclick="showToast('Раздел «Скидки» появится на следующем этапе')">
       <div class="bottom-nav-icon">🏷</div>
       <div>Скидки</div>
-    </div>
-    <div class="bottom-nav-item" onclick="showToast('Раздел «Избранное» появится на следующем этапе')">
+    </button>
+    <button class="bottom-nav-item" type="button" onclick="showToast('Раздел «Избранное» появится на следующем этапе')">
       <div class="bottom-nav-icon">♡</div>
       <div>Избранное</div>
-    </div>
+    </button>
     <button class="bottom-nav-item" type="button" onclick="toggleTheme()" aria-label="Тема оформления" title="Переключить тему оформления">
       <div class="bottom-nav-icon theme-icon-mobile">🌙</div>
       <div class="theme-label-mobile">Тема</div>
     </button>
-    <div class="bottom-nav-item" onclick="showToast('Профиль пользователя')">
+    <button class="bottom-nav-item" type="button" onclick="showToast('Профиль пользователя')">
       <div class="bottom-nav-icon">👤</div>
       <div>Профиль</div>
-    </div>
+    </button>
   </nav>
 
   <!-- Toast Notification -->
@@ -1751,8 +1790,9 @@
   <!-- Client-Side Routing and Logic -->
   <script>
     // State
+    const DEFAULT_CITY = 'Алматы';
     const AppState = {
-      city: 'Алматы',
+      city: DEFAULT_CITY,
       query: '',
       page: 1,
       limit: 20,
@@ -1768,6 +1808,7 @@
       delivery: '',
       currentProduct: null,
       searchAbortCtrl: null,
+      productRequestId: 0,
     };
 
     // Formatters
@@ -1855,14 +1896,66 @@
 
     function openProduct(e, prodId) {
       if (e && e.preventDefault) e.preventDefault();
-      const cityParam = AppState.city && AppState.city !== 'Все' ? '?city=' + encodeURIComponent(AppState.city) : '';
-      navigateTo(e, '/product/' + encodeURIComponent(prodId) + cityParam);
+      navigateTo(e, '/product/' + encodeURIComponent(prodId) + '?city=' + encodeURIComponent(AppState.city));
     }
 
-    function toggleMobileFilters() {
+    // Панель фильтров на мобильных — модальный диалог; на desktop это обычная колонка
+    let filtersOpener = null;
+
+    function isFiltersDialogOpen() {
       const sb = document.getElementById('filtersSidebar');
-      if (sb) sb.classList.toggle('mobile-open');
+      return !!sb && sb.classList.contains('mobile-open') && window.matchMedia('(max-width: 1023px)').matches;
     }
+
+    function setFiltersExpanded(expanded) {
+      const btn = document.querySelector('.mobile-filter-btn');
+      if (btn) btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    }
+
+    function openMobileFilters() {
+      const sb = document.getElementById('filtersSidebar');
+      if (!sb) return;
+      filtersOpener = document.activeElement;
+      sb.classList.add('mobile-open');
+      sb.setAttribute('role', 'dialog');
+      sb.setAttribute('aria-modal', 'true');
+      sb.setAttribute('aria-label', 'Фильтры');
+      setFiltersExpanded(true);
+      document.getElementById('closeFiltersBtn').focus();
+    }
+
+    function closeMobileFilters(restoreFocus = true) {
+      const sb = document.getElementById('filtersSidebar');
+      if (!sb || !sb.classList.contains('mobile-open')) return;
+      sb.classList.remove('mobile-open');
+      sb.removeAttribute('role');
+      sb.removeAttribute('aria-modal');
+      sb.removeAttribute('aria-label');
+      setFiltersExpanded(false);
+      if (restoreFocus && filtersOpener && filtersOpener.isConnected) filtersOpener.focus();
+      filtersOpener = null;
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (!isFiltersDialogOpen()) return;
+      if (e.key === 'Escape') {
+        closeMobileFilters();
+      } else if (e.key === 'Tab') {
+        const sb = document.getElementById('filtersSidebar');
+        const items = Array.from(sb.querySelectorAll('button, input, select, a[href]')).filter(el => !el.disabled && el.offsetParent !== null);
+        if (!items.length) return;
+        const first = items[0];
+        const last = items[items.length - 1];
+        const active = document.activeElement;
+        if (!sb.contains(active) || (e.shiftKey && active === first)) {
+          e.preventDefault();
+          (e.shiftKey ? last : first).focus();
+        } else if (!e.shiftKey && active === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    });
 
     window.addEventListener('popstate', () => {
       handleRoute();
@@ -1872,18 +1965,26 @@
       const pathname = window.location.pathname;
       const params = new URLSearchParams(window.location.search);
 
-      // Sync city from query if provided
-      if (params.get('city')) {
-        AppState.city = params.get('city');
-        const cs = document.getElementById('globalCitySelect');
-        if (cs) cs.value = AppState.city;
+      closeMobileFilters(false);
+
+      // Выдача и товар воспроизводятся по URL: нет city — всегда город по умолчанию,
+      // «Все города» записываются явно как city=Все. Главная лишь хранит текущий выбор.
+      const isProduct = pathname.startsWith('/product/');
+      const isSearch = pathname === '/search' || params.has('q') || params.has('cat') || params.has('category');
+      if (isProduct || isSearch) {
+        setCity(params.get('city') || DEFAULT_CITY);
+      } else if (params.get('city')) {
+        setCity(params.get('city'));
       }
 
-      if (pathname.startsWith('/product/')) {
-        const prodId = pathname.replace('/product/', '').trim();
+      if (isProduct) {
+        let prodId = pathname.replace('/product/', '').trim();
+        try {
+          prodId = decodeURIComponent(prodId);
+        } catch (e) {}
         showView('viewDetail');
         loadProductDetail(prodId);
-      } else if (pathname === '/search' || params.has('q') || params.has('cat') || params.has('category')) {
+      } else if (isSearch) {
         showView('viewResults');
         parseSearchParams(params);
         executeSearch();
@@ -1899,11 +2000,28 @@
       window.scrollTo(0, 0);
     }
 
+    function setCity(city) {
+      AppState.city = city;
+      const cs = document.getElementById('globalCitySelect');
+      if (!cs) return;
+      if (!Array.from(cs.options).some(o => o.value === city)) {
+        const opt = document.createElement('option');
+        opt.value = city;
+        opt.textContent = city;
+        cs.appendChild(opt);
+      }
+      cs.value = city;
+    }
+
     function onCityChanged(city) {
       AppState.city = city;
       if (document.getElementById('viewResults').classList.contains('active')) {
+        AppState.page = 1;
         updateSearchUrl();
         executeSearch();
+      } else if (document.getElementById('viewDetail').classList.contains('active')) {
+        window.history.pushState({}, '', window.location.pathname + '?city=' + encodeURIComponent(city));
+        handleRoute();
       }
     }
 
@@ -1916,7 +2034,6 @@
       if (!q) return;
       AppState.query = q;
       AppState.page = 1;
-      updateSearchUrl();
       navigateTo(null, '/search?q=' + encodeURIComponent(q) + '&city=' + encodeURIComponent(AppState.city));
     }
 
@@ -1959,14 +2076,15 @@
 
     function parseSearchParams(params) {
       AppState.query = params.get('q') || '';
-      AppState.category = params.get('category') || params.get('cat') || '';
+      const cat = params.get('category') || params.get('cat') || '';
+      AppState.category = cat === 'all' ? '' : cat;
       AppState.brand = params.get('brand') || '';
       AppState.condition = params.get('condition') || '';
       AppState.seller = params.get('seller') || '';
       AppState.min_price = params.get('min_price') || '';
       AppState.max_price = params.get('max_price') || '';
       AppState.sort = params.get('sort') || 'relevance';
-      AppState.page = parseInt(params.get('page') || '1', 10);
+      AppState.page = Math.max(1, parseInt(params.get('page') || '1', 10) || 1);
       AppState.installment = params.get('installment') === '1' || params.get('installment') === 'true';
       AppState.in_stock = params.get('in_stock') === '1' || params.get('in_stock') === 'true';
 
@@ -1993,7 +2111,7 @@
     function updateSearchUrl() {
       const p = new URLSearchParams();
       if (AppState.query) p.set('q', AppState.query);
-      if (AppState.city && AppState.city !== 'Все') p.set('city', AppState.city);
+      p.set('city', AppState.city);
       if (AppState.category) p.set('cat', AppState.category);
       if (AppState.brand) p.set('brand', AppState.brand);
       if (AppState.condition) p.set('condition', AppState.condition);
@@ -2007,6 +2125,27 @@
 
       const newUrl = '/search?' + p.toString();
       window.history.pushState({}, '', newUrl);
+    }
+
+    function renderResultsHeader(total) {
+      document.getElementById('resultsCountText').textContent = AppState.query ? '«' + AppState.query + '»' : 'Каталог товаров';
+      document.getElementById('resultsCountSubtitle').textContent =
+        total === null ? '' : '— найдено ' + total + ' ' + pluralizeProducts(total);
+    }
+
+    // Каждое состояние задаёт весь свой текст и действие: прошлое состояние DOM не наследуется
+    function showResultsMessage(title, desc, actionLabel, action) {
+      const emptyEl = document.getElementById('resultsEmpty');
+      emptyEl.querySelector('.state-title').textContent = title;
+      emptyEl.querySelector('.state-desc').textContent = desc;
+      const actionEl = document.getElementById('resultsEmptyAction');
+      actionEl.textContent = actionLabel;
+      actionEl.onclick = action;
+      emptyEl.style.display = 'block';
+    }
+
+    function showResultsError(title, desc) {
+      showResultsMessage(title, desc, 'Повторить', () => executeSearch());
     }
 
     async function executeSearch() {
@@ -2024,6 +2163,7 @@
       emptyEl.style.display = 'none';
       cardsEl.innerHTML = '';
       paginationEl.style.display = 'none';
+      renderResultsHeader(null);
 
       const p = new URLSearchParams();
       if (AppState.query) p.set('q', AppState.query);
@@ -2047,13 +2187,10 @@
 
         if (!resp.ok) {
           loadingEl.style.display = 'none';
-          emptyEl.style.display = 'block';
           if (resp.status === 429) {
-            emptyEl.querySelector('.state-title').textContent = 'Слишком много запросов';
-            emptyEl.querySelector('.state-desc').textContent = 'Пожалуйста, подождите пару секунд и повторите поиск.';
+            showResultsError('Слишком много запросов', 'Пожалуйста, подождите пару секунд и повторите поиск.');
           } else {
-            emptyEl.querySelector('.state-title').textContent = 'Ошибка сервиса поиска';
-            emptyEl.querySelector('.state-desc').textContent = 'Произошла непредвиденная ошибка на сервере (код ' + resp.status + '). Попробуйте повторить поиск позже.';
+            showResultsError('Ошибка сервиса поиска', 'Произошла непредвиденная ошибка на сервере (код ' + resp.status + '). Попробуйте повторить поиск позже.');
           }
           return;
         }
@@ -2062,38 +2199,31 @@
         loadingEl.style.display = 'none';
 
         if (data.error || data.ok === false) {
-          emptyEl.style.display = 'block';
-          emptyEl.querySelector('.state-title').textContent = 'Ошибка сервиса поиска';
-          emptyEl.querySelector('.state-desc').textContent = data.error || 'Произошла ошибка при выполнении поискового запроса.';
+          showResultsError('Ошибка сервиса поиска', data.error || 'Произошла ошибка при выполнении поискового запроса.');
           return;
         }
 
         renderSearchResults(data);
       } catch (err) {
         if (err.name === 'AbortError') return;
+        console.error(err);
         loadingEl.style.display = 'none';
-        emptyEl.style.display = 'block';
-        emptyEl.querySelector('.state-title').textContent = 'Ошибка загрузки';
-        emptyEl.querySelector('.state-desc').textContent = 'Не удалось загрузить результаты поиска. Проверьте соединение с интернетом.';
+        showResultsError('Ошибка загрузки', 'Не удалось загрузить результаты поиска. Проверьте соединение с интернетом.');
       }
     }
 
     function renderSearchResults(data) {
-      const emptyEl = document.getElementById('resultsEmpty');
       const cardsEl = document.getElementById('productCardsContainer');
-      const countTitleEl = document.getElementById('resultsCountTitle');
-      const countSubEl = document.getElementById('resultsCountSubtitle');
 
       const items = data.items || [];
       const total = data.total_products || 0;
 
-      countTitleEl.innerHTML = AppState.query
-        ? '«' + escapeHtml(AppState.query) + '» '
-        : 'Каталог товаров ';
-      countSubEl.textContent = '— найдено ' + total + ' ' + pluralizeProducts(total);
+      renderResultsHeader(total);
+      renderPagination(data);
+      renderFacets(data);
 
       if (items.length === 0) {
-        emptyEl.style.display = 'block';
+        showResultsMessage('Ничего не найдено', 'Попробуйте изменить запрос, проверить опечатки или сбросить фильтры.', 'Сбросить фильтры', () => resetAllFilters());
         return;
       }
 
@@ -2135,7 +2265,7 @@
             <div class="card-info">
               <div class="card-badges">
                 ${cond === 'NEW' ? '<span class="badge badge-condition-new">✨ Новый</span>' : ''}
-                ${cond === 'USED' ? '<span class="badge badge-condition-used">🔄 Б/у</span>' : ''}
+                ${cond === 'USED' ? '<span class="badge badge-condition-used">🔄 ' + nonNewLabel(item.conditions_available) + '</span>' : ''}
                 <span class="badge badge-sellers">🏬 от ${sellersCount} ${pluralizeSellers(sellersCount)}</span>
               </div>
               <h3 class="card-title">${escapeHtml(title)}</h3>
@@ -2155,9 +2285,6 @@
           </div>
         `;
       }).join('');
-
-      renderPagination(data);
-      renderFacets(data);
     }
 
     function renderPagination(data) {
@@ -2193,30 +2320,38 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    function renderFacets(data) {
-      // Categories facets
-      const catList = document.getElementById('filterCategoriesList');
-      if (catList && data.category_facets) {
-        catList.innerHTML = data.category_facets.slice(0, 8).map(f => `
-          <label class="filter-checkbox-label">
-            <input type="radio" name="facetCategory" value="${escapeHtml(f.id)}" ${AppState.category === f.id ? 'checked' : ''} onchange="onCategoryFacetSelected(this.value)">
-            <span>${escapeHtml(f.name)}</span>
-            <span class="filter-count">(${f.count})</span>
-          </label>
-        `).join('') || '<div style="font-size:0.85rem; color:var(--text-muted);">Нет категорий</div>';
-      }
+    function renderFacetGroup(listEl, name, handler, selected, facets, shown, emptyText) {
+      // Выбранное значение видно всегда, даже вне первых строк или с нулём при других фильтрах
+      const rows = facets.slice();
+      const selIdx = rows.findIndex(f => f.value === selected);
+      if (selIdx >= 0) rows.unshift(rows.splice(selIdx, 1)[0]);
+      else if (selected) rows.unshift({ value: selected, name: selected, count: 0 });
 
-      // Sellers facets
+      const rowHtml = (value, label, count) => `
+        <label class="filter-checkbox-label">
+          <input type="radio" name="${name}" value="${escapeHtml(value)}" ${selected === value ? 'checked' : ''} onchange="${handler}(this.value)">
+          <span>${escapeHtml(label)}</span>
+          ${count === null ? '' : '<span class="filter-count">(' + Number(count) + ')</span>'}
+        </label>
+      `;
+      listEl.innerHTML = rows.length
+        ? rowHtml('', 'Все', null) + rows.slice(0, shown).map(f => rowHtml(f.value, f.name, f.count)).join('')
+        : '<div style="font-size:0.85rem; color:var(--text-muted);">' + emptyText + '</div>';
+    }
+
+    function renderFacets(data) {
+      const catList = document.getElementById('filterCategoriesList');
       const sellerList = document.getElementById('filterSellersList');
-      if (sellerList && data.seller_facets) {
-        sellerList.innerHTML = data.seller_facets.slice(0, 6).map(s => `
-          <label class="filter-checkbox-label">
-            <input type="radio" name="facetSeller" value="${escapeHtml(s.slug || s.id)}" ${AppState.seller === (s.slug || s.id) ? 'checked' : ''} onchange="onSellerFacetSelected(this.value)">
-            <span>${escapeHtml(s.name)}</span>
-            <span class="filter-count">(${s.count})</span>
-          </label>
-        `).join('') || '<div style="font-size:0.85rem; color:var(--text-muted);">Нет продавцов</div>';
+      if (data.facets_available === false) {
+        const msg = '<div style="font-size:0.85rem; color:var(--text-muted);">Список временно недоступен</div>';
+        catList.innerHTML = msg;
+        sellerList.innerHTML = msg;
+        return;
       }
+      renderFacetGroup(catList, 'facetCategory', 'onCategoryFacetSelected', AppState.category,
+        (data.category_facets || []).map(f => ({ value: f.id, name: f.name, count: f.count })), 8, 'Нет категорий');
+      renderFacetGroup(sellerList, 'facetSeller', 'onSellerFacetSelected', AppState.seller,
+        (data.seller_facets || []).map(s => ({ value: s.slug || s.id, name: s.name, count: s.count })), 6, 'Нет продавцов');
     }
 
     function onCategoryFacetSelected(cid) {
@@ -2252,8 +2387,7 @@
       AppState.installment = document.getElementById('filterInstallment').checked;
       AppState.in_stock = document.getElementById('filterInStock').checked;
 
-      const sb = document.getElementById('filtersSidebar');
-      if (sb) sb.classList.remove('mobile-open');
+      closeMobileFilters();
 
       AppState.page = 1;
       updateSearchUrl();
@@ -2261,8 +2395,7 @@
     }
 
     function resetAllFilters() {
-      const sb = document.getElementById('filtersSidebar');
-      if (sb) sb.classList.remove('mobile-open');
+      closeMobileFilters();
       AppState.category = '';
       AppState.brand = '';
       AppState.condition = '';
@@ -2285,6 +2418,8 @@
 
       const condRadios = document.getElementsByName('filterCondition');
       condRadios.forEach(r => r.checked = (r.value === ''));
+      const sortSel = document.getElementById('sortSelect');
+      if (sortSel) sortSel.value = 'relevance';
 
       updateSearchUrl();
       executeSearch();
@@ -2307,21 +2442,28 @@
       tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:32px;">Загрузка предложений...</td></tr>';
       badgesEl.innerHTML = '';
       attrsEl.innerHTML = '';
+      renderHistory(null, []);
+      const requestId = ++AppState.productRequestId;
 
       try {
         const url = '/api/v2/products/' + encodeURIComponent(prodId) +
           (AppState.city && AppState.city !== 'Все' ? '?city=' + encodeURIComponent(AppState.city) : '');
         const resp = await fetch(url);
+        if (requestId !== AppState.productRequestId) return;
         if (resp.status === 404) {
           titleEl.textContent = 'Товар не найден';
           tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:32px; color:var(--text-muted);">Товар был удален или ссылка недействительна. <br><a href="/" style="color:var(--primary); font-weight:600;" onclick="navigateTo(event, \'/\')">Вернуться на главную</a></td></tr>';
           return;
         }
 
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
         const data = await resp.json();
+        if (requestId !== AppState.productRequestId) return;
         AppState.currentProduct = data;
         renderProductDetail(data);
       } catch (e) {
+        if (requestId !== AppState.productRequestId) return;
         titleEl.textContent = 'Ошибка загрузки';
         tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:32px; color:var(--badge-discount);">Не удалось загрузить данные товара. Попробуйте позже.</td></tr>';
       }
@@ -2344,14 +2486,15 @@
 
       // Best price
       const bestPrice = data.min_price;
-      document.getElementById('detailBestPrice').textContent = bestPrice ? formatPrice(bestPrice) : 'Нет в наличии';
+      const bestBasis = data.best_offer ? priceBasisLabel(data.best_offer) : '';
+      document.getElementById('detailBestPrice').textContent = bestPrice ? formatPrice(bestPrice) + (bestBasis ? ' ' + bestBasis : '') : 'Нет в наличии';
       document.getElementById('detailSellersCountBadge').textContent = 'Доступно у ' + sellers.length + ' ' + pluralizeSellers(sellers.length);
       document.getElementById('offersCountBadge').textContent = '(' + offers.length + ' предложений)';
 
       // Badges
       let badgesHtml = '';
       if (data.best_new_price) badgesHtml += '<span class="badge badge-condition-new">✨ Новые от ' + formatPrice(data.best_new_price) + '</span>';
-      if (data.best_used_price) badgesHtml += '<span class="badge badge-condition-used">🔄 Б/у от ' + formatPrice(data.best_used_price) + '</span>';
+      if (data.best_used_price) badgesHtml += '<span class="badge badge-condition-used">🔄 ' + nonNewLabel(offers.filter(o => o.is_purchasable).map(o => o.condition)) + ' от ' + formatPrice(data.best_used_price) + '</span>';
       if (prod.brand) badgesHtml += '<span class="badge badge-sellers">Бренд: ' + escapeHtml(prod.brand) + '</span>';
       document.getElementById('detailBadges').innerHTML = badgesHtml;
 
@@ -2378,6 +2521,8 @@
         `;
       }
 
+      renderHistory(data.history, offers);
+
       // Render Offers Table
       const tableBody = document.getElementById('offersTableBody');
       if (offers.length === 0) {
@@ -2393,6 +2538,7 @@
         let factsHtml = '';
         if (off.seller_domain) factsHtml += '<span>🌐 ' + escapeHtml(off.seller_domain) + '</span> ';
         if (off.city) factsHtml += '<span>📍 ' + escapeHtml(off.city) + '</span>';
+        factsHtml += '<div>' + escapeHtml(offerObservationText(off)) + '</div>';
 
         let installmentHtml = '—';
         if (off.installment_available) {
@@ -2404,28 +2550,22 @@
           }
         }
 
-        let deliveryHtml = '—';
-        if (off.delivery_days || off.delivery_text) {
-          deliveryHtml = escapeHtml(off.delivery_text || (off.delivery_days + ' дн.'));
-        } else if (off.delivery_type && off.delivery_type !== 'pickup_only') {
-          deliveryHtml = 'Доставка';
-        } else if (off.pickup_available || off.delivery_type === 'pickup_only') {
-          deliveryHtml = 'Самовывоз';
+        const hasDelivery = off.delivery_type && !['pickup', 'pickup_only'].includes(off.delivery_type);
+        const deliveryParts = [];
+        if (hasDelivery) deliveryParts.push('Доставка');
+        if (off.pickup_available || off.delivery_type === 'pickup_only') deliveryParts.push('Самовывоз');
+        let deliveryHtml = deliveryParts.join(', ') || '—';
+        if (off.warranty) {
+          deliveryHtml += '<div style="font-size:0.8rem; color:var(--text-muted);">Гарантия: ' + escapeHtml(off.warranty) + '</div>';
         }
 
-        let condBadgeHtml = '<span class="badge badge-sellers">Уточняйте</span>';
-        if (off.condition === 'NEW') {
-          condBadgeHtml = '<span class="badge badge-condition-new">Новый</span>';
-        } else if (off.condition === 'USED') {
-          condBadgeHtml = '<span class="badge badge-condition-used">Б/у</span>';
-        } else if (off.condition === 'REFURBISHED') {
-          condBadgeHtml = '<span class="badge badge-condition-used">Восстановлен</span>';
-        }
+        const condBadgeHtml = conditionBadge(off.condition);
+        const basisLabel = priceBasisLabel(off);
 
         let oldPriceHtml = '';
         if (off.old_price && off.old_price > off.price) {
           const discountPct = Math.round(((off.old_price - off.price) / off.old_price) * 100);
-          oldPriceHtml = '<div style="font-size:0.8rem; color:var(--badge-discount);">' + formatPrice(off.old_price) + ' (-' + discountPct + '%)</div>';
+          oldPriceHtml = '<div style="font-size:0.8rem; color:var(--badge-discount);" title="Прежняя цена указана источником предложения; сервис её не подтверждал">' + formatPrice(off.old_price) + ' (-' + discountPct + '%), по данным источника</div>';
         }
 
         let buyButtonHtml = '';
@@ -2453,38 +2593,53 @@
             </td>
             <td>
               <div class="offer-price-cell">${formatPrice(off.price)}</div>
+              ${basisLabel ? '<div style="font-size:0.8rem; color:var(--text-muted);">' + escapeHtml(basisLabel) + '</div>' : ''}
               ${oldPriceHtml}
             </td>
-            <td>${deliveryHtml}</td>
-            <td>${installmentHtml}</td>
+            <td data-label="Доставка">${deliveryHtml}</td>
+            <td data-label="Рассрочка">${installmentHtml}</td>
             <td style="text-align:right;">${buyButtonHtml}</td>
           </tr>
         `;
       }).join('');
+    }
 
-      // Render History
-      const hist = data.history || {};
+    // Каждая линия — отдельные продавец, канал, состояние и город: несопоставимые цены не объединяются
+    function renderHistory(hist, offers) {
       const histBadge = document.getElementById('historyObservationsBadge');
       const histContent = document.getElementById('detailHistoryContent');
-      if (hist && hist.total_observations && hist.total_observations > 0) {
-        if (histBadge) histBadge.textContent = '(' + hist.total_observations + ' ' + (hist.total_observations === 1 ? 'наблюдение' : 'наблюдений') + ')';
-        let histHtml = '<div style="display:flex; flex-direction:column; gap:6px;">';
-        if (hist.min_observed_price && hist.max_observed_price) {
-          histHtml += '<div>Минимальная зафиксированная цена: <strong style="color:var(--text-main);">' + formatPrice(hist.min_observed_price) + '</strong>';
-          if (hist.max_observed_price !== hist.min_observed_price) {
-            histHtml += ', максимальная: <strong style="color:var(--text-main);">' + formatPrice(hist.max_observed_price) + '</strong>';
-          }
-          histHtml += '</div>';
-        }
-        if (hist.price_trend) {
-          histHtml += '<div>Динамика цены: <strong style="color:var(--text-main);">' + escapeHtml(hist.price_trend) + '</strong></div>';
-        }
-        histHtml += '</div>';
-        if (histContent) histContent.innerHTML = histHtml;
-      } else {
-        if (histBadge) histBadge.textContent = '';
-        if (histContent) histContent.textContent = 'История цен собирается на основе регулярных наблюдений.';
+      const series = (hist && hist.series) || [];
+      const total = (hist && hist.total_observations) || 0;
+      if (!series.length || !total) {
+        histBadge.textContent = '';
+        histContent.textContent = 'История цен собирается на основе регулярных наблюдений.';
+        return;
       }
+
+      histBadge.textContent = '(' + total + ' ' + pluralizeObservations(total) + ')';
+      histContent.innerHTML = series.map(s => {
+        const points = s.points || [];
+        const lastPoint = points[points.length - 1];
+        const offer = offers.find(o => o.id === s.offer_id);
+        const basis = offer ? priceBasisLabel(offer) : '';
+        const label = [s.seller_name, s.channel_name || s.channel_type, conditionLabel(s.condition), s.city].filter(Boolean).join(' · ');
+        let range = 'Цена: <strong style="color:var(--text-main);">' + formatPrice(s.latest_price) + '</strong>' + (basis ? ' ' + escapeHtml(basis) : '');
+        if (s.min_price !== s.max_price) {
+          range += ', минимум ' + formatPrice(s.min_price) + ', максимум ' + formatPrice(s.max_price);
+        }
+        if (points.length > 1 && s.change_pct) {
+          range += ', изменение за период ' + (s.change_pct > 0 ? '+' : '') + Number(s.change_pct).toFixed(1) + '%';
+        }
+        const meta = points.length + ' ' + pluralizeObservations(points.length) +
+          (lastPoint ? ', последнее ' + formatDateTime(lastPoint.observed_at) : '');
+        return `
+          <div class="history-series" style="padding:8px 0; border-top:1px solid var(--border-color);">
+            <div style="font-weight:600; color:var(--text-main);">${escapeHtml(label)}</div>
+            <div>${range}</div>
+            <div style="font-size:0.8rem;">${escapeHtml(meta)}</div>
+          </div>
+        `;
+      }).join('');
     }
 
     // Helpers
@@ -2496,6 +2651,58 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+    }
+
+    function conditionLabel(cond) {
+      return { NEW: 'Новый', USED: 'Б/у', REFURBISHED: 'Восстановлен', OPEN_BOX: 'Вскрытая упаковка' }[cond] || 'Состояние не указано';
+    }
+
+    function conditionBadge(cond) {
+      if (cond === 'NEW') return '<span class="badge badge-condition-new">Новый</span>';
+      if (cond === 'USED' || cond === 'REFURBISHED' || cond === 'OPEN_BOX') {
+        return '<span class="badge badge-condition-used">' + conditionLabel(cond) + '</span>';
+      }
+      return '<span class="badge badge-sellers">Уточняйте</span>';
+    }
+
+    // Б/у, восстановленные и вскрытые считаются вместе; «Б/у» пишем, только если других там нет
+    function nonNewLabel(conditions) {
+      const nonNew = (conditions || []).filter(c => ['USED', 'REFURBISHED', 'OPEN_BOX'].includes(c));
+      return nonNew.length && nonNew.every(c => c === 'USED') ? 'Б/у' : 'Не новые';
+    }
+
+    function priceBasisLabel(off) {
+      const unit = { kg: 'кг', g: 'г', l: 'л', ml: 'мл' }[off.unit] || off.unit || '';
+      if (off.is_unit_price) {
+        if (off.quantity && unit) return 'за ' + off.quantity + ' ' + unit;
+        return unit ? 'за ' + unit : 'за единицу';
+      }
+      return off.quantity && unit ? 'за упаковку ' + off.quantity + ' ' + unit : '';
+    }
+
+    function formatDateTime(value) {
+      const d = new Date(value);
+      if (isNaN(d.getTime())) return 'время неизвестно';
+      return d.toLocaleString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function offerObservationText(off) {
+      const prov = off.provenance || {};
+      const parts = [];
+      if (prov.source) parts.push('Источник: ' + prov.source);
+      parts.push(off.observed_at ? 'наблюдение ' + formatDateTime(off.observed_at) : 'время наблюдения неизвестно');
+      const freshness = { fresh: 'цена свежая', aging: 'цена могла измениться', stale: 'цена устарела' }[off.freshness];
+      if (freshness) parts.push(freshness);
+      return parts.join(', ');
+    }
+
+    function pluralizeObservations(count) {
+      const mod10 = count % 10;
+      const mod100 = count % 100;
+      if (mod100 >= 11 && mod100 <= 19) return 'наблюдений';
+      if (mod10 === 1) return 'наблюдение';
+      if (mod10 >= 2 && mod10 <= 4) return 'наблюдения';
+      return 'наблюдений';
     }
 
     function pluralizeProducts(count) {

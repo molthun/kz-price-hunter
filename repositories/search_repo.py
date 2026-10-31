@@ -128,6 +128,207 @@ class SearchRepository(BaseRepository):
 
         return " AND ".join(parts)
 
+    @staticmethod
+    def _offer_filter(
+        city: Optional[str] = None,
+        condition: Optional[str] = None,
+        channel_type: Optional[str] = None,
+        seller_type: Optional[str] = None,
+        seller_id: Optional[str] = None,
+        installment: Optional[bool] = None,
+        in_stock: Optional[bool] = None,
+        delivery: Optional[str] = None,
+        min_price: Optional[float] = None,
+        max_price: Optional[float] = None,
+    ) -> tuple[List[str], list]:
+        """Условия к предложению (алиасы o, s, c) — единые для выдачи, счётчика и фасетов."""
+        conditions = [
+            "o.is_active = 1",
+            "s.is_active = 1",
+            "c.is_active = 1",
+        ]
+        params: list = []
+
+        if city and city not in ("Все", "Казахстан"):
+            conditions.append("(o.city = ? OR o.city LIKE ? OR o.city = 'Все' OR o.city LIKE '%Казахстан%')")
+            params.extend([city, f"%{city}%"])
+
+        if condition:
+            from domain.models import Condition
+            norm_cond = Condition.normalize(condition)
+            if norm_cond != Condition.UNKNOWN:
+                conditions.append("o.condition = ?")
+                params.append(norm_cond)
+
+        if channel_type:
+            conditions.append("c.channel_type = ?")
+            params.append(channel_type)
+
+        seller_kind = str(seller_type or "").strip().lower()
+        if seller_kind in PRIVATE_SELLER_TYPES:
+            conditions.append(PRIVATE_SELLER_SQL)
+        elif seller_kind in BUSINESS_SELLER_TYPES:
+            conditions.append(f"NOT {PRIVATE_SELLER_SQL}")
+
+        if seller_id and seller_id.strip():
+            s_val = seller_id.strip()
+            conditions.append("(o.seller_id = ? OR s.slug = ? OR s.name = ?)")
+            params.extend([s_val, s_val, s_val])
+
+        if installment:
+            conditions.append("(o.installment_available = 1 OR (o.installment_months IS NOT NULL AND o.installment_months > 0))")
+
+        if in_stock:
+            conditions.append("(o.availability = 'in_stock')")
+
+        if delivery:
+            del_val = str(delivery).strip().lower()
+            if del_val == "delivery":
+                conditions.append("(o.delivery_type IS NOT NULL AND o.delivery_type != '' AND o.delivery_type != 'pickup_only')")
+            elif del_val == "pickup":
+                conditions.append("(o.pickup_available = 1)")
+
+        if min_price is not None and min_price > 0:
+            conditions.append("o.price >= ?")
+            params.append(min_price)
+
+        if max_price is not None and max_price > 0:
+            conditions.append("o.price <= ?")
+            params.append(max_price)
+
+        return conditions, params
+
+    def _category_filter(self, category: Optional[str]) -> tuple[str, list]:
+        """S2-E17: Фильтрация по категории с учетом иерархии мастер-таксономии."""
+        if not (category and category.strip()):
+            return "", []
+        raw_c = category.strip()
+        try:
+            from domain.category import TaxonomyMapper
+            mapper = TaxonomyMapper()
+            target_cat = mapper.map_category(raw_c) or mapper.get_by_id(raw_c)
+        except Exception:
+            target_cat = None
+
+        if target_cat:
+            subtree = mapper.get_subtree_ids(target_cat.id)
+            names = {c.name for cid in subtree if (c := mapper.get_by_id(cid))}
+            names.update(c.name.lower() for cid in subtree if (c := mapper.get_by_id(cid)))
+            names.update(cid for cid in subtree)
+            names.update(cid.lower() for cid in subtree)
+            for cid in subtree:
+                c = mapper.get_by_id(cid)
+                if c:
+                    names.update(c.aliases)
+                    names.update(a.lower() for a in c.aliases)
+
+            # Добавляем все сырые категории магазинов из базы данных, отображающиеся в поддерево
+            db_raw_cats = self._get_db_categories_for_subtree(mapper, subtree)
+            all_matching = list(names.union(db_raw_cats))
+            placeholders = ",".join(["?"] * len(all_matching))
+            return (
+                f"AND (p.category IN ({placeholders}) OR LOWER(COALESCE(p.category, '')) = ?)",
+                all_matching + [raw_c.lower()],
+            )
+        # LOWER в SQLite не сворачивает кириллицу: значение фасета сравнивается и как есть
+        return (
+            "AND (p.category = ? OR LOWER(COALESCE(p.category, '')) = ? OR LOWER(COALESCE(p.category, '')) LIKE ?)",
+            [raw_c, raw_c.lower(), f"%{raw_c.lower()}%"],
+        )
+
+    @staticmethod
+    def _brand_filter(brand: Optional[str]) -> tuple[str, list]:
+        """S2-E18: Фильтрация по бренду."""
+        if not (brand and brand.strip()):
+            return "", []
+        raw_b = brand.strip().lower()
+        from domain.query_parser import BRAND_MAPPINGS
+        canon_b = BRAND_MAPPINGS.get(raw_b, raw_b).lower()
+        # SP30-08: Строгое сравнение производителя.
+        # Если у товара явно заполнен brand (например, Acme), упоминание Apple в названии аксессуара
+        # ('Acme adapter compatible with Apple iPhone') ни в коем случае не должно попадать в фильтр brand=Apple!
+        # Резервный поиск по title разрешён ТОЛЬКО когда brand у товара в БД не указан (NULL или пустой).
+        return (
+            "AND ("
+            "  LOWER(COALESCE(p.brand, '')) = ? OR LOWER(COALESCE(p.brand, '')) = ? "
+            "  OR (COALESCE(p.brand, '') = '' AND (LOWER(p.title) LIKE ? OR LOWER(p.title) LIKE ?))"
+            ")",
+            [raw_b, canon_b, f"%{raw_b}%", f"%{canon_b}%"],
+        )
+
+    @staticmethod
+    def _like_clauses(search_text: str) -> tuple[List[str], list]:
+        """Условия LIKE-поиска по токенам запроса с синонимами."""
+        tokens = [t.lower() for t in (search_text or "").split() if t.strip()]
+        where_clauses = ["1=1"]
+        like_params: list = []
+
+        for t in tokens:
+            sub_tokens = [t]
+            if t in TOKEN_SYNONYMS:
+                sub_tokens.extend(TOKEN_SYNONYMS[t])
+
+            token_or = " OR ".join([
+                "(LOWER(title) LIKE ? OR LOWER(COALESCE(brand, '')) LIKE ? OR LOWER(COALESCE(model, '')) LIKE ? OR LOWER(category) LIKE ?)"
+                for _ in sub_tokens
+            ])
+            where_clauses.append(f"({token_or})")
+            for st in sub_tokens:
+                pat = f"%{st}%"
+                like_params.extend([pat, pat, pat, pat])
+        return where_clauses, like_params
+
+    def _matching_product_ids(
+        self,
+        search_text: str,
+        offer_conditions: List[str],
+        offer_params: list,
+        brand: Optional[str],
+        category: Optional[str],
+    ) -> tuple[str, list]:
+        """
+        Подзапрос id всей подходящей выборки без LIMIT: FTS5, а при его ошибке или пустом
+        результате LIKE — то же правило, что в search_products.
+        """
+        exists_sql = f"""
+        EXISTS (
+            SELECT 1 FROM offers o
+            JOIN sellers s ON o.seller_id = s.id
+            JOIN channels c ON o.channel_id = c.id
+            WHERE o.product_id = p.id AND {" AND ".join(offer_conditions)}
+        )
+        """
+        cat_sql, cat_params = self._category_filter(category)
+        brand_sql, brand_params = self._brand_filter(brand)
+
+        fts_query = self._build_fts_query(search_text) if search_text else ""
+        if fts_query:
+            fts_sql = f"""
+            SELECT p.id
+            FROM canonical_products_fts f
+            JOIN canonical_products p ON f.rowid = p.rowid
+            WHERE canonical_products_fts MATCH ?
+              {cat_sql}
+              {brand_sql}
+              AND {exists_sql}
+            """
+            fts_params = [fts_query] + cat_params + brand_params + offer_params
+            try:
+                if self.fetchone(f"SELECT 1 as found FROM ({fts_sql}) LIMIT 1", fts_params):
+                    return fts_sql, fts_params
+            except sqlite3.OperationalError:
+                pass
+
+        where_clauses, like_params = self._like_clauses(search_text)
+        like_sql = f"""
+        SELECT p.id FROM canonical_products p
+        WHERE {" AND ".join(where_clauses)}
+          {cat_sql}
+          {brand_sql}
+          AND {exists_sql}
+        """
+        return like_sql, like_params + cat_params + brand_params + offer_params
+
     def search_products(
         self,
         search_text: str,
@@ -160,59 +361,11 @@ class SearchRepository(BaseRepository):
         # -------------------------------------------------------------------
         # Build Offer Criteria for Candidate Filtering (C-E11-04)
         # -------------------------------------------------------------------
-        exists_conditions = [
-            "o.is_active = 1",
-            "s.is_active = 1",
-            "c.is_active = 1",
-        ]
-        exists_params: list = []
-
-        if city and city not in ("Все", "Казахстан"):
-            exists_conditions.append("(o.city = ? OR o.city LIKE ? OR o.city = 'Все' OR o.city LIKE '%Казахстан%')")
-            exists_params.extend([city, f"%{city}%"])
-
-        if condition:
-            from domain.models import Condition
-            norm_cond = Condition.normalize(condition)
-            if norm_cond != Condition.UNKNOWN:
-                exists_conditions.append("o.condition = ?")
-                exists_params.append(norm_cond)
-
-        if channel_type:
-            exists_conditions.append("c.channel_type = ?")
-            exists_params.append(channel_type)
-
-        seller_kind = str(seller_type or "").strip().lower()
-        if seller_kind in PRIVATE_SELLER_TYPES:
-            exists_conditions.append(PRIVATE_SELLER_SQL)
-        elif seller_kind in BUSINESS_SELLER_TYPES:
-            exists_conditions.append(f"NOT {PRIVATE_SELLER_SQL}")
-
-        if seller_id and seller_id.strip():
-            s_val = seller_id.strip()
-            exists_conditions.append("(o.seller_id = ? OR s.slug = ? OR s.name = ?)")
-            exists_params.extend([s_val, s_val, s_val])
-
-        if installment:
-            exists_conditions.append("(o.installment_available = 1 OR (o.installment_months IS NOT NULL AND o.installment_months > 0))")
-
-        if in_stock:
-            exists_conditions.append("(o.availability = 'in_stock')")
-
-        if delivery:
-            del_val = str(delivery).strip().lower()
-            if del_val == "delivery":
-                exists_conditions.append("(o.delivery_type IS NOT NULL AND o.delivery_type != '' AND o.delivery_type != 'pickup_only')")
-            elif del_val == "pickup":
-                exists_conditions.append("(o.pickup_available = 1)")
-
-        if min_price is not None and min_price > 0:
-            exists_conditions.append("o.price >= ?")
-            exists_params.append(min_price)
-
-        if max_price is not None and max_price > 0:
-            exists_conditions.append("o.price <= ?")
-            exists_params.append(max_price)
+        exists_conditions, exists_params = self._offer_filter(
+            city=city, condition=condition, channel_type=channel_type, seller_type=seller_type,
+            seller_id=seller_id, installment=installment, in_stock=in_stock, delivery=delivery,
+            min_price=min_price, max_price=max_price,
+        )
 
         exists_sql = f"""
         AND EXISTS (
@@ -253,58 +406,8 @@ class SearchRepository(BaseRepository):
             order_by_like = order_by_sql
             order_params = (list(exists_params) + purchasable_params) * 2
 
-        # S2-E17: Фильтрация по категории с учетом иерархии мастер-таксономии
-        cat_filter_sql = ""
-        cat_filter_params: list = []
-        if category and category.strip():
-            raw_c = category.strip()
-            try:
-                from domain.category import TaxonomyMapper
-                mapper = TaxonomyMapper()
-                target_cat = mapper.map_category(raw_c) or mapper.get_by_id(raw_c)
-            except Exception:
-                target_cat = None
-
-            if target_cat:
-                subtree = mapper.get_subtree_ids(target_cat.id)
-                names = {c.name for cid in subtree if (c := mapper.get_by_id(cid))}
-                names.update(c.name.lower() for cid in subtree if (c := mapper.get_by_id(cid)))
-                names.update(cid for cid in subtree)
-                names.update(cid.lower() for cid in subtree)
-                for cid in subtree:
-                    c = mapper.get_by_id(cid)
-                    if c:
-                        names.update(c.aliases)
-                        names.update(a.lower() for a in c.aliases)
-
-                # Добавляем все сырые категории магазинов из базы данных, отображающиеся в поддерево
-                db_raw_cats = self._get_db_categories_for_subtree(mapper, subtree)
-                all_matching = list(names.union(db_raw_cats))
-                placeholders = ",".join(["?"] * len(all_matching))
-                cat_filter_sql = f"AND (p.category IN ({placeholders}) OR LOWER(COALESCE(p.category, '')) = ?)"
-                cat_filter_params = all_matching + [raw_c.lower()]
-            else:
-                cat_filter_sql = "AND (LOWER(COALESCE(p.category, '')) = ? OR LOWER(COALESCE(p.category, '')) LIKE ?)"
-                cat_filter_params = [raw_c.lower(), f"%{raw_c.lower()}%"]
-
-        # S2-E18: Фильтрация по бренду
-        brand_filter_sql = ""
-        brand_filter_params: list = []
-        if brand and brand.strip():
-            raw_b = brand.strip().lower()
-            from domain.query_parser import BRAND_MAPPINGS
-            canon_b = BRAND_MAPPINGS.get(raw_b, raw_b).lower()
-            # SP30-08: Строгое сравнение производителя.
-            # Если у товара явно заполнен brand (например, Acme), упоминание Apple в названии аксессуара
-            # ('Acme adapter compatible with Apple iPhone') ни в коем случае не должно попадать в фильтр brand=Apple!
-            # Резервный поиск по title разрешён ТОЛЬКО когда brand у товара в БД не указан (NULL или пустой).
-            brand_filter_sql = (
-                "AND ("
-                "  LOWER(COALESCE(p.brand, '')) = ? OR LOWER(COALESCE(p.brand, '')) = ? "
-                "  OR (COALESCE(p.brand, '') = '' AND (LOWER(p.title) LIKE ? OR LOWER(p.title) LIKE ?))"
-                ")"
-            )
-            brand_filter_params = [raw_b, canon_b, f"%{raw_b}%", f"%{canon_b}%"]
+        cat_filter_sql, cat_filter_params = self._category_filter(category)
+        brand_filter_sql, brand_filter_params = self._brand_filter(brand)
 
         # -------------------------------------------------------------------
         # Step 1: Match Canonical Products
@@ -346,23 +449,7 @@ class SearchRepository(BaseRepository):
 
         # Fallback to LIKE matching if FTS is unavailable or gave 0 results
         if not used_fts or not products_map:
-            tokens = [t.lower() for t in search_text.split() if t.strip()]
-            where_clauses = ["1=1"]
-            like_params: list = []
-
-            for t in tokens:
-                sub_tokens = [t]
-                if t in TOKEN_SYNONYMS:
-                    sub_tokens.extend(TOKEN_SYNONYMS[t])
-
-                token_or = " OR ".join([
-                    "(LOWER(title) LIKE ? OR LOWER(COALESCE(brand, '')) LIKE ? OR LOWER(COALESCE(model, '')) LIKE ? OR LOWER(category) LIKE ?)"
-                    for _ in sub_tokens
-                ])
-                where_clauses.append(f"({token_or})")
-                for st in sub_tokens:
-                    pat = f"%{st}%"
-                    like_params.extend([pat, pat, pat, pat])
+            where_clauses, like_params = self._like_clauses(search_text)
 
             if brand_filter_sql:
                 where_clauses.append(brand_filter_sql.lstrip("AND "))
@@ -451,172 +538,15 @@ class SearchRepository(BaseRepository):
         """
         Calculates exact total matching canonical products and offers count across the full dataset.
         """
-        exists_conditions = [
-            "o.is_active = 1",
-            "s.is_active = 1",
-            "c.is_active = 1",
-        ]
-        exists_params: list = []
-
-        if city and city not in ("Все", "Казахстан"):
-            exists_conditions.append("(o.city = ? OR o.city LIKE ? OR o.city = 'Все' OR o.city LIKE '%Казахстан%')")
-            exists_params.extend([city, f"%{city}%"])
-
-        if condition:
-            from domain.models import Condition
-            norm_cond = Condition.normalize(condition)
-            if norm_cond != Condition.UNKNOWN:
-                exists_conditions.append("o.condition = ?")
-                exists_params.append(norm_cond)
-
-        if channel_type:
-            exists_conditions.append("c.channel_type = ?")
-            exists_params.append(channel_type)
-
-        seller_kind = str(seller_type or "").strip().lower()
-        if seller_kind in PRIVATE_SELLER_TYPES:
-            exists_conditions.append(PRIVATE_SELLER_SQL)
-        elif seller_kind in BUSINESS_SELLER_TYPES:
-            exists_conditions.append(f"NOT {PRIVATE_SELLER_SQL}")
-
-        if seller_id and seller_id.strip():
-            s_val = seller_id.strip()
-            exists_conditions.append("(o.seller_id = ? OR s.slug = ? OR s.name = ?)")
-            exists_params.extend([s_val, s_val, s_val])
-
-        if installment:
-            exists_conditions.append("(o.installment_available = 1 OR (o.installment_months IS NOT NULL AND o.installment_months > 0))")
-
-        if in_stock:
-            exists_conditions.append("(o.availability = 'in_stock')")
-
-        if delivery:
-            del_val = str(delivery).strip().lower()
-            if del_val == "delivery":
-                exists_conditions.append("(o.delivery_type IS NOT NULL AND o.delivery_type != '' AND o.delivery_type != 'pickup_only')")
-            elif del_val == "pickup":
-                exists_conditions.append("(o.pickup_available = 1)")
-
-        if min_price is not None and min_price > 0:
-            exists_conditions.append("o.price >= ?")
-            exists_params.append(min_price)
-
-        if max_price is not None and max_price > 0:
-            exists_conditions.append("o.price <= ?")
-            exists_params.append(max_price)
-
-        exists_sql = f"""
-        EXISTS (
-            SELECT 1 FROM offers o
-            JOIN sellers s ON o.seller_id = s.id
-            JOIN channels c ON o.channel_id = c.id
-            WHERE o.product_id = p.id AND {" AND ".join(exists_conditions)}
+        conditions, params = self._offer_filter(
+            city=city, condition=condition, channel_type=channel_type, seller_type=seller_type,
+            seller_id=seller_id, installment=installment, in_stock=in_stock, delivery=delivery,
+            min_price=min_price, max_price=max_price,
         )
-        """
-
-        cat_filter_sql = ""
-        cat_filter_params: list = []
-        if category and category.strip():
-            raw_c = category.strip()
-            try:
-                from domain.category import TaxonomyMapper
-                mapper = TaxonomyMapper()
-                target_cat = mapper.map_category(raw_c) or mapper.get_by_id(raw_c)
-            except Exception:
-                target_cat = None
-
-            if target_cat:
-                subtree = mapper.get_subtree_ids(target_cat.id)
-                names = {c.name for cid in subtree if (c := mapper.get_by_id(cid))}
-                names.update(c.name.lower() for cid in subtree if (c := mapper.get_by_id(cid)))
-                names.update(cid for cid in subtree)
-                names.update(cid.lower() for cid in subtree)
-                for cid in subtree:
-                    c = mapper.get_by_id(cid)
-                    if c:
-                        names.update(c.aliases)
-                        names.update(a.lower() for a in c.aliases)
-
-                db_raw_cats = self._get_db_categories_for_subtree(mapper, subtree)
-                all_matching = list(names.union(db_raw_cats))
-                placeholders = ",".join(["?"] * len(all_matching))
-                cat_filter_sql = f"AND (p.category IN ({placeholders}) OR LOWER(COALESCE(p.category, '')) = ?)"
-                cat_filter_params = all_matching + [raw_c.lower()]
-            else:
-                cat_filter_sql = "AND (LOWER(COALESCE(p.category, '')) = ? OR LOWER(COALESCE(p.category, '')) LIKE ?)"
-                cat_filter_params = [raw_c.lower(), f"%{raw_c.lower()}%"]
-
-        brand_filter_sql = ""
-        brand_filter_params: list = []
-        if brand and brand.strip():
-            raw_b = brand.strip().lower()
-            from domain.query_parser import BRAND_MAPPINGS
-            canon_b = BRAND_MAPPINGS.get(raw_b, raw_b).lower()
-            brand_filter_sql = (
-                "AND ("
-                "  LOWER(COALESCE(p.brand, '')) = ? OR LOWER(COALESCE(p.brand, '')) = ? "
-                "  OR (COALESCE(p.brand, '') = '' AND (LOWER(p.title) LIKE ? OR LOWER(p.title) LIKE ?))"
-                ")"
-            )
-            brand_filter_params = [raw_b, canon_b, f"%{raw_b}%", f"%{canon_b}%"]
-
-        fts_query = self._build_fts_query(search_text) if search_text else ""
-        used_fts = False
-        total_products = 0
-
-        if fts_query:
-            try:
-                count_sql = f"""
-                SELECT COUNT(DISTINCT p.id) as cnt
-                FROM canonical_products_fts f
-                JOIN canonical_products p ON f.rowid = p.rowid
-                WHERE canonical_products_fts MATCH ?
-                  {cat_filter_sql}
-                  {brand_filter_sql}
-                  AND {exists_sql}
-                """
-                fts_params = [fts_query] + cat_filter_params + brand_filter_params + exists_params
-                row = self.fetchone(count_sql, fts_params)
-                if row and row["cnt"] > 0:
-                    used_fts = True
-                    total_products = int(row["cnt"])
-            except sqlite3.OperationalError:
-                used_fts = False
-
-        if not used_fts:
-            tokens = [t.lower() for t in search_text.split() if t.strip()]
-            where_clauses = ["1=1"]
-            like_params: list = []
-
-            for t in tokens:
-                sub_tokens = [t]
-                if t in TOKEN_SYNONYMS:
-                    sub_tokens.extend(TOKEN_SYNONYMS[t])
-
-                token_or = " OR ".join([
-                    "(LOWER(title) LIKE ? OR LOWER(COALESCE(brand, '')) LIKE ? OR LOWER(COALESCE(model, '')) LIKE ? OR LOWER(category) LIKE ?)"
-                    for _ in sub_tokens
-                ])
-                where_clauses.append(f"({token_or})")
-                for st in sub_tokens:
-                    pat = f"%{st}%"
-                    like_params.extend([pat, pat, pat, pat])
-
-            if brand_filter_sql:
-                where_clauses.append(brand_filter_sql.lstrip("AND "))
-                like_params.extend(brand_filter_params)
-
-            if cat_filter_sql:
-                where_clauses.append(cat_filter_sql.lstrip("AND "))
-                like_params.extend(cat_filter_params)
-
-            where_clauses.append(exists_sql.lstrip("AND "))
-            count_like = f"SELECT COUNT(DISTINCT p.id) as cnt FROM canonical_products p WHERE {' AND '.join(where_clauses)}"
-            row = self.fetchone(count_like, like_params + exists_params)
-            total_products = int(row["cnt"]) if row else 0
-
+        ids_sql, ids_params = self._matching_product_ids(search_text, conditions, params, brand, category)
+        row = self.fetchone(f"SELECT COUNT(DISTINCT id) as cnt FROM ({ids_sql})", ids_params)
         return {
-            "total_products": total_products,
+            "total_products": int(row["cnt"]) if row else 0,
         }
 
     def get_search_facets(
@@ -624,115 +554,87 @@ class SearchRepository(BaseRepository):
         search_text: str = "",
         city: Optional[str] = None,
         category: Optional[str] = None,
+        brand: Optional[str] = None,
+        condition: Optional[str] = None,
+        channel_type: Optional[str] = None,
+        seller_type: Optional[str] = None,
+        seller_id: Optional[str] = None,
+        installment: Optional[bool] = None,
+        in_stock: Optional[bool] = None,
+        delivery: Optional[str] = None,
+        min_price: Optional[float] = None,
+        max_price: Optional[float] = None,
     ) -> Dict[str, List[Dict[str, Any]]]:
         """
-        Retrieves global facets for category, brand, sellers, and cities across matching catalog items.
+        Фасеты по всей выборке, а не по странице; считаются SQL до пагинации.
+
+        Значение фасета — число товаров, которое останется, если выбрать это значение: применяются
+        все фильтры, кроме фильтра самой группы. Поэтому внутри группы можно переключиться на
+        соседнее значение. Условия к продавцу и городу относятся к одному и тому же предложению.
         """
-        matching_prods: Optional[List[CanonicalProduct]] = None
-        if (search_text and search_text.strip()) or (city and city.strip() and city != "Все") or (category and category.strip()):
-            matching_prods = self.search_products(
-                search_text=search_text,
-                city=city,
-                category=category,
-                limit=2000,
-                offset=0,
+        offer_filters: Dict[str, Any] = dict(
+            city=city, condition=condition, channel_type=channel_type, seller_type=seller_type,
+            seller_id=seller_id, installment=installment, in_stock=in_stock, delivery=delivery,
+            min_price=min_price, max_price=max_price,
+        )
+        conditions, params = self._offer_filter(**offer_filters)
+
+        def product_facet(column: str, *, facet_brand: Optional[str], facet_category: Optional[str]) -> List[Any]:
+            ids_sql, ids_params = self._matching_product_ids(
+                search_text, conditions, params, facet_brand, facet_category,
+            )
+            return self.fetchall(
+                f"""
+                SELECT p.{column} as value, COUNT(*) as count
+                FROM canonical_products p
+                WHERE p.id IN ({ids_sql}) AND COALESCE(p.{column}, '') != ''
+                GROUP BY p.{column}
+                ORDER BY count DESC, value ASC
+                """,
+                ids_params,
             )
 
-        if matching_prods is not None:
-            p_ids = [p.id for p in matching_prods if p.id]
-            if not p_ids:
-                return {
-                    "category_facets": [],
-                    "seller_facets": [],
-                    "city_facets": [],
-                }
-
-            # Categories across full matching result set
-            cat_counter: Dict[str, int] = {}
-            for p in matching_prods:
-                c = (p.category or "").strip()
-                if c:
-                    cat_counter[c] = cat_counter.get(c, 0) + 1
-            category_facets = [
-                {"name": c, "count": cnt}
-                for c, cnt in sorted(cat_counter.items(), key=lambda x: -x[1])
-            ]
-
-            placeholders = ",".join("?" for _ in p_ids)
-            seller_params = list(p_ids)
-            city_filter = ""
-            if city and city != "Все":
-                city_filter = "AND (o.city = ? OR o.city = 'Все' OR o.city IS NULL)"
-                seller_params.append(city)
-
-            sellers_sql = f"""
-            SELECT s.id, s.name, s.slug, COUNT(DISTINCT o.product_id) as count
-            FROM sellers s
-            JOIN offers o ON o.seller_id = s.id
-            WHERE s.is_active = 1 AND o.is_active = 1
-              AND o.product_id IN ({placeholders})
-              {city_filter}
-            GROUP BY s.id
-            ORDER BY count DESC
-            LIMIT 20
-            """
-            seller_facets = [
-                {"id": r["id"], "name": r["name"], "slug": r["slug"], "count": int(r["count"])}
-                for r in self.fetchall(sellers_sql, seller_params)
-            ]
-
-            city_params = list(p_ids)
-            cities_sql = f"""
-            SELECT o.city, COUNT(DISTINCT o.product_id) as count
-            FROM offers o
-            WHERE o.is_active = 1 AND o.city IS NOT NULL AND o.city != '' AND o.city != 'Все'
-              AND o.product_id IN ({placeholders})
-            GROUP BY o.city
-            ORDER BY count DESC
-            LIMIT 15
-            """
-            city_facets = [
-                {"city": r["city"], "count": int(r["count"])}
-                for r in self.fetchall(cities_sql, city_params)
-            ]
-
-            return {
-                "category_facets": category_facets,
-                "seller_facets": seller_facets,
-                "city_facets": city_facets,
-            }
-
-        # Global catalog fallback when no query/filters
-        sellers_sql = """
-        SELECT s.id, s.name, s.slug, COUNT(DISTINCT o.product_id) as count
-        FROM sellers s
-        JOIN offers o ON o.seller_id = s.id
-        WHERE s.is_active = 1 AND o.is_active = 1
-        GROUP BY s.id
-        ORDER BY count DESC
-        LIMIT 20
-        """
-        seller_facets = [
-            {"id": r["id"], "name": r["name"], "slug": r["slug"], "count": int(r["count"])}
-            for r in self.fetchall(sellers_sql)
-        ]
-
-        cities_sql = """
-        SELECT o.city, COUNT(DISTINCT o.product_id) as count
-        FROM offers o
-        WHERE o.is_active = 1 AND o.city IS NOT NULL AND o.city != '' AND o.city != 'Все'
-        GROUP BY o.city
-        ORDER BY count DESC
-        LIMIT 15
-        """
-        city_facets = [
-            {"city": r["city"], "count": int(r["count"])}
-            for r in self.fetchall(cities_sql)
-        ]
+        def offer_facet(select: str, group: str, extra: str, limit: int, drop: str) -> List[Any]:
+            facet_conditions, facet_params = self._offer_filter(**{**offer_filters, drop: None})
+            ids_sql, ids_params = self._matching_product_ids(
+                search_text, facet_conditions, facet_params, brand, category,
+            )
+            return self.fetchall(
+                f"""
+                SELECT {select}, COUNT(DISTINCT o.product_id) as count
+                FROM offers o
+                JOIN sellers s ON o.seller_id = s.id
+                JOIN channels c ON o.channel_id = c.id
+                WHERE {" AND ".join(facet_conditions)}
+                  AND o.product_id IN ({ids_sql})
+                  {extra}
+                GROUP BY {group}
+                ORDER BY count DESC, {group} ASC
+                LIMIT {limit}
+                """,
+                facet_params + ids_params,
+            )
 
         return {
-            "seller_facets": seller_facets,
-            "city_facets": city_facets,
+            "category_facets": [
+                {"name": r["value"], "count": int(r["count"])}
+                for r in product_facet("category", facet_brand=brand, facet_category=None)
+            ],
+            "brand_facets": [
+                {"brand": r["value"], "count": int(r["count"])}
+                for r in product_facet("brand", facet_brand=None, facet_category=category)
+            ],
+            "seller_facets": [
+                {"id": r["id"], "name": r["name"], "slug": r["slug"], "count": int(r["count"])}
+                for r in offer_facet("s.id, s.name, s.slug", "s.id", "", 20, "seller_id")
+            ],
+            "city_facets": [
+                {"city": r["city"], "count": int(r["count"])}
+                for r in offer_facet(
+                    "o.city", "o.city",
+                    "AND o.city IS NOT NULL AND o.city != '' AND o.city != 'Все'", 15, "city",
+                )
+            ],
         }
 
     def get_canonical_product_detail(

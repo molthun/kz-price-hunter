@@ -18,7 +18,8 @@ const assert=require('node:assert/strict');
   page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(()=>{window.tailwind={config:{}}});
   await page.route('**/*',route=>new URL(route.request().url()).origin===base?route.continue():route.abort());
-  await page.goto(base);
+  // С Search-first главная — покупательская; вход и «Мои данные» живут в прежнем интерфейсе
+  await page.goto(base+'/dashboard');
   await page.waitForFunction(()=>currentMe.auth.dev_login===true);
   assert.equal(await page.evaluate(()=>postAuth('/api/auth/dev-login')),true);
   await page.evaluate(()=>loadMe());

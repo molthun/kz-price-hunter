@@ -64,6 +64,10 @@ class AggregatedOffer:
     installment_available: bool = False
     installment_months: Optional[int] = None
     credit_available: bool = False
+    # Условия получения — только сохранённые в предложении (SF1-04)
+    delivery_type: Optional[str] = None
+    pickup_available: bool = False
+    warranty: Optional[str] = None
     # Основание цены: за единицу или за упаковку какого объёма (FA69-07)
     is_unit_price: bool = False
     quantity: Optional[float] = None
@@ -97,6 +101,25 @@ def offer_price_basis(row: Dict[str, Any]) -> Dict[str, Any]:
         "is_unit_price": bool(basis.get("is_unit_price")),
         "quantity": basis.get("quantity"),
         "unit": basis.get("unit"),
+    }
+
+
+def offer_delivery_terms(row: Dict[str, Any]) -> Dict[str, Any]:
+    """Сохранённые условия получения — по тем же полям, что Offer.from_row; догадок не добавляет."""
+    payments = row.get("payment_methods_json") or "[]"
+    if isinstance(payments, str):
+        try:
+            payments = json.loads(payments)
+        except Exception:
+            payments = []
+    if not isinstance(payments, (list, tuple, set)):
+        payments = []
+    return {
+        "delivery_type": row.get("delivery_type") or None,
+        "pickup_available": (
+            bool(row.get("pickup_available")) or row.get("delivery_type") == "pickup" or "pickup" in payments
+        ),
+        "warranty": row.get("warranty") or None,
     }
 
 
@@ -207,6 +230,8 @@ class SearchResponse2:
     brand_facets: List[Dict[str, Any]] = field(default_factory=list)
     seller_facets: List[Dict[str, Any]] = field(default_factory=list)
     city_facets: List[Dict[str, Any]] = field(default_factory=list)
+    # False — фасеты посчитать не удалось; пустые списки тогда не значат «вариантов нет»
+    facets_available: bool = True
     page: int = 1
     page_size: int = 50
     total_pages: int = 1
@@ -221,6 +246,7 @@ class SearchResponse2:
         res["brand_facets"] = self.brand_facets
         res["seller_facets"] = self.seller_facets
         res["city_facets"] = self.city_facets
+        res["facets_available"] = self.facets_available
         res["page"] = self.page
         res["page_size"] = self.page_size
         res["total_pages"] = self.total_pages
@@ -395,6 +421,7 @@ class SearchCore:
                         seller_legal_name=od.get("seller_legal_name"),
                         seller_metadata_json=od.get("seller_metadata_json"),
                         **offer_payment_terms(od),
+                        **offer_delivery_terms(od),
                         **offer_price_basis(od),
                     )
                     aggregated_offers.append(agg_off)
@@ -635,56 +662,80 @@ class SearchCore:
             else:
                 outcome = SearchOutcome.WEAK_MATCH
 
-            facets_info = {}
-            if hasattr(self.search_repo, "get_search_facets"):
+            facets_info: Dict[str, Any] = {}
+            facets_available = True
+            has_full_facets = hasattr(self.search_repo, "get_search_facets")
+            if has_full_facets:
                 try:
                     facets_info = self.search_repo.get_search_facets(
                         search_text=parsed.clean_query,
+                        brand=target_brand,
                         city=target_city,
+                        condition=target_condition,
                         category=category,
+                        channel_type=target_channel,
+                        seller_type=seller_type,
+                        seller_id=seller_id,
+                        installment=installment,
+                        in_stock=in_stock,
+                        delivery=delivery,
+                        min_price=target_min_price,
+                        max_price=target_max_price,
                     )
-                except Exception:
-                    pass
+                except Exception as ex:
+                    # Страница не подменяет полную статистику: интерфейс честно скажет о сбое
+                    logger.exception(f"Search facets failed: {type(ex).__name__}")
+                    facets_available = False
 
             # 6. S2-E17: Category facets calculation
             cat_counter: Dict[str, int] = {}
-            raw_cat_facets = facets_info.get("category_facets") if facets_info else None
-            if raw_cat_facets:
-                for item in raw_cat_facets:
+            if has_full_facets:
+                for item in facets_info.get("category_facets", []):
                     c_name = (item.get("name") or "").strip()
                     if c_name:
-                        cat_counter[c_name] = item.get("count", 1)
+                        cat_counter[c_name] = cat_counter.get(c_name, 0) + int(item.get("count", 0))
             else:
                 for pr in product_results:
                     c_name = (pr.product.category or "").strip()
                     if c_name:
                         cat_counter[c_name] = cat_counter.get(c_name, 0) + 1
 
-            category_facets = []
             try:
                 from domain.category import TaxonomyMapper
                 t_mapper = TaxonomyMapper()
             except Exception:
                 t_mapper = None
 
+            # Разные сырые категории магазинов одной категории таксономии — одно значение фасета.
+            # Несопоставленная категория остаётся как есть: это значение понимает фильтр.
+            category_by_id: Dict[str, Dict[str, Any]] = {}
             for c_name, c_count in cat_counter.items():
                 matched = t_mapper.map_category(c_name) if t_mapper else None
-                category_facets.append({
-                    "id": matched.id if matched else c_name.lower().replace(" ", "_"),
+                facet_id = matched.id if matched else c_name
+                entry = category_by_id.setdefault(facet_id, {
+                    "id": facet_id,
                     "name": matched.name if matched else c_name,
                     "icon": matched.icon if matched else "📦",
-                    "count": c_count,
+                    "count": 0,
                 })
-            category_facets.sort(key=lambda x: -x["count"])
+                entry["count"] += c_count
+            category_facets = sorted(category_by_id.values(), key=lambda x: -x["count"])
 
             # 7. S2-E18: Brand facets calculation
             from domain.query_parser import BRAND_MAPPINGS
             brand_counter: Dict[str, int] = {}
-            for pr in product_results:
-                b_name = (pr.product.brand or "").strip()
-                if b_name:
-                    canon_b = BRAND_MAPPINGS.get(b_name.lower(), b_name)
-                    brand_counter[canon_b] = brand_counter.get(canon_b, 0) + 1
+            if has_full_facets:
+                for item in facets_info.get("brand_facets", []):
+                    b_name = (item.get("brand") or "").strip()
+                    if b_name:
+                        canon_b = BRAND_MAPPINGS.get(b_name.lower(), b_name)
+                        brand_counter[canon_b] = brand_counter.get(canon_b, 0) + int(item.get("count", 0))
+            else:
+                for pr in product_results:
+                    b_name = (pr.product.brand or "").strip()
+                    if b_name:
+                        canon_b = BRAND_MAPPINGS.get(b_name.lower(), b_name)
+                        brand_counter[canon_b] = brand_counter.get(canon_b, 0) + 1
 
             brand_facets = [
                 {"brand": b, "count": cnt}
@@ -708,6 +759,7 @@ class SearchCore:
                 brand_facets=brand_facets,
                 seller_facets=facets_info.get("seller_facets", []),
                 city_facets=facets_info.get("city_facets", []),
+                facets_available=facets_available,
                 page=page_val,
                 page_size=limit_val,
                 total_pages=total_pages,
@@ -835,6 +887,7 @@ class SearchCore:
                 installment_available=pay.get("installment_available", False),
                 installment_months=pay.get("installment_months"),
                 credit_available=pay.get("credit_available", False),
+                **offer_delivery_terms(od),
                 is_unit_price=basis.get("is_unit_price", False),
                 quantity=basis.get("quantity"),
                 unit=basis.get("unit"),

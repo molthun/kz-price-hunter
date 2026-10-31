@@ -13,6 +13,7 @@ import datetime as dt
 import json
 import sqlite3
 import unittest
+import unittest.mock
 from aiohttp import web
 from aiohttp.test_utils import AioHTTPTestCase, unittest_run_loop
 
@@ -279,6 +280,128 @@ class TestSearchFirstContracts(unittest.TestCase):
         res_mac = self.core.search(query="MacBook Air M5")
         self.assertGreater(len(res_mac.items), 0)
         self.assertEqual(res_mac.items[0].product.id, "mac_m5")
+
+    def _seed_facet_catalog(self):
+        """>100 товаров: две категории, два бренда, два продавца, два города."""
+        now = utc_now_iso()
+        for i in range(130):
+            pid = f"lap{i:03d}"
+            self.product_repo.save_or_update(CanonicalProduct(
+                id=pid, canonical_key=f"key_{pid}", title=f"Laptop {pid}",
+                brand="Acer" if i < 100 else "Dell",
+                category="laptops" if i < 110 else "Редкие Штуки",
+            ))
+            sulpak = i % 2 == 0
+            self.offer_repo.save_or_update(Offer(
+                id=f"o_{pid}", product_id=pid,
+                seller_id="s_sulpak" if sulpak else "s_kaspi",
+                channel_id="ch_s1" if sulpak else "ch_k1",
+                external_sku=pid, url=f"https://example.invalid/{pid}", price=1000 + i,
+                condition=Condition.NEW if i < 120 else Condition.USED, availability="in_stock",
+                city="Алматы" if i < 90 else "Астана", observed_at=now,
+            ))
+        # Посторонний товар: не должен попасть ни в один фасет по запросу Laptop
+        self.product_repo.save_or_update(CanonicalProduct(
+            id="chair", canonical_key="key_chair", title="Chair", brand="Ikea", category="home"))
+        self.seller_repo.save_or_update(Seller(id="s_other", name="Other", slug="other"))
+        self.channel_repo.save_or_update(Channel(id="ch_o", seller_id="s_other", channel_type="direct", name="Other"))
+        self.offer_repo.save_or_update(Offer(
+            id="o_chair", product_id="chair", seller_id="s_other", channel_id="ch_o", external_sku="chair",
+            url="https://example.invalid/chair", price=5, condition=Condition.NEW,
+            availability="in_stock", city="Шымкент", observed_at=now))
+
+    def test_facets_describe_full_selection_not_page(self):
+        self._seed_facet_catalog()
+        pages = [self.core.search("Laptop", limit=20, page=p) for p in (1, 7)]
+        for res in pages:
+            self.assertTrue(res.facets_available)
+            self.assertEqual(res.total_products, 130)
+            cats = {f["name"]: f["count"] for f in res.category_facets}
+            self.assertEqual(sum(cats.values()), 130)
+            self.assertEqual(cats["Редкие Штуки"], 20)
+            self.assertEqual({f["brand"]: f["count"] for f in res.brand_facets}, {"Acer": 100, "Dell": 30})
+            self.assertEqual({f["slug"]: f["count"] for f in res.seller_facets}, {"sulpak": 65, "kaspi-store": 65})
+            self.assertEqual({f["city"]: f["count"] for f in res.city_facets}, {"Алматы": 90, "Астана": 40})
+        self.assertEqual(pages[0].category_facets, pages[1].category_facets)
+
+    def test_facets_apply_other_filters_but_not_their_own_group(self):
+        self._seed_facet_catalog()
+        res = self.core.search("Laptop", city="Астана", seller_id="sulpak", condition="USED", limit=5)
+        # Выборка: i 120..129, чётные — 5 товаров Астаны у Sulpak
+        self.assertEqual(res.total_products, 5)
+        self.assertEqual(sum(f["count"] for f in res.category_facets), 5)
+        # Группа «продавец» не сужена своим выбором, но сужена остальными фильтрами
+        self.assertEqual({f["slug"]: f["count"] for f in res.seller_facets}, {"sulpak": 5, "kaspi-store": 5})
+        # Группа «город»: USED есть только в Астане, посторонний город не появляется
+        self.assertEqual({f["city"]: f["count"] for f in res.city_facets}, {"Астана": 5})
+
+        by_price = self.core.search("Laptop", min_price=1125, limit=5)
+        self.assertEqual(by_price.total_products, 5)
+        self.assertEqual({f["brand"]: f["count"] for f in by_price.brand_facets}, {"Dell": 5})
+
+        by_cat = self.core.search("Laptop", category="Редкие Штуки", limit=5)
+        self.assertEqual(by_cat.total_products, 20)
+        self.assertEqual({f["brand"]: f["count"] for f in by_cat.brand_facets}, {"Dell": 20})
+        self.assertEqual(sum(f["count"] for f in by_cat.category_facets), 130, "своя группа не сужается")
+
+    def test_unmapped_category_facet_id_is_accepted_by_filter(self):
+        self._seed_facet_catalog()
+        res = self.core.search("Laptop", limit=5)
+        facet = next(f for f in res.category_facets if f["name"] == "Редкие Штуки")
+        self.assertEqual(self.core.search("Laptop", category=facet["id"], limit=5).total_products, 20)
+
+    def test_facets_empty_query_covers_whole_catalog(self):
+        self._seed_facet_catalog()
+        res = self.core.search("", limit=5)
+        self.assertEqual(res.total_products, 131)
+        self.assertEqual(sum(f["count"] for f in res.category_facets), 131)
+        self.assertIn("Шымкент", {f["city"] for f in res.city_facets})
+
+    def test_taxonomy_category_facet_merges_raw_store_categories(self):
+        now = utc_now_iso()
+        for pid, cat in (("n1", "laptops"), ("n2", "Ноутбуки")):
+            self.product_repo.save_or_update(CanonicalProduct(id=pid, canonical_key=pid, title=f"Laptop {pid}", category=cat))
+            self.offer_repo.save_or_update(Offer(
+                id=f"o_{pid}", product_id=pid, seller_id="s_sulpak", channel_id="ch_s1", external_sku=pid,
+                url="https://example.invalid/x", price=10, availability="in_stock", city="Алматы", observed_at=now))
+        res = self.core.search("Laptop", limit=5)
+        ids = [f["id"] for f in res.category_facets]
+        self.assertEqual(len(ids), len(set(ids)), "значения фасета не дублируются")
+        self.assertEqual(sum(f["count"] for f in res.category_facets), 2)
+
+    def test_facet_failure_is_reported_not_replaced_by_page(self):
+        self._seed_facet_catalog()
+        with unittest.mock.patch.object(self.search_repo, "get_search_facets", side_effect=sqlite3.OperationalError("boom")):
+            res = self.core.search("Laptop", limit=5)
+        self.assertEqual(len(res.items), 5)
+        self.assertFalse(res.facets_available)
+        self.assertEqual(res.category_facets, [])
+        self.assertEqual(res.brand_facets, [])
+        self.assertFalse(res.to_dict()["facets_available"] is True)
+
+    def test_detail_and_search_carry_saved_delivery_terms(self):
+        now = utc_now_iso()
+        self.product_repo.save_or_update(CanonicalProduct(id="t1", canonical_key="t1", title="Terms item", category="food"))
+        self.offer_repo.save_or_update(Offer(
+            id="o_known", product_id="t1", seller_id="s_sulpak", channel_id="ch_s1", external_sku="known",
+            url="https://example.invalid/k", price=6000, condition=Condition.OPEN_BOX, availability="in_stock",
+            city="Алматы", delivery_type="courier", pickup_available=True, warranty="Гарантия производителя",
+            observed_at=now))
+        self.offer_repo.save_or_update(Offer(
+            id="o_none", product_id="t1", seller_id="s_kaspi", channel_id="ch_k1", external_sku="none",
+            url="https://example.invalid/n", price=7000, availability="in_stock", city="Алматы", observed_at=now))
+        detail_offers = {o["id"]: o for o in self.core.get_canonical_product("t1")["offers"]}
+        search_offers = {o.id: o.to_dict() for o in self.core.search("Terms").items[0].offers}
+        for offers in (detail_offers, search_offers):
+            self.assertEqual(offers["o_known"]["delivery_type"], "courier")
+            self.assertTrue(offers["o_known"]["pickup_available"])
+            self.assertEqual(offers["o_known"]["warranty"], "Гарантия производителя")
+            self.assertEqual(offers["o_known"]["condition"], Condition.OPEN_BOX)
+            # Отсутствующие условия не домысливаются
+            self.assertIsNone(offers["o_none"]["delivery_type"])
+            self.assertFalse(offers["o_none"]["pickup_available"])
+            self.assertIsNone(offers["o_none"]["warranty"])
+
 
 
 class _NoCloseConn:
