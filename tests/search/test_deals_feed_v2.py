@@ -61,121 +61,17 @@ class TestDealsFeedAndFavorites(AioHTTPTestCase):
         self.assertIn('id="profileWatchesList"', text)
 
     @unittest_run_loop
-    async def test_deals_v2_api_structure_and_pagination(self):
-        """GET /api/v2/deals returns valid JSON with deals, pagination and provenance."""
-        # Mock get_store_deals to test API contract deterministically
-        mock_raw_deals = {
-            "deals": [
-                {
-                    "id": "p_101",
-                    "product_id": 101,
-                    "canonical_key": "canon_101",
-                    "shop": "Sulpak",
-                    "title": "Телевизор LG OLED 55",
-                    "category": "Телевизоры",
-                    "city": "Алматы",
-                    "url": "https://sulpak.kz/p/lg55",
-                    "image_url": "https://sulpak.kz/img/lg.jpg",
-                    "old_price": 550000,
-                    "new_price": 385000,
-                    "discount_pct": 30,
-                    "savings_kzt": 165000,
-                    "alert_type": "SUPER_DISCOUNT",
-                    "competitor_shop": None
-                },
-                {
-                    "id": "a_202",
-                    "product_id": 202,
-                    "canonical_key": "canon_202",
-                    "shop": "Kaspi",
-                    "title": "Наушники Sony WH-1000XM5",
-                    "category": "Наушники",
-                    "city": "Алматы",
-                    "url": "https://kaspi.kz/p/sony",
-                    "image_url": "https://kaspi.kz/img/sony.jpg",
-                    "old_price": 180000,
-                    "new_price": 140000,
-                    "discount_pct": 22,
-                    "savings_kzt": 40000,
-                    "alert_type": "MARKET_ARBITRAGE",
-                    "competitor_shop": "Mechta"
-                }
-            ],
-            "total": 2,
-            "shops_summary": [{"shop": "Все", "count": 2}, {"shop": "Sulpak", "count": 1}, {"shop": "Kaspi", "count": 1}],
-            "type_totals": {"all": 2, "super": 1, "arbitrage": 1},
-            "offset": 0,
-            "limit": 20
-        }
-
-        with unittest.mock.patch("database.get_store_deals", return_value=mock_raw_deals):
-            resp = await self.client.get("/api/v2/deals?city=Алматы&limit=20")
-            self.assertEqual(resp.status, 200)
-            data = await resp.json()
-
-            self.assertTrue(data.get("ok"))
-            self.assertEqual(data.get("total"), 2)
-            self.assertFalse(data.get("has_more"))
-            self.assertEqual(len(data.get("deals")), 2)
-
-            d1 = data["deals"][0]
-            self.assertEqual(d1["id"], "p_101")
-            self.assertEqual(d1["canonical_product_id"], "prod_101")
-            self.assertEqual(d1["discount_pct"], 30)
-            self.assertTrue(d1["is_super"])
-            self.assertEqual(d1["provenance"], "Подтверждена историей")
-
-            d2 = data["deals"][1]
-            self.assertEqual(d2["deal_type"], "MARKET_ARBITRAGE")
-            self.assertEqual(d2["provenance"], "Рыночный арбитраж")
-            self.assertEqual(d2["competitor_shop"], "Mechta")
-
-    @unittest_run_loop
-    async def test_deals_v2_min_discount_filter(self):
-        """min_discount parameter filters out deals below threshold."""
-        mock_raw_deals = {
-            "deals": [
-                {
-                    "id": "p_1",
-                    "product_id": 1,
-                    "shop": "Sulpak",
-                    "title": "Item 1",
-                    "city": "Алматы",
-                    "url": "https://example.com/1",
-                    "old_price": 10000,
-                    "new_price": 9000,
-                    "discount_pct": 10,
-                    "savings_kzt": 1000,
-                    "alert_type": "STORE_DISCOUNT"
-                },
-                {
-                    "id": "p_2",
-                    "product_id": 2,
-                    "shop": "Sulpak",
-                    "title": "Item 2",
-                    "city": "Алматы",
-                    "url": "https://example.com/2",
-                    "old_price": 10000,
-                    "new_price": 6000,
-                    "discount_pct": 40,
-                    "savings_kzt": 4000,
-                    "alert_type": "SUPER_DISCOUNT"
-                }
-            ],
-            "total": 2,
-            "shops_summary": [],
-            "type_totals": {},
-            "offset": 0,
-            "limit": 20
-        }
-
-        with unittest.mock.patch("database.get_store_deals", return_value=mock_raw_deals):
-            resp = await self.client.get("/api/v2/deals?min_discount=25")
-            self.assertEqual(resp.status, 200)
-            data = await resp.json()
-            self.assertEqual(len(data["deals"]), 1)
-            self.assertEqual(data["deals"][0]["id"], "p_2")
-            self.assertEqual(data["deals"][0]["discount_pct"], 40)
+    async def test_deals_v2_does_not_invent_identity_or_provenance(self):
+        """Строка без установленной связи и основания не получает выдуманных значений."""
+        raw = {"deals": [{"id": "p_101", "product_id": 101, "canonical_key": "canon_101", "shop": "Sulpak",
+                          "title": "TV", "old_price": 550000, "new_price": 385000, "discount_pct": 30,
+                          "savings_kzt": 165000, "alert_type": "SUPER_DISCOUNT"}],
+               "total": 1, "shops_summary": [], "type_totals": {}}
+        with unittest.mock.patch("database.get_store_deals", return_value=raw):
+            data = await (await self.client.get("/api/v2/deals")).json()
+        self.assertIsNone(data["deals"][0]["canonical_product_id"])
+        self.assertEqual(data["deals"][0]["price_basis"], "unconfirmed")
+        self.assertFalse(data["has_more"])
 
 
 class TestSearchFirstTemplateIntegrity(unittest.TestCase):

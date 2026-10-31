@@ -2630,7 +2630,7 @@
         <div class="profile-card">
           <h2 class="profile-section-title" style="margin-bottom: 12px;">🛡 Приватность и управление данными</h2>
           <div style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 16px;">
-            Все ваши предпочтения, избранные товары и история поиска хранятся локально на вашем устройстве в соответствии с политикой конфиденциальности. Вы можете выгрузить или полностью очистить свои данные.
+            Избранное и настройки хранятся на этом устройстве, а наблюдения за ценами — на сервере в вашем аккаунте. Вы можете выгрузить данные или очистить те, что хранятся на устройстве.
           </div>
           <div style="display: flex; gap: 10px; flex-wrap: wrap;">
             <button class="btn-secondary" onclick="exportUserData()">
@@ -2690,6 +2690,7 @@
         </div>
 
         <form id="watchForm" onsubmit="submitWatchForm(event)">
+          <div id="watchFormError" role="alert" style="display: none; margin-bottom: 12px; font-size: 0.85rem; color: var(--badge-discount);"></div>
           <div class="watch-field-group">
             <label class="watch-label">Когда прислать уведомление:</label>
             <div class="watch-radio-option">
@@ -2705,7 +2706,7 @@
               </label>
               <div id="targetPriceInputWrapper" style="display: none; margin-top: 8px; margin-left: 24px;">
                 <div style="display: flex; align-items: center; gap: 6px;">
-                  <input type="number" id="watchTargetPriceInput" class="filter-input-text" style="max-width: 160px;" placeholder="Целевая цена" />
+                  <input type="number" min="1" step="1" id="watchTargetPriceInput" class="filter-input-text" style="max-width: 160px;" placeholder="Целевая цена" />
                   <span style="font-weight: 600;">₸</span>
                 </div>
               </div>
@@ -2757,6 +2758,7 @@
       currentProduct: null,
       searchAbortCtrl: null,
       productRequestId: 0,
+      resultItems: [],
     };
 
     // Formatters
@@ -2830,7 +2832,8 @@
 
     function safeHttpUrl(url) {
       if (!url || !isValidOfferUrl(url)) return '';
-      return url;
+      // Нормализованный адрес; в разметку он всё равно идёт только через escapeHtml
+      return new URL(url).href;
     }
 
     function showToast(msg) {
@@ -3001,6 +3004,9 @@
         AppState.page = 1;
         updateSearchUrl();
         executeSearch();
+      } else if (document.getElementById('viewDeals').classList.contains('active')) {
+        window.history.pushState({}, '', '/deals?city=' + encodeURIComponent(city));
+        handleRoute();
       } else if (document.getElementById('viewDetail').classList.contains('active')) {
         window.history.pushState({}, '', window.location.pathname + '?city=' + encodeURIComponent(city));
         handleRoute();
@@ -3202,6 +3208,7 @@
       const items = data.items || [];
       const total = data.total_products || 0;
 
+      AppState.resultItems = items;
       renderResultsHeader(total);
       renderPagination(data);
       renderFacets(data);
@@ -3211,7 +3218,7 @@
         return;
       }
 
-      cardsEl.innerHTML = items.map(item => {
+      cardsEl.innerHTML = items.map((item, idx) => {
         const prod = item.product || {};
         const pId = prod.id || '';
         const title = prod.title || 'Товар';
@@ -3242,18 +3249,6 @@
         }
 
         const isFav = Favorites.has(pId);
-        const itemJson = JSON.stringify({
-          id: pId,
-          product_id: pId,
-          title: title,
-          shop: (item.sellers && item.sellers[0]) ? item.sellers[0].shop_name : '',
-          city: AppState.city,
-          new_price: minP,
-          old_price: oldP,
-          discount_pct: oldP > minP ? Math.round(((oldP - minP) / oldP) * 100) : 0,
-          image_url: img,
-          url: ''
-        }).replace(/"/g, '&quot;');
 
         return `
           <div class="product-card" data-id="${escapeHtml(pId)}" onclick="openProduct(event, this.dataset.id)">
@@ -3280,7 +3275,7 @@
                 <button class="btn-view-product" data-id="${escapeHtml(pId)}" onclick="event.stopPropagation(); openProduct(event, this.dataset.id)">
                   Посмотреть
                 </button>
-                <button class="btn-card-fav ${isFav ? 'fav-active' : ''}" onclick="event.stopPropagation(); toggleProductCardFav(this, ${itemJson})" aria-label="В избранное" title="${isFav ? 'Удалить из избранного' : 'Добавить в избранное'}">
+                <button class="btn-card-fav ${isFav ? 'fav-active' : ''}" data-index="${idx}" onclick="event.stopPropagation(); toggleProductCardFav(this)" aria-label="В избранное" title="${isFav ? 'Удалить из избранного' : 'Добавить в избранное'}">
                   ${isFav ? '❤️' : '♡'}
                 </button>
               </div>
@@ -3759,13 +3754,15 @@
         } else {
           list.unshift({
             id: strId,
-            product_id: item.product_id || item.canonical_product_id || strId,
+            canonical_product_id: item.canonical_product_id || null,
+            legacy_product_id: item.canonical_product_id ? null : (item.product_id || null),
             title: item.title || 'Товар',
             shop: item.shop || '',
             city: item.city || '',
-            new_price: item.new_price || 0,
-            old_price: item.old_price || 0,
+            new_price: item.new_price > 0 ? item.new_price : null,
+            old_price: item.old_price > 0 ? item.old_price : null,
             discount_pct: item.discount_pct || 0,
+            price_basis: item.price_basis || '',
             image_url: item.image_url || '',
             url: item.url || '',
             saved_at: new Date().toISOString()
@@ -3811,18 +3808,25 @@
       }
     };
 
-    function toggleProductCardFav(btn, item) {
+    function toggleProductCardFav(btn) {
+      const item = AppState.resultItems[Number(btn.dataset.index)];
+      if (!item) return;
+      const prod = item.product || {};
+      const best = item.best_offer || {};
+      const price = item.min_price > 0 ? item.min_price : null;
+      const oldPrice = best.old_price > price ? best.old_price : null;
       const added = Favorites.toggle({
-        id: item.id || item.product_id,
-        product_id: item.product_id || item.id,
-        title: item.title,
-        shop: item.shop || '',
-        city: item.city || AppState.city,
-        new_price: item.new_price || 0,
-        old_price: item.old_price || 0,
-        discount_pct: item.discount_pct || 0,
-        image_url: item.image_url || '',
-        url: item.url || ''
+        id: prod.id,
+        canonical_product_id: prod.id,
+        title: prod.title,
+        shop: best.seller_name || '',
+        city: AppState.city,
+        new_price: price,
+        old_price: oldPrice,
+        discount_pct: price && oldPrice ? Math.round(((oldPrice - price) / oldPrice) * 100) : 0,
+        price_basis: price ? priceBasisLabel(best) : '',
+        image_url: prod.image_url || best.image_url || '',
+        url: ''
       });
       if (btn) {
         btn.classList.toggle('fav-active', added);
@@ -3841,10 +3845,18 @@
       offset: 0,
       limit: 15,
       hasMore: true,
-      loading: false
+      loading: false,
+      abortCtrl: null
     };
 
     async function loadDealsFeed(reset = true) {
+      // Выполняется последнее выбранное состояние: сброс отменяет идущий запрос, его ответ не применится
+      if (!reset && DealsFeedState.loading) return;
+      if (DealsFeedState.abortCtrl) DealsFeedState.abortCtrl.abort();
+      const ctrl = new AbortController();
+      DealsFeedState.abortCtrl = ctrl;
+      const isCurrent = () => DealsFeedState.abortCtrl === ctrl;
+
       if (reset) {
         DealsFeedState.offset = 0;
         DealsFeedState.items = [];
@@ -3860,7 +3872,6 @@
         }
       }
 
-      if (DealsFeedState.loading) return;
       DealsFeedState.loading = true;
 
       try {
@@ -3871,19 +3882,17 @@
         params.set('limit', DealsFeedState.limit);
         params.set('offset', DealsFeedState.offset);
 
-        const resp = await fetch('/api/v2/deals?' + params.toString());
+        const resp = await fetch('/api/v2/deals?' + params.toString(), { signal: ctrl.signal });
         if (!resp.ok) throw new Error('Ошибка ' + resp.status);
         const data = await resp.json();
+        if (!isCurrent()) return;
 
-        if (reset) {
-          DealsFeedState.items = data.deals || [];
-        } else {
-          DealsFeedState.items = DealsFeedState.items.concat(data.deals || []);
-        }
-        DealsFeedState.hasMore = data.has_more;
+        DealsFeedState.items = DealsFeedState.items.concat(data.deals || []);
+        DealsFeedState.hasMore = !!data.has_more;
         DealsFeedState.offset += (data.deals || []).length;
         renderDealsFeed();
       } catch (err) {
+        if (err.name === 'AbortError' || !isCurrent()) return;
         console.error('Ошибка загрузки ленты скидок:', err);
         const container = document.getElementById('dealsReelsContainer');
         if (container && reset) {
@@ -3896,7 +3905,7 @@
             </div>`;
         }
       } finally {
-        DealsFeedState.loading = false;
+        if (isCurrent()) DealsFeedState.loading = false;
       }
     }
 
@@ -3918,13 +3927,12 @@
       container.innerHTML = DealsFeedState.items.map((deal, idx) => {
         const isFav = Favorites.has(deal.id);
         const safeUrl = safeHttpUrl(deal.url);
-        const discountBadge = deal.discount_pct > 0 ? `<div class="deal-discount-badge-large">🔥 -${deal.discount_pct}%</div>` : '';
+        const discountBadge = deal.discount_pct > 0 ? `<div class="deal-discount-badge-large">🔥 -${Number(deal.discount_pct)}%</div>` : '';
         const dealTypeBadge = deal.deal_type === 'MARKET_ARBITRAGE' || deal.deal_type === 'ARBITRAGE'
           ? `<div class="deal-badge-secondary">⚖️ Арбитраж цен</div>`
           : (deal.is_super ? `<div class="deal-badge-secondary">⚡ Супер-скидка</div>` : '');
         
-        const fallbackSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 24 24" fill="none" stroke="%2394a3b8" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>`;
-        const imgSrc = escapeHtml(deal.image_url || fallbackSvg);
+        const imgSrc = escapeHtml(deal.image_url || getSvgPlaceholder());
 
         const oldPriceHtml = deal.old_price > deal.new_price
           ? `<span class="deal-price-old">${formatPrice(deal.old_price)}</span>`
@@ -3932,8 +3940,6 @@
         const savingsHtml = deal.savings_kzt > 0
           ? `<span class="deal-savings-badge">Экономия ${formatPrice(deal.savings_kzt)}</span>`
           : '';
-
-        const dealIdJson = JSON.stringify(deal).replace(/"/g, '&quot;');
 
         return `
           <div class="deal-reel-card" data-index="${idx}" data-deal-id="${escapeHtml(deal.id)}">
@@ -3943,7 +3949,7 @@
                 alt="${escapeHtml(deal.title)}"
                 class="deal-reel-img"
                 loading="lazy"
-                onerror="this.onerror=null; this.src='${fallbackSvg}';"
+                onerror="this.onerror=null; this.src=getSvgPlaceholder();"
               />
               <div class="deal-reel-badges-top">
                 ${discountBadge}
@@ -3957,7 +3963,7 @@
                 <span>📍 ${escapeHtml(deal.city || 'Казахстан')}</span>
               </div>
 
-              <h2 class="deal-reel-title" onclick="openDealProduct('${escapeHtml(deal.canonical_product_id || deal.product_id)}')">
+              <h2 class="deal-reel-title" onclick="dealAction(this, 'open')">
                 ${escapeHtml(deal.title)}
               </h2>
 
@@ -3968,13 +3974,13 @@
               </div>
 
               <div class="deal-provenance-text">
-                <span>✓ ${escapeHtml(deal.provenance || 'Проверено сервисом')}</span>
+                <span>${deal.price_basis === 'observed' ? '✓ ' : ''}${escapeHtml(deal.provenance || 'Основание скидки не подтверждено')}</span>
                 ${deal.competitor_shop ? `<span>(дешевле чем в ${escapeHtml(deal.competitor_shop)})</span>` : ''}
               </div>
 
               <div class="deal-actions-row">
                 ${safeUrl ? `
-                  <a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="btn-deal-buy" title="Перейти на страницу товара у продавца">
+                  <a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer" class="btn-deal-buy" title="Перейти на страницу товара у продавца">
                     <span>Купить у продавца</span>
                     <span>↗</span>
                   </a>
@@ -3984,7 +3990,7 @@
 
                 <button
                   class="btn-deal-action ${isFav ? 'fav-active' : ''}"
-                  onclick="toggleDealFavorite(this, ${dealIdJson})"
+                  onclick="dealAction(this, 'favorite')"
                   aria-label="В избранное"
                   title="${isFav ? 'Удалить из избранного' : 'Добавить в избранное'}"
                 >
@@ -3993,7 +3999,7 @@
 
                 <button
                   class="btn-deal-action"
-                  onclick="shareDeal('${escapeHtml(deal.title)}', '${safeUrl || window.location.href}')"
+                  onclick="dealAction(this, 'share')"
                   aria-label="Поделиться"
                   title="Поделиться скидкой"
                 >
@@ -4002,7 +4008,7 @@
 
                 <button
                   class="btn-deal-action"
-                  onclick="openWatchModalFromDeal(${dealIdJson})"
+                  onclick="dealAction(this, 'watch')"
                   aria-label="Следить за ценой"
                   title="Уведомить о снижении цены"
                 >
@@ -4011,9 +4017,9 @@
 
                 <button
                   class="btn-deal-action"
-                  onclick="openDealProduct('${escapeHtml(deal.canonical_product_id || deal.product_id)}')"
+                  onclick="dealAction(this, 'open')"
                   aria-label="О товаре"
-                  title="Открыть предложения всех магазинов"
+                  title="${deal.canonical_product_id ? 'Открыть предложения всех магазинов' : 'Найти товар в поиске'}"
                 >
                   🔍
                 </button>
@@ -4022,6 +4028,17 @@
           </div>
         `;
       }).join('');
+    }
+
+    // В разметке только индекс: данные каталога не попадают в код обработчиков (CA-01)
+    function dealAction(el, action) {
+      const card = el.closest('.deal-reel-card');
+      const deal = card ? DealsFeedState.items[Number(card.dataset.index)] : null;
+      if (!deal) return;
+      if (action === 'favorite') toggleDealFavorite(el, deal);
+      else if (action === 'share') shareDeal(deal.title, safeHttpUrl(deal.url) || window.location.href);
+      else if (action === 'watch') openWatchModalFromDeal(deal);
+      else if (action === 'open') openCatalogItem(deal.canonical_product_id, deal.title);
     }
 
     function toggleDealFavorite(btn, deal) {
@@ -4033,9 +4050,20 @@
       }
     }
 
-    function openDealProduct(prodId) {
-      if (!prodId) return;
-      navigateTo(null, '/product/' + encodeURIComponent(prodId) + '?city=' + encodeURIComponent(AppState.city));
+    // Канонического товара может не быть: тогда не выдумываем адрес, а ищем по названию
+    function openCatalogItem(canonicalId, title) {
+      const city = encodeURIComponent(AppState.city);
+      if (canonicalId) {
+        navigateTo(null, '/product/' + encodeURIComponent(canonicalId) + '?city=' + city);
+      } else if (title) {
+        navigateTo(null, '/search?q=' + encodeURIComponent(title) + '&city=' + city);
+      }
+    }
+
+    // Записи избранного до CA-03 хранили в product_id и настоящий, и legacy ID; настоящий узнаётся по виду
+    function favoriteCanonicalId(item) {
+      if (item.canonical_product_id) return item.canonical_product_id;
+      return /^prod_[0-9a-f]{16}$/.test(String(item.product_id || '')) ? item.product_id : null;
     }
 
     function shareDeal(title, url) {
@@ -4119,17 +4147,16 @@
 
       container.innerHTML = `
         <div class="favorites-grid">
-          ${items.map(item => {
+          ${items.map((item, idx) => {
             const safeUrl = safeHttpUrl(item.url);
-            const fallbackSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 24 24" fill="none" stroke="%2394a3b8" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>`;
-            const imgSrc = escapeHtml(item.image_url || fallbackSvg);
-            const discountBadge = item.discount_pct > 0 ? `<span class="deal-discount-badge-large" style="font-size:0.75rem; padding: 2px 6px;">-${item.discount_pct}%</span>` : '';
+            const imgSrc = escapeHtml(item.image_url || getSvgPlaceholder());
+            const discountBadge = item.discount_pct > 0 ? `<span class="deal-discount-badge-large" style="font-size:0.75rem; padding: 2px 6px;">-${Number(item.discount_pct)}%</span>` : '';
 
             return `
-              <div class="fav-card">
+              <div class="fav-card" data-index="${idx}">
                 <button
                   class="fav-card-remove-btn"
-                  onclick="Favorites.remove('${escapeHtml(item.id)}')"
+                  onclick="favoriteAction(this, 'remove')"
                   title="Удалить из избранного"
                   aria-label="Удалить из избранного"
                 >✕</button>
@@ -4139,7 +4166,7 @@
                     src="${imgSrc}"
                     alt="${escapeHtml(item.title)}"
                     style="width: 72px; height: 72px; object-fit: contain; background: var(--bg-subtle); border-radius: var(--radius-sm); padding: 4px;"
-                    onerror="this.onerror=null; this.src='${fallbackSvg}';"
+                    onerror="this.onerror=null; this.src=getSvgPlaceholder();"
                   />
                   <div style="flex: 1; min-width: 0;">
                     <div style="font-size: 0.78rem; color: var(--text-muted); display:flex; gap:6px; align-items:center;">
@@ -4148,7 +4175,7 @@
                     </div>
                     <div
                       style="font-size: 0.92rem; font-weight: 700; color: var(--text-main); margin-top: 4px; cursor: pointer; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;"
-                      onclick="openDealProduct('${escapeHtml(item.product_id || item.id)}')"
+                      onclick="favoriteAction(this, 'open')"
                     >
                       ${escapeHtml(item.title)}
                     </div>
@@ -4157,11 +4184,12 @@
 
                 <div style="display: flex; align-items: baseline; justify-content: space-between; border-top: 1px solid var(--border-color); padding-top: 8px;">
                   <div>
-                    <span style="font-size: 1.15rem; font-weight: 800; color: var(--primary);">${formatPrice(item.new_price)}</span>
-                    ${item.old_price > item.new_price ? `<span style="font-size: 0.85rem; color: var(--text-light); text-decoration: line-through; margin-left: 6px;">${formatPrice(item.old_price)}</span>` : ''}
+                    <span style="font-size: 1.15rem; font-weight: 800; color: var(--primary);">${item.new_price > 0 ? formatPrice(item.new_price) : 'Цена не указана'}</span>
+                    ${item.price_basis ? `<span style="font-size: 0.8rem; color: var(--text-muted);">${escapeHtml(item.price_basis)}</span>` : ''}
+                    ${item.new_price > 0 && item.old_price > item.new_price ? `<span style="font-size: 0.85rem; color: var(--text-light); text-decoration: line-through; margin-left: 6px;">${formatPrice(item.old_price)}</span>` : ''}
                   </div>
                   ${safeUrl ? `
-                    <a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="btn-to-seller" style="padding: 6px 12px; font-size: 0.82rem;">
+                    <a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer" class="btn-to-seller" style="padding: 6px 12px; font-size: 0.82rem;">
                       К продавцу ↗
                     </a>
                   ` : ''}
@@ -4173,6 +4201,14 @@
       `;
     }
 
+    function favoriteAction(el, action) {
+      const card = el.closest('.fav-card');
+      const item = card ? Favorites.getAll()[Number(card.dataset.index)] : null;
+      if (!item) return;
+      if (action === 'remove') Favorites.remove(item.id);
+      else if (action === 'open') openCatalogItem(favoriteCanonicalId(item), item.title);
+    }
+
     function clearAllFavorites() {
       Favorites.clear();
     }
@@ -4180,48 +4216,78 @@
     // =============================================================
     // PRICE WATCH SYSTEM & PROFILE (KZPH-G5-02, G5-03)
     // =============================================================
+    // Источник наблюдений — сервер. Список живёт только в памяти страницы и не переживает смену аккаунта.
     const WatchManager = {
-      KEY: 'kzph_watches_v1',
+      LEGACY_KEY: 'kzph_watches_v1',   // записи старой формы: на сервер они не попали
+      status: 'idle',                  // idle | loading | ok | guest | error
+      items: [],
+      requestId: 0,
       currentWatchProduct: null,
-      getAll() {
+      async load() {
+        const requestId = ++this.requestId;
+        this.status = 'loading';
         try {
-          const raw = localStorage.getItem(this.KEY);
-          return raw ? JSON.parse(raw) : [];
+          const resp = await fetch('/api/me/watches');
+          if (requestId !== this.requestId) return;
+          if (resp.status === 401) {
+            this.items = [];
+            this.status = 'guest';
+          } else if (!resp.ok) {
+            this.items = [];
+            this.status = 'error';
+          } else {
+            const data = await resp.json();
+            if (requestId !== this.requestId) return;
+            this.items = Array.isArray(data.watches) ? data.watches : [];
+            this.status = 'ok';
+          }
+        } catch (e) {
+          if (requestId !== this.requestId) return;
+          this.items = [];
+          this.status = 'error';
+        }
+        this.updateBadges();
+      },
+      async create(payload) {
+        const resp = await fetch('/api/me/watches', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (resp.status === 401) return { error: 'guest' };
+        if (!resp.ok || data.status !== 'ok' || !data.watch || !data.watch.id) {
+          return { error: resp.status === 400 && data.message ? data.message : 'Сервер не сохранил наблюдение. Попробуйте ещё раз.' };
+        }
+        return { watch: data.watch };
+      },
+      async remove(id) {
+        let resp;
+        try {
+          resp = await fetch('/api/me/watches/' + encodeURIComponent(id), { method: 'DELETE' });
+        } catch (e) {
+          showToast('Не удалось отменить наблюдение: нет связи с сервером');
+          return false;
+        }
+        // 404 — наблюдения уже нет, например его отменили на другом устройстве
+        if (!resp.ok && resp.status !== 404) {
+          showToast(resp.status === 401 ? 'Войдите, чтобы отменить наблюдение' : 'Не удалось отменить наблюдение, оно продолжает работать');
+          return false;
+        }
+        showToast('Наблюдение отменено');
+        return true;
+      },
+      legacyDrafts() {
+        try {
+          const list = JSON.parse(localStorage.getItem(this.LEGACY_KEY) || '[]');
+          return Array.isArray(list) ? list : [];
         } catch (e) {
           return [];
         }
       },
-      add(watch) {
-        let list = this.getAll();
-        list.unshift({
-          id: 'w_' + Date.now(),
-          product_id: watch.product_id,
-          title: watch.title,
-          current_price: watch.current_price,
-          target_condition: watch.condition,
-          target_price: watch.target_price,
-          city: AppState.city || 'Все',
-          created_at: new Date().toISOString()
-        });
-        try {
-          localStorage.setItem(this.KEY, JSON.stringify(list));
-        } catch (e) {}
-        this.updateBadges();
-        return true;
-      },
-      remove(id) {
-        let list = this.getAll().filter(w => String(w.id) !== String(id));
-        try {
-          localStorage.setItem(this.KEY, JSON.stringify(list));
-        } catch (e) {}
-        this.updateBadges();
-        renderProfile();
-        showToast('Наблюдение отменено');
-      },
       updateBadges() {
-        const count = this.getAll().length;
         const badge = document.getElementById('profileWatchesCountBadge');
-        if (badge) badge.textContent = String(count);
+        if (badge) badge.textContent = String(this.items.length);
       }
     };
 
@@ -4236,8 +4302,9 @@
 
       if (img) img.src = product.image_url || getSvgPlaceholder();
       if (title) title.textContent = product.title || 'Товар';
-      const curPrice = Number(product.price || product.new_price || product.best_price || 0);
-      if (price) price.textContent = curPrice > 0 ? formatPrice(curPrice) : 'не указана';
+      const curPrice = Number(product.price || 0);
+      showWatchFormError('');
+      if (price) price.textContent = curPrice > 0 ? formatPrice(curPrice) + (product.price_basis ? ' ' + product.price_basis : '') : 'не указана';
       if (targetInput) {
         targetInput.value = curPrice > 0 ? Math.round(curPrice * 0.9) : '';
       }
@@ -4250,25 +4317,35 @@
       if (modal) modal.classList.add('open');
     }
 
+    // Единая модель действий на странице товара из настоящего DTO; нет цены — null, а не ноль
+    function detailActionModel(data) {
+      const p = data.product || {};
+      const best = data.best_offer || {};
+      const price = data.min_price > 0 ? data.min_price : null;
+      return {
+        id: p.id,
+        title: p.title,
+        price: price,
+        price_basis: price ? priceBasisLabel(best) : '',
+        image_url: p.image_url || best.image_url || ''
+      };
+    }
+
     function openWatchModalFromDetail() {
       if (!AppState.currentProduct) return;
-      const p = AppState.currentProduct.product || {};
-      openWatchModal({
-        product_id: p.id || p.canonical_product_id,
-        title: p.title,
-        price: AppState.currentProduct.best_price,
-        image_url: p.representative_image || (p.images && p.images[0]) || ''
-      });
+      const m = detailActionModel(AppState.currentProduct);
+      openWatchModal({ target: m.id, title: m.title, price: m.price, price_basis: m.price_basis, image_url: m.image_url });
     }
 
     function openWatchModalFromDeal(deal) {
       if (!deal) return;
-      openWatchModal({
-        product_id: deal.canonical_product_id || deal.product_id || deal.id,
-        title: deal.title,
-        price: deal.new_price,
-        image_url: deal.image_url
-      });
+      // Цель — канонический товар; без него движок наблюдений сопоставит предложение по legacy ID
+      const target = deal.canonical_product_id || deal.product_id;
+      if (target === undefined || target === null || target === '') {
+        showToast('Для этого предложения наблюдение недоступно');
+        return;
+      }
+      openWatchModal({ target: String(target), title: deal.title, price: deal.new_price, image_url: deal.image_url });
     }
 
     function closeWatchModal(e) {
@@ -4284,6 +4361,20 @@
       if (wrapper) wrapper.style.display = val === 'target_price' ? 'block' : 'none';
     }
 
+    function showWatchFormError(message, withLogin = false) {
+      const el = document.getElementById('watchFormError');
+      if (!el) return;
+      el.textContent = message;
+      el.style.display = message ? 'block' : 'none';
+      if (withLogin) {
+        const link = document.createElement('a');
+        link.href = '/dashboard';
+        link.textContent = ' Войти';
+        link.style.fontWeight = '700';
+        el.appendChild(link);
+      }
+    }
+
     async function submitWatchForm(e) {
       if (e) e.preventDefault();
       const p = WatchManager.currentWatchProduct;
@@ -4293,46 +4384,64 @@
       }
       const condRadio = document.querySelector('input[name="watchCondition"]:checked');
       const condition = condRadio ? condRadio.value : 'any_drop';
-      const targetPrice = condition === 'target_price' ? Number(document.getElementById('watchTargetPriceInput').value) : null;
-
-      WatchManager.add({
-        product_id: p.product_id,
+      const payload = {
+        kind: 'product',
+        target: p.target,
         title: p.title,
-        current_price: p.price,
         condition: condition,
-        target_price: targetPrice
-      });
+        city: AppState.city && AppState.city !== 'Все' ? AppState.city : null
+      };
+      if (condition === 'target_price') {
+        const threshold = Number(document.getElementById('watchTargetPriceInput').value);
+        if (!Number.isInteger(threshold) || threshold < 1) {
+          showWatchFormError('Укажите целевую цену целым числом больше нуля.');
+          return;
+        }
+        payload.threshold = threshold;
+      }
 
-      // Try sending to server watch repository
+      const submitBtn = document.getElementById('watchSubmitBtn');
+      showWatchFormError('');
+      submitBtn.disabled = true;
+      let result;
       try {
-        await fetch('/api/me/watches', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({
-            product_id: p.product_id,
-            kind: 'PRODUCT',
-            condition: condition === 'target_price' ? 'TARGET_PRICE' : 'ANY_DROP',
-            target_price: targetPrice,
-            city: AppState.city
-          })
-        });
-      } catch (err) {}
+        result = await WatchManager.create(payload);
+      } catch (err) {
+        result = { error: 'Нет связи с сервером. Наблюдение не создано, попробуйте ещё раз.' };
+      } finally {
+        submitBtn.disabled = false;
+      }
+
+      if (result.error === 'guest') {
+        showWatchFormError('Наблюдения работают после входа через Telegram. Наблюдение не создано.', true);
+        return;
+      }
+      if (result.error) {
+        showWatchFormError(result.error);
+        return;
+      }
 
       closeWatchModal();
-      showToast('🔔 Наблюдение создано! Бот оповестит вас при снижении цены');
+      const city = result.watch.city || 'все города';
+      showToast(result.watch.already_existed
+        ? '🔔 Наблюдение уже было, обновлено: ' + city
+        : '🔔 Наблюдение создано: ' + city);
+      await WatchManager.load();
+      if (document.getElementById('viewProfile').classList.contains('active')) renderProfile();
     }
 
     function toggleDetailFavorite() {
       if (!AppState.currentProduct) return;
-      const p = AppState.currentProduct.product || {};
+      const m = detailActionModel(AppState.currentProduct);
       const isFav = Favorites.toggle({
-        id: p.id || p.canonical_product_id,
-        product_id: p.id || p.canonical_product_id,
-        title: p.title,
+        id: m.id,
+        canonical_product_id: m.id,
+        title: m.title,
         shop: '',
         city: AppState.city,
-        new_price: AppState.currentProduct.best_price,
-        image_url: p.representative_image || (p.images && p.images[0]) || '',
+        new_price: m.price,
+        price_basis: m.price_basis,
+        image_url: m.image_url,
         url: ''
       });
       updateDetailFavButton(isFav);
@@ -4355,47 +4464,88 @@
       const favCount = Favorites.getAll().length;
       if (favSummary) favSummary.textContent = `Сохранено: ${favCount} ${pluralizeProducts(favCount)}`;
 
-      WatchManager.updateBadges();
-
       const watchesList = document.getElementById('profileWatchesList');
       if (!watchesList) return;
 
-      const watches = WatchManager.getAll();
-      if (!watches.length) {
-        watchesList.innerHTML = `
-          <div style="text-align: center; padding: 24px; color: var(--text-muted); font-size: 0.9rem;">
-            У вас пока нет активных наблюдений за ценами.<br>
-            Нажмите кнопку «🔔 Следить за ценой» на любом товаре или в ленте скидок.
-          </div>`;
-        return;
+      const renderId = ++profileRenderId;
+      watchesList.textContent = 'Загружаем наблюдения…';
+      await WatchManager.load();
+      if (renderId !== profileRenderId) return;
+
+      const authBadge = document.getElementById('profileAuthBadge');
+      if (authBadge) authBadge.textContent = WatchManager.status === 'guest' ? 'Гость' : (WatchManager.status === 'ok' ? '✓ Вход выполнен' : 'Статус неизвестен');
+
+      const notice = 'text-align: center; padding: 24px; color: var(--text-muted); font-size: 0.9rem;';
+      let html = '';
+      if (WatchManager.status === 'guest') {
+        html = `<div style="${notice}">Наблюдения за ценами работают после входа через Telegram.<br><a href="/dashboard" style="color:var(--primary); font-weight:600;">Войти</a></div>`;
+      } else if (WatchManager.status === 'error') {
+        html = `<div style="${notice}">Не удалось загрузить наблюдения с сервера.<br><button class="btn-secondary" style="margin-top:8px;" onclick="renderProfile()">Повторить</button></div>`;
+      } else if (!WatchManager.items.length) {
+        html = `<div style="${notice}">У вас пока нет активных наблюдений за ценами.<br>Нажмите кнопку «🔔 Следить за ценой» на любом товаре или в ленте скидок.</div>`;
+      } else {
+        html = WatchManager.items.map((w, idx) => {
+          const condText = w.condition === 'target_price' && w.threshold
+            ? 'Уведомить при цене ≤ ' + formatPrice(w.threshold)
+            : (w.condition === 'any_drop' ? 'Уведомить при любом снижении' : (w.description || w.condition));
+          const state = !w.is_active ? '• Выключено' : (w.fired ? '• Уже сработало' : '');
+          return `
+            <div class="watch-item-card" data-index="${idx}">
+              <div class="watch-item-info">
+                <div class="watch-item-title" onclick="watchAction(this, 'open')">
+                  ${escapeHtml(w.title || w.target)}
+                </div>
+                <div class="watch-item-meta">
+                  <span>🎯 ${escapeHtml(condText)}</span>
+                  <span>• ${escapeHtml(w.city || 'Все города')}</span>
+                  ${state ? `<span>${state}</span>` : ''}
+                </div>
+              </div>
+              <button
+                class="watch-item-delete-btn"
+                onclick="watchAction(this, 'remove')"
+                title="Отменить наблюдение"
+                aria-label="Отменить наблюдение"
+              >✕</button>
+            </div>
+          `;
+        }).join('');
       }
 
-      watchesList.innerHTML = watches.map(w => {
-        const condText = w.target_condition === 'target_price' && w.target_price
-          ? `Уведомить при цене ≤ ${formatPrice(w.target_price)}`
-          : 'Уведомить при любом снижении';
+      const drafts = WatchManager.legacyDrafts();
+      if (drafts.length) {
+        html += `
+          <div id="legacyWatchDrafts" style="margin-top: 12px; padding: 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.85rem; color: var(--text-muted);">
+            Записей старой формы на этом устройстве: ${drafts.length}. Они не были сохранены на сервере, уведомления по ним не приходили. Создайте наблюдения заново.
+            <button class="btn-secondary" style="margin-top: 8px; display: block;" onclick="clearLegacyWatchDrafts()">Удалить эти записи</button>
+          </div>`;
+      }
+      watchesList.innerHTML = html;
+    }
 
-        return `
-          <div class="watch-item-card">
-            <div class="watch-item-info">
-              <div class="watch-item-title" onclick="openDealProduct('${escapeHtml(w.product_id)}')">
-                ${escapeHtml(w.title)}
-              </div>
-              <div class="watch-item-meta">
-                <span>🎯 ${escapeHtml(condText)}</span>
-                <span>• Базовая цена: ${formatPrice(w.current_price)}</span>
-                <span>• ${escapeHtml(w.city || 'Все города')}</span>
-              </div>
-            </div>
-            <button
-              class="watch-item-delete-btn"
-              onclick="WatchManager.remove('${escapeHtml(w.id)}')"
-              title="Отменить наблюдение"
-              aria-label="Отменить наблюдение"
-            >✕</button>
-          </div>
-        `;
-      }).join('');
+    let profileRenderId = 0;
+
+    async function watchAction(el, action) {
+      const card = el.closest('.watch-item-card');
+      const watch = card ? WatchManager.items[Number(card.dataset.index)] : null;
+      if (!watch) return;
+      if (action === 'open') {
+        const isCanonical = watch.kind === 'product' && /^prod_[0-9a-f]{16}$/.test(String(watch.target));
+        if (isCanonical) openCatalogItem(watch.target);
+        else if (['product', 'model', 'search'].includes(watch.kind)) openCatalogItem(null, watch.title || watch.target);
+      } else if (action === 'remove') {
+        el.disabled = true;
+        const removed = await WatchManager.remove(watch.id);
+        if (removed) await renderProfile();
+        else el.disabled = false;
+      }
+    }
+
+    function clearLegacyWatchDrafts() {
+      try {
+        localStorage.removeItem(WatchManager.LEGACY_KEY);
+      } catch (e) {}
+      renderProfile();
     }
 
     function exportUserData() {
@@ -4405,7 +4555,8 @@
         city: AppState.city,
         theme: document.documentElement.getAttribute('data-theme') || 'light',
         favorites: Favorites.getAll(),
-        watches: WatchManager.getAll()
+        server_watches: WatchManager.items,
+        unsaved_legacy_watches: WatchManager.legacyDrafts()
       };
       const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
       const url = URL.createObjectURL(blob);
@@ -4420,13 +4571,12 @@
     }
 
     function clearAllUserData() {
-      if (!confirm('Вы уверены, что хотите удалить все локальные данные (избранное, наблюдения и настройки)?')) return;
+      if (!confirm('Удалить данные на этом устройстве (избранное и настройки)? Наблюдения за ценами хранятся на сервере и продолжат работать, отменяйте их отдельно.')) return;
       localStorage.removeItem(Favorites.KEY);
-      localStorage.removeItem(WatchManager.KEY);
+      localStorage.removeItem(WatchManager.LEGACY_KEY);
       Favorites.updateBadges();
-      WatchManager.updateBadges();
       renderProfile();
-      showToast('Все локальные данные очищены 🗑');
+      showToast('Данные на этом устройстве очищены 🗑');
     }
 
     // Keyboard support for Reels feed (Arrow Up / Arrow Down)

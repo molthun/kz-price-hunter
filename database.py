@@ -4639,6 +4639,56 @@ def get_hierarchical_categories() -> Dict[str, Any]:
     }
 
 
+# Основание «старой» цены скидки: кто её утверждает
+DEAL_BASIS_MARKET = "market"            # сравнение с другим магазином
+DEAL_BASIS_OBSERVED = "observed"        # мы сами видели у этого предложения такую или большую цену
+DEAL_BASIS_STORE = "store_claim"        # только зачёркнутая цена на сайте магазина
+DEAL_BASIS_UNCONFIRMED = "unconfirmed"  # источник цены не установлен
+
+
+def _annotate_deals(deals: List[Dict[str, Any]]) -> None:
+    """Дополняет страницу скидок основанием цены и настоящим каноническим товаром.
+
+    Связь берётся из предложения v2 (off_<legacy id>), куда её записал адаптер; она верна и после
+    переноса ключа. Если предложения нет, допустим только уже существующий товар по ключу.
+    Товара нет — canonical_product_id остаётся None: идентификатор не выдумывается.
+    """
+    if not deals:
+        return
+    from domain.adapter import canonical_product_id
+    legacy_ids = list({str(d["product_id"]) for d in deals if d.get("product_id") is not None})
+    keys = {str(d["canonical_key"]): canonical_product_id(str(d["canonical_key"]))
+            for d in deals if d.get("canonical_key")}
+    with get_connection() as conn:
+        observed = dict(conn.execute(
+            "SELECT product_id, MAX(price) FROM price_observations "
+            "WHERE product_id IN (SELECT value FROM json_each(?)) GROUP BY product_id",
+            (json.dumps(legacy_ids),)).fetchall())
+        by_offer = dict(conn.execute(
+            "SELECT o.id, o.product_id FROM offers o JOIN canonical_products c ON c.id = o.product_id "
+            "WHERE o.id IN (SELECT value FROM json_each(?))",
+            (json.dumps([f"off_{pid}" for pid in legacy_ids]),)).fetchall())
+        existing = {r[0] for r in conn.execute(
+            "SELECT id FROM canonical_products WHERE id IN (SELECT value FROM json_each(?))",
+            (json.dumps(list(keys.values())),)).fetchall()}
+
+    for d in deals:
+        pid = str(d.get("product_id"))
+        by_key = keys.get(str(d.get("canonical_key") or ""))
+        d["canonical_product_id"] = by_offer.get(f"off_{pid}") or (by_key if by_key in existing else None)
+
+        old_price = d.get("old_price") or 0
+        seen_high = max(d.get("first_seen_price") or 0, observed.get(pid) or 0)
+        if d.get("alert_type") in ("MARKET_ARBITRAGE", "ARBITRAGE"):
+            d["price_basis"] = DEAL_BASIS_MARKET
+        elif old_price > (d.get("new_price") or 0) and seen_high >= old_price:
+            d["price_basis"] = DEAL_BASIS_OBSERVED
+        elif old_price and (d.get("old_price_on_site") or 0) == old_price:
+            d["price_basis"] = DEAL_BASIS_STORE
+        else:
+            d["price_basis"] = DEAL_BASIS_UNCONFIRMED
+
+
 def get_store_deals(
     shop: Optional[str] = None,
     city: Optional[str] = None,
@@ -4647,7 +4697,8 @@ def get_store_deals(
     deal_type: Optional[str] = "all",
     sort_by: str = "discount_desc",
     limit: int = 60,
-    offset: int = 0
+    offset: int = 0,
+    min_discount: int = 0,
 ) -> Dict[str, Any]:
     """Возвращает агрегированную витрину акций и супер-скидок по всем магазинам Казахстана.
     Объединяет скидки сайтов магазинов (products) и межмагазинный арбитраж (alerts).
@@ -4662,7 +4713,7 @@ def get_store_deals(
                        WHEN p.old_price_on_site > p.current_price THEN p.old_price_on_site
                        ELSE p.first_seen_price
                    END AS old_price,
-                   p.canonical_key
+                   p.canonical_key, p.first_seen_price, p.old_price_on_site
             FROM products p
             WHERE ((p.old_price_on_site > p.current_price AND p.current_price > 0)
                OR (p.category IN ('actions', 'Акции и распродажи') AND p.first_seen_price > p.current_price AND p.current_price > 0))
@@ -4695,14 +4746,17 @@ def get_store_deals(
                 "savings_kzt": sav,
                 "alert_type": "SUPER_DISCOUNT" if pct >= 30 else "STORE_DISCOUNT",
                 "competitor_shop": None,
-                "canonical_key": r["canonical_key"]
+                "canonical_key": r["canonical_key"],
+                "first_seen_price": r["first_seen_price"],
+                "old_price_on_site": r["old_price_on_site"],
             })
 
         # 2. Арбитраж цен и обнаруженные аномалии из alerts
         a_query = f"""
             SELECT a.id, a.shop, a.city, a.product_id, a.alert_type, a.old_price, a.new_price,
                    a.discount_pct, a.savings_kzt, a.competitor_shop,
-                   p.title, p.category, p.url, p.image_url, p.canonical_key
+                   p.title, p.category, p.url, p.image_url, p.canonical_key,
+                   p.first_seen_price, p.old_price_on_site
             FROM alerts a
             JOIN products p ON a.product_id = p.id
             WHERE (a.is_dismissed IS NULL OR a.is_dismissed = 0)
@@ -4733,7 +4787,9 @@ def get_store_deals(
                 "savings_kzt": r["savings_kzt"],
                 "alert_type": r["alert_type"],
                 "competitor_shop": r["competitor_shop"],
-                "canonical_key": r["canonical_key"]
+                "canonical_key": r["canonical_key"],
+                "first_seen_price": r["first_seen_price"],
+                "old_price_on_site": r["old_price_on_site"],
             })
 
     # Дедупликация: если товар представлен и в каталоге, и в алертах, берём запись с большей выгодой
@@ -4766,6 +4822,10 @@ def get_store_deals(
         s_lower = search.lower()
         filtered = [d for d in filtered if s_lower in (d["title"] or "").lower()]
 
+    # Порог — до счётчиков и страницы: total и has_more описывают ту же выборку, что и список
+    if min_discount > 0:
+        filtered = [d for d in filtered if d["discount_pct"] >= min_discount]
+
     def _is_super(d):
         return d["discount_pct"] >= 30 or d["alert_type"] == "SUPER_DISCOUNT"
 
@@ -4787,14 +4847,15 @@ def get_store_deals(
 
     # Сортировка
     if sort_by == "savings_desc":
-        filtered.sort(key=lambda x: (x["savings_kzt"], x["discount_pct"]), reverse=True)
+        filtered.sort(key=lambda x: (-x["savings_kzt"], -x["discount_pct"], str(x["id"])))
     elif sort_by == "price_asc":
-        filtered.sort(key=lambda x: (x["new_price"], -x["discount_pct"]))
+        filtered.sort(key=lambda x: (x["new_price"], -x["discount_pct"], str(x["id"])))
     else:  # discount_desc
-        filtered.sort(key=lambda x: (x["discount_pct"], x["savings_kzt"]), reverse=True)
+        filtered.sort(key=lambda x: (-x["discount_pct"], -x["savings_kzt"], str(x["id"])))
 
     total_count = len(filtered)
     page_items = filtered[offset : offset + limit]
+    _annotate_deals(page_items)
 
     return {
         "deals": page_items,
@@ -4838,30 +4899,49 @@ def list_watches(user_id: int, only_active: bool = False) -> List[Dict[str, Any]
     return rows
 
 
+# Поля, которые повторное создание применяет, только если они переданы: прежний интерфейс шлёт не все,
+# и пропуск не должен молча сбрасывать настройки доставки
+_WATCH_SCOPE_COLUMNS = {"title": "title", "city": "city", "mode": "mode", "quiet_from": "quiet_from",
+                        "quiet_to": "quiet_to", "timezone": "timezone", "cooldown_hours": "cooldown_hours",
+                        "repeat": "repeat_mode"}
+
+
 def create_watch(user_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
-    """Создаёт наблюдение пользователя; повторное создание того же возвращает существующее."""
+    """Создаёт наблюдение пользователя.
+
+    Одно наблюдение — это пользователь, вид, цель, условие и порог (UNIQUE в схеме). Повторное создание
+    возвращает ту же запись с переданным городом и настройками: в ответе всегда действующие значения,
+    а already_existed говорит, что запись не новая.
+    """
     import watches as w
     clean = w.normalize(data)
     with get_connection() as conn:
-        count = conn.execute("SELECT COUNT(*) FROM watches WHERE user_id = ?", (int(user_id),)).fetchone()[0]
-        if count >= w.MAX_WATCHES_PER_USER:
-            raise ValueError(f"Больше {w.MAX_WATCHES_PER_USER} наблюдений не поддерживается — "
-                             f"удалите ненужные")
+        # Проверка и запись — одной транзакцией: threshold NULL UNIQUE не защищает от повтора
+        conn.execute("BEGIN IMMEDIATE")
         existing = conn.execute("""SELECT * FROM watches WHERE user_id = ? AND kind = ? AND target = ?
                                    AND condition = ? AND threshold IS ?""",
                                 (int(user_id), clean["kind"], clean["target"], clean["condition"],
                                  clean["threshold"])).fetchone()
         if existing:
-            conn.execute("""UPDATE watches SET is_active = 1,
-                                   shops = ?, item_conditions = ?, sellers = ?, channels = ?
-                            WHERE id = ?""",
+            scope = {column: clean[field] for field, column in _WATCH_SCOPE_COLUMNS.items() if field in data}
+            assignments = "".join(f", {column} = ?" for column in scope)
+            conn.execute(f"""UPDATE watches SET is_active = 1, fired_at = NULL,
+                                   shops = ?, item_conditions = ?, sellers = ?, channels = ?{assignments}
+                             WHERE id = ?""",
                          (json.dumps(clean["shops"], ensure_ascii=False),
                           json.dumps(clean["item_conditions"], ensure_ascii=False),
                           json.dumps(clean["sellers"], ensure_ascii=False),
                           json.dumps(clean["channels"], ensure_ascii=False),
+                          *scope.values(),
                           existing["id"]))
             conn.commit()
-            return _watch_row(conn.execute("SELECT * FROM watches WHERE id = ?", (existing["id"],)).fetchone())
+            row = _watch_row(conn.execute("SELECT * FROM watches WHERE id = ?", (existing["id"],)).fetchone())
+            row["already_existed"] = True
+            return row
+        count = conn.execute("SELECT COUNT(*) FROM watches WHERE user_id = ?", (int(user_id),)).fetchone()[0]
+        if count >= w.MAX_WATCHES_PER_USER:
+            raise ValueError(f"Больше {w.MAX_WATCHES_PER_USER} наблюдений не поддерживается — "
+                             f"удалите ненужные")
         conn.execute("""
             INSERT INTO watches (user_id, kind, target, title, condition, threshold, city, shops,
                                  item_conditions, sellers, channels, mode,

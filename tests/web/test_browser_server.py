@@ -24,6 +24,14 @@ async def main():
         from aiohttp import web
         from web.server import create_app
         app=create_app();app.cleanup_ctx.clear()
+        if os.environ.get('BROWSER_TEST_SEED')=='deals':
+            import database
+            database.init_db()
+            database.save_or_update_products_batch([
+                {'id':f'seed-{i}','shop':'Sulpak','city':'Алматы','title':f'Seeded phone {i}','category':'smartphones',
+                 'price':10000+i,'old_price_on_site':20000,'url':f'https://example.invalid/seed-{i}',
+                 'image_url':f'https://example.invalid/seed-{i}.png','canonical_key':f'seeded phone {i}'}
+                for i in range(2)])
         runner=web.AppRunner(app);await runner.setup()
         site=web.TCPSite(runner,'127.0.0.1',0);await site.start()
         port=site._server.sockets[0].getsockname()[1]

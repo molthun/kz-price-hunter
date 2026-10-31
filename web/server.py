@@ -1363,6 +1363,9 @@ async def product_detail_v2_handler(request):
         return web.json_response({"ok": False, "error": "Ошибка загрузки карточки товара"}, status=500)
 
 
+DEALS_MAX_OFFSET = 10000
+
+
 @routes.get("/api/v2/deals")
 async def deals_v2_handler(request):
     """Витрина лучших скидок и арбитража для вертикальной Reels-ленты (KZPH-G4-01)."""
@@ -1374,7 +1377,7 @@ async def deals_v2_handler(request):
     sort_by = request.query.get("sort", "discount_desc")
     min_discount = _int_param(request, "min_discount", 0, minimum=0, maximum=99)
     limit = _int_param(request, "limit", 20, minimum=1, maximum=100)
-    offset = _int_param(request, "offset", 0, minimum=0, maximum=10000)
+    offset = _int_param(request, "offset", 0, minimum=0, maximum=DEALS_MAX_OFFSET)
 
     from database import get_store_deals
     raw_data = await asyncio.to_thread(
@@ -1386,21 +1389,23 @@ async def deals_v2_handler(request):
         deal_type=deal_type,
         sort_by=sort_by,
         limit=limit,
-        offset=offset
+        offset=offset,
+        min_discount=min_discount,
     )
 
+    provenance_labels = {
+        "market": "Сравнение с другим магазином",
+        "observed": "Снижение по нашим наблюдениям",
+        "store_claim": "Скидка по данным магазина",
+    }
     deals = []
     for d in raw_data.get("deals", []):
-        if min_discount > 0 and d.get("discount_pct", 0) < min_discount:
-            continue
         alert_type = d.get("alert_type")
-        is_arbitrage = alert_type in ("MARKET_ARBITRAGE", "ARBITRAGE")
-        provenance = "Рыночный арбитраж" if is_arbitrage else ("Подтверждена историей" if d.get("old_price", 0) > d.get("new_price", 0) else "По данным магазина")
-        
+
         deals.append({
             "id": d.get("id"),
             "product_id": d.get("product_id"),
-            "canonical_product_id": f"prod_{d['product_id']}" if d.get("product_id") else (d.get("canonical_key") or ""),
+            "canonical_product_id": d.get("canonical_product_id"),
             "title": d.get("title", ""),
             "category": d.get("category", ""),
             "shop": d.get("shop", ""),
@@ -1414,8 +1419,11 @@ async def deals_v2_handler(request):
             "deal_type": alert_type,
             "competitor_shop": d.get("competitor_shop"),
             "is_super": d.get("discount_pct", 0) >= 30 or alert_type == "SUPER_DISCOUNT",
-            "provenance": provenance,
+            "price_basis": d.get("price_basis") or "unconfirmed",
+            "provenance": provenance_labels.get(d.get("price_basis"), "Основание скидки не подтверждено"),
         })
+
+    next_offset = offset + len(deals)
 
     return web.json_response({
         "ok": True,
@@ -1423,7 +1431,8 @@ async def deals_v2_handler(request):
         "total": raw_data.get("total", 0),
         "offset": offset,
         "limit": limit,
-        "has_more": (offset + len(deals)) < raw_data.get("total", 0),
+        # Дальше предела offset страницы не сдвигаются: без этого лента повторяла бы последнюю вечно
+        "has_more": bool(deals) and next_offset < raw_data.get("total", 0) and next_offset <= DEALS_MAX_OFFSET,
         "shops_summary": raw_data.get("shops_summary", []),
         "type_totals": raw_data.get("type_totals", {})
     })
