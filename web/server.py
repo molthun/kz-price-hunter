@@ -945,11 +945,15 @@ async def best_price_handler(request):
         try:
             core = SearchCore(SearchRepository(conn))
             cond_param = request.query.get("condition")
+            cat_param = category if category and category != "Все" else None
+            brand_param = request.query.get("brand")
             resp = core.search(
                 query=query,
                 city=city,
                 condition=cond_param,
                 channel_type=request.query.get("channel_type"),
+                category=cat_param,
+                brand=brand_param,
                 min_price=float(min_price) if min_price is not None else None,
                 max_price=float(max_price) if max_price is not None else None,
                 sort_by=sort_by,
@@ -959,7 +963,6 @@ async def best_price_handler(request):
             # пользователем фильтр нельзя: человек видит поле, задаёт его и получает выдачу так,
             # будто не задавал. Пока нет паритета — честно называем, что не применили (K3).
             unsupported = [name for name, applied in (
-                ("категория", bool(category) and category != "Все"),
                 ("только со скидкой", bool(only_discount)),
                 ("без аксессуаров", not exclude_accessories),
                 ("минус-слова", bool(negative_keywords)),

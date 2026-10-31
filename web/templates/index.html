@@ -854,7 +854,15 @@
           </div>
         </div>
 
-        <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="flex items-center gap-1.5 text-xs text-slate-400">
+            <i class="fa-solid fa-sliders text-purple-400"></i>
+            <select id="consultantModeSelect" class="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500">
+              <option value="v2">⚡️ Search Platform 2.0 (Ассистент подбора с рассрочкой и каналами)</option>
+              <option value="rag">💬 Экспертный диалог (RAG)</option>
+            </select>
+          </div>
+
           <div class="flex items-center gap-1.5 text-xs text-slate-400">
             <i class="fa-solid fa-location-dot text-emerald-400"></i>
             <select id="consultantCityFilter" class="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500">
@@ -4341,29 +4349,113 @@
       feed.scrollTop = feed.scrollHeight;
 
       try {
-        const res = await fetch('/api/ai/consultant', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: text,
-            history: consultantHistory,
-            city: city
-          })
-        });
+        const modeEl = document.getElementById('consultantModeSelect');
+        const isV2 = modeEl ? modeEl.value === 'v2' : true;
 
-        const data = await res.json();
-        loadingBubble.remove();
+        let answerText = '';
+        let products = [];
+        let suggestions = [];
+        let planHtml = '';
+        let highlightsHtml = '';
 
-        const answerText = data.answer || data.error || 'Не удалось получить ответ.';
-        const products = data.products || [];
-        const suggestions = data.suggested_questions || [];
+        let v2Success = false;
+        if (isV2) {
+          try {
+            const res = await fetch('/api/v2/ai/assistant', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                query: text,
+                city: city === 'Все' ? null : city
+              })
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data && data.ok) {
+                loadingBubble.remove();
+                answerText = data.explanation || 'Подобраны лучшие варианты по вашему запросу.';
+                products = (data.items || []).map(it => {
+                  const prod = it.product || {};
+                  const bestOff = it.best_offer || (it.offers && it.offers[0]) || {};
+                  return {
+                    id: prod.id || bestOff.id,
+                    title: prod.canonical_name || prod.title || bestOff.seller_name || 'Товар',
+                    price: it.min_price || bestOff.price,
+                    old_price: bestOff.old_price,
+                    shop: bestOff.channel_name || bestOff.seller_name || 'Магазин',
+                    city: bestOff.city || prod.city,
+                    url: bestOff.url,
+                    image_url: prod.image_url || bestOff.image_url,
+                    rating: prod.rating,
+                    is_favorite: false
+                  };
+                });
 
-        // Сохраняем в историю диалога только успешные ответы. Сервер присылает краткую реплику
-        // с показанными товарами (history_turn), чтобы работали «а подешевле», «сравни первые два»
-        if (res.ok && data.answer) {
-          consultantHistory.push({ role: 'user', content: text });
-          consultantHistory.push({ role: 'model', content: (data.history_turn || data.answer).slice(0, 1500) });
-          if (consultantHistory.length > 8) consultantHistory = consultantHistory.slice(-8);
+                if (data.plan) {
+                  const chips = [];
+                  if (data.plan.use_case) chips.push(`<span class="px-2 py-0.5 rounded bg-purple-900/40 border border-purple-500/40 text-purple-200">🎯 Назначение: <b>${escapeHtml(data.plan.use_case)}</b></span>`);
+                  if (data.plan.budget) chips.push(`<span class="px-2 py-0.5 rounded bg-amber-900/40 border border-amber-500/40 text-amber-200">💰 Бюджет: <b>до ${fmtPrice(data.plan.budget)}</b></span>`);
+                  if (data.plan.wants_installment) chips.push(`<span class="px-2 py-0.5 rounded bg-sky-900/40 border border-sky-500/40 text-sky-200">💳 Рассрочка: <b>0-0-12/24</b></span>`);
+                  if (data.plan.condition) chips.push(`<span class="px-2 py-0.5 rounded bg-emerald-900/40 border border-emerald-500/40 text-emerald-200">✨ Состояние: <b>${escapeHtml(data.plan.condition)}</b></span>`);
+                  if (chips.length) {
+                    planHtml = `<div class="flex flex-wrap gap-1.5 pb-1">${chips.join('')}</div>`;
+                  }
+                }
+
+                const cmp = data.cross_channel_comparison;
+                const inst = data.best_installment_offer;
+                if (cmp || inst) {
+                  let parts = [];
+                  if (cmp && cmp.price_difference > 0) {
+                    parts.push(`
+                      <div class="p-3 rounded-xl bg-emerald-950/30 border border-emerald-500/30 text-xs text-emerald-200 space-y-1">
+                        <div class="font-bold flex items-center gap-1.5"><i class="fa-solid fa-scale-balanced text-emerald-400"></i><span>Межканальная экономия:</span></div>
+                        <div>Покупка напрямую (${fmtPrice(cmp.direct_price)}) выгоднее маркетплейса (${fmtPrice(cmp.marketplace_price)}) на <b>${fmtPrice(cmp.price_difference)} ₸</b> (${cmp.savings_pct}% выгоды).</div>
+                      </div>
+                    `);
+                  }
+                  if (inst) {
+                    const instCh = inst.channel_type === 'kaspi' ? 'Kaspi' : (inst.channel_name || 'Маркетплейс');
+                    parts.push(`
+                      <div class="p-3 rounded-xl bg-sky-950/30 border border-sky-500/30 text-xs text-sky-200 space-y-1">
+                        <div class="font-bold flex items-center gap-1.5"><i class="fa-solid fa-credit-card text-sky-400"></i><span>Подтверждённая рассрочка:</span></div>
+                        <div><b>${escapeHtml(inst.seller_name)}</b> (${escapeHtml(instCh)}): <b>${fmtPrice(inst.price)}</b> • платёж от <b>${fmtPrice(inst.monthly_payment)} ₸/мес</b> (${inst.installment_period} мес.).</div>
+                      </div>
+                    `);
+                  }
+                  if (parts.length) {
+                    highlightsHtml = `<div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">${parts.join('')}</div>`;
+                  }
+                }
+                v2Success = true;
+              }
+            }
+          } catch (e) {
+            console.warn('AI Assistant v2 fallback to RAG:', e);
+          }
+        }
+
+        if (!v2Success) {
+          const res = await fetch('/api/ai/consultant', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: text,
+              history: consultantHistory,
+              city: city
+            })
+          });
+          const data = await res.json();
+          loadingBubble.remove();
+          answerText = data.answer || data.error || 'Не удалось получить ответ.';
+          products = data.products || [];
+          suggestions = data.suggested_questions || [];
+
+          if (res.ok && data.answer) {
+            consultantHistory.push({ role: 'user', content: text });
+            consultantHistory.push({ role: 'model', content: (data.history_turn || data.answer).slice(0, 1500) });
+            if (consultantHistory.length > 8) consultantHistory = consultantHistory.slice(-8);
+          }
         }
 
         // Карточки товаров
@@ -4408,7 +4500,9 @@
           </div>
           <div class="space-y-3 flex-1 min-w-0">
             <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 text-slate-200 text-sm leading-relaxed shadow-sm space-y-2">
+              ${planHtml}
               ${formatConsultantMarkdown(answerText)}
+              ${highlightsHtml}
               ${productsHtml}
             </div>
             ${suggestionsHtml}
@@ -4828,6 +4922,78 @@
         const bestShop = best ? (best.channel_name || best.seller_name || best.shop || 'Магазин') : '';
         const bestOfferUrl = best ? storeUrl(best.url) : null;
 
+        // Группировка по продавцам из Этапа 18 (SellerOffersGroup)
+        let sellersAccordionHtml = '';
+        const sellersGroups = it.sellers || [];
+        if (sellersGroups.length > 0) {
+          const sellersRows = sellersGroups.map(sg => {
+            const sName = sg.seller_name || 'Продавец';
+            const sKey = sg.seller_slug || sg.seller_id;
+            const sRating = sg.seller_rating ? `<span class="text-amber-400 text-[10px] font-semibold">★ ${sg.seller_rating}</span>` : '';
+            const chanBadges = (sg.channels || []).map(ch => {
+              const icon = ch === 'website' ? '🌐 Сайт' :
+                           ch === 'kaspi' ? '🛒 Kaspi' :
+                           ch === 'forte' ? '🏦 Forte' :
+                           ch === 'halyk' ? '🏛 Halyk' :
+                           ch === 'instagram' ? '📷 Insta' :
+                           ch === 'whatsapp' ? '💬 WA' : ch;
+              return `<span class="px-1.5 py-0.5 rounded text-[9px] bg-slate-800 text-slate-300 border border-slate-700">${icon}</span>`;
+            }).join(' ');
+
+            const sPriceText = (sg.min_price && sg.max_price && sg.min_price !== sg.max_price)
+              ? `от ${fmtPrice(sg.min_price)} до ${fmtPrice(sg.max_price)}`
+              : (sg.min_price ? fmtPrice(sg.min_price) : '');
+
+            const bestChanOff = sg.best_channel_offer;
+            const linkUrl = bestChanOff ? storeUrl(bestChanOff.url) : null;
+
+            return `
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-slate-700 transition text-xs">
+                <div class="space-y-1">
+                  <div class="flex items-center gap-2">
+                    <button type="button" class="font-semibold text-slate-200 hover:text-emerald-400 flex items-center gap-1 cursor-pointer transition text-left" ${sKey ? `onclick="openSellerModal('${escapeHtml(sKey)}')"` : ''}>
+                      <i class="fa-solid fa-store text-slate-500 text-[10px]"></i>
+                      <span class="underline decoration-slate-700 hover:decoration-emerald-400">${escapeHtml(sName)}</span>
+                      ${sRating}
+                    </button>
+                    ${sg.is_authorized_dealer ? '<span class="px-1.5 py-0.2 rounded text-[9px] bg-sky-500/20 text-sky-300 border border-sky-500/30 font-medium">Дилер</span>' : ''}
+                  </div>
+                  <div class="flex flex-wrap items-center gap-1">
+                    <span class="text-[10px] text-slate-400 mr-1">Каналы (${sg.channels_count}):</span>
+                    ${chanBadges}
+                  </div>
+                </div>
+                <div class="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-800/60">
+                  <span class="font-bold text-white font-mono">${sPriceText}</span>
+                  ${linkUrl ? `
+                    <a href="${escapeHtml(linkUrl)}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-emerald-600 hover:text-white text-slate-300 text-[11px] font-medium transition inline-flex items-center gap-1">
+                      <span>В магазин</span>
+                      <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+                    </a>
+                  ` : ''}
+                </div>
+              </div>
+            `;
+          }).join('');
+
+          sellersAccordionHtml = `
+            <details class="group border-t border-slate-800/80 pt-3" ${isLeader ? 'open' : ''}>
+              <summary class="cursor-pointer text-xs font-semibold text-slate-300 hover:text-white flex items-center justify-between select-none py-1">
+                <span class="flex items-center gap-2">
+                  <i class="fa-solid fa-store text-emerald-400 text-[11px]"></i>
+                  <span>Продавцы и сгруппированные каналы (${sellersGroups.length} магазинов)</span>
+                </span>
+                <span class="text-[11px] text-slate-400 group-open:rotate-180 transition-transform">
+                  <i class="fa-solid fa-chevron-down"></i>
+                </span>
+              </summary>
+              <div class="space-y-2 pt-3">
+                ${sellersRows}
+              </div>
+            </details>
+          `;
+        }
+
         return `
           <div class="glass p-5 sm:p-6 rounded-2xl border ${isLeader ? 'border-emerald-500/50 bg-gradient-to-br from-emerald-950/20 to-slate-900/90' : 'border-slate-800/80 bg-slate-900/60'} space-y-4 hover:border-slate-700 transition shadow-xl">
             <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -4860,6 +5026,8 @@
                 ` : ''}
               </div>
             </div>
+
+            ${sellersAccordionHtml}
 
             ${offers.length > 0 ? `
               <details class="group border-t border-slate-800/80 pt-3" ${isLeader ? 'open' : ''}>
@@ -6280,6 +6448,20 @@
     }
 
     let cachedTrackedCategories = [];
+    let cachedV2Categories = [];
+
+    async function loadCategoriesV2() {
+      try {
+        const res = await fetch('/api/v2/categories');
+        if (res.ok) {
+          const data = await res.json();
+          cachedV2Categories = data.categories || [];
+          updateCategoryFilterDropdowns();
+        }
+      } catch (e) {
+        console.warn('Не удалось загрузить таксономию категорий v2:', e);
+      }
+    }
 
     async function loadTrackedCategoriesList() {
       try {
@@ -6296,6 +6478,43 @@
     function updateCategoryFilterDropdowns() {
       const filterSel = document.getElementById('bestPriceCategoryFilter');
       if (!filterSel) return;
+
+      const currentVal = filterSel.value;
+
+      if (cachedV2Categories && cachedV2Categories.length > 0) {
+        let html = '<option value="Все">📦 Все категории</option>';
+        cachedV2Categories.forEach(cat => {
+          const catIcon = cat.icon || '📦';
+          const pCount = cat.product_count ? ` (${cat.product_count} тов.)` : '';
+          html += `<optgroup label="${escapeHtml(catIcon)} ${escapeHtml(cat.name)}${pCount}">`;
+          html += `<option value="${escapeHtml(cat.id)}">Все в: ${escapeHtml(cat.name)}</option>`;
+          if (cat.children && cat.children.length > 0) {
+            cat.children.forEach(sub => {
+              const subCount = sub.product_count ? ` (${sub.product_count} тов.)` : '';
+              const subIcon = sub.icon || '🏷️';
+              html += `<option value="${escapeHtml(sub.id)}">${escapeHtml(subIcon)} ${escapeHtml(sub.name)}${subCount}</option>`;
+            });
+          }
+          html += `</optgroup>`;
+        });
+
+        if (cachedTrackedCategories && cachedTrackedCategories.length > 0) {
+          html += '<optgroup label="Отслеживаемые категории (из поиска)" data-tracked-optgroup="true">';
+          cachedTrackedCategories.forEach(c => {
+            const pCount = c.products_count != null ? ` (${c.products_count} тов.)` : '';
+            const icon = c.is_hot ? '🔥' : '🏷️';
+            html += `<option value="${escapeHtml(c.name)}">${icon} ${escapeHtml(c.name)}${pCount}</option>`;
+          });
+          html += '</optgroup>';
+        }
+
+        filterSel.innerHTML = html;
+        if (currentVal && Array.from(filterSel.options).some(o => o.value === currentVal)) {
+          filterSel.value = currentVal;
+        }
+        return;
+      }
+
       let optGroup = filterSel.querySelector('optgroup[data-tracked-optgroup]');
       if (!optGroup) {
         optGroup = document.createElement('optgroup');
@@ -7235,6 +7454,7 @@
       loadStats();
       loadAlerts();
       loadTrackedCategoriesList();
+      loadCategoriesV2();
       loadMe().then(() => applySearchDefaults(currentMe.settings || {}));
       setInterval(loadStats, 3000);
     });

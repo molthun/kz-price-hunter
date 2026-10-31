@@ -855,6 +855,30 @@ def discovery_section(now: Optional[datetime.datetime] = None) -> Dict[str, Any]
     return {"status": LIMITED if pending else HEALTHY, "reason": reason, "counts": stats["by_status"]}
 
 
+def platform_v2_section(now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
+    """Секция Search Platform 2.0 (4 уровня: Seller, Source, Channel, Offer)."""
+    import database
+    from domain.monitoring_v2 import build_monitoring_overview_v2
+    try:
+        conn = database.get_connection()
+        try:
+            overview_v2 = build_monitoring_overview_v2(conn, now=now)
+        finally:
+            conn.close()
+    except Exception as e:
+        return {"status": UNKNOWN, "reason": f"Нет данных ({type(e).__name__})", "counts": {}}
+    sl = overview_v2.seller_level or {}
+    ol = overview_v2.offer_level or {}
+    sellers = sl.get("total_sellers") or 0
+    active_sellers = sl.get("active_sellers") or 0
+    offers = ol.get("total_active_offers") or 0
+    read_errs = len(overview_v2.read_errors)
+    if read_errs > 0 and sellers == 0 and offers == 0:
+        return {"status": UNKNOWN, "reason": "Ошибка чтения таблиц платформы 2.0", "counts": {}}
+    reason = f"Продавцов: {active_sellers}/{sellers}, предложений: {offers}" if sellers else "Платформа 2.0 активна"
+    return {"status": HEALTHY, "reason": reason, "counts": {"sellers": sellers, "offers": offers}}
+
+
 def overview(registry: Dict[str, Tuple[str, int]], enabled: Iterable[str], scan_state: Dict[str, Any],
              expected_interval_sec: int, now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
     now = now or _now()
@@ -886,6 +910,7 @@ def overview(registry: Dict[str, Tuple[str, int]], enabled: Iterable[str], scan_
         "search": search_section(now),
         "matching": matching_section(now),
         "discovery": discovery_section(now),
+        "platform_v2": platform_v2_section(now),
         "ai": ai_section(now),
         "telegram": telegram_section(now),
         "system": system_section(now),

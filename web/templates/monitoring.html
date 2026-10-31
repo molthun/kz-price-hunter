@@ -61,7 +61,7 @@
   const QUALITY = { ok: 'норма', warning: 'предупреждение', degraded: 'деградация', failed: 'сбой', unknown: 'нет нормы' };
   const SECTIONS = [
     ['overview', 'Обзор'], ['shops', 'Магазины'], ['scanning', 'Сканирование'], ['search', 'Поиск'],
-    ['matching', 'Склейка товаров'], ['discovery', 'Поиск продавцов'], ['ai', 'AI'], ['telegram', 'Telegram'], ['system', 'Система'], ['events', 'События'],
+    ['matching', 'Склейка товаров'], ['discovery', 'Поиск продавцов'], ['platform_v2', 'Платформа 2.0'], ['ai', 'AI'], ['telegram', 'Telegram'], ['system', 'Система'], ['events', 'События'],
   ];
   let data = null, current = 'overview';
 
@@ -468,6 +468,26 @@
             <div id="discoveryTasksContainer" class="space-y-2">
               <p class="text-sm text-slate-500">Загружаю задачи поиска…</p>
             </div>
+          </div>
+        </div>
+      `;
+    },
+    platform_v2() {
+      return `
+        <div id="platformV2ViewBox" class="space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                <span>⚡️ Search Platform 2.0: 4-Level Monitoring & Observability</span>
+              </h2>
+              <p class="text-xs text-slate-400">Сквозная диагностика: Продавцы (L1), Источники (L2), Каналы (L3), Офферы и Качество данных (L4)</p>
+            </div>
+            <button onclick="loadPlatformV2()" type="button" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold self-start sm:self-auto transition cursor-pointer flex items-center gap-1.5">
+              <span>↻ Обновить сводку 2.0</span>
+            </button>
+          </div>
+          <div id="platformV2Content" class="space-y-6">
+            <p class="text-sm text-slate-500">Загружаю данные четырёх уровней платформы 2.0…</p>
           </div>
         </div>
       `;
@@ -1584,6 +1604,246 @@
       : `<p class="text-amber-300">Пересказ не показан: ${esc(d.rejected || 'причина не указана')}. Цифры выше остаются в силе.</p>`;
   }
 
+  async function loadPlatformV2() {
+    const box = document.getElementById('platformV2Content');
+    if (!box) return;
+    box.innerHTML = '<p class="text-sm text-slate-500">Загружаю данные четырёх уровней мониторинга 2.0…</p>';
+    try {
+      const res = await api('/api/v2/monitoring/overview');
+      if (!res || !res.ok) {
+        box.innerHTML = `<p class="text-sm text-rose-400">Ошибка загрузки мониторинга 2.0: ${esc(res ? res.error : 'нет ответа')}</p>`;
+        return;
+      }
+      renderPlatformV2(res);
+    } catch (e) {
+      box.innerHTML = `<p class="text-sm text-rose-400">Сетевая ошибка: ${esc(String(e))}</p>`;
+    }
+  }
+
+  function renderPlatformV2(d) {
+    const box = document.getElementById('platformV2Content');
+    if (!box) return;
+
+    const s = d.seller_level || {};
+    const src = d.source_level || {};
+    const ch = d.channel_level || {};
+    const off = d.offer_level || {};
+    const corr = d.correlation_ids || {};
+
+    // 1. Seller Level
+    const candBySt = s.candidates_by_status || {};
+    const candChips = Object.entries(candBySt).map(([st, cnt]) =>
+      `<span class="px-2 py-0.5 rounded text-xs bg-slate-800 text-slate-300 border border-slate-700">${esc(st)}: <b>${num(cnt)}</b></span>`
+    ).join(' ') || '<span class="text-xs text-slate-500">нет кандидатов</span>';
+
+    const sellerHtml = `
+      <div class="p-5 rounded-2xl bg-dark-900 border border-slate-800 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-sm font-bold">1</span>
+            <h3 class="text-base font-semibold text-white">Уровень 1: Продавцы (Seller Level)</h3>
+          </div>
+          <span class="text-xs text-slate-400">Идентичность и витрины ритейлеров</span>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <div class="p-3 rounded-xl bg-dark-950 border border-slate-800">
+            <span class="text-xs text-slate-400">Всего продавцов</span>
+            <p class="text-xl font-bold text-white">${num(s.total_sellers)}</p>
+          </div>
+          <div class="p-3 rounded-xl bg-dark-950 border border-slate-800">
+            <span class="text-xs text-slate-400">Активных</span>
+            <p class="text-xl font-bold text-emerald-400">${num(s.active_sellers)}</p>
+          </div>
+          <div class="p-3 rounded-xl bg-dark-950 border border-slate-800">
+            <span class="text-xs text-slate-400">С каналами</span>
+            <p class="text-xl font-bold text-sky-400">${num(s.sellers_with_confirmed_channels)}</p>
+          </div>
+          <div class="p-3 rounded-xl bg-dark-950 border border-slate-800">
+            <span class="text-xs text-slate-400">Верифицировано (ID)</span>
+            <p class="text-xl font-bold text-purple-400">${num(s.sellers_with_verified_identity)}</p>
+          </div>
+          <div class="p-3 rounded-xl bg-dark-950 border border-slate-800">
+            <span class="text-xs text-slate-400">В очереди модерации</span>
+            <p class="text-xl font-bold text-amber-400">${num(s.pending_review_queue)}</p>
+          </div>
+        </div>
+        <div class="pt-1">
+          <span class="text-xs text-slate-400 mr-2 font-medium">Статусы кандидатов Discovery:</span>
+          <div class="inline-flex flex-wrap gap-1.5 mt-1">${candChips}</div>
+        </div>
+      </div>
+    `;
+
+    // 2. Source Level
+    const tiers = src.tiers_breakdown || {};
+    const tiersHtml = Object.entries(tiers).map(([t, cnt]) =>
+      `<div class="p-2.5 rounded-lg bg-dark-950 border border-slate-800 text-center"><div class="text-[11px] text-slate-400">${esc(t)}</div><div class="text-sm font-bold text-white">${num(cnt)}</div></div>`
+    ).join('') || '<p class="text-xs text-slate-500">Нет профилей</p>';
+
+    const socStatus = src.social_sources_by_status || {};
+    const socChips = Object.entries(socStatus).map(([st, cnt]) =>
+      `<span class="px-2 py-0.5 rounded text-xs bg-slate-800 text-slate-300 border border-slate-700">${esc(st)}: <b>${num(cnt)}</b></span>`
+    ).join(' ') || '<span class="text-xs text-slate-500">нет данных</span>';
+
+    const sourceHtml = `
+      <div class="p-5 rounded-2xl bg-dark-900 border border-slate-800 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-7 h-7 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center text-sm font-bold">2</span>
+            <h3 class="text-base font-semibold text-white">Уровень 2: Источники (Source Level)</h3>
+          </div>
+          <span class="text-xs text-slate-400">Tier 1–7, форматы каталогов и соцсети</span>
+        </div>
+        <div>
+          <span class="text-xs text-slate-400 mb-2 block font-medium">Профили извлечения по ярусам (Tier 1–7):</span>
+          <div class="grid grid-cols-3 sm:grid-cols-7 gap-2">${tiersHtml}</div>
+        </div>
+        <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+          <div>
+            <span class="text-xs text-slate-400 mr-2 font-medium">Статус соцсетей (Telegram/Instagram):</span>
+            <div class="inline-flex flex-wrap gap-1.5 mt-1">${socChips}</div>
+          </div>
+          <div class="text-xs text-slate-400">
+            Наблюдаемых профилей: <b class="text-white">${num(src.observed_source_profiles)}</b> из ${num(src.total_source_profiles)}
+          </div>
+        </div>
+      </div>
+    `;
+
+    // 3. Channel Level & Discrepancies
+    const chanTypes = ch.active_channels_by_type || {};
+    const chanChips = Object.entries(chanTypes).map(([t, cnt]) =>
+      `<span class="px-2 py-1 rounded-lg bg-dark-950 text-slate-300 border border-slate-800 text-xs">${esc(t)}: <b class="text-emerald-400">${num(cnt)}</b></span>`
+    ).join(' ') || '<span class="text-xs text-slate-500">нет каналов</span>';
+
+    const discList = ch.cross_channel_discrepancies || [];
+    const discRows = discList.map(it => `
+      <tr class="border-t border-slate-800 text-xs hover:bg-slate-800/30">
+        <td class="py-2 pr-3 font-medium text-white max-w-xs truncate">${esc(it.product_title)}</td>
+        <td class="py-2 pr-3 text-slate-300">${esc(it.seller_name)}</td>
+        <td class="py-2 pr-3 text-right font-mono text-emerald-400">${num(it.min_channel_price)} ₸</td>
+        <td class="py-2 pr-3 text-right font-mono text-slate-400">${num(it.max_channel_price)} ₸</td>
+        <td class="py-2 pr-3 text-right font-bold text-amber-400">+${num(it.price_diff)} ₸ <span class="text-[10px] text-slate-500">(${it.spread_pct}%)</span></td>
+        <td class="py-2 pr-3 text-center text-slate-400">${num(it.channels_count)}</td>
+      </tr>
+    `).join('');
+
+    const channelHtml = `
+      <div class="p-5 rounded-2xl bg-dark-900 border border-slate-800 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-sm font-bold">3</span>
+            <h3 class="text-base font-semibold text-white">Уровень 3: Каналы и арбитраж (Channel Level)</h3>
+          </div>
+          <span class="text-xs text-slate-400">Прямые продажи vs Маркетплейсы vs Мессенджеры</span>
+        </div>
+        <div>
+          <span class="text-xs text-slate-400 mb-2 block font-medium">Активные каналы по типам:</span>
+          <div class="flex flex-wrap gap-2">${chanChips}</div>
+        </div>
+        <div class="pt-2">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-amber-300 font-semibold flex items-center gap-1.5">
+              <span>⚖️ Межканальные расхождения цен одного продавца:</span>
+              <span class="px-1.5 py-0.2 rounded bg-amber-500/20 text-[10px] text-amber-200">${num(ch.cross_channel_discrepancies_count)}</span>
+            </span>
+            <span class="text-[11px] text-slate-500">Разница цен между сайтом продавца и маркетплейсом</span>
+          </div>
+          ${discList.length ? `
+            <div class="overflow-x-auto rounded-xl border border-slate-800 bg-dark-950">
+              <table class="w-full text-left">
+                <thead class="text-[11px] text-slate-400 border-b border-slate-800 bg-dark-900">
+                  <tr>
+                    <th class="py-2 px-3">Товар</th>
+                    <th class="py-2 pr-3">Продавец</th>
+                    <th class="py-2 pr-3 text-right">Мин. цена</th>
+                    <th class="py-2 pr-3 text-right">Макс. цена</th>
+                    <th class="py-2 pr-3 text-right">Дельта (спред)</th>
+                    <th class="py-2 pr-3 text-center">Каналов</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60">${discRows}</tbody>
+              </table>
+            </div>
+          ` : '<p class="text-xs text-slate-500 py-2">Расхождений цен между каналами не зафиксировано.</p>'}
+        </div>
+      </div>
+    `;
+
+    // 4. Offer Level
+    const bySrcType = off.by_source_freshness_type || {};
+    const srcTypeRows = Object.entries(bySrcType).map(([st, b]) => `
+      <tr class="border-t border-slate-800 text-xs">
+        <td class="py-1.5 pr-3 font-mono text-slate-300">${esc(st)}</td>
+        <td class="py-1.5 pr-3 text-right font-semibold text-emerald-400">${num(b.fresh)}</td>
+        <td class="py-1.5 pr-3 text-right text-amber-400">${num(b.stale)}</td>
+        <td class="py-1.5 pr-3 text-right text-rose-400">${num(b.expired)}</td>
+        <td class="py-1.5 pr-3 text-right font-bold text-white">${num(b.total)}</td>
+      </tr>
+    `).join('');
+
+    const offerHtml = `
+      <div class="p-5 rounded-2xl bg-dark-900 border border-slate-800 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-sm font-bold">4</span>
+            <h3 class="text-base font-semibold text-white">Уровень 4: Офферы и качество данных (Offer Level)</h3>
+          </div>
+          <span class="text-xs text-slate-400">Свежесть предложений, TTL по источникам и отсев</span>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="p-3 rounded-xl bg-dark-950 border border-slate-800">
+            <span class="text-xs text-slate-400">Всего активных предложений</span>
+            <p class="text-xl font-bold text-white">${num(off.total_active_offers)}</p>
+          </div>
+          <div class="p-3 rounded-xl bg-dark-950 border border-slate-800">
+            <span class="text-xs text-slate-400">Свежие (Fresh / Aging)</span>
+            <p class="text-xl font-bold text-emerald-400">${num(off.fresh_offers)}</p>
+          </div>
+          <div class="p-3 rounded-xl bg-dark-950 border border-slate-800">
+            <span class="text-xs text-slate-400">Устаревшие (Stale / Expired)</span>
+            <p class="text-xl font-bold text-amber-400">${num((off.stale_offers || 0) + (off.expired_offers || 0))}</p>
+          </div>
+          <div class="p-3 rounded-xl bg-dark-950 border border-slate-800">
+            <span class="text-xs text-slate-400">Отсеяно правилами качества</span>
+            <p class="text-xl font-bold text-rose-400">${num(off.rejected_by_quality_rules)}</p>
+          </div>
+        </div>
+        ${Object.keys(bySrcType).length ? `
+          <div class="pt-2">
+            <span class="text-xs text-slate-400 mb-2 block font-medium">Свежесть по типам источников (Source Freshness Type):</span>
+            <div class="overflow-x-auto rounded-xl border border-slate-800 bg-dark-950">
+              <table class="w-full text-left">
+                <thead class="text-[11px] text-slate-400 border-b border-slate-800 bg-dark-900">
+                  <tr>
+                    <th class="py-2 px-3">Тип источника</th>
+                    <th class="py-2 pr-3 text-right">Свежие</th>
+                    <th class="py-2 pr-3 text-right">Устаревшие</th>
+                    <th class="py-2 pr-3 text-right">Истёкшие</th>
+                    <th class="py-2 pr-3 text-right">Всего</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60">${srcTypeRows}</tbody>
+              </table>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+
+    // 5. Correlation & Telemetry
+    const corrHtml = `
+      <div class="p-4 rounded-xl bg-dark-950 border border-slate-800 text-xs text-slate-400 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <span>🆔 <b>Телеметрия Observability:</b> request_id: <span class="font-mono text-slate-200">${esc(corr.request_id || '—')}</span> · scan_id: <span class="font-mono text-slate-200">${esc(corr.scan_id || '—')}</span></span>
+        </div>
+        <div class="text-[11px] text-slate-500">Сформировано: ${esc(d.generated_at)}</div>
+      </div>
+    `;
+
+    box.innerHTML = sellerHtml + sourceHtml + channelHtml + offerHtml + corrHtml;
+  }
+
   function render() {
     renderNav();
     if (!data) return;
@@ -1598,6 +1858,7 @@
     if (current === 'scanning') { loadRollout(); loadSchedulerShadow(); }
     if (current === 'matching') { loadMatchingDisputes(); }
     if (current === 'discovery') { loadDiscoverySection(); }
+    if (current === 'platform_v2') { loadPlatformV2(); }
   }
 
   async function load() {
