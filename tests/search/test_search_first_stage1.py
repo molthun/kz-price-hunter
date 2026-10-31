@@ -403,6 +403,32 @@ class TestSearchFirstHttpEndpoints(AioHTTPTestCase):
         text_prod = await resp_prod.text()
         self.assertIn("viewDetail", text_prod)
 
+    @unittest_run_loop
+    async def test_light_and_dark_theme_support(self):
+        resp = await self.client.get("/")
+        self.assertEqual(resp.status, 200)
+        html = await resp.text()
+
+        # 1. Early theme detection in <head> to prevent FOUC
+        self.assertIn("localStorage.getItem('kz_theme')", html)
+        self.assertIn("data-theme", html)
+
+        # 2. Both theme CSS variable definitions
+        self.assertIn('[data-theme="light"]', html)
+        self.assertIn('[data-theme="dark"]', html)
+        self.assertIn("--bg-page: #0b0f19", html)
+        self.assertIn("--bg-card: #131b2e", html)
+
+        # 3. Theme toggle button in header and mobile navigation
+        self.assertIn('id="themeToggleBtn"', html)
+        self.assertIn("toggleTheme()", html)
+        self.assertIn("theme-icon-mobile", html)
+
+        # 4. JS theme toggle and persistence logic
+        self.assertIn("function toggleTheme()", html)
+        self.assertIn("localStorage.setItem('kz_theme'", html)
+        self.assertIn("prefers-color-scheme: dark", html)
+
 
 if __name__ == "__main__":
     unittest.main()

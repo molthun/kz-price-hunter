@@ -6,8 +6,19 @@
   <title>KZ Price Hunter — Поиск лучших цен на товары в Казахстане</title>
   <meta name="description" content="Поисковик цен по сотням магазинов Казахстана. Сравнение предложений, реальные продавцы, рассрочка и скидки.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
+  <script>
+    /* Synchronous early theme application to avoid FOUC */
+    (function() {
+      try {
+        const saved = localStorage.getItem('kz_theme');
+        const systemDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const theme = (saved === 'dark' || saved === 'light') ? saved : (systemDark ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) {}
+    })();
+  </script>
   <style>
-    :root {
+    :root, [data-theme="light"] {
       --primary: #2563eb;
       --primary-hover: #1d4ed8;
       --primary-light: #eff6ff;
@@ -17,11 +28,24 @@
       --text-light: #94a3b8;
       --bg-page: #f8fafc;
       --bg-card: #ffffff;
+      --bg-subtle: #f1f5f9;
       --border-color: #e2e8f0;
       --border-focus: #3b82f6;
-      --badge-new: #10b981;
-      --badge-used: #f59e0b;
-      --badge-discount: #ef4444;
+      --table-hover: #fafbfd;
+      --badge-new-bg: #d1fae5;
+      --badge-new-text: #065f46;
+      --badge-used-bg: #fef3c7;
+      --badge-used-text: #92400e;
+      --badge-discount-bg: #fee2e2;
+      --badge-discount-text: #b91c1c;
+      --badge-sellers-bg: #f1f5f9;
+      --badge-sellers-text: #64748b;
+      --btn-sec-bg: #ffffff;
+      --btn-sec-hover: #f1f5f9;
+      --btn-disabled-bg: #cbd5e1;
+      --btn-disabled-text: #94a3b8;
+      --toast-bg: rgba(15, 23, 42, 0.95);
+      --toast-text: #ffffff;
       --radius-sm: 8px;
       --radius-md: 12px;
       --radius-lg: 16px;
@@ -30,6 +54,41 @@
       --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
       --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.03);
       --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --color-scheme: light;
+    }
+
+    [data-theme="dark"] {
+      --primary: #3b82f6;
+      --primary-hover: #60a5fa;
+      --primary-light: rgba(59, 130, 246, 0.16);
+      --primary-border: rgba(59, 130, 246, 0.35);
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-light: #64748b;
+      --bg-page: #0b0f19;
+      --bg-card: #131b2e;
+      --bg-subtle: #1a243b;
+      --border-color: #1e293b;
+      --border-focus: #60a5fa;
+      --table-hover: #172138;
+      --badge-new-bg: rgba(16, 185, 129, 0.2);
+      --badge-new-text: #34d399;
+      --badge-used-bg: rgba(245, 158, 11, 0.2);
+      --badge-used-text: #fbbf24;
+      --badge-discount-bg: rgba(239, 68, 68, 0.22);
+      --badge-discount-text: #f87171;
+      --badge-sellers-bg: #1e293b;
+      --badge-sellers-text: #94a3b8;
+      --btn-sec-bg: #131b2e;
+      --btn-sec-hover: #1a243b;
+      --btn-disabled-bg: #334155;
+      --btn-disabled-text: #64748b;
+      --toast-bg: rgba(30, 41, 59, 0.95);
+      --toast-text: #f8fafc;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.35);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.45), 0 2px 4px -2px rgb(0 0 0 / 0.35);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.55), 0 4px 6px -4px rgb(0 0 0 / 0.35);
+      --color-scheme: dark;
     }
 
     * {
@@ -45,6 +104,8 @@
       line-height: 1.5;
       -webkit-font-smoothing: antialiased;
       padding-bottom: 72px; /* space for mobile nav */
+      color-scheme: var(--color-scheme);
+      transition: background-color 0.2s ease, color 0.2s ease;
     }
 
     @media (min-width: 768px) {
@@ -69,6 +130,17 @@
     input, select {
       font-family: inherit;
       font-size: 1rem;
+      background-color: var(--bg-card);
+      color: var(--text-main);
+    }
+
+    input::placeholder {
+      color: var(--text-light);
+    }
+
+    select option {
+      background-color: var(--bg-card);
+      color: var(--text-main);
     }
 
     /* Container */
@@ -156,11 +228,33 @@
       gap: 12px;
     }
 
+    .theme-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 38px;
+      height: 38px;
+      border-radius: var(--radius-full);
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      font-size: 1.15rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+    }
+
+    .theme-toggle-btn:hover {
+      background: var(--border-color);
+      color: var(--primary);
+      transform: scale(1.05);
+    }
+
     .city-selector {
       display: flex;
       align-items: center;
       gap: 6px;
-      background: var(--bg-page);
+      background: var(--bg-subtle);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-full);
       padding: 6px 12px;
@@ -168,6 +262,7 @@
       color: var(--text-main);
       cursor: pointer;
       font-weight: 500;
+      transition: background-color 0.15s;
     }
 
     .city-selector select {
@@ -189,6 +284,7 @@
       border-radius: var(--radius-sm);
       border: 1px solid var(--border-color);
       color: var(--text-muted);
+      background: var(--bg-card);
       transition: all 0.15s;
     }
 
@@ -199,7 +295,7 @@
     }
 
     .btn-legacy:hover {
-      background: #f1f5f9;
+      background: var(--bg-subtle);
       color: var(--text-main);
     }
 
@@ -477,7 +573,7 @@
 
     .search-box-results:focus-within {
       border-color: var(--primary);
-      background: white;
+      background: var(--bg-card);
     }
 
     .search-input-results {
@@ -520,6 +616,45 @@
     @media (min-width: 1024px) {
       .filters-sidebar {
         display: block;
+      }
+    }
+
+    .filters-sidebar-header-mobile {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .btn-close-filters-mobile {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 6px 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-main);
+      cursor: pointer;
+    }
+
+    @media (max-width: 1023px) {
+      .filters-sidebar.mobile-open {
+        display: block !important;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 1000;
+        background: var(--bg-card);
+        overflow-y: auto;
+        padding: 20px 16px 80px;
+        box-shadow: var(--shadow-lg);
+      }
+      .filters-sidebar.mobile-open .filters-sidebar-header-mobile {
+        display: flex;
       }
     }
 
@@ -703,7 +838,7 @@
       width: 110px;
       height: 110px;
       border-radius: var(--radius-sm);
-      background: #f1f5f9;
+      background: var(--bg-subtle);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -748,18 +883,23 @@
     }
 
     .badge-condition-new {
-      background: #d1fae5;
-      color: #065f46;
+      background: var(--badge-new-bg);
+      color: var(--badge-new-text);
     }
 
     .badge-condition-used {
-      background: #fef3c7;
-      color: #92400e;
+      background: var(--badge-used-bg);
+      color: var(--badge-used-text);
+    }
+
+    .badge-discount {
+      background: var(--badge-discount-bg);
+      color: var(--badge-discount-text);
     }
 
     .badge-sellers {
-      background: #f1f5f9;
-      color: var(--text-muted);
+      background: var(--badge-sellers-bg);
+      color: var(--badge-sellers-text);
     }
 
     .card-sellers-hint {
@@ -909,7 +1049,7 @@
     .detail-img-box {
       width: 100%;
       height: 280px;
-      background: #f8fafc;
+      background: var(--bg-subtle);
       border-radius: var(--radius-md);
       display: flex;
       align-items: center;
@@ -933,7 +1073,7 @@
     .btn-secondary-action {
       flex: 1;
       border: 1px solid var(--border-color);
-      background: white;
+      background: var(--btn-sec-bg);
       border-radius: var(--radius-sm);
       padding: 8px;
       font-size: 0.85rem;
@@ -947,7 +1087,7 @@
     }
 
     .btn-secondary-action:hover {
-      background: var(--bg-page);
+      background: var(--btn-sec-hover);
       border-color: var(--primary);
       color: var(--primary);
     }
@@ -966,7 +1106,7 @@
     }
 
     .detail-price-box {
-      background: #f8fafc;
+      background: var(--bg-subtle);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-md);
       padding: 16px;
@@ -1057,7 +1197,7 @@
     }
 
     .offers-table tr:hover td {
-      background: #fafbfd;
+      background: var(--table-hover);
     }
 
     .seller-cell-title {
@@ -1073,8 +1213,8 @@
       font-weight: 500;
       padding: 2px 6px;
       border-radius: var(--radius-sm);
-      background: #f1f5f9;
-      color: var(--text-muted);
+      background: var(--badge-sellers-bg);
+      color: var(--badge-sellers-text);
     }
 
     .seller-facts {
@@ -1109,7 +1249,8 @@
     }
 
     .btn-to-seller:disabled, .btn-to-seller.disabled {
-      background: #cbd5e1;
+      background: var(--btn-disabled-bg);
+      color: var(--btn-disabled-text);
       cursor: not-allowed;
     }
 
@@ -1160,8 +1301,9 @@
       bottom: 80px;
       left: 50%;
       transform: translateX(-50%) translateY(100px);
-      background: rgba(15, 23, 42, 0.9);
-      color: white;
+      background: var(--toast-bg);
+      color: var(--toast-text);
+      border: 1px solid var(--border-color);
       padding: 10px 20px;
       border-radius: var(--radius-full);
       font-size: 0.88rem;
@@ -1221,11 +1363,14 @@
           <a href="/" class="nav-link active" onclick="navigateTo(event, '/')">Поиск</a>
           <a href="javascript:void(0)" class="nav-link" onclick="showToast('Раздел «Скидки» появится на следующем этапе')">Скидки</a>
           <a href="javascript:void(0)" class="nav-link" onclick="showToast('Раздел «Избранное» появится на следующем этапе')">Избранное</a>
-          <a href="/profile" class="nav-link" onclick="showToast('Профиль пользователя')">Профиль</a>
+          <a href="javascript:void(0)" class="nav-link" onclick="showToast('Раздел «Профиль» появится на следующем этапе')">Профиль</a>
         </nav>
       </div>
 
       <div class="header-right">
+        <button id="themeToggleBtn" class="theme-toggle-btn" onclick="toggleTheme()" aria-label="Сменить тему оформления" title="Светлая / тёмная тема">
+          <span class="theme-icon">🌙</span>
+        </button>
         <div class="city-selector">
           <span>📍</span>
           <select id="globalCitySelect" onchange="onCityChanged(this.value)">
@@ -1391,6 +1536,10 @@
       <div class="results-layout">
         <!-- Left Sidebar Filters -->
         <aside class="filters-sidebar" id="filtersSidebar">
+          <div class="filters-sidebar-header-mobile">
+            <span style="font-weight:700; font-size:1.05rem;">Фильтры</span>
+            <button class="btn-close-filters-mobile" type="button" onclick="toggleMobileFilters()">✕ Закрыть</button>
+          </div>
           <div class="filter-group">
             <div class="filter-title">Категории</div>
             <div id="filterCategoriesList">
@@ -1453,6 +1602,9 @@
               Результаты поиска <span id="resultsCountSubtitle"></span>
             </div>
             <div style="display:flex; align-items:center; gap:8px;">
+              <button class="mobile-filter-btn" type="button" onclick="toggleMobileFilters()">
+                <span>⚙️</span> <span>Фильтры</span>
+              </button>
               <select id="sortSelect" class="sort-select" onchange="onSortChanged(this.value)">
                 <option value="relevance">По релевантности</option>
                 <option value="price_asc">Сначала дешевле</option>
@@ -1506,10 +1658,10 @@
             <img id="detailMainImg" src="" alt="" class="detail-img" onerror="this.src=getSvgPlaceholder()" />
           </div>
           <div class="detail-actions-row">
-            <button class="btn-secondary-action" onclick="showToast('Добавлено в избранное')">
+            <button class="btn-secondary-action" onclick="showToast('Раздел «Избранное» появится на следующем этапе')">
               <span>♡</span> <span>В избранное</span>
             </button>
-            <button class="btn-secondary-action" onclick="showToast('Подписка на снижение цены оформлена')">
+            <button class="btn-secondary-action" onclick="showToast('Функция отслеживания цены станет доступна на следующем этапе')">
               <span>🔔</span> <span>Следить за ценой</span>
             </button>
           </div>
@@ -1554,6 +1706,17 @@
           </table>
         </div>
       </div>
+
+      <!-- Price History Section -->
+      <div class="offers-section" id="detailHistorySection" style="margin-top: 24px;">
+        <h2 class="offers-title">
+          <span>📈 История цен</span>
+          <span id="historyObservationsBadge" style="font-size:0.9rem; font-weight:400; color:var(--text-muted);"></span>
+        </h2>
+        <div id="detailHistoryContent" style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+          История цен собирается на основе регулярных наблюдений.
+        </div>
+      </div>
     </section>
 
   </main>
@@ -1572,6 +1735,10 @@
       <div class="bottom-nav-icon">♡</div>
       <div>Избранное</div>
     </div>
+    <button class="bottom-nav-item" type="button" onclick="toggleTheme()" aria-label="Тема оформления" title="Переключить тему оформления">
+      <div class="bottom-nav-icon theme-icon-mobile">🌙</div>
+      <div class="theme-label-mobile">Тема</div>
+    </button>
     <div class="bottom-nav-item" onclick="showToast('Профиль пользователя')">
       <div class="bottom-nav-icon">👤</div>
       <div>Профиль</div>
@@ -1610,8 +1777,58 @@
     }
 
     function getSvgPlaceholder(text = 'Товар') {
-      return 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><rect width="200" height="200" fill="%23f1f5f9"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="16" fill="%2394a3b8">' + encodeURIComponent(text) + '</text></svg>';
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      const bg = isDark ? '%231a243b' : '%23f1f5f9';
+      const fg = isDark ? '%2364748b' : '%2394a3b8';
+      return 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><rect width="200" height="200" fill="' + bg + '"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="16" fill="' + fg + '">' + encodeURIComponent(text) + '</text></svg>';
     }
+
+    // Theme Management (Light / Dark)
+    function updateThemeUI(theme) {
+      const isDark = theme === 'dark';
+      const icon = isDark ? '☀️' : '🌙';
+      const tooltip = isDark ? 'Переключить на светлую тему' : 'Переключить на тёмную тему';
+
+      const headerBtn = document.getElementById('themeToggleBtn');
+      if (headerBtn) {
+        const iconSpan = headerBtn.querySelector('.theme-icon');
+        if (iconSpan) iconSpan.textContent = icon;
+        headerBtn.setAttribute('title', tooltip);
+      }
+
+      const mobileIcon = document.querySelector('.theme-icon-mobile');
+      if (mobileIcon) mobileIcon.textContent = icon;
+      const mobileLabel = document.querySelector('.theme-label-mobile');
+      if (mobileLabel) mobileLabel.textContent = isDark ? 'Светлая' : 'Тёмная';
+    }
+
+    function initTheme() {
+      const current = document.documentElement.getAttribute('data-theme') || 'light';
+      updateThemeUI(current);
+    }
+
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme') || 'light';
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      try {
+        localStorage.setItem('kz_theme', next);
+      } catch (e) {}
+      updateThemeUI(next);
+      showToast(next === 'dark' ? 'Тёмная тема включена' : 'Светлая тема включена');
+    }
+
+    try {
+      if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+          if (!localStorage.getItem('kz_theme')) {
+            const next = e.matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', next);
+            updateThemeUI(next);
+          }
+        });
+      }
+    } catch (e) {}
 
     function isValidOfferUrl(url) {
       try {
@@ -1634,6 +1851,17 @@
       if (e && e.preventDefault) e.preventDefault();
       window.history.pushState({}, '', path);
       handleRoute();
+    }
+
+    function openProduct(e, prodId) {
+      if (e && e.preventDefault) e.preventDefault();
+      const cityParam = AppState.city && AppState.city !== 'Все' ? '?city=' + encodeURIComponent(AppState.city) : '';
+      navigateTo(e, '/product/' + encodeURIComponent(prodId) + cityParam);
+    }
+
+    function toggleMobileFilters() {
+      const sb = document.getElementById('filtersSidebar');
+      if (sb) sb.classList.toggle('mobile-open');
     }
 
     window.addEventListener('popstate', () => {
@@ -1817,16 +2045,28 @@
           signal: AppState.searchAbortCtrl.signal,
         });
 
-        if (resp.status === 429) {
+        if (!resp.ok) {
           loadingEl.style.display = 'none';
           emptyEl.style.display = 'block';
-          emptyEl.querySelector('.state-title').textContent = 'Слишком много запросов';
-          emptyEl.querySelector('.state-desc').textContent = 'Пожалуйста, подождите пару секунд и повторите поиск.';
+          if (resp.status === 429) {
+            emptyEl.querySelector('.state-title').textContent = 'Слишком много запросов';
+            emptyEl.querySelector('.state-desc').textContent = 'Пожалуйста, подождите пару секунд и повторите поиск.';
+          } else {
+            emptyEl.querySelector('.state-title').textContent = 'Ошибка сервиса поиска';
+            emptyEl.querySelector('.state-desc').textContent = 'Произошла непредвиденная ошибка на сервере (код ' + resp.status + '). Попробуйте повторить поиск позже.';
+          }
           return;
         }
 
         const data = await resp.json();
         loadingEl.style.display = 'none';
+
+        if (data.error || data.ok === false) {
+          emptyEl.style.display = 'block';
+          emptyEl.querySelector('.state-title').textContent = 'Ошибка сервиса поиска';
+          emptyEl.querySelector('.state-desc').textContent = data.error || 'Произошла ошибка при выполнении поискового запроса.';
+          return;
+        }
 
         renderSearchResults(data);
       } catch (err) {
@@ -1834,7 +2074,7 @@
         loadingEl.style.display = 'none';
         emptyEl.style.display = 'block';
         emptyEl.querySelector('.state-title').textContent = 'Ошибка загрузки';
-        emptyEl.querySelector('.state-desc').textContent = 'Не удалось загрузить результаты поиска. Попробуйте обновить страницу.';
+        emptyEl.querySelector('.state-desc').textContent = 'Не удалось загрузить результаты поиска. Проверьте соединение с интернетом.';
       }
     }
 
@@ -1872,19 +2112,23 @@
 
         let installmentHtml = '';
         if (instAvailable && minP) {
-          const m = instMonths || 12;
-          installmentHtml = '<div class="card-installment">от ' + formatPrice(minP / m) + '/мес (' + m + ' мес)</div>';
+          if (instMonths && Number(instMonths) > 0) {
+            const m = Number(instMonths);
+            installmentHtml = '<div class="card-installment">от ' + formatPrice(minP / m) + '/мес (' + m + ' мес)</div>';
+          } else {
+            installmentHtml = '<div class="card-installment">Рассрочка доступна</div>';
+          }
         }
 
         let oldPriceHtml = '';
         if (oldP && oldP > minP) {
           const discountPct = Math.round(((oldP - minP) / oldP) * 100);
           oldPriceHtml = '<span class="card-old-price">' + formatPrice(oldP) + '</span> ' +
-                         '<span class="badge" style="background:#fee2e2; color:#b91c1c;">-' + discountPct + '%</span>';
+                         '<span class="badge badge-discount">-' + discountPct + '%</span>';
         }
 
         return `
-          <div class="product-card" onclick="navigateTo(event, '/product/${encodeURIComponent(pId)}')">
+          <div class="product-card" data-id="${escapeHtml(pId)}" onclick="openProduct(event, this.dataset.id)">
             <div class="card-img-wrap">
               <img src="${escapeHtml(img)}" alt="${escapeHtml(title)}" class="card-img" onerror="this.src=getSvgPlaceholder()" />
             </div>
@@ -1904,7 +2148,7 @@
                 <div>${oldPriceHtml}</div>
                 ${installmentHtml}
               </div>
-              <button class="btn-view-product" onclick="navigateTo(event, '/product/${encodeURIComponent(pId)}')">
+              <button class="btn-view-product" data-id="${escapeHtml(pId)}" onclick="event.stopPropagation(); openProduct(event, this.dataset.id)">
                 Посмотреть
               </button>
             </div>
@@ -1955,7 +2199,7 @@
       if (catList && data.category_facets) {
         catList.innerHTML = data.category_facets.slice(0, 8).map(f => `
           <label class="filter-checkbox-label">
-            <input type="radio" name="facetCategory" value="${escapeHtml(f.id)}" ${AppState.category === f.id ? 'checked' : ''} onchange="onCategoryFacetSelected('${escapeHtml(f.id)}')">
+            <input type="radio" name="facetCategory" value="${escapeHtml(f.id)}" ${AppState.category === f.id ? 'checked' : ''} onchange="onCategoryFacetSelected(this.value)">
             <span>${escapeHtml(f.name)}</span>
             <span class="filter-count">(${f.count})</span>
           </label>
@@ -1967,7 +2211,7 @@
       if (sellerList && data.seller_facets) {
         sellerList.innerHTML = data.seller_facets.slice(0, 6).map(s => `
           <label class="filter-checkbox-label">
-            <input type="radio" name="facetSeller" value="${escapeHtml(s.slug || s.id)}" ${AppState.seller === (s.slug || s.id) ? 'checked' : ''} onchange="onSellerFacetSelected('${escapeHtml(s.slug || s.id)}')">
+            <input type="radio" name="facetSeller" value="${escapeHtml(s.slug || s.id)}" ${AppState.seller === (s.slug || s.id) ? 'checked' : ''} onchange="onSellerFacetSelected(this.value)">
             <span>${escapeHtml(s.name)}</span>
             <span class="filter-count">(${s.count})</span>
           </label>
@@ -2008,12 +2252,17 @@
       AppState.installment = document.getElementById('filterInstallment').checked;
       AppState.in_stock = document.getElementById('filterInStock').checked;
 
+      const sb = document.getElementById('filtersSidebar');
+      if (sb) sb.classList.remove('mobile-open');
+
       AppState.page = 1;
       updateSearchUrl();
       executeSearch();
     }
 
     function resetAllFilters() {
+      const sb = document.getElementById('filtersSidebar');
+      if (sb) sb.classList.remove('mobile-open');
       AppState.category = '';
       AppState.brand = '';
       AppState.condition = '';
@@ -2147,13 +2396,30 @@
 
         let installmentHtml = '—';
         if (off.installment_available) {
-          const m = off.installment_months || 12;
-          installmentHtml = '<span style="color:var(--primary); font-weight:600;">от ' + formatPrice(off.price / m) + '/мес (' + m + ' мес)</span>';
+          if (off.installment_months && Number(off.installment_months) > 0) {
+            const m = Number(off.installment_months);
+            installmentHtml = '<span style="color:var(--primary); font-weight:600;">от ' + formatPrice(off.price / m) + '/мес (' + m + ' мес)</span>';
+          } else {
+            installmentHtml = '<span style="color:var(--primary); font-weight:600;">Рассрочка</span>';
+          }
         }
 
-        let deliveryHtml = 'Самовывоз';
-        if (off.delivery_type && off.delivery_type !== 'pickup_only') {
-          deliveryHtml = 'Доставка есть';
+        let deliveryHtml = '—';
+        if (off.delivery_days || off.delivery_text) {
+          deliveryHtml = escapeHtml(off.delivery_text || (off.delivery_days + ' дн.'));
+        } else if (off.delivery_type && off.delivery_type !== 'pickup_only') {
+          deliveryHtml = 'Доставка';
+        } else if (off.pickup_available || off.delivery_type === 'pickup_only') {
+          deliveryHtml = 'Самовывоз';
+        }
+
+        let condBadgeHtml = '<span class="badge badge-sellers">Уточняйте</span>';
+        if (off.condition === 'NEW') {
+          condBadgeHtml = '<span class="badge badge-condition-new">Новый</span>';
+        } else if (off.condition === 'USED') {
+          condBadgeHtml = '<span class="badge badge-condition-used">Б/у</span>';
+        } else if (off.condition === 'REFURBISHED') {
+          condBadgeHtml = '<span class="badge badge-condition-used">Восстановлен</span>';
         }
 
         let oldPriceHtml = '';
@@ -2183,7 +2449,7 @@
               <div class="seller-facts">${factsHtml}</div>
             </td>
             <td>
-              ${off.condition === 'NEW' ? '<span class="badge badge-condition-new">Новый</span>' : '<span class="badge badge-condition-used">Б/у</span>'}
+              ${condBadgeHtml}
             </td>
             <td>
               <div class="offer-price-cell">${formatPrice(off.price)}</div>
@@ -2195,6 +2461,30 @@
           </tr>
         `;
       }).join('');
+
+      // Render History
+      const hist = data.history || {};
+      const histBadge = document.getElementById('historyObservationsBadge');
+      const histContent = document.getElementById('detailHistoryContent');
+      if (hist && hist.total_observations && hist.total_observations > 0) {
+        if (histBadge) histBadge.textContent = '(' + hist.total_observations + ' ' + (hist.total_observations === 1 ? 'наблюдение' : 'наблюдений') + ')';
+        let histHtml = '<div style="display:flex; flex-direction:column; gap:6px;">';
+        if (hist.min_observed_price && hist.max_observed_price) {
+          histHtml += '<div>Минимальная зафиксированная цена: <strong style="color:var(--text-main);">' + formatPrice(hist.min_observed_price) + '</strong>';
+          if (hist.max_observed_price !== hist.min_observed_price) {
+            histHtml += ', максимальная: <strong style="color:var(--text-main);">' + formatPrice(hist.max_observed_price) + '</strong>';
+          }
+          histHtml += '</div>';
+        }
+        if (hist.price_trend) {
+          histHtml += '<div>Динамика цены: <strong style="color:var(--text-main);">' + escapeHtml(hist.price_trend) + '</strong></div>';
+        }
+        histHtml += '</div>';
+        if (histContent) histContent.innerHTML = histHtml;
+      } else {
+        if (histBadge) histBadge.textContent = '';
+        if (histContent) histContent.textContent = 'История цен собирается на основе регулярных наблюдений.';
+      }
     }
 
     // Helpers
@@ -2227,6 +2517,7 @@
 
     // Init on load
     document.addEventListener('DOMContentLoaded', () => {
+      initTheme();
       handleRoute();
     });
   </script>

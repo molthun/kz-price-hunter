@@ -244,7 +244,7 @@ class SearchRepository(BaseRepository):
             order_params = (list(exists_params) + purchasable_params) * 2
         elif sort_by == "price_desc":
             sub = f"""(
-                SELECT MAX(o.price) FROM offers o
+                SELECT MIN(o.price) FROM offers o
                 JOIN sellers s ON o.seller_id = s.id
                 JOIN channels c ON o.channel_id = c.id
                 WHERE o.product_id = p.id AND {" AND ".join(order_conditions)}
@@ -628,7 +628,81 @@ class SearchRepository(BaseRepository):
         """
         Retrieves global facets for category, brand, sellers, and cities across matching catalog items.
         """
-        # Collect distinct sellers and cities available
+        matching_prods: Optional[List[CanonicalProduct]] = None
+        if (search_text and search_text.strip()) or (city and city.strip() and city != "Все") or (category and category.strip()):
+            matching_prods = self.search_products(
+                search_text=search_text,
+                city=city,
+                category=category,
+                limit=2000,
+                offset=0,
+            )
+
+        if matching_prods is not None:
+            p_ids = [p.id for p in matching_prods if p.id]
+            if not p_ids:
+                return {
+                    "category_facets": [],
+                    "seller_facets": [],
+                    "city_facets": [],
+                }
+
+            # Categories across full matching result set
+            cat_counter: Dict[str, int] = {}
+            for p in matching_prods:
+                c = (p.category or "").strip()
+                if c:
+                    cat_counter[c] = cat_counter.get(c, 0) + 1
+            category_facets = [
+                {"name": c, "count": cnt}
+                for c, cnt in sorted(cat_counter.items(), key=lambda x: -x[1])
+            ]
+
+            placeholders = ",".join("?" for _ in p_ids)
+            seller_params = list(p_ids)
+            city_filter = ""
+            if city and city != "Все":
+                city_filter = "AND (o.city = ? OR o.city = 'Все' OR o.city IS NULL)"
+                seller_params.append(city)
+
+            sellers_sql = f"""
+            SELECT s.id, s.name, s.slug, COUNT(DISTINCT o.product_id) as count
+            FROM sellers s
+            JOIN offers o ON o.seller_id = s.id
+            WHERE s.is_active = 1 AND o.is_active = 1
+              AND o.product_id IN ({placeholders})
+              {city_filter}
+            GROUP BY s.id
+            ORDER BY count DESC
+            LIMIT 20
+            """
+            seller_facets = [
+                {"id": r["id"], "name": r["name"], "slug": r["slug"], "count": int(r["count"])}
+                for r in self.fetchall(sellers_sql, seller_params)
+            ]
+
+            city_params = list(p_ids)
+            cities_sql = f"""
+            SELECT o.city, COUNT(DISTINCT o.product_id) as count
+            FROM offers o
+            WHERE o.is_active = 1 AND o.city IS NOT NULL AND o.city != '' AND o.city != 'Все'
+              AND o.product_id IN ({placeholders})
+            GROUP BY o.city
+            ORDER BY count DESC
+            LIMIT 15
+            """
+            city_facets = [
+                {"city": r["city"], "count": int(r["count"])}
+                for r in self.fetchall(cities_sql, city_params)
+            ]
+
+            return {
+                "category_facets": category_facets,
+                "seller_facets": seller_facets,
+                "city_facets": city_facets,
+            }
+
+        # Global catalog fallback when no query/filters
         sellers_sql = """
         SELECT s.id, s.name, s.slug, COUNT(DISTINCT o.product_id) as count
         FROM sellers s

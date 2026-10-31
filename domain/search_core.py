@@ -635,12 +635,30 @@ class SearchCore:
             else:
                 outcome = SearchOutcome.WEAK_MATCH
 
+            facets_info = {}
+            if hasattr(self.search_repo, "get_search_facets"):
+                try:
+                    facets_info = self.search_repo.get_search_facets(
+                        search_text=parsed.clean_query,
+                        city=target_city,
+                        category=category,
+                    )
+                except Exception:
+                    pass
+
             # 6. S2-E17: Category facets calculation
             cat_counter: Dict[str, int] = {}
-            for pr in product_results:
-                c_name = (pr.product.category or "").strip()
-                if c_name:
-                    cat_counter[c_name] = cat_counter.get(c_name, 0) + 1
+            raw_cat_facets = facets_info.get("category_facets") if facets_info else None
+            if raw_cat_facets:
+                for item in raw_cat_facets:
+                    c_name = (item.get("name") or "").strip()
+                    if c_name:
+                        cat_counter[c_name] = item.get("count", 1)
+            else:
+                for pr in product_results:
+                    c_name = (pr.product.category or "").strip()
+                    if c_name:
+                        cat_counter[c_name] = cat_counter.get(c_name, 0) + 1
 
             category_facets = []
             try:
@@ -672,17 +690,6 @@ class SearchCore:
                 {"brand": b, "count": cnt}
                 for b, cnt in sorted(brand_counter.items(), key=lambda x: -x[1])
             ]
-
-            facets_info = {}
-            if hasattr(self.search_repo, "get_search_facets"):
-                try:
-                    facets_info = self.search_repo.get_search_facets(
-                        search_text=parsed.clean_query,
-                        city=target_city,
-                        category=category,
-                    )
-                except Exception:
-                    pass
 
             exact_total_products = count_info.get("total_products") if "total_products" in count_info else len(product_results)
             total_pages = max(1, (exact_total_products + limit_val - 1) // limit_val) if exact_total_products > 0 else 1
