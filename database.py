@@ -2621,23 +2621,26 @@ def _title_key_pins_conn(conn, titles: Optional[Iterable[str]] = None) -> Dict[s
     return found
 
 
-def _all_title_key_pins() -> Dict[str, str]:
-    """Все закреплённые ключи для подготовки порции товаров: один запрос на порцию, отдельным соединением, чтобы не
-    держать блокировку записи вызывающего. Таблица маленькая: только решения оператора."""
-    conn = sqlite3.connect(DB_PATH, timeout=15)
-    try:
-        return {r[0]: r[1] for r in conn.execute("SELECT title, canonical_key FROM title_key_pins")}
-    except sqlite3.OperationalError:                        # база до этой таблицы
-        return {}
-    finally:
-        conn.close()
-
-
 def _pin_title_keys_conn(conn, keys: Dict[str, str], pair_hash: str) -> None:
     conn.executemany("""INSERT INTO title_key_pins (title_hash, title, canonical_key, pair_hash) VALUES (?, ?, ?, ?)
                         ON CONFLICT(title_hash) DO UPDATE SET canonical_key = excluded.canonical_key,
                             pair_hash = excluded.pair_hash, created_at = CURRENT_TIMESTAMP""",
                      [(_title_hash(t), t, k, pair_hash) for t, k in keys.items()])
+
+
+def _fields_with_shadow_conn(conn, titles: Iterable[str]) -> Dict[str, Any]:
+    """Рабочие поля, иначе теневые — как get_title_fields_with_source, но в транзакции вызывающего (MMR-01)."""
+    fields: Dict[str, Any] = {}
+    names = {_title_hash(t): t for t in titles}
+    for table in ("title_fields_shadow", "title_fields"):   # рабочие поля читаются вторыми и заменяют теневые
+        for chunk in _chunks(list(names)):
+            for th, raw in conn.execute(f"SELECT title_hash, fields_json FROM {table} WHERE title_hash IN (SELECT value FROM json_each(?))",
+                                        (json.dumps(chunk),)):
+                try:
+                    fields[names[th]] = json.loads(raw)
+                except ValueError:
+                    pass
+    return fields
 
 
 def _group_conflicts_conn(conn, title_a: str, title_b: str, key_a: Optional[str], key_b: Optional[str]) -> List[str]:
@@ -2651,11 +2654,7 @@ def _group_conflicts_conn(conn, title_a: str, title_b: str, key_a: Optional[str]
     side_a = {title_a, *members(key_a)}
     side_b = {title_b, *members(key_b)}
     titles = sorted(side_a | side_b)
-    fields: Dict[str, Any] = {}
-    for chunk in _chunks([_title_hash(t) for t in titles]):
-        for title, raw in conn.execute("SELECT title, fields_json FROM title_fields WHERE title_hash IN (SELECT value FROM json_each(?))",
-                                       (json.dumps(chunk),)):
-            fields[title] = json.loads(raw)
+    fields = _fields_with_shadow_conn(conn, titles)
     keys = {t: key_a for t in side_a}
     keys.update({t: key_b for t in side_b})
     crossed = {(x, y) for x in side_a for y in side_b if x != y and {x, y} != {title_a, title_b}}
@@ -2688,8 +2687,8 @@ def resolve_disputed_pair_human(
 
     - 'same': один товар. Группа второго ключа переходит целиком, поэтому при противоречии остальных участников
       решение отклоняется без изменений и возвращает их список (MM-01). Перенесённые ключи закрепляются.
-    - 'different': разные товары. Если ключи совпадают или совпадут при пересборке, второе название получает
-      собственный закреплённый ключ, и пересборка его не вернёт (MM-02).
+    - 'different': разные товары. При общем ключе второе название получает собственный, разные ключи остаются.
+      Ключи обоих закрепляются: ни пересборка, ни новые поля их не сведут (MM-02, MMR-02).
     - 'skip' / 'skipped': отложить без изменения ключей.
 
     Решённую пару повторно решить нельзя: сначала её возвращают в очередь, иначе устаревшая карточка второго
@@ -2730,9 +2729,10 @@ def _resolve_disputed_pair_conn(conn, pair_hash, decision, reviewer, notes, prod
         found = conn.execute("SELECT canonical_key FROM title_canonical_cache WHERE title_hash = ?", (_title_hash(title),)).fetchone()
         return (found[0] if found else None) or None
 
+    pair_fields = _fields_with_shadow_conn(conn, [title_a, title_b])
+
     def own_key(title):
-        found = conn.execute("SELECT fields_json FROM title_fields WHERE title_hash = ?", (_title_hash(title),)).fetchone()
-        return product_key.build_key(json.loads(found[0]), title) if found else None
+        return product_key.build_key(pair_fields[title], title) if title in pair_fields else None
     key_a, key_b, own_a, own_b = cached_key(title_a), cached_key(title_b), own_key(title_a), own_key(title_b)
 
     if decision == "same":
@@ -2753,9 +2753,10 @@ def _resolve_disputed_pair_conn(conn, pair_hash, decision, reviewer, notes, prod
         return {"ok": True, "decision": "same", "pair_hash": pair_hash, "canonical_key": common_key, "titles_updated": len(moved)}
 
     split_info = None
-    # Разные сейчас ключи ещё не гарантия: собственные ключи могут совпасть при следующей пересборке (MM-02)
-    collides = (key_a and key_a == key_b) or not own_a or not own_b or own_a == own_b or own_a == key_b or own_b == key_a
-    if collides:
+    # Закрепляются обе стороны: новые поля или правила могут свести собственные ключи и при разных ключах сейчас (MMR-02)
+    if key_a and key_b and key_a != key_b:
+        _pin_title_keys_conn(conn, {title_a: key_a, title_b: key_b}, pair_hash)
+    else:
         base = key_b or own_b or f"k2:human:{pair_hash[:16]}"
         distinct_key = f"{base.split('.diff_')[0]}.diff_{_title_hash(title_b)[:8]}"
         moved = {title_b: distinct_key}
@@ -3111,14 +3112,17 @@ def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
             "current_price": 0,
             "price_changed": False
         }
-    canonical_key = title_key_pins([title]).get(title.strip()) or p.get("canonical_key") or extract_canonical_key(title)
+    canonical_key = p.get("canonical_key") or extract_canonical_key(title)
     old_on_site = site_old_price(p.get("old_price_on_site"), current_price)
 
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     observed_seq = time.time()  # прямая запись — свежее наблюдение (F01)
 
     with get_connection() as conn:
+        conn.execute("BEGIN IMMEDIATE")                     # закрепление читается там же, где пишется (MMR-03)
         cursor = conn.cursor()
+        pinned = cursor.execute("SELECT canonical_key FROM title_key_pins WHERE title = ?", (title.strip(),)).fetchone()
+        canonical_key = pinned[0] if pinned else canonical_key
         cursor.execute("SELECT current_price, first_seen_price, min_price, max_price, old_price_on_site FROM products WHERE id = ?", (pid,))
         existing = cursor.fetchone()
         _record_observation(cursor, pid, existing, current_price, old_on_site, now)
@@ -3214,7 +3218,6 @@ def _prepare_products_chunk(chunk: List[Dict[str, Any]]) -> List[Optional[Dict[s
 
     dual = os.environ.get("DUAL_WRITE_V2", "1") != "0"
     prepared: List[Optional[Dict[str, Any]]] = []
-    pins = _all_title_key_pins()
     for p in chunk:
         pid = str(p["id"])
         shop = p.get("shop", "Белый Ветер")
@@ -3235,12 +3238,12 @@ def _prepare_products_chunk(chunk: List[Dict[str, Any]]) -> List[Optional[Dict[s
         if current_price > 10_000_000 or current_price <= 0:
             prepared.append(None)
             continue
-        canonical_key = pins.get(title.strip()) or p.get("canonical_key") or extract_canonical_key(title)
+        canonical_key = p.get("canonical_key") or extract_canonical_key(title)
         item: Dict[str, Any] = {
             "id": pid, "shop": shop, "city": city, "title": title, "category": category, "url": url,
             "image_url": image_url, "description": description, "price": current_price,
             "old_on_site": site_old_price(p.get("old_price_on_site"), current_price),
-            "canonical_key": canonical_key, "dual": dual, "v2": None, "v2_error": None,
+            "canonical_key": canonical_key, "dual": dual, "v2": None, "v2_error": None, "source": p,
         }
         if dual:
             try:
@@ -3250,6 +3253,26 @@ def _prepare_products_chunk(chunk: List[Dict[str, Any]]) -> List[Optional[Dict[s
                 item["v2_error"] = e
         prepared.append(item)
     return prepared
+
+
+def _apply_title_pins_conn(conn, items: List[Dict[str, Any]]) -> None:
+    """Порция готовится до блокировки, а решение оператора могло появиться после этого (MMR-03): закреплённый ключ
+    читается под блокировкой записи и применяется к legacy и V2. Подготовка V2 пересчитывается только для таких строк."""
+    pins = {r[0]: r[1] for r in conn.execute(
+        "SELECT title, canonical_key FROM title_key_pins WHERE title IN (SELECT value FROM json_each(?))",
+        (json.dumps(list({it["title"].strip() for it in items}), ensure_ascii=False),))}
+    for it in items:
+        pinned = pins.get(it["title"].strip())
+        if not pinned or pinned == it["canonical_key"]:
+            continue
+        it["canonical_key"] = pinned
+        if it["dual"]:
+            it["v2"], it["v2_error"] = None, None
+            try:
+                from domain.adapter import prepare_legacy_offer_v2
+                it["v2"] = prepare_legacy_offer_v2(it["source"], canonical_key=pinned)
+            except Exception as e:
+                it["v2_error"] = e
 
 
 def _save_products_chunk(conn, chunk: List[Dict[str, Any]], now: str, observed_seq: Optional[float] = None,
@@ -3272,6 +3295,7 @@ def _save_products_chunk(conn, chunk: List[Dict[str, Any]], now: str, observed_s
     items = [it for it in prepared if it is not None]
     if not items:
         return 0
+    _apply_title_pins_conn(conn, items)
 
     ids = list(dict.fromkeys(it["id"] for it in items))
     row = conn.execute(

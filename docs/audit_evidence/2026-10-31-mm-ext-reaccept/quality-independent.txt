@@ -1,0 +1,23 @@
+PASS review replay, all six corrected labels, frozen rows, phase frames and independent owner-decision arithmetic
+{
+ "baseline": {
+  "true": 1282,
+  "false": 587,
+  "open": 101,
+  "true_low": 1134,
+  "true_high": 1523,
+  "false_low": 447,
+  "false_high": 836
+ },
+ "candidate": {
+  "true": 2929,
+  "false": 112,
+  "open": 242,
+  "true_low": 2791,
+  "true_high": 3214,
+  "false_low": 70,
+  "false_high": 493
+ },
+ "candidate_vs_baseline_true_low": 1.833,
+ "false_merges_ratio_high": 1.103
+}

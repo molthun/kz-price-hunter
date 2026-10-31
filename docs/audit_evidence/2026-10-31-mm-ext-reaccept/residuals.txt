@@ -1,0 +1,63 @@
+test_different_survives_refreshed_fields_with_unchanged_rules (__main__.Residuals.test_different_survives_refreshed_fields_with_unchanged_rules) ... FAIL
+test_prepared_scan_does_not_overwrite_later_operator_pin (__main__.Residuals.test_prepared_scan_does_not_overwrite_later_operator_pin) ... FAIL
+test_same_uses_shadow_fields_of_third_member (__main__.Residuals.test_same_uses_shadow_fields_of_third_member) ... FAIL
+
+======================================================================
+FAIL: test_different_survives_refreshed_fields_with_unchanged_rules (__main__.Residuals.test_different_survives_refreshed_fields_with_unchanged_rules)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-31-mm-ext-reaccept/residuals.py", line 53, in test_different_survives_refreshed_fields_with_unchanged_rules
+    self.assertNotEqual(actual[a],actual[b],'ordinary refreshed extraction undid the human different decision')
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'k2:apple:earpods' == 'k2:apple:earpods' : ordinary refreshed extraction undid the human different decision
+
+======================================================================
+FAIL: test_prepared_scan_does_not_overwrite_later_operator_pin (__main__.Residuals.test_prepared_scan_does_not_overwrite_later_operator_pin)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-31-mm-ext-reaccept/residuals.py", line 75, in test_prepared_scan_does_not_overwrite_later_operator_pin
+    self.assertEqual(row[0],pinned['new_key'],'scan prepared before the operator decision overwrote the pinned legacy key')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'k2:apple:earpods' != 'k2:apple:earpods.diff_dbd10113'
+- k2:apple:earpods
++ k2:apple:earpods.diff_dbd10113
+ : scan prepared before the operator decision overwrote the pinned legacy key
+
+======================================================================
+FAIL: test_same_uses_shadow_fields_of_third_member (__main__.Residuals.test_same_uses_shadow_fields_of_third_member)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-31-mm-ext-reaccept/residuals.py", line 34, in test_same_uses_shadow_fields_of_third_member
+    self.assertFalse(res['ok'],'available shadow fields of the third member were ignored')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: True is not false : available shadow fields of the third member were ignored
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.173s
+
+FAILED (failures=3)
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 2, в исходном снимке refresh-audit: 2
+[C4] Из них уже сохранены поля: 2
+[C4] Обработка 2 названий пачками по 2...
+[C4] Прогресс: 2/2 (100%) | Скорость: 3209.0 наим/с | ETA: 0 с | С ключом k2: 2
+DIFFERENT_AFTER_FIELD_REFRESH {'ok': True, 'decision': 'different', 'pair_hash': '486183cb1737ad71ee83202802c7f45504bd54b3a76db46820980b7325008bcf', 'split': None} pins= {} keys= {'Apple EarPods Lightning': 'k2:apple:earpods', 'Apple EarPods USB-C': 'k2:apple:earpods'} verdict= different
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+PIN_AFTER_PREPARATION {'separated_title': 'Apple EarPods USB-C', 'new_key': 'k2:apple:earpods.diff_dbd10113', 'previous_key': 'k2:apple:earpods'} cache= {'Apple EarPods USB-C': 'k2:apple:earpods.diff_dbd10113'} legacy_v2= ('k2:apple:earpods', 'k2:apple:earpods')
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+SHADOW_256_THIRD_MEMBER {'ok': True, 'decision': 'same', 'pair_hash': '8dde22223e8962b161d5548dcbe23538278971670edd82607340a8daca142b3e', 'canonical_key': 's:a', 'titles_updated': 3} {'Samsung Galaxy S24 blue': 's:a', 'Samsung Galaxy S24 white': 's:a', 'Samsung Galaxy S24 black': 's:a'}
