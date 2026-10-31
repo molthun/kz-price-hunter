@@ -766,6 +766,73 @@ async def ai_consultant_handler(request):
             "products": []
         }, status=500)
 
+
+@routes.post("/api/v2/ai/assistant")
+async def ai_search_assistant_v2_handler(request):
+    """
+    Интеллектуальный помощник поиска Search Platform 2.0 (S2-E22).
+    Трансформирует сложные запросы на естественном языке в структурированные фильтры,
+    ищет через SearchCore 2.0 и генерирует обоснованный ответ эксперта.
+    """
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"ok": False, "error": "Некорректный JSON в теле запроса"}, status=400)
+
+    if not isinstance(data, dict):
+        return web.json_response({"ok": False, "error": "Ожидается объект JSON"}, status=400)
+
+    message = str(data.get("message") or "").strip()
+    if not message:
+        return web.json_response({"ok": False, "error": "Поле message обязательно"}, status=400)
+
+    history = data.get("history") or []
+    city = str(data.get("city") or "Все").strip()
+
+    # Rate limiting
+    user = request.get("user")
+    limit_key = str(user["id"]) if user else f"ip:{client_ip(request)}"
+    wait = consultant_limiter.retry_after(limit_key)
+    if wait:
+        return web.json_response({"ok": False, "error": "Слишком много запросов. Попробуйте позже."},
+                                 status=429, headers={"Retry-After": str(int(wait) + 1)})
+
+    limit = _int_param(request, "limit", 20, minimum=1, maximum=50)
+
+    def _run_assistant():
+        from database import get_connection
+        from repositories.search_repo import SearchRepository
+        from domain.search_core import SearchCore
+        from domain.search_assistant import SearchAssistant
+
+        conn = get_connection()
+        try:
+            repo = SearchRepository(conn)
+            core = SearchCore(repo)
+            assistant = SearchAssistant(core)
+            res = assistant.ask(
+                query=message,
+                city=city if city not in ("Все", "Казахстан") else None,
+                limit=limit,
+            )
+            return res
+        finally:
+            conn.close()
+
+    try:
+        res = await asyncio.to_thread(_run_assistant)
+        resp_dict = res.to_dict()
+        resp_dict["ok"] = True
+        return web.json_response(resp_dict)
+    except Exception as e:
+        print(f"[API assistant v2] Ошибка: {e}")
+        return web.json_response({
+            "ok": False,
+            "error": "Ошибка обработки запроса AI-ассистента",
+            "answer": "Произошла ошибка при обращении к поисковому ассистенту. Попробуйте повторить запрос позже.",
+            "products": []
+        }, status=500)
+
 @routes.get("/api/models/compare")
 async def compare_model_offers_handler(request):
     """Сравнение цен на каноническую модель между всеми подключенными магазинами."""

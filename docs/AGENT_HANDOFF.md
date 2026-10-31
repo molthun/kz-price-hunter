@@ -2,6 +2,27 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## Search Platform 2.0: Этап 22 — AI Search Assistant (Консультант и умный подбор 2.0) — Antigravity (2026-10-31, завершён)
+
+- **Основание:** поручение владельца («Делаем. но не забывай обновлять стенд. на нем я визуально тестирую новые возможности после разработки»), план Search Platform 2.0 ([SEARCH_PLATFORM_PLAN.md](SEARCH_PLATFORM_PLAN.md) Этап 22).
+- **Исполнитель:** Antigravity (основной разработчик), ветка `main`.
+- **Область файлов:** `domain/search_assistant.py`, `web/server.py`, `tests/ai/test_search_assistant_v2.py` (новый), `docs/AGENT_HANDOFF.md`, `ROADMAP_AND_LOG.md`.
+- **Что реализовано:**
+  1. Доменный модуль `SearchAssistant`:
+     - Извлечение пользовательского намерения (`SearchAssistantPlan`): use-case (бухгалтер, учеба, гейминг), ценовой бюджет, условия покупки (рассрочка / кредит), состояние (новое / б.у.).
+     - Запрос к Unified Product Index через `SearchCore` 2.0.
+     - Инжекция только проверенных товаров и предложений продавцов в контекст LLM (без галлюцинаций, строгая привязка к базе).
+     - Поиск лучшего предложения с подтвержденной рассрочкой `best_installment_offer`, общего лучшего предложения `best_overall_offer`, и межканального сравнения `cross_channel_comparison` (напр. экономия при покупке напрямую против рассрочки).
+     - Генерация структурированного экспертного резюме в Markdown `explanation` с ценами в тенге и названиями продавцов.
+     - Детерминированный fallback при недоступности внешних AI.
+  2. HTTP API:
+     - Эндпоинт `POST /api/v2/ai/assistant` с валидацией JSON, параметров и интеграцией с `consultant_limiter`.
+  3. Полное покрытие автотестами в `tests/ai/test_search_assistant_v2.py` (7/7 OK) с изоляцией БД (`test_support`).
+  4. Прогон полного регресса Python (**2332/2332 OK**, 139.4 с), браузерных тестов Playwright (**21/21 PASS**), аудита секретов (PASS).
+- **Следующий точный шаг:** выкладка обновлений на испытательный стенд `shdev.molthun.ru` и переход к следующему этапу Search Platform 2.0.
+
+---
+
 ## Search Platform 2.0: Этап 18 — Search Results: Seller Grouping & Brand Authority — Antigravity (2026-10-31, завершён)
 
 - **Основание:** поручение владельца продолжать по очереди («Все по очереди. Пишем и охватываем тестами. Крупные этапы после разработки только охватываем аудитом остальное только авто тестами и стендом. Делаем»), план Search Platform 2.0 ([SEARCH_PLATFORM_PLAN.md](SEARCH_PLATFORM_PLAN.md) Этап 18).
