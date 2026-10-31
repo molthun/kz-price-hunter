@@ -5278,7 +5278,7 @@
             const sName = sg.seller_name || 'Продавец';
             const sKey = sg.seller_slug || sg.seller_id;
             const sRating = sg.seller_rating ? `<span class="text-amber-400 text-[10px] font-semibold">★ ${sg.seller_rating}</span>` : '';
-            const chanBadges = (sg.channels || []).map(ch => {
+            const chanBadges = (sg.channels_available || sg.channels || []).map(ch => {
               const icon = ch === 'website' ? '🌐 Сайт' :
                            ch === 'kaspi' ? '🛒 Kaspi' :
                            ch === 'forte' ? '🏦 Forte' :
@@ -5290,9 +5290,9 @@
 
             const sPriceText = (sg.min_price && sg.max_price && sg.min_price !== sg.max_price)
               ? `от ${fmtPrice(sg.min_price)} до ${fmtPrice(sg.max_price)}`
-              : (sg.min_price ? fmtPrice(sg.min_price) : '');
+              : (sg.min_price ? fmtPrice(sg.min_price) : '<span class="text-slate-500 font-normal italic">нет в наличии</span>');
 
-            const bestChanOff = sg.best_channel_offer;
+            const bestChanOff = sg.best_channel_offer || sg.best_offer;
             const linkUrl = bestChanOff ? storeUrl(bestChanOff.url) : null;
 
             const factsBadges = (sg.facts || []).map(f => {

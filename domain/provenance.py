@@ -195,20 +195,28 @@ def build_seller_provenance(
         marketplaces = ["marketplace"]
 
     latest_obs: Optional[str] = None
+    latest_dt: Optional[datetime.datetime] = None
     active_today = False
     for row in offers:
         obs = str(row.get("observed_at") or row.get("updated_at") or "").strip()
         if not obs:
             continue
-        if latest_obs is None or obs > latest_obs:
-            latest_obs = obs
         try:
             dt = datetime.datetime.fromisoformat(obs.replace("Z", "+00:00").replace(" ", "T", 1))
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=datetime.timezone.utc)
-            if (moment - dt).total_seconds() <= 24 * 3600:
+            delta_sec = (moment - dt).total_seconds()
+            # SP30-09: Отсекаем недопустимо будущие даты (допуск -60с на дрейф часов).
+            # Факт «активность сегодня» присваивается строго за последние 24 часа.
+            if -60.0 <= delta_sec <= 24.0 * 3600.0:
                 active_today = True
-        except ValueError:
+
+            # Выбираем последнее наблюдение только среди валидных дат не из будущего
+            if delta_sec >= -60.0:
+                if latest_dt is None or dt > latest_dt:
+                    latest_dt = dt
+                    latest_obs = obs
+        except (ValueError, TypeError):
             continue
 
     facts: List[str] = []

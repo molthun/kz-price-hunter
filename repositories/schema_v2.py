@@ -95,10 +95,13 @@ CREATE INDEX IF NOT EXISTS idx_offers_seller ON offers(seller_id);
 CREATE INDEX IF NOT EXISTS idx_offers_channel ON offers(channel_id);
 CREATE INDEX IF NOT EXISTS idx_offers_city ON offers(city);
 CREATE INDEX IF NOT EXISTS idx_offers_price ON offers(price);
-CREATE INDEX IF NOT EXISTS idx_offers_active ON offers(is_active);
 CREATE INDEX IF NOT EXISTS idx_offers_condition ON offers(condition);
 CREATE INDEX IF NOT EXISTS idx_offers_ext_sku ON offers(external_sku);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_offers_channel_sku ON offers(channel_id, external_sku);
+-- Покрывающие индексы для ускорения EXISTS в поиске FTS на больших объемах (SP30-05)
+CREATE INDEX IF NOT EXISTS idx_offers_prod_active ON offers(product_id, is_active, seller_id, channel_id);
+CREATE INDEX IF NOT EXISTS idx_sellers_active ON sellers(id, is_active);
+CREATE INDEX IF NOT EXISTS idx_channels_active ON channels(id, is_active);
 
 -- 5. Offer Price History
 CREATE TABLE IF NOT EXISTS offer_price_history (
@@ -379,6 +382,13 @@ def init_schema_v2(conn: sqlite3.Connection) -> None:
     # У прежних строк колонки пусты — для них остаётся только текущее предложение.
     for column in ("product_id", "seller_id", "channel_id", "condition", "city"):
         _ensure_column(conn, "offer_price_history", column, "TEXT")
+
+    # SP30-05: Удаление неселективного индекса idx_offers_active (антипаттерн кардинальности)
+    # и создание покрывающих индексов для коррелированного EXISTS в FTS поиске
+    conn.execute("DROP INDEX IF EXISTS idx_offers_active")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_offers_prod_active ON offers(product_id, is_active, seller_id, channel_id)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_sellers_active ON sellers(id, is_active)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_channels_active ON channels(id, is_active)")
 
     # C-E11-02: Ensure existing canonical_products rows are indexed in FTS on initial creation
     cur = conn.cursor()

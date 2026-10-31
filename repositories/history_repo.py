@@ -34,28 +34,77 @@ class HistoryRepository(BaseRepository):
         price: float,
         old_price: Optional[float] = None,
         observed_at: Optional[str] = None,
+        product_id: Optional[str] = None,
+        seller_id: Optional[str] = None,
+        channel_id: Optional[str] = None,
+        condition: Optional[str] = None,
+        city: Optional[str] = None,
     ) -> None:
-        """Records a single price observation point for an offer."""
+        """
+        Records a single price observation point for an offer with persistent dimension snapshots (SP30-01).
+        If dimensions are not explicitly provided, captures them from the offer at recording time.
+        Preserves previously recorded snapshots on re-record.
+        """
         obs = observed_at or utc_now_iso()
         sql = """
-        INSERT OR REPLACE INTO offer_price_history (offer_id, price, old_price, observed_at)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO offer_price_history (
+            offer_id, price, old_price, observed_at, product_id, seller_id, channel_id, condition, city
+        )
+        SELECT
+            ?,
+            ?,
+            ?,
+            ?,
+            COALESCE(?, o.product_id),
+            COALESCE(?, o.seller_id),
+            COALESCE(?, o.channel_id),
+            COALESCE(?, o.condition),
+            COALESCE(?, o.city)
+        FROM (SELECT 1) LEFT JOIN offers o ON o.id = ?
+        ON CONFLICT(offer_id, observed_at) DO UPDATE SET
+            price = excluded.price,
+            old_price = excluded.old_price,
+            product_id = COALESCE(offer_price_history.product_id, excluded.product_id),
+            seller_id = COALESCE(offer_price_history.seller_id, excluded.seller_id),
+            channel_id = COALESCE(offer_price_history.channel_id, excluded.channel_id),
+            condition = COALESCE(offer_price_history.condition, excluded.condition),
+            city = COALESCE(offer_price_history.city, excluded.city)
         """
-        self.execute(sql, (offer_id, float(price), old_price, obs))
+        self.execute(
+            sql,
+            (
+                offer_id,
+                float(price),
+                old_price,
+                obs,
+                product_id,
+                seller_id,
+                channel_id,
+                condition,
+                city,
+                offer_id,
+            ),
+        )
 
     def record_history_model(self, model: OfferPriceHistory) -> None:
-        """Records an OfferPriceHistory domain dataclass."""
+        """Records an OfferPriceHistory domain dataclass with all preserved dimensions."""
         self.record_point(
             offer_id=model.offer_id,
             price=model.price,
             old_price=model.old_price,
             observed_at=model.observed_at,
+            product_id=getattr(model, "product_id", None),
+            seller_id=getattr(model, "seller_id", None),
+            channel_id=getattr(model, "channel_id", None),
+            condition=getattr(model, "condition", None),
+            city=getattr(model, "city", None),
         )
 
     def record_batch(self, points: List[Dict[str, Any]]) -> int:
         """
-        Records a batch of price points.
-        Each point dict must have: offer_id, price, and optional old_price, observed_at.
+        Records a batch of price points preserving offer dimension snapshots (SP30-01).
+        Each point dict must have: offer_id, price, and optional old_price, observed_at,
+        and optional explicit dimensions (product_id, seller_id, channel_id, condition, city).
         """
         if not points:
             return 0
@@ -66,12 +115,38 @@ class HistoryRepository(BaseRepository):
                 float(p["price"]),
                 p.get("old_price"),
                 p.get("observed_at") or now_ts,
+                p.get("product_id"),
+                p.get("seller_id"),
+                p.get("channel_id"),
+                p.get("condition"),
+                p.get("city"),
+                p["offer_id"],
             )
             for p in points
         ]
         sql = """
-        INSERT OR REPLACE INTO offer_price_history (offer_id, price, old_price, observed_at)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO offer_price_history (
+            offer_id, price, old_price, observed_at, product_id, seller_id, channel_id, condition, city
+        )
+        SELECT
+            ?,
+            ?,
+            ?,
+            ?,
+            COALESCE(?, o.product_id),
+            COALESCE(?, o.seller_id),
+            COALESCE(?, o.channel_id),
+            COALESCE(?, o.condition),
+            COALESCE(?, o.city)
+        FROM (SELECT 1) LEFT JOIN offers o ON o.id = ?
+        ON CONFLICT(offer_id, observed_at) DO UPDATE SET
+            price = excluded.price,
+            old_price = excluded.old_price,
+            product_id = COALESCE(offer_price_history.product_id, excluded.product_id),
+            seller_id = COALESCE(offer_price_history.seller_id, excluded.seller_id),
+            channel_id = COALESCE(offer_price_history.channel_id, excluded.channel_id),
+            condition = COALESCE(offer_price_history.condition, excluded.condition),
+            city = COALESCE(offer_price_history.city, excluded.city)
         """
         cur = self.executemany(sql, rows)
         return cur.rowcount
@@ -83,7 +158,7 @@ class HistoryRepository(BaseRepository):
     ) -> List[OfferPriceHistory]:
         """Returns chronological price observations for a single offer."""
         sql = """
-        SELECT offer_id, price, old_price, observed_at
+        SELECT offer_id, price, old_price, observed_at, product_id, seller_id, channel_id, condition, city
         FROM offer_price_history
         WHERE offer_id = ?
         ORDER BY observed_at ASC

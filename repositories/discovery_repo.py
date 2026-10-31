@@ -42,16 +42,53 @@ class DiscoveryRepository(BaseRepository):
         city: Optional[str] = None,
         search_count: int = 1,
         success_rate: float = 0.0,
-        priority_score: float = 0.0,
+        priority_score: Optional[float] = None,
         notes: Optional[str] = None,
     ) -> DiscoveryTask:
-        """Creates or refreshes an adaptive discovery task based on search demand signal."""
-        return self.task_repo.create_manual_task(
-            query=signal_query,
+        """
+        Creates or updates an adaptive discovery task based on search demand signal (SP30-07).
+        Dedupes active (PENDING or RUNNING) tasks for the query and city, accumulating demand.
+        """
+        clean_q = signal_query.strip()
+        if not clean_q:
+            raise ValueError("Поисковый запрос не может быть пустым")
+
+        import re
+        from domain.adaptive_discovery import DiscoveryTask, DiscoveryTaskStatus, SearchPatternGenerator
+
+        norm_q = re.sub(r"\s+", " ", clean_q.lower()).strip()
+        existing = self.task_repo.find_active_task_for_query(norm_q, city=city)
+        if existing:
+            existing.search_count += max(0, int(search_count))
+            existing.success_rate = float(success_rate)
+            if priority_score is not None and priority_score > 0:
+                existing.priority_score = float(priority_score)
+            else:
+                existing.priority_score += float(search_count) * (1.0 - float(success_rate))
+            if notes:
+                existing.notes = (existing.notes + "; " + notes) if existing.notes else notes
+            return self.task_repo.save_task(existing)
+
+        eff_priority = (
+            priority_score
+            if (priority_score is not None and priority_score > 0)
+            else max(1.0, float(search_count) * (1.0 - float(success_rate)))
+        )
+        search_queries = [
+            q.to_dict() for q in SearchPatternGenerator.generate_queries(clean_q, city=city)
+        ]
+        task = DiscoveryTask(
+            signal_query=clean_q,
+            normalized_query=norm_q,
             city=city,
-            priority_score=priority_score,
+            search_count=int(search_count),
+            success_rate=float(success_rate),
+            priority_score=float(eff_priority),
+            status=DiscoveryTaskStatus.PENDING,
+            search_queries=search_queries,
             notes=notes or "",
         )
+        return self.task_repo.save_task(task)
 
     def get_task_by_id(self, task_id: str) -> Optional[DiscoveryTask]:
         """Retrieves a discovery task by primary ID."""
@@ -160,19 +197,38 @@ class DiscoveryRepository(BaseRepository):
             for r in self.fetchall(sources_sql)
         ]
 
+        # Согласование всех реальных статусов задач и кандидатов (SP30-07)
+        task_in_progress = task_counts.get("RUNNING", 0) + task_counts.get("IN_PROGRESS", 0)
+        cand_in_review = (
+            cand_counts.get("REVIEW_REQUIRED", 0)
+            + cand_counts.get("IN_REVIEW", 0)
+            + cand_counts.get("IDENTITY_MATCHED", 0)
+        )
+        cand_onboarded = (
+            cand_counts.get("APPROVED", 0)
+            + cand_counts.get("INDEXED", 0)
+            + cand_counts.get("ONBOARDED", 0)
+        )
+
         return {
             "tasks": {
                 "total": sum(task_counts.values()),
                 "pending": task_counts.get("PENDING", 0),
-                "in_progress": task_counts.get("IN_PROGRESS", 0),
+                "in_progress": task_in_progress,
+                "running": task_in_progress,
                 "completed": task_counts.get("COMPLETED", 0),
                 "failed": task_counts.get("FAILED", 0),
+                "cancelled": task_counts.get("CANCELLED", 0),
             },
             "candidates": {
                 "total": sum(cand_counts.values()),
                 "discovered": cand_counts.get("DISCOVERED", 0),
-                "in_review": cand_counts.get("IN_REVIEW", 0),
-                "onboarded": cand_counts.get("ONBOARDED", 0),
+                "profiled": cand_counts.get("PROFILED", 0),
+                "in_review": cand_in_review,
+                "review_required": cand_in_review,
+                "approved": cand_counts.get("APPROVED", 0),
+                "indexed": cand_counts.get("INDEXED", 0),
+                "onboarded": cand_onboarded,
                 "rejected": cand_counts.get("REJECTED", 0),
             },
             "social_sources": sources,

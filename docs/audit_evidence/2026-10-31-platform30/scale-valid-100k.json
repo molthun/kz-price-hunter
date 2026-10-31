@@ -1,0 +1,123 @@
+{
+  "metrics": {
+    "name": "100k",
+    "target_offers": 100000,
+    "actual_offers": 100000,
+    "total_products": 20000,
+    "total_sellers": 1000,
+    "total_channels": 2000,
+    "search_p95_ms": 2334.64,
+    "search_avg_ms": 1148.43,
+    "write_latency_1k_ms": 18.93,
+    "db_size_mb": 93.39,
+    "fts_size_mb": 4.88,
+    "price_history_size_mb": 0.61,
+    "backup_duration_s": 0.068,
+    "memory_mb": 122.84,
+    "startup_ms": 7.4,
+    "evaluated_at": "2026-10-31T15:40:18.604601+00:00"
+  },
+  "observations": [
+    {
+      "query": "Apple Model",
+      "outcome": "WEAK_MATCH",
+      "latency_ms": 1650.91,
+      "total_products": 50
+    },
+    {
+      "query": "Samsung Series",
+      "outcome": "WEAK_MATCH",
+      "latency_ms": 1746.51,
+      "total_products": 50
+    },
+    {
+      "query": "Apple Model",
+      "outcome": "WEAK_MATCH",
+      "latency_ms": 1730.17,
+      "total_products": 50
+    },
+    {
+      "query": "Samsung Series",
+      "outcome": "WEAK_MATCH",
+      "latency_ms": 1682.78,
+      "total_products": 50
+    },
+    {
+      "query": "Xiaomi 256GB",
+      "outcome": "FOUND",
+      "latency_ms": 1655.36,
+      "total_products": 50
+    },
+    {
+      "query": "Sony Audio",
+      "outcome": "FOUND",
+      "latency_ms": 355.17,
+      "total_products": 50
+    },
+    {
+      "query": "Dyson Platinum",
+      "outcome": "WEAK_MATCH",
+      "latency_ms": 1677.42,
+      "total_products": 50
+    },
+    {
+      "query": "LG Series",
+      "outcome": "WEAK_MATCH",
+      "latency_ms": 1677.38,
+      "total_products": 50
+    },
+    {
+      "query": "Asus Laptop",
+      "outcome": "FOUND",
+      "latency_ms": 354.72,
+      "total_products": 50
+    },
+    {
+      "query": "Smartphones Алматы",
+      "outcome": "WEAK_MATCH",
+      "latency_ms": 2334.41,
+      "total_products": 50
+    },
+    {
+      "query": "Model 10",
+      "outcome": "FOUND",
+      "latency_ms": 7.54,
+      "total_products": 1
+    },
+    {
+      "query": "Series 5",
+      "outcome": "FOUND",
+      "latency_ms": 7.24,
+      "total_products": 1
+    }
+  ],
+  "decision": {
+    "decision": "EVALUATE_POSTGRESQL",
+    "is_sqlite_sufficient": false,
+    "summary": "Для контрольной точки 100k зафиксировано превышение пороговых метрик. Рекомендуется подготовка пилота PostgreSQL.",
+    "reasons": [
+      "Поисковая задержка p95 (2334.6 мс) превышает допустимый порог 100 мс.",
+      "Задержка записи в норме (18.9 мс на 1k предложений).",
+      "Размер базы данных оптимален (93.4 МБ).",
+      "Время онлайн-бэкапа в норме (0.07 с)."
+    ],
+    "metrics": {
+      "name": "100k",
+      "target_offers": 100000,
+      "actual_offers": 100000,
+      "total_products": 20000,
+      "total_sellers": 1000,
+      "total_channels": 2000,
+      "search_p95_ms": 2334.64,
+      "search_avg_ms": 1148.43,
+      "write_latency_1k_ms": 18.93,
+      "db_size_mb": 93.39,
+      "fts_size_mb": 4.88,
+      "price_history_size_mb": 0.61,
+      "backup_duration_s": 0.068,
+      "memory_mb": 122.84,
+      "startup_ms": 7.4,
+      "evaluated_at": "2026-10-31T15:40:18.604601+00:00"
+    }
+  }
+}

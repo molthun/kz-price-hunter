@@ -388,12 +388,17 @@ class Offer:
 @dataclass
 class OfferPriceHistory:
     """
-    Time-series observation of offer pricing.
+    Time-series observation of offer pricing with snapshot dimensions.
     """
     offer_id: str
     price: float
     old_price: Optional[float] = None
     observed_at: str = field(default_factory=utc_now_iso)
+    product_id: Optional[str] = None
+    seller_id: Optional[str] = None
+    channel_id: Optional[str] = None
+    condition: Optional[str] = None
+    city: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -405,4 +410,9 @@ class OfferPriceHistory:
             price=float(row.get("price") or 0.0),
             old_price=float(row["old_price"]) if row.get("old_price") is not None else None,
             observed_at=row.get("observed_at") or utc_now_iso(),
+            product_id=row.get("product_id"),
+            seller_id=row.get("seller_id"),
+            channel_id=row.get("channel_id"),
+            condition=row.get("condition"),
+            city=row.get("city"),
         )

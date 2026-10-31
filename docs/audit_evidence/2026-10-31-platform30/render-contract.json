@@ -1,0 +1,31 @@
+{
+  "rendered": {
+    "text": "✨ Новое Audit phones\nAudit Phone 256GB\n1 маг. • 2 предл.\nИстория цен 2.0\n100 000 ₸\nЛучшая цена в direct\nПродавцы и сгруппированные каналы (1 магазинов)\nSynthetic seller\nКаналы (2):\nСайт найден Присутствие на маркетплейсах (kaspi) Последняя активность сегодня\nот 1 000 ₸ до 100 000 ₸\nВсе предложения продавцов (2)\ndirect\nAudit Phone 256GB\nSynthetic seller Казахстан direct 2026-10-31T15:38:24.300137+00:00 ⚡️ свежая\n100 000 ₸\nВ магазин\n Kaspi\nAudit Phone 256GB\nSynthetic seller Казахстан kaspi 2026-10-31T15:38:24.300137+00:00 ⚡️ свежая\n1 000 ₸\nВ магазин",
+    "group_text": "Продавцы и сгруппированные каналы (1 магазинов)\nSynthetic seller\nКаналы (2):\nСайт найден Присутствие на маркетплейсах (kaspi) Последняя активность сегодня\nот 1 000 ₸ до 100 000 ₸",
+    "group_shop_links": 0,
+    "group_has_kaspi_badge": false,
+    "shop_links": 2,
+    "channel_type_badge": true,
+    "payload_seller_keys": [
+      "seller_id",
+      "seller_name",
+      "seller_slug",
+      "seller_rating",
+      "is_private_seller",
+      "min_price",
+      "max_price",
+      "offers_count",
+      "channels_count",
+      "channels_available",
+      "best_offer",
+      "offers",
+      "has_new",
+      "has_used",
+      "best_new_price",
+      "best_used_price",
+      "facts",
+      "provenance"
+    ]
+  },
+  "errors": []
+}

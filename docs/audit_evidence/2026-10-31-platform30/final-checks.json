@@ -1,0 +1,15 @@
+{
+  "head": "7b689dd5d1f58575f6e2199a70b9b6927f25bb32",
+  "expected_head_unchanged": true,
+  "status": " M docs/AGENT_HANDOFF.md\n?? docs/AUDIT_2026-10-31_SEARCH_PLATFORM_30_CODEX.md\n?? docs/audit_evidence/2026-10-31-platform30/\n",
+  "tracked_changes": [
+    "docs/AGENT_HANDOFF.md"
+  ],
+  "staged_changes": [],
+  "diff_check_exit": 0,
+  "diff_check_output": "",
+  "product_code_unchanged": true,
+  "finding_count": 9,
+  "all_json_parse": true,
+  "audit_python_ast_parse": true
+}

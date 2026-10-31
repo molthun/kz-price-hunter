@@ -1,0 +1,21 @@
+{
+  "note": "True means the intended property held; False is a reproduced gap. These are independent audit probes, separate from the passing regression suite.",
+  "checks": {
+    "history_single_preserves_old_line": false,
+    "history_batch_preserves_old_line": false,
+    "control_existing_writer_preserves_old_line": true,
+    "seller_available_min_matches_product_min": false,
+    "seller_without_stock_has_no_best_new_price": false,
+    "group_renders_purchase_link": false,
+    "group_renders_channel_badge": false,
+    "missing_schema_is_not_healthy": false,
+    "invalid_measurement_does_not_pass": false,
+    "100k_meets_internal_100ms_threshold": false,
+    "discovery_reuses_task": false,
+    "discovery_preserves_demand": false,
+    "discovery_counts_running": false,
+    "discovery_counts_review": false,
+    "brand_filter_excludes_known_other_brand": false,
+    "future_date_is_not_active_today": false
+  }
+}

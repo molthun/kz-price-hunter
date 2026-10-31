@@ -83,19 +83,31 @@ class StorageDecision:
 def evaluate_storage_decision(checkpoint: ScaleCheckpoint) -> StorageDecision:
     """
     Evaluates whether SQLite remains sufficient or PostgreSQL migration should begin.
-    Based on objective threshold metrics defined in Stage 30.
+    Based on objective threshold metrics defined in Stage 30 (SP30-04, SP30-06).
     """
     reasons: List[str] = []
     evaluate_pg = False
 
-    # 1. Search Latency SLA: p95 must be <= 50ms (alert at 100ms)
+    # SP30-04: Проверка валидности замеров: если замер задержки NaN или не положительное число
+    if not math.isfinite(checkpoint.search_p95_ms) or checkpoint.search_p95_ms <= 0.0:
+        return StorageDecision(
+            decision="NOT_MEASURED",
+            is_sqlite_sufficient=True,
+            summary="Нагрузочные замеры для данной контрольной точки не проводились или недостоверны.",
+            reasons=["Замеры задержки поиска отсутствуют или содержат нечисловые значения (NaN)."],
+            metrics=checkpoint.to_dict(),
+        )
+
+    # 1. Search Latency SLA: p95 must be <= 50ms (warning at 100ms)
     if checkpoint.search_p95_ms > 100.0:
         evaluate_pg = True
         reasons.append(f"Поисковая задержка p95 ({checkpoint.search_p95_ms:.1f} мс) превышает допустимый порог 100 мс.")
+    elif checkpoint.search_p95_ms > 50.0:
+        reasons.append(f"Поисковая задержка p95 ({checkpoint.search_p95_ms:.1f} мс) находится в допустимом диапазоне (50–100 мс).")
     else:
         reasons.append(f"Поисковая задержка p95 в норме ({checkpoint.search_p95_ms:.1f} мс <= 50 мс).")
 
-    # 2. Write Latency: 1k batch insert <= 300ms
+    # 2. Write Latency: 1k batch insert <= 300ms (warning at 500ms)
     if checkpoint.write_latency_1k_ms > 500.0:
         evaluate_pg = True
         reasons.append(f"Задержка пакетной записи ({checkpoint.write_latency_1k_ms:.1f} мс на 1k) превышает 500 мс.")
@@ -109,7 +121,7 @@ def evaluate_storage_decision(checkpoint: ScaleCheckpoint) -> StorageDecision:
     else:
         reasons.append(f"Размер базы данных оптимален ({checkpoint.db_size_mb:.1f} МБ).")
 
-    # 4. Backup Duration: <= 20 seconds
+    # 4. Backup Duration: <= 20 seconds (warning at 30s)
     if checkpoint.backup_duration_s > 30.0:
         evaluate_pg = True
         reasons.append(f"Время создания консистентного бэкапа ({checkpoint.backup_duration_s:.1f} с) превышает 30 с.")
@@ -178,6 +190,7 @@ def run_scale_benchmark(
     num_sellers = max(5, int(target_offers / 100))
     sellers_list: List[Seller] = []
     channels_list: List[Channel] = []
+    seller_channels_map: Dict[str, List[Channel]] = {}
 
     for s_idx in range(num_sellers):
         sid = f"s_bench_{s_idx}"
@@ -185,12 +198,13 @@ def run_scale_benchmark(
         seller_repo.save_or_update(s)
         sellers_list.append(s)
 
-        # 2 channels per seller (Direct + Kaspi)
+        # 2 channels per seller (Direct + Kaspi), strictly linked to this seller (SP30-06)
         ch_dir = Channel(id=f"ch_d_{s_idx}", seller_id=sid, channel_type=ChannelType.DIRECT, name="Web Direct")
         ch_ksp = Channel(id=f"ch_k_{s_idx}", seller_id=sid, channel_type=ChannelType.KASPI, name="Kaspi Channel")
         channel_repo.save_or_update(ch_dir)
         channel_repo.save_or_update(ch_ksp)
         channels_list.extend([ch_dir, ch_ksp])
+        seller_channels_map[sid] = [ch_dir, ch_ksp]
 
     # 3. Populate Canonical Products
     num_products = max(10, int(target_offers / 5))
@@ -218,15 +232,17 @@ def run_scale_benchmark(
     batch_offers: List[Tuple] = []
 
     for o_idx in range(target_offers):
-        pid = products_list[o_idx % len(products_list)].id
+        p = products_list[o_idx % len(products_list)]
         s = sellers_list[o_idx % len(sellers_list)]
-        ch = channels_list[o_idx % len(channels_list)]
+        # SP30-06: Канал выбирается строго из каналов ДАННОГО продавца
+        s_chans = seller_channels_map[s.id]
+        ch = s_chans[o_idx % len(s_chans)]
         price = 50000.0 + (o_idx % 500) * 1000.0
         cond = Condition.NEW if o_idx % 4 != 0 else Condition.USED
         oid = f"off_b_{o_idx}"
 
         batch_offers.append((
-            oid, pid, s.id, ch.id, f"SKU-{o_idx}", f"https://shop.kz/p/{o_idx}",
+            oid, p.id, s.id, ch.id, f"SKU-{o_idx}", f"https://shop.kz/p/{o_idx}",
             "", price, price + 5000.0, "KZT", cond, "in_stock", "Алматы",
             now_iso, 1, "{}", now_iso, now_iso
         ))
@@ -251,11 +267,21 @@ def run_scale_benchmark(
         conn.executemany(insert_sql, batch_offers[1000:])
         conn.commit()
 
-    # Populate sample price history points (1 per offer)
-    history_sql = "INSERT OR REPLACE INTO offer_price_history (offer_id, price, old_price, observed_at) VALUES (?, ?, ?, ?)"
-    sample_history = [(r[0], r[7], r[8], now_iso) for r in batch_offers[:min(len(batch_offers), 10000)]]
+    # Populate price history points preserving all snapshot dimensions (SP30-01, SP30-06)
+    history_sql = """
+    INSERT INTO offer_price_history (
+        offer_id, price, old_price, observed_at, product_id, seller_id, channel_id, condition, city
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """
+    sample_history = [
+        (r[0], r[7], r[8], now_iso, r[1], r[2], r[3], r[10], r[12])
+        for r in batch_offers
+    ]
     conn.executemany(history_sql, sample_history)
     conn.commit()
+
+    # SP30-05: Сбор статистики для оптимизатора SQLite перед замерами
+    conn.execute("ANALYZE")
 
     # 5. Measure Search Latency (p95 & avg)
     default_queries = [
@@ -287,14 +313,30 @@ def run_scale_benchmark(
         file_size_bytes += os.path.getsize(wal_file)
     db_size_mb = round(file_size_bytes / (1024.0 * 1024.0), 2)
 
-    # Estimate FTS and History size
-    fts_row = conn.execute("SELECT COUNT(*) FROM canonical_products_fts").fetchone()
-    fts_rows = fts_row[0] if fts_row else 0
-    fts_size_mb = round((fts_rows * 256.0) / (1024.0 * 1024.0), 2)
+    # SP30-06: Measure FTS and History size via dbstat when available, with estimated fallback
+    fts_size_bytes = 0
+    hist_size_bytes = 0
+    try:
+        cur = conn.execute(
+            "SELECT name, SUM(pgsize) FROM dbstat WHERE name LIKE 'canonical_products_fts%' OR name = 'offer_price_history' GROUP BY name"
+        )
+        for row in cur.fetchall():
+            t_name, sz = row[0], row[1] or 0
+            if "fts" in t_name:
+                fts_size_bytes += sz
+            elif t_name == "offer_price_history":
+                hist_size_bytes += sz
+    except sqlite3.Error:
+        fts_row = conn.execute("SELECT COUNT(*) FROM canonical_products_fts").fetchone()
+        fts_rows = fts_row[0] if fts_row else 0
+        fts_size_bytes = int(fts_rows * 256)
 
-    hist_row = conn.execute("SELECT COUNT(*) FROM offer_price_history").fetchone()
-    hist_rows = hist_row[0] if hist_row else 0
-    hist_size_mb = round((hist_rows * 64.0) / (1024.0 * 1024.0), 2)
+        hist_row = conn.execute("SELECT COUNT(*) FROM offer_price_history").fetchone()
+        hist_rows = hist_row[0] if hist_row else 0
+        hist_size_bytes = int(hist_rows * 64)
+
+    fts_size_mb = round(fts_size_bytes / (1024.0 * 1024.0), 2)
+    hist_size_mb = round(hist_size_bytes / (1024.0 * 1024.0), 2)
 
     # 7. Measure Backup Duration via SQLite Online Backup API
     backup_temp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
@@ -319,6 +361,13 @@ def run_scale_benchmark(
     except Exception:
         mem_mb = 45.0
 
+    # SP30-06: Фактический подсчет строк из БД
+    actual_offers_row = conn.execute("SELECT COUNT(*) FROM offers").fetchone()
+    actual_offers_cnt = actual_offers_row[0] if actual_offers_row else target_offers
+
+    actual_products_row = conn.execute("SELECT COUNT(*) FROM canonical_products").fetchone()
+    actual_products_cnt = actual_products_row[0] if actual_products_row else num_products
+
     # Cleanup
     conn.close()
     if temp_dir_obj:
@@ -329,8 +378,8 @@ def run_scale_benchmark(
     return ScaleCheckpoint(
         name=actual_name,
         target_offers=target_offers,
-        actual_offers=target_offers,
-        total_products=num_products,
+        actual_offers=actual_offers_cnt,
+        total_products=actual_products_cnt,
         total_sellers=num_sellers,
         total_channels=len(channels_list),
         search_p95_ms=round(search_p95, 2),
@@ -348,39 +397,42 @@ def run_scale_benchmark(
 def get_current_scale_status(conn: sqlite3.Connection) -> Dict[str, Any]:
     """
     Analyzes the current live / stand database against Stage 30 checkpoints.
+    Reports honest status (ERROR_NO_SCHEMA, NOT_MEASURED, or measured verdict) (SP30-04).
     """
-    total_offers = 0
-    total_products = 0
-    total_sellers = 0
-    total_history = 0
-
     try:
         r = conn.execute("SELECT COUNT(*) FROM offers").fetchone()
         total_offers = r[0] if r else 0
-    except sqlite3.Error:
-        pass
-
-    try:
         r = conn.execute("SELECT COUNT(*) FROM canonical_products").fetchone()
         total_products = r[0] if r else 0
-    except sqlite3.Error:
-        pass
-
-    try:
         r = conn.execute("SELECT COUNT(*) FROM sellers").fetchone()
         total_sellers = r[0] if r else 0
-    except sqlite3.Error:
-        pass
-
-    try:
         r = conn.execute("SELECT COUNT(*) FROM offer_price_history").fetchone()
         total_history = r[0] if r else 0
-    except sqlite3.Error:
-        pass
+    except sqlite3.Error as e:
+        return {
+            "current_counts": {
+                "offers": 0,
+                "products": 0,
+                "sellers": 0,
+                "price_history_points": 0,
+            },
+            "checkpoints": [
+                {"name": "100k", "target": 100000, "status": "NOT_MEASURED"},
+                {"name": "500k", "target": 500000, "status": "UPCOMING"},
+                {"name": "1m", "target": 1000000, "status": "UPCOMING"},
+                {"name": "5m", "target": 5000000, "status": "UPCOMING"},
+                {"name": "10m", "target": 10000000, "status": "UPCOMING"},
+            ],
+            "sqlite_verdict": {
+                "status": "ERROR_NO_SCHEMA",
+                "message": f"Таблицы каталога не инициализированы: {e}",
+                "recommended_threshold": "Требуется инициализация схемы",
+            },
+        }
 
     # Standard scale checkpoints defined in Stage 30
     checkpoints = [
-        {"name": "100k", "target": 100000, "status": "PASSED" if total_offers >= 100000 else "UPCOMING"},
+        {"name": "100k", "target": 100000, "status": "NOT_MEASURED" if total_offers < 100000 else "TARGET_REACHED_UNMEASURED"},
         {"name": "500k", "target": 500000, "status": "UPCOMING"},
         {"name": "1m", "target": 1000000, "status": "UPCOMING"},
         {"name": "5m", "target": 5000000, "status": "UPCOMING"},
@@ -396,8 +448,8 @@ def get_current_scale_status(conn: sqlite3.Connection) -> Dict[str, Any]:
         },
         "checkpoints": checkpoints,
         "sqlite_verdict": {
-            "status": "HEALTHY_SQLITE",
-            "message": "По текущим замерам SQLite имеет достаточный запас производительности (p95 < 25мс). Миграция на PostgreSQL не требуется.",
+            "status": "NOT_MEASURED",
+            "message": f"Текущий объем: {total_offers} офферов. Автоматический бенчмарк не запускался на этом экземпляре.",
             "recommended_threshold": "1M+ offers",
         },
     }

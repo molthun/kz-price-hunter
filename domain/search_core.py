@@ -135,8 +135,8 @@ class SellerOffersGroup:
     seller_slug: str
     seller_rating: Optional[float] = None
     is_private_seller: bool = False
-    min_price: float = 0.0
-    max_price: float = 0.0
+    min_price: Optional[float] = None
+    max_price: Optional[float] = None
     offers_count: int = 0
     channels_count: int = 0
     channels_available: List[str] = field(default_factory=list)
@@ -153,6 +153,8 @@ class SellerOffersGroup:
     def to_dict(self) -> Dict[str, Any]:
         res = asdict(self)
         res["best_offer"] = self.best_offer.to_dict() if self.best_offer else None
+        res["best_channel_offer"] = res["best_offer"]  # Алиас для контракта шаблона (SP30-03)
+        res["channels"] = list(self.channels_available)  # Алиас для контракта шаблона (SP30-03)
         res["offers"] = [o.to_dict() for o in self.offers]
         return res
 
@@ -400,7 +402,6 @@ class SearchCore:
                 for s_id, s_offers in seller_map.items():
                     s_offers.sort(key=lambda x: (not x.is_purchasable, x.price))
                     s_first = s_offers[0]
-                    s_prices = [x.price for x in s_offers]
                     s_channels = list(dict.fromkeys(x.channel_type for x in s_offers if x.channel_type))
 
                     s_purchasable = [x for x in s_offers if x.is_purchasable]
@@ -417,8 +418,18 @@ class SearchCore:
                     s_new_p = [x for x in s_purchasable if x.condition == Condition.NEW]
                     s_used_p = [x for x in s_purchasable if x.condition in (Condition.USED, Condition.REFURBISHED, Condition.OPEN_BOX)]
 
-                    best_np = min(x.price for x in s_new_p) if s_new_p else (min(x.price for x in s_new) if s_new else None)
-                    best_up = min(x.price for x in s_used_p) if s_used_p else (min(x.price for x in s_used) if s_used else None)
+                    # SP30-02: Цены продавца и лучшая цена по condition вычисляются строго по purchasable офферам!
+                    # Недоступные (out of stock, expired) не занижают цену продавца и не становятся best_new_price/best_used_price!
+                    if s_purchasable:
+                        s_purch_prices = [x.price for x in s_purchasable]
+                        sg_min_price = min(s_purch_prices)
+                        sg_max_price = max(s_purch_prices)
+                    else:
+                        sg_min_price = None
+                        sg_max_price = None
+
+                    best_np = min(x.price for x in s_new_p) if s_new_p else None
+                    best_up = min(x.price for x in s_used_p) if s_used_p else None
 
                     # S2-E28: Trust & Provenance (объективные факты о продавце)
                     s_domain = next((x.seller_domain for x in s_offers if x.seller_domain), None)
@@ -466,8 +477,8 @@ class SearchCore:
                         seller_slug=s_first.seller_slug,
                         seller_rating=s_first.seller_rating,
                         is_private_seller=s_first.is_private_seller,
-                        min_price=min(s_prices),
-                        max_price=max(s_prices),
+                        min_price=sg_min_price,
+                        max_price=sg_max_price,
                         offers_count=len(s_offers),
                         channels_count=len(s_channels),
                         channels_available=s_channels,
@@ -481,7 +492,10 @@ class SearchCore:
                         provenance=seller_prov.to_dict(),
                     ))
 
-                seller_groups.sort(key=lambda s: (not (s.best_offer and s.best_offer.is_purchasable), s.min_price))
+                seller_groups.sort(key=lambda s: (
+                    not (s.best_offer and s.best_offer.is_purchasable and s.min_price is not None),
+                    s.min_price if s.min_price is not None else float("inf"),
+                ))
 
                 # ---------------------------------------------------------------
                 # C-E11-05: Exact Model Match and Semantic Scoring

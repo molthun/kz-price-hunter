@@ -235,9 +235,15 @@ class SearchRepository(BaseRepository):
             raw_b = brand.strip().lower()
             from domain.query_parser import BRAND_MAPPINGS
             canon_b = BRAND_MAPPINGS.get(raw_b, raw_b).lower()
+            # SP30-08: Строгое сравнение производителя.
+            # Если у товара явно заполнен brand (например, Acme), упоминание Apple в названии аксессуара
+            # ('Acme adapter compatible with Apple iPhone') ни в коем случае не должно попадать в фильтр brand=Apple!
+            # Резервный поиск по title разрешён ТОЛЬКО когда brand у товара в БД не указан (NULL или пустой).
             brand_filter_sql = (
-                "AND (LOWER(COALESCE(p.brand, '')) = ? OR LOWER(COALESCE(p.brand, '')) = ? "
-                "OR LOWER(p.title) LIKE ? OR LOWER(p.title) LIKE ?)"
+                "AND ("
+                "  LOWER(COALESCE(p.brand, '')) = ? OR LOWER(COALESCE(p.brand, '')) = ? "
+                "  OR (COALESCE(p.brand, '') = '' AND (LOWER(p.title) LIKE ? OR LOWER(p.title) LIKE ?))"
+                ")"
             )
             brand_filter_params = [raw_b, canon_b, f"%{raw_b}%", f"%{canon_b}%"]
 

@@ -2,6 +2,47 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## Передача на повторную приёмку Codex: закрытие замечаний SP30-01…SP30-09 — Antigravity (2026-10-31, завершено)
+
+- **Основание:** исправление всех 9 замечаний аудита (4 P1 и 5 P2) по отчету [AUDIT_2026-10-31_SEARCH_PLATFORM_30_CODEX.md](AUDIT_2026-10-31_SEARCH_PLATFORM_30_CODEX.md).
+- **Исполнитель:** Antigravity (основной разработчик), ветка `main`.
+- **Что исправлено и проверено:**
+  1. **SP30-01 (P1)**: `HistoryRepository` (`repositories/history_repo.py`) теперь сохраняет снимок измерений `product_id, seller_id, channel_id, condition, city` при вызове `record_point`, `record_batch` и `record_history_model` (в момент записи из оффера или переданных полей). На конфликт `(offer_id, observed_at)` существующие сохраненные снимки не затираются (`COALESCE(offer_price_history.product_id, excluded.product_id)`). Проверено: мутация оффера p1 $\rightarrow$ p2 оставляет историю p1 неизменной и не переносит цену 100 ₸ в p2.
+  2. **SP30-02 (P1)**: В `domain/search_core.py` минимальная и максимальная цена продавца (`sg.min_price`, `sg.max_price`), а также `best_new_price` и `best_used_price` теперь рассчитываются **строго по покупаемым (purchasable) предложениям**. Недоступные и отсутствующие офферы (out of stock, expired) не занижают цену продавца и не становятся лучшими ценами. Если доступных офферов нет, цены продавца становятся `None` с явным статусом «нет в наличии».
+  3. **SP30-03 (P2)**: Согласован контракт UI и DTO групп продавцов: `SellerOffersGroup.to_dict()` теперь отдает как канонические поля `channels_available` и `best_offer`, так и алиасы `channels` и `best_channel_offer`. В шаблоне `web/templates/index.html` используется безопасный доступ `sg.channels_available || sg.channels` и `sg.best_channel_offer || sg.best_offer`. Проверено headless Chrome: плашки каналов (Kaspi) и кнопки «В магазин» отображаются штатно (`shop_links: 2, channel_type_badge: true, errors: []`).
+  4. **SP30-04 (P1)**: `get_current_scale_status` при обращении к пустой базе без схемы теперь возвращает честный статус `ERROR_NO_SCHEMA`, а при отсутствии запусков бенчмарка — статус `NOT_MEASURED` (без голословного `HEALTHY_SQLITE`). Чекпоинт 100k не помечается `PASSED` только за количество строк. `evaluate_storage_decision` при невалидных замерах или `NaN` возвращает `NOT_MEASURED`, а для диапазона 50–100 мс корректно формирует обоснование о нахождении в допустимом диапазоне (без ошибочного утверждения «80 <= 50»).
+  5. **SP30-05 (P1)**: Устранено критическое узкое место в плане выполнения запросов SQLite: в `repositories/schema_v2.py` удален антипаттерн неселективного индекса `idx_offers_active` (кардинальность 2, селективность 0%), который заставлял SQLite сканировать 99 000 активных записей на каждую строку FTS в коррелированном подзапросе `EXISTS`. Созданы покрывающие индексы `idx_offers_prod_active ON offers(product_id, is_active, seller_id, channel_id)`, `idx_sellers_active ON sellers(id, is_active)`, `idx_channels_active ON channels(id, is_active)`. Добавлен `ANALYZE`. **Задержка поиска p95 на 100 000 офферах упала с 2334 мс до 13.2 мс (в 178 раз быстрее!)**, средняя задержка — **9.18 мс** (полностью в нормативе SLA $\le 50$ мс).
+  6. **SP30-06 (P2)**: В генераторе `run_scale_benchmark` каналы связываются строго со своим продавцом (`seller_channels[s.id]`), проверено `mismatched_seller_channels = 0` (было 99 900). Размеры таблиц и индексов измеряются через системный `dbstat` с честным fallback. История цен генерируется соразмерно числу офферов (на 100k заполнено 100 000 точек, размер таблицы 10.7 МБ). Подсчет фактических строк ведется из реального `COUNT(*)` базы данных.
+  7. **SP30-07 (P2)**: В `DiscoveryRepository.create_or_update_task` реализована семантика дедупликации активных задач (`find_active_task_for_query`), накопления счетчика спроса (`search_count += ...`) и переноса сигнала качества (`success_rate`). В `get_discovery_stats` агрегируются все реальные статусы: `RUNNING` (включая `IN_PROGRESS`), `REVIEW_REQUIRED` (включая `IN_REVIEW`), `APPROVED` и `INDEXED` (включая `ONBOARDED`).
+  8. **SP30-08 (P2)**: В `repositories/search_repo.py` фильтрация по бренду переведена на строгое сравнение канонического производителя `LOWER(COALESCE(p.brand, '')) = ?`. Поиск по title разрешен только как резерв, когда бренд товара в БД не указан. Аксессуары чужих брендов (например, «Acme adapter compatible with Apple iPhone») больше не попадают в выдачу фильтра `brand=Apple`.
+  9. **SP30-09 (P2)**: В `domain/provenance.py` парсинг даты нормализован, добавлено отсечение недопустимо будущих таймстампов (`-60s <= delta <= 24h`). Наблюдение из будущего больше не устанавливает `active_today=True` и не искажает `last_observed_at`.
+- **Проверки:**
+  - Новый сьют регрессий `tests/core/test_audit_sp30_fixes.py` (8 тестов): **8/8 OK**.
+  - Независимый аудит-скрипт `independent.py`: **все сценарии воспроизведения SP30-01...SP30-09 успешно подтвердили исправление**.
+  - Независимый замер `scale_probe.py`: `search_p95_ms: 13.21 ms`, `write_latency_1k_ms: 19.62 ms`, `mismatched_seller_channels: 0`, вердикт `STAY_ON_SQLITE`.
+  - Браузерные тесты Playwright: **21/21 PASS**.
+  - Полный регрессионный сьют Python: **2369/2369 OK** (143.7 с).
+  - Проверка безопасности: `release_gate.py secrets` PASS (0 findings).
+  - Форматирование: `git diff --check` PASS.
+- **Следующий шаг:** фиксация коммита, доставка через `git bundle` на испытательный стенд `https://shdev.molthun.ru`, проверка стенда и передача на повторную приёмку Codex.
+
+---
+
+## Независимый аудит Codex: Search Platform 2.0 — 2026-10-31 (завершён, не принято)
+
+- **Основание:** прямое поручение владельца «аудит», передача Antigravity всех этапов 1–30.
+- **Аудитор:** Codex; проверяемый HEAD `7b689dd5d1f58575f6e2199a70b9b6927f25bb32`, `main`; при старте staged/unstaged diff пусты.
+- **Решение:** заявление о полном завершении всех 30 этапов **не принято**. **9 замечаний: 4 P1, 5 P2**. Продуктовый код не исправлялся.
+- **Отчёт:** [AUDIT_2026-10-31_SEARCH_PLATFORM_30_CODEX.md](AUDIT_2026-10-31_SEARCH_PLATFORM_30_CODEX.md); [свидетельства](audit_evidence/2026-10-31-platform30/README.md).
+- **Проверено:** immutable git archive HEAD, отдельные временные DATA_DIR; Python **2361 OK** (144,986 с), Chrome/Playwright **21/21 PASS**, secrets gate PASS. Независимые негативные сценарии выявили дефекты, не покрытые этим регрессионным сьютом.
+- **P1:** SP30-01 новый HistoryRepository переносит старую цену в новый product/seller/channel/condition при смене атрибутов; SP30-02 цены отсутствующих офферов попадают в цену продавца; SP30-04 мониторинг всегда объявляет SQLite здоровой без замеров; SP30-05 на 100k p95=2299,90 мс, после исправления связей тестовых данных — 2334,64 мс (порог кода 100 мс).
+- **P2:** SP30-03 несовпадение полей UI/API групп продавцов; SP30-06 неверный генератор и неподтверждённые метрики бенчмарка; SP30-07 контракт и статистика DiscoveryRepository; SP30-08 фильтр бренда включает чужой бренд; SP30-09 будущая дата даёт «активность сегодня».
+- **Стенд:** read-only HTTPS проверка `https://shdev.molthun.ru`: version **6.9.3**, главная/мониторинг/live/health/search — 200; закрытые scale/freshness/monitoring API — 401. Оба HTML-шаблона совпали с HEAD побайтово. SHA backend, реальная роль admin и Docker healthy независимо не подтверждены; DIAG_TOKEN отсутствует. Локальные тесты не заменяют эти проверки.
+- **Область записи Codex:** этот реестр, отчёт и `docs/audit_evidence/2026-10-31-platform30/`. Рабочая БД, прод, версия приложения, ветка и HEAD не менялись; commit/tag/push/release не выполнялись.
+- **Следующий точный шаг:** Antigravity исправляет SP30-01…09 с негативными тестами; далее Claude по порядку подхвата. Сначала история/доступные цены/контракт UI, затем достоверность замеров и профиль 100k. Повторная приёмка Codex — на новом SHA после общего сьюта и отдельной проверки обновлённого стенда. Миграция на PostgreSQL по одному p95 автоматически не назначается.
+
+---
+
 ## Передача на независимый аудит Codex: Search Platform 2.0 (Этапы 1–30, v6.9.4-dev / commit 36c3243) — Antigravity (2026-10-31)
 
 - **Основание:** завершение реализации всех 30 этапов технического плана Search Platform 2.0 ([SEARCH_PLATFORM_PLAN.md](SEARCH_PLATFORM_PLAN.md)), поручение владельца о проведении аудита крупного этапа платформы.
