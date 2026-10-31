@@ -29,6 +29,7 @@ class MonitoringOverviewV2:
     source_level: Dict[str, Any] = field(default_factory=dict)
     channel_level: Dict[str, Any] = field(default_factory=dict)
     offer_level: Dict[str, Any] = field(default_factory=dict)
+    scale_level: Dict[str, Any] = field(default_factory=dict)
     # Разделы, которые не удалось прочитать: их числа — null, а не ноль (V04)
     read_errors: List[str] = field(default_factory=list)
 
@@ -291,6 +292,9 @@ def build_monitoring_overview_v2(
         "content_observations_stored": active_observations,
     }
 
+    from domain.scale_bench import get_current_scale_status
+    scale_level = get_current_scale_status(conn)
+
     return MonitoringOverviewV2(
         generated_at=utc_now_iso(),
         correlation_ids=get_correlation_ids(),
@@ -298,5 +302,6 @@ def build_monitoring_overview_v2(
         source_level=source_level,
         channel_level=channel_level,
         offer_level=offer_level,
+        scale_level=scale_level,
         read_errors=read_errors,
     )

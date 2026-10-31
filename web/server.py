@@ -2130,6 +2130,30 @@ async def admin_freshness_stats_handler(request):
 
 
 
+@routes.get("/api/v2/admin/scale/summary")
+@require_admin
+async def admin_scale_summary_handler(request):
+    """Сводка контрольных точек масштабирования и вердикт по хранилищу (S2-E30)."""
+    def _get():
+        from database import get_connection
+        from domain.scale_bench import get_current_scale_status
+
+        conn = get_connection()
+        try:
+            return get_current_scale_status(conn)
+        finally:
+            conn.close()
+
+    try:
+        data = await asyncio.to_thread(_get)
+        data["ok"] = True
+        return web.json_response(data)
+    except Exception as e:
+        print(f"[API admin scale summary] Ошибка: {e}")
+        return web.json_response({"ok": False, "error": "Ошибка получения сводки масштабирования"}, status=500)
+
+
+
 # ===== Авторизация =====
 
 @routes.get("/api/me")

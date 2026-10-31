@@ -6,6 +6,19 @@
 
 ---
 
+## [Search Platform 2.0: Этап 30] Масштабирование и контрольные точки (Scale Checkpoints) (31.10.2026)
+- **Контекст:** реализация завершающего Этапа 30 Search Platform 2.0 согласно [SEARCH_PLATFORM_PLAN.md](docs/SEARCH_PLATFORM_PLAN.md) по поручению владельца («Все по очереди. Пишем и охватываем тестами. Крупные этапы после разработки только охватываем аудитом остальное только авто тестами и стендом. Делаем. но не забывай обновлять стенд. на нем я визуально тестирую новые возможности после разработки»).
+- **Реализация:**
+  - Контрольные точки масштабирования: `100k`, `500k`, `1m`, `5m`, `10m` офферов.
+  - Доменный модуль бенчмаркинга (`domain/scale_bench.py`): сбор ключевых метрик масштабирования (search p95, write latency 1k batch, db size, fts size, price history size, backup duration via `sqlite3_backup`, memory RSS, cold startup).
+  - Объективный вердикт по архитектуре хранилища: `STAY_ON_SQLITE` vs `EVALUATE_POSTGRESQL`.
+  - CLI инструмент `scripts/benchmark_scale.py` для замеров и экспорта в JSON.
+  - Административный эндпоинт `GET /api/v2/admin/scale/summary` (`@require_admin`).
+  - Уровень 5 (Scale Checkpoints) в мониторинге 2.0 (`web/templates/monitoring.html` и `domain/monitoring_v2.py`) с карточками метрик, шкалой прогресса и вердиктом хранилища.
+- **Тесты:** создан сьют `tests/core/test_scale_benchmark.py` (5 тестов). Полный регресс Python: **2361/2361 OK** (141.1 с); браузерные тесты Playwright: **21/21 PASS**; `release_gate.py secrets`: **PASS**; `git diff --check`: **PASS**. Ветка `main`.
+
+---
+
 ## [Search Platform 2.0: Этап 29] Local DB evolution & Repository Layer (31.10.2026)
 - **Контекст:** реализация Этапа 29 Search Platform 2.0 согласно [SEARCH_PLATFORM_PLAN.md](docs/SEARCH_PLATFORM_PLAN.md) по поручению владельца («Все по очереди. Пишем и охватываем тестами. Крупные этапы после разработки только охватываем аудитом остальное только авто тестами и стендом. Делаем. но не забывай обновлять стенд. на нем я визуально тестирую новые возможности после разработки»).
 - **Реализация:**
