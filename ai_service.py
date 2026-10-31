@@ -349,7 +349,11 @@ async def _limited_provider_call(fn, *args, scan: bool = False):
 
 
 async def call_gemini_api(prompt: str, api_key: str, *, timeout: float = DEFAULT_TIMEOUT_SECONDS,
-                          scan: bool = False, model: Optional[str] = None):
+                          scan: bool = False, model: Optional[str] = None,
+                          image_bytes: Optional[bytes] = None, mime_type: str = "image/jpeg"):
+    if image_bytes is not None:
+        return await _limited_provider_call(_call_gemini_api, prompt, api_key, timeout, model,
+                                            image_bytes, mime_type, scan=scan)
     return await _limited_provider_call(_call_gemini_api, prompt, api_key, timeout, model, scan=scan)
 
 
@@ -489,7 +493,11 @@ async def list_openai_models(api_key: str, api_base: str = "",
 
 async def call_openai_api(prompt: str, api_key: str, api_base: str, *,
                           timeout: float = DEFAULT_TIMEOUT_SECONDS, scan: bool = False,
-                          model: Optional[str] = None):
+                          model: Optional[str] = None,
+                          image_bytes: Optional[bytes] = None, mime_type: str = "image/jpeg"):
+    if image_bytes is not None:
+        return await _limited_provider_call(_call_openai_api, prompt, api_key, api_base, timeout, model,
+                                            image_bytes, mime_type, scan=scan)
     return await _limited_provider_call(_call_openai_api, prompt, api_key, api_base, timeout, model, scan=scan)
 
 
@@ -501,7 +509,9 @@ STATIC_GEMINI_FALLBACK = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gem
 
 
 async def _call_gemini_api(prompt: str, api_key: str, timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
-                           model: Optional[str] = None) -> Optional[Dict[str, Any]]:
+                           model: Optional[str] = None,
+                           image_bytes: Optional[bytes] = None,
+                           mime_type: str = "image/jpeg") -> Optional[Dict[str, Any]]:
     """Вызов Gemini REST API через aiohttp.
 
     Модель приходит от вызывающего: в ручном режиме — заданная владельцем, в «Авто» — выбранная из
@@ -518,10 +528,19 @@ async def _call_gemini_api(prompt: str, api_key: str, timeout_seconds: float = D
 
     for model in models_to_try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+        parts: List[Dict[str, Any]] = [{"text": prompt}]
+        if image_bytes:
+            import base64
+            parts.append({
+                "inline_data": {
+                    "mime_type": mime_type or "image/jpeg",
+                    "data": base64.b64encode(image_bytes).decode("ascii"),
+                }
+            })
         payload = {
             "contents": [
                 {
-                    "parts": [{"text": prompt}]
+                    "parts": parts
                 }
             ],
             "generationConfig": {
@@ -576,7 +595,9 @@ async def _call_gemini_api(prompt: str, api_key: str, timeout_seconds: float = D
 
 async def _call_openai_api(prompt: str, api_key: str, api_base: str,
                            timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
-                           model: Optional[str] = None) -> Optional[Dict[str, Any]]:
+                           model: Optional[str] = None,
+                           image_bytes: Optional[bytes] = None,
+                           mime_type: str = "image/jpeg") -> Optional[Dict[str, Any]]:
     """Вызов OpenAI-совместимого API через aiohttp."""
     url = f"{api_base.rstrip('/')}/chat/completions"
     headers = {
@@ -593,6 +614,15 @@ async def _call_openai_api(prompt: str, api_key: str, api_base: str,
     active_chain = [m for m in raw_chain if not is_model_on_cooldown("openai", m)]
     models_to_try = list(dict.fromkeys(active_chain or raw_chain))
 
+    if image_bytes:
+        import base64
+        user_content: Any = [
+            {"type": "text", "text": prompt},
+            {"type": "image_url", "image_url": {"url": f"data:{mime_type or 'image/jpeg'};base64,{base64.b64encode(image_bytes).decode('ascii')}"}}
+        ]
+    else:
+        user_content = prompt
+
     for model in models_to_try:
         # Для совместимости: современные модели OpenAI (gpt-5.4, o-серия, gpt-4o) требуют
         # max_completion_tokens вместо устаревшего max_tokens.
@@ -600,7 +630,7 @@ async def _call_openai_api(prompt: str, api_key: str, api_base: str,
             "model": model,
             "messages": [
                 {"role": "system", "content": "You are a helpful JSON parser for e-commerce search queries."},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": user_content}
             ],
             "response_format": {"type": "json_object"},
             "temperature": 0.1,
@@ -693,7 +723,8 @@ def _local_headers(api_key: str) -> Dict[str, str]:
 
 
 async def call_local_api(prompt: str, api_base: str, model: str, api_key: str = "", *,
-                         timeout: float = DEFAULT_TIMEOUT_SECONDS, scan: bool = False):
+                         timeout: float = DEFAULT_TIMEOUT_SECONDS, scan: bool = False,
+                         image_bytes: Optional[bytes] = None, mime_type: str = "image/jpeg"):
     """Вызов локальной модели с тем же учётом, что у платных (usage_sink, телеметрия), но без бюджета."""
     purpose = "normalize" if scan else "user"
     info: Dict[str, Any] = {}
@@ -719,7 +750,11 @@ async def call_local_api(prompt: str, api_base: str, model: str, api_key: str = 
                 info["paused_reason"] = paused
                 return None
             remaining = max(1.0, budget - (time.monotonic() - started))
-            result = await _call_local_api(prompt, api_base, model, api_key, remaining)
+            if image_bytes is not None:
+                result = await _call_local_api(prompt, api_base, model, api_key, remaining,
+                                               image_bytes, mime_type)
+            else:
+                result = await _call_local_api(prompt, api_base, model, api_key, remaining)
             return result
         finally:
             slot.release()
@@ -738,13 +773,24 @@ async def call_local_api(prompt: str, api_base: str, model: str, api_key: str = 
 
 
 async def _call_local_api(prompt: str, api_base: str, model: str, api_key: str,
-                          timeout_seconds: float) -> Optional[Dict[str, Any]]:
+                          timeout_seconds: float,
+                          image_bytes: Optional[bytes] = None,
+                          mime_type: str = "image/jpeg") -> Optional[Dict[str, Any]]:
     url = f"{api_base.rstrip('/')}/chat/completions"
+    if image_bytes:
+        import base64
+        user_content: Any = [
+            {"type": "text", "text": prompt},
+            {"type": "image_url", "image_url": {"url": f"data:{mime_type or 'image/jpeg'};base64,{base64.b64encode(image_bytes).decode('ascii')}"}}
+        ]
+    else:
+        user_content = prompt
+
     payload = {
         "model": model,
         "messages": [
             {"role": "system", "content": "You are a helpful JSON parser for e-commerce search queries."},
-            {"role": "user", "content": prompt},
+            {"role": "user", "content": user_content},
         ],
         "response_format": {"type": "json_object"},
         "temperature": 0.1,

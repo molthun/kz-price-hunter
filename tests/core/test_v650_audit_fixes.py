@@ -352,7 +352,10 @@ class VisionBoundaryTest(unittest.TestCase):
 
     def test_no_phantom_ai_tasks(self):
         import ai_router
-        self.assertNotIn("vision_extraction", ai_router.TASKS)
+        # vision_extraction реализована в P17-D и зарегистрирована в TASKS
+        self.assertIn("vision_extraction", ai_router.TASKS)
+        self.assertEqual(ai_router.TASKS["vision_extraction"]["audience"], ai_router.INTERNAL)
+        # search_assistant по-прежнему не является отдельной задачей роутера
         self.assertNotIn("search_assistant", ai_router.TASKS)
 
 

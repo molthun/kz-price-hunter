@@ -33,6 +33,7 @@ TASKS: Dict[str, Dict[str, Any]] = {
     "admin_assistant":   {"audience": INTERNAL, "timeout": 30, "fallback": True, "cache_ttl": 0},
     "daily_digest":      {"audience": INTERNAL, "timeout": 30, "fallback": True, "cache_ttl": 0},
     "catalog_matching":  {"audience": INTERNAL, "timeout": 20, "fallback": True, "cache_ttl": 86400},
+    "vision_extraction": {"audience": INTERNAL, "timeout": 45, "fallback": True, "cache_ttl": 0},
 }
 
 PROVIDERS = ("gemini", "openai")
@@ -146,7 +147,9 @@ async def run(task: str, prompt: str, *, deterministic: Optional[Callable[[], An
               validate: Optional[Callable[[Any], Any]] = None,
               cache_key: Optional[str] = None,
               config: Optional[Dict[str, Any]] = None,
-              fallback_from: Optional[str] = None) -> Dict[str, Any]:
+              fallback_from: Optional[str] = None,
+              image_bytes: Optional[bytes] = None,
+              mime_type: str = "image/jpeg") -> Dict[str, Any]:
     """Выполняет AI-задачу по политике: сначала без модели, затем провайдер, затем запасной.
 
     Провайдеры проекта возвращают уже разобранный ответ модели (или None, если ответа нет и разобрать
@@ -219,22 +222,30 @@ async def run(task: str, prompt: str, *, deterministic: Optional[Callable[[], An
         calls: list = []
         token = ai_service.usage_sink.set(calls)
         try:
+            extra_call_kw = {}
+            if image_bytes is not None:
+                extra_call_kw["image_bytes"] = image_bytes
+                extra_call_kw["mime_type"] = mime_type
+
             if provider == LOCAL:
                 data = await ai_service.call_local_api(prompt, config.get("local_api_base") or "", model,
                                                        config.get("local_api_key") or "",
                                                        timeout=cfg["timeout"],
-                                                       scan=audience(task) == INTERNAL)
+                                                       scan=audience(task) == INTERNAL,
+                                                       **extra_call_kw)
             elif provider == "gemini":
                 data = await ai_service.call_gemini_api(prompt, config["gemini_api_key"],
                                                         timeout=cfg["timeout"],
                                                         scan=audience(task) == INTERNAL,
-                                                        model=model)
+                                                        model=model,
+                                                        **extra_call_kw)
             else:
                 data = await ai_service.call_openai_api(prompt, config["openai_api_key"],
                                                         config.get("openai_api_base") or "",
                                                         timeout=cfg["timeout"],
                                                         scan=audience(task) == INTERNAL,
-                                                        model=model)
+                                                        model=model,
+                                                        **extra_call_kw)
         except Exception as e:                      # таймаут, сеть, неожиданный ответ провайдера
             data, last_error = None, type(e).__name__
         finally:

@@ -2,6 +2,31 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## P17-D: Мультимодальный Vision по изображениям — Antigravity (завершено, готов к аудиту Codex, 2026-10-31 14:25)
+
+- **Основание:** прямое поручение владельца («Теперь вернемся к тому что не доделано. Нужно все доделать»), план [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) раздел P17-D (закрытие технического долга Search Platform 2.0 S2-E10).
+- **Исполнитель:** Antigravity (основной разработчик).
+- **Ветка разработки:** `feature/p17-d-vision-extraction` (от `main` `b2c5edd`).
+- **Область файлов:** `ai_router.py`, `ai_service.py`, `domain/vision_extraction.py`, `tests/ai/test_vision_extraction.py`, `tests/core/test_v650_audit_fixes.py`, `docs/DEVELOPMENT_PLAN.md`, `ROADMAP_AND_LOG.md`.
+- **Что изменено:**
+  1. `ai_service.py`: добавлена мультимодальная передача изображений (`image_bytes: Optional[bytes]`, `mime_type: str`) в вызовы `_call_local_api` / `call_local_api` (Ollama `/v1/chat/completions` в формате `image_url`), `_call_gemini_api` / `call_gemini_api` (Gemini `inline_data`) и `_call_openai_api` / `call_openai_api` (`image_url`). При чисто текстовых запросах (`image_bytes is None`) аргументы вызова полностью сохранены для 100% обратной совместимости с существующими моками тестов;
+  2. `ai_router.py`: задача `vision_extraction` зарегистрирована в `TASKS` (`audience: INTERNAL, timeout: 45, fallback: True, cache_ttl: 0`). В `ai_router.run` проброшены параметры `image_bytes, mime_type` (передаются провайдерам только при наличии картинки);
+  3. `domain/vision_extraction.py`: добавлен системный промпт `VISION_EXTRACTION_PROMPT` с правилами безопасного извлечения (текст на картинке — визуальные данные, а не инструкции: защита от prompt injection). Реализован асинхронный метод `VisionExtractionEngine.extract_from_image(...)` и `VisionExtractionEngine.extract_from_observation_async(...)` (с поддержкой `image_bytes`, base64 строки в метаданных и локального файла `image_path`, а также детерминированным fallback на OCR). Добавлен lookbehind `(?<![a-zA-Zа-яА-ЯёЁ\d])` в регулярки цен `KZT_RE`, `RUB_RE`, `USD_RE`, предотвращающий ошибочное слияние суффиксов моделей (напр., "M2 329 990 ₸");
+  4. `tests/core/test_v650_audit_fixes.py`: тест `test_no_phantom_ai_tasks` актуализирован (задача `vision_extraction` зарегистрирована в политике роутера);
+  5. `tests/ai/test_vision_extraction.py`: создан всеобъемлющий тестовый модуль (11 тестов), покрывающий все 8 обязательных сценариев P17-D: постер с крупной ценой, прайс-лист 5+ товаров, зачёркнутая старая цена (старая > новой), отсечение чужой валюты (RUB/USD не публикуются как тенге), цена за кг/вес, размер и объем памяти рядом с ценой, закрытая/размытая цена (стикер/палец/звёздочки -> «Цена не определена», `publishable=False`), защита от prompt injection, fallback с локальной модели на Gemini при сбое локальной, форматы передачи картинки (bytes, base64, path) и детерминированный fallback на OCR.
+- **Что проверено:**
+  - `tests/ai/test_vision_extraction.py`: 11/11 OK (0.505 с);
+  - `tests/core/test_v650_audit_fixes.py` + `tests/core/test_search_platform_v2_complete.py`: 42/42 OK;
+  - `tests/ai/`: 397/397 OK (16.252 с);
+  - `tests/monitoring/test_monitor.py`: 111/111 OK (10.788 с);
+  - Полный сьют репозитория: **2204 тестов OK** (138.045 с);
+  - Проверка утечек ключей и секретов (`release_gate.py secrets --root .`): `ok: true`, findings: 0;
+  - `git diff --check`: чисто.
+  - Прод и стенд не затрагивались (прод `shop.molthun.ru` v6.8.0 `Up (healthy)`, стенд `shdev.molthun.ru` v6.8.0 `Up (healthy)`).
+- **Следующий шаг:** передача ветки `feature/p17-d-vision-extraction` на аудит Codex.
+
+---
+
 ## Аудит опубликованного 6.8.0 — Codex (2026-10-31)
 
 - Проверены локальный и удалённый main `cec6c62`, удалённый тег v6.8.0→`5b302cf`. Между тегом и main только запись передачи, исполняемый код одинаков. **Новых блокирующих дефектов в проверенной дельте не найдено.** После 614255e приложение изменилось только версией, остальное — данные/документы/продуктовая приёмка.
