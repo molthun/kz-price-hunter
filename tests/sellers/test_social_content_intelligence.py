@@ -277,7 +277,7 @@ class ContentObservationRepositoryTest(unittest.TestCase):
         init_schema_v2(self.conn)
         self.repo = ContentObservationRepository(self.conn)
 
-    def test_roundtrip_keeps_media_and_metadata(self):
+    def test_roundtrip_keeps_only_technical_fields(self):
         obs = observation(
             "iPhone 15 499 000 тг",
             media_urls=["https://cdn.example.invalid/a.jpg"],
@@ -286,17 +286,16 @@ class ContentObservationRepositoryTest(unittest.TestCase):
         self.repo.save_observation(obs)
         loaded = self.repo.get_by_id(obs.id)
         self.assertIsNotNone(loaded)
-        self.assertEqual(loaded.media_urls, ["https://cdn.example.invalid/a.jpg"])
-        self.assertEqual(loaded.raw_metadata["views"], 42)
-        self.assertEqual(loaded.text, obs.text)
+        self.assertEqual(loaded.media_urls, [])
+        self.assertEqual(loaded.raw_metadata, {"post_url": "https://t.me/example/1"})
+        self.assertEqual(loaded.text, "")
 
     def test_repeated_save_updates_existing_observation(self):
-        obs = observation("iPhone 15 499 000 тг")
+        obs = observation("iPhone 15 499 000 тг", raw_metadata={"post_url": "https://t.me/example/1"})
         self.repo.save_observation(obs)
-        obs.text = "iPhone 15 469 000 тг"
+        obs.raw_metadata["post_url"] = "https://t.me/example/2"
         self.repo.save_observation(obs)
-        loaded = self.repo.get_by_id(obs.id)
-        self.assertEqual(loaded.text, "iPhone 15 469 000 тг")
+        self.assertEqual(self.repo.get_by_id(obs.id).raw_metadata["post_url"], "https://t.me/example/2")
 
     def test_find_by_post(self):
         obs = observation("iPhone 15 499 000 тг", post_id="post_42")
@@ -329,12 +328,13 @@ class ContentObservationRepositoryTest(unittest.TestCase):
         self.assertIsNone(self.repo.get_by_id(expired.id))
         self.assertIsNotNone(self.repo.get_by_id(fresh.id))
 
-    def test_extract_candidates_from_stored_observation(self):
+    def test_extract_candidates_works_on_observation_in_memory(self):
         obs = observation("iPhone 15 499 000 тг")
         self.repo.save_observation(obs)
-        candidates = self.repo.extract_candidates(self.repo.get_by_id(obs.id))
+        candidates = self.repo.extract_candidates(obs)
         self.assertEqual(len(candidates), 1)
         self.assertEqual(candidates[0].price, 499000.0)
+        self.assertEqual(self.repo.extract_candidates(self.repo.get_by_id(obs.id)), [])
 
 
 class SearchCoreTtlTest(unittest.TestCase):

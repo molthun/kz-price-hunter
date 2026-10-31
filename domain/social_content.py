@@ -11,10 +11,11 @@ import re
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from domain.models import Availability, Condition, Offer, utc_now_iso
 from domain.query_parser import KZ_CITIES_MAP
+from model_matching import extract_canonical_key
 
 
 class ContentType:
@@ -46,13 +47,17 @@ class ContentObservation:
     raw_metadata: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
-        # Auto-calculate default TTL for ephemeral content (Stories = 24h)
+        # Auto-calculate default TTL for ephemeral content (Stories = 24h).
+        # Срок идёт от публикации: повторное чтение старой сторис его не продлевает (FA69R-06)
         if not self.expires_at and self.content_type == ContentType.STORY:
-            try:
-                obs_dt = datetime.fromisoformat(self.observed_at)
-            except Exception:
-                obs_dt = datetime.now(timezone.utc)
-            self.expires_at = (obs_dt + timedelta(hours=24)).isoformat()
+            start = None
+            for value in (self.published_at, self.observed_at):
+                try:
+                    start = datetime.fromisoformat(value)
+                    break
+                except (TypeError, ValueError):
+                    continue
+            self.expires_at = ((start or datetime.now(timezone.utc)) + timedelta(hours=24)).isoformat()
 
     def is_expired(self, now_iso: Optional[str] = None) -> bool:
         if not self.expires_at:
@@ -147,17 +152,19 @@ class ExtractedOfferCandidate:
         """
         unit = (self.unit or "").strip().lower() or None
         quantity = self.quantity if self.quantity and self.quantity > 0 else None
-        match = _SIZE_VOLUME_RE.search(self.size_or_volume or "")
+        from_size = False
+        match = find_pack_size(self.size_or_volume or "")
         if match and (unit is None or quantity in (None, 1.0)):
             size_unit = _UNIT_ALIASES[match.group(2).lower()]
             if unit in (None, "pcs") or _UNIT_BASE[size_unit][0] == _UNIT_BASE.get(unit, ("",))[0]:
+                from_size = unit in (None, "pcs")
                 unit = size_unit
                 quantity = float(match.group(1).replace(",", "."))
         unit = _UNIT_ALIASES.get(unit, unit) if unit else None
         if unit not in _UNIT_BASE:
             return None
         quantity = quantity or 1.0
-        if unit == "pcs" and quantity == 1.0 and not self.is_unit_price:
+        if unit == "pcs" and quantity == 1.0:
             return None
         base_unit, factor = _UNIT_BASE[unit]
         amount = f"{quantity * factor:.6g}{base_unit}"
@@ -167,14 +174,60 @@ class ExtractedOfferCandidate:
             "unit": unit,
             "pack": f"{'per' if self.is_unit_price else 'pack'}:{amount}",
             "label": f"{'за ' if self.is_unit_price else ''}{quantity:g} {_UNIT_LABELS[unit]}",
+            # Размер только из названия: у товара с настоящей моделью (чайник 1,7 л) это не отдельная фасовка
+            "from_size": from_size and not self.is_unit_price,
         }
 
 
 _UNIT_BASE = {"g": ("g", 1), "kg": ("g", 1000), "ml": ("ml", 1), "l": ("ml", 1000), "pcs": ("pcs", 1)}
 _UNIT_LABELS = {"g": "г", "kg": "кг", "ml": "мл", "l": "л", "pcs": "шт"}
-_UNIT_ALIASES = {"г": "g", "гр": "g", "g": "g", "кг": "kg", "kg": "kg", "мл": "ml", "ml": "ml",
-                 "л": "l", "l": "l", "шт": "pcs", "pcs": "pcs"}
-_SIZE_VOLUME_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*(кг|kg|гр|г|g|мл|ml|л|l)(?![a-zа-я])", re.IGNORECASE)
+_UNIT_ALIASES = {"г": "g", "гр": "g", "грамм": "g", "g": "g", "кг": "kg", "kg": "kg", "килограмм": "kg",
+                 "мл": "ml", "ml": "ml", "миллилитр": "ml", "л": "l", "l": "l", "литр": "l",
+                 "шт": "pcs", "штук": "pcs", "штука": "pcs", "штуку": "pcs", "pcs": "pcs"}
+_SIZE_VOLUME_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*(кг|kg|гр|г|g|мл|ml|л|l|штук|шт)(?![a-zа-я])", re.IGNORECASE)
+_UNIT_PRICE_RE = re.compile(
+    r"(?:за\s*(\d+(?:[.,]\d+)?)?\s*(килограмм|кг|kg|грамм|гр|г|g|миллилитр|мл|ml|литр|л|l|штуку|штука|штук|шт|pcs)"
+    r"|/\s*(кг|kg|гр|г|мл|ml|л|шт))(?![a-zа-я])",
+    re.IGNORECASE,
+)
+
+
+def find_pack_size(text: str) -> Optional[re.Match]:
+    """Вес, объём или число штук в строке. «5G» — связь, а не граммы."""
+    for match in _SIZE_VOLUME_RE.finditer(text or ""):
+        if match.group(2).lower() == "g" and float(match.group(1).replace(",", ".")) < 10 and " " not in match.group(0):
+            continue
+        return match
+    return None
+
+
+def parse_unit_price(line: str) -> Optional[Tuple[float, str]]:
+    """(количество, единица), если строка задаёт цену за вес, объём или штуки: «за 100 g», «/кг»."""
+    match = _UNIT_PRICE_RE.search(line or "")
+    if not match:
+        return None
+    quantity = float(match.group(1).replace(",", ".")) if match.group(1) else 1.0
+    return quantity, _UNIT_ALIASES[(match.group(2) or match.group(3)).lower()]
+
+
+def candidate_identity(candidate: "ExtractedOfferCandidate") -> Tuple[str, float]:
+    return extract_canonical_key(candidate.raw_title) or candidate.raw_title.strip().lower(), round(candidate.price, 2)
+
+
+def merge_offer_candidates(base: List["ExtractedOfferCandidate"],
+                           extra: Iterable["ExtractedOfferCandidate"]) -> List["ExtractedOfferCandidate"]:
+    """Объединяет кандидатов текста и Vision: цена с основанием вытесняет ту же цену без него (FA69R-02)."""
+    merged = list(base)
+    for cand in extra:
+        basis = cand.price_basis()
+        same = [c for c in merged if candidate_identity(c) == candidate_identity(cand)]
+        packs = {(c.price_basis() or {}).get("pack") for c in same}
+        if same and (not basis or basis["pack"] in packs):
+            continue
+        if basis:
+            merged = [c for c in merged if not (c in same and not c.price_basis())]
+        merged.append(cand)
+    return merged
 
 
 class SocialContentExtractor:
@@ -403,6 +456,17 @@ class SocialContentExtractor:
             line_city = cls._detect_city(line)
             effective_city = line_city if line_city != "Все" else global_city
 
+            # Цена за вес/объём или фасовка в названии не публикуется как цена одной штуки (FA69R-02)
+            unit_price = parse_unit_price(line)
+            pack_size = None
+            if unit_price:
+                title_part = " ".join(_UNIT_PRICE_RE.sub(" ", title_part).split()).strip(" :-–—•*·")
+                if len(title_part) < 3:
+                    continue
+            else:
+                size_match = find_pack_size(title_part)
+                pack_size = size_match.group(0) if size_match else None
+
             cand = ExtractedOfferCandidate(
                 raw_title=title_part,
                 price=price,
@@ -413,6 +477,10 @@ class SocialContentExtractor:
                 confidence=0.85 if old_price else 0.8,
                 expires_at=default_expires,
                 raw_snippet=line,
+                is_unit_price=bool(unit_price),
+                quantity=unit_price[0] if unit_price else None,
+                unit=unit_price[1] if unit_price else None,
+                size_or_volume=pack_size,
             )
             candidates.append(cand)
 

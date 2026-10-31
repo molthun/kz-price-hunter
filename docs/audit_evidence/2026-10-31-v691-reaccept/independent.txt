@@ -1,0 +1,114 @@
+INDEPENDENT_NOTES={"caption_units": [{"price": 1000.0, "product_id": "prod_58c13616ea7a43c3", "quantity": null, "unit": null}, {"price": 6000.0, "product_id": "prod_58c13616ea7a43c3", "quantity": null, "unit": null}, {"price": 1000.0, "product_id": "prod_d92a1ff08437ada6", "quantity": 100.0, "unit": "g"}, {"price": 6000.0, "product_id": "prod_a5ad595d9ff34964", "quantity": 1.0, "unit": "kg"}], "channels": {"first_channel": "chan_confirmed_instagram", "same_offer": true, "second_channel": "chan_confirmed_instagram"}, "numeric_post_order": {"post_id": "9", "price": 150000.0}, "storage": {"backup_retains_post_after_purge": true, "expires_at": null, "full_post_persisted": true, "media_url_persisted": true, "status": "OK"}, "storage_base64": {"base64_persisted": true}, "story_ttl": {"first_expiry": "2026-10-31T10:00:16.718157+00:00", "recollected_availability": "in_stock", "recollected_expiry": "2026-11-01T11:00:16.718157+00:00"}, "typed_schema": {"exception": "AttributeError", "fallback_calls": 0}}
+test_city_condition_platform_permalink_and_history (__main__.Positive.test_city_condition_platform_permalink_and_history) ... ok
+test_confidence_missing_nan_string_and_good (__main__.Positive.test_confidence_missing_nan_string_and_good) ... ok
+test_distinct_publication_times_newest_wins (__main__.Positive.test_distinct_publication_times_newest_wins) ... ok
+test_schema_fallback (__main__.Positive.test_schema_fallback) ... ok
+test_base64_image_is_not_retained (__main__.Residual.test_base64_image_is_not_retained) ... FAIL
+test_caption_cannot_publish_an_unqualified_unit_price (__main__.Residual.test_caption_cannot_publish_an_unqualified_unit_price) ... FAIL
+test_content_is_not_retained (__main__.Residual.test_content_is_not_retained) ... FAIL
+test_distinct_handles_of_confirmed_seller_keep_channels (__main__.Residual.test_distinct_handles_of_confirmed_seller_keep_channels) ... FAIL
+test_numeric_post_order_at_same_timestamp (__main__.Residual.test_numeric_post_order_at_same_timestamp) ... FAIL
+test_story_recollection_keeps_original_expiry (__main__.Residual.test_story_recollection_keeps_original_expiry) ... FAIL
+test_wrong_unit_type_falls_back_without_losing_good_item (__main__.Residual.test_wrong_unit_type_falls_back_without_losing_good_item) ... ERROR
+
+======================================================================
+ERROR: test_wrong_unit_type_falls_back_without_losing_good_item (__main__.Residual.test_wrong_unit_type_falls_back_without_losing_good_item)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py", line 128, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py", line 720, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-31-v691-reaccept/independent.py", line 147, in test_wrong_unit_type_falls_back_without_losing_good_item
+    try: result=await VisionExtractionEngine.extract_from_image(b'audit-image-content',config=cfg)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v691-reaccept-hb613ie6/source/domain/vision_extraction.py", line 667, in extract_from_image
+    return cls.extract_from_structured(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        items,
+        ^^^^^^
+        default_city=default_city,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+        min_confidence=min_confidence,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v691-reaccept-hb613ie6/source/domain/vision_extraction.py", line 368, in extract_from_structured
+    unit=cls._normalize_unit(unit) if unit else None,
+         ~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v691-reaccept-hb613ie6/source/domain/vision_extraction.py", line 243, in _normalize_unit
+    u = raw_unit.strip().lower().rstrip(".")
+        ^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'strip'
+
+======================================================================
+FAIL: test_base64_image_is_not_retained (__main__.Residual.test_base64_image_is_not_retained)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-31-v691-reaccept/independent.py", line 117, in test_base64_image_is_not_retained
+    self.assertNotIn(payload,raw,'Supported base64 input must not be persisted')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'c3ludGhldGljLWltYWdlLWNvbnRlbnQtb25seQ==' unexpectedly found in '{"platform": "instagram", "handle": "audit_shop", "post_url": "https://www.instagram.com/p/AUDIT/", "image_bytes": "c3ludGhldGljLWltYWdlLWNvbnRlbnQtb25seQ=="}' : Supported base64 input must not be persisted
+
+======================================================================
+FAIL: test_caption_cannot_publish_an_unqualified_unit_price (__main__.Residual.test_caption_cannot_publish_an_unqualified_unit_price)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py", line 128, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py", line 720, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-31-v691-reaccept/independent.py", line 135, in test_caption_cannot_publish_an_unqualified_unit_price
+    self.assertTrue(all(o.unit for o in offers),'Caption created price offers with no unit basis')
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true : Caption created price offers with no unit basis
+
+======================================================================
+FAIL: test_content_is_not_retained (__main__.Residual.test_content_is_not_retained)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-31-v691-reaccept/independent.py", line 109, in test_content_is_not_retained
+    self.assertFalse(row['text'],'The original post must not be stored as catalog data')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'Apple iPhone 15 128GB 100000 ₸\nСинтетическое полное описание продавца, не данные сравнения.' is not false : The original post must not be stored as catalog data
+
+======================================================================
+FAIL: test_distinct_handles_of_confirmed_seller_keep_channels (__main__.Residual.test_distinct_handles_of_confirmed_seller_keep_channels)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-31-v691-reaccept/independent.py", line 167, in test_distinct_handles_of_confirmed_seller_keep_channels
+    self.assertNotEqual(a.channel_id,b.channel_id,'Two different handles are two different channels')
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'chan_confirmed_instagram' == 'chan_confirmed_instagram' : Two different handles are two different channels
+
+======================================================================
+FAIL: test_numeric_post_order_at_same_timestamp (__main__.Residual.test_numeric_post_order_at_same_timestamp)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-31-v691-reaccept/independent.py", line 159, in test_numeric_post_order_at_same_timestamp
+    self.assertEqual(row['price'],100000,'Telegram post 10 is later than post 9')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 150000.0 != 100000 : Telegram post 10 is later than post 9
+
+======================================================================
+FAIL: test_story_recollection_keeps_original_expiry (__main__.Residual.test_story_recollection_keeps_original_expiry)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-31-v691-reaccept/independent.py", line 180, in test_story_recollection_keeps_original_expiry
+    self.assertEqual(second.expires_at,first.expires_at,'Recollection must not give an old Story another 24 hours')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '2026-11-01T11:00:16.718157+00:00' != '2026-10-31T10:00:16.718157+00:00'
+- 2026-11-01T11:00:16.718157+00:00
+?       ^ ^   ^
++ 2026-10-31T10:00:16.718157+00:00
+?       ^ ^   ^
+ : Recollection must not give an old Story another 24 hours
+
+----------------------------------------------------------------------
+Ran 11 tests in 0.552s
+
+FAILED (failures=6, errors=1)

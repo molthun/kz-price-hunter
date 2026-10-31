@@ -256,6 +256,17 @@ CREATE INDEX IF NOT EXISTS idx_discovery_tasks_status ON discovery_tasks(status)
 CREATE INDEX IF NOT EXISTS idx_discovery_tasks_priority ON discovery_tasks(priority_score DESC);
 CREATE INDEX IF NOT EXISTS idx_discovery_tasks_norm_query ON discovery_tasks(normalized_query, city);
 
+-- Название, по которому social-предложение получило идентичность: решение оператора о названии
+-- переносит и его (FA69R-01). Только название, не текст поста.
+CREATE TABLE IF NOT EXISTS social_offer_titles (
+    offer_id TEXT NOT NULL REFERENCES offers(id) ON DELETE CASCADE,
+    title_hash TEXT NOT NULL,
+    title TEXT NOT NULL,
+    pack TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (offer_id, title_hash)
+);
+CREATE INDEX IF NOT EXISTS idx_social_offer_titles_hash ON social_offer_titles(title_hash);
+
 -- 13. Social Content Observations (S2-E08)
 CREATE TABLE IF NOT EXISTS content_observations (
     id TEXT PRIMARY KEY,

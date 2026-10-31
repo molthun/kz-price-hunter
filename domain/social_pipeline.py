@@ -48,6 +48,7 @@ from domain.social_content import (
     ContentType,
     ExtractedOfferCandidate,
     SocialContentExtractor,
+    merge_offer_candidates,
 )
 from domain.vision_extraction import (
     MIN_VISION_PUBLISH_CONFIDENCE,
@@ -65,6 +66,7 @@ logger = logging.getLogger("kz_price_hunter.social_pipeline")
 
 # Категорию товара соцсети определяет нормализация; подпись поста её не доказывает (FA69-07)
 SOCIAL_DEFAULT_CATEGORY = "Без категории"
+MAX_SOCIAL_TITLE = 200
 _EPOCH = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
 
 
@@ -86,6 +88,13 @@ class SocialOfferPipeline:
         seller_id = observation.seller_id
         channel_id = observation.channel_id
         meta = observation.raw_metadata or {}
+
+        # Канал источника принадлежит одному продавцу: чужой seller_id не должен писать в него (FA69R-07)
+        channel = self.channels.get_by_id(channel_id) if channel_id else None
+        if channel:
+            if seller_id and channel.seller_id != seller_id:
+                raise ValueError("social_channel_seller_mismatch")
+            seller_id = channel.seller_id
 
         # 1. Продавец: если seller_id передан, но отсутствует в БД — создаём его с этим ID
         seller = self.sellers.get_by_id(seller_id) if seller_id else None
@@ -109,7 +118,6 @@ class SocialOfferPipeline:
                 seller_id = seller.id
 
         # 2. Канал: если channel_id передан, но отсутствует — создаём его с этим ID
-        channel = self.channels.get_by_id(channel_id) if channel_id else None
         if not channel:
             platform = str(meta.get("platform") or "telegram").lower()
             ch_type = ChannelType.INSTAGRAM if "instagram" in platform else ChannelType.TELEGRAM
@@ -126,10 +134,12 @@ class SocialOfferPipeline:
                 )
                 self.channels.save_or_update(channel)
             else:
+                # Подтверждённая общность бизнеса объединяет продавца, но не его разные аккаунты
                 channel = self.channels.get_or_create(
                     seller_id=seller_id,
                     channel_type=ch_type,
                     name=f"{platform.title()}: @{handle}",
+                    external_store_id=handle.lower(),
                     base_url=base_url,
                 )
                 channel_id = channel.id
@@ -206,21 +216,28 @@ class SocialOfferPipeline:
         clean = " ".join(raw_title.lower().split())
         return f"k2:social:{hashlib.sha256(clean.encode('utf-8')).hexdigest()[:12]}"
 
-    def _resolve_canonical_product(self, raw_title: str, basis: Optional[Dict[str, Any]] = None) -> CanonicalProduct:
-        """Сопоставляет название товара с каноническим продуктом или создаёт новый."""
+    def _product_for(self, raw_title: str, basis: Optional[Dict[str, Any]]) -> Tuple[CanonicalProduct, List[str], str]:
+        """Товар, название-основание идентичности и применённая фасовка."""
         clean_title = self.PROMO_NOISE_RE.sub(" ", raw_title)
-        clean_title = " ".join(clean_title.split()).strip(" -—:•|,!")
+        clean_title = " ".join(clean_title.split()).strip(" -—:•|,!")[:MAX_SOCIAL_TITLE]
+        raw_title = raw_title[:MAX_SOCIAL_TITLE]
         canonical_key = self._resolve_canonical_key(clean_title, raw_title)
         title = clean_title or raw_title
-        if basis:
-            canonical_key = f"{canonical_key}|{basis['pack']}"
+        pack = ""
+        if basis and (not basis["from_size"] or canonical_key.startswith(("k2:social:", "nokey:"))):
+            pack = basis["pack"]
+            canonical_key = f"{canonical_key}|{pack}"
             title = f"{title} ({basis['label']})"
-
-        return self.products.get_or_create_canonical(
+        product = self.products.get_or_create_canonical(
             canonical_key=canonical_key,
             title=title,
             category=SOCIAL_DEFAULT_CATEGORY,
         )
+        return product, [t for t in dict.fromkeys((clean_title, raw_title)) if t], pack
+
+    def _resolve_canonical_product(self, raw_title: str, basis: Optional[Dict[str, Any]] = None) -> CanonicalProduct:
+        """Сопоставляет название товара с каноническим продуктом или создаёт новый."""
+        return self._product_for(raw_title, basis)[0]
 
     @staticmethod
     def _post_time(observation: ContentObservation) -> str:
@@ -230,9 +247,9 @@ class SocialOfferPipeline:
     def _select_lines(
         self,
         candidates: List[ExtractedOfferCandidate],
-    ) -> Dict[Tuple[str, str, str], Tuple[ExtractedOfferCandidate, CanonicalProduct, Optional[Dict[str, Any]]]]:
+    ) -> List[Tuple[ExtractedOfferCandidate, Optional[Dict[str, Any]]]]:
         """Кандидаты по строкам товар+город+состояние. Одинаковая строка внутри поста — меньшая цена."""
-        lines: Dict[Tuple[str, str, str], Tuple[ExtractedOfferCandidate, CanonicalProduct, Optional[Dict[str, Any]]]] = {}
+        lines: Dict[Tuple[str, str, str], Tuple[ExtractedOfferCandidate, Optional[Dict[str, Any]]]] = {}
         for cand in candidates:
             if not cand.raw_title or cand.price is None or cand.price <= 0:
                 continue
@@ -240,8 +257,8 @@ class SocialOfferPipeline:
             product = self._resolve_canonical_product(cand.raw_title, basis)
             key = (product.id, cand.city, cand.condition)
             if key not in lines or cand.price < lines[key][0].price:
-                lines[key] = (cand, product, basis)
-        return lines
+                lines[key] = (cand, basis)
+        return list(lines.values())
 
     def process_candidates(
         self,
@@ -258,87 +275,128 @@ class SocialOfferPipeline:
             return []
 
         seller_id, channel_id = self._ensure_seller_and_channel(observation)
+        saved_offers: List[Offer] = []
+        for cand, basis in self._select_lines(candidates):
+            # Решение оператора могло появиться после разбора выше: идентичность перечитывается
+            # и пишется под одной блокировкой писателя (FA69R-01)
+            own_transaction = not self.conn.in_transaction
+            self.offers.execute("BEGIN IMMEDIATE" if own_transaction else "SAVEPOINT social_offer")
+            try:
+                saved = self._write_line(observation, seller_id, channel_id, cand, basis)
+                self.offers.execute("COMMIT" if own_transaction else "RELEASE SAVEPOINT social_offer")
+            except Exception:
+                if own_transaction:
+                    self.offers.execute("ROLLBACK")
+                else:
+                    self.offers.execute("ROLLBACK TO SAVEPOINT social_offer")
+                    self.offers.execute("RELEASE SAVEPOINT social_offer")
+                raise
+            if saved:
+                saved_offers.append(saved)
+        return saved_offers
+
+    def _write_line(
+        self,
+        observation: ContentObservation,
+        seller_id: str,
+        channel_id: str,
+        cand: ExtractedOfferCandidate,
+        basis: Optional[Dict[str, Any]],
+    ) -> Optional[Offer]:
+        """Запись одной строки; None — пост старее текущего и остался только в истории."""
         meta = observation.raw_metadata or {}
         post_id = str(observation.post_id or "")
         post_time = self._post_time(observation)
-        saved_offers: List[Offer] = []
+        product, titles, pack = self._product_for(cand.raw_title, basis)
+        city, condition = cand.city, cand.condition
+        existing = self.offers.find_social_line(channel_id, product.id, city, condition)
+        old_price = float(cand.old_price) if cand.old_price else None
+        price = float(cand.price)
 
-        for (product_id, city, condition), (cand, product, basis) in self._select_lines(candidates).items():
-            existing = self.offers.find_social_line(channel_id, product_id, city, condition)
-            is_exp = observation.is_expired() or offer_expired(observation.expires_at)
-            availability = Availability.OUT_OF_STOCK if is_exp else cand.availability
-            old_price = float(cand.old_price) if cand.old_price else None
-            price = float(cand.price)
+        previous_post = str((existing.raw_payload or {}).get("source_post_id") or "") if existing else ""
+        same_post = bool(existing and post_id and previous_post == post_id)
+        if existing and not same_post and self._is_older(post_time, post_id, existing, previous_post, meta.get("platform")):
+            self.offers.add_price_observation(existing.id, price, old_price, post_time)
+            return None
 
-            previous_post = str((existing.raw_payload or {}).get("source_post_id") or "") if existing else ""
-            same_post = bool(existing and post_id and previous_post == post_id)
-            observed_at = post_time
-            record_history = True
-            self.offers.execute("SAVEPOINT social_offer")
-            try:
-                if existing and not same_post and self._is_older(post_time, post_id, existing, previous_post):
-                    self.offers.add_price_observation(existing.id, price, old_price, post_time)
-                    self.offers.execute("RELEASE SAVEPOINT social_offer")
-                    continue
-                if same_post:
-                    unchanged = (existing.price == price and existing.old_price == old_price
-                                 and existing.availability == availability)
-                    if unchanged:
-                        observed_at, record_history = existing.observed_at, False
-                    else:
-                        # Правка поста — новое измерение: время публикации о ней ничего не говорит
-                        observed_at = max(
-                            (existing.observed_at or "", observation.observed_at or post_time),
-                            key=lambda v: _parse_iso_utc(v) or _EPOCH,
-                        )
+        # Повторное чтение поста срок не продлевает: действует более ранний (FA69R-06)
+        expires_at = observation.expires_at
+        if same_post and existing.expires_at:
+            expires_at = min(filter(None, (expires_at, existing.expires_at)), key=lambda v: _parse_iso_utc(v) or _EPOCH)
+        expired = offer_expired(expires_at) or ContentObservation(expires_at=expires_at).is_expired()
+        availability = Availability.OUT_OF_STOCK if expired else cand.availability
 
-                url = str(meta.get("post_url") or "").strip()
-                if not url and same_post:
-                    url = existing.url
-                if not url and observation.post_id:
-                    handle = str(meta.get("handle") or "").strip().lstrip("@")
-                    if handle and meta.get("platform") == "telegram":
-                        url = f"https://t.me/{handle}/{observation.post_id}"
-
-                sku_source = f"{product_id}|{city}|{condition}"
-                payload: Dict[str, Any] = {"source_post_id": post_id}
-                if basis:
-                    payload["price_basis"] = {k: basis[k] for k in ("is_unit_price", "quantity", "unit", "pack")}
-                offer = Offer(
-                    id=existing.id if existing else f"off_soc_{uuid.uuid4().hex[:12]}",
-                    product_id=product_id,
-                    seller_id=seller_id,
-                    channel_id=channel_id,
-                    external_sku=f"SOC-{hashlib.sha256(sku_source.encode('utf-8')).hexdigest()[:20]}",
-                    url=url,
-                    price=price,
-                    old_price=old_price,
-                    condition=condition,
-                    availability=availability,
-                    city=city,
-                    published_at=observation.published_at,
-                    observed_at=observed_at,
-                    expires_at=observation.expires_at,
-                    is_active=True,
-                    raw_payload=payload,
+        observed_at = post_time
+        record_history = True
+        if same_post:
+            # Истечение срока вычислено, а не отредактировано: это не новое измерение цены
+            unchanged = (existing.price == price and existing.old_price == old_price
+                         and (expired or existing.availability == availability))
+            if unchanged:
+                observed_at, record_history = existing.observed_at, False
+            else:
+                # Правка поста — новое измерение: время публикации о ней ничего не говорит
+                observed_at = max(
+                    (existing.observed_at or "", observation.observed_at or post_time),
+                    key=lambda v: _parse_iso_utc(v) or _EPOCH,
                 )
-                saved = self.offers.save_or_update(offer)
-                if record_history:
-                    self.offers.add_price_observation(saved.id, price, old_price, observed_at)
-                self.offers.execute("RELEASE SAVEPOINT social_offer")
-            except Exception:
-                self.offers.execute("ROLLBACK TO SAVEPOINT social_offer")
-                self.offers.execute("RELEASE SAVEPOINT social_offer")
-                raise
-            saved_offers.append(saved)
 
-        return saved_offers
+        url = str(meta.get("post_url") or "").strip()
+        if not url and same_post:
+            url = existing.url
+        if not url and observation.post_id:
+            handle = str(meta.get("handle") or "").strip().lstrip("@")
+            if handle and meta.get("platform") == "telegram":
+                url = f"https://t.me/{handle}/{observation.post_id}"
+
+        sku_source = f"{product.id}|{city}|{condition}"
+        payload: Dict[str, Any] = {"source_post_id": post_id}
+        if basis:
+            payload["price_basis"] = {k: basis[k] for k in ("is_unit_price", "quantity", "unit", "pack")}
+        offer = Offer(
+            id=existing.id if existing else f"off_soc_{uuid.uuid4().hex[:12]}",
+            product_id=product.id,
+            seller_id=seller_id,
+            channel_id=channel_id,
+            external_sku=f"SOC-{hashlib.sha256(sku_source.encode('utf-8')).hexdigest()[:20]}",
+            url=url,
+            price=price,
+            old_price=old_price,
+            condition=condition,
+            availability=availability,
+            city=city,
+            published_at=observation.published_at,
+            observed_at=observed_at,
+            expires_at=expires_at,
+            is_active=True,
+            raw_payload=payload,
+        )
+        saved = self.offers.save_or_update(offer)
+        if record_history:
+            self.offers.add_price_observation(saved.id, price, old_price, observed_at)
+        self.offers.execute("DELETE FROM social_offer_titles WHERE offer_id = ?", (saved.id,))
+        for title in titles:
+            self.offers.execute(
+                "INSERT OR REPLACE INTO social_offer_titles (offer_id, title_hash, title, pack) VALUES (?, ?, ?, ?)",
+                (saved.id, hashlib.sha256(title.strip().encode("utf-8")).hexdigest(), title.strip(), pack),
+            )
+        return saved
 
     @classmethod
-    def _is_older(cls, post_time: str, post_id: str, existing: Offer, existing_post: str) -> bool:
-        """Новее ли текущее предложение; при равном времени порядок задаёт номер поста."""
+    def _is_older(cls, post_time: str, post_id: str, existing: Offer, existing_post: str,
+                  platform: Optional[str] = None) -> bool:
+        """Старше ли пост текущего предложения.
+
+        При равном времени у Telegram порядок задаёт номер поста (FA69R-05). У непрозрачных ID новизна
+        неизвестна: сравнение только делает итог независимым от порядка обработки.
+        """
+        incoming = _parse_iso_utc(post_time) or _EPOCH
         current = _parse_iso_utc(existing.published_at or existing.observed_at) or _EPOCH
-        return (_parse_iso_utc(post_time) or _EPOCH, post_id) < (current, existing_post)
+        if incoming != current:
+            return incoming < current
+        if platform == "telegram" and post_id.isdigit() and existing_post.isdigit():
+            return int(post_id) < int(existing_post)
+        return post_id < existing_post
 
     def process_observation_sync(
         self,
@@ -351,10 +409,8 @@ class SocialOfferPipeline:
         # Если есть OCR разметка — добавляем vision кандидатов
         if meta.get("vision_items") or meta.get("ocr_text") or meta.get("image_text"):
             vc_list = VisionExtractionEngine.extract_from_observation(observation)
-            for vc in vc_list:
-                cand = vc.to_offer_candidate(expires_at=observation.expires_at)
-                if cand:
-                    text_candidates.append(cand)
+            extra = [vc.to_offer_candidate(expires_at=observation.expires_at) for vc in vc_list]
+            text_candidates = merge_offer_candidates(text_candidates, [c for c in extra if c])
 
         return self.process_candidates(observation, text_candidates)
 
@@ -368,10 +424,6 @@ class SocialOfferPipeline:
         """Асинхронная обработка наблюдения с полноценным мультимодальным Vision по изображениям."""
         # 1. Текстовые кандидаты
         candidates = list(SocialContentExtractor.extract_candidates(observation))
-        seen_keys = {
-            (extract_canonical_key(c.raw_title) or c.raw_title.lower(), round(c.price, 2), None)
-            for c in candidates
-        }
 
         # 2. Мультимодальные Vision кандидаты (из картинки / постера / сторис)
         vision_candidates = await VisionExtractionEngine.extract_from_observation_async(
@@ -380,19 +432,7 @@ class SocialOfferPipeline:
             media_report=media_report,
         )
 
-        for vc in vision_candidates:
-            if not vc.publishable or not vc.price_determined or vc.price is None or vc.price <= 0:
-                continue
-            cand = vc.to_offer_candidate(expires_at=observation.expires_at)
-            if not cand:
-                continue
-
-            c_key = extract_canonical_key(cand.raw_title) or cand.raw_title.lower()
-            basis = cand.price_basis()
-            key_pair = (c_key, round(cand.price, 2), basis["pack"] if basis else None)
-            if key_pair in seen_keys:
-                continue
-            seen_keys.add(key_pair)
-            candidates.append(cand)
+        extra = [vc.to_offer_candidate(expires_at=observation.expires_at) for vc in vision_candidates]
+        candidates = merge_offer_candidates(candidates, [c for c in extra if c])
 
         return self.process_candidates(observation, candidates)

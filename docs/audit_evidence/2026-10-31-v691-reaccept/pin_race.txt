@@ -1,0 +1,51 @@
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+SOCIAL_OPERATOR_RACE={"operator_ok": true, "pin": "k2:apple:earpods.diff_dbd10113", "social_key": "k2:apple:earpods", "order": "decision_after_save"}
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+SOCIAL_OPERATOR_RACE={"operator_ok": true, "pin": "k2:apple:earpods.diff_dbd10113", "social_key": "k2:apple:earpods", "order": "decision_during_resolve"}
+test_operator_after_social_save (__main__.PinRace.test_operator_after_social_save) ... FAIL
+test_operator_during_social_resolution (__main__.PinRace.test_operator_during_social_resolution) ... FAIL
+
+======================================================================
+FAIL: test_operator_after_social_save (__main__.PinRace.test_operator_after_social_save)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-31-v691-reaccept/pin_race.py", line 69, in test_operator_after_social_save
+    self.run_order(False)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-31-v691-reaccept/pin_race.py", line 62, in run_order
+    self.assertEqual(actual,pinned,'Social save after the decision must preserve operator DIFFERENT')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'k2:apple:earpods' != 'k2:apple:earpods.diff_dbd10113'
+- k2:apple:earpods
++ k2:apple:earpods.diff_dbd10113
+ : Social save after the decision must preserve operator DIFFERENT
+
+======================================================================
+FAIL: test_operator_during_social_resolution (__main__.PinRace.test_operator_during_social_resolution)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-31-v691-reaccept/pin_race.py", line 66, in test_operator_during_social_resolution
+    self.run_order(True)
+    ~~~~~~~~~~~~~~^^^^^^
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-31-v691-reaccept/pin_race.py", line 62, in run_order
+    self.assertEqual(actual,pinned,'Social save after the decision must preserve operator DIFFERENT')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'k2:apple:earpods' != 'k2:apple:earpods.diff_dbd10113'
+- k2:apple:earpods
++ k2:apple:earpods.diff_dbd10113
+ : Social save after the decision must preserve operator DIFFERENT
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.074s
+
+FAILED (failures=2)

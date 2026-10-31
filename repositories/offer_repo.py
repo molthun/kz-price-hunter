@@ -128,7 +128,7 @@ class OfferRepository(BaseRepository):
         row = self.fetchone(
             """SELECT * FROM offers
                WHERE channel_id = ? AND product_id = ? AND city = ? AND condition = ? AND external_sku LIKE 'SOC-%'
-               ORDER BY updated_at DESC, id LIMIT 1""",
+               ORDER BY is_active DESC, updated_at DESC, id LIMIT 1""",
             (channel_id, product_id, city, condition),
         )
         return Offer.from_row(row) if row else None

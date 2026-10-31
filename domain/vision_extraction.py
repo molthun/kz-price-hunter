@@ -141,6 +141,11 @@ class VisionCandidate:
         )
 
 
+_VISION_NUMBER_FIELDS = ("price", "old_price", "quantity")
+_VISION_TEXT_FIELDS = ("currency", "unit", "size_or_volume", "raw_snippet", "text", "condition", "availability", "city")
+_VISION_FLAG_FIELDS = ("is_price_occluded", "occluded", "is_unit_price", "is_discount")
+
+
 def parse_vision_response(data: Any) -> Dict[str, Any]:
     """Проверка ответа модели внутри ai_router: не та схема — bad_response и переход к запасному провайдеру.
 
@@ -155,9 +160,16 @@ def parse_vision_response(data: Any) -> Dict[str, Any]:
         title = item.get("title", item.get("raw_title", item.get("product")))
         if not isinstance(title, str):
             raise ValueError("vision_title")
-        price = item.get("price")
-        if isinstance(price, bool) or not isinstance(price, (int, float, str, type(None))):
-            raise ValueError("vision_price")
+        for name in _VISION_NUMBER_FIELDS:
+            value = item.get(name)
+            if isinstance(value, bool) or not isinstance(value, (int, float, str, type(None))):
+                raise ValueError(f"vision_{name}")
+        for name in _VISION_TEXT_FIELDS:
+            if not isinstance(item.get(name), (str, type(None))):
+                raise ValueError(f"vision_{name}")
+        for name in _VISION_FLAG_FIELDS:
+            if not isinstance(item.get(name), (bool, type(None))):
+                raise ValueError(f"vision_{name}")
     return data
 
 
@@ -189,7 +201,7 @@ class VisionExtractionEngine:
 
     # Единицы измерения и цена за вес/объём («за кг», «/кг», «за 100 г», «за л»)
     UNIT_PRICE_RE = re.compile(
-        r"(?:за\s*(\d+(?:[.,]\d+)?)?\s*|/\s*)(кг|kg|г|гр|л|л\.|шт|уп)\b",
+        r"(?:за\s*(\d+(?:[.,]\d+)?)?\s*|/\s*)(кг|kg|г|гр|g|мл|ml|л|л\.|шт|уп)\b",
         re.IGNORECASE,
     )
 
@@ -218,7 +230,7 @@ class VisionExtractionEngine:
 
     @staticmethod
     def _parse_num(raw: Any) -> Optional[float]:
-        if raw is None or isinstance(raw, bool):
+        if raw is None or isinstance(raw, bool) or not isinstance(raw, (int, float, str)):
             return None
         if isinstance(raw, (int, float)):
             return float(raw) if raw > 0 and math.isfinite(raw) else None
@@ -243,13 +255,13 @@ class VisionExtractionEngine:
         u = raw_unit.strip().lower().rstrip(".")
         if u in ("кг", "kg"):
             return "kg"
-        if u in ("г", "гр"):
+        if u in ("г", "гр", "g"):
             return "g"
-        if u in ("л",):
+        if u in ("л", "l"):
             return "l"
         if u in ("мл", "ml"):
             return "ml"
-        if u in ("шт",):
+        if u in ("шт", "pcs"):
             return "pcs"
         return u
 
@@ -328,6 +340,12 @@ class VisionExtractionEngine:
         results: List[VisionCandidate] = []
         for raw in items:
             if not isinstance(raw, dict):
+                continue
+            # Готовая разметка не проходит через router: неверные типы отклоняют только свою позицию
+            try:
+                parse_vision_response({"items": [raw]})
+            except ValueError as exc:
+                logger.warning("vision_extraction: позиция отклонена (%s)", exc)
                 continue
             title = str(raw.get("title") or raw.get("raw_title") or raw.get("product") or "").strip()
             snippet = str(raw.get("raw_snippet") or raw.get("text") or title).strip()
@@ -472,7 +490,7 @@ class VisionExtractionEngine:
             raw_qty, raw_u = unit_m.group(1), unit_m.group(2)
             unit = cls._normalize_unit(raw_u)
             quantity = float(raw_qty.replace(",", ".")) if raw_qty else 1.0
-            if unit in ("kg", "g"):
+            if unit in ("kg", "g", "l", "ml"):
                 is_unit_price = True
 
         # 3. Проверяем частично закрытую цену («399 *** ₸», «45_ 000 ₸»)

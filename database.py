@@ -2750,6 +2750,7 @@ def _resolve_disputed_pair_conn(conn, pair_hash, decision, reviewer, notes, prod
         moved = {title_a: common_key, title_b: common_key}
         for other in set(pool) - {common_key}:
             moved.update({r[0]: common_key for r in conn.execute("SELECT title FROM title_canonical_cache WHERE canonical_key = ?", (other,))})
+            moved.update({title: common_key for title in _social_titles_with_key_conn(conn, other)})
         _pin_title_keys_conn(conn, moved, pair_hash)
         rekey_titles_conn(conn, moved)
         save_pair_verdict(pair_hash, title_a, title_b, _human_verdict("same", reviewer, notes), model=f"human:{reviewer}", conn=conn)
@@ -2974,11 +2975,87 @@ def rekey_titles_conn(conn, new_keys: Dict[str, str]) -> Dict[str, int]:
                 cur = conn.execute("UPDATE offer_price_history SET product_id = ? WHERE offer_id = ? AND product_id = ?",
                                    (new_pid, offer_id, old_pid))
                 stats["history"] += cur.rowcount
+    if has_v2:
+        _rekey_social_offers_conn(conn, rows, aliases, stats, history_cols, now)
     if aliases and _has_table(conn, "identity_aliases"):
         conn.executemany("INSERT OR IGNORE INTO identity_aliases (kind, old_id, new_id) VALUES (?, ?, ?)",
                          list(dict.fromkeys(aliases)))
     stats["aliases"] = len(set(aliases))
     return stats
+
+
+def _rekey_social_offers_conn(conn, rows, aliases, stats, history_cols, now) -> None:
+    """Предложения соцсетей идут за решением о своём названии вместе с магазинными (FA69R-01).
+
+    Они не связаны с таблицей products, поэтому находятся по social_offer_titles. Если на новом товаре у того же
+    канала уже есть строка того же города и состояния, остаётся одна — с более новым постом."""
+    if not _has_table(conn, "social_offer_titles"):
+        return
+    from domain.adapter import canonical_product_id
+    from domain.freshness_v2 import _parse_iso_utc
+    epoch = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+
+    def posted(row):
+        return _parse_iso_utc(row["published_at"] or row["observed_at"]) or epoch
+
+    for title, key in rows:
+        links = conn.execute("SELECT offer_id, pack FROM social_offer_titles WHERE title_hash = ?",
+                             (_title_hash(title),)).fetchall()
+        for offer_id, pack in links:
+            cur = conn.execute("""SELECT id, product_id, channel_id, city, condition, published_at, observed_at
+                                  FROM offers WHERE id = ?""", (offer_id,))
+            names = [d[0] for d in cur.description]
+            found = cur.fetchone()
+            if found is None:
+                continue
+            offer = dict(zip(names, found))
+            target_key = f"{key}|{pack}" if pack else key
+            existing_cp = conn.execute("SELECT id FROM canonical_products WHERE canonical_key = ?", (target_key,)).fetchone()
+            new_pid = existing_cp[0] if existing_cp else canonical_product_id(target_key)
+            old_pid = offer["product_id"]
+            if old_pid == new_pid:
+                continue
+            old_cp = conn.execute("SELECT canonical_key, title, category FROM canonical_products WHERE id = ?",
+                                  (old_pid,)).fetchone()
+            aliases.append(("product", old_pid, new_pid))
+            if old_cp and old_cp[0] and old_cp[0] != target_key:
+                aliases.append(("key", old_cp[0], target_key))
+            _move_watch_state(conn, old_pid, new_pid)
+            conn.execute("""INSERT INTO canonical_products (id, canonical_key, title, category, description,
+                                image_url, title_offer_id, created_at, updated_at)
+                            VALUES (?, ?, ?, ?, '', '', NULL, ?, ?) ON CONFLICT(id) DO NOTHING""",
+                         (new_pid, target_key, old_cp[1] if old_cp else title, old_cp[2] if old_cp else "", now, now))
+            cur = conn.execute("""SELECT id, product_id, channel_id, city, condition, published_at, observed_at
+                                  FROM offers WHERE channel_id = ? AND product_id = ? AND city = ? AND condition = ?
+                                    AND external_sku LIKE 'SOC-%' AND id != ?""",
+                               (offer["channel_id"], new_pid, offer["city"], offer["condition"], offer_id))
+            names = [d[0] for d in cur.description]
+            winner = offer
+            for other in [dict(zip(names, r)) for r in cur.fetchall()]:
+                loser = other if posted(winner) >= posted(other) else winner
+                winner = winner if loser is other else other
+                conn.execute("UPDATE offers SET is_active = 0, external_sku = ?, updated_at = ? WHERE id = ?",
+                             (f"SOC-merged-{loser['id']}", now, loser["id"]))
+            sku = "SOC-" + hashlib.sha256(f"{new_pid}|{offer['city']}|{offer['condition']}".encode("utf-8")).hexdigest()[:20]
+            conn.execute("UPDATE offers SET product_id = ?, updated_at = ? WHERE id = ?", (new_pid, now, offer_id))
+            conn.execute("UPDATE offers SET external_sku = ? WHERE id = ?", (sku, winner["id"]))
+            stats["offers"] += 1
+            if "product_id" in history_cols:
+                cur = conn.execute("UPDATE offer_price_history SET product_id = ? WHERE offer_id = ? AND product_id = ?",
+                                   (new_pid, offer_id, old_pid))
+                stats["history"] += cur.rowcount
+
+
+def _social_titles_with_key_conn(conn, key: str) -> List[str]:
+    """Названия social-предложений товара с этим ключом, в том числе его фасовок."""
+    if not _has_table(conn, "social_offer_titles"):
+        return []
+    return [r[0] for r in conn.execute(
+        """SELECT DISTINCT l.title FROM social_offer_titles l
+           JOIN offers o ON o.id = l.offer_id
+           JOIN canonical_products p ON p.id = o.product_id
+           WHERE p.canonical_key = ? OR substr(p.canonical_key, 1, ?) = ?""",
+        (key, len(key) + 6, f"{key}|pack:"))]
 
 
 def no_identity_key(title: str) -> str:

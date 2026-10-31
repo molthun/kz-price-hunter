@@ -1,0 +1,40 @@
+{
+  "sha": "556ddf38d4a3ca8531301c0cf0a76338c6f6d2cc",
+  "frontend_pass": 21,
+  "frontend_total": 21,
+  "findings": [
+    [
+      "FA69R-01",
+      "P1"
+    ],
+    [
+      "FA69R-02",
+      "P1"
+    ],
+    [
+      "FA69R-03",
+      "P1"
+    ],
+    [
+      "FA69R-04",
+      "P2"
+    ],
+    [
+      "FA69R-05",
+      "P2"
+    ],
+    [
+      "FA69R-06",
+      "P2"
+    ],
+    [
+      "FA69R-07",
+      "P2"
+    ]
+  ],
+  "diff_check_exit": 0,
+  "changed_tracked": [
+    "docs/AGENT_HANDOFF.md"
+  ],
+  "whitespace_issues": []
+}

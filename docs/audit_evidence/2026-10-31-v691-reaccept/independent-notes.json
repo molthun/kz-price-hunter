@@ -1,0 +1,56 @@
+{
+  "caption_units": [
+    {
+      "price": 1000.0,
+      "product_id": "prod_58c13616ea7a43c3",
+      "quantity": null,
+      "unit": null
+    },
+    {
+      "price": 6000.0,
+      "product_id": "prod_58c13616ea7a43c3",
+      "quantity": null,
+      "unit": null
+    },
+    {
+      "price": 1000.0,
+      "product_id": "prod_d92a1ff08437ada6",
+      "quantity": 100.0,
+      "unit": "g"
+    },
+    {
+      "price": 6000.0,
+      "product_id": "prod_a5ad595d9ff34964",
+      "quantity": 1.0,
+      "unit": "kg"
+    }
+  ],
+  "channels": {
+    "first_channel": "chan_confirmed_instagram",
+    "same_offer": true,
+    "second_channel": "chan_confirmed_instagram"
+  },
+  "numeric_post_order": {
+    "post_id": "9",
+    "price": 150000.0
+  },
+  "storage": {
+    "backup_retains_post_after_purge": true,
+    "expires_at": null,
+    "full_post_persisted": true,
+    "media_url_persisted": true,
+    "status": "OK"
+  },
+  "storage_base64": {
+    "base64_persisted": true
+  },
+  "story_ttl": {
+    "first_expiry": "2026-10-31T10:00:16.718157+00:00",
+    "recollected_availability": "in_stock",
+    "recollected_expiry": "2026-11-01T11:00:16.718157+00:00"
+  },
+  "typed_schema": {
+    "exception": "AttributeError",
+    "fallback_calls": 0
+  }
+}

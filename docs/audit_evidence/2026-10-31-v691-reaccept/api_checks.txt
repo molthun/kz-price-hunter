@@ -1,0 +1,22 @@
+[System] 📡 Модуль онлайн-логирования активирован.
+SOCIAL_HISTORY_API={"product_id": "prod_c66aaa0e1a038fc0", "title": "Apple iPhone 15 128GB", "total_series": 1, "series_count": 1, "total_observations": 2, "series": [{"series_key": "prod_c66aaa0e1a038fc0::seller_social_telegram_audit_history::chan_social_telegram_audit_history_telegram::NEW", "product_id": "prod_c66aaa0e1a038fc0", "seller_id": "seller_social_telegram_audit_history", "seller_name": "@audit_history", "channel_id": "chan_social_telegram_audit_history_telegram", "channel_type": "telegram", "channel_name": "Telegram: @audit_history", "condition": "NEW", "city": "Алматы", "currency": "KZT", "offer_id": "off_soc_8b10b4f974e3", "points": [{"observed_at": "2026-10-30T10:00:00+00:00", "price": 100000.0, "old_price": null, "offer_id": "off_soc_8b10b4f974e3"}, {"observed_at": "2026-10-31T10:00:00+00:00", "price": 90000.0, "old_price": null, "offer_id": "off_soc_8b10b4f974e3"}], "min_price": 90000.0, "max_price": 100000.0, "first_price": 100000.0, "latest_price": 90000.0, "change_amount": -10000.0, "change_pct": -10.0, "current_price": 90000.0}], "ok": true}
+test_admin_auth_protection (__main__.AcceptanceApi.test_admin_auth_protection)
+Unauthenticated requests must be rejected with 401/403. ... ok
+test_create_discovery_task (__main__.AcceptanceApi.test_create_discovery_task)
+POST /api/v2/discovery/tasks/create generates targeted search queries and persists task. ... ok
+test_domain_filter_total_and_empty_page (__main__.AcceptanceApi.test_domain_filter_total_and_empty_page) ... ok
+test_get_discovery_stats (__main__.AcceptanceApi.test_get_discovery_stats)
+Admin stats endpoint returns comprehensive discovery funnel metrics. ... ok
+test_list_candidates_filters_and_search (__main__.AcceptanceApi.test_list_candidates_filters_and_search)
+GET /api/v2/admin/discovery/candidates supports filters, q search, and profiles embedding. ... ok
+test_profile_candidate_endpoint (__main__.AcceptanceApi.test_profile_candidate_endpoint)
+POST /api/v2/admin/discovery/candidates/{id}/profile triggers profiling and updates status. ... ok
+test_repo_advanced_filters_and_count (__main__.AcceptanceApi.test_repo_advanced_filters_and_count)
+Unit level verification for CandidateRepository query & filter methods. ... ok
+test_review_endpoint_rights_and_state_preservation (__main__.AcceptanceApi.test_review_endpoint_rights_and_state_preservation) ... ok
+test_social_history_visible_via_real_api (__main__.AcceptanceApi.test_social_history_visible_via_real_api) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.292s
+
+OK

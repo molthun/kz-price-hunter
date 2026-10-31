@@ -1,0 +1,26 @@
+{
+  "local_sha": "556ddf38d4a3ca8531301c0cf0a76338c6f6d2cc",
+  "local_ahead": "1",
+  "diag_token_present": false,
+  "remote_refs": [
+    "d2522434e03d2143152c831afcc2be5de4ace0b9\trefs/heads/main"
+  ],
+  "prod": {
+    "status": 200,
+    "body": {
+      "version": "6.8.0",
+      "app_name": "KZ Price Hunter",
+      "release_date": "2026-10-31",
+      "author": "Advanced Agentic Coding"
+    }
+  },
+  "stand": {
+    "status": 200,
+    "body": {
+      "version": "6.9.0",
+      "app_name": "KZ Price Hunter",
+      "release_date": "2026-10-31",
+      "author": "Advanced Agentic Coding"
+    }
+  }
+}

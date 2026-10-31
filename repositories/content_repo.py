@@ -15,11 +15,16 @@ from domain.social_content import (
     ContentObservation,
     ExtractedOfferCandidate,
     SocialContentExtractor,
+    merge_offer_candidates,
 )
 from domain.vision_extraction import VisionCandidate, VisionExtractionEngine
 from repositories.base import BaseRepository
 
 logger = logging.getLogger("kz_price_hunter.repositories.content")
+
+# Чужой контент не хранится (FA69R-03): текст поста, ссылки на медиа, OCR и картинки используются только
+# в памяти во время извлечения. В базу попадают технические идентификаторы и ссылка на первоисточник.
+STORED_METADATA_KEYS = ("platform", "handle", "post_url", "source_id")
 
 
 def normalize_iso_utc(ts: Optional[str]) -> Optional[str]:
@@ -45,9 +50,12 @@ class ContentObservationRepository(BaseRepository):
     """CRUD, TTL и выборки по сырому контенту соцсетей и мессенджеров."""
 
     def save_observation(self, observation: ContentObservation) -> ContentObservation:
-        """Вставляет наблюдение или обновляет уже сохранённое с тем же id."""
+        """Вставляет техническую запись о наблюдении или обновляет уже сохранённую с тем же id.
+
+        Объект наблюдения остаётся полным для текущей обработки; в базу текст и медиа не пишутся."""
         now = utc_now_iso()
         norm_expires = normalize_iso_utc(observation.expires_at)
+        meta = observation.raw_metadata or {}
         self.execute(
             """
             INSERT INTO content_observations (
@@ -72,12 +80,12 @@ class ContentObservationRepository(BaseRepository):
                 observation.channel_id,
                 observation.content_type,
                 observation.post_id,
-                observation.text,
-                json.dumps(observation.media_urls or [], ensure_ascii=False),
+                "",
+                "[]",
                 observation.published_at,
                 observation.observed_at or now,
                 norm_expires,
-                json.dumps(observation.raw_metadata or {}, ensure_ascii=False),
+                json.dumps({k: meta[k] for k in STORED_METADATA_KEYS if k in meta}, ensure_ascii=False),
             ),
         )
         self.commit()
@@ -161,30 +169,6 @@ class ContentObservationRepository(BaseRepository):
         if not has_vision_input:
             return text_candidates
 
-        seen = {(c.raw_title.strip().lower(), round(float(c.price), 2)) for c in text_candidates}
-        vision_candidates = VisionExtractionEngine.extract_from_observation(observation)
-        for vc in vision_candidates:
-            if not vc.publishable or vc.price is None or vc.price <= 0:
-                continue
-            key = (vc.raw_title.strip().lower(), round(float(vc.price), 2))
-            if key in seen:
-                continue
-            seen.add(key)
-            text_candidates.append(
-                ExtractedOfferCandidate(
-                    raw_title=vc.raw_title,
-                    price=float(vc.price),
-                    old_price=float(vc.old_price) if vc.old_price else None,
-                    condition=vc.condition,
-                    city=vc.city,
-                    availability=vc.availability,
-                    confidence=float(vc.confidence),
-                    expires_at=observation.expires_at,
-                    raw_snippet=vc.raw_snippet or vc.raw_title,
-                    is_unit_price=vc.is_unit_price,
-                    quantity=vc.quantity,
-                    unit=vc.unit,
-                    size_or_volume=vc.size_or_volume,
-                )
-            )
-        return text_candidates
+        extra = [vc.to_offer_candidate(expires_at=observation.expires_at)
+                 for vc in VisionExtractionEngine.extract_from_observation(observation)]
+        return merge_offer_candidates(text_candidates, [c for c in extra if c])

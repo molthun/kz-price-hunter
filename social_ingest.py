@@ -127,6 +127,7 @@ def _ingest_source(source: SocialSource,
             candidates = observations_repo.extract_candidates(observation)
             candidate_count += len(candidates)
             created_offers = pipeline.process_candidates(observation, candidates)
+            conn.commit()
             offer_count += len(created_offers)
         result.observations = len(observations)
         result.candidates = candidate_count
@@ -208,6 +209,8 @@ async def ingest_source_async(source: SocialSource,
                 else:
                     candidates = observations_repo.extract_candidates(observation)
                     created_offers = pipeline.process_candidates(observation, candidates)
+                # Запись не держится открытой, пока следующий пост ждёт ответа модели
+                conn.commit()
                 offer_count += len(created_offers)
                 candidate_count += len(created_offers)
 
