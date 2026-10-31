@@ -1,0 +1,43 @@
+test_decision_before_save (__main__.OperatorEdges.test_decision_before_save) ... ok
+test_decision_between_read_and_write (__main__.OperatorEdges.test_decision_between_read_and_write) ... ok
+test_different_after_commit_moves_offer_history_and_alias (__main__.OperatorEdges.test_different_after_commit_moves_offer_history_and_alias) ... ok
+test_same_keeps_newer_numeric_post_at_equal_time (__main__.OperatorEdges.test_same_keeps_newer_numeric_post_at_equal_time) ... ok
+test_same_moves_title_outside_cache_and_merges_lines (__main__.OperatorEdges.test_same_moves_title_outside_cache_and_merges_lines) ... ok
+test_scrub_wal_has_no_residual_original_content (__main__.UnitAndCleanup.test_scrub_wal_has_no_residual_original_content) ... ok
+test_slash_quantity_preserves_price_basis (__main__.UnitAndCleanup.test_slash_quantity_preserves_price_basis) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 5.452s
+
+OK
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+EDGE_NOTES={"same_equal_time": [{"price": 1000.0, "post": "10"}], "scrub_wal": {"changed": 1, "logical_text": "", "marker_in_files": []}, "slash_quantity": [{"price": 1000.0, "unit": "g", "quantity": 100.0, "product_id": "prod_d92a1ff08437ada6"}, {"price": 6000.0, "unit": "kg", "quantity": 1.0, "product_id": "prod_a5ad595d9ff34964"}]}

@@ -1,0 +1,17 @@
+SMALL_UNITS=[{"price": 2000.0, "unit": null, "quantity": null, "product_id": "prod_559a63fcaa3994a0"}, {"price": 6000.0, "unit": null, "quantity": null, "product_id": "prod_559a63fcaa3994a0"}]
+test_explicit_small_gram_quantities_do_not_merge (__main__.SmallUnits.test_explicit_small_gram_quantities_do_not_merge) ... FAIL
+test_standalone_5g_is_not_a_price_basis (__main__.SmallUnits.test_standalone_5g_is_not_a_price_basis) ... ok
+
+======================================================================
+FAIL: test_explicit_small_gram_quantities_do_not_merge (__main__.SmallUnits.test_explicit_small_gram_quantities_do_not_merge)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-31-v693-audit/small_units.py", line 26, in test_explicit_small_gram_quantities_do_not_merge
+    self.assertTrue(all(o.unit=='g' for o in offers),'Explicit /1g and /5g must retain their gram basis')
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true : Explicit /1g and /5g must retain their gram basis
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.008s
+
+FAILED (failures=1)

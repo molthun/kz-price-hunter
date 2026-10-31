@@ -1,0 +1,29 @@
+{
+  "same_equal_time": [
+    {
+      "price": 1500.0,
+      "post": "9"
+    }
+  ],
+  "scrub_wal": {
+    "changed": 1,
+    "logical_text": "",
+    "marker_in_files": [
+      "prices.db"
+    ]
+  },
+  "slash_quantity": [
+    {
+      "price": 1000.0,
+      "unit": null,
+      "quantity": null,
+      "product_id": "prod_58c13616ea7a43c3"
+    },
+    {
+      "price": 6000.0,
+      "unit": null,
+      "quantity": null,
+      "product_id": "prod_58c13616ea7a43c3"
+    }
+  ]
+}

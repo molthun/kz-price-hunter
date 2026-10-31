@@ -1,0 +1,79 @@
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+EDGE_NOTES={"same_equal_time": [{"price": 1500.0, "post": "9"}], "scrub_wal": {"changed": 1, "logical_text": "", "marker_in_files": ["prices.db"]}, "slash_quantity": [{"price": 1000.0, "unit": null, "quantity": null, "product_id": "prod_58c13616ea7a43c3"}, {"price": 6000.0, "unit": null, "quantity": null, "product_id": "prod_58c13616ea7a43c3"}]}
+test_decision_before_save (__main__.OperatorEdges.test_decision_before_save) ... ok
+test_decision_between_read_and_write (__main__.OperatorEdges.test_decision_between_read_and_write) ... ok
+test_different_after_commit_moves_offer_history_and_alias (__main__.OperatorEdges.test_different_after_commit_moves_offer_history_and_alias) ... ok
+test_same_keeps_newer_numeric_post_at_equal_time (__main__.OperatorEdges.test_same_keeps_newer_numeric_post_at_equal_time) ... FAIL
+test_same_moves_title_outside_cache_and_merges_lines (__main__.OperatorEdges.test_same_moves_title_outside_cache_and_merges_lines) ... ok
+test_scrub_wal_has_no_residual_original_content (__main__.UnitAndCleanup.test_scrub_wal_has_no_residual_original_content) ... FAIL
+test_slash_quantity_preserves_price_basis (__main__.UnitAndCleanup.test_slash_quantity_preserves_price_basis) ... FAIL
+
+======================================================================
+FAIL: test_same_keeps_newer_numeric_post_at_equal_time (__main__.OperatorEdges.test_same_keeps_newer_numeric_post_at_equal_time)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-31-v692-reaccept/edge_checks.py", line 33, in test_same_keeps_newer_numeric_post_at_equal_time
+    self.assertEqual([r[0] for r in active],[1000],'Merging cards must preserve Telegram post 10 over post 9')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: [1500.0] != [1000]
+
+First differing element 0:
+1500.0
+1000
+
+- [1500.0]
+?   -  -
+
++ [1000] : Merging cards must preserve Telegram post 10 over post 9
+
+======================================================================
+FAIL: test_scrub_wal_has_no_residual_original_content (__main__.UnitAndCleanup.test_scrub_wal_has_no_residual_original_content)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-31-v692-reaccept/edge_checks.py", line 66, in test_scrub_wal_has_no_residual_original_content
+    self.assertFalse(files,'A successful physical scrub must not leave the original in DB/WAL files')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ['prices.db'] is not false : A successful physical scrub must not leave the original in DB/WAL files
+
+======================================================================
+FAIL: test_slash_quantity_preserves_price_basis (__main__.UnitAndCleanup.test_slash_quantity_preserves_price_basis)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-31-v692-reaccept/edge_checks.py", line 47, in test_slash_quantity_preserves_price_basis
+    self.assertTrue(all(o.unit for o in offers),'A price explicitly per 100 g must not become a unitless offer')
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true : A price explicitly per 100 g must not become a unitless offer
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.196s
+
+FAILED (failures=3)

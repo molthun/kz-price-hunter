@@ -35,7 +35,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from domain.models import Availability, Condition
-from domain.social_content import ContentObservation, ExtractedOfferCandidate
+from domain.social_content import ContentObservation, ExtractedOfferCandidate, parse_unit_price, strip_unit_price
 from domain.social_media import MAX_IMAGES_PER_POST, MediaError, MediaReport, fetch_image
 from model_matching import extract_canonical_key
 
@@ -201,7 +201,7 @@ class VisionExtractionEngine:
 
     # Единицы измерения и цена за вес/объём («за кг», «/кг», «за 100 г», «за л»)
     UNIT_PRICE_RE = re.compile(
-        r"(?:за\s*(\d+(?:[.,]\d+)?)?\s*|/\s*)(кг|kg|г|гр|g|мл|ml|л|л\.|шт|уп)\b",
+        r"(?:за\s*|/\s*)(уп)\b",
         re.IGNORECASE,
     )
 
@@ -485,13 +485,13 @@ class VisionExtractionEngine:
         is_unit_price = False
         unit: Optional[str] = None
         quantity: Optional[float] = None
+        parsed_unit = parse_unit_price(working)
         unit_m = cls.UNIT_PRICE_RE.search(working)
-        if unit_m:
-            raw_qty, raw_u = unit_m.group(1), unit_m.group(2)
-            unit = cls._normalize_unit(raw_u)
-            quantity = float(raw_qty.replace(",", ".")) if raw_qty else 1.0
-            if unit in ("kg", "g", "l", "ml"):
-                is_unit_price = True
+        if parsed_unit:
+            quantity, unit = parsed_unit
+            is_unit_price = unit != "pcs"
+        elif unit_m:
+            quantity, unit = 1.0, cls._normalize_unit(unit_m.group(1))
 
         # 3. Проверяем частично закрытую цену («399 *** ₸», «45_ 000 ₸»)
         occluded_m = cls.OCCLUDED_PRICE_RE.search(masked)
@@ -608,7 +608,7 @@ class VisionExtractionEngine:
             for i in range(max(0, s), min(len(chars), e)):
                 chars[i] = " "
         title_raw = "".join(chars)
-        title_raw = cls.UNIT_PRICE_RE.sub(" ", title_raw)
+        title_raw = cls.UNIT_PRICE_RE.sub(" ", strip_unit_price(title_raw))
         title_raw = re.sub(
             r"\b(?:было|стало|старая\s+цена|новая\s+цена|по\s+акции|скидка\s*-?\d*%?|цена|стоимость)\b",
             " ",

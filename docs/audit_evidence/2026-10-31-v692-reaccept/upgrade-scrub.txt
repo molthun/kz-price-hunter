@@ -1,0 +1,9 @@
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+previous_snapshot_created_via_backup_api
+UPGRADE_SCRUB={"table_present": 1, "old_content_before": "SYNTHETIC_OLD_CONTENT", "dry_count": 1, "applied_count": 1, "idempotent_count": 0, "integrity": "ok", "fk_violations": 0}
+{"previous_exit": 0, "upgrade_exit": 0, "new_db_retains_marker_after_close": false}

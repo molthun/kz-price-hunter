@@ -1,0 +1,18 @@
+{
+  "head": "8d259981a4e405682910c62982ac7958dba1ee91",
+  "initial_source_drift_excluding_audit_handoff": [],
+  "frontend_pass": 21,
+  "frontend_total": 21,
+  "findings": [
+    [
+      "V693-01",
+      "P1"
+    ],
+    [
+      "V693-02",
+      "P2"
+    ]
+  ],
+  "diff_check_exit": 0,
+  "whitespace_issues": []
+}

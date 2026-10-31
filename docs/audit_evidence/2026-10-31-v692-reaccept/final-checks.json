@@ -1,0 +1,25 @@
+{
+  "sha": "8d259981a4e405682910c62982ac7958dba1ee91",
+  "frontend_pass": 21,
+  "frontend_total": 21,
+  "findings": [
+    [
+      "V692-01",
+      "P1"
+    ],
+    [
+      "V692-02",
+      "P2"
+    ],
+    [
+      "V692-03",
+      "P2"
+    ]
+  ],
+  "historical_pin_script_unchanged": true,
+  "diff_check_exit": 0,
+  "changed_tracked": [
+    "docs/AGENT_HANDOFF.md"
+  ],
+  "whitespace_issues": []
+}

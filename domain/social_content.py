@@ -181,15 +181,26 @@ class ExtractedOfferCandidate:
 
 _UNIT_BASE = {"g": ("g", 1), "kg": ("g", 1000), "ml": ("ml", 1), "l": ("ml", 1000), "pcs": ("pcs", 1)}
 _UNIT_LABELS = {"g": "г", "kg": "кг", "ml": "мл", "l": "л", "pcs": "шт"}
-_UNIT_ALIASES = {"г": "g", "гр": "g", "грамм": "g", "g": "g", "кг": "kg", "kg": "kg", "килограмм": "kg",
-                 "мл": "ml", "ml": "ml", "миллилитр": "ml", "л": "l", "l": "l", "литр": "l",
-                 "шт": "pcs", "штук": "pcs", "штука": "pcs", "штуку": "pcs", "pcs": "pcs"}
-_SIZE_VOLUME_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*(кг|kg|гр|г|g|мл|ml|л|l|штук|шт)(?![a-zа-я])", re.IGNORECASE)
-_UNIT_PRICE_RE = re.compile(
-    r"(?:за\s*(\d+(?:[.,]\d+)?)?\s*(килограмм|кг|kg|грамм|гр|г|g|миллилитр|мл|ml|литр|л|l|штуку|штука|штук|шт|pcs)"
-    r"|/\s*(кг|kg|гр|г|мл|ml|л|шт))(?![a-zа-я])",
+_UNIT_ALIASES = {
+    "г": "g", "гр": "g", "грамм": "g", "грамма": "g", "граммов": "g", "g": "g",
+    "кг": "kg", "kg": "kg", "килограмм": "kg", "килограмма": "kg", "килограммов": "kg",
+    "мл": "ml", "ml": "ml", "миллилитр": "ml", "миллилитра": "ml", "миллилитров": "ml",
+    "л": "l", "l": "l", "литр": "l", "литра": "l", "литров": "l",
+    "шт": "pcs", "штук": "pcs", "штука": "pcs", "штуку": "pcs", "pcs": "pcs",
+}
+_SIZE_VOLUME_RE = re.compile(
+    r"(\d+(?:[.,]\d+)?)\s*(килограмм|килограмма|килограммов|кг|kg|грамм|грамма|граммов|гр|г|g|миллилитр|миллилитра|миллилитров|мл|ml|литр|литра|литров|л|l|штуку|штука|штук|шт|pcs)(?![a-zа-я])",
     re.IGNORECASE,
 )
+_UNIT_PRICE_RE = re.compile(
+    r"(?:\bза|/)\s*(?:(\d+(?:[.,]\d+)?)\s*)?"
+    r"(килограмм(?:а|ов)?|кг|kg|грамм(?:а|ов)?|гр|г|g|миллилитр(?:а|ов)?|мл|ml|литр(?:а|ов)?|л|l|штук(?:у|а)?|шт|pcs)(?![a-zа-я])",
+    re.IGNORECASE,
+)
+
+
+_NETWORK_GENERATIONS = {"2", "3", "4", "5", "6"}
+_AFTER_CURRENCY_RE = re.compile(r"(?:₸|тг\.?|тенге|kzt)\s*$", re.IGNORECASE)
 
 
 def find_pack_size(text: str) -> Optional[re.Match]:
@@ -201,13 +212,36 @@ def find_pack_size(text: str) -> Optional[re.Match]:
     return None
 
 
+def _unit_price_matches(line: str) -> Iterable[Tuple[re.Match, float, str]]:
+    """Явные основания цены в строке: совпадение, количество, единица."""
+    for match in _UNIT_PRICE_RE.finditer(line or ""):
+        raw_qty, raw_unit = match.group(1), match.group(2)
+        # Латинская 'L'/'l' без числа после '/' — размер одежды (Large), а не литры
+        if raw_unit in ("l", "L") and not raw_qty and "/" in match.group(0):
+            continue
+        # «S24/5G» — поколение связи. Сразу после цены («6000 ₸/5G») и в нижнем регистре («/5g») — граммы
+        if (raw_unit == "G" and raw_qty in _NETWORK_GENERATIONS and match.group(0).startswith("/")
+                and " " not in match.group(0) and not _AFTER_CURRENCY_RE.search(line[:match.start()])):
+            continue
+        unit = _UNIT_ALIASES.get(raw_unit.lower())
+        quantity = float(raw_qty.replace(",", ".")) if raw_qty else 1.0
+        if unit and quantity > 0:
+            yield match, quantity, unit
+
+
 def parse_unit_price(line: str) -> Optional[Tuple[float, str]]:
-    """(количество, единица), если строка задаёт цену за вес, объём или штуки: «за 100 g», «/кг»."""
-    match = _UNIT_PRICE_RE.search(line or "")
-    if not match:
-        return None
-    quantity = float(match.group(1).replace(",", ".")) if match.group(1) else 1.0
-    return quantity, _UNIT_ALIASES[(match.group(2) or match.group(3)).lower()]
+    """(количество, единица), если строка задаёт цену за вес, объём или штуки: «за 100 g», «/кг», «/5g»."""
+    for _match, quantity, unit in _unit_price_matches(line):
+        return quantity, unit
+    return None
+
+
+def strip_unit_price(text: str) -> str:
+    """Убирает из названия явные основания цены; «S24/5G» остаётся на месте."""
+    spans = [m.span() for m, _quantity, _unit in _unit_price_matches(text)]
+    for start, end in reversed(spans):
+        text = f"{text[:start]} {text[end:]}"
+    return text
 
 
 def candidate_identity(candidate: "ExtractedOfferCandidate") -> Tuple[str, float]:
@@ -460,7 +494,7 @@ class SocialContentExtractor:
             unit_price = parse_unit_price(line)
             pack_size = None
             if unit_price:
-                title_part = " ".join(_UNIT_PRICE_RE.sub(" ", title_part).split()).strip(" :-–—•*·")
+                title_part = " ".join(strip_unit_price(title_part).split()).strip(" :-–—•*·")
                 if len(title_part) < 3:
                     continue
             else:

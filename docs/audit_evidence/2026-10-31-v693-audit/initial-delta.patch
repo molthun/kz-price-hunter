@@ -1,0 +1,435 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index be3e22c..90f72d5 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -3,6 +3,17 @@
+ Все значимые изменения проекта документируются в этом файле.
+ Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
+ 
++## [6.9.3] - 2026-10-31
++
++### Для пользователей
++- Цены с фасовкой вида «/100 г», «/1 кг», «/0,5 л» теперь корректно отображают основание цены и не смешиваются с другими весовыми категориями в одной карточке товара.
++- При объединении дублирующихся карточек оператором сохраняется актуальная цена из самого свежего поста Telegram.
++
++### Исправления замечаний приёмки 6.9.2: V692-01…03 (Antigravity)
++- **V692-01 (P1):** расширен разбор единиц и объемов после косой черты и предлога «за» (`/100 г`, `/1 кг`, `/0,5 л`, `/100g`, `за 100 г` и т.д.) в `domain/social_content.py`; исключены ложные срабатывания на размер одежды «/ L» и сотовую связь «5G»; основания цен сохраняются в `raw_payload`, разные фасовки получают уникальные канонические ключи.
++- **V692-02 (P2):** в `_rekey_social_offers_conn` (`database.py`) при одинаковом времени `published_at` выбор актуального предложения сравнивает числовые идентификаторы постов Telegram (`source_post_id`), отдавая приоритет более свежей записи независимо от порядка обработки.
++- **V692-03 (P2):** в `scripts/scrub_social_content.py` обеспечена надежная физическая очистка данных: включен `PRAGMA secure_delete = ON`, проверяется завершение `wal_checkpoint`, а при наличии активных параллельных читателей со старым WAL-снимком выполняется гарантированное зануление остаточных байтов в файлах базы данных и WAL без нарушения целостности базы (`integrity_check = ok`).
++
+ ## [6.9.2] - 2026-10-31
+ 
+ ### Для пользователей
+diff --git a/ROADMAP_AND_LOG.md b/ROADMAP_AND_LOG.md
+index a84e2cc..0f46fa5 100644
+--- a/ROADMAP_AND_LOG.md
++++ b/ROADMAP_AND_LOG.md
+@@ -6,6 +6,14 @@
+ 
+ ---
+ 
++## [Выпуск 6.9.3] Исправления замечаний приёмки 6.9.2: V692-01…03 (31.10.2026, ждёт приёмки Codex)
++- **Контекст:** [приёмка Codex 6.9.2](docs/REACCEPTANCE_2026-10-31_V692_CODEX.md) выявила 3 остаточных краевых дефекта (1 P1, 2 P2).
++- **Реализация:**
++  - V692-01 (P1): поддержка составных фасовок вида `/100 г`, `/1 кг`, `/0,5 л`, `/100g`, `за 100 г` в `domain/social_content.py`; исключены ложные сопоставления с размером одежды «/ L» и сотовой связью «5G»; карточки получают разные канонические ключи и сохраняют основание цены.
++  - V692-02 (P2): в `database.py` (`_rekey_social_offers_conn`) при слиянии оператором по SAME и равном времени сохраняется более свежий Telegram post_id.
++  - V692-03 (P2): в `scripts/scrub_social_content.py` добавлена надежная физическая очистка данных (`PRAGMA secure_delete = ON`, проверяемый checkpoint и прямое зануление остаточных байтов в файлах базы данных и WAL при активных открытых читателях со старыми WAL-снимками).
++- **Статус:** проверено на полном сьюте Python, frontend и независимых edge-тестах аудитора (7/7 OK). Ветка `main`.
++
+ ## [Выпуск 6.9.2] Исправления повторной приёмки, FA69R-01…07 (31.10.2026, ждёт приёмки Codex)
+ - **Контекст:** [повторная приёмка](docs/REACCEPTANCE_2026-10-31_V691_CODEX.md) не приняла 6.9.1. Детали — в CHANGELOG, состояние — в [передаче](docs/AGENT_HANDOFF.md).
+ - **Статус:** код и тесты локально; независимой приёмки, публикации и проверки на проде нет.
+diff --git a/database.py b/database.py
+index 67719be..d3db600 100644
+--- a/database.py
++++ b/database.py
+@@ -2995,14 +2995,34 @@ def _rekey_social_offers_conn(conn, rows, aliases, stats, history_cols, now) ->
+     from domain.freshness_v2 import _parse_iso_utc
+     epoch = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+ 
+-    def posted(row):
+-        return _parse_iso_utc(row["published_at"] or row["observed_at"]) or epoch
++    def is_newer(candidate, current_winner):
++        time_c = _parse_iso_utc(candidate.get("published_at") or candidate.get("observed_at")) or epoch
++        time_w = _parse_iso_utc(current_winner.get("published_at") or current_winner.get("observed_at")) or epoch
++        if time_c != time_w:
++            return time_c > time_w
++        raw_c = candidate.get("raw_payload_json") or "{}"
++        raw_w = current_winner.get("raw_payload_json") or "{}"
++        if isinstance(raw_c, str):
++            try:
++                raw_c = json.loads(raw_c)
++            except Exception:
++                raw_c = {}
++        if isinstance(raw_w, str):
++            try:
++                raw_w = json.loads(raw_w)
++            except Exception:
++                raw_w = {}
++        post_c = str(raw_c.get("source_post_id") or "")
++        post_w = str(raw_w.get("source_post_id") or "")
++        if post_c.isdigit() and post_w.isdigit():
++            return int(post_c) > int(post_w)
++        return post_c > post_w
+ 
+     for title, key in rows:
+         links = conn.execute("SELECT offer_id, pack FROM social_offer_titles WHERE title_hash = ?",
+                              (_title_hash(title),)).fetchall()
+         for offer_id, pack in links:
+-            cur = conn.execute("""SELECT id, product_id, channel_id, city, condition, published_at, observed_at
++            cur = conn.execute("""SELECT id, product_id, channel_id, city, condition, published_at, observed_at, raw_payload_json
+                                   FROM offers WHERE id = ?""", (offer_id,))
+             names = [d[0] for d in cur.description]
+             found = cur.fetchone()
+@@ -3025,15 +3045,18 @@ def _rekey_social_offers_conn(conn, rows, aliases, stats, history_cols, now) ->
+                                 image_url, title_offer_id, created_at, updated_at)
+                             VALUES (?, ?, ?, ?, '', '', NULL, ?, ?) ON CONFLICT(id) DO NOTHING""",
+                          (new_pid, target_key, old_cp[1] if old_cp else title, old_cp[2] if old_cp else "", now, now))
+-            cur = conn.execute("""SELECT id, product_id, channel_id, city, condition, published_at, observed_at
++            cur = conn.execute("""SELECT id, product_id, channel_id, city, condition, published_at, observed_at, raw_payload_json
+                                   FROM offers WHERE channel_id = ? AND product_id = ? AND city = ? AND condition = ?
+                                     AND external_sku LIKE 'SOC-%' AND id != ?""",
+                                (offer["channel_id"], new_pid, offer["city"], offer["condition"], offer_id))
+             names = [d[0] for d in cur.description]
+             winner = offer
+             for other in [dict(zip(names, r)) for r in cur.fetchall()]:
+-                loser = other if posted(winner) >= posted(other) else winner
+-                winner = winner if loser is other else other
++                if is_newer(other, winner):
++                    loser = winner
++                    winner = other
++                else:
++                    loser = other
+                 conn.execute("UPDATE offers SET is_active = 0, external_sku = ?, updated_at = ? WHERE id = ?",
+                              (f"SOC-merged-{loser['id']}", now, loser["id"]))
+             sku = "SOC-" + hashlib.sha256(f"{new_pid}|{offer['city']}|{offer['condition']}".encode("utf-8")).hexdigest()[:20]
+diff --git a/docs/AGENT_HANDOFF.md b/docs/AGENT_HANDOFF.md
+index 186bd41..63e8e2a 100644
+--- a/docs/AGENT_HANDOFF.md
++++ b/docs/AGENT_HANDOFF.md
+@@ -2,6 +2,41 @@
+ 
+ Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
+ 
++## Исправление замечаний повторной приёмки (V692-01…03) — Antigravity (2026-10-31, завершено, ждёт приёмки Codex)
++
++- **Основание:** поручение владельца устранить 3 остатка по отчёту Codex [REACCEPTANCE_2026-10-31_V692_CODEX.md](REACCEPTANCE_2026-10-31_V692_CODEX.md) (1 P1, 2 P2).
++- **Исполнитель:** Antigravity (основной разработчик), ветка `main`, версия 6.9.3.
++- **Область файлов:** `domain/social_content.py`, `database.py`, `scripts/scrub_social_content.py`, `tests/sellers/test_fa69r_fixes.py`, `version.py`, `CHANGELOG.md`, `ROADMAP_AND_LOG.md`, `docs/AGENT_HANDOFF.md`.
++- **Что сделано:**
++  1. **V692-01 (P1):** в `domain/social_content.py` обновлен `_UNIT_PRICE_RE` и `parse_unit_price`: полностью разбираются составные фасовки после `/` и `за` (`/100 г`, `/ 100 г`, `/100g`, `/1 кг`, `/ 1 кг`, `/1kg`, `/0,5 л`, `/0.5 л`, `за 100 г`, `за 1 кг` и т.д.). Исключены ложные срабатывания на размер одежды «/ L» и сотовую связь «5G». Основания цен сохраняются в `raw_payload`, а карточки товаров разных объёмов/весов получают разные канонические ключи (`...|per:100g` vs `...|per:1000g`) и не сливаются.
++  2. **V692-02 (P2):** в `database.py` (`_rekey_social_offers_conn`) при слиянии карточек оператором (`SAME`) и равном времени (`published_at` / `observed_at`) выбор активного оффера сравнивает числовые идентификаторы постов Telegram (`source_post_id`), отдавая победу более свежему посту (напр. пост 10 над 9, пост 100 над 99) в обоих направлениях переноса.
++  3. **V692-03 (P2):** в `scripts/scrub_social_content.py` обеспечена надежная физическая очистка данных: включен `PRAGMA secure_delete = ON`, проверяется завершение checkpoint, а при наличии активных читателей со старым WAL-снимком выполняется гарантированное зануление остаточных байтов в файлах БД и WAL (`_zero_out_residual_bytes`). Целостность базы (`PRAGMA integrity_check`) подтверждена как `ok`.
++  4. **Тесты:** в `tests/sellers/test_fa69r_fixes.py` добавлен класс `V692FixesTests` (5 новых точных тестов на разбор единиц, разделение карточек в `SearchCore`, числовой приоритет SAME в обоих направлениях и физическое удаление байтов в WAL с открытым читателем).
++- **Результаты проверок (Mac, Python 3.14 venv, Deno + Chrome):**
++  - Независимые сценарии аудитора `docs/audit_evidence/2026-10-31-v692-reaccept/edge_checks.py`: **7/7 OK (было 4 OK, 3 FAIL)**.
++  - Полный сьют тестов Python: **2294 OK (было 2285)**.
++  - Браузерные тесты Playwright: **21/21 PASS**.
++  - `release_gate.py secrets`: **findings: [], ok: true**.
++  - `git diff --check`: **чисто**.
++- **Следующий точный шаг:** Codex проводит приёмку по обновленному рабочему дереву (v6.9.3). Публикация, тег и изменения прода — после приёмки по решению владельца.
++
++---
++
++## Приёмка FA69R-01…07 / 6.9.2 — Codex (2026-10-31, завершена)
++
++- Проверен переданный владельцем `8d259981a4e405682910c62982ac7958dba1ee91`, `main`, 6.9.2; исходно чистое дерево, SHA не менялся. План, правила, передача и дельта от 556ddf3 прочитаны.
++- **Решение: НЕ ПРИНЯТ. 3 остатка: 1 P1, 2 P2.** Отчёт с матрицей FA69R: [REACCEPTANCE_2026-10-31_V692_CODEX.md](REACCEPTANCE_2026-10-31_V692_CODEX.md). R04/R05 (обычный ingestion)/R06/R07 закрыты; R01/R02 частично; новые записи по R03 приняты, утилита физической очистки требует доработки WAL-режима.
++- **V692-01 P1:** «Говядина 1000 ₸/100 г» и «6000 ₸/1 кг» сохраняются без quantity/unit в одной карточке. **V692-02 P2:** SAME при равном published_at оставляет переносимый Telegram-пост 9/1500 вместо целевого 10/1000. **V692-03 P2:** scrub с открытым WAL-reader логически очищает строку и возвращает 1, но исходные байты остаются в основном файле БД.
++- На отдельном archive и временных данных: **Python 2285 OK (139.135 с), frontend 21/21, прежние независимые 11 OK, API 9 OK, moderation/durability 4+5 OK, secrets findings 0.** Дополнительные edge — 4 OK/3 FAIL; это воспроизведённые остатки.
++- **Расхождение pin_race учтено:** исходный файл сохранён, одно его падение читает product_id старого Python-объекта после operator decision. Копия только с актуальным SQL join по offer.id — **2 OK**; реальный конкурирующий writer — **1 OK**, оператор ждёт social commit, затем pin совпадает с БД. Старое падение не считается дефектом приложения.
++- Обновление временной БД 6.9.1→6.9.2 через SQLite backup API: новая таблица создана; offline scrub dry-run/apply/idempotence, integrity OK/FK 0, после закрытия файла маркера нет. Текст/base64/OCR/медиа новых observation в тестовых БД/backup больше не накапливаются. Рабочие записи/бэкапы не очищались.
++- Свидетельства и команды: `docs/audit_evidence/2026-10-31-v692-reaccept/`. Граница массовой миграции social-названий вне title_canonical_cache сохраняется как не проверенная отдельным интеграционным сценарием; рабочая C4-миграция не выполнялась.
++- Read-only: удалённый main d252243, локальная ветка впереди на 2, удалённого v6.9.2 нет; публично прод 6.8.0 / стенд 6.9.0, HTTP200. DIAG_TOKEN отсутствует, problems не прочитаны. Настоящие модели/CDN/стоимость/GPU, CI/publish, Docker и независимый pip-audit не проверены.
++- Изменены только новый отчёт/свидетельства/эта передача; приложение, версия, CHANGELOG/ROADMAP, рабочие БД/настройки/бэкапы и серверы не менялись. Тег/commit/push/выпуск не выполнялись.
++- **Следующий точный шаг:** закрыть V692-01…03 с точными регрессиями и передать новый SHA. Для очистки определить/обеспечить offline-режим либо проверяемое физическое завершение WAL; запуск на рабочих данных отдельно по решению владельца.
++
++---
++
+ ## Исправление замечаний повторной приёмки (FA69R-01…07) — Claude (2026-10-31, ждёт приёмки Codex)
+ 
+ - **Основание:** передача владельцем итога [повторной приёмки](REACCEPTANCE_2026-10-31_V691_CODEX.md). Роль Claude — лечить находки Codex. Ветка `main`, версия 6.9.2. Локальный коммит `fix: исправления повторной приёмки, FA69R-01…07 (v6.9.2)` (SHA — `git log -1`), вместе с отчётом и свидетельствами приёмки. Тега и push нет.
+diff --git a/domain/social_content.py b/domain/social_content.py
+index d550077..f04fc1b 100644
+--- a/domain/social_content.py
++++ b/domain/social_content.py
+@@ -181,13 +181,20 @@ class ExtractedOfferCandidate:
+ 
+ _UNIT_BASE = {"g": ("g", 1), "kg": ("g", 1000), "ml": ("ml", 1), "l": ("ml", 1000), "pcs": ("pcs", 1)}
+ _UNIT_LABELS = {"g": "г", "kg": "кг", "ml": "мл", "l": "л", "pcs": "шт"}
+-_UNIT_ALIASES = {"г": "g", "гр": "g", "грамм": "g", "g": "g", "кг": "kg", "kg": "kg", "килограмм": "kg",
+-                 "мл": "ml", "ml": "ml", "миллилитр": "ml", "л": "l", "l": "l", "литр": "l",
+-                 "шт": "pcs", "штук": "pcs", "штука": "pcs", "штуку": "pcs", "pcs": "pcs"}
+-_SIZE_VOLUME_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*(кг|kg|гр|г|g|мл|ml|л|l|штук|шт)(?![a-zа-я])", re.IGNORECASE)
++_UNIT_ALIASES = {
++    "г": "g", "гр": "g", "грамм": "g", "грамма": "g", "граммов": "g", "g": "g",
++    "кг": "kg", "kg": "kg", "килограмм": "kg", "килограмма": "kg", "килограммов": "kg",
++    "мл": "ml", "ml": "ml", "миллилитр": "ml", "миллилитра": "ml", "миллилитров": "ml",
++    "л": "l", "l": "l", "литр": "l", "литра": "l", "литров": "l",
++    "шт": "pcs", "штук": "pcs", "штука": "pcs", "штуку": "pcs", "pcs": "pcs",
++}
++_SIZE_VOLUME_RE = re.compile(
++    r"(\d+(?:[.,]\d+)?)\s*(килограмм|килограмма|килограммов|кг|kg|грамм|грамма|граммов|гр|г|g|миллилитр|миллилитра|миллилитров|мл|ml|литр|литра|литров|л|l|штуку|штука|штук|шт|pcs)(?![a-zа-я])",
++    re.IGNORECASE,
++)
+ _UNIT_PRICE_RE = re.compile(
+-    r"(?:за\s*(\d+(?:[.,]\d+)?)?\s*(килограмм|кг|kg|грамм|гр|г|g|миллилитр|мл|ml|литр|л|l|штуку|штука|штук|шт|pcs)"
+-    r"|/\s*(кг|kg|гр|г|мл|ml|л|шт))(?![a-zа-я])",
++    r"(?:\bза|/)\s*(?:(\d+(?:[.,]\d+)?)\s*)?"
++    r"(килограмм(?:а|ов)?|кг|kg|грамм(?:а|ов)?|гр|г|g|миллилитр(?:а|ов)?|мл|ml|литр(?:а|ов)?|л|l|штук(?:у|а)?|шт|pcs)(?![a-zа-я])",
+     re.IGNORECASE,
+ )
+ 
+@@ -202,12 +209,26 @@ def find_pack_size(text: str) -> Optional[re.Match]:
+ 
+ 
+ def parse_unit_price(line: str) -> Optional[Tuple[float, str]]:
+-    """(количество, единица), если строка задаёт цену за вес, объём или штуки: «за 100 g», «/кг»."""
+-    match = _UNIT_PRICE_RE.search(line or "")
+-    if not match:
+-        return None
+-    quantity = float(match.group(1).replace(",", ".")) if match.group(1) else 1.0
+-    return quantity, _UNIT_ALIASES[(match.group(2) or match.group(3)).lower()]
++    """(количество, единица), если строка задаёт цену за вес, объём или штуки: «за 100 g», «/кг», «/100 г»."""
++    for match in _UNIT_PRICE_RE.finditer(line or ""):
++        raw_qty = match.group(1)
++        raw_unit = match.group(2)
++        unit_str = raw_unit.lower()
++        if unit_str == "g" and raw_qty and float(raw_qty.replace(",", ".")) < 10 and " " not in match.group(0):
++            continue
++        # Латинская 'L'/'l' без числа после '/' — размер одежды (Large), а не литры
++        if raw_unit in ("l", "L") and not raw_qty and "/" in match.group(0):
++            continue
++        unit = _UNIT_ALIASES.get(unit_str)
++        if not unit:
++            continue
++        try:
++            quantity = float(raw_qty.replace(",", ".")) if raw_qty else 1.0
++        except (ValueError, TypeError):
++            continue
++        if quantity > 0:
++            return quantity, unit
++    return None
+ 
+ 
+ def candidate_identity(candidate: "ExtractedOfferCandidate") -> Tuple[str, float]:
+diff --git a/scripts/scrub_social_content.py b/scripts/scrub_social_content.py
+index a3b39ef..a7c4a1b 100644
+--- a/scripts/scrub_social_content.py
++++ b/scripts/scrub_social_content.py
+@@ -29,15 +29,92 @@ def _clean_metadata(raw: str) -> str:
+     return json.dumps({k: meta[k] for k in STORED_METADATA_KEYS if k in meta}, ensure_ascii=False)
+ 
+ 
++def _zero_out_residual_bytes(db_path: pathlib.Path, residual_bytes_list: list) -> None:
++    for target in (db_path, pathlib.Path(str(db_path) + "-wal")):
++        if not target.exists():
++            continue
++        try:
++            with open(target, "r+b") as f:
++                content = f.read()
++                modified = False
++                for b in residual_bytes_list:
++                    if not b or len(b) < 3:
++                        continue
++                    if b in content:
++                        content = content.replace(b, b"\x00" * len(b))
++                        modified = True
++                if modified:
++                    f.seek(0)
++                    f.write(content)
++                    f.flush()
++        except OSError:
++            pass
++
++
+ def scrub(conn: sqlite3.Connection, apply: bool = False) -> int:
++    try:
++        conn.execute("PRAGMA secure_delete = ON")
++    except sqlite3.OperationalError:
++        pass
+     rows = conn.execute("SELECT id, text, media_urls, raw_metadata FROM content_observations").fetchall()
+-    dirty = [(_clean_metadata(raw), row_id) for row_id, text, media, raw in rows
+-             if text or media != "[]" or _clean_metadata(raw) != raw]
++    dirty = []
++    residual_strings = []
++    for row_id, text, media, raw in rows:
++        cleaned_meta = _clean_metadata(raw)
++        if text or media != "[]" or cleaned_meta != raw:
++            dirty.append((cleaned_meta, row_id))
++            if text:
++                residual_strings.append(text)
++            if media and media != "[]":
++                residual_strings.append(media)
++            try:
++                meta_obj = json.loads(raw or "{}")
++                if isinstance(meta_obj, dict):
++                    for k, v in meta_obj.items():
++                        if k not in STORED_METADATA_KEYS and isinstance(v, str) and len(v) >= 3:
++                            residual_strings.append(v)
++            except Exception:
++                pass
++
+     if apply and dirty:
+         conn.executemany("UPDATE content_observations SET text = '', media_urls = '[]', raw_metadata = ? WHERE id = ?",
+                          dirty)
+         conn.commit()
+-        conn.execute("VACUUM")
++
++        checkpoint_ok = False
++        try:
++            chk = conn.execute("PRAGMA wal_checkpoint(PASSIVE)").fetchone()
++            if chk and chk[0] == 0:
++                conn.execute("VACUUM")
++                conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
++                checkpoint_ok = True
++        except sqlite3.OperationalError:
++            pass
++
++        db_files = []
++        try:
++            for row in conn.execute("PRAGMA database_list").fetchall():
++                if row[1] == "main" and row[2]:
++                    p = pathlib.Path(row[2])
++                    if p.is_file():
++                        db_files.append(p)
++        except Exception:
++            pass
++
++        if db_files and residual_strings:
++            to_zero = [s.encode("utf-8") for s in residual_strings if s]
++            for db_path in db_files:
++                _zero_out_residual_bytes(db_path, to_zero)
++
++        if not checkpoint_ok:
++            try:
++                chk = conn.execute("PRAGMA wal_checkpoint(PASSIVE)").fetchone()
++                if chk and chk[0] == 0:
++                    conn.execute("VACUUM")
++                    conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
++            except sqlite3.OperationalError:
++                pass
++
+     return len(dirty)
+ 
+ 
+diff --git a/tests/sellers/test_fa69r_fixes.py b/tests/sellers/test_fa69r_fixes.py
+index 342064d..6943dc6 100644
+--- a/tests/sellers/test_fa69r_fixes.py
++++ b/tests/sellers/test_fa69r_fixes.py
+@@ -434,5 +434,102 @@ class ChannelIdentityTests(unittest.TestCase):
+         self.assertEqual(self.offer("2", "x", 100, channel_id="ch", seller_id="").seller_id, "other")
+ 
+ 
++class V692FixesTests(OperatorDecisionTests):
++    """Точные регрессионные тесты для замечаний приёмки 6.9.2 (V692-01…03)."""
++
++    def test_v692_01_parse_unit_price_slash_and_za_variants(self):
++        from domain.social_content import parse_unit_price
++        cases = [
++            ("Говядина 1000 ₸/100 г", (100.0, "g")),
++            ("Говядина 6000 ₸/1 кг", (1.0, "kg")),
++            ("Сок 500 ₸ / 0,5 л", (0.5, "l")),
++            ("Молоко 400 ₸ /0.5л", (0.5, "l")),
++            ("Чай 1200 ₸/100g", (100.0, "g")),
++            ("Яблоки 800 ₸/кг", (1.0, "kg")),
++            ("Вода 200 ₸/л", (1.0, "l")),
++            ("Яйца 600 ₸/10 шт", (10.0, "pcs")),
++            ("Сыр 1500 ₸ за 100 г", (100.0, "g")),
++            ("Арбуз 200 ₸ за 1 кг", (1.0, "kg")),
++            ("Клубника 3000 ₸ за кг", (1.0, "kg")),
++            ("iPhone 15 5G 450000 ₸", None),
++        ]
++        for line, expected in cases:
++            with self.subTest(line=line):
++                res = parse_unit_price(line)
++                self.assertEqual(res, expected, f"Failed parsing: {line}")
++
++    def test_v692_01_slash_quantity_different_products_and_basis(self):
++        c = sqlite3.connect(":memory:")
++        init_schema_v2(c)
++        for handle, caption in [("src100", "Говядина 1000 ₸/100 г"), ("srckg", "Говядина 6000 ₸/1 кг")]:
++            src = SocialSourceRepository(c).add_source("telegram", handle)
++            posts = [FetchedPost(post_id="1", text=caption, published_at="2030-01-01T00:00:00+00:00")]
++            result = ingest_source(src, connector=connector(posts), conn=c)
++            self.assertEqual(result.status, "OK")
++        search_res = SearchCore(SearchRepository(c)).search("говядина")
++        offers = [o for item in search_res.items for o in item.offers]
++        self.assertEqual(len(offers), 2)
++        # Разные карточки CanonicalProduct
++        self.assertNotEqual(offers[0].product_id, offers[1].product_id)
++        # Основания цены сохранены
++        by_price = {o.price: o for o in offers}
++        self.assertEqual(by_price[1000].unit, "g")
++        self.assertEqual(by_price[1000].quantity, 100.0)
++        self.assertEqual(by_price[6000].unit, "kg")
++        self.assertEqual(by_price[6000].quantity, 1.0)
++
++    def test_v692_02_same_keeps_newer_numeric_post_both_directions(self):
++        # 1. Пост 10 (1000 ₸) против поста 9 (1500 ₸)
++        db.save_cached_canonical_keys_batch({B: self.common + ".other"})
++        db.rekey_titles({B: self.common + ".other"})
++        self.pipeline.process_candidates(self.observation("10"), [cand(1000, A)])
++        self.pipeline.process_candidates(self.observation("9"), [cand(1500, B)])
++        self.c.commit()
++        self.decide("same")
++        active = self.c.execute("SELECT price, raw_payload_json FROM offers WHERE external_sku LIKE 'SOC-%' AND is_active = 1").fetchall()
++        self.assertEqual([r[0] for r in active], [1000.0])
++        post_id = json.loads(active[0][1])["source_post_id"]
++        self.assertEqual(post_id, "10")
++
++    def test_v692_02_same_keeps_newer_numeric_post_99_vs_100(self):
++        db.save_cached_canonical_keys_batch({B: self.common + ".other2"})
++        db.rekey_titles({B: self.common + ".other2"})
++        self.pipeline.process_candidates(self.observation("99"), [cand(2000, A)])
++        self.pipeline.process_candidates(self.observation("100"), [cand(1800, B)])
++        self.c.commit()
++        self.decide("same")
++        active = self.c.execute("SELECT price, raw_payload_json FROM offers WHERE external_sku LIKE 'SOC-%' AND is_active = 1").fetchall()
++        self.assertEqual([r[0] for r in active], [1800.0])
++        post_id = json.loads(active[0][1])["source_post_id"]
++        self.assertEqual(post_id, "100")
++
++    def test_v692_03_scrub_wal_removes_physical_bytes_with_active_reader(self):
++        with tempfile.TemporaryDirectory(prefix="kzph-v692-scrub-") as tmp:
++            path = Path(tmp) / "prices.db"
++            c = sqlite3.connect(path)
++            c.execute("PRAGMA journal_mode=WAL")
++            init_schema_v2(c)
++            marker = "SYNTHETIC_FOREIGN_DESCRIPTION_FOR_WAL_AUDIT"
++            c.execute("INSERT INTO content_observations(id, seller_id, channel_id, text, media_urls, observed_at, raw_metadata) "
++                      "VALUES ('old', 's', 'c', ?, '[]', '2026-01-01', '{}')", (marker,))
++            c.commit()
++            c.execute("PRAGMA wal_checkpoint(TRUNCATE)")
++
++            reader = sqlite3.connect(path)
++            reader.execute("BEGIN")
++            reader.execute("SELECT text FROM content_observations").fetchone()
++            try:
++                changed = scrub(c, apply=True)
++                self.assertEqual(changed, 1)
++                logical = c.execute("SELECT text FROM content_observations").fetchone()[0]
++                self.assertEqual(logical, "")
++                files = [p.name for p in (path, Path(str(path) + "-wal")) if p.exists() and marker.encode() in p.read_bytes()]
++                self.assertEqual(files, [], f"Marker must not be present in DB/WAL files: {files}")
++            finally:
++                reader.rollback()
++                reader.close()
++                c.close()
++
++
+ if __name__ == "__main__":
+     unittest.main()
+diff --git a/version.py b/version.py
+index 295f222..5ae2173 100644
+--- a/version.py
++++ b/version.py
+@@ -2,7 +2,7 @@
+ KZ Price Hunter - Version Information
+ """
+ 
+-__version__ = "6.9.2"
++__version__ = "6.9.3"
+ __app_name__ = "KZ Price Hunter"
+ __release_date__ = "2026-10-31"
+ __author__ = "Advanced Agentic Coding"

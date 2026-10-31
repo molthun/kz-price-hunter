@@ -14,7 +14,7 @@ import product_key as pk
 from domain.models import Channel, Seller
 from domain.search_core import SearchCore
 from domain.social_connector import FetchedPost
-from domain.social_content import ContentObservation, ContentType, ExtractedOfferCandidate, SocialContentExtractor
+from domain.social_content import ContentObservation, ContentType, ExtractedOfferCandidate, SocialContentExtractor, parse_unit_price
 from domain.social_media import FetchedImage
 from domain.social_pipeline import SocialOfferPipeline
 from domain.vision_extraction import VisionExtractionEngine, parse_vision_response
@@ -22,6 +22,7 @@ from repositories import init_schema_v2
 from repositories.channel_repo import ChannelRepository
 from repositories.content_repo import ContentObservationRepository
 from repositories.offer_repo import OfferRepository
+from repositories.product_repo import ProductRepository
 from repositories.search_repo import SearchRepository
 from repositories.seller_repo import SellerRepository
 from repositories.social_source_repo import SocialSourceRepository
@@ -432,6 +433,246 @@ class ChannelIdentityTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.offer("1", "x", 100, channel_id="ch")
         self.assertEqual(self.offer("2", "x", 100, channel_id="ch", seller_id="").seller_id, "other")
+
+
+class V692FixesTests(OperatorDecisionTests):
+    """Точные регрессионные тесты для замечаний приёмки 6.9.2 (V692-01…03)."""
+
+    def test_v692_01_parse_unit_price_slash_and_za_variants(self):
+        from domain.social_content import parse_unit_price
+        cases = [
+            ("Говядина 1000 ₸/100 г", (100.0, "g")),
+            ("Говядина 6000 ₸/1 кг", (1.0, "kg")),
+            ("Сок 500 ₸ / 0,5 л", (0.5, "l")),
+            ("Молоко 400 ₸ /0.5л", (0.5, "l")),
+            ("Чай 1200 ₸/100g", (100.0, "g")),
+            ("Яблоки 800 ₸/кг", (1.0, "kg")),
+            ("Вода 200 ₸/л", (1.0, "l")),
+            ("Яйца 600 ₸/10 шт", (10.0, "pcs")),
+            ("Сыр 1500 ₸ за 100 г", (100.0, "g")),
+            ("Арбуз 200 ₸ за 1 кг", (1.0, "kg")),
+            ("Клубника 3000 ₸ за кг", (1.0, "kg")),
+            ("iPhone 15 5G 450000 ₸", None),
+        ]
+        for line, expected in cases:
+            with self.subTest(line=line):
+                res = parse_unit_price(line)
+                self.assertEqual(res, expected, f"Failed parsing: {line}")
+
+    def test_v692_01_slash_quantity_different_products_and_basis(self):
+        c = sqlite3.connect(":memory:")
+        init_schema_v2(c)
+        for handle, caption in [("src100", "Говядина 1000 ₸/100 г"), ("srckg", "Говядина 6000 ₸/1 кг")]:
+            src = SocialSourceRepository(c).add_source("telegram", handle)
+            posts = [FetchedPost(post_id="1", text=caption, published_at="2030-01-01T00:00:00+00:00")]
+            result = ingest_source(src, connector=connector(posts), conn=c)
+            self.assertEqual(result.status, "OK")
+        search_res = SearchCore(SearchRepository(c)).search("говядина")
+        offers = [o for item in search_res.items for o in item.offers]
+        self.assertEqual(len(offers), 2)
+        # Разные карточки CanonicalProduct
+        self.assertNotEqual(offers[0].product_id, offers[1].product_id)
+        # Основания цены сохранены
+        by_price = {o.price: o for o in offers}
+        self.assertEqual(by_price[1000].unit, "g")
+        self.assertEqual(by_price[1000].quantity, 100.0)
+        self.assertEqual(by_price[6000].unit, "kg")
+        self.assertEqual(by_price[6000].quantity, 1.0)
+
+    def test_v692_02_same_keeps_newer_numeric_post_both_directions(self):
+        # 1. Пост 10 (1000 ₸) против поста 9 (1500 ₸)
+        db.save_cached_canonical_keys_batch({B: self.common + ".other"})
+        db.rekey_titles({B: self.common + ".other"})
+        self.pipeline.process_candidates(self.observation("10"), [cand(1000, A)])
+        self.pipeline.process_candidates(self.observation("9"), [cand(1500, B)])
+        self.c.commit()
+        self.decide("same")
+        active = self.c.execute("SELECT price, raw_payload_json FROM offers WHERE external_sku LIKE 'SOC-%' AND is_active = 1").fetchall()
+        self.assertEqual([r[0] for r in active], [1000.0])
+        post_id = json.loads(active[0][1])["source_post_id"]
+        self.assertEqual(post_id, "10")
+
+    def test_v692_02_same_keeps_newer_numeric_post_99_vs_100(self):
+        db.save_cached_canonical_keys_batch({B: self.common + ".other2"})
+        db.rekey_titles({B: self.common + ".other2"})
+        self.pipeline.process_candidates(self.observation("99"), [cand(2000, A)])
+        self.pipeline.process_candidates(self.observation("100"), [cand(1800, B)])
+        self.c.commit()
+        self.decide("same")
+        active = self.c.execute("SELECT price, raw_payload_json FROM offers WHERE external_sku LIKE 'SOC-%' AND is_active = 1").fetchall()
+        self.assertEqual([r[0] for r in active], [1800.0])
+        post_id = json.loads(active[0][1])["source_post_id"]
+        self.assertEqual(post_id, "100")
+
+
+class ConnectionProxy:
+    """Соединение, у которого выбранная команда SQLite завершается отказом."""
+
+    def __init__(self, conn, failing, result=None):
+        self.conn, self.failing, self.result = conn, failing, result
+
+    def __getattr__(self, name):
+        return getattr(self.conn, name)
+
+    def execute(self, sql, *args):
+        if self.failing in sql:
+            if self.result is None:
+                raise sqlite3.OperationalError("database is locked")
+            return type("Row", (), {"fetchone": lambda _self: self.result})()
+        return self.conn.execute(sql, *args)
+
+
+class ScrubSafetyTests(unittest.TestCase):
+    """V693-01: файлы меняет только SQLite, разрешённые значения не страдают, итог различим."""
+
+    SHORT = "SYNTHETIC_SHORT_POST_MARKER"
+    LONG = "A" * 10000 + "SYNTHETIC_OVERFLOW_MARKER" + "B" * 10000
+    IMAGE = base64.b64encode(b"SYNTHETIC_IMAGE" * 2000).decode()
+    TITLE = "Samsung Galaxy S24"
+    URL = "https://t.me/audit/1"
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory(prefix="kzph-scrub-")
+        self.addCleanup(tmp.cleanup)
+        self.path = Path(tmp.name) / "prices.db"
+        self.c = sqlite3.connect(self.path, timeout=0.05)
+        self.addCleanup(self.c.close)
+        self.c.execute("PRAGMA journal_mode=WAL")
+        init_schema_v2(self.c)
+        self.product = ProductRepository(self.c).get_or_create_canonical("audit:kept", self.TITLE, "smartphones")
+        rows = [("short", self.SHORT + " " + self.TITLE, {"post_url": self.URL}),
+                ("long", self.LONG, {"post_url": self.URL, "ocr_text": self.SHORT}),
+                ("image", "", {"post_url": self.URL, "image_bytes": self.IMAGE})]
+        for row_id, text, meta in rows:
+            self.c.execute("""INSERT INTO content_observations (id, seller_id, channel_id, text, media_urls, observed_at,
+                              raw_metadata) VALUES (?, 's', 'c', ?, '[]', '2026-01-01', ?)""",
+                           (row_id, text, json.dumps(meta)))
+        self.c.commit()
+        self.c.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+
+    def leftovers(self):
+        markers = (self.SHORT, "SYNTHETIC_OVERFLOW_MARKER", self.IMAGE[:200])
+        files = [p for p in (self.path, Path(f"{self.path}-wal")) if p.exists()]
+        return [m for m in markers for f in files if m.encode() in f.read_bytes()]
+
+    def assert_allowed_values_kept(self):
+        fresh = sqlite3.connect(self.path)
+        self.addCleanup(fresh.close)
+        self.assertEqual(fresh.execute("SELECT title FROM canonical_products WHERE id = ?", (self.product.id,)).fetchone()[0],
+                         self.TITLE)
+        rows = fresh.execute("SELECT text, media_urls, raw_metadata FROM content_observations").fetchall()
+        self.assertEqual(rows, [("", "[]", json.dumps({"post_url": self.URL}))] * 3)
+        self.assertEqual(fresh.execute("PRAGMA integrity_check").fetchone()[0], "ok")
+
+    def test_clean_run_removes_every_form_and_keeps_allowed_values(self):
+        self.assertTrue(self.leftovers())
+        result = scrub(self.c, apply=True)
+        self.assertEqual((int(result), result.physical_complete, result.reason), (3, True, ""))
+        self.assertEqual(self.leftovers(), [])
+        self.assert_allowed_values_kept()
+        again = scrub(self.c, apply=True)
+        self.assertEqual((int(again), again.physical_complete), (0, True))
+        backup = sqlite3.connect(":memory:")
+        self.addCleanup(backup.close)
+        self.c.backup(backup)
+        dumped = "\n".join(backup.iterdump())
+        self.assertNotIn(self.SHORT, dumped)
+        self.assertIn(self.TITLE, dumped)
+
+    def test_old_reader_gives_distinct_result_then_rerun_finishes(self):
+        reader = sqlite3.connect(self.path)
+        self.addCleanup(reader.close)
+        reader.execute("BEGIN")
+        reader.execute("SELECT text FROM content_observations").fetchone()
+        result = scrub(self.c, apply=True)
+        self.assertEqual(int(result), 3)
+        self.assertFalse(result.physical_complete)
+        self.assertTrue(result.reason)
+        self.assertEqual(self.c.execute("SELECT text FROM content_observations WHERE id = 'short'").fetchone()[0], "")
+        self.assertTrue(self.leftovers(), "читатель удерживает старые страницы; блокировки SQLite не обходятся")
+        self.assert_allowed_values_kept()
+        reader.rollback()
+        finished = scrub(self.c, apply=True)
+        self.assertEqual((int(finished), finished.physical_complete), (0, True))
+        self.assertEqual(self.leftovers(), [])
+
+    def test_failures_are_reported_not_hidden(self):
+        for failing, result, reason in (("wal_checkpoint", (1, 5, 0), "wal_busy"), ("wal_checkpoint", (0, 5, 3), "wal_not_empty"),
+                                        ("wal_checkpoint", None, "sqlite_error:OperationalError"),
+                                        ("VACUUM", None, "sqlite_error:OperationalError"),
+                                        ("integrity_check", ("corrupt",), "integrity_failed")):
+            outcome = scrub(ConnectionProxy(self.c, failing, result), apply=True)
+            self.assertFalse(outcome.physical_complete, failing)
+            self.assertEqual(outcome.reason, reason)
+        self.assertTrue(scrub(self.c, apply=True).physical_complete)
+
+    def test_cli_exit_codes(self):
+        from scripts.scrub_social_content import EXIT_PHYSICAL_INCOMPLETE, main
+        self.c.close()
+        reader = sqlite3.connect(self.path)
+        self.addCleanup(reader.close)
+        reader.execute("BEGIN")
+        reader.execute("SELECT text FROM content_observations").fetchone()
+        real_connect = sqlite3.connect
+        with patch("sys.argv", ["scrub", str(self.path), "--apply"]), \
+                patch("sqlite3.connect", lambda path: real_connect(path, timeout=0.05)):
+            self.assertEqual(main(), EXIT_PHYSICAL_INCOMPLETE)
+            reader.rollback()
+            self.assertEqual(main(), 0)
+
+    def test_script_does_not_open_database_files_itself(self):
+        source = Path("scripts/scrub_social_content.py").read_text(encoding="utf-8")
+        for forbidden in ("open(", "read_bytes", "write_bytes", "r+b"):
+            self.assertNotIn(forbidden, source)
+
+
+class SmallUnitTests(unittest.IsolatedAsyncioTestCase):
+    """V693-02: явное основание цены отделено от поколения связи в названии."""
+
+    def test_explicit_forms(self):
+        for line, expected in (("Шафран 2000 ₸/1g", (1.0, "g")), ("Шафран 6000 ₸/5g", (5.0, "g")),
+                               ("Шафран 6000 ₸/5G", (5.0, "g")), ("Шафран 900 ₸/0.5g", (0.5, "g")),
+                               ("Шафран 900 ₸/0,5 g", (0.5, "g")), ("Шафран 900 ₸ / 5 g", (5.0, "g")),
+                               ("Шафран 900 ₸/5г", (5.0, "g")), ("Шафран 900 ₸ / 5 г", (5.0, "g")),
+                               ("Шафран 900 ₸ за 5g", (5.0, "g")), ("Шафран /5g 900 ₸", (5.0, "g"))):
+            self.assertEqual(parse_unit_price(line), expected, line)
+
+    def test_network_and_clothes_are_not_units(self):
+        for line in ("Samsung Galaxy S24 5G 300000 ₸", "Samsung Galaxy S24/5G/256GB 300000 ₸", "Роутер/4G 20000 тг",
+                     "Футболка / L 5000 ₸", "Футболка/L 5000 ₸"):
+            self.assertIsNone(parse_unit_price(line), line)
+            parsed = SocialContentExtractor.extract_candidates(ContentObservation(text=line))[0]
+            self.assertIsNone(parsed.price_basis(), line)
+        kept = SocialContentExtractor.extract_candidates(ContentObservation(text="Samsung Galaxy S24/5G 300000 ₸"))[0]
+        self.assertIn("5G", kept.raw_title)
+
+    def _source(self, c, handle, price, quantity):
+        src = SocialSourceRepository(c).add_source("telegram", handle)
+        return src, FetchedPost(post_id="1", text=f"Шафран {price} ₸/{quantity}g",
+                                media_urls=["https://cdn.example.invalid/p.jpg"],
+                                published_at="2030-01-01T00:00:00+00:00")
+
+    def assert_separate(self, c):
+        offers = [o for i in SearchCore(SearchRepository(c)).search("шафран").items for o in i.offers]
+        self.assertEqual(sorted((o.price, o.quantity, o.unit) for o in offers), [(2000, 1, "g"), (6000, 5, "g")])
+        self.assertEqual(len({o.product_id for o in offers}), 2)
+
+    async def test_vision_path_with_failed_model(self):
+        c = conn()
+        for handle, price, quantity in (("audit1g", 2000, 1), ("audit5g", 6000, 5)):
+            src, post = self._source(c, handle, price, quantity)
+            with patch("domain.vision_extraction.fetch_image", new_callable=AsyncMock,
+                       return_value=FetchedImage(b"audit-image-content")), \
+                    patch("ai_router.run", new_callable=AsyncMock, side_effect=RuntimeError("down")):
+                await ingest_source_async(src, connector=connector([post]), conn=c)
+        self.assert_separate(c)
+
+    def test_sync_path(self):
+        c = conn()
+        for handle, price, quantity in (("audit1g", 2000, 1), ("audit5g", 6000, 5)):
+            src, post = self._source(c, handle, price, quantity)
+            ingest_source(src, connector=connector([post]), conn=c)
+        self.assert_separate(c)
 
 
 if __name__ == "__main__":

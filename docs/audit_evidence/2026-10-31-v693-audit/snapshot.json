@@ -1,0 +1,42 @@
+{
+  "head": "8d259981a4e405682910c62982ac7958dba1ee91",
+  "snapshot": "/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v693-audit-ebgpnmfu/source",
+  "data": "/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v693-audit-ebgpnmfu/data",
+  "python": "/Users/molthun/Documents/kz-price-hunter/venv/bin/python",
+  "evidence": "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-31-v693-audit",
+  "delta_sha256": "221eef629e01deb11f6482462b6e9caef3af5c32a426a5e734226854a2a4e1c5",
+  "changed_tracked": [
+    "CHANGELOG.md",
+    "ROADMAP_AND_LOG.md",
+    "database.py",
+    "docs/AGENT_HANDOFF.md",
+    "domain/social_content.py",
+    "scripts/scrub_social_content.py",
+    "tests/sellers/test_fa69r_fixes.py",
+    "version.py"
+  ],
+  "untracked_initial": [
+    "docs/REACCEPTANCE_2026-10-31_V692_CODEX.md",
+    "docs/audit_evidence/2026-10-31-v692-reaccept/README.md",
+    "docs/audit_evidence/2026-10-31-v692-reaccept/api.txt",
+    "docs/audit_evidence/2026-10-31-v692-reaccept/durability.txt",
+    "docs/audit_evidence/2026-10-31-v692-reaccept/edge-notes.json",
+    "docs/audit_evidence/2026-10-31-v692-reaccept/edge_checks.py",
+    "docs/audit_evidence/2026-10-31-v692-reaccept/edge_checks.txt",
+    "docs/audit_evidence/2026-10-31-v692-reaccept/final-checks.json",
+    "docs/audit_evidence/2026-10-31-v692-reaccept/frontend-summary.json",
+    "docs/audit_evidence/2026-10-31-v692-reaccept/frontend.txt",
+    "docs/audit_evidence/2026-10-31-v692-reaccept/independent-original.txt",
+    "docs/audit_evidence/2026-10-31-v692-reaccept/moderation.txt",
+    "docs/audit_evidence/2026-10-31-v692-reaccept/pin-original.txt",
+    "docs/audit_evidence/2026-10-31-v692-reaccept/pin_readback.py",
+    "docs/audit_evidence/2026-10-31-v692-reaccept/pin_readback.txt",
+    "docs/audit_evidence/2026-10-31-v692-reaccept/python-suite.txt",
+    "docs/audit_evidence/2026-10-31-v692-reaccept/release-state.json",
+    "docs/audit_evidence/2026-10-31-v692-reaccept/secrets.json",
+    "docs/audit_evidence/2026-10-31-v692-reaccept/snapshot.json",
+    "docs/audit_evidence/2026-10-31-v692-reaccept/social_lock.py",
+    "docs/audit_evidence/2026-10-31-v692-reaccept/social_lock.txt",
+    "docs/audit_evidence/2026-10-31-v692-reaccept/upgrade-scrub.txt"
+  ]
+}

@@ -1,0 +1,21 @@
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+SOCIAL_OPERATOR_RACE={"operator_ok": true, "pin": "k2:apple:earpods.diff_dbd10113", "social_key": "k2:apple:earpods.diff_dbd10113", "order": "decision_after_save"}
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+SOCIAL_OPERATOR_RACE={"operator_ok": true, "pin": "k2:apple:earpods.diff_dbd10113", "social_key": "k2:apple:earpods.diff_dbd10113", "order": "decision_during_resolve"}
+test_operator_after_social_save (__main__.PinRace.test_operator_after_social_save) ... ok
+test_operator_during_social_resolution (__main__.PinRace.test_operator_during_social_resolution) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.075s
+
+OK

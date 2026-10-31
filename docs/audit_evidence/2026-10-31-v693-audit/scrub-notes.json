@@ -1,0 +1,16 @@
+{
+  "preserve_catalog": {
+    "changed": 1,
+    "expected_title": "Samsung Galaxy S24",
+    "actual_title_repr": "'\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00'",
+    "integrity_check": "ok"
+  },
+  "overflow_wal": {
+    "changed": 1,
+    "logical_text": "",
+    "marker_files": [
+      "prices.db"
+    ],
+    "post_bytes": 20034
+  }
+}
