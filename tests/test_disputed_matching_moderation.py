@@ -3,6 +3,7 @@ from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede pr
 
 import os
 from pathlib import Path
+import sqlite3
 import tempfile
 import unittest
 import unittest.mock
@@ -371,6 +372,49 @@ class TestHumanVerdictDurability(unittest.TestCase):
             item = database.spool_claim("test-worker")
             self.assertTrue(database.spool_apply_chunk(item["task_id"], item["claim_token"], 0, [p]))
         self._split_during("_prepare_products_chunk", write)
+
+    def test_batch_reads_pins_under_write_lock(self):
+        """Оператор не может вклиниться между чтением закреплений и записью порции: он ждёт её завершения."""
+        real, seen = database._apply_title_pins_conn, []
+
+        def spy(conn, items):
+            real(conn, items)
+            seen.append(conn.in_transaction)
+            other = sqlite3.connect(database.DB_PATH, timeout=0)
+            with self.assertRaises(sqlite3.OperationalError):
+                other.execute("BEGIN IMMEDIATE")
+            other.close()
+        with unittest.mock.patch.object(database, "_apply_title_pins_conn", spy):
+            database.save_or_update_products_batch([{"id": "p1", "title": "Товар", "canonical_key": "x:a", "shop": "s", "city": "Алматы",
+                                                     "price": 900, "url": "https://example.kz/1"}])
+        self.assertEqual(seen, [True])
+
+    def test_operator_during_batch_write_waits_and_his_split_wins(self):
+        import threading
+        a, b = "Apple EarPods Lightning", "Apple EarPods USB-C"
+        old = product_key.build_key(self.FIELDS, a)
+        self._catalog({a: old, b: old}, self.FIELDS)
+        database.enqueue_disputed_pair(a, b, "r", force=True)
+        real, result = database._apply_title_pins_conn, {}
+
+        def operator():
+            result.update(database.resolve_disputed_pair_human(product_key.pair_hash(a, b), "different", "op"))
+        worker = threading.Thread(target=operator)
+
+        def racing(conn, items):
+            real(conn, items)
+            worker.start()
+            worker.join(0.3)
+            self.assertTrue(worker.is_alive(), "оператор ждёт конца записи порции")
+        with unittest.mock.patch.object(database, "_apply_title_pins_conn", racing):
+            database.save_or_update_products_batch([{"id": "p1", "title": b, "canonical_key": old, "shop": "shop1", "city": "Алматы",
+                                                     "price": 900, "url": "https://example.kz/1"}])
+        worker.join(10)
+        pinned = result["split"]["new_key"]
+        with database.get_connection() as conn:
+            row = conn.execute("""SELECT p.canonical_key, cp.canonical_key FROM products p JOIN offers o ON o.id = 'off_' || p.id
+                                  JOIN canonical_products cp ON cp.id = o.product_id WHERE p.id = 'p1'""").fetchone()
+        self.assertEqual(tuple(row), (pinned, pinned))
 
     def test_failure_at_each_step_leaves_previous_state(self):
         a, b = "Товар Альфа", "Товар Бета"

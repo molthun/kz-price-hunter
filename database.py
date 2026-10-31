@@ -3295,6 +3295,9 @@ def _save_products_chunk(conn, chunk: List[Dict[str, Any]], now: str, observed_s
     items = [it for it in prepared if it is not None]
     if not items:
         return 0
+    # Закрепление читается под той же блокировкой, что и запись: иначе решение оператора успеет между ними (MMR-03)
+    if not conn.in_transaction:
+        conn.execute("BEGIN IMMEDIATE")
     _apply_title_pins_conn(conn, items)
 
     ids = list(dict.fromkeys(it["id"] for it in items))

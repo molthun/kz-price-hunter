@@ -1,0 +1,33 @@
+test_human_different_survives_real_rescore (__main__.Residuals.test_human_different_survives_real_rescore) ... ok
+test_valid_same_pair_does_not_move_conflicting_third_member (__main__.Residuals.test_valid_same_pair_does_not_move_conflicting_third_member) ... ok
+test_verdict_write_failure_rolls_back_identity_changes (__main__.Residuals.test_verdict_write_failure_rolls_back_identity_changes) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.159s
+
+OK
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 2, в исходном снимке human-audit: 2
+[C4] Из них уже сохранены поля: 2
+[C4] Обработка 2 названий пачками по 2...
+[C4] Прогресс: 2/2 (100%) | Скорость: 4593.7 наим/с | ETA: 0 с | С ключом k2: 2
+HUMAN_DIFFERENT_AFTER_RESCORE {'Apple EarPods Lightning': 'k2:apple:earpods', 'Apple EarPods USB-C': 'k2:apple:earpods.diff_dbd10113'} {'Apple EarPods Lightning': 'k2:apple:earpods', 'Apple EarPods USB-C': 'k2:apple:earpods.diff_dbd10113'} [('off_p0', 'prod_6957a4d77cccceb4'), ('off_p1', 'prod_43fd83cf99fcf477')] different
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+HUMAN_SAME_WITH_HIDDEN_256 {'ok': False, 'error': 'В группах есть другие товары, которые противоречат этому решению', 'conflicts': ['Samsung Galaxy S24 256GB blue']} {'Samsung Galaxy S24 128GB white': 'samsung:s24-b', 'Samsung Galaxy S24 128GB black': 'samsung:s24-a', 'Samsung Galaxy S24 256GB blue': 'samsung:s24-b'}
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+VERDICT_FAILURE_ALREADY_CHANGED_CATALOG {'Samsung Galaxy S24 128GB white': 'samsung:b:128gb', 'Samsung Galaxy S24 128GB black': 'samsung:a:128gb'}

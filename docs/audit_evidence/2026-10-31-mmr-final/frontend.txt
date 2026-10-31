@@ -1,0 +1,60 @@
+
+tests/frontend/test_frontend.cjs: exit=0
+{"guest_hidden":true,"authenticated_card_rendered":true,"logout_hidden":true,"page_errors":[]}
+
+tests/frontend/test_frontend_ai_models.cjs: exit=0
+PASS: выбор модели из списка провайдера, цены к ней, отказ провайдера словами
+
+tests/frontend/test_frontend_auth.cjs: exit=0
+PASS: real browser dev login, session, settings POST Origin, logout, my data export/delete, privacy page; isolated DB
+
+tests/frontend/test_frontend_changelog.cjs: exit=0
+PASS: changelog modal — current version, order, escaping, load error
+
+tests/frontend/test_frontend_format.cjs: exit=0
+PASS: format module — escaping, prices, freshness badges
+
+tests/frontend/test_frontend_matching_moderation.cjs: exit=0
+PASS: ручная модерация — отказ с участниками группы, сбой записи и успешное решение
+
+tests/frontend/test_frontend_modal_image.cjs: exit=0
+PASS: modal photo recovers after a broken image, placeholder on error
+
+tests/frontend/test_frontend_notices.cjs: exit=0
+PASS: раздел обращений магазинов, ссылка на выгрузку, чужой текст экранирован
+
+tests/frontend/test_frontend_p04.cjs: exit=0
+PASS: P04 counters single writer + city scope, API error states (incl. version/users), shop icons collapse, tile/tab structure
+
+tests/frontend/test_frontend_p05.cjs: exit=0
+PASS: P05 settings — role navigation, shop status moved to monitoring, modes vs levels, custom indicator, advanced collapsed, reset
+
+tests/frontend/test_frontend_p06.cjs: exit=0
+PASS: P06 search analytics — точные доли, формула, таблицы запросов, экранирование, состояние ошибки
+
+tests/frontend/test_frontend_p07.cjs: exit=0
+PASS: P07 наблюдения — раздел после входа, создание, ошибка сервера, включение, удаление, экранирование
+
+tests/frontend/test_frontend_p07_v2.cjs: exit=0
+PASS: P07 V2 кнопка «следить» — состояние, создание, отмена, отказ сервера, гость
+
+tests/frontend/test_frontend_p09_ai.cjs: exit=0
+PASS: P09 AI-часть — режим, согласованные пороги, решения модели, экранирование
+
+tests/frontend/test_frontend_p10.cjs: exit=0
+PASS: P10 теневой планировщик — предложения с причинами, сравнение стратегий, без кнопок действий
+
+tests/frontend/test_frontend_p12.cjs: exit=0
+PASS: P12 помощник администратора — факты всегда видны, выдуманные числа не показываются
+
+tests/frontend/test_frontend_p13.cjs: exit=0
+PASS: P13 суточная сводка — цифры без AI, отклонённый пересказ, неполные сутки, отправка в Telegram
+
+tests/frontend/test_frontend_security.cjs: exit=0
+PASS: catalog/AI/log XSS, поисковый запрос как данные, URL schemes, роли, действия карточки
+
+tests/frontend/test_frontend_seller_modal.cjs: exit=0
+OK: Витрина продавца (Seller Modal) успешно проверена
+
+tests/frontend/test_frontend_social_no_permalink.cjs: exit=0
+OK: предложения без permalink не показывают кнопку магазина
