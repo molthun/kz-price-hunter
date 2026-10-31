@@ -2,7 +2,33 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## Search Platform 2.0: Этапы 25–26 — Freshness Periodic Reaper & Price History 2.0 UI — Antigravity (2026-10-31, завершён)
+## Search Platform 2.0: Этап 27 — Self-registration продавцов (UI & Onboarding Flow) — Antigravity (2026-10-31, завершён)
+
+- **Основание:** поручение владельца продолжать по очереди («Все по очереди. Пишем и охватываем тестами. Крупные этапы после разработки только охватываем аудитом остальное только авто тестами и стендом. Делаем. но не забывай обновлять стенд. на нем я визуально тестирую новые возможности после разработки»), план Search Platform 2.0 ([SEARCH_PLATFORM_PLAN.md](SEARCH_PLATFORM_PLAN.md) Этап 27).
+- **Исполнитель:** Antigravity (основной разработчик), ветка `main`.
+- **Область файлов:** `web/server.py`, `web/templates/index.html`, `web/templates/monitoring.html`, `tests/web/test_seller_onboarding_ui.py` (новый), `docs/AGENT_HANDOFF.md`, `ROADMAP_AND_LOG.md`.
+- **Что реализовано:**
+  1. **Интеграция саморегистрации магазина в пользовательском интерфейсе (`web/templates/index.html`)**:
+     - В шапку сайта (header) добавлена заметная кнопка «Добавить магазин» (`openRegisterSellerModal()`).
+     - В карточку KPI «Активные магазины» добавлена кнопка «+ Подключить».
+     - В футер сайта добавлена ссылка «Подключить магазин».
+     - Модальное окно саморегистрации `#modalRegisterSeller`:
+       - Название магазина, город, сайт, телефон/WhatsApp, Instagram, Telegram, ссылка на маркетплейс (Kaspi/Forte), БИН/ИИН (12 цифр).
+       - Информативное уведомление об успешной отправке заявки с номером кандидата (`candidate.id`), статусом `REVIEW_REQUIRED` и количеством распознанных каналов.
+  2. **Улучшение API модерации (`web/server.py`)**:
+     - В `admin_onboarding_decision_handler` добавлена устойчивая нормализация решения модератора (`APPROVE` / `APPROVED` $\rightarrow$ `APPROVED`, `REJECT` / `REJECTED` $\rightarrow$ `REJECTED`).
+  3. **Автотесты**:
+     - Создан сьют `tests/web/test_seller_onboarding_ui.py` (3 теста):
+       - Валидация полей заявки (имя $\ge 2$ символов, обязательность контакта/канала, БИН 12 цифр).
+       - Публичный эндпоинт `POST /api/v2/sellers/register` (статус 201 Created, создание кандидата со статусом `REVIEW_REQUIRED`, автоматическое распознавание каналов website/instagram/telegram/marketplace).
+       - Админский флоу модерации: получение списка `GET /api/v2/admin/onboarding?status=REVIEW_REQUIRED` и одобрение заявки `POST /api/v2/admin/onboarding/{id}/decision` с созданием сущности `Seller` и каналов `Channel` в базе.
+     - Браузерные тесты Playwright: **21/21 PASS**.
+     - Полный регрессионный сьют Python: **2345/2345 OK** (138.6 с).
+     - Аудит секретов: `release_gate.py secrets` PASS (0 findings).
+     - Форматирование: `git diff --check` PASS.
+- **Следующий точный шаг:** синхронизация коммита на испытательный стенд `shdev.molthun.ru` через `git bundle` (порт 2222) и переход к следующему этапу Search Platform 2.0 (Этап 28 — Trust / Provenance факты продавцов).
+
+---
 
 - **Основание:** поручение владельца продолжать по очереди («Все по очереди. Пишем и охватываем тестами. Крупные этапы после разработки только охватываем аудитом остальное только авто тестами и стендом. Делаем. но не забывай обновлять стенд. на нем я визуально тестирую новые возможности после разработки»), план Search Platform 2.0 ([SEARCH_PLATFORM_PLAN.md](SEARCH_PLATFORM_PLAN.md) Этапы 25–26).
 - **Исполнитель:** Antigravity (основной разработчик), ветка `main`.

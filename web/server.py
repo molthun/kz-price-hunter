@@ -1819,8 +1819,12 @@ async def admin_onboarding_decision_handler(request):
     except Exception:
         return web.json_response({"ok": False, "error": "Требуется JSON-тело"}, status=400)
 
-    decision = str(body.get("decision") or "APPROVED").strip().upper()
-    if decision not in ("APPROVED", "REJECTED"):
+    raw_dec = str(body.get("decision") or "APPROVED").strip().upper()
+    if raw_dec in ("APPROVE", "APPROVED"):
+        decision = "APPROVED"
+    elif raw_dec in ("REJECT", "REJECTED"):
+        decision = "REJECTED"
+    else:
         return web.json_response({"ok": False, "error": "decision должен быть APPROVED или REJECTED"}, status=400)
 
     # Явное подтверждение модератором, что заявка — это уже известный продавец (V01)
