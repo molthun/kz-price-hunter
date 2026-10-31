@@ -30,7 +30,8 @@
   - Браузерные тесты Playwright: **21/21 PASS**.
   - Проверка секретов: `release_gate.py secrets --root .` $\rightarrow$ **PASS** (0 findings).
   - Форматирование: `git diff --check` $\rightarrow$ **PASS**.
-- **Следующий точный шаг:** создание коммита, доставка `git bundle` на испытательный стенд `https://shdev.molthun.ru`, подтверждение статуса стенда и передача на узкую повторную приёмку Codex.
+- **Стенд подтверждён:** `https://shdev.molthun.ru` развернут из git bundle до коммита `e808d88826b09943d3f8a2814471b21bc025fea5`. Контейнер `kzph-stand` в статусе `Up (healthy)`, версия `6.9.3`, эндпоинты `/` и `/monitoring` возвращают HTTP 200. SHA-256 файлов `domain/scale_bench.py`, `scripts/benchmark_scale.py` и `web/templates/monitoring.html` внутри работающего контейнера побайтово совпадают с проверенным локальным кодом.
+- **Следующий точный шаг:** передача владельцу и Codex для узкой повторной приёмки закрытия замечаний SP30-04 и SP30-06.
 
 ---
 
