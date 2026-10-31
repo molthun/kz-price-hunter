@@ -2395,6 +2395,11 @@
       }
     }
 
+    function safeHttpUrl(url) {
+      if (!url || !isValidOfferUrl(url)) return '';
+      return url;
+    }
+
     function showToast(msg) {
       const t = document.getElementById('toastPopup');
       t.textContent = msg;
