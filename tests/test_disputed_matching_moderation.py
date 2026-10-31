@@ -33,6 +33,35 @@ class TestDisputedMatchingModeration(unittest.TestCase):
         except OSError:
             pass
 
+    def test_find_and_enqueue_conflicting_canonical_keys(self):
+        t1 = "Смартфон Apple iPhone 16 128GB Black"
+        t2 = "Смартфон Apple iPhone 16 256GB Black"
+        key = "apple:iphone 16"
+
+        database.save_or_update_product({"id": "p1", "title": t1, "canonical_key": key, "shop": "ShopA", "city": "Алматы", "price": 100000, "url": "https://a.kz"})
+        database.save_or_update_product({"id": "p2", "title": t2, "canonical_key": key, "shop": "ShopB", "city": "Алматы", "price": 120000, "url": "https://b.kz"})
+
+        res = database.find_and_enqueue_conflicting_canonical_keys(limit=10)
+        self.assertGreaterEqual(res["conflicts_found"], 1)
+        self.assertGreaterEqual(res["enqueued"], 1)
+
+        ph = product_verify.pair_hash(t1, t2)
+        pairs = database.get_disputed_product_pairs(status="pending")
+        self.assertTrue(any(p["pair_hash"] == ph for p in pairs["items"]))
+
+    def test_get_web_search_for_pair(self):
+        t1 = "AMD Ryzen 5 5600 100-100000927BOX"
+        t2 = "Процессор AMD Ryzen 5 5600 BOX"
+        query = "100-100000927BOX"
+        sample_results = [{"title": "AMD Ryzen 5 5600 Official", "url": "https://amd.com/5600", "content": "6 cores"}]
+
+        database.save_title_fields_batch({t1: {"brand": "AMD", "sku": query, "model": "Ryzen 5 5600"}}, "k2", "test", "test")
+        database.save_web_search(query, sample_results)
+        search_data = database.get_web_search_for_pair(t1, t2)
+        self.assertIn("queries", search_data)
+        self.assertIn(query, search_data["results"])
+        self.assertEqual(search_data["results"][query][0]["title"], "AMD Ryzen 5 5600 Official")
+
     def test_enqueue_disputed_pair_basic_and_force(self):
         t1 = "Смартфон Apple iPhone 15 128GB Черный"
         t2 = "Apple iPhone 15 128GB Black A3090"
@@ -618,6 +647,38 @@ class TestDisputedMatchingWebAPI(unittest.IsolatedAsyncioTestCase):
             headers=headers,
         )
         self.assertEqual(res_bad.status, 400)
+
+    async def test_api_matching_scan_conflicts(self):
+        await self._login_dev_admin()
+        origin = str(self.client.make_url("/")).rstrip("/")
+        headers = {"Origin": origin}
+
+        # Создаем искусственный конфликт в базе
+        t1, t2 = "Смартфон Apple iPhone 15 128GB Black", "Смартфон Apple iPhone 15 256GB Black"
+        key = "apple:iphone 15"
+        database.save_or_update_product({"id": "t_p1", "title": t1, "canonical_key": key, "shop": "ShopA", "city": "Алматы", "price": 100000, "url": "https://a.kz"})
+        database.save_or_update_product({"id": "t_p2", "title": t2, "canonical_key": key, "shop": "ShopB", "city": "Алматы", "price": 120000, "url": "https://b.kz"})
+
+        res = await self.client.post("/api/admin/matching/scan_conflicts", json={"limit": 10}, headers=headers)
+        self.assertEqual(res.status, 200)
+        data = await res.json()
+        self.assertEqual(data["status"], "ok")
+        self.assertGreaterEqual(data["conflicts_found"], 1)
+
+    async def test_api_matching_search(self):
+        await self._login_dev_admin()
+        t1, t2 = "Смартфон Xiaomi Redmi 13C 128GB", "Смартфон Xiaomi Redmi 13C 256GB"
+        ph = product_verify.pair_hash(t1, t2)
+
+        # Сохраняем поисковый результат и вердикт
+        database.save_pair_verdict(ph, t1, t2, {"decision": "different", "confidence": 0.95, "reason": "Разная память"}, "ai:test")
+        database.save_web_search("redmi 13c", [{"title": "Xiaomi Redmi 13C", "url": "https://mi.com", "content": "Info"}])
+
+        res = await self.client.get(f"/api/admin/matching/search?pair_hash={ph}&title_a={t1}&title_b={t2}")
+        self.assertEqual(res.status, 200)
+        data = await res.json()
+        self.assertEqual(data["status"], "ok")
+        self.assertEqual(data["verdict"]["decision"], "different")
 
     async def test_monitoring_page_includes_matching_section(self):
         resp = await self.client.get("/monitoring")

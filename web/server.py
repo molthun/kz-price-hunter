@@ -3764,6 +3764,77 @@ async def admin_matching_stats_handler(request):
     return web.json_response({"status": "ok", "stats": stats})
 
 
+@routes.post("/api/admin/matching/scan_conflicts")
+@require_admin
+async def admin_matching_scan_conflicts_handler(request):
+    """Поиск потенциальных конфликтов среди склеенных товаров в каталоге."""
+    import database
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    try:
+        limit = max(1, min(200, int(body.get("limit") or request.query.get("limit") or 50)))
+    except ValueError:
+        limit = 50
+    res = await asyncio.to_thread(database.find_and_enqueue_conflicting_canonical_keys, limit)
+    return web.json_response({"status": "ok", **res}, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
+@routes.get("/api/admin/matching/search")
+@require_admin
+async def admin_matching_search_handler(request):
+    """Справка из поиска (кэш базы или живой SearXNG) и вердикт AI для спорной пары."""
+    import database
+    import config as app_config
+    import product_verify
+
+    pair_hash = (request.query.get("pair_hash") or "").strip()
+    title_a = (request.query.get("title_a") or "").strip()
+    title_b = (request.query.get("title_b") or "").strip()
+    fetch_live = request.query.get("fetch_live") in ("1", "true", "yes")
+
+    if pair_hash and (not title_a or not title_b):
+        with database.get_connection() as conn:
+            row = conn.execute("SELECT title_a, title_b FROM disputed_product_pairs WHERE pair_hash = ?", (pair_hash,)).fetchone()
+            if row:
+                title_a, title_b = row[0], row[1]
+
+    if not title_a or not title_b:
+        return web.json_response({"status": "error", "message": "Не указаны pair_hash или title_a и title_b"}, status=400)
+
+    ph = pair_hash or database.pair_hash(title_a, title_b)
+    verdict = await asyncio.to_thread(database.get_pair_verdict, ph)
+    cached_info = await asyncio.to_thread(database.get_web_search_for_pair, title_a, title_b)
+
+    queries = cached_info.get("queries") or []
+    results = cached_info.get("results") or {}
+
+    if fetch_live and queries:
+        cfg = app_config.get_ai_config()
+        search_base = (cfg.get("search_api_base") or "").strip()
+        daily_limit = int(cfg.get("search_daily_limit") or 0)
+        interval = float(cfg.get("search_interval_seconds") or 90)
+
+        if search_base and daily_limit > 0 and database.web_searches_today() < daily_limit:
+            for q in queries:
+                if q not in results:
+                    found = await product_verify.searxng_search(search_base, q, min_interval=interval)
+                    if found:
+                        await asyncio.to_thread(database.save_web_search, q, found)
+                        results[q] = found
+
+    return web.json_response({
+        "status": "ok",
+        "pair_hash": ph,
+        "title_a": title_a,
+        "title_b": title_b,
+        "queries": queries,
+        "results": results,
+        "verdict": verdict,
+    }, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
 _AI_MODELS_CACHE: Dict[str, Any] = {"at": 0.0, "data": None}
 AI_MODELS_CACHE_SECONDS = 300
 

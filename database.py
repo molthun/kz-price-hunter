@@ -2175,14 +2175,17 @@ def get_title_fields_with_source(titles: Iterable[str]) -> Dict[str, Dict[str, A
     found = {t: {"fields": f, "source": "primary"} for t, f in get_title_fields_for_titles(titles).items()}
     rest = {_title_hash(t): t.strip() for t in titles if t and t.strip() and t.strip() not in found}
     if rest:
-        with get_connection() as conn:
-            for chunk in _chunks(list(rest)):
-                marks = ",".join("?" * len(chunk))
-                for th, raw in conn.execute(f"SELECT title_hash, fields_json FROM title_fields_shadow WHERE title_hash IN ({marks})", chunk):
-                    try:
-                        found[rest[th]] = {"fields": json.loads(raw), "source": "shadow"}
-                    except ValueError:
-                        pass
+        try:
+            with get_connection() as conn:
+                for chunk in _chunks(list(rest)):
+                    marks = ",".join("?" * len(chunk))
+                    for th, raw in conn.execute(f"SELECT title_hash, fields_json FROM title_fields_shadow WHERE title_hash IN ({marks})", chunk):
+                        try:
+                            found[rest[th]] = {"fields": json.loads(raw), "source": "shadow"}
+                        except ValueError:
+                            pass
+        except sqlite3.OperationalError:
+            pass
     return found
 
 
@@ -2784,6 +2787,98 @@ def get_disputed_pairs_stats() -> Dict[str, Any]:
             ).fetchone()[0],
         }
     return counts
+
+
+def find_and_enqueue_conflicting_canonical_keys(limit: int = 50) -> Dict[str, Any]:
+    """Сканирует группы товаров с одинаковым canonical_key на наличие внутренних конфликтов характеристик (identities_conflict).
+
+    При нахождении конфликтующих названий в рамках одной склейки автоматически ставит пару
+    в очередь disputed_product_pairs (status='pending') для проверки и ручного разделения модератором.
+    """
+    import product_key
+    limit = max(1, min(500, int(limit)))
+    with get_connection() as conn:
+        rows = conn.execute("""
+            SELECT canonical_key, COUNT(DISTINCT title) AS cnt
+            FROM products
+            WHERE canonical_key IS NOT NULL AND canonical_key != ''
+            GROUP BY canonical_key
+            HAVING cnt > 1
+            ORDER BY cnt DESC
+            LIMIT ?
+        """, (limit * 2,)).fetchall()
+
+    scanned = 0
+    enqueued = 0
+    conflicts_detail = []
+
+    for row in rows:
+        key = row[0]
+        with get_connection() as conn:
+            titles = [r[0] for r in conn.execute(
+                "SELECT DISTINCT title FROM products WHERE canonical_key = ? ORDER BY title", (key,)
+            ).fetchall()]
+
+        if len(titles) < 2:
+            continue
+        scanned += 1
+        fields_map = get_title_fields_with_source(titles)
+
+        found_in_group = False
+        for i in range(len(titles)):
+            for j in range(i + 1, min(len(titles), i + 6)):
+                ta, tb = titles[i], titles[j]
+                fa = (fields_map.get(ta) or {}).get("fields")
+                fb = (fields_map.get(tb) or {}).get("fields")
+                if product_key.identities_conflict([(ta, fa, key)], [(tb, fb, key)]):
+                    reason = f"auto:conflict:{key[:80]}"
+                    ok = enqueue_disputed_pair(ta, tb, reason, force=False)
+                    if ok:
+                        enqueued += 1
+                    conflicts_detail.append({
+                        "key": key,
+                        "title_a": ta,
+                        "title_b": tb,
+                        "enqueued": ok,
+                    })
+                    found_in_group = True
+                    break
+            if found_in_group:
+                break
+
+        if len(conflicts_detail) >= limit:
+            break
+
+    return {
+        "scanned_keys": scanned,
+        "conflicts_found": len(conflicts_detail),
+        "enqueued": enqueued,
+        "conflicts": conflicts_detail[:20],
+    }
+
+
+def get_web_search_for_pair(title_a: str, title_b: str) -> Dict[str, Any]:
+    """Возвращает кэшированные поисковые запросы и результаты для пары названий."""
+    import product_verify
+    fields_map = get_title_fields_with_source([title_a, title_b])
+    fa = (fields_map.get(title_a) or {}).get("fields") or {}
+    fb = (fields_map.get(title_b) or {}).get("fields") or {}
+    queries = product_verify.queries_for(fa, fb)
+    if not queries:
+        queries = [title_a[:80], title_b[:80]]
+    results = {}
+    for q in queries:
+        hit = get_web_search(q)
+        if hit is None and " " in q:
+            hit = get_web_search(q.split(" ", 1)[1])
+        if hit is not None:
+            results[q] = hit
+            if " " in q:
+                results[q.split(" ", 1)[1]] = hit
+    return {
+        "queries": queries,
+        "results": results,
+    }
 
 
 def get_title_fields_for_titles(titles: Iterable[str]) -> Dict[str, Dict[str, Any]]:

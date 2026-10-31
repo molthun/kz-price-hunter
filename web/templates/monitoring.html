@@ -355,11 +355,14 @@
           </div>
 
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-            <div class="flex flex-wrap gap-1 text-xs" id="matchingFilterTabs">
+            <div class="flex flex-wrap items-center gap-1.5 text-xs" id="matchingFilterTabs">
               <button type="button" data-matching-filter="pending" class="px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 font-semibold cursor-pointer">Ожидают решения</button>
               <button type="button" data-matching-filter="resolved" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-slate-200 border border-transparent font-medium cursor-pointer">Решённые</button>
               <button type="button" data-matching-filter="skipped" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-slate-200 border border-transparent font-medium cursor-pointer">Отложенные</button>
               <button type="button" data-matching-filter="all" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-slate-200 border border-transparent font-medium cursor-pointer">Все</button>
+              <button type="button" id="btnScanConflicts" class="ml-2 px-3 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/40 font-semibold cursor-pointer transition flex items-center gap-1">
+                <span>⚡</span> <span>Найти конфликты в каталоге</span>
+              </button>
             </div>
             <div class="relative w-full sm:w-64">
               <input id="matchingSearchInput" type="text" placeholder="Фильтр по названию или причине..." class="w-full px-3 py-1.5 rounded-lg bg-dark-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-slate-600">
@@ -837,13 +840,18 @@
 
           ${keyStatus}
           ${verdictInfo}
+          <div id="search_box_${esc(ph)}" class="hidden mt-3 p-3 rounded-xl bg-dark-950 border border-slate-800 text-xs text-slate-300"></div>
 
           <div class="mt-4 pt-3 border-t border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             <div class="grow max-w-md">
               <input type="text" id="note_${esc(ph)}" placeholder="Заметка к решению (например: артикулы разные, но ревизия одна)..."
                      class="w-full px-3 py-1.5 rounded-lg bg-dark-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-slate-500">
             </div>
-            <div class="flex items-center gap-2 shrink-0">
+            <div class="flex items-center gap-2 shrink-0 flex-wrap">
+              <button type="button" data-matching-search="${esc(ph)}"
+                      class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-300 text-xs font-medium transition cursor-pointer flex items-center gap-1 border border-slate-700">
+                <span>🌐</span> <span>Справка из сети</span>
+              </button>
               <button type="button" data-matching-action="same" data-pair-hash="${esc(ph)}"
                       class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition cursor-pointer shadow-sm">
                 ✓ Склеить (один товар)
@@ -899,6 +907,86 @@
     document.getElementById('inputTitleA').value = '';
     document.getElementById('inputTitleB').value = '';
     document.getElementById('inputReason').value = '';
+    loadMatchingDisputes();
+  }
+
+  async function toggleMatchingSearch(pairHash) {
+    const box = document.getElementById('search_box_' + pairHash);
+    if (!box) return;
+    if (!box.classList.contains('hidden') && box.dataset.loaded) {
+      box.classList.add('hidden');
+      return;
+    }
+    box.classList.remove('hidden');
+    box.innerHTML = '<div class="flex items-center gap-2 text-slate-400 py-1"><span class="animate-spin">⏳</span> Загружаю данные поиска и вердикт AI...</div>';
+
+    const res = await api('/api/admin/matching/search?pair_hash=' + encodeURIComponent(pairHash) + '&fetch_live=1');
+    if (!res || res.status !== 'ok') {
+      box.innerHTML = '<span class="text-rose-400">Не удалось получить данные поиска.</span>';
+      return;
+    }
+    box.dataset.loaded = '1';
+
+    let html = '';
+    if (res.verdict && res.verdict.decision) {
+      const isSame = res.verdict.decision === 'same';
+      const conf = Math.round((res.verdict.confidence || 0) * 100);
+      const confBadge = conf > 0 ? ` <span class="text-slate-400 font-normal">(${conf}%)</span>` : '';
+      const reason = res.verdict.reason ? ` · «${esc(res.verdict.reason)}»` : '';
+      const official = res.verdict.official_model ? ` [${esc(res.verdict.official_model)}]` : '';
+      html += `
+        <div class="mb-3 p-2.5 rounded-lg ${isSame ? 'bg-emerald-950/40 border border-emerald-800/60 text-emerald-300' : 'bg-rose-950/40 border border-rose-800/60 text-rose-300'}">
+          <b>🤖 AI-рекомендация:</b> ${isSame ? 'Один товар (SAME)' : 'Разные товары (DIFFERENT)'}${confBadge}${official}${reason}
+        </div>`;
+    }
+
+    const queries = res.queries || [];
+    const results = res.results || {};
+
+    for (const q of queries) {
+      const items = results[q] || [];
+      html += `<div class="font-semibold text-slate-400 mb-1">Поиск «${esc(q)}»:</div>`;
+      if (items.length) {
+        html += `<div class="space-y-1.5 mb-2.5">`;
+        for (const it of items) {
+          html += `
+            <div class="p-2 rounded bg-dark-900 border border-slate-800/80">
+              <a href="${esc(it.url)}" target="_blank" rel="noopener" class="text-sky-400 hover:underline font-medium break-all flex items-center gap-1">
+                <span>🔗</span> <span>${esc(it.title || it.url)}</span>
+              </a>
+              ${it.content ? `<div class="text-[11px] text-slate-400 mt-1 line-clamp-2">${esc(it.content)}</div>` : ''}
+            </div>`;
+        }
+        html += `</div>`;
+      } else {
+        html += `<div class="text-slate-500 italic mb-2.5">В кэше SearXNG нет готовой выдачи.</div>`;
+      }
+    }
+
+    if (!html) {
+      html = '<div class="text-slate-500 italic">Данные поиска отсутствуют.</div>';
+    }
+
+    box.innerHTML = html;
+  }
+
+  async function scanMatchingConflicts() {
+    const btn = document.getElementById('btnScanConflicts');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span>⏳</span> <span>Сканирую каталог…</span>';
+    }
+    const res = await fetch('/api/admin/matching/scan_conflicts', {method: 'POST'});
+    const data = await res.json().catch(() => ({}));
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<span>⚡</span> <span>Найти конфликты в каталоге</span>';
+    }
+    if (!res.ok) {
+      alert(data.message || 'Ошибка запуска сканирования');
+      return;
+    }
+    alert(`Сканирование завершено!\n\nПроверено ключей: ${data.scanned_keys || 0}\nОбнаружено конфликтов: ${data.conflicts_found || 0}\nПоставлено в очередь новых пар: ${data.enqueued || 0}`);
     loadMatchingDisputes();
   }
 
@@ -1256,6 +1344,15 @@
     const verdictBtn = e.target.closest('[data-matching-action]');
     if (verdictBtn) {
       submitMatchingVerdict(verdictBtn.dataset.pairHash, verdictBtn.dataset.matchingAction);
+      return;
+    }
+    const searchBtn = e.target.closest('[data-matching-search]');
+    if (searchBtn) {
+      toggleMatchingSearch(searchBtn.dataset.matchingSearch);
+      return;
+    }
+    if (e.target.closest('#btnScanConflicts')) {
+      scanMatchingConflicts();
       return;
     }
     const filterBtn = e.target.closest('[data-matching-filter]');
