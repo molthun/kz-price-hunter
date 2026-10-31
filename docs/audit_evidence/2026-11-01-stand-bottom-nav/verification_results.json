@@ -1,0 +1,93 @@
+{
+  "base_url": "https://shdev.molthun.ru",
+  "timestamp": "2026-11-01T02:57:46+0500",
+  "checks": {
+    "home_http_status": 200,
+    "mobile_header": {
+      "userBtnPresent": true,
+      "userBtnDisplay": "none",
+      "headerAuthAreaDisplay": "none",
+      "headerProfileHidden": true,
+      "citySelWidth": 214,
+      "headerInnerScrollWidth": 390,
+      "headerInnerClientWidth": 390,
+      "headerOverflows": false,
+      "hasHorizontalScroll": false
+    },
+    "mobile_header_profile_hidden": true,
+    "mobile_header_no_horizontal_scroll": true,
+    "bottom_nav": {
+      "navVisible": true,
+      "itemsCount": 5,
+      "items": [
+        {
+          "id": "bottomNavCatalog",
+          "label": "Каталог",
+          "isActive": false,
+          "centerX": 39,
+          "width": 78
+        },
+        {
+          "id": "bottomNavDeals",
+          "label": "Скидки",
+          "isActive": false,
+          "centerX": 117,
+          "width": 78
+        },
+        {
+          "id": "bottomNavSearch",
+          "label": "Поиск",
+          "isActive": true,
+          "centerX": 195,
+          "width": 78
+        },
+        {
+          "id": "bottomNavFavorites",
+          "label": "Избранное",
+          "isActive": false,
+          "centerX": 273,
+          "width": 78
+        },
+        {
+          "id": "bottomNavProfile",
+          "label": "Профиль",
+          "isActive": false,
+          "centerX": 351,
+          "width": 78
+        }
+      ],
+      "centerItem": {
+        "id": "bottomNavSearch",
+        "label": "Поиск",
+        "isActive": true,
+        "centerX": 195,
+        "width": 78
+      },
+      "fabPresent": true,
+      "fabMetrics": {
+        "width": 48,
+        "height": 48,
+        "top": 771,
+        "centerX": 195
+      },
+      "avatarImgVisible": true,
+      "avatarSrc": "https://t.me/i/userpic/320/z2cpJjfZE1fHaVFCViNEJ2q...",
+      "avatarFallbackDisplay": "none"
+    },
+    "bottom_nav_has_5_items": true,
+    "bottom_nav_center_is_search": true,
+    "bottom_nav_profile_has_photo": true,
+    "search_fab_focuses_input": true,
+    "desktop_nav": {
+      "bottomNavHiddenOnDesktop": true,
+      "headerProfileVisibleOnDesktop": true
+    }
+  },
+  "screenshots": [
+    "01-iphone13-home-dark.png",
+    "02-iphone13-profile-dark.png",
+    "03-iphone13-profile-light.png",
+    "04-iphone13-home-light.png",
+    "05-desktop-home-dark.png"
+  ]
+}
