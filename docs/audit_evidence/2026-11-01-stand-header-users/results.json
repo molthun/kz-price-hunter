@@ -1,0 +1,42 @@
+{
+  "base_url": "https://shdev.molthun.ru",
+  "timestamp": "2026-11-01T02:46:46+0500",
+  "checks": {
+    "home_http_status": 200,
+    "mobile_header_metrics": {
+      "btnPresent": true,
+      "btnWidth": 122,
+      "btnHeight": 34,
+      "nameSpanDisplay": "block",
+      "nameSpanText": "👑 Николай",
+      "citySelWidth": 175,
+      "citySelectValue": null,
+      "headerInnerScrollWidth": 390,
+      "headerInnerClientWidth": 390,
+      "headerOverflows": false,
+      "hasHorizontalScroll": false
+    },
+    "header_user_name_visible": true,
+    "header_user_name_text": "👑 Николай",
+    "no_header_overflow": true,
+    "no_page_horizontal_scroll": true,
+    "profile_admin_metrics": {
+      "cardPresent": true,
+      "cardDisplay": "block",
+      "badgeText": "1 пользователей",
+      "usersCount": 1,
+      "userRows": [
+        "Николай Богданец @molthun • ID: 171013461 👑 Администратор"
+      ],
+      "actionButtons": [],
+      "hasHorizontalScroll": false
+    },
+    "admin_card_visible": true
+  },
+  "screenshots": [
+    "01-iphone13-header-home.png",
+    "02-iphone13-profile-admin-users.png",
+    "03-desktop-home-dark.png",
+    "04-desktop-profile-admin-users.png"
+  ]
+}

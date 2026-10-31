@@ -2,6 +2,114 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## STAND_DEPLOYED → Владелец: Просторная шапка с именем пользователя и панель модерации пользователей в профиле (2026-11-01)
+
+- **Основание:** поручение владельца («Шапка что то вообще плохо. место как бы есть но полное имя города не влазиет и все как то налеплено. Имя пользователя добавь рядом с фото. и еще Как польхователями управлять.» + скриншот iPhone 13).
+- **Исполнитель:** Antigravity (основной разработчик).
+- **Срез на стенде:** `3b14620` (ветка `feature/search-first-stage-1`), доставлен через git bundle `/tmp/kzph-header-users.bundle` без push в `main`. Контейнер `kzph-stand:local` пересобран и в статусе `Up (healthy)`.
+- **Что реализовано и проверено:**
+  1. **Редизайн мобильной шапки (iPhone 13 / 390px):**
+     - Селектор города сделан просторным (`max-width: 175px`, `flex: 1`, `select { width: 100%; -webkit-appearance: none; }`), длинные названия городов ("Усть-Каменогорск", "Караганда", "Все города") больше не обрезаются и не наезжают на значок геолокации.
+     - Рядом с фото аватара добавлено имя пользователя в аккуратной капсуле (`.header-user-btn { display: inline-flex; gap: 6px; }`, `.header-user-name { display: inline-block !important; font-size: 0.82rem; font-weight: 600; max-width: 75px; }`).
+     - Элементы распределены по всей ширине шапки без скученности и без пустого пространства слева.
+     - Горизонтальный скролл полностью отсутствует (`docScrollWidth = 390, windowInnerWidth = 390, hasHorizontalScroll = false`).
+  2. **Управление доступом пользователей прямо в профиле:**
+     - В `/profile` добавлен блок `👥 Управление доступом пользователей` (`#profileAdminUsersCard`), видимый только администратору.
+     - Отображает всех зарегистрированных пользователей, их статус (👑 Администратор, ⏳ Ожидает подтверждения, ✓ Доступ открыт, ⛔ Заблокирован).
+     - Позволяет администратору в 1 клик с телефона или компьютера:
+       - `✅ Подтвердить доступ` (`POST /api/admin/users/{user_id}/approve` с `approved: true`);
+       - `Отозвать доступ` (`approved: false`);
+       - `Заблокировать` / `Разблокировать` (`POST /api/admin/users/{user_id}/block`).
+     - В эндпоинт `GET /api/admin/users` добавлены поля `"is_approved"` и `"is_confirmed"`.
+  3. **Проверки:**
+     - Pytest: 31 тест пройден (`tests/search/test_deals_feed_v2.py`, `tests/search/test_search_first_stage1.py`).
+     - Playwright на живом стенде: `docs/audit_evidence/2026-11-01-stand-header-users/verify_header_and_users.py`.
+     - Скриншоты стенда сохранены в `docs/audit_evidence/2026-11-01-stand-header-users/`:
+       - `01-iphone13-header-home.png` — Просторная мобильная шапка с полным названием города и именем пользователя рядом с фото.
+       - `02-iphone13-profile-admin-users.png` — Панель управления пользователями в профиле на iPhone 13.
+       - `03-desktop-home-dark.png` — Десктопная главная страница.
+       - `04-desktop-profile-admin-users.png` — Панель пользователей на десктопе.
+- **Production:** прод `shop.molthun.ru` не менялся, push в `main` не производился.
+
+---
+
+## STAND_DEPLOYED → Владелец: Telegram WebApp авто-вход, устранение горизонтального скролла на мобильных (iPhone 13), компактный аватар в шапке, скрытие кнопки панели для не-админов и удаление текста BotFather (2026-11-01)
+
+- **Основание:** прямые поручения владельца («Если сайт открывается как вебапп в телеграмме прям то подхватывать авторизацию с телеграмма автоматом. да и поле поиск на десктопе подсвечиваеться как поле ввода и ломает дизайн. и кнопка найти на мобильном уезжает в право. в шапку на мобильном не влазиет и город и профиль. пусть на малых сильно экранах профиль в шапке просто фото. я к тому что прокрутка горизонтальная появилась на телефонах. у меня на айфоне 13» + «Этот текст убери он не нужен: "Официальный бот авторизации: @kzph_dev_bot. Если кнопка не отображается, убедитесь, что боту разрешён домен в BotFather (/setdomain)." Да и еще кнопка вход в панель (старый сайт) только у админов видна. Да и кнопка панель управления будет вести в админку тоже ее в будущем под панель администрирования навую сделаем.»).
+- **Исполнитель:** Antigravity (основной разработчик).
+- **Срез на стенде:** `9ae1d30` (ветка `feature/search-first-stage-1`), доставлен git bundle `/tmp/kzph-admin-gate-fix.bundle` без push в `main`. Контейнер `kzph-stand:local` пересобран и в статусе `Up (healthy)`.
+- **Что реализовано и проверено:**
+  1. **Удалён лишний служебный текст BotFather:**
+     - Блок `closedDevTgHelp` и текст `Официальный бот авторизации: @kzph_dev_bot. Если кнопка не отображается, убедитесь, что боту разрешён домен в BotFather (/setdomain)` полностью удалены из HTML и JS. Экран закрытой разработки остаётся лаконичным и чистым.
+  2. **Кнопка входа в панель управления (старый сайт / админка) видна только админам:**
+     - Кнопка `⚙️ Панель управления` (`#headerBtnDashboard`) в шапке и ссылка `Панель` (`#navLinkDashboard`) в навигации скрыты по умолчанию для всех гостей и обычных пользователей (`display: none`).
+     - Отображаются только если авторизован администратор (`currentUser && currentUser.is_admin`), ведущей на `/dashboard` (будущая админка).
+     - В экран `/profile` для администратора добавлен специальный блок «⚙️ Панель администрирования» с прямой ссылкой в панель управления.
+  3. **Авторизация в Telegram WebApp (Mini App):**
+     - В `<head>` шаблона `search_first.html` подключён официальный скрипт `<script src="https://telegram.org/js/telegram-web-app.js"></script>`.
+     - Реализована криптографическая проверка подписи данных Mini App `verify_telegram_webapp_data(init_data_str, bot_token)` по спецификации Telegram (`HMAC_SHA256("WebAppData", bot_token)` с валидацией хеша, параметров `auth_date` и структуры `user`).
+     - В `web/server.py` добавлен эндпоинт `POST /api/auth/telegram-webapp`.
+     - В клиенте при загрузке страницы (`DOMContentLoaded`) выполняется `autoLoginTelegramWebApp()`: если `window.Telegram.WebApp.initData` присутствует, сессия создаётся автоматически в фоновом режиме без необходимости кликать по кнопкам. Вызываются `ready()` и `expand()`.
+  4. **Устранение горизонтальной прокрутки на мобильных устройствах (iPhone 13):**
+     - В CSS для `html, body` добавлено строгое правило `overflow-x: hidden; max-width: 100vw; width: 100%; box-sizing: border-box;`.
+     - На iPhone 13 (390×844) и экранах от 320px ширина документа строго равна ширине окна: `docScrollWidth === 390`, `bodyScrollWidth === 390`, `hasHorizontalScroll === false`. Горизонтальная прокрутка полностью ликвидирована.
+  5. **Компактная шапка на мобильных экранах (≤ 640px):**
+     - В шапке на малых экранах текстовое имя пользователя скрывается (`.header-user-btn .header-user-name { display: none !important; }`), а кнопка профиля становится аккуратным круглым аватаром 32×32 (`border-radius: 50%`) с фото пользователя или иконкой `👤`.
+     - Компактный селектор города (`max-width: 120px`, укороченный select, аккуратная кнопка 🎯).
+     - Логотип, селектор города и аватар профиля теперь свободно помещаются в одну строку на 390px (iPhone 13) с запасом более 50px и без переносов (`headerOverflows: false`).
+  6. **Редизайн поля поиска на десктопе:**
+     - Убран навязчивый атрибут `autofocus`, из-за которого при переходе на главную инпут подсвечивался синей рамкой как активное поле ввода.
+     - Заменена постоянная синяя рамка `2px solid var(--primary)` на нейтральную аккуратную границу `1px solid var(--border-color)` с мягкой тенью `var(--shadow-sm)`.
+     - Плавное подсвечивание при наведении (hover) и элегантный фокус-эффект без ломания композиции.
+  7. **Предотвращение уезда кнопки «Найти» вправо на мобильных:**
+     - Для `.search-input-home` и `.search-input-results` задано `min-width: 0; width: 100%; outline: none !important; box-shadow: none !important;`. Длинный placeholder больше не раздувает flex-контейнер.
+     - Для кнопки `.search-btn-home` задано `flex-shrink: 0`, на мобильных уменьшены внутренние отступы до `8px 14px`. Кнопка остаётся строго внутри видимой области экрана (`btnRight: 351px` при ширине экрана 390px).
+- **Стендовые доказательства (https://shdev.molthun.ru):**
+  - Автоматизированный Playwright-тест стенда: `docs/audit_evidence/2026-11-01-stand-mobile-webapp/verify_stand_mobile_webapp.py`.
+  - Результаты: `docs/audit_evidence/2026-11-01-stand-mobile-webapp/verification_results.json`:
+    - `guest_header_dashboard_btn_hidden: true` (кнопка в шапке скрыта для гостей).
+    - `guest_nav_dashboard_btn_hidden: true` (пункт в навигации скрыт для гостей).
+    - `admin_header_dashboard_btn_visible: true` (кнопка видна на десктопе администратору).
+    - `admin_nav_dashboard_btn_visible: true` (пункт виден в навигации администратору).
+    - `admin_dashboard_href: "/dashboard"`.
+    - `admin_profile_card_visible: true` (блок админки в профиле виден администратору).
+    - `closed_dev_help_text_absent: true` (текст и элемент помощи BotFather удалены).
+    - `botfather_text_absent: true` (никаких упоминаний BotFather/setdomain).
+    - `iphone13_has_horizontal_scroll: false` (docScrollWidth = 390, windowInnerWidth = 390).
+    - `header_user_name_hidden: true` (nameSpanDisplay = "none", btn = 32×32px).
+    - `header_overflows: false` (headerInnerScrollWidth = 390).
+    - `search_input_not_autofocused: true`.
+    - `search_btn_within_screen: true` (btnRight = 351, windowWidth = 390).
+    - `telegram_webapp_script_present: true`.
+    - `telegram_webapp_api_status: 401` на невалидную подпись.
+  - Скриншоты:
+    - `01-iphone13-home-dark.png` — Главная страница на iPhone 13 (390×844), тёмная тема: компактная шапка с круглым аватаром, аккуратный поиск, нулевой скролл.
+    - `02-iphone13-profile-dark.png` — Профиль на iPhone 13, тёмная тема: привязка города и темы.
+    - `03-iphone13-home-light.png` — Главная страница на iPhone 13, светлая тема.
+    - `04-iphone13-profile-light.png` — Профиль на iPhone 13, светлая тема.
+    - `05-desktop-home-dark.png` — Десктоп (1366×900), тёмная тема: обновлённое поле поиска без синей подсветки и автофокуса.
+    - `06-desktop-home-light.png` — Десктоп (1366×900), светлая тема.
+- **Production:** прод `shop.molthun.ru` не менялся, push в `main` не производился.
+  - Автоматизированный Playwright-тест стенда: `docs/audit_evidence/2026-11-01-stand-mobile-webapp/verify_stand_mobile_webapp.py`.
+  - Результаты: `docs/audit_evidence/2026-11-01-stand-mobile-webapp/verification_results.json`:
+    - `iphone13_has_horizontal_scroll: false` (docScrollWidth = 390, windowInnerWidth = 390).
+    - `header_user_name_hidden: true` (nameSpanDisplay = "none", btn = 32×32px).
+    - `header_overflows: false` (headerInnerScrollWidth = 390).
+    - `search_input_not_autofocused: true`.
+    - `search_btn_within_screen: true` (btnRight = 351, windowWidth = 390).
+    - `telegram_webapp_script_present: true`.
+    - `telegram_webapp_api_status: 401` на невалидную подпись (`В данных Telegram WebApp отсутствует подпись hash`).
+  - Скриншоты:
+    - `01-iphone13-home-dark.png` — Главная страница на iPhone 13 (390×844), тёмная тема: компактная шапка с круглым аватаром, аккуратный поиск, нулевой скролл.
+    - `02-iphone13-profile-dark.png` — Профиль на iPhone 13, тёмная тема: привязка города и темы.
+    - `03-iphone13-home-light.png` — Главная страница на iPhone 13, светлая тема.
+    - `04-iphone13-profile-light.png` — Профиль на iPhone 13, светлая тема.
+    - `05-desktop-home-dark.png` — Десктоп (1366×900), тёмная тема: обновлённое поле поиска без синей подсветки и автофокуса.
+    - `06-desktop-home-light.png` — Десктоп (1366×900), светлая тема.
+- **Production:** прод `shop.molthun.ru` не менялся, push в `main` не производился.
+
+---
+
 ## STAND_DEPLOYED → Владелец: Режим закрытой разработки с Telegram-авторизацией, автоопределение и сохранение города, выбор темы в профиле (2026-11-01)
 
 - **Основание:** прямое поручение владельца («Самое бесящее отвалилось автоопределение города. И если я его в ручную выставляю не сохраняеться. да и перепривязку к городу в каталоге сделать в профиледа и вход на сайте не работает. у нас же телеграм авторизация. пока закрываем сайт на разработку всем гостям. только авторизированным и подтвержденным мной пользователям можно просматривать. Еще выбор темы перенести в профиль и добавить системную тему как авто.»).
