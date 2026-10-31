@@ -3485,10 +3485,10 @@
         const imgSrc = escapeHtml(deal.image_url || fallbackSvg);
 
         const oldPriceHtml = deal.old_price > deal.new_price
-          ? `<span class="deal-price-old">${formatPrice(deal.old_price)} ₸</span>`
+          ? `<span class="deal-price-old">${formatPrice(deal.old_price)}</span>`
           : '';
         const savingsHtml = deal.savings_kzt > 0
-          ? `<span class="deal-savings-badge">Экономия ${formatPrice(deal.savings_kzt)} ₸</span>`
+          ? `<span class="deal-savings-badge">Экономия ${formatPrice(deal.savings_kzt)}</span>`
           : '';
 
         const dealIdJson = JSON.stringify(deal).replace(/"/g, '&quot;');
@@ -3520,7 +3520,7 @@
               </h2>
 
               <div class="deal-reel-price-row">
-                <span class="deal-price-current">${formatPrice(deal.new_price)} ₸</span>
+                <span class="deal-price-current">${formatPrice(deal.new_price)}</span>
                 ${oldPriceHtml}
                 ${savingsHtml}
               </div>
@@ -3706,8 +3706,8 @@
 
                 <div style="display: flex; align-items: baseline; justify-content: space-between; border-top: 1px solid var(--border-color); padding-top: 8px;">
                   <div>
-                    <span style="font-size: 1.15rem; font-weight: 800; color: var(--primary);">${formatPrice(item.new_price)} ₸</span>
-                    ${item.old_price > item.new_price ? `<span style="font-size: 0.85rem; color: var(--text-light); text-decoration: line-through; margin-left: 6px;">${formatPrice(item.old_price)} ₸</span>` : ''}
+                    <span style="font-size: 1.15rem; font-weight: 800; color: var(--primary);">${formatPrice(item.new_price)}</span>
+                    ${item.old_price > item.new_price ? `<span style="font-size: 0.85rem; color: var(--text-light); text-decoration: line-through; margin-left: 6px;">${formatPrice(item.old_price)}</span>` : ''}
                   </div>
                   ${safeUrl ? `
                     <a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="btn-to-seller" style="padding: 6px 12px; font-size: 0.82rem;">
