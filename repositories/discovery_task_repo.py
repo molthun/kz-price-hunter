@@ -7,12 +7,14 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import Any, Dict, List, Optional
 
 from domain.adaptive_discovery import (
     AdaptiveDiscoveryEngine,
     DiscoveryTask,
     DiscoveryTaskStatus,
+    SearchPatternGenerator,
 )
 from domain.models import utc_now_iso
 from domain.search_analytics import QueryDemandSignal
@@ -69,6 +71,37 @@ class DiscoveryTaskRepository(BaseRepository):
         self.execute(sql, params)
         task.updated_at = now
         return task
+
+    def create_manual_task(
+        self,
+        query: str,
+        city: Optional[str] = None,
+        priority_score: float = 5.0,
+        notes: str = "",
+    ) -> DiscoveryTask:
+        """
+        Creates and persists a targeted discovery task initiated by an administrator.
+        """
+        clean_q = query.strip()
+        if not clean_q:
+            raise ValueError("Поисковый запрос не может быть пустым")
+
+        norm_q = re.sub(r"\s+", " ", clean_q.lower()).strip()
+        search_queries = [
+            q.to_dict() for q in SearchPatternGenerator.generate_queries(clean_q, city=city)
+        ]
+        task = DiscoveryTask(
+            signal_query=clean_q,
+            normalized_query=norm_q,
+            city=city,
+            search_count=1,
+            success_rate=0.0,
+            priority_score=priority_score,
+            status=DiscoveryTaskStatus.PENDING,
+            search_queries=search_queries,
+            notes=notes or "Создана вручную администратором",
+        )
+        return self.save_task(task)
 
     def get_task_by_id(self, task_id: str) -> Optional[DiscoveryTask]:
         row = self.fetchone("SELECT * FROM discovery_tasks WHERE id = ?", (task_id,))

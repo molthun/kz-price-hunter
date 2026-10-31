@@ -1373,6 +1373,51 @@ async def resolve_discovery_task_handler(request):
         conn.close()
 
 
+@routes.post("/api/v2/discovery/tasks/create")
+@require_admin
+async def create_discovery_task_handler(request):
+    """Ручное создание задачи адаптивного поиска администратором (S2-E14)."""
+    try:
+        body = await request.json()
+    except Exception:
+        return web.json_response({"ok": False, "error": "Требуется JSON-тело"}, status=400)
+
+    query = str(body.get("query") or "").strip()
+    if not query:
+        return web.json_response({"ok": False, "error": "query обязателен"}, status=400)
+
+    city = body.get("city")
+    try:
+        priority_score = float(body.get("priority_score", 5.0))
+    except (ValueError, TypeError):
+        priority_score = 5.0
+    notes = str(body.get("notes") or "").strip()
+
+    from database import get_connection
+    from repositories.discovery_task_repo import DiscoveryTaskRepository
+
+    conn = get_connection()
+    try:
+        repo = DiscoveryTaskRepository(conn)
+        task = repo.create_manual_task(
+            query=query,
+            city=city,
+            priority_score=priority_score,
+            notes=notes,
+        )
+        conn.commit()
+        return web.json_response({
+            "ok": True,
+            "task": task.to_dict(),
+        })
+    except Exception as e:
+        print(f"[API create discovery task] Ошибка: {e}")
+        return web.json_response({"ok": False, "error": "Ошибка создания задачи"}, status=500)
+    finally:
+        conn.close()
+
+
+
 # ===== Price History 2.0 (S2-E26), AI Search Assistant (S2-E22), Seller Onboarding (S2-E27), Monitoring 2.0 (S2-E23/E24) =====
 
 @routes.get("/api/v2/products/{product_id}/history")
@@ -1642,6 +1687,139 @@ async def admin_onboarding_decision_handler(request):
     except Exception as e:
         print(f"[API admin onboarding decision] Ошибка: {e}")
         return web.json_response({"ok": False, "error": "Ошибка применения решения по заявке"}, status=500)
+
+
+@routes.get("/api/v2/admin/discovery/stats")
+@require_admin
+async def admin_discovery_stats_handler(request):
+    """Сводная статистика воронки обнаружения продавцов и источников (S2-E05/E07)."""
+    from database import get_connection
+    from repositories.candidate_repo import CandidateRepository
+    from repositories.discovery_task_repo import DiscoveryTaskRepository
+
+    def _stats():
+        conn = get_connection()
+        try:
+            cand_repo = CandidateRepository(conn)
+            task_repo = DiscoveryTaskRepository(conn)
+            c_stats = cand_repo.get_discovery_stats()
+            t_stats = task_repo.get_tasks_summary()
+            return {"candidates": c_stats, "tasks": t_stats}
+        finally:
+            conn.close()
+
+    try:
+        data = await asyncio.to_thread(_stats)
+        return web.json_response({"ok": True, **data})
+    except Exception as e:
+        print(f"[API admin discovery stats] Ошибка: {e}")
+        return web.json_response({"ok": False, "error": "Ошибка получения статистики discovery"}, status=500)
+
+
+@routes.get("/api/v2/admin/discovery/candidates")
+@require_admin
+async def admin_list_discovery_candidates_handler(request):
+    """Расширенный список кандидатов в продавцы с фильтрами, пагинацией и профилями (S2-E05)."""
+    status = request.query.get("status")
+    source_type = request.query.get("source_type")
+    city = request.query.get("city")
+    domain = request.query.get("domain")
+    phone = request.query.get("phone")
+    query = request.query.get("q")
+    limit = _int_param(request, "limit", 50, minimum=1, maximum=200)
+    offset = _int_param(request, "offset", 0, minimum=0)
+
+    from domain.discovery import CandidateStatus, DiscoverySource
+    if status and status not in CandidateStatus.ALL:
+        return web.json_response({"ok": False, "error": f"Неизвестный статус: {status}"}, status=400)
+    if source_type and source_type not in DiscoverySource.ALL:
+        return web.json_response({"ok": False, "error": f"Неизвестный источник: {source_type}"}, status=400)
+
+    def _load():
+        from database import get_connection
+        from repositories.candidate_repo import CandidateRepository
+
+        conn = get_connection()
+        try:
+            repo = CandidateRepository(conn)
+            candidates = repo.find_candidates(
+                status=status,
+                source_type=source_type,
+                city=city,
+                domain=domain,
+                phone=phone,
+                query=query,
+                offset=offset,
+                limit=limit,
+            )
+            total = repo.count_candidates(
+                status=status,
+                source_type=source_type,
+                city=city,
+                query=query,
+            )
+            items = []
+            for c in candidates:
+                c_dict = c.to_dict()
+                profiles = repo.get_source_profiles_for_candidate(c.id)
+                c_dict["profiles"] = [p.to_dict() for p in profiles]
+                items.append(c_dict)
+            return items, total
+        finally:
+            conn.close()
+
+    try:
+        items, total = await asyncio.to_thread(_load)
+        return web.json_response({
+            "ok": True,
+            "candidates": items,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+        })
+    except Exception as e:
+        print(f"[API admin discovery candidates] Ошибка: {e}")
+        return web.json_response({"ok": False, "error": "Ошибка получения кандидатов"}, status=500)
+
+
+@routes.post("/api/v2/admin/discovery/candidates/{candidate_id}/profile")
+@require_admin
+async def admin_profile_candidate_handler(request):
+    """Запуск профилирования цифрового следа и сопоставления кандидата (S2-E07)."""
+    candidate_id = request.match_info.get("candidate_id", "").strip()
+    try:
+        body = await request.json() if request.can_read_body else {}
+    except Exception:
+        body = {}
+
+    hints = body.get("hints") if isinstance(body, dict) else None
+
+    def _profile():
+        from database import get_connection
+        from repositories.candidate_repo import CandidateRepository
+
+        conn = get_connection()
+        try:
+            repo = CandidateRepository(conn)
+            cand = repo.profile_candidate(candidate_id, hints=hints)
+            profiles = repo.get_source_profiles_for_candidate(candidate_id)
+            conn.commit()
+            return cand.to_dict(), [p.to_dict() for p in profiles]
+        finally:
+            conn.close()
+
+    try:
+        cand_dict, profiles_dict = await asyncio.to_thread(_profile)
+        return web.json_response({
+            "ok": True,
+            "candidate": cand_dict,
+            "profiles": profiles_dict,
+        })
+    except ValueError as ve:
+        return web.json_response({"ok": False, "error": str(ve)}, status=404)
+    except Exception as e:
+        print(f"[API admin profile candidate] Ошибка: {e}")
+        return web.json_response({"ok": False, "error": "Ошибка профилирования кандидата"}, status=500)
 
 
 @routes.get("/api/v2/monitoring/overview")

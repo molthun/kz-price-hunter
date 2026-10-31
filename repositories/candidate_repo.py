@@ -102,6 +102,11 @@ class CandidateRepository(BaseRepository):
         self,
         status: Optional[str] = None,
         source_type: Optional[str] = None,
+        city: Optional[str] = None,
+        domain: Optional[str] = None,
+        phone: Optional[str] = None,
+        query: Optional[str] = None,
+        offset: int = 0,
         limit: int = 50,
     ) -> List[SellerCandidate]:
         sql = "SELECT * FROM seller_candidates WHERE 1=1"
@@ -112,10 +117,126 @@ class CandidateRepository(BaseRepository):
         if source_type:
             sql += " AND source_type = ?"
             params.append(source_type)
-        sql += " ORDER BY created_at DESC LIMIT ?"
-        params.append(limit)
+        if city:
+            sql += " AND (city LIKE ? OR city = ?)"
+            params.extend([f"%{city}%", city])
+        if domain:
+            sql += " AND domain LIKE ?"
+            params.append(f"%{domain}%")
+        if phone:
+            sql += " AND phone LIKE ?"
+            params.append(f"%{phone}%")
+        if query:
+            q = f"%{query}%"
+            sql += " AND (name LIKE ? OR legal_name LIKE ? OR domain LIKE ? OR phone LIKE ? OR notes LIKE ?)"
+            params.extend([q, q, q, q, q])
+        sql += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+        params.extend([limit, max(0, offset)])
         rows = self.fetchall(sql, params)
         return [SellerCandidate.from_row(r) for r in rows]
+
+    def count_candidates(
+        self,
+        status: Optional[str] = None,
+        source_type: Optional[str] = None,
+        city: Optional[str] = None,
+        query: Optional[str] = None,
+    ) -> int:
+        sql = "SELECT COUNT(*) as cnt FROM seller_candidates WHERE 1=1"
+        params: list = []
+        if status:
+            sql += " AND status = ?"
+            params.append(status)
+        if source_type:
+            sql += " AND source_type = ?"
+            params.append(source_type)
+        if city:
+            sql += " AND (city LIKE ? OR city = ?)"
+            params.extend([f"%{city}%", city])
+        if query:
+            q = f"%{query}%"
+            sql += " AND (name LIKE ? OR legal_name LIKE ? OR domain LIKE ? OR phone LIKE ? OR notes LIKE ?)"
+            params.extend([q, q, q, q, q])
+        row = self.fetchone(sql, params)
+        return int(row["cnt"]) if row else 0
+
+    def get_discovery_stats(self) -> Dict[str, Any]:
+        """
+        Calculates end-to-end funnel statistics for Seller Discovery:
+        - candidate counts by lifecycle status (DISCOVERED, PROFILED, etc.)
+        - candidate counts by source type (website, instagram, etc.)
+        - source profiles counts, observed counts, breakdown by extraction tier (1-7)
+        """
+        status_rows = self.fetchall(
+            "SELECT status, COUNT(*) as cnt FROM seller_candidates GROUP BY status"
+        )
+        by_status = {s: 0 for s in CandidateStatus.ALL}
+        for row in status_rows:
+            st = row.get("status")
+            cnt = row.get("cnt") or 0
+            if st in by_status:
+                by_status[st] = int(cnt)
+
+        source_rows = self.fetchall(
+            "SELECT source_type, COUNT(*) as cnt FROM seller_candidates GROUP BY source_type"
+        )
+        by_source: Dict[str, int] = {}
+        for row in source_rows:
+            src = row.get("source_type")
+            cnt = row.get("cnt") or 0
+            if src:
+                by_source[src] = int(cnt)
+
+        total_candidates = sum(by_status.values())
+
+        tier_rows = self.fetchall(
+            "SELECT extraction_tier, COUNT(*) as cnt FROM source_profiles GROUP BY extraction_tier"
+        )
+        by_tier = {t: 0 for t in range(1, 8)}
+        for row in tier_rows:
+            tier = row.get("extraction_tier")
+            cnt = row.get("cnt") or 0
+            if tier in by_tier:
+                by_tier[tier] = int(cnt)
+
+        format_rows = self.fetchall(
+            "SELECT catalog_format, COUNT(*) as cnt FROM source_profiles GROUP BY catalog_format"
+        )
+        by_format = {row["catalog_format"]: int(row["cnt"]) for row in format_rows if row.get("catalog_format")}
+
+        observed_row = self.fetchone(
+            "SELECT COUNT(*) as cnt FROM source_profiles WHERE observed = 1"
+        )
+        observed_profiles = int(observed_row["cnt"]) if observed_row else 0
+
+        total_profiles_row = self.fetchone(
+            "SELECT COUNT(*) as cnt FROM source_profiles"
+        )
+        total_profiles = int(total_profiles_row["cnt"]) if total_profiles_row else 0
+
+        return {
+            "total_candidates": total_candidates,
+            "by_status": by_status,
+            "by_source": by_source,
+            "total_profiles": total_profiles,
+            "observed_profiles": observed_profiles,
+            "profiles_by_tier": by_tier,
+            "profiles_by_format": by_format,
+        }
+
+    def profile_candidate(
+        self,
+        candidate_id: str,
+        hints: Optional[Dict[str, Any]] = None,
+    ) -> SellerCandidate:
+        """
+        Profiles (or re-profiles) an existing candidate and re-evaluates identity matching.
+        """
+        candidate = self.get_candidate_by_id(candidate_id)
+        if not candidate:
+            raise ValueError(f"Кандидат не найден: {candidate_id}")
+
+        return self.process_discovered_candidate(candidate, hints=hints)
 
     def update_candidate_status(
         self,

@@ -61,7 +61,7 @@
   const QUALITY = { ok: 'норма', warning: 'предупреждение', degraded: 'деградация', failed: 'сбой', unknown: 'нет нормы' };
   const SECTIONS = [
     ['overview', 'Обзор'], ['shops', 'Магазины'], ['scanning', 'Сканирование'], ['search', 'Поиск'],
-    ['matching', 'Склейка товаров'], ['ai', 'AI'], ['telegram', 'Telegram'], ['system', 'Система'], ['events', 'События'],
+    ['matching', 'Склейка товаров'], ['discovery', 'Поиск продавцов'], ['ai', 'AI'], ['telegram', 'Telegram'], ['system', 'Система'], ['events', 'События'],
   ];
   let data = null, current = 'overview';
 
@@ -371,6 +371,100 @@
 
           <div id="matchingPairsContainer" class="space-y-4">
             <p class="text-sm text-slate-500">Загружаю спорные пары…</p>
+          </div>
+        </div>
+      `;
+    },
+    discovery() {
+      return `
+        <div id="discoveryViewBox">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <div>
+              <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                <span>🔭 Поиск и онбординг продавцов (Seller Discovery)</span>
+              </h2>
+              <p class="text-xs text-slate-400">Обнаружение новых магазинов, профилирование источников каталогов и задачи адаптивного поиска</p>
+            </div>
+            <button id="btnToggleDiscoveryTask" type="button" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold self-start sm:self-auto transition cursor-pointer">
+              + Создать задачу поиска
+            </button>
+          </div>
+
+          <!-- Форма создания задачи адаптивного поиска -->
+          <div id="discoveryTaskFormCard" class="hidden mb-5 p-4 rounded-2xl bg-dark-900 border border-indigo-500/30 shadow-lg">
+            <h3 class="text-sm font-semibold text-white mb-2">Новая задача адаптивного поиска каталогов</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+              <div class="sm:col-span-2">
+                <label class="block text-xs text-slate-400 mb-1">Поисковый запрос / спрос</label>
+                <input id="inputDiscoveryQuery" type="text" placeholder="Например: кофемашина de longhi magnifica s" class="w-full px-3 py-1.5 rounded-lg bg-dark-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-indigo-500">
+              </div>
+              <div>
+                <label class="block text-xs text-slate-400 mb-1">Город (опционально)</label>
+                <input id="inputDiscoveryCity" type="text" placeholder="Алматы / Астана / Все" class="w-full px-3 py-1.5 rounded-lg bg-dark-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-indigo-500">
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="block text-xs text-slate-400 mb-1">Заметка / основание</label>
+              <input id="inputDiscoveryNotes" type="text" placeholder="Например: частый неудовлетворенный поиск" class="w-full px-3 py-1.5 rounded-lg bg-dark-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-indigo-500">
+            </div>
+            <div class="flex gap-2">
+              <button id="btnSubmitDiscoveryTask" type="button" class="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold cursor-pointer">Запустить сбор</button>
+              <button id="btnCancelDiscoveryTask" type="button" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs cursor-pointer">Отмена</button>
+            </div>
+          </div>
+
+          <!-- Метрики воронки -->
+          <div id="discoveryStatsBox" class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
+            <div class="p-3 rounded-xl bg-dark-900 border border-slate-800">
+              <span class="text-xs text-slate-400">Всего кандидатов</span>
+              <p id="statDiscTotal" class="text-xl font-bold text-slate-200">—</p>
+            </div>
+            <div class="p-3 rounded-xl bg-dark-900 border border-slate-800">
+              <span class="text-xs text-slate-400">Каталог найден</span>
+              <p id="statDiscCatalog" class="text-xl font-bold text-emerald-300">—</p>
+            </div>
+            <div class="p-3 rounded-xl bg-dark-900 border border-slate-800">
+              <span class="text-xs text-slate-400">На проверке</span>
+              <p id="statDiscReview" class="text-xl font-bold text-amber-300">—</p>
+            </div>
+            <div class="p-3 rounded-xl bg-dark-900 border border-slate-800">
+              <span class="text-xs text-slate-400">Одобрено в каталог</span>
+              <p id="statDiscApproved" class="text-xl font-bold text-sky-300">—</p>
+            </div>
+            <div class="p-3 rounded-xl bg-dark-900 border border-slate-800">
+              <span class="text-xs text-slate-400">Профили источников</span>
+              <p id="statDiscProfiles" class="text-xl font-bold text-indigo-300">—</p>
+            </div>
+          </div>
+
+          <!-- Фильтры и поиск кандидатов -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <div class="flex flex-wrap items-center gap-1.5 text-xs" id="discoveryFilterTabs">
+              <button type="button" data-discovery-status="" class="px-3 py-1.5 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 font-semibold cursor-pointer">Все кандидаты</button>
+              <button type="button" data-discovery-status="REVIEW_REQUIRED" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-slate-200 border border-transparent font-medium cursor-pointer">На проверке</button>
+              <button type="button" data-discovery-status="CATALOG_FOUND" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-slate-200 border border-transparent font-medium cursor-pointer">Каталог найден</button>
+              <button type="button" data-discovery-status="PROFILED" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-slate-200 border border-transparent font-medium cursor-pointer">Профилированы</button>
+              <button type="button" data-discovery-status="DISCOVERED" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-slate-200 border border-transparent font-medium cursor-pointer">Только найдены</button>
+              <button type="button" data-discovery-status="APPROVED" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-slate-200 border border-transparent font-medium cursor-pointer">Одобренные</button>
+            </div>
+            <div class="relative w-full sm:w-64">
+              <input id="discoverySearchInput" type="text" placeholder="Поиск по названию, домену, тел..." class="w-full px-3 py-1.5 rounded-lg bg-dark-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-slate-600">
+            </div>
+          </div>
+
+          <!-- Список кандидатов -->
+          <div id="discoveryCandidatesContainer" class="space-y-3 mb-6">
+            <p class="text-sm text-slate-500">Загружаю кандидатов в продавцы…</p>
+          </div>
+
+          <!-- Задачи адаптивного поиска -->
+          <div class="mt-8 pt-6 border-t border-slate-800">
+            <h3 class="text-base font-bold text-white mb-3 flex items-center gap-2">
+              <span>🎯 Задачи поиска каталогов по спросу (Demand Discovery)</span>
+            </h3>
+            <div id="discoveryTasksContainer" class="space-y-2">
+              <p class="text-sm text-slate-500">Загружаю задачи поиска…</p>
+            </div>
           </div>
         </div>
       `;
@@ -990,6 +1084,167 @@
     loadMatchingDisputes();
   }
 
+  let discoveryStatusFilter = '';
+  let discoverySearchQuery = '';
+  let discoverySearchTimeout = null;
+
+  async function loadDiscoverySection() {
+    const box = document.getElementById('discoveryCandidatesContainer');
+    if (!box) return;
+
+    // 1. Load Stats
+    api('/api/v2/admin/discovery/stats').then(res => {
+      if (!res || !res.ok) return;
+      const c = res.candidates || {};
+      const bySt = c.by_status || {};
+      const elTot = document.getElementById('statDiscTotal');
+      const elCat = document.getElementById('statDiscCatalog');
+      const elRev = document.getElementById('statDiscReview');
+      const elApp = document.getElementById('statDiscApproved');
+      const elProf = document.getElementById('statDiscProfiles');
+      if (elTot) elTot.textContent = num(c.total_candidates || 0);
+      if (elCat) elCat.textContent = num(bySt.CATALOG_FOUND || 0);
+      if (elRev) elRev.textContent = num(bySt.REVIEW_REQUIRED || 0);
+      if (elApp) elApp.textContent = num((bySt.APPROVED || 0) + (bySt.INDEXED || 0));
+      if (elProf) elProf.textContent = num(c.total_profiles || 0);
+    }).catch(() => {});
+
+    // 2. Load Candidates
+    const params = new URLSearchParams();
+    if (discoveryStatusFilter) params.set('status', discoveryStatusFilter);
+    if (discoverySearchQuery) params.set('q', discoverySearchQuery);
+    params.set('limit', '50');
+
+    box.innerHTML = '<p class="text-sm text-slate-500">Загружаю кандидатов в продавцы…</p>';
+    const cData = await api('/api/v2/admin/discovery/candidates?' + params.toString());
+    if (!cData || !cData.ok) {
+      box.innerHTML = '<p class="text-sm text-rose-400">Ошибка загрузки кандидатов.</p>';
+      return;
+    }
+    renderDiscoveryCandidates(cData.candidates || []);
+
+    // 3. Load Tasks
+    loadDiscoveryTasks();
+  }
+
+  function renderDiscoveryCandidates(candidates) {
+    const box = document.getElementById('discoveryCandidatesContainer');
+    if (!box) return;
+    if (!candidates.length) {
+      box.innerHTML = '<div class="p-6 rounded-2xl bg-dark-900 border border-slate-800 text-center text-sm text-slate-500">Кандидатов по заданным фильтрам не найдено.</div>';
+      return;
+    }
+
+    const tierLabels = {
+      1: 'Tier 1 (Feed/API)',
+      2: 'Tier 2 (Endpoint JSON)',
+      3: 'Tier 3 (Schema.org)',
+      4: 'Tier 4 (SSR HTML)',
+      5: 'Tier 5 (Telegram)',
+      6: 'Tier 6 (Instagram)',
+      7: 'Tier 7 (Vision)',
+    };
+
+    box.innerHTML = candidates.map(c => {
+      const stColor = {
+        DISCOVERED: 'bg-slate-700/40 text-slate-300 border-slate-600',
+        PROFILED: 'bg-sky-500/20 text-sky-300 border-sky-500/40',
+        IDENTITY_MATCHED: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
+        CATALOG_FOUND: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+        REVIEW_REQUIRED: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+        APPROVED: 'bg-teal-500/20 text-teal-300 border-teal-500/40',
+        INDEXED: 'bg-emerald-600/30 text-emerald-200 border-emerald-500/60',
+        REJECTED: 'bg-rose-500/20 text-rose-300 border-rose-500/40',
+      }[c.status] || 'bg-slate-700 text-slate-300 border-slate-600';
+
+      const profilesHtml = (c.profiles || []).map(p => `
+        <div class="px-2 py-1 rounded bg-dark-950 border border-slate-800 text-xs flex items-center gap-2">
+          <span class="text-indigo-400 font-mono">${esc(tierLabels[p.extraction_tier] || ('Tier ' + p.extraction_tier))}</span>
+          <span class="text-slate-300 font-semibold">${esc(p.catalog_format)}</span>
+          ${p.observed ? '<span class="text-emerald-400 text-[10px]">✓ Проверен</span>' : '<span class="text-slate-500 text-[10px]">Предположен</span>'}
+          ${p.source_url ? `<a href="${esc(p.source_url)}" target="_blank" rel="noopener" class="text-slate-400 hover:text-sky-300 ml-auto truncate max-w-[14rem]">🔗 ${esc(p.source_url)}</a>` : ''}
+        </div>
+      `).join('');
+
+      return `
+        <div class="p-3 sm:p-4 rounded-xl bg-dark-900 border border-slate-800/90 hover:border-slate-700 transition">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-base font-bold text-white">${esc(c.name)}</span>
+                <span class="px-2 py-0.5 rounded-full border text-[11px] font-semibold ${stColor}">${esc(c.status)}</span>
+                <span class="px-2 py-0.5 rounded text-[11px] bg-slate-800 text-slate-400">${esc(c.source_type)}</span>
+              </div>
+              <div class="text-xs text-slate-400 mt-1 flex flex-wrap items-center gap-3">
+                ${c.city ? `<span>📍 ${esc(c.city)}</span>` : ''}
+                ${c.phone ? `<span>📞 ${esc(c.phone)}</span>` : ''}
+                ${c.domain ? `<span>🌐 <a href="https://${esc(c.domain)}" target="_blank" rel="noopener" class="text-sky-400 hover:underline">${esc(c.domain)}</a></span>` : ''}
+                ${c.notes ? `<span class="text-slate-400 italic">«${esc(c.notes)}»</span>` : ''}
+              </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <button type="button" data-discovery-profile="${esc(c.id)}" class="px-2.5 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/40 text-xs font-semibold transition cursor-pointer">
+                🔍 Профилировать
+              </button>
+              ${c.status !== 'APPROVED' && c.status !== 'INDEXED' ? `
+                <button type="button" data-discovery-decision="${esc(c.id)}" data-decision="APPROVED" class="px-2.5 py-1.5 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-200 border border-emerald-500/40 text-xs font-semibold transition cursor-pointer">
+                  ✓ Одобрить
+                </button>
+              ` : ''}
+              ${c.status !== 'REJECTED' ? `
+                <button type="button" data-discovery-decision="${esc(c.id)}" data-decision="REJECTED" class="px-2.5 py-1.5 rounded-lg bg-rose-600/30 hover:bg-rose-600/50 text-rose-200 border border-rose-500/40 text-xs font-semibold transition cursor-pointer">
+                  ✕ Отклонить
+                </button>
+              ` : ''}
+            </div>
+          </div>
+          ${profilesHtml ? `<div class="mt-2 space-y-1.5">${profilesHtml}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function loadDiscoveryTasks() {
+    const box = document.getElementById('discoveryTasksContainer');
+    if (!box) return;
+    const res = await api('/api/v2/discovery/tasks?limit=15');
+    if (!res || !res.tasks) {
+      box.innerHTML = '<p class="text-sm text-slate-500">Задач пока нет.</p>';
+      return;
+    }
+    if (!res.tasks.length) {
+      box.innerHTML = '<p class="text-sm text-slate-500">Список задач пуст.</p>';
+      return;
+    }
+    box.innerHTML = res.tasks.map(t => {
+      const qBadges = (t.search_queries || []).map(sq => `
+        <span class="px-1.5 py-0.5 rounded bg-dark-950 border border-slate-800 text-[10px] text-slate-300">
+          <b class="text-indigo-400 font-normal">${esc(sq.channel)}:</b> ${esc(sq.query)}
+        </span>
+      `).join(' ');
+
+      return `
+        <div class="p-2.5 rounded-xl bg-dark-900 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-white text-sm">«${esc(t.signal_query)}»</span>
+              ${t.city ? `<span class="text-slate-400">(${esc(t.city)})</span>` : ''}
+              <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">${esc(t.status)}</span>
+              <span class="text-slate-400">Приоритет: <b>${esc(t.priority_score)}</b></span>
+              <span class="text-slate-400">Найдено: <b>${esc(t.discovered_candidates_count)}</b></span>
+            </div>
+            ${qBadges ? `<div class="mt-1 flex flex-wrap gap-1">${qBadges}</div>` : ''}
+          </div>
+          <div class="shrink-0 flex items-center gap-1.5">
+            ${t.status === 'PENDING' ? `
+              <button type="button" data-task-resolve="${esc(t.id)}" data-task-status="COMPLETED" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200">Завершить</button>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
   // Какая модель работает на самом деле: в «Авто» её выбирает сервис из списка провайдера
   function modelLine(info) {
     if (!info || !info.model) return '—';
@@ -1331,6 +1586,7 @@
     if (current === 'system') { loadEnvironment(); loadBackups(); loadNotices(); loadMatchingShadow(); }
     if (current === 'scanning') { loadRollout(); loadSchedulerShadow(); }
     if (current === 'matching') { loadMatchingDisputes(); }
+    if (current === 'discovery') { loadDiscoverySection(); }
   }
 
   async function load() {
@@ -1341,6 +1597,94 @@
   document.addEventListener('click', e => {
     const sec = e.target.closest('[data-section]');
     if (sec) { current = sec.dataset.section; history.replaceState(null, '', '#' + current); render(); return; }
+    const profBtn = e.target.closest('[data-discovery-profile]');
+    if (profBtn) {
+      const cid = profBtn.dataset.discoveryProfile;
+      profBtn.disabled = true;
+      profBtn.innerHTML = '⏳ Профилирую...';
+      fetch(`/api/v2/admin/discovery/candidates/${encodeURIComponent(cid)}/profile`, {method: 'POST'})
+        .then(r => r.json())
+        .then(res => {
+          if (!res.ok) alert(res.error || 'Ошибка профилирования');
+          loadDiscoverySection();
+        })
+        .catch(err => {
+          alert('Ошибка сети: ' + err);
+          profBtn.disabled = false;
+        });
+      return;
+    }
+    const decBtn = e.target.closest('[data-discovery-decision]');
+    if (decBtn) {
+      const cid = decBtn.dataset.discoveryDecision;
+      const dec = decBtn.dataset.decision;
+      if (!confirm(`Применить решение ${dec} к кандидату?`)) return;
+      decBtn.disabled = true;
+      fetch(`/api/v2/admin/onboarding/${encodeURIComponent(cid)}/decision`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({decision: dec}),
+      })
+        .then(r => r.json())
+        .then(res => {
+          if (!res.ok) alert(res.error || 'Ошибка модерации');
+          loadDiscoverySection();
+        })
+        .catch(err => alert('Ошибка сети: ' + err));
+      return;
+    }
+    const taskResBtn = e.target.closest('[data-task-resolve]');
+    if (taskResBtn) {
+      const tid = taskResBtn.dataset.taskResolve;
+      const st = taskResBtn.dataset.taskStatus;
+      fetch(`/api/v2/discovery/tasks/${encodeURIComponent(tid)}/resolve`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({status: st}),
+      })
+        .then(r => r.json())
+        .then(() => loadDiscoveryTasks())
+        .catch(err => alert('Ошибка: ' + err));
+      return;
+    }
+    const discStBtn = e.target.closest('[data-discovery-status]');
+    if (discStBtn) {
+      discoveryStatusFilter = discStBtn.dataset.discoveryStatus;
+      document.querySelectorAll('[data-discovery-status]').forEach(b => {
+        b.className = b.dataset.discoveryStatus === discoveryStatusFilter
+          ? 'px-3 py-1.5 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 font-semibold cursor-pointer'
+          : 'px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-slate-200 border border-transparent font-medium cursor-pointer';
+      });
+      loadDiscoverySection();
+      return;
+    }
+    if (e.target.id === 'btnToggleDiscoveryTask' || e.target.id === 'btnCancelDiscoveryTask') {
+      const form = document.getElementById('discoveryTaskFormCard');
+      if (form) form.classList.toggle('hidden');
+      return;
+    }
+    if (e.target.id === 'btnSubmitDiscoveryTask') {
+      const q = (document.getElementById('inputDiscoveryQuery').value || '').trim();
+      const city = (document.getElementById('inputDiscoveryCity').value || '').trim();
+      const notes = (document.getElementById('inputDiscoveryNotes').value || '').trim();
+      if (!q) { alert('Введите поисковый запрос'); return; }
+      fetch('/api/v2/discovery/tasks/create', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({query: q, city: city || null, notes: notes}),
+      })
+        .then(r => r.json())
+        .then(res => {
+          if (!res.ok) { alert(res.error || 'Ошибка создания задачи'); return; }
+          const form = document.getElementById('discoveryTaskFormCard');
+          if (form) form.classList.add('hidden');
+          document.getElementById('inputDiscoveryQuery').value = '';
+          document.getElementById('inputDiscoveryNotes').value = '';
+          loadDiscoveryTasks();
+        })
+        .catch(err => alert('Ошибка сети: ' + err));
+      return;
+    }
     const verdictBtn = e.target.closest('[data-matching-action]');
     if (verdictBtn) {
       submitMatchingVerdict(verdictBtn.dataset.pairHash, verdictBtn.dataset.matchingAction);
@@ -1414,6 +1758,13 @@
       matchingSearchTimeout = setTimeout(() => {
         matchingSearch = e.target.value.trim();
         loadMatchingDisputes();
+      }, 300);
+    }
+    if (e.target.id === 'discoverySearchInput') {
+      clearTimeout(discoverySearchTimeout);
+      discoverySearchTimeout = setTimeout(() => {
+        discoverySearchQuery = e.target.value.trim();
+        loadDiscoverySection();
       }, 300);
     }
   });
