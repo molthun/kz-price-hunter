@@ -237,8 +237,25 @@ def _public_user(user):
 
 @routes.get("/")
 async def index_handler(request):
-    html_file = TEMPLATES_DIR / "index.html"
-    return web.FileResponse(html_file)
+    """Покупательская главная страница Search-first (KZPH-G2-01) либо классическая панель управления по параметру."""
+    if request.query.get("mode") in ("legacy", "classic") or request.query.get("legacy") in ("1", "true"):
+        return web.FileResponse(TEMPLATES_DIR / "index.html")
+    return web.FileResponse(TEMPLATES_DIR / "search_first.html")
+
+@routes.get("/dashboard")
+async def dashboard_handler(request):
+    """Классическая панель управления и мониторинга цен (полная обратная совместимость)."""
+    return web.FileResponse(TEMPLATES_DIR / "index.html")
+
+@routes.get("/search")
+async def search_page_handler(request):
+    """Страница поисковой выдачи с фильтрами и пагинацией (KZPH-G3-01)."""
+    return web.FileResponse(TEMPLATES_DIR / "search_first.html")
+
+@routes.get("/product/{product_id}")
+async def product_page_handler(request):
+    """Каноническая страница товара с предложениями продавцов и каналами (KZPH-G3-01)."""
+    return web.FileResponse(TEMPLATES_DIR / "search_first.html")
 
 @routes.get("/privacy")
 async def privacy_handler(request):
@@ -1163,14 +1180,18 @@ async def best_price_handler(request):
 
 @routes.get("/api/v2/search")
 async def search_v2_handler(request):
-    """Единый поиск Search Core 2.0 с агрегацией по продавцам и каналам (S2-E11)."""
+    """Единый поиск Search Core 2.0 с агрегацией по продавцам, каналам, пагинацией и фасетами (S2-E11, KZPH-G1-01)."""
     query = request.query.get("q", "").strip()
     city = request.query.get("city")
     condition = request.query.get("condition")
     channel_type = request.query.get("channel_type")
     seller_type = request.query.get("seller_type")
+    seller_id = request.query.get("seller") or request.query.get("seller_id")
     category = request.query.get("category") or request.query.get("cat") or None
     brand = request.query.get("brand") or None
+    delivery = request.query.get("delivery")
+    installment = request.query.get("installment") in ("1", "true", "yes") if "installment" in request.query else None
+    in_stock = request.query.get("in_stock") in ("1", "true", "yes") if "in_stock" in request.query else None
 
     min_price = None
     if "min_price" in request.query:
@@ -1188,6 +1209,13 @@ async def search_v2_handler(request):
 
     sort_by = request.query.get("sort", "relevance")
     limit = _int_param(request, "limit", 50, minimum=1, maximum=100)
+    page = _int_param(request, "page", 1, minimum=1)
+    offset = None
+    if "offset" in request.query:
+        try:
+            offset = max(0, int(request.query["offset"]))
+        except (ValueError, TypeError):
+            offset = None
 
     wait = search_limiter.retry_after(f"ip:{client_ip(request)}")
     if wait:
@@ -1201,10 +1229,16 @@ async def search_v2_handler(request):
             condition=condition,
             channel_type=channel_type,
             seller_type=seller_type,
+            seller_id=seller_id,
+            installment=installment,
+            in_stock=in_stock,
+            delivery=delivery,
             min_price=min_price,
             max_price=max_price,
             sort_by=sort_by,
             limit=limit,
+            page=page,
+            offset=offset,
             category=category,
             brand=brand,
         )
@@ -1215,7 +1249,25 @@ async def search_v2_handler(request):
         return web.json_response({"error": "Ошибка поиска v2, попробуйте позже"}, status=500)
 
 
-def _run_search_v2_sync(query, city, condition, channel_type, seller_type, min_price, max_price, sort_by, limit, category=None, brand=None):
+def _run_search_v2_sync(
+    query,
+    city,
+    condition,
+    channel_type,
+    seller_type,
+    min_price,
+    max_price,
+    sort_by,
+    limit,
+    category=None,
+    brand=None,
+    seller_id=None,
+    installment=None,
+    in_stock=None,
+    delivery=None,
+    page=1,
+    offset=None,
+):
     from database import get_connection
     from domain.search_core import SearchCore
     from repositories.search_repo import SearchRepository
@@ -1229,10 +1281,16 @@ def _run_search_v2_sync(query, city, condition, channel_type, seller_type, min_p
             condition=condition,
             channel_type=channel_type,
             seller_type=seller_type,
+            seller_id=seller_id,
+            installment=installment,
+            in_stock=in_stock,
+            delivery=delivery,
             min_price=min_price,
             max_price=max_price,
             sort_by=sort_by,
             limit=limit,
+            page=page,
+            offset=offset,
             category=category,
             brand=brand,
         )
@@ -1258,6 +1316,36 @@ def _run_search_v2_sync(query, city, condition, channel_type, seller_type, min_p
         return resp
     finally:
         conn.close()
+
+
+@routes.get("/api/v2/products/{product_id}")
+async def product_detail_v2_handler(request):
+    """Каноническая карточка товара 2.0 с предложениями продавцов и историей цен (KZPH-G1-01)."""
+    product_id = request.match_info.get("product_id", "").strip()
+    if not product_id:
+        return web.json_response({"ok": False, "error": "product_id обязателен"}, status=400)
+
+    city = request.query.get("city")
+
+    def _load():
+        from database import get_connection
+        from domain.search_core import SearchCore
+        from repositories.search_repo import SearchRepository
+        conn = get_connection()
+        try:
+            core = SearchCore(SearchRepository(conn))
+            return core.get_canonical_product(product_id, city=city)
+        finally:
+            conn.close()
+
+    try:
+        data = await asyncio.to_thread(_load)
+        if not data:
+            return web.json_response({"ok": False, "error": "Товар не найден"}, status=404)
+        return web.json_response(data, status=200)
+    except Exception as e:
+        print(f"[API product detail v2] Ошибка: {e}")
+        return web.json_response({"ok": False, "error": "Ошибка загрузки карточки товара"}, status=500)
 
 
 def _list_sellers_v2_sync(city, search, channel_type, limit, offset):

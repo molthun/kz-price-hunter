@@ -1,0 +1,2234 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>KZ Price Hunter — Поиск лучших цен на товары в Казахстане</title>
+  <meta name="description" content="Поисковик цен по сотням магазинов Казахстана. Сравнение предложений, реальные продавцы, рассрочка и скидки.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-light: #eff6ff;
+      --primary-border: #bfdbfe;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --text-light: #94a3b8;
+      --bg-page: #f8fafc;
+      --bg-card: #ffffff;
+      --border-color: #e2e8f0;
+      --border-focus: #3b82f6;
+      --badge-new: #10b981;
+      --badge-used: #f59e0b;
+      --badge-discount: #ef4444;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-full: 9999px;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.03);
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      padding-bottom: 72px; /* space for mobile nav */
+    }
+
+    @media (min-width: 768px) {
+      body {
+        padding-bottom: 0;
+      }
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    button {
+      font-family: inherit;
+      cursor: pointer;
+      border: none;
+      outline: none;
+      background: none;
+    }
+
+    input, select {
+      font-family: inherit;
+      font-size: 1rem;
+    }
+
+    /* Container */
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 0 16px;
+    }
+
+    /* Top Header */
+    .site-header {
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      z-index: 40;
+    }
+
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+      gap: 16px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .site-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 1.25rem;
+      color: var(--text-main);
+      white-space: nowrap;
+    }
+
+    .site-logo-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--primary);
+      color: white;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 0.95rem;
+    }
+
+    .header-nav {
+      display: none;
+      align-items: center;
+      gap: 8px;
+    }
+
+    @media (min-width: 768px) {
+      .header-nav {
+        display: flex;
+      }
+    }
+
+    .nav-link {
+      padding: 6px 14px;
+      border-radius: var(--radius-full);
+      font-size: 0.92rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      transition: all 0.15s ease;
+    }
+
+    .nav-link:hover, .nav-link.active {
+      color: var(--primary);
+      background: var(--primary-light);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .city-selector {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-page);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-full);
+      padding: 6px 12px;
+      font-size: 0.88rem;
+      color: var(--text-main);
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    .city-selector select {
+      background: transparent;
+      border: none;
+      outline: none;
+      color: inherit;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 0.88rem;
+    }
+
+    .btn-legacy {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.82rem;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      transition: all 0.15s;
+    }
+
+    @media (min-width: 1024px) {
+      .btn-legacy {
+        display: inline-flex;
+      }
+    }
+
+    .btn-legacy:hover {
+      background: #f1f5f9;
+      color: var(--text-main);
+    }
+
+    /* Views */
+    .view-section {
+      display: none;
+    }
+
+    .view-section.active {
+      display: block;
+    }
+
+    /* ------------------------------------------------------------- */
+    /* VIEW: HOME                                                    */
+    /* ------------------------------------------------------------- */
+    .hero-banner {
+      text-align: center;
+      padding: 48px 16px 28px;
+    }
+
+    .hero-title {
+      font-size: 2.25rem;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      color: var(--text-main);
+      margin-bottom: 12px;
+    }
+
+    .hero-subtitle {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      max-width: 640px;
+      margin: 0 auto 32px;
+    }
+
+    .search-box-home {
+      max-width: 720px;
+      margin: 0 auto 24px;
+      background: var(--bg-card);
+      border: 2px solid var(--primary);
+      border-radius: var(--radius-full);
+      display: flex;
+      align-items: center;
+      padding: 6px 8px 6px 20px;
+      box-shadow: var(--shadow-md);
+      transition: box-shadow 0.2s;
+    }
+
+    .search-box-home:focus-within {
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+    }
+
+    .search-input-home {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-size: 1.05rem;
+      color: var(--text-main);
+      background: transparent;
+      padding: 8px 0;
+    }
+
+    .search-btn-home {
+      background: var(--primary);
+      color: white;
+      border-radius: var(--radius-full);
+      padding: 10px 24px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: background 0.15s;
+    }
+
+    .search-btn-home:hover {
+      background: var(--primary-hover);
+    }
+
+    /* Quick Filter Chips */
+    .quick-chips-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 40px;
+    }
+
+    .quick-chip {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-full);
+      padding: 8px 16px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text-main);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+
+    .quick-chip:hover, .quick-chip.active {
+      border-color: var(--primary);
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+
+    /* Popular Categories */
+    .section-title-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .section-all-link {
+      color: var(--primary);
+      font-size: 0.92rem;
+      font-weight: 600;
+    }
+
+    .category-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 40px;
+    }
+
+    @media (min-width: 640px) {
+      .category-grid {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .category-grid {
+        grid-template-columns: repeat(8, 1fr);
+      }
+    }
+
+    .cat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 16px 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .cat-card:hover {
+      border-color: var(--primary);
+      box-shadow: var(--shadow-sm);
+      transform: translateY(-2px);
+    }
+
+    .cat-icon {
+      font-size: 1.75rem;
+    }
+
+    .cat-name {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    /* Popular Queries */
+    .queries-wrapper {
+      margin-bottom: 40px;
+    }
+
+    .query-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .query-pill {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-full);
+      padding: 6px 14px;
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .query-pill:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: var(--primary-light);
+    }
+
+    /* Trust Stats */
+    .trust-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-bottom: 48px;
+    }
+
+    @media (min-width: 768px) {
+      .trust-stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+
+    .trust-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .trust-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-md);
+      background: var(--primary-light);
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      flex-shrink: 0;
+    }
+
+    .trust-text-val {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .trust-text-lbl {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    /* ------------------------------------------------------------- */
+    /* VIEW: SEARCH RESULTS                                          */
+    /* ------------------------------------------------------------- */
+    .search-header-bar {
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border-color);
+      padding: 12px 0;
+      margin-bottom: 20px;
+    }
+
+    .search-box-results {
+      max-width: 800px;
+      display: flex;
+      align-items: center;
+      background: var(--bg-page);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-full);
+      padding: 4px 6px 4px 16px;
+    }
+
+    .search-box-results:focus-within {
+      border-color: var(--primary);
+      background: white;
+    }
+
+    .search-input-results {
+      flex: 1;
+      border: none;
+      outline: none;
+      background: transparent;
+      font-size: 0.95rem;
+      color: var(--text-main);
+      padding: 6px 0;
+    }
+
+    .search-btn-results {
+      background: var(--primary);
+      color: white;
+      border-radius: var(--radius-full);
+      padding: 8px 18px;
+      font-weight: 600;
+      font-size: 0.88rem;
+    }
+
+    .results-layout {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+      margin-bottom: 40px;
+    }
+
+    /* Sidebar Filters */
+    .filters-sidebar {
+      width: 260px;
+      flex-shrink: 0;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      display: none;
+    }
+
+    @media (min-width: 1024px) {
+      .filters-sidebar {
+        display: block;
+      }
+    }
+
+    .filter-group {
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .filter-group:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .filter-title {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 10px;
+    }
+
+    .filter-checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.88rem;
+      color: var(--text-main);
+      cursor: pointer;
+      margin-bottom: 6px;
+    }
+
+    .filter-checkbox-label input {
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    .filter-count {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      margin-left: auto;
+    }
+
+    .price-inputs-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .price-input {
+      width: 100%;
+      padding: 6px 10px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      outline: none;
+    }
+
+    .price-input:focus {
+      border-color: var(--primary);
+    }
+
+    .btn-apply-filters {
+      width: 100%;
+      background: var(--primary);
+      color: white;
+      padding: 8px;
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      font-size: 0.85rem;
+      margin-top: 8px;
+    }
+
+    .btn-reset-filters {
+      width: 100%;
+      background: transparent;
+      color: var(--text-muted);
+      padding: 6px;
+      font-size: 0.82rem;
+      margin-top: 4px;
+    }
+
+    .btn-reset-filters:hover {
+      color: var(--badge-discount);
+    }
+
+    /* Results List */
+    .results-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .results-top-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .results-count-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .results-count-title span {
+      color: var(--text-muted);
+      font-weight: 400;
+      font-size: 0.95rem;
+    }
+
+    .sort-select {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 6px 12px;
+      font-size: 0.88rem;
+      color: var(--text-main);
+      outline: none;
+      cursor: pointer;
+    }
+
+    .sort-select:focus {
+      border-color: var(--primary);
+    }
+
+    .mobile-filter-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 6px 12px;
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+
+    @media (min-width: 1024px) {
+      .mobile-filter-btn {
+        display: none;
+      }
+    }
+
+    /* Product Cards */
+    .product-cards-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .product-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      transition: all 0.15s ease;
+      cursor: pointer;
+    }
+
+    @media (min-width: 640px) {
+      .product-card {
+        flex-direction: row;
+        align-items: center;
+      }
+    }
+
+    .product-card:hover {
+      border-color: var(--primary-border);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .card-img-wrap {
+      width: 110px;
+      height: 110px;
+      border-radius: var(--radius-sm);
+      background: #f1f5f9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .card-img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .card-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .card-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 6px;
+      line-height: 1.35;
+    }
+
+    .card-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+    }
+
+    .badge-condition-new {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .badge-condition-used {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .badge-sellers {
+      background: #f1f5f9;
+      color: var(--text-muted);
+    }
+
+    .card-sellers-hint {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .card-price-action {
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid var(--border-color);
+      padding-top: 12px;
+      gap: 16px;
+    }
+
+    @media (min-width: 640px) {
+      .card-price-action {
+        flex-direction: column;
+        align-items: flex-end;
+        border-top: none;
+        padding-top: 0;
+        min-width: 160px;
+      }
+    }
+
+    .card-price-main {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: var(--text-main);
+      white-space: nowrap;
+    }
+
+    .card-price-prefix {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    .card-old-price {
+      font-size: 0.85rem;
+      color: var(--text-light);
+      text-decoration: line-through;
+    }
+
+    .card-installment {
+      font-size: 0.78rem;
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .btn-view-product {
+      background: var(--primary);
+      color: white;
+      padding: 8px 18px;
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      font-size: 0.88rem;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+
+    .btn-view-product:hover {
+      background: var(--primary-hover);
+    }
+
+    /* Pagination */
+    .pagination-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 24px;
+    }
+
+    .page-btn {
+      min-width: 38px;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-color);
+      background: var(--bg-card);
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--text-main);
+      padding: 0 10px;
+    }
+
+    .page-btn.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    .page-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* ------------------------------------------------------------- */
+    /* VIEW: PRODUCT DETAIL                                          */
+    /* ------------------------------------------------------------- */
+    .breadcrumbs {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      margin: 16px 0 20px;
+      flex-wrap: wrap;
+    }
+
+    .breadcrumb-link:hover {
+      color: var(--primary);
+    }
+
+    .product-detail-hero {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-bottom: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    @media (min-width: 768px) {
+      .product-detail-hero {
+        flex-direction: row;
+      }
+    }
+
+    .detail-gallery {
+      width: 100%;
+      max-width: 320px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .detail-img-box {
+      width: 100%;
+      height: 280px;
+      background: #f8fafc;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+    }
+
+    .detail-img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .detail-actions-row {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+    }
+
+    .btn-secondary-action {
+      flex: 1;
+      border: 1px solid var(--border-color);
+      background: white;
+      border-radius: var(--radius-sm);
+      padding: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+
+    .btn-secondary-action:hover {
+      background: var(--bg-page);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .detail-main-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .detail-title {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: var(--text-main);
+      margin-bottom: 12px;
+      line-height: 1.3;
+    }
+
+    .detail-price-box {
+      background: #f8fafc;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+    }
+
+    .detail-price-val {
+      font-size: 1.85rem;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .detail-attributes {
+      display: grid;
+      grid-template-columns: repeat(1, 1fr);
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    @media (min-width: 640px) {
+      .detail-attributes {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .attr-item {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.88rem;
+      border-bottom: 1px dashed var(--border-color);
+      padding-bottom: 4px;
+    }
+
+    .attr-key {
+      color: var(--text-muted);
+    }
+
+    .attr-val {
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    /* Offers Section */
+    .offers-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-bottom: 32px;
+    }
+
+    .offers-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .offers-table-wrap {
+      overflow-x: auto;
+    }
+
+    .offers-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+
+    .offers-table th {
+      background: var(--bg-page);
+      color: var(--text-muted);
+      font-weight: 600;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border-color);
+      white-space: nowrap;
+    }
+
+    .offers-table td {
+      padding: 14px;
+      border-bottom: 1px solid var(--border-color);
+      vertical-align: middle;
+    }
+
+    .offers-table tr:hover td {
+      background: #fafbfd;
+    }
+
+    .seller-cell-title {
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .channel-badge {
+      font-size: 0.75rem;
+      font-weight: 500;
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      background: #f1f5f9;
+      color: var(--text-muted);
+    }
+
+    .seller-facts {
+      font-size: 0.78rem;
+      color: var(--text-light);
+      margin-top: 2px;
+    }
+
+    .offer-price-cell {
+      font-weight: 800;
+      font-size: 1.15rem;
+      color: var(--text-main);
+      white-space: nowrap;
+    }
+
+    .btn-to-seller {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--primary);
+      color: white;
+      padding: 8px 16px;
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      font-size: 0.88rem;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+
+    .btn-to-seller:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-to-seller:disabled, .btn-to-seller.disabled {
+      background: #cbd5e1;
+      cursor: not-allowed;
+    }
+
+    /* Mobile Bottom Navigation Bar */
+    .mobile-bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: var(--bg-card);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      z-index: 50;
+    }
+
+    @media (min-width: 768px) {
+      .mobile-bottom-nav {
+        display: none;
+      }
+    }
+
+    .bottom-nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      color: var(--text-muted);
+      font-size: 0.72rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .bottom-nav-item.active {
+      color: var(--primary);
+      font-weight: 700;
+    }
+
+    .bottom-nav-icon {
+      font-size: 1.25rem;
+    }
+
+    /* Modal / Toast */
+    .toast-popup {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: rgba(15, 23, 42, 0.9);
+      color: white;
+      padding: 10px 20px;
+      border-radius: var(--radius-full);
+      font-size: 0.88rem;
+      font-weight: 500;
+      box-shadow: var(--shadow-lg);
+      transition: transform 0.3s ease, opacity 0.3s ease;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    .toast-popup.visible {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    /* Empty and Loading States */
+    .state-box {
+      text-align: center;
+      padding: 64px 16px;
+      background: var(--bg-card);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-color);
+    }
+
+    .state-icon {
+      font-size: 2.5rem;
+      margin-bottom: 12px;
+    }
+
+    .state-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 8px;
+    }
+
+    .state-desc {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      max-width: 480px;
+      margin: 0 auto 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Site Header -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="header-left">
+        <a href="/" class="site-logo" onclick="navigateTo(event, '/')">
+          <div class="site-logo-icon">KZ</div>
+          <span>Price Hunter</span>
+        </a>
+        <nav class="header-nav">
+          <a href="/" class="nav-link active" onclick="navigateTo(event, '/')">Поиск</a>
+          <a href="javascript:void(0)" class="nav-link" onclick="showToast('Раздел «Скидки» появится на следующем этапе')">Скидки</a>
+          <a href="javascript:void(0)" class="nav-link" onclick="showToast('Раздел «Избранное» появится на следующем этапе')">Избранное</a>
+          <a href="/profile" class="nav-link" onclick="showToast('Профиль пользователя')">Профиль</a>
+        </nav>
+      </div>
+
+      <div class="header-right">
+        <div class="city-selector">
+          <span>📍</span>
+          <select id="globalCitySelect" onchange="onCityChanged(this.value)">
+            <option value="Все">Все города</option>
+            <option value="Алматы" selected>Алматы</option>
+            <option value="Астана">Астана</option>
+            <option value="Шымкент">Шымкент</option>
+            <option value="Караганда">Караганда</option>
+            <option value="Актобе">Актобе</option>
+          </select>
+        </div>
+        <a href="/dashboard" class="btn-legacy" title="Открыть классическую панель со всеми таблицами и сканерами">
+          ⚙️ <span>Панель управления</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="container" style="min-height: calc(100vh - 130px); padding-top: 20px;">
+
+    <!-- ============================================================= -->
+    <!-- VIEW: 1. HOME                                                 -->
+    <!-- ============================================================= -->
+    <section id="viewHome" class="view-section active">
+      <div class="hero-banner">
+        <h1 class="hero-title">Найдите лучшие цены на товары в Казахстане</h1>
+        <p class="hero-subtitle">Сравниваем предложения в сотнях магазинов. Новые и б/у товары, скидки, рассрочка и переход напрямую к продавцу.</p>
+
+        <!-- Home Search Bar -->
+        <form class="search-box-home" onsubmit="handleHomeSearch(event)">
+          <input
+            type="text"
+            id="homeSearchInput"
+            class="search-input-home"
+            placeholder="Что хотите найти? Например: iPhone 16, ноутбук, кроссовки..."
+            autocomplete="off"
+            autofocus
+          />
+          <button type="submit" class="search-btn-home">
+            <span>🔍</span>
+            <span>Найти</span>
+          </button>
+        </form>
+
+        <!-- Quick Filter Chips -->
+        <div class="quick-chips-wrapper">
+          <button class="quick-chip active" onclick="applyQuickFilter('')">📦 Все товары</button>
+          <button class="quick-chip" onclick="applyQuickFilter('condition=NEW')">✨ Новые</button>
+          <button class="quick-chip" onclick="applyQuickFilter('condition=USED')">🔄 Б/у</button>
+          <button class="quick-chip" onclick="applyQuickFilter('installment=1')">💳 Рассрочка</button>
+          <button class="quick-chip" onclick="applyQuickFilter('sort=discount')">🏷 Скидки</button>
+        </div>
+      </div>
+
+      <!-- Popular Categories -->
+      <div class="section-title-wrap">
+        <h2 class="section-title">Популярные категории</h2>
+        <a href="javascript:void(0)" class="section-all-link" onclick="openAllCategories()">Все категории →</a>
+      </div>
+      <div class="category-grid" id="homeCategoriesGrid">
+        <div class="cat-card" onclick="executeCategorySearch('electronics')">
+          <div class="cat-icon">📱</div>
+          <div class="cat-name">Электроника</div>
+        </div>
+        <div class="cat-card" onclick="executeCategorySearch('clothing')">
+          <div class="cat-icon">👕</div>
+          <div class="cat-name">Одежда и обувь</div>
+        </div>
+        <div class="cat-card" onclick="executeCategorySearch('home')">
+          <div class="cat-icon">🏠</div>
+          <div class="cat-name">Дом и ремонт</div>
+        </div>
+        <div class="cat-card" onclick="executeCategorySearch('kids')">
+          <div class="cat-icon">👶</div>
+          <div class="cat-name">Детские товары</div>
+        </div>
+        <div class="cat-card" onclick="executeCategorySearch('auto')">
+          <div class="cat-icon">🚗</div>
+          <div class="cat-name">Авто и мото</div>
+        </div>
+        <div class="cat-card" onclick="executeCategorySearch('beauty')">
+          <div class="cat-icon">💄</div>
+          <div class="cat-name">Красота и здоровье</div>
+        </div>
+        <div class="cat-card" onclick="executeCategorySearch('sport')">
+          <div class="cat-icon">⚽</div>
+          <div class="cat-name">Спорт и отдых</div>
+        </div>
+        <div class="cat-card" onclick="executeCategorySearch('food')">
+          <div class="cat-icon">🍏</div>
+          <div class="cat-name">Продукты</div>
+        </div>
+      </div>
+
+      <!-- Popular Queries -->
+      <div class="queries-wrapper">
+        <h2 class="section-title" style="margin-bottom: 12px; font-size: 1.15rem;">Популярные запросы</h2>
+        <div class="query-pills">
+          <button class="query-pill" onclick="executeDirectSearch('iPhone 16')">iPhone 16</button>
+          <button class="query-pill" onclick="executeDirectSearch('Ноутбук')">Ноутбук</button>
+          <button class="query-pill" onclick="executeDirectSearch('PS5')">PS5</button>
+          <button class="query-pill" onclick="executeDirectSearch('Кроссовки')">Кроссовки</button>
+          <button class="query-pill" onclick="executeDirectSearch('Телевизор')">Телевизор</button>
+          <button class="query-pill" onclick="executeDirectSearch('Шины')">Шины</button>
+          <button class="query-pill" onclick="executeDirectSearch('Планшет')">Планшет</button>
+          <button class="query-pill" onclick="executeDirectSearch('Коляска')">Коляска</button>
+          <button class="query-pill" onclick="executeDirectSearch('Смартфон Samsung')">Смартфон Samsung</button>
+        </div>
+      </div>
+
+      <!-- Trust Badges -->
+      <div class="trust-stats-grid">
+        <div class="trust-card">
+          <div class="trust-icon">📦</div>
+          <div>
+            <div class="trust-text-val">Каталог товаров</div>
+            <div class="trust-text-lbl">Объединение по моделям</div>
+          </div>
+        </div>
+        <div class="trust-card">
+          <div class="trust-icon">🏬</div>
+          <div>
+            <div class="trust-text-val">Сотни продавцов</div>
+            <div class="trust-text-lbl">Магазины и маркетплейсы</div>
+          </div>
+        </div>
+        <div class="trust-card">
+          <div class="trust-icon">🔄</div>
+          <div>
+            <div class="trust-text-val">Свежие цены</div>
+            <div class="trust-text-lbl">Регулярная актуализация</div>
+          </div>
+        </div>
+        <div class="trust-card">
+          <div class="trust-icon">🛡</div>
+          <div>
+            <div class="trust-text-val">Без наценок</div>
+            <div class="trust-text-lbl">Переход прямо к продавцу</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================= -->
+    <!-- VIEW: 2. SEARCH RESULTS                                       -->
+    <!-- ============================================================= -->
+    <section id="viewResults" class="view-section">
+      <!-- Search Input Bar on Results Page -->
+      <div class="search-header-bar">
+        <form class="search-box-results" onsubmit="handleResultsSearch(event)">
+          <input
+            type="text"
+            id="resultsSearchInput"
+            class="search-input-results"
+            placeholder="Поиск товаров..."
+            autocomplete="off"
+          />
+          <button type="submit" class="search-btn-results">Найти</button>
+        </form>
+      </div>
+
+      <div class="results-layout">
+        <!-- Left Sidebar Filters -->
+        <aside class="filters-sidebar" id="filtersSidebar">
+          <div class="filter-group">
+            <div class="filter-title">Категории</div>
+            <div id="filterCategoriesList">
+              <div style="font-size:0.85rem; color:var(--text-muted);">Загрузка...</div>
+            </div>
+          </div>
+
+          <div class="filter-group">
+            <div class="filter-title">Цена, ₸</div>
+            <div class="price-inputs-row">
+              <input type="number" id="filterMinPrice" class="price-input" placeholder="от" />
+              <span>—</span>
+              <input type="number" id="filterMaxPrice" class="price-input" placeholder="до" />
+            </div>
+          </div>
+
+          <div class="filter-group">
+            <div class="filter-title">Состояние</div>
+            <label class="filter-checkbox-label">
+              <input type="radio" name="filterCondition" value="" checked />
+              <span>Все</span>
+            </label>
+            <label class="filter-checkbox-label">
+              <input type="radio" name="filterCondition" value="NEW" />
+              <span>Новые</span>
+            </label>
+            <label class="filter-checkbox-label">
+              <input type="radio" name="filterCondition" value="USED" />
+              <span>Б/у</span>
+            </label>
+          </div>
+
+          <div class="filter-group">
+            <div class="filter-title">Продавцы</div>
+            <div id="filterSellersList">
+              <div style="font-size:0.85rem; color:var(--text-muted);">Загрузка...</div>
+            </div>
+          </div>
+
+          <div class="filter-group">
+            <div class="filter-title">Условия покупки</div>
+            <label class="filter-checkbox-label">
+              <input type="checkbox" id="filterInstallment" />
+              <span>С рассрочкой</span>
+            </label>
+            <label class="filter-checkbox-label">
+              <input type="checkbox" id="filterInStock" />
+              <span>Только в наличии</span>
+            </label>
+          </div>
+
+          <button class="btn-apply-filters" onclick="applyCurrentFilters()">Применить фильтры</button>
+          <button class="btn-reset-filters" onclick="resetAllFilters()">Сбросить всё</button>
+        </aside>
+
+        <!-- Right Content: Products List -->
+        <div class="results-content">
+          <div class="results-top-meta">
+            <div class="results-count-title" id="resultsCountTitle">
+              Результаты поиска <span id="resultsCountSubtitle"></span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <select id="sortSelect" class="sort-select" onchange="onSortChanged(this.value)">
+                <option value="relevance">По релевантности</option>
+                <option value="price_asc">Сначала дешевле</option>
+                <option value="price_desc">Сначала дороже</option>
+                <option value="discount">По величине скидки</option>
+                <option value="sellers_count">Больше продавцов</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Loading Skeleton -->
+          <div id="resultsLoading" class="state-box" style="display:none;">
+            <div class="state-icon">⏳</div>
+            <div class="state-title">Ищем лучшие предложения...</div>
+          </div>
+
+          <!-- Empty State -->
+          <div id="resultsEmpty" class="state-box" style="display:none;">
+            <div class="state-icon">🔍</div>
+            <div class="state-title">Ничего не найдено</div>
+            <div class="state-desc">Попробуйте изменить запрос, проверить опечатки или сбросить фильтры.</div>
+            <button class="btn-apply-filters" style="display:inline-block; width:auto; padding:8px 20px;" onclick="resetAllFilters()">Сбросить фильтры</button>
+          </div>
+
+          <!-- Product Cards Container -->
+          <div class="product-cards-list" id="productCardsContainer"></div>
+
+          <!-- Pagination Bar -->
+          <div class="pagination-bar" id="paginationBar" style="display:none;"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================= -->
+    <!-- VIEW: 3. PRODUCT DETAIL                                       -->
+    <!-- ============================================================= -->
+    <section id="viewDetail" class="view-section">
+      <!-- Breadcrumbs -->
+      <nav class="breadcrumbs" id="detailBreadcrumbs">
+        <a href="/" class="breadcrumb-link" onclick="navigateTo(event, '/')">Главная</a>
+        <span>›</span>
+        <span id="breadcrumbCategory">Категория</span>
+        <span>›</span>
+        <span id="breadcrumbTitle" style="color:var(--text-main); font-weight:600;">Товар</span>
+      </nav>
+
+      <!-- Product Hero Card -->
+      <div class="product-detail-hero">
+        <div class="detail-gallery">
+          <div class="detail-img-box">
+            <img id="detailMainImg" src="" alt="" class="detail-img" onerror="this.src=getSvgPlaceholder()" />
+          </div>
+          <div class="detail-actions-row">
+            <button class="btn-secondary-action" onclick="showToast('Добавлено в избранное')">
+              <span>♡</span> <span>В избранное</span>
+            </button>
+            <button class="btn-secondary-action" onclick="showToast('Подписка на снижение цены оформлена')">
+              <span>🔔</span> <span>Следить за ценой</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="detail-main-info">
+          <div class="card-badges" id="detailBadges"></div>
+          <h1 class="detail-title" id="detailProductTitle">Название товара</h1>
+
+          <div class="detail-price-box">
+            <div>
+              <div style="font-size:0.85rem; color:var(--text-muted);">Лучшая доступная цена:</div>
+              <div class="detail-price-val" id="detailBestPrice">—</div>
+            </div>
+            <div id="detailSellersCountBadge" style="font-size:0.9rem; color:var(--text-muted); font-weight:500;"></div>
+          </div>
+
+          <div class="detail-attributes" id="detailAttributesList"></div>
+        </div>
+      </div>
+
+      <!-- Offers from Merchants Table -->
+      <div class="offers-section">
+        <h2 class="offers-title">
+          <span>Предложения от продавцов</span>
+          <span id="offersCountBadge" style="font-size:0.95rem; font-weight:400; color:var(--text-muted);"></span>
+        </h2>
+
+        <div class="offers-table-wrap">
+          <table class="offers-table">
+            <thead>
+              <tr>
+                <th>Продавец и канал</th>
+                <th>Состояние</th>
+                <th>Цена</th>
+                <th>Доставка</th>
+                <th>Рассрочка</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="offersTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Mobile Bottom Navigation Bar -->
+  <nav class="mobile-bottom-nav">
+    <div class="bottom-nav-item active" onclick="navigateTo(null, '/')">
+      <div class="bottom-nav-icon">🔍</div>
+      <div>Поиск</div>
+    </div>
+    <div class="bottom-nav-item" onclick="showToast('Раздел «Скидки» появится на следующем этапе')">
+      <div class="bottom-nav-icon">🏷</div>
+      <div>Скидки</div>
+    </div>
+    <div class="bottom-nav-item" onclick="showToast('Раздел «Избранное» появится на следующем этапе')">
+      <div class="bottom-nav-icon">♡</div>
+      <div>Избранное</div>
+    </div>
+    <div class="bottom-nav-item" onclick="showToast('Профиль пользователя')">
+      <div class="bottom-nav-icon">👤</div>
+      <div>Профиль</div>
+    </div>
+  </nav>
+
+  <!-- Toast Notification -->
+  <div id="toastPopup" class="toast-popup">Уведомление</div>
+
+  <!-- Client-Side Routing and Logic -->
+  <script>
+    // State
+    const AppState = {
+      city: 'Алматы',
+      query: '',
+      page: 1,
+      limit: 20,
+      sort: 'relevance',
+      condition: '',
+      category: '',
+      brand: '',
+      seller: '',
+      min_price: '',
+      max_price: '',
+      installment: false,
+      in_stock: false,
+      delivery: '',
+      currentProduct: null,
+      searchAbortCtrl: null,
+    };
+
+    // Formatters
+    function formatPrice(num) {
+      if (num === null || num === undefined || isNaN(num)) return '—';
+      return Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' ₸';
+    }
+
+    function getSvgPlaceholder(text = 'Товар') {
+      return 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><rect width="200" height="200" fill="%23f1f5f9"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="16" fill="%2394a3b8">' + encodeURIComponent(text) + '</text></svg>';
+    }
+
+    function isValidOfferUrl(url) {
+      try {
+        const u = new URL(url);
+        return u.protocol === 'http:' || u.protocol === 'https:';
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toastPopup');
+      t.textContent = msg;
+      t.classList.add('visible');
+      setTimeout(() => t.classList.remove('visible'), 2400);
+    }
+
+    // Router & History Navigation
+    function navigateTo(e, path) {
+      if (e && e.preventDefault) e.preventDefault();
+      window.history.pushState({}, '', path);
+      handleRoute();
+    }
+
+    window.addEventListener('popstate', () => {
+      handleRoute();
+    });
+
+    function handleRoute() {
+      const pathname = window.location.pathname;
+      const params = new URLSearchParams(window.location.search);
+
+      // Sync city from query if provided
+      if (params.get('city')) {
+        AppState.city = params.get('city');
+        const cs = document.getElementById('globalCitySelect');
+        if (cs) cs.value = AppState.city;
+      }
+
+      if (pathname.startsWith('/product/')) {
+        const prodId = pathname.replace('/product/', '').trim();
+        showView('viewDetail');
+        loadProductDetail(prodId);
+      } else if (pathname === '/search' || params.has('q') || params.has('cat') || params.has('category')) {
+        showView('viewResults');
+        parseSearchParams(params);
+        executeSearch();
+      } else {
+        showView('viewHome');
+      }
+    }
+
+    function showView(viewId) {
+      document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+      const activeEl = document.getElementById(viewId);
+      if (activeEl) activeEl.classList.add('active');
+      window.scrollTo(0, 0);
+    }
+
+    function onCityChanged(city) {
+      AppState.city = city;
+      if (document.getElementById('viewResults').classList.contains('active')) {
+        updateSearchUrl();
+        executeSearch();
+      }
+    }
+
+    // -------------------------------------------------------------
+    // HOME VIEW HANDLERS
+    // -------------------------------------------------------------
+    function handleHomeSearch(e) {
+      if (e) e.preventDefault();
+      const q = document.getElementById('homeSearchInput').value.trim();
+      if (!q) return;
+      AppState.query = q;
+      AppState.page = 1;
+      updateSearchUrl();
+      navigateTo(null, '/search?q=' + encodeURIComponent(q) + '&city=' + encodeURIComponent(AppState.city));
+    }
+
+    function executeDirectSearch(query) {
+      AppState.query = query;
+      AppState.page = 1;
+      navigateTo(null, '/search?q=' + encodeURIComponent(query) + '&city=' + encodeURIComponent(AppState.city));
+    }
+
+    function executeCategorySearch(catId) {
+      AppState.query = '';
+      AppState.category = catId;
+      AppState.page = 1;
+      navigateTo(null, '/search?cat=' + encodeURIComponent(catId) + '&city=' + encodeURIComponent(AppState.city));
+    }
+
+    function applyQuickFilter(queryParamStr) {
+      let path = '/search?city=' + encodeURIComponent(AppState.city);
+      if (queryParamStr) {
+        path += '&' + queryParamStr;
+      }
+      navigateTo(null, path);
+    }
+
+    function openAllCategories() {
+      navigateTo(null, '/search?cat=all&city=' + encodeURIComponent(AppState.city));
+    }
+
+    // -------------------------------------------------------------
+    // SEARCH RESULTS HANDLERS
+    // -------------------------------------------------------------
+    function handleResultsSearch(e) {
+      if (e) e.preventDefault();
+      const q = document.getElementById('resultsSearchInput').value.trim();
+      AppState.query = q;
+      AppState.page = 1;
+      updateSearchUrl();
+      executeSearch();
+    }
+
+    function parseSearchParams(params) {
+      AppState.query = params.get('q') || '';
+      AppState.category = params.get('category') || params.get('cat') || '';
+      AppState.brand = params.get('brand') || '';
+      AppState.condition = params.get('condition') || '';
+      AppState.seller = params.get('seller') || '';
+      AppState.min_price = params.get('min_price') || '';
+      AppState.max_price = params.get('max_price') || '';
+      AppState.sort = params.get('sort') || 'relevance';
+      AppState.page = parseInt(params.get('page') || '1', 10);
+      AppState.installment = params.get('installment') === '1' || params.get('installment') === 'true';
+      AppState.in_stock = params.get('in_stock') === '1' || params.get('in_stock') === 'true';
+
+      // Sync form fields
+      const inp = document.getElementById('resultsSearchInput');
+      if (inp) inp.value = AppState.query;
+      const minP = document.getElementById('filterMinPrice');
+      if (minP) minP.value = AppState.min_price;
+      const maxP = document.getElementById('filterMaxPrice');
+      if (maxP) maxP.value = AppState.max_price;
+      const sortSel = document.getElementById('sortSelect');
+      if (sortSel) sortSel.value = AppState.sort;
+      const instChk = document.getElementById('filterInstallment');
+      if (instChk) instChk.checked = AppState.installment;
+      const stockChk = document.getElementById('filterInStock');
+      if (stockChk) stockChk.checked = AppState.in_stock;
+
+      const condRadios = document.getElementsByName('filterCondition');
+      condRadios.forEach(r => {
+        r.checked = (r.value === AppState.condition);
+      });
+    }
+
+    function updateSearchUrl() {
+      const p = new URLSearchParams();
+      if (AppState.query) p.set('q', AppState.query);
+      if (AppState.city && AppState.city !== 'Все') p.set('city', AppState.city);
+      if (AppState.category) p.set('cat', AppState.category);
+      if (AppState.brand) p.set('brand', AppState.brand);
+      if (AppState.condition) p.set('condition', AppState.condition);
+      if (AppState.seller) p.set('seller', AppState.seller);
+      if (AppState.min_price) p.set('min_price', AppState.min_price);
+      if (AppState.max_price) p.set('max_price', AppState.max_price);
+      if (AppState.sort && AppState.sort !== 'relevance') p.set('sort', AppState.sort);
+      if (AppState.page > 1) p.set('page', AppState.page);
+      if (AppState.installment) p.set('installment', '1');
+      if (AppState.in_stock) p.set('in_stock', '1');
+
+      const newUrl = '/search?' + p.toString();
+      window.history.pushState({}, '', newUrl);
+    }
+
+    async function executeSearch() {
+      if (AppState.searchAbortCtrl) {
+        AppState.searchAbortCtrl.abort();
+      }
+      AppState.searchAbortCtrl = new AbortController();
+
+      const loadingEl = document.getElementById('resultsLoading');
+      const emptyEl = document.getElementById('resultsEmpty');
+      const cardsEl = document.getElementById('productCardsContainer');
+      const paginationEl = document.getElementById('paginationBar');
+
+      loadingEl.style.display = 'block';
+      emptyEl.style.display = 'none';
+      cardsEl.innerHTML = '';
+      paginationEl.style.display = 'none';
+
+      const p = new URLSearchParams();
+      if (AppState.query) p.set('q', AppState.query);
+      if (AppState.city && AppState.city !== 'Все') p.set('city', AppState.city);
+      if (AppState.category) p.set('cat', AppState.category);
+      if (AppState.brand) p.set('brand', AppState.brand);
+      if (AppState.condition) p.set('condition', AppState.condition);
+      if (AppState.seller) p.set('seller', AppState.seller);
+      if (AppState.min_price) p.set('min_price', AppState.min_price);
+      if (AppState.max_price) p.set('max_price', AppState.max_price);
+      if (AppState.sort) p.set('sort', AppState.sort);
+      p.set('limit', AppState.limit);
+      p.set('page', AppState.page);
+      if (AppState.installment) p.set('installment', '1');
+      if (AppState.in_stock) p.set('in_stock', '1');
+
+      try {
+        const resp = await fetch('/api/v2/search?' + p.toString(), {
+          signal: AppState.searchAbortCtrl.signal,
+        });
+
+        if (resp.status === 429) {
+          loadingEl.style.display = 'none';
+          emptyEl.style.display = 'block';
+          emptyEl.querySelector('.state-title').textContent = 'Слишком много запросов';
+          emptyEl.querySelector('.state-desc').textContent = 'Пожалуйста, подождите пару секунд и повторите поиск.';
+          return;
+        }
+
+        const data = await resp.json();
+        loadingEl.style.display = 'none';
+
+        renderSearchResults(data);
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        loadingEl.style.display = 'none';
+        emptyEl.style.display = 'block';
+        emptyEl.querySelector('.state-title').textContent = 'Ошибка загрузки';
+        emptyEl.querySelector('.state-desc').textContent = 'Не удалось загрузить результаты поиска. Попробуйте обновить страницу.';
+      }
+    }
+
+    function renderSearchResults(data) {
+      const emptyEl = document.getElementById('resultsEmpty');
+      const cardsEl = document.getElementById('productCardsContainer');
+      const countTitleEl = document.getElementById('resultsCountTitle');
+      const countSubEl = document.getElementById('resultsCountSubtitle');
+
+      const items = data.items || [];
+      const total = data.total_products || 0;
+
+      countTitleEl.innerHTML = AppState.query
+        ? '«' + escapeHtml(AppState.query) + '» '
+        : 'Каталог товаров ';
+      countSubEl.textContent = '— найдено ' + total + ' ' + pluralizeProducts(total);
+
+      if (items.length === 0) {
+        emptyEl.style.display = 'block';
+        return;
+      }
+
+      cardsEl.innerHTML = items.map(item => {
+        const prod = item.product || {};
+        const pId = prod.id || '';
+        const title = prod.title || 'Товар';
+        const img = prod.image_url || getSvgPlaceholder(title);
+        const minP = item.min_price;
+        const bestOff = item.best_offer || {};
+        const oldP = bestOff.old_price;
+        const sellersCount = item.sellers_count || 1;
+        const cond = item.has_new ? 'NEW' : (item.has_used ? 'USED' : '');
+        const instMonths = bestOff.installment_months;
+        const instAvailable = bestOff.installment_available;
+
+        let installmentHtml = '';
+        if (instAvailable && minP) {
+          const m = instMonths || 12;
+          installmentHtml = '<div class="card-installment">от ' + formatPrice(minP / m) + '/мес (' + m + ' мес)</div>';
+        }
+
+        let oldPriceHtml = '';
+        if (oldP && oldP > minP) {
+          const discountPct = Math.round(((oldP - minP) / oldP) * 100);
+          oldPriceHtml = '<span class="card-old-price">' + formatPrice(oldP) + '</span> ' +
+                         '<span class="badge" style="background:#fee2e2; color:#b91c1c;">-' + discountPct + '%</span>';
+        }
+
+        return `
+          <div class="product-card" onclick="navigateTo(event, '/product/${encodeURIComponent(pId)}')">
+            <div class="card-img-wrap">
+              <img src="${escapeHtml(img)}" alt="${escapeHtml(title)}" class="card-img" onerror="this.src=getSvgPlaceholder()" />
+            </div>
+            <div class="card-info">
+              <div class="card-badges">
+                ${cond === 'NEW' ? '<span class="badge badge-condition-new">✨ Новый</span>' : ''}
+                ${cond === 'USED' ? '<span class="badge badge-condition-used">🔄 Б/у</span>' : ''}
+                <span class="badge badge-sellers">🏬 от ${sellersCount} ${pluralizeSellers(sellersCount)}</span>
+              </div>
+              <h3 class="card-title">${escapeHtml(title)}</h3>
+              <div class="card-sellers-hint">Сравнение предложений магазинов и маркетплейсов Казахстана</div>
+            </div>
+            <div class="card-price-action">
+              <div>
+                <div class="card-price-prefix">лучшая цена</div>
+                <div class="card-price-main">${minP ? 'от ' + formatPrice(minP) : 'Нет в наличии'}</div>
+                <div>${oldPriceHtml}</div>
+                ${installmentHtml}
+              </div>
+              <button class="btn-view-product" onclick="navigateTo(event, '/product/${encodeURIComponent(pId)}')">
+                Посмотреть
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      renderPagination(data);
+      renderFacets(data);
+    }
+
+    function renderPagination(data) {
+      const pEl = document.getElementById('paginationBar');
+      const page = data.page || 1;
+      const totalPages = data.total_pages || 1;
+
+      if (totalPages <= 1) {
+        pEl.style.display = 'none';
+        return;
+      }
+
+      pEl.style.display = 'flex';
+      let html = '';
+
+      html += `<button class="page-btn" ${!data.has_prev ? 'disabled' : ''} onclick="goToPage(${page - 1})">‹</button>`;
+
+      const start = Math.max(1, page - 2);
+      const end = Math.min(totalPages, page + 2);
+
+      for (let p = start; p <= end; p++) {
+        html += `<button class="page-btn ${p === page ? 'active' : ''}" onclick="goToPage(${p})">${p}</button>`;
+      }
+
+      html += `<button class="page-btn" ${!data.has_next ? 'disabled' : ''} onclick="goToPage(${page + 1})">›</button>`;
+      pEl.innerHTML = html;
+    }
+
+    function goToPage(p) {
+      AppState.page = p;
+      updateSearchUrl();
+      executeSearch();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function renderFacets(data) {
+      // Categories facets
+      const catList = document.getElementById('filterCategoriesList');
+      if (catList && data.category_facets) {
+        catList.innerHTML = data.category_facets.slice(0, 8).map(f => `
+          <label class="filter-checkbox-label">
+            <input type="radio" name="facetCategory" value="${escapeHtml(f.id)}" ${AppState.category === f.id ? 'checked' : ''} onchange="onCategoryFacetSelected('${escapeHtml(f.id)}')">
+            <span>${escapeHtml(f.name)}</span>
+            <span class="filter-count">(${f.count})</span>
+          </label>
+        `).join('') || '<div style="font-size:0.85rem; color:var(--text-muted);">Нет категорий</div>';
+      }
+
+      // Sellers facets
+      const sellerList = document.getElementById('filterSellersList');
+      if (sellerList && data.seller_facets) {
+        sellerList.innerHTML = data.seller_facets.slice(0, 6).map(s => `
+          <label class="filter-checkbox-label">
+            <input type="radio" name="facetSeller" value="${escapeHtml(s.slug || s.id)}" ${AppState.seller === (s.slug || s.id) ? 'checked' : ''} onchange="onSellerFacetSelected('${escapeHtml(s.slug || s.id)}')">
+            <span>${escapeHtml(s.name)}</span>
+            <span class="filter-count">(${s.count})</span>
+          </label>
+        `).join('') || '<div style="font-size:0.85rem; color:var(--text-muted);">Нет продавцов</div>';
+      }
+    }
+
+    function onCategoryFacetSelected(cid) {
+      AppState.category = cid;
+      AppState.page = 1;
+      updateSearchUrl();
+      executeSearch();
+    }
+
+    function onSellerFacetSelected(sid) {
+      AppState.seller = sid;
+      AppState.page = 1;
+      updateSearchUrl();
+      executeSearch();
+    }
+
+    function onSortChanged(val) {
+      AppState.sort = val;
+      AppState.page = 1;
+      updateSearchUrl();
+      executeSearch();
+    }
+
+    function applyCurrentFilters() {
+      const minP = document.getElementById('filterMinPrice').value.trim();
+      const maxP = document.getElementById('filterMaxPrice').value.trim();
+      AppState.min_price = minP;
+      AppState.max_price = maxP;
+
+      const cond = document.querySelector('input[name="filterCondition"]:checked');
+      AppState.condition = cond ? cond.value : '';
+
+      AppState.installment = document.getElementById('filterInstallment').checked;
+      AppState.in_stock = document.getElementById('filterInStock').checked;
+
+      AppState.page = 1;
+      updateSearchUrl();
+      executeSearch();
+    }
+
+    function resetAllFilters() {
+      AppState.category = '';
+      AppState.brand = '';
+      AppState.condition = '';
+      AppState.seller = '';
+      AppState.min_price = '';
+      AppState.max_price = '';
+      AppState.installment = false;
+      AppState.in_stock = false;
+      AppState.page = 1;
+      AppState.sort = 'relevance';
+
+      const minP = document.getElementById('filterMinPrice');
+      if (minP) minP.value = '';
+      const maxP = document.getElementById('filterMaxPrice');
+      if (maxP) maxP.value = '';
+      const instChk = document.getElementById('filterInstallment');
+      if (instChk) instChk.checked = false;
+      const stockChk = document.getElementById('filterInStock');
+      if (stockChk) stockChk.checked = false;
+
+      const condRadios = document.getElementsByName('filterCondition');
+      condRadios.forEach(r => r.checked = (r.value === ''));
+
+      updateSearchUrl();
+      executeSearch();
+    }
+
+    // -------------------------------------------------------------
+    // PRODUCT DETAIL VIEW HANDLERS
+    // -------------------------------------------------------------
+    async function loadProductDetail(prodId) {
+      const titleEl = document.getElementById('detailProductTitle');
+      const bestPriceEl = document.getElementById('detailBestPrice');
+      const tableBody = document.getElementById('offersTableBody');
+      const badgesEl = document.getElementById('detailBadges');
+      const attrsEl = document.getElementById('detailAttributesList');
+      const breadTitle = document.getElementById('breadcrumbTitle');
+      const breadCat = document.getElementById('breadcrumbCategory');
+
+      titleEl.textContent = 'Загрузка товара...';
+      bestPriceEl.textContent = '—';
+      tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:32px;">Загрузка предложений...</td></tr>';
+      badgesEl.innerHTML = '';
+      attrsEl.innerHTML = '';
+
+      try {
+        const url = '/api/v2/products/' + encodeURIComponent(prodId) +
+          (AppState.city && AppState.city !== 'Все' ? '?city=' + encodeURIComponent(AppState.city) : '');
+        const resp = await fetch(url);
+        if (resp.status === 404) {
+          titleEl.textContent = 'Товар не найден';
+          tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:32px; color:var(--text-muted);">Товар был удален или ссылка недействительна. <br><a href="/" style="color:var(--primary); font-weight:600;" onclick="navigateTo(event, \'/\')">Вернуться на главную</a></td></tr>';
+          return;
+        }
+
+        const data = await resp.json();
+        AppState.currentProduct = data;
+        renderProductDetail(data);
+      } catch (e) {
+        titleEl.textContent = 'Ошибка загрузки';
+        tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:32px; color:var(--badge-discount);">Не удалось загрузить данные товара. Попробуйте позже.</td></tr>';
+      }
+    }
+
+    function renderProductDetail(data) {
+      const prod = data.product || {};
+      const offers = data.offers || [];
+      const sellers = data.sellers || [];
+
+      document.title = (prod.title || 'Товар') + ' — купить по лучшей цене в Казахстане';
+
+      // Breadcrumbs
+      document.getElementById('breadcrumbTitle').textContent = prod.title || 'Товар';
+      document.getElementById('breadcrumbCategory').textContent = prod.category || 'Электроника';
+
+      // Main info
+      document.getElementById('detailProductTitle').textContent = prod.title || 'Товар';
+      document.getElementById('detailMainImg').src = prod.image_url || getSvgPlaceholder(prod.title);
+
+      // Best price
+      const bestPrice = data.min_price;
+      document.getElementById('detailBestPrice').textContent = bestPrice ? formatPrice(bestPrice) : 'Нет в наличии';
+      document.getElementById('detailSellersCountBadge').textContent = 'Доступно у ' + sellers.length + ' ' + pluralizeSellers(sellers.length);
+      document.getElementById('offersCountBadge').textContent = '(' + offers.length + ' предложений)';
+
+      // Badges
+      let badgesHtml = '';
+      if (data.best_new_price) badgesHtml += '<span class="badge badge-condition-new">✨ Новые от ' + formatPrice(data.best_new_price) + '</span>';
+      if (data.best_used_price) badgesHtml += '<span class="badge badge-condition-used">🔄 Б/у от ' + formatPrice(data.best_used_price) + '</span>';
+      if (prod.brand) badgesHtml += '<span class="badge badge-sellers">Бренд: ' + escapeHtml(prod.brand) + '</span>';
+      document.getElementById('detailBadges').innerHTML = badgesHtml;
+
+      // Attributes
+      const attrs = prod.attributes || {};
+      const attrKeys = Object.keys(attrs);
+      if (attrKeys.length > 0) {
+        document.getElementById('detailAttributesList').innerHTML = attrKeys.map(k => `
+          <div class="attr-item">
+            <span class="attr-key">${escapeHtml(k)}</span>
+            <span class="attr-val">${escapeHtml(attrs[k])}</span>
+          </div>
+        `).join('');
+      } else {
+        document.getElementById('detailAttributesList').innerHTML = `
+          <div class="attr-item">
+            <span class="attr-key">Модель</span>
+            <span class="attr-val">${escapeHtml(prod.model || prod.title)}</span>
+          </div>
+          <div class="attr-item">
+            <span class="attr-key">Категория</span>
+            <span class="attr-val">${escapeHtml(prod.category || 'Каталог')}</span>
+          </div>
+        `;
+      }
+
+      // Render Offers Table
+      const tableBody = document.getElementById('offersTableBody');
+      if (offers.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:32px; color:var(--text-muted);">Актуальных предложений не найдено.</td></tr>';
+        return;
+      }
+
+      tableBody.innerHTML = offers.map(off => {
+        const isPurch = off.is_purchasable;
+        const validUrl = isValidOfferUrl(off.url);
+        const canBuy = isPurch && validUrl;
+
+        let factsHtml = '';
+        if (off.seller_domain) factsHtml += '<span>🌐 ' + escapeHtml(off.seller_domain) + '</span> ';
+        if (off.city) factsHtml += '<span>📍 ' + escapeHtml(off.city) + '</span>';
+
+        let installmentHtml = '—';
+        if (off.installment_available) {
+          const m = off.installment_months || 12;
+          installmentHtml = '<span style="color:var(--primary); font-weight:600;">от ' + formatPrice(off.price / m) + '/мес (' + m + ' мес)</span>';
+        }
+
+        let deliveryHtml = 'Самовывоз';
+        if (off.delivery_type && off.delivery_type !== 'pickup_only') {
+          deliveryHtml = 'Доставка есть';
+        }
+
+        let oldPriceHtml = '';
+        if (off.old_price && off.old_price > off.price) {
+          const discountPct = Math.round(((off.old_price - off.price) / off.old_price) * 100);
+          oldPriceHtml = '<div style="font-size:0.8rem; color:var(--badge-discount);">' + formatPrice(off.old_price) + ' (-' + discountPct + '%)</div>';
+        }
+
+        let buyButtonHtml = '';
+        if (canBuy) {
+          buyButtonHtml = `<a href="${escapeHtml(off.url)}" target="_blank" rel="noopener noreferrer" class="btn-to-seller">
+            <span>К продавцу</span> <span>↗</span>
+          </a>`;
+        } else {
+          buyButtonHtml = `<button class="btn-to-seller disabled" disabled title="Предложение недоступно">
+            <span>Недоступно</span>
+          </button>`;
+        }
+
+        return `
+          <tr>
+            <td>
+              <div class="seller-cell-title">
+                <span>${escapeHtml(off.seller_name || 'Магазин')}</span>
+                <span class="channel-badge">${escapeHtml(off.channel_name || off.channel_type || 'Web')}</span>
+              </div>
+              <div class="seller-facts">${factsHtml}</div>
+            </td>
+            <td>
+              ${off.condition === 'NEW' ? '<span class="badge badge-condition-new">Новый</span>' : '<span class="badge badge-condition-used">Б/у</span>'}
+            </td>
+            <td>
+              <div class="offer-price-cell">${formatPrice(off.price)}</div>
+              ${oldPriceHtml}
+            </td>
+            <td>${deliveryHtml}</td>
+            <td>${installmentHtml}</td>
+            <td style="text-align:right;">${buyButtonHtml}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Helpers
+    function escapeHtml(text) {
+      if (!text) return '';
+      return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function pluralizeProducts(count) {
+      const mod10 = count % 10;
+      const mod100 = count % 100;
+      if (mod100 >= 11 && mod100 <= 19) return 'товаров';
+      if (mod10 === 1) return 'товар';
+      if (mod10 >= 2 && mod10 <= 4) return 'товара';
+      return 'товаров';
+    }
+
+    function pluralizeSellers(count) {
+      const mod10 = count % 10;
+      const mod100 = count % 100;
+      if (mod100 >= 11 && mod100 <= 19) return 'продавцов';
+      if (mod10 === 1) return 'продавца';
+      return 'продавцов';
+    }
+
+    // Init on load
+    document.addEventListener('DOMContentLoaded', () => {
+      handleRoute();
+    });
+  </script>
+</body>
+</html>

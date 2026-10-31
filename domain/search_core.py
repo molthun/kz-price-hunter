@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional
 
 from domain.condition import ConditionBreakdown, build_condition_breakdown
 from domain.freshness_v2 import offer_freshness
-from domain.models import CanonicalProduct, Channel, ChannelType, Condition, Seller
+from domain.models import CanonicalProduct, Channel, ChannelType, Condition, Offer, Seller
 from domain.provenance import build_offer_provenance, build_seller_provenance
 from domain.query_parser import ParsedQuery, QueryParser
 
@@ -195,7 +195,7 @@ class ProductSearchResult:
 
 @dataclass
 class SearchResponse2:
-    """High-level response containing aggregated multi-merchant search results."""
+    """High-level response containing aggregated multi-merchant search results with pagination and global facets."""
     query: str
     parsed_query: ParsedQuery
     items: List[ProductSearchResult] = field(default_factory=list)
@@ -205,6 +205,13 @@ class SearchResponse2:
     outcome: str = SearchOutcome.NOT_FOUND
     category_facets: List[Dict[str, Any]] = field(default_factory=list)
     brand_facets: List[Dict[str, Any]] = field(default_factory=list)
+    seller_facets: List[Dict[str, Any]] = field(default_factory=list)
+    city_facets: List[Dict[str, Any]] = field(default_factory=list)
+    page: int = 1
+    page_size: int = 50
+    total_pages: int = 1
+    has_next: bool = False
+    has_prev: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         res = asdict(self)
@@ -212,6 +219,13 @@ class SearchResponse2:
         res["items"] = [item.to_dict() for item in self.items]
         res["category_facets"] = self.category_facets
         res["brand_facets"] = self.brand_facets
+        res["seller_facets"] = self.seller_facets
+        res["city_facets"] = self.city_facets
+        res["page"] = self.page
+        res["page_size"] = self.page_size
+        res["total_pages"] = self.total_pages
+        res["has_next"] = self.has_next
+        res["has_prev"] = self.has_prev
         return res
 
 
@@ -231,21 +245,30 @@ class SearchCore:
         condition: Optional[str] = None,
         channel_type: Optional[str] = None,
         seller_type: Optional[str] = None,
+        seller_id: Optional[str] = None,
+        installment: Optional[bool] = None,
+        in_stock: Optional[bool] = None,
+        delivery: Optional[str] = None,
         min_price: Optional[float] = None,
         max_price: Optional[float] = None,
         sort_by: str = "relevance",
         limit: int = 50,
+        page: int = 1,
+        offset: Optional[int] = None,
         now: Optional[datetime.datetime] = None,
         category: Optional[str] = None,
         brand: Optional[str] = None,
     ) -> SearchResponse2:
         """
-        Executes a 2.0 multi-merchant search query with error handling.
+        Executes a 2.0 multi-merchant search query with error handling, stable pagination, and global facets.
         """
         start_time = time.perf_counter()
         parsed: Optional[ParsedQuery] = None
         # Один момент времени для SQL-отбора и итоговой доступности (R09)
         now = utc_now(now)
+        page_val = max(1, page)
+        limit_val = max(1, min(limit, 100))
+        offset_val = (page_val - 1) * limit_val if (offset is None and page_val > 1) else (offset or 0)
 
         try:
             # 1. Parse natural query
@@ -273,7 +296,7 @@ class SearchCore:
             if target_brand:
                 parsed.detected_brand = target_brand
 
-            # 2. Search canonical products via repository
+            # 2. Search canonical products via repository with pagination
             raw_items = self.search_repo.search_products(
                 search_text=parsed.clean_query,
                 brand=target_brand,
@@ -282,12 +305,39 @@ class SearchCore:
                 category=category,
                 channel_type=target_channel,
                 seller_type=seller_type,
+                seller_id=seller_id,
+                installment=installment,
+                in_stock=in_stock,
+                delivery=delivery,
                 min_price=target_min_price,
                 max_price=target_max_price,
                 sort_by=sort_by,
-                limit=limit,
+                limit=limit_val,
+                offset=offset_val,
                 now=now,
             )
+
+            # Exact full-count metrics across the whole dataset
+            count_info = {}
+            if hasattr(self.search_repo, "count_search_products"):
+                try:
+                    count_info = self.search_repo.count_search_products(
+                        search_text=parsed.clean_query,
+                        brand=target_brand,
+                        city=target_city,
+                        condition=target_condition,
+                        category=category,
+                        channel_type=target_channel,
+                        seller_type=seller_type,
+                        seller_id=seller_id,
+                        installment=installment,
+                        in_stock=in_stock,
+                        delivery=delivery,
+                        min_price=target_min_price,
+                        max_price=target_max_price,
+                    )
+                except Exception as ex:
+                    logger.warning(f"Failed to get exact count: {ex}")
 
             # 3. Aggregate offers and compute product cards
             product_results: List[ProductSearchResult] = []
@@ -623,16 +673,39 @@ class SearchCore:
                 for b, cnt in sorted(brand_counter.items(), key=lambda x: -x[1])
             ]
 
+            facets_info = {}
+            if hasattr(self.search_repo, "get_search_facets"):
+                try:
+                    facets_info = self.search_repo.get_search_facets(
+                        search_text=parsed.clean_query,
+                        city=target_city,
+                        category=category,
+                    )
+                except Exception:
+                    pass
+
+            exact_total_products = count_info.get("total_products") if "total_products" in count_info else len(product_results)
+            total_pages = max(1, (exact_total_products + limit_val - 1) // limit_val) if exact_total_products > 0 else 1
+            has_next = (page_val < total_pages)
+            has_prev = (page_val > 1)
+
             return SearchResponse2(
                 query=query,
                 parsed_query=parsed,
-                items=product_results[:limit],
-                total_products=len(product_results),
+                items=product_results[:limit_val],
+                total_products=exact_total_products,
                 total_offers=total_offers_count,
                 latency_ms=round(latency_ms, 2),
                 outcome=outcome,
                 category_facets=category_facets,
                 brand_facets=brand_facets,
+                seller_facets=facets_info.get("seller_facets", []),
+                city_facets=facets_info.get("city_facets", []),
+                page=page_val,
+                page_size=limit_val,
+                total_pages=total_pages,
+                has_next=has_next,
+                has_prev=has_prev,
             )
 
         except Exception as e:
@@ -649,3 +722,230 @@ class SearchCore:
                 latency_ms=round(latency_ms, 2),
                 outcome=SearchOutcome.ERROR,
             )
+
+    def get_canonical_product(
+        self,
+        product_id: str,
+        city: Optional[str] = None,
+        now: Optional[datetime.datetime] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Retrieves canonical product details with grouped sellers, channels, and verified offers.
+        Follows domain purchasability and trust provenance rules (S2-E18, S2-E28).
+        """
+        now = utc_now(now)
+        if not hasattr(self.search_repo, "get_canonical_product_detail"):
+            return None
+
+        detail = self.search_repo.get_canonical_product_detail(product_id, city=city)
+        if not detail or not detail.get("product"):
+            return None
+
+        product: CanonicalProduct = detail["product"]
+        offer_rows = detail.get("offers", [])
+
+        aggregated_offers: List[AggregatedOffer] = []
+        for od in offer_rows:
+            obs_at = od.get("observed_at")
+            exp_at = od.get("expires_at")
+            cond = od.get("condition") or Condition.NEW
+            avail = od.get("availability") or "in_stock"
+            active = bool(od.get("is_active", 1))
+
+            off_obj = Offer(
+                id=od["id"],
+                product_id=od["product_id"],
+                seller_id=od["seller_id"],
+                channel_id=od["channel_id"],
+                external_sku=od.get("external_sku", ""),
+                url=od["url"],
+                image_url=od.get("image_url"),
+                price=float(od["price"]),
+                old_price=float(od["old_price"]) if od.get("old_price") is not None else None,
+                condition=cond,
+                availability=avail,
+                city=od.get("city", "Казахстан"),
+                observed_at=obs_at,
+                expires_at=exp_at,
+                is_active=active,
+            )
+            # Channel and seller models
+            ch_model = Channel(
+                id=od["channel_id"],
+                seller_id=od["seller_id"],
+                channel_type=od.get("channel_type") or ChannelType.WEBSITE,
+                name=od.get("channel_name", "Web"),
+                base_url=od["url"],
+                is_active=True,
+            )
+            meta = {}
+            if isinstance(od.get("seller_metadata_json"), str):
+                try:
+                    meta = json.loads(od["seller_metadata_json"])
+                except Exception:
+                    pass
+            s_model = Seller(
+                id=od["seller_id"],
+                name=od["seller_name"],
+                slug=od["seller_slug"],
+                rating=float(od["seller_rating"]) if od.get("seller_rating") is not None else None,
+                domain=od.get("seller_domain"),
+                phone=od.get("seller_phone"),
+                bin=od.get("seller_bin"),
+                legal_name=od.get("seller_legal_name"),
+                metadata=meta,
+                is_active=True,
+            )
+
+            is_purch = offer_purchasable(od, now=now)
+            fresh_status = offer_freshness(od, now=now).legacy_freshness
+            prov = build_offer_provenance(od, now=now)
+            pay = offer_payment_terms(od)
+            basis = offer_price_basis(od)
+
+            agg = AggregatedOffer(
+                id=od["id"],
+                product_id=od["product_id"],
+                seller_id=od["seller_id"],
+                seller_name=od["seller_name"],
+                seller_slug=od["seller_slug"],
+                seller_rating=float(od["seller_rating"]) if od.get("seller_rating") is not None else None,
+                channel_id=od["channel_id"],
+                channel_type=od.get("channel_type", "website"),
+                channel_name=od.get("channel_name", "Web"),
+                price=float(od["price"]),
+                old_price=float(od["old_price"]) if od.get("old_price") is not None else None,
+                condition=cond,
+                availability=avail,
+                city=od.get("city", "Казахстан"),
+                url=od["url"],
+                image_url=od.get("image_url") or product.image_url,
+                observed_at=obs_at,
+                freshness=fresh_status,
+                is_purchasable=is_purch,
+                expires_at=exp_at,
+                is_private_seller=bool(od.get("is_private_seller")),
+                installment_available=pay.get("installment_available", False),
+                installment_months=pay.get("installment_months"),
+                credit_available=pay.get("credit_available", False),
+                is_unit_price=basis.get("is_unit_price", False),
+                quantity=basis.get("quantity"),
+                unit=basis.get("unit"),
+                source=ch_model.channel_type,
+                published_at=od.get("published_at"),
+                provenance=prov.to_dict(),
+                seller_domain=s_model.domain,
+                seller_phone=s_model.phone,
+                seller_bin=s_model.bin,
+                seller_legal_name=s_model.legal_name,
+                seller_metadata_json=od.get("seller_metadata_json"),
+            )
+            aggregated_offers.append(agg)
+
+        # Sort offers: purchasable first, then price ASC
+        aggregated_offers.sort(key=lambda o: (not o.is_purchasable, o.price))
+        purchasable_offers = [o for o in aggregated_offers if o.is_purchasable]
+
+        # Group by seller
+        seller_map: Dict[str, List[AggregatedOffer]] = {}
+        for o in aggregated_offers:
+            seller_map.setdefault(o.seller_id, []).append(o)
+
+        seller_groups: List[SellerOffersGroup] = []
+        for s_id, s_offers in seller_map.items():
+            s_offers.sort(key=lambda x: (not x.is_purchasable, x.price))
+            s_first = s_offers[0]
+            s_channels = list(dict.fromkeys(x.channel_type for x in s_offers if x.channel_type))
+            s_purch = [x for x in s_offers if x.is_purchasable]
+            s_best = s_purch[0] if s_purch else s_first
+
+            s_new = [x for x in s_offers if x.condition == Condition.NEW]
+            s_used = [x for x in s_offers if x.condition in (Condition.USED, Condition.REFURBISHED, Condition.OPEN_BOX)]
+            s_new_p = [x for x in s_purch if x.condition == Condition.NEW]
+            s_used_p = [x for x in s_purch if x.condition in (Condition.USED, Condition.REFURBISHED, Condition.OPEN_BOX)]
+
+            sg_min_price = min(x.price for x in s_purch) if s_purch else None
+            sg_max_price = max(x.price for x in s_purch) if s_purch else None
+            best_np = min(x.price for x in s_new_p) if s_new_p else None
+            best_up = min(x.price for x in s_used_p) if s_used_p else None
+
+            s_obj = Seller(
+                id=s_id,
+                name=s_first.seller_name,
+                slug=s_first.seller_slug,
+                domain=s_first.seller_domain,
+                phone=s_first.seller_phone,
+                bin=s_first.seller_bin,
+                legal_name=s_first.seller_legal_name,
+            )
+            s_prov = build_seller_provenance(
+                s_obj,
+                channels=[Channel(id=x.channel_id, seller_id=s_id, channel_type=x.channel_type, name=x.channel_name, base_url=x.url) for x in s_offers],
+                offers=[{"observed_at": x.observed_at} for x in s_offers],
+                now=now,
+            )
+
+            seller_groups.append(SellerOffersGroup(
+                seller_id=s_id,
+                seller_name=s_first.seller_name,
+                seller_slug=s_first.seller_slug,
+                seller_rating=s_first.seller_rating,
+                is_private_seller=s_first.is_private_seller,
+                min_price=sg_min_price,
+                max_price=sg_max_price,
+                offers_count=len(s_offers),
+                channels_count=len(s_channels),
+                channels_available=s_channels,
+                best_offer=s_best,
+                offers=s_offers,
+                has_new=bool(s_new),
+                has_used=bool(s_used),
+                best_new_price=best_np,
+                best_used_price=best_up,
+                facts=list(s_prov.fact_labels),
+                provenance=s_prov.to_dict(),
+            ))
+
+        seller_groups.sort(key=lambda s: (
+            not (s.best_offer and s.best_offer.is_purchasable and s.min_price is not None),
+            s.min_price if s.min_price is not None else float("inf"),
+        ))
+
+        new_purchasable = [o for o in purchasable_offers if o.condition == Condition.NEW]
+        used_purchasable = [o for o in purchasable_offers if o.condition in (Condition.USED, Condition.REFURBISHED, Condition.OPEN_BOX)]
+
+        min_p = min(o.price for o in purchasable_offers) if purchasable_offers else None
+        max_p = max(o.price for o in purchasable_offers) if purchasable_offers else None
+        best_off = purchasable_offers[0] if purchasable_offers else (aggregated_offers[0] if aggregated_offers else None)
+        best_new_p = min(o.price for o in new_purchasable) if new_purchasable else None
+        best_used_p = min(o.price for o in used_purchasable) if used_purchasable else None
+
+        cond_breakdown = build_condition_breakdown(product.id, product.title, aggregated_offers).to_dict()
+
+        # Load history report
+        history_dict = None
+        try:
+            from repositories.history_repo import HistoryRepository
+            hist_repo = HistoryRepository(self.search_repo.conn)
+            hist_report = hist_repo.get_product_price_history(product.id, limit_per_series=200)
+            if hist_report:
+                history_dict = hist_report.to_dict()
+        except Exception as ex:
+            logger.warning(f"Price history lookup error for {product.id}: {ex}")
+
+        return {
+            "ok": True,
+            "product": product.to_dict(),
+            "min_price": min_p,
+            "max_price": max_p,
+            "best_new_price": best_new_p,
+            "best_used_price": best_used_p,
+            "sellers_count": len(seller_groups),
+            "offers_count": len(aggregated_offers),
+            "has_purchasable_offers": bool(purchasable_offers),
+            "best_offer": best_off.to_dict() if best_off else None,
+            "sellers": [s.to_dict() for s in seller_groups],
+            "offers": [o.to_dict() for o in aggregated_offers],
+            "condition_breakdown": cond_breakdown,
+            "history": history_dict,
+        }

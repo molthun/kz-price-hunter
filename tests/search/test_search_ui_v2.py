@@ -119,7 +119,7 @@ class TestSearchUIV2(unittest.IsolatedAsyncioTestCase):
         await self.client.close()
 
     async def test_index_page_contains_v2_elements(self):
-        resp = await self.client.get("/")
+        resp = await self.client.get("/dashboard")
         self.assertEqual(resp.status, 200)
         html = await resp.text()
 

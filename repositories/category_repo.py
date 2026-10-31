@@ -155,8 +155,10 @@ class CategoryRepository:
             # И мапим в мастер-таксономию (id, name, parent_id)
             mapped = mapper.map_category(raw_cat)
             if mapped:
-                canonical_counts[mapped.id] = canonical_counts.get(mapped.id, 0) + cnt
-                canonical_counts[mapped.name] = canonical_counts.get(mapped.name, 0) + cnt
-                if mapped.parent_id:
+                if mapped.id != raw_cat:
+                    canonical_counts[mapped.id] = canonical_counts.get(mapped.id, 0) + cnt
+                if mapped.name != raw_cat and mapped.name != mapped.id:
+                    canonical_counts[mapped.name] = canonical_counts.get(mapped.name, 0) + cnt
+                if mapped.parent_id and mapped.parent_id != raw_cat:
                     canonical_counts[mapped.parent_id] = canonical_counts.get(mapped.parent_id, 0) + cnt
         return canonical_counts

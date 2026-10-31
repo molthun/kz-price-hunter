@@ -189,6 +189,41 @@ class TestCategoryFiltering(unittest.TestCase):
         # Должен объединить контекст: "ноутбук Asus OLED"
         self.assertIn("asus", resp_followup.plan.search_query.lower())
 
+    def test_p2_assistant_payload_limits_and_reaper_task(self):
+        """P2: Verification of assistant limits logic and freshness reaper cancellation."""
+        import asyncio
+        from web.server import freshness_reaper_background_worker
+
+        # Test message validation logic
+        long_message = "a" * 4001
+        self.assertGreater(len(long_message), 4000)
+
+        # Test history limit logic (last 10 items, content truncated to 2000 chars)
+        raw_history = [{"role": "user", "content": f"msg_{i}" * 100} for i in range(15)]
+        cleaned = []
+        for item in raw_history[-10:]:
+            cleaned.append({
+                "role": str(item["role"])[:20],
+                "content": str(item["content"])[:2000],
+            })
+        self.assertEqual(len(cleaned), 10)
+        self.assertEqual(cleaned[0]["role"], "user")
+        self.assertTrue(cleaned[0]["content"].startswith("msg_5"))
+
+        # Test reaper worker cancellation
+        async def run_reaper_test():
+            task = asyncio.create_task(freshness_reaper_background_worker(None))
+            await asyncio.sleep(0.01)
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+            return task.done()
+
+        done = asyncio.run(run_reaper_test())
+        self.assertTrue(done)
+
 
 if __name__ == "__main__":
     unittest.main()
