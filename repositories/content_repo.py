@@ -181,6 +181,10 @@ class ContentObservationRepository(BaseRepository):
                     confidence=float(vc.confidence),
                     expires_at=observation.expires_at,
                     raw_snippet=vc.raw_snippet or vc.raw_title,
+                    is_unit_price=vc.is_unit_price,
+                    quantity=vc.quantity,
+                    unit=vc.unit,
+                    size_or_volume=vc.size_or_volume,
                 )
             )
         return text_candidates

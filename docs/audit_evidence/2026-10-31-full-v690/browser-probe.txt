@@ -1,0 +1,13 @@
+{
+  "overview": {
+    "errors": [
+      "Cannot read properties of undefined (reading 'reason')"
+    ],
+    "assistant": 0,
+    "daily": 0
+  },
+  "discovery": {
+    "approve_profiled": 1,
+    "profile_rejected": 1
+  }
+}

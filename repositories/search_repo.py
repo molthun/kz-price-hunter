@@ -49,6 +49,22 @@ TOKEN_SYNONYMS: Dict[str, List[str]] = {
 
 STORAGE_TOKENS = {"64", "128", "256", "512", "1024"}
 
+# Единственное правило «частный продавец» — и для отбора до LIMIT, и для метки в выдаче.
+# Повреждённый metadata_json не роняет запрос (json_valid) и не делает продавца частным.
+# LIKE в SQLite не сворачивает регистр кириллицы, поэтому написания перечислены явно.
+_METADATA_FLAG_SQL = (
+    "COALESCE(CASE WHEN json_valid(s.metadata_json) THEN json_extract(s.metadata_json, '{path}') END, 0) "
+    "NOT IN (0, '', 'false')"
+)
+PRIVATE_SELLER_SQL = (
+    "(c.channel_type IN ('classifieds', 'olx')"
+    f" OR {_METADATA_FLAG_SQL.format(path='$.is_private')}"
+    f" OR {_METADATA_FLAG_SQL.format(path='$.is_private_seller')}"
+    " OR s.name LIKE '%частн%' OR s.name LIKE '%Частн%' OR s.name LIKE '%ЧАСТН%')"
+)
+PRIVATE_SELLER_TYPES = {"private", "private_seller", "classifieds"}
+BUSINESS_SELLER_TYPES = {"business", "company", "retail"}
+
 
 class SearchRepository(BaseRepository):
     """
@@ -90,6 +106,7 @@ class SearchRepository(BaseRepository):
         city: Optional[str] = None,
         condition: Optional[str] = None,
         channel_type: Optional[str] = None,
+        seller_type: Optional[str] = None,
         min_price: Optional[float] = None,
         max_price: Optional[float] = None,
         sort_by: str = "relevance",
@@ -129,6 +146,12 @@ class SearchRepository(BaseRepository):
         if channel_type:
             exists_conditions.append("c.channel_type = ?")
             exists_params.append(channel_type)
+
+        seller_kind = str(seller_type or "").strip().lower()
+        if seller_kind in PRIVATE_SELLER_TYPES:
+            exists_conditions.append(PRIVATE_SELLER_SQL)
+        elif seller_kind in BUSINESS_SELLER_TYPES:
+            exists_conditions.append(f"NOT {PRIVATE_SELLER_SQL}")
 
         if min_price is not None and min_price > 0:
             exists_conditions.append("o.price >= ?")
@@ -270,6 +293,7 @@ class SearchRepository(BaseRepository):
                s.slug as seller_slug,
                s.rating as seller_rating,
                s.metadata_json as seller_metadata_json,
+               {PRIVATE_SELLER_SQL} as is_private_seller,
                c.channel_type,
                c.name as channel_name
         FROM offers o
@@ -282,23 +306,7 @@ class SearchRepository(BaseRepository):
 
         for orow in offer_rows:
             od = dict(orow)
-            meta_raw = od.get("seller_metadata_json") or "{}"
-            if isinstance(meta_raw, str):
-                try:
-                    s_meta = json.loads(meta_raw)
-                except Exception:
-                    s_meta = {}
-            else:
-                s_meta = meta_raw or {}
-
-            ch_type = od.get("channel_type") or ""
-            s_name_lower = (od.get("seller_name") or "").lower()
-            is_priv = (
-                ch_type in ("classifieds", "olx")
-                or bool(s_meta.get("is_private") or s_meta.get("is_private_seller"))
-                or "частн" in s_name_lower
-            )
-            od["is_private_seller"] = is_priv
+            od["is_private_seller"] = bool(od.get("is_private_seller"))
 
             pid = od["product_id"]
             if pid in products_map:

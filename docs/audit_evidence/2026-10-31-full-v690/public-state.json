@@ -1,0 +1,21 @@
+{
+  "diag_token_present": false,
+  "prod": {
+    "status": 200,
+    "body": {
+      "version": "6.8.0",
+      "app_name": "KZ Price Hunter",
+      "release_date": "2026-10-31",
+      "author": "Advanced Agentic Coding"
+    }
+  },
+  "stand": {
+    "status": 200,
+    "body": {
+      "version": "6.9.0",
+      "app_name": "KZ Price Hunter",
+      "release_date": "2026-10-31",
+      "author": "Advanced Agentic Coding"
+    }
+  }
+}

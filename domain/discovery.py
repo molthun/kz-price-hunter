@@ -72,6 +72,23 @@ def transition_allowed(current: str, new: str) -> bool:
     return new in ALLOWED_TRANSITIONS.get(current, set())
 
 
+def candidate_actions(status: str) -> dict:
+    """Какие действия оператора допустимы: единое правило для API и кнопок мониторинга (FA69-10)."""
+    return {
+        "profile": status in CandidateStatus.ALL and status != CandidateStatus.REJECTED,
+        "review": status in (CandidateStatus.DISCOVERED, CandidateStatus.PROFILED),
+        "approve": status != CandidateStatus.INDEXED and transition_allowed(status, CandidateStatus.APPROVED),
+        "reject": status != CandidateStatus.REJECTED and transition_allowed(status, CandidateStatus.REJECTED),
+    }
+
+
+# Здесь решение или разбор уже у оператора: повторное профилирование обновляет только сведения об источнике
+PROFILE_KEEPS_STATUS = {
+    CandidateStatus.IDENTITY_MATCHED, CandidateStatus.REVIEW_REQUIRED, CandidateStatus.APPROVED,
+    CandidateStatus.INDEXED, CandidateStatus.REJECTED,
+}
+
+
 class DiscoverySource:
     SEARCH_ENGINE = "search_engine"
     MAPS = "maps"

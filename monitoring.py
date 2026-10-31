@@ -836,6 +836,25 @@ def matching_section(now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
         return {"status": HEALTHY, "reason": f"Готово к работе ({type(e).__name__})", "counts": {}}
 
 
+def discovery_section(now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
+    """Секция поиска продавцов: пустая воронка — штатное состояние, ошибка чтения — «нет данных», не зелёный."""
+    import database
+    from repositories.candidate_repo import CandidateRepository
+    try:
+        conn = database.get_connection()
+        try:
+            stats = CandidateRepository(conn).get_discovery_stats()
+        finally:
+            conn.close()
+    except Exception as e:
+        return {"status": UNKNOWN, "reason": f"Нет данных ({type(e).__name__})", "counts": {}}
+    total = stats["total_candidates"]
+    pending = stats["by_status"].get("REVIEW_REQUIRED", 0)
+    reason = (f"Ждут проверки: {pending} из {total}" if pending else
+              f"Кандидатов: {total}, проверки не ждут" if total else "Кандидатов пока нет")
+    return {"status": LIMITED if pending else HEALTHY, "reason": reason, "counts": stats["by_status"]}
+
+
 def overview(registry: Dict[str, Tuple[str, int]], enabled: Iterable[str], scan_state: Dict[str, Any],
              expected_interval_sec: int, now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
     now = now or _now()
@@ -866,6 +885,7 @@ def overview(registry: Dict[str, Tuple[str, int]], enabled: Iterable[str], scan_
         "scanning": scanning_section(scan_state, expected_interval_sec, now),
         "search": search_section(now),
         "matching": matching_section(now),
+        "discovery": discovery_section(now),
         "ai": ai_section(now),
         "telegram": telegram_section(now),
         "system": system_section(now),

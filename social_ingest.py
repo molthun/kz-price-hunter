@@ -13,6 +13,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
+from domain.social_media import MediaReport
 from domain.social_connector import (
     ConnectorRateLimited,
     ConnectorUnavailable,
@@ -46,6 +47,12 @@ class IngestResult:
     candidates: int = 0
     offers: int = 0
     error: str = ""
+    # Сбой фото не отменяет успешный текстовый сбор, но виден отдельно (FA69-02)
+    media_attempted: int = 0
+    media_fetched: int = 0
+    media_failed: int = 0
+    model_failed: int = 0
+    media_error: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -58,6 +65,11 @@ class IngestResult:
             "candidates": self.candidates,
             "offers": self.offers,
             "error": self.error,
+            "media_attempted": self.media_attempted,
+            "media_fetched": self.media_fetched,
+            "media_failed": self.media_failed,
+            "model_failed": self.model_failed,
+            "media_error": self.media_error,
         }
 
 
@@ -187,10 +199,12 @@ async def ingest_source_async(source: SocialSource,
             pipeline = SocialOfferPipeline(conn)
             candidate_count = 0
             offer_count = 0
+            media_report = MediaReport()
             for observation in observations:
                 observations_repo.save_observation(observation)
                 if with_vision:
-                    created_offers = await pipeline.process_observation_async(observation)
+                    created_offers = await pipeline.process_observation_async(
+                        observation, media_report=media_report)
                 else:
                     candidates = observations_repo.extract_candidates(observation)
                     created_offers = pipeline.process_candidates(observation, candidates)
@@ -200,13 +214,18 @@ async def ingest_source_async(source: SocialSource,
             result.observations = len(observations)
             result.candidates = candidate_count
             result.offers = offer_count
+            result.media_attempted = media_report.attempted
+            result.media_fetched = media_report.fetched
+            result.media_failed = media_report.fetch_failed
+            result.model_failed = media_report.model_errors
+            result.media_error = media_report.summary()
 
             if not posts:
                 result.status = IngestStatus.EMPTY
                 sources.mark_fetch(source.id, IngestStatus.EMPTY, at=now_iso)
             else:
                 result.status = IngestStatus.OK
-                sources.mark_fetch(source.id, IngestStatus.OK, at=now_iso)
+                sources.mark_fetch(source.id, IngestStatus.OK, result.media_error, at=now_iso)
             return result
         except ConnectorRateLimited as exc:
             result.status = IngestStatus.RATE_LIMITED

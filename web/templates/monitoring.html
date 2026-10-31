@@ -205,8 +205,11 @@
   const VIEWS = {
     overview() {
       const s = data.sections;
-      const cards = SECTIONS.filter(([id]) => id !== 'overview').map(([id, label]) =>
-        `<button data-section="${id}" class="text-left">${card(label, `<p class="text-sm text-slate-300 break-words">${esc(s[id].reason)}</p>`, s[id].status)}</button>`).join('');
+      // Раздел без данных от сервера показывается как «нет данных» и не роняет весь обзор
+      const cards = SECTIONS.filter(([id]) => id !== 'overview').map(([id, label]) => {
+        const sec = s[id] || {status: 'unknown', reason: 'Нет данных'};
+        return `<button data-section="${id}" class="text-left">${card(label, `<p class="text-sm text-slate-300 break-words">${esc(sec.reason)}</p>`, sec.status)}</button>`;
+      }).join('');
       const c = s.shops.counts || {};
       const summary = Object.keys(STATUS).filter(k => c[k]).map(k => `${pill(k)} <span class="text-sm mr-3">${c[k]}</span>`).join('');
       return `
@@ -1146,6 +1149,7 @@
     };
 
     box.innerHTML = candidates.map(c => {
+      const actions = c.actions || {};
       const stColor = {
         DISCOVERED: 'bg-slate-700/40 text-slate-300 border-slate-600',
         PROFILED: 'bg-sky-500/20 text-sky-300 border-sky-500/40',
@@ -1183,15 +1187,22 @@
               </div>
             </div>
             <div class="flex items-center gap-2 shrink-0">
+              ${actions.profile ? `
               <button type="button" data-discovery-profile="${esc(c.id)}" class="px-2.5 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/40 text-xs font-semibold transition cursor-pointer">
                 🔍 Профилировать
               </button>
-              ${c.status !== 'APPROVED' && c.status !== 'INDEXED' ? `
+              ` : ''}
+              ${actions.review ? `
+                <button type="button" data-discovery-review="${esc(c.id)}" class="px-2.5 py-1.5 rounded-lg bg-amber-600/30 hover:bg-amber-600/50 text-amber-200 border border-amber-500/40 text-xs font-semibold transition cursor-pointer">
+                  На проверку
+                </button>
+              ` : ''}
+              ${actions.approve ? `
                 <button type="button" data-discovery-decision="${esc(c.id)}" data-decision="APPROVED" class="px-2.5 py-1.5 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-200 border border-emerald-500/40 text-xs font-semibold transition cursor-pointer">
                   ✓ Одобрить
                 </button>
               ` : ''}
-              ${c.status !== 'REJECTED' ? `
+              ${actions.reject ? `
                 <button type="button" data-discovery-decision="${esc(c.id)}" data-decision="REJECTED" class="px-2.5 py-1.5 rounded-lg bg-rose-600/30 hover:bg-rose-600/50 text-rose-200 border border-rose-500/40 text-xs font-semibold transition cursor-pointer">
                   ✕ Отклонить
                 </button>
@@ -1612,6 +1623,18 @@
           alert('Ошибка сети: ' + err);
           profBtn.disabled = false;
         });
+      return;
+    }
+    const revBtn = e.target.closest('[data-discovery-review]');
+    if (revBtn) {
+      revBtn.disabled = true;
+      fetch(`/api/v2/admin/discovery/candidates/${encodeURIComponent(revBtn.dataset.discoveryReview)}/review`, {method: 'POST'})
+        .then(r => r.json())
+        .then(res => {
+          if (!res.ok) alert(res.error || 'Ошибка');
+          loadDiscoverySection();
+        })
+        .catch(err => alert('Ошибка сети: ' + err));
       return;
     }
     const decBtn = e.target.closest('[data-discovery-decision]');

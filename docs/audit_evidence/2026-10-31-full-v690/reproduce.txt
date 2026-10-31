@@ -1,0 +1,73 @@
+{
+  "candidate_counts": {
+    "filtered_items": 1,
+    "api_total": 2
+  },
+  "invalid_vision_response": {
+    "local_calls": 1,
+    "fallback_calls": 0,
+    "items": 0,
+    "missing_confidence_published": true,
+    "invented_confidence": 0.85
+  },
+  "media_gap": {
+    "status": "OK",
+    "offers": 0,
+    "model_calls": 0
+  },
+  "permalink": {
+    "expected": "https://www.instagram.com/p/AUDITPOST/",
+    "actual": ""
+  },
+  "identity_dimensions": [
+    {
+      "id": "off_soc_1dcb4b93dec3",
+      "city": "Астана",
+      "condition": "USED",
+      "price": 70000.0
+    }
+  ],
+  "replay_order": {
+    "price": 150000.0,
+    "observed_at": "2026-10-01T10:00:00+00:00"
+  },
+  "replay_newest_first_ingest": {
+    "status": "OK",
+    "price": 150000.0,
+    "published_at": null
+  },
+  "platform_identity": {
+    "seller_ids": [
+      "seller_social_audit_shop",
+      "seller_social_audit_shop"
+    ]
+  },
+  "history_gap": {
+    "observations": 2,
+    "history_rows": 0
+  },
+  "metadata_private": {
+    "stored": "{\"is_private\": true}",
+    "actual_private": false
+  },
+  "profile_terminal": {
+    "before": "REJECTED",
+    "after": "PROFILED"
+  },
+  "approve_profiled": "Недопустимый переход кандидата cand_profiled: PROFILED -> APPROVED",
+  "filter_before_limit": {
+    "limit_1": "NOT_FOUND",
+    "limit_10_items": 1
+  },
+  "units_lost": {
+    "same_product": true,
+    "same_offer": true,
+    "raw_payload": {},
+    "category": "electronics"
+  },
+  "k2_interop": {
+    "existing_key": "k2:apple:iphone15:128gb",
+    "social_key": "apple:iphone 15:128gb",
+    "canonical_products": 2
+  }
+}

@@ -1610,6 +1610,7 @@ async def admin_list_onboarding_handler(request):
 
     def _load():
         from database import get_connection
+        from domain.discovery import candidate_actions
         from repositories.candidate_repo import CandidateRepository
 
         conn = get_connection()
@@ -1619,6 +1620,7 @@ async def admin_list_onboarding_handler(request):
             items = []
             for c in candidates:
                 c_dict = c.to_dict()
+                c_dict["actions"] = candidate_actions(c.status)
                 profiles = repo.get_source_profiles_for_candidate(c.id)
                 c_dict["profiles"] = [p.to_dict() for p in profiles]
                 items.append(c_dict)
@@ -1740,6 +1742,7 @@ async def admin_list_discovery_candidates_handler(request):
 
     def _load():
         from database import get_connection
+        from domain.discovery import candidate_actions
         from repositories.candidate_repo import CandidateRepository
 
         conn = get_connection()
@@ -1759,11 +1762,14 @@ async def admin_list_discovery_candidates_handler(request):
                 status=status,
                 source_type=source_type,
                 city=city,
+                domain=domain,
+                phone=phone,
                 query=query,
             )
             items = []
             for c in candidates:
                 c_dict = c.to_dict()
+                c_dict["actions"] = candidate_actions(c.status)
                 profiles = repo.get_source_profiles_for_candidate(c.id)
                 c_dict["profiles"] = [p.to_dict() for p in profiles]
                 items.append(c_dict)
@@ -1783,6 +1789,40 @@ async def admin_list_discovery_candidates_handler(request):
     except Exception as e:
         print(f"[API admin discovery candidates] Ошибка: {e}")
         return web.json_response({"ok": False, "error": "Ошибка получения кандидатов"}, status=500)
+
+
+@routes.post("/api/v2/admin/discovery/candidates/{candidate_id}/review")
+@require_admin
+async def admin_send_candidate_to_review_handler(request):
+    """Передаёт кандидата без подтверждённого каталога на проверку: только так он доходит до одобрения."""
+    candidate_id = request.match_info.get("candidate_id", "").strip()
+
+    def _review():
+        from database import get_connection
+        from domain.discovery import CandidateStatus, candidate_actions
+        from repositories.candidate_repo import CandidateRepository
+
+        conn = get_connection()
+        try:
+            repo = CandidateRepository(conn)
+            candidate = repo.get_candidate_by_id(candidate_id)
+            if candidate is None:
+                return None, "not_found"
+            if not candidate_actions(candidate.status)["review"]:
+                return None, f"Из статуса {candidate.status} на проверку не передать"
+            repo.update_candidate_status(candidate_id, CandidateStatus.REVIEW_REQUIRED,
+                                         notes="Передан на проверку оператором")
+            conn.commit()
+            return repo.get_candidate_by_id(candidate_id), None
+        finally:
+            conn.close()
+
+    candidate, error = await asyncio.to_thread(_review)
+    if error == "not_found":
+        return web.json_response({"ok": False, "error": "Кандидат не найден"}, status=404)
+    if error:
+        return web.json_response({"ok": False, "error": error}, status=409)
+    return web.json_response({"ok": True, "candidate": candidate.to_dict()})
 
 
 @routes.post("/api/v2/admin/discovery/candidates/{candidate_id}/profile")

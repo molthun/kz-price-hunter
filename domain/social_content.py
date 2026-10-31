@@ -131,9 +131,50 @@ class ExtractedOfferCandidate:
     confidence: float = 0.8
     expires_at: Optional[str] = None
     raw_snippet: str = ""
+    is_unit_price: bool = False
+    quantity: Optional[float] = None
+    unit: Optional[str] = None
+    size_or_volume: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
+
+    def price_basis(self) -> Optional[Dict[str, Any]]:
+        """За что указана цена, если это не одна штука: основа идентичности товара (FA69-07).
+
+        100 г и 1 кг, 1 л и 1,5 л, упаковка и штука — разные товары: сравнивать их цены напрямую нельзя.
+        Вес и объём приводятся к граммам и миллилитрам, поэтому «1000 г» и «1 кг» — одно и то же.
+        """
+        unit = (self.unit or "").strip().lower() or None
+        quantity = self.quantity if self.quantity and self.quantity > 0 else None
+        match = _SIZE_VOLUME_RE.search(self.size_or_volume or "")
+        if match and (unit is None or quantity in (None, 1.0)):
+            size_unit = _UNIT_ALIASES[match.group(2).lower()]
+            if unit in (None, "pcs") or _UNIT_BASE[size_unit][0] == _UNIT_BASE.get(unit, ("",))[0]:
+                unit = size_unit
+                quantity = float(match.group(1).replace(",", "."))
+        unit = _UNIT_ALIASES.get(unit, unit) if unit else None
+        if unit not in _UNIT_BASE:
+            return None
+        quantity = quantity or 1.0
+        if unit == "pcs" and quantity == 1.0 and not self.is_unit_price:
+            return None
+        base_unit, factor = _UNIT_BASE[unit]
+        amount = f"{quantity * factor:.6g}{base_unit}"
+        return {
+            "is_unit_price": bool(self.is_unit_price),
+            "quantity": quantity,
+            "unit": unit,
+            "pack": f"{'per' if self.is_unit_price else 'pack'}:{amount}",
+            "label": f"{'за ' if self.is_unit_price else ''}{quantity:g} {_UNIT_LABELS[unit]}",
+        }
+
+
+_UNIT_BASE = {"g": ("g", 1), "kg": ("g", 1000), "ml": ("ml", 1), "l": ("ml", 1000), "pcs": ("pcs", 1)}
+_UNIT_LABELS = {"g": "г", "kg": "кг", "ml": "мл", "l": "л", "pcs": "шт"}
+_UNIT_ALIASES = {"г": "g", "гр": "g", "g": "g", "кг": "kg", "kg": "kg", "мл": "ml", "ml": "ml",
+                 "л": "l", "l": "l", "шт": "pcs", "pcs": "pcs"}
+_SIZE_VOLUME_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*(кг|kg|гр|г|g|мл|ml|л|l)(?![a-zа-я])", re.IGNORECASE)
 
 
 class SocialContentExtractor:

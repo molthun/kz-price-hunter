@@ -1,0 +1,24 @@
+2026-10-31T10:18:03.8555920Z ##[group]Run for f in tests/frontend/test_frontend*.cjs; do echo "== $f"; node "$f" || exit 1; done
+2026-10-31T10:18:03.8556280Z [36;1mfor f in tests/frontend/test_frontend*.cjs; do echo "== $f"; node "$f" || exit 1; done[0m
+2026-10-31T10:18:03.8641173Z == tests/frontend/test_frontend.cjs
+2026-10-31T10:18:15.2799155Z == tests/frontend/test_frontend_ai_models.cjs
+2026-10-31T10:18:16.1743381Z == tests/frontend/test_frontend_auth.cjs
+2026-10-31T10:18:18.6782648Z == tests/frontend/test_frontend_changelog.cjs
+2026-10-31T10:18:19.8333739Z == tests/frontend/test_frontend_format.cjs
+2026-10-31T10:18:20.1553742Z == tests/frontend/test_frontend_matching_moderation.cjs
+2026-10-31T10:18:21.1554722Z == tests/frontend/test_frontend_modal_image.cjs
+2026-10-31T10:18:21.9263970Z == tests/frontend/test_frontend_notices.cjs
+2026-10-31T10:18:22.5461124Z == tests/frontend/test_frontend_p04.cjs
+2026-10-31T10:18:24.1090408Z == tests/frontend/test_frontend_p05.cjs
+2026-10-31T10:18:25.4833195Z == tests/frontend/test_frontend_p06.cjs
+2026-10-31T10:18:26.1144850Z == tests/frontend/test_frontend_p07.cjs
+2026-10-31T10:18:27.6486505Z == tests/frontend/test_frontend_p07_v2.cjs
+2026-10-31T10:18:29.0840128Z == tests/frontend/test_frontend_p09_ai.cjs
+2026-10-31T10:18:29.8958864Z == tests/frontend/test_frontend_p10.cjs
+2026-10-31T10:18:30.5538383Z == tests/frontend/test_frontend_p12.cjs
+2026-10-31T10:19:01.0853820Z page.waitForSelector: Timeout 30000ms exceeded.
+2026-10-31T10:19:01.0854473Z   - waiting for locator('#btnAsk') to be visible
+2026-10-31T10:19:01.0855036Z     at /home/runner/work/kz-price-hunter/kz-price-hunter/tests/frontend/test_frontend_p12.cjs:39:14 {
+2026-10-31T10:19:01.0855563Z   log: [ "  - waiting for locator('#btnAsk') to be visible" ],
+2026-10-31T10:19:01.0855763Z   name: 'TimeoutError'
+2026-10-31T10:19:01.0978059Z ##[error]Process completed with exit code 1.

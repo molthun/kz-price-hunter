@@ -27,6 +27,8 @@ Vision Extraction Pipeline (S2-E10, KZ Price Hunter 2.0).
 from __future__ import annotations
 
 import base64
+import logging
+import math
 import os
 import re
 from dataclasses import asdict, dataclass, field
@@ -34,7 +36,10 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from domain.models import Availability, Condition
 from domain.social_content import ContentObservation, ExtractedOfferCandidate
+from domain.social_media import MAX_IMAGES_PER_POST, MediaError, MediaReport, fetch_image
 from model_matching import extract_canonical_key
+
+logger = logging.getLogger("kz_price_hunter.vision_extraction")
 
 MIN_VISION_PUBLISH_CONFIDENCE = 0.75
 STATUS_PRICE_UNDETERMINED = "Цена не определена"
@@ -129,7 +134,31 @@ class VisionCandidate:
             confidence=self.confidence,
             expires_at=expires_at,
             raw_snippet=self.raw_snippet or self.raw_title,
+            is_unit_price=self.is_unit_price,
+            quantity=self.quantity,
+            unit=self.unit,
+            size_or_volume=self.size_or_volume,
         )
+
+
+def parse_vision_response(data: Any) -> Dict[str, Any]:
+    """Проверка ответа модели внутри ai_router: не та схема — bad_response и переход к запасному провайдеру.
+
+    Корректный пустой список — нормальный ответ «товаров нет». Уверенность проверяется по каждой позиции
+    отдельно: одна плохая позиция не отменяет остальные.
+    """
+    if not isinstance(data, dict) or not isinstance(data.get("items"), list):
+        raise ValueError("vision_schema")
+    for item in data["items"]:
+        if not isinstance(item, dict):
+            raise ValueError("vision_item")
+        title = item.get("title", item.get("raw_title", item.get("product")))
+        if not isinstance(title, str):
+            raise ValueError("vision_title")
+        price = item.get("price")
+        if isinstance(price, bool) or not isinstance(price, (int, float, str, type(None))):
+            raise ValueError("vision_price")
+    return data
 
 
 class VisionExtractionEngine:
@@ -189,10 +218,10 @@ class VisionExtractionEngine:
 
     @staticmethod
     def _parse_num(raw: Any) -> Optional[float]:
-        if raw is None:
+        if raw is None or isinstance(raw, bool):
             return None
         if isinstance(raw, (int, float)):
-            return float(raw) if raw > 0 else None
+            return float(raw) if raw > 0 and math.isfinite(raw) else None
         digits = re.sub(r"[^\d.]", "", str(raw).replace(",", "."))
         if not digits or digits.count(".") > 1:
             return None
@@ -201,6 +230,13 @@ class VisionExtractionEngine:
             return val if val > 0 else None
         except ValueError:
             return None
+
+    @staticmethod
+    def _parse_confidence(raw: Any) -> Optional[float]:
+        """Уверенность, которую сообщила модель; всё остальное — её отсутствие."""
+        if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+            return None
+        return float(raw) if math.isfinite(raw) and 0.0 <= raw <= 1.0 else None
 
     @classmethod
     def _normalize_unit(cls, raw_unit: str) -> str:
@@ -252,7 +288,7 @@ class VisionExtractionEngine:
             candidate.price_determined = False
             candidate.publishable = False
             candidate.status_label = STATUS_PRICE_UNDETERMINED
-            candidate.rejection_reason = "low_confidence"
+            candidate.rejection_reason = candidate.rejection_reason or "low_confidence"
             return candidate
 
         # 3. Проверка названия
@@ -306,12 +342,13 @@ class VisionExtractionEngine:
             )
             price_val = None if occluded else cls._parse_num(raw_price)
             old_price_val = cls._parse_num(raw.get("old_price"))
-            conf = float(raw.get("confidence", 0.85) or 0.0)
+            conf = cls._parse_confidence(raw.get("confidence"))
             currency = str(raw.get("currency") or "KZT").strip().upper()
 
             unit = raw.get("unit")
             qty = cls._parse_num(raw.get("quantity"))
-            is_unit = bool(raw.get("is_unit_price") or unit == "kg")
+            explicit_unit_price = raw.get("is_unit_price")
+            is_unit = bool(explicit_unit_price) if explicit_unit_price is not None else unit == "kg"
             size_vol = raw.get("size_or_volume")
 
             cand = VisionCandidate(
@@ -322,7 +359,8 @@ class VisionExtractionEngine:
                 condition=str(raw.get("condition") or Condition.NEW),
                 availability=str(raw.get("availability") or Availability.IN_STOCK),
                 city=str(raw.get("city") or default_city),
-                confidence=conf,
+                confidence=conf if conf is not None else 0.0,
+                rejection_reason=None if conf is not None else "invalid_confidence",
                 price_determined=not occluded and price_val is not None,
                 is_discount=bool(raw.get("is_discount") or (old_price_val and price_val and old_price_val > price_val)),
                 is_unit_price=is_unit,
@@ -592,6 +630,7 @@ class VisionExtractionEngine:
         default_city: str = "Казахстан",
         min_confidence: float = MIN_VISION_PUBLISH_CONFIDENCE,
         config: Optional[Dict[str, Any]] = None,
+        media_report: Optional[MediaReport] = None,
     ) -> List[VisionCandidate]:
         """Распознаёт товары и цены на изображении через мультимодальную модель (P17-D)."""
         if not image_bytes or len(image_bytes) < 10:
@@ -609,9 +648,13 @@ class VisionExtractionEngine:
                 image_bytes=image_bytes,
                 mime_type=mime_type,
                 config=config,
+                validate=parse_vision_response,
             )
             raw_result = routed.get("result")
-        except Exception:
+        except Exception as exc:
+            logger.warning("vision_extraction: модель не ответила (%s)", type(exc).__name__)
+            if media_report is not None:
+                media_report.model_failed(type(exc).__name__)
             return []
 
         if not isinstance(raw_result, dict):
@@ -635,6 +678,7 @@ class VisionExtractionEngine:
         default_city: str = "Казахстан",
         min_confidence: float = MIN_VISION_PUBLISH_CONFIDENCE,
         config: Optional[Dict[str, Any]] = None,
+        media_report: Optional[MediaReport] = None,
     ) -> List[VisionCandidate]:
         """Асинхронный разбор ContentObservation: мультимодальный Vision при наличии картинки
         или детерминированный разбор по готовому OCR / structured разметке."""
@@ -672,7 +716,30 @@ class VisionExtractionEngine:
                 default_city=default_city,
                 min_confidence=min_confidence,
                 config=config,
+                media_report=media_report,
             )
+            if candidates:
+                return candidates
+        elif observation.media_urls:
+            # Фото из коннектора: скачиваем под контролем и отдаём модели (FA69-02)
+            report = media_report if media_report is not None else MediaReport()
+            candidates = []
+            for url in observation.media_urls[:MAX_IMAGES_PER_POST]:
+                report.attempted += 1
+                try:
+                    image = await fetch_image(url)
+                except MediaError as exc:
+                    report.failed(exc.code)
+                    continue
+                report.fetched += 1
+                candidates.extend(await cls.extract_from_image(
+                    image.data,
+                    mime_type=image.mime_type,
+                    default_city=default_city,
+                    min_confidence=min_confidence,
+                    config=config,
+                    media_report=report,
+                ))
             if candidates:
                 return candidates
 

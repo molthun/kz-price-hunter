@@ -63,9 +63,31 @@ class AggregatedOffer:
     installment_available: bool = False
     installment_months: Optional[int] = None
     credit_available: bool = False
+    # Основание цены: за единицу или за упаковку какого объёма (FA69-07)
+    is_unit_price: bool = False
+    quantity: Optional[float] = None
+    unit: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
+
+
+def offer_price_basis(row: Dict[str, Any]) -> Dict[str, Any]:
+    """Сохранённое основание цены предложения; у обычных предложений его нет."""
+    payload = row.get("raw_payload_json") or "{}"
+    if isinstance(payload, str):
+        try:
+            payload = json.loads(payload)
+        except Exception:
+            payload = {}
+    basis = payload.get("price_basis") if isinstance(payload, dict) else None
+    if not isinstance(basis, dict):
+        return {}
+    return {
+        "is_unit_price": bool(basis.get("is_unit_price")),
+        "quantity": basis.get("quantity"),
+        "unit": basis.get("unit"),
+    }
 
 
 def offer_payment_terms(row: Dict[str, Any]) -> Dict[str, Any]:
@@ -199,6 +221,7 @@ class SearchCore:
                 city=target_city,
                 condition=target_condition,
                 channel_type=target_channel,
+                seller_type=seller_type,
                 min_price=target_min_price,
                 max_price=target_max_price,
                 sort_by=sort_by,
@@ -252,16 +275,9 @@ class SearchCore:
                         expires_at=expires_at,
                         is_private_seller=bool(od.get("is_private_seller", False)),
                         **offer_payment_terms(od),
+                        **offer_price_basis(od),
                     )
                     aggregated_offers.append(agg_off)
-
-                # Filter by seller_type if specified (business vs private)
-                if seller_type:
-                    st_norm = str(seller_type).strip().lower()
-                    if st_norm in ("business", "company", "retail"):
-                        aggregated_offers = [o for o in aggregated_offers if not o.is_private_seller]
-                    elif st_norm in ("private", "private_seller", "classifieds"):
-                        aggregated_offers = [o for o in aggregated_offers if o.is_private_seller]
 
                 if not aggregated_offers:
                     continue

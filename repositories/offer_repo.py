@@ -123,6 +123,16 @@ class OfferRepository(BaseRepository):
         )
         return Offer.from_row(row) if row else None
 
+    def find_social_line(self, channel_id: str, product_id: str, city: str, condition: str) -> Optional[Offer]:
+        """Предложение соцсети того же канала, товара, города и состояния, в том числе неактивное."""
+        row = self.fetchone(
+            """SELECT * FROM offers
+               WHERE channel_id = ? AND product_id = ? AND city = ? AND condition = ? AND external_sku LIKE 'SOC-%'
+               ORDER BY updated_at DESC, id LIMIT 1""",
+            (channel_id, product_id, city, condition),
+        )
+        return Offer.from_row(row) if row else None
+
     def get_active_offers_for_product(
         self,
         product_id: str,

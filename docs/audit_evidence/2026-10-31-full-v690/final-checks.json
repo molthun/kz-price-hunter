@@ -1,0 +1,24 @@
+{
+  "head": "d2522434e03d2143152c831afcc2be5de4ace0b9",
+  "diff_check_exit": 0,
+  "findings": [
+    "FA69-01",
+    "FA69-02",
+    "FA69-03",
+    "FA69-04",
+    "FA69-05",
+    "FA69-06",
+    "FA69-07",
+    "FA69-08",
+    "FA69-09",
+    "FA69-10",
+    "FA69-11",
+    "FA69-12",
+    "FA69-13",
+    "FA69-14"
+  ],
+  "probes": 15,
+  "frontend_pass": 18,
+  "foreground_processes_finished": true,
+  "whitespace_issues": []
+}

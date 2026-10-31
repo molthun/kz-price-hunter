@@ -9,7 +9,7 @@ import json
 import logging
 from typing import Any, Dict, List, Optional, Set
 
-from domain.discovery import CandidateStatus, SellerCandidate, transition_allowed
+from domain.discovery import PROFILE_KEEPS_STATUS, CandidateStatus, SellerCandidate, transition_allowed
 from domain.models import Seller, utc_now_iso
 from domain.seller_identity import (
     IdentityType,
@@ -141,6 +141,8 @@ class CandidateRepository(BaseRepository):
         source_type: Optional[str] = None,
         city: Optional[str] = None,
         query: Optional[str] = None,
+        domain: Optional[str] = None,
+        phone: Optional[str] = None,
     ) -> int:
         sql = "SELECT COUNT(*) as cnt FROM seller_candidates WHERE 1=1"
         params: list = []
@@ -153,6 +155,12 @@ class CandidateRepository(BaseRepository):
         if city:
             sql += " AND (city LIKE ? OR city = ?)"
             params.extend([f"%{city}%", city])
+        if domain:
+            sql += " AND domain LIKE ?"
+            params.append(f"%{domain}%")
+        if phone:
+            sql += " AND phone LIKE ?"
+            params.append(f"%{phone}%")
         if query:
             q = f"%{query}%"
             sql += " AND (name LIKE ? OR legal_name LIKE ? OR domain LIKE ? OR phone LIKE ? OR notes LIKE ?)"
@@ -236,7 +244,24 @@ class CandidateRepository(BaseRepository):
         if not candidate:
             raise ValueError(f"Кандидат не найден: {candidate_id}")
 
-        return self.process_discovered_candidate(candidate, hints=hints)
+        original_status = candidate.status
+        if original_status in PROFILE_KEEPS_STATUS:
+            if candidate.source_url:
+                self.save_source_profile(SourceProfiler.profile_url(
+                    url=candidate.source_url,
+                    profile_id=f"prof_{candidate.id}",
+                    candidate_id=candidate.id,
+                    seller_id=candidate.matched_seller_id,
+                    hints=hints,
+                ))
+            return candidate
+
+        processed = self.process_discovered_candidate(candidate, hints=hints)
+        if not transition_allowed(original_status, processed.status):
+            # Новый профиль слабее прежнего (CATALOG_FOUND -> PROFILED): достигнутый статус не откатывается
+            processed.status = original_status
+            self.save_candidate(processed)
+        return processed
 
     def update_candidate_status(
         self,
