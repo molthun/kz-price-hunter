@@ -1386,6 +1386,469 @@
       outline: 2px solid var(--primary);
       outline-offset: 2px;
     }
+
+    /* ============================================================= */
+    /* DEALS REELS FEED (KZPH-G4-01)                                 */
+    /* ============================================================= */
+    .deals-page-layout {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      width: 100%;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .deals-filter-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 500px;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .deals-type-pills {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    .deal-type-pill {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 6px 14px;
+      border-radius: var(--radius-full);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+    }
+
+    .deal-type-pill:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .deal-type-pill.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #ffffff;
+    }
+
+    .deals-reels-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 480px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: center;
+    }
+
+    .deals-reels-container {
+      width: 100%;
+      height: min(720px, calc(100vh - 165px));
+      overflow-y: scroll;
+      scroll-snap-type: y mandatory;
+      scroll-behavior: smooth;
+      border-radius: var(--radius-lg);
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .deals-reels-container::-webkit-scrollbar {
+      display: none;
+    }
+
+    .deal-reel-card {
+      position: relative;
+      height: 100%;
+      width: 100%;
+      scroll-snap-align: start;
+      scroll-snap-stop: always;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+
+    .deal-reel-media {
+      position: relative;
+      flex: 1 1 54%;
+      min-height: 220px;
+      background: var(--bg-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      padding: 16px;
+    }
+
+    .deal-reel-img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      transition: transform 0.3s ease;
+    }
+
+    .deal-reel-badges-top {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      right: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .deal-discount-badge-large {
+      background: #ef4444;
+      color: #ffffff;
+      font-size: 0.95rem;
+      font-weight: 800;
+      padding: 6px 12px;
+      border-radius: var(--radius-full);
+      box-shadow: 0 4px 8px rgba(239, 68, 68, 0.4);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .deal-badge-secondary {
+      background: var(--bg-card);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .deal-reel-content {
+      flex: 0 0 auto;
+      padding: 16px 18px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: var(--bg-card);
+      border-top: 1px solid var(--border-color);
+    }
+
+    .deal-reel-shop-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    .deal-reel-shop-name {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .deal-reel-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-main);
+      line-height: 1.35;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    .deal-reel-title:hover {
+      color: var(--primary);
+    }
+
+    .deal-reel-price-row {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .deal-price-current {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: var(--primary);
+      letter-spacing: -0.02em;
+    }
+
+    .deal-price-old {
+      font-size: 1.05rem;
+      color: var(--text-light);
+      text-decoration: line-through;
+    }
+
+    .deal-savings-badge {
+      background: var(--badge-new-bg);
+      color: var(--badge-new-text);
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: var(--radius-full);
+    }
+
+    .deal-provenance-text {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .deal-actions-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 2px;
+    }
+
+    .btn-deal-buy {
+      flex: 1;
+      background: var(--primary);
+      color: #ffffff;
+      padding: 11px 16px;
+      border-radius: var(--radius-md);
+      font-size: 0.92rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      text-decoration: none;
+      transition: background 0.2s ease, transform 0.1s ease;
+      box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
+    }
+
+    .btn-deal-buy:hover {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn-deal-action {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      width: 42px;
+      height: 42px;
+      border-radius: var(--radius-md);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.15rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-deal-action:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: var(--bg-card);
+    }
+
+    .btn-deal-action.fav-active, .btn-card-fav.fav-active {
+      color: #ef4444;
+      background: rgba(239, 68, 68, 0.1);
+      border-color: #ef4444;
+    }
+
+    .btn-card-fav {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-sm);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-card-fav:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: var(--bg-card);
+    }
+
+    /* Desktop Reel Nav Controls */
+    .desktop-reel-nav {
+      position: absolute;
+      right: -56px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 10;
+    }
+
+    @media (min-width: 900px) {
+      .desktop-reel-nav {
+        display: flex;
+      }
+    }
+
+    .reel-nav-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      width: 42px;
+      height: 42px;
+      border-radius: var(--radius-full);
+      box-shadow: var(--shadow-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .reel-nav-btn:hover {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+      transform: scale(1.05);
+    }
+
+    /* ============================================================= */
+    /* FAVORITES VIEW (KZPH-G5-01)                                   */
+    /* ============================================================= */
+    .favorites-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .favorites-title {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .favorites-clear-btn {
+      background: none;
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 6px 14px;
+      border-radius: var(--radius-full);
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .favorites-clear-btn:hover {
+      border-color: #ef4444;
+      color: #ef4444;
+    }
+
+    .favorites-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .fav-card {
+      position: relative;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 12px;
+      box-shadow: var(--shadow-sm);
+      transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+
+    .fav-card:hover {
+      box-shadow: var(--shadow-md);
+      border-color: var(--border-focus);
+    }
+
+    .fav-card-remove-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-full);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .fav-card-remove-btn:hover {
+      color: #ef4444;
+      border-color: #ef4444;
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    .nav-count-badge {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: #ef4444;
+      color: #ffffff;
+      font-size: 0.68rem;
+      font-weight: 800;
+      padding: 1px 5px;
+      border-radius: var(--radius-full);
+      margin-left: 4px;
+      min-width: 16px;
+      height: 16px;
+    }
+
+    .nav-fav-badge {
+      position: absolute;
+      top: -4px;
+      right: -8px;
+      background: #ef4444;
+      color: #ffffff;
+      font-size: 0.65rem;
+      font-weight: 800;
+      padding: 1px 4px;
+      border-radius: var(--radius-full);
+      min-width: 14px;
+      height: 14px;
+      line-height: 12px;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -1399,10 +1862,10 @@
           <span>Price Hunter</span>
         </a>
         <nav class="header-nav">
-          <a href="/" class="nav-link active" onclick="navigateTo(event, '/')">Поиск</a>
-          <a href="javascript:void(0)" class="nav-link" onclick="showToast('Раздел «Скидки» появится на следующем этапе')">Скидки</a>
-          <a href="javascript:void(0)" class="nav-link" onclick="showToast('Раздел «Избранное» появится на следующем этапе')">Избранное</a>
-          <a href="javascript:void(0)" class="nav-link" onclick="showToast('Раздел «Профиль» появится на следующем этапе')">Профиль</a>
+          <a href="/" class="nav-link active" id="navLinkHome" onclick="navigateTo(event, '/')">Поиск</a>
+          <a href="/deals" class="nav-link" id="navLinkDeals" onclick="navigateTo(event, '/deals')">Скидки</a>
+          <a href="/favorites" class="nav-link" id="navLinkFavorites" onclick="navigateTo(event, '/favorites')">Избранное <span class="nav-count-badge" id="favCountHeader">0</span></a>
+          <a href="/dashboard" class="nav-link" title="Панель управления">Панель</a>
         </nav>
       </div>
 
@@ -1758,27 +2221,79 @@
       </div>
     </section>
 
+    <!-- ============================================================= -->
+    <!-- VIEW: 4. DEALS REELS (KZPH-G4-01)                             -->
+    <!-- ============================================================= -->
+    <section id="viewDeals" class="view-section">
+      <div class="deals-page-layout">
+        <div class="deals-filter-bar">
+          <div class="deals-type-pills">
+            <button class="deal-type-pill active" data-type="all" onclick="setDealsType(this, 'all')">🔥 Все скидки</button>
+            <button class="deal-type-pill" data-type="super" onclick="setDealsType(this, 'super')">⚡ Супер 30%+</button>
+            <button class="deal-type-pill" data-type="arbitrage" onclick="setDealsType(this, 'arbitrage')">⚖️ Арбитраж</button>
+          </div>
+          <select id="dealsCategorySelect" onchange="onDealsCategoryChanged(this.value)" style="padding: 6px 12px; border-radius: var(--radius-full); border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 0.82rem;">
+            <option value="Все">Все категории</option>
+            <option value="Смартфоны">Смартфоны</option>
+            <option value="Ноутбуки">Ноутбуки</option>
+            <option value="Наушники">Наушники</option>
+            <option value="Телевизоры">Телевизоры</option>
+          </select>
+        </div>
+
+        <div class="deals-reels-wrapper">
+          <div id="dealsReelsContainer" class="deals-reels-container" onscroll="onDealsReelScroll(this)">
+            <!-- Cards rendered here by JS -->
+          </div>
+
+          <!-- Desktop Navigation Buttons -->
+          <div class="desktop-reel-nav" aria-label="Навигация по ленте">
+            <button class="reel-nav-btn" onclick="scrollReel(-1)" aria-label="Предыдущая карточка" title="Предыдущая карточка (Вверх)">▲</button>
+            <button class="reel-nav-btn" onclick="scrollReel(1)" aria-label="Следующая карточка" title="Следующая карточка (Вниз)">▼</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================= -->
+    <!-- VIEW: 5. FAVORITES (KZPH-G5-01)                               -->
+    <!-- ============================================================= -->
+    <section id="viewFavorites" class="view-section">
+      <div class="favorites-header">
+        <h1 class="favorites-title">
+          <span>♡</span>
+          <span>Избранные товары</span>
+          <span id="favHeaderCount" style="font-size: 0.95rem; font-weight: normal; color: var(--text-muted);">(0)</span>
+        </h1>
+        <button id="favClearBtn" class="favorites-clear-btn" onclick="clearAllFavorites()">Очистить всё</button>
+      </div>
+
+      <div id="favoritesListContainer">
+        <!-- Rendered by JS -->
+      </div>
+    </section>
+
   </main>
 
   <!-- Mobile Bottom Navigation Bar -->
   <nav class="mobile-bottom-nav">
-    <button class="bottom-nav-item active" type="button" onclick="navigateTo(null, '/')">
+    <button class="bottom-nav-item active" id="bottomNavHome" type="button" onclick="navigateTo(null, '/')">
       <div class="bottom-nav-icon">🔍</div>
       <div>Поиск</div>
     </button>
-    <button class="bottom-nav-item" type="button" onclick="showToast('Раздел «Скидки» появится на следующем этапе')">
+    <button class="bottom-nav-item" id="bottomNavDeals" type="button" onclick="navigateTo(null, '/deals')">
       <div class="bottom-nav-icon">🏷</div>
       <div>Скидки</div>
     </button>
-    <button class="bottom-nav-item" type="button" onclick="showToast('Раздел «Избранное» появится на следующем этапе')">
-      <div class="bottom-nav-icon">♡</div>
+    <button class="bottom-nav-item" id="bottomNavFavorites" type="button" onclick="navigateTo(null, '/favorites')">
+      <div class="bottom-nav-icon" style="position:relative;">♡<span class="nav-fav-badge" id="favBadgeMobile" style="display:none;">0</span></div>
       <div>Избранное</div>
     </button>
     <button class="bottom-nav-item" type="button" onclick="toggleTheme()" aria-label="Тема оформления" title="Переключить тему оформления">
       <div class="bottom-nav-icon theme-icon-mobile">🌙</div>
       <div class="theme-label-mobile">Тема</div>
     </button>
-    <button class="bottom-nav-item" type="button" onclick="showToast('Профиль пользователя')">
+    <button class="bottom-nav-item" id="bottomNavProfile" type="button" onclick="showToast('Профиль: настройки и избранное сохраняются в браузере')">
       <div class="bottom-nav-icon">👤</div>
       <div>Профиль</div>
     </button>
@@ -1967,11 +2482,14 @@
 
       closeMobileFilters(false);
 
-      // Выдача и товар воспроизводятся по URL: нет city — всегда город по умолчанию,
+      // Выдача, товар и скидки воспроизводятся по URL: нет city — всегда город по умолчанию,
       // «Все города» записываются явно как city=Все. Главная лишь хранит текущий выбор.
       const isProduct = pathname.startsWith('/product/');
+      const isDeals = pathname === '/deals' || pathname.startsWith('/deals');
+      const isFavorites = pathname === '/favorites' || pathname.startsWith('/favorites');
       const isSearch = pathname === '/search' || params.has('q') || params.has('cat') || params.has('category');
-      if (isProduct || isSearch) {
+
+      if (isProduct || isSearch || isDeals) {
         setCity(params.get('city') || DEFAULT_CITY);
       } else if (params.get('city')) {
         setCity(params.get('city'));
@@ -1983,14 +2501,35 @@
           prodId = decodeURIComponent(prodId);
         } catch (e) {}
         showView('viewDetail');
+        updateNavState('home');
         loadProductDetail(prodId);
+      } else if (isDeals) {
+        showView('viewDeals');
+        updateNavState('deals');
+        loadDealsFeed(true);
+      } else if (isFavorites) {
+        showView('viewFavorites');
+        updateNavState('favorites');
+        renderFavorites();
       } else if (isSearch) {
         showView('viewResults');
+        updateNavState('home');
         parseSearchParams(params);
         executeSearch();
       } else {
         showView('viewHome');
+        updateNavState('home');
       }
+    }
+
+    function updateNavState(name) {
+      document.querySelectorAll('.header-nav .nav-link').forEach(el => el.classList.remove('active'));
+      const hLink = document.getElementById('navLink' + name.charAt(0).toUpperCase() + name.slice(1));
+      if (hLink) hLink.classList.add('active');
+
+      document.querySelectorAll('.bottom-nav-item').forEach(el => el.classList.remove('active'));
+      const mItem = document.getElementById('bottomNav' + name.charAt(0).toUpperCase() + name.slice(1));
+      if (mItem) mItem.classList.add('active');
     }
 
     function showView(viewId) {
@@ -2022,6 +2561,8 @@
       } else if (document.getElementById('viewDetail').classList.contains('active')) {
         window.history.pushState({}, '', window.location.pathname + '?city=' + encodeURIComponent(city));
         handleRoute();
+      } else if (document.getElementById('viewDeals').classList.contains('active')) {
+        loadDealsFeed(true);
       }
     }
 
@@ -2257,6 +2798,20 @@
                          '<span class="badge badge-discount">-' + discountPct + '%</span>';
         }
 
+        const isFav = Favorites.has(pId);
+        const itemJson = JSON.stringify({
+          id: pId,
+          product_id: pId,
+          title: title,
+          shop: (item.sellers && item.sellers[0]) ? item.sellers[0].shop_name : '',
+          city: AppState.city,
+          new_price: minP,
+          old_price: oldP,
+          discount_pct: oldP > minP ? Math.round(((oldP - minP) / oldP) * 100) : 0,
+          image_url: img,
+          url: ''
+        }).replace(/"/g, '&quot;');
+
         return `
           <div class="product-card" data-id="${escapeHtml(pId)}" onclick="openProduct(event, this.dataset.id)">
             <div class="card-img-wrap">
@@ -2278,9 +2833,14 @@
                 <div>${oldPriceHtml}</div>
                 ${installmentHtml}
               </div>
-              <button class="btn-view-product" data-id="${escapeHtml(pId)}" onclick="event.stopPropagation(); openProduct(event, this.dataset.id)">
-                Посмотреть
-              </button>
+              <div style="display:flex; gap: 8px; align-items: center;">
+                <button class="btn-view-product" data-id="${escapeHtml(pId)}" onclick="event.stopPropagation(); openProduct(event, this.dataset.id)">
+                  Посмотреть
+                </button>
+                <button class="btn-card-fav ${isFav ? 'fav-active' : ''}" onclick="event.stopPropagation(); toggleProductCardFav(this, ${itemJson})" aria-label="В избранное" title="${isFav ? 'Удалить из избранного' : 'Добавить в избранное'}">
+                  ${isFav ? '❤️' : '♡'}
+                </button>
+              </div>
             </div>
           </div>
         `;
@@ -2722,9 +3282,463 @@
       return 'продавцов';
     }
 
+    // =============================================================
+    // FAVORITES SYSTEM (KZPH-G5-01)
+    // =============================================================
+    const Favorites = {
+      KEY: 'kzph_favorites_v1',
+      getAll() {
+        try {
+          const raw = localStorage.getItem(this.KEY);
+          return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+          return [];
+        }
+      },
+      has(id) {
+        if (!id) return false;
+        return this.getAll().some(item => String(item.id) === String(id));
+      },
+      toggle(item) {
+        if (!item || !item.id) return false;
+        let list = this.getAll();
+        const strId = String(item.id);
+        const idx = list.findIndex(x => String(x.id) === strId);
+        let added = false;
+        if (idx >= 0) {
+          list.splice(idx, 1);
+          added = false;
+          showToast('Удалено из избранного');
+        } else {
+          list.unshift({
+            id: strId,
+            product_id: item.product_id || item.canonical_product_id || strId,
+            title: item.title || 'Товар',
+            shop: item.shop || '',
+            city: item.city || '',
+            new_price: item.new_price || 0,
+            old_price: item.old_price || 0,
+            discount_pct: item.discount_pct || 0,
+            image_url: item.image_url || '',
+            url: item.url || '',
+            saved_at: new Date().toISOString()
+          });
+          added = true;
+          showToast('Добавлено в избранное ♡');
+        }
+        try {
+          localStorage.setItem(this.KEY, JSON.stringify(list));
+        } catch (e) {}
+        this.updateBadges();
+        return added;
+      },
+      remove(id) {
+        let list = this.getAll().filter(x => String(x.id) !== String(id));
+        try {
+          localStorage.setItem(this.KEY, JSON.stringify(list));
+        } catch (e) {}
+        this.updateBadges();
+        renderFavorites();
+        showToast('Удалено из избранного');
+      },
+      clear() {
+        if (!confirm('Очистить весь список избранного?')) return;
+        localStorage.removeItem(this.KEY);
+        this.updateBadges();
+        renderFavorites();
+        showToast('Избранное очищено');
+      },
+      updateBadges() {
+        const count = this.getAll().length;
+        const countText = count > 0 ? String(count) : '';
+        const hBadge = document.getElementById('favCountHeader');
+        if (hBadge) {
+          hBadge.textContent = countText;
+          hBadge.style.display = count > 0 ? 'inline-flex' : 'none';
+        }
+        const mBadge = document.getElementById('favBadgeMobile');
+        if (mBadge) {
+          mBadge.textContent = countText;
+          mBadge.style.display = count > 0 ? 'inline-block' : 'none';
+        }
+      }
+    };
+
+    function toggleProductCardFav(btn, item) {
+      const added = Favorites.toggle({
+        id: item.id || item.product_id,
+        product_id: item.product_id || item.id,
+        title: item.title,
+        shop: item.shop || '',
+        city: item.city || AppState.city,
+        new_price: item.new_price || 0,
+        old_price: item.old_price || 0,
+        discount_pct: item.discount_pct || 0,
+        image_url: item.image_url || '',
+        url: item.url || ''
+      });
+      if (btn) {
+        btn.classList.toggle('fav-active', added);
+        btn.innerHTML = added ? '❤️' : '♡';
+        btn.title = added ? 'Удалить из избранного' : 'В избранное';
+      }
+    }
+
+    // =============================================================
+    // DEALS REELS FEED (KZPH-G4-01)
+    // =============================================================
+    const DealsFeedState = {
+      type: 'all',
+      category: 'Все',
+      items: [],
+      offset: 0,
+      limit: 15,
+      hasMore: true,
+      loading: false
+    };
+
+    async function loadDealsFeed(reset = true) {
+      if (reset) {
+        DealsFeedState.offset = 0;
+        DealsFeedState.items = [];
+        DealsFeedState.hasMore = true;
+        const container = document.getElementById('dealsReelsContainer');
+        if (container) {
+          container.innerHTML = `
+            <div class="state-box" style="margin: 40px auto; max-width: 400px;">
+              <div class="state-icon">⏳</div>
+              <div class="state-title">Загрузка скидок...</div>
+              <div class="state-desc">Ищем самые выгодные предложения в магазинах Казахстана</div>
+            </div>`;
+        }
+      }
+
+      if (DealsFeedState.loading) return;
+      DealsFeedState.loading = true;
+
+      try {
+        const params = new URLSearchParams();
+        if (AppState.city && AppState.city !== 'Все') params.set('city', AppState.city);
+        if (DealsFeedState.category && DealsFeedState.category !== 'Все') params.set('category', DealsFeedState.category);
+        if (DealsFeedState.type && DealsFeedState.type !== 'all') params.set('type', DealsFeedState.type);
+        params.set('limit', DealsFeedState.limit);
+        params.set('offset', DealsFeedState.offset);
+
+        const resp = await fetch('/api/v2/deals?' + params.toString());
+        if (!resp.ok) throw new Error('Ошибка ' + resp.status);
+        const data = await resp.json();
+
+        if (reset) {
+          DealsFeedState.items = data.deals || [];
+        } else {
+          DealsFeedState.items = DealsFeedState.items.concat(data.deals || []);
+        }
+        DealsFeedState.hasMore = data.has_more;
+        DealsFeedState.offset += (data.deals || []).length;
+        renderDealsFeed();
+      } catch (err) {
+        console.error('Ошибка загрузки ленты скидок:', err);
+        const container = document.getElementById('dealsReelsContainer');
+        if (container && reset) {
+          container.innerHTML = `
+            <div class="state-box" style="margin: 40px auto; max-width: 400px;">
+              <div class="state-icon">⚠️</div>
+              <div class="state-title">Не удалось загрузить скидки</div>
+              <div class="state-desc">Проверьте подключение или повторите попытку</div>
+              <button class="btn-primary" onclick="loadDealsFeed(true)">Повторить</button>
+            </div>`;
+        }
+      } finally {
+        DealsFeedState.loading = false;
+      }
+    }
+
+    function renderDealsFeed() {
+      const container = document.getElementById('dealsReelsContainer');
+      if (!container) return;
+
+      if (!DealsFeedState.items.length) {
+        container.innerHTML = `
+          <div class="state-box" style="margin: 40px auto; max-width: 400px;">
+            <div class="state-icon">🏷️</div>
+            <div class="state-title">Скидок пока нет</div>
+            <div class="state-desc">Попробуйте выбрать другой город или сбросить фильтры</div>
+            <button class="btn-primary" onclick="resetDealsFilters()">Сбросить фильтры</button>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = DealsFeedState.items.map((deal, idx) => {
+        const isFav = Favorites.has(deal.id);
+        const safeUrl = safeHttpUrl(deal.url);
+        const discountBadge = deal.discount_pct > 0 ? `<div class="deal-discount-badge-large">🔥 -${deal.discount_pct}%</div>` : '';
+        const dealTypeBadge = deal.deal_type === 'MARKET_ARBITRAGE' || deal.deal_type === 'ARBITRAGE'
+          ? `<div class="deal-badge-secondary">⚖️ Арбитраж цен</div>`
+          : (deal.is_super ? `<div class="deal-badge-secondary">⚡ Супер-скидка</div>` : '');
+        
+        const fallbackSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 24 24" fill="none" stroke="%2394a3b8" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>`;
+        const imgSrc = escapeHtml(deal.image_url || fallbackSvg);
+
+        const oldPriceHtml = deal.old_price > deal.new_price
+          ? `<span class="deal-price-old">${formatPrice(deal.old_price)} ₸</span>`
+          : '';
+        const savingsHtml = deal.savings_kzt > 0
+          ? `<span class="deal-savings-badge">Экономия ${formatPrice(deal.savings_kzt)} ₸</span>`
+          : '';
+
+        const dealIdJson = JSON.stringify(deal).replace(/"/g, '&quot;');
+
+        return `
+          <div class="deal-reel-card" data-index="${idx}" data-deal-id="${escapeHtml(deal.id)}">
+            <div class="deal-reel-media">
+              <img
+                src="${imgSrc}"
+                alt="${escapeHtml(deal.title)}"
+                class="deal-reel-img"
+                loading="lazy"
+                onerror="this.onerror=null; this.src='${fallbackSvg}';"
+              />
+              <div class="deal-reel-badges-top">
+                ${discountBadge}
+                ${dealTypeBadge}
+              </div>
+            </div>
+
+            <div class="deal-reel-content">
+              <div class="deal-reel-shop-row">
+                <span class="deal-reel-shop-name">🏪 ${escapeHtml(deal.shop)}</span>
+                <span>📍 ${escapeHtml(deal.city || 'Казахстан')}</span>
+              </div>
+
+              <h2 class="deal-reel-title" onclick="openDealProduct('${escapeHtml(deal.canonical_product_id || deal.product_id)}')">
+                ${escapeHtml(deal.title)}
+              </h2>
+
+              <div class="deal-reel-price-row">
+                <span class="deal-price-current">${formatPrice(deal.new_price)} ₸</span>
+                ${oldPriceHtml}
+                ${savingsHtml}
+              </div>
+
+              <div class="deal-provenance-text">
+                <span>✓ ${escapeHtml(deal.provenance || 'Проверено сервисом')}</span>
+                ${deal.competitor_shop ? `<span>(дешевле чем в ${escapeHtml(deal.competitor_shop)})</span>` : ''}
+              </div>
+
+              <div class="deal-actions-row">
+                ${safeUrl ? `
+                  <a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="btn-deal-buy" title="Перейти на страницу товара у продавца">
+                    <span>Купить у продавца</span>
+                    <span>↗</span>
+                  </a>
+                ` : `
+                  <button class="btn-deal-buy" disabled style="opacity: 0.5;">Ссылка недоступна</button>
+                `}
+
+                <button
+                  class="btn-deal-action ${isFav ? 'fav-active' : ''}"
+                  onclick="toggleDealFavorite(this, ${dealIdJson})"
+                  aria-label="В избранное"
+                  title="${isFav ? 'Удалить из избранного' : 'Добавить в избранное'}"
+                >
+                  ${isFav ? '❤️' : '♡'}
+                </button>
+
+                <button
+                  class="btn-deal-action"
+                  onclick="shareDeal('${escapeHtml(deal.title)}', '${safeUrl || window.location.href}')"
+                  aria-label="Поделиться"
+                  title="Поделиться скидкой"
+                >
+                  ↗
+                </button>
+
+                <button
+                  class="btn-deal-action"
+                  onclick="openDealProduct('${escapeHtml(deal.canonical_product_id || deal.product_id)}')"
+                  aria-label="О товаре"
+                  title="Открыть предложения всех магазинов"
+                >
+                  🔍
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function toggleDealFavorite(btn, deal) {
+      const added = Favorites.toggle(deal);
+      if (btn) {
+        btn.classList.toggle('fav-active', added);
+        btn.innerHTML = added ? '❤️' : '♡';
+        btn.title = added ? 'Удалить из избранного' : 'Добавить в избранное';
+      }
+    }
+
+    function openDealProduct(prodId) {
+      if (!prodId) return;
+      navigateTo(null, '/product/' + encodeURIComponent(prodId) + '?city=' + encodeURIComponent(AppState.city));
+    }
+
+    function shareDeal(title, url) {
+      if (navigator.share) {
+        navigator.share({
+          title: title,
+          text: 'Смотри какую скидку нашёл в KZ Price Hunter: ' + title,
+          url: url
+        }).catch(() => {});
+      } else {
+        navigator.clipboard.writeText(url).then(() => {
+          showToast('Ссылка скопирована в буфер обмена 📋');
+        }).catch(() => {
+          showToast('Ссылка: ' + url);
+        });
+      }
+    }
+
+    function scrollReel(dir) {
+      const container = document.getElementById('dealsReelsContainer');
+      if (!container) return;
+      const cardHeight = container.clientHeight;
+      container.scrollBy({ top: dir * cardHeight, behavior: 'smooth' });
+    }
+
+    function onDealsReelScroll(container) {
+      if (container.scrollTop + container.clientHeight >= container.scrollHeight - 300) {
+        if (DealsFeedState.hasMore && !DealsFeedState.loading) {
+          loadDealsFeed(false);
+        }
+      }
+    }
+
+    function setDealsType(btn, type) {
+      document.querySelectorAll('.deal-type-pill').forEach(el => el.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      DealsFeedState.type = type;
+      loadDealsFeed(true);
+    }
+
+    function onDealsCategoryChanged(cat) {
+      DealsFeedState.category = cat;
+      loadDealsFeed(true);
+    }
+
+    function resetDealsFilters() {
+      DealsFeedState.type = 'all';
+      DealsFeedState.category = 'Все';
+      const catSelect = document.getElementById('dealsCategorySelect');
+      if (catSelect) catSelect.value = 'Все';
+      document.querySelectorAll('.deal-type-pill').forEach(el => {
+        el.classList.toggle('active', el.getAttribute('data-type') === 'all');
+      });
+      loadDealsFeed(true);
+    }
+
+    // =============================================================
+    // FAVORITES VIEW (KZPH-G5-01)
+    // =============================================================
+    function renderFavorites() {
+      const container = document.getElementById('favoritesListContainer');
+      const countEl = document.getElementById('favHeaderCount');
+      if (!container) return;
+
+      const items = Favorites.getAll();
+      if (countEl) countEl.textContent = `(${items.length})`;
+
+      if (!items.length) {
+        container.innerHTML = `
+          <div class="state-box" style="margin: 40px auto; max-width: 480px;">
+            <div class="state-icon">♡</div>
+            <div class="state-title">В избранном пока ничего нет</div>
+            <div class="state-desc">Сохраняйте понравившиеся товары и скидки нажатием на сердечко ♡ в ленте скидок или в результатах поиска.</div>
+            <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+              <button class="btn-primary" onclick="navigateTo(null, '/deals')">🏷 Смотреть скидки</button>
+              <button class="btn-secondary" onclick="navigateTo(null, '/')">🔍 Искать товары</button>
+            </div>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="favorites-grid">
+          ${items.map(item => {
+            const safeUrl = safeHttpUrl(item.url);
+            const fallbackSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 24 24" fill="none" stroke="%2394a3b8" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>`;
+            const imgSrc = escapeHtml(item.image_url || fallbackSvg);
+            const discountBadge = item.discount_pct > 0 ? `<span class="deal-discount-badge-large" style="font-size:0.75rem; padding: 2px 6px;">-${item.discount_pct}%</span>` : '';
+
+            return `
+              <div class="fav-card">
+                <button
+                  class="fav-card-remove-btn"
+                  onclick="Favorites.remove('${escapeHtml(item.id)}')"
+                  title="Удалить из избранного"
+                  aria-label="Удалить из избранного"
+                >✕</button>
+
+                <div style="display:flex; gap: 12px; align-items: center;">
+                  <img
+                    src="${imgSrc}"
+                    alt="${escapeHtml(item.title)}"
+                    style="width: 72px; height: 72px; object-fit: contain; background: var(--bg-subtle); border-radius: var(--radius-sm); padding: 4px;"
+                    onerror="this.onerror=null; this.src='${fallbackSvg}';"
+                  />
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 0.78rem; color: var(--text-muted); display:flex; gap:6px; align-items:center;">
+                      <span>🏪 ${escapeHtml(item.shop || 'Магазин')}</span>
+                      ${discountBadge}
+                    </div>
+                    <div
+                      style="font-size: 0.92rem; font-weight: 700; color: var(--text-main); margin-top: 4px; cursor: pointer; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;"
+                      onclick="openDealProduct('${escapeHtml(item.product_id || item.id)}')"
+                    >
+                      ${escapeHtml(item.title)}
+                    </div>
+                  </div>
+                </div>
+
+                <div style="display: flex; align-items: baseline; justify-content: space-between; border-top: 1px solid var(--border-color); padding-top: 8px;">
+                  <div>
+                    <span style="font-size: 1.15rem; font-weight: 800; color: var(--primary);">${formatPrice(item.new_price)} ₸</span>
+                    ${item.old_price > item.new_price ? `<span style="font-size: 0.85rem; color: var(--text-light); text-decoration: line-through; margin-left: 6px;">${formatPrice(item.old_price)} ₸</span>` : ''}
+                  </div>
+                  ${safeUrl ? `
+                    <a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="btn-to-seller" style="padding: 6px 12px; font-size: 0.82rem;">
+                      К продавцу ↗
+                    </a>
+                  ` : ''}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function clearAllFavorites() {
+      Favorites.clear();
+    }
+
+    // Keyboard support for Reels feed (Arrow Up / Arrow Down)
+    window.addEventListener('keydown', (e) => {
+      const dealsView = document.getElementById('viewDeals');
+      if (dealsView && dealsView.classList.contains('active')) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          scrollReel(1);
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          scrollReel(-1);
+        }
+      }
+    });
+
     // Init on load
     document.addEventListener('DOMContentLoaded', () => {
       initTheme();
+      Favorites.updateBadges();
       handleRoute();
     });
   </script>
