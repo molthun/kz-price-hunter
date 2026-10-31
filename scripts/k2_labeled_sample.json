@@ -1,5 +1,5 @@
 {
-  "version": 7,
+  "version": 8,
   "protocol": "Первая выборка (530 пар) и known_pairs — по журналу 2026-10-31-c3a. Метки 740 пар расширения (seed 20261101) заменены 31.10.2026: Claude прочитал только названия в новом порядке (seed 20261102), без ключей, слоя и меток генератора. Исполнитель знал прежние итоги и ошибки из аудита, поэтому разметка не независимая; сплошной проверки по источникам нет.",
   "convention": {
     "same": "одна модель и одинаковые память, объём, диагональ, ревизия; цвет не различает (так устроен k2)",
@@ -12177,6 +12177,3120 @@
         "added"
       ],
       "note": "",
+      "phase": "ext"
+    },
+    {
+      "a": "Планшет Oscal Pad 9 10.1\" 4/128Gb Metallic Titanium Grey",
+      "b": "Планшет Oscal Pad 9, 10.1\", 4 GB, 128 GB, WiFi+4G, Titanium Grey",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "ASRock B650M-H/M.2+",
+      "b": "Материнская плата ASRock B650M-H/M.2+ WIFI",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разные модификации материнской платы: базовая и с встроенным Wi-Fi модулем",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Процессор Intel Celeron G5905, LGA1200, BOX",
+      "b": "Процессор Intel Celeron G5905, LGA1200, OEM (G5905)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "packaging",
+      "note": "одинаковый процессор Intel Celeron G5905, разная комплектация/упаковка BOX и OEM",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Монитор 27\" AOC 27B3QA2 1920x1080 16:9 IPS 120ГЦ (HDMI+DP) Black",
+      "b": "Монитор 27' AOC 27B3QA2/01",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Телевизор Dreame Aura 65\" 65S100 QLED 4K UHD Black",
+      "b": "Телевизор Dreame Aura Mini LED 4K TV 65S100 65\" (65S100)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "SSD накопитель 500GB Transcend TS500GMTS825S M2",
+      "b": "Жесткий диск SSD 500GB Transcend TS500GMTS825S M2 (TS500GMTS825S)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память Hiksemi (Hikvision) Armor DDR4 16 GB kit (2x8GB) 3200MHz, Black (HSC416U32D3)",
+      "b": "Оперативная память Hiksemi Armor HSC416U32D3",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "DDR-5 DIMM 16 GB 5600 MHz Kingston Fury Beast, BOX (KF556C36BBE-16)",
+      "b": "Оперативная память Kingston 16GB 6000MT/s DDR5 CL36 DIMM (Kit of 2) FURY Beast Black EXPO (KF560C36BBEK2-16)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота (5600MHz vs 6000MT/s) и конфигурация (одиночный модуль 16GB vs комплект 2x8GB)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "OSCAL Pad 30 10.1 дюйм 4 Гб128 Гб зеленый + подарок",
+      "b": "Планшет Oscal Pad 30 WiFi, 10.1\", 4 GB, 128 GB, Cosmic Grey",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон Camon 50 (CN5) 256 ГБ, 6.78’’, 12 Гб, зеленый Tecno",
+      "b": "Смартфон Tecno Camon 50, 8 GB, 256 GB, Moonshadow Black (CN5)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (12 ГБ vs 8 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Процессор Intel Core i5 10500, LGA1200, BOX",
+      "b": "Процессор Intel Core i5 10500, LGA1200, OEM (SRH3A)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "packaging",
+      "note": "одинаковый процессор Intel Core i5 10500, разная комплектация BOX и OEM",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "SSD накопитель Transcend MTE115S 250 ГБ, M.2 Transcend",
+      "b": "Твердотельный накопитель SSD 250GB (TS250GMTE115S)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память  8GB DDR4 3200MHz GEIL PC4-25600 GN48GB3200C22S Bulk Pack (GN48GB3200C22S)",
+      "b": "Оперативная память 8GB GEIL GN48GB3200C22S",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO CAMON 50 8 ГБ/256 ГБ 256 ГБ, 6.78’’, 8 Гб, темно-зеленый Tecno, CAMON",
+      "b": "Смартфон Tecno Camon 50, 12 GB, 256 GB, Malachite Green (CN5)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (8 ГБ vs 12 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 8 GB Kingston KF432C16BB2A/8",
+      "b": "Оперативная память Kingston KF432C16BB2A/8 DDR4 8GB (KF432C16BB2A/8)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Телевизор HISENSE QLED 75E7S PRO UHD SMART",
+      "b": "Телевизор Hisense 75E7S RU",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разные модели телевизоров Hisense: серия Pro (144 Гц) и базовая версия",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "DDR-5 DIMM 16 GB 5600 MHz Kingston Fury Beast, BOX (KF556C36BBE-16)",
+      "b": "Оперативная память Kingston Fury Beast RGB DDR4 DIMM 16Gb 3200MHz (KF432C16BB12A/16WP)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR5 5600MHz vs DDR4 3200MHz)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "23.8\" Sanc M2453KJ черный",
+      "b": "Монитор 23.8\" Sanc M2453KJ V3, Black",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "uncertain",
+      "note": "в первом названии не указана ревизия (у Sanc M2453KJ разные ревизии V1/V2/V3 имеют разную частоту 75-100 Гц vs 120 Гц в V3)",
+      "sources": [
+        "https://sanc.kz",
+        "https://pulser.kz"
+      ],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO CAMON 50 12 ГБ/256 ГБ 256 ГБ, 6.78’’, 12 Гб, темно-зеленый Tecno, CAMON",
+      "b": "Смартфон Tecno Camon 50, 8 GB, 256 GB, Moonshadow Black (CN5)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (12 ГБ vs 8 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Видеокарта OCPC GT 210 (OCVNGT210G1XE) [1 ГБ, GDDR3, 64 бит, VGA, DVI, HDMI]",
+      "b": "Видеокарта OCPC GT 210 1 GB (OCVNGT210G1XE)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Зарядное устройство Usams OYXLTZ01, 20W, White",
+      "b": "Комплект СЗУ Usams OYXLTZ01 20W Type-C порт + кабель Type-C-Type-C 20 Вт, 1 м, USB Type-C Usams",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "SSD накопитель 256GB TeamGroup MP33 TM8FP6256G0C101",
+      "b": "Твердотельный накопитель SSD Team Group MP33 256Gb, M.2, NVMe 1.3, 1600/1000 MB/s (TM8FP6256G0C101)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Монитор 27\" Philips 27E2N1110/01, Black",
+      "b": "Монитор Игровой 27\" PHILIPS 27E2N1110 1920x1080 16:9 IPS 120Гц (HDMI+VGA) Black",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Модуль памяти Apacer Panther AH5U16G60C6227BAA-1 DDR5 16GB",
+      "b": "Оперативная память Apacer Panther 16GB (AH5U16G52C5227BAA-1)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (6000MHz AH5U16G60 vs 5200MHz AH5U16G52)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Видеокарта AFOX GTX1650 SUPER GAMING 4GB D6 Dual Fan (AF1650S-4096D6H3-V2)",
+      "b": "Видеокарта AFOX GTX1650 SUPER GAMING 4GB D6 Dual Fan AF1650S-4096D6H3-V2",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Материнская плата ASRock B650M-H/M.2+ (90-MXBMS0-A0UAYZ)",
+      "b": "Материнская плата ASRock B650M-H/M.2+ WIFI",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разные модификации материнской платы: базовая и версия с модулем WIFI",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 16Gb Kingston Fury Beast KF432C16BB1/16WP",
+      "b": "Оперативная память Kingston Fury Beast RGB DDR4 DIMM 16Gb 3200MHz (KF432C16BB12A/16WP)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные модификации: стандартная (KF432C16BB1/16WP) и с ARGB-подсветкой (KF432C16BB12A/16WP)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память Kingston FURY Beast White RGB KF552C40BWA-32",
+      "b": "Оперативная память Kingston Fury Beast (AMD), DIMM DDR5 32 GB kit (2x16GB) <6000MHz> (KF560C30BBEK2-32)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота (5200MHz vs 6000MHz), цвет (White vs Black) и конфигурация (одиночный 32GB vs комплект 2x16GB)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 32 GB kit Kingston Fury Beast KF560C30BWEK2-32",
+      "b": "Оперативная память Kingston FURY Beast DDR5 32GB 5600MT/s - Black (KF556C36BBE2-32)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота (6000MT/s vs 5600MT/s) и конфигурация (комплект 2x16GB vs одиночный модуль 32GB)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память Kingston 16GB 5600MT/s DDR5 CL36 DIMM FURY Beast Black EXPO (KF556C36BBE-16)",
+      "b": "Оперативная память Kingston FURY Beast Black EXPO KF560C30BBE-16",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (5600MT/s vs 6000MT/s)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Black, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 4 GB, 128 GB, Aurora Purple (KN4N)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (8 ГБ vs 4 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память Kingston FURY Beast Black EXPO KF560C30BBE-16",
+      "b": "Оперативная память Kingston FURY Beast KF432C16BB1/16 DDR4 16GB 3200MHz (KF432C16BB1/16)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR5 6000MT/s vs DDR4 3200MT/s)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 16 GB kit Kingston Fury Beast KF560C36BBEK2-16",
+      "b": "Оперативная память Kingston FURY Beast Black EXPO DIMM DDR5 16GB 6000MT/s (KF560C30BBE-16)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная конфигурация (комплект 2x8GB vs одиночный модуль 16GB) и задержки (CL36 vs CL30)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Комплект оперативной памяти Kingston Fury Beast Beast White EXPO DDR5 DIMM 32Gb KIT (2x16Gb) 6000MHz (KF560C36BWE2K2-32)",
+      "b": "Оперативная память 32 GB kit Kingston Fury Beast RGB KF560C36BWE2AK2-32",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные модификации: стандартная и с RGB-подсветкой (KF560C36BWE2K2-32 vs KF560C36BWE2AK2-32)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Карта памяти Canvas Go Plus C10 UHS-I U3 256 ГБ Kingston Technology",
+      "b": "Карта памяти Micro SDXC 256 GB Kingston Canvas Go Plus, Class 10 UHS-I U3 V30 A2, адаптер",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Компьютерный корпус Aerocool APNX V1-W-BK-v1 без Б/П",
+      "b": "Корпус AeroCool APNX V1, White",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "uncertain",
+      "note": "в первом названии указана версия с деревянными элементами V1-W-BK, во втором базовая модель без уточнения серии (V1 White)",
+      "sources": [
+        "https://techpowerup.com",
+        "https://hornington.com"
+      ],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 32Gb Transcend TS3200HLE-32G",
+      "b": "Память оперативная Desktop Transcend TS3200HLE-32G DDR4 32GB 3200 (TS3200HLE-32G)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Комплект модулей памяти 32Gb kit Kingston FURY Beast RGB KF432C16BB12AK2/32",
+      "b": "Оперативная память Kingston Fury Beast (AMD), DDR5 32 GB kit (2x16GB) 6000MHz (KF560C30BWEK2-32)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR4 3200MHz vs DDR5 6000MHz)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Видеокарта AFOX GT240 1GB D3 LP Single Fan AF240-1024D3L2-V2",
+      "b": "Видеокарта Afox GT240, 1 GB (AF240-1024D3L2-V3)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разные аппаратные ревизии видеокарты (V2 vs V3)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Гарнитура Jabra Evolve2 55 Link380a MS Stereo",
+      "b": "Гарнитура Jabra Evolve2 55 Link380с MS Stereo",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный интерфейс адаптера подключения (USB-A Link380a vs USB-C Link380c)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "23.8\" Sanc M2442PH V3 черный",
+      "b": "Монитор Игровой 23,8\" Sanc M2442PH V3 1920x1080 16:9 IPS 200ГЦ (2HDMI+DP) Black",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Маршрутизатор Mercusys MR50G (MR50G)",
+      "b": "Маршрутизатор Mercusys MR50G V1.2",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "uncertain",
+      "note": "в первом названии не указана аппаратная ревизия (MR50G выпускается в ревизиях V1.0, V1.2, V2.0 с разной аппаратной начинкой)",
+      "sources": [
+        "https://www.mercusys.com"
+      ],
+      "phase": "ext"
+    },
+    {
+      "a": "Монитор 32\" iiyama ProGraphic HB3201UHSNP-B1, Black",
+      "b": "Монитор iiyama ProGraphic HB3201UHSNP-B1 32\"",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память Kingston FURY Beast Black RGB KF560C36BBE2A-16",
+      "b": "Оперативная память Kingston Fury Beast RGB DDR4 16Gb 3200 MHz (KF432C16BB2A/16)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR5 6000MT/s vs DDR4 3200MHz)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "SSD накопитель 480 GB Netac SA500, 2.5\", SATA III",
+      "b": "Твердотельный накопитель SSD Netac NT01SA500-480-S3X 480GB  (NT01SA500-480-S3X)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон Tecno Pova 2 4/64GB Energy Blue",
+      "b": "Смартфон Tecno Pova 2, 64 GB, Polar Silver (LE7n)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 64 GB kit Kingston Fury Beast White KF560C36BBEAK2-64",
+      "b": "Оперативная память Kingston FURY Beast Black DDR5 64GB (Kit of 2) 5600MT/s (KF556C36BBE2K2-64)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (6000MHz vs 5600MT/s) и наличие RGB-подсветки",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Комплект оперативной памяти Kingston Fury Beast Beast White EXPO DDR5 DIMM 32Gb KIT (2x16Gb) 6000MHz (KF560C36BWE2K2-32)",
+      "b": "Оперативная память 32GB Kit Kingston FURY Beast White RGB EXPO KF560C30BWEAK2-32 White",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные модификации: тайминги (CL36 vs CL30) и наличие подсветки (non-RGB vs RGB)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память KINGSTON DRAM 16GB 3600MHz DDR4 CL18 DIMM FURY Beast Black (KF436C18BB/16)",
+      "b": "Оперативная память Kingston FURY Beast Black EXPO KF560C30BBE-16",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR4 3600MHz vs DDR5 6000MT/s)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 16Gb Kingston Fury Beast KF432C16BB1/16WP",
+      "b": "Оперативная память Kingston 16GB 3200MT/s DDR4 CL16 DIMM 1Gx8 FURY Beast RGB (KF432C16BB12A/16)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные модификации: стандартная и с RGB-подсветкой (KF432C16BB1/16 vs KF432C16BB12A/16)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Телевизор ЯНДЕКС 65 YNDX-00077 (4K Smart)",
+      "b": "Телевизор Яндекс Бейсик LED 4K UHD Smart 65\" YNDX-00077",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Blue, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 4 GB, 128 GB, Ink Black (KN4N)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (8 ГБ vs 4 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Purple, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 6 GB, 128 GB, Aurora Purple (KN4N)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (8 ГБ vs 6 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Монитор 23.8\" AOC 24G4HRE, Black",
+      "b": "Монитор Игровой 23,8\" AOC 24G4HRE 1920x1080 16:9 IPS 200ГЦ (2HDMI+DP) Black",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 32Gb Kit Kingston Fury Beast KF432C16BB1K2/32WP",
+      "b": "Оперативная память Kingston Fury Beast (AMD), DDR5 32 GB kit (2x16GB) 6000MHz (KF560C30BWEK2-32)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR4 3200MHz vs DDR5 6000MHz)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 16Gb Kingston FURY Beast Black AMD RGB KF556C36BBEA-16",
+      "b": "Оперативная память Kingston 16GB 5600MT/s DDR5 CL36 DIMM FURY Beast Black EXPO (KF556C36BBE-16)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные модификации: с RGB-подсветкой (KF556C36BBEA-16) и стандартная (KF556C36BBE-16)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 5600GT, AM4, with Wraith Stealth Cooler, OEM (100-000001488)",
+      "b": "Процессор CPU AM4 AMD Ryzen 5 5600GT OEM",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "uncertain",
+      "note": "в первом названии указан OEM с комплектным кулером Wraith Stealth, во втором кулер не указан (стандартный OEM поставляется без кулера)",
+      "sources": [
+        "https://www.amd.com"
+      ],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 4 ГБ/128 ГБ 128 ГБ, 6.78’’, 4 Гб, Black, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 6 GB, 128 GB, Titanium Grey (KN4N)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (4 ГБ vs 6 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 16 GB kit Kingston Fury Beast KF560C36BBEK2-16",
+      "b": "Оперативная память Kingston 16GB 5600MT/s DDR5 CL36 DIMM FURY Beast RGB EXPO (KF556C36BBEA-16)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота (6000MT/s vs 5600MT/s) и конфигурация (комплект 2x8GB vs одиночный модуль 16GB RGB)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Модуль памяти 16GB Kingston Fury Beast Black AMD KF556C36BBE-16",
+      "b": "Оперативная память Kingston DDR-4 DIMM 16GB/3600MHz Black (KF436C18BB2A/16)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR5 5600MHz vs DDR4 3600MHz)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память KINGSTON DRAM 16GB 3600MHz DDR4 CL18 DIMM FURY Beast Black (KF436C18BB/16)",
+      "b": "Оперативная память Kingston FURY Beast White KF560C36BWE2-16",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR4 3600MHz vs DDR5 6000MT/s)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 32GB Kit GEIL POLARIS RGB GOSW532GB5600C46DC White",
+      "b": "Оперативная память с RGB подсветкой 32GB Kit (2x16GB) GEIL POLARIS RGB 5600Mhz DDR5 GOSW532GB5600C46DC White (GOSW532GB5600C46DC)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память Kingston 16GB 3600MT/s DDR4 CL17 DIMM (Kit of 2) FURY Beast Black, EAN: 740617319781 (KF436C17BBK2/16)",
+      "b": "Оперативная память Kingston FURY Beast White KF560C36BWE2-16",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR4 3600MT/s vs DDR5 6000MT/s)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Процессор Intel Core i7 13700F, LGA1700, OEM",
+      "b": "Процессор Intel Core i7-13700F (2.1GHz, 30MB, LGA1700) box (BX8071513700FSRMBB)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "packaging",
+      "note": "одинаковый процессор Intel Core i7-13700F, разная комплектация OEM и BOX",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память Kingston FURY Beast Black EXPO KF560C30BBE-16",
+      "b": "Оперативная память Kingston Fury Beast DDR4 DIMM 16Gb 3200MHz (KF432C16BB1/16WP)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR5 6000MT/s vs DDR4 3200MHz)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO POVA 8 5G 8 ГБ/256 ГБ 256 ГБ, 8 Гб, Black, 256 ГБ Tecno, POVA",
+      "b": "Смартфон Tecno Pova 8 5G, 8 GB, 256 GB, Graphite Black (LK6)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Телевизор 75\" (191 см) Hisense75E7S QLED UHD Black",
+      "b": "Телевизор HISENSE QLED 75E7S PRO UHD SMART",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разные модели телевизоров Hisense: базовая версия (60 Гц) и серия Pro (144 Гц)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Комплект модулей памяти Kingston FURY Beast KF552C40BBK2-32 DDR5 32GB (Kit 2x16GB)  (KF552C40BBK2-32)",
+      "b": "Оперативная память 32 GB kit Kingston Fury Beast RGB KF560C36BWE2AK2-32",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (5200MHz vs 6000MHz) и наличие RGB-подсветки",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 16Gb Kingston Fury Beast KF432C16BB1/16WP",
+      "b": "Оперативная память Kingston Fury Beast DDR4 DIMM 16Gb 3200MHz (KF432C16BB1/16WP)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Монитор 24,5\" PHILIPS 25M2N5200U 1920x1080 16:9 IPS 390ГЦ (2HDMI+DP) Black",
+      "b": "Монитор 24,5\" PHILIPS 25M2N5200U/01/00",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Планшет Oscal Pad 200 LTE 13.4\" 6/256Gb ROM Blue",
+      "b": "Планшет Oscal Pad 200, 13.4\", 6 GB, 256 GB, Wi-Fi+4G, Space Gray",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Комплект модулей памяти Kingston FURY Beast KF552C40BBK2-32 DDR5 32GB (Kit 2x16GB)  (KF552C40BBK2-32)",
+      "b": "Оперативная память 32GB Kit Kingston FURY Beast White RGB EXPO KF560C30BWEAK2-32 White",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота (5200MHz vs 6000MHz) и наличие RGB-подсветки",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память Kingston FURY Beast White RGB KF552C40BWA-32",
+      "b": "Оперативная память Kingston Fury Beast RGB (AMD), DDR5 32 GB kit (2x16GB) 6000MHz (KF560C30BBEAK2-32) ( KF560C30BBEAK2-32)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (5200MHz vs 6000MHz) и конфигурация (одиночный модуль 32GB vs комплект 2x16GB)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память Kingston FURY Beast White RGB KF552C40BWA-32",
+      "b": "Оперативная память Kingston Fury Beast DDR5 - 2x 16ГБ 6400МГц (KF564C32BBEAK2-32)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (5200MHz vs 6400MHz) и конфигурация (одиночный модуль 32GB vs комплект 2x16GB)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Наушники A4tech TWS 2Drumtek B25 Icy Blue голубые",
+      "b": "Наушники TWS A4tech 2Drumtek B25-AshGrey <BT v5.2, 20kHz, 102dB, Наушник: 40mAh , Кейс: 380mAh> (2Drumtek B25-AshGrey)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Комплект оперативной памяти Kingston Fury Beast RGB EXPO DDR5 DIMM 32G KIT (2x16) 6000MHz (KF560C36BBE2AK2-32)",
+      "b": "Оперативная память Kingston FURY Beast White RGB KF552C40BWA-32",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота (6000MHz vs 5200MHz) и конфигурация (комплект 2x16GB vs одиночный 32GB)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Модуль памяти Netac NTBSD3P16SP-04 DDR3 4GB <PC3-12800/1600MHz> (NTBSD3P16SP-04)",
+      "b": "Оперативная память 4Gb Netac NTBSD3P16SP-04",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Монитор 24\" FHD Viewsonic VA24E1-H черный",
+      "b": "Монитор 24\" ViewSonic VA24E1-H 1920x1080 16:9 IPS 120ГЦ (HDMI+VGA) Black",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Blackview Tab 80 Kids Wi-Fi 10.1 дюйм 4 Гб64 Гб голубой",
+      "b": "Планшет BlackView Tab 80 Kids 4G 10.1\" 4/64GB Pink",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные модификации по типу связи: только Wi-Fi vs поддержка 4G (LTE)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Модуль памяти Kingston FURY Beast White XMP EXPO KF552C40BW-16 DDR5 16GB 5200MHz (KF552C40BW-16)",
+      "b": "Оперативная память Kingston FURY Beast White KF560C36BWE2-16",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (5200MHz vs 6000MT/s)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон Camon 50 (CN5) 256 ГБ, 6.78’’, 8 Гб, зеленый Tecno",
+      "b": "Смартфон Tecno Camon 50, 12 GB, 256 GB, Malachite Green (CN5)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (8 ГБ vs 12 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "SO-DIMM 16 GB DDR5 PC41600/5200 MHz AMD Radeon R5 Entertainment Series, BOX (R5516G5200S1S-U)",
+      "b": "Оперативная память 16GB DDR5 4800MHz AMD Radeon R5 Entertainment Series, PC5-38400, CL40, 1.1V, R5516G4800U1S-U (R5516G4800U1S-U)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разный форм-фактор (SO-DIMM vs DIMM/UDIMM) и частота (5200MHz vs 4800MHz)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "OSCAL Pad 30 10.1 дюйм 4 Гб128 Гб синий + подарок",
+      "b": "Планшет Oscal Pad 30 WiFi, 10.1\",  4 GB, 128 GB, Horizon Blue",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Модуль памяти 16GB Kingston Fury Beast Black AMD KF556C36BBE-16",
+      "b": "Оперативная память Kingston FURY Beast Black EXPO DIMM DDR5 16GB 6000MT/s (KF560C30BBE-16)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (5600MT/s vs 6000MT/s)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Blue, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 8 GB, 128 GB, Titanium Grey (KN4N)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (6 ГБ vs 8 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "OSCAL Pad 200 LTE 13.4 дюйм 6 Гб128 Гб серый + подарок",
+      "b": "Планшет Oscal Pad 200, 13.4\", 6 GB, 128 GB, Wi-Fi+4G, Glacier Blue",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Blackview Tab 80 Kids 10.1 дюйм 4 Гб64 Гб розовый",
+      "b": "Планшет BlackView Tab 80 Kids 4G 10.1\" 4/64GB Pink",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "uncertain",
+      "note": "в первом названии не указан тип модуля связи (Wi-Fi или 4G), во втором явно указана версия 4G",
+      "sources": [
+        "https://blackview.hk"
+      ],
+      "phase": "ext"
+    },
+    {
+      "a": "OSCAL Pad 30 10.1 дюйм 4 Гб128 Гб серый + подарок",
+      "b": "Планшет Oscal Pad 30 WiFi, 10.1\", 4 GB, 128 GB, Hazel Green",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Монитор 23,8\" AOC 24B3HA2 1920x1080 16:9 IPS 120ГЦ (2HDMI+DP) Black",
+      "b": "Монитор 23,8\" AOC 24B3HA2/01 IPS",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 16Gb Kingston FURY Beast Black AMD RGB KF556C36BBEA-16",
+      "b": "Оперативная память KINGSTON DRAM 16GB 3600MHz DDR4 CL18 DIMM FURY Beast Black (KF436C18BB/16)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR5 5600MT/s vs DDR4 3600MHz)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "27\" XG Crimson X белый",
+      "b": "Монитор 27'' XG Crimson X White 180HZ",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "uncertain",
+      "note": "в первом названии не указана герцовка (у XG Crimson X существуют модификации на 165 Гц и 180 Гц)",
+      "sources": [
+        "https://shop.kz"
+      ],
+      "phase": "ext"
+    },
+    {
+      "a": "Телевизор ЯНДЕКС 50 YNDX-00075 (4K Smart)",
+      "b": "Телевизор Яндекс Бейсик с Алисой 50\" YNDX-00075 LED 4K UHD Black",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "ASRock B760 Pro RS/D4",
+      "b": "Материнская плата ASRock B760 Pro RS/D4, iB760,S1700,ATX (90-MXBL80-A0UAYZ)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память Kingston FURY Beast RGB 32GB 3200MT/s DDR4 (Kit of 2) (KF432C16BB2AK2/32)",
+      "b": "Оперативная память Kingston FURY Beast White RGB KF552C40BWA-32",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR4 3200MT/s vs DDR5 5200MT/s)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Телевизор 65\" (164  см) Яндекс YNDX-00098 MiniLED 4K UHD Black",
+      "b": "Телевизор Яндекc с Алисой 65\" MiniLED 4K YNDX-00098",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Комплект модулей памяти 32Gb kit Kingston FURY Beast RGB KF432C16BB12AK2/32",
+      "b": "Оперативная память Kingston Fury Beast (AMD), DIMM DDR5 32 GB kit (2x16GB) <6000MHz> (KF560C30BBEK2-32)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR4 3200MHz vs DDR5 6000MHz)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Телевизор Dreame 55S100, 55\"",
+      "b": "Телевизор Dreame Aura 55\" 55S100 QLED 4K Black",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Монитор 43\" Dahua DHI-LM43-F400",
+      "b": "Монитор 43\" Dahua DHI-LM43-F400 3840x2160 16:9 IPS 60ГЦ (3HDMI) Black",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "ТВ Станция Бейсик Яндекс YNDX-00077 с Алисой на YaGPT 65\"",
+      "b": "Телевизор ЯНДЕКС 65 YNDX-00077 (4K Smart)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 32 GB kit Kingston Fury Beast KF560C30BWEK2-32",
+      "b": "Оперативная память Kingston Fury Beast (AMD), DDR5 32 GB kit (2x16GB) 6000MHz (KF560C30BWEK2-32)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 16Gb Kingston FURY Beast Black AMD RGB KF556C36BBEA-16",
+      "b": "Оперативная память Kingston FURY Beast KF432C16BB1/16 DDR4 16GB 3200MHz (KF432C16BB1/16)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR5 5600MT/s vs DDR4 3200MHz)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 16Gb Kingston Fury Beast KF432C16BB1/16WP",
+      "b": "Оперативная память Kingston FURY Beast RGB DDR5 16GB 6000MT/s - White (KF560C30BWEA-16)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR4 3200MHz vs DDR5 6000MT/s)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "DDR-5 DIMM 16 GB 5600 MHz Kingston Fury Beast, BOX (KF556C36BBE-16)",
+      "b": "Оперативная память 16Gb Kingston Fury Beast KF432C16BB1/16WP",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR5 5600MHz vs DDR4 3200MHz)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Black, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 6 GB, 128 GB, Aurora Purple (KN4N)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (8 ГБ vs 6 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 32 GB kit Kingston Fury Beast RGB KF560C36BWE2AK2-32",
+      "b": "Оперативная память DIMM Kingston Fury Beast RGB DDR5 32 GB 6000MHz (KF560C36BBE2A-32)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная конфигурация (комплект 2x16GB vs одиночный модуль 32GB) и цвет",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Гарнитура Jabra Evolve2 85 Link380a UC Stereo 117 ± 3 дБ Jabra",
+      "b": "Наушники Jabra Evolve2 85, Link380a Stereo Black (28599-999-999)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разные редакции гарнитуры Jabra: UC (Unified Communications) vs MS (Microsoft Teams, артикул 28599-999-999)",
+      "sources": [
+        "https://www.jabra.com"
+      ],
+      "phase": "ext"
+    },
+    {
+      "a": "Комплект модулей памяти 32Gb kit Kingston FURY Beast RGB KF432C16BB12AK2/32",
+      "b": "Оперативная память Kingston Fury Beast (AMD+Intel), DIMM DDR5 32 GB kit (2x16GB) <6000MHz> (KF560C36BBE2K2-32)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR4 3200MHz vs DDR5 6000MHz)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Black, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 8 GB, 128 GB, Ink Black (KN4N)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (6 ГБ vs 8 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 16 GB Hiksemi (Hikvision) Hiker HSC416U26Z1",
+      "b": "Оперативная память Hiksemi (Hikvision) Hiker, DDR4 16 GB 3200MHz (HSC416U32Z1 16G)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (2666MHz HSC416U26 vs 3200MHz HSC416U32)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 32 GB kit Kingston Fury Beast KF560C30BWEK2-32",
+      "b": "Оперативная память Kingston Fury Beast (AMD), DIMM DDR5 32 GB kit (2x16GB) <6000MHz> (KF560C30BBEK2-32)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон Tecno Pova 3 6/128Gb Blue",
+      "b": "Смартфон Tecno Pova 3, 128 GB, Tech Silver (LF7n)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Blue, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 4 GB, 128 GB, Halo Blue (KN4N)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (6 ГБ vs 4 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Gray, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 8 GB, 128 GB, Titanium Grey (KN4N)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (6 ГБ vs 8 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 16GB DDR5 5600MHz NOMAD UDIMM (NMD5600D5U46-16GB)",
+      "b": "Оперативная память 16GB NOMAD NMD5600D5U46-16GBHSW White",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные модификации модуля памяти: стандартный модуль без радиатора и версия с радиатором охлаждения (HSW)",
+      "sources": [
+        "https://apltech.kz"
+      ],
+      "phase": "ext"
+    },
+    {
+      "a": "Видеокарта OCPC GTX 750 Ti (OCVNGTX750TIG4XG) [4 ГБ, GDDR5, 128 бит, VGA, DVI, HDMI]",
+      "b": "Видеокарта OCPC GTX 750 Ti 4 GB (OCVNGTX750TIG4XG)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Комплект модулей памяти 32Gb kit Kingston FURY Beast RGB KF432C16BB12AK2/32",
+      "b": "Оперативная память Kingston FURY Beast RGB 32GB 3200MT/s DDR4 (Kit of 2) (KF432C16BB2AK2/32)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные аппаратные ревизии с разными таймингами XMP: 16-18-18 (BB12AK2) vs 16-20-20 (BB2AK2)",
+      "sources": [
+        "https://www.kingston.com"
+      ],
+      "phase": "ext"
+    },
+    {
+      "a": "Наушники Monster Clarity 101 Pro AirLinks белый",
+      "b": "Наушники TWS MONSTER Clarity 101 Pro AirLinks Earphone (White) (MH22003 (W))",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Планшет DOOGEE Tab A9 10,1\" 3GB/64GB Wi-Fi Grey",
+      "b": "Планшет Doogee Tab A9 2025 Wi-Fi 10.1\" 3/64Gb Black",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память Kingston FURY Beast EXPO RGB 16Гб (8x2) DIMM DDR5 5600MT/s KF556C36BBEAK2-16 (KF556C36BBEAK2-16)",
+      "b": "Оперативная память Kingston FURY Beast White KF560C36BWE2-16",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (5600MT/s vs 6000MT/s) и конфигурация (комплект 2x8GB vs одиночный модуль 16GB)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память KINGSTON DRAM 32GB 3200MHz DDR4 CL16 DIMM (Kit of 2) FURY Beast Black  (KF432C16BBK2/32)",
+      "b": "Оперативная память Kingston FURY Beast White RGB KF552C40BWA-32",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR4 3200MHz vs DDR5 5200MT/s)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Комплект модулей памяти Kingston FURY Beast White XMP KF552C40BWK2-32 DDR5 32GB (Kit 2x16GB) 5200MHz (KF552C40BWK2-32)",
+      "b": "Оперативная память 32GB Kit Kingston FURY Beast White RGB EXPO KF560C30BWEAK2-32 White",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота (5200MHz vs 6000MHz) и наличие RGB-подсветки",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Телевизор 55\" (140 см) Hisense 55U7Q miniLED UHD Black",
+      "b": "Телевизор HISENSE ULED 55U7Q UHD SMART",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 4 ГБ/128 ГБ 128 ГБ, 6.78’’, 4 Гб, Black, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 6 GB, 128 GB, Ink Black (KN4N)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (4 ГБ vs 6 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Процессор Intel Core i9 12900F,  LGA1700, OEM (SRL4L-OEM)",
+      "b": "Процессор Intel Core i9 12900F, LGA1700, BOX",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "packaging",
+      "note": "одинаковый процессор Intel Core i9 12900F, разная комплектация OEM и BOX",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память Kingston FURY Beast Black EXPO KF560C30BBE-16",
+      "b": "Оперативная память Kingston FURY Beast EXPO RGB 16Гб (8x2) DIMM DDR5 5600MT/s KF556C36BBEAK2-16 (KF556C36BBEAK2-16)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (6000MT/s vs 5600MT/s) и конфигурация (одиночный модуль 16GB vs комплект 2x8GB)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "SSD накопитель 1Tb Kingston NV3 SNV3S/1000G",
+      "b": "Твердотельный накопитель SSD Kingston 1TB M.2 (NV3 SNV3S/1000G) (SNV3S/1000G)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO CAMON 50 8 ГБ/256 ГБ 256 ГБ, 6.78’’, 8 Гб, серебристый Tecno, CAMON",
+      "b": "Смартфон Tecno Camon 50, 12 GB, 256 GB, Moonshadow Black (CN5)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (8 ГБ vs 12 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "24.5\" XTREON XT2563VH черный",
+      "b": "Монитор XTREON XT2563VH 24.5 FHD/IPS/1ms/320Hz",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 16 GB Hiksemi (Hikvision) Hiker HSC416U26Z1",
+      "b": "Оперативная память Hiksemi (Hikvision) Hiker, DIMM DDR5 16 GB <5600MHz> (HSC516U56Z1)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR4 2666MHz vs DDR5 5600MHz)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон Tecno Pova 3 6/128Gb Blue",
+      "b": "Смартфон Tecno Pova 3, 128 GB, Eco Black (LF7n)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "SSD накопитель 2 TB Kingston Fury Renegade G5, M.2, PCIe 5.0",
+      "b": "SSD накопитель Kingston FURY Renegade G5 SFYR2S/2T0",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "SSD накопитель 256 GB Kingston KC600, 2.5\", SATA III",
+      "b": "Твердотельный накопитель 256GB SSD Kingston KC600 2.5” SATA3 (SKC600/256G)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Карта памяти Canvas Go Plus A2 U3 V30 64 ГБ Kingston Technology",
+      "b": "Карта памяти SDXC 64GB Kingston Canvas Go! Plus, Class 10 UHS-I U3 V30 A2",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "uncertain",
+      "note": "во втором названии указан форм-фактор SDXC, но с классом A2 (спецификация A2 относится к картам microSD; возможно смешение полноразмерной SDXC и microSDXC)",
+      "sources": [
+        "https://www.kingston.com"
+      ],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 16GB NOMAD NMD5600D5U46-16GBRGBB",
+      "b": "Оперативная память NOMAD RGB NMD5600D5U46-16GBRGBW DDR5 16GB 5600MHz - White (NMD5600D5U46-16GBRGBW)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Процессор AMD Ryzen 5 5600GT, AM4, OEM",
+      "b": "Процессор AMD Ryzen 5 5600GT, AM4, with Wraith Stealth Cooler, OEM (100-000001488)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "uncertain",
+      "note": "во втором названии указан кулер Wraith Stealth, в первом комплектация кулера не указана (OEM процессоров обычно поставляется без кулера)",
+      "sources": [
+        "https://www.amd.com"
+      ],
+      "phase": "ext"
+    },
+    {
+      "a": "SSD накопитель 4 TB Kingston Fury Renegade G5, M.2, PCIe 5.0",
+      "b": "Твердотельный накопитель SSD Kingston FURY Renegade G5 4ТБ (SFYR2S/4T0)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "ОЗУ Kingston Fury Beast RGB 8Gb 5600MHz DDR5 DIMM, CL40, 1.25v,  KF556C40BBA-8",
+      "b": "Оперативная память Kingston Fury Beast DDR4 DIMM 8Gb 3200MHz (KF432C16BB/8WP)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR5 5600MHz vs DDR4 3200MHz)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Монитор 27\" AOC 27B3QA2 1920x1080 16:9 IPS 120ГЦ (HDMI+DP) Black",
+      "b": "Монитор 27\" AOC 27B3QA2/01, Black",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Модуль памяти Kingston Fury Beast KF552C40BBK2-16 DDR5 DIMM 16Gb Kit(2x8) 5200 MHz CL40 (KF552C40BBK2-16)",
+      "b": "Оперативная память Kingston FURY Beast Black RGB KF560C36BBE2A-16",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (5200MHz vs 6000MHz) и конфигурация (комплект 2x8GB vs одиночный модуль 16GB RGB)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Blue, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 4 GB, 128 GB, Halo Blue (KN4N)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (8 ГБ vs 4 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Purple, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 6 GB, 128 GB, Halo Blue (KN4N)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (8 ГБ vs 6 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Видеокарта MaxSun MS-GT730 PH 2G",
+      "b": "Видеокарта Maxsun MS-GT730 PH 2G [2 ГБ, GDDR3, 128 бит, VGA, DVI, HDMI]",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 32 GB kit Kingston Fury Beast KF560C30BWEK2-32",
+      "b": "Оперативная память DIMM Kingston Fury Beast RGB DDR5 32 GB 6000MHz (KF560C36BBE2A-32)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная конфигурация (комплект 2x16GB vs одиночный модуль 32GB) и задержки (CL30 vs CL36)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 16 GB kit Kingston Fury Beast KF560C36BBEK2-16",
+      "b": "Оперативная память Kingston Fury Beast AMD RGB White 16 ГБ (KF556C36BWEA-16)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (6000MT/s vs 5600MT/s) и конфигурация (комплект 2x8GB vs одиночный модуль 16GB)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 32 GB kit Kingston Fury Beast RGB KF560C36BWE2AK2-32",
+      "b": "Оперативная память Kingston FURY Beast DDR5 32GB 5600MT/s - Black (KF556C36BBE2-32)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (6000MHz vs 5600MT/s) и конфигурация (комплект 2x16GB vs одиночный модуль 32GB)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 16Gb kit Patriot Signature PSD416G3200K",
+      "b": "Оперативная память Patriot PSD416G3200K 16 Гб (PSD416G3200K)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Монитор 27'' XG Crimson X 165HZ",
+      "b": "Монитор Игровой 27\" XG Crimson X 2560x1440 16:9 IPS 180ГЦ (HDMI+DP) White",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота обновления экрана (165 Гц vs 180 Гц)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "OSCAL Pad 30 10.1 дюйм 4 Гб128 Гб серый + подарок",
+      "b": "Планшет Oscal Pad 30 WiFi, 10.1\",  4 GB, 128 GB, Horizon Blue",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 16Gb Kingston FURY Beast Black AMD RGB KF556C36BBEA-16",
+      "b": "Оперативная память Kingston FURY Beast EXPO DDR5 16GB 6000MT/s, White (KF560C36BWE2-16)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (5600MT/s vs 6000MT/s) и наличие подсветки",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 32Gb Kit Kingston Fury Beast KF432C16BB1K2/32WP",
+      "b": "Оперативная память DIMM Kingston Fury Beast RGB DDR5 32 GB 6000MHz (KF560C36BBE2A-32)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR4 3200MHz vs DDR5 6000MHz)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 32 GB kit Hiksemi (Hikvision) Sword RGB HSC432U32B5",
+      "b": "Оперативная память Hiksemi (Hikvision) Sword RGB DDR4 32 GB kit (2x16GB) 3200MHz (HSC432U32B5)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Планшет DOOGEE Tab A9 10,1\" 3GB/64GB Wi-Fi Black",
+      "b": "Планшет Doogee Tab A9 2025 Wi-Fi 10.1\" 3/64Gb Grey",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Видеокарта AFOX GT240 1GB D3 LP Single Fan AF240-1024D3L2-V2",
+      "b": "Видеокарта Afox GT240 (AF240-1024D3L2-V2) [1 ГБ, DDR3, 128 бит, 550 МГц, VGA, DVI, HDMI]",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Комплект модулей памяти 32Gb kit Kingston FURY Beast RGB KF432C16BB12AK2/32",
+      "b": "Оперативная память Kingston FURY Beast Black EXPO 32GB 6000MT/s DDR5 DIMM (KF560C30BBE-32)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR4 3200MHz vs DDR5 6000MT/s)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 4 GB AMD Radeon R5 R534G1601S1SL-U",
+      "b": "Оперативная память 4Gb DDR3 1600MHz AMD Radeon R5 Entertainment Series R534G1601U1SL-U (R534G1601U1SL-U)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разный форм-фактор памяти: для ноутбуков SO-DIMM (R534G1601S1SL-U) vs для ПК UDIMM (R534G1601U1SL-U)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Монитор 27\" Sanc M2742PH V3, Black",
+      "b": "Монитор Игровой 27\" Sanc M2742PH V3 1920x1080 16:9 IPS 200ГЦ (2HDMI+DP) Black",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 4 ГБ/128 ГБ 128 ГБ, 6.78’’, 4 Гб, Black, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 8 GB, 128 GB, Ink Black (KN4N)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (4 ГБ vs 8 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 4 ГБ/128 ГБ 128 ГБ, 6.78’’, 4 Гб, Black, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 6 GB, 128 GB, Aurora Purple (KN4N)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (4 ГБ vs 6 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Комплект модулей памяти Kingston FURY Beast White XMP KF552C40BWK2-32 DDR5 32GB (Kit 2x16GB) 5200MHz (KF552C40BWK2-32)",
+      "b": "Оперативная память 32 GB kit Kingston Fury Beast Black (EXPO) KF556C36BBEK2-32",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (5200MHz vs 5600MT/s)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Телевизор HISENSE QLED 43E7S UHD SMART",
+      "b": "Телевизор Hisense 43E7S RU",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Blue, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 4 GB, 128 GB, Ink Black (KN4N)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (6 ГБ vs 4 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Комплект модулей памяти Kingston FURY Beast White XMP KF552C40BWK2-32 DDR5 32GB (Kit 2x16GB) 5200MHz (KF552C40BWK2-32)",
+      "b": "Оперативная память 32 GB kit Kingston Fury Beast KF560C30BWEK2-32",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (5200MHz vs 6000MHz) и тайминги",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Процессор AMD Ryzen 7 8700G, AM5, BOX (100-100001236BOX)",
+      "b": "Процессор CPU AM5 AMD Ryzen 7 8700G OEM",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "packaging",
+      "note": "одинаковый процессор AMD Ryzen 7 8700G, разная комплектация BOX и OEM",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Видеокарта Afox GTX 1050Ti (AF1050TI-4096D5H7-V9)",
+      "b": "Видеокарта Afox GeForce GTX 1050TI (AF1050TI-4096D5H7-V8) [4 ГБ, GDDR5, 128 бит, DVI, HDMI, DisplayPort]",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разные аппаратные ревизии видеокарты (V9 vs V8)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "SSD накопитель 512 GB Patriot P220 P220S512G25",
+      "b": "Твердотельный накопитель SSD 512 Gb SATA Patriot P220 P220S512G25 2.5\" 3D  (P220S512G25)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Blue, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 8 GB, 128 GB, Halo Blue (KN4N)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (6 ГБ vs 8 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 8Gb Kingston KVR32N22S8/8WP",
+      "b": "Оперативная память Kingston KVR32N22S8/8  DDR4 DIMM 8Gb 3200 MHz CL22 (KVR32N22S8/8)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 32 GB kit Kingston Fury Beast Black RGB (EXPO) KF556C36BBEAK2-32",
+      "b": "Оперативная память Kingston Fury Beast (AMD+Intel), DIMM DDR5 32 GB kit (2x16GB) <6000MHz> (KF560C36BBE2K2-32)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (5600MHz vs 6000MHz) и наличие RGB-подсветки",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "DDR-5 DIMM 16 GB 5600 MHz Kingston Fury Beast, BOX (KF556C36BBE-16)",
+      "b": "Оперативная память Kingston Fury Beast DDR4 DIMM 16Gb 3200MHz (KF432C16BB1/16WP)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR5 5600MHz vs DDR4 3200MHz)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 16Gb Transcend JM5600ALE-16G",
+      "b": "Память оперативная Transcend JM5600ALE-16G 16GB DDR5 5600MHz (JM5600ALE-16G)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Комплект модулей памяти Kingston FURY Beast KF552C40BBK2-32 DDR5 32GB (Kit 2x16GB)  (KF552C40BBK2-32)",
+      "b": "Оперативная память 32 GB kit Kingston Fury Beast Black (EXPO) KF556C36BBEK2-32",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (5200MHz vs 5600MT/s)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Гарнитура Jabra Evolve2 65 Flex Link380c MS Stereo WLC",
+      "b": "Наушники Jabra Evolve2 65 Flex Link380с MS Stereo 26699-999-899 Black",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разная комплектация: версия с беспроводной зарядной станцией (WLC) vs стандартная комплектация (26699-999-899)",
+      "sources": [
+        "https://www.jabra.com"
+      ],
+      "phase": "ext"
+    },
+    {
+      "a": "DDR-5 DIMM 16 GB 5600 MHz Kingston Fury Beast, BOX (KF556C36BBE-16)",
+      "b": "Оперативная память Kingston FURY Beast EXPO DDR5 16GB 5600MT/s, White (KF556C36BWE-16)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Планшет Oscal Pad 200 LTE 13.4\" 6/256Gb Gray",
+      "b": "Планшет Oscal Pad 200, 13.4\", 6 GB, 256 GB, Wi-Fi+4G, Space Gray",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 4 ГБ/128 ГБ 128 ГБ, 6.78’’, 4 Гб, Black, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 6 GB, 128 GB, Halo Blue (KN4N)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (4 ГБ vs 6 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Gray, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 4 GB, 128 GB, Aurora Purple (KN4N)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (6 ГБ vs 4 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Планшет Oscal Pad 60 Kids 10.1\" 4/128Gb Blue",
+      "b": "Планшет Oscal Pad 60 Kids, 10.1\", 4 GB, 128 GB, WiFi, Cloudy Blue",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Модуль памяти 16GB Kingston Fury Beast Black AMD KF556C36BBE-16",
+      "b": "Оперативная память Kingston FURY Beast EXPO DDR5 16GB 6000MT/s, White (KF560C36BWE2-16)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (5600MT/s vs 6000MT/s)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 32 GB kit Kingston Fury Beast Black (EXPO) KF556C36BBEK2-32",
+      "b": "Оперативная память Kingston Fury Beast (AMD+Intel), DIMM DDR5 32 GB kit (2x16GB) <6000MHz> (KF560C36BBE2K2-32)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (5600MT/s vs 6000MHz)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Комплект оперативной памяти Kingston Fury Beast RGB EXPO DDR5 DIMM 32G KIT (2x16) 6000MHz (KF560C36BBE2AK2-32)",
+      "b": "Оперативная память 32 GB kit Kingston Fury Beast KF560C30BWEK2-32",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные модификации: тайминги (CL36 vs CL30) и наличие RGB-подсветки",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Карта памяти Canvas Select Plus A1 U3 V30 1 ТБ Kingston Technology",
+      "b": "Карта памяти Micro SDXC 1Tb Kingston Canvas Select Plus, Class 10 UHS-I U3, адаптер",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "DDR-5 DIMM 16 GB 5600 MHz Kingston Fury Beast, BOX (KF556C36BBE-16)",
+      "b": "Оперативная память Kingston 16GB 3600MT/s DDR4 CL17 DIMM (Kit of 2) FURY Beast Black, EAN: 740617319781 (KF436C17BBK2/16)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR5 5600MHz vs DDR4 3600MT/s)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Purple, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 4 GB, 128 GB, Ink Black (KN4N)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (8 ГБ vs 4 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "AFOX Radeon RX 580 8 Гб",
+      "b": "Видеокарта 8 GB Afox RX 580 2048SP AFRX580-8192D5H3-V3",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "uncertain",
+      "note": "в первом названии не указана модификация чипа (RX 580 выпускается в версиях с 2304SP и урезанной 2048SP с разной производительностью)",
+      "sources": [
+        "https://technical.city"
+      ],
+      "phase": "ext"
+    },
+    {
+      "a": "Комплект оперативной памяти Kingston Fury Beast RGB EXPO DDR5 DIMM 32G KIT (2x16) 6000MHz (KF560C36BBE2AK2-32)",
+      "b": "Оперативная память 32 GB kit Kingston Fury Beast Black (EXPO) KF556C36BBEK2-32",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (6000MHz vs 5600MT/s) и наличие RGB-подсветки",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 16GB Apacer NOX TUF AH5U16G60C622UTAA-1",
+      "b": "Оперативная память Apacer NOX TUF DDR5 16GB 6000MHz (AH5U16G60C622UTAA-1)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 16 GB kit Kingston Fury Beast KF560C36BBEK2-16",
+      "b": "Оперативная память Kingston Fury Beast RGB DDR4 DIMM 16Gb 3200MHz (KF432C16BB12A/16WP)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR5 6000MT/s vs DDR4 3200MHz)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 32Gb Kit Kingston Fury Beast KF432C16BB1K2/32WP",
+      "b": "Оперативная память Kingston Fury Beast DDR4 DIMM 32Gb KIT (2x16) 3200MHz (KF432C16BB1K2/32WP)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "DDR-4 DIMM 16 GB 3200 MHz Kingston Fury Beast RGB, BOX (KF432C16BB12A/16WP)",
+      "b": "Оперативная память 16 GB Kingston Fury Beast RGB KF552C40BBA-16",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR4 3200MHz vs DDR5 5200MHz)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "SSD накопитель 1 TB Kingston NV3, M.2, PCIe 4.0",
+      "b": "Твердотельный накопитель SSD Kingston 1TB M.2 (NV3 SNV3S/1000G) (SNV3S/1000G)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Материнская плата MaxSun Challenger B760M D5 (MS-Challenger B760M D5)",
+      "b": "Материнская плата MaxSun Challenger B760M D5 WIFI",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разные модификации материнской платы: базовая и версия с модулем WIFI",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Комплект модулей памяти Kingston FURY Beast KF432C16BBK2/16 DDR4 16GB (Kit 2x8GB) 3200MHz (KF432C16BBK2/16)",
+      "b": "Оперативная память 16 GB kit Kingston Fury Beast KF560C36BBEK2-16",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR4 3200MHz vs DDR5 6000MT/s)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Blue, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 6 GB, 128 GB, Aurora Purple (KN4N)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (8 ГБ vs 6 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "DDR-5 DIMM 64 GB 6000 MHz Kingston Fury Beast RGB, 2x 32 GB Kit, Black, BOX (KF560C36BBEAK2-64)",
+      "b": "Оперативная память Kingston FURY Beast RGB DDR5 64GB (Kit of 2) 5600MT/s (KF556C36BBE2AK2-64)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (6000MHz vs 5600MT/s)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Видеокарта MaxSun MS-GTX1650 TR 4GD6 (MS-GTX1650 TR 4GD6)",
+      "b": "Видеокарта Maxsun MS-GTX1650 TR 4GD6 [4 ГБ, GDDR6, 128 бит, DVI, HDMI, DisplayPort]",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "SSD накопитель 256 GB Apacer AS2280P4, M.2, PCIe 3.0",
+      "b": "Твердотельный накопитель  256GB SSD Apacer, M.2 2280, R1800MB/s, W1100MB/s, AP256GAS2280P4-1 (AP256GAS2280P4-1)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Внешний аккумулятор Baseus EnerFill FM11 Ultra-Mini 10000 мАч 22.5 Вт, ABS-пластик, поликарбонат, 10,4×7×1,8 Baseus, EnerFill",
+      "b": "Мобильный аккумулятор Baseus EnerFill FM11 Ultra-Mini PPFM11-1022, 10000 mAh, Moon White",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 16Gb Kingston Fury Beast KF432C16BB1/16WP",
+      "b": "Оперативная память Kingston FURY Beast KF432C16BB1/16 DDR4 16GB 3200MHz (KF432C16BB1/16)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Материнская плата ASRock B760M PRO RS/D4",
+      "b": "Материнская плата ASRock B760M Pro RS/D4, LGA1700  (90-MXBKL0-A0UAYZ)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 32GB Kit Kingston FURY Beast White RGB EXPO KF560C30BWEAK2-32 White",
+      "b": "Оперативная память Kingston FURY Beast RGB XMP DDR5 32GB 5200MT/s, White (KF552C40BWA-32)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (6000MT/s vs 5200MT/s) и конфигурация (комплект 2x16GB vs одиночный модуль 32GB)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 32 GB kit Kingston Fury Beast Black (EXPO) KF556C36BBEK2-32",
+      "b": "Оперативная память KINGSTON DRAM 32GB 3200MHz DDR4 CL16 DIMM (Kit of 2) FURY Beast Black  (KF432C16BBK2/32)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR5 5600MT/s vs DDR4 3200MHz)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Карта памяти Canvas Select Plus A1 U1 V10 128 ГБ Kingston Technology",
+      "b": "Карта памяти Micro SDXC 128GB Kingston Canvas Select Plus, Class 10 UHS-I U1",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 16Gb Kingston Fury Beast KF432C16BB1/16WP",
+      "b": "Оперативная память Kingston 16GB 5600MT/s DDR5 CL36 DIMM FURY Beast RGB EXPO (KF556C36BBEA-16)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR4 3200MHz vs DDR5 5600MT/s)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "DDR-5 DIMM 16 GB 5600 MHz Kingston Fury Beast, BOX (KF556C36BBE-16)",
+      "b": "Оперативная память Kingston FURY Beast EXPO DDR5 16GB 6000MT/s, White (KF560C36BWE2-16)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (5600MHz vs 6000MT/s)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Gray, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 6 GB, 128 GB, Ink Black (KN4N)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (8 ГБ vs 6 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "DDR-5 DIMM 16 GB 5600 MHz Kingston Fury Beast, BOX (KF556C36BBE-16)",
+      "b": "Оперативная память Kingston FURY Beast White KF560C36BWE2-16",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (5600MHz vs 6000MT/s)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Монитор 27\" AOC 27G42E/01/00",
+      "b": "Монитор Игровой 27\" AOC 27G42E 1920x1080 16:9 IPS 180ГЦ (HDMI+DP) Black",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Карта памяти Canvas Go Plus A2 U3 V30 64 ГБ Kingston Technology",
+      "b": "Карта памяти Micro SDXC 64GB Kingston Canvas Go! Plus, Class 10 UHS-I U3 V30 A2, адаптер",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "DDR-5 DIMM 16 GB 5600 MHz Apacer NOX TUF, BOX (AH5U16G56C522UTAA-1)",
+      "b": "Оперативная память 16GB Apacer NOX TUF AH5U16G60C622UTAA-1",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (5600MHz AH5U16G56 vs 6000MHz AH5U16G60)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 16Gb Netac Basic NTBSD5P56SP-16",
+      "b": "Оперативная память Netac Basic NTBSD5P56SP-16 DDR5 16Gb, 5600Mhz (NTBSD5P56SP-16)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Модуль памяти 16GB Kingston Fury Beast Black AMD KF556C36BBE-16",
+      "b": "Оперативная память Kingston 16GB 3600MT/s DDR4 CL17 DIMM (Kit of 2) FURY Beast Black, EAN: 740617319781 (KF436C17BBK2/16)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR5 5600MT/s vs DDR4 3600MT/s)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Blue, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 6 GB, 128 GB, Ink Black (KN4N)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (8 ГБ vs 6 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 32 GB kit Kingston Fury Beast Black RGB (EXPO) KF556C36BBEAK2-32",
+      "b": "Оперативная память KINGSTON DRAM 32GB 3200MHz DDR4 CL16 DIMM (Kit of 2) FURY Beast Black  (KF432C16BBK2/32)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR5 5600MT/s vs DDR4 3200MHz)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память Kingston FURY Beast Black EXPO KF560C30BBE-16",
+      "b": "Оперативная память Kingston FURY Beast EXPO DDR5 16GB 5600MT/s, White (KF556C36BWE-16)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (6000MT/s vs 5600MT/s)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Внешний аккумулятор Baseus EnerFill FM11 Ultra-Mini 10000 мАч 22.5 Вт, ABS-пластик, поликарбонат, 10,4×7×1,8 Baseus, EnerFill",
+      "b": "Мобильный аккумулятор Baseus EnerFill FM11 Ultra-Mini PPFM11-1022, 10000 mAh, Nebula Purple",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 32GB Kit Kingston FURY Beast White RGB EXPO KF560C30BWEAK2-32 White",
+      "b": "Оперативная память Kingston Fury Beast RGB (AMD), DDR5 32 GB kit (2x16GB) 6000MHz (KF560C30BBEAK2-32) ( KF560C30BBEAK2-32)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 32 GB kit Kingston Fury Beast KF560C30BWEK2-32",
+      "b": "Оперативная память Kingston FURY Beast Black EXPO 32GB 6000MT/s DDR5 DIMM (KF560C30BBE-32)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разная конфигурация: комплект 2x16GB vs одиночный модуль 32GB",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Карта памяти Canvas Select Plus A1 U3 V30 1 ТБ Kingston Technology",
+      "b": "Карта памяти Micro SDXC 1Tb Kingston Canvas Select Plus, Class 10 UHS-I U3",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память Hiksemi (Hikvision) Future DDR4 16 GB kit (2x8GB) 3200MHz, White (HSC416U32F3)",
+      "b": "Оперативная память Hiksemi Future HSC416U32F3",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон Tecno Pova 3 6/128Gb Blue",
+      "b": "Смартфон Tecno Pova 3, 128 GB, Electric Blue (LF7n)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 32 GB kit Kingston Fury Beast RGB KF560C36BWE2AK2-32",
+      "b": "Оперативная память KINGSTON DRAM 32GB 3200MHz DDR4 CL16 DIMM (Kit of 2) FURY Beast Black  (KF432C16BBK2/32)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR5 6000MHz vs DDR4 3200MHz)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Blue, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 4 GB, 128 GB, Aurora Purple (KN4N)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (8 ГБ vs 4 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 4 ГБ/128 ГБ 128 ГБ, 6.78’’, 4 Гб, Black, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 8 GB, 128 GB, Halo Blue (KN4N)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (4 ГБ vs 8 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Материнская плата ASRock B760 PRO RS/D4",
+      "b": "Материнская плата ASRock B760 Pro RS/D4, iB760,S1700,ATX (90-MXBL80-A0UAYZ)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон Camon 50 (CN5) 256 ГБ, 6.78’’, 8 Гб, черный Tecno",
+      "b": "Смартфон Tecno Camon 50, 12 GB, 256 GB, Malachite Green (CN5)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (8 ГБ vs 12 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "SSD накопитель 512 GB Kingston KC3000, M.2, PCIe 4.0",
+      "b": "Твердотельный накопитель SSD Kingston SKC3000S/512G M.2 (SKC3000S/512G)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 32 GB kit Kingston Fury Beast Black RGB (EXPO) KF556C36BBEAK2-32",
+      "b": "Оперативная память Kingston 32GB 3600MT/s DDR4 CL18 DIMM (Kit of 2) FURY Beast RGB (KF436C18BB2AK2/32)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR5 5600MT/s vs DDR4 3600MT/s)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 16Gb Kingston FURY Beast Black AMD RGB KF556C36BBEA-16",
+      "b": "Оперативная память Kingston FURY Beast EXPO RGB 16Гб (8x2) DIMM DDR5 5600MT/s KF556C36BBEAK2-16 (KF556C36BBEAK2-16)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная конфигурация: одиночный модуль 16GB vs комплект 2x8GB",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память  Kingston Fury Beast 16Gb (8x2) 5600MHz DDR5 DIMM, CL40, 1.25v (KF556C40BBK2-16)",
+      "b": "Оперативная память 16Gb Kingston FURY Beast Black AMD RGB KF556C36BBEA-16",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная конфигурация (комплект 2x8GB vs одиночный 16GB), тайминги (CL40 vs CL36) и наличие подсветки",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Процессор AMD Ryzen 7 8700G, AM5, BOX (100-100001236BOX)",
+      "b": "Процессор AMD Ryzen 7 8700G, AM5, OEM",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "packaging",
+      "note": "одинаковый процессор AMD Ryzen 7 8700G, разная комплектация BOX и OEM",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Комплект модулей памяти 32Gb kit Kingston FURY Beast RGB KF432C16BB12AK2/32",
+      "b": "Оперативная память Kingston 32GB 5600MT/s DDR5 CL36 DIMM (Kit of 2) FURY Beast RGB EXPO (KF556C36BBEAK2-32)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR4 3200MHz vs DDR5 5600MT/s)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "SSD накопитель 500 GB Kingston NV3, M.2, PCIe 4.0",
+      "b": "Твердотельный накопитель SSD Kingston NV3 500GB (SNV3S/500G)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Телевизор Dreame 55K100, 55\"",
+      "b": "Телевизор Dreame Vista 55\" 55K100 LED 4K UHD Black",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память Kingston DDR-4 DIMM 16GB/3600MHz Black (KF436C18BB2A/16)",
+      "b": "Оперативная память Kingston FURY Beast Black RGB KF560C36BBE2A-16",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR4 3600MHz vs DDR5 6000MT/s)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Blue, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 6 GB, 128 GB, Halo Blue (KN4N)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (8 ГБ vs 6 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Видеокарта MaxSun MS-RX550 TF 4G",
+      "b": "Видеокарта Maxsun MS-RX550 TF 4G [4 ГБ, GDDR5, 128 бит, DVI, HDMI, DisplayPort]",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Наушники SOUNDCORE H30i A3012 BK Black/Черный",
+      "b": "Наушники Soundcore H30i Red (A3012-R)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 32Gb Kit Kingston Fury Beast KF432C16BB1K2/32WP",
+      "b": "Оперативная память Kingston Fury Beast (AMD+Intel), DIMM DDR5 32 GB kit (2x16GB) <6000MHz> (KF560C36BBE2K2-32)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR4 3200MHz vs DDR5 6000MHz)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Телевизор ЯНДЕКС 55 YNDX-00076B (4K Smart) на YaGPT",
+      "b": "Телевизор Яндекс 55\" Бейсик с Алисой LED 4K UHD Smart YNDX-00076B",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 32 GB kit Kingston Fury Beast Black RGB (EXPO) KF556C36BBEAK2-32",
+      "b": "Оперативная память Kingston Fury Beast RGB (AMD), DDR5 32 GB kit (2x16GB) 6000MHz (KF560C30BBEAK2-32) ( KF560C30BBEAK2-32)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (5600MT/s vs 6000MHz) и тайминги (CL36 vs CL30)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Корпус Thermaltake The Tower 200, Turquoise",
+      "b": "Корпус для ПК Thermaltake The Tower 200 Turquoise Mini Chassis CA-1X9-00SBWN-00",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Телевизор MiniLED ЯНДЕКС 55 YNDX-00097 (4K Smart)",
+      "b": "Телевизор Яндекc с Алисой 55\" MiniLED 4K YNDX-00097",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 32Gb Kit Kingston Fury Beast KF432C16BB1K2/32WP",
+      "b": "Оперативная память Kingston FURY Beast Black EXPO 32GB 6000MT/s DDR5 DIMM (KF560C30BBE-32)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR4 3200MHz vs DDR5 6000MT/s)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память Kingston FURY Beast Black RGB KF560C36BBE2A-16",
+      "b": "Оперативная память Kingston FURY Beast EXPO DDR5 16GB 5600MT/s, White (KF556C36BWE-16)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (6000MT/s vs 5600MT/s) и наличие RGB-подсветки",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 16GB DDR5 5600MHz NOMAD UDIMM (NMD5600D5U46-16GB)",
+      "b": "Оперативная память 16GB NOMAD NMD5600D5U46-16GB",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 16Gb Kingston Fury Beast KF432C16BB1/16WP",
+      "b": "Оперативная память Kingston Fury Beast AMD RGB White 16 ГБ (KF556C36BWEA-16)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR4 3200MHz vs DDR5 5600MT/s)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон Camon 50 (CN5) 256 ГБ, 6.78’’, 12 Гб, зеленый Tecno",
+      "b": "Смартфон Tecno Camon 50, 8 GB, 256 GB, Malachite Green (CN5)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (12 ГБ vs 8 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 32 GB kit Kingston Fury Beast KF560C30BWEK2-32",
+      "b": "Оперативная память Kingston FURY Beast RGB XMP DDR5 32GB 5200MT/s, White (KF552C40BWA-32)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (6000MHz vs 5200MT/s) и конфигурация (комплект 2x16GB vs одиночный модуль 32GB)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Зарядное устройство Usams US-CC189, 30W, Violet",
+      "b": "СЗУ Usams (US-CC189) 30W QC 3.0+PD USB+Type-C порты 30 Вт, USB, USB Type-C Usams",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "DDR-5 DIMM 16 GB 5600 MHz Kingston Fury Beast, BOX (KF556C36BBE-16)",
+      "b": "Оперативная память  Kingston Fury Beast 16Gb (8x2) 5600MHz DDR5 DIMM, CL40, 1.25v (KF556C40BBK2-16)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная конфигурация (одиночный модуль 16GB vs комплект 2x8GB) и тайминги (CL36 vs CL40)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 4Gb DDR3 1600MHz AMD Radeon R5 Entertainment Series R534G1601U1SL-U (R534G1601U1SL-U)",
+      "b": "Оперативная память AMD Radeon R5 Entertainment Series R5S34G1601U1S",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разный стандарт напряжения памяти: DDR3L 1.35V (R534G1601U1SL-U) vs DDR3 1.5V (R5S34G1601U1S)",
+      "sources": [
+        "https://dns-shop.kz"
+      ],
+      "phase": "ext"
+    },
+    {
+      "a": "SO-DIMM 8GB DDR3L PC12800/1600MHz Netac Basic, BOX (NTBSD3N16SP-08)",
+      "b": "Оперативная память для ноутбука 8Gb Netac Basic NTBSD4N32SP-16",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR3L 1600MHz vs DDR4 3200MHz)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память Kingston FURY Beast EXPO DDR5 16GB 5600MT/s, White (KF556C36BWE-16)",
+      "b": "Оперативная память Kingston FURY Beast White KF560C36BWE2-16",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (5600MT/s vs 6000MT/s)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 16 GB kit Kingston Fury Beast KF552C40BBK2-16",
+      "b": "Оперативная память Kingston Fury Beast KF552C40BB-16 DDR5 DIMM 16Gb 5200 MHz CL40 (8473302008) (KF552C40BB-16)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная конфигурация: комплект 2x8GB (K2) vs одиночный модуль 16GB",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "SSD накопитель 1 TB Netac SA500, 2.5\", SATA III",
+      "b": "Твердотельный накопитель SSD 1Tb, SATA, Netac SA500 (NT01SA500-1T0-S3X)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 32GB Kit Kingston FURY Beast White RGB EXPO KF560C30BWEAK2-32 White",
+      "b": "Оперативная память Kingston 32GB 5600MT/s DDR5 CL36 DIMM (Kit of 2) FURY Beast RGB EXPO (KF556C36BBEAK2-32)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (6000MT/s vs 5600MT/s) и тайминги",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Телевизор QLED ЯНДЕКС 50 YNDX-00094 (4K Smart)",
+      "b": "Телевизор Яндекс YNDX-00094 50\" (YNDX-00094)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 16Gb Kingston FURY Beast Black AMD RGB KF556C36BBEA-16",
+      "b": "Оперативная память Kingston Fury Beast RGB DDR4 16Gb 3200 MHz (KF432C16BB2A/16)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разные поколения памяти и частота (DDR5 5600MT/s vs DDR4 3200MHz)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Материнская плата ASRock H610M-H2/M.2 D5",
+      "b": "Материнская плата ASRock H610M-H2/M.2 D5 (90-MXBML0-A0UAYZ)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 16 GB kit Kingston Fury Beast KF560C36BBEK2-16",
+      "b": "Оперативная память Kingston FURY Beast EXPO DDR5 16GB 6000MT/s, White (KF560C36BWE2-16)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разная конфигурация: комплект 2x8GB vs одиночный модуль 16GB",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 16Gb Kingston Fury Beast KF432C16BB1/16WP",
+      "b": "Оперативная память Kingston DDR-4 DIMM 16GB/3600MHz Black (KF436C18BB2A/16)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (3200MHz vs 3600MHz) и наличие RGB-подсветки",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Gray, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 4 GB, 128 GB, Ink Black (KN4N)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (8 ГБ vs 4 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Монитор 24,5\" PHILIPS 25M2N5200U/01/00",
+      "b": "Монитор 24.5\" Philips Evnia 25M2N5200U/01, Black",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 64 GB kit Kingston Fury Beast White KF560C36BBEK2-64",
+      "b": "Оперативная память DIMM DDR5 64 GB kit (KF556C36BWEAK2-64)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (6000MT/s vs 5600MT/s) и наличие RGB-подсветки",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 32 GB kit Kingston Fury Beast RGB KF560C36BWE2AK2-32",
+      "b": "Оперативная память Kingston 32GB 5600MT/s DDR5 CL36 DIMM (Kit of 2) FURY Beast RGB EXPO (KF556C36BBEAK2-32)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (6000MHz vs 5600MT/s)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 64 GB kit Kingston Fury Beast White KF560C36BBEAK2-64",
+      "b": "Оперативная память DIMM DDR5 64 GB kit (KF556C36BWEK2-64)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (6000MT/s vs 5600MT/s) и наличие RGB-подсветки",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Black, 128 ГБ Tecno, SPARK",
+      "b": "Смартфон Tecno Spark 50, 4 GB, 128 GB, Titanium Grey (KN4N)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разный объем оперативной памяти (6 ГБ vs 4 ГБ)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Наушники SOUNDCORE P40i A3955G21 White/Белый TWS",
+      "b": "Наушники Soundcore P40i A3955 TWS Navy Blue",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 32GB Kit Kingston FURY Beast White RGB EXPO KF560C30BWEAK2-32 White",
+      "b": "Оперативная память Kingston Fury Beast (AMD+Intel), DIMM DDR5 32 GB kit (2x16GB) <6000MHz> (KF560C36BBE2K2-32)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разные модификации: тайминги (CL30 vs CL36) и наличие RGB-подсветки",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Монитор 27\" X-game OFLED27+ 1920x1080 16:9 IPS 100ГЦ (HDMI+VGA) Black",
+      "b": "Монитор OFLED27+ 27\", 100 Гц X-Game",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "AFOX GT 240 AF240-1024D3L2-V2 1 Гб",
+      "b": "Видеокарта Afox GT240 (AF240-1024D3L2-V2) [1 ГБ, DDR3, 128 бит, 550 МГц, VGA, DVI, HDMI]",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Оперативная память 32 GB kit Kingston Fury Beast RGB KF560C36BWE2AK2-32",
+      "b": "Оперативная память Kingston Fury Beast DDR5 - 2x 16ГБ 6400МГц (KF564C32BBEAK2-32)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (6000MHz vs 6400MHz)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "AFOX Radeon RX 580 8 Гб",
+      "b": "Видеокарта AFOX RX 580 GAMING 8GB Dual Fan AFRX580-8192D5H3-V3",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "uncertain",
+      "note": "в первом названии не указана модификация чипа (2048SP vs 2304SP), артикул AFRX580-8192D5H3-V3 относится к версии 2048SP",
+      "sources": [
+        "https://technical.city"
+      ],
+      "phase": "ext"
+    },
+    {
+      "a": "Модуль памяти Kingston Fury Beast KF552C40BBK2-16 DDR5 DIMM 16Gb Kit(2x8) 5200 MHz CL40 (KF552C40BBK2-16)",
+      "b": "Оперативная память 16 GB kit Kingston Fury Beast KF560C36BBEK2-16",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (5200MHz vs 6000MT/s) и задержки",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Процессор Intel Core i7 13700F, LGA1700, BOX",
+      "b": "Процессор Intel Core i7-13700F (SRMBB)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "uncertain",
+      "note": "в первом названии указана комплектация BOX, во втором указан только s-spec SRMBB без указания типа поставки (BOX или OEM/Tray)",
+      "sources": [
+        "https://intel.com"
+      ],
+      "phase": "ext"
+    },
+    {
+      "a": "Материнская плата ASRock B760M PRO RS/D4 WIFI",
+      "b": "Материнская плата ASRock B760M Pro RS/D4 WiFi (90-MXBKZ0-A0UAYZ)",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "DDR-5 DIMM 16 GB 5600 MHz Kingston Fury Beast, BOX (KF556C36BBE-16)",
+      "b": "Оперативная память Kingston FURY Beast Black EXPO DIMM DDR5 16GB 6000MT/s (KF560C30BBE-16)",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (5600MHz vs 6000MT/s)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Телевизор QLED ЯНДЕКС 65 Бейсик YNDX-00081 (4K Smart)",
+      "b": "Телевизор Яндекс Бейсик 65\" YNDX-00081 QLED 4K UHD Black",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "same",
+      "note": "",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "DDR-5 DIMM 16 GB 5600 MHz Kingston Fury Beast, BOX (KF556C36BBE-16)",
+      "b": "Оперативная память 16 GB kit Kingston Fury Beast KF560C36BBEK2-16",
+      "strata": [
+        "dropped_both_k2"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (5600MHz vs 6000MT/s) и конфигурация (одиночный модуль 16GB vs комплект 2x8GB)",
+      "sources": [],
+      "phase": "ext"
+    },
+    {
+      "a": "Комплект оперативной памяти Kingston Fury Beast Beast White EXPO DDR5 DIMM 32Gb KIT (2x16Gb) 6000MHz (KF560C36BWE2K2-32)",
+      "b": "Оперативная память 32 GB kit Kingston Fury Beast Black (EXPO) KF556C36BBEK2-32",
+      "strata": [
+        "dropped_mixed"
+      ],
+      "label": "different",
+      "note": "разная частота памяти (6000MHz vs 5600MT/s)",
+      "sources": [],
       "phase": "ext"
     }
   ],

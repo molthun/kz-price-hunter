@@ -1,0 +1,1222 @@
+{
+  "0": {
+    "label": "same"
+  },
+  "1": {
+    "label": "different",
+    "note": "разные модификации материнской платы: базовая и с встроенным Wi-Fi модулем",
+    "sources": []
+  },
+  "2": {
+    "label": "packaging",
+    "note": "одинаковый процессор Intel Celeron G5905, разная комплектация/упаковка BOX и OEM",
+    "sources": []
+  },
+  "3": {
+    "label": "same"
+  },
+  "4": {
+    "label": "same"
+  },
+  "5": {
+    "label": "same"
+  },
+  "6": {
+    "label": "same"
+  },
+  "7": {
+    "label": "different",
+    "note": "разная частота (5600MHz vs 6000MT/s) и конфигурация (одиночный модуль 16GB vs комплект 2x8GB)",
+    "sources": []
+  },
+  "8": {
+    "label": "same"
+  },
+  "9": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (12 ГБ vs 8 ГБ)",
+    "sources": []
+  },
+  "10": {
+    "label": "packaging",
+    "note": "одинаковый процессор Intel Core i5 10500, разная комплектация BOX и OEM",
+    "sources": []
+  },
+  "11": {
+    "label": "same"
+  },
+  "12": {
+    "label": "same"
+  },
+  "13": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (8 ГБ vs 12 ГБ)",
+    "sources": []
+  },
+  "14": {
+    "label": "same"
+  },
+  "15": {
+    "label": "different",
+    "note": "разные модели телевизоров Hisense: серия Pro (144 Гц) и базовая версия",
+    "sources": []
+  },
+  "16": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR5 5600MHz vs DDR4 3200MHz)",
+    "sources": []
+  },
+  "17": {
+    "label": "uncertain",
+    "note": "в первом названии не указана ревизия (у Sanc M2453KJ разные ревизии V1/V2/V3 имеют разную частоту 75-100 Гц vs 120 Гц в V3)",
+    "sources": [
+      "https://sanc.kz",
+      "https://pulser.kz"
+    ]
+  },
+  "18": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (12 ГБ vs 8 ГБ)",
+    "sources": []
+  },
+  "19": {
+    "label": "same"
+  },
+  "20": {
+    "label": "same"
+  },
+  "21": {
+    "label": "same"
+  },
+  "22": {
+    "label": "same"
+  },
+  "23": {
+    "label": "different",
+    "note": "разная частота памяти (6000MHz AH5U16G60 vs 5200MHz AH5U16G52)",
+    "sources": []
+  },
+  "24": {
+    "label": "same"
+  },
+  "25": {
+    "label": "different",
+    "note": "разные модификации материнской платы: базовая и версия с модулем WIFI",
+    "sources": []
+  },
+  "26": {
+    "label": "different",
+    "note": "разные модификации: стандартная (KF432C16BB1/16WP) и с ARGB-подсветкой (KF432C16BB12A/16WP)",
+    "sources": []
+  },
+  "27": {
+    "label": "different",
+    "note": "разная частота (5200MHz vs 6000MHz), цвет (White vs Black) и конфигурация (одиночный 32GB vs комплект 2x16GB)",
+    "sources": []
+  },
+  "28": {
+    "label": "different",
+    "note": "разная частота (6000MT/s vs 5600MT/s) и конфигурация (комплект 2x16GB vs одиночный модуль 32GB)",
+    "sources": []
+  },
+  "29": {
+    "label": "different",
+    "note": "разная частота памяти (5600MT/s vs 6000MT/s)",
+    "sources": []
+  },
+  "30": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (8 ГБ vs 4 ГБ)",
+    "sources": []
+  },
+  "31": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR5 6000MT/s vs DDR4 3200MT/s)",
+    "sources": []
+  },
+  "32": {
+    "label": "different",
+    "note": "разная конфигурация (комплект 2x8GB vs одиночный модуль 16GB) и задержки (CL36 vs CL30)",
+    "sources": []
+  },
+  "33": {
+    "label": "different",
+    "note": "разные модификации: стандартная и с RGB-подсветкой (KF560C36BWE2K2-32 vs KF560C36BWE2AK2-32)",
+    "sources": []
+  },
+  "34": {
+    "label": "same"
+  },
+  "35": {
+    "label": "uncertain",
+    "note": "в первом названии указана версия с деревянными элементами V1-W-BK, во втором базовая модель без уточнения серии (V1 White)",
+    "sources": [
+      "https://techpowerup.com",
+      "https://hornington.com"
+    ]
+  },
+  "36": {
+    "label": "same"
+  },
+  "37": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR4 3200MHz vs DDR5 6000MHz)",
+    "sources": []
+  },
+  "38": {
+    "label": "different",
+    "note": "разные аппаратные ревизии видеокарты (V2 vs V3)",
+    "sources": []
+  },
+  "39": {
+    "label": "different",
+    "note": "разный интерфейс адаптера подключения (USB-A Link380a vs USB-C Link380c)",
+    "sources": []
+  },
+  "40": {
+    "label": "same"
+  },
+  "41": {
+    "label": "uncertain",
+    "note": "в первом названии не указана аппаратная ревизия (MR50G выпускается в ревизиях V1.0, V1.2, V2.0 с разной аппаратной начинкой)",
+    "sources": [
+      "https://www.mercusys.com"
+    ]
+  },
+  "42": {
+    "label": "same"
+  },
+  "43": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR5 6000MT/s vs DDR4 3200MHz)",
+    "sources": []
+  },
+  "44": {
+    "label": "same"
+  },
+  "45": {
+    "label": "same"
+  },
+  "46": {
+    "label": "different",
+    "note": "разная частота памяти (6000MHz vs 5600MT/s) и наличие RGB-подсветки",
+    "sources": []
+  },
+  "47": {
+    "label": "different",
+    "note": "разные модификации: тайминги (CL36 vs CL30) и наличие подсветки (non-RGB vs RGB)",
+    "sources": []
+  },
+  "48": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR4 3600MHz vs DDR5 6000MT/s)",
+    "sources": []
+  },
+  "49": {
+    "label": "different",
+    "note": "разные модификации: стандартная и с RGB-подсветкой (KF432C16BB1/16 vs KF432C16BB12A/16)",
+    "sources": []
+  },
+  "50": {
+    "label": "same"
+  },
+  "51": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (8 ГБ vs 4 ГБ)",
+    "sources": []
+  },
+  "52": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (8 ГБ vs 6 ГБ)",
+    "sources": []
+  },
+  "53": {
+    "label": "same"
+  },
+  "54": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR4 3200MHz vs DDR5 6000MHz)",
+    "sources": []
+  },
+  "55": {
+    "label": "different",
+    "note": "разные модификации: с RGB-подсветкой (KF556C36BBEA-16) и стандартная (KF556C36BBE-16)",
+    "sources": []
+  },
+  "56": {
+    "label": "uncertain",
+    "note": "в первом названии указан OEM с комплектным кулером Wraith Stealth, во втором кулер не указан (стандартный OEM поставляется без кулера)",
+    "sources": [
+      "https://www.amd.com"
+    ]
+  },
+  "57": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (4 ГБ vs 6 ГБ)",
+    "sources": []
+  },
+  "58": {
+    "label": "different",
+    "note": "разная частота (6000MT/s vs 5600MT/s) и конфигурация (комплект 2x8GB vs одиночный модуль 16GB RGB)",
+    "sources": []
+  },
+  "59": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR5 5600MHz vs DDR4 3600MHz)",
+    "sources": []
+  },
+  "60": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR4 3600MHz vs DDR5 6000MT/s)",
+    "sources": []
+  },
+  "61": {
+    "label": "same"
+  },
+  "62": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR4 3600MT/s vs DDR5 6000MT/s)",
+    "sources": []
+  },
+  "63": {
+    "label": "packaging",
+    "note": "одинаковый процессор Intel Core i7-13700F, разная комплектация OEM и BOX",
+    "sources": []
+  },
+  "64": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR5 6000MT/s vs DDR4 3200MHz)",
+    "sources": []
+  },
+  "65": {
+    "label": "same"
+  },
+  "66": {
+    "label": "different",
+    "note": "разные модели телевизоров Hisense: базовая версия (60 Гц) и серия Pro (144 Гц)",
+    "sources": []
+  },
+  "67": {
+    "label": "different",
+    "note": "разная частота памяти (5200MHz vs 6000MHz) и наличие RGB-подсветки",
+    "sources": []
+  },
+  "68": {
+    "label": "same"
+  },
+  "69": {
+    "label": "same"
+  },
+  "70": {
+    "label": "same"
+  },
+  "71": {
+    "label": "different",
+    "note": "разная частота (5200MHz vs 6000MHz) и наличие RGB-подсветки",
+    "sources": []
+  },
+  "72": {
+    "label": "different",
+    "note": "разная частота памяти (5200MHz vs 6000MHz) и конфигурация (одиночный модуль 32GB vs комплект 2x16GB)",
+    "sources": []
+  },
+  "73": {
+    "label": "different",
+    "note": "разная частота памяти (5200MHz vs 6400MHz) и конфигурация (одиночный модуль 32GB vs комплект 2x16GB)",
+    "sources": []
+  },
+  "74": {
+    "label": "same"
+  },
+  "75": {
+    "label": "different",
+    "note": "разная частота (6000MHz vs 5200MHz) и конфигурация (комплект 2x16GB vs одиночный 32GB)",
+    "sources": []
+  },
+  "76": {
+    "label": "same"
+  },
+  "77": {
+    "label": "same"
+  },
+  "78": {
+    "label": "different",
+    "note": "разные модификации по типу связи: только Wi-Fi vs поддержка 4G (LTE)",
+    "sources": []
+  },
+  "79": {
+    "label": "different",
+    "note": "разная частота памяти (5200MHz vs 6000MT/s)",
+    "sources": []
+  },
+  "80": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (8 ГБ vs 12 ГБ)",
+    "sources": []
+  },
+  "81": {
+    "label": "different",
+    "note": "разный форм-фактор (SO-DIMM vs DIMM/UDIMM) и частота (5200MHz vs 4800MHz)",
+    "sources": []
+  },
+  "82": {
+    "label": "same"
+  },
+  "83": {
+    "label": "different",
+    "note": "разная частота памяти (5600MT/s vs 6000MT/s)",
+    "sources": []
+  },
+  "84": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (6 ГБ vs 8 ГБ)",
+    "sources": []
+  },
+  "85": {
+    "label": "same"
+  },
+  "86": {
+    "label": "uncertain",
+    "note": "в первом названии не указан тип модуля связи (Wi-Fi или 4G), во втором явно указана версия 4G",
+    "sources": [
+      "https://blackview.hk"
+    ]
+  },
+  "87": {
+    "label": "same"
+  },
+  "88": {
+    "label": "same"
+  },
+  "89": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR5 5600MT/s vs DDR4 3600MHz)",
+    "sources": []
+  },
+  "90": {
+    "label": "uncertain",
+    "note": "в первом названии не указана герцовка (у XG Crimson X существуют модификации на 165 Гц и 180 Гц)",
+    "sources": [
+      "https://shop.kz"
+    ]
+  },
+  "91": {
+    "label": "same"
+  },
+  "92": {
+    "label": "same"
+  },
+  "93": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR4 3200MT/s vs DDR5 5200MT/s)",
+    "sources": []
+  },
+  "94": {
+    "label": "same"
+  },
+  "95": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR4 3200MHz vs DDR5 6000MHz)",
+    "sources": []
+  },
+  "96": {
+    "label": "same"
+  },
+  "97": {
+    "label": "same"
+  },
+  "98": {
+    "label": "same"
+  },
+  "99": {
+    "label": "same"
+  },
+  "100": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR5 5600MT/s vs DDR4 3200MHz)",
+    "sources": []
+  },
+  "101": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR4 3200MHz vs DDR5 6000MT/s)",
+    "sources": []
+  },
+  "102": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR5 5600MHz vs DDR4 3200MHz)",
+    "sources": []
+  },
+  "103": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (8 ГБ vs 6 ГБ)",
+    "sources": []
+  },
+  "104": {
+    "label": "different",
+    "note": "разная конфигурация (комплект 2x16GB vs одиночный модуль 32GB) и цвет",
+    "sources": []
+  },
+  "105": {
+    "label": "different",
+    "note": "разные редакции гарнитуры Jabra: UC (Unified Communications) vs MS (Microsoft Teams, артикул 28599-999-999)",
+    "sources": [
+      "https://www.jabra.com"
+    ]
+  },
+  "106": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR4 3200MHz vs DDR5 6000MHz)",
+    "sources": []
+  },
+  "107": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (6 ГБ vs 8 ГБ)",
+    "sources": []
+  },
+  "108": {
+    "label": "different",
+    "note": "разная частота памяти (2666MHz HSC416U26 vs 3200MHz HSC416U32)",
+    "sources": []
+  },
+  "109": {
+    "label": "same"
+  },
+  "110": {
+    "label": "same"
+  },
+  "111": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (6 ГБ vs 4 ГБ)",
+    "sources": []
+  },
+  "112": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (6 ГБ vs 8 ГБ)",
+    "sources": []
+  },
+  "113": {
+    "label": "different",
+    "note": "разные модификации модуля памяти: стандартный модуль без радиатора и версия с радиатором охлаждения (HSW)",
+    "sources": [
+      "https://apltech.kz"
+    ]
+  },
+  "114": {
+    "label": "same"
+  },
+  "115": {
+    "label": "different",
+    "note": "разные аппаратные ревизии с разными таймингами XMP: 16-18-18 (BB12AK2) vs 16-20-20 (BB2AK2)",
+    "sources": [
+      "https://www.kingston.com"
+    ]
+  },
+  "116": {
+    "label": "same"
+  },
+  "117": {
+    "label": "same"
+  },
+  "118": {
+    "label": "different",
+    "note": "разная частота памяти (5600MT/s vs 6000MT/s) и конфигурация (комплект 2x8GB vs одиночный модуль 16GB)",
+    "sources": []
+  },
+  "119": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR4 3200MHz vs DDR5 5200MT/s)",
+    "sources": []
+  },
+  "120": {
+    "label": "different",
+    "note": "разная частота (5200MHz vs 6000MHz) и наличие RGB-подсветки",
+    "sources": []
+  },
+  "121": {
+    "label": "same"
+  },
+  "122": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (4 ГБ vs 6 ГБ)",
+    "sources": []
+  },
+  "123": {
+    "label": "packaging",
+    "note": "одинаковый процессор Intel Core i9 12900F, разная комплектация OEM и BOX",
+    "sources": []
+  },
+  "124": {
+    "label": "different",
+    "note": "разная частота памяти (6000MT/s vs 5600MT/s) и конфигурация (одиночный модуль 16GB vs комплект 2x8GB)",
+    "sources": []
+  },
+  "125": {
+    "label": "same"
+  },
+  "126": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (8 ГБ vs 12 ГБ)",
+    "sources": []
+  },
+  "127": {
+    "label": "same"
+  },
+  "128": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR4 2666MHz vs DDR5 5600MHz)",
+    "sources": []
+  },
+  "129": {
+    "label": "same"
+  },
+  "130": {
+    "label": "same"
+  },
+  "131": {
+    "label": "same"
+  },
+  "132": {
+    "label": "uncertain",
+    "note": "во втором названии указан форм-фактор SDXC, но с классом A2 (спецификация A2 относится к картам microSD; возможно смешение полноразмерной SDXC и microSDXC)",
+    "sources": [
+      "https://www.kingston.com"
+    ]
+  },
+  "133": {
+    "label": "same"
+  },
+  "134": {
+    "label": "uncertain",
+    "note": "во втором названии указан кулер Wraith Stealth, в первом комплектация кулера не указана (OEM процессоров обычно поставляется без кулера)",
+    "sources": [
+      "https://www.amd.com"
+    ]
+  },
+  "135": {
+    "label": "same"
+  },
+  "136": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR5 5600MHz vs DDR4 3200MHz)",
+    "sources": []
+  },
+  "137": {
+    "label": "same"
+  },
+  "138": {
+    "label": "different",
+    "note": "разная частота памяти (5200MHz vs 6000MHz) и конфигурация (комплект 2x8GB vs одиночный модуль 16GB RGB)",
+    "sources": []
+  },
+  "139": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (8 ГБ vs 4 ГБ)",
+    "sources": []
+  },
+  "140": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (8 ГБ vs 6 ГБ)",
+    "sources": []
+  },
+  "141": {
+    "label": "same"
+  },
+  "142": {
+    "label": "different",
+    "note": "разная конфигурация (комплект 2x16GB vs одиночный модуль 32GB) и задержки (CL30 vs CL36)",
+    "sources": []
+  },
+  "143": {
+    "label": "different",
+    "note": "разная частота памяти (6000MT/s vs 5600MT/s) и конфигурация (комплект 2x8GB vs одиночный модуль 16GB)",
+    "sources": []
+  },
+  "144": {
+    "label": "different",
+    "note": "разная частота памяти (6000MHz vs 5600MT/s) и конфигурация (комплект 2x16GB vs одиночный модуль 32GB)",
+    "sources": []
+  },
+  "145": {
+    "label": "same"
+  },
+  "146": {
+    "label": "different",
+    "note": "разная частота обновления экрана (165 Гц vs 180 Гц)",
+    "sources": []
+  },
+  "147": {
+    "label": "same"
+  },
+  "148": {
+    "label": "different",
+    "note": "разная частота памяти (5600MT/s vs 6000MT/s) и наличие подсветки",
+    "sources": []
+  },
+  "149": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR4 3200MHz vs DDR5 6000MHz)",
+    "sources": []
+  },
+  "150": {
+    "label": "same"
+  },
+  "151": {
+    "label": "same"
+  },
+  "152": {
+    "label": "same"
+  },
+  "153": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR4 3200MHz vs DDR5 6000MT/s)",
+    "sources": []
+  },
+  "154": {
+    "label": "different",
+    "note": "разный форм-фактор памяти: для ноутбуков SO-DIMM (R534G1601S1SL-U) vs для ПК UDIMM (R534G1601U1SL-U)",
+    "sources": []
+  },
+  "155": {
+    "label": "same"
+  },
+  "156": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (4 ГБ vs 8 ГБ)",
+    "sources": []
+  },
+  "157": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (4 ГБ vs 6 ГБ)",
+    "sources": []
+  },
+  "158": {
+    "label": "different",
+    "note": "разная частота памяти (5200MHz vs 5600MT/s)",
+    "sources": []
+  },
+  "159": {
+    "label": "same"
+  },
+  "160": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (6 ГБ vs 4 ГБ)",
+    "sources": []
+  },
+  "161": {
+    "label": "different",
+    "note": "разная частота памяти (5200MHz vs 6000MHz) и тайминги",
+    "sources": []
+  },
+  "162": {
+    "label": "packaging",
+    "note": "одинаковый процессор AMD Ryzen 7 8700G, разная комплектация BOX и OEM",
+    "sources": []
+  },
+  "163": {
+    "label": "different",
+    "note": "разные аппаратные ревизии видеокарты (V9 vs V8)",
+    "sources": []
+  },
+  "164": {
+    "label": "same"
+  },
+  "165": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (6 ГБ vs 8 ГБ)",
+    "sources": []
+  },
+  "166": {
+    "label": "same"
+  },
+  "167": {
+    "label": "different",
+    "note": "разная частота памяти (5600MHz vs 6000MHz) и наличие RGB-подсветки",
+    "sources": []
+  },
+  "168": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR5 5600MHz vs DDR4 3200MHz)",
+    "sources": []
+  },
+  "169": {
+    "label": "same"
+  },
+  "170": {
+    "label": "different",
+    "note": "разная частота памяти (5200MHz vs 5600MT/s)",
+    "sources": []
+  },
+  "171": {
+    "label": "different",
+    "note": "разная комплектация: версия с беспроводной зарядной станцией (WLC) vs стандартная комплектация (26699-999-899)",
+    "sources": [
+      "https://www.jabra.com"
+    ]
+  },
+  "172": {
+    "label": "same"
+  },
+  "173": {
+    "label": "same"
+  },
+  "174": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (4 ГБ vs 6 ГБ)",
+    "sources": []
+  },
+  "175": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (6 ГБ vs 4 ГБ)",
+    "sources": []
+  },
+  "176": {
+    "label": "same"
+  },
+  "177": {
+    "label": "different",
+    "note": "разная частота памяти (5600MT/s vs 6000MT/s)",
+    "sources": []
+  },
+  "178": {
+    "label": "different",
+    "note": "разная частота памяти (5600MT/s vs 6000MHz)",
+    "sources": []
+  },
+  "179": {
+    "label": "different",
+    "note": "разные модификации: тайминги (CL36 vs CL30) и наличие RGB-подсветки",
+    "sources": []
+  },
+  "180": {
+    "label": "same"
+  },
+  "181": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR5 5600MHz vs DDR4 3600MT/s)",
+    "sources": []
+  },
+  "182": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (8 ГБ vs 4 ГБ)",
+    "sources": []
+  },
+  "183": {
+    "label": "uncertain",
+    "note": "в первом названии не указана модификация чипа (RX 580 выпускается в версиях с 2304SP и урезанной 2048SP с разной производительностью)",
+    "sources": [
+      "https://technical.city"
+    ]
+  },
+  "184": {
+    "label": "different",
+    "note": "разная частота памяти (6000MHz vs 5600MT/s) и наличие RGB-подсветки",
+    "sources": []
+  },
+  "185": {
+    "label": "same"
+  },
+  "186": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR5 6000MT/s vs DDR4 3200MHz)",
+    "sources": []
+  },
+  "187": {
+    "label": "same"
+  },
+  "188": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR4 3200MHz vs DDR5 5200MHz)",
+    "sources": []
+  },
+  "189": {
+    "label": "same"
+  },
+  "190": {
+    "label": "different",
+    "note": "разные модификации материнской платы: базовая и версия с модулем WIFI",
+    "sources": []
+  },
+  "191": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR4 3200MHz vs DDR5 6000MT/s)",
+    "sources": []
+  },
+  "192": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (8 ГБ vs 6 ГБ)",
+    "sources": []
+  },
+  "193": {
+    "label": "different",
+    "note": "разная частота памяти (6000MHz vs 5600MT/s)",
+    "sources": []
+  },
+  "194": {
+    "label": "same"
+  },
+  "195": {
+    "label": "same"
+  },
+  "196": {
+    "label": "same"
+  },
+  "197": {
+    "label": "same"
+  },
+  "198": {
+    "label": "same"
+  },
+  "199": {
+    "label": "different",
+    "note": "разная частота памяти (6000MT/s vs 5200MT/s) и конфигурация (комплект 2x16GB vs одиночный модуль 32GB)",
+    "sources": []
+  },
+  "200": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR5 5600MT/s vs DDR4 3200MHz)",
+    "sources": []
+  },
+  "201": {
+    "label": "same"
+  },
+  "202": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR4 3200MHz vs DDR5 5600MT/s)",
+    "sources": []
+  },
+  "203": {
+    "label": "different",
+    "note": "разная частота памяти (5600MHz vs 6000MT/s)",
+    "sources": []
+  },
+  "204": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (8 ГБ vs 6 ГБ)",
+    "sources": []
+  },
+  "205": {
+    "label": "different",
+    "note": "разная частота памяти (5600MHz vs 6000MT/s)",
+    "sources": []
+  },
+  "206": {
+    "label": "same"
+  },
+  "207": {
+    "label": "same"
+  },
+  "208": {
+    "label": "different",
+    "note": "разная частота памяти (5600MHz AH5U16G56 vs 6000MHz AH5U16G60)",
+    "sources": []
+  },
+  "209": {
+    "label": "same"
+  },
+  "210": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR5 5600MT/s vs DDR4 3600MT/s)",
+    "sources": []
+  },
+  "211": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (8 ГБ vs 6 ГБ)",
+    "sources": []
+  },
+  "212": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR5 5600MT/s vs DDR4 3200MHz)",
+    "sources": []
+  },
+  "213": {
+    "label": "different",
+    "note": "разная частота памяти (6000MT/s vs 5600MT/s)",
+    "sources": []
+  },
+  "214": {
+    "label": "same"
+  },
+  "215": {
+    "label": "same"
+  },
+  "216": {
+    "label": "different",
+    "note": "разная конфигурация: комплект 2x16GB vs одиночный модуль 32GB",
+    "sources": []
+  },
+  "217": {
+    "label": "same"
+  },
+  "218": {
+    "label": "same"
+  },
+  "219": {
+    "label": "same"
+  },
+  "220": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR5 6000MHz vs DDR4 3200MHz)",
+    "sources": []
+  },
+  "221": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (8 ГБ vs 4 ГБ)",
+    "sources": []
+  },
+  "222": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (4 ГБ vs 8 ГБ)",
+    "sources": []
+  },
+  "223": {
+    "label": "same"
+  },
+  "224": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (8 ГБ vs 12 ГБ)",
+    "sources": []
+  },
+  "225": {
+    "label": "same"
+  },
+  "226": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR5 5600MT/s vs DDR4 3600MT/s)",
+    "sources": []
+  },
+  "227": {
+    "label": "different",
+    "note": "разная конфигурация: одиночный модуль 16GB vs комплект 2x8GB",
+    "sources": []
+  },
+  "228": {
+    "label": "different",
+    "note": "разная конфигурация (комплект 2x8GB vs одиночный 16GB), тайминги (CL40 vs CL36) и наличие подсветки",
+    "sources": []
+  },
+  "229": {
+    "label": "packaging",
+    "note": "одинаковый процессор AMD Ryzen 7 8700G, разная комплектация BOX и OEM",
+    "sources": []
+  },
+  "230": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR4 3200MHz vs DDR5 5600MT/s)",
+    "sources": []
+  },
+  "231": {
+    "label": "same"
+  },
+  "232": {
+    "label": "same"
+  },
+  "233": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR4 3600MHz vs DDR5 6000MT/s)",
+    "sources": []
+  },
+  "234": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (8 ГБ vs 6 ГБ)",
+    "sources": []
+  },
+  "235": {
+    "label": "same"
+  },
+  "236": {
+    "label": "same"
+  },
+  "237": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR4 3200MHz vs DDR5 6000MHz)",
+    "sources": []
+  },
+  "238": {
+    "label": "same"
+  },
+  "239": {
+    "label": "different",
+    "note": "разная частота памяти (5600MT/s vs 6000MHz) и тайминги (CL36 vs CL30)",
+    "sources": []
+  },
+  "240": {
+    "label": "same"
+  },
+  "241": {
+    "label": "same"
+  },
+  "242": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR4 3200MHz vs DDR5 6000MT/s)",
+    "sources": []
+  },
+  "243": {
+    "label": "different",
+    "note": "разная частота памяти (6000MT/s vs 5600MT/s) и наличие RGB-подсветки",
+    "sources": []
+  },
+  "244": {
+    "label": "same"
+  },
+  "245": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR4 3200MHz vs DDR5 5600MT/s)",
+    "sources": []
+  },
+  "246": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (12 ГБ vs 8 ГБ)",
+    "sources": []
+  },
+  "247": {
+    "label": "different",
+    "note": "разная частота памяти (6000MHz vs 5200MT/s) и конфигурация (комплект 2x16GB vs одиночный модуль 32GB)",
+    "sources": []
+  },
+  "248": {
+    "label": "same"
+  },
+  "249": {
+    "label": "different",
+    "note": "разная конфигурация (одиночный модуль 16GB vs комплект 2x8GB) и тайминги (CL36 vs CL40)",
+    "sources": []
+  },
+  "250": {
+    "label": "different",
+    "note": "разный стандарт напряжения памяти: DDR3L 1.35V (R534G1601U1SL-U) vs DDR3 1.5V (R5S34G1601U1S)",
+    "sources": [
+      "https://dns-shop.kz"
+    ]
+  },
+  "251": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR3L 1600MHz vs DDR4 3200MHz)",
+    "sources": []
+  },
+  "252": {
+    "label": "different",
+    "note": "разная частота памяти (5600MT/s vs 6000MT/s)",
+    "sources": []
+  },
+  "253": {
+    "label": "different",
+    "note": "разная конфигурация: комплект 2x8GB (K2) vs одиночный модуль 16GB",
+    "sources": []
+  },
+  "254": {
+    "label": "same"
+  },
+  "255": {
+    "label": "different",
+    "note": "разная частота памяти (6000MT/s vs 5600MT/s) и тайминги",
+    "sources": []
+  },
+  "256": {
+    "label": "same"
+  },
+  "257": {
+    "label": "different",
+    "note": "разные поколения памяти и частота (DDR5 5600MT/s vs DDR4 3200MHz)",
+    "sources": []
+  },
+  "258": {
+    "label": "same"
+  },
+  "259": {
+    "label": "different",
+    "note": "разная конфигурация: комплект 2x8GB vs одиночный модуль 16GB",
+    "sources": []
+  },
+  "260": {
+    "label": "different",
+    "note": "разная частота памяти (3200MHz vs 3600MHz) и наличие RGB-подсветки",
+    "sources": []
+  },
+  "261": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (8 ГБ vs 4 ГБ)",
+    "sources": []
+  },
+  "262": {
+    "label": "same"
+  },
+  "263": {
+    "label": "different",
+    "note": "разная частота памяти (6000MT/s vs 5600MT/s) и наличие RGB-подсветки",
+    "sources": []
+  },
+  "264": {
+    "label": "different",
+    "note": "разная частота памяти (6000MHz vs 5600MT/s)",
+    "sources": []
+  },
+  "265": {
+    "label": "different",
+    "note": "разная частота памяти (6000MT/s vs 5600MT/s) и наличие RGB-подсветки",
+    "sources": []
+  },
+  "266": {
+    "label": "different",
+    "note": "разный объем оперативной памяти (6 ГБ vs 4 ГБ)",
+    "sources": []
+  },
+  "267": {
+    "label": "same"
+  },
+  "268": {
+    "label": "different",
+    "note": "разные модификации: тайминги (CL30 vs CL36) и наличие RGB-подсветки",
+    "sources": []
+  },
+  "269": {
+    "label": "same"
+  },
+  "270": {
+    "label": "same"
+  },
+  "271": {
+    "label": "different",
+    "note": "разная частота памяти (6000MHz vs 6400MHz)",
+    "sources": []
+  },
+  "272": {
+    "label": "uncertain",
+    "note": "в первом названии не указана модификация чипа (2048SP vs 2304SP), артикул AFRX580-8192D5H3-V3 относится к версии 2048SP",
+    "sources": [
+      "https://technical.city"
+    ]
+  },
+  "273": {
+    "label": "different",
+    "note": "разная частота памяти (5200MHz vs 6000MT/s) и задержки",
+    "sources": []
+  },
+  "274": {
+    "label": "uncertain",
+    "note": "в первом названии указана комплектация BOX, во втором указан только s-spec SRMBB без указания типа поставки (BOX или OEM/Tray)",
+    "sources": [
+      "https://intel.com"
+    ]
+  },
+  "275": {
+    "label": "same"
+  },
+  "276": {
+    "label": "different",
+    "note": "разная частота памяти (5600MHz vs 6000MT/s)",
+    "sources": []
+  },
+  "277": {
+    "label": "same"
+  },
+  "278": {
+    "label": "different",
+    "note": "разная частота памяти (5600MHz vs 6000MT/s) и конфигурация (одиночный модуль 16GB vs комплект 2x8GB)",
+    "sources": []
+  },
+  "279": {
+    "label": "different",
+    "note": "разная частота памяти (6000MHz vs 5600MT/s)",
+    "sources": []
+  }
+}
