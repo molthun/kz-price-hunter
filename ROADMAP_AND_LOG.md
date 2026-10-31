@@ -6,6 +6,24 @@
 
 ---
 
+### 31.10.2026 — Search Platform 2.0: Discovery, Classifieds & C4 (Antigravity)
+- **Контекст:** закрытие незавершённых функциональных этапов Search Platform 2.0 по прямому поручению владельца («Частые аудиты тормозят разработку. Мы только на первом этапе планов по разработке из 20 проектных. Все по очереди. Пишем и охватываем тестами. Крупные этапы после разработки только охватываем аудитом остальное только авто тестами и стендом. Делаем»).
+- **Реализация:**
+  - **Seller Discovery & Source Profiler (Этапы 5, 7, 14):**
+    - В `CandidateRepository` реализованы расширенные фильтры (`find_candidates` по статусам, источникам, городу, домену, телефону, поисковому запросу `q`, пагинация), метод подсчета `count_candidates`, аналитика воронки `get_discovery_stats` (распределение по статусам жизненного цикла, источникам, 7 тирам сбора и форматам), а также метод повторного профилирования `profile_candidate`.
+    - В `DiscoveryTaskRepository` добавлен метод `create_manual_task` с автоматической генерацией поисковых фраз под Google, 2GIS, Instagram, Kaspi через `SearchPatternGenerator`.
+    - В `web/server.py` реализованы API-эндпоинты администратора: `GET /api/v2/admin/discovery/stats`, `GET /api/v2/admin/discovery/candidates`, `POST /api/v2/admin/discovery/candidates/{id}/profile`, `POST /api/v2/discovery/tasks/create`.
+    - В `web/templates/monitoring.html` добавлена вкладка панели мониторинга `/monitoring#discovery` (воронка кандидатов, фильтры, поиск, кнопки «Профилировать», «Одобрить», «Отклонить», создание задач спроса).
+    - Создан сьют тестов `tests/web/test_seller_discovery_api.py` (6/6 OK).
+  - **Вторичный рынок / Classifieds / Condition (Этап 4):**
+    - В `domain/condition.py` поддержана обработка `AggregatedOffer` в `build_condition_breakdown`.
+    - В `domain/search_core.py` и `repositories/search_repo.py` реализовано строгое разделение ценовых ярусов: `best_new_price`, `best_used_price`, `condition_breakdown`, `is_used_only`, классификация частных продавцов `is_private_seller` (Classifieds / OLX) и фильтрация по `seller_type` (`all`, `business`, `private`).
+    - Создан сьют тестов `tests/sellers/test_classifieds_search.py` (6/6 OK).
+  - **Пакетная миграция C4 на k2:**
+    - Проверены и успешно выполнены все тесты миграции `tests/core/test_migrate_to_k2.py` (11/11 OK).
+
+---
+
 ### 31.10.2026 — P17-D: Мультимодальный Vision по изображениям (Antigravity)
 - **Контекст:** закрытие технического долга Search Platform 2.0 (S2-E10, этап P17-D). Прямое поручение владельца: «Теперь вернемся к тому что не доделано. Нужно все доделать».
 - **Реализация:**

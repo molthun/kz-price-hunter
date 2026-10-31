@@ -2,6 +2,40 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## Search Platform 2.0: Discovery, Classifieds & C4 Migration — Antigravity (завершено, 2026-10-31 15:15)
+
+- **Основание:** прямое указание владельца («Частые аудиты тормозят разработку. Мы только на первом этапе планов по разработке из 20 проектных. Все по очереди. Пишем и охватываем тестами. Крупные этапы после разработки только охватываем аудитом остальное только авто тестами и стендом. Делаем»), план закрытия остатков Search Platform 2.0 ([SEARCH_PLATFORM_PLAN.md](SEARCH_PLATFORM_PLAN.md) Этапы 4, 5, 7, 14 и [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) раздел P17-C4).
+- **Исполнитель:** Antigravity (основной разработчик).
+- **Ветка разработки:** `feature/p17-d-vision-extraction`.
+- **Область файлов:** `repositories/candidate_repo.py`, `repositories/discovery_task_repo.py`, `repositories/search_repo.py`, `domain/condition.py`, `domain/search_core.py`, `web/server.py`, `web/templates/monitoring.html`, `tests/web/test_seller_discovery_api.py`, `tests/sellers/test_classifieds_search.py`, `docs/AGENT_HANDOFF.md`, `ROADMAP_AND_LOG.md`.
+- **Что реализовано:**
+  1. **Шаг 2.1: Seller Discovery & Source Profiler API & UI (Этапы 5, 7, 14)**:
+     - `repositories/candidate_repo.py`: расширен метод `find_candidates` (фильтрация по `status`, `source_type`, `city`, `domain`, `phone`, `query`, пагинация `offset`, `limit`), добавлен метод `count_candidates` и метод `get_discovery_stats()` (воронка кандидатов: DISCOVERED → PROFILED → IDENTITY_MATCHED → CATALOG_FOUND → REVIEW_REQUIRED → APPROVED → INDEXED, распределение источников по 7 тирам сбора и форматам), добавлен метод `profile_candidate` (запуск цифрового профилирования и проверки связей в Seller Graph);
+     - `repositories/discovery_task_repo.py`: добавлен метод `create_manual_task` с генерацией поисковых запросов под Google, 2GIS, Instagram, Kaspi через `SearchPatternGenerator`;
+     - `web/server.py`: реализованы административные эндпоинты `GET /api/v2/admin/discovery/stats`, `GET /api/v2/admin/discovery/candidates`, `POST /api/v2/admin/discovery/candidates/{id}/profile`, `POST /api/v2/discovery/tasks/create`;
+     - `web/templates/monitoring.html`: добавлена полноценная панель мониторинга `/monitoring#discovery` (метрики воронки кандидатов, фильтры по статусам и источникам, поиск, кнопки «Профилировать», «Одобрить», «Отклонить», создание и управление задачами спроса);
+     - `tests/web/test_seller_discovery_api.py`: 6 новых тестов API и репозиториев (все OK).
+  2. **Шаг 2.2: Вторичный рынок / Condition & Classifieds (Этап 4)**:
+     - `domain/condition.py`: `build_condition_breakdown` адаптирован для поддержки как `Offer`, так и `AggregatedOffer` (учет `is_purchasable` / `is_active`);
+     - `domain/search_core.py`: в `AggregatedOffer` добавлено поле `is_private_seller: bool`, в `ProductSearchResult` добавлены `best_new_price`, `best_used_price`, `condition_breakdown`, `is_used_only`, `new_offers_count`, `used_offers_count`. Реализовано строгое разделение ценовых ярусов (новые vs б/у, open_box, refurb) и фильтрация по `seller_type` (`business` vs `private`);
+     - `repositories/search_repo.py`: в `sql_offers` добавлена выборка `s.metadata_json` и классификация частных продавцов (`channel_type == 'classifieds'` или `is_private`);
+     - `web/server.py`: в `/api/v2/search` подключен параметр `seller_type` (`all`, `business`, `private`);
+     - `tests/sellers/test_classifieds_search.py`: 6 новых тестов (все OK).
+  3. **Шаг 2.3: Завершение C4 (пакетная миграция базы на стандарт k2)**:
+     - Проверены и успешно выполнены тесты миграции `tests/core/test_migrate_to_k2.py` (11/11 OK), проверена целостность пар `scripts/migrate_to_k2.py`.
+- **Что проверено:**
+  - `tests/web/test_seller_discovery_api.py`: 6/6 OK;
+  - `tests/sellers/test_classifieds_search.py`: 6/6 OK;
+  - `tests/sellers/test_condition.py`: 15/15 OK;
+  - `tests/sellers/`: 167/167 OK;
+  - `tests/search/`: 148/148 OK;
+  - `tests/core/test_migrate_to_k2.py`: 11/11 OK;
+  - Secrets findings: 0;
+  - Whitespace / diff check: чисто.
+- **Следующий шаг:** подготовка к объединению ветки и выпуску релиза.
+
+---
+
 ## P17-D: Мультимодальный Vision по изображениям — Antigravity (завершено, готов к аудиту Codex, 2026-10-31 14:25)
 
 - **Основание:** прямое поручение владельца («Теперь вернемся к тому что не доделано. Нужно все доделать»), план [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) раздел P17-D (закрытие технического долга Search Platform 2.0 S2-E10).
