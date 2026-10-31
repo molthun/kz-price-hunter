@@ -7,8 +7,10 @@ import sqlite3
 import tempfile
 import unittest
 import unittest.mock
+from unittest.mock import patch, MagicMock, AsyncMock
 
 import database
+import config
 import product_key
 import product_verify
 
@@ -688,6 +690,99 @@ class TestDisputedMatchingWebAPI(unittest.IsolatedAsyncioTestCase):
         self.assertIn("matchingPairsContainer", html)
         self.assertIn("loadMatchingDisputes", html)
         self.assertIn("submitMatchingVerdict", html)
+
+
+    async def test_manual_live_search_respects_and_reserves_daily_quota(self):
+        await self._login_dev_admin()
+        a, b = "Apple EarPods Lightning", "Apple EarPods USB-C"
+        database.save_title_fields_batch({
+            a: {"brand": "Apple", "model": "EarPods Lightning"},
+            b: {"brand": "Apple", "model": "EarPods USB-C"},
+        }, "k2", "local", "test")
+        database.enqueue_disputed_pair(a, b, "test")
+        ph = product_key.pair_hash(a, b)
+
+        fake_search = AsyncMock(return_value=[{"title": "Apple EarPods", "url": "https://apple.com", "content": "Official"}])
+        with patch.object(config, "get_ai_config", return_value={
+            "search_api_base": "http://searxng.test",
+            "search_daily_limit": 1,
+            "search_interval_seconds": 0,
+        }), patch.object(product_verify, "searxng_search", fake_search):
+            # Первый вызов fetch_live=1 при лимите 1
+            res1 = await self.client.get("/api/admin/matching/search", params={"pair_hash": ph, "fetch_live": "1"})
+            self.assertEqual(res1.status, 200)
+
+            # Второй вызов fetch_live=1 при уже исчерпанном лимите
+            res2 = await self.client.get("/api/admin/matching/search", params={"pair_hash": ph, "fetch_live": "1"})
+            self.assertEqual(res2.status, 200)
+
+        # Ровно 1 попытка была зарезервирована и выполнена
+        self.assertEqual(fake_search.await_count, 1)
+        self.assertEqual(database.web_searches_today(), 1)
+
+    async def test_conflict_scan_does_not_halt_on_resolved_or_pending_or_skipped_pair(self):
+        a = "Samsung Galaxy S24 128GB"
+        b = "Samsung Galaxy S24 256GB"
+        c = "Samsung Galaxy S24 512GB"
+        names = [a, b, c]
+        key = "k2:samsung:galaxys24"
+
+        for i, t in enumerate(names):
+            database.save_or_update_product({
+                "id": f"p_s24_{i}", "title": t, "canonical_key": key,
+                "shop": "Kaspi", "city": "Алматы", "price": 100000 + i * 10000, "url": f"https://k.kz/{i}"
+            })
+        database.save_cached_canonical_keys_batch({t: key for t in names})
+        database.save_title_fields_batch({
+            t: {"brand": "Samsung", "model": "Galaxy S24", "variants": [{"value": n, "unit": "gb"}], "unbranded": False}
+            for t, n in zip(names, [128, 256, 512])
+        }, "k2", "local", "test")
+
+        # 1. Первая пара разрешена человеком как SAME
+        database.enqueue_disputed_pair(a, b, "test_init")
+        res_resolve = database.resolve_disputed_pair_human(product_key.pair_hash(a, b), "same", "test_reviewer")
+        self.assertTrue(res_resolve["ok"])
+
+        # 2. Первое сканирование должно пропустить решённую (a, b) и найти (a, c)
+        scan1 = database.find_and_enqueue_conflicting_canonical_keys(10)
+        self.assertEqual(scan1["enqueued"], 1)
+        self.assertEqual(scan1["conflicts"][0]["title_b"], c)
+
+        # 3. Второе сканирование находит оставшийся нерешённый конфликт (b, c)
+        scan2 = database.find_and_enqueue_conflicting_canonical_keys(10)
+        self.assertEqual(scan2["enqueued"], 1)
+        self.assertEqual(scan2["conflicts"][0]["title_a"], b)
+        self.assertEqual(scan2["conflicts"][0]["title_b"], c)
+
+        # 4. Третье сканирование — все конфликты в группе уже в очереди или решены, новых enqueued нет
+        scan3 = database.find_and_enqueue_conflicting_canonical_keys(10)
+        self.assertEqual(scan3["enqueued"], 0)
+
+    async def test_conflict_scan_respects_human_skip(self):
+        a = "Xiaomi 14 256GB Black"
+        b = "Xiaomi 14 512GB White"
+        c = "Xiaomi 14 1TB Green"
+        key = "k2:xiaomi:14"
+        for i, t in enumerate([a, b, c]):
+            database.save_or_update_product({
+                "id": f"p_mi_{i}", "title": t, "canonical_key": key,
+                "shop": "Kaspi", "city": "Алматы", "price": 200000 + i * 20000, "url": f"https://k.kz/mi/{i}"
+            })
+        database.save_cached_canonical_keys_batch({t: key for t in [a, b, c]})
+        database.save_title_fields_batch({
+            t: {"brand": "Xiaomi", "model": "14", "variants": [{"value": n, "unit": u}], "unbranded": False}
+            for t, n, u in [(a, 256, "gb"), (b, 512, "gb"), (c, 1, "tb")]
+        }, "k2", "local", "test")
+
+        # Человек откладывает (a, b)
+        database.enqueue_disputed_pair(a, b, "test_init")
+        database.resolve_disputed_pair_human(product_key.pair_hash(a, b), "skip", "test_reviewer")
+
+        # Сканирование не должно переоткрывать (a, b), а должно найти конфликт с участием c
+        scan = database.find_and_enqueue_conflicting_canonical_keys(10)
+        self.assertEqual(scan["enqueued"], 1)
+        found_pair = {scan["conflicts"][0]["title_a"], scan["conflicts"][0]["title_b"]}
+        self.assertIn(c, found_pair)
 
 
 if __name__ == "__main__":

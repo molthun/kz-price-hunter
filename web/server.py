@@ -3816,9 +3816,11 @@ async def admin_matching_search_handler(request):
         daily_limit = int(cfg.get("search_daily_limit") or 0)
         interval = float(cfg.get("search_interval_seconds") or 90)
 
-        if search_base and daily_limit > 0 and database.web_searches_today() < daily_limit:
+        if search_base and daily_limit > 0:
             for q in queries:
                 if q not in results:
+                    if not await asyncio.to_thread(database.reserve_web_search, q, daily_limit):
+                        break
                     found = await product_verify.searxng_search(search_base, q, min_interval=interval)
                     if found:
                         await asyncio.to_thread(database.save_web_search, q, found)

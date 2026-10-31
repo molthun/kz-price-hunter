@@ -1,0 +1,50 @@
+test_different_survives_refreshed_fields_with_unchanged_rules (__main__.Acceptance.test_different_survives_refreshed_fields_with_unchanged_rules) ... ok
+test_operator_after_read_waits_until_batch_commit (__main__.Acceptance.test_operator_after_read_waits_until_batch_commit) ... ok
+test_prepared_scan_does_not_overwrite_later_operator_pin (__main__.Acceptance.test_prepared_scan_does_not_overwrite_later_operator_pin) ... ok
+test_retry_reloads_pin_after_failed_attempt (__main__.Acceptance.test_retry_reloads_pin_after_failed_attempt) ... ok
+test_same_uses_shadow_fields_of_third_member (__main__.Acceptance.test_same_uses_shadow_fields_of_third_member) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.742s
+
+OK
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[C4] Найдено названий для миграции: 2, в исходном снимке refresh-audit: 2
+[C4] Из них уже сохранены поля: 2
+[C4] Обработка 2 названий пачками по 2...
+[C4] Прогресс: 2/2 (100%) | Скорость: 5132.0 наим/с | ETA: 0 с | С ключом k2: 2
+DIFFERENT_AFTER_FIELD_REFRESH {'ok': True, 'decision': 'different', 'pair_hash': '486183cb1737ad71ee83202802c7f45504bd54b3a76db46820980b7325008bcf', 'split': None} pins= {'Apple EarPods Lightning': 'k2:apple:earpodslightning', 'Apple EarPods USB-C': 'k2:apple:earpodsusbc'} keys= {'Apple EarPods Lightning': 'k2:apple:earpodslightning', 'Apple EarPods USB-C': 'k2:apple:earpodsusbc'} verdict= different
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+ACTUAL_WRITER_LOCK_AND_COMPETING_BEGIN_CONFIRMED
+CONSISTENT_PIN_CACHE_LEGACY_V2 k2:apple:earpods.diff_dbd10113
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+PIN_AFTER_PREPARATION {'separated_title': 'Apple EarPods USB-C', 'new_key': 'k2:apple:earpods.diff_dbd10113', 'previous_key': 'k2:apple:earpods'} cache= {'Apple EarPods USB-C': 'k2:apple:earpods.diff_dbd10113'} legacy_v2= ('k2:apple:earpods.diff_dbd10113', 'k2:apple:earpods.diff_dbd10113')
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+CONSISTENT_PIN_CACHE_LEGACY_V2 k2:apple:earpods.diff_dbd10113
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+SHADOW_256_THIRD_MEMBER {'ok': False, 'error': 'В группах есть другие товары, которые противоречат этому решению', 'conflicts': ['Samsung Galaxy S24 blue']} {'Samsung Galaxy S24 blue': 's:b', 'Samsung Galaxy S24 white': 's:b', 'Samsung Galaxy S24 black': 's:a'}

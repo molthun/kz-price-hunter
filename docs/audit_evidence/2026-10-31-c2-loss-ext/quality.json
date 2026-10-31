@@ -3,9 +3,9 @@
   "pairs": 1550,
   "without_keys": 2,
   "by_label": {
-   "uncertain": 98,
+   "uncertain": 100,
    "different": 282,
-   "same": 1135,
+   "same": 1133,
    "packaging": 35
   },
   "unique_titles": 2038
@@ -25,19 +25,19 @@
  "random_sample": {
   "pairs": 1300,
   "baseline": {
-   "tp": 425,
+   "tp": 423,
    "fn": 523,
    "fp": 245,
    "tn": 27,
-   "uncertain": 80,
+   "uncertain": 82,
    "packaging": 0
   },
   "candidate": {
    "tp": 804,
-   "fn": 144,
+   "fn": 142,
    "fp": 32,
    "tn": 240,
-   "uncertain": 80,
+   "uncertain": 82,
    "packaging": 0
   }
  },
@@ -53,12 +53,12 @@
      "excluded": 14
     },
     "dropped_mixed": {
-     "n": 57,
-     "of": 140,
-     "rate": 0.4071,
-     "low": 0.3293,
-     "high": 0.49,
-     "excluded": 0
+     "n": 55,
+     "of": 138,
+     "rate": 0.3986,
+     "low": 0.3207,
+     "high": 0.4819,
+     "excluded": 2
     },
     "dropped_both_k2": {
      "n": 50,
@@ -105,16 +105,16 @@
      "known_open": 5,
      "pool": 416,
      "drawn": 140,
-     "drawn_same": 57,
+     "drawn_same": 55,
      "drawn_different": 83,
-     "drawn_open": 0,
-     "true": 201.4,
+     "drawn_open": 2,
+     "true": 195.4,
      "false": 315.6,
-     "open": 5.0,
-     "true_low": 157.3,
+     "open": 10.9,
+     "true_low": 151.9,
      "true_high": 254.4,
      "false_low": 267.6,
-     "false_high": 364.7
+     "false_high": 370.1
     },
     "dropped_both_k2": {
      "size": 444,
@@ -156,13 +156,13 @@
     }
    },
    "baseline": {
-    "true": 1342,
+    "true": 1336,
     "false": 534,
-    "open": 94,
-    "true_low": 1227,
+    "open": 99,
+    "true_low": 1221,
     "true_high": 1515,
     "false_low": 455,
-    "false_high": 743
+    "false_high": 749
    },
    "candidate": {
     "true": 2929,
@@ -173,9 +173,9 @@
     "false_low": 70,
     "false_high": 493
    },
-   "baseline_true_kept": 0.703,
+   "baseline_true_kept": 0.706,
    "baseline_true_kept_low": 0.634,
-   "candidate_vs_baseline_true": 2.182,
+   "candidate_vs_baseline_true": 2.192,
    "candidate_vs_baseline_true_low": 1.841,
    "false_merges_ratio": 0.21,
    "false_merges_ratio_high": 1.085
@@ -191,12 +191,12 @@
      "excluded": 14
     },
     "dropped_mixed": {
-     "n": 57,
-     "of": 140,
-     "rate": 0.4071,
-     "low": 0.3293,
-     "high": 0.49,
-     "excluded": 0
+     "n": 55,
+     "of": 138,
+     "rate": 0.3986,
+     "low": 0.3207,
+     "high": 0.4819,
+     "excluded": 2
     },
     "dropped_both_k2": {
      "n": 50,
@@ -243,16 +243,16 @@
      "known_open": 5,
      "pool": 416,
      "drawn": 140,
-     "drawn_same": 57,
+     "drawn_same": 55,
      "drawn_different": 83,
-     "drawn_open": 0,
-     "true": 201.4,
+     "drawn_open": 2,
+     "true": 195.4,
      "false": 315.6,
-     "open": 5.0,
-     "true_low": 157.3,
+     "open": 10.9,
+     "true_low": 151.9,
      "true_high": 254.4,
      "false_low": 267.6,
-     "false_high": 364.7
+     "false_high": 370.1
     },
     "dropped_both_k2": {
      "size": 444,
@@ -294,13 +294,13 @@
     }
    },
    "baseline": {
-    "true": 1342,
+    "true": 1336,
     "false": 514,
-    "open": 113,
-    "true_low": 1227,
+    "open": 119,
+    "true_low": 1221,
     "true_high": 1535,
     "false_low": 435,
-    "false_high": 743
+    "false_high": 749
    },
    "candidate": {
     "true": 2929,
@@ -311,9 +311,9 @@
     "false_low": 64,
     "false_high": 493
    },
-   "baseline_true_kept": 0.703,
+   "baseline_true_kept": 0.706,
    "baseline_true_kept_low": 0.626,
-   "candidate_vs_baseline_true": 2.182,
+   "candidate_vs_baseline_true": 2.192,
    "candidate_vs_baseline_true_low": 1.818,
    "false_merges_ratio": 0.205,
    "false_merges_ratio_high": 1.133
@@ -329,12 +329,12 @@
      "excluded": 14
     },
     "dropped_mixed": {
-     "n": 57,
-     "of": 140,
-     "rate": 0.4071,
-     "low": 0.3293,
-     "high": 0.49,
-     "excluded": 0
+     "n": 55,
+     "of": 138,
+     "rate": 0.3986,
+     "low": 0.3207,
+     "high": 0.4819,
+     "excluded": 2
     },
     "dropped_both_k2": {
      "n": 56,
@@ -381,16 +381,16 @@
      "known_open": 5,
      "pool": 416,
      "drawn": 140,
-     "drawn_same": 57,
+     "drawn_same": 55,
      "drawn_different": 83,
-     "drawn_open": 0,
-     "true": 201.4,
+     "drawn_open": 2,
+     "true": 195.4,
      "false": 315.6,
-     "open": 5.0,
-     "true_low": 157.3,
+     "open": 10.9,
+     "true_low": 151.9,
      "true_high": 254.4,
      "false_low": 267.6,
-     "false_high": 364.7
+     "false_high": 370.1
     },
     "dropped_both_k2": {
      "size": 444,
@@ -432,13 +432,13 @@
     }
    },
    "baseline": {
-    "true": 1362,
+    "true": 1356,
     "false": 514,
-    "open": 94,
-    "true_low": 1245,
+    "open": 99,
+    "true_low": 1240,
     "true_high": 1535,
     "false_low": 435,
-    "false_high": 725
+    "false_high": 730
    },
    "candidate": {
     "true": 2936,
@@ -449,9 +449,9 @@
     "false_low": 64,
     "false_high": 486
    },
-   "baseline_true_kept": 0.694,
+   "baseline_true_kept": 0.697,
    "baseline_true_kept_low": 0.626,
-   "candidate_vs_baseline_true": 2.156,
+   "candidate_vs_baseline_true": 2.165,
    "candidate_vs_baseline_true_low": 1.823,
    "false_merges_ratio": 0.205,
    "false_merges_ratio_high": 1.116
@@ -467,12 +467,12 @@
      "excluded": 14
     },
     "dropped_mixed": {
-     "n": 57,
-     "of": 140,
-     "rate": 0.4071,
-     "low": 0.3293,
-     "high": 0.49,
-     "excluded": 0
+     "n": 55,
+     "of": 138,
+     "rate": 0.3986,
+     "low": 0.3207,
+     "high": 0.4819,
+     "excluded": 2
     },
     "dropped_both_k2": {
      "n": 50,
@@ -519,16 +519,16 @@
      "known_open": 5,
      "pool": 416,
      "drawn": 140,
-     "drawn_same": 57,
+     "drawn_same": 55,
      "drawn_different": 83,
-     "drawn_open": 0,
-     "true": 201.4,
+     "drawn_open": 2,
+     "true": 195.4,
      "false": 315.6,
-     "open": 5.0,
-     "true_low": 157.3,
+     "open": 10.9,
+     "true_low": 151.9,
      "true_high": 254.4,
      "false_low": 267.6,
-     "false_high": 364.7
+     "false_high": 370.1
     },
     "dropped_both_k2": {
      "size": 444,
@@ -570,13 +570,13 @@
     }
    },
    "baseline": {
-    "true": 1342,
+    "true": 1336,
     "false": 534,
-    "open": 94,
-    "true_low": 1227,
+    "open": 99,
+    "true_low": 1221,
     "true_high": 1515,
     "false_low": 455,
-    "false_high": 743
+    "false_high": 749
    },
    "candidate": {
     "true": 2929,
@@ -587,9 +587,9 @@
     "false_low": 70,
     "false_high": 493
    },
-   "baseline_true_kept": 0.703,
+   "baseline_true_kept": 0.706,
    "baseline_true_kept_low": 0.634,
-   "candidate_vs_baseline_true": 2.182,
+   "candidate_vs_baseline_true": 2.192,
    "candidate_vs_baseline_true_low": 1.841,
    "false_merges_ratio": 0.21,
    "false_merges_ratio_high": 1.085
@@ -1593,15 +1593,6 @@
    ]
   },
   {
-   "a": "Планшет DOOGEE Tab A9 10,1\" 3GB/64GB Wi-Fi Grey",
-   "b": "Планшет Doogee Tab A9 2025 Wi-Fi 10.1\" 3/64Gb Black",
-   "new_a": "k2:doogee:taba9:10.1in+3gb+64gb",
-   "new_b": "doogee:tab a9:64gb",
-   "strata": [
-    "dropped_mixed"
-   ]
-  },
-  {
    "a": "Телевизор 55\" (140 см) Hisense 55U7Q miniLED UHD Black",
    "b": "Телевизор HISENSE ULED 55U7Q UHD SMART",
    "new_a": "k2:hisense:55u7q",
@@ -1714,15 +1705,6 @@
    "b": "Оперативная память Hiksemi (Hikvision) Sword RGB DDR4 32 GB kit (2x16GB) 3200MHz (HSC432U32B5)",
    "new_a": "k2:hiksemi:hsc432u32b5:32gb",
    "new_b": "hiksemi:sword:32gb",
-   "strata": [
-    "dropped_mixed"
-   ]
-  },
-  {
-   "a": "Планшет DOOGEE Tab A9 10,1\" 3GB/64GB Wi-Fi Black",
-   "b": "Планшет Doogee Tab A9 2025 Wi-Fi 10.1\" 3/64Gb Grey",
-   "new_a": "k2:doogee:taba9:10.1in+3gb+64gb",
-   "new_b": "doogee:tab a9:64gb",
    "strata": [
     "dropped_mixed"
    ]
@@ -2229,9 +2211,9 @@
     "now_tp": 0,
     "before_fp": 0,
     "now_fp": 0,
-    "true_total": 73,
+    "true_total": 71,
     "false_total": 125,
-    "excluded": 2
+    "excluded": 4
    }
   },
   "added_still_together": 2260,

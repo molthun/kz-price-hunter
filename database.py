@@ -2407,7 +2407,8 @@ def enqueue_disputed_pair(title_a: str, title_b: str, reason: str, force: bool =
                 VALUES (?, ?, ?, ?, 'pending')
                 ON CONFLICT(pair_hash) DO UPDATE SET status = 'pending', attempts = 0, next_attempt_at = NULL,
                     reason = excluded.reason, updated_at = CURRENT_TIMESTAMP
-                WHERE disputed_product_pairs.status = 'skipped'
+                WHERE (disputed_product_pairs.status = 'skipped'
+                       AND (disputed_product_pairs.last_reason IS NULL OR disputed_product_pairs.last_reason NOT LIKE 'human%'))
                    OR (disputed_product_pairs.status = 'unresolved'
                        AND disputed_product_pairs.updated_at < datetime('now', ?))
             """, (ph, first[:500], second[:500], reason[:100], f"-{DISPUTED_REOPEN_DAYS} days"))
@@ -2835,14 +2836,14 @@ def find_and_enqueue_conflicting_canonical_keys(limit: int = 50) -> Dict[str, An
                     ok = enqueue_disputed_pair(ta, tb, reason, force=False)
                     if ok:
                         enqueued += 1
-                    conflicts_detail.append({
-                        "key": key,
-                        "title_a": ta,
-                        "title_b": tb,
-                        "enqueued": ok,
-                    })
-                    found_in_group = True
-                    break
+                        conflicts_detail.append({
+                            "key": key,
+                            "title_a": ta,
+                            "title_b": tb,
+                            "enqueued": True,
+                        })
+                        found_in_group = True
+                        break
             if found_in_group:
                 break
 

@@ -12431,8 +12431,11 @@
         "dropped_mixed"
       ],
       "label": "same",
-      "note": "",
-      "sources": [],
+      "note": "региональный индекс /01 в номенклатуре Philips обозначает версию для европейского региона, характеристики 27E2N1110 идентичны",
+      "sources": [
+        "https://www.download.p4c.philips.com/files/2/27e2n1110_01/27e2n1110_01_pss_aenus.pdf",
+        "https://www.philips.com/c-p/27E2N1110_01/monitor-full-hd-monitor"
+      ],
       "phase": "ext"
     },
     {
@@ -13445,9 +13448,9 @@
         "dropped_mixed"
       ],
       "label": "different",
-      "note": "разные модификации модуля памяти: стандартный модуль без радиатора и версия с радиатором охлаждения (HSW)",
+      "note": "разные модификации модуля памяти: стандартный модуль без радиатора (NMD5600D5U46-16GB) и версия с установленным радиатором охлаждения Heatsink White (HSW)",
       "sources": [
-        "https://apltech.kz"
+        "https://apltech.kz/tovar/384784/nomad-nmd5600d5u46-16gbhsw"
       ],
       "phase": "ext"
     },
@@ -13492,9 +13495,11 @@
       "strata": [
         "dropped_mixed"
       ],
-      "label": "same",
-      "note": "",
-      "sources": [],
+      "label": "uncertain",
+      "note": "в одном названии указан год выпуска 2025 (Doogee Tab A9 2025), во втором год не указан; официальные спецификации Doogee не дают подтверждения аппаратной идентичности поколений разных лет",
+      "sources": [
+        "https://www.doogee.com/products/tab-a9"
+      ],
       "phase": "ext"
     },
     {
@@ -13870,9 +13875,11 @@
       "strata": [
         "dropped_mixed"
       ],
-      "label": "same",
-      "note": "",
-      "sources": [],
+      "label": "uncertain",
+      "note": "в одном названии указан год выпуска 2025 (Doogee Tab A9 2025), во втором год не указан; официальные спецификации Doogee не дают подтверждения аппаратной идентичности поколений разных лет",
+      "sources": [
+        "https://www.doogee.com/products/tab-a9"
+      ],
       "phase": "ext"
     },
     {
@@ -14091,9 +14098,11 @@
         "dropped_both_k2"
       ],
       "label": "different",
-      "note": "разная комплектация: версия с беспроводной зарядной станцией (WLC) vs стандартная комплектация (26699-999-899)",
+      "note": "разная комплектация: артикул 26699-999-899 поставляется без подставки (USB-C MS Stereo), тогда как версия WLC (артикул 26699-999-889) включает беспроводную зарядную станцию Jabra Wireless Charging Pad",
       "sources": [
-        "https://www.jabra.com"
+        "https://www.jabra.com/supportpages/jabra-evolve2-65-flex/26699-999-899",
+        "https://www.jabra.com/supportpages/jabra-evolve2-65-flex/26699-999-889",
+        "https://www.jabra.com/business/office-headsets/jabra-evolve/jabra-evolve2-65-flex"
       ],
       "phase": "ext"
     },

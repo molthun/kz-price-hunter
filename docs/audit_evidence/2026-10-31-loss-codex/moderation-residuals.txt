@@ -1,0 +1,61 @@
+test_live_search_consumes_daily_attempts (__main__.Residuals.test_live_search_consumes_daily_attempts) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[System] 📡 Модуль онлайн-логирования активирован.
+[Auth] 🧑‍💻 Вход разработчика включен (локальный запуск): кнопка «Вход разработчика» в шапке, права администратора
+[Auth] ⚠️ TELEGRAM_BOT_TOKEN не задан — вход через Telegram и уведомления отключены
+[System] Пул рабочих потоков: 32 (ядер: 10)
+Executing <Task pending name='Task-1' coro=<TestDisputedMatchingWebAPI.asyncSetUp() running at /Users/molthun/Documents/kz-price-hunter/tests/test_disputed_matching_moderation.py:524> cb=[_run_until_complete_cb() at /opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py:181] created at /opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:110> took 0.131 seconds
+[Auth] Пользователь вошёл в систему
+DAILY_LIMIT 1 EXTERNAL_ATTEMPTS 4 ACCOUNTED 0
+FAIL
+test_scan_reaches_other_conflict_after_human_same (__main__.Residuals.test_scan_reaches_other_conflict_after_human_same) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[Auth] 🧑‍💻 Вход разработчика включен (локальный запуск): кнопка «Вход разработчика» в шапке, права администратора
+[Auth] ⚠️ TELEGRAM_BOT_TOKEN не задан — вход через Telegram и уведомления отключены
+[System] Пул рабочих потоков: 32 (ядер: 10)
+SCAN_AFTER_RESOLVED_SAME {'scanned_keys': 1, 'conflicts_found': 1, 'enqueued': 0, 'conflicts': [{'key': '[REDACTED]', 'title_a': 'Samsung Galaxy S24 128GB a', 'title_b': 'Samsung Galaxy S24 256GB b', 'enqueued': False}]}
+SCAN_AFTER_RESOLVED_SAME {'scanned_keys': 1, 'conflicts_found': 1, 'enqueued': 0, 'conflicts': [{'key': '[REDACTED]', 'title_a': 'Samsung Galaxy S24 128GB a', 'title_b': 'Samsung Galaxy S24 256GB b', 'enqueued': False}]}
+FAIL
+
+======================================================================
+FAIL: test_live_search_consumes_daily_attempts (__main__.Residuals.test_live_search_consumes_daily_attempts)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py", line 128, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py", line 720, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-31-loss-codex/moderation_residuals.py", line 23, in test_live_search_consumes_daily_attempts
+    self.assertLessEqual(fake.await_count,1,'manual search bypasses daily attempt quota')
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 4 not less than or equal to 1 : manual search bypasses daily attempt quota
+
+======================================================================
+FAIL: test_scan_reaches_other_conflict_after_human_same (__main__.Residuals.test_scan_reaches_other_conflict_after_human_same)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py", line 128, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py", line 720, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/molthun/Documents/kz-price-hunter/docs/audit_evidence/2026-10-31-loss-codex/moderation_residuals.py", line 36, in test_scan_reaches_other_conflict_after_human_same
+    self.assertGreater(sum(queued),0,'first resolved pair hides unresolved conflict with third member')
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 not greater than 0 : first resolved pair hides unresolved conflict with third member
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.216s
+
+FAILED (failures=2)
