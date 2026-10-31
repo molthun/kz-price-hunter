@@ -54,6 +54,66 @@ def verify_telegram_auth(data: Dict[str, Any], bot_token: str) -> Dict[str, Any]
 
     return fields
 
+def verify_telegram_webapp_data(init_data_str: str, bot_token: str) -> Dict[str, Any]:
+    """Проверяет криптографическую подпись данных Telegram WebApp / Mini App (initData).
+
+    https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
+    Возвращает проверенные данные пользователя или бросает ValueError.
+    """
+    if not bot_token:
+        raise ValueError("Вход через Telegram не настроен на сервере")
+    if not init_data_str or not isinstance(init_data_str, str):
+        raise ValueError("Отсутствуют данные Telegram WebApp")
+
+    import json
+    from urllib.parse import parse_qsl
+
+    parsed = dict(parse_qsl(init_data_str, keep_blank_values=True))
+    if "hash" not in parsed:
+        raise ValueError("В данных Telegram WebApp отсутствует подпись hash")
+
+    received_hash = parsed["hash"]
+    fields = {k: v for k, v in parsed.items() if k != "hash"}
+    check_string = "\n".join(f"{k}={fields[k]}" for k in sorted(fields))
+
+    # Секретный ключ Telegram WebApp: HMAC_SHA256("WebAppData", bot_token)
+    secret_key = hmac.new(b"WebAppData", bot_token.encode("utf-8"), hashlib.sha256).digest()
+    expected_hash = hmac.new(secret_key, check_string.encode("utf-8"), hashlib.sha256).hexdigest()
+
+    if not hmac.compare_digest(expected_hash, received_hash):
+        raise ValueError("Подпись Telegram WebApp не прошла проверку")
+
+    try:
+        auth_date = int(fields.get("auth_date", 0))
+    except (TypeError, ValueError):
+        auth_date = 0
+    now = time.time()
+    if auth_date > now + TELEGRAM_AUTH_CLOCK_SKEW_SECONDS:
+        raise ValueError("Время авторизации Telegram WebApp находится в будущем")
+    if now - auth_date > 86400:  # 24 часа для сессии WebApp
+        raise ValueError("Данные Telegram WebApp устарели")
+
+    user_raw = fields.get("user")
+    if not user_raw:
+        raise ValueError("В данных Telegram WebApp отсутствует объект user")
+
+    try:
+        user_obj = json.loads(user_raw)
+    except Exception:
+        raise ValueError("Некорректный формат JSON пользователя в Telegram WebApp")
+
+    if not isinstance(user_obj, dict) or "id" not in user_obj:
+        raise ValueError("Некорректные данные пользователя в Telegram WebApp")
+
+    return {
+        "id": int(user_obj["id"]),
+        "first_name": str(user_obj.get("first_name") or ""),
+        "last_name": str(user_obj.get("last_name") or ""),
+        "username": str(user_obj.get("username") or ""),
+        "photo_url": str(user_obj.get("photo_url") or ""),
+        "auth_date": auth_date,
+    }
+
 def is_admin(user: Optional[Dict[str, Any]]) -> bool:
     if not user:
         return False

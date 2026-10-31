@@ -19,6 +19,11 @@ import web.server as srv
 
 
 class TestDealsFeedAndFavorites(AioHTTPTestCase):
+    def setUp(self):
+        super().setUp()
+        import database
+        database.init_db()
+
     async def get_application(self):
         app = web.Application()
         app.add_routes([
@@ -27,6 +32,7 @@ class TestDealsFeedAndFavorites(AioHTTPTestCase):
             web.get("/favorites", srv.favorites_page_handler),
             web.get("/profile", srv.profile_page_handler),
             web.get("/api/v2/deals", srv.deals_v2_handler),
+            web.post("/api/auth/telegram-webapp", srv.telegram_webapp_login_handler),
         ])
         return app
 
@@ -108,6 +114,75 @@ class TestDealsFeedAndFavorites(AioHTTPTestCase):
         with unittest.mock.patch("auth.ADMIN_TELEGRAM_IDS", {admin_id}):
             self.assertTrue(is_confirmed_user({"id": admin_id, "settings": {}}))
 
+    def test_verify_telegram_webapp_data(self):
+        """Telegram WebApp HMAC-SHA256 signature verification according to TG specification."""
+        from auth import verify_telegram_webapp_data
+        import urllib.parse
+        import json
+        import hmac
+        import hashlib
+        import time
+
+        bot_token = "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+        user_json = json.dumps({"id": 171013461, "first_name": "Owner", "username": "molthun"}, separators=(',', ':'))
+        auth_date = int(time.time())
+
+        # Construct raw data
+        fields = {
+            "auth_date": str(auth_date),
+            "query_id": "AAHdF6IQAAAAAN0XohDhrOrc",
+            "user": user_json,
+        }
+        check_string = "\n".join(f"{k}={fields[k]}" for k in sorted(fields))
+        secret_key = hmac.new(b"WebAppData", bot_token.encode("utf-8"), hashlib.sha256).digest()
+        calc_hash = hmac.new(secret_key, check_string.encode("utf-8"), hashlib.sha256).hexdigest()
+        fields["hash"] = calc_hash
+        init_data_str = urllib.parse.urlencode(fields)
+
+        # Valid data passes
+        res = verify_telegram_webapp_data(init_data_str, bot_token)
+        self.assertEqual(res["id"], 171013461)
+        self.assertEqual(res["first_name"], "Owner")
+        self.assertEqual(res["username"], "molthun")
+
+        # Tampered hash fails
+        bad_fields = dict(fields, hash="invalidhash123")
+        with self.assertRaises(ValueError):
+            verify_telegram_webapp_data(urllib.parse.urlencode(bad_fields), bot_token)
+
+        # Expired data fails
+        old_fields = dict(fields, auth_date=str(auth_date - 90000))
+        check_str_old = "\n".join(f"{k}={old_fields[k]}" for k in sorted(k for k in old_fields if k != "hash"))
+        old_fields["hash"] = hmac.new(secret_key, check_str_old.encode("utf-8"), hashlib.sha256).hexdigest()
+        with self.assertRaises(ValueError):
+            verify_telegram_webapp_data(urllib.parse.urlencode(old_fields), bot_token)
+
+    @unittest_run_loop
+    async def test_telegram_webapp_login_endpoint(self):
+        """POST /api/auth/telegram-webapp authenticates user and sets cookie."""
+        import urllib.parse
+        import json
+        import hmac
+        import hashlib
+        import time
+
+        bot_token = "fake-token"
+        user_json = json.dumps({"id": 12345, "first_name": "Test", "username": "testuser"})
+        auth_date = int(time.time())
+        fields = {"auth_date": str(auth_date), "user": user_json}
+        check_str = "\n".join(f"{k}={fields[k]}" for k in sorted(fields))
+        secret_key = hmac.new(b"WebAppData", bot_token.encode("utf-8"), hashlib.sha256).digest()
+        fields["hash"] = hmac.new(secret_key, check_str.encode("utf-8"), hashlib.sha256).hexdigest()
+        init_data_str = urllib.parse.urlencode(fields)
+
+        with unittest.mock.patch("web.server.get_bot_token", return_value=bot_token):
+            resp = await self.client.post("/api/auth/telegram-webapp", json={"init_data": init_data_str})
+            self.assertEqual(resp.status, 200)
+            data = await resp.json()
+            self.assertEqual(data["status"], "ok")
+            self.assertEqual(data["user"]["id"], 12345)
+            self.assertIn("kzph_session", resp.cookies)
+
     @unittest_run_loop
     async def test_deals_v2_does_not_invent_identity_or_provenance(self):
         """Строка без установленной связи и основания не получает выдуманных значений."""
@@ -159,3 +234,12 @@ class TestSearchFirstTemplateIntegrity(unittest.TestCase):
         self.assertIn('renderDealsFeed', self.html)
         self.assertIn('renderFavorites', self.html)
         self.assertIn('scrollReel', self.html)
+
+    def test_mobile_header_and_search_styling(self):
+        """Search first template has Telegram WebApp script, auto-auth, and mobile-friendly styling."""
+        self.assertIn('telegram-web-app.js', self.html)
+        self.assertIn('autoLoginTelegramWebApp', self.html)
+        self.assertIn('header-user-name', self.html)
+        self.assertIn('overflow-x: hidden', self.html)
+        self.assertIn('min-width: 0', self.html)
+        self.assertNotIn('autofocus', self.html)

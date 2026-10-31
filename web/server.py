@@ -159,6 +159,7 @@ from auth import (
     is_confirmed_user,
     user_settings_for,
     verify_telegram_auth,
+    verify_telegram_webapp_data,
     set_session_cookie,
     clear_session_cookie,
     dev_login_allowed,
@@ -2384,6 +2385,26 @@ async def telegram_login_handler(request):
     try:
         data = await request.json()
         tg = verify_telegram_auth(data, get_bot_token())
+    except ValueError as e:
+        return web.json_response({"status": "error", "message": redact_secrets(str(e))}, status=401)
+    except Exception:
+        return web.json_response({"status": "error", "message": "Некорректный запрос"}, status=400)
+
+    existing = get_user(int(tg["id"]))
+    if existing and existing["is_blocked"]:
+        return web.json_response({"status": "error", "message": "Аккаунт заблокирован администратором"}, status=403)
+
+    user = upsert_telegram_user(tg, initial_settings=None if existing else _initial_settings_for(tg["id"]))
+    return _login_response(request, user)
+
+@routes.post("/api/auth/telegram-webapp")
+async def telegram_webapp_login_handler(request):
+    if auth_limiter.retry_after(f"ip:{client_ip(request)}"):
+        return web.json_response({"status": "error", "message": "Слишком много попыток входа, попробуйте позже"}, status=429)
+    try:
+        data = await request.json()
+        init_data = data.get("init_data") or data.get("initData") or ""
+        tg = verify_telegram_webapp_data(init_data, get_bot_token())
     except ValueError as e:
         return web.json_response({"status": "error", "message": redact_secrets(str(e))}, status=401)
     except Exception:
