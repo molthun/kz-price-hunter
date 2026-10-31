@@ -269,6 +269,7 @@ class SearchRepository(BaseRepository):
                s.name as seller_name,
                s.slug as seller_slug,
                s.rating as seller_rating,
+               s.metadata_json as seller_metadata_json,
                c.channel_type,
                c.name as channel_name
         FROM offers o
@@ -281,6 +282,24 @@ class SearchRepository(BaseRepository):
 
         for orow in offer_rows:
             od = dict(orow)
+            meta_raw = od.get("seller_metadata_json") or "{}"
+            if isinstance(meta_raw, str):
+                try:
+                    s_meta = json.loads(meta_raw)
+                except Exception:
+                    s_meta = {}
+            else:
+                s_meta = meta_raw or {}
+
+            ch_type = od.get("channel_type") or ""
+            s_name_lower = (od.get("seller_name") or "").lower()
+            is_priv = (
+                ch_type in ("classifieds", "olx")
+                or bool(s_meta.get("is_private") or s_meta.get("is_private_seller"))
+                or "частн" in s_name_lower
+            )
+            od["is_private_seller"] = is_priv
+
             pid = od["product_id"]
             if pid in products_map:
                 products_map[pid]["offers"].append(od)

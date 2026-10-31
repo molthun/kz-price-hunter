@@ -14,6 +14,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 
+from domain.condition import ConditionBreakdown, build_condition_breakdown
 from domain.freshness_v2 import offer_freshness
 from domain.models import CanonicalProduct, Condition
 from domain.query_parser import ParsedQuery, QueryParser
@@ -57,6 +58,7 @@ class AggregatedOffer:
     freshness: str = "fresh"
     is_purchasable: bool = True
     expires_at: Optional[str] = None
+    is_private_seller: bool = False
     # Условия оплаты — только сохранённые в предложении; тип площадки их не доказывает (V05)
     installment_available: bool = False
     installment_months: Optional[int] = None
@@ -104,6 +106,12 @@ class ProductSearchResult:
     has_new: bool = False
     has_used: bool = False
     relevance_score: float = 0.0
+    best_new_price: Optional[float] = None
+    best_used_price: Optional[float] = None
+    condition_breakdown: Optional[Dict[str, Any]] = None
+    is_used_only: bool = False
+    new_offers_count: int = 0
+    used_offers_count: int = 0
 
     def to_dict(self) -> Dict[str, Any]:
         res = asdict(self)
@@ -146,6 +154,7 @@ class SearchCore:
         city: Optional[str] = None,
         condition: Optional[str] = None,
         channel_type: Optional[str] = None,
+        seller_type: Optional[str] = None,
         min_price: Optional[float] = None,
         max_price: Optional[float] = None,
         sort_by: str = "relevance",
@@ -241,9 +250,18 @@ class SearchCore:
                         freshness=f_state,
                         is_purchasable=purchasable,
                         expires_at=expires_at,
+                        is_private_seller=bool(od.get("is_private_seller", False)),
                         **offer_payment_terms(od),
                     )
                     aggregated_offers.append(agg_off)
+
+                # Filter by seller_type if specified (business vs private)
+                if seller_type:
+                    st_norm = str(seller_type).strip().lower()
+                    if st_norm in ("business", "company", "retail"):
+                        aggregated_offers = [o for o in aggregated_offers if not o.is_private_seller]
+                    elif st_norm in ("private", "private_seller", "classifieds"):
+                        aggregated_offers = [o for o in aggregated_offers if o.is_private_seller]
 
                 if not aggregated_offers:
                     continue
@@ -254,6 +272,19 @@ class SearchCore:
                 unique_sellers = {o.seller_id for o in aggregated_offers}
                 purchasable_offers = [o for o in aggregated_offers if o.is_purchasable]
 
+                new_purchasable = [o for o in purchasable_offers if o.condition == Condition.NEW]
+                used_purchasable = [
+                    o for o in purchasable_offers
+                    if o.condition in (Condition.USED, Condition.REFURBISHED, Condition.OPEN_BOX)
+                ]
+
+                best_new_p = min(o.price for o in new_purchasable) if new_purchasable else None
+                best_used_p = min(o.price for o in used_purchasable) if used_purchasable else None
+
+                all_conditions = {o.condition for o in aggregated_offers}
+                has_new = Condition.NEW in all_conditions
+                has_used = any(c in (Condition.USED, Condition.REFURBISHED, Condition.OPEN_BOX) for c in all_conditions)
+
                 if purchasable_offers:
                     p_prices = [o.price for o in purchasable_offers]
                     min_p = min(p_prices)
@@ -261,6 +292,7 @@ class SearchCore:
                     best_off = purchasable_offers[0]
                     conditions = sorted(list({o.condition for o in purchasable_offers}))
                     has_purchasable = True
+                    is_used_only = (len(new_purchasable) == 0 and len(used_purchasable) > 0)
                 else:
                     # C-E11-03: No purchasable offers (all out-of-stock or stale)
                     min_p = None
@@ -268,10 +300,9 @@ class SearchCore:
                     best_off = None
                     conditions = []
                     has_purchasable = False
+                    is_used_only = False
 
-                all_conditions = {o.condition for o in aggregated_offers}
-                has_new = Condition.NEW in all_conditions
-                has_used = any(c in (Condition.USED, Condition.REFURBISHED, Condition.OPEN_BOX) for c in all_conditions)
+                cond_breakdown = build_condition_breakdown(product.id, product.title, aggregated_offers).to_dict()
 
                 # ---------------------------------------------------------------
                 # C-E11-05: Exact Model Match and Semantic Scoring
@@ -321,6 +352,12 @@ class SearchCore:
                     has_new=has_new,
                     has_used=has_used,
                     relevance_score=rel_score,
+                    best_new_price=best_new_p,
+                    best_used_price=best_used_p,
+                    condition_breakdown=cond_breakdown,
+                    is_used_only=is_used_only,
+                    new_offers_count=len(new_purchasable),
+                    used_offers_count=len(used_purchasable),
                 )
                 product_results.append(card)
                 total_offers_count += len(aggregated_offers)

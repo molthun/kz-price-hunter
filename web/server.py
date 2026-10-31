@@ -989,6 +989,7 @@ async def search_v2_handler(request):
     city = request.query.get("city")
     condition = request.query.get("condition")
     channel_type = request.query.get("channel_type")
+    seller_type = request.query.get("seller_type")
 
     min_price = None
     if "min_price" in request.query:
@@ -1018,6 +1019,7 @@ async def search_v2_handler(request):
             city=city,
             condition=condition,
             channel_type=channel_type,
+            seller_type=seller_type,
             min_price=min_price,
             max_price=max_price,
             sort_by=sort_by,
@@ -1030,7 +1032,7 @@ async def search_v2_handler(request):
         return web.json_response({"error": "Ошибка поиска v2, попробуйте позже"}, status=500)
 
 
-def _run_search_v2_sync(query, city, condition, channel_type, min_price, max_price, sort_by, limit):
+def _run_search_v2_sync(query, city, condition, channel_type, seller_type, min_price, max_price, sort_by, limit):
     from database import get_connection
     from domain.search_core import SearchCore
     from repositories.search_repo import SearchRepository
@@ -1043,6 +1045,7 @@ def _run_search_v2_sync(query, city, condition, channel_type, min_price, max_pri
             city=city,
             condition=condition,
             channel_type=channel_type,
+            seller_type=seller_type,
             min_price=min_price,
             max_price=max_price,
             sort_by=sort_by,

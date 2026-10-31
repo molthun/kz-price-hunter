@@ -108,7 +108,8 @@ def build_condition_breakdown(
     unknown_count = 0
 
     for off in offers:
-        if not off.is_active:
+        is_act = getattr(off, "is_purchasable", getattr(off, "is_active", True))
+        if not is_act:
             continue
         c = (off.condition or Condition.UNKNOWN).upper()
         if c == Condition.NEW:
