@@ -2,6 +2,34 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## Передача на независимый аудит Codex: Search Platform 2.0 (Этапы 1–30, v6.9.4-dev / commit 36c3243) — Antigravity (2026-10-31)
+
+- **Основание:** завершение реализации всех 30 этапов технического плана Search Platform 2.0 ([SEARCH_PLATFORM_PLAN.md](SEARCH_PLATFORM_PLAN.md)), поручение владельца о проведении аудита крупного этапа платформы.
+- **Исполнитель разработки:** Antigravity (основной разработчик).
+- **Получатель передачи (Аудитор):** Codex.
+- **Ветка:** `main`, коммит `36c3243` (дерево чистое, push в origin/main не выполнялся, выпуск не объявлялся).
+- **Испытательный стенд:** `https://shdev.molthun.ru` (развернут и проверен, `kzph-stand: Up (healthy)`, HTTP 200).
+- **Что передаётся на аудит:**
+  1. **Архитектурный фундамент Search Platform 2.0 (Этапы 21–30)**:
+     - **Канонический слой репозиториев (Этап 29)**: `ProductRepository`, `SellerRepository`, `OfferRepository`, `SearchRepository`, `HistoryRepository` (`repositories/history_repo.py`), `DiscoveryRepository` (`repositories/discovery_repo.py`), `TelemetryRepository` (`repositories/telemetry_repo.py`). Полная изоляция от деталей SQLite для подготовки миграции на PostgreSQL.
+     - **Изолированная история динамики цен**: первичный ключ `(product_id, seller_id, channel_id, condition)` исключает смешение цен разных каналов (интернет vs оффлайн vs Kaspi/Wildberries) и состояний товара (новый vs б/у).
+     - **Trust & Provenance без субъективности (Этап 28)**: исключена плашка «Проверенный продавец». Заменена на объективно проверяемые факты провенанса продавца (`SellerProvenance`: адрес, сайт, соцсети, телефон, БИН, маркетплейсы, активность сегодня) и паспорт предложения (`OfferProvenance`: source, observed_at, freshness).
+     - **Контрольные точки масштабирования и вердикт по хранилищу (Этап 30)**: `domain/scale_bench.py`, CLI `scripts/benchmark_scale.py`, эндпоинт `GET /api/v2/admin/scale/summary` (`@require_admin`), Уровень 5 в мониторинге 2.0 (`web/templates/monitoring.html`, `domain/monitoring_v2.py`). Замеры на 10k: search p95 = 22 мс, batch 1k write = 6 мс, db = 11 МБ, backup duration = 9 мс. Вердикт: `STAY_ON_SQLITE`.
+  2. **Результаты верификации Antigravity**:
+     - Python регрессионный сьют: **2361/2361 OK** (141.1 с).
+     - Новые сьюты: `tests/core/test_repository_layer.py` (7 тестов), `tests/core/test_search_provenance_facts.py` (4 теста), `tests/core/test_scale_benchmark.py` (5 тестов).
+     - Браузерные тесты Playwright: **21/21 PASS**.
+     - Аудит секретов: `release_gate.py secrets` PASS (0 findings).
+     - Форматирование: `git diff --check` PASS.
+- **Вопросы и фокус аудитора (Codex)**:
+  1. Корректность и полнота контрактов 7 канонических репозиториев в `repositories/`.
+  2. Отсутствие скрытых блокировок SQLite при вызове `sqlite3_backup` и замерах масштабирования.
+  3. Проверка ролевого доступа (`@require_admin`) и безопасности эндпоинтов Search 2.0, провенанса и мониторинга Уровня 5.
+  4. Объективность правил `evaluate_storage_decision` и отсутствие преждевременной деградации при росте каталога.
+- **Статус для следующего агента:** Аудит Codex. До получения отчёта аудитора в ветку `main` правки кода не вносятся.
+
+---
+
 ## Search Platform 2.0: Этап 30 — Масштабирование и контрольные точки (Scale Checkpoints) — Antigravity (2026-10-31, завершён)
 
 - **Основание:** поручение владельца продолжать по очереди («Все по очереди. Пишем и охватываем тестами. Крупные этапы после разработки только охватываем аудитом остальное только авто тестами и стендом. Делаем. но не забывай обновлять стенд. на нем я визуально тестирую новые возможности после разработки»), завершающий этап плана Search Platform 2.0 ([SEARCH_PLATFORM_PLAN.md](SEARCH_PLATFORM_PLAN.md) Этап 30).
