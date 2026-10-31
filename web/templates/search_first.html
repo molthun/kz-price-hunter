@@ -1292,17 +1292,26 @@
       left: 0;
       right: 0;
       height: 60px;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
       background: var(--bg-card);
       border-top: 1px solid var(--border-color);
       display: flex;
       align-items: center;
       justify-content: space-around;
       z-index: 50;
+      box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.12);
     }
 
     @media (min-width: 900px) {
       .mobile-bottom-nav {
-        display: none;
+        display: none !important;
+      }
+    }
+
+    @media (max-width: 899px) {
+      #headerAuthArea,
+      .header-user-btn {
+        display: none !important;
       }
     }
 
@@ -1310,11 +1319,20 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 2px;
+      justify-content: center;
+      gap: 3px;
       color: var(--text-muted);
-      font-size: 0.72rem;
+      font-size: 0.70rem;
       font-weight: 500;
       cursor: pointer;
+      background: none;
+      border: none;
+      padding: 4px 2px;
+      flex: 1;
+      min-width: 0;
+      text-decoration: none;
+      transition: color 0.15s ease;
+      -webkit-tap-highlight-color: transparent;
     }
 
     .bottom-nav-item.active {
@@ -1323,7 +1341,85 @@
     }
 
     .bottom-nav-icon {
-      font-size: 1.25rem;
+      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 22px;
+    }
+
+    .bottom-nav-label {
+      font-size: 0.70rem;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+
+    /* Center Highlighted Search Button (FAB) */
+    .bottom-nav-item-center {
+      position: relative;
+      color: var(--text-muted);
+      overflow: visible;
+    }
+
+    .bottom-nav-fab {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: -18px;
+      border: 3px solid var(--bg-card);
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.45);
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .bottom-nav-item-center:active .bottom-nav-fab {
+      transform: scale(0.92);
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+    }
+
+    .bottom-nav-item-center.active .bottom-nav-fab {
+      background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+      box-shadow: 0 6px 18px rgba(37, 99, 235, 0.65);
+      transform: translateY(-2px);
+    }
+
+    .bottom-nav-item-center.active .bottom-nav-label {
+      color: var(--primary);
+      font-weight: 700;
+    }
+
+    /* Bottom Nav Profile Avatar */
+    .bottom-nav-profile-wrap {
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .bottom-nav-profile-img {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1.5px solid var(--border-color);
+      transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .bottom-nav-item.active .bottom-nav-profile-img {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
+    }
+
+    .bottom-nav-profile-fallback {
+      font-size: 1.15rem;
+      line-height: 1;
     }
 
     /* Modal / Toast */
@@ -2500,17 +2596,16 @@
       .city-selector {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
-        padding: 4px 8px 4px 8px;
+        gap: 5px;
+        padding: 5px 12px;
         background: var(--bg-subtle);
         border: 1px solid var(--border-color);
         border-radius: var(--radius-full);
-        flex: 1;
-        max-width: 175px;
+        max-width: 220px;
         min-width: 0;
       }
       .city-selector select {
-        font-size: 0.85rem;
+        font-size: 0.88rem;
         font-weight: 600;
         width: 100%;
         min-width: 0;
@@ -2520,46 +2615,14 @@
         appearance: none;
       }
       .btn-geo-header {
-        font-size: 0.85rem;
-        padding: 2px 3px;
+        font-size: 0.88rem;
+        padding: 2px 4px;
         flex-shrink: 0;
         margin-left: 2px;
       }
+      #headerAuthArea,
       .header-user-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 3px 10px 3px 3px;
-        background: var(--bg-subtle);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-full);
-        flex-shrink: 0;
-        max-width: 125px;
-        height: auto;
-      }
-      .header-user-btn .header-user-name {
-        display: inline-block !important;
-        font-size: 0.82rem;
-        font-weight: 600;
-        max-width: 75px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      .header-user-avatar {
-        width: 26px;
-        height: 26px;
-        border-radius: 50%;
-        object-fit: cover;
-        flex-shrink: 0;
-      }
-      .header-user-avatar-fallback {
-        font-size: 0.95rem;
-        width: 26px;
-        height: 26px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
+        display: none !important;
       }
       .search-box-home {
         padding: 4px 6px 4px 14px;
@@ -3240,22 +3303,51 @@
   </main>
 
   <!-- Mobile Bottom Navigation Bar -->
-  <nav class="mobile-bottom-nav">
-    <button class="bottom-nav-item active" id="bottomNavHome" type="button" onclick="navigateTo(null, '/')">
-      <div class="bottom-nav-icon">🔍</div>
-      <div>Поиск</div>
+  <nav class="mobile-bottom-nav" id="mobileBottomNav">
+    <button class="bottom-nav-item" id="bottomNavCatalog" type="button" onclick="openAllCategories()" title="Каталог">
+      <div class="bottom-nav-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="14" y="14" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
+        </svg>
+      </div>
+      <div class="bottom-nav-label">Каталог</div>
     </button>
-    <button class="bottom-nav-item" id="bottomNavDeals" type="button" onclick="navigateTo(null, '/deals')">
-      <div class="bottom-nav-icon">🏷</div>
-      <div>Скидки</div>
+    <button class="bottom-nav-item" id="bottomNavDeals" type="button" onclick="navigateTo(null, '/deals')" title="Скидки">
+      <div class="bottom-nav-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+          <line x1="7" y1="7" x2="7.01" y2="7"></line>
+        </svg>
+      </div>
+      <div class="bottom-nav-label">Скидки</div>
     </button>
-    <button class="bottom-nav-item" id="bottomNavFavorites" type="button" onclick="navigateTo(null, '/favorites')">
-      <div class="bottom-nav-icon" style="position:relative;">♡<span class="nav-fav-badge" id="favBadgeMobile" style="display:none;">0</span></div>
-      <div>Избранное</div>
+    <button class="bottom-nav-item bottom-nav-item-center active" id="bottomNavSearch" type="button" onclick="handleBottomNavSearch(event)" title="Поиск">
+      <div class="bottom-nav-fab">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+      </div>
+      <div class="bottom-nav-label">Поиск</div>
     </button>
-    <button class="bottom-nav-item" id="bottomNavProfile" type="button" onclick="navigateTo(null, '/profile')">
-      <div class="bottom-nav-icon">👤</div>
-      <div>Профиль</div>
+    <button class="bottom-nav-item" id="bottomNavFavorites" type="button" onclick="navigateTo(null, '/favorites')" title="Избранное">
+      <div class="bottom-nav-icon" style="position:relative;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+        </svg>
+        <span class="nav-fav-badge" id="favBadgeMobile" style="display:none;">0</span>
+      </div>
+      <div class="bottom-nav-label">Избранное</div>
+    </button>
+    <button class="bottom-nav-item" id="bottomNavProfile" type="button" onclick="navigateTo(null, '/profile')" title="Профиль">
+      <div class="bottom-nav-icon bottom-nav-profile-wrap">
+        <img id="bottomNavProfileAvatar" class="bottom-nav-profile-img" alt="" style="display: none;" />
+        <span id="bottomNavProfileFallback" class="bottom-nav-profile-fallback">👤</span>
+      </div>
+      <div class="bottom-nav-label">Профиль</div>
     </button>
   </nav>
 
@@ -3669,6 +3761,20 @@
               <span class="header-user-name">Войти</span>
             </a>
           `;
+        }
+      }
+
+      // 1b. Bottom Nav Profile Avatar Photo
+      const bottomAvatarImg = document.getElementById('bottomNavProfileAvatar');
+      const bottomAvatarFallback = document.getElementById('bottomNavProfileFallback');
+      if (bottomAvatarImg && bottomAvatarFallback) {
+        if (currentUser && currentUser.photo_url) {
+          bottomAvatarImg.src = currentUser.photo_url;
+          bottomAvatarImg.style.display = 'block';
+          bottomAvatarFallback.style.display = 'none';
+        } else {
+          bottomAvatarImg.style.display = 'none';
+          bottomAvatarFallback.style.display = 'inline-block';
         }
       }
 
@@ -4110,6 +4216,7 @@
       const isDeals = pathname === '/deals' || pathname.startsWith('/deals');
       const isFavorites = pathname === '/favorites' || pathname.startsWith('/favorites');
       const isProfile = pathname === '/profile' || pathname.startsWith('/profile');
+      const isCatalog = pathname === '/catalog' || (pathname === '/search' && (params.get('cat') === 'all' || params.get('category') === 'all'));
       const isSearch = pathname === '/search' || params.has('q') || params.has('cat') || params.has('category');
 
       if (params.get('city')) {
@@ -4122,7 +4229,7 @@
           prodId = decodeURIComponent(prodId);
         } catch (e) {}
         showView('viewDetail');
-        updateNavState('home');
+        updateNavState('search');
         loadProductDetail(prodId);
       } else if (isDeals) {
         showView('viewDeals');
@@ -4138,12 +4245,12 @@
         renderProfile();
       } else if (isSearch) {
         showView('viewResults');
-        updateNavState('home');
+        updateNavState(isCatalog ? 'catalog' : 'search');
         parseSearchParams(params);
         executeSearch();
       } else {
         showView('viewHome');
-        updateNavState('home');
+        updateNavState('search');
       }
     }
 
@@ -4156,8 +4263,33 @@
 
       document.querySelectorAll('.bottom-nav-item').forEach(el => el.classList.remove('active'));
       if (name) {
-        const mItem = document.getElementById('bottomNav' + name.charAt(0).toUpperCase() + name.slice(1));
+        let bottomId = 'bottomNav' + name.charAt(0).toUpperCase() + name.slice(1);
+        if (name === 'home' || name === 'search') {
+          bottomId = 'bottomNavSearch';
+        }
+        const mItem = document.getElementById(bottomId);
         if (mItem) mItem.classList.add('active');
+      }
+    }
+
+    function handleBottomNavSearch(e) {
+      if (e) e.preventDefault();
+      const currentPath = window.location.pathname;
+      if (currentPath === '/' || currentPath === '') {
+        const homeInput = document.getElementById('homeSearchInput');
+        if (homeInput) {
+          homeInput.focus();
+          homeInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      } else {
+        navigateTo(null, '/');
+        setTimeout(() => {
+          const homeInput = document.getElementById('homeSearchInput');
+          if (homeInput) {
+            homeInput.focus();
+            homeInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 120);
       }
     }
 

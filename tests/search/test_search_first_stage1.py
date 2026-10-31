@@ -564,9 +564,17 @@ class TestSearchFirstHttpEndpoints(AioHTTPTestCase):
         self.assertEqual(resp.status, 200)
         html = await resp.text()
 
-        # Mobile header user name display
-        self.assertIn(".header-user-btn .header-user-name", html)
-        self.assertIn("display: inline-block !important", html)
+        # Mobile header hides profile button when bottom navigation appears
+        self.assertIn("#headerAuthArea,", html)
+        self.assertIn(".header-user-btn", html)
+        self.assertIn("display: none !important", html)
+
+        # Bottom nav center highlighted search FAB and profile avatar
+        self.assertIn('id="bottomNavSearch"', html)
+        self.assertIn('class="bottom-nav-fab"', html)
+        self.assertIn('id="bottomNavProfileAvatar"', html)
+        self.assertIn('class="bottom-nav-profile-img"', html)
+        self.assertIn('id="bottomNavCatalog"', html)
 
         # Profile admin users management card
         self.assertIn('id="profileAdminUsersCard"', html)
