@@ -16,7 +16,8 @@ from typing import Any, Dict, List, Optional
 
 from domain.condition import ConditionBreakdown, build_condition_breakdown
 from domain.freshness_v2 import offer_freshness
-from domain.models import CanonicalProduct, Condition
+from domain.models import CanonicalProduct, Channel, ChannelType, Condition, Seller
+from domain.provenance import build_offer_provenance, build_seller_provenance
 from domain.query_parser import ParsedQuery, QueryParser
 
 logger = logging.getLogger("kz_price_hunter.search_core")
@@ -67,6 +68,15 @@ class AggregatedOffer:
     is_unit_price: bool = False
     quantity: Optional[float] = None
     unit: Optional[str] = None
+    # S2-E28: Trust & Offer Provenance (паспорт происхождения и свежести предложения)
+    source: str = ""
+    published_at: Optional[str] = None
+    provenance: Optional[Dict[str, Any]] = None
+    seller_domain: Optional[str] = None
+    seller_phone: Optional[str] = None
+    seller_bin: Optional[str] = None
+    seller_legal_name: Optional[str] = None
+    seller_metadata_json: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -136,6 +146,9 @@ class SellerOffersGroup:
     has_used: bool = False
     best_new_price: Optional[float] = None
     best_used_price: Optional[float] = None
+    # S2-E28: Trust & Provenance (проверяемые факты о продавце без надписи «Проверенный продавец»)
+    facts: List[str] = field(default_factory=list)
+    provenance: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         res = asdict(self)
@@ -296,6 +309,8 @@ class SearchCore:
                     expires_at = od.get("expires_at")
                     # S2-E08, C08: наличие, свежесть, цена, TTL и активность — общим правилом
                     purchasable = offer_purchasable(od, now=now)
+                    # S2-E28: Trust & Offer Provenance
+                    prov = build_offer_provenance(od, now=now)
 
                     agg_off = AggregatedOffer(
                         id=od["id"],
@@ -319,6 +334,14 @@ class SearchCore:
                         is_purchasable=purchasable,
                         expires_at=expires_at,
                         is_private_seller=bool(od.get("is_private_seller", False)),
+                        source=prov.source,
+                        published_at=od.get("published_at"),
+                        provenance=prov.to_dict(),
+                        seller_domain=od.get("seller_domain"),
+                        seller_phone=od.get("seller_phone"),
+                        seller_bin=od.get("seller_bin"),
+                        seller_legal_name=od.get("seller_legal_name"),
+                        seller_metadata_json=od.get("seller_metadata_json"),
                         **offer_payment_terms(od),
                         **offer_price_basis(od),
                     )
@@ -397,6 +420,46 @@ class SearchCore:
                     best_np = min(x.price for x in s_new_p) if s_new_p else (min(x.price for x in s_new) if s_new else None)
                     best_up = min(x.price for x in s_used_p) if s_used_p else (min(x.price for x in s_used) if s_used else None)
 
+                    # S2-E28: Trust & Provenance (объективные факты о продавце)
+                    s_domain = next((x.seller_domain for x in s_offers if x.seller_domain), None)
+                    s_phone = next((x.seller_phone for x in s_offers if x.seller_phone), None)
+                    s_bin = next((x.seller_bin for x in s_offers if x.seller_bin), None)
+                    s_legal = next((x.seller_legal_name for x in s_offers if x.seller_legal_name), None)
+                    s_meta_raw = next((x.seller_metadata_json for x in s_offers if x.seller_metadata_json), None)
+                    s_meta = {}
+                    if isinstance(s_meta_raw, str) and s_meta_raw.strip():
+                        try:
+                            s_meta = json.loads(s_meta_raw)
+                        except Exception:
+                            s_meta = {}
+
+                    seller_obj = Seller(
+                        id=s_id,
+                        name=s_first.seller_name,
+                        slug=s_first.seller_slug,
+                        domain=s_domain,
+                        phone=s_phone,
+                        bin=s_bin,
+                        legal_name=s_legal,
+                        metadata=s_meta,
+                    )
+                    seller_channels = [
+                        Channel(
+                            id=x.channel_id,
+                            seller_id=s_id,
+                            channel_type=x.channel_type,
+                            name=x.channel_name,
+                            base_url=x.url,
+                        )
+                        for x in s_offers
+                    ]
+                    seller_prov = build_seller_provenance(
+                        seller_obj,
+                        channels=seller_channels,
+                        offers=[{"observed_at": x.observed_at} for x in s_offers],
+                        now=now,
+                    )
+
                     seller_groups.append(SellerOffersGroup(
                         seller_id=s_id,
                         seller_name=s_first.seller_name,
@@ -414,6 +477,8 @@ class SearchCore:
                         has_used=bool(s_used),
                         best_new_price=best_np,
                         best_used_price=best_up,
+                        facts=list(seller_prov.fact_labels),
+                        provenance=seller_prov.to_dict(),
                     ))
 
                 seller_groups.sort(key=lambda s: (not (s.best_offer and s.best_offer.is_purchasable), s.min_price))

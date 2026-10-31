@@ -5242,11 +5242,13 @@
                 <div class="shrink-0">${getShopBadge(shopName)}</div>
                 <div class="space-y-0.5">
                   <div class="text-xs font-medium text-slate-200 line-clamp-1" title="${escapeHtml(off.title || '')}">${escapeHtml(off.title || p.canonical_name)}</div>
-                  <div class="flex items-center gap-2">
+                  <div class="flex flex-wrap items-center gap-2">
                     ${sellerPart}
                     ${cityPart}
                     ${offCond}
-                    ${isStale ? '<span class="text-[9px] text-amber-500">⏳ цена может отличаться</span>' : ''}
+                    ${off.source ? `<span class="text-[9px] text-slate-500 font-mono" title="Источник данных"><i class="fa-solid fa-database text-[8px] mr-0.5 text-slate-600"></i>${escapeHtml(off.source)}</span>` : ''}
+                    ${off.observed_at ? `<span class="text-[9px] text-slate-500" title="Наблюдалось: ${escapeHtml(off.observed_at)}"><i class="fa-regular fa-clock text-[8px] mr-0.5 text-slate-600"></i>${formatTrackedTime(off.observed_at)}</span>` : ''}
+                    ${isStale ? '<span class="text-[9px] text-amber-500">⏳ цена может отличаться</span>' : (off.freshness === 'fresh' ? '<span class="text-[9px] text-emerald-400 font-medium">⚡️ свежая</span>' : '')}
                   </div>
                 </div>
               </div>
@@ -5293,9 +5295,24 @@
             const bestChanOff = sg.best_channel_offer;
             const linkUrl = bestChanOff ? storeUrl(bestChanOff.url) : null;
 
+            const factsBadges = (sg.facts || []).map(f => {
+              let icon = 'fa-circle-check';
+              let color = 'bg-slate-800 text-slate-300 border-slate-700';
+              if (f.includes('Физический адрес')) { icon = 'fa-location-dot'; color = 'bg-sky-950/50 text-sky-300 border-sky-800/60'; }
+              else if (f.includes('Сайт')) { icon = 'fa-globe'; color = 'bg-indigo-950/50 text-indigo-300 border-indigo-800/60'; }
+              else if (f.includes('Instagram')) { icon = 'fa-brands fa-instagram'; color = 'bg-pink-950/50 text-pink-300 border-pink-800/60'; }
+              else if (f.includes('Telegram')) { icon = 'fa-brands fa-telegram'; color = 'bg-sky-950/50 text-sky-300 border-sky-800/60'; }
+              else if (f.includes('WhatsApp')) { icon = 'fa-brands fa-whatsapp'; color = 'bg-emerald-950/50 text-emerald-300 border-emerald-800/60'; }
+              else if (f.includes('маркетплейсах')) { icon = 'fa-store'; color = 'bg-amber-950/50 text-amber-300 border-amber-800/60'; }
+              else if (f.includes('активность сегодня')) { icon = 'fa-bolt'; color = 'bg-emerald-950/50 text-emerald-300 border-emerald-800/60'; }
+              else if (f.includes('БИН') || f.includes('Юрлицо')) { icon = 'fa-building'; color = 'bg-purple-950/50 text-purple-300 border-purple-800/60'; }
+              else if (f.includes('телефон')) { icon = 'fa-phone'; color = 'bg-teal-950/50 text-teal-300 border-teal-800/60'; }
+              return `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium border ${color}"><i class="fa-solid ${icon} text-[8px]"></i><span>${escapeHtml(f)}</span></span>`;
+            }).join(' ');
+
             return `
               <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-slate-700 transition text-xs">
-                <div class="space-y-1">
+                <div class="space-y-1.5">
                   <div class="flex items-center gap-2">
                     <button type="button" class="font-semibold text-slate-200 hover:text-emerald-400 flex items-center gap-1 cursor-pointer transition text-left" ${sKey ? `onclick="openSellerModal('${escapeHtml(sKey)}')"` : ''}>
                       <i class="fa-solid fa-store text-slate-500 text-[10px]"></i>
@@ -5308,6 +5325,11 @@
                     <span class="text-[10px] text-slate-400 mr-1">Каналы (${sg.channels_count}):</span>
                     ${chanBadges}
                   </div>
+                  ${factsBadges ? `
+                    <div class="flex flex-wrap items-center gap-1 pt-0.5">
+                      ${factsBadges}
+                    </div>
+                  ` : ''}
                 </div>
                 <div class="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-800/60">
                   <span class="font-bold text-white font-mono">${sPriceText}</span>
