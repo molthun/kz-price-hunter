@@ -1,0 +1,54 @@
+test_live_search_consumes_daily_attempts (__main__.Extra.test_live_search_consumes_daily_attempts) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[System] 📡 Модуль онлайн-логирования активирован.
+[Auth] 🧑‍💻 Вход разработчика включен (локальный запуск): кнопка «Вход разработчика» в шапке, права администратора
+[Auth] ⚠️ TELEGRAM_BOT_TOKEN не задан — вход через Telegram и уведомления отключены
+[System] Пул рабочих потоков: 32 (ядер: 10)
+Executing <Task pending name='Task-1' coro=<TestDisputedMatchingWebAPI.asyncSetUp() running at /Users/molthun/Documents/kz-price-hunter/tests/test_disputed_matching_moderation.py:526> cb=[_run_until_complete_cb() at /opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py:181] created at /opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:110> took 0.170 seconds
+[Auth] Пользователь вошёл в систему
+DAILY_LIMIT 1 EXTERNAL_ATTEMPTS 1 ACCOUNTED 1
+ok
+test_scan_reaches_other_conflict_after_human_same (__main__.Extra.test_scan_reaches_other_conflict_after_human_same) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[Auth] 🧑‍💻 Вход разработчика включен (локальный запуск): кнопка «Вход разработчика» в шапке, права администратора
+[Auth] ⚠️ TELEGRAM_BOT_TOKEN не задан — вход через Telegram и уведомления отключены
+[System] Пул рабочих потоков: 32 (ядер: 10)
+SCAN_AFTER_RESOLVED_SAME {'scanned_keys': 1, 'conflicts_found': 1, 'enqueued': 1, 'conflicts': [{'key': '[REDACTED]', 'title_a': 'Samsung Galaxy S24 128GB a', 'title_b': 'Samsung Galaxy S24 512GB c', 'enqueued': True}]}
+SCAN_AFTER_RESOLVED_SAME {'scanned_keys': 1, 'conflicts_found': 1, 'enqueued': 1, 'conflicts': [{'key': '[REDACTED]', 'title_a': 'Samsung Galaxy S24 256GB b', 'title_b': 'Samsung Galaxy S24 512GB c', 'enqueued': True}]}
+ok
+test_parallel_manual_and_background_share_budget (__main__.Extra.test_parallel_manual_and_background_share_budget) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[Auth] 🧑‍💻 Вход разработчика включен (локальный запуск): кнопка «Вход разработчика» в шапке, права администратора
+[Auth] ⚠️ TELEGRAM_BOT_TOKEN не задан — вход через Telegram и уведомления отключены
+[System] Пул рабочих потоков: 32 (ядер: 10)
+[Auth] Пользователь вошёл в систему
+MANUAL_AND_BACKGROUND_TOTAL_ATTEMPTS 1
+ok
+test_zero_limit_serves_cache_without_external_calls (__main__.Extra.test_zero_limit_serves_cache_without_external_calls) ... [DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+[Auth] 🧑‍💻 Вход разработчика включен (локальный запуск): кнопка «Вход разработчика» в шапке, права администратора
+[Auth] ⚠️ TELEGRAM_BOT_TOKEN не задан — вход через Telegram и уведомления отключены
+[System] Пул рабочих потоков: 32 (ядер: 10)
+[Auth] Пользователь вошёл в систему
+ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.371s
+
+OK

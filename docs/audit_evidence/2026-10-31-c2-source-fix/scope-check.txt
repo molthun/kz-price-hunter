@@ -1,0 +1,1 @@
+PASS: four exact HTTP200 targets, source mapping, only rows 22/113/171 updated, only NOMAD different -> uncertain, sample v8/1550 and known unchanged, report synchronized.

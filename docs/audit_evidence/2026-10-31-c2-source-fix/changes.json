@@ -1,0 +1,21 @@
+{
+  "changed_draw_indices": [
+    22,
+    113,
+    171
+  ],
+  "only_label_change": "113: different -> uncertain",
+  "changed_sample_indices": [
+    1292,
+    1383,
+    1441
+  ],
+  "counts": {
+    "same": 105,
+    "different": 155,
+    "packaging": 6,
+    "uncertain": 14
+  },
+  "sample_version": 8,
+  "sample_size": 1550
+}

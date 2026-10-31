@@ -90,10 +90,9 @@
   },
   "22": {
     "label": "same",
-    "note": "региональный индекс /01 в номенклатуре Philips обозначает версию для европейского региона, характеристики 27E2N1110 идентичны",
+    "note": "Карточка AplTech прямо связывает название Philips 27E2N1110 с партномером 27E2N1110/01 и характеристиками 27 дюймов, IPS, FHD, 120 Гц. Это подтверждение конкретной карточки продавца; общее правило о региональных суффиксах не утверждается.",
     "sources": [
-      "https://www.download.p4c.philips.com/files/2/27e2n1110_01/27e2n1110_01_pss_aenus.pdf",
-      "https://www.philips.com/c-p/27E2N1110_01/monitor-full-hd-monitor"
+      "https://www.apltech.kz/tovar/438203/philips-27e2n1110-27e2n111001"
     ]
   },
   "23": {
@@ -500,10 +499,11 @@
     "sources": []
   },
   "113": {
-    "label": "different",
-    "note": "разные модификации модуля памяти: стандартный модуль без радиатора (NMD5600D5U46-16GB) и версия с установленным радиатором охлаждения Heatsink White (HSW)",
+    "label": "uncertain",
+    "note": "Карточка HSW подтверждает Heatsink White. Карточка базового NMD5600D5U46-16GB указывает Bulk Pack, но прямо не подтверждает отсутствие радиатора. Недостаточно данных для уверенного different: не приравниваем различие артикула или упаковки к доказанному различию охлаждения.",
     "sources": [
-      "https://apltech.kz/tovar/384784/nomad-nmd5600d5u46-16gbhsw"
+      "https://iplaza.kz/operativnaya-pamyat-16gb-ddr5-5600mhz-nomad-udimm-cl46-nmd5600d5u46-16gbhsw-heatsink-white",
+      "https://www.apltech.kz/tovar/399655/nomad-nmd5600d5u46-nmd5600d5u46-16gb"
     ]
   },
   "114": {
@@ -761,11 +761,9 @@
   },
   "171": {
     "label": "different",
-    "note": "разная комплектация: артикул 26699-999-899 поставляется без подставки (USB-C MS Stereo), тогда как версия WLC (артикул 26699-999-889) включает беспроводную зарядную станцию Jabra Wireless Charging Pad",
+    "note": "Официальный даташит Jabra RevC, таблица Productos: 26699-999-889 — USB-C MS Stereo с Wireless Charging, 26699-999-899 — USB-C MS Stereo без этой комплектации. WLC отличается комплектом зарядки.",
     "sources": [
-      "https://www.jabra.com/supportpages/jabra-evolve2-65-flex/26699-999-899",
-      "https://www.jabra.com/supportpages/jabra-evolve2-65-flex/26699-999-889",
-      "https://www.jabra.com/business/office-headsets/jabra-evolve/jabra-evolve2-65-flex"
+      "https://www.jabra.com/_/media/Jabra_VXi_Product-Documentation/Jabra-Evolve2-65-Flex/Technical-specifications/RevC/ES-Evolve2-65-Flex-Tech-Specs-301024.pdf"
     ]
   },
   "172": {

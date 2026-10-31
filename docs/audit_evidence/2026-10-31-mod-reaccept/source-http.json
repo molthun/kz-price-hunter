@@ -1,0 +1,30 @@
+[
+  {
+    "url": "https://www.download.p4c.philips.com/files/2/27e2n1110_01/27e2n1110_01_pss_aenus.pdf",
+    "status": 530,
+    "final_url": "https://www.download.p4c.philips.com/files/2/27e2n1110_01/27e2n1110_01_pss_aenus.pdf",
+    "content_type": "text/html; charset=UTF-8",
+    "length": 8283
+  },
+  {
+    "url": "https://apltech.kz/tovar/384784/nomad-nmd5600d5u46-16gbhsw",
+    "status": 200,
+    "final_url": "https://www.apltech.kz/tovar/384784/samsung-ue55du8000uxru-ue55du8000uxru",
+    "content_type": "text/html;charset=utf-8",
+    "length": 445414
+  },
+  {
+    "url": "https://www.jabra.com/supportpages/jabra-evolve2-65-flex/26699-999-899",
+    "status": 404,
+    "final_url": "https://www.jabra.com/supportpages/jabra-evolve2-65-flex/26699-999-899",
+    "content_type": "text/html; charset=utf-8",
+    "length": 242537
+  },
+  {
+    "url": "https://www.jabra.com/supportpages/jabra-evolve2-65-flex/26699-999-889",
+    "status": 404,
+    "final_url": "https://www.jabra.com/supportpages/jabra-evolve2-65-flex/26699-999-889",
+    "content_type": "text/html; charset=utf-8",
+    "length": 242836
+  }
+]

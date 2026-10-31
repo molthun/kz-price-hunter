@@ -1,0 +1,118 @@
+{
+ "PASS": true,
+ "old_rows_unchanged": true,
+ "sampling_seed_and_order_exact": true,
+ "merge_replayed": true,
+ "pools": {
+  "dropped_mixed": 416,
+  "dropped_both_k2": 224
+ },
+ "labels": {
+  "same": 105,
+  "different": 156,
+  "packaging": 6,
+  "uncertain": 13
+ },
+ "fixed_counts": {
+  "added": 366,
+  "dropped_both_k2": 220,
+  "retained": 165,
+  "dropped_mixed": 106
+ },
+ "drawn_counts": {
+  "added": 500,
+  "retained": 240,
+  "dropped_mixed": 140,
+  "dropped_both_k2": 140
+ },
+ "independent_metrics": {
+  "owner_decision": {
+   "baseline": {
+    "true": 1336,
+    "false": 534,
+    "open": 99,
+    "true_low": 1221,
+    "true_high": 1515,
+    "false_low": 455,
+    "false_high": 749
+   },
+   "candidate": {
+    "true": 2929,
+    "false": 112,
+    "open": 242,
+    "true_low": 2791,
+    "true_high": 3214,
+    "false_low": 70,
+    "false_high": 493
+   },
+   "candidate_vs_baseline_true_low": 1.841,
+   "false_merges_ratio_high": 1.085
+  },
+  "packaging_different": {
+   "baseline": {
+    "true": 1336,
+    "false": 534,
+    "open": 99,
+    "true_low": 1221,
+    "true_high": 1515,
+    "false_low": 455,
+    "false_high": 749
+   },
+   "candidate": {
+    "true": 2929,
+    "false": 112,
+    "open": 242,
+    "true_low": 2791,
+    "true_high": 3214,
+    "false_low": 70,
+    "false_high": 493
+   },
+   "candidate_vs_baseline_true_low": 1.841,
+   "false_merges_ratio_high": 1.085
+  },
+  "packaging_same": {
+   "baseline": {
+    "true": 1356,
+    "false": 514,
+    "open": 99,
+    "true_low": 1240,
+    "true_high": 1535,
+    "false_low": 435,
+    "false_high": 730
+   },
+   "candidate": {
+    "true": 2936,
+    "false": 105,
+    "open": 242,
+    "true_low": 2798,
+    "true_high": 3220,
+    "false_low": 64,
+    "false_high": 486
+   },
+   "candidate_vs_baseline_true_low": 1.823,
+   "false_merges_ratio_high": 1.116
+  },
+  "packaging_excluded": {
+   "baseline": {
+    "true": 1336,
+    "false": 514,
+    "open": 119,
+    "true_low": 1221,
+    "true_high": 1535,
+    "false_low": 435,
+    "false_high": 749
+   },
+   "candidate": {
+    "true": 2929,
+    "false": 105,
+    "open": 249,
+    "true_low": 2791,
+    "true_high": 3220,
+    "false_low": 64,
+    "false_high": 493
+   },
+   "candidate_vs_baseline_true_low": 1.818,
+   "false_merges_ratio_high": 1.133
+  }
+ }
+}
