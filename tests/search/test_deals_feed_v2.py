@@ -24,6 +24,7 @@ class TestDealsFeedAndFavorites(AioHTTPTestCase):
         app.add_routes([
             web.get("/deals", srv.deals_page_handler),
             web.get("/favorites", srv.favorites_page_handler),
+            web.get("/profile", srv.profile_page_handler),
             web.get("/api/v2/deals", srv.deals_v2_handler),
         ])
         return app
@@ -47,6 +48,17 @@ class TestDealsFeedAndFavorites(AioHTTPTestCase):
         self.assertIn('id="viewFavorites"', text)
         self.assertIn('id="favoritesListContainer"', text)
         self.assertIn('id="navLinkFavorites"', text)
+
+    @unittest_run_loop
+    async def test_profile_page_route(self):
+        """GET /profile returns 200 and serves search_first.html with profile & watches elements."""
+        resp = await self.client.get("/profile")
+        self.assertEqual(resp.status, 200)
+        text = await resp.text()
+        self.assertIn('id="viewProfile"', text)
+        self.assertIn('id="watchModalBackdrop"', text)
+        self.assertIn('id="navLinkProfile"', text)
+        self.assertIn('id="profileWatchesList"', text)
 
     @unittest_run_loop
     async def test_deals_v2_api_structure_and_pagination(self):

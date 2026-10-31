@@ -267,6 +267,11 @@ async def favorites_page_handler(request):
     """Страница сохранённых товаров и скидок (KZPH-G5-01)."""
     return web.FileResponse(TEMPLATES_DIR / "search_first.html")
 
+@routes.get("/profile")
+async def profile_page_handler(request):
+    """Страница профиля пользователя, наблюдений и настроек (KZPH-G5-03)."""
+    return web.FileResponse(TEMPLATES_DIR / "search_first.html")
+
 @routes.get("/privacy")
 async def privacy_handler(request):
     return web.FileResponse(TEMPLATES_DIR / "privacy.html")
