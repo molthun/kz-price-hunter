@@ -123,3 +123,15 @@ class ProductRepository(BaseRepository):
         params.extend([limit, offset])
         rows = self.fetchall(sql, params)
         return [CanonicalProduct.from_row(r) for r in rows]
+
+    def count(self, category: Optional[str] = None) -> int:
+        """Returns the total number of canonical products."""
+        if category:
+            row = self.fetchone("SELECT COUNT(*) as cnt FROM canonical_products WHERE category = ?", (category,))
+        else:
+            row = self.fetchone("SELECT COUNT(*) as cnt FROM canonical_products")
+        return int(row["cnt"]) if row else 0
+
+    def list_all(self, limit: int = 100, offset: int = 0) -> List[CanonicalProduct]:
+        """Convenience alias for list_products."""
+        return self.list_products(limit=limit, offset=offset)

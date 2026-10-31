@@ -1609,17 +1609,17 @@ async def product_price_history_v2_handler(request):
 
     def _load():
         from database import get_connection
-        from repositories.pricing_repo import PricingRepository
+        from repositories.history_repo import HistoryRepository
 
         conn = get_connection()
         try:
-            repo = PricingRepository(conn)
+            repo = HistoryRepository(conn)
             report = repo.get_product_price_history(
                 product_id=product_id,
                 condition=condition,
                 seller_id=seller_id,
                 channel_type=channel_type,
-                limit_per_offer=limit,
+                limit_per_series=limit,
             )
             return report.to_dict() if report else None
         finally:

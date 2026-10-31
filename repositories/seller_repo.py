@@ -92,6 +92,14 @@ class SellerRepository(BaseRepository):
         rows = self.fetchall(sql)
         return [Seller.from_row(r) for r in rows]
 
+    def count(self, active_only: bool = True) -> int:
+        """Returns the total number of sellers."""
+        sql = "SELECT COUNT(*) as cnt FROM sellers"
+        if active_only:
+            sql += " WHERE is_active = 1"
+        row = self.fetchone(sql)
+        return int(row["cnt"]) if row else 0
+
     def get_by_id_or_slug(self, identifier: str) -> Optional[Seller]:
         """
         Lookup seller by ID or by slug.

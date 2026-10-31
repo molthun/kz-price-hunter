@@ -6,7 +6,9 @@ from repositories.base import BaseRepository
 from repositories.candidate_repo import CandidateRepository
 from repositories.channel_repo import ChannelRepository
 from repositories.content_repo import ContentObservationRepository
+from repositories.discovery_repo import DiscoveryRepository
 from repositories.discovery_task_repo import DiscoveryTaskRepository
+from repositories.history_repo import HistoryRepository
 from repositories.offer_repo import OfferRepository
 from repositories.pricing_repo import PricingRepository
 from repositories.product_repo import ProductRepository
@@ -16,6 +18,7 @@ from repositories.search_repo import SearchRepository
 from repositories.social_source_repo import SocialSourceRepository
 from repositories.seller_identity_repo import SellerIdentityRepository
 from repositories.seller_repo import SellerRepository
+from repositories.telemetry_repo import TelemetryRepository
 
 __all__ = [
     "BaseRepository",
@@ -23,7 +26,9 @@ __all__ = [
     "ChannelRepository",
     "ContentObservationRepository",
     "DDL_V2",
+    "DiscoveryRepository",
     "DiscoveryTaskRepository",
+    "HistoryRepository",
     "OfferRepository",
     "PricingRepository",
     "ProductRepository",
@@ -32,6 +37,7 @@ __all__ = [
     "SocialSourceRepository",
     "SellerRepository",
     "SellerIdentityRepository",
+    "TelemetryRepository",
     "init_schema_v2",
     "rebuild_canonical_products_fts",
 ]

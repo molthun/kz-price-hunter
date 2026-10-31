@@ -2,6 +2,34 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## Search Platform 2.0: Этап 29 — Local DB evolution & Repository Layer — Antigravity (2026-10-31, завершён)
+
+- **Основание:** поручение владельца продолжать по очереди («Все по очереди. Пишем и охватываем тестами. Крупные этапы после разработки только охватываем аудитом остальное только авто тестами и стендом. Делаем. но не забывай обновлять стенд. на нем я визуально тестирую новые возможности после разработки»), план Search Platform 2.0 ([SEARCH_PLATFORM_PLAN.md](SEARCH_PLATFORM_PLAN.md) Этап 29).
+- **Исполнитель:** Antigravity (основной разработчик), ветка `main`.
+- **Область файлов:** `repositories/__init__.py`, `repositories/history_repo.py` (новый), `repositories/discovery_repo.py` (новый), `repositories/telemetry_repo.py` (новый), `repositories/product_repo.py`, `repositories/seller_repo.py`, `repositories/offer_repo.py`, `web/server.py`, `tests/core/test_repository_layer.py` (новый), `docs/AGENT_HANDOFF.md`, `ROADMAP_AND_LOG.md`.
+- **Что реализовано:**
+  1. **Формирование 7 канонических репозиториев согласно плану Этапа 29**:
+     - `ProductRepository`: канонические товары, поиск FTS, методы `count()`, `list_all()`, `get_by_id()`, `get_by_canonical_key()`.
+     - `SellerRepository`: продавцы, слаги, методы `count()`, `list_sellers()`, `get_by_id()`, `get_by_slug()`.
+     - `OfferRepository`: предложения продавцов, методы `count_offers()`, `deactivate_offer()`, `get_active_offers_for_product()`.
+     - `SearchRepository`: полнотекстовый поиск 2.0, фасеты брендов, популярные категории.
+     - `HistoryRepository` (`repositories/history_repo.py`): изолированные линии динамики цен `(product_id, seller_id, channel_id, condition)` без смешения каналов, запись одиночных точек `record_point()` и батчей `record_batch()`, статистика истории цен `get_history_stats()`.
+     - `DiscoveryRepository` (`repositories/discovery_repo.py`): единый фасад управления адаптивными задачами поиска (`discovery_tasks`), кандидатами продавцов (`seller_candidates`) и источниками контента соцсетей (`social_sources`), расчет воронки Discovery `get_discovery_stats()`.
+     - `TelemetryRepository` (`repositories/telemetry_repo.py`): поисковая аналитика и расчет KPI качества поиска (p50/p95 задержка, распределение исходов), регистрация системных событий телеметрии (Fail-Open) и сводная статистика `get_telemetry_summary()`.
+  2. **Рефакторинг доступа к БД**:
+     - В `web/server.py` обработчик `/api/v2/products/{product_id}/history` переведён на `HistoryRepository`.
+     - В `repositories/__init__.py` экспортированы все 7 репозиториев для обеспечения модульности и подготовки бесшовного перехода SQLite $\rightarrow$ PostgreSQL в будущем.
+  3. **Автотесты**:
+     - Создан сьют `tests/core/test_repository_layer.py` (7 тестов):
+       - Полный контракт и изоляция каждого из 7 репозиториев.
+     - Браузерные тесты Playwright: **21/21 PASS**.
+     - Полный регрессионный сьют Python: **2356/2356 OK** (141.1 с).
+     - Аудит секретов: `release_gate.py secrets` PASS (0 findings).
+     - Форматирование: `git diff --check` PASS.
+- **Следующий точный шаг:** синхронизация коммита на испытательный стенд `shdev.molthun.ru` через `git bundle` (порт 2222) и переход к Этапу 30 (Масштабирование и контрольные точки).
+
+---
+
 ## Search Platform 2.0: Этап 28 — Trust & Provenance (проверяемые факты о продавцах и офферах) — Antigravity (2026-10-31, завершён)
 
 - **Основание:** поручение владельца продолжать по очереди («Все по очереди. Пишем и охватываем тестами. Крупные этапы после разработки только охватываем аудитом остальное только авто тестами и стендом. Делаем. но не забывай обновлять стенд. на нем я визуально тестирую новые возможности после разработки»), план Search Platform 2.0 ([SEARCH_PLATFORM_PLAN.md](SEARCH_PLATFORM_PLAN.md) Этап 28).

@@ -116,6 +116,14 @@ class OfferRepository(BaseRepository):
         row = self.fetchone("SELECT * FROM offers WHERE id = ?", (offer_id,))
         return Offer.from_row(row) if row else None
 
+    def deactivate_offer(self, offer_id: str) -> bool:
+        """Deactivates an offer (sets is_active = 0)."""
+        cur = self.execute(
+            "UPDATE offers SET is_active = 0, updated_at = ? WHERE id = ?",
+            (utc_now_iso(), offer_id),
+        )
+        return cur.rowcount > 0
+
     def get_by_channel_sku(self, channel_id: str, external_sku: str) -> Optional[Offer]:
         row = self.fetchone(
             "SELECT * FROM offers WHERE channel_id = ? AND external_sku = ?",

@@ -6,6 +6,22 @@
 
 ---
 
+## [Search Platform 2.0: Этап 29] Local DB evolution & Repository Layer (31.10.2026)
+- **Контекст:** реализация Этапа 29 Search Platform 2.0 согласно [SEARCH_PLATFORM_PLAN.md](docs/SEARCH_PLATFORM_PLAN.md) по поручению владельца («Все по очереди. Пишем и охватываем тестами. Крупные этапы после разработки только охватываем аудитом остальное только авто тестами и стендом. Делаем. но не забывай обновлять стенд. на нем я визуально тестирую новые возможности после разработки»).
+- **Реализация:**
+  - Создание 7 канонических репозиториев для изоляции доменной логики от SQLite и подготовки бесшовного перехода на PostgreSQL:
+    - `ProductRepository`: канонические товары, методы `count()`, `list_all()`, поиск и FTS5.
+    - `SellerRepository`: продавцы, каналы, методы `count()`, `list_sellers()`.
+    - `OfferRepository`: предложения продавцов, методы `count_offers()`, `deactivate_offer()`.
+    - `SearchRepository`: движок поиска FTS, фасеты брендов, популярные категории.
+    - `HistoryRepository` (`repositories/history_repo.py`): изолированные ряды динамики цен `(product_id, seller_id, channel_id, condition)` без смешения каналов, запись одиночных точек и батчей, статистика истории цен.
+    - `DiscoveryRepository` (`repositories/discovery_repo.py`): единый фасад управления адаптивными поисковыми задачами (`discovery_tasks`), кандидатами (`seller_candidates`) и соц. источниками (`social_sources`), расчет воронки Discovery.
+    - `TelemetryRepository` (`repositories/telemetry_repo.py`): поисковые события, расчет KPI (p50/p95 задержка, распределение исходов), системные события телеметрии (Fail-Open).
+  - В `web/server.py` эндпоинт `/api/v2/products/{product_id}/history` переведён на `HistoryRepository`.
+- **Тесты:** создан сьют `tests/core/test_repository_layer.py` (7 тестов). Полный регресс Python: **2356/2356 OK** (141.1 с); браузерные тесты Playwright: **21/21 PASS**; `release_gate.py secrets`: **PASS**; `git diff --check`: **PASS**. Ветка `main`.
+
+---
+
 ## [Search Platform 2.0: Этап 28] Trust & Provenance (проверяемые факты о продавцах и офферах) (31.10.2026)
 - **Контекст:** реализация Этапа 28 Search Platform 2.0 согласно [SEARCH_PLATFORM_PLAN.md](docs/SEARCH_PLATFORM_PLAN.md) по поручению владельца («Все по очереди. Пишем и охватываем тестами. Крупные этапы после разработки только охватываем аудитом остальное только авто тестами и стендом. Делаем. но не забывай обновлять стенд. на нем я визуально тестирую новые возможности после разработки»).
 - **Реализация:**
