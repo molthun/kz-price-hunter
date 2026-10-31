@@ -1,0 +1,8 @@
+{
+ "seed": 20261103,
+ "per_layer": 140,
+ "pools": {
+  "dropped_mixed": 416,
+  "dropped_both_k2": 224
+ }
+}

@@ -1,0 +1,280 @@
+0|Планшет Oscal Pad 9 10.1" 4/128Gb Metallic Titanium Grey ## Планшет Oscal Pad 9, 10.1", 4 GB, 128 GB, WiFi+4G, Titanium Grey
+1|ASRock B650M-H/M.2+ ## Материнская плата ASRock B650M-H/M.2+ WIFI
+2|Процессор Intel Celeron G5905, LGA1200, BOX ## Процессор Intel Celeron G5905, LGA1200, OEM (G5905)
+3|Монитор 27" AOC 27B3QA2 1920x1080 16:9 IPS 120ГЦ (HDMI+DP) Black ## Монитор 27' AOC 27B3QA2/01
+4|Телевизор Dreame Aura 65" 65S100 QLED 4K UHD Black ## Телевизор Dreame Aura Mini LED 4K TV 65S100 65" (65S100)
+5|SSD накопитель 500GB Transcend TS500GMTS825S M2 ## Жесткий диск SSD 500GB Transcend TS500GMTS825S M2 (TS500GMTS825S)
+6|Оперативная память Hiksemi (Hikvision) Armor DDR4 16 GB kit (2x8GB) 3200MHz, Black (HSC416U32D3) ## Оперативная память Hiksemi Armor HSC416U32D3
+7|DDR-5 DIMM 16 GB 5600 MHz Kingston Fury Beast, BOX (KF556C36BBE-16) ## Оперативная память Kingston 16GB 6000MT/s DDR5 CL36 DIMM (Kit of 2) FURY Beast Black EXPO (KF560C36BBEK2-16)
+8|OSCAL Pad 30 10.1 дюйм 4 Гб128 Гб зеленый + подарок ## Планшет Oscal Pad 30 WiFi, 10.1", 4 GB, 128 GB, Cosmic Grey
+9|Смартфон Camon 50 (CN5) 256 ГБ, 6.78’’, 12 Гб, зеленый Tecno ## Смартфон Tecno Camon 50, 8 GB, 256 GB, Moonshadow Black (CN5)
+10|Процессор Intel Core i5 10500, LGA1200, BOX ## Процессор Intel Core i5 10500, LGA1200, OEM (SRH3A)
+11|SSD накопитель Transcend MTE115S 250 ГБ, M.2 Transcend ## Твердотельный накопитель SSD 250GB (TS250GMTE115S)
+12|Оперативная память  8GB DDR4 3200MHz GEIL PC4-25600 GN48GB3200C22S Bulk Pack (GN48GB3200C22S) ## Оперативная память 8GB GEIL GN48GB3200C22S
+13|Смартфон TECNO CAMON 50 8 ГБ/256 ГБ 256 ГБ, 6.78’’, 8 Гб, темно-зеленый Tecno, CAMON ## Смартфон Tecno Camon 50, 12 GB, 256 GB, Malachite Green (CN5)
+14|Оперативная память 8 GB Kingston KF432C16BB2A/8 ## Оперативная память Kingston KF432C16BB2A/8 DDR4 8GB (KF432C16BB2A/8)
+15|Телевизор HISENSE QLED 75E7S PRO UHD SMART ## Телевизор Hisense 75E7S RU
+16|DDR-5 DIMM 16 GB 5600 MHz Kingston Fury Beast, BOX (KF556C36BBE-16) ## Оперативная память Kingston Fury Beast RGB DDR4 DIMM 16Gb 3200MHz (KF432C16BB12A/16WP)
+17|23.8" Sanc M2453KJ черный ## Монитор 23.8" Sanc M2453KJ V3, Black
+18|Смартфон TECNO CAMON 50 12 ГБ/256 ГБ 256 ГБ, 6.78’’, 12 Гб, темно-зеленый Tecno, CAMON ## Смартфон Tecno Camon 50, 8 GB, 256 GB, Moonshadow Black (CN5)
+19|Видеокарта OCPC GT 210 (OCVNGT210G1XE) [1 ГБ, GDDR3, 64 бит, VGA, DVI, HDMI] ## Видеокарта OCPC GT 210 1 GB (OCVNGT210G1XE)
+20|Зарядное устройство Usams OYXLTZ01, 20W, White ## Комплект СЗУ Usams OYXLTZ01 20W Type-C порт + кабель Type-C-Type-C 20 Вт, 1 м, USB Type-C Usams
+21|SSD накопитель 256GB TeamGroup MP33 TM8FP6256G0C101 ## Твердотельный накопитель SSD Team Group MP33 256Gb, M.2, NVMe 1.3, 1600/1000 MB/s (TM8FP6256G0C101)
+22|Монитор 27" Philips 27E2N1110/01, Black ## Монитор Игровой 27" PHILIPS 27E2N1110 1920x1080 16:9 IPS 120Гц (HDMI+VGA) Black
+23|Модуль памяти Apacer Panther AH5U16G60C6227BAA-1 DDR5 16GB ## Оперативная память Apacer Panther 16GB (AH5U16G52C5227BAA-1)
+24|Видеокарта AFOX GTX1650 SUPER GAMING 4GB D6 Dual Fan (AF1650S-4096D6H3-V2) ## Видеокарта AFOX GTX1650 SUPER GAMING 4GB D6 Dual Fan AF1650S-4096D6H3-V2
+25|Материнская плата ASRock B650M-H/M.2+ (90-MXBMS0-A0UAYZ) ## Материнская плата ASRock B650M-H/M.2+ WIFI
+26|Оперативная память 16Gb Kingston Fury Beast KF432C16BB1/16WP ## Оперативная память Kingston Fury Beast RGB DDR4 DIMM 16Gb 3200MHz (KF432C16BB12A/16WP)
+27|Оперативная память Kingston FURY Beast White RGB KF552C40BWA-32 ## Оперативная память Kingston Fury Beast (AMD), DIMM DDR5 32 GB kit (2x16GB) <6000MHz> (KF560C30BBEK2-32)
+28|Оперативная память 32 GB kit Kingston Fury Beast KF560C30BWEK2-32 ## Оперативная память Kingston FURY Beast DDR5 32GB 5600MT/s - Black (KF556C36BBE2-32)
+29|Оперативная память Kingston 16GB 5600MT/s DDR5 CL36 DIMM FURY Beast Black EXPO (KF556C36BBE-16) ## Оперативная память Kingston FURY Beast Black EXPO KF560C30BBE-16
+30|Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Black, 128 ГБ Tecno, SPARK ## Смартфон Tecno Spark 50, 4 GB, 128 GB, Aurora Purple (KN4N)
+31|Оперативная память Kingston FURY Beast Black EXPO KF560C30BBE-16 ## Оперативная память Kingston FURY Beast KF432C16BB1/16 DDR4 16GB 3200MHz (KF432C16BB1/16)
+32|Оперативная память 16 GB kit Kingston Fury Beast KF560C36BBEK2-16 ## Оперативная память Kingston FURY Beast Black EXPO DIMM DDR5 16GB 6000MT/s (KF560C30BBE-16)
+33|Комплект оперативной памяти Kingston Fury Beast Beast White EXPO DDR5 DIMM 32Gb KIT (2x16Gb) 6000MHz (KF560C36BWE2K2-32) ## Оперативная память 32 GB kit Kingston Fury Beast RGB KF560C36BWE2AK2-32
+34|Карта памяти Canvas Go Plus C10 UHS-I U3 256 ГБ Kingston Technology ## Карта памяти Micro SDXC 256 GB Kingston Canvas Go Plus, Class 10 UHS-I U3 V30 A2, адаптер
+35|Компьютерный корпус Aerocool APNX V1-W-BK-v1 без Б/П ## Корпус AeroCool APNX V1, White
+36|Оперативная память 32Gb Transcend TS3200HLE-32G ## Память оперативная Desktop Transcend TS3200HLE-32G DDR4 32GB 3200 (TS3200HLE-32G)
+37|Комплект модулей памяти 32Gb kit Kingston FURY Beast RGB KF432C16BB12AK2/32 ## Оперативная память Kingston Fury Beast (AMD), DDR5 32 GB kit (2x16GB) 6000MHz (KF560C30BWEK2-32)
+38|Видеокарта AFOX GT240 1GB D3 LP Single Fan AF240-1024D3L2-V2 ## Видеокарта Afox GT240, 1 GB (AF240-1024D3L2-V3)
+39|Гарнитура Jabra Evolve2 55 Link380a MS Stereo ## Гарнитура Jabra Evolve2 55 Link380с MS Stereo
+40|23.8" Sanc M2442PH V3 черный ## Монитор Игровой 23,8" Sanc M2442PH V3 1920x1080 16:9 IPS 200ГЦ (2HDMI+DP) Black
+41|Маршрутизатор Mercusys MR50G (MR50G) ## Маршрутизатор Mercusys MR50G V1.2
+42|Монитор 32" iiyama ProGraphic HB3201UHSNP-B1, Black ## Монитор iiyama ProGraphic HB3201UHSNP-B1 32"
+43|Оперативная память Kingston FURY Beast Black RGB KF560C36BBE2A-16 ## Оперативная память Kingston Fury Beast RGB DDR4 16Gb 3200 MHz (KF432C16BB2A/16)
+44|SSD накопитель 480 GB Netac SA500, 2.5", SATA III ## Твердотельный накопитель SSD Netac NT01SA500-480-S3X 480GB  (NT01SA500-480-S3X)
+45|Смартфон Tecno Pova 2 4/64GB Energy Blue ## Смартфон Tecno Pova 2, 64 GB, Polar Silver (LE7n)
+46|Оперативная память 64 GB kit Kingston Fury Beast White KF560C36BBEAK2-64 ## Оперативная память Kingston FURY Beast Black DDR5 64GB (Kit of 2) 5600MT/s (KF556C36BBE2K2-64)
+47|Комплект оперативной памяти Kingston Fury Beast Beast White EXPO DDR5 DIMM 32Gb KIT (2x16Gb) 6000MHz (KF560C36BWE2K2-32) ## Оперативная память 32GB Kit Kingston FURY Beast White RGB EXPO KF560C30BWEAK2-32 White
+48|Оперативная память KINGSTON DRAM 16GB 3600MHz DDR4 CL18 DIMM FURY Beast Black (KF436C18BB/16) ## Оперативная память Kingston FURY Beast Black EXPO KF560C30BBE-16
+49|Оперативная память 16Gb Kingston Fury Beast KF432C16BB1/16WP ## Оперативная память Kingston 16GB 3200MT/s DDR4 CL16 DIMM 1Gx8 FURY Beast RGB (KF432C16BB12A/16)
+50|Телевизор ЯНДЕКС 65 YNDX-00077 (4K Smart) ## Телевизор Яндекс Бейсик LED 4K UHD Smart 65" YNDX-00077
+51|Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Blue, 128 ГБ Tecno, SPARK ## Смартфон Tecno Spark 50, 4 GB, 128 GB, Ink Black (KN4N)
+52|Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Purple, 128 ГБ Tecno, SPARK ## Смартфон Tecno Spark 50, 6 GB, 128 GB, Aurora Purple (KN4N)
+53|Монитор 23.8" AOC 24G4HRE, Black ## Монитор Игровой 23,8" AOC 24G4HRE 1920x1080 16:9 IPS 200ГЦ (2HDMI+DP) Black
+54|Оперативная память 32Gb Kit Kingston Fury Beast KF432C16BB1K2/32WP ## Оперативная память Kingston Fury Beast (AMD), DDR5 32 GB kit (2x16GB) 6000MHz (KF560C30BWEK2-32)
+55|Оперативная память 16Gb Kingston FURY Beast Black AMD RGB KF556C36BBEA-16 ## Оперативная память Kingston 16GB 5600MT/s DDR5 CL36 DIMM FURY Beast Black EXPO (KF556C36BBE-16)
+56|Процессор AMD Ryzen 5 5600GT, AM4, with Wraith Stealth Cooler, OEM (100-000001488) ## Процессор CPU AM4 AMD Ryzen 5 5600GT OEM
+57|Смартфон TECNO SPARK 50 4 ГБ/128 ГБ 128 ГБ, 6.78’’, 4 Гб, Black, 128 ГБ Tecno, SPARK ## Смартфон Tecno Spark 50, 6 GB, 128 GB, Titanium Grey (KN4N)
+58|Оперативная память 16 GB kit Kingston Fury Beast KF560C36BBEK2-16 ## Оперативная память Kingston 16GB 5600MT/s DDR5 CL36 DIMM FURY Beast RGB EXPO (KF556C36BBEA-16)
+59|Модуль памяти 16GB Kingston Fury Beast Black AMD KF556C36BBE-16 ## Оперативная память Kingston DDR-4 DIMM 16GB/3600MHz Black (KF436C18BB2A/16)
+60|Оперативная память KINGSTON DRAM 16GB 3600MHz DDR4 CL18 DIMM FURY Beast Black (KF436C18BB/16) ## Оперативная память Kingston FURY Beast White KF560C36BWE2-16
+61|Оперативная память 32GB Kit GEIL POLARIS RGB GOSW532GB5600C46DC White ## Оперативная память с RGB подсветкой 32GB Kit (2x16GB) GEIL POLARIS RGB 5600Mhz DDR5 GOSW532GB5600C46DC White (GOSW532GB5600C46DC)
+62|Оперативная память Kingston 16GB 3600MT/s DDR4 CL17 DIMM (Kit of 2) FURY Beast Black, EAN: 740617319781 (KF436C17BBK2/16) ## Оперативная память Kingston FURY Beast White KF560C36BWE2-16
+63|Процессор Intel Core i7 13700F, LGA1700, OEM ## Процессор Intel Core i7-13700F (2.1GHz, 30MB, LGA1700) box (BX8071513700FSRMBB)
+64|Оперативная память Kingston FURY Beast Black EXPO KF560C30BBE-16 ## Оперативная память Kingston Fury Beast DDR4 DIMM 16Gb 3200MHz (KF432C16BB1/16WP)
+65|Смартфон TECNO POVA 8 5G 8 ГБ/256 ГБ 256 ГБ, 8 Гб, Black, 256 ГБ Tecno, POVA ## Смартфон Tecno Pova 8 5G, 8 GB, 256 GB, Graphite Black (LK6)
+66|Телевизор 75" (191 см) Hisense75E7S QLED UHD Black ## Телевизор HISENSE QLED 75E7S PRO UHD SMART
+67|Комплект модулей памяти Kingston FURY Beast KF552C40BBK2-32 DDR5 32GB (Kit 2x16GB)  (KF552C40BBK2-32) ## Оперативная память 32 GB kit Kingston Fury Beast RGB KF560C36BWE2AK2-32
+68|Оперативная память 16Gb Kingston Fury Beast KF432C16BB1/16WP ## Оперативная память Kingston Fury Beast DDR4 DIMM 16Gb 3200MHz (KF432C16BB1/16WP)
+69|Монитор 24,5" PHILIPS 25M2N5200U 1920x1080 16:9 IPS 390ГЦ (2HDMI+DP) Black ## Монитор 24,5" PHILIPS 25M2N5200U/01/00
+70|Планшет Oscal Pad 200 LTE 13.4" 6/256Gb ROM Blue ## Планшет Oscal Pad 200, 13.4", 6 GB, 256 GB, Wi-Fi+4G, Space Gray
+71|Комплект модулей памяти Kingston FURY Beast KF552C40BBK2-32 DDR5 32GB (Kit 2x16GB)  (KF552C40BBK2-32) ## Оперативная память 32GB Kit Kingston FURY Beast White RGB EXPO KF560C30BWEAK2-32 White
+72|Оперативная память Kingston FURY Beast White RGB KF552C40BWA-32 ## Оперативная память Kingston Fury Beast RGB (AMD), DDR5 32 GB kit (2x16GB) 6000MHz (KF560C30BBEAK2-32) ( KF560C30BBEAK2-32)
+73|Оперативная память Kingston FURY Beast White RGB KF552C40BWA-32 ## Оперативная память Kingston Fury Beast DDR5 - 2x 16ГБ 6400МГц (KF564C32BBEAK2-32)
+74|Наушники A4tech TWS 2Drumtek B25 Icy Blue голубые ## Наушники TWS A4tech 2Drumtek B25-AshGrey <BT v5.2, 20kHz, 102dB, Наушник: 40mAh , Кейс: 380mAh> (2Drumtek B25-AshGrey)
+75|Комплект оперативной памяти Kingston Fury Beast RGB EXPO DDR5 DIMM 32G KIT (2x16) 6000MHz (KF560C36BBE2AK2-32) ## Оперативная память Kingston FURY Beast White RGB KF552C40BWA-32
+76|Модуль памяти Netac NTBSD3P16SP-04 DDR3 4GB <PC3-12800/1600MHz> (NTBSD3P16SP-04) ## Оперативная память 4Gb Netac NTBSD3P16SP-04
+77|Монитор 24" FHD Viewsonic VA24E1-H черный ## Монитор 24" ViewSonic VA24E1-H 1920x1080 16:9 IPS 120ГЦ (HDMI+VGA) Black
+78|Blackview Tab 80 Kids Wi-Fi 10.1 дюйм 4 Гб64 Гб голубой ## Планшет BlackView Tab 80 Kids 4G 10.1" 4/64GB Pink
+79|Модуль памяти Kingston FURY Beast White XMP EXPO KF552C40BW-16 DDR5 16GB 5200MHz (KF552C40BW-16) ## Оперативная память Kingston FURY Beast White KF560C36BWE2-16
+80|Смартфон Camon 50 (CN5) 256 ГБ, 6.78’’, 8 Гб, зеленый Tecno ## Смартфон Tecno Camon 50, 12 GB, 256 GB, Malachite Green (CN5)
+81|SO-DIMM 16 GB DDR5 PC41600/5200 MHz AMD Radeon R5 Entertainment Series, BOX (R5516G5200S1S-U) ## Оперативная память 16GB DDR5 4800MHz AMD Radeon R5 Entertainment Series, PC5-38400, CL40, 1.1V, R5516G4800U1S-U (R5516G4800U1S-U)
+82|OSCAL Pad 30 10.1 дюйм 4 Гб128 Гб синий + подарок ## Планшет Oscal Pad 30 WiFi, 10.1",  4 GB, 128 GB, Horizon Blue
+83|Модуль памяти 16GB Kingston Fury Beast Black AMD KF556C36BBE-16 ## Оперативная память Kingston FURY Beast Black EXPO DIMM DDR5 16GB 6000MT/s (KF560C30BBE-16)
+84|Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Blue, 128 ГБ Tecno, SPARK ## Смартфон Tecno Spark 50, 8 GB, 128 GB, Titanium Grey (KN4N)
+85|OSCAL Pad 200 LTE 13.4 дюйм 6 Гб128 Гб серый + подарок ## Планшет Oscal Pad 200, 13.4", 6 GB, 128 GB, Wi-Fi+4G, Glacier Blue
+86|Blackview Tab 80 Kids 10.1 дюйм 4 Гб64 Гб розовый ## Планшет BlackView Tab 80 Kids 4G 10.1" 4/64GB Pink
+87|OSCAL Pad 30 10.1 дюйм 4 Гб128 Гб серый + подарок ## Планшет Oscal Pad 30 WiFi, 10.1", 4 GB, 128 GB, Hazel Green
+88|Монитор 23,8" AOC 24B3HA2 1920x1080 16:9 IPS 120ГЦ (2HDMI+DP) Black ## Монитор 23,8" AOC 24B3HA2/01 IPS
+89|Оперативная память 16Gb Kingston FURY Beast Black AMD RGB KF556C36BBEA-16 ## Оперативная память KINGSTON DRAM 16GB 3600MHz DDR4 CL18 DIMM FURY Beast Black (KF436C18BB/16)
+90|27" XG Crimson X белый ## Монитор 27'' XG Crimson X White 180HZ
+91|Телевизор ЯНДЕКС 50 YNDX-00075 (4K Smart) ## Телевизор Яндекс Бейсик с Алисой 50" YNDX-00075 LED 4K UHD Black
+92|ASRock B760 Pro RS/D4 ## Материнская плата ASRock B760 Pro RS/D4, iB760,S1700,ATX (90-MXBL80-A0UAYZ)
+93|Оперативная память Kingston FURY Beast RGB 32GB 3200MT/s DDR4 (Kit of 2) (KF432C16BB2AK2/32) ## Оперативная память Kingston FURY Beast White RGB KF552C40BWA-32
+94|Телевизор 65" (164  см) Яндекс YNDX-00098 MiniLED 4K UHD Black ## Телевизор Яндекc с Алисой 65" MiniLED 4K YNDX-00098
+95|Комплект модулей памяти 32Gb kit Kingston FURY Beast RGB KF432C16BB12AK2/32 ## Оперативная память Kingston Fury Beast (AMD), DIMM DDR5 32 GB kit (2x16GB) <6000MHz> (KF560C30BBEK2-32)
+96|Телевизор Dreame 55S100, 55" ## Телевизор Dreame Aura 55" 55S100 QLED 4K Black
+97|Монитор 43" Dahua DHI-LM43-F400 ## Монитор 43" Dahua DHI-LM43-F400 3840x2160 16:9 IPS 60ГЦ (3HDMI) Black
+98|ТВ Станция Бейсик Яндекс YNDX-00077 с Алисой на YaGPT 65" ## Телевизор ЯНДЕКС 65 YNDX-00077 (4K Smart)
+99|Оперативная память 32 GB kit Kingston Fury Beast KF560C30BWEK2-32 ## Оперативная память Kingston Fury Beast (AMD), DDR5 32 GB kit (2x16GB) 6000MHz (KF560C30BWEK2-32)
+100|Оперативная память 16Gb Kingston FURY Beast Black AMD RGB KF556C36BBEA-16 ## Оперативная память Kingston FURY Beast KF432C16BB1/16 DDR4 16GB 3200MHz (KF432C16BB1/16)
+101|Оперативная память 16Gb Kingston Fury Beast KF432C16BB1/16WP ## Оперативная память Kingston FURY Beast RGB DDR5 16GB 6000MT/s - White (KF560C30BWEA-16)
+102|DDR-5 DIMM 16 GB 5600 MHz Kingston Fury Beast, BOX (KF556C36BBE-16) ## Оперативная память 16Gb Kingston Fury Beast KF432C16BB1/16WP
+103|Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Black, 128 ГБ Tecno, SPARK ## Смартфон Tecno Spark 50, 6 GB, 128 GB, Aurora Purple (KN4N)
+104|Оперативная память 32 GB kit Kingston Fury Beast RGB KF560C36BWE2AK2-32 ## Оперативная память DIMM Kingston Fury Beast RGB DDR5 32 GB 6000MHz (KF560C36BBE2A-32)
+105|Гарнитура Jabra Evolve2 85 Link380a UC Stereo 117 ± 3 дБ Jabra ## Наушники Jabra Evolve2 85, Link380a Stereo Black (28599-999-999)
+106|Комплект модулей памяти 32Gb kit Kingston FURY Beast RGB KF432C16BB12AK2/32 ## Оперативная память Kingston Fury Beast (AMD+Intel), DIMM DDR5 32 GB kit (2x16GB) <6000MHz> (KF560C36BBE2K2-32)
+107|Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Black, 128 ГБ Tecno, SPARK ## Смартфон Tecno Spark 50, 8 GB, 128 GB, Ink Black (KN4N)
+108|Оперативная память 16 GB Hiksemi (Hikvision) Hiker HSC416U26Z1 ## Оперативная память Hiksemi (Hikvision) Hiker, DDR4 16 GB 3200MHz (HSC416U32Z1 16G)
+109|Оперативная память 32 GB kit Kingston Fury Beast KF560C30BWEK2-32 ## Оперативная память Kingston Fury Beast (AMD), DIMM DDR5 32 GB kit (2x16GB) <6000MHz> (KF560C30BBEK2-32)
+110|Смартфон Tecno Pova 3 6/128Gb Blue ## Смартфон Tecno Pova 3, 128 GB, Tech Silver (LF7n)
+111|Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Blue, 128 ГБ Tecno, SPARK ## Смартфон Tecno Spark 50, 4 GB, 128 GB, Halo Blue (KN4N)
+112|Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Gray, 128 ГБ Tecno, SPARK ## Смартфон Tecno Spark 50, 8 GB, 128 GB, Titanium Grey (KN4N)
+113|Оперативная память 16GB DDR5 5600MHz NOMAD UDIMM (NMD5600D5U46-16GB) ## Оперативная память 16GB NOMAD NMD5600D5U46-16GBHSW White
+114|Видеокарта OCPC GTX 750 Ti (OCVNGTX750TIG4XG) [4 ГБ, GDDR5, 128 бит, VGA, DVI, HDMI] ## Видеокарта OCPC GTX 750 Ti 4 GB (OCVNGTX750TIG4XG)
+115|Комплект модулей памяти 32Gb kit Kingston FURY Beast RGB KF432C16BB12AK2/32 ## Оперативная память Kingston FURY Beast RGB 32GB 3200MT/s DDR4 (Kit of 2) (KF432C16BB2AK2/32)
+116|Наушники Monster Clarity 101 Pro AirLinks белый ## Наушники TWS MONSTER Clarity 101 Pro AirLinks Earphone (White) (MH22003 (W))
+117|Планшет DOOGEE Tab A9 10,1" 3GB/64GB Wi-Fi Grey ## Планшет Doogee Tab A9 2025 Wi-Fi 10.1" 3/64Gb Black
+118|Оперативная память Kingston FURY Beast EXPO RGB 16Гб (8x2) DIMM DDR5 5600MT/s KF556C36BBEAK2-16 (KF556C36BBEAK2-16) ## Оперативная память Kingston FURY Beast White KF560C36BWE2-16
+119|Оперативная память KINGSTON DRAM 32GB 3200MHz DDR4 CL16 DIMM (Kit of 2) FURY Beast Black  (KF432C16BBK2/32) ## Оперативная память Kingston FURY Beast White RGB KF552C40BWA-32
+120|Комплект модулей памяти Kingston FURY Beast White XMP KF552C40BWK2-32 DDR5 32GB (Kit 2x16GB) 5200MHz (KF552C40BWK2-32) ## Оперативная память 32GB Kit Kingston FURY Beast White RGB EXPO KF560C30BWEAK2-32 White
+121|Телевизор 55" (140 см) Hisense 55U7Q miniLED UHD Black ## Телевизор HISENSE ULED 55U7Q UHD SMART
+122|Смартфон TECNO SPARK 50 4 ГБ/128 ГБ 128 ГБ, 6.78’’, 4 Гб, Black, 128 ГБ Tecno, SPARK ## Смартфон Tecno Spark 50, 6 GB, 128 GB, Ink Black (KN4N)
+123|Процессор Intel Core i9 12900F,  LGA1700, OEM (SRL4L-OEM) ## Процессор Intel Core i9 12900F, LGA1700, BOX
+124|Оперативная память Kingston FURY Beast Black EXPO KF560C30BBE-16 ## Оперативная память Kingston FURY Beast EXPO RGB 16Гб (8x2) DIMM DDR5 5600MT/s KF556C36BBEAK2-16 (KF556C36BBEAK2-16)
+125|SSD накопитель 1Tb Kingston NV3 SNV3S/1000G ## Твердотельный накопитель SSD Kingston 1TB M.2 (NV3 SNV3S/1000G) (SNV3S/1000G)
+126|Смартфон TECNO CAMON 50 8 ГБ/256 ГБ 256 ГБ, 6.78’’, 8 Гб, серебристый Tecno, CAMON ## Смартфон Tecno Camon 50, 12 GB, 256 GB, Moonshadow Black (CN5)
+127|24.5" XTREON XT2563VH черный ## Монитор XTREON XT2563VH 24.5 FHD/IPS/1ms/320Hz
+128|Оперативная память 16 GB Hiksemi (Hikvision) Hiker HSC416U26Z1 ## Оперативная память Hiksemi (Hikvision) Hiker, DIMM DDR5 16 GB <5600MHz> (HSC516U56Z1)
+129|Смартфон Tecno Pova 3 6/128Gb Blue ## Смартфон Tecno Pova 3, 128 GB, Eco Black (LF7n)
+130|SSD накопитель 2 TB Kingston Fury Renegade G5, M.2, PCIe 5.0 ## SSD накопитель Kingston FURY Renegade G5 SFYR2S/2T0
+131|SSD накопитель 256 GB Kingston KC600, 2.5", SATA III ## Твердотельный накопитель 256GB SSD Kingston KC600 2.5” SATA3 (SKC600/256G)
+132|Карта памяти Canvas Go Plus A2 U3 V30 64 ГБ Kingston Technology ## Карта памяти SDXC 64GB Kingston Canvas Go! Plus, Class 10 UHS-I U3 V30 A2
+133|Оперативная память 16GB NOMAD NMD5600D5U46-16GBRGBB ## Оперативная память NOMAD RGB NMD5600D5U46-16GBRGBW DDR5 16GB 5600MHz - White (NMD5600D5U46-16GBRGBW)
+134|Процессор AMD Ryzen 5 5600GT, AM4, OEM ## Процессор AMD Ryzen 5 5600GT, AM4, with Wraith Stealth Cooler, OEM (100-000001488)
+135|SSD накопитель 4 TB Kingston Fury Renegade G5, M.2, PCIe 5.0 ## Твердотельный накопитель SSD Kingston FURY Renegade G5 4ТБ (SFYR2S/4T0)
+136|ОЗУ Kingston Fury Beast RGB 8Gb 5600MHz DDR5 DIMM, CL40, 1.25v,  KF556C40BBA-8 ## Оперативная память Kingston Fury Beast DDR4 DIMM 8Gb 3200MHz (KF432C16BB/8WP)
+137|Монитор 27" AOC 27B3QA2 1920x1080 16:9 IPS 120ГЦ (HDMI+DP) Black ## Монитор 27" AOC 27B3QA2/01, Black
+138|Модуль памяти Kingston Fury Beast KF552C40BBK2-16 DDR5 DIMM 16Gb Kit(2x8) 5200 MHz CL40 (KF552C40BBK2-16) ## Оперативная память Kingston FURY Beast Black RGB KF560C36BBE2A-16
+139|Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Blue, 128 ГБ Tecno, SPARK ## Смартфон Tecno Spark 50, 4 GB, 128 GB, Halo Blue (KN4N)
+140|Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Purple, 128 ГБ Tecno, SPARK ## Смартфон Tecno Spark 50, 6 GB, 128 GB, Halo Blue (KN4N)
+141|Видеокарта MaxSun MS-GT730 PH 2G ## Видеокарта Maxsun MS-GT730 PH 2G [2 ГБ, GDDR3, 128 бит, VGA, DVI, HDMI]
+142|Оперативная память 32 GB kit Kingston Fury Beast KF560C30BWEK2-32 ## Оперативная память DIMM Kingston Fury Beast RGB DDR5 32 GB 6000MHz (KF560C36BBE2A-32)
+143|Оперативная память 16 GB kit Kingston Fury Beast KF560C36BBEK2-16 ## Оперативная память Kingston Fury Beast AMD RGB White 16 ГБ (KF556C36BWEA-16)
+144|Оперативная память 32 GB kit Kingston Fury Beast RGB KF560C36BWE2AK2-32 ## Оперативная память Kingston FURY Beast DDR5 32GB 5600MT/s - Black (KF556C36BBE2-32)
+145|Оперативная память 16Gb kit Patriot Signature PSD416G3200K ## Оперативная память Patriot PSD416G3200K 16 Гб (PSD416G3200K)
+146|Монитор 27'' XG Crimson X 165HZ ## Монитор Игровой 27" XG Crimson X 2560x1440 16:9 IPS 180ГЦ (HDMI+DP) White
+147|OSCAL Pad 30 10.1 дюйм 4 Гб128 Гб серый + подарок ## Планшет Oscal Pad 30 WiFi, 10.1",  4 GB, 128 GB, Horizon Blue
+148|Оперативная память 16Gb Kingston FURY Beast Black AMD RGB KF556C36BBEA-16 ## Оперативная память Kingston FURY Beast EXPO DDR5 16GB 6000MT/s, White (KF560C36BWE2-16)
+149|Оперативная память 32Gb Kit Kingston Fury Beast KF432C16BB1K2/32WP ## Оперативная память DIMM Kingston Fury Beast RGB DDR5 32 GB 6000MHz (KF560C36BBE2A-32)
+150|Оперативная память 32 GB kit Hiksemi (Hikvision) Sword RGB HSC432U32B5 ## Оперативная память Hiksemi (Hikvision) Sword RGB DDR4 32 GB kit (2x16GB) 3200MHz (HSC432U32B5)
+151|Планшет DOOGEE Tab A9 10,1" 3GB/64GB Wi-Fi Black ## Планшет Doogee Tab A9 2025 Wi-Fi 10.1" 3/64Gb Grey
+152|Видеокарта AFOX GT240 1GB D3 LP Single Fan AF240-1024D3L2-V2 ## Видеокарта Afox GT240 (AF240-1024D3L2-V2) [1 ГБ, DDR3, 128 бит, 550 МГц, VGA, DVI, HDMI]
+153|Комплект модулей памяти 32Gb kit Kingston FURY Beast RGB KF432C16BB12AK2/32 ## Оперативная память Kingston FURY Beast Black EXPO 32GB 6000MT/s DDR5 DIMM (KF560C30BBE-32)
+154|Оперативная память 4 GB AMD Radeon R5 R534G1601S1SL-U ## Оперативная память 4Gb DDR3 1600MHz AMD Radeon R5 Entertainment Series R534G1601U1SL-U (R534G1601U1SL-U)
+155|Монитор 27" Sanc M2742PH V3, Black ## Монитор Игровой 27" Sanc M2742PH V3 1920x1080 16:9 IPS 200ГЦ (2HDMI+DP) Black
+156|Смартфон TECNO SPARK 50 4 ГБ/128 ГБ 128 ГБ, 6.78’’, 4 Гб, Black, 128 ГБ Tecno, SPARK ## Смартфон Tecno Spark 50, 8 GB, 128 GB, Ink Black (KN4N)
+157|Смартфон TECNO SPARK 50 4 ГБ/128 ГБ 128 ГБ, 6.78’’, 4 Гб, Black, 128 ГБ Tecno, SPARK ## Смартфон Tecno Spark 50, 6 GB, 128 GB, Aurora Purple (KN4N)
+158|Комплект модулей памяти Kingston FURY Beast White XMP KF552C40BWK2-32 DDR5 32GB (Kit 2x16GB) 5200MHz (KF552C40BWK2-32) ## Оперативная память 32 GB kit Kingston Fury Beast Black (EXPO) KF556C36BBEK2-32
+159|Телевизор HISENSE QLED 43E7S UHD SMART ## Телевизор Hisense 43E7S RU
+160|Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Blue, 128 ГБ Tecno, SPARK ## Смартфон Tecno Spark 50, 4 GB, 128 GB, Ink Black (KN4N)
+161|Комплект модулей памяти Kingston FURY Beast White XMP KF552C40BWK2-32 DDR5 32GB (Kit 2x16GB) 5200MHz (KF552C40BWK2-32) ## Оперативная память 32 GB kit Kingston Fury Beast KF560C30BWEK2-32
+162|Процессор AMD Ryzen 7 8700G, AM5, BOX (100-100001236BOX) ## Процессор CPU AM5 AMD Ryzen 7 8700G OEM
+163|Видеокарта Afox GTX 1050Ti (AF1050TI-4096D5H7-V9) ## Видеокарта Afox GeForce GTX 1050TI (AF1050TI-4096D5H7-V8) [4 ГБ, GDDR5, 128 бит, DVI, HDMI, DisplayPort]
+164|SSD накопитель 512 GB Patriot P220 P220S512G25 ## Твердотельный накопитель SSD 512 Gb SATA Patriot P220 P220S512G25 2.5" 3D  (P220S512G25)
+165|Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Blue, 128 ГБ Tecno, SPARK ## Смартфон Tecno Spark 50, 8 GB, 128 GB, Halo Blue (KN4N)
+166|Оперативная память 8Gb Kingston KVR32N22S8/8WP ## Оперативная память Kingston KVR32N22S8/8  DDR4 DIMM 8Gb 3200 MHz CL22 (KVR32N22S8/8)
+167|Оперативная память 32 GB kit Kingston Fury Beast Black RGB (EXPO) KF556C36BBEAK2-32 ## Оперативная память Kingston Fury Beast (AMD+Intel), DIMM DDR5 32 GB kit (2x16GB) <6000MHz> (KF560C36BBE2K2-32)
+168|DDR-5 DIMM 16 GB 5600 MHz Kingston Fury Beast, BOX (KF556C36BBE-16) ## Оперативная память Kingston Fury Beast DDR4 DIMM 16Gb 3200MHz (KF432C16BB1/16WP)
+169|Оперативная память 16Gb Transcend JM5600ALE-16G ## Память оперативная Transcend JM5600ALE-16G 16GB DDR5 5600MHz (JM5600ALE-16G)
+170|Комплект модулей памяти Kingston FURY Beast KF552C40BBK2-32 DDR5 32GB (Kit 2x16GB)  (KF552C40BBK2-32) ## Оперативная память 32 GB kit Kingston Fury Beast Black (EXPO) KF556C36BBEK2-32
+171|Гарнитура Jabra Evolve2 65 Flex Link380c MS Stereo WLC ## Наушники Jabra Evolve2 65 Flex Link380с MS Stereo 26699-999-899 Black
+172|DDR-5 DIMM 16 GB 5600 MHz Kingston Fury Beast, BOX (KF556C36BBE-16) ## Оперативная память Kingston FURY Beast EXPO DDR5 16GB 5600MT/s, White (KF556C36BWE-16)
+173|Планшет Oscal Pad 200 LTE 13.4" 6/256Gb Gray ## Планшет Oscal Pad 200, 13.4", 6 GB, 256 GB, Wi-Fi+4G, Space Gray
+174|Смартфон TECNO SPARK 50 4 ГБ/128 ГБ 128 ГБ, 6.78’’, 4 Гб, Black, 128 ГБ Tecno, SPARK ## Смартфон Tecno Spark 50, 6 GB, 128 GB, Halo Blue (KN4N)
+175|Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Gray, 128 ГБ Tecno, SPARK ## Смартфон Tecno Spark 50, 4 GB, 128 GB, Aurora Purple (KN4N)
+176|Планшет Oscal Pad 60 Kids 10.1" 4/128Gb Blue ## Планшет Oscal Pad 60 Kids, 10.1", 4 GB, 128 GB, WiFi, Cloudy Blue
+177|Модуль памяти 16GB Kingston Fury Beast Black AMD KF556C36BBE-16 ## Оперативная память Kingston FURY Beast EXPO DDR5 16GB 6000MT/s, White (KF560C36BWE2-16)
+178|Оперативная память 32 GB kit Kingston Fury Beast Black (EXPO) KF556C36BBEK2-32 ## Оперативная память Kingston Fury Beast (AMD+Intel), DIMM DDR5 32 GB kit (2x16GB) <6000MHz> (KF560C36BBE2K2-32)
+179|Комплект оперативной памяти Kingston Fury Beast RGB EXPO DDR5 DIMM 32G KIT (2x16) 6000MHz (KF560C36BBE2AK2-32) ## Оперативная память 32 GB kit Kingston Fury Beast KF560C30BWEK2-32
+180|Карта памяти Canvas Select Plus A1 U3 V30 1 ТБ Kingston Technology ## Карта памяти Micro SDXC 1Tb Kingston Canvas Select Plus, Class 10 UHS-I U3, адаптер
+181|DDR-5 DIMM 16 GB 5600 MHz Kingston Fury Beast, BOX (KF556C36BBE-16) ## Оперативная память Kingston 16GB 3600MT/s DDR4 CL17 DIMM (Kit of 2) FURY Beast Black, EAN: 740617319781 (KF436C17BBK2/16)
+182|Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Purple, 128 ГБ Tecno, SPARK ## Смартфон Tecno Spark 50, 4 GB, 128 GB, Ink Black (KN4N)
+183|AFOX Radeon RX 580 8 Гб ## Видеокарта 8 GB Afox RX 580 2048SP AFRX580-8192D5H3-V3
+184|Комплект оперативной памяти Kingston Fury Beast RGB EXPO DDR5 DIMM 32G KIT (2x16) 6000MHz (KF560C36BBE2AK2-32) ## Оперативная память 32 GB kit Kingston Fury Beast Black (EXPO) KF556C36BBEK2-32
+185|Оперативная память 16GB Apacer NOX TUF AH5U16G60C622UTAA-1 ## Оперативная память Apacer NOX TUF DDR5 16GB 6000MHz (AH5U16G60C622UTAA-1)
+186|Оперативная память 16 GB kit Kingston Fury Beast KF560C36BBEK2-16 ## Оперативная память Kingston Fury Beast RGB DDR4 DIMM 16Gb 3200MHz (KF432C16BB12A/16WP)
+187|Оперативная память 32Gb Kit Kingston Fury Beast KF432C16BB1K2/32WP ## Оперативная память Kingston Fury Beast DDR4 DIMM 32Gb KIT (2x16) 3200MHz (KF432C16BB1K2/32WP)
+188|DDR-4 DIMM 16 GB 3200 MHz Kingston Fury Beast RGB, BOX (KF432C16BB12A/16WP) ## Оперативная память 16 GB Kingston Fury Beast RGB KF552C40BBA-16
+189|SSD накопитель 1 TB Kingston NV3, M.2, PCIe 4.0 ## Твердотельный накопитель SSD Kingston 1TB M.2 (NV3 SNV3S/1000G) (SNV3S/1000G)
+190|Материнская плата MaxSun Challenger B760M D5 (MS-Challenger B760M D5) ## Материнская плата MaxSun Challenger B760M D5 WIFI
+191|Комплект модулей памяти Kingston FURY Beast KF432C16BBK2/16 DDR4 16GB (Kit 2x8GB) 3200MHz (KF432C16BBK2/16) ## Оперативная память 16 GB kit Kingston Fury Beast KF560C36BBEK2-16
+192|Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Blue, 128 ГБ Tecno, SPARK ## Смартфон Tecno Spark 50, 6 GB, 128 GB, Aurora Purple (KN4N)
+193|DDR-5 DIMM 64 GB 6000 MHz Kingston Fury Beast RGB, 2x 32 GB Kit, Black, BOX (KF560C36BBEAK2-64) ## Оперативная память Kingston FURY Beast RGB DDR5 64GB (Kit of 2) 5600MT/s (KF556C36BBE2AK2-64)
+194|Видеокарта MaxSun MS-GTX1650 TR 4GD6 (MS-GTX1650 TR 4GD6) ## Видеокарта Maxsun MS-GTX1650 TR 4GD6 [4 ГБ, GDDR6, 128 бит, DVI, HDMI, DisplayPort]
+195|SSD накопитель 256 GB Apacer AS2280P4, M.2, PCIe 3.0 ## Твердотельный накопитель  256GB SSD Apacer, M.2 2280, R1800MB/s, W1100MB/s, AP256GAS2280P4-1 (AP256GAS2280P4-1)
+196|Внешний аккумулятор Baseus EnerFill FM11 Ultra-Mini 10000 мАч 22.5 Вт, ABS-пластик, поликарбонат, 10,4×7×1,8 Baseus, EnerFill ## Мобильный аккумулятор Baseus EnerFill FM11 Ultra-Mini PPFM11-1022, 10000 mAh, Moon White
+197|Оперативная память 16Gb Kingston Fury Beast KF432C16BB1/16WP ## Оперативная память Kingston FURY Beast KF432C16BB1/16 DDR4 16GB 3200MHz (KF432C16BB1/16)
+198|Материнская плата ASRock B760M PRO RS/D4 ## Материнская плата ASRock B760M Pro RS/D4, LGA1700  (90-MXBKL0-A0UAYZ)
+199|Оперативная память 32GB Kit Kingston FURY Beast White RGB EXPO KF560C30BWEAK2-32 White ## Оперативная память Kingston FURY Beast RGB XMP DDR5 32GB 5200MT/s, White (KF552C40BWA-32)
+200|Оперативная память 32 GB kit Kingston Fury Beast Black (EXPO) KF556C36BBEK2-32 ## Оперативная память KINGSTON DRAM 32GB 3200MHz DDR4 CL16 DIMM (Kit of 2) FURY Beast Black  (KF432C16BBK2/32)
+201|Карта памяти Canvas Select Plus A1 U1 V10 128 ГБ Kingston Technology ## Карта памяти Micro SDXC 128GB Kingston Canvas Select Plus, Class 10 UHS-I U1
+202|Оперативная память 16Gb Kingston Fury Beast KF432C16BB1/16WP ## Оперативная память Kingston 16GB 5600MT/s DDR5 CL36 DIMM FURY Beast RGB EXPO (KF556C36BBEA-16)
+203|DDR-5 DIMM 16 GB 5600 MHz Kingston Fury Beast, BOX (KF556C36BBE-16) ## Оперативная память Kingston FURY Beast EXPO DDR5 16GB 6000MT/s, White (KF560C36BWE2-16)
+204|Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Gray, 128 ГБ Tecno, SPARK ## Смартфон Tecno Spark 50, 6 GB, 128 GB, Ink Black (KN4N)
+205|DDR-5 DIMM 16 GB 5600 MHz Kingston Fury Beast, BOX (KF556C36BBE-16) ## Оперативная память Kingston FURY Beast White KF560C36BWE2-16
+206|Монитор 27" AOC 27G42E/01/00 ## Монитор Игровой 27" AOC 27G42E 1920x1080 16:9 IPS 180ГЦ (HDMI+DP) Black
+207|Карта памяти Canvas Go Plus A2 U3 V30 64 ГБ Kingston Technology ## Карта памяти Micro SDXC 64GB Kingston Canvas Go! Plus, Class 10 UHS-I U3 V30 A2, адаптер
+208|DDR-5 DIMM 16 GB 5600 MHz Apacer NOX TUF, BOX (AH5U16G56C522UTAA-1) ## Оперативная память 16GB Apacer NOX TUF AH5U16G60C622UTAA-1
+209|Оперативная память 16Gb Netac Basic NTBSD5P56SP-16 ## Оперативная память Netac Basic NTBSD5P56SP-16 DDR5 16Gb, 5600Mhz (NTBSD5P56SP-16)
+210|Модуль памяти 16GB Kingston Fury Beast Black AMD KF556C36BBE-16 ## Оперативная память Kingston 16GB 3600MT/s DDR4 CL17 DIMM (Kit of 2) FURY Beast Black, EAN: 740617319781 (KF436C17BBK2/16)
+211|Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Blue, 128 ГБ Tecno, SPARK ## Смартфон Tecno Spark 50, 6 GB, 128 GB, Ink Black (KN4N)
+212|Оперативная память 32 GB kit Kingston Fury Beast Black RGB (EXPO) KF556C36BBEAK2-32 ## Оперативная память KINGSTON DRAM 32GB 3200MHz DDR4 CL16 DIMM (Kit of 2) FURY Beast Black  (KF432C16BBK2/32)
+213|Оперативная память Kingston FURY Beast Black EXPO KF560C30BBE-16 ## Оперативная память Kingston FURY Beast EXPO DDR5 16GB 5600MT/s, White (KF556C36BWE-16)
+214|Внешний аккумулятор Baseus EnerFill FM11 Ultra-Mini 10000 мАч 22.5 Вт, ABS-пластик, поликарбонат, 10,4×7×1,8 Baseus, EnerFill ## Мобильный аккумулятор Baseus EnerFill FM11 Ultra-Mini PPFM11-1022, 10000 mAh, Nebula Purple
+215|Оперативная память 32GB Kit Kingston FURY Beast White RGB EXPO KF560C30BWEAK2-32 White ## Оперативная память Kingston Fury Beast RGB (AMD), DDR5 32 GB kit (2x16GB) 6000MHz (KF560C30BBEAK2-32) ( KF560C30BBEAK2-32)
+216|Оперативная память 32 GB kit Kingston Fury Beast KF560C30BWEK2-32 ## Оперативная память Kingston FURY Beast Black EXPO 32GB 6000MT/s DDR5 DIMM (KF560C30BBE-32)
+217|Карта памяти Canvas Select Plus A1 U3 V30 1 ТБ Kingston Technology ## Карта памяти Micro SDXC 1Tb Kingston Canvas Select Plus, Class 10 UHS-I U3
+218|Оперативная память Hiksemi (Hikvision) Future DDR4 16 GB kit (2x8GB) 3200MHz, White (HSC416U32F3) ## Оперативная память Hiksemi Future HSC416U32F3
+219|Смартфон Tecno Pova 3 6/128Gb Blue ## Смартфон Tecno Pova 3, 128 GB, Electric Blue (LF7n)
+220|Оперативная память 32 GB kit Kingston Fury Beast RGB KF560C36BWE2AK2-32 ## Оперативная память KINGSTON DRAM 32GB 3200MHz DDR4 CL16 DIMM (Kit of 2) FURY Beast Black  (KF432C16BBK2/32)
+221|Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Blue, 128 ГБ Tecno, SPARK ## Смартфон Tecno Spark 50, 4 GB, 128 GB, Aurora Purple (KN4N)
+222|Смартфон TECNO SPARK 50 4 ГБ/128 ГБ 128 ГБ, 6.78’’, 4 Гб, Black, 128 ГБ Tecno, SPARK ## Смартфон Tecno Spark 50, 8 GB, 128 GB, Halo Blue (KN4N)
+223|Материнская плата ASRock B760 PRO RS/D4 ## Материнская плата ASRock B760 Pro RS/D4, iB760,S1700,ATX (90-MXBL80-A0UAYZ)
+224|Смартфон Camon 50 (CN5) 256 ГБ, 6.78’’, 8 Гб, черный Tecno ## Смартфон Tecno Camon 50, 12 GB, 256 GB, Malachite Green (CN5)
+225|SSD накопитель 512 GB Kingston KC3000, M.2, PCIe 4.0 ## Твердотельный накопитель SSD Kingston SKC3000S/512G M.2 (SKC3000S/512G)
+226|Оперативная память 32 GB kit Kingston Fury Beast Black RGB (EXPO) KF556C36BBEAK2-32 ## Оперативная память Kingston 32GB 3600MT/s DDR4 CL18 DIMM (Kit of 2) FURY Beast RGB (KF436C18BB2AK2/32)
+227|Оперативная память 16Gb Kingston FURY Beast Black AMD RGB KF556C36BBEA-16 ## Оперативная память Kingston FURY Beast EXPO RGB 16Гб (8x2) DIMM DDR5 5600MT/s KF556C36BBEAK2-16 (KF556C36BBEAK2-16)
+228|Оперативная память  Kingston Fury Beast 16Gb (8x2) 5600MHz DDR5 DIMM, CL40, 1.25v (KF556C40BBK2-16) ## Оперативная память 16Gb Kingston FURY Beast Black AMD RGB KF556C36BBEA-16
+229|Процессор AMD Ryzen 7 8700G, AM5, BOX (100-100001236BOX) ## Процессор AMD Ryzen 7 8700G, AM5, OEM
+230|Комплект модулей памяти 32Gb kit Kingston FURY Beast RGB KF432C16BB12AK2/32 ## Оперативная память Kingston 32GB 5600MT/s DDR5 CL36 DIMM (Kit of 2) FURY Beast RGB EXPO (KF556C36BBEAK2-32)
+231|SSD накопитель 500 GB Kingston NV3, M.2, PCIe 4.0 ## Твердотельный накопитель SSD Kingston NV3 500GB (SNV3S/500G)
+232|Телевизор Dreame 55K100, 55" ## Телевизор Dreame Vista 55" 55K100 LED 4K UHD Black
+233|Оперативная память Kingston DDR-4 DIMM 16GB/3600MHz Black (KF436C18BB2A/16) ## Оперативная память Kingston FURY Beast Black RGB KF560C36BBE2A-16
+234|Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Blue, 128 ГБ Tecno, SPARK ## Смартфон Tecno Spark 50, 6 GB, 128 GB, Halo Blue (KN4N)
+235|Видеокарта MaxSun MS-RX550 TF 4G ## Видеокарта Maxsun MS-RX550 TF 4G [4 ГБ, GDDR5, 128 бит, DVI, HDMI, DisplayPort]
+236|Наушники SOUNDCORE H30i A3012 BK Black/Черный ## Наушники Soundcore H30i Red (A3012-R)
+237|Оперативная память 32Gb Kit Kingston Fury Beast KF432C16BB1K2/32WP ## Оперативная память Kingston Fury Beast (AMD+Intel), DIMM DDR5 32 GB kit (2x16GB) <6000MHz> (KF560C36BBE2K2-32)
+238|Телевизор ЯНДЕКС 55 YNDX-00076B (4K Smart) на YaGPT ## Телевизор Яндекс 55" Бейсик с Алисой LED 4K UHD Smart YNDX-00076B
+239|Оперативная память 32 GB kit Kingston Fury Beast Black RGB (EXPO) KF556C36BBEAK2-32 ## Оперативная память Kingston Fury Beast RGB (AMD), DDR5 32 GB kit (2x16GB) 6000MHz (KF560C30BBEAK2-32) ( KF560C30BBEAK2-32)
+240|Корпус Thermaltake The Tower 200, Turquoise ## Корпус для ПК Thermaltake The Tower 200 Turquoise Mini Chassis CA-1X9-00SBWN-00
+241|Телевизор MiniLED ЯНДЕКС 55 YNDX-00097 (4K Smart) ## Телевизор Яндекc с Алисой 55" MiniLED 4K YNDX-00097
+242|Оперативная память 32Gb Kit Kingston Fury Beast KF432C16BB1K2/32WP ## Оперативная память Kingston FURY Beast Black EXPO 32GB 6000MT/s DDR5 DIMM (KF560C30BBE-32)
+243|Оперативная память Kingston FURY Beast Black RGB KF560C36BBE2A-16 ## Оперативная память Kingston FURY Beast EXPO DDR5 16GB 5600MT/s, White (KF556C36BWE-16)
+244|Оперативная память 16GB DDR5 5600MHz NOMAD UDIMM (NMD5600D5U46-16GB) ## Оперативная память 16GB NOMAD NMD5600D5U46-16GB
+245|Оперативная память 16Gb Kingston Fury Beast KF432C16BB1/16WP ## Оперативная память Kingston Fury Beast AMD RGB White 16 ГБ (KF556C36BWEA-16)
+246|Смартфон Camon 50 (CN5) 256 ГБ, 6.78’’, 12 Гб, зеленый Tecno ## Смартфон Tecno Camon 50, 8 GB, 256 GB, Malachite Green (CN5)
+247|Оперативная память 32 GB kit Kingston Fury Beast KF560C30BWEK2-32 ## Оперативная память Kingston FURY Beast RGB XMP DDR5 32GB 5200MT/s, White (KF552C40BWA-32)
+248|Зарядное устройство Usams US-CC189, 30W, Violet ## СЗУ Usams (US-CC189) 30W QC 3.0+PD USB+Type-C порты 30 Вт, USB, USB Type-C Usams
+249|DDR-5 DIMM 16 GB 5600 MHz Kingston Fury Beast, BOX (KF556C36BBE-16) ## Оперативная память  Kingston Fury Beast 16Gb (8x2) 5600MHz DDR5 DIMM, CL40, 1.25v (KF556C40BBK2-16)
+250|Оперативная память 4Gb DDR3 1600MHz AMD Radeon R5 Entertainment Series R534G1601U1SL-U (R534G1601U1SL-U) ## Оперативная память AMD Radeon R5 Entertainment Series R5S34G1601U1S
+251|SO-DIMM 8GB DDR3L PC12800/1600MHz Netac Basic, BOX (NTBSD3N16SP-08) ## Оперативная память для ноутбука 8Gb Netac Basic NTBSD4N32SP-16
+252|Оперативная память Kingston FURY Beast EXPO DDR5 16GB 5600MT/s, White (KF556C36BWE-16) ## Оперативная память Kingston FURY Beast White KF560C36BWE2-16
+253|Оперативная память 16 GB kit Kingston Fury Beast KF552C40BBK2-16 ## Оперативная память Kingston Fury Beast KF552C40BB-16 DDR5 DIMM 16Gb 5200 MHz CL40 (8473302008) (KF552C40BB-16)
+254|SSD накопитель 1 TB Netac SA500, 2.5", SATA III ## Твердотельный накопитель SSD 1Tb, SATA, Netac SA500 (NT01SA500-1T0-S3X)
+255|Оперативная память 32GB Kit Kingston FURY Beast White RGB EXPO KF560C30BWEAK2-32 White ## Оперативная память Kingston 32GB 5600MT/s DDR5 CL36 DIMM (Kit of 2) FURY Beast RGB EXPO (KF556C36BBEAK2-32)
+256|Телевизор QLED ЯНДЕКС 50 YNDX-00094 (4K Smart) ## Телевизор Яндекс YNDX-00094 50" (YNDX-00094)
+257|Оперативная память 16Gb Kingston FURY Beast Black AMD RGB KF556C36BBEA-16 ## Оперативная память Kingston Fury Beast RGB DDR4 16Gb 3200 MHz (KF432C16BB2A/16)
+258|Материнская плата ASRock H610M-H2/M.2 D5 ## Материнская плата ASRock H610M-H2/M.2 D5 (90-MXBML0-A0UAYZ)
+259|Оперативная память 16 GB kit Kingston Fury Beast KF560C36BBEK2-16 ## Оперативная память Kingston FURY Beast EXPO DDR5 16GB 6000MT/s, White (KF560C36BWE2-16)
+260|Оперативная память 16Gb Kingston Fury Beast KF432C16BB1/16WP ## Оперативная память Kingston DDR-4 DIMM 16GB/3600MHz Black (KF436C18BB2A/16)
+261|Смартфон TECNO SPARK 50 8 ГБ/128 ГБ 128 ГБ, 6.78’’, 8 Гб, Gray, 128 ГБ Tecno, SPARK ## Смартфон Tecno Spark 50, 4 GB, 128 GB, Ink Black (KN4N)
+262|Монитор 24,5" PHILIPS 25M2N5200U/01/00 ## Монитор 24.5" Philips Evnia 25M2N5200U/01, Black
+263|Оперативная память 64 GB kit Kingston Fury Beast White KF560C36BBEK2-64 ## Оперативная память DIMM DDR5 64 GB kit (KF556C36BWEAK2-64)
+264|Оперативная память 32 GB kit Kingston Fury Beast RGB KF560C36BWE2AK2-32 ## Оперативная память Kingston 32GB 5600MT/s DDR5 CL36 DIMM (Kit of 2) FURY Beast RGB EXPO (KF556C36BBEAK2-32)
+265|Оперативная память 64 GB kit Kingston Fury Beast White KF560C36BBEAK2-64 ## Оперативная память DIMM DDR5 64 GB kit (KF556C36BWEK2-64)
+266|Смартфон TECNO SPARK 50 6 ГБ/128 ГБ 128 ГБ, 6.78’’, 6 Гб, Black, 128 ГБ Tecno, SPARK ## Смартфон Tecno Spark 50, 4 GB, 128 GB, Titanium Grey (KN4N)
+267|Наушники SOUNDCORE P40i A3955G21 White/Белый TWS ## Наушники Soundcore P40i A3955 TWS Navy Blue
+268|Оперативная память 32GB Kit Kingston FURY Beast White RGB EXPO KF560C30BWEAK2-32 White ## Оперативная память Kingston Fury Beast (AMD+Intel), DIMM DDR5 32 GB kit (2x16GB) <6000MHz> (KF560C36BBE2K2-32)
+269|Монитор 27" X-game OFLED27+ 1920x1080 16:9 IPS 100ГЦ (HDMI+VGA) Black ## Монитор OFLED27+ 27", 100 Гц X-Game
+270|AFOX GT 240 AF240-1024D3L2-V2 1 Гб ## Видеокарта Afox GT240 (AF240-1024D3L2-V2) [1 ГБ, DDR3, 128 бит, 550 МГц, VGA, DVI, HDMI]
+271|Оперативная память 32 GB kit Kingston Fury Beast RGB KF560C36BWE2AK2-32 ## Оперативная память Kingston Fury Beast DDR5 - 2x 16ГБ 6400МГц (KF564C32BBEAK2-32)
+272|AFOX Radeon RX 580 8 Гб ## Видеокарта AFOX RX 580 GAMING 8GB Dual Fan AFRX580-8192D5H3-V3
+273|Модуль памяти Kingston Fury Beast KF552C40BBK2-16 DDR5 DIMM 16Gb Kit(2x8) 5200 MHz CL40 (KF552C40BBK2-16) ## Оперативная память 16 GB kit Kingston Fury Beast KF560C36BBEK2-16
+274|Процессор Intel Core i7 13700F, LGA1700, BOX ## Процессор Intel Core i7-13700F (SRMBB)
+275|Материнская плата ASRock B760M PRO RS/D4 WIFI ## Материнская плата ASRock B760M Pro RS/D4 WiFi (90-MXBKZ0-A0UAYZ)
+276|DDR-5 DIMM 16 GB 5600 MHz Kingston Fury Beast, BOX (KF556C36BBE-16) ## Оперативная память Kingston FURY Beast Black EXPO DIMM DDR5 16GB 6000MT/s (KF560C30BBE-16)
+277|Телевизор QLED ЯНДЕКС 65 Бейсик YNDX-00081 (4K Smart) ## Телевизор Яндекс Бейсик 65" YNDX-00081 QLED 4K UHD Black
+278|DDR-5 DIMM 16 GB 5600 MHz Kingston Fury Beast, BOX (KF556C36BBE-16) ## Оперативная память 16 GB kit Kingston Fury Beast KF560C36BBEK2-16
+279|Комплект оперативной памяти Kingston Fury Beast Beast White EXPO DDR5 DIMM 32Gb KIT (2x16Gb) 6000MHz (KF560C36BWE2K2-32) ## Оперативная память 32 GB kit Kingston Fury Beast Black (EXPO) KF556C36BBEK2-32
