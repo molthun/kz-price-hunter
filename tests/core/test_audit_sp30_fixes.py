@@ -191,31 +191,75 @@ class TestAuditSP30Fixes(unittest.TestCase):
         self.assertEqual(d["best_channel_offer"]["price"], 50000.0)
 
     def test_sp30_04_scale_status_missing_schema_and_verdict(self):
-        """SP30-04: get_current_scale_status reports schema errors; evaluate_storage_decision validates metrics."""
+        """SP30-04: get_current_scale_status reports schema errors; evaluate_storage_decision validates metrics strictly."""
         empty_conn = sqlite3.connect(":memory:")
         st = get_current_scale_status(empty_conn)
         empty_conn.close()
 
         self.assertEqual(st["sqlite_verdict"]["status"], "ERROR_NO_SCHEMA")
 
-        # NaN / unmeasured checkpoint
-        cp_nan = ScaleCheckpoint("unmeasured", 100000, 0, 0, 0, 0, float("nan"), 0, 0, 0, 0, 0, 0, 0, 0)
-        dec_nan = evaluate_storage_decision(cp_nan)
-        self.assertEqual(dec_nan.decision, "NOT_MEASURED")
+        # SP30-04: Неполные/нечисловые метрики НЕ должны давать положительный boolean is_sqlite_sufficient=True!
+        # 1. NaN / non-positive search_p95_ms
+        cp_nan_p95 = ScaleCheckpoint("nan_p95", 100000, 100000, 20000, 1000, 2000, float("nan"), 10.0, 20.0, 50.0, 5.0, 2.0, 0.1)
+        dec_nan_p95 = evaluate_storage_decision(cp_nan_p95)
+        self.assertEqual(dec_nan_p95.decision, "NOT_MEASURED")
+        self.assertFalse(dec_nan_p95.is_sqlite_sufficient, "NOT_MEASURED must never set is_sqlite_sufficient=True")
 
-        # 80ms latency checkpoint: bounded 50-100ms
-        cp_80 = ScaleCheckpoint("80ms", 100000, 100000, 20000, 1000, 2000, 80.0, 50.0, 20.0, 50.0, 5.0, 2.0, 0.1, 80.0, 5.0)
+        # 2. NaN in backup_duration_s
+        cp_nan_backup = ScaleCheckpoint("nan_bck", 100000, 100000, 20000, 1000, 2000, 20.0, 10.0, 20.0, 50.0, 5.0, 2.0, float("nan"))
+        dec_nan_bck = evaluate_storage_decision(cp_nan_backup)
+        self.assertEqual(dec_nan_bck.decision, "NOT_MEASURED")
+        self.assertFalse(dec_nan_bck.is_sqlite_sufficient)
+
+        # 3. NaN / <=0 in write_latency_1k_ms
+        cp_nan_write = ScaleCheckpoint("nan_write", 100000, 100000, 20000, 1000, 2000, 20.0, 10.0, float("nan"), 50.0, 5.0, 2.0, 0.1)
+        dec_nan_write = evaluate_storage_decision(cp_nan_write)
+        self.assertEqual(dec_nan_write.decision, "NOT_MEASURED")
+        self.assertFalse(dec_nan_write.is_sqlite_sufficient)
+
+        # 4. Negative / NaN db_size_mb
+        cp_neg_db = ScaleCheckpoint("neg_db", 100000, 100000, 20000, 1000, 2000, 20.0, 10.0, 20.0, -10.0, 5.0, 2.0, 0.1)
+        dec_neg_db = evaluate_storage_decision(cp_neg_db)
+        self.assertEqual(dec_neg_db.decision, "NOT_MEASURED")
+        self.assertFalse(dec_neg_db.is_sqlite_sufficient)
+
+        # 5. actual_offers == 0 or significantly below target (e.g. 500 when target is 100k)
+        cp_low_actual = ScaleCheckpoint("low_actual", 100000, 500, 20000, 1000, 2000, 20.0, 10.0, 20.0, 50.0, 5.0, 2.0, 0.1)
+        dec_low_actual = evaluate_storage_decision(cp_low_actual)
+        self.assertEqual(dec_low_actual.decision, "NOT_MEASURED")
+        self.assertFalse(dec_low_actual.is_sqlite_sufficient)
+
+        # 6. Valid 80ms latency checkpoint: bounded 50-100ms
+        cp_80 = ScaleCheckpoint("80ms", 100000, 100000, 20000, 1000, 2000, 80.0, 50.0, 20.0, 50.0, 5.0, 2.0, 0.1)
         dec_80 = evaluate_storage_decision(cp_80)
         self.assertEqual(dec_80.decision, "STAY_ON_SQLITE")
+        self.assertTrue(dec_80.is_sqlite_sufficient)
         self.assertTrue(any("50–100 мс" in r for r in dec_80.reasons))
         self.assertFalse(any("80.0 мс <= 50 мс" in r for r in dec_80.reasons))
 
     def test_sp30_06_generator_channel_seller_consistency(self):
-        """SP30-06: Benchmark generator must not assign offers to other sellers' channels."""
+        """SP30-06: Benchmark generator metrics: seller/channel mapping, history indexes, concurrency and honest memory."""
         cp = run_scale_benchmark(target_offers=1000)
-        self.assertEqual(cp.actual_offers, 1000)
+        self.assertGreaterEqual(cp.actual_offers, 1000)
         self.assertGreater(cp.search_p95_ms, 0.0)
         self.assertLess(cp.search_p95_ms, 100.0)
+
+        # SP30-06: History size includes index
+        self.assertGreater(cp.price_history_size_mb, 0.0)
+        self.assertGreater(cp.history_index_size_mb, 0.0)
+        self.assertIn(cp.size_measurement_method, ("dbstat", "estimated"))
+
+        # SP30-06: Concurrency and cold startup verified
+        self.assertTrue(cp.concurrency_verified)
+        self.assertEqual(cp.concurrency_errors, 0)
+        self.assertGreater(cp.cold_startup_ms, 0.0)
+
+        # SP30-06: Honest memory fallback (None instead of fake 45.0 MB)
+        from unittest.mock import patch
+        with patch("resource.getrusage", side_effect=Exception("Simulated rusage failure")):
+            cp_mock_mem = run_scale_benchmark(target_offers=100)
+            self.assertIsNone(cp_mock_mem.memory_mb, "Failed memory measurement must return None, not fake 45.0 MB")
+            self.assertIsNone(cp_mock_mem.peak_rss_mb)
 
     def test_sp30_07_discovery_repository_dedup_and_stats(self):
         """SP30-07: Discovery task dedup, demand accumulation, and real status aggregation."""

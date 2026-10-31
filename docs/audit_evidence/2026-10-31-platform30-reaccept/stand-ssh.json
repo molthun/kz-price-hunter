@@ -1,0 +1,5 @@
+{
+  "exit": 255,
+  "stdout": "",
+  "stderr": "ssh: connect to host shdev.molthun.ru port 2222: Connection refused\n"
+}

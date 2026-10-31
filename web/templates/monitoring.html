@@ -1891,25 +1891,48 @@
     `;
 
     // 5. Scale & Storage Decision Level (S2-E30)
-    const sc = d.scale_level || {};
-    const scCounts = sc.current_counts || {};
-    const scVerdict = sc.sqlite_verdict || {};
-    const scCheckpoints = (sc.checkpoints || []).map(cp => {
-      const isPassed = cp.status === 'PASSED';
-      const badgeCls = isPassed
-        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-        : 'bg-slate-800 text-slate-400 border-slate-700';
-      const icon = isPassed ? 'fa-check' : 'fa-hourglass-start';
-      return `
-        <div class="p-2.5 rounded-xl border ${badgeCls} text-center space-y-1">
-          <div class="text-xs font-bold flex items-center justify-center gap-1">
-            <i class="fa-solid ${icon} text-[10px]"></i>
-            <span>${esc(cp.name)}</span>
+    const sc = d.scale_level;
+    let scaleVerdictBadge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-800 text-slate-400 border border-slate-700">❓ НЕТ ДАННЫХ</span>';
+    let scaleVerdictMessage = 'Данные о масштабировании отсутствуют';
+    let scaleVerdictThreshold = '1M+ offers';
+
+    let scCheckpoints = '';
+    if (sc && sc.checkpoints && Array.isArray(sc.checkpoints)) {
+      scCheckpoints = sc.checkpoints.map(cp => {
+        const isPassed = cp.status === 'PASSED';
+        const badgeCls = isPassed
+          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+          : 'bg-slate-800 text-slate-400 border-slate-700';
+        const icon = isPassed ? 'fa-check' : 'fa-hourglass-start';
+        return `
+          <div class="p-2.5 rounded-xl border ${badgeCls} text-center space-y-1">
+            <div class="text-xs font-bold flex items-center justify-center gap-1">
+              <i class="fa-solid ${icon} text-[10px]"></i>
+              <span>${esc(cp.name)}</span>
+            </div>
+            <div class="text-[10px] opacity-80">${num(cp.target)} предл.</div>
           </div>
-          <div class="text-[10px] opacity-80">${num(cp.target)} предл.</div>
-        </div>
-      `;
-    }).join('');
+        `;
+      }).join('');
+    }
+
+    if (sc && sc.sqlite_verdict && sc.sqlite_verdict.status) {
+      const vStatus = sc.sqlite_verdict.status;
+      scaleVerdictMessage = sc.sqlite_verdict.message || '';
+      scaleVerdictThreshold = sc.sqlite_verdict.recommended_threshold || '1M+ offers';
+
+      if (vStatus === 'HEALTHY_SQLITE' || vStatus === 'STAY_ON_SQLITE') {
+        scaleVerdictBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✅ ${esc(vStatus)}</span>`;
+      } else if (vStatus === 'EVALUATE_POSTGRESQL') {
+        scaleVerdictBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">⚠️ ${esc(vStatus)}</span>`;
+      } else if (vStatus === 'ERROR_NO_SCHEMA' || vStatus === 'ERROR') {
+        scaleVerdictBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">❌ ${esc(vStatus)}</span>`;
+      } else if (vStatus === 'NOT_MEASURED') {
+        scaleVerdictBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-700/50 text-slate-300 border border-slate-600">⏳ NOT_MEASURED</span>`;
+      } else {
+        scaleVerdictBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-800 text-slate-400 border border-slate-700">ℹ️ ${esc(vStatus)}</span>`;
+      }
+    }
 
     const scaleHtml = `
       <div class="p-5 rounded-2xl bg-dark-900 border border-slate-800 space-y-4">
@@ -1927,13 +1950,13 @@
           <div class="space-y-1">
             <div class="flex items-center gap-2">
               <span class="font-bold text-white">Текущий вердикт хранилища:</span>
-              <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✅ ${esc(scVerdict.status || 'HEALTHY_SQLITE')}</span>
+              ${scaleVerdictBadge}
             </div>
-            <p class="text-slate-400">${esc(scVerdict.message || 'SQLite полностью справляется с объёмом')}</p>
+            <p class="text-slate-400">${esc(scaleVerdictMessage)}</p>
           </div>
           <div class="shrink-0 text-slate-500 text-[11px] sm:text-right">
             <span>Рекомендуемый порог миграции:</span>
-            <div class="font-mono font-semibold text-slate-300">${esc(scVerdict.recommended_threshold || '1M+ offers')}</div>
+            <div class="font-mono font-semibold text-slate-300">${esc(scaleVerdictThreshold)}</div>
           </div>
         </div>
       </div>

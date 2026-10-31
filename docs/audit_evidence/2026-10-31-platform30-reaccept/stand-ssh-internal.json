@@ -1,0 +1,27 @@
+{
+  "exit": 0,
+  "stdout": "96f42ddc31e440540440e87260aed8507ebad94f\nrunning healthy \n336c9308c7ccb1753461a6cd8b106acc00c5b960c18623eb8f30fa0926310f2b  /app/domain/scale_bench.py\n2791e695386502fd594aa82ea453ad954033adb0c331fcb55d6e6680ae3c8d51  /app/domain/search_core.py\n65dedd422fcb64af2a8048907305cec235470dc57596cfe03e2432635c8e5f2e  /app/repositories/history_repo.py\n42d994edd9b7016df00f77228b7100db4df07911a01819ce8982abd29c6234de  /app/repositories/discovery_repo.py\na51c1b8062703e96ba5b25493537c433ed62e17697df7e166e8cac542772bfcc  /app/repositories/schema_v2.py\nb3d3baba2eea4f8488a51a0fbdb7aa242e2b356491769b81836faeff83cc7a3d  /app/repositories/search_repo.py\n96079a535aa320a51f8fa9c9d41050cf7692f01442822a93c89bff4dd53328d7  /app/domain/provenance.py\nd5512c55d13e4d2453385451ed2f2dec3b1999dba003daba41992faa151382f2  /app/domain/models.py\n",
+  "stderr": "",
+  "snapshot_sha256": {
+    "domain/scale_bench.py": "336c9308c7ccb1753461a6cd8b106acc00c5b960c18623eb8f30fa0926310f2b",
+    "domain/search_core.py": "2791e695386502fd594aa82ea453ad954033adb0c331fcb55d6e6680ae3c8d51",
+    "repositories/history_repo.py": "65dedd422fcb64af2a8048907305cec235470dc57596cfe03e2432635c8e5f2e",
+    "repositories/discovery_repo.py": "42d994edd9b7016df00f77228b7100db4df07911a01819ce8982abd29c6234de",
+    "repositories/schema_v2.py": "a51c1b8062703e96ba5b25493537c433ed62e17697df7e166e8cac542772bfcc",
+    "repositories/search_repo.py": "b3d3baba2eea4f8488a51a0fbdb7aa242e2b356491769b81836faeff83cc7a3d",
+    "domain/provenance.py": "96079a535aa320a51f8fa9c9d41050cf7692f01442822a93c89bff4dd53328d7",
+    "domain/models.py": "d5512c55d13e4d2453385451ed2f2dec3b1999dba003daba41992faa151382f2"
+  },
+  "deployed_repository_sha": "96f42ddc31e440540440e87260aed8507ebad94f",
+  "container_status": "running healthy ",
+  "container_files_match_snapshot": {
+    "domain/scale_bench.py": true,
+    "domain/search_core.py": true,
+    "repositories/history_repo.py": true,
+    "repositories/discovery_repo.py": true,
+    "repositories/schema_v2.py": true,
+    "repositories/search_repo.py": true,
+    "domain/provenance.py": true,
+    "domain/models.py": true
+  }
+}

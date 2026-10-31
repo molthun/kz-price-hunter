@@ -1,0 +1,1338 @@
+{
+  "canonical_single": {
+    "snapshot": {
+      "offer_id": "offer",
+      "price": 100.0,
+      "old_price": null,
+      "observed_at": "2026-10-30T10:00:00Z",
+      "product_id": "p1",
+      "seller_id": "s1",
+      "channel_id": "direct",
+      "condition": "NEW",
+      "city": "Казахстан"
+    },
+    "old_product": {
+      "product_id": "p1",
+      "title": "Audit Phone 256GB",
+      "series": [
+        {
+          "series_key": "p1::s1::direct::NEW",
+          "product_id": "p1",
+          "seller_id": "s1",
+          "seller_name": "Synthetic seller",
+          "channel_id": "direct",
+          "channel_type": "direct",
+          "channel_name": "direct",
+          "condition": "NEW",
+          "city": "Казахстан",
+          "currency": "KZT",
+          "offer_id": "offer",
+          "points": [
+            {
+              "observed_at": "2026-10-30T10:00:00Z",
+              "price": 100.0,
+              "old_price": null,
+              "offer_id": "offer"
+            }
+          ],
+          "min_price": 100.0,
+          "max_price": 100.0,
+          "first_price": 100.0,
+          "latest_price": 100.0,
+          "change_amount": 0.0,
+          "change_pct": 0.0
+        }
+      ],
+      "total_series": 1,
+      "total_observations": 1
+    },
+    "new_product": {
+      "product_id": "p2",
+      "title": "Audit Phone 512GB",
+      "series": [
+        {
+          "series_key": "p2::s1::kaspi::USED",
+          "product_id": "p2",
+          "seller_id": "s1",
+          "seller_name": "Synthetic seller",
+          "channel_id": "kaspi",
+          "channel_type": "kaspi",
+          "channel_name": "kaspi",
+          "condition": "USED",
+          "city": "Казахстан",
+          "currency": "KZT",
+          "offer_id": "offer",
+          "points": [
+            {
+              "observed_at": "2026-10-31T16:12:45.537382+00:00",
+              "price": 200.0,
+              "old_price": null,
+              "offer_id": "offer"
+            }
+          ],
+          "min_price": 200.0,
+          "max_price": 200.0,
+          "first_price": 200.0,
+          "latest_price": 200.0,
+          "change_amount": 0.0,
+          "change_pct": 0.0
+        }
+      ],
+      "total_series": 1,
+      "total_observations": 1
+    }
+  },
+  "canonical_batch": {
+    "snapshot": {
+      "offer_id": "offer",
+      "price": 100.0,
+      "old_price": null,
+      "observed_at": "2026-10-30T10:00:00Z",
+      "product_id": "p1",
+      "seller_id": "s1",
+      "channel_id": "direct",
+      "condition": "NEW",
+      "city": "Казахстан"
+    },
+    "old_product": {
+      "product_id": "p1",
+      "title": "Audit Phone 256GB",
+      "series": [
+        {
+          "series_key": "p1::s1::direct::NEW",
+          "product_id": "p1",
+          "seller_id": "s1",
+          "seller_name": "Synthetic seller",
+          "channel_id": "direct",
+          "channel_type": "direct",
+          "channel_name": "direct",
+          "condition": "NEW",
+          "city": "Казахстан",
+          "currency": "KZT",
+          "offer_id": "offer",
+          "points": [
+            {
+              "observed_at": "2026-10-30T10:00:00Z",
+              "price": 100.0,
+              "old_price": null,
+              "offer_id": "offer"
+            }
+          ],
+          "min_price": 100.0,
+          "max_price": 100.0,
+          "first_price": 100.0,
+          "latest_price": 100.0,
+          "change_amount": 0.0,
+          "change_pct": 0.0
+        }
+      ],
+      "total_series": 1,
+      "total_observations": 1
+    },
+    "new_product": {
+      "product_id": "p2",
+      "title": "Audit Phone 512GB",
+      "series": [
+        {
+          "series_key": "p2::s1::kaspi::USED",
+          "product_id": "p2",
+          "seller_id": "s1",
+          "seller_name": "Synthetic seller",
+          "channel_id": "kaspi",
+          "channel_type": "kaspi",
+          "channel_name": "kaspi",
+          "condition": "USED",
+          "city": "Казахстан",
+          "currency": "KZT",
+          "offer_id": "offer",
+          "points": [
+            {
+              "observed_at": "2026-10-31T16:12:45.537382+00:00",
+              "price": 200.0,
+              "old_price": null,
+              "offer_id": "offer"
+            }
+          ],
+          "min_price": 200.0,
+          "max_price": 200.0,
+          "first_price": 200.0,
+          "latest_price": 200.0,
+          "change_amount": 0.0,
+          "change_pct": 0.0
+        }
+      ],
+      "total_series": 1,
+      "total_observations": 1
+    }
+  },
+  "existing_offer_writer": {
+    "snapshot": {
+      "offer_id": "offer",
+      "price": 100.0,
+      "old_price": null,
+      "observed_at": "2026-10-30T10:00:00Z",
+      "product_id": "p1",
+      "seller_id": "s1",
+      "channel_id": "direct",
+      "condition": "NEW",
+      "city": "Казахстан"
+    },
+    "old_product": {
+      "product_id": "p1",
+      "title": "Audit Phone 256GB",
+      "series": [
+        {
+          "series_key": "p1::s1::direct::NEW",
+          "product_id": "p1",
+          "seller_id": "s1",
+          "seller_name": "Synthetic seller",
+          "channel_id": "direct",
+          "channel_type": "direct",
+          "channel_name": "direct",
+          "condition": "NEW",
+          "city": "Казахстан",
+          "currency": "KZT",
+          "offer_id": "offer",
+          "points": [
+            {
+              "observed_at": "2026-10-30T10:00:00Z",
+              "price": 100.0,
+              "old_price": null,
+              "offer_id": "offer"
+            }
+          ],
+          "min_price": 100.0,
+          "max_price": 100.0,
+          "first_price": 100.0,
+          "latest_price": 100.0,
+          "change_amount": 0.0,
+          "change_pct": 0.0
+        }
+      ],
+      "total_series": 1,
+      "total_observations": 1
+    },
+    "new_product": {
+      "product_id": "p2",
+      "title": "Audit Phone 512GB",
+      "series": [
+        {
+          "series_key": "p2::s1::kaspi::USED",
+          "product_id": "p2",
+          "seller_id": "s1",
+          "seller_name": "Synthetic seller",
+          "channel_id": "kaspi",
+          "channel_type": "kaspi",
+          "channel_name": "kaspi",
+          "condition": "USED",
+          "city": "Казахстан",
+          "currency": "KZT",
+          "offer_id": "offer",
+          "points": [
+            {
+              "observed_at": "2026-10-31T16:12:45.537382+00:00",
+              "price": 200.0,
+              "old_price": null,
+              "offer_id": "offer"
+            }
+          ],
+          "min_price": 200.0,
+          "max_price": 200.0,
+          "first_price": 200.0,
+          "latest_price": 200.0,
+          "change_amount": 0.0,
+          "change_pct": 0.0
+        }
+      ],
+      "total_series": 1,
+      "total_observations": 1
+    }
+  },
+  "group_with_unavailable_price": {
+    "product": {
+      "id": "p1",
+      "canonical_key": "probe1",
+      "title": "Audit Phone 256GB",
+      "category": "phones",
+      "brand": "Audit",
+      "model": null,
+      "description": null,
+      "image_url": null,
+      "attributes": {},
+      "created_at": "2026-10-31T16:12:45.537210+00:00",
+      "updated_at": "2026-10-31T16:12:45.537213+00:00",
+      "canonical_name": "Audit Phone 256GB"
+    },
+    "offers": [
+      {
+        "id": "available",
+        "product_id": "p1",
+        "seller_id": "s1",
+        "seller_name": "Synthetic seller",
+        "seller_slug": "synthetic-seller",
+        "seller_rating": null,
+        "channel_id": "direct",
+        "channel_type": "direct",
+        "channel_name": "direct",
+        "price": 100000.0,
+        "old_price": null,
+        "condition": "NEW",
+        "availability": "in_stock",
+        "city": "Казахстан",
+        "url": "https://example.invalid/available",
+        "image_url": null,
+        "observed_at": "2026-10-31T16:12:45.537382+00:00",
+        "freshness": "fresh",
+        "is_purchasable": true,
+        "expires_at": null,
+        "is_private_seller": false,
+        "installment_available": false,
+        "installment_months": null,
+        "credit_available": false,
+        "is_unit_price": false,
+        "quantity": null,
+        "unit": null,
+        "source": "direct",
+        "published_at": null,
+        "provenance": {
+          "offer_id": "available",
+          "source": "direct",
+          "channel_type": "direct",
+          "observed_at": "2026-10-31T16:12:45.537382+00:00",
+          "published_at": null,
+          "expires_at": null,
+          "freshness": "FRESH",
+          "legacy_freshness": "fresh",
+          "source_freshness_type": "website",
+          "age_hours": 0.0
+        },
+        "seller_domain": null,
+        "seller_phone": null,
+        "seller_bin": null,
+        "seller_legal_name": null,
+        "seller_metadata_json": "{}"
+      },
+      {
+        "id": "unavailable",
+        "product_id": "p1",
+        "seller_id": "s1",
+        "seller_name": "Synthetic seller",
+        "seller_slug": "synthetic-seller",
+        "seller_rating": null,
+        "channel_id": "kaspi",
+        "channel_type": "kaspi",
+        "channel_name": "kaspi",
+        "price": 1000.0,
+        "old_price": null,
+        "condition": "NEW",
+        "availability": "out_of_stock",
+        "city": "Казахстан",
+        "url": "https://example.invalid/unavailable",
+        "image_url": null,
+        "observed_at": "2026-10-31T16:12:45.537382+00:00",
+        "freshness": "fresh",
+        "is_purchasable": false,
+        "expires_at": null,
+        "is_private_seller": false,
+        "installment_available": false,
+        "installment_months": null,
+        "credit_available": false,
+        "is_unit_price": false,
+        "quantity": null,
+        "unit": null,
+        "source": "kaspi",
+        "published_at": null,
+        "provenance": {
+          "offer_id": "unavailable",
+          "source": "kaspi",
+          "channel_type": "kaspi",
+          "observed_at": "2026-10-31T16:12:45.537382+00:00",
+          "published_at": null,
+          "expires_at": null,
+          "freshness": "FRESH",
+          "legacy_freshness": "fresh",
+          "source_freshness_type": "website",
+          "age_hours": 0.0
+        },
+        "seller_domain": null,
+        "seller_phone": null,
+        "seller_bin": null,
+        "seller_legal_name": null,
+        "seller_metadata_json": "{}"
+      }
+    ],
+    "sellers": [
+      {
+        "seller_id": "s1",
+        "seller_name": "Synthetic seller",
+        "seller_slug": "synthetic-seller",
+        "seller_rating": null,
+        "is_private_seller": false,
+        "min_price": 100000.0,
+        "max_price": 100000.0,
+        "offers_count": 2,
+        "channels_count": 2,
+        "channels_available": [
+          "direct",
+          "kaspi"
+        ],
+        "best_offer": {
+          "id": "available",
+          "product_id": "p1",
+          "seller_id": "s1",
+          "seller_name": "Synthetic seller",
+          "seller_slug": "synthetic-seller",
+          "seller_rating": null,
+          "channel_id": "direct",
+          "channel_type": "direct",
+          "channel_name": "direct",
+          "price": 100000.0,
+          "old_price": null,
+          "condition": "NEW",
+          "availability": "in_stock",
+          "city": "Казахстан",
+          "url": "https://example.invalid/available",
+          "image_url": null,
+          "observed_at": "2026-10-31T16:12:45.537382+00:00",
+          "freshness": "fresh",
+          "is_purchasable": true,
+          "expires_at": null,
+          "is_private_seller": false,
+          "installment_available": false,
+          "installment_months": null,
+          "credit_available": false,
+          "is_unit_price": false,
+          "quantity": null,
+          "unit": null,
+          "source": "direct",
+          "published_at": null,
+          "provenance": {
+            "offer_id": "available",
+            "source": "direct",
+            "channel_type": "direct",
+            "observed_at": "2026-10-31T16:12:45.537382+00:00",
+            "published_at": null,
+            "expires_at": null,
+            "freshness": "FRESH",
+            "legacy_freshness": "fresh",
+            "source_freshness_type": "website",
+            "age_hours": 0.0
+          },
+          "seller_domain": null,
+          "seller_phone": null,
+          "seller_bin": null,
+          "seller_legal_name": null,
+          "seller_metadata_json": "{}"
+        },
+        "offers": [
+          {
+            "id": "available",
+            "product_id": "p1",
+            "seller_id": "s1",
+            "seller_name": "Synthetic seller",
+            "seller_slug": "synthetic-seller",
+            "seller_rating": null,
+            "channel_id": "direct",
+            "channel_type": "direct",
+            "channel_name": "direct",
+            "price": 100000.0,
+            "old_price": null,
+            "condition": "NEW",
+            "availability": "in_stock",
+            "city": "Казахстан",
+            "url": "https://example.invalid/available",
+            "image_url": null,
+            "observed_at": "2026-10-31T16:12:45.537382+00:00",
+            "freshness": "fresh",
+            "is_purchasable": true,
+            "expires_at": null,
+            "is_private_seller": false,
+            "installment_available": false,
+            "installment_months": null,
+            "credit_available": false,
+            "is_unit_price": false,
+            "quantity": null,
+            "unit": null,
+            "source": "direct",
+            "published_at": null,
+            "provenance": {
+              "offer_id": "available",
+              "source": "direct",
+              "channel_type": "direct",
+              "observed_at": "2026-10-31T16:12:45.537382+00:00",
+              "published_at": null,
+              "expires_at": null,
+              "freshness": "FRESH",
+              "legacy_freshness": "fresh",
+              "source_freshness_type": "website",
+              "age_hours": 0.0
+            },
+            "seller_domain": null,
+            "seller_phone": null,
+            "seller_bin": null,
+            "seller_legal_name": null,
+            "seller_metadata_json": "{}"
+          },
+          {
+            "id": "unavailable",
+            "product_id": "p1",
+            "seller_id": "s1",
+            "seller_name": "Synthetic seller",
+            "seller_slug": "synthetic-seller",
+            "seller_rating": null,
+            "channel_id": "kaspi",
+            "channel_type": "kaspi",
+            "channel_name": "kaspi",
+            "price": 1000.0,
+            "old_price": null,
+            "condition": "NEW",
+            "availability": "out_of_stock",
+            "city": "Казахстан",
+            "url": "https://example.invalid/unavailable",
+            "image_url": null,
+            "observed_at": "2026-10-31T16:12:45.537382+00:00",
+            "freshness": "fresh",
+            "is_purchasable": false,
+            "expires_at": null,
+            "is_private_seller": false,
+            "installment_available": false,
+            "installment_months": null,
+            "credit_available": false,
+            "is_unit_price": false,
+            "quantity": null,
+            "unit": null,
+            "source": "kaspi",
+            "published_at": null,
+            "provenance": {
+              "offer_id": "unavailable",
+              "source": "kaspi",
+              "channel_type": "kaspi",
+              "observed_at": "2026-10-31T16:12:45.537382+00:00",
+              "published_at": null,
+              "expires_at": null,
+              "freshness": "FRESH",
+              "legacy_freshness": "fresh",
+              "source_freshness_type": "website",
+              "age_hours": 0.0
+            },
+            "seller_domain": null,
+            "seller_phone": null,
+            "seller_bin": null,
+            "seller_legal_name": null,
+            "seller_metadata_json": "{}"
+          }
+        ],
+        "has_new": true,
+        "has_used": false,
+        "best_new_price": 100000.0,
+        "best_used_price": null,
+        "facts": [
+          "Сайт найден",
+          "Присутствие на маркетплейсах (kaspi)",
+          "Последняя активность сегодня"
+        ],
+        "provenance": {
+          "seller_id": "s1",
+          "physical_address_found": false,
+          "website_found": true,
+          "instagram_found": false,
+          "telegram_found": false,
+          "whatsapp_found": false,
+          "marketplace_presence": [
+            "kaspi"
+          ],
+          "phone_found": false,
+          "bin_found": false,
+          "active_today": true,
+          "last_observed_at": "2026-10-31T16:12:45.537382+00:00",
+          "fact_labels": [
+            "Сайт найден",
+            "Присутствие на маркетплейсах (kaspi)",
+            "Последняя активность сегодня"
+          ],
+          "facts": [
+            "Сайт найден",
+            "Присутствие на маркетплейсах (kaspi)",
+            "Последняя активность сегодня"
+          ]
+        },
+        "best_channel_offer": {
+          "id": "available",
+          "product_id": "p1",
+          "seller_id": "s1",
+          "seller_name": "Synthetic seller",
+          "seller_slug": "synthetic-seller",
+          "seller_rating": null,
+          "channel_id": "direct",
+          "channel_type": "direct",
+          "channel_name": "direct",
+          "price": 100000.0,
+          "old_price": null,
+          "condition": "NEW",
+          "availability": "in_stock",
+          "city": "Казахстан",
+          "url": "https://example.invalid/available",
+          "image_url": null,
+          "observed_at": "2026-10-31T16:12:45.537382+00:00",
+          "freshness": "fresh",
+          "is_purchasable": true,
+          "expires_at": null,
+          "is_private_seller": false,
+          "installment_available": false,
+          "installment_months": null,
+          "credit_available": false,
+          "is_unit_price": false,
+          "quantity": null,
+          "unit": null,
+          "source": "direct",
+          "published_at": null,
+          "provenance": {
+            "offer_id": "available",
+            "source": "direct",
+            "channel_type": "direct",
+            "observed_at": "2026-10-31T16:12:45.537382+00:00",
+            "published_at": null,
+            "expires_at": null,
+            "freshness": "FRESH",
+            "legacy_freshness": "fresh",
+            "source_freshness_type": "website",
+            "age_hours": 0.0
+          },
+          "seller_domain": null,
+          "seller_phone": null,
+          "seller_bin": null,
+          "seller_legal_name": null,
+          "seller_metadata_json": "{}"
+        },
+        "channels": [
+          "direct",
+          "kaspi"
+        ]
+      }
+    ],
+    "min_price": 100000.0,
+    "max_price": 100000.0,
+    "sellers_count": 1,
+    "offers_count": 2,
+    "best_offer": {
+      "id": "available",
+      "product_id": "p1",
+      "seller_id": "s1",
+      "seller_name": "Synthetic seller",
+      "seller_slug": "synthetic-seller",
+      "seller_rating": null,
+      "channel_id": "direct",
+      "channel_type": "direct",
+      "channel_name": "direct",
+      "price": 100000.0,
+      "old_price": null,
+      "condition": "NEW",
+      "availability": "in_stock",
+      "city": "Казахстан",
+      "url": "https://example.invalid/available",
+      "image_url": null,
+      "observed_at": "2026-10-31T16:12:45.537382+00:00",
+      "freshness": "fresh",
+      "is_purchasable": true,
+      "expires_at": null,
+      "is_private_seller": false,
+      "installment_available": false,
+      "installment_months": null,
+      "credit_available": false,
+      "is_unit_price": false,
+      "quantity": null,
+      "unit": null,
+      "source": "direct",
+      "published_at": null,
+      "provenance": {
+        "offer_id": "available",
+        "source": "direct",
+        "channel_type": "direct",
+        "observed_at": "2026-10-31T16:12:45.537382+00:00",
+        "published_at": null,
+        "expires_at": null,
+        "freshness": "FRESH",
+        "legacy_freshness": "fresh",
+        "source_freshness_type": "website",
+        "age_hours": 0.0
+      },
+      "seller_domain": null,
+      "seller_phone": null,
+      "seller_bin": null,
+      "seller_legal_name": null,
+      "seller_metadata_json": "{}"
+    },
+    "conditions_available": [
+      "NEW"
+    ],
+    "has_purchasable_offers": true,
+    "has_new": true,
+    "has_used": false,
+    "relevance_score": 5.10000375,
+    "best_new_price": 100000.0,
+    "best_used_price": null,
+    "condition_breakdown": {
+      "product_id": "p1",
+      "title": "Audit Phone 256GB",
+      "best_new_price": 100000.0,
+      "new_offers_count": 1,
+      "best_used_price": null,
+      "used_offers_count": 0,
+      "best_open_box_price": null,
+      "open_box_offers_count": 0,
+      "best_refurbished_price": null,
+      "refurbished_offers_count": 0,
+      "unknown_offers_count": 0,
+      "total_active_offers": 1
+    },
+    "is_used_only": false,
+    "new_offers_count": 1,
+    "used_offers_count": 0,
+    "new_sellers_count": 1,
+    "used_sellers_count": 0
+  },
+  "group_without_available_offers": {
+    "product": {
+      "id": "p1",
+      "canonical_key": "probe1",
+      "title": "Audit Phone 256GB",
+      "category": "phones",
+      "brand": "Audit",
+      "model": null,
+      "description": null,
+      "image_url": null,
+      "attributes": {},
+      "created_at": "2026-10-31T16:12:45.537210+00:00",
+      "updated_at": "2026-10-31T16:12:45.537213+00:00",
+      "canonical_name": "Audit Phone 256GB"
+    },
+    "offers": [
+      {
+        "id": "unavailable",
+        "product_id": "p1",
+        "seller_id": "s1",
+        "seller_name": "Synthetic seller",
+        "seller_slug": "synthetic-seller",
+        "seller_rating": null,
+        "channel_id": "kaspi",
+        "channel_type": "kaspi",
+        "channel_name": "kaspi",
+        "price": 1000.0,
+        "old_price": null,
+        "condition": "NEW",
+        "availability": "out_of_stock",
+        "city": "Казахстан",
+        "url": "https://example.invalid/unavailable",
+        "image_url": null,
+        "observed_at": "2026-10-31T16:12:45.537382+00:00",
+        "freshness": "fresh",
+        "is_purchasable": false,
+        "expires_at": null,
+        "is_private_seller": false,
+        "installment_available": false,
+        "installment_months": null,
+        "credit_available": false,
+        "is_unit_price": false,
+        "quantity": null,
+        "unit": null,
+        "source": "kaspi",
+        "published_at": null,
+        "provenance": {
+          "offer_id": "unavailable",
+          "source": "kaspi",
+          "channel_type": "kaspi",
+          "observed_at": "2026-10-31T16:12:45.537382+00:00",
+          "published_at": null,
+          "expires_at": null,
+          "freshness": "FRESH",
+          "legacy_freshness": "fresh",
+          "source_freshness_type": "website",
+          "age_hours": 0.0
+        },
+        "seller_domain": null,
+        "seller_phone": null,
+        "seller_bin": null,
+        "seller_legal_name": null,
+        "seller_metadata_json": "{}"
+      },
+      {
+        "id": "available",
+        "product_id": "p1",
+        "seller_id": "s1",
+        "seller_name": "Synthetic seller",
+        "seller_slug": "synthetic-seller",
+        "seller_rating": null,
+        "channel_id": "direct",
+        "channel_type": "direct",
+        "channel_name": "direct",
+        "price": 100000.0,
+        "old_price": null,
+        "condition": "NEW",
+        "availability": "out_of_stock",
+        "city": "Казахстан",
+        "url": "https://example.invalid/available",
+        "image_url": null,
+        "observed_at": "2026-10-31T16:12:45.537382+00:00",
+        "freshness": "fresh",
+        "is_purchasable": false,
+        "expires_at": null,
+        "is_private_seller": false,
+        "installment_available": false,
+        "installment_months": null,
+        "credit_available": false,
+        "is_unit_price": false,
+        "quantity": null,
+        "unit": null,
+        "source": "direct",
+        "published_at": null,
+        "provenance": {
+          "offer_id": "available",
+          "source": "direct",
+          "channel_type": "direct",
+          "observed_at": "2026-10-31T16:12:45.537382+00:00",
+          "published_at": null,
+          "expires_at": null,
+          "freshness": "FRESH",
+          "legacy_freshness": "fresh",
+          "source_freshness_type": "website",
+          "age_hours": 0.0
+        },
+        "seller_domain": null,
+        "seller_phone": null,
+        "seller_bin": null,
+        "seller_legal_name": null,
+        "seller_metadata_json": "{}"
+      }
+    ],
+    "sellers": [
+      {
+        "seller_id": "s1",
+        "seller_name": "Synthetic seller",
+        "seller_slug": "synthetic-seller",
+        "seller_rating": null,
+        "is_private_seller": false,
+        "min_price": null,
+        "max_price": null,
+        "offers_count": 2,
+        "channels_count": 2,
+        "channels_available": [
+          "kaspi",
+          "direct"
+        ],
+        "best_offer": {
+          "id": "unavailable",
+          "product_id": "p1",
+          "seller_id": "s1",
+          "seller_name": "Synthetic seller",
+          "seller_slug": "synthetic-seller",
+          "seller_rating": null,
+          "channel_id": "kaspi",
+          "channel_type": "kaspi",
+          "channel_name": "kaspi",
+          "price": 1000.0,
+          "old_price": null,
+          "condition": "NEW",
+          "availability": "out_of_stock",
+          "city": "Казахстан",
+          "url": "https://example.invalid/unavailable",
+          "image_url": null,
+          "observed_at": "2026-10-31T16:12:45.537382+00:00",
+          "freshness": "fresh",
+          "is_purchasable": false,
+          "expires_at": null,
+          "is_private_seller": false,
+          "installment_available": false,
+          "installment_months": null,
+          "credit_available": false,
+          "is_unit_price": false,
+          "quantity": null,
+          "unit": null,
+          "source": "kaspi",
+          "published_at": null,
+          "provenance": {
+            "offer_id": "unavailable",
+            "source": "kaspi",
+            "channel_type": "kaspi",
+            "observed_at": "2026-10-31T16:12:45.537382+00:00",
+            "published_at": null,
+            "expires_at": null,
+            "freshness": "FRESH",
+            "legacy_freshness": "fresh",
+            "source_freshness_type": "website",
+            "age_hours": 0.0
+          },
+          "seller_domain": null,
+          "seller_phone": null,
+          "seller_bin": null,
+          "seller_legal_name": null,
+          "seller_metadata_json": "{}"
+        },
+        "offers": [
+          {
+            "id": "unavailable",
+            "product_id": "p1",
+            "seller_id": "s1",
+            "seller_name": "Synthetic seller",
+            "seller_slug": "synthetic-seller",
+            "seller_rating": null,
+            "channel_id": "kaspi",
+            "channel_type": "kaspi",
+            "channel_name": "kaspi",
+            "price": 1000.0,
+            "old_price": null,
+            "condition": "NEW",
+            "availability": "out_of_stock",
+            "city": "Казахстан",
+            "url": "https://example.invalid/unavailable",
+            "image_url": null,
+            "observed_at": "2026-10-31T16:12:45.537382+00:00",
+            "freshness": "fresh",
+            "is_purchasable": false,
+            "expires_at": null,
+            "is_private_seller": false,
+            "installment_available": false,
+            "installment_months": null,
+            "credit_available": false,
+            "is_unit_price": false,
+            "quantity": null,
+            "unit": null,
+            "source": "kaspi",
+            "published_at": null,
+            "provenance": {
+              "offer_id": "unavailable",
+              "source": "kaspi",
+              "channel_type": "kaspi",
+              "observed_at": "2026-10-31T16:12:45.537382+00:00",
+              "published_at": null,
+              "expires_at": null,
+              "freshness": "FRESH",
+              "legacy_freshness": "fresh",
+              "source_freshness_type": "website",
+              "age_hours": 0.0
+            },
+            "seller_domain": null,
+            "seller_phone": null,
+            "seller_bin": null,
+            "seller_legal_name": null,
+            "seller_metadata_json": "{}"
+          },
+          {
+            "id": "available",
+            "product_id": "p1",
+            "seller_id": "s1",
+            "seller_name": "Synthetic seller",
+            "seller_slug": "synthetic-seller",
+            "seller_rating": null,
+            "channel_id": "direct",
+            "channel_type": "direct",
+            "channel_name": "direct",
+            "price": 100000.0,
+            "old_price": null,
+            "condition": "NEW",
+            "availability": "out_of_stock",
+            "city": "Казахстан",
+            "url": "https://example.invalid/available",
+            "image_url": null,
+            "observed_at": "2026-10-31T16:12:45.537382+00:00",
+            "freshness": "fresh",
+            "is_purchasable": false,
+            "expires_at": null,
+            "is_private_seller": false,
+            "installment_available": false,
+            "installment_months": null,
+            "credit_available": false,
+            "is_unit_price": false,
+            "quantity": null,
+            "unit": null,
+            "source": "direct",
+            "published_at": null,
+            "provenance": {
+              "offer_id": "available",
+              "source": "direct",
+              "channel_type": "direct",
+              "observed_at": "2026-10-31T16:12:45.537382+00:00",
+              "published_at": null,
+              "expires_at": null,
+              "freshness": "FRESH",
+              "legacy_freshness": "fresh",
+              "source_freshness_type": "website",
+              "age_hours": 0.0
+            },
+            "seller_domain": null,
+            "seller_phone": null,
+            "seller_bin": null,
+            "seller_legal_name": null,
+            "seller_metadata_json": "{}"
+          }
+        ],
+        "has_new": true,
+        "has_used": false,
+        "best_new_price": null,
+        "best_used_price": null,
+        "facts": [
+          "Сайт найден",
+          "Присутствие на маркетплейсах (kaspi)",
+          "Последняя активность сегодня"
+        ],
+        "provenance": {
+          "seller_id": "s1",
+          "physical_address_found": false,
+          "website_found": true,
+          "instagram_found": false,
+          "telegram_found": false,
+          "whatsapp_found": false,
+          "marketplace_presence": [
+            "kaspi"
+          ],
+          "phone_found": false,
+          "bin_found": false,
+          "active_today": true,
+          "last_observed_at": "2026-10-31T16:12:45.537382+00:00",
+          "fact_labels": [
+            "Сайт найден",
+            "Присутствие на маркетплейсах (kaspi)",
+            "Последняя активность сегодня"
+          ],
+          "facts": [
+            "Сайт найден",
+            "Присутствие на маркетплейсах (kaspi)",
+            "Последняя активность сегодня"
+          ]
+        },
+        "best_channel_offer": {
+          "id": "unavailable",
+          "product_id": "p1",
+          "seller_id": "s1",
+          "seller_name": "Synthetic seller",
+          "seller_slug": "synthetic-seller",
+          "seller_rating": null,
+          "channel_id": "kaspi",
+          "channel_type": "kaspi",
+          "channel_name": "kaspi",
+          "price": 1000.0,
+          "old_price": null,
+          "condition": "NEW",
+          "availability": "out_of_stock",
+          "city": "Казахстан",
+          "url": "https://example.invalid/unavailable",
+          "image_url": null,
+          "observed_at": "2026-10-31T16:12:45.537382+00:00",
+          "freshness": "fresh",
+          "is_purchasable": false,
+          "expires_at": null,
+          "is_private_seller": false,
+          "installment_available": false,
+          "installment_months": null,
+          "credit_available": false,
+          "is_unit_price": false,
+          "quantity": null,
+          "unit": null,
+          "source": "kaspi",
+          "published_at": null,
+          "provenance": {
+            "offer_id": "unavailable",
+            "source": "kaspi",
+            "channel_type": "kaspi",
+            "observed_at": "2026-10-31T16:12:45.537382+00:00",
+            "published_at": null,
+            "expires_at": null,
+            "freshness": "FRESH",
+            "legacy_freshness": "fresh",
+            "source_freshness_type": "website",
+            "age_hours": 0.0
+          },
+          "seller_domain": null,
+          "seller_phone": null,
+          "seller_bin": null,
+          "seller_legal_name": null,
+          "seller_metadata_json": "{}"
+        },
+        "channels": [
+          "kaspi",
+          "direct"
+        ]
+      }
+    ],
+    "min_price": null,
+    "max_price": null,
+    "sellers_count": 1,
+    "offers_count": 2,
+    "best_offer": null,
+    "conditions_available": [],
+    "has_purchasable_offers": false,
+    "has_new": true,
+    "has_used": false,
+    "relevance_score": 5.10000375,
+    "best_new_price": null,
+    "best_used_price": null,
+    "condition_breakdown": {
+      "product_id": "p1",
+      "title": "Audit Phone 256GB",
+      "best_new_price": null,
+      "new_offers_count": 0,
+      "best_used_price": null,
+      "used_offers_count": 0,
+      "best_open_box_price": null,
+      "open_box_offers_count": 0,
+      "best_refurbished_price": null,
+      "refurbished_offers_count": 0,
+      "unknown_offers_count": 0,
+      "total_active_offers": 0
+    },
+    "is_used_only": false,
+    "new_offers_count": 0,
+    "used_offers_count": 0,
+    "new_sellers_count": 1,
+    "used_sellers_count": 0
+  },
+  "discovery_contract": {
+    "first": {
+      "id": "dtask_5f6ccaf683ee",
+      "signal_query": "Synthetic laptop",
+      "normalized_query": "synthetic laptop",
+      "city": "Алматы",
+      "search_count": 71,
+      "success_rate": 0.1,
+      "priority_score": 59.25,
+      "status": "RUNNING",
+      "search_queries": [
+        {
+          "channel": "google",
+          "query": "купить Synthetic laptop Алматы",
+          "intent": "commercial_purchase"
+        },
+        {
+          "channel": "google",
+          "query": "интернет магазин Synthetic laptop Алматы Казахстан",
+          "intent": "merchant_catalog"
+        },
+        {
+          "channel": "google",
+          "query": "Synthetic laptop цена в наличии Алматы сайт",
+          "intent": "direct_retailer"
+        },
+        {
+          "channel": "kaspi",
+          "query": "Synthetic laptop",
+          "intent": "marketplace_merchants"
+        },
+        {
+          "channel": "2gis",
+          "query": "Synthetic laptop Алматы",
+          "intent": "local_shops"
+        },
+        {
+          "channel": "instagram",
+          "query": "Synthetic laptop Алматы instagram",
+          "intent": "social_storefront"
+        },
+        {
+          "channel": "telegram",
+          "query": "Synthetic laptop канал kz",
+          "intent": "messenger_catalog"
+        }
+      ],
+      "discovered_candidates_count": 0,
+      "notes": "",
+      "created_at": "2026-10-31T16:12:45.539626+00:00",
+      "updated_at": "2026-10-31T16:12:45.539695+00:00"
+    },
+    "second": {
+      "id": "dtask_5f6ccaf683ee",
+      "signal_query": "Synthetic laptop",
+      "normalized_query": "synthetic laptop",
+      "city": "Алматы",
+      "search_count": 71,
+      "success_rate": 0.1,
+      "priority_score": 59.25,
+      "status": "PENDING",
+      "search_queries": [
+        {
+          "channel": "google",
+          "query": "купить Synthetic laptop Алматы",
+          "intent": "commercial_purchase"
+        },
+        {
+          "channel": "google",
+          "query": "интернет магазин Synthetic laptop Алматы Казахстан",
+          "intent": "merchant_catalog"
+        },
+        {
+          "channel": "google",
+          "query": "Synthetic laptop цена в наличии Алматы сайт",
+          "intent": "direct_retailer"
+        },
+        {
+          "channel": "kaspi",
+          "query": "Synthetic laptop",
+          "intent": "marketplace_merchants"
+        },
+        {
+          "channel": "2gis",
+          "query": "Synthetic laptop Алматы",
+          "intent": "local_shops"
+        },
+        {
+          "channel": "instagram",
+          "query": "Synthetic laptop Алматы instagram",
+          "intent": "social_storefront"
+        },
+        {
+          "channel": "telegram",
+          "query": "Synthetic laptop канал kz",
+          "intent": "messenger_catalog"
+        }
+      ],
+      "discovered_candidates_count": 0,
+      "notes": "",
+      "created_at": "2026-10-31T16:12:45.539626+00:00",
+      "updated_at": "2026-10-31T16:12:45.539682+00:00"
+    },
+    "stats": {
+      "tasks": {
+        "total": 1,
+        "pending": 0,
+        "in_progress": 1,
+        "running": 1,
+        "completed": 0,
+        "failed": 0,
+        "cancelled": 0
+      },
+      "candidates": {
+        "total": 1,
+        "discovered": 0,
+        "profiled": 0,
+        "in_review": 1,
+        "review_required": 1,
+        "approved": 0,
+        "indexed": 0,
+        "onboarded": 0,
+        "rejected": 0
+      },
+      "social_sources": []
+    },
+    "sql_task_counts": [
+      {
+        "status": "RUNNING",
+        "n": 1
+      }
+    ],
+    "sql_candidate_counts": [
+      {
+        "status": "REVIEW_REQUIRED",
+        "n": 1
+      }
+    ]
+  },
+  "scale_missing_schema": {
+    "current_counts": {
+      "offers": 0,
+      "products": 0,
+      "sellers": 0,
+      "price_history_points": 0
+    },
+    "checkpoints": [
+      {
+        "name": "100k",
+        "target": 100000,
+        "status": "NOT_MEASURED"
+      },
+      {
+        "name": "500k",
+        "target": 500000,
+        "status": "UPCOMING"
+      },
+      {
+        "name": "1m",
+        "target": 1000000,
+        "status": "UPCOMING"
+      },
+      {
+        "name": "5m",
+        "target": 5000000,
+        "status": "UPCOMING"
+      },
+      {
+        "name": "10m",
+        "target": 10000000,
+        "status": "UPCOMING"
+      }
+    ],
+    "sqlite_verdict": {
+      "status": "ERROR_NO_SCHEMA",
+      "message": "Таблицы каталога не инициализированы: no such table: offers",
+      "recommended_threshold": "Требуется инициализация схемы"
+    }
+  },
+  "invalid_measurements_decision": {
+    "decision": "NOT_MEASURED",
+    "is_sqlite_sufficient": true,
+    "summary": "Нагрузочные замеры для данной контрольной точки не проводились или недостоверны.",
+    "reasons": [
+      "Замеры задержки поиска отсутствуют или содержат нечисловые значения (NaN)."
+    ],
+    "metrics": {
+      "name": "unmeasured",
+      "target_offers": 100000,
+      "actual_offers": 0,
+      "total_products": 0,
+      "total_sellers": 0,
+      "total_channels": 0,
+      "search_p95_ms": "nan",
+      "search_avg_ms": 0,
+      "write_latency_1k_ms": 0,
+      "db_size_mb": 0,
+      "fts_size_mb": 0,
+      "price_history_size_mb": 0,
+      "backup_duration_s": 0,
+      "memory_mb": 0,
+      "startup_ms": 0,
+      "evaluated_at": "2026-10-31T16:12:45.539873+00:00"
+    }
+  },
+  "80ms_decision": {
+    "decision": "STAY_ON_SQLITE",
+    "is_sqlite_sufficient": true,
+    "summary": "SQLite полностью справляется с объемом unmeasured (0 предложений). Задержка p95 80.0 мс, бэкап 0.00 с. Переход на PostgreSQL не требуется.",
+    "reasons": [
+      "Поисковая задержка p95 (80.0 мс) находится в допустимом диапазоне (50–100 мс).",
+      "Задержка записи в норме (0.0 мс на 1k предложений).",
+      "Размер базы данных оптимален (0.0 МБ).",
+      "Время онлайн-бэкапа в норме (0.00 с)."
+    ],
+    "metrics": {
+      "name": "unmeasured",
+      "target_offers": 100000,
+      "actual_offers": 0,
+      "total_products": 0,
+      "total_sellers": 0,
+      "total_channels": 0,
+      "search_p95_ms": 80,
+      "search_avg_ms": 0,
+      "write_latency_1k_ms": 0,
+      "db_size_mb": 0,
+      "fts_size_mb": 0,
+      "price_history_size_mb": 0,
+      "backup_duration_s": 0,
+      "memory_mb": 0,
+      "startup_ms": 0,
+      "evaluated_at": "2026-10-31T16:12:45.539873+00:00"
+    }
+  },
+  "future_activity": {
+    "seller_id": "s",
+    "physical_address_found": false,
+    "website_found": false,
+    "instagram_found": false,
+    "telegram_found": false,
+    "whatsapp_found": false,
+    "marketplace_presence": [],
+    "phone_found": false,
+    "bin_found": false,
+    "active_today": false,
+    "last_observed_at": null,
+    "fact_labels": [],
+    "facts": []
+  },
+  "brand_apple": []
+}

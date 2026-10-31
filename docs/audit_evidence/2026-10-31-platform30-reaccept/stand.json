@@ -1,0 +1,107 @@
+{
+  "at": "2026-10-31T16:13:11.545469+00:00",
+  "base": "https://shdev.molthun.ru",
+  "results": [
+    {
+      "path": "/api/version",
+      "status": 200,
+      "keys": [
+        "version",
+        "app_name",
+        "release_date",
+        "author"
+      ],
+      "version": {
+        "version": "6.9.3",
+        "app_name": "KZ Price Hunter",
+        "release_date": "2026-10-31",
+        "author": "Advanced Agentic Coding"
+      }
+    },
+    {
+      "path": "/api/live",
+      "status": 200,
+      "keys": [
+        "status"
+      ]
+    },
+    {
+      "path": "/api/health",
+      "status": 200,
+      "keys": [
+        "status",
+        "db",
+        "queue",
+        "queue_size",
+        "dead_letters",
+        "rejected",
+        "redis_active",
+        "worker_running"
+      ]
+    },
+    {
+      "path": "/",
+      "status": 200,
+      "sha256": "3ff3bcc4cf2a82d387e6395e849c579967b2c9bc1681634d101b104d5861c775",
+      "matches_snapshot_template": true
+    },
+    {
+      "path": "/monitoring",
+      "status": 200,
+      "sha256": "c601635bbbf29c69a326d9ffa0e9c3400e86de50c5cafb90f481de16bd23796f",
+      "matches_snapshot_template": true
+    },
+    {
+      "path": "/api/v2/search?q=Samsung&limit=1",
+      "status": 200,
+      "keys": [
+        "query",
+        "parsed_query",
+        "items",
+        "total_products",
+        "total_offers",
+        "latency_ms",
+        "outcome",
+        "category_facets",
+        "brand_facets"
+      ],
+      "item_count": 1,
+      "seller_keys": [
+        [
+          "seller_id",
+          "seller_name",
+          "seller_slug",
+          "seller_rating",
+          "is_private_seller",
+          "min_price",
+          "max_price",
+          "offers_count",
+          "channels_count",
+          "channels_available",
+          "best_offer",
+          "offers",
+          "has_new",
+          "has_used",
+          "best_new_price",
+          "best_used_price",
+          "facts",
+          "provenance",
+          "best_channel_offer",
+          "channels"
+        ]
+      ]
+    },
+    {
+      "path": "/api/v2/admin/scale/summary",
+      "status": 401
+    },
+    {
+      "path": "/api/v2/monitoring/overview",
+      "status": 401
+    },
+    {
+      "path": "/api/v2/admin/freshness/stats",
+      "status": 401
+    }
+  ]
+}

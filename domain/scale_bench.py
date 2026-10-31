@@ -60,9 +60,16 @@ class ScaleCheckpoint:
     fts_size_mb: float
     price_history_size_mb: float
     backup_duration_s: float
-    memory_mb: float
-    startup_ms: float
+    memory_mb: Optional[float] = None
+    startup_ms: float = 0.0
     evaluated_at: str = field(default_factory=utc_now_iso)
+    history_index_size_mb: float = 0.0
+    size_measurement_method: str = "dbstat"  # "dbstat" | "estimated"
+    peak_rss_mb: Optional[float] = None
+    cold_startup_ms: float = 0.0
+    concurrency_verified: bool = False
+    concurrency_write_latency_ms: Optional[float] = None
+    concurrency_errors: int = 0
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -70,7 +77,7 @@ class ScaleCheckpoint:
 
 @dataclass
 class StorageDecision:
-    decision: str  # STAY_ON_SQLITE | EVALUATE_POSTGRESQL
+    decision: str  # STAY_ON_SQLITE | EVALUATE_POSTGRESQL | NOT_MEASURED
     is_sqlite_sufficient: bool
     summary: str
     reasons: List[str]
@@ -88,13 +95,39 @@ def evaluate_storage_decision(checkpoint: ScaleCheckpoint) -> StorageDecision:
     reasons: List[str] = []
     evaluate_pg = False
 
-    # SP30-04: Проверка валидности замеров: если замер задержки NaN или не положительное число
-    if not math.isfinite(checkpoint.search_p95_ms) or checkpoint.search_p95_ms <= 0.0:
+    # SP30-04: Полная валидация полноты и корректности ключевых метрик
+    invalid_reasons: List[str] = []
+
+    # search_p95_ms must be finite and > 0.0
+    if not (isinstance(checkpoint.search_p95_ms, (int, float)) and math.isfinite(checkpoint.search_p95_ms) and checkpoint.search_p95_ms > 0.0):
+        invalid_reasons.append("Замеры задержки поиска отсутствуют или содержат некорректные значения (NaN / non-positive).")
+
+    # write_latency_1k_ms must be finite and > 0.0
+    if not (isinstance(checkpoint.write_latency_1k_ms, (int, float)) and math.isfinite(checkpoint.write_latency_1k_ms) and checkpoint.write_latency_1k_ms > 0.0):
+        invalid_reasons.append("Замеры задержки пакетной записи отсутствуют или содержат некорректные значения (NaN / non-positive).")
+
+    # backup_duration_s must be finite and > 0.0
+    if not (isinstance(checkpoint.backup_duration_s, (int, float)) and math.isfinite(checkpoint.backup_duration_s) and checkpoint.backup_duration_s > 0.0):
+        invalid_reasons.append("Замеры длительности бэкапа отсутствуют или содержат некорректные значения (NaN / non-positive).")
+
+    # db_size_mb must be finite and > 0.0
+    if not (isinstance(checkpoint.db_size_mb, (int, float)) and math.isfinite(checkpoint.db_size_mb) and checkpoint.db_size_mb > 0.0):
+        invalid_reasons.append("Размер базы данных отсутствует или некорректен (<= 0 / NaN).")
+
+    # actual_offers must be > 0 and correspond to checkpoint target
+    if checkpoint.actual_offers <= 0:
+        invalid_reasons.append("Фактическое количество офферов равно 0 или отрицательно.")
+    elif checkpoint.target_offers > 0 and checkpoint.actual_offers < int(checkpoint.target_offers * 0.8):
+        invalid_reasons.append(
+            f"Фактическое количество предложений ({checkpoint.actual_offers:,}) не соответствует целевой контрольной точке ({checkpoint.target_offers:,})."
+        )
+
+    if invalid_reasons:
         return StorageDecision(
             decision="NOT_MEASURED",
-            is_sqlite_sufficient=True,
-            summary="Нагрузочные замеры для данной контрольной точки не проводились или недостоверны.",
-            reasons=["Замеры задержки поиска отсутствуют или содержат нечисловые значения (NaN)."],
+            is_sqlite_sufficient=False,  # SP30-04: нечисловые/неполные метрики НЕ дают положительный вердикт!
+            summary="Нагрузочные замеры для данной контрольной точки не проводились, неполны или недостоверны.",
+            reasons=invalid_reasons,
             metrics=checkpoint.to_dict(),
         )
 
@@ -313,53 +346,137 @@ def run_scale_benchmark(
         file_size_bytes += os.path.getsize(wal_file)
     db_size_mb = round(file_size_bytes / (1024.0 * 1024.0), 2)
 
-    # SP30-06: Measure FTS and History size via dbstat when available, with estimated fallback
+    # SP30-06: Measure FTS and History size (table + indexes) via dbstat when available, with marked fallback
     fts_size_bytes = 0
-    hist_size_bytes = 0
+    hist_table_bytes = 0
+    hist_index_bytes = 0
+    size_method = "dbstat"
+
     try:
         cur = conn.execute(
-            "SELECT name, SUM(pgsize) FROM dbstat WHERE name LIKE 'canonical_products_fts%' OR name = 'offer_price_history' GROUP BY name"
+            """
+            SELECT name, SUM(pgsize)
+            FROM dbstat
+            WHERE name LIKE 'canonical_products_fts%'
+               OR name = 'offer_price_history'
+               OR name LIKE 'sqlite_autoindex_offer_price_history%'
+               OR name LIKE 'idx_oph%'
+               OR name LIKE '%offer_price_history%'
+            GROUP BY name
+            """
         )
         for row in cur.fetchall():
             t_name, sz = row[0], row[1] or 0
             if "fts" in t_name:
                 fts_size_bytes += sz
             elif t_name == "offer_price_history":
-                hist_size_bytes += sz
+                hist_table_bytes += sz
+            elif "oph" in t_name or "offer_price_history" in t_name:
+                hist_index_bytes += sz
     except sqlite3.Error:
+        size_method = "estimated"
         fts_row = conn.execute("SELECT COUNT(*) FROM canonical_products_fts").fetchone()
         fts_rows = fts_row[0] if fts_row else 0
         fts_size_bytes = int(fts_rows * 256)
 
         hist_row = conn.execute("SELECT COUNT(*) FROM offer_price_history").fetchone()
         hist_rows = hist_row[0] if hist_row else 0
-        hist_size_bytes = int(hist_rows * 64)
+        # Честная оценка: ~112 байт на строку таблицы и ~58 байт на строку первичного индекса
+        hist_table_bytes = int(hist_rows * 112)
+        hist_index_bytes = int(hist_rows * 58)
 
+    hist_total_bytes = hist_table_bytes + hist_index_bytes
     fts_size_mb = round(fts_size_bytes / (1024.0 * 1024.0), 2)
-    hist_size_mb = round(hist_size_bytes / (1024.0 * 1024.0), 2)
+    hist_size_mb = round(hist_total_bytes / (1024.0 * 1024.0), 2)
+    hist_idx_size_mb = round(hist_index_bytes / (1024.0 * 1024.0), 2)
 
-    # 7. Measure Backup Duration via SQLite Online Backup API
+    # 6b. Cold Startup Measurement on Populated Database (SP30-06)
+    t_cold = time.perf_counter()
+    conn_cold = sqlite3.connect(db_file, timeout=30.0)
+    conn_cold.execute("PRAGMA journal_mode = WAL")
+    conn_cold.execute("PRAGMA synchronous = NORMAL")
+    _ = conn_cold.execute("SELECT COUNT(*) FROM offers").fetchone()
+    cold_startup_ms = (time.perf_counter() - t_cold) * 1000.0
+    conn_cold.close()
+
+    # 7. Measure Backup Duration via SQLite Online Backup API under concurrent scan/write load (SP30-06)
     backup_temp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
     backup_temp.close()
-    t_backup = time.perf_counter()
+    backup_duration_s = 0.0
+    concurrency_errors = 0
+    concurrency_write_latency_ms: Optional[float] = None
+    concurrency_verified = False
+
     try:
         dst_conn = sqlite3.connect(backup_temp.name)
+
+        # Concurrent worker thread performing reads and write during backup
+        worker_stop = False
+
+        def concurrent_worker():
+            nonlocal concurrency_errors, concurrency_write_latency_ms
+            try:
+                w_conn = sqlite3.connect(db_file, timeout=10.0)
+                w_conn.execute("PRAGMA journal_mode = WAL")
+                w_core = SearchCore(SearchRepository(w_conn))
+                for _ in range(5):
+                    if worker_stop:
+                        break
+                    w_core.search("Apple")
+                    time.sleep(0.001)
+
+                # Concurrent write probe (updates existing offer under backup)
+                t_cw = time.perf_counter()
+                w_conn.execute(
+                    """
+                    INSERT OR REPLACE INTO offers (
+                        id, product_id, seller_id, channel_id, external_sku, url, image_url,
+                        price, old_price, currency, condition, availability, city,
+                        observed_at, is_active, raw_payload_json, created_at, updated_at
+                    ) VALUES ('off_b_0', 'prod_b_0', 's_bench_0', 'ch_d_0', 'CONC_SKU', 'https://shop.kz/conc', '', 49990.0, 54990.0, 'KZT', 'new', 'in_stock', 'Алматы', ?, 1, '{}', ?, ?)
+                    """,
+                    (now_iso, now_iso, now_iso),
+                )
+                w_conn.commit()
+                concurrency_write_latency_ms = round((time.perf_counter() - t_cw) * 1000.0, 2)
+                w_conn.close()
+            except Exception as e:
+                concurrency_errors += 1
+                logger.warning("Concurrent worker error during backup: %s", e)
+
+        import threading
+        t_worker = threading.Thread(target=concurrent_worker)
+        t_worker.start()
+
+        t_backup = time.perf_counter()
+        # Perform backup
         conn.backup(dst_conn)
-        dst_conn.close()
         backup_duration_s = time.perf_counter() - t_backup
+        worker_stop = True
+        t_worker.join(timeout=5.0)
+
+        # Integrity check of backup database
+        qc = dst_conn.execute("PRAGMA quick_check").fetchone()
+        if qc and qc[0] == "ok" and concurrency_errors == 0:
+            concurrency_verified = True
+
+        dst_conn.close()
     finally:
         if os.path.exists(backup_temp.name):
             os.remove(backup_temp.name)
 
-    # 8. Memory Footprint
-    mem_mb = 0.0
+    # 8. Memory Footprint (Peak RSS) (SP30-06)
+    mem_mb: Optional[float] = None
     try:
         import resource
         rusage = resource.getrusage(resource.RUSAGE_SELF)
         # On macOS, maxrss is in bytes; on Linux, in kilobytes
-        mem_mb = round(rusage.ru_maxrss / (1024.0 * 1024.0 if os.uname().sysname == "Darwin" else 1024.0), 2)
+        if os.uname().sysname == "Darwin":
+            mem_mb = round(rusage.ru_maxrss / (1024.0 * 1024.0), 2)
+        else:
+            mem_mb = round(rusage.ru_maxrss / 1024.0, 2)
     except Exception:
-        mem_mb = 45.0
+        mem_mb = None
 
     # SP30-06: Фактический подсчет строк из БД
     actual_offers_row = conn.execute("SELECT COUNT(*) FROM offers").fetchone()
@@ -391,6 +508,13 @@ def run_scale_benchmark(
         backup_duration_s=round(backup_duration_s, 3),
         memory_mb=mem_mb,
         startup_ms=round(startup_ms, 2),
+        history_index_size_mb=hist_idx_size_mb,
+        size_measurement_method=size_method,
+        peak_rss_mb=mem_mb,
+        cold_startup_ms=round(cold_startup_ms, 2),
+        concurrency_verified=concurrency_verified,
+        concurrency_write_latency_ms=concurrency_write_latency_ms,
+        concurrency_errors=concurrency_errors,
     )
 
 

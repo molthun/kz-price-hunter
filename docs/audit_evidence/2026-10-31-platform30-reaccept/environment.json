@@ -1,0 +1,15 @@
+{
+  "system": "Darwin",
+  "os_release": "27.2.0",
+  "architecture": "arm64",
+  "logical_cpus": 10,
+  "python": "Python 3.14.7",
+  "python_executable": "/Users/molthun/Documents/kz-price-hunter/venv/bin/python",
+  "node": "/Users/molthun/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node",
+  "NODE_PATH": "/Users/molthun/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules",
+  "browser": "Chrome headless via Playwright",
+  "tests": "immutable git archive, separate temporary DATA_DIR for each suite/probe",
+  "provider_credentials": "explicit blank GEMINI_API_KEY, OPENAI_API_KEY, TELEGRAM_BOT_TOKEN; ignored .env absent from git archive",
+  "production": "not probed or changed; stand read-only HTTPS probes only",
+  "tested_sha": "96f42ddc31e440540440e87260aed8507ebad94f"
+}

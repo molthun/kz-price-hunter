@@ -1,0 +1,14 @@
+{
+  "NOT_MEASURED": {
+    "badge": "✅ NOT_MEASURED",
+    "classes": "px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+  },
+  "ERROR_NO_SCHEMA": {
+    "badge": "✅ ERROR_NO_SCHEMA",
+    "classes": "px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+  },
+  "null": {
+    "badge": "✅ HEALTHY_SQLITE",
+    "classes": "px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+  }
+}

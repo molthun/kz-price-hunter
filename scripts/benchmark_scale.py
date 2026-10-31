@@ -67,16 +67,31 @@ def main():
     print(f"  • Средняя задержка поиска:  {metrics.search_avg_ms:.2f} мс")
     print(f"  • Запись пакета 1k офферов: {metrics.write_latency_1k_ms:.2f} мс")
     print(f"  • Размер базы данных:       {metrics.db_size_mb:.2f} МБ")
-    print(f"  • Размер FTS индекса:       {metrics.fts_size_mb:.2f} МБ")
-    print(f"  • Размер истории цен:       {metrics.price_history_size_mb:.2f} МБ")
+    method_str = f"[{metrics.size_measurement_method}]"
+    print(f"  • Размер FTS индекса:       {metrics.fts_size_mb:.2f} МБ {method_str}")
+    idx_info = f" (индексы: {metrics.history_index_size_mb:.2f} МБ)" if metrics.history_index_size_mb > 0 else ""
+    print(f"  • Размер истории цен:       {metrics.price_history_size_mb:.2f} МБ {method_str}{idx_info}")
     print(f"  • Длительность бэкапа:      {metrics.backup_duration_s:.3f} с")
-    print(f"  • Память процесса (RSS):    {metrics.memory_mb:.2f} МБ")
-    print(f"  • Холодный старт:           {metrics.startup_ms:.2f} мс")
+    conc_status = "верифицирован" if metrics.concurrency_verified else "ошибки"
+    conc_extra = f", запись: {metrics.concurrency_write_latency_ms:.2f} мс" if metrics.concurrency_write_latency_ms else ""
+    print(f"  • Конкурентный бэкап:       {conc_status} (ошибок: {metrics.concurrency_errors}{conc_extra})")
+    mem_str = f"{metrics.memory_mb:.2f} МБ (peak RSS)" if metrics.memory_mb is not None else "н/д (unavailable)"
+    print(f"  • Память процесса:          {mem_str}")
+    startup_info = f"холодный старт базы: {metrics.cold_startup_ms:.2f} мс" if metrics.cold_startup_ms > 0 else f"{metrics.startup_ms:.2f} мс"
+    print(f"  • Время запуска каталога:   {startup_info}")
 
     print("\n-------------------------------------------------------")
     print("⚖️ Решение по архитектуре хранилища (Stage 30):")
     print("-------------------------------------------------------")
-    status_icon = "✅" if decision.is_sqlite_sufficient else "⚠️"
+    if decision.decision in ("STAY_ON_SQLITE", "HEALTHY_SQLITE"):
+        status_icon = "✅"
+    elif decision.decision == "EVALUATE_POSTGRESQL":
+        status_icon = "⚠️"
+    elif decision.decision in ("ERROR", "ERROR_NO_SCHEMA"):
+        status_icon = "❌"
+    else:
+        status_icon = "⏳"
+
     print(f"{status_icon} Решение:  {decision.decision}")
     print(f"📝 Вердикт:  {decision.summary}")
     for r in decision.reasons:

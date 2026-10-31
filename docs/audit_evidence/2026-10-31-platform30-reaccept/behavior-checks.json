@@ -1,0 +1,28 @@
+{
+  "note": "Expected properties; false is an unresolved audit property, separate from the passing regression suite.",
+  "checks": {
+    "history_single_preserves_old_line": true,
+    "history_batch_preserves_old_line": true,
+    "control_writer_preserves_old_line": true,
+    "seller_min_available": true,
+    "seller_no_stock_min_null": true,
+    "seller_no_stock_best_new_null": true,
+    "group_purchase_link": true,
+    "group_kaspi_badge": true,
+    "no_schema_error_visible": true,
+    "nan_latency_does_not_mark_sufficient": false,
+    "nan_backup_does_not_pass": false,
+    "zero_offers_does_not_pass_100k": false,
+    "unknown_ui_is_not_success": false,
+    "scale_100k_below_100ms": true,
+    "generator_valid_seller_channels": true,
+    "no_fabricated_memory_on_failure": false,
+    "discovery_reused_task": true,
+    "discovery_demand_accumulated": true,
+    "discovery_running_count": true,
+    "discovery_review_count": true,
+    "known_foreign_brand_excluded": true,
+    "future_activity_rejected": true,
+    "stand_container_source_hashes_match": true
+  }
+}

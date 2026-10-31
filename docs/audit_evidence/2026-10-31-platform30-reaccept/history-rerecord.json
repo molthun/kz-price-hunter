@@ -1,0 +1,35 @@
+{
+  "single": {
+    "offer_id": "offer",
+    "price": 105.0,
+    "old_price": null,
+    "observed_at": "2026-10-30T10:00:00Z",
+    "product_id": "p1",
+    "seller_id": "s1",
+    "channel_id": "direct",
+    "condition": "NEW",
+    "city": "Казахстан"
+  },
+  "batch": {
+    "offer_id": "offer",
+    "price": 105.0,
+    "old_price": null,
+    "observed_at": "2026-10-30T10:00:00Z",
+    "product_id": "p1",
+    "seller_id": "s1",
+    "channel_id": "direct",
+    "condition": "NEW",
+    "city": "Казахстан"
+  },
+  "model": {
+    "offer_id": "offer",
+    "price": 105.0,
+    "old_price": null,
+    "observed_at": "2026-10-30T10:00:00Z",
+    "product_id": "p1",
+    "seller_id": "s1",
+    "channel_id": "direct",
+    "condition": "NEW",
+    "city": "Казахстан"
+  }
+}
