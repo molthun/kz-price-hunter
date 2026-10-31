@@ -90,6 +90,10 @@ class TestSearchFirstTemplateIntegrity(unittest.TestCase):
         self.assertIn('id="bottomNavDeals"', self.html)
         self.assertIn('id="bottomNavFavorites"', self.html)
 
+    def test_static_images_have_no_empty_src(self):
+        """Пустой src вызывает onerror до загрузки скрипта, когда страница приходит по частям."""
+        self.assertNotIn('src=""', self.html)
+
     def test_theme_tokens_present(self):
         """Light and dark theme tokens and styles are properly defined."""
         self.assertIn(':root, [data-theme="light"] {', self.html)
