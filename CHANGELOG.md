@@ -3,6 +3,21 @@
 Все значимые изменения проекта документируются в этом файле.
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/), проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [6.9.0] - 2026-10-31
+
+### Для пользователей
+- Появилось распознавание цен и товаров по фотографиям, ценникам и прайс-листам через локальную Vision-модель: теперь предложения из социальных сетей (Telegram и Instagram) автоматически попадают в каталог и поиск.
+- В поиске появилось чёткое разделение между новыми товарами и б/у предложениями (вторичный рынок / доски объявлений OLX): цена б/у больше не снижает и не путает лучшую цену на новый товар, а показывается в виде отдельной удобной плашки.
+- В панели мониторинга появился центр поиска и подключения новых магазинов (`/monitoring#discovery`): отслеживание воронки онбординга продавцов и запуск задач поиска каталогов по неудовлетворенному спросу.
+
+### Search Platform 2.0: Vision Extraction, Social Pipeline, Seller Discovery & Classifieds (Antigravity)
+- 👁 **Мультимодальный Vision (P17-D, S2-E10)**: подключен пайплайн извлечения цен и товаров из графических изображений (`domain/vision_extraction.py`, `ai_service.py`, `ai_router.py`) с поддержкой локальной модели `qwen3-vl:8b-instruct` (Ollama) и Gemini/OpenAI, детерминированным fallback на OCR и строгой защитой от prompt injection в тексте картинок.
+- 📱 **Сквозной Social Offer Pipeline (S2-E08/E09)**: модуль `domain/social_pipeline.py` автоматически конвертирует публикации и сторис Telegram и Instagram в структурированные предложения (`Offer`) с TTL, мгновенно доступные в поисковой выдаче Search Core 2.0.
+- 🔭 **Seller Discovery & Source Profiler (S2-E05, S2-E07, S2-E14)**: расширен репозиторий кандидатов `CandidateRepository` (фильтры, пагинация, метод `get_discovery_stats()`, профилирование каналов по 7 ярусам сбора от Feed/API до Vision), создание задач спроса в `DiscoveryTaskRepository`, административный REST API и интерактивная панель в `/monitoring#discovery`.
+- 🏷 **Вторичный рынок и Classifieds (S2-E04)**: строгое разделение ценовых ярусов (`best_new_price`, `best_used_price`, `condition_breakdown`, `is_used_only`), разграничение предложений частных продавцов (`is_private_seller`) и магазинов, поддержка параметров `condition` и `seller_type` в Search Core и `/api/v2/search`.
+- 📦 **Пакетная миграция C4 на k2**: полная готовность и верификация скрипта пакетного перевода базы кэша `scripts/migrate_to_k2.py` с сохранением связей по артикулам и контролем пар (`--check-pairs`).
+- 🧪 Полный набор тестов: **2221 OK**, secrets findings: 0, whitespace check PASS.
+
 ## [6.8.0] - 2026-10-31
 
 ### Для пользователей
