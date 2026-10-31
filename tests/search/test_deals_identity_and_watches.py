@@ -170,6 +170,52 @@ class TestWatchScope(_DbMixin, unittest.TestCase):
         stored = self.stored(first["id"])
         self.assertEqual((stored["city"], stored["quiet_from"]), ("Алматы", "22:00"))
 
+    FILTERS = {"shops": ["Sulpak"], "item_conditions": ["new"], "sellers": ["seller-x"], "channels": ["website"]}
+
+    def filtered_watch(self, **extra):
+        return database.create_watch(self.USER, {"kind": "product", "target": "prod_f", "condition": "any_drop",
+                                                 "city": "Алматы", **self.FILTERS, **extra})
+
+    def test_recreate_keeps_each_filter_and_foreign_offers_stay_out(self):
+        import watches
+        first = self.filtered_watch()
+        again = database.create_watch(self.USER, {"kind": "product", "target": "prod_f", "condition": "any_drop",
+                                                  "city": "Астана"})
+        self.assertEqual(again["id"], first["id"])
+        stored = self.stored(first["id"])
+        self.assertEqual(stored["city"], "Астана")
+        for field, value in self.FILTERS.items():
+            self.assertEqual((again[field], stored[field]), (value, value), field)
+
+        own = {"canonical_product_id": "prod_f", "city": "Астана", "shop": "Sulpak", "seller_slug": "seller-x",
+               "channel_type": "website", "condition": "NEW"}
+        self.assertTrue(watches.matches(stored, own))
+        for foreign in ({"condition": "USED"}, {"shop": "Mechta"}, {"shop": "Sulpak", "seller_slug": "other"},
+                        {"channel_type": "classifieds"}):
+            with self.subTest(foreign=foreign):
+                self.assertFalse(watches.matches(stored, {**own, **foreign}))
+
+    def test_explicit_empty_list_clears_only_that_filter(self):
+        for field in self.FILTERS:
+            with self.subTest(field=field):
+                first = self.filtered_watch()
+                database.create_watch(self.USER, {"kind": "product", "target": "prod_f", "condition": "any_drop", field: []})
+                stored = self.stored(first["id"])
+                self.assertEqual(stored[field], [])
+                for other, value in self.FILTERS.items():
+                    if other != field:
+                        self.assertEqual(stored[other], value, other)
+                self.assertEqual(stored["city"], "Алматы")
+                self.filtered_watch()
+
+    def test_explicit_new_filter_value_replaces_old(self):
+        first = self.filtered_watch()
+        database.create_watch(self.USER, {"kind": "product", "target": "prod_f", "condition": "any_drop",
+                                          "conditions": ["used"]})
+        stored = self.stored(first["id"])
+        self.assertEqual(stored["item_conditions"], ["used"])
+        self.assertEqual(stored["shops"], ["Sulpak"])
+
     def test_city_can_be_cleared_explicitly(self):
         base = {"kind": "product", "target": "prod_x", "condition": "any_drop"}
         first = database.create_watch(self.USER, {**base, "city": "Алматы"})

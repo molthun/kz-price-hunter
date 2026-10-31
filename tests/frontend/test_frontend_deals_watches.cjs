@@ -371,11 +371,84 @@ async function offline(browser){
  await context.close();
 }
 
+// CA-R02: кнопки формы достижимы настоящей прокруткой на любом экране, с ошибками и длинным названием
+async function modalReach(browser,width,height,colorScheme){
+ const label=`${width}x${height}/${colorScheme}`;
+ const context=await browser.newContext({viewport:{width,height},colorScheme,locale:'en-US'});
+ const page=await context.newPage();const errors=[];
+ page.on('pageerror',e=>errors.push(e.message));
+ let createResp={status:401,body:{status:'error'}};
+ await page.route('**/*',r=>{
+  const u=new URL(r.request().url());
+  if(u.origin!=='http://127.0.0.1:18096')return r.abort();
+  const json=(o,status=200)=>r.fulfill({status,contentType:'application/json',body:JSON.stringify(o)});
+  if(u.pathname==='/api/v2/deals')return json({deals:[{id:'p_1',product_id:'l1',canonical_product_id:'prod_0123456789abcdef',
+   title:'Очень длинное название товара '.repeat(8),new_price:100000,old_price:200000,discount_pct:50,url:'https://example.invalid/'}],has_more:false,total:1});
+  if(u.pathname==='/api/me/watches'&&r.request().method()==='POST')return json(createResp.body,createResp.status);
+  if(u.pathname.startsWith('/api/'))return json({});
+  return r.fulfill({contentType:'text/html',body:html});
+ });
+ await page.goto('http://127.0.0.1:18096/deals');
+ await page.locator('.deal-reel-card').first().waitFor();
+ const open=async()=>{
+  await page.evaluate(()=>document.querySelector('[aria-label="Следить за ценой"]').click());
+  await page.locator('input[name="watchCondition"][value="target_price"]').evaluate(el=>el.click());
+ };
+ // Прокрутка колесом над формой, а не программная; кнопка должна стать верхним элементом в своей точке
+ const reachByWheel=async selector=>{
+  const box=await page.locator('#watchModalBody').boundingBox();
+  await page.mouse.move(box.x+box.width/2,Math.max(box.y,0)+Math.min(box.height,height-box.y)/2);
+  await page.mouse.wheel(0,5000);
+  await page.waitForFunction(()=>{const b=document.getElementById('watchModalBody');return b.scrollTop+b.clientHeight>=b.scrollHeight-1;});
+  return page.locator(selector).evaluate(el=>{
+   const r=el.getBoundingClientRect();
+   const top=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
+   return r.top>=0&&r.bottom<=innerHeight&&(top===el||el.contains(top));
+  });
+ };
+ const closeVisible=()=>page.locator('.modal-close-btn').evaluate(el=>{
+  const r=el.getBoundingClientRect();
+  const top=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
+  return r.top>=0&&r.bottom<=innerHeight&&(top===el||el.contains(top));
+ });
+
+ await open();
+ assert.ok(await reachByWheel('#watchSubmitBtn'),`${label}: отправка достижима до ошибки`);
+ assert.ok(await closeVisible(),`${label}: закрытие видно`);
+ for(const [resp,re] of [[{status:401,body:{status:'error'}},/входа/],[{status:400,body:{status:'error',message:'Ошибка сервера '.repeat(12)}},/Ошибка сервера/],[{status:500,body:{}},/не сохранил/]]){
+  createResp=resp;
+  await page.locator('#watchSubmitBtn').click();
+  await page.waitForFunction(r=>new RegExp(r).test(document.getElementById('watchFormError').textContent),re.source);
+  const seen=await page.locator('#watchFormError').evaluate(el=>{const r=el.getBoundingClientRect();const b=document.getElementById('watchModalBody').getBoundingClientRect();return r.top>=b.top-1&&r.top<b.bottom;});
+  assert.ok(seen,`${label}: текст ошибки на виду`);
+  assert.ok(await closeVisible(),`${label}: закрытие видно при ошибке`);
+  assert.ok(await reachByWheel('#watchSubmitBtn'),`${label}: повтор достижим`);
+  assert.ok(await page.locator('#watchForm .btn-secondary').evaluate(el=>{const r=el.getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight;}),`${label}: отмена достижима`);
+ }
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${label}: нет горизонтального переполнения`);
+ // Повтор проходит и закрывает окно; отмена и крестик работают настоящим нажатием
+ createResp={status:200,body:{status:'ok',watch:{id:5,city:'Алматы'}}};
+ await page.locator('#watchSubmitBtn').click();
+ await page.waitForFunction(()=>!document.getElementById('watchModalBackdrop').classList.contains('open'));
+ await open();
+ assert.ok(await reachByWheel('#watchForm .btn-secondary'),`${label}: отмена достижима прокруткой`);
+ await page.locator('#watchForm .btn-secondary').click();
+ await page.waitForFunction(()=>!document.getElementById('watchModalBackdrop').classList.contains('open'));
+ await open();
+ await page.locator('.modal-close-btn').click();
+ await page.waitForFunction(()=>!document.getElementById('watchModalBackdrop').classList.contains('open'));
+ assert.deepEqual(errors,[],label);
+ await context.close();
+}
+
 (async()=>{
  const browser=await chromium.launch({channel:'chrome',headless:true});
  try{
   await offline(browser);
   await realServer(browser);
+  for(const [w,h] of [[844,390],[640,320],[360,640],[390,844],[768,1024],[1366,900]]){
+   for(const scheme of ['light','dark'])await modalReach(browser,w,h,scheme);
+  }
   console.log('test_frontend_deals_watches PASS');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exit(1);});

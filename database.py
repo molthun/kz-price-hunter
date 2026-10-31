@@ -4899,11 +4899,13 @@ def list_watches(user_id: int, only_active: bool = False) -> List[Dict[str, Any]
     return rows
 
 
-# Поля, которые повторное создание применяет, только если они переданы: прежний интерфейс шлёт не все,
-# и пропуск не должен молча сбрасывать настройки доставки
+# Поля, которые повторное создание применяет, только если они переданы: формы шлют не все, а пропуск
+# не должен молча сбрасывать доставку или расширять подписку. Явный [] снимает соответствующий фильтр.
 _WATCH_SCOPE_COLUMNS = {"title": "title", "city": "city", "mode": "mode", "quiet_from": "quiet_from",
                         "quiet_to": "quiet_to", "timezone": "timezone", "cooldown_hours": "cooldown_hours",
                         "repeat": "repeat_mode"}
+_WATCH_FILTER_COLUMNS = {"shops": ("shops",), "item_conditions": ("item_conditions", "conditions"),
+                         "sellers": ("sellers",), "channels": ("channels",)}
 
 
 def create_watch(user_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -4924,16 +4926,12 @@ def create_watch(user_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
                                  clean["threshold"])).fetchone()
         if existing:
             scope = {column: clean[field] for field, column in _WATCH_SCOPE_COLUMNS.items() if field in data}
+            for column, names in _WATCH_FILTER_COLUMNS.items():
+                if any(name in data for name in names):
+                    scope[column] = json.dumps(clean[column], ensure_ascii=False)
             assignments = "".join(f", {column} = ?" for column in scope)
-            conn.execute(f"""UPDATE watches SET is_active = 1, fired_at = NULL,
-                                   shops = ?, item_conditions = ?, sellers = ?, channels = ?{assignments}
-                             WHERE id = ?""",
-                         (json.dumps(clean["shops"], ensure_ascii=False),
-                          json.dumps(clean["item_conditions"], ensure_ascii=False),
-                          json.dumps(clean["sellers"], ensure_ascii=False),
-                          json.dumps(clean["channels"], ensure_ascii=False),
-                          *scope.values(),
-                          existing["id"]))
+            conn.execute(f"UPDATE watches SET is_active = 1, fired_at = NULL{assignments} WHERE id = ?",
+                         (*scope.values(), existing["id"]))
             conn.commit()
             row = _watch_row(conn.execute("SELECT * FROM watches WHERE id = ?", (existing["id"],)).fetchone())
             row["already_existed"] = True
