@@ -1,0 +1,10 @@
+{
+  "http": 200,
+  "version": {
+    "version": "6.8.0",
+    "app_name": "KZ Price Hunter",
+    "release_date": "2026-10-31",
+    "author": "Advanced Agentic Coding"
+  },
+  "diag_token_available": false
+}

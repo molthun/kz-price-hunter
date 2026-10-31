@@ -1,0 +1,83 @@
+[
+  {
+    "file": "test_frontend.cjs",
+    "exit_code": 0
+  },
+  {
+    "file": "test_frontend_ai_models.cjs",
+    "exit_code": 0
+  },
+  {
+    "file": "test_frontend_auth.cjs",
+    "exit_code": 0,
+    "environment_correction": "TEST_PYTHON set to existing project venv; initial ENOENT recorded in frontend.txt"
+  },
+  {
+    "file": "test_frontend_changelog.cjs",
+    "exit_code": 0
+  },
+  {
+    "file": "test_frontend_format.cjs",
+    "exit_code": 0
+  },
+  {
+    "file": "test_frontend_matching_moderation.cjs",
+    "exit_code": 0
+  },
+  {
+    "file": "test_frontend_modal_image.cjs",
+    "exit_code": 0
+  },
+  {
+    "file": "test_frontend_notices.cjs",
+    "exit_code": 0
+  },
+  {
+    "file": "test_frontend_p04.cjs",
+    "exit_code": 0
+  },
+  {
+    "file": "test_frontend_p05.cjs",
+    "exit_code": 0
+  },
+  {
+    "file": "test_frontend_p06.cjs",
+    "exit_code": 0
+  },
+  {
+    "file": "test_frontend_p07.cjs",
+    "exit_code": 0
+  },
+  {
+    "file": "test_frontend_p07_v2.cjs",
+    "exit_code": 0
+  },
+  {
+    "file": "test_frontend_p09_ai.cjs",
+    "exit_code": 0
+  },
+  {
+    "file": "test_frontend_p10.cjs",
+    "exit_code": 0
+  },
+  {
+    "file": "test_frontend_p12.cjs",
+    "exit_code": 0
+  },
+  {
+    "file": "test_frontend_p13.cjs",
+    "exit_code": 0
+  },
+  {
+    "file": "test_frontend_security.cjs",
+    "exit_code": 0
+  },
+  {
+    "file": "test_frontend_seller_modal.cjs",
+    "exit_code": 0
+  },
+  {
+    "file": "test_frontend_social_no_permalink.cjs",
+    "exit_code": 0
+  }
+]

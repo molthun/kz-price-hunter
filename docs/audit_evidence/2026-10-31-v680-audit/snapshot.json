@@ -1,0 +1,9 @@
+{
+  "head": "cec6c624d840d63b12ad5bbca37cdc5f27292ee6",
+  "branch": "main",
+  "snapshot": "/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu",
+  "untracked_initial_count": 213,
+  "application_diff_since_614255e": [
+    "version.py"
+  ]
+}

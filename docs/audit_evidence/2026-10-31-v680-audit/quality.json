@@ -1,0 +1,2223 @@
+{
+ "labels": {
+  "pairs": 1550,
+  "without_keys": 2,
+  "by_label": {
+   "uncertain": 101,
+   "different": 281,
+   "same": 1133,
+   "packaging": 35
+  },
+  "unique_titles": 2038
+ },
+ "strata_sizes": {
+  "retained": 1004,
+  "dropped_mixed": 522,
+  "dropped_both_k2": 444,
+  "added": 2280
+ },
+ "known_by_layer": {
+  "retained": 165,
+  "dropped_mixed": 106,
+  "dropped_both_k2": 220,
+  "added": 366
+ },
+ "random_sample": {
+  "pairs": 1300,
+  "baseline": {
+   "tp": 423,
+   "fn": 523,
+   "fp": 244,
+   "tn": 27,
+   "uncertain": 83,
+   "packaging": 0
+  },
+  "candidate": {
+   "tp": 804,
+   "fn": 142,
+   "fp": 32,
+   "tn": 239,
+   "uncertain": 83,
+   "packaging": 0
+  }
+ },
+ "weighted": {
+  "owner_decision": {
+   "share_true_by_stratum": {
+    "retained": {
+     "n": 224,
+     "of": 226,
+     "rate": 0.9912,
+     "low": 0.9683,
+     "high": 0.9976,
+     "excluded": 14
+    },
+    "dropped_mixed": {
+     "n": 55,
+     "of": 137,
+     "rate": 0.4015,
+     "low": 0.3231,
+     "high": 0.4851,
+     "excluded": 3
+    },
+    "dropped_both_k2": {
+     "n": 50,
+     "of": 129,
+     "rate": 0.3876,
+     "low": 0.3079,
+     "high": 0.4738,
+     "excluded": 11
+    },
+    "added": {
+     "n": 434,
+     "of": 456,
+     "rate": 0.9518,
+     "low": 0.928,
+     "high": 0.9679,
+     "excluded": 44
+    }
+   },
+   "layers": {
+    "retained": {
+     "size": 1004,
+     "known": 165,
+     "known_same": 161,
+     "known_different": 4,
+     "known_open": 0,
+     "pool": 839,
+     "drawn": 240,
+     "drawn_same": 224,
+     "drawn_different": 2,
+     "drawn_open": 14,
+     "true": 944.1,
+     "false": 11.0,
+     "open": 48.9,
+     "true_low": 895.1,
+     "true_high": 998.7,
+     "false_low": 5.3,
+     "false_high": 108.9
+    },
+    "dropped_mixed": {
+     "size": 522,
+     "known": 106,
+     "known_same": 32,
+     "known_different": 69,
+     "known_open": 5,
+     "pool": 416,
+     "drawn": 140,
+     "drawn_same": 55,
+     "drawn_different": 82,
+     "drawn_open": 3,
+     "true": 195.4,
+     "false": 312.7,
+     "open": 13.9,
+     "true_low": 151.9,
+     "true_high": 257.3,
+     "false_low": 264.7,
+     "false_high": 370.1
+    },
+    "dropped_both_k2": {
+     "size": 444,
+     "known": 220,
+     "known_same": 117,
+     "known_different": 81,
+     "known_open": 22,
+     "pool": 224,
+     "drawn": 140,
+     "drawn_same": 50,
+     "drawn_different": 79,
+     "drawn_open": 11,
+     "true": 197.0,
+     "false": 207.4,
+     "open": 39.6,
+     "true_low": 174.4,
+     "true_high": 262.4,
+     "false_low": 181.6,
+     "false_high": 269.6
+    },
+    "added": {
+     "size": 2280,
+     "known": 366,
+     "known_same": 324,
+     "known_different": 17,
+     "known_open": 25,
+     "pool": 1914,
+     "drawn": 500,
+     "drawn_same": 434,
+     "drawn_different": 22,
+     "drawn_open": 44,
+     "true": 1985.4,
+     "false": 101.2,
+     "open": 193.4,
+     "true_low": 1895.6,
+     "true_high": 2215.3,
+     "false_low": 64.7,
+     "false_high": 384.4
+    }
+   },
+   "baseline": {
+    "true": 1336,
+    "false": 531,
+    "open": 102,
+    "true_low": 1221,
+    "true_high": 1518,
+    "false_low": 452,
+    "false_high": 749
+   },
+   "candidate": {
+    "true": 2929,
+    "false": 112,
+    "open": 242,
+    "true_low": 2791,
+    "true_high": 3214,
+    "false_low": 70,
+    "false_high": 493
+   },
+   "baseline_true_kept": 0.706,
+   "baseline_true_kept_low": 0.633,
+   "candidate_vs_baseline_true": 2.192,
+   "candidate_vs_baseline_true_low": 1.838,
+   "false_merges_ratio": 0.211,
+   "false_merges_ratio_high": 1.092
+  },
+  "packaging_excluded": {
+   "share_true_by_stratum": {
+    "retained": {
+     "n": 224,
+     "of": 226,
+     "rate": 0.9912,
+     "low": 0.9683,
+     "high": 0.9976,
+     "excluded": 14
+    },
+    "dropped_mixed": {
+     "n": 55,
+     "of": 137,
+     "rate": 0.4015,
+     "low": 0.3231,
+     "high": 0.4851,
+     "excluded": 3
+    },
+    "dropped_both_k2": {
+     "n": 50,
+     "of": 123,
+     "rate": 0.4065,
+     "low": 0.3238,
+     "high": 0.4949,
+     "excluded": 17
+    },
+    "added": {
+     "n": 434,
+     "of": 455,
+     "rate": 0.9538,
+     "low": 0.9305,
+     "high": 0.9696,
+     "excluded": 45
+    }
+   },
+   "layers": {
+    "retained": {
+     "size": 1004,
+     "known": 165,
+     "known_same": 161,
+     "known_different": 3,
+     "known_open": 1,
+     "pool": 839,
+     "drawn": 240,
+     "drawn_same": 224,
+     "drawn_different": 2,
+     "drawn_open": 14,
+     "true": 944.1,
+     "false": 10.0,
+     "open": 49.9,
+     "true_low": 895.1,
+     "true_high": 999.7,
+     "false_low": 4.3,
+     "false_high": 108.9
+    },
+    "dropped_mixed": {
+     "size": 522,
+     "known": 106,
+     "known_same": 32,
+     "known_different": 69,
+     "known_open": 5,
+     "pool": 416,
+     "drawn": 140,
+     "drawn_same": 55,
+     "drawn_different": 82,
+     "drawn_open": 3,
+     "true": 195.4,
+     "false": 312.7,
+     "open": 13.9,
+     "true_low": 151.9,
+     "true_high": 257.3,
+     "false_low": 264.7,
+     "false_high": 370.1
+    },
+    "dropped_both_k2": {
+     "size": 444,
+     "known": 220,
+     "known_same": 117,
+     "known_different": 72,
+     "known_open": 31,
+     "pool": 224,
+     "drawn": 140,
+     "drawn_same": 50,
+     "drawn_different": 73,
+     "drawn_open": 17,
+     "true": 197.0,
+     "false": 188.8,
+     "open": 58.2,
+     "true_low": 174.4,
+     "true_high": 280.6,
+     "false_low": 163.4,
+     "false_high": 269.6
+    },
+    "added": {
+     "size": 2280,
+     "known": 366,
+     "known_same": 324,
+     "known_different": 15,
+     "known_open": 27,
+     "pool": 1914,
+     "drawn": 500,
+     "drawn_same": 434,
+     "drawn_different": 21,
+     "drawn_open": 45,
+     "true": 1985.4,
+     "false": 95.4,
+     "open": 199.3,
+     "true_low": 1895.6,
+     "true_high": 2220.0,
+     "false_low": 60.0,
+     "false_high": 384.4
+    }
+   },
+   "baseline": {
+    "true": 1336,
+    "false": 511,
+    "open": 122,
+    "true_low": 1221,
+    "true_high": 1538,
+    "false_low": 432,
+    "false_high": 749
+   },
+   "candidate": {
+    "true": 2929,
+    "false": 105,
+    "open": 249,
+    "true_low": 2791,
+    "true_high": 3220,
+    "false_low": 64,
+    "false_high": 493
+   },
+   "baseline_true_kept": 0.706,
+   "baseline_true_kept_low": 0.625,
+   "candidate_vs_baseline_true": 2.192,
+   "candidate_vs_baseline_true_low": 1.815,
+   "false_merges_ratio": 0.206,
+   "false_merges_ratio_high": 1.141
+  },
+  "packaging_same": {
+   "share_true_by_stratum": {
+    "retained": {
+     "n": 224,
+     "of": 226,
+     "rate": 0.9912,
+     "low": 0.9683,
+     "high": 0.9976,
+     "excluded": 14
+    },
+    "dropped_mixed": {
+     "n": 55,
+     "of": 137,
+     "rate": 0.4015,
+     "low": 0.3231,
+     "high": 0.4851,
+     "excluded": 3
+    },
+    "dropped_both_k2": {
+     "n": 56,
+     "of": 129,
+     "rate": 0.4341,
+     "low": 0.3517,
+     "high": 0.5203,
+     "excluded": 11
+    },
+    "added": {
+     "n": 435,
+     "of": 456,
+     "rate": 0.9539,
+     "low": 0.9306,
+     "high": 0.9697,
+     "excluded": 44
+    }
+   },
+   "layers": {
+    "retained": {
+     "size": 1004,
+     "known": 165,
+     "known_same": 162,
+     "known_different": 3,
+     "known_open": 0,
+     "pool": 839,
+     "drawn": 240,
+     "drawn_same": 224,
+     "drawn_different": 2,
+     "drawn_open": 14,
+     "true": 945.1,
+     "false": 10.0,
+     "open": 48.9,
+     "true_low": 896.1,
+     "true_high": 999.7,
+     "false_low": 4.3,
+     "false_high": 107.9
+    },
+    "dropped_mixed": {
+     "size": 522,
+     "known": 106,
+     "known_same": 32,
+     "known_different": 69,
+     "known_open": 5,
+     "pool": 416,
+     "drawn": 140,
+     "drawn_same": 55,
+     "drawn_different": 82,
+     "drawn_open": 3,
+     "true": 195.4,
+     "false": 312.7,
+     "open": 13.9,
+     "true_low": 151.9,
+     "true_high": 257.3,
+     "false_low": 264.7,
+     "false_high": 370.1
+    },
+    "dropped_both_k2": {
+     "size": 444,
+     "known": 220,
+     "known_same": 126,
+     "known_different": 72,
+     "known_open": 22,
+     "pool": 224,
+     "drawn": 140,
+     "drawn_same": 56,
+     "drawn_different": 73,
+     "drawn_open": 11,
+     "true": 215.6,
+     "false": 188.8,
+     "open": 39.6,
+     "true_low": 192.0,
+     "true_high": 280.6,
+     "false_low": 163.4,
+     "false_high": 252.0
+    },
+    "added": {
+     "size": 2280,
+     "known": 366,
+     "known_same": 326,
+     "known_different": 15,
+     "known_open": 25,
+     "pool": 1914,
+     "drawn": 500,
+     "drawn_same": 435,
+     "drawn_different": 21,
+     "drawn_open": 44,
+     "true": 1991.2,
+     "false": 95.4,
+     "open": 193.4,
+     "true_low": 1902.0,
+     "true_high": 2220.0,
+     "false_low": 60.0,
+     "false_high": 378.0
+    }
+   },
+   "baseline": {
+    "true": 1356,
+    "false": 511,
+    "open": 102,
+    "true_low": 1240,
+    "true_high": 1538,
+    "false_low": 432,
+    "false_high": 730
+   },
+   "candidate": {
+    "true": 2936,
+    "false": 105,
+    "open": 242,
+    "true_low": 2798,
+    "true_high": 3220,
+    "false_low": 64,
+    "false_high": 486
+   },
+   "baseline_true_kept": 0.697,
+   "baseline_true_kept_low": 0.625,
+   "candidate_vs_baseline_true": 2.165,
+   "candidate_vs_baseline_true_low": 1.82,
+   "false_merges_ratio": 0.206,
+   "false_merges_ratio_high": 1.124
+  },
+  "packaging_different": {
+   "share_true_by_stratum": {
+    "retained": {
+     "n": 224,
+     "of": 226,
+     "rate": 0.9912,
+     "low": 0.9683,
+     "high": 0.9976,
+     "excluded": 14
+    },
+    "dropped_mixed": {
+     "n": 55,
+     "of": 137,
+     "rate": 0.4015,
+     "low": 0.3231,
+     "high": 0.4851,
+     "excluded": 3
+    },
+    "dropped_both_k2": {
+     "n": 50,
+     "of": 129,
+     "rate": 0.3876,
+     "low": 0.3079,
+     "high": 0.4738,
+     "excluded": 11
+    },
+    "added": {
+     "n": 434,
+     "of": 456,
+     "rate": 0.9518,
+     "low": 0.928,
+     "high": 0.9679,
+     "excluded": 44
+    }
+   },
+   "layers": {
+    "retained": {
+     "size": 1004,
+     "known": 165,
+     "known_same": 161,
+     "known_different": 4,
+     "known_open": 0,
+     "pool": 839,
+     "drawn": 240,
+     "drawn_same": 224,
+     "drawn_different": 2,
+     "drawn_open": 14,
+     "true": 944.1,
+     "false": 11.0,
+     "open": 48.9,
+     "true_low": 895.1,
+     "true_high": 998.7,
+     "false_low": 5.3,
+     "false_high": 108.9
+    },
+    "dropped_mixed": {
+     "size": 522,
+     "known": 106,
+     "known_same": 32,
+     "known_different": 69,
+     "known_open": 5,
+     "pool": 416,
+     "drawn": 140,
+     "drawn_same": 55,
+     "drawn_different": 82,
+     "drawn_open": 3,
+     "true": 195.4,
+     "false": 312.7,
+     "open": 13.9,
+     "true_low": 151.9,
+     "true_high": 257.3,
+     "false_low": 264.7,
+     "false_high": 370.1
+    },
+    "dropped_both_k2": {
+     "size": 444,
+     "known": 220,
+     "known_same": 117,
+     "known_different": 81,
+     "known_open": 22,
+     "pool": 224,
+     "drawn": 140,
+     "drawn_same": 50,
+     "drawn_different": 79,
+     "drawn_open": 11,
+     "true": 197.0,
+     "false": 207.4,
+     "open": 39.6,
+     "true_low": 174.4,
+     "true_high": 262.4,
+     "false_low": 181.6,
+     "false_high": 269.6
+    },
+    "added": {
+     "size": 2280,
+     "known": 366,
+     "known_same": 324,
+     "known_different": 17,
+     "known_open": 25,
+     "pool": 1914,
+     "drawn": 500,
+     "drawn_same": 434,
+     "drawn_different": 22,
+     "drawn_open": 44,
+     "true": 1985.4,
+     "false": 101.2,
+     "open": 193.4,
+     "true_low": 1895.6,
+     "true_high": 2215.3,
+     "false_low": 64.7,
+     "false_high": 384.4
+    }
+   },
+   "baseline": {
+    "true": 1336,
+    "false": 531,
+    "open": 102,
+    "true_low": 1221,
+    "true_high": 1518,
+    "false_low": 452,
+    "false_high": 749
+   },
+   "candidate": {
+    "true": 2929,
+    "false": 112,
+    "open": 242,
+    "true_low": 2791,
+    "true_high": 3214,
+    "false_low": 70,
+    "false_high": 493
+   },
+   "baseline_true_kept": 0.706,
+   "baseline_true_kept_low": 0.633,
+   "candidate_vs_baseline_true": 2.192,
+   "candidate_vs_baseline_true_low": 1.838,
+   "false_merges_ratio": 0.211,
+   "false_merges_ratio_high": 1.092
+  }
+ },
+ "candidate_false_merges": [
+  {
+   "a": "Игровая приставка Sony PlayStation 5 Slim + Геймпад + GTA V",
+   "b": "Игровая приставка Sony PlayStation 5 Slim + геймпад Белый",
+   "key": "k2:sony:playstation5slim",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Коврик для мыши 2E Gaming Pro Speed XL",
+   "b": "Коврик для мыши Gaming Pro Speed полиэстер, резина, 36×27.5 см, 36 × 27.5 × 0,3 см 2Е",
+   "key": "k2:2e:gamingprospeed",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Apple EarPods проводные наушники (USB-C)",
+   "b": "EarPods LIGHTNING",
+   "key": "k2:apple:earpods",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "AFOX GT 1030 (AF1030-2048D5L8) 2 Гб",
+   "b": "Видеокарта Afox GT 1030 2 GB (AF1030-2048D5L7)",
+   "key": "k2:afox:gt1030:2gb",
+   "strata": [
+    "retained"
+   ]
+  },
+  {
+   "a": "Смарт-часы GARMIN Fenix 8 47mm, AMOLED, сапфир, темный силикон 010-02904-21",
+   "b": "Смарт-часы Garmin Fenix 8 010-02904-00 47mm AMOLED Slate Gray with Black Silicone Band",
+   "key": "k2:garmin:fenix8:47mm",
+   "strata": [
+    "retained"
+   ]
+  },
+  {
+   "a": "Наушники APPLE EarPods with Lightning Connector (MWTY3ZM/A)",
+   "b": "Наушники Apple EarPods Headphone Plug (MWU53ZM/A)",
+   "key": "k2:apple:earpods",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "SSD накопитель 256 GB Kingston KC600 (SKC600MS/256G), mSATA, SATA III",
+   "b": "SSD накопитель 256 GB Kingston KC600 SKC600/256G",
+   "key": "k2:kingston:kc600:256gb",
+   "strata": [
+    "retained"
+   ]
+  },
+  {
+   "a": "Jabra Evolve2 65, Link380a MS Stereo Stand Black (26599-999-989)",
+   "b": "Наушники Jabra Evolve2 65 Link380a MS Mono 26599-899-999 Black",
+   "key": "k2:jabra:evolve265.link380a.ms",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Стабилизатор SVC AVR-1000-L",
+   "b": "Стабилизатор SVC AVR-1000-S 500 Вт, 1 м, релейный SVC",
+   "key": "k2:svc:avr1000",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Смарт-часы GARMIN Fenix 8 51mm ,AMOLED, сапфир, титановый корпус, черный, кожаный ремешок каштанового цвета 010-02905-40",
+   "b": "Смарт-часы Garmin Fenix 8 010-02907-21 51mm Sapphire Titanium with Amp Yellow/Graphite Silicone Band",
+   "key": "k2:garmin:fenix8:51mm",
+   "strata": [
+    "retained"
+   ]
+  },
+  {
+   "a": "ASRock B760 Pro RS/D4",
+   "b": "Материнская плата ASRock B760 Pro RS, LGA1700",
+   "key": "k2:asrock:b760prors",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Беспроводная гарнитура Jabra Evolve2 65, Link380a MS Stereo Black (26599-999-999)",
+   "b": "Наушники Jabra Evolve2 65 Link380a MS Mono 26599-899-999 Black",
+   "key": "k2:jabra:evolve265.link380a.ms",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Процессор Intel Core i7 13700KF, LGA1700, OEM",
+   "b": "Процессор Intel Core i7-13700KF BX8071513700KF",
+   "key": "k2:intel:corei713700kf",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "27\" X-Game OFLED27 черный",
+   "b": "Монитор OFLED27+ 27\", 100 Гц X-Game",
+   "key": "k2:xgame:ofled27",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "AirPods Max 2",
+   "b": "Apple AirPods Max Starlight беспроводные наушники (MWW53)",
+   "key": "k2:apple:airpodsmax",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Гарнитура Jabra Evolve2 65, Link380a MS Stereo",
+   "b": "Наушники Jabra Evolve2 65 Link380a MS Mono 26599-899-999 Black",
+   "key": "k2:jabra:evolve265.link380a.ms",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "SSD накопитель 1 TB Kingston NV3, M.2 2230, PCIe 4.0",
+   "b": "Твердотельный накопитель SSD Kingston NV3 1 ТБ, M.2 2280, нет Kingston Technology",
+   "key": "k2:kingston:nv3:1tb",
+   "strata": [
+    "retained"
+   ]
+  },
+  {
+   "a": "Apple EarPods проводные наушники (Lightning Connector)",
+   "b": "EarPods USB-C",
+   "key": "k2:apple:earpods",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Гарнитура Razer Barracuda X 2022 RZ04-04430100-R3M1",
+   "b": "Наушники Razer Barracuda X 2022 Roblox Edition RZ04-04430400-R3M1",
+   "key": "k2:razer:barracudax2022",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Гарнитура Jabra Evolve2 65 Flex Link380a MS Stereo (26699-999-999)",
+   "b": "Гарнитура Jabra Evolve2 65 Flex Link380a MS Stereo WLC",
+   "key": "k2:jabra:evolve265.flex.link380a.ms",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Игровая приставка Sony PlayStation 5 Slim + геймпад + Mortal Kombat 1",
+   "b": "Игровая приставка Sony PlayStation 5 Slim + геймпад Белый",
+   "key": "k2:sony:playstation5slim",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "EarPods USB-C",
+   "b": "Наушники Apple EarPods, Lightning Connector (MWTY3ZM/A)",
+   "key": "k2:apple:earpods",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "ASRock B650M PG Lightning",
+   "b": "Материнская плата ASRock B650M-H/M.2+ D5",
+   "key": "k2:asrock:b650m",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Материнская плата ASRock B650M (B650M-H/M.2+)",
+   "b": "Материнская плата ASRock B650M PG LIGHTNING",
+   "key": "k2:asrock:b650m",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Компьютер Nomad Universal T NMD-37633",
+   "b": "Системный блок Nomad Universal T (NMD-37634) - корпус может менятся",
+   "key": "k2:nomad:universalt",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Apple AirPods Max Starlight беспроводные наушники (MWW53)",
+   "b": "Наушники Apple AirPods Max Pink",
+   "key": "k2:apple:airpodsmax",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Apple EarPods проводные наушники (Lightning Connector)",
+   "b": "Наушники Apple EarPods Headphone Plug (MWU53ZM/A)",
+   "key": "k2:apple:earpods",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "AirPods Max 2",
+   "b": "Наушники Apple AirPods Max Pink",
+   "key": "k2:apple:airpodsmax",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Apple EarPods проводные наушники (USB-C)",
+   "b": "Наушники Apple EarPods Headphone Plug (MWU53ZM/A)",
+   "key": "k2:apple:earpods",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Компьютерный корпус Thermaltake The Tower 200 Snow",
+   "b": "Панель LCD Thermaltake The Tower 200, Black",
+   "key": "k2:thermaltake:thetower200",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "Ноутбук Tecno MEGABOOK K16S (K16SDA) [16\", Ryzen 5-7430U, 8 ГБ ОЗУ, 512 ГБ SSD, Windows 11 Home]",
+   "b": "Ноутбук Tecno MEGABOOK K16S 16\" FHD i3-1315U 8GB 512GB Win 11 Tecno MEGABOOK K16S",
+   "key": "k2:tecno:megabookk16s:512gb+8gb",
+   "strata": [
+    "added"
+   ]
+  },
+  {
+   "a": "ASRock B650M-H/M.2+",
+   "b": "Материнская плата ASRock B650M PG LIGHTNING",
+   "key": "k2:asrock:b650m",
+   "strata": [
+    "added"
+   ]
+  }
+ ],
+ "candidate_lost_true_pairs": [
+  {
+   "a": "Смартфон Realme C25Y 4/128 Grey",
+   "b": "Смартфон realme C25Y, 128 GB, Glacier Blue (RMX3269)",
+   "new_a": "k2:realme:c25y:128gb+4gb",
+   "new_b": "k2:realme:c25y:128gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Смартфон Infinix Note 50 PRO 12/256GB Ench Purple",
+   "b": "Смартфон Infinix Note 50 PRO 12/256GB Shadow Black",
+   "new_a": "infinix:note 50 pro:256gb",
+   "new_b": "k2:infinix:note50pro:12gb+256gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Телевизор Яндекс YNDX-00076 - Умный телевизор с Алисой 55\"",
+   "b": "Яндекс Бейсик с Алисой YNDX-00076 140 см черный",
+   "new_a": "k2:yandex:yndx00076:55in",
+   "new_b": "k2:yandex:beysiksalisoyyndx00076:55in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Телевизор MiniLED ЯНДЕКС 65 Про YNDX-00104 (4K Smart)",
+   "b": "Телевизор Яндекс Про 65\" YNDX-00104 MiniLED 4K UHD Black",
+   "new_a": "k2:yandex:yndx00104:65in",
+   "new_b": "k2:yandekspro:yndx00104:65in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Оперативная память 16Gb Kingston FURY Beast Black AMD RGB KF556C36BBEA-16",
+   "b": "Оперативная память Kingston 16GB 5600MT/s DDR5 CL36 DIMM FURY Beast RGB EXPO (KF556C36BBEA-16)",
+   "new_a": "k2:kingston:kf556c36bbea16:16gb",
+   "new_b": "kingston:fury beast:16gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Смартфон Realme C25Y 4/128 Grey",
+   "b": "Смартфон realme C25Y, 128 GB, Metal Grey (RMX3269)",
+   "new_a": "k2:realme:c25y:128gb+4gb",
+   "new_b": "k2:realme:c25y:128gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Blackview Tab 80 Kids 10.1 дюйм 4 Гб64 Гб розовый",
+   "b": "Планшет BlackView Tab 80 Kids 4G 10.1\" 4/64GB Blue",
+   "new_a": "k2:blackview:tab80kids:10.1in+4gb",
+   "new_b": "k2:blackview:tab80kids:10.1in+4gb+64gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Телевизор Dreame 86S100, 86\"",
+   "b": "Телевизор Dreame Aura 86\" 86S100 QLED 4K UHD Black",
+   "new_a": "k2:dreame:86s100",
+   "new_b": "k2:dreame:aura86s100",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Монитор 27'' XG Darknet Pro 360HZ",
+   "b": "Монитор Игровой 27\" XG Darknet Pro 1920x1080 16:9 IPS 360ГЦ (2HDMI+2DP) Black",
+   "new_a": "k2:xg:darknetpro360hz:27in",
+   "new_b": "xg:darknet pro:27",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Монитор 27\" AOC 27G42E, Black",
+   "b": "Монитор Игровой 27\" AOC 27G42E 1920x1080 16:9 IPS 180ГЦ (HDMI+DP) Black",
+   "new_a": "k2:aoc:27g42e",
+   "new_b": "aoc:27g42e:27",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "OSCAL Pad 30 10.1 дюйм 4 Гб128 Гб зеленый + подарок",
+   "b": "Планшет Oscal Pad 30 WiFi, 10.1\",  4 GB, 128 GB, Horizon Blue",
+   "new_a": "k2:oscal:pad30:10.1in+4gb",
+   "new_b": "k2:oscal:pad30wifi:10.1in+128gb+4gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Монитор 23,8\" X-game 1T238IPS 1920x1080 16:9 IPS 100ГЦ (HDMI+DP+ VGA) Black",
+   "b": "Монитор 23.8\" X-Game 1T238IPS, Black",
+   "new_a": "x-game:1t238ips:23.8",
+   "new_b": "k2:xgame:1t238ips:23.8in",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Телевизор Dreame 65Q100, 65\"",
+   "b": "Телевизор Dreame Vivid 65\" 65Q100 QLED 4K UHD Black",
+   "new_a": "k2:dreame:65q100",
+   "new_b": "k2:dreame:vividq100:65in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "SSD накопитель 256 GB Kingston KC600 SKC600/256G",
+   "b": "Твердотельный накопитель 256GB SSD Kingston KC600 2.5” SATA3 (SKC600/256G)",
+   "new_a": "k2:kingston:kc600:256gb",
+   "new_b": "kingston:kc600:256gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Телевизор ЯНДЕКС 65 YNDX-00077 (4K Smart)",
+   "b": "Телевизор Яндекс Бейсик с Алисой 65\" YNDX-00077 LED 4K UHD Black",
+   "new_a": "k2:yandex:yndx00077",
+   "new_b": "k2:yandex:yndx00077:65in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Телевизор 98\" (249 см) TCL 98C6K QLED 4K UHD Black",
+   "b": "Телевизор TCL QD-MiniLED 98C6K UHD Android TV",
+   "new_a": "k2:tcl:98c6k",
+   "new_b": "k2:tcl:qd98c6k",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Видеокарта MaxSun MS-GTX1050Ti TF 4G",
+   "b": "Видеокарта Maxsun MS-GTX1050Ti TF 4G [4 ГБ, GDDR5, 128 бит, DVI, HDMI, DisplayPort]",
+   "new_a": "k2:maxsun:gtx1050ti:4gb",
+   "new_b": "maxsun:gtx1050ti:4gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Наушники Soundcore P40i A3955 TWS Navy Blue",
+   "b": "Наушники Soundcore P40i Blue (A3955-BLU)",
+   "new_a": "k2:soundcore:p40ia3955",
+   "new_b": "k2:soundcore:p40i",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Оперативная память 16Gb Transcend JM4800ALE-16G",
+   "b": "Память оперативная DDR5 Desktop Transcend  JM4800ALE-16G (JM4800ALE-16G)",
+   "new_a": "k2:transcend:jm4800ale16g:16gb",
+   "new_b": "transcend:jm4800ale:16gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Планшет DOOGEE U11 11\" 4GB/128GB Wi-Fi Grey",
+   "b": "Планшет Doogee U11 11\" 4/128Gb Black",
+   "new_a": "k2:doogee:u11:128gb+4gb",
+   "new_b": "doogee:u11:128gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "OSCAL Pad 30 10.1 дюйм 4 Гб128 Гб синий + подарок",
+   "b": "Планшет Oscal Pad 30 WiFi, 10.1\", 4 GB, 128 GB, Hazel Green",
+   "new_a": "k2:oscal:pad30:10.1in+4gb",
+   "new_b": "k2:oscal:pad30wifi:10.1in+128gb+4gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "SSD накопитель 256 GB Patriot P210, 2.5\", SATA III",
+   "b": "Твердотельный накопитель SSD 2.5\" SATA III Patriot  256GB P210 530/460 P210S256G25 (P210S256G25)",
+   "new_a": "k2:patriot:p210:256gb",
+   "new_b": "patriot:p210:256gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "OSCAL Pad 30 10.1 дюйм 4 Гб128 Гб серый + подарок",
+   "b": "Планшет Oscal Pad 30 WiFi, 10.1\", 4 GB, 128 GB, Cosmic Grey",
+   "new_a": "k2:oscal:pad30:10.1in+4gb",
+   "new_b": "k2:oscal:pad30wifi:10.1in+128gb+4gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Процессор AMD Ryzen 5 5600X, AM4, OEM",
+   "b": "Процессор CPU AM4 AMD Ryzen 5 5600X OEM v3",
+   "new_a": "k2:amd:ryzen55600x",
+   "new_b": "k2:amd:ryzen55600x.v3",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Твердотельный накопитель SSD Kingston 1TB M.2 (NV3 SNV3S/1000G) (SNV3S/1000G)",
+   "b": "Твердотельный накопитель SSD Kingston NV3 1 ТБ, M.2 2280, нет Kingston Technology",
+   "new_a": "kingston:nv3:1tb",
+   "new_b": "k2:kingston:nv3:1tb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Телевизор MiniLED ЯНДЕКС 55 Про YNDX-00103 (4K Smart)",
+   "b": "Телевизор Яндекс YNDX-00103 - Умный телевизор с Алисой 55\"",
+   "new_a": "k2:yandex:55pro",
+   "new_b": "k2:yandex:pro:55in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Телевизор Яндекс YNDX-00104 - Умный телевизор с Алисой 65\"",
+   "b": "Яндекс Про MiniLED YNDX-00104 165 см черный",
+   "new_a": "k2:yandex:yndx00104:65in",
+   "new_b": "k2:yandekspro:yndx00104:65in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "SSD накопитель 2 TB Kingston NV3, M.2, PCIe 4.0",
+   "b": "Твердотельный накопитель SSD Kingston NV3 2TB M.2 (SNV3S/2000G)",
+   "new_a": "k2:kingston:nv3:2tb",
+   "new_b": "kingston:nv3:2tb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Оперативная память Kingston FURY Beast EXPO DDR5 16GB 6000MT/s, White (KF560C36BWE2-16)",
+   "b": "Оперативная память Kingston FURY Beast White KF560C36BWE2-16",
+   "new_a": "k2:kingston:kf560c36bwe216:16gb",
+   "new_b": "k2:kingston:kf560c36bwe216",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Телевизор Яндекc Про MiniLED 75\" YNDX-00105 QLED 4K UHD Smart",
+   "b": "Телевизор Яндекс Про 75\" YNDX-00105 MiniLED 4K UHD Black",
+   "new_a": "k2:yandex:yndx00105:75in",
+   "new_b": "k2:yandekspro:yndx00105:75in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Монитор 27\" PHILIPS 27E1N1800AE/01",
+   "b": "Монитор 27\" Philips 27E1N1800AE/01, Black",
+   "new_a": "k2:philips:27e1n1800ae01",
+   "new_b": "k2:philips:27e1n1800",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "SSD накопитель SATA  256 GB Patriot P210 P210S256G25",
+   "b": "Твердотельный накопитель SSD 2.5\" SATA III Patriot  256GB P210 530/460 P210S256G25 (P210S256G25)",
+   "new_a": "k2:patriot:p210:256gb",
+   "new_b": "patriot:p210:256gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Оперативная память 16GB DDR5 4800MHz NOMAD UDIMM NMD4800D5U40-16GB Bulk Pack FULL совместимость! (NMD4800D5U40-16GB)",
+   "b": "Оперативная память 16GB NOMAD NMD4800D5U40-16GB",
+   "new_a": "nomad:nmd4800d5u40:16gb",
+   "new_b": "k2:nomad:nmd4800d5u4016gb:16gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "SSD накопитель 500Gb Netac NV3000 NT01NV3000-500-E4X",
+   "b": "Твердотельный накопитель SSD 500Gb, M.2 2280, Netac NV3000, NVMe, PCIe 3x4, 3100R/2100W (NT01NV3000-500-E4X)",
+   "new_a": "k2:netac:nv3000nt01nv3000500e4x:500gb",
+   "new_b": "netac:nv3000:500gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Монитор 27\" PHILIPS 27E1N1200A/01/00",
+   "b": "Монитор 27\" Philips 27E1N1200A/01, Black",
+   "new_a": "k2:philips:27e1n1200a",
+   "new_b": "k2:philips:27e1n1200a01",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Смартфон Tecno Spark 8P 4/128GB Tahiti gold",
+   "b": "Смартфон Tecno Spark 8P, 128GB, Turquoise Cyan (KG7n)",
+   "new_a": "k2:tecno:spark8p:128gb+4gb",
+   "new_b": "k2:tecno:spark8p:128gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Планшет Oscal Pad 9 10.1\" 4/128Gb Sierra Blue",
+   "b": "Планшет Oscal Pad 9, 10.1\", 4 GB, 128 GB, WiFi+4G, Titanium Grey",
+   "new_a": "oscal:pad 9:128gb",
+   "new_b": "k2:oscal:pad9:10.1in+128gb+4gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Планшет Oscal Pad 9 10.1\" 4/128Gb Metallic Titanium Grey",
+   "b": "Планшет Oscal Pad 9, 10.1\", 4 GB, 128 GB, WiFi+4G, Titanium Grey",
+   "new_a": "oscal:pad 9:128gb",
+   "new_b": "k2:oscal:pad9:10.1in+128gb+4gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Монитор 27\" AOC 27B3QA2 1920x1080 16:9 IPS 120ГЦ (HDMI+DP) Black",
+   "b": "Монитор 27' AOC 27B3QA2/01",
+   "new_a": "aoc:27b3qa2:27",
+   "new_b": "k2:aoc:27b3qa201",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Телевизор Dreame Aura 65\" 65S100 QLED 4K UHD Black",
+   "b": "Телевизор Dreame Aura Mini LED 4K TV 65S100 65\" (65S100)",
+   "new_a": "k2:dreame:aura65s100",
+   "new_b": "k2:dreame:auraminis100:65in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "SSD накопитель 500GB Transcend TS500GMTS825S M2",
+   "b": "Жесткий диск SSD 500GB Transcend TS500GMTS825S M2 (TS500GMTS825S)",
+   "new_a": "k2:transcend:ts500gmts825s:500gb",
+   "new_b": "transcend:mts825s:500gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Оперативная память Hiksemi (Hikvision) Armor DDR4 16 GB kit (2x8GB) 3200MHz, Black (HSC416U32D3)",
+   "b": "Оперативная память Hiksemi Armor HSC416U32D3",
+   "new_a": "hiksemi:armor:16gb",
+   "new_b": "k2:hiksemi:hsc416u32d3:16gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "OSCAL Pad 30 10.1 дюйм 4 Гб128 Гб зеленый + подарок",
+   "b": "Планшет Oscal Pad 30 WiFi, 10.1\", 4 GB, 128 GB, Cosmic Grey",
+   "new_a": "k2:oscal:pad30:10.1in+4gb",
+   "new_b": "k2:oscal:pad30wifi:10.1in+128gb+4gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "SSD накопитель Transcend MTE115S 250 ГБ, M.2 Transcend",
+   "b": "Твердотельный накопитель SSD 250GB (TS250GMTE115S)",
+   "new_a": "k2:transcend:mte115s:250gb",
+   "new_b": "transcend:mte115s:250gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Оперативная память  8GB DDR4 3200MHz GEIL PC4-25600 GN48GB3200C22S Bulk Pack (GN48GB3200C22S)",
+   "b": "Оперативная память 8GB GEIL GN48GB3200C22S",
+   "new_a": "geil:gn48gb3200c22s:8gb",
+   "new_b": "k2:geil:gn48gb3200c22s:8gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Оперативная память 8 GB Kingston KF432C16BB2A/8",
+   "b": "Оперативная память Kingston KF432C16BB2A/8 DDR4 8GB (KF432C16BB2A/8)",
+   "new_a": "k2:kingston:kf432c16bb2a8:8gb",
+   "new_b": "kingston:kf432c16bb2a:8gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Видеокарта OCPC GT 210 (OCVNGT210G1XE) [1 ГБ, GDDR3, 64 бит, VGA, DVI, HDMI]",
+   "b": "Видеокарта OCPC GT 210 1 GB (OCVNGT210G1XE)",
+   "new_a": "ocpc:gt210:1gb",
+   "new_b": "k2:ocpc:gt210:1gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Зарядное устройство Usams OYXLTZ01, 20W, White",
+   "b": "Комплект СЗУ Usams OYXLTZ01 20W Type-C порт + кабель Type-C-Type-C 20 Вт, 1 м, USB Type-C Usams",
+   "new_a": "k2:usams:oyxltz01.acc:20w",
+   "new_b": "k2:usams:oyxltz01:1m",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "SSD накопитель 256GB TeamGroup MP33 TM8FP6256G0C101",
+   "b": "Твердотельный накопитель SSD Team Group MP33 256Gb, M.2, NVMe 1.3, 1600/1000 MB/s (TM8FP6256G0C101)",
+   "new_a": "k2:teamgroup:mp33:256gb",
+   "new_b": "teamgroup:mp33:256gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Монитор 27\" Philips 27E2N1110/01, Black",
+   "b": "Монитор Игровой 27\" PHILIPS 27E2N1110 1920x1080 16:9 IPS 120Гц (HDMI+VGA) Black",
+   "new_a": "k2:philips:27e2n1110",
+   "new_b": "philips:27e2n1110:27",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Видеокарта AFOX GTX1650 SUPER GAMING 4GB D6 Dual Fan (AF1650S-4096D6H3-V2)",
+   "b": "Видеокарта AFOX GTX1650 SUPER GAMING 4GB D6 Dual Fan AF1650S-4096D6H3-V2",
+   "new_a": "afox:gtx1650 super:4gb",
+   "new_b": "k2:afox:gtx1650supergaming.v2:4gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Карта памяти Canvas Go Plus C10 UHS-I U3 256 ГБ Kingston Technology",
+   "b": "Карта памяти Micro SDXC 256 GB Kingston Canvas Go Plus, Class 10 UHS-I U3 V30 A2, адаптер",
+   "new_a": "k2:kingston:canvasgoplusc10uhsiu3256gb:256gb",
+   "new_b": "k2:kingston:canvasgoplus:256gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Оперативная память 32Gb Transcend TS3200HLE-32G",
+   "b": "Память оперативная Desktop Transcend TS3200HLE-32G DDR4 32GB 3200 (TS3200HLE-32G)",
+   "new_a": "k2:transcend:ts3200hle32g:32gb",
+   "new_b": "transcend:ts3200hle:32gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "23.8\" Sanc M2442PH V3 черный",
+   "b": "Монитор Игровой 23,8\" Sanc M2442PH V3 1920x1080 16:9 IPS 200ГЦ (2HDMI+DP) Black",
+   "new_a": "k2:sanc:m2442ph.v3:23.8in",
+   "new_b": "sanc:m2442ph v3:23.8",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Монитор 32\" iiyama ProGraphic HB3201UHSNP-B1, Black",
+   "b": "Монитор iiyama ProGraphic HB3201UHSNP-B1 32\"",
+   "new_a": "k2:iiyama:prographichb3201uhsnp:32in",
+   "new_b": "k2:iiyama:prographic:32in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "SSD накопитель 480 GB Netac SA500, 2.5\", SATA III",
+   "b": "Твердотельный накопитель SSD Netac NT01SA500-480-S3X 480GB  (NT01SA500-480-S3X)",
+   "new_a": "k2:netac:sa500:480gb",
+   "new_b": "k2:netac:nt01sa500:480gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Смартфон Tecno Pova 2 4/64GB Energy Blue",
+   "b": "Смартфон Tecno Pova 2, 64 GB, Polar Silver (LE7n)",
+   "new_a": "k2:tecno:pova2:4gb+64gb",
+   "new_b": "k2:tecno:pova2:64gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Телевизор ЯНДЕКС 65 YNDX-00077 (4K Smart)",
+   "b": "Телевизор Яндекс Бейсик LED 4K UHD Smart 65\" YNDX-00077",
+   "new_a": "k2:yandex:yndx00077",
+   "new_b": "k2:yandex:yndx00077:65in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Монитор 23.8\" AOC 24G4HRE, Black",
+   "b": "Монитор Игровой 23,8\" AOC 24G4HRE 1920x1080 16:9 IPS 200ГЦ (2HDMI+DP) Black",
+   "new_a": "k2:aoc:24g4hre:23.8in",
+   "new_b": "aoc:24g4hre:23.8",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Оперативная память 32GB Kit GEIL POLARIS RGB GOSW532GB5600C46DC White",
+   "b": "Оперативная память с RGB подсветкой 32GB Kit (2x16GB) GEIL POLARIS RGB 5600Mhz DDR5 GOSW532GB5600C46DC White (GOSW532GB5600C46DC)",
+   "new_a": "k2:geil:gosw532gb5600c46dc:32gb",
+   "new_b": "geil:polaris rgb:32gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Смартфон TECNO POVA 8 5G 8 ГБ/256 ГБ 256 ГБ, 8 Гб, Black, 256 ГБ Tecno, POVA",
+   "b": "Смартфон Tecno Pova 8 5G, 8 GB, 256 GB, Graphite Black (LK6)",
+   "new_a": "k2:tecno:pova8:256gb+8gb",
+   "new_b": "k2:tecno:pova85g:256gb+8gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Оперативная память 16Gb Kingston Fury Beast KF432C16BB1/16WP",
+   "b": "Оперативная память Kingston Fury Beast DDR4 DIMM 16Gb 3200MHz (KF432C16BB1/16WP)",
+   "new_a": "k2:kingston:kf432c16bb116wp:16gb",
+   "new_b": "kingston:fury beast:16gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Монитор 24,5\" PHILIPS 25M2N5200U 1920x1080 16:9 IPS 390ГЦ (2HDMI+DP) Black",
+   "b": "Монитор 24,5\" PHILIPS 25M2N5200U/01/00",
+   "new_a": "philips:25m2n5200u:24.5",
+   "new_b": "k2:philips:25m2n5200u:24.5in",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Планшет Oscal Pad 200 LTE 13.4\" 6/256Gb ROM Blue",
+   "b": "Планшет Oscal Pad 200, 13.4\", 6 GB, 256 GB, Wi-Fi+4G, Space Gray",
+   "new_a": "k2:oscal:pad200lte:13.4in+256gb+6gb",
+   "new_b": "k2:oscal:pad200:13.4in+256gb+6gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Наушники A4tech TWS 2Drumtek B25 Icy Blue голубые",
+   "b": "Наушники TWS A4tech 2Drumtek B25-AshGrey <BT v5.2, 20kHz, 102dB, Наушник: 40mAh , Кейс: 380mAh> (2Drumtek B25-AshGrey)",
+   "new_a": "k2:a4tech:tws2drumtekb25",
+   "new_b": "k2:a4tech:2drumtekb25",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Модуль памяти Netac NTBSD3P16SP-04 DDR3 4GB <PC3-12800/1600MHz> (NTBSD3P16SP-04)",
+   "b": "Оперативная память 4Gb Netac NTBSD3P16SP-04",
+   "new_a": "netac:ntbsd3p16sp-04:4gb",
+   "new_b": "k2:netac:ntbsd3p16sp04:4gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Монитор 24\" FHD Viewsonic VA24E1-H черный",
+   "b": "Монитор 24\" ViewSonic VA24E1-H 1920x1080 16:9 IPS 120ГЦ (HDMI+VGA) Black",
+   "new_a": "viewsonic:va24e1-h:24",
+   "new_b": "k2:viewsonic:va24e1h",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "OSCAL Pad 30 10.1 дюйм 4 Гб128 Гб синий + подарок",
+   "b": "Планшет Oscal Pad 30 WiFi, 10.1\",  4 GB, 128 GB, Horizon Blue",
+   "new_a": "k2:oscal:pad30:10.1in+4gb",
+   "new_b": "k2:oscal:pad30wifi:10.1in+128gb+4gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "OSCAL Pad 200 LTE 13.4 дюйм 6 Гб128 Гб серый + подарок",
+   "b": "Планшет Oscal Pad 200, 13.4\", 6 GB, 128 GB, Wi-Fi+4G, Glacier Blue",
+   "new_a": "oscal:pad 200:128gb",
+   "new_b": "k2:oscal:pad200:128gb+13.4in+6gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "OSCAL Pad 30 10.1 дюйм 4 Гб128 Гб серый + подарок",
+   "b": "Планшет Oscal Pad 30 WiFi, 10.1\", 4 GB, 128 GB, Hazel Green",
+   "new_a": "k2:oscal:pad30:10.1in+4gb",
+   "new_b": "k2:oscal:pad30wifi:10.1in+128gb+4gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Монитор 23,8\" AOC 24B3HA2 1920x1080 16:9 IPS 120ГЦ (2HDMI+DP) Black",
+   "b": "Монитор 23,8\" AOC 24B3HA2/01 IPS",
+   "new_a": "aoc:24b3ha2:23.8",
+   "new_b": "k2:aoc:24b3ha2:23.8in",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Телевизор ЯНДЕКС 50 YNDX-00075 (4K Smart)",
+   "b": "Телевизор Яндекс Бейсик с Алисой 50\" YNDX-00075 LED 4K UHD Black",
+   "new_a": "k2:yandex:yndx00075",
+   "new_b": "k2:yandex:beysiksalisoy:50in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "ASRock B760 Pro RS/D4",
+   "b": "Материнская плата ASRock B760 Pro RS/D4, iB760,S1700,ATX (90-MXBL80-A0UAYZ)",
+   "new_a": "k2:asrock:b760prors",
+   "new_b": "k2:asrock:b760prorsd4",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Телевизор 65\" (164  см) Яндекс YNDX-00098 MiniLED 4K UHD Black",
+   "b": "Телевизор Яндекc с Алисой 65\" MiniLED 4K YNDX-00098",
+   "new_a": "yandex:yndx-00098:65",
+   "new_b": "k2:yandex:yndx00098:65in",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Телевизор Dreame 55S100, 55\"",
+   "b": "Телевизор Dreame Aura 55\" 55S100 QLED 4K Black",
+   "new_a": "k2:dreame:auramini:55in",
+   "new_b": "k2:dreame:aura55s100",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Монитор 43\" Dahua DHI-LM43-F400",
+   "b": "Монитор 43\" Dahua DHI-LM43-F400 3840x2160 16:9 IPS 60ГЦ (3HDMI) Black",
+   "new_a": "k2:dahua:dhilm43f400",
+   "new_b": "dahua:dhi-lm43-f400:43",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "ТВ Станция Бейсик Яндекс YNDX-00077 с Алисой на YaGPT 65\"",
+   "b": "Телевизор ЯНДЕКС 65 YNDX-00077 (4K Smart)",
+   "new_a": "k2:yandex:yndx00077:65in",
+   "new_b": "k2:yandex:yndx00077",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Оперативная память 32 GB kit Kingston Fury Beast KF560C30BWEK2-32",
+   "b": "Оперативная память Kingston Fury Beast (AMD), DDR5 32 GB kit (2x16GB) 6000MHz (KF560C30BWEK2-32)",
+   "new_a": "k2:kingston:kf560c30bwek232:32gb",
+   "new_b": "kingston:fury beast:32gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Оперативная память 32 GB kit Kingston Fury Beast KF560C30BWEK2-32",
+   "b": "Оперативная память Kingston Fury Beast (AMD), DIMM DDR5 32 GB kit (2x16GB) <6000MHz> (KF560C30BBEK2-32)",
+   "new_a": "k2:kingston:kf560c30bwek232:32gb",
+   "new_b": "kingston:fury beast:32gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Смартфон Tecno Pova 3 6/128Gb Blue",
+   "b": "Смартфон Tecno Pova 3, 128 GB, Tech Silver (LF7n)",
+   "new_a": "k2:tecno:pova3:128gb+6gb",
+   "new_b": "k2:tecno:pova3:128gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Видеокарта OCPC GTX 750 Ti (OCVNGTX750TIG4XG) [4 ГБ, GDDR5, 128 бит, VGA, DVI, HDMI]",
+   "b": "Видеокарта OCPC GTX 750 Ti 4 GB (OCVNGTX750TIG4XG)",
+   "new_a": "ocpc:gtx750ti:4gb",
+   "new_b": "k2:ocpc:gtx750ti:4gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Наушники Monster Clarity 101 Pro AirLinks белый",
+   "b": "Наушники TWS MONSTER Clarity 101 Pro AirLinks Earphone (White) (MH22003 (W))",
+   "new_a": "k2:monster:clarity101proairlinks",
+   "new_b": "k2:monster:clarity101proairlinksearphone",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Телевизор 55\" (140 см) Hisense 55U7Q miniLED UHD Black",
+   "b": "Телевизор HISENSE ULED 55U7Q UHD SMART",
+   "new_a": "k2:hisense:55u7q",
+   "new_b": "k2:hisense:uled55u7q",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "SSD накопитель 1Tb Kingston NV3 SNV3S/1000G",
+   "b": "Твердотельный накопитель SSD Kingston 1TB M.2 (NV3 SNV3S/1000G) (SNV3S/1000G)",
+   "new_a": "k2:kingston:nv3:1tb",
+   "new_b": "kingston:nv3:1tb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "24.5\" XTREON XT2563VH черный",
+   "b": "Монитор XTREON XT2563VH 24.5 FHD/IPS/1ms/320Hz",
+   "new_a": "k2:xtreon:xt2563vh:24.5in",
+   "new_b": "k2:xtreon:xt2563vh",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Смартфон Tecno Pova 3 6/128Gb Blue",
+   "b": "Смартфон Tecno Pova 3, 128 GB, Eco Black (LF7n)",
+   "new_a": "k2:tecno:pova3:128gb+6gb",
+   "new_b": "k2:tecno:pova3:128gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "SSD накопитель 2 TB Kingston Fury Renegade G5, M.2, PCIe 5.0",
+   "b": "SSD накопитель Kingston FURY Renegade G5 SFYR2S/2T0",
+   "new_a": "k2:kingston:furyrenegadeg5:2tb",
+   "new_b": "k2:kingston:furyrenegadeg5",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "SSD накопитель 256 GB Kingston KC600, 2.5\", SATA III",
+   "b": "Твердотельный накопитель 256GB SSD Kingston KC600 2.5” SATA3 (SKC600/256G)",
+   "new_a": "k2:kingston:kc600:256gb",
+   "new_b": "kingston:kc600:256gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Оперативная память 16GB NOMAD NMD5600D5U46-16GBRGBB",
+   "b": "Оперативная память NOMAD RGB NMD5600D5U46-16GBRGBW DDR5 16GB 5600MHz - White (NMD5600D5U46-16GBRGBW)",
+   "new_a": "k2:nomad:nmd5600d5u4616gbrgbb:16gb",
+   "new_b": "nomad:nmd5600d5u46:16gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "SSD накопитель 4 TB Kingston Fury Renegade G5, M.2, PCIe 5.0",
+   "b": "Твердотельный накопитель SSD Kingston FURY Renegade G5 4ТБ (SFYR2S/4T0)",
+   "new_a": "k2:kingston:furyrenegadeg5:4tb",
+   "new_b": "kingston:fury renegade g5:4tb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Монитор 27\" AOC 27B3QA2 1920x1080 16:9 IPS 120ГЦ (HDMI+DP) Black",
+   "b": "Монитор 27\" AOC 27B3QA2/01, Black",
+   "new_a": "aoc:27b3qa2:27",
+   "new_b": "k2:aoc:27b3qa201",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Видеокарта MaxSun MS-GT730 PH 2G",
+   "b": "Видеокарта Maxsun MS-GT730 PH 2G [2 ГБ, GDDR3, 128 бит, VGA, DVI, HDMI]",
+   "new_a": "k2:maxsun:gt730:2gb",
+   "new_b": "maxsun:gt730:2gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Оперативная память 16Gb kit Patriot Signature PSD416G3200K",
+   "b": "Оперативная память Patriot PSD416G3200K 16 Гб (PSD416G3200K)",
+   "new_a": "k2:patriot:psd416g3200k:16gb",
+   "new_b": "patriot:psd416g3200k:16gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "OSCAL Pad 30 10.1 дюйм 4 Гб128 Гб серый + подарок",
+   "b": "Планшет Oscal Pad 30 WiFi, 10.1\",  4 GB, 128 GB, Horizon Blue",
+   "new_a": "k2:oscal:pad30:10.1in+4gb",
+   "new_b": "k2:oscal:pad30wifi:10.1in+128gb+4gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Оперативная память 32 GB kit Hiksemi (Hikvision) Sword RGB HSC432U32B5",
+   "b": "Оперативная память Hiksemi (Hikvision) Sword RGB DDR4 32 GB kit (2x16GB) 3200MHz (HSC432U32B5)",
+   "new_a": "k2:hiksemi:hsc432u32b5:32gb",
+   "new_b": "hiksemi:sword:32gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Видеокарта AFOX GT240 1GB D3 LP Single Fan AF240-1024D3L2-V2",
+   "b": "Видеокарта Afox GT240 (AF240-1024D3L2-V2) [1 ГБ, DDR3, 128 бит, 550 МГц, VGA, DVI, HDMI]",
+   "new_a": "k2:afox:gt240.v2:1gb",
+   "new_b": "k2:afox:af2401024d3l2.v2:1gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Монитор 27\" Sanc M2742PH V3, Black",
+   "b": "Монитор Игровой 27\" Sanc M2742PH V3 1920x1080 16:9 IPS 200ГЦ (2HDMI+DP) Black",
+   "new_a": "k2:sanc:m2742ph.v3:27in",
+   "new_b": "sanc:m2742ph v3:27",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Телевизор HISENSE QLED 43E7S UHD SMART",
+   "b": "Телевизор Hisense 43E7S RU",
+   "new_a": "k2:hisense:43e7s",
+   "new_b": "k2:hisense:e7s",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "SSD накопитель 512 GB Patriot P220 P220S512G25",
+   "b": "Твердотельный накопитель SSD 512 Gb SATA Patriot P220 P220S512G25 2.5\" 3D  (P220S512G25)",
+   "new_a": "k2:patriot:p220:512gb",
+   "new_b": "patriot:p220:512gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Оперативная память 8Gb Kingston KVR32N22S8/8WP",
+   "b": "Оперативная память Kingston KVR32N22S8/8  DDR4 DIMM 8Gb 3200 MHz CL22 (KVR32N22S8/8)",
+   "new_a": "k2:kingston:kvr32n22s88wp:8gb",
+   "new_b": "kingston:kvr32n22s8:8gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Оперативная память 16Gb Transcend JM5600ALE-16G",
+   "b": "Память оперативная Transcend JM5600ALE-16G 16GB DDR5 5600MHz (JM5600ALE-16G)",
+   "new_a": "k2:transcend:jm5600ale16g:16gb",
+   "new_b": "transcend:jm5600ale:16gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "DDR-5 DIMM 16 GB 5600 MHz Kingston Fury Beast, BOX (KF556C36BBE-16)",
+   "b": "Оперативная память Kingston FURY Beast EXPO DDR5 16GB 5600MT/s, White (KF556C36BWE-16)",
+   "new_a": "k2:kingston:kf556c36bbe16:16gb",
+   "new_b": "k2:kingston:kf556c36bwe16:16gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Планшет Oscal Pad 200 LTE 13.4\" 6/256Gb Gray",
+   "b": "Планшет Oscal Pad 200, 13.4\", 6 GB, 256 GB, Wi-Fi+4G, Space Gray",
+   "new_a": "k2:oscal:pad200lte:13.4in+256gb+6gb",
+   "new_b": "k2:oscal:pad200:13.4in+256gb+6gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Планшет Oscal Pad 60 Kids 10.1\" 4/128Gb Blue",
+   "b": "Планшет Oscal Pad 60 Kids, 10.1\", 4 GB, 128 GB, WiFi, Cloudy Blue",
+   "new_a": "oscal:pad 60 kids:128gb",
+   "new_b": "k2:oscal:pad60kids:10.1in+128gb+4gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Карта памяти Canvas Select Plus A1 U3 V30 1 ТБ Kingston Technology",
+   "b": "Карта памяти Micro SDXC 1Tb Kingston Canvas Select Plus, Class 10 UHS-I U3, адаптер",
+   "new_a": "k2:kingston:canvasselectplusa1u3v30:1tb",
+   "new_b": "k2:kingston:canvasselectplus:1tb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Оперативная память 16GB Apacer NOX TUF AH5U16G60C622UTAA-1",
+   "b": "Оперативная память Apacer NOX TUF DDR5 16GB 6000MHz (AH5U16G60C622UTAA-1)",
+   "new_a": "k2:apacer:ah5u16g60c622utaa1:16gb",
+   "new_b": "apacer:nox tuf:16gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Оперативная память 32Gb Kit Kingston Fury Beast KF432C16BB1K2/32WP",
+   "b": "Оперативная память Kingston Fury Beast DDR4 DIMM 32Gb KIT (2x16) 3200MHz (KF432C16BB1K2/32WP)",
+   "new_a": "k2:kingston:kf432c16bb1k232wp:32gb",
+   "new_b": "kingston:fury beast:32gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "SSD накопитель 1 TB Kingston NV3, M.2, PCIe 4.0",
+   "b": "Твердотельный накопитель SSD Kingston 1TB M.2 (NV3 SNV3S/1000G) (SNV3S/1000G)",
+   "new_a": "k2:kingston:nv3:1tb",
+   "new_b": "kingston:nv3:1tb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Видеокарта MaxSun MS-GTX1650 TR 4GD6 (MS-GTX1650 TR 4GD6)",
+   "b": "Видеокарта Maxsun MS-GTX1650 TR 4GD6 [4 ГБ, GDDR6, 128 бит, DVI, HDMI, DisplayPort]",
+   "new_a": "k2:maxsun:gtx1650:4gb",
+   "new_b": "maxsun:gtx1650:4gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "SSD накопитель 256 GB Apacer AS2280P4, M.2, PCIe 3.0",
+   "b": "Твердотельный накопитель  256GB SSD Apacer, M.2 2280, R1800MB/s, W1100MB/s, AP256GAS2280P4-1 (AP256GAS2280P4-1)",
+   "new_a": "k2:apacer:as2280p4:256gb",
+   "new_b": "apacer:as2280p4:256gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Внешний аккумулятор Baseus EnerFill FM11 Ultra-Mini 10000 мАч 22.5 Вт, ABS-пластик, поликарбонат, 10,4×7×1,8 Baseus, EnerFill",
+   "b": "Мобильный аккумулятор Baseus EnerFill FM11 Ultra-Mini PPFM11-1022, 10000 mAh, Moon White",
+   "new_a": "k2:baseus:enerfillfm11ultramini:10000mah+22.5w",
+   "new_b": "k2:baseus:enerfillfm11ultramini",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Оперативная память 16Gb Kingston Fury Beast KF432C16BB1/16WP",
+   "b": "Оперативная память Kingston FURY Beast KF432C16BB1/16 DDR4 16GB 3200MHz (KF432C16BB1/16)",
+   "new_a": "k2:kingston:kf432c16bb116wp:16gb",
+   "new_b": "kingston:fury beast:16gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Материнская плата ASRock B760M PRO RS/D4",
+   "b": "Материнская плата ASRock B760M Pro RS/D4, LGA1700  (90-MXBKL0-A0UAYZ)",
+   "new_a": "k2:asrock:b760m",
+   "new_b": "k2:asrock:b760mprorsd4",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Карта памяти Canvas Select Plus A1 U1 V10 128 ГБ Kingston Technology",
+   "b": "Карта памяти Micro SDXC 128GB Kingston Canvas Select Plus, Class 10 UHS-I U1",
+   "new_a": "k2:kingston:canvasselectplusa1u1v10:128gb",
+   "new_b": "k2:kingston:canvasselectplus:128gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Монитор 27\" AOC 27G42E/01/00",
+   "b": "Монитор Игровой 27\" AOC 27G42E 1920x1080 16:9 IPS 180ГЦ (HDMI+DP) Black",
+   "new_a": "k2:aoc:27g42e",
+   "new_b": "aoc:27g42e:27",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Карта памяти Canvas Go Plus A2 U3 V30 64 ГБ Kingston Technology",
+   "b": "Карта памяти Micro SDXC 64GB Kingston Canvas Go! Plus, Class 10 UHS-I U3 V30 A2, адаптер",
+   "new_a": "k2:kingston:canvasgoplusa2u3v3064gb:64gb",
+   "new_b": "k2:kingston:canvasgoplus:64gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Оперативная память 16Gb Netac Basic NTBSD5P56SP-16",
+   "b": "Оперативная память Netac Basic NTBSD5P56SP-16 DDR5 16Gb, 5600Mhz (NTBSD5P56SP-16)",
+   "new_a": "k2:netac:ntbsd5p56sp16:16gb",
+   "new_b": "netac:ntbsd5p56sp:16gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Внешний аккумулятор Baseus EnerFill FM11 Ultra-Mini 10000 мАч 22.5 Вт, ABS-пластик, поликарбонат, 10,4×7×1,8 Baseus, EnerFill",
+   "b": "Мобильный аккумулятор Baseus EnerFill FM11 Ultra-Mini PPFM11-1022, 10000 mAh, Nebula Purple",
+   "new_a": "k2:baseus:enerfillfm11ultramini:10000mah+22.5w",
+   "new_b": "k2:baseus:enerfillfm11ultramini",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Оперативная память 32GB Kit Kingston FURY Beast White RGB EXPO KF560C30BWEAK2-32 White",
+   "b": "Оперативная память Kingston Fury Beast RGB (AMD), DDR5 32 GB kit (2x16GB) 6000MHz (KF560C30BBEAK2-32) ( KF560C30BBEAK2-32)",
+   "new_a": "k2:kingston:kf560c30bweak232:32gb",
+   "new_b": "kingston:fury beast:32gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Карта памяти Canvas Select Plus A1 U3 V30 1 ТБ Kingston Technology",
+   "b": "Карта памяти Micro SDXC 1Tb Kingston Canvas Select Plus, Class 10 UHS-I U3",
+   "new_a": "k2:kingston:canvasselectplusa1u3v30:1tb",
+   "new_b": "k2:kingston:canvasselectplus:1tb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Оперативная память Hiksemi (Hikvision) Future DDR4 16 GB kit (2x8GB) 3200MHz, White (HSC416U32F3)",
+   "b": "Оперативная память Hiksemi Future HSC416U32F3",
+   "new_a": "hiksemi:future:16gb",
+   "new_b": "k2:hiksemi:hsc416u32f3:16gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Смартфон Tecno Pova 3 6/128Gb Blue",
+   "b": "Смартфон Tecno Pova 3, 128 GB, Electric Blue (LF7n)",
+   "new_a": "k2:tecno:pova3:128gb+6gb",
+   "new_b": "k2:tecno:pova3:128gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Материнская плата ASRock B760 PRO RS/D4",
+   "b": "Материнская плата ASRock B760 Pro RS/D4, iB760,S1700,ATX (90-MXBL80-A0UAYZ)",
+   "new_a": "k2:asrock:b760",
+   "new_b": "k2:asrock:b760prorsd4",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "SSD накопитель 512 GB Kingston KC3000, M.2, PCIe 4.0",
+   "b": "Твердотельный накопитель SSD Kingston SKC3000S/512G M.2 (SKC3000S/512G)",
+   "new_a": "k2:kingston:kc3000:512gb",
+   "new_b": "kingston:kc3000:512gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "SSD накопитель 500 GB Kingston NV3, M.2, PCIe 4.0",
+   "b": "Твердотельный накопитель SSD Kingston NV3 500GB (SNV3S/500G)",
+   "new_a": "k2:kingston:nv3:500gb",
+   "new_b": "kingston:nv3:500gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Телевизор Dreame 55K100, 55\"",
+   "b": "Телевизор Dreame Vista 55\" 55K100 LED 4K UHD Black",
+   "new_a": "k2:dreame:55k100",
+   "new_b": "k2:dreame:vistak100:55in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Видеокарта MaxSun MS-RX550 TF 4G",
+   "b": "Видеокарта Maxsun MS-RX550 TF 4G [4 ГБ, GDDR5, 128 бит, DVI, HDMI, DisplayPort]",
+   "new_a": "k2:maxsun:rx550:4gb",
+   "new_b": "maxsun:rx550:4gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Наушники SOUNDCORE H30i A3012 BK Black/Черный",
+   "b": "Наушники Soundcore H30i Red (A3012-R)",
+   "new_a": "k2:soundcore:h30ia3012",
+   "new_b": "k2:soundcore:h30i",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Телевизор ЯНДЕКС 55 YNDX-00076B (4K Smart) на YaGPT",
+   "b": "Телевизор Яндекс 55\" Бейсик с Алисой LED 4K UHD Smart YNDX-00076B",
+   "new_a": "k2:yandex:yndx00076b",
+   "new_b": "k2:yandex:yndx00076b:55in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Корпус Thermaltake The Tower 200, Turquoise",
+   "b": "Корпус для ПК Thermaltake The Tower 200 Turquoise Mini Chassis CA-1X9-00SBWN-00",
+   "new_a": "k2:thermaltake:thetower200",
+   "new_b": "k2:thermaltake:thetower200turquoiseminichassis",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Телевизор MiniLED ЯНДЕКС 55 YNDX-00097 (4K Smart)",
+   "b": "Телевизор Яндекc с Алисой 55\" MiniLED 4K YNDX-00097",
+   "new_a": "k2:yandex:yndx00097",
+   "new_b": "k2:yandex:yndx00097:55in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Оперативная память 16GB DDR5 5600MHz NOMAD UDIMM (NMD5600D5U46-16GB)",
+   "b": "Оперативная память 16GB NOMAD NMD5600D5U46-16GB",
+   "new_a": "nomad:nmd5600d5u46:16gb",
+   "new_b": "k2:nomad:nmd5600d5u4616gb:16gb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Зарядное устройство Usams US-CC189, 30W, Violet",
+   "b": "СЗУ Usams (US-CC189) 30W QC 3.0+PD USB+Type-C порты 30 Вт, USB, USB Type-C Usams",
+   "new_a": "k2:usams:uscc189.acc:30w",
+   "new_b": "k2:usams:uscc189",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "SSD накопитель 1 TB Netac SA500, 2.5\", SATA III",
+   "b": "Твердотельный накопитель SSD 1Tb, SATA, Netac SA500 (NT01SA500-1T0-S3X)",
+   "new_a": "k2:netac:sa500:1tb",
+   "new_b": "netac:sa500:1tb",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "Телевизор QLED ЯНДЕКС 50 YNDX-00094 (4K Smart)",
+   "b": "Телевизор Яндекс YNDX-00094 50\" (YNDX-00094)",
+   "new_a": "k2:yandex:50",
+   "new_b": "k2:yandex:yndx00094:50in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Материнская плата ASRock H610M-H2/M.2 D5",
+   "b": "Материнская плата ASRock H610M-H2/M.2 D5 (90-MXBML0-A0UAYZ)",
+   "new_a": "k2:asrock:h610mh2m.2",
+   "new_b": "k2:asrock:h610mh2m.2d5",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Монитор 24,5\" PHILIPS 25M2N5200U/01/00",
+   "b": "Монитор 24.5\" Philips Evnia 25M2N5200U/01, Black",
+   "new_a": "k2:philips:25m2n5200u:24.5in",
+   "new_b": "k2:philips:25m2n5200:24.5in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Наушники SOUNDCORE P40i A3955G21 White/Белый TWS",
+   "b": "Наушники Soundcore P40i A3955 TWS Navy Blue",
+   "new_a": "k2:soundcore:p40i",
+   "new_b": "k2:soundcore:p40ia3955",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Монитор 27\" X-game OFLED27+ 1920x1080 16:9 IPS 100ГЦ (HDMI+VGA) Black",
+   "b": "Монитор OFLED27+ 27\", 100 Гц X-Game",
+   "new_a": "x-game:ofled27+:27",
+   "new_b": "k2:xgame:ofled27",
+   "strata": [
+    "dropped_mixed"
+   ]
+  },
+  {
+   "a": "AFOX GT 240 AF240-1024D3L2-V2 1 Гб",
+   "b": "Видеокарта Afox GT240 (AF240-1024D3L2-V2) [1 ГБ, DDR3, 128 бит, 550 МГц, VGA, DVI, HDMI]",
+   "new_a": "k2:afox:gt240.v2:1gb",
+   "new_b": "k2:afox:af2401024d3l2.v2:1gb",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Материнская плата ASRock B760M PRO RS/D4 WIFI",
+   "b": "Материнская плата ASRock B760M Pro RS/D4 WiFi (90-MXBKZ0-A0UAYZ)",
+   "new_a": "k2:asrock:b760mprors.wifi",
+   "new_b": "k2:asrock:b760mprorsd4.wifi",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  },
+  {
+   "a": "Телевизор QLED ЯНДЕКС 65 Бейсик YNDX-00081 (4K Smart)",
+   "b": "Телевизор Яндекс Бейсик 65\" YNDX-00081 QLED 4K UHD Black",
+   "new_a": "k2:yandex:65beysik",
+   "new_b": "k2:yandex:yndx00081:65in",
+   "strata": [
+    "dropped_both_k2"
+   ]
+  }
+ ],
+ "registry_counts": {
+  "dropped": {
+   "missing_fields_one_side": 521,
+   "missing_fields_both": 0,
+   "legacy_with_fields": 1,
+   "no_identity": 0,
+   "variant_one_side": 18,
+   "variant_conflict": 114,
+   "revision_differs": 23,
+   "system_vs_component": 0,
+   "identity_differs_shared_code": 80,
+   "identity_differs_other": 209
+  },
+  "added": {
+   "old_format_only": 173,
+   "old_variant_differs": 1631,
+   "same_identity_new_old_empty": 0,
+   "own_keys_equal_old_identity_differs": 383,
+   "linked_by_article": 93
+  }
+ },
+ "titles": {
+  "k2": 18867,
+  "legacy": 682,
+  "empty": 584
+ },
+ "rules_now": {
+  "strata": {
+   "holdout_added": {
+    "before_tp": 0,
+    "now_tp": 0,
+    "before_fp": 0,
+    "now_fp": 0,
+    "true_total": 0,
+    "false_total": 0,
+    "excluded": 0
+   },
+   "holdout_dropped_both_k2": {
+    "before_tp": 0,
+    "now_tp": 0,
+    "before_fp": 0,
+    "now_fp": 0,
+    "true_total": 0,
+    "false_total": 0,
+    "excluded": 0
+   },
+   "tuned_added": {
+    "before_tp": 523,
+    "now_tp": 521,
+    "before_fp": 27,
+    "now_fp": 25,
+    "true_total": 523,
+    "false_total": 27,
+    "excluded": 50
+   },
+   "tuned_dropped_both_k2": {
+    "before_tp": 0,
+    "now_tp": 16,
+    "before_fp": 0,
+    "now_fp": 0,
+    "true_total": 71,
+    "false_total": 115,
+    "excluded": 14
+   },
+   "retained_pool": {
+    "before_tp": 281,
+    "now_tp": 277,
+    "before_fp": 5,
+    "now_fp": 5,
+    "true_total": 281,
+    "false_total": 5,
+    "excluded": 14
+   },
+   "dropped_mixed": {
+    "before_tp": 0,
+    "now_tp": 0,
+    "before_fp": 0,
+    "now_fp": 0,
+    "true_total": 71,
+    "false_total": 124,
+    "excluded": 5
+   }
+  },
+  "added_still_together": 2260,
+  "dropped_both_k2_rejoined": 28,
+  "limits": "Только пары прежних слоёв: пары, которые правила могли соединить заново вне их, не видны; нужна пересборка копии."
+ }
+}

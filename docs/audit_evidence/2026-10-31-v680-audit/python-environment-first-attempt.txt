@@ -1,0 +1,1904 @@
+EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+======================================================================
+ERROR: repositories (unittest.loader._FailedTest.repositories)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: repositories
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 467, in _find_test_path
+    package = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/repositories/__init__.py", line 16, in <module>
+    from repositories.social_source_repo import SocialSourceRepository
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/repositories/social_source_repo.py", line 13, in <module>
+    from domain.social_connector import SocialSource, normalize_handle, source_id
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/domain/social_connector.py", line 27, in <module>
+    from html_soup import make_soup
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/html_soup.py", line 17, in <module>
+    from bs4 import BeautifulSoup
+ModuleNotFoundError: No module named 'bs4'
+
+
+======================================================================
+ERROR: tests.ai.test_admin_assistant (unittest.loader._FailedTest.tests.ai.test_admin_assistant)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.ai.test_admin_assistant
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/ai/test_admin_assistant.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.ai.test_ai_category_classification (unittest.loader._FailedTest.tests.ai.test_ai_category_classification)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.ai.test_ai_category_classification
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/ai/test_ai_category_classification.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.ai.test_ai_json_extraction (unittest.loader._FailedTest.tests.ai.test_ai_json_extraction)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.ai.test_ai_json_extraction
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/ai/test_ai_json_extraction.py", line 6, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.ai.test_ai_models (unittest.loader._FailedTest.tests.ai.test_ai_models)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.ai.test_ai_models
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/ai/test_ai_models.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.ai.test_ai_prices (unittest.loader._FailedTest.tests.ai.test_ai_prices)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.ai.test_ai_prices
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/ai/test_ai_prices.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.ai.test_ai_router (unittest.loader._FailedTest.tests.ai.test_ai_router)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.ai.test_ai_router
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/ai/test_ai_router.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.ai.test_catalog_ai (unittest.loader._FailedTest.tests.ai.test_catalog_ai)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.ai.test_catalog_ai
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/ai/test_catalog_ai.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.ai.test_catalog_quality (unittest.loader._FailedTest.tests.ai.test_catalog_quality)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.ai.test_catalog_quality
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/ai/test_catalog_quality.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.ai.test_local_ai (unittest.loader._FailedTest.tests.ai.test_local_ai)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.ai.test_local_ai
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/ai/test_local_ai.py", line 7, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.ai.test_matching_precision (unittest.loader._FailedTest.tests.ai.test_matching_precision)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.ai.test_matching_precision
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/ai/test_matching_precision.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.ai.test_model_choice (unittest.loader._FailedTest.tests.ai.test_model_choice)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.ai.test_model_choice
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/ai/test_model_choice.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.ai.test_product_verify (unittest.loader._FailedTest.tests.ai.test_product_verify)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.ai.test_product_verify
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/ai/test_product_verify.py", line 1, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.ai.test_shadow_normalize (unittest.loader._FailedTest.tests.ai.test_shadow_normalize)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.ai.test_shadow_normalize
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/ai/test_shadow_normalize.py", line 1, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.core.test_category_hierarchy (unittest.loader._FailedTest.tests.core.test_category_hierarchy)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.core.test_category_hierarchy
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/core/test_category_hierarchy.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.core.test_config_and_ids (unittest.loader._FailedTest.tests.core.test_config_and_ids)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.core.test_config_and_ids
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/core/test_config_and_ids.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.core.test_db_connection_locking (unittest.loader._FailedTest.tests.core.test_db_connection_locking)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.core.test_db_connection_locking
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/core/test_db_connection_locking.py", line 10, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.core.test_domain_models (unittest.loader._FailedTest.tests.core.test_domain_models)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.core.test_domain_models
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/core/test_domain_models.py", line 5, in <module>
+    from tests import test_support  # must be first
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.core.test_dual_write (unittest.loader._FailedTest.tests.core.test_dual_write)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.core.test_dual_write
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/core/test_dual_write.py", line 5, in <module>
+    from tests import test_support  # must be first
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.core.test_fts_optimize (unittest.loader._FailedTest.tests.core.test_fts_optimize)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.core.test_fts_optimize
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/core/test_fts_optimize.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.core.test_import_contract (unittest.loader._FailedTest.tests.core.test_import_contract)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.core.test_import_contract
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/core/test_import_contract.py", line 16, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.core.test_migrate_to_k2 (unittest.loader._FailedTest.tests.core.test_migrate_to_k2)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.core.test_migrate_to_k2
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/core/test_migrate_to_k2.py", line 1, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.core.test_migration_script (unittest.loader._FailedTest.tests.core.test_migration_script)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.core.test_migration_script
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/core/test_migration_script.py", line 5, in <module>
+    from tests import test_support  # must be first
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.core.test_offer_identity (unittest.loader._FailedTest.tests.core.test_offer_identity)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.core.test_offer_identity
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/core/test_offer_identity.py", line 3, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.core.test_offer_namespace (unittest.loader._FailedTest.tests.core.test_offer_namespace)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.core.test_offer_namespace
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/core/test_offer_namespace.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.core.test_offer_retirement (unittest.loader._FailedTest.tests.core.test_offer_retirement)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.core.test_offer_retirement
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/core/test_offer_retirement.py", line 7, in <module>
+    from tests import test_support  # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.core.test_product_key (unittest.loader._FailedTest.tests.core.test_product_key)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.core.test_product_key
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/core/test_product_key.py", line 1, in <module>
+    from tests import test_support  # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.core.test_queue_contract (unittest.loader._FailedTest.tests.core.test_queue_contract)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.core.test_queue_contract
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/core/test_queue_contract.py", line 7, in <module>
+    from tests import test_support  # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.core.test_queue_service (unittest.loader._FailedTest.tests.core.test_queue_service)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.core.test_queue_service
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/core/test_queue_service.py", line 3, in <module>
+    from tests import test_support  # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.core.test_registry_contract (unittest.loader._FailedTest.tests.core.test_registry_contract)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.core.test_registry_contract
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/core/test_registry_contract.py", line 3, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.core.test_release_baseline (unittest.loader._FailedTest.tests.core.test_release_baseline)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.core.test_release_baseline
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/core/test_release_baseline.py", line 7, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.core.test_release_gate (unittest.loader._FailedTest.tests.core.test_release_gate)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.core.test_release_gate
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/core/test_release_gate.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.core.test_release_notes (unittest.loader._FailedTest.tests.core.test_release_notes)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.core.test_release_notes
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/core/test_release_notes.py", line 3, in <module>
+    from tests import test_support  # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.core.test_repositories (unittest.loader._FailedTest.tests.core.test_repositories)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.core.test_repositories
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/core/test_repositories.py", line 5, in <module>
+    from tests import test_support  # must be first
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.core.test_runtime_tuning (unittest.loader._FailedTest.tests.core.test_runtime_tuning)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.core.test_runtime_tuning
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/core/test_runtime_tuning.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.core.test_search_platform_v2_complete (unittest.loader._FailedTest.tests.core.test_search_platform_v2_complete)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.core.test_search_platform_v2_complete
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/core/test_search_platform_v2_complete.py", line 12, in <module>
+    from tests import test_support  # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.core.test_settings (unittest.loader._FailedTest.tests.core.test_settings)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.core.test_settings
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/core/test_settings.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.core.test_timezones (unittest.loader._FailedTest.tests.core.test_timezones)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.core.test_timezones
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/core/test_timezones.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.core.test_v650_audit_fixes (unittest.loader._FailedTest.tests.core.test_v650_audit_fixes)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.core.test_v650_audit_fixes
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/core/test_v650_audit_fixes.py", line 6, in <module>
+    from tests import test_support  # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.core.test_v651_write_contention (unittest.loader._FailedTest.tests.core.test_v651_write_contention)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.core.test_v651_write_contention
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/core/test_v651_write_contention.py", line 1, in <module>
+    from tests import test_support  # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.core.test_v652_telemetry_wal (unittest.loader._FailedTest.tests.core.test_v652_telemetry_wal)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.core.test_v652_telemetry_wal
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/core/test_v652_telemetry_wal.py", line 1, in <module>
+    from tests import test_support  # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.core.test_validators_are_used (unittest.loader._FailedTest.tests.core.test_validators_are_used)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.core.test_validators_are_used
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/core/test_validators_are_used.py", line 11, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.core.test_write_tx_contention (unittest.loader._FailedTest.tests.core.test_write_tx_contention)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.core.test_write_tx_contention
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/core/test_write_tx_contention.py", line 1, in <module>
+    from tests import test_support  # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.deploy.test_prod_host_scripts (unittest.loader._FailedTest.tests.deploy.test_prod_host_scripts)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.deploy.test_prod_host_scripts
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/deploy/test_prod_host_scripts.py", line 1, in <module>
+    from tests import test_support  # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.monitoring.test_backup_health (unittest.loader._FailedTest.tests.monitoring.test_backup_health)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.monitoring.test_backup_health
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/monitoring/test_backup_health.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.monitoring.test_daily_digest (unittest.loader._FailedTest.tests.monitoring.test_daily_digest)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.monitoring.test_daily_digest
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/monitoring/test_daily_digest.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.monitoring.test_data_quality (unittest.loader._FailedTest.tests.monitoring.test_data_quality)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.monitoring.test_data_quality
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/monitoring/test_data_quality.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.monitoring.test_detector_edge_cases (unittest.loader._FailedTest.tests.monitoring.test_detector_edge_cases)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.monitoring.test_detector_edge_cases
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/monitoring/test_detector_edge_cases.py", line 6, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.monitoring.test_environment (unittest.loader._FailedTest.tests.monitoring.test_environment)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.monitoring.test_environment
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/monitoring/test_environment.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.monitoring.test_monitor (unittest.loader._FailedTest.tests.monitoring.test_monitor)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.monitoring.test_monitor
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/monitoring/test_monitor.py", line 1, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.monitoring.test_monitoring (unittest.loader._FailedTest.tests.monitoring.test_monitoring)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.monitoring.test_monitoring
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/monitoring/test_monitoring.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.monitoring.test_scaling (unittest.loader._FailedTest.tests.monitoring.test_scaling)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.monitoring.test_scaling
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/monitoring/test_scaling.py", line 3, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.monitoring.test_telemetry (unittest.loader._FailedTest.tests.monitoring.test_telemetry)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.monitoring.test_telemetry
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/monitoring/test_telemetry.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.notifications.test_bot_privacy (unittest.loader._FailedTest.tests.notifications.test_bot_privacy)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.notifications.test_bot_privacy
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/notifications/test_bot_privacy.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.notifications.test_notifications (unittest.loader._FailedTest.tests.notifications.test_notifications)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.notifications.test_notifications
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/notifications/test_notifications.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.notifications.test_shop_notices (unittest.loader._FailedTest.tests.notifications.test_shop_notices)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.notifications.test_shop_notices
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/notifications/test_shop_notices.py", line 8, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.notifications.test_watch_identity (unittest.loader._FailedTest.tests.notifications.test_watch_identity)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.notifications.test_watch_identity
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/notifications/test_watch_identity.py", line 1, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.notifications.test_watches (unittest.loader._FailedTest.tests.notifications.test_watches)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.notifications.test_watches
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/notifications/test_watches.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.notifications.test_watches_v2 (unittest.loader._FailedTest.tests.notifications.test_watches_v2)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.notifications.test_watches_v2
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/notifications/test_watches_v2.py", line 1, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.scheduler.test_adaptive_scheduler_v2 (unittest.loader._FailedTest.tests.scheduler.test_adaptive_scheduler_v2)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.scheduler.test_adaptive_scheduler_v2
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/scheduler/test_adaptive_scheduler_v2.py", line 7, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.scheduler.test_scheduler_resilience (unittest.loader._FailedTest.tests.scheduler.test_scheduler_resilience)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.scheduler.test_scheduler_resilience
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/scheduler/test_scheduler_resilience.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.scheduler.test_scheduler_rollout (unittest.loader._FailedTest.tests.scheduler.test_scheduler_rollout)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.scheduler.test_scheduler_rollout
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/scheduler/test_scheduler_rollout.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.scheduler.test_scheduler_shadow (unittest.loader._FailedTest.tests.scheduler.test_scheduler_shadow)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.scheduler.test_scheduler_shadow
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/scheduler/test_scheduler_shadow.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.scheduler.test_shadow_read (unittest.loader._FailedTest.tests.scheduler.test_shadow_read)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.scheduler.test_shadow_read
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/scheduler/test_shadow_read.py", line 5, in <module>
+    from tests import test_support  # must be first
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.scrapers.test_scraper_base_optimizations (unittest.loader._FailedTest.tests.scrapers.test_scraper_base_optimizations)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.scrapers.test_scraper_base_optimizations
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/scrapers/test_scraper_base_optimizations.py", line 6, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.scrapers.test_scraper_completeness (unittest.loader._FailedTest.tests.scrapers.test_scraper_completeness)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.scrapers.test_scraper_completeness
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/scrapers/test_scraper_completeness.py", line 12, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.scrapers.test_scraper_contract (unittest.loader._FailedTest.tests.scrapers.test_scraper_contract)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.scrapers.test_scraper_contract
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/scrapers/test_scraper_contract.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.scrapers.test_scraper_partial_parse (unittest.loader._FailedTest.tests.scrapers.test_scraper_partial_parse)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.scrapers.test_scraper_partial_parse
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/scrapers/test_scraper_partial_parse.py", line 6, in <module>
+    from tests import test_support  # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.scrapers.test_scraper_reliability (unittest.loader._FailedTest.tests.scrapers.test_scraper_reliability)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.scrapers.test_scraper_reliability
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/scrapers/test_scraper_reliability.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.search.test_adaptive_discovery_v2 (unittest.loader._FailedTest.tests.search.test_adaptive_discovery_v2)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.search.test_adaptive_discovery_v2
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/search/test_adaptive_discovery_v2.py", line 11, in <module>
+    from tests import test_support  # noqa: F401  изолирует DATA_DIR
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.search.test_purchasability_policy (unittest.loader._FailedTest.tests.search.test_purchasability_policy)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.search.test_purchasability_policy
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/search/test_purchasability_policy.py", line 7, in <module>
+    from tests import test_support  # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.search.test_search_analytics (unittest.loader._FailedTest.tests.search.test_search_analytics)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.search.test_search_analytics
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/search/test_search_analytics.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.search.test_search_analytics_v2 (unittest.loader._FailedTest.tests.search.test_search_analytics_v2)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.search.test_search_analytics_v2
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/search/test_search_analytics_v2.py", line 11, in <module>
+    from tests import test_support  # must be first
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.search.test_search_core_v2 (unittest.loader._FailedTest.tests.search.test_search_core_v2)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.search.test_search_core_v2
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/search/test_search_core_v2.py", line 11, in <module>
+    from tests import test_support  # must be first
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.search.test_search_engine_optimizations (unittest.loader._FailedTest.tests.search.test_search_engine_optimizations)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.search.test_search_engine_optimizations
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/search/test_search_engine_optimizations.py", line 7, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.search.test_search_privacy_v2 (unittest.loader._FailedTest.tests.search.test_search_privacy_v2)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.search.test_search_privacy_v2
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/search/test_search_privacy_v2.py", line 9, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.search.test_search_ui_v2 (unittest.loader._FailedTest.tests.search.test_search_ui_v2)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.search.test_search_ui_v2
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/search/test_search_ui_v2.py", line 4, in <module>
+    from tests import test_support  # noqa: F401  изолирует DATA_DIR
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.search.test_store_deals (unittest.loader._FailedTest.tests.search.test_store_deals)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.search.test_store_deals
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/search/test_store_deals.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.sellers.test_channel_pricing (unittest.loader._FailedTest.tests.sellers.test_channel_pricing)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.sellers.test_channel_pricing
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/sellers/test_channel_pricing.py", line 9, in <module>
+    from tests import test_support  # must be first
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.sellers.test_condition (unittest.loader._FailedTest.tests.sellers.test_condition)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.sellers.test_condition
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/sellers/test_condition.py", line 11, in <module>
+    from tests import test_support  # must be first
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.sellers.test_discovery_lifecycle (unittest.loader._FailedTest.tests.sellers.test_discovery_lifecycle)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.sellers.test_discovery_lifecycle
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/sellers/test_discovery_lifecycle.py", line 7, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.sellers.test_discovery_profiler (unittest.loader._FailedTest.tests.sellers.test_discovery_profiler)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.sellers.test_discovery_profiler
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/sellers/test_discovery_profiler.py", line 10, in <module>
+    from tests import test_support  # must be first
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.sellers.test_seller_matcher (unittest.loader._FailedTest.tests.sellers.test_seller_matcher)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.sellers.test_seller_matcher
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/sellers/test_seller_matcher.py", line 6, in <module>
+    from tests import test_support  # must be first
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.sellers.test_seller_page (unittest.loader._FailedTest.tests.sellers.test_seller_page)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.sellers.test_seller_page
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/sellers/test_seller_page.py", line 1, in <module>
+    from tests import test_support  # noqa: F401 isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.sellers.test_social_connectors (unittest.loader._FailedTest.tests.sellers.test_social_connectors)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.sellers.test_social_connectors
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/sellers/test_social_connectors.py", line 7, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.sellers.test_social_content_intelligence (unittest.loader._FailedTest.tests.sellers.test_social_content_intelligence)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.sellers.test_social_content_intelligence
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/sellers/test_social_content_intelligence.py", line 8, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.test_disputed_matching_moderation (unittest.loader._FailedTest.tests.test_disputed_matching_moderation)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.test_disputed_matching_moderation
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_disputed_matching_moderation.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.test_support (unittest.loader._FailedTest.tests.test_support)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.test_support
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.web.test_auth_privacy (unittest.loader._FailedTest.tests.web.test_auth_privacy)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.web.test_auth_privacy
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/web/test_auth_privacy.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.web.test_browser_server (unittest.loader._FailedTest.tests.web.test_browser_server)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.web.test_browser_server
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/web/test_browser_server.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.web.test_diagnostics (unittest.loader._FailedTest.tests.web.test_diagnostics)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.web.test_diagnostics
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/web/test_diagnostics.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.web.test_health_and_pool (unittest.loader._FailedTest.tests.web.test_health_and_pool)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.web.test_health_and_pool
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/web/test_health_and_pool.py", line 1, in <module>
+    from tests import test_support  # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.web.test_privacy_self_service (unittest.loader._FailedTest.tests.web.test_privacy_self_service)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.web.test_privacy_self_service
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/web/test_privacy_self_service.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.web.test_security_headers (unittest.loader._FailedTest.tests.web.test_security_headers)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.web.test_security_headers
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/web/test_security_headers.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.web.test_security_logging (unittest.loader._FailedTest.tests.web.test_security_logging)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.web.test_security_logging
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/web/test_security_logging.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.web.test_seller_endpoints (unittest.loader._FailedTest.tests.web.test_seller_endpoints)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.web.test_seller_endpoints
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/web/test_seller_endpoints.py", line 6, in <module>
+    from tests import test_support  # noqa: F401 isolates DATA_DIR
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.web.test_session_cleanup (unittest.loader._FailedTest.tests.web.test_session_cleanup)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.web.test_session_cleanup
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/web/test_session_cleanup.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.web.test_shielded_db_cancel (unittest.loader._FailedTest.tests.web.test_shielded_db_cancel)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.web.test_shielded_db_cancel
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/web/test_shielded_db_cancel.py", line 7, in <module>
+    from tests import test_support  # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.web.test_ui_data (unittest.loader._FailedTest.tests.web.test_ui_data)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.web.test_ui_data
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/web/test_ui_data.py", line 2, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+======================================================================
+ERROR: tests.web.test_web_optimizations (unittest.loader._FailedTest.tests.web.test_web_optimizations)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: tests.web.test_web_optimizations
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 433, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py", line 374, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/web/test_web_optimizations.py", line 7, in <module>
+    from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v680-audit-14mhs3cu/tests/test_support.py", line 35, in <module>
+    from aiohttp.test_utils import TestClient  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'aiohttp'
+
+
+----------------------------------------------------------------------
+Ran 100 tests in 0.002s
+
+FAILED (errors=100)

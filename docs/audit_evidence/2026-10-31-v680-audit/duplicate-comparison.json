@@ -1,0 +1,1067 @@
+[
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c3/build_labeled_dataset 2.py",
+    "original": "docs/audit_evidence/2026-10-30-c3/build_labeled_dataset.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c3/labeled_sample 2.json",
+    "original": "docs/audit_evidence/2026-10-30-c3/labeled_sample.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c3/quality 2.json",
+    "original": "docs/audit_evidence/2026-10-30-c3/quality.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c3/read_stand 2.py",
+    "original": "docs/audit_evidence/2026-10-30-c3/read_stand.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c3/registry 2.json",
+    "original": "docs/audit_evidence/2026-10-30-c3/registry.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c3/stand-data 2.json",
+    "original": "docs/audit_evidence/2026-10-30-c3/stand-data.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c3/stand-report 2.json",
+    "original": "docs/audit_evidence/2026-10-30-c3/stand-report.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c3/unlabeled_sample 2.json",
+    "original": "docs/audit_evidence/2026-10-30-c3/unlabeled_sample.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c45-reaccept/accepted-regressions 2.txt",
+    "original": "docs/audit_evidence/2026-10-30-c45-reaccept/accepted-regressions.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c45-reaccept/accepted_regressions 2.py",
+    "original": "docs/audit_evidence/2026-10-30-c45-reaccept/accepted_regressions.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c45-reaccept/original-reproduce 2.txt",
+    "original": "docs/audit_evidence/2026-10-30-c45-reaccept/original-reproduce.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c45-reaccept/python-suite 2.txt",
+    "original": "docs/audit_evidence/2026-10-30-c45-reaccept/python-suite.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c45-reaccept/residuals 2.py",
+    "original": "docs/audit_evidence/2026-10-30-c45-reaccept/residuals.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c45-reaccept/residuals 2.txt",
+    "original": "docs/audit_evidence/2026-10-30-c45-reaccept/residuals.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c45-reaccept/targeted-tests 2.txt",
+    "original": "docs/audit_evidence/2026-10-30-c45-reaccept/targeted-tests.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c45rr-accept/accepted-regressions 2.txt",
+    "original": "docs/audit_evidence/2026-10-30-c45rr-accept/accepted-regressions.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c45rr-accept/earlier-residuals 2.txt",
+    "original": "docs/audit_evidence/2026-10-30-c45rr-accept/earlier-residuals.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c45rr-accept/previous-residuals 2.txt",
+    "original": "docs/audit_evidence/2026-10-30-c45rr-accept/previous-residuals.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c45rr-accept/python-suite 2.txt",
+    "original": "docs/audit_evidence/2026-10-30-c45rr-accept/python-suite.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c45rr-accept/secrets 2.json",
+    "original": "docs/audit_evidence/2026-10-30-c45rr-accept/secrets.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c45rr-accept/targeted-tests 2.txt",
+    "original": "docs/audit_evidence/2026-10-30-c45rr-accept/targeted-tests.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c45rr-accept/upgrade-boundary 2.txt",
+    "original": "docs/audit_evidence/2026-10-30-c45rr-accept/upgrade-boundary.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c45rr-accept/upgrade_boundary 2.py",
+    "original": "docs/audit_evidence/2026-10-30-c45rr-accept/upgrade_boundary.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c45rr-close/accepted-regressions 2.txt",
+    "original": "docs/audit_evidence/2026-10-30-c45rr-close/accepted-regressions.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c45rr-close/earlier-residuals 2.txt",
+    "original": "docs/audit_evidence/2026-10-30-c45rr-close/earlier-residuals.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c45rr-close/ledger-matrix 2.txt",
+    "original": "docs/audit_evidence/2026-10-30-c45rr-close/ledger-matrix.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c45rr-close/ledger_matrix 2.py",
+    "original": "docs/audit_evidence/2026-10-30-c45rr-close/ledger_matrix.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c45rr-close/previous-residuals 2.txt",
+    "original": "docs/audit_evidence/2026-10-30-c45rr-close/previous-residuals.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c45rr-close/python-suite 2.txt",
+    "original": "docs/audit_evidence/2026-10-30-c45rr-close/python-suite.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c45rr-close/secrets 2.json",
+    "original": "docs/audit_evidence/2026-10-30-c45rr-close/secrets.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c45rr-close/targeted-tests 2.txt",
+    "original": "docs/audit_evidence/2026-10-30-c45rr-close/targeted-tests.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-c45rr-close/upgrade-boundary 2.txt",
+    "original": "docs/audit_evidence/2026-10-30-c45rr-close/upgrade-boundary.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-p17c45/live-safe 2.json",
+    "original": "docs/audit_evidence/2026-10-30-p17c45/live-safe.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-p17c45/read_stand 2.py",
+    "original": "docs/audit_evidence/2026-10-30-p17c45/read_stand.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-p17c45/reproduce 2.py",
+    "original": "docs/audit_evidence/2026-10-30-p17c45/reproduce.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-p17c45/reproduce 2.txt",
+    "original": "docs/audit_evidence/2026-10-30-p17c45/reproduce.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-p17c45/secrets 2.json",
+    "original": "docs/audit_evidence/2026-10-30-p17c45/secrets.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-p17c45/stand-quality 2.json",
+    "original": "docs/audit_evidence/2026-10-30-p17c45/stand-quality.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-p17c45/watch-input 2.json",
+    "original": "docs/audit_evidence/2026-10-30-p17c45/watch-input.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-p17c45/watch-result 2.txt",
+    "original": "docs/audit_evidence/2026-10-30-p17c45/watch-result.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-30-p17c45/watch_probe 2.py",
+    "original": "docs/audit_evidence/2026-10-30-p17c45/watch_probe.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c2-loss-ext/apply_labels 2.py",
+    "original": "docs/audit_evidence/2026-10-31-c2-loss-ext/apply_labels.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c2-loss-ext/labels 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c2-loss-ext/labels.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c2-loss-ext/quality 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c2-loss-ext/quality.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c2-loss-ext/registry 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c2-loss-ext/registry.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c2-loss-ext/sampling_metadata 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c2-loss-ext/sampling_metadata.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c2-loss-ext/sampling_script 2.py",
+    "original": "docs/audit_evidence/2026-10-31-c2-loss-ext/sampling_script.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c2-loss-ext/strata_sealed 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c2-loss-ext/strata_sealed.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c2-loss-ext/unlabeled_titles 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-c2-loss-ext/unlabeled_titles.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c2-source-fix/README 2.md",
+    "original": "docs/audit_evidence/2026-10-31-c2-source-fix/README.md",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c2-source-fix/changes 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c2-source-fix/changes.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c2-source-fix/diff-check 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-c2-source-fix/diff-check.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c2-source-fix/independent 2.py",
+    "original": "docs/audit_evidence/2026-10-31-c2-source-fix/independent.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c2-source-fix/independent 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-c2-source-fix/independent.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c2-source-fix/independent-summary 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c2-source-fix/independent-summary.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c2-source-fix/quality 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c2-source-fix/quality.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c2-source-fix/recalculate 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-c2-source-fix/recalculate.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c2-source-fix/registry 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c2-source-fix/registry.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c2-source-fix/report-replay 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-c2-source-fix/report-replay.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c2-source-fix/scope-check 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-c2-source-fix/scope-check.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c2-source-fix/secrets 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-c2-source-fix/secrets.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c2-source-fix/source-checks 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c2-source-fix/source-checks.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c2-source-fix/update_labels 2.py",
+    "original": "docs/audit_evidence/2026-10-31-c2-source-fix/update_labels.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3-codex/independent-check 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-c3-codex/independent-check.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3-codex/independent-summary 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c3-codex/independent-summary.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3-codex/independent_check 2.py",
+    "original": "docs/audit_evidence/2026-10-31-c3-codex/independent_check.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3-codex/previous-labels 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c3-codex/previous-labels.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3-codex/python-suite 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-c3-codex/python-suite.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3-codex/quality 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c3-codex/quality.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3-codex/quality-log 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-c3-codex/quality-log.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3-codex/read_extra 2.py",
+    "original": "docs/audit_evidence/2026-10-31-c3-codex/read_extra.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3-codex/registry 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c3-codex/registry.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3-codex/secrets 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-c3-codex/secrets.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3-codex/stand-extra 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c3-codex/stand-extra.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3-codex/stand-live 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c3-codex/stand-live.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3a-codex/independent-check 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-c3a-codex/independent-check.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3a-codex/independent-summary 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c3a-codex/independent-summary.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3a-codex/independent_check 2.py",
+    "original": "docs/audit_evidence/2026-10-31-c3a-codex/independent_check.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3a-codex/packaging-probe 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c3a-codex/packaging-probe.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3a-codex/packaging_probe 2.py",
+    "original": "docs/audit_evidence/2026-10-31-c3a-codex/packaging_probe.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3a-codex/python-suite 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-c3a-codex/python-suite.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3a-codex/quality 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c3a-codex/quality.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3a-codex/quality-log 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-c3a-codex/quality-log.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3a-codex/registry 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c3a-codex/registry.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3a-codex/residue-live 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c3a-codex/residue-live.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3a-codex/secrets 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-c3a-codex/secrets.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3a/apply_label_review 2.py",
+    "original": "docs/audit_evidence/2026-10-31-c3a/apply_label_review.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3a/apply_open_added_review 2.py",
+    "original": "docs/audit_evidence/2026-10-31-c3a/apply_open_added_review.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3a/label_changes 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c3a/label_changes.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3a/list_residue 2.py",
+    "original": "docs/audit_evidence/2026-10-31-c3a/list_residue.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3a/open_added_sensitivity 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c3a/open_added_sensitivity.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3a/open_added_sensitivity 2.py",
+    "original": "docs/audit_evidence/2026-10-31-c3a/open_added_sensitivity.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3a/quality 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c3a/quality.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3a/read_residue 2.py",
+    "original": "docs/audit_evidence/2026-10-31-c3a/read_residue.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3a/registry 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c3a/registry.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3a/residue_raw 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c3a/residue_raw.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3a/residue_titles 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c3a/residue_titles.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3e/apply_ext_review 2.py",
+    "original": "docs/audit_evidence/2026-10-31-c3e/apply_ext_review.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3e/ext_blind_order 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c3e/ext_blind_order.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3e/ext_blind_review 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c3e/ext_blind_review.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3e/ext_blind_titles 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-c3e/ext_blind_titles.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3e/ext_label_changes 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c3e/ext_label_changes.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3e/open_sensitivity 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c3e/open_sensitivity.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3e/quality 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c3e/quality.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-c3e/registry 2.json",
+    "original": "docs/audit_evidence/2026-10-31-c3e/registry.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-loss-codex/blind-review 2.json",
+    "original": "docs/audit_evidence/2026-10-31-loss-codex/blind-review.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-loss-codex/blind-selection 2.json",
+    "original": "docs/audit_evidence/2026-10-31-loss-codex/blind-selection.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-loss-codex/frontend 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-loss-codex/frontend.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-loss-codex/frontend-summary 2.json",
+    "original": "docs/audit_evidence/2026-10-31-loss-codex/frontend-summary.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-loss-codex/independent 2.py",
+    "original": "docs/audit_evidence/2026-10-31-loss-codex/independent.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-loss-codex/independent 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-loss-codex/independent.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-loss-codex/independent-summary 2.json",
+    "original": "docs/audit_evidence/2026-10-31-loss-codex/independent-summary.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-loss-codex/moderation-durability 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-loss-codex/moderation-durability.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-loss-codex/moderation-residuals 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-loss-codex/moderation-residuals.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-loss-codex/moderation_residuals 2.py",
+    "original": "docs/audit_evidence/2026-10-31-loss-codex/moderation_residuals.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-loss-codex/python-suite 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-loss-codex/python-suite.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-loss-codex/quality 2.json",
+    "original": "docs/audit_evidence/2026-10-31-loss-codex/quality.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-loss-codex/quality 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-loss-codex/quality.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-loss-codex/registry 2.json",
+    "original": "docs/audit_evidence/2026-10-31-loss-codex/registry.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-loss-codex/secrets 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-loss-codex/secrets.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mm-ext-reaccept/frontend 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-mm-ext-reaccept/frontend.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mm-ext-reaccept/frontend-summary 2.json",
+    "original": "docs/audit_evidence/2026-10-31-mm-ext-reaccept/frontend-summary.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mm-ext-reaccept/independent_quality 2.py",
+    "original": "docs/audit_evidence/2026-10-31-mm-ext-reaccept/independent_quality.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mm-ext-reaccept/original-residuals 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-mm-ext-reaccept/original-residuals.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mm-ext-reaccept/python-suite 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-mm-ext-reaccept/python-suite.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mm-ext-reaccept/quality 2.json",
+    "original": "docs/audit_evidence/2026-10-31-mm-ext-reaccept/quality.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mm-ext-reaccept/quality-independent 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-mm-ext-reaccept/quality-independent.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mm-ext-reaccept/quality-independent-summary 2.json",
+    "original": "docs/audit_evidence/2026-10-31-mm-ext-reaccept/quality-independent-summary.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mm-ext-reaccept/quality-log 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-mm-ext-reaccept/quality-log.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mm-ext-reaccept/registry 2.json",
+    "original": "docs/audit_evidence/2026-10-31-mm-ext-reaccept/registry.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mm-ext-reaccept/residuals 2.py",
+    "original": "docs/audit_evidence/2026-10-31-mm-ext-reaccept/residuals.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mm-ext-reaccept/residuals 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-mm-ext-reaccept/residuals.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mm-ext-reaccept/secrets 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-mm-ext-reaccept/secrets.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mmr-accepted/concurrency 2.py",
+    "original": "docs/audit_evidence/2026-10-31-mmr-accepted/concurrency.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mmr-accepted/concurrency 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-mmr-accepted/concurrency.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mmr-accepted/original-residuals 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-mmr-accepted/original-residuals.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mmr-accepted/python-suite 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-mmr-accepted/python-suite.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mmr-accepted/quality-independent 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-mmr-accepted/quality-independent.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mmr-accepted/secrets 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-mmr-accepted/secrets.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mmr-final/frontend 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-mmr-final/frontend.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mmr-final/frontend-summary 2.json",
+    "original": "docs/audit_evidence/2026-10-31-mmr-final/frontend-summary.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mmr-final/original-residuals 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-mmr-final/original-residuals.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mmr-final/python-suite 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-mmr-final/python-suite.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mmr-final/quality-independent 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-mmr-final/quality-independent.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mmr-final/race-after-pin-read 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-mmr-final/race-after-pin-read.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mmr-final/race_after_pin_read 2.py",
+    "original": "docs/audit_evidence/2026-10-31-mmr-final/race_after_pin_read.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mmr-final/residuals 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-mmr-final/residuals.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mmr-final/secrets 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-mmr-final/secrets.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mod-reaccept/durability 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-mod-reaccept/durability.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mod-reaccept/extra-checks 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-mod-reaccept/extra-checks.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mod-reaccept/extra_checks 2.py",
+    "original": "docs/audit_evidence/2026-10-31-mod-reaccept/extra_checks.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mod-reaccept/independent 2.py",
+    "original": "docs/audit_evidence/2026-10-31-mod-reaccept/independent.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mod-reaccept/independent 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-mod-reaccept/independent.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mod-reaccept/independent-summary 2.json",
+    "original": "docs/audit_evidence/2026-10-31-mod-reaccept/independent-summary.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mod-reaccept/original-residuals 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-mod-reaccept/original-residuals.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mod-reaccept/python-suite 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-mod-reaccept/python-suite.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mod-reaccept/quality 2.json",
+    "original": "docs/audit_evidence/2026-10-31-mod-reaccept/quality.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mod-reaccept/quality 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-mod-reaccept/quality.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mod-reaccept/registry 2.json",
+    "original": "docs/audit_evidence/2026-10-31-mod-reaccept/registry.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mod-reaccept/secrets 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-mod-reaccept/secrets.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-mod-reaccept/source-http 2.json",
+    "original": "docs/audit_evidence/2026-10-31-mod-reaccept/source-http.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-moderation-ext-codex/explicit-label-errors 2.json",
+    "original": "docs/audit_evidence/2026-10-31-moderation-ext-codex/explicit-label-errors.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-moderation-ext-codex/ext-check 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-moderation-ext-codex/ext-check.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-moderation-ext-codex/ext-summary 2.json",
+    "original": "docs/audit_evidence/2026-10-31-moderation-ext-codex/ext-summary.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-moderation-ext-codex/frontend 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-moderation-ext-codex/frontend.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-moderation-ext-codex/frontend-fixture-check 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-moderation-ext-codex/frontend-fixture-check.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-moderation-ext-codex/frontend-summary 2.json",
+    "original": "docs/audit_evidence/2026-10-31-moderation-ext-codex/frontend-summary.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-moderation-ext-codex/independent_ext 2.py",
+    "original": "docs/audit_evidence/2026-10-31-moderation-ext-codex/independent_ext.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-moderation-ext-codex/python-suite 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-moderation-ext-codex/python-suite.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-moderation-ext-codex/quality 2.json",
+    "original": "docs/audit_evidence/2026-10-31-moderation-ext-codex/quality.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-moderation-ext-codex/quality-log 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-moderation-ext-codex/quality-log.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-moderation-ext-codex/registry 2.json",
+    "original": "docs/audit_evidence/2026-10-31-moderation-ext-codex/registry.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-moderation-ext-codex/residuals 2.py",
+    "original": "docs/audit_evidence/2026-10-31-moderation-ext-codex/residuals.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-moderation-ext-codex/residuals 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-moderation-ext-codex/residuals.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-moderation-ext-codex/secrets 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-moderation-ext-codex/secrets.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-moderation-ext-codex/source-v5 2.json",
+    "original": "docs/audit_evidence/2026-10-31-moderation-ext-codex/source-v5.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-oa01-accept/independent-check 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-oa01-accept/independent-check.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-oa01-accept/independent-summary 2.json",
+    "original": "docs/audit_evidence/2026-10-31-oa01-accept/independent-summary.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-oa01-accept/independent_check 2.py",
+    "original": "docs/audit_evidence/2026-10-31-oa01-accept/independent_check.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-oa01-accept/quality 2.json",
+    "original": "docs/audit_evidence/2026-10-31-oa01-accept/quality.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-oa01-accept/quality-log 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-oa01-accept/quality-log.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-oa01-accept/registry 2.json",
+    "original": "docs/audit_evidence/2026-10-31-oa01-accept/registry.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-oa01-accept/report-tests 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-oa01-accept/report-tests.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-oa01-accept/secrets 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-oa01-accept/secrets.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-open-added-codex/independent-check 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-open-added-codex/independent-check.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-open-added-codex/independent-summary 2.json",
+    "original": "docs/audit_evidence/2026-10-31-open-added-codex/independent-summary.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-open-added-codex/independent_check 2.py",
+    "original": "docs/audit_evidence/2026-10-31-open-added-codex/independent_check.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-open-added-codex/jabra-offer-source 2.json",
+    "original": "docs/audit_evidence/2026-10-31-open-added-codex/jabra-offer-source.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-open-added-codex/jabra-page-check 2.json",
+    "original": "docs/audit_evidence/2026-10-31-open-added-codex/jabra-page-check.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-open-added-codex/jabra-sensitivity 2.json",
+    "original": "docs/audit_evidence/2026-10-31-open-added-codex/jabra-sensitivity.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-open-added-codex/jabra-structured 2.json",
+    "original": "docs/audit_evidence/2026-10-31-open-added-codex/jabra-structured.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-open-added-codex/python-suite 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-open-added-codex/python-suite.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-open-added-codex/quality 2.json",
+    "original": "docs/audit_evidence/2026-10-31-open-added-codex/quality.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-open-added-codex/quality-log 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-open-added-codex/quality-log.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-open-added-codex/registry 2.json",
+    "original": "docs/audit_evidence/2026-10-31-open-added-codex/registry.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-open-added-codex/secrets 2.txt",
+    "original": "docs/audit_evidence/2026-10-31-open-added-codex/secrets.txt",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-10-31-open-added-codex/soundcore-primary-extract 2.json",
+    "original": "docs/audit_evidence/2026-10-31-open-added-codex/soundcore-primary-extract.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-11-01-c2-ext/build_ext_labeled_sample 2.py",
+    "original": "docs/audit_evidence/2026-11-01-c2-ext/build_ext_labeled_sample.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-11-01-c2-ext/ext_labeled_pairs 2.json",
+    "original": "docs/audit_evidence/2026-11-01-c2-ext/ext_labeled_pairs.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-11-01-c2-ext/label_sources 2.json",
+    "original": "docs/audit_evidence/2026-11-01-c2-ext/label_sources.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-11-01-c2-ext/merge_sample 2.py",
+    "original": "docs/audit_evidence/2026-11-01-c2-ext/merge_sample.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-11-01-c2-ext/quality 2.json",
+    "original": "docs/audit_evidence/2026-11-01-c2-ext/quality.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-11-01-c2-ext/raw_drawn_pairs 2.json",
+    "original": "docs/audit_evidence/2026-11-01-c2-ext/raw_drawn_pairs.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-11-01-c2-ext/registry 2.json",
+    "original": "docs/audit_evidence/2026-11-01-c2-ext/registry.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-11-01-c2-ext/sampling_metadata 2.json",
+    "original": "docs/audit_evidence/2026-11-01-c2-ext/sampling_metadata.json",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-11-01-c2-ext/sampling_script 2.py",
+    "original": "docs/audit_evidence/2026-11-01-c2-ext/sampling_script.py",
+    "identical": true
+  },
+  {
+    "copy": "docs/audit_evidence/2026-11-01-c2-ext/unlabeled_sample 2.json",
+    "original": "docs/audit_evidence/2026-11-01-c2-ext/unlabeled_sample.json",
+    "identical": true
+  },
+  {
+    "copy": "scripts/c2_quality_report 2.py",
+    "original": "scripts/c2_quality_report.py",
+    "identical": true
+  },
+  {
+    "copy": "scripts/k2_labeled_sample 2.json",
+    "original": "scripts/k2_labeled_sample.json",
+    "identical": true
+  },
+  {
+    "copy": "scripts/k2_verified_pairs 2.json",
+    "original": "scripts/k2_verified_pairs.json",
+    "identical": true
+  },
+  {
+    "copy": "tests/ai/test_shadow_normalize 2.py",
+    "original": "tests/ai/test_shadow_normalize.py",
+    "identical": true
+  },
+  {
+    "copy": "tests/frontend/test_frontend_matching_moderation 2.cjs",
+    "original": "tests/frontend/test_frontend_matching_moderation.cjs",
+    "identical": true
+  },
+  {
+    "copy": "tests/test_disputed_matching_moderation 2.py",
+    "original": "tests/test_disputed_matching_moderation.py",
+    "identical": true
+  }
+]
