@@ -1,0 +1,14 @@
+{
+  "sha": "74b80a0872bfc2d5d1c0445f8c98fe157b2e35dc",
+  "frontend_pass": 21,
+  "frontend_total": 21,
+  "historical_scripts_unchanged": {
+    "docs/audit_evidence/2026-10-31-v693-audit/scrub_integrity.py": true,
+    "docs/audit_evidence/2026-10-31-v692-reaccept/edge_checks.py": true
+  },
+  "diff_check_exit": 0,
+  "changed_tracked": [
+    "docs/AGENT_HANDOFF.md"
+  ],
+  "whitespace_issues": []
+}

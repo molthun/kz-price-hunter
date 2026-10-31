@@ -1,0 +1,17 @@
+test_cleanup_preserves_allowed_catalog_title (__main__.ScrubIntegrity.test_cleanup_preserves_allowed_catalog_title) ... ok
+test_long_post_cannot_leave_marker_with_old_wal_reader (__main__.ScrubIntegrity.test_long_post_cannot_leave_marker_with_old_wal_reader) ... FAIL
+
+======================================================================
+FAIL: test_long_post_cannot_leave_marker_with_old_wal_reader (__main__.ScrubIntegrity.test_long_post_cannot_leave_marker_with_old_wal_reader)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/var/folders/44/vy357lfn4xx4fgf4_56snx_m0000gn/T/kzph-v693-final-9f5gn3nf/source/docs/audit_evidence/2026-10-31-v693-audit/scrub_integrity.py", line 47, in test_long_post_cannot_leave_marker_with_old_wal_reader
+    self.assertFalse(files,'A successful physical cleanup must not retain overflow-page portions of the original post')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ['prices.db'] is not false : A successful physical cleanup must not retain overflow-page portions of the original post
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.108s
+
+FAILED (failures=1)
+SCRUB_INTEGRITY={"preserve_catalog": {"changed": 1, "expected_title": "Samsung Galaxy S24", "actual_title_repr": "'Samsung Galaxy S24'", "integrity_check": "ok"}, "overflow_wal": {"changed": 1, "logical_text": "", "marker_files": ["prices.db"], "post_bytes": 20034}}

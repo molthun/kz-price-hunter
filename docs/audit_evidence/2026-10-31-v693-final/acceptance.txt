@@ -1,0 +1,11 @@
+ACCEPTANCE_NOTES={"cli": {"busy_exit": 3, "retry_exit": 0}, "offline": {"rows": 3, "physical_complete": true, "catalog_preserved": true, "backup_clean": true}, "wal_retry": {"initial_reason": "wal_busy", "initial_complete": false, "retry_rows": 0, "retry_complete": true}}
+test_cli_exit_3_then_zero_after_reader_released (__main__.Acceptance.test_cli_exit_3_then_zero_after_reader_released) ... ok
+test_dry_run_does_not_mutate_data_or_file (__main__.Acceptance.test_dry_run_does_not_mutate_data_or_file) ... ok
+test_ocr_keeps_small_gram_basis_and_phone_generation (__main__.Acceptance.test_ocr_keeps_small_gram_basis_and_phone_generation) ... ok
+test_offline_cleanup_preserves_allowed_values_and_backup (__main__.Acceptance.test_offline_cleanup_preserves_allowed_values_and_backup) ... ok
+test_wal_incomplete_then_retry_with_zero_dirty_rows (__main__.Acceptance.test_wal_incomplete_then_retry_with_zero_dirty_rows) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.529s
+
+OK

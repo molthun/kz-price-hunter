@@ -1,0 +1,13 @@
+test_social_writer_blocks_operator_and_final_pin_wins (__main__.SocialLock.test_social_writer_blocks_operator_and_final_pin_wins) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.113s
+
+OK
+[DB] Миграция 1 (legacy_identity_v2) применена
+[DB] Миграция 2 (legacy_cleanups) применена
+[DB] Миграция 3 (offer_identity_reset) применена
+[DB] Миграция 4 (fts_update_trigger) применена
+[DB] Миграция 5: переименований 0, конфликтов 0, смешанных записей (история сброшена) 0
+[DB] Миграция 5 (offer_namespace) применена
+SOCIAL_LOCK={"blocked_until_commit": true, "key": "k2:apple:earpods.diff_dbd10113", "pin": "k2:apple:earpods.diff_dbd10113"}

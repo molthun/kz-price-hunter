@@ -1,0 +1,18 @@
+{
+  "cli": {
+    "busy_exit": 3,
+    "retry_exit": 0
+  },
+  "offline": {
+    "rows": 3,
+    "physical_complete": true,
+    "catalog_preserved": true,
+    "backup_clean": true
+  },
+  "wal_retry": {
+    "initial_reason": "wal_busy",
+    "initial_complete": false,
+    "retry_rows": 0,
+    "retry_complete": true
+  }
+}
