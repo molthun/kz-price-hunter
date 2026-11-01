@@ -1,0 +1,134 @@
+#!/usr/bin/env python3
+"""
+Backfill Catalog Classification & Brand Extraction for KZ Price Hunter.
+
+Classifies existing canonical products in SQLite prices.db into clean canonical categories
+and extracts brands using CatalogClassifier (Rules + Local AI).
+"""
+import argparse
+import logging
+import sqlite3
+import sys
+import time
+from pathlib import Path
+
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from catalog_classifier import CatalogClassifier
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger("backfill_catalog")
+
+
+def backfill_classification(
+    db_path: str,
+    batch_size: int = 2000,
+    force_all: bool = False,
+    rebuild_fts: bool = True,
+) -> None:
+    logger.info(f"Opening database: {db_path}")
+    conn = sqlite3.connect(db_path, timeout=60.0)
+    conn.row_factory = sqlite3.Row
+
+    classifier = CatalogClassifier()
+
+    where_clause = "" if force_all else "WHERE brand IS NULL OR brand = '' OR category LIKE '%:%' OR category = ''"
+    count_sql = f"SELECT count(*) FROM canonical_products {where_clause}"
+    total_candidates = conn.execute(count_sql).fetchone()[0]
+    logger.info(f"Total products to classify: {total_candidates}")
+
+    if total_candidates == 0:
+        logger.info("Nothing to backfill. Exiting.")
+        conn.close()
+        return
+
+    select_sql = f"SELECT id, title, category, brand FROM canonical_products {where_clause} ORDER BY rowid ASC"
+    cursor = conn.cursor()
+    cursor.execute(select_sql)
+
+    updated_count = 0
+    t0 = time.time()
+    batch = []
+    category_stats = {}
+    brand_stats = {}
+
+    while True:
+        rows = cursor.fetchmany(batch_size)
+        if not rows:
+            break
+
+        updates = []
+        for r in rows:
+            pid = r["id"]
+            title = r["title"] or ""
+            raw_cat = r["category"] or ""
+            current_brand = r["brand"]
+
+            res = classifier.classify_rules(title, raw_category=raw_cat)
+            if res:
+                new_cat = res.category_name
+                new_brand = res.brand or current_brand
+            else:
+                new_cat = raw_cat
+                new_brand = current_brand
+
+            updates.append((new_cat, new_brand, pid))
+            category_stats[new_cat] = category_stats.get(new_cat, 0) + 1
+            if new_brand:
+                brand_stats[new_brand] = brand_stats.get(new_brand, 0) + 1
+
+        conn.executemany(
+            "UPDATE canonical_products SET category = ?, brand = ? WHERE id = ?",
+            updates,
+        )
+        conn.commit()
+        updated_count += len(updates)
+        elapsed = time.time() - t0
+        speed = updated_count / elapsed if elapsed > 0 else 0
+        logger.info(f"Progress: {updated_count}/{total_candidates} ({updated_count*100.0/total_candidates:.1f}%) - {speed:.0f} items/sec")
+
+    logger.info(f"Classification completed! Total updated: {updated_count} in {time.time() - t0:.2f}s")
+
+    if rebuild_fts:
+        logger.info("Rebuilding canonical_products_fts full-text index...")
+        try:
+            conn.execute("INSERT INTO canonical_products_fts(canonical_products_fts) VALUES('rebuild')")
+            conn.commit()
+            logger.info("FTS index rebuild successful!")
+        except Exception as e:
+            logger.warning(f"FTS rebuild warning: {e}")
+
+    # Print summary statistics
+    print("\n" + "=" * 50)
+    print("TOP CATEGORIES AFTER CLASSIFICATION:")
+    print("=" * 50)
+    sorted_cats = sorted(category_stats.items(), key=lambda x: -x[1])[:15]
+    for cat, cnt in sorted_cats:
+        print(f"  {cat:<30}: {cnt:>6} шт.")
+
+    print("\n" + "=" * 50)
+    print("TOP BRANDS EXTRACTED:")
+    print("=" * 50)
+    sorted_brands = sorted(brand_stats.items(), key=lambda x: -x[1])[:20]
+    for br, cnt in sorted_brands:
+        print(f"  {br:<30}: {cnt:>6} шт.")
+    print("=" * 50 + "\n")
+
+    conn.close()
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Backfill Catalog Classification and Brand Extraction")
+    parser.add_argument("--db", default="/app/data/prices.db", help="Path to prices.db SQLite database")
+    parser.add_argument("--batch-size", type=int, default=2500, help="Batch size for updates")
+    parser.add_argument("--force-all", action="store_true", help="Reclassify all products, not just unclassified")
+    parser.add_argument("--skip-fts", action="store_true", help="Skip rebuilding canonical_products_fts index")
+    args = parser.parse_args()
+
+    backfill_classification(
+        db_path=args.db,
+        batch_size=args.batch_size,
+        force_all=args.force_all,
+        rebuild_fts=not args.skip_fts,
+    )

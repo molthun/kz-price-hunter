@@ -2845,13 +2845,31 @@
             <span style="font-weight:700; font-size:1.05rem;">Фильтры</span>
             <button class="btn-close-filters-mobile" id="closeFiltersBtn" type="button" onclick="closeMobileFilters()">✕ Закрыть</button>
           </div>
+          <!-- 1. Магазин (площадка) -->
           <div class="filter-group">
-            <div class="filter-title">Категории</div>
+            <div class="filter-title">🏪 Магазины</div>
+            <div id="filterSellersList">
+              <div style="font-size:0.85rem; color:var(--text-muted);">Загрузка...</div>
+            </div>
+          </div>
+
+          <!-- 2. Что за товар (Тип товара / Категория) -->
+          <div class="filter-group">
+            <div class="filter-title">📦 Что за товар</div>
             <div id="filterCategoriesList">
               <div style="font-size:0.85rem; color:var(--text-muted);">Загрузка...</div>
             </div>
           </div>
 
+          <!-- 3. Бренд -->
+          <div class="filter-group">
+            <div class="filter-title">🏷 Бренд</div>
+            <div id="filterBrandsList">
+              <div style="font-size:0.85rem; color:var(--text-muted);">Загрузка...</div>
+            </div>
+          </div>
+
+          <!-- 4. Цена -->
           <div class="filter-group">
             <div class="filter-title">Цена, ₸</div>
             <div class="price-inputs-row">
@@ -2861,6 +2879,7 @@
             </div>
           </div>
 
+          <!-- 5. Состояние -->
           <div class="filter-group">
             <div class="filter-title">Состояние</div>
             <label class="filter-checkbox-label">
@@ -2875,13 +2894,6 @@
               <input type="radio" name="filterCondition" value="USED" />
               <span>Б/у</span>
             </label>
-          </div>
-
-          <div class="filter-group">
-            <div class="filter-title">Продавцы</div>
-            <div id="filterSellersList">
-              <div style="font-size:0.85rem; color:var(--text-muted);">Загрузка...</div>
-            </div>
           </div>
 
           <div class="filter-group">
@@ -4623,18 +4635,42 @@
     }
 
     function renderFacets(data) {
-      const catList = document.getElementById('filterCategoriesList');
       const sellerList = document.getElementById('filterSellersList');
+      const catList = document.getElementById('filterCategoriesList');
+      const brandList = document.getElementById('filterBrandsList');
+
       if (data.facets_available === false) {
         const msg = '<div style="font-size:0.85rem; color:var(--text-muted);">Список временно недоступен</div>';
-        catList.innerHTML = msg;
-        sellerList.innerHTML = msg;
+        if (sellerList) sellerList.innerHTML = msg;
+        if (catList) catList.innerHTML = msg;
+        if (brandList) brandList.innerHTML = msg;
         return;
       }
-      renderFacetGroup(catList, 'facetCategory', 'onCategoryFacetSelected', AppState.category,
-        (data.category_facets || []).map(f => ({ value: f.id, name: f.name, count: f.count })), 8, 'Нет категорий');
-      renderFacetGroup(sellerList, 'facetSeller', 'onSellerFacetSelected', AppState.seller,
-        (data.seller_facets || []).map(s => ({ value: s.slug || s.id, name: s.name, count: s.count })), 6, 'Нет продавцов');
+
+      // 1. Магазины (продавцы)
+      if (sellerList) {
+        renderFacetGroup(sellerList, 'facetSeller', 'onSellerFacetSelected', AppState.seller,
+          (data.seller_facets || []).map(s => ({ value: s.slug || s.id, name: s.name, count: s.count })), 8, 'Нет магазинов');
+      }
+
+      // 2. Что за товар (категории)
+      if (catList) {
+        renderFacetGroup(catList, 'facetCategory', 'onCategoryFacetSelected', AppState.category,
+          (data.category_facets || []).map(f => ({ value: f.name || f.id, name: f.name, count: f.count })), 8, 'Нет категорий');
+      }
+
+      // 3. Бренд
+      if (brandList) {
+        renderFacetGroup(brandList, 'facetBrand', 'onBrandFacetSelected', AppState.brand,
+          (data.brand_facets || []).map(b => ({ value: b.brand, name: b.brand, count: b.count })), 8, 'Нет брендов');
+      }
+    }
+
+    function onBrandFacetSelected(brand) {
+      AppState.brand = brand;
+      AppState.page = 1;
+      updateSearchUrl();
+      executeSearch();
     }
 
     function onCategoryFacetSelected(cid) {

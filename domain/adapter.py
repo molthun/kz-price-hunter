@@ -257,8 +257,14 @@ def prepare_legacy_offer_v2(
         ident_digest = hashlib.sha256(f"{seller_id}:domain:{norm_dom}".encode("utf-8")).hexdigest()[:16]
         ident_id = f"ident_{ident_digest}"
 
-    # 3. Canonical Product
+    # 2b. Canonical Category and Brand Extraction
+    from catalog_classifier import CatalogClassifier
+    _clf = CatalogClassifier()
+    _cls_res = _clf.classify_rules(title, raw_category=category)
+    clean_category = _cls_res.category_name if _cls_res else (category or "Другое")
+    brand = _cls_res.brand if _cls_res else None
 
+    # 3. Canonical Product
     return {
         "seller_id": seller_id,
         "seller_slug": seller_slug,
@@ -271,7 +277,8 @@ def prepare_legacy_offer_v2(
         "product_id": canonical_product_id(canonical_key),
         "canonical_key": canonical_key,
         "title": title,
-        "category": category,
+        "category": clean_category,
+        "brand": brand,
         "description": description,
         "image_url": image_url,
         # 4. Offer: устойчивый идентификатор из идентификатора товара legacy
@@ -390,10 +397,11 @@ def _write_legacy_offers_v2(
     conn.execute(
         """
         INSERT INTO canonical_products (
-            id, canonical_key, title, category, description, image_url, title_offer_id, created_at, updated_at
+            id, canonical_key, title, category, brand, description, image_url, title_offer_id, created_at, updated_at
         )
         SELECT json_extract(value, '$.product_id'), json_extract(value, '$.canonical_key'),
                json_extract(value, '$.title'), json_extract(value, '$.category'),
+               json_extract(value, '$.brand'),
                json_extract(value, '$.description'), json_extract(value, '$.image_url'),
                json_extract(value, '$.offer_id'), ?1, ?1
         FROM json_each(?2) WHERE true
@@ -404,6 +412,7 @@ def _write_legacy_offers_v2(
             category = CASE WHEN canonical_products.title_offer_id IS NULL
                               OR canonical_products.title_offer_id = excluded.title_offer_id
                             THEN excluded.category ELSE canonical_products.category END,
+            brand = COALESCE(canonical_products.brand, excluded.brand),
             title_offer_id = COALESCE(canonical_products.title_offer_id, excluded.title_offer_id),
             description = CASE WHEN excluded.description != '' THEN excluded.description ELSE canonical_products.description END,
             image_url = CASE WHEN excluded.image_url != '' THEN excluded.image_url ELSE canonical_products.image_url END,
