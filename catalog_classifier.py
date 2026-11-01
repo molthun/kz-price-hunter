@@ -315,6 +315,7 @@ _ACCESSORY_CONSUMABLE_RULES: List[Tuple[re.Pattern, str, str]] = [
     # Protective Glass & Film
     (
         re.compile(
+            r"\b(?:защитн\w*\b.{0,30}\bстекл\w*|\d+d\s+стекл\w*|стекл\w*\s+(?:\w+\s+)?для\s+\w+)|"
             r"\b(защитн(?:ое|ые|ая|ых)\s+стекл(?:о|а)|защитн(?:ая|ые)\s+пленк(?:а|и)|бронестекл(?:о|а)|стекло\s+(?:для|на)|пленка\s+(?:для|на))\b|"
             r"\b(?:full\s+cover|9h|privacy).*\bстекл(?:о|а)\b",
             re.I,
