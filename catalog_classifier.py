@@ -239,6 +239,10 @@ KNOWN_BRANDS: Dict[str, str] = {
     "sonnen": "Sonnen",
     "mvtag": "MVTAG",
     "devia": "Devia",
+    "style shield": "Style Shield",
+    "saffi": "Saffi",
+    "vipe": "Vipe",
+    "ugreen": "Ugreen",
 }
 
 # Regex word boundary match pattern for brands (sorted by length desc to match multi-word first)
@@ -250,14 +254,24 @@ _BRAND_PATTERN = re.compile(
 
 # Product Type keyword rules: Title keywords -> Category ID
 _TITLE_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
-    # Audio & TV (проверяем наушники раньше телефонов, чтобы "наушники для iPhone" не становились телефоном)
+    # Footwear & Apparel (защита от ложного захвата обуви IMAC)
+    (re.compile(r"\b(обувь|ботинки|туфли|кроссовки|сапоги|кеды|сандали|балетки|полуботинки|шлепанцы|ботильоны)\b", re.I), "shoes"),
+
+    # Cosmetics & Beauty (защита от ложного захвата косметики MAC Studio / Apple)
+    (re.compile(r"\b(консилер|пудра|праймер|тональн(?:ая|ый|ое)|палетк[аи]|помад[аы]|тушь|тени|блеск\s+для\s+губ|румян[аы]|хайлайтер|парфюм|духи|мыло|крем\b|шампунь|гель\b|гель-душ)\b", re.I), "beauty"),
+
+    # Audio & TV (проверяем наушники раньше телефонов, но адаптеры для наушников относим к аксессуарам)
+    (re.compile(r"\b(?:переходник|адаптер)\s+(?:для\s+)?наушников\b", re.I), "cables_chargers"),
     (re.compile(r"\b(наушник(?:и|ов)|гарнитур(?:а|ы)|airpods|earpods|tws|вкладыши)\b", re.I), "headphones"),
     (re.compile(r"\b(телевизор|smart\s+tv|oled\s+tv|qled\s+tv)\b", re.I), "tv"),
     (re.compile(r"\b(игров(?:ая|ые)\s+приставк(?:а|и)|игровая\s+консоль|playstation|ps5|xbox|nintendo\s+switch)\b", re.I), "consoles"),
 
+    # Peripherals & Input devices (проверяем ДО планшетов, чтобы Magic Keyboard для iPad не становился планшетом)
+    (re.compile(r"\b(клавиатур(?:а|ы)|keyboard|компьютерн(?:ая|ые)\s+мыш(?:ь|и)|мышь\s+беспроводная|magic\s+keyboard|magic\s+mouse|magic\s+trackpad|тачпад|геймпад|apple\s+pencil|стилус|stylus)\b", re.I), "peripherals"),
+
     # Phones & Tablets
     (re.compile(r"\b(смартфон|айфон|iphone|сотовый\s+телефон)\b", re.I), "phones"),
-    (re.compile(r"\b(планшет|ipad|tablet)\b", re.I), "tablets"),
+    (re.compile(r"\b(планшет|таблет)\b|\bipad\b", re.I), "tablets"),
     (re.compile(r"\b(смарт-час(?:ы|а)|умные\s+часы|фитнес-браслет|(?:apple\s+)?watch\s*(?:nike\s+)?series|apple\s+watch|galaxy\s+watch)\b", re.I), "smartwatches"),
 
     # Laptops & Computers
@@ -270,7 +284,6 @@ _TITLE_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
     (re.compile(r"\b(процессор|intel\s+core|amd\s+ryzen)\b", re.I), "cpus"),
     (re.compile(r"\b(материнск(?:ая|ие)\s+плат(?:а|ы)|motherboard)\b", re.I), "motherboards"),
     (re.compile(r"\b(накопитель\s+ssd|твердотельный\s+накопитель|жесткий\s+диск|hdd|ssd\s+m\.2)\b", re.I), "storage"),
-    (re.compile(r"\b(клавиатур(?:а|ы)|keyboard|компьютерн(?:ая|ые)\s+мыш(?:ь|и)|мышь\s+беспроводная|magic\s+mouse|magic\s+trackpad|тачпад|геймпад)\b", re.I), "peripherals"),
 
     # Appliances & Home
     (re.compile(r"\b(стиральн(?:ая|ые|ую)\s+машин(?:а|ы|у)|стиралка)\b", re.I), "washing_machines"),
@@ -339,6 +352,12 @@ _ACCESSORY_CONSUMABLE_RULES: List[Tuple[re.Pattern, str, str]] = [
 # Compatibility target extraction for accessories ("для Apple iPhone 15 Pro", "for Galaxy S24")
 _COMPATIBILITY_PATTERN = re.compile(
     r"\b(?:для|for|на)\s+([A-Za-z0-9\s\+\-\.]+?)(?:\s+(?:силиконовый|черный|белый|прозрачный|матовый|кожаный|с\s|в\s|$))",
+    re.I,
+)
+
+# Подарочные бандлы и комплекты ("Смартфон Apple iPhone 17 Pro Max + Наушники AirPods 4 + Адаптер...")
+_BUNDLE_GIFT_SPLIT_PAT = re.compile(
+    r"\s+\+\s+(?:наушники|наушник|адаптер|подарок|подарки|чехол|стекло|ремешок|powerbank|повербанк|зарядное|блок\s+питания|кабель)\b",
     re.I,
 )
 
@@ -430,6 +449,25 @@ _APPLE_WATCH_REGEX = re.compile(
 
 
 def extract_apple_watch_model(text: str) -> Optional[str]:
+    # Exclude straps and watch chargers
+    if re.search(r"^(?:ремешок|браслет|сменный|зарядн|кабель|переходник|чехол)\b|\b(?:для|for)\s+(?:apple\s+)?watch\b", text, re.I):
+        return None
+
+    # Handle Series with intervening model numbers, e.g. "Watch 3N492RU/A Series 10" or "Series 11GPS42mm"
+    m_series = re.search(r"\b(?:apple\s+)?watch\b.*?\b(?:nike\s+)?series\s*(\d{1,2})", text, re.I)
+    if m_series:
+        return f"Apple Watch Series {m_series.group(1)}"
+
+    # Handle Nike SE or Series SE
+    if re.search(r"\b(?:apple\s+)?watch\b.*?\b(?:nike\s+se|series\s+se|se\s*\d{0,4})\b", text, re.I):
+        return "Apple Watch SE"
+
+    # Handle Ultra 2 / Ultra (strictly with watch)
+    if re.search(r"\b(?:apple\s+)?watch\b.*?\bultra\s*2\b|\b(?:apple\s+)?watch\s+ultra\s*2\b", text, re.I):
+        return "Apple Watch Ultra 2"
+    if re.search(r"\b(?:apple\s+)?watch\b.*?\bultra\b|\b(?:apple\s+)?watch\s+ultra\b", text, re.I):
+        return "Apple Watch Ultra"
+
     m = _APPLE_WATCH_REGEX.search(text)
     if not m:
         return None
@@ -448,7 +486,7 @@ def extract_apple_watch_model(text: str) -> Optional[str]:
 
 def extract_apple_audio_model(text: str) -> Optional[str]:
     """Standardizes AirPods and EarPods models."""
-    if re.search(r"\bearpods\b", text, re.I):
+    if re.search(r"\b(?:earpods|myqy3zm|mtjy3zm)\b", text, re.I):
         return "EarPods"
     if re.search(r"\bairpods\s+max\b", text, re.I):
         return "AirPods Max"
@@ -469,8 +507,16 @@ def extract_apple_audio_model(text: str) -> Optional[str]:
 
 def extract_mac_model(text: str) -> Optional[str]:
     """Standardizes Mac laptop and desktop models."""
+    # Guard against footwear and cosmetics
+    if re.search(r"\b(обувь|ботинки|туфли|кроссовки|сапоги|кеды|консилер|пудра|праймер|тональн|палетк|помад|тушь|тени|румян)\b", text, re.I):
+        return None
+
     # Normalize cyrillic 'о' in 'prо'
     text = re.sub(r"\bpr[оo]\b", "pro", text, flags=re.I)
+
+    # MacBook 12
+    if re.search(r"\b(?:12\s*(?:[\'\"″]|inch|-inch)?\s+macbook|macbook\s*12)\b", text, re.I):
+        return "MacBook 12"
 
     # MacBook Neo
     if re.search(r"\bmacbook\s+neo\b", text, re.I):
@@ -576,11 +622,11 @@ def extract_apple_input_device_model(text: str) -> Optional[str]:
         return "Apple Pencil 2"
     if re.search(r"\bapple\s+pencil\b", text, re.I):
         return "Apple Pencil"
-    if re.search(r"\bmagic\s+keyboard\b", text, re.I):
+    if re.search(r"\b(?:magic\s+keyboard|keyboard\s+with\s+touch\s+id|magic\s+with\s+touch\s+id)\b", text, re.I):
         return "Magic Keyboard"
     if re.search(r"\bmagic\s+trackpad\b", text, re.I):
         return "Magic Trackpad"
-    if re.search(r"\bmagic\s+mouse\b", text, re.I):
+    if re.search(r"\bmagic\s+mouse(?:\s*\d+)?\b", text, re.I):
         return "Magic Mouse"
     return None
 
@@ -766,12 +812,16 @@ def extract_clean_model(
     if not title:
         return None
 
-    # Для аксессуаров и расходников модель не извлекается (не засоряем фасет «Модель»)
-    if item_kind in ("accessory", "consumable"):
-        return None
+    # Отсекаем комплекты подарков и бандлы ("iPhone + AirPods + Адаптер")
+    m_bundle = _BUNDLE_GIFT_SPLIT_PAT.search(title)
+    main_title = title[:m_bundle.start()].strip() if m_bundle else title
 
-    # Отсекаем комплекты подарков и бандлы
-    main_title = title.split("+")[0].strip() if "+" in title else title
+    # Для аксессуаров и расходников:
+    # Обычные чехлы/стекла/адаптеры не получают модель смартфона ("Чехол для iPhone" != "iPhone").
+    # Но фирменные аксессуары Apple (Pencil, Magic Keyboard/Mouse/Trackpad, AirTag) сохраняют свою модель!
+    if item_kind in ("accessory", "consumable"):
+        input_dev = extract_apple_input_device_model(main_title) or extract_apple_tracker_model(main_title)
+        return input_dev
 
     # Стандартизированный нейминг всей линейки Apple устройств
     apple_mod = extract_apple_canonical_model(main_title)
@@ -853,6 +903,16 @@ class CatalogClassifier:
         if not title:
             return None
 
+        # Обувной бренд IMAC (Италия) vs Apple iMac
+        if re.search(r"\b(обувь|ботинки|туфли|кроссовки|сапоги|кеды|сандали|балетки|полуботинки|шлепанцы|ботильоны)\b", title, re.I):
+            if re.search(r"\bimac\b", title, re.I):
+                return "IMAC"
+
+        # Косметический бренд M·A·C vs Apple Mac Studio / Mac Pro
+        if re.search(r"\b(консилер|пудра|праймер|тональн(?:ая|ый|ое)|палетк[аи]|помад[аы]|тушь|тени|блеск\s+для\s+губ|румян[аы]|хайлайтер|concealer|powder|primer|foundation)\b", title, re.I):
+            if re.search(r"\bmac\b", title, re.I):
+                return "M·A·C"
+
         # Если в названии есть фраза совместимости «для/на/for <устройство>»,
         # отсекаем её, чтобы бренд целевого смартфона/консоли не приписывался чужому товару
         m_compat = re.search(
@@ -897,11 +957,12 @@ class CatalogClassifier:
             return None
 
         # Отсекаем комплекты подарков и бандлы ("Смартфон Apple iPhone + Наушники AirPods...")
-        main_part = title.split("+")[0].strip() if "+" in title else title
+        m_bundle = _BUNDLE_GIFT_SPLIT_PAT.search(title)
+        main_part = title[:m_bundle.start()].strip() if m_bundle else title
 
         # 0. Проверяем первичность ключевых устройств (смарт-часы, смартфоны, планшеты, ноутбуки),
-        # чтобы аксессуары ("Aluminium Case", "Чехол для...", "Стилус") не меняли тип основного устройства
-        is_watch = bool(re.search(r"\b(смарт-час(?:ы|а)|умные\s+часы|(?:apple\s+)?watch\s*(?:nike\s+)?series|apple\s+watch|galaxy\s+watch)\b", main_part, re.I)) and not bool(re.search(r"\b(ремешок\s+для|браслет\s+для|сменный\s+ремешок)\b|^ремешок\b", main_part, re.I))
+        # чтобы аксессуары ("Aluminium Case", "Чехол для...", "Стилус", "Зарядное для Watch") не меняли тип основного устройства
+        is_watch = bool(re.search(r"\b(смарт-час(?:ы|а)|умные\s+часы|(?:apple\s+)?watch\s*(?:nike\s+)?series|apple\s+watch|galaxy\s+watch)\b", main_part, re.I)) and not bool(re.search(r"\b(ремешок|браслет|сменный\s+ремешок|зарядн(?:ое|ый|ая)|кабель|док-станция|подставка|переходник|адаптер)\b|^ремешок\b|^браслет\b|\b(?:для|for)\s+(?:apple\s+)?watch\b", main_part, re.I))
         is_phone = bool(re.search(r"\b(смартфон|айфон|сотовый\s+телефон)\b", main_part, re.I)) and not bool(re.search(r"\b(чехол|стекло|пленка|ремешок|кабель|держатель|подставка|наушники|гарнитур|адаптер|зарядк|переходник)\b", main_part, re.I))
         is_tablet = bool(re.search(r"\b(планшет|ipad|tablet)\b", main_part, re.I)) and not bool(re.search(r"\b(клавиатур[аы]|keyboard|стилус|stylus|чехол|стекло|пленка|ремешок|кабель|адаптер|держатель|подставка)\b", main_part, re.I))
         is_laptop = bool(re.search(r"\b(ноутбук|macbook|laptop|ультрабук)\b", main_part, re.I)) and not bool(re.search(r"\b(чехол|сумка|рюкзак|накладка|пленка|клавиатур|зарядное|адаптер|блок\s+питания)\b", main_part, re.I))
@@ -938,10 +999,22 @@ class CatalogClassifier:
             # Для аксессуаров и расходников бренд извлекается строго ДО слова «для / на / for»
             parts = re.split(r"\b(?:для|на|for)\b", main_part, flags=re.I, maxsplit=1)
             before_part = parts[0]
-            brand = self.extract_brand(before_part)
+            # Очищаем before_part от названий целевых гаджетов (iPhone, iPad, Watch, MacBook, Galaxy),
+            # чтобы сторонние чехлы/стекла/кабели не получали бренд Apple!
+            clean_before = re.sub(
+                r"\b(?:iphone|ipad|macbook|galaxy|redmi|poco|apple\s+watch)\s*(?:\d{1,2}|pro\s*max|pro|plus|mini|ultra|se|air|duo|fe|\d{1,2}[a-z])*\b",
+                " ",
+                before_part,
+                flags=re.I,
+            )
+            brand = self.extract_brand(clean_before)
 
             # Проверяем, не является ли это фирменным аксессуаром Apple
-            if not brand and re.search(r"\b(?:оригинальный\s+чехол\s+apple|apple\s+silicone\s+case|apple\s+leather|apple\s+clear\s+case|apple\s+finewoven)\b", main_part, re.I):
+            if not brand and re.search(
+                r"\b(?:чехол\s+apple|оригинальный\s+чехол\s+apple|apple\s+silicone\s+case|apple\s+leather|apple\s+clear\s+case|apple\s+finewoven|apple\s+smart\s+folio|apple\s+magic\s+keyboard|apple\s+pencil|apple\s+magsafe|apple\s+airtag)\b",
+                main_part,
+                re.I,
+            ):
                 brand = "Apple"
             elif not brand and len(parts) > 1:
                 # Очищаем вторую часть от целевых брендов устройств (Apple, Samsung), чтобы чехол не стал Apple!
@@ -953,12 +1026,13 @@ class CatalogClassifier:
             if not brand:
                 # Неявные Apple-устройства (iPhone, iPad, MacBook и др.), исключая совместимость «для iPhone»
                 clean_target = re.sub(r"\b(?:для|for|на)\s+.*$", "", main_part, flags=re.I)
-                if re.search(
-                    r"\b(iphone|ipad|macbook|imac|mac\s+mini|mac\s+studio|mac\s+pro|airpods|earpods|(?:apple\s+)?watch\s*(?:nike\s+)?series|apple\s+watch|studio\s+display|pro\s+display|airtag)\b",
-                    clean_target,
-                    re.I,
-                ):
-                    brand = "Apple"
+                if not re.search(r"\b(обувь|ботинки|туфли|кроссовки|сапоги|консилер|пудра|праймер|тональн|палетк|помад|тушь|тени|румян)\b", clean_target, re.I):
+                    if re.search(
+                        r"\b(iphone|ipad|macbook|imac|mac\s+mini|mac\s+studio|mac\s+pro|airpods|earpods|(?:apple\s+)?watch\s*(?:nike\s+)?series|apple\s+watch|studio\s+display|pro\s+display|airtag)\b",
+                        clean_target,
+                        re.I,
+                    ):
+                        brand = "Apple"
 
         # 1. Если определена категория аксессуара / расходника
         if matched_cat_id:

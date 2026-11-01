@@ -1,6 +1,7 @@
 """
 Tests for Catalog Classifier & Normalizer (Rules + Local AI).
 """
+from tests import test_support  # noqa: F401
 import json
 import unittest
 from unittest.mock import patch, MagicMock
@@ -192,10 +193,24 @@ class TestCatalogClassifier(unittest.TestCase):
             ("27\" Studio Display XDR Standard glass", "monitors", "device", "Apple", "Studio Display"),
             # Watch Nike edition
             ("Часы Watch Nike Series 7 45mm", "smartwatches", "device", "Apple", "Apple Watch Series 7"),
-            # False Apple brand exclusions (food, cosmetics, gardening, cookware)
+            # False Apple brand exclusions (food, cosmetics, gardening, cookware, footwear)
             ("Конфеты Qazaq Apple красное яблоко, 108 г", "food", "device", None, "Конфеты Qazaq Apple красное"),
             ("Тройник для воды штуцерный Green Apple GWHC20-062", "home", "device", "Green Apple", "Тройник"),
             ("Кастрюля Lara Apple LR02-31, 16 см, 2.1 л., с крышкой", "kitchen_appliances", "device", "Lara", "Apple LR02 31"),
+            ("Кроссовки Imac", "shoes", "device", "IMAC", "Кроссовки"),
+            ("MAC Studio Fix Pro Set + Blur Loose Powder Пудра", "beauty", "device", "M·A·C", "MAC Studio Fix Pro"),
+            # Apple Watch edge cases (Nike, no-space GPS, part numbers)
+            ("Смарт-часы Apple Watch Nike SE 44mm Nike Sport Band", "smartwatches", "device", "Apple", "Apple Watch SE"),
+            ("Смарт часы Apple Watch Series 11GPS42mmJet Black", "smartwatches", "device", "Apple", "Apple Watch Series 11"),
+            ("Смарт-Часы Apple Watch 3N492RU/A Series 10 GPS 42mm", "smartwatches", "device", "Apple", "Apple Watch Series 10"),
+            # Third-party watch charger & case brand isolation
+            ("Беспроводное зарядное устройство для Apple Watch Ugreen 50944", "cables_chargers", "accessory", "Ugreen", None),
+            ("Чехол с цветными бортами IPhone 14 Pro Max Style Shield", "phone_cases", "accessory", "Style Shield", None),
+            # Input devices and audio
+            ("Клавиатура Apple Keyboard with Touch ID (MXCK3RS/A)", "peripherals", "device", "Apple", "Magic Keyboard"),
+            ("Apple Magic Mouse 4 (White)", "peripherals", "device", "Apple", "Magic Mouse"),
+            ("Наушники Apple MYQY3ZM/A Белый", "headphones", "device", "Apple", "EarPods"),
+            ("Ноутбук Apple MacBook 12 MNYM2RU/A Rose Gold", "laptops", "device", "Apple", "MacBook 12"),
         ]
         for title, exp_cat, exp_kind, exp_brand, exp_model in cases:
             with self.subTest(title=title):
