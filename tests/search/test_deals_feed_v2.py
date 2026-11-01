@@ -252,6 +252,7 @@ class TestSearchFirstTemplateIntegrity(unittest.TestCase):
 
         # Dashboard buttons exist with display: none for non-admins
         self.assertIn('id="headerBtnDashboard"', self.html)
-        self.assertIn('id="navLinkDashboard"', self.html)
+        self.assertNotIn('id="navLinkDashboard"', self.html)
+        self.assertIn('href="/admin" class="btn-legacy" id="headerBtnDashboard"', self.html)
         self.assertIn('id="profileAdminPanelCard"', self.html)
         self.assertIn('is-admin-visible', self.html)

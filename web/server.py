@@ -250,6 +250,13 @@ async def dashboard_handler(request):
     """Классическая панель управления и мониторинга цен (полная обратная совместимость)."""
     return web.FileResponse(TEMPLATES_DIR / "index.html")
 
+@routes.get("/admin")
+async def admin_page_handler(request):
+    """Страница администрирования сервиса: только для админов, остальных возвращает на сайт."""
+    if not is_admin(request.get("user")):
+        raise web.HTTPFound("/")
+    return web.FileResponse(TEMPLATES_DIR / "admin.html")
+
 @routes.get("/search")
 async def search_page_handler(request):
     """Страница поисковой выдачи с фильтрами и пагинацией (KZPH-G3-01)."""

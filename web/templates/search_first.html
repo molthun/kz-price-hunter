@@ -285,7 +285,12 @@
       display: none;
       align-items: center;
       gap: 6px;
-      font-size: 0.82rem;
+      flex-shrink: 0;
+      min-height: 36px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      white-space: nowrap;
+      text-decoration: none;
       padding: 6px 12px;
       border-radius: var(--radius-sm);
       border: 1px solid var(--border-color);
@@ -3598,7 +3603,6 @@
           <a href="/deals" class="nav-link" id="navLinkDeals" onclick="navigateTo(event, '/deals')">Скидки</a>
           <a href="/favorites" class="nav-link" id="navLinkFavorites" onclick="navigateTo(event, '/favorites')">Избранное <span class="nav-count-badge" id="favCountHeader">0</span></a>
           <a href="/profile" class="nav-link" id="navLinkProfile" onclick="navigateTo(event, '/profile')">Профиль</a>
-          <a href="/dashboard" class="nav-link" id="navLinkDashboard" title="Панель управления (Админка)" style="display: none;">Панель</a>
         </nav>
       </div>
 
@@ -3620,8 +3624,8 @@
         <div id="headerAuthArea">
           <!-- Populated by JS: user profile link or login btn -->
         </div>
-        <a href="/dashboard" class="btn-legacy" id="headerBtnDashboard" title="Панель управления (Админка)">
-          ⚙️ <span>Панель управления</span>
+        <a href="/admin" class="btn-legacy" id="headerBtnDashboard" title="Управление сервисом">
+          <span aria-hidden="true">⚙️</span> <span>Управление</span>
         </a>
       </div>
     </div>
@@ -4191,14 +4195,14 @@
         <div class="profile-card" id="profileAdminPanelCard" style="display: none; border-left: 4px solid var(--primary);">
           <div class="profile-section-header">
             <div>
-              <h2 class="profile-section-title">⚙️ Панель администрирования</h2>
-              <div class="profile-section-desc">Классическая панель управления, мониторинг цен, сканеры и системные настройки</div>
+              <h2 class="profile-section-title">⚙️ Управление сервисом</h2>
+              <div class="profile-section-desc">Сканеры, настройки и мониторинг сервиса.</div>
             </div>
             <span class="badge badge-super">👑 Администратор</span>
           </div>
           <div style="margin-top: 14px;">
-            <a href="/dashboard" class="btn-primary" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none;">
-              ⚙️ Открыть панель управления
+            <a href="/admin" class="btn-primary" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none;">
+              ⚙️ Открыть управление
             </a>
           </div>
         </div>
@@ -4962,10 +4966,6 @@
 
       // 4. Admin-only dashboard controls
       const isAdmin = !!(currentUser && currentUser.is_admin);
-      const navDashboard = document.getElementById('navLinkDashboard');
-      if (navDashboard) {
-        navDashboard.style.display = isAdmin ? 'inline-flex' : 'none';
-      }
       const headerBtnDashboard = document.getElementById('headerBtnDashboard');
       if (headerBtnDashboard) {
         if (isAdmin) {
