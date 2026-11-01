@@ -6317,12 +6317,13 @@
       fields.forEach(field => {
         const group = document.createElement('div'); group.className = 'filter-group';
         const label = document.createElement('label'); label.className = 'filter-title';
-        label.textContent = field.label;
+        const inferred = !AppState.attributes[field.key] && data.selected_attributes && data.selected_attributes[field.key];
+        label.textContent = field.label + (inferred ? ' (из запроса)' : '');
         const select = document.createElement('select');
         select.id = 'attribute-' + field.key; label.htmlFor = select.id;
         select.style.cssText = 'width:100%;min-height:44px;background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border-color);border-radius:8px;padding:8px;';
-        select.add(new Option('Все', ''));
-        const selected = AppState.attributes[field.key] || '';
+        select.add(new Option(inferred ? 'Как в запросе' : 'Все', ''));
+        const selected = AppState.attributes[field.key] || (data.selected_attributes || {})[field.key] || '';
         (field.values || []).forEach(v => select.add(new Option(v.value + ' (' + v.count + ')', v.value)));
         if (selected && !(field.values || []).some(v => v.value === selected)) select.add(new Option(selected, selected));
         select.value = selected;
