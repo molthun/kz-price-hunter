@@ -157,6 +157,7 @@ _DEVICE_SIGNS = {
     "Игровые приставки": r"консол|приставк|dendy|playstation|xbox|nintendo",
 }
 # Разделы, названным моделью которым можно верить; остальное уходит в общий раздел родителя
+_FOR_DEVICE_RE = re.compile(r"\bдля\s+.*$", re.I)
 # Дешёвый смартфон или ноутбук без памяти в названии почти не встречается, поэтому там верим и коду
 _ANY_TITLE_CATEGORIES = {"Смартфоны", "Ноутбуки"}
 _VACUUM_PART_RE = re.compile(r"стяжк|щетк|щётк|насадк|фильтр|мешок|мешки|шланг|турбощ", re.I)
@@ -181,7 +182,9 @@ def find_cheap_suspects(conn, classifier) -> List[Dict[str, Any]]:
         limit = statistics.median(r[2] for r in rows) * CHEAP_RATIO
         sign_re = re.compile(signs, re.I)
         for product_id, title, price, from_feed, checked in rows:
-            if price >= limit or from_feed or checked or sign_re.search(title or ""):
+            # «для iPhone» — это аксессуар к устройству, а не признак самого устройства
+            without_target = _FOR_DEVICE_RE.sub(" ", title or "")
+            if price >= limit or from_feed or checked or sign_re.search(without_target):
                 continue
             rule = classifier.classify_rules(title)
             if rule and rule.source in ("rule_title", "rule_accessory"):
