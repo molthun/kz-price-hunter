@@ -98,9 +98,9 @@ class SearchFamilyCollapseTest(unittest.TestCase):
                 "INSERT INTO canonical_products (id, canonical_key, title, category, brand, model, created_at, updated_at) "
                 "VALUES (?, ?, ?, 'Смартфоны', 'Xiaomi', ?, 'x', 'x')", (pid, pid, title, model))
             self.conn.execute(
-                "INSERT INTO offers (id, product_id, seller_id, channel_id, url, price, currency, condition, availability, city, "
-                "is_active, observed_at, created_at, updated_at) VALUES (?, ?, 's', 'c', 'http://x', ?, 'KZT', 'NEW', 'in_stock', "
-                "'Казахстан', 1, '2026-11-01T00:00:00+00:00', 'x', 'x')", ("off_" + pid, pid, price))
+                "INSERT INTO offers (id, product_id, seller_id, channel_id, external_sku, url, price, currency, condition, availability, city, "
+                "is_active, observed_at, created_at, updated_at) VALUES (?, ?, 's', 'c', ?, 'http://x', ?, 'KZT', 'NEW', 'in_stock', "
+                "'Казахстан', 1, '2026-11-01T00:00:00+00:00', 'x', 'x')", ("off_" + pid, pid, pid, price))
         self.conn.commit()
         self.assertEqual(refresh_family_ids(self.conn), 3)
         self.repo = SearchRepository(self.conn)
