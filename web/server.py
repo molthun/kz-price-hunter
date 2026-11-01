@@ -56,6 +56,7 @@ from config import (
     MASTEROK_CATEGORIES,
     MAGNUM_CATEGORIES,
     INTERTOP_CATEGORIES,
+    KARI_CATEGORIES,
     MARWIN_CATEGORIES,
     ITEKA_CATEGORIES,
     MEBEL_CATEGORIES,
@@ -134,6 +135,7 @@ from scrapers.arbuz import ArbuzScraper
 from scrapers.masterok import MasterOkScraper
 from scrapers.magnum import MagnumScraper
 from scrapers.intertop import IntertopScraper
+from scrapers.kari import KariScraper
 from scrapers.marwin import MarwinScraper
 from scrapers.iteka import ITekaScraper
 from scrapers.mebel import MebelScraper
@@ -2956,6 +2958,7 @@ SHOP_REGISTRY = {
     "masterok": (MasterOkScraper, MASTEROK_CATEGORIES, "MasterOK"),
     "magnum": (MagnumScraper, MAGNUM_CATEGORIES, "Магнум"),
     "intertop": (IntertopScraper, INTERTOP_CATEGORIES, "Интертоп"),
+    "kari": (KariScraper, KARI_CATEGORIES, "Kari"),
     "marwin": (MarwinScraper, MARWIN_CATEGORIES, "Меломан"),
     "iteka": (ITekaScraper, ITEKA_CATEGORIES, "i-Teka"),
     "mebel": (MebelScraper, MEBEL_CATEGORIES, "Mebel.kz"),

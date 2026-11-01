@@ -101,6 +101,8 @@ KNOWN_SELLER_MAPPINGS: Dict[str, Tuple[str, str, str]] = {
     "magnum": ("magnum", "Магнум", ChannelType.WEBSITE),
     "интертоп": ("intertop", "Интертоп", ChannelType.WEBSITE),
     "intertop": ("intertop", "Интертоп", ChannelType.WEBSITE),
+    "кари": ("kari", "Kari", ChannelType.WEBSITE),
+    "kari": ("kari", "Kari", ChannelType.WEBSITE),
     "марвин": ("marwin", "Меломан / MARWIN", ChannelType.WEBSITE),
     "меломан": ("marwin", "Меломан / MARWIN", ChannelType.WEBSITE),
     "marwin": ("marwin", "Меломан / MARWIN", ChannelType.WEBSITE),
@@ -169,7 +171,7 @@ def resolve_seller_and_channel_meta(shop_name: str, shop_key: Optional[str] = No
     # «Технодом Партнёр» -> technodom. Этап 2 плана это прямо запрещает: нельзя объединять
     # продавцов только потому, что названия похожи.
     #
-    # Все 37 подключённых сетей определяются точно — по ключу реестра (шаг 1), по имени-ключу
+    # Все 38 подключённых сетей определяются точно — по ключу реестра (шаг 1), по имени-ключу
     # (шаг 2) или по отображаемому имени (шаг 3); эта таблица добавляет им альтернативные
     # написания. Незнакомое название уходит на транслитерацию и становится отдельным продавцом:
     # если это действительно та же сеть, их сведёт SellerMatcher по сильным ключам, а не догадка

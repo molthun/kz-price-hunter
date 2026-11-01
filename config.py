@@ -48,6 +48,7 @@ SHOP_KEYS = {
     "masterok": "MasterOK",
     "magnum": "Магнум",
     "intertop": "Интертоп",
+    "kari": "Kari",
     "marwin": "Меломан",
     "iteka": "i-Teka",
     "mebel": "Mebel.kz",
@@ -1346,6 +1347,36 @@ MAGNUM_CATEGORIES = [
     {"name": "Магнум: 🧴 Средства гигиены", "url": "https://magnum.kz/catalog?category=sredstva-gigieny", "master": "household", "max_pages": 5},
     {"name": "Магнум: 👶 Детские товары", "url": "https://magnum.kz/catalog?category=detskie-tovary", "master": "household", "max_pages": 5},
     {"name": "Магнум: 🍳 Собственное производство", "url": "https://magnum.kz/catalog?category=sobstvennoe-proizvodstvo", "master": "grocery", "max_pages": 5},
+]
+
+# Kari (kz.kari.com): обувь, одежда, аксессуары и детские товары; разделы второго уровня, каждый меньше предела выдачи в 10 000 товаров.
+KARI_CATEGORIES = [
+    {"name": "Kari: 👠 Женская обувь", "url": "https://kz.kari.com/catalog/zhenschinam/zhenskaya-obuv/", "master": "clothes", "max_pages": 135},
+    {"name": "Kari: 👗 Женская одежда", "url": "https://kz.kari.com/catalog/zhenschinam/zhenskaya-odezhda/", "master": "clothes", "max_pages": 30},
+    {"name": "Kari: 👜 Сумки и рюкзаки", "url": "https://kz.kari.com/catalog/zhenschinam/sumki-i-ryukzaki/", "master": "clothes", "max_pages": 60},
+    {"name": "Kari: 🧣 Женские аксессуары", "url": "https://kz.kari.com/catalog/zhenschinam/aksessuaryi/", "master": "clothes", "max_pages": 40},
+    {"name": "Kari: 💍 Ювелирные украшения", "url": "https://kz.kari.com/catalog/zhenschinam/yuvelirnyie-ukrasheniya/", "master": "clothes", "max_pages": 60},
+    {"name": "Kari: 💄 Красота и здоровье", "url": "https://kz.kari.com/catalog/zhenschinam/krasota-i-zdorove/", "master": "beauty_health", "max_pages": 30},
+    {"name": "Kari: 👞 Мужская обувь", "url": "https://kz.kari.com/catalog/muzhchinam/muzhskaya-obuv/", "master": "clothes", "max_pages": 60},
+    {"name": "Kari: 👕 Мужская одежда", "url": "https://kz.kari.com/catalog/muzhchinam/muzhskaya-odezhda/", "master": "clothes", "max_pages": 15},
+    {"name": "Kari: 🧢 Мужские аксессуары", "url": "https://kz.kari.com/catalog/muzhchinam/aksessuaryi/", "master": "clothes", "max_pages": 20},
+    {"name": "Kari: 👧 Обувь для девочек", "url": "https://kz.kari.com/catalog/detyam/obuv-dlya-devochek/", "master": "clothes", "max_pages": 40},
+    {"name": "Kari: 👦 Обувь для мальчиков", "url": "https://kz.kari.com/catalog/detyam/obuv-dlya-malchikov/", "master": "clothes", "max_pages": 40},
+    {"name": "Kari: 👗 Одежда для девочек", "url": "https://kz.kari.com/catalog/detyam/odezhda-dlya-devochek/", "master": "clothes", "max_pages": 55},
+    {"name": "Kari: 👕 Одежда для мальчиков", "url": "https://kz.kari.com/catalog/detyam/odezhda-dlya-malchikov/", "master": "clothes", "max_pages": 40},
+    {"name": "Kari: 👶 Одежда для младенцев", "url": "https://kz.kari.com/catalog/detyam/odezhda-dlya-mladentsev/", "master": "clothes", "max_pages": 20},
+    {"name": "Kari: 🎒 Детские аксессуары", "url": "https://kz.kari.com/catalog/detyam/aksessuaryi/", "master": "clothes", "max_pages": 50},
+    {"name": "Kari: 🧸 Игрушки", "url": "https://kz.kari.com/catalog/detyam/igrushki/", "master": "household", "max_pages": 50},
+    {"name": "Kari: 🎨 Хобби, творчество, школа", "url": "https://kz.kari.com/catalog/detyam/khobbi-tvorchestvo-shkola/", "master": "household", "max_pages": 15},
+    {"name": "Kari: ⚽ Спорт и отдых", "url": "https://kz.kari.com/catalog/detyam/sport-i-otdyikh/", "master": "household", "max_pages": 5},
+    {"name": "Kari: 🍼 Коляски", "url": "https://kz.kari.com/catalog/dlya-mam-i-malyishey/kolyaski/", "master": "household", "max_pages": 3},
+    {"name": "Kari: 🛏 Детская комната", "url": "https://kz.kari.com/catalog/dlya-mam-i-malyishey/detskaya-komnata/", "master": "home_furniture", "max_pages": 3},
+    {"name": "Kari: 🚗 Автокресла", "url": "https://kz.kari.com/catalog/dlya-mam-i-malyishey/avtokresla/", "master": "household", "max_pages": 3},
+    {"name": "Kari: 🧴 Уход и гигиена", "url": "https://kz.kari.com/catalog/dlya-mam-i-malyishey/ukhod-i-gigiena/", "master": "household", "max_pages": 3},
+    {"name": "Kari: 🏠 Товары для дома", "url": "https://kz.kari.com/catalog/tovaryi-dlya-doma/dlya-doma/", "master": "home_furniture", "max_pages": 10},
+    {"name": "Kari: 🍳 Товары для кухни", "url": "https://kz.kari.com/catalog/tovaryi-dlya-doma/dlya-kukhni/", "master": "home_furniture", "max_pages": 3},
+    {"name": "Kari: 🎉 Товары для праздника", "url": "https://kz.kari.com/catalog/tovaryi-dlya-doma/dlya-prazdnika/", "master": "home_furniture", "max_pages": 10},
+    {"name": "Kari: 🔌 Гаджеты и аксессуары", "url": "https://kz.kari.com/catalog/tovaryi-dlya-doma/tekhnika/", "master": "household", "max_pages": 8},
 ]
 
 # Интертоп (intertop.kz): крупнейшая мультибрендовая сеть обуви, одежды и аксессуаров в Казахстане
