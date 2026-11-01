@@ -1,0 +1,106 @@
+................. [  5%]
+......................................................... [ 23%]
+......................................................... [ 41%]
+................................... [ 52%]
+............................................................................................................. [ 87%]
+.........................................                 [100%]
+=============================== warnings summary ===============================
+tests/search/test_deals_feed_v2.py:39
+  <repo>/tests/search/test_deals_feed_v2.py:39: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_deals_feed_v2.py:49
+  <repo>/tests/search/test_deals_feed_v2.py:49: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_deals_feed_v2.py:59
+  <repo>/tests/search/test_deals_feed_v2.py:59: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_deals_feed_v2.py:70
+  <repo>/tests/search/test_deals_feed_v2.py:70: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_deals_feed_v2.py:91
+  <repo>/tests/search/test_deals_feed_v2.py:91: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_deals_feed_v2.py:160
+  <repo>/tests/search/test_deals_feed_v2.py:160: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_deals_feed_v2.py:186
+  <repo>/tests/search/test_deals_feed_v2.py:186: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_deals_identity_and_watches.py:52
+  <repo>/tests/search/test_deals_identity_and_watches.py:52: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_deals_identity_and_watches.py:60
+  <repo>/tests/search/test_deals_identity_and_watches.py:60: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_deals_identity_and_watches.py:68
+  <repo>/tests/search/test_deals_identity_and_watches.py:68: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_deals_identity_and_watches.py:75
+  <repo>/tests/search/test_deals_identity_and_watches.py:75: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_deals_identity_and_watches.py:82
+  <repo>/tests/search/test_deals_identity_and_watches.py:82: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_deals_identity_and_watches.py:90
+  <repo>/tests/search/test_deals_identity_and_watches.py:90: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_deals_identity_and_watches.py:96
+  <repo>/tests/search/test_deals_identity_and_watches.py:96: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_deals_identity_and_watches.py:113
+  <repo>/tests/search/test_deals_identity_and_watches.py:113: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_deals_identity_and_watches.py:119
+  <repo>/tests/search/test_deals_identity_and_watches.py:119: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_search_first_stage1.py:469
+  <repo>/tests/search/test_search_first_stage1.py:469: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_search_first_stage1.py:484
+  <repo>/tests/search/test_search_first_stage1.py:484: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_search_first_stage1.py:503
+  <repo>/tests/search/test_search_first_stage1.py:503: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_search_first_stage1.py:536
+  <repo>/tests/search/test_search_first_stage1.py:536: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_search_first_stage1.py:564
+  <repo>/tests/search/test_search_first_stage1.py:564: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_adaptive_discovery_v2.py: 4 warnings
+tests/search/test_search_ui_v2.py: 6 warnings
+tests/search/test_store_deals.py: 1 warning
+tests/ai/test_ai_category_classification.py: 2 warnings
+  <repo>/web/server.py:5334: NotAppKeyWarning: It is recommended to use web.AppKey instances for keys.
+  https://docs.aiohttp.org/en/stable/web_advanced.html#application-s-config
+    app["stats_cache"] = BoundedTTLCache(maxsize=128, ttl=STATS_CACHE_TTL_SECONDS)
+
+tests/search/test_adaptive_discovery_v2.py::TestDiscoveryAPIEndpoints::test_generate_tasks_as_admin
+  <repo>/auth.py:276: NotAppKeyWarning: It is recommended to use web.RequestKey instances for keys.
+  https://docs.aiohttp.org/en/stable/web_advanced.html#request-s-storage
+    request["user"] = await asyncio.get_running_loop().run_in_executor(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+316 passed, 35 warnings, 244 subtests passed in 9.41s

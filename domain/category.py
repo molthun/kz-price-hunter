@@ -186,7 +186,17 @@ MASTER_TAXONOMY: List[Category] = [
         name="SSD накопители",
         icon="💾",
         search_priority=78,
-        aliases=["ssd диски", "ssd", "ssd накопители", "жесткие диски", "твердотельные накопители", "hdd", "оперативная память", "ram"],
+        aliases=["ssd диски", "ssd", "ssd накопители", "твердотельные накопители"],
+    ),
+    Category(
+        id="hdd", parent_id="electronics", name="Жесткие диски HDD", icon="💽",
+        search_priority=77,
+        aliases=["hdd", "жесткие диски", "жёсткие диски", "жесткий диск", "жёсткий диск", "винчестеры"],
+    ),
+    Category(
+        id="removable_storage", parent_id="electronics", name="Флешки и карты памяти", icon="💾",
+        search_priority=76,
+        aliases=["флешки", "флеш накопители", "карты памяти", "карта памяти", "microsd", "sdhc", "sdxc"],
     ),
     Category(
         id="peripherals",
@@ -212,7 +222,7 @@ MASTER_TAXONOMY: List[Category] = [
         name="Оперативная память",
         icon="🧠",
         search_priority=82,
-        aliases=["оперативная память", "модули памяти"],
+        aliases=["оперативная память", "модули памяти", "ram", "dimm", "sodimm", "udimm"],
     ),
     Category(
         id="network",
@@ -756,6 +766,10 @@ class TaxonomyMapper:
         """
         if not raw_category:
             return None
+        # Explicit IDs win before underscore normalization and fuzzy aliases (storage vs removable_storage).
+        exact = self._categories.get(raw_category.strip().lower())
+        if exact:
+            return exact
         token = self._normalize_token(raw_category)
         if not token:
             return None

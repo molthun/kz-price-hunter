@@ -1,6 +1,7 @@
 """Разделы магазинов важнее локальной модели.
 
-Прямая выгрузка (SHOP_FEEDS) — первоисточник: её раздел главнее и правил по названию. У остальных магазинов
+Прямая выгрузка (SHOP_FEEDS) — первоисточник; явный тип RAM/SSD/HDD/карты памяти
+в названии исправляет противоречащий ему раздел. У остальных магазинов
 раздел — наш запрос к их каталогу, и в «Смартфоны» приходят защитные стёкла, поэтому сначала правило по
 названию, затем раздел (apply_section_categories). Локальная модель решает только оставшееся.
 """
@@ -11,6 +12,7 @@ import re
 from typing import Dict, Optional
 
 from domain.category import MASTER_TAXONOMY, TaxonomyMapper
+from domain.storage_types import storage_type
 
 FEED_MODEL = "feed"
 _GROUPS: Dict[str, str] = {
@@ -22,7 +24,9 @@ _GROUPS: Dict[str, str] = {
     "power": "ИБП (UPS)|Аккумуляторы и аксессуары для ИБП|Инверторы|Стабилизаторы|Стабилизаторы (уцененный товар)|Сетевые фильтры, адаптеры",
     "photo_video": "Аксессуары для фотоаппаратов|Аксессуары для экшн-камер|Экшн-камеры|Фотоаппараты|Сумки для фото и видео|Моноподы|Системы видеонаблюдения|Веб-камеры",
     "software": "Антивирусы|Операционные системы|Офисные программы|Цифровые подписки",
-    "storage": "SSD диски|USB внешние накопители|Жесткие диски|Карты памяти|Флешки",
+    "storage": "SSD диски",
+    "hdd": "Жесткие диски",
+    "removable_storage": "Карты памяти|Флешки",
     "peripherals": "Джойстики, рули, геймпады|Игровые клавиатуры|Игровые мыши|Клавиатуры|Коврики для мыши|Контроллеры для стриминга|Мыши|Наклейки для клавиатур|Графические планшеты",
     "cables_chargers": "Power bank (мобильные аккумуляторы)|Зарядные устройства|Зарядные устройства для ноутбуков|Кабели и переходники|Кабели, коннекторы|Кабели, переходники",
     "audio": "Аксессуары для микрофонов|Акустические системы и колонки|Аудиотехника, Hi-Fi оборудование|Микрофоны|Музыкальные центры|Плееры|Портативные колонки|Саундбары|Спикерфоны",
@@ -73,9 +77,11 @@ def apply_feed_categories(conn) -> int:
     names = {c.id: c.name for c in MASTER_TAXONOMY}
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     changed = 0
+    from catalog_classifier import CatalogClassifier
+    classifier = CatalogClassifier()
     for shop, table in SHOP_FEEDS.items():
         rows = conn.execute(
-            """SELECT o.product_id, p.category, c.category, v.model
+            """SELECT o.product_id, p.category, c.category, v.model, c.title
                FROM products p
                JOIN offers o ON o.id = 'off_' || p.id AND o.is_active = 1
                JOIN canonical_products c ON c.id = o.product_id
@@ -83,10 +89,15 @@ def apply_feed_categories(conn) -> int:
                WHERE p.shop = ? AND p.is_active = 1""",
             (shop,),
         ).fetchall()
-        for product_id, raw, current, model in rows:
+        for product_id, raw, current, model, title in rows:
             cat_id = table.get((raw or "").strip())
             if not cat_id:
                 continue
+            explicit = storage_type(title)
+            if not explicit and cat_id in {'storage','hdd','ram','removable_storage'}:
+                rule = classifier.classify_rules(title)
+                explicit = rule.category_id if rule and rule.source in TITLE_RULE_SOURCES else None
+            cat_id = explicit or cat_id
             target = names[cat_id]
             if current == target and model == FEED_MODEL:
                 continue
@@ -109,6 +120,7 @@ _NOT_A_SECTION_RE = re.compile(r"распродаж|акци|скидк|уцен
 _SECTIONS: Dict[str, str] = {
     "tools_repair": "перфораторы|сварочные аппараты|сварочное оборудование|деревообрабатывающие станки|складское оборудование|стремянки|генераторы и электростанции|стройматериалы|отделочные материалы|строительство и ремонт",
     "cables_chargers": "wiwu power bank|зарядки wiwu|wiwu зарядные станции|wiwu переходники",
+    "pc_components": "жесткие диски и ssd|накопители ssd и hdd",
     "electronics": "аксессуары apple|wiwu автодержатели|wiwu ремень для телефона|wiwu петлички|dji дроны|компьютерные аксессуары",
     "audio": "яндекс станции|акустические системы",
     "smartwatches": "часы garmin",
@@ -153,10 +165,45 @@ def section_category(raw: Optional[str]) -> Optional[str]:
     return mapped.id if mapped else None
 
 
+def repair_storage_categories(conn, apply=True):
+    names = {c.id:c.name for c in MASTER_TAXONOMY}
+    family = [names[k] for k in ('storage','hdd','ram','removable_storage')]
+    rows = conn.execute('SELECT id,title,category FROM canonical_products WHERE category IN (?,?,?,?)',family).fetchall()
+    from catalog_classifier import CatalogClassifier
+    classifier=CatalogClassifier()
+    moves=[]
+    for pid,title,current in rows:
+        target=storage_type(title)
+        if not target:
+            rule=classifier.classify_rules(title)
+            target=rule.category_id if rule and rule.source in TITLE_RULE_SOURCES else None
+        if not target and re.fullmatch(r'[\W_]*[A-Za-z0-9][A-Za-z0-9._()/+-]*[\W_]*', title or ''):
+            # A bare article has no title type: require unanimous explicit source sections.
+            sources = conn.execute("SELECT DISTINCT p.category FROM offers o JOIN products p ON o.id='off_'||p.id WHERE o.product_id=? AND o.is_active=1 AND p.is_active=1",(pid,)).fetchall()
+            mapped = {section_category(row[0]) for row in sources}
+            if len(mapped)==1 and mapped.issubset({'ram','hdd','removable_storage'}):
+                target=next(iter(mapped))
+        if target and names[target]!=current:
+            moves.append((pid,current,names[target]))
+    if apply:
+        stamp=datetime.datetime.now(datetime.timezone.utc).isoformat()
+        for pid,old,target in moves:
+            conn.execute('UPDATE canonical_products SET category=? WHERE id=?',(target,pid))
+            conn.execute("""INSERT OR REPLACE INTO category_ai_verdicts
+                (product_id,old_category,new_category,confidence,model,applied,decided_at)
+                VALUES(?,?,?,0.97,'rule_storage_type',1,?)""",(pid,old,target,stamp))
+        conn.commit()
+        if moves:
+            from repositories.search_repo import SearchRepository
+            SearchRepository._cat_cache={}
+    return moves
+
+
 def apply_section_categories(conn, classifier, apply: bool = True) -> Dict:
     """Правило по названию, затем раздел магазина. Решение закрепляется, и модель такие товары не трогает."""
     names = {c.id: c.name for c in MASTER_TAXONOMY}
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    storage_repairs = repair_storage_categories(conn, apply=apply)
     rows = conn.execute(
         """SELECT o.product_id, MIN(p.category), c.category, c.title
            FROM products p
@@ -195,4 +242,4 @@ def apply_section_categories(conn, classifier, apply: bool = True) -> Dict:
         )
         conn.executemany("UPDATE canonical_products SET category = ? WHERE id = ?", [m[:2] for m in moves])
         conn.commit()
-    return {"seen": len(rows), "pinned": len(pins), "moved": len(moves), "moves": moves}
+    return {"seen": len(rows), "pinned": len(pins), "moved": len(moves), "moves": moves, "storage_repairs": storage_repairs}

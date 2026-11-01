@@ -287,7 +287,7 @@ _TITLE_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
     (re.compile(r"\b(видеокарт(?:а|ы)|geforce\s+rtx|radeon\s+rx|графический\s+процессор)\b", re.I), "gpus"),
     (re.compile(r"\b(процессор|intel\s+core|amd\s+ryzen)\b", re.I), "cpus"),
     (re.compile(r"\b(материнск(?:ая|ие)\s+плат(?:а|ы)|motherboard)\b", re.I), "motherboards"),
-    (re.compile(r"^\W*(?:внешний\s+)?(?:ssd|hdd)\b|\b(накопитель\s+ssd|ssd\s+накопитель|ssd-накопитель|твердотельный\s+накопитель|жесткий\s+диск|внешний\s+диск)\b", re.I), "storage"),
+
 
     # Appliances & Home
     (re.compile(r"\b(стиральн(?:ая|ые|ую)\s+машин(?:а|ы|у)|стиралка)\b", re.I), "washing_machines"),
@@ -1059,6 +1059,16 @@ class CatalogClassifier:
                     compatibility_target=compat_target,
                 )
 
+        from domain.storage_types import storage_type
+        hardware = storage_type(main_part)
+        if hardware:
+            cat = self.taxonomy.get_by_id(hardware)
+            if cat:
+                return ClassificationResult(category_id=cat.id, category_name=cat.name,
+                    category_parent_id=cat.parent_id, category_icon=cat.icon, brand=brand,
+                    confidence=0.97, source="rule_title", item_kind="device",
+                    model=self.extract_clean_model(title,brand=brand,category=cat.name,item_kind="device"))
+
         # 2. Сначала пробуем сопоставить заголовок напрямую по ключевым паттернам типа товара
         for pattern, cat_id in _TITLE_TYPE_RULES:
             if pattern.search(title):
@@ -1142,6 +1152,9 @@ class CatalogClassifier:
 - cpus (Процессоры)
 - motherboards (Материнские платы)
 - storage (SSD накопители)
+- hdd (Жесткие диски HDD)
+- ram (Оперативная память)
+- removable_storage (Флешки и карты памяти)
 - peripherals (Клавиатуры и мыши)
 - consoles (Игровые приставки)
 - washing_machines (Стиральные машины)
