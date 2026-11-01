@@ -104,6 +104,10 @@
     }
 
     body {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      min-height: 100dvh;
       font-family: var(--font-family);
       background-color: var(--bg-page);
       color: var(--text-main);
@@ -154,6 +158,16 @@
       max-width: 1280px;
       margin: 0 auto;
       padding: 0 16px;
+    }
+
+    .app-main {
+      flex: 1 0 auto;
+      width: 100%;
+      padding-top: 20px;
+    }
+
+    .app-main > .view-section > :last-child {
+      margin-bottom: 0; /* the footer already provides the gap after page content */
     }
 
     /* Top Header */
@@ -3649,9 +3663,6 @@
     }
 
     @media (max-width: 768px) {
-      .site-footer {
-        padding-bottom: 78px; /* clearance for mobile bottom nav */
-      }
       .footer-inner {
         flex-direction: column;
         align-items: flex-start;
@@ -3741,7 +3752,7 @@
   </div>
 
   <!-- Main Container -->
-  <main class="container" style="min-height: calc(100vh - 130px); padding-top: 20px;">
+  <main class="container app-main">
 
     <!-- ============================================================= -->
     <!-- VIEW: 1. HOME                                                 -->
