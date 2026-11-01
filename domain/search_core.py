@@ -228,6 +228,8 @@ class SearchResponse2:
     outcome: str = SearchOutcome.NOT_FOUND
     category_facets: List[Dict[str, Any]] = field(default_factory=list)
     brand_facets: List[Dict[str, Any]] = field(default_factory=list)
+    model_facets: List[Dict[str, Any]] = field(default_factory=list)
+    kind_facets: List[Dict[str, Any]] = field(default_factory=list)
     seller_facets: List[Dict[str, Any]] = field(default_factory=list)
     city_facets: List[Dict[str, Any]] = field(default_factory=list)
     # False — фасеты посчитать не удалось; пустые списки тогда не значат «вариантов нет»
@@ -244,6 +246,8 @@ class SearchResponse2:
         res["items"] = [item.to_dict() for item in self.items]
         res["category_facets"] = self.category_facets
         res["brand_facets"] = self.brand_facets
+        res["model_facets"] = self.model_facets
+        res["kind_facets"] = self.kind_facets
         res["seller_facets"] = self.seller_facets
         res["city_facets"] = self.city_facets
         res["facets_available"] = self.facets_available
@@ -765,6 +769,8 @@ class SearchCore:
                 outcome=outcome,
                 category_facets=category_facets,
                 brand_facets=brand_facets,
+                model_facets=facets_info.get("model_facets", []),
+                kind_facets=facets_info.get("kind_facets", []),
                 seller_facets=facets_info.get("seller_facets", []),
                 city_facets=facets_info.get("city_facets", []),
                 facets_available=facets_available,
