@@ -729,6 +729,37 @@
       margin-left: auto;
     }
 
+    .kind-pills-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .kind-pill {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      border-radius: var(--radius-full);
+      padding: 4px 10px;
+      font-size: 0.76rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .kind-pill:hover {
+      border-color: var(--primary);
+      color: var(--text-main);
+    }
+
+    .kind-pill.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+      font-weight: 600;
+    }
+
     .price-inputs-row {
       display: flex;
       align-items: center;
@@ -2856,6 +2887,12 @@
           <!-- 2. Что за товар (Тип товара / Категория) -->
           <div class="filter-group">
             <div class="filter-title">📦 Что за товар</div>
+            <div class="kind-pills-row">
+              <button type="button" class="kind-pill active" data-kind="" onclick="onKindFacetSelected('')">Все</button>
+              <button type="button" class="kind-pill" data-kind="device" onclick="onKindFacetSelected('device')">📱 Устройства</button>
+              <button type="button" class="kind-pill" data-kind="accessory" onclick="onKindFacetSelected('accessory')">🔌 Аксессуары</button>
+              <button type="button" class="kind-pill" data-kind="consumable" onclick="onKindFacetSelected('consumable')">🌀 Расходники</button>
+            </div>
             <div id="filterCategoriesList">
               <div style="font-size:0.85rem; color:var(--text-muted);">Загрузка...</div>
             </div>
@@ -2865,6 +2902,14 @@
           <div class="filter-group">
             <div class="filter-title">🏷 Бренд</div>
             <div id="filterBrandsList">
+              <div style="font-size:0.85rem; color:var(--text-muted);">Загрузка...</div>
+            </div>
+          </div>
+
+          <!-- 4. Модель (без цвета и характеристик) -->
+          <div class="filter-group" id="filterModelGroup">
+            <div class="filter-title">🎯 Модель</div>
+            <div id="filterModelsList">
               <div style="font-size:0.85rem; color:var(--text-muted);">Загрузка...</div>
             </div>
           </div>
@@ -3442,6 +3487,8 @@
       condition: '',
       category: '',
       brand: '',
+      model: '',
+      kind: '',
       seller: '',
       min_price: '',
       max_price: '',
@@ -4366,6 +4413,8 @@
       const cat = params.get('category') || params.get('cat') || '';
       AppState.category = cat === 'all' ? '' : cat;
       AppState.brand = params.get('brand') || '';
+      AppState.model = params.get('model') || '';
+      AppState.kind = params.get('kind') || '';
       AppState.condition = params.get('condition') || '';
       AppState.seller = params.get('seller') || '';
       AppState.min_price = params.get('min_price') || '';
@@ -4401,6 +4450,8 @@
       p.set('city', AppState.city);
       if (AppState.category) p.set('cat', AppState.category);
       if (AppState.brand) p.set('brand', AppState.brand);
+      if (AppState.model) p.set('model', AppState.model);
+      if (AppState.kind) p.set('kind', AppState.kind);
       if (AppState.condition) p.set('condition', AppState.condition);
       if (AppState.seller) p.set('seller', AppState.seller);
       if (AppState.min_price) p.set('min_price', AppState.min_price);
@@ -4457,6 +4508,8 @@
       if (AppState.city && AppState.city !== 'Все') p.set('city', AppState.city);
       if (AppState.category) p.set('cat', AppState.category);
       if (AppState.brand) p.set('brand', AppState.brand);
+      if (AppState.model) p.set('model', AppState.model);
+      if (AppState.kind) p.set('kind', AppState.kind);
       if (AppState.condition) p.set('condition', AppState.condition);
       if (AppState.seller) p.set('seller', AppState.seller);
       if (AppState.min_price) p.set('min_price', AppState.min_price);
@@ -4638,14 +4691,21 @@
       const sellerList = document.getElementById('filterSellersList');
       const catList = document.getElementById('filterCategoriesList');
       const brandList = document.getElementById('filterBrandsList');
+      const modelList = document.getElementById('filterModelsList');
 
       if (data.facets_available === false) {
         const msg = '<div style="font-size:0.85rem; color:var(--text-muted);">Список временно недоступен</div>';
         if (sellerList) sellerList.innerHTML = msg;
         if (catList) catList.innerHTML = msg;
         if (brandList) brandList.innerHTML = msg;
+        if (modelList) modelList.innerHTML = msg;
         return;
       }
+
+      // Sync kind pills
+      document.querySelectorAll('.kind-pill').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.kind === (AppState.kind || ''));
+      });
 
       // 1. Магазины (продавцы)
       if (sellerList) {
@@ -4664,6 +4724,29 @@
         renderFacetGroup(brandList, 'facetBrand', 'onBrandFacetSelected', AppState.brand,
           (data.brand_facets || []).map(b => ({ value: b.brand, name: b.brand, count: b.count })), 8, 'Нет брендов');
       }
+
+      // 4. Модель
+      if (modelList) {
+        renderFacetGroup(modelList, 'facetModel', 'onModelFacetSelected', AppState.model,
+          (data.model_facets || []).map(m => ({ value: m.model, name: m.model, count: m.count })), 10, 'Нет моделей');
+      }
+    }
+
+    function onModelFacetSelected(model) {
+      AppState.model = model;
+      AppState.page = 1;
+      updateSearchUrl();
+      executeSearch();
+    }
+
+    function onKindFacetSelected(kind) {
+      AppState.kind = kind;
+      AppState.page = 1;
+      document.querySelectorAll('.kind-pill').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.kind === kind);
+      });
+      updateSearchUrl();
+      executeSearch();
     }
 
     function onBrandFacetSelected(brand) {
@@ -4717,6 +4800,8 @@
       closeMobileFilters();
       AppState.category = '';
       AppState.brand = '';
+      AppState.model = '';
+      AppState.kind = '';
       AppState.condition = '';
       AppState.seller = '';
       AppState.min_price = '';

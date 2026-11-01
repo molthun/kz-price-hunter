@@ -257,12 +257,14 @@ def prepare_legacy_offer_v2(
         ident_digest = hashlib.sha256(f"{seller_id}:domain:{norm_dom}".encode("utf-8")).hexdigest()[:16]
         ident_id = f"ident_{ident_digest}"
 
-    # 2b. Canonical Category and Brand Extraction
+    # 2b. Canonical Category, Brand and Model Extraction
     from catalog_classifier import CatalogClassifier
     _clf = CatalogClassifier()
     _cls_res = _clf.classify_rules(title, raw_category=category)
     clean_category = _cls_res.category_name if _cls_res else (category or "Другое")
     brand = _cls_res.brand if _cls_res else None
+    model = _cls_res.model if _cls_res else None
+    item_kind = _cls_res.item_kind if _cls_res else "device"
 
     # 3. Canonical Product
     return {
@@ -279,6 +281,8 @@ def prepare_legacy_offer_v2(
         "title": title,
         "category": clean_category,
         "brand": brand,
+        "model": model,
+        "item_kind": item_kind,
         "description": description,
         "image_url": image_url,
         # 4. Offer: устойчивый идентификатор из идентификатора товара legacy
@@ -394,14 +398,20 @@ def _write_legacy_offers_v2(
     # 3. Канонический товар. Название и категорию задаёт одно предложение — первое записавшее
     # (title_offer_id): предложения разных магазинов делят канонический товар, и прежняя запись
     # переписывала его название чужим при каждом обходе, а с ним и полнотекстовый индекс (6.5.1).
+    from repositories.schema_v2 import _ensure_column
+    _ensure_column(conn, "canonical_products", "item_kind", "TEXT DEFAULT 'device'")
+    _ensure_column(conn, "canonical_products", "model", "TEXT")
+
     conn.execute(
         """
         INSERT INTO canonical_products (
-            id, canonical_key, title, category, brand, description, image_url, title_offer_id, created_at, updated_at
+            id, canonical_key, title, category, brand, model, item_kind, description, image_url, title_offer_id, created_at, updated_at
         )
         SELECT json_extract(value, '$.product_id'), json_extract(value, '$.canonical_key'),
                json_extract(value, '$.title'), json_extract(value, '$.category'),
                json_extract(value, '$.brand'),
+               json_extract(value, '$.model'),
+               COALESCE(json_extract(value, '$.item_kind'), 'device'),
                json_extract(value, '$.description'), json_extract(value, '$.image_url'),
                json_extract(value, '$.offer_id'), ?1, ?1
         FROM json_each(?2) WHERE true
@@ -413,6 +423,8 @@ def _write_legacy_offers_v2(
                               OR canonical_products.title_offer_id = excluded.title_offer_id
                             THEN excluded.category ELSE canonical_products.category END,
             brand = COALESCE(canonical_products.brand, excluded.brand),
+            model = COALESCE(canonical_products.model, excluded.model),
+            item_kind = COALESCE(canonical_products.item_kind, excluded.item_kind),
             title_offer_id = COALESCE(canonical_products.title_offer_id, excluded.title_offer_id),
             description = CASE WHEN excluded.description != '' THEN excluded.description ELSE canonical_products.description END,
             image_url = CASE WHEN excluded.image_url != '' THEN excluded.image_url ELSE canonical_products.image_url END,

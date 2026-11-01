@@ -284,6 +284,8 @@ class SearchCore:
         now: Optional[datetime.datetime] = None,
         category: Optional[str] = None,
         brand: Optional[str] = None,
+        model: Optional[str] = None,
+        kind: Optional[str] = None,
     ) -> SearchResponse2:
         """
         Executes a 2.0 multi-merchant search query with error handling, stable pagination, and global facets.
@@ -326,6 +328,8 @@ class SearchCore:
             raw_items = self.search_repo.search_products(
                 search_text=parsed.clean_query,
                 brand=target_brand,
+                model=model,
+                kind=kind,
                 city=target_city,
                 condition=target_condition,
                 category=category,
@@ -350,6 +354,8 @@ class SearchCore:
                     count_info = self.search_repo.count_search_products(
                         search_text=parsed.clean_query,
                         brand=target_brand,
+                        model=model,
+                        kind=kind,
                         city=target_city,
                         condition=target_condition,
                         category=category,
@@ -670,6 +676,8 @@ class SearchCore:
                     facets_info = self.search_repo.get_search_facets(
                         search_text=parsed.clean_query,
                         brand=target_brand,
+                        model=model,
+                        kind=kind,
                         city=target_city,
                         condition=target_condition,
                         category=category,

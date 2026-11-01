@@ -31,9 +31,26 @@ def backfill_classification(
     conn = sqlite3.connect(db_path, timeout=60.0)
     conn.row_factory = sqlite3.Row
 
+    # Ensure columns exist
+    cur = conn.cursor()
+    cur.execute("PRAGMA table_info(canonical_products)")
+    existing_cols = {row[1] for row in cur.fetchall()}
+    if "item_kind" not in existing_cols:
+        logger.info("Adding column item_kind to canonical_products...")
+        conn.execute("ALTER TABLE canonical_products ADD COLUMN item_kind TEXT DEFAULT 'device'")
+        conn.commit()
+    if "model" not in existing_cols:
+        logger.info("Adding column model to canonical_products...")
+        conn.execute("ALTER TABLE canonical_products ADD COLUMN model TEXT")
+        conn.commit()
+
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_canonical_products_model ON canonical_products(model)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_canonical_products_kind ON canonical_products(item_kind)")
+    conn.commit()
+
     classifier = CatalogClassifier()
 
-    where_clause = "" if force_all else "WHERE brand IS NULL OR brand = '' OR category LIKE '%:%' OR category = ''"
+    where_clause = "" if force_all else "WHERE model IS NULL OR model = '' OR brand IS NULL OR brand = '' OR category LIKE '%:%' OR category = ''"
     count_sql = f"SELECT count(*) FROM canonical_products {where_clause}"
     total_candidates = conn.execute(count_sql).fetchone()[0]
     logger.info(f"Total products to classify: {total_candidates}")
@@ -43,7 +60,7 @@ def backfill_classification(
         conn.close()
         return
 
-    select_sql = f"SELECT id, title, category, brand FROM canonical_products {where_clause} ORDER BY rowid ASC"
+    select_sql = f"SELECT id, title, category, brand, model FROM canonical_products {where_clause} ORDER BY rowid ASC"
     cursor = conn.cursor()
     cursor.execute(select_sql)
 
@@ -52,6 +69,8 @@ def backfill_classification(
     batch = []
     category_stats = {}
     brand_stats = {}
+    model_stats = {}
+    kind_stats = {}
 
     while True:
         rows = cursor.fetchmany(batch_size)
@@ -69,17 +88,24 @@ def backfill_classification(
             if res:
                 new_cat = res.category_name
                 new_brand = res.brand or current_brand
+                new_model = res.model
+                new_kind = res.item_kind
             else:
                 new_cat = raw_cat
                 new_brand = current_brand
+                new_model = None
+                new_kind = "device"
 
-            updates.append((new_cat, new_brand, pid))
+            updates.append((new_cat, new_brand, new_model, new_kind, pid))
             category_stats[new_cat] = category_stats.get(new_cat, 0) + 1
             if new_brand:
                 brand_stats[new_brand] = brand_stats.get(new_brand, 0) + 1
+            if new_model:
+                model_stats[new_model] = model_stats.get(new_model, 0) + 1
+            kind_stats[new_kind] = kind_stats.get(new_kind, 0) + 1
 
         conn.executemany(
-            "UPDATE canonical_products SET category = ?, brand = ? WHERE id = ?",
+            "UPDATE canonical_products SET category = ?, brand = ?, model = ?, item_kind = ? WHERE id = ?",
             updates,
         )
         conn.commit()
@@ -101,6 +127,12 @@ def backfill_classification(
 
     # Print summary statistics
     print("\n" + "=" * 50)
+    print("ITEM KINDS DISTRIBUTION:")
+    print("=" * 50)
+    for k, cnt in kind_stats.items():
+        print(f"  {k:<30}: {cnt:>6} шт.")
+
+    print("\n" + "=" * 50)
     print("TOP CATEGORIES AFTER CLASSIFICATION:")
     print("=" * 50)
     sorted_cats = sorted(category_stats.items(), key=lambda x: -x[1])[:15]
@@ -110,9 +142,16 @@ def backfill_classification(
     print("\n" + "=" * 50)
     print("TOP BRANDS EXTRACTED:")
     print("=" * 50)
-    sorted_brands = sorted(brand_stats.items(), key=lambda x: -x[1])[:20]
+    sorted_brands = sorted(brand_stats.items(), key=lambda x: -x[1])[:15]
     for br, cnt in sorted_brands:
         print(f"  {br:<30}: {cnt:>6} шт.")
+
+    print("\n" + "=" * 50)
+    print("TOP CLEAN MODELS EXTRACTED:")
+    print("=" * 50)
+    sorted_models = sorted(model_stats.items(), key=lambda x: -x[1])[:20]
+    for m, cnt in sorted_models:
+        print(f"  {m:<30}: {cnt:>6} шт.")
     print("=" * 50 + "\n")
 
     conn.close()

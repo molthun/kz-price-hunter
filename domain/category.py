@@ -200,6 +200,38 @@ MASTER_TAXONOMY: List[Category] = [
             "роутеры", "роутер", "wi-fi", "моноблоки", "моноблок", "принтеры", "принтер", "мфу"
         ],
     ),
+    Category(
+        id="phone_cases",
+        parent_id="electronics",
+        name="Чехлы и бамперы",
+        icon="📱",
+        search_priority=65,
+        aliases=["чехлы", "чехол", "чехол-накладка", "чехол-книжка", "бампер", "case", "cover"],
+    ),
+    Category(
+        id="phone_glass",
+        parent_id="electronics",
+        name="Защитные стекла и пленки",
+        icon="🛡",
+        search_priority=64,
+        aliases=["защитные стекла", "защитная пленка", "защитное стекло", "бронестекло", "glass", "screen protector"],
+    ),
+    Category(
+        id="cables_chargers",
+        parent_id="electronics",
+        name="Кабели и зарядные устройства",
+        icon="🔌",
+        search_priority=63,
+        aliases=["кабели", "зарядные устройства", "адаптеры", "кабель usb", "блок питания", "зарядка", "повербанки", "powerbank", "cable", "charger"],
+    ),
+    Category(
+        id="printer_ink",
+        parent_id="electronics",
+        name="Картриджи и чернила",
+        icon="🖨",
+        search_priority=60,
+        aliases=["картриджи", "картридж", "тонер", "тонеры", "чернила", "cartridge", "toner"],
+    ),
 
     # 2. Бытовая техника (L1)
     Category(
@@ -232,6 +264,14 @@ MASTER_TAXONOMY: List[Category] = [
         icon="🧹",
         search_priority=84,
         aliases=["пылесосы", "роботы-пылесосы", "робот пылесос", "vacuum cleaners", "dyson"],
+    ),
+    Category(
+        id="vacuum_parts",
+        parent_id="appliances",
+        name="Расходники для пылесосов",
+        icon="🌀",
+        search_priority=62,
+        aliases=["фильтры для пылесосов", "мешки для пылесоса", "пылесборники", "сменные салфетки", "hepa фильтр", "щетки для пылесоса", "насадки для пылесоса"],
     ),
     Category(
         id="air_conditioners",

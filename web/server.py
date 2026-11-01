@@ -1207,6 +1207,8 @@ async def search_v2_handler(request):
     seller_id = request.query.get("seller") or request.query.get("seller_id")
     category = request.query.get("category") or request.query.get("cat") or None
     brand = request.query.get("brand") or None
+    model = request.query.get("model") or None
+    kind = request.query.get("kind") or request.query.get("item_kind") or None
     delivery = request.query.get("delivery")
     installment = request.query.get("installment") in ("1", "true", "yes") if "installment" in request.query else None
     in_stock = request.query.get("in_stock") in ("1", "true", "yes") if "in_stock" in request.query else None
@@ -1259,6 +1261,8 @@ async def search_v2_handler(request):
             offset=offset,
             category=category,
             brand=brand,
+            model=model,
+            kind=kind,
         )
         status_code = 500 if getattr(resp, "outcome", None) == "ERROR" else 200
         return web.json_response(resp.to_dict(), status=status_code)
@@ -1279,6 +1283,8 @@ def _run_search_v2_sync(
     limit,
     category=None,
     brand=None,
+    model=None,
+    kind=None,
     seller_id=None,
     installment=None,
     in_stock=None,
@@ -1311,6 +1317,8 @@ def _run_search_v2_sync(
             offset=offset,
             category=category,
             brand=brand,
+            model=model,
+            kind=kind,
         )
         try:
             from repositories.search_analytics_repo import SearchAnalyticsRepository

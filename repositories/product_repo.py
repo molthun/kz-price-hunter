@@ -20,10 +20,10 @@ class ProductRepository(BaseRepository):
     def save_or_update(self, product: CanonicalProduct) -> CanonicalProduct:
         sql = """
         INSERT INTO canonical_products (
-            id, canonical_key, title, category, brand, model,
+            id, canonical_key, title, category, brand, model, item_kind,
             description, image_url, attributes_json, created_at, updated_at
         ) VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
         ON CONFLICT(id) DO UPDATE SET
             canonical_key=excluded.canonical_key,
@@ -31,6 +31,7 @@ class ProductRepository(BaseRepository):
             category=excluded.category,
             brand=COALESCE(excluded.brand, canonical_products.brand),
             model=COALESCE(excluded.model, canonical_products.model),
+            item_kind=COALESCE(excluded.item_kind, canonical_products.item_kind),
             description=COALESCE(excluded.description, canonical_products.description),
             image_url=COALESCE(excluded.image_url, canonical_products.image_url),
             attributes_json=excluded.attributes_json,
@@ -44,6 +45,7 @@ class ProductRepository(BaseRepository):
             product.category,
             product.brand,
             product.model,
+            getattr(product, "item_kind", "device") or "device",
             product.description,
             product.image_url,
             json.dumps(product.attributes, ensure_ascii=False),

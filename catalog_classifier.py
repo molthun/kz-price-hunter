@@ -157,6 +157,23 @@ KNOWN_BRANDS: Dict[str, str] = {
     "qcy": "QCY",
     "baseus": "Baseus",
     "ugreen": "UGREEN",
+    "hoco": "Hoco",
+    "remax": "Remax",
+    "borofone": "Borofone",
+    "joyroom": "Joyroom",
+    "nillkin": "Nillkin",
+    "spigen": "Spigen",
+    "mocolo": "Mocolo",
+    "usams": "USAMS",
+    "kuulaa": "KUULAA",
+
+    # Consumables & Supplies
+    "filtero": "Filtero",
+    "topperr": "Topperr",
+    "cactus": "Cactus",
+    "nv print": "NV Print",
+    "hi-black": "Hi-Black",
+    "colorway": "ColorWay",
 
     # TV & Home Entertainment
     "tcl": "TCL",
@@ -256,6 +273,236 @@ _TITLE_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
 ]
 
 
+# Accessory & Consumable detection rules: Title keyword regex -> (category_id, item_kind)
+_ACCESSORY_CONSUMABLE_RULES: List[Tuple[re.Pattern, str, str]] = [
+    # Phone Cases
+    (re.compile(r"\b(чехол|чехлы|чехол-накладка|чехол-книжка|бампер|case|cover)\b", re.I), "phone_cases", "accessory"),
+    # Protective Glass & Film
+    (re.compile(r"\b(защитн(?:ое|ые|ая)\s+стекл(?:о|а)|защитн(?:ая|ые)\s+пленк(?:а|и)|бронестекл(?:о|а)|стекло\s+для)\b", re.I), "phone_glass", "accessory"),
+    # Cables, Chargers & Powerbanks
+    (re.compile(r"\b(кабел[ьи]|зарядн(?:ое|ые)\s+устройств(?:о|а)|сетевое\s+зарядное|адаптер\s+питания|блок\s+питания\s+для|powerbank|повербанк)\b", re.I), "cables_chargers", "accessory"),
+    # Watch Straps
+    (re.compile(r"\b(ремешок\s+для|браслет\s+для\s+часов|ремешок\s+apple\s+watch)\b", re.I), "smartwatches", "accessory"),
+    # Vacuum Parts & Consumables
+    (re.compile(r"\b(фильтр[ы]?\s+для\s+пылесоса|мешк[и|ов]\s+для\s+пылесоса|пылесборник[и]?|hepa\s*фильтр|сменн(?:ые|ая)\s+салфетк(?:а|и)|насадк[аи]\s+для\s+пылесоса|щетк[аи]\s+для\s+пылесоса)\b", re.I), "vacuum_parts", "consumable"),
+    # Printer Consumables (Ink, Toner, Cartridges)
+    (re.compile(r"\b(картридж[и]?|тонер[ы]?|чернил[а]?\s+для|краска\s+для\s+принтера)\b", re.I), "printer_ink", "consumable"),
+]
+
+# Compatibility target extraction for accessories ("для Apple iPhone 15 Pro", "for Galaxy S24")
+_COMPATIBILITY_PATTERN = re.compile(
+    r"\b(?:для|for)\s+([A-Za-z0-9\s\+\-\.]+?)(?:\s+(?:силиконовый|черный|белый|прозрачный|матовый|кожаный|с\s|в\s|$))",
+    re.I
+)
+
+# Canonical Model Line Rules (Top Consumer Electronics Models)
+KNOWN_MODEL_FAMILIES: List[Tuple[re.Pattern, str]] = [
+    # Apple iPhone
+    (re.compile(r"\biphone\s*16\s*pro\s*max\b", re.I), "iPhone 16 Pro Max"),
+    (re.compile(r"\biphone\s*16\s*pro\b", re.I), "iPhone 16 Pro"),
+    (re.compile(r"\biphone\s*16\s*plus\b", re.I), "iPhone 16 Plus"),
+    (re.compile(r"\biphone\s*16\b", re.I), "iPhone 16"),
+    (re.compile(r"\biphone\s*15\s*pro\s*max\b", re.I), "iPhone 15 Pro Max"),
+    (re.compile(r"\biphone\s*15\s*pro\b", re.I), "iPhone 15 Pro"),
+    (re.compile(r"\biphone\s*15\s*plus\b", re.I), "iPhone 15 Plus"),
+    (re.compile(r"\biphone\s*15\b", re.I), "iPhone 15"),
+    (re.compile(r"\biphone\s*14\s*pro\s*max\b", re.I), "iPhone 14 Pro Max"),
+    (re.compile(r"\biphone\s*14\s*pro\b", re.I), "iPhone 14 Pro"),
+    (re.compile(r"\biphone\s*14\s*plus\b", re.I), "iPhone 14 Plus"),
+    (re.compile(r"\biphone\s*14\b", re.I), "iPhone 14"),
+    (re.compile(r"\biphone\s*13\s*pro\s*max\b", re.I), "iPhone 13 Pro Max"),
+    (re.compile(r"\biphone\s*13\s*pro\b", re.I), "iPhone 13 Pro"),
+    (re.compile(r"\biphone\s*13\s*mini\b", re.I), "iPhone 13 mini"),
+    (re.compile(r"\biphone\s*13\b", re.I), "iPhone 13"),
+    (re.compile(r"\biphone\s*12\s*pro\s*max\b", re.I), "iPhone 12 Pro Max"),
+    (re.compile(r"\biphone\s*12\s*pro\b", re.I), "iPhone 12 Pro"),
+    (re.compile(r"\biphone\s*12\b", re.I), "iPhone 12"),
+    (re.compile(r"\biphone\s*11\s*pro\s*max\b", re.I), "iPhone 11 Pro Max"),
+    (re.compile(r"\biphone\s*11\s*pro\b", re.I), "iPhone 11 Pro"),
+    (re.compile(r"\biphone\s*11\b", re.I), "iPhone 11"),
+    (re.compile(r"\biphone\s*xr\b", re.I), "iPhone XR"),
+    (re.compile(r"\biphone\s*xs\b", re.I), "iPhone XS"),
+    (re.compile(r"\biphone\s*x\b", re.I), "iPhone X"),
+    (re.compile(r"\biphone\s*se\b", re.I), "iPhone SE"),
+
+    # Apple iPad & Mac & Watch
+    (re.compile(r"\bipad\s*pro\s*13\b", re.I), "iPad Pro 13"),
+    (re.compile(r"\bipad\s*pro\s*11\b", re.I), "iPad Pro 11"),
+    (re.compile(r"\bipad\s*air\s*13\b", re.I), "iPad Air 13"),
+    (re.compile(r"\bipad\s*air\s*11\b", re.I), "iPad Air 11"),
+    (re.compile(r"\bipad\s*air\s*5\b", re.I), "iPad Air 5"),
+    (re.compile(r"\bipad\s*air\b", re.I), "iPad Air"),
+    (re.compile(r"\bipad\s*mini\s*6\b", re.I), "iPad mini 6"),
+    (re.compile(r"\bipad\s*mini\b", re.I), "iPad mini"),
+    (re.compile(r"\bipad\s*10\b", re.I), "iPad 10"),
+    (re.compile(r"\bipad\s*9\b", re.I), "iPad 9"),
+    (re.compile(r"\bmacbook\s*pro\s*16\b", re.I), "MacBook Pro 16"),
+    (re.compile(r"\bmacbook\s*pro\s*14\b", re.I), "MacBook Pro 14"),
+    (re.compile(r"\bmacbook\s*pro\s*13\b", re.I), "MacBook Pro 13"),
+    (re.compile(r"\bmacbook\s*air\s*15\b", re.I), "MacBook Air 15"),
+    (re.compile(r"\bmacbook\s*air\s*13\b", re.I), "MacBook Air 13"),
+    (re.compile(r"\bmacbook\s*air\b", re.I), "MacBook Air"),
+    (re.compile(r"\bapple\s*watch\s*ultra\s*2\b", re.I), "Apple Watch Ultra 2"),
+    (re.compile(r"\bapple\s*watch\s*ultra\b", re.I), "Apple Watch Ultra"),
+    (re.compile(r"\bapple\s*watch\s*series\s*10\b", re.I), "Apple Watch Series 10"),
+    (re.compile(r"\bapple\s*watch\s*series\s*9\b", re.I), "Apple Watch Series 9"),
+    (re.compile(r"\bapple\s*watch\s*series\s*8\b", re.I), "Apple Watch Series 8"),
+    (re.compile(r"\bapple\s*watch\s*se\b", re.I), "Apple Watch SE"),
+    (re.compile(r"\bairpods\s*max\b", re.I), "AirPods Max"),
+    (re.compile(r"\bairpods\s*pro\s*2\b", re.I), "AirPods Pro 2"),
+    (re.compile(r"\bairpods\s*pro\b", re.I), "AirPods Pro"),
+    (re.compile(r"\bairpods\s*4\b", re.I), "AirPods 4"),
+    (re.compile(r"\bairpods\s*3\b", re.I), "AirPods 3"),
+    (re.compile(r"\bairpods\s*2\b", re.I), "AirPods 2"),
+
+    # Samsung Galaxy
+    (re.compile(r"\bgalaxy\s*s24\s*ultra\b", re.I), "Galaxy S24 Ultra"),
+    (re.compile(r"\bgalaxy\s*s24\s*\+\b", re.I), "Galaxy S24+"),
+    (re.compile(r"\bgalaxy\s*s24\s*fe\b", re.I), "Galaxy S24 FE"),
+    (re.compile(r"\bgalaxy\s*s24\b", re.I), "Galaxy S24"),
+    (re.compile(r"\bgalaxy\s*s23\s*ultra\b", re.I), "Galaxy S23 Ultra"),
+    (re.compile(r"\bgalaxy\s*s23\s*fe\b", re.I), "Galaxy S23 FE"),
+    (re.compile(r"\bgalaxy\s*s23\b", re.I), "Galaxy S23"),
+    (re.compile(r"\bgalaxy\s*s22\s*ultra\b", re.I), "Galaxy S22 Ultra"),
+    (re.compile(r"\bgalaxy\s*s22\b", re.I), "Galaxy S22"),
+    (re.compile(r"\bgalaxy\s*s21\s*fe\b", re.I), "Galaxy S21 FE"),
+    (re.compile(r"\bgalaxy\s*z\s*fold\s*6\b", re.I), "Galaxy Z Fold 6"),
+    (re.compile(r"\bgalaxy\s*z\s*flip\s*6\b", re.I), "Galaxy Z Flip 6"),
+    (re.compile(r"\bgalaxy\s*z\s*fold\s*5\b", re.I), "Galaxy Z Fold 5"),
+    (re.compile(r"\bgalaxy\s*z\s*flip\s*5\b", re.I), "Galaxy Z Flip 5"),
+    (re.compile(r"\bgalaxy\s*a55\b", re.I), "Galaxy A55"),
+    (re.compile(r"\bgalaxy\s*a54\b", re.I), "Galaxy A54"),
+    (re.compile(r"\bgalaxy\s*a35\b", re.I), "Galaxy A35"),
+    (re.compile(r"\bgalaxy\s*a34\b", re.I), "Galaxy A34"),
+    (re.compile(r"\bgalaxy\s*a25\b", re.I), "Galaxy A25"),
+    (re.compile(r"\bgalaxy\s*a15\b", re.I), "Galaxy A15"),
+    (re.compile(r"\bgalaxy\s*a05s\b", re.I), "Galaxy A05s"),
+    (re.compile(r"\bgalaxy\s*a05\b", re.I), "Galaxy A05"),
+    (re.compile(r"\bgalaxy\s*watch\s*ultra\b", re.I), "Galaxy Watch Ultra"),
+    (re.compile(r"\bgalaxy\s*watch\s*7\b", re.I), "Galaxy Watch 7"),
+    (re.compile(r"\bgalaxy\s*watch\s*6\b", re.I), "Galaxy Watch 6"),
+    (re.compile(r"\bgalaxy\s*buds\s*3\s*pro\b", re.I), "Galaxy Buds 3 Pro"),
+    (re.compile(r"\bgalaxy\s*buds\s*3\b", re.I), "Galaxy Buds 3"),
+    (re.compile(r"\bgalaxy\s*buds\s*2\s*pro\b", re.I), "Galaxy Buds 2 Pro"),
+    (re.compile(r"\bgalaxy\s*buds\s*fe\b", re.I), "Galaxy Buds FE"),
+
+    # Xiaomi / Redmi / POCO
+    (re.compile(r"\bredmi\s*note\s*13\s*pro\s*\+\b", re.I), "Redmi Note 13 Pro+"),
+    (re.compile(r"\bredmi\s*note\s*13\s*pro\b", re.I), "Redmi Note 13 Pro"),
+    (re.compile(r"\bredmi\s*note\s*13\b", re.I), "Redmi Note 13"),
+    (re.compile(r"\bredmi\s*note\s*12\b", re.I), "Redmi Note 12"),
+    (re.compile(r"\bredmi\s*13c\b", re.I), "Redmi 13C"),
+    (re.compile(r"\bredmi\s*13\b", re.I), "Redmi 13"),
+    (re.compile(r"\bredmi\s*12c\b", re.I), "Redmi 12C"),
+    (re.compile(r"\bredmi\s*12\b", re.I), "Redmi 12"),
+    (re.compile(r"\bredmi\s*a3\b", re.I), "Redmi A3"),
+    (re.compile(r"\bpoco\s*x6\s*pro\b", re.I), "POCO X6 Pro"),
+    (re.compile(r"\bpoco\s*x6\b", re.I), "POCO X6"),
+    (re.compile(r"\bpoco\s*f6\s*pro\b", re.I), "POCO F6 Pro"),
+    (re.compile(r"\bpoco\s*f6\b", re.I), "POCO F6"),
+    (re.compile(r"\bpoco\s*m6\s*pro\b", re.I), "POCO M6 Pro"),
+    (re.compile(r"\bpoco\s*m6\b", re.I), "POCO M6"),
+    (re.compile(r"\bpoco\s*c65\b", re.I), "POCO C65"),
+    (re.compile(r"\bxiaomi\s*14\s*ultra\b", re.I), "Xiaomi 14 Ultra"),
+    (re.compile(r"\bxiaomi\s*14\s*pro\b", re.I), "Xiaomi 14 Pro"),
+    (re.compile(r"\bxiaomi\s*14\b", re.I), "Xiaomi 14"),
+    (re.compile(r"\bxiaomi\s*13t\s*pro\b", re.I), "Xiaomi 13T Pro"),
+    (re.compile(r"\bxiaomi\s*13t\b", re.I), "Xiaomi 13T"),
+
+    # Dyson
+    (re.compile(r"\bv15\s*detect\b", re.I), "V15 Detect"),
+    (re.compile(r"\bv12\s*detect\s*slim\b", re.I), "V12 Detect Slim"),
+    (re.compile(r"\bv11\b", re.I), "V11"),
+    (re.compile(r"\bv8\b", re.I), "V8"),
+    (re.compile(r"\bairwrap\b", re.I), "Airwrap"),
+    (re.compile(r"\bsupersonic\b", re.I), "Supersonic"),
+    (re.compile(r"\bairstrait\b", re.I), "Airstrait"),
+
+    # Sony PlayStation & Consoles
+    (re.compile(r"\bplaystation\s*5\s*slim\b", re.I), "PlayStation 5 Slim"),
+    (re.compile(r"\bplaystation\s*5\s*pro\b", re.I), "PlayStation 5 Pro"),
+    (re.compile(r"\bplaystation\s*5\b", re.I), "PlayStation 5"),
+    (re.compile(r"\bps5\b", re.I), "PlayStation 5"),
+    (re.compile(r"\bxbox\s*series\s*x\b", re.I), "Xbox Series X"),
+    (re.compile(r"\bxbox\s*series\s*s\b", re.I), "Xbox Series S"),
+    (re.compile(r"\bnintendo\s*switch\s*oled\b", re.I), "Switch OLED"),
+    (re.compile(r"\bnintendo\s*switch\b", re.I), "Switch"),
+
+    # GPUs
+    (re.compile(r"\brtx\s*4090\b", re.I), "GeForce RTX 4090"),
+    (re.compile(r"\brtx\s*4080\s*super\b", re.I), "GeForce RTX 4080 Super"),
+    (re.compile(r"\brtx\s*4080\b", re.I), "GeForce RTX 4080"),
+    (re.compile(r"\brtx\s*4070\s*ti\s*super\b", re.I), "GeForce RTX 4070 Ti Super"),
+    (re.compile(r"\brtx\s*4070\s*ti\b", re.I), "GeForce RTX 4070 Ti"),
+    (re.compile(r"\brtx\s*4070\s*super\b", re.I), "GeForce RTX 4070 Super"),
+    (re.compile(r"\brtx\s*4070\b", re.I), "GeForce RTX 4070"),
+    (re.compile(r"\brtx\s*4060\s*ti\b", re.I), "GeForce RTX 4060 Ti"),
+    (re.compile(r"\brtx\s*4060\b", re.I), "GeForce RTX 4060"),
+    (re.compile(r"\brtx\s*3060\b", re.I), "GeForce RTX 3060"),
+    (re.compile(r"\brx\s*7900\s*xtx\b", re.I), "Radeon RX 7900 XTX"),
+    (re.compile(r"\brx\s*7800\s*xt\b", re.I), "Radeon RX 7800 XT"),
+    (re.compile(r"\brx\s*7700\s*xt\b", re.I), "Radeon RX 7700 XT"),
+    (re.compile(r"\brx\s*7600\b", re.I), "Radeon RX 7600"),
+]
+
+# Patterns stripped from title when constructing fallback clean model
+_MODEL_STRIP_PATTERNS = [
+    # Category words
+    r"\b(смартфон|сотовый телефон|мобильный телефон|ноутбук|ультрабук|планшет|пылесос|беспроводной|вертикальный|робот-пылесос|телевизор|видеокарта|наушники|смарт-часы|умные часы|монитор|холодильник|стиральная машина|кондиционер)\b",
+    # Memory, storage, specs
+    r"\b\d+\s*(?:/\s*\d+)?\s*(?:gb|гб|tb|тб|mb|мб|ram|rom|mah|мач|w|вт|hz|гц|dpi)\b",
+    r"\b\d+[\'\"«»]\b",
+    r"\b\d+\s*(?:дюйм(?:ов|а)?|см|mm|мм)\b",
+    r"\b(4k|8k|fhd|uhd|oled|qled|hdr|ips|amoled|retina)\b",
+    r"\b(5g|4g|lte|wi-fi|wifi|bluetooth|nfc|dual[\s\-]sim|nano[\s\-]sim|\+[\s\-]esim|esim)\b",
+    # Colors (ru & en)
+    r"\b(черный|белый|серый|синий|зеленый|красный|желтый|розовый|золотой|серебристый|фиолетовый|голубой|бежевый|титан(?:овый)?|титан|графит|никель|медь|черная|белая|серая|синяя|зеленая|красная)\b",
+    r"\b(black|white|gray|grey|blue|green|red|yellow|pink|gold|silver|purple|beige|titanium|natural|midnight|starlight|graphite|space\s+gray|dark)\b",
+    # Parentheses and brackets
+    r"\([^\)]*\)",
+    r"\[[^\]]*\]",
+    # Marketing and regional markers
+    r"\b(global\s+version|global|рст|оригинал|original|новинка|new|eu|ru|kz)\b",
+    r"\b(с\s+кейсом|case|aluminum|stainless\s+steel)\b",
+]
+
+
+def extract_clean_model(
+    title: str,
+    brand: Optional[str] = None,
+    category: Optional[str] = None,
+    item_kind: str = "device",
+) -> Optional[str]:
+    """
+    Извлекает чистую базовую модель товара без цвета, объема памяти и маркетингового шума.
+    """
+    if not title:
+        return None
+
+    # 1. Поиск по известным семействам моделей
+    for pat, fam in KNOWN_MODEL_FAMILIES:
+        if pat.search(title):
+            return fam
+
+    # 2. Очистка по регулярным выражениям
+    res = title
+    if brand:
+        res = re.sub(r"\b" + re.escape(brand) + r"\b", "", res, flags=re.I)
+    for pat in _MODEL_STRIP_PATTERNS:
+        res = re.sub(pat, "", res, flags=re.I)
+
+    res = re.sub(r"[/\\,\-\+\:\;\s]+", " ", res).strip()
+    words = res.split()
+    if not words:
+        return None
+
+    # Берём от 1 до 4 первых смысловых слов модели
+    model_name = " ".join(words[:4]).strip()
+    if len(model_name) < 2 or model_name.isdigit():
+        return None
+    return model_name
+
+
 @dataclass
 class ClassificationResult:
     category_id: str
@@ -264,7 +511,10 @@ class ClassificationResult:
     category_icon: str
     brand: Optional[str]
     confidence: float
-    source: str  # 'rule_category' | 'rule_title' | 'local_ai' | 'fallback'
+    source: str  # 'rule_category' | 'rule_title' | 'rule_accessory' | 'local_ai' | 'fallback'
+    model: Optional[str] = None
+    item_kind: str = "device"  # 'device' | 'accessory' | 'consumable'
+    compatibility_target: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -273,6 +523,9 @@ class ClassificationResult:
             "category_parent_id": self.category_parent_id,
             "category_icon": self.category_icon,
             "brand": self.brand,
+            "model": self.model,
+            "item_kind": self.item_kind,
+            "compatibility_target": self.compatibility_target,
             "confidence": self.confidence,
             "source": self.source,
         }
@@ -309,18 +562,71 @@ class CatalogClassifier:
 
         return None
 
+    def extract_clean_model(
+        self,
+        title: str,
+        brand: Optional[str] = None,
+        category: Optional[str] = None,
+        item_kind: str = "device",
+    ) -> Optional[str]:
+        return extract_clean_model(title, brand=brand, category=category, item_kind=item_kind)
+
     def classify_rules(self, title: str, raw_category: str = "") -> Optional[ClassificationResult]:
         """
         Детерминированная классификация по правилам (таксономия + заголовок).
         Возвращает ClassificationResult или None, если правила не уверены.
         """
-        brand = self.extract_brand(title)
+        if not title:
+            return None
 
-        # 1. Сначала пробуем сопоставить заголовок напрямую по ключевым паттернам типа товара
+        # 0. Проверяем, является ли товар аксессуаром или расходником
+        item_kind = "device"
+        compat_target = None
+        matched_cat_id = None
+
+        for pat, cat_id, kind in _ACCESSORY_CONSUMABLE_RULES:
+            if pat.search(title):
+                matched_cat_id = cat_id
+                item_kind = kind
+                break
+
+        # Извлекаем совместимое устройство для аксессуара («для Apple iPhone 15»)
+        if item_kind in ("accessory", "consumable"):
+            m_target = _COMPATIBILITY_PATTERN.search(title)
+            if m_target:
+                compat_target = m_target.group(1).strip()
+
+            # Для аксессуаров и расходников бренд извлекается строго ДО слова «для»
+            parts = re.split(r"\b(?:для|for)\b", title, flags=re.I, maxsplit=1)
+            before_part = parts[0]
+            brand = self.extract_brand(before_part)
+        else:
+            brand = self.extract_brand(title)
+
+        # 1. Если определена категория аксессуара / расходника
+        if matched_cat_id:
+            cat = self.taxonomy.get_by_id(matched_cat_id)
+            if cat:
+                clean_model = self.extract_clean_model(title, brand=brand, category=cat.name, item_kind=item_kind)
+                return ClassificationResult(
+                    category_id=cat.id,
+                    category_name=cat.name,
+                    category_parent_id=cat.parent_id,
+                    category_icon=cat.icon,
+                    brand=brand,
+                    confidence=0.92,
+                    source="rule_accessory",
+                    model=clean_model,
+                    item_kind=item_kind,
+                    compatibility_target=compat_target,
+                )
+
+        # 2. Сначала пробуем сопоставить заголовок напрямую по ключевым паттернам типа товара
         for pattern, cat_id in _TITLE_TYPE_RULES:
             if pattern.search(title):
                 cat = self.taxonomy.get_by_id(cat_id)
                 if cat:
+                    clean_model = self.extract_clean_model(title, brand=brand, category=cat.name, item_kind="device")
                     return ClassificationResult(
                         category_id=cat.id,
                         category_name=cat.name,
@@ -329,14 +635,17 @@ class CatalogClassifier:
                         brand=brand,
                         confidence=0.95,
                         source="rule_title",
+                        model=clean_model,
+                        item_kind="device",
                     )
 
-        # 2. Если по заголовку тип не найден, пробуем через сырую категорию магазина
+        # 3. Если по заголовку тип не найден, пробуем через сырую категорию магазина
         if raw_category:
             cat = self.taxonomy.map_category(raw_category)
             if cat:
                 # Если сырая категория дала L2 подкатегорию (напр. "laptops", "phones") - отличная уверенность
                 confidence = 0.90 if cat.parent_id else 0.70
+                clean_model = self.extract_clean_model(title, brand=brand, category=cat.name, item_kind="device")
                 return ClassificationResult(
                     category_id=cat.id,
                     category_name=cat.name,
@@ -345,7 +654,24 @@ class CatalogClassifier:
                     brand=brand,
                     confidence=confidence,
                     source="rule_category",
+                    model=clean_model,
+                    item_kind="device",
                 )
+
+        # 4. Если известен только бренд
+        if brand:
+            clean_model = self.extract_clean_model(title, brand=brand, item_kind="device")
+            return ClassificationResult(
+                category_id="electronics",
+                category_name="Электроника",
+                category_parent_id=None,
+                category_icon="📱",
+                brand=brand,
+                confidence=0.70,
+                source="rule_brand_only",
+                model=clean_model,
+                item_kind="device",
+            )
 
         return None
 
@@ -355,13 +681,18 @@ class CatalogClassifier:
         Вызывается только если детерминированные правила не дали уверенного результата.
         """
         prompt = f"""Ты — классификатор каталога товаров маркетплейса в Казахстане.
-По названию товара определи бренд и категорию товара.
+По названию товара определи бренд, модель товара, категорию и тип (device=устройство, accessory=аксессуар, consumable=расходник).
 
 Название: {title}
 Раздел магазина: {raw_category}
 
 Выбери наиболее подходящую категорию из списка:
 - phones (Смартфоны)
+- phone_cases (Чехлы и бамперы)
+- phone_glass (Защитные стекла и пленки)
+- cables_chargers (Кабели и зарядные устройства)
+- vacuum_parts (Расходники для пылесосов)
+- printer_ink (Картриджи и чернила)
 - laptops (Ноутбуки)
 - tablets (Планшеты)
 - smartwatches (Смарт-часы)
@@ -385,13 +716,13 @@ class CatalogClassifier:
 - other (Другое)
 
 Верни ТОЛЬКО валидный JSON без пояснений:
-{{"brand": "НазваниеБренда или null", "category_id": "код_категории_из_списка"}}"""
+{{"brand": "НазваниеБренда или null", "model": "ЧистаяМодельБезЦветаИПамяти или null", "category_id": "код_категории", "item_kind": "device|accessory|consumable"}}"""
 
         payload = {
             "model": self.ollama_model,
             "prompt": prompt,
             "stream": False,
-            "options": {"temperature": 0.0, "num_predict": 100},
+            "options": {"temperature": 0.0, "num_predict": 120},
         }
 
         try:
@@ -414,6 +745,12 @@ class CatalogClassifier:
                         brand = parsed.get("brand")
                         if brand and (brand.lower() in ("null", "none", "unknown", "нет")):
                             brand = None
+                        model = parsed.get("model")
+                        if model and (model.lower() in ("null", "none", "unknown", "нет")):
+                            model = None
+                        item_kind = parsed.get("item_kind", "device").lower()
+                        if item_kind not in ("device", "accessory", "consumable"):
+                            item_kind = "device"
 
                         if cat:
                             return ClassificationResult(
@@ -424,6 +761,8 @@ class CatalogClassifier:
                                 brand=brand or self.extract_brand(title),
                                 confidence=0.88,
                                 source="local_ai",
+                                model=model or self.extract_clean_model(title, brand=brand, category=cat.name, item_kind=item_kind),
+                                item_kind=item_kind,
                             )
         except Exception as e:
             logger.warning(f"Local AI classification failed: {e}")
@@ -449,6 +788,7 @@ class CatalogClassifier:
             return res
 
         brand = self.extract_brand(title)
+        clean_model = self.extract_clean_model(title, brand=brand, item_kind="device")
         return ClassificationResult(
             category_id="electronics",
             category_name="Электроника",
@@ -457,4 +797,6 @@ class CatalogClassifier:
             brand=brand,
             confidence=0.50,
             source="fallback",
+            model=clean_model,
+            item_kind="device",
         )

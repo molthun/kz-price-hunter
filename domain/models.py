@@ -259,6 +259,7 @@ class CanonicalProduct:
     category: str
     brand: Optional[str] = None
     model: Optional[str] = None
+    item_kind: str = "device"
     description: Optional[str] = None
     image_url: Optional[str] = None
     attributes: Dict[str, Any] = field(default_factory=dict)
@@ -289,6 +290,7 @@ class CanonicalProduct:
             category=row["category"],
             brand=row.get("brand"),
             model=row.get("model"),
+            item_kind=row.get("item_kind") or attrs.get("item_kind") or "device",
             description=row.get("description"),
             image_url=row.get("image_url"),
             attributes=attrs,

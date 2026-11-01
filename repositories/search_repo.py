@@ -257,6 +257,27 @@ class SearchRepository(BaseRepository):
         )
 
     @staticmethod
+    def _model_filter(model: Optional[str]) -> tuple[str, list]:
+        """Фильтрация по канонической модели товара (без цвета и характеристик)."""
+        if not (model and model.strip()) or model in ("Все", "Любая", "Все модели"):
+            return "", []
+        raw_m = model.strip()
+        return (
+            "AND (p.model = ? OR LOWER(COALESCE(p.model, '')) = ?)",
+            [raw_m, raw_m.lower()],
+        )
+
+    @staticmethod
+    def _kind_filter(kind: Optional[str]) -> tuple[str, list]:
+        """Фильтрация по типу назначения: device (устройства), accessory (аксессуары), consumable (расходники)."""
+        if not (kind and kind.strip()) or kind in ("all", "Все", "любые"):
+            return "", []
+        raw_k = kind.strip().lower()
+        if raw_k in ("device", "accessory", "consumable"):
+            return "AND p.item_kind = ?", [raw_k]
+        return "", []
+
+    @staticmethod
     def _like_clauses(search_text: str) -> tuple[List[str], list]:
         """Условия LIKE-поиска по токенам запроса с синонимами."""
         tokens = [t.lower() for t in (search_text or "").split() if t.strip()]
@@ -285,6 +306,8 @@ class SearchRepository(BaseRepository):
         offer_params: list,
         brand: Optional[str],
         category: Optional[str],
+        model: Optional[str] = None,
+        kind: Optional[str] = None,
     ) -> tuple[str, list]:
         """
         Подзапрос id всей подходящей выборки без LIMIT: FTS5, а при его ошибке или пустом
@@ -300,6 +323,8 @@ class SearchRepository(BaseRepository):
         """
         cat_sql, cat_params = self._category_filter(category)
         brand_sql, brand_params = self._brand_filter(brand)
+        model_sql, model_params = self._model_filter(model)
+        kind_sql, kind_params = self._kind_filter(kind)
 
         fts_query = self._build_fts_query(search_text) if search_text else ""
         if fts_query:
@@ -310,9 +335,11 @@ class SearchRepository(BaseRepository):
             WHERE canonical_products_fts MATCH ?
               {cat_sql}
               {brand_sql}
+              {model_sql}
+              {kind_sql}
               AND {exists_sql}
             """
-            fts_params = [fts_query] + cat_params + brand_params + offer_params
+            fts_params = [fts_query] + cat_params + brand_params + model_params + kind_params + offer_params
             try:
                 if self.fetchone(f"SELECT 1 as found FROM ({fts_sql}) LIMIT 1", fts_params):
                     return fts_sql, fts_params
@@ -325,14 +352,18 @@ class SearchRepository(BaseRepository):
         WHERE {" AND ".join(where_clauses)}
           {cat_sql}
           {brand_sql}
+          {model_sql}
+          {kind_sql}
           AND {exists_sql}
         """
-        return like_sql, like_params + cat_params + brand_params + offer_params
+        return like_sql, like_params + cat_params + brand_params + model_params + kind_params + offer_params
 
     def search_products(
         self,
         search_text: str,
         brand: Optional[str] = None,
+        model: Optional[str] = None,
+        kind: Optional[str] = None,
         city: Optional[str] = None,
         condition: Optional[str] = None,
         category: Optional[str] = None,
@@ -408,6 +439,8 @@ class SearchRepository(BaseRepository):
 
         cat_filter_sql, cat_filter_params = self._category_filter(category)
         brand_filter_sql, brand_filter_params = self._brand_filter(brand)
+        model_filter_sql, model_filter_params = self._model_filter(model)
+        kind_filter_sql, kind_filter_params = self._kind_filter(kind)
 
         # -------------------------------------------------------------------
         # Step 1: Match Canonical Products
@@ -426,11 +459,13 @@ class SearchRepository(BaseRepository):
                 WHERE canonical_products_fts MATCH ?
                   {cat_filter_sql}
                   {brand_filter_sql}
+                  {model_filter_sql}
+                  {kind_filter_sql}
                   {exists_sql}
                 ORDER BY {order_by_sql}
                 LIMIT ? OFFSET ?
                 """
-                fts_params = [fts_query] + cat_filter_params + brand_filter_params + exists_params + order_params + [limit_val, offset_val]
+                fts_params = [fts_query] + cat_filter_params + brand_filter_params + model_filter_params + kind_filter_params + exists_params + order_params + [limit_val, offset_val]
                 rows = self.fetchall(sql_fts, fts_params)
                 if rows:
                     used_fts = True
@@ -458,6 +493,14 @@ class SearchRepository(BaseRepository):
             if cat_filter_sql:
                 where_clauses.append(cat_filter_sql.lstrip("AND "))
                 like_params.extend(cat_filter_params)
+
+            if model_filter_sql:
+                where_clauses.append(model_filter_sql.lstrip("AND "))
+                like_params.extend(model_filter_params)
+
+            if kind_filter_sql:
+                where_clauses.append(kind_filter_sql.lstrip("AND "))
+                like_params.extend(kind_filter_params)
 
             sql_like = f"""
             SELECT p.* FROM canonical_products p
@@ -523,6 +566,8 @@ class SearchRepository(BaseRepository):
         self,
         search_text: str = "",
         brand: Optional[str] = None,
+        model: Optional[str] = None,
+        kind: Optional[str] = None,
         city: Optional[str] = None,
         condition: Optional[str] = None,
         category: Optional[str] = None,
@@ -543,7 +588,7 @@ class SearchRepository(BaseRepository):
             seller_id=seller_id, installment=installment, in_stock=in_stock, delivery=delivery,
             min_price=min_price, max_price=max_price,
         )
-        ids_sql, ids_params = self._matching_product_ids(search_text, conditions, params, brand, category)
+        ids_sql, ids_params = self._matching_product_ids(search_text, conditions, params, brand, category, model, kind)
         row = self.fetchone(f"SELECT COUNT(DISTINCT id) as cnt FROM ({ids_sql})", ids_params)
         return {
             "total_products": int(row["cnt"]) if row else 0,
@@ -555,6 +600,8 @@ class SearchRepository(BaseRepository):
         city: Optional[str] = None,
         category: Optional[str] = None,
         brand: Optional[str] = None,
+        model: Optional[str] = None,
+        kind: Optional[str] = None,
         condition: Optional[str] = None,
         channel_type: Optional[str] = None,
         seller_type: Optional[str] = None,
@@ -579,9 +626,17 @@ class SearchRepository(BaseRepository):
         )
         conditions, params = self._offer_filter(**offer_filters)
 
-        def product_facet(column: str, *, facet_brand: Optional[str], facet_category: Optional[str]) -> List[Any]:
+        def product_facet(
+            column: str,
+            *,
+            facet_brand: Optional[str],
+            facet_category: Optional[str],
+            facet_model: Optional[str] = None,
+            facet_kind: Optional[str] = None,
+            limit: int = 50,
+        ) -> List[Any]:
             ids_sql, ids_params = self._matching_product_ids(
-                search_text, conditions, params, facet_brand, facet_category,
+                search_text, conditions, params, facet_brand, facet_category, facet_model, facet_kind,
             )
             return self.fetchall(
                 f"""
@@ -590,6 +645,7 @@ class SearchRepository(BaseRepository):
                 WHERE p.id IN ({ids_sql}) AND COALESCE(p.{column}, '') != ''
                 GROUP BY p.{column}
                 ORDER BY count DESC, value ASC
+                LIMIT {limit}
                 """,
                 ids_params,
             )
@@ -597,7 +653,7 @@ class SearchRepository(BaseRepository):
         def offer_facet(select: str, group: str, extra: str, limit: int, drop: str) -> List[Any]:
             facet_conditions, facet_params = self._offer_filter(**{**offer_filters, drop: None})
             ids_sql, ids_params = self._matching_product_ids(
-                search_text, facet_conditions, facet_params, brand, category,
+                search_text, facet_conditions, facet_params, brand, category, model, kind,
             )
             return self.fetchall(
                 f"""
@@ -618,11 +674,19 @@ class SearchRepository(BaseRepository):
         return {
             "category_facets": [
                 {"name": r["value"], "count": int(r["count"])}
-                for r in product_facet("category", facet_brand=brand, facet_category=None)
+                for r in product_facet("category", facet_brand=brand, facet_category=None, facet_model=model, facet_kind=kind)
             ],
             "brand_facets": [
                 {"brand": r["value"], "count": int(r["count"])}
-                for r in product_facet("brand", facet_brand=None, facet_category=category)
+                for r in product_facet("brand", facet_brand=None, facet_category=category, facet_model=model, facet_kind=kind)
+            ],
+            "model_facets": [
+                {"model": r["value"], "count": int(r["count"])}
+                for r in product_facet("model", facet_brand=brand, facet_category=category, facet_model=None, facet_kind=kind, limit=40)
+            ],
+            "kind_facets": [
+                {"kind": r["value"], "count": int(r["count"])}
+                for r in product_facet("item_kind", facet_brand=brand, facet_category=category, facet_model=model, facet_kind=None, limit=10)
             ],
             "seller_facets": [
                 {"id": r["id"], "name": r["name"], "slug": r["slug"], "count": int(r["count"])}

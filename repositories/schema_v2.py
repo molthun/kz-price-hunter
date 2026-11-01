@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS canonical_products (
     category TEXT NOT NULL,
     brand TEXT,
     model TEXT,
+    item_kind TEXT DEFAULT 'device',
     description TEXT,
     image_url TEXT,
     attributes_json TEXT DEFAULT '{}',
@@ -377,6 +378,10 @@ def init_schema_v2(conn: sqlite3.Connection) -> None:
     # Предложение, задающее название и категорию канонического товара (6.5.1): без него каждое
     # предложение другого магазина переписывало название общего товара и его FTS при каждом обходе
     _ensure_column(conn, "canonical_products", "title_offer_id", "TEXT")
+    _ensure_column(conn, "canonical_products", "model", "TEXT")
+    _ensure_column(conn, "canonical_products", "item_kind", "TEXT DEFAULT 'device'")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_canonical_products_model ON canonical_products(model)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_canonical_products_kind ON canonical_products(item_kind)")
     # Измерения точки истории на момент наблюдения (V02 аудита 6.5.0): без них линия цены
     # строилась по ТЕКУЩЕМУ предложению, и смена NEW→USED переписывала всё его прошлое.
     # У прежних строк колонки пусты — для них остаётся только текущее предложение.

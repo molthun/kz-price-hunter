@@ -107,6 +107,40 @@ class TestCatalogClassifier(unittest.TestCase):
             self.assertEqual(res.category_id, "phones")
             self.assertEqual(res.source, "local_ai")
 
+    def test_accessory_and_consumable_classification(self):
+        cases = [
+            ("Чехол Baseus Simple Series для Apple iPhone 15 Pro черный", "phone_cases", "accessory", "Baseus"),
+            ("Защитное стекло Remax для Samsung Galaxy S24 Ultra", "phone_glass", "accessory", "Remax"),
+            ("Кабель Baseus Type-C to Lightning 20W 1m", "cables_chargers", "accessory", "Baseus"),
+            ("HEPA фильтр Filtero для пылесоса Dyson V15 Detect", "vacuum_parts", "consumable", "Filtero"),
+            ("Картридж Cactus CS-CF217A для HP LaserJet Pro M102", "printer_ink", "consumable", "Cactus"),
+            # Generic accessory with target brand in title must NOT be attributed to device manufacturer
+            ("Чехол для Apple iPhone 15 силиконовый прозрачный", "phone_cases", "accessory", None),
+        ]
+        for title, expected_cat, expected_kind, expected_brand in cases:
+            with self.subTest(title=title):
+                res = self.classifier.classify_rules(title)
+                self.assertIsNotNone(res)
+                self.assertEqual(res.category_id, expected_cat)
+                self.assertEqual(res.item_kind, expected_kind)
+                self.assertEqual(res.brand, expected_brand, f"Brand mismatch for {title}: got {res.brand}, expected {expected_brand}")
+
+    def test_clean_model_extraction(self):
+        cases = [
+            ("Смартфон Apple iPhone 15 Pro Max 256GB Natural Titanium (A3106)", "Apple", "iPhone 15 Pro Max"),
+            ("Смартфон Samsung Galaxy S24 Ultra 12/512GB Серый титан", "Samsung", "Galaxy S24 Ultra"),
+            ("Смартфон Xiaomi Redmi Note 13 Pro 8/256GB Черный", "Xiaomi", "Redmi Note 13 Pro"),
+            ("Пылесос беспроводной Dyson V15 Detect Absolute желтый/никель", "Dyson", "V15 Detect"),
+            ("Игровая консоль Sony PlayStation 5 Slim 1TB с дисководом", "Sony", "PlayStation 5 Slim"),
+            ("Видеокарта Palit GeForce RTX 4070 Dual 12GB", "Palit", "GeForce RTX 4070"),
+        ]
+        for title, expected_brand, expected_model in cases:
+            with self.subTest(title=title):
+                res = self.classifier.classify_rules(title)
+                self.assertIsNotNone(res)
+                self.assertEqual(res.brand, expected_brand)
+                self.assertEqual(res.model, expected_model, f"Model mismatch for {title}: got {res.model}, expected {expected_model}")
+
 
 if __name__ == "__main__":
     unittest.main()
