@@ -3213,6 +3213,156 @@
         display: inline-flex;
       }
     }
+
+    /* ============================================================= */
+    /* SITE FOOTER & MODAL STYLES                                    */
+    /* ============================================================= */
+    .site-footer {
+      background: var(--bg-card);
+      border-top: 1px solid var(--border-color);
+      padding: 18px 0;
+      margin-top: 48px;
+      color: var(--text-muted);
+      font-size: 0.82rem;
+    }
+
+    .footer-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .footer-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .footer-version-badge {
+      color: var(--primary);
+      font-family: monospace;
+      font-weight: 600;
+    }
+
+    .footer-right {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .footer-link-btn {
+      background: none;
+      border: none;
+      padding: 0;
+      color: var(--primary);
+      font-size: 0.82rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: color 0.15s ease;
+    }
+
+    .footer-link-btn:hover {
+      text-decoration: underline;
+      color: var(--primary-hover);
+    }
+
+    .footer-link {
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 0.82rem;
+      transition: color 0.15s ease;
+    }
+
+    .footer-link:hover {
+      text-decoration: underline;
+      color: var(--primary-hover);
+    }
+
+    .footer-sep {
+      color: var(--border-color);
+      opacity: 0.8;
+      user-select: none;
+    }
+
+    .footer-session-badge {
+      font-family: monospace;
+      font-size: 0.78rem;
+      color: var(--text-light);
+    }
+
+    .form-input {
+      width: 100%;
+      height: 38px;
+      padding: 0 12px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      background: var(--bg-card);
+      color: var(--text-main);
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      box-sizing: border-box;
+    }
+
+    .form-input:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px var(--primary-light);
+    }
+
+    .changelog-release-card {
+      padding: 14px 16px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-color);
+      background: var(--bg-subtle);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .changelog-release-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .changelog-release-ver {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: var(--primary);
+    }
+
+    .changelog-release-date {
+      font-family: monospace;
+      font-size: 0.8rem;
+      color: var(--text-light);
+    }
+
+    .changelog-list {
+      list-style: disc;
+      padding-left: 20px;
+      margin: 4px 0 0 0;
+      font-size: 0.85rem;
+      color: var(--text-main);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    @media (max-width: 768px) {
+      .site-footer {
+        padding-bottom: 78px; /* clearance for mobile bottom nav */
+      }
+      .footer-inner {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+    }
   </style>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
@@ -3926,6 +4076,32 @@
 
   </main>
 
+  <!-- Site Footer (With Copyrights & Version like old version) -->
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-left">
+        <span>KZ Price Hunter &copy; 2026</span>
+        <span class="footer-sep">•</span>
+        <span>Версия <strong id="footerVersion" class="footer-version-badge">v...</strong></span>
+      </div>
+      <div class="footer-right">
+        <button type="button" onclick="openRegisterSellerModal()" class="footer-link-btn">
+          <span>🏪</span>
+          <span>Подключить магазин</span>
+        </button>
+        <span class="footer-sep">•</span>
+        <a href="/privacy" target="_blank" rel="noopener noreferrer" class="footer-link">Как используются данные</a>
+        <span class="footer-sep">•</span>
+        <button type="button" onclick="openChangelogModal()" class="footer-link-btn">
+          <span>📜</span>
+          <span>История версий (Changelog)</span>
+        </button>
+        <span class="footer-sep">•</span>
+        <span id="clientSessionBadge" class="footer-session-badge" title="Уникальный ID независимой сессии в этом браузере">Сессия: ...</span>
+      </div>
+    </div>
+  </footer>
+
   <!-- Mobile Bottom Navigation Bar -->
   <nav class="mobile-bottom-nav" id="mobileBottomNav">
     <button class="bottom-nav-item" id="bottomNavCatalog" type="button" onclick="toggleCatalogModal(event)" title="Каталог">
@@ -4032,6 +4208,86 @@
             <button type="button" class="btn-secondary" onclick="closeWatchModal()">
               Отмена
             </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================= -->
+  <!-- MODAL: CHANGELOG (History of versions)                        -->
+  <!-- ============================================================= -->
+  <div id="modalChangelog" class="modal-backdrop" onclick="if(event.target === this) closeChangelogModal()">
+    <div class="modal-dialog" style="max-width: 660px;" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3 class="modal-title">📜 История версий (Changelog)</h3>
+        <button class="modal-close-btn" onclick="closeChangelogModal()" aria-label="Закрыть">✕</button>
+      </div>
+      <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+        <div id="changelogList" style="display: flex; flex-direction: column; gap: 12px;">
+          <div style="color:var(--text-muted); padding: 12px;">Загрузка истории версий...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================= -->
+  <!-- MODAL: REGISTER SELLER (Подключить магазин)                   -->
+  <!-- ============================================================= -->
+  <div id="modalRegisterSeller" class="modal-backdrop" onclick="if(event.target === this) closeRegisterSellerModal()">
+    <div class="modal-dialog" style="max-width: 520px;" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3 class="modal-title">🏪 Подключить магазин</h3>
+        <button class="modal-close-btn" onclick="closeRegisterSellerModal()" aria-label="Закрыть">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="regSellerForm" onsubmit="submitRegisterSellerForm(event)">
+          <div id="regSellerStatusMsg" style="display:none; margin-bottom: 12px; padding: 10px; border-radius: var(--radius-sm); font-size: 0.88rem;"></div>
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div>
+              <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Название магазина *</label>
+              <input type="text" id="regSellerName" class="form-input" required placeholder="Например: Technodom Almaty" />
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div>
+                <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Город *</label>
+                <select id="regSellerCity" class="form-input">
+                  <option value="Алматы">Алматы</option>
+                  <option value="Астана">Астана</option>
+                  <option value="Шымкент">Шымкент</option>
+                  <option value="Караганда">Караганда</option>
+                  <option value="Актобе">Актобе</option>
+                  <option value="Павлодар">Павлодар</option>
+                  <option value="Усть-Каменогорск">Усть-Каменогорск</option>
+                </select>
+              </div>
+              <div>
+                <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">БИН / ИИН</label>
+                <input type="text" id="regSellerBin" class="form-input" placeholder="12 цифр" maxlength="12" />
+              </div>
+            </div>
+            <div>
+              <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Сайт или ссылка на магазин</label>
+              <input type="url" id="regSellerWebsite" class="form-input" placeholder="https://..." />
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div>
+                <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Телефон / WhatsApp</label>
+                <input type="tel" id="regSellerPhone" class="form-input" placeholder="+7 700 000 0000" />
+              </div>
+              <div>
+                <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Telegram</label>
+                <input type="text" id="regSellerTelegram" class="form-input" placeholder="@username" />
+              </div>
+            </div>
+            <div>
+              <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Instagram</label>
+              <input type="text" id="regSellerInstagram" class="form-input" placeholder="@shop_kz" />
+            </div>
+            <div style="display:flex; justify-content: flex-end; gap: 10px; margin-top: 8px;">
+              <button type="button" class="btn-secondary" onclick="closeRegisterSellerModal()">Отмена</button>
+              <button type="submit" id="btnSubmitRegisterSeller" class="btn-primary">Отправить заявку</button>
+            </div>
           </div>
         </form>
       </div>
@@ -5804,6 +6060,47 @@
         : '<div style="font-size:0.85rem; color:var(--text-muted);">' + emptyText + '</div>';
     }
 
+    function renderCategoryFacetGroup(listEl, categoryFacets) {
+      if (!listEl) return;
+      const items = (categoryFacets || []).map(f => ({
+        value: f.name || f.id,
+        name: f.name || f.id,
+        count: f.count
+      }));
+
+      let html = '';
+      if (AppState.category) {
+        html += `
+          <div style="margin-bottom: 8px; padding: 6px 10px; background: var(--primary-light); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <div style="font-weight: 600; font-size: 0.85rem; color: var(--primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(AppState.category)}">
+              📁 ${escapeHtml(AppState.category)}
+            </div>
+            <button type="button" onclick="onCategoryFacetSelected('')" style="background:none; border:none; color:var(--primary); font-size:0.8rem; font-weight:700; cursor:pointer; padding:2px 4px;" title="Сбросить категорию">
+              ✕ Все
+            </button>
+          </div>
+        `;
+      }
+
+      const rowHtml = (value, label, count) => `
+        <label class="filter-checkbox-label">
+          <input type="radio" name="facetCategory" value="${escapeHtml(value)}" ${AppState.category === value ? 'checked' : ''} onchange="onCategoryFacetSelected(this.value)">
+          <span>${escapeHtml(label)}</span>
+          ${count === null ? '' : '<span class="filter-count">(' + Number(count) + ')</span>'}
+        </label>
+      `;
+
+      if (items.length === 0) {
+        if (!AppState.category) {
+          html += '<div style="font-size:0.85rem; color:var(--text-muted);">Нет категорий</div>';
+        }
+      } else {
+        html += rowHtml('', 'Все категории', null) + items.slice(0, 10).map(f => rowHtml(f.value, f.name, f.count)).join('');
+      }
+
+      listEl.innerHTML = html;
+    }
+
     function renderFacets(data) {
       const sellerList = document.getElementById('filterSellersList');
       const catList = document.getElementById('filterCategoriesList');
@@ -5832,8 +6129,7 @@
 
       // 2. Что за товар (категории)
       if (catList) {
-        renderFacetGroup(catList, 'facetCategory', 'onCategoryFacetSelected', AppState.category,
-          (data.category_facets || []).map(f => ({ value: f.name || f.id, name: f.name, count: f.count })), 8, 'Нет категорий');
+        renderCategoryFacetGroup(catList, data.category_facets);
       }
 
       // 3. Бренд
@@ -7212,10 +7508,169 @@
       }
     });
 
+    // =============================================================
+    // SITE FOOTER & MODAL HELPERS (Changelog, Seller, Version)
+    // =============================================================
+    let changelogLoaded = false;
+
+    function changelogItemHtml(text) {
+      return escapeHtml(text).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+    }
+
+    async function loadChangelog() {
+      const box = document.getElementById('changelogList');
+      if (!box) return;
+      try {
+        const res = await fetch('/api/changelog');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        const releases = Array.isArray(data.releases) ? data.releases : [];
+        if (!releases.length) {
+          box.innerHTML = '<p style="color:var(--text-muted); padding:12px;">История версий пока пуста.</p>';
+          return;
+        }
+        box.innerHTML = releases.map((r, i) => {
+          const isCurrent = r.version === data.current;
+          return `
+            <div class="changelog-release-card" data-version="${escapeHtml(r.version)}">
+              <div class="changelog-release-header">
+                <span class="changelog-release-ver">v${escapeHtml(r.version)}${isCurrent ? ' (Текущая)' : ''}</span>
+                <span class="changelog-release-date">${escapeHtml(r.date)}</span>
+              </div>
+              <ul class="changelog-list">
+                ${(r.items || []).map(t => `<li>${changelogItemHtml(t)}</li>`).join('')}
+              </ul>
+            </div>
+          `;
+        }).join('');
+        changelogLoaded = true;
+      } catch (e) {
+        box.innerHTML = '<p style="color:var(--danger, #ef4444); padding:12px;">Не удалось загрузить историю версий. Попробуйте позже.</p>';
+      }
+    }
+
+    function openChangelogModal() {
+      const m = document.getElementById('modalChangelog');
+      if (m) m.classList.add('open');
+      if (!changelogLoaded) loadChangelog();
+    }
+
+    function closeChangelogModal() {
+      const m = document.getElementById('modalChangelog');
+      if (m) m.classList.remove('open');
+    }
+
+    function openRegisterSellerModal() {
+      const m = document.getElementById('modalRegisterSeller');
+      const msg = document.getElementById('regSellerStatusMsg');
+      if (msg) {
+        msg.style.display = 'none';
+        msg.textContent = '';
+      }
+      if (m) m.classList.add('open');
+    }
+
+    function closeRegisterSellerModal() {
+      const m = document.getElementById('modalRegisterSeller');
+      if (m) m.classList.remove('open');
+    }
+
+    async function submitRegisterSellerForm(event) {
+      if (event) event.preventDefault();
+      const msg = document.getElementById('regSellerStatusMsg');
+      const btn = document.getElementById('btnSubmitRegisterSeller');
+      const payload = {
+        name: (document.getElementById('regSellerName')?.value || '').trim(),
+        city: (document.getElementById('regSellerCity')?.value || 'Алматы').trim(),
+        website_url: (document.getElementById('regSellerWebsite')?.value || '').trim() || null,
+        phone: (document.getElementById('regSellerPhone')?.value || '').trim() || null,
+        whatsapp: (document.getElementById('regSellerPhone')?.value || '').trim() || null,
+        instagram: (document.getElementById('regSellerInstagram')?.value || '').trim() || null,
+        telegram: (document.getElementById('regSellerTelegram')?.value || '').trim() || null,
+        bin: (document.getElementById('regSellerBin')?.value || '').trim() || null
+      };
+
+      if (!payload.name) {
+        if (msg) {
+          msg.style.display = 'block';
+          msg.style.background = 'rgba(239, 68, 68, 0.15)';
+          msg.style.color = '#ef4444';
+          msg.textContent = 'Укажите название магазина';
+        }
+        return;
+      }
+
+      if (btn) btn.disabled = true;
+      try {
+        const resp = await fetch('/api/v2/sellers/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const resData = await resp.json().catch(() => ({}));
+        if (resp.ok) {
+          if (msg) {
+            msg.style.display = 'block';
+            msg.style.background = 'rgba(16, 185, 129, 0.15)';
+            msg.style.color = '#10b981';
+            msg.textContent = 'Заявка успешно отправлена! Мы свяжемся с вами в ближайшее время.';
+          }
+          const form = document.getElementById('regSellerForm');
+          if (form) form.reset();
+          setTimeout(() => {
+            closeRegisterSellerModal();
+          }, 2500);
+        } else {
+          if (msg) {
+            msg.style.display = 'block';
+            msg.style.background = 'rgba(239, 68, 68, 0.15)';
+            msg.style.color = '#ef4444';
+            msg.textContent = resData.detail || 'Ошибка при отправке заявки. Проверьте данные.';
+          }
+        }
+      } catch (err) {
+        if (msg) {
+          msg.style.display = 'block';
+          msg.style.background = 'rgba(239, 68, 68, 0.15)';
+          msg.style.color = '#ef4444';
+          msg.textContent = 'Сетевая ошибка. Попробуйте еще раз позже.';
+        }
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    async function loadVersion() {
+      try {
+        const res = await fetch('/api/version');
+        if (res.ok) {
+          const v = await res.json();
+          if (!v || !v.version) return;
+          const verText = 'v' + v.version;
+          const fVer = document.getElementById('footerVersion');
+          if (fVer) fVer.innerText = verText;
+        }
+      } catch (e) {}
+    }
+
+    function initClientSessionBadge() {
+      let clientSessionId = localStorage.getItem('kz_hunter_client_id');
+      if (!clientSessionId) {
+        clientSessionId = 'u_' + Math.random().toString(36).substring(2, 8) + Math.random().toString(36).substring(2, 6);
+        localStorage.setItem('kz_hunter_client_id', clientSessionId);
+      }
+      const sessEl = document.getElementById('clientSessionBadge');
+      if (sessEl) {
+        sessEl.innerText = `Сессия: ${clientSessionId}`;
+      }
+    }
+
     // Init on load
     document.addEventListener('DOMContentLoaded', async () => {
       initTheme();
       initCity();
+      loadVersion();
+      initClientSessionBadge();
       Favorites.updateBadges();
       WatchManager.updateBadges();
       await checkAuth();

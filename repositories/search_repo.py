@@ -671,10 +671,22 @@ class SearchRepository(BaseRepository):
                 facet_params + ids_params,
             )
 
+        facet_cat_for_group = None
+        if category and category.strip():
+            raw_c = category.strip()
+            try:
+                from domain.category import TaxonomyMapper
+                m = TaxonomyMapper()
+                t_cat = m.map_category(raw_c) or m.get_by_id(raw_c)
+                if t_cat:
+                    facet_cat_for_group = t_cat.parent_id if t_cat.parent_id else t_cat.id
+            except Exception:
+                facet_cat_for_group = None
+
         return {
             "category_facets": [
                 {"name": r["value"], "count": int(r["count"])}
-                for r in product_facet("category", facet_brand=brand, facet_category=None, facet_model=model, facet_kind=kind)
+                for r in product_facet("category", facet_brand=brand, facet_category=facet_cat_for_group, facet_model=model, facet_kind=kind)
             ],
             "brand_facets": [
                 {"brand": r["value"], "count": int(r["count"])}

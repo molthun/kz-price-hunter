@@ -718,12 +718,22 @@ class SearchCore:
             except Exception:
                 t_mapper = None
 
+            # Если задана категория, фасеты категорий ограничиваются только ее веткой (дети или сиблинги)
+            allowed_cat_ids = None
+            if category and t_mapper:
+                curr_cat = t_mapper.map_category(category) or t_mapper.get_by_id(category)
+                if curr_cat:
+                    target_root_id = curr_cat.parent_id if curr_cat.parent_id else curr_cat.id
+                    allowed_cat_ids = set(t_mapper.get_subtree_ids(target_root_id))
+
             # Разные сырые категории магазинов одной категории таксономии — одно значение фасета.
             # Несопоставленная категория остаётся как есть: это значение понимает фильтр.
             category_by_id: Dict[str, Dict[str, Any]] = {}
             for c_name, c_count in cat_counter.items():
                 matched = t_mapper.map_category(c_name) if t_mapper else None
                 facet_id = matched.id if matched else c_name
+                if allowed_cat_ids is not None and matched and matched.id not in allowed_cat_ids:
+                    continue
                 entry = category_by_id.setdefault(facet_id, {
                     "id": facet_id,
                     "name": matched.name if matched else c_name,
