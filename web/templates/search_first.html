@@ -2723,6 +2723,496 @@
         display: none;
       }
     }
+
+    /* ============================================================= */
+    /* KASPI / BELIY VETER STYLE MEGA-CATALOG                        */
+    /* ============================================================= */
+    .btn-catalog-header {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 16px;
+      background: var(--primary);
+      color: #ffffff;
+      border: 1px solid var(--primary);
+      border-radius: var(--radius-sm);
+      font-size: 0.92rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    .btn-catalog-header:hover {
+      background: var(--primary-hover);
+      border-color: var(--primary-hover);
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+    }
+
+    .btn-catalog-header.active {
+      background: var(--text-main);
+      border-color: var(--text-main);
+      color: var(--bg-card);
+    }
+
+    .catalog-burger-icon {
+      display: inline-flex;
+      flex-direction: column;
+      justify-content: space-between;
+      width: 15px;
+      height: 12px;
+    }
+
+    .catalog-burger-icon span {
+      display: block;
+      height: 2px;
+      width: 100%;
+      background: currentColor;
+      border-radius: 1px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-catalog-header.active .catalog-burger-icon span:nth-child(1) {
+      transform: translateY(5px) rotate(45deg);
+    }
+
+    .btn-catalog-header.active .catalog-burger-icon span:nth-child(2) {
+      opacity: 0;
+    }
+
+    .btn-catalog-header.active .catalog-burger-icon span:nth-child(3) {
+      transform: translateY(-5px) rotate(-45deg);
+    }
+
+    @media (max-width: 640px) {
+      .btn-catalog-header {
+        display: none;
+      }
+    }
+
+    .catalog-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.2s;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 68px;
+    }
+
+    .catalog-modal-overlay.open {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+
+    .catalog-modal-container {
+      background: var(--bg-card);
+      width: min(1140px, 95vw);
+      max-height: calc(100vh - 90px);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.3), 0 0 0 1px var(--border-color);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transform: translateY(-12px) scale(0.99);
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .catalog-modal-overlay.open .catalog-modal-container {
+      transform: translateY(0) scale(1);
+    }
+
+    .catalog-modal-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--bg-subtle);
+      flex-shrink: 0;
+    }
+
+    .catalog-modal-title-area {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .catalog-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      background: var(--primary-light);
+      color: var(--primary);
+      font-size: 0.76rem;
+      font-weight: 700;
+      border-radius: var(--radius-sm);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .catalog-modal-heading {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin: 0;
+    }
+
+    .catalog-search-box {
+      position: relative;
+      flex: 1;
+      max-width: 440px;
+    }
+
+    .catalog-search-lens {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.9rem;
+      opacity: 0.6;
+      pointer-events: none;
+    }
+
+    .catalog-filter-input {
+      width: 100%;
+      height: 38px;
+      padding: 0 34px 0 34px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-card);
+      color: var(--text-main);
+      border-radius: var(--radius-full);
+      font-size: 0.88rem;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .catalog-filter-input:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px var(--primary-light);
+    }
+
+    .catalog-filter-clear {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.85rem;
+      padding: 4px;
+    }
+
+    .catalog-btn-close {
+      background: none;
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      width: 34px;
+      height: 34px;
+      border-radius: var(--radius-sm);
+      font-size: 1rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+    }
+
+    .catalog-btn-close:hover {
+      background: var(--bg-card);
+      color: var(--text-main);
+      border-color: var(--text-muted);
+    }
+
+    .catalog-modal-grid {
+      display: grid;
+      grid-template-columns: 270px 1fr;
+      flex: 1;
+      overflow: hidden;
+      min-height: 480px;
+      max-height: calc(100vh - 170px);
+    }
+
+    .catalog-l1-column {
+      background: var(--bg-card);
+      border-right: 1px solid var(--border-color);
+      overflow-y: auto;
+      padding: 8px 0;
+      flex-shrink: 0;
+    }
+
+    .catalog-l1-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 11px 18px;
+      color: var(--text-main);
+      text-decoration: none;
+      font-size: 0.92rem;
+      font-weight: 500;
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+
+    .catalog-l1-item:hover, .catalog-l1-item.active {
+      background: var(--primary-light);
+      color: var(--primary);
+      border-left-color: var(--primary);
+      font-weight: 600;
+    }
+
+    .catalog-l1-item-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .catalog-l1-icon {
+      font-size: 1.15rem;
+      width: 22px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .catalog-l1-arrow {
+      font-size: 0.78rem;
+      opacity: 0.45;
+      transition: transform 0.15s ease;
+    }
+
+    .catalog-l1-item.active .catalog-l1-arrow {
+      transform: translateX(3px);
+      opacity: 1;
+      color: var(--primary);
+    }
+
+    .catalog-content-column {
+      overflow-y: auto;
+      padding: 24px 28px;
+      background: var(--bg-card);
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .catalog-content-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .catalog-content-heading {
+      font-size: 1.28rem;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+    }
+
+    .catalog-view-all-link {
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: color 0.15s ease;
+    }
+
+    .catalog-view-all-link:hover {
+      text-decoration: underline;
+    }
+
+    .catalog-groups-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      gap: 24px 28px;
+      align-items: start;
+    }
+
+    .catalog-group-card {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .catalog-group-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 0 0 4px 0;
+      padding-bottom: 6px;
+      border-bottom: 2px solid var(--border-color);
+    }
+
+    .catalog-group-subtitle {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-light);
+      background: var(--bg-subtle);
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      margin-left: auto;
+    }
+
+    .catalog-subcat-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .catalog-subcat-link {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 8px;
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.88rem;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease, padding-left 0.15s ease;
+    }
+
+    .catalog-subcat-link:hover {
+      background: var(--bg-subtle);
+      color: var(--primary);
+      padding-left: 11px;
+    }
+
+    .catalog-subcat-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .catalog-subcat-count {
+      font-size: 0.78rem;
+      color: var(--text-light);
+      padding-left: 6px;
+    }
+
+    /* Search filter flat results in modal */
+    .catalog-search-results-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 12px;
+    }
+
+    .catalog-search-result-card {
+      padding: 12px 14px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      background: var(--bg-card);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .catalog-search-result-card:hover {
+      border-color: var(--primary);
+      background: var(--primary-light);
+      transform: translateY(-1px);
+    }
+
+    .catalog-search-card-name {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .catalog-search-card-trail {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .btn-mobile-cat-back {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      color: var(--text-main);
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 12px;
+    }
+
+    @media (max-width: 768px) {
+      .catalog-modal-overlay {
+        padding-top: 0;
+        align-items: stretch;
+      }
+      .catalog-modal-container {
+        width: 100vw;
+        height: 100vh;
+        max-height: 100vh;
+        border-radius: 0;
+        border: none;
+      }
+      .catalog-modal-grid {
+        grid-template-columns: 1fr;
+        max-height: none;
+      }
+      .catalog-l1-column {
+        display: block;
+        border-right: none;
+        overflow-y: auto;
+      }
+      .catalog-content-column {
+        display: none;
+      }
+      .catalog-modal-grid.mobile-subcats .catalog-l1-column {
+        display: none;
+      }
+      .catalog-modal-grid.mobile-subcats .catalog-content-column {
+        display: flex;
+        padding: 16px;
+      }
+      .btn-mobile-cat-back {
+        display: inline-flex;
+      }
+    }
   </style>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
@@ -2736,6 +3226,14 @@
           <div class="site-logo-icon">KZ</div>
           <span>Price Hunter</span>
         </a>
+        <button type="button" class="btn-catalog-header" id="btnCatalogHeader" onclick="toggleCatalogModal(event)" aria-label="Каталог товаров" aria-expanded="false">
+          <span class="catalog-burger-icon" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+          </span>
+          <span class="catalog-btn-text">Каталог</span>
+        </button>
         <nav class="header-nav">
           <a href="/" class="nav-link active" id="navLinkHome" onclick="navigateTo(event, '/')">Поиск</a>
           <a href="/deals" class="nav-link" id="navLinkDeals" onclick="navigateTo(event, '/deals')">Скидки</a>
@@ -2769,6 +3267,35 @@
       </div>
     </div>
   </header>
+
+  <!-- Mega-Catalog Modal Overlay (Kaspi & Beliy Veter Style) -->
+  <div id="catalogModal" class="catalog-modal-overlay" onclick="onCatalogOverlayClick(event)" aria-hidden="true">
+    <div class="catalog-modal-container" role="dialog" aria-modal="true" aria-labelledby="catalogModalTitle">
+      <!-- Modal Top Bar -->
+      <div class="catalog-modal-top">
+        <div class="catalog-modal-title-area">
+          <span class="catalog-badge">Каталог товаров</span>
+          <h2 id="catalogModalTitle" class="catalog-modal-heading">Все категории</h2>
+        </div>
+        <div class="catalog-search-box">
+          <span class="catalog-search-lens" aria-hidden="true">🔍</span>
+          <input type="text" id="catalogQuickFilterInput" class="catalog-filter-input" placeholder="Поиск по категориям..." oninput="onCatalogQuickFilter(this.value)" autocomplete="off" />
+          <button type="button" id="catalogFilterClearBtn" class="catalog-filter-clear" onclick="clearCatalogQuickFilter()" style="display:none;" aria-label="Очистить">✕</button>
+        </div>
+        <button type="button" class="catalog-btn-close" onclick="closeCatalogModal()" aria-label="Закрыть каталог">✕</button>
+      </div>
+
+      <!-- Modal Body (Two Columns: L1 Roots on Left, L2/L3 Groups on Right) -->
+      <div class="catalog-modal-grid" id="catalogModalGrid">
+        <nav class="catalog-l1-column" id="catalogL1Column" aria-label="Основные направления каталога">
+          <!-- Populated dynamically -->
+        </nav>
+        <section class="catalog-content-column" id="catalogContentColumn">
+          <!-- Populated dynamically based on selected L1 or filter query -->
+        </section>
+      </div>
+    </div>
+  </div>
 
   <!-- Main Container -->
   <main class="container" style="min-height: calc(100vh - 130px); padding-top: 20px;">
@@ -3401,7 +3928,7 @@
 
   <!-- Mobile Bottom Navigation Bar -->
   <nav class="mobile-bottom-nav" id="mobileBottomNav">
-    <button class="bottom-nav-item" id="bottomNavCatalog" type="button" onclick="openAllCategories()" title="Каталог">
+    <button class="bottom-nav-item" id="bottomNavCatalog" type="button" onclick="toggleCatalogModal(event)" title="Каталог">
       <div class="bottom-nav-icon">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect x="3" y="3" width="7" height="7"></rect>
@@ -4275,9 +4802,17 @@
     }
 
     document.addEventListener('keydown', (e) => {
-      if (!isFiltersDialogOpen()) return;
       if (e.key === 'Escape') {
-        closeMobileFilters();
+        if (typeof isCatalogModalOpen === 'function' && isCatalogModalOpen()) {
+          closeCatalogModal();
+          return;
+        }
+        if (isFiltersDialogOpen()) {
+          closeMobileFilters();
+          return;
+        }
+      }
+      if (!isFiltersDialogOpen()) return;
       } else if (e.key === 'Tab') {
         const sb = document.getElementById('filtersSidebar');
         const items = Array.from(sb.querySelectorAll('button, input, select, a[href]')).filter(el => !el.disabled && el.offsetParent !== null);
@@ -4304,6 +4839,7 @@
       const params = new URLSearchParams(window.location.search);
 
       closeMobileFilters(false);
+      if (typeof closeCatalogModal === 'function') closeCatalogModal();
 
       // Режим закрытой разработки: только авторизованные и подтверждённые пользователи
       if (isMaintenanceMode && (!currentUser || !currentUser.is_confirmed)) {
@@ -4435,8 +4971,546 @@
       navigateTo(null, path);
     }
 
+    // =============================================================
+    // KASPI & BELIY VETER STYLE MEGA-CATALOG
+    // =============================================================
+    const CATALOG_STRUCTURE = {
+      electronics: {
+        name: 'Электроника',
+        icon: '📱',
+        groups: [
+          {
+            title: 'Телефоны и смарт-часы',
+            icon: '📱',
+            items: [
+              { id: 'phones', name: 'Смартфоны', icon: '📱' },
+              { id: 'smartwatches', name: 'Смарт-часы', icon: '⌚️' },
+              { id: 'tablets', name: 'Планшеты', icon: '📲' },
+              { id: 'headphones', name: 'Наушники', icon: '🎧' }
+            ]
+          },
+          {
+            title: 'Компьютеры и ноутбуки',
+            icon: '💻',
+            items: [
+              { id: 'laptops', name: 'Ноутбуки', icon: '💻' },
+              { id: 'pc_desktops', name: 'Компьютеры и ПК', icon: '🖥' },
+              { id: 'monitors', name: 'Мониторы', icon: '🖥' },
+              { id: 'peripherals', name: 'Клавиатуры и мыши', icon: '⌨️' }
+            ]
+          },
+          {
+            title: 'Комплектующие для ПК',
+            icon: '⚙️',
+            subtitle: 'Как в Белом Ветре',
+            items: [
+              { id: 'gpus', name: 'Видеокарты', icon: '🎮' },
+              { id: 'cpus', name: 'Процессоры', icon: '⚙️' },
+              { id: 'motherboards', name: 'Материнские платы', icon: '🔌' },
+              { id: 'storage', name: 'SSD накопители', icon: '💾' }
+            ]
+          },
+          {
+            title: 'ТВ и гейминг',
+            icon: '📺',
+            items: [
+              { id: 'tv', name: 'Телевизоры', icon: '📺' },
+              { id: 'consoles', name: 'Игровые приставки', icon: '🕹' }
+            ]
+          },
+          {
+            title: 'Аксессуары и расходники',
+            icon: '🔌',
+            subtitle: 'Изолированная секция',
+            items: [
+              { id: 'phone_cases', name: 'Чехлы и бамперы', icon: '📱' },
+              { id: 'phone_glass', name: 'Защитные стекла и пленки', icon: '🛡' },
+              { id: 'cables_chargers', name: 'Кабели и зарядные устройства', icon: '🔌' },
+              { id: 'printer_ink', name: 'Картриджи и чернила', icon: '🖨' }
+            ]
+          }
+        ]
+      },
+      appliances: {
+        name: 'Бытовая техника',
+        icon: '🧊',
+        groups: [
+          {
+            title: 'Крупная бытовая техника',
+            icon: '❄️',
+            items: [
+              { id: 'refrigerators', name: 'Холодильники', icon: '❄️' },
+              { id: 'washing_machines', name: 'Стиральные машины', icon: '🧺' },
+              { id: 'air_conditioners', name: 'Кондиционеры', icon: '🌬' }
+            ]
+          },
+          {
+            title: 'Уборка и уход за домом',
+            icon: '🧹',
+            items: [
+              { id: 'vacuums', name: 'Пылесосы', icon: '🧹' },
+              { id: 'vacuum_parts', name: 'Расходники для пылесосов', icon: '🌀' }
+            ]
+          },
+          {
+            title: 'Кухонная техника',
+            icon: '🍲',
+            items: [
+              { id: 'kitchen_appliances', name: 'Техника для кухни', icon: '🍲' }
+            ]
+          }
+        ]
+      },
+      auto: {
+        name: 'Автотовары',
+        icon: '🚗',
+        groups: [
+          {
+            title: 'Шины и колеса',
+            icon: '🛞',
+            items: [
+              { id: 'tires', name: 'Шины и диски', icon: '🛞' }
+            ]
+          },
+          {
+            title: 'Автоэлектроника и уход',
+            icon: '📹',
+            items: [
+              { id: 'car_electronics', name: 'Автоэлектроника', icon: '📹' },
+              { id: 'car_oils', name: 'Масла и автохимия', icon: '🛢' }
+            ]
+          }
+        ]
+      },
+      clothing: {
+        name: 'Одежда и обувь',
+        icon: '👕',
+        groups: [
+          {
+            title: 'Обувь и гардероб',
+            icon: '👟',
+            items: [
+              { id: 'shoes', name: 'Обувь', icon: '👟' },
+              { id: 'men_clothing', name: 'Мужская одежда', icon: '👔' },
+              { id: 'women_clothing', name: 'Женская одежда', icon: '👗' }
+            ]
+          }
+        ]
+      },
+      home: {
+        name: 'Дом и сад',
+        icon: '🏠',
+        groups: [
+          {
+            title: 'Мебель и интерьер',
+            icon: '🛋',
+            items: [
+              { id: 'furniture', name: 'Мебель', icon: '🛋' },
+              { id: 'home_textile', name: 'Текстиль и декор', icon: '🛏' }
+            ]
+          },
+          {
+            title: 'Кухня и ремонт',
+            icon: '🍳',
+            items: [
+              { id: 'kitchenware', name: 'Посуда и кухня', icon: '🍳' },
+              { id: 'tools_repair', name: 'Инструменты и ремонт', icon: '🔨' }
+            ]
+          }
+        ]
+      },
+      beauty: {
+        name: 'Красота и здоровье',
+        icon: '💄',
+        groups: [
+          {
+            title: 'Парфюмерия и уход',
+            icon: '🌸',
+            items: [
+              { id: 'perfume', name: 'Парфюмерия', icon: '🌸' },
+              { id: 'skincare', name: 'Уход за кожей', icon: '🧴' },
+              { id: 'haircare', name: 'Уход за волосами', icon: '💇' },
+              { id: 'makeup', name: 'Декоративная косметика', icon: '💄' }
+            ]
+          }
+        ]
+      },
+      kids: {
+        name: 'Детские товары',
+        icon: '🧸',
+        groups: [
+          {
+            title: 'Для детей и мам',
+            icon: '👶',
+            items: [
+              { id: 'strollers', name: 'Коляски и автокресла', icon: '👶' },
+              { id: 'toys', name: 'Игрушки и конструкторы', icon: '🧸' },
+              { id: 'baby_care', name: 'Товары для малышей', icon: '🍼' }
+            ]
+          }
+        ]
+      },
+      sport: {
+        name: 'Спорт и отдых',
+        icon: '⚽',
+        groups: [
+          {
+            title: 'Спорт и туризм',
+            icon: '🚲',
+            items: [
+              { id: 'bicycles', name: 'Велосипеды и самокаты', icon: '🚲' },
+              { id: 'fitness', name: 'Фитнес и тренажеры', icon: '🏋️' },
+              { id: 'tourism', name: 'Туризм и кемпинг', icon: '⛺' }
+            ]
+          }
+        ]
+      },
+      pets: {
+        name: 'Зоотовары',
+        icon: '🐾',
+        groups: [
+          {
+            title: 'Товары для животных',
+            icon: '🐾',
+            items: [
+              { id: 'cat_food', name: 'Товары для кошек', icon: '🐱' },
+              { id: 'dog_food', name: 'Товары для собак', icon: '🐶' }
+            ]
+          }
+        ]
+      },
+      food: {
+        name: 'Продукты питания',
+        icon: '🍏',
+        groups: [
+          {
+            title: 'Продукты',
+            icon: '🥩',
+            items: [
+              { id: 'meat_poultry', name: 'Мясо и птица', icon: '🥩' },
+              { id: 'dairy', name: 'Молочные продукты', icon: '🧀' },
+              { id: 'drinks', name: 'Напитки и соки', icon: '🧃' }
+            ]
+          }
+        ]
+      }
+    };
+
+    let activeCatalogL1 = 'electronics';
+    let catalogServerData = null;
+    let catalogCountsMap = {};
+
+    async function loadCatalogCategoriesData() {
+      try {
+        const cityParam = AppState.city && AppState.city !== 'Все' ? '?city=' + encodeURIComponent(AppState.city) : '';
+        const res = await fetch('/api/v2/categories' + cityParam);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.categories) {
+            catalogServerData = data.categories;
+            catalogCountsMap = {};
+            function extractCounts(nodes) {
+              if (!Array.isArray(nodes)) return;
+              nodes.forEach(n => {
+                if (n.id) catalogCountsMap[n.id] = n.product_count || 0;
+                if (n.name) catalogCountsMap[n.name] = n.product_count || 0;
+                if (n.children) extractCounts(n.children);
+              });
+            }
+            extractCounts(catalogServerData);
+          }
+        }
+      } catch (e) {
+        console.warn('[Catalog] Ошибка загрузки таксономии:', e);
+      }
+    }
+
+    function toggleCatalogModal(e) {
+      if (e) {
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+      }
+      const overlay = document.getElementById('catalogModal');
+      if (!overlay) return;
+      if (overlay.classList.contains('open')) {
+        closeCatalogModal();
+      } else {
+        openCatalogModal();
+      }
+    }
+
+    function isCatalogModalOpen() {
+      const overlay = document.getElementById('catalogModal');
+      return overlay && overlay.classList.contains('open');
+    }
+
+    function openCatalogModal() {
+      const overlay = document.getElementById('catalogModal');
+      const btn = document.getElementById('btnCatalogHeader');
+      if (!overlay) return;
+
+      overlay.classList.add('open');
+      overlay.setAttribute('aria-hidden', 'false');
+      if (btn) {
+        btn.classList.add('active');
+        btn.setAttribute('aria-expanded', 'true');
+      }
+      document.body.style.overflow = 'hidden';
+
+      // Load counts in background and render
+      renderCatalogL1Sidebar();
+      renderCatalogSubcategories(activeCatalogL1);
+      loadCatalogCategoriesData().then(() => {
+        renderCatalogL1Sidebar();
+        renderCatalogSubcategories(activeCatalogL1);
+      });
+
+      // Reset search filter
+      const searchInput = document.getElementById('catalogQuickFilterInput');
+      if (searchInput) {
+        searchInput.value = '';
+        const clearBtn = document.getElementById('catalogFilterClearBtn');
+        if (clearBtn) clearBtn.style.display = 'none';
+        setTimeout(() => searchInput.focus(), 80);
+      }
+    }
+
+    function closeCatalogModal() {
+      const overlay = document.getElementById('catalogModal');
+      const btn = document.getElementById('btnCatalogHeader');
+      if (!overlay) return;
+
+      overlay.classList.remove('open');
+      overlay.setAttribute('aria-hidden', 'true');
+      if (btn) {
+        btn.classList.remove('active');
+        btn.setAttribute('aria-expanded', 'false');
+      }
+      document.body.style.overflow = '';
+
+      const grid = document.getElementById('catalogModalGrid');
+      if (grid) grid.classList.remove('mobile-subcats');
+    }
+
+    function onCatalogOverlayClick(e) {
+      if (e.target && e.target.id === 'catalogModal') {
+        closeCatalogModal();
+      }
+    }
+
+    function renderCatalogL1Sidebar() {
+      const col = document.getElementById('catalogL1Column');
+      if (!col) return;
+
+      let html = '';
+      for (const [id, root] of Object.entries(CATALOG_STRUCTURE)) {
+        const isActive = id === activeCatalogL1;
+        const count = catalogCountsMap[id] || catalogCountsMap[root.name] || 0;
+        const countBadge = count > 0 ? `<span class="catalog-subcat-count">(${count})</span>` : '';
+        html += `
+          <div class="catalog-l1-item ${isActive ? 'active' : ''}" onclick="selectCatalogL1('${id}')" onmouseenter="if(window.innerWidth > 768) selectCatalogL1('${id}')" role="tab" aria-selected="${isActive}">
+            <div class="catalog-l1-item-left">
+              <span class="catalog-l1-icon">${root.icon}</span>
+              <span>${escapeHtml(root.name)}</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px;">
+              ${countBadge}
+              <span class="catalog-l1-arrow">›</span>
+            </div>
+          </div>
+        `;
+      }
+      col.innerHTML = html;
+    }
+
+    function selectCatalogL1(l1Id) {
+      activeCatalogL1 = l1Id;
+      renderCatalogL1Sidebar();
+      renderCatalogSubcategories(l1Id);
+
+      const grid = document.getElementById('catalogModalGrid');
+      if (grid && window.innerWidth <= 768) {
+        grid.classList.add('mobile-subcats');
+      }
+    }
+
+    function backToCatalogRootsMobile() {
+      const grid = document.getElementById('catalogModalGrid');
+      if (grid) grid.classList.remove('mobile-subcats');
+    }
+
+    function renderCatalogSubcategories(l1Id) {
+      const pane = document.getElementById('catalogContentColumn');
+      if (!pane) return;
+
+      const root = CATALOG_STRUCTURE[l1Id];
+      if (!root) {
+        pane.innerHTML = '<div style="color:var(--text-muted);">Раздел не найден</div>';
+        return;
+      }
+
+      const totalCount = catalogCountsMap[l1Id] || catalogCountsMap[root.name] || 0;
+      const countLabel = totalCount > 0 ? ` (${totalCount} товаров)` : '';
+
+      let html = `
+        <button type="button" class="btn-mobile-cat-back" onclick="backToCatalogRootsMobile()">
+          <span>←</span> <span>Все разделы</span>
+        </button>
+        <div class="catalog-content-header">
+          <h3 class="catalog-content-heading">
+            <span>${root.icon}</span>
+            <span>${escapeHtml(root.name)}${countLabel}</span>
+          </h3>
+          <a href="javascript:void(0)" class="catalog-view-all-link" onclick="selectCatalogL1All('${escapeHtml(root.name)}')">
+            <span>Смотреть всё в категории</span>
+            <span>›</span>
+          </a>
+        </div>
+        <div class="catalog-groups-container">
+      `;
+
+      (root.groups || []).forEach(group => {
+        const subtitleBadge = group.subtitle ? `<span class="catalog-group-subtitle">${escapeHtml(group.subtitle)}</span>` : '';
+        html += `
+          <div class="catalog-group-card">
+            <h4 class="catalog-group-title">
+              <span>${group.icon}</span>
+              <span>${escapeHtml(group.title)}</span>
+              ${subtitleBadge}
+            </h4>
+            <ul class="catalog-subcat-list">
+        `;
+
+        (group.items || []).forEach(item => {
+          const count = catalogCountsMap[item.id] || catalogCountsMap[item.name] || 0;
+          const countText = count > 0 ? `<span class="catalog-subcat-count">(${count})</span>` : '';
+          html += `
+            <li>
+              <a href="javascript:void(0)" class="catalog-subcat-link" onclick="selectCatalogCategory('${escapeHtml(item.name)}')">
+                <div class="catalog-subcat-left">
+                  <span>${item.icon}</span>
+                  <span>${escapeHtml(item.name)}</span>
+                </div>
+                ${countText}
+              </a>
+            </li>
+          `;
+        });
+
+        html += `
+            </ul>
+          </div>
+        `;
+      });
+
+      html += `</div>`;
+      pane.innerHTML = html;
+    }
+
+    function selectCatalogCategory(catName) {
+      closeCatalogModal();
+      const cityParam = AppState.city && AppState.city !== 'Все' ? '&city=' + encodeURIComponent(AppState.city) : '';
+      navigateTo(null, '/search?cat=' + encodeURIComponent(catName) + cityParam);
+    }
+
+    function selectCatalogL1All(l1Name) {
+      closeCatalogModal();
+      const cityParam = AppState.city && AppState.city !== 'Все' ? '&city=' + encodeURIComponent(AppState.city) : '';
+      navigateTo(null, '/search?cat=' + encodeURIComponent(l1Name) + cityParam);
+    }
+
+    function onCatalogQuickFilter(q) {
+      const clearBtn = document.getElementById('catalogFilterClearBtn');
+      if (clearBtn) clearBtn.style.display = q ? 'inline-block' : 'none';
+
+      const norm = q.trim().toLowerCase();
+      if (!norm) {
+        const l1Col = document.getElementById('catalogL1Column');
+        if (l1Col) l1Col.style.display = '';
+        renderCatalogL1Sidebar();
+        renderCatalogSubcategories(activeCatalogL1);
+        return;
+      }
+
+      // Hide left sidebar during search and show matched categories across entire catalog
+      const l1Col = document.getElementById('catalogL1Column');
+      if (l1Col && window.innerWidth > 768) l1Col.style.display = 'none';
+
+      const pane = document.getElementById('catalogContentColumn');
+      if (!pane) return;
+
+      const matched = [];
+      for (const [rId, root] of Object.entries(CATALOG_STRUCTURE)) {
+        if (root.name.toLowerCase().includes(norm)) {
+          matched.push({
+            name: root.name,
+            icon: root.icon,
+            trail: 'Основная категория',
+            isRoot: true
+          });
+        }
+        for (const group of (root.groups || [])) {
+          for (const item of (group.items || [])) {
+            if (item.name.toLowerCase().includes(norm) || (group.title && group.title.toLowerCase().includes(norm))) {
+              matched.push({
+                name: item.name,
+                icon: item.icon,
+                trail: `${root.name} › ${group.title}`,
+                id: item.id
+              });
+            }
+          }
+        }
+      }
+
+      if (!matched.length) {
+        pane.innerHTML = `
+          <div style="padding: 30px; text-align: center; color: var(--text-muted);">
+            <div style="font-size: 2rem; margin-bottom: 8px;">🔍</div>
+            <div style="font-size: 1.05rem; font-weight: 600; color: var(--text-main);">Ничего не найдено</div>
+            <div style="font-size: 0.88rem; margin-top: 4px;">Попробуйте изменить запрос или выберите категорию из списка</div>
+          </div>
+        `;
+        return;
+      }
+
+      let html = `
+        <div class="catalog-content-header">
+          <h3 class="catalog-content-heading">Найдено категорий: ${matched.length}</h3>
+        </div>
+        <div class="catalog-search-results-grid">
+      `;
+
+      matched.forEach(m => {
+        const count = catalogCountsMap[m.id] || catalogCountsMap[m.name] || 0;
+        const countBadge = count > 0 ? `<span class="catalog-subcat-count" style="margin-left:auto;">(${count} предложений)</span>` : '';
+        html += `
+          <div class="catalog-search-result-card" onclick="selectCatalogCategory('${escapeHtml(m.name)}')">
+            <div class="catalog-search-card-name">
+              <span>${m.icon}</span>
+              <span>${escapeHtml(m.name)}</span>
+              ${countBadge}
+            </div>
+            <div class="catalog-search-card-trail">${escapeHtml(m.trail)}</div>
+          </div>
+        `;
+      });
+
+      html += `</div>`;
+      pane.innerHTML = html;
+    }
+
+    function clearCatalogQuickFilter() {
+      const input = document.getElementById('catalogQuickFilterInput');
+      if (input) {
+        input.value = '';
+        onCatalogQuickFilter('');
+        input.focus();
+      }
+    }
+
     function openAllCategories() {
-      navigateTo(null, '/search?cat=all&city=' + encodeURIComponent(AppState.city));
+      toggleCatalogModal();
     }
 
     // -------------------------------------------------------------

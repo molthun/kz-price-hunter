@@ -523,15 +523,23 @@ async def categories_v2_handler(request):
         conn = get_connection()
         try:
             repo = CategoryRepository(conn)
+            repo.seed_defaults_if_empty()
             mapper = repo.get_mapper()
             counts = repo.count_products_by_category(city)
             if tree_mode:
                 tree = mapper.build_tree()
+
+                def _attach_counts(node):
+                    c_self = counts.get(node["id"], 0) + counts.get(node["name"], 0)
+                    c_children = 0
+                    for ch in node.get("children", []):
+                        c_children += _attach_counts(ch)
+                    total = c_self + c_children
+                    node["product_count"] = total
+                    return total
+
                 for root in tree:
-                    root_count = sum(counts.get(c["id"], 0) + counts.get(c["name"], 0) for c in root.get("children", [])) + counts.get(root["id"], 0) + counts.get(root["name"], 0)
-                    root["product_count"] = root_count
-                    for child in root.get("children", []):
-                        child["product_count"] = counts.get(child["id"], 0) + counts.get(child["name"], 0)
+                    _attach_counts(root)
                 return {"ok": True, "categories": tree}
             else:
                 flat = []

@@ -118,6 +118,14 @@ class CategoryRepository:
             inserted += 1
         return inserted
 
+    def sync_master_taxonomy(self) -> int:
+        """Синхронизирует или дополняет таблицу categories категориями из актуальной MASTER_TAXONOMY."""
+        synced = 0
+        for cat in MASTER_TAXONOMY:
+            self.save(cat)
+            synced += 1
+        return synced
+
     def get_mapper(self) -> TaxonomyMapper:
         """Создает инстанс TaxonomyMapper на основе сохраненных в БД категорий."""
         cats = self.list_all(active_only=True)

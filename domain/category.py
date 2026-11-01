@@ -371,6 +371,38 @@ MASTER_TAXONOMY: List[Category] = [
             "строительство", "ремонт", "инструменты", "сантехника", "бытовая химия"
         ],
     ),
+    Category(
+        id="furniture",
+        parent_id="home",
+        name="Мебель",
+        icon="🛋",
+        search_priority=63,
+        aliases=["мебель", "шкафы", "столы", "диваны", "стулья", "кровати", "тумбы", "комоды"],
+    ),
+    Category(
+        id="home_textile",
+        parent_id="home",
+        name="Текстиль и декор",
+        icon="🛏",
+        search_priority=62,
+        aliases=["текстиль", "постельное белье", "шторы", "подушки", "пледы", "ковры"],
+    ),
+    Category(
+        id="kitchenware",
+        parent_id="home",
+        name="Посуда и кухня",
+        icon="🍳",
+        search_priority=62,
+        aliases=["посуда", "сковороды", "кастрюли", "ножи", "бокалы", "тарелки"],
+    ),
+    Category(
+        id="tools_repair",
+        parent_id="home",
+        name="Инструменты и ремонт",
+        icon="🔨",
+        search_priority=61,
+        aliases=["инструменты", "дрели", "шуруповерты", "сантехника", "электроинструмент"],
+    ),
 
     # 6. Автотовары (L1)
     Category(
@@ -388,6 +420,22 @@ MASTER_TAXONOMY: List[Category] = [
         search_priority=64,
         aliases=["шины", "автошины", "диски", "летние шины", "зимние шины", "tires"],
     ),
+    Category(
+        id="car_electronics",
+        parent_id="auto",
+        name="Автоэлектроника",
+        icon="📹",
+        search_priority=63,
+        aliases=["видеорегистраторы", "радар-детекторы", "автомагнитолы", "навигаторы", "парктроники"],
+    ),
+    Category(
+        id="car_oils",
+        parent_id="auto",
+        name="Масла и автохимия",
+        icon="🛢",
+        search_priority=62,
+        aliases=["моторные масла", "автомасла", "антифриз", "омыватель", "автохимия"],
+    ),
 
     # 7. Красота и здоровье (L1)
     Category(
@@ -399,6 +447,38 @@ MASTER_TAXONOMY: List[Category] = [
             "красота", "здоровье", "косметика", "парфюмерия", "beauty", "cosmetics",
             "макияж", "уход за лицом", "уход за телом", "уход за волосами", "лекарственные средства"
         ],
+    ),
+    Category(
+        id="perfume",
+        parent_id="beauty",
+        name="Парфюмерия",
+        icon="🌸",
+        search_priority=59,
+        aliases=["парфюмерия", "духи", "туалетная вода", "парфюм"],
+    ),
+    Category(
+        id="skincare",
+        parent_id="beauty",
+        name="Уход за кожей",
+        icon="🧴",
+        search_priority=58,
+        aliases=["уход за лицом", "уход за кожей", "кремы", "сыворотки", "маски для лица"],
+    ),
+    Category(
+        id="haircare",
+        parent_id="beauty",
+        name="Уход за волосами",
+        icon="💇",
+        search_priority=58,
+        aliases=["уход за волосами", "шампуни", "бальзамы", "фены", "стайлеры"],
+    ),
+    Category(
+        id="makeup",
+        parent_id="beauty",
+        name="Декоративная косметика",
+        icon="💄",
+        search_priority=57,
+        aliases=["косметика", "макияж", "помада", "тушь", "тональный крем", "тени"],
     ),
 
     # 8. Детские товары (L1)
@@ -412,6 +492,30 @@ MASTER_TAXONOMY: List[Category] = [
             "lego", "конструкторы", "детское питание", "подгузники", "канцелярия", "школа", "книги"
         ],
     ),
+    Category(
+        id="strollers",
+        parent_id="kids",
+        name="Коляски и автокресла",
+        icon="👶",
+        search_priority=59,
+        aliases=["коляски", "автокресла", "детские коляски"],
+    ),
+    Category(
+        id="toys",
+        parent_id="kids",
+        name="Игрушки и конструкторы",
+        icon="🧸",
+        search_priority=58,
+        aliases=["игрушки", "lego", "конструкторы", "настольные игры", "куклы", "машинки"],
+    ),
+    Category(
+        id="baby_care",
+        parent_id="kids",
+        name="Товары для малышей",
+        icon="🍼",
+        search_priority=57,
+        aliases=["подгузники", "детское питание", "бутылочки", "соски", "пеленание"],
+    ),
 
     # 9. Спорт и отдых (L1)
     Category(
@@ -421,6 +525,30 @@ MASTER_TAXONOMY: List[Category] = [
         search_priority=55,
         aliases=["спорт", "спорт и отдых", "тренажеры", "туризм", "велосипеды", "sport"],
     ),
+    Category(
+        id="bicycles",
+        parent_id="sport",
+        name="Велосипеды и самокаты",
+        icon="🚲",
+        search_priority=54,
+        aliases=["велосипеды", "самокаты", "электросамокаты", "скейтборды"],
+    ),
+    Category(
+        id="fitness",
+        parent_id="sport",
+        name="Фитнес и тренажеры",
+        icon="🏋️",
+        search_priority=53,
+        aliases=["тренажеры", "гантели", "коврики для фитнеса", "эспандеры", "беговые дорожки"],
+    ),
+    Category(
+        id="tourism",
+        parent_id="sport",
+        name="Туризм и кемпинг",
+        icon="⛺",
+        search_priority=52,
+        aliases=["палатки", "спальные мешки", "рюкзаки туристические", "термосы", "кемпинг"],
+    ),
 
     # 10. Зоотовары (L1)
     Category(
@@ -429,6 +557,22 @@ MASTER_TAXONOMY: List[Category] = [
         icon="🐾",
         search_priority=55,
         aliases=["зоотовары", "товары для животных", "корм для кошек", "корм для собак", "pets"],
+    ),
+    Category(
+        id="cat_food",
+        parent_id="pets",
+        name="Товары для кошек",
+        icon="🐱",
+        search_priority=54,
+        aliases=["корм для кошек", "наполнители", "когтеточки", "кошачий корм"],
+    ),
+    Category(
+        id="dog_food",
+        parent_id="pets",
+        name="Товары для собак",
+        icon="🐶",
+        search_priority=53,
+        aliases=["корм для собак", "поводки", "ошейники", "лакомства для собак"],
     ),
 ]
 
@@ -551,12 +695,12 @@ class TaxonomyMapper:
         roots = [c for c in self._categories.values() if c.parent_id is None and c.is_active]
         roots.sort(key=lambda x: -x.search_priority)
 
-        tree = []
-        for root in roots:
-            node = root.to_dict()
-            child_ids = self._children_map.get(root.id, [])
+        def _build_node(cat: Category) -> Dict[str, Any]:
+            node = cat.to_dict()
+            child_ids = self._children_map.get(cat.id, [])
             children = [self._categories[cid] for cid in child_ids if cid in self._categories and self._categories[cid].is_active]
             children.sort(key=lambda x: -x.search_priority)
-            node["children"] = [c.to_dict() for c in children]
-            tree.append(node)
-        return tree
+            node["children"] = [_build_node(c) for c in children]
+            return node
+
+        return [_build_node(r) for r in roots]
