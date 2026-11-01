@@ -36,9 +36,10 @@ const plan = {category_name:'Шины и диски',fields:[{key:'season',label
     if(u.pathname==='/api/admin/catalog-expansions'){
      if(['approved','checking'].includes(expansionStatus)){
       expansionPolls++;
-      expansionStatus=expansionPolls===1?'approved':expansionPolls===2?'checking':'needs_source';
+      expansionStatus=expansionPolls<=2?'approved':expansionPolls===3?'checking':expansionPolls===4?'approved':'needs_source';
      }
      return J({items:[{id:'r1',query:'зимняя резина',city:'Астана',plan,status:expansionStatus,demand:1,
+      scan_offset:expansionPolls>=3?30:0,scan_total:expansionPolls>=3?100:0,found:expansionPolls>=3?12:0,
       checked_at:expansionStatus==='needs_source'?'2026-11-01T16:00:00+00:00':null,
       message:expansionStatus==='needs_source'?'Подходящие предложения не подтверждены.':'Проверка запланирована.'}]});
     }
@@ -69,6 +70,9 @@ const plan = {category_name:'Шины и диски',fields:[{key:'season',label
    await page.getByRole('button',{name:'Подтвердить и проверить'}).evaluate(button=>{button.click();button.click();});
    await page.getByRole('button',{name:'В очереди…',exact:true}).waitFor();
    assert.equal(await page.getByRole('button',{name:'В очереди…',exact:true}).isDisabled(),true);
+   await page.getByText('Проверено 30 из 100, подходящих: 12').waitFor({timeout:12000});
+   assert.equal(await page.getByRole('button',{name:'Отклонить'}).count(),0,'no reject while the check is running');
+   assert.equal(await page.getByRole('button',{name:'Проверяем…'}).count(),1);
    await page.getByText('Нужно подключить источник',{exact:true}).waitFor({timeout:12000});
    assert.equal(expansionPosts,1,'rapid repeat does not restart the task');
    assert.match(await page.locator('#expansionList').innerText(),/Последняя завершённая проверка:/);

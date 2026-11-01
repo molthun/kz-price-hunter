@@ -5,6 +5,7 @@ Executes high-speed FTS5 product lookups and multi-channel offer retrieval.
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import sqlite3
@@ -227,6 +228,10 @@ class SearchRepository(BaseRepository):
             sql += (" AND EXISTS (SELECT 1 FROM product_search_attributes pa WHERE pa.product_id=p.id"
                     " AND pa.key=? AND pa.value=? AND pa.source_title=p.title)")
             params.extend([key, value])
+        scope = getattr(self, 'product_scope', None)
+        if scope is not None:
+            sql += " AND p.id IN (SELECT value FROM json_each(?))"
+            params.append(json.dumps(scope))
         return sql, params
 
     def _category_filter_only(self, category: Optional[str]) -> tuple[str, list]:

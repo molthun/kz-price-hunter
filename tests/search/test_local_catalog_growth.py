@@ -167,7 +167,7 @@ class LocalModelTests(unittest.IsolatedAsyncioTestCase):
             task=CatalogExpansionRepository(c).propose('зимняя резина','Астана',PLAN)
             CatalogExpansionRepository(c).review(task['id'],True);c.close()
             with patch('database.evaluate_watches',return_value=0),patch('database.watched_offers',return_value=[]),patch('search_engine.search_live_stores',AsyncMock(return_value=[])),patch('ai_service.call_local_api',AsyncMock(return_value={
-                'matches':True,'confidence':0.99,'attributes':{'season':{'value':'Зимние','evidence':'зимняя'}}})):
+                'matches':True,'query_match':True,'confidence':0.99,'attributes':{'season':{'value':'Зимние','evidence':'зимняя'}}})):
                 self.assertTrue(await local_search.expand_one(connect))
             c=connect();self.assertEqual(CatalogExpansionRepository(c).get(task['id'])['status'],'indexed');c.close()
 
@@ -267,6 +267,110 @@ class DurableGrowthWatchTests(unittest.TestCase):
             self.assertEqual(database.evaluate_watches(rows),1)
             self.assertEqual(database.evaluate_watches(rows),0)
             self.assertEqual(database.list_watches(701)[0]['target'],target)
+
+
+class ExpansionScanTests(unittest.IsolatedAsyncioTestCase):
+    """Проверка подтверждает товары для запроса, листается порциями и переживает сбои модели."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.path = self.tmp.name + '/test.db'
+        conn = self.connect()
+        seed(conn)
+        ProductRepository(conn).save_or_update(CanonicalProduct(id='ice', canonical_key='ice',
+            title='Sailun Ice Blazer 205/55 R16 с шипами', category='Шины и диски'))
+        OfferRepository(conn).save_or_update(Offer(id='ice', product_id='ice', seller_id='seller', channel_id='channel',
+            external_sku='ice', url='https://example.com/ice', price=10000, city='Астана'))
+        self.task = CatalogExpansionRepository(conn).propose('зимняя резина', 'Астана', {**PLAN, 'attributes': {}})
+        CatalogExpansionRepository(conn).review(self.task['id'], True)
+        conn.commit()
+        conn.close()
+
+    def connect(self):
+        return sqlite3.connect(self.path)
+
+    def row(self):
+        conn = self.connect()
+        try:
+            return CatalogExpansionRepository(conn).get(self.task['id'])
+        finally:
+            conn.close()
+
+    async def run_batch(self, model):
+        with patch('database.evaluate_watches', return_value=0), patch('database.watched_offers', return_value=[]), \
+                patch('search_engine.search_live_stores', AsyncMock(return_value=[])), \
+                patch('ai_service.call_local_api', model), patch('local_search.MODEL_RETRY_DELAY_SECONDS', 0), \
+                patch('config.get_ai_config', return_value={'local_api_base': 'http://x', 'local_model': 'm'}), \
+                patch('local_ai.pause_reason', return_value=None):
+            await local_search.expand_one(self.connect)
+
+    @staticmethod
+    def answer(prompt, *args, **kwargs):
+        winter = 'летняя' not in prompt
+        return {'matches': True, 'query_match': winter, 'confidence': 0.99, 'attributes': {}}
+
+    async def test_verified_tire_is_found_without_the_word_in_title(self):
+        args = dict(query='зимняя резина', city='Астана', condition=None, channel_type=None, seller_type=None,
+                    min_price=None, max_price=None, sort_by='relevance', limit=20)
+        plan = {'status': 'ok', 'plan': {**PLAN, 'attributes': {}}}
+        with patch('database.get_connection', side_effect=self.connect):
+            before = local_search.search_sync(dict(args), plan, {})
+            await self.run_batch(AsyncMock(side_effect=self.answer))
+            after = local_search.search_sync(dict(args), plan, {})
+        self.assertEqual(self.row()['status'], 'indexed')
+        self.assertEqual(self.row()['found'], 2)  # летняя подходит к разделу, но не к запросу
+        self.assertEqual(self.row()['scan_total'], 3)  # проверен весь небольшой раздел
+        self.assertEqual(before['total_products'], 1)
+        self.assertEqual(after['total_products'], 2)
+        self.assertEqual(after['query'], 'зимняя резина')
+
+    async def test_large_category_is_scanned_by_query_words_only(self):
+        model = AsyncMock(side_effect=self.answer)
+        with patch('local_search.FULL_SCAN_LIMIT', 1):
+            await self.run_batch(model)
+        self.assertEqual(self.row()['scan_text'], 'зимн')
+        self.assertEqual(model.await_count, 1)
+
+    async def test_model_failure_resumes_from_the_same_product(self):
+        answers = [self.answer('')] + [None] * 2
+        await self.run_batch(AsyncMock(side_effect=answers))
+        row = self.row()
+        self.assertEqual((row['status'], row['scan_offset'], row['found'], row['failures']), ('approved', 1, 1, 0))
+        self.assertIsNone(row['checked_at'])  # порция — ещё не завершённая проверка
+        for attempt in range(3):
+            await self.run_batch(AsyncMock(return_value=None))
+        row = self.row()
+        self.assertEqual((row['status'], row['scan_offset'], row['found']), ('failed', 1, 1))
+        self.assertTrue(row['checked_at'])
+        conn = self.connect()
+        CatalogExpansionRepository(conn).review(row['id'], True)
+        conn.close()
+        row = self.row()
+        self.assertEqual((row['status'], row['scan_offset'], row['found'], row['failures']), ('approved', 1, 1, 0))
+        await self.run_batch(AsyncMock(side_effect=self.answer))
+        self.assertEqual(self.row()['status'], 'indexed')
+        self.assertEqual(self.row()['scan_offset'], 3)
+
+    async def test_reject_removes_verified_products(self):
+        await self.run_batch(AsyncMock(side_effect=self.answer))
+        conn = self.connect()
+        repo = CatalogExpansionRepository(conn)
+        self.assertEqual(len(repo.verified_products('зимняя резина')), 2)
+        repo.review(self.task['id'], False)
+        self.assertEqual(repo.verified_products('зимняя резина'), [])
+        conn.close()
+
+    def test_old_table_gets_columns_and_unfinished_scan_restarts(self):
+        conn = self.connect()
+        for column in ('scan_total', 'scan_text', 'failures'):
+            conn.execute(f'ALTER TABLE catalog_expansions DROP COLUMN {column}')
+        conn.execute("UPDATE catalog_expansions SET scan_offset=90, found=69")
+        conn.commit()
+        init_schema_v2(conn)
+        row = CatalogExpansionRepository(conn).get(self.task['id'])
+        conn.close()
+        self.assertEqual((row['scan_offset'], row['found'], row['scan_total']), (0, 0, 0))
 
 
 if __name__=='__main__':

@@ -313,6 +313,10 @@
       checking:'Проверка выполняется…',indexed:'Проверка завершена',needs_source:'Нужно подключить источник',
       failed:'Проверка завершилась с ошибкой',rejected:'Отклонено'};
 
+    // Между порциями заявка снова в очереди, но для администратора проверка продолжается.
+    const expansionRunning = item => item.status === 'checking' || (item.status === 'approved' && item.scan_offset > 0);
+    const expansionBusy = item => ['approved','checking'].includes(item.status);
+
     async function changeExpansion(item, decision, row) {
       if (expansionPosting) return;
       expansionPosting = true;
@@ -370,18 +374,21 @@
             info.append(element('div', 'user-name', item.query + ' · ' + item.city));
             info.append(element('div', 'user-meta', 'Раздел: ' + item.plan.category_name + ' · Обращений: ' + item.demand));
             info.append(element('div', 'user-meta', 'Фильтры: ' + item.plan.fields.map(field => field.label).join(', ')));
-            const status = element('div', 'user-meta', expansionNames[item.status] || item.status);
+            const active = expansionRunning(item);
+            const status = element('div', 'user-meta', active ? expansionNames.checking : (expansionNames[item.status] || item.status));
             status.setAttribute('data-expansion-state', ''); info.append(status);
-            if (item.status === 'checking') info.append(element('div', 'user-meta', 'Собираем предложения и проверяем характеристики. Это может занять несколько минут.'));
+            if (active && item.scan_total) info.append(element('div', 'user-meta', 'Проверено ' + item.scan_offset + ' из ' + Math.max(item.scan_total, item.scan_offset) + ', подходящих: ' + item.found));
+            else if (active) info.append(element('div', 'user-meta', 'Собираем предложения и проверяем характеристики. Это может занять несколько минут.'));
             else if (item.message) info.append(element('div', 'user-meta', item.message));
             if (item.checked_at) info.append(element('div', 'user-meta', 'Последняя завершённая проверка: ' + new Date(item.checked_at).toLocaleString('ru-RU', {timeZone:'Asia/Almaty'})));
             row.append(info);
-            const busy = ['approved','checking'].includes(item.status);
-            const button = element('button', 'main', busy ? (item.status === 'approved' ? 'В очереди…' : 'Проверяем…') : (item.status === 'proposed' ? 'Подтвердить и проверить' : 'Проверить снова'));
+            const busy = expansionBusy(item);
+            const idleLabel = item.status === 'proposed' ? 'Подтвердить и проверить' : (item.status === 'failed' && item.scan_offset > 0 ? 'Продолжить проверку' : 'Проверить снова');
+            const button = element('button', 'main', busy ? (active ? 'Проверяем…' : 'В очереди…') : idleLabel);
             button.disabled = busy;
             button.onclick = () => changeExpansion(item, 'approve', row);
             row.append(button);
-            if (item.status !== 'checking' && item.status !== 'rejected') {
+            if (!active && item.status !== 'rejected') {
               const reject = element('button', '', 'Отклонить');
               reject.onclick = () => changeExpansion(item, 'reject', row); row.append(reject);
             }

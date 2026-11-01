@@ -378,7 +378,9 @@ def init_schema_v2(conn: sqlite3.Connection) -> None:
         conn.execute("DROP TRIGGER IF EXISTS canonical_products_au")
     conn.executescript(DDL_V2)
     from repositories.catalog_expansion_repo import DDL as CATALOG_EXPANSION_DDL
+    from repositories.catalog_expansion_repo import ensure_progress_columns
     conn.executescript(CATALOG_EXPANSION_DDL)
+    ensure_progress_columns(conn)
     # Additive columns for existing v2 tables
     # Признак «источник действительно открывали» обязан переживать запись: без него профиль,
     # полученный догадкой по адресу, после чтения из базы неотличим от подтверждённого (C-E05-03)
