@@ -2724,49 +2724,62 @@
     }
 
     /* Profile Theme Options Grid */
-    .theme-options-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 14px;
-      margin-top: 14px;
+    .profile-theme-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px 16px;
     }
-    @media (max-width: 640px) {
-      .theme-options-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-    .theme-option-card {
-      background: var(--bg-subtle);
-      border: 2px solid var(--border-color);
-      border-radius: var(--radius-md);
-      padding: 16px;
-      cursor: pointer;
-      text-align: center;
-      transition: all 0.2s ease;
-      user-select: none;
-    }
-    .theme-option-card:hover {
-      border-color: var(--primary);
-      transform: translateY(-2px);
-    }
-    .theme-option-card.active {
-      border-color: var(--primary);
-      background: rgba(37, 99, 235, 0.08);
-      box-shadow: 0 0 0 1px var(--primary);
-    }
-    .theme-option-icon {
-      font-size: 1.8rem;
-      margin-bottom: 8px;
-    }
-    .theme-option-title {
-      font-weight: 700;
-      font-size: 0.95rem;
+    .profile-theme-label {
+      font-size: 0.98rem;
+      font-weight: 600;
       color: var(--text-main);
-      margin-bottom: 4px;
     }
-    .theme-option-sub {
-      font-size: 0.78rem;
+    .theme-segmented {
+      display: inline-flex;
+      gap: 2px;
+      padding: 3px;
+      max-width: 100%;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+    }
+    .theme-segment {
+      flex: 1 1 auto;
+      min-height: 34px;
+      padding: 5px 12px;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: transparent;
       color: var(--text-muted);
+      font: inherit;
+      font-size: 0.85rem;
+      font-weight: 500;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+    .theme-segment:hover {
+      color: var(--text-main);
+    }
+    .theme-segment:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 1px;
+    }
+    .theme-segment.active {
+      background: var(--bg-card);
+      color: var(--text-main);
+      font-weight: 600;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+    }
+    @media (max-width: 480px) {
+      .theme-segmented {
+        width: 100%;
+      }
+      .theme-segment {
+        padding: 5px 6px;
+      }
     }
 
     /* Closed Development Layout */
@@ -4171,33 +4184,6 @@
           </div>
         </div>
 
-        <!-- Theme Selector in Profile -->
-        <div class="profile-card">
-          <div class="profile-section-header">
-            <div>
-              <h2 class="profile-section-title">🎨 Тема оформления</h2>
-              <div class="profile-section-desc">Выберите тему интерфейса или автоматическое переключение</div>
-            </div>
-          </div>
-          <div class="theme-options-grid">
-            <div class="theme-option-card" id="themeOptLight" onclick="selectTheme('light')">
-              <div class="theme-option-icon">☀️</div>
-              <div class="theme-option-title">Светлая</div>
-              <div class="theme-option-sub">Всегда светлая тема</div>
-            </div>
-            <div class="theme-option-card" id="themeOptDark" onclick="selectTheme('dark')">
-              <div class="theme-option-icon">🌙</div>
-              <div class="theme-option-title">Тёмная</div>
-              <div class="theme-option-sub">Всегда тёмная тема</div>
-            </div>
-            <div class="theme-option-card" id="themeOptAuto" onclick="selectTheme('auto')">
-              <div class="theme-option-icon">💻</div>
-              <div class="theme-option-title">Системная (Авто)</div>
-              <div class="theme-option-sub">Подстраивается под систему</div>
-            </div>
-          </div>
-        </div>
-
         <!-- Watches Section -->
         <div class="profile-card">
           <div class="profile-section-header">
@@ -4225,6 +4211,16 @@
           <div style="font-size: 1.2rem; color: var(--text-muted);">›</div>
         </div>
 
+
+        <!-- Theme Selector in Profile -->
+        <div class="profile-card profile-theme-row">
+          <div class="profile-theme-label" id="profileThemeLabel">Оформление</div>
+          <div class="theme-segmented" role="radiogroup" aria-labelledby="profileThemeLabel">
+            <button type="button" class="theme-segment" id="themeOptLight" role="radio" onclick="selectTheme('light')"><span aria-hidden="true">☀️</span> Светлая</button>
+            <button type="button" class="theme-segment" id="themeOptDark" role="radio" onclick="selectTheme('dark')"><span aria-hidden="true">🌙</span> Тёмная</button>
+            <button type="button" class="theme-segment" id="themeOptAuto" role="radio" onclick="selectTheme('auto')"><span aria-hidden="true">💻</span> Авто</button>
+          </div>
+        </div>
 
         <!-- User Management Card (Admin Only) -->
         <div class="profile-card" id="profileAdminUsersCard" style="display: none; border-left: 4px solid #10b981;">
@@ -4608,7 +4604,10 @@
     function updateProfileThemeCards(mode) {
       ['light', 'dark', 'auto'].forEach(m => {
         const el = document.getElementById('themeOpt' + m.charAt(0).toUpperCase() + m.slice(1));
-        if (el) el.classList.toggle('active', m === mode);
+        if (el) {
+          el.classList.toggle('active', m === mode);
+          el.setAttribute('aria-checked', String(m === mode));
+        }
       });
     }
 
