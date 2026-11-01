@@ -330,10 +330,10 @@ class ExpansionScanTests(unittest.IsolatedAsyncioTestCase):
         with patch('local_search.FULL_SCAN_LIMIT', 1):
             await self.run_batch(model)
         self.assertEqual(self.row()['scan_text'], 'зимн')
-        self.assertEqual(model.await_count, 1)
+        self.assertEqual(model.await_count, 2)  # названия для магазина и один товар
 
     async def test_model_failure_resumes_from_the_same_product(self):
-        answers = [self.answer('')] + [None] * 2
+        answers = [{'queries': ['шины']}, self.answer('')] + [None] * 2
         await self.run_batch(AsyncMock(side_effect=answers))
         row = self.row()
         self.assertEqual((row['status'], row['scan_offset'], row['found'], row['failures']), ('approved', 1, 1, 0))
@@ -351,6 +351,42 @@ class ExpansionScanTests(unittest.IsolatedAsyncioTestCase):
         await self.run_batch(AsyncMock(side_effect=self.answer))
         self.assertEqual(self.row()['status'], 'indexed')
         self.assertEqual(self.row()['scan_offset'], 3)
+
+    async def test_store_is_asked_for_the_simple_name_of_the_product(self):
+        conn = self.connect()
+        plan = {**PLAN, 'search_query': 'геодезический тахеометр', 'category_id': 'ai_geo', 'category_name': 'Геодезия',
+                'parent_id': 'tools_repair', 'attributes': {}}
+        task = CatalogExpansionRepository(conn).propose('геодезический тахеометр', 'Астана', plan)
+        CatalogExpansionRepository(conn).review(self.task['id'], False)
+        CatalogExpansionRepository(conn).review(task['id'], True)
+        ProductRepository(conn).save_or_update(CanonicalProduct(id='geo', canonical_key='geo',
+            title='Тахеометр FOIF RTS102', category='Инструменты и ремонт'))
+        OfferRepository(conn).save_or_update(Offer(id='geo', product_id='geo', seller_id='seller', channel_id='channel',
+            external_sku='geo', url='https://example.com/geo', price=10000, city='Астана'))
+        conn.commit()
+        conn.close()
+        live = AsyncMock(return_value=[])
+        answer = lambda prompt, *a, **k: {'queries': ['Тахеометр']} if 'queries' in prompt and 'query_match' not in prompt else self.answer(prompt)
+        with patch('database.evaluate_watches', return_value=0), patch('database.watched_offers', return_value=[]), \
+                patch('search_engine.search_live_stores', live), patch('ai_service.call_local_api', AsyncMock(side_effect=answer)), \
+                patch('config.get_ai_config', return_value={'local_api_base': 'http://x', 'local_model': 'm'}), \
+                patch('local_ai.pause_reason', return_value=None):
+            await local_search.expand_one(self.connect)
+        self.assertEqual([call.args[0] for call in live.await_args_list], ['геодезический тахеометр', 'тахеометр'])
+        conn = self.connect()
+        row = CatalogExpansionRepository(conn).get(task['id'])
+        conn.close()
+        self.assertEqual(row['scan_text'], 'тахеометр')
+        self.assertEqual(row['scan_total'], 1)
+        self.assertEqual(row['found'], 1)
+
+    async def test_store_queries_fall_back_without_model_and_keep_exact_models(self):
+        cfg = {'local_api_base': 'http://x', 'local_model': 'm'}
+        with patch('ai_service.call_local_api', AsyncMock(return_value=None)) as model:
+            self.assertEqual(await local_search._store_queries('геодезический тахеометр', cfg),
+                             ['геодезический тахеометр', 'тахеометр'])
+            self.assertEqual(await local_search._store_queries('iPhone 16 Pro', cfg), ['iphone 16 pro'])
+        self.assertEqual(model.await_count, 1)
 
     async def test_reject_removes_verified_products(self):
         await self.run_batch(AsyncMock(side_effect=self.answer))
