@@ -718,6 +718,11 @@
       margin-bottom: 6px;
     }
 
+    .filter-checkbox-label[hidden],
+    .quick-chip[hidden] {
+      display: none;
+    }
+
     .filter-checkbox-label input {
       accent-color: var(--primary);
       cursor: pointer;
@@ -3634,7 +3639,7 @@
           <button class="quick-chip active" onclick="applyQuickFilter('')">📦 Все товары</button>
           <button class="quick-chip" onclick="applyQuickFilter('condition=NEW')">✨ Новые</button>
           <button class="quick-chip" onclick="applyQuickFilter('condition=USED')">🔄 Б/у</button>
-          <button class="quick-chip" onclick="applyQuickFilter('installment=1')">💳 Рассрочка</button>
+          <button class="quick-chip" id="quickChipInstallment" onclick="applyQuickFilter('installment=1')">💳 Рассрочка</button>
           <button class="quick-chip" onclick="applyQuickFilter('sort=discount')">🏷 Скидки</button>
         </div>
       </div>
@@ -3765,9 +3770,9 @@
           <div class="filter-group">
             <div class="filter-title">Цена, ₸</div>
             <div class="price-inputs-row">
-              <input type="number" id="filterMinPrice" class="price-input" placeholder="от" />
+              <input type="number" id="filterMinPrice" class="price-input" placeholder="от" onkeydown="if (event.key === 'Enter') applyCurrentFilters(true)" />
               <span>—</span>
-              <input type="number" id="filterMaxPrice" class="price-input" placeholder="до" />
+              <input type="number" id="filterMaxPrice" class="price-input" placeholder="до" onkeydown="if (event.key === 'Enter') applyCurrentFilters(true)" />
             </div>
           </div>
 
@@ -3810,31 +3815,31 @@
           <div class="filter-group">
             <div class="filter-title">Состояние</div>
             <label class="filter-checkbox-label">
-              <input type="radio" name="filterCondition" value="" checked />
+              <input type="radio" name="filterCondition" value="" checked onchange="applyCurrentFilters(true)" />
               <span>Все</span>
             </label>
             <label class="filter-checkbox-label">
-              <input type="radio" name="filterCondition" value="NEW" />
+              <input type="radio" name="filterCondition" value="NEW" onchange="applyCurrentFilters(true)" />
               <span>Новые</span>
             </label>
             <label class="filter-checkbox-label">
-              <input type="radio" name="filterCondition" value="USED" />
+              <input type="radio" name="filterCondition" value="USED" onchange="applyCurrentFilters(true)" />
               <span>Б/у</span>
             </label>
           </div>
 
           <div class="filter-group">
             <div class="filter-title">Условия покупки</div>
-            <label class="filter-checkbox-label">
-              <input type="checkbox" id="filterInstallment" />
+            <label class="filter-checkbox-label" id="filterInstallmentRow">
+              <input type="checkbox" id="filterInstallment" onchange="applyCurrentFilters(true)" />
               <span>С рассрочкой</span>
             </label>
             <label class="filter-checkbox-label">
-              <input type="checkbox" id="filterGift" />
+              <input type="checkbox" id="filterGift" onchange="applyCurrentFilters(true)" />
               <span>🎁 Только с подарком</span>
             </label>
             <label class="filter-checkbox-label">
-              <input type="checkbox" id="filterInStock" />
+              <input type="checkbox" id="filterInStock" onchange="applyCurrentFilters(true)" />
               <span>Только в наличии</span>
             </label>
           </div>
@@ -6306,6 +6311,13 @@
     }
 
     function renderFacets(data) {
+      // Магазины пока не передают рассрочку: фильтр появится, когда у предложений будут эти данные
+      const canInstallment = data.installment_filter_available !== false;
+      const installmentRow = document.getElementById('filterInstallmentRow');
+      const installmentChip = document.getElementById('quickChipInstallment');
+      if (installmentRow) installmentRow.hidden = !canInstallment;
+      if (installmentChip) installmentChip.hidden = !canInstallment;
+
       const sellerList = document.getElementById('filterSellersList');
       const catList = document.getElementById('filterCategoriesList');
       const brandList = document.getElementById('filterBrandsList');
@@ -6394,7 +6406,8 @@
       executeSearch();
     }
 
-    function applyCurrentFilters() {
+    // Флажки срабатывают сразу, панель на телефоне при этом остаётся открытой
+    function applyCurrentFilters(keepPanelOpen) {
       const minP = document.getElementById('filterMinPrice').value.trim();
       const maxP = document.getElementById('filterMaxPrice').value.trim();
       AppState.min_price = minP;
@@ -6407,7 +6420,7 @@
       AppState.gift = document.getElementById('filterGift').checked;
       AppState.in_stock = document.getElementById('filterInStock').checked;
 
-      closeMobileFilters();
+      if (keepPanelOpen !== true) closeMobileFilters();
 
       AppState.page = 1;
       updateSearchUrl();

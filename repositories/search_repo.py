@@ -198,7 +198,11 @@ class SearchRepository(BaseRepository):
             conditions.append("(o.installment_available = 1 OR (o.installment_months IS NOT NULL AND o.installment_months > 0))")
 
         if in_stock:
-            conditions.append("(o.availability = 'in_stock')")
+            # То же правило, что у «Нет в наличии» на карточке: у устаревшей цены availability остаётся in_stock
+            from domain.purchasability import sql_purchasable_conditions
+            purchasable, purchasable_params = sql_purchasable_conditions(channel="c")
+            conditions.extend(purchasable)
+            params.extend(purchasable_params)
 
         if delivery:
             del_val = str(delivery).strip().lower()
@@ -768,6 +772,13 @@ class SearchRepository(BaseRepository):
                 )
             ],
         }
+
+    def has_installment_offers(self) -> bool:
+        """Есть ли в каталоге данные о рассрочке: без них фильтр всегда дал бы пустую выдачу."""
+        return bool(self.fetchone(
+            """SELECT 1 FROM offers WHERE is_active = 1
+               AND (installment_available = 1 OR installment_months > 0) LIMIT 1"""
+        ))
 
     def get_family_products(self, family_id: str, city: Optional[str] = None) -> List[Dict[str, Any]]:
         """Исполнения одной модели с действующими предложениями и их самой низкой ценой."""

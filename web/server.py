@@ -1204,6 +1204,27 @@ async def best_price_handler(request):
         return web.json_response({"error": "Ошибка поиска, попробуйте позже"}, status=500)
 
 
+_installment_flag = (0.0, True)  # (момент проверки, есть ли данные): проверка просматривает все предложения
+
+
+def _installment_filter_available() -> bool:
+    global _installment_flag
+    checked_at, value = _installment_flag
+    if time.monotonic() - checked_at < 600.0 and checked_at:
+        return value
+    from database import get_connection
+    from repositories.search_repo import SearchRepository
+    conn = get_connection()
+    try:
+        value = SearchRepository(conn).has_installment_offers()
+    except Exception:
+        value = True                                # ошибка проверки не прячет фильтр
+    finally:
+        conn.close()
+    _installment_flag = (time.monotonic(), value)
+    return value
+
+
 @routes.get("/api/v2/search")
 async def search_v2_handler(request):
     """Единый поиск Search Core 2.0 с агрегацией по продавцам, каналам, пагинацией и фасетами (S2-E11, KZPH-G1-01)."""
@@ -1274,7 +1295,9 @@ async def search_v2_handler(request):
             kind=kind,
         )
         status_code = 500 if getattr(resp, "outcome", None) == "ERROR" else 200
-        return web.json_response(resp.to_dict(), status=status_code)
+        payload = resp.to_dict()
+        payload["installment_filter_available"] = await asyncio.to_thread(_installment_filter_available)
+        return web.json_response(payload, status=status_code)
     except Exception as e:
         print(f"[API search v2] Ошибка: {e}")
         return web.json_response({"error": "Ошибка поиска v2, попробуйте позже"}, status=500)

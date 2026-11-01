@@ -216,6 +216,23 @@ class SearchFamilyCollapseTest(unittest.TestCase):
         items = self.repo.search_products("Redmi 256Gb", now=now)
         self.assertEqual([i["product"].id for i in items], ["b"])
 
+    def test_in_stock_drops_stale_offers(self):
+        now = datetime.datetime(2026, 11, 1, tzinfo=datetime.timezone.utc)
+        self.conn.execute("UPDATE offers SET observed_at = '2020-01-01T00:00:00+00:00', updated_at = '2020-01-01T00:00:00+00:00' WHERE id = 'off_c'")
+        found = {i["product"].id for i in self.repo.search_products("Redmi", in_stock=True, now=now)}
+        self.assertEqual(found, {"a"})
+
+    def test_gift_filter_keeps_only_marked_offers(self):
+        now = datetime.datetime(2026, 11, 1, tzinfo=datetime.timezone.utc)
+        self.conn.execute("UPDATE offers SET has_gift = 1 WHERE id = 'off_c'")
+        found = {i["product"].id for i in self.repo.search_products("Redmi", gift=True, now=now)}
+        self.assertEqual(found, {"c"})
+
+    def test_installment_data_flag(self):
+        self.assertFalse(self.repo.has_installment_offers())
+        self.conn.execute("UPDATE offers SET installment_available = 1 WHERE id = 'off_c'")
+        self.assertTrue(self.repo.has_installment_offers())
+
     def test_refresh_is_idempotent(self):
         self.assertEqual(refresh_family_ids(self.conn), 0)
 
