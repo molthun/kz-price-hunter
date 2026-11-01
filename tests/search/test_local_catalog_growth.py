@@ -245,6 +245,87 @@ class GrowthHttpTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(res.status,400)
 
 
+class ConfirmedShortNameTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.path = self.tmp.name + '/test.db'
+        conn = sqlite3.connect(self.path); seed(conn)
+        self.plan = dict(search_query='геодезический тахеометр', category_id='ai_geo',
+            category_name='Геодезическое оборудование', parent_id='tools_repair',
+            fields=[dict(key='accuracy', label='Точность', type='select')], attributes={},
+            confidence=0.98, clarification='')
+        repo = CatalogExpansionRepository(conn)
+        self.task = repo.propose('геодезический тахеометр', 'Астана', self.plan)
+        repo.review(self.task['id'], True)
+        rows = [('topcon','TopCon TC42 точность 2','Астана',10000),
+                ('geomax','GeoMax G90 точность 5','Астана',20000),
+                ('foif','Тахеометр FOIF X','Астана',30000),
+                ('other_city','TopCon Audit','Алматы',9000),
+                ('accessory','Отражатель Audit','Астана',1000)]
+        for ident,title,city,price in rows:
+            ProductRepository(conn).save_or_update(CanonicalProduct(id=ident,canonical_key=ident,
+                title=title,category=self.plan['category_name']))
+            OfferRepository(conn).save_or_update(Offer(id=ident,product_id=ident,seller_id='seller',
+                channel_id='channel',external_sku=ident,url='https://example.com/'+ident,price=price,city=city))
+            if ident != 'accessory':repo.add_match(self.task['id'], ident)
+        repo.set_scope(self.task['id'], 'тахеометр', 5)
+        repo.finish(self.task['id'], 'indexed', 4, 'done', 5)
+        repo.save_attributes('topcon', rows[0][1], {'accuracy':{'value':'2','evidence':'точность 2'}})
+        repo.save_attributes('geomax', rows[1][1], {'accuracy':{'value':'5','evidence':'точность 5'}})
+        conn.close()
+        self.db = patch('database.get_connection', side_effect=lambda:sqlite3.connect(self.path))
+        self.db.start()
+
+    def tearDown(self):
+        self.db.stop(); self.tmp.cleanup()
+
+    def search(self, query, attrs=None, **filters):
+        args=dict(query=query,city='Астана',condition=None,channel_type=None,seller_type=None,
+                  min_price=None,max_price=None,sort_by='relevance',limit=20)
+        args.update(filters)
+        plan={**self.plan,'search_query':query}
+        return local_search.search_sync(args,{'status':'ok','plan':plan},attrs or {})
+
+    def test_short_and_full_query_include_same_confirmed_models(self):
+        for query in ('тахеометр','геодезический тахеометр'):
+            data=self.search(query)
+            self.assertEqual(data['total_products'],3)
+            self.assertEqual({i['product']['id'] for i in data['items']},{'topcon','geomax','foif'})
+            self.assertEqual(data['outcome'],'FOUND')
+
+    def test_city_price_attributes_and_facets_still_apply(self):
+        self.assertEqual(self.search('тахеометр',city='Алматы')['total_products'],1)
+        self.assertEqual([i['product']['id'] for i in self.search('тахеометр',max_price=15000)['items']],['topcon'])
+        data=self.search('тахеометр',{'accuracy':'5'})
+        self.assertEqual([i['product']['id'] for i in data['items']],['geomax'])
+        self.assertEqual({v['value']:v['count'] for v in data['attribute_facets'][0]['values']},{'2':1,'5':1})
+
+    def test_alias_does_not_expand_models_categories_or_neighbour_types(self):
+        conn=sqlite3.connect(self.path);repo=CatalogExpansionRepository(conn)
+        self.assertEqual(repo.verified_products('тахеометр','tires'),[])
+        self.assertEqual(repo.verified_products('нивелир','ai_geo'),[])
+        self.assertEqual(self.search('тахеометр RTS102')['total_products'],0)
+        repo.set_scope(self.task['id'],'tc42',5)
+        self.assertEqual(repo.verified_products('TC42','ai_geo'),[])
+        conn.close()
+
+    def test_rejection_also_removes_short_name_confirmations(self):
+        conn=sqlite3.connect(self.path);repo=CatalogExpansionRepository(conn)
+        self.assertEqual(len(repo.verified_products('тахеометр','ai_geo')),4)
+        repo.review(self.task['id'],False)
+        self.assertEqual(repo.verified_products('тахеометр','ai_geo'),[])
+        conn.close()
+        self.assertEqual(self.search('тахеометр')['total_products'],1)
+
+    def test_store_alternative_does_not_alias_compatibility_or_unrelated_words(self):
+        conn=sqlite3.connect(self.path);repo=CatalogExpansionRepository(conn)
+        for query in ('штатив для тахеометр','не тахеометр','оптический нивелир'):
+            conn.execute('UPDATE catalog_expansions SET query=? WHERE id=?',(query,self.task['id']))
+            conn.commit()
+            self.assertEqual(repo.verified_products('тахеометр','ai_geo'),[])
+        conn.close()
+
+
 class DurableGrowthWatchTests(unittest.TestCase):
     def test_persist_match_outbox_and_user_isolation(self):
         import database

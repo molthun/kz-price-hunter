@@ -150,16 +150,28 @@ class CatalogExpansionRepository:
         self.conn.execute('INSERT OR IGNORE INTO catalog_expansion_matches VALUES(?,?)', (ident, product_id))
         self.conn.commit()
 
-    def verified_products(self, query):
-        """Товары, которые модель подтвердила для этого запроса, в любом городе заявки."""
+    def verified_products(self, query, category_id=None):
+        """Exact confirmations plus the saved short scan name in the same category.
+
+        A broad name can reuse confirmed narrower matches, without dropping city/price/attribute
+        filters in SearchRepository. Numeric model queries and arbitrary category neighbours do not alias.
+        """
         import search_analytics as sa
         clean = sa.storable_text(query)
         if not clean:
             return []
-        return [row[0] for row in self.conn.execute(
-            """SELECT DISTINCT m.product_id FROM catalog_expansion_matches m
+        short_name = bool(category_id and len(clean.split()) <= 2 and not re.search(r'\d', clean))
+        rows = self.conn.execute(
+            """SELECT DISTINCT m.product_id, e.query FROM catalog_expansion_matches m
                JOIN catalog_expansions e ON e.id=m.expansion_id
-               WHERE e.query=? AND e.status!='rejected'""", (clean,))]
+               WHERE (e.query=? OR (? AND e.scan_text=? AND json_extract(e.plan_json,'$.category_id')=?))
+                 AND e.status!='rejected'""", (clean, short_name, clean, category_id)).fetchall()
+        # A store alternative can be over-broad or name a compatible device. Reuse only a literal,
+        # positive shortening of the original request, never "tripod for total station" -> "total station".
+        relations = {'не', 'нет', 'без', 'кроме', 'для', 'вместо', 'not', 'without', 'for'}
+        words = set(clean.split())
+        return list(dict.fromkeys(row[0] for row in rows if row[1] == clean or
+            (words.issubset(set(row[1].split())) and not relations.intersection(row[1].split()))))
 
     def prune(self):
         cutoff = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat()

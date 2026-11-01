@@ -183,7 +183,7 @@ def search_sync(arguments, understanding, selected_attributes):
     """All SQL reads/attributes/counts/facets share one connection and one filter."""
     from database import get_connection
     from domain.query_parser import QueryParser
-    from domain.search_core import SearchCore
+    from domain.search_core import SearchCore, SearchOutcome
     from repositories.search_repo import SearchRepository
     from repositories.category_repo import CategoryRepository
     from repositories.catalog_expansion_repo import CatalogExpansionRepository
@@ -197,6 +197,7 @@ def search_sync(arguments, understanding, selected_attributes):
         attrs = dict(selected_attributes)
         search_args = dict(arguments)
         product_scope = None
+        verified = []
         if plan and plan['confidence'] >= 0.85:
             known = cats.get_by_id(plan['category_id'])
             compatible = not selected_category or (known and selected_category in (known.id, known.name))
@@ -211,7 +212,7 @@ def search_sync(arguments, understanding, selected_attributes):
                 attrs = {**{k:v for k,v in plan['attributes'].items() if k in populated}, **attrs}
                 # Подтверждённые моделью товары не теряются из-за слова запроса, которого нет в названии:
                 # зимняя шина «Ice Blazer с шипами» находится и по «зимняя резина».
-                verified = CatalogExpansionRepository(conn).verified_products(original)
+                verified = CatalogExpansionRepository(conn).verified_products(original, known.id)
                 if verified:
                     scope_repo = SearchRepository(conn)
                     conditions, params = scope_repo._offer_filter()
@@ -231,6 +232,9 @@ def search_sync(arguments, understanding, selected_attributes):
         repo.attribute_filters = attrs
         repo.product_scope = product_scope
         res = SearchCore(repo).search(**search_args)
+        verified_ids = set(verified)
+        if any(item.product.id in verified_ids and item.has_purchasable_offers for item in res.items):
+            res.outcome = SearchOutcome.FOUND
         data = res.to_dict()
         data['query'] = original
         data['parsed_query']['raw_query'] = original
