@@ -30,6 +30,8 @@ def backfill_classification(
     logger.info(f"Opening database: {db_path}")
     conn = sqlite3.connect(db_path, timeout=60.0)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA busy_timeout = 60000")
+    conn.execute("PRAGMA journal_mode = WAL")
 
     # Ensure columns exist
     cur = conn.cursor()
@@ -50,8 +52,8 @@ def backfill_classification(
 
     classifier = CatalogClassifier()
 
-    where_clause = "" if force_all else "WHERE model IS NULL OR model = '' OR brand IS NULL OR brand = '' OR category LIKE '%:%' OR category = ''"
-    count_sql = f"SELECT count(*) FROM canonical_products {where_clause}"
+    extra_where = "" if force_all else "AND (model IS NULL OR model = '' OR brand IS NULL OR brand = '' OR category LIKE '%:%' OR category = '')"
+    count_sql = f"SELECT count(*) FROM canonical_products WHERE 1=1 {extra_where}"
     total_candidates = conn.execute(count_sql).fetchone()[0]
     logger.info(f"Total products to classify: {total_candidates}")
 
@@ -60,23 +62,23 @@ def backfill_classification(
         conn.close()
         return
 
-    select_sql = f"SELECT id, title, category, brand, model FROM canonical_products {where_clause} ORDER BY rowid ASC"
-    cursor = conn.cursor()
-    cursor.execute(select_sql)
-
     updated_count = 0
     t0 = time.time()
-    batch = []
+    last_rowid = 0
     category_stats = {}
     brand_stats = {}
     model_stats = {}
     kind_stats = {}
 
     while True:
-        rows = cursor.fetchmany(batch_size)
+        rows = conn.execute(
+            f"SELECT rowid, id, title, category, brand, model FROM canonical_products WHERE rowid > ? {extra_where} ORDER BY rowid ASC LIMIT ?",
+            (last_rowid, batch_size)
+        ).fetchall()
         if not rows:
             break
 
+        last_rowid = rows[-1]["rowid"]
         updates = []
         for r in rows:
             pid = r["id"]
