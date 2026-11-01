@@ -228,11 +228,6 @@ class SearchFamilyCollapseTest(unittest.TestCase):
         found = {i["product"].id for i in self.repo.search_products("Redmi", gift=True, now=now)}
         self.assertEqual(found, {"c"})
 
-    def test_installment_data_flag(self):
-        self.assertFalse(self.repo.has_installment_offers())
-        self.conn.execute("UPDATE offers SET installment_available = 1 WHERE id = 'off_c'")
-        self.assertTrue(self.repo.has_installment_offers())
-
     def test_refresh_is_idempotent(self):
         self.assertEqual(refresh_family_ids(self.conn), 0)
 

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>KZ Price Hunter — Поиск лучших цен на товары в Казахстане</title>
-  <meta name="description" content="Поисковик цен по сотням магазинов Казахстана. Сравнение предложений, реальные продавцы, рассрочка и скидки.">
+  <meta name="description" content="Поисковик цен по сотням магазинов Казахстана. Сравнение предложений, реальные продавцы и скидки.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
   <script>
     /* Synchronous early theme application to avoid FOUC */
@@ -718,11 +718,6 @@
       margin-bottom: 6px;
     }
 
-    .filter-checkbox-label[hidden],
-    .quick-chip[hidden] {
-      display: none;
-    }
-
     .filter-checkbox-label input {
       accent-color: var(--primary);
       cursor: pointer;
@@ -1167,12 +1162,6 @@
       font-size: 0.85rem;
       color: var(--text-light);
       text-decoration: line-through;
-    }
-
-    .card-installment {
-      font-size: 0.78rem;
-      color: var(--primary);
-      font-weight: 600;
     }
 
     .btn-view-product {
@@ -3232,16 +3221,6 @@
       border-bottom: 2px solid var(--border-color);
     }
 
-    .catalog-group-subtitle {
-      font-size: 0.72rem;
-      font-weight: 600;
-      color: var(--text-light);
-      background: var(--bg-subtle);
-      padding: 2px 6px;
-      border-radius: var(--radius-sm);
-      margin-left: auto;
-    }
-
     .catalog-subcat-list {
       display: flex;
       flex-direction: column;
@@ -3617,7 +3596,7 @@
     <section id="viewHome" class="view-section active">
       <div class="hero-banner">
         <h1 class="hero-title">Найдите лучшие цены на товары в Казахстане</h1>
-        <p class="hero-subtitle">Сравниваем предложения в сотнях магазинов. Новые и б/у товары, скидки, рассрочка и переход напрямую к продавцу.</p>
+        <p class="hero-subtitle">Сравниваем предложения в сотнях магазинов. Новые и б/у товары, скидки и переход напрямую к продавцу.</p>
 
         <!-- Home Search Bar -->
         <form class="search-box-home" onsubmit="handleHomeSearch(event)">
@@ -3639,7 +3618,6 @@
           <button class="quick-chip active" onclick="applyQuickFilter('')">📦 Все товары</button>
           <button class="quick-chip" onclick="applyQuickFilter('condition=NEW')">✨ Новые</button>
           <button class="quick-chip" onclick="applyQuickFilter('condition=USED')">🔄 Б/у</button>
-          <button class="quick-chip" id="quickChipInstallment" onclick="applyQuickFilter('installment=1')">💳 Рассрочка</button>
           <button class="quick-chip" onclick="applyQuickFilter('sort=discount')">🏷 Скидки</button>
         </div>
       </div>
@@ -3830,10 +3808,6 @@
 
           <div class="filter-group">
             <div class="filter-title">Условия покупки</div>
-            <label class="filter-checkbox-label" id="filterInstallmentRow">
-              <input type="checkbox" id="filterInstallment" onchange="applyCurrentFilters(true)" />
-              <span>С рассрочкой</span>
-            </label>
             <label class="filter-checkbox-label">
               <input type="checkbox" id="filterGift" onchange="applyCurrentFilters(true)" />
               <span>🎁 Только с подарком</span>
@@ -3951,8 +3925,6 @@
                 <th>Продавец и канал</th>
                 <th>Состояние</th>
                 <th>Цена</th>
-                <th>Доставка</th>
-                <th>Рассрочка</th>
                 <th></th>
               </tr>
             </thead>
@@ -4496,10 +4468,8 @@
       seller: '',
       min_price: '',
       max_price: '',
-      installment: false,
       gift: false,
       in_stock: false,
-      delivery: '',
       currentProduct: null,
       searchAbortCtrl: null,
       productRequestId: 0,
@@ -5440,7 +5410,6 @@
           {
             title: 'Комплектующие для ПК',
             icon: '⚙️',
-            subtitle: 'Как в Белом Ветре',
             items: [
               { id: 'gpus', name: 'Видеокарты', icon: '🎮' },
               { id: 'cpus', name: 'Процессоры', icon: '⚙️' },
@@ -5467,7 +5436,6 @@
           {
             title: 'Аксессуары и расходники',
             icon: '🔌',
-            subtitle: 'Изолированная секция',
             items: [
               { id: 'phone_cases', name: 'Чехлы и бамперы', icon: '📱' },
               { id: 'phone_glass', name: 'Защитные стекла и пленки', icon: '🛡' },
@@ -5820,13 +5788,11 @@
       `;
 
       (root.groups || []).forEach(group => {
-        const subtitleBadge = group.subtitle ? `<span class="catalog-group-subtitle">${escapeHtml(group.subtitle)}</span>` : '';
         html += `
           <div class="catalog-group-card">
             <h4 class="catalog-group-title">
               <span>${group.icon}</span>
               <span>${escapeHtml(group.title)}</span>
-              ${subtitleBadge}
             </h4>
             <ul class="catalog-subcat-list">
         `;
@@ -5988,7 +5954,6 @@
       AppState.max_price = params.get('max_price') || '';
       AppState.sort = params.get('sort') || 'relevance';
       AppState.page = Math.max(1, parseInt(params.get('page') || '1', 10) || 1);
-      AppState.installment = params.get('installment') === '1' || params.get('installment') === 'true';
       AppState.gift = params.get('gift') === '1';
       AppState.in_stock = params.get('in_stock') === '1' || params.get('in_stock') === 'true';
 
@@ -6001,8 +5966,6 @@
       if (maxP) maxP.value = AppState.max_price;
       const sortSel = document.getElementById('sortSelect');
       if (sortSel) sortSel.value = AppState.sort;
-      const instChk = document.getElementById('filterInstallment');
-      if (instChk) instChk.checked = AppState.installment;
       const giftChk = document.getElementById('filterGift');
       if (giftChk) giftChk.checked = AppState.gift;
       const stockChk = document.getElementById('filterInStock');
@@ -6028,7 +5991,6 @@
       if (AppState.max_price) p.set('max_price', AppState.max_price);
       if (AppState.sort && AppState.sort !== 'relevance') p.set('sort', AppState.sort);
       if (AppState.page > 1) p.set('page', AppState.page);
-      if (AppState.installment) p.set('installment', '1');
       if (AppState.gift) p.set('gift', '1');
       if (AppState.in_stock) p.set('in_stock', '1');
 
@@ -6088,7 +6050,6 @@
       if (AppState.sort) p.set('sort', AppState.sort);
       p.set('limit', AppState.limit);
       p.set('page', AppState.page);
-      if (AppState.installment) p.set('installment', '1');
       if (AppState.gift) p.set('gift', '1');
       if (AppState.in_stock) p.set('in_stock', '1');
 
@@ -6150,19 +6111,6 @@
         const oldP = bestOff.old_price;
         const sellersCount = item.sellers_count || 1;
         const cond = item.has_new ? 'NEW' : (item.has_used ? 'USED' : '');
-        const instMonths = bestOff.installment_months;
-        const instAvailable = bestOff.installment_available;
-
-        let installmentHtml = '';
-        if (instAvailable && minP) {
-          if (instMonths && Number(instMonths) > 0) {
-            const m = Number(instMonths);
-            installmentHtml = '<div class="card-installment">от ' + formatPrice(minP / m) + '/мес (' + m + ' мес)</div>';
-          } else {
-            installmentHtml = '<div class="card-installment">Рассрочка доступна</div>';
-          }
-        }
-
         let oldPriceHtml = '';
         if (oldP && oldP > minP) {
           const discountPct = Math.round(((oldP - minP) / oldP) * 100);
@@ -6193,7 +6141,6 @@
                 <div class="card-price-prefix">лучшая цена</div>
                 <div class="card-price-main">${minP ? 'от ' + formatPrice(minP) : 'Нет в наличии'}</div>
                 <div>${oldPriceHtml}</div>
-                ${installmentHtml}
               </div>
               <div style="display:flex; gap: 8px; align-items: center;">
                 <button class="btn-view-product" data-id="${escapeHtml(pId)}" onclick="event.stopPropagation(); openProduct(event, this.dataset.id)">
@@ -6319,13 +6266,6 @@
     }
 
     function renderFacets(data) {
-      // Магазины пока не передают рассрочку: фильтр появится, когда у предложений будут эти данные
-      const canInstallment = data.installment_filter_available !== false;
-      const installmentRow = document.getElementById('filterInstallmentRow');
-      const installmentChip = document.getElementById('quickChipInstallment');
-      if (installmentRow) installmentRow.hidden = !canInstallment;
-      if (installmentChip) installmentChip.hidden = !canInstallment;
-
       const sellerList = document.getElementById('filterSellersList');
       const catList = document.getElementById('filterCategoriesList');
       const brandList = document.getElementById('filterBrandsList');
@@ -6424,7 +6364,6 @@
       const cond = document.querySelector('input[name="filterCondition"]:checked');
       AppState.condition = cond ? cond.value : '';
 
-      AppState.installment = document.getElementById('filterInstallment').checked;
       AppState.gift = document.getElementById('filterGift').checked;
       AppState.in_stock = document.getElementById('filterInStock').checked;
 
@@ -6445,7 +6384,6 @@
       AppState.seller = '';
       AppState.min_price = '';
       AppState.max_price = '';
-      AppState.installment = false;
       AppState.gift = false;
       AppState.in_stock = false;
       AppState.page = 1;
@@ -6455,8 +6393,6 @@
       if (minP) minP.value = '';
       const maxP = document.getElementById('filterMaxPrice');
       if (maxP) maxP.value = '';
-      const instChk = document.getElementById('filterInstallment');
-      if (instChk) instChk.checked = false;
       const giftChk = document.getElementById('filterGift');
       if (giftChk) giftChk.checked = false;
       const stockChk = document.getElementById('filterInStock');
@@ -6488,7 +6424,7 @@
 
       titleEl.textContent = 'Загрузка товара...';
       bestPriceEl.textContent = '—';
-      tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:32px;">Загрузка предложений...</td></tr>';
+      tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:32px;">Загрузка предложений...</td></tr>';
       badgesEl.innerHTML = '';
       attrsEl.innerHTML = '';
       renderHistory(null, []);
@@ -6501,7 +6437,7 @@
         if (requestId !== AppState.productRequestId) return;
         if (resp.status === 404) {
           titleEl.textContent = 'Товар не найден';
-          tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:32px; color:var(--text-muted);">Товар был удален или ссылка недействительна. <br><a href="/" style="color:var(--primary); font-weight:600;" onclick="navigateTo(event, \'/\')">Вернуться на главную</a></td></tr>';
+          tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:32px; color:var(--text-muted);">Товар был удален или ссылка недействительна. <br><a href="/" style="color:var(--primary); font-weight:600;" onclick="navigateTo(event, \'/\')">Вернуться на главную</a></td></tr>';
           return;
         }
 
@@ -6514,7 +6450,7 @@
       } catch (e) {
         if (requestId !== AppState.productRequestId) return;
         titleEl.textContent = 'Ошибка загрузки';
-        tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:32px; color:var(--badge-discount);">Не удалось загрузить данные товара. Попробуйте позже.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:32px; color:var(--badge-discount);">Не удалось загрузить данные товара. Попробуйте позже.</td></tr>';
       }
     }
 
@@ -6750,7 +6686,7 @@
     function renderOffersTable(offers) {
       const tableBody = document.getElementById('offersTableBody');
       if (offers.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:32px; color:var(--text-muted);">Актуальных предложений не найдено.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:32px; color:var(--text-muted);">Актуальных предложений не найдено.</td></tr>';
         return;
       }
 
@@ -6764,24 +6700,7 @@
         if (off.city) factsHtml += '<span>📍 ' + escapeHtml(off.city) + '</span>';
         factsHtml += '<div>' + escapeHtml(offerObservationText(off)) + '</div>';
 
-        let installmentHtml = '—';
-        if (off.installment_available) {
-          if (off.installment_months && Number(off.installment_months) > 0) {
-            const m = Number(off.installment_months);
-            installmentHtml = '<span style="color:var(--primary); font-weight:600;">от ' + formatPrice(off.price / m) + '/мес (' + m + ' мес)</span>';
-          } else {
-            installmentHtml = '<span style="color:var(--primary); font-weight:600;">Рассрочка</span>';
-          }
-        }
-
-        const hasDelivery = off.delivery_type && !['pickup', 'pickup_only'].includes(off.delivery_type);
-        const deliveryParts = [];
-        if (hasDelivery) deliveryParts.push('Доставка');
-        if (off.pickup_available || off.delivery_type === 'pickup_only') deliveryParts.push('Самовывоз');
-        let deliveryHtml = deliveryParts.join(', ') || '—';
-        if (off.warranty) {
-          deliveryHtml += '<div style="font-size:0.8rem; color:var(--text-muted);">Гарантия: ' + escapeHtml(off.warranty) + '</div>';
-        }
+        if (off.warranty) factsHtml += '<div>Гарантия: ' + escapeHtml(off.warranty) + '</div>';
 
         const condBadgeHtml = conditionBadge(off.condition);
         const basisLabel = priceBasisLabel(off);
@@ -6822,8 +6741,6 @@
               ${basisLabel ? '<div style="font-size:0.8rem; color:var(--text-muted);">' + escapeHtml(basisLabel) + '</div>' : ''}
               ${oldPriceHtml}
             </td>
-            <td data-label="Доставка">${deliveryHtml}</td>
-            <td data-label="Рассрочка">${installmentHtml}</td>
             <td style="text-align:right;">${buyButtonHtml}</td>
           </tr>
         `;

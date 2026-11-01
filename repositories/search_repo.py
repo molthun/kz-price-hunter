@@ -773,13 +773,6 @@ class SearchRepository(BaseRepository):
             ],
         }
 
-    def has_installment_offers(self) -> bool:
-        """Есть ли в каталоге данные о рассрочке: без них фильтр всегда дал бы пустую выдачу."""
-        return bool(self.fetchone(
-            """SELECT 1 FROM offers WHERE is_active = 1
-               AND (installment_available = 1 OR installment_months > 0) LIMIT 1"""
-        ))
-
     def get_family_products(self, family_id: str, city: Optional[str] = None) -> List[Dict[str, Any]]:
         """Исполнения одной модели с действующими предложениями и их самой низкой ценой."""
         city_sql = ""
