@@ -4697,6 +4697,9 @@ def _annotate_deals(deals: List[Dict[str, Any]]) -> None:
             d["price_basis"] = DEAL_BASIS_UNCONFIRMED
 
 
+MAX_BELIEVABLE_DISCOUNT_PCT = 90
+
+
 def get_store_deals(
     shop: Optional[str] = None,
     city: Optional[str] = None,
@@ -4799,6 +4802,10 @@ def get_store_deals(
                 "first_seen_price": r["first_seen_price"],
                 "old_price_on_site": r["old_price_on_site"],
             })
+
+
+    # Скидка от 90% — ошибка данных магазина («10 ₸ вместо 22 990 ₸»), а не предложение
+    raw_deals = [d for d in raw_deals if (d.get("discount_pct") or 0) < MAX_BELIEVABLE_DISCOUNT_PCT]
 
     # Дедупликация: если товар представлен и в каталоге, и в алертах, берём запись с большей выгодой
     dedup: Dict[tuple, Dict[str, Any]] = {}
