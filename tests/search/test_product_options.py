@@ -228,6 +228,12 @@ class SearchFamilyCollapseTest(unittest.TestCase):
         found = {i["product"].id for i in self.repo.search_products("Redmi", gift=True, now=now)}
         self.assertEqual(found, {"c"})
 
+    def test_catalog_counts_match_search(self):
+        self.assertEqual(self.repo.count_cards_by_category(), {"phones": 2})
+        self.assertEqual(self.repo.count_search_products("", category="Смартфоны")["total_products"], 2)
+        self.conn.execute("UPDATE offers SET is_active = 0 WHERE id = 'off_c'")
+        self.assertEqual(self.repo.count_cards_by_category(), {"phones": 1})
+
     def test_refresh_is_idempotent(self):
         self.assertEqual(refresh_family_ids(self.conn), 0)
 

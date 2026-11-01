@@ -773,6 +773,33 @@ class SearchRepository(BaseRepository):
             ],
         }
 
+    def count_cards_by_category(self, city: Optional[str] = None) -> Dict[str, int]:
+        """Сколько карточек покажет выдача в каждом разделе: те же условия к предложениям и то же объединение
+        исполнений. Ключ — id раздела; товар считается один раз, сумму по дереву даёт вызывающий."""
+        from domain.category import TaxonomyMapper
+        conditions, params = self._offer_filter(city=city)
+        rows = self.fetchall(
+            f"""
+            SELECT p.category AS category, COUNT(DISTINCT COALESCE(p.family_id, p.id)) AS cards
+            FROM canonical_products p
+            WHERE COALESCE(p.category, '') != '' AND EXISTS (
+                SELECT 1 FROM offers o
+                JOIN sellers s ON o.seller_id = s.id
+                JOIN channels c ON o.channel_id = c.id
+                WHERE o.product_id = p.id AND {" AND ".join(conditions)}
+            )
+            GROUP BY p.category
+            """,
+            params,
+        )
+        mapper = TaxonomyMapper()
+        counts: Dict[str, int] = {}
+        for row in rows:
+            mapped = mapper.map_category(row["category"])
+            if mapped:
+                counts[mapped.id] = counts.get(mapped.id, 0) + int(row["cards"])
+        return counts
+
     def get_family_products(self, family_id: str, city: Optional[str] = None) -> List[Dict[str, Any]]:
         """Исполнения одной модели с действующими предложениями и их самой низкой ценой."""
         city_sql = ""

@@ -520,17 +520,18 @@ async def categories_v2_handler(request):
     def _load():
         from database import get_connection
         from repositories.category_repo import CategoryRepository
+        from repositories.search_repo import SearchRepository
         conn = get_connection()
         try:
             repo = CategoryRepository(conn)
             repo.seed_defaults_if_empty()
             mapper = repo.get_mapper()
-            counts = repo.count_products_by_category(city)
+            counts = SearchRepository(conn).count_cards_by_category(city)
             if tree_mode:
                 tree = mapper.build_tree()
 
                 def _attach_counts(node):
-                    c_self = counts.get(node["id"], 0) + counts.get(node["name"], 0)
+                    c_self = counts.get(node["id"], 0)
                     c_children = 0
                     for ch in node.get("children", []):
                         c_children += _attach_counts(ch)
@@ -545,7 +546,7 @@ async def categories_v2_handler(request):
                 flat = []
                 for c in repo.list_all(active_only=True):
                     d = c.to_dict()
-                    d["product_count"] = counts.get(c.id, 0) + counts.get(c.name, 0)
+                    d["product_count"] = counts.get(c.id, 0)
                     flat.append(d)
                 return {"ok": True, "categories": flat}
         finally:
