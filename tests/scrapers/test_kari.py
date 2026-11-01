@@ -74,6 +74,13 @@ class KariScraperTest(unittest.TestCase):
             self.assertIn(category["master"], config.MASTER_CATEGORIES)
             self.assertLessEqual(category["max_pages"], 167)  # предел выдачи сайта: 10 000 товаров
 
+    def test_every_section_has_a_catalog_category(self):
+        from config import KARI_CATEGORIES
+        from domain.feed_categories import section_category
+        for category in KARI_CATEGORIES:
+            with self.subTest(category=category["name"]):
+                self.assertIsNotNone(section_category(category["name"]))
+
 
 if __name__ == "__main__":
     unittest.main()
