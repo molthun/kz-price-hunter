@@ -284,7 +284,7 @@ _TITLE_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
     (re.compile(r"\b(видеокарт(?:а|ы)|geforce\s+rtx|radeon\s+rx|графический\s+процессор)\b", re.I), "gpus"),
     (re.compile(r"\b(процессор|intel\s+core|amd\s+ryzen)\b", re.I), "cpus"),
     (re.compile(r"\b(материнск(?:ая|ие)\s+плат(?:а|ы)|motherboard)\b", re.I), "motherboards"),
-    (re.compile(r"\b(накопитель\s+ssd|твердотельный\s+накопитель|жесткий\s+диск|hdd|ssd\s+m\.2)\b", re.I), "storage"),
+    (re.compile(r"\b(ssd|твердотельный\s+накопитель|жесткий\s+диск|внешний\s+диск|hdd)\b", re.I), "storage"),
 
     # Appliances & Home
     (re.compile(r"\b(стиральн(?:ая|ые|ую)\s+машин(?:а|ы|у)|стиралка)\b", re.I), "washing_machines"),

@@ -106,6 +106,8 @@ class TestCategoryDomainAndMapper(unittest.TestCase):
             ("Arbuz: 🥩 Мясо и птица", "meat_poultry"),
             ("Каталог / Смартфоны и гаджеты / Apple", "phones"),
             ("Смартфон", "phones"),
+            ("SSD диски", "storage"),
+            ("Forcecom: 💾 SSD диски", "storage"),
         ):
             with self.subTest(raw=raw):
                 res = self.mapper.map_category(raw)

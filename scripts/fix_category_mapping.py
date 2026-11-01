@@ -4,6 +4,7 @@
 ("Электромясорубки" -> "Мясо и птица"). По умолчанию только показывает изменения.
 """
 import argparse
+import re
 import sqlite3
 import sys
 from collections import Counter
@@ -11,7 +12,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from domain.category import TaxonomyMapper
+from catalog_classifier import CatalogClassifier
+from domain.category import MASTER_TAXONOMY, TaxonomyMapper
 from repositories.schema_v2 import rebuild_canonical_products_fts
 
 # Сырая категория магазина -> куда её ошибочно относил старый поиск
@@ -67,12 +69,62 @@ def fix(db_path: str, apply: bool) -> Counter:
     return moved
 
 
+def _root(mapper: TaxonomyMapper, category) -> str:
+    while category.parent_id:
+        category = mapper.get_by_id(category.parent_id)
+    return category.id
+
+
+def fix_cross_root(db_path: str, apply: bool) -> Counter:
+    """Товар лежит в другом корневом разделе, чем говорит раздел магазина: SSD в шинах, гель для стирки в красоте.
+
+    Решения локальной модели не трогаются. Разделы магазина со слишком общим названием пропускаются:
+    в «Запчастях» бывают и детали пылесосов, а в «Играх» геймпады.
+    """
+    conn = sqlite3.connect(db_path, timeout=60.0)
+    conn.execute("PRAGMA busy_timeout = 60000")
+    mapper = TaxonomyMapper()
+    classifier = CatalogClassifier()
+    by_name = {c.name: c for c in MASTER_TAXONOMY}
+    moved: Counter = Counter()
+    updates = []
+    rows = conn.execute(
+        """SELECT id, title, category, canonical_key FROM canonical_products
+           WHERE id NOT IN (SELECT product_id FROM category_ai_verdicts WHERE applied = 1)"""
+    ).fetchall()
+    for product_id, title, stored, key in rows:
+        current = by_name.get(stored)
+        if not current:
+            continue
+        if (key or "").startswith("norm:"):
+            raw = key[5:].rsplit(":", 1)[0]
+            if re.search(r"запчаст|\bигры\b", raw, re.I):
+                continue
+            target = mapper.map_category(raw)
+        elif stored == "Шины и диски":                  # ключ без раздела магазина: решает правило по названию
+            result = classifier.classify_rules(title)
+            target = mapper.get_by_id(result.category_id) if result else None
+            raw = "(название)"
+        else:
+            continue
+        if target and _root(mapper, target) != _root(mapper, current):
+            updates.append((target.name, product_id))
+            moved[(raw, stored, target.name)] += 1
+    if apply and updates:
+        conn.executemany("UPDATE canonical_products SET category = ? WHERE id = ?", updates)
+        rebuild_canonical_products_fts(conn)
+        conn.commit()
+    conn.close()
+    return moved
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--db", default="/app/data/prices.db")
     parser.add_argument("--apply", action="store_true", help="Записать изменения")
+    parser.add_argument("--cross-root", action="store_true", help="Искать товары в чужом корневом разделе")
     args = parser.parse_args()
-    result = fix(args.db, args.apply)
+    result = fix_cross_root(args.db, args.apply) if args.cross_root else fix(args.db, args.apply)
     for (raw, old, new), count in result.most_common():
         print(f"{count:6d}  {raw}: {old} -> {new}")
     print(f"Всего: {sum(result.values())}, записано: {'да' if args.apply else 'нет'}")
