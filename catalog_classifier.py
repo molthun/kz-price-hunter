@@ -281,6 +281,9 @@ _TITLE_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
     (re.compile(r"\b(монитор|дисплей|studio\s+display|pro\s+display\s+xdr)\b", re.I), "monitors"),
 
     # Hardware Components
+    (re.compile(r"^\W*(?:компьютерный\s+)?корпус\b|\bблок\s+питания\s+(?:пк|для\s+пк|atx)\b|\bкулер\s+для\s+процессора\b", re.I), "pc_components"),
+    (re.compile(r"\b(маршрутизатор|роутер|mesh-систем\w*|точка\s+доступа|коммутатор)\b", re.I), "network"),
+    (re.compile(r"\b(мфу|принтер|плоттер)\b", re.I), "printers"),
     (re.compile(r"\b(видеокарт(?:а|ы)|geforce\s+rtx|radeon\s+rx|графический\s+процессор)\b", re.I), "gpus"),
     (re.compile(r"\b(процессор|intel\s+core|amd\s+ryzen)\b", re.I), "cpus"),
     (re.compile(r"\b(материнск(?:ая|ие)\s+плат(?:а|ы)|motherboard)\b", re.I), "motherboards"),

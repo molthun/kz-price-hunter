@@ -107,6 +107,10 @@ class TestCategoryDomainAndMapper(unittest.TestCase):
             ("Каталог / Смартфоны и гаджеты / Apple", "phones"),
             ("Смартфон", "phones"),
             ("SSD диски", "storage"),
+            ("ITMag: 🗄 Корпуса", "pc_components"),
+            ("Forcecom: 🌐 Роутеры", "network"),
+            ("ITMag: 🖨 МФУ", "printers"),
+            ("Товары для сада и огорода", "garden"),
             ("Forcecom: 💾 SSD диски", "storage"),
         ):
             with self.subTest(raw=raw):

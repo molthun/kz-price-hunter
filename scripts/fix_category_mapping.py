@@ -101,13 +101,15 @@ def fix_cross_root(db_path: str, apply: bool) -> Counter:
             if re.search(r"запчаст|\bигры\b", raw, re.I):
                 continue
             target = mapper.map_category(raw)
-        elif stored == "Шины и диски":                  # ключ без раздела магазина: решает правило по названию
+        elif stored in ("Шины и диски", "Клавиатуры и мыши"):  # ключ без раздела магазина: решает правило по названию
             result = classifier.classify_rules(title)
             target = mapper.get_by_id(result.category_id) if result else None
             raw = "(название)"
         else:
             continue
-        if target and _root(mapper, target) != _root(mapper, current):
+        # «Клавиатуры и мыши» раньше принимали корпуса, роутеры и принтеры, это ошибка и внутри одного корня
+        moved_out = current.id == "peripherals" and target is not None and target.id != "peripherals"
+        if target and (moved_out or _root(mapper, target) != _root(mapper, current)):
             updates.append((target.name, product_id))
             moved[(raw, stored, target.name)] += 1
     if apply and updates:
