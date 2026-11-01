@@ -194,7 +194,7 @@ class TestCatalogClassifier(unittest.TestCase):
             # Watch Nike edition
             ("Часы Watch Nike Series 7 45mm", "smartwatches", "device", "Apple", "Apple Watch Series 7"),
             # False Apple brand exclusions (food, cosmetics, gardening, cookware, footwear)
-            ("Конфеты Qazaq Apple красное яблоко, 108 г", "food", "device", None, "Конфеты Qazaq Apple красное"),
+            ("Конфеты Qazaq Apple красное яблоко, 108 г", "food", "device", None, "Конфеты Qazaq Apple яблоко"),
             ("Тройник для воды штуцерный Green Apple GWHC20-062", "home", "device", "Green Apple", "Тройник"),
             ("Кастрюля Lara Apple LR02-31, 16 см, 2.1 л., с крышкой", "kitchen_appliances", "device", "Lara", "Apple LR02 31"),
             ("Кроссовки Imac", "shoes", "device", "IMAC", "Кроссовки"),
@@ -211,6 +211,8 @@ class TestCatalogClassifier(unittest.TestCase):
             ("Apple Magic Mouse 4 (White)", "peripherals", "device", "Apple", "Magic Mouse"),
             ("Наушники Apple MYQY3ZM/A Белый", "headphones", "device", "Apple", "EarPods"),
             ("Ноутбук Apple MacBook 12 MNYM2RU/A Rose Gold", "laptops", "device", "Apple", "MacBook 12"),
+            ("Поисковый трекер для устройств Apple «MVTAG» пластик, 4×3.5×1 см", "electronics", "device", "MVTAG", "Поисковый трекер"),
+            ("Наушники ViTi WSS-Iphone 07 Белые", "headphones", "device", "ViTi", "WSS Iphone 07"),
         ]
         for title, exp_cat, exp_kind, exp_brand, exp_model in cases:
             with self.subTest(title=title):

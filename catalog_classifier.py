@@ -243,6 +243,7 @@ KNOWN_BRANDS: Dict[str, str] = {
     "saffi": "Saffi",
     "vipe": "Vipe",
     "ugreen": "Ugreen",
+    "viti": "ViTi",
 }
 
 # Regex word boundary match pattern for brands (sorted by length desc to match multi-word first)
@@ -789,7 +790,7 @@ _MODEL_STRIP_PATTERNS = [
     r"\b(4k|8k|fhd|uhd|oled|qled|hdr|ips|amoled|retina)\b",
     r"\b(5g|4g|lte|wi-fi|wifi|bluetooth|nfc|dual[\s\-]sim|nano[\s\-]sim|\+[\s\-]esim|esim)\b",
     # Colors (ru & en)
-    r"\b(черный|белый|серый|синий|зеленый|красный|желтый|розовый|золотой|серебристый|фиолетовый|голубой|бежевый|титан(?:овый)?|титан|графит|никель|медь|черная|белая|серая|синяя|зеленая|красная)\b",
+    r"\b(черн(?:ый|ая|ое|ые)|бел(?:ый|ая|ое|ые)|сер(?:ый|ая|ое|ые)|син(?:ий|яя|ее|ие)|зелен(?:ый|ая|ое|ые)|красн(?:ый|ая|ое|ые)|желт(?:ый|ая|ое|ые)|розов(?:ый|ая|ое|ые)|золот(?:ой|ая|ое|ые)|серебрист(?:ый|ая|ое|ые)|фиолетов(?:ый|ая|ое|ые)|голуб(?:ой|ая|ое|ые)|бежев(?:ый|ая|ое|ые)|титан(?:овый|овая|овое|овые)?|титан|графит|никель|медь)\b",
     r"\b(black|white|gray|grey|blue|green|red|yellow|pink|gold|silver|purple|beige|titanium|natural|midnight|starlight|graphite|space\s+gray|dark)\b",
     # Parentheses and brackets
     r"\([^\)]*\)",
@@ -823,10 +824,11 @@ def extract_clean_model(
         input_dev = extract_apple_input_device_model(main_title) or extract_apple_tracker_model(main_title)
         return input_dev
 
-    # Стандартизированный нейминг всей линейки Apple устройств
-    apple_mod = extract_apple_canonical_model(main_title)
-    if apple_mod:
-        return apple_mod
+    # Стандартизированный нейминг всей линейки Apple устройств (только если бренд Apple или неизвестен)
+    if brand in ("Apple", None):
+        apple_mod = extract_apple_canonical_model(main_title)
+        if apple_mod:
+            return apple_mod
 
     # 1. Поиск по известным семействам моделей
     for pat, fam in KNOWN_MODEL_FAMILIES:
@@ -914,13 +916,13 @@ class CatalogClassifier:
                 return "M·A·C"
 
         # Если в названии есть фраза совместимости «для/на/for <устройство>»,
-        # отсекаем её, чтобы бренд целевого смартфона/консоли не приписывался чужому товару
-        m_compat = re.search(
-            r"\b(?:для|for|на)\s+(?:apple|айфон|iphone|ipad|macbook|imac|airpods|samsung|galaxy|xiaomi|redmi|huawei|honor|oppo|vivo|realme|sony|ps5|xbox|dyson|switch|nintendo)\b",
+        # вырезаем её, чтобы бренд целевого смартфона/консоли не приписывался чужому товару
+        search_text = re.sub(
+            r"\b(?:для|for|на)\s+(?:устройств\s+|техники\s+|продукции\s+|смартфонов\s+|телефонов\s+)?(?:apple|айфон|iphone|ipad|macbook|imac|airpods|samsung|galaxy|xiaomi|redmi|huawei|honor|oppo|vivo|realme|sony|ps5|xbox|dyson|switch|nintendo)\b",
+            " ",
             title,
-            re.I,
+            flags=re.I,
         )
-        search_text = title[:m_compat.start()] if m_compat else title
 
         # Ищем первое точное совпадение бренда в очищенном заголовке
         match = _BRAND_PATTERN.search(search_text)
