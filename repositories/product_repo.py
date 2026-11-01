@@ -10,6 +10,7 @@ from typing import List, Optional
 
 from domain.models import CanonicalProduct, utc_now_iso
 from repositories.base import BaseRepository
+from content_retention import source_free
 
 
 class ProductRepository(BaseRepository):
@@ -34,7 +35,7 @@ class ProductRepository(BaseRepository):
             brand=COALESCE(excluded.brand, canonical_products.brand),
             model=COALESCE(excluded.model, canonical_products.model),
             item_kind=COALESCE(excluded.item_kind, canonical_products.item_kind),
-            description=COALESCE(excluded.description, canonical_products.description),
+            description='',
             image_url=COALESCE(excluded.image_url, canonical_products.image_url),
             attributes_json=excluded.attributes_json,
             updated_at=excluded.updated_at
@@ -48,13 +49,14 @@ class ProductRepository(BaseRepository):
             product.brand,
             product.model,
             getattr(product, "item_kind", "device") or "device",
-            product.description,
+            "",
             product.image_url,
-            json.dumps(product.attributes, ensure_ascii=False),
+            json.dumps(source_free(product.attributes), ensure_ascii=False),
             product.created_at or now,
             now,
         )
         self.execute(sql, params)
+        product.description = ""
         product.updated_at = now
         return product
 

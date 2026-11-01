@@ -171,7 +171,7 @@ class BulkChunkEquivalenceTest(_DbCase):
             observations = conn.execute("SELECT price FROM price_observations WHERE product_id = 'p_new' "
                                         "ORDER BY rowid").fetchall()
         self.assertEqual(tuple(row), ("Google Pixel 9 128GB Obsidian", 245000, 250000, 245000, 250000,
-                                      260000, "новый"))
+                                      260000, ""))
         self.assertEqual([r[0] for r in observations], [250000, 245000])
 
 

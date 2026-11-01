@@ -228,6 +228,11 @@ class SearchRepository(BaseRepository):
             sql += (" AND EXISTS (SELECT 1 FROM product_search_attributes pa WHERE pa.product_id=p.id"
                     " AND pa.key=? AND pa.value=? AND pa.source_title=p.title)")
             params.extend([key, value])
+        for key, value in getattr(self, 'inferred_attribute_filters', {}).items():
+            sql += (" AND (p.id IN (SELECT value FROM json_each(?)) OR EXISTS ("
+                    "SELECT 1 FROM product_search_attributes pa WHERE pa.product_id=p.id"
+                    " AND pa.key=? AND pa.value=? AND pa.source_title=p.title))")
+            params.extend([json.dumps(getattr(self, 'verified_scope', [])), key, value])
         scope = getattr(self, 'product_scope', None)
         if scope is not None:
             sql += " AND p.id IN (SELECT value FROM json_each(?))"

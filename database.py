@@ -1822,7 +1822,9 @@ def backup_database(label: str) -> Optional[str]:
         src = sqlite3.connect(DB_PATH, timeout=30)
         dst = sqlite3.connect(dest)
         try:
-            src.backup(dst)
+            # Sanitize in memory so no new disk copy ever contains source prose.
+            from content_retention import sanitized_backup
+            sanitized_backup(src, dst)
             result = dst.execute("PRAGMA quick_check").fetchone()[0]
             if result != "ok":
                 raise RuntimeError(f"Бэкап не прошёл quick_check: {result}")
@@ -2974,7 +2976,7 @@ def rekey_titles_conn(conn, new_keys: Dict[str, str]) -> Dict[str, int]:
                          (new_pid, key, product["title"],
                           marked.category_name if marked else product.get("category") or "",
                           marked.brand if marked else None, marked.model if marked else None,
-                          marked.item_kind if marked else "device", product.get("description") or "",
+                          marked.item_kind if marked else "device", "",
                           product.get("image_url") or "", offer_id, now, now))
             conn.execute("UPDATE offers SET product_id = ?, updated_at = ? WHERE id = ?", (new_pid, now, offer_id))
             conn.execute("UPDATE canonical_products SET title_offer_id = NULL WHERE id = ? AND title_offer_id = ?",
@@ -3304,7 +3306,7 @@ def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
     image_url = p.get("image_url", "")
     if image_url and "shop.kz//static.shop.kz" in image_url:
         image_url = image_url.replace("https://shop.kz//static.shop.kz", "https://static.shop.kz").replace("shop.kz//static.shop.kz", "static.shop.kz")
-    description = p.get("description") or ""
+    description = ""  # Source prose is fetched only transiently; never retained.
     try:
         current_price = int(p.get("price", 0))
     except (TypeError, ValueError):
@@ -3354,7 +3356,7 @@ def save_or_update_product(p: Dict[str, Any]) -> Dict[str, Any]:
             cursor.execute("""
                 UPDATE products
                 SET is_active = 1, shop = ?, city = ?, title = ?, category = ?, url = ?, image_url = ?,
-                    description = CASE WHEN ? != '' THEN ? ELSE description END,
+                    description = CASE WHEN ? != '' THEN ? ELSE '' END,
                     current_price = ?, old_price_on_site = ?, min_price = ?, max_price = ?, canonical_key = COALESCE(?, canonical_key), updated_at = ?,
                     observed_seq = COALESCE(?, observed_seq)
                 WHERE id = ?
@@ -3435,7 +3437,7 @@ def _prepare_products_chunk(chunk: List[Dict[str, Any]]) -> List[Optional[Dict[s
         image_url = p.get("image_url", "")
         if image_url and "shop.kz//static.shop.kz" in image_url:
             image_url = image_url.replace("https://shop.kz//static.shop.kz", "https://static.shop.kz").replace("shop.kz//static.shop.kz", "static.shop.kz")
-        description = p.get("description") or ""
+        description = ""  # Source prose is fetched only transiently; never retained.
         try:
             current_price = int(p.get("price", 0))
         except (TypeError, ValueError):
@@ -3582,7 +3584,7 @@ def _save_products_chunk(conn, chunk: List[Dict[str, Any]], now: str, observed_s
             UPDATE products
             SET is_active = 1, shop = j.shop, city = j.city, title = j.title, category = j.category,
                 url = j.url, image_url = j.image_url,
-                description = CASE WHEN j.description != '' THEN j.description ELSE products.description END,
+                description = '',
                 current_price = j.price, old_price_on_site = j.old, min_price = j.min, max_price = j.max,
                 canonical_key = COALESCE(j.canonical_key, products.canonical_key), updated_at = ?1,
                 observed_seq = COALESCE(?2, products.observed_seq)
@@ -6104,7 +6106,8 @@ def spool_admit(task_id: str, shop_key: Optional[str], shop_name: str, scan_id: 
     пробрасывается: принятие без записи в журнал не считается принятием.
     """
     now = time.time()
-    payload_str = json.dumps(payload, ensure_ascii=False)
+    from content_retention import source_free
+    payload_str = json.dumps(source_free(payload), ensure_ascii=False)
     with get_connection() as conn:
         conn.execute("BEGIN IMMEDIATE")
         if lease_owner is not None:

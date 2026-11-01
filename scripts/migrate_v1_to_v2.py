@@ -46,7 +46,8 @@ def create_snapshot_copy(source_db_path: str, target_db_path: str) -> None:
     src = sqlite3.connect(source_db_path)
     dst = sqlite3.connect(target_db_path)
     try:
-        src.backup(dst, pages=1000)
+        from content_retention import sanitized_backup
+        sanitized_backup(src, dst)
     finally:
         dst.close()
         src.close()

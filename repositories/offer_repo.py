@@ -4,6 +4,8 @@ Offer and Price History Repository for KZ Price Hunter 2.0.
 
 from __future__ import annotations
 
+from content_retention import source_free
+
 import json
 from typing import List, Optional
 
@@ -81,7 +83,7 @@ class OfferRepository(BaseRepository):
             offer.observed_at or now,
             offer.expires_at,
             1 if offer.is_active else 0,
-            json.dumps(offer.raw_payload, ensure_ascii=False),
+            json.dumps(source_free(offer.raw_payload), ensure_ascii=False),
             offer.created_at or now,
             now,
         )

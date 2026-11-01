@@ -19,7 +19,7 @@ class _Request:
 class AdminPageTest(unittest.TestCase):
     def test_guest_and_regular_user_go_home(self):
         for user in (None, {"id": 1, "is_admin": False, "telegram_id": 1}):
-            with self.subTest(user=user):
+            with self.subTest(user=user), mock.patch("web.server.is_admin", return_value=False):
                 with self.assertRaises(web.HTTPFound) as caught:
                     asyncio.run(admin_page_handler(_Request(user)))
                 self.assertEqual(caught.exception.location, "/")

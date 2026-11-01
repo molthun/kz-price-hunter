@@ -1,6 +1,7 @@
 """Demand-driven category proposals and evidenced attributes. No user identifiers."""
 from __future__ import annotations
 
+from contextlib import contextmanager
 import hashlib
 import json
 import math
@@ -16,12 +17,20 @@ CREATE TABLE IF NOT EXISTS catalog_expansions (
  demand INTEGER NOT NULL DEFAULT 1, attempts INTEGER NOT NULL DEFAULT 0,
  found INTEGER NOT NULL DEFAULT 0, scan_offset INTEGER NOT NULL DEFAULT 0, message TEXT NOT NULL DEFAULT '',
  created_at TEXT NOT NULL, updated_at TEXT NOT NULL, checked_at TEXT,
- scan_total INTEGER NOT NULL DEFAULT 0, scan_text TEXT, failures INTEGER NOT NULL DEFAULT 0
+ scan_total INTEGER NOT NULL DEFAULT 0, scan_text TEXT, failures INTEGER NOT NULL DEFAULT 0,
+ generation INTEGER NOT NULL DEFAULT 0, source_health TEXT NOT NULL DEFAULT '{}',
+ source_queries TEXT NOT NULL DEFAULT '[]'
 );
 CREATE TABLE IF NOT EXISTS catalog_expansion_matches (
  expansion_id TEXT NOT NULL REFERENCES catalog_expansions(id) ON DELETE CASCADE,
  product_id TEXT NOT NULL REFERENCES canonical_products(id) ON DELETE CASCADE,
+ source_identity TEXT NOT NULL DEFAULT '',
  PRIMARY KEY(expansion_id, product_id)
+);
+CREATE TABLE IF NOT EXISTS catalog_expansion_candidates (
+ expansion_id TEXT NOT NULL REFERENCES catalog_expansions(id) ON DELETE CASCADE,
+ position INTEGER NOT NULL, product_id TEXT NOT NULL,
+ PRIMARY KEY(expansion_id, position)
 );
 CREATE INDEX IF NOT EXISTS idx_catalog_expansion_status ON catalog_expansions(status, updated_at);
 CREATE TABLE IF NOT EXISTS product_search_attributes (
@@ -42,18 +51,56 @@ def ensure_progress_columns(conn):
     """Существующая таблица получает поля прогресса. Незавершённая проверка без них считала
     подходящим всё, что подошло к разделу, поэтому начинается заново."""
     known = {row[1] for row in conn.execute('PRAGMA table_info(catalog_expansions)')}
-    if 'scan_total' in known:
-        return
-    conn.execute('ALTER TABLE catalog_expansions ADD COLUMN scan_total INTEGER NOT NULL DEFAULT 0')
-    conn.execute('ALTER TABLE catalog_expansions ADD COLUMN scan_text TEXT')
-    conn.execute('ALTER TABLE catalog_expansions ADD COLUMN failures INTEGER NOT NULL DEFAULT 0')
-    conn.execute("UPDATE catalog_expansions SET scan_offset=0, found=0 WHERE status IN ('approved','checking')")
+    additions = {'scan_total': 'INTEGER NOT NULL DEFAULT 0', 'scan_text': 'TEXT',
+                 'failures': 'INTEGER NOT NULL DEFAULT 0', 'generation': 'INTEGER NOT NULL DEFAULT 0',
+                 'source_health': "TEXT NOT NULL DEFAULT '{}'", 'source_queries': "TEXT NOT NULL DEFAULT '[]'"}
+    for name, definition in additions.items():
+        if name not in known:
+            conn.execute(f'ALTER TABLE catalog_expansions ADD COLUMN {name} {definition}')
+    matches = {r[1] for r in conn.execute('PRAGMA table_info(catalog_expansion_matches)')}
+    if 'source_identity' not in matches:
+        conn.execute("ALTER TABLE catalog_expansion_matches ADD COLUMN source_identity TEXT NOT NULL DEFAULT ''")
+        # Old confirmations have no evidence version. Recheck instead of blessing today's identity.
+        conn.execute("UPDATE catalog_expansions SET status='approved',scan_offset=0,scan_total=0,scan_text=NULL,found=0 WHERE status!='rejected' AND id IN (SELECT expansion_id FROM catalog_expansion_matches)")
+    if 'generation' not in known or 'scan_total' not in known:
+        conn.execute("UPDATE catalog_expansions SET scan_offset=0,scan_total=0,scan_text=NULL,found=0,status='approved' WHERE status IN ('approved','checking')")
     conn.commit()
+
+
+def product_identity(conn, product_id):
+    # Category is deliberately excluded: this very workflow refines it after classification.
+    row = conn.execute('SELECT title,canonical_key,brand,model,item_kind FROM canonical_products WHERE id=?',
+                       (product_id,)).fetchone()
+    return hashlib.sha256(json.dumps(list(row), ensure_ascii=False).encode()).hexdigest() if row else ''
+
 
 
 class CatalogExpansionRepository:
     def __init__(self, conn):
         self.conn = conn
+        self._atomic = False
+
+    def _commit(self):
+        if not self._atomic:
+            self.conn.commit()
+
+    @contextmanager
+    def lease(self, request):
+        """Serialize each worker write with review/claim, checking the attempt generation."""
+        self.conn.execute('BEGIN IMMEDIATE')
+        self._atomic = True
+        try:
+            row = self.conn.execute("SELECT 1 FROM catalog_expansions WHERE id=? AND generation=? AND status='checking'",
+                                    (request['id'], request['generation'])).fetchone()
+            if row:
+                self.conn.execute('UPDATE catalog_expansions SET updated_at=? WHERE id=?', (now(),request['id']))
+            yield bool(row)
+            self.conn.commit()
+        except BaseException:
+            self.conn.rollback()
+            raise
+        finally:
+            self._atomic = False
 
     def propose(self, query, city, plan):
         import search_analytics as sa
@@ -69,7 +116,7 @@ class CatalogExpansionRepository:
             demand=demand+1, updated_at=excluded.updated_at,
             plan_json=CASE WHEN status='proposed' THEN excluded.plan_json ELSE plan_json END""",
             (ident, clean, city, json.dumps(plan, ensure_ascii=False), stamp, stamp))
-        self.conn.commit()
+        self._commit()
         return self.get(ident)
 
     def get(self, ident):
@@ -86,6 +133,14 @@ class CatalogExpansionRepository:
             'SELECT id FROM catalog_expansions ORDER BY updated_at DESC LIMIT 100').fetchall()]
 
     def review(self, ident, approve):
+        self.conn.execute('BEGIN IMMEDIATE')
+        try:
+            return self._review(ident, approve)
+        except BaseException:
+            self.conn.rollback()
+            raise
+
+    def _review(self, ident, approve):
         row = self.get(ident)
         if not row:
             raise ValueError('Заявка не найдена')
@@ -113,42 +168,65 @@ class CatalogExpansionRepository:
         else:
             status = 'rejected'
         if resume:
-            self.conn.execute("UPDATE catalog_expansions SET status='approved',failures=0,message=?,updated_at=? WHERE id=?",
+            self.conn.execute("UPDATE catalog_expansions SET status='approved',generation=generation+1,failures=0,message=?,updated_at=? WHERE id=?",
                               ('Проверка продолжается', now(), ident))
-            self.conn.commit()
+            self._commit()
             return self.get(ident)
+        self.conn.execute('DELETE FROM catalog_expansion_candidates WHERE expansion_id=?', (ident,))
         self.conn.execute('DELETE FROM catalog_expansion_matches WHERE expansion_id=?', (ident,))
-        self.conn.execute('UPDATE catalog_expansions SET status=?,attempts=0,found=0,scan_offset=0,scan_total=0,scan_text=NULL,failures=0,message=?,updated_at=? WHERE id=?',
+        self.conn.execute("UPDATE catalog_expansions SET status=?,generation=generation+1,source_health='{}',source_queries='[]',attempts=0,found=0,scan_offset=0,scan_total=0,scan_text=NULL,failures=0,message=?,updated_at=? WHERE id=?",
                           (status, 'Запланирована проверка подключённых магазинов' if approve else 'Отклонено', now(), ident))
-        self.conn.commit()
+        self._commit()
         return self.get(ident)
 
     def claim(self):
         # A crashed worker is retried after its bounded lease, not left RUNNING forever.
         cutoff = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
         self.conn.execute("UPDATE catalog_expansions SET status='approved' WHERE status='checking' AND updated_at<?", (cutoff,))
-        cur = self.conn.execute("""UPDATE catalog_expansions SET status='checking', attempts=attempts+1,updated_at=?
+        cur = self.conn.execute("""UPDATE catalog_expansions SET status='checking', generation=generation+1, attempts=attempts+1,updated_at=?
             WHERE id=(SELECT id FROM catalog_expansions WHERE status='approved'
             ORDER BY updated_at LIMIT 1) AND status='approved' RETURNING id""", (now(),))
         row = cur.fetchone()
-        self.conn.commit()
+        self._commit()
         return self.get(row[0]) if row else None
 
-    def finish(self, ident, status, found, message, scan_offset=0, failures=0):
+    def finish(self, ident, status, found, message, scan_offset=0, failures=0, generation=None):
         """Промежуточная порция (approved) не считается завершённой проверкой."""
         stamp = now()
         self.conn.execute("UPDATE catalog_expansions SET status=?,found=?,scan_offset=?,message=?,failures=?,updated_at=?,"
-                          "checked_at=CASE WHEN ?='approved' THEN checked_at ELSE ? END WHERE id=?",
-                          (status, found, scan_offset, message, failures, stamp, status, stamp, ident))
-        self.conn.commit()
+                          "checked_at=CASE WHEN ?='approved' THEN checked_at ELSE ? END WHERE id=? AND status!='rejected' AND (? IS NULL OR (generation=? AND status='checking'))",
+                          (status, found, scan_offset, message, failures, stamp, status, stamp, ident, generation, generation))
+        self._commit()
 
     def set_scope(self, ident, scan_text, scan_total):
         self.conn.execute('UPDATE catalog_expansions SET scan_text=?,scan_total=? WHERE id=?', (scan_text, scan_total, ident))
-        self.conn.commit()
+        self._commit()
+
+    def set_candidates(self, ident, text, ids):
+        self.conn.execute('DELETE FROM catalog_expansion_candidates WHERE expansion_id=?', (ident,))
+        self.conn.executemany('INSERT INTO catalog_expansion_candidates VALUES(?,?,?)',
+                              [(ident, n, pid) for n, pid in enumerate(ids)])
+        self.set_scope(ident, text, len(ids))
 
     def add_match(self, ident, product_id):
-        self.conn.execute('INSERT OR IGNORE INTO catalog_expansion_matches VALUES(?,?)', (ident, product_id))
-        self.conn.commit()
+        self.conn.execute('INSERT OR REPLACE INTO catalog_expansion_matches(expansion_id,product_id,source_identity) VALUES(?,?,?)',
+                          (ident, product_id, product_identity(self.conn, product_id)))
+        self._commit()
+
+    def saved_plan(self, query):
+        import search_analytics as sa
+        clean = sa.storable_text(query)
+        row = self.conn.execute("SELECT plan_json FROM catalog_expansions WHERE query=? AND status!='rejected' ORDER BY updated_at DESC LIMIT 1",
+                                (clean,)).fetchone()
+        if row:
+            return json.loads(row[0])
+        if not clean or len(clean.split())>2 or re.search(r'\d',clean):
+            return None
+        relations = {'не','нет','без','кроме','для','вместо','not','without','for'}
+        rows = self.conn.execute("SELECT plan_json,query FROM catalog_expansions WHERE (scan_text=? OR EXISTS(SELECT 1 FROM json_each(source_queries) WHERE value=?)) AND status!='rejected' ORDER BY updated_at DESC",(clean,clean)).fetchall()
+        plans = [json.loads(raw) for raw,original in rows if set(clean.split()).issubset(set(original.split()))
+                 and not relations.intersection(original.split())]
+        return plans[0] if plans and len({p['category_id'] for p in plans})==1 else None
 
     def verified_products(self, query, category_id=None):
         """Exact confirmations plus the saved short scan name in the same category.
@@ -162,16 +240,20 @@ class CatalogExpansionRepository:
             return []
         short_name = bool(category_id and len(clean.split()) <= 2 and not re.search(r'\d', clean))
         rows = self.conn.execute(
-            """SELECT DISTINCT m.product_id, e.query FROM catalog_expansion_matches m
+            """SELECT DISTINCT m.product_id, e.query, m.source_identity FROM catalog_expansion_matches m
                JOIN catalog_expansions e ON e.id=m.expansion_id
-               WHERE (e.query=? OR (? AND e.scan_text=? AND json_extract(e.plan_json,'$.category_id')=?))
-                 AND e.status!='rejected'""", (clean, short_name, clean, category_id)).fetchall()
+               WHERE (e.query=? OR (? AND (e.scan_text=? OR EXISTS(SELECT 1 FROM json_each(e.source_queries) WHERE value=?)) AND json_extract(e.plan_json,'$.category_id')=?))
+                 AND e.status!='rejected'""", (clean, short_name, clean, clean, category_id)).fetchall()
         # A store alternative can be over-broad or name a compatible device. Reuse only a literal,
         # positive shortening of the original request, never "tripod for total station" -> "total station".
         relations = {'не', 'нет', 'без', 'кроме', 'для', 'вместо', 'not', 'without', 'for'}
         words = set(clean.split())
-        return list(dict.fromkeys(row[0] for row in rows if row[1] == clean or
-            (words.issubset(set(row[1].split())) and not relations.intersection(row[1].split()))))
+        result = []
+        for pid, source_query, identity in rows:
+            alias = words.issubset(set(source_query.split())) and not relations.intersection(source_query.split())
+            if identity == product_identity(self.conn, pid) and (source_query == clean or alias):
+                result.append(pid)
+        return list(dict.fromkeys(result))
 
     def prune(self):
         cutoff = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat()
@@ -182,7 +264,7 @@ class CatalogExpansionRepository:
         self.conn.execute('DELETE FROM product_search_attributes WHERE product_id NOT IN (SELECT id FROM canonical_products)')
         self.conn.execute('''DELETE FROM catalog_expansion_matches WHERE product_id NOT IN (SELECT id FROM canonical_products)
             OR expansion_id NOT IN (SELECT id FROM catalog_expansions)''')
-        self.conn.commit()
+        self._commit()
 
     def classify(self, product_id, category_id, confidence):
         """Only reviewed extensions of an unknown/general category; never a cross-branch move."""
@@ -207,7 +289,7 @@ class CatalogExpansionRepository:
             (product_id, row[0], target.name, confidence, 'local_search_reviewed', 1, now()))
         self.conn.execute('UPDATE canonical_products SET category=?,updated_at=? WHERE id=?',
                           (target.name, now(), product_id))
-        self.conn.commit()
+        self._commit()
         from repositories.search_repo import SearchRepository
         SearchRepository._cat_cache = {}
         return True
@@ -249,4 +331,4 @@ class CatalogExpansionRepository:
                     ON CONFLICT(product_id,key) DO UPDATE SET value=excluded.value,evidence=excluded.evidence,
                     source_title=excluded.source_title,updated_at=excluded.updated_at''',
                     (product_id, key, value, evidence[:160], source_title, now()))
-        self.conn.commit()
+        self._commit()

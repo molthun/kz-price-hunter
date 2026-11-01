@@ -6572,18 +6572,24 @@
           else delete AppState.attributes[field.key];
           AppState.page = 1; updateSearchUrl(); executeSearch();
         };
-        group.append(label, select); container.append(group);
+        group.append(label, select);
+        if (AppState.attributes[field.key]) {
+          const note = document.createElement('small'); note.className = 'filter-empty';
+          note.textContent = 'Только товары с подтверждённым значением этой характеристики.';
+          group.append(note);
+        }
+        container.append(group);
       });
     }
 
     function renderLocalSearchHelp(data) {
       const box = document.getElementById('localSearchHelp'); box.replaceChildren();
       const info = data.search_help || {};
-      if (!data.local_ai || data.local_ai.status === 'disabled') return;
+      if (!data.local_ai || (data.local_ai.status === 'disabled' && !data.local_ai.cached_plan)) return;
       box.style.display = 'block';
       const line = document.createElement('div');
       const category = info.category_name;
-      line.textContent = data.local_ai.status === 'unavailable' ? 'Помощник временно недоступен. Показываем результаты каталога.' :
+      line.textContent = data.local_ai.cached_plan ? 'Используем сохранённую проверку запроса и актуальные предложения каталога.' : data.local_ai.status === 'unavailable' ? 'Помощник временно недоступен. Показываем результаты каталога.' :
         (category ? 'Ищем: ' + category + '.' : 'Запрос обработан помощником.');
       box.append(line);
       if (info.clarification) {

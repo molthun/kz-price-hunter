@@ -253,7 +253,8 @@ def _snapshot(source_path: str, target_path: str) -> None:
     try:
         target = sqlite3.connect(target_path)
         try:
-            source.backup(target)
+            from content_retention import sanitized_backup
+            sanitized_backup(source, target)
         finally:
             target.close()
     finally:

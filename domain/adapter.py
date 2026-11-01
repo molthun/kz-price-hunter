@@ -215,7 +215,7 @@ def prepare_legacy_offer_v2(
     category = product.get("category", "")
     url = product.get("url") or ""
     image_url = product.get("image_url") or ""
-    description = product.get("description") or ""
+    description = ""  # Foreign descriptions must not be persisted.
 
     try:
         price = float(product.get("price") or 0.0)
@@ -433,7 +433,7 @@ def _write_legacy_offers_v2(
             model = COALESCE(canonical_products.model, excluded.model),
             item_kind = COALESCE(canonical_products.item_kind, excluded.item_kind),
             title_offer_id = COALESCE(canonical_products.title_offer_id, excluded.title_offer_id),
-            description = CASE WHEN excluded.description != '' THEN excluded.description ELSE canonical_products.description END,
+            description = '',
             image_url = CASE WHEN excluded.image_url != '' THEN excluded.image_url ELSE canonical_products.image_url END,
             updated_at = excluded.updated_at
         """,

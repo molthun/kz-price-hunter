@@ -1954,8 +1954,8 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(p["url"].startswith("https://wa.me/77007654321?text="))
         self.assertIn("MacBook", p["url"])
 
-    async def test_product_description_storage_and_api(self):
-        """Проверка сохранения description в БД, получения через get_product_by_id и API /api/products/{id}."""
+    async def test_product_description_not_retained_in_db_alerts_or_legacy_api(self):
+        """Полные описания источника не остаются в БД, алертах и legacy API."""
         from database import get_product_by_id, _fetch_filtered_alerts
         from aiohttp.test_utils import TestServer
         from tests.test_support import BrowserTestClient as TestClient
@@ -1976,14 +1976,14 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
 
         p = get_product_by_id(prod_id)
         self.assertIsNotNone(p)
-        self.assertEqual(p["description"], "Полноразмерный ноутбук с 16-дюймовым OLED дисплеем и 32 ГБ ОЗУ.")
+        self.assertEqual(p["description"], "")
 
         # Проверка включения description в выборку алертов
         record_alert(prod_id, "SUPER_DISCOUNT", 1500000, 450000, 70.0, 1050000)
         alerts = _fetch_filtered_alerts(config.SYSTEM_DEFAULTS)
         alert_item = next((a for a in alerts if a.get("product_id") == prod_id), None)
         self.assertIsNotNone(alert_item)
-        self.assertIn("OLED дисплеем", alert_item.get("description", ""))
+        self.assertEqual(alert_item.get("description", ""), "")
 
         # Проверка HTTP API GET /api/products/{id}
         app = create_app()
@@ -1993,7 +1993,7 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(res.status, 200)
             data = await res.json()
             self.assertEqual(data["id"], prod_id)
-            self.assertEqual(data["description"], "Полноразмерный ноутбук с 16-дюймовым OLED дисплеем и 32 ГБ ОЗУ.")
+            self.assertEqual(data["description"], "")
 
             bad_res = await client.get('/api/products/non-existent-id')
             self.assertEqual(bad_res.status, 404)
