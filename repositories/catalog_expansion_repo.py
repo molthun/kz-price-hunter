@@ -27,6 +27,9 @@ CREATE TABLE IF NOT EXISTS catalog_expansion_matches (
  source_identity TEXT NOT NULL DEFAULT '',
  PRIMARY KEY(expansion_id, product_id)
 );
+CREATE TABLE IF NOT EXISTS local_search_intents (
+ query TEXT PRIMARY KEY, plan_json TEXT NOT NULL, updated_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS catalog_expansion_candidates (
  expansion_id TEXT NOT NULL REFERENCES catalog_expansions(id) ON DELETE CASCADE,
  position INTEGER NOT NULL, product_id TEXT NOT NULL,
@@ -212,6 +215,23 @@ class CatalogExpansionRepository:
         self.conn.execute('INSERT OR REPLACE INTO catalog_expansion_matches(expansion_id,product_id,source_identity) VALUES(?,?,?)',
                           (ident, product_id, product_identity(self.conn, product_id)))
         self._commit()
+
+    def cached_intent(self, query):
+        import search_analytics as sa
+        row = self.conn.execute('SELECT plan_json FROM local_search_intents WHERE query=?',
+                                (sa.storable_text(query),)).fetchone()
+        return json.loads(row[0]) if row else None
+
+    def save_intent(self, query, plan):
+        import search_analytics as sa
+        clean = sa.storable_text(query)
+        if clean:
+            self.conn.execute('INSERT INTO local_search_intents VALUES(?,?,?) ON CONFLICT(query) DO UPDATE SET plan_json=excluded.plan_json,updated_at=excluded.updated_at',
+                              (clean,json.dumps(plan,ensure_ascii=False),now()))
+            self.conn.execute('DELETE FROM local_search_intents WHERE query IN (SELECT query FROM local_search_intents ORDER BY updated_at DESC LIMIT -1 OFFSET 5000)')
+            cutoff=(datetime.now(timezone.utc)-timedelta(days=90)).isoformat()
+            self.conn.execute('DELETE FROM local_search_intents WHERE updated_at<?',(cutoff,))
+            self._commit()
 
     def saved_plan(self, query):
         import search_analytics as sa

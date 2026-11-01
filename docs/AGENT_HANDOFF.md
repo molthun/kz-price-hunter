@@ -25,6 +25,19 @@
   стенд, создать очищенную контрольную копию, очистить его БД/копии с проверкой инвариантов,
   поднять стенд и проверить настоящий поиск/локальную модель. Прод не трогать.
 
+- Финальный полный прогон текущего кода: **2574 PASS + 1096 subtests**, 159.68 s.
+- **Checkpoint выкладки:** код `3d54340`, v6.15.6 передан bundle, стенд fast-forward и build PASS.
+  Только `kzph-stand` остановлен. Идёт one-off maintenance (`/tmp/kzph-lsa-maintenance.log`
+  на stand host): RAM sanitized recovery copy → очистка всех SQLite внутри stand-data →
+  fingerprint цен/предложений/наблюдений → physical/integrity. Прод не трогался.
+- После успешной очистки обязательно поднять `docker compose -f docker-compose.stand.yml up -d app`,
+  дождаться healthy, перепроверить live поиск/AI. Не объявлять задачу завершённой по этому checkpoint.
+
+- Live проверка 6.15.6: geo 8/9, browser обе формулировки 8; winter 26/30, browser 26.
+  Fault injection unavailable выявила дополнительное расхождение старого плана: winter 42.
+  Исправляется в 6.15.7 отдельным приватным кэшем intent + безопасным legacy fallback.
+  Новая область: тот же local_search/repository/schema DDL и regression, без новой очистки БД.
+
 ---
 
 ## AUDIT_COMPLETE → Владелец/разработка: локальный поиск и расширение каталога 6.15.5 (2026-11-02)

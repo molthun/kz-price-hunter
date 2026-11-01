@@ -212,7 +212,14 @@ def search_sync(arguments, understanding, selected_attributes):
         cats = CategoryRepository(conn)
         cached_plan = False
         if not plan:
-            plan = CatalogExpansionRepository(conn).saved_plan(original)
+            intent_repo = CatalogExpansionRepository(conn)
+            plan = intent_repo.cached_intent(original)
+            if not plan:
+                plan = intent_repo.saved_plan(original)
+                if plan:
+                    # Legacy job plans may predate preservation of semantic constraints.
+                    # Keep confirmed intent + literal words, never broaden using an unsafe rewrite.
+                    plan = {**plan,'search_query':original,'attributes':{}}
             cached_plan = bool(plan)
         selected_category = arguments.get('category')
         inferred_category = None
@@ -224,6 +231,8 @@ def search_sync(arguments, understanding, selected_attributes):
             known = cats.get_by_id(plan['category_id'])
             compatible = not selected_category or (known and selected_category in (known.id, known.name))
             if known and compatible:
+                if not cached_plan:
+                    CatalogExpansionRepository(conn).save_intent(original,plan)
                 inferred_category = known.id
                 search_args['category'] = selected_category or known.id
                 search_args['query'] = plan['search_query']

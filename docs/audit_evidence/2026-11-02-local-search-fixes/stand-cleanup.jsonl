@@ -1,0 +1,11 @@
+{"sanitized_recovery_copy": "before-lsa-3d54340-sanitized.db", "quick_check": "ok", "protected_data_unchanged": true}
+{"file": "backups/before-local-growth-62442c8.db", "before": {"products": 34646, "canonical_products": 28703}, "after": {"products": 0, "canonical_products": 0}, "social_rows_cleared": 0, "protected_data_unchanged": true, "physical_cleanup": "complete"}
+{"file": "backups/before-lsa-3d54340-sanitized.db", "before": {"products": 0, "canonical_products": 0}, "after": {"products": 0, "canonical_products": 0}, "social_rows_cleared": 0, "protected_data_unchanged": true, "physical_cleanup": "complete"}
+{"file": "backups/prices-pre-6.4.12-stand-20261028T182220412693Z-69cbe1.db", "before": {"products": 33282, "canonical_products": 27416}, "after": {"products": 0, "canonical_products": 0}, "social_rows_cleared": 0, "protected_data_unchanged": true, "physical_cleanup": "complete"}
+{"file": "backups/prices-pre-search-first.db", "before": {"products": 34162, "canonical_products": 28122}, "after": {"products": 0, "canonical_products": 0}, "social_rows_cleared": 0, "protected_data_unchanged": true, "physical_cleanup": "complete"}
+{"file": "prices.db", "before": {"products": 34680, "canonical_products": 28739}, "after": {"products": 0, "canonical_products": 0}, "social_rows_cleared": 0, "protected_data_unchanged": true, "physical_cleanup": "complete"}
+{"file": "prices_k2.db", "before": {"products": 33608, "canonical_products": 35013}, "after": {"products": 0, "canonical_products": 0}, "social_rows_cleared": 0, "protected_data_unchanged": true, "physical_cleanup": "complete"}
+{"file": "prices_k2_c2.db", "before": {"products": 33608, "canonical_products": 35201}, "after": {"products": 0, "canonical_products": 0}, "social_rows_cleared": 0, "protected_data_unchanged": true, "physical_cleanup": "complete"}
+{"file": "prices_k2_c3.db", "before": {"products": 33608, "canonical_products": 35343}, "after": {"products": 0, "canonical_products": 0}, "social_rows_cleared": 0, "protected_data_unchanged": true, "physical_cleanup": "complete"}
+{"file": "snapshot_before_k2.db", "before": {"products": 33608, "canonical_products": 27673}, "after": {"products": 0, "canonical_products": 0}, "social_rows_cleared": 0, "protected_data_unchanged": true, "physical_cleanup": "complete"}
+{"complete": true, "databases": 9}

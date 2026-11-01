@@ -99,6 +99,26 @@ class AttributeRegressionTests(unittest.TestCase):
                 strict=local_search.search_sync(args,{'status':'ok','plan':PLAN},{'season':'Зимние'})
                 self.assertEqual([i['product']['id'] for i in strict['items']],['winter'])
 
+    def test_cached_intent_keeps_season_and_legacy_plan_never_broadens_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path=tmp+'/db';conn=sqlite3.connect(path);seed(conn)
+            repo=CatalogExpansionRepository(conn)
+            unsafe={**PLAN,'search_query':'','attributes':{}}
+            task=repo.propose('зимняя резина','Астана',unsafe);repo.review(task['id'],True)
+            repo.add_match(task['id'],'winter');conn.close()
+            args=dict(query='зимняя резина',city='Астана',limit=20)
+            with patch('database.get_connection',side_effect=lambda:sqlite3.connect(path)):
+                legacy=local_search.search_sync(args,{'status':'unavailable'},{})
+                self.assertEqual([i['product']['id'] for i in legacy['items']],['winter'])
+                fresh=local_search.search_sync(args,{'status':'ok','plan':PLAN},{})
+                offline=local_search.search_sync(args,{'status':'unavailable'},{})
+                self.assertEqual({i['product']['id'] for i in fresh['items']},{i['product']['id'] for i in offline['items']})
+                self.assertEqual(offline['total_products'],1)
+                with sqlite3.connect(path) as conn:
+                    repo=CatalogExpansionRepository(conn)
+                    repo.save_intent('телефон +77771234567',PLAN)
+                    self.assertIsNone(repo.cached_intent('телефон +77771234567'))
+
 
 class QueueRegressionTests(unittest.IsolatedAsyncioTestCase):
     async def scenario(self, shrinking=False, partial=False, count=50):
