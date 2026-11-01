@@ -15,6 +15,7 @@
   Exact category ID распознаётся до fuzzy aliases (иначе removable_storage выбирал storage).
 - Профильные проверки конечного кода: 316 PASS + 244 subtests. Полный до заключительных кейсов:
   2579 PASS + 1118 subtests; финальный полный прогон идёт. Версия 6.15.8.
+- Область дополнена `web/templates/search_first.html`: HDD и карты памяти рядом с SSD в группе комплектующих.
 - Следующий шаг: bundle/build стенда; offline sanitized backup и сверка всех полей кроме category,
   применение исправлений; реальная выдача SSD/HDD/RAM и отсутствие обратного переноса после запуска.
   Hardware intent/expansion rows на стенде нет, активных expansion workers нет.
