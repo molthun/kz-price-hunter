@@ -2962,10 +2962,18 @@ def rekey_titles_conn(conn, new_keys: Dict[str, str]) -> Dict[str, int]:
             if old_cp and old_cp[0] and old_cp[0] != key:
                 aliases.append(("key", old_cp[0], key))
             _move_watch_state(conn, old_pid, new_pid)
-            conn.execute("""INSERT INTO canonical_products (id, canonical_key, title, category, description,
-                                image_url, title_offer_id, created_at, updated_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING""",
-                         (new_pid, key, product["title"], product.get("category") or "", product.get("description") or "",
+            # Новый товар размечается как при обычной записи: без бренда и раздела каталога он выпал бы из выдачи
+            from catalog_classifier import CatalogClassifier
+            from domain.product_options import split_added_product
+            marked = CatalogClassifier().classify_rules(split_added_product(product["title"])[0],
+                                                        raw_category=product.get("category") or "")
+            conn.execute("""INSERT INTO canonical_products (id, canonical_key, title, category, brand, model, item_kind,
+                                description, image_url, title_offer_id, created_at, updated_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING""",
+                         (new_pid, key, product["title"],
+                          marked.category_name if marked else product.get("category") or "",
+                          marked.brand if marked else None, marked.model if marked else None,
+                          marked.item_kind if marked else "device", product.get("description") or "",
                           product.get("image_url") or "", offer_id, now, now))
             conn.execute("UPDATE offers SET product_id = ?, updated_at = ? WHERE id = ?", (new_pid, now, offer_id))
             conn.execute("UPDATE canonical_products SET title_offer_id = NULL WHERE id = ? AND title_offer_id = ?",
