@@ -131,6 +131,10 @@ class GiftTest(unittest.TestCase):
             "Шкаф стекло 2 двери + 2 ящика Ivina",
             "Смарт-часы Apple Watch Series 10 42mm Titanium case + Milanese Loop Slate",
             "Подарок для мамы",
+            "Корпус Wintek Aquarium [Mini Tower, 3 + контроллер и пульт, Черный]",
+            "Печенье Roshen с желе + вишня 420 г",
+            "Набор стираемых фломастеров + ручка-ластик 12 шт.",
+            "ESCENTRIC MOLECULES / Molecule 01 + Mandarin Atomiser Набор",
         ):
             with self.subTest(title=title):
                 self.assertIsNone(split_added_product(title)[1])

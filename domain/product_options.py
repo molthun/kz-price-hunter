@@ -24,6 +24,13 @@ _NOT_A_PRODUCT_RE = re.compile(
     re.I,
 )
 _PLUS_RE = re.compile(r"\s+\+\s+")
+# Состав одного товара, а не второй товар: наборы, продукты, парфюмерия и косметика
+_COMPOSITE_RE = re.compile(
+    r"^\W*(?:набор|подарочн|печень|конфет|шоколад|карамел|мармелад|торт|чай|кофе|сок|напиток|йогурт|крем|шампунь|"
+    r"парфюм|духи|туалетн|happy box)|\bнабор\b|atomiser|/\s*molecule",
+    re.I,
+)
+_BRACKETS_RE = re.compile(r"\[[^\]]*\]|\([^)]*\)")
 _MEMORY_PAIR_RE = re.compile(r"\d+\s*/\s*\d+\s*(?:гб|gb|тб|tb)", re.I)
 
 
@@ -39,6 +46,11 @@ def split_explicit_gift(title: Any) -> Tuple[str, Optional[str]]:
 def split_added_product(title: Any) -> Tuple[str, Optional[str]]:
     """Как split_explicit_gift, но и для «Товар + другой товар» без слова «подарок»."""
     main, gift = split_explicit_gift(title)
+    if gift is None and _COMPOSITE_RE.search(main):
+        return main, None
+    # Плюс внутри скобок относится к характеристикам: «[проводная + беспроводная]»
+    if _PLUS_RE.search(_BRACKETS_RE.sub(" ", main)) is None:
+        return main, gift
     parts = _PLUS_RE.split(main)
     # Первая часть с товаром после плюса; всё, что перед ней, — само исполнение («GPS + Cellular 49 мм»)
     cut = next((i for i, part in enumerate(parts) if i and not _NOT_A_PRODUCT_RE.match(part)), None)
