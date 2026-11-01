@@ -39,7 +39,7 @@ class ProductOptionsTest(unittest.TestCase):
         self.assertEqual(values["black"]["min_price"], 90)
         self.assertEqual(values["black"]["offers_count"], 2)
         self.assertIsNone(values["red"]["min_price"])
-        self.assertEqual(options[0]["values"][-1]["value"], "red")
+        self.assertEqual([v["label"] for v in options[0]["values"]], ["Белый", "Красный", "Чёрный"])
 
     def test_single_color_gives_no_choice(self):
         self.assertEqual(build_options([self._offer("X Black", 100), self._offer("X", 90)]), [])
@@ -128,7 +128,8 @@ class GiftTest(unittest.TestCase):
             "Dsquared2 WOOD Femme Подарочный набор",
             "Смарт-часы Apple Watch Ultra 2 GPS + Cellular 49 мм",
             "AVA ACTN-07TG белый + монтажный комплект",
-            "Комплект Samsung Galaxy Buds Core + Samsung Galaxy S26 FE",
+            "Шкаф стекло 2 двери + 2 ящика Ivina",
+            "Смарт-часы Apple Watch Series 10 42mm Titanium case + Milanese Loop Slate",
             "Подарок для мамы",
         ):
             with self.subTest(title=title):
@@ -137,6 +138,14 @@ class GiftTest(unittest.TestCase):
     def test_added_product(self):
         self.assertEqual(split_added_product("Смартфон Oppo A6x 4/64Gb + Рюкзак RenoChoice Синий"),
                          ("Смартфон Oppo A6x 4/64Gb", "Рюкзак RenoChoice Синий"))
+        self.assertEqual(split_added_product("Sony PlayStation 5 + Dualsense White + MK1"),
+                         ("Sony PlayStation 5", "Dualsense White + MK1"))
+        self.assertEqual(split_added_product("Комплект Стиральная машина Haier X + Сушильная машина Haier Y"),
+                         ("Стиральная машина Haier X", "Сушильная машина Haier Y"))
+        self.assertEqual(split_added_product("Комплект Samsung Galaxy Buds Core + Samsung Galaxy S26 FE 8/256Gb"),
+                         ("Samsung Galaxy S26 FE 8/256Gb", "Samsung Galaxy Buds Core"))
+        self.assertEqual(split_added_product("Apple Watch Ultra GPS + Cellular 49 мм + Чехол"),
+                         ("Apple Watch Ultra GPS + Cellular 49 мм", "Чехол"))
 
     def test_gift_color_and_memory_are_ignored(self):
         self.assertEqual(title_color("Смартфон X 8/256Gb Blue + Наушники Белый"), "blue")
@@ -151,8 +160,8 @@ class GiftTest(unittest.TestCase):
         self.assertEqual((bundle.title, bundle.gift), ("X 128Gb", "Наушники Y"))
         self.assertIsNone(plain.gift)
         lone = offer("X 128Gb + Наушники Y")
-        self.assertFalse(mark_gifts([lone]))
-        self.assertEqual(lone.title, "X 128Gb + Наушники Y")
+        self.assertTrue(mark_gifts([lone]))
+        self.assertEqual(lone.title, "X 128Gb")
 
 
 class SearchFamilyCollapseTest(unittest.TestCase):

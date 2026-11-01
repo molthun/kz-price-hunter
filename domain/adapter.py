@@ -234,8 +234,8 @@ def prepare_legacy_offer_v2(
 
     canonical_key = canonical_key or product.get("canonical_key") or extract_canonical_key(title)
     if not canonical_key:
-        from domain.product_options import split_explicit_gift
-        norm_title = re.sub(r"[^a-zA-Z0-9а-яА-ЯёЁ]+", "_", split_explicit_gift(title)[0].lower()).strip("_")
+        from domain.product_options import split_added_product
+        norm_title = re.sub(r"[^a-zA-Z0-9а-яА-ЯёЁ]+", "_", split_added_product(title)[0].lower()).strip("_")
         canonical_key = f"norm:{category}:{norm_title}" if category else f"norm:{norm_title}"
 
     # 1. Resolve Seller & 2. Resolve Channel

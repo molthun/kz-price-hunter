@@ -392,6 +392,7 @@ def init_schema_v2(conn: sqlite3.Connection) -> None:
     _ensure_column(conn, "canonical_products", "model", "TEXT")
     _ensure_column(conn, "canonical_products", "item_kind", "TEXT DEFAULT 'device'")
     _ensure_column(conn, "canonical_products", "family_id", "TEXT")
+    _ensure_column(conn, "offers", "has_gift", "INTEGER DEFAULT 0")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_canonical_products_family ON canonical_products(family_id)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_canonical_products_model ON canonical_products(model)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_canonical_products_kind ON canonical_products(item_kind)")

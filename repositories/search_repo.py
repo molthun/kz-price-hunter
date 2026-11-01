@@ -152,6 +152,7 @@ class SearchRepository(BaseRepository):
         seller_type: Optional[str] = None,
         seller_id: Optional[str] = None,
         installment: Optional[bool] = None,
+        gift: Optional[bool] = None,
         in_stock: Optional[bool] = None,
         delivery: Optional[str] = None,
         min_price: Optional[float] = None,
@@ -191,6 +192,8 @@ class SearchRepository(BaseRepository):
             conditions.append("(o.seller_id = ? OR s.slug = ? OR s.name = ?)")
             params.extend([s_val, s_val, s_val])
 
+        if gift:
+            conditions.append("o.has_gift = 1")
         if installment:
             conditions.append("(o.installment_available = 1 OR (o.installment_months IS NOT NULL AND o.installment_months > 0))")
 
@@ -387,6 +390,7 @@ class SearchRepository(BaseRepository):
         seller_type: Optional[str] = None,
         seller_id: Optional[str] = None,
         installment: Optional[bool] = None,
+        gift: Optional[bool] = None,
         in_stock: Optional[bool] = None,
         delivery: Optional[str] = None,
         min_price: Optional[float] = None,
@@ -410,7 +414,7 @@ class SearchRepository(BaseRepository):
         # -------------------------------------------------------------------
         exists_conditions, exists_params = self._offer_filter(
             city=city, condition=condition, channel_type=channel_type, seller_type=seller_type,
-            seller_id=seller_id, installment=installment, in_stock=in_stock, delivery=delivery,
+            seller_id=seller_id, installment=installment, gift=gift, in_stock=in_stock, delivery=delivery,
             min_price=min_price, max_price=max_price,
         )
 
@@ -620,6 +624,7 @@ class SearchRepository(BaseRepository):
         seller_type: Optional[str] = None,
         seller_id: Optional[str] = None,
         installment: Optional[bool] = None,
+        gift: Optional[bool] = None,
         in_stock: Optional[bool] = None,
         delivery: Optional[str] = None,
         min_price: Optional[float] = None,
@@ -630,7 +635,7 @@ class SearchRepository(BaseRepository):
         """
         conditions, params = self._offer_filter(
             city=city, condition=condition, channel_type=channel_type, seller_type=seller_type,
-            seller_id=seller_id, installment=installment, in_stock=in_stock, delivery=delivery,
+            seller_id=seller_id, installment=installment, gift=gift, in_stock=in_stock, delivery=delivery,
             min_price=min_price, max_price=max_price,
         )
         ids_sql, ids_params = self._matching_product_ids(search_text, conditions, params, brand, category, model, kind)
@@ -656,6 +661,7 @@ class SearchRepository(BaseRepository):
         seller_type: Optional[str] = None,
         seller_id: Optional[str] = None,
         installment: Optional[bool] = None,
+        gift: Optional[bool] = None,
         in_stock: Optional[bool] = None,
         delivery: Optional[str] = None,
         min_price: Optional[float] = None,
@@ -670,7 +676,7 @@ class SearchRepository(BaseRepository):
         """
         offer_filters: Dict[str, Any] = dict(
             city=city, condition=condition, channel_type=channel_type, seller_type=seller_type,
-            seller_id=seller_id, installment=installment, in_stock=in_stock, delivery=delivery,
+            seller_id=seller_id, installment=installment, gift=gift, in_stock=in_stock, delivery=delivery,
             min_price=min_price, max_price=max_price,
         )
         conditions, params = self._offer_filter(**offer_filters)

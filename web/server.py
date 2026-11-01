@@ -1219,6 +1219,7 @@ async def search_v2_handler(request):
     kind = request.query.get("kind") or request.query.get("item_kind") or None
     delivery = request.query.get("delivery")
     installment = request.query.get("installment") in ("1", "true", "yes") if "installment" in request.query else None
+    gift = True if request.query.get("gift") in ("1", "true", "yes") else None
     in_stock = request.query.get("in_stock") in ("1", "true", "yes") if "in_stock" in request.query else None
 
     min_price = None
@@ -1258,7 +1259,7 @@ async def search_v2_handler(request):
             channel_type=channel_type,
             seller_type=seller_type,
             seller_id=seller_id,
-            installment=installment,
+            installment=installment, gift=gift,
             in_stock=in_stock,
             delivery=delivery,
             min_price=min_price,
@@ -1295,6 +1296,7 @@ def _run_search_v2_sync(
     kind=None,
     seller_id=None,
     installment=None,
+    gift=None,
     in_stock=None,
     delivery=None,
     page=1,
@@ -1314,7 +1316,7 @@ def _run_search_v2_sync(
             channel_type=channel_type,
             seller_type=seller_type,
             seller_id=seller_id,
-            installment=installment,
+            installment=installment, gift=gift,
             in_stock=in_stock,
             delivery=delivery,
             min_price=min_price,

@@ -999,9 +999,9 @@
     }
 
     .detail-options {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 14px;
       margin: 14px 0;
     }
 
@@ -1023,15 +1023,42 @@
     }
 
     .card-gift-hint {
-      font-size: 0.82rem;
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      background: rgba(245, 158, 11, 0.16);
+      font-size: 0.8rem;
       font-weight: 600;
       color: var(--text-main);
     }
 
     .offer-gift {
+      display: inline-block;
+      margin: 4px 0;
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      background: rgba(245, 158, 11, 0.16);
       font-size: 0.8rem;
+      font-weight: 600;
       color: var(--text-main);
-      margin-top: 2px;
+    }
+
+    .offers-table tr.offer-row-gift td:first-child {
+      box-shadow: inset 3px 0 0 #f59e0b;
+    }
+
+    .offers-gift-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: 12px;
+      font-size: 0.88rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .offers-gift-toggle[hidden] {
+      display: none;
     }
 
     .card-variants-hint {
@@ -1056,9 +1083,10 @@
     }
 
     .detail-option-select {
-      width: 100%;
-      min-height: 40px;
-      padding: 8px 10px;
+      max-width: 100%;
+      min-width: 96px;
+      min-height: 34px;
+      padding: 5px 8px;
       background: var(--bg-subtle);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-sm);
@@ -3796,6 +3824,10 @@
               <span>С рассрочкой</span>
             </label>
             <label class="filter-checkbox-label">
+              <input type="checkbox" id="filterGift" />
+              <span>🎁 Только с подарком</span>
+            </label>
+            <label class="filter-checkbox-label">
               <input type="checkbox" id="filterInStock" />
               <span>Только в наличии</span>
             </label>
@@ -3895,6 +3927,10 @@
         <h2 class="offers-title">
           <span>Предложения от продавцов</span>
           <span id="offersCountBadge" style="font-size:0.95rem; font-weight:400; color:var(--text-muted);"></span>
+          <label class="offers-gift-toggle" id="detailGiftToggle" hidden>
+            <input type="checkbox" id="detailOnlyGift" onchange="applyDetailOptions()">
+            <span>🎁 Только с подарком</span>
+          </label>
         </h2>
 
         <div class="offers-table-wrap">
@@ -4450,6 +4486,7 @@
       min_price: '',
       max_price: '',
       installment: false,
+      gift: false,
       in_stock: false,
       delivery: '',
       currentProduct: null,
@@ -5933,6 +5970,7 @@
       AppState.sort = params.get('sort') || 'relevance';
       AppState.page = Math.max(1, parseInt(params.get('page') || '1', 10) || 1);
       AppState.installment = params.get('installment') === '1' || params.get('installment') === 'true';
+      AppState.gift = params.get('gift') === '1';
       AppState.in_stock = params.get('in_stock') === '1' || params.get('in_stock') === 'true';
 
       // Sync form fields
@@ -5946,6 +5984,8 @@
       if (sortSel) sortSel.value = AppState.sort;
       const instChk = document.getElementById('filterInstallment');
       if (instChk) instChk.checked = AppState.installment;
+      const giftChk = document.getElementById('filterGift');
+      if (giftChk) giftChk.checked = AppState.gift;
       const stockChk = document.getElementById('filterInStock');
       if (stockChk) stockChk.checked = AppState.in_stock;
 
@@ -5970,6 +6010,7 @@
       if (AppState.sort && AppState.sort !== 'relevance') p.set('sort', AppState.sort);
       if (AppState.page > 1) p.set('page', AppState.page);
       if (AppState.installment) p.set('installment', '1');
+      if (AppState.gift) p.set('gift', '1');
       if (AppState.in_stock) p.set('in_stock', '1');
 
       const newUrl = '/search?' + p.toString();
@@ -6029,6 +6070,7 @@
       p.set('limit', AppState.limit);
       p.set('page', AppState.page);
       if (AppState.installment) p.set('installment', '1');
+      if (AppState.gift) p.set('gift', '1');
       if (AppState.in_stock) p.set('in_stock', '1');
 
       try {
@@ -6356,6 +6398,7 @@
       AppState.condition = cond ? cond.value : '';
 
       AppState.installment = document.getElementById('filterInstallment').checked;
+      AppState.gift = document.getElementById('filterGift').checked;
       AppState.in_stock = document.getElementById('filterInStock').checked;
 
       closeMobileFilters();
@@ -6376,6 +6419,7 @@
       AppState.min_price = '';
       AppState.max_price = '';
       AppState.installment = false;
+      AppState.gift = false;
       AppState.in_stock = false;
       AppState.page = 1;
       AppState.sort = 'relevance';
@@ -6386,6 +6430,8 @@
       if (maxP) maxP.value = '';
       const instChk = document.getElementById('filterInstallment');
       if (instChk) instChk.checked = false;
+      const giftChk = document.getElementById('filterGift');
+      if (giftChk) giftChk.checked = false;
       const stockChk = document.getElementById('filterInStock');
       if (stockChk) stockChk.checked = false;
 
@@ -6624,17 +6670,20 @@
       const data = detailProductData;
       const options = data.options || [];
       const selected = Object.entries(detailSelectedOptions);
+      const giftToggle = document.getElementById('detailGiftToggle');
+      giftToggle.hidden = !data.has_gift;
+      const onlyGift = data.has_gift && document.getElementById('detailOnlyGift').checked;
       const offers = (data.offers || []).filter(off =>
-        selected.every(([key, value]) => (off.options || {})[key] === value));
+        selected.every(([key, value]) => (off.options || {})[key] === value)
+        && (!onlyGift || off.gift !== null && off.gift !== undefined));
 
       const box = document.getElementById('detailOptions');
       box.hidden = options.length === 0;
       box.innerHTML = options.map(opt => {
-        const price = v => v.min_price ? ' — от ' + formatPrice(v.min_price) : '';
         const items = opt.navigates
-          ? opt.values.map(v => `<option value="${escapeHtml(v.product_id)}"${v.current ? ' selected' : ''}>${escapeHtml(v.label + price(v))}</option>`)
+          ? opt.values.map(v => `<option value="${escapeHtml(v.product_id)}"${v.current ? ' selected' : ''}>${escapeHtml(v.label)}</option>`)
           : ['<option value="">Все</option>'].concat(opt.values.map(v =>
-              `<option value="${escapeHtml(v.value)}"${detailSelectedOptions[opt.id] === v.value ? ' selected' : ''}>${escapeHtml(v.label + price(v))}</option>`));
+              `<option value="${escapeHtml(v.value)}"${detailSelectedOptions[opt.id] === v.value ? ' selected' : ''}>${escapeHtml(v.label)}</option>`));
         const chosen = opt.values.find(v => v.value === detailSelectedOptions[opt.id]);
         const swatches = chosen ? (chosen.swatches || []).map(c => `<span class="detail-option-swatch" style="background:${escapeHtml(c)}"></span>`).join('') : '';
         return `<label class="detail-option">
@@ -6649,7 +6698,7 @@
         });
       });
 
-      if (selected.length) {
+      if (selected.length || onlyGift) {
         const buyable = offers.filter(off => off.is_purchasable);
         const best = buyable.length ? Math.min(...buyable.map(off => off.price)) : null;
         document.getElementById('detailBestPrice').textContent = best ? formatPrice(best) : '—';
@@ -6727,8 +6776,9 @@
           </button>`;
         }
 
+        const hasGift = off.gift !== null && off.gift !== undefined;
         return `
-          <tr>
+          <tr${hasGift ? ' class="offer-row-gift"' : ''}>
             <td>
               <div class="seller-cell-title">
                 <span>${escapeHtml(off.seller_name || 'Магазин')}</span>

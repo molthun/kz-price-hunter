@@ -16,13 +16,15 @@ _EXPLICIT_GIFT_RE = re.compile(
     r"\s*\+\s*(?:(?:акци\w*\s*)?(?:\d+\s*)?подар\w*\s*(?P<rest>.*)|(?P<named>[^+]*?)\s+в\s+подарок\b.*)$",
     re.I,
 )
-# Без слова «подарок»: «Смартфон + Наушники». Подарком считается только при цене как у самого товара
-# (gift_bundles.py). «+ Cellular» и «+ монтажный комплект» сюда не подходят: это само исполнение.
-_ADDED_PRODUCT_RE = re.compile(
-    r"\s+\+\s+(?P<rest>(?:наушники|наушник|смарт[- ]часы|часы|смартфон|рюкзак|адаптер|чехол|стекло|ремешок|"
-    r"powerbank|повербанк|зарядное|блок\s+питания|кабель|колонка|портативн\w+|фитнес[- ]браслет)\b.*)$",
+# «Товар + другой товар» — всегда подарок: покупатель сам решает, нужен ли он. Исключение — то, что товаром
+# не является: связь и исполнение («+ Cellular», «+ монтажный комплект»), числа («2 двери + 2 ящика»), цвет.
+_NOT_A_PRODUCT_RE = re.compile(
+    r"^(?:\d|cellular|lte|wi-?fi|bluetooth|[345]g\b|монтажн|установк|беспроводн|проводн|аккумуляторн|сетев|"
+    r"sport\s+(?:band|loop)|milanese|trail\s+loop|alpine\s+loop|ocean\s+band|band\b|loop\b|дуб\b)",
     re.I,
 )
+_PLUS_RE = re.compile(r"\s+\+\s+")
+_MEMORY_PAIR_RE = re.compile(r"\d+\s*/\s*\d+\s*(?:гб|gb|тб|tb)", re.I)
 
 
 def split_explicit_gift(title: Any) -> Tuple[str, Optional[str]]:
@@ -35,16 +37,24 @@ def split_explicit_gift(title: Any) -> Tuple[str, Optional[str]]:
 
 
 def split_added_product(title: Any) -> Tuple[str, Optional[str]]:
-    """Как split_explicit_gift, но для «Товар + другой товар» без слова «подарок»."""
+    """Как split_explicit_gift, но и для «Товар + другой товар» без слова «подарок»."""
     main, gift = split_explicit_gift(title)
-    if gift is not None:
+    parts = _PLUS_RE.split(main)
+    # Первая часть с товаром после плюса; всё, что перед ней, — само исполнение («GPS + Cellular 49 мм»)
+    cut = next((i for i, part in enumerate(parts) if i and not _NOT_A_PRODUCT_RE.match(part)), None)
+    if cut is None:
         return main, gift
-    if main.lower().startswith("комплект"):
-        return main, None                           # в «Комплекте» главный товар бывает и вторым
-    found = _ADDED_PRODUCT_RE.search(main)
-    if not found or found.start() == 0:
-        return main, None
-    return main[:found.start()].strip(), found.group("rest").strip()
+    head = " + ".join(parts[:cut])
+    added = parts[cut:]
+    if re.match(r"комплект\b", head, re.I):
+        head = re.sub(r"^комплект\s+", "", head, flags=re.I)
+        # В «Комплекте» порядок случаен: главный товар тот, у кого указана память («Buds + Galaxy S26 8/256Gb»)
+        phone = next((part for part in added if _MEMORY_PAIR_RE.search(part)), None)
+        if phone and not _MEMORY_PAIR_RE.search(head):
+            added = [head] + [part for part in added if part is not phone]
+            head = phone
+    extra = " + ".join(added)
+    return head.strip(), f"{extra} + {gift}" if gift else extra.strip()
 
 
 # Значение, подпись, образец цвета, основы русских и английских написаний
@@ -136,7 +146,7 @@ def build_options(offers: List[Any]) -> List[Dict[str, Any]]:
                 "offers_count": len(items),
                 "min_price": min(prices) if prices else None,
             })
-        values.sort(key=lambda v: (v["min_price"] is None, v["min_price"] or 0, v["label"]))
+        values.sort(key=lambda v: v["label"])
         result.append({"id": key, "label": label, "values": values})
     return result
 
@@ -336,16 +346,11 @@ def refresh_family_ids(conn) -> int:
 
 
 def mark_gifts(offers: List[Any]) -> bool:
-    """Подарок и чистое название у предложений. Возвращает True, если подарок есть хотя бы у одного.
-
-    «Товар + другой товар» в одной группе с обычным предложением — подарок: иначе сюда бы его не объединили.
-    """
-    parsed = [(offer, split_added_product(offer.title)) for offer in offers if offer.title]
-    has_plain = any(gift is None for _, (_, gift) in parsed)
+    """Подарок и чистое название у предложений. Возвращает True, если подарок есть хотя бы у одного."""
     any_gift = False
-    for offer, (main, gift) in parsed:
-        explicit = split_explicit_gift(offer.title)[1] is not None
-        if gift is not None and (explicit or has_plain):
+    for offer in offers:
+        main, gift = split_added_product(offer.title)
+        if gift is not None:
             offer.title = main
             offer.gift = gift
             any_gift = True

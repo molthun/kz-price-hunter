@@ -144,8 +144,8 @@ def extract_canonical_key(title: str) -> Optional[str]:
     if not title:
         return None
     from detector import is_junk_accessory
-    from domain.product_options import split_explicit_gift
-    title = split_explicit_gift(title)[0]           # подарок не меняет товар
+    from domain.product_options import split_added_product
+    title = split_added_product(title)[0]           # подарок не меняет товар
     if is_junk_accessory(title):
         return None
     family = _family_key(title)
