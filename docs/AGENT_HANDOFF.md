@@ -2,7 +2,46 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## STAND_DEPLOYED → Владелец: Стандартизация нейминга Apple, фикс бага часов Aluminium Case и полная очистка моделей (2026-11-01)
+## STAND_DEPLOYED → Владелец: Полная стандартизация экосистемы Apple (Mac, iPad, Watch, Audio, Displays, Peripherals) и фильтрация ложных брендов (2026-11-01)
+
+- **Основание:** прямое поручение владельца («Да у всей компании Apple нейминг стандартизирован. потихоньку так все разберем. Везде напрягай локальную ИИ пусть исправляет сразу что нашли.»).
+- **Исполнитель:** Antigravity (основной разработчик).
+- **Срез на стенде:** `27d8c92` (ветка `feature/search-first-stage-1`), доставлен через git bundle `/tmp/kzph-apple-viti.bundle` без push в `main`. Контейнер `kzph-stand:local` пересобран и в статусе `Up (healthy)`.
+- **Что реализовано и проверено:**
+  1. **MacBook & Mac Desktops (`extract_mac_model`):**
+     - Каноническая стандартизация: `MacBook Air 13`, `MacBook Air 15`, `MacBook Pro 14`, `MacBook Pro 16`, `MacBook Pro 13`, `MacBook Pro 15`, `MacBook Neo 13`, `MacBook 12`, `iMac 24`, `iMac 27`, `Mac mini`, `Mac Studio`, `Mac Pro`.
+     - Нормализация розничных опечаток: поддержка кириллической буквы «о» в слове «Prо» (`re.sub(r"\bpr[оo]\b", "pro")`).
+     - Распознавание диагоналей Pro без слова Pro в заголовке («MacBook M3 Pro 16.2» → `MacBook Pro 16`, «MacBook M3 Pro 14.2» → `MacBook Pro 14`).
+     - Итог на стенде (572 ноутбука Apple): 0% мусора, 100% чистые канонические модели.
+  2. **iPad & Планшеты (`extract_ipad_model`):**
+     - Стандартизация: `iPad Air 11`, `iPad Air 13`, `iPad Pro 11`, `iPad Pro 13`, `iPad Pro 12.9`, `iPad mini`, `iPad 11`, `iPad 10`, `iPad 9`.
+     - Защита от чехлов-клавиатур и стилусов: клавиатуры `Magic Keyboard для iPad` и сторонние стилусы изолированы от категории «Планшеты».
+     - Итог на стенде (441 планшет Apple): 100% чистые канонические модели.
+  3. **Apple Watch (`extract_apple_watch_model`):**
+     - Поддержка артикулов розницы («Watch 3N492RU/A Series 10»), модификаций Nike («Watch Nike SE»), «Series SE» и слитного написания без пробела («Series 11GPS42mm»).
+     - Защита от ремешков, беспроводных зарядок и док-станций сторонних производителей (`Ugreen`, `S&M`).
+     - Итог на стенде (566 часов Apple): 100% чистые модели линейки (SE, Ultra 2, Ultra, Series 1..12).
+  4. **Аудио: AirPods & EarPods (`extract_apple_audio_model`):**
+     - Стандартизация: `AirPods Max`, `AirPods Pro 2`, `AirPods Pro`, `AirPods 4`, `AirPods 3`, `AirPods 2`, `EarPods`.
+     - Распознавание официальных артикулов EarPods USB-C/Lightning (`MYQY3ZM/A`, `MTJY3ZM/A`).
+     - Изоляция совместимости: сторонние наушники («Беспроводные наушники для iPhone», «ViTi WSS-Iphone») и переходники (`Sonnen`) больше не попадают в бренд Apple.
+     - Итог на стенде (155 наушников Apple): 0 посторонних товаров.
+  5. **Дисплеи и периферия (`extract_apple_display_model`, `extract_apple_input_device_model`):**
+     - Все дисплеи Apple стандартизированы как `Studio Display` и `Pro Display XDR`.
+     - Фирменные устройства ввода: `Apple Pencil Pro`, `Apple Pencil (USB-C)`, `Apple Pencil 2`, `Apple Pencil`, `Magic Keyboard`, `Magic Trackpad`, `Magic Mouse` сохраняют каноническую модель.
+  6. **Устранение ложных срабатываний бренда Apple:**
+     - Итальянская обувь `IMAC` («Кроссовки Imac», «Туфли Imac», «Сапоги Imac») переведена в категорию «Обувь» (`shoes`) с брендом `IMAC`.
+     - Профессиональная косметика `M·A·C` («MAC Studio Fix Loose Powder», праймеры, тональные крема) переведена в категорию «Красота и здоровье» (`beauty`) с брендом `M·A·C`.
+     - Садовый инвентарь (`Green Apple`), посуда (`Lara Apple`), сладости (`Qazaq Apple`, `Trolli Apple`), парфюмерия и трекеры (`MVTAG`) очищены от бренда Apple.
+  7. **Результаты полного бэкфилла живой базы стенда (106 739 товаров):**
+     - Бренд `Apple`: ровно 2 157 товаров в 11 категориях и 92 уникальные канонические модели.
+     - Ни одного стороннего аксессуара, конфет или духов в бренде Apple.
+     - Тесты: 2 470 тестов проекта пройдены успешно (0 ошибок).
+- **Production:** прод `shop.molthun.ru` не менялся, push в `main` не производился.
+
+---
+
+
 
 - **Основание:** прямое поручение владельца («У телефонов Аpple стандартизированый нейминг. что то с неймингом не то»).
 - **Исполнитель:** Antigravity (основной разработчик).
