@@ -10,7 +10,7 @@
     /* Synchronous early theme application to avoid FOUC */
     (function() {
       try {
-        const saved = localStorage.getItem('kz_theme');
+        const saved = localStorage.getItem('kz_theme_mode') || localStorage.getItem('kz_theme');
         const systemDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
         const theme = (saved === 'dark' || saved === 'light') ? saved : (systemDark ? 'dark' : 'light');
         document.documentElement.setAttribute('data-theme', theme);
@@ -2724,62 +2724,91 @@
     }
 
     /* Profile Theme Options Grid */
-    .profile-theme-row {
+    .profile-user-actions {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 10px 16px;
+      gap: 8px;
     }
-    .profile-theme-label {
-      font-size: 0.98rem;
-      font-weight: 600;
-      color: var(--text-main);
+    .theme-picker {
+      position: relative;
     }
-    .theme-segmented {
+    .theme-icon, .theme-picker-chevron, .theme-menu-check {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .theme-picker-btn {
       display: inline-flex;
-      gap: 2px;
-      padding: 3px;
-      max-width: 100%;
-      background: var(--bg-subtle);
+      align-items: center;
+      gap: 6px;
+      min-height: 36px;
+      padding: 0 10px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-full);
+      background: transparent;
+      color: var(--text-main);
+      cursor: pointer;
+    }
+    .theme-picker-btn:hover, .theme-picker-btn[aria-expanded="true"] {
+      border-color: var(--primary);
+    }
+    #themePickerIcon {
+      display: inline-flex;
+    }
+    .theme-picker-chevron {
+      width: 14px;
+      height: 14px;
+      color: var(--text-muted);
+    }
+    .theme-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      z-index: 50;
+      min-width: 180px;
+      padding: 6px;
+      background: var(--bg-card);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
     }
-    .theme-segment {
-      flex: 1 1 auto;
-      min-height: 34px;
-      padding: 5px 12px;
+    .theme-menu[hidden] {
+      display: none;
+    }
+    .theme-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      min-height: 38px;
+      padding: 6px 10px;
       border: none;
       border-radius: var(--radius-sm);
       background: transparent;
-      color: var(--text-muted);
+      color: var(--text-main);
       font: inherit;
-      font-size: 0.85rem;
-      font-weight: 500;
-      white-space: nowrap;
+      font-size: 0.9rem;
+      text-align: left;
       cursor: pointer;
-      transition: background 0.15s ease, color 0.15s ease;
     }
-    .theme-segment:hover {
-      color: var(--text-main);
+    .theme-menu-item:hover, .theme-menu-item:focus-visible {
+      background: var(--bg-subtle);
+      outline: none;
     }
-    .theme-segment:focus-visible {
-      outline: 2px solid var(--primary);
-      outline-offset: 1px;
+    .theme-menu-item > span {
+      flex: 1;
     }
-    .theme-segment.active {
-      background: var(--bg-card);
-      color: var(--text-main);
-      font-weight: 600;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+    .theme-menu-check {
+      visibility: hidden;
+      color: #22c55e;
     }
-    @media (max-width: 480px) {
-      .theme-segmented {
-        width: 100%;
-      }
-      .theme-segment {
-        padding: 5px 6px;
-      }
+    .theme-menu-item.active .theme-menu-check {
+      visibility: visible;
     }
 
     /* Closed Development Layout */
@@ -4137,8 +4166,30 @@
                 <h1 class="profile-name" id="profileUserName">Мой профиль</h1>
                 <div class="profile-subtext" id="profileUserSubtext">Гостевой сеанс • Локальные настройки и избранное</div>
               </div>
-              <div id="profileUserActionBtn">
-                <!-- Logout or Login button -->
+              <div class="profile-user-actions">
+                <div class="theme-picker" id="themePicker">
+                  <button type="button" class="theme-picker-btn" id="themePickerBtn" aria-haspopup="menu" aria-expanded="false" aria-label="Оформление" title="Оформление" onclick="toggleThemeMenu()">
+                    <span id="themePickerIcon"><svg class="theme-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></span>
+                    <svg class="theme-picker-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+                  </button>
+                  <div class="theme-menu" id="themeMenu" role="menu" aria-label="Оформление" hidden>
+                  <button type="button" class="theme-menu-item" id="themeOptLight" role="menuitemradio" aria-checked="false" onclick="selectTheme('light')">
+                    <svg class="theme-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><span>Светлая</span>
+                    <svg class="theme-menu-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+                  </button>
+                  <button type="button" class="theme-menu-item" id="themeOptDark" role="menuitemradio" aria-checked="false" onclick="selectTheme('dark')">
+                    <svg class="theme-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg><span>Тёмная</span>
+                    <svg class="theme-menu-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+                  </button>
+                  <button type="button" class="theme-menu-item" id="themeOptAuto" role="menuitemradio" aria-checked="false" onclick="selectTheme('auto')">
+                    <svg class="theme-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg><span>Системная</span>
+                    <svg class="theme-menu-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+                  </button>
+                  </div>
+                </div>
+                <div id="profileUserActionBtn">
+                  <!-- Logout or Login button -->
+                </div>
               </div>
             </div>
             <div class="profile-badges-row" style="margin-top: 10px;">
@@ -4211,16 +4262,6 @@
           <div style="font-size: 1.2rem; color: var(--text-muted);">›</div>
         </div>
 
-
-        <!-- Theme Selector in Profile -->
-        <div class="profile-card profile-theme-row">
-          <div class="profile-theme-label" id="profileThemeLabel">Оформление</div>
-          <div class="theme-segmented" role="radiogroup" aria-labelledby="profileThemeLabel">
-            <button type="button" class="theme-segment" id="themeOptLight" role="radio" onclick="selectTheme('light')"><span aria-hidden="true">☀️</span> Светлая</button>
-            <button type="button" class="theme-segment" id="themeOptDark" role="radio" onclick="selectTheme('dark')"><span aria-hidden="true">🌙</span> Тёмная</button>
-            <button type="button" class="theme-segment" id="themeOptAuto" role="radio" onclick="selectTheme('auto')"><span aria-hidden="true">💻</span> Авто</button>
-          </div>
-        </div>
 
         <!-- Privacy & Local Data Management -->
         <div class="profile-card">
@@ -4578,19 +4619,41 @@
         localStorage.setItem('kz_theme_mode', mode);
       } catch (e) {}
       applyThemeMode(mode);
-      const labels = { light: 'Светлая тема', dark: 'Тёмная тема', auto: 'Системная тема (Авто)' };
-      showToast('🎨 Выбрана: ' + (labels[mode] || mode));
+      toggleThemeMenu(false);
+      const button = document.getElementById('themePickerBtn');
+      if (button) button.focus();
     }
 
     function updateProfileThemeCards(mode) {
+      const current = ['light', 'dark'].includes(mode) ? mode : 'auto';
       ['light', 'dark', 'auto'].forEach(m => {
         const el = document.getElementById('themeOpt' + m.charAt(0).toUpperCase() + m.slice(1));
-        if (el) {
-          el.classList.toggle('active', m === mode);
-          el.setAttribute('aria-checked', String(m === mode));
+        if (!el) return;
+        el.classList.toggle('active', m === current);
+        el.setAttribute('aria-checked', String(m === current));
+        if (m === current) {
+          const icon = document.getElementById('themePickerIcon');
+          if (icon) icon.innerHTML = el.querySelector('.theme-icon').outerHTML;
         }
       });
     }
+
+    function toggleThemeMenu(open) {
+      const menu = document.getElementById('themeMenu');
+      const button = document.getElementById('themePickerBtn');
+      if (!menu || !button) return;
+      const show = typeof open === 'boolean' ? open : menu.hidden;
+      menu.hidden = !show;
+      button.setAttribute('aria-expanded', String(show));
+    }
+
+    document.addEventListener('click', (e) => {
+      const picker = document.getElementById('themePicker');
+      if (picker && !picker.contains(e.target)) toggleThemeMenu(false);
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') toggleThemeMenu(false);
+    });
 
     function initTheme() {
       let mode = 'auto';
@@ -4602,7 +4665,7 @@
 
     if (window.matchMedia) {
       window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-        const currentMode = localStorage.getItem('kz_theme_mode') || 'auto';
+        const currentMode = localStorage.getItem('kz_theme_mode') || localStorage.getItem('kz_theme') || 'auto';
         if (currentMode === 'auto') {
           applyThemeMode('auto');
         }
