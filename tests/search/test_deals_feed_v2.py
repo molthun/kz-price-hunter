@@ -254,5 +254,5 @@ class TestSearchFirstTemplateIntegrity(unittest.TestCase):
         self.assertIn('id="headerBtnDashboard"', self.html)
         self.assertNotIn('id="navLinkDashboard"', self.html)
         self.assertIn('href="/admin" class="btn-legacy" id="headerBtnDashboard"', self.html)
-        self.assertIn('id="profileAdminPanelCard"', self.html)
+        self.assertNotIn('id="profileAdminPanelCard"', self.html)
         self.assertIn('is-admin-visible', self.html)

@@ -4225,21 +4225,6 @@
           <div style="font-size: 1.2rem; color: var(--text-muted);">›</div>
         </div>
 
-        <!-- Admin Panel Access (Admins Only) -->
-        <div class="profile-card" id="profileAdminPanelCard" style="display: none; border-left: 4px solid var(--primary);">
-          <div class="profile-section-header">
-            <div>
-              <h2 class="profile-section-title">⚙️ Управление сервисом</h2>
-              <div class="profile-section-desc">Сканеры, настройки и мониторинг сервиса.</div>
-            </div>
-            <span class="badge badge-super">👑 Администратор</span>
-          </div>
-          <div style="margin-top: 14px;">
-            <a href="/admin" class="btn-primary" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none;">
-              ⚙️ Открыть управление
-            </a>
-          </div>
-        </div>
 
         <!-- User Management Card (Admin Only) -->
         <div class="profile-card" id="profileAdminUsersCard" style="display: none; border-left: 4px solid #10b981;">
@@ -5006,10 +4991,6 @@
         } else {
           headerBtnDashboard.classList.remove('is-admin-visible');
         }
-      }
-      const profileAdminCard = document.getElementById('profileAdminPanelCard');
-      if (profileAdminCard) {
-        profileAdminCard.style.display = isAdmin ? 'block' : 'none';
       }
       const profileAdminUsers = document.getElementById('profileAdminUsersCard');
       if (profileAdminUsers) {
