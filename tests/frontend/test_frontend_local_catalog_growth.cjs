@@ -15,6 +15,7 @@ const plan = {category_name:'Шины и диски',fields:[{key:'season',label
   for (const width of [390,1366]) for (const scheme of ['light','dark']) {
    const ctx = await browser.newContext({viewport:{width,height:900},colorScheme:scheme});
    const page = await ctx.newPage();const errors=[];const calls=[];
+   let expansionStatus='proposed', expansionPolls=0, expansionPosts=0;
    page.on('pageerror',e=>errors.push(e.message));
    await page.route('**/*',async route=>{
     const u=new URL(route.request().url());
@@ -32,8 +33,16 @@ const plan = {category_name:'Шины и диски',fields:[{key:'season',label
     if(u.pathname==='/api/me')return J({ok:true,authenticated:false,user:null,maintenance_mode:false,auth:{}});
     if(u.pathname==='/api/v2/categories')return J({categories:[]});
     if(u.pathname==='/api/admin/users')return J([]);
-    if(u.pathname==='/api/admin/catalog-expansions')return J({items:[{id:'r1',query:'зимняя резина',city:'Астана',plan,status:'proposed',demand:1}]});
-    if(u.pathname.endsWith('/review'))return J({ok:true});
+    if(u.pathname==='/api/admin/catalog-expansions'){
+     if(['approved','checking'].includes(expansionStatus)){
+      expansionPolls++;
+      expansionStatus=expansionPolls===1?'approved':expansionPolls===2?'checking':'needs_source';
+     }
+     return J({items:[{id:'r1',query:'зимняя резина',city:'Астана',plan,status:expansionStatus,demand:1,
+      checked_at:expansionStatus==='needs_source'?'2026-11-01T16:00:00+00:00':null,
+      message:expansionStatus==='needs_source'?'Подходящие предложения не подтверждены.':'Проверка запланирована.'}]});
+    }
+    if(u.pathname.endsWith('/review')){expansionPosts++;expansionStatus='approved';return J({ok:true});}
     if(u.pathname.startsWith('/api/'))return J({});
     return route.fulfill({contentType:'text/html',body:u.pathname==='/admin'?admin:html});
    });
@@ -57,7 +66,13 @@ const plan = {category_name:'Шины и диски',fields:[{key:'season',label
    if(out)await page.screenshot({path:path.join(out,`filters-${width}-${scheme}.png`),fullPage:true});
    await page.goto(BASE+'/admin');
    await page.getByRole('button',{name:'Подтвердить и проверить'}).waitFor();
-   await page.getByRole('button',{name:'Подтвердить и проверить'}).click();
+   await page.getByRole('button',{name:'Подтвердить и проверить'}).evaluate(button=>{button.click();button.click();});
+   await page.getByRole('button',{name:'В очереди…',exact:true}).waitFor();
+   assert.equal(await page.getByRole('button',{name:'В очереди…',exact:true}).isDisabled(),true);
+   await page.getByText('Нужно подключить источник',{exact:true}).waitFor({timeout:12000});
+   assert.equal(expansionPosts,1,'rapid repeat does not restart the task');
+   assert.match(await page.locator('#expansionList').innerText(),/Последняя завершённая проверка:/);
+   assert.match(await page.locator('#expansionState').innerText(),/завершена/);
    assert.match(await page.locator('#expansionList').innerText(),/Фильтры: Сезон/);
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
    assert.deepEqual(errors,[]);

@@ -123,7 +123,7 @@
     <h1>Управление сервисом</h1>
     <section class="card" style="margin-bottom:20px;">
       <div class="card-head"><h2>Расширение каталога</h2></div>
-      <p>Запросы без предложений. Помощник предлагает разделы и фильтры; после подтверждения проверяем подключённые магазины. Новый сайт может потребовать отдельного подключения.</p>
+      <p>Запросы на расширение ассортимента и фильтров. После подтверждения проверяем подключённые магазины. Статусы обновляются автоматически. Новый сайт может потребовать отдельного подключения.</p>
       <button type="button" onclick="loadExpansions()">Обновить</button>
       <div id="expansionList"></div><div id="expansionState" class="state" role="status"></div>
     </section>
@@ -226,42 +226,104 @@
       stateEl.textContent = users.length ? '' : 'Пользователей пока нет';
     }
 
-    async function loadExpansions() {
+    let expansionTimer;
+    let expansionReadId = 0;
+    let expansionPosting = false;
+    let expansionSignature = '';
+    let expansionNotice = '';
+    const previousExpansions = new Map();
+    const expansionNames = {proposed:'Ожидает подтверждения',approved:'Ожидает начала проверки',
+      checking:'Проверка выполняется…',indexed:'Проверка завершена',needs_source:'Нужно подключить источник',
+      failed:'Проверка завершилась с ошибкой',rejected:'Отклонено'};
+
+    async function changeExpansion(item, decision, row) {
+      if (expansionPosting) return;
+      expansionPosting = true;
+      ++expansionReadId; // an older GET must not overwrite the action in progress
+      clearTimeout(expansionTimer);
+      document.querySelectorAll('#expansionList button').forEach(button => { button.disabled = true; });
+      row.querySelector('[data-expansion-state]').textContent = decision === 'approve' ? 'Отправляем запрос на проверку…' : 'Отменяем заявку…';
+      const state = document.getElementById('expansionState');
+      state.textContent = 'Сохраняем действие…';
+      try {
+        const response = await fetch('/api/admin/catalog-expansions/' + encodeURIComponent(item.id) + '/review', {
+          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({decision})
+        });
+        const result = await response.json();
+        if (!response.ok || !result.ok) throw new Error(result.error || 'Не удалось сохранить действие. Повторите.');
+        expansionNotice = decision === 'approve' ? 'Проверка «' + item.query + '» поставлена в очередь. Статус обновится автоматически.' : 'Заявка «' + item.query + '» отклонена.';
+      } catch (error) {
+        expansionNotice = error.message || 'Не удалось сохранить действие. Повторите.';
+      } finally {
+        expansionPosting = false;
+        expansionSignature = '';
+        await loadExpansions(true);
+      }
+    }
+
+    async function loadExpansions(quiet = false) {
+      if (expansionPosting || document.hidden) return;
+      clearTimeout(expansionTimer);
+      const requestId = ++expansionReadId;
       const target = document.getElementById('expansionList');
       const state = document.getElementById('expansionState');
-      state.textContent = 'Загрузка…';
+      if (!quiet) state.textContent = 'Загрузка…';
+      let running = false;
       try {
-        const response = await fetch('/api/admin/catalog-expansions');
+        const response = await fetch('/api/admin/catalog-expansions', {cache:'no-store'});
         if (!response.ok) throw new Error();
-        const data = await response.json(); target.replaceChildren();
-        const names = {proposed:'Ожидает проверки',approved:'В очереди',checking:'Проверяем магазины',indexed:'Характеристики заполнены',needs_source:'Нужно подключение источника',failed:'Проверка не завершена',rejected:'Отклонено'};
-        (data.items || []).forEach(item => {
-          const row = element('div', 'user'); row.style.flexWrap = 'wrap';
-          const info = element('div', 'user-info'); info.style.minWidth = '0'; info.style.overflowWrap = 'anywhere';
-          info.append(element('div', 'user-name', item.query + ' · ' + item.city));
-          info.append(element('div', 'user-meta', 'Раздел: ' + item.plan.category_name + ' · Запросов: ' + item.demand));
-          info.append(element('div', 'user-meta', 'Фильтры: ' + item.plan.fields.map(f => f.label).join(', ')));
-          info.append(element('div', 'user-meta', names[item.status] || item.status));
-          if (item.message) info.append(element('div', 'user-meta', item.message));
-          row.append(info);
-          if (item.status !== 'checking') {
-            [['approve',item.status === 'proposed' ? 'Подтвердить и проверить' : 'Проверить снова'],['reject','Отклонить']].forEach(([decision,label]) => {
-              const button = element('button', decision === 'approve' ? 'main' : '', label);
-              button.onclick = async () => {
-                button.disabled = true;
-                try {
-                  const res = await fetch('/api/admin/catalog-expansions/' + encodeURIComponent(item.id) + '/review',
-                    {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({decision})});
-                  if (!res.ok) throw new Error(); await loadExpansions();
-                } catch (e) { state.textContent = 'Не удалось сохранить решение. Повторите.'; button.disabled = false; }
-              }; row.append(button);
-            });
+        const data = await response.json();
+        if (requestId !== expansionReadId) return;
+        if (!Array.isArray(data.items)) throw new Error();
+        running = data.items.some(item => ['approved','checking'].includes(item.status));
+        data.items.forEach(item => {
+          const before = previousExpansions.get(item.id);
+          if (before && item.checked_at && before.checked_at !== item.checked_at && !['approved','checking'].includes(item.status)) {
+            expansionNotice = 'Проверка «' + item.query + '» завершена. ' + (item.status === 'needs_source' ? 'Подходящие предложения не подтверждены — нужно подключить источник.' : (item.message || expansionNames[item.status] || 'Обновлён результат.'));
           }
-          target.append(row);
+          previousExpansions.set(item.id, {status:item.status, checked_at:item.checked_at});
         });
-        state.textContent = data.items.length ? '' : 'Новых запросов на расширение пока нет.';
-      } catch (e) { state.textContent = 'Не удалось загрузить запросы. Попробуйте обновить.'; }
+        const signature = JSON.stringify(data.items);
+        if (signature !== expansionSignature) {
+          expansionSignature = signature;
+          target.replaceChildren();
+          data.items.forEach(item => {
+            const row = element('div', 'user'); row.style.flexWrap = 'wrap';
+            const info = element('div', 'user-info'); info.style.minWidth = '0'; info.style.overflowWrap = 'anywhere';
+            info.append(element('div', 'user-name', item.query + ' · ' + item.city));
+            info.append(element('div', 'user-meta', 'Раздел: ' + item.plan.category_name + ' · Обращений: ' + item.demand));
+            info.append(element('div', 'user-meta', 'Фильтры: ' + item.plan.fields.map(field => field.label).join(', ')));
+            const status = element('div', 'user-meta', expansionNames[item.status] || item.status);
+            status.setAttribute('data-expansion-state', ''); info.append(status);
+            if (item.status === 'checking') info.append(element('div', 'user-meta', 'Собираем предложения и проверяем характеристики. Это может занять несколько минут.'));
+            else if (item.message) info.append(element('div', 'user-meta', item.message));
+            if (item.checked_at) info.append(element('div', 'user-meta', 'Последняя завершённая проверка: ' + new Date(item.checked_at).toLocaleString('ru-RU', {timeZone:'Asia/Almaty'})));
+            row.append(info);
+            const busy = ['approved','checking'].includes(item.status);
+            const button = element('button', 'main', busy ? (item.status === 'approved' ? 'В очереди…' : 'Проверяем…') : (item.status === 'proposed' ? 'Подтвердить и проверить' : 'Проверить снова'));
+            button.disabled = busy;
+            button.onclick = () => changeExpansion(item, 'approve', row);
+            row.append(button);
+            if (item.status !== 'checking' && item.status !== 'rejected') {
+              const reject = element('button', '', 'Отклонить');
+              reject.onclick = () => changeExpansion(item, 'reject', row); row.append(reject);
+            }
+            target.append(row);
+          });
+        }
+        const message = expansionNotice || (data.items.length ? 'Статусы обновляются автоматически.' : 'Новых запросов на расширение пока нет.');
+        if (state.textContent !== message) state.textContent = message;
+      } catch (error) {
+        if (requestId === expansionReadId) state.textContent = 'Не удалось обновить статусы. Повторим автоматически; также можно нажать «Обновить».';
+      } finally {
+        if (requestId === expansionReadId && !document.hidden) expansionTimer = setTimeout(() => loadExpansions(true), running ? 2000 : 10000);
+      }
     }
+    document.addEventListener('visibilitychange', () => {
+      clearTimeout(expansionTimer);
+      if (!document.hidden) loadExpansions(true);
+    });
+    window.addEventListener('pagehide', () => clearTimeout(expansionTimer));
     loadExpansions();
 
     loadUsers().catch(() => {
