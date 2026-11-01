@@ -203,13 +203,47 @@ def family_params(category: Any, title: Any) -> Dict[str, str]:
     return out
 
 
+# Суббренды считаются брендом производителя, а в модели остаются: «Redmi Note 13» у Xiaomi и у Redmi — один телефон
+_SUB_BRANDS = {"redmi": "xiaomi", "poco": "xiaomi"}
+_MODEL_MEMORY_RE = re.compile(r"\d+\s*(?:гб|gb|тб|tb)\b", re.I)
+_TITLE_SPEC_RE = re.compile(r"\d+\s*(?:гб|gb|тб|tb|мм|mm)(?![a-zа-я])", re.I)
+
+
+def family_model(brand: Any, model: Any, title: Any) -> str:
+    """Модель без цвета: магазины дописывают его к ней («Reno 14F Luminous», «Galaxy S26 sky»).
+
+    С конца модели снимаются слова, которые в названии стоят после памяти или размера: там магазины пишут
+    цвет, и он не всегда из словаря. Слова с цифрами и уточнения вроде Pro остаются: они меняют модель.
+    """
+    brand_word = str(brand or "").lower().strip()
+    words = re.findall(r"[\w+]+", _MODEL_MEMORY_RE.sub(" ", str(model or "").lower()))
+    main = split_added_product(title)[0].lower()
+    specs = list(_TITLE_SPEC_RE.finditer(main))
+    after_spec = set(re.findall(r"[\w+]+", main[specs[-1].end():])) if specs else set()
+    while len(words) > 1:
+        word = words[-1]
+        if re.search(r"\d", word) or _TIER_RE.fullmatch(word):
+            break
+        if word not in after_spec and not title_color(word):
+            break
+        words.pop()
+    # Название бренда в начале модели и суббренд: «Xiaomi Redmi 10» и «Redmi 10» — одно
+    while len(words) > 1 and words[0] in (brand_word, _SUB_BRANDS.get(brand_word)):
+        words.pop(0)
+    if brand_word in _SUB_BRANDS and words[0] != brand_word:
+        words.insert(0, brand_word)
+    return " ".join(words)
+
+
 def family_key(product: Any) -> Optional[Tuple[Any, ...]]:
     """Семейство товара или None, если объединять нельзя."""
     if product.category not in FAMILY_PARAMS or not product.brand or not product.model:
         return None
     if (product.item_kind or "device") != "device":
         return None
-    return (product.brand, product.model, product.category, model_tier(product.title))
+    brand = str(product.brand).lower().strip()
+    return (_SUB_BRANDS.get(brand, brand), family_model(product.brand, product.model, product.title),
+            product.category, model_tier(product.title))
 
 
 def _family_label(param: str, value: str) -> str:
@@ -217,6 +251,24 @@ def _family_label(param: str, value: str) -> str:
     if param == "size":
         return f"{value} мм"
     return f"{number / 1024:g} ТБ" if number >= 1024 else f"{value} ГБ"
+
+
+def same_variant_ids(category: str, title: str, siblings: List[Dict[str, Any]]) -> List[str]:
+    """Товары семейства того же исполнения: они отличаются только цветом, и их предложения — одна карточка.
+
+    Если магазин не указал параметр, это не отличие: «256GB» и «8/256Gb» — одно исполнение.
+    """
+    current = family_params(category, title)
+    tier = model_tier(title)
+    out = []
+    for row in siblings:
+        params = family_params(category, row.get("title"))
+        if model_tier(row.get("title")) != tier or not params or not current:
+            continue
+        shared = set(params) & set(current)
+        if shared and all(params[p] == current[p] for p in shared):
+            out.append(row["id"])
+    return out
 
 
 def build_family_options(current_id: str, category: str, title: str,
@@ -260,7 +312,7 @@ def family_id(product: Any) -> Optional[str]:
     if key is None:
         return None
     brand, model, category, tier = key
-    return "|".join((brand.lower(), model.lower(), category, "+".join(sorted(tier))))
+    return "|".join((brand, model, category, "+".join(sorted(tier))))
 
 
 def refresh_family_ids(conn) -> int:

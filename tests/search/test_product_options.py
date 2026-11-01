@@ -4,7 +4,8 @@ import sqlite3
 import unittest
 from types import SimpleNamespace
 
-from domain.product_options import (build_family_options, build_options, family_id, family_params,
+from domain.product_options import (build_family_options, build_options, family_id, family_model, family_params,
+                                     same_variant_ids,
                                      mark_gifts, offer_options, refresh_family_ids, split_added_product, split_explicit_gift,
                                      title_color)
 from repositories.schema_v2 import init_schema_v2
@@ -80,6 +81,35 @@ class ProductOptionsTest(unittest.TestCase):
         self.assertNotEqual(family_id(product("Redmi Note 12 128Gb")), family_id(product("Redmi Note 12 Pro 128Gb")))
         self.assertIsNone(family_id(product("X", category="Ноутбуки")))
         self.assertIsNone(family_id(product("X", kind="accessory")))
+
+
+class FamilyModelTest(unittest.TestCase):
+    def test_color_words_leave_model(self):
+        for brand, model, title, expected in (
+            ("OPPO", "Reno 14F Luminous", "Смартфон Oppo Reno 14F 5G 8/256GB Luminous Green", "reno 14f"),
+            ("Samsung", "Galaxy S26 sky", "Смартфон Samsung Galaxy S26 5G 256GB - sky", "galaxy s26"),
+            ("Vivo", "Y35 золотистый", "Vivo Y35 золотистый", "y35"),
+            ("Xiaomi", "Redmi Note 14 Ocean", "Смартфон Xiaomi Redmi Note 14 8/256Gb Ocean Blue", "redmi note 14"),
+            ("Redmi", "Note 14", "Смартфон Redmi Note 14 8/256Gb", "redmi note 14"),
+            ("Xiaomi", "Xiaomi 14T", "Xiaomi 14T 12/256Gb", "14t"),
+        ):
+            with self.subTest(title=title):
+                self.assertEqual(family_model(brand, model, title), expected)
+
+    def test_model_words_stay(self):
+        self.assertEqual(family_model("Apple", "iPhone 14 Plus", "iPhone 14 Plus 128Gb Plus"), "iphone 14 plus")
+        self.assertEqual(family_model("Tecno", "Spark 20", "Tecno Spark 20 128Gb 20"), "spark 20")
+        self.assertEqual(family_model("Tecno", "Pop Ice", "Tecno Pop Ice"), "pop ice")
+
+    def test_same_variant_ignores_color_and_missing_param(self):
+        siblings = [
+            {"id": "a", "title": "X 8/256Gb Blue"},
+            {"id": "b", "title": "X 256Gb Black"},
+            {"id": "c", "title": "X 12/256Gb Black"},
+            {"id": "d", "title": "X 8/128Gb Blue"},
+            {"id": "e", "title": "X Pro 8/256Gb Blue"},
+        ]
+        self.assertEqual(same_variant_ids("Смартфоны", "X 8/256Gb Blue", siblings), ["a", "b"])
 
 
 class GiftTest(unittest.TestCase):

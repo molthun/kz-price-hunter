@@ -14,7 +14,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 
-from domain.product_options import build_family_options, build_options, family_key, mark_gifts, offer_options, split_added_product
+from domain.product_options import build_family_options, build_options, family_id, mark_gifts, offer_options, split_added_product
 from domain.condition import ConditionBreakdown, build_condition_breakdown
 from domain.freshness_v2 import offer_freshness
 from domain.models import CanonicalProduct, Channel, ChannelType, Condition, Offer, Seller
@@ -815,10 +815,10 @@ class SearchCore:
             )
 
     def _family_options(self, product: CanonicalProduct, city: Optional[str]) -> List[Dict[str, Any]]:
-        family = family_key(product)
-        if family is None or not hasattr(self.search_repo, "get_family_products"):
+        current_family = family_id(product)
+        if current_family is None or not hasattr(self.search_repo, "get_family_products"):
             return []
-        siblings = self.search_repo.get_family_products(*family[:3], city=city)
+        siblings = self.search_repo.get_family_products(current_family, city=city)
         return build_family_options(product.id, product.category, product.title, siblings)
 
     def get_canonical_product(

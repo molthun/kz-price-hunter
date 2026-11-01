@@ -763,11 +763,10 @@ class SearchRepository(BaseRepository):
             ],
         }
 
-    def get_family_products(self, brand: str, model: str, category: str,
-                            city: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_family_products(self, family_id: str, city: Optional[str] = None) -> List[Dict[str, Any]]:
         """Исполнения одной модели с действующими предложениями и их самой низкой ценой."""
         city_sql = ""
-        params: list = [brand, model, category]
+        params: list = [family_id]
         if city and city not in ("Все", "Казахстан"):
             city_sql = "AND (o.city = ? OR o.city LIKE ? OR o.city = 'Все' OR o.city LIKE '%Казахстан%')"
             params.extend([city, f"%{city}%"])
@@ -776,8 +775,7 @@ class SearchRepository(BaseRepository):
             SELECT p.id, p.title, MIN(o.price) AS min_price
             FROM canonical_products p
             JOIN offers o ON o.product_id = p.id AND o.is_active = 1
-            WHERE p.brand = ? AND p.model = ? AND p.category = ?
-              AND COALESCE(p.item_kind, 'device') = 'device' {city_sql}
+            WHERE p.family_id = ? {city_sql}
             GROUP BY p.id
             """,
             params,
@@ -815,13 +813,20 @@ class SearchRepository(BaseRepository):
             return None
         product = CanonicalProduct.from_row(row)
 
+        # Цвета одного исполнения могут лежать в соседних товарах: в карточке они вместе
+        product_ids = [product.id]
+        if row["family_id"]:
+            from domain.product_options import same_variant_ids
+            siblings = self.get_family_products(row["family_id"])
+            product_ids += [i for i in same_variant_ids(product.category, product.title, siblings) if i != product.id]
+
         conditions = [
-            "o.product_id = ?",
+            f"o.product_id IN ({','.join('?' * len(product_ids))})",
             "o.is_active = 1",
             "s.is_active = 1",
             "c.is_active = 1",
         ]
-        params: list = [product.id]
+        params: list = list(product_ids)
 
         if city and city not in ("Все", "Казахстан"):
             conditions.append("(o.city = ? OR o.city LIKE ? OR o.city = 'Все' OR o.city LIKE '%Казахстан%')")
