@@ -30,7 +30,7 @@ def merge_gift_titles(apply: bool = True) -> Dict[str, int]:
     with database.get_connection() as conn:
         rows = conn.execute(
             """SELECT title, MIN(category), MIN(canonical_key) FROM products
-               WHERE is_active = 1 AND title LIKE '%+%' GROUP BY title"""
+               WHERE is_active = 1 AND (title LIKE '%+%' OR title LIKE '%&#43;%') GROUP BY title"""
         ).fetchall()
         known = dict(conn.execute("SELECT title, canonical_key FROM canonical_products").fetchall())
         moves: Dict[str, str] = {}

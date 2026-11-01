@@ -20,6 +20,16 @@ class ProductOptionsTest(unittest.TestCase):
             ("Шкаф Noble 57 см, цвет Белый премиум", "white"),
             ("Смартфон Redmi Note 14 Ocean Blue", "blue"),
             ("Монитор Sanc M2442PH 23.8", None),
+            ("Смартфон Samsung Galaxy S25 12/128Gb Blue Black", "black"),
+            ("Смартфон Samsung Galaxy S25 Ultra 12/256GB Titanium Silver Blue", "blue"),
+            ("Смартфон Tecno Pova 8 Pro 8 GB, 256 GB, Graphite Black (LK7)", "black"),
+            ("Смартфон Xiaomi Redmi 15C 4/128GB Midnight Gray + подарок", "gray"),
+            ("Apple Watch Series 10 42mm Silver Aluminum case + Sport Band M/L Black", "silver"),
+            ("Black Shark GT3 Neo 51 мм серебристый-серый", "silver"),
+            ("Смарт часы Garmin Fenix 8 47mm Gray/Orange", "gray+orange"),
+            ("Смартфон Apple iPhone Air 256Gb Sky Blue", "lightblue"),
+            ("Смартфон Apple iPhone 16 Pro 256Gb Black Titanium", "black"),
+            ("Смартфон Apple iPhone 16 Pro 256Gb Natural Titanium", "titanium"),
             ("Серия Redmi Note", None),
             ("Интернет-магазин Белый Ветер", "white"),
         ):
@@ -140,6 +150,8 @@ class GiftTest(unittest.TestCase):
                 self.assertIsNone(split_added_product(title)[1])
 
     def test_added_product(self):
+        self.assertEqual(split_added_product("Планшет Xiaomi Pad 2 4G &#43; смарт-часы Redmi черный"),
+                         ("Планшет Xiaomi Pad 2 4G", "смарт-часы Redmi черный"))
         self.assertEqual(split_added_product("Смартфон Oppo A6x 4/64Gb + Рюкзак RenoChoice Синий"),
                          ("Смартфон Oppo A6x 4/64Gb", "Рюкзак RenoChoice Синий"))
         self.assertEqual(split_added_product("Sony PlayStation 5 + Dualsense White + MK1"),

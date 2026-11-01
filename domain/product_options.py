@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+import html
 import re
 from types import SimpleNamespace
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -36,7 +37,7 @@ _MEMORY_PAIR_RE = re.compile(r"\d+\s*/\s*\d+\s*(?:гб|gb|тб|tb)", re.I)
 
 def split_explicit_gift(title: Any) -> Tuple[str, Optional[str]]:
     """(название без подарка, что дарят; пустая строка, если не сказано) или (название, None)."""
-    text = str(title or "").strip()
+    text = html.unescape(str(title or "")).strip()  # магазины присылают плюс и как &#43;
     found = _EXPLICIT_GIFT_RE.search(text)
     if not found or found.start() == 0:
         return text, None
@@ -98,20 +99,45 @@ _COMPOUND_PARTS = {"черно": "black", "чёрно": "black", "бело": "wh
 _COMPOUND_RE = re.compile(r"(?<![\w-])(" + "|".join(_COMPOUND_PARTS) + r")-(\w+)", re.I)
 
 
+# Цвет ремешка и материал часов идут после корпуса: «Silver Aluminum case + Sport Band Black» — серебристые
+_WATCH_CASE_RE = re.compile(r"\b(?:case|корпус\w*)\b", re.I)
+
+
 def title_color(title: Any) -> Optional[str]:
-    """Цвет из названия: "black" или составной "black+orange"; None, если цвета нет."""
-    text = split_added_product(title)[0]            # цвет подарка не цвет товара
-    found = set()
+    """Цвет из названия: "black" или составной "black+orange"; None, если цвета нет.
+
+    Магазины пишут цвет в конце, поэтому берётся последний: в «Black Shark GT3 серый» он серый.
+    Слова подряд — один оттенок («Blue Black», «Sky Blue»), через дефис или косую черту — два цвета.
+    """
+    text = _BRACKETS_RE.sub(" ", split_added_product(title)[0])
+    case = _WATCH_CASE_RE.search(text)
+    if case:
+        text = text[:case.start()]
+    compound = set()
     for match in _COMPOUND_RE.finditer(text):
-        found.add(_COMPOUND_PARTS[match.group(1).lower()])
-        found.update(value for value, regex in _COLOR_RES if regex.fullmatch(match.group(2)))
-    for value, regex in _COLOR_RES:
-        if regex.search(text):
-            found.add(value)
-    # "midnight black" это чёрный, а не два цвета
-    if "midnight" in found and "black" in found:
-        found.discard("midnight")
-    return "+".join(sorted(found)) if found else None
+        compound.add(_COMPOUND_PARTS[match.group(1).lower()])
+        compound.update(value for value, regex in _COLOR_RES if regex.fullmatch(match.group(2)))
+    if compound:
+        return "+".join(sorted(compound))
+    # Самая длинная фраза побеждает: "sky blue" это голубой, а не синий и голубой
+    spans = sorted(((m.start(), m.end(), value) for value, regex in _COLOR_RES for m in regex.finditer(text)),
+                   key=lambda item: (item[0], item[0] - item[1]))
+    matches: List[Tuple[int, int, str]] = []
+    for span in spans:
+        if not matches or span[0] >= matches[-1][1]:
+            matches.append(span)
+    # Титан — материал: цветом считается, только если другого цвета нет
+    painted = [m for m in matches if m[2] != "titanium"]
+    matches = painted or matches
+    if not matches:
+        return None
+    found = [matches[-1][2]]
+    for current, following in zip(reversed(matches[:-1]), reversed(matches[1:])):
+        gap = text[current[1]:following[0]]
+        if not re.fullmatch(r"\s*/\s*", gap):
+            break
+        found.append(current[2])
+    return "+".join(sorted(set(found)))
 
 
 def _color_label(value: str) -> str:
