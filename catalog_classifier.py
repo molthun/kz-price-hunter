@@ -275,57 +275,184 @@ _TITLE_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
 
 # Accessory & Consumable detection rules: Title keyword regex -> (category_id, item_kind)
 _ACCESSORY_CONSUMABLE_RULES: List[Tuple[re.Pattern, str, str]] = [
-    # Phone Cases
-    (re.compile(r"\b(чехол|чехлы|чехол-накладка|чехол-книжка|бампер|case|cover)\b", re.I), "phone_cases", "accessory"),
+    # Phone Cases (исключаем корпус часов/ПК: aluminium case, titanium case, pc case)
+    (
+        re.compile(
+            r"\b(чехол|чехлы|чехол-накладка|чехол-книжка|бампер|phone\s+case|silicone\s+case|clear\s+case|leather\s+case|чехол\s+на|case\s+(?:для|for|на))\b",
+            re.I,
+        ),
+        "phone_cases",
+        "accessory",
+    ),
     # Protective Glass & Film
-    (re.compile(r"\b(защитн(?:ое|ые|ая)\s+стекл(?:о|а)|защитн(?:ая|ые)\s+пленк(?:а|и)|бронестекл(?:о|а)|стекло\s+для)\b", re.I), "phone_glass", "accessory"),
+    (
+        re.compile(
+            r"\b(защитн(?:ое|ые|ая|ых)\s+стекл(?:о|а)|защитн(?:ая|ые)\s+пленк(?:а|и)|бронестекл(?:о|а)|стекло\s+для|стекло\s+на|пленка\s+для|пленка\s+на)\b",
+            re.I,
+        ),
+        "phone_glass",
+        "accessory",
+    ),
     # Cables, Chargers & Powerbanks
-    (re.compile(r"\b(кабел[ьи]|зарядн(?:ое|ые)\s+устройств(?:о|а)|сетевое\s+зарядное|адаптер\s+питания|блок\s+питания\s+для|powerbank|повербанк)\b", re.I), "cables_chargers", "accessory"),
+    (
+        re.compile(
+            r"\b(кабел[ьи]|зарядн(?:ое|ые)\s+устройств(?:о|а)|сетевое\s+зарядное|адаптер\s+питания|блок\s+питания\s+для|powerbank|повербанк|переходник\s+type|адаптер\s+type|aux\s+кабель)\b",
+            re.I,
+        ),
+        "cables_chargers",
+        "accessory",
+    ),
     # Watch Straps
-    (re.compile(r"\b(ремешок\s+для|браслет\s+для\s+часов|ремешок\s+apple\s+watch)\b", re.I), "smartwatches", "accessory"),
+    (
+        re.compile(r"\b(ремешок\s+для|браслет\s+для\s+часов|ремешок\s+apple\s+watch|watch\s+band|watch\s+strap)\b", re.I),
+        "smartwatches",
+        "accessory",
+    ),
     # Vacuum Parts & Consumables
-    (re.compile(r"\b(фильтр[ы]?\s+для\s+пылесоса|мешк[и|ов]\s+для\s+пылесоса|пылесборник[и]?|hepa\s*фильтр|сменн(?:ые|ая)\s+салфетк(?:а|и)|насадк[аи]\s+для\s+пылесоса|щетк[аи]\s+для\s+пылесоса)\b", re.I), "vacuum_parts", "consumable"),
+    (
+        re.compile(r"\b(фильтр[ы]?\s+для\s+пылесоса|мешк[и|ов]\s+для\s+пылесоса|пылесборник[и]?|hepa\s*фильтр|сменн(?:ые|ая)\s+салфетк(?:а|и)|насадк[аи]\s+для\s+пылесоса|щетк[аи]\s+для\s+пылесоса)\b", re.I),
+        "vacuum_parts",
+        "consumable",
+    ),
     # Printer Consumables (Ink, Toner, Cartridges)
-    (re.compile(r"\b(картридж[и]?|тонер[ы]?|чернил[а]?\s+для|краска\s+для\s+принтера)\b", re.I), "printer_ink", "consumable"),
+    (
+        re.compile(r"\b(картридж[и]?|тонер[ы]?|чернил[а]?\s+для|краска\s+для\s+принтера)\b", re.I),
+        "printer_ink",
+        "consumable",
+    ),
 ]
 
 # Compatibility target extraction for accessories ("для Apple iPhone 15 Pro", "for Galaxy S24")
 _COMPATIBILITY_PATTERN = re.compile(
-    r"\b(?:для|for)\s+([A-Za-z0-9\s\+\-\.]+?)(?:\s+(?:силиконовый|черный|белый|прозрачный|матовый|кожаный|с\s|в\s|$))",
-    re.I
+    r"\b(?:для|for|на)\s+([A-Za-z0-9\s\+\-\.]+?)(?:\s+(?:силиконовый|черный|белый|прозрачный|матовый|кожаный|с\s|в\s|$))",
+    re.I,
 )
+
+# Полная таблица канонических моделей iPhone
+IPHONE_CANONICAL_MAP: Dict[str, str] = {
+    "18 pro max": "iPhone 18 Pro Max",
+    "18 pro": "iPhone 18 Pro",
+    "18": "iPhone 18",
+    "17 pro max": "iPhone 17 Pro Max",
+    "17 pro": "iPhone 17 Pro",
+    "17": "iPhone 17",
+    "16 pro max": "iPhone 16 Pro Max",
+    "16 pro": "iPhone 16 Pro",
+    "16 plus": "iPhone 16 Plus",
+    "16e": "iPhone 16e",
+    "16": "iPhone 16",
+    "15 pro max": "iPhone 15 Pro Max",
+    "15 pro": "iPhone 15 Pro",
+    "15 plus": "iPhone 15 Plus",
+    "15": "iPhone 15",
+    "14 pro max": "iPhone 14 Pro Max",
+    "14 pro": "iPhone 14 Pro",
+    "14 plus": "iPhone 14 Plus",
+    "14": "iPhone 14",
+    "13 pro max": "iPhone 13 Pro Max",
+    "13 pro": "iPhone 13 Pro",
+    "13 mini": "iPhone 13 mini",
+    "13": "iPhone 13",
+    "12 pro max": "iPhone 12 Pro Max",
+    "12 pro": "iPhone 12 Pro",
+    "12 mini": "iPhone 12 mini",
+    "12": "iPhone 12",
+    "11 pro max": "iPhone 11 Pro Max",
+    "11 pro": "iPhone 11 Pro",
+    "11": "iPhone 11",
+    "se": "iPhone SE",
+    "xs max": "iPhone XS Max",
+    "xs": "iPhone XS",
+    "xr": "iPhone XR",
+    "x": "iPhone X",
+    "8 plus": "iPhone 8 Plus",
+    "8": "iPhone 8",
+    "7 plus": "iPhone 7 Plus",
+    "7": "iPhone 7",
+    "6s plus": "iPhone 6s Plus",
+    "6s": "iPhone 6s",
+    "6 plus": "iPhone 6 Plus",
+    "6": "iPhone 6",
+    "5s": "iPhone 5s",
+    "5c": "iPhone 5c",
+    "5": "iPhone 5",
+    "4s": "iPhone 4s",
+    "4": "iPhone 4",
+    "air": "iPhone Air",
+    "duo": "iPhone Duo",
+}
+
+_IPHONE_MODEL_REGEX = re.compile(
+    r"\biphone\s*"
+    r"(?:"
+        r"(\d{1,2}\s*(?:pro\s*max|pro|plus|mini|e|s|c)?)|"
+        r"(xs\s*max|xs|xr|x)|"
+        r"(se(?:\s*(?:202[0-9]|201[6-9]|\d+-\w+|[1-3](?:nd|rd|th)?\s*gen))?)|"
+        r"(air|duo)"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+def extract_iphone_model(text: str) -> Optional[str]:
+    m = _IPHONE_MODEL_REGEX.search(text)
+    if not m:
+        return None
+    raw = (m.group(1) or m.group(2) or m.group(3) or m.group(4) or "").strip().lower()
+    raw = re.sub(r"\s+", " ", raw)
+    if raw in IPHONE_CANONICAL_MAP:
+        return IPHONE_CANONICAL_MAP[raw]
+    if raw.startswith("se"):
+        return "iPhone SE"
+    return f"iPhone {raw.title()}"
+
+
+_APPLE_WATCH_REGEX = re.compile(
+    r"\b(?:apple\s+)?watch\s*(?:(ultra\s*2|ultra)|(se(?:\s*3|\s*\d{4})?)|series\s*(\d{1,2})|(\d{1,2}))\b",
+    re.IGNORECASE,
+)
+
+
+def extract_apple_watch_model(text: str) -> Optional[str]:
+    m = _APPLE_WATCH_REGEX.search(text)
+    if not m:
+        return None
+    ultra = m.group(1)
+    se = m.group(2)
+    series = m.group(3) or m.group(4)
+    if ultra:
+        u = re.sub(r"\s+", " ", ultra).strip().title()
+        return f"Apple Watch {u}"
+    if se:
+        return "Apple Watch SE"
+    if series:
+        return f"Apple Watch Series {series}"
+    return "Apple Watch"
+
+
+_AIRPODS_REGEX = re.compile(
+    r"\bairpods\s*(max|pro\s*2|pro|4|3|2)\b",
+    re.IGNORECASE,
+)
+
+
+def extract_airpods_model(text: str) -> Optional[str]:
+    m = _AIRPODS_REGEX.search(text)
+    if not m:
+        return None
+    sub = m.group(1).lower()
+    if sub == "max":
+        return "AirPods Max"
+    if sub.startswith("pro 2"):
+        return "AirPods Pro 2"
+    if sub.startswith("pro"):
+        return "AirPods Pro"
+    return f"AirPods {sub}"
+
 
 # Canonical Model Line Rules (Top Consumer Electronics Models)
 KNOWN_MODEL_FAMILIES: List[Tuple[re.Pattern, str]] = [
-    # Apple iPhone
-    (re.compile(r"\biphone\s*16\s*pro\s*max\b", re.I), "iPhone 16 Pro Max"),
-    (re.compile(r"\biphone\s*16\s*pro\b", re.I), "iPhone 16 Pro"),
-    (re.compile(r"\biphone\s*16\s*plus\b", re.I), "iPhone 16 Plus"),
-    (re.compile(r"\biphone\s*16\b", re.I), "iPhone 16"),
-    (re.compile(r"\biphone\s*15\s*pro\s*max\b", re.I), "iPhone 15 Pro Max"),
-    (re.compile(r"\biphone\s*15\s*pro\b", re.I), "iPhone 15 Pro"),
-    (re.compile(r"\biphone\s*15\s*plus\b", re.I), "iPhone 15 Plus"),
-    (re.compile(r"\biphone\s*15\b", re.I), "iPhone 15"),
-    (re.compile(r"\biphone\s*14\s*pro\s*max\b", re.I), "iPhone 14 Pro Max"),
-    (re.compile(r"\biphone\s*14\s*pro\b", re.I), "iPhone 14 Pro"),
-    (re.compile(r"\biphone\s*14\s*plus\b", re.I), "iPhone 14 Plus"),
-    (re.compile(r"\biphone\s*14\b", re.I), "iPhone 14"),
-    (re.compile(r"\biphone\s*13\s*pro\s*max\b", re.I), "iPhone 13 Pro Max"),
-    (re.compile(r"\biphone\s*13\s*pro\b", re.I), "iPhone 13 Pro"),
-    (re.compile(r"\biphone\s*13\s*mini\b", re.I), "iPhone 13 mini"),
-    (re.compile(r"\biphone\s*13\b", re.I), "iPhone 13"),
-    (re.compile(r"\biphone\s*12\s*pro\s*max\b", re.I), "iPhone 12 Pro Max"),
-    (re.compile(r"\biphone\s*12\s*pro\b", re.I), "iPhone 12 Pro"),
-    (re.compile(r"\biphone\s*12\b", re.I), "iPhone 12"),
-    (re.compile(r"\biphone\s*11\s*pro\s*max\b", re.I), "iPhone 11 Pro Max"),
-    (re.compile(r"\biphone\s*11\s*pro\b", re.I), "iPhone 11 Pro"),
-    (re.compile(r"\biphone\s*11\b", re.I), "iPhone 11"),
-    (re.compile(r"\biphone\s*xr\b", re.I), "iPhone XR"),
-    (re.compile(r"\biphone\s*xs\b", re.I), "iPhone XS"),
-    (re.compile(r"\biphone\s*x\b", re.I), "iPhone X"),
-    (re.compile(r"\biphone\s*se\b", re.I), "iPhone SE"),
-
-    # Apple iPad & Mac & Watch
+    # Apple iPad & Mac
     (re.compile(r"\bipad\s*pro\s*13\b", re.I), "iPad Pro 13"),
     (re.compile(r"\bipad\s*pro\s*11\b", re.I), "iPad Pro 11"),
     (re.compile(r"\bipad\s*air\s*13\b", re.I), "iPad Air 13"),
@@ -479,13 +606,47 @@ def extract_clean_model(
     if not title:
         return None
 
+    # Отсекаем комплекты подарков и бандлы
+    main_title = title.split("+")[0].strip() if "+" in title else title
+
+    # Для аксессуаров: не подставляем модель целевого смартфона в качестве модели аксессуара!
+    if item_kind in ("accessory", "consumable"):
+        compat = extract_iphone_model(main_title) or extract_apple_watch_model(main_title)
+        cleaned_no_compat = main_title
+        if compat:
+            cleaned_no_compat = re.sub(re.escape(compat), "", cleaned_no_compat, flags=re.I)
+        cleaned_no_compat = re.sub(
+            r"\b(чехол|чехлы|бампер|стекло|пленка|кабель|зарядное|адаптер|для|for|на|apple|iphone|силикон(?:овый)?|прозрачный|черный|1\s*шт\.?)\b",
+            "",
+            cleaned_no_compat,
+            flags=re.I,
+        )
+        cleaned_no_compat = re.sub(r"[/\\,\-\+\:\;\s]+", " ", cleaned_no_compat).strip()
+        words = cleaned_no_compat.split()
+        if len(words) >= 1 and len(words[0]) >= 3 and not words[0].isdigit():
+            return " ".join(words[:2])
+        return None
+
+    # Стандартизированный нейминг Apple устройств
+    iphone_mod = extract_iphone_model(main_title)
+    if iphone_mod:
+        return iphone_mod
+
+    watch_mod = extract_apple_watch_model(main_title)
+    if watch_mod:
+        return watch_mod
+
+    airpods_mod = extract_airpods_model(main_title)
+    if airpods_mod:
+        return airpods_mod
+
     # 1. Поиск по известным семействам моделей
     for pat, fam in KNOWN_MODEL_FAMILIES:
-        if pat.search(title):
+        if pat.search(main_title):
             return fam
 
     # 2. Очистка по регулярным выражениям
-    res = title
+    res = main_title
     if brand:
         res = re.sub(r"\b" + re.escape(brand) + r"\b", "", res, flags=re.I)
     for pat in _MODEL_STRIP_PATTERNS:
@@ -579,29 +740,54 @@ class CatalogClassifier:
         if not title:
             return None
 
-        # 0. Проверяем, является ли товар аксессуаром или расходником
+        # Отсекаем комплекты подарков и бандлы ("Смартфон Apple iPhone + Наушники AirPods...")
+        main_part = title.split("+")[0].strip() if "+" in title else title
+
+        # 0. Проверяем первичность ключевых устройств (смарт-часы, смартфоны и т.д.),
+        # чтобы "Aluminium Case" в смарт-часах не превращал часы в чехлы
+        is_watch = bool(re.search(r"\b(смарт-час[ыа]|умные\s+часы|apple\s+watch|galaxy\s+watch)\b", main_part, re.I)) and not bool(re.search(r"\b(ремешок|браслет\s+для|watch\s+band|watch\s+strap)\b", main_part, re.I))
+        is_phone = bool(re.search(r"\b(смартфон|айфон|сотовый\s+телефон)\b", main_part, re.I)) and not bool(re.search(r"\b(чехол|стекло|пленка|ремешок|кабель|держатель|подставка)\b", main_part, re.I))
+
         item_kind = "device"
         compat_target = None
         matched_cat_id = None
 
-        for pat, cat_id, kind in _ACCESSORY_CONSUMABLE_RULES:
-            if pat.search(title):
-                matched_cat_id = cat_id
-                item_kind = kind
-                break
+        if is_watch:
+            matched_cat_id = "smartwatches"
+            item_kind = "device"
+        elif is_phone:
+            matched_cat_id = "phones"
+            item_kind = "device"
+        else:
+            for pat, cat_id, kind in _ACCESSORY_CONSUMABLE_RULES:
+                if pat.search(main_part):
+                    matched_cat_id = cat_id
+                    item_kind = kind
+                    break
 
         # Извлекаем совместимое устройство для аксессуара («для Apple iPhone 15»)
         if item_kind in ("accessory", "consumable"):
-            m_target = _COMPATIBILITY_PATTERN.search(title)
+            m_target = _COMPATIBILITY_PATTERN.search(main_part)
             if m_target:
                 compat_target = m_target.group(1).strip()
 
-            # Для аксессуаров и расходников бренд извлекается строго ДО слова «для»
-            parts = re.split(r"\b(?:для|for)\b", title, flags=re.I, maxsplit=1)
+            # Для аксессуаров и расходников бренд извлекается строго ДО слова «для / на / for»
+            parts = re.split(r"\b(?:для|на|for)\b", main_part, flags=re.I, maxsplit=1)
             before_part = parts[0]
             brand = self.extract_brand(before_part)
+
+            # Проверяем, не является ли это фирменным аксессуаром Apple
+            if not brand and re.search(r"\b(?:оригинальный\s+чехол\s+apple|apple\s+silicone\s+case|apple\s+leather|apple\s+clear\s+case|apple\s+finewoven)\b", main_part, re.I):
+                brand = "Apple"
+            elif not brand and len(parts) > 1:
+                # Очищаем вторую часть от целевых брендов устройств (Apple, Samsung), чтобы чехол не стал Apple!
+                cleaned_after = re.sub(r"\b(apple|iphone|ipad|samsung|galaxy|xiaomi|redmi|huawei|honor)\b", "", parts[1], flags=re.I)
+                brand = self.extract_brand(cleaned_after)
         else:
-            brand = self.extract_brand(title)
+            brand = self.extract_brand(main_part)
+            if not brand:
+                if re.search(r"\b(iphone|ipad|macbook|airpods|apple\s+watch)\b", main_part, re.I):
+                    brand = "Apple"
 
         # 1. Если определена категория аксессуара / расходника
         if matched_cat_id:

@@ -90,6 +90,9 @@ def backfill_classification(
             if res:
                 new_cat = res.category_name
                 new_brand = res.brand or current_brand
+                # Если товар - аксессуар/расходник, и его собственный бренд не определен, не оставляем бренд целевого смартфона!
+                if res.item_kind in ("accessory", "consumable") and (res.brand is None) and current_brand in ("Apple", "Samsung", "Xiaomi", "Huawei", "Honor"):
+                    new_brand = None
                 new_model = res.model
                 new_kind = res.item_kind
             else:

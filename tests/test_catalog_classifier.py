@@ -142,5 +142,42 @@ class TestCatalogClassifier(unittest.TestCase):
                 self.assertEqual(res.model, expected_model, f"Model mismatch for {title}: got {res.model}, expected {expected_model}")
 
 
+    def test_apple_standardized_naming(self):
+        cases = [
+            # iPhone generations and canonical casing
+            ("Смартфон Apple iPhone 12 Pro Max, 256GB, Gold (MGDE3)", "phones", "device", "Apple", "iPhone 12 Pro Max"),
+            ("Смартфон Apple iPhone Air, 256 GB, Space Black (MG2L4HX/A)", "phones", "device", "Apple", "iPhone Air"),
+            ("Смартфон Apple iPhone Air, 256 GB, Sky Blue (MG2P4HX/A)", "phones", "device", "Apple", "iPhone Air"),
+            ("Смартфон APPLE iPhone DUO 256GB (Star White)", "phones", "device", "Apple", "iPhone Duo"),
+            ("iPhone 17 Pro Max 256Gb", "phones", "device", "Apple", "iPhone 17 Pro Max"),
+            ("iPhone 18 PRO 1TB (Glacier)", "phones", "device", "Apple", "iPhone 18 Pro"),
+            ("iPhone 18 PRO MAX 2TB (Burgundy)", "phones", "device", "Apple", "iPhone 18 Pro Max"),
+            ("iPhone 16 Plus 128GB Pink", "phones", "device", "Apple", "iPhone 16 Plus"),
+            ("iPhone 7 Rose", "phones", "device", "Apple", "iPhone 7"),
+            ("iPhone 7 Plus Jet", "phones", "device", "Apple", "iPhone 7 Plus"),
+            ("iPhone 6S", "phones", "device", "Apple", "iPhone 6s"),
+            ("Смартфон Apple iPhone 16e 128Gb White + Адаптер питания Apple USB-C 20W", "phones", "device", "Apple", "iPhone 16e"),
+            ("iPhone 13 mini 128GB Midnight", "phones", "device", "Apple", "iPhone 13 mini"),
+            ("iPhone XS Max 64GB Gold", "phones", "device", "Apple", "iPhone XS Max"),
+            ("iPhone SE 2022 64GB Starlight", "phones", "device", "Apple", "iPhone SE"),
+            # Bundle gifts must NOT hijack primary device model
+            ("Смартфон Apple iPhone 17 Pro Max 2Tb Silver + Наушники Apple AirPods 4 Белый + Адаптер Apple Power Adapter", "phones", "device", "Apple", "iPhone 17 Pro Max"),
+            # Apple Watch with Aluminium Case must NOT be classified as phone case!
+            ("Смарт-часы Apple Watch SE GPS 40mm Starlight Al Case with Starlight Sport Band - M/L (MXEG3QI/A)", "smartwatches", "device", "Apple", "Apple Watch SE"),
+            ("Смарт-Часы Apple Watch Series 10 GPS 42mm Jet Black Aluminium Case with Black Sport Band - S/M", "smartwatches", "device", "Apple", "Apple Watch Series 10"),
+            ("Смарт-часы Apple Watch Ultra 2 GPS + Cellular 49mm Titanium Case with Orange Ocean Band", "smartwatches", "device", "Apple", "Apple Watch Ultra 2"),
+            # Accessory cases must NOT take Apple as brand or phone as model
+            ("Чехол для Apple iPhone 17 Pro Max силикон, 1 шт.", "phone_cases", "accessory", None, None),
+        ]
+        for title, exp_cat, exp_kind, exp_brand, exp_model in cases:
+            with self.subTest(title=title):
+                res = self.classifier.classify_rules(title)
+                self.assertIsNotNone(res)
+                self.assertEqual(res.category_id, exp_cat, f"Category mismatch for '{title}': got {res.category_id}, expected {exp_cat}")
+                self.assertEqual(res.item_kind, exp_kind, f"Kind mismatch for '{title}': got {res.item_kind}, expected {exp_kind}")
+                self.assertEqual(res.brand, exp_brand, f"Brand mismatch for '{title}': got {res.brand}, expected {exp_brand}")
+                self.assertEqual(res.model, exp_model, f"Model mismatch for '{title}': got {res.model}, expected {exp_model}")
+
+
 if __name__ == "__main__":
     unittest.main()
