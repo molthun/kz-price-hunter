@@ -106,16 +106,16 @@ async function scenario(browser,{width,height,scheme}){
  assert.equal(apiCalls.at(-1).get('min_price'),'100');
  if(isMobile){
   await page.locator('.mobile-filter-btn').click();
-  await page.locator('#filterCategoriesList input[value="home"]').check();
-  await page.waitForFunction(()=>location.search.includes('cat=home'));
+  await page.locator('#filterCategoriesList input[value="Дом"]').check();
+  await page.waitForFunction(()=>new URLSearchParams(location.search).get('cat')==='Дом');
   await cardsVisible('Товар третий');
-  assert.ok(await page.locator('#filterCategoriesList input[value="home"]').isChecked(),`${label}: выбор виден после render`);
+  assert.ok(await page.locator('#filterCategoriesList input[value="Дом"]').isChecked(),`${label}: выбор виден после render`);
   await page.locator('#filtersSidebar .btn-reset-filters').click();
  }else{
-  await page.locator('#filterCategoriesList input[value="home"]').check();
-  await page.waitForFunction(()=>location.search.includes('cat=home'));
+  await page.locator('#filterCategoriesList input[value="Дом"]').check();
+  await page.waitForFunction(()=>new URLSearchParams(location.search).get('cat')==='Дом');
   await cardsVisible('Товар третий');
-  assert.ok(await page.locator('#filterCategoriesList input[value="home"]').isChecked(),`${label}: выбор виден после render`);
+  assert.ok(await page.locator('#filterCategoriesList input[value="Дом"]').isChecked(),`${label}: выбор виден после render`);
   await page.locator('#filterCategoriesList input[value=""]').check();
   await page.waitForFunction(()=>!location.search.includes('cat='));
   await page.locator('#filtersSidebar .btn-reset-filters').click();

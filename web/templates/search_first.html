@@ -723,26 +723,65 @@
       cursor: pointer;
     }
 
+    .filter-checkbox-label .filter-label {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
     .filter-count {
       color: var(--text-muted);
       font-size: 0.8rem;
       margin-left: auto;
+      flex-shrink: 0;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .filter-empty {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .filter-more-rows[hidden] {
+      display: none;
+    }
+
+    .filter-show-more {
+      background: none;
+      border: none;
+      padding: 0;
+      color: var(--primary);
+      font: inherit;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    .filter-show-more:hover {
+      text-decoration: underline;
+    }
+
+    .filter-cat-current {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 8px;
     }
 
     .kind-pills-row {
-      display: flex;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
       gap: 6px;
-      margin-bottom: 10px;
-      flex-wrap: wrap;
     }
 
     .kind-pill {
       background: var(--bg-subtle);
       border: 1px solid var(--border-color);
       color: var(--text-muted);
-      border-radius: var(--radius-full);
-      padding: 4px 10px;
-      font-size: 0.76rem;
+      border-radius: var(--radius-sm);
+      padding: 6px 4px;
+      font-size: 0.8rem;
       font-weight: 500;
       cursor: pointer;
       transition: all 0.15s;
@@ -3597,45 +3636,15 @@
             <span style="font-weight:700; font-size:1.05rem;">Фильтры</span>
             <button class="btn-close-filters-mobile" id="closeFiltersBtn" type="button" onclick="closeMobileFilters()">✕ Закрыть</button>
           </div>
-          <!-- 1. Магазин (площадка) -->
+          <!-- 1. Категория -->
           <div class="filter-group">
-            <div class="filter-title">🏪 Магазины</div>
-            <div id="filterSellersList">
-              <div style="font-size:0.85rem; color:var(--text-muted);">Загрузка...</div>
-            </div>
-          </div>
-
-          <!-- 2. Что за товар (Тип товара / Категория) -->
-          <div class="filter-group">
-            <div class="filter-title">📦 Что за товар</div>
-            <div class="kind-pills-row">
-              <button type="button" class="kind-pill active" data-kind="" onclick="onKindFacetSelected('')">Все</button>
-              <button type="button" class="kind-pill" data-kind="device" onclick="onKindFacetSelected('device')">📱 Устройства</button>
-              <button type="button" class="kind-pill" data-kind="accessory" onclick="onKindFacetSelected('accessory')">🔌 Аксессуары</button>
-              <button type="button" class="kind-pill" data-kind="consumable" onclick="onKindFacetSelected('consumable')">🌀 Расходники</button>
-            </div>
+            <div class="filter-title">Категория</div>
             <div id="filterCategoriesList">
-              <div style="font-size:0.85rem; color:var(--text-muted);">Загрузка...</div>
+              <div class="filter-empty">Загрузка...</div>
             </div>
           </div>
 
-          <!-- 3. Бренд -->
-          <div class="filter-group">
-            <div class="filter-title">🏷 Бренд</div>
-            <div id="filterBrandsList">
-              <div style="font-size:0.85rem; color:var(--text-muted);">Загрузка...</div>
-            </div>
-          </div>
-
-          <!-- 4. Модель (без цвета и характеристик) -->
-          <div class="filter-group" id="filterModelGroup">
-            <div class="filter-title">🎯 Модель</div>
-            <div id="filterModelsList">
-              <div style="font-size:0.85rem; color:var(--text-muted);">Загрузка...</div>
-            </div>
-          </div>
-
-          <!-- 4. Цена -->
+          <!-- 2. Цена -->
           <div class="filter-group">
             <div class="filter-title">Цена, ₸</div>
             <div class="price-inputs-row">
@@ -3645,7 +3654,42 @@
             </div>
           </div>
 
-          <!-- 5. Состояние -->
+          <!-- 3. Бренд -->
+          <div class="filter-group">
+            <div class="filter-title">Бренд</div>
+            <div id="filterBrandsList">
+              <div class="filter-empty">Загрузка...</div>
+            </div>
+          </div>
+
+          <!-- 4. Модель (без цвета и характеристик) -->
+          <div class="filter-group" id="filterModelGroup">
+            <div class="filter-title">Модель</div>
+            <div id="filterModelsList">
+              <div class="filter-empty">Загрузка...</div>
+            </div>
+          </div>
+
+          <!-- 5. Магазин -->
+          <div class="filter-group">
+            <div class="filter-title">Магазин</div>
+            <div id="filterSellersList">
+              <div class="filter-empty">Загрузка...</div>
+            </div>
+          </div>
+
+          <!-- 6. Тип товара: сам товар или то, что к нему докупают -->
+          <div class="filter-group">
+            <div class="filter-title">Тип товара</div>
+            <div class="kind-pills-row">
+              <button type="button" class="kind-pill active" data-kind="" onclick="onKindFacetSelected('')">Все</button>
+              <button type="button" class="kind-pill" data-kind="device" onclick="onKindFacetSelected('device')">Товары</button>
+              <button type="button" class="kind-pill" data-kind="accessory" onclick="onKindFacetSelected('accessory')">Аксессуары</button>
+              <button type="button" class="kind-pill" data-kind="consumable" onclick="onKindFacetSelected('consumable')">Расходники</button>
+            </div>
+          </div>
+
+          <!-- 7. Состояние -->
           <div class="filter-group">
             <div class="filter-title">Состояние</div>
             <label class="filter-checkbox-label">
@@ -6041,6 +6085,34 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
+    function facetRowHtml(name, handler, selected, value, label, count) {
+      return `
+        <label class="filter-checkbox-label">
+          <input type="radio" name="${name}" value="${escapeHtml(value)}" ${selected === value ? 'checked' : ''} onchange="${handler}(this.value)">
+          <span class="filter-label" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
+          ${count === null ? '' : '<span class="filter-count">' + Number(count).toLocaleString('ru-RU') + '</span>'}
+        </label>
+      `;
+    }
+
+    // Первые строки видны сразу, остальные раскрываются кнопкой
+    function facetRowsHtml(name, handler, selected, rows, shown) {
+      const row = f => facetRowHtml(name, handler, selected, f.value, f.name, f.count);
+      const rest = rows.slice(shown);
+      let html = rows.slice(0, shown).map(row).join('');
+      if (rest.length) {
+        html += `<div class="filter-more-rows" hidden>${rest.map(row).join('')}</div>`;
+        html += `<button type="button" class="filter-show-more" data-more="Показать ещё ${rest.length}" onclick="toggleFacetRows(this)">Показать ещё ${rest.length}</button>`;
+      }
+      return html;
+    }
+
+    function toggleFacetRows(btn) {
+      const rows = btn.previousElementSibling;
+      rows.hidden = !rows.hidden;
+      btn.textContent = rows.hidden ? btn.dataset.more : 'Свернуть';
+    }
+
     function renderFacetGroup(listEl, name, handler, selected, facets, shown, emptyText) {
       // Выбранное значение видно всегда, даже вне первых строк или с нулём при других фильтрах
       const rows = facets.slice();
@@ -6048,54 +6120,42 @@
       if (selIdx >= 0) rows.unshift(rows.splice(selIdx, 1)[0]);
       else if (selected) rows.unshift({ value: selected, name: selected, count: 0 });
 
-      const rowHtml = (value, label, count) => `
-        <label class="filter-checkbox-label">
-          <input type="radio" name="${name}" value="${escapeHtml(value)}" ${selected === value ? 'checked' : ''} onchange="${handler}(this.value)">
-          <span>${escapeHtml(label)}</span>
-          ${count === null ? '' : '<span class="filter-count">(' + Number(count) + ')</span>'}
-        </label>
-      `;
       listEl.innerHTML = rows.length
-        ? rowHtml('', 'Все', null) + rows.slice(0, shown).map(f => rowHtml(f.value, f.name, f.count)).join('')
-        : '<div style="font-size:0.85rem; color:var(--text-muted);">' + emptyText + '</div>';
+        ? facetRowHtml(name, handler, selected, '', 'Все', null) + facetRowsHtml(name, handler, selected, rows, shown)
+        : '<div class="filter-empty">' + emptyText + '</div>';
+    }
+
+    // В адресе категория бывает и идентификатором (electronics), покупателю нужно название
+    function categoryDisplayName(value) {
+      if (CATALOG_STRUCTURE[value]) return CATALOG_STRUCTURE[value].name;
+      for (const root of Object.values(CATALOG_STRUCTURE)) {
+        for (const group of root.groups) {
+          const item = group.items.find(i => i.id === value);
+          if (item) return item.name;
+        }
+      }
+      return value;
     }
 
     function renderCategoryFacetGroup(listEl, categoryFacets) {
       if (!listEl) return;
-      const items = (categoryFacets || []).map(f => ({
-        value: f.name || f.id,
-        name: f.name || f.id,
-        count: f.count
-      }));
+      const current = AppState.category ? categoryDisplayName(AppState.category) : '';
+      const isRoot = Boolean(CATALOG_STRUCTURE[AppState.category]) ||
+        Object.values(CATALOG_STRUCTURE).some(root => root.name === current);
+      // Товары, лежащие прямо в выбранном разделе, не повторяют его название строкой ниже
+      const items = (categoryFacets || [])
+        .map(f => ({ value: f.name || f.id, name: f.name || f.id, count: f.count }))
+        .filter(f => !(isRoot && f.name === current));
 
-      let html = '';
-      if (AppState.category) {
-        html += `
-          <div style="margin-bottom: 8px; padding: 6px 10px; background: var(--primary-light); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-            <div style="font-weight: 600; font-size: 0.85rem; color: var(--primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(AppState.category)}">
-              📁 ${escapeHtml(AppState.category)}
-            </div>
-            <button type="button" onclick="onCategoryFacetSelected('')" style="background:none; border:none; color:var(--primary); font-size:0.8rem; font-weight:700; cursor:pointer; padding:2px 4px;" title="Сбросить категорию">
-              ✕ Все
-            </button>
-          </div>
-        `;
-      }
-
-      const rowHtml = (value, label, count) => `
-        <label class="filter-checkbox-label">
-          <input type="radio" name="facetCategory" value="${escapeHtml(value)}" ${AppState.category === value ? 'checked' : ''} onchange="onCategoryFacetSelected(this.value)">
-          <span>${escapeHtml(label)}</span>
-          ${count === null ? '' : '<span class="filter-count">(' + Number(count) + ')</span>'}
-        </label>
-      `;
-
-      if (items.length === 0) {
-        if (!AppState.category) {
-          html += '<div style="font-size:0.85rem; color:var(--text-muted);">Нет категорий</div>';
-        }
+      const selected = items.some(f => f.value === AppState.category) ? AppState.category : current;
+      let html = current && isRoot ? `<div class="filter-cat-current">${escapeHtml(current)}</div>` : '';
+      if (items.length) {
+        html += facetRowHtml('facetCategory', 'onCategoryFacetSelected', selected, '', 'Все категории', null)
+          + facetRowsHtml('facetCategory', 'onCategoryFacetSelected', selected, items, 10);
+      } else if (current) {
+        html += facetRowHtml('facetCategory', 'onCategoryFacetSelected', selected, '', 'Все категории', null);
       } else {
-        html += rowHtml('', 'Все категории', null) + items.slice(0, 10).map(f => rowHtml(f.value, f.name, f.count)).join('');
+        html += '<div class="filter-empty">Нет категорий</div>';
       }
 
       listEl.innerHTML = html;
@@ -6121,13 +6181,13 @@
         btn.classList.toggle('active', btn.dataset.kind === (AppState.kind || ''));
       });
 
-      // 1. Магазины (продавцы)
+      // Магазины (продавцы)
       if (sellerList) {
         renderFacetGroup(sellerList, 'facetSeller', 'onSellerFacetSelected', AppState.seller,
-          (data.seller_facets || []).map(s => ({ value: s.slug || s.id, name: s.name, count: s.count })), 8, 'Нет магазинов');
+          (data.seller_facets || []).map(s => ({ value: s.slug || s.id, name: s.name, count: s.count })), 5, 'Нет магазинов');
       }
 
-      // 2. Что за товар (категории)
+      // Категории
       if (catList) {
         renderCategoryFacetGroup(catList, data.category_facets);
       }

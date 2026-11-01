@@ -255,7 +255,7 @@ MASTER_TAXONOMY: List[Category] = [
         name="Стиральные машины",
         icon="🧺",
         search_priority=85,
-        aliases=["стиральные машины", "стиралки", "washing machines"],
+        aliases=["стиральные машины", "сушильные машины", "стиралки", "washing machines"],
     ),
     Category(
         id="vacuums",
@@ -287,7 +287,12 @@ MASTER_TAXONOMY: List[Category] = [
         name="Техника для кухни",
         icon="🍲",
         search_priority=78,
-        aliases=["микроволновые печи", "чайники", "кофемашины", "блендеры", "кухонная техника", "посудомоечные машины", "плиты"],
+        aliases=[
+            "микроволновые печи", "чайники", "кофемашины", "блендеры", "кухонная техника", "посудомоечные машины", "плиты",
+            "мясорубки", "электромясорубки", "кофеварки", "кофемолки", "вспениватели молока",
+            "соковыжималки", "мультиварки", "тостеры", "хлебопечки", "хлебопечи", "миксеры",
+            "йогуртницы", "кухонные комбайны",
+        ],
     ),
 
     # 3. Одежда и обувь (L1)
@@ -367,7 +372,7 @@ MASTER_TAXONOMY: List[Category] = [
         search_priority=65,
         aliases=[
             "дом и сад", "товары для дома", "мебель", "текстиль", "посуда", "home",
-            "шкафы", "стеллажи", "кровати", "комоды", "тумбы", "диваны", "кресла", "столы", "стулья",
+            "шкафы", "стеллажи", "кровати", "комоды", "тумбы", "диваны", "кресла", "столы", "стулья", "автоматика для ворот",
             "строительство", "ремонт", "инструменты", "сантехника", "бытовая химия"
         ],
     ),
@@ -401,7 +406,7 @@ MASTER_TAXONOMY: List[Category] = [
         name="Инструменты и ремонт",
         icon="🔨",
         search_priority=61,
-        aliases=["инструменты", "дрели", "шуруповерты", "сантехника", "электроинструмент"],
+        aliases=["инструменты", "дрели", "шуруповерты", "сантехника", "электроинструмент", "шлифовальные машины"],
     ),
 
     # 6. Автотовары (L1)
@@ -410,7 +415,10 @@ MASTER_TAXONOMY: List[Category] = [
         name="Автотовары",
         icon="🚗",
         search_priority=65,
-        aliases=["автотовары", "запчасти", "шины", "диски", "автомасла", "авто"],
+        aliases=[
+            "автотовары", "запчасти", "автомасла", "авто", "автомобильные",
+            "автокомпрессоры", "автодержатели",
+        ],
     ),
     Category(
         id="tires",
@@ -445,7 +453,8 @@ MASTER_TAXONOMY: List[Category] = [
         search_priority=60,
         aliases=[
             "красота", "здоровье", "косметика", "парфюмерия", "beauty", "cosmetics",
-            "макияж", "уход за лицом", "уход за телом", "уход за волосами", "лекарственные средства"
+            "макияж", "уход за лицом", "уход за телом", "уход за волосами", "лекарственные средства",
+            "дермакосметика",
         ],
     ),
     Category(
@@ -470,7 +479,7 @@ MASTER_TAXONOMY: List[Category] = [
         name="Уход за волосами",
         icon="💇",
         search_priority=58,
-        aliases=["уход за волосами", "шампуни", "бальзамы", "фены", "стайлеры"],
+        aliases=["уход за волосами", "шампуни", "бальзамы", "фены", "стайлеры", "машинки для стрижки"],
     ),
     Category(
         id="makeup",
@@ -488,7 +497,7 @@ MASTER_TAXONOMY: List[Category] = [
         icon="🧸",
         search_priority=60,
         aliases=[
-            "детские товары", "игрушки", "товары для детей", "коляски", "kids",
+            "детские товары", "игрушки", "товары для детей", "коляски", "kids", "детский транспорт",
             "lego", "конструкторы", "детское питание", "подгузники", "канцелярия", "школа", "книги"
         ],
     ),
@@ -620,6 +629,28 @@ class TaxonomyMapper:
         text = re.sub(r"[\s\-_/\\|]+", " ", text).strip()
         return text
 
+    @staticmethod
+    def _words_match(needle: str, haystack: str) -> bool:
+        """
+        Ищет фразу по целым словам: окончание может отличаться на 1-2 буквы
+        ("смартфон" и "смартфоны"), но "мясо" не совпадает с "мясорубки".
+        """
+        needle_words = re.findall(r"\w+", needle)
+        hay_words = re.findall(r"\w+", haystack)
+        if not needle_words:
+            return False
+
+        def same(a: str, b: str) -> bool:
+            short, long_ = sorted((a, b), key=len)
+            if a == b:
+                return True
+            return len(short) >= 4 and len(long_) - len(short) <= 2 and long_.startswith(short)
+
+        for start in range(len(hay_words) - len(needle_words) + 1):
+            if all(same(n, hay_words[start + i]) for i, n in enumerate(needle_words)):
+                return True
+        return False
+
     def get_by_id(self, category_id: str) -> Optional[Category]:
         return self._categories.get(category_id)
 
@@ -642,7 +673,7 @@ class TaxonomyMapper:
         best_cat_id = None
         best_len = 0
         for alias, cat_id in self._alias_map.items():
-            if len(alias) >= 4 and (alias in token or token in alias):
+            if len(alias) >= 4 and (self._words_match(alias, token) or self._words_match(token, alias)):
                 cat = self._categories.get(cat_id)
                 # Предпочитаем L2 категории (parent_id не None)
                 bonus = 100 if cat and cat.parent_id else 0

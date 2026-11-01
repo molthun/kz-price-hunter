@@ -120,8 +120,12 @@ class CategoryRepository:
 
     def sync_master_taxonomy(self) -> int:
         """Синхронизирует или дополняет таблицу categories категориями из актуальной MASTER_TAXONOMY."""
+        stored = {c.id: c for c in self.list_all(active_only=False)}
         synced = 0
         for cat in MASTER_TAXONOMY:
+            old = stored.get(cat.id)
+            if old and old.aliases == cat.aliases and old.name == cat.name and old.parent_id == cat.parent_id:
+                continue
             self.save(cat)
             synced += 1
         return synced

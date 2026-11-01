@@ -411,6 +411,7 @@ def init_schema_v2(conn: sqlite3.Connection) -> None:
     # S2-E17: Начальное заполнение мастер-таксономии категорий
     try:
         from repositories.category_repo import CategoryRepository
-        CategoryRepository(conn).seed_defaults_if_empty()
+        # Синхронизация, а не только засев: иначе правки синонимов не доходят до заполненной базы
+        CategoryRepository(conn).sync_master_taxonomy()
     except Exception:
         pass

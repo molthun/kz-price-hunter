@@ -94,6 +94,25 @@ class TestCategoryDomainAndMapper(unittest.TestCase):
         self.assertIsNotNone(res_pc)
         self.assertEqual(res_pc.id, "pc_desktops")
 
+    def test_taxonomy_mapper_matches_whole_words(self):
+        # "мясо" не должно совпадать с "мясорубками", "шины" с "машинами", "кофе" с "кофемолками"
+        for raw, expected in (
+            ("Электромясорубки", "kitchen_appliances"),
+            ("Кофемолки", "kitchen_appliances"),
+            ("Йогуртницы", "kitchen_appliances"),
+            ("Кухонные комбайны и машины", "kitchen_appliances"),
+            ("Tgrad: 🧺 Сушильные машины", "washing_machines"),
+            ("Шлифовальные машины", "tools_repair"),
+            ("Arbuz: 🥩 Мясо и птица", "meat_poultry"),
+            ("Каталог / Смартфоны и гаджеты / Apple", "phones"),
+            ("Смартфон", "phones"),
+        ):
+            with self.subTest(raw=raw):
+                res = self.mapper.map_category(raw)
+                self.assertIsNotNone(res)
+                self.assertEqual(res.id, expected)
+        self.assertIsNone(self.mapper.map_category("Интертоп: 👜 Аксессуары"))
+
     def test_get_subtree_ids(self):
         sub_ids = self.mapper.get_subtree_ids("electronics")
         self.assertIn("electronics", sub_ids)
