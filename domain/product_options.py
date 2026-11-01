@@ -8,6 +8,8 @@ from __future__ import annotations
 import re
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+import product_key
+
 # Значение, подпись, образец цвета, основы русских и английских написаний
 _COLORS: List[Tuple[str, str, str, str]] = [
     ("black", "Чёрный", "#1f2328", r"ч[её]рн\w*|black|onyx|midnight black"),
@@ -100,3 +102,115 @@ def build_options(offers: List[Any]) -> List[Dict[str, Any]]:
         values.sort(key=lambda v: (v["min_price"] is None, v["min_price"] or 0, v["label"]))
         result.append({"id": key, "label": label, "values": values})
     return result
+
+
+# Исполнения, которые в базе остаются отдельными товарами со своими ценами, но выбираются в одной
+# карточке. Только там, где бренд и модель однозначны: у ноутбуков одно «MacBook Air 13» покрывает
+# разные процессоры, и выбор памяти скрыл бы эту разницу.
+FAMILY_PARAMS: Dict[str, Tuple[str, ...]] = {
+    "Смартфоны": ("storage", "ram"),
+    "Планшеты": ("storage", "ram"),
+    "Смарт-часы": ("size",),
+}
+_FAMILY_LABELS = {"storage": "Память", "ram": "Оперативная память", "size": "Размер корпуса"}
+_WATCH_SIZE_RE = re.compile(r"(?<![\d.,])(3[89]|4\d|5[0-5])\s?(?:мм|mm)(?![a-zа-я])", re.I)
+
+
+def _gigabytes(title: Any) -> List[float]:
+    out = []
+    for item in product_key.title_variants(title):
+        unit = item["unit"]
+        if unit in ("гб", "gb"):
+            out.append(item["value"])
+        elif unit in ("тб", "tb"):
+            out.append(item["value"] * 1024)
+    return out
+
+
+def family_params(category: Any, title: Any) -> Dict[str, str]:
+    """Параметры исполнения по названию: {"storage": "128", "ram": "6"}, значения в ГБ или мм."""
+    wanted = FAMILY_PARAMS.get(str(category or ""), ())
+    out: Dict[str, str] = {}
+    if "storage" in wanted:
+        sizes = sorted(set(_gigabytes(title)))
+        if sizes and sizes[-1] >= 16:
+            out["storage"] = f"{sizes[-1]:g}"
+            if len(sizes) > 1 and sizes[0] <= 32:
+                out["ram"] = f"{sizes[0]:g}"
+    if "size" in wanted:
+        found = _WATCH_SIZE_RE.search(str(title or ""))
+        if found:
+            out["size"] = found.group(1)
+    return out
+
+
+def family_key(product: Any) -> Optional[Tuple[str, str, str]]:
+    """Семейство товара или None, если объединять нельзя."""
+    if product.category not in FAMILY_PARAMS or not product.brand or not product.model:
+        return None
+    if (product.item_kind or "device") != "device":
+        return None
+    return (product.brand, product.model, product.category)
+
+
+def _family_label(param: str, value: str) -> str:
+    number = float(value)
+    if param == "size":
+        return f"{value} мм"
+    return f"{number / 1024:g} ТБ" if number >= 1024 else f"{value} ГБ"
+
+
+def build_family_options(current_id: str, category: str, title: str,
+                         siblings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Параметры, значения которых ведут в карточки других исполнений той же модели."""
+    current = family_params(category, title)
+    rows = [{**s, "params": family_params(category, s.get("title"))} for s in siblings]
+    result = []
+    for param in FAMILY_PARAMS.get(category, ()):
+        if param not in current:
+            continue
+        groups: Dict[str, List[Dict[str, Any]]] = {}
+        for row in rows:
+            if row["params"].get(param):
+                groups.setdefault(row["params"][param], []).append(row)
+        if len(groups) < 2:
+            continue
+        values = []
+        for value, items in groups.items():
+            def rank(row):
+                same = sum(row["params"].get(p) == current.get(p) for p in current if p != param)
+                return (row["id"] != current_id, -same, row.get("min_price") or float("inf"))
+            prices = [r["min_price"] for r in items if r.get("min_price")]
+            values.append({
+                "value": value,
+                "label": _family_label(param, value),
+                "product_id": sorted(items, key=rank)[0]["id"],
+                "min_price": min(prices) if prices else None,
+                "current": value == current[param],
+            })
+        values.sort(key=lambda v: float(v["value"]))
+        result.append({"id": param, "label": _FAMILY_LABELS[param], "values": values, "navigates": True})
+    return result
+
+
+def collapse_family_cards(cards: List[Any]) -> List[Any]:
+    """Исполнения одной модели на странице выдачи — одна карточка с самой низкой ценой."""
+    first_seen: Dict[Tuple[str, str, str], int] = {}
+    out: List[Any] = []
+    for card in cards:
+        family = family_key(card.product)
+        if family is None:
+            out.append(card)
+            continue
+        position = first_seen.get(family)
+        if position is None:
+            first_seen[family] = len(out)
+            out.append(card)
+            continue
+        kept = out[position]
+        extra = kept.variants_count + 1
+        if card.min_price is not None and (kept.min_price is None or card.min_price < kept.min_price):
+            out[position] = card
+            kept = card
+        kept.variants_count = extra
+    return out

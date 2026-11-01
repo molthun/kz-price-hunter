@@ -14,7 +14,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 
-from domain.product_options import build_options, offer_options
+from domain.product_options import build_family_options, build_options, collapse_family_cards, family_key, offer_options
 from domain.condition import ConditionBreakdown, build_condition_breakdown
 from domain.freshness_v2 import offer_freshness
 from domain.models import CanonicalProduct, Channel, ChannelType, Condition, Offer, Seller
@@ -209,6 +209,7 @@ class ProductSearchResult:
     used_offers_count: int = 0
     new_sellers_count: int = 0
     used_sellers_count: int = 0
+    variants_count: int = 0  # другие исполнения той же модели на странице выдачи
 
     def to_dict(self) -> Dict[str, Any]:
         res = asdict(self)
@@ -775,7 +776,7 @@ class SearchCore:
             return SearchResponse2(
                 query=query,
                 parsed_query=parsed,
-                items=product_results[:limit_val],
+                items=collapse_family_cards(product_results[:limit_val]),
                 total_products=exact_total_products,
                 total_offers=total_offers_count,
                 latency_ms=round(latency_ms, 2),
@@ -808,6 +809,13 @@ class SearchCore:
                 latency_ms=round(latency_ms, 2),
                 outcome=SearchOutcome.ERROR,
             )
+
+    def _family_options(self, product: CanonicalProduct, city: Optional[str]) -> List[Dict[str, Any]]:
+        family = family_key(product)
+        if family is None or not hasattr(self.search_repo, "get_family_products"):
+            return []
+        siblings = self.search_repo.get_family_products(*family, city=city)
+        return build_family_options(product.id, product.category, product.title, siblings)
 
     def get_canonical_product(
         self,
@@ -1052,7 +1060,7 @@ class SearchCore:
             "best_offer": best_off.to_dict() if best_off else None,
             "sellers": [s.to_dict() for s in seller_groups],
             "offers": [o.to_dict() for o in aggregated_offers],
-            "options": build_options(aggregated_offers),
+            "options": self._family_options(product, city) + build_options(aggregated_offers),
             "condition_breakdown": cond_breakdown,
             "history": history_dict,
         }

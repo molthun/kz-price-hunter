@@ -729,6 +729,27 @@ class SearchRepository(BaseRepository):
             ],
         }
 
+    def get_family_products(self, brand: str, model: str, category: str,
+                            city: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Исполнения одной модели с действующими предложениями и их самой низкой ценой."""
+        city_sql = ""
+        params: list = [brand, model, category]
+        if city and city not in ("Все", "Казахстан"):
+            city_sql = "AND (o.city = ? OR o.city LIKE ? OR o.city = 'Все' OR o.city LIKE '%Казахстан%')"
+            params.extend([city, f"%{city}%"])
+        rows = self.fetchall(
+            f"""
+            SELECT p.id, p.title, MIN(o.price) AS min_price
+            FROM canonical_products p
+            JOIN offers o ON o.product_id = p.id AND o.is_active = 1
+            WHERE p.brand = ? AND p.model = ? AND p.category = ?
+              AND COALESCE(p.item_kind, 'device') = 'device' {city_sql}
+            GROUP BY p.id
+            """,
+            params,
+        )
+        return [dict(r) for r in rows]
+
     def _attach_offer_titles(self, offers: List[Dict[str, Any]]) -> None:
         """Название у магазина лежит в старой таблице products (id предложения: off_<id товара>)."""
         ids = [o["id"][4:] for o in offers if str(o["id"]).startswith("off_")]

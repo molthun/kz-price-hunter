@@ -1002,6 +1002,29 @@
       margin: 14px 0;
     }
 
+    .detail-description {
+      font-size: 0.92rem;
+      line-height: 1.55;
+      color: var(--text-main);
+      white-space: pre-line;
+      overflow-wrap: anywhere;
+    }
+
+    .detail-description.collapsed {
+      max-height: 11em;
+      overflow: hidden;
+    }
+
+    .card-variants-hint {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    .detail-option-group + .detail-option-group {
+      margin-top: 12px;
+    }
+
     .detail-option-title {
       font-size: 0.9rem;
       font-weight: 600;
@@ -3855,7 +3878,6 @@
 
         <div class="detail-main-info">
           <div class="card-badges" id="detailBadges"></div>
-          <div class="detail-options" id="detailOptions" hidden></div>
           <h1 class="detail-title" id="detailProductTitle">Название товара</h1>
 
           <div class="detail-price-box">
@@ -3865,6 +3887,7 @@
             </div>
             <div id="detailSellersCountBadge" style="font-size:0.9rem; color:var(--text-muted); font-weight:500;"></div>
           </div>
+          <div class="detail-options" id="detailOptions" hidden></div>
 
           <div class="detail-attributes" id="detailAttributesList"></div>
         </div>
@@ -3895,6 +3918,12 @@
       </div>
 
       <!-- Price History Section -->
+      <div class="offers-section" id="detailDescriptionSection" style="margin-top: 24px;" hidden>
+        <h2 class="offers-title">Описание</h2>
+        <div class="detail-description" id="detailDescription"></div>
+        <button type="button" class="filter-show-more" id="detailDescriptionMore" onclick="toggleDetailDescription()" hidden>Показать полностью</button>
+      </div>
+
       <div class="offers-section" id="detailHistorySection" style="margin-top: 24px;">
         <h2 class="offers-title">
           <span>📈 История цен</span>
@@ -6097,6 +6126,7 @@
                 <span class="badge badge-sellers">🏬 от ${sellersCount} ${pluralizeSellers(sellersCount)}</span>
               </div>
               <h3 class="card-title">${escapeHtml(title)}</h3>
+              ${item.variants_count ? '<div class="card-variants-hint">Ещё исполнений: ' + Number(item.variants_count) + '</div>' : ''}
               <div class="card-sellers-hint">Сравнение предложений магазинов и маркетплейсов Казахстана</div>
             </div>
             <div class="card-price-action">
@@ -6541,14 +6571,41 @@
 
       renderHistory(data.history, offers);
 
+      renderDetailDescription(prod.description);
+
       detailProductData = data;
       detailSelectedOptions = {};
       const params = new URLSearchParams(location.search);
-      (data.options || []).forEach(opt => {
+      (data.options || []).filter(opt => !opt.navigates).forEach(opt => {
         const wanted = params.get(opt.id);
         if (opt.values.some(v => v.value === wanted)) detailSelectedOptions[opt.id] = wanted;
       });
       applyDetailOptions();
+    }
+
+    function renderDetailDescription(text) {
+      const section = document.getElementById('detailDescriptionSection');
+      const body = document.getElementById('detailDescription');
+      const more = document.getElementById('detailDescriptionMore');
+      const clean = String(text || '').trim();
+      section.hidden = !clean;
+      body.textContent = clean;
+      body.classList.add('collapsed');
+      more.textContent = 'Показать полностью';
+      more.hidden = !clean || body.scrollHeight <= body.clientHeight + 1;
+    }
+
+    function toggleDetailDescription() {
+      const body = document.getElementById('detailDescription');
+      const collapsed = body.classList.toggle('collapsed');
+      document.getElementById('detailDescriptionMore').textContent = collapsed ? 'Показать полностью' : 'Свернуть';
+    }
+
+    // Память и другие исполнения — отдельные товары: выбор открывает их карточку, цвет сохраняется
+    function openDetailVariant(productId) {
+      const url = new URL('/product/' + encodeURIComponent(productId), location.origin);
+      new URLSearchParams(location.search).forEach((value, name) => url.searchParams.set(name, value));
+      navigateTo(null, url.pathname + url.search);
     }
 
     let detailProductData = null;
@@ -6575,6 +6632,10 @@
       const box = document.getElementById('detailOptions');
       box.hidden = options.length === 0;
       box.innerHTML = options.map(opt => {
+        if (opt.navigates) {
+          const chips = opt.values.map(v => `<button type="button" class="detail-option-value${v.current ? ' active' : ''}" data-variant-id="${escapeHtml(v.product_id)}" aria-pressed="${Boolean(v.current)}"><span>${escapeHtml(v.label)}</span>${v.min_price ? `<span class="detail-option-price">от ${formatPrice(v.min_price)}</span>` : ''}</button>`);
+          return `<div class="detail-option-group"><div class="detail-option-title">${escapeHtml(opt.label)}</div><div class="detail-option-values">${chips.join('')}</div></div>`;
+        }
         const current = detailSelectedOptions[opt.id] || '';
         const chip = (value, inner, title) => `<button type="button" class="detail-option-value${current === value ? ' active' : ''}" data-option-id="${escapeHtml(opt.id)}" data-option-value="${escapeHtml(value)}" title="${escapeHtml(title)}" aria-pressed="${current === value}">${inner}</button>`;
         const chips = opt.values.map(v => chip(v.value,
@@ -6582,11 +6643,17 @@
           + `<span>${escapeHtml(v.label)}</span>`
           + (v.min_price ? `<span class="detail-option-price">от ${formatPrice(v.min_price)}</span>` : ''),
           v.label));
-        return `<div class="detail-option-title">${escapeHtml(opt.label)}</div>
-          <div class="detail-option-values">${chip('', 'Все', 'Все варианты')}${chips.join('')}</div>`;
+        return `<div class="detail-option-group"><div class="detail-option-title">${escapeHtml(opt.label)}</div>
+          <div class="detail-option-values">${chip('', 'Все', 'Все варианты')}${chips.join('')}</div></div>`;
       }).join('');
       box.querySelectorAll('.detail-option-value').forEach(btn => {
-        btn.addEventListener('click', () => selectDetailOption(btn.dataset.optionId, btn.dataset.optionValue));
+        btn.addEventListener('click', () => {
+          if (btn.dataset.variantId) {
+            if (!btn.classList.contains('active')) openDetailVariant(btn.dataset.variantId);
+          } else {
+            selectDetailOption(btn.dataset.optionId, btn.dataset.optionValue);
+          }
+        });
       });
 
       if (selected.length) {
