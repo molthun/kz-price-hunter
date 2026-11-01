@@ -27,7 +27,7 @@ from domain.seller_identity import (
 from domain.source_profiler import SourceProfile, SourceProfiler
 
 HANDLE_CLEAN_RE = re.compile(r"^@+|/+", re.IGNORECASE)
-KASPI_MERCHANT_URL_RE = re.compile(r"kaspi\.kz/shop/(?:info/merchant|c)/([^/?#]+)", re.IGNORECASE)
+KASPI_MERCHANT_URL_RE = re.compile(r"kaspi\.kz/shop/(?:info/merchant|m|c)/([^/?#]+)", re.IGNORECASE)
 HALYK_MERCHANT_RE = re.compile(r"halykmarket\.kz/(?:merchant|seller|store)/([^/?#]+)", re.IGNORECASE)
 FORTE_MERCHANT_RE = re.compile(r"fortemarket\.kz/(?:merchant|seller|store)/([^/?#]+)", re.IGNORECASE)
 OZON_SELLER_RE = re.compile(r"ozon\.(?:kz|ru)/seller/([^/?#]+)", re.IGNORECASE)

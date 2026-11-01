@@ -62,6 +62,16 @@ class SellerAdminTest(unittest.TestCase):
                 with self.assertRaises(SellerFormError):
                     save_seller(self.conn, None, body)
 
+    def test_kaspi_links_lead_to_one_working_page(self):
+        seller = self._create(marketplace_links=[
+            "https://kaspi.kz/shop/info/merchant/18430177/",
+            "https://kaspi.kz/shop/m/18430177/products/?ref=x",
+        ])
+        self.assertEqual(seller["marketplace_links"], ["https://kaspi.kz/shop/m/18430177/products/"])
+        channels = ChannelRepository(self.conn).list_by_seller(seller["id"], active_only=True)
+        self.assertEqual([c.external_store_id for c in channels if c.channel_type == ChannelType.MARKETPLACE],
+                         ["kaspi:18430177"])
+
     def test_unknown_seller(self):
         self.assertIsNone(save_seller(self.conn, "seller_none", {"name": "Магазин"}))
         self.assertIsNone(seller_details(self.conn, "seller_none"))

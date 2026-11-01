@@ -40,6 +40,12 @@ def _web_url(raw: str) -> Optional[str]:
     return url
 
 
+def _marketplace_url(url: str) -> str:
+    """Страница продавца Kaspi открывается только по адресу /shop/m/<номер>/products/."""
+    found = re.search(r"kaspi\.kz/shop/(?:info/merchant|m)/([^/?#]+)", url, re.IGNORECASE)
+    return f"https://kaspi.kz/shop/m/{found.group(1)}/products/" if found else url
+
+
 def clean_form(body: Dict[str, Any], is_new: bool) -> Dict[str, Any]:
     errors: List[str] = []
     name = _text(body.get("name")) or ""
@@ -69,8 +75,8 @@ def clean_form(body: Dict[str, Any], is_new: bool) -> Dict[str, Any]:
         url = _web_url(value)
         if not url:
             errors.append(f"Некорректная ссылка на маркетплейс: {value}")
-        elif url not in links:
-            links.append(url)
+        elif _marketplace_url(url) not in links:
+            links.append(_marketplace_url(url))
     if len(links) > MAX_MARKETPLACE_LINKS:
         errors.append(f"Не больше {MAX_MARKETPLACE_LINKS} ссылок на маркетплейсы.")
 
