@@ -4813,7 +4813,7 @@
         }
       }
       if (!isFiltersDialogOpen()) return;
-      } else if (e.key === 'Tab') {
+      if (e.key === 'Tab') {
         const sb = document.getElementById('filtersSidebar');
         const items = Array.from(sb.querySelectorAll('button, input, select, a[href]')).filter(el => !el.disabled && el.offsetParent !== null);
         if (!items.length) return;
