@@ -998,6 +998,69 @@
       color: var(--badge-discount-text);
     }
 
+    .detail-options {
+      margin: 14px 0;
+    }
+
+    .detail-option-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 8px;
+    }
+
+    .detail-option-values {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .detail-option-value {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 36px;
+      padding: 6px 12px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      color: var(--text-main);
+      font: inherit;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    .detail-option-value:hover {
+      border-color: var(--primary);
+    }
+
+    .detail-option-value.active {
+      border-color: var(--primary);
+      box-shadow: inset 0 0 0 1px var(--primary);
+      font-weight: 600;
+    }
+
+    .detail-option-swatches {
+      display: inline-flex;
+    }
+
+    .detail-option-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 1px solid var(--border-color);
+    }
+
+    .detail-option-swatch + .detail-option-swatch {
+      margin-left: -5px;
+    }
+
+    .detail-option-price {
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      font-weight: 400;
+    }
+
     .badge-sellers {
       background: var(--badge-sellers-bg);
       color: var(--badge-sellers-text);
@@ -3792,6 +3855,7 @@
 
         <div class="detail-main-info">
           <div class="card-badges" id="detailBadges"></div>
+          <div class="detail-options" id="detailOptions" hidden></div>
           <h1 class="detail-title" id="detailProductTitle">Название товара</h1>
 
           <div class="detail-price-box">
@@ -6477,7 +6541,73 @@
 
       renderHistory(data.history, offers);
 
-      // Render Offers Table
+      detailProductData = data;
+      detailSelectedOptions = {};
+      const params = new URLSearchParams(location.search);
+      (data.options || []).forEach(opt => {
+        const wanted = params.get(opt.key);
+        if (opt.values.some(v => v.value === wanted)) detailSelectedOptions[opt.key] = wanted;
+      });
+      applyDetailOptions();
+    }
+
+    let detailProductData = null;
+    let detailSelectedOptions = {};
+
+    function selectDetailOption(key, value) {
+      if (value) detailSelectedOptions[key] = value;
+      else delete detailSelectedOptions[key];
+      const url = new URL(location.href);
+      if (value) url.searchParams.set(key, value);
+      else url.searchParams.delete(key);
+      history.replaceState(history.state, '', url);
+      applyDetailOptions();
+    }
+
+    // Выбранные параметры сужают предложения, цену и картинку; карточка остаётся одной
+    function applyDetailOptions() {
+      const data = detailProductData;
+      const options = data.options || [];
+      const selected = Object.entries(detailSelectedOptions);
+      const offers = (data.offers || []).filter(off =>
+        selected.every(([key, value]) => (off.options || {})[key] === value));
+
+      const box = document.getElementById('detailOptions');
+      box.hidden = options.length === 0;
+      box.innerHTML = options.map(opt => {
+        const current = detailSelectedOptions[opt.key] || '';
+        const chip = (value, inner, title) => `<button type="button" class="detail-option-value${current === value ? ' active' : ''}" data-option-key="${escapeHtml(opt.key)}" data-option-value="${escapeHtml(value)}" title="${escapeHtml(title)}" aria-pressed="${current === value}">${inner}</button>`;
+        const chips = opt.values.map(v => chip(v.value,
+          `<span class="detail-option-swatches">${(v.swatches || []).map(c => `<span class="detail-option-swatch" style="background:${escapeHtml(c)}"></span>`).join('')}</span>`
+          + `<span>${escapeHtml(v.label)}</span>`
+          + (v.min_price ? `<span class="detail-option-price">от ${formatPrice(v.min_price)}</span>` : ''),
+          v.label));
+        return `<div class="detail-option-title">${escapeHtml(opt.label)}</div>
+          <div class="detail-option-values">${chip('', 'Все', 'Все варианты')}${chips.join('')}</div>`;
+      }).join('');
+      box.querySelectorAll('.detail-option-value').forEach(btn => {
+        btn.addEventListener('click', () => selectDetailOption(btn.dataset.optionKey, btn.dataset.optionValue));
+      });
+
+      if (selected.length) {
+        const buyable = offers.filter(off => off.is_purchasable);
+        const best = buyable.length ? Math.min(...buyable.map(off => off.price)) : null;
+        document.getElementById('detailBestPrice').textContent = best ? formatPrice(best) : '—';
+        const withImage = offers.find(off => off.image_url);
+        if (withImage) document.getElementById('detailMainImg').src = withImage.image_url;
+      } else {
+        const prod = data.product || {};
+        const basis = data.best_offer ? priceBasisLabel(data.best_offer) : '';
+        document.getElementById('detailBestPrice').textContent = data.min_price ? formatPrice(data.min_price) + (basis ? ' ' + basis : '') : '—';
+        document.getElementById('detailMainImg').src = prod.image_url || getSvgPlaceholder(prod.title);
+      }
+      document.getElementById('offersCountBadge').textContent = '(' + offers.length + ' предложений)';
+      const sellerCount = new Set(offers.map(off => off.seller_id)).size;
+      document.getElementById('detailSellersCountBadge').textContent = 'Доступно у ' + sellerCount + ' ' + pluralizeSellers(sellerCount);
+      renderOffersTable(offers);
+    }
+
+    function renderOffersTable(offers) {
       const tableBody = document.getElementById('offersTableBody');
       if (offers.length === 0) {
         tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:32px; color:var(--text-muted);">Актуальных предложений не найдено.</td></tr>';

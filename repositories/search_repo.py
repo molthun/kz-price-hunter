@@ -729,6 +729,20 @@ class SearchRepository(BaseRepository):
             ],
         }
 
+    def _attach_offer_titles(self, offers: List[Dict[str, Any]]) -> None:
+        """Название у магазина лежит в старой таблице products (id предложения: off_<id товара>)."""
+        ids = [o["id"][4:] for o in offers if str(o["id"]).startswith("off_")]
+        if not ids:
+            return
+        try:
+            placeholders = ",".join("?" * len(ids))
+            rows = self.fetchall(f"SELECT id, title FROM products WHERE id IN ({placeholders})", ids)
+        except sqlite3.OperationalError:
+            return                                  # база без старой схемы: карточка работает без выбора цвета
+        titles = {r["id"]: r["title"] for r in rows}
+        for offer in offers:
+            offer["offer_title"] = titles.get(str(offer["id"])[4:])
+
     def get_canonical_product_detail(
         self,
         product_id: str,
@@ -783,6 +797,8 @@ class SearchRepository(BaseRepository):
             od = dict(r)
             od["is_private_seller"] = bool(od.get("is_private_seller"))
             offers.append(od)
+
+        self._attach_offer_titles(offers)
 
         return {
             "product": product,

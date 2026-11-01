@@ -14,6 +14,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 
+from domain.product_options import build_options, offer_options
 from domain.condition import ConditionBreakdown, build_condition_breakdown
 from domain.freshness_v2 import offer_freshness
 from domain.models import CanonicalProduct, Channel, ChannelType, Condition, Offer, Seller
@@ -81,6 +82,8 @@ class AggregatedOffer:
     seller_bin: Optional[str] = None
     seller_legal_name: Optional[str] = None
     seller_metadata_json: Optional[str] = None
+    title: Optional[str] = None  # название у магазина: по нему виден цвет
+    options: Optional[Dict[str, str]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -923,6 +926,8 @@ class SearchCore:
                 seller_bin=s_model.bin,
                 seller_legal_name=s_model.legal_name,
                 seller_metadata_json=od.get("seller_metadata_json"),
+                title=od.get("offer_title"),
+                options=offer_options(od.get("offer_title")),
             )
             aggregated_offers.append(agg)
 
@@ -1047,6 +1052,7 @@ class SearchCore:
             "best_offer": best_off.to_dict() if best_off else None,
             "sellers": [s.to_dict() for s in seller_groups],
             "offers": [o.to_dict() for o in aggregated_offers],
+            "options": build_options(aggregated_offers),
             "condition_breakdown": cond_breakdown,
             "history": history_dict,
         }
