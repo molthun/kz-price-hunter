@@ -4645,6 +4645,13 @@
       const show = typeof open === 'boolean' ? open : menu.hidden;
       menu.hidden = !show;
       button.setAttribute('aria-expanded', String(show));
+      // На телефоне кнопка бывает у левого края: меню раскрывается туда, где есть место
+      menu.style.left = '';
+      menu.style.right = '';
+      if (show && menu.getBoundingClientRect().left < 8) {
+        menu.style.left = '0';
+        menu.style.right = 'auto';
+      }
     }
 
     document.addEventListener('click', (e) => {
