@@ -171,6 +171,31 @@ class TestCatalogClassifier(unittest.TestCase):
             ("Защитное Full Cover 9H стекло для iPhone 14 Pro", "phone_glass", "accessory", None, None),
             ("Адаптер для Iphone 12 13 14 15 20W", "cables_chargers", "accessory", None, None),
             ("Беспроводные наушники для iPhone TWS Pro", "headphones", "device", None, None),
+            # Mac & MacBook canonical standardization
+            ("Ноутбук Apple MacBook Air A2337 с дисплеем Retina (Z1240004J)", "laptops", "device", "Apple", "MacBook Air 13"),
+            ("Ноутбук Apple MacBook Air A2941 с дисплеем Retina Liquid (MQKW3)", "laptops", "device", "Apple", "MacBook Air 15"),
+            ("Ноутбук APPLE MacBook Neo 13 2026 (MHFG4)/13/Apple A18 Pro 6-core/8/512/5-Core/MacOS/Indigo", "laptops", "device", "Apple", "MacBook Neo 13"),
+            ("Ноутбук Apple MacBook Pro 14 M3 Pro 18/512GB Space Black", "laptops", "device", "Apple", "MacBook Pro 14"),
+            ("Ноутбук Apple 16-inch MacBook Pro M3 Max 36/1TB Silver", "laptops", "device", "Apple", "MacBook Pro 16"),
+            ("Моноблок 24 inch iMac M3 8/256GB Blue", "pc_desktops", "device", "Apple", "iMac 24"),
+            # iPad canonical standardization
+            ("iPad 11 (A16) 128Gb WiFi", "tablets", "device", "Apple", "iPad 11"),
+            ("Планшет Apple iPad Air 11 M4 128Gb WiFi", "tablets", "device", "Apple", "iPad Air 11"),
+            ("Планшет APPLE 13-inch iPad Pro WiFi 256GB with Standard glass", "tablets", "device", "Apple", "iPad Pro 13"),
+            ("Планшет Apple iPad mini 6 (2021) 3/64GB Wi-Fi Purple", "tablets", "device", "Apple", "iPad mini"),
+            ("Планшет Apple iPad 10.2″ (2021) 3/64GB Wi-Fi Space Grey", "tablets", "device", "Apple", "iPad 9"),
+            # Audio (AirPods & EarPods)
+            ("Наушники Apple AirPods Max Silver", "headphones", "device", "Apple", "AirPods Max"),
+            ("Наушники Apple AirPods Pro 2 USB-C White", "headphones", "device", "Apple", "AirPods Pro 2"),
+            ("Наушники Apple EarPods with Lightning Connector белый", "headphones", "device", "Apple", "EarPods"),
+            # Displays
+            ("27\" Studio Display XDR Standard glass", "monitors", "device", "Apple", "Studio Display"),
+            # Watch Nike edition
+            ("Часы Watch Nike Series 7 45mm", "smartwatches", "device", "Apple", "Apple Watch Series 7"),
+            # False Apple brand exclusions (food, cosmetics, gardening, cookware)
+            ("Конфеты Qazaq Apple красное яблоко, 108 г", "food", "device", None, "Конфеты Qazaq Apple красное"),
+            ("Тройник для воды штуцерный Green Apple GWHC20-062", "home", "device", "Green Apple", "Тройник"),
+            ("Кастрюля Lara Apple LR02-31, 16 см, 2.1 л., с крышкой", "kitchen_appliances", "device", "Lara", "Apple LR02 31"),
         ]
         for title, exp_cat, exp_kind, exp_brand, exp_model in cases:
             with self.subTest(title=title):

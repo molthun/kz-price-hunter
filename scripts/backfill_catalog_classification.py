@@ -101,6 +101,15 @@ def backfill_classification(
                 new_model = None
                 new_kind = "device"
 
+            # Локальный ИИ для Apple устройств без определившейся модели
+            if new_brand == "Apple" and new_kind == "device" and not new_model:
+                try:
+                    ai_res = classifier.classify_with_local_ai(title, raw_category=raw_cat)
+                    if ai_res and ai_res.model:
+                        new_model = ai_res.model
+                except Exception:
+                    pass
+
             updates.append((new_cat, new_brand, new_model, new_kind, pid))
             category_stats[new_cat] = category_stats.get(new_cat, 0) + 1
             if new_brand:

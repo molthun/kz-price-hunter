@@ -231,6 +231,14 @@ KNOWN_BRANDS: Dict[str, str] = {
     "dji": "DJI",
     "gopro": "GoPro",
     "insta360": "Insta360",
+
+    # Household, Gardening & Others
+    "green apple": "Green Apple",
+    "lara": "Lara",
+    "trolli": "Trolli",
+    "sonnen": "Sonnen",
+    "mvtag": "MVTAG",
+    "devia": "Devia",
 }
 
 # Regex word boundary match pattern for brands (sorted by length desc to match multi-word first)
@@ -243,38 +251,35 @@ _BRAND_PATTERN = re.compile(
 # Product Type keyword rules: Title keywords -> Category ID
 _TITLE_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
     # Audio & TV (проверяем наушники раньше телефонов, чтобы "наушники для iPhone" не становились телефоном)
-    (re.compile(r"\b(наушник[и|ов]|гарнитур[аы]|airpods|tws|вкладыши)\b", re.I), "headphones"),
+    (re.compile(r"\b(наушник(?:и|ов)|гарнитур(?:а|ы)|airpods|earpods|tws|вкладыши)\b", re.I), "headphones"),
     (re.compile(r"\b(телевизор|smart\s+tv|oled\s+tv|qled\s+tv)\b", re.I), "tv"),
-    (re.compile(r"\b(игров[ая|ые]\s+приставк[аи]|игровая\s+консоль|playstation|ps5|xbox|nintendo\s+switch)\b", re.I), "consoles"),
+    (re.compile(r"\b(игров(?:ая|ые)\s+приставк(?:а|и)|игровая\s+консоль|playstation|ps5|xbox|nintendo\s+switch)\b", re.I), "consoles"),
 
     # Phones & Tablets
     (re.compile(r"\b(смартфон|айфон|iphone|сотовый\s+телефон)\b", re.I), "phones"),
     (re.compile(r"\b(планшет|ipad|tablet)\b", re.I), "tablets"),
-    (re.compile(r"\b(смарт-час[ыа]|умные\s+часы|фитнес-браслет|apple\s+watch|galaxy\s+watch)\b", re.I), "smartwatches"),
+    (re.compile(r"\b(смарт-час(?:ы|а)|умные\s+часы|фитнес-браслет|(?:apple\s+)?watch\s*(?:nike\s+)?series|apple\s+watch|galaxy\s+watch)\b", re.I), "smartwatches"),
 
     # Laptops & Computers
     (re.compile(r"\b(ноутбук|ультрабук|macbook|лэптоп)\b", re.I), "laptops"),
-    (re.compile(r"\b(системный\s+блок|компьютер|моноблок|неттоп|desktop\s+pc)\b", re.I), "pc_desktops"),
-    (re.compile(r"\b(монитор|дисплей)\b", re.I), "monitors"),
+    (re.compile(r"\b(системный\s+блок|компьютер|моноблок|неттоп|desktop\s+pc|imac|mac\s+mini|mac\s+studio|mac\s+pro)\b", re.I), "pc_desktops"),
+    (re.compile(r"\b(монитор|дисплей|studio\s+display|pro\s+display\s+xdr)\b", re.I), "monitors"),
 
     # Hardware Components
-    (re.compile(r"\b(видеокарт[аы]|geforce\s+rtx|radeon\s+rx|графический\s+процессор)\b", re.I), "gpus"),
+    (re.compile(r"\b(видеокарт(?:а|ы)|geforce\s+rtx|radeon\s+rx|графический\s+процессор)\b", re.I), "gpus"),
     (re.compile(r"\b(процессор|intel\s+core|amd\s+ryzen)\b", re.I), "cpus"),
-    (re.compile(r"\b(материнск[ая|ие]\s+плат[аы]|motherboard)\b", re.I), "motherboards"),
+    (re.compile(r"\b(материнск(?:ая|ие)\s+плат(?:а|ы)|motherboard)\b", re.I), "motherboards"),
     (re.compile(r"\b(накопитель\s+ssd|твердотельный\s+накопитель|жесткий\s+диск|hdd|ssd\s+m\.2)\b", re.I), "storage"),
-    (re.compile(r"\b(клавиатур[аы]|компьютерн[ая|ые]\s+мыш[ьи]|мышь\s+беспроводная|геймпад)\b", re.I), "peripherals"),
+    (re.compile(r"\b(клавиатур(?:а|ы)|keyboard|компьютерн(?:ая|ые)\s+мыш(?:ь|и)|мышь\s+беспроводная|magic\s+mouse|magic\s+trackpad|тачпад|геймпад)\b", re.I), "peripherals"),
 
-    # Audio & TV
-    (re.compile(r"\b(наушник[и|ов]|гарнитур[аы]|airpods|tws|вкладыши)\b", re.I), "headphones"),
-    (re.compile(r"\b(телевизор|smart\s+tv|oled\s+tv|qled\s+tv)\b", re.I), "tv"),
-    (re.compile(r"\b(игров[ая|ые]\s+приставк[аи]|игровая\s+консоль|playstation|ps5|xbox|nintendo\s+switch)\b", re.I), "consoles"),
-
-    # Appliances
-    (re.compile(r"\b(стиральн[ая|ые]\s+машин[аы]|стиралка)\b", re.I), "washing_machines"),
-    (re.compile(r"\b(холодильник|морозильник|морозильн[ая|ые]\s+камер[аы])\b", re.I), "refrigerators"),
+    # Appliances & Home
+    (re.compile(r"\b(стиральн(?:ая|ые|ую)\s+машин(?:а|ы|у)|стиралка)\b", re.I), "washing_machines"),
+    (re.compile(r"\b(холодильник|морозильник|морозильн(?:ая|ые)\s+камер(?:а|ы))\b", re.I), "refrigerators"),
     (re.compile(r"\b(пылесос|робот-пылесос|вертикальный\s+пылесос)\b", re.I), "vacuums"),
-    (re.compile(r"\b(кондиционер|сплит-систем[аы])\b", re.I), "air_conditioners"),
-    (re.compile(r"\b(микроволнов[ка|ая]\s*печь|кофемашин[аы]|кофеварк[аи]|чайник\s+электрический|блендер|мультиварк[аи]|тостер|мясорубк[аи])\b", re.I), "kitchen_appliances"),
+    (re.compile(r"\b(кондиционер|сплит-систем(?:а|ы))\b", re.I), "air_conditioners"),
+    (re.compile(r"\b(микроволнов(?:ка|ая\s*печь)|кофемашин(?:а|ы)|кофеварк(?:а|и)|чайник\s+электрический|блендер|мультиварк(?:а|и)|тостер|мясорубк(?:а|и)|кастрюл(?:я|и)|сковород(?:а|ы))\b", re.I), "kitchen_appliances"),
+    (re.compile(r"\b(конфет(?:ы|а)|маршмелоу|шоколад|джем|печенье)\b", re.I), "food"),
+    (re.compile(r"\b(шланг|тройник\s+для\s+воды|распределитель\s+воды)\b", re.I), "home"),
 ]
 
 
@@ -310,7 +315,10 @@ _ACCESSORY_CONSUMABLE_RULES: List[Tuple[re.Pattern, str, str]] = [
     ),
     # Watch Straps
     (
-        re.compile(r"\b(ремешок\s+для|браслет\s+для\s+часов|ремешок\s+apple\s+watch|watch\s+band|watch\s+strap)\b", re.I),
+        re.compile(
+            r"^(?:ремешок|ремешки|браслет\s+для\s+часов|watch\s+band|watch\s+strap)\b|\b(?:ремешок\s+для|сменный\s+ремешок)\b",
+            re.I,
+        ),
         "smartwatches",
         "accessory",
     ),
@@ -414,7 +422,9 @@ def extract_iphone_model(text: str) -> Optional[str]:
 
 
 _APPLE_WATCH_REGEX = re.compile(
-    r"\b(?:apple\s+)?watch\s*(?:(ultra\s*2|ultra)|(se(?:\s*3|\s*\d{4})?)|series\s*(\d{1,2})|(\d{1,2}))\b",
+    r"\b(?:apple\s+)?watch\s*(?:(ultra\s*2|ultra)|(se(?:\s*3|\s*\d{4})?)|(?:nike\s+)?series\s*(\d{1,2})|(\d{1,2}))\b|"
+    r"\b(ultra\s*2)\b|"
+    r"\b(se)\s+gps\b",
     re.IGNORECASE,
 )
 
@@ -423,8 +433,8 @@ def extract_apple_watch_model(text: str) -> Optional[str]:
     m = _APPLE_WATCH_REGEX.search(text)
     if not m:
         return None
-    ultra = m.group(1)
-    se = m.group(2)
+    ultra = m.group(1) or m.group(5)
+    se = m.group(2) or m.group(6)
     series = m.group(3) or m.group(4)
     if ultra:
         u = re.sub(r"\s+", " ", ultra).strip().title()
@@ -436,24 +446,158 @@ def extract_apple_watch_model(text: str) -> Optional[str]:
     return "Apple Watch"
 
 
-_AIRPODS_REGEX = re.compile(
-    r"\bairpods\s*(max|pro\s*2|pro|4|3|2)\b",
-    re.IGNORECASE,
-)
-
-
-def extract_airpods_model(text: str) -> Optional[str]:
-    m = _AIRPODS_REGEX.search(text)
-    if not m:
-        return None
-    sub = m.group(1).lower()
-    if sub == "max":
+def extract_apple_audio_model(text: str) -> Optional[str]:
+    """Standardizes AirPods and EarPods models."""
+    if re.search(r"\bearpods\b", text, re.I):
+        return "EarPods"
+    if re.search(r"\bairpods\s+max\b", text, re.I):
         return "AirPods Max"
-    if sub.startswith("pro 2"):
+    if re.search(r"\bairpods\s+pro\s*2\b|\bairpods\s+pro\b.*\b(?:2(?:nd|nd\s*gen|-го\s*поколения)|type-c|usb-c)\b", text, re.I):
         return "AirPods Pro 2"
-    if sub.startswith("pro"):
+    if re.search(r"\bairpods\s+pro\b", text, re.I):
         return "AirPods Pro"
-    return f"AirPods {sub}"
+    if re.search(r"\bairpods\s*4\b|\bairpods\s*4th\s*gen\b", text, re.I):
+        return "AirPods 4"
+    if re.search(r"\bairpods\s*3\b|\bairpods\s*3rd\s*gen\b", text, re.I):
+        return "AirPods 3"
+    if re.search(r"\bairpods\s*2\b|\bairpods\s*2nd\s*gen\b", text, re.I):
+        return "AirPods 2"
+    if re.search(r"\bairpods\b", text, re.I):
+        return "AirPods"
+    return None
+
+
+def extract_mac_model(text: str) -> Optional[str]:
+    """Standardizes Mac laptop and desktop models."""
+    # MacBook Neo
+    if re.search(r"\bmacbook\s+neo\b", text, re.I):
+        return "MacBook Neo 13"
+
+    # MacBook Air
+    if re.search(r"\b(?:15\s*(?:[\'\"″]|inch|-inch)?\s+macbook\s+air|macbook\s+air\s*(?:15(?:[\'\"″]|inch|\b)|15\.\d|a2941|a3114))\b", text, re.I):
+        return "MacBook Air 15"
+    if re.search(r"\b(?:13\s*(?:[\'\"″]|inch|-inch)?\s+macbook\s+air|macbook\s+air\s*(?:13(?:[\'\"″]|inch|\b)|13\.\d|a2337|a2681|a3113))\b", text, re.I):
+        return "MacBook Air 13"
+    if re.search(r"\bmacbook\s+air\b", text, re.I):
+        return "MacBook Air"
+
+    # MacBook Pro
+    if re.search(r"\b(?:16\s*(?:[\'\"″]|inch|-inch)?\s+macbook\s+pro|macbook\s+pro\s*(?:16(?:[\'\"″]|inch|\b)|16\.\d|a2485|a2780|a2991))\b", text, re.I):
+        return "MacBook Pro 16"
+    if re.search(r"\b(?:14\s*(?:[\'\"″]|inch|-inch)?\s+macbook\s+pro|macbook\s+pro\s*(?:14(?:[\'\"″]|inch|\b)|14\.\d|a2442|a2779|a2918|a2992))\b", text, re.I):
+        return "MacBook Pro 14"
+    if re.search(r"\b(?:13\s*(?:[\'\"″]|inch|-inch)?\s+macbook\s+pro|macbook\s+pro\s*(?:13(?:[\'\"″]|inch|\b)|13\.\d|a2289|a2338))\b", text, re.I):
+        return "MacBook Pro 13"
+    if re.search(r"\b(?:15\s*(?:[\'\"″]|inch|-inch)?\s+macbook\s+pro|macbook\s+pro\s*(?:15(?:[\'\"″]|inch|\b)|15\.\d))\b", text, re.I):
+        return "MacBook Pro 15"
+    if re.search(r"\bmacbook\s+pro\b", text, re.I):
+        return "MacBook Pro"
+
+    # Desktops: iMac, Mac mini, Mac Studio, Mac Pro
+    if re.search(r"\b(?:24\s*(?:[\'\"″]|inch|-inch)?\s+imac|imac\s*(?:24(?:[\'\"″]|inch|\b)|a3247|a2438|a2439))\b", text, re.I):
+        return "iMac 24"
+    if re.search(r"\bimac\s*27\b", text, re.I):
+        return "iMac 27"
+    if re.search(r"\bimac\b", text, re.I):
+        return "iMac"
+    if re.search(r"\bmac\s+mini\b", text, re.I):
+        return "Mac mini"
+    if re.search(r"\bmac\s+studio\b", text, re.I):
+        return "Mac Studio"
+    if re.search(r"\bmac\s+pro\b", text, re.I):
+        return "Mac Pro"
+
+    return None
+
+
+def extract_ipad_model(text: str) -> Optional[str]:
+    """Standardizes Apple iPad models."""
+    # Exclude tablet accessories
+    if re.search(r"\b(клавиатур[аы]|keyboard|стилус|stylus|чехол|стекло|пленка|ремешок|кабель|адаптер)\b", text, re.I):
+        return None
+
+    # iPad Air
+    if re.search(r"\b(?:13\s*(?:[\'\"″]|inch|-inch)?\s+ipad\s+air|ipad\s+air\s*(?:13(?:[\'\"″]|inch|\b)|13\.\d))\b", text, re.I):
+        return "iPad Air 13"
+    if re.search(r"\b(?:11\s*(?:[\'\"″]|inch|-inch)?\s+ipad\s+air|ipad\s+air\s*(?:11(?:[\'\"″]|inch|\b)|11\.\d))\b", text, re.I):
+        return "iPad Air 11"
+    if re.search(r"\bipad\s+air\b", text, re.I):
+        return "iPad Air"
+
+    # iPad Pro
+    if re.search(r"\b(?:13\s*(?:[\'\"″]|inch|-inch)?\s+ipad\s+pro|ipad\s+pro\s*(?:13(?:[\'\"″]|inch|\b)|13\.\d))\b", text, re.I):
+        return "iPad Pro 13"
+    if re.search(r"\b(?:12\.9\s*(?:[\'\"″]|inch|-inch)?\s+ipad\s+pro|ipad\s+pro\s*(?:12\.9(?:[\'\"″]|inch|\b)|12\.9″|12\"))\b", text, re.I):
+        return "iPad Pro 12.9"
+    if re.search(r"\b(?:11\s*(?:[\'\"″]|inch|-inch)?\s+ipad\s+pro|ipad\s+pro\s*(?:11(?:[\'\"″]|inch|\b)|11\.\d))\b", text, re.I):
+        return "iPad Pro 11"
+    if re.search(r"\bipad\s+pro\b", text, re.I):
+        return "iPad Pro"
+
+    # iPad mini
+    if re.search(r"\bipad\s+mini\b", text, re.I):
+        return "iPad mini"
+
+    # Base iPad
+    if re.search(r"\b(?:11\s*(?:[\'\"″]|inch|-inch)?\s+ipad|ipad\s*(?:11(?:[\'\"″]|inch|\b)|11\.\d|a16))\b", text, re.I):
+        return "iPad 11"
+    if re.search(r"\b(?:9(?:th)?\s*(?:[\'\"″]|inch|-inch|gen)?\s+ipad|ipad\s*(?:9(?:[\'\"″]|inch|th)?|10\.2))\b", text, re.I):
+        return "iPad 9"
+    if re.search(r"\b(?:10(?:th)?\s*(?:[\'\"″]|inch|-inch|gen)?\s+ipad|ipad\s*(?:10(?:[\'\"″]|inch|th)?|10\.9))\b", text, re.I):
+        return "iPad 10"
+    if re.search(r"\bipad\b", text, re.I):
+        return "iPad"
+
+    return None
+
+
+def extract_apple_display_model(text: str) -> Optional[str]:
+    """Standardizes Apple displays."""
+    if re.search(r"\bpro\s+display\s+xdr\b", text, re.I):
+        return "Pro Display XDR"
+    if re.search(r"\bstudio\s+display\b", text, re.I):
+        return "Studio Display"
+    return None
+
+
+def extract_apple_input_device_model(text: str) -> Optional[str]:
+    """Standardizes Apple Pencils, Keyboards, Mice and Trackpads."""
+    if re.search(r"\bapple\s+pencil\s+pro\b", text, re.I):
+        return "Apple Pencil Pro"
+    if re.search(r"\bapple\s+pencil\s*[\(\[]?\s*(?:usb-c|type-c)[\)\]]?", text, re.I):
+        return "Apple Pencil (USB-C)"
+    if re.search(r"\bapple\s+pencil\s*(?:2|2nd|-го\s*поколения)\b", text, re.I):
+        return "Apple Pencil 2"
+    if re.search(r"\bapple\s+pencil\b", text, re.I):
+        return "Apple Pencil"
+    if re.search(r"\bmagic\s+keyboard\b", text, re.I):
+        return "Magic Keyboard"
+    if re.search(r"\bmagic\s+trackpad\b", text, re.I):
+        return "Magic Trackpad"
+    if re.search(r"\bmagic\s+mouse\b", text, re.I):
+        return "Magic Mouse"
+    return None
+
+
+def extract_apple_tracker_model(text: str) -> Optional[str]:
+    """Standardizes AirTag trackers."""
+    if re.search(r"\bairtag\b", text, re.I):
+        return "AirTag"
+    return None
+
+
+def extract_apple_canonical_model(text: str) -> Optional[str]:
+    """Unified entrypoint for all Apple canonical models."""
+    return (
+        extract_iphone_model(text)
+        or extract_mac_model(text)
+        or extract_ipad_model(text)
+        or extract_apple_watch_model(text)
+        or extract_apple_audio_model(text)
+        or extract_apple_display_model(text)
+        or extract_apple_input_device_model(text)
+        or extract_apple_tracker_model(text)
+    )
 
 
 # Canonical Model Line Rules (Top Consumer Electronics Models)
@@ -581,11 +725,13 @@ KNOWN_MODEL_FAMILIES: List[Tuple[re.Pattern, str]] = [
 # Patterns stripped from title when constructing fallback clean model
 _MODEL_STRIP_PATTERNS = [
     # Category words
-    r"\b(смартфон|сотовый телефон|мобильный телефон|ноутбук|ультрабук|планшет|пылесос|беспроводн(?:ой|ые|ая)|вертикальный|робот-пылесос|телевизор|видеокарта|наушники|смарт-часы|умные часы|монитор|холодильник|стиральная машина|кондиционер)\b",
+    r"\b(смартфон|сотовый телефон|мобильный телефон|ноутбук|ультрабук|планшет|пылесос|беспроводн(?:ой|ые|ая)|вертикальный|робот-пылесос|телевизор|видеокарта|наушники|смарт-часы|умные часы|монитор|холодильник|стиральная машина|кондиционер|кастрюл(?:я|и)|сковород(?:а|ы))\b",
     # Compatibility clauses
     r"\b(?:для|for|на)\s+.*$",
     # Memory, storage, specs
     r"\b\d+\s*(?:/\s*\d+)?\s*(?:gb|гб|tb|тб|mb|мб|ram|rom|mah|мач|w|вт|hz|гц|dpi)\b",
+    r"\b\d+(?:\.\d+)?\s*(?:л|l|мл|ml|г|g|кг|kg)\.?\b",
+    r"\b(с\s+крышкой|без\s+крышки)\b",
     r"\b\d+[\'\"«»]\b",
     r"\b\d+\s*(?:дюйм(?:ов|а)?|см|mm|мм)\b",
     r"\b(4k|8k|fhd|uhd|oled|qled|hdr|ips|amoled|retina)\b",
@@ -621,18 +767,10 @@ def extract_clean_model(
     # Отсекаем комплекты подарков и бандлы
     main_title = title.split("+")[0].strip() if "+" in title else title
 
-    # Стандартизированный нейминг Apple устройств
-    iphone_mod = extract_iphone_model(main_title)
-    if iphone_mod:
-        return iphone_mod
-
-    watch_mod = extract_apple_watch_model(main_title)
-    if watch_mod:
-        return watch_mod
-
-    airpods_mod = extract_airpods_model(main_title)
-    if airpods_mod:
-        return airpods_mod
+    # Стандартизированный нейминг всей линейки Apple устройств
+    apple_mod = extract_apple_canonical_model(main_title)
+    if apple_mod:
+        return apple_mod
 
     # 1. Поиск по известным семействам моделей
     for pat, fam in KNOWN_MODEL_FAMILIES:
@@ -646,7 +784,7 @@ def extract_clean_model(
     for pat in _MODEL_STRIP_PATTERNS:
         res = re.sub(pat, "", res, flags=re.I)
 
-    res = re.sub(r"[/\\,\-\+\:\;\s]+", " ", res).strip()
+    res = re.sub(r"[/\\,\-\+\:\;\s\.]+", " ", res).strip()
     words = res.split()
     if not words:
         return None
@@ -709,10 +847,28 @@ class CatalogClassifier:
         if not title:
             return None
 
-        # Ищем первое точное совпадение бренда в заголовке
-        match = _BRAND_PATTERN.search(title)
+        # Если в названии есть фраза совместимости «для/на/for <устройство>»,
+        # отсекаем её, чтобы бренд целевого смартфона/консоли не приписывался чужому товару
+        m_compat = re.search(
+            r"\b(?:для|for|на)\s+(?:apple|айфон|iphone|ipad|macbook|imac|airpods|samsung|galaxy|xiaomi|redmi|huawei|honor|oppo|vivo|realme|sony|ps5|xbox|dyson|switch|nintendo)\b",
+            title,
+            re.I,
+        )
+        search_text = title[:m_compat.start()] if m_compat else title
+
+        # Ищем первое точное совпадение бренда в очищенном заголовке
+        match = _BRAND_PATTERN.search(search_text)
         if match:
             raw_key = match.group(1).lower()
+            # Защита от ложного срабатывания Apple на фруктах, сладостях, бытовой химии, садовых товарах и косметике
+            if raw_key == "apple":
+                if re.search(
+                    r"\b(ароматизатор|духи|perfume|парфюм|мыло|soap|конфет[ыа]?|маршмелоу|шоколад|джем|паст[аы]|яблочн(?:ый|ое|ая|ого)?|печенье|сок\b|чай\b|напиток|sorbet|крем\b|шампунь|гель\b|гель-душ|шланг|полив|тройник|кастрюл[яи]|сковород[аы]|мытья\s+посуды|порошок|чистящ[ее|ие])\b|"
+                    r"\b(?:green|crab)\s+apple\b",
+                    title,
+                    re.I,
+                ):
+                    return None
             return KNOWN_BRANDS.get(raw_key)
 
         return None
@@ -737,10 +893,12 @@ class CatalogClassifier:
         # Отсекаем комплекты подарков и бандлы ("Смартфон Apple iPhone + Наушники AirPods...")
         main_part = title.split("+")[0].strip() if "+" in title else title
 
-        # 0. Проверяем первичность ключевых устройств (смарт-часы, смартфоны и т.д.),
-        # чтобы "Aluminium Case" в смарт-часах не превращал часы в чехлы
-        is_watch = bool(re.search(r"\b(смарт-час[ыа]|умные\s+часы|apple\s+watch|galaxy\s+watch)\b", main_part, re.I)) and not bool(re.search(r"\b(ремешок|браслет\s+для|watch\s+band|watch\s+strap)\b", main_part, re.I))
+        # 0. Проверяем первичность ключевых устройств (смарт-часы, смартфоны, планшеты, ноутбуки),
+        # чтобы аксессуары ("Aluminium Case", "Чехол для...", "Стилус") не меняли тип основного устройства
+        is_watch = bool(re.search(r"\b(смарт-час(?:ы|а)|умные\s+часы|(?:apple\s+)?watch\s*(?:nike\s+)?series|apple\s+watch|galaxy\s+watch)\b", main_part, re.I)) and not bool(re.search(r"\b(ремешок\s+для|браслет\s+для|сменный\s+ремешок)\b|^ремешок\b", main_part, re.I))
         is_phone = bool(re.search(r"\b(смартфон|айфон|сотовый\s+телефон)\b", main_part, re.I)) and not bool(re.search(r"\b(чехол|стекло|пленка|ремешок|кабель|держатель|подставка|наушники|гарнитур|адаптер|зарядк|переходник)\b", main_part, re.I))
+        is_tablet = bool(re.search(r"\b(планшет|ipad|tablet)\b", main_part, re.I)) and not bool(re.search(r"\b(клавиатур[аы]|keyboard|стилус|stylus|чехол|стекло|пленка|ремешок|кабель|адаптер|держатель|подставка)\b", main_part, re.I))
+        is_laptop = bool(re.search(r"\b(ноутбук|macbook|laptop|ультрабук)\b", main_part, re.I)) and not bool(re.search(r"\b(чехол|сумка|рюкзак|накладка|пленка|клавиатур|зарядное|адаптер|блок\s+питания)\b", main_part, re.I))
 
         item_kind = "device"
         compat_target = None
@@ -751,6 +909,12 @@ class CatalogClassifier:
             item_kind = "device"
         elif is_phone:
             matched_cat_id = "phones"
+            item_kind = "device"
+        elif is_tablet:
+            matched_cat_id = "tablets"
+            item_kind = "device"
+        elif is_laptop:
+            matched_cat_id = "laptops"
             item_kind = "device"
         else:
             for pat, cat_id, kind in _ACCESSORY_CONSUMABLE_RULES:
@@ -778,16 +942,16 @@ class CatalogClassifier:
                 cleaned_after = re.sub(r"\b(apple|iphone|ipad|samsung|galaxy|xiaomi|redmi|huawei|honor)\b", "", parts[1], flags=re.I)
                 brand = self.extract_brand(cleaned_after)
         else:
-            # Для основных товаров убираем совместимость «для / на / for ...», если она есть (напр. «Наушники для iPhone»)
-            parts = re.split(r"\b(?:для|на|for)\b", main_part, flags=re.I, maxsplit=1)
-            before_part = parts[0]
-            brand = self.extract_brand(before_part)
-            if not brand and len(parts) == 1:
-                # Если фразы «для / for» не было, можно искать бренд по всей строке
-                brand = self.extract_brand(main_part)
+            # Для основных товаров проверяем бренд по всему названию
+            brand = self.extract_brand(main_part)
             if not brand:
-                check_target = before_part if len(parts) > 1 else main_part
-                if re.search(r"\b(iphone|ipad|macbook|airpods|apple\s+watch)\b", check_target, re.I):
+                # Неявные Apple-устройства (iPhone, iPad, MacBook и др.), исключая совместимость «для iPhone»
+                clean_target = re.sub(r"\b(?:для|for|на)\s+.*$", "", main_part, flags=re.I)
+                if re.search(
+                    r"\b(iphone|ipad|macbook|imac|mac\s+mini|mac\s+studio|mac\s+pro|airpods|earpods|(?:apple\s+)?watch\s*(?:nike\s+)?series|apple\s+watch|studio\s+display|pro\s+display|airtag)\b",
+                    clean_target,
+                    re.I,
+                ):
                     brand = "Apple"
 
         # 1. Если определена категория аксессуара / расходника
@@ -962,12 +1126,15 @@ class CatalogClassifier:
         """
         # 1. Быстрые правила
         res = self.classify_rules(title, raw_category)
-        if res and res.confidence >= 0.85:
+        if res and res.confidence >= 0.85 and (res.brand != "Apple" or res.model or res.item_kind != "device"):
             return res
 
-        # 2. Если правила не уверены, вызываем локальную модель
+        # 2. Если правила не уверены или у Apple-устройства не определилась модель, вызываем локальный ИИ
         ai_res = self.classify_with_local_ai(title, raw_category)
         if ai_res:
+            if res and res.category_id:
+                ai_res.category_id = res.category_id
+                ai_res.category_name = res.category_name
             return ai_res
 
         # 3. Если ИИ недоступен, возвращаем частичный результат правил или дефолт
