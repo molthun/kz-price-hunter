@@ -3,7 +3,7 @@ const S=process.env.OUT;const D=JSON.parse(fs.readFileSync(S+'/data.json','utf8'
 const B='https://shdev.molthun.ru';
 const USERS={admin:{id:171013461,first_name:'Николай',last_name:'Богданец',username:'molthun',is_admin:true,is_confirmed:true,is_approved:true,photo_url:''},guest:null};
 const ROUTES=[['home','/'],['cat','/search?cat='+encodeURIComponent('Смартфоны')],['empty','/search?q=qqqzzzxxx'],['prod','/product/'+D.pid],['prodlong','/product/'+D.pid2],['deals','/deals'],['fav','/favorites'],['profile','/profile'],['admin','/admin']];
-const W=[[320,640,1],[360,740,1],[390,844,1],[430,932,1],[844,390,1],[768,1024,1],[834,1194,1],[900,700,0],[1024,768,0],[1280,800,0],[1366,768,0],[1440,900,0],[1920,1080,0],[2560,1440,0]];
+const W=[[320,640,1],[360,740,1],[390,844,1],[430,932,1],[667,375,1],[740,360,1],[844,390,1],[768,1024,1],[834,1194,1],[900,700,0],[1024,768,0],[1280,800,0],[1366,768,0],[1440,900,0],[1920,1080,0],[2560,1440,0]];
 const CHECK=()=>{const out={};const iw=innerWidth;out.hscroll=document.documentElement.scrollWidth>iw+1?document.documentElement.scrollWidth:0;
  const vis=e=>{const s=getComputedStyle(e);if(s.display==='none'||s.visibility==='hidden'||+s.opacity===0)return false;const r=e.getBoundingClientRect();return r.width>0&&r.height>0};
  const clipped=e=>{for(let p=e.parentElement;p;p=p.parentElement){const o=getComputedStyle(p).overflowX;if(o!=='visible')return true}return false};
