@@ -3788,11 +3788,32 @@
         display: inline-flex !important;
         padding: 4px;
       }
-      .header-user-name, .site-logo-text {
+      .header-user-name, .site-logo span:not(.site-logo-icon) {
         display: none;
+      }
+      .btn-catalog-header {
+        font-size: 0;
+        gap: 0;
+        padding: 8px 10px;
+      }
+      .header-left {
+        gap: 6px;
+      }
+      .header-right {
+        gap: 4px;
+        flex-shrink: 0;
       }
       .nav-link {
         padding: 6px;
+        font-size: 0.85rem;
+      }
+      .city-selector {
+        padding-left: 8px;
+        padding-right: 2px;
+      }
+      .city-selector select {
+        width: 84px;
+        min-width: 0;
       }
       .site-footer {
         padding-bottom: 16px;
