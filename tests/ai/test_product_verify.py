@@ -321,9 +321,9 @@ class AuditP17CTest(CachedVerifyTest):
 
     def test_different_needs_no_evidence_but_same_does(self):
         reply = {"same": False, "confidence": 0.99, "evidence": []}
-        self.assertEqual(product_verify.parse_verdict(reply, [])["decision"], product_verify.DIFFERENT)
+        self.assertEqual(pv.parse_verdict(reply, [])["decision"], pv.DIFFERENT)
         reply = {"same": True, "confidence": 0.99, "evidence": []}
-        self.assertEqual(product_verify.parse_verdict(reply, [])["decision"], product_verify.UNKNOWN)
+        self.assertEqual(pv.parse_verdict(reply, [])["decision"], pv.UNKNOWN)
 
     def test_model_off_is_transient_and_no_evidence_waits_a_week(self):
         self._queue_pair()
