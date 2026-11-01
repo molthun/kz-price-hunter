@@ -603,6 +603,8 @@ class SearchRepository(BaseRepository):
             if pid in products_map:
                 products_map[pid]["offers"].append(od)
 
+        self._attach_offer_titles([o for item in products_map.values() for o in item["offers"]])
+
         return [products_map[pid] for pid in ordered_product_ids if products_map[pid]["offers"]]
 
     def count_search_products(

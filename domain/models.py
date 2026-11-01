@@ -277,6 +277,7 @@ class CanonicalProduct:
 
     @classmethod
     def from_row(cls, row: Dict[str, Any]) -> CanonicalProduct:
+        from domain.product_options import split_explicit_gift
         attrs = row.get("attributes_json") or "{}"
         if isinstance(attrs, str):
             try:
@@ -286,7 +287,7 @@ class CanonicalProduct:
         return cls(
             id=row["id"],
             canonical_key=row["canonical_key"],
-            title=row["title"],
+            title=split_explicit_gift(row["title"])[0],
             category=row["category"],
             brand=row.get("brand"),
             model=row.get("model"),

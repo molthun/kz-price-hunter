@@ -3223,17 +3223,22 @@ async def family_refresh_background_worker(app):
     """Держит семейства товаров свежими: выдача объединяет исполнения по ним."""
     from database import get_connection
     from domain.product_options import refresh_family_ids
+    from gift_bundles import merge_gift_titles
 
-    def _refresh():
+    def _refresh(merge_gifts):
+        if merge_gifts:
+            merge_gift_titles()
         conn = get_connection()
         try:
             return refresh_family_ids(conn)
         finally:
             conn.close()
 
+    first_pass = True                               # перенос подарков не нагружает базу при запуске
     while True:
         try:
-            changed = await asyncio.to_thread(_refresh)
+            changed = await asyncio.to_thread(_refresh, not first_pass)
+            first_pass = False
             if changed:
                 print(f"[Family] Обновлено семейств товаров: {changed}")
             await asyncio.sleep(600.0)

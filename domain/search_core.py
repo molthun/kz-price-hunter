@@ -14,7 +14,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 
-from domain.product_options import build_family_options, build_options, family_key, offer_options
+from domain.product_options import build_family_options, build_options, family_key, mark_gifts, offer_options, split_added_product
 from domain.condition import ConditionBreakdown, build_condition_breakdown
 from domain.freshness_v2 import offer_freshness
 from domain.models import CanonicalProduct, Channel, ChannelType, Condition, Offer, Seller
@@ -84,6 +84,7 @@ class AggregatedOffer:
     seller_metadata_json: Optional[str] = None
     title: Optional[str] = None  # название у магазина: по нему виден цвет
     options: Optional[Dict[str, str]] = None
+    gift: Optional[str] = None  # что дарят; пустая строка, если магазин не уточнил
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -210,6 +211,7 @@ class ProductSearchResult:
     new_sellers_count: int = 0
     used_sellers_count: int = 0
     variants_count: int = 0  # другие исполнения той же модели
+    has_gift: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         res = asdict(self)
@@ -646,6 +648,7 @@ class SearchCore:
                     new_sellers_count=len(new_sellers_set),
                     used_sellers_count=len(used_sellers_set),
                     variants_count=item.get("variants_count", 0),
+                    has_gift=any(split_added_product(od.get("offer_title"))[1] is not None for od in offers_data),
                 )
                 product_results.append(card)
                 total_offers_count += len(aggregated_offers)
@@ -940,6 +943,8 @@ class SearchCore:
             )
             aggregated_offers.append(agg)
 
+        mark_gifts(aggregated_offers)
+
         # Sort offers: purchasable first, then price ASC
         aggregated_offers.sort(key=lambda o: (not o.is_purchasable, o.price))
         purchasable_offers = [o for o in aggregated_offers if o.is_purchasable]
@@ -1061,6 +1066,7 @@ class SearchCore:
             "best_offer": best_off.to_dict() if best_off else None,
             "sellers": [s.to_dict() for s in seller_groups],
             "offers": [o.to_dict() for o in aggregated_offers],
+            "has_gift": any(o.gift is not None for o in aggregated_offers),
             "options": self._family_options(product, city) + build_options(aggregated_offers),
             "condition_breakdown": cond_breakdown,
             "history": history_dict,

@@ -1022,6 +1022,18 @@
       overflow: hidden;
     }
 
+    .card-gift-hint {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .offer-gift {
+      font-size: 0.8rem;
+      color: var(--text-main);
+      margin-top: 2px;
+    }
+
     .card-variants-hint {
       font-size: 0.82rem;
       font-weight: 600;
@@ -6111,6 +6123,7 @@
                 <span class="badge badge-sellers">🏬 от ${sellersCount} ${pluralizeSellers(sellersCount)}</span>
               </div>
               <h3 class="card-title">${escapeHtml(title)}</h3>
+              ${item.has_gift ? '<div class="card-gift-hint" title="У части магазинов с подарком">🎁 Есть с подарком</div>' : ''}
               ${item.variants_count ? '<div class="card-variants-hint">Ещё исполнений: ' + Number(item.variants_count) + '</div>' : ''}
               <div class="card-sellers-hint">Сравнение предложений магазинов и маркетплейсов Казахстана</div>
             </div>
@@ -6721,6 +6734,7 @@
                 <span>${escapeHtml(off.seller_name || 'Магазин')}</span>
                 <span class="channel-badge">${escapeHtml(off.channel_name || off.channel_type || 'Web')}</span>
               </div>
+              ${off.gift !== null && off.gift !== undefined ? '<div class="offer-gift" title="Подарок от магазина">🎁 ' + escapeHtml(off.gift ? 'Подарок: ' + off.gift : 'С подарком') + '</div>' : ''}
               <div class="seller-facts">${factsHtml}</div>
             </td>
             <td>

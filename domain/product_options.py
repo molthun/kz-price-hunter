@@ -11,6 +11,42 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import product_key
 
+# Подарок — маркетинг, а не другой товар. Явный: «+ подарок», «+ акция 4 подарка», «+ чехол в подарок».
+_EXPLICIT_GIFT_RE = re.compile(
+    r"\s*\+\s*(?:(?:акци\w*\s*)?(?:\d+\s*)?подар\w*\s*(?P<rest>.*)|(?P<named>[^+]*?)\s+в\s+подарок\b.*)$",
+    re.I,
+)
+# Без слова «подарок»: «Смартфон + Наушники». Подарком считается только при цене как у самого товара
+# (gift_bundles.py). «+ Cellular» и «+ монтажный комплект» сюда не подходят: это само исполнение.
+_ADDED_PRODUCT_RE = re.compile(
+    r"\s+\+\s+(?P<rest>(?:наушники|наушник|смарт[- ]часы|часы|смартфон|рюкзак|адаптер|чехол|стекло|ремешок|"
+    r"powerbank|повербанк|зарядное|блок\s+питания|кабель|колонка|портативн\w+|фитнес[- ]браслет)\b.*)$",
+    re.I,
+)
+
+
+def split_explicit_gift(title: Any) -> Tuple[str, Optional[str]]:
+    """(название без подарка, что дарят; пустая строка, если не сказано) или (название, None)."""
+    text = str(title or "").strip()
+    found = _EXPLICIT_GIFT_RE.search(text)
+    if not found or found.start() == 0:
+        return text, None
+    return text[:found.start()].strip(), (found.group("rest") or found.group("named") or "").strip()
+
+
+def split_added_product(title: Any) -> Tuple[str, Optional[str]]:
+    """Как split_explicit_gift, но для «Товар + другой товар» без слова «подарок»."""
+    main, gift = split_explicit_gift(title)
+    if gift is not None:
+        return main, gift
+    if main.lower().startswith("комплект"):
+        return main, None                           # в «Комплекте» главный товар бывает и вторым
+    found = _ADDED_PRODUCT_RE.search(main)
+    if not found or found.start() == 0:
+        return main, None
+    return main[:found.start()].strip(), found.group("rest").strip()
+
+
 # Значение, подпись, образец цвета, основы русских и английских написаний
 _COLORS: List[Tuple[str, str, str, str]] = [
     ("black", "Чёрный", "#1f2328", r"ч[её]рн\w*|black|onyx|midnight black"),
@@ -42,7 +78,7 @@ _COMPOUND_RE = re.compile(r"(?<![\w-])(" + "|".join(_COMPOUND_PARTS) + r")-(\w+)
 
 def title_color(title: Any) -> Optional[str]:
     """Цвет из названия: "black" или составной "black+orange"; None, если цвета нет."""
-    text = str(title or "")
+    text = split_added_product(title)[0]            # цвет подарка не цвет товара
     found = set()
     for match in _COMPOUND_RE.finditer(text):
         found.add(_COMPOUND_PARTS[match.group(1).lower()])
@@ -130,18 +166,18 @@ _TIER_ALIASES = {"про": "pro", "плюс": "plus", "+": "plus", "макс": "
 
 def model_tier(title: Any) -> frozenset:
     """Уточнения модели в названии: {"pro", "plus"}."""
-    found = (a or b for a, b in _TIER_RE.findall(str(title or "")))
+    found = (a or b for a, b in _TIER_RE.findall(split_added_product(title)[0]))
     return frozenset(_TIER_ALIASES.get(word.lower(), word.lower()) for word in found)
 
 
 def _gigabytes(title: Any) -> List[float]:
-    text = str(title or "")
+    text = split_added_product(title)[0]
     paired = _RAM_STORAGE_RE.search(text)
     if paired:
         ram, storage, unit = float(paired.group(1)), float(paired.group(2)), paired.group(3).lower()
         return [ram, storage * 1024 if unit in ("тб", "tb") else storage]
     out = []
-    for item in product_key.title_variants(title):
+    for item in product_key.title_variants(text):
         unit = item["unit"]
         if unit in ("гб", "gb"):
             out.append(item["value"])
@@ -161,7 +197,7 @@ def family_params(category: Any, title: Any) -> Dict[str, str]:
             if len(sizes) > 1 and sizes[0] <= 32:
                 out["ram"] = f"{sizes[0]:g}"
     if "size" in wanted:
-        found = _WATCH_SIZE_RE.search(str(title or ""))
+        found = _WATCH_SIZE_RE.search(split_added_product(title)[0])
         if found:
             out["size"] = found.group(1)
     return out
@@ -245,3 +281,20 @@ def refresh_family_ids(conn) -> int:
         conn.executemany("UPDATE canonical_products SET family_id = ? WHERE id = ?", updates)
         conn.commit()
     return len(updates)
+
+
+def mark_gifts(offers: List[Any]) -> bool:
+    """Подарок и чистое название у предложений. Возвращает True, если подарок есть хотя бы у одного.
+
+    «Товар + другой товар» в одной группе с обычным предложением — подарок: иначе сюда бы его не объединили.
+    """
+    parsed = [(offer, split_added_product(offer.title)) for offer in offers if offer.title]
+    has_plain = any(gift is None for _, (_, gift) in parsed)
+    any_gift = False
+    for offer, (main, gift) in parsed:
+        explicit = split_explicit_gift(offer.title)[1] is not None
+        if gift is not None and (explicit or has_plain):
+            offer.title = main
+            offer.gift = gift
+            any_gift = True
+    return any_gift

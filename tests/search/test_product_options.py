@@ -5,7 +5,8 @@ import unittest
 from types import SimpleNamespace
 
 from domain.product_options import (build_family_options, build_options, family_id, family_params,
-                                     offer_options, refresh_family_ids, title_color)
+                                     mark_gifts, offer_options, refresh_family_ids, split_added_product, split_explicit_gift,
+                                     title_color)
 from repositories.schema_v2 import init_schema_v2
 from repositories.search_repo import SearchRepository
 
@@ -79,6 +80,49 @@ class ProductOptionsTest(unittest.TestCase):
         self.assertNotEqual(family_id(product("Redmi Note 12 128Gb")), family_id(product("Redmi Note 12 Pro 128Gb")))
         self.assertIsNone(family_id(product("X", category="Ноутбуки")))
         self.assertIsNone(family_id(product("X", kind="accessory")))
+
+
+class GiftTest(unittest.TestCase):
+    def test_explicit_gift(self):
+        for title, main, gift in (
+            ("Смартфон Redmi 15 8/256Gb черный + подарок", "Смартфон Redmi 15 8/256Gb черный", ""),
+            ("Смартфон Apple iPhone 14 256GB Blue + акция 4 подарка", "Смартфон Apple iPhone 14 256GB Blue", ""),
+            ("Смартфон ZTE Blade V50 6/128Gb + Подарок Смартфон ZTE A51", "Смартфон ZTE Blade V50 6/128Gb", "Смартфон ZTE A51"),
+            ("Часы X + чехол в подарок", "Часы X", "чехол"),
+        ):
+            with self.subTest(title=title):
+                self.assertEqual(split_explicit_gift(title), (main, gift))
+
+    def test_not_a_gift(self):
+        for title in (
+            "Dsquared2 WOOD Femme Подарочный набор",
+            "Смарт-часы Apple Watch Ultra 2 GPS + Cellular 49 мм",
+            "AVA ACTN-07TG белый + монтажный комплект",
+            "Комплект Samsung Galaxy Buds Core + Samsung Galaxy S26 FE",
+            "Подарок для мамы",
+        ):
+            with self.subTest(title=title):
+                self.assertIsNone(split_added_product(title)[1])
+
+    def test_added_product(self):
+        self.assertEqual(split_added_product("Смартфон Oppo A6x 4/64Gb + Рюкзак RenoChoice Синий"),
+                         ("Смартфон Oppo A6x 4/64Gb", "Рюкзак RenoChoice Синий"))
+
+    def test_gift_color_and_memory_are_ignored(self):
+        self.assertEqual(title_color("Смартфон X 8/256Gb Blue + Наушники Белый"), "blue")
+        self.assertEqual(family_params("Смартфоны", "Смартфон X 8/256Gb + Смартфон Y 4/64Gb"), {"storage": "256", "ram": "8"})
+
+    def test_mark_gifts(self):
+        def offer(title):
+            return SimpleNamespace(title=title, gift=None)
+        plain, gifted, bundle = offer("X 128Gb"), offer("X 128Gb + подарок"), offer("X 128Gb + Наушники Y")
+        self.assertTrue(mark_gifts([plain, gifted, bundle]))
+        self.assertEqual((gifted.title, gifted.gift), ("X 128Gb", ""))
+        self.assertEqual((bundle.title, bundle.gift), ("X 128Gb", "Наушники Y"))
+        self.assertIsNone(plain.gift)
+        lone = offer("X 128Gb + Наушники Y")
+        self.assertFalse(mark_gifts([lone]))
+        self.assertEqual(lone.title, "X 128Gb + Наушники Y")
 
 
 class SearchFamilyCollapseTest(unittest.TestCase):
