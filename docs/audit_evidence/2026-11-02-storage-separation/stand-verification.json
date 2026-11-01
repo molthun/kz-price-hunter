@@ -1,0 +1,25 @@
+{
+  "version": "6.15.8",
+  "matching_ids": {
+    "storage": 844,
+    "hdd": 224,
+    "ram": 1042,
+    "removable_storage": 222
+  },
+  "categories_disjoint": true,
+  "AMD_Radeon_only_in_RAM": true,
+  "explicit_non_SSD_types_in_SSD": 0,
+  "remaining_repairs": 0,
+  "temporary_user_remaining": 0,
+  "runtime_hashes": {
+    "domain/category.py": "f28a10925d44128509c402dcd0382d7998110363abf9cd6f45119be8648154f8",
+    "domain/storage_types.py": "6e8a800fb89527404d29190bfb1cea37ab5204b77fb16df41d712b24f1531c74",
+    "domain/feed_categories.py": "312fe84cad572920e30c0a8999749e0ba9febcf99a3a86c1b7a8088896ebd4b3",
+    "catalog_classifier.py": "5ecc4ff031fcd48c31b21496f89aa84b598d63fd4b53ba207c0f1023ba9aa09d",
+    "web/templates/search_first.html": "0ecbd0c08c0caf34908c74126b43bf2cf5082cbc962fff6844d2b54a624a02f4",
+    "version.py": "9c789a5a39387d548354bef7f02a7d90a747aa4c475d7d6fc7c6b37ee5d5ad15"
+  },
+  "code_commit": "2bec6d6c83f39af549746bd2afb326dc2b324d1e",
+  "health": "healthy",
+  "runtime_matches_local": true
+}

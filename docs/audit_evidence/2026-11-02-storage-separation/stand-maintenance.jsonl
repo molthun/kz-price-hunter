@@ -1,0 +1,2 @@
+{"recovery_copy": "before-storage-split-6158-sanitized.db", "quick_check": "ok", "minimal_data_unchanged": true}
+{"taxonomy_synced": 4, "feed_moves": 135, "repaired": 274, "by_target": {"Жесткие диски HDD": 197, "Флешки и карты памяти": 74, "Комплектующие для ПК": 1, "Оперативная память": 2}, "all_minimal_data_preserved": true, "repeat_stable": true, "AMD_Radeon_category": "Оперативная память", "categories": [["SSD накопители", 888], ["Жесткие диски HDD", 227], ["Оперативная память", 1113], ["Флешки и карты памяти", 179]]}
