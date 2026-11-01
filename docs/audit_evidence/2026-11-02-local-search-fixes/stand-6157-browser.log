@@ -1,0 +1,8 @@
+{"query": "тахеометр", "total": 8, "outcome": "FOUND", "ai_status": "ok", "rendered_cards": 8}
+{"query": "геодезический тахеометр", "total": 8, "outcome": "FOUND", "ai_status": "ok", "rendered_cards": 8}
+{"query": "зимняя резина", "total": 26, "outcome": "FOUND", "ai_status": "ok", "rendered_cards": 20}
+{"query": "тахеометр", "watch_matches": 8, "visible_items": 8, "same_semantics": true}
+{"query": "геодезический тахеометр", "watch_matches": 8, "visible_items": 8, "same_semantics": true}
+{"query": "зимняя резина", "watch_matches": 20, "visible_items": 20, "same_semantics": true}
+
+temporary_browser_account_removed
