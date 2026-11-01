@@ -242,6 +242,11 @@ _BRAND_PATTERN = re.compile(
 
 # Product Type keyword rules: Title keywords -> Category ID
 _TITLE_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
+    # Audio & TV (проверяем наушники раньше телефонов, чтобы "наушники для iPhone" не становились телефоном)
+    (re.compile(r"\b(наушник[и|ов]|гарнитур[аы]|airpods|tws|вкладыши)\b", re.I), "headphones"),
+    (re.compile(r"\b(телевизор|smart\s+tv|oled\s+tv|qled\s+tv)\b", re.I), "tv"),
+    (re.compile(r"\b(игров[ая|ые]\s+приставк[аи]|игровая\s+консоль|playstation|ps5|xbox|nintendo\s+switch)\b", re.I), "consoles"),
+
     # Phones & Tablets
     (re.compile(r"\b(смартфон|айфон|iphone|сотовый\s+телефон)\b", re.I), "phones"),
     (re.compile(r"\b(планшет|ipad|tablet)\b", re.I), "tablets"),
@@ -287,7 +292,8 @@ _ACCESSORY_CONSUMABLE_RULES: List[Tuple[re.Pattern, str, str]] = [
     # Protective Glass & Film
     (
         re.compile(
-            r"\b(защитн(?:ое|ые|ая|ых)\s+стекл(?:о|а)|защитн(?:ая|ые)\s+пленк(?:а|и)|бронестекл(?:о|а)|стекло\s+для|стекло\s+на|пленка\s+для|пленка\s+на)\b",
+            r"\b(защитн(?:ое|ые|ая|ых)\s+стекл(?:о|а)|защитн(?:ая|ые)\s+пленк(?:а|и)|бронестекл(?:о|а)|стекло\s+(?:для|на)|пленка\s+(?:для|на))\b|"
+            r"\b(?:full\s+cover|9h|privacy).*\bстекл(?:о|а)\b",
             re.I,
         ),
         "phone_glass",
@@ -296,7 +302,7 @@ _ACCESSORY_CONSUMABLE_RULES: List[Tuple[re.Pattern, str, str]] = [
     # Cables, Chargers & Powerbanks
     (
         re.compile(
-            r"\b(кабел[ьи]|зарядн(?:ое|ые)\s+устройств(?:о|а)|сетевое\s+зарядное|адаптер\s+питания|блок\s+питания\s+для|powerbank|повербанк|переходник\s+type|адаптер\s+type|aux\s+кабель)\b",
+            r"\b(кабел[ьи]|зарядн(?:ое|ые)\s+устройств(?:о|а)|сетевое\s+зарядное|адаптер\s+питания|блок\s+питания\s+для|powerbank|повербанк|переходник\s+type|адаптер\s+type|aux\s+кабель|адаптер\s+(?:для|\d+w)|комплект\s+быстр(?:ой|ый)\s+зарядки)\b",
             re.I,
         ),
         "cables_chargers",
@@ -575,7 +581,9 @@ KNOWN_MODEL_FAMILIES: List[Tuple[re.Pattern, str]] = [
 # Patterns stripped from title when constructing fallback clean model
 _MODEL_STRIP_PATTERNS = [
     # Category words
-    r"\b(смартфон|сотовый телефон|мобильный телефон|ноутбук|ультрабук|планшет|пылесос|беспроводной|вертикальный|робот-пылесос|телевизор|видеокарта|наушники|смарт-часы|умные часы|монитор|холодильник|стиральная машина|кондиционер)\b",
+    r"\b(смартфон|сотовый телефон|мобильный телефон|ноутбук|ультрабук|планшет|пылесос|беспроводн(?:ой|ые|ая)|вертикальный|робот-пылесос|телевизор|видеокарта|наушники|смарт-часы|умные часы|монитор|холодильник|стиральная машина|кондиционер)\b",
+    # Compatibility clauses
+    r"\b(?:для|for|на)\s+.*$",
     # Memory, storage, specs
     r"\b\d+\s*(?:/\s*\d+)?\s*(?:gb|гб|tb|тб|mb|мб|ram|rom|mah|мач|w|вт|hz|гц|dpi)\b",
     r"\b\d+[\'\"«»]\b",
@@ -606,26 +614,12 @@ def extract_clean_model(
     if not title:
         return None
 
+    # Для аксессуаров и расходников модель не извлекается (не засоряем фасет «Модель»)
+    if item_kind in ("accessory", "consumable"):
+        return None
+
     # Отсекаем комплекты подарков и бандлы
     main_title = title.split("+")[0].strip() if "+" in title else title
-
-    # Для аксессуаров: не подставляем модель целевого смартфона в качестве модели аксессуара!
-    if item_kind in ("accessory", "consumable"):
-        compat = extract_iphone_model(main_title) or extract_apple_watch_model(main_title)
-        cleaned_no_compat = main_title
-        if compat:
-            cleaned_no_compat = re.sub(re.escape(compat), "", cleaned_no_compat, flags=re.I)
-        cleaned_no_compat = re.sub(
-            r"\b(чехол|чехлы|бампер|стекло|пленка|кабель|зарядное|адаптер|для|for|на|apple|iphone|силикон(?:овый)?|прозрачный|черный|1\s*шт\.?)\b",
-            "",
-            cleaned_no_compat,
-            flags=re.I,
-        )
-        cleaned_no_compat = re.sub(r"[/\\,\-\+\:\;\s]+", " ", cleaned_no_compat).strip()
-        words = cleaned_no_compat.split()
-        if len(words) >= 1 and len(words[0]) >= 3 and not words[0].isdigit():
-            return " ".join(words[:2])
-        return None
 
     # Стандартизированный нейминг Apple устройств
     iphone_mod = extract_iphone_model(main_title)
@@ -746,7 +740,7 @@ class CatalogClassifier:
         # 0. Проверяем первичность ключевых устройств (смарт-часы, смартфоны и т.д.),
         # чтобы "Aluminium Case" в смарт-часах не превращал часы в чехлы
         is_watch = bool(re.search(r"\b(смарт-час[ыа]|умные\s+часы|apple\s+watch|galaxy\s+watch)\b", main_part, re.I)) and not bool(re.search(r"\b(ремешок|браслет\s+для|watch\s+band|watch\s+strap)\b", main_part, re.I))
-        is_phone = bool(re.search(r"\b(смартфон|айфон|сотовый\s+телефон)\b", main_part, re.I)) and not bool(re.search(r"\b(чехол|стекло|пленка|ремешок|кабель|держатель|подставка)\b", main_part, re.I))
+        is_phone = bool(re.search(r"\b(смартфон|айфон|сотовый\s+телефон)\b", main_part, re.I)) and not bool(re.search(r"\b(чехол|стекло|пленка|ремешок|кабель|держатель|подставка|наушники|гарнитур|адаптер|зарядк|переходник)\b", main_part, re.I))
 
         item_kind = "device"
         compat_target = None
@@ -784,9 +778,16 @@ class CatalogClassifier:
                 cleaned_after = re.sub(r"\b(apple|iphone|ipad|samsung|galaxy|xiaomi|redmi|huawei|honor)\b", "", parts[1], flags=re.I)
                 brand = self.extract_brand(cleaned_after)
         else:
-            brand = self.extract_brand(main_part)
+            # Для основных товаров убираем совместимость «для / на / for ...», если она есть (напр. «Наушники для iPhone»)
+            parts = re.split(r"\b(?:для|на|for)\b", main_part, flags=re.I, maxsplit=1)
+            before_part = parts[0]
+            brand = self.extract_brand(before_part)
+            if not brand and len(parts) == 1:
+                # Если фразы «для / for» не было, можно искать бренд по всей строке
+                brand = self.extract_brand(main_part)
             if not brand:
-                if re.search(r"\b(iphone|ipad|macbook|airpods|apple\s+watch)\b", main_part, re.I):
+                check_target = before_part if len(parts) > 1 else main_part
+                if re.search(r"\b(iphone|ipad|macbook|airpods|apple\s+watch)\b", check_target, re.I):
                     brand = "Apple"
 
         # 1. Если определена категория аксессуара / расходника

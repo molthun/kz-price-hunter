@@ -168,6 +168,9 @@ class TestCatalogClassifier(unittest.TestCase):
             ("Смарт-часы Apple Watch Ultra 2 GPS + Cellular 49mm Titanium Case with Orange Ocean Band", "smartwatches", "device", "Apple", "Apple Watch Ultra 2"),
             # Accessory cases must NOT take Apple as brand or phone as model
             ("Чехол для Apple iPhone 17 Pro Max силикон, 1 шт.", "phone_cases", "accessory", None, None),
+            ("Защитное Full Cover 9H стекло для iPhone 14 Pro", "phone_glass", "accessory", None, None),
+            ("Адаптер для Iphone 12 13 14 15 20W", "cables_chargers", "accessory", None, None),
+            ("Беспроводные наушники для iPhone TWS Pro", "headphones", "device", None, None),
         ]
         for title, exp_cat, exp_kind, exp_brand, exp_model in cases:
             with self.subTest(title=title):
