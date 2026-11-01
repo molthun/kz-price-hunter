@@ -579,11 +579,11 @@ class TestSearchFirstHttpEndpoints(AioHTTPTestCase):
         self.assertIn('class="bottom-nav-profile-img"', html)
         self.assertIn('id="bottomNavCatalog"', html)
 
-        # Profile admin users management card
+        # Управление пользователями перенесено на /admin
         self.assertNotIn('id="profileAdminUsersCard"', html)
         self.assertNotIn("loadAdminUsersList()", html)
-        self.assertIn("adminSetApproved(", html)
-        self.assertIn("adminSetBlocked(", html)
+        self.assertNotIn("adminSetApproved(", html)
+        self.assertNotIn("adminSetBlocked(", html)
 
         # Admin users API response helper includes approval and confirmation status
         from unittest.mock import patch
