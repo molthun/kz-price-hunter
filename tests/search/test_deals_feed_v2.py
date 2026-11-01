@@ -64,7 +64,7 @@ class TestDealsFeedAndFavorites(AioHTTPTestCase):
         text = await resp.text()
         self.assertIn('id="viewProfile"', text)
         self.assertIn('id="watchModalBackdrop"', text)
-        self.assertIn('id="navLinkProfile"', text)
+        self.assertNotIn('id="navLinkProfile"', text)
         self.assertIn('id="profileWatchesList"', text)
 
     @unittest_run_loop
