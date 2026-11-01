@@ -196,7 +196,7 @@ class TestCatalogClassifier(unittest.TestCase):
             # False Apple brand exclusions (food, cosmetics, gardening, cookware, footwear)
             ("Конфеты Qazaq Apple красное яблоко, 108 г", "food", "device", None, "Конфеты Qazaq Apple яблоко"),
             ("Тройник для воды штуцерный Green Apple GWHC20-062", "home", "device", "Green Apple", "Тройник"),
-            ("Кастрюля Lara Apple LR02-31, 16 см, 2.1 л., с крышкой", "kitchen_appliances", "device", "Lara", "Apple LR02 31"),
+            ("Кастрюля Lara Apple LR02-31, 16 см, 2.1 л., с крышкой", "kitchenware", "device", "Lara", "Apple LR02 31"),
             ("Кроссовки Imac", "shoes", "device", "IMAC", "Кроссовки"),
             ("MAC Studio Fix Pro Set + Blur Loose Powder Пудра", "beauty", "device", "M·A·C", "MAC Studio Fix Pro"),
             # Apple Watch edge cases (Nike, no-space GPS, part numbers)

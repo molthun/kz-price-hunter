@@ -182,6 +182,17 @@ CREATE TABLE IF NOT EXISTS source_profiles (
 CREATE INDEX IF NOT EXISTS idx_source_profiles_cand ON source_profiles(candidate_id);
 CREATE INDEX IF NOT EXISTS idx_source_profiles_seller ON source_profiles(seller_id);
 
+-- Журнал фоновой сортировки каталога (catalog_ai_sort.py)
+CREATE TABLE IF NOT EXISTS category_ai_verdicts (
+    product_id TEXT PRIMARY KEY,
+    old_category TEXT,
+    new_category TEXT,
+    confidence REAL,
+    model TEXT NOT NULL,
+    applied INTEGER NOT NULL DEFAULT 0,
+    decided_at TEXT NOT NULL
+);
+
 -- 10. Unified Product Index (FTS5)
 CREATE VIRTUAL TABLE IF NOT EXISTS canonical_products_fts USING fts5(
     canonical_key UNINDEXED,

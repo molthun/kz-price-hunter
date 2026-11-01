@@ -3219,6 +3219,33 @@ async def disputed_pairs_background_worker(app):
             await asyncio.sleep(30.0)
 
 
+async def category_ai_sort_background_worker(app):
+    """Фоновая сортировка каталога локальной моделью; без CATALOG_AI_SORT_ENABLED=1 не работает."""
+    import catalog_ai_sort
+    import config as app_config
+    import product_verify
+    from catalog_classifier import CatalogClassifier
+    from database import get_connection
+    classifier = CatalogClassifier()
+    while catalog_ai_sort.enabled():
+        try:
+            cfg = app_config.get_ai_config()
+            if product_verify.verification_pause_reason(cfg):
+                await asyncio.sleep(30.0)
+                continue
+            stats = await catalog_ai_sort.sort_tick(
+                get_connection, product_verify.make_local_ask(cfg), cfg.get("local_model") or "", classifier)
+            if stats["applied"]:
+                print(f"[CatalogAI] Перенесено товаров: {stats['applied']}")
+            if stats["failed"] or not (stats["rule"] or stats["asked"]):
+                await asyncio.sleep(60.0)
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            print(f"[CatalogAI] Ошибка фоновой сортировки: {type(e).__name__}")
+            await asyncio.sleep(60.0)
+
+
 def get_categories_overview():
     """Возвращает информацию обо всех мастер-категориях: количество товаров в базе, статус волн, магазины."""
     from database import get_connection
@@ -4978,6 +5005,7 @@ async def background_tasks(app):
         asyncio.create_task(auto_scan_background_worker(app)),
         asyncio.create_task(ai_normalize_background_worker(app)),
         asyncio.create_task(disputed_pairs_background_worker(app)),
+        asyncio.create_task(category_ai_sort_background_worker(app)),
         asyncio.create_task(freshness_reaper_background_worker(app)),
         asyncio.create_task(notification_worker()),
         asyncio.create_task(run_telegram_bot_task()),

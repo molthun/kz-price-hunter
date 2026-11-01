@@ -28,7 +28,9 @@ class ProductRepository(BaseRepository):
         ON CONFLICT(id) DO UPDATE SET
             canonical_key=excluded.canonical_key,
             title=excluded.title,
-            category=excluded.category,
+            category=CASE WHEN EXISTS (
+                SELECT 1 FROM category_ai_verdicts v WHERE v.product_id = canonical_products.id AND v.applied = 1
+            ) THEN canonical_products.category ELSE excluded.category END,
             brand=COALESCE(excluded.brand, canonical_products.brand),
             model=COALESCE(excluded.model, canonical_products.model),
             item_kind=COALESCE(excluded.item_kind, canonical_products.item_kind),

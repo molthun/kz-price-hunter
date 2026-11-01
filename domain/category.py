@@ -186,7 +186,7 @@ MASTER_TAXONOMY: List[Category] = [
         name="SSD накопители",
         icon="💾",
         search_priority=78,
-        aliases=["ssd", "ssd накопители", "жесткие диски", "твердотельные накопители", "hdd", "оперативная память", "ram"],
+        aliases=["ssd диски", "ssd", "ssd накопители", "жесткие диски", "твердотельные накопители", "hdd", "оперативная память", "ram"],
     ),
     Category(
         id="peripherals",
@@ -199,6 +199,14 @@ MASTER_TAXONOMY: List[Category] = [
             "корпуса", "корпус", "блоки питания", "блок питания", "кулеры", "охлаждение",
             "роутеры", "роутер", "wi-fi", "моноблоки", "моноблок", "принтеры", "принтер", "мфу"
         ],
+    ),
+    Category(
+        id="audio",
+        parent_id="electronics",
+        name="Аудиотехника",
+        icon="🔊",
+        search_priority=80,
+        aliases=["аудиотехника", "колонки", "акустика", "саундбары", "микрофоны", "портативная акустика"],
     ),
     Category(
         id="phone_cases",
@@ -393,6 +401,14 @@ MASTER_TAXONOMY: List[Category] = [
         aliases=["текстиль", "постельное белье", "шторы", "подушки", "пледы", "ковры"],
     ),
     Category(
+        id="household_chem",
+        parent_id="home",
+        name="Бытовая химия и хозтовары",
+        icon="🧼",
+        search_priority=61,
+        aliases=["бытовая химия", "хозтовары", "средства для стирки", "стирка и уход", "чистота и порядок", "салфетки и туалетная бумага"],
+    ),
+    Category(
         id="kitchenware",
         parent_id="home",
         name="Посуда и кухня",
@@ -490,6 +506,15 @@ MASTER_TAXONOMY: List[Category] = [
         aliases=["косметика", "макияж", "помада", "тушь", "тональный крем", "тени"],
     ),
 
+    Category(
+        id="medicine",
+        parent_id="beauty",
+        name="Лекарства и витамины",
+        icon="💊",
+        search_priority=56,
+        aliases=["лекарства", "витамины", "аптека", "обезболивающие", "лекарственные средства", "бады"],
+    ),
+
     # 8. Детские товары (L1)
     Category(
         id="kids",
@@ -524,6 +549,15 @@ MASTER_TAXONOMY: List[Category] = [
         icon="🍼",
         search_priority=57,
         aliases=["подгузники", "детское питание", "бутылочки", "соски", "пеленание"],
+    ),
+
+    Category(
+        id="books_stationery",
+        parent_id="kids",
+        name="Книги и канцелярия",
+        icon="📚",
+        search_priority=56,
+        aliases=["книги", "канцелярия", "канцтовары", "для рисования", "товары для творчества"],
     ),
 
     # 9. Спорт и отдых (L1)
