@@ -163,7 +163,7 @@ def apply_section_categories(conn, classifier, apply: bool = True) -> Dict:
            JOIN offers o ON o.id = 'off_' || p.id AND o.is_active = 1
            JOIN canonical_products c ON c.id = o.product_id
            LEFT JOIN category_ai_verdicts v ON v.product_id = o.product_id
-           WHERE p.is_active = 1 AND COALESCE(v.model, '') != ?
+           WHERE p.is_active = 1 AND COALESCE(v.model, '') NOT IN (?, 'ai_check')
            GROUP BY o.product_id""",
         (FEED_MODEL,),
     ).fetchall()

@@ -63,6 +63,19 @@ class CatalogAiSortTest(unittest.TestCase):
         row = self.conn.execute("SELECT old_category, applied FROM category_ai_verdicts WHERE product_id = 'ai'").fetchone()
         self.assertEqual(tuple(row), ("Mebel.kz: 🚪 Шкафы", 1))
 
+    def test_check_keeps_cheap_real_devices(self):
+        no = {"same": False, "id": "vacuum_parts", "c": 0.98}
+        self.assertEqual(catalog_ai_sort.decide_check("Пылесосы", no, "Стяжка задняя 870 мм"), "Расходники для пылесосов")
+        self.assertIsNone(catalog_ai_sort.decide_check("Пылесосы", no, "Haley HY-906 красный"))
+        self.assertIsNone(catalog_ai_sort.decide_check("Пылесосы", no, "Робот уборщик"))
+        self.assertIsNone(catalog_ai_sort.decide_check("Пылесосы", {"same": True, "c": 1}, "Стяжка"))
+        self.assertIsNone(catalog_ai_sort.decide_check("Пылесосы", {"same": False, "id": "toys", "c": 0.5}, "Стяжка"))
+
+    def test_check_uses_parent_when_model_target_is_not_trusted(self):
+        wrong = {"same": False, "id": "cables_chargers", "c": 0.98}
+        self.assertEqual(catalog_ai_sort.decide_check("Смартфоны", wrong, "Sven PS-240 ЧЕРНЫЙ"), "Электроника")
+        self.assertEqual(catalog_ai_sort.decide_check("Телевизоры", wrong, "Кронштейн WALFIX R-241B"), "Электроника")
+
     def test_no_answer_keeps_product_in_queue(self):
         self._add("ai", "Шкаф", "Mebel.kz: 🚪 Шкафы")
 

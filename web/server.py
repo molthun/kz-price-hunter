@@ -3288,12 +3288,19 @@ async def category_ai_sort_background_worker(app):
     from catalog_classifier import CatalogClassifier
     from database import get_connection
     classifier = CatalogClassifier()
+    next_check = 0.0
     while catalog_ai_sort.enabled():
         try:
             cfg = app_config.get_ai_config()
             if product_verify.verification_pause_reason(cfg):
                 await asyncio.sleep(30.0)
                 continue
+            if time.monotonic() >= next_check:
+                next_check = time.monotonic() + 3600.0
+                checked = await catalog_ai_sort.check_cheap_devices(
+                    get_connection, product_verify.make_local_ask(cfg), classifier)
+                if checked["moved"]:
+                    print(f"[CatalogAI] Дешёвые товары проверены: {checked['asked']}, перенесено: {checked['moved']}")
             stats = await catalog_ai_sort.sort_tick(
                 get_connection, product_verify.make_local_ask(cfg), cfg.get("local_model") or "", classifier)
             if stats["applied"]:
