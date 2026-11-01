@@ -2,17 +2,43 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## IN_PROGRESS: Antigravity → Фильтр «Модель» (без цвета и характеристик), разделение аксессуаров и расходников (2026-11-01 13:10)
+## STAND_DEPLOYED → Владелец: Фильтр чистой «Модели», разделение аксессуаров и расходников, тумблер типов (v6.12.0, 2026-11-01)
 
 - **Основание:** прямое поручение владельца («вложеные категории у товаров. как ты это видешь. Я про аксесуары и расходники. как делаем?» + «Да давай согласен. И новый фильтр это модель (просто модель без цвета и характеристик)» + «Делаем»).
 - **Исполнитель:** Antigravity (основной разработчик).
-- **Область файлов:** `catalog_classifier.py`, `domain/category.py`, `domain/adapter.py`, `repositories/search_repo.py`, `web/server.py`, `web/templates/search_first.html`, `scripts/backfill_catalog_classification.py`, тесты.
-- **Цель шага:**
-  1. Выделение категорий аксессуаров и расходников в таксономии (`domain/category.py`) и разметка `item_kind` (`device`, `accessory`, `consumable`) с правилом «X для Y».
-  2. Нормализатор чистой модели (`extract_clean_model`) без цвета, памяти и служебных артикулов.
-  3. Добавление фильтра `model` и `item_kind` в `SearchRepository` и эндпоинт `/api/v2/search`.
-  4. Отображение группы фильтра «🎯 Модель» в интерфейсе каталога/поиска сразу под брендом.
-  5. Бэкфилл базы стенда и доставка без push в `main`.
+- **Срез на стенде:** `d23d6a2` (ветка `feature/search-first-stage-1`), доставлен через git bundle `/tmp/kzph-model-filter.bundle` без push в `main`. Контейнер `kzph-stand:local` пересобран и в статусе `Up (healthy)`.
+- **Что реализовано и проверено:**
+  1. **Разделение типов товаров и изоляция аксессуаров/расходников (`domain/models.py`, `domain/category.py`, `catalog_classifier.py`):**
+     - Введена типизация `item_kind`: `device` (основное устройство), `accessory` (аксессуар), `consumable` (расходник).
+     - Добавлены выделенные подкатегории для аксессуаров и расходников: `phone_cases` (Чехлы и бамперы), `phone_glass` (Защитные стекла и пленки), `cables_chargers` (Кабели и зарядные устройства), `printer_ink` (Картриджи и чернила), `vacuum_parts` (Расходники для пылесосов).
+     - Реализован детектор совместимости «X для Y» (`_COMPATIBILITY_PATTERN`): заголовок вида «Чехол Baseus для Apple iPhone 15» корректно определяет категорию «Чехлы и бамперы», бренд «Baseus» (бренд извлекается строго ДО слова «для/for», не приписывая чехол к бренду Apple!), и совместимую модель iPhone 15.
+     - Дополнен список брендов аксессуаров и расходников (Baseus, Spigen, Hoco, Borofone, Joyroom, Nillkin, Mocolo, Filtero, Topperr, Cactus и др.).
+  2. **Экстрактор чистой базовой модели товара (`extract_clean_model` в `catalog_classifier.py`):**
+     - Очищает модель от цветов (Black, Titanium, White, Silver, Sierra Blue, Midnight, Starlight, Graphite и др.), памяти (128GB, 8/256, 1TB...), диагоналей и маркетингового мусора.
+     - Формирует чистые базовые модели: `iPhone 15 Pro`, `iPhone 15`, `Galaxy S24 Ultra`, `MacBook Air 13`, `PlayStation 5`, `Redmi Note 13` и т.д.
+  3. **Фасеты и фильтрация в поиске (`repositories/search_repo.py`, `domain/search_core.py`, `web/server.py`):**
+     - Поддержка параметров `model` и `kind` в эндпоинте `/api/v2/search`.
+     - Добавлены фасеты `model_facets` (топ моделей с количеством предложений) и `kind_facets` (распределение по типам: device, accessory, consumable).
+     - Фасеты изолированы: выбор модели или типа не схлопывает соседние группы фильтров.
+  4. **Интерфейс фильтров каталога (`web/templates/search_first.html`):**
+     - В секции категорий добавлен тумблер типов: `[ Все | 📱 Устройства | 🔌 Аксессуары | 🌀 Расходники ]`. Выбор «📱 Устройства» мгновенно скрывает из выдачи чехлы, стекла и кабели.
+     - Под блоком «🏷 Бренд» добавлен блок «🎯 Модель» (`#filterModelGroup`), показывающий популярные модели текущей выборки (например, при клике на Apple: iPhone 15 Pro, iPhone 15, iPhone 14, iPhone 13, MacBook Air 13...).
+  5. **Схема базы данных и бэкфилл (`repositories/schema_v2.py`, `repositories/product_repo.py`, `scripts/backfill_catalog_classification.py`):**
+     - В таблицу `canonical_products` добавлены колонки `model TEXT` и `item_kind TEXT DEFAULT 'device'` с покрывающими индексами `idx_canonical_products_model` и `idx_canonical_products_kind`.
+     - На живой базе стенда `/app/data/prices.db` успешно выполнен полный бэкфилл 106 704 товаров за 18.92 секунды (5 639 шт/сек) без блокировки БД (keyset pagination) с автоматическим перестроением FTS-индекса.
+     - Итог классификации на стенде:
+       - `device`: 104 630 шт.
+       - `accessory`: 1 675 шт.
+       - `consumable`: 399 шт.
+  6. **Проверка работы на стенде:**
+     - Запрос `query="iphone", brand="Apple"`:
+       - `kind_facets`: `device`: 338 шт., `accessory`: 198 шт.
+       - `model_facets`: iPhone 17 Pro Max (46), iPhone 15 Pro (25), iPhone 15 (23), AirPods 4 (22), iPhone 14 (22)...
+       - `category_facets`: Смартфоны (338), Чехлы и бамперы (167), Защитные стекла и пленки (16), Кабели и зарядные устройства (15)...
+     - При фильтре `kind="device"`: выводятся строго смартфоны Apple от 431 990 ₸ (чехлы отфильтрованы).
+     - При фильтре `model="iPhone 15"`: выводятся 23 товара iPhone 15 во всех магазинах.
+     - Тесты: 207/207 тестов в сьюте Python пройдены успешно (0 ошибок).
+- **Production:** прод `shop.molthun.ru` не менялся, push в `main` не производился.
 
 ---
 
