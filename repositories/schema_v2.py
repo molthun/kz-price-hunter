@@ -391,6 +391,8 @@ def init_schema_v2(conn: sqlite3.Connection) -> None:
     _ensure_column(conn, "canonical_products", "title_offer_id", "TEXT")
     _ensure_column(conn, "canonical_products", "model", "TEXT")
     _ensure_column(conn, "canonical_products", "item_kind", "TEXT DEFAULT 'device'")
+    _ensure_column(conn, "canonical_products", "family_id", "TEXT")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_canonical_products_family ON canonical_products(family_id)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_canonical_products_model ON canonical_products(model)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_canonical_products_kind ON canonical_products(item_kind)")
     # Измерения точки истории на момент наблюдения (V02 аудита 6.5.0): без них линия цены

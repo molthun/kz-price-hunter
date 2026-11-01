@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import re
+from types import SimpleNamespace
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import product_key
@@ -217,24 +218,30 @@ def build_family_options(current_id: str, category: str, title: str,
     return result
 
 
-def collapse_family_cards(cards: List[Any]) -> List[Any]:
-    """Исполнения одной модели на странице выдачи — одна карточка с самой низкой ценой."""
-    first_seen: Dict[Tuple[Any, ...], int] = {}
-    out: List[Any] = []
-    for card in cards:
-        family = family_key(card.product)
-        if family is None:
-            out.append(card)
-            continue
-        position = first_seen.get(family)
-        if position is None:
-            first_seen[family] = len(out)
-            out.append(card)
-            continue
-        kept = out[position]
-        extra = kept.variants_count + 1
-        if card.min_price is not None and (kept.min_price is None or card.min_price < kept.min_price):
-            out[position] = card
-            kept = card
-        kept.variants_count = extra
-    return out
+def family_id(product: Any) -> Optional[str]:
+    """Значение колонки canonical_products.family_id: по нему выдача объединяет исполнения."""
+    key = family_key(product)
+    if key is None:
+        return None
+    brand, model, category, tier = key
+    return "|".join((brand.lower(), model.lower(), category, "+".join(sorted(tier))))
+
+
+def refresh_family_ids(conn) -> int:
+    """Пересчитывает семейства после сканирования и сортировки. Возвращает число изменённых товаров."""
+    marks = ",".join("?" * len(FAMILY_PARAMS))
+    rows = conn.execute(
+        f"""SELECT id, title, brand, model, category, item_kind, family_id FROM canonical_products
+            WHERE category IN ({marks}) OR family_id IS NOT NULL""",
+        list(FAMILY_PARAMS),
+    ).fetchall()
+    updates = []
+    for row in rows:
+        product = SimpleNamespace(title=row[1], brand=row[2], model=row[3], category=row[4], item_kind=row[5])
+        new_id = family_id(product)
+        if new_id != row[6]:
+            updates.append((new_id, row[0]))
+    if updates:
+        conn.executemany("UPDATE canonical_products SET family_id = ? WHERE id = ?", updates)
+        conn.commit()
+    return len(updates)

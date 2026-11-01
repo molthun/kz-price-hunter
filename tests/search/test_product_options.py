@@ -1,9 +1,13 @@
 from tests import test_support  # must be first
+import datetime
+import sqlite3
 import unittest
 from types import SimpleNamespace
 
-from domain.product_options import (build_family_options, build_options, collapse_family_cards,
-                                     family_params, offer_options, title_color)
+from domain.product_options import (build_family_options, build_options, family_id, family_params,
+                                     offer_options, refresh_family_ids, title_color)
+from repositories.schema_v2 import init_schema_v2
+from repositories.search_repo import SearchRepository
 
 
 class ProductOptionsTest(unittest.TestCase):
@@ -68,14 +72,53 @@ class ProductOptionsTest(unittest.TestCase):
         self.assertIn("ram", options)
         self.assertEqual(options["storage"]["values"][1]["label"], "256 ГБ")
 
-    def test_collapse_keeps_cheapest_and_counts_others(self):
-        def card(pid, price, category="Смартфоны", model="X"):
-            product = SimpleNamespace(id=pid, brand="B", model=model, category=category, item_kind="device", title=pid)
-            return SimpleNamespace(product=product, min_price=price, variants_count=0)
-        cards = [card("a", 200), card("n", 50, category="Ноутбуки"), card("b", 100), card("c", 300), card("d", 10, model="Y")]
-        out = collapse_family_cards(cards)
-        self.assertEqual([c.product.id for c in out], ["b", "n", "d"])
-        self.assertEqual(out[0].variants_count, 2)
+    def test_family_id_separates_tiers_and_skips_other_categories(self):
+        def product(title, category="Смартфоны", kind="device"):
+            return SimpleNamespace(title=title, brand="Xiaomi", model="Redmi Note 12", category=category, item_kind=kind)
+        self.assertEqual(family_id(product("Redmi Note 12 128Gb")), family_id(product("Redmi Note 12 256Gb")))
+        self.assertNotEqual(family_id(product("Redmi Note 12 128Gb")), family_id(product("Redmi Note 12 Pro 128Gb")))
+        self.assertIsNone(family_id(product("X", category="Ноутбуки")))
+        self.assertIsNone(family_id(product("X", kind="accessory")))
+
+
+class SearchFamilyCollapseTest(unittest.TestCase):
+    def setUp(self):
+        self.conn = sqlite3.connect(":memory:")
+        self.conn.row_factory = sqlite3.Row
+        init_schema_v2(self.conn)
+        self.addCleanup(self.conn.close)
+        self.conn.execute("INSERT INTO sellers (id, name, slug, is_active, created_at, updated_at) VALUES ('s', 'S', 's', 1, 'x', 'x')")
+        self.conn.execute("INSERT INTO channels (id, seller_id, channel_type, name, is_active, created_at) VALUES ('c', 's', 'website', 'W', 1, 'x')")
+        for pid, title, model, price in (
+            ("a", "Xiaomi Redmi 10 128Gb", "Redmi 10", 200.0),
+            ("b", "Xiaomi Redmi 10 256Gb", "Redmi 10", 300.0),
+            ("c", "Xiaomi Redmi 11 128Gb", "Redmi 11", 250.0),
+        ):
+            self.conn.execute(
+                "INSERT INTO canonical_products (id, canonical_key, title, category, brand, model, created_at, updated_at) "
+                "VALUES (?, ?, ?, 'Смартфоны', 'Xiaomi', ?, 'x', 'x')", (pid, pid, title, model))
+            self.conn.execute(
+                "INSERT INTO offers (id, product_id, seller_id, channel_id, url, price, currency, condition, availability, city, "
+                "is_active, observed_at, created_at, updated_at) VALUES (?, ?, 's', 'c', 'http://x', ?, 'KZT', 'NEW', 'in_stock', "
+                "'Казахстан', 1, '2026-11-01T00:00:00+00:00', 'x', 'x')", ("off_" + pid, pid, price))
+        self.conn.commit()
+        self.assertEqual(refresh_family_ids(self.conn), 3)
+        self.repo = SearchRepository(self.conn)
+
+    def test_search_returns_cheapest_variant_with_count(self):
+        now = datetime.datetime(2026, 11, 1, tzinfo=datetime.timezone.utc)
+        items = self.repo.search_products("Redmi", now=now)
+        found = {i["product"].id: i["variants_count"] for i in items}
+        self.assertEqual(found, {"a": 1, "c": 0})
+        self.assertEqual(self.repo.count_search_products("Redmi")["total_products"], 2)
+
+    def test_query_for_one_variant_shows_it(self):
+        now = datetime.datetime(2026, 11, 1, tzinfo=datetime.timezone.utc)
+        items = self.repo.search_products("Redmi 256Gb", now=now)
+        self.assertEqual([i["product"].id for i in items], ["b"])
+
+    def test_refresh_is_idempotent(self):
+        self.assertEqual(refresh_family_ids(self.conn), 0)
 
 
 if __name__ == "__main__":

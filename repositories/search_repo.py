@@ -458,6 +458,22 @@ class SearchRepository(BaseRepository):
         model_filter_sql, model_filter_params = self._model_filter(model)
         kind_filter_sql, kind_filter_params = self._kind_filter(kind)
 
+        # Исполнения одной модели — одна карточка: в выдаче остаётся самое дешёвое из подходящих.
+        # Цена считается только у товаров с семейством, остальные остаются одни в своей группе.
+        family_sql = f"""
+            ROW_NUMBER() OVER (
+                PARTITION BY COALESCE(p.family_id, p.id)
+                ORDER BY CASE WHEN p.family_id IS NULL THEN 0 ELSE COALESCE((
+                    SELECT MIN(o.price) FROM offers o
+                    JOIN sellers s ON o.seller_id = s.id
+                    JOIN channels c ON o.channel_id = c.id
+                    WHERE o.product_id = p.id AND {" AND ".join(order_conditions)}
+                ), 1e18) END, p.id
+            ) AS family_row,
+            COUNT(*) OVER (PARTITION BY COALESCE(p.family_id, p.id)) AS family_size
+        """
+        family_params = list(exists_params) + purchasable_params
+
         # -------------------------------------------------------------------
         # Step 1: Match Canonical Products
         # -------------------------------------------------------------------
@@ -469,19 +485,25 @@ class SearchRepository(BaseRepository):
         if fts_query:
             try:
                 sql_fts = f"""
-                SELECT p.*, bm25(canonical_products_fts) as rank
-                FROM canonical_products_fts f
-                JOIN canonical_products p ON f.rowid = p.rowid
-                WHERE canonical_products_fts MATCH ?
-                  {cat_filter_sql}
-                  {brand_filter_sql}
-                  {model_filter_sql}
-                  {kind_filter_sql}
-                  {exists_sql}
+                SELECT p.* FROM (
+                    SELECT p.*, {family_sql} FROM (
+                        SELECT p.*, bm25(canonical_products_fts) as rank
+                        FROM canonical_products_fts f
+                        JOIN canonical_products p ON f.rowid = p.rowid
+                        WHERE canonical_products_fts MATCH ?
+                          {cat_filter_sql}
+                          {brand_filter_sql}
+                          {model_filter_sql}
+                          {kind_filter_sql}
+                          {exists_sql}
+                        LIMIT -1  -- bm25 работает только до оконных функций, запрос нельзя разворачивать
+                    ) p
+                ) p
+                WHERE p.family_row = 1
                 ORDER BY {order_by_sql}
                 LIMIT ? OFFSET ?
                 """
-                fts_params = [fts_query] + cat_filter_params + brand_filter_params + model_filter_params + kind_filter_params + exists_params + order_params + [limit_val, offset_val]
+                fts_params = family_params + [fts_query] + cat_filter_params + brand_filter_params + model_filter_params + kind_filter_params + exists_params + order_params + [limit_val, offset_val]
                 rows = self.fetchall(sql_fts, fts_params)
                 if rows:
                     used_fts = True
@@ -492,6 +514,7 @@ class SearchRepository(BaseRepository):
                                 "product": CanonicalProduct.from_row(r),
                                 "bm25_score": float(r["rank"]),
                                 "offers": [],
+                                "variants_count": r["family_size"] - 1,
                             }
                             ordered_product_ids.append(pid)
             except sqlite3.OperationalError as e:
@@ -519,13 +542,16 @@ class SearchRepository(BaseRepository):
                 like_params.extend(kind_filter_params)
 
             sql_like = f"""
-            SELECT p.* FROM canonical_products p
-            WHERE {" AND ".join(where_clauses)}
-              {exists_sql}
+            SELECT p.* FROM (
+                SELECT p.*, {family_sql} FROM canonical_products p
+                WHERE {" AND ".join(where_clauses)}
+                  {exists_sql}
+            ) p
+            WHERE p.family_row = 1
             ORDER BY {order_by_like}
             LIMIT ? OFFSET ?
             """
-            like_full_params = like_params + exists_params + order_params + [limit_val, offset_val]
+            like_full_params = family_params + like_params + exists_params + order_params + [limit_val, offset_val]
             rows = self.fetchall(sql_like, like_full_params)
             for r in rows:
                 pid = r["id"]
@@ -534,6 +560,7 @@ class SearchRepository(BaseRepository):
                         "product": CanonicalProduct.from_row(r),
                         "bm25_score": 1.0,
                         "offers": [],
+                        "variants_count": r["family_size"] - 1,
                     }
                     ordered_product_ids.append(pid)
 
@@ -605,7 +632,11 @@ class SearchRepository(BaseRepository):
             min_price=min_price, max_price=max_price,
         )
         ids_sql, ids_params = self._matching_product_ids(search_text, conditions, params, brand, category, model, kind)
-        row = self.fetchone(f"SELECT COUNT(DISTINCT id) as cnt FROM ({ids_sql})", ids_params)
+        row = self.fetchone(
+            f"""SELECT COUNT(DISTINCT COALESCE(p.family_id, p.id)) as cnt FROM canonical_products p
+                WHERE p.id IN ({ids_sql})""",
+            ids_params,
+        )
         return {
             "total_products": int(row["cnt"]) if row else 0,
         }
@@ -656,7 +687,7 @@ class SearchRepository(BaseRepository):
             )
             return self.fetchall(
                 f"""
-                SELECT p.{column} as value, COUNT(*) as count
+                SELECT p.{column} as value, COUNT(DISTINCT COALESCE(p.family_id, p.id)) as count
                 FROM canonical_products p
                 WHERE p.id IN ({ids_sql}) AND COALESCE(p.{column}, '') != ''
                 GROUP BY p.{column}
@@ -673,10 +704,11 @@ class SearchRepository(BaseRepository):
             )
             return self.fetchall(
                 f"""
-                SELECT {select}, COUNT(DISTINCT o.product_id) as count
+                SELECT {select}, COUNT(DISTINCT COALESCE(fp.family_id, o.product_id)) as count
                 FROM offers o
                 JOIN sellers s ON o.seller_id = s.id
                 JOIN channels c ON o.channel_id = c.id
+                JOIN canonical_products fp ON fp.id = o.product_id
                 WHERE {" AND ".join(facet_conditions)}
                   AND o.product_id IN ({ids_sql})
                   {extra}

@@ -3219,6 +3219,31 @@ async def disputed_pairs_background_worker(app):
             await asyncio.sleep(30.0)
 
 
+async def family_refresh_background_worker(app):
+    """Держит семейства товаров свежими: выдача объединяет исполнения по ним."""
+    from database import get_connection
+    from domain.product_options import refresh_family_ids
+
+    def _refresh():
+        conn = get_connection()
+        try:
+            return refresh_family_ids(conn)
+        finally:
+            conn.close()
+
+    while True:
+        try:
+            changed = await asyncio.to_thread(_refresh)
+            if changed:
+                print(f"[Family] Обновлено семейств товаров: {changed}")
+            await asyncio.sleep(600.0)
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            print(f"[Family] Ошибка обновления семейств: {type(e).__name__}")
+            await asyncio.sleep(600.0)
+
+
 async def category_ai_sort_background_worker(app):
     """Фоновая сортировка каталога локальной моделью; без CATALOG_AI_SORT_ENABLED=1 не работает."""
     import catalog_ai_sort
@@ -5006,6 +5031,7 @@ async def background_tasks(app):
         asyncio.create_task(ai_normalize_background_worker(app)),
         asyncio.create_task(disputed_pairs_background_worker(app)),
         asyncio.create_task(category_ai_sort_background_worker(app)),
+        asyncio.create_task(family_refresh_background_worker(app)),
         asyncio.create_task(freshness_reaper_background_worker(app)),
         asyncio.create_task(notification_worker()),
         asyncio.create_task(run_telegram_bot_task()),

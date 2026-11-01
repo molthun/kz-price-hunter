@@ -419,7 +419,11 @@ def _write_legacy_offers_v2(
             title = CASE WHEN canonical_products.title_offer_id IS NULL
                            OR canonical_products.title_offer_id = excluded.title_offer_id
                          THEN excluded.title ELSE canonical_products.title END,
-            category = CASE WHEN canonical_products.title_offer_id IS NULL
+            category = CASE WHEN EXISTS (
+                                SELECT 1 FROM category_ai_verdicts v
+                                WHERE v.product_id = canonical_products.id AND v.applied = 1
+                            ) THEN canonical_products.category
+                            WHEN canonical_products.title_offer_id IS NULL
                               OR canonical_products.title_offer_id = excluded.title_offer_id
                             THEN excluded.category ELSE canonical_products.category END,
             brand = COALESCE(canonical_products.brand, excluded.brand),

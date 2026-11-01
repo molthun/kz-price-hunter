@@ -14,7 +14,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 
-from domain.product_options import build_family_options, build_options, collapse_family_cards, family_key, offer_options
+from domain.product_options import build_family_options, build_options, family_key, offer_options
 from domain.condition import ConditionBreakdown, build_condition_breakdown
 from domain.freshness_v2 import offer_freshness
 from domain.models import CanonicalProduct, Channel, ChannelType, Condition, Offer, Seller
@@ -209,7 +209,7 @@ class ProductSearchResult:
     used_offers_count: int = 0
     new_sellers_count: int = 0
     used_sellers_count: int = 0
-    variants_count: int = 0  # другие исполнения той же модели на странице выдачи
+    variants_count: int = 0  # другие исполнения той же модели
 
     def to_dict(self) -> Dict[str, Any]:
         res = asdict(self)
@@ -645,6 +645,7 @@ class SearchCore:
                     used_offers_count=len(used_purchasable),
                     new_sellers_count=len(new_sellers_set),
                     used_sellers_count=len(used_sellers_set),
+                    variants_count=item.get("variants_count", 0),
                 )
                 product_results.append(card)
                 total_offers_count += len(aggregated_offers)
@@ -776,7 +777,7 @@ class SearchCore:
             return SearchResponse2(
                 query=query,
                 parsed_query=parsed,
-                items=collapse_family_cards(product_results[:limit_val]),
+                items=product_results[:limit_val],
                 total_products=exact_total_products,
                 total_offers=total_offers_count,
                 latency_ms=round(latency_ms, 2),
