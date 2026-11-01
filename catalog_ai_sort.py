@@ -161,7 +161,7 @@ _FOR_DEVICE_RE = re.compile(r"\bдля\s+.*$", re.I)
 # Дешёвый смартфон или ноутбук без памяти в названии почти не встречается, поэтому там верим и коду
 _ANY_TITLE_CATEGORIES = {"Смартфоны", "Ноутбуки"}
 _VACUUM_PART_RE = re.compile(r"стяжк|щетк|щётк|насадк|фильтр|мешок|мешки|шланг|турбощ", re.I)
-_CHECK_TARGETS = {"vacuum_parts", "toys", "haircare", "phone_cases", "printer_ink", "home", "kids", "audio", "car_electronics"}
+_CHECK_TARGETS = {"vacuum_parts", "toys", "haircare", "printer_ink", "home", "kids", "audio", "car_electronics"}
 
 
 def find_cheap_suspects(conn, classifier) -> List[Dict[str, Any]]:
@@ -186,7 +186,7 @@ def find_cheap_suspects(conn, classifier) -> List[Dict[str, Any]]:
             without_target = _FOR_DEVICE_RE.sub(" ", title or "")
             if price >= limit or from_feed or checked or sign_re.search(without_target):
                 continue
-            rule = classifier.classify_rules(title)
+            rule = classifier.classify_rules(without_target)
             if rule and rule.source in ("rule_title", "rule_accessory"):
                 continue
             suspects.append({"id": product_id, "title": title, "price": price, "category": category})
