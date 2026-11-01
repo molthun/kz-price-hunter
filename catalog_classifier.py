@@ -469,6 +469,9 @@ def extract_apple_audio_model(text: str) -> Optional[str]:
 
 def extract_mac_model(text: str) -> Optional[str]:
     """Standardizes Mac laptop and desktop models."""
+    # Normalize cyrillic 'о' in 'prо'
+    text = re.sub(r"\bpr[оo]\b", "pro", text, flags=re.I)
+
     # MacBook Neo
     if re.search(r"\bmacbook\s+neo\b", text, re.I):
         return "MacBook Neo 13"
@@ -482,9 +485,9 @@ def extract_mac_model(text: str) -> Optional[str]:
         return "MacBook Air"
 
     # MacBook Pro
-    if re.search(r"\b(?:16\s*(?:[\'\"″]|inch|-inch)?\s+macbook\s+pro|macbook\s+pro\s*(?:16(?:[\'\"″]|inch|\b)|16\.\d|a2485|a2780|a2991))\b", text, re.I):
+    if re.search(r"\b(?:16\s*(?:[\'\"″]|inch|-inch)?\s+macbook\s+pro|macbook\s+pro\s*(?:16(?:[\'\"″]|inch|\b)|16\.\d|a2485|a2780|a2991))\b", text, re.I) or (re.search(r"\b16(?:\.2)?\b", text) and re.search(r"\bmacbook\b", text, re.I)):
         return "MacBook Pro 16"
-    if re.search(r"\b(?:14\s*(?:[\'\"″]|inch|-inch)?\s+macbook\s+pro|macbook\s+pro\s*(?:14(?:[\'\"″]|inch|\b)|14\.\d|a2442|a2779|a2918|a2992))\b", text, re.I):
+    if re.search(r"\b(?:14\s*(?:[\'\"″]|inch|-inch)?\s+macbook\s+pro|macbook\s+pro\s*(?:14(?:[\'\"″]|inch|\b)|14\.\d|a2442|a2779|a2918|a2992))\b", text, re.I) or (re.search(r"\b14(?:\.2)?\b", text) and re.search(r"\bmacbook\b", text, re.I)):
         return "MacBook Pro 14"
     if re.search(r"\b(?:13\s*(?:[\'\"″]|inch|-inch)?\s+macbook\s+pro|macbook\s+pro\s*(?:13(?:[\'\"″]|inch|\b)|13\.\d|a2289|a2338))\b", text, re.I):
         return "MacBook Pro 13"
@@ -512,6 +515,9 @@ def extract_mac_model(text: str) -> Optional[str]:
 
 def extract_ipad_model(text: str) -> Optional[str]:
     """Standardizes Apple iPad models."""
+    # Normalize cyrillic 'о' in 'prо'
+    text = re.sub(r"\bpr[оo]\b", "pro", text, flags=re.I)
+
     # Exclude tablet accessories
     if re.search(r"\b(клавиатур[аы]|keyboard|стилус|stylus|чехол|стекло|пленка|ремешок|кабель|адаптер)\b", text, re.I):
         return None
