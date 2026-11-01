@@ -3702,6 +3702,70 @@
       }
     }
 
+    /* Классы использовались в 17 кнопках, но стилей у них не было */
+    .btn-primary, .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 38px;
+      padding: 8px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .btn-primary {
+      background: var(--primary);
+      border: 1px solid var(--primary);
+      color: #ffffff;
+    }
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+    }
+    .btn-secondary:hover {
+      border-color: var(--primary);
+    }
+    .btn-primary:disabled, .btn-secondary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .deal-discount-badge-large, .deal-badge-secondary {
+      white-space: nowrap;
+    }
+
+    /* Лента на узком телефоне: кнопка покупки в своей строке, значки не сжимаются */
+    @media (max-width: 440px) and (min-height: 501px) {
+      .deal-actions-row {
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .btn-deal-buy {
+        flex: 1 1 100%;
+        padding: 9px 12px;
+      }
+      .btn-deal-action {
+        flex: 1 1 0;
+        height: 36px;
+      }
+    }
+    @media (max-width: 899px) and (max-height: 700px) and (min-height: 501px) {
+      .deal-provenance-text {
+        display: none;
+      }
+      .deal-reel-media {
+        min-height: 90px;
+      }
+    }
+
     /* Выдача на узком телефоне: кнопка фильтров и сортировка делят строку */
     @media (max-width: 480px) {
       .results-top-meta > div:last-child {
@@ -3710,6 +3774,8 @@
       .sort-select {
         flex: 1 1 0;
         min-width: 0;
+        padding-left: 8px;
+        padding-right: 4px;
       }
     }
 
