@@ -6595,8 +6595,12 @@
         document.getElementById('detailBestPrice').textContent = best ? formatPrice(best) : '—';
         const withImage = offers.find(off => off.image_url);
         if (withImage) document.getElementById('detailMainImg').src = withImage.image_url;
+        // В общем названии цвет случайного магазина: показываем название выбранного исполнения
+        const titled = offers.find(off => off.title);
+        if (titled) document.getElementById('detailProductTitle').textContent = titled.title;
       } else {
         const prod = data.product || {};
+        document.getElementById('detailProductTitle').textContent = prod.title || 'Товар';
         const basis = data.best_offer ? priceBasisLabel(data.best_offer) : '';
         document.getElementById('detailBestPrice').textContent = data.min_price ? formatPrice(data.min_price) + (basis ? ' ' + basis : '') : '—';
         document.getElementById('detailMainImg').src = prod.image_url || getSvgPlaceholder(prod.title);
