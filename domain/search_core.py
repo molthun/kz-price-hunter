@@ -1007,9 +1007,26 @@ class SearchCore:
         except Exception as ex:
             logger.warning(f"Price history lookup error for {product.id}: {ex}")
 
+        # Resolve category taxonomy breadcrumbs
+        cat_breadcrumbs = []
+        try:
+            from domain.category import TaxonomyMapper, MASTER_TAXONOMY
+            mapper = TaxonomyMapper(MASTER_TAXONOMY)
+            raw_c = product.category or ""
+            target_cat = mapper.map_category(raw_c) or mapper.get_by_id(raw_c)
+            if target_cat:
+                cat_breadcrumbs = mapper.get_breadcrumbs(target_cat.id)
+            elif raw_c:
+                cat_breadcrumbs = [{"id": raw_c, "name": raw_c, "icon": "📦"}]
+        except Exception as ex:
+            logger.warning(f"Breadcrumb resolution error for {product.id}: {ex}")
+            if product.category:
+                cat_breadcrumbs = [{"id": product.category, "name": product.category, "icon": "📦"}]
+
         return {
             "ok": True,
             "product": product.to_dict(),
+            "breadcrumbs": cat_breadcrumbs,
             "min_price": min_p,
             "max_price": max_p,
             "best_new_price": best_new_p,

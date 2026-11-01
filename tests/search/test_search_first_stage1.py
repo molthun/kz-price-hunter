@@ -223,6 +223,9 @@ class TestSearchFirstContracts(unittest.TestCase):
         self.assertIsNotNone(detail)
         self.assertTrue(detail["ok"])
         self.assertEqual(detail["product"]["id"], "prod_flagship")
+        self.assertIn("breadcrumbs", detail)
+        self.assertTrue(len(detail["breadcrumbs"]) >= 1)
+        self.assertEqual(detail["breadcrumbs"][-1]["id"], "phones")
 
         # Crucial: Unpurchasable 100 000 offer MUST NOT be min_price!
         self.assertEqual(detail["min_price"], 390000.0)

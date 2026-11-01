@@ -1075,10 +1075,54 @@
       color: var(--text-muted);
       margin: 16px 0 20px;
       flex-wrap: wrap;
+      line-height: 1.5;
+    }
+
+    .breadcrumb-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 4px;
+      border-radius: var(--radius-sm, 4px);
+      transition: color 0.15s ease, background 0.15s ease;
     }
 
     .breadcrumb-link:hover {
       color: var(--primary);
+      text-decoration: underline;
+      background: var(--bg-hover, rgba(0, 0, 0, 0.04));
+    }
+
+    .breadcrumb-separator {
+      color: var(--text-muted);
+      opacity: 0.5;
+      font-size: 0.85rem;
+      user-select: none;
+    }
+
+    .breadcrumb-current {
+      color: var(--text-main);
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 440px;
+      display: inline-block;
+      vertical-align: bottom;
+    }
+
+    @media (max-width: 768px) {
+      .breadcrumbs {
+        font-size: 0.82rem;
+        gap: 6px;
+        margin: 12px 0 16px;
+      }
+      .breadcrumb-current {
+        max-width: 240px;
+      }
     }
 
     .product-detail-hero {
@@ -3005,12 +3049,8 @@
     <!-- ============================================================= -->
     <section id="viewDetail" class="view-section">
       <!-- Breadcrumbs -->
-      <nav class="breadcrumbs" id="detailBreadcrumbs">
+      <nav class="breadcrumbs" id="detailBreadcrumbs" aria-label="Хлебные крошки">
         <a href="/" class="breadcrumb-link" onclick="navigateTo(event, '/')">Главная</a>
-        <span>›</span>
-        <span id="breadcrumbCategory">Категория</span>
-        <span>›</span>
-        <span id="breadcrumbTitle" style="color:var(--text-main); font-weight:600;">Товар</span>
       </nav>
 
       <!-- Product Hero Card -->
@@ -4184,7 +4224,10 @@
 
     // Router & History Navigation
     function navigateTo(e, path) {
-      if (e && e.preventDefault) e.preventDefault();
+      if (e) {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+        if (e.preventDefault) e.preventDefault();
+      }
       window.history.pushState({}, '', path);
       handleRoute();
     }
@@ -4838,8 +4881,11 @@
       const tableBody = document.getElementById('offersTableBody');
       const badgesEl = document.getElementById('detailBadges');
       const attrsEl = document.getElementById('detailAttributesList');
-      const breadTitle = document.getElementById('breadcrumbTitle');
-      const breadCat = document.getElementById('breadcrumbCategory');
+      const bcEl = document.getElementById('detailBreadcrumbs');
+
+      if (bcEl) {
+        bcEl.innerHTML = '<a href="/" class="breadcrumb-link" onclick="navigateTo(event, \'/\')">Главная</a> <span class="breadcrumb-separator" aria-hidden="true">›</span> <span class="breadcrumb-current">Загрузка...</span>';
+      }
 
       titleEl.textContent = 'Загрузка товара...';
       bestPriceEl.textContent = '—';
@@ -4873,6 +4919,73 @@
       }
     }
 
+    function renderDetailBreadcrumbs(data) {
+      const container = document.getElementById('detailBreadcrumbs');
+      if (!container) return;
+
+      const prod = data.product || {};
+      const cityParam = AppState.city && AppState.city !== 'Все' ? '&city=' + encodeURIComponent(AppState.city) : '';
+
+      const items = [
+        { label: 'Главная', path: '/' }
+      ];
+
+      // 1. Иерархия категорий (L1 -> L2) из бэкенда или prod.category
+      if (Array.isArray(data.breadcrumbs) && data.breadcrumbs.length > 0) {
+        data.breadcrumbs.forEach(bc => {
+          items.push({
+            label: bc.name,
+            icon: bc.icon,
+            path: '/search?cat=' + encodeURIComponent(bc.name) + cityParam
+          });
+        });
+      } else if (prod.category) {
+        items.push({
+          label: prod.category,
+          path: '/search?cat=' + encodeURIComponent(prod.category) + cityParam
+        });
+      }
+
+      // 2. Бренд товара (если есть)
+      if (prod.brand) {
+        let p = new URLSearchParams();
+        if (prod.category) p.set('cat', prod.category);
+        p.set('brand', prod.brand);
+        if (AppState.city && AppState.city !== 'Все') p.set('city', AppState.city);
+        items.push({
+          label: prod.brand,
+          path: '/search?' + p.toString()
+        });
+      }
+
+      // 3. Модель товара (если есть и не дублирует заголовок или бренд)
+      if (prod.model && prod.model !== prod.title && (!prod.brand || prod.model !== prod.brand)) {
+        let p = new URLSearchParams();
+        if (prod.category) p.set('cat', prod.category);
+        if (prod.brand) p.set('brand', prod.brand);
+        p.set('model', prod.model);
+        if (AppState.city && AppState.city !== 'Все') p.set('city', AppState.city);
+        items.push({
+          label: prod.model,
+          path: '/search?' + p.toString()
+        });
+      }
+
+      // 4. Текущий товар (некликабельный конечный элемент)
+      const currentTitle = prod.title || 'Товар';
+
+      let html = '';
+      items.forEach((item) => {
+        const iconHtml = item.icon ? `<span class="breadcrumb-icon" aria-hidden="true">${escapeHtml(item.icon)}</span> ` : '';
+        html += `<a href="${escapeHtml(item.path)}" class="breadcrumb-link" onclick="navigateTo(event, '${escapeHtml(item.path)}')">${iconHtml}${escapeHtml(item.label)}</a>`;
+        html += ` <span class="breadcrumb-separator" aria-hidden="true">›</span> `;
+      });
+
+      html += `<span class="breadcrumb-current" aria-current="page" title="${escapeHtml(currentTitle)}">${escapeHtml(currentTitle)}</span>`;
+
+      container.innerHTML = html;
+    }
+
     function renderProductDetail(data) {
       const prod = data.product || {};
       const offers = data.offers || [];
@@ -4881,8 +4994,7 @@
       document.title = (prod.title || 'Товар') + ' — купить по лучшей цене в Казахстане';
 
       // Breadcrumbs
-      document.getElementById('breadcrumbTitle').textContent = prod.title || 'Товар';
-      document.getElementById('breadcrumbCategory').textContent = prod.category || 'Электроника';
+      renderDetailBreadcrumbs(data);
 
       // Main info
       document.getElementById('detailProductTitle').textContent = prod.title || 'Товар';
