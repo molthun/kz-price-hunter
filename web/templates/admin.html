@@ -9,7 +9,7 @@
     (function () {
       let theme = 'light';
       try {
-        const saved = localStorage.getItem('kz_theme');
+        const saved = localStorage.getItem('kz_theme_mode') || localStorage.getItem('kz_theme');
         if (saved === 'dark' || saved === 'light') theme = saved;
         else if (window.matchMedia('(prefers-color-scheme: dark)').matches) theme = 'dark';
       } catch (e) {}
@@ -42,7 +42,7 @@
       color: var(--text);
       font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
-    main { max-width: 640px; margin: 0 auto; }
+    main { max-width: 760px; margin: 0 auto; }
     .back { color: var(--muted); font-size: 0.9rem; text-decoration: none; }
     .back:hover { color: var(--text); }
     h1 { margin: 16px 0 24px; font-size: 1.6rem; }
@@ -53,6 +53,58 @@
       border-radius: 12px;
     }
     .card p { margin: 0 0 16px; color: var(--muted); line-height: 1.5; }
+    .card + .card { margin-top: 16px; }
+    .card h2 { margin: 0 0 4px; font-size: 1.05rem; }
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .count { color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
+    .count.pending { color: #d97706; font-weight: 600; }
+    .user {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px 12px;
+      padding: 12px 0;
+      border-top: 1px solid var(--border);
+    }
+    .user img, .user .no-photo {
+      width: 36px;
+      height: 36px;
+      flex-shrink: 0;
+      border-radius: 50%;
+      object-fit: cover;
+      background: var(--border);
+    }
+    .user-info { flex: 1 1 180px; min-width: 0; }
+    .user-name { font-weight: 600; font-size: 0.92rem; overflow-wrap: anywhere; }
+    .user-meta { color: var(--muted); font-size: 0.8rem; overflow-wrap: anywhere; }
+    .user-status { font-size: 0.8rem; font-weight: 600; }
+    .user-status.pending { color: #d97706; }
+    .user-status.ok { color: #16a34a; }
+    .user-status.blocked { color: #dc2626; }
+    .user-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+    button {
+      min-height: 34px;
+      padding: 5px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text);
+      font: inherit;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    button:hover { border-color: var(--primary); }
+    button:disabled { opacity: 0.5; cursor: default; }
+    button.main { background: var(--primary); border-color: var(--primary); color: #ffffff; font-weight: 600; }
+    button.danger { color: #dc2626; }
+    .state { color: var(--muted); font-size: 0.9rem; padding: 8px 0 0; }
+    .state.error { color: #dc2626; }
     .card a {
       display: inline-block;
       padding: 9px 16px;
@@ -69,10 +121,109 @@
   <main>
     <a class="back" href="/">‹ На сайт</a>
     <h1>Управление сервисом</h1>
+    <section class="card">
+      <div class="card-head">
+        <h2>Пользователи</h2>
+        <span class="count" id="usersCount"></span>
+      </div>
+      <div id="usersList"></div>
+      <div class="state" id="usersState" role="status">Загрузка…</div>
+    </section>
     <div class="card">
       <p>Новая страница администрирования в разработке. Пока сканеры, настройки и мониторинг открываются в прежней панели.</p>
       <a href="/dashboard">Открыть прежнюю панель</a>
     </div>
   </main>
+  <script>
+    const list = document.getElementById('usersList');
+    const stateEl = document.getElementById('usersState');
+    const countEl = document.getElementById('usersCount');
+
+    function statusOf(user) {
+      if (user.is_admin) return ['Администратор', 'ok', 0];
+      if (user.is_blocked) return ['Заблокирован', 'blocked', 3];
+      if (user.is_approved) return ['Доступ открыт', 'ok', 2];
+      return ['Ожидает подтверждения', 'pending', 1];
+    }
+
+    function actionsOf(user) {
+      if (user.is_admin) return [];
+      if (user.is_blocked) return [['Разблокировать', '', 'block', false]];
+      if (user.is_approved) return [['Отозвать доступ', '', 'approve', false], ['Заблокировать', 'danger', 'block', true]];
+      return [['Подтвердить доступ', 'main', 'approve', true], ['Заблокировать', 'danger', 'block', true]];
+    }
+
+    function element(tag, className, text) {
+      const el = document.createElement(tag);
+      if (className) el.className = className;
+      if (text !== undefined) el.textContent = text;
+      return el;
+    }
+
+    async function changeUser(button, userId, action, value) {
+      const field = action === 'approve' ? 'approved' : 'blocked';
+      button.disabled = true;
+      stateEl.className = 'state';
+      stateEl.textContent = '';
+      try {
+        const response = await fetch('/api/admin/users/' + encodeURIComponent(userId) + '/' + action, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ [field]: value }),
+        });
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        await loadUsers();
+      } catch (error) {
+        button.disabled = false;
+        stateEl.className = 'state error';
+        stateEl.textContent = 'Не удалось изменить статус. Попробуйте ещё раз.';
+      }
+    }
+
+    function renderUser(user) {
+      const row = element('div', 'user');
+      if (user.photo_url && /^https:\/\//.test(user.photo_url)) {
+        const photo = element('img');
+        photo.src = user.photo_url;
+        photo.alt = '';
+        row.append(photo);
+      } else {
+        row.append(element('div', 'no-photo'));
+      }
+      const [statusText, statusClass] = statusOf(user);
+      const info = element('div', 'user-info');
+      info.append(element('div', 'user-name', [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username || 'Пользователь'));
+      info.append(element('div', 'user-meta', (user.username ? '@' + user.username + ' · ' : '') + 'ID ' + user.id));
+      info.append(element('div', 'user-status ' + statusClass, statusText));
+      row.append(info);
+      const actions = element('div', 'user-actions');
+      actionsOf(user).forEach(([label, className, action, value]) => {
+        const button = element('button', className, label);
+        button.type = 'button';
+        button.addEventListener('click', () => changeUser(button, user.id, action, value));
+        actions.append(button);
+      });
+      row.append(actions);
+      return row;
+    }
+
+    async function loadUsers() {
+      const response = await fetch('/api/admin/users');
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const users = await response.json();
+      // Кто ждёт решения — сверху
+      users.sort((a, b) => statusOf(a)[2] - statusOf(b)[2]);
+      const pending = users.filter(user => statusOf(user)[1] === 'pending').length;
+      countEl.textContent = users.length + (pending ? ', ожидают: ' + pending : '');
+      countEl.classList.toggle('pending', pending > 0);
+      list.replaceChildren(...users.map(renderUser));
+      stateEl.textContent = users.length ? '' : 'Пользователей пока нет';
+    }
+
+    loadUsers().catch(() => {
+      stateEl.className = 'state error';
+      stateEl.textContent = 'Не удалось загрузить список пользователей.';
+    });
+  </script>
 </body>
 </html>

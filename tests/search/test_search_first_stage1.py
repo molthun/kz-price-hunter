@@ -580,8 +580,8 @@ class TestSearchFirstHttpEndpoints(AioHTTPTestCase):
         self.assertIn('id="bottomNavCatalog"', html)
 
         # Profile admin users management card
-        self.assertIn('id="profileAdminUsersCard"', html)
-        self.assertIn("loadAdminUsersList()", html)
+        self.assertNotIn('id="profileAdminUsersCard"', html)
+        self.assertNotIn("loadAdminUsersList()", html)
         self.assertIn("adminSetApproved(", html)
         self.assertIn("adminSetBlocked(", html)
 
