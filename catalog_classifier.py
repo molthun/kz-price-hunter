@@ -287,13 +287,13 @@ _TITLE_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
     (re.compile(r"\b(видеокарт(?:а|ы)|geforce\s+rtx|radeon\s+rx|графический\s+процессор)\b", re.I), "gpus"),
     (re.compile(r"\b(процессор|intel\s+core|amd\s+ryzen)\b", re.I), "cpus"),
     (re.compile(r"\b(материнск(?:ая|ие)\s+плат(?:а|ы)|motherboard)\b", re.I), "motherboards"),
-    (re.compile(r"\b(ssd|твердотельный\s+накопитель|жесткий\s+диск|внешний\s+диск|hdd)\b", re.I), "storage"),
+    (re.compile(r"^\W*(?:внешний\s+)?(?:ssd|hdd)\b|\b(накопитель\s+ssd|ssd\s+накопитель|ssd-накопитель|твердотельный\s+накопитель|жесткий\s+диск|внешний\s+диск)\b", re.I), "storage"),
 
     # Appliances & Home
     (re.compile(r"\b(стиральн(?:ая|ые|ую)\s+машин(?:а|ы|у)|стиралка)\b", re.I), "washing_machines"),
     (re.compile(r"\b(холодильник|морозильник|морозильн(?:ая|ые)\s+камер(?:а|ы))\b", re.I), "refrigerators"),
     (re.compile(r"\b(пылесос|робот-пылесос|вертикальный\s+пылесос)\b", re.I), "vacuums"),
-    (re.compile(r"\b(кондиционер(?!\s+для\b)|сплит-систем(?:а|ы))\b", re.I), "air_conditioners"),
+    (re.compile(r"\b(кондиционер(?![^,]*(?:\bдля\b|волос|бель|ткан|стирк|\d\s*мл\b|\d\s*л\b))|сплит-систем(?:а|ы))\b", re.I), "air_conditioners"),
     (re.compile(r"\b(микроволнов(?:ка|ая\s*печь)|кофемашин(?:а|ы)|кофеварк(?:а|и)|чайник\s+электрический|блендер|мультиварк(?:а|и)|тостер|(?:электро)?мясорубк(?:а|и))\b", re.I), "kitchen_appliances"),
     (re.compile(r"\b(кастрюл(?:я|и)|сковород(?:а|ы))\b", re.I), "kitchenware"),
     (re.compile(r"\b(конфет(?:ы|а)|маршмелоу|шоколад|джем|печенье)\b", re.I), "food"),

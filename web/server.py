@@ -3248,8 +3248,11 @@ async def family_refresh_background_worker(app):
     """Держит семейства товаров свежими: выдача объединяет исполнения по ним."""
     from database import get_connection
     from domain.product_options import refresh_family_ids
-    from domain.feed_categories import apply_feed_categories
+    from catalog_classifier import CatalogClassifier
+    from domain.feed_categories import apply_feed_categories, apply_section_categories
     from gift_bundles import merge_gift_titles
+
+    classifier = CatalogClassifier()
 
     def _refresh(merge_gifts):
         if merge_gifts:
@@ -3257,6 +3260,7 @@ async def family_refresh_background_worker(app):
         conn = get_connection()
         try:
             apply_feed_categories(conn)
+            apply_section_categories(conn, classifier)
             return refresh_family_ids(conn)
         finally:
             conn.close()
