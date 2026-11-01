@@ -254,6 +254,20 @@ _MISSING_INTERMEDIATES: Dict[str, tuple] = {
 }
 
 
+# Со стенда kz.kari.com обрывал TLS примерно в половине запросов с профилем chrome124,
+# с chrome120 обрывов не было. Знание в одном месте, по той же причине, что и выше.
+DEFAULT_IMPERSONATE = "chrome124"
+_IMPERSONATE_BY_HOST: Dict[str, str] = {"kz.kari.com": "chrome120"}
+
+
+def impersonate_for_url(url: str) -> str:
+    try:
+        host = (urlsplit(url).hostname or "").lower()
+    except ValueError:
+        return DEFAULT_IMPERSONATE
+    return _IMPERSONATE_BY_HOST.get(host, DEFAULT_IMPERSONATE)
+
+
 def ca_bundle_for_host(host: str) -> Optional[str]:
     """Бандл с промежуточными для этого хоста, либо None — тогда обычная проверка certifi."""
     host = (host or "").strip().lower().rstrip(".")

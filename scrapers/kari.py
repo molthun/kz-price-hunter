@@ -32,8 +32,7 @@ class KariScraper(PagedScraper):
 
     def _get_session(self) -> requests.Session:
         if self.session is None:
-            # Со стенда профиль chrome124 обрывал TLS примерно в половине запросов, chrome120 проходит стабильно
-            self.session = requests.Session(impersonate="chrome120")
+            self.session = requests.Session(impersonate=requests.impersonate_for_url(self.base_url))
         return self.session
 
     @staticmethod

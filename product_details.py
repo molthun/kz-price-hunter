@@ -113,7 +113,7 @@ def fetch_html(url: str, resolve=None) -> Optional[str]:
     for _ in range(MAX_REDIRECTS + 1):
         options = {CurlOpt.RESOLVE: [pin]} if pin else None
         with http.Session(curl_options=options) as session:
-            response = session.get(current, impersonate="chrome124", timeout=REQUEST_TIMEOUT_SECONDS,
+            response = session.get(current, impersonate=http.impersonate_for_url(current), timeout=REQUEST_TIMEOUT_SECONDS,
                                    allow_redirects=False, stream=True,
                                    # Витрина может не отдавать промежуточный сертификат; проверка
                                    # TLS остаётся включённой. Хост берём заново: редирект уводит

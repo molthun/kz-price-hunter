@@ -63,6 +63,12 @@ class KariScraperTest(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.fetch("", status=403)
 
+    def test_all_requests_to_kari_use_one_browser_profile(self):
+        from scrapers import http
+        self.assertEqual(http.impersonate_for_url("https://kz.kari.com/_next/a.js"), "chrome120")
+        self.assertEqual(http.impersonate_for_url("https://kaspi.kz/shop/"), http.DEFAULT_IMPERSONATE)
+        self.assertEqual(http.impersonate_for_url("https://evil.kz.kari.com.example/"), http.DEFAULT_IMPERSONATE)
+
     def test_registered_for_scanning(self):
         import config
         from web.server import SHOP_REGISTRY
