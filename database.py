@@ -1,4 +1,5 @@
 import os
+import random
 import sys
 import json
 import re
@@ -4707,6 +4708,7 @@ def get_store_deals(
     search: Optional[str] = None,
     deal_type: Optional[str] = "all",
     sort_by: str = "discount_desc",
+    seed: int = 0,
     limit: int = 60,
     offset: int = 0,
     min_discount: int = 0,
@@ -4861,7 +4863,11 @@ def get_store_deals(
         filtered = [d for d in filtered if _is_arbitrage(d)]
 
     # Сортировка
-    if sort_by == "savings_desc":
+    if sort_by == "random":
+        # Порядок задаёт seed: при подгрузке следующих страниц товары не повторяются и не теряются
+        filtered.sort(key=lambda x: str(x["id"]))
+        random.Random(seed).shuffle(filtered)
+    elif sort_by == "savings_desc":
         filtered.sort(key=lambda x: (-x["savings_kzt"], -x["discount_pct"], str(x["id"])))
     elif sort_by == "price_asc":
         filtered.sort(key=lambda x: (x["new_price"], -x["discount_pct"], str(x["id"])))

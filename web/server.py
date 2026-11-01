@@ -1400,6 +1400,7 @@ async def deals_v2_handler(request):
     min_discount = _int_param(request, "min_discount", 0, minimum=0, maximum=99)
     limit = _int_param(request, "limit", 20, minimum=1, maximum=100)
     offset = _int_param(request, "offset", 0, minimum=0, maximum=DEALS_MAX_OFFSET)
+    seed = _int_param(request, "seed", 0, minimum=0, maximum=2147483647)
 
     from database import get_store_deals
     raw_data = await asyncio.to_thread(
@@ -1410,6 +1411,7 @@ async def deals_v2_handler(request):
         search=search,
         deal_type=deal_type,
         sort_by=sort_by,
+        seed=seed,
         limit=limit,
         offset=offset,
         min_discount=min_discount,

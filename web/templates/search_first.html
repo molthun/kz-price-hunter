@@ -7049,6 +7049,7 @@
     // DEALS REELS FEED (KZPH-G4-01)
     // =============================================================
     const DealsFeedState = {
+      seed: 0,
       type: 'all',
       category: 'Все',
       items: [],
@@ -7068,6 +7069,8 @@
       const isCurrent = () => DealsFeedState.abortCtrl === ctrl;
 
       if (reset) {
+        // Каждое открытие — новый порядок; внутри одного просмотра он не меняется
+        DealsFeedState.seed = Math.floor(Math.random() * 2147483647);
         DealsFeedState.offset = 0;
         DealsFeedState.items = [];
         DealsFeedState.hasMore = true;
@@ -7089,6 +7092,8 @@
         if (AppState.city && AppState.city !== 'Все') params.set('city', AppState.city);
         if (DealsFeedState.category && DealsFeedState.category !== 'Все') params.set('category', DealsFeedState.category);
         if (DealsFeedState.type && DealsFeedState.type !== 'all') params.set('type', DealsFeedState.type);
+        params.set('sort', 'random');
+        params.set('seed', DealsFeedState.seed);
         params.set('limit', DealsFeedState.limit);
         params.set('offset', DealsFeedState.offset);
 

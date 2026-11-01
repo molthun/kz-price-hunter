@@ -133,6 +133,22 @@ class StoreDealsDbTest(unittest.TestCase):
         self.assertEqual(res_price["deals"][1]["new_price"], 70000)
         self.assertEqual(res_price["deals"][2]["new_price"], 350000)
 
+    def test_random_order_is_stable_for_seed_and_pages_do_not_repeat(self):
+        def ids(**kwargs):
+            return [d["id"] for d in database.get_store_deals(sort_by="random", **kwargs)["deals"]]
+        self.assertEqual(ids(seed=5), ids(seed=5))
+        orders = {tuple(ids(seed=seed)) for seed in range(30)}
+        self.assertGreater(len(orders), 1)
+        whole = ids(seed=7)
+        paged = ids(seed=7, limit=2, offset=0) + ids(seed=7, limit=2, offset=2)
+        self.assertEqual(paged, whole)
+
+    def test_impossible_discount_is_hidden(self):
+        with database.get_connection() as conn:
+            conn.execute("UPDATE products SET current_price = 1, old_price_on_site = 100000 WHERE id = 'p2'")
+            conn.commit()
+        self.assertNotIn("p_p2", [d["id"] for d in database.get_store_deals()["deals"]])
+
     def test_alert_with_outdated_price_is_hidden(self):
         """P04 E02: цена товара изменилась — старый алерт не показывается и не участвует в счётчиках."""
         self.assertEqual(database.get_store_deals(deal_type="arbitrage")["total"], 1)
