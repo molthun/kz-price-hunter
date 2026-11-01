@@ -603,7 +603,6 @@
     }
 
     .search-box-results {
-      max-width: 800px;
       display: flex;
       align-items: center;
       background: var(--bg-page);
@@ -1391,14 +1390,16 @@
       padding: 16px;
       margin-bottom: 20px;
       display: flex;
+      flex-wrap: wrap;
       align-items: baseline;
-      gap: 12px;
+      gap: 8px 12px;
     }
 
     .detail-price-val {
       font-size: 1.85rem;
       font-weight: 800;
       color: var(--text-main);
+      white-space: nowrap;
     }
 
     .detail-attributes {
@@ -1417,6 +1418,7 @@
     .attr-item {
       display: flex;
       justify-content: space-between;
+      gap: 12px;
       font-size: 0.88rem;
       border-bottom: 1px dashed var(--border-color);
       padding-bottom: 4px;
@@ -2071,7 +2073,7 @@
       display: none;
     }
 
-    @media (min-width: 900px) {
+    @media (min-width: 900px), (max-height: 500px) {
       .deals-page-layout {
         max-width: none;
         align-items: stretch;
@@ -3672,6 +3674,133 @@
         gap: 8px;
       }
     }
+
+    /* Проверка верстки 01.11.2026: правила в конце файла, чтобы перекрывать общие */
+    .detail-attributes {
+      column-gap: 32px;
+    }
+
+    /* Лента скидок на телефоне: картинка уступает место цене и кнопкам */
+    @media (max-width: 899px) and (min-height: 501px) {
+      .deal-reel-media {
+        flex: 1 1 0;
+        min-height: 110px;
+        padding: 10px;
+      }
+      .deal-reel-content {
+        padding: 12px 14px;
+        gap: 8px;
+      }
+      .deal-reel-title {
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .deal-reel-price-row {
+        flex-wrap: wrap;
+      }
+    }
+
+    /* Выдача на узком телефоне: кнопка фильтров и сортировка делят строку */
+    @media (max-width: 480px) {
+      .results-top-meta > div:last-child {
+        width: 100%;
+      }
+      .sort-select {
+        flex: 1 1 0;
+        min-width: 0;
+      }
+    }
+
+    /* Каталог на телефоне: поиск на отдельной строке во всю ширину */
+    @media (max-width: 600px) {
+      .catalog-modal-top {
+        flex-wrap: wrap;
+      }
+      .catalog-badge {
+        display: none;
+      }
+      .catalog-modal-title-area {
+        flex: 1 1 0;
+        min-width: 0;
+      }
+      .catalog-search-box {
+        order: 3;
+        flex: 1 1 100%;
+        max-width: none;
+      }
+    }
+
+    /* Удобные цели касания */
+    @media (max-width: 899px) {
+      .city-selector {
+        padding-top: 0;
+        padding-bottom: 0;
+      }
+      .city-selector select {
+        min-height: 36px;
+      }
+      .btn-geo-header {
+        min-width: 36px;
+        min-height: 36px;
+      }
+      .footer-link, .footer-link-btn {
+        display: inline-flex;
+        align-items: center;
+        min-height: 36px;
+      }
+      .breadcrumb-link {
+        min-height: 32px;
+      }
+      .query-pill, .btn-close-filters-mobile {
+        min-height: 36px;
+      }
+      .filter-show-more {
+        min-height: 36px;
+      }
+    }
+
+    /* Фильтры на планшете: боковая панель, а не весь экран */
+    @media (min-width: 600px) and (max-width: 1023px) {
+      .filters-sidebar.mobile-open {
+        left: auto;
+        width: 420px;
+        padding-bottom: 20px;
+        border: none;
+        border-radius: 0;
+        box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.5);
+      }
+    }
+
+    /* Альбомный телефон: нижнее меню съедает экран, навигация уходит в шапку */
+    @media (max-width: 899px) and (max-height: 500px) {
+      .mobile-bottom-nav {
+        display: none !important;
+      }
+      .header-nav {
+        display: flex !important;
+      }
+      #headerAuthArea {
+        display: block !important;
+      }
+      .header-user-btn {
+        display: inline-flex !important;
+        padding: 4px;
+      }
+      .header-user-name, .site-logo-text {
+        display: none;
+      }
+      .nav-link {
+        padding: 6px;
+      }
+      .site-footer {
+        padding-bottom: 16px;
+      }
+      body {
+        padding-bottom: 0 !important;
+      }
+    }
   </style>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
@@ -5223,6 +5352,12 @@
       setFiltersExpanded(true);
       document.getElementById('closeFiltersBtn').focus();
     }
+
+    document.addEventListener('click', (e) => {
+      if (window.innerWidth < 600 || !isFiltersDialogOpen()) return;
+      const sb = document.getElementById('filtersSidebar');
+      if (!sb.contains(e.target) && !e.target.closest('.mobile-filter-btn')) closeMobileFilters();
+    });
 
     function closeMobileFilters(restoreFocus = true) {
       const sb = document.getElementById('filtersSidebar');
@@ -7190,6 +7325,7 @@
     }
 
     function renderDealsFeed() {
+      fitDealsFeed();
       const container = document.getElementById('dealsReelsContainer');
       if (!container) return;
 
@@ -7362,9 +7498,28 @@
       }
     }
 
+    function isDealsShowcase() {
+      return window.matchMedia('(min-width: 900px), (max-height: 500px)').matches;
+    }
+
+    // Лента занимает ровно место между фильтрами и нижним меню, иначе кнопку покупки закрывает меню
+    function fitDealsFeed() {
+      const box = document.getElementById('dealsReelsContainer');
+      if (!box || !document.getElementById('viewDeals').classList.contains('active')) return;
+      if (isDealsShowcase()) {
+        box.style.height = '';
+        return;
+      }
+      const nav = document.querySelector('.mobile-bottom-nav');
+      const navTop = nav ? nav.getBoundingClientRect().top : window.innerHeight;
+      const free = navTop - (box.getBoundingClientRect().top + window.scrollY) - 8;
+      box.style.height = Math.min(720, Math.max(340, Math.round(free))) + 'px';
+    }
+    window.addEventListener('resize', fitDealsFeed);
+
     // В витрине прокручивается страница, а не лента: подгрузка идёт по прокрутке окна
     window.addEventListener('scroll', () => {
-      if (!window.matchMedia('(min-width: 900px)').matches) return;
+      if (!isDealsShowcase()) return;
       if (!document.getElementById('viewDeals').classList.contains('active')) return;
       if (window.scrollY + window.innerHeight < document.documentElement.scrollHeight - 400) return;
       if (DealsFeedState.hasMore && !DealsFeedState.loading) loadDealsFeed(false);
