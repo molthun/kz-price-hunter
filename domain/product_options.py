@@ -98,5 +98,5 @@ def build_options(offers: List[Any]) -> List[Dict[str, Any]]:
                 "min_price": min(prices) if prices else None,
             })
         values.sort(key=lambda v: (v["min_price"] is None, v["min_price"] or 0, v["label"]))
-        result.append({"key": key, "label": label, "values": values})
+        result.append({"id": key, "label": label, "values": values})
     return result

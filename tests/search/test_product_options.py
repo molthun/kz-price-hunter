@@ -27,7 +27,7 @@ class ProductOptionsTest(unittest.TestCase):
             self._offer("X Black", 100), self._offer("X Black", 90),
             self._offer("X White", 120), self._offer("X", 50), self._offer("X Red", 10, purchasable=False),
         ])
-        self.assertEqual(options[0]["key"], "color")
+        self.assertEqual(options[0]["id"], "color")
         values = {v["value"]: v for v in options[0]["values"]}
         self.assertEqual(values["black"]["min_price"], 90)
         self.assertEqual(values["black"]["offers_count"], 2)

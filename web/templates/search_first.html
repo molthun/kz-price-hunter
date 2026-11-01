@@ -6545,8 +6545,8 @@
       detailSelectedOptions = {};
       const params = new URLSearchParams(location.search);
       (data.options || []).forEach(opt => {
-        const wanted = params.get(opt.key);
-        if (opt.values.some(v => v.value === wanted)) detailSelectedOptions[opt.key] = wanted;
+        const wanted = params.get(opt.id);
+        if (opt.values.some(v => v.value === wanted)) detailSelectedOptions[opt.id] = wanted;
       });
       applyDetailOptions();
     }
@@ -6575,8 +6575,8 @@
       const box = document.getElementById('detailOptions');
       box.hidden = options.length === 0;
       box.innerHTML = options.map(opt => {
-        const current = detailSelectedOptions[opt.key] || '';
-        const chip = (value, inner, title) => `<button type="button" class="detail-option-value${current === value ? ' active' : ''}" data-option-key="${escapeHtml(opt.key)}" data-option-value="${escapeHtml(value)}" title="${escapeHtml(title)}" aria-pressed="${current === value}">${inner}</button>`;
+        const current = detailSelectedOptions[opt.id] || '';
+        const chip = (value, inner, title) => `<button type="button" class="detail-option-value${current === value ? ' active' : ''}" data-option-id="${escapeHtml(opt.id)}" data-option-value="${escapeHtml(value)}" title="${escapeHtml(title)}" aria-pressed="${current === value}">${inner}</button>`;
         const chips = opt.values.map(v => chip(v.value,
           `<span class="detail-option-swatches">${(v.swatches || []).map(c => `<span class="detail-option-swatch" style="background:${escapeHtml(c)}"></span>`).join('')}</span>`
           + `<span>${escapeHtml(v.label)}</span>`
@@ -6586,7 +6586,7 @@
           <div class="detail-option-values">${chip('', 'Все', 'Все варианты')}${chips.join('')}</div>`;
       }).join('');
       box.querySelectorAll('.detail-option-value').forEach(btn => {
-        btn.addEventListener('click', () => selectDetailOption(btn.dataset.optionKey, btn.dataset.optionValue));
+        btn.addEventListener('click', () => selectDetailOption(btn.dataset.optionId, btn.dataset.optionValue));
       });
 
       if (selected.length) {
