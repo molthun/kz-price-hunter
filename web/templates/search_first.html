@@ -4787,6 +4787,10 @@
               <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Instagram</label>
               <input type="text" id="regSellerInstagram" class="form-input" placeholder="@shop_kz" />
             </div>
+            <div>
+              <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Ссылки на маркетплейсы</label>
+              <textarea id="regSellerMarketplace" class="form-input" rows="2" placeholder="Каждая ссылка с новой строки"></textarea>
+            </div>
             <div style="display:flex; justify-content: flex-end; gap: 10px; margin-top: 8px;">
               <button type="button" class="btn-secondary" onclick="closeRegisterSellerModal()">Отмена</button>
               <button type="submit" id="btnSubmitRegisterSeller" class="btn-primary">Отправить заявку</button>
@@ -8229,6 +8233,7 @@
         whatsapp: (document.getElementById('regSellerPhone')?.value || '').trim() || null,
         instagram: (document.getElementById('regSellerInstagram')?.value || '').trim() || null,
         telegram: (document.getElementById('regSellerTelegram')?.value || '').trim() || null,
+        marketplace_links: (document.getElementById('regSellerMarketplace')?.value || '').split('\n').map(link => link.trim()).filter(Boolean),
         bin: (document.getElementById('regSellerBin')?.value || '').trim() || null
       };
 

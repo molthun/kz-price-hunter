@@ -186,3 +186,94 @@ class SellerRepository(BaseRepository):
             params.append(city)
         row = self.fetchone(sql, params)
         return row["count"] if row else 0
+
+    def list_admin_sellers(
+        self,
+        search: Optional[str] = None,
+        city: Optional[str] = None,
+        is_active: Optional[bool] = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> List[dict]:
+        """
+        Полный список продавцов для администратора (включая неактивных) со статистикой каналов и предложений.
+        """
+        sql = """
+        SELECT
+            s.id,
+            s.slug,
+            s.name,
+            s.legal_name,
+            s.bin,
+            s.domain,
+            s.phone,
+            s.rating,
+            s.is_active,
+            s.metadata_json,
+            s.created_at,
+            s.updated_at,
+            COUNT(DISTINCT c.id) as channels_count,
+            COUNT(DISTINCT o.id) as offers_count
+        FROM sellers s
+        LEFT JOIN channels c ON s.id = c.seller_id AND c.is_active = 1
+        LEFT JOIN offers o ON s.id = o.seller_id AND o.is_active = 1
+        WHERE 1=1
+        """
+        params: list = []
+        if is_active is not None:
+            sql += " AND s.is_active = ?"
+            params.append(1 if is_active else 0)
+        if search:
+            sql += " AND (s.name LIKE ? OR s.slug LIKE ? OR s.domain LIKE ? OR s.bin LIKE ? OR s.phone LIKE ?)"
+            s_param = f"%{search.strip()}%"
+            params.extend([s_param, s_param, s_param, s_param, s_param])
+        if city and city != "Все" and city != "Казахстан":
+            sql += " AND (json_extract(s.metadata_json, '$.city') = ? OR o.city = ?)"
+            params.extend([city, city])
+
+        sql += """
+        GROUP BY s.id
+        ORDER BY s.updated_at DESC, s.name ASC
+        LIMIT ? OFFSET ?
+        """
+        params.extend([max(1, min(limit, 200)), max(0, offset)])
+        rows = self.fetchall(sql, params)
+        res = []
+        for r in rows:
+            d = dict(r)
+            meta = {}
+            if d.get("metadata_json"):
+                try:
+                    meta = json.loads(d["metadata_json"])
+                except Exception:
+                    meta = {}
+            d["metadata"] = meta
+            d["city"] = meta.get("city") or "Алматы"
+            res.append(d)
+        return res
+
+    def count_admin_sellers(
+        self,
+        search: Optional[str] = None,
+        city: Optional[str] = None,
+        is_active: Optional[bool] = None,
+    ) -> int:
+        sql = """
+        SELECT COUNT(DISTINCT s.id) as count
+        FROM sellers s
+        LEFT JOIN offers o ON s.id = o.seller_id AND o.is_active = 1
+        WHERE 1=1
+        """
+        params: list = []
+        if is_active is not None:
+            sql += " AND s.is_active = ?"
+            params.append(1 if is_active else 0)
+        if search:
+            sql += " AND (s.name LIKE ? OR s.slug LIKE ? OR s.domain LIKE ? OR s.bin LIKE ? OR s.phone LIKE ?)"
+            s_param = f"%{search.strip()}%"
+            params.extend([s_param, s_param, s_param, s_param, s_param])
+        if city and city != "Все" and city != "Казахстан":
+            sql += " AND (json_extract(s.metadata_json, '$.city') = ? OR o.city = ?)"
+            params.extend([city, city])
+        row = self.fetchone(sql, params)
+        return int(row["count"]) if row else 0

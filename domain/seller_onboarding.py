@@ -28,6 +28,68 @@ from domain.source_profiler import SourceProfile, SourceProfiler
 
 HANDLE_CLEAN_RE = re.compile(r"^@+|/+", re.IGNORECASE)
 KASPI_MERCHANT_URL_RE = re.compile(r"kaspi\.kz/shop/(?:info/merchant|c)/([^/?#]+)", re.IGNORECASE)
+HALYK_MERCHANT_RE = re.compile(r"halykmarket\.kz/(?:merchant|seller|store)/([^/?#]+)", re.IGNORECASE)
+FORTE_MERCHANT_RE = re.compile(r"fortemarket\.kz/(?:merchant|seller|store)/([^/?#]+)", re.IGNORECASE)
+OZON_SELLER_RE = re.compile(r"ozon\.(?:kz|ru)/seller/([^/?#]+)", re.IGNORECASE)
+WB_SELLER_RE = re.compile(r"wildberries\.(?:kz|ru)/seller/([^/?#]+)", re.IGNORECASE)
+
+
+def extract_marketplace_info(url: str) -> Tuple[str, Optional[str]]:
+    """
+    Распознает маркетплейс и merchant_id / seller_id по ссылке на магазин/витрину.
+    Возвращает (platform_name, merchant_id_или_None).
+    """
+    u = str(url or "").strip()
+    if not u:
+        return "Marketplace", None
+
+    m_kaspi = KASPI_MERCHANT_URL_RE.search(u)
+    if m_kaspi:
+        return "Kaspi", m_kaspi.group(1).strip()
+    if "kaspi.kz" in u.lower():
+        return "Kaspi", None
+
+    m_halyk = HALYK_MERCHANT_RE.search(u)
+    if m_halyk:
+        return "Halyk Market", m_halyk.group(1).strip()
+    if "halykmarket.kz" in u.lower():
+        return "Halyk Market", None
+
+    m_forte = FORTE_MERCHANT_RE.search(u)
+    if m_forte:
+        return "Forte Market", m_forte.group(1).strip()
+    if "fortemarket.kz" in u.lower():
+        return "Forte Market", None
+
+    m_ozon = OZON_SELLER_RE.search(u)
+    if m_ozon:
+        return "Ozon", m_ozon.group(1).strip()
+    if "ozon." in u.lower():
+        return "Ozon", None
+
+    m_wb = WB_SELLER_RE.search(u)
+    if m_wb:
+        return "Wildberries", m_wb.group(1).strip()
+    if "wildberries." in u.lower():
+        return "Wildberries", None
+
+    if "flip.kz" in u.lower():
+        return "Flip.kz", None
+
+    dom = normalize_domain(u)
+    return dom or "Marketplace", None
+
+
+def marketplace_channel(url: str, seller_name: str) -> Dict[str, str]:
+    """Канал маркетплейса по ссылке: у магазина их может быть сколько угодно, по одному на витрину."""
+    platform, merchant_id = extract_marketplace_info(url)
+    prefix = platform.lower().replace(" ", "_")
+    if merchant_id:
+        handle = f"{prefix}:{merchant_id}"
+    else:
+        clean_path = re.sub(r"[^a-zA-Z0-9_-]+", "_", urlparse(url).path.strip("/")).strip("_")
+        handle = f"{prefix}:{clean_path}" if clean_path else url
+    return {"name": f"{seller_name} ({platform})", "url": url, "handle": handle}
 
 
 def _clean_social_handle(raw: Optional[str], platform: str) -> Optional[str]:
@@ -173,10 +235,12 @@ def prepare_onboarding_candidate(
     for mp_url in mp_links:
         u = mp_url if "://" in mp_url else f"https://{mp_url}"
         urls_to_profile.append(u)
+        platform, m_id = extract_marketplace_info(u)
         channels_detected.append({
             "channel_type": ChannelType.MARKETPLACE,
-            "url": u,
-            "handle": mp_seller_id or u,
+            **marketplace_channel(u, submission.name.strip()),
+            "platform": platform,
+            "marketplace_seller_id": m_id or (mp_seller_id if platform == "Kaspi" else None),
         })
 
     if ig_handle:

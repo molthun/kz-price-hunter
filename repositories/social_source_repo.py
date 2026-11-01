@@ -84,6 +84,18 @@ class SocialSourceRepository(BaseRepository):
         )
         return SocialSource.from_row(row) if row else None
 
+    def get_by_channel_id(self, channel_id: str) -> Optional[SocialSource]:
+        if not channel_id:
+            return None
+        row = self.fetchone("SELECT * FROM social_sources WHERE channel_id = ?", (channel_id,))
+        return SocialSource.from_row(row) if row else None
+
+    def list_by_seller_id(self, seller_id: str) -> List[SocialSource]:
+        if not seller_id:
+            return []
+        rows = self.fetchall("SELECT * FROM social_sources WHERE seller_id = ?", (seller_id,))
+        return [SocialSource.from_row(r) for r in rows]
+
     def list_sources(self, enabled_only: bool = False) -> List[SocialSource]:
         sql = "SELECT * FROM social_sources"
         if enabled_only:

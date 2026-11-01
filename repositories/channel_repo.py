@@ -69,7 +69,16 @@ class ChannelRepository(BaseRepository):
         if row:
             return Channel.from_row(row)
 
-        chan_suffix = f"_{ext}" if ext else ""
+        if ext:
+            import hashlib
+            import re
+            clean_sfx = re.sub(r"[^a-zA-Z0-9_-]+", "_", ext).strip("_")
+            if len(clean_sfx) > 24 or not clean_sfx:
+                clean_sfx = hashlib.sha256(ext.encode()).hexdigest()[:10]
+            chan_suffix = f"_{clean_sfx}"
+        else:
+            chan_suffix = ""
+
         clean_seller = seller_id.replace("seller_", "")
         channel_id = f"chan_{clean_seller}_{channel_type}{chan_suffix}"
 
@@ -91,3 +100,27 @@ class ChannelRepository(BaseRepository):
         sql += " ORDER BY channel_type ASC"
         rows = self.fetchall(sql, (seller_id,))
         return [Channel.from_row(r) for r in rows]
+
+    def update_channel(self, channel_id: str, updates: dict) -> Optional[Channel]:
+        """Обновление параметров канала."""
+        existing = self.get_by_id(channel_id)
+        if not existing:
+            return None
+        if "name" in updates and updates["name"]:
+            existing.name = str(updates["name"]).strip()
+        if "base_url" in updates:
+            existing.base_url = str(updates["base_url"]).strip() if updates["base_url"] else None
+        if "external_store_id" in updates:
+            existing.external_store_id = str(updates["external_store_id"]).strip() if updates["external_store_id"] else None
+        if "is_active" in updates:
+            existing.is_active = bool(updates["is_active"])
+        return self.save_or_update(existing)
+
+    def delete_channel(self, channel_id: str) -> bool:
+        """Мягкое отключение канала (is_active = 0) с сохранением целостности истории."""
+        ch = self.get_by_id(channel_id)
+        if not ch:
+            return False
+        ch.is_active = False
+        self.save_or_update(ch)
+        return True

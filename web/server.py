@@ -2054,6 +2054,76 @@ async def register_seller_v2_handler(request):
         return web.json_response({"ok": False, "error": "Не удалось сохранить заявку магазина"}, status=500)
 
 
+def _with_db(fn):
+    from database import get_connection
+    conn = get_connection()
+    try:
+        return fn(conn)
+    finally:
+        conn.close()
+
+
+@routes.get("/api/admin/sellers")
+@require_admin
+async def admin_sellers_list_handler(request):
+    """Магазины для редактора, включая отключённые."""
+    from repositories.seller_repo import SellerRepository
+    search = (request.query.get("search") or "").strip() or None
+    limit = _int_param(request, "limit", 100, minimum=1, maximum=200)
+    offset = _int_param(request, "offset", 0, minimum=0, maximum=100000)
+
+    def _load(conn):
+        repo = SellerRepository(conn)
+        return repo.list_admin_sellers(search=search, limit=limit, offset=offset), repo.count_admin_sellers(search=search)
+
+    items, total = await asyncio.to_thread(_with_db, _load)
+    fields = ("id", "slug", "name", "domain", "phone", "city", "is_active", "channels_count", "offers_count")
+    return web.json_response({"ok": True, "total": total,
+                              "sellers": [{k: item.get(k) for k in fields} for item in items]})
+
+
+@routes.get("/api/admin/sellers/{seller_id}")
+@require_admin
+async def admin_seller_get_handler(request):
+    from domain.seller_admin import seller_details
+    seller_id = request.match_info["seller_id"]
+    seller = await asyncio.to_thread(_with_db, lambda conn: seller_details(conn, seller_id))
+    if not seller:
+        return web.json_response({"ok": False, "error": "Магазин не найден"}, status=404)
+    return web.json_response({"ok": True, "seller": seller})
+
+
+async def _save_seller_response(request, seller_id):
+    from domain.seller_admin import SellerFormError, save_seller
+    try:
+        body = await request.json()
+    except Exception:
+        body = None
+    if not isinstance(body, dict):
+        return web.json_response({"ok": False, "error": "Ожидается JSON с данными магазина"}, status=400)
+    try:
+        seller = await asyncio.to_thread(_with_db, lambda conn: save_seller(conn, seller_id, body))
+    except SellerFormError as e:
+        return web.json_response({"ok": False, "errors": e.errors, "error": str(e)}, status=400)
+    if not seller:
+        return web.json_response({"ok": False, "error": "Магазин не найден"}, status=404)
+    return web.json_response({"ok": True, "seller": seller}, status=200 if seller_id else 201)
+
+
+@routes.post("/api/admin/sellers")
+@require_admin
+async def admin_seller_create_handler(request):
+    """Новый магазин от администратора. Сканирование и склейку не запускает."""
+    return await _save_seller_response(request, None)
+
+
+@routes.put("/api/admin/sellers/{seller_id}")
+@require_admin
+async def admin_seller_update_handler(request):
+    """Правка магазина. Сканирование и склейку не запускает."""
+    return await _save_seller_response(request, request.match_info["seller_id"])
+
+
 @routes.get("/api/v2/admin/onboarding")
 @require_admin
 async def admin_list_onboarding_handler(request):

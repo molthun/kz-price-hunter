@@ -737,11 +737,12 @@ class CandidateRepository(BaseRepository):
                 ch_type = ch.get("channel_type")
                 ch_url = ch.get("url")
                 ch_handle = ch.get("handle")
+                ch_name = ch.get("name") or f"{seller.name} ({ch_type})"
                 if ch_type and ch_url:
                     self.channel_repo.get_or_create(
                         seller_id=seller.id,
                         channel_type=ch_type,
-                        name=f"{seller.name} ({ch_type})",
+                        name=ch_name,
                         external_store_id=ch_handle,
                         base_url=ch_url,
                     )

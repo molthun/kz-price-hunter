@@ -105,6 +105,41 @@
     button.danger { color: #dc2626; }
     .state { color: var(--muted); font-size: 0.9rem; padding: 8px 0 0; }
     .state.error { color: #dc2626; }
+    .shop-tools { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+    .shop-tools input { flex: 1 1 200px; }
+    input, textarea, select {
+      width: 100%;
+      min-height: 38px;
+      padding: 7px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text);
+      font: inherit;
+      font-size: 16px;
+    }
+    .shop-off { color: #dc2626; font-size: 0.8rem; font-weight: 600; }
+    dialog {
+      width: min(620px, calc(100vw - 24px));
+      max-height: calc(100dvh - 24px);
+      padding: 20px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--card);
+      color: var(--text);
+    }
+    dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
+    dialog h2 { margin: 0 0 14px; font-size: 1.1rem; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .form-grid .wide { grid-column: 1 / -1; }
+    .form-grid label, .form-label { display: block; font-size: 0.85rem; font-weight: 600; }
+    .form-grid label input, .form-grid label textarea { margin-top: 4px; font-weight: 400; }
+    .link-row { display: flex; gap: 6px; margin-top: 6px; }
+    .link-row button { flex-shrink: 0; }
+    .form-grid label.check { display: flex; align-items: center; gap: 8px; }
+    .form-grid label.check input { width: 20px; min-height: 20px; margin: 0; }
+    .form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+    @media (max-width: 560px) { .form-grid { grid-template-columns: 1fr; } }
     .card a {
       display: inline-block;
       padding: 9px 16px;
@@ -121,6 +156,48 @@
   <main>
     <a class="back" href="/">‹ На сайт</a>
     <h1>Управление сервисом</h1>
+    <section class="card" style="margin-bottom:20px;">
+      <div class="card-head">
+        <h2>Магазины</h2>
+        <span class="count" id="shopsCount"></span>
+      </div>
+      <div class="shop-tools">
+        <input type="search" id="shopSearch" placeholder="Название или сайт" aria-label="Поиск магазина">
+        <button type="button" class="main" onclick="openShop()">Добавить магазин</button>
+      </div>
+      <div id="shopsList"></div>
+      <div class="state" id="shopsState" role="status">Загрузка…</div>
+    </section>
+    <dialog id="shopDialog" aria-labelledby="shopDialogTitle">
+      <form id="shopForm" novalidate>
+        <h2 id="shopDialogTitle"></h2>
+        <div class="form-grid">
+          <label class="wide">Название<input name="name" required maxlength="300"></label>
+          <label>Город<input name="city" maxlength="80"></label>
+          <label>БИН / ИИН<input name="bin" inputmode="numeric" maxlength="12"></label>
+          <label class="wide">Сайт<input name="website_url" inputmode="url" placeholder="https://..."></label>
+          <div class="wide">
+            <span class="form-label">Маркетплейсы</span>
+            <div id="shopLinks"></div>
+            <button type="button" style="margin-top:6px" onclick="addShopLink('')">Добавить ссылку</button>
+          </div>
+          <label>Телефон<input name="phone" type="tel"></label>
+          <label>WhatsApp<input name="whatsapp" type="tel"></label>
+          <label>Instagram<input name="instagram" placeholder="@shop_kz"></label>
+          <label>Telegram<input name="telegram" placeholder="@username"></label>
+          <label>Юридическое название<input name="legal_name" maxlength="300"></label>
+          <label>Контактное лицо<input name="contact_person" maxlength="300"></label>
+          <label class="wide">Комментарий<textarea name="comment" rows="2" maxlength="1000"></textarea></label>
+          <label class="wide check"><input type="checkbox" name="is_active"> Магазин активен</label>
+          <div class="wide user-meta" id="shopCollection"></div>
+        </div>
+        <div class="state error" id="shopFormError" role="alert"></div>
+        <div class="form-actions">
+          <button type="button" onclick="document.getElementById('shopDialog').close()">Отмена</button>
+          <button type="submit" class="main" id="shopSave">Сохранить</button>
+        </div>
+      </form>
+    </dialog>
     <section class="card" style="margin-bottom:20px;">
       <div class="card-head"><h2>Расширение каталога</h2></div>
       <p>Запросы на расширение ассортимента и фильтров. После подтверждения проверяем подключённые магазины. Статусы обновляются автоматически. Новый сайт может потребовать отдельного подключения.</p>
@@ -325,6 +402,122 @@
     });
     window.addEventListener('pagehide', () => clearTimeout(expansionTimer));
     loadExpansions();
+
+    let shopEditId = null;
+    let shopReadId = 0;
+    let shopSearchTimer = null;
+    const shopTextFields = ['name','city','bin','website_url','phone','whatsapp','instagram','telegram','legal_name','contact_person','comment'];
+
+    async function loadShops() {
+      const requestId = ++shopReadId;
+      const list = document.getElementById('shopsList');
+      const state = document.getElementById('shopsState');
+      const search = document.getElementById('shopSearch').value.trim();
+      try {
+        const response = await fetch('/api/admin/sellers?limit=200&search=' + encodeURIComponent(search), {cache:'no-store'});
+        const data = await response.json();
+        if (requestId !== shopReadId) return;
+        if (!response.ok || !data.ok) throw new Error();
+        list.replaceChildren();
+        data.sellers.forEach(shop => {
+          const row = element('div', 'user');
+          const info = element('div', 'user-info');
+          info.append(element('div', 'user-name', shop.name));
+          info.append(element('div', 'user-meta', [shop.domain, shop.city, 'предложений: ' + shop.offers_count, 'каналов: ' + shop.channels_count].filter(Boolean).join(' · ')));
+          if (!shop.is_active) info.append(element('div', 'shop-off', 'Отключён'));
+          const button = element('button', '', 'Изменить');
+          button.type = 'button';
+          button.onclick = () => openShop(shop.id);
+          row.append(info, button);
+          list.append(row);
+        });
+        document.getElementById('shopsCount').textContent = String(data.total);
+        state.className = 'state';
+        state.textContent = data.sellers.length ? (data.total > data.sellers.length ? 'Показаны первые ' + data.sellers.length + '. Уточните поиск.' : '') : 'Магазины не найдены.';
+      } catch (error) {
+        if (requestId !== shopReadId) return;
+        state.className = 'state error';
+        state.textContent = 'Не удалось загрузить магазины.';
+      }
+    }
+
+    function addShopLink(value) {
+      const row = element('div', 'link-row');
+      const input = element('input');
+      input.name = 'marketplace_link';
+      input.inputMode = 'url';
+      input.placeholder = 'https://kaspi.kz/shop/...';
+      input.setAttribute('aria-label', 'Ссылка на маркетплейс');
+      input.value = value;
+      const remove = element('button', 'danger', 'Убрать');
+      remove.type = 'button';
+      remove.onclick = () => row.remove();
+      row.append(input, remove);
+      document.getElementById('shopLinks').append(row);
+      return input;
+    }
+
+    function fillShopForm(shop) {
+      const form = document.getElementById('shopForm');
+      shopTextFields.forEach(name => { form.elements[name].value = shop[name] || ''; });
+      form.elements.is_active.checked = shop.is_active !== false;
+      document.getElementById('shopLinks').replaceChildren();
+      (shop.marketplace_links || []).forEach(addShopLink);
+      const collection = shop.collection_channels || [];
+      document.getElementById('shopCollection').textContent = collection.length ? 'Каналы сбора цен: ' + collection.join(', ') : '';
+      document.getElementById('shopFormError').textContent = '';
+    }
+
+    async function openShop(id) {
+      const state = document.getElementById('shopsState');
+      let shop = {city: 'Алматы', is_active: true};
+      if (id) {
+        try {
+          const response = await fetch('/api/admin/sellers/' + encodeURIComponent(id), {cache:'no-store'});
+          const data = await response.json();
+          if (!response.ok || !data.ok) throw new Error(data.error);
+          shop = data.seller;
+        } catch (error) {
+          state.className = 'state error';
+          state.textContent = error.message || 'Не удалось открыть магазин.';
+          return;
+        }
+      }
+      shopEditId = id || null;
+      document.getElementById('shopDialogTitle').textContent = id ? shop.name : 'Новый магазин';
+      fillShopForm(shop);
+      document.getElementById('shopDialog').showModal();
+    }
+
+    document.getElementById('shopForm').addEventListener('submit', async event => {
+      event.preventDefault();
+      const form = event.target;
+      const save = document.getElementById('shopSave');
+      const errorEl = document.getElementById('shopFormError');
+      const body = {is_active: form.elements.is_active.checked};
+      shopTextFields.forEach(name => { body[name] = form.elements[name].value.trim(); });
+      body.marketplace_links = [...form.querySelectorAll('input[name="marketplace_link"]')].map(input => input.value.trim()).filter(Boolean);
+      save.disabled = true;
+      errorEl.textContent = '';
+      try {
+        const response = await fetch(shopEditId ? '/api/admin/sellers/' + encodeURIComponent(shopEditId) : '/api/admin/sellers', {
+          method: shopEditId ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error((data.errors || [data.error]).join(' '));
+        document.getElementById('shopDialog').close();
+        await loadShops();
+      } catch (error) {
+        errorEl.textContent = error.message || 'Не удалось сохранить. Повторите.';
+      } finally {
+        save.disabled = false;
+      }
+    });
+    document.getElementById('shopSearch').addEventListener('input', () => {
+      clearTimeout(shopSearchTimer);
+      shopSearchTimer = setTimeout(loadShops, 300);
+    });
+    loadShops();
 
     loadUsers().catch(() => {
       stateEl.className = 'state error';

@@ -2352,8 +2352,8 @@
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label class="block text-[11px] text-slate-400 mb-1">Ссылка на маркетплейс (Kaspi и др.)</label>
-            <input type="text" id="regSellerMarketplace" placeholder="https://kaspi.kz/shop/..." class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:border-emerald-500">
+            <label class="block text-[11px] text-slate-400 mb-1">Ссылки на маркетплейсы (Kaspi и др.)</label>
+            <textarea id="regSellerMarketplace" rows="2" placeholder="Каждая ссылка с новой строки" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:border-emerald-500"></textarea>
           </div>
           <div>
             <label class="block text-[11px] text-slate-400 mb-1">БИН / ИИН (опционально, 12 цифр)</label>
@@ -3378,7 +3378,6 @@
       if (event) event.preventDefault();
       const msg = document.getElementById('regSellerStatusMsg');
       const btn = document.getElementById('btnSubmitRegisterSeller');
-      const mpVal = (document.getElementById('regSellerMarketplace')?.value || '').trim();
       const payload = {
         name: (document.getElementById('regSellerName')?.value || '').trim(),
         city: (document.getElementById('regSellerCity')?.value || 'Алматы').trim(),
@@ -3387,7 +3386,7 @@
         whatsapp: (document.getElementById('regSellerPhone')?.value || '').trim() || null,
         instagram: (document.getElementById('regSellerInstagram')?.value || '').trim() || null,
         telegram: (document.getElementById('regSellerTelegram')?.value || '').trim() || null,
-        marketplace_links: mpVal ? [mpVal] : [],
+        marketplace_links: (document.getElementById('regSellerMarketplace')?.value || '').split('\n').map(link => link.trim()).filter(Boolean),
         bin: (document.getElementById('regSellerBin')?.value || '').trim() || null
       };
       if (btn) btn.disabled = true;
