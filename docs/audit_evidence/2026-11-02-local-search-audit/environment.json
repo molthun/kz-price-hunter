@@ -1,0 +1,6 @@
+{
+  "python": "3.14.7",
+  "sqlite": "3.53.4",
+  "platform": "Darwin",
+  "db_mode": "temporary SQLite, no real AI/network in reproductions"
+}

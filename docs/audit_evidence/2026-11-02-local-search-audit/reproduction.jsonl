@@ -1,0 +1,10 @@
+{"case": "watch_disagrees", "query": "тахеометр", "search": 3, "watch_matches": ["foif"]}
+{"case": "watch_disagrees", "query": "геодезический тахеометр", "search": 3, "watch_matches": []}
+{"case": "stale_confirmation", "outcome": "FOUND", "wrong_product": ["Отражатель для прибора Audit"]}
+{"case": "embedded_city_lost", "parsed_city": "Шымкент", "search_city": "Шымкент", "queued_city": "Все"}
+{"case": "ai_unavailable_loses_confirmations", "normal": 3, "without_ai": 0}
+{"case": "inferred_attribute_hides_verified", "with_some_season_facts": 1, "without_season_facts": 2, "selected_implicitly": {"season": "Зимние"}, "explicit_user_filters": {}}
+{"case": "shrinking_batch_skips", "first": {"status": "approved", "found": 30, "scan_offset": 30, "scan_total": 50, "message": "Проверено 30 из 50, подходящих: 30."}, "final": {"status": "indexed", "found": 30, "scan_offset": 30, "scan_total": 50, "message": "Проверено 30 из 50, подходящих: 30."}}
+{"case": "source_failure_forgotten", "first": {"status": "approved", "found": 30, "scan_offset": 30, "scan_total": 50, "message": "Проверено 30 из 50, подходящих: 30. Часть источников не ответила; проверка неполная."}, "final": {"status": "indexed", "found": 50, "scan_offset": 50, "scan_total": 50, "message": "Проверено 50 из 50, подходящих: 50."}}
+{"case": "rejection_race", "worker_claimed": "checking", "after_reject": "rejected", "after_old_worker_finish": "indexed"}
+{"case": "source_description_retained", "legacy_exact": true, "canonical_exact_rows": 1, "backup_exact_rows": 1}

@@ -1,0 +1,22 @@
+{
+  "observed_at_utc": "2026-11-01T19:25:53.985762+00:00",
+  "observed_at_almaty": "2026-11-02 00:25:53",
+  "version": "6.15.5",
+  "code": "c9932f5607a31c024ec8c1442ba065518693dc07",
+  "mode": "read-only SQL and saved-plan watch predicate; no AI calls or notifications",
+  "tasks": [
+    {"query":"клавиатура apple magic","status":"indexed","found":34,"scan_total":37,"scan_offset":37,"scan_text":"Apple Magic","verified_ids":34},
+    {"query":"геодезический тахеометр","status":"indexed","found":8,"scan_total":9,"scan_offset":9,"scan_text":"тахеометр","verified_ids":8,"saved_plan_watch_matches":0},
+    {"query":"кроссовки","status":"indexed","found":129,"scan_total":129,"scan_offset":129,"scan_text":"Кроссовки","verified_ids":129},
+    {"query":"зимняя резина","status":"indexed","found":24,"scan_total":30,"scan_offset":30,"scan_text":"","verified_ids":24,"verified_with_explicit_season":15}
+  ],
+  "content": {
+    "canonical_nonempty_descriptions":28737,
+    "canonical_descriptions_over_200_chars":14947,
+    "social_observations_with_text_or_media":0,
+    "checked_backup_name":"before-local-growth-62442c8.db",
+    "backup_descriptions_over_200_chars":14951,
+    "data_media_files_by_extension":{},
+    "checked_extensions":[".jpg",".jpeg",".png",".webp",".gif",".mp4"]
+  }
+}
