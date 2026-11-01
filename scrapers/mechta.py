@@ -2,7 +2,7 @@ import re
 import uuid
 from typing import List, Dict, Any
 from scrapers import http as requests
-from scrapers.base import ScanResult, PagedScraper, price_value
+from scrapers.base import payment_terms, ScanResult, PagedScraper, price_value
 
 class MechtaScraper(PagedScraper):
     SHOP_NAME = "Мечта"
@@ -109,7 +109,9 @@ class MechtaScraper(PagedScraper):
                     "image_url": image_url,
                     "price": final_price,
                     "old_price_on_site": base_price if base_price > final_price else 0,
-                    "city": "Астана"
+                    "city": "Астана",
+                    **payment_terms(final_price, (item.get("credit") or {}).get("pay_per_month"),
+                                    (item.get("credit") or {}).get("months")),
                 })
 
         except Exception as e:

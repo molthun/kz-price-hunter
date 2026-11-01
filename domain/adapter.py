@@ -293,6 +293,9 @@ def prepare_legacy_offer_v2(
         "price": price,
         "old_price": old_price,
         "condition": Condition.normalize(product.get("condition"), default=Condition.NEW),
+        "installment_available": 1 if product.get("installment_months") else 0,
+        "installment_months": product.get("installment_months"),
+        "credit_available": 1 if product.get("credit_available") else 0,
         "availability": Availability.normalize(product.get("availability"), default=Availability.IN_STOCK),
         "city": city,
         "published_at": product.get("published_at"),
@@ -467,6 +470,7 @@ def _write_legacy_offers_v2(
             id, product_id, seller_id, channel_id, external_sku,
             url, image_url, price, old_price, currency, condition,
             availability, city, published_at, observed_at, is_active,
+            installment_available, installment_months, credit_available,
             created_at, updated_at
         )
         SELECT json_extract(value, '$.offer_id'), json_extract(value, '$.product_id'),
@@ -475,7 +479,11 @@ def _write_legacy_offers_v2(
                json_extract(value, '$.image_url'), json_extract(value, '$.price'),
                json_extract(value, '$.old_price'), 'KZT', json_extract(value, '$.condition'),
                json_extract(value, '$.availability'), json_extract(value, '$.city'),
-               json_extract(value, '$.published_at'), ?1, 1, ?1, ?1
+               json_extract(value, '$.published_at'), ?1, 1,
+               COALESCE(json_extract(value, '$.installment_available'), 0),
+               json_extract(value, '$.installment_months'),
+               COALESCE(json_extract(value, '$.credit_available'), 0),
+               ?1, ?1
         FROM json_each(?2) WHERE true
         ON CONFLICT(id) DO UPDATE SET
             product_id = excluded.product_id,
@@ -490,6 +498,9 @@ def _write_legacy_offers_v2(
             city = excluded.city,
             observed_at = excluded.observed_at,
             is_active = 1,
+            installment_available = excluded.installment_available,
+            installment_months = excluded.installment_months,
+            credit_available = excluded.credit_available,
             updated_at = excluded.updated_at
         """,
         (timestamp, _json_param(items)),

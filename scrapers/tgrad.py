@@ -12,7 +12,7 @@ from urllib.parse import urljoin, urlsplit
 
 from html_soup import make_soup
 from scrapers import http as requests
-from scrapers.base import PagedScraper, ScanResult, parse_price
+from scrapers.base import payment_terms, PagedScraper, ScanResult, parse_price
 
 BASE_URL = "https://tgrad.kz"
 
@@ -58,6 +58,16 @@ class TgradScraper(PagedScraper):
         return self.parse_page(r.text, category_name, page_num)
 
     @classmethod
+    def _payment(cls, card: Any, price: int) -> Dict[str, Any]:
+        """Кнопка «Купить в кредит»: data-params с платежом и сроком."""
+        button = card.select_one("[data-params*='PAYMENT']") if card else None
+        try:
+            params = json.loads(button["data-params"]) if button else {}
+        except (ValueError, KeyError, TypeError):
+            return {}
+        return payment_terms(price, params.get("PAYMENT"), params.get("MONTH"))
+
+    @classmethod
     def parse_page(cls, html: str, category_name: str, page_num: int) -> ScanResult:
         soup = make_soup(html)
         products: List[Dict[str, Any]] = []
@@ -95,6 +105,7 @@ class TgradScraper(PagedScraper):
                 "price": price,
                 "old_price_on_site": old_price if old_price > price else 0,
                 "city": "Алматы",
+                **cls._payment(card, price),
             })
 
         # Конец выдачи подтверждается отсутствием ссылки на следующую страницу

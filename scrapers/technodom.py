@@ -9,7 +9,7 @@ import json
 from typing import Any, Dict, List
 
 from scrapers import http as requests
-from scrapers.base import ScanResult, PagedScraper, price_value
+from scrapers.base import payment_terms, ScanResult, PagedScraper, price_value
 
 class TechnodomScraper(PagedScraper):
     SHOP_NAME = "Технодом"
@@ -35,6 +35,16 @@ class TechnodomScraper(PagedScraper):
     def _price(value: Any) -> int:
         # 199990.0 — тенге с тиынами, а не 1999900
         return price_value(value)
+
+    @staticmethod
+    def _payment(item: Dict[str, Any], price: int) -> Dict[str, Any]:
+        """Рассрочка лежит в kaspiInstallmentInfo, кредит банка — в payment.creditTerms."""
+        kaspi = item.get("kaspiInstallmentInfo") or {}
+        terms = payment_terms(price, kaspi.get("price"), kaspi.get("months"))
+        if terms:
+            return terms
+        credit = (item.get("payment") or {}).get("creditTerms") or {}
+        return payment_terms(price, credit.get("amount"), credit.get("monthNum"))
 
     def _fetch_page(self, category_name: str, category_url: str, page_num: int) -> List[Dict[str, Any]]:
         url = self.page_url(category_url, page_num)
@@ -75,6 +85,7 @@ class TechnodomScraper(PagedScraper):
                 "image_url": self.IMAGE_URL.format(images[0]) if images else "",
                 "price": price,
                 "old_price_on_site": old_price if old_price > price else 0,
-                "city": "Астана"
+                "city": "Астана",
+                **self._payment(item, price),
             })
         return ScanResult(products, complete=not product_list["items"])

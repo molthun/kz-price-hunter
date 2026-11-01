@@ -123,6 +123,25 @@ def pagination_last_page(html: str, category_url: str, param: str = "page") -> O
     return max(pages) if pages else None
 
 
+def payment_terms(price: Any, monthly: Any, months: Any) -> Dict[str, Any]:
+    """Условия покупки из карточки магазина: рассрочка или кредит.
+
+    Рассрочка — когда платежи в сумме дают цену (без переплаты); иначе это кредит банка, даже если магазин
+    пишет «в рассрочку». Непонятные значения не дают ничего: лучше без пометки, чем с неверной.
+    """
+    try:
+        total_price, payment, term = float(price), float(monthly), int(months)
+    except (TypeError, ValueError):
+        return {}
+    if total_price <= 0 or payment <= 0 or not 2 <= term <= 60:
+        return {}
+    if abs(payment * term - total_price) <= total_price * 0.02:
+        return {"installment_months": term}
+    if payment * term > total_price:
+        return {"credit_available": True}
+    return {}
+
+
 class UnconfirmedEnd(RuntimeError):
     """HTTP succeeded, but HTML cannot prove whether the catalog ended."""
 

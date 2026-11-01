@@ -11,8 +11,11 @@ p.total-text, и это же число подтверждает API магаз�
 import re
 from typing import Any, Dict, List, Optional
 from scrapers import http as requests
-from scrapers.base import slug_id, UnconfirmedEnd, PagedScraper, ScanResult, parse_price
+from scrapers.base import payment_terms, slug_id, UnconfirmedEnd, PagedScraper, ScanResult, parse_price
 from html_soup import make_soup
+_INSTALLMENT_RE = re.compile(r"([\d\s\u00a0]+)₸\s*[xхXХ]\s*(\d+)")
+
+
 class AlserScraper(PagedScraper):
     SHOP_NAME = "Alser"
     SHOP_EMOJI = "🟡"
@@ -32,6 +35,13 @@ class AlserScraper(PagedScraper):
             ),
             "Accept-Language": "ru-RU,ru;q=0.9",
         }
+
+    @staticmethod
+    def _payment(card: Any, price: int) -> Dict[str, Any]:
+        """Плашка на карточке: «в рассрочку 22 082₸ x 24»."""
+        element = card.select_one(".installment")
+        found = _INSTALLMENT_RE.search(element.get_text(" ")) if element else None
+        return payment_terms(price, parse_price(found.group(1)), found.group(2)) if found else {}
 
     def _fetch_page(self, category_name: str, category_url: str, page_num: int) -> List[Dict[str, Any]]:
         products: List[Dict[str, Any]] = []
@@ -131,7 +141,8 @@ class AlserScraper(PagedScraper):
                     "image_url": image_url,
                     "price": current_price,
                     "old_price_on_site": old_price if old_price > current_price else 0,
-                    "city": "Астана"
+                    "city": "Астана",
+                    **self._payment(c, current_price),
                 })
 
             if not products and unparsed:
