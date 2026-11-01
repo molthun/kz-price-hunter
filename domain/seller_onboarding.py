@@ -105,8 +105,11 @@ def _clean_social_handle(raw: Optional[str], platform: str) -> Optional[str]:
         handle = parts[0] if parts else ""
     else:
         handle = val
-    handle = HANDLE_CLEAN_RE.sub("", handle).strip()
-    return handle.lower() if handle else None
+    handle = HANDLE_CLEAN_RE.sub("", handle).strip().lower()
+    # Имя бота в Telegram всегда оканчивается на bot. Бот не канал магазина: товаров из него не собрать.
+    if platform == "telegram" and handle.endswith("bot"):
+        return None
+    return handle or None
 
 
 def _extract_marketplace_seller_id(links: List[str], explicit_id: Optional[str] = None) -> Optional[str]:

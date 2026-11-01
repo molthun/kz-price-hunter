@@ -56,6 +56,15 @@ class SellerAdminTest(unittest.TestCase):
         self.assertEqual(cleared["instagram"], "")
         self.assertEqual(cleared["telegram"], seller["telegram"])
 
+    def test_telegram_bot_is_not_saved(self):
+        seller = self._create(telegram="@TechnodomBonus_bot", phone="1717")
+        self.assertEqual(seller["telegram"], "")
+        self.assertEqual(seller["phone"], "1717")
+        channel = save_seller(self.conn, seller["id"], {**seller, "telegram": "https://t.me/shopkz"})
+        self.assertEqual(channel["telegram"], "shopkz")
+        removed = save_seller(self.conn, seller["id"], {**channel, "telegram": "shop_bot"})
+        self.assertEqual(removed["telegram"], "")
+
     def test_bad_values_are_rejected(self):
         for body in ({"name": "x", "phone": "+77001112233"}, {"name": "Магазин"},
                      {"name": "Магазин", "website_url": "javascript:alert(1)"},
