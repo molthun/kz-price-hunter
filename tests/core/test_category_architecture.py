@@ -113,6 +113,13 @@ class TestCategoryDomainAndMapper(unittest.TestCase):
                 self.assertEqual(res.id, expected)
         self.assertIsNone(self.mapper.map_category("Интертоп: 👜 Аксессуары"))
 
+    def test_fts_query_finds_word_forms_and_compounds(self):
+        from repositories.search_repo import SearchRepository
+        query = SearchRepository._build_fts_query("мясорубки")
+        self.assertEqual(query, '("мясорубк"* OR "электромясорубк"*)')
+        # Короткие слова окончание не теряют: "машина" не должна находить "машинка"
+        self.assertIn('"машина"*', SearchRepository._build_fts_query("машина"))
+
     def test_get_subtree_ids(self):
         sub_ids = self.mapper.get_subtree_ids("electronics")
         self.assertIn("electronics", sub_ids)

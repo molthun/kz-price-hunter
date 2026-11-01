@@ -121,12 +121,28 @@ class SearchRepository(BaseRepository):
                 parts.append(f'("{t}" OR "{t}gb"* OR "{t}гб"*)')
             elif t.isdigit():
                 parts.append(f'"{t}"')
+            elif re.fullmatch(r"[а-яё]{5,}", t):
+                alts = cls._russian_word_alts(t)
+                alts_expr = " OR ".join(f'"{alt}"*' for alt in alts)
+                parts.append(f"({alts_expr})" if len(alts) > 1 else alts_expr)
             elif len(t) >= 2:
                 parts.append(f'"{t}"*')
             else:
                 parts.append(f'"{t}"')
 
         return " AND ".join(parts)
+
+    @staticmethod
+    def _russian_word_alts(word: str) -> List[str]:
+        """
+        Формы слова для префиксного поиска: "мясорубки" находит "мясорубка" и "электромясорубка".
+        Окончание срезается только у длинных слов: "машина" не должна находить "машинка".
+        """
+        stem = word[:-1] if len(word) >= 7 and word[-1] in "аяыиуюеоь" else word
+        alts = [stem]
+        if not stem.startswith("электро"):
+            alts.append(f"электро{stem}")
+        return alts
 
     @staticmethod
     def _offer_filter(
