@@ -1216,6 +1216,18 @@ async def best_price_handler(request):
 async def search_v2_handler(request):
     """Единый поиск Search Core 2.0 с агрегацией по продавцам, каналам, пагинацией и фасетами (S2-E11, KZPH-G1-01)."""
     query = request.query.get("q", "").strip()
+    if len(query) > 300:
+        return web.json_response({'error': 'Запрос слишком длинный (до 300 символов)'}, status=400)
+    try:
+        attributes = json.loads(request.query.get('attributes', '{}'))
+        if not isinstance(attributes, dict) or len(attributes) > 12:
+            raise ValueError()
+        import re as _re
+        if any(not _re.fullmatch(r'[a-z][a-z0-9_]{0,39}', str(k)) or
+               not isinstance(v, str) or len(v) > 80 for k,v in attributes.items()):
+            raise ValueError()
+    except (ValueError, TypeError):
+        return web.json_response({'error': 'Некорректные характеристики'}, status=400)
     city = request.query.get("city")
     condition = request.query.get("condition")
     channel_type = request.query.get("channel_type")
@@ -1259,8 +1271,7 @@ async def search_v2_handler(request):
         return web.json_response({"error": f"Слишком много запросов, повторите через {int(wait) + 1} сек"}, status=429)
 
     try:
-        resp = await asyncio.to_thread(
-            _run_search_v2_sync,
+        arguments = dict(
             query=query,
             city=city,
             condition=condition,
@@ -1281,11 +1292,59 @@ async def search_v2_handler(request):
             model=model,
             kind=kind,
         )
+        import local_search
+        if local_search.enabled():
+            from database import get_connection
+            def _context():
+                conn = get_connection()
+                try:
+                    return local_search.catalog_context(conn)
+                finally:
+                    conn.close()
+            categories = await asyncio.to_thread(_context)
+            understanding = await local_search.understand(query, categories)
+            data = await asyncio.to_thread(local_search.search_sync, arguments, understanding, attributes)
+            return web.json_response(data, status=500 if data.get('outcome') == 'ERROR' else 200)
+        resp = await asyncio.to_thread(_run_search_v2_sync, **arguments)
         status_code = 500 if getattr(resp, "outcome", None) == "ERROR" else 200
         return web.json_response(resp.to_dict(), status=status_code)
     except Exception as e:
         print(f"[API search v2] Ошибка: {e}")
         return web.json_response({"error": "Ошибка поиска v2, попробуйте позже"}, status=500)
+
+
+@routes.get('/api/admin/catalog-expansions')
+@require_admin
+async def catalog_expansions_handler(request):
+    from database import get_connection
+    from repositories.catalog_expansion_repo import CatalogExpansionRepository
+    def _load():
+        conn = get_connection()
+        try:
+            return CatalogExpansionRepository(conn).list()
+        finally:
+            conn.close()
+    return web.json_response({'items': await asyncio.to_thread(_load)})
+
+
+@routes.post('/api/admin/catalog-expansions/{id}/review')
+@require_admin
+async def review_catalog_expansion_handler(request):
+    try:
+        body = await request.json()
+        if not isinstance(body, dict) or body.get('decision') not in ('approve', 'reject'):
+            raise ValueError('Выберите действие')
+        from database import get_connection
+        from repositories.catalog_expansion_repo import CatalogExpansionRepository
+        def _review():
+            conn = get_connection()
+            try:
+                return CatalogExpansionRepository(conn).review(request.match_info['id'], body['decision'] == 'approve')
+            finally:
+                conn.close()
+        return web.json_response({'ok': True, 'item': await asyncio.to_thread(_review)})
+    except (ValueError, TypeError) as exc:
+        return web.json_response({'ok': False, 'error': str(exc)}, status=400)
 
 
 def _run_search_v2_sync(
@@ -5066,6 +5125,9 @@ async def background_tasks(app):
         asyncio.create_task(notification_worker()),
         asyncio.create_task(run_telegram_bot_task()),
     ]
+    import local_search
+    if local_search.enabled():
+        tasks.append(asyncio.create_task(local_search.worker(app)))
     from telemetry import telemetry
     telemetry.start()
     yield

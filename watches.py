@@ -101,7 +101,8 @@ def normalize(data: Dict[str, Any]) -> Dict[str, Any]:
     target = str(data.get("target") or "").strip()
     if not target:
         raise ValueError("Не указано, за чем наблюдать")
-    if len(target) > 200:
+    structured_search = kind == SEARCH and target.startswith('@local-search:')
+    if len(target) > (2500 if structured_search else 200):
         raise ValueError("Слишком длинное значение для наблюдения")
 
     condition = str(data.get("condition") or (ANY_FIND if kind in ALERT_KINDS else ANY_DROP)).strip()
@@ -262,6 +263,9 @@ def matches(watch: Dict[str, Any], offer: Dict[str, Any]) -> bool:
     if kind == CATEGORY:
         return target in str(offer.get("category") or "").lower()
     if kind == SEARCH:
+        from local_search import WATCH_PREFIX, matches_watch
+        if watch['target'].startswith(WATCH_PREFIX):
+            return matches_watch(watch['target'], offer)
         import search_analytics
         return search_analytics.classify(watch["target"], [offer]) == search_analytics.FOUND
     if kind == SHOP:

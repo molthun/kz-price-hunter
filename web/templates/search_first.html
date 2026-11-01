@@ -706,6 +706,10 @@
       padding-bottom: 0;
     }
 
+    #dynamicAttributeFilters .filter-group:last-child {
+      margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid var(--border-color);
+    }
+
     .filter-title {
       font-size: 0.92rem;
       font-weight: 700;
@@ -3920,6 +3924,9 @@
           </div>
 
           <!-- 5. Магазин -->
+          <div id="dynamicAttributeFilters"></div>
+
+          <!-- 5. Магазин -->
           <div class="filter-group">
             <div class="filter-title">Магазин</div>
             <div id="filterSellersList">
@@ -3990,6 +3997,9 @@
               </select>
             </div>
           </div>
+
+          <!-- Loading Skeleton -->
+          <div id="localSearchHelp" class="filter-group" role="status" style="display:none; padding:16px; border:1px solid var(--border-color); border-radius:12px; margin-bottom:16px; background:var(--bg-card);"></div>
 
           <!-- Loading Skeleton -->
           <div id="resultsLoading" class="state-box" style="display:none;">
@@ -4567,6 +4577,7 @@
     const AppState = {
       city: DEFAULT_CITY,
       query: '',
+      attributes: {},
       page: 1,
       limit: 20,
       sort: 'relevance',
@@ -5638,6 +5649,25 @@
               });
             }
             extractCounts(catalogServerData);
+            // Reviewed new categories come from data; no page code needs to be generated.
+            const known = new Set();
+            Object.values(CATALOG_STRUCTURE).forEach(root => root.groups.forEach(g => g.items.forEach(i => known.add(i.id))));
+            function mergeNodes(nodes, rootId) {
+              (nodes || []).forEach(n => {
+                const parentRoot = CATALOG_STRUCTURE[rootId] || CATALOG_STRUCTURE[n.id];
+                if (!known.has(n.id) && !CATALOG_STRUCTURE[n.id]) {
+                  if (!parentRoot) CATALOG_STRUCTURE[n.id] = {name:n.name, icon:n.icon || '📦', groups:[]};
+                  else {
+                    let group = parentRoot.groups.find(g => g.dynamic);
+                    if (!group) { group = {title:'Другие разделы', icon:'📦', items:[], dynamic:true}; parentRoot.groups.push(group); }
+                    group.items.push({id:n.id, name:n.name, icon:n.icon || '📦'});
+                    known.add(n.id);
+                  }
+                }
+                mergeNodes(n.children, parentRoot ? (rootId || n.id) : n.id);
+              });
+            }
+            mergeNodes(catalogServerData, '');
           }
         }
       } catch (e) {
@@ -5938,6 +5968,7 @@
       if (e) e.preventDefault();
       const q = document.getElementById('resultsSearchInput').value.trim();
       AppState.query = q;
+      AppState.attributes = {};
       AppState.page = 1;
       updateSearchUrl();
       executeSearch();
@@ -5945,6 +5976,8 @@
 
     function parseSearchParams(params) {
       AppState.query = params.get('q') || '';
+      try { AppState.attributes = JSON.parse(params.get('attributes') || '{}'); } catch (e) { AppState.attributes = {}; }
+      if (!AppState.attributes || Array.isArray(AppState.attributes) || typeof AppState.attributes !== 'object') AppState.attributes = {};
       const cat = params.get('category') || params.get('cat') || '';
       AppState.category = cat === 'all' ? '' : cat;
       AppState.brand = params.get('brand') || '';
@@ -5981,6 +6014,7 @@
 
     function updateSearchUrl() {
       const p = new URLSearchParams();
+      if (Object.keys(AppState.attributes).length) p.set('attributes', JSON.stringify(AppState.attributes));
       if (AppState.query) p.set('q', AppState.query);
       p.set('city', AppState.city);
       if (AppState.category) p.set('cat', AppState.category);
@@ -6037,8 +6071,12 @@
       cardsEl.innerHTML = '';
       paginationEl.style.display = 'none';
       renderResultsHeader(null);
+      const help = document.getElementById('localSearchHelp');
+      help.replaceChildren();
+      help.style.display = 'none';
 
       const p = new URLSearchParams();
+      if (Object.keys(AppState.attributes).length) p.set('attributes', JSON.stringify(AppState.attributes));
       if (AppState.query) p.set('q', AppState.query);
       if (AppState.city && AppState.city !== 'Все') p.set('city', AppState.city);
       if (AppState.category) p.set('cat', AppState.category);
@@ -6097,9 +6135,14 @@
       renderResultsHeader(total);
       renderPagination(data);
       renderFacets(data);
+      renderLocalSearchHelp(data);
 
       if (items.length === 0) {
-        showResultsMessage('Ничего не найдено', 'Попробуйте изменить запрос, проверить опечатки или сбросить фильтры.', 'Сбросить фильтры', () => resetAllFilters());
+        const unavailable = data.local_ai && data.local_ai.status === 'unavailable';
+        showResultsMessage('Сейчас подходящих предложений нет',
+          unavailable ? 'Помощник временно недоступен. Поиск по каталогу выполнен; попробуйте повторить запрос чуть позже.' :
+          'В нашем каталоге пока нет предложений по этим условиям. Уточните название или характеристики товара.',
+          'Уточнить запрос', () => { const input = document.getElementById('resultsSearchInput'); input.focus(); input.select(); });
         return;
       }
 
@@ -6267,7 +6310,79 @@
       listEl.innerHTML = html;
     }
 
+    function renderAttributeFilters(data) {
+      const container = document.getElementById('dynamicAttributeFilters');
+      container.replaceChildren();
+      const fields = data.attribute_facets || [];
+      fields.forEach(field => {
+        const group = document.createElement('div'); group.className = 'filter-group';
+        const label = document.createElement('label'); label.className = 'filter-title';
+        label.textContent = field.label;
+        const select = document.createElement('select');
+        select.id = 'attribute-' + field.key; label.htmlFor = select.id;
+        select.style.cssText = 'width:100%;min-height:44px;background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border-color);border-radius:8px;padding:8px;';
+        select.add(new Option('Все', ''));
+        const selected = AppState.attributes[field.key] || '';
+        (field.values || []).forEach(v => select.add(new Option(v.value + ' (' + v.count + ')', v.value)));
+        if (selected && !(field.values || []).some(v => v.value === selected)) select.add(new Option(selected, selected));
+        select.value = selected;
+        select.onchange = () => {
+          if (select.value) AppState.attributes[field.key] = select.value;
+          else delete AppState.attributes[field.key];
+          AppState.page = 1; updateSearchUrl(); executeSearch();
+        };
+        group.append(label, select); container.append(group);
+      });
+    }
+
+    function renderLocalSearchHelp(data) {
+      const box = document.getElementById('localSearchHelp'); box.replaceChildren();
+      const info = data.search_help || {};
+      if (!data.local_ai || data.local_ai.status === 'disabled') return;
+      box.style.display = 'block';
+      const line = document.createElement('div');
+      const category = info.category_name;
+      line.textContent = data.local_ai.status === 'unavailable' ? 'Помощник временно недоступен. Показываем результаты каталога.' :
+        (category ? 'Ищем: ' + category + '.' : 'Запрос обработан помощником.');
+      box.append(line);
+      if (info.clarification) {
+        const question = document.createElement('p'); question.textContent = info.clarification; box.append(question);
+      }
+      if (info.expansion) {
+        const pending = document.createElement('p');
+        pending.textContent = info.expansion.status === 'proposed' ?
+          'Запрос на расширение ассортимента записан. Предложенные раздел и характеристики ожидают проверки.' :
+          (info.expansion.message || 'Расширение ассортимента запланировано.');
+        box.append(pending);
+      }
+      if (!data.total_products && category && info.category_id) {
+        const button = document.createElement('button'); button.className = 'btn-secondary-action';
+        button.textContent = 'Посмотреть раздел «' + category + '»';
+        button.onclick = () => {
+          AppState.query = ''; AppState.attributes = {}; AppState.category = info.category_id;
+          AppState.page = 1; document.getElementById('resultsSearchInput').value = '';
+          updateSearchUrl(); executeSearch();
+        };
+        box.append(button);
+      }
+      if (!data.total_products && info.watch_target && currentUser) {
+        const button = document.createElement('button'); button.className = 'btn-secondary-action';
+        button.style.marginTop = '8px'; button.textContent = 'Уведомить о появлении';
+        button.onclick = async () => {
+          button.disabled = true;
+          const result = await WatchManager.create({kind:'search',target:info.watch_target,
+            title:AppState.query,condition:'new_offer',repeat:false,
+            item_conditions:info.watch_conditions || [],
+            city:info.watch_city || (AppState.city && AppState.city !== 'Все' ? AppState.city : null)});
+          if (result.error) { button.disabled = false; showToast('Не удалось сохранить уведомление. Повторите.'); }
+          else { button.textContent = 'Уведомление включено'; await WatchManager.load(); }
+        };
+        box.append(button);
+      }
+    }
+
     function renderFacets(data) {
+      renderAttributeFilters(data);
       const sellerList = document.getElementById('filterSellersList');
       const catList = document.getElementById('filterCategoriesList');
       const brandList = document.getElementById('filterBrandsList');
@@ -6336,6 +6451,7 @@
     }
 
     function onCategoryFacetSelected(cid) {
+      AppState.attributes = {};
       AppState.category = cid;
       AppState.page = 1;
       updateSearchUrl();
@@ -6377,6 +6493,7 @@
     }
 
     function resetAllFilters() {
+      AppState.attributes = {};
       closeMobileFilters();
       AppState.category = '';
       AppState.brand = '';

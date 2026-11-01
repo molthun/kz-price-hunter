@@ -140,10 +140,10 @@ async function scenario(browser,{width,height,scheme}){
  assert.match(empty,/Ошибка сервиса поиска/); assert.match(empty,/500/); assert.match(empty,/Повторить/);
  await page.fill('#resultsSearchInput','zero');
  await page.press('#resultsSearchInput','Enter');
- await page.waitForFunction(()=>document.querySelector('#resultsEmpty .state-title').textContent==='Ничего не найдено');
+ await page.waitForFunction(()=>document.querySelector('#resultsEmpty .state-title').textContent==='Сейчас подходящих предложений нет');
  empty=await page.locator('#resultsEmpty').innerText();
  assert.doesNotMatch(empty,/Ошибка|500|Повторить/,`${label}: нет текста прошлой ошибки`);
- assert.match(empty,/Сбросить фильтры/);
+ assert.match(empty,/Уточнить запрос/);
  assert.match(await page.locator('#resultsCountSubtitle').innerText(),/найдено 0 товаров/);
  await searchFor('пятый');
 

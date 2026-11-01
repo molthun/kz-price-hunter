@@ -126,6 +126,11 @@ class CategoryRepository:
             old = stored.get(cat.id)
             if old and old.aliases == cat.aliases and old.name == cat.name and old.parent_id == cat.parent_id:
                 continue
+            if old:
+                # Preserve reviewed dynamic filter definitions across taxonomy sync/restarts.
+                import copy
+                cat = copy.deepcopy(cat)
+                cat.attributes_schema = {**cat.attributes_schema, **old.attributes_schema}
             self.save(cat)
             synced += 1
         return synced

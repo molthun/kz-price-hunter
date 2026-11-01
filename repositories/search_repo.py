@@ -222,13 +222,21 @@ class SearchRepository(BaseRepository):
         return conditions, params
 
     def _category_filter(self, category: Optional[str]) -> tuple[str, list]:
+        sql, params = self._category_filter_only(category)
+        for key, value in getattr(self, 'attribute_filters', {}).items():
+            sql += (" AND EXISTS (SELECT 1 FROM product_search_attributes pa WHERE pa.product_id=p.id"
+                    " AND pa.key=? AND pa.value=? AND pa.source_title=p.title)")
+            params.extend([key, value])
+        return sql, params
+
+    def _category_filter_only(self, category: Optional[str]) -> tuple[str, list]:
         """S2-E17: Фильтрация по категории с учетом иерархии мастер-таксономии."""
         if not (category and category.strip()):
             return "", []
         raw_c = category.strip()
         try:
-            from domain.category import TaxonomyMapper
-            mapper = TaxonomyMapper()
+            from repositories.category_repo import CategoryRepository
+            mapper = CategoryRepository(self.conn).get_mapper()
             target_cat = mapper.map_category(raw_c) or mapper.get_by_id(raw_c)
         except Exception:
             target_cat = None
@@ -735,8 +743,8 @@ class SearchRepository(BaseRepository):
         if category and category.strip():
             raw_c = category.strip()
             try:
-                from domain.category import TaxonomyMapper
-                m = TaxonomyMapper()
+                from repositories.category_repo import CategoryRepository
+                m = CategoryRepository(self.conn).get_mapper()
                 t_cat = m.map_category(raw_c) or m.get_by_id(raw_c)
                 if t_cat:
                     facet_cat_for_group = t_cat.parent_id if t_cat.parent_id else t_cat.id
@@ -792,13 +800,45 @@ class SearchRepository(BaseRepository):
             """,
             params,
         )
-        mapper = TaxonomyMapper()
+        from repositories.category_repo import CategoryRepository
+        mapper = CategoryRepository(self.conn).get_mapper()
         counts: Dict[str, int] = {}
         for row in rows:
             mapped = mapper.map_category(row["category"])
             if mapped:
                 counts[mapped.id] = counts.get(mapped.id, 0) + int(row["cards"])
         return counts
+
+    def attribute_facets(self, arguments, schema):
+        """Dynamic fields use the same entire SQL result set, before family grouping/LIMIT."""
+        from domain.query_parser import QueryParser
+        parsed = QueryParser.parse(arguments.get('query', ''))
+        offer_args = {k: arguments.get(k) for k in (
+            'city', 'condition', 'channel_type', 'seller_type', 'seller_id', 'installment',
+            'gift', 'in_stock', 'delivery', 'min_price', 'max_price')}
+        for k, val in [('city', parsed.detected_city), ('condition', parsed.condition),
+                       ('channel_type', parsed.channel_type), ('min_price', parsed.min_price), ('max_price', parsed.max_price)]:
+            if offer_args[k] is None:
+                offer_args[k] = val
+        conditions, params = self._offer_filter(**offer_args)
+        chosen = dict(getattr(self, 'attribute_filters', {}))
+        facets = []
+        try:
+            for key, field in list(schema.items())[:12]:
+                self.attribute_filters = {k:v for k,v in chosen.items() if k != key}
+                sql, values = self._matching_product_ids(parsed.clean_query, conditions, params,
+                    arguments.get('brand') or parsed.detected_brand, arguments.get('category'),
+                    arguments.get('model'), arguments.get('kind'))
+                rows = self.fetchall(f'''SELECT pa.value, COUNT(DISTINCT COALESCE(p.family_id,p.id)) AS count
+                    FROM product_search_attributes pa JOIN canonical_products p ON p.id=pa.product_id
+                    WHERE pa.key=? AND pa.source_title=p.title AND p.id IN ({sql}) GROUP BY pa.value ORDER BY count DESC,value LIMIT 80''',
+                    [key] + values)
+                if rows or key in chosen:
+                    facets.append({'key': key, 'label': field.get('label', key) if isinstance(field, dict) else key,
+                                   'values': rows})
+        finally:
+            self.attribute_filters = chosen
+        return facets
 
     def get_family_products(self, family_id: str, city: Optional[str] = None) -> List[Dict[str, Any]]:
         """Исполнения одной модели с действующими предложениями и их самой низкой ценой."""

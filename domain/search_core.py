@@ -723,7 +723,9 @@ class SearchCore:
 
             try:
                 from domain.category import TaxonomyMapper
-                t_mapper = TaxonomyMapper()
+                from repositories.category_repo import CategoryRepository
+                t_mapper = (CategoryRepository(self.search_repo.conn).get_mapper()
+                            if hasattr(self.search_repo, 'conn') else TaxonomyMapper())
             except Exception:
                 t_mapper = None
 
@@ -1040,8 +1042,10 @@ class SearchCore:
         # Resolve category taxonomy breadcrumbs
         cat_breadcrumbs = []
         try:
-            from domain.category import TaxonomyMapper, MASTER_TAXONOMY
-            mapper = TaxonomyMapper(MASTER_TAXONOMY)
+            from domain.category import TaxonomyMapper
+            from repositories.category_repo import CategoryRepository
+            mapper = (CategoryRepository(self.search_repo.conn).get_mapper()
+                      if hasattr(self.search_repo, 'conn') else TaxonomyMapper())
             raw_c = product.category or ""
             target_cat = mapper.map_category(raw_c) or mapper.get_by_id(raw_c)
             if target_cat:

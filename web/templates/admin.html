@@ -121,6 +121,12 @@
   <main>
     <a class="back" href="/">‹ На сайт</a>
     <h1>Управление сервисом</h1>
+    <section class="card" style="margin-bottom:20px;">
+      <div class="card-head"><h2>Расширение каталога</h2></div>
+      <p>Запросы без предложений. Помощник предлагает разделы и фильтры; после подтверждения проверяем подключённые магазины. Новый сайт может потребовать отдельного подключения.</p>
+      <button type="button" onclick="loadExpansions()">Обновить</button>
+      <div id="expansionList"></div><div id="expansionState" class="state" role="status"></div>
+    </section>
     <section class="card">
       <div class="card-head">
         <h2>Пользователи</h2>
@@ -219,6 +225,44 @@
       list.replaceChildren(...users.map(renderUser));
       stateEl.textContent = users.length ? '' : 'Пользователей пока нет';
     }
+
+    async function loadExpansions() {
+      const target = document.getElementById('expansionList');
+      const state = document.getElementById('expansionState');
+      state.textContent = 'Загрузка…';
+      try {
+        const response = await fetch('/api/admin/catalog-expansions');
+        if (!response.ok) throw new Error();
+        const data = await response.json(); target.replaceChildren();
+        const names = {proposed:'Ожидает проверки',approved:'В очереди',checking:'Проверяем магазины',indexed:'Характеристики заполнены',needs_source:'Нужно подключение источника',failed:'Проверка не завершена',rejected:'Отклонено'};
+        (data.items || []).forEach(item => {
+          const row = element('div', 'user'); row.style.flexWrap = 'wrap';
+          const info = element('div', 'user-info'); info.style.minWidth = '0'; info.style.overflowWrap = 'anywhere';
+          info.append(element('div', 'user-name', item.query + ' · ' + item.city));
+          info.append(element('div', 'user-meta', 'Раздел: ' + item.plan.category_name + ' · Запросов: ' + item.demand));
+          info.append(element('div', 'user-meta', 'Фильтры: ' + item.plan.fields.map(f => f.label).join(', ')));
+          info.append(element('div', 'user-meta', names[item.status] || item.status));
+          if (item.message) info.append(element('div', 'user-meta', item.message));
+          row.append(info);
+          if (item.status !== 'checking') {
+            [['approve',item.status === 'proposed' ? 'Подтвердить и проверить' : 'Проверить снова'],['reject','Отклонить']].forEach(([decision,label]) => {
+              const button = element('button', decision === 'approve' ? 'main' : '', label);
+              button.onclick = async () => {
+                button.disabled = true;
+                try {
+                  const res = await fetch('/api/admin/catalog-expansions/' + encodeURIComponent(item.id) + '/review',
+                    {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({decision})});
+                  if (!res.ok) throw new Error(); await loadExpansions();
+                } catch (e) { state.textContent = 'Не удалось сохранить решение. Повторите.'; button.disabled = false; }
+              }; row.append(button);
+            });
+          }
+          target.append(row);
+        });
+        state.textContent = data.items.length ? '' : 'Новых запросов на расширение пока нет.';
+      } catch (e) { state.textContent = 'Не удалось загрузить запросы. Попробуйте обновить.'; }
+    }
+    loadExpansions();
 
     loadUsers().catch(() => {
       stateEl.className = 'state error';
