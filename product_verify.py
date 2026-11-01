@@ -148,7 +148,9 @@ def parse_verdict(reply: Any, allowed_urls: List[str], min_confidence: float = M
     official = _text(reply.get("official_model"))[:120] or None
     verdict = {"same": same if isinstance(same, bool) else None, "confidence": round(confidence, 2),
                "official_model": official, "evidence": evidence, "reason": _text(reply.get("reason"))[:200]}
-    if verdict["same"] is None or confidence < min_confidence or not evidence:
+    # Ссылка нужна только для склейки. «Разные» ничего не меняет в каталоге, а разницу вроде
+    # «джинсы и лонгслив» видно по самим названиям, и выдача её подтверждать не обязана
+    if verdict["same"] is None or confidence < min_confidence or (verdict["same"] and not evidence):
         verdict["decision"] = UNKNOWN
     else:
         verdict["decision"] = SAME if verdict["same"] else DIFFERENT

@@ -319,6 +319,12 @@ class AuditP17CTest(CachedVerifyTest):
         keys = database.get_cached_canonical_keys_batch([TS_A, TS_B])
         self.assertEqual(keys[TS_A], keys[TS_B])
 
+    def test_different_needs_no_evidence_but_same_does(self):
+        reply = {"same": False, "confidence": 0.99, "evidence": []}
+        self.assertEqual(product_verify.parse_verdict(reply, [])["decision"], product_verify.DIFFERENT)
+        reply = {"same": True, "confidence": 0.99, "evidence": []}
+        self.assertEqual(product_verify.parse_verdict(reply, [])["decision"], product_verify.UNKNOWN)
+
     def test_model_off_is_transient_and_no_evidence_waits_a_week(self):
         self._queue_pair()
         res = self._tick(RESULTS, None)                 # модель выключена или не ответила
