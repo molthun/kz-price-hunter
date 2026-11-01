@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 import sqlite3
 from datetime import datetime, timedelta, timezone
 
@@ -154,6 +155,9 @@ class CatalogExpansionRepository:
         self.conn.execute('DELETE FROM product_search_attributes WHERE product_id=? AND source_title!=?',
                           (product_id, source_title))
         for key, fact in values.items():
+            # A fresh extraction can explicitly make a previously guessed field unknown.
+            self.conn.execute('DELETE FROM product_search_attributes WHERE product_id=? AND key=?',
+                              (product_id, key))
             if not isinstance(fact, dict):
                 continue
             evidence = str(fact.get('evidence') or '').strip()
@@ -163,6 +167,20 @@ class CatalogExpansionRepository:
             if isinstance(value, bool):
                 value = 'Да' if value else 'Нет'
             value = str(value).strip()[:80]
+            if key == 'season':
+                # A marketing model name (Arctic, Ice...) is not explicit season evidence.
+                text = evidence.casefold()
+                expected = ('Всесезонные' if re.search(r'всесезон|all.?season', text) else
+                            'Зимние' if re.search(r'зимн|winter', text) else
+                            'Летние' if re.search(r'летн|summer', text) else None)
+                if value != expected:
+                    continue
+            if key == 'studs':
+                text = evidence.casefold()
+                expected = ('Нет' if re.search(r'без\s+шип|нешип|non.?stud', text) else
+                            'Да' if re.search(r'с\s+шип|шипован|studded', text) else None)
+                if value != expected:
+                    continue
             if value:
                 self.conn.execute('''INSERT INTO product_search_attributes VALUES(?,?,?,?,?,?)
                     ON CONFLICT(product_id,key) DO UPDATE SET value=excluded.value,evidence=excluded.evidence,

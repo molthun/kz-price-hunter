@@ -86,6 +86,14 @@ class GrowthRepositoryTests(unittest.TestCase):
         result=SearchCore(repo).search('',category='tires',city='Астана')
         self.assertEqual(result.total_products,0)
 
+    def test_model_name_is_not_season_evidence(self):
+        ProductRepository(self.conn).save_or_update(CanonicalProduct(id='arctic',canonical_key='arctic',
+            title='Audit Arctic 205/55 R16 без шипов',category='Шины и диски'))
+        self.repo.save_attributes('arctic','Audit Arctic 205/55 R16 без шипов',{
+            'season':{'value':'Зимние','evidence':'Arctic'},'studs':{'value':'Нет','evidence':'без шипов'}})
+        rows=self.conn.execute("SELECT key,value FROM product_search_attributes WHERE product_id='arctic'").fetchall()
+        self.assertEqual([tuple(r) for r in rows],[('studs','Нет')])
+
     def test_new_category_appears_and_protects_pinned_cross_branch(self):
         plan={**PLAN,'category_id':'ai_rope','category_name':'Альпинистские верёвки','parent_id':'sport'}
         task=self.repo.propose('альпинистская верёвка','Все',plan)
@@ -117,7 +125,8 @@ class LocalModelTests(unittest.IsolatedAsyncioTestCase):
         self.cfg.stop();self.env.stop();self.pause.stop()
 
     async def test_every_query_cache_singleflight_no_paid_provider(self):
-        model=AsyncMock(return_value=PLAN)
+        model=AsyncMock(return_value={**PLAN,'fields':PLAN['fields']+[
+            {'key':'width','label':'Ширина'}, {'key':'diameter','label':'Диаметр'}]})
         cats=[{'id':'tires','name':'Шины и диски'}]
         with patch('ai_service.call_local_api',model):
             a,b=await asyncio.gather(local_search.understand('зимняя резина',cats),local_search.understand('зимняя резина',cats))
@@ -135,6 +144,19 @@ class LocalModelTests(unittest.IsolatedAsyncioTestCase):
         with patch('local_ai.pause_reason',return_value='game'),patch('ai_service.call_local_api',AsyncMock()) as model:
             await local_search.understand('iphone',[])
             model.assert_not_awaited()
+
+    async def test_refine_broad_category_into_reviewable_new_type(self):
+        cats=[{'id':'tools_repair','name':'Инструменты и ремонт'}]
+        first={**PLAN,'category_id':'tools_repair','category_name':'Инструменты и ремонт',
+               'search_query':'геодезический тахеометр','fields':[],'attributes':{}}
+        schema={'new_category_name':'Геодезическое оборудование','parent_id':'tools_repair',
+                'search_query':'тахеометр','fields':[{'key':'accuracy','label':'Точность'}]}
+        with patch('ai_service.call_local_api',AsyncMock(side_effect=[first,schema])):
+            result=await local_search.understand('геодезический тахеометр',cats)
+        plan=result['plan']
+        self.assertTrue(plan['category_id'].startswith('ai_'))
+        self.assertEqual(plan['parent_id'],'tools_repair')
+        self.assertEqual(plan['search_query'],'тахеометр')
 
     async def test_worker_real_repository_flow(self):
         with tempfile.TemporaryDirectory() as tmp:
