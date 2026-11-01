@@ -4,9 +4,12 @@ import unittest
 from unittest.mock import patch
 
 from domain.models import ChannelType
+from domain.seller_identity import IdentityType
 from domain.seller_admin import SellerFormError, save_seller, seller_details
 from repositories.channel_repo import ChannelRepository
 from repositories.schema_v2 import init_schema_v2
+from repositories.seller_identity_repo import SellerIdentityRepository
+from repositories.seller_repo import SellerRepository
 
 
 class SellerAdminTest(unittest.TestCase):
@@ -71,6 +74,23 @@ class SellerAdminTest(unittest.TestCase):
         channels = ChannelRepository(self.conn).list_by_seller(seller["id"], active_only=True)
         self.assertEqual([c.external_store_id for c in channels if c.channel_type == ChannelType.MARKETPLACE],
                          ["kaspi:18430177"])
+
+    def test_cleared_fields_are_erased_with_their_identities(self):
+        seller = self._create(phone="+77001112233", legal_name="ТОО Тест")
+        identities = SellerIdentityRepository(self.conn)
+        identities.add_identity_values(seller["id"], IdentityType.PHONE, "+77009998877", source="discovery")
+        cleared = save_seller(self.conn, seller["id"], {**seller, "phone": "", "bin": "", "legal_name": "", "website_url": ""})
+        self.assertEqual((cleared["phone"], cleared["bin"], cleared["legal_name"], cleared["website_url"]), ("", "", "", ""))
+        left = {(i.identity_type, i.identity_value) for i in identities.get_identities_by_seller(seller["id"])}
+        self.assertEqual(left, {(IdentityType.PHONE, "+77009998877")})  # чужой признак редактор не трогает
+        self.assertIsNone(SellerRepository(self.conn).get_by_id(seller["id"]).domain)
+
+    def test_changed_bin_replaces_old_identity(self):
+        seller = self._create()
+        save_seller(self.conn, seller["id"], {**seller, "bin": "999999999999"})
+        identities = SellerIdentityRepository(self.conn)
+        self.assertEqual(identities.find_sellers_by_identity(IdentityType.BIN, "123456789012"), [])
+        self.assertEqual(identities.find_sellers_by_identity(IdentityType.BIN, "999999999999"), [seller["id"]])
 
     def test_unknown_seller(self):
         self.assertIsNone(save_seller(self.conn, "seller_none", {"name": "Магазин"}))

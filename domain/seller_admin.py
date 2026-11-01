@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
 from domain.models import Channel, ChannelType, Seller
-from domain.seller_identity import normalize_bin, normalize_domain, normalize_phone
+from domain.seller_identity import IdentityType, normalize_bin, normalize_domain, normalize_phone
 from domain.seller_onboarding import _clean_social_handle, marketplace_channel
 from repositories.channel_repo import ChannelRepository
 from repositories.seller_identity_repo import SellerIdentityRepository
@@ -141,19 +141,27 @@ def save_seller(conn, seller_id: Optional[str], body: Dict[str, Any]) -> Optiona
     else:
         new_id, slug = _new_seller_id(sellers, form["name"])
         seller = Seller(id=new_id, slug=slug, name=form["name"])
+    old_identity = {IdentityType.DOMAIN: seller.domain, IdentityType.PHONE: seller.phone,
+                    IdentityType.BIN: seller.bin, IdentityType.LEGAL_NAME: seller.legal_name}
     seller.name = form["name"]
     seller.legal_name = form["legal_name"]
     seller.bin = form["bin"]
     seller.phone = form["phone"]
     seller.is_active = form["is_active"]
-    if form["website_url"]:
-        seller.domain = normalize_domain(form["website_url"]) or seller.domain
+    seller.domain = normalize_domain(form["website_url"]) if form["website_url"] else None
     metadata = dict(seller.metadata or {})
     for field in ("city", "website_url", "whatsapp", "contact_person", "comment"):
         metadata[field] = form[field]
     seller.metadata = metadata
     sellers.save_or_update(seller)
-    SellerIdentityRepository(conn).sync_identities_from_seller(seller, source="admin_editor")
+    sellers.set_identity_fields(seller)
+    identities = SellerIdentityRepository(conn)
+    new_identity = {IdentityType.DOMAIN: seller.domain, IdentityType.PHONE: seller.phone,
+                    IdentityType.BIN: seller.bin, IdentityType.LEGAL_NAME: seller.legal_name}
+    for identity_type, old_value in old_identity.items():
+        if old_value and old_value != new_identity[identity_type]:
+            identities.remove_identity_value(seller.id, identity_type, old_value)
+    identities.sync_identities_from_seller(seller, source="admin_editor")
 
     _sync_channels(channels, seller, ChannelType.MARKETPLACE,
                    [marketplace_channel(url, seller.name) for url in form["marketplace_links"]])

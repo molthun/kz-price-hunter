@@ -93,6 +93,12 @@ class SellerIdentityRepository(BaseRepository):
                 )
         return synced
 
+    def remove_identity_value(self, seller_id: str, identity_type: str, identity_value: str) -> None:
+        self.execute(
+            "DELETE FROM seller_identities WHERE seller_id = ? AND identity_type = ? AND identity_value = ?",
+            (seller_id, identity_type, identity_value),
+        )
+
     def find_sellers_by_identity(self, identity_type: str, identity_value: str) -> List[str]:
         """Finds all seller_ids matching the given identity key/value pair."""
         sql = """

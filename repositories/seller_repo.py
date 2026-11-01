@@ -55,6 +55,13 @@ class SellerRepository(BaseRepository):
         seller.updated_at = now
         return seller
 
+    def set_identity_fields(self, seller: Seller) -> None:
+        """Записывает реквизиты как есть. save_or_update пустое значение не стирает, а редактору это нужно."""
+        self.execute(
+            "UPDATE sellers SET legal_name = ?, bin = ?, domain = ?, phone = ? WHERE id = ?",
+            (seller.legal_name, seller.bin, seller.domain, seller.phone, seller.id),
+        )
+
     def get_by_id(self, seller_id: str) -> Optional[Seller]:
         row = self.fetchone("SELECT * FROM sellers WHERE id = ?", (seller_id,))
         return Seller.from_row(row) if row else None
