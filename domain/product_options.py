@@ -116,7 +116,29 @@ _FAMILY_LABELS = {"storage": "Память", "ram": "Оперативная па
 _WATCH_SIZE_RE = re.compile(r"(?<![\d.,])(3[89]|4\d|5[0-5])\s?(?:мм|mm)(?![a-zа-я])", re.I)
 
 
+# Запись «12/512Gb» и «16/1TB»: первое число всегда оперативная память в гигабайтах
+_RAM_STORAGE_RE = re.compile(r"(?<![\w.])(\d+)\s*/\s*(\d+)\s*(гб|gb|тб|tb)(?![a-zа-я])", re.I)
+# Слова, которые делают другую модель: Note 12 и Note 12 Pro+ — разные телефоны, хотя поле модели у них одно
+_TIER_RE = re.compile(
+    r"(?<![a-zа-я0-9])(pro|про|plus|плюс|max|макс|ultra|ультра|lite|лайт|mini|мини|air|fe|se|neo|prime|turbo|[45]g)(?![a-zа-я0-9])"
+    r"|(?<=[a-zа-я0-9])(\+)",
+    re.I,
+)
+_TIER_ALIASES = {"про": "pro", "плюс": "plus", "+": "plus", "макс": "max", "ультра": "ultra", "лайт": "lite", "мини": "mini"}
+
+
+def model_tier(title: Any) -> frozenset:
+    """Уточнения модели в названии: {"pro", "plus"}."""
+    found = (a or b for a, b in _TIER_RE.findall(str(title or "")))
+    return frozenset(_TIER_ALIASES.get(word.lower(), word.lower()) for word in found)
+
+
 def _gigabytes(title: Any) -> List[float]:
+    text = str(title or "")
+    paired = _RAM_STORAGE_RE.search(text)
+    if paired:
+        ram, storage, unit = float(paired.group(1)), float(paired.group(2)), paired.group(3).lower()
+        return [ram, storage * 1024 if unit in ("тб", "tb") else storage]
     out = []
     for item in product_key.title_variants(title):
         unit = item["unit"]
@@ -144,13 +166,13 @@ def family_params(category: Any, title: Any) -> Dict[str, str]:
     return out
 
 
-def family_key(product: Any) -> Optional[Tuple[str, str, str]]:
+def family_key(product: Any) -> Optional[Tuple[Any, ...]]:
     """Семейство товара или None, если объединять нельзя."""
     if product.category not in FAMILY_PARAMS or not product.brand or not product.model:
         return None
     if (product.item_kind or "device") != "device":
         return None
-    return (product.brand, product.model, product.category)
+    return (product.brand, product.model, product.category, model_tier(product.title))
 
 
 def _family_label(param: str, value: str) -> str:
@@ -164,7 +186,9 @@ def build_family_options(current_id: str, category: str, title: str,
                          siblings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Параметры, значения которых ведут в карточки других исполнений той же модели."""
     current = family_params(category, title)
-    rows = [{**s, "params": family_params(category, s.get("title"))} for s in siblings]
+    tier = model_tier(title)
+    rows = [{**s, "params": family_params(category, s.get("title"))} for s in siblings
+            if model_tier(s.get("title")) == tier]
     result = []
     for param in FAMILY_PARAMS.get(category, ()):
         if param not in current:
@@ -195,7 +219,7 @@ def build_family_options(current_id: str, category: str, title: str,
 
 def collapse_family_cards(cards: List[Any]) -> List[Any]:
     """Исполнения одной модели на странице выдачи — одна карточка с самой низкой ценой."""
-    first_seen: Dict[Tuple[str, str, str], int] = {}
+    first_seen: Dict[Tuple[Any, ...], int] = {}
     out: List[Any] = []
     for card in cards:
         family = family_key(card.product)

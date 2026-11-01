@@ -43,6 +43,16 @@ class ProductOptionsTest(unittest.TestCase):
         self.assertEqual(family_params("Смартфоны", "iPhone 12 Pro Max 1TB Gold"), {"storage": "1024"})
         self.assertEqual(family_params("Смарт-часы", "Apple Watch Series 10 42mm"), {"size": "42"})
         self.assertEqual(family_params("Ноутбуки", "MacBook Air 13 8/256Gb"), {})
+        self.assertEqual(family_params("Смартфоны", "Galaxy Z Fold8 Ultra 16/1TB"), {"storage": "1024", "ram": "16"})
+
+    def test_different_tier_is_not_a_variant(self):
+        siblings = [
+            {"id": "a", "title": "Redmi Note 12 128 GB", "min_price": 100},
+            {"id": "b", "title": "Redmi Note 12 256 GB", "min_price": 150},
+            {"id": "c", "title": "Redmi Note 12 Pro+ 5G 512 GB", "min_price": 300},
+        ]
+        options = build_family_options("a", "Смартфоны", "Redmi Note 12 128 GB", siblings)
+        self.assertEqual([v["value"] for v in options[0]["values"]], ["128", "256"])
 
     def test_family_options_lead_to_matching_variant(self):
         siblings = [
@@ -60,7 +70,7 @@ class ProductOptionsTest(unittest.TestCase):
 
     def test_collapse_keeps_cheapest_and_counts_others(self):
         def card(pid, price, category="Смартфоны", model="X"):
-            product = SimpleNamespace(id=pid, brand="B", model=model, category=category, item_kind="device")
+            product = SimpleNamespace(id=pid, brand="B", model=model, category=category, item_kind="device", title=pid)
             return SimpleNamespace(product=product, min_price=price, variants_count=0)
         cards = [card("a", 200), card("n", 50, category="Ноутбуки"), card("b", 100), card("c", 300), card("d", 10, model="Y")]
         out = collapse_family_cards(cards)

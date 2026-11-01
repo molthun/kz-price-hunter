@@ -814,7 +814,7 @@ class SearchCore:
         family = family_key(product)
         if family is None or not hasattr(self.search_repo, "get_family_products"):
             return []
-        siblings = self.search_repo.get_family_products(*family, city=city)
+        siblings = self.search_repo.get_family_products(*family[:3], city=city)
         return build_family_options(product.id, product.category, product.title, siblings)
 
     def get_canonical_product(
