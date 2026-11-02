@@ -56,6 +56,10 @@ class ProductRepository(BaseRepository):
             now,
         )
         self.execute(sql, params)
+        import os
+        if os.environ.get('CATALOG_CLASSIFICATION_ENABLED')=='1':
+            from repositories.classification_repo import ClassificationRepository
+            ClassificationRepository(self.conn).touch([product.id])
         product.description = ""
         product.updated_at = now
         return product

@@ -289,6 +289,9 @@ class CatalogExpansionRepository:
     def classify(self, product_id, category_id, confidence):
         """Only reviewed extensions of an unknown/general category; never a cross-branch move."""
         from repositories.category_repo import CategoryRepository
+        tag=self.conn.execute('SELECT category_id FROM product_category_tags WHERE product_id=?',(product_id,)).fetchone()
+        if tag and tag[0]!=category_id:
+            return False
         mapper = CategoryRepository(self.conn).get_mapper()
         target = mapper.get_by_id(category_id)
         row = self.conn.execute('SELECT category FROM canonical_products WHERE id=?', (product_id,)).fetchone()

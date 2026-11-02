@@ -106,6 +106,12 @@ def save_verdict(conn, product_id: str, old: str, new: Optional[str], confidence
 async def sort_tick(get_conn: Callable[[], Any], ask: Ask, model: str, classifier: Any,
                     limit: int = BATCH_SIZE, pause: float = PAUSE_BETWEEN_CALLS_SECONDS) -> Dict[str, int]:
     """Один проход. Без ответа модели товар остаётся в очереди, проход прерывается."""
+    import product_classification
+    if product_classification.enabled():
+        import config,product_verify
+        return await product_classification.tick(get_conn,ask,model,classifier,limit,pause,
+            can_ask=lambda: not product_verify.verification_pause_reason(config.get_ai_config()),
+            current_model=lambda: config.get_ai_config().get('local_model') or '')
     stats = {"rule": 0, "asked": 0, "applied": 0, "failed": 0}
 
     def _with_conn(fn, *args):

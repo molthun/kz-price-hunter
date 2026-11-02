@@ -86,7 +86,7 @@ def apply_feed_categories(conn) -> int:
                JOIN offers o ON o.id = 'off_' || p.id AND o.is_active = 1
                JOIN canonical_products c ON c.id = o.product_id
                LEFT JOIN category_ai_verdicts v ON v.product_id = o.product_id
-               WHERE p.shop = ? AND p.is_active = 1""",
+               WHERE p.shop = ? AND p.is_active = 1 AND NOT EXISTS(SELECT 1 FROM product_category_tags t WHERE t.product_id=c.id)""",
             (shop,),
         ).fetchall()
         for product_id, raw, current, model, title in rows:
@@ -168,7 +168,7 @@ def section_category(raw: Optional[str]) -> Optional[str]:
 def repair_storage_categories(conn, apply=True):
     names = {c.id:c.name for c in MASTER_TAXONOMY}
     family = [names[k] for k in ('storage','hdd','ram','removable_storage')]
-    rows = conn.execute('SELECT id,title,category FROM canonical_products WHERE category IN (?,?,?,?)',family).fetchall()
+    rows = conn.execute('SELECT id,title,category FROM canonical_products c WHERE category IN (?,?,?,?) AND NOT EXISTS(SELECT 1 FROM product_category_tags t WHERE t.product_id=c.id)',family).fetchall()
     from catalog_classifier import CatalogClassifier
     classifier=CatalogClassifier()
     moves=[]
@@ -210,7 +210,7 @@ def apply_section_categories(conn, classifier, apply: bool = True) -> Dict:
            JOIN offers o ON o.id = 'off_' || p.id AND o.is_active = 1
            JOIN canonical_products c ON c.id = o.product_id
            LEFT JOIN category_ai_verdicts v ON v.product_id = o.product_id
-           WHERE p.is_active = 1 AND COALESCE(v.model, '') NOT IN (?, 'ai_check')
+           WHERE p.is_active = 1 AND NOT EXISTS(SELECT 1 FROM product_category_tags t WHERE t.product_id=c.id) AND COALESCE(v.model, '') NOT IN (?, 'ai_check')
            GROUP BY o.product_id""",
         (FEED_MODEL,),
     ).fetchall()

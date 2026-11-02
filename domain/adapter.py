@@ -511,6 +511,10 @@ def _write_legacy_offers_v2(
             (timestamp, _json_param(history)),
         )
 
+    if os.environ.get('CATALOG_CLASSIFICATION_ENABLED')=='1':
+        from repositories.classification_repo import ClassificationRepository
+        ClassificationRepository(conn).touch([it['product_id'] for it in items])
+
 
 def sync_legacy_product_to_v2(
     conn: sqlite3.Connection,

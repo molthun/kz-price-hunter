@@ -2,6 +2,39 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## IN_PROGRESS → Codex: ИИ-метки классификации и помощь администратору (2026-11-02)
+
+- Прямое «Делай»: название товара не менять, назначать классификационный тег; админ-инструмент сложных случаев.
+- Один исполнитель Codex, база `0f97936`, tracked diff пуст, чужие untracked сохранены.
+- Область: новый repository/service классификации, schema V2, ingest hooks, catalog sorter,
+  защита меток от feed/старых правил, admin API/UI, тесты, версия и история.
+- Тег — стабильный category_id отдельно от исходного title; существующий category служит проекцией для поиска.
+  Повторная проверка по версии входных данных; lease/generation, backoff, история решений;
+  ручное подтверждение защищено, изменившиеся исходные данные снова попадают на проверку.
+- В UI: очередь сложностей/поиск, предложение ИИ с причиной, ручной выбор существующего раздела,
+  повторный запрос ИИ, снятие ручного закрепления, история; создание раздела при необходимости — данными.
+- Только стенд через bundle без push/main. Тесты на временных БД, прод не трогаем.
+- Реализованы: product_category_tags / classification_jobs / append history, атомарный worker,
+  source/schema/model policy version, lease/generation, backoff; ingestion admission одной SQL-командой
+  на порцию. Legacy feed/rule writers не перезаписывают теги; manual lock сохраняется при смене данных.
+- Админ API/UI: роли, optimistic edit_token/source_hash без блокировки редактора одним claim,
+  ручная метка/accept/retry/unlock, создание категории/фильтров данными, безопасные source links,
+  автообновление предложения без замены введённых полей; при stale — явное обновление.
+- Низкая уверенность, неизвестный ID, root downgrade, конфликт с явным типом и bare SKU идут в review.
+  Legacy последнее решение импортируется как unversioned; история ограничена 90 днями/200k событий.
+- Проверено: первый полный 2592 PASS + 1120 subtests, затем 2596 PASS + 1120 subtests;
+  новые unit/API/ingestion/generation/pause тесты проходят. UI classification 4/4, growth 4/4.
+  Конечный suite: 2598 PASS + 1120 subtests; профильный набор 24 PASS.
+  Реальная Qwen3-VL на временном auth/API/UI контуре: RAM, microphone→audio (.95),
+  bare SKU→review; manual lock/названия/цены сохранены, fixture-аккаунты удалены.
+- Версия 6.16.0, флаг CATALOG_CLASSIFICATION_ENABLED включён только в stand compose.
+- Следующий шаг: финальная regression, commit/bundle, sanitized backup и стенд.
+  Live admin workflow — изолированный временный контур с настоящей auth/SQLite/локальной моделью
+  на машине стенда; основной стенд — запуск фоновой очереди/проверка меток и неизменности названий.
+  Не выдавать fixture-аккаунт за настоящий вход владельца в основной admin UI.
+
+---
+
 ## STAND_DEPLOYED → Владелец: SSD/HDD/RAM разделены (2026-11-02, Codex)
 
 - Прямое поручение «Исправишь?». Один исполнитель: Codex. База facd81c + собственная диагностика.

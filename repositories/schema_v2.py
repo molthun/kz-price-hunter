@@ -358,6 +358,10 @@ def rebuild_canonical_products_fts(conn: sqlite3.Connection) -> None:
 
 
 
+from repositories.classification_repo import DDL as CLASSIFICATION_DDL
+DDL_V2 += CLASSIFICATION_DDL
+
+
 def _ensure_column(conn: sqlite3.Connection, table: str, col: str, col_type: str) -> None:
     cur = conn.cursor()
     cur.execute(f"PRAGMA table_info({table})")

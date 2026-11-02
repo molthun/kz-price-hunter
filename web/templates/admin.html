@@ -150,12 +150,60 @@
       font-size: 0.92rem;
       text-decoration: none;
     }
+    .classification-sources a {color:var(--primary);display:inline-block;margin:8px 12px 8px 0;overflow-wrap:anywhere;}
+    .classification-suggestion {padding:12px;margin:12px 0;border:1px solid var(--border);border-radius:8px;overflow-wrap:anywhere;}
+    #classificationDialog label {margin-top:12px;}
+    #classificationDialog select,#classificationDialog input {margin-top:5px;width:100%;}
+    #classificationNew {padding:12px 0;} #classificationNew summary {cursor:pointer;}
+    #classificationTool input,#classificationTool select {width:100%;}
+    #classificationTool button,#classificationDialog button {min-height:44px;}
+    #classificationTool .shop-tools>label {min-width:0;max-width:100%;}
   </style>
 </head>
 <body>
   <main>
     <a class="back" href="/">‹ На сайт</a>
     <h1>Управление сервисом</h1>
+    <section class="card" id="classificationTool">
+      <div class="card-head"><h2>Классификация товаров</h2></div>
+      <p>Метка определяет раздел каталога. Исходное название товара сохраняется. Сложные случаи проверяет администратор.</p>
+      <div class="shop-tools">
+        <label>Список<select id="classificationFilter" onchange="classificationOffset=0;loadClassification()">
+          <option value="review">Нужна помощь</option><option value="queued">В очереди</option>
+          <option value="checking">Проверяются</option><option value="manual">Ручные метки</option>
+          <option value="done">Проверены</option><option value="all">Все товары</option>
+        </select></label>
+        <label style="flex:1">Название или код товара<input id="classificationQuery" maxlength="200" placeholder="Найти товар"></label>
+        <button type="button" onclick="classificationOffset=0;loadClassification()">Найти</button>
+      </div>
+      <div id="classificationSummary" class="user-meta" role="status"></div>
+      <div id="classificationList"></div>
+      <div class="user-actions" style="margin-top:12px"><button id="classificationPrev" onclick="classificationPage(-1)">Назад</button><button id="classificationNext" onclick="classificationPage(1)">Дальше</button><button onclick="loadClassification()">Обновить</button></div>
+      <div id="classificationState" class="state" role="status"></div>
+    </section>
+    <dialog id="classificationDialog" aria-labelledby="classificationTitle">
+      <h2>Метка классификации</h2><h3 id="classificationTitle" style="overflow-wrap:anywhere"></h3>
+      <p class="user-meta">Название показано без изменений. Действия ниже меняют только метку раздела.</p>
+      <div id="classificationCurrent" class="user-meta"></div><div id="classificationSources" class="classification-sources"></div>
+      <div id="classificationSuggestion" class="classification-suggestion"></div>
+      <label class="form-label">Раздел каталога<select id="classificationCategory"></select></label>
+      <label class="form-label">Комментарий к решению<input id="classificationNote" maxlength="240"></label>
+      <div class="user-actions" style="margin:12px 0">
+        <button class="main" data-classification-action id="classificationAssign" onclick="classificationAction('assign')">Назначить метку</button>
+        <button data-classification-action id="classificationAccept" onclick="classificationAccept()">Принять предложение ИИ</button>
+        <button data-classification-action id="classificationRetry" onclick="classificationAction('retry')">Проверить ИИ</button>
+        <button data-classification-action id="classificationUnlock" onclick="classificationAction('unlock')">Снять ручное закрепление</button>
+      </div>
+      <details id="classificationNew"><summary>Нет подходящего раздела? Создать</summary>
+        <label class="form-label">Новый раздел<input id="classificationNewName" maxlength="80"></label>
+        <label class="form-label">Внутри раздела<select id="classificationNewParent"></select></label>
+        <label class="form-label">Фильтры через запятую<input id="classificationNewFields" placeholder="Например: объём, интерфейс, размер"></label>
+        <button data-classification-action onclick="classificationAction('create')">Создать раздел и назначить метку</button>
+      </details>
+      <div id="classificationError" class="state" role="alert"></div>
+      <details><summary>История решений</summary><div id="classificationHistory"></div></details>
+      <div class="form-actions"><button onclick="classificationOpen(classificationItem.id)">Обновить данные</button><button onclick="document.getElementById('classificationDialog').close()">Закрыть</button></div>
+    </dialog>
     <section class="card" style="margin-bottom:20px;">
       <div class="card-head">
         <h2>Магазины</h2>
@@ -531,5 +579,162 @@
       stateEl.textContent = 'Не удалось загрузить список пользователей.';
     });
   </script>
+<script>
+  let classificationOffset=0, classificationSerial=0, classificationDetailSerial=0;
+  let classificationCategories=[], classificationItem=null, classificationBusy=false, classificationStale=false;
+  const classificationNames={new:'Ещё не проверен',queued:'В очереди',checking:'Проверяется',review:'Нужна помощь',done:'Проверен'};
+  function classificationOptions(select,value) {
+    select.replaceChildren(new Option('Выберите раздел',''));
+    classificationCategories.forEach(c=>select.add(new Option(c.name,c.id)));
+    select.value=value||'';
+  }
+  async function classificationResponse(response) {
+    const data=await response.json();
+    if (!response.ok) throw new Error(data.error||'Не удалось выполнить действие. Попробуйте ещё раз.');
+    return data;
+  }
+  async function loadClassification() {
+    if (document.hidden) return;
+    const serial=++classificationSerial, state=document.getElementById('classificationState');
+    const params=new URLSearchParams({status:document.getElementById('classificationFilter').value,q:document.getElementById('classificationQuery').value,offset:String(classificationOffset)});
+    try {
+      const data=await classificationResponse(await fetch('/api/admin/classification?'+params,{cache:'no-store'}));
+      if (serial!==classificationSerial) return;
+      classificationCategories=data.categories||[];
+      const s=data.summary||{};
+      document.getElementById('classificationSummary').textContent='Товаров: '+(s.total_products||0)+' · С меткой: '+(s.tagged||0)+' (ИИ: '+(s.ai||0)+', по названию: '+(s.rule||0)+') · В очереди: '+(s.queued||0)+' · Нужна помощь: '+(s.review||0)+' · Ещё не просмотрено: '+(s.not_scanned||0);
+      const list=document.getElementById('classificationList');list.replaceChildren();
+      (data.items||[]).forEach(item=>{
+        const row=element('div','user'),info=element('div','user-info');
+        info.append(element('div','user-name',item.title),element('div','user-meta','Сейчас: '+(item.category||'без раздела')),
+          element('div','user-meta',(item.locked?'Закреплено администратором · ':'')+(classificationNames[item.status]||item.status)));
+        const button=element('button','','Разобрать');button.onclick=()=>classificationOpen(item.id);
+        row.append(info,button);list.append(row);
+      });
+      const worker=data.worker||{};
+      state.className='state';
+      state.textContent=!(data.items||[]).length?'Здесь пока нет товаров. Выберите «Все товары» или найдите карточку по названию.':'';
+      if (!worker.enabled) state.textContent+=' Фоновая проверка выключена. Ручные метки доступны.';
+      else if (worker.pause) state.textContent+=' Локальный ИИ на паузе; очередь сохранена.';
+      document.getElementById('classificationPrev').disabled=classificationOffset===0;
+      document.getElementById('classificationNext').disabled=classificationOffset+(data.items||[]).length>=data.total;
+    } catch(error) {if(serial===classificationSerial){state.className='state error';state.textContent=error.message;}}
+  }
+  function classificationPage(delta){classificationOffset=Math.max(0,classificationOffset+delta*25);loadClassification();}
+  function classificationButtons(){
+    document.querySelectorAll('[data-classification-action]').forEach(b=>b.disabled=classificationBusy||classificationStale);
+    const job=classificationItem&&classificationItem.job;
+    if(job&&job.forced&&['queued','checking'].includes(job.status)&&!job.failures&&!(job.next_attempt>Date.now()/1000))document.getElementById('classificationRetry').disabled=true;
+  }
+  function classificationShowProposal(item) {
+    const job=item.job||{},suggestion=job.suggestion;
+    const proposal=document.getElementById('classificationSuggestion');proposal.replaceChildren();
+    if (suggestion) {
+      const cat=classificationCategories.find(c=>c.id===suggestion.category_id);
+      proposal.append(element('div','user-name',cat?'Предложение: '+cat.name:'Подходящий раздел пока не определён'));
+      if(suggestion.proposed_category_name)proposal.append(element('div','user-meta','Новый раздел: '+suggestion.proposed_category_name));
+      if(Number.isFinite(suggestion.confidence))proposal.append(element('div','user-meta','Оценка уверенности помощника: '+Math.round(suggestion.confidence*100)+' из 100'));
+      proposal.append(element('p','',suggestion.reason||''));
+    }
+    proposal.append(element('div','user-meta',job.message||''));
+    document.getElementById('classificationAccept').hidden=!(suggestion&&suggestion.category_id);
+    if(suggestion&&suggestion.proposed_category_name){const prepare=element('button','','Подготовить новый раздел');prepare.onclick=classificationUseNew;proposal.append(prepare);}
+  }
+  async function classificationPollDetail() {
+    const dialog=document.getElementById('classificationDialog');
+    if(document.hidden||classificationBusy||!dialog.open||!classificationItem)return;
+    const pid=classificationItem.id,serial=classificationDetailSerial;
+    try {
+      const fresh=await classificationResponse(await fetch('/api/admin/classification/'+encodeURIComponent(pid),{cache:'no-store'}));
+      if(classificationBusy||serial!==classificationDetailSerial||!dialog.open||classificationItem.id!==pid)return;
+      if(fresh.source_hash!==classificationItem.source_hash||fresh.edit_token!==classificationItem.edit_token){
+        if(fresh.source_hash===classificationItem.source_hash){classificationShowCurrent(fresh);classificationShowProposal(fresh);classificationShowHistory(fresh);}
+        document.getElementById('classificationError').className='state error';
+        document.getElementById('classificationError').textContent='Карточка или метка изменились. Нажмите «Обновить данные» перед решением.';
+        classificationStale=true;document.querySelectorAll('[data-classification-action]').forEach(b=>b.disabled=true);return;
+      }
+      classificationItem={...classificationItem,job:fresh.job,history:fresh.history};
+      classificationShowCurrent(classificationItem);classificationShowProposal(classificationItem);classificationShowHistory(classificationItem);classificationButtons();
+    } catch(error) { /* Keep the current editor and its version tokens on a transient read error. */ }
+  }
+  function classificationShowHistory(item) {
+    const history=document.getElementById('classificationHistory');history.replaceChildren();
+    const labels={paused:'Проверка на паузе',legacy:'Импорт прежнего назначения',manual:'Ручное решение',applied:'Метка обновлена',review:'Нужна проверка',retry:'Повторная проверка',unlock:'Снято закрепление'};
+    (item.history||[]).forEach(h=>{
+      const row=element('div','user-meta');row.style.marginTop='8px';
+      const cat=classificationCategories.find(c=>c.id===h.category_id);
+      row.textContent=new Date(h.created_at*1000).toLocaleString('ru-RU')+' · '+(labels[h.event]||h.event)+(cat?' · '+cat.name:'')+' · '+h.reason;
+      history.append(row);
+    });
+    if(!(item.history||[]).length)history.append(element('div','user-meta','Новых решений ещё нет.'));
+  }
+  function classificationUseNew(){
+    const suggestion=classificationItem&&classificationItem.job.suggestion;if(!suggestion)return;
+    document.getElementById('classificationNewName').value=suggestion.proposed_category_name||'';
+    classificationOptions(document.getElementById('classificationNewParent'),suggestion.proposed_parent_id);
+    document.getElementById('classificationNewFields').value=(suggestion.fields||[]).map(f=>f.label).join(', ');
+    document.getElementById('classificationNew').open=true;
+  }
+  function classificationShowCurrent(item){
+    const tag=item.tag,job=item.job||{};
+    document.getElementById('classificationCurrent').textContent='Сейчас: '+(tag?tag.name:item.category||'без раздела')+(tag?' · '+({admin:'решение администратора',ai:'проверено локальным ИИ',rule:'явный тип по названию'}[tag.source]||tag.source):'')+(tag&&tag.locked?' · закреплено администратором':'')+' · '+(classificationNames[job.status]||job.status);
+  }
+  function classificationRender(item) {
+    classificationItem=item;classificationStale=false;classificationButtons();
+    document.getElementById('classificationTitle').textContent=item.title;
+    const tag=item.tag,job=item.job||{},suggestion=job.suggestion;
+    classificationShowCurrent(item);
+    const links=document.getElementById('classificationSources');links.replaceChildren();
+    (item.sources||[]).forEach(source=>{
+      try {const url=new URL(source.url);if(!['http:','https:'].includes(url.protocol))return;
+        const link=element('a','',source.name||'Открыть источник');link.href=url.href;link.target='_blank';link.rel='noopener noreferrer';links.append(link);
+      } catch(e){}
+    });
+    classificationShowProposal(item);
+    classificationOptions(document.getElementById('classificationCategory'),(suggestion&&suggestion.category_id)||(tag&&tag.category_id)||(classificationCategories.find(c=>c.name===item.category)||{}).id);
+    classificationOptions(document.getElementById('classificationNewParent'),suggestion&&suggestion.proposed_parent_id);
+    document.getElementById('classificationNote').value='';
+    document.getElementById('classificationNewName').value=(suggestion&&suggestion.proposed_category_name)||'';
+    document.getElementById('classificationNewFields').value=((suggestion&&suggestion.fields)||[]).map(f=>f.label).join(', ');
+    document.getElementById('classificationUnlock').hidden=!(tag&&tag.locked);
+    document.getElementById('classificationAccept').hidden=!(suggestion&&suggestion.category_id);
+    document.getElementById('classificationError').textContent='';
+    classificationShowHistory(item);
+  }
+  async function classificationOpen(id) {
+    const serial=++classificationDetailSerial,dialog=document.getElementById('classificationDialog');
+    try {
+      const item=await classificationResponse(await fetch('/api/admin/classification/'+encodeURIComponent(id),{cache:'no-store'}));
+      if(serial!==classificationDetailSerial)return;
+      classificationRender(item);if(!dialog.open)dialog.showModal();
+    } catch(error){document.getElementById('classificationState').textContent=error.message;}
+  }
+  function classificationAccept(){
+    if(!classificationItem||!classificationItem.job.suggestion)return;
+    document.getElementById('classificationCategory').value=classificationItem.job.suggestion.category_id;
+    document.getElementById('classificationNote').value='Предложение ИИ принято администратором';
+    classificationAction('assign');
+  }
+  async function classificationAction(action) {
+    if(classificationBusy||classificationStale||!classificationItem)return;
+    const actionSerial=++classificationDetailSerial;
+    classificationBusy=true;
+    const buttons=document.querySelectorAll('[data-classification-action]');buttons.forEach(b=>b.disabled=true);
+    const item=classificationItem;
+    const body={action,generation:item.job.generation,source_hash:item.source_hash,edit_token:item.edit_token,
+      category_id:document.getElementById('classificationCategory').value,note:document.getElementById('classificationNote').value};
+    if(action==='create')body.new_category={name:document.getElementById('classificationNewName').value,parent_id:document.getElementById('classificationNewParent').value,fields:document.getElementById('classificationNewFields').value.split(',').map(s=>s.trim()).filter(Boolean)};
+    const errorEl=document.getElementById('classificationError');errorEl.className='state';errorEl.textContent='Сохраняем…';
+    try {
+      const data=await classificationResponse(await fetch('/api/admin/classification/'+encodeURIComponent(item.id),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}));
+      await loadClassification();
+      if(actionSerial===classificationDetailSerial&&classificationItem.id===item.id&&document.getElementById('classificationDialog').open){classificationRender(data.item);errorEl.textContent=action==='retry'?'Проверка ИИ поставлена в очередь.':'Готово. Название товара сохранено.';}
+    } catch(error){errorEl.className='state error';errorEl.textContent=error.message;}
+    finally{classificationBusy=false;classificationButtons();}
+  }
+  document.getElementById('classificationQuery').addEventListener('keydown',event=>{if(event.key==='Enter'){classificationOffset=0;loadClassification();}});
+  loadClassification();setInterval(()=>{loadClassification();classificationPollDetail();},5000);
+</script>
+
 </body>
 </html>

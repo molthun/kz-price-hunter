@@ -1315,6 +1315,64 @@ async def search_v2_handler(request):
         return web.json_response({"error": "Ошибка поиска v2, попробуйте позже"}, status=500)
 
 
+@routes.get('/api/admin/classification')
+@require_admin
+async def classification_list_handler(request):
+    import product_classification as pc
+    import config as cfg_module
+    import product_verify,catalog_ai_sort
+    from database import get_connection
+    from repositories.classification_repo import ClassificationRepository
+    state=request.query.get('status','review')
+    if state not in ('review','queued','checking','done','manual','all'):
+        return web.json_response({'error':'Неизвестный список'},status=400)
+    query=request.query.get('q','').strip()[:200]
+    offset=_int_param(request,'offset',0,minimum=0,maximum=1000000)
+    def load(conn):
+        result=ClassificationRepository(conn).listing(state,query,offset)
+        result['categories']=pc.context(conn)
+        cfg=cfg_module.get_ai_config()
+        result['worker']={'enabled':pc.enabled() and catalog_ai_sort.enabled(),'pause':product_verify.verification_pause_reason(cfg)}
+        return result
+    return web.json_response(await pc.db(get_connection,load))
+
+
+@routes.get('/api/admin/classification/{id}')
+@require_admin
+async def classification_detail_handler(request):
+    import product_classification as pc
+    from database import get_connection
+    from repositories.classification_repo import ClassificationRepository
+    try:
+        return web.json_response(await pc.db(get_connection,lambda c: ClassificationRepository(c).detail(request.match_info['id'])))
+    except ValueError as exc:
+        return web.json_response({'error':str(exc)},status=404)
+
+
+@routes.post('/api/admin/classification/{id}')
+@require_admin
+async def classification_action_handler(request):
+    import product_classification as pc
+    import config as cfg_module
+    from database import get_connection
+    from repositories.classification_repo import ClassificationRepository,Conflict
+    try:
+        body=await request.json()
+        allowed={'action','category_id','new_category','note','generation','source_hash','edit_token'}
+        if not isinstance(body,dict) or set(body)-allowed:
+            raise ValueError('Этот инструмент меняет только классификационную метку')
+        if type(body.get('generation')) is not int or body['generation']<0 or not isinstance(body.get('source_hash'),str) or len(body['source_hash'])!=64 or not isinstance(body.get('edit_token'),str) or len(body['edit_token'])!=64:
+            raise ValueError('Обновите карточку перед действием')
+        def act(conn):
+            version=pc.policy(pc.context(conn),cfg_module.get_ai_config().get('local_model') or '')
+            return ClassificationRepository(conn).act(request.match_info['id'],body,version)
+        return web.json_response({'ok':True,'item':await pc.db(get_connection,act)})
+    except Conflict as exc:
+        return web.json_response({'error':str(exc)},status=409)
+    except (ValueError,TypeError) as exc:
+        return web.json_response({'error':str(exc)},status=400)
+
+
 @routes.get('/api/admin/catalog-expansions')
 @require_admin
 async def catalog_expansions_handler(request):
@@ -3404,6 +3462,8 @@ async def category_ai_sort_background_worker(app):
     import catalog_ai_sort
     import config as app_config
     import product_verify
+    import product_classification
+    from repositories.classification_repo import ClassificationRepository
     from catalog_classifier import CatalogClassifier
     from database import get_connection
     classifier = CatalogClassifier()
@@ -3412,9 +3472,11 @@ async def category_ai_sort_background_worker(app):
         try:
             cfg = app_config.get_ai_config()
             if product_verify.verification_pause_reason(cfg):
+                if product_classification.enabled():
+                    await product_classification.db(get_connection,lambda c: ClassificationRepository(c).discover(product_classification.policy(product_classification.context(c),cfg.get('local_model') or '')))
                 await asyncio.sleep(30.0)
                 continue
-            if time.monotonic() >= next_check:
+            if not product_classification.enabled() and time.monotonic() >= next_check:
                 next_check = time.monotonic() + 3600.0
                 checked = await catalog_ai_sort.check_cheap_devices(
                     get_connection, product_verify.make_local_ask(cfg), classifier)
@@ -3423,7 +3485,8 @@ async def category_ai_sort_background_worker(app):
             stats = await catalog_ai_sort.sort_tick(
                 get_connection, product_verify.make_local_ask(cfg), cfg.get("local_model") or "", classifier)
             if stats["applied"]:
-                print(f"[CatalogAI] Перенесено товаров: {stats['applied']}")
+                label='Обновлено меток' if product_classification.enabled() else 'Перенесено товаров'
+                print(f"[CatalogAI] {label}: {stats['applied']}")
             if stats["failed"] or not (stats["rule"] or stats["asked"]):
                 await asyncio.sleep(60.0)
         except asyncio.CancelledError:

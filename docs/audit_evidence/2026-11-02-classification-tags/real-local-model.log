@@ -1,0 +1,5 @@
+[System] 📡 Модуль онлайн-логирования активирован.
+{"real_auth": true, "guest_and_user_denied": true, "stale_editor_409": true, "real_local_model": "qwen3-vl:8b-instruct", "model_suggestion": "ram", "manual_tag_preserved": true, "title_preserved": true, "proposal_auto_refreshed": true}
+{"microphone": {"status": "done", "proposal": "audio", "confidence": 0.95}, "bare_article_requires_admin": true}
+{"new_section_and_filters_via_real_UI": true, "all_titles_and_prices_preserved": true, "fixture_only": true, "paid_calls": 0}
+isolated_test_accounts_removed
