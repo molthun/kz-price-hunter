@@ -1,6 +1,6 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
-## 02.11.2026 — отдельная карточка предложения, v6.18.0
+## 02.11.2026 — отдельная карточка предложения, v6.18.0 (готово локально)
 
 - Codex: /offer/id, scoped metadata/history/source media, Forte exact objectID.
 - Только стенд, без БД/main push/production; проверки в AGENT_HANDOFF.

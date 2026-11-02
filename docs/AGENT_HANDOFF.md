@@ -19,7 +19,9 @@
   Отчёт FEATURE_2026-11-02_OFFER_DETAILS_CODEX.md и evidence 2026-11-02-offer-details.
 - SSH 192.168.28.25:2222 и HTTPS shdev /api/live дают timeout. Route → utun9; сеть/VPN не менялись.
   Вопрос владельцу о доступе задан. На стенд НЕ выложено, реальные источники/owner login НЕ проверены.
-- Следующий точный шаг: восстановить доступ, проверить remote SHA/dirty, bundle от 1c0339acf,
+- Коммит 686442eb0, bundle /tmp/kzph-offer-details-6180.bundle создан и git bundle verify PASS;
+  требует stand base 1c0339acf. Последняя повторная попытка SSH также timeout.
+- Следующий точный шаг: восстановить доступ, проверить remote SHA/dirty, передать готовый bundle,
   build/recreate stand app; runtime hashes/guest gate + два собственных источника предложения.
   Избранное/наблюдения остаются на канонический товар, seller-specific watch не входит в этот slice.
 
