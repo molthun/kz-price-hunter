@@ -1,0 +1,54 @@
+{
+  "cards": [
+    {
+      "id": "prod_0b8ba922f60894c3",
+      "title_unchanged": true,
+      "source_unchanged": true,
+      "old_category": "Оперативная память",
+      "category": "Оперативная память",
+      "status": "done",
+      "failures": 0,
+      "suggestion": "ram",
+      "confidence": 0.98,
+      "model": "qwen3-vl:8b-instruct"
+    },
+    {
+      "id": "prod_7c12b35640b3ca0a",
+      "title_unchanged": true,
+      "source_unchanged": true,
+      "old_category": "SSD накопители",
+      "category": "Аудиотехника",
+      "status": "done",
+      "failures": 0,
+      "suggestion": "audio",
+      "confidence": 0.95,
+      "model": "qwen3-vl:8b-instruct"
+    },
+    {
+      "id": "prod_8832124f2248e62e",
+      "title_unchanged": true,
+      "source_unchanged": true,
+      "old_category": "SSD накопители",
+      "category": "SSD накопители",
+      "status": "review",
+      "failures": 0,
+      "suggestion": "storage",
+      "confidence": 0.95,
+      "model": null
+    }
+  ],
+  "jobs": {
+    "checking": 1,
+    "done": 93,
+    "queued": 4907,
+    "review": 2
+  },
+  "tags": {
+    "ai": 21,
+    "rule": 72
+  },
+  "bad_projection": 0,
+  "quick_check": "ok",
+  "local_model": "qwen3-vl:8b-instruct",
+  "classifier_enabled": true
+}

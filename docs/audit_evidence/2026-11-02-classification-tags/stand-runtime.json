@@ -1,0 +1,16 @@
+{
+  "sha": "f4cafdd7a06f7c743f201c7312aef890bbd8c185",
+  "health": "healthy",
+  "hashes_match": true,
+  "files": {
+    "product_classification.py": "619c7d53af601eb67d9ec8010a47e1f9bce31c9b16adabf28630bf297f2cdce9",
+    "repositories/classification_repo.py": "2e405a6a3f06645df2ccbc965f2f9dc397e8af2d5a4d9c974c3970c253540b7f",
+    "repositories/schema_v2.py": "2270e3992deb8ffda0af4b4061344c0d2f8e4830266ee7e58849042c2df5523f",
+    "web/server.py": "d8db1b127e13543f3d0fa2a6243c1d54d840edd6d46f87c8d32c39702b2133ab",
+    "web/templates/admin.html": "d6469cdadb9778546dd9d35cddee82504455f1f45aa4059b8a723530fa7c873d",
+    "version.py": "3f9e80022063908376b175c5e9c949228abf8c8a34964ab26f6b967889069a88"
+  },
+  "/api/live": 200,
+  "/api/admin/classification": 403,
+  "/api/v2/products/prod_7c12b35640b3ca0a": 403
+}

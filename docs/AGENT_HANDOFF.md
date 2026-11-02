@@ -2,7 +2,7 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## IN_PROGRESS → Codex: ИИ-метки классификации и помощь администратору (2026-11-02)
+## STAND_DEPLOYED → Владелец: ИИ-метки классификации и помощь администратору (2026-11-02)
 
 - Прямое «Делай»: название товара не менять, назначать классификационный тег; админ-инструмент сложных случаев.
 - Один исполнитель Codex, база `0f97936`, tracked diff пуст, чужие untracked сохранены.
@@ -28,7 +28,12 @@
   Реальная Qwen3-VL на временном auth/API/UI контуре: RAM, microphone→audio (.95),
   bare SKU→review; manual lock/названия/цены сохранены, fixture-аккаунты удалены.
 - Версия 6.16.0, флаг CATALOG_CLASSIFICATION_ENABLED включён только в stand compose.
-- Следующий шаг: финальная regression, commit/bundle, sanitized backup и стенд.
+- Стенд f4cafdd7a, v6.16.0, healthy; bundle без push/main; runtime hashes совпали.
+  Очищенная recovery copy before-classification-tags-6160-sanitized.db, quick_check OK, descriptions 0.
+  Реальный worker: RAM→ram .98; микрофон SSD→audio .95; bare SKU→review без автоприменения.
+  Названия/signatures трёх карточек сохранились, bad_projection 0. Первоначальная очередь ещё обрабатывается.
+- Следующий шаг: продуктовая проверка владельцем /admin#classificationTool на стенде.
+  Отчёт: [FEATURE_2026-11-02_CLASSIFICATION_TAGS_CODEX.md](FEATURE_2026-11-02_CLASSIFICATION_TAGS_CODEX.md).
   Live admin workflow — изолированный временный контур с настоящей auth/SQLite/локальной моделью
   на машине стенда; основной стенд — запуск фоновой очереди/проверка меток и неизменности названий.
   Не выдавать fixture-аккаунт за настоящий вход владельца в основной admin UI.
