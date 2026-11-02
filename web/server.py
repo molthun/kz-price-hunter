@@ -4946,6 +4946,39 @@ async def admin_ai_models_handler(request):
                              dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
 
 
+service_monitor_ai_limiter = RateLimiter(max_calls=6, period=60)
+
+
+def _service_monitor_arguments():
+    from queue_service import product_queue
+    from telemetry import telemetry
+    settings = load_settings()
+    thread = getattr(telemetry, '_thread', None)
+    runtime = {'worker_running': product_queue.is_worker_running,
+               'telemetry_flusher_alive': bool(thread and thread.is_alive())}
+    return (_monitoring_registry(), enabled_shop_keys(settings), dict(scan_state),
+            get_wave_interval_seconds(settings), runtime)
+
+
+@routes.get('/api/admin/service-overview')
+@require_admin
+async def service_overview_handler(request):
+    import service_monitor
+    data = await asyncio.to_thread(service_monitor.snapshot, *_service_monitor_arguments())
+    return web.json_response(data)
+
+
+@routes.post('/api/admin/service-overview/explain')
+@require_admin
+async def service_overview_explain_handler(request):
+    import service_monitor
+    if service_monitor_ai_limiter.retry_after('service-overview'):
+        return web.json_response({'error': 'Подождите минуту перед повторным разбором.'}, status=429)
+    data = await asyncio.to_thread(service_monitor.snapshot, *_service_monitor_arguments())
+    diagnosis = await service_monitor.explain(data)
+    return web.json_response({'snapshot': data, 'diagnosis': diagnosis})
+
+
 telegram_admin_check_limiter = RateLimiter(max_calls=3, period=60)
 telegram_admin_ai_limiter = RateLimiter(max_calls=6, period=60)
 

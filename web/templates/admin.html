@@ -188,7 +188,18 @@
     .scan-period {display:flex;gap:8px;max-width:360px;margin:8px 0;}
     .scan-period input {width:42%;}
     .scan-period select {width:58%;}
-    #scanningTool button, #telegramTool button {min-height:44px;}
+    #scanningTool button, #telegramTool button, #monitoringTool button {min-height:44px;}
+    .service-sections {display:grid;gap:12px;margin:16px 0;}
+    .service-block {border:1px solid var(--border);border-radius:12px;padding:14px;min-width:0;}
+    .service-block h3 {margin:0 0 8px;}
+    .service-block p {margin:6px 0;overflow-wrap:anywhere;}
+    .service-shops {max-height:340px;overflow:auto;margin:12px 0 0;padding-left:20px;}
+    .service-shops li {padding:5px 0;overflow-wrap:anywhere;}
+    .service-actions li {padding:8px 0;overflow-wrap:anywhere;}
+    .service-actions a {font-weight:600;}
+    #serviceSections [data-status="offline"], #serviceSections [data-status="degraded"] {border-left:4px solid #dc3545;}
+    #serviceSections [data-status="limited"] {border-left:4px solid #be8600;}
+    @media(min-width:800px){.service-sections {grid-template-columns:repeat(2,minmax(0,1fr));}}
     #scanSettingsSearch {margin:6px 0 12px;}
     .scan-shops {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:340px;overflow-y:auto;padding:4px;}
     .scan-shop-row {display:flex;align-items:center;gap:10px;min-height:48px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:.85rem;overflow-wrap:anywhere;}
@@ -212,6 +223,7 @@
         <a href="#systemTool">ИИ и модели</a>
         <a href="#scanningTool">Сбор цен</a>
         <a href="#telegramTool">Telegram и уведомления</a>
+        <a href="#monitoringTool">Состояние сервиса</a>
       </nav>
       <div class="admin-content">
     <section class="card admin-panel" id="classificationTool">
@@ -313,6 +325,19 @@
       <div id="usersList"></div>
       <div class="state" id="usersState" role="status">Загрузка…</div>
     </section>
+    <section class="card admin-panel" id="monitoringTool">
+      <h2>Состояние сервиса</h2>
+      <p class="user-meta">Снимок сборщиков, очередей и локальной модели. История за сутки не является проверкой доступности прямо сейчас.</p>
+      <div class="user-actions"><button type="button" id="serviceRefresh">Обновить состояние</button><button type="button" id="serviceExplain">Разобрать локальным ИИ</button></div>
+      <div class="state" id="serviceState" role="status">Состояние ещё не загружено.</div>
+      <p class="user-meta" id="serviceAt"></p>
+      <div id="serviceSections" class="service-sections"></div>
+      <h3>На что обратить внимание</h3>
+      <p class="user-meta" id="serviceAiState" role="status"></p>
+      <ol id="serviceActions" class="service-actions"></ol>
+      <details class="workflow-help"><summary>Как читать показатели</summary><p>«Нет данных» означает отсутствие наблюдений или ошибку чтения, а не исправность. Наличие задач в очереди само по себе не означает зависание. Счётчики доставки относятся к сохранённой очереди. Показатели локального ИИ относятся к вызовам за 24 часа; проверка подключения находится в разделе «ИИ и модели».</p></details>
+      <div class="settings-links"><a href="/monitoring">Подробный мониторинг ↗<span>История обходов, конкретные источники, журнал событий и очередь.</span></a></div>
+    </section>
     <section class="card admin-panel" id="telegramTool">
       <h2>Telegram и уведомления</h2>
       <p class="user-meta">Подключение бота, приём команд и доставка — отдельные проверки. Токен хранится на сервере и здесь не меняется.</p>
@@ -385,7 +410,7 @@
         <a href="/dashboard?tab=settings#sec-admin-ai">Модели и лимиты ИИ ↗<span>Платные провайдеры и дополнительные ограничения использования.</span></a>
         <a href="#scanningTool">Сбор цен и расписание →<span>Параметры обхода магазинов, категории и волны сбора.</span></a>
         <a href="#telegramTool">Telegram и уведомления →<span>Состояние подключения бота и служебные уведомления.</span></a>
-        <a href="/monitoring">Состояние сервиса ↗<span>Очереди, ошибки, сбор данных и диагностика.</span></a>
+        <a href="#monitoringTool">Состояние сервиса →<span>Очереди, ошибки, сбор данных и диагностика.</span></a>
       </div>
       <details class="workflow-help"><summary>Какая задача у каждого помощника</summary><p><strong>Поиск</strong> разбирает запрос пользователя.<br><strong>Разбор товаров</strong> проверяет раздел по названию и характеристикам.<br><strong>Расширение ассортимента</strong> обрабатывает запросы без подходящих предложений.<br><strong>Сведения источника</strong> постепенно добавляют характеристики и фото; ручные метки сохраняются.</p></details>
     </section>
@@ -401,6 +426,7 @@
       if(selected.id==='classificationTool'&&typeof loadClassification==='function')loadClassification();
       if(selected.id==='catalogExpansionTool'&&typeof loadExpansions==='function')loadExpansions();
       if(selected.id==='systemTool'&&typeof loadLocalConnection==='function'&&!localConnectionLoaded)loadLocalConnection();
+      if(selected.id==='monitoringTool'&&typeof loadServiceOverview==='function'&&!serviceLoaded)loadServiceOverview();
       if(selected.id==='telegramTool'&&typeof loadTelegramSettings==='function'&&!tgLoaded)loadTelegramSettings();
       if(selected.id==='scanningTool'&&typeof loadScanSettings==='function'&&!scanSettingsLoaded)loadScanSettings();
     }
@@ -1070,6 +1096,49 @@
   };
   tgEl('Reload').onclick=loadTelegramSettings;tgEl('Refresh').onclick=refreshTelegram;tgEl('Explain').onclick=explainTelegram;
   if(!document.getElementById('telegramTool').hidden)loadTelegramSettings();
+</script>
+<script>
+  let serviceLoaded=false,serviceSerial=0,serviceAiBusy=false,serviceAt=null;
+  const serviceEl=id=>document.getElementById('service'+id);
+  const serviceStatuses={offline:'Недоступен',degraded:'Есть проблемы',limited:'Требует внимания',unknown:'Нет подтверждения',healthy:'По наблюдениям в порядке',disabled:'Выключено или на паузе'};
+  const serviceNames={shops:'Магазины и источники',queue:'Сохранение товаров',scanning:'Сбор цен',local:'Локальная модель',notifications:'Очередь уведомлений',events:'События сервиса'};
+  const serviceDate=at=>at?new Date(at).toLocaleString('ru-RU'):'не зафиксировано';
+  function serviceText(parent,text){const p=document.createElement('p');p.className='user-meta';p.textContent=text;parent.append(p);}
+  function serviceRender(data){
+    serviceLoaded=true;serviceAt=data.generated_at;serviceEl('At').textContent='Снимок: '+serviceDate(data.generated_at)+' · Окно истории: '+data.window_hours+' ч';
+    serviceEl('State').textContent='Общая оценка: '+(serviceStatuses[data.status]||'Нет данных');serviceEl('Sections').replaceChildren();
+    for(const [key,s] of Object.entries(data.sections)){
+      const block=document.createElement('div');block.className='service-block';block.dataset.status=s.status;const title=document.createElement('h3');title.textContent=serviceNames[key]||key;block.append(title);serviceText(block,serviceStatuses[s.status]||'Нет данных');
+      if(!s.available){serviceText(block,'Не удалось прочитать показатели этого блока. Остальные блоки доступны.');serviceEl('Sections').append(block);continue;}
+      if(key==='shops'){
+        serviceText(block,'Проблемы: '+((s.counts.offline||0)+(s.counts.degraded||0)+(s.counts.limited||0))+' · Нет данных: '+(s.counts.unknown||0)+' · Выключены: '+(s.counts.disabled||0));
+        const list=document.createElement('ul');list.className='service-shops';
+        for(const shop of s.items){const row=document.createElement('li');row.textContent=shop.name+' — '+(serviceStatuses[shop.status]||'Нет данных')+' · Полный обход: '+serviceDate(shop.last_success_at)+' · Товаров в последнем обходе: '+(shop.last_items??'нет данных')+' · Проблемных категорий: '+(shop.categories_problem??'нет данных');list.append(row);}block.append(list);
+      }else if(key==='queue')serviceText(block,'Ожидают: '+s.counts.pending+' · Обрабатываются: '+s.counts.processing+' · Отклонены: '+s.counts.rejected+' · Исчерпаны попытки: '+s.counts.dead_letter+' · Обработчик: '+(s.worker_running===true?'работает':s.worker_running===false?'остановлен':'нет данных'));
+      else if(key==='scanning'){serviceText(block,s.runtime.is_running?'Сбор выполняется: '+s.runtime.current_shop+' · '+s.runtime.current_category+' · '+Math.round(s.runtime.progress_pct)+'%':'Сбор сейчас не выполняется.');serviceText(block,'Последнее завершение: '+serviceDate(s.last_scan?.timestamp)+(s.last_scan?.outcome?' · Результат: '+s.last_scan.outcome:''));}
+      else if(key==='local'){serviceText(block,'Подключение: '+(s.configured?'настроено':'не готово')+' · Пауза: '+(s.paused?'да':'нет')+' · Вызовов за сутки: '+s.calls_24h+' · Ошибок: '+s.errors_24h);serviceText(block,'Последний вызов: '+serviceDate(s.last_call_at)+' · Свежая проверка видеокарты: '+(s.gpu_fresh?'есть':'нет')+'. Доступность модели прямо сейчас не проверялась.');}
+      else if(key==='notifications')serviceText(block,'Ожидают: '+(s.counts.pending||0)+' · Доставлены: '+(s.counts.sent||0)+' · Ошибки: '+(s.counts.failed||0)+'. Только сохранённая очередь, без отправки сообщений.');
+      else if(key==='events'){serviceText(block,'Событий за сутки: '+s.events_24h+' · Системных ошибок: '+s.errors_24h+' · Телеметрия: '+(s.enabled?'включена':'выключена')+' · Запись: '+(s.flusher_alive===true?'работает':s.flusher_alive===false?'не работает':'нет данных'));serviceText(block,'Последняя запись: '+serviceDate(s.last_event_at));}
+      serviceEl('Sections').append(block);
+    }
+  }
+  async function serviceResponse(response){const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Не удалось загрузить состояние сервиса.');return data;}
+  async function loadServiceOverview(){
+    const serial=++serviceSerial;serviceEl('Refresh').disabled=true;serviceEl('State').textContent='Обновляем состояние…';serviceEl('AiState').textContent='Предыдущий разбор сброшен.';serviceEl('Actions').replaceChildren();
+    try{const d=await serviceResponse(await fetch('/api/admin/service-overview',{cache:'no-store'}));if(serial!==serviceSerial)return;serviceRender(d);if(!serviceAiBusy)explainServiceOverview();else serviceEl('AiState').textContent='Состояние обновлено. Повторите разбор после завершения предыдущего запроса.';}
+    catch(e){if(serial!==serviceSerial)return;serviceAt=null;serviceEl('Sections').replaceChildren();serviceEl('At').textContent='Свежий снимок недоступен.';serviceEl('State').textContent=e.message;}
+    finally{if(serial===serviceSerial)serviceEl('Refresh').disabled=false;}
+  }
+  async function explainServiceOverview(){
+    if(serviceAiBusy||!serviceLoaded)return;const serial=++serviceSerial;serviceAiBusy=true;serviceEl('Explain').disabled=true;serviceEl('AiState').textContent='Локальный ИИ разбирает подтверждённые проблемы…';serviceEl('Actions').replaceChildren();
+    try{const d=await serviceResponse(await fetch('/api/admin/service-overview/explain',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}));if(serial!==serviceSerial)return;serviceRender(d.snapshot);serviceEl('AiState').textContent=d.diagnosis.note;
+      for(const action of d.diagnosis.actions||[]){const li=document.createElement('li'),a=document.createElement('a'),p=document.createElement('p');a.textContent=action.title;a.href=action.href;p.textContent=action.text;li.append(a,p);serviceEl('Actions').append(li);}}
+    catch(e){if(serial===serviceSerial)serviceEl('AiState').textContent=e.message;}
+    finally{serviceAiBusy=false;serviceEl('Explain').disabled=false;serviceEl('Refresh').disabled=false;}
+  }
+  serviceEl('Refresh').onclick=loadServiceOverview;serviceEl('Explain').onclick=explainServiceOverview;
+  if(!document.getElementById('monitoringTool').hidden)loadServiceOverview();
+  setInterval(()=>{if(serviceAt&&Date.now()-Date.parse(serviceAt)>120000&&!document.getElementById('monitoringTool').hidden)serviceEl('At').textContent='Снимок от '+serviceDate(serviceAt)+' устарел. Обновите состояние.';},15000);
 </script>
 </body>
 </html>

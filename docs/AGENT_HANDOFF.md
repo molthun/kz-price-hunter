@@ -2,6 +2,28 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## READY_FOR_STAND → Codex: мониторинг в новой админке, этап 4 (2026-11-02)
+
+- Прямое поручение владельца «Дальше», после Telegram: обзор сервиса + local-only помощник.
+- База 512cb33, tracked чист, Codex один; чужие untracked сохраняются.
+- Область: read-only monitoring helper/API/admin panel, existing links, local-only prioritization,
+  tests/version/docs. Повторно использовать действующие статусы источников и очередь, не менять scheduler.
+- Нет данных/ошибка чтения = неизвестно/недоступно, не нули и не зелёный статус.
+  Локальной модели только обезличенные подтверждённые признаки; без paid fallback/автоисправлений.
+- Временные settings/БД; stand-only bundle, без main push/production, реальных сохранений/сообщений.
+- Реализован /admin#monitoringTool, admin GET /api/admin/service-overview и POST /explain.
+  Шесть изолированных read-only блоков; source quality/spool, flags процесса, история local-only calls24h.
+  Неизвестные счётчики/null, stale snapshot120s, ошибки чтения не обнуляются. Существующий /monitoring сохранён.
+- Local-only модель приоритизирует подтверждённые коды; фиксированные текст/ссылки, пауза/слот,
+  RAM cache120s, no paid fallback/autofix; снимок и диагноз возвращаются вместе, stale AI отбрасывается.
+- Полный2660 PASS +1120 subtests; конечный профильный52 PASS; новая UI4/4,
+  navigation4/4/Telegram4/4, обе темы/390/1366; compile/diff-check/secrets0 PASS.
+- Отчёт FEATURE_2026-11-02_SERVICE_MONITOR_CODEX.md. Следующий шаг: bundle от944a547,
+  stand build/recreate → runtime/guest/settings SHA → read-only real snapshot и local diagnosis.
+  Реальный owner UI/независимая приёмка отдельно, реальные настройки не сохранять.
+
+---
+
 ## STAND_DEPLOYED → Владелец: Telegram и уведомления, этап 3 (2026-11-02)
 
 - Прямое поручение владельца: делать следующий этап; локальный ИИ использовать в новых сценариях.
