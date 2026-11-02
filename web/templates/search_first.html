@@ -1031,6 +1031,12 @@
       display: none;
     }
 
+    .detail-photo-thumbs {display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+    .detail-photo-thumbs button {width:64px;height:64px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-card);padding:4px;cursor:pointer;}
+    .detail-photo-thumbs button[aria-pressed=true] {border:2px solid var(--primary);}
+    .detail-photo-thumbs img {width:100%;height:100%;object-fit:contain;}
+    #detailSourceLinks a {display:inline-block;margin:8px 12px 8px 0;color:var(--primary);overflow-wrap:anywhere;}
+    .deal-evidence {font-size:.85rem;line-height:1.4;color:var(--text-muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;margin:8px 0;}
     .detail-description {
       font-size: 0.92rem;
       line-height: 1.55;
@@ -4269,6 +4275,8 @@
           <div class="detail-img-box">
             <img id="detailMainImg" alt="" class="detail-img" onerror="this.src=getSvgPlaceholder()" />
           </div>
+          <div id="detailPhotoThumbs" class="detail-photo-thumbs" aria-label="Фотографии товара"></div>
+          <p id="detailPhotoStatus" class="user-meta" role="status"></p>
           <div class="detail-actions-row">
             <button class="btn-secondary-action" id="detailFavBtn" onclick="toggleDetailFavorite()">
               <span id="detailFavIcon">♡</span> <span id="detailFavText">В избранное</span>
@@ -4325,6 +4333,8 @@
       <!-- Price History Section -->
       <div class="offers-section" id="detailDescriptionSection" style="margin-top: 24px;" hidden>
         <h2 class="offers-title">Описание</h2>
+        <p id="detailSourceStatus" class="user-meta" role="status"></p>
+        <div id="detailSourceLinks"></div>
         <div class="detail-description" id="detailDescription"></div>
         <button type="button" class="filter-show-more" id="detailDescriptionMore" onclick="toggleDetailDescription()" hidden>Показать полностью</button>
       </div>
@@ -6901,7 +6911,7 @@
 
       // Main info
       document.getElementById('detailProductTitle').textContent = prod.title || 'Товар';
-      document.getElementById('detailMainImg').src = prod.image_url || getSvgPlaceholder(prod.title);
+      renderSourceGallery(prod.image_url?[prod.image_url]:[]);
 
       // Best price
       const bestPrice = data.min_price;
@@ -6946,9 +6956,11 @@
 
       renderHistory(data.history, offers);
 
-      renderDetailDescription(prod.description);
-
+      renderDetailDescription(prod.description || 'Загружаем описание и характеристики со страницы магазина…');
+      document.getElementById('detailSourceStatus').textContent='';
+      document.getElementById('detailSourceLinks').replaceChildren();
       detailProductData = data;
+      loadSourceDetails(prod.id);
       detailSelectedOptions = {};
       const params = new URLSearchParams(location.search);
       (data.options || []).filter(opt => !opt.navigates).forEach(opt => {
@@ -6956,6 +6968,41 @@
         if (opt.values.some(v => v.value === wanted)) detailSelectedOptions[opt.id] = wanted;
       });
       applyDetailOptions();
+    }
+
+    function renderSourceGallery(images){
+      const box=document.getElementById('detailPhotoThumbs');box.replaceChildren();
+      const unique=[...new Set(images.map(safeHttpUrl).filter(Boolean))].slice(0,12);
+      const status=()=>{const n=box.children.length;document.getElementById('detailPhotoStatus').textContent=n>=2?n+' фото':n===1?'У источника пока доступно одно фото':'Фото пока не получены';};
+      document.getElementById('detailMainImg').src=unique[0]||getSvgPlaceholder();
+      unique.forEach((url,i)=>{
+        const button=document.createElement('button');button.type='button';button.setAttribute('aria-label','Фото '+(i+1));button.setAttribute('aria-pressed',String(i===0));
+        const img=document.createElement('img');img.src=url;img.alt='Фото '+(i+1);img.loading='lazy';
+        img.onerror=()=>{button.remove();status();};button.append(img);
+        button.onclick=()=>{document.getElementById('detailMainImg').src=url;box.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));};box.append(button);
+      });status();
+    }
+    function renderSourceFacts(facts){
+      if(!facts.length)return;
+      const box=document.getElementById('detailAttributesList');box.replaceChildren();
+      facts.forEach(f=>{const row=document.createElement('div');row.className='attr-item';
+        const k=document.createElement('span');k.className='attr-key';k.textContent=f.name;
+        const v=document.createElement('span');v.className='attr-val';v.textContent=f.value;
+        row.append(k,v);box.append(row);
+      });
+    }
+    async function loadSourceDetails(id){
+      try{
+        const res=await fetch('/api/v2/products/'+encodeURIComponent(id)+'/details',{headers:{'X-KZPH-Request':'1'}});
+        if(!res.ok)throw Error('details');const evidence=await res.json();
+        if(!detailProductData||detailProductData.product.id!==id)return;
+        renderSourceFacts(evidence.facts||[]);
+        renderSourceGallery((evidence.images||[]).length?evidence.images:[detailProductData.product.image_url].filter(Boolean));
+        renderDetailDescription(evidence.description||evidence.summary||'Описание пока не получено от магазина. Уточните сведения на странице источника.');
+        document.getElementById('detailSourceStatus').textContent=evidence.status==='ready'?'Сведения со страницы магазина':'Сведения пока не подтверждены источником';
+        const box=document.getElementById('detailSourceLinks');box.replaceChildren();
+        (evidence.sources||[]).forEach(source=>{const url=safeHttpUrl(source.url);if(!url)return;const a=document.createElement('a');a.textContent='Источник: '+source.name+' ↗';a.href=url;a.target='_blank';a.rel='noopener noreferrer';box.append(a);});
+      }catch(e){if(detailProductData&&detailProductData.product.id===id)renderDetailDescription('Не удалось загрузить описание. Характеристики можно уточнить на странице продавца.');}
     }
 
     function renderDetailDescription(text) {
@@ -7482,6 +7529,7 @@
                 ${escapeHtml(deal.title)}
               </h2>
 
+              <p class="deal-evidence" data-evidence-id="${escapeHtml(deal.canonical_product_id||'')}">Загружаем сведения о товаре…</p>
               <div class="deal-reel-price-row">
                 <span class="deal-price-current">${formatPrice(deal.new_price)}</span>
                 ${oldPriceHtml}
@@ -7543,6 +7591,23 @@
           </div>
         `;
       }).join('');
+      observeDealEvidence();
+    }
+    let dealEvidenceObserver;
+    function observeDealEvidence(){
+      if(dealEvidenceObserver)dealEvidenceObserver.disconnect();
+      dealEvidenceObserver=new IntersectionObserver(entries=>{
+        entries.forEach(async entry=>{
+          if(!entry.isIntersecting)return;const el=entry.target;dealEvidenceObserver.unobserve(el);
+          const id=el.dataset.evidenceId;
+          if(!id){el.textContent='Подробнее о товаре — на странице продавца.';return;}
+          try{const res=await fetch('/api/v2/products/'+encodeURIComponent(id)+'/details',{headers:{'X-KZPH-Request':'1'}});
+            if(!res.ok)throw Error('details');const evidence=await res.json();
+            el.textContent=(evidence.summary||evidence.description||'Описание пока не получено от магазина.').slice(0,300);
+          }catch(e){el.textContent='Подробнее о товаре — на странице продавца.';}
+        });
+      },{rootMargin:'0px',threshold:0.1});
+      document.querySelectorAll('.deal-evidence').forEach(el=>dealEvidenceObserver.observe(el));
     }
 
     // В разметке только индекс: данные каталога не попадают в код обработчиков (CA-01)

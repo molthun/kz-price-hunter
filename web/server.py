@@ -1481,6 +1481,21 @@ def _run_search_v2_sync(
         conn.close()
 
 
+@routes.get("/api/v2/products/{product_id}/details")
+async def product_source_details_handler(request):
+    if not browser_read_action_allowed(request):
+        return web.json_response({"error":"Откройте сведения на сайте"}, status=403)
+    import product_evidence
+    from database import get_connection
+    if not product_evidence.enabled():
+        return web.json_response({'status':'disabled','facts':[],'images':[],'description':'','summary':''})
+    result=await product_evidence.enrich(get_connection,request.match_info['product_id'],live_description=True)
+    if result is None:
+        return web.json_response({'status':'unavailable','facts':[],'images':[],'description':'','summary':''})
+    # RAM-only source prose is never written to SQLite/logs.
+    return web.json_response(result)
+
+
 @routes.get("/api/v2/products/{product_id}")
 async def product_detail_v2_handler(request):
     """Каноническая карточка товара 2.0 с предложениями продавцов и историей цен (KZPH-G1-01)."""
@@ -3462,6 +3477,12 @@ async def family_refresh_background_worker(app):
             await asyncio.sleep(600.0)
 
 
+async def product_evidence_background_worker():
+    from product_evidence import worker
+    from database import get_connection
+    await worker(get_connection)
+
+
 async def category_ai_sort_background_worker(app):
     """Фоновая сортировка каталога локальной моделью; без CATALOG_AI_SORT_ENABLED=1 не работает."""
     import catalog_ai_sort
@@ -5261,6 +5282,7 @@ async def background_tasks(app):
         asyncio.create_task(ai_normalize_background_worker(app)),
         asyncio.create_task(disputed_pairs_background_worker(app)),
         asyncio.create_task(category_ai_sort_background_worker(app)),
+        asyncio.create_task(product_evidence_background_worker()),
         asyncio.create_task(family_refresh_background_worker(app)),
         asyncio.create_task(freshness_reaper_background_worker(app)),
         asyncio.create_task(notification_worker()),

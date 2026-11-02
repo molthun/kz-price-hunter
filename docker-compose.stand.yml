@@ -30,6 +30,7 @@ services:
       # Только стенд: фоновая сортировка каталога локальной моделью
       - CATALOG_AI_SORT_ENABLED=1
       - CATALOG_CLASSIFICATION_ENABLED=1
+      - PRODUCT_ENRICHMENT_ENABLED=1
       - LOCAL_SEARCH_ENABLED=1
 
     ports:

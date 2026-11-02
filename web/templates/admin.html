@@ -185,7 +185,7 @@
     <dialog id="classificationDialog" aria-labelledby="classificationTitle">
       <h2>Метка классификации</h2><h3 id="classificationTitle" style="overflow-wrap:anywhere"></h3>
       <p class="user-meta">Название показано без изменений. Действия ниже меняют только метку раздела.</p>
-      <div id="classificationCurrent" class="user-meta"></div><div id="classificationSources" class="classification-sources"></div>
+      <div id="classificationCurrent" class="user-meta"></div><div id="classificationSources" class="classification-sources"></div><div id="classificationFacts" class="classification-suggestion"></div>
       <div id="classificationSuggestion" class="classification-suggestion"></div>
       <label class="form-label">Раздел каталога<select id="classificationCategory"></select></label>
       <label class="form-label">Комментарий к решению<input id="classificationNote" maxlength="240"></label>
@@ -654,8 +654,8 @@
         document.getElementById('classificationError').textContent='Карточка или метка изменились. Нажмите «Обновить данные» перед решением.';
         classificationStale=true;document.querySelectorAll('[data-classification-action]').forEach(b=>b.disabled=true);return;
       }
-      classificationItem={...classificationItem,job:fresh.job,history:fresh.history,sources:fresh.sources};
-      classificationShowSources(classificationItem);
+      classificationItem={...classificationItem,job:fresh.job,history:fresh.history,sources:fresh.sources,evidence:fresh.evidence};
+      classificationShowSources(classificationItem);classificationShowFacts(classificationItem);
       classificationShowCurrent(classificationItem);classificationShowProposal(classificationItem);classificationShowHistory(classificationItem);classificationButtons();
     } catch(error) { /* Keep the current editor and its version tokens on a transient read error. */ }
   }
@@ -681,6 +681,13 @@
     const tag=item.tag,job=item.job||{};
     document.getElementById('classificationCurrent').textContent='Сейчас: '+(tag?tag.name:item.category||'без раздела')+(tag?' · '+({admin:'решение администратора',ai:'проверено локальным ИИ',rule:'явный тип по названию'}[tag.source]||tag.source):'')+(tag&&tag.locked?' · закреплено администратором':'')+' · '+(classificationNames[job.status]||job.status);
   }
+  function classificationShowFacts(item){
+    const box=document.getElementById('classificationFacts');box.replaceChildren();
+    box.append(element('h3','','Характеристики источника для ИИ'));
+    const evidence=item.evidence||{},facts=evidence.facts||[];
+    if(!facts.length)box.append(element('p','user-meta','Подтверждённые характеристики пока не получены. Можно открыть исходную страницу магазина.'));
+    facts.forEach(f=>box.append(element('div','user-meta',f.name+': '+f.value)));
+  }
   function classificationShowSources(item){
     const box=document.getElementById('classificationSources');box.replaceChildren();
     box.append(element('h3','','Исходные страницы магазинов'));
@@ -703,7 +710,7 @@
     document.getElementById('classificationTitle').textContent=item.title;
     const tag=item.tag,job=item.job||{},suggestion=job.suggestion;
     classificationShowCurrent(item);
-    classificationShowSources(item);
+    classificationShowSources(item);classificationShowFacts(item);
     classificationShowProposal(item);
     classificationOptions(document.getElementById('classificationCategory'),(suggestion&&suggestion.category_id)||(tag&&tag.category_id)||(classificationCategories.find(c=>c.name===item.category)||{}).id);
     classificationOptions(document.getElementById('classificationNewParent'),suggestion&&suggestion.proposed_parent_id);

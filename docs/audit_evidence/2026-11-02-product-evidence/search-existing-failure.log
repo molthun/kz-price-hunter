@@ -1,0 +1,13 @@
+AssertionError [ERR_ASSERTION]: 1366px/light: без city тот же результат, что и после reload
+
+'Астана' !== 'Алматы'
+
+    at scenario (/Users/molthun/Documents/kz-price-hunter/tests/frontend/test_frontend_search_first.cjs:174:9)
+    at async /Users/molthun/Documents/kz-price-hunter/tests/frontend/test_frontend_search_first.cjs:235:41 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 'Астана',
+  expected: 'Алматы',
+  operator: 'strictEqual',
+  diff: 'simple'
+}

@@ -2,6 +2,36 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## IN_PROGRESS → Codex: характеристики, описание и галерея товара (2026-11-02)
+
+- Поручение владельца: забирать характеристики источника для локального ИИ, описание в карточке/ленте,
+  несколько фото (цель >=2 при наличии у источника). База 9ad54fe, tracked чист; Codex один.
+- Область: evidence module/schema, локальный классификатор, V2 details API, карточка/лента,
+  stand compose/worker, тесты, версия/документация. Чужие untracked сохраняются.
+- Структурированные факты и ссылки на фото с provenance; чужая проза только live/RAM,
+  файлы фото/полные страницы не копировать. Название товара не переписывать.
+- Проверка совпадения товара; SSRF/rate/concurrency ограничения существующего product_details.
+  Не брать рекомендации/соседнюю комплектацию, не выдавать дубликаты за второе фото.
+- Только стенд, временные тестовые БД, без production/push main.
+- Реализованы product_evidence.py + additive evidence table (facts/hash/images/source/status),
+  SSRF-guarded enrichment 2 sources, shared 30/min + 4 concurrent, single-flight/RAM TTL,
+  worker 8s с приоритетом review. Источник проверяется по product name/SKU, capacity/color;
+  рекомендации и произвольные itemprop images не участвуют.
+- V2 details endpoint same-origin header; live description, structured facts, gallery thumbnails,
+  lazy feed summary. Admin показывает факты для ИИ. Факты в classifier prompt/истории версии;
+  ручные теги защищены, stale модельные ответы отклоняются. DDR/DIMM contradiction guard.
+- Реальный ITMag URL bare SKU: 12 фактов, 7 фото, description 148 chars (проза не сохранена).
+  Настоящая Qwen3-VL 8B с prompt category-tags-3/фактами → ram, confidence 1.0, оплаченных вызовов 0.
+- Профильные проверки 40 PASS; новый browser карточка/галерея/feed 4/4.
+  Старый search_first browser падает на ожидании Алматы вместо Астаны в city navigation;
+  проверено на неизменённом HEAD template — тот же failure, к evidence diff не относится.
+- Первый полный suite 2616 PASS + 1120 subtests; frozen full 2618 PASS + 1120 subtests, 161.71s;
+  после последнего active-category guard/API test профильный набор 41 PASS, secrets 0.
+  Следующий шаг: API/browser regressions, secrets/diff, отчёт, commit/bundle, sanitized backup и стенд.
+  Новых пользователей/сессий в основном стенде не создавать; реальный owner login не выдавать за fixture.
+
+---
+
 ## STAND_DEPLOYED → Владелец: закрытый сайт — гостю только вход (2026-11-02)
 
 - Прямое уточнение владельца: без входа не показывать навигацию и функциональность сайта.

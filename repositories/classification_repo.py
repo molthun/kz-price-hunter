@@ -7,7 +7,7 @@ from datetime import datetime,timezone
 import json
 import time
 
-SIGNATURE = "json_array(p.title,p.canonical_key,p.brand,p.model,p.item_kind)"
+SIGNATURE = "json_array(p.title,p.canonical_key,p.brand,p.model,p.item_kind,coalesce((SELECT e.facts_hash FROM product_source_evidence e WHERE e.product_id=p.id),'[]'))"
 DDL = """
 CREATE TABLE IF NOT EXISTS product_category_tags (
  product_id TEXT PRIMARY KEY REFERENCES canonical_products(id) ON DELETE CASCADE,
@@ -245,6 +245,8 @@ class ClassificationRepository:
         cur=self.conn.execute('SELECT event,old_category,category_id,model,confidence,reason,created_at FROM classification_history WHERE product_id=? ORDER BY id DESC LIMIT 20',(pid,))
         product['history']=[dict(zip([d[0] for d in cur.description],r)) for r in cur.fetchall()]
         product['sources']=self.sources(pid)
+        from product_evidence import stored
+        product['evidence']=stored(self.conn,pid)
         return product
 
     def sources(self,pid):
