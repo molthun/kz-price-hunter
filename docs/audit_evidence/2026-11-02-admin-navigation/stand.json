@@ -1,0 +1,14 @@
+{
+  "sha": "3ce3f6036dc2c596c53a1a888f4dbbd113ab92eb",
+  "health": "healthy",
+  "runtime_hashes_match": true,
+  "files": {
+    "web/templates/admin.html": "a3bc23d171f59e6e5171960e882cfa7dd91f76cbb7e53ce32ed74d9add9c4326",
+    "web/templates/index.html": "243bb16ef744123e08f928d71d1b3ed5778e2f1dfc0549f29c339c1f7fb22b1d",
+    "version.py": "f2543c457cbd627648bf0603cef2deb325e25943b00ccfc956e511d0c8b5520b"
+  },
+  "guest_gate": {
+    "/admin": "login only",
+    "/dashboard?tab=settings": "login only"
+  }
+}

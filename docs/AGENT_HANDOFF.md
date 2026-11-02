@@ -2,7 +2,7 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## IN_PROGRESS → Codex: понятная навигация управления (2026-11-02)
+## STAND_DEPLOYED → Владелец: понятная навигация управления (2026-11-02)
 
 - Поручение владельца: привести новые настройки в порядок. База b9be03d, tracked чист.
 - Codex один, чужие untracked сохранены. Область: admin UI, deep links прежних настроек,
@@ -16,7 +16,12 @@
 - Проверки: nav 4/4 (390/1366, обе темы, deep link/no mutations), classification 4/4,
   expansion 4/4, shops 1280/360 PASS; release/closed-gate Python 9 PASS, secrets 0, diff-check PASS.
   Screenshot QA mobile/desktop. Полный backend suite не повторялся: только шаблоны и версия.
-- Следующий шаг: commit/bundle, стенд, runtime hashes/guest gate. Основной owner login не использовался.
+- Стенд 3ce3f6036, v6.17.1, healthy, runtime hashes шаблонов/версии совпали.
+  /admin и /dashboard?tab=settings гостю отдают только login screen. Bundle без main push.
+  Скриншоты/логи: audit_evidence/2026-11-02-admin-navigation/.
+- Навигация/deep links проверены в браузере с подставленным API; основной owner login не использовался.
+  На стенде подтверждены runtime и guest gate. Рабочую БД/настройки и production не меняли.
+- Следующий шаг: продуктовая проверка владельцем /admin#systemTool и меню разделов.
 
 ---
 
