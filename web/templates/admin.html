@@ -150,7 +150,8 @@
       font-size: 0.92rem;
       text-decoration: none;
     }
-    .classification-sources a {color:var(--primary);display:inline-block;margin:8px 12px 8px 0;overflow-wrap:anywhere;}
+    .classification-sources a {color:var(--primary);display:inline-flex;align-items:center;min-height:44px;overflow-wrap:anywhere;}
+    .classification-source {border:1px solid var(--border);border-radius:8px;padding:10px;margin-top:8px;overflow-wrap:anywhere;}
     .classification-suggestion {padding:12px;margin:12px 0;border:1px solid var(--border);border-radius:8px;overflow-wrap:anywhere;}
     #classificationDialog label {margin-top:12px;}
     #classificationDialog select,#classificationDialog input {margin-top:5px;width:100%;}
@@ -653,7 +654,8 @@
         document.getElementById('classificationError').textContent='Карточка или метка изменились. Нажмите «Обновить данные» перед решением.';
         classificationStale=true;document.querySelectorAll('[data-classification-action]').forEach(b=>b.disabled=true);return;
       }
-      classificationItem={...classificationItem,job:fresh.job,history:fresh.history};
+      classificationItem={...classificationItem,job:fresh.job,history:fresh.history,sources:fresh.sources};
+      classificationShowSources(classificationItem);
       classificationShowCurrent(classificationItem);classificationShowProposal(classificationItem);classificationShowHistory(classificationItem);classificationButtons();
     } catch(error) { /* Keep the current editor and its version tokens on a transient read error. */ }
   }
@@ -679,17 +681,29 @@
     const tag=item.tag,job=item.job||{};
     document.getElementById('classificationCurrent').textContent='Сейчас: '+(tag?tag.name:item.category||'без раздела')+(tag?' · '+({admin:'решение администратора',ai:'проверено локальным ИИ',rule:'явный тип по названию'}[tag.source]||tag.source):'')+(tag&&tag.locked?' · закреплено администратором':'')+' · '+(classificationNames[job.status]||job.status);
   }
+  function classificationShowSources(item){
+    const box=document.getElementById('classificationSources');box.replaceChildren();
+    box.append(element('h3','','Исходные страницы магазинов'));
+    box.append(element('p','user-meta','Откройте карточку магазина, уточните тип и характеристики, затем назначьте метку ниже.'));
+    let count=0;
+    (item.sources||[]).forEach(source=>{
+      try {const url=new URL(source.url);if(!['http:','https:'].includes(url.protocol)||url.username||url.password)return;
+        const row=element('div','classification-source');
+        const link=element('a','','Открыть товар в '+(source.name||url.hostname)+' ↗');
+        link.href=url.href;link.target='_blank';link.rel='noopener noreferrer';row.append(link);
+        row.append(element('div','user-meta',url.hostname+(source.active===false?' · архивное предложение — страница могла измениться':'')));
+        if(source.section)row.append(element('div','user-meta','Раздел магазина: '+source.section));
+        box.append(row);count++;
+      }catch(e){}
+    });
+    if(!count)box.append(element('p','state','Ссылка на исходную карточку не сохранилась. Уточните источник перед назначением метки.'));
+  }
   function classificationRender(item) {
     classificationItem=item;classificationStale=false;classificationButtons();
     document.getElementById('classificationTitle').textContent=item.title;
     const tag=item.tag,job=item.job||{},suggestion=job.suggestion;
     classificationShowCurrent(item);
-    const links=document.getElementById('classificationSources');links.replaceChildren();
-    (item.sources||[]).forEach(source=>{
-      try {const url=new URL(source.url);if(!['http:','https:'].includes(url.protocol))return;
-        const link=element('a','',source.name||'Открыть источник');link.href=url.href;link.target='_blank';link.rel='noopener noreferrer';links.append(link);
-      } catch(e){}
-    });
+    classificationShowSources(item);
     classificationShowProposal(item);
     classificationOptions(document.getElementById('classificationCategory'),(suggestion&&suggestion.category_id)||(tag&&tag.category_id)||(classificationCategories.find(c=>c.name===item.category)||{}).id);
     classificationOptions(document.getElementById('classificationNewParent'),suggestion&&suggestion.proposed_parent_id);

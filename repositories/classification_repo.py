@@ -244,9 +244,34 @@ class ClassificationRepository:
         if product['tag']:product['tag']['locked']=bool(product['tag']['locked'])
         cur=self.conn.execute('SELECT event,old_category,category_id,model,confidence,reason,created_at FROM classification_history WHERE product_id=? ORDER BY id DESC LIMIT 20',(pid,))
         product['history']=[dict(zip([d[0] for d in cur.description],r)) for r in cur.fetchall()]
-        # Read only minimal source links; no source descriptions/photos are copied.
-        product['sources']=[{'name':r[0],'url':r[1]} for r in self.conn.execute('SELECT DISTINCT s.name,o.url FROM offers o JOIN sellers s ON s.id=o.seller_id WHERE o.product_id=? AND o.is_active=1 LIMIT 5',(pid,))]
+        product['sources']=self.sources(pid)
         return product
+
+    def sources(self,pid):
+        """Original product pages, including archived offers; no copied prose or photos."""
+        from urllib.parse import urlsplit
+        columns={r[1] for r in self.conn.execute('PRAGMA table_info(products)')}
+        legacy={'id','url','shop','category'}<=columns
+        extra="p.url,p.shop,p.category" if legacy else "NULL,NULL,NULL"
+        join="LEFT JOIN products p ON p.id=substr(o.id,5) AND substr(o.id,1,4)='off_'" if legacy else ""
+        rows=self.conn.execute(f"""SELECT o.url,s.name,o.is_active,o.observed_at,{extra}
+          FROM offers o LEFT JOIN sellers s ON s.id=o.seller_id {join}
+          WHERE o.product_id=? ORDER BY o.is_active DESC,o.observed_at DESC,o.id""",(pid,))
+        result=[];seen=set()
+        for url,name,active,observed,old_url,shop,section in rows:
+            # A legacy address may survive an empty/invalid V2 address.
+            for candidate in (url,old_url):
+                try:
+                    parsed=urlsplit((candidate or '').strip())
+                    if parsed.scheme.lower() not in ('http','https') or not parsed.hostname or parsed.username or parsed.password:continue
+                    address=parsed._replace(fragment='').geturl()
+                    if address not in seen:
+                        result.append(dict(name=name or shop or parsed.hostname,url=address,active=bool(active),
+                                           section=section or '',observed_at=observed,host=parsed.hostname))
+                        seen.add(address)
+                    break
+                except (TypeError,ValueError):continue
+        return result
 
     def listing(self,state='review',query='',offset=0,limit=25):
         clauses=[];params=[]

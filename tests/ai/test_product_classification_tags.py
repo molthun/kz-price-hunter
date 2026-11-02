@@ -52,6 +52,33 @@ class TagRepositoryTests(unittest.TestCase):
         self.assertEqual(self.conn.execute('SELECT price FROM offers').fetchone()[0],10000)
         self.assertEqual(tuple(self.conn.execute('SELECT model,applied FROM category_ai_verdicts').fetchone()),('classification_tag',1))
 
+    def test_source_pages_include_archived_legacy_fallback_and_deduplicate(self):
+        self.conn.execute('ALTER TABLE products ADD COLUMN url TEXT')
+        self.conn.execute("UPDATE products SET url='https://shop.example/original',category='Память магазина'")
+        self.conn.execute("UPDATE offers SET url='',is_active=0")
+        self.conn.commit()
+        with self.conn:detail=self.repo.detail('p')
+        self.assertEqual(len(detail['sources']),1)
+        source=detail['sources'][0]
+        self.assertEqual(source['url'],'https://shop.example/original')
+        self.assertFalse(source['active']);self.assertEqual(source['section'],'Память магазина')
+        self.assertEqual(source['host'],'shop.example')
+        self.conn.execute("UPDATE offers SET url='https://shop.example/original#info',is_active=1")
+        row=self.conn.execute('SELECT * FROM offers').fetchone()
+        columns=[x[1] for x in self.conn.execute('PRAGMA table_info(offers)')]
+        duplicate=dict(zip(columns,row));duplicate.update(id='off_other',external_sku='other',city='Алматы',is_active=0)
+        self.conn.execute('INSERT INTO offers VALUES('+','.join('?' for _ in columns)+')',list(duplicate.values()))
+        self.conn.commit()
+        self.assertEqual(len(self.repo.sources('p')),1)
+        self.assertTrue(self.repo.sources('p')[0]['active'])
+
+    def test_missing_or_unsafe_source_is_not_invented(self):
+        for url in ('javascript:alert(1)','https://user:password@shop.example/p','', 'https://[broken'):
+            self.conn.execute('UPDATE offers SET url=?',(url,))
+            self.assertEqual(self.repo.sources('p'),[])
+        self.conn.execute("UPDATE offers SET url='https://example.com/p',is_active=0")
+        self.assertFalse(self.repo.sources('p')[0]['active'])
+
     def test_source_change_invalidates_editor_and_preserves_manual_tag_for_review(self):
         with self.conn:item=self.repo.detail('p')
         with self.conn:self.repo.act('p',body(item),'v1')

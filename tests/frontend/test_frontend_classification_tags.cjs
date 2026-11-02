@@ -44,6 +44,16 @@ const html=fs.readFileSync(path.join(__dirname,'../../web/templates/admin.html')
   assert.equal(await page.locator('#classificationTitle').innerText(),title);
   assert.equal(await page.locator('#classificationTitle img').count(),0);
   assert.equal(await page.locator('#classificationSources a').count(),1);
+  assert.equal(await page.locator('#classificationSources a').getAttribute('href'),'https://example.com/p');
+  assert.equal(await page.locator('#classificationSources a').getAttribute('target'),'_blank');
+  assert.match(await page.locator('#classificationSources').innerText(),/Исходные страницы магазинов/);
+  item.sources=[{name:'Магазин',url:'https://example.com/p',section:'Исходный раздел',active:false}];
+  await page.evaluate(()=>classificationPollDetail());
+  await page.getByText('Раздел магазина: Исходный раздел',{exact:true}).waitFor();
+  assert.match(await page.locator('#classificationSources').innerText(),/архивное предложение/);
+  item.sources=[];await page.evaluate(()=>classificationPollDetail());
+  await page.getByText('Ссылка на исходную карточку не сохранилась. Уточните источник перед назначением метки.',{exact:true}).waitFor();
+
   await page.selectOption('#classificationCategory','ram');
   await page.locator('#classificationAssign').evaluate(button=>{button.click();button.click();});
   await page.getByText('Готово. Название товара сохранено.',{exact:true}).waitFor();
