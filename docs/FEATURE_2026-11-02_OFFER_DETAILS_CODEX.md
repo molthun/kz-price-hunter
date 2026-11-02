@@ -36,17 +36,19 @@ Forte API сопоставляется строго с external_sku objectID, н
 - Offer browser 390/1366 × обе темы: 4/4, выбор/возврат, две цены/источника, отсутствие подмены
   при отказе, запоздавший generic response, 404. Screenshot QA PASS на тестовых SVG.
 - Прежние facts/description/gallery/carousel/feed/variant browser сценарии: 4/4.
-- Secrets findings 0, diff-check PASS. Новые source данные на реальном Forte не проверялись.
+- Secrets findings 0, diff-check PASS. Реальный Forte проверен после восстановления сети, ниже.
   Оплаченные AI вызовы/Telegram send отсутствуют. Owner login на основном стенде не использовался.
 
-## Выкладка ожидает доступа
+## Стенд
 
-SSH 192.168.28.25:2222 несколько раз timeout; https://shdev.molthun.ru/api/live тоже timeout.
-Маршрут на stand IP проходит через utun9. Сетевые/VPN настройки не менялись.
-Стенд **не обновлён этой задачей**. Нельзя считать локальную проверку подтверждением на стенде.
-Подготовить git bundle от последнего подтверждённого stand SHA 1c0339acf и после восстановления
-доступа проверить remote HEAD/dirty, fast-forward/build/recreate только stand app, затем проверить
-runtime hashes, guest gate и два разных предложения одного товара с реальной загрузкой источника.
-Новых owner/fixture пользователей/сессий на основном стенде не создавать.
+После восстановления сети combined bundle выложен на стенд 0375dcc69, v6.18.1, healthy.
+Runtime hashes совпали с коммитом, guest API 403, offer page — только вход.
+Реальное предложение Forte Market за 691990 ₸: только выбранный offer, exact source URL,
+status ready, описание 385 символов, 12 характеристик, одно фото от своего источника.
+Источник отдал одно фото: второе не выдумывается и не заимствуется у другого продавца.
+Source prose в отчётах/БД не сохранялись. Два продавца одного canonical товара проверены
+в browser fixtures; второй реальный продавец и основной owner login пока не проверены.
+Реальные settings/key/production не менялись; новые owner/fixture сессии не создавались.
 
-Evidence: audit_evidence/2026-11-02-offer-details/. Проверка авторская, не независимая приёмка.
+Evidence: audit_evidence/2026-11-02-offer-details/kzph-offer-real-stand.json и runtime report
+в соседней 2026-11-02-local-settings/. Проверка авторская, не независимая приёмка.

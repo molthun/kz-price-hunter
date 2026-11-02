@@ -4219,7 +4219,7 @@ async def admin_save_categories_handler(request):
         if "wave_size" in payload:
             updates["wave_size"] = max(1, min(int(payload["wave_size"]), len(MASTER_CATEGORIES)))
 
-        saved = save_settings({**current, **updates})
+        saved = save_settings(updates)
         overview = await asyncio.to_thread(get_categories_overview)
         return web.json_response({"status": "ok", "settings": saved, "overview": overview})
     except ValueError as e:
@@ -4944,6 +4944,30 @@ async def admin_ai_models_handler(request):
     _AI_MODELS_CACHE.update({"at": _time.time(), "data": data})
     return web.json_response({"status": "ok", "cached": False, **data},
                              dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
+@routes.get('/api/admin/settings/scanning')
+@require_admin
+async def scan_settings_handler(request):
+    import scan_settings
+    result=await asyncio.to_thread(scan_settings.view)
+    result['runtime']=scan_settings.runtime(scan_state)
+    return web.json_response(result)
+
+
+@routes.post('/api/admin/settings/scanning')
+@require_admin
+async def save_scan_settings_handler(request):
+    import scan_settings,config
+    try:
+        body=await request.json()
+        result=await asyncio.to_thread(scan_settings.save,body)
+        result['runtime']=scan_settings.runtime(scan_state)
+        return web.json_response(result)
+    except config.ScanSettingsConflict as error:
+        return web.json_response({'error':str(error)},status=409)
+    except (ValueError,TypeError) as error:
+        return web.json_response({'error':str(error)},status=400)
 
 
 @routes.get('/api/admin/settings/local-ai')

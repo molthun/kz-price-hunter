@@ -184,6 +184,16 @@
     .local-settings button {min-height:44px;}
     .local-settings .state {margin-bottom:12px;}
     .local-settings .user-meta {font-weight:400;}
+    #scanSettingsFields {border:0;padding:0;margin:16px 0;min-width:0;}
+    .scan-period {display:flex;gap:8px;max-width:360px;margin:8px 0;}
+    .scan-period input {width:42%;}
+    .scan-period select {width:58%;}
+    #scanningTool button {min-height:44px;}
+    #scanSettingsSearch {margin:6px 0 12px;}
+    .scan-shops {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:340px;overflow-y:auto;padding:4px;}
+    .scan-shop-row {display:flex;align-items:center;gap:10px;min-height:48px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:.85rem;overflow-wrap:anywhere;}
+    .scan-shop-row input {width:20px;min-height:20px;height:20px;flex-shrink:0;}
+    @media(max-width:600px){.scan-shops{grid-template-columns:1fr;}}
   </style>
 </head>
 <body>
@@ -199,7 +209,8 @@
         <a href="#shopsTool">Магазины и источники</a>
         <span class="group">Сервис</span>
         <a href="#usersTool">Доступ пользователей</a>
-        <a href="#systemTool">ИИ и сбор данных</a>
+        <a href="#systemTool">ИИ и модели</a>
+        <a href="#scanningTool">Сбор цен</a>
       </nav>
       <div class="admin-content">
     <section class="card admin-panel" id="classificationTool">
@@ -301,9 +312,30 @@
       <div id="usersList"></div>
       <div class="state" id="usersState" role="status">Загрузка…</div>
     </section>
+    <section class="card admin-panel" id="scanningTool">
+      <h2>Сбор цен</h2>
+      <p>Выберите магазины с подключёнными сборщиками и период обновления. Добавление магазина в справочник само по себе не подключает сбор с его сайта.</p>
+      <div id="scanSettingsRuntime" class="state" role="status">Состояние ещё не загружено.</div>
+      <div id="scanSettingsSchedule" class="user-meta"></div>
+      <form id="scanSettingsForm">
+        <fieldset id="scanSettingsFields" disabled>
+          <label class="form-label">Период обновления<div class="scan-period"><input id="scanSettingsValue" type="number" min="1" step="1" aria-label="Число единиц периода"><select id="scanSettingsUnit" aria-label="Единица периода"><option value="1">минут</option><option value="60">часов</option><option value="1440">дней</option></select></div></label>
+          <p class="user-meta">От 5 минут до 30 дней. Для волнового обхода базовый интервал может быть короче, чтобы категории укладывались в существующий план.</p>
+          <label class="form-label">Найти магазин<input id="scanSettingsSearch" type="search" placeholder="Название магазина"></label>
+          <div class="user-actions"><button type="button" id="scanSettingsEnable">Включить показанные</button><button type="button" id="scanSettingsDisable">Выключить показанные</button></div>
+          <p class="user-meta" id="scanSettingsCount"></p>
+          <div id="scanSettingsShops" class="scan-shops"></div>
+          <div class="user-actions" style="margin-top:16px"><button type="submit" class="main">Сохранить сбор цен</button></div>
+        </fieldset>
+      </form>
+      <div id="scanSettingsResult" class="state" role="status"></div>
+      <button type="button" id="scanSettingsReload">Обновить значения</button>
+      <p class="user-meta" style="margin-top:16px">Сохранение не запускает ручной обход. Текущую проверку эта форма не останавливает. Начало следующей зависит от очереди и режима планировщика.</p>
+      <div class="settings-links"><a href="/dashboard?tab=settings#sec-admin-scan">Категории и расширенные параметры ↗<span>Hot-категории, волны и прочие параметры пока в прежней панели.</span></a><a href="/monitoring">Мониторинг сбора ↗<span>Состояние источников и подробные ошибки.</span></a></div>
+    </section>
     <section class="card admin-panel" id="systemTool">
       <h2>ИИ и сбор данных</h2>
-      <p>Подключение локальной модели настраивается здесь. Дополнительные модели, лимиты и расписание пока открываются в прежней панели.</p>
+      <p>Подключение локальной модели настраивается здесь. Дополнительные модели и лимиты пока открываются в прежней панели. Сбор цен вынесен в отдельный раздел.</p>
       <section class="local-settings" aria-labelledby="localConnectionHeading">
         <h3 id="localConnectionHeading">Локальная модель</h3>
         <p>Настройте свой сервер моделей. Пустой адрес отключает локальное подключение.</p>
@@ -325,7 +357,7 @@
       </section>
       <div class="settings-links">
         <a href="/dashboard?tab=settings#sec-admin-ai">Модели и лимиты ИИ ↗<span>Платные провайдеры и дополнительные ограничения использования.</span></a>
-        <a href="/dashboard?tab=settings#sec-admin-scan">Сбор цен и расписание ↗<span>Параметры обхода магазинов, категории и волны сбора.</span></a>
+        <a href="#scanningTool">Сбор цен и расписание →<span>Параметры обхода магазинов, категории и волны сбора.</span></a>
         <a href="/dashboard?tab=settings#sec-admin-bot">Служебный Telegram-бот ↗<span>Состояние подключения бота и служебные уведомления.</span></a>
         <a href="/monitoring">Состояние сервиса ↗<span>Очереди, ошибки, сбор данных и диагностика.</span></a>
       </div>
@@ -343,6 +375,7 @@
       if(selected.id==='classificationTool'&&typeof loadClassification==='function')loadClassification();
       if(selected.id==='catalogExpansionTool'&&typeof loadExpansions==='function')loadExpansions();
       if(selected.id==='systemTool'&&typeof loadLocalConnection==='function'&&!localConnectionLoaded)loadLocalConnection();
+      if(selected.id==='scanningTool'&&typeof loadScanSettings==='function'&&!scanSettingsLoaded)loadScanSettings();
     }
     addEventListener('hashchange',showAdminPanel);showAdminPanel();
   </script>
@@ -902,5 +935,64 @@
   },15000);
 </script>
 
+<script>
+  let scanSettingsLoaded=false,scanSettingsDirty=false,scanSettingsBusy=false,scanSettingsRevision='',scanSettingsSerial=0;
+  const scanEl=id=>document.getElementById('scanSettings'+id);
+  function scanSettingsCount(){
+    const all=[...scanEl('Shops').querySelectorAll('label')],enabled=all.filter(row=>row.querySelector('input').checked).length,visible=all.filter(row=>!row.hidden).length;
+    scanEl('Count').textContent='Включено '+enabled+' из '+all.length+' · Показано '+visible;
+  }
+  function scanSettingsFilter(){
+    const query=scanEl('Search').value.trim().toLocaleLowerCase('ru');
+    scanEl('Shops').querySelectorAll('label').forEach(row=>row.hidden=!row.textContent.toLocaleLowerCase('ru').includes(query));scanSettingsCount();
+  }
+  function scanSettingsRuntime(data){
+    const r=data.runtime||{},s=data.schedule||{};
+    scanEl('Runtime').textContent=r.is_running?'Сбор идёт: '+[r.current_shop,r.current_category].filter(Boolean).join(' · ')+' · '+Math.round(r.progress_pct||0)+'%':'Сбор сейчас не выполняется.';
+    if(r.has_error)scanEl('Runtime').textContent+=' Есть ошибка — подробности в мониторинге.';
+    scanEl('Schedule').textContent='Режим: '+(s.wave_mode==='all'?'все категории':'волны')+' · Волн: '+(s.total_waves??'нет данных')+' · Базовый интервал волн: '+(Number.isFinite(s.base_wave_interval_minutes)?s.base_wave_interval_minutes.toLocaleString('ru-RU',{maximumFractionDigits:1})+' мин':'нет данных')+(s.adaptive_stage&&s.adaptive_stage!=='off'?' · Адаптивный планировщик: '+s.adaptive_stage:'');
+  }
+  function scanSettingsRender(data){
+    if(!data.settings||!Array.isArray(data.settings.shops)||typeof data.revision!=='string')throw Error('Не удалось загрузить настройки сбора.');
+    const minutes=data.settings.scan_interval_minutes,unit=minutes%1440===0?1440:minutes%60===0?60:1;
+    scanEl('Unit').value=String(unit);scanEl('Value').value=minutes/unit;scanSettingsRevision=data.revision;
+    scanEl('Shops').replaceChildren();data.settings.shops.forEach(shop=>{
+      const row=document.createElement('label');row.className='scan-shop-row';const input=document.createElement('input');input.type='checkbox';input.dataset.shop=shop.id;input.checked=shop.enabled;
+      const text=document.createElement('span');text.textContent=shop.name;row.append(input,text);scanEl('Shops').append(row);
+    });scanSettingsLoaded=true;scanSettingsDirty=false;scanSettingsFilter();scanSettingsRuntime(data);
+  }
+  async function scanSettingsResponse(response){const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Не удалось сохранить настройки сбора.');return data;}
+  async function loadScanSettings(){
+    if(scanSettingsBusy)return;
+    if(scanSettingsDirty&&!confirm('Загрузить сохранённые значения и отменить изменения в этой форме?'))return;
+    scanSettingsBusy=true;const serial=++scanSettingsSerial;scanEl('Fields').disabled=true;scanEl('Reload').disabled=true;scanEl('Result').textContent='Загружаем настройки сбора…';
+    try{const data=await scanSettingsResponse(await fetch('/api/admin/settings/scanning',{cache:'no-store'}));if(serial!==scanSettingsSerial)return;scanSettingsRender(data);scanEl('Result').textContent='Настройки сбора загружены.';}
+    catch(error){scanEl('Result').textContent=error.message;}
+    finally{scanSettingsBusy=false;scanEl('Fields').disabled=!scanSettingsLoaded;scanEl('Reload').disabled=false;}
+  }
+  scanEl('Form').addEventListener('input',event=>{if(event.target===scanEl('Search'))return;scanSettingsDirty=true;scanSettingsCount();});
+  scanEl('Search').addEventListener('input',scanSettingsFilter);
+  for(const [id,value] of [['Enable',true],['Disable',false]])scanEl(id).onclick=()=>{
+    scanEl('Shops').querySelectorAll('label').forEach(row=>{if(!row.hidden)row.querySelector('input').checked=value;});scanSettingsDirty=true;scanSettingsCount();
+  };
+  scanEl('Form').addEventListener('submit',async event=>{
+    event.preventDefault();if(scanSettingsBusy||!scanSettingsLoaded)return;
+    const enabled_shops={};scanEl('Shops').querySelectorAll('input').forEach(input=>enabled_shops[input.dataset.shop]=input.checked);
+    if(!Object.values(enabled_shops).some(Boolean)&&!confirm('Все магазины выключены. Сохранить такой выбор?'))return;
+    const amount=Number(scanEl('Value').value),unit=Number(scanEl('Unit').value),minutes=amount*unit;
+    if(!Number.isInteger(amount)||amount<=0||!Number.isInteger(minutes)){scanEl('Result').textContent='Укажите целое положительное число единиц периода.';return;}
+    scanSettingsBusy=true;++scanSettingsSerial;scanEl('Fields').disabled=true;scanEl('Reload').disabled=true;scanEl('Result').textContent='Сохраняем сбор цен…';
+    try{const data=await scanSettingsResponse(await fetch('/api/admin/settings/scanning',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({revision:scanSettingsRevision,scan_interval_minutes:minutes,enabled_shops})}));scanSettingsRender(data);scanEl('Result').textContent='Сбор цен сохранён. Остальные настройки не менялись.';}
+    catch(error){scanEl('Result').textContent=error.message;}
+    finally{scanSettingsBusy=false;scanEl('Fields').disabled=false;scanEl('Reload').disabled=false;}
+  });
+  scanEl('Reload').onclick=loadScanSettings;
+  if(!document.getElementById('scanningTool').hidden)loadScanSettings();
+  setInterval(async()=>{
+    if(document.hidden||document.getElementById('scanningTool').hidden||scanSettingsBusy||!scanSettingsLoaded)return;
+    const serial=scanSettingsSerial;
+    try{const data=await scanSettingsResponse(await fetch('/api/admin/settings/scanning',{cache:'no-store'}));if(serial!==scanSettingsSerial||scanSettingsBusy)return;scanSettingsRuntime(data);if(data.revision!==scanSettingsRevision)scanEl('Result').textContent='Сохранённые настройки изменились. Обновите значения перед сохранением.';}catch(e){}
+  },15000);
+</script>
 </body>
 </html>

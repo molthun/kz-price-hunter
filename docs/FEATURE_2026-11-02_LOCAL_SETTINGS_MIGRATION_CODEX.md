@@ -46,12 +46,10 @@ Advanced local_normalize_enabled оставлен на прежнем месте
 
 ## Стенд
 
-SSH 192.168.28.25:2222 снова timeout, как в предыдущей задаче offer cards.
-Стенд этой работой ещё не обновлён. Конфигурация сети/VPN не менялась.
-После восстановления доступа: проверить remote HEAD/dirty, передать bundle от последнего
-подтверждённого stand 1c0339acf; сначала read-only сравнить действующие значения и не выводить ключи.
-Build/recreate только stand app, проверить runtime/guest gate и новый GET без изменения настроек.
-Проверка реального провайдера отдельно и без выдумывания успешного ответа.
-Незавершённая выкладка offer cards остаётся в очереди и должна попасть в тот же bundle.
+После восстановления сети combined bundle выложен на стенд 0375dcc69, v6.18.1.
+Healthy, runtime hashes совпали с коммитом; guest API 403, offer page показывает только вход.
+Полный settings SHA до/после совпал, ключи и реальные настройки не менялись.
+Реальная локальная Qwen qwen3-vl:8b-instruct: model_present/answered=true, 640 мс.
+Платные вызовы не выполнялись. Основной owner login/сохранение формы на реальных данных не проверены.
 
-Evidence: audit_evidence/2026-11-02-local-settings/.
+Evidence: audit_evidence/2026-11-02-local-settings/ (kzph-6181-*.json).

@@ -1,0 +1,27 @@
+{
+  "stand_sha": "0375dcc69f7fd02d41437cc94d3ac1770879fd34",
+  "healthy": true,
+  "runtime_hashes_match": true,
+  "runtime_hashes": {
+    "offer_details.py": "9e0f85b705ebc5901be919848cb4dd4e3b682e2c2212f6e50d467e3622649c51",
+    "local_ai_settings.py": "1d4ee362b1cbbeb69ce22db89d5a8addc87dba3284a56ca76c6efa4a6076b647",
+    "config.py": "7d5f85a8d027af5579e1f9bd78092df03278c7b0a3d9863123899b106e7da77e",
+    "web/server.py": "2118e6a32328374af60555d6c04c67cdce90fee79bc258f5ba2001f9b8e81d6e",
+    "web/templates/admin.html": "d90895b6918879b98c257ec08bbbf81363880245045247dcd23118d218b2cb43",
+    "web/templates/search_first.html": "a3e1765b4a56b8836965d3fd2485330f84a5d50d31e6a6e724f86511a4d51581",
+    "version.py": "2b03218cd702744ec5da12a7e598686d5752c2c663f3886d98a7fffdfd7e695d"
+  },
+  "/api/live": {
+    "status": 200
+  },
+  "/offer/off_forte_f8eabaf3-b8e0-11f1-bf3c-0603653f574b@astana": {
+    "status": 200,
+    "login_only": true
+  },
+  "/api/admin/settings/local-ai": {
+    "status": 403
+  },
+  "/api/v2/offers/off_forte_f8eabaf3-b8e0-11f1-bf3c-0603653f574b@astana": {
+    "status": 403
+  }
+}

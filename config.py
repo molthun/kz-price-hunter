@@ -848,13 +848,26 @@ def local_connection_revision(settings):
     return hashlib.sha256(json.dumps(data,ensure_ascii=False).encode()).hexdigest()
 
 
-def save_settings(new_settings, *, expected_local_revision=None):
+class ScanSettingsConflict(ValueError):
+    pass
+
+
+def scan_settings_revision(settings):
+    import hashlib
+    data={k:settings.get(k) for k in ('scan_interval_minutes','enabled_shops')}
+    return hashlib.sha256(json.dumps(data,sort_keys=True,ensure_ascii=False).encode()).hexdigest()
+
+
+def save_settings(new_settings, *, expected_local_revision=None, expected_scan_revision=None):
     """Сохраняет общие настройки. Посторонние ключи старого формата в файле сохраняются как есть.
     Чтение-изменение-запись под блокировкой: одновременные сохранения не теряют изменения."""
     with _SETTINGS_WRITE_LOCK:
         if expected_local_revision is not None:
             if expected_local_revision != local_connection_revision(load_settings()):
                 raise LocalSettingsConflict('Подключение изменилось. Обновите форму и проверьте значения.')
+        if expected_scan_revision is not None:
+            if expected_scan_revision != scan_settings_revision(load_settings()):
+                raise ScanSettingsConflict('Настройки сбора изменились. Обновите форму и проверьте выбор магазинов.')
         raw = _read_settings_file()
         raw.update(_validate_settings(new_settings))
         _write_settings_file(raw)

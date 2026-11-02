@@ -1,5 +1,10 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 02.11.2026 — перенос сбора цен, v6.18.2 (подготовка стенда)
+
+- Codex: отдельная scoped форма периода/магазинов с CAS, runtime/wave summary, legacy payload очищен.
+- Только стенд; реальные настройки/ключи не меняются. Проверки — в AGENT_HANDOFF.
+
 ## 02.11.2026 — перенос настроек, этап 1, v6.18.1 (локально)
 
 - Codex: local API/model/key + status/check в новой админке, scoped CAS save, безопасный secret workflow.

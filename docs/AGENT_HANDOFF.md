@@ -2,7 +2,30 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## READY_FOR_STAND → Codex: перенос настроек, этап 1 — локальная модель (2026-11-02)
+## READY_FOR_STAND → Codex: перенос настроек, этап 2 — сбор цен (2026-11-02)
+
+- Владелец поручил продолжать небольшими этапами, пока другие агенты недоступны.
+- База a831e4e, tracked чист; Codex один, чужие untracked сохраняются.
+- Ближайший независимый slice: scan interval/enabled shops + read-only runtime в новую админку.
+  Платные провайдеры/ключи не входят в этот slice; модель/нормализация/guarded scheduler не меняются.
+- Область: config/scoped scan helper/API, admin/legacy UI, проверки/версия/история.
+- Динамический список подключённых сборщиков; точное сохранение интервала/магазинов;
+  scoped revision под settings write lock, чужие поля не перезаписывать.
+- Реализован отдельный /admin#scanningTool: interval/search/dynamic shops/filtered bulk/runtime;
+  scoped GET/save + revision under lock, full bool-map, legacy fields/save payload удалены.
+  Категорийный handler сохраняет delta, не stale whole config. Без scheduler transitions.
+- Проверено: профильный15 PASS; полный2640 PASS +1120 subtests; browser4/4,
+  navigation4/4, local model4/4, обе темы/390/1366. Secrets0/diff-check PASS.
+  Только временные settings и browser fixtures; реальная форма ещё не сохранялась.
+- Версия6.18.2; отчёт FEATURE_2026-11-02_SCAN_SETTINGS_MIGRATION_CODEX.md.
+  Следующий точный шаг: bundle от0375dcc69, stand build/recreate, read-only settings SHA,
+  runtime hashes/guest gate. Не создавать main-stand owner/fixture сессии.
+- Предыдущие offer cards/local model выложены на стенд 0375dcc69 после восстановления сети.
+  Только временные тестовые данные, без production/main push/реальных настроек/БД.
+
+---
+
+## STAND_DEPLOYED → Владелец: перенос настроек, этап 1 — локальная модель (2026-11-02)
 
 - Владелец поручил постепенно адаптировать/переносить настройки в новую админку.
 - База b710d3c, tracked чист, Codex один, чужие untracked сохраняются.
@@ -21,16 +44,17 @@
   новый UI 4/4 и navigation/legacy deep links 4/4, обе темы/390/1366. Secrets 0/diff-check PASS.
   Все provider checks в тестах подставлены, реального вызова/проверки hardware не было.
 - Отчёт FEATURE_2026-11-02_LOCAL_SETTINGS_MIGRATION_CODEX.md, evidence 2026-11-02-local-settings.
-- Стенд НЕ обновлён: SSH/HTTPS timeout, VPN/сеть не менялись. Следующий шаг — восстановить доступ,
-  combined bundle от 1c0339acf с offer cards 6.18.0 + settings 6.18.1; build/recreate stand only,
-  read-only сравнение действующих значений/ключей по hash без вывода секретов, runtime/guest gate.
-  Не создавать main-stand owner/fixture сессии и не сохранять настройки ради smoke test.
-- Коммит 0375dcc69, /tmp/kzph-local-settings-6181.bundle (combined) создан; git bundle verify PASS.
-- Дальше миграции: платные провайдеры/лимиты → сбор/расписание → бот; каждый отдельным малым slice.
+- Сеть восстановлена: combined bundle выложен на стенд 0375dcc69, v6.18.1, healthy.
+  Runtime hashes совпали с коммитом; guest APIs 403, offer page — только вход.
+  Полный settings SHA до/после совпал, ключи/настройки не менялись.
+  Реальная локальная Qwen qwen3-vl:8b-instruct ответила за 640 мс; paid fallback не использовался.
+  Evidence: 2026-11-02-local-settings/kzph-6181-*.json.
+  Основной owner login/сохранение реальной формы не проверялись, production не менялся.
+- Следующий slice: сбор цен/магазины; платные провайдеры и бот отдельно.
 
 ---
 
-## READY_FOR_STAND → Codex: карточка конкретного предложения продавца (2026-11-02)
+## STAND_DEPLOYED → Владелец: карточка конкретного предложения продавца (2026-11-02)
 
 - Владелец: при выборе предложения открывать карточку с описанием/фото именно этого продавца.
 - База 7ab8452, tracked чист, один исполнитель Codex. Чужие untracked сохраняются.
@@ -45,13 +69,14 @@
 - Полный suite 2628 PASS +1120 subtests; после последних guards профильный набор 26 PASS.
   Offer UI 4/4 (390/1366 × обе темы), прежние gallery/facts/feed 4/4, secrets 0/diff-check PASS.
   Отчёт FEATURE_2026-11-02_OFFER_DETAILS_CODEX.md и evidence 2026-11-02-offer-details.
-- SSH 192.168.28.25:2222 и HTTPS shdev /api/live дают timeout. Route → utun9; сеть/VPN не менялись.
-  Вопрос владельцу о доступе задан. На стенд НЕ выложено, реальные источники/owner login НЕ проверены.
-- Коммит 686442eb0, bundle /tmp/kzph-offer-details-6180.bundle создан и git bundle verify PASS;
-  требует stand base 1c0339acf. Последняя повторная попытка SSH также timeout.
-- Следующий точный шаг: восстановить доступ, проверить remote SHA/dirty, передать готовый bundle,
-  build/recreate stand app; runtime hashes/guest gate + два собственных источника предложения.
-  Избранное/наблюдения остаются на канонический товар, seller-specific watch не входит в этот slice.
+- После восстановления сети выложено combined bundle на стенд 0375dcc69, v6.18.1, healthy.
+  Runtime hashes и guest gate проверены. Реальный Forte offer за 691990 ₸: selected_only=true,
+  описание 385 символов, 12 характеристик, одно собственное фото, status ready.
+  URL exact source, без сохранения source prose; evidence 2026-11-02-offer-details/kzph-offer-real-stand.json.
+  Два продавца/late responses проверены подставленным browser API; второй реальный источник
+  одного canonical товара и основной owner login не проверены. Это авторская проверка.
+- Следующий шаг: продуктовая проверка владельцем реальных предложений на стенде.
+  Избранное/наблюдения остаются на канонический товар, seller-specific watch вне scope.
 
 ---
 
