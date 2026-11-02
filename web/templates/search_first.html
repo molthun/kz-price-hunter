@@ -4289,6 +4289,7 @@
         <a href="/" class="breadcrumb-link" onclick="navigateTo(event, '/')">Главная</a>
       </nav>
 
+      <div id="offerContextBanner" class="classification-suggestion" style="margin-bottom:16px;padding:16px;border:1px solid var(--border-color);border-radius:12px;background:var(--bg-card);" hidden></div>
       <!-- Product Hero Card -->
       <div class="product-detail-hero">
         <div class="detail-gallery">
@@ -4317,7 +4318,7 @@
 
           <div class="detail-price-box">
             <div>
-              <div style="font-size:0.85rem; color:var(--text-muted);">Лучшая доступная цена:</div>
+              <div id="detailPriceLabel" style="font-size:0.85rem; color:var(--text-muted);">Лучшая доступная цена:</div>
               <div class="detail-price-val" id="detailBestPrice">—</div>
             </div>
             <div id="detailSellersCountBadge" style="font-size:0.9rem; color:var(--text-muted); font-weight:500;"></div>
@@ -4331,7 +4332,7 @@
       <!-- Offers from Merchants Table -->
       <div class="offers-section">
         <h2 class="offers-title">
-          <span>Предложения от продавцов</span>
+          <span id="offersSectionLabel">Предложения от продавцов</span>
           <span id="offersCountBadge" style="font-size:0.95rem; font-weight:400; color:var(--text-muted);"></span>
           <label class="offers-gift-toggle" id="detailGiftToggle" hidden>
             <input type="checkbox" id="detailOnlyGift" onchange="applyDetailOptions()">
@@ -5561,6 +5562,7 @@
         return;
       }
 
+      const isOffer = pathname.startsWith('/offer/');
       const isProduct = pathname.startsWith('/product/');
       const isDeals = pathname === '/deals' || pathname.startsWith('/deals');
       const isFavorites = pathname === '/favorites' || pathname.startsWith('/favorites');
@@ -5572,14 +5574,14 @@
         setCity(params.get('city'), false);
       }
 
-      if (isProduct) {
-        let prodId = pathname.replace('/product/', '').trim();
+      if (isProduct || isOffer) {
+        let prodId = pathname.replace(isOffer?'/offer/':'/product/', '').trim();
         try {
           prodId = decodeURIComponent(prodId);
         } catch (e) {}
         showView('viewDetail');
         updateNavState('search');
-        loadProductDetail(prodId);
+        loadProductDetail(prodId,isOffer);
       } else if (isDeals) {
         showView('viewDeals');
         updateNavState('deals');
@@ -6828,7 +6830,12 @@
     // -------------------------------------------------------------
     // PRODUCT DETAIL VIEW HANDLERS
     // -------------------------------------------------------------
-    async function loadProductDetail(prodId) {
+    async function loadProductDetail(prodId,offerMode=false) {
+      ++sourceDetailSerial;detailProductData=null;AppState.currentProduct=null;
+      renderSourceGallery([]);renderDetailDescription('Загружаем сведения выбранного товара…');
+      document.getElementById('detailSourceLinks').replaceChildren();
+      document.getElementById('offerContextBanner').hidden=true;
+      document.getElementById('detailFavBtn').disabled=true;document.getElementById('detailWatchBtn').disabled=true;
       const titleEl = document.getElementById('detailProductTitle');
       const bestPriceEl = document.getElementById('detailBestPrice');
       const tableBody = document.getElementById('offersTableBody');
@@ -6849,12 +6856,13 @@
       const requestId = ++AppState.productRequestId;
 
       try {
-        const url = '/api/v2/products/' + encodeURIComponent(prodId) +
+        const url = (offerMode?'/api/v2/offers/':'/api/v2/products/') + encodeURIComponent(prodId) +
           (AppState.city && AppState.city !== 'Все' ? '?city=' + encodeURIComponent(AppState.city) : '');
         const resp = await fetch(url);
         if (requestId !== AppState.productRequestId) return;
         if (resp.status === 404) {
-          titleEl.textContent = 'Товар не найден';
+          titleEl.textContent = offerMode?'Предложение больше недоступно':'Товар не найден';
+          renderDetailDescription(offerMode?'Предложение удалено или больше недоступно.':'Сведения о товаре недоступны.');
           tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:32px; color:var(--text-muted);">Товар был удален или ссылка недействительна. <br><a href="/" style="color:var(--primary); font-weight:600;" onclick="navigateTo(event, \'/\')">Вернуться на главную</a></td></tr>';
           return;
         }
@@ -6868,6 +6876,7 @@
       } catch (e) {
         if (requestId !== AppState.productRequestId) return;
         titleEl.textContent = 'Ошибка загрузки';
+        renderDetailDescription('Не удалось загрузить сведения. Повторите попытку позже.');
         tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:32px; color:var(--badge-discount);">Не удалось загрузить данные товара. Попробуйте позже.</td></tr>';
       }
     }
@@ -6946,6 +6955,16 @@
 
       document.title = (prod.title || 'Товар') + ' — купить по лучшей цене в Казахстане';
 
+      const selected=data.selected_offer,banner=document.getElementById('offerContextBanner');banner.replaceChildren();banner.hidden=!selected;
+      document.getElementById('detailFavBtn').disabled=false;document.getElementById('detailWatchBtn').disabled=false;
+      document.getElementById('detailPriceLabel').textContent=selected?'Цена этого предложения:':'Лучшая доступная цена:';
+      document.getElementById('offersSectionLabel').textContent=selected?'Предложение продавца':'Предложения от продавцов';
+      if(selected){
+        const label=document.createElement('strong');label.textContent=[selected.seller_name,selected.channel_name,selected.city].filter(Boolean).join(' · ');banner.append(label);
+        const help=document.createElement('p');help.textContent='Описание и фотографии только из этого предложения.';banner.append(help);
+        const back=document.createElement('a');back.href='/product/'+encodeURIComponent(prod.id)+'?city='+encodeURIComponent(AppState.city||'Все');back.textContent='← Все предложения этого товара';back.style.color='var(--primary)';back.onclick=e=>navigateTo(e,back.getAttribute('href'));banner.append(back);
+        document.title=(prod.title||'Товар')+' — '+selected.seller_name;
+      }
       // Breadcrumbs
       renderDetailBreadcrumbs(data);
 
@@ -6957,7 +6976,7 @@
       const bestPrice = data.min_price;
       const bestBasis = data.best_offer ? priceBasisLabel(data.best_offer) : '';
       document.getElementById('detailBestPrice').textContent = bestPrice ? formatPrice(bestPrice) + (bestBasis ? ' ' + bestBasis : '') : 'Нет в наличии';
-      document.getElementById('detailSellersCountBadge').textContent = 'Доступно у ' + sellers.length + ' ' + pluralizeSellers(sellers.length);
+      document.getElementById('detailSellersCountBadge').textContent = selected?[selected.seller_name,selected.city].filter(Boolean).join(' · '):'Доступно у ' + sellers.length + ' ' + pluralizeSellers(sellers.length);
       document.getElementById('offersCountBadge').textContent = '(' + offers.length + ' предложений)';
 
       // Badges
@@ -7000,7 +7019,7 @@
       document.getElementById('detailSourceStatus').textContent='';
       document.getElementById('detailSourceLinks').replaceChildren();
       detailProductData = data;
-      loadSourceDetails(prod.id);
+      loadSourceDetails(prod.id,data.selected_offer?data.selected_offer.id:null);
       detailSelectedOptions = {};
       const params = new URLSearchParams(location.search);
       (data.options || []).filter(opt => !opt.navigates).forEach(opt => {
@@ -7107,14 +7126,17 @@
         const box=document.getElementById('detailSourceLinks');box.replaceChildren();
         (evidence.sources||[]).forEach(source=>{const url=safeHttpUrl(source.url);if(!url)return;const a=document.createElement('a');a.textContent='Источник: '+source.name+' ↗';a.href=url;a.target='_blank';a.rel='noopener noreferrer';box.append(a);});
     }
-    async function loadSourceDetails(id){
+    let sourceDetailSerial=0;
+    async function loadSourceDetails(id,offerId=null){
+      const serial=++sourceDetailSerial;
       try{
-        const res=await fetch('/api/v2/products/'+encodeURIComponent(id)+'/details',{headers:{'X-KZPH-Request':'1'}});
+        const res=await fetch((offerId?'/api/v2/offers/'+encodeURIComponent(offerId):'/api/v2/products/'+encodeURIComponent(id))+'/details',{headers:{'X-KZPH-Request':'1'}});
         if(!res.ok)throw Error('details');const evidence=await res.json();
-        if(!detailProductData||detailProductData.product.id!==id)return;
+        if(serial!==sourceDetailSerial||!detailProductData||detailProductData.product.id!==id||(detailProductData.selected_offer?.id||null)!==offerId)return;
+        if(offerId&&evidence.source_signature!==detailProductData.source_signature)throw Error('changed');
         detailProductData.source_evidence=evidence;
         applyDetailOptions();
-      }catch(e){if(detailProductData&&detailProductData.product.id===id)renderDetailDescription('Не удалось загрузить описание. Характеристики можно уточнить на странице продавца.');}
+      }catch(e){if(serial===sourceDetailSerial&&detailProductData&&detailProductData.product.id===id)renderDetailDescription(e.message==='changed'?'Предложение изменилось. Обновите карточку.':'Не удалось загрузить описание. Характеристики можно уточнить на странице продавца.');}
     }
 
     function renderDetailDescription(text) {
@@ -7214,7 +7236,7 @@
       }
       document.getElementById('offersCountBadge').textContent = '(' + offers.length + ' предложений)';
       const sellerCount = new Set(offers.map(off => off.seller_id)).size;
-      document.getElementById('detailSellersCountBadge').textContent = 'Доступно у ' + sellerCount + ' ' + pluralizeSellers(sellerCount);
+      document.getElementById('detailSellersCountBadge').textContent = data.selected_offer?[data.selected_offer.seller_name,data.selected_offer.city].filter(Boolean).join(' · '):'Доступно у ' + sellerCount + ' ' + pluralizeSellers(sellerCount);
       renderOffersTable(offers);
     }
 
@@ -7247,7 +7269,10 @@
         }
 
         let buyButtonHtml = '';
-        if (canBuy) {
+        const ownContext=!!(detailProductData&&detailProductData.selected_offer);
+        if(!ownContext && off.id){
+          buyButtonHtml=`<a href="/offer/${escapeHtml(encodeURIComponent(off.id))}" class="btn-to-seller" onclick="navigateTo(event,this.getAttribute('href'))"><span>Выбрать предложение</span></a>`;
+        } else if (canBuy) {
           buyButtonHtml = `<a href="${escapeHtml(off.url)}" target="_blank" rel="noopener noreferrer" class="btn-to-seller">
             <span>К продавцу</span> <span>↗</span>
           </a>`;
@@ -7262,7 +7287,7 @@
           <tr${hasGift ? ' class="offer-row-gift"' : ''}>
             <td>
               <div class="seller-cell-title">
-                <span>${escapeHtml(off.seller_name || 'Магазин')}</span>
+                <a href="/offer/${escapeHtml(encodeURIComponent(off.id))}" onclick="navigateTo(event,this.getAttribute('href'))" style="color:inherit;">${escapeHtml(off.seller_name || 'Магазин')}</a>
                 <span class="channel-badge">${escapeHtml(off.channel_name || off.channel_type || 'Web')}</span>
               </div>
               ${off.gift !== null && off.gift !== undefined ? '<div class="offer-gift" title="Подарок от магазина">🎁 ' + escapeHtml(off.gift ? 'Подарок: ' + off.gift : 'С подарком') + '</div>' : ''}

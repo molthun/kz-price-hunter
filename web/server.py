@@ -264,6 +264,10 @@ async def search_page_handler(request):
     """Страница поисковой выдачи с фильтрами и пагинацией (KZPH-G3-01)."""
     return web.FileResponse(TEMPLATES_DIR / "search_first.html")
 
+@routes.get("/offer/{offer_id}")
+async def offer_page_handler(request):
+    return web.FileResponse(TEMPLATES_DIR / "search_first.html")
+
 @routes.get("/product/{product_id}")
 async def product_page_handler(request):
     """Каноническая страница товара с предложениями продавцов и каналами (KZPH-G3-01)."""
@@ -1492,6 +1496,27 @@ def _run_search_v2_sync(
         return resp
     finally:
         conn.close()
+
+
+@routes.get("/api/v2/offers/{offer_id}")
+async def offer_detail_v2_handler(request):
+    from product_classification import db
+    from database import get_connection
+    from offer_details import context
+    result=await db(get_connection,lambda c:context(c,request.match_info['offer_id']))
+    if result is None:return web.json_response({'ok':False,'error':'Предложение больше недоступно'},status=404)
+    return web.json_response(result)
+
+
+@routes.get("/api/v2/offers/{offer_id}/details")
+async def offer_source_details_handler(request):
+    if not browser_read_action_allowed(request):
+        return web.json_response({'error':'Откройте сведения на сайте'},status=403)
+    from database import get_connection
+    from offer_details import evidence
+    result=await evidence(get_connection,request.match_info['offer_id'])
+    if result is None:return web.json_response({'status':'changed','error':'Предложение изменилось. Обновите карточку.'},status=409)
+    return web.json_response(result)
 
 
 @routes.get("/api/v2/products/{product_id}/details")

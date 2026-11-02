@@ -2,6 +2,29 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## READY_FOR_STAND → Codex: карточка конкретного предложения продавца (2026-11-02)
+
+- Владелец: при выборе предложения открывать карточку с описанием/фото именно этого продавца.
+- База 7ab8452, tracked чист, один исполнитель Codex. Чужие untracked сохраняются.
+- Область: offer context/details module/API/routes, product UI, профильные тесты, версия/история.
+- Отдельный /offer/id, только выбранный offer/title/price/history/source. Общую media mixture не использовать;
+  отсутствие own media сообщать честно. Forte API — только exact objectID, без первого результата.
+- RAM-only source prose/media URL cache, existing SSRF/rate/semaphore. Никаких переименований/merge/БД.
+- Только стенд bundle, без main push/production.
+- Реализованы /offer/id и scoped API, own metadata/history/media, Forte exact objectID,
+  RAM-only cache и same-store redirect guard. UI не применяет поздний generic/другой offer response;
+  на ошибке/404 очищает старое фото/описание. Общая карточка и carousel сохранены.
+- Полный suite 2628 PASS +1120 subtests; после последних guards профильный набор 26 PASS.
+  Offer UI 4/4 (390/1366 × обе темы), прежние gallery/facts/feed 4/4, secrets 0/diff-check PASS.
+  Отчёт FEATURE_2026-11-02_OFFER_DETAILS_CODEX.md и evidence 2026-11-02-offer-details.
+- SSH 192.168.28.25:2222 и HTTPS shdev /api/live дают timeout. Route → utun9; сеть/VPN не менялись.
+  Вопрос владельцу о доступе задан. На стенд НЕ выложено, реальные источники/owner login НЕ проверены.
+- Следующий точный шаг: восстановить доступ, проверить remote SHA/dirty, bundle от 1c0339acf,
+  build/recreate stand app; runtime hashes/guest gate + два собственных источника предложения.
+  Избранное/наблюдения остаются на канонический товар, seller-specific watch не входит в этот slice.
+
+---
+
 ## STAND_DEPLOYED → Владелец: карусель и увеличение фото (2026-11-02)
 
 - Владелец поручил увеличение фото и удобное перелистывание в карточке.

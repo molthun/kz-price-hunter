@@ -1,5 +1,10 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 02.11.2026 — отдельная карточка предложения, v6.18.0
+
+- Codex: /offer/id, scoped metadata/history/source media, Forte exact objectID.
+- Только стенд, без БД/main push/production; проверки в AGENT_HANDOFF.
+
 ## 02.11.2026 — карусель фото, v6.17.3
 
 - Codex: fullscreen/zoom, arrows/thumbs/counter, swipe/keyboard/Esc, scroll restore.
