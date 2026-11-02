@@ -2,7 +2,7 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## READY_FOR_STAND → Codex: перенос настроек, этап 2 — сбор цен (2026-11-02)
+## STAND_DEPLOYED → Владелец: перенос настроек, этап 2 — сбор цен (2026-11-02)
 
 - Владелец поручил продолжать небольшими этапами, пока другие агенты недоступны.
 - База a831e4e, tracked чист; Codex один, чужие untracked сохраняются.
@@ -18,8 +18,13 @@
   navigation4/4, local model4/4, обе темы/390/1366. Secrets0/diff-check PASS.
   Только временные settings и browser fixtures; реальная форма ещё не сохранялась.
 - Версия6.18.2; отчёт FEATURE_2026-11-02_SCAN_SETTINGS_MIGRATION_CODEX.md.
-  Следующий точный шаг: bundle от0375dcc69, stand build/recreate, read-only settings SHA,
-  runtime hashes/guest gate. Не создавать main-stand owner/fixture сессии.
+  Stand-only bundle выложен:434c085838a92acaaf90d15204ce09dfb6e3d6f3, healthy, runtime hashes match.
+  Полный settings SHA до/после совпал:180мин,38/38 магазинов. Новая форма не сохранялась.
+  Guest admin — только вход, scanning API403, live200. Основной owner login не использовался.
+  Evidence:2026-11-02-scan-settings/stand-verification.json.
+  Следующий точный шаг: продуктовая проверка владельцем /admin#scanningTool;
+  следующий малый slice — состояние служебного бота/уведомлений без отправки сообщений.
+  Production/main push не выполнялись. Независимой приёмки этого slice пока нет.
 - Предыдущие offer cards/local model выложены на стенд 0375dcc69 после восстановления сети.
   Только временные тестовые данные, без production/main push/реальных настроек/БД.
 

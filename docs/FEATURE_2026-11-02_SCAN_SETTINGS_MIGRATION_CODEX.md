@@ -35,8 +35,11 @@ Legacy interval/shop controls и два поля общего save payload уд�
 
 ## Стенд
 
-Подготовлено к stand-only bundle от0375dcc69. После выкладки: healthy/runtime hashes,
-guest gate и settings SHA до/после без сохранения реальной формы. Основной owner login отдельно.
+Stand-only bundle от0375dcc69 выложен без main push:434c085838a92acaaf90d15204ce09dfb6e3d6f3,
+версия6.18.2, healthy. Runtime hashes совпали. Settings SHA до/после совпал:
+180мин,38/38 включённых магазинов. Реальная форма не сохранялась, ключи не менялись.
+Guest admin показывает только вход, scanning API403, live200. Основной owner login
+не использовался; проверка интерфейса авторская в browser fixtures. Production не затрагивался.
 Evidence: audit_evidence/2026-11-02-scan-settings/.
 
 ## Следующий шаг

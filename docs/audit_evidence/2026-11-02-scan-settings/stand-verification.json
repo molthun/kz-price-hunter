@@ -1,0 +1,36 @@
+{
+  "settings_unchanged": true,
+  "settings_sha256": "85aabc3edefc5a3a8c6822a6d9f5736f8a32f1773fffa1e03b3335c434c86308",
+  "shop_count": 38,
+  "enabled_count": 38,
+  "scan_interval_minutes": 180,
+  "schedule": {
+    "wave_mode": "rolling",
+    "total_waves": 9,
+    "base_wave_interval_minutes": 160.0,
+    "adaptive_stage": "off"
+  },
+  "runtime_hashes": {
+    "scan_settings.py": "e04d42f3ccbe105c3acc92a02d7df194ae71ff5b867f0d42b477a7faa15e4b84",
+    "local_ai_settings.py": "1d4ee362b1cbbeb69ce22db89d5a8addc87dba3284a56ca76c6efa4a6076b647",
+    "offer_details.py": "9e0f85b705ebc5901be919848cb4dd4e3b682e2c2212f6e50d467e3622649c51",
+    "config.py": "aded6a0c61068df2cf471a471cf88c503ba7c3c8a915c16b10b763973cefacf9",
+    "web/server.py": "1fa51e98380e07f6c2131a56f8e4a6db0338c9b80323cf3e54262998eef17d0f",
+    "web/templates/admin.html": "43e861e9527b30063b83073ece66d2b8d720b7065c6637d187020badb2dbc6f3",
+    "web/templates/index.html": "3bf8bc8c681451526396a86fd86175614583709a0f205c4234328a94d4455511",
+    "version.py": "ac8c27df1f22fe4dbc966e29445592077cd717d11157409abfe9b5d141990388"
+  },
+  "runtime_hashes_match": true,
+  "stand_sha": "434c085838a92acaaf90d15204ce09dfb6e3d6f3",
+  "health": "healthy",
+  "/api/live": {
+    "status": 200
+  },
+  "/admin": {
+    "status": 200,
+    "login_only": true
+  },
+  "/api/admin/settings/scanning": {
+    "status": 403
+  }
+}
