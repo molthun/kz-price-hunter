@@ -2,7 +2,7 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## READY_FOR_STAND → Codex: мониторинг в новой админке, этап 4 (2026-11-02)
+## STAND_DEPLOYED → Владелец: мониторинг в новой админке, этап 4 (2026-11-02)
 
 - Прямое поручение владельца «Дальше», после Telegram: обзор сервиса + local-only помощник.
 - База 512cb33, tracked чист, Codex один; чужие untracked сохраняются.
@@ -18,9 +18,16 @@
   RAM cache120s, no paid fallback/autofix; снимок и диагноз возвращаются вместе, stale AI отбрасывается.
 - Полный2660 PASS +1120 subtests; конечный профильный52 PASS; новая UI4/4,
   navigation4/4/Telegram4/4, обе темы/390/1366; compile/diff-check/secrets0 PASS.
-- Отчёт FEATURE_2026-11-02_SERVICE_MONITOR_CODEX.md. Следующий шаг: bundle от944a547,
-  stand build/recreate → runtime/guest/settings SHA → read-only real snapshot и local diagnosis.
-  Реальный owner UI/независимая приёмка отдельно, реальные настройки не сохранять.
+- Stand-only bundle выложен: 921c33c339ea2a7c4272a9f9ea5b1f2f8c8f3b7b, v6.18.4, healthy.
+  Runtime hashes match, guest admin только вход, overview/explain403, settings SHA до/после совпал.
+- Real stand helper в отдельном процессе: все6 блоков доступны, snapshot138мс, local ready666мс.
+  Flags главного worker/flusher/current scan этим helper не измерены; unknown не превращается в false.
+  UI/основной owner login и независимая приёмка отдельно. Paid calls/сends0, production не менялся.
+- Существующие оценки истории источников: offline4/degraded21/limited9/healthy4.
+  Это сохранённые обходы, не текущие сетевые пробы. Evidence:2026-11-02-service-monitor/{real-check,stand-verification}.json.
+- Отчёт FEATURE_2026-11-02_SERVICE_MONITOR_CODEX.md. Следующий шаг: владелец проверяет
+  /admin#monitoringTool; затем read-only разбор причин 34 проблемных/ограниченных источников,
+  исправления сборщиков отдельным малым slice, без production/main push/реальных сохранений.
 
 ---
 

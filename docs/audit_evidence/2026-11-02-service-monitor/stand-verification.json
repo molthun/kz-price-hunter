@@ -1,0 +1,24 @@
+{
+  "runtime_hashes_match": true,
+  "runtime_hashes": {
+    "service_monitor.py": "afe74b8e403ad4fcf3a598fd56d0e4f45f920355601b72e959cc80a1ebde38df",
+    "web/server.py": "bf6536689095b06179ebe11bc42a1b4491bfbcc659f28b9bfc4a0fa3f7643eb4",
+    "web/templates/admin.html": "b0a9dfe201f5b09cc1824d786cc2d041e6054ffa494762f26f76d865cbf70d3d",
+    "version.py": "c6e394931351b50e64e170c0ddc0aff78469158af62e3bd43f0a50ade0000ef7"
+  },
+  "stand_sha": "921c33c339ea2a7c4272a9f9ea5b1f2f8c8f3b7b",
+  "health": "healthy",
+  "/api/live": {
+    "status": 200
+  },
+  "/admin": {
+    "status": 200,
+    "login_only": true
+  },
+  "/api/admin/service-overview": {
+    "status": 403
+  },
+  "/api/admin/service-overview/explain": {
+    "status": 403
+  }
+}

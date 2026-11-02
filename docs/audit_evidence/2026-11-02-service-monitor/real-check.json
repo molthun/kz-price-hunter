@@ -1,0 +1,48 @@
+{
+  "settings_unchanged": true,
+  "settings_sha256": "01c12ad530b497235990b5f5aeedc6b7435f171ca8bf813d4d95fe0679f53dc3",
+  "available": {
+    "shops": true,
+    "queue": true,
+    "scanning": true,
+    "local": true,
+    "notifications": true,
+    "events": true
+  },
+  "statuses": {
+    "shops": "offline",
+    "queue": "unknown",
+    "scanning": "healthy",
+    "local": "limited",
+    "notifications": "healthy",
+    "events": "unknown"
+  },
+  "shops_counts": {
+    "offline": 4,
+    "degraded": 21,
+    "limited": 9,
+    "unknown": 0,
+    "healthy": 4,
+    "disabled": 0
+  },
+  "snapshot_latency_ms": 138,
+  "local_status": "ready",
+  "local_latency_ms": 666,
+  "confirmed_codes": [
+    "shops",
+    "local_errors",
+    "telemetry",
+    "errors",
+    "unknown"
+  ],
+  "returned_codes": [
+    "shops",
+    "local_errors",
+    "telemetry",
+    "errors",
+    "unknown"
+  ],
+  "main_process_flags_not_measured": true,
+  "message_sends": 0,
+  "paid_calls": 0
+}
