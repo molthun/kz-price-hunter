@@ -2,7 +2,7 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## IN_PROGRESS → Codex: закрытый сайт — гостю только вход (2026-11-02)
+## STAND_DEPLOYED → Владелец: закрытый сайт — гостю только вход (2026-11-02)
 
 - Прямое уточнение владельца: без входа не показывать навигацию и функциональность сайта.
 - База 9404db4, tracked чист; один исполнитель Codex, чужие untracked сохранены.
@@ -16,7 +16,11 @@
   real browser + middleware/session/temp SQLite login→shell→logout→gate PASS;
   public-mode auth/privacy browser PASS, secrets findings 0. Полный suite 2604 PASS + 1120 subtests.
 - Отчёт FIXES_2026-11-02_CLOSED_SITE_GATE_CODEX.md. Следующий шаг: итог suite, commit/bundle,
-  выкладка и прямые guest URL/API + реальные скриншоты стенда.
+  выполнены: стенд 649b52493, v6.16.2, healthy, runtime hashes совпали.
+- На стенде 11 guest HTML URL → login-only; 8 API → 403; /api/me минимальный;
+  настоящий Telegram widget iframe загружается. Реальный браузер 390/1366 × две темы PASS.
+  Новые owner/fixture сессии на основном стенде не создавались. Production не трогали.
+- Следующий шаг: продуктовая проверка владельцем. Старую открытую вкладку нужно обновить.
 
 ---
 

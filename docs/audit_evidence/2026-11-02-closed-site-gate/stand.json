@@ -1,0 +1,35 @@
+{
+  "pages": {
+    "/": 200,
+    "/?mode=legacy": 200,
+    "/search?q=ram": 200,
+    "/product/example": 200,
+    "/deals": 200,
+    "/favorites": 200,
+    "/profile": 200,
+    "/dashboard": 200,
+    "/admin": 200,
+    "/monitoring": 200,
+    "/privacy": 200
+  },
+  "api": {
+    "/api/v2/search": 403,
+    "/api/products": 403,
+    "/api/categories": 403,
+    "/api/admin/classification": 403,
+    "/api/changelog": 403,
+    "/api/me/export": 403,
+    "/api/me-other": 403,
+    "/api/auth/unknown": 403
+  },
+  "me_minimal": true,
+  "hashes_match": true,
+  "files": {
+    "auth.py": "121cadfd072d7aa9d97c59c482fc6ba8bac118d7c4ad15fb2f29c45fb003ec8d",
+    "web/server.py": "35620948b3a5025a2ecf47796cedb902a7aeec2a99b326472fe1a9c7496e566e",
+    "web/templates/closed_login.html": "e189d77a6dfcfb1052aa7d2e453a9489502974ce89f48eb40a95b03e1b618340",
+    "version.py": "2a5ecb0678c4f0fecaca71e50c909470465e0068eed1e6b69f9069fd4be0ce98"
+  },
+  "sha": "649b52493868b20f07b79450a60cd63be1cce59a",
+  "health": "healthy"
+}

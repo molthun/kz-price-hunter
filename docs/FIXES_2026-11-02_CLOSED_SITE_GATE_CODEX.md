@@ -35,7 +35,13 @@ loopback окружении существующей конфигурации. �
   gate → dev session → обычный сайт → logout → gate PASS. Telegram send не выполнялся.
 - Прежний public-mode auth/privacy browser workflow PASS.
 - Полный suite 2604 PASS + 1120 subtests, 162.99 s; secrets findings 0, diff-check PASS.
-- Стенд: результат фиксируется после выполнения.
+- Стенд 649b52493868b20f07b79450a60cd63be1cce59a, v6.16.2, healthy; runtime hashes совпали.
+  11 реальных guest URL (главная, legacy, search/product/deals/favorites/profile/dashboard/admin/
+  monitoring/privacy) отдают только login document; 8 API-путей (включая похожие префиксы) → 403.
+  /api/me minimal PASS; Cache-Control no-store. Проверены реальные браузерные экраны 390/1366
+  в двух темах. Настоящий Telegram widget iframe загружается, вход владельца не выполнялся.
+  Новых пользователей/сессий на основном стенде не создавали. Миграций/ручного изменения БД нет.
+  Выкладка bundle без push/main, production не затронут.
 
 Основной вход владельца не использовался. Независимая приёмка не проводилась.
 Логи: audit_evidence/2026-11-02-closed-site-gate/.
