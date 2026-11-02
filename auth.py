@@ -7,6 +7,7 @@ import hashlib
 import ipaddress
 from collections import defaultdict, deque
 from functools import wraps
+from pathlib import Path
 from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 
@@ -281,10 +282,20 @@ async def auth_middleware(request: web.Request, handler):
     if request["user"] and int(request["user"]["id"]) == DEV_ADMIN_ID and not dev_login_allowed(request):
         request["user"] = None
 
+    # Server-side gate: never deliver the application shell to guests in closed mode.
+    restricted = MAINTENANCE_DEV_MODE and not is_confirmed_user(request["user"])
+    if restricted and not request.path.startswith("/api/"):
+        if request.method not in ("GET", "HEAD"):
+            return web.Response(status=403, headers={"Cache-Control":"no-store"})
+        return web.FileResponse(Path(__file__).parent / "web/templates/closed_login.html", headers={
+            "Cache-Control":"no-store", "Vary":"Cookie", "X-Content-Type-Options":"nosniff",
+            "X-Frame-Options":"DENY", "Referrer-Policy":"strict-origin-when-cross-origin"})
+
     # Закрытый режим разработки: доступ к функциональным API только подтверждённым пользователям
     if MAINTENANCE_DEV_MODE and request.path.startswith("/api/"):
-        _allowed_api = ("/api/live", "/api/health", "/api/readiness", "/api/me", "/api/auth/", "/api/diag")
-        if not any(request.path == p or request.path.startswith(p) for p in _allowed_api):
+        _allowed_api = {"/api/me", "/api/auth/telegram", "/api/auth/telegram-webapp",
+                        "/api/auth/dev-login", "/api/auth/logout", "/api/diag"}
+        if request.path not in _allowed_api:
             if not is_confirmed_user(request["user"]):
                 return web.json_response({
                     "status": "error",
@@ -294,6 +305,9 @@ async def auth_middleware(request: web.Request, handler):
                     "confirmed": False
                 }, status=403, headers={"Cache-Control": "no-store"})
     response = await handler(request)
+    if MAINTENANCE_DEV_MODE:
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Vary"] = ", ".join(dict.fromkeys([v.strip() for v in response.headers.get("Vary", "").split(",") if v.strip()] + ["Cookie"]))
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")

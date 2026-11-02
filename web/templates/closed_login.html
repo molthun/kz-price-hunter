@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Вход — Price Hunter</title>
+<script>
+try {const mode=localStorage.getItem('kz_theme_mode')||localStorage.getItem('kz_theme');document.documentElement.dataset.theme=['dark','light'].includes(mode)?mode:(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');}catch(e){}
+</script>
+<style>
+:root{color-scheme:light dark;--bg:#f7f9fc;--card:#fff;--text:#172033;--muted:#56667c;--border:#d9e1ed;--button:#2563eb}
+@media(prefers-color-scheme:dark){:root{--bg:#0b101c;--card:#141e30;--text:#eef2fc;--muted:#a8b6cc;--border:#30415b}}
+[data-theme=light]{color-scheme:light;--bg:#f7f9fc;--card:#fff;--text:#172033;--muted:#56667c;--border:#d9e1ed}
+[data-theme=dark]{color-scheme:dark;--bg:#0b101c;--card:#141e30;--text:#eef2fc;--muted:#a8b6cc;--border:#30415b}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px 16px;font:16px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--text)}
+main{width:100%;max-width:460px;padding:28px;border:1px solid var(--border);border-radius:18px;background:var(--card);text-align:center;box-shadow:0 12px 40px #0000000d}
+.brand{font-weight:800;font-size:21px}.brand span{display:inline-block;background:var(--button);color:white;border-radius:7px;padding:3px 7px;margin-right:8px;font-size:15px}h1{font-size:25px;line-height:1.25;margin:26px 0 12px}p{color:var(--muted)}button{min-height:44px;padding:10px 18px;border:0;border-radius:9px;background:var(--button);color:#fff;font:inherit;cursor:pointer}button.secondary{background:transparent;color:var(--text);border:1px solid var(--border)}#widget{display:flex;justify-content:center;margin:20px 0;min-height:44px}#status{overflow-wrap:anywhere}#pendingActions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}#pendingActions[hidden],[hidden]{display:none!important}#identity{overflow-wrap:anywhere}noscript{display:block;margin-top:20px}
+</style>
+</head>
+<body>
+<main id="closedLogin">
+<div class="brand"><span>KZ</span>Price Hunter</div>
+<h1 id="title">Вход на закрытый сайт</h1>
+<p id="description">Сайт находится в закрытой разработке. Доступ открыт только пользователям, подтверждённым владельцем.</p>
+<p id="identity" hidden></p>
+<div id="widget"></div><div id="devLogin"></div>
+<div id="pendingActions" hidden><button id="refresh" type="button">Проверить доступ</button><button id="logout" class="secondary" type="button">Выйти</button></div>
+<p id="status" role="status">Проверяем доступ…</p>
+<button id="retry" type="button" hidden>Повторить</button>
+<noscript>Для входа включите JavaScript в браузере.</noscript>
+</main>
+<script>
+let lastWidget='',checking=false;
+const byId=id=>document.getElementById(id);
+async function post(path,body){
+ const res=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});
+ const data=await res.json();if(!res.ok)throw Error(data.message||'Не удалось выполнить вход. Повторите попытку.');return data;
+}
+window.onTelegramAuth=async user=>{try{byId('status').textContent='Выполняем вход…';await post('/api/auth/telegram',user);await checkAccess();}catch(e){byId('status').textContent=e.message;}};
+async function checkAccess(){
+ if(checking)return;checking=true;byId('retry').hidden=true;
+ try{
+  const res=await fetch('/api/me',{cache:'no-store'});if(!res.ok)throw Error('Не удалось проверить доступ. Повторите попытку.');
+  const data=await res.json(),user=data.user,auth=data.auth||{};
+  if(!data.maintenance_mode||(user&&(user.is_confirmed||user.is_admin))){location.reload();return;}
+  byId('pendingActions').hidden=!user;byId('identity').hidden=!user;byId('widget').hidden=!!user;byId('devLogin').hidden=!!user;
+  if(user){
+   byId('title').textContent='Ожидание подтверждения';byId('description').textContent='Вы вошли. Владелец должен подтвердить доступ к сайту.';
+   byId('identity').textContent=user.first_name||user.username||'Пользователь';byId('status').textContent='Доступ пока не подтверждён.';
+  }else{
+   byId('title').textContent='Вход на закрытый сайт';byId('identity').textContent='';
+   byId('description').textContent='Сайт находится в закрытой разработке. Войдите через Telegram для доступа.';
+   byId('status').textContent=auth.bot_username?'После входа потребуется подтверждение владельца.':'Вход временно недоступен. Попробуйте позже.';
+   if(auth.bot_username&&lastWidget!==auth.bot_username){
+    byId('widget').replaceChildren();const s=document.createElement('script');s.async=true;s.src='https://telegram.org/js/telegram-widget.js?22';s.setAttribute('data-telegram-login',auth.bot_username);s.setAttribute('data-size','large');s.setAttribute('data-radius','12');s.setAttribute('data-request-access','write');s.setAttribute('data-onauth','onTelegramAuth(user)');byId('widget').append(s);lastWidget=auth.bot_username;
+   }
+   byId('devLogin').replaceChildren();if(auth.dev_login){const b=document.createElement('button');b.textContent='Вход разработчика';b.onclick=async()=>{try{await post('/api/auth/dev-login');await checkAccess();}catch(e){byId('status').textContent=e.message;}};byId('devLogin').append(b);}
+  }
+ }catch(e){byId('status').textContent='Не удалось проверить доступ. Повторите попытку.';byId('retry').hidden=false;}
+ finally{checking=false;}
+}
+byId('refresh').onclick=checkAccess;byId('retry').onclick=checkAccess;
+byId('logout').onclick=async()=>{try{await post('/api/auth/logout');location.reload();}catch(e){byId('status').textContent=e.message;}};
+async function start(){
+ // Preserve signed Telegram Mini App login without opening the application shell.
+ const s=document.createElement('script');s.src='https://telegram.org/js/telegram-web-app.js';s.async=true;
+ s.onload=async()=>{try{const tg=window.Telegram&&Telegram.WebApp;if(tg&&tg.initData){tg.ready();await post('/api/auth/telegram-webapp',{init_data:tg.initData});await checkAccess();}}catch(e){byId('status').textContent='Войдите через Telegram повторно.';}};
+ document.head.append(s);await checkAccess();
+}
+start();setInterval(()=>{if(!document.hidden)checkAccess();},15000);
+</script>
+</body></html>

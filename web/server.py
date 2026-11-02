@@ -2572,6 +2572,11 @@ async def me_handler(request):
     """Текущий пользователь (или гость), его личные настройки и параметры входа."""
     user = request.get("user")
     bot_username = await asyncio.to_thread(get_bot_username)
+    if MAINTENANCE_DEV_MODE and not is_confirmed_user(user):
+        return web.json_response({
+            "user": _public_user(user), "maintenance_mode": True,
+            "auth": {"bot_username": bot_username, "dev_login": dev_login_allowed(request)},
+        })
     return web.json_response({
         "user": _public_user(user),
         "settings": user_settings_for(request),

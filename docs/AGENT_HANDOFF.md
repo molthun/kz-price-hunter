@@ -2,6 +2,24 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## IN_PROGRESS → Codex: закрытый сайт — гостю только вход (2026-11-02)
+
+- Прямое уточнение владельца: без входа не показывать навигацию и функциональность сайта.
+- База 9404db4, tracked чист; один исполнитель Codex, чужие untracked сохранены.
+- Область: auth middleware, минимальная login template, /api/me, тесты, версия/история.
+- Серверный экран входа для всех HTML-путей закрытого режима; неподтверждённым — ожидание.
+  API allowlist точный, без префиксного обхода. Подтверждённый доступ и public mode сохранить.
+- Проверки только временные данные; выкладка только на стенд без push main/production.
+- Реализованы server-side closed_login для всех страниц, exact API allowlist, минимальный /api/me,
+  no-store/Vary Cookie, Telegram Widget/Mini App и ожидание подтверждения.
+- Профильные auth/privacy/closed-gate/release tests 21 PASS; UI 4/4 (390/1366, обе темы),
+  real browser + middleware/session/temp SQLite login→shell→logout→gate PASS;
+  public-mode auth/privacy browser PASS, secrets findings 0. Полный suite 2604 PASS + 1120 subtests.
+- Отчёт FIXES_2026-11-02_CLOSED_SITE_GATE_CODEX.md. Следующий шаг: итог suite, commit/bundle,
+  выкладка и прямые guest URL/API + реальные скриншоты стенда.
+
+---
+
 ## STAND_DEPLOYED → Владелец: исходные страницы для разбора товаров (2026-11-02)
 
 - Прямое поручение владельца: открыть исходную карточку магазина и уточнить недостающие сведения.
