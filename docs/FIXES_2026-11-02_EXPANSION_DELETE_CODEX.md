@@ -17,7 +17,13 @@ Codex по поручению владельца, база 8366fed; только
 Браузер 390/1366 × светлая/тёмная темы: удаление отклонённой/работающей заявки, отказ от подтверждения,
 старый polling — 4/4. Прежнее расширение каталога — 4/4. Полный suite 2623 PASS + 1120 subtests
 (161.16 s); после последней обработки corrupt plan профильный набор 56 PASS + 4 subtests.
-Secrets findings 0, diff-check PASS. Стенд дополняется после проверки.
+Secrets findings 0, diff-check PASS.
+
+Стенд 2cc95685e3b9d0fee0f942afd8d407af76a2a783, v6.17.2, healthy, runtime hashes совпали.
+Guest DELETE 403. Показанная заявка удалена через repository: rejected/gen4 → deleted/gen5;
+list её не возвращает, candidates/matches пусты. Остальные заявки не удалялись.
+Реальный owner login не использовался; admin API/UI workflow проверен отдельно на временных данных.
+Bundle без main push, production не затронут.
 
 Отдельное поручение на стенде: убрать только показанную владельцем r5s532g5600u1k · Все,
 ID 31bd7436f1564347b2d8b559, исходное состояние rejected/generation 4. Другие заявки не удалять.
