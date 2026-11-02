@@ -116,8 +116,11 @@ class CatalogExpansionRepository:
         self.conn.execute(
             """INSERT INTO catalog_expansions(id,query,city,plan_json,created_at,updated_at)
             VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET
-            demand=demand+1, updated_at=excluded.updated_at,
-            plan_json=CASE WHEN status='proposed' THEN excluded.plan_json ELSE plan_json END""",
+            demand=CASE WHEN status='deleted' THEN 1 ELSE demand+1 END, updated_at=excluded.updated_at,
+            created_at=CASE WHEN status='deleted' THEN excluded.created_at ELSE created_at END,
+            generation=generation+CASE WHEN status='deleted' THEN 1 ELSE 0 END,
+            plan_json=CASE WHEN status IN ('proposed','deleted') THEN excluded.plan_json ELSE plan_json END,
+            status=CASE WHEN status='deleted' THEN 'proposed' ELSE status END""",
             (ident, clean, city, json.dumps(plan, ensure_ascii=False), stamp, stamp))
         self._commit()
         return self.get(ident)
@@ -133,7 +136,21 @@ class CatalogExpansionRepository:
 
     def list(self):
         return [self.get(r[0]) for r in self.conn.execute(
-            'SELECT id FROM catalog_expansions ORDER BY updated_at DESC LIMIT 100').fetchall()]
+            "SELECT id FROM catalog_expansions WHERE status!='deleted' ORDER BY updated_at DESC LIMIT 100").fetchall()]
+
+    def delete(self,ident):
+        """Hide/cancel request, retaining the generation fence against in-flight workers."""
+        self.conn.execute('BEGIN IMMEDIATE')
+        try:
+            row=self.conn.execute('SELECT status FROM catalog_expansions WHERE id=?',(ident,)).fetchone()
+            if row and row[0]!='deleted':
+                self.conn.execute('DELETE FROM catalog_expansion_candidates WHERE expansion_id=?',(ident,))
+                self.conn.execute('DELETE FROM catalog_expansion_matches WHERE expansion_id=?',(ident,))
+                self.conn.execute("UPDATE catalog_expansions SET status='deleted',generation=generation+1,checked_at=NULL,found=0,scan_offset=0,scan_total=0,scan_text=NULL,failures=0,attempts=0,source_health='{}',source_queries='[]',message='',updated_at=? WHERE id=?",(now(),ident))
+            self.conn.commit()
+            return bool(row)
+        except BaseException:
+            self.conn.rollback();raise
 
     def review(self, ident, approve):
         self.conn.execute('BEGIN IMMEDIATE')
@@ -145,7 +162,7 @@ class CatalogExpansionRepository:
 
     def _review(self, ident, approve):
         row = self.get(ident)
-        if not row:
+        if not row or row['status']=='deleted':
             raise ValueError('Заявка не найдена')
         if row['status'] == 'checking':
             raise ValueError('Проверка уже идёт; дождитесь результата')
@@ -197,7 +214,7 @@ class CatalogExpansionRepository:
         """Промежуточная порция (approved) не считается завершённой проверкой."""
         stamp = now()
         self.conn.execute("UPDATE catalog_expansions SET status=?,found=?,scan_offset=?,message=?,failures=?,updated_at=?,"
-                          "checked_at=CASE WHEN ?='approved' THEN checked_at ELSE ? END WHERE id=? AND status!='rejected' AND (? IS NULL OR (generation=? AND status='checking'))",
+                          "checked_at=CASE WHEN ?='approved' THEN checked_at ELSE ? END WHERE id=? AND status NOT IN ('rejected','deleted') AND (? IS NULL OR (generation=? AND status='checking'))",
                           (status, found, scan_offset, message, failures, stamp, status, stamp, ident, generation, generation))
         self._commit()
 

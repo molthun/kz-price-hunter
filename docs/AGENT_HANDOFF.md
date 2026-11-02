@@ -2,6 +2,23 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## IN_PROGRESS → Codex: удаление ненужных заявок расширения (2026-11-02)
+
+- Поручение владельца: удалять непонятные запросы (показан r5s532g5600u1k).
+- База 8366fed, tracked чист; Codex один, чужие untracked сохранены.
+- Область: expansion repository/API/admin UI, профильные проверки и версия.
+- Удаление заявки останавливает старую проверку, сохраняет товары/разделы;
+  монотонная generation защищает от возвращения старого worker. Новая поисковая заявка возможна.
+- Только стенд, временные тестовые данные, без main push/production.
+- Реализованы DELETE API/UI и tombstone generation fence, очистка matches/candidates;
+  fresh demand → proposed с новым поколением, без вечного запрета запроса.
+- Полный suite 2623 PASS + 1120 subtests; после обработки corrupt plan профильный набор
+  56 PASS + 4 subtests; UI удаления 4/4, regression expansion 4/4, secrets 0/diff-check PASS.
+- Следующий шаг: commit/bundle, стенд, удалить только r5s532g5600u1k · Все (31bd7436f1564347b2d8b559),
+  проверить runtime/guest gate и отсутствие заявки в списке. Owner login не использовать.
+
+---
+
 ## STAND_DEPLOYED → Владелец: понятная навигация управления (2026-11-02)
 
 - Поручение владельца: привести новые настройки в порядок. База b9be03d, tracked чист.

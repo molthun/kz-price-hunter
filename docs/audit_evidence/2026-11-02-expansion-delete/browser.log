@@ -1,0 +1,4 @@
+PASS delete rejected/running request 390/light; cancel confirmation and stale poll
+PASS delete rejected/running request 390/dark; cancel confirmation and stale poll
+PASS delete rejected/running request 1366/light; cancel confirmation and stale poll
+PASS delete rejected/running request 1366/dark; cancel confirmation and stale poll

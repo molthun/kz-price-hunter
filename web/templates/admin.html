@@ -280,7 +280,7 @@
     </dialog>
     <section class="card admin-panel" id="catalogExpansionTool">
       <div class="card-head"><h2>Расширение ассортимента</h2></div>
-      <p>Здесь запросы, по которым не хватило предложений или разделов. Подтвердите подходящий раздел и фильтры — затем проверим подключённые магазины. Статусы обновляются автоматически. Новый сайт может потребовать отдельного подключения.</p>
+      <p>Здесь запросы, по которым не хватило предложений или разделов. Подтвердите подходящий раздел и фильтры — затем проверим подключённые магазины. Статусы обновляются автоматически. Новый сайт может потребовать отдельного подключения. «Отклонить» сохраняет заявку в списке, «Удалить» убирает её и останавливает проверку.</p>
       <button type="button" onclick="loadExpansions()">Обновить</button>
       <div id="expansionList"></div><div id="expansionState" class="state" role="status"></div>
     </section>
@@ -420,20 +420,21 @@
 
     async function changeExpansion(item, decision, row) {
       if (expansionPosting) return;
+      if(decision==='delete'&&!confirm('Удалить заявку «'+item.query+'»? Её проверка остановится. Товары и разделы не удаляются.'))return;
       expansionPosting = true;
       ++expansionReadId; // an older GET must not overwrite the action in progress
       clearTimeout(expansionTimer);
       document.querySelectorAll('#expansionList button').forEach(button => { button.disabled = true; });
-      row.querySelector('[data-expansion-state]').textContent = decision === 'approve' ? 'Отправляем запрос на проверку…' : 'Отменяем заявку…';
+      row.querySelector('[data-expansion-state]').textContent = decision === 'approve' ? 'Отправляем запрос на проверку…' : decision==='delete'?'Удаляем заявку…':'Отменяем заявку…';
       const state = document.getElementById('expansionState');
       state.textContent = 'Сохраняем действие…';
       try {
-        const response = await fetch('/api/admin/catalog-expansions/' + encodeURIComponent(item.id) + '/review', {
-          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({decision})
+        const response = await fetch('/api/admin/catalog-expansions/' + encodeURIComponent(item.id) + (decision==='delete'?'':'/review'), {
+          method:decision==='delete'?'DELETE':'POST', headers:{'Content-Type':'application/json'}, body:decision==='delete'?undefined:JSON.stringify({decision})
         });
         const result = await response.json();
         if (!response.ok || !result.ok) throw new Error(result.error || 'Не удалось сохранить действие. Повторите.');
-        expansionNotice = decision === 'approve' ? 'Проверка «' + item.query + '» поставлена в очередь. Статус обновится автоматически.' : 'Заявка «' + item.query + '» отклонена.';
+        expansionNotice = decision === 'approve' ? 'Проверка «' + item.query + '» поставлена в очередь. Статус обновится автоматически.' : 'Заявка «' + item.query + (decision==='delete'?'» удалена.':'» отклонена.');
       } catch (error) {
         expansionNotice = error.message || 'Не удалось сохранить действие. Повторите.';
       } finally {
@@ -493,6 +494,8 @@
               const reject = element('button', '', 'Отклонить');
               reject.onclick = () => changeExpansion(item, 'reject', row); row.append(reject);
             }
+            const remove=element('button','danger','Удалить');
+            remove.onclick=()=>changeExpansion(item,'delete',row);row.append(remove);
             target.append(row);
           });
         }

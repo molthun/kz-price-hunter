@@ -1387,6 +1387,19 @@ async def catalog_expansions_handler(request):
     return web.json_response({'items': await asyncio.to_thread(_load)})
 
 
+@routes.delete('/api/admin/catalog-expansions/{id}')
+@require_admin
+async def delete_catalog_expansion_handler(request):
+    from database import get_connection
+    from repositories.catalog_expansion_repo import CatalogExpansionRepository
+    def remove():
+        conn=get_connection()
+        try:return CatalogExpansionRepository(conn).delete(request.match_info['id'])
+        finally:conn.close()
+    removed=await asyncio.to_thread(remove)
+    return web.json_response({'ok':removed},status=200 if removed else 404)
+
+
 @routes.post('/api/admin/catalog-expansions/{id}/review')
 @require_admin
 async def review_catalog_expansion_handler(request):

@@ -1,0 +1,4 @@
+PASS local catalog growth 390/light
+PASS local catalog growth 390/dark
+PASS local catalog growth 1366/light
+PASS local catalog growth 1366/dark
