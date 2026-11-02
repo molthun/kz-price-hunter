@@ -1,0 +1,346 @@
+{
+  "shops": [
+    {
+      "shop_key": "twelve_months",
+      "configured": 8,
+      "observed": 8,
+      "problematic": 8,
+      "active_observed": 8,
+      "active_problematic": 8,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "flip",
+      "configured": 1,
+      "observed": 1,
+      "problematic": 1,
+      "active_observed": 1,
+      "active_problematic": 1,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "forcecom",
+      "configured": 14,
+      "observed": 14,
+      "problematic": 14,
+      "active_observed": 14,
+      "active_problematic": 14,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "lemanapro",
+      "configured": 11,
+      "observed": 11,
+      "problematic": 11,
+      "active_observed": 11,
+      "active_problematic": 11,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "alser",
+      "configured": 6,
+      "observed": 13,
+      "problematic": 11,
+      "active_observed": 6,
+      "active_problematic": 4,
+      "historical_excluded": 7
+    },
+    {
+      "shop_key": "ants",
+      "configured": 19,
+      "observed": 19,
+      "problematic": 9,
+      "active_observed": 19,
+      "active_problematic": 9,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "arbuz",
+      "configured": 10,
+      "observed": 10,
+      "problematic": 6,
+      "active_observed": 10,
+      "active_problematic": 6,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "askona",
+      "configured": 10,
+      "observed": 10,
+      "problematic": 0,
+      "active_observed": 10,
+      "active_problematic": 0,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "dns",
+      "configured": 13,
+      "observed": 13,
+      "problematic": 10,
+      "active_observed": 13,
+      "active_problematic": 10,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "europharma",
+      "configured": 10,
+      "observed": 10,
+      "problematic": 3,
+      "active_observed": 10,
+      "active_problematic": 3,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "fortemarket",
+      "configured": 14,
+      "observed": 14,
+      "problematic": 2,
+      "active_observed": 14,
+      "active_problematic": 2,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "halyk",
+      "configured": 8,
+      "observed": 8,
+      "problematic": 2,
+      "active_observed": 8,
+      "active_problematic": 2,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "ispace",
+      "configured": 7,
+      "observed": 7,
+      "problematic": 1,
+      "active_observed": 7,
+      "active_problematic": 1,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "itmag",
+      "configured": 19,
+      "observed": 19,
+      "problematic": 14,
+      "active_observed": 19,
+      "active_problematic": 14,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "kaspi",
+      "configured": 19,
+      "observed": 19,
+      "problematic": 13,
+      "active_observed": 19,
+      "active_problematic": 13,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "masterok",
+      "configured": 10,
+      "observed": 10,
+      "problematic": 0,
+      "active_observed": 10,
+      "active_problematic": 0,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "moon",
+      "configured": 11,
+      "observed": 11,
+      "problematic": 3,
+      "active_observed": 11,
+      "active_problematic": 3,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "sulpak",
+      "configured": 13,
+      "observed": 13,
+      "problematic": 4,
+      "active_observed": 13,
+      "active_problematic": 4,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "vkusmart",
+      "configured": 4,
+      "observed": 4,
+      "problematic": 3,
+      "active_observed": 4,
+      "active_problematic": 3,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "komfort",
+      "configured": 11,
+      "observed": 11,
+      "problematic": 10,
+      "active_observed": 11,
+      "active_problematic": 10,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "magnum",
+      "configured": 15,
+      "observed": 15,
+      "problematic": 3,
+      "active_observed": 15,
+      "active_problematic": 3,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "marwin",
+      "configured": 9,
+      "observed": 9,
+      "problematic": 9,
+      "active_observed": 9,
+      "active_problematic": 9,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "mechta",
+      "configured": 14,
+      "observed": 14,
+      "problematic": 2,
+      "active_observed": 14,
+      "active_problematic": 2,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "planeta",
+      "configured": 10,
+      "observed": 10,
+      "problematic": 6,
+      "active_observed": 10,
+      "active_problematic": 6,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "technodom",
+      "configured": 9,
+      "observed": 9,
+      "problematic": 6,
+      "active_observed": 9,
+      "active_problematic": 6,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "evrika",
+      "configured": 9,
+      "observed": 9,
+      "problematic": 5,
+      "active_observed": 9,
+      "active_problematic": 5,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "iteka",
+      "configured": 9,
+      "observed": 9,
+      "problematic": 0,
+      "active_observed": 9,
+      "active_problematic": 0,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "mebel",
+      "configured": 10,
+      "observed": 10,
+      "problematic": 0,
+      "active_observed": 10,
+      "active_problematic": 0,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "tgrad",
+      "configured": 28,
+      "observed": 28,
+      "problematic": 1,
+      "active_observed": 28,
+      "active_problematic": 1,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "zeta",
+      "configured": 8,
+      "observed": 8,
+      "problematic": 1,
+      "active_observed": 8,
+      "active_problematic": 1,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "detmir",
+      "configured": 10,
+      "observed": 10,
+      "problematic": 1,
+      "active_observed": 10,
+      "active_problematic": 1,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "zoomarket",
+      "configured": 10,
+      "observed": 10,
+      "problematic": 0,
+      "active_observed": 10,
+      "active_problematic": 0,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "intertop",
+      "configured": 8,
+      "observed": 8,
+      "problematic": 0,
+      "active_observed": 8,
+      "active_problematic": 0,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "french_house",
+      "configured": 10,
+      "observed": 10,
+      "problematic": 0,
+      "active_observed": 10,
+      "active_problematic": 0,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "fourmobile",
+      "configured": 1,
+      "observed": 1,
+      "problematic": 1,
+      "active_observed": 1,
+      "active_problematic": 1,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "kari",
+      "configured": 26,
+      "observed": 12,
+      "problematic": 0,
+      "active_observed": 12,
+      "active_problematic": 0,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "kimex",
+      "configured": 10,
+      "observed": 10,
+      "problematic": 0,
+      "active_observed": 10,
+      "active_problematic": 0,
+      "historical_excluded": 0
+    },
+    {
+      "shop_key": "shopkz",
+      "configured": 1,
+      "observed": 1,
+      "problematic": 0,
+      "active_observed": 1,
+      "active_problematic": 0,
+      "historical_excluded": 0
+    }
+  ]
+}

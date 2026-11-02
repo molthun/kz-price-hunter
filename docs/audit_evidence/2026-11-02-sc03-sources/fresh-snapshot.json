@@ -1,0 +1,2331 @@
+{
+  "at": "2026-11-02T17:21:11.821841+00:00",
+  "shops": [
+    {
+      "shop_key": "twelve_months",
+      "name": "12 Месяцев",
+      "status": "offline",
+      "last_attempt_at": "2026-11-02T16:33:08.482902+00:00",
+      "last_items": 0,
+      "categories_problem": 8,
+      "categories": [
+        {
+          "category": "12 Месяцев: 🌿 Садовая техника",
+          "source_url": "https://12.kz/categories/sadovaya-tekhnika",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T16:33:06.479241+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "12 Месяцев: 🔌 Электроинструменты",
+          "source_url": "https://12.kz/categories/elektroinstrumenty",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T16:32:57.411193+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "12 Месяцев: 🔧 Ручной инструмент",
+          "source_url": "https://12.kz/categories/ruchnoi-instrument",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T16:33:01.941883+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "12 Месяцев: 🔨 Перфораторы",
+          "source_url": "https://12.kz/categories/perforatory",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T16:33:00.428348+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "12 Месяцев: 🚰 Смесители и сантехника",
+          "source_url": "https://12.kz/categories/smesiteli",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T16:33:03.452236+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "12 Месяцев: 🧑‍🏭 Сварочные аппараты",
+          "source_url": "https://12.kz/categories/svarochnye-apparaty",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T16:33:04.962359+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "12 Месяцев: 🧼 Бытовая химия",
+          "source_url": "https://12.kz/categories/bytovaya-khimiya",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T16:33:08.000097+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "12 Месяцев: 🪛 Дрели и шуруповерты",
+          "source_url": "https://12.kz/categories/dreli-shurupoverty",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T16:32:58.919992+00:00",
+          "failure": null,
+          "legacy_generic": true
+        }
+      ]
+    },
+    {
+      "shop_key": "flip",
+      "name": "Flip.kz",
+      "status": "offline",
+      "last_attempt_at": "2026-11-02T16:43:58.031469+00:00",
+      "last_items": 0,
+      "categories_problem": 1,
+      "categories": [
+        {
+          "category": "Flip: Электроника",
+          "source_url": "https://www.flip.kz/catalog?subsection=5319",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T16:43:57.533221+00:00",
+          "failure": null,
+          "legacy_generic": true
+        }
+      ]
+    },
+    {
+      "shop_key": "forcecom",
+      "name": "Forcecom",
+      "status": "offline",
+      "last_attempt_at": "2026-11-02T17:09:23.994926+00:00",
+      "last_items": 0,
+      "categories_problem": 14,
+      "categories": [
+        {
+          "category": "Forcecom: ⌨️ Клавиатуры",
+          "source_url": "https://forcecom.kz/catalog/keyboards/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T14:57:23.897890+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Forcecom: 🌐 Роутеры",
+          "source_url": "https://forcecom.kz/catalog/marshrutizatory/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-01T07:39:19.752847+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Forcecom: 🎧 Наушники",
+          "source_url": "https://forcecom.kz/catalog/headphones/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T11:40:50.638452+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Forcecom: 🎮 Видеокарты",
+          "source_url": "https://forcecom.kz/catalog/graphics-cards/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T14:51:39.956738+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Forcecom: 💻 Ноутбуки",
+          "source_url": "https://forcecom.kz/catalog/laptops/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T17:09:23.501298+00:00",
+          "failure": {
+            "error_code": "timeout",
+            "phase": "fetch",
+            "page": 1,
+            "http_status": null,
+            "message": "Магазин не ответил вовремя"
+          },
+          "legacy_generic": false
+        },
+        {
+          "category": "Forcecom: 💾 SSD диски",
+          "source_url": "https://forcecom.kz/catalog/ssd/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T14:54:56.735282+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Forcecom: 💾 Жесткие диски",
+          "source_url": "https://forcecom.kz/catalog/hdd/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T14:55:45.706577+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Forcecom: 📦 Корпуса",
+          "source_url": "https://forcecom.kz/catalog/cases/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T14:56:35.030597+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Forcecom: 🔥 Распродажа",
+          "source_url": "https://forcecom.kz/sale/rasprodazha/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T17:08:34.191619+00:00",
+          "failure": {
+            "error_code": "timeout",
+            "phase": "fetch",
+            "page": 1,
+            "http_status": null,
+            "message": "Магазин не ответил вовремя"
+          },
+          "legacy_generic": false
+        },
+        {
+          "category": "Forcecom: 🖥 Мониторы",
+          "source_url": "https://forcecom.kz/catalog/monitors/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T14:54:07.424382+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Forcecom: 🖨 Принтеры",
+          "source_url": "https://forcecom.kz/catalog/printers/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-01T07:38:30.949992+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Forcecom: 🖱 Мыши",
+          "source_url": "https://forcecom.kz/catalog/mice/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T14:58:13.138146+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Forcecom: 🧠 Оперативная память",
+          "source_url": "https://forcecom.kz/catalog/ram/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T14:53:18.004027+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Forcecom: 🧩 Материнские платы",
+          "source_url": "https://forcecom.kz/catalog/motherboards/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T14:52:28.754554+00:00",
+          "failure": null,
+          "legacy_generic": true
+        }
+      ]
+    },
+    {
+      "shop_key": "lemanapro",
+      "name": "Лемана ПРО",
+      "status": "offline",
+      "last_attempt_at": "2026-11-02T16:33:52.647834+00:00",
+      "last_items": 0,
+      "categories_problem": 11,
+      "categories": [
+        {
+          "category": "Лемана ПРО: 🌿 Садовая техника",
+          "source_url": "https://lemanapro.kz/catalogue/sadovaya-tehnika/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T16:33:31.420122+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Лемана ПРО: 📦 Аксессуары для хранения",
+          "source_url": "https://lemanapro.kz/catalogue/aksessuary-dlya-hraneniya/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T16:33:52.151903+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Лемана ПРО: 🔌 Электроинструменты",
+          "source_url": "https://lemanapro.kz/catalogue/elektroinstrumenty/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T16:33:01.189123+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Лемана ПРО: 🔧 Ручной инструмент",
+          "source_url": "https://lemanapro.kz/catalogue/ruchnoy-instrument/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T16:33:16.723323+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Лемана ПРО: 🔨 Перфораторы",
+          "source_url": "https://lemanapro.kz/catalogue/perforatory/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T16:33:11.110982+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Лемана ПРО: 🚰 Сантехника",
+          "source_url": "https://lemanapro.kz/catalogue/santehnika/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T16:33:21.503750+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Лемана ПРО: 🧑‍🏭 Сварочное оборудование",
+          "source_url": "https://lemanapro.kz/catalogue/svarochnoe-oborudovanie/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T16:33:41.689837+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Лемана ПРО: 🧱 Стройматериалы",
+          "source_url": "https://lemanapro.kz/catalogue/stroymaterialy/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T16:33:26.572991+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Лемана ПРО: 🧼 Бытовая химия",
+          "source_url": "https://lemanapro.kz/catalogue/bytovaya-himiya/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T16:33:46.743384+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Лемана ПРО: 🪛 Дрели и шуруповерты",
+          "source_url": "https://lemanapro.kz/catalogue/dreli-shurupoverty/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T16:33:05.999248+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Лемана ПРО: 🪜 Стремянки",
+          "source_url": "https://lemanapro.kz/catalogue/stremyanki/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T16:33:36.505952+00:00",
+          "failure": null,
+          "legacy_generic": true
+        }
+      ]
+    },
+    {
+      "shop_key": "alser",
+      "name": "Alser",
+      "status": "degraded",
+      "last_attempt_at": "2026-11-02T16:43:58.407626+00:00",
+      "last_items": 3,
+      "categories_problem": 11,
+      "categories": [
+        {
+          "category": "Alser: ⌨️ Компьютерные аксессуары",
+          "source_url": "https://alser.kz/astana/c/aksessuary-dlja-pk",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T08:40:16.977891+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Alser: ❄️ Холодильники",
+          "source_url": "https://alser.kz/astana/c/vse-holodilniki",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-10-28T17:49:43.598343+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Alser: 🌬 Кондиционеры",
+          "source_url": "https://alser.kz/astana/c/vse-kondicioneri",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-10-28T17:49:44.442248+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Alser: 🎧 Наушники",
+          "source_url": "https://alser.kz/astana/c/naushniki-dlja-smartfonov",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:58:00.673890+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Alser: 💻 Ноутбуки",
+          "source_url": "https://alser.kz/astana/c/noutbuki",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T12:00:47.836915+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Alser: 📱 Планшеты",
+          "source_url": "https://alser.kz/astana/c/planshety",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-10-28T17:49:41.864127+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Alser: 📱 Смартфоны",
+          "source_url": "https://alser.kz/astana/c/smartfony",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-10-28T17:49:40.544634+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Alser: 📺 Телевизоры",
+          "source_url": "https://alser.kz/astana/c/televizory",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-10-28T17:49:40.565658+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Alser: 🖥 Мониторы",
+          "source_url": "https://alser.kz/astana/c/monitory",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-10-28T17:49:41.008057+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Alser: 🧹 Пылесосы",
+          "source_url": "https://alser.kz/astana/c/pylesosy",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-10-28T17:49:42.784207+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Alser: 🧹 Пылесосы",
+          "source_url": "https://alser.kz/astana/c/vse-pilesosy",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:17:38.375164+00:00",
+          "failure": null,
+          "legacy_generic": true
+        }
+      ]
+    },
+    {
+      "shop_key": "ants",
+      "name": "ANTS",
+      "status": "degraded",
+      "last_attempt_at": "2026-11-02T16:37:55.631011+00:00",
+      "last_items": 459,
+      "categories_problem": 9,
+      "categories": [
+        {
+          "category": "ANTS: ⚙️ Процессоры",
+          "source_url": "https://ants.kz/catalog/protsessory/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:47:28.729429+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "ANTS: 🎮 Видеокарты",
+          "source_url": "https://ants.kz/catalog/videokarty/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:47:41.290963+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "ANTS: 💾 SSD-накопители",
+          "source_url": "https://ants.kz/catalog/ssd-nakopiteli/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:47:44.977213+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "ANTS: 🔌 Материнские платы",
+          "source_url": "https://ants.kz/catalog/materinskie-platy/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:47:32.629315+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "ANTS: 🖥 Мониторы",
+          "source_url": "https://ants.kz/catalog/monitory/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:47:52.611229+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "ANTS: 🖥 Моноблоки",
+          "source_url": "https://ants.kz/catalog/monobloki/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:47:20.097757+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "ANTS: 🖥 Системные блоки",
+          "source_url": "https://ants.kz/catalog/sistemnye-bloki/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:47:24.404051+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "ANTS: 🗄 Корпуса",
+          "source_url": "https://ants.kz/catalog/korpusa-dlya-kompyuterov/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:47:48.790814+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "ANTS: 🧠 Оперативная память",
+          "source_url": "https://ants.kz/catalog/operativnaya-pamyat/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:47:37.082230+00:00",
+          "failure": null,
+          "legacy_generic": true
+        }
+      ]
+    },
+    {
+      "shop_key": "arbuz",
+      "name": "Arbuz",
+      "status": "degraded",
+      "last_attempt_at": "2026-11-02T16:32:41.030329+00:00",
+      "last_items": 2577,
+      "categories_problem": 6,
+      "categories": [
+        {
+          "category": "Arbuz: ☕️ Кофе, чай, какао",
+          "source_url": "https://arbuz.kz/ru/almaty/catalog/cat/226099-kofe_chai_kakao",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 366,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T16:31:10.444754+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Arbuz: 🥩 Мясо и птица",
+          "source_url": "https://arbuz.kz/ru/almaty/catalog/cat/225162-myaso_i_ptica",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 180,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T16:31:52.688500+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Arbuz: 🧃 Вода и напитки",
+          "source_url": "https://arbuz.kz/ru/almaty/catalog/cat/14-voda_i_napitki",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 285,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T16:32:40.967360+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Arbuz: 🧺 Стирка и уход за бельём",
+          "source_url": "https://arbuz.kz/ru/almaty/catalog/cat/224405-stirka_i_uhod_za_bel_m",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 356,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-01T16:32:15.836384+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Arbuz: 🧻 Салфетки и туалетная бумага",
+          "source_url": "https://arbuz.kz/ru/almaty/catalog/cat/224493-calfetki_tualetnaya_bumaga",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 114,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-01T16:32:21.976171+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Arbuz: 🧼 Средства для мытья посуды",
+          "source_url": "https://arbuz.kz/ru/almaty/catalog/cat/224494-sredstva_dlya_mytya_posudy",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 113,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-01T16:31:55.042632+00:00",
+          "failure": null,
+          "legacy_generic": true
+        }
+      ]
+    },
+    {
+      "shop_key": "askona",
+      "name": "Askona",
+      "status": "degraded",
+      "last_attempt_at": "2026-11-02T16:40:11.410474+00:00",
+      "last_items": 170,
+      "categories_problem": 0,
+      "categories": []
+    },
+    {
+      "shop_key": "dns",
+      "name": "DNS Казахстан",
+      "status": "degraded",
+      "last_attempt_at": "2026-11-02T16:40:02.768864+00:00",
+      "last_items": 24,
+      "categories_problem": 10,
+      "categories": [
+        {
+          "category": "DNS: ⌚️ Смарт-часы",
+          "source_url": "https://www.dns-shop.kz/catalog/17a9e70116404e77/smart-chasy-i-braslety/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:17:17.029388+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "DNS: ⚙️ Процессоры",
+          "source_url": "https://www.dns-shop.kz/catalog/17a899cd16404e77/processory/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:57:39.303189+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "DNS: 🎧 Наушники и гарнитуры",
+          "source_url": "https://www.dns-shop.kz/catalog/17a8f3cd16404e77/naushniki-i-garnitury/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T08:40:35.288150+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "DNS: 🎮 Видеокарты",
+          "source_url": "https://www.dns-shop.kz/catalog/17a89aab16404e77/videokarty/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:57:38.418883+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "DNS: 🎮 Игровые консоли",
+          "source_url": "https://www.dns-shop.kz/catalog/17a8a65f16404e77/igrovye-konsoli/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:17:17.964460+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "DNS: 💾 SSD накопители",
+          "source_url": "https://www.dns-shop.kz/catalog/8a9ddbe317404e77/nakopiteli-ssd/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:57:41.100945+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "DNS: 📱 Планшеты",
+          "source_url": "https://www.dns-shop.kz/catalog/17a890dc16404e77/planshety/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:17:16.163787+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "DNS: 📺 Телевизоры",
+          "source_url": "https://www.dns-shop.kz/catalog/17a8ae4916404e77/televizory/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T08:40:34.392854+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "DNS: 🖥 Мониторы",
+          "source_url": "https://www.dns-shop.kz/catalog/17a8943716404e77/monitory/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:57:40.199473+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "DNS: 🧠 Оперативная память",
+          "source_url": "https://www.dns-shop.kz/catalog/17a89a3916404e77/operativnaya-pamyat-dimm/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:57:42.004456+00:00",
+          "failure": null,
+          "legacy_generic": true
+        }
+      ]
+    },
+    {
+      "shop_key": "europharma",
+      "name": "Europharma",
+      "status": "degraded",
+      "last_attempt_at": "2026-11-02T17:07:34.085714+00:00",
+      "last_items": 1083,
+      "categories_problem": 3,
+      "categories": [
+        {
+          "category": "Europharma: 👶 Мать и дитя",
+          "source_url": "https://europharma.kz/catalog/mat-i-ditya",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T17:05:34.976553+00:00",
+          "failure": {
+            "error_code": "timeout",
+            "phase": "fetch",
+            "page": 1,
+            "http_status": null,
+            "message": "Магазин не ответил вовремя"
+          },
+          "legacy_generic": false
+        },
+        {
+          "category": "Europharma: 💊 Спазмолитики",
+          "source_url": "https://europharma.kz/catalog/spazmoliticeskie-preparaty",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T16:58:46.610602+00:00",
+          "failure": {
+            "error_code": "timeout",
+            "phase": "fetch",
+            "page": 1,
+            "http_status": null,
+            "message": "Магазин не ответил вовремя"
+          },
+          "legacy_generic": false
+        },
+        {
+          "category": "Europharma: 🩺 Медицинские приборы",
+          "source_url": "https://europharma.kz/catalog/meditsinskiye-pribory",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T17:00:53.510482+00:00",
+          "failure": {
+            "error_code": "timeout",
+            "phase": "fetch",
+            "page": 1,
+            "http_status": null,
+            "message": "Магазин не ответил вовремя"
+          },
+          "legacy_generic": false
+        }
+      ]
+    },
+    {
+      "shop_key": "fortemarket",
+      "name": "Forte Market",
+      "status": "degraded",
+      "last_attempt_at": "2026-11-02T16:10:45.043600+00:00",
+      "last_items": 2763,
+      "categories_problem": 2,
+      "categories": [
+        {
+          "category": "Forte: 📱 Смартфоны",
+          "source_url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Смартфоны",
+          "kind": "complete",
+          "quality": "degraded",
+          "valid": 3150,
+          "duplicates": 0,
+          "baseline": 10415.0,
+          "finished_at": "2026-11-02T06:23:58.277739+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Forte: 🖥 Мониторы",
+          "source_url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Мониторы",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:47:20.283385+00:00",
+          "failure": null,
+          "legacy_generic": true
+        }
+      ]
+    },
+    {
+      "shop_key": "halyk",
+      "name": "Halyk Market",
+      "status": "degraded",
+      "last_attempt_at": "2026-11-02T16:24:40.038855+00:00",
+      "last_items": 1593,
+      "categories_problem": 2,
+      "categories": [
+        {
+          "category": "Halyk: Ноутбуки",
+          "source_url": "https://halykmarket.kz/category/noutbuki",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T12:39:54.192060+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Halyk: Смартфоны",
+          "source_url": "https://halykmarket.kz/category/smartfony",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T12:39:49.874731+00:00",
+          "failure": null,
+          "legacy_generic": true
+        }
+      ]
+    },
+    {
+      "shop_key": "ispace",
+      "name": "iSpace",
+      "status": "degraded",
+      "last_attempt_at": "2026-11-02T16:29:51.292285+00:00",
+      "last_items": 32,
+      "categories_problem": 1,
+      "categories": [
+        {
+          "category": "iSpace: 🔊 Колонки",
+          "source_url": "https://ispace.kz/category/speakers",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:23:16.396210+00:00",
+          "failure": null,
+          "legacy_generic": true
+        }
+      ]
+    },
+    {
+      "shop_key": "itmag",
+      "name": "ITMag",
+      "status": "degraded",
+      "last_attempt_at": "2026-11-02T16:49:24.050127+00:00",
+      "last_items": 1123,
+      "categories_problem": 14,
+      "categories": [
+        {
+          "category": "ITMag: ⚙️ Процессоры",
+          "source_url": "https://itmag.kz/catalog/protsessory/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T08:58:05.445357+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "ITMag: 🎮 Видеокарты",
+          "source_url": "https://itmag.kz/catalog/videokarty/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T08:58:17.250242+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "ITMag: 💾 Жесткие диски и SSD",
+          "source_url": "https://itmag.kz/catalog/zhestkie_diski/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T08:58:21.401177+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "ITMag: 📡 Wi-Fi роутеры",
+          "source_url": "https://itmag.kz/catalog/besprovod_marshrutizatory_wifi_routery/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T10:00:01.116209+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "ITMag: 📱 Планшеты",
+          "source_url": "https://itmag.kz/catalog/planshety/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T11:00:24.583259+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "ITMag: 🔋 Блоки питания",
+          "source_url": "https://itmag.kz/catalog/bloki-pitaniya-k-korpusam/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T08:58:30.004253+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "ITMag: 🔌 Материнские платы",
+          "source_url": "https://itmag.kz/catalog/materinskie_platy/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T08:58:09.449629+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "ITMag: 🖥 Мониторы",
+          "source_url": "https://itmag.kz/catalog/monitory/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T08:58:34.106094+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "ITMag: 🖥 Моноблоки",
+          "source_url": "https://itmag.kz/catalog/monobloki/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T08:57:57.351810+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "ITMag: 🖥 Системные блоки",
+          "source_url": "https://itmag.kz/catalog/personal-nye-komp-yutery/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T08:58:01.395137+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "ITMag: 🖨 МФУ",
+          "source_url": "https://itmag.kz/catalog/mnogofunktsionalnye_ustroystva_mfu/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T10:00:09.118076+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "ITMag: 🖨 Принтеры",
+          "source_url": "https://itmag.kz/catalog/printery/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T10:00:04.828852+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "ITMag: 🗄 Корпуса",
+          "source_url": "https://itmag.kz/catalog/korpusa/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T08:58:25.614323+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "ITMag: 🧠 Оперативная память",
+          "source_url": "https://itmag.kz/catalog/operativnaya_pamyat/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T08:58:13.231164+00:00",
+          "failure": null,
+          "legacy_generic": true
+        }
+      ]
+    },
+    {
+      "shop_key": "kaspi",
+      "name": "Kaspi Магазин",
+      "status": "degraded",
+      "last_attempt_at": "2026-11-02T16:36:42.048436+00:00",
+      "last_items": 709,
+      "categories_problem": 13,
+      "categories": [
+        {
+          "category": "Kaspi: ☕️ Кофемашины",
+          "source_url": "https://kaspi.kz/shop/c/coffee%20machines%20and%20coffee%20makers/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T08:28:53.332808+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Kaspi: ⚙️ Процессоры",
+          "source_url": "https://kaspi.kz/shop/c/cpus/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:47:28.834189+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Kaspi: ❄️ Холодильники",
+          "source_url": "https://kaspi.kz/shop/c/refrigerators/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T08:28:36.054912+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Kaspi: 🎧 Наушники",
+          "source_url": "https://kaspi.kz/shop/c/headphones/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T10:47:43.448236+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Kaspi: 🎮 Видеокарты",
+          "source_url": "https://kaspi.kz/shop/c/videocards/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:47:25.231538+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Kaspi: 💨 Кондиционеры",
+          "source_url": "https://kaspi.kz/shop/c/air%20conditioners/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T08:28:57.818343+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Kaspi: 📺 Телевизоры",
+          "source_url": "https://kaspi.kz/shop/c/tvs/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T10:47:47.374583+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Kaspi: 📽 Проекторы",
+          "source_url": "https://kaspi.kz/shop/c/video%20projectors/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T10:47:51.552844+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Kaspi: 🔌 Материнские платы",
+          "source_url": "https://kaspi.kz/shop/c/motherboards/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:47:33.018203+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Kaspi: 🖥 Мониторы",
+          "source_url": "https://kaspi.kz/shop/c/monitors/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:47:20.552892+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Kaspi: 🤖 Роботы-пылесосы",
+          "source_url": "https://kaspi.kz/shop/c/robot%20vacuum%20cleaners/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T08:28:49.030854+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Kaspi: 🧹 Пылесосы",
+          "source_url": "https://kaspi.kz/shop/c/vacuum%20cleaners/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T08:28:44.630464+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Kaspi: 🧺 Стиральные машины",
+          "source_url": "https://kaspi.kz/shop/c/washers/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T08:28:40.543321+00:00",
+          "failure": null,
+          "legacy_generic": true
+        }
+      ]
+    },
+    {
+      "shop_key": "masterok",
+      "name": "MasterOK",
+      "status": "degraded",
+      "last_attempt_at": "2026-11-02T17:10:35.563031+00:00",
+      "last_items": 191,
+      "categories_problem": 0,
+      "categories": []
+    },
+    {
+      "shop_key": "moon",
+      "name": "Moon.kz",
+      "status": "degraded",
+      "last_attempt_at": "2026-11-02T17:07:52.661245+00:00",
+      "last_items": 188,
+      "categories_problem": 3,
+      "categories": [
+        {
+          "category": "Moon: ❄️ Системы охлаждения",
+          "source_url": "https://moon.kz/kulery-i-sistemy-okhlazhdeniya/",
+          "kind": "limited",
+          "quality": "degraded",
+          "valid": 10,
+          "duplicates": 10,
+          "baseline": 20.0,
+          "finished_at": "2026-11-01T08:32:34.796037+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Moon: 💾 SSD диски",
+          "source_url": "https://moon.kz/nakopiteli-ssd/",
+          "kind": "limited",
+          "quality": "degraded",
+          "valid": 10,
+          "duplicates": 10,
+          "baseline": 20.0,
+          "finished_at": "2026-11-01T08:32:10.170830+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Moon: 🧠 Оперативная память",
+          "source_url": "https://moon.kz/moduli-pamyati/",
+          "kind": "limited",
+          "quality": "degraded",
+          "valid": 10,
+          "duplicates": 10,
+          "baseline": 20.0,
+          "finished_at": "2026-11-01T08:32:08.570884+00:00",
+          "failure": null,
+          "legacy_generic": true
+        }
+      ]
+    },
+    {
+      "shop_key": "sulpak",
+      "name": "Sulpak",
+      "status": "degraded",
+      "last_attempt_at": "2026-11-02T16:14:04.503937+00:00",
+      "last_items": 1785,
+      "categories_problem": 4,
+      "categories": [
+        {
+          "category": "Sulpak: 🎧 Наушники",
+          "source_url": "https://www.sulpak.kz/f/naushniki",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T08:48:01.199858+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Sulpak: 💻 Ноутбуки",
+          "source_url": "https://www.sulpak.kz/f/noutbuki",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T12:29:28.650220+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Sulpak: 📱 Смартфоны",
+          "source_url": "https://www.sulpak.kz/f/smartfoniy/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T12:29:32.911901+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Sulpak: 📺 Телевизоры",
+          "source_url": "https://www.sulpak.kz/f/led_oled_televizoriy",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T08:47:57.017683+00:00",
+          "failure": null,
+          "legacy_generic": true
+        }
+      ]
+    },
+    {
+      "shop_key": "vkusmart",
+      "name": "Вкусмарт",
+      "status": "degraded",
+      "last_attempt_at": "2026-11-02T17:07:49.414813+00:00",
+      "last_items": 4,
+      "categories_problem": 3,
+      "categories": [
+        {
+          "category": "Вкусмарт: ☕️ Чай, кофе, какао",
+          "source_url": "https://vkusmart.vmv.kz/catalog/chay-kofe-kakao/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T08:01:51.847888+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Вкусмарт: 🥫 Бакалея",
+          "source_url": "https://vkusmart.vmv.kz/catalog/bakaleya/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T08:01:51.299615+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Вкусмарт: 🧼 Чистота и порядок",
+          "source_url": "https://vkusmart.vmv.kz/catalog/chistota-i-poryadok/",
+          "kind": "limited",
+          "quality": "degraded",
+          "valid": 300,
+          "duplicates": 300,
+          "baseline": 305.0,
+          "finished_at": "2026-11-02T14:02:56.370121+00:00",
+          "failure": null,
+          "legacy_generic": true
+        }
+      ]
+    },
+    {
+      "shop_key": "komfort",
+      "name": "Комфорт",
+      "status": "degraded",
+      "last_attempt_at": "2026-11-02T16:50:06.733760+00:00",
+      "last_items": 18,
+      "categories_problem": 10,
+      "categories": [
+        {
+          "category": "Комфорт: 🌿 Сад, огород и дача",
+          "source_url": "https://komfort.kz/catalog/sad_ogorod_i_dacha/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:30:59.403179+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Комфорт: 🎨 Отделочные материалы",
+          "source_url": "https://komfort.kz/catalog/otdelochnye_materialy/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:30:58.104491+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Комфорт: 🏡 Товары для дома",
+          "source_url": "https://komfort.kz/catalog/tovary_dlya_doma/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:31:01.015145+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Комфорт: 💡 Электротовары, свет и климат",
+          "source_url": "https://komfort.kz/catalog/elektrotovary_svet_i_klimat/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:30:59.904939+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Комфорт: 📦 Хранение и порядок",
+          "source_url": "https://komfort.kz/catalog/khranenie_1/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:31:00.504906+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Комфорт: 🔨 Перфораторы",
+          "source_url": "https://komfort.kz/catalog/instrumenty/elektroistrumenty/perforatory/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:30:56.527800+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Комфорт: 🚰 Сантехника и отопление",
+          "source_url": "https://komfort.kz/catalog/santekhnika_i_otoplenie/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:30:58.766102+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Комфорт: 🧱 Стройматериалы",
+          "source_url": "https://komfort.kz/catalog/stroymaterialy/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:30:57.589196+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Комфорт: 🪛 Дрели и шуруповерты",
+          "source_url": "https://komfort.kz/catalog/instrumenty/elektroistrumenty/dreli_shurupoverty/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:30:55.885505+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Комфорт: 🪜 Стремянки",
+          "source_url": "https://komfort.kz/catalog/instrumenty/lestnitsy_pomosty/stremyanki/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:30:57.062207+00:00",
+          "failure": null,
+          "legacy_generic": true
+        }
+      ]
+    },
+    {
+      "shop_key": "magnum",
+      "name": "Магнум",
+      "status": "degraded",
+      "last_attempt_at": "2026-11-02T16:39:45.922789+00:00",
+      "last_items": 241,
+      "categories_problem": 3,
+      "categories": [
+        {
+          "category": "Магнум: 👶 Детские товары",
+          "source_url": "https://magnum.kz/catalog?category=detskie-tovary",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T10:57:26.124403+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Магнум: 🧴 Средства гигиены",
+          "source_url": "https://magnum.kz/catalog?category=sredstva-gigieny",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T10:57:24.614729+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Магнум: 🧼 Бытовая химия",
+          "source_url": "https://magnum.kz/catalog?category=bytovaiya-himiya",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T10:57:23.085154+00:00",
+          "failure": null,
+          "legacy_generic": true
+        }
+      ]
+    },
+    {
+      "shop_key": "marwin",
+      "name": "Меломан",
+      "status": "degraded",
+      "last_attempt_at": "2026-11-02T16:48:16.385042+00:00",
+      "last_items": 500,
+      "categories_problem": 9,
+      "categories": [
+        {
+          "category": "Меломан: ✏️ Школа и канцелярия",
+          "source_url": "https://www.marwin.kz/shkola-kancelyariya-19236/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T10:40:45.599409+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Меломан: 🍬 Сладости и подарки",
+          "source_url": "https://www.marwin.kz/food-items/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T10:40:52.354670+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Меломан: 🎨 Творчество и хобби",
+          "source_url": "https://www.marwin.kz/tvorchestvo-19692/",
+          "kind": "limited",
+          "quality": "degraded",
+          "valid": 545,
+          "duplicates": 14,
+          "baseline": 1164.0,
+          "finished_at": "2026-11-02T16:35:03.585027+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Меломан: 🎮 Видеоигры и консоли",
+          "source_url": "https://www.marwin.kz/videogames/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T11:41:09.536062+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Меломан: 🎲 Настольные игры",
+          "source_url": "https://www.marwin.kz/toys-and-entertainment/nastol-nye-igry/",
+          "kind": "limited",
+          "quality": "warning",
+          "valid": 100,
+          "duplicates": 0,
+          "baseline": 194.0,
+          "finished_at": "2026-11-02T16:34:37.387792+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Меломан: 🎵 Музыка и винил",
+          "source_url": "https://www.marwin.kz/music/",
+          "kind": "limited",
+          "quality": "warning",
+          "valid": 500,
+          "duplicates": 0,
+          "baseline": 641.0,
+          "finished_at": "2026-11-02T16:48:16.263960+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Меломан: 📚 Книги",
+          "source_url": "https://www.marwin.kz/books/",
+          "kind": "limited",
+          "quality": "warning",
+          "valid": 602,
+          "duplicates": 21,
+          "baseline": 802.0,
+          "finished_at": "2026-11-02T16:33:34.106631+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Меломан: 🧱 Конструкторы LEGO",
+          "source_url": "https://www.marwin.kz/toys-and-entertainment/lego/",
+          "kind": "limited",
+          "quality": "warning",
+          "valid": 502,
+          "duplicates": 33,
+          "baseline": 641.0,
+          "finished_at": "2026-11-02T16:34:34.767519+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Меломан: 🧸 Игрушки и развлечения",
+          "source_url": "https://www.marwin.kz/toys-and-entertainment/",
+          "kind": "limited",
+          "quality": "warning",
+          "valid": 571,
+          "duplicates": 3,
+          "baseline": 777.0,
+          "finished_at": "2026-11-02T16:34:10.123722+00:00",
+          "failure": null,
+          "legacy_generic": true
+        }
+      ]
+    },
+    {
+      "shop_key": "mechta",
+      "name": "Мечта",
+      "status": "degraded",
+      "last_attempt_at": "2026-11-02T15:07:55.351573+00:00",
+      "last_items": 241,
+      "categories_problem": 2,
+      "categories": [
+        {
+          "category": "Мечта: 💻 Ноутбуки",
+          "source_url": "https://www.mechta.kz/section/noutbuki/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 252,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T14:07:08.343133+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Мечта: 🖥 Мониторы",
+          "source_url": "https://www.mechta.kz/section/monitory/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:57:40.608654+00:00",
+          "failure": null,
+          "legacy_generic": true
+        }
+      ]
+    },
+    {
+      "shop_key": "planeta",
+      "name": "Планета Электроники",
+      "status": "degraded",
+      "last_attempt_at": "2026-11-02T16:48:09.258440+00:00",
+      "last_items": 59,
+      "categories_problem": 6,
+      "categories": [
+        {
+          "category": "Планета: ❄️ Холодильники",
+          "source_url": "https://planeta.kz/ru/site/search/?term=холодильник",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:59:03.366712+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Планета: 🍹 Блендеры",
+          "source_url": "https://planeta.kz/ru/site/search/?term=блендер",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:59:38.024969+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Планета: 👔 Утюги",
+          "source_url": "https://planeta.kz/ru/site/search/?term=утюг",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:59:30.946414+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Планета: 💨 Кондиционеры",
+          "source_url": "https://planeta.kz/ru/site/search/?term=кондиционер",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:59:10.170026+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Планета: 🧹 Пылесосы",
+          "source_url": "https://planeta.kz/ru/site/search/?term=пылесос",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:59:16.991441+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Планета: 🫖 Чайники",
+          "source_url": "https://planeta.kz/ru/site/search/?term=чайник",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:59:24.141969+00:00",
+          "failure": null,
+          "legacy_generic": true
+        }
+      ]
+    },
+    {
+      "shop_key": "technodom",
+      "name": "Технодом",
+      "status": "degraded",
+      "last_attempt_at": "2026-11-02T16:23:10.500388+00:00",
+      "last_items": 611,
+      "categories_problem": 6,
+      "categories": [
+        {
+          "category": "Технодом: ⌚️ Смарт-часы",
+          "source_url": "https://www.technodom.kz/catalog/smartfony-i-gadzhety/gadzhety/smart-chasy",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T08:51:01.156777+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Технодом: 🎮 Игровые приставки",
+          "source_url": "https://www.technodom.kz/catalog/noutbuki-i-komp-jutery/igrovye-pristavki-i-igry/igrovye-pristavki",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T08:51:05.119385+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Технодом: 💻 Ноутбуки",
+          "source_url": "https://www.technodom.kz/catalog/noutbuki-i-komp-jutery/noutbuki/noutbuki",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T12:39:49.797195+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Технодом: 📱 Планшеты",
+          "source_url": "https://www.technodom.kz/catalog/smartfony-i-gadzhety/planshety-i-knigi/planshety",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T08:50:56.914325+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Технодом: 📱 Смартфоны",
+          "source_url": "https://www.technodom.kz/catalog/smartfony-i-gadzhety/smartfony-i-telefony/smartfony",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T12:39:53.653287+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Технодом: 🧹 Пылесосы",
+          "source_url": "https://www.technodom.kz/catalog/bytovaja-tehnika/tehnika-dlja-doma/pylesosy",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T08:13:55.016782+00:00",
+          "failure": null,
+          "legacy_generic": true
+        }
+      ]
+    },
+    {
+      "shop_key": "evrika",
+      "name": "Эврика",
+      "status": "degraded",
+      "last_attempt_at": "2026-11-02T16:20:43.401960+00:00",
+      "last_items": 198,
+      "categories_problem": 5,
+      "categories": [
+        {
+          "category": "Эврика: 🎧 Наушники",
+          "source_url": "https://evrika.com/catalog/nur-sultan-astana/naushniki-1/c183",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T08:48:01.051077+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Эврика: 🎮 Игровые приставки",
+          "source_url": "https://evrika.com/catalog/nur-sultan-astana/igrovye-pristavki/c120",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T11:32:10.589057+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Эврика: 📱 Планшеты",
+          "source_url": "https://evrika.com/catalog/nur-sultan-astana/planshety/c70",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T11:32:06.359756+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Эврика: 📺 Телевизоры",
+          "source_url": "https://evrika.com/catalog/nur-sultan-astana/led-televizory/c228",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T08:47:57.023310+00:00",
+          "failure": null,
+          "legacy_generic": true
+        },
+        {
+          "category": "Эврика: 🖨 Принтеры",
+          "source_url": "https://evrika.com/catalog/nur-sultan-astana/printery/c65",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T12:32:29.147682+00:00",
+          "failure": null,
+          "legacy_generic": true
+        }
+      ]
+    },
+    {
+      "shop_key": "iteka",
+      "name": "i-Teka",
+      "status": "limited",
+      "last_attempt_at": "2026-11-02T17:15:00.699463+00:00",
+      "last_items": 270,
+      "categories_problem": 0,
+      "categories": []
+    },
+    {
+      "shop_key": "mebel",
+      "name": "Mebel.kz",
+      "status": "limited",
+      "last_attempt_at": "2026-11-02T16:20:28.187448+00:00",
+      "last_items": 2928,
+      "categories_problem": 0,
+      "categories": []
+    },
+    {
+      "shop_key": "tgrad",
+      "name": "Tgrad",
+      "status": "limited",
+      "last_attempt_at": "2026-11-02T15:21:38.040875+00:00",
+      "last_items": 444,
+      "categories_problem": 1,
+      "categories": [
+        {
+          "category": "Tgrad: 💻 Ноутбуки",
+          "source_url": "https://tgrad.kz/noutbuki/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T14:19:44.991127+00:00",
+          "failure": null,
+          "legacy_generic": true
+        }
+      ]
+    },
+    {
+      "shop_key": "zeta",
+      "name": "Zeta",
+      "status": "limited",
+      "last_attempt_at": "2026-11-02T16:33:07.028604+00:00",
+      "last_items": 462,
+      "categories_problem": 1,
+      "categories": [
+        {
+          "category": "Zeta: 🪑 Мебель для дачи и сада",
+          "source_url": "6851938895dd04035cad42d5",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 67,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T16:33:06.864503+00:00",
+          "failure": null,
+          "legacy_generic": true
+        }
+      ]
+    },
+    {
+      "shop_key": "detmir",
+      "name": "Детский мир",
+      "status": "limited",
+      "last_attempt_at": "2026-11-02T16:34:52.838706+00:00",
+      "last_items": 1905,
+      "categories_problem": 1,
+      "categories": [
+        {
+          "category": "Детский мир: 🛏 Детская комната",
+          "source_url": "https://detmir.kz/catalog/index/name/childrens_room/",
+          "kind": "limited",
+          "quality": "failed",
+          "valid": 0,
+          "duplicates": 0,
+          "baseline": null,
+          "finished_at": "2026-11-02T09:41:03.037423+00:00",
+          "failure": null,
+          "legacy_generic": true
+        }
+      ]
+    },
+    {
+      "shop_key": "zoomarket",
+      "name": "Зоомаркет",
+      "status": "limited",
+      "last_attempt_at": "2026-11-02T16:43:41.532222+00:00",
+      "last_items": 1532,
+      "categories_problem": 0,
+      "categories": []
+    },
+    {
+      "shop_key": "intertop",
+      "name": "Интертоп",
+      "status": "limited",
+      "last_attempt_at": "2026-11-02T16:43:19.983635+00:00",
+      "last_items": 3840,
+      "categories_problem": 0,
+      "categories": []
+    },
+    {
+      "shop_key": "french_house",
+      "name": "Французский Дом",
+      "status": "limited",
+      "last_attempt_at": "2026-11-02T16:46:42.862471+00:00",
+      "last_items": 4364,
+      "categories_problem": 0,
+      "categories": []
+    },
+    {
+      "shop_key": "fourmobile",
+      "name": "4mobile",
+      "status": "healthy",
+      "last_attempt_at": "2026-11-02T16:18:36.619648+00:00",
+      "last_items": 180,
+      "categories_problem": 1,
+      "categories": [
+        {
+          "category": "4mobile: Все товары",
+          "source_url": "https://4mobile.pages.dev/api/data",
+          "kind": "complete",
+          "quality": "warning",
+          "valid": 180,
+          "duplicates": 1,
+          "baseline": 180.0,
+          "finished_at": "2026-11-02T16:18:35.801264+00:00",
+          "failure": null,
+          "legacy_generic": true
+        }
+      ]
+    },
+    {
+      "shop_key": "kari",
+      "name": "Kari",
+      "status": "healthy",
+      "last_attempt_at": "2026-11-02T16:16:32.194785+00:00",
+      "last_items": 3777,
+      "categories_problem": 0,
+      "categories": []
+    },
+    {
+      "shop_key": "kimex",
+      "name": "KIMEX",
+      "status": "healthy",
+      "last_attempt_at": "2026-11-02T16:18:27.771182+00:00",
+      "last_items": 223,
+      "categories_problem": 0,
+      "categories": []
+    },
+    {
+      "shop_key": "shopkz",
+      "name": "Белый Ветер",
+      "status": "healthy",
+      "last_attempt_at": "2026-11-02T16:09:47.956006+00:00",
+      "last_items": 13376,
+      "categories_problem": 0,
+      "categories": []
+    }
+  ],
+  "counts": {
+    "offline": 4,
+    "degraded": 22,
+    "limited": 8,
+    "healthy": 4
+  }
+}

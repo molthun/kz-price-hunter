@@ -1,5 +1,13 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 02.11.2026 — 6.18.7: SC-03, текущие и исторические категории источников
+
+- Scope действующих source URLs передаётся в overview/service monitor/admin assistant; detail знает свой список категорий.
+- Архивные категории не влияют на текущие counts/baseline/quality/failure hints; история сохранена.
+- Missing observations → unknown; общий прошлый итог магазина не объявляется успехом. Реестр/БД/настройки не меняются.
+- Проверки и stand-only выкладка: docs/AGENT_HANDOFF.md.
+
+
 ## 02.11.2026 — 6.18.6: SC-02, безопасные причины ошибок источников
 
 - Allowlisted error_code/phase/page/http_status, контекст запроса без URL/body/headers/raw exception.

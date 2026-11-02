@@ -170,6 +170,20 @@ def _latest_categories(conn, shop_keys: List[str]) -> Dict[str, List[Dict[str, A
     return out
 
 
+def _active_categories(rows, urls):
+    allowed = set(urls)
+    return [row for row in rows if row['source_url'] in allowed]
+
+
+def _category_quality(rows):
+    if not rows: return {}
+    last = max(rows, key=lambda row: row.get('finished_at') or '')
+    current = [row for row in rows if row.get('scan_id') == last.get('scan_id')]
+    quality = worst_quality(row.get('quality') for row in current)
+    chosen = next((row for row in current if row.get('quality') == quality),last)
+    return {k: chosen.get(k) for k in ('quality','reason','category','finished_at')}
+
+
 def _http_by_shop(conn, now: datetime.datetime) -> Dict[str, Dict[str, Any]]:
     """HTTP за 24 ч по магазину (имя магазина из контекста обхода): суммы по часовым бакетам.
 
@@ -213,7 +227,7 @@ def data_quality_hour_format() -> str:
 
 
 def shops_overview(registry: Dict[str, Tuple[str, int]], enabled: Iterable[str],
-                   now: Optional[datetime.datetime] = None) -> List[Dict[str, Any]]:
+                   now: Optional[datetime.datetime] = None, *, active_sources=None) -> List[Dict[str, Any]]:
     """Сводка по всем магазинам реестра: {shop_key: (название, число категорий)}."""
     import database
     import source_failure
@@ -221,7 +235,7 @@ def shops_overview(registry: Dict[str, Tuple[str, int]], enabled: Iterable[str],
     enabled = set(enabled)
     keys = list(registry)
     scans = database.get_shop_scans()
-    quality = database.get_last_source_quality(keys)
+    quality = database.get_last_source_quality(keys) if active_sources is None else {}
     with closing(_conn()) as conn:
         cats = _latest_categories(conn, keys)
         http = _http_by_shop(conn, now)
@@ -230,7 +244,13 @@ def shops_overview(registry: Dict[str, Tuple[str, int]], enabled: Iterable[str],
         name, n_categories = registry[key]
         scan = scans.get(key)
         q = (quality.get(key) or {}).get("quality")
+        historical_count = len(cats.get(key, []))
         shop_cats = cats.get(key, [])
+        if active_sources is not None:
+            allowed = set(active_sources.get(key, ()))
+            n_categories = len(allowed)
+            shop_cats = _active_categories(shop_cats, allowed)
+            q = _category_quality(shop_cats).get('quality')
         baseline = sum(c["baseline"] or 0 for c in shop_cats if c["baseline"]) or None
         prob_counts = defaultdict(int) if shop_cats else None
         if shop_cats:
@@ -243,6 +263,12 @@ def shops_overview(registry: Dict[str, Tuple[str, int]], enabled: Iterable[str],
             problem_counts=prob_counts,
             baseline_items=baseline
         )
+        if active_sources is not None and key in enabled and (not shop_cats or (len(shop_cats) < n_categories and status == HEALTHY)):
+            status, reason = UNKNOWN, "Нет наблюдений по всем действующим категориям"
+        failure = source_failure.from_legacy((scan or {}).get('last_error'))
+        if active_sources is not None:
+            ordered = sorted(shop_cats, key=lambda c: c.get('finished_at') or '', reverse=True)
+            failure = next((value for c in ordered if (value := source_failure.from_legacy(c.get('reason')))), None)
         h = http.get(name) or {}
         result.append({
             "shop_key": key, "name": name, "status": status, "reason": reason,
@@ -252,13 +278,14 @@ def shops_overview(registry: Dict[str, Tuple[str, int]], enabled: Iterable[str],
             "last_success_at": (scan or {}).get("last_success_at"),
             "last_items": (scan or {}).get("last_items") or 0,
             "last_error": (scan or {}).get("last_error"),
-            "failure": source_failure.public(source_failure.from_legacy((scan or {}).get("last_error"))),
+            "failure": source_failure.public(failure),
             "failure_count": (scan or {}).get("failure_count") or 0,
             "next_retry_at": (scan or {}).get("next_retry_at"),
             "freshness": data_quality.freshness((scan or {}).get("last_success_at"), now)["freshness"],
             "quality": q or "unknown",
             "categories_total": n_categories,
             "categories_observed": len(shop_cats),
+            "historical_categories_observed": historical_count - len(shop_cats),
             "categories_problem": sum(1 for c in shop_cats if c["quality"] in ("degraded", "failed", "warning")),
             "baseline_items": baseline,
             "http_requests_24h": h.get("requests", 0),
@@ -275,10 +302,11 @@ def shop_detail(key: str, name: str, categories: List[Dict[str, Any]], enabled: 
     import database
     now = now or _now()
     scan = database.get_shop_scans().get(key)
-    q = (database.get_last_source_quality([key]).get(key) or {})
     names = {c["url"]: c["name"] for c in categories}
     with closing(_conn()) as conn:
-        latest = _latest_categories(conn, [key]).get(key, [])
+        historical = _latest_categories(conn, [key]).get(key, [])
+        latest = _active_categories(historical, names)
+        q = _category_quality(latest)
         http = _http_by_shop(conn, now).get(name) or {}
         hist_rows = conn.execute("""SELECT scan_id, MIN(started_at) AS started_at, MAX(finished_at) AS finished_at,
                 COUNT(*) AS categories, SUM(valid) AS valid, SUM(received) AS received, SUM(rejected) AS rejected,
@@ -300,6 +328,8 @@ def shop_detail(key: str, name: str, categories: List[Dict[str, Any]], enabled: 
         problem_counts=prob_counts,
         baseline_items=baseline
     )
+    if enabled and (not latest or (len(latest) < len(names) and status == HEALTHY)):
+        status, reason = UNKNOWN, "Нет наблюдений по всем действующим категориям"
     observed = {c["source_url"] for c in latest}
     category_rows = [{
         "name": c["category"] or names.get(c["source_url"]) or c["source_url"],
@@ -346,7 +376,8 @@ def shop_detail(key: str, name: str, categories: List[Dict[str, Any]], enabled: 
     return {
         "shop_key": key, "name": name, "status": status, "reason": reason, "enabled": enabled,
         "scan": scan or {}, "freshness": data_quality.freshness((scan or {}).get("last_success_at"), now),
-        "last_quality": q, "categories": category_rows, "http": http, "history": history, "events": events,
+        "last_quality": q, "categories": category_rows,
+        "historical_categories_observed": len(historical) - len(latest), "http": http, "history": history, "events": events,
         "baseline_items": baseline, "coverage_pct": coverage_pct,
         "adaptive_profile": adaptive_profile,
         "incidents": [i for i in incidents(now=now, shop_keys={name: key})
@@ -882,9 +913,9 @@ def platform_v2_section(now: Optional[datetime.datetime] = None) -> Dict[str, An
 
 
 def overview(registry: Dict[str, Tuple[str, int]], enabled: Iterable[str], scan_state: Dict[str, Any],
-             expected_interval_sec: int, now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
+             expected_interval_sec: int, now: Optional[datetime.datetime] = None, *, active_sources=None) -> Dict[str, Any]:
     now = now or _now()
-    shops = shops_overview(registry, enabled, now)
+    shops = shops_overview(registry, enabled, now, active_sources=active_sources)
     counts: Dict[str, int] = defaultdict(int)
     for s in shops:
         counts[s["status"]] += 1
@@ -899,7 +930,7 @@ def overview(registry: Dict[str, Tuple[str, int]], enabled: Iterable[str], scan_
             shops_status = DEGRADED
         elif counts[LIMITED] > 0:
             shops_status = LIMITED
-        elif counts[UNKNOWN] == len(active):
+        elif counts[UNKNOWN] > 0:
             shops_status = UNKNOWN
         else:
             shops_status = HEALTHY

@@ -4484,6 +4484,10 @@ def _monitoring_registry():
     return {key: (SHOP_REGISTRY[key][2], len(SHOP_REGISTRY[key][1])) for key in SHOP_REGISTRY}
 
 
+def _monitoring_active_sources():
+    return {key: {cat['url'] for cat in value[1]} for key, value in SHOP_REGISTRY.items()}
+
+
 @routes.get("/monitoring")
 async def monitoring_page_handler(request):
     # Сама страница не содержит данных; данные отдаёт /api/admin/monitoring только администратору
@@ -4496,7 +4500,7 @@ async def monitoring_overview_handler(request):
     import monitoring
     settings = load_settings()
     data = await asyncio.to_thread(monitoring.overview, _monitoring_registry(), enabled_shop_keys(settings),
-                                   dict(scan_state), get_wave_interval_seconds(settings))
+                                   dict(scan_state), get_wave_interval_seconds(settings),active_sources=_monitoring_active_sources())
     return web.json_response(data, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
 
 
@@ -4967,7 +4971,7 @@ def _service_monitor_arguments():
     runtime = {'worker_running': product_queue.is_worker_running,
                'telemetry_flusher_alive': bool(thread and thread.is_alive())}
     return (_monitoring_registry(), enabled_shop_keys(settings), dict(scan_state),
-            get_wave_interval_seconds(settings), runtime)
+            get_wave_interval_seconds(settings), runtime, _monitoring_active_sources())
 
 
 @routes.get('/api/admin/service-overview')

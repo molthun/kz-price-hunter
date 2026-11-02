@@ -2,6 +2,34 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## READY_FOR_STAND → Codex: SC-03, действующие категории и архивная история (2026-11-02)
+
+- Поручение владельца «Дальше по плану», база d61ade5, tracked чист, Codex один.
+- Свежий read-only снимок: SC02 записал 5 timeout категорий Forcecom/Europharma.
+  Сам по себе timeout не доказывает дефект парсера. Следующий проверяемый случай — пустые категории Alser.
+- Область возможного малого исправления: Alser category config/parser/tests и docs/version,
+  только если прямые ссылки/ответ магазина докажут ошибку URL или разбора. Старые ошибки не угадывать.
+- Не менять рабочую БД/settings/quality thresholds/истории; HTML/товарный текст только RAM,
+  без полного scan, обхода защит/429, main push/production. Только stand bundle после проверок.
+- Уточнение после чтения кода: пустые адреса Alser уже исключены из config (6 действующих),
+  но мониторинг учитывает13 исторических категорий/12 проблемных. Это подтверждённый дефект scope,
+  а не повод возвращать удалённые ссылки. Область уточнена ДО правок: monitoring/service_monitor/server,
+  admin_assistant/UI, tests/version/docs; config/parser не менять.
+- Следующий шаг: явный список действующих source URLs для текущих оценок/карточек,
+  сохранить архив и реальный итог последнего обхода; нет наблюдений = unknown, не healthy.
+  Исторические общие ошибки магазина не переименовывать в успех без нового обхода.
+- Реализован explicit scope source URLs в main overview/service view/admin tool, detail фильтруется
+  собственным списком категорий. Counts/baseline/quality/failure hints только текущие, архивные counts видны отдельно.
+  История не удаляется, scoped missing → unknown, aggregate failed shop outcome остаётся неуспешным.
+- Профильный61 PASS; полный2683 PASS +1143 subtests; browser4/4 обе темы/390/1366,
+  compile/diff-check/secrets0 PASS. Порог limited/degraded не менялся, первоначальное ожидание теста исправлено.
+- Версия6.18.7, FIX_2026-11-02_SC03_ACTIVE_SOURCES_CODEX.md; evidence2026-11-02-sc03-sources/.
+- Следующий шаг: bundle отf5b0cce → stand build/recreate → runtime/settings SHA/guest gate;
+  scoped/unscoped read-only Alser comparison и real local-only помощник на текущих обезличенных фактах.
+  Без main owner sessions/настроек/каталога/production.
+
+---
+
 ## STAND_DEPLOYED → Владелец: SC-02, безопасные причины ошибок (2026-11-02)
 
 - Прямое поручение владельца «Делай» после SC-01. База a59c7bc, tracked чист, Codex один.

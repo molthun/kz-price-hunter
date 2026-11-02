@@ -39,13 +39,14 @@ def worst(statuses):
     return min(values, key=STATUSES.index) if values else 'unknown'
 
 
-def shops(registry, enabled):
+def shops(registry, enabled, active_sources=None):
     import monitoring
-    rows = monitoring.shops_overview(registry, enabled)
+    rows = monitoring.shops_overview(registry, enabled, active_sources=active_sources)
     clean = [{k: r[k] for k in ('shop_key', 'name', 'status', 'enabled', 'last_success_at', 'last_items', 'categories_problem')} for r in rows]
     for item, source in zip(clean, rows):
         import source_failure
         item['failure'] = source_failure.public(source.get('failure'))
+        item['historical_categories_observed'] = source.get('historical_categories_observed',0)
         if not source.get('last_attempt_at') and not source.get('last_success_at'): item['last_items'] = None
         if not source.get('categories_observed'): item['categories_problem'] = None
     counts = {status: sum(r['status'] == status for r in clean) for status in STATUSES}
@@ -109,9 +110,9 @@ def events(runtime):
             'enabled': enabled, 'flusher_alive': flusher}
 
 
-def snapshot(registry, enabled, state, interval, runtime):
+def snapshot(registry, enabled, state, interval, runtime, active_sources=None):
     sections = {}
-    collectors = {'shops': lambda: shops(registry, enabled), 'queue': lambda: queue(runtime),
+    collectors = {'shops': lambda: shops(registry, enabled, active_sources), 'queue': lambda: queue(runtime),
                   'scanning': lambda: scanning(state, interval), 'local': local,
                   'notifications': notifications, 'events': lambda: events(runtime)}
     for key, collect in collectors.items():

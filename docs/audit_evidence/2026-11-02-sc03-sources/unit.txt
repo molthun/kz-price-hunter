@@ -1,0 +1,15 @@
+.............................................................            [100%]
+=============================== warnings summary ===============================
+tests/monitoring/test_monitoring.py::AccessTest::test_admin_only
+tests/core/test_release_notes.py::ChangelogEndpointTest::test_endpoint_returns_current_version_first
+  /Users/molthun/Documents/kz-price-hunter/web/server.py:5615: NotAppKeyWarning: It is recommended to use web.AppKey instances for keys.
+  https://docs.aiohttp.org/en/stable/web_advanced.html#application-s-config
+    app["stats_cache"] = BoundedTTLCache(maxsize=128, ttl=STATS_CACHE_TTL_SECONDS)
+
+tests/monitoring/test_monitoring.py::AccessTest::test_admin_only
+  /Users/molthun/Documents/kz-price-hunter/auth.py:280: NotAppKeyWarning: It is recommended to use web.RequestKey instances for keys.
+  https://docs.aiohttp.org/en/stable/web_advanced.html#request-s-storage
+    request["user"] = None
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+61 passed, 3 warnings in 2.51s

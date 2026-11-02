@@ -34,9 +34,9 @@ def tool(name: str, title: str, keywords: Tuple[str, ...]):
 @tool("shops", "Состояние магазинов", ("магазин", "обход", "сканирован", "каталог", "dns", "товар"))
 def _shops(days: int = DEFAULT_DAYS, now: Optional[datetime.datetime] = None) -> Dict[str, Any]:
     import monitoring
-    from web.server import SHOP_REGISTRY, enabled_shop_keys
-    registry = {key: (value[2] if len(value) > 2 else key, 0) for key, value in SHOP_REGISTRY.items()}
-    data = monitoring.shops_overview(registry, enabled_shop_keys(), now=now)
+    from web.server import SHOP_REGISTRY, enabled_shop_keys, _monitoring_active_sources
+    registry = {key: (value[2] if len(value) > 2 else key, len(value[1])) for key, value in SHOP_REGISTRY.items()}
+    data = monitoring.shops_overview(registry, enabled_shop_keys(), now=now,active_sources=_monitoring_active_sources())
     shops = data["shops"] if isinstance(data, dict) else data
     return {"period": "последний обход каждого магазина",
             "shops": [{k: s.get(k) for k in ("shop", "name", "status", "reason", "items", "last_success_at")}
