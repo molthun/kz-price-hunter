@@ -2,7 +2,7 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## IN_PROGRESS → Codex: карусель и увеличение фото (2026-11-02)
+## STAND_DEPLOYED → Владелец: карусель и увеличение фото (2026-11-02)
 
 - Владелец поручил увеличение фото и удобное перелистывание в карточке.
 - База dc94548, tracked чист, один исполнитель Codex; чужие untracked сохранены.
@@ -19,7 +19,11 @@
   orientation resize, single/zero/error images, route close, прежний description/facts/feed/variant guard.
   Screenshot QA PASS. Python release/closed-gate 9 PASS; secrets 0, diff-check PASS.
   Backend suite не повторялся: только client template/version.
-- Следующий шаг: commit/bundle, стенд, runtime hash/guest gate. Main owner login не использовать.
+- Стенд 1c0339acf, v6.17.3, healthy; runtime hashes совпали. Guest product → login only.
+  Bundle без main push, production/БД не менялись. Evidence: 2026-11-02-product-carousel/.
+- UI проверен в Chrome с подставленным API/тестовыми SVG, pointer events эмулируют свайп.
+  Физический телефон/Safari и основной owner login не использовались; на стенде runtime/guest gate.
+- Следующий шаг: продуктовая проверка владельцем на реальных фото в карточке стенда.
 
 ---
 
