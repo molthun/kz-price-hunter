@@ -1,0 +1,20 @@
+{
+  "settings_unchanged": true,
+  "settings_sha256": "85aabc3edefc5a3a8c6822a6d9f5736f8a32f1773fffa1e03b3335c434c86308",
+  "bot_configured": true,
+  "telegram_check": "ok",
+  "getme_latency_ms": 433,
+  "local_diagnosis": "ready",
+  "local_latency_ms": 984,
+  "confirmed_codes": [
+    "polling"
+  ],
+  "returned_codes": [
+    "polling"
+  ],
+  "main_loop_not_measured": true,
+  "digest_enabled": false,
+  "digest_hour": 10,
+  "message_sends": 0,
+  "paid_calls": 0
+}

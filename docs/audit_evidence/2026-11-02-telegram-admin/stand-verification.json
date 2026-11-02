@@ -1,0 +1,30 @@
+{
+  "runtime_hashes_match": true,
+  "runtime_hashes": {
+    "telegram_admin.py": "1ba47ce7489e193589d14b72fd6acd487f00e9764044e5951ef3ffd1221ad5c9",
+    "telegram_bot.py": "2e813bbb3408bf256a1e50cfcc3bffb9a62506050c5cb84e075f3c18b061966a",
+    "config.py": "ba61e5ac3a66a8e98f5eee5fb90c581346eee3dacda54966240161bf6b1d598e",
+    "web/server.py": "6e71b48a23a881934e5f3904bf358ee835a5da14cb7ea09faa1347815ade3f9d",
+    "web/templates/admin.html": "b54631b92437ae06d8549145b0889aedb8d628a125e599483f1e068e3c0566ab",
+    "web/templates/index.html": "229d40aff2212d62b1a389a37fe686945afd7bc1eda9f80367dbb95b6108f067",
+    "version.py": "241566d5a3efaf99a7c24400c605ed7fcde3ba1a222b407056de115881e583fc"
+  },
+  "stand_sha": "944a54784e9f778e3bc08a809430c56cd5e87adb",
+  "health": "healthy",
+  "/api/live": {
+    "status": 200
+  },
+  "/admin": {
+    "status": 200,
+    "login_only": true
+  },
+  "/api/admin/settings/telegram": {
+    "status": 403
+  },
+  "/api/admin/settings/telegram/check": {
+    "status": 403
+  },
+  "/api/admin/settings/telegram/explain": {
+    "status": 403
+  }
+}

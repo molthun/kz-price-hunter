@@ -2,7 +2,7 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## READY_FOR_STAND → Codex: Telegram и уведомления, этап 3 (2026-11-02)
+## STAND_DEPLOYED → Владелец: Telegram и уведомления, этап 3 (2026-11-02)
 
 - Прямое поручение владельца: делать следующий этап; локальный ИИ использовать в новых сценариях.
 - База7690327, tracked чист; один исполнитель Codex, чужие untracked сохраняются.
@@ -20,10 +20,16 @@
   без paid fallback/личных данных; pending AI answer после save/check/refresh отбрасывается.
 - Полный 2648 PASS +1120 subtests; после двух новых guards/regressions профильный 81 PASS +4 subtests.
   Telegram UI4/4, scanUI4/4, navigation4/4,390/1366/обе темы. Secrets0/diff-check/compile PASS.
-  Тестовые источники подставлены, реальных отправок/вызовов провайдера пока не было.
-- Отчёт FEATURE_2026-11-02_TELEGRAM_ADMIN_CODEX.md. Следующий шаг: bundle от434c085,
-  stand build/recreate → settings SHA/runtime/guest gate → getMe + real local diagnosis без sends.
-  Основной owner login не создавать, production не менять.
+- Stand-only bundle выложен:944a54784e9f778e3bc08a809430c56cd5e87adb, v6.18.3, healthy.
+  Runtime hashes совпали; guest admin только вход, Telegram GET/check/explain403.
+  Settings SHA до/после совпал; digest выключен, час10, реальные настройки/ключи не менялись.
+- В отдельном процессе stand-контейнера getMe OK433мс; реальная local-only модель ready984мс.
+  Главный polling loop из этого процесса не измерен, модель верно обозначила отсутствие его отметок;
+  успешная проверка getMe не доказывает доставку. Отправок/paid calls0, основной owner UI не проверен.
+  Evidence:2026-11-02-telegram-admin/{real-check,stand-verification}.json.
+- Отчёт FEATURE_2026-11-02_TELEGRAM_ADMIN_CODEX.md. Следующий шаг: владелец проверяет
+  /admin#telegramTool; следующий малый slice — мониторинг сервиса с локальным помощником.
+  Независимая приёмка отдельно, production/main push не выполнялись.
 
 ---
 
