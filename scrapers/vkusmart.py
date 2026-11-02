@@ -63,9 +63,6 @@ class VkusmartScraper(PagedScraper):
 
             for c in cards:
                 pid = c.get("data-id") or ""
-                if pid and pid in seen_ids:
-                    continue
-
                 # Наименование товара
                 name_meta = c.select_one("meta[itemprop=\"name\"]")
                 title = name_meta.get("content", "").strip() if name_meta else ""
@@ -88,6 +85,8 @@ class VkusmartScraper(PagedScraper):
                 if not pid:
                     parts = [p for p in rel_url.strip("/").split("/") if p.isdigit()]
                     pid = parts[-1] if parts else rel_url.strip("/").split("/")[-1]
+                if not pid or pid in seen_ids:
+                    continue
 
                 # Цена товара
                 price = None

@@ -53,9 +53,6 @@ class MoonScraper(PagedScraper):
 
             for c in cards:
                 pid = c.get("data-id") or ""
-                if pid and pid in seen_ids:
-                    continue
-
                 title_el = c.select_one(".item-title a, a.dark_link")
                 if not title_el:
                     continue
@@ -66,7 +63,8 @@ class MoonScraper(PagedScraper):
 
                 if not pid:
                     pid = rel_link.strip("/").split("/")[-1]
-                seen_ids.add(pid)
+                if not pid or pid in seen_ids:
+                    continue
 
                 full_link = f"{self.base_url}{rel_link}" if rel_link.startswith("/") else rel_link
 
@@ -92,6 +90,7 @@ class MoonScraper(PagedScraper):
                         else:
                             image_url = src
 
+                seen_ids.add(pid)
                 products.append({
                     "shop": self.SHOP_NAME,
                     "id": f"moon_{pid}",

@@ -1,5 +1,12 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 02.11.2026 — 6.18.5: SC-01, дубли Moon и Вкусмарт
+
+- Проверка seen_ids после окончательного ID, добавление только успешно разобранной карточки.
+- Регрессии nested/fallback/native ID, invalid outer/valid inner, distinct variants, first price и limited coverage.
+- Проверки и статус stand-only выкладки: docs/AGENT_HANDOFF.md. Quality/baseline не меняются.
+
+
 ## 02.11.2026 — 6.18.4: обзор состояния сервиса в новой админке
 
 - Read-only обзор с независимыми блоками магазинов/сбора/очереди/local AI/доставки/событий.

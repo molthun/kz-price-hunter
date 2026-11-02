@@ -2,6 +2,26 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## READY_FOR_STAND → Codex: SC-01, дубли Moon/Вкусмарт (2026-11-02)
+
+- Владелец поручил исправление после аудита причин источников.
+- База 1d18fc6, tracked чист; Codex один, чужие untracked сохраняются.
+- Область: scrapers/moon.py, scrapers/vkusmart.py, регрессии, версия/история/docs.
+- Проверка окончательного ID после fallback, seen_ids только после успешной карточки;
+  сохранить IDs/цены/названия, разные исполнения и quality/coverage guards.
+- Временные тестовые данные, stand-only bundle от921c33c; без main push/production,
+  полного scan/записи реальных товаров/изменения settings/baseline/quality thresholds.
+- Исправлены оба адаптера: проверка окончательного ID; Moon seen_ids после успешного парсинга,
+  Вкусмарт — после своего validator. Другие IDs/названия/цены/quality/coverage не меняются.
+- Регрессии132 PASS +12 subtests, release5 PASS; конечный полный2666 PASS +1132 subtests.
+  Первые2 release failures были только заголовком changelog, исправлены; конечный прогон зелёный.
+  Compile/diff-check/secrets0 PASS; UI не менялся, браузерные тесты не повторялись.
+- Версия6.18.5, FIX_2026-11-02_SC01_DUPLICATES_CODEX.md; evidence2026-11-02-sc01-dedup/.
+- Следующий точный шаг: bundle от921c33c, stand build/recreate, runtime/settings SHA/guest gate,
+  затем old/new parse одного RAM HTML ответа на каждой из двух прежних страниц. Ничего не сохранять в каталог.
+
+---
+
 ## AUDIT_DONE → Codex: причины проблем источников (2026-11-02)
 
 - Поручение владельца «Делаем» к следующему шагу: разобрать причины 34 проблемных/ограниченных источников.
