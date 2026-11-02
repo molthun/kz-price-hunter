@@ -2,7 +2,7 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## READY_FOR_STAND → Codex: SC-01, дубли Moon/Вкусмарт (2026-11-02)
+## STAND_DEPLOYED → Владелец: SC-01, дубли Moon/Вкусмарт (2026-11-02)
 
 - Владелец поручил исправление после аудита причин источников.
 - База 1d18fc6, tracked чист; Codex один, чужие untracked сохраняются.
@@ -17,8 +17,17 @@
   Первые2 release failures были только заголовком changelog, исправлены; конечный прогон зелёный.
   Compile/diff-check/secrets0 PASS; UI не менялся, браузерные тесты не повторялись.
 - Версия6.18.5, FIX_2026-11-02_SC01_DUPLICATES_CODEX.md; evidence2026-11-02-sc01-dedup/.
-- Следующий точный шаг: bundle от921c33c, stand build/recreate, runtime/settings SHA/guest gate,
-  затем old/new parse одного RAM HTML ответа на каждой из двух прежних страниц. Ничего не сохранять в каталог.
+- Stand-only bundle выложен:a0caa4f7cfb330fc1611ac0e47eff9714bb7723f, v6.18.5, healthy.
+  Runtime hashes match, guest admin только вход/admin API403, settings SHA до/после совпал.
+- Реальный same-response old/new comparison: Moon20→10 строк/10уникальных/дубли10→0;
+  Вкусмарт10→5 строк/5уникальных/дубли5→0. SHA множества(ID,title,price,URL) совпали.
+  По одному HTTP200 на источник, HTML/товары только RAM, в БД ничего из проб не сохранялось.
+  Полныйscan/baseline reset/изменение настроек/рассылки/production отсутствуют.
+- Local-only помощник по обезличенным итогам: ready640мс; paid calls/sends0, evidence local-follow-up.json.
+- Основной owner UI, полный каталог и независимая приёмка отдельно. Старые оценки не стирать;
+  падения объёма/сетевые ошибки не объявлять исправленными по устранению дублей.
+- Следующий точный малый slice: SC-02 — safe error_code/HTTP status/phase/page вместо generic
+  RuntimeError/Error, с регрессиями секретов и partial/complete, stand-only без raw exceptions.
 
 ---
 

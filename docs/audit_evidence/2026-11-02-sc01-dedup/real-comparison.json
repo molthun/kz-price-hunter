@@ -1,0 +1,58 @@
+{
+  "before_ref": "921c33c",
+  "same_response_comparison": true,
+  "results": [
+    {
+      "shop_key": "moon",
+      "source_url": "https://moon.kz/kulery-i-sistemy-okhlazhdeniya/",
+      "status": "verified",
+      "http_status": 200,
+      "http_requests": 1,
+      "before": {
+        "received": 20,
+        "valid": 10,
+        "rejected": 0,
+        "duplicates": 10,
+        "conflicts": 0,
+        "with_image": 10
+      },
+      "after": {
+        "received": 10,
+        "valid": 10,
+        "rejected": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "with_image": 10
+      },
+      "unique_id_title_price_url_unchanged": true,
+      "duplicate_case_observed_before": true,
+      "latency_ms": 465
+    },
+    {
+      "shop_key": "vkusmart",
+      "source_url": "https://vkusmart.vmv.kz/catalog/aktsii/",
+      "status": "verified",
+      "http_status": 200,
+      "http_requests": 1,
+      "before": {
+        "received": 10,
+        "valid": 5,
+        "rejected": 0,
+        "duplicates": 5,
+        "conflicts": 0,
+        "with_image": 5
+      },
+      "after": {
+        "received": 5,
+        "valid": 5,
+        "rejected": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "with_image": 5
+      },
+      "unique_id_title_price_url_unchanged": true,
+      "duplicate_case_observed_before": true,
+      "latency_ms": 1122
+    }
+  ]
+}

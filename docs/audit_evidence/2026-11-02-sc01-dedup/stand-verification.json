@@ -1,0 +1,22 @@
+{
+  "settings_unchanged": true,
+  "settings_sha256": "01c12ad530b497235990b5f5aeedc6b7435f171ca8bf813d4d95fe0679f53dc3",
+  "runtime_hashes": {
+    "scrapers/moon.py": "c43226e96fa8e1f6871c7ad7d199140b97d3d5eb3fd468941849e6db56c5d188",
+    "scrapers/vkusmart.py": "318b88bc5feafa2510df5e327aeb013e0dd84ad19e69adfa331f025222560eb3",
+    "version.py": "136d66c27b8c75f4bfa25d7de0c25959fc9c339d986de5b27c297c3ec2bd1c05"
+  },
+  "runtime_hashes_match": true,
+  "stand_sha": "a0caa4f7cfb330fc1611ac0e47eff9714bb7723f",
+  "health": "healthy",
+  "/api/live": {
+    "status": 200
+  },
+  "/admin": {
+    "status": 200,
+    "login_only": true
+  },
+  "/api/admin/service-overview": {
+    "status": 403
+  }
+}

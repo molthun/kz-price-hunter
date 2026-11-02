@@ -1,0 +1,18 @@
+{
+  "status": "ready",
+  "order": [
+    "check_next_scheduled_scan",
+    "retain_quality_and_baselines",
+    "diagnose_safe_error_codes_next"
+  ],
+  "facts": {
+    "duplicate_fix_verified": true,
+    "unique_offer_values_unchanged": true,
+    "quality_thresholds_unchanged": true,
+    "historical_baselines_unchanged": true,
+    "full_catalog_coverage_verified": false
+  },
+  "latency_ms": 640,
+  "paid_calls": 0,
+  "message_sends": 0
+}
