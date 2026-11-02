@@ -1,0 +1,8 @@
+{
+  "version": "6.18.4",
+  "settings_sha256": "01c12ad530b497235990b5f5aeedc6b7435f171ca8bf813d4d95fe0679f53dc3",
+  "stand_sha": "921c33c339ea2a7c4272a9f9ea5b1f2f8c8f3b7b",
+  "health": "healthy",
+  "settings_unchanged_since_snapshot": true,
+  "audit_deployed_changes": false
+}

@@ -1,0 +1,53 @@
+{
+  "status": "ready",
+  "latency_ms": 907,
+  "facts": {
+    "historical_dns": {
+      "categories": 116,
+      "shops": 17,
+      "current_dns_resolved": 38,
+      "note": "Historical DNS errors; current resolution is successful. Exact outage cause unproven."
+    },
+    "duplicate_parser": {
+      "confirmed_adapters": 2,
+      "observed_duplicate_share": 0.5,
+      "synthetic_reproduced": true
+    },
+    "rate_limit": {
+      "http_429_confirmed": 1,
+      "cooldown_confirmed": 1
+    },
+    "timeout": {
+      "current_timeout_confirmed": 1
+    },
+    "empty_listing": {
+      "http_200_without_cards": true,
+      "js_only_response": true,
+      "cause_unproven": true
+    },
+    "limited_coverage": {
+      "no_failed_categories_in_some_sources": true,
+      "must_not_claim_full": true
+    },
+    "volume_drop": {
+      "historical_warnings_present": true,
+      "current_cause_unproven": true
+    },
+    "opaque_error": {
+      "generic_error_categories": 22,
+      "safe_structured_error_needed": true
+    }
+  },
+  "order": [
+    "duplicate_parser",
+    "rate_limit",
+    "timeout",
+    "empty_listing",
+    "opaque_error",
+    "limited_coverage",
+    "volume_drop",
+    "historical_dns"
+  ],
+  "paid_calls": 0,
+  "message_sends": 0
+}

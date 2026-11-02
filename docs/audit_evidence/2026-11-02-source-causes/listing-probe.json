@@ -1,0 +1,60 @@
+{
+  "at": "2026-11-02T16:05:10.535560+00:00",
+  "probes": [
+    {
+      "shop_key": "ispace",
+      "category": "iSpace: 🎧 AirPods",
+      "source_url": "https://ispace.kz/category/apple-airpods",
+      "http_status": 200,
+      "final_url": "https://ispace.kz/category/apple-airpods",
+      "counts": {
+        "article.product-card": 0,
+        ".catalog_item_wrapp": 0,
+        ".item_block": 0,
+        ".entity-card": 13,
+        ".entity-card a.entity-card_name[href]": 13,
+        "[itemtype*=Product]": 0,
+        "#__NEXT_DATA__": 0,
+        "script[type=\"application/ld+json\"]": 6
+      },
+      "challenge_marker": true,
+      "listing_links": 13
+    },
+    {
+      "shop_key": "alser",
+      "category": "Alser: 💻 Ноутбуки",
+      "source_url": "https://alser.kz/astana/c/noutbuki",
+      "http_status": 200,
+      "final_url": "https://alser.kz/astana/c/noutbuki",
+      "counts": {
+        "article.product-card": 12,
+        ".catalog_item_wrapp": 0,
+        ".item_block": 0,
+        ".entity-card": 0,
+        ".entity-card a.entity-card_name[href]": 0,
+        "[itemtype*=Product]": 0,
+        "#__NEXT_DATA__": 0,
+        "script[type=\"application/ld+json\"]": 3
+      },
+      "challenge_marker": true
+    },
+    {
+      "shop_key": "lemanapro",
+      "category": "Лемана ПРО: 🔌 Электроинструменты",
+      "source_url": "https://lemanapro.kz/catalogue/elektroinstrumenty/",
+      "http_status": 200,
+      "final_url": "https://lemanapro.kz/catalogue/elektroinstrumenty/",
+      "counts": {
+        "article.product-card": 0,
+        ".catalog_item_wrapp": 0,
+        ".item_block": 0,
+        ".entity-card": 0,
+        ".entity-card a.entity-card_name[href]": 0,
+        "[itemtype*=Product]": 0,
+        "#__NEXT_DATA__": 0,
+        "script[type=\"application/ld+json\"]": 0
+      },
+      "challenge_marker": true
+    }
+  ]
+}

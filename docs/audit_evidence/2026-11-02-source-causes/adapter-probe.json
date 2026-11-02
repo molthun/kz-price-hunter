@@ -1,0 +1,123 @@
+{
+  "at": "2026-11-02T16:02:19.806915+00:00",
+  "probes": [
+    {
+      "shop_key": "twelve_months",
+      "category": "12 Месяцев: 🔌 Электроинструменты",
+      "source_url": "https://12.kz/categories/elektroinstrumenty",
+      "pages_requested": 1,
+      "outcome": "error",
+      "error_type": "HostCooldown",
+      "http_statuses": [],
+      "latency_ms": 1103
+    },
+    {
+      "shop_key": "flip",
+      "category": "Flip: Электроника",
+      "source_url": "https://www.flip.kz/catalog?subsection=5319",
+      "pages_requested": 1,
+      "outcome": "error",
+      "error_type": "RuntimeError",
+      "http_statuses": [
+        429
+      ],
+      "latency_ms": 88
+    },
+    {
+      "shop_key": "lemanapro",
+      "category": "Лемана ПРО: 🔌 Электроинструменты",
+      "source_url": "https://lemanapro.kz/catalogue/elektroinstrumenty/",
+      "pages_requested": 1,
+      "outcome": "error",
+      "error_type": "UnconfirmedEnd",
+      "http_statuses": [],
+      "latency_ms": 4652
+    },
+    {
+      "shop_key": "moon",
+      "category": "Moon: ❄️ Системы охлаждения",
+      "source_url": "https://moon.kz/kulery-i-sistemy-okhlazhdeniya/",
+      "pages_requested": 1,
+      "outcome": "parsed",
+      "metrics": {
+        "received": 20,
+        "valid": 10,
+        "rejected": 0,
+        "duplicates": 10,
+        "conflicts": 0,
+        "with_image": 10
+      },
+      "complete": false,
+      "distinct_urls": 10,
+      "unique_ids": 10,
+      "latency_ms": 393
+    },
+    {
+      "shop_key": "vkusmart",
+      "category": "Вкусмарт: 🔥 Акции супермаркета",
+      "source_url": "https://vkusmart.vmv.kz/catalog/aktsii/",
+      "pages_requested": 1,
+      "outcome": "parsed",
+      "metrics": {
+        "received": 10,
+        "valid": 5,
+        "rejected": 0,
+        "duplicates": 5,
+        "conflicts": 0,
+        "with_image": 5
+      },
+      "complete": false,
+      "distinct_urls": 5,
+      "unique_ids": 5,
+      "latency_ms": 908
+    },
+    {
+      "shop_key": "forcecom",
+      "category": "Forcecom: 🔥 Распродажа",
+      "source_url": "https://forcecom.kz/sale/rasprodazha/",
+      "pages_requested": 1,
+      "outcome": "error",
+      "error_type": "Timeout",
+      "http_statuses": [],
+      "latency_ms": 15005
+    },
+    {
+      "shop_key": "kaspi",
+      "category": "Kaspi: 📱 Смартфоны",
+      "source_url": "https://kaspi.kz/shop/c/smartphones/",
+      "pages_requested": 1,
+      "outcome": "parsed",
+      "metrics": {
+        "received": 12,
+        "valid": 12,
+        "rejected": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "with_image": 12
+      },
+      "complete": false,
+      "distinct_urls": 12,
+      "unique_ids": 12,
+      "latency_ms": 296
+    },
+    {
+      "shop_key": "fortemarket",
+      "category": "Forte: 📱 Смартфоны",
+      "source_url": "https://market.forte.kz/catalog?facet=CategoryMap.Lvl3:Смартфоны",
+      "pages_requested": 1,
+      "outcome": "parsed",
+      "metrics": {
+        "received": 100,
+        "valid": 100,
+        "rejected": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "with_image": 100
+      },
+      "complete": false,
+      "distinct_urls": 100,
+      "unique_ids": 100,
+      "latency_ms": 716
+    }
+  ]
+}

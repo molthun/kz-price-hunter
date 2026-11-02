@@ -1,0 +1,233 @@
+{
+  "at": "2026-11-02T16:02:45.369711+00:00",
+  "dns": [
+    {
+      "shop_key": "shopkz",
+      "host": "shop.kz",
+      "ok": true,
+      "latency_ms": 7
+    },
+    {
+      "shop_key": "mechta",
+      "host": "www.mechta.kz",
+      "ok": true,
+      "latency_ms": 1
+    },
+    {
+      "shop_key": "forcecom",
+      "host": "forcecom.kz",
+      "ok": true,
+      "latency_ms": 6
+    },
+    {
+      "shop_key": "sulpak",
+      "host": "www.sulpak.kz",
+      "ok": true,
+      "latency_ms": 1
+    },
+    {
+      "shop_key": "evrika",
+      "host": "evrika.com",
+      "ok": true,
+      "latency_ms": 1
+    },
+    {
+      "shop_key": "moon",
+      "host": "moon.kz",
+      "ok": true,
+      "latency_ms": 4
+    },
+    {
+      "shop_key": "technodom",
+      "host": "www.technodom.kz",
+      "ok": true,
+      "latency_ms": 5
+    },
+    {
+      "shop_key": "alser",
+      "host": "alser.kz",
+      "ok": true,
+      "latency_ms": 0
+    },
+    {
+      "shop_key": "fourmobile",
+      "host": "4mobile.pages.dev",
+      "ok": true,
+      "latency_ms": 0
+    },
+    {
+      "shop_key": "kaspi",
+      "host": "kaspi.kz",
+      "ok": true,
+      "latency_ms": 4
+    },
+    {
+      "shop_key": "dns",
+      "host": "www.dns-shop.kz",
+      "ok": true,
+      "latency_ms": 0
+    },
+    {
+      "shop_key": "flip",
+      "host": "www.flip.kz",
+      "ok": true,
+      "latency_ms": 7
+    },
+    {
+      "shop_key": "halyk",
+      "host": "halykmarket.kz",
+      "ok": true,
+      "latency_ms": 6
+    },
+    {
+      "shop_key": "tgrad",
+      "host": "tgrad.kz",
+      "ok": true,
+      "latency_ms": 8
+    },
+    {
+      "shop_key": "ants",
+      "host": "ants.kz",
+      "ok": true,
+      "latency_ms": 7
+    },
+    {
+      "shop_key": "itmag",
+      "host": "itmag.kz",
+      "ok": true,
+      "latency_ms": 0
+    },
+    {
+      "shop_key": "ispace",
+      "host": "ispace.kz",
+      "ok": true,
+      "latency_ms": 0
+    },
+    {
+      "shop_key": "fortemarket",
+      "host": "market.forte.kz",
+      "ok": true,
+      "latency_ms": 17
+    },
+    {
+      "shop_key": "vkusmart",
+      "host": "vkusmart.vmv.kz",
+      "ok": true,
+      "latency_ms": 16
+    },
+    {
+      "shop_key": "twelve_months",
+      "host": "12.kz",
+      "ok": true,
+      "latency_ms": 20
+    },
+    {
+      "shop_key": "zeta",
+      "host": "back.zeta.kz",
+      "ok": true,
+      "latency_ms": 21
+    },
+    {
+      "shop_key": "komfort",
+      "host": "komfort.kz",
+      "ok": true,
+      "latency_ms": 22
+    },
+    {
+      "shop_key": "lemanapro",
+      "host": "lemanapro.kz",
+      "ok": true,
+      "latency_ms": 21
+    },
+    {
+      "shop_key": "arbuz",
+      "host": "arbuz.kz",
+      "ok": true,
+      "latency_ms": 30
+    },
+    {
+      "shop_key": "masterok",
+      "host": "masterok.kz",
+      "ok": true,
+      "latency_ms": 23
+    },
+    {
+      "shop_key": "magnum",
+      "host": "magnum.kz",
+      "ok": true,
+      "latency_ms": 13
+    },
+    {
+      "shop_key": "intertop",
+      "host": "intertop.kz",
+      "ok": true,
+      "latency_ms": 20
+    },
+    {
+      "shop_key": "kari",
+      "host": "kz.kari.com",
+      "ok": true,
+      "latency_ms": 65
+    },
+    {
+      "shop_key": "marwin",
+      "host": "www.marwin.kz",
+      "ok": true,
+      "latency_ms": 16
+    },
+    {
+      "shop_key": "iteka",
+      "host": "i-teka.kz",
+      "ok": true,
+      "latency_ms": 0
+    },
+    {
+      "shop_key": "mebel",
+      "host": "mebel.kz",
+      "ok": true,
+      "latency_ms": 30
+    },
+    {
+      "shop_key": "detmir",
+      "host": "detmir.kz",
+      "ok": true,
+      "latency_ms": 19
+    },
+    {
+      "shop_key": "askona",
+      "host": "askona.kz",
+      "ok": true,
+      "latency_ms": 15
+    },
+    {
+      "shop_key": "zoomarket",
+      "host": "zoomarket.kz",
+      "ok": true,
+      "latency_ms": 16
+    },
+    {
+      "shop_key": "planeta",
+      "host": "planeta.kz",
+      "ok": true,
+      "latency_ms": 15
+    },
+    {
+      "shop_key": "kimex",
+      "host": "kimex.kz",
+      "ok": true,
+      "latency_ms": 11
+    },
+    {
+      "shop_key": "europharma",
+      "host": "europharma.kz",
+      "ok": true,
+      "latency_ms": 12
+    },
+    {
+      "shop_key": "french_house",
+      "host": "french-house.kz",
+      "ok": true,
+      "latency_ms": 0
+    }
+  ]
+}

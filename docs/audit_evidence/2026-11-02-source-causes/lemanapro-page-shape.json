@@ -1,0 +1,14 @@
+{
+  "source_url": "https://lemanapro.kz/catalogue/elektroinstrumenty/",
+  "shape": {
+    "http_status": 200,
+    "title_indicates_ddos_guard": false,
+    "title_indicates_verification": false,
+    "title_indicates_404": false,
+    "script_count": 3,
+    "body_text_chars": 0,
+    "form_count": 0,
+    "challenge_form": false,
+    "ddos_guard_script": false
+  }
+}

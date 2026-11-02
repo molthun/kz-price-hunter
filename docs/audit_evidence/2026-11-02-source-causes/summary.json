@@ -1,0 +1,152 @@
+{
+  "at": "2026-11-02T16:00:49.421371+00:00",
+  "shops": 38,
+  "shop_status_counts": {
+    "offline": 4,
+    "degraded": 21,
+    "limited": 9,
+    "healthy": 4
+  },
+  "categories": 408,
+  "reason_groups_overlap": true,
+  "groups": {
+    "cooldown": {
+      "categories": 9,
+      "shops": [
+        "flip",
+        "twelve_months"
+      ]
+    },
+    "timeout": {
+      "categories": 15,
+      "shops": [
+        "europharma",
+        "forcecom"
+      ]
+    },
+    "dns": {
+      "categories": 116,
+      "shops": [
+        "alser",
+        "ants",
+        "askona",
+        "detmir",
+        "evrika",
+        "forcecom",
+        "fortemarket",
+        "halyk",
+        "intertop",
+        "itmag",
+        "kaspi",
+        "magnum",
+        "marwin",
+        "mechta",
+        "planeta",
+        "sulpak",
+        "technodom"
+      ]
+    },
+    "empty_cards": {
+      "categories": 21,
+      "shops": [
+        "alser",
+        "ispace",
+        "lemanapro"
+      ]
+    },
+    "pagination_unconfirmed": {
+      "categories": 9,
+      "shops": [
+        "arbuz",
+        "mechta",
+        "tgrad",
+        "zeta"
+      ]
+    },
+    "other": {
+      "categories": 22,
+      "shops": [
+        "dns",
+        "komfort",
+        "vkusmart"
+      ]
+    },
+    "volume_drop": {
+      "categories": 7,
+      "shops": [
+        "europharma",
+        "fortemarket",
+        "marwin",
+        "moon"
+      ]
+    },
+    "repeated_ids": {
+      "categories": 6,
+      "shops": [
+        "fourmobile",
+        "moon",
+        "vkusmart"
+      ]
+    },
+    "rejected_cards": {
+      "categories": 5,
+      "shops": [
+        "moon",
+        "vkusmart"
+      ]
+    },
+    "http_5xx": {
+      "categories": 1,
+      "shops": [
+        "marwin"
+      ]
+    }
+  },
+  "kind_quality_counts": [
+    {
+      "kind": "limited",
+      "quality": "failed",
+      "categories": 192
+    },
+    {
+      "kind": "complete",
+      "quality": "unknown",
+      "categories": 34
+    },
+    {
+      "kind": "complete",
+      "quality": "ok",
+      "categories": 110
+    },
+    {
+      "kind": "limited",
+      "quality": "ok",
+      "categories": 59
+    },
+    {
+      "kind": "complete",
+      "quality": "warning",
+      "categories": 2
+    },
+    {
+      "kind": "complete",
+      "quality": "degraded",
+      "categories": 1
+    },
+    {
+      "kind": "limited",
+      "quality": "degraded",
+      "categories": 5
+    },
+    {
+      "kind": "limited",
+      "quality": "unknown",
+      "categories": 3
+    },
+    {
+      "kind": "limited",
+      "quality": "warning",
+      "categories": 2
+    }
+  ]
+}

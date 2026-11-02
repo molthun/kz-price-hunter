@@ -1,0 +1,18 @@
+{
+  "moon": {
+    "received": 10,
+    "valid": 5,
+    "rejected": 0,
+    "duplicates": 5,
+    "conflicts": 0,
+    "with_image": 0
+  },
+  "vkusmart": {
+    "received": 10,
+    "valid": 5,
+    "rejected": 0,
+    "duplicates": 5,
+    "conflicts": 0,
+    "with_image": 0
+  }
+}

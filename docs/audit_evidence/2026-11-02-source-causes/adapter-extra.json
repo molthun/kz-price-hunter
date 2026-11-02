@@ -1,0 +1,64 @@
+{
+  "at": "2026-11-02T16:03:51.352646+00:00",
+  "probes": [
+    {
+      "shop_key": "komfort",
+      "category": "Комфорт: 🪛 Дрели и шуруповерты",
+      "source_url": "https://komfort.kz/catalog/instrumenty/elektroistrumenty/dreli_shurupoverty/",
+      "pages_requested": 1,
+      "outcome": "parsed",
+      "metrics": {
+        "received": 19,
+        "valid": 19,
+        "rejected": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "with_image": 19
+      },
+      "complete": false,
+      "distinct_urls": 19,
+      "unique_ids": 19,
+      "transport": [
+        {
+          "host": "komfort.kz",
+          "status": 200,
+          "error_type": null,
+          "error_kind": null,
+          "cooldown_rejected": false
+        }
+      ],
+      "latency_ms": 10106
+    },
+    {
+      "shop_key": "alser",
+      "category": "Alser: ❄️ Холодильники",
+      "source_url": "https://alser.kz/astana/c/vse-holodilniki",
+      "pages_requested": 1,
+      "outcome": "error",
+      "error_type": "UnconfirmedEnd",
+      "http_statuses": [],
+      "transport": [
+        {
+          "host": "alser.kz",
+          "status": 200,
+          "error_type": null,
+          "error_kind": null,
+          "cooldown_rejected": false
+        }
+      ],
+      "latency_ms": 379
+    },
+    {
+      "shop_key": "ispace",
+      "category": "iSpace: 🎧 AirPods",
+      "source_url": "https://ispace.kz/category/apple-airpods",
+      "pages_requested": 1,
+      "outcome": "unsupported_probe",
+      "error_type": "NotImplementedError",
+      "http_statuses": [],
+      "transport": [],
+      "latency_ms": 0,
+      "probe_limitation": "Custom listing/product flow; this result is not a scraper failure."
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "at": "2026-11-02T16:05:11.588561+00:00",
+  "probe": {
+    "shop_key": "dns",
+    "category": "DNS: 🧠 Оперативная память",
+    "source_url": "https://www.dns-shop.kz/catalog/17a89a3916404e77/operativnaya-pamyat-dimm/",
+    "pages_requested": 1,
+    "trace": [
+      {
+        "http_status": 200
+      }
+    ],
+    "metrics": {
+      "received": 24,
+      "valid": 24,
+      "rejected": 0,
+      "duplicates": 0,
+      "conflicts": 0,
+      "with_image": 24
+    },
+    "result_error_type": null
+  }
+}
