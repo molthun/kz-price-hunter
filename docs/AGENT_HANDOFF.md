@@ -2,7 +2,7 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## READY_FOR_STAND → Codex: SC-03, действующие категории и архивная история (2026-11-02)
+## STAND_DEPLOYED → Владелец: SC-03, действующие категории и архивная история (2026-11-02)
 
 - Поручение владельца «Дальше по плану», база d61ade5, tracked чист, Codex один.
 - Свежий read-only снимок: SC02 записал 5 timeout категорий Forcecom/Europharma.
@@ -24,9 +24,17 @@
 - Профильный61 PASS; полный2683 PASS +1143 subtests; browser4/4 обе темы/390/1366,
   compile/diff-check/secrets0 PASS. Порог limited/degraded не менялся, первоначальное ожидание теста исправлено.
 - Версия6.18.7, FIX_2026-11-02_SC03_ACTIVE_SOURCES_CODEX.md; evidence2026-11-02-sc03-sources/.
-- Следующий шаг: bundle отf5b0cce → stand build/recreate → runtime/settings SHA/guest gate;
-  scoped/unscoped read-only Alser comparison и real local-only помощник на текущих обезличенных фактах.
-  Без main owner sessions/настроек/каталога/production.
+- Stand-only bundle выложен:a05d22e894045972ef38b611bc9e006710df407b, v6.18.7, healthy.
+  Runtime hashes match; guest admin только вход, overview/detail API403; settings SHA совпал.
+- Real read-only Alser: unscoped13наблюдаемых/11проблемных → scoped6действующих/4проблемных,
+  архивных7, detail6/архив7. Statusdegraded сохранён;72 строки истории до/после, удалений нет.
+  Main API передаёт scope; flags worker/flusher основного процесса helper-проверкой не измерены.
+- Реальная local-only модель по безопасным фактам ready3358мс; paid/sends0, store HTTP requests0.
+  Evidence:2026-11-02-sc03-sources/{stand-scope-check,stand-verification}.json.
+  Нет full scan/миграций/каталоговых записей/изменения settings/production; owner UI/независимая приёмка отдельно.
+- Следующий точный шаг: read-only новый штатный круг активных категорий по SC02, затем выбрать
+  причину пустой выдачи для малого воспроизведения/исправления. Timeout не считать доказательством
+  дефекта парсера; не обходить 429/cooldown/защитные экраны и не удалять историю.
 
 ---
 

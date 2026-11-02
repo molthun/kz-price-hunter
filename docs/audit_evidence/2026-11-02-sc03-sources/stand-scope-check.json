@@ -1,0 +1,48 @@
+{
+  "before_unscoped": {
+    "status": "degraded",
+    "categories_total": 6,
+    "categories_observed": 13,
+    "categories_problem": 11,
+    "historical_categories_observed": 0
+  },
+  "current_scoped": {
+    "status": "degraded",
+    "categories_total": 6,
+    "categories_observed": 6,
+    "categories_problem": 4,
+    "historical_categories_observed": 7
+  },
+  "configured_sources": 6,
+  "detail_categories": 6,
+  "detail_historical_categories": 7,
+  "history_rows_before": 72,
+  "history_rows_after": 72,
+  "main_api_passes_scope": true,
+  "main_process_runtime_flags_not_measured": true,
+  "local_status": "ready",
+  "local_latency_ms": 3358,
+  "expected_codes": [
+    "shops",
+    "shops_unknown",
+    "source_network",
+    "local_errors",
+    "telemetry",
+    "errors",
+    "unknown"
+  ],
+  "returned_codes": [
+    "shops",
+    "shops_unknown",
+    "source_network",
+    "local_errors",
+    "telemetry",
+    "errors",
+    "unknown"
+  ],
+  "settings_unchanged": true,
+  "settings_sha256": "01c12ad530b497235990b5f5aeedc6b7435f171ca8bf813d4d95fe0679f53dc3",
+  "store_http_requests": 0,
+  "paid_calls": 0,
+  "message_sends": 0
+}

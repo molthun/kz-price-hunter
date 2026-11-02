@@ -1,0 +1,29 @@
+{
+  "runtime_hashes_match": true,
+  "runtime_hashes": {
+    "monitoring.py": "93661999da0bcf2b63948a956d77448c409cc75a69a83021671b63adc342e1cd",
+    "service_monitor.py": "16ef275b244b547be3cf1409e891814f79d160f0b4b0f31327411ed3ec1371f6",
+    "admin_assistant.py": "a5c9d2a95fa414216f369c38b5e8adee0fadb279739994408e2a9ff95f6666e4",
+    "web/server.py": "3dc1424f368af593b4ff1baa81741bc363e303daf4455e7d3ed5e5295e81cf64",
+    "web/templates/admin.html": "64b5c6ba4aa46f22b47ccecc62591d748f3cc1011d4142ff5c6ad6b5df709600",
+    "version.py": "ce791e2ac39a4f2bd3d989b4790fc574876bf176db183befb2834eae8d2efefc"
+  },
+  "stand_sha": "a05d22e894045972ef38b611bc9e006710df407b",
+  "health": "healthy",
+  "/api/live": {
+    "status": 200
+  },
+  "/admin": {
+    "status": 200,
+    "login_only": true
+  },
+  "/api/admin/service-overview": {
+    "status": 403
+  },
+  "/api/admin/monitoring": {
+    "status": 403
+  },
+  "/api/admin/monitoring/shop/alser": {
+    "status": 403
+  }
+}
