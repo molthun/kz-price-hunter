@@ -1,0 +1,26 @@
+{
+  "runtime_hashes_match": true,
+  "runtime_hashes": {
+    "source_failure.py": "14f0bf9325f3be0ad6d105b99faf18eb081adba0d7dd13e9730e47ac8b338030",
+    "scrapers/base.py": "688f9597c77830af73dfea1c33f1210ed08ffc8e72dc19a267a848973c251c00",
+    "scrapers/http.py": "26f6666c88666a6f8f168189cd5383d6f9e69e9b936855a6684053137d27d7b6",
+    "scrapers/dns.py": "e80480c4a5553772f770d2e664d25e42f624d14812c7db446ea6e15561acac97",
+    "web/server.py": "dcf3310dea9aded1bdc4870ec53389aaafe7c0709bbd8c75db2707f8daf0effe",
+    "monitoring.py": "24b5df5042dff058e806110d19a29f50c829b29f69f8d59fa5cde2eecefe8ef0",
+    "service_monitor.py": "6b8277204abc7148e916c63c838cb9dabe7a7991ccbbae87770918d10cbb97f9",
+    "web/templates/admin.html": "486399313b9dd69440ababa24c0f0888a8cf027159af26312e178f74f53055ac",
+    "version.py": "2d4ae8f59bd499702fb8792c559531ab814184d860d898f25ecab55b701137db"
+  },
+  "stand_sha": "f5b0cce1febb80471fc4dbc73b41eefd6b0942b4",
+  "health": "healthy",
+  "/api/live": {
+    "status": 200
+  },
+  "/admin": {
+    "status": 200,
+    "login_only": true
+  },
+  "/api/admin/service-overview": {
+    "status": 403
+  }
+}

@@ -2,7 +2,7 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## READY_FOR_STAND → Codex: SC-02, безопасные причины ошибок (2026-11-02)
+## STAND_DEPLOYED → Владелец: SC-02, безопасные причины ошибок (2026-11-02)
 
 - Прямое поручение владельца «Делай» после SC-01. База a59c7bc, tracked чист, Codex один.
 - Область: safe failure classifier/transport metadata, ScanResult/base/DNS/server,
@@ -19,9 +19,18 @@
   compile/diff-check/secrets0 PASS. Temporary pipeline доказал HTTP429/page2 → SQLite/API без secret,
   partial data сохранены, retirement/baseline learning не разрешены.
 - Версия6.18.6, FIX_2026-11-02_SC02_FAILURES_CODEX.md; evidence2026-11-02-sc02-failures/.
-- Следующий шаг: stand bundle отa0caa4f → build/recreate → settings SHA/runtime/guest gate;
-  isolated temporary DB fault smoke и реальная local-only приоритизация безопасных причин без sends.
-  Независимая приёмка/основной owner UI отдельно.
+- Stand-only bundle выложен:f5b0cce1febb80471fc4dbc73b41eefd6b0942b4, v6.18.6, healthy.
+  Runtime hashes match, guest admin только вход/API403, settings SHA до/после совпал; ключи не менялись.
+- Deployed-code fault smoke на удаляемой временной БД: DNS/HTTP429/page2, первая страница сохранена,
+  complete/may_retire/learn=false, причины дошли до overview, raw secret не вышел. Внешних store requests0.
+  Это fixtures, не реальные отказы магазинов. Реальная local-only модель по безопасным кодам ready1641мс,
+  paid calls/sends0. Главные worker/flusher/owner UI не измерены этим отдельным процессом.
+- Live first-page base loop: Moon10/Вкусмарт5 валидных, duplicates0/errors0, limitedtrue/completefalse.
+  В каталог пробы не писались, full scan/baseline reset/production отсутствуют.
+  Evidence:2026-11-02-sc02-failures/{stand-verification,stand-fault-smoke,live-first-pages}.json.
+- Следующий точный шаг: read-only свежие штатные обходы со SC02, затем выбрать конкретную
+  оставшуюся причину пустых/неполных категорий для малого исправления. Старые RuntimeError не угадывать,
+  не обходить 429/cooldown/защитные экраны; основной owner UI и независимая приёмка отдельно.
 
 ---
 

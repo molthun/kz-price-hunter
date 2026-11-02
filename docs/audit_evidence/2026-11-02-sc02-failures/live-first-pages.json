@@ -1,0 +1,36 @@
+{
+  "live_first_page_only": true,
+  "catalog_writes": 0,
+  "sources": [
+    {
+      "shop_key": "moon",
+      "metrics": {
+        "received": 10,
+        "valid": 10,
+        "rejected": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "with_image": 10
+      },
+      "complete": false,
+      "limited": true,
+      "error_info": null,
+      "has_error": false
+    },
+    {
+      "shop_key": "vkusmart",
+      "metrics": {
+        "received": 5,
+        "valid": 5,
+        "rejected": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "with_image": 5
+      },
+      "complete": false,
+      "limited": true,
+      "error_info": null,
+      "has_error": false
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "fixture_only": true,
+  "temporary_db_removed": true,
+  "external_store_requests": 0,
+  "failures": [
+    {
+      "failure": {
+        "error_code": "http_429",
+        "phase": "fetch",
+        "page": 2,
+        "http_status": 429
+      },
+      "retained_products": 1,
+      "complete": false,
+      "accepted": false,
+      "may_retire": false
+    },
+    {
+      "failure": {
+        "error_code": "dns",
+        "phase": "fetch",
+        "page": 2,
+        "http_status": null
+      },
+      "retained_products": 1,
+      "complete": false,
+      "accepted": false,
+      "may_retire": false
+    }
+  ],
+  "overview_failure_codes": [
+    "dns",
+    "http_429"
+  ],
+  "no_raw_secret": true,
+  "local_status": "ready",
+  "local_latency_ms": 1641,
+  "expected_codes": [
+    "shops",
+    "source_network",
+    "source_rate",
+    "scan",
+    "local_missing",
+    "telemetry",
+    "unknown"
+  ],
+  "returned_codes": [
+    "shops",
+    "source_network",
+    "source_rate",
+    "scan",
+    "local_missing",
+    "telemetry",
+    "unknown"
+  ],
+  "settings_unchanged": true,
+  "settings_sha256": "01c12ad530b497235990b5f5aeedc6b7435f171ca8bf813d4d95fe0679f53dc3",
+  "paid_calls": 0,
+  "message_sends": 0
+}
