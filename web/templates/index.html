@@ -1522,10 +1522,7 @@
             <i class="fa-brands fa-telegram text-sky-400 text-lg"></i>
             <span>Telegram-бот</span>
           </h3>
-          <div id="adminBotStatus" class="text-sm font-semibold text-slate-300">Проверка...</div>
-          <p class="text-xs text-slate-400">
-            Токен бота задается только переменной окружения <code class="text-sky-300">TELEGRAM_BOT_TOKEN</code> и не показывается в интерфейсе. Для входа на сайте домен должен быть указан у бота в BotFather (<code class="text-sky-300">/setdomain</code>).
-          </p>
+          <a href="/admin#telegramTool" class="inline-block text-sky-400">Подключение, суточная сводка и разбор локальным ИИ — в новой админке →</a>
         </div>
 
         <!-- Админ: Интеллектуальный AI-поиск (Gemini / OpenAI) -->
@@ -6442,14 +6439,7 @@
         document.getElementById('inputCandArbPct').value = numOr(s.candidate_arbitrage_drop_pct, 15);
         document.getElementById('inputCandArbDiff').value = numOr(s.candidate_arbitrage_diff_kzt, 10000);
 
-        const botStatus = document.getElementById('adminBotStatus');
-        if (!bot.configured) {
-          botStatus.innerHTML = '<span class="text-rose-400"><i class="fa-solid fa-circle-xmark mr-1"></i>Токен не задан</span>';
-        } else if (bot.username) {
-          botStatus.innerHTML = `<span class="text-emerald-400"><i class="fa-solid fa-circle-check mr-1"></i>Подключен: @${escapeHtml(bot.username)}</span>`;
-        } else {
-          botStatus.innerHTML = '<span class="text-amber-400"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Токен задан, но Telegram его не принял</span>';
-        }
+
       } catch (e) {
         console.error('Ошибка loadAdminSettings:', e);
       }

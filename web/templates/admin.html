@@ -188,7 +188,7 @@
     .scan-period {display:flex;gap:8px;max-width:360px;margin:8px 0;}
     .scan-period input {width:42%;}
     .scan-period select {width:58%;}
-    #scanningTool button {min-height:44px;}
+    #scanningTool button, #telegramTool button {min-height:44px;}
     #scanSettingsSearch {margin:6px 0 12px;}
     .scan-shops {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:340px;overflow-y:auto;padding:4px;}
     .scan-shop-row {display:flex;align-items:center;gap:10px;min-height:48px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:.85rem;overflow-wrap:anywhere;}
@@ -211,6 +211,7 @@
         <a href="#usersTool">Доступ пользователей</a>
         <a href="#systemTool">ИИ и модели</a>
         <a href="#scanningTool">Сбор цен</a>
+        <a href="#telegramTool">Telegram и уведомления</a>
       </nav>
       <div class="admin-content">
     <section class="card admin-panel" id="classificationTool">
@@ -312,6 +313,31 @@
       <div id="usersList"></div>
       <div class="state" id="usersState" role="status">Загрузка…</div>
     </section>
+    <section class="card admin-panel" id="telegramTool">
+      <h2>Telegram и уведомления</h2>
+      <p class="user-meta">Подключение бота, приём команд и доставка — отдельные проверки. Токен хранится на сервере и здесь не меняется.</p>
+      <div class="state" id="tgConnection" role="status">Состояние ещё не загружено.</div>
+      <p class="user-meta" id="tgPolling"></p>
+      <p class="user-meta" id="tgDelivery"></p>
+      <div class="user-actions"><button type="button" id="tgCheck">Проверить подключение</button><button type="button" id="tgRefresh">Обновить состояние</button></div>
+      <p class="user-meta">Проверка обращается к Telegram за сведениями о боте. Тестовые сообщения не отправляются. Отметки приёма команд хранятся с последнего запуска сервиса.</p>
+      <h3>Суточная сводка администраторам</h3>
+      <p class="user-meta" id="tgRecipients"></p>
+      <form id="tgForm"><fieldset id="tgFields" disabled style="border:0;padding:0;margin:0;min-width:0">
+        <label class="scan-shop-row"><input type="checkbox" id="tgEnabled">Отправлять суточную сводку</label>
+        <label class="form-label">После какого часа<input type="number" min="0" max="23" step="1" id="tgHour" required></label>
+        <p class="user-meta" id="tgTimezone"></p>
+        <p class="user-meta">Сводка о завершённых сутках отправляется один раз после указанного часа. Включение разрешает плановую отправку администраторам.</p>
+        <button type="submit" class="main">Сохранить сводку</button>
+      </fieldset></form>
+      <div class="state" id="tgResult" role="status"></div>
+      <button type="button" id="tgReload">Обновить значения формы</button>
+      <h3>Разбор локальным ИИ</h3>
+      <p class="user-meta">Локальная модель выбирает порядок действий по подтверждённым проблемам. Личные данные и ключи ей не передаются; настройки она не меняет.</p>
+      <button type="button" id="tgExplain">Разобрать состояние</button>
+      <div class="state" id="tgAiState" role="status"></div><ol id="tgActions" class="user-meta"></ol>
+      <div class="settings-links"><a href="/dashboard?tab=settings">Личные уведомления о ценах ↗<span>Пользователи сами выбирают уведомления, фильтры и наблюдения. Эти параметры не меняются вместе со сводкой.</span></a><a href="/monitoring">Мониторинг доставки ↗<span>Очередь и подробности ошибок сервиса.</span></a></div>
+    </section>
     <section class="card admin-panel" id="scanningTool">
       <h2>Сбор цен</h2>
       <p>Выберите магазины с подключёнными сборщиками и период обновления. Добавление магазина в справочник само по себе не подключает сбор с его сайта.</p>
@@ -358,7 +384,7 @@
       <div class="settings-links">
         <a href="/dashboard?tab=settings#sec-admin-ai">Модели и лимиты ИИ ↗<span>Платные провайдеры и дополнительные ограничения использования.</span></a>
         <a href="#scanningTool">Сбор цен и расписание →<span>Параметры обхода магазинов, категории и волны сбора.</span></a>
-        <a href="/dashboard?tab=settings#sec-admin-bot">Служебный Telegram-бот ↗<span>Состояние подключения бота и служебные уведомления.</span></a>
+        <a href="#telegramTool">Telegram и уведомления →<span>Состояние подключения бота и служебные уведомления.</span></a>
         <a href="/monitoring">Состояние сервиса ↗<span>Очереди, ошибки, сбор данных и диагностика.</span></a>
       </div>
       <details class="workflow-help"><summary>Какая задача у каждого помощника</summary><p><strong>Поиск</strong> разбирает запрос пользователя.<br><strong>Разбор товаров</strong> проверяет раздел по названию и характеристикам.<br><strong>Расширение ассортимента</strong> обрабатывает запросы без подходящих предложений.<br><strong>Сведения источника</strong> постепенно добавляют характеристики и фото; ручные метки сохраняются.</p></details>
@@ -375,6 +401,7 @@
       if(selected.id==='classificationTool'&&typeof loadClassification==='function')loadClassification();
       if(selected.id==='catalogExpansionTool'&&typeof loadExpansions==='function')loadExpansions();
       if(selected.id==='systemTool'&&typeof loadLocalConnection==='function'&&!localConnectionLoaded)loadLocalConnection();
+      if(selected.id==='telegramTool'&&typeof loadTelegramSettings==='function'&&!tgLoaded)loadTelegramSettings();
       if(selected.id==='scanningTool'&&typeof loadScanSettings==='function'&&!scanSettingsLoaded)loadScanSettings();
     }
     addEventListener('hashchange',showAdminPanel);showAdminPanel();
@@ -993,6 +1020,56 @@
     const serial=scanSettingsSerial;
     try{const data=await scanSettingsResponse(await fetch('/api/admin/settings/scanning',{cache:'no-store'}));if(serial!==scanSettingsSerial||scanSettingsBusy)return;scanSettingsRuntime(data);if(data.revision!==scanSettingsRevision)scanEl('Result').textContent='Сохранённые настройки изменились. Обновите значения перед сохранением.';}catch(e){}
   },15000);
+</script>
+<script>
+  let tgLoaded=false,tgDirty=false,tgBusy=false,tgAiBusy=false,tgRevision='',tgSerial=0,tgCheckBusy=false;
+  const tgEl=id=>document.getElementById('tg'+id);
+  const tgStates={not_checked:'ещё не проверено',unconfigured:'токен не задан',ok:'связь подтверждена',unauthorized:'Telegram отклонил токен',network_error:'нет связи с Telegram',rate_limited:'Telegram ограничил частоту запросов',remote_error:'ошибка Telegram',invalid_response:'неполный ответ Telegram',not_observed:'нет отметок',starting:'запускается',conflict:'конфликт получения команд',stopped:'приём остановлен'};
+  function tgConnection(c){
+    const check=c.check||{},p=c.polling||{};
+    const at=check.at?' · Проверено: '+new Date(check.at).toLocaleString('ru-RU'):'';
+    tgEl('Connection').textContent=(c.configured?'Токен подключён ('+(c.source==='environment'?'настройки сервера':'сохранённые настройки')+'). ':'Токен не задан. ')+(tgStates[check.state]||'нет данных')+(check.username?' · @'+check.username:'')+at;
+    tgEl('Polling').textContent='Последняя отметка приёма команд: '+(tgStates[p.state]||'нет данных')+(!p.fresh?' (устарела или отсутствует)':'')+(p.last_success_at?' · Последний успешный опрос: '+new Date(p.last_success_at).toLocaleString('ru-RU'):' · Успешный опрос ещё не зафиксирован.');
+  }
+  function tgRuntime(data){
+    tgConnection(data.connection);const n=data.notifications,q=n.queue||{};
+    tgEl('Delivery').textContent='Личные уведомления включены у '+n.personal_recipients+' пользователей. Очередь: ожидают '+(q.pending||0)+', доставлены '+(q.sent||0)+', ошибки '+(q.failed||0)+'.'+(n.muted?' Доставка временно заглушена защитой.':'')+' Время последней доставки не фиксируется; счётчики относятся к сохранённой очереди.';
+    tgEl('Recipients').textContent='Получателей сводки: '+n.digest_recipients+' · незаблокированные администраторы сервиса.';
+    tgEl('Timezone').textContent='Часовой пояс: '+data.timezone;
+  }
+  function tgRender(data){tgRuntime(data);tgEl('Enabled').checked=data.settings.daily_digest_telegram_enabled;tgEl('Hour').value=data.settings.daily_digest_hour;tgRevision=data.revision;tgLoaded=true;tgDirty=false;}
+  async function tgResponse(response){const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Не удалось получить состояние Telegram.');return data;}
+  async function loadTelegramSettings(){
+    if(tgBusy||tgCheckBusy)return;if(tgDirty&&!confirm('Загрузить сохранённые значения и отменить изменения сводки?'))return;
+    tgBusy=true;const serial=++tgSerial;tgEl('Fields').disabled=true;tgEl('Result').textContent='Загружаем Telegram…';
+    try{const d=await tgResponse(await fetch('/api/admin/settings/telegram',{cache:'no-store'}));if(serial!==tgSerial)return;tgRender(d);tgEl('Result').textContent='Настройки Telegram загружены.';explainTelegram();}
+    catch(e){tgEl('Result').textContent=e.message;}finally{tgBusy=false;tgEl('Fields').disabled=!tgLoaded;}
+  }
+  async function refreshTelegram(){
+    if(tgBusy||tgCheckBusy)return;const serial=tgSerial;tgEl('Refresh').disabled=true;
+    try{const d=await tgResponse(await fetch('/api/admin/settings/telegram',{cache:'no-store'}));if(serial!==tgSerial||tgBusy)return;++tgSerial;tgRuntime(d);tgEl('AiState').textContent='Состояние обновлено. Повторите разбор локальным ИИ.';tgEl('Actions').replaceChildren();tgEl('Result').textContent=d.revision===tgRevision?'Состояние обновлено. Черновик формы сохранён.':'Настройки сводки изменились. Обновите значения формы перед сохранением.';}
+    catch(e){tgEl('Result').textContent=e.message;}finally{tgEl('Refresh').disabled=false;}
+  }
+  async function explainTelegram(){
+    if(tgAiBusy)return;const serial=tgSerial;tgAiBusy=true;tgEl('Explain').disabled=true;tgEl('AiState').textContent='Локальный ИИ разбирает состояние…';tgEl('Actions').replaceChildren();
+    try{const d=await tgResponse(await fetch('/api/admin/settings/telegram/explain',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}));if(serial!==tgSerial)return;tgEl('AiState').textContent=d.note;(d.actions||[]).forEach(action=>{const li=document.createElement('li');li.textContent=action.text;tgEl('Actions').append(li);});}
+    catch(e){if(serial===tgSerial)tgEl('AiState').textContent=e.message;}finally{tgAiBusy=false;tgEl('Explain').disabled=false;}
+  }
+  tgEl('Form').addEventListener('input',()=>tgDirty=true);
+  tgEl('Form').addEventListener('submit',async event=>{
+    event.preventDefault();if(tgBusy||tgCheckBusy||!tgLoaded)return;
+    const hour=Number(tgEl('Hour').value);if(!Number.isInteger(hour)||hour<0||hour>23){tgEl('Result').textContent='Укажите целый час от 0 до 23.';return;}
+    tgBusy=true;++tgSerial;tgEl('AiState').textContent='После сохранения повторите разбор состояния.';tgEl('Actions').replaceChildren();tgEl('Fields').disabled=true;tgEl('Result').textContent='Сохраняем сводку…';
+    try{const d=await tgResponse(await fetch('/api/admin/settings/telegram',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({revision:tgRevision,daily_digest_telegram_enabled:tgEl('Enabled').checked,daily_digest_hour:hour})}));tgRender(d);tgEl('Result').textContent='Настройки сводки сохранены. Токен и личные уведомления не менялись.';tgEl('AiState').textContent='Настройки изменились. Повторите разбор для нового состояния.';tgEl('Actions').replaceChildren();}
+    catch(e){tgEl('Result').textContent=e.message;}finally{tgBusy=false;tgEl('Fields').disabled=false;}
+  });
+  tgEl('Check').onclick=async()=>{
+    if(tgCheckBusy||tgBusy)return;tgCheckBusy=true;++tgSerial;tgEl('AiState').textContent='После проверки повторите разбор состояния.';tgEl('Actions').replaceChildren();tgEl('Check').disabled=true;tgEl('Result').textContent='Проверяем подключение без отправки сообщений…';
+    try{const c=await tgResponse(await fetch('/api/admin/settings/telegram/check',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}));tgConnection(c);tgEl('Result').textContent='Проверка завершена. Значения формы сохранены.';explainTelegram();}
+    catch(e){tgEl('Result').textContent=e.message;}finally{tgCheckBusy=false;tgEl('Check').disabled=false;}
+  };
+  tgEl('Reload').onclick=loadTelegramSettings;tgEl('Refresh').onclick=refreshTelegram;tgEl('Explain').onclick=explainTelegram;
+  if(!document.getElementById('telegramTool').hidden)loadTelegramSettings();
 </script>
 </body>
 </html>

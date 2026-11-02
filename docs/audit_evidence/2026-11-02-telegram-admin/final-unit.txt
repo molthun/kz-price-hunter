@@ -1,0 +1,17 @@
+.................................................................... [ 83%]
+.............                                                            [100%]
+=============================== warnings summary ===============================
+tests/core/test_telegram_admin.py::TelegramAdminTests::test_http_roles_revision_and_rate_limit
+  /Users/molthun/Documents/kz-price-hunter/tests/core/test_telegram_admin.py:140: NotAppKeyWarning: It is recommended to use web.RequestKey instances for keys.
+  https://docs.aiohttp.org/en/stable/web_advanced.html#request-s-storage
+    if req.headers.get('X-Test-Role'):req['user']={'id':1,'is_admin':req.headers['X-Test-Role']=='admin'}
+
+tests/monitoring/test_daily_digest.py::PermissionsTest::test_only_admin_sees_the_digest
+tests/monitoring/test_daily_digest.py::TelegramSwitchApiTest::test_switch_is_admin_only_and_validated
+tests/core/test_release_notes.py::ChangelogEndpointTest::test_endpoint_returns_current_version_first
+  /Users/molthun/Documents/kz-price-hunter/web/server.py:5568: NotAppKeyWarning: It is recommended to use web.AppKey instances for keys.
+  https://docs.aiohttp.org/en/stable/web_advanced.html#application-s-config
+    app["stats_cache"] = BoundedTTLCache(maxsize=128, ttl=STATS_CACHE_TTL_SECONDS)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+81 passed, 4 warnings, 4 subtests passed in 2.93s

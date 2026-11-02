@@ -4946,6 +4946,51 @@ async def admin_ai_models_handler(request):
                              dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
 
 
+telegram_admin_check_limiter = RateLimiter(max_calls=3, period=60)
+telegram_admin_ai_limiter = RateLimiter(max_calls=6, period=60)
+
+
+@routes.get('/api/admin/settings/telegram')
+@require_admin
+async def telegram_admin_handler(request):
+    import telegram_admin
+    return web.json_response(await asyncio.to_thread(telegram_admin.snapshot))
+
+
+@routes.post('/api/admin/settings/telegram')
+@require_admin
+async def save_telegram_admin_handler(request):
+    import telegram_admin, config
+    try:
+        await asyncio.to_thread(telegram_admin.save, await request.json())
+        return web.json_response(await asyncio.to_thread(telegram_admin.snapshot))
+    except config.TelegramSettingsConflict as error:
+        return web.json_response({'error': str(error)}, status=409)
+    except (ValueError, TypeError) as error:
+        return web.json_response({'error': str(error)}, status=400)
+
+
+@routes.post('/api/admin/settings/telegram/check')
+@require_admin
+async def check_telegram_admin_handler(request):
+    import telegram_admin
+    retry = telegram_admin_check_limiter.retry_after('telegram-admin')
+    if retry:
+        return web.json_response({'error': 'Подождите минуту перед повторной проверкой.'}, status=429)
+    return web.json_response(await asyncio.to_thread(telegram_admin.check_connection))
+
+
+@routes.post('/api/admin/settings/telegram/explain')
+@require_admin
+async def explain_telegram_admin_handler(request):
+    import telegram_admin
+    retry = telegram_admin_ai_limiter.retry_after('telegram-admin')
+    if retry:
+        return web.json_response({'error': 'Подождите минуту перед повторным разбором.'}, status=429)
+    data = await asyncio.to_thread(telegram_admin.snapshot)
+    return web.json_response(await telegram_admin.explain(data))
+
+
 @routes.get('/api/admin/settings/scanning')
 @require_admin
 async def scan_settings_handler(request):

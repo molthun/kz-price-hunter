@@ -2,6 +2,31 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## READY_FOR_STAND → Codex: Telegram и уведомления, этап 3 (2026-11-02)
+
+- Прямое поручение владельца: делать следующий этап; локальный ИИ использовать в новых сценариях.
+- База7690327, tracked чист; один исполнитель Codex, чужие untracked сохраняются.
+- Область: scoped daily digest settings/helper/API, read-only bot/polling/queue state,
+  новая admin panel/legacy links, local-only diagnosis, tests/version/docs.
+- Токен только состояние/источник, не читать в браузер и не менять. Проверка getMe без сообщений.
+  Локальная модель приоритизирует подтверждённые проблемы/действия по обезличенным фактам;
+  paid fallback отсутствует, пауза соблюдается. Никаких sendMessage/получателей/автоисправлений.
+- Временные settings/БД для тестов; stand-only bundle, без main push/production.
+  Действующие настройки на стенде не сохранять.
+- Реализованы /admin#telegramTool и узкие admin GET/save/check/explain API, daily enabled/hour,
+  revision учитывает timezone и проверяется под write lock. Токен не возвращается/не меняется.
+  RAM polling marks, outbox counts/recipients counts, отсутствие delivery timestamp обозначено явно.
+- Local-only diagnosis: перестановка только подтверждённых issue codes, пауза/слот, RAM cache120s,
+  без paid fallback/личных данных; pending AI answer после save/check/refresh отбрасывается.
+- Полный 2648 PASS +1120 subtests; после двух новых guards/regressions профильный 81 PASS +4 subtests.
+  Telegram UI4/4, scanUI4/4, navigation4/4,390/1366/обе темы. Secrets0/diff-check/compile PASS.
+  Тестовые источники подставлены, реальных отправок/вызовов провайдера пока не было.
+- Отчёт FEATURE_2026-11-02_TELEGRAM_ADMIN_CODEX.md. Следующий шаг: bundle от434c085,
+  stand build/recreate → settings SHA/runtime/guest gate → getMe + real local diagnosis без sends.
+  Основной owner login не создавать, production не менять.
+
+---
+
 ## STAND_DEPLOYED → Владелец: перенос настроек, этап 2 — сбор цен (2026-11-02)
 
 - Владелец поручил продолжать небольшими этапами, пока другие агенты недоступны.

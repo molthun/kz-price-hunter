@@ -369,10 +369,13 @@ class TelegramDispatcher:
 
 async def run_telegram_bot_task():
     """One polling owner; cancel/await message workers before closing HTTP session."""
+    from telegram_admin import mark_polling
     token = get_bot_token()
     if not token:
+        mark_polling("unconfigured")
         print("[Telegram Bot] ⚠️ TELEGRAM_BOT_TOKEN не задан — интерактивный бот отключен")
         return
+    mark_polling("starting")
     print("[Telegram Bot] 🤖 Интерактивный Telegram-бот запущен (личные чаты)")
     offset = 0
     timeout = aiohttp.ClientTimeout(total=45)
@@ -385,22 +388,29 @@ async def run_telegram_bot_task():
                     async with session.get(poll_url) as resp:
                         if resp.status == 200:
                             data = await resp.json()
+                            mark_polling("ok" if data.get("ok") is True else "remote_error")
                             for update in data.get("result", []):
                                 await dispatcher.submit(update)
                                 offset = max(offset, update.get("update_id", 0) + 1)
                         elif resp.status in (401, 404):
+                            mark_polling("unauthorized")
                             print("[Telegram Bot] Ошибка токена Telegram (HTTP 401/404). Бот остановлен.")
                             break
                         elif resp.status == 409:
+                            mark_polling("conflict")
                             print("[Telegram Bot] Конфликт polling/webhook (HTTP 409), ожидание 15 с")
                             await asyncio.sleep(15)
                         else:
+                            mark_polling("remote_error")
                             await asyncio.sleep(5)
                 except asyncio.CancelledError:
                     raise
                 except Exception as e:
+                    mark_polling("network_error")
                     from telemetry import telemetry, COMPONENT_TELEGRAM, SEVERITY_WARNING
                     telemetry.record_system_error(COMPONENT_TELEGRAM, "telegram_polling", e, severity=SEVERITY_WARNING)
                     await asyncio.sleep(5)
         finally:
+            if __import__("telegram_admin").polling_view()["state"] != "unauthorized":
+                mark_polling("stopped")
             await dispatcher.close()

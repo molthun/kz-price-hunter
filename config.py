@@ -858,7 +858,11 @@ def scan_settings_revision(settings):
     return hashlib.sha256(json.dumps(data,sort_keys=True,ensure_ascii=False).encode()).hexdigest()
 
 
-def save_settings(new_settings, *, expected_local_revision=None, expected_scan_revision=None):
+class TelegramSettingsConflict(ValueError):
+    pass
+
+
+def save_settings(new_settings, *, expected_local_revision=None, expected_scan_revision=None, expected_telegram_revision=None):
     """Сохраняет общие настройки. Посторонние ключи старого формата в файле сохраняются как есть.
     Чтение-изменение-запись под блокировкой: одновременные сохранения не теряют изменения."""
     with _SETTINGS_WRITE_LOCK:
@@ -868,6 +872,10 @@ def save_settings(new_settings, *, expected_local_revision=None, expected_scan_r
         if expected_scan_revision is not None:
             if expected_scan_revision != scan_settings_revision(load_settings()):
                 raise ScanSettingsConflict('Настройки сбора изменились. Обновите форму и проверьте выбор магазинов.')
+        if expected_telegram_revision is not None:
+            from telegram_admin import revision
+            if expected_telegram_revision != revision(load_settings()):
+                raise TelegramSettingsConflict('Настройки сводки изменились. Обновите значения формы.')
         raw = _read_settings_file()
         raw.update(_validate_settings(new_settings))
         _write_settings_file(raw)
