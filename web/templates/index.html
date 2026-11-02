@@ -7833,7 +7833,13 @@
       loadAlerts();
       loadTrackedCategoriesList();
       loadCategoriesV2();
-      loadMe().then(() => applySearchDefaults(currentMe.settings || {}));
+      loadMe().then(() => {
+        applySearchDefaults(currentMe.settings || {});
+        const target=location.hash.slice(1);
+        if(new URLSearchParams(location.search).get('tab')==='settings' && isAdminUser() && ['sec-admin-ai','sec-admin-scan','sec-admin-bot'].includes(target)){
+          switchTab('settings');requestAnimationFrame(()=>scrollSettingsTo(target));
+        }
+      });
       setInterval(loadStats, 3000);
     });
   </script>

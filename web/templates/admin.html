@@ -42,7 +42,7 @@
       color: var(--text);
       font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
-    main { max-width: 760px; margin: 0 auto; }
+    main { max-width: 1120px; margin: 0 auto; }
     .back { color: var(--muted); font-size: 0.9rem; text-decoration: none; }
     .back:hover { color: var(--text); }
     h1 { margin: 16px 0 24px; font-size: 1.6rem; }
@@ -159,15 +159,45 @@
     #classificationTool input,#classificationTool select {width:100%;}
     #classificationTool button,#classificationDialog button {min-height:44px;}
     #classificationTool .shop-tools>label {min-width:0;max-width:100%;}
+    [hidden] {display:none!important;}
+    .admin-intro {color:var(--muted);margin:-12px 0 24px;line-height:1.5;}
+    .admin-layout {display:grid;grid-template-columns:220px minmax(0,1fr);gap:24px;align-items:start;}
+    .admin-content {min-width:0;}
+    .admin-nav {position:sticky;top:24px;display:flex;flex-direction:column;gap:6px;}
+    .admin-nav .group {font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:14px 12px 6px;}
+    .admin-nav a {color:var(--text);text-decoration:none;padding:12px;border:1px solid transparent;border-radius:10px;min-height:44px;font-size:.9rem;}
+    .admin-nav a[aria-current=page] {border-color:var(--primary);background:var(--card);font-weight:700;color:var(--primary);}
+    .admin-nav a:hover,.admin-nav a:focus-visible {outline:2px solid var(--primary);outline-offset:-2px;}
+    .settings-links {display:grid;gap:12px;margin-top:20px;}
+    .settings-links a {display:block;background:var(--bg);color:var(--text);border:1px solid var(--border);padding:16px;}
+    .settings-links a span {display:block;color:var(--muted);font-size:.83rem;font-weight:400;margin-top:6px;}
+    .admin-content .card {margin:0!important;}
+    .workflow-help {margin:16px 0;padding:14px;border:1px solid var(--border);border-radius:10px;}
+    .workflow-help summary {cursor:pointer;font-size:.9rem;font-weight:600;}
+    .workflow-help p {font-size:.85rem;margin-top:10px;}
+    @media(max-width:760px){body{padding:24px 12px;}.admin-layout{grid-template-columns:1fr;gap:16px;}.admin-nav{position:static;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;}.admin-nav .group{grid-column:1/-1;padding:8px 4px 0;}.admin-nav a{padding:10px;font-size:.85rem;}.card{padding:16px;}.admin-intro{font-size:.9rem;}}
   </style>
 </head>
 <body>
   <main>
     <a class="back" href="/">‹ На сайт</a>
     <h1>Управление сервисом</h1>
-    <section class="card" id="classificationTool">
-      <div class="card-head"><h2>Классификация товаров</h2></div>
-      <p>Метка определяет раздел каталога. Исходное название товара сохраняется. Сложные случаи проверяет администратор.</p>
+    <p class="admin-intro">Выберите задачу. Проверка товаров, магазины и доступ находятся в отдельных разделах.</p>
+    <div class="admin-layout">
+      <nav class="admin-nav" aria-label="Разделы управления">
+        <span class="group">Каталог</span>
+        <a href="#classificationTool">Разбор товаров</a>
+        <a href="#catalogExpansionTool">Расширение ассортимента</a>
+        <a href="#shopsTool">Магазины и источники</a>
+        <span class="group">Сервис</span>
+        <a href="#usersTool">Доступ пользователей</a>
+        <a href="#systemTool">ИИ и сбор данных</a>
+      </nav>
+      <div class="admin-content">
+    <section class="card admin-panel" id="classificationTool">
+      <div class="card-head"><h2>Разбор товаров</h2></div>
+      <p>Товар попал не в тот раздел или ИИ сомневается? Откройте карточку, сравните характеристики источника и назначьте верную метку. Название товара сохраняется.</p>
+      <details class="workflow-help"><summary>Как разобрать непонятный товар</summary><p>1. Выберите «Нужна помощь» и откройте товар.<br>2. Проверьте предложение ИИ, характеристики и страницу магазина.<br>3. Подтвердите раздел или назначьте свой. Ручная метка защищена от фоновой перезаписи.</p></details>
       <div class="shop-tools">
         <label>Список<select id="classificationFilter" onchange="classificationOffset=0;loadClassification()">
           <option value="review">Нужна помощь</option><option value="queued">В очереди</option>
@@ -205,11 +235,12 @@
       <details><summary>История решений</summary><div id="classificationHistory"></div></details>
       <div class="form-actions"><button onclick="classificationOpen(classificationItem.id)">Обновить данные</button><button onclick="document.getElementById('classificationDialog').close()">Закрыть</button></div>
     </dialog>
-    <section class="card" style="margin-bottom:20px;">
+    <section class="card admin-panel" id="shopsTool">
       <div class="card-head">
-        <h2>Магазины</h2>
+        <h2>Магазины и источники</h2>
         <span class="count" id="shopsCount"></span>
       </div>
+      <p>Реквизиты, контакты и ссылки магазинов. Добавление записи магазина само по себе не подключает автоматический сбор с нового сайта.</p>
       <div class="shop-tools">
         <input type="search" id="shopSearch" placeholder="Название или сайт" aria-label="Поиск магазина">
         <button type="button" class="main" onclick="openShop()">Добавить магазин</button>
@@ -247,25 +278,46 @@
         </div>
       </form>
     </dialog>
-    <section class="card" style="margin-bottom:20px;">
-      <div class="card-head"><h2>Расширение каталога</h2></div>
-      <p>Запросы на расширение ассортимента и фильтров. После подтверждения проверяем подключённые магазины. Статусы обновляются автоматически. Новый сайт может потребовать отдельного подключения.</p>
+    <section class="card admin-panel" id="catalogExpansionTool">
+      <div class="card-head"><h2>Расширение ассортимента</h2></div>
+      <p>Здесь запросы, по которым не хватило предложений или разделов. Подтвердите подходящий раздел и фильтры — затем проверим подключённые магазины. Статусы обновляются автоматически. Новый сайт может потребовать отдельного подключения.</p>
       <button type="button" onclick="loadExpansions()">Обновить</button>
       <div id="expansionList"></div><div id="expansionState" class="state" role="status"></div>
     </section>
-    <section class="card">
+    <section class="card admin-panel" id="usersTool">
       <div class="card-head">
-        <h2>Пользователи</h2>
+        <h2>Доступ пользователей</h2>
         <span class="count" id="usersCount"></span>
       </div>
+      <p>Подтвердите доступ новым пользователям или закройте доступ существующим. В закрытом режиме войти в каталог могут только подтверждённые пользователи.</p>
       <div id="usersList"></div>
       <div class="state" id="usersState" role="status">Загрузка…</div>
     </section>
-    <div class="card">
-      <p>Новая страница администрирования в разработке. Пока сканеры, настройки и мониторинг открываются в прежней панели.</p>
-      <a href="/dashboard">Открыть прежнюю панель</a>
+    <section class="card admin-panel" id="systemTool">
+      <h2>ИИ и сбор данных</h2>
+      <p>Модель и расписание настраиваются в прежней панели. Эти ссылки открывают сразу нужный блок.</p>
+      <div class="settings-links">
+        <a href="/dashboard?tab=settings#sec-admin-ai">Модели и лимиты ИИ ↗<span>Локальная модель, пауза, подключение и ограничения использования.</span></a>
+        <a href="/dashboard?tab=settings#sec-admin-scan">Сбор цен и расписание ↗<span>Параметры обхода магазинов, категории и волны сбора.</span></a>
+        <a href="/dashboard?tab=settings#sec-admin-bot">Служебный Telegram-бот ↗<span>Состояние подключения бота и служебные уведомления.</span></a>
+        <a href="/monitoring">Состояние сервиса ↗<span>Очереди, ошибки, сбор данных и диагностика.</span></a>
+      </div>
+      <details class="workflow-help"><summary>Какая задача у каждого помощника</summary><p><strong>Поиск</strong> разбирает запрос пользователя.<br><strong>Разбор товаров</strong> проверяет раздел по названию и характеристикам.<br><strong>Расширение ассортимента</strong> обрабатывает запросы без подходящих предложений.<br><strong>Сведения источника</strong> постепенно добавляют характеристики и фото; ручные метки сохраняются.</p></details>
+    </section>
+      </div>
     </div>
   </main>
+  <script>
+    function showAdminPanel(){
+      const panels=[...document.querySelectorAll('.admin-panel')];
+      const key=location.hash.slice(1),selected=panels.find(p=>p.id===key)||panels[0];
+      panels.forEach(p=>p.hidden=p!==selected);
+      document.querySelectorAll('.admin-nav a').forEach(a=>{if(a.hash==='#'+selected.id)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
+      if(selected.id==='classificationTool'&&typeof loadClassification==='function')loadClassification();
+      if(selected.id==='catalogExpansionTool'&&typeof loadExpansions==='function')loadExpansions();
+    }
+    addEventListener('hashchange',showAdminPanel);showAdminPanel();
+  </script>
   <script>
     const list = document.getElementById('usersList');
     const stateEl = document.getElementById('usersState');
@@ -392,7 +444,7 @@
     }
 
     async function loadExpansions(quiet = false) {
-      if (expansionPosting || document.hidden) return;
+      if (expansionPosting || document.hidden || document.getElementById('catalogExpansionTool').hidden) return;
       clearTimeout(expansionTimer);
       const requestId = ++expansionReadId;
       const target = document.getElementById('expansionList');
@@ -595,7 +647,7 @@
     return data;
   }
   async function loadClassification() {
-    if (document.hidden) return;
+    if (document.hidden || document.getElementById('classificationTool').hidden) return;
     const serial=++classificationSerial, state=document.getElementById('classificationState');
     const params=new URLSearchParams({status:document.getElementById('classificationFilter').value,q:document.getElementById('classificationQuery').value,offset:String(classificationOffset)});
     try {

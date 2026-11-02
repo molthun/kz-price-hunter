@@ -65,7 +65,7 @@ const plan = {category_name:'Шины и диски',fields:[{key:'season',label
    assert.equal(await page.inputValue('#attribute-season'),'Зимние');
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
    if(out)await page.screenshot({path:path.join(out,`filters-${width}-${scheme}.png`),fullPage:true});
-   await page.goto(BASE+'/admin');
+   await page.goto(BASE+'/admin#catalogExpansionTool');
    await page.getByRole('button',{name:'Подтвердить и проверить'}).waitFor();
    await page.getByRole('button',{name:'Подтвердить и проверить'}).evaluate(button=>{button.click();button.click();});
    await page.getByRole('button',{name:'В очереди…',exact:true}).waitFor();

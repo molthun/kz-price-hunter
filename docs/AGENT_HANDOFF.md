@@ -2,6 +2,24 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## IN_PROGRESS → Codex: понятная навигация управления (2026-11-02)
+
+- Поручение владельца: привести новые настройки в порядок. База b9be03d, tracked чист.
+- Codex один, чужие untracked сохранены. Область: admin UI, deep links прежних настроек,
+  профильные browser/release checks, версия/история. Настройки и права не менять.
+- Разделы по задачам: разбор, расширение, магазины, доступ, ИИ/сбор данных.
+  Сохранить прямую ссылку classificationTool и поля при переходах, мобильную/обе темы.
+- Только стенд через bundle, без production/main push и изменений рабочей БД.
+- Реализовано: sidebar/мобильная сетка, 5 панелей с пояснениями, workflow help,
+  прямые ссылки к model/scan/bot (после role load открывается нужная вкладка).
+  Hash/back/forward, сохранение полей; скрытые classification/expansion панели не опрашиваются.
+- Проверки: nav 4/4 (390/1366, обе темы, deep link/no mutations), classification 4/4,
+  expansion 4/4, shops 1280/360 PASS; release/closed-gate Python 9 PASS, secrets 0, diff-check PASS.
+  Screenshot QA mobile/desktop. Полный backend suite не повторялся: только шаблоны и версия.
+- Следующий шаг: commit/bundle, стенд, runtime hashes/guest gate. Основной owner login не использовался.
+
+---
+
 ## STAND_DEPLOYED → Владелец: характеристики, описание и галерея товара (2026-11-02)
 
 - Поручение владельца: забирать характеристики источника для локального ИИ, описание в карточке/ленте,

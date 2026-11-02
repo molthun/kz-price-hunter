@@ -32,7 +32,7 @@ const BASE='http://127.0.0.1:18099';
       if(url.pathname==='/api/admin/catalog-expansions')return json({items:[]});
       return json({ok:true,users:[],items:[]});
     });
-    await page.goto(BASE+'/admin');
+    await page.goto(BASE+'/admin#shopsTool');
     await page.waitForSelector('#shopsList .user');
     assert.equal(await page.locator('#shopsList .user-name').textContent(),'Белый <b>Ветер</b>'); // текст, не разметка
 
