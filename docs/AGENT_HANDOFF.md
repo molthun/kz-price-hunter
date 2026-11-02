@@ -25,6 +25,7 @@
   combined bundle от 1c0339acf с offer cards 6.18.0 + settings 6.18.1; build/recreate stand only,
   read-only сравнение действующих значений/ключей по hash без вывода секретов, runtime/guest gate.
   Не создавать main-stand owner/fixture сессии и не сохранять настройки ради smoke test.
+- Коммит 0375dcc69, /tmp/kzph-local-settings-6181.bundle (combined) создан; git bundle verify PASS.
 - Дальше миграции: платные провайдеры/лимиты → сбор/расписание → бот; каждый отдельным малым slice.
 
 ---
