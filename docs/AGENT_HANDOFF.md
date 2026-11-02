@@ -2,6 +2,33 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## READY_FOR_STAND → Codex: перенос настроек, этап 1 — локальная модель (2026-11-02)
+
+- Владелец поручил постепенно адаптировать/переносить настройки в новую админку.
+- База b710d3c, tracked чист, Codex один, чужие untracked сохраняются.
+- Первый slice: подключение local API/model/key, runtime status/check; узкий admin API,
+  optimistic revision под settings write lock; остальные настройки не отправлять.
+- Поля старого подключения убрать из legacy save payload, оставить ссылку в новую форму.
+  Advanced normalization остаётся прежним guarded workflow, значения сами не менять.
+- Область: config/helper/server, admin + legacy templates, tests/version/docs.
+- Только временные данные; stand-only bundle, без main push/production/реальных ключей.
+  Предыдущая offer-card задача READY_FOR_STAND сохраняется. SSH timeout повторился.
+- Реализованы узкие local-ai settings GET/save/check, сохранение delta под существующей write lock
+  и scoped revision CAS; key bool без plaintext, preserve/replace/remove, redaction результата check.
+  Новый admin form с паузой/GPU/check/draft protection; legacy inputs/payload 3 полей убраны,
+  normalization flag остаётся legacy advanced workflow. Действующие значения/ключи не трогались.
+- Проверено: профильный local/settings/release 43 PASS +22 subtests; полный 2635 PASS +1120 subtests;
+  новый UI 4/4 и navigation/legacy deep links 4/4, обе темы/390/1366. Secrets 0/diff-check PASS.
+  Все provider checks в тестах подставлены, реального вызова/проверки hardware не было.
+- Отчёт FEATURE_2026-11-02_LOCAL_SETTINGS_MIGRATION_CODEX.md, evidence 2026-11-02-local-settings.
+- Стенд НЕ обновлён: SSH/HTTPS timeout, VPN/сеть не менялись. Следующий шаг — восстановить доступ,
+  combined bundle от 1c0339acf с offer cards 6.18.0 + settings 6.18.1; build/recreate stand only,
+  read-only сравнение действующих значений/ключей по hash без вывода секретов, runtime/guest gate.
+  Не создавать main-stand owner/fixture сессии и не сохранять настройки ради smoke test.
+- Дальше миграции: платные провайдеры/лимиты → сбор/расписание → бот; каждый отдельным малым slice.
+
+---
+
 ## READY_FOR_STAND → Codex: карточка конкретного предложения продавца (2026-11-02)
 
 - Владелец: при выборе предложения открывать карточку с описанием/фото именно этого продавца.

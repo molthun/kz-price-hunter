@@ -176,6 +176,14 @@
     .workflow-help summary {cursor:pointer;font-size:.9rem;font-weight:600;}
     .workflow-help p {font-size:.85rem;margin-top:10px;}
     @media(max-width:760px){body{padding:24px 12px;}.admin-layout{grid-template-columns:1fr;gap:16px;}.admin-nav{position:static;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;}.admin-nav .group{grid-column:1/-1;padding:8px 4px 0;}.admin-nav a{padding:10px;font-size:.85rem;}.card{padding:16px;}.admin-intro{font-size:.9rem;}}
+    .local-settings {border:1px solid var(--border);border-radius:12px;padding:16px;margin:20px 0;}
+    .local-settings h3 {margin:0 0 10px;font-size:1rem;}
+    .local-settings fieldset {border:0;padding:0;margin:12px 0;min-width:0;}
+    .local-settings label {margin:12px 0;}
+    .local-settings input,.local-settings select {margin-top:6px;}
+    .local-settings button {min-height:44px;}
+    .local-settings .state {margin-bottom:12px;}
+    .local-settings .user-meta {font-weight:400;}
   </style>
 </head>
 <body>
@@ -295,9 +303,28 @@
     </section>
     <section class="card admin-panel" id="systemTool">
       <h2>ИИ и сбор данных</h2>
-      <p>Модель и расписание настраиваются в прежней панели. Эти ссылки открывают сразу нужный блок.</p>
+      <p>Подключение локальной модели настраивается здесь. Дополнительные модели, лимиты и расписание пока открываются в прежней панели.</p>
+      <section class="local-settings" aria-labelledby="localConnectionHeading">
+        <h3 id="localConnectionHeading">Локальная модель</h3>
+        <p>Настройте свой сервер моделей. Пустой адрес отключает локальное подключение.</p>
+        <div id="localConnectionRuntime" class="state" role="status">Состояние ещё не загружено.</div>
+        <form id="localConnectionForm">
+          <fieldset id="localConnectionFields" disabled>
+            <label class="form-label">Адрес сервера<input id="localConnectionBase" maxlength="200" placeholder="http://server:11434/v1" autocomplete="off"></label>
+            <label class="form-label">Имя модели<input id="localConnectionModel" list="localModelChoices" maxlength="150" placeholder="Идентификатор модели на сервере" autocomplete="off"></label><datalist id="localModelChoices"></datalist>
+            <p class="user-meta" id="localConnectionKeyState"></p>
+            <label class="form-label">Действие с ключом<select id="localConnectionKeyAction"><option value="preserve">Оставить как есть</option><option value="replace">Заменить ключ</option><option value="remove">Удалить сохранённый ключ</option></select></label>
+            <label class="form-label" id="localConnectionKeyRow" hidden>Новый ключ<input id="localConnectionKey" type="password" maxlength="4096" autocomplete="new-password"></label>
+            <p class="user-meta">Если сервер не требует ключ, оставьте его без изменений. Сохранённый ключ не показывается в браузере.</p>
+            <div class="user-actions"><button type="submit" class="main" id="localConnectionSave">Сохранить подключение</button><button type="button" id="localConnectionCheck">Проверить подключение</button></div>
+          </fieldset>
+        </form>
+        <div id="localConnectionResult" class="state" role="status"></div>
+        <p class="user-meta">Проверка делает короткий запрос к модели и ничего не сохраняет. Сохранение меняет только подключение локальной модели.</p>
+        <button type="button" id="localConnectionReload">Обновить значения</button>
+      </section>
       <div class="settings-links">
-        <a href="/dashboard?tab=settings#sec-admin-ai">Модели и лимиты ИИ ↗<span>Локальная модель, пауза, подключение и ограничения использования.</span></a>
+        <a href="/dashboard?tab=settings#sec-admin-ai">Модели и лимиты ИИ ↗<span>Платные провайдеры и дополнительные ограничения использования.</span></a>
         <a href="/dashboard?tab=settings#sec-admin-scan">Сбор цен и расписание ↗<span>Параметры обхода магазинов, категории и волны сбора.</span></a>
         <a href="/dashboard?tab=settings#sec-admin-bot">Служебный Telegram-бот ↗<span>Состояние подключения бота и служебные уведомления.</span></a>
         <a href="/monitoring">Состояние сервиса ↗<span>Очереди, ошибки, сбор данных и диагностика.</span></a>
@@ -315,6 +342,7 @@
       document.querySelectorAll('.admin-nav a').forEach(a=>{if(a.hash==='#'+selected.id)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
       if(selected.id==='classificationTool'&&typeof loadClassification==='function')loadClassification();
       if(selected.id==='catalogExpansionTool'&&typeof loadExpansions==='function')loadExpansions();
+      if(selected.id==='systemTool'&&typeof loadLocalConnection==='function'&&!localConnectionLoaded)loadLocalConnection();
     }
     addEventListener('hashchange',showAdminPanel);showAdminPanel();
   </script>
@@ -810,6 +838,68 @@
   }
   document.getElementById('classificationQuery').addEventListener('keydown',event=>{if(event.key==='Enter'){classificationOffset=0;loadClassification();}});
   loadClassification();setInterval(()=>{loadClassification();classificationPollDetail();},5000);
+</script>
+
+<script>
+  let localConnectionLoaded=false,localConnectionDirty=false,localConnectionBusy=false,localConnectionRevision='',localConnectionConfigured=false,localConnectionAiEnabled=true;
+  const localEl=id=>document.getElementById('localConnection'+id);
+  function localConnectionPayload(){
+    const action=localEl('KeyAction').value;
+    const body={revision:localConnectionRevision,local_api_base:localEl('Base').value.trim(),local_model:localEl('Model').value.trim(),key_action:action};
+    if(action==='replace')body.local_api_key=localEl('Key').value;
+    return body;
+  }
+  function localConnectionRender(data){
+    if(!data.settings||typeof data.revision!=='string')throw Error('Не удалось загрузить подключение. Повторите попытку.');
+    localEl('Base').value=data.settings.local_api_base||'';localEl('Model').value=data.settings.local_model||'';
+    localEl('Key').value='';localEl('KeyAction').value='preserve';localEl('KeyRow').hidden=true;
+    localEl('KeyState').textContent=data.settings.key_configured?'Ключ сохранён на сервере.':'Сохранённого ключа нет.';
+    localConnectionRevision=data.revision;localConnectionLoaded=true;localConnectionDirty=false;
+    localConnectionConfigured=!!(data.settings.local_api_base&&data.settings.local_model);localConnectionAiEnabled=data.ai_enabled!==false;
+    if(data.runtime)localConnectionRuntime(data.runtime);
+  }
+  function localConnectionRuntime(runtime){
+    const gpu=runtime.gpu||{},parts=[];
+    if(!localConnectionConfigured)parts.push('Подключение пока не настроено.');
+    if(!localConnectionAiEnabled)parts.push('ИИ отключён в общих настройках.');
+    parts.push(runtime.paused?'Пауза: '+runtime.paused:(runtime.mode?.on===false?'Локальная модель выключена':'Локальная модель разрешена к работе'));
+    parts.push(gpu.fresh?(gpu.busy?'Видеокарта занята другой программой.':'Видеокарта свободна.'):'Нет свежих данных о видеокарте.');
+    localEl('Runtime').textContent=parts.join(' · ');
+  }
+  async function localConnectionResponse(response){
+    const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Не удалось выполнить действие. Повторите попытку.');return data;
+  }
+  async function loadLocalConnection(){
+    if(localConnectionBusy)return;
+    if(localConnectionDirty&&!confirm('Загрузить сохранённые значения и отменить изменения в этой форме?'))return;
+    localConnectionBusy=true;localEl('Fields').disabled=true;localEl('Reload').disabled=true;localEl('Result').textContent='Загружаем подключение…';
+    try{const data=await localConnectionResponse(await fetch('/api/admin/settings/local-ai',{cache:'no-store'}));localConnectionRender(data);localEl('Result').textContent='Настройки загружены.';}
+    catch(error){localEl('Result').textContent=error.message;}
+    finally{localConnectionBusy=false;localEl('Fields').disabled=!localConnectionLoaded;localEl('Reload').disabled=false;}
+  }
+  async function localConnectionAction(check){
+    if(localConnectionBusy||!localConnectionLoaded)return;
+    localConnectionBusy=true;localEl('Fields').disabled=true;localEl('Reload').disabled=true;
+    localEl('Result').textContent=check?'Проверяем сервер и короткий ответ модели…':'Сохраняем подключение…';
+    try{
+      const data=await localConnectionResponse(await fetch('/api/admin/settings/local-ai'+(check?'/check':''),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(localConnectionPayload())}));
+      if(check){
+        const result=data.check||{};if(data.runtime)localConnectionRuntime(data.runtime);
+        const names=Array.isArray(result.models)?result.models:[];document.getElementById('localModelChoices').replaceChildren(...names.slice(0,100).map(name=>new Option(String(name).slice(0,150),String(name).slice(0,150))));
+        localEl('Result').textContent=result.error?'Проверка не завершена: '+result.error:!result.model_present?'Модель не найдена. Доступны: '+(names.join(', ')||'список пуст'):result.answered?'Модель ответила за '+result.latency_ms+' мс. Изменения не сохранялись.':'Сервер доступен, но ответ модели не получен. Проверьте состояние паузы.';
+      }else{localConnectionRender(data);localEl('Result').textContent='Подключение сохранено. Остальные настройки не менялись.';}
+    }catch(error){localEl('Result').textContent=error.message;}
+    finally{localConnectionBusy=false;localEl('Fields').disabled=false;localEl('Reload').disabled=false;}
+  }
+  localEl('Form').addEventListener('input',()=>localConnectionDirty=true);
+  localEl('KeyAction').addEventListener('change',()=>{localConnectionDirty=true;localEl('KeyRow').hidden=localEl('KeyAction').value!=='replace';});
+  localEl('Form').addEventListener('submit',event=>{event.preventDefault();localConnectionAction(false);});
+  localEl('Check').onclick=()=>localConnectionAction(true);localEl('Reload').onclick=loadLocalConnection;
+  if(!document.getElementById('systemTool').hidden)loadLocalConnection();
+  setInterval(async()=>{
+    if(document.hidden||document.getElementById('systemTool').hidden||localConnectionBusy)return;
+    try{const r=await fetch('/api/admin/ai/local/status',{cache:'no-store'});if(r.ok)localConnectionRuntime(await r.json());}catch(e){}
+  },15000);
 </script>
 
 </body>

@@ -1,0 +1,19 @@
+...........................................        [100%]
+=============================== warnings summary ===============================
+tests/ai/test_local_connection_settings.py::LocalConnectionHttpTests::test_roles_patch_and_check_without_secret_echo
+  /Users/molthun/Documents/kz-price-hunter/tests/ai/test_local_connection_settings.py:44: NotAppKeyWarning: It is recommended to use web.RequestKey instances for keys.
+  https://docs.aiohttp.org/en/stable/web_advanced.html#request-s-storage
+    if req.headers.get('X-Test-Role'):req['user']={'id':1,'is_admin':req.headers['X-Test-Role']=='admin'}
+
+tests/ai/test_local_ai.py: 14 warnings
+  /Users/molthun/Documents/kz-price-hunter/venv/lib/python3.14/site-packages/aiohttp/web_urldispatcher.py:193: DeprecationWarning: Bare functions are deprecated, use async ones
+    warnings.warn(
+
+tests/ai/test_local_ai.py::AdminEndpointsTest::test_admin_endpoints
+tests/core/test_release_notes.py::ChangelogEndpointTest::test_endpoint_returns_current_version_first
+  /Users/molthun/Documents/kz-price-hunter/web/server.py:5499: NotAppKeyWarning: It is recommended to use web.AppKey instances for keys.
+  https://docs.aiohttp.org/en/stable/web_advanced.html#application-s-config
+    app["stats_cache"] = BoundedTTLCache(maxsize=128, ttl=STATS_CACHE_TTL_SECONDS)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+43 passed, 17 warnings, 22 subtests passed in 5.90s

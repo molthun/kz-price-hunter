@@ -1,5 +1,10 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 02.11.2026 — перенос настроек, этап 1, v6.18.1 (локально)
+
+- Codex: local API/model/key + status/check в новой админке, scoped CAS save, безопасный secret workflow.
+- Старый payload не отправляет поля подключения; остальные настройки пока прежние. Stand-only, без main push.
+
 ## 02.11.2026 — отдельная карточка предложения, v6.18.0 (готово локально)
 
 - Codex: /offer/id, scoped metadata/history/source media, Forte exact objectID.

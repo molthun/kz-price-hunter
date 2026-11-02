@@ -838,14 +838,27 @@ def _write_settings_file(data) -> None:
         raise
 
 
-def save_settings(new_settings):
+class LocalSettingsConflict(ValueError):
+    pass
+
+
+def local_connection_revision(settings):
+    import hashlib
+    data=[settings.get(k,'') for k in ('local_api_base','local_model','local_api_key')]
+    return hashlib.sha256(json.dumps(data,ensure_ascii=False).encode()).hexdigest()
+
+
+def save_settings(new_settings, *, expected_local_revision=None):
     """Сохраняет общие настройки. Посторонние ключи старого формата в файле сохраняются как есть.
     Чтение-изменение-запись под блокировкой: одновременные сохранения не теряют изменения."""
     with _SETTINGS_WRITE_LOCK:
+        if expected_local_revision is not None:
+            if expected_local_revision != local_connection_revision(load_settings()):
+                raise LocalSettingsConflict('Подключение изменилось. Обновите форму и проверьте значения.')
         raw = _read_settings_file()
         raw.update(_validate_settings(new_settings))
         _write_settings_file(raw)
-    return load_settings()
+        return load_settings()
 
 CHECK_INTERVAL_SECONDS = load_settings()["check_interval_seconds"]
 

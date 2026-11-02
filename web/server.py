@@ -4946,6 +4946,43 @@ async def admin_ai_models_handler(request):
                              dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
 
 
+@routes.get('/api/admin/settings/local-ai')
+@require_admin
+async def local_connection_settings_handler(request):
+    import local_ai_settings,local_ai
+    result=await asyncio.to_thread(local_ai_settings.view)
+    result['runtime']=await asyncio.to_thread(local_ai.status)
+    return web.json_response(result)
+
+
+@routes.post('/api/admin/settings/local-ai')
+@require_admin
+async def save_local_connection_handler(request):
+    import local_ai_settings,config
+    try:
+        body=await request.json()
+        return web.json_response(await asyncio.to_thread(local_ai_settings.save,body))
+    except config.LocalSettingsConflict as error:
+        return web.json_response({'error':str(error)},status=409)
+    except (ValueError,TypeError):
+        return web.json_response({'error':'Проверьте адрес, модель и действие с ключом. Изменения не сохранены.'},status=400)
+
+
+@routes.post('/api/admin/settings/local-ai/check')
+@require_admin
+async def check_local_connection_handler(request):
+    import local_ai_settings,ai_service,local_ai,config
+    try:
+        body=await request.json()
+        base,model,key=await asyncio.to_thread(local_ai_settings.for_check,body)
+    except config.LocalSettingsConflict as error:
+        return web.json_response({'error':str(error)},status=409)
+    except (ValueError,TypeError):
+        return web.json_response({'error':'Для проверки укажите корректные адрес, модель и действие с ключом.'},status=400)
+    check=local_ai_settings.public_check(await ai_service.check_local_model(base,model,key),key)
+    return web.json_response({'check':check,'runtime':await asyncio.to_thread(local_ai.status)})
+
+
 @routes.get("/api/admin/ai/local/status")
 @require_admin
 async def admin_local_ai_status_handler(request):
