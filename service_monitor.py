@@ -10,6 +10,12 @@ _cache = BoundedTTLCache(maxsize=8, ttl=120)
 _busy = False
 STATUSES = ('offline', 'degraded', 'limited', 'unknown', 'healthy', 'disabled')
 ACTIONS = {
+    'source_network': ('Сетевой сбой источника', 'Проверьте DNS, доступность сети и защищённое соединение со стороны сервера. Увеличение параллелизма не устраняет такой сбой.', '/monitoring'),
+    'source_rate': ('Источник требует паузу', 'Соблюдайте ограничение запросов и cooldown магазина. Не перезапускайте обход ради обхода паузы.', '/monitoring'),
+    'source_access': ('Источник запретил доступ', 'Проверьте разрешённый способ подключения к магазину. Не обходите защитный экран или ограничение доступа.', '/monitoring'),
+    'source_missing': ('Страница источника не найдена', 'Проверьте адрес категории и настройки источника. Не подменяйте карточку товара главной страницей.', '/monitoring'),
+    'source_server': ('Сервер источника ответил ошибкой', 'Проверьте повторяемость серверной ошибки после штатной паузы. Не считайте пустой ответ полным каталогом.', '/monitoring'),
+    'source_parse': ('Ответ источника не разобран', 'Сравните текущую структуру страницы с парсером. Пустая выдача не подтверждает отсутствие товаров.', '/monitoring'),
     'unknown': ('Часть состояний не подтверждена', 'Проверьте свежесть наблюдений и работу фоновых процессов в подробном мониторинге. Не считайте отсутствие наблюдений успешной проверкой.', '/monitoring'),
     'unreadable': ('Не все показатели доступны', 'Повторите обновление и откройте подробный мониторинг. Ошибка чтения не означает пустую очередь или отсутствие проблем.', '/monitoring'),
     'shops': ('Источники требуют внимания', 'Откройте проблемные магазины в подробном мониторинге и проверьте свежесть и полноту обходов.', '/monitoring'),
@@ -38,6 +44,8 @@ def shops(registry, enabled):
     rows = monitoring.shops_overview(registry, enabled)
     clean = [{k: r[k] for k in ('shop_key', 'name', 'status', 'enabled', 'last_success_at', 'last_items', 'categories_problem')} for r in rows]
     for item, source in zip(clean, rows):
+        import source_failure
+        item['failure'] = source_failure.public(source.get('failure'))
         if not source.get('last_attempt_at') and not source.get('last_success_at'): item['last_items'] = None
         if not source.get('categories_observed'): item['categories_problem'] = None
     counts = {status: sum(r['status'] == status for r in clean) for status in STATUSES}
@@ -121,6 +129,12 @@ def issue_codes(data):
     if s['shops']['available']:
         if s['shops']['status'] in ('offline', 'degraded', 'limited'): codes.append('shops')
         if s['shops']['counts']['unknown'] or s['shops']['counts']['disabled'] == len(s['shops']['items']): codes.append('shops_unknown')
+        cause_actions = {'dns':'source_network','timeout':'source_network','tls':'source_network','connection':'source_network',
+                         'http_429':'source_rate','cooldown':'source_rate','http_403':'source_access','access_challenge':'source_access','http_404':'source_missing',
+                         'http_5xx':'source_server','parse':'source_parse','empty':'source_parse'}
+        for shop in s['shops']['items']:
+            action = cause_actions.get((shop.get('failure') or {}).get('error_code'))
+            if action and action not in codes: codes.append(action)
     if s['scanning']['available'] and s['scanning']['status'] != 'healthy': codes.append('scan')
     if s['queue']['available']:
         q = s['queue']

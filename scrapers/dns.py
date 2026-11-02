@@ -30,6 +30,8 @@ class DNSScraper:
 
     async def _scrape_with_browser(self, browser, category_name, category_url, max_pages, products):
         error = None
+        error_info = None
+        import source_failure
         context = await browser.new_context(
             user_agent=self.user_agent,
             locale="ru-RU",
@@ -79,6 +81,8 @@ class DNSScraper:
                 separator = "&" if "?" in url else "?"
                 url = f"{url}{separator}p={page_num}"
 
+            resp = None
+            phase = "fetch"
             try:
                 resp = await page.goto(url, wait_until="domcontentloaded", timeout=25000)
                 if resp and resp.status == 403 and "Один момент" in (await page.title()):
@@ -87,6 +91,7 @@ class DNSScraper:
                 if not resp or resp.status != 200:
                     raise RuntimeError(f"DNS: HTTP {resp.status if resp else 'нет ответа'}")
 
+                phase = "parse"
                 try:
                     await page.wait_for_selector(".catalog-product", timeout=12000)
                 except Exception:
@@ -144,12 +149,18 @@ class DNSScraper:
 
                 await asyncio.sleep(1.5)
             except Exception as e:
-                detail = str(e) if str(e).startswith("DNS:") else type(e).__name__
-                error = f"Страница {page_num}: {detail}"
+                error_info = source_failure.classify(e,page=page_num,phase=phase,observed={"http_status":resp.status if resp else None})
+                if str(e) == "DNS: доступ закрыт проверкой Cloudflare":
+                    error_info = source_failure.make("access_challenge",phase="fetch",page=page_num,http_status=resp.status if resp else None)
+                elif resp and resp.status >= 400:
+                    error_info = source_failure.classify(RuntimeError(f"HTTP {resp.status}"),page=page_num)
+                elif str(e) == "DNS: карточки не найдены":
+                    error_info = source_failure.make("empty",phase="parse",page=page_num,http_status=resp.status if resp else None)
+                error = source_failure.describe(error_info)
                 break
 
         await context.close()
-        return ScanResult(products, error=error, limited=not error)
+        return ScanResult(products, error=error, limited=not error, error_info=error_info)
 
     def close(self) -> None:
         """Освобождает ресурсы адаптера."""

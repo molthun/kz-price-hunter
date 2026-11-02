@@ -4,7 +4,7 @@ const BASE='http://127.0.0.1:18122',html=fs.readFileSync(path.join(__dirname,'..
  const c=await browser.newContext({viewport:{width,height:900},colorScheme:scheme}),p=await c.newPage(),errors=[],mutations=[];
  let getFail=false,explanations=0,hold=null,queueAvailable=false;
  const data=()=>({generated_at:new Date().toISOString(),window_hours:24,status:'unknown',sections:{
- shops:{available:true,status:'unknown',counts:{healthy:1,unknown:1},items:[{shop_key:'fixture',name:'<img src=x onerror=alert(1)>',status:'unknown',last_success_at:null,last_items:0,categories_problem:0}]},
+ shops:{available:true,status:'unknown',counts:{healthy:1,unknown:1},items:[{shop_key:'fixture',name:'<img src=x onerror=alert(1)>',status:'unknown',last_success_at:null,last_items:0,categories_problem:0,failure:{error_code:'http_429',phase:'fetch',page:2,http_status:429,message:'Магазин ограничил частоту запросов'}}]},
  queue:queueAvailable?{available:true,status:'healthy',worker_running:true,counts:{pending:7,processing:1,rejected:0,dead_letter:0}}:{available:false,status:'unknown'},
  scanning:{available:true,status:'unknown',runtime:{is_running:false},last_scan:null},local:{available:true,status:'unknown',configured:true,paused:false,calls_24h:0,errors_24h:0,last_call_at:null,gpu_fresh:false},
  notifications:{available:true,status:'healthy',counts:{pending:2,sent:9}},events:{available:true,status:'unknown',events_24h:0,errors_24h:0,enabled:false,flusher_alive:true,last_event_at:null}}});
@@ -19,7 +19,7 @@ const BASE='http://127.0.0.1:18122',html=fs.readFileSync(path.join(__dirname,'..
  });
  await p.goto(BASE+'/admin#monitoringTool');await p.getByText('Локальный ИИ расставил приоритеты.',{exact:true}).waitFor();assert.equal(explanations,1);
  assert.equal(await p.locator('.service-block').count(),6);assert.equal(await p.locator('.service-block').filter({hasText:'Сохранение товаров'}).getByText('Не удалось прочитать показатели этого блока. Остальные блоки доступны.',{exact:true}).count(),1);
- assert.equal(await p.locator('#serviceSections img').count(),0);assert.match(await p.locator('#serviceSections').textContent(),/onerror/);
+ assert.equal(await p.locator('#serviceSections img').count(),0);assert.match(await p.locator('#serviceSections').textContent(),/HTTP 429/);assert.match(await p.locator('#serviceSections').textContent(),/Страница: 2/);assert.match(await p.locator('#serviceSections').textContent(),/onerror/);
  await p.locator('.admin-nav a[href="#shopsTool"]').click();await p.locator('.admin-nav a[href="#monitoringTool"]').click();assert.equal(explanations,1);
  let release;hold={promise:new Promise(r=>release=r)};await p.locator('#serviceExplain').evaluate(b=>{b.click();b.click();});await p.waitForFunction(()=>document.getElementById('serviceExplain').disabled);assert.equal(explanations,2);
  queueAvailable=true;await p.locator('#serviceRefresh').click();await p.getByText('Состояние обновлено. Повторите разбор после завершения предыдущего запроса.',{exact:true}).waitFor();

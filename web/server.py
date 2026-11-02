@@ -3702,14 +3702,21 @@ async def _scan_shop_categories(key, scraper, categories, shop_name, candidate_s
             http_trace = {}
             token_trace = current_http_trace.set(http_trace)
             cat_started = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            category_failure = {}
             try:
-                prods = await scraper.scrape(cat["name"], cat["url"], max_pages=cat.get("max_pages"))
+                import source_failure
+                with source_failure.capture() as category_failure:
+                    prods = await scraper.scrape(cat["name"], cat["url"], max_pages=cat.get("max_pages"))
                 # Предложение = товар магазина + подтверждённый город (id вида kaspi_1@astana)
                 assign_offer_ids(prods)
                 error = getattr(prods, "error", None)
+                failure = source_failure.result_failure(prods,category_failure)
+                if error:
+                    error = source_failure.describe(failure)
                 complete = getattr(prods, "complete", False)
                 if not prods and not complete:
-                    error = error or "Пустая выдача: требуется проверка"
+                    failure = failure or source_failure.make("empty",phase="category")
+                    error = error or source_failure.describe(failure)
                 # Качество до снятия товаров (P02): «тихая поломка» с complete не снимает каталог и не обучает норму.
                 # Метрики — по всей выдаче (дубли видны), дальше — только первая строка каждого id (C01)
                 kind = "complete" if complete else "limited"
@@ -3778,7 +3785,7 @@ async def _scan_shop_categories(key, scraper, categories, shop_name, candidate_s
                     message=f"[{shop_name}] Категория {cat['name']}: {len(prods)} товаров (complete={complete})",
                     shop=shop_name,
                     category=cat["name"],
-                    data={"items_count": len(prods), "complete": complete, "error": error, "http": http_trace,
+                    data={"items_count": len(prods), "complete": complete, "error": error, "failure": failure, "http": http_trace,
                           "quality": {"quality": assessment["quality"], "reasons": assessment["reasons"],
                                       "warnings": assessment["warnings"], "baseline": assessment["baseline"],
                                       "basis": assessment["basis"], **metrics}}
@@ -3787,12 +3794,15 @@ async def _scan_shop_categories(key, scraper, categories, shop_name, candidate_s
             except LeaseLost:
                 raise
             except Exception as e:
-                failed_categories.append(f"{cat['name']}: {type(e).__name__}")
-                print(f"[{shop_name}] Ошибка категории {cat['name']}: {type(e).__name__}")
+                import source_failure
+                failure = source_failure.classify(e,observed=category_failure)
+                safe_error = source_failure.describe(failure)
+                failed_categories.append(f"{cat['name']}: {safe_error}")
+                print(f"[{shop_name}] Ошибка категории {cat['name']}: {safe_error}")
                 try:
                     await asyncio.to_thread(
                         record_source_scan, key, cat["url"], cat["name"], current_scan_id.get(), cat_started, "limited",
-                        data_quality.assess(data_quality.measure([]), complete=False, error=type(e).__name__, baseline=None),
+                        data_quality.assess(data_quality.measure([]), complete=False, error=safe_error, baseline=None),
                         data_quality.measure([]))
                 except Exception:
                     pass
@@ -3800,8 +3810,8 @@ async def _scan_shop_categories(key, scraper, categories, shop_name, candidate_s
                     event_type=EVENT_SCAN_ERROR,
                     severity=SEVERITY_ERROR,
                     component=COMPONENT_SCRAPER,
-                    message=f"[{shop_name}] Ошибка категории {cat['name']}: {type(e).__name__}",
-                    data={"error": type(e).__name__, "http": http_trace},
+                    message=f"[{shop_name}] Ошибка категории {cat['name']}: {safe_error}",
+                    data={"error": safe_error, "failure": failure, "http": http_trace},
                 )
             finally:
                 current_http_trace.reset(token_trace)

@@ -1,5 +1,13 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 02.11.2026 — 6.18.6: SC-02, безопасные причины ошибок источников
+
+- Allowlisted error_code/phase/page/http_status, контекст запроса без URL/body/headers/raw exception.
+- ScanResult metadata, base/DNS/server → source reason/telemetry → admin overview/local-only рекомендации.
+- Без миграций/изменения retries/cooldown/quality/baseline/retirement; старые причины не угадываются.
+- Проверки и stand-only выкладка: docs/AGENT_HANDOFF.md.
+
+
 ## 02.11.2026 — 6.18.5: SC-01, дубли Moon и Вкусмарт
 
 - Проверка seen_ids после окончательного ID, добавление только успешно разобранной карточки.

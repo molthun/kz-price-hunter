@@ -216,6 +216,7 @@ def shops_overview(registry: Dict[str, Tuple[str, int]], enabled: Iterable[str],
                    now: Optional[datetime.datetime] = None) -> List[Dict[str, Any]]:
     """Сводка по всем магазинам реестра: {shop_key: (название, число категорий)}."""
     import database
+    import source_failure
     now = now or _now()
     enabled = set(enabled)
     keys = list(registry)
@@ -251,6 +252,7 @@ def shops_overview(registry: Dict[str, Tuple[str, int]], enabled: Iterable[str],
             "last_success_at": (scan or {}).get("last_success_at"),
             "last_items": (scan or {}).get("last_items") or 0,
             "last_error": (scan or {}).get("last_error"),
+            "failure": source_failure.public(source_failure.from_legacy((scan or {}).get("last_error"))),
             "failure_count": (scan or {}).get("failure_count") or 0,
             "next_retry_at": (scan or {}).get("next_retry_at"),
             "freshness": data_quality.freshness((scan or {}).get("last_success_at"), now)["freshness"],

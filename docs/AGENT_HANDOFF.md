@@ -2,6 +2,29 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## READY_FOR_STAND → Codex: SC-02, безопасные причины ошибок (2026-11-02)
+
+- Прямое поручение владельца «Делай» после SC-01. База a59c7bc, tracked чист, Codex один.
+- Область: safe failure classifier/transport metadata, ScanResult/base/DNS/server,
+  отображение безопасных причин в обзоре/локальном помощнике, tests/version/docs.
+- Только allowlisted error_code/phase/page/http_status; без raw exception/body/URL/headers/PII.
+  Legacy строки ScanResult совместимы, наружу/в source reason — безопасное структурированное описание.
+  Не менять retries/cooldown/quality/baseline/complete/retirement. Без миграций схемы.
+- Временные данные; stand-only bundle отa0caa4f, без production/main push/реальных настроек,
+  полного scan/отправок.
+- Реализованы source_failure whitelist/capture/describe/decode, metadata ScanResult/base/DNS,
+  server safe source reasons/events. Transport observes only; retries/cooldown/quality/coverage не меняются.
+  Новая admin причина+этап/страница/HTTP; local-only действия по безопасным кодам. Старые причины unknown.
+- Профильный226 PASS +49 subtests; полный2676 PASS +1143 subtests; UI4/4(390/1366/обе темы),
+  compile/diff-check/secrets0 PASS. Temporary pipeline доказал HTTP429/page2 → SQLite/API без secret,
+  partial data сохранены, retirement/baseline learning не разрешены.
+- Версия6.18.6, FIX_2026-11-02_SC02_FAILURES_CODEX.md; evidence2026-11-02-sc02-failures/.
+- Следующий шаг: stand bundle отa0caa4f → build/recreate → settings SHA/runtime/guest gate;
+  isolated temporary DB fault smoke и реальная local-only приоритизация безопасных причин без sends.
+  Независимая приёмка/основной owner UI отдельно.
+
+---
+
 ## STAND_DEPLOYED → Владелец: SC-01, дубли Moon/Вкусмарт (2026-11-02)
 
 - Владелец поручил исправление после аудита причин источников.

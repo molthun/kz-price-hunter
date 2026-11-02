@@ -177,6 +177,8 @@ def _limited(method: str, url: str, send, stream: bool = False):
     try:
         state = _acquire(host)
     except HostCooldown as e:
+        import source_failure
+        source_failure.observe_exception(e)
         _record(host, method, url, 0, 0.0, retry_after=e.retry_after, cooldown_rejected=True)
         raise
     # Задержка — только сам запрос, без ожидания слота/паузы в _acquire
@@ -184,12 +186,16 @@ def _limited(method: str, url: str, send, stream: bool = False):
     try:
         response = send()
     except Exception as e:
+        import source_failure
+        source_failure.observe_exception(e)
         state.slots.release()
         # Только имя класса: текст транспортной ошибки содержит URL/заголовки (A01)
         _record(host, method, url, 0, (time.perf_counter() - t0) * 1000.0,
                 error=type(e).__name__, error_kind=_error_kind(e))
         raise
     latency_ms = (time.perf_counter() - t0) * 1000.0
+    import source_failure
+    source_failure.observe_http(getattr(response, "status_code", None))
     try:
         # 429 учитывается до освобождения слота: ожидающий запрос увидит паузу
         _observe(state, response)

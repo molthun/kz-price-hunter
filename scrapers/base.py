@@ -133,12 +133,14 @@ class ScanResult(list):
     unparsed — карточки страницы, которые адаптер видел, но не смог разобрать (сломанный селектор).
     Такая страница не даёт обходу права называться полным (A01).
     """
-    def __init__(self, items=(), *, complete=False, error=None, limited=False, unparsed=0):
+    def __init__(self, items=(), *, complete=False, error=None, limited=False, unparsed=0, error_info=None):
         super().__init__(items)
         self.complete = complete
         self.error = error
         self.limited = limited
         self.unparsed = unparsed
+        import source_failure
+        self.error_info = source_failure.clean(error_info)
 
 
 @runtime_checkable
@@ -283,18 +285,23 @@ class PagedScraper:
             if page > 1 and self.PAGE_DELAY_SECONDS:
                 time.sleep(self.PAGE_DELAY_SECONDS)
             try:
-                items = self._fetch_page_with_retry(category_name, category_url, page)
+                import source_failure
+                with source_failure.capture() as failure_state:
+                    items = self._fetch_page_with_retry(category_name, category_url, page)
                 pages_scraped += 1
             except UnconfirmedEnd:
                 result = ScanResult(products, limited=bool(products), unparsed=unparsed,
-                                    error=None if products else "Карточки не найдены на первой странице")
+                                    error=None if products else "Карточки не найдены на первой странице",
+                                    error_info=source_failure.make("end_unconfirmed" if products else "empty",phase="parse",page=page,http_status=failure_state.get("http_status")))
                 self._report_scrape(category_name, products, pages_scraped,
                                     started, "конец каталога не подтверждён")
                 return result
             except Exception as e:
+                failure = source_failure.classify(e,page=page,observed=failure_state)
                 self._report_scrape(category_name, products, pages_scraped,
-                                    started, f"ошибка: {type(e).__name__}")
-                return ScanResult(products, unparsed=unparsed, error=f"Страница {page}: {type(e).__name__}")
+                                    started, f"ошибка: {type(e).__name__}; {source_failure.describe(failure)}")
+                return ScanResult(products, unparsed=unparsed, error=f"Страница {page}: {type(e).__name__}",
+                                  error_info=failure)
 
             unparsed += int(getattr(items, "unparsed", 0) or 0)
             if not items:
@@ -303,7 +310,8 @@ class PagedScraper:
                 self._report_scrape(category_name, products, pages_scraped, started,
                                     "пустая выдача: полнота не подтверждена")
                 return ScanResult(products, limited=bool(products), unparsed=unparsed,
-                                  error="Пустая выдача: полнота не подтверждена")
+                                  error="Пустая выдача: полнота не подтверждена",
+                                  error_info=source_failure.make("empty",phase="parse",page=page,http_status=failure_state.get("http_status")))
 
             fresh = [i for i in items if i.get("id") and i["id"] not in seen_ids]
             if not fresh:
