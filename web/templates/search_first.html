@@ -6991,17 +6991,21 @@
         row.append(k,v);box.append(row);
       });
     }
-    async function loadSourceDetails(id){
-      try{
-        const res=await fetch('/api/v2/products/'+encodeURIComponent(id)+'/details',{headers:{'X-KZPH-Request':'1'}});
-        if(!res.ok)throw Error('details');const evidence=await res.json();
-        if(!detailProductData||detailProductData.product.id!==id)return;
+    function renderSourceEvidence(evidence){
         renderSourceFacts(evidence.facts||[]);
         renderSourceGallery((evidence.images||[]).length?evidence.images:[detailProductData.product.image_url].filter(Boolean));
         renderDetailDescription(evidence.description||evidence.summary||'Описание пока не получено от магазина. Уточните сведения на странице источника.');
         document.getElementById('detailSourceStatus').textContent=evidence.status==='ready'?'Сведения со страницы магазина':'Сведения пока не подтверждены источником';
         const box=document.getElementById('detailSourceLinks');box.replaceChildren();
         (evidence.sources||[]).forEach(source=>{const url=safeHttpUrl(source.url);if(!url)return;const a=document.createElement('a');a.textContent='Источник: '+source.name+' ↗';a.href=url;a.target='_blank';a.rel='noopener noreferrer';box.append(a);});
+    }
+    async function loadSourceDetails(id){
+      try{
+        const res=await fetch('/api/v2/products/'+encodeURIComponent(id)+'/details',{headers:{'X-KZPH-Request':'1'}});
+        if(!res.ok)throw Error('details');const evidence=await res.json();
+        if(!detailProductData||detailProductData.product.id!==id)return;
+        detailProductData.source_evidence=evidence;
+        applyDetailOptions();
       }catch(e){if(detailProductData&&detailProductData.product.id===id)renderDetailDescription('Не удалось загрузить описание. Характеристики можно уточнить на странице продавца.');}
     }
 
@@ -7081,7 +7085,14 @@
         const best = buyable.length ? Math.min(...buyable.map(off => off.price)) : null;
         document.getElementById('detailBestPrice').textContent = best ? formatPrice(best) : '—';
         const withImage = offers.find(off => off.image_url);
-        if (withImage) document.getElementById('detailMainImg').src = withImage.image_url;
+        if (selected.length) {
+          renderSourceGallery(withImage?[withImage.image_url]:[]);
+          document.getElementById('detailAttributesList').textContent='Характеристики выбранного исполнения уточните на странице продавца.';
+          document.getElementById('detailSourceLinks').replaceChildren();
+          document.getElementById('detailSourceStatus').textContent='Выбрано другое исполнение';
+          renderDetailDescription('Описание и дополнительные фото выбранного исполнения уточните у продавца.');
+        } else if (data.source_evidence) renderSourceEvidence(data.source_evidence);
+        else if (withImage) document.getElementById('detailMainImg').src = withImage.image_url;
         // В общем названии цвет случайного магазина: показываем название выбранного исполнения
         const titled = offers.find(off => off.title);
         if (titled) document.getElementById('detailProductTitle').textContent = titled.title;
@@ -7090,7 +7101,8 @@
         document.getElementById('detailProductTitle').textContent = prod.title || 'Товар';
         const basis = data.best_offer ? priceBasisLabel(data.best_offer) : '';
         document.getElementById('detailBestPrice').textContent = data.min_price ? formatPrice(data.min_price) + (basis ? ' ' + basis : '') : '—';
-        document.getElementById('detailMainImg').src = prod.image_url || getSvgPlaceholder(prod.title);
+        if(data.source_evidence)renderSourceEvidence(data.source_evidence);
+        else document.getElementById('detailMainImg').src = prod.image_url || getSvgPlaceholder(prod.title);
       }
       document.getElementById('offersCountBadge').textContent = '(' + offers.length + ' предложений)';
       const sellerCount = new Set(offers.map(off => off.seller_id)).size;
