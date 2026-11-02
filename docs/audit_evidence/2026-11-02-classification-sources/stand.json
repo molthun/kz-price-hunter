@@ -1,0 +1,23 @@
+{
+  "version": "6.16.1",
+  "sources": [
+    {
+      "name": "ITMag",
+      "url": "https://itmag.kz/p/107644-dimm-ddr5-64-gb-kit-kingston-fury/",
+      "active": false,
+      "section": "ITMag: 🧠 Оперативная память",
+      "observed_at": "2026-10-28T17:57:01.798775+00:00",
+      "host": "itmag.kz"
+    }
+  ],
+  "lookup_ms": 1.06,
+  "hashes": {
+    "repositories/classification_repo.py": "18322798b2cacb01630ef443f1d62ec2b6fbc8ceb24d597d46ae84b949ccf6b9",
+    "web/templates/admin.html": "cb39ecb81652443981e6823040530f94b08d03729f6ee1ca0d766ab214b6d1ff",
+    "version.py": "08f57496f90b8c5218f18c507e586012ad61570ed5540f0a536a06b5f89d3910"
+  },
+  "health": "healthy",
+  "sha": "3209b88f1",
+  "runtime_hashes_match": true,
+  "verification": "read-only real stand DB; owner login not performed"
+}
