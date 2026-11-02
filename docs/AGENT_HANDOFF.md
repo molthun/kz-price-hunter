@@ -2,7 +2,7 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## IN_PROGRESS → Codex: характеристики, описание и галерея товара (2026-11-02)
+## STAND_DEPLOYED → Владелец: характеристики, описание и галерея товара (2026-11-02)
 
 - Поручение владельца: забирать характеристики источника для локального ИИ, описание в карточке/ленте,
   несколько фото (цель >=2 при наличии у источника). База 9ad54fe, tracked чист; Codex один.
@@ -28,7 +28,15 @@
 - Первый полный suite 2616 PASS + 1120 subtests; frozen full 2618 PASS + 1120 subtests, 161.71s;
   после последнего active-category guard/API test профильный набор 41 PASS, secrets 0.
   Следующий шаг: API/browser regressions, secrets/diff, отчёт, commit/bundle, sanitized backup и стенд.
-  Новых пользователей/сессий в основном стенде не создавать; реальный owner login не выдавать за fixture.
+  Выполнено: ccc792470, v6.17.0, healthy, runtime hashes 8 файлов совпали; bundle без main push.
+- Recovery before-product-evidence-6170-sanitized.db: 116047 товаров, quick_check OK, descriptions 0,
+  identity/title hash совпал. Основной enrich: bare SKU → 12 фактов/7 URL фото; title/prices сохранены.
+  Worker предложил ram (1.0); существующая manual admin метка ram сохранена, review, failures 0.
+  bad_projection 0, quick_check OK. Первоначальный обход продолжается (срез 22 evidence rows).
+- UI variant followup: выбранное исполнение не подменяется фото/фактами исходного; browser 4/4 после исправления.
+- Новые пользователи/сессии на основном стенде не создавались; owner login не использовался.
+  Guest details API 403; production не трогали. Отчёт FEATURE_2026-11-02_PRODUCT_EVIDENCE_CODEX.md.
+- Следующий шаг: продуктовая проверка владельцем карточки/ленты и фонового наполнения на стенде.
 
 ---
 

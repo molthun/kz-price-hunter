@@ -1,0 +1,17 @@
+{
+  "sha": "ccc7924703459c17f7e781a0e370edb6d0a9ebca",
+  "health": "healthy",
+  "runtime_hashes_match": true,
+  "files": {
+    "product_evidence.py": "8a948816f7fc8a6dd9898ddb25941912a0bcb93f7522418b3dd8c216d92e06c3",
+    "product_classification.py": "2a42ba2960e6abe0d3917fc7cbedc319dc1aa1c5000a8f5eb08521b2f3953929",
+    "repositories/classification_repo.py": "afcbc394301b8361617c0b0fffa97013cb426ddc9e52021aa7d1500ee1e647ae",
+    "repositories/schema_v2.py": "a3f6a2fc6531a997eecdf572f57042d5ab04563a189ff5d5fbaf201294f3bb37",
+    "web/server.py": "90f4eb845ea8b091fda67465914a1bf0f3ec52a60e4a7e1986559b060659c3c5",
+    "web/templates/search_first.html": "58f0cc3826e05f545b49c53ed09dd0e78f6b673183428045f1e71e8499bba970",
+    "web/templates/admin.html": "230dd9297f21046e6afab3b16ff79966f3c999cc7e570d0d0a6cb65b0ea81cf0",
+    "version.py": "2e12fccd5895c8e744733b044f8d8676449e380c38c1c2e9135f1189bda8b728"
+  },
+  "/api/live": 200,
+  "/api/v2/products/prod_8832124f2248e62e/details": 403
+}
