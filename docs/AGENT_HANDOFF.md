@@ -2,6 +2,27 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## IN_PROGRESS → Codex: карусель и увеличение фото (2026-11-02)
+
+- Владелец поручил увеличение фото и удобное перелистывание в карточке.
+- База dc94548, tracked чист, один исполнитель Codex; чужие untracked сохранены.
+- Область: search_first gallery/viewer, browser/release checks, версия/история.
+- Full-screen dialog, стрелки/миниатюры/счётчик, keyboard/Esc, swipe при обычном масштабе,
+  увеличение/прокрутка фото, lock/restore scroll, один источник состояния карточки и viewer.
+- Не смешивать исполнения, не показывать placeholder как фото, ошибки изображений убирать.
+- Только стенд через bundle, без production/main push/БД.
+- Реализован native dialog с focus trap, fit/2x zoom и прокруткой; единый index фото
+  в карточке/viewer, стрелки, горизонтальные миниатюры, counter, pointer swipe и keyboard/Esc.
+- Ошибки фото удаляются из набора; ноль фото закрывает viewer и отключает открытие placeholder.
+  Route/variant changes не оставляют старую галерею, overflow/focus восстанавливаются.
+- Browser 4/4 (390/1366, обе темы): открыть/выбрать/loop/keyboard/swipe/zoom/Esc/X,
+  orientation resize, single/zero/error images, route close, прежний description/facts/feed/variant guard.
+  Screenshot QA PASS. Python release/closed-gate 9 PASS; secrets 0, diff-check PASS.
+  Backend suite не повторялся: только client template/version.
+- Следующий шаг: commit/bundle, стенд, runtime hash/guest gate. Main owner login не использовать.
+
+---
+
 ## STAND_DEPLOYED → Владелец: удаление ненужных заявок расширения (2026-11-02)
 
 - Поручение владельца: удалять непонятные запросы (показан r5s532g5600u1k).

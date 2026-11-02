@@ -1,5 +1,10 @@
 # 📌 Трекер проекта: KZ Price Hunter
 
+## 02.11.2026 — карусель фото, v6.17.3
+
+- Codex: fullscreen/zoom, arrows/thumbs/counter, swipe/keyboard/Esc, scroll restore.
+- Только стенд; фотографии источников, названия и БД не меняются. Проверки в AGENT_HANDOFF.
+
 ## 02.11.2026 — удаление заявок расширения, v6.17.2
 
 - Codex: удаление/остановка запроса с защитой generation; без удаления товаров/разделов.

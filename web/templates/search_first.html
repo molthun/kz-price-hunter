@@ -1031,10 +1031,30 @@
       display: none;
     }
 
-    .detail-photo-thumbs {display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
-    .detail-photo-thumbs button {width:64px;height:64px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-card);padding:4px;cursor:pointer;}
+    .detail-photo-stage {position:relative;width:100%;}
+    #detailPhotoOpen {padding:12px;cursor:zoom-in;}
+    #detailPhotoOpen:disabled {cursor:default;}
+    #detailPhotoOpen:focus-visible {outline:2px solid var(--primary);outline-offset:2px;}
+    .photo-arrow {position:absolute;top:calc(50% - 24px);width:44px;height:48px;border-radius:10px;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-main);font-size:30px;cursor:pointer;}
+    .photo-prev {left:8px;} .photo-next {right:8px;}
+    .detail-photo-thumbs {display:flex;gap:8px;margin-top:12px;overflow-x:auto;width:100%;max-width:100%;padding:4px;scrollbar-width:thin;}
+    .detail-photo-thumbs button {flex:0 0 64px;width:64px;height:64px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-card);padding:4px;cursor:pointer;}
     .detail-photo-thumbs button[aria-pressed=true] {border:2px solid var(--primary);}
     .detail-photo-thumbs img {width:100%;height:100%;object-fit:contain;}
+    #productPhotoDialog {width:100vw;max-width:none;height:100dvh;max-height:none;margin:0;padding:16px;border:0;border-radius:0;color:var(--text-main);background:var(--bg-card);overflow:hidden;}
+    #productPhotoDialog[open] {display:flex;flex-direction:column;gap:10px;}
+    #productPhotoDialog::backdrop {background:rgba(0,0,0,.85);}
+    .photo-viewer-bar {display:flex;align-items:center;gap:10px;flex-shrink:0;}
+    .photo-viewer-bar h2 {flex:1;min-width:0;font-size:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0;}
+    .photo-viewer-bar button,.photo-viewer-controls button {min-width:44px;min-height:44px;background:var(--bg-subtle);border:1px solid var(--border-color);border-radius:10px;color:var(--text-main);font-size:22px;cursor:pointer;flex-shrink:0;}
+    #productPhotoCounter {white-space:nowrap;font-size:.85rem;}
+    .photo-viewer-stage {flex:1;min-height:0;overflow:auto;background:var(--bg-subtle);border-radius:12px;overscroll-behavior:contain;touch-action:pan-y pinch-zoom;}
+    #photoViewerCanvas {display:grid;place-items:center;min-width:100%;min-height:100%;}
+    #productPhotoLarge {max-width:none;max-height:none;object-fit:contain;cursor:zoom-in;user-select:none;-webkit-user-select:none;}
+    .photo-viewer-controls {display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0;}
+    .photo-viewer-controls p {font-size:.8rem;color:var(--text-muted);margin:0;text-align:center;}
+    #productPhotoThumbs {margin:0;flex-shrink:0;}
+    @media(max-width:600px){#productPhotoDialog{padding:10px;gap:8px;}.photo-viewer-bar h2{font-size:.85rem;}.photo-viewer-bar{gap:6px;}.photo-viewer-controls p{font-size:.72rem;}}
     #detailSourceLinks a {display:inline-block;margin:8px 12px 8px 0;color:var(--primary);overflow-wrap:anywhere;}
     .deal-evidence {font-size:.85rem;line-height:1.4;color:var(--text-muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;margin:8px 0;}
     .detail-description {
@@ -4272,8 +4292,12 @@
       <!-- Product Hero Card -->
       <div class="product-detail-hero">
         <div class="detail-gallery">
-          <div class="detail-img-box">
-            <img id="detailMainImg" alt="" class="detail-img" onerror="this.src=getSvgPlaceholder()" />
+          <div class="detail-photo-stage">
+            <button type="button" id="detailPhotoOpen" class="detail-img-box" onclick="openProductPhotos()" aria-label="Увеличить фото товара">
+              <img id="detailMainImg" alt="Фото товара" class="detail-img" onerror="handleProductPhotoFailure(this.src)" />
+            </button>
+            <button type="button" id="detailPhotoPrev" class="photo-arrow photo-prev" onclick="stepProductPhoto(-1)" aria-label="Предыдущее фото в карточке" hidden>‹</button>
+            <button type="button" id="detailPhotoNext" class="photo-arrow photo-next" onclick="stepProductPhoto(1)" aria-label="Следующее фото в карточке" hidden>›</button>
           </div>
           <div id="detailPhotoThumbs" class="detail-photo-thumbs" aria-label="Фотографии товара"></div>
           <p id="detailPhotoStatus" class="user-meta" role="status"></p>
@@ -4667,6 +4691,21 @@
   <!-- ============================================================= -->
   <!-- MODAL: PRICE WATCH (KZPH-G5-02)                               -->
   <!-- ============================================================= -->
+  <dialog id="productPhotoDialog" aria-labelledby="productPhotoTitle">
+    <div class="photo-viewer-bar">
+      <h2 id="productPhotoTitle">Фотографии товара</h2><span id="productPhotoCounter" aria-live="polite"></span>
+      <button type="button" id="productPhotoZoom" onclick="toggleProductPhotoZoom()" aria-label="Увеличить изображение">＋</button>
+      <button type="button" id="productPhotoClose" onclick="closeProductPhotos()" aria-label="Закрыть фотографии">✕</button>
+    </div>
+    <div class="photo-viewer-stage" id="photoViewerStage"><div id="photoViewerCanvas"><img id="productPhotoLarge" alt="" draggable="false" onclick="if(Date.now()>photoSkipImageClickUntil)toggleProductPhotoZoom()"></div></div>
+    <div class="photo-viewer-controls">
+      <button type="button" id="productPhotoPrev" onclick="stepProductPhoto(-1)" aria-label="Предыдущее фото">‹</button>
+      <p>Листайте стрелками или свайпом. Нажмите на фото, чтобы увеличить.</p>
+      <button type="button" id="productPhotoNext" onclick="stepProductPhoto(1)" aria-label="Следующее фото">›</button>
+    </div>
+    <div id="productPhotoThumbs" class="detail-photo-thumbs" aria-label="Выбор фото"></div>
+  </dialog>
+
   <div id="watchModalBackdrop" class="modal-backdrop" onclick="closeWatchModal(event)">
     <div class="modal-dialog" onclick="event.stopPropagation()">
       <div class="modal-header">
@@ -5506,6 +5545,7 @@
     });
 
     function handleRoute() {
+      closeProductPhotos();
       const pathname = window.location.pathname;
       const params = new URLSearchParams(window.location.search);
 
@@ -6970,18 +7010,86 @@
       applyDetailOptions();
     }
 
+    let productPhotoUrls=[],productPhotoIndex=0,productPhotoZoom=1,photoScrollRestore=null,photoTouchStart=null,photoSkipImageClickUntil=0;
     function renderSourceGallery(images){
-      const box=document.getElementById('detailPhotoThumbs');box.replaceChildren();
-      const unique=[...new Set(images.map(safeHttpUrl).filter(Boolean))].slice(0,12);
-      const status=()=>{const n=box.children.length;document.getElementById('detailPhotoStatus').textContent=n>=2?n+' фото':n===1?'У источника пока доступно одно фото':'Фото пока не получены';};
-      document.getElementById('detailMainImg').src=unique[0]||getSvgPlaceholder();
-      unique.forEach((url,i)=>{
-        const button=document.createElement('button');button.type='button';button.setAttribute('aria-label','Фото '+(i+1));button.setAttribute('aria-pressed',String(i===0));
-        const img=document.createElement('img');img.src=url;img.alt='Фото '+(i+1);img.loading='lazy';
-        img.onerror=()=>{button.remove();status();};button.append(img);
-        button.onclick=()=>{document.getElementById('detailMainImg').src=url;box.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));};box.append(button);
-      });status();
+      const previous=productPhotoUrls[productPhotoIndex];
+      productPhotoUrls=[...new Set(images.map(safeHttpUrl).filter(Boolean))].slice(0,12);
+      productPhotoIndex=Math.max(0,productPhotoUrls.indexOf(previous));productPhotoZoom=1;
+      buildProductPhotoThumbs('detailPhotoThumbs',false);buildProductPhotoThumbs('productPhotoThumbs',true);updateProductPhoto();
     }
+    function buildProductPhotoThumbs(id,viewer){
+      const box=document.getElementById(id);box.replaceChildren();
+      productPhotoUrls.forEach((url,i)=>{
+        const b=document.createElement('button');b.type='button';b.setAttribute('aria-label',(viewer?'Перейти к фото ':'Фото ')+(i+1));
+        const img=document.createElement('img');img.src=url;img.alt='Фото '+(i+1);img.loading='lazy';img.onerror=()=>handleProductPhotoFailure(url);
+        b.append(img);b.onclick=()=>selectProductPhoto(i);box.append(b);
+      });
+    }
+    function selectProductPhoto(index){
+      if(!productPhotoUrls.length)return;
+      productPhotoIndex=(index+productPhotoUrls.length)%productPhotoUrls.length;productPhotoZoom=1;updateProductPhoto();
+    }
+    function stepProductPhoto(direction){selectProductPhoto(productPhotoIndex+direction);}
+    function updateProductPhoto(){
+      const url=productPhotoUrls[productPhotoIndex],dialog=document.getElementById('productPhotoDialog');
+      document.getElementById('detailMainImg').src=url||getSvgPlaceholder();document.getElementById('detailPhotoOpen').disabled=!url;
+      ['detailPhotoPrev','detailPhotoNext','productPhotoPrev','productPhotoNext'].forEach(id=>document.getElementById(id).hidden=productPhotoUrls.length<2);
+      document.getElementById('detailPhotoStatus').textContent=url?(productPhotoIndex+1)+' / '+productPhotoUrls.length+' фото'+(productPhotoUrls.length===1?' · У источника пока одно фото':''):'Фото пока не получены';
+      for(const id of ['detailPhotoThumbs','productPhotoThumbs']){
+        const box=document.getElementById(id);[...box.children].forEach((b,i)=>b.setAttribute('aria-pressed',String(i===productPhotoIndex)));
+        const active=box.children[productPhotoIndex];if(active)box.scrollTo({left:Math.max(0,active.offsetLeft-box.offsetLeft-box.clientWidth/2+active.clientWidth/2),behavior:'smooth'});
+      }
+      if(!url){closeProductPhotos();return;}
+      if(dialog.open){
+        const img=document.getElementById('productPhotoLarge');img.alt='Фото '+(productPhotoIndex+1)+' — '+document.getElementById('detailProductTitle').textContent;
+        img.onload=sizeProductPhoto;img.onerror=()=>{if(img.src===url)handleProductPhotoFailure(url);};if(img.src!==url)img.src=url;
+        document.getElementById('productPhotoCounter').textContent=(productPhotoIndex+1)+' / '+productPhotoUrls.length;sizeProductPhoto();
+      }
+    }
+    function handleProductPhotoFailure(url){
+      if(!productPhotoUrls.includes(url))return;
+      productPhotoUrls=productPhotoUrls.filter(x=>x!==url);productPhotoIndex=Math.min(productPhotoIndex,Math.max(0,productPhotoUrls.length-1));productPhotoZoom=1;
+      buildProductPhotoThumbs('detailPhotoThumbs',false);buildProductPhotoThumbs('productPhotoThumbs',true);updateProductPhoto();
+    }
+    function openProductPhotos(){
+      const dialog=document.getElementById('productPhotoDialog');if(!productPhotoUrls.length||dialog.open)return;
+      photoScrollRestore={body:document.body.style.overflow,html:document.documentElement.style.overflow};
+      document.body.style.overflow='hidden';document.documentElement.style.overflow='hidden';
+      document.getElementById('productPhotoTitle').textContent=document.getElementById('detailProductTitle').textContent||'Фотографии товара';
+      productPhotoZoom=1;dialog.showModal();updateProductPhoto();document.getElementById('productPhotoClose').focus();
+    }
+    function restoreProductPhotoScroll(){
+      if(photoScrollRestore){document.body.style.overflow=photoScrollRestore.body;document.documentElement.style.overflow=photoScrollRestore.html;photoScrollRestore=null;}photoTouchStart=null;
+    }
+    function closeProductPhotos(){const d=document.getElementById('productPhotoDialog');if(d&&d.open){restoreProductPhotoScroll();d.close();}}
+    function toggleProductPhotoZoom(){productPhotoZoom=productPhotoZoom===1?2:1;sizeProductPhoto();}
+    function sizeProductPhoto(){
+      const stage=document.getElementById('photoViewerStage'),img=document.getElementById('productPhotoLarge');
+      if(!document.getElementById('productPhotoDialog').open||!img.naturalWidth)return;
+      const scale=Math.min(Math.max(1,stage.clientWidth-24)/img.naturalWidth,Math.max(1,stage.clientHeight-24)/img.naturalHeight)*productPhotoZoom;
+      const w=Math.round(img.naturalWidth*scale),h=Math.round(img.naturalHeight*scale),canvas=document.getElementById('photoViewerCanvas');
+      img.style.width=w+'px';img.style.height=h+'px';canvas.style.width=Math.max(w,stage.clientWidth)+'px';canvas.style.height=Math.max(h,stage.clientHeight)+'px';
+      img.style.cursor=productPhotoZoom===1?'zoom-in':'zoom-out';stage.style.touchAction=productPhotoZoom===1?'pan-y pinch-zoom':'pan-x pan-y pinch-zoom';
+      const zoom=document.getElementById('productPhotoZoom');zoom.textContent=productPhotoZoom===1?'＋':'−';zoom.setAttribute('aria-label',productPhotoZoom===1?'Увеличить изображение':'Уменьшить изображение');
+      stage.scrollLeft=Math.max(0,(canvas.clientWidth-stage.clientWidth)/2);stage.scrollTop=Math.max(0,(canvas.clientHeight-stage.clientHeight)/2);
+    }
+    document.getElementById('productPhotoDialog').addEventListener('cancel',event=>{event.preventDefault();closeProductPhotos();});
+    document.getElementById('productPhotoDialog').addEventListener('close',()=>{
+      if(!document.getElementById('productPhotoDialog').open)restoreProductPhotoScroll();
+    });
+    document.getElementById('productPhotoDialog').addEventListener('keydown',event=>{
+      if(event.altKey||event.ctrlKey||event.metaKey)return;
+      if(event.key==='ArrowRight'||event.key==='ArrowLeft'){event.preventDefault();stepProductPhoto(event.key==='ArrowRight'?1:-1);}
+    });
+    const photoStage=document.getElementById('photoViewerStage');
+    photoStage.addEventListener('pointerdown',e=>{photoTouchStart=e.pointerType==='touch'&&e.isPrimary&&productPhotoZoom===1?{x:e.clientX,y:e.clientY,id:e.pointerId}:null;});
+    photoStage.addEventListener('pointercancel',()=>photoTouchStart=null);
+    photoStage.addEventListener('pointerup',e=>{
+      const s=photoTouchStart;photoTouchStart=null;if(!s||e.pointerId!==s.id||productPhotoZoom!==1)return;
+      const dx=e.clientX-s.x,dy=e.clientY-s.y;if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*1.4){photoSkipImageClickUntil=Date.now()+350;stepProductPhoto(dx<0?1:-1);}
+    });
+    addEventListener('resize',()=>{if(document.getElementById('productPhotoDialog').open)sizeProductPhoto();});
+
     function renderSourceFacts(facts){
       if(!facts.length)return;
       const box=document.getElementById('detailAttributesList');box.replaceChildren();
