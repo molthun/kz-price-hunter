@@ -301,6 +301,10 @@
           <label>Контактное лицо<input name="contact_person" maxlength="300"></label>
           <label class="wide">Комментарий<textarea name="comment" rows="2" maxlength="1000"></textarea></label>
           <label class="wide check"><input type="checkbox" name="is_active"> Магазин активен</label>
+          <div class="wide" id="shopChannelsSection" style="display:none;margin-top:6px">
+            <span class="form-label" style="margin-bottom:6px">Подключённые витрины и сбор цен</span>
+            <div id="shopChannelsList" style="display:flex;flex-direction:column;gap:8px"></div>
+          </div>
           <div class="wide user-meta" id="shopCollection"></div>
         </div>
         <div class="state error" id="shopFormError" role="alert"></div>
@@ -691,6 +695,64 @@
       const collection = shop.collection_channels || [];
       document.getElementById('shopCollection').textContent = collection.length ? 'Каналы сбора цен: ' + collection.join(', ') : '';
       document.getElementById('shopFormError').textContent = '';
+
+      const channelsSection = document.getElementById('shopChannelsSection');
+      const channelsList = document.getElementById('shopChannelsList');
+      if (channelsSection && channelsList) {
+        channelsList.replaceChildren();
+        const channels = shop.channels || [];
+        if (channels.length > 0) {
+          channelsSection.style.display = 'block';
+          channels.forEach(ch => {
+            const card = element('div', 'user');
+            card.style.padding = '8px 12px';
+            card.style.background = 'var(--bg)';
+            card.style.border = '1px solid var(--border)';
+            card.style.borderRadius = '8px';
+            const cInfo = element('div', 'user-info');
+            cInfo.append(element('div', 'user-name', ch.name || ch.channel_type));
+            const metaParts = [
+              ch.base_url || ch.external_store_id || '',
+              ch.status_label || (ch.is_active ? 'Активен' : 'Отключён'),
+            ].filter(Boolean);
+            if (ch.last_fetch_at) {
+              metaParts.push('Обновлено: ' + new Date(ch.last_fetch_at).toLocaleString('ru-RU'));
+            }
+            cInfo.append(element('div', 'user-meta', metaParts.join(' · ')));
+            card.append(cInfo);
+
+            const isShowcase = ch.channel_type === 'marketplace' ||
+                               (ch.base_url && /kaspi|halyk|forte/i.test(ch.base_url)) ||
+                               (ch.external_store_id && /kaspi|halyk|forte/i.test(ch.external_store_id));
+            if (isShowcase && ch.is_active) {
+              const syncBtn = element('button', '', 'Синхронизировать витрину');
+              syncBtn.type = 'button';
+              syncBtn.style.flexShrink = '0';
+              syncBtn.onclick = async () => {
+                syncBtn.disabled = true;
+                const origText = syncBtn.textContent;
+                syncBtn.textContent = 'Сбор цен…';
+                try {
+                  const sRes = await fetch('/api/v2/admin/channels/' + encodeURIComponent(ch.id) + '/sync', {method: 'POST'});
+                  const sData = await sRes.json();
+                  if (!sRes.ok || !sData.ok) throw new Error(sData.error || 'Ошибка синхронизации');
+                  alert(`Синхронизация завершена!\nПросканировано предложений: ${sData.scanned_count}\nДобавлено/обновлено предложений: ${sData.offers_upserted}\nНовых товаров в каталоге: ${sData.created_products}`);
+                  if (shopEditId) await openShop(shopEditId);
+                } catch (err) {
+                  alert(err.message || 'Не удалось выполнить синхронизацию');
+                } finally {
+                  syncBtn.disabled = false;
+                  syncBtn.textContent = origText;
+                }
+              };
+              card.append(syncBtn);
+            }
+            channelsList.append(card);
+          });
+        } else {
+          channelsSection.style.display = 'none';
+        }
+      }
     }
 
     async function openShop(id) {

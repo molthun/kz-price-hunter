@@ -248,7 +248,15 @@ def seller_details(conn, seller_id: str) -> Optional[Dict[str, Any]]:
             else:
                 status_label = "В сборе" if c.is_active else "Отключён"
         elif c.channel_type == ChannelType.MARKETPLACE:
-            status_label = "Нужен сканер витрины" if c.is_active else "Отключён"
+            meta_ch = c.metadata if isinstance(c.metadata, dict) else {}
+            last_sync = meta_ch.get("last_sync_at")
+            prods = meta_ch.get("products_count")
+            if last_sync:
+                last_fetch = last_sync
+                last_status = meta_ch.get("last_sync_status", "ok")
+                status_label = f"Синхронизировано ({prods or 0} предл.)" if c.is_active else "Отключён"
+            else:
+                status_label = "Готов к сканированию" if c.is_active else "Отключён"
         elif c.channel_type == ChannelType.WEBSITE:
             url_l = (c.base_url or "").lower()
             if "xml" in url_l or "yml" in url_l or "feed" in url_l:

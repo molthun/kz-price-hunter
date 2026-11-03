@@ -2374,6 +2374,33 @@ async def admin_seller_channel_fetch_now_handler(request):
     return web.json_response(res, status=200 if res.get("ok") else 400)
 
 
+@routes.post("/api/v2/admin/channels/{channel_id}/sync")
+@routes.post("/api/v2/admin/sellers/{seller_id}/channels/{channel_id}/sync")
+@require_admin
+async def admin_seller_channel_sync_showcase_handler(request):
+    """Синхронизирует витрину продавца на маркетплейсе (Kaspi, Halyk, Forte)."""
+    channel_id = request.match_info["channel_id"]
+    from database import get_connection
+    from domain.channel_sync import sync_channel_showcase
+
+    def _sync():
+        conn = get_connection()
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            return loop.run_until_complete(sync_channel_showcase(conn, channel_id))
+        finally:
+            loop.close()
+            conn.close()
+
+    try:
+        res = await asyncio.to_thread(_sync)
+        return web.json_response(res, status=200 if res.get("ok") else 400)
+    except Exception as e:
+        print(f"[API channel sync] Ошибка: {e}")
+        return web.json_response({"ok": False, "error": f"Ошибка синхронизации: {str(e)}"}, status=500)
+
+
 @routes.get("/api/v2/admin/onboarding")
 @require_admin
 async def admin_list_onboarding_handler(request):
