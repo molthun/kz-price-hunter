@@ -2001,7 +2001,9 @@ async def product_price_history_v2_handler(request):
 
     condition = request.query.get("condition")
     seller_id = request.query.get("seller_id")
+    channel_id = request.query.get("channel_id")
     channel_type = request.query.get("channel_type")
+    city = request.query.get("city")
     limit = _int_param(request, "limit", 500, minimum=1, maximum=2000)
 
     def _load():
@@ -2015,7 +2017,9 @@ async def product_price_history_v2_handler(request):
                 product_id=product_id,
                 condition=condition,
                 seller_id=seller_id,
+                channel_id=channel_id,
                 channel_type=channel_type,
+                city=city,
                 limit_per_series=limit,
             )
             return report.to_dict() if report else None
@@ -2490,6 +2494,162 @@ async def admin_channel_sync_all_due_handler(request):
         delay_between_channels=2.0,
     )
     return web.json_response(res, status=200 if res.get("ok") else 400)
+
+
+@routes.get("/api/v2/admin/channels/{channel_id}/history")
+@require_admin
+async def admin_channel_history_handler(request):
+    """История сбора цен, динамика и статистика витрины маркетплейса/канала."""
+    channel_id = request.match_info["channel_id"].strip()
+    from database import get_connection
+
+    def _fetch():
+        conn = get_connection()
+        try:
+            # 1. Данные канала и продавца
+            c_row = conn.execute(
+                """
+                SELECT c.id, c.seller_id, s.name, c.channel_type, c.name,
+                       c.external_store_id, c.base_url, c.metadata_json, c.is_active
+                FROM channels c
+                LEFT JOIN sellers s ON s.id = c.seller_id
+                WHERE c.id = ?
+                """,
+                (channel_id,),
+            ).fetchone()
+            if not c_row:
+                return None
+
+            cid, sid, sname, ctype, cname, ext_id, base_url, meta_json, is_active = c_row
+            meta = {}
+            if meta_json:
+                try:
+                    meta = json.loads(meta_json)
+                except Exception:
+                    pass
+
+            # 2. Общая статистика по предложениям и истории
+            total_offers = conn.execute(
+                "SELECT COUNT(*) FROM offers WHERE channel_id = ?",
+                (channel_id,),
+            ).fetchone()[0]
+
+            total_points = conn.execute(
+                """
+                SELECT COUNT(*) FROM offer_price_history oph
+                JOIN offers o ON o.id = oph.offer_id
+                WHERE o.channel_id = ?
+                """,
+                (channel_id,),
+            ).fetchone()[0]
+
+            # 3. Изменения цен (где old_price != price)
+            changes_rows = conn.execute(
+                """
+                SELECT oph.offer_id, o.product_id,
+                       COALESCE(cp.title, o.external_sku, oph.offer_id) AS title,
+                       oph.price, oph.old_price, oph.observed_at,
+                       o.city, o.url, o.image_url
+                FROM offer_price_history oph
+                JOIN offers o ON o.id = oph.offer_id
+                LEFT JOIN canonical_products cp ON cp.id = o.product_id
+                WHERE o.channel_id = ?
+                  AND oph.old_price IS NOT NULL
+                  AND oph.old_price != oph.price
+                ORDER BY oph.observed_at DESC
+                LIMIT 50
+                """,
+                (channel_id,),
+            ).fetchall()
+
+            price_changes = []
+            for r in changes_rows:
+                price = float(r[3])
+                old_p = float(r[4])
+                diff = round(price - old_p, 2)
+                diff_pct = round((diff / old_p) * 100, 1) if old_p > 0 else 0.0
+                price_changes.append({
+                    "offer_id": r[0],
+                    "product_id": r[1],
+                    "title": r[2],
+                    "price": price,
+                    "old_price": old_p,
+                    "diff": diff,
+                    "diff_pct": diff_pct,
+                    "observed_at": r[5],
+                    "city": r[6] or "Казахстан",
+                    "url": r[7],
+                    "image_url": r[8],
+                })
+
+            # 4. Свежие наблюдения цен (последние 50)
+            recent_obs_rows = conn.execute(
+                """
+                SELECT oph.offer_id, o.product_id,
+                       COALESCE(cp.title, o.external_sku, oph.offer_id) AS title,
+                       oph.price, oph.old_price, oph.observed_at,
+                       o.city, o.url
+                FROM offer_price_history oph
+                JOIN offers o ON o.id = oph.offer_id
+                LEFT JOIN canonical_products cp ON cp.id = o.product_id
+                WHERE o.channel_id = ?
+                ORDER BY oph.observed_at DESC
+                LIMIT 50
+                """,
+                (channel_id,),
+            ).fetchall()
+
+            recent_observations = []
+            for r in recent_obs_rows:
+                price = float(r[3])
+                old_p = float(r[4]) if r[4] is not None else None
+                diff = round(price - old_p, 2) if old_p is not None else None
+                diff_pct = round((diff / old_p) * 100, 1) if old_p and old_p > 0 else None
+                recent_observations.append({
+                    "offer_id": r[0],
+                    "product_id": r[1],
+                    "title": r[2],
+                    "price": price,
+                    "old_price": old_p,
+                    "diff": diff,
+                    "diff_pct": diff_pct,
+                    "observed_at": r[5],
+                    "city": r[6] or "Казахстан",
+                    "url": r[7],
+                })
+
+            return {
+                "ok": True,
+                "channel_id": cid,
+                "channel_name": cname or cid,
+                "seller_id": sid,
+                "seller_name": sname or sid,
+                "channel_type": ctype,
+                "marketplace": meta.get("marketplace") or ctype,
+                "external_store_id": ext_id,
+                "base_url": base_url,
+                "is_active": bool(is_active),
+                "last_sync_at": meta.get("last_sync_at"),
+                "sync_history": meta.get("sync_history", []),
+                "stats": {
+                    "total_offers": total_offers,
+                    "total_points": total_points,
+                    "total_changes": len(price_changes),
+                },
+                "price_changes": price_changes,
+                "recent_observations": recent_observations,
+            }
+        finally:
+            conn.close()
+
+    try:
+        data = await asyncio.to_thread(_fetch)
+        if not data:
+            return web.json_response({"ok": False, "error": f"Канал {channel_id} не найден"}, status=404)
+        return web.json_response(data)
+    except Exception as e:
+        print(f"[API channel history] Ошибка: {e}")
+        return web.json_response({"ok": False, "error": f"Ошибка загрузки истории канала: {str(e)}"}, status=500)
 
 
 @routes.get("/api/v2/admin/onboarding")

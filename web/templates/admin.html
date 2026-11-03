@@ -128,6 +128,75 @@
       background: var(--card);
       color: var(--text);
     }
+    #channelHistoryDialog {
+      width: min(840px, calc(100vw - 24px));
+      max-height: calc(100dvh - 32px);
+      overflow-y: auto;
+    }
+    .ch-stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px;
+      margin: 12px 0 16px;
+    }
+    .ch-stat-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .ch-stat-label {
+      font-size: 0.74rem;
+      color: var(--meta);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .ch-stat-val {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .ch-tabs {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 12px;
+      padding-bottom: 4px;
+    }
+    .ch-tab-btn {
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--meta);
+      border-radius: 0;
+    }
+    .ch-tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+    .ch-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+    .ch-table th {
+      text-align: left;
+      padding: 6px 8px;
+      border-bottom: 1px solid var(--border);
+      color: var(--meta);
+    }
+    .ch-table td {
+      padding: 6px 8px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
     dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
     dialog h2 { margin: 0 0 14px; font-size: 1.1rem; }
     .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -313,6 +382,56 @@
           <button type="submit" class="main" id="shopSave">Сохранить</button>
         </div>
       </form>
+    </dialog>
+    <dialog id="channelHistoryDialog" aria-labelledby="channelHistoryTitle">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+        <div>
+          <h2 id="channelHistoryTitle" style="margin:0 0 4px;">История сбора и динамика цен</h2>
+          <div id="channelHistorySubtitle" class="user-meta"></div>
+        </div>
+        <button type="button" onclick="document.getElementById('channelHistoryDialog').close()" style="flex-shrink:0;">✕ Закрыть</button>
+      </div>
+
+      <div id="channelHistoryLoading" class="state" role="status">Загрузка данных витрины…</div>
+
+      <div id="channelHistoryContent" style="display:none;">
+        <div class="ch-stat-grid">
+          <div class="ch-stat-card">
+            <span class="ch-stat-label">Предложений</span>
+            <span class="ch-stat-val" id="chStatOffers">0</span>
+          </div>
+          <div class="ch-stat-card">
+            <span class="ch-stat-label">Точек истории</span>
+            <span class="ch-stat-val" id="chStatPoints">0</span>
+          </div>
+          <div class="ch-stat-card">
+            <span class="ch-stat-label">Изменений цен</span>
+            <span class="ch-stat-val" id="chStatChanges" style="color:var(--primary);">0</span>
+          </div>
+          <div class="ch-stat-card">
+            <span class="ch-stat-label">Последний сбор</span>
+            <span class="ch-stat-val" id="chStatLastSync" style="font-size:0.92rem; font-weight:600;">—</span>
+          </div>
+        </div>
+
+        <div class="ch-tabs">
+          <button type="button" class="ch-tab-btn active" id="chTabChangesBtn" onclick="switchChannelHistoryTab('changes')">Изменения цен (<span id="chBadgeChanges">0</span>)</button>
+          <button type="button" class="ch-tab-btn" id="chTabRunsBtn" onclick="switchChannelHistoryTab('runs')">Запуски сбора (<span id="chBadgeRuns">0</span>)</button>
+          <button type="button" class="ch-tab-btn" id="chTabObsBtn" onclick="switchChannelHistoryTab('obs')">Свежие наблюдения (<span id="chBadgeObs">0</span>)</button>
+        </div>
+
+        <div id="chTabChanges" style="max-height:360px; overflow-y:auto;">
+          <div id="chChangesList"></div>
+        </div>
+
+        <div id="chTabRuns" style="display:none; max-height:360px; overflow-y:auto;">
+          <div id="chRunsList"></div>
+        </div>
+
+        <div id="chTabObs" style="display:none; max-height:360px; overflow-y:auto;">
+          <div id="chObsList"></div>
+        </div>
+      </div>
     </dialog>
     <section class="card admin-panel" id="catalogExpansionTool">
       <div class="card-head"><h2>Расширение ассортимента</h2></div>
@@ -754,9 +873,17 @@
                                (ch.base_url && /kaspi|halyk|forte/i.test(ch.base_url)) ||
                                (ch.external_store_id && /kaspi|halyk|forte/i.test(ch.external_store_id));
             if (isShowcase && ch.is_active) {
+              const actionsDiv = element('div', 'user-actions');
+              actionsDiv.style.display = 'flex';
+              actionsDiv.style.gap = '6px';
+              actionsDiv.style.flexShrink = '0';
+
+              const histBtn = element('button', '', 'История цен');
+              histBtn.type = 'button';
+              histBtn.onclick = () => openChannelHistory(ch.id);
+
               const syncBtn = element('button', '', 'Синхронизировать витрину');
               syncBtn.type = 'button';
-              syncBtn.style.flexShrink = '0';
               syncBtn.onclick = async () => {
                 syncBtn.disabled = true;
                 const origText = syncBtn.textContent;
@@ -774,7 +901,8 @@
                   syncBtn.textContent = origText;
                 }
               };
-              card.append(syncBtn);
+              actionsDiv.append(histBtn, syncBtn);
+              card.append(actionsDiv);
             }
             channelsList.append(card);
           });
@@ -1203,7 +1331,12 @@
           }
         };
 
-        actions.append(syncBtn);
+        const histBtn = document.createElement('button');
+        histBtn.type = 'button';
+        histBtn.textContent = 'Динамика цен';
+        histBtn.onclick = () => openChannelHistory(ch.channel_id);
+
+        actions.append(histBtn, syncBtn);
         row.append(info, actions);
         listEl.append(row);
       });
@@ -1259,6 +1392,186 @@
         syncNowBtn.textContent = orig;
       }
     };
+  }
+
+  let currentChannelHistoryData = null;
+
+  async function openChannelHistory(channelId) {
+    if (!channelId) return;
+    const dlg = document.getElementById('channelHistoryDialog');
+    const loading = document.getElementById('channelHistoryLoading');
+    const content = document.getElementById('channelHistoryContent');
+    const titleEl = document.getElementById('channelHistoryTitle');
+    const subEl = document.getElementById('channelHistorySubtitle');
+
+    titleEl.textContent = 'История сбора и динамика цен';
+    subEl.textContent = 'Канал: ' + channelId;
+    loading.style.display = 'block';
+    loading.className = 'state';
+    loading.textContent = 'Загрузка данных витрины…';
+    content.style.display = 'none';
+    dlg.showModal();
+
+    try {
+      const res = await fetch('/api/v2/admin/channels/' + encodeURIComponent(channelId) + '/history');
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || 'Ошибка загрузки истории канала');
+      currentChannelHistoryData = data;
+
+      titleEl.textContent = `${data.channel_name || data.channel_id} — Динамика цен`;
+      subEl.innerHTML = `Продавец: <b>${escapeAdminHtml(data.seller_name || data.seller_id)}</b> · Платформа: <b>${escapeAdminHtml((data.marketplace || data.channel_type || '').toUpperCase())}</b> ${data.external_store_id ? '· ID магазина: ' + escapeAdminHtml(data.external_store_id) : ''}`;
+
+      // Stats
+      document.getElementById('chStatOffers').textContent = String(data.stats ? data.stats.total_offers : 0);
+      document.getElementById('chStatPoints').textContent = String(data.stats ? data.stats.total_points : 0);
+      document.getElementById('chStatChanges').textContent = String(data.stats ? data.stats.total_changes : 0);
+      document.getElementById('chStatLastSync').textContent = data.last_sync_at ? new Date(data.last_sync_at).toLocaleString('ru-RU') : 'Никогда';
+
+      // Badges
+      const changes = data.price_changes || [];
+      const syncRuns = data.sync_history || [];
+      const obs = data.recent_observations || [];
+      document.getElementById('chBadgeChanges').textContent = String(changes.length);
+      document.getElementById('chBadgeRuns').textContent = String(syncRuns.length);
+      document.getElementById('chBadgeObs').textContent = String(obs.length);
+
+      // Render tab 1: Changes
+      const changesList = document.getElementById('chChangesList');
+      if (!changes.length) {
+        changesList.innerHTML = '<div class="user-meta" style="padding:16px; text-align:center;">Зафиксированных изменений цен пока нет. Все предложения на витрине стабильны.</div>';
+      } else {
+        const rows = changes.map(c => {
+          const diffBadge = c.diff < 0
+            ? `<span style="color:#10b981; font-weight:600;">📉 ${c.diff.toLocaleString('ru-RU')} ₸ (${c.diff_pct}%)</span>`
+            : `<span style="color:#f59e0b; font-weight:600;">📈 +${c.diff.toLocaleString('ru-RU')} ₸ (+${c.diff_pct}%)</span>`;
+          const dateStr = c.observed_at ? new Date(c.observed_at).toLocaleString('ru-RU') : '';
+          return `
+            <tr>
+              <td>
+                <div style="font-weight:600;"><a href="/product/${encodeURIComponent(c.product_id)}" target="_blank" style="color:var(--primary);">${escapeAdminHtml(c.title || c.offer_id)}</a></div>
+                <div class="user-meta" style="font-size:0.75rem;">${escapeAdminHtml(c.city)} ${c.url ? '· <a href="' + escapeAdminHtml(c.url) + '" target="_blank" style="color:var(--meta);">на витрине ↗</a>' : ''}</div>
+              </td>
+              <td>
+                <span style="text-decoration:line-through; color:var(--meta); font-size:0.8rem;">${(c.old_price || 0).toLocaleString('ru-RU')} ₸</span><br>
+                <strong>${(c.price || 0).toLocaleString('ru-RU')} ₸</strong>
+              </td>
+              <td>${diffBadge}</td>
+              <td style="font-size:0.78rem; color:var(--meta);">${dateStr}</td>
+            </tr>
+          `;
+        }).join('');
+        changesList.innerHTML = `
+          <table class="ch-table">
+            <thead>
+              <tr>
+                <th>Товар</th>
+                <th>Цена (было → стало)</th>
+                <th>Динамика</th>
+                <th>Дата фиксации</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        `;
+      }
+
+      // Render tab 2: Sync Runs
+      const runsList = document.getElementById('chRunsList');
+      if (!syncRuns.length) {
+        runsList.innerHTML = '<div class="user-meta" style="padding:16px; text-align:center;">История автосборов пока пуста. Запустите сбор или дождитесь планового обновления.</div>';
+      } else {
+        const rows = syncRuns.map(r => {
+          const dt = r.synced_at ? new Date(r.synced_at).toLocaleString('ru-RU') : '—';
+          return `
+            <tr>
+              <td><b>${dt}</b></td>
+              <td>${r.scanned_count || 0}</td>
+              <td>${r.offers_upserted || 0}</td>
+              <td>${r.created_products || 0}</td>
+              <td>${r.notifications_queued || 0}</td>
+              <td><span style="color:#16a34a; font-weight:600;">${escapeAdminHtml(r.status || 'ok')}</span></td>
+            </tr>
+          `;
+        }).join('');
+        runsList.innerHTML = `
+          <table class="ch-table">
+            <thead>
+              <tr>
+                <th>Время сбора</th>
+                <th>Собрано товаров</th>
+                <th>Обновлено предложений</th>
+                <th>Новых товаров</th>
+                <th>Уведомлений</th>
+                <th>Статус</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        `;
+      }
+
+      // Render tab 3: Recent Observations
+      const obsList = document.getElementById('chObsList');
+      if (!obs.length) {
+        obsList.innerHTML = '<div class="user-meta" style="padding:16px; text-align:center;">Наблюдений пока нет.</div>';
+      } else {
+        const rows = obs.slice(0, 50).map(o => {
+          const dt = o.observed_at ? new Date(o.observed_at).toLocaleString('ru-RU') : '—';
+          let delta = '<span style="color:var(--meta);">стабильна</span>';
+          if (o.diff !== null && o.diff !== undefined && o.diff !== 0) {
+            delta = o.diff < 0
+              ? `<span style="color:#10b981; font-weight:600;">📉 ${o.diff.toLocaleString('ru-RU')} ₸</span>`
+              : `<span style="color:#f59e0b; font-weight:600;">📈 +${o.diff.toLocaleString('ru-RU')} ₸</span>`;
+          }
+          return `
+            <tr>
+              <td>
+                <div style="font-weight:500;"><a href="/product/${encodeURIComponent(o.product_id)}" target="_blank" style="color:var(--primary);">${escapeAdminHtml(o.title || o.offer_id)}</a></div>
+                <div class="user-meta" style="font-size:0.75rem;">${escapeAdminHtml(o.city)}</div>
+              </td>
+              <td><strong>${(o.price || 0).toLocaleString('ru-RU')} ₸</strong></td>
+              <td>${delta}</td>
+              <td style="font-size:0.78rem; color:var(--meta);">${dt}</td>
+            </tr>
+          `;
+        }).join('');
+        obsList.innerHTML = `
+          <table class="ch-table">
+            <thead>
+              <tr>
+                <th>Товар</th>
+                <th>Цена</th>
+                <th>Статус цены</th>
+                <th>Время наблюдения</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        `;
+      }
+
+      switchChannelHistoryTab('changes');
+      loading.style.display = 'none';
+      content.style.display = 'block';
+    } catch (err) {
+      loading.className = 'state error';
+      loading.textContent = err.message || 'Ошибка загрузки истории канала';
+    }
+  }
+
+  function switchChannelHistoryTab(tab) {
+    const tabs = ['changes', 'runs', 'obs'];
+    tabs.forEach(t => {
+      const btn = document.getElementById('chTab' + t.charAt(0).toUpperCase() + t.slice(1) + 'Btn');
+      const pane = document.getElementById('chTab' + t.charAt(0).toUpperCase() + t.slice(1));
+      if (btn) btn.classList.toggle('active', t === tab);
+      if (pane) pane.style.display = (t === tab) ? 'block' : 'none';
+    });
+  }
+
+  function escapeAdminHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
   setInterval(async()=>{

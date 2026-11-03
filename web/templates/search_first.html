@@ -4039,6 +4039,186 @@
         padding-bottom: 0 !important;
       }
     }
+
+    /* Price History & Showcase Dynamics (Step 5) */
+    .history-summary-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 16px;
+      padding: 12px 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      margin-bottom: 14px;
+    }
+    .history-summary-metric {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .history-summary-label {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .history-summary-value {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+    .history-series-card {
+      padding: 14px 16px;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      background: var(--bg-card);
+      margin-bottom: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: border-color 0.15s ease;
+    }
+    .history-series-card:hover {
+      border-color: var(--primary);
+    }
+    .history-series-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .history-series-seller {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-weight: 600;
+      color: var(--text-main);
+      font-size: 0.95rem;
+    }
+    .history-channel-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.74rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+    .badge-kaspi {
+      background: rgba(239, 68, 68, 0.12);
+      color: #ef4444;
+      border: 1px solid rgba(239, 68, 68, 0.28);
+    }
+    .badge-forte {
+      background: rgba(168, 85, 247, 0.12);
+      color: #a855f7;
+      border: 1px solid rgba(168, 85, 247, 0.28);
+    }
+    .badge-halyk {
+      background: rgba(16, 185, 129, 0.12);
+      color: #10b981;
+      border: 1px solid rgba(16, 185, 129, 0.28);
+    }
+    .badge-web {
+      background: rgba(59, 130, 246, 0.12);
+      color: #3b82f6;
+      border: 1px solid rgba(59, 130, 246, 0.28);
+    }
+    .history-series-body {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .history-price-col {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .history-price-current {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+    .history-price-range {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .history-trend-col {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .history-trend-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+    .trend-drop {
+      background: rgba(16, 185, 129, 0.12);
+      color: #10b981;
+      border: 1px solid rgba(16, 185, 129, 0.25);
+    }
+    .trend-rise {
+      background: rgba(245, 158, 11, 0.12);
+      color: #f59e0b;
+      border: 1px solid rgba(245, 158, 11, 0.25);
+    }
+    .trend-flat {
+      background: rgba(148, 163, 184, 0.12);
+      color: var(--text-muted);
+      border: 1px solid var(--border-color);
+    }
+    .history-sparkline-wrap {
+      display: flex;
+      align-items: center;
+    }
+    .history-sparkline-svg {
+      display: block;
+      overflow: visible;
+    }
+    .history-points-disclosure {
+      margin-top: 4px;
+      border-top: 1px solid var(--border-color);
+      padding-top: 8px;
+    }
+    .history-points-disclosure summary {
+      cursor: pointer;
+      font-size: 0.82rem;
+      color: var(--primary);
+      font-weight: 500;
+      user-select: none;
+    }
+    .history-points-disclosure summary:hover {
+      text-decoration: underline;
+    }
+    .history-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      font-size: 0.82rem;
+    }
+    .history-table th {
+      text-align: left;
+      padding: 6px 8px;
+      color: var(--text-muted);
+      font-weight: 500;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .history-table td {
+      padding: 6px 8px;
+      color: var(--text-main);
+      border-bottom: 1px solid var(--border-color);
+    }
   </style>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
@@ -7864,6 +8044,66 @@
       }).join('');
     }
 
+    function channelShowcaseBadge(channelName, channelType) {
+      const cn = (channelName || '').toLowerCase();
+      const ct = (channelType || '').toLowerCase();
+      if (cn.includes('kaspi') || ct.includes('kaspi')) {
+        return '<span class="history-channel-badge badge-kaspi">Kaspi Магазин</span>';
+      }
+      if (cn.includes('forte') || ct.includes('forte')) {
+        return '<span class="history-channel-badge badge-forte">Forte Market</span>';
+      }
+      if (cn.includes('halyk') || ct.includes('halyk')) {
+        return '<span class="history-channel-badge badge-halyk">Halyk Market</span>';
+      }
+      return '<span class="history-channel-badge badge-web">Прямой сайт</span>';
+    }
+
+    function generatePriceSparklineSvg(points, changePct) {
+      if (!points || points.length < 2) return '';
+      const validPoints = points.filter(p => Number(p.price) > 0);
+      if (validPoints.length < 2) return '';
+
+      const prices = validPoints.map(p => Number(p.price));
+      const minP = Math.min(...prices);
+      const maxP = Math.max(...prices);
+      const w = 130, h = 32, padX = 6, padY = 5;
+      const range = maxP - minP;
+
+      const coords = prices.map((pr, idx) => {
+        const x = padX + (idx / (prices.length - 1)) * (w - padX * 2);
+        const y = range === 0 ? h / 2 : (h - padY) - ((pr - minP) / range) * (h - padY * 2);
+        return { x: Number(x.toFixed(1)), y: Number(y.toFixed(1)), price: pr, date: validPoints[idx].observed_at };
+      });
+
+      const pathD = coords.map((c, i) => (i === 0 ? 'M' : 'L') + c.x + ' ' + c.y).join(' ');
+      const areaD = pathD + ` L ${coords[coords.length - 1].x} ${h} L ${coords[0].x} ${h} Z`;
+
+      let strokeColor = '#06b6d4';
+      let fillColor = 'rgba(6, 182, 212, 0.12)';
+      if (changePct < 0) {
+        strokeColor = '#10b981';
+        fillColor = 'rgba(16, 185, 129, 0.14)';
+      } else if (changePct > 0) {
+        strokeColor = '#f59e0b';
+        fillColor = 'rgba(245, 158, 11, 0.14)';
+      }
+
+      const firstCoord = coords[0];
+      const lastCoord = coords[coords.length - 1];
+
+      return `
+        <div class="history-sparkline-wrap" title="Динамика цены: от ${formatPrice(firstCoord.price)} до ${formatPrice(lastCoord.price)}">
+          <svg class="history-sparkline-svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" aria-hidden="true">
+            <path d="${areaD}" fill="${fillColor}" />
+            <path d="${pathD}" fill="none" stroke="${strokeColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <circle cx="${firstCoord.x}" cy="${firstCoord.y}" r="2" fill="${strokeColor}" opacity="0.6" />
+            <circle cx="${lastCoord.x}" cy="${lastCoord.y}" r="2.5" fill="${strokeColor}" />
+          </svg>
+        </div>
+      `;
+    }
+
     // Каждая линия — отдельные продавец, канал, состояние и город: несопоставимые цены не объединяются
     function renderHistory(hist, offers) {
       const histBadge = document.getElementById('historyObservationsBadge');
@@ -7872,34 +8112,170 @@
       const total = (hist && hist.total_observations) || 0;
       if (!series.length || !total) {
         histBadge.textContent = '';
-        histContent.textContent = 'История цен собирается на основе регулярных наблюдений.';
+        histContent.innerHTML = '<div style="color:var(--text-muted); font-size:0.9rem;">История цен собирается на основе регулярных наблюдений витрин маркетплейсов и магазинов.</div>';
         return;
       }
 
       histBadge.textContent = '(' + total + ' ' + pluralizeObservations(total) + ')';
-      histContent.innerHTML = series.map(s => {
+
+      // Вычисление глобальных показателей по всем витринам
+      let globalMin = Infinity;
+      let globalMax = 0;
+      let bestSeries = null;
+      let dropsCount = 0;
+
+      series.forEach(s => {
+        if (s.min_price && s.min_price < globalMin) {
+          globalMin = s.min_price;
+          bestSeries = s;
+        }
+        if (s.max_price && s.max_price > globalMax) {
+          globalMax = s.max_price;
+        }
+        if (s.change_pct && s.change_pct < 0) {
+          dropsCount++;
+        }
+      });
+
+      let summaryHtml = '';
+      if (globalMin < Infinity && globalMin > 0) {
+        const bestLabel = bestSeries ? (bestSeries.seller_name + ' · ' + (bestSeries.channel_name || bestSeries.channel_type)) : '';
+        summaryHtml = `
+          <div class="history-summary-bar">
+            <div class="history-summary-metric">
+              <span class="history-summary-label">Минимум за всё время</span>
+              <span class="history-summary-value" style="color:var(--badge-discount);">${formatPrice(globalMin)}</span>
+            </div>
+            ${globalMax > globalMin ? `
+            <div class="history-summary-metric">
+              <span class="history-summary-label">Диапазон витрин</span>
+              <span class="history-summary-value">${formatPrice(globalMin)} – ${formatPrice(globalMax)}</span>
+            </div>
+            ` : ''}
+            <div class="history-summary-metric">
+              <span class="history-summary-label">Витрин и магазинов</span>
+              <span class="history-summary-value">${series.length}</span>
+            </div>
+            ${dropsCount > 0 ? `
+            <div class="history-summary-metric" style="margin-left:auto;">
+              <span class="history-trend-badge trend-drop">📉 Скидки на ${dropsCount} ${pluralizeOffers(dropsCount)}</span>
+            </div>
+            ` : ''}
+          </div>
+        `;
+      }
+
+      const cardsHtml = series.map(s => {
         const points = s.points || [];
         const lastPoint = points[points.length - 1];
         const offer = offers.find(o => o.id === s.offer_id);
         const basis = offer ? priceBasisLabel(offer) : '';
-        const label = [s.seller_name, s.channel_name || s.channel_type, conditionLabel(s.condition), s.city].filter(Boolean).join(' · ');
-        let range = 'Цена: <strong style="color:var(--text-main);">' + formatPrice(s.latest_price) + '</strong>' + (basis ? ' ' + escapeHtml(basis) : '');
-        if (s.min_price !== s.max_price) {
-          range += ', минимум ' + formatPrice(s.min_price) + ', максимум ' + formatPrice(s.max_price);
-        }
+        const channelBadge = channelShowcaseBadge(s.channel_name, s.channel_type);
+        const condBadge = conditionBadge(s.condition);
+        const sparklineHtml = generatePriceSparklineSvg(points, s.change_pct || 0);
+
+        let trendBadgeHtml = '';
         if (points.length > 1 && s.change_pct) {
-          range += ', изменение за период ' + (s.change_pct > 0 ? '+' : '') + Number(s.change_pct).toFixed(1) + '%';
+          if (s.change_pct < 0) {
+            trendBadgeHtml = `<span class="history-trend-badge trend-drop">📉 Снижение ${formatPrice(Math.abs(s.change_amount))} (${s.change_pct}%)</span>`;
+          } else {
+            trendBadgeHtml = `<span class="history-trend-badge trend-rise">📈 Рост +${formatPrice(s.change_amount)} (+${s.change_pct}%)</span>`;
+          }
+        } else if (points.length > 1) {
+          trendBadgeHtml = `<span class="history-trend-badge trend-flat">➡️ Цена стабильна</span>`;
+        } else {
+          trendBadgeHtml = `<span class="history-trend-badge trend-flat" style="font-weight:400;">Первое наблюдение</span>`;
         }
-        const meta = points.length + ' ' + pluralizeObservations(points.length) +
-          (lastPoint ? ', последнее ' + formatDateTime(lastPoint.observed_at) : '');
+
+        let rangeText = '';
+        if (s.min_price && s.max_price && s.min_price !== s.max_price) {
+          rangeText = `Диапазон: от ${formatPrice(s.min_price)} до ${formatPrice(s.max_price)}`;
+        }
+
+        const lastObsText = lastPoint ? formatDateTime(lastPoint.observed_at) : '';
+
+        // Таблица точек истории изменений
+        let pointsTableHtml = '';
+        if (points.length > 0) {
+          const sortedPts = [...points].reverse();
+          const rows = sortedPts.map((pt, pIdx) => {
+            const prevPt = sortedPts[pIdx + 1];
+            let deltaHtml = '<span style="color:var(--text-muted);">—</span>';
+            if (prevPt) {
+              const diff = Number((pt.price - prevPt.price).toFixed(2));
+              if (diff < 0) {
+                const diffPct = prevPt.price > 0 ? ((diff / prevPt.price) * 100).toFixed(1) : 0;
+                deltaHtml = `<span style="color:#10b981; font-weight:600;">📉 ${formatPrice(diff)} (${diffPct}%)</span>`;
+              } else if (diff > 0) {
+                const diffPct = prevPt.price > 0 ? ((diff / prevPt.price) * 100).toFixed(1) : 0;
+                deltaHtml = `<span style="color:#f59e0b; font-weight:600;">📈 +${formatPrice(diff)} (+${diffPct}%)</span>`;
+              } else {
+                deltaHtml = `<span style="color:var(--text-muted);">Без изменений</span>`;
+              }
+            } else if (pt.old_price && pt.old_price !== pt.price) {
+              const diff = Number((pt.price - pt.old_price).toFixed(2));
+              if (diff < 0) {
+                deltaHtml = `<span style="color:#10b981; font-weight:600;">📉 ${formatPrice(diff)}</span>`;
+              }
+            }
+            return `
+              <tr>
+                <td>${escapeHtml(formatDateTime(pt.observed_at))}</td>
+                <td><strong style="color:var(--text-main);">${formatPrice(pt.price)}</strong></td>
+                <td>${deltaHtml}</td>
+              </tr>
+            `;
+          }).join('');
+
+          pointsTableHtml = `
+            <details class="history-points-disclosure">
+              <summary>История наблюдений (${points.length} ${pluralizeObservations(points.length)}) ▾</summary>
+              <div style="overflow-x:auto;">
+                <table class="history-table">
+                  <thead>
+                    <tr>
+                      <th>Дата наблюдения</th>
+                      <th>Цена</th>
+                      <th>Изменение</th>
+                    </tr>
+                  </thead>
+                  <tbody>${rows}</tbody>
+                </table>
+              </div>
+            </details>
+          `;
+        }
+
         return `
-          <div class="history-series" style="padding:8px 0; border-top:1px solid var(--border-color);">
-            <div style="font-weight:600; color:var(--text-main);">${escapeHtml(label)}</div>
-            <div>${range}</div>
-            <div style="font-size:0.8rem;">${escapeHtml(meta)}</div>
+          <div class="history-series-card">
+            <div class="history-series-header">
+              <div class="history-series-seller">
+                ${channelBadge}
+                <span>${escapeHtml(s.seller_name)}</span>
+                ${s.city ? '<span style="font-size:0.8rem; color:var(--text-muted); font-weight:400;">· ' + escapeHtml(s.city) + '</span>' : ''}
+              </div>
+              <div>${condBadge}</div>
+            </div>
+            <div class="history-series-body">
+              <div class="history-price-col">
+                <div class="history-price-current">${formatPrice(s.latest_price)}${basis ? ' <span style="font-size:0.8rem; font-weight:400; color:var(--text-muted);">' + escapeHtml(basis) + '</span>' : ''}</div>
+                ${rangeText ? '<div class="history-price-range">' + escapeHtml(rangeText) + '</div>' : ''}
+              </div>
+              <div class="history-trend-col">
+                ${trendBadgeHtml}
+                ${sparklineHtml}
+              </div>
+            </div>
+            <div style="font-size:0.78rem; color:var(--text-muted); display:flex; justify-content:space-between; flex-wrap:wrap; gap:4px;">
+              <span>Наблюдений: ${points.length}</span>
+              ${lastObsText ? '<span>Последнее обновление: ' + escapeHtml(lastObsText) + '</span>' : ''}
+            </div>
+            ${pointsTableHtml}
           </div>
         `;
       }).join('');
+
+      histContent.innerHTML = summaryHtml + cardsHtml;
     }
 
     // Helpers

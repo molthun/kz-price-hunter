@@ -106,6 +106,16 @@ def upsert_showcase_offer(
     avail = "in_stock" if offer.in_stock else "out_of_stock"
     raw_payload = json.dumps(offer.raw_data or {}, ensure_ascii=False)
 
+    # Отслеживание динамики цены при повторном наблюдении
+    effective_old_price = offer.old_price
+    try:
+        cur_row = conn.execute("SELECT price, old_price FROM offers WHERE id = ?", (offer_id,)).fetchone()
+        if cur_row and cur_row[0] is not None and float(cur_row[0]) != float(offer.price):
+            if not effective_old_price:
+                effective_old_price = float(cur_row[0])
+    except Exception:
+        pass
+
     conn.execute('''
         INSERT INTO offers (
             id, product_id, seller_id, channel_id, external_sku,
@@ -132,7 +142,7 @@ def upsert_showcase_offer(
         offer.url,
         upgrade_image_url(offer.image_url),
         offer.price,
-        offer.old_price,
+        effective_old_price,
         "KZT",
         "NEW",
         avail,
@@ -144,14 +154,22 @@ def upsert_showcase_offer(
         now_iso,
     ))
 
-    # Запись в историю цен
+    # Запись в историю цен со всеми измерениями витрины
     try:
         conn.execute('''
-            INSERT OR IGNORE INTO offer_price_history (offer_id, price, old_price, observed_at)
-            VALUES (?, ?, ?, ?)
-        ''', (offer_id, offer.price, offer.old_price, now_iso))
+            INSERT OR IGNORE INTO offer_price_history (
+                offer_id, price, old_price, observed_at, product_id, seller_id, channel_id, condition, city
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (offer_id, offer.price, effective_old_price, now_iso, product_id, seller_id, channel_id, "NEW", offer.city or "Казахстан"))
     except Exception:
-        pass
+        try:
+            conn.execute('''
+                INSERT OR IGNORE INTO offer_price_history (offer_id, price, old_price, observed_at)
+                VALUES (?, ?, ?, ?)
+            ''', (offer_id, offer.price, effective_old_price, now_iso))
+        except Exception:
+            pass
 
     # Индексация характеристик из названия/данных
     try:
@@ -264,25 +282,7 @@ async def sync_channel_showcase(
             logger.exception(f"Ошибка при сохранении оффера {off.external_sku}: {ex}")
             continue
 
-    # Обновление метаданных канала
-    try:
-        current_meta = json.loads(meta_json or "{}") if isinstance(meta_json, str) else {}
-    except Exception:
-        current_meta = {}
-
-    current_meta.update({
-        "last_sync_at": now_iso,
-        "products_count": upserted_offers_count,
-        "last_sync_status": "ok",
-        "marketplace": mp,
-        "merchant_id": merchant_id,
-    })
-
-    conn.execute(
-        "UPDATE channels SET metadata_json = ?, is_active = 1 WHERE id = ?",
-        (json.dumps(current_meta, ensure_ascii=False), ch_id),
-    )
-
+    # Фиксация предложений в БД перед вызовом других подсистем (во избежание database is locked)
     if hasattr(conn, "commit"):
         conn.commit()
 
@@ -296,6 +296,41 @@ async def sync_channel_showcase(
                 logger.info(f"Синхронизация витрины {ch_id}: создано {notifications_queued} уведомлений по наблюдениям")
         except Exception as wex:
             logger.warning(f"Ошибка при оценке наблюдений для канала {ch_id}: {wex}")
+
+    # Обновление метаданных канала и истории запусков
+    try:
+        current_meta = json.loads(meta_json or "{}") if isinstance(meta_json, str) else {}
+    except Exception:
+        current_meta = {}
+
+    sync_history = current_meta.get("sync_history") or []
+    if not isinstance(sync_history, list):
+        sync_history = []
+    sync_history.insert(0, {
+        "synced_at": now_iso,
+        "scanned_count": len(offers),
+        "created_products": new_products_count,
+        "offers_upserted": upserted_offers_count,
+        "notifications_queued": notifications_queued,
+        "status": "ok",
+    })
+
+    current_meta.update({
+        "last_sync_at": now_iso,
+        "products_count": upserted_offers_count,
+        "last_sync_status": "ok",
+        "marketplace": mp,
+        "merchant_id": merchant_id,
+        "sync_history": sync_history[:25],
+    })
+
+    conn.execute(
+        "UPDATE channels SET metadata_json = ?, is_active = 1 WHERE id = ?",
+        (json.dumps(current_meta, ensure_ascii=False), ch_id),
+    )
+
+    if hasattr(conn, "commit"):
+        conn.commit()
 
     logger.info(f"Витрина успешно синхронизирована: канал={ch_id}, товаров={upserted_offers_count}, новых={new_products_count}")
     return {
