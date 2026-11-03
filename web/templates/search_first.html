@@ -821,6 +821,70 @@
       font-weight: 600;
     }
 
+    .active-filter-chips {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+
+    .filter-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      font-size: 0.82rem;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 16px;
+      cursor: default;
+      transition: all 0.15s;
+    }
+
+    .filter-chip strong {
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .filter-chip-remove {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--bg-subtle, rgba(0,0,0,0.06));
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      line-height: 1;
+      cursor: pointer;
+      border: none;
+      padding: 0;
+      transition: all 0.15s;
+    }
+
+    .filter-chip-remove:hover {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .filter-chip-clear-all {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      text-decoration: underline;
+      cursor: pointer;
+      padding: 4px 6px;
+    }
+
+    .filter-chip-clear-all:hover {
+      color: var(--danger, #ef4444);
+    }
+
     .price-inputs-row {
       display: flex;
       align-items: center;
@@ -4310,6 +4374,9 @@
             </div>
           </div>
 
+          <!-- Active Filter Chips -->
+          <div id="activeFilterChips" class="active-filter-chips" style="display:none;"></div>
+
           <!-- Loading Skeleton -->
           <div id="localSearchHelp" class="filter-group" role="status" style="display:none; padding:16px; border:1px solid var(--border-color); border-radius:12px; margin-bottom:16px; background:var(--bg-card);"></div>
 
@@ -6690,6 +6757,7 @@
       renderResultsHeader(total);
       renderPagination(data);
       renderFacets(data);
+      renderActiveFilterChips(data);
       renderLocalSearchHelp(data);
 
       if (items.length === 0) {
@@ -6876,7 +6944,7 @@
         label.textContent = field.label + (inferred ? ' (из запроса)' : '');
         const select = document.createElement('select');
         select.id = 'attribute-' + field.key; label.htmlFor = select.id;
-        select.style.cssText = 'width:100%;min-height:44px;background:var(--bg-input);color:var(--text-primary);border:1px solid var(--border-color);border-radius:8px;padding:8px;';
+        select.style.cssText = 'width:100%;min-height:40px;background:var(--bg-card);color:var(--text-main);border:1px solid var(--border-color);border-radius:8px;padding:8px;font-size:0.85rem;';
         select.add(new Option(inferred ? 'Как в запросе' : 'Все', ''));
         const selected = AppState.attributes[field.key] || (data.selected_attributes || {})[field.key] || '';
         (field.values || []).forEach(v => select.add(new Option(v.value + ' (' + v.count + ')', v.value)));
@@ -6895,6 +6963,107 @@
         }
         container.append(group);
       });
+    }
+
+    function renderActiveFilterChips(data) {
+      const container = document.getElementById('activeFilterChips');
+      if (!container) return;
+      container.replaceChildren();
+
+      const chips = [];
+
+      // 1. Brand
+      if (AppState.brand) {
+        chips.push({
+          label: 'Бренд',
+          value: AppState.brand,
+          onRemove: () => { AppState.brand = ''; AppState.page = 1; updateSearchUrl(); executeSearch(); }
+        });
+      }
+
+      // 2. Model
+      if (AppState.model) {
+        chips.push({
+          label: 'Модель',
+          value: AppState.model,
+          onRemove: () => { AppState.model = ''; AppState.page = 1; updateSearchUrl(); executeSearch(); }
+        });
+      }
+
+      // 3. Category
+      if (AppState.category) {
+        chips.push({
+          label: 'Категория',
+          value: AppState.category,
+          onRemove: () => { AppState.category = ''; AppState.page = 1; updateSearchUrl(); executeSearch(); }
+        });
+      }
+
+      // 4. Condition
+      if (AppState.condition && AppState.condition !== 'ALL') {
+        const condLabel = AppState.condition === 'NEW' ? 'Новое' : (AppState.condition === 'USED' ? 'Б/у' : AppState.condition);
+        chips.push({
+          label: 'Состояние',
+          value: condLabel,
+          onRemove: () => {
+            AppState.condition = 'ALL';
+            document.querySelectorAll('input[name="filterCondition"]').forEach(r => { r.checked = (r.value === 'ALL'); });
+            AppState.page = 1; updateSearchUrl(); executeSearch();
+          }
+        });
+      }
+
+      // 5. Dynamic Attributes
+      const facets = data && data.attribute_facets ? data.attribute_facets : [];
+      const labelMap = {};
+      facets.forEach(f => { if (f.key && f.label) labelMap[f.key] = f.label; });
+
+      if (AppState.attributes && typeof AppState.attributes === 'object') {
+        Object.entries(AppState.attributes).forEach(([k, v]) => {
+          if (!v) return;
+          const attrLabel = labelMap[k] || k;
+          chips.push({
+            label: attrLabel,
+            value: v,
+            onRemove: () => {
+              delete AppState.attributes[k];
+              AppState.page = 1;
+              updateSearchUrl();
+              executeSearch();
+            }
+          });
+        });
+      }
+
+      if (!chips.length) {
+        container.style.display = 'none';
+        return;
+      }
+
+      chips.forEach(c => {
+        const chip = document.createElement('div');
+        chip.className = 'filter-chip';
+        chip.innerHTML = `<span>${escapeHtml(c.label)}: <strong>${escapeHtml(c.value)}</strong></span>`;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'filter-chip-remove';
+        btn.setAttribute('aria-label', 'Удалить фильтр ' + c.label);
+        btn.innerHTML = '&times;';
+        btn.onclick = c.onRemove;
+        chip.appendChild(btn);
+        container.appendChild(chip);
+      });
+
+      if (chips.length > 1) {
+        const clearBtn = document.createElement('button');
+        clearBtn.type = 'button';
+        clearBtn.className = 'filter-chip-clear-all';
+        clearBtn.textContent = 'Сбросить все';
+        clearBtn.onclick = () => resetAllFilters();
+        container.appendChild(clearBtn);
+      }
+
+      container.style.display = 'flex';
     }
 
     function renderLocalSearchHelp(data) {

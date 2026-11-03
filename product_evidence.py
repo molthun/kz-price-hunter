@@ -199,9 +199,11 @@ def save(conn,pid,signature,data):
       DO UPDATE SET signature=excluded.signature,facts_hash=excluded.facts_hash,facts_json=excluded.facts_json,images_json=excluded.images_json,
       sources_json=excluded.sources_json,status=excluded.status,checked_at=excluded.checked_at,next_attempt=excluded.next_attempt''',
       (pid,signature,facts_hash,facts_json,json.dumps(data['images']),json.dumps(data['sources'],ensure_ascii=False),data['status'],now,now+delay))
-    from repositories.classification_repo import ClassificationRepository
-    ClassificationRepository(conn).touch([pid])
-    return True
+    try:
+        from domain.attribute_indexing import index_product_facts
+        index_product_facts(conn, pid, clean_facts)
+    except Exception:
+        pass
     from repositories.classification_repo import ClassificationRepository
     ClassificationRepository(conn).touch([pid])
     return True

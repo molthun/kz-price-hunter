@@ -238,6 +238,7 @@ class SearchResponse2:
     kind_facets: List[Dict[str, Any]] = field(default_factory=list)
     seller_facets: List[Dict[str, Any]] = field(default_factory=list)
     city_facets: List[Dict[str, Any]] = field(default_factory=list)
+    attribute_facets: List[Dict[str, Any]] = field(default_factory=list)
     # False — фасеты посчитать не удалось; пустые списки тогда не значат «вариантов нет»
     facets_available: bool = True
     page: int = 1
@@ -256,6 +257,7 @@ class SearchResponse2:
         res["kind_facets"] = self.kind_facets
         res["seller_facets"] = self.seller_facets
         res["city_facets"] = self.city_facets
+        res["attribute_facets"] = self.attribute_facets
         res["facets_available"] = self.facets_available
         res["page"] = self.page
         res["page_size"] = self.page_size
@@ -297,12 +299,15 @@ class SearchCore:
         brand: Optional[str] = None,
         model: Optional[str] = None,
         kind: Optional[str] = None,
+        attributes: Optional[Dict[str, str]] = None,
     ) -> SearchResponse2:
         """
         Executes a 2.0 multi-merchant search query with error handling, stable pagination, and global facets.
         """
         start_time = time.perf_counter()
         parsed: Optional[ParsedQuery] = None
+        if attributes:
+            self.search_repo.attribute_filters = attributes
         # Один момент времени для SQL-отбора и итоговой доступности (R09)
         now = utc_now(now)
         page_val = max(1, page)
@@ -775,6 +780,42 @@ class SearchCore:
                 for b, cnt in sorted(brand_counter.items(), key=lambda x: -x[1])
             ]
 
+            # 8. Dynamic attribute facets
+            attribute_facets = []
+            if hasattr(self.search_repo, "attribute_facets"):
+                try:
+                    schema = {}
+                    if category and hasattr(self.search_repo, "conn"):
+                        try:
+                            from repositories.category_repo import CategoryRepository
+                            cat_repo = CategoryRepository(self.search_repo.conn)
+                            cat = cat_repo.get_by_id(category) or cat_repo.get_mapper().map_category(category)
+                            if cat and hasattr(cat, "attributes_schema") and cat.attributes_schema:
+                                schema = dict(cat.attributes_schema)
+                        except Exception:
+                            pass
+                    search_args = {
+                        "query": query,
+                        "city": target_city,
+                        "condition": target_condition,
+                        "channel_type": target_channel,
+                        "seller_type": seller_type,
+                        "seller_id": seller_id,
+                        "installment": installment,
+                        "gift": gift,
+                        "in_stock": in_stock,
+                        "delivery": delivery,
+                        "min_price": target_min_price,
+                        "max_price": target_max_price,
+                        "category": category,
+                        "brand": target_brand,
+                        "model": model,
+                        "kind": kind,
+                    }
+                    attribute_facets = self.search_repo.attribute_facets(search_args, schema) or []
+                except Exception as ex:
+                    logger.exception(f"Search attribute facets failed: {type(ex).__name__}")
+
             exact_total_products = count_info.get("total_products") if "total_products" in count_info else len(product_results)
             total_pages = max(1, (exact_total_products + limit_val - 1) // limit_val) if exact_total_products > 0 else 1
             has_next = (page_val < total_pages)
@@ -794,6 +835,7 @@ class SearchCore:
                 kind_facets=facets_info.get("kind_facets", []),
                 seller_facets=facets_info.get("seller_facets", []),
                 city_facets=facets_info.get("city_facets", []),
+                attribute_facets=attribute_facets,
                 facets_available=facets_available,
                 page=page_val,
                 page_size=limit_val,

@@ -828,6 +828,7 @@ class SearchRepository(BaseRepository):
     def attribute_facets(self, arguments, schema):
         """Dynamic fields use the same entire SQL result set, before family grouping/LIMIT."""
         from domain.query_parser import QueryParser
+        from domain.attribute_indexing import ATTRIBUTE_LABELS
         parsed = QueryParser.parse(arguments.get('query', ''))
         offer_args = {k: arguments.get(k) for k in (
             'city', 'condition', 'channel_type', 'seller_type', 'seller_id', 'installment',
@@ -838,9 +839,34 @@ class SearchRepository(BaseRepository):
                 offer_args[k] = val
         conditions, params = self._offer_filter(**offer_args)
         chosen = dict(getattr(self, 'attribute_filters', {}))
+
+        full_schema = dict(schema) if isinstance(schema, dict) else {}
+        if not full_schema or len(full_schema) < 3:
+            try:
+                base_sql, base_values = self._matching_product_ids(
+                    parsed.clean_query, conditions, params,
+                    arguments.get('brand') or parsed.detected_brand, arguments.get('category'),
+                    arguments.get('model'), arguments.get('kind')
+                )
+                top_keys = self.fetchall(f'''
+                    SELECT pa.key, COUNT(DISTINCT pa.product_id) AS p_count
+                    FROM product_search_attributes pa
+                    JOIN canonical_products p ON p.id = pa.product_id
+                    WHERE pa.source_title = p.title AND pa.product_id IN ({base_sql})
+                    GROUP BY pa.key
+                    ORDER BY p_count DESC
+                    LIMIT 10
+                ''', base_values)
+                for r in top_keys:
+                    k = r['key']
+                    if k not in full_schema and r['p_count'] >= 1:
+                        full_schema[k] = {'label': ATTRIBUTE_LABELS.get(k, k)}
+            except Exception:
+                pass
+
         facets = []
         try:
-            for key, field in list(schema.items())[:12]:
+            for key, field in list(full_schema.items())[:12]:
                 self.attribute_filters = {k:v for k,v in chosen.items() if k != key}
                 sql, values = self._matching_product_ids(parsed.clean_query, conditions, params,
                     arguments.get('brand') or parsed.detected_brand, arguments.get('category'),
@@ -850,8 +876,9 @@ class SearchRepository(BaseRepository):
                     WHERE pa.key=? AND pa.source_title=p.title AND p.id IN ({sql}) GROUP BY pa.value ORDER BY count DESC,value LIMIT 80''',
                     [key] + values)
                 if rows or key in chosen:
-                    facets.append({'key': key, 'label': field.get('label', key) if isinstance(field, dict) else key,
-                                   'values': rows})
+                    raw_label = field.get('label') if isinstance(field, dict) else None
+                    display_label = raw_label or ATTRIBUTE_LABELS.get(key, key)
+                    facets.append({'key': key, 'label': display_label, 'values': rows})
         finally:
             self.attribute_filters = chosen
         return facets

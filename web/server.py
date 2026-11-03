@@ -1297,6 +1297,7 @@ async def search_v2_handler(request):
             brand=brand,
             model=model,
             kind=kind,
+            attributes=attributes,
         )
         import local_search
         if local_search.enabled():
@@ -1445,6 +1446,7 @@ def _run_search_v2_sync(
     delivery=None,
     page=1,
     offset=None,
+    attributes=None,
 ):
     from database import get_connection
     from domain.search_core import SearchCore
@@ -1473,6 +1475,7 @@ def _run_search_v2_sync(
             brand=brand,
             model=model,
             kind=kind,
+            attributes=attributes,
         )
         try:
             from repositories.search_analytics_repo import SearchAnalyticsRepository
