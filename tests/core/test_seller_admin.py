@@ -162,7 +162,7 @@ class SellerAdminApiTest(unittest.IsolatedAsyncioTestCase):
         app = server.create_app()
         app.cleanup_ctx.clear()
         body = {"name": "Новый Магазин", "marketplace_links": ["https://kaspi.kz/shop/a", "https://flip.kz/shop/b"]}
-        with patch.object(auth, "ADMIN_TELEGRAM_IDS", {8202}):
+        with patch.object(auth, "ADMIN_TELEGRAM_IDS", {8202}), patch.object(auth, "PUBLIC_ORIGIN", ""):
             async with TestClient(TestServer(app)) as client:
                 self.assertEqual((await client.get("/api/admin/sellers")).status, 401)
                 client.session.cookie_jar.update_cookies({auth.SESSION_COOKIE: tokens[8201]})
@@ -195,7 +195,7 @@ class SellerAdminApiTest(unittest.IsolatedAsyncioTestCase):
         token = database.create_session(uid)
         app = server.create_app()
         app.cleanup_ctx.clear()
-        with patch.object(auth, "ADMIN_TELEGRAM_IDS", {uid}):
+        with patch.object(auth, "ADMIN_TELEGRAM_IDS", {uid}), patch.object(auth, "PUBLIC_ORIGIN", ""):
             async with TestClient(TestServer(app)) as client:
                 client.session.cookie_jar.update_cookies({auth.SESSION_COOKIE: token})
 
