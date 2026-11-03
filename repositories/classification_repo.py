@@ -7,7 +7,9 @@ from datetime import datetime,timezone
 import json
 import time
 
-SIGNATURE = "json_array(p.title,p.canonical_key,p.brand,p.model,p.item_kind,coalesce((SELECT e.facts_hash FROM product_source_evidence e WHERE e.product_id=p.id),'[]'))"
+_BASE_SIGNATURE = "json_array(p.title,p.canonical_key,p.brand,p.model,p.item_kind,coalesce((SELECT e.facts_hash FROM product_source_evidence e WHERE e.product_id=p.id),'[]'))"
+SIGNATURE = f"CASE WHEN classification_attributes_hash(p.attributes_json)='' THEN {_BASE_SIGNATURE} ELSE json_insert({_BASE_SIGNATURE},'$[#]',classification_attributes_hash(p.attributes_json)) END"
+
 DDL = """
 CREATE TABLE IF NOT EXISTS product_category_tags (
  product_id TEXT PRIMARY KEY REFERENCES canonical_products(id) ON DELETE CASCADE,
@@ -61,13 +63,18 @@ def source_hash(signature):
 class ClassificationRepository:
     def __init__(self, conn):
         self.conn=conn
+        from classification_facts import attributes_hash
+        conn.create_function("classification_attributes_hash",1,attributes_hash,deterministic=True)
 
     def _row(self, sql, params=()):
         cur=self.conn.execute(sql,params);row=cur.fetchone()
         return dict(zip([d[0] for d in cur.description],row)) if row else None
 
     def source(self, pid):
-        return self._row(f'SELECT p.id,p.title,p.category,{SIGNATURE} AS signature FROM canonical_products p WHERE p.id=?',(pid,))
+        from classification_facts import catalog_facts
+        product=self._row(f'SELECT p.id,p.title,p.category,p.attributes_json,{SIGNATURE} AS signature FROM canonical_products p WHERE p.id=?',(pid,))
+        if product:product['catalog_facts']=catalog_facts(product.pop('attributes_json'))
+        return product
 
     def touch(self, ids, policy=None):
         """No commit: ingestion and its queue admission share the caller's transaction."""

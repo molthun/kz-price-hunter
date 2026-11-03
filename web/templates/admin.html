@@ -823,7 +823,7 @@
         document.getElementById('classificationError').textContent='Карточка или метка изменились. Нажмите «Обновить данные» перед решением.';
         classificationStale=true;document.querySelectorAll('[data-classification-action]').forEach(b=>b.disabled=true);return;
       }
-      classificationItem={...classificationItem,job:fresh.job,history:fresh.history,sources:fresh.sources,evidence:fresh.evidence};
+      classificationItem={...classificationItem,job:fresh.job,history:fresh.history,sources:fresh.sources,evidence:fresh.evidence,catalog_facts:fresh.catalog_facts};
       classificationShowSources(classificationItem);classificationShowFacts(classificationItem);
       classificationShowCurrent(classificationItem);classificationShowProposal(classificationItem);classificationShowHistory(classificationItem);classificationButtons();
     } catch(error) { /* Keep the current editor and its version tokens on a transient read error. */ }
@@ -856,6 +856,7 @@
     const evidence=item.evidence||{},facts=evidence.facts||[];
     if(!facts.length)box.append(element('p','user-meta','Подтверждённые характеристики пока не получены. Можно открыть исходную страницу магазина.'));
     facts.forEach(f=>box.append(element('div','user-meta',f.name+': '+f.value)));
+    if(item.catalog_facts?.length){box.append(element('h3','','Характеристики каталога для ИИ'));box.append(element('p','user-meta','Дополнительные признаки. Подтверждение магазина показано отдельно выше.'));item.catalog_facts.forEach(f=>box.append(element('div','user-meta',f.name+': '+f.value)));}
   }
   function classificationShowSources(item){
     const box=document.getElementById('classificationSources');box.replaceChildren();

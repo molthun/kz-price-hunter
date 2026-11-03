@@ -12,7 +12,7 @@ const html=fs.readFileSync(path.join(__dirname,'../../web/templates/admin.html')
   let cats=[{id:'electronics',name:'Электроника',parent_id:null},{id:'ram',name:'Оперативная память',parent_id:'electronics'},{id:'hdd',name:'Жесткие диски HDD',parent_id:'electronics'}];
   let item={id:'p',title,category:'SSD накопители',source_hash:'a'.repeat(64),edit_token:'b'.repeat(64),
    job:{generation:7,status:'review',message:'Нужна помощь',suggestion:{category_id:'ram',confidence:.85,reason:'Вероятно оперативная память',fields:[]}},
-   tag:null,history:[],sources:[{name:'Источник',url:'javascript:alert(1)'},{name:'Магазин',url:'https://example.com/p'}]};
+   catalog_facts:[{name:'Тип памяти',value:'DDR5'}],tag:null,history:[],sources:[{name:'Источник',url:'javascript:alert(1)'},{name:'Магазин',url:'https://example.com/p'}]};
   let conflict=false;
   await page.route('**/*',async route=>{
    const u=new URL(route.request().url());if(u.origin!==BASE)return route.abort();
@@ -43,6 +43,8 @@ const html=fs.readFileSync(path.join(__dirname,'../../web/templates/admin.html')
   await page.locator('#classificationDialog').waitFor({state:'visible'});
   assert.equal(await page.locator('#classificationTitle').innerText(),title);
   assert.equal(await page.locator('#classificationTitle img').count(),0);
+  await page.getByText('Характеристики каталога для ИИ',{exact:true}).waitFor();
+  assert.match(await page.locator('#classificationFacts').innerText(),/Тип памяти: DDR5/);
   assert.equal(await page.locator('#classificationSources a').count(),1);
   assert.equal(await page.locator('#classificationSources a').getAttribute('href'),'https://example.com/p');
   assert.equal(await page.locator('#classificationSources a').getAttribute('target'),'_blank');

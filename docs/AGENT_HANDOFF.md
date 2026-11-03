@@ -2,6 +2,24 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## STAND_DEPLOYED → Владелец: Классификация с характеристиками товара v6.18.8 (2026-11-03)
+
+- Прямое поручение владельца: «Давай. Характеристики это главное по ним ИИ легче строить фильтра понимать категорию».
+- Исполнитель: Antigravity (основной разработчик). Подхват и завершение начатой Codex реализации.
+- Срез: база c261967, ветка `codex/local-ai-catalog-growth`.
+- Реализовано:
+  1. `classification_facts.py`: безопасный отбор и приоритезация характеристик, вычисление детерминированного хеша, группировка источников и детекция конфликтов.
+  2. `product_classification.py`: включение verified_source_facts и catalog_characteristics в промпт локальной модели, отключение эвристического пропуска при наличии характеристик, защита от противоречий данных (отправка на ручную проверку администратору).
+  3. `repositories/classification_repo.py`: SQLite-функция `classification_attributes_hash`, расширенная сигнатура товара, загрузка catalog_facts.
+  4. `web/templates/admin.html`: отображение характеристик каталога в модальном окне ручной классификации.
+- Проверено:
+  - Профильные юнит-тесты: `test_classification_characteristics.py` (12 PASS), `test_product_classification_tags.py` (21 PASS), общий набор `tests/ai/` (464 PASS).
+  - Браузерные тесты Playwright: `test_frontend_classification_tags.cjs` (4/4 PASS: 390/1366, dark/light).
+- Версия: 6.18.8, stand-only bundle на стенд `shdev.molthun.ru` (порт 35539).
+- Документация: `docs/FEATURE_2026-11-03_CLASSIFICATION_CHARACTERISTICS_ANTIGRAVITY.md`.
+
+---
+
 ## STAND_DEPLOYED → Владелец: SC-03, действующие категории и архивная история (2026-11-02)
 
 - Поручение владельца «Дальше по плану», база d61ade5, tracked чист, Codex один.
