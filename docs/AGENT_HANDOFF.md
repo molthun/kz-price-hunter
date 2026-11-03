@@ -15,7 +15,9 @@
 - Проверено:
   - Профильные юнит-тесты: `test_classification_characteristics.py` (12 PASS), `test_product_classification_tags.py` (21 PASS), общий набор `tests/ai/` (464 PASS).
   - Браузерные тесты Playwright: `test_frontend_classification_tags.cjs` (4/4 PASS: 390/1366, dark/light).
-- Версия: 6.18.8, stand-only bundle на стенд `shdev.molthun.ru` (порт 35539).
+- Версия: 6.18.8, stand-only bundle на стенд `shdev.molthun.ru` (порт 35539), коммит `a4da9ad13`.
+- Стенд проверен: контейнер `kzph-stand:local` пересобран, статус `Up (healthy)`, 12 тестов характеристик и 21 тест тегов в контейнере OK.
+- В логах стенда подтверждена активная работа фонового классификатора: `[CatalogAI] Обновлено меток: 9`.
 - Документация: `docs/FEATURE_2026-11-03_CLASSIFICATION_CHARACTERISTICS_ANTIGRAVITY.md`.
 
 ---
