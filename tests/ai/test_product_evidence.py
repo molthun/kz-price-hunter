@@ -18,7 +18,22 @@ class EvidenceParserTests(unittest.TestCase):
   self.assertEqual(r['status'],'ready');self.assertEqual(len(r['images']),2)
   self.assertTrue(any(x['name']=='Тип памяти' and x['value']=='DDR5' for x in r['facts']))
   self.assertFalse(any(x['name']=='Внимание!' for x in r['facts']))
+  self.assertFalse(any(x['name']=='Название в магазине' for x in r['facts']))
   self.assertTrue(all(x['source_url']==URL for x in r['facts']))
+ def test_sanitize_facts_html_entities_and_excluded_names(self):
+  raw=[
+   {'name':'Название в магазине','value':'Смартфон Apple NanoSIM&#43;eSIM'},
+   {'name':'SIM-карта&#43;','value':'NanoSIM&#43;eSIM бордовый'},
+   {'name':'Экран &amp; матрица','value':'OLED &quot;Super Retina&quot;'},
+   {'name':'Цена','value':'100 000'},
+   {'name':'Внимание!','value':'текст'},
+  ]
+  cleaned=pe.sanitize_facts(raw)
+  self.assertEqual(len(cleaned),2)
+  self.assertEqual(cleaned[0]['name'],'SIM-карта+')
+  self.assertEqual(cleaned[0]['value'],'NanoSIM+eSIM бордовый')
+  self.assertEqual(cleaned[1]['name'],'Экран & матрица')
+  self.assertEqual(cleaned[1]['value'],'OLED "Super Retina"')
  def test_other_product_and_recommendations_are_not_accepted(self):
   r=pe.extract(page('SSD Samsung OTHER9000'),URL,TITLE)
   self.assertEqual(r['status'],'identity_unconfirmed');self.assertEqual(r['images'],[])

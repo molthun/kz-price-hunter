@@ -1459,6 +1459,62 @@
       color: var(--text-main);
     }
 
+    .detail-all-specs-btn {
+      grid-column: 1 / -1;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 6px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--primary);
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+      text-decoration: none;
+    }
+
+    .detail-all-specs-btn:hover {
+      text-decoration: underline;
+    }
+
+    .detail-specs-grid {
+      display: grid;
+      grid-template-columns: repeat(1, 1fr);
+      gap: 10px 32px;
+      margin-top: 16px;
+    }
+
+    @media (min-width: 768px) {
+      .detail-specs-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .spec-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      font-size: 0.88rem;
+      border-bottom: 1px dashed var(--border-color);
+      padding-bottom: 5px;
+    }
+
+    .spec-key {
+      color: var(--text-muted);
+      flex: 0 1 auto;
+    }
+
+    .spec-val {
+      font-weight: 600;
+      color: var(--text-main);
+      text-align: right;
+      flex: 1 0 auto;
+      word-break: break-word;
+    }
+
     /* Offers Section */
     .offers-section {
       background: var(--bg-card);
@@ -4355,7 +4411,16 @@
         </div>
       </div>
 
-      <!-- Price History Section -->
+      <!-- Specifications Section -->
+      <div class="offers-section" id="detailSpecsSection" style="margin-top: 24px;" hidden>
+        <h2 class="offers-title">
+          <span>Характеристики</span>
+          <span id="detailSpecsBadge" style="font-size:0.9rem; font-weight:400; color:var(--text-muted); margin-left: 8px;"></span>
+        </h2>
+        <div class="detail-specs-grid" id="detailSpecsList"></div>
+      </div>
+
+      <!-- Description Section -->
       <div class="offers-section" id="detailDescriptionSection" style="margin-top: 24px;" hidden>
         <h2 class="offers-title">Описание</h2>
         <p id="detailSourceStatus" class="user-meta" role="status"></p>
@@ -7048,6 +7113,14 @@
       tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:32px;">Загрузка предложений...</td></tr>';
       badgesEl.innerHTML = '';
       attrsEl.innerHTML = '';
+      const specsSection = document.getElementById('detailSpecsSection');
+      if (specsSection) {
+        specsSection.hidden = true;
+        const specsList = document.getElementById('detailSpecsList');
+        if (specsList) specsList.replaceChildren();
+        const specsBadge = document.getElementById('detailSpecsBadge');
+        if (specsBadge) specsBadge.textContent = '';
+      }
       renderHistory(null, []);
       const requestId = ++AppState.productRequestId;
 
@@ -7185,14 +7258,35 @@
       // Attributes
       const attrs = prod.attributes || {};
       const attrKeys = Object.keys(attrs);
+      const specsSection = document.getElementById('detailSpecsSection');
+      const specsList = document.getElementById('detailSpecsList');
+      const specsBadge = document.getElementById('detailSpecsBadge');
       if (attrKeys.length > 0) {
-        document.getElementById('detailAttributesList').innerHTML = attrKeys.map(k => `
+        const topAttrs = attrKeys.slice(0, 6);
+        document.getElementById('detailAttributesList').innerHTML = topAttrs.map(k => `
           <div class="attr-item">
             <span class="attr-key">${escapeHtml(k)}</span>
             <span class="attr-val">${escapeHtml(attrs[k])}</span>
           </div>
         `).join('');
+        if (attrKeys.length > 6) {
+          const btnHtml = `<button type="button" class="detail-all-specs-btn" onclick="scrollToSpecs()"><span>Все характеристики (${attrKeys.length})</span> <span>↓</span></button>`;
+          document.getElementById('detailAttributesList').insertAdjacentHTML('beforeend', btnHtml);
+          if (specsSection && specsList) {
+            specsList.innerHTML = attrKeys.map(k => `
+              <div class="spec-item">
+                <span class="spec-key">${escapeHtml(k)}</span>
+                <span class="spec-val">${escapeHtml(attrs[k])}</span>
+              </div>
+            `).join('');
+            if (specsBadge) specsBadge.textContent = '(' + attrKeys.length + ')';
+            specsSection.hidden = false;
+          }
+        } else if (specsSection) {
+          specsSection.hidden = true;
+        }
       } else {
+        if (specsSection) specsSection.hidden = true;
         document.getElementById('detailAttributesList').innerHTML = `
           <div class="attr-item">
             <span class="attr-key">Модель</span>
@@ -7305,14 +7399,82 @@
     });
     addEventListener('resize',()=>{if(document.getElementById('productPhotoDialog').open)sizeProductPhoto();});
 
+    function scrollToSpecs() {
+      const section = document.getElementById('detailSpecsSection');
+      if (section) {
+        section.hidden = false;
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+
     function renderSourceFacts(facts){
-      if(!facts.length)return;
-      const box=document.getElementById('detailAttributesList');box.replaceChildren();
-      facts.forEach(f=>{const row=document.createElement('div');row.className='attr-item';
-        const k=document.createElement('span');k.className='attr-key';k.textContent=f.name;
-        const v=document.createElement('span');v.className='attr-val';v.textContent=f.value;
-        row.append(k,v);box.append(row);
+      const headerBox = document.getElementById('detailAttributesList');
+      const specsSection = document.getElementById('detailSpecsSection');
+      const specsList = document.getElementById('detailSpecsList');
+      const specsBadge = document.getElementById('detailSpecsBadge');
+
+      if (!facts || !facts.length) {
+        if (specsSection) specsSection.hidden = true;
+        return;
+      }
+
+      // Filter out technical store metadata if any arrived
+      const cleanFacts = facts.filter(f => {
+        if (!f || !f.name || !f.value) return false;
+        const low = String(f.name).trim().toLowerCase();
+        return !['название в магазине', 'название товара', 'наименование товара', 'артикул магазина'].includes(low);
       });
+
+      if (!cleanFacts.length) {
+        if (specsSection) specsSection.hidden = true;
+        return;
+      }
+
+      // Render top header brief attributes (up to 6)
+      const topCount = 6;
+      const briefFacts = cleanFacts.slice(0, topCount);
+      headerBox.replaceChildren();
+      briefFacts.forEach(f => {
+        const row = document.createElement('div');
+        row.className = 'attr-item';
+        const k = document.createElement('span');
+        k.className = 'attr-key';
+        k.textContent = f.name;
+        const v = document.createElement('span');
+        v.className = 'attr-val';
+        v.textContent = f.value;
+        row.append(k, v);
+        headerBox.append(row);
+      });
+
+      // If more than 6 facts, add link to full specs
+      if (cleanFacts.length > topCount) {
+        const moreBtn = document.createElement('button');
+        moreBtn.type = 'button';
+        moreBtn.className = 'detail-all-specs-btn';
+        moreBtn.innerHTML = `<span>Все характеристики (${cleanFacts.length})</span> <span>↓</span>`;
+        moreBtn.onclick = scrollToSpecs;
+        headerBox.append(moreBtn);
+      }
+
+      // Render full specifications in dedicated bottom section
+      if (specsList && specsSection) {
+        specsList.replaceChildren();
+        cleanFacts.forEach(f => {
+          const row = document.createElement('div');
+          row.className = 'spec-item';
+          const k = document.createElement('span');
+          k.className = 'spec-key';
+          k.textContent = f.name;
+          const v = document.createElement('span');
+          v.className = 'spec-val';
+          v.textContent = f.value;
+          row.append(k, v);
+          specsList.append(row);
+        });
+        if (specsBadge) specsBadge.textContent = `(${cleanFacts.length})`;
+        specsSection.hidden = false;
+      }
     }
     function renderSourceEvidence(evidence){
         renderSourceFacts(evidence.facts||[]);
@@ -7414,6 +7576,8 @@
         if (selected.length) {
           renderSourceGallery(withImage?[withImage.image_url]:[]);
           document.getElementById('detailAttributesList').textContent='Характеристики выбранного исполнения уточните на странице продавца.';
+          const specsSection = document.getElementById('detailSpecsSection');
+          if (specsSection) specsSection.hidden = true;
           document.getElementById('detailSourceLinks').replaceChildren();
           document.getElementById('detailSourceStatus').textContent='Выбрано другое исполнение';
           renderDetailDescription('Описание и дополнительные фото выбранного исполнения уточните у продавца.');

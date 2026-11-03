@@ -83,7 +83,9 @@ def forte(source):
     from html_soup import make_soup
     prose=hit.get('Description') or hit.get('description')
     text=make_soup(prose).get_text(' ',strip=True) if isinstance(prose,str) and prose.strip() else build_description_from_params(hit) or ''
-    return dict(facts=facts[:60],images=images,description=text[:20000],status='ready' if facts or images or text else 'empty')
+    from product_evidence import sanitize_facts
+    clean_facts=sanitize_facts(facts)
+    return dict(facts=clean_facts,images=images,description=text[:20000],status='ready' if clean_facts or images or text else 'empty')
 
 
 def fetch_source(source):
@@ -105,7 +107,7 @@ def fetch_source(source):
 
 async def evidence(get_conn,ident):
     from product_classification import db
-    from product_evidence import summary,safe_url,image_key
+    from product_evidence import summary,safe_url,image_key,sanitize_facts
     from product_details import _fetch_rate,_fetch_semaphore,FETCH_WAIT_SECONDS
     source=await db(get_conn,lambda c:read_offer(c,ident))
     if not source:return None
@@ -129,7 +131,7 @@ async def evidence(get_conn,ident):
                 finally:semaphore.release()
             except Exception:pass
         if parsed and parsed['status']=='ready':
-            result.update(status='ready',facts=parsed['facts'],description=parsed['description'])
+            result.update(status='ready',facts=sanitize_facts(parsed['facts']),description=parsed['description'])
             result['images']=list({image_key(u):u for u in parsed['images']}.values()) or result['images']
             result['summary']=summary(result['facts'])
         current=await db(get_conn,lambda c:read_offer(c,ident))

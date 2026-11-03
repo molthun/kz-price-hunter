@@ -2,12 +2,53 @@
 from __future__ import annotations
 import asyncio
 import hashlib
+import html
 import json
 import os
 import re
 import time
 from collections import OrderedDict
 from urllib.parse import urljoin,urlsplit,urlunsplit,parse_qsl,urlencode
+
+EXCLUDED_FACT_NAMES = {
+    'название в магазине', 'название товара', 'наименование товара',
+    'артикул магазина', 'код товара в магазине',
+}
+
+
+def clean_fact_str(val: str) -> str:
+    if not val:
+        return ''
+    s = html.unescape(str(val))
+    return ' '.join(s.split())
+
+
+def sanitize_facts(facts: list) -> list:
+    if not isinstance(facts, list):
+        return []
+    res = []
+    seen = set()
+    for item in facts:
+        if not isinstance(item, dict):
+            continue
+        raw_name = clean_fact_str(item.get('name'))
+        raw_value = clean_fact_str(item.get('value'))
+        if not raw_name or not raw_value or len(raw_value) > 300:
+            continue
+        low_name = raw_name.casefold()
+        if low_name in EXCLUDED_FACT_NAMES:
+            continue
+        if any(x in low_name for x in ('описание', 'description', 'внимание', 'примечание', 'срок поставки')) or low_name in ('цена', 'price'):
+            continue
+        pair = (low_name, raw_value.casefold())
+        if pair in seen:
+            continue
+        seen.add(pair)
+        clean_item = dict(item)
+        clean_item['name'] = raw_name[:80]
+        clean_item['value'] = raw_value
+        res.append(clean_item)
+    return res[:60]
 
 DDL='''
 CREATE TABLE IF NOT EXISTS product_source_evidence(
@@ -85,10 +126,13 @@ def extract(html,url,title,shop=''):
     facts=[];seen=set()
     def fact(name,value):
         if isinstance(value,(dict,list,tuple)):return
-        name=' '.join(str(name or '').split())[:80];value=' '.join(str(value or '').split())
-        if not name or not value or len(value)>300 or any(x in name.casefold() for x in ('описание','description','внимание','примечание','срок поставки')) or name.casefold() in ('цена','price'):return
-        if (name.casefold(),value.casefold()) in seen:return
-        seen.add((name.casefold(),value.casefold()))
+        name=clean_fact_str(name)[:80];value=clean_fact_str(value)
+        if not name or not value or len(value)>300:return
+        low_name=name.casefold()
+        if low_name in EXCLUDED_FACT_NAMES:return
+        if any(x in low_name for x in ('описание','description','внимание','примечание','срок поставки')) or low_name in ('цена','price'):return
+        if (low_name,value.casefold()) in seen:return
+        seen.add((low_name,value.casefold()))
         if len(facts)<60:facts.append(dict(name=name,value=value,source_url=url))
     images=[];image_seen=set()
     def image(value):
@@ -99,10 +143,9 @@ def extract(html,url,title,shop=''):
             link=safe_url(value,url)
             if link and image_key(link) not in image_seen and len(images)<12:
                 image_seen.add(image_key(link));images.append(link)
-    fact('Название в магазине',node.get('name','') if node else heading)
     if node:
         brand=node.get('brand');fact('Бренд',brand.get('name','') if isinstance(brand,dict) else brand)
-        fact('Артикул',node.get('mpn') or node.get('sku'));fact('Модель',node.get('model'))
+        fact('Модель',node.get('model'))
         props=node.get('additionalProperty') or []
         for prop in props if isinstance(props,list) else [props]:
             if isinstance(prop,dict):fact(prop.get('name'),prop.get('value'))
@@ -127,30 +170,38 @@ def extract(html,url,title,shop=''):
     text=extract_description(html,url,shop)
     if node and isinstance(node.get('description'),str):
         text=make_soup(node['description']).get_text(' ',strip=True)[:20000]
-    return dict(status='ready' if facts or images or text else 'empty',facts=facts,images=images,description=text,source_url=url,source_title=str(node.get('name','') if node else heading)[:300])
+    clean_list=sanitize_facts(facts)
+    has_payload = bool(clean_list or images or text or (node or heading))
+    return dict(status='ready' if has_payload else 'empty',facts=clean_list,images=images,description=text,source_url=url,source_title=str(node.get('name','') if node else heading)[:300])
 
 
 def stored(conn,pid):
     row=conn.execute('SELECT signature,facts_json,images_json,sources_json,status,checked_at,next_attempt FROM product_source_evidence WHERE product_id=?',(pid,)).fetchone()
     current=conn.execute(f'SELECT {SOURCE_SIGNATURE} FROM canonical_products p WHERE id=?',(pid,)).fetchone()
     if not row or not current or row[0]!=current[0]:return None
-    return dict(facts=json.loads(row[1]),images=json.loads(row[2]),sources=json.loads(row[3]),status=row[4],checked_at=row[5],next_attempt=row[6])
+    raw_facts=json.loads(row[1]) if row[1] else []
+    return dict(facts=sanitize_facts(raw_facts),images=json.loads(row[2]),sources=json.loads(row[3]),status=row[4],checked_at=row[5],next_attempt=row[6])
 
 
 def summary(facts,limit=400):
-    return '; '.join(f["name"]+': '+f["value"] for f in facts[:6])[:limit]
+    clean=sanitize_facts(facts)
+    return '; '.join(f["name"]+': '+f["value"] for f in clean[:6])[:limit]
 
 
 def save(conn,pid,signature,data):
     current=conn.execute(f'SELECT {SOURCE_SIGNATURE} FROM canonical_products p WHERE id=?',(pid,)).fetchone()
     if not current or current[0]!=signature:return False
     now=time.time();delay=7*86400 if data['status']=='ready' else 6*3600
-    facts_json=json.dumps(data['facts'],ensure_ascii=False,sort_keys=True)
+    clean_facts=sanitize_facts(data.get('facts',[]))
+    facts_json=json.dumps(clean_facts,ensure_ascii=False,sort_keys=True)
     facts_hash=hashlib.sha256(facts_json.encode()).hexdigest()
     conn.execute('''INSERT INTO product_source_evidence VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(product_id)
       DO UPDATE SET signature=excluded.signature,facts_hash=excluded.facts_hash,facts_json=excluded.facts_json,images_json=excluded.images_json,
       sources_json=excluded.sources_json,status=excluded.status,checked_at=excluded.checked_at,next_attempt=excluded.next_attempt''',
       (pid,signature,facts_hash,facts_json,json.dumps(data['images']),json.dumps(data['sources'],ensure_ascii=False),data['status'],now,now+delay))
+    from repositories.classification_repo import ClassificationRepository
+    ClassificationRepository(conn).touch([pid])
+    return True
     from repositories.classification_repo import ClassificationRepository
     ClassificationRepository(conn).touch([pid])
     return True
@@ -192,9 +243,12 @@ async def enrich(get_conn,pid,live_description=False):
             result['sources'].append(dict(url=source['url'],name=source['name'],title=parsed.get('source_title','')))
             if not result['description']:result['description']=parsed['description']
             # Keep conflicting values with provenance; never silently replace one store by another.
-            for f in parsed['facts']:
-                if (f['name'],f['value']) not in seen and len(result['facts'])<60:
-                    result['facts'].append(f);seen.add((f['name'],f['value']))
+            clean_parsed = sanitize_facts(parsed.get('facts', []))
+            for f in clean_parsed:
+                pair = (f['name'].casefold(), f['value'].casefold())
+                if pair not in seen and len(result['facts'])<60:
+                    result['facts'].append(f);seen.add(pair)
+            result['facts'] = sanitize_facts(result['facts'])
             for image in parsed['images']:
                 if image_key(image) not in {image_key(x) for x in result['images']} and len(result['images'])<12:result['images'].append(image)
             result['status']='ready' if result['facts'] or result['images'] or result['description'] else 'empty'

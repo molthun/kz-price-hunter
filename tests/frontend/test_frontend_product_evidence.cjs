@@ -4,7 +4,17 @@ const BASE='http://127.0.0.1:18115',html=fs.readFileSync(path.join(__dirname,'..
 for(const width of [390,1366])for(const scheme of ['light','dark']){
  const context=await browser.newContext({viewport:{width,height:900},colorScheme:scheme}),page=await context.newPage(),errors=[];let calls=0;
  page.on('pageerror',e=>errors.push(e.message));
- const evidence={status:'ready',facts:[{name:'Тип памяти',value:'DDR5 <img src=x>'},{name:'Объём',value:'64 ГБ'}],images:[BASE+'/image1.svg',BASE+'/image2.svg',BASE+'/image1.svg'],description:'Описание из источника <img src=x onerror=alert(1)>',summary:'Тип памяти: DDR5; Объём: 64 ГБ',sources:[{url:'https://itmag.kz/p/example',name:'ITMag'}]};
+ const evidence={status:'ready',facts:[
+  {name:'Название в магазине',value:'Магазин Память Kingston'},
+  {name:'Тип памяти',value:'DDR5 <img src=x>'},
+  {name:'Объём',value:'64 ГБ'},
+  {name:'Частота',value:'6000 МГц'},
+  {name:'Тайминги',value:'CL30'},
+  {name:'Напряжение',value:'1.35 В'},
+  {name:'Цвет',value:'Черный'},
+  {name:'Подсветка',value:'RGB'},
+  {name:'Радиатор',value:'Есть'}
+ ],images:[BASE+'/image1.svg',BASE+'/image2.svg',BASE+'/image1.svg'],description:'Описание из источника <img src=x onerror=alert(1)>',summary:'Тип памяти: DDR5; Объём: 64 ГБ',sources:[{url:'https://itmag.kz/p/example',name:'ITMag'}]};
  await page.route('**/*',route=>{
  const u=new URL(route.request().url());if(u.origin!==BASE)return route.abort();
  const J=data=>route.fulfill({contentType:'application/json',body:JSON.stringify(data)});
@@ -17,6 +27,14 @@ for(const width of [390,1366])for(const scheme of ['light','dark']){
  });
  await page.goto(BASE+'/product/p');await page.getByText(evidence.description,{exact:true}).waitFor();
  assert.equal(await page.locator('#detailDescription img').count(),0);assert.equal(await page.locator('#detailAttributesList img').count(),0);
+ assert.equal(await page.locator('#detailAttributesList .attr-item').count(),6);
+ assert.match(await page.locator('.detail-all-specs-btn').innerText(),/Все характеристики \(8\)/);
+ assert.doesNotMatch(await page.locator('#detailAttributesList').innerText(),/Название в магазине|Магазин Память/);
+ assert.equal(await page.locator('#detailSpecsSection').isVisible(),true);
+ assert.equal(await page.locator('#detailSpecsBadge').innerText(),'(8)');
+ assert.equal(await page.locator('#detailSpecsList .spec-item').count(),8);
+ assert.doesNotMatch(await page.locator('#detailSpecsList').innerText(),/Название в магазине|Магазин Память/);
+ await page.locator('.detail-all-specs-btn').click();
  await page.waitForFunction(()=>document.querySelectorAll('#detailPhotoThumbs button').length===2);
  await page.getByRole('button',{name:'Фото 2',exact:true}).click();assert.equal(await page.locator('#detailMainImg').getAttribute('src'),BASE+'/image2.svg');
  await page.getByRole('button',{name:'Увеличить фото товара',exact:true}).click();
@@ -46,8 +64,10 @@ for(const width of [390,1366])for(const scheme of ['light','dark']){
  assert.equal(await page.locator('#detailPhotoThumbs button').count(),0);
  assert.equal(await page.locator('#detailSourceLinks a').count(),0);
  assert.doesNotMatch(await page.locator('#detailAttributesList').innerText(),/DDR5/);
+ assert.equal(await page.locator('#detailSpecsSection').isVisible(),false);
  await page.evaluate(()=>{detailSelectedOptions={};applyDetailOptions();});
  await page.getByText(evidence.description,{exact:true}).waitFor();
+ assert.equal(await page.locator('#detailSpecsSection').isVisible(),true);
  assert.equal(await page.locator('#detailPhotoThumbs button').count(),2);
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
  await page.getByRole('button',{name:'Увеличить фото товара',exact:true}).click();
