@@ -40,8 +40,8 @@ async function runTest() {
     // 1. Гость: в профиле блок админки скрыт
     await page.goto(base + '/profile');
     await page.waitForSelector('#viewProfile.active');
-    const guestAdminArea = await page.locator('#profileAdminArea').evaluate(el => getComputedStyle(el).display);
-    assert.equal(guestAdminArea, 'none', 'Блок администратора должен быть скрыт для гостя');
+    const guestAdminArea = await page.locator('#profileAdminShortcut').evaluate(el => getComputedStyle(el).display);
+    assert.equal(guestAdminArea, 'none', 'Ссылка на панель администратора должна быть скрыта для гостя');
 
     // 2. Вход администратора через dev-login
     const loginRes = await page.evaluate(async () => {
@@ -51,21 +51,24 @@ async function runTest() {
     assert.equal(loginRes.status, 200);
     assert.equal(loginRes.data.user.is_admin, true);
 
-    // 3. Переход в профиль под администратором
+    // 3. Переход в профиль под администратором: отображается только аккуратная ссылка, тяжеловесного блока нет
     await page.goto(base + '/profile');
     await page.waitForSelector('#viewProfile.active');
     await page.waitForFunction(() => {
-      const el = document.getElementById('profileAdminArea');
+      const el = document.getElementById('profileAdminShortcut');
       return el && getComputedStyle(el).display !== 'none';
     });
 
     const adminAuthBadge = await page.locator('#profileAuthBadge').innerText();
     assert.match(adminAuthBadge, /Администратор/);
 
-    // 4. Открытие модального окна добавления нового магазина
-    await page.locator('#profileAdminArea button:has-text("+ Новый магазин")').click();
-    await page.waitForSelector('#modalAdminSeller.open');
-    assert.match(await page.locator('#adminSellerModalTitle').innerText(), /Новый магазин/);
+    const oldAreaExists = await page.locator('#profileAdminArea').count();
+    assert.equal(oldAreaExists, 0, 'Тяжеловесный блок управления магазинами удалён из профиля пользователя');
+
+    // 4. Переход в админку /admin: раздел «Магазины и источники» доступен администратору
+    await page.goto(base + '/admin');
+    await page.waitForSelector('#shopsTool');
+    assert.ok(await page.locator('#shopsTool').isVisible());
 
     // 5. Заполнение формы магазина с несколькими маркетплейсами
     await page.locator('#adminSellerName').fill('Тестовый Магазин Электроники');
