@@ -19,6 +19,8 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
+from domain.image_quality import upgrade_image_url
+
 
 def utc_now_iso() -> str:
     """Return current UTC time in ISO format."""
@@ -293,7 +295,7 @@ class CanonicalProduct:
             model=row.get("model"),
             item_kind=row.get("item_kind") or attrs.get("item_kind") or "device",
             description=row.get("description"),
-            image_url=row.get("image_url"),
+            image_url=upgrade_image_url(row.get("image_url")),
             attributes=attrs,
             created_at=row.get("created_at") or utc_now_iso(),
             updated_at=row.get("updated_at") or utc_now_iso(),
@@ -364,7 +366,7 @@ class Offer:
             channel_id=row["channel_id"],
             external_sku=row["external_sku"],
             url=row["url"],
-            image_url=row.get("image_url"),
+            image_url=upgrade_image_url(row.get("image_url")),
             price=float(row.get("price") or 0.0),
             old_price=float(row["old_price"]) if row.get("old_price") is not None else None,
             currency=row.get("currency") or "KZT",

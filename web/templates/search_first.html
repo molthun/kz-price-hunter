@@ -1114,7 +1114,7 @@
     #productPhotoCounter {white-space:nowrap;font-size:.85rem;}
     .photo-viewer-stage {flex:1;min-height:0;overflow:auto;background:var(--bg-subtle);border-radius:12px;overscroll-behavior:contain;touch-action:pan-y pinch-zoom;}
     #photoViewerCanvas {display:grid;place-items:center;min-width:100%;min-height:100%;}
-    #productPhotoLarge {max-width:none;max-height:none;object-fit:contain;cursor:zoom-in;user-select:none;-webkit-user-select:none;}
+    #productPhotoLarge {max-width:none;max-height:none;object-fit:contain;cursor:zoom-in;user-select:none;-webkit-user-select:none;image-rendering:-webkit-optimize-contrast;image-rendering:auto;}
     .photo-viewer-controls {display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0;}
     .photo-viewer-controls p {font-size:.8rem;color:var(--text-muted);margin:0;text-align:center;}
     #productPhotoThumbs {margin:0;flex-shrink:0;}
@@ -5709,10 +5709,56 @@
       }
     }
 
+    function upgradeImageUrl(url) {
+      if (!url || typeof url !== 'string') return '';
+      let u = url.trim();
+      if (!u.startsWith('http://') && !u.startsWith('https://')) return u;
+
+      // 1. Kaspi: заменяем preview-medium / preview-small / etc. на gallery-large
+      if (u.includes('cdn-kaspi.kz')) {
+        if (u.includes('format=')) {
+          u = u.replace(/([?&]format=)(?:preview-[a-z0-9_-]+|preview|thumbnail|small|medium|gallery-medium)/i, '$1gallery-large');
+        } else {
+          u += (u.includes('?') ? '&' : '?') + 'format=gallery-large';
+        }
+      }
+      // 2. Kari: убираем суффикс -preview для получения полноразмерного фото
+      else if (u.includes('kari.com')) {
+        u = u.replace(/-preview\.(jpg|jpeg|png|webp)/i, '.$1');
+      }
+      // 3. Marwin / Meloman: убираем кеш миниатюр Magento (/cache/[32hex]/) для исходника
+      else if (u.includes('marwin.kz') || u.includes('meloman.kz')) {
+        u = u.replace(/\/cache\/[a-f0-9]{32}\//i, '/');
+      }
+      // 4. Technodom: переключаем 272/272 на 800/800
+      else if (u.includes('technodom.kz')) {
+        u = u.replace(/\/images\/\d+\/\d+\//i, '/images/800/800/');
+      }
+      // 5. Alser: убираем суффикс ограничения ширины -w160 для получения полного webp
+      else if (u.includes('alser.kz')) {
+        u = u.replace(/-w\d+(\.(?:webp|jpg|png))/i, '$1');
+      }
+      // 6. Forte Market / Darbiz: перенаправляем на object.pscloud.io и убираем миниатюры /s/ и /m/
+      else if (u.includes('darbiz')) {
+        u = u.replace(/^https?:\/\/(?:market\.forte\.kz|forte\.kz)\/darbiz\//i, 'https://object.pscloud.io/darbiz/');
+        u = u.replace(/(\/darbiz\/catalogs\/\d+\/)(?:s|m)\//i, '$1');
+      }
+      // 7. Wildberries: переключаем c246x328 / tm / c516x688 на big
+      else if (u.includes('wbcontent.net') || u.includes('wildberries.ru')) {
+        u = u.replace(/\/images\/(?:c246x328|c516x688|tm)\//i, '/images/big/');
+      }
+      // 8. Ozon: переключаем wc50 / wc200 / c200 на c1000
+      else if (u.includes('ozonimages.ru') || u.includes('ozon.ru')) {
+        u = u.replace(/\/(?:wc\d+|c\d+)\//i, '/c1000/');
+      }
+
+      return u;
+    }
+
     function safeHttpUrl(url) {
       if (!url || !isValidOfferUrl(url)) return '';
-      // Нормализованный адрес; в разметку он всё равно идёт только через escapeHtml
-      return new URL(url).href;
+      // Нормализованный адрес высокой чёткости; в разметку он всё равно идёт только через escapeHtml
+      return upgradeImageUrl(new URL(url).href);
     }
 
     function showToast(msg) {
@@ -6715,7 +6761,7 @@
         const prod = item.product || {};
         const pId = prod.id || '';
         const title = prod.title || 'Товар';
-        const img = prod.image_url || getSvgPlaceholder(title);
+        const img = upgradeImageUrl(prod.image_url) || getSvgPlaceholder(title);
         const minP = item.min_price;
         const bestOff = item.best_offer || {};
         const oldP = bestOff.old_price;
@@ -7486,8 +7532,10 @@
     function sizeProductPhoto(){
       const stage=document.getElementById('photoViewerStage'),img=document.getElementById('productPhotoLarge');
       if(!document.getElementById('productPhotoDialog').open||!img.naturalWidth)return;
-      const scale=Math.min(Math.max(1,stage.clientWidth-24)/img.naturalWidth,Math.max(1,stage.clientHeight-24)/img.naturalHeight)*productPhotoZoom;
-      const w=Math.round(img.naturalWidth*scale),h=Math.round(img.naturalHeight*scale),canvas=document.getElementById('photoViewerCanvas');
+      const fitScale = Math.min(Math.max(1, stage.clientWidth - 24) / img.naturalWidth, Math.max(1, stage.clientHeight - 24) / img.naturalHeight);
+      // В режиме 1x не растягиваем маленькие картинки сверх исходника (макс 1.25x), сохраняя резкость
+      const effectiveScale = productPhotoZoom === 1 ? Math.min(fitScale, 1.25) : Math.max(fitScale, 1.0) * productPhotoZoom;
+      const w = Math.round(img.naturalWidth * effectiveScale), h = Math.round(img.naturalHeight * effectiveScale), canvas = document.getElementById('photoViewerCanvas');
       img.style.width=w+'px';img.style.height=h+'px';canvas.style.width=Math.max(w,stage.clientWidth)+'px';canvas.style.height=Math.max(h,stage.clientHeight)+'px';
       img.style.cursor=productPhotoZoom===1?'zoom-in':'zoom-out';stage.style.touchAction=productPhotoZoom===1?'pan-y pinch-zoom':'pan-x pan-y pinch-zoom';
       const zoom=document.getElementById('productPhotoZoom');zoom.textContent=productPhotoZoom===1?'＋':'−';zoom.setAttribute('aria-label',productPhotoZoom===1?'Увеличить изображение':'Уменьшить изображение');
@@ -7693,7 +7741,7 @@
           document.getElementById('detailSourceStatus').textContent='Выбрано другое исполнение';
           renderDetailDescription('Описание и дополнительные фото выбранного исполнения уточните у продавца.');
         } else if (data.source_evidence) renderSourceEvidence(data.source_evidence);
-        else if (withImage) document.getElementById('detailMainImg').src = withImage.image_url;
+        else if (withImage) document.getElementById('detailMainImg').src = upgradeImageUrl(withImage.image_url);
         // В общем названии цвет случайного магазина: показываем название выбранного исполнения
         const titled = offers.find(off => off.title);
         if (titled) document.getElementById('detailProductTitle').textContent = titled.title;
@@ -7703,7 +7751,7 @@
         const basis = data.best_offer ? priceBasisLabel(data.best_offer) : '';
         document.getElementById('detailBestPrice').textContent = data.min_price ? formatPrice(data.min_price) + (basis ? ' ' + basis : '') : '—';
         if(data.source_evidence)renderSourceEvidence(data.source_evidence);
-        else document.getElementById('detailMainImg').src = prod.image_url || getSvgPlaceholder(prod.title);
+        else document.getElementById('detailMainImg').src = upgradeImageUrl(prod.image_url) || getSvgPlaceholder(prod.title);
       }
       document.getElementById('offersCountBadge').textContent = offers.length > 0 ? '(' + offers.length + ' ' + pluralizeOffers(offers.length) + ')' : '';
       const sellerCount = new Set(offers.map(off => off.seller_id)).size;
@@ -8120,7 +8168,7 @@
           ? `<div class="deal-badge-secondary">⚖️ Арбитраж цен</div>`
           : (deal.is_super ? `<div class="deal-badge-secondary">⚡ Супер-скидка</div>` : '');
         
-        const imgSrc = escapeHtml(deal.image_url || getSvgPlaceholder());
+        const imgSrc = escapeHtml(upgradeImageUrl(deal.image_url) || getSvgPlaceholder());
 
         const oldPriceHtml = deal.old_price > deal.new_price
           ? `<span class="deal-price-old">${formatPrice(deal.old_price)}</span>`
@@ -8382,7 +8430,7 @@
         <div class="favorites-grid">
           ${items.map((item, idx) => {
             const safeUrl = safeHttpUrl(item.url);
-            const imgSrc = escapeHtml(item.image_url || getSvgPlaceholder());
+            const imgSrc = escapeHtml(upgradeImageUrl(item.image_url) || getSvgPlaceholder());
             const discountBadge = item.discount_pct > 0 ? `<span class="deal-discount-badge-large" style="font-size:0.75rem; padding: 2px 6px;">-${Number(item.discount_pct)}%</span>` : '';
 
             return `
@@ -8533,7 +8581,7 @@
       const price = document.getElementById('watchModalCurrentPrice');
       const targetInput = document.getElementById('watchTargetPriceInput');
 
-      if (img) img.src = product.image_url || getSvgPlaceholder();
+      if (img) img.src = upgradeImageUrl(product.image_url) || getSvgPlaceholder();
       if (title) title.textContent = product.title || 'Товар';
       const curPrice = Number(product.price || 0);
       showWatchFormError('');

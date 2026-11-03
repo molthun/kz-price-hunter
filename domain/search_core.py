@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional
 from domain.product_options import build_family_options, build_options, family_id, mark_gifts, offer_options, split_added_product
 from domain.condition import ConditionBreakdown, build_condition_breakdown
 from domain.freshness_v2 import offer_freshness
+from domain.image_quality import upgrade_image_url
 from domain.models import CanonicalProduct, Channel, ChannelType, Condition, Offer, Seller
 from domain.provenance import build_offer_provenance, build_seller_provenance
 from domain.query_parser import ParsedQuery, QueryParser
@@ -428,7 +429,7 @@ class SearchCore:
                         availability=od.get("availability", "in_stock"),
                         city=od.get("city", "Все"),
                         url=od.get("url", ""),
-                        image_url=od.get("image_url"),
+                        image_url=upgrade_image_url(od.get("image_url")),
                         observed_at=obs_at,
                         freshness=f_state,
                         is_purchasable=purchasable,
@@ -902,7 +903,7 @@ class SearchCore:
                 channel_id=od["channel_id"],
                 external_sku=od.get("external_sku", ""),
                 url=od["url"],
-                image_url=od.get("image_url"),
+                image_url=upgrade_image_url(od.get("image_url")),
                 price=float(od["price"]),
                 old_price=float(od["old_price"]) if od.get("old_price") is not None else None,
                 condition=cond,
@@ -962,7 +963,7 @@ class SearchCore:
                 availability=avail,
                 city=od.get("city", "Казахстан"),
                 url=od["url"],
-                image_url=od.get("image_url") or product.image_url,
+                image_url=upgrade_image_url(od.get("image_url") or product.image_url),
                 observed_at=obs_at,
                 freshness=fresh_status,
                 is_purchasable=is_purch,

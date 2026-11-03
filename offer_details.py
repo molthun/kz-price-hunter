@@ -78,7 +78,10 @@ def forte(source):
         elif isinstance(value,dict):add(value.get('url') or value.get('URL') or value.get('src'))
         elif isinstance(value,str):
             url=safe_url(value,source['url'])
-            if url and url not in images and len(images)<12:images.append(url)
+            if url:
+                from domain.image_quality import upgrade_image_url
+                url = upgrade_image_url(url)
+                if url not in images and len(images)<12:images.append(url)
     for key in ('Picture','Pictures','Images','Gallery'):add(hit.get(key))
     from html_soup import make_soup
     prose=hit.get('Description') or hit.get('description')

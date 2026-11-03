@@ -141,8 +141,11 @@ def extract(html,url,title,shop=''):
         elif isinstance(value,dict):image(value.get('contentUrl') or value.get('url'))
         elif value:
             link=safe_url(value,url)
-            if link and image_key(link) not in image_seen and len(images)<12:
-                image_seen.add(image_key(link));images.append(link)
+            if link:
+                from domain.image_quality import upgrade_image_url
+                link = upgrade_image_url(link)
+                if image_key(link) not in image_seen and len(images)<12:
+                    image_seen.add(image_key(link));images.append(link)
     if node:
         brand=node.get('brand');fact('Бренд',brand.get('name','') if isinstance(brand,dict) else brand)
         fact('Модель',node.get('model'))
@@ -162,8 +165,14 @@ def extract(html,url,title,shop=''):
         for n in row.select('dt'):
             v=n.find_next_sibling('dd')
             if v:fact(n.get_text(' ',strip=True),v.get_text(' ',strip=True))
-    for el in soup.select('.product-gallery img, .product-images img, .product-slider img, .bx_bigimages img, .detail-gallery-big__link[href]'):
-        image(el.get('data-src') or el.get('src') or el.get('href') or el.get('content'))
+    for el in soup.select('.product-gallery img, .product-images img, .product-slider img, .bx_bigimages img, .detail-gallery-big__link[href], .swiper-slide img, .gallery img'):
+        img_val = (
+            el.get('data-zoom-image') or el.get('data-large') or el.get('data-original') or
+            el.get('data-highres') or el.get('data-full-src') or el.get('data-large-src') or
+            el.get('data-big') or el.get('data-zoom') or el.get('data-src') or
+            el.get('src') or el.get('href') or el.get('content')
+        )
+        image(img_val)
     if not images:
         meta=soup.select_one('meta[property="og:image"]')
         if meta:image(meta.get('content'))
@@ -251,8 +260,10 @@ async def enrich(get_conn,pid,live_description=False):
                 if pair not in seen and len(result['facts'])<60:
                     result['facts'].append(f);seen.add(pair)
             result['facts'] = sanitize_facts(result['facts'])
+            from domain.image_quality import upgrade_image_url
             for image in parsed['images']:
-                if image_key(image) not in {image_key(x) for x in result['images']} and len(result['images'])<12:result['images'].append(image)
+                up_img = upgrade_image_url(image)
+                if image_key(up_img) not in {image_key(x) for x in result['images']} and len(result['images'])<12:result['images'].append(up_img)
             result['status']='ready' if result['facts'] or result['images'] or result['description'] else 'empty'
             if result['facts'] and len(result['images'])>=2:break
         if allowed and not attempted:

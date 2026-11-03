@@ -16,7 +16,7 @@ class TechnodomScraper(PagedScraper):
     SHOP_EMOJI = "🔴"
     PAGE_PARAM = "page"
 
-    IMAGE_URL = "https://api.technodom.kz/f3/api/v1/images/272/272/{}.jpg"
+    IMAGE_URL = "https://api.technodom.kz/f3/api/v1/images/800/800/{}.jpg"
     PRODUCT_URL = "https://www.technodom.kz/astana/p/{}"
 
     def __init__(self):

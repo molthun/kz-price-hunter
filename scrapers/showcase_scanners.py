@@ -10,6 +10,7 @@ import urllib.parse
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
+from domain.image_quality import upgrade_image_url
 from scrapers import http as requests
 from scrapers.base import price_value
 
@@ -122,6 +123,7 @@ class KaspiShowcaseScanner:
             imgs = c.get("previewImages") or []
             if imgs and isinstance(imgs[0], dict):
                 img_url = imgs[0].get("large") or imgs[0].get("medium") or imgs[0].get("small")
+            img_url = upgrade_image_url(img_url)
 
             # Ссылка
             link = c.get("shopLink") or ""
@@ -228,7 +230,7 @@ class HalykShowcaseScanner:
                 price=float(price_val),
                 old_price=float(old_p) if old_p > price_val else None,
                 url=url,
-                image_url=p.get("picture"),
+                image_url=upgrade_image_url(p.get("picture")),
                 city=self.city_name,
                 in_stock=True,
                 raw_data=p,
@@ -297,7 +299,7 @@ class ForteShowcaseScanner:
                 title=name,
                 price=float(price),
                 url=hit.get("URL") or f"https://market.forte.kz/items/{obj_id}",
-                image_url=hit.get("Picture"),
+                image_url=upgrade_image_url(hit.get("Picture")),
                 city=self.city_name,
                 in_stock=True,
                 raw_data=hit,

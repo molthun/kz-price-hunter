@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from domain.adapter import canonical_product_id
 from domain.attribute_indexing import index_product_facts
+from domain.image_quality import upgrade_image_url
 from model_matching import extract_canonical_key
 from scrapers.showcase_scanners import (
     ShowcaseOffer,
@@ -63,8 +64,8 @@ def match_or_create_canonical_product(
     conn.execute('''
         INSERT INTO canonical_products (
             id, canonical_key, title, category, brand, model,
-            attributes_json, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            description, image_url, attributes_json, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         prod_id,
         canonical_key,
@@ -72,6 +73,8 @@ def match_or_create_canonical_product(
         category,
         None,
         None,
+        "",
+        upgrade_image_url(offer.image_url),
         "{}",
         now_iso,
         now_iso,
@@ -127,7 +130,7 @@ def upsert_showcase_offer(
         channel_id,
         offer.external_sku,
         offer.url,
-        offer.image_url,
+        upgrade_image_url(offer.image_url),
         offer.price,
         offer.old_price,
         "KZT",
