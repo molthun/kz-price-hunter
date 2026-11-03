@@ -47,6 +47,9 @@ def test_upgrade_fortemarket_image_url():
     u2 = "https://object.pscloud.io/darbiz/catalogs/506/m/bcc19e8a.jpg"
     assert upgrade_image_url(u2) == "https://object.pscloud.io/darbiz/catalogs/506/bcc19e8a.jpg"
 
+    u3 = "https://market.forte.kz/darbiz/catalogs/9b7/s/d21fa7e2.webp"
+    assert upgrade_image_url(u3) == "https://object.pscloud.io/darbiz/catalogs/9b7/d21fa7e2.webp"
+
 
 def test_upgrade_image_urls_list():
     urls = [

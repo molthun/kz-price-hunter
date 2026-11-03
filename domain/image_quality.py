@@ -41,7 +41,7 @@ def upgrade_image_url(url: Optional[str]) -> str:
     # 6. Forte Market / Darbiz: перенаправляем на прямой CDN object.pscloud.io и убираем миниатюры /s/ и /m/
     elif "darbiz" in u:
         u = re.sub(r'https?://(?:market\.forte\.kz|forte\.kz)/darbiz/', 'https://object.pscloud.io/darbiz/', u)
-        u = re.sub(r'(/darbiz/catalogs/\d+/)(?:s|m)/', r'\1', u)
+        u = re.sub(r'(/darbiz/catalogs/[^/]+/)(?:s|m)/', r'\1', u)
 
     # 7. Wildberries CDN: переключаем миниатюры c246x328 / tm / c516x688 на big / c900x1200
     elif "wbcontent.net" in u or "wildberries.ru" in u:
