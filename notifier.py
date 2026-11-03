@@ -263,6 +263,22 @@ def _deliver_watch(item, payload, counts) -> tuple:
                              (payload.get("watch_id"), item["user_id"])).fetchone()
         current = conn.execute("SELECT current_price FROM products WHERE id = ?",
                                (str((payload.get("product") or {}).get("id") or ""),)).fetchone()
+        if not current:
+            # Поддержка Search Platform 2.0 (offers и canonical_products)
+            pid = str((payload.get("product") or {}).get("id") or "")
+            off_id = str((payload.get("product") or {}).get("offer_id") or "")
+            target_price = int(payload.get("price") or 0)
+            row = conn.execute(
+                "SELECT price FROM offers WHERE (id = ? OR product_id = ?) AND is_active = 1 AND price = ?",
+                (off_id or pid, pid, target_price)
+            ).fetchone()
+            if not row:
+                row = conn.execute(
+                    "SELECT MIN(price) FROM offers WHERE product_id = ? AND is_active = 1",
+                    (pid,)
+                ).fetchone()
+            if row and row[0] is not None:
+                current = (row[0],)
     # Наблюдение удалено или выключено, человек отключил Telegram, цена уже другая — сообщение неактуально
     if (not user or user["is_blocked"] or not user["settings"].get("telegram_notify_enabled")
             or not watch or not watch["is_active"]
@@ -288,6 +304,16 @@ def _deliver_watch(item, payload, counts) -> tuple:
         with get_connection() as conn:
             price = conn.execute("SELECT current_price FROM products WHERE id = ?",
                                  (str((other_payload.get("product") or {}).get("id") or ""),)).fetchone()
+            if not price:
+                pid = str((other_payload.get("product") or {}).get("id") or "")
+                off_id = str((other_payload.get("product") or {}).get("offer_id") or "")
+                p_val = int(other_payload.get("price") or 0)
+                row = conn.execute(
+                    "SELECT price FROM offers WHERE (id = ? OR product_id = ?) AND is_active = 1 AND price = ?",
+                    (off_id or pid, pid, p_val)
+                ).fetchone()
+                if row and row[0] is not None:
+                    price = (row[0],)
         if price and int(price[0] or 0) == int(other_payload.get("price") or 0):
             fresh.append((other, other_payload))
         else:

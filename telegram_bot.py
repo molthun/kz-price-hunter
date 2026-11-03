@@ -122,7 +122,8 @@ async def handle_start_command(session: aiohttp.ClientSession, token: str, chat_
         "• <b>/ai &lt;вопрос&gt;</b> — вызов AI-консультанта. Он помнит разговор 30 минут: можно уточнять "
         "(<i>«а подешевле?»</i>, <i>«сравни первые два»</i>)\n"
         "• <b>/new</b> — начать новый разговор с консультантом\n"
-        "• <b>/status</b> — проверка статуса базы и нейросети\n\n"
+        "• <b>/status</b> — проверка статуса базы и нейросети\n"
+        "• <b>/watches</b> — просмотр и управление вашими наблюдениями за ценами\n\n"
         "🔒 Я отвечаю только в личном чате. Вопрос и контекст диалога передаются настроенному AI-провайдеру. "
         "Для поиска без AI используйте /search; /new очищает текущий контекст.\n\n"
         "🔔 Уведомления включаются в личных настройках сайта."
@@ -146,6 +147,40 @@ async def handle_status_command(session: aiohttp.ClientSession, token: str, chat
         "Чтобы получить совет по выбору товара, просто напишите мне свой вопрос!"
     )
     await send_tg_message(session, token, chat_id, text)
+
+
+async def handle_watches_command(session: aiohttp.ClientSession, token: str, chat_id: int):
+    """Показывает список активных наблюдений за ценами пользователя и позволяет отключить их."""
+    from database import list_watches
+    watches = list_watches(chat_id, only_active=True)
+    if not watches:
+        text = (
+            "🔕 <b>У вас нет активных наблюдений за ценами.</b>\n\n"
+            "Вы можете настроить отслеживание снижения цен в карточке любого товара на сайте или через поиск бота."
+        )
+        keyboard = []
+        if APP_URL:
+            keyboard.append([{"text": "🔍 Перейти в каталог", "url": APP_URL}])
+        reply_markup = {"inline_keyboard": keyboard} if keyboard else None
+        await send_tg_message(session, token, chat_id, text, reply_markup)
+        return
+
+    text = f"🔔 <b>Ваши активные наблюдения ({len(watches)}):</b>\n\n"
+    keyboard = []
+    for idx, w in enumerate(watches[:15], 1):
+        desc = w.get("description") or w.get("title") or f"Наблюдение #{w['id']}"
+        text += f"{idx}. <b>{html.escape(desc)}</b>\n"
+        w_title = (w.get("title") or f"#{w['id']}")[:24]
+        keyboard.append([{"text": f"🔕 Отключить: {w_title}", "callback_data": f"unwatch:{w['id']}"}])
+
+    if len(watches) > 15:
+        text += f"\n<i>(Показаны первые 15 из {len(watches)})</i>\n"
+
+    if APP_URL:
+        keyboard.append([{"text": "⚙️ Все наблюдения на сайте", "url": APP_URL}])
+
+    reply_markup = {"inline_keyboard": keyboard}
+    await send_tg_message(session, token, chat_id, text, reply_markup)
 
 
 async def handle_search_command(session: aiohttp.ClientSession, token: str, chat_id: int, query: str):
@@ -313,6 +348,8 @@ async def process_telegram_update(session: aiohttp.ClientSession, token: str, up
         await handle_start_command(session, token, chat_id, first_name)
     elif cmd in ("/status", "/info"):
         await handle_status_command(session, token, chat_id)
+    elif cmd in ("/watches", "/my_watches", "/subs", "/tracking"):
+        await handle_watches_command(session, token, chat_id)
     elif cmd in ("/search", "/find", "/price"):
         query = text[len(cmd):].strip()
         await handle_search_command(session, token, chat_id, query)

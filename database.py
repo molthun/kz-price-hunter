@@ -5214,7 +5214,7 @@ def evaluate_watches(offers: List[Dict[str, Any]], now: Optional[datetime.dateti
                 payload = {"kind": "watch", "watch_id": watch["id"], "event_id": event_id,
                            "reason": reason, "price": price,
                            "product": {k: offer.get(k) for k in (
-                               "id", "title", "shop", "city", "url", "image_url",
+                               "id", "offer_id", "title", "shop", "city", "url", "image_url",
                                "seller_name", "seller_slug", "channel_type", "condition", "item_condition"
                            )},
                            "description": w.describe(watch)}

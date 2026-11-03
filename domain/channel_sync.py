@@ -229,14 +229,37 @@ async def sync_channel_showcase(
     now_iso = datetime.now(timezone.utc).isoformat()
     new_products_count = 0
     upserted_offers_count = 0
+    scanned_watch_offers = []
 
     for off in offers:
         try:
             prod_id, is_new = match_or_create_canonical_product(conn, off, now_iso)
             if is_new:
                 new_products_count += 1
-            upsert_showcase_offer(conn, off, prod_id, seller_id, ch_id, now_iso)
+            offer_id = upsert_showcase_offer(conn, off, prod_id, seller_id, ch_id, now_iso)
             upserted_offers_count += 1
+            scanned_watch_offers.append({
+                "id": prod_id,
+                "product_id": prod_id,
+                "canonical_product_id": prod_id,
+                "offer_id": offer_id,
+                "title": off.title,
+                "current_price": off.price,
+                "price": off.price,
+                "old_price": off.old_price,
+                "is_available": off.in_stock,
+                "url": off.url,
+                "image_url": off.image_url,
+                "seller_id": seller_id,
+                "seller_name": ch_name,
+                "seller_slug": seller_id,
+                "channel_id": ch_id,
+                "channel_type": mp,
+                "shop": ch_name or mp,
+                "city": off.city or "Алматы",
+                "condition": "new",
+                "item_condition": "new",
+            })
         except Exception as ex:
             logger.exception(f"Ошибка при сохранении оффера {off.external_sku}: {ex}")
             continue
@@ -263,6 +286,17 @@ async def sync_channel_showcase(
     if hasattr(conn, "commit"):
         conn.commit()
 
+    # Оценка активных наблюдений за ценами пользователей (после фиксации предложений в БД)
+    notifications_queued = 0
+    if scanned_watch_offers:
+        try:
+            from database import evaluate_watches
+            notifications_queued = evaluate_watches(scanned_watch_offers)
+            if notifications_queued > 0:
+                logger.info(f"Синхронизация витрины {ch_id}: создано {notifications_queued} уведомлений по наблюдениям")
+        except Exception as wex:
+            logger.warning(f"Ошибка при оценке наблюдений для канала {ch_id}: {wex}")
+
     logger.info(f"Витрина успешно синхронизирована: канал={ch_id}, товаров={upserted_offers_count}, новых={new_products_count}")
     return {
         "ok": True,
@@ -272,4 +306,5 @@ async def sync_channel_showcase(
         "scanned_count": len(offers),
         "created_products": new_products_count,
         "offers_upserted": upserted_offers_count,
+        "notifications_queued": notifications_queued,
     }
