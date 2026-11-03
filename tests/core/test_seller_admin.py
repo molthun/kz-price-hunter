@@ -143,7 +143,7 @@ class SellerAdminTest(unittest.TestCase):
         self.assertIn("website", ch_map)
         self.assertEqual(ch_map["website"]["status_label"], "Нужен сканер фидов")
         self.assertIn("marketplace", ch_map)
-        self.assertEqual(ch_map["marketplace"]["status_label"], "Нужен сканер витрины")
+        self.assertEqual(ch_map["marketplace"]["status_label"], "Готов к сканированию")
         self.assertIn("instagram", ch_map)
         self.assertEqual(ch_map["instagram"]["status_label"], "В сборе")
 

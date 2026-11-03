@@ -223,6 +223,28 @@ class TestCatalogClassifier(unittest.TestCase):
                 self.assertEqual(res.brand, exp_brand, f"Brand mismatch for '{title}': got {res.brand}, expected {exp_brand}")
                 self.assertEqual(res.model, exp_model, f"Model mismatch for '{title}': got {res.model}, expected {exp_model}")
 
+    def test_baby_goods_classification(self):
+        """Проверяет классификацию товаров для малышей по категориям в стиле Детский мир и Kaspi."""
+        cases = [
+            ("Подгузники Pampers Premium Care 4 (9-14 кг) 104 шт", "diapers_hygiene", "Pampers"),
+            ("Детская молочная смесь NAN 1 Optipro 800 г", "baby_food", "NAN"),
+            ("Каша молочная овсяная ФрутоНяня 200 г", "baby_food", "ФрутоНяня"),
+            ("Бутылочка для кормления Philips Avent Natural 260 мл", "baby_feeding", "Philips Avent"),
+            ("Пустышка силиконовая Chicco Physio Soft 0-6 мес", "baby_feeding", "Chicco"),
+            ("Детская ванночка для купания со сливом", "baby_bath_care", None),
+            ("Детский крем под подгузник Bubchen 150 мл", "baby_bath_care", "Bubchen"),
+            ("Детская кроватка с маятником и ящиком", "nursery_sleep", None),
+            ("Прогулочная коляска Cybex Balios S Lux", "strollers", "Cybex"),
+            ("Погремушка-прорезыватель Tiny Love Олененок", "baby_toys", "Tiny Love"),
+        ]
+        for title, exp_cat, exp_brand in cases:
+            with self.subTest(title=title):
+                res = self.classifier.classify_rules(title)
+                self.assertIsNotNone(res, f"Не удалось классифицировать '{title}'")
+                self.assertEqual(res.category_id, exp_cat, f"Категория не совпала для '{title}': получили {res.category_id}, ожидали {exp_cat}")
+                if exp_brand:
+                    self.assertEqual(res.brand, exp_brand, f"Бренд не совпал для '{title}': получили {res.brand}, ожидали {exp_brand}")
+
 
 if __name__ == "__main__":
     unittest.main()

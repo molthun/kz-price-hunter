@@ -1,3 +1,4 @@
+from tests import test_support  # noqa: F401
 """
 Unit tests for domain/image_quality.py.
 """

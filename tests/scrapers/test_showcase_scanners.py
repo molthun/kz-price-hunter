@@ -1,3 +1,4 @@
+from tests import test_support  # noqa: F401
 import sqlite3
 import pytest
 from unittest.mock import patch, MagicMock
