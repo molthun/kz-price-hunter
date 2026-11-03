@@ -51,15 +51,16 @@ async function realServer(browser){
 
   // Лента -> карточка -> избранное -> карточка на настоящих идентификаторах
   await page.goto(base+'/deals?city=Алматы');
-  await card.waitFor();
+  const targetCard=page.locator('.deal-reel-card').filter({hasText:dealTitle});
+  await targetCard.waitFor();
   const deals=(await api('/api/v2/deals?city=Алматы')).data.deals;
   const deal=deals.find(d=>d.title===dealTitle);
   assert.match(deal.canonical_product_id,/^prod_[0-9a-f]{16}$/);
   assert.equal(deal.price_basis,'store_claim');
-  assert.match(await card.locator('.deal-provenance-text').innerText(),/по данным магазина/);
-  assert.doesNotMatch(await card.locator('.deal-provenance-text').innerText(),/✓|истори/i);
-  await card.locator('[aria-label="В избранное"]').click();
-  await card.locator('[aria-label="О товаре"]').click();
+  assert.match(await targetCard.locator('.deal-provenance-text').innerText(),/по данным магазина/);
+  assert.doesNotMatch(await targetCard.locator('.deal-provenance-text').innerText(),/✓|истори/i);
+  await targetCard.locator('[aria-label="В избранное"]').click();
+  await targetCard.locator('[aria-label="О товаре"]').click();
   await titleIs(dealTitle);
   assert.ok(page.url().includes(deal.canonical_product_id));
   await page.goto(base+'/favorites');
@@ -406,7 +407,7 @@ async function modalReach(browser,width,height,colorScheme){
    return r.top>=0&&r.bottom<=innerHeight&&(top===el||el.contains(top));
   });
  };
- const closeVisible=()=>page.locator('.modal-close-btn').evaluate(el=>{
+ const closeVisible=()=>page.locator('#watchModalBackdrop .modal-close-btn').evaluate(el=>{
   const r=el.getBoundingClientRect();
   const top=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
   return r.top>=0&&r.bottom<=innerHeight&&(top===el||el.contains(top));
@@ -435,7 +436,7 @@ async function modalReach(browser,width,height,colorScheme){
  await page.locator('#watchForm .btn-secondary').click();
  await page.waitForFunction(()=>!document.getElementById('watchModalBackdrop').classList.contains('open'));
  await open();
- await page.locator('.modal-close-btn').click();
+ await page.locator('#watchModalBackdrop .modal-close-btn').click();
  await page.waitForFunction(()=>!document.getElementById('watchModalBackdrop').classList.contains('open'));
  assert.deepEqual(errors,[],label);
  await context.close();

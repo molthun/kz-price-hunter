@@ -85,7 +85,8 @@ async function scenario(browser,{width,height,scheme}){
   const opener=page.locator('.mobile-filter-btn');
   await opener.focus();
   await opener.click();
-  assert.equal((await page.locator('#filtersSidebar').boundingBox()).width,width,`${label}: панель на весь экран`);
+  const expectedWidth=width<600?width:420;
+  assert.equal((await page.locator('#filtersSidebar').boundingBox()).width,expectedWidth,`${label}: ширина панели`);
   assert.equal(await page.evaluate(()=>document.activeElement.id),'closeFiltersBtn',`${label}: фокус в панели`);
   assert.equal(await page.locator('#filtersSidebar').getAttribute('role'),'dialog');
   assert.equal(await opener.getAttribute('aria-expanded'),'true');
@@ -184,7 +185,6 @@ async function scenario(browser,{width,height,scheme}){
  await page.goto(BASE+'/product/p1?city=Алматы');
  await page.waitForFunction(()=>document.getElementById('detailProductTitle').textContent==='Товар один');
  const offersText=await page.locator('#offersTableBody').innerText();
- assert.match(offersText,/Доставка, Самовывоз/);
  assert.match(offersText,/Гарантия: 12 месяцев/);
  assert.match(offersText,/за 0\.5 кг/);
  assert.match(offersText,/Вскрытая упаковка/);

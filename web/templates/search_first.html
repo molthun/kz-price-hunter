@@ -4919,6 +4919,11 @@
       if (button) button.focus();
     }
 
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+      selectTheme(current === 'dark' ? 'light' : 'dark');
+    }
+
     function updateProfileThemeCards(mode) {
       const current = ['light', 'dark'].includes(mode) ? mode : 'auto';
       ['light', 'dark', 'auto'].forEach(m => {
@@ -5135,7 +5140,14 @@
       const params = new URLSearchParams(window.location.search);
       const urlCity = params.get('city');
       if (urlCity) {
-        setCity(urlCity, true);
+        setCity(urlCity, false);
+        return;
+      }
+      const pathname = window.location.pathname;
+      const isSearch = pathname === '/search' || params.has('q') || params.has('cat') || params.has('category');
+      const isProduct = pathname.startsWith('/product/') || pathname.startsWith('/offer/');
+      if (isSearch || isProduct) {
+        setCity(DEFAULT_CITY, false);
         return;
       }
       let savedCity = null;
@@ -5572,6 +5584,8 @@
 
       if (params.get('city')) {
         setCity(params.get('city'), false);
+      } else if (isSearch || isProduct || isOffer) {
+        setCity(DEFAULT_CITY, false);
       }
 
       if (isProduct || isOffer) {
@@ -7132,11 +7146,11 @@
       try{
         const res=await fetch((offerId?'/api/v2/offers/'+encodeURIComponent(offerId):'/api/v2/products/'+encodeURIComponent(id))+'/details',{headers:{'X-KZPH-Request':'1'}});
         if(!res.ok)throw Error('details');const evidence=await res.json();
-        if(serial!==sourceDetailSerial||!detailProductData||detailProductData.product.id!==id||(detailProductData.selected_offer?.id||null)!==offerId)return;
+        if(serial!==sourceDetailSerial||!detailProductData||detailProductData.product?.id!==id||(detailProductData.selected_offer?.id||null)!==offerId)return;
         if(offerId&&evidence.source_signature!==detailProductData.source_signature)throw Error('changed');
         detailProductData.source_evidence=evidence;
         applyDetailOptions();
-      }catch(e){if(serial===sourceDetailSerial&&detailProductData&&detailProductData.product.id===id)renderDetailDescription(e.message==='changed'?'Предложение изменилось. Обновите карточку.':'Не удалось загрузить описание. Характеристики можно уточнить на странице продавца.');}
+      }catch(e){if(serial===sourceDetailSerial&&detailProductData?.product?.id===id)renderDetailDescription(e.message==='changed'?'Предложение изменилось. Обновите карточку.':'Не удалось загрузить описание. Характеристики можно уточнить на странице продавца.');}
     }
 
     function renderDetailDescription(text) {

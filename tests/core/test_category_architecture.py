@@ -123,7 +123,10 @@ class TestCategoryDomainAndMapper(unittest.TestCase):
         from repositories.search_repo import SearchRepository
         query = SearchRepository._build_fts_query("мясорубки")
         self.assertEqual(query, '("мясорубк"* OR "электромясорубк"*)')
-        # Короткие слова окончание не теряют: "машина" не должна находить "машинка"
+        # Множественное число коротких слов от 5 букв находит форму единственного числа
+        self.assertIn('"плит"*', SearchRepository._build_fts_query("плиты"))
+        self.assertIn('"бритв"*', SearchRepository._build_fts_query("бритвы"))
+        # Короткие слова единственного числа окончание не теряют: "машина" не должна находить "машинка"
         self.assertIn('"машина"*', SearchRepository._build_fts_query("машина"))
 
     def test_get_subtree_ids(self):
