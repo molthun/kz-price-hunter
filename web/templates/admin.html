@@ -386,6 +386,32 @@
       <div id="scanSettingsResult" class="state" role="status"></div>
       <button type="button" id="scanSettingsReload">Обновить значения</button>
       <p class="user-meta" style="margin-top:16px">Сохранение не запускает ручной обход. Текущую проверку эта форма не останавливает. Начало следующей зависит от очереди и режима планировщика.</p>
+
+      <div class="local-settings" style="margin-top:24px;">
+        <h3>Автообновление витрин маркетплейсов</h3>
+        <p class="user-meta">Автоматический фоновый сбор цен для подключенных витрин Kaspi, Forte и Halyk Market.</p>
+        <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin:12px 0;">
+          <label style="display:flex; align-items:center; gap:8px; margin:0; cursor:pointer;">
+            <input type="checkbox" id="channelAutoSyncEnabled" style="width:auto; min-height:auto;">
+            <strong>Автообновление включено</strong>
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; margin:0;">
+            <span>Интервал:</span>
+            <select id="channelSyncInterval" style="width:auto; min-height:34px; padding:4px 8px;">
+              <option value="2">каждые 2 часа</option>
+              <option value="4">каждые 4 часа</option>
+              <option value="6">каждые 6 часов</option>
+              <option value="12">каждые 12 часов</option>
+              <option value="24">каждые 24 часа</option>
+            </select>
+          </label>
+          <button type="button" id="channelSyncSaveBtn" class="main" style="min-height:34px; padding:4px 12px;">Сохранить расписание</button>
+          <button type="button" id="channelSyncNowBtn" style="min-height:34px; padding:4px 12px;">Синхронизировать все устаревшие</button>
+        </div>
+        <div id="channelScheduleSummary" class="user-meta" style="margin-bottom:8px;" role="status"></div>
+        <div id="channelScheduleList" style="max-height:320px; overflow-y:auto;"></div>
+      </div>
+
       <div class="settings-links"><a href="/dashboard?tab=settings#sec-admin-scan">Категории и расширенные параметры ↗<span>Hot-категории, волны и прочие параметры пока в прежней панели.</span></a><a href="/monitoring">Мониторинг сбора ↗<span>Состояние источников и подробные ошибки.</span></a></div>
     </section>
     <section class="card admin-panel" id="systemTool">
@@ -432,7 +458,10 @@
       if(selected.id==='systemTool'&&typeof loadLocalConnection==='function'&&!localConnectionLoaded)loadLocalConnection();
       if(selected.id==='monitoringTool'&&typeof loadServiceOverview==='function'&&!serviceLoaded)loadServiceOverview();
       if(selected.id==='telegramTool'&&typeof loadTelegramSettings==='function'&&!tgLoaded)loadTelegramSettings();
-      if(selected.id==='scanningTool'&&typeof loadScanSettings==='function'&&!scanSettingsLoaded)loadScanSettings();
+      if(selected.id==='scanningTool'){
+        if(typeof loadScanSettings==='function'&&!scanSettingsLoaded)loadScanSettings();
+        if(typeof loadChannelSchedule==='function')loadChannelSchedule();
+      }
     }
     addEventListener('hashchange',showAdminPanel);showAdminPanel();
   </script>
@@ -1103,7 +1132,135 @@
     finally{scanSettingsBusy=false;scanEl('Fields').disabled=false;scanEl('Reload').disabled=false;}
   });
   scanEl('Reload').onclick=loadScanSettings;
-  if(!document.getElementById('scanningTool').hidden)loadScanSettings();
+  if(!document.getElementById('scanningTool').hidden){
+    loadScanSettings();
+    if(typeof loadChannelSchedule==='function')loadChannelSchedule();
+  }
+
+  async function loadChannelSchedule() {
+    const summaryEl = document.getElementById('channelScheduleSummary');
+    const listEl = document.getElementById('channelScheduleList');
+    if (!summaryEl || !listEl) return;
+    summaryEl.textContent = 'Загружаем расписание витрин…';
+    try {
+      const res = await fetch('/api/v2/admin/channels/schedule');
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || 'Ошибка загрузки');
+      document.getElementById('channelAutoSyncEnabled').checked = Boolean(data.enabled);
+      document.getElementById('channelSyncInterval').value = String(data.interval_hours || 12);
+
+      summaryEl.textContent = `Витрин маркетплейсов: ${data.total_channels} · Требуют обновления: ${data.due_count}`;
+      listEl.replaceChildren();
+
+      if (!data.schedule || !data.schedule.length) {
+        listEl.innerHTML = '<div class="user-meta" style="padding:12px;">Нет подключенных витрин маркетплейсов (Kaspi, Halyk, Forte). Добавьте их в «Магазины и источники».</div>';
+        return;
+      }
+
+      data.schedule.forEach(ch => {
+        const row = document.createElement('div');
+        row.className = 'user';
+        row.style.borderTop = '1px solid var(--border)';
+        row.style.padding = '8px 0';
+
+        const info = document.createElement('div');
+        info.className = 'user-info';
+
+        const title = document.createElement('div');
+        title.className = 'user-name';
+        title.textContent = `${ch.channel_name || ch.channel_id} (${ch.seller_name || ch.seller_id})`;
+
+        const meta = document.createElement('div');
+        meta.className = 'user-meta';
+        const lastSync = ch.last_sync_at ? new Date(ch.last_sync_at).toLocaleString('ru-RU') : 'никогда';
+        const nextSync = ch.next_sync_at ? new Date(ch.next_sync_at).toLocaleString('ru-RU') : 'сейчас';
+        const statusBadge = ch.is_due ? '<span style="color:#d97706; font-weight:600;">Требует сбора</span>' : '<span style="color:#16a34a;">Свежий</span>';
+        meta.innerHTML = `Платформа: <b>${(ch.marketplace || '').toUpperCase()}</b> · Предложений: ${ch.products_count} · Последний сбор: ${lastSync} · Следующий: ${nextSync} · ${statusBadge}`;
+
+        info.append(title, meta);
+
+        const actions = document.createElement('div');
+        actions.className = 'user-actions';
+
+        const syncBtn = document.createElement('button');
+        syncBtn.type = 'button';
+        syncBtn.textContent = 'Синхронизировать';
+        syncBtn.onclick = async () => {
+          syncBtn.disabled = true;
+          const orig = syncBtn.textContent;
+          syncBtn.textContent = 'Сбор…';
+          try {
+            const r = await fetch(`/api/v2/admin/channels/${encodeURIComponent(ch.channel_id)}/sync`, {method: 'POST'});
+            const d = await r.json();
+            if (!r.ok || !d.ok) throw new Error(d.error || 'Ошибка');
+            alert(`Синхронизация завершена!\nТоваров: ${d.scanned_count}, новых: ${d.created_products}, предложений: ${d.offers_upserted}`);
+            await loadChannelSchedule();
+          } catch (err) {
+            alert(err.message || 'Ошибка');
+          } finally {
+            syncBtn.disabled = false;
+            syncBtn.textContent = orig;
+          }
+        };
+
+        actions.append(syncBtn);
+        row.append(info, actions);
+        listEl.append(row);
+      });
+    } catch (err) {
+      summaryEl.textContent = 'Не удалось загрузить расписание: ' + (err.message || 'Ошибка сети');
+    }
+  }
+
+  const saveSchedBtn = document.getElementById('channelSyncSaveBtn');
+  if (saveSchedBtn) {
+    saveSchedBtn.onclick = async () => {
+      saveSchedBtn.disabled = true;
+      const orig = saveSchedBtn.textContent;
+      saveSchedBtn.textContent = 'Сохраняем…';
+      try {
+        const enabled = document.getElementById('channelAutoSyncEnabled').checked;
+        const interval = parseInt(document.getElementById('channelSyncInterval').value, 10);
+        const r = await fetch('/api/v2/admin/channels/schedule', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({enabled, interval_hours: interval})
+        });
+        const d = await r.json();
+        if (!r.ok || !d.ok) throw new Error(d.error || 'Ошибка сохранения');
+        await loadChannelSchedule();
+        alert('Расписание автообновления сохранено!');
+      } catch (e) {
+        alert(e.message || 'Ошибка');
+      } finally {
+        saveSchedBtn.disabled = false;
+        saveSchedBtn.textContent = orig;
+      }
+    };
+  }
+
+  const syncNowBtn = document.getElementById('channelSyncNowBtn');
+  if (syncNowBtn) {
+    syncNowBtn.onclick = async () => {
+      if (!confirm('Запустить синхронизацию всех устаревших витрин?')) return;
+      syncNowBtn.disabled = true;
+      const orig = syncNowBtn.textContent;
+      syncNowBtn.textContent = 'Запуск…';
+      try {
+        const r = await fetch('/api/v2/admin/channels/sync-all-due', {method: 'POST'});
+        const d = await r.json();
+        if (!r.ok || !d.ok) throw new Error(d.error || d.message || 'Ошибка запуска');
+        alert(`Синхронизация завершена!\n${d.message}`);
+        await loadChannelSchedule();
+      } catch (e) {
+        alert(e.message || 'Ошибка');
+      } finally {
+        syncNowBtn.disabled = false;
+        syncNowBtn.textContent = orig;
+      }
+    };
+  }
+
   setInterval(async()=>{
     if(document.hidden||document.getElementById('scanningTool').hidden||scanSettingsBusy||!scanSettingsLoaded)return;
     const serial=scanSettingsSerial;

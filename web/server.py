@@ -2401,6 +2401,97 @@ async def admin_seller_channel_sync_showcase_handler(request):
         return web.json_response({"ok": False, "error": f"Ошибка синхронизации: {str(e)}"}, status=500)
 
 
+@routes.get("/api/v2/admin/channels/schedule")
+@require_admin
+async def admin_channel_schedule_status_handler(request):
+    """Возвращает статус автосинхронизации витрин маркетплейсов и расписание каналов."""
+    from database import get_connection
+    from domain.channel_scheduler import get_channel_sync_schedule, DEFAULT_SYNC_INTERVAL_HOURS
+
+    settings = load_settings()
+    enabled = settings.get("channel_auto_sync_enabled", True)
+    interval_hours = settings.get("channel_sync_interval_hours", DEFAULT_SYNC_INTERVAL_HOURS)
+
+    def _fetch():
+        conn = get_connection()
+        try:
+            return get_channel_sync_schedule(conn, default_interval_hours=interval_hours)
+        finally:
+            conn.close()
+
+    schedule = await asyncio.to_thread(_fetch)
+    due_count = sum(1 for ch in schedule if ch.get("is_due"))
+
+    return web.json_response({
+        "ok": True,
+        "enabled": enabled,
+        "interval_hours": interval_hours,
+        "due_count": due_count,
+        "total_channels": len(schedule),
+        "schedule": schedule,
+    })
+
+
+@routes.post("/api/v2/admin/channels/schedule")
+@require_admin
+async def admin_channel_schedule_update_handler(request):
+    """Обновляет параметры автосинхронизации витрин (включение/отключение, интервал)."""
+    from domain.channel_scheduler import ALLOWED_INTERVAL_HOURS, DEFAULT_SYNC_INTERVAL_HOURS
+
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"ok": False, "error": "Некорректный JSON"}, status=400)
+
+    settings = load_settings()
+
+    if "enabled" in data:
+        settings["channel_auto_sync_enabled"] = bool(data["enabled"])
+
+    if "interval_hours" in data:
+        try:
+            ival = int(data["interval_hours"])
+            if ival in ALLOWED_INTERVAL_HOURS:
+                settings["channel_sync_interval_hours"] = ival
+        except (ValueError, TypeError):
+            pass
+
+    save_settings(settings)
+    return web.json_response({
+        "ok": True,
+        "enabled": settings.get("channel_auto_sync_enabled", True),
+        "interval_hours": settings.get("channel_sync_interval_hours", DEFAULT_SYNC_INTERVAL_HOURS),
+    })
+
+
+@routes.post("/api/v2/admin/channels/sync-all-due")
+@require_admin
+async def admin_channel_sync_all_due_handler(request):
+    """Запускает пакетную синхронизацию всех каналов, требующих обновления."""
+    from database import get_connection
+    from domain.channel_scheduler import run_channel_sync_batch, DEFAULT_SYNC_INTERVAL_HOURS
+
+    settings = load_settings()
+    interval_hours = settings.get("channel_sync_interval_hours", DEFAULT_SYNC_INTERVAL_HOURS)
+
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+
+    channel_ids = data.get("channel_ids") if isinstance(data.get("channel_ids"), list) else None
+
+    res = await run_channel_sync_batch(
+        conn_getter=get_connection,
+        channel_ids=channel_ids,
+        default_interval_hours=interval_hours,
+        max_channels=10,
+        max_pages=5,
+        delay_between_channels=2.0,
+    )
+    return web.json_response(res, status=200 if res.get("ok") else 400)
+
+
 @routes.get("/api/v2/admin/onboarding")
 @require_admin
 async def admin_list_onboarding_handler(request):
@@ -5623,6 +5714,47 @@ async def freshness_reaper_background_worker(app):
             break
 
 
+async def channel_sync_background_worker(app):
+    """Фоновый воркер: периодическое обновление цен витрин маркетплейсов по расписанию."""
+    from domain.channel_scheduler import run_channel_sync_batch, DEFAULT_SYNC_INTERVAL_HOURS
+    from database import get_connection
+
+    print("[ChannelSync] 🏬 Автономный планировщик витрин маркетплейсов запущен...")
+    try:
+        await asyncio.sleep(30.0)
+    except asyncio.CancelledError:
+        return
+
+    while True:
+        try:
+            settings = load_settings()
+            enabled = settings.get("channel_auto_sync_enabled", True)
+            interval_hours = settings.get("channel_sync_interval_hours", DEFAULT_SYNC_INTERVAL_HOURS)
+
+            if enabled and not scan_state.get("is_running"):
+                await run_channel_sync_batch(
+                    conn_getter=get_connection,
+                    default_interval_hours=interval_hours,
+                    max_channels=3,
+                    max_pages=5,
+                    delay_between_channels=3.0,
+                )
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            print(f"[ChannelSync] Ошибка в планировщике витрин: {e}")
+            from telemetry import telemetry, COMPONENT_SCHEDULER
+            try:
+                telemetry.record_system_error(COMPONENT_SCHEDULER, "channel_sync_worker", e)
+            except Exception:
+                pass
+
+        try:
+            await asyncio.sleep(120.0)
+        except asyncio.CancelledError:
+            break
+
+
 async def background_tasks(app):
     from queue_service import product_queue
     await product_queue.initialize()
@@ -5634,6 +5766,7 @@ async def background_tasks(app):
         asyncio.create_task(single_db_writer_worker(app)),
         startup_refresh_task,
         asyncio.create_task(auto_scan_background_worker(app)),
+        asyncio.create_task(channel_sync_background_worker(app)),
         asyncio.create_task(ai_normalize_background_worker(app)),
         asyncio.create_task(disputed_pairs_background_worker(app)),
         asyncio.create_task(category_ai_sort_background_worker(app)),
