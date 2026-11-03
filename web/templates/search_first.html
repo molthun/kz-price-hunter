@@ -6421,7 +6421,7 @@
 
       matched.forEach(m => {
         const count = catalogCountsMap[m.id] || catalogCountsMap[m.name] || 0;
-        const countBadge = count > 0 ? `<span class="catalog-subcat-count" style="margin-left:auto;">(${count} предложений)</span>` : '';
+        const countBadge = count > 0 ? `<span class="catalog-subcat-count" style="margin-left:auto;">(${count} ${pluralizeOffers(count)})</span>` : '';
         html += `
           <div class="catalog-search-result-card" onclick="selectCatalogCategory('${escapeHtml(m.name)}')">
             <div class="catalog-search-card-name">
@@ -7154,7 +7154,7 @@
       const selected=data.selected_offer,banner=document.getElementById('offerContextBanner');banner.replaceChildren();banner.hidden=!selected;
       document.getElementById('detailFavBtn').disabled=false;document.getElementById('detailWatchBtn').disabled=false;
       document.getElementById('detailPriceLabel').textContent=selected?'Цена этого предложения:':'Лучшая доступная цена:';
-      document.getElementById('offersSectionLabel').textContent=selected?'Предложение продавца':'Предложения от продавцов';
+      document.getElementById('offersSectionLabel').textContent=selected?'Предложение продавца': (offers.length === 1 ? 'Предложение продавца' : 'Предложения от продавцов');
       if(selected){
         const label=document.createElement('strong');label.textContent=[selected.seller_name,selected.channel_name,selected.city].filter(Boolean).join(' · ');banner.append(label);
         const help=document.createElement('p');help.textContent='Описание и фотографии только из этого предложения.';banner.append(help);
@@ -7173,7 +7173,7 @@
       const bestBasis = data.best_offer ? priceBasisLabel(data.best_offer) : '';
       document.getElementById('detailBestPrice').textContent = bestPrice ? formatPrice(bestPrice) + (bestBasis ? ' ' + bestBasis : '') : 'Нет в наличии';
       document.getElementById('detailSellersCountBadge').textContent = selected?[selected.seller_name,selected.city].filter(Boolean).join(' · '):'Доступно у ' + sellers.length + ' ' + pluralizeSellers(sellers.length);
-      document.getElementById('offersCountBadge').textContent = '(' + offers.length + ' предложений)';
+      document.getElementById('offersCountBadge').textContent = offers.length > 0 ? '(' + offers.length + ' ' + pluralizeOffers(offers.length) + ')' : '';
 
       // Badges
       let badgesHtml = '';
@@ -7430,7 +7430,7 @@
         if(data.source_evidence)renderSourceEvidence(data.source_evidence);
         else document.getElementById('detailMainImg').src = prod.image_url || getSvgPlaceholder(prod.title);
       }
-      document.getElementById('offersCountBadge').textContent = '(' + offers.length + ' предложений)';
+      document.getElementById('offersCountBadge').textContent = offers.length > 0 ? '(' + offers.length + ' ' + pluralizeOffers(offers.length) + ')' : '';
       const sellerCount = new Set(offers.map(off => off.seller_id)).size;
       document.getElementById('detailSellersCountBadge').textContent = data.selected_offer?[data.selected_offer.seller_name,data.selected_offer.city].filter(Boolean).join(' · '):'Доступно у ' + sellerCount + ' ' + pluralizeSellers(sellerCount);
       renderOffersTable(offers);
@@ -7465,9 +7465,10 @@
         }
 
         let buyButtonHtml = '';
-        const ownContext=!!(detailProductData&&detailProductData.selected_offer);
-        if(!ownContext && off.id){
-          buyButtonHtml=`<a href="/offer/${escapeHtml(encodeURIComponent(off.id))}" class="btn-to-seller" onclick="navigateTo(event,this.getAttribute('href'))"><span>Выбрать предложение</span></a>`;
+        const ownContext = !!(detailProductData && detailProductData.selected_offer);
+        const multipleOffers = offers.length > 1;
+        if (!ownContext && multipleOffers && off.id) {
+          buyButtonHtml = `<a href="/offer/${escapeHtml(encodeURIComponent(off.id))}" class="btn-to-seller" onclick="navigateTo(event,this.getAttribute('href'))"><span>Выбрать предложение</span></a>`;
         } else if (canBuy) {
           buyButtonHtml = `<a href="${escapeHtml(off.url)}" target="_blank" rel="noopener noreferrer" class="btn-to-seller">
             <span>К продавцу</span> <span>↗</span>
@@ -7619,6 +7620,15 @@
       if (mod100 >= 11 && mod100 <= 19) return 'продавцов';
       if (mod10 === 1) return 'продавца';
       return 'продавцов';
+    }
+
+    function pluralizeOffers(count) {
+      const mod10 = count % 10;
+      const mod100 = count % 100;
+      if (mod100 >= 11 && mod100 <= 19) return 'предложений';
+      if (mod10 === 1) return 'предложение';
+      if (mod10 >= 2 && mod10 <= 4) return 'предложения';
+      return 'предложений';
     }
 
     // =============================================================
