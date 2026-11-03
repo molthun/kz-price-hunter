@@ -115,6 +115,12 @@ def normalize_attribute_value(key: str, raw_value: Any) -> Optional[str]:
 
     # Память (ГБ, ТБ)
     if key in ('storage', 'ram', 'vram'):
+        if val.isdigit():
+            n = int(val)
+            if n in (1, 2) and key == 'storage':
+                return f"{n} ТБ"
+            if n in (4, 6, 8, 12, 16, 24, 32, 64, 128, 256, 512, 1024):
+                return f"{n} ГБ" if n < 1024 else "1 ТБ"
         m_tb = re.search(r'(?i)\b(\d+)\s*(?:tb|тб)\b', val)
         if m_tb:
             return f"{m_tb.group(1)} ТБ"
