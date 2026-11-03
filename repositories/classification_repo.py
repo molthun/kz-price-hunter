@@ -63,8 +63,16 @@ def source_hash(signature):
 class ClassificationRepository:
     def __init__(self, conn):
         self.conn=conn
-        from classification_facts import attributes_hash
-        conn.create_function("classification_attributes_hash",1,attributes_hash,deterministic=True)
+        try:
+            if not getattr(conn, "_classification_func_registered", False):
+                from classification_facts import attributes_hash
+                conn.create_function("classification_attributes_hash",1,attributes_hash,deterministic=True)
+                try:
+                    conn._classification_func_registered = True
+                except AttributeError:
+                    pass
+        except sqlite3.OperationalError:
+            pass
 
     def _row(self, sql, params=()):
         cur=self.conn.execute(sql,params);row=cur.fetchone()
