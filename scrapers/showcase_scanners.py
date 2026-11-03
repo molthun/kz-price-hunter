@@ -39,25 +39,27 @@ def extract_marketplace_merchant_info(url_or_code: str) -> Tuple[Optional[str], 
     s = str(url_or_code).strip()
 
     # Kaspi
-    m_kaspi = re.search(r'kaspi\.kz/shop/info/merchant/([^/?#]+)', s, re.IGNORECASE)
+    m_kaspi = re.search(r'kaspi\.kz/shop/(?:info/merchant|m)/([^/?#]+)', s, re.IGNORECASE)
     if m_kaspi:
         return "kaspi", m_kaspi.group(1).strip()
-    if s.startswith("kaspi:") or (s.isdigit() and len(s) in (5, 6, 7)):
-        return "kaspi", s.split(":")[-1].strip()
+    if s.lower().startswith("kaspi:"):
+        return "kaspi", s.split(":", 1)[-1].strip()
+    if s.isdigit() and 3 <= len(s) <= 12:
+        return "kaspi", s
 
     # Halyk Market
     m_halyk = re.search(r'halykmarket\.kz/merchant/([^/?#]+)', s, re.IGNORECASE)
     if m_halyk:
         return "halyk", m_halyk.group(1).strip()
-    if s.startswith("halyk:"):
-        return "halyk", s.split(":")[-1].strip()
+    if s.lower().startswith("halyk:"):
+        return "halyk", s.split(":", 1)[-1].strip()
 
     # Forte Market
-    m_forte = re.search(r'market\.forte\.kz/merchant/([^/?#]+)', s, re.IGNORECASE)
+    m_forte = re.search(r'(?:market\.forte\.kz|forte\.kz)/merchant/([^/?#]+)', s, re.IGNORECASE)
     if m_forte:
-        return "fortemarket", m_forte.group(1).strip()
-    if s.startswith("forte:"):
-        return "fortemarket", s.split(":")[-1].strip()
+        return "forte", m_forte.group(1).strip()
+    if s.lower().startswith(("forte:", "fortemarket:")):
+        return "forte", s.split(":", 1)[-1].strip()
 
     return None, None
 

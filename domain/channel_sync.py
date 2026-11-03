@@ -174,12 +174,23 @@ async def sync_channel_showcase(
         return {"ok": False, "error": f"Канал {channel_id} не найден"}
 
     ch_id, seller_id, channel_type, ch_name, ext_store_id, base_url, meta_json = row
-    target_url = base_url or ext_store_id or ""
+    mp, merchant_id = extract_marketplace_merchant_info(base_url or "")
+    if not mp and ext_store_id:
+        mp, merchant_id = extract_marketplace_merchant_info(ext_store_id)
 
-    mp, merchant_id = extract_marketplace_merchant_info(target_url)
     if not mp:
-        mp = channel_type.lower() if channel_type else "kaspi"
-        merchant_id = ext_store_id or target_url
+        combined = f"{base_url or ''} {ext_store_id or ''} {ch_name or ''}".lower()
+        if "kaspi" in combined:
+            mp = "kaspi"
+        elif "halyk" in combined:
+            mp = "halyk"
+        elif "forte" in combined:
+            mp = "forte"
+        else:
+            mp = channel_type.lower() if channel_type else "kaspi"
+
+    if not merchant_id:
+        merchant_id = ext_store_id or base_url or ""
 
     if not merchant_id:
         return {"ok": False, "error": f"У канала {channel_id} не указан идентификатор или ссылка витрины мерчанта"}

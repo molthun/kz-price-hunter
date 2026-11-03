@@ -29,6 +29,7 @@ def create_test_db():
 def test_extract_marketplace_merchant_info():
     # Kaspi
     assert extract_marketplace_merchant_info("https://kaspi.kz/shop/info/merchant/tehnomart/") == ("kaspi", "tehnomart")
+    assert extract_marketplace_merchant_info("https://kaspi.kz/shop/m/18430177/products/") == ("kaspi", "18430177")
     assert extract_marketplace_merchant_info("https://kaspi.kz/shop/info/merchant/103190") == ("kaspi", "103190")
     assert extract_marketplace_merchant_info("kaspi:103190") == ("kaspi", "103190")
 
@@ -37,8 +38,9 @@ def test_extract_marketplace_merchant_info():
     assert extract_marketplace_merchant_info("halyk:456") == ("halyk", "456")
 
     # Forte
-    assert extract_marketplace_merchant_info("https://market.forte.kz/merchant/mechta") == ("fortemarket", "mechta")
-    assert extract_marketplace_merchant_info("forte:789") == ("fortemarket", "789")
+    assert extract_marketplace_merchant_info("https://market.forte.kz/merchant/mechta") == ("forte", "mechta")
+    assert extract_marketplace_merchant_info("https://forte.kz/merchant/222") == ("forte", "222")
+    assert extract_marketplace_merchant_info("forte:789") == ("forte", "789")
 
     # Unknown
     assert extract_marketplace_merchant_info("https://example.com/shop") == (None, None)
