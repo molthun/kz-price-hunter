@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 from datetime import datetime,timezone
 import json
+import sqlite3
 import time
 
 _BASE_SIGNATURE = "json_array(p.title,p.canonical_key,p.brand,p.model,p.item_kind,coalesce((SELECT e.facts_hash FROM product_source_evidence e WHERE e.product_id=p.id),'[]'))"
@@ -64,14 +65,9 @@ class ClassificationRepository:
     def __init__(self, conn):
         self.conn=conn
         try:
-            if not getattr(conn, "_classification_func_registered", False):
-                from classification_facts import attributes_hash
-                conn.create_function("classification_attributes_hash",1,attributes_hash,deterministic=True)
-                try:
-                    conn._classification_func_registered = True
-                except AttributeError:
-                    pass
-        except sqlite3.OperationalError:
+            from classification_facts import attributes_hash
+            conn.create_function("classification_attributes_hash",1,attributes_hash,deterministic=True)
+        except Exception:
             pass
 
     def _row(self, sql, params=()):
