@@ -16,6 +16,7 @@ from domain.seller_onboarding import _clean_social_handle, marketplace_channel
 from repositories.channel_repo import ChannelRepository
 from repositories.seller_identity_repo import SellerIdentityRepository
 from repositories.seller_repo import SellerRepository
+from repositories.social_source_repo import SocialSourceRepository
 
 _EDITED_CHANNEL_TYPES = (ChannelType.MARKETPLACE, ChannelType.INSTAGRAM, ChannelType.TELEGRAM)
 MAX_MARKETPLACE_LINKS = 50
@@ -112,7 +113,13 @@ def _new_seller_id(repo: SellerRepository, name: str) -> tuple:
     return f"seller_{slug}", slug
 
 
-def _sync_channels(channels: ChannelRepository, seller: Seller, channel_type: str, wanted: List[Dict[str, str]]) -> None:
+def _sync_channels(
+    channels: ChannelRepository,
+    seller: Seller,
+    channel_type: str,
+    wanted: List[Dict[str, str]],
+    social_repo: Optional[SocialSourceRepository] = None,
+) -> None:
     """Приводит каналы одного типа к списку: новые создаёт, убранные отключает, возвращённые включает."""
     kept = set()
     for item in wanted:
@@ -122,15 +129,32 @@ def _sync_channels(channels: ChannelRepository, seller: Seller, channel_type: st
         )
         channels.update_channel(channel.id, {"name": item["name"], "base_url": item["url"], "is_active": True})
         kept.add(channel.id)
+        if social_repo and channel_type in (ChannelType.INSTAGRAM, ChannelType.TELEGRAM):
+            platform = "instagram" if channel_type == ChannelType.INSTAGRAM else "telegram"
+            raw_h = (item.get("handle") or "").lstrip("@")
+            if raw_h:
+                social_repo.add_source(
+                    platform=platform,
+                    handle=raw_h,
+                    url=item.get("url") or "",
+                    seller_id=seller.id,
+                    channel_id=channel.id,
+                    enabled=seller.is_active,
+                )
     for channel in channels.list_by_seller(seller.id, active_only=True):
         if channel.channel_type == channel_type and channel.id not in kept:
             channels.delete_channel(channel.id)
+            if social_repo and channel_type in (ChannelType.INSTAGRAM, ChannelType.TELEGRAM):
+                soc = social_repo.get_by_channel_id(channel.id)
+                if soc:
+                    social_repo.set_enabled(soc.id, False)
 
 
 def save_seller(conn, seller_id: Optional[str], body: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Создаёт магазин (seller_id=None) или обновляет. None — такого магазина нет."""
     sellers = SellerRepository(conn)
     channels = ChannelRepository(conn)
+    social_repo = SocialSourceRepository(conn)
     existing = sellers.get_by_id(seller_id) if seller_id else None
     if seller_id and not existing:
         return None
@@ -169,10 +193,19 @@ def save_seller(conn, seller_id: Optional[str], body: Dict[str, Any]) -> Optiona
                                        (ChannelType.TELEGRAM, form["telegram"], "t.me")):
         _sync_channels(channels, seller, channel_type, [{
             "name": f"{seller.name} ({channel_type})", "handle": f"@{handle}", "url": f"https://{site}/{handle}",
-        }] if handle else [])
+        }] if handle else [], social_repo=social_repo)
     if form["website_url"] and not existing:
         channels.get_or_create(seller_id=seller.id, channel_type=ChannelType.WEBSITE,
                                name=f"{seller.name} (сайт)", base_url=form["website_url"])
+
+    # Синхронизация активности источников соцсетей со статусом продавца
+    if not seller.is_active:
+        for s_src in social_repo.list_by_seller_id(seller.id):
+            social_repo.set_enabled(s_src.id, False)
+    elif existing and not existing.is_active and seller.is_active:
+        for s_src in social_repo.list_by_seller_id(seller.id):
+            social_repo.set_enabled(s_src.id, True)
+
     conn.commit()
     return seller_details(conn, seller.id)
 
@@ -183,19 +216,60 @@ def seller_details(conn, seller_id: str) -> Optional[Dict[str, Any]]:
     if not seller:
         return None
     meta = seller.metadata or {}
-    channels = ChannelRepository(conn).list_by_seller(seller_id, active_only=True)
+    all_channels = ChannelRepository(conn).list_by_seller(seller_id, active_only=False)
+    active_channels = [c for c in all_channels if c.is_active]
+    social_repo = SocialSourceRepository(conn)
 
     def handle_of(channel_type: str) -> str:
-        found = next((c for c in channels if c.channel_type == channel_type), None)
+        found = next((c for c in active_channels if c.channel_type == channel_type), None)
         return (found.external_store_id or "").lstrip("@") if found else ""
 
     def site() -> str:
-        website = next((c for c in channels if c.channel_type == ChannelType.WEBSITE and c.base_url), None)
+        website = next((c for c in active_channels if c.channel_type == ChannelType.WEBSITE and c.base_url), None)
         if "website_url" in meta:  # после очистки поля адрес не возвращается из домена
             return meta["website_url"] or ""
         if seller.domain:
             return f"https://{seller.domain}"
         return website.base_url if website else ""
+
+    channel_items = []
+    for c in all_channels:
+        status_label = "Активен"
+        last_fetch = None
+        last_status = None
+        last_error = None
+        if c.channel_type in (ChannelType.INSTAGRAM, ChannelType.TELEGRAM):
+            soc = social_repo.get_by_channel_id(c.id)
+            if soc:
+                last_fetch = soc.last_fetch_at
+                last_status = soc.last_status
+                last_error = soc.last_error
+                status_label = "В сборе" if (soc.enabled and c.is_active) else "Отключён"
+            else:
+                status_label = "В сборе" if c.is_active else "Отключён"
+        elif c.channel_type == ChannelType.MARKETPLACE:
+            status_label = "Нужен сканер витрины" if c.is_active else "Отключён"
+        elif c.channel_type == ChannelType.WEBSITE:
+            url_l = (c.base_url or "").lower()
+            if "xml" in url_l or "yml" in url_l or "feed" in url_l:
+                status_label = "Нужен сканер фидов" if c.is_active else "Отключён"
+            else:
+                status_label = "Нужен сканер" if c.is_active else "Отключён"
+        elif c.channel_type in (ChannelType.WHATSAPP, ChannelType.DIRECT):
+            status_label = "Контакт"
+
+        channel_items.append({
+            "id": c.id,
+            "channel_type": c.channel_type,
+            "name": c.name,
+            "base_url": c.base_url,
+            "external_store_id": c.external_store_id,
+            "is_active": c.is_active,
+            "status_label": status_label,
+            "last_fetch_at": last_fetch,
+            "last_status": last_status,
+            "last_error": last_error,
+        })
 
     return {
         "id": seller.id,
@@ -211,7 +285,8 @@ def seller_details(conn, seller_id: str) -> Optional[Dict[str, Any]]:
         "comment": meta.get("comment") or "",
         "instagram": handle_of(ChannelType.INSTAGRAM),
         "telegram": handle_of(ChannelType.TELEGRAM),
-        "marketplace_links": [c.base_url for c in channels if c.channel_type == ChannelType.MARKETPLACE and c.base_url],
-        "collection_channels": [c.name for c in channels if c.channel_type not in _EDITED_CHANNEL_TYPES],
+        "marketplace_links": [c.base_url for c in active_channels if c.channel_type == ChannelType.MARKETPLACE and c.base_url],
+        "collection_channels": [c.name for c in active_channels if c.channel_type not in _EDITED_CHANNEL_TYPES],
+        "channels": channel_items,
         "is_active": seller.is_active,
     }

@@ -112,6 +112,42 @@ class SellerAdminTest(unittest.TestCase):
         self.assertFalse(off["is_active"])
 
 
+    def test_social_sources_registered_and_synced(self):
+        from repositories.social_source_repo import SocialSourceRepository
+        social_repo = SocialSourceRepository(self.conn)
+        seller = self._create(instagram="@kz_tech", telegram="https://t.me/kztech")
+        sources = social_repo.list_by_seller_id(seller["id"])
+        self.assertEqual(len(sources), 2)
+        self.assertTrue(all(s.enabled for s in sources))
+        self.assertEqual({s.platform for s in sources}, {"instagram", "telegram"})
+
+        # Отключение магазина отключает и сбор соцсетей
+        off = save_seller(self.conn, seller["id"], {**seller, "is_active": False})
+        sources_off = social_repo.list_by_seller_id(seller["id"])
+        self.assertTrue(all(not s.enabled for s in sources_off))
+
+        # Повторное включение магазина включает соцсети обратно
+        on = save_seller(self.conn, seller["id"], {**off, "is_active": True})
+        sources_on = social_repo.list_by_seller_id(seller["id"])
+        self.assertTrue(all(s.enabled for s in sources_on))
+
+    def test_seller_details_includes_channels_with_status_labels(self):
+        seller = self._create(
+            website_url="https://shop.kz/feed.xml",
+            instagram="@shop_almaty",
+            marketplace_links=["https://kaspi.kz/shop/m/123/products/"]
+        )
+        details = seller_details(self.conn, seller["id"])
+        self.assertIn("channels", details)
+        ch_map = {c["channel_type"]: c for c in details["channels"]}
+        self.assertIn("website", ch_map)
+        self.assertEqual(ch_map["website"]["status_label"], "Нужен сканер фидов")
+        self.assertIn("marketplace", ch_map)
+        self.assertEqual(ch_map["marketplace"]["status_label"], "Нужен сканер витрины")
+        self.assertIn("instagram", ch_map)
+        self.assertEqual(ch_map["instagram"]["status_label"], "В сборе")
+
+
 class SellerAdminApiTest(unittest.IsolatedAsyncioTestCase):
     async def test_only_admin_can_use_editor_and_save_starts_nothing(self):
         import auth
@@ -146,6 +182,97 @@ class SellerAdminApiTest(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual([item["id"] for item in listed["sellers"]], [seller["id"]])
                 self.assertEqual(listed["sellers"][0]["channels_count"], 2)
                 self.assertEqual((await client.get(f"/api/admin/sellers/{seller['id']}")).status, 200)
+
+    async def test_v2_admin_sellers_endpoints_and_channels_crud(self):
+        import auth
+        import database
+        import web.server as server
+        from aiohttp.test_utils import TestServer
+        from tests.test_support import BrowserTestClient as TestClient
+        database.init_db()
+        uid = 8203
+        database.upsert_telegram_user({"id": uid, "first_name": "Admin"})
+        token = database.create_session(uid)
+        app = server.create_app()
+        app.cleanup_ctx.clear()
+        with patch.object(auth, "ADMIN_TELEGRAM_IDS", {uid}):
+            async with TestClient(TestServer(app)) as client:
+                client.session.cookie_jar.update_cookies({auth.SESSION_COOKIE: token})
+
+                # 1. Создание через /api/v2/admin/sellers
+                payload = {
+                    "name": "Тест Стор Алматы",
+                    "city": "Алматы",
+                    "phone": "+7 777 123 4567",
+                    "bin": "123456789012",
+                    "website_url": "https://test-store.kz",
+                    "marketplace_links": ["https://kaspi.kz/shop/m/111/products/", "https://forte.kz/merchant/222"],
+                    "instagram": "@teststore_kz"
+                }
+                res = await client.post("/api/v2/admin/sellers", json=payload)
+                self.assertEqual(res.status, 201)
+                created = (await res.json())["seller"]
+                seller_id = created["id"]
+                self.assertEqual(created["name"], "Тест Стор Алматы")
+                self.assertEqual(created["city"], "Алматы")
+                self.assertEqual(len(created["channels"]), 4)  # website, 2 marketplaces, instagram
+
+                # 2. Фильтрация списка через /api/v2/admin/sellers
+                list_res = await client.get("/api/v2/admin/sellers", params={"city": "Алматы", "is_active": "true"})
+                self.assertEqual(list_res.status, 200)
+                list_data = await list_res.json()
+                self.assertTrue(list_data["ok"])
+                self.assertTrue(any(s["id"] == seller_id for s in list_data["sellers"]))
+
+                # Фильтр по другому городу не должен находить
+                list_astana = await client.get("/api/v2/admin/sellers", params={"city": "Астана"})
+                astana_data = await list_astana.json()
+                self.assertFalse(any(s["id"] == seller_id for s in astana_data["sellers"]))
+
+                # 3. Детали магазина через /api/v2/admin/sellers/{id}
+                detail_res = await client.get(f"/api/v2/admin/sellers/{seller_id}")
+                self.assertEqual(detail_res.status, 200)
+                details = (await detail_res.json())["seller"]
+                self.assertEqual(details["id"], seller_id)
+                self.assertEqual(details["instagram"], "teststore_kz")
+
+                # 4. PATCH обновление магазина
+                patch_res = await client.patch(f"/api/v2/admin/sellers/{seller_id}", json={
+                    **details,
+                    "legal_name": "ТОО Тест Стор Казахстан"
+                })
+                self.assertEqual(patch_res.status, 200)
+                patched = (await patch_res.json())["seller"]
+                self.assertEqual(patched["legal_name"], "ТОО Тест Стор Казахстан")
+
+                # 5. Добавление канала вручную через POST /api/v2/admin/sellers/{id}/channels
+                ch_res = await client.post(f"/api/v2/admin/sellers/{seller_id}/channels", json={
+                    "channel_type": "telegram",
+                    "name": "Telegram канал магазина",
+                    "base_url": "https://t.me/teststore_official",
+                    "external_store_id": "teststore_official"
+                })
+                self.assertEqual(ch_res.status, 201)
+                new_ch = (await ch_res.json())["channel"]
+                channel_id = new_ch["id"]
+                self.assertEqual(new_ch["channel_type"], "telegram")
+
+                # 6. Обновление канала через PATCH /api/v2/admin/sellers/{id}/channels/{cid}
+                ch_patch = await client.patch(f"/api/v2/admin/sellers/{seller_id}/channels/{channel_id}", json={
+                    "name": "Telegram Витрина"
+                })
+                self.assertEqual(ch_patch.status, 200)
+                self.assertEqual((await ch_patch.json())["channel"]["name"], "Telegram Витрина")
+
+                # 7. Запрос fetch_now для канала
+                fetch_res = await client.post(f"/api/v2/admin/sellers/{seller_id}/channels/{channel_id}/fetch")
+                # Для этого канала еще нет записи в social_sources (добавили через сырой endpoint каналов)
+                self.assertIn(fetch_res.status, (200, 400))
+
+                # 8. Отключение канала через DELETE /api/v2/admin/sellers/{id}/channels/{cid}
+                ch_del = await client.delete(f"/api/v2/admin/sellers/{seller_id}/channels/{channel_id}")
+                self.assertEqual(ch_del.status, 200)
+                self.assertTrue((await ch_del.json())["deleted"])
 
 
 if __name__ == "__main__":

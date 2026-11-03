@@ -4537,6 +4537,75 @@
           <div style="font-size: 1.2rem; color: var(--text-muted);">›</div>
         </div>
 
+        <!-- Admin Sellers & Onboarding Management (Visible only to Admin) -->
+        <div id="profileAdminArea" class="profile-card" style="display: none;">
+          <div class="profile-section-header" style="flex-direction: column; align-items: stretch; gap: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+              <div>
+                <h2 class="profile-section-title">🏪 Управление магазинами и источниками</h2>
+                <div class="profile-section-desc">Реквизиты, каналы продаж, статусы сбора и заявки на подключение</div>
+              </div>
+              <button type="button" class="btn-primary" onclick="openAdminShopModal(null)" style="white-space: nowrap;">
+                + Новый магазин
+              </button>
+            </div>
+            
+            <!-- Admin Tabs -->
+            <div style="display: flex; gap: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 6px;">
+              <button type="button" id="tabBtnAdminSellers" class="btn-secondary active" onclick="switchAdminTab('sellers')" style="padding: 6px 14px; font-size: 0.85rem;">
+                Магазины (<span id="adminSellersCount">0</span>)
+              </button>
+              <button type="button" id="tabBtnAdminOnboarding" class="btn-secondary" onclick="switchAdminTab('onboarding')" style="padding: 6px 14px; font-size: 0.85rem;">
+                Заявки (<span id="adminOnboardingCount">0</span>)
+              </button>
+            </div>
+          </div>
+
+          <!-- TAB 1: Sellers List -->
+          <div id="adminTabSellersContent">
+            <!-- Filter Toolbar -->
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px; margin-bottom: 14px;">
+              <input type="search" id="adminSellerSearchInput" class="form-input" placeholder="Поиск по названию, сайту, БИН..." oninput="debounceAdminSellersSearch()" />
+              <select id="adminSellerCityFilter" class="form-input" onchange="loadAdminSellers()">
+                <option value="">Все города</option>
+                <option value="Алматы">Алматы</option>
+                <option value="Астана">Астана</option>
+                <option value="Шымкент">Шымкент</option>
+                <option value="Караганда">Караганда</option>
+                <option value="Актобе">Актобе</option>
+                <option value="Павлодар">Павлодар</option>
+                <option value="Усть-Каменогорск">Усть-Каменогорск</option>
+              </select>
+              <select id="adminSellerStatusFilter" class="form-input" onchange="loadAdminSellers()">
+                <option value="all">Все статусы</option>
+                <option value="true" selected>Только активные</option>
+                <option value="false">Только отключённые</option>
+              </select>
+            </div>
+
+            <!-- Sellers Table / List -->
+            <div id="adminSellersList" style="display: flex; flex-direction: column; gap: 8px;">
+              <div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 0.88rem;">Загрузка магазинов...</div>
+            </div>
+            <div id="adminSellersStatusInfo" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 10px; text-align: center;"></div>
+          </div>
+
+          <!-- TAB 2: Onboarding Queue -->
+          <div id="adminTabOnboardingContent" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <div style="font-size: 0.85rem; color: var(--text-muted);">Заявки от продавцов на модерации:</div>
+              <select id="adminOnboardingFilter" class="form-input" style="width: auto; min-width: 160px;" onchange="loadAdminOnboarding()">
+                <option value="REVIEW_REQUIRED" selected>Ожидают проверки</option>
+                <option value="APPROVED">Одобренные</option>
+                <option value="REJECTED">Отклонённые</option>
+                <option value="">Все заявки</option>
+              </select>
+            </div>
+            <div id="adminOnboardingList" style="display: flex; flex-direction: column; gap: 8px;">
+              <div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 0.88rem;">Загрузка заявок...</div>
+            </div>
+          </div>
+        </div>
 
         <!-- Privacy & Local Data Management -->
         <div class="profile-card">
@@ -4844,6 +4913,119 @@
             <div style="display:flex; justify-content: flex-end; gap: 10px; margin-top: 8px;">
               <button type="button" class="btn-secondary" onclick="closeRegisterSellerModal()">Отмена</button>
               <button type="submit" id="btnSubmitRegisterSeller" class="btn-primary">Отправить заявку</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================= -->
+  <!-- MODAL: ADMIN SELLER (Редактор магазинов для администратора)   -->
+  <!-- ============================================================= -->
+  <div id="modalAdminSeller" class="modal-backdrop" onclick="if(event.target === this) closeAdminSellerModal()">
+    <div class="modal-dialog" style="max-width: 640px; max-height: 90vh; display: flex; flex-direction: column;" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3 class="modal-title" id="adminSellerModalTitle">🏪 Магазин</h3>
+        <button type="button" class="modal-close-btn" onclick="closeAdminSellerModal()" aria-label="Закрыть">✕</button>
+      </div>
+      <div class="modal-body" style="overflow-y: auto; padding: 18px 20px;">
+        <form id="adminSellerForm" onsubmit="submitAdminSellerForm(event)">
+          <div id="adminSellerErrorMsg" style="display:none; margin-bottom: 14px; padding: 10px 14px; border-radius: var(--radius-sm); font-size: 0.88rem; background: rgba(239, 68, 68, 0.15); color: #ef4444;"></div>
+          <div style="display: flex; flex-direction: column; gap: 14px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div>
+                <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Название магазина *</label>
+                <input type="text" id="adminSellerName" class="form-input" required placeholder="Например: Technodom Almaty" />
+              </div>
+              <div>
+                <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Юридическое лицо</label>
+                <input type="text" id="adminSellerLegalName" class="form-input" placeholder="ТОО / ИП" />
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div>
+                <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Город *</label>
+                <input type="text" id="adminSellerCity" class="form-input" list="adminSellerCityList" placeholder="Алматы" />
+                <datalist id="adminSellerCityList">
+                  <option value="Алматы">
+                  <option value="Астана">
+                  <option value="Шымкент">
+                  <option value="Караганда">
+                  <option value="Актобе">
+                  <option value="Павлодар">
+                  <option value="Усть-Каменогорск">
+                </datalist>
+              </div>
+              <div>
+                <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">БИН / ИИН</label>
+                <input type="text" id="adminSellerBin" class="form-input" placeholder="12 цифр" maxlength="12" inputmode="numeric" />
+              </div>
+            </div>
+
+            <div>
+              <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Сайт магазина</label>
+              <input type="url" id="adminSellerWebsite" class="form-input" placeholder="https://..." />
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div>
+                <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Телефон</label>
+                <input type="tel" id="adminSellerPhone" class="form-input" placeholder="+7 700 000 0000" />
+              </div>
+              <div>
+                <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">WhatsApp</label>
+                <input type="tel" id="adminSellerWhatsapp" class="form-input" placeholder="+7 700 000 0000" />
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div>
+                <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Instagram</label>
+                <input type="text" id="adminSellerInstagram" class="form-input" placeholder="@shop_kz" />
+              </div>
+              <div>
+                <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Telegram</label>
+                <input type="text" id="adminSellerTelegram" class="form-input" placeholder="@username" />
+              </div>
+            </div>
+
+            <div>
+              <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Контактное лицо</label>
+              <input type="text" id="adminSellerContactPerson" class="form-input" placeholder="Имя менеджера или руководителя" />
+            </div>
+
+            <!-- Dynamic Marketplace Links -->
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <label style="font-size:0.85rem; font-weight:600;">Ссылки на маркетплейсы</label>
+                <button type="button" class="btn-secondary" style="padding: 4px 10px; font-size: 0.8rem;" onclick="addAdminMarketplaceLinkRow('')">+ Добавить маркетплейс</button>
+              </div>
+              <div id="adminSellerMarketplaceContainer" style="display: flex; flex-direction: column; gap: 8px;">
+                <!-- Dynamically rendered rows: [input url] [Удалить button] -->
+              </div>
+            </div>
+
+            <div>
+              <label style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Комментарий / Заметки</label>
+              <textarea id="adminSellerComment" class="form-input" rows="2" placeholder="Внутренние заметки по магазину"></textarea>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="adminSellerIsActive" style="width: 18px; height: 18px; cursor: pointer;" checked />
+              <label for="adminSellerIsActive" style="font-size:0.9rem; font-weight:600; cursor: pointer;">Магазин активен</label>
+            </div>
+
+            <!-- Channels & Collection Status Block -->
+            <div id="adminSellerChannelsBlock" style="display: none; background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px 14px;">
+              <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-main); margin-bottom: 8px;">📡 Каналы и статус сбора цен</div>
+              <div id="adminSellerChannelsList" style="display: flex; flex-direction: column; gap: 6px; font-size: 0.82rem;"></div>
+            </div>
+
+            <div style="display:flex; justify-content: flex-end; gap: 10px; margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--border-color);">
+              <button type="button" class="btn-secondary" onclick="closeAdminSellerModal()">Отмена</button>
+              <button type="submit" id="btnSaveAdminSeller" class="btn-primary">Сохранить магазин</button>
             </div>
           </div>
         </form>
@@ -8268,6 +8450,17 @@
         }
       }
 
+      const adminArea = document.getElementById('profileAdminArea');
+      if (adminArea) {
+        if (currentUser && currentUser.is_admin) {
+          adminArea.style.display = 'block';
+          loadAdminSellers();
+          loadAdminOnboarding();
+        } else {
+          adminArea.style.display = 'none';
+        }
+      }
+
       const notice = 'text-align: center; padding: 24px; color: var(--text-muted); font-size: 0.9rem;';
       let html = '';
       if (WatchManager.status === 'guest') {
@@ -8516,6 +8709,382 @@
         }
       } finally {
         if (btn) btn.disabled = false;
+      }
+    }
+
+    // =============================================================
+    // ADMIN SELLERS & ONBOARDING MANAGEMENT (KZPH-ADMIN)
+    // =============================================================
+    let adminShopEditId = null;
+    let adminSellersSearchTimer = null;
+
+    function debounceAdminSellersSearch() {
+      clearTimeout(adminSellersSearchTimer);
+      adminSellersSearchTimer = setTimeout(loadAdminSellers, 300);
+    }
+
+    function switchAdminTab(tab) {
+      const sellersContent = document.getElementById('adminTabSellersContent');
+      const onboardingContent = document.getElementById('adminTabOnboardingContent');
+      const btnSellers = document.getElementById('tabBtnAdminSellers');
+      const btnOnboarding = document.getElementById('tabBtnAdminOnboarding');
+
+      if (tab === 'sellers') {
+        if (sellersContent) sellersContent.style.display = 'block';
+        if (onboardingContent) onboardingContent.style.display = 'none';
+        if (btnSellers) btnSellers.classList.add('active');
+        if (btnOnboarding) btnOnboarding.classList.remove('active');
+        loadAdminSellers();
+      } else {
+        if (sellersContent) sellersContent.style.display = 'none';
+        if (onboardingContent) onboardingContent.style.display = 'block';
+        if (btnSellers) btnSellers.classList.remove('active');
+        if (btnOnboarding) btnOnboarding.classList.add('active');
+        loadAdminOnboarding();
+      }
+    }
+
+    async function loadAdminSellers() {
+      const listEl = document.getElementById('adminSellersList');
+      const countEl = document.getElementById('adminSellersCount');
+      const infoEl = document.getElementById('adminSellersStatusInfo');
+      if (!listEl) return;
+      
+      const search = (document.getElementById('adminSellerSearchInput')?.value || '').trim();
+      const city = document.getElementById('adminSellerCityFilter')?.value || '';
+      const status = document.getElementById('adminSellerStatusFilter')?.value || 'true';
+      
+      const params = new URLSearchParams();
+      if (search) params.set('search', search);
+      if (city) params.set('city', city);
+      if (status !== 'all') params.set('is_active', status);
+      params.set('limit', '100');
+
+      listEl.innerHTML = '<div style="text-align: center; padding: 18px; color: var(--text-muted); font-size: 0.88rem;">Загрузка магазинов...</div>';
+
+      try {
+        const resp = await fetch('/api/v2/admin/sellers?' + params.toString(), { cache: 'no-store' });
+        if (!resp.ok) throw new Error('Ошибка ' + resp.status);
+        const data = await resp.json();
+        const sellers = data.sellers || [];
+        if (countEl) countEl.textContent = String(data.total || sellers.length);
+
+        if (!sellers.length) {
+          listEl.innerHTML = '<div style="text-align: center; padding: 24px; color: var(--text-muted); font-size: 0.88rem;">Магазины не найдены. Попробуйте изменить фильтры или добавьте новый.</div>';
+          if (infoEl) infoEl.textContent = '';
+          return;
+        }
+
+        listEl.innerHTML = sellers.map(shop => {
+          return `
+            <div class="admin-shop-card" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px 16px; flex-wrap: wrap;">
+              <div style="flex: 1; min-width: 240px;">
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                  <span style="font-weight: 700; font-size: 0.95rem; color: var(--text-main);">${escapeHtml(shop.name)}</span>
+                  ${shop.is_active ? '<span class="badge badge-condition-new">Активен</span>' : '<span class="badge" style="background:var(--bg-subtle); color:var(--text-muted); border:1px solid var(--border-color);">Отключён</span>'}
+                  ${shop.city ? `<span class="badge" style="background:var(--bg-card); color:var(--text-muted);">📍 ${escapeHtml(shop.city)}</span>` : ''}
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; display: flex; gap: 10px; flex-wrap: wrap;">
+                  ${shop.legal_name ? `<span>Юр. лицо: ${escapeHtml(shop.legal_name)}</span>` : ''}
+                  ${shop.bin ? `<span>БИН: ${escapeHtml(shop.bin)}</span>` : ''}
+                  ${shop.domain ? `<span>Сайт: ${escapeHtml(shop.domain)}</span>` : ''}
+                  <span>Каналов: <strong>${shop.channels_count || 0}</strong></span>
+                  <span>Предложений: <strong>${shop.offers_count || 0}</strong></span>
+                </div>
+              </div>
+              <button type="button" class="btn-secondary" style="padding: 6px 14px; font-size: 0.85rem; white-space: nowrap;" onclick="openAdminShopModal('${escapeHtml(shop.id)}')">
+                Изменить
+              </button>
+            </div>
+          `;
+        }).join('');
+
+        if (infoEl) {
+          infoEl.textContent = data.total > sellers.length
+            ? `Показаны первые ${sellers.length} из ${data.total} магазинов. Уточните поиск.`
+            : `Всего магазинов: ${data.total || sellers.length}`;
+        }
+      } catch (err) {
+        listEl.innerHTML = '<div style="text-align: center; padding: 20px; color: #ef4444; font-size: 0.88rem;">Не удалось загрузить магазины с сервера.</div>';
+        if (infoEl) infoEl.textContent = '';
+      }
+    }
+
+    async function loadAdminOnboarding() {
+      const listEl = document.getElementById('adminOnboardingList');
+      const countEl = document.getElementById('adminOnboardingCount');
+      if (!listEl) return;
+      const status = document.getElementById('adminOnboardingFilter')?.value || '';
+      const params = new URLSearchParams();
+      if (status) params.set('status', status);
+
+      try {
+        const resp = await fetch('/api/v2/admin/onboarding?' + params.toString(), { cache: 'no-store' });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const items = Array.isArray(data) ? data : (data.candidates || []);
+        if (countEl) countEl.textContent = String(items.length);
+
+        if (!items.length) {
+          listEl.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 0.88rem;">В очереди модерации нет заявок по выбранному фильтру.</div>';
+          return;
+        }
+
+        listEl.innerHTML = items.map(cand => {
+          const isPending = cand.status === 'REVIEW_REQUIRED';
+          const links = cand.marketplace_links || [];
+          return `
+            <div class="admin-onboarding-card" style="display: flex; flex-direction: column; gap: 8px; background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 14px 16px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="font-weight: 700; font-size: 1rem; color: var(--text-main);">${escapeHtml(cand.name || 'Заявка')}</span>
+                  <span class="badge" style="background: var(--bg-card); color: var(--text-muted);">📍 ${escapeHtml(cand.city || 'Алматы')}</span>
+                  <span class="badge ${cand.status === 'APPROVED' ? 'badge-condition-new' : (cand.status === 'REJECTED' ? '' : 'badge-condition-used')}">
+                    ${cand.status === 'APPROVED' ? '✓ Одобрен' : (cand.status === 'REJECTED' ? '✕ Отклонён' : '⏳ Ожидает проверки')}
+                  </span>
+                </div>
+                ${isPending ? `
+                  <div style="display: flex; gap: 8px;">
+                    <button type="button" class="btn-primary" style="padding: 4px 12px; font-size: 0.82rem;" onclick="decisionAdminOnboarding('${escapeHtml(cand.id)}', 'APPROVED')">
+                      ✓ Одобрить
+                    </button>
+                    <button type="button" class="btn-secondary" style="padding: 4px 12px; font-size: 0.82rem; color: #ef4444;" onclick="decisionAdminOnboarding('${escapeHtml(cand.id)}', 'REJECTED')">
+                      ✕ Отклонить
+                    </button>
+                  </div>` : ''}
+              </div>
+              <div style="font-size: 0.82rem; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 12px;">
+                ${cand.phone ? `<span>📞 ${escapeHtml(cand.phone)}</span>` : ''}
+                ${cand.bin ? `<span>БИН: ${escapeHtml(cand.bin)}</span>` : ''}
+                ${cand.website_url ? `<span>🌐 <a href="${escapeHtml(cand.website_url)}" target="_blank" rel="noopener noreferrer" style="color:var(--primary);">${escapeHtml(cand.website_url)}</a></span>` : ''}
+                ${cand.instagram ? `<span>📸 ${escapeHtml(cand.instagram)}</span>` : ''}
+                ${cand.telegram ? `<span>✈️ ${escapeHtml(cand.telegram)}</span>` : ''}
+              </div>
+              ${links.length ? `
+                <div style="font-size: 0.8rem; color: var(--text-muted); word-break: break-all;">
+                  Маркетплейсы (${links.length}): ${links.map(l => `<a href="${escapeHtml(l)}" target="_blank" rel="noopener noreferrer" style="color:var(--primary); margin-right:8px;">${escapeHtml(l)}</a>`).join('')}
+                </div>` : ''}
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        listEl.innerHTML = '<div style="text-align: center; padding: 20px; color: #ef4444; font-size: 0.88rem;">Не удалось загрузить заявки на модерацию.</div>';
+      }
+    }
+
+    function addAdminMarketplaceLinkRow(url) {
+      const container = document.getElementById('adminSellerMarketplaceContainer');
+      if (!container) return;
+      const row = document.createElement('div');
+      row.className = 'admin-mp-row';
+      row.style.cssText = 'display: flex; gap: 8px; align-items: center;';
+      row.innerHTML = `
+        <input type="url" class="form-input admin-mp-input" style="flex: 1;" placeholder="https://kaspi.kz/shop/... или другая ссылка" value="${escapeHtml(url || '')}" />
+        <button type="button" class="btn-secondary" style="padding: 6px 10px; color: #ef4444;" onclick="this.closest('.admin-mp-row').remove()" title="Удалить ссылку">✕</button>
+      `;
+      container.appendChild(row);
+    }
+
+    async function openAdminShopModal(id) {
+      adminShopEditId = id || null;
+      const titleEl = document.getElementById('adminSellerModalTitle');
+      const errEl = document.getElementById('adminSellerErrorMsg');
+      const channelsBlock = document.getElementById('adminSellerChannelsBlock');
+      const channelsList = document.getElementById('adminSellerChannelsList');
+      const form = document.getElementById('adminSellerForm');
+      const mpContainer = document.getElementById('adminSellerMarketplaceContainer');
+
+      if (errEl) {
+        errEl.style.display = 'none';
+        errEl.textContent = '';
+      }
+      if (mpContainer) mpContainer.innerHTML = '';
+      if (form) form.reset();
+
+      if (!id) {
+        if (titleEl) titleEl.textContent = '🏪 Новый магазин';
+        if (channelsBlock) channelsBlock.style.display = 'none';
+        document.getElementById('adminSellerCity').value = AppState.city || 'Алматы';
+        document.getElementById('adminSellerIsActive').checked = true;
+        addAdminMarketplaceLinkRow('');
+      } else {
+        if (titleEl) titleEl.textContent = '🏪 Загрузка данных...';
+        try {
+          const resp = await fetch('/api/v2/admin/sellers/' + encodeURIComponent(id), { cache: 'no-store' });
+          if (!resp.ok) throw new Error('Не удалось загрузить данные магазина');
+          const data = await resp.json();
+          const shop = data.seller;
+          if (titleEl) titleEl.textContent = '🏪 ' + shop.name;
+
+          document.getElementById('adminSellerName').value = shop.name || '';
+          document.getElementById('adminSellerLegalName').value = shop.legal_name || '';
+          document.getElementById('adminSellerCity').value = shop.city || 'Алматы';
+          document.getElementById('adminSellerBin').value = shop.bin || '';
+          document.getElementById('adminSellerWebsite').value = shop.website_url || '';
+          document.getElementById('adminSellerPhone').value = shop.phone || '';
+          document.getElementById('adminSellerWhatsapp').value = shop.whatsapp || '';
+          document.getElementById('adminSellerInstagram').value = shop.instagram ? ('@' + shop.instagram) : '';
+          document.getElementById('adminSellerTelegram').value = shop.telegram ? ('@' + shop.telegram) : '';
+          document.getElementById('adminSellerContactPerson').value = shop.contact_person || '';
+          document.getElementById('adminSellerComment').value = shop.comment || '';
+          document.getElementById('adminSellerIsActive').checked = shop.is_active !== false;
+
+          const links = shop.marketplace_links || [];
+          if (links.length) {
+            links.forEach(addAdminMarketplaceLinkRow);
+          } else {
+            addAdminMarketplaceLinkRow('');
+          }
+
+          if (channelsBlock && channelsList) {
+            const channels = shop.channels || [];
+            if (channels.length) {
+              channelsBlock.style.display = 'block';
+              channelsList.innerHTML = channels.map(ch => {
+                const isCollecting = ch.status_label === 'В сборе';
+                return `
+                  <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+                    <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+                      <span class="badge" style="font-size: 0.72rem; text-transform: uppercase;">${escapeHtml(ch.channel_type)}</span>
+                      <span style="font-weight: 600; color: var(--text-main); text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${escapeHtml(ch.name || ch.channel_type)}</span>
+                      ${ch.base_url ? `<a href="${escapeHtml(ch.base_url)}" target="_blank" rel="noopener noreferrer" style="color: var(--primary); font-size: 0.78rem; text-decoration: none;">🔗</a>` : ''}
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+                      <span class="badge" style="font-size: 0.72rem; ${isCollecting ? 'background: rgba(16, 185, 129, 0.15); color: #10b981;' : 'background: var(--bg-subtle); color: var(--text-muted);'}">
+                        ${escapeHtml(ch.status_label || (ch.is_active ? 'Активен' : 'Отключён'))}
+                      </span>
+                      ${(ch.channel_type === 'instagram' || ch.channel_type === 'telegram') && ch.is_active ? `
+                        <button type="button" class="btn-secondary" style="padding: 2px 8px; font-size: 0.72rem;" onclick="fetchAdminChannelNow('${escapeHtml(id)}', '${escapeHtml(ch.id)}')">
+                          ⚡ Собрать
+                        </button>` : ''}
+                    </div>
+                  </div>
+                `;
+              }).join('');
+            } else {
+              channelsBlock.style.display = 'none';
+            }
+          }
+        } catch (e) {
+          if (errEl) {
+            errEl.style.display = 'block';
+            errEl.textContent = e.message || 'Ошибка загрузки магазина.';
+          }
+        }
+      }
+
+      const modal = document.getElementById('modalAdminSeller');
+      if (modal) modal.classList.add('open');
+    }
+
+    function closeAdminSellerModal() {
+      const modal = document.getElementById('modalAdminSeller');
+      if (modal) modal.classList.remove('open');
+      adminShopEditId = null;
+    }
+
+    async function submitAdminSellerForm(event) {
+      if (event) event.preventDefault();
+      const errEl = document.getElementById('adminSellerErrorMsg');
+      const saveBtn = document.getElementById('btnSaveAdminSeller');
+      if (errEl) {
+        errEl.style.display = 'none';
+        errEl.textContent = '';
+      }
+
+      const mpLinks = [...document.querySelectorAll('.admin-mp-input')]
+        .map(inp => inp.value.trim())
+        .filter(Boolean);
+
+      const body = {
+        name: (document.getElementById('adminSellerName')?.value || '').trim(),
+        legal_name: (document.getElementById('adminSellerLegalName')?.value || '').trim() || null,
+        city: (document.getElementById('adminSellerCity')?.value || 'Алматы').trim(),
+        bin: (document.getElementById('adminSellerBin')?.value || '').trim() || null,
+        website_url: (document.getElementById('adminSellerWebsite')?.value || '').trim() || null,
+        phone: (document.getElementById('adminSellerPhone')?.value || '').trim() || null,
+        whatsapp: (document.getElementById('adminSellerWhatsapp')?.value || '').trim() || null,
+        instagram: (document.getElementById('adminSellerInstagram')?.value || '').trim() || null,
+        telegram: (document.getElementById('adminSellerTelegram')?.value || '').trim() || null,
+        contact_person: (document.getElementById('adminSellerContactPerson')?.value || '').trim() || null,
+        comment: (document.getElementById('adminSellerComment')?.value || '').trim() || null,
+        is_active: !!document.getElementById('adminSellerIsActive')?.checked,
+        marketplace_links: mpLinks
+      };
+
+      if (!body.name) {
+        if (errEl) {
+          errEl.style.display = 'block';
+          errEl.textContent = 'Укажите название магазина.';
+        }
+        return;
+      }
+
+      if (saveBtn) saveBtn.disabled = true;
+
+      try {
+        const url = adminShopEditId
+          ? `/api/v2/admin/sellers/${encodeURIComponent(adminShopEditId)}`
+          : '/api/v2/admin/sellers';
+        const method = adminShopEditId ? 'PATCH' : 'POST';
+
+        const resp = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const data = await resp.json().catch(() => ({}));
+
+        if (!resp.ok || !data.ok) {
+          const msg = (data.errors && data.errors.join(' ')) || data.error || 'Ошибка при сохранении магазина.';
+          throw new Error(msg);
+        }
+
+        showToast(adminShopEditId ? 'Магазин успешно обновлён ✓' : 'Магазин успешно создан ✓');
+        closeAdminSellerModal();
+        await loadAdminSellers();
+      } catch (err) {
+        if (errEl) {
+          errEl.style.display = 'block';
+          errEl.textContent = err.message || 'Ошибка сохранения.';
+        }
+      } finally {
+        if (saveBtn) saveBtn.disabled = false;
+      }
+    }
+
+    async function decisionAdminOnboarding(candidateId, decision) {
+      try {
+        const resp = await fetch(`/api/v2/admin/onboarding/${encodeURIComponent(candidateId)}/decision`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ decision })
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data.ok) {
+          throw new Error(data.error || 'Ошибка при обработке заявки');
+        }
+        showToast(decision === 'APPROVED' ? 'Заявка магазина одобрена ✓' : 'Заявка отклонена');
+        await loadAdminOnboarding();
+        await loadAdminSellers();
+      } catch (err) {
+        showToast(err.message || 'Не удалось обновить статус заявки');
+      }
+    }
+
+    async function fetchAdminChannelNow(sellerId, channelId) {
+      try {
+        const resp = await fetch(`/api/v2/admin/sellers/${encodeURIComponent(sellerId)}/channels/${encodeURIComponent(channelId)}/fetch`, {
+          method: 'POST'
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (resp.ok && data.ok) {
+          showToast(data.message || 'Сбор поставлен в очередь ⚡');
+        } else {
+          showToast(data.error || 'Не удалось запустить сбор');
+        }
+      } catch (e) {
+        showToast('Ошибка при отправке запроса сбора');
       }
     }
 

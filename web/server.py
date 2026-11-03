@@ -2176,25 +2176,41 @@ def _with_db(fn):
         conn.close()
 
 
+@routes.get("/api/v2/admin/sellers")
 @routes.get("/api/admin/sellers")
 @require_admin
 async def admin_sellers_list_handler(request):
     """Магазины для редактора, включая отключённые."""
     from repositories.seller_repo import SellerRepository
     search = (request.query.get("search") or "").strip() or None
+    city = (request.query.get("city") or "").strip() or None
+    if city in ("Все", "Казахстан", "all"):
+        city = None
+    is_active_raw = request.query.get("is_active")
+    is_active = None
+    if is_active_raw is not None:
+        if is_active_raw.lower() in ("1", "true", "active"):
+            is_active = True
+        elif is_active_raw.lower() in ("0", "false", "inactive"):
+            is_active = False
+
     limit = _int_param(request, "limit", 100, minimum=1, maximum=200)
     offset = _int_param(request, "offset", 0, minimum=0, maximum=100000)
 
     def _load(conn):
         repo = SellerRepository(conn)
-        return repo.list_admin_sellers(search=search, limit=limit, offset=offset), repo.count_admin_sellers(search=search)
+        return (
+            repo.list_admin_sellers(search=search, city=city, is_active=is_active, limit=limit, offset=offset),
+            repo.count_admin_sellers(search=search, city=city, is_active=is_active),
+        )
 
     items, total = await asyncio.to_thread(_with_db, _load)
-    fields = ("id", "slug", "name", "domain", "phone", "city", "is_active", "channels_count", "offers_count")
+    fields = ("id", "slug", "name", "legal_name", "bin", "domain", "phone", "city", "is_active", "channels_count", "offers_count", "created_at", "updated_at")
     return web.json_response({"ok": True, "total": total,
                               "sellers": [{k: item.get(k) for k in fields} for item in items]})
 
 
+@routes.get("/api/v2/admin/sellers/{seller_id}")
 @routes.get("/api/admin/sellers/{seller_id}")
 @require_admin
 async def admin_seller_get_handler(request):
@@ -2223,6 +2239,7 @@ async def _save_seller_response(request, seller_id):
     return web.json_response({"ok": True, "seller": seller}, status=200 if seller_id else 201)
 
 
+@routes.post("/api/v2/admin/sellers")
 @routes.post("/api/admin/sellers")
 @require_admin
 async def admin_seller_create_handler(request):
@@ -2230,11 +2247,128 @@ async def admin_seller_create_handler(request):
     return await _save_seller_response(request, None)
 
 
+@routes.put("/api/v2/admin/sellers/{seller_id}")
+@routes.patch("/api/v2/admin/sellers/{seller_id}")
 @routes.put("/api/admin/sellers/{seller_id}")
+@routes.patch("/api/admin/sellers/{seller_id}")
 @require_admin
 async def admin_seller_update_handler(request):
     """Правка магазина. Сканирование и склейку не запускает."""
     return await _save_seller_response(request, request.match_info["seller_id"])
+
+
+@routes.post("/api/v2/admin/sellers/{seller_id}/channels")
+@require_admin
+async def admin_seller_create_channel_handler(request):
+    """Добавление канала к магазину."""
+    seller_id = request.match_info["seller_id"]
+    try:
+        body = await request.json()
+    except Exception:
+        return web.json_response({"ok": False, "error": "Ожидается JSON"}, status=400)
+
+    channel_type = str(body.get("channel_type") or "website").strip().lower()
+    name = str(body.get("name") or "").strip()
+    base_url = str(body.get("base_url") or "").strip() or None
+    external_store_id = str(body.get("external_store_id") or "").strip() or None
+    if not name:
+        name = f"Канал {channel_type}"
+
+    def _create(conn):
+        from repositories.seller_repo import SellerRepository
+        from repositories.channel_repo import ChannelRepository
+        if not SellerRepository(conn).get_by_id(seller_id):
+            return None
+        repo = ChannelRepository(conn)
+        channel = repo.get_or_create(
+            seller_id=seller_id,
+            channel_type=channel_type,
+            name=name,
+            external_store_id=external_store_id,
+            base_url=base_url,
+        )
+        channel.is_active = bool(body.get("is_active", True))
+        channel.name = name
+        channel.base_url = base_url
+        repo.save_or_update(channel)
+        conn.commit()
+        return channel.to_dict()
+
+    res = await asyncio.to_thread(_with_db, _create)
+    if not res:
+        return web.json_response({"ok": False, "error": "Магазин не найден"}, status=404)
+    return web.json_response({"ok": True, "channel": res}, status=201)
+
+
+@routes.patch("/api/v2/admin/sellers/{seller_id}/channels/{channel_id}")
+@require_admin
+async def admin_seller_update_channel_handler(request):
+    """Обновление параметров канала."""
+    seller_id = request.match_info["seller_id"]
+    channel_id = request.match_info["channel_id"]
+    try:
+        body = await request.json()
+    except Exception:
+        return web.json_response({"ok": False, "error": "Ожидается JSON"}, status=400)
+
+    def _update(conn):
+        from repositories.channel_repo import ChannelRepository
+        repo = ChannelRepository(conn)
+        ch = repo.get_by_id(channel_id)
+        if not ch or ch.seller_id != seller_id:
+            return None
+        updated = repo.update_channel(channel_id, body)
+        conn.commit()
+        return updated.to_dict() if updated else None
+
+    res = await asyncio.to_thread(_with_db, _update)
+    if not res:
+        return web.json_response({"ok": False, "error": "Канал не найден"}, status=404)
+    return web.json_response({"ok": True, "channel": res})
+
+
+@routes.delete("/api/v2/admin/sellers/{seller_id}/channels/{channel_id}")
+@require_admin
+async def admin_seller_delete_channel_handler(request):
+    """Мягкое отключение канала."""
+    seller_id = request.match_info["seller_id"]
+    channel_id = request.match_info["channel_id"]
+
+    def _delete(conn):
+        from repositories.channel_repo import ChannelRepository
+        repo = ChannelRepository(conn)
+        ch = repo.get_by_id(channel_id)
+        if not ch or ch.seller_id != seller_id:
+            return False
+        res = repo.delete_channel(channel_id)
+        conn.commit()
+        return res
+
+    res = await asyncio.to_thread(_with_db, _delete)
+    if not res:
+        return web.json_response({"ok": False, "error": "Канал не найден"}, status=404)
+    return web.json_response({"ok": True, "deleted": True})
+
+
+@routes.post("/api/v2/admin/sellers/{seller_id}/channels/{channel_id}/fetch")
+@require_admin
+async def admin_seller_channel_fetch_now_handler(request):
+    """Инициирует разовый сбор соцсети для канала (Instagram / Telegram)."""
+    channel_id = request.match_info["channel_id"]
+
+    def _fetch(conn):
+        from repositories.social_source_repo import SocialSourceRepository
+        repo = SocialSourceRepository(conn)
+        soc = repo.get_by_channel_id(channel_id)
+        if not soc:
+            return {"ok": False, "error": "Источник соцсети для канала не найден"}
+        soc.last_status = "queued"
+        repo.save_source(soc)
+        conn.commit()
+        return {"ok": True, "message": f"Сбор для {soc.platform}:{soc.handle} поставлен в очередь"}
+
+    res = await asyncio.to_thread(_with_db, _fetch)
+    return web.json_response(res, status=200 if res.get("ok") else 400)
 
 
 @routes.get("/api/v2/admin/onboarding")
