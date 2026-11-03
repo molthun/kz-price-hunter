@@ -245,6 +245,35 @@ class TestCatalogClassifier(unittest.TestCase):
                 if exp_brand:
                     self.assertEqual(res.brand, exp_brand, f"Бренд не совпал для '{title}': получили {res.brand}, ожидали {exp_brand}")
 
+    def test_diaper_pants_brands_and_series(self):
+        """Проверяет классификацию трусиков-подгузников, распознавание брендов и извлечение серий."""
+        cases = [
+            # Title, expected category, expected brand, expected clean series/model
+            ("Трусики Joonies Premium Soft M (6-11 кг) 58 шт.", "diapers_hygiene", "Joonies", "Premium Soft"),
+            ("Трусики Joonies Marshmallow XL (12-17 кг) 36 шт.", "diapers_hygiene", "Joonies", "Marshmallow"),
+            ("Трусики Joonies Magic Night (ночные) M, 24 шт", "diapers_hygiene", "Joonies", "Magic Night"),
+            ("Huggies трусики 6 (16-22 кг) для девочек № 44 шт", "diapers_hygiene", "Huggies", None),
+            ("Huggies подгузники Ultra Comfort 4 (8-14кг) для мальчиков № 19 шт", "diapers_hygiene", "Huggies", "Ultra Comfort"),
+            ("Huggies подгузники Elite Soft 2 (4-6 кг) 82 шт", "diapers_hygiene", "Huggies", "Elite Soft"),
+            ("Подгузники-трусики Pampers Jumbo Pack 5 12-17 кг 42 шт", "diapers_hygiene", "Pampers", "Jumbo Pack"),
+            ("Подгузники Sachiko L 50 шт", "diapers_hygiene", "Sachiko", None),
+            ("Подгузники Emiko Premium Soft M (6-11 кг) 64 шт.", "diapers_hygiene", "Emiko", "Premium Soft"),
+            ("Подгузники-трусики Мама Знает Стандарт XXL, 6, 40 шт", "diapers_hygiene", "Мама Знает", "Стандарт"),
+            ("Подгузники-трусики Manu 5 (12-17 кг) 40 шт.", "diapers_hygiene", "MANU", None),
+            ("YokoSun Подгузники Premium NB (0-5 кг) 36 шт", "diapers_hygiene", "YokoSun", "Premium"),
+            # Защита: женские менструальные трусики уходят в beauty, не в подгузники
+            ("Менструальные трусики Joonies гигиенические для женщин, M/L 60-100 см, 3 шт", "beauty", "Joonies", None),
+            # Защита: детский набор белья уходит в shoes/clothes, не в подгузники
+            ("kari Набор лиф и трусики детский для девочек A99464-2", "shoes", None, None),
+        ]
+        for title, exp_cat, exp_brand, exp_model in cases:
+            with self.subTest(title=title):
+                res = self.classifier.classify_rules(title)
+                self.assertIsNotNone(res, f"Не удалось классифицировать '{title}'")
+                self.assertEqual(res.category_id, exp_cat, f"Категория не совпала для '{title}': got {res.category_id}, exp {exp_cat}")
+                self.assertEqual(res.brand, exp_brand, f"Бренд не совпал для '{title}': got {res.brand}, exp {exp_brand}")
+                self.assertEqual(res.model, exp_model, f"Модель не совпала для '{title}': got {res.model}, exp {exp_model}")
+
 
 if __name__ == "__main__":
     unittest.main()

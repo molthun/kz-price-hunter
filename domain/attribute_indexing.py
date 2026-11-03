@@ -36,9 +36,29 @@ ATTRIBUTE_LABELS: Dict[str, str] = {
     'control_panel': 'Панель управления',
     'capacity': 'Объем',
     'diameter': 'Диаметр',
+    # Подгузники и гигиена для малышей
+    'diaper_type': 'Тип',
+    'diaper_size': 'Размер',
+    'weight_range': 'Вес ребенка',
+    'pieces_count': 'Количество в упаковке',
 }
 
 FACT_KEY_MAP: Dict[str, Tuple[str, str]] = {
+    # Подгузники и гигиена для малышей
+    'тип': ('diaper_type', 'Тип'),
+    'тип подгузников': ('diaper_type', 'Тип'),
+    'вид подгузников': ('diaper_type', 'Тип'),
+    'размер': ('diaper_size', 'Размер'),
+    'размер подгузников': ('diaper_size', 'Размер'),
+    'размер подгузника': ('diaper_size', 'Размер'),
+    'вес ребенка': ('weight_range', 'Вес ребенка'),
+    'вес малыша': ('weight_range', 'Вес ребенка'),
+    'минимальный вес ребенка': ('weight_range', 'Вес ребенка'),
+    'максимальный вес ребенка': ('weight_range', 'Вес ребенка'),
+    'количество в упаковке': ('pieces_count', 'Количество в упаковке'),
+    'количество штук в упаковке': ('pieces_count', 'Количество в упаковке'),
+    'количество': ('pieces_count', 'Количество в упаковке'),
+
     # Память и накопители
     'размер встроенной памяти': ('storage', 'Встроенная память'),
     'объем встроенной памяти': ('storage', 'Встроенная память'),
@@ -154,6 +174,56 @@ def normalize_attribute_value(key: str, raw_value: Any) -> Optional[str]:
     if key in ('chipset', 'socket'):
         return ' '.join(val.split())
 
+    # Подгузники и гигиена для малышей
+    if key == 'diaper_type':
+        low = val.casefold()
+        if 'ночн' in low or 'magic night' in low:
+            return 'Ночные трусики'
+        if 'плаван' in low or 'swimming' in low or 'aqua' in low:
+            return 'Трусики для плавания'
+        if 'трусик' in low:
+            return 'Подгузники-трусики'
+        if 'пеленк' in low:
+            return 'Одноразовые пеленки'
+        if 'подгузн' in low or 'памперс' in low:
+            return 'Подгузники'
+
+    if key == 'diaper_size':
+        low = val.strip()
+        if re.search(r'(?i)\b(?:0|nb|newborn|0\+|новорожденн\w*)\b', low):
+            return '0 (NB)'
+        if re.search(r'(?i)\b(?:1)\b', low):
+            return '1'
+        if re.search(r'(?i)\b(?:2|s|b2)\b', low):
+            return '2 (S)'
+        if re.search(r'(?i)\b(?:3|m|b3|d3)\b', low):
+            return '3 (M)'
+        if re.search(r'(?i)\b(?:4|l|e4)\b', low):
+            return '4 (L)'
+        if re.search(r'(?i)\b(?:5|xl)\b', low):
+            return '5 (XL)'
+        if re.search(r'(?i)\b(?:6|xxl|2xl)\b', low):
+            return '6 (XXL)'
+        if re.search(r'(?i)\b(?:7|xxxl|3xl)\b', low):
+            return '7 (XXXL)'
+
+    if key == 'weight_range':
+        m_range = re.search(r'(\d+(?:\.\d+)?)\s*[-–]\s*(\d+(?:\.\d+)?)\s*кг', val, re.IGNORECASE)
+        if m_range:
+            return f"{m_range.group(1)}-{m_range.group(2)} кг"
+        m_to = re.search(r'до\s*(\d+(?:\.\d+)?)\s*кг', val, re.IGNORECASE)
+        if m_to:
+            return f"до {m_to.group(1)} кг"
+        m_plus = re.search(r'(\d+(?:\.\d+)?)\s*\+\s*кг|(\d+(?:\.\d+)?)\s*кг\+', val, re.IGNORECASE)
+        if m_plus:
+            num = m_plus.group(1) or m_plus.group(2)
+            return f"{num}+ кг"
+
+    if key == 'pieces_count':
+        m_pc = re.search(r'(\d+)\s*(?:шт|штук|pcs)?', val, re.IGNORECASE)
+        if m_pc:
+            return f"{m_pc.group(1)} шт."
+
     return val[:80]
 
 
@@ -216,6 +286,70 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
     m_scr = re.search(r'\b(5\.[4-9]|6\.[1-9]|7\.[0-9]|1[1-7]\.[0-9]|2[4-9]|3[2-4])\s*(?:"|\'\'|дюйм)', title)
     if m_scr:
         attrs['screen_size'] = f'{m_scr.group(1)}"'
+
+    # 6. Подгузники и детская гигиена
+    is_diaper = bool(re.search(
+        r'\b(подгузник\w*|трусик\w*|памперс\w*|пеленк\w*|joonies|yokosun|huggies|merries|sachiko|emiko|manu|lovular|senso\s+baby|мама\s+знает)\b',
+        title,
+        re.I
+    )) and not bool(re.search(r'\b(менструальн|прокладк|набор\s+(?:лиф|майк)|трусы\s+детск)\b', title, re.I))
+
+    if is_diaper:
+        # Тип
+        if re.search(r'(?i)\b(ночные\s+трусики|magic\s+night)\b', title):
+            attrs['diaper_type'] = 'Ночные трусики'
+        elif re.search(r'(?i)\b(для\s+плавания|swimming|aqua)\b', title):
+            attrs['diaper_type'] = 'Трусики для плавания'
+        elif re.search(r'(?i)\b(подгузники-трусики|трусики-подгузники|трусик\w*)\b', title):
+            attrs['diaper_type'] = 'Подгузники-трусики'
+        elif re.search(r'(?i)\b(пеленк\w*)\b', title):
+            attrs['diaper_type'] = 'Одноразовые пеленки'
+        elif re.search(r'(?i)\b(подгузник\w*|памперс\w*)\b', title):
+            attrs['diaper_type'] = 'Подгузники'
+
+        # Вес ребенка
+        m_w = re.search(r'(\d+(?:\.\d+)?\s*[-–]\s*\d+(?:\.\d+)?\s*кг|до\s*\d+(?:\.\d+)?\s*кг|\d+(?:\.\d+)?\s*кг\+|\d+(?:\.\d+)?\s*\+\s*кг)', title, re.I)
+        if m_w:
+            norm_w = normalize_attribute_value('weight_range', m_w.group(1))
+            if norm_w:
+                attrs['weight_range'] = norm_w
+
+        # Размер
+        if re.search(r'(?i)\b(?:0\+|nb|newborn|для\s+новорожденных)\b', title):
+            attrs['diaper_size'] = '0 (NB)'
+        elif re.search(r'(?i)\b(?:xxxl|3xl)\b', title):
+            attrs['diaper_size'] = '7 (XXXL)'
+        elif re.search(r'(?i)\b(?:xxl|2xl)\b', title):
+            attrs['diaper_size'] = '6 (XXL)'
+        elif re.search(r'(?i)\b(?:xl)\b', title):
+            attrs['diaper_size'] = '5 (XL)'
+        elif re.search(r'(?i)\b(?:l)\b', title):
+            attrs['diaper_size'] = '4 (L)'
+        elif re.search(r'(?i)\b(?:m)\b', title):
+            attrs['diaper_size'] = '3 (M)'
+        elif re.search(r'(?i)\b(?:s)\b', title):
+            attrs['diaper_size'] = '2 (S)'
+        else:
+            m_num = re.search(r'(?i)(?:размер\s*|трусики\s+|подгузники\s+(?:elite\s+soft\s+|ultra\s+comfort\s+)?|\b)([0-7])\b(?:\s*мал\.|\s*дев\.|\s*\([^\)]*кг|\s*,|\s+\d+[-–]\d+\s*кг|\s*\d+\s*кг\+)', title)
+            if not m_num:
+                m_num = re.search(r'(?i)\b(?:размер\s*|размера\s*)([0-7])\b', title)
+            if not m_num:
+                m_num = re.search(r'(?i)\b([bde])([2-4])\b', title)
+                if m_num:
+                    norm_sz = normalize_attribute_value('diaper_size', m_num.group(2))
+                    if norm_sz:
+                        attrs['diaper_size'] = norm_sz
+            if m_num and 'diaper_size' not in attrs:
+                norm_sz = normalize_attribute_value('diaper_size', m_num.group(1))
+                if norm_sz:
+                    attrs['diaper_size'] = norm_sz
+
+        # Количество штук в упаковке
+        m_pcs = re.search(r'(?i)(?:№\s*(\d+)\s*шт|\b(\d+)\s*(?:шт|штук)\b|\b(\d+)\s*шт\*\d+)', title)
+        if m_pcs:
+            val_pc = m_pcs.group(1) or m_pcs.group(2) or m_pcs.group(3)
+            if val_pc:
+                attrs['pieces_count'] = f"{val_pc} шт."
 
     return attrs
 

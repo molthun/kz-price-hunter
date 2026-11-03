@@ -247,9 +247,72 @@ KNOWN_BRANDS: Dict[str, str] = {
 
     # Baby & Kids (Детский мир и Kaspi)
     "pampers": "Pampers",
+    "памперс": "Pampers",
     "huggies": "Huggies",
+    "хаггис": "Huggies",
     "merries": "Merries",
+    "меррис": "Merries",
     "yokosun": "YokoSun",
+    "йокосан": "YokoSun",
+    "йокосун": "YokoSun",
+    "joonies": "Joonies",
+    "джунис": "Joonies",
+    "emiko": "Emiko",
+    "эмико": "Emiko",
+    "sachiko": "Sachiko",
+    "сачико": "Sachiko",
+    "мама знает": "Мама Знает",
+    "mama znaet": "Мама Знает",
+    "manu": "MANU",
+    "мани": "MANU",
+    "ману": "MANU",
+    "moony": "Moony",
+    "муни": "Moony",
+    "mepsi": "Mepsi",
+    "мепси": "Mepsi",
+    "lovular": "Lovular",
+    "ловулар": "Lovular",
+    "offspring": "Offspring",
+    "оффспринг": "Offspring",
+    "tanoshi": "Tanoshi",
+    "таноши": "Tanoshi",
+    "bella baby happy": "Bella Baby Happy",
+    "белла бэби": "Bella Baby Happy",
+    "kenshi": "Kenshi",
+    "кенши": "Kenshi",
+    "goo.n": "Goo.N",
+    "goon": "Goo.N",
+    "гуун": "Goo.N",
+    "senso baby": "Senso Baby",
+    "сенсо бэби": "Senso Baby",
+    "kioki": "Kioki",
+    "киоки": "Kioki",
+    "momi": "Momi",
+    "моми": "Momi",
+    "insoftb": "Insoftb",
+    "инсофтб": "Insoftb",
+    "mioki": "Mioki",
+    "миоки": "Mioki",
+    "bambo nature": "Bambo Nature",
+    "бамбо нейче": "Bambo Nature",
+    "libero": "Libero",
+    "либеро": "Libero",
+    "nappyclub": "NappyClub",
+    "нэппиклаб": "NappyClub",
+    "watashi": "Watashi",
+    "ваташи": "Watashi",
+    "kunder": "Kunder",
+    "кундер": "Kunder",
+    "tomiko": "Tomiko",
+    "томико": "Tomiko",
+    "mittiko": "Mittiko",
+    "миттико": "Mittiko",
+    "bafuri": "BAFURI",
+    "бафури": "BAFURI",
+    "pandi": "Pandi",
+    "панди": "Pandi",
+    "helen harper": "Helen Harper",
+    "хелен харпер": "Helen Harper",
     "juno": "Juno",
     "friso": "Friso",
     "nan": "NAN",
@@ -286,9 +349,28 @@ _BRAND_PATTERN = re.compile(
 
 # Product Type keyword rules: Title keywords -> Category ID
 _TITLE_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
+    # Женская гигиена и белье (защита от ложного захвата детскими подгузниками)
+    (re.compile(r"\b(менструальн(?:ые|ый|ую)\s+трусик(?:и)?|прокладк(?:и|ек|а))\b", re.I), "beauty"),
+    (re.compile(r"\b(набор\s+(?:лиф|майк\w*)\s+и\s+трусик\w*|детск\w*\s+трусы|трусы\s+детск\w*|трусы-боксеры)\b", re.I), "shoes"),
+
     # Baby & Kids (Товары для малышей: Детский мир и Kaspi) - проверяем до косметики, чтобы детский крем/шампунь не улетали в beauty
     (re.compile(r"\b(ванночк(?:а|и)\s+детск(?:ая|ие)|ванночк(?:а|и)\s+для\s+купания|горка\s+для\s+купания|круг\s+для\s+купания|детск(?:ий|ая|ое)\s+(?:крем|мыло|шампунь|пенка)|крем\s+под\s+подгузник|присыпк(?:а|и)\s+детск(?:ая|ие)|аспиратор\s+назальный\s+детский)\b", re.I), "baby_bath_care"),
-    (re.compile(r"(?<!под\s)\b(подгузник(?:и|ов)?|трусики-подгузники|памперс(?:ы|ов)?|одноразов(?:ые|ая)\s+пеленк(?:а|и)|детск(?:ий|ие)\s+горшок|горшок\s+детский)\b", re.I), "diapers_hygiene"),
+    (re.compile(
+        r"(?<!под\s)\b("
+        r"подгузник(?:и|ов|а)?|"
+        r"подгузники-трусики|"
+        r"трусики-подгузники|"
+        r"памперс(?:ы|ов)?|"
+        r"ночные\s+трусики|"
+        r"трусики\s+для\s+плавания|"
+        r"детск(?:ие|их|ий)\s+трусик(?:и|ов)|"
+        r"одноразов(?:ые|ая)\s+пеленк(?:а|и)|"
+        r"детск(?:ий|ие)\s+горшок|"
+        r"горшок\s+детский|"
+        r"трусик(?:и|ов)(?=\s+(?:[a-zA-Zа-яА-ЯёЁ]+|\d)\b)"
+        r")\b",
+        re.I
+    ), "diapers_hygiene"),
     (re.compile(r"\b(детск(?:ое|ая|ие)\s+питани(?:е|я)|молочн(?:ая|ые)\s+смес(?:ь|и)|смесь\s+для\s+новорожденных|(?:детск(?:ая|ие|ую)\s+)?каш(?:а|и|у)|каша\s+молочн\w*|детск(?:ое|ие)\s+пюре|пюре\s+детское)\b", re.I), "baby_food"),
     (re.compile(r"\b(бутылочк(?:а|и)\s+для\s+кормления|поильник(?:и)?|пустышк(?:а|и)|соск(?:а|и)-пустышк(?:а|и)|слюнявчик(?:и)?|нагрудник\s+детский|молокоотсос(?:ы)?|подогреватель\s+бутылочек|стерилизатор\s+бутылочек|стульчик\s+для\s+кормления)\b", re.I), "baby_feeding"),
     (re.compile(r"\b(детск(?:ая|ие)\s+кроватк(?:а|и)|кроватка-трансформер|пеленальн(?:ый|ые)\s+столик|пеленальный\s+комод|детск(?:ий|ие)\s+манеж(?:и)?|детск(?:ий|ие)\s+шезлонг(?:и)?|электрокачели\s+детские|радионян(?:я|и)|видеонян(?:я|и)|кокон\s+для\s+новорожденных)\b", re.I), "nursery_sleep"),
@@ -823,7 +905,7 @@ KNOWN_MODEL_FAMILIES: List[Tuple[re.Pattern, str]] = [
 # Patterns stripped from title when constructing fallback clean model
 _MODEL_STRIP_PATTERNS = [
     # Category words
-    r"\b(смартфон|сотовый телефон|мобильный телефон|ноутбук|ультрабук|планшет|пылесос|беспроводн(?:ой|ые|ая)|вертикальный|робот-пылесос|телевизор|видеокарта|наушники|смарт-часы|умные часы|монитор|холодильник|стиральная машина|кондиционер|кастрюл(?:я|и)|сковород(?:а|ы))\b",
+    r"\b(смартфон|сотовый телефон|мобильный телефон|ноутбук|ультрабук|планшет|пылесос|беспроводн(?:ой|ые|ая)|вертикальный|робот-пылесос|телевизор|видеокарта|наушники|смарт-часы|умные часы|монитор|холодильник|стиральная машина|кондиционер|кастрюл(?:я|и)|сковород(?:а|ы)|набор\s+(?:лиф|майк\w*)\s+и\s+трусик\w*|детск\w*\s+трусы|трусы\s+детск\w*|детск(?:ий|ие|ая|ое)|для\s+девочек|для\s+мальчиков)\b",
     # Compatibility clauses
     r"\b(?:для|for|на)\s+.*$",
     # Memory, storage, specs
@@ -844,6 +926,81 @@ _MODEL_STRIP_PATTERNS = [
     r"\b(global\s+version|global|рст|оригинал|original|новинка|new|eu|ru|kz)\b",
     r"\b(с\s+кейсом|case|aluminum|stainless\s+steel)\b",
 ]
+
+DIAPER_SERIES_FAMILIES: List[Tuple[re.Pattern, str]] = [
+    # Joonies & General Series
+    (re.compile(r"\bpremium\s+soft\b", re.I), "Premium Soft"),
+    (re.compile(r"\bmarshmallow\b", re.I), "Marshmallow"),
+    (re.compile(r"\bmagic\s+night\b|\bночные\b", re.I), "Magic Night"),
+    (re.compile(r"\broyal\s+boo\b", re.I), "Royal Boo"),
+    (re.compile(r"\bultra\s+comfort\b", re.I), "Ultra Comfort"),
+    (re.compile(r"\bcomfort\b", re.I), "Comfort"),
+
+    # Huggies
+    (re.compile(r"\belite\s+soft\b", re.I), "Elite Soft"),
+    (re.compile(r"\bdrynites\b", re.I), "DryNites"),
+    (re.compile(r"\bextra\s+care\b", re.I), "Extra Care"),
+    (re.compile(r"\bclassic\b", re.I), "Classic"),
+    (re.compile(r"\bpants\b", re.I), "Pants"),
+
+    # Pampers
+    (re.compile(r"\bpremium\s+care\b", re.I), "Premium Care"),
+    (re.compile(r"\bactive\s+baby[\s\-]dry\b|\bbaby[\s\-]dry\b", re.I), "Active Baby-Dry"),
+    (re.compile(r"\bpure\s+protection\b|\bharmonie\b", re.I), "Harmonie"),
+    (re.compile(r"\bsleep\s*&\s*play\b", re.I), "Sleep & Play"),
+    (re.compile(r"\bjumbo\s+pack\b", re.I), "Jumbo Pack"),
+
+    # YokoSun
+    (re.compile(r"\bpremium\b", re.I), "Premium"),
+    (re.compile(r"\beco\b", re.I), "Eco"),
+
+    # Lovular
+    (re.compile(r"\bhot\s+wind\b", re.I), "Hot Wind"),
+    (re.compile(r"\bsolar\b", re.I), "Solar"),
+    (re.compile(r"\bgiraffe\b", re.I), "Giraffe"),
+
+    # Moony
+    (re.compile(r"\bnatural\b", re.I), "Natural"),
+    (re.compile(r"\bair\s+fit\b", re.I), "Air Fit"),
+
+    # Merries
+    (re.compile(r"\bfirst\s+premium\b", re.I), "First Premium"),
+    (re.compile(r"\bgood\s+skin\b", re.I), "Good Skin"),
+
+    # Мама Знает
+    (re.compile(r"\bультратонк(?:ие|ая)\b", re.I), "Ультратонкие"),
+    (re.compile(r"\bстандарт\b", re.I), "Стандарт"),
+
+    # Senso Baby
+    (re.compile(r"\becoline\b", re.I), "Ecoline"),
+    (re.compile(r"\bbaby\s+mom\s+econom\b", re.I), "Baby Mom Econom"),
+]
+
+
+def extract_diaper_series(title: str, brand: Optional[str] = None) -> Optional[str]:
+    """Извлекает чистую серию/линейку подгузников (Premium Soft, Elite Soft, etc.) без упаковочного шума."""
+    if not title:
+        return None
+    for pat, name in DIAPER_SERIES_FAMILIES:
+        if pat.search(title):
+            return name
+    res = title
+    if brand:
+        res = re.sub(r"\b" + re.escape(brand) + r"\b", "", res, flags=re.I)
+    res = re.sub(r"\b(подгузники-трусики|трусики-подгузники|подгузник(?:и|ов|а)?|трусик(?:и|ов)|ночные\s+трусики|одноразов(?:ые|ая)\s+пеленк(?:а|и))\b", "", res, flags=re.I)
+    res = re.sub(r"\b(детск(?:ие|их|ий|ое)|для\s+детей|для\s+мальчиков|для\s+девочек|для\s+новорожденных|новорожденных)\b", "", res, flags=re.I)
+    res = re.sub(r"\b(nb|new\s*born|mini|midi|maxi|junior|размер\s*\d+|[sml]|xl|xxl|2xl|xxxl|3xl|\b[0-7]\b)\b", "", res, flags=re.I)
+    res = re.sub(r"\b(?:\(?\d+[-–]\d+\s*кг\)?|\(?до\s*\d+(?:\.\d+)?\s*кг\)?|\(?\d+\+?\s*кг\)?)\b", "", res, flags=re.I)
+    res = re.sub(r"\b(?:\d+\s*(?:шт|штук)|№\s*\d+|\d+\s*шт\*\d+)\b", "", res, flags=re.I)
+    res = re.sub(r"\b(п/эт|пакет|упаковка|пак|с\s+кремом|бальзамом|влажные)\b", "", res, flags=re.I)
+    res = re.sub(r"[/\\,\-\+\:\;\s\.\(\)\[\]«»\"]+", " ", res).strip()
+    words = res.split()
+    if not words or len(words) > 3:
+        return None
+    cand = " ".join(words)
+    if len(cand) < 3 or cand.isdigit():
+        return None
+    return cand.title()
 
 
 def extract_clean_model(
@@ -874,6 +1031,14 @@ def extract_clean_model(
         apple_mod = extract_apple_canonical_model(main_title)
         if apple_mod:
             return apple_mod
+
+    # Нижнее белье и женская гигиена не получают модель устройства
+    if re.search(r"\b(набор\s+(?:лиф|майк)|детск\w*\s+трусы|трусы\s+детск|менструальн|прокладк)\b", main_title, re.I):
+        return None
+
+    # Подгузники и гигиена для малышей: извлекаем только чистую серию, без упаковочных деталей
+    if category in ("diapers_hygiene", "baby_care", "Подгузники и гигиена", "Товары для малышей") or re.search(r"\b(подгузник\w*|трусик\w*|памперс\w*|пеленк\w*)\b", main_title, re.I):
+        return extract_diaper_series(main_title, brand=brand)
 
     # 1. Поиск по известным семействам моделей
     for pat, fam in KNOWN_MODEL_FAMILIES:

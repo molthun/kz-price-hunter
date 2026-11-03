@@ -184,12 +184,63 @@ def extract(html,url,title,shop=''):
     return dict(status='ready' if has_payload else 'empty',facts=clean_list,images=images,description=text,source_url=url,source_title=str(node.get('name','') if node else heading)[:300])
 
 
+def enrich_facts_with_canonical_attributes(conn, pid: str, facts: List[Dict[str, Any]], title: str) -> List[Dict[str, Any]]:
+    existing_names = {f['name'].casefold() for f in facts if isinstance(f, dict) and f.get('name')}
+    res = list(facts)
+    try:
+        row = conn.execute("SELECT brand, model, category FROM canonical_products WHERE id = ?", (pid,)).fetchone()
+        if row:
+            brand, model, cat = row[0], row[1], row[2]
+            if brand and 'бренд' not in existing_names:
+                res.insert(0, {'name': 'Бренд', 'value': brand, 'source_url': ''})
+                existing_names.add('бренд')
+            if model and 'модель' not in existing_names and model != title:
+                res.append({'name': 'Модель', 'value': model, 'source_url': ''})
+                existing_names.add('модель')
+    except Exception:
+        pass
+
+    try:
+        from domain.attribute_indexing import ATTRIBUTE_LABELS
+        attr_rows = conn.execute(
+            "SELECT key, value FROM product_search_attributes WHERE product_id = ?",
+            (pid,)
+        ).fetchall()
+        for k, v in attr_rows:
+            label = ATTRIBUTE_LABELS.get(k, k)
+            if label.casefold() not in existing_names and v:
+                res.append({'name': label, 'value': v, 'source_url': ''})
+                existing_names.add(label.casefold())
+    except Exception:
+        pass
+
+    if len(res) < 3 and title:
+        try:
+            from domain.attribute_indexing import extract_title_attributes, ATTRIBUTE_LABELS
+            title_attrs = extract_title_attributes(title)
+            for k, v in title_attrs.items():
+                label = ATTRIBUTE_LABELS.get(k, k)
+                if label.casefold() not in existing_names and v:
+                    res.append({'name': label, 'value': v, 'source_url': ''})
+                    existing_names.add(label.casefold())
+        except Exception:
+            pass
+
+    return res
+
+
 def stored(conn,pid):
     row=conn.execute('SELECT signature,facts_json,images_json,sources_json,status,checked_at,next_attempt FROM product_source_evidence WHERE product_id=?',(pid,)).fetchone()
-    current=conn.execute(f'SELECT {SOURCE_SIGNATURE} FROM canonical_products p WHERE id=?',(pid,)).fetchone()
-    if not row or not current or row[0]!=current[0]:return None
+    current=conn.execute(f'SELECT {SOURCE_SIGNATURE}, title FROM canonical_products p WHERE id=?',(pid,)).fetchone()
+    if not row or not current or row[0]!=current[0]:
+        if current and current[1]:
+            synth_facts = enrich_facts_with_canonical_attributes(conn, pid, [], current[1])
+            if synth_facts:
+                return dict(facts=sanitize_facts(synth_facts),images=[],sources=[],status='ready',checked_at=time.time(),next_attempt=time.time()+86400)
+        return None
     raw_facts=json.loads(row[1]) if row[1] else []
-    return dict(facts=sanitize_facts(raw_facts),images=json.loads(row[2]),sources=json.loads(row[3]),status=row[4],checked_at=row[5],next_attempt=row[6])
+    clean_facts=enrich_facts_with_canonical_attributes(conn, pid, raw_facts, current[1] if current else '')
+    return dict(facts=sanitize_facts(clean_facts),images=json.loads(row[2]),sources=json.loads(row[3]),status=row[4],checked_at=row[5],next_attempt=row[6])
 
 
 def summary(facts,limit=400):

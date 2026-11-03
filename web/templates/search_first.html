@@ -7118,29 +7118,53 @@
       listEl.innerHTML = html;
     }
 
+    function onDynamicAttrFacetSelected(key, val) {
+      if (val) AppState.attributes[key] = val;
+      else delete AppState.attributes[key];
+      AppState.page = 1;
+      updateSearchUrl();
+      executeSearch();
+    }
+
     function renderAttributeFilters(data) {
       const container = document.getElementById('dynamicAttributeFilters');
+      if (!container) return;
       container.replaceChildren();
       const fields = data.attribute_facets || [];
       fields.forEach(field => {
         const group = document.createElement('div'); group.className = 'filter-group';
-        const label = document.createElement('label'); label.className = 'filter-title';
+        const label = document.createElement('div'); label.className = 'filter-title';
         const inferred = !AppState.attributes[field.key] && data.selected_attributes && data.selected_attributes[field.key];
         label.textContent = field.label + (inferred ? ' (из запроса)' : '');
-        const select = document.createElement('select');
-        select.id = 'attribute-' + field.key; label.htmlFor = select.id;
-        select.style.cssText = 'width:100%;min-height:40px;background:var(--bg-card);color:var(--text-main);border:1px solid var(--border-color);border-radius:8px;padding:8px;font-size:0.85rem;';
-        select.add(new Option(inferred ? 'Как в запросе' : 'Все', ''));
+        group.appendChild(label);
+
         const selected = AppState.attributes[field.key] || (data.selected_attributes || {})[field.key] || '';
-        (field.values || []).forEach(v => select.add(new Option(v.value + ' (' + v.count + ')', v.value)));
-        if (selected && !(field.values || []).some(v => v.value === selected)) select.add(new Option(selected, selected));
-        select.value = selected;
-        select.onchange = () => {
-          if (select.value) AppState.attributes[field.key] = select.value;
-          else delete AppState.attributes[field.key];
-          AppState.page = 1; updateSearchUrl(); executeSearch();
-        };
-        group.append(label, select);
+        const vals = field.values || [];
+
+        if (vals.length > 0 && vals.length <= 8) {
+          const listWrap = document.createElement('div');
+          listWrap.id = 'filterAttrList_' + field.key;
+          const rows = vals.map(v => ({ value: v.value, name: v.value, count: v.count }));
+          const handlerName = 'onAttrFacetChange_' + field.key.replace(/[^a-zA-Z0-9_]/g, '_');
+          window[handlerName] = function(v) {
+            onDynamicAttrFacetSelected(field.key, v);
+          };
+          renderFacetGroup(listWrap, 'facetAttr_' + field.key, handlerName, selected, rows, 8, 'Нет данных');
+          group.appendChild(listWrap);
+        } else {
+          const select = document.createElement('select');
+          select.id = 'attribute-' + field.key;
+          select.style.cssText = 'width:100%;min-height:40px;background:var(--bg-card);color:var(--text-main);border:1px solid var(--border-color);border-radius:8px;padding:8px;font-size:0.85rem;';
+          select.add(new Option(inferred ? 'Как в запросе' : 'Все', ''));
+          vals.forEach(v => select.add(new Option(v.value + ' (' + v.count + ')', v.value)));
+          if (selected && !vals.some(v => v.value === selected)) select.add(new Option(selected, selected));
+          select.value = selected;
+          select.onchange = () => {
+            onDynamicAttrFacetSelected(field.key, select.value);
+          };
+          group.appendChild(select);
+        }
+
         if (AppState.attributes[field.key]) {
           const note = document.createElement('small'); note.className = 'filter-empty';
           note.textContent = 'Только товары с подтверждённым значением этой характеристики.';
@@ -7335,10 +7359,24 @@
           (data.brand_facets || []).map(b => ({ value: b.brand, name: b.brand, count: b.count })), 8, 'Нет брендов');
       }
 
-      // 4. Модель
+      // 4. Модель / Серия
+      const modelGroup = document.getElementById('filterModelGroup');
+      const isDiapers = (AppState.category === 'diapers_hygiene') || (data.category_facets || []).some(c => c.category === 'diapers_hygiene' && c.count > 0);
+      const mFacets = (data.model_facets || []).filter(m => m && m.model);
+      if (modelGroup) {
+        const titleEl = modelGroup.querySelector('.filter-title');
+        if (titleEl) {
+          titleEl.textContent = isDiapers ? 'Линейка / Серия' : 'Модель';
+        }
+        if (!mFacets.length && !AppState.model) {
+          modelGroup.style.display = 'none';
+        } else {
+          modelGroup.style.display = '';
+        }
+      }
       if (modelList) {
         renderFacetGroup(modelList, 'facetModel', 'onModelFacetSelected', AppState.model,
-          (data.model_facets || []).map(m => ({ value: m.model, name: m.model, count: m.count })), 10, 'Нет моделей');
+          mFacets.map(m => ({ value: m.model, name: m.model, count: m.count })), 10, isDiapers ? 'Нет линеек' : 'Нет моделей');
       }
     }
 
