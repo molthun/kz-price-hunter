@@ -2,6 +2,33 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## STAND_DEPLOYED → Владелец: Устранение наложения текста характеристик и каскадный сбор фото v6.21.2 (2026-11-03)
+
+- Прямое поручение владельца: «А это что за сбои» (скриншот товара `prod_ca2f8f7c29cae1cc` Пылесос LG VK89309H: 1) наложение текста в строке характеристик насадок и возможностей, 2) статус «Фото пока не получены» при наличии офферов Kaspi и Forte).
+- Исполнитель: Antigravity (основной разработчик).
+- Срез: коммит `2a2bdbe`, ветка `codex/local-ai-catalog-growth`.
+- Причины сбоев:
+  1. **Наложение характеристик**: CSS-класс `.spec-val` имел `flex: 1 0 auto;` (`flex-shrink: 0`), а родительский `.detail-specs-grid` использовал `repeat(2, 1fr)` без `minmax(0, 1fr)`. В результате длинные значения не ужимались и вылезали за пределы 50% ширины, накладываясь поверх текста соседней колонки.
+  2. **Пропажа фото**: Ссылки ForteMarket с доменом `market.forte.kz/darbiz` блокировались CDN со сбросом соединения (HTTP error 56). Так как `renderSourceEvidence` передавал только фото из scraped evidence магазина и не включал изображения из других офферов товара (Kaspi), при сбое загрузки `handleProductPhotoFailure` отсекал все ссылки, оставляя пустой массив и статус «Фото пока не получены».
+- Реализовано:
+  1. `web/templates/search_first.html`:
+     - Исправлен CSS-грид `.detail-specs-grid`: задан `grid-template-columns: repeat(2, minmax(0, 1fr));`.
+     - Для `.spec-item` добавлен `min-width: 0;`, для `.spec-key` ограничение `max-width: 50%; min-width: 110px;`, для `.spec-val` установлен `flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; word-break: normal;`. Текст характеристик переносится строго внутри своей колонки.
+     - В `renderSourceEvidence` реализован каскадный сбор фото со всех источников товара (`evidence.images` + `prod.image_url` + `offers.map(o => o.image_url)`).
+     - В `handleProductPhotoFailure` добавлен автоматический фоллбек: если все фото текущего источника отвалились, галерея автоматически восстанавливает доступные фото других предложений.
+     - В `applyDetailOptions` обеспечен корректный вызов `renderSourceGallery` при отсутствии `source_evidence`.
+  2. `domain/image_quality.py`:
+     - Поддержаны шестнадцатеричные каталоги CDN Forte/Darbiz (`/darbiz/catalogs/[^/]+/`).
+  3. База данных стенда:
+     - Выполнена миграция таблицы `product_source_evidence`: обновлены 414 устаревших записей с `market.forte.kz/darbiz` на прямой CDN `object.pscloud.io`.
+  4. Тестирование и стенд:
+     - 7 unit-тестов `tests/domain/test_image_quality.py` PASS.
+     - 286 search/domain тестов PASS.
+     - Доставлено на стенд `shdev.molthun.ru` через git bundle (`kzph-v6.21.2.bundle`). Контейнер `kzph-stand` пересобран и перезапущен, статус `Up (healthy)`.
+- Следующий шаг в очереди дорожной карты: Шаг 3: Автоматическое периодическое расписание обновления цен (Cron / Adaptive Scheduler) для подключенных витрин и каналов.
+
+---
+
 ## STAND_DEPLOYED → Владелец: Кардинальное повышение качества и разрешения фотографий товаров v6.21.1 (2026-11-03)
 
 - Прямое поручение владельца: «Нужно поднять качествоо подгружаемых картинок. Чет вообще не айс.» (приложен скриншот с размытым фото из просмотрщика).
