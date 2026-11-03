@@ -151,9 +151,72 @@ def normalize_attribute_value(key: str, raw_value: Any) -> Optional[str]:
     return val[:80]
 
 
+COLOR_PATTERNS = [
+    (r'(?i)\b(?:черн(?:ый|ая|ое|ые|ую|ом|ого)|black)\b', 'Черный'),
+    (r'(?i)\b(?:бел(?:ый|ая|ое|ые|ую|ом|ого)|white)\b', 'Белый'),
+    (r'(?i)\b(?:син(?:ий|яя|ее|ие|юю|ем|его)|blue)\b', 'Синий'),
+    (r'(?i)\b(?:сер(?:ый|ая|ое|ые|ую|ом|ого)|gray|grey)\b', 'Серый'),
+    (r'(?i)\b(?:серебр(?:истый|истая|истое|истые|истую|истом)|silver)\b', 'Серебристый'),
+    (r'(?i)\b(?:золот(?:ой|ая|ое|ые|ую|ом|ого|истый|истая|истое)|gold)\b', 'Золотистый'),
+    (r'(?i)\b(?:зелен(?:ый|ая|ое|ые|ую|ом|ого)|green)\b', 'Зеленый'),
+    (r'(?i)\b(?:красн(?:ый|ая|ое|ые|ую|ом|ого)|red)\b', 'Красный'),
+    (r'(?i)\b(?:фиолетов(?:ый|ая|ое|ые|ую|ом|ого)|purple)\b', 'Фиолетовый'),
+    (r'(?i)\b(?:розов(?:ый|ая|ое|ые|ую|ом|ого)|pink)\b', 'Розовый'),
+    (r'(?i)\b(?:желт(?:ый|ая|ое|ые|ую|ом|ого)|yellow)\b', 'Желтый'),
+    (r'(?i)\b(?:оранжев(?:ый|ая|ое|ые|ую|ом|ого)|orange)\b', 'Оранжевый'),
+    (r'(?i)\b(?:бежев(?:ый|ая|ое|ые|ую|ом|ого)|beige)\b', 'Бежевый'),
+    (r'(?i)\b(?:титан(?:овый|овая|овое|овые|овую|овом)|titanium)\b', 'Титановый'),
+]
+
+
+def extract_title_attributes(title: str) -> Dict[str, str]:
+    """Извлекает ключевые характеристики (память, цвет, диагональ, ОЗУ) прямо из названия товара."""
+    if not title:
+        return {}
+    attrs: Dict[str, str] = {}
+
+    # 1. Цвет
+    for pattern, color_name in COLOR_PATTERNS:
+        if re.search(pattern, title):
+            attrs['color'] = color_name
+            break
+
+    # 2. RAM + Storage combo: 8GB/256GB, 16/512 ГБ
+    m_combo = re.search(r'(?i)\b(\d+)\s*(?:gb|гб)?\s*[/,\+]\s*(\d+)\s*(?:gb|гб|tb|тб)\b', title)
+    if m_combo:
+        r_val = int(m_combo.group(1))
+        if r_val in (4, 6, 8, 12, 16, 24, 32, 64, 128):
+            attrs['ram'] = f"{r_val} ГБ"
+        norm_s = normalize_attribute_value('storage', m_combo.group(2))
+        if norm_s:
+            attrs['storage'] = norm_s
+
+    # 3. Storage (standalone: 128GB, 256 ГБ, 512GB, 1TB)
+    if 'storage' not in attrs:
+        m_s = re.search(r'(?i)\b(64|128|256|512)\s*(?:gb|гб)\b|\b(1|2)\s*(?:tb|тб)\b', title)
+        if m_s:
+            raw_s = m_s.group(0)
+            norm_s = normalize_attribute_value('storage', raw_s)
+            if norm_s:
+                attrs['storage'] = norm_s
+
+    # 4. RAM (standalone: 8GB RAM, 16 ГБ ОЗУ)
+    if 'ram' not in attrs:
+        m_r = re.search(r'(?i)\b(4|6|8|12|16|24|32|64)\s*(?:gb|гб)\s*(?:ram|озу|памяти)\b', title)
+        if m_r:
+            attrs['ram'] = f"{m_r.group(1)} ГБ"
+
+    # 5. Screen size (15.6", 27", 24", 6.1", 6.7")
+    m_scr = re.search(r'\b(5\.[4-9]|6\.[1-9]|7\.[0-9]|1[1-7]\.[0-9]|2[4-9]|3[2-4])\s*(?:"|\'\'|дюйм)', title)
+    if m_scr:
+        attrs['screen_size'] = f'{m_scr.group(1)}"'
+
+    return attrs
+
+
 def index_product_facts(conn, product_id: str, facts: List[Dict[str, Any]], product_title: Optional[str] = None) -> int:
     """Индексирует подтверждённые факты товара в таблицу product_search_attributes."""
-    if not product_id or not facts:
+    if not product_id:
         return 0
 
     if not product_title:
@@ -163,20 +226,34 @@ def index_product_facts(conn, product_id: str, facts: List[Dict[str, Any]], prod
         product_title = row[0]
 
     now_iso = datetime.now(timezone.utc).isoformat()
+
+    merged: Dict[str, Tuple[str, str]] = {}
+
+    # 1. Из названия товара
+    title_attrs = extract_title_attributes(product_title)
+    for k, v in title_attrs.items():
+        merged[k] = (v, 'Название товара')
+
+    # 2. Факты из источников имеют высший приоритет
+    if facts:
+        for f in facts:
+            if not isinstance(f, dict):
+                continue
+            raw_name = str(f.get('name') or '').strip().casefold()
+            mapping = FACT_KEY_MAP.get(raw_name)
+            if not mapping:
+                continue
+            key, _ = mapping
+            norm_val = normalize_attribute_value(key, f.get('value'))
+            if not norm_val:
+                continue
+            merged[key] = (norm_val, f.get('name', key)[:160])
+
+    if not merged:
+        return 0
+
     indexed_count = 0
-
-    for f in facts:
-        if not isinstance(f, dict):
-            continue
-        raw_name = str(f.get('name') or '').strip().casefold()
-        mapping = FACT_KEY_MAP.get(raw_name)
-        if not mapping:
-            continue
-        key, _ = mapping
-        norm_val = normalize_attribute_value(key, f.get('value'))
-        if not norm_val:
-            continue
-
+    for k, (v, evidence) in merged.items():
         conn.execute('''
             INSERT INTO product_search_attributes (product_id, key, value, evidence, source_title, updated_at)
             VALUES (?, ?, ?, ?, ?, ?)
@@ -185,31 +262,51 @@ def index_product_facts(conn, product_id: str, facts: List[Dict[str, Any]], prod
                 evidence=excluded.evidence,
                 source_title=excluded.source_title,
                 updated_at=excluded.updated_at
-        ''', (product_id, key, norm_val, f.get('name', key)[:160], product_title, now_iso))
+        ''', (product_id, k, v, evidence, product_title, now_iso))
         indexed_count += 1
 
     return indexed_count
 
 
 def sync_all_source_attributes(conn, limit: int = 50000) -> int:
-    """Индексирует факты из product_source_evidence для всех имеющихся товаров."""
-    cursor = conn.execute('''
-        SELECT e.product_id, p.title, e.facts_json
-        FROM product_source_evidence e
-        JOIN canonical_products p ON p.id = e.product_id
-        WHERE e.status = 'ready' AND e.facts_json != '[]'
-        LIMIT ?
-    ''', (limit,))
-    rows = cursor.fetchall()
-
+    """Индексирует характеристики товаров из product_source_evidence и названий canonical_products."""
     total_indexed = 0
-    for pid, title, facts_json in rows:
-        try:
-            facts = json.loads(facts_json)
-            if isinstance(facts, list) and facts:
-                total_indexed += index_product_facts(conn, pid, facts, title)
-        except Exception:
-            continue
+
+    # 1. Из evidence
+    try:
+        cursor = conn.execute('''
+            SELECT e.product_id, p.title, e.facts_json
+            FROM product_source_evidence e
+            JOIN canonical_products p ON p.id = e.product_id
+            WHERE e.status = 'ready' AND e.facts_json != '[]'
+            LIMIT ?
+        ''', (limit,))
+        rows = cursor.fetchall()
+
+        for pid, title, facts_json in rows:
+            try:
+                facts = json.loads(facts_json)
+                if isinstance(facts, list) and facts:
+                    total_indexed += index_product_facts(conn, pid, facts, title)
+            except Exception:
+                continue
+    except Exception:
+        pass
+
+    # 2. Для товаров, у которых еще нет атрибутов, индексируем из названия
+    try:
+        cursor = conn.execute('''
+            SELECT p.id, p.title
+            FROM canonical_products p
+            LEFT JOIN product_search_attributes pa ON pa.product_id = p.id
+            WHERE pa.product_id IS NULL AND p.title IS NOT NULL AND p.title != ''
+            LIMIT ?
+        ''', (limit,))
+        rows = cursor.fetchall()
+        for pid, title in rows:
+            total_indexed += index_product_facts(conn, pid, [], title)
+    except Exception:
+        pass
 
     if total_indexed > 0 and hasattr(conn, 'commit'):
         conn.commit()
