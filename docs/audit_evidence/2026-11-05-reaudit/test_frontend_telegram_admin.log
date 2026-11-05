@@ -1,0 +1,4 @@
+PASS Telegram admin 390/light: no sends/auto local diagnosis/scoped save/zero hour/drafts/check/409/late AI ignored
+PASS Telegram admin 390/dark: no sends/auto local diagnosis/scoped save/zero hour/drafts/check/409/late AI ignored
+PASS Telegram admin 1366/light: no sends/auto local diagnosis/scoped save/zero hour/drafts/check/409/late AI ignored
+PASS Telegram admin 1366/dark: no sends/auto local diagnosis/scoped save/zero hour/drafts/check/409/late AI ignored

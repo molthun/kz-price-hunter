@@ -1,0 +1,7 @@
+usage: sync_pc_attributes.py [-h] [--db DB]
+
+Sync PC hardware and monitor attributes
+
+options:
+  -h, --help  show this help message and exit
+  --db DB     Path to SQLite db

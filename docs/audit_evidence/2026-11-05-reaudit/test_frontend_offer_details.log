@@ -1,0 +1,4 @@
+PASS own seller offer 390/light: selection/source isolation/late generic reply/failure/404
+PASS own seller offer 390/dark: selection/source isolation/late generic reply/failure/404
+PASS own seller offer 1366/light: selection/source isolation/late generic reply/failure/404
+PASS own seller offer 1366/dark: selection/source isolation/late generic reply/failure/404

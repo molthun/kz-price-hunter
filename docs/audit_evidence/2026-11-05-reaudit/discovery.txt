@@ -1,0 +1,4 @@
+tests.search.test_attribute_facets_filter 5
+tests.scrapers.test_showcase_scanners 6
+tests.domain.test_channel_scheduler 5
+tests.domain.test_image_quality 7

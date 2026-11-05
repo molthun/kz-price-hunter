@@ -108,7 +108,7 @@ class TestCatalogAIEnrichment(unittest.TestCase):
              patch("ai_service.call_local_api", new=AsyncMock(return_value=fake_response)):
             res = extract_attributes_with_local_ai(
                 title="Игровой ноутбук ASUS TUF Gaming",
-                description="Мощный процессор Intel Core i7, 16 ГБ памяти, накопитель 512 ГБ, экран 15.6, цвет чёрный",
+                description="Мощный процессор Intel Core i7, 16 ГБ оперативной памяти, накопитель 512 ГБ, экран 15.6, цвет чёрный",
                 category="Ноутбуки",
                 config=cfg,
             )

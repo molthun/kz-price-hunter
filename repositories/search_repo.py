@@ -98,6 +98,15 @@ def _attribute_value_variants(key: str, value: str) -> list[str]:
 # Суффиксы, которые делают модель видеокарты другой моделью (A07).
 GPU_MODEL_SUFFIXES = ("Ti Super", "Ti", "Super", "XTX", "XT", "GRE")
 
+
+def _gpu_spacing_variants(model: str) -> List[str]:
+    """«RTX 4060 Ti» → все варианты пробелов между частями: RTX 4060 Ti, RTX 4060Ti, RTX4060 Ti, RTX4060Ti (R03)."""
+    parts = model.split()
+    variants = [parts[0]] if parts else []
+    for part in parts[1:]:
+        variants = [v + sep + part for v in variants for sep in (" ", "")]
+    return variants
+
 class SearchRepository(BaseRepository):
     """
     Coordinates FTS5 index searches over Canonical Products and collects active offers.
@@ -352,25 +361,31 @@ class SearchRepository(BaseRepository):
         canon_gpu = canonical_gpu_model(raw_m)
         if canon_gpu:
             short_m = canon_gpu.replace("GeForce ", "").replace("Radeon ", "")
-            # A07 (аудит 05.11.2026): «RTX 4060» не должна захватывать 4060 Ti/Super. Разобранная
-            # модель сравнивается точно; по названию ищем только товары без своей GPU-модели и
-            # отсекаем названия, где за искомой моделью идёт значимый суффикс (Ti, Super, XT, XTX, GRE).
+            # A07/R03 (аудиты 05.11.2026): «RTX 4060» не захватывает 4060 Ti/Super, а 4060 Ti находит и
+            # слитное «4060Ti». Модель сравнивается без пробелов; по названию ищем только товары без своей
+            # GPU-модели — во всех вариантах пробелов между частями и без значимого суффикса после неё.
+            variants = _gpu_spacing_variants(short_m)
+            included = [f"%{v}%" for v in variants]
             excluded = []
-            for suffix in GPU_MODEL_SUFFIXES:
-                for sep in (" ", ""):
-                    excluded.append(f"%{short_m}{sep}{suffix}%")
-            if short_m.upper().endswith(" XT"):
-                excluded.append(f"%{short_m}X%")
+            for v in variants:
+                for suffix in GPU_MODEL_SUFFIXES:
+                    for sep in (" ", ""):
+                        excluded.append(f"%{v}{sep}{suffix}%")
+                if v.upper().endswith("XT"):
+                    excluded.append(f"%{v}X%")
+            excluded = list(dict.fromkeys(excluded))
+            like_any = " OR ".join("p.title LIKE ?" for _ in included)
             not_like = "".join(" AND p.title NOT LIKE ?" for _ in excluded)
             no_gpu_model = (
                 "(COALESCE(p.model, '') = '' OR (UPPER(p.model) NOT LIKE '%RTX%' AND UPPER(p.model) NOT LIKE '%GTX%' "
-                "AND UPPER(p.model) NOT LIKE '%RX %' AND UPPER(p.model) NOT LIKE '%ARC %'))"
+                "AND UPPER(p.model) NOT LIKE '%RX_%' AND UPPER(p.model) NOT LIKE '%ARC %'))"
             )
+            compact = lambda m: m.lower().replace(" ", "")
             return (
-                "AND (LOWER(COALESCE(p.model, '')) IN (?, ?) "
+                "AND (REPLACE(LOWER(COALESCE(p.model, '')), ' ', '') IN (?, ?) "
                 f"OR (p.category IN ('gpus', 'Видеокарты') AND {no_gpu_model} "
-                f"AND (p.title LIKE ? OR p.title LIKE ?){not_like}))",
-                [canon_gpu.lower(), short_m.lower(), f"%{canon_gpu}%", f"%{short_m}%", *excluded],
+                f"AND ({like_any}){not_like}))",
+                [compact(canon_gpu), compact(short_m), *included, *excluded],
             )
         return (
             "AND (p.model = ? OR LOWER(COALESCE(p.model, '')) = ?)",

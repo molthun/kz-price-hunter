@@ -1,0 +1,6 @@
+R01_WRONG_COMPONENT_AND_UNIT_PERSISTED {"ok": true, "product_id": "ssd", "attributes": {"Оперативная память": "16 ГБ"}, "source": "local_ai", "count": 1, "ai_status": "ok"}
+R01_INSTRUCTION_VALUE_ACCEPTED {"ram": "128 ГБ"}
+R02_STALE_SOURCE_TITLE {"title": "SSD Samsung 512GB NVMe", "source_title": "SSD Samsung 512GB", "value": "512 ГБ"} visible_attributes 0
+R03_COMPACT_TI_MISSING ['ti-spaced']
+R04_LAPTOP_WITHOUT_TYPE_WORD laptops {"storage": "512 ГБ", "screen_size": "15.6\"", "vram": "16 ГБ", "chipset": "GeForce RTX 4060"}
+KNOWN_DESKTOP_MEMORY_ERROR {"ram": "8 ГБ", "storage": "16 ГБ"}

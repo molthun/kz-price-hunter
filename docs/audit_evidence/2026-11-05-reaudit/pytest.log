@@ -1,0 +1,182 @@
+.................................................. [  1%]
+................................................................. [  4%]
+.................................................................... [  6%]
+............................................................................. [  9%]
+............................................................................................................... [ 13%]
+...................................................................................................... [ 16%]
+.................................... [ 18%]
+........................................................ [ 20%]
+........................... [ 21%]
+............................... [ 22%]
+............................................................ [ 24%]
+............................................................. [ 26%]
+.............................................................. [ 28%]
+.................................................. [ 30%]
+......................................................................................... [ 33%]
+............................................................ [ 36%]
+..................................................................................................................... [ 40%]
+........................................................................ [ 42%]
+.................................................................... [ 45%]
+................................................................................................................................ [ 49%]
+........................................................................ [ 52%]
+........................................................................ [ 54%]
+................................................................. [ 57%]
+........................................................................ [ 59%]
+.................................................................. [ 62%]
+...................................................................... [ 64%]
+........................................................................ [ 67%]
+.......................................................................................................... [ 71%]
+........................................................................ [ 73%]
+............................................................. [ 75%]
+............................................................. [ 78%]
+............................................................................................................................................ [ 83%]
+................................................................................................................................. [ 87%]
+........................................................................ [ 90%]
+............................................................ [ 92%]
+................................................ [ 94%]
+.............................................................................. [ 96%]
+............................................................. [ 99%]
+........................                                            [100%]
+=============================== warnings summary ===============================
+tests/search/test_deals_feed_v2.py:39
+  /Users/molthun/Documents/kz-price-hunter/tests/search/test_deals_feed_v2.py:39: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_deals_feed_v2.py:49
+  /Users/molthun/Documents/kz-price-hunter/tests/search/test_deals_feed_v2.py:49: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_deals_feed_v2.py:59
+  /Users/molthun/Documents/kz-price-hunter/tests/search/test_deals_feed_v2.py:59: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_deals_feed_v2.py:70
+  /Users/molthun/Documents/kz-price-hunter/tests/search/test_deals_feed_v2.py:70: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_deals_feed_v2.py:91
+  /Users/molthun/Documents/kz-price-hunter/tests/search/test_deals_feed_v2.py:91: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_deals_feed_v2.py:160
+  /Users/molthun/Documents/kz-price-hunter/tests/search/test_deals_feed_v2.py:160: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_deals_feed_v2.py:186
+  /Users/molthun/Documents/kz-price-hunter/tests/search/test_deals_feed_v2.py:186: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_deals_identity_and_watches.py:52
+  /Users/molthun/Documents/kz-price-hunter/tests/search/test_deals_identity_and_watches.py:52: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_deals_identity_and_watches.py:60
+  /Users/molthun/Documents/kz-price-hunter/tests/search/test_deals_identity_and_watches.py:60: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_deals_identity_and_watches.py:68
+  /Users/molthun/Documents/kz-price-hunter/tests/search/test_deals_identity_and_watches.py:68: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_deals_identity_and_watches.py:75
+  /Users/molthun/Documents/kz-price-hunter/tests/search/test_deals_identity_and_watches.py:75: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_deals_identity_and_watches.py:82
+  /Users/molthun/Documents/kz-price-hunter/tests/search/test_deals_identity_and_watches.py:82: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_deals_identity_and_watches.py:90
+  /Users/molthun/Documents/kz-price-hunter/tests/search/test_deals_identity_and_watches.py:90: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_deals_identity_and_watches.py:96
+  /Users/molthun/Documents/kz-price-hunter/tests/search/test_deals_identity_and_watches.py:96: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_deals_identity_and_watches.py:113
+  /Users/molthun/Documents/kz-price-hunter/tests/search/test_deals_identity_and_watches.py:113: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_deals_identity_and_watches.py:119
+  /Users/molthun/Documents/kz-price-hunter/tests/search/test_deals_identity_and_watches.py:119: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_search_first_stage1.py:469
+  /Users/molthun/Documents/kz-price-hunter/tests/search/test_search_first_stage1.py:469: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_search_first_stage1.py:484
+  /Users/molthun/Documents/kz-price-hunter/tests/search/test_search_first_stage1.py:484: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_search_first_stage1.py:503
+  /Users/molthun/Documents/kz-price-hunter/tests/search/test_search_first_stage1.py:503: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_search_first_stage1.py:536
+  /Users/molthun/Documents/kz-price-hunter/tests/search/test_search_first_stage1.py:536: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/search/test_search_first_stage1.py:564
+  /Users/molthun/Documents/kz-price-hunter/tests/search/test_search_first_stage1.py:564: DeprecationWarning: Decorator `@unittest_run_loop` is no longer needed in aiohttp 3.8+
+    @unittest_run_loop
+
+tests/ai/test_admin_assistant.py: 1 warning
+tests/ai/test_ai_category_classification.py: 2 warnings
+tests/ai/test_ai_models.py: 2 warnings
+tests/ai/test_ai_prices.py: 1 warning
+tests/ai/test_catalog_ai.py: 1 warning
+tests/ai/test_local_ai.py: 1 warning
+tests/ai/test_offer_details.py: 1 warning
+tests/core/test_offer_identity.py: 1 warning
+tests/core/test_offer_retirement.py: 2 warnings
+tests/core/test_release_notes.py: 1 warning
+tests/core/test_seller_admin.py: 2 warnings
+tests/core/test_settings.py: 1 warning
+tests/core/test_v651_write_contention.py: 1 warning
+tests/monitoring/test_daily_digest.py: 2 warnings
+tests/monitoring/test_monitor.py: 19 warnings
+tests/monitoring/test_monitoring.py: 1 warning
+tests/notifications/test_shop_notices.py: 1 warning
+tests/notifications/test_watches.py: 1 warning
+tests/scheduler/test_scheduler_rollout.py: 3 warnings
+tests/search/test_adaptive_discovery_v2.py: 4 warnings
+tests/search/test_search_ui_v2.py: 6 warnings
+tests/search/test_store_deals.py: 1 warning
+tests/test_disputed_matching_moderation.py: 8 warnings
+tests/web/test_auth_privacy.py: 4 warnings
+tests/web/test_closed_site_gate.py: 1 warning
+tests/web/test_diagnostics.py: 6 warnings
+tests/web/test_health_and_pool.py: 7 warnings
+tests/web/test_privacy_self_service.py: 4 warnings
+tests/web/test_web_optimizations.py: 1 warning
+  /Users/molthun/Documents/kz-price-hunter/web/server.py:6213: NotAppKeyWarning: It is recommended to use web.AppKey instances for keys.
+  https://docs.aiohttp.org/en/stable/web_advanced.html#application-s-config
+    app["stats_cache"] = BoundedTTLCache(maxsize=128, ttl=STATS_CACHE_TTL_SECONDS)
+
+tests/ai/test_admin_assistant.py::PermissionsTest::test_only_admin_can_ask
+  /Users/molthun/Documents/kz-price-hunter/auth.py:280: NotAppKeyWarning: It is recommended to use web.RequestKey instances for keys.
+  https://docs.aiohttp.org/en/stable/web_advanced.html#request-s-storage
+    request["user"] = None
+
+tests/ai/test_local_ai.py: 14 warnings
+  /Users/molthun/Documents/kz-price-hunter/venv/lib/python3.14/site-packages/aiohttp/web_urldispatcher.py:193: DeprecationWarning: Bare functions are deprecated, use async ones
+    warnings.warn(
+
+tests/core/test_offer_retirement.py::OfferRetirementTest::test_background_watch_refresh_failure_keeps_remaining_jobs_for_retry
+tests/core/test_offer_retirement.py::OfferRetirementTest::test_startup_with_20000_watch_refresh_jobs_opens_port_before_background_drain_finishes
+  /Users/molthun/Documents/kz-price-hunter/web/server.py:6064: NotAppKeyWarning: It is recommended to use web.AppKey instances for keys.
+  https://docs.aiohttp.org/en/stable/web_advanced.html#application-s-config
+    app["startup_watch_refresh_task"] = startup_refresh_task
+
+tests/web/test_web_optimizations.py::StatsCacheTest::test_cache_does_not_freeze_scan_progress
+tests/web/test_web_optimizations.py::StatsCacheTest::test_invalidation_forces_fresh_query
+tests/web/test_web_optimizations.py::StatsCacheTest::test_second_request_uses_cache
+tests/web/test_web_optimizations.py::StatsCacheTest::test_users_and_cities_have_separate_keys
+  /Users/molthun/Documents/kz-price-hunter/tests/web/test_web_optimizations.py:77: NotAppKeyWarning: It is recommended to use web.AppKey instances for keys.
+  https://docs.aiohttp.org/en/stable/web_advanced.html#application-s-config
+    app["stats_cache"] = BoundedTTLCache(maxsize=10, ttl=server.STATS_CACHE_TTL_SECONDS)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+2791 passed, 128 warnings, 1198 subtests passed in 190.39s (0:03:10)

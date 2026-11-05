@@ -1,0 +1,30 @@
+{
+  "head": "f4e1b382339e9952f1ea2f0c5a1045c7d24e93de",
+  "version": "6.28.3",
+  "pytest": {
+    "passed": 2791,
+    "subtests_passed": 1198,
+    "warnings": 128,
+    "seconds": 190.39
+  },
+  "unittest": {
+    "passed": 2728,
+    "seconds": 185.75
+  },
+  "frontend": {
+    "passed": 37,
+    "total": 37
+  },
+  "secret_findings": 0,
+  "dependencies": {
+    "count": 25,
+    "vulnerabilities": 0
+  },
+  "remaining_findings": {
+    "P1": 0,
+    "P2": 4
+  },
+  "live_ai_calls": 0,
+  "stand_verified": false,
+  "production_verified": false
+}

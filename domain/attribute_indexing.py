@@ -548,6 +548,34 @@ COLOR_PATTERNS = [
 ]
 
 
+# Целое устройство, в котором видеокарта — лишь компонент (A06/R04, аудиты 05.11.2026)
+_WHOLE_DEVICE_WORDS = re.compile(
+    r'(ноутбук\w*|laptop|notebook|macbook|ультрабук\w*|моноблок\w*|системн\w*\s+блок\w*|'
+    r'компьютер\w*|игров\w*\s+пк|\bпк\b|неттоп\w*|mini\s*pc|планшет\w*|консол\w*)', re.I)
+# Признаки целого устройства в названии без слова типа: диагональ экрана, накопитель,
+# системная память DDR (не GDDR видеокарты), запись «16/1TB» (ОЗУ/накопитель)
+_WHOLE_DEVICE_SIGNS = re.compile(
+    r'\b1[0-8](?:[.,]\d)?\s*(?:"|\'\'|”|дюйм\w*|inch)|\b(?:ssd|hdd|nvme|emmc)\b|\b(?:lp)?ddr\d'
+    r'|\b\d{1,2}\s*/\s*\d{3,4}\s*(?:gb|гб)?\b|\b\d{1,2}\s*/\s*[12]\s*(?:tb|тб)\b', re.I)
+_WHOLE_DEVICE_CATEGORIES = {'laptops', 'pc_desktops', 'tablets', 'phones', 'smartwatches', 'consoles',
+                            'game_consoles', 'monitors', 'tvs'}
+_classifier = None
+
+
+def _is_whole_device(title: str) -> bool:
+    if _WHOLE_DEVICE_WORDS.search(title) or _WHOLE_DEVICE_SIGNS.search(title):
+        return True
+    global _classifier
+    try:
+        if _classifier is None:
+            from catalog_classifier import CatalogClassifier
+            _classifier = CatalogClassifier()
+        result = _classifier.classify_rules(title)
+    except Exception:
+        return False
+    return bool(result and result.category_id in _WHOLE_DEVICE_CATEGORIES)
+
+
 def extract_title_attributes(title: str) -> Dict[str, str]:
     """Извлекает ключевые характеристики (память, цвет, диагональ, ОЗУ) прямо из названия товара."""
     if not title:
@@ -730,9 +758,8 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
         # Видеокарты (GPU): VRAM и чипсет — только у самой видеокарты (A06, аудит 05.11.2026).
         # У ноутбука, моноблока или системного блока «RTX 4060» — компонент, а первое «16GB» в
         # названии — оперативная память: ни чипсет, ни видеопамять устройству не приписываем.
-        is_whole_device = bool(re.search(
-            r'(ноутбук\w*|laptop|notebook|macbook|ультрабук\w*|моноблок\w*|системн\w*\s+блок\w*|'
-            r'компьютер\w*|игров\w*\s+пк|\bпк\b|неттоп\w*|mini\s*pc|планшет\w*|консол\w*)', title, re.I))
+        # Тип устройства — как у классификатора каталога, плюс признаки целого устройства (R04).
+        is_whole_device = _is_whole_device(title)
         is_gpu = not is_whole_device and bool(re.search(
             r'\b(видеокарт\w*|geforce|radeon\s+rx|rtx\s*\d{3,4}|gtx\s*\d{3,4}|arc\s*[ab]\d{3})\b', title, re.I))
         if is_gpu:
@@ -911,8 +938,11 @@ def upsert_search_attributes(conn, product_id: str, items: Dict[str, Tuple[str, 
     не перезаписывается эвристикой). prune_evidence удаляет строки с этим основанием, которых больше нет
     в items, — так повторная индексация названия убирает значения, которые исправленные правила
     больше не выводят (например, «видеопамять» ноутбука)."""
-    existing = {r[0]: (r[1], r[2]) for r in conn.execute(
-        'SELECT key, value, evidence FROM product_search_attributes WHERE product_id=?', (product_id,))}
+    rows = conn.execute(
+        'SELECT key, value, evidence, source_title FROM product_search_attributes WHERE product_id=?',
+        (product_id,)).fetchall()
+    existing = {r[0]: (r[1], r[2]) for r in rows}
+    bound_title = {r[0]: r[3] for r in rows}
     effective: Dict[str, str] = {}
     for k, (v, evidence) in items.items():
         old = existing.get(k)
@@ -920,7 +950,9 @@ def upsert_search_attributes(conn, product_id: str, items: Dict[str, Tuple[str, 
             effective[k] = old[0]
             continue
         effective[k] = v
-        if old == (v, evidence):
+        # Значение получено заново по текущему названию: привязку к названию обновляем даже при
+        # том же значении — поиск учитывает только source_title = title (R02)
+        if old == (v, evidence) and bound_title.get(k) == source_title:
             continue
         conn.execute('''
             INSERT INTO product_search_attributes (product_id, key, value, evidence, source_title, updated_at)
