@@ -7432,9 +7432,23 @@
 
       if (items.length === 0) {
         const unavailable = data.local_ai && data.local_ai.status === 'unavailable';
-        showResultsMessage('Сейчас подходящих предложений нет',
-          unavailable ? 'Помощник временно недоступен. Поиск по каталогу выполнен; попробуйте повторить запрос чуть позже.' :
-          'В нашем каталоге пока нет предложений по этим условиям. Уточните название или характеристики товара.',
+        const info = data.search_help || {};
+        const catName = info.category_name || (data.parsed_query ? data.parsed_query.category : '');
+        const cityName = AppState.city && AppState.city !== 'Все' ? AppState.city : '';
+
+        let desc = '';
+        if (unavailable) {
+          desc = 'Помощник временно недоступен. Поиск по каталогу выполнен; попробуйте повторить запрос чуть позже.';
+        } else if (catName) {
+          desc = 'Ищем «' + (AppState.query || catName) + '». Сейчас в нашем каталоге нет подходящих предложений' + (cityName ? ' для ' + cityName : '') + '.';
+          if (info.clarification) {
+            desc += ' ' + info.clarification;
+          }
+        } else {
+          desc = 'В нашем каталоге пока нет предложений по этим условиям' + (cityName ? ' для ' + cityName : '') + '. Уточните название или характеристики товара.';
+        }
+
+        showResultsMessage('Сейчас подходящих предложений нет', desc,
           'Уточнить запрос', () => { const input = document.getElementById('resultsSearchInput'); input.focus(); input.select(); });
         return;
       }
