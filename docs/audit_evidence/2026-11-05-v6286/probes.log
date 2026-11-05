@@ -1,0 +1,8 @@
+R01_ORIGINAL_CASES_FIXED {"ram": "16 ГБ", "storage": "512 ГБ"}
+R02_FIXED 1
+R03_ORIGINAL_COMPACT_CASE_FIXED
+R04_ORIGINAL_CASE_FIXED {"storage": "512 ГБ", "screen_size": "15.6\""}
+R03_DOUBLE_SPACE_FIXED {"base_filter": ["base"], "super_filter": ["super"]}
+KNOWN_DESKTOP_MEMORY_UNCHANGED {"ram": "8 ГБ", "storage": "16 ГБ"}
+EXACT_GPU_MATRIX_PASS 9 families 8 separators; rows 144
+KNOWN_GRE_COLLAPSE ['base9070', 'gre9070']

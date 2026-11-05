@@ -1,0 +1,110 @@
+{
+  "baseline_sha": "ac9286afd12f11153113870df8830af690717dd2",
+  "candidate_sha": "ffcb572f4b953138084469eaa8d2d24bb80553df",
+  "rows": 100000,
+  "gpu_rows": 1000,
+  "storage": ":memory:",
+  "repetitions": 3,
+  "note": "Synthetic model predicate, not full API or stand latency; other regression processes may run concurrently.",
+  "models": [
+    {
+      "model": "GeForce RTX 4060",
+      "results": 112,
+      "old_median_ms": 73.291,
+      "new_median_ms": 6.899,
+      "speedup": 10.62,
+      "approx_vm_steps": {
+        "old": 3323000,
+        "new": 725000
+      }
+    },
+    {
+      "model": "GeForce RTX 4060 Ti",
+      "results": 111,
+      "old_median_ms": 64.233,
+      "new_median_ms": 6.12,
+      "speedup": 10.5,
+      "approx_vm_steps": {
+        "old": 3321000,
+        "new": 723000
+      }
+    },
+    {
+      "model": "GeForce RTX 4070",
+      "results": 111,
+      "old_median_ms": 66.96,
+      "new_median_ms": 6.838,
+      "speedup": 9.79,
+      "approx_vm_steps": {
+        "old": 3326000,
+        "new": 732000
+      }
+    },
+    {
+      "model": "GeForce RTX 4070 Super",
+      "results": 111,
+      "old_median_ms": 67.023,
+      "new_median_ms": 6.516,
+      "speedup": 10.29,
+      "approx_vm_steps": {
+        "old": 3320000,
+        "new": 727000
+      }
+    },
+    {
+      "model": "GeForce RTX 4070 Ti",
+      "results": 111,
+      "old_median_ms": 68.627,
+      "new_median_ms": 6.804,
+      "speedup": 10.09,
+      "approx_vm_steps": {
+        "old": 3323000,
+        "new": 730000
+      }
+    },
+    {
+      "model": "GeForce RTX 4070 Ti Super",
+      "results": 111,
+      "old_median_ms": 64.569,
+      "new_median_ms": 6.14,
+      "speedup": 10.52,
+      "approx_vm_steps": {
+        "old": 3321000,
+        "new": 726000
+      }
+    },
+    {
+      "model": "Radeon RX 7900 XT",
+      "results": 111,
+      "old_median_ms": 87.019,
+      "new_median_ms": 5.936,
+      "speedup": 14.66,
+      "approx_vm_steps": {
+        "old": 3327000,
+        "new": 730000
+      }
+    },
+    {
+      "model": "Radeon RX 7900 XTX",
+      "results": 111,
+      "old_median_ms": 64.448,
+      "new_median_ms": 5.546,
+      "speedup": 11.62,
+      "approx_vm_steps": {
+        "old": 3321000,
+        "new": 723000
+      }
+    },
+    {
+      "model": "Arc B580",
+      "results": 111,
+      "old_median_ms": 66.176,
+      "new_median_ms": 5.887,
+      "speedup": 11.24,
+      "approx_vm_steps": {
+        "old": 3319000,
+        "new": 720000
+      }
+    }
+  ]
+}

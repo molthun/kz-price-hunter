@@ -1,0 +1,48 @@
+{
+  "head": "ffcb572f4b953138084469eaa8d2d24bb80553df",
+  "version": "6.28.6",
+  "decision": "SQL_OPTIMIZATION_LOCAL_ACCEPTED",
+  "new_defects_in_patch": 0,
+  "pytest": {
+    "passed": 2800,
+    "subtests_passed": 1198,
+    "warnings": 128,
+    "seconds": 183.74
+  },
+  "unittest": {
+    "passed": 2737,
+    "seconds": 179.548
+  },
+  "frontend": {
+    "passed": 37,
+    "total": 37
+  },
+  "secret_findings": 0,
+  "dependencies": {
+    "count": 25,
+    "vulnerabilities": 0,
+    "skipped": 0
+  },
+  "independent_gpu_matrix_rows": 144,
+  "synthetic_benchmark": {
+    "rows": 100000,
+    "gpu_rows": 1000,
+    "models_equal": 9
+  },
+  "stand_readonly": {
+    "checkout_head": "ac9286afd12f11153113870df8830af690717dd2",
+    "tracked_clean": true,
+    "container_version": "6.28.5",
+    "health_http": 200,
+    "container_filter_sha256": "dc7168188bd379a43c148f9cfd9eff00eb64fab93d8241899acb2f3dfa8107d9",
+    "filter_matches_checkout_commit": true
+  },
+  "candidate_verified_on_stand": false,
+  "production_verified": false,
+  "live_ai_calls": 0,
+  "known_open_issues": [
+    "RX 9070 GRE canonicalized as RX 9070; independently reproduced",
+    "desktop RAM/storage rule; independently reproduced"
+  ],
+  "stand_search_ai_root_cause": "not established"
+}
