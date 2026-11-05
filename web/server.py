@@ -4071,18 +4071,23 @@ async def category_ai_sort_background_worker(app):
 
 
 async def catalog_enrichment_background_worker(app):
-    """Фоновое обогащение характеристик товаров каталога (правила + Ollama).
+    """Фоновое обогащение характеристик товаров каталога (правила + локальная модель).
     Работает небольшими пачками по 15 товаров с паузами, контролируя нагрузку на сервер.
+    ИИ — только по настройкам приложения и через общую очередь к модели (A04); запрос к модели
+    выполняется на основном цикле, а поток с базой ждёт его без открытой записи (A01).
     """
-    from domain.catalog_enrichment_ai import batch_enrich_catalog, can_use_local_ai
+    from domain.catalog_enrichment_ai import ai_pause_reason, batch_enrich_catalog, thread_runner
     from database import get_connection
+    import config as app_config
 
     # Пауза при старте приложения для стабилизации фоновых процессов
     await asyncio.sleep(45.0)
+    run_ask = thread_runner(asyncio.get_running_loop())
 
     while True:
         try:
-            can_run_ai, _ = can_use_local_ai()
+            cfg = app_config.get_ai_config()
+            can_run_ai = ai_pause_reason(cfg) is None
 
             def _step():
                 with get_connection() as conn:
@@ -4092,11 +4097,14 @@ async def catalog_enrichment_background_worker(app):
                         use_ai=can_run_ai,
                         pause_between_ai_calls=0.5,
                         force=False,
+                        ai_config=cfg,
+                        run_ask=run_ask,
                     )
 
             stats = await asyncio.to_thread(_step)
             if stats.get("enriched", 0) > 0:
                 print(f"[CatalogEnrichmentAI] Обогащено товаров: {stats['enriched']}/{stats['processed']} (правила: {stats['by_rule']}, ИИ: {stats['by_ai']})")
+            if stats.get("processed", 0) > 0:
                 await asyncio.sleep(30.0)
             else:
                 await asyncio.sleep(180.0)

@@ -17,12 +17,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from domain.catalog_enrichment_ai import (
+    ai_pause_reason,
     batch_enrich_catalog,
-    can_use_local_ai,
-    DEFAULT_OLLAMA_MODEL,
-    DEFAULT_OLLAMA_URL,
     DDL_ATTRIBUTES,
 )
+import config as app_config
 
 logging.basicConfig(
     level=logging.INFO,
@@ -40,8 +39,7 @@ def main():
     parser.add_argument("--no-ai", action="store_true", help="Disable Local AI, use deterministic rules only")
     parser.add_argument("--force", action="store_true", help="Re-enrich products that already have attributes")
     parser.add_argument("--pause", type=float, default=0.3, help="Seconds to pause between AI calls")
-    parser.add_argument("--ollama-url", default=DEFAULT_OLLAMA_URL, help="Ollama endpoint URL")
-    parser.add_argument("--ollama-model", default=DEFAULT_OLLAMA_MODEL, help="Ollama model name")
+    # Адрес, модель и ключ локального ИИ — только из настроек приложения (админка), как у воркера.
 
     args = parser.parse_args()
 
@@ -65,13 +63,14 @@ def main():
     conn.commit()
 
     use_ai = not args.no_ai
+    ai_cfg = app_config.get_ai_config()
     if use_ai:
-        allowed, reason = can_use_local_ai()
-        if not allowed:
+        reason = ai_pause_reason(ai_cfg)
+        if reason:
             logger.warning(f"Local AI not available ({reason}). Running rules-only.")
             use_ai = False
         else:
-            logger.info(f"Local AI ready ({args.ollama_model} @ {args.ollama_url}).")
+            logger.info(f"Local AI ready ({ai_cfg.get('local_model')} from app settings).")
 
     logger.info(f"Starting enrichment (limit={args.limit}, category={args.category}, use_ai={use_ai}, force={args.force})...")
     t0 = time.time()
@@ -83,8 +82,7 @@ def main():
         use_ai=use_ai,
         pause_between_ai_calls=args.pause,
         force=args.force,
-        ollama_url=args.ollama_url,
-        ollama_model=args.ollama_model,
+        ai_config=ai_cfg,
     )
 
     elapsed = time.time() - t0

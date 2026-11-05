@@ -1,0 +1,13 @@
+AssertionError [ERR_ASSERTION]: 1366px/light: линии не объединены
+
+0 !== 2
+
+    at scenario (/Users/molthun/Documents/kz-price-hunter/tests/frontend/test_frontend_search_first.cjs:197:9)
+    at async /Users/molthun/Documents/kz-price-hunter/tests/frontend/test_frontend_search_first.cjs:235:41 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 0,
+  expected: 2,
+  operator: 'strictEqual',
+  diff: 'simple'
+}

@@ -1,0 +1,4 @@
+tests.search.test_attribute_facets_filter function_tests= 5 unittest_count= 0
+tests.scrapers.test_showcase_scanners function_tests= 6 unittest_count= 0
+CLEAN_CI_IMPORT tests.search.test_attribute_facets_filter ModuleNotFoundError No module named 'pytest' (clean-CI simulation)
+CLEAN_CI_IMPORT tests.scrapers.test_showcase_scanners ModuleNotFoundError No module named 'pytest' (clean-CI simulation)

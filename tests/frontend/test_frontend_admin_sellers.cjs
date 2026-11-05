@@ -1,4 +1,4 @@
-// CA-Admin-Sellers: Браузерный тест редактора магазинов для администратора (search_first.html + API v2).
+// CA-Admin-Sellers: Браузерный тест редактора магазинов администратора: профиль (search_first.html) → /admin, реальный API v2.
 const {chromium} = require('playwright');
 const {spawn} = require('node:child_process');
 const path = require('node:path');
@@ -66,94 +66,74 @@ async function runTest() {
     assert.equal(oldAreaExists, 0, 'Тяжеловесный блок управления магазинами удалён из профиля пользователя');
 
     // 4. Переход в админку /admin: раздел «Магазины и источники» доступен администратору
+    // Админка открывает разделы через навигацию: выбираем раздел так же, как администратор
     await page.goto(base + '/admin');
-    await page.waitForSelector('#shopsTool');
+    await page.locator('.admin-nav a[href="#shopsTool"]').click();
+    await page.waitForSelector('#shopsTool', { state: 'visible' });
     assert.ok(await page.locator('#shopsTool').isVisible());
 
-    // 5. Заполнение формы магазина с несколькими маркетплейсами
-    await page.locator('#adminSellerName').fill('Тестовый Магазин Электроники');
-    await page.locator('#adminSellerLegalName').fill('ТОО Тест Электроникс');
-    await page.locator('#adminSellerCity').fill('Алматы');
-    await page.locator('#adminSellerBin').fill('123456789012');
-    await page.locator('#adminSellerWebsite').fill('https://test-elec.kz');
-    await page.locator('#adminSellerPhone').fill('+7 777 999 8877');
-    await page.locator('#adminSellerInstagram').fill('@testelec_kz');
-    await page.locator('#adminSellerTelegram').fill('@testelec_tg');
+    // 5. Новый магазин через окно «Добавить магазин» с двумя маркетплейсами (реальный API v2)
+    await page.getByRole('button', {name: 'Добавить магазин'}).click();
+    await page.waitForFunction(() => document.getElementById('shopDialog').open);
+    await page.fill('#shopForm [name=name]', 'Тестовый Магазин Электроники');
+    await page.fill('#shopForm [name=legal_name]', 'ТОО Тест Электроникс');
+    await page.fill('#shopForm [name=city]', 'Алматы');
+    await page.fill('#shopForm [name=bin]', '123456789012');
+    await page.fill('#shopForm [name=website_url]', 'https://test-elec.kz');
+    await page.fill('#shopForm [name=phone]', '+7 777 999 8877');
+    await page.fill('#shopForm [name=instagram]', '@testelec_kz');
+    await page.fill('#shopForm [name=telegram]', '@testelec_tg');
+    for (const link of ['https://kaspi.kz/shop/m/12345/products/', 'https://forte.kz/merchant/67890']) {
+      await page.getByRole('button', {name: 'Добавить ссылку'}).click();
+      await page.locator('#shopForm input[name=marketplace_link]').last().fill(link);
+    }
+    assert.equal(await page.locator('#shopForm input[name=marketplace_link]').count(), 2);
+    await page.locator('#shopForm').getByRole('button', {name: 'Сохранить'}).click();
+    await page.waitForFunction(() => !document.getElementById('shopDialog').open);
 
-    // Ссылки на маркетплейсы: 1-я строка уже есть, заполняем её
-    const firstMpInput = page.locator('.admin-mp-input').first();
-    await firstMpInput.fill('https://kaspi.kz/shop/m/12345/products/');
+    // 6. Новый магазин появился в списке
+    const shopRow = page.locator('#shopsList .user').filter({hasText: 'Тестовый Магазин Электроники'});
+    await shopRow.waitFor();
+    assert.match(await shopRow.innerText(), /Алматы/);
+    assert.doesNotMatch(await shopRow.innerText(), /Отключён/);
 
-    // Добавляем 2-й маркетплейс по кнопке "+ Добавить маркетплейс"
-    await page.locator('button:has-text("+ Добавить маркетплейс")').click();
-    assert.equal(await page.locator('.admin-mp-input').count(), 2);
-    await page.locator('.admin-mp-input').nth(1).fill('https://forte.kz/merchant/67890');
+    // 7. Правка: сохранённые реквизиты и ссылки возвращаются в форму, каналы сбора показаны
+    await shopRow.getByRole('button', {name: 'Изменить'}).click();
+    await page.waitForFunction(() => document.getElementById('shopDialog').open
+      && document.querySelector('#shopForm [name=name]').value === 'Тестовый Магазин Электроники');
+    assert.equal(await page.inputValue('#shopForm [name=legal_name]'), 'ТОО Тест Электроникс');
+    assert.equal(await page.inputValue('#shopForm [name=bin]'), '123456789012');
+    assert.equal(await page.inputValue('#shopForm [name=website_url]'), 'https://test-elec.kz');
+    const links = await page.locator('#shopForm input[name=marketplace_link]').evaluateAll(els => els.map(e => e.value));
+    assert.ok(links.some(l => l.includes('kaspi.kz')) && links.some(l => l.includes('forte.kz')), JSON.stringify(links));
+    await page.waitForSelector('#shopChannelsSection', {state: 'visible'});
+    const channelsText = await page.locator('#shopChannelsList').innerText();
+    assert.match(channelsText, /kaspi/i);
+    assert.match(channelsText, /forte/i);
 
-    // Сохранение магазина
-    await page.locator('#btnSaveAdminSeller').click();
-    await page.waitForFunction(() => !document.getElementById('modalAdminSeller').classList.contains('open'));
-
-    // 6. Проверка, что новый магазин появился в списке
-    await page.waitForFunction(() => {
-      const list = document.getElementById('adminSellersList');
-      return list && list.textContent.includes('Тестовый Магазин Электроники');
-    });
-
-    const shopCard = page.locator('.admin-shop-card').filter({hasText: 'Тестовый Магазин Электроники'});
-    assert.match(await shopCard.innerText(), /Алматы/);
-    assert.match(await shopCard.innerText(), /ТОО Тест Электроникс/);
-    assert.match(await shopCard.innerText(), /123456789012/);
-    assert.match(await shopCard.innerText(), /Активен/);
-
-    // 7. Открытие магазина на редактирование и проверка каналов сбора
-    await shopCard.locator('button:has-text("Изменить")').click();
-    await page.waitForSelector('#modalAdminSeller.open');
-    await page.waitForFunction(() => document.getElementById('adminSellerName').value === 'Тестовый Магазин Электроники');
-
-    // Проверяем статус каналов в карточке
-    await page.waitForSelector('#adminSellerChannelsBlock:not([style*="display: none"])');
-    const channelsText = await page.locator('#adminSellerChannelsList').innerText();
-    assert.match(channelsText, /Нужен сканер витрины/);
-    assert.match(channelsText, /В сборе/);
-
-    // Редактируем юридическое название
-    await page.locator('#adminSellerLegalName').fill('ТОО Тест Электроникс Обновлённый');
-    await page.locator('#btnSaveAdminSeller').click();
-    await page.waitForFunction(() => !document.getElementById('modalAdminSeller').classList.contains('open'));
-
-    // Проверяем обновление в списке
-    await page.waitForFunction(() => {
-      const list = document.getElementById('adminSellersList');
-      return list && list.textContent.includes('ТОО Тест Электроникс Обновлённый');
-    });
+    await page.fill('#shopForm [name=legal_name]', 'ТОО Тест Электроникс Обновлённый');
+    await page.locator('#shopForm').getByRole('button', {name: 'Сохранить'}).click();
+    await page.waitForFunction(() => !document.getElementById('shopDialog').open);
+    await shopRow.getByRole('button', {name: 'Изменить'}).click();
+    await page.waitForFunction(() => document.getElementById('shopDialog').open
+      && document.querySelector('#shopForm [name=legal_name]').value === 'ТОО Тест Электроникс Обновлённый');
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => !document.getElementById('shopDialog').open);
 
     // 8. Поиск по названию
-    await page.locator('#adminSellerSearchInput').fill('НесуществующийXYZМагазин');
-    await page.waitForFunction(() => {
-      const list = document.getElementById('adminSellersList');
-      return list && list.textContent.includes('Магазины не найдены');
-    });
+    await page.fill('#shopSearch', 'НесуществующийXYZМагазин');
+    await page.waitForFunction(() => document.getElementById('shopsState').textContent.includes('Магазины не найдены'));
+    await page.fill('#shopSearch', 'Тестовый');
+    await shopRow.waitFor();
 
-    await page.locator('#adminSellerSearchInput').fill('Тестовый');
-    await page.waitForFunction(() => {
-      const list = document.getElementById('adminSellersList');
-      return list && list.textContent.includes('Тестовый Магазин Электроники');
-    });
-
-    // 9. Переключение на вкладку Заявок
-    await page.locator('#tabBtnAdminOnboarding').click();
-    assert.ok(await page.locator('#tabBtnAdminOnboarding').evaluate(el => el.classList.contains('active')));
-    const onboardingDisplay = await page.locator('#adminTabOnboardingContent').evaluate(el => getComputedStyle(el).display);
-    assert.notEqual(onboardingDisplay, 'none');
-
-    // 10. Переключение темы (тёмная / светлая)
-    await page.evaluate(() => toggleTheme());
-    const darkTheme = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
-    assert.equal(darkTheme, 'dark');
-
-    await page.evaluate(() => toggleTheme());
-    const lightTheme = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
-    assert.equal(lightTheme, 'light');
+    // 9. Тёмная тема админки сохраняет читаемый список
+    await page.emulateMedia({colorScheme: 'dark'});
+    await page.evaluate(() => { localStorage.removeItem('kz_theme_mode'); localStorage.removeItem('kz_theme'); });
+    await page.reload();
+    await page.locator('.admin-nav a[href="#shopsTool"]').click();
+    await page.waitForSelector('#shopsTool', {state: 'visible'});
+    assert.equal(await page.evaluate(() => document.documentElement.getAttribute('data-theme')), 'dark');
+    await page.locator('#shopsList .user').first().waitFor();
 
     assert.equal(errors.length, 0, 'Ошибки JS в консоли: ' + errors.join('; '));
     console.log('test_frontend_admin_sellers PASS');

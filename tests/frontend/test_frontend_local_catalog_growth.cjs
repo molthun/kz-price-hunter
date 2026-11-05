@@ -57,12 +57,15 @@ const plan = {category_name:'Шины и диски',fields:[{key:'season',label
    await page.getByRole('button',{name:'Посмотреть раздел «Шины и диски»'}).click();
    await page.locator('.product-card').waitFor();
    if(width<900)await page.evaluate(()=>openMobileFilters());
-   await page.selectOption('#attribute-season','Зимние');
+   // Небольшой фасет — список вариантов: выбираем строку «Зимние», как посетитель
+   const winter=page.locator('#filterAttrList_season label.filter-checkbox-label').filter({hasText:'Зимние'});
+   await winter.click();
    await page.waitForFunction(()=>location.search.includes('attributes'));
    await page.waitForTimeout(80);
    assert.deepEqual(JSON.parse(calls.at(-1).get('attributes')), {season:'Зимние'});
    await page.reload();await page.locator('.product-card').waitFor();
-   assert.equal(await page.inputValue('#attribute-season'),'Зимние');
+   if(width<900)await page.evaluate(()=>openMobileFilters());
+   assert.equal(await page.locator('#filterAttrList_season input[type=radio][value="Зимние"]').isChecked(),true);
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
    if(out)await page.screenshot({path:path.join(out,`filters-${width}-${scheme}.png`),fullPage:true});
    await page.goto(BASE+'/admin#catalogExpansionTool');

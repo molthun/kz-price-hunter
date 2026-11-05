@@ -1,0 +1,8 @@
+page.selectOption: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for locator('#attribute-season')[22m
+
+    at /Users/molthun/Documents/kz-price-hunter/tests/frontend/test_frontend_local_catalog_growth.cjs:60:15 {
+  log: [ "  - waiting for locator('#attribute-season')" ],
+  name: 'TimeoutError'
+}

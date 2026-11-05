@@ -1,0 +1,11 @@
+STARVATION [{"total_candidates": 15, "processed": 15, "enriched": 0, "by_rule": 0, "by_ai": 0, "empty": 15}, {"total_candidates": 15, "processed": 15, "enriched": 0, "by_rule": 0, "by_ai": 0, "empty": 15}, {"total_candidates": 15, "processed": 15, "enriched": 0, "by_rule": 0, "by_ai": 0, "empty": 15}]
+EVIDENCE_OVERWRITTEN {"chipset": "GeForce RTX 4060", "vram": "8 ГБ"}
+TITLE_EXTRACTION Ноутбук ASUS ROG Strix 18" Core Ultra 9 / 64 ГБ / SSD 1024 ГБ / GeForce RTX 5080 {"storage": "1 ТБ"}
+TITLE_EXTRACTION Ноутбук Lenovo 16GB DDR5 512GB SSD RTX 4060 {"storage": "512 ГБ", "vram": "16 ГБ", "chipset": "GeForce RTX 4060"}
+TITLE_EXTRACTION Блок питания ATX 850W 80 PLUS Gold {"color": "Золотистый", "power": "850 Вт", "certificate": "80 PLUS Gold", "form_factor": "ATX"}
+TITLE_EXTRACTION SSD накопитель M.2 2230 1TB {"storage": "1 ТБ", "form_factor": "M.2 2280"}
+MODEL_FILTER_4060_MATCHES_4060_TI ['base', 'ti']
+UNSUPPORTED_AI_FACTS_ACCEPTED {"ram": "64 ГБ", "storage": "2 ТБ"}
+WRITE_LOCK_DURING_AI ['writer_available', 'database is locked']
+ZERO_QUOTA_BECOMES 300 REQUEST_SENT True
+AI_SETTINGS_IGNORED config_read False request_sent True

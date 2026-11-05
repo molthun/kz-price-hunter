@@ -8,6 +8,10 @@ import argparse
 import os
 import sqlite3
 import sys
+from pathlib import Path
+
+# Запуск из корня репозитория как `python scripts/sync_pc_attributes.py`: корень проекта в sys.path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from domain.attribute_indexing import (
     sync_all_source_attributes,

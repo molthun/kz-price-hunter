@@ -255,10 +255,10 @@ async function offline(browser){
  await page.goto(B+'/favorites');
  await page.locator('.fav-card').first().waitFor();
  assert.match(await page.locator('.fav-card').first().innerText(),/Цена не указана/);
- await page.locator('.fav-card').nth(1).locator('[onclick*="open"]').click();
+ await page.locator('.fav-card').nth(1).locator('[title="Старая каноническая"][onclick*="open"]').click(); // клик по названию товара
  await page.waitForFunction(()=>location.pathname==='/product/prod_0123456789abcdef');
  await page.goBack();
- await page.locator('.fav-card').first().locator('[onclick*="open"]').click();
+ await page.locator('.fav-card').first().locator('[title="Старая запись"][onclick*="open"]').click();
  await page.waitForFunction(()=>location.pathname==='/search'&&new URLSearchParams(location.search).get('q')==='Старая запись');
  assert.ok(!(await page.url()).includes('legacy-77'));
 

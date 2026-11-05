@@ -9027,11 +9027,14 @@
         const sparklineHtml = generatePriceSparklineSvg(points, s.change_pct || 0);
 
         let trendBadgeHtml = '';
+        // Без change_amount (старый ответ API) изменение считается по первой и последней цене линии
+        const changeAmount = s.change_amount != null && Number.isFinite(Number(s.change_amount))
+          ? Number(s.change_amount) : Number(s.latest_price) - Number(s.first_price);
         if (points.length > 1 && s.change_pct) {
           if (s.change_pct < 0) {
-            trendBadgeHtml = `<span class="history-trend-badge trend-drop">📉 Снижение ${formatPrice(Math.abs(s.change_amount))} (${s.change_pct}%)</span>`;
+            trendBadgeHtml = `<span class="history-trend-badge trend-drop">📉 Снижение ${formatPrice(Math.abs(changeAmount))} (${s.change_pct}%)</span>`;
           } else {
-            trendBadgeHtml = `<span class="history-trend-badge trend-rise">📈 Рост +${formatPrice(s.change_amount)} (+${s.change_pct}%)</span>`;
+            trendBadgeHtml = `<span class="history-trend-badge trend-rise">📈 Рост +${formatPrice(changeAmount)} (+${s.change_pct}%)</span>`;
           }
         } else if (points.length > 1) {
           trendBadgeHtml = `<span class="history-trend-badge trend-flat">➡️ Цена стабильна</span>`;
@@ -9238,6 +9241,30 @@
         if (!id) return false;
         return this.getAll().some(item => String(item.id) === String(id));
       },
+      fromServer(s, localById) {
+        const id = String(s.item_id || s.id);
+        const local = localById.get(id) || {};
+        const canonical = s.canonical_product_id || null;
+        return {
+          id,
+          canonical_product_id: canonical,
+          legacy_product_id: canonical ? null : (s.legacy_product_id || local.legacy_product_id || null),
+          title: s.title || 'Товар',
+          shop: s.shop || '',
+          city: s.city || '',
+          new_price: s.current_price || s.saved_price || null,
+          saved_price: s.saved_price || null,
+          old_price: s.saved_price || null,
+          discount_pct: s.discount_pct || 0,
+          has_price_drop: Boolean(s.has_price_drop),
+          price_drop_amount: s.price_drop_amount || 0,
+          price_drop_pct: s.price_drop_pct || 0,
+          price_basis: s.price_basis || '',
+          image_url: s.image_url || '',
+          url: s.url || '',
+          saved_at: s.saved_at || new Date().toISOString()
+        };
+      },
       async syncWithServer(showNotice = false) {
         try {
           const localItems = this.getAll();
@@ -9255,24 +9282,9 @@
           const serverIds = new Set(serverItems.map(x => String(x.item_id || x.id)));
           const toUpload = localItems.filter(x => !serverIds.has(String(x.id)));
 
-          let merged = serverItems.map(s => ({
-            id: String(s.item_id || s.id),
-            canonical_product_id: s.canonical_product_id || null,
-            title: s.title || 'Товар',
-            shop: s.shop || '',
-            city: s.city || '',
-            new_price: s.current_price || s.saved_price || null,
-            saved_price: s.saved_price || null,
-            old_price: s.saved_price || null,
-            discount_pct: s.discount_pct || 0,
-            has_price_drop: Boolean(s.has_price_drop),
-            price_drop_amount: s.price_drop_amount || 0,
-            price_drop_pct: s.price_drop_pct || 0,
-            price_basis: s.price_basis || '',
-            image_url: s.image_url || '',
-            url: s.url || '',
-            saved_at: s.saved_at || new Date().toISOString()
-          }));
+          // Сервер не хранит legacy_product_id: берём его из локальной записи, иначе null (как у toggle)
+          const localById = new Map(localItems.map(x => [String(x.id), x]));
+          let merged = serverItems.map(s => this.fromServer(s, localById));
 
           if (toUpload.length > 0) {
             const pushResp = await fetch('/api/me/favorites', {
@@ -9283,24 +9295,7 @@
             if (pushResp.ok) {
               const pushData = await pushResp.json();
               if (Array.isArray(pushData.favorites)) {
-                merged = pushData.favorites.map(s => ({
-                  id: String(s.item_id || s.id),
-                  canonical_product_id: s.canonical_product_id || null,
-                  title: s.title || 'Товар',
-                  shop: s.shop || '',
-                  city: s.city || '',
-                  new_price: s.current_price || s.saved_price || null,
-                  saved_price: s.saved_price || null,
-                  old_price: s.saved_price || null,
-                  discount_pct: s.discount_pct || 0,
-                  has_price_drop: Boolean(s.has_price_drop),
-                  price_drop_amount: s.price_drop_amount || 0,
-                  price_drop_pct: s.price_drop_pct || 0,
-                  price_basis: s.price_basis || '',
-                  image_url: s.image_url || '',
-                  url: s.url || '',
-                  saved_at: s.saved_at || new Date().toISOString()
-                }));
+                merged = pushData.favorites.map(s => this.fromServer(s, localById));
               }
             }
           }
@@ -10041,9 +10036,8 @@
       if (!item) return;
       if (action === 'remove') Favorites.remove(item.id);
       else if (action === 'open') {
-        const cid = favoriteCanonicalId(item);
-        if (cid) openCatalogItem(cid, item.title);
-        else openSearchFromQuery(item.title);
+        // Без канонического товара openCatalogItem ищет по названию
+        openCatalogItem(favoriteCanonicalId(item), item.title);
       } else if (action === 'watch') {
         openWatchModalFromFavorite(item);
       }

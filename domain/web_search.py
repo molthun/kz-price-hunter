@@ -125,6 +125,20 @@ def build_search_query(raw_query: str, city: Optional[str] = None, mode: str = "
     return clean
 
 
+DEFAULT_DAILY_LIMIT = 300
+
+
+def _daily_limit(ai_cfg: Dict[str, Any]) -> int:
+    """Суточный лимит из настроек: нет настройки — 300, явный ноль — ноль (запрет), мусор — 300."""
+    raw = (ai_cfg or {}).get("search_daily_limit")
+    if raw is None or raw == "":
+        return DEFAULT_DAILY_LIMIT
+    try:
+        return max(0, int(raw))
+    except (TypeError, ValueError):
+        return DEFAULT_DAILY_LIMIT
+
+
 async def search_web(
     query: str,
     city: Optional[str] = None,
@@ -183,22 +197,20 @@ async def search_web(
     # 2. Определяем адрес узла SearXNG
     ai_cfg = config.get_ai_config()
     base = search_base or ai_cfg.get("search_api_base") or "http://192.168.28.25:8888"
-    daily_limit = int(ai_cfg.get("search_daily_limit") or 300)
+    daily_limit = _daily_limit(ai_cfg)
 
-    # 3. Резервируем суточный лимит попыток
+    # 3. Резервируем суточный лимит попыток. Ноль — запрет внешних запросов; без подтверждённой
+    # квоты (ошибка резерва) внешний запрос тоже не отправляется (A08, аудит 05.11.2026).
+    refused = {"ok": False, "query": clean_q, "total": 0, "results": [], "from_cache": False}
+    if daily_limit <= 0:
+        return {**refused, "error": "Веб-поиск выключен: суточный лимит запросов равен нулю."}
     try:
         allowed = await asyncio.to_thread(database.reserve_web_search, cache_key, daily_limit)
-        if not allowed:
-            return {
-                "ok": False,
-                "error": f"Исчерпан суточный лимит веб-поиска ({daily_limit} запросов/сутки).",
-                "query": clean_q,
-                "total": 0,
-                "results": [],
-                "from_cache": False
-            }
     except Exception as e:
-        logger.warning("Ошибка reserve_web_search: %s", e)
+        logger.warning("Ошибка reserve_web_search: %s", type(e).__name__)
+        return {**refused, "error": "Не удалось проверить суточный лимит веб-поиска; запрос не отправлен."}
+    if not allowed:
+        return {**refused, "error": f"Исчерпан суточный лимит веб-поиска ({daily_limit} запросов/сутки)."}
 
     # 4. Запрос к SearXNG
     url = f"{base.rstrip('/')}/search"

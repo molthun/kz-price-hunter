@@ -1,0 +1,35 @@
+{
+  "head": "2ee63a9ccbb327b125a0bd2648bf593e3d885eac",
+  "version": "6.28.2",
+  "pytest": {
+    "passed": 2761,
+    "subtests_passed": 1198,
+    "warnings": 128
+  },
+  "unittest": {
+    "tests": 2687,
+    "result": "OK"
+  },
+  "frontend": {
+    "total": 37,
+    "passed": 33,
+    "failed": [
+      "test_frontend_admin_sellers.cjs",
+      "test_frontend_deals_watches.cjs",
+      "test_frontend_local_catalog_growth.cjs",
+      "test_frontend_search_first.cjs"
+    ]
+  },
+  "secret_findings": 0,
+  "dependencies": {
+    "count": 25,
+    "vulnerabilities": 0
+  },
+  "findings": {
+    "P1": 3,
+    "P2": 6
+  },
+  "production_verified": false,
+  "stand_version_verified": false,
+  "live_ai_calls": 0
+}

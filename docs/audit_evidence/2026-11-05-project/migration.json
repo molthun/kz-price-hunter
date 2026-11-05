@@ -1,0 +1,11 @@
+{
+  "integrity_check": "ok",
+  "foreign_key_violations": 0,
+  "schema_version": {
+    "identity_v2": "1",
+    "identity_version": "3",
+    "notifications_muted_until": "1793917861.894065",
+    "schema_version": "5",
+    "watch_refresh_seed_v1": "2026-11-05T16:31:01.896727+00:00"
+  }
+}

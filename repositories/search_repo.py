@@ -94,6 +94,10 @@ def _attribute_value_variants(key: str, value: str) -> list[str]:
     return list(dict.fromkeys(v for v in variants if v))
 
 
+
+# Суффиксы, которые делают модель видеокарты другой моделью (A07).
+GPU_MODEL_SUFFIXES = ("Ti Super", "Ti", "Super", "XTX", "XT", "GRE")
+
 class SearchRepository(BaseRepository):
     """
     Coordinates FTS5 index searches over Canonical Products and collects active offers.
@@ -348,10 +352,25 @@ class SearchRepository(BaseRepository):
         canon_gpu = canonical_gpu_model(raw_m)
         if canon_gpu:
             short_m = canon_gpu.replace("GeForce ", "").replace("Radeon ", "")
+            # A07 (аудит 05.11.2026): «RTX 4060» не должна захватывать 4060 Ti/Super. Разобранная
+            # модель сравнивается точно; по названию ищем только товары без своей GPU-модели и
+            # отсекаем названия, где за искомой моделью идёт значимый суффикс (Ti, Super, XT, XTX, GRE).
+            excluded = []
+            for suffix in GPU_MODEL_SUFFIXES:
+                for sep in (" ", ""):
+                    excluded.append(f"%{short_m}{sep}{suffix}%")
+            if short_m.upper().endswith(" XT"):
+                excluded.append(f"%{short_m}X%")
+            not_like = "".join(" AND p.title NOT LIKE ?" for _ in excluded)
+            no_gpu_model = (
+                "(COALESCE(p.model, '') = '' OR (UPPER(p.model) NOT LIKE '%RTX%' AND UPPER(p.model) NOT LIKE '%GTX%' "
+                "AND UPPER(p.model) NOT LIKE '%RX %' AND UPPER(p.model) NOT LIKE '%ARC %'))"
+            )
             return (
-                "AND (p.model = ? OR LOWER(COALESCE(p.model, '')) = ? OR p.model = ? "
-                "OR (p.category IN ('gpus', 'Видеокарты') AND (p.title LIKE ? OR p.title LIKE ?)))",
-                [canon_gpu, canon_gpu.lower(), short_m, f"%{canon_gpu}%", f"%{short_m}%"],
+                "AND (LOWER(COALESCE(p.model, '')) IN (?, ?) "
+                f"OR (p.category IN ('gpus', 'Видеокарты') AND {no_gpu_model} "
+                f"AND (p.title LIKE ? OR p.title LIKE ?){not_like}))",
+                [canon_gpu.lower(), short_m.lower(), f"%{canon_gpu}%", f"%{short_m}%", *excluded],
             )
         return (
             "AND (p.model = ? OR LOWER(COALESCE(p.model, '')) = ?)",

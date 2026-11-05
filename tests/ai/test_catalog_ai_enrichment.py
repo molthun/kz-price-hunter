@@ -6,7 +6,7 @@ Tests deterministic rules, local AI extraction, validation, GPU safety, and DB p
 import json
 import sqlite3
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from domain.catalog_enrichment_ai import (
     batch_enrich_catalog,
@@ -90,37 +90,35 @@ class TestCatalogAIEnrichment(unittest.TestCase):
         self.assertIn("storage", prompt)
         self.assertIn("ram", prompt)
 
-    @patch("urllib.request.urlopen")
-    def test_extract_attributes_with_local_ai(self, mock_urlopen):
-        # Моделируем ответ Ollama API
+    def test_extract_attributes_with_local_ai(self):
+        # Ответ модели через общий путь ai_service.call_local_api (A04); значения без основания
+        # в тексте товара отбрасываются (A05)
         fake_response = {
-            "response": json.dumps({
-                "ram": "16 GB",
-                "storage": "512 GB",
-                "cpu": "Intel Core i7-13700H",
-                "gpu": "RTX 4060",
-                "screen_size": "15.6\"",
-                "color": "черный",
-                "hallucinated_invalid_key": "some value",  # Должно быть отфильтровано
-            })
+            "ram": "16 GB",
+            "storage": "512 GB",
+            "cpu": "Intel Core i7-13700H",
+            "gpu": "RTX 4060",
+            "screen_size": "15.6\"",
+            "color": "черный",
+            "hallucinated_invalid_key": "some value",  # Должно быть отфильтровано
         }
-        mock_resp = MagicMock()
-        mock_resp.status = 200
-        mock_resp.read.return_value = json.dumps(fake_response).encode("utf-8")
-        mock_resp.__enter__.return_value = mock_resp
-        mock_urlopen.return_value = mock_resp
-
-        with patch("domain.catalog_enrichment_ai.can_use_local_ai", return_value=(True, "OK")):
+        cfg = {"ai_search_enabled": True, "local_api_base": "http://ai.test/v1", "local_model": "m"}
+        with patch("domain.catalog_enrichment_ai.can_use_local_ai", return_value=(True, "OK")), \
+             patch("local_ai.pause_reason", return_value=None), \
+             patch("ai_service.call_local_api", new=AsyncMock(return_value=fake_response)):
             res = extract_attributes_with_local_ai(
                 title="Игровой ноутбук ASUS TUF Gaming",
-                description="Мощный процессор Intel Core i7, 16 ГБ памяти, накопитель 512 ГБ",
+                description="Мощный процессор Intel Core i7, 16 ГБ памяти, накопитель 512 ГБ, экран 15.6, цвет чёрный",
                 category="Ноутбуки",
+                config=cfg,
             )
 
         self.assertEqual(res.get("ram"), "16 ГБ")
         self.assertEqual(res.get("storage"), "512 ГБ")
         self.assertEqual(res.get("color"), "Черный")
         self.assertEqual(res.get("screen_size"), "15.6\"")
+        self.assertNotIn("gpu", res)          # «RTX 4060» в тексте нет
+        self.assertNotIn("cpu", res)          # «13700H» в тексте нет
         self.assertNotIn("hallucinated_invalid_key", res)
 
     def test_enrich_canonical_product_with_rules(self):
@@ -162,8 +160,8 @@ class TestCatalogAIEnrichment(unittest.TestCase):
         """)
         self.conn.commit()
 
-        with patch("domain.catalog_enrichment_ai.can_use_local_ai", return_value=(True, "OK")):
-            res = enrich_canonical_product(self.conn, "p_washer", use_ai_if_needed=True)
+        res = enrich_canonical_product(self.conn, "p_washer", use_ai_if_needed=True,
+                                       ai_config={"ai_search_enabled": True})
 
         self.assertTrue(res["ok"])
         self.assertIn("Максимальная загрузка", res["attributes"])

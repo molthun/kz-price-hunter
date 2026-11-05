@@ -5,35 +5,48 @@ color, CPU, load capacity, volume, etc.) using deterministic extraction and Loca
 
 Adheres to:
 1. Deterministic rules first (fast, hermetic, zero cost).
-2. Local AI fallback (qwen3-vl:8b-instruct) for unstructured descriptions.
+2. Local AI fallback only through the application's AI settings and the shared local-model path
+   (product_verify.make_local_ask → ai_service.call_local_api): «AI выкл», адрес/модель/ключ из
+   админки, одна очередь к GPU и учёт вызовов — как у остальных фоновых задач (A04).
 3. Strict GPU/gaming safety (honors local_ai.mode and local_ai.gpu_state).
-4. Validation & normalization against ATTRIBUTE_LABELS and normalize_attribute_value.
+4. Validation & normalization against ATTRIBUTE_LABELS and normalize_attribute_value; an AI value is
+   kept only when it is present in the product's own title/description (A05).
 5. Dual persistence: writes to product_search_attributes (for facets) and
-   canonical_products.attributes_json (for product card view).
+   canonical_products.attributes_json (for product card view). Each product is saved in its own short
+   transaction; no write transaction is held while waiting for the model (A01).
+6. A product without a result is deferred with backoff, so it never blocks the next ones (A03).
 """
 from __future__ import annotations
 
+import asyncio
+import concurrent.futures
 import json
 import logging
-import os
 import re
 import time
-import urllib.request
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import datetime, timedelta, timezone
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from domain.attribute_indexing import (
     ATTRIBUTE_LABELS,
+    EVIDENCE_AI,
+    EVIDENCE_RULES,
     extract_title_attributes,
     normalize_attribute_value,
+    upsert_search_attributes,
 )
 import local_ai
 
 logger = logging.getLogger("catalog_enrichment_ai")
 
-# Default Ollama endpoint & model
-DEFAULT_OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://192.168.28.25:11434")
-DEFAULT_OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen3-vl:8b-instruct")
+# Отсрочка товара без результата (A03): 1 ч, 4 ч, 16 ч, … не дольше недели. Если ИИ был нужен,
+# но недоступен (выключен, игра, не настроен), товар повторяется через 6 ч без роста счётчика.
+RETRY_BASE_SECONDS = 3600.0
+RETRY_MAX_SECONDS = 7 * 24 * 3600.0
+AI_UNAVAILABLE_RETRY_SECONDS = 6 * 3600.0
+AI_CALL_TIMEOUT_SECONDS = 90.0
+
+RunAsk = Callable[[Any], Any]
 
 DDL_ATTRIBUTES = """
 CREATE TABLE IF NOT EXISTS product_search_attributes (
@@ -46,6 +59,14 @@ CREATE TABLE IF NOT EXISTS product_search_attributes (
     PRIMARY KEY(product_id, key)
 );
 CREATE INDEX IF NOT EXISTS idx_product_search_attr ON product_search_attributes(key, value, product_id);
+CREATE TABLE IF NOT EXISTS catalog_enrichment_state (
+    product_id TEXT PRIMARY KEY REFERENCES canonical_products(id) ON DELETE CASCADE,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at TEXT NOT NULL,
+    last_outcome TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_catalog_enrichment_next ON catalog_enrichment_state(next_attempt_at);
 """
 
 # Key attribute schemas for focused extraction
@@ -196,64 +217,128 @@ def build_ai_prompt(title: str, description: str = "", category: str = "") -> st
 Ответь валидным JSON объектом (например, {{"storage": "256 ГБ", "color": "Черный"}} или {{}} если параметров нет):"""
 
 
+def ai_pause_reason(config: Dict[str, Any]) -> Optional[str]:
+    """Почему фоновое обогащение сейчас не зовёт ИИ (None — можно): выключен AI в настройках,
+    не настроена локальная модель, «AI выкл»/игра (local_ai) или GPU занят (A04)."""
+    import product_verify
+    reason = product_verify.verification_pause_reason(config or {})
+    if reason:
+        return reason
+    allowed, why = can_use_local_ai()
+    return None if allowed else why
+
+
+def _normalized_text(text: str) -> str:
+    return (text or "").casefold().replace("ё", "е").replace(",", ".")
+
+
+def is_grounded(raw_value: Any, norm_value: str, text: str) -> bool:
+    """Есть ли значение модели в тексте товара (A05).
+
+    Числовое значение принимается, только если все его числа стоят в тексте отдельными числами
+    (из исходного ответа или из нормализованного вида: «64 GB» и «64 ГБ» оба требуют «64»);
+    текстовое — если в тексте есть хотя бы одно его слово (по основе из 5 букв)."""
+    hay = _normalized_text(text)
+    if not hay:
+        return False
+    for candidate in (str(raw_value or ""), norm_value or ""):
+        cand = _normalized_text(candidate)
+        nums = re.findall(r"\d+(?:\.\d+)?", cand)
+        if nums:
+            if all(re.search(r"(?<![\d.])" + re.escape(n) + r"(?![\d])", hay) for n in nums):
+                return True
+            continue
+        words = [w for w in re.findall(r"[^\W\d_]{3,}", cand)]
+        if words and any(w[:5] in hay for w in words):
+            return True
+    return False
+
+
+def validate_ai_attributes(parsed: Any, title: str, description: str = "") -> Dict[str, str]:
+    """Оставляет из ответа модели только разрешённые ключи с нормализуемым значением,
+    подтверждённым текстом товара; остальное отбрасывается, а не публикуется как факт."""
+    if not isinstance(parsed, dict):
+        return {}
+    text = f"{title or ''}\n{description or ''}"
+    validated: Dict[str, str] = {}
+    for k, raw_v in parsed.items():
+        if not raw_v or k not in ATTRIBUTE_LABELS or isinstance(raw_v, (dict, list)):
+            continue
+        norm_val = normalize_attribute_value(k, raw_v)
+        if norm_val and is_grounded(raw_v, norm_val, text):
+            validated[k] = norm_val
+    return validated
+
+
+def thread_runner(loop: asyncio.AbstractEventLoop, timeout: float = AI_CALL_TIMEOUT_SECONDS + 30.0) -> RunAsk:
+    """Запуск корутины ИИ из рабочего потока на основном цикле приложения: там общая очередь к GPU."""
+    def _run(coro):
+        fut = asyncio.run_coroutine_threadsafe(coro, loop)
+        try:
+            return fut.result(timeout=timeout)
+        except concurrent.futures.TimeoutError:
+            fut.cancel()
+            return None
+    return _run
+
+
 def extract_attributes_with_local_ai(
     title: str,
     description: str = "",
     category: str = "",
-    ollama_url: Optional[str] = None,
-    ollama_model: Optional[str] = None,
-    timeout: float = 12.0,
+    *,
+    config: Optional[Dict[str, Any]] = None,
+    run_ask: Optional[RunAsk] = None,
+    outcome: Optional[Dict[str, str]] = None,
 ) -> Dict[str, str]:
-    """Извлекает подтвержденные характеристики через локальный Ollama API (qwen3-vl)."""
-    allowed, reason = can_use_local_ai()
-    if not allowed:
-        logger.debug(f"Skipping Local AI attribute extraction: {reason}")
+    """Извлекает характеристики локальной моделью по настройкам приложения (A04).
+
+    config — config.get_ai_config(); без неё читается текущая. Запрос идёт только через
+    product_verify.make_local_ask (ai_service.call_local_api): соблюдаются «AI выкл», адрес, модель
+    и ключ из админки, очередь к GPU и учёт. run_ask выполняет корутину (по умолчанию asyncio.run;
+    фоновый воркер передаёт thread_runner). outcome["status"]: ok | unavailable | failed."""
+    import product_verify
+    if config is None:
+        import config as app_config
+        config = app_config.get_ai_config()
+    status = outcome if outcome is not None else {}
+    reason = ai_pause_reason(config)
+    if reason:
+        logger.debug("Skipping Local AI attribute extraction: %s", reason)
+        status["status"] = "unavailable"
         return {}
 
-    url = (ollama_url or DEFAULT_OLLAMA_URL).rstrip("/")
-    model = ollama_model or DEFAULT_OLLAMA_MODEL
     prompt = build_ai_prompt(title, description=description, category=category)
-
-    payload = {
-        "model": model,
-        "prompt": prompt,
-        "stream": False,
-        "options": {"temperature": 0.0, "num_predict": 150},
-    }
-
+    ask = product_verify.make_local_ask(config)
     try:
-        req = urllib.request.Request(
-            f"{url}/api/generate",
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-        )
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            if resp.status == 200:
-                data = json.loads(resp.read().decode("utf-8"))
-                text = data.get("response", "").strip()
-
-                # Извлекаем JSON из ответа
-                match = re.search(r"\{.*?\}", text, re.DOTALL)
-                if not match:
-                    return {}
-
-                parsed = json.loads(match.group(0))
-                if not isinstance(parsed, dict):
-                    return {}
-
-                validated: Dict[str, str] = {}
-                for k, raw_v in parsed.items():
-                    if not raw_v or k not in ATTRIBUTE_LABELS:
-                        continue
-                    norm_val = normalize_attribute_value(k, raw_v)
-                    if norm_val:
-                        validated[k] = norm_val
-
-                return validated
+        parsed = (run_ask or asyncio.run)(ask(prompt))
     except Exception as ex:
-        logger.warning(f"Local AI attribute extraction failed for '{title[:50]}': {ex}")
+        logger.warning("Local AI attribute extraction failed for '%s': %s", (title or "")[:50], type(ex).__name__)
+        parsed = None
+    if not isinstance(parsed, dict):
+        status["status"] = "failed"
+        return {}
+    status["status"] = "ok"
+    return validate_ai_attributes(parsed, title, description)
 
-    return {}
+
+def _defer(conn, pid: str, outcome: str, now: datetime) -> None:
+    row = conn.execute("SELECT attempts FROM catalog_enrichment_state WHERE product_id=?", (pid,)).fetchone()
+    attempts = int(row[0]) if row else 0
+    if outcome == "ai_unavailable":
+        delay = AI_UNAVAILABLE_RETRY_SECONDS
+    else:
+        attempts += 1
+        delay = min(RETRY_BASE_SECONDS * (4 ** (attempts - 1)), RETRY_MAX_SECONDS)
+    conn.execute(
+        """
+        INSERT INTO catalog_enrichment_state (product_id, attempts, next_attempt_at, last_outcome, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(product_id) DO UPDATE SET attempts=excluded.attempts, next_attempt_at=excluded.next_attempt_at,
+            last_outcome=excluded.last_outcome, updated_at=excluded.updated_at
+        """,
+        (pid, attempts, (now + timedelta(seconds=delay)).isoformat(), outcome, now.isoformat()),
+    )
 
 
 def enrich_canonical_product(
@@ -261,21 +346,27 @@ def enrich_canonical_product(
     product_id: str,
     use_ai_if_needed: bool = True,
     force: bool = False,
-    ollama_url: Optional[str] = None,
-    ollama_model: Optional[str] = None,
+    ai_config: Optional[Dict[str, Any]] = None,
+    run_ask: Optional[RunAsk] = None,
+    now: Optional[datetime] = None,
 ) -> Dict[str, Any]:
     """
     Обогащает канонический товар характеристиками:
     1. Правила (название + описание)
-    2. Если атрибутов мало/нет — локальный AI (Ollama)
+    2. Если атрибутов мало/нет — локальный ИИ по настройкам приложения
     3. Сохраняет в product_search_attributes и canonical_products.attributes_json
+
+    Сначала чтение и вызов модели без открытой записи, затем одна короткая транзакция на товар:
+    commit при успехе, rollback только этого товара при ошибке (A01). Товар без результата
+    получает отсрочку в catalog_enrichment_state (A03).
     """
-    cur = conn.cursor()
-    cur.execute(
+    now = now or datetime.now(timezone.utc)
+    if getattr(conn, "in_transaction", False):
+        conn.commit()   # не ждём модель внутри чужой незавершённой записи
+    row = conn.execute(
         "SELECT id, title, category, description, attributes_json FROM canonical_products WHERE id = ?",
         (product_id,),
-    )
-    row = cur.fetchone()
+    ).fetchone()
     if not row:
         return {"ok": False, "error": f"Product {product_id} not found"}
 
@@ -304,64 +395,59 @@ def enrich_canonical_product(
     rule_attrs = extract_attributes_from_rules(title, desc)
     final_attrs = dict(rule_attrs)
     source_used = "rule"
+    ai_status = ""
 
-    # 2. Если атрибутов не найдено или мало, подключаем Local AI
+    # 2. Если атрибутов не найдено или мало, подключаем локальный ИИ — вне транзакции записи
     if len(final_attrs) < 2 and use_ai_if_needed:
+        outcome: Dict[str, str] = {}
         ai_attrs = extract_attributes_with_local_ai(
             title,
             description=desc,
             category=cat,
-            ollama_url=ollama_url,
-            ollama_model=ollama_model,
+            config=ai_config,
+            run_ask=run_ask,
+            outcome=outcome,
         )
+        ai_status = outcome.get("status") or ("ok" if ai_attrs else "failed")
         if ai_attrs:
             # Правила имеют высший приоритет над AI
             for k, v in ai_attrs.items():
                 if k not in final_attrs:
                     final_attrs[k] = v
-            source_used = "merged_ai" if rule_attrs else "local_ai"
+            if len(final_attrs) > len(rule_attrs):
+                source_used = "merged_ai" if rule_attrs else "local_ai"
+    elif len(final_attrs) < 2:
+        ai_status = "unavailable"   # ИИ нужен, но выключен для этого прохода: повтор без роста счётчика
 
-    if not final_attrs:
-        return {
-            "ok": True,
-            "product_id": pid,
-            "attributes": {},
-            "source": "empty",
-            "count": 0,
-        }
+    # 3. Короткая транзакция записи только этого товара
+    try:
+        if not final_attrs:
+            _defer(conn, pid, "ai_unavailable" if ai_status == "unavailable" else (
+                "ai_failed" if ai_status == "failed" else "empty"), now)
+            conn.commit()
+            return {"ok": True, "product_id": pid, "attributes": {}, "source": "empty", "count": 0,
+                    "ai_status": ai_status}
 
-    now_iso = datetime.now(timezone.utc).isoformat()
+        now_iso = now.isoformat()
+        items = {k: (v, EVIDENCE_RULES if k in rule_attrs else EVIDENCE_AI) for k, v in final_attrs.items()}
+        effective = upsert_search_attributes(conn, pid, items, title, now_iso)
 
-    # 3. Сохраняем в product_search_attributes для фасетов поиска
-    for k, v in final_attrs.items():
-        evidence_str = (
-            "Правила каталога (название/описание)"
-            if k in rule_attrs
-            else "Локальный AI (qwen3-vl по описанию товара)"
-        )
+        # Красивый словарь с русскими названиями для attributes_json карточки
+        display_attrs: Dict[str, str] = {}
+        for k, v in effective.items():
+            label = ATTRIBUTE_LABELS.get(k, k.replace("_", " ").capitalize())
+            display_attrs[label] = v
+
         conn.execute(
-            """
-            INSERT INTO product_search_attributes (product_id, key, value, evidence, source_title, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(product_id, key) DO UPDATE SET
-                value=excluded.value,
-                evidence=excluded.evidence,
-                source_title=excluded.source_title,
-                updated_at=excluded.updated_at
-            """,
-            (pid, k, v, evidence_str, title, now_iso),
+            "UPDATE canonical_products SET attributes_json = ?, updated_at = ? WHERE id = ?",
+            (json.dumps(display_attrs, ensure_ascii=False), now_iso, pid),
         )
-
-    # 4. Формируем красивый словарь с русскими названиями для attributes_json карточки
-    display_attrs: Dict[str, str] = {}
-    for k, v in final_attrs.items():
-        label = ATTRIBUTE_LABELS.get(k, k.replace("_", " ").capitalize())
-        display_attrs[label] = v
-
-    conn.execute(
-        "UPDATE canonical_products SET attributes_json = ?, updated_at = ? WHERE id = ?",
-        (json.dumps(display_attrs, ensure_ascii=False), now_iso, pid),
-    )
+        conn.execute("DELETE FROM catalog_enrichment_state WHERE product_id = ?", (pid,))
+        conn.commit()
+    except Exception as ex:
+        conn.rollback()
+        logger.warning("Catalog enrichment save failed for %s: %s", pid, type(ex).__name__)
+        return {"ok": False, "product_id": pid, "error": type(ex).__name__}
 
     return {
         "ok": True,
@@ -369,6 +455,7 @@ def enrich_canonical_product(
         "attributes": display_attrs,
         "source": source_used,
         "count": len(display_attrs),
+        "ai_status": ai_status,
     }
 
 
@@ -379,31 +466,46 @@ def batch_enrich_catalog(
     use_ai: bool = True,
     pause_between_ai_calls: float = 0.3,
     force: bool = False,
-    ollama_url: Optional[str] = None,
-    ollama_model: Optional[str] = None,
+    ai_config: Optional[Dict[str, Any]] = None,
+    run_ask: Optional[RunAsk] = None,
+    now: Optional[datetime] = None,
 ) -> Dict[str, Any]:
-    """Пакетное обогащение товаров каталога с паузами и контролем нагрузки."""
+    """Пакетное обогащение товаров каталога с паузами и контролем нагрузки.
+
+    Товары с отсрочкой (catalog_enrichment_state.next_attempt_at в будущем) пропускаются, давно
+    не пробованные идут первыми — пустые товары не держат очередь (A03). Каждый товар
+    сохраняется своей транзакцией; между вызовами модели запись не удерживается (A01)."""
+    now = now or datetime.now(timezone.utc)
     if hasattr(conn, "executescript"):
         conn.executescript(DDL_ATTRIBUTES)
 
-    cur = conn.cursor()
+    if use_ai and ai_config is None:
+        import config as app_config
+        ai_config = app_config.get_ai_config()
 
     where_clauses = []
     params: List[Any] = []
 
     if not force:
-        where_clauses.append("(attributes_json IS NULL OR attributes_json = '{}' OR attributes_json = '')")
+        where_clauses.append("(p.attributes_json IS NULL OR p.attributes_json = '{}' OR p.attributes_json = '')")
+        where_clauses.append("(s.next_attempt_at IS NULL OR s.next_attempt_at <= ?)")
+        params.append(now.isoformat())
 
     if category and category != "Все":
-        where_clauses.append("category = ?")
+        where_clauses.append("p.category = ?")
         params.append(category)
 
     where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
-    sql = f"SELECT id FROM canonical_products {where_sql} ORDER BY id ASC LIMIT ?"
+    sql = (
+        "SELECT p.id FROM canonical_products p "
+        "LEFT JOIN catalog_enrichment_state s ON s.product_id = p.id "
+        f"{where_sql} ORDER BY COALESCE(s.attempts, 0) ASC, COALESCE(s.next_attempt_at, '') ASC, p.id ASC LIMIT ?"
+    )
     params.append(limit)
 
-    cur.execute(sql, params)
-    rows = cur.fetchall()
+    rows = conn.execute(sql, params).fetchall()
+    if getattr(conn, "in_transaction", False):
+        conn.commit()
 
     stats = {
         "total_candidates": len(rows),
@@ -412,6 +514,7 @@ def batch_enrich_catalog(
         "by_rule": 0,
         "by_ai": 0,
         "empty": 0,
+        "failed": 0,
     }
 
     for (pid,) in rows:
@@ -420,23 +523,23 @@ def batch_enrich_catalog(
             pid,
             use_ai_if_needed=use_ai,
             force=force,
-            ollama_url=ollama_url,
-            ollama_model=ollama_model,
+            ai_config=ai_config,
+            run_ask=run_ask,
+            now=now,
         )
         stats["processed"] += 1
-        if res.get("ok") and res.get("count", 0) > 0:
+        if not res.get("ok"):
+            stats["failed"] += 1
+        elif res.get("count", 0) > 0:
             stats["enriched"] += 1
             src = res.get("source", "")
             if src == "rule":
                 stats["by_rule"] += 1
             elif src in ("local_ai", "merged_ai"):
                 stats["by_ai"] += 1
-                if pause_between_ai_calls > 0:
-                    time.sleep(pause_between_ai_calls)
         else:
             stats["empty"] += 1
-
-    if hasattr(conn, "commit"):
-        conn.commit()
+        if res.get("ai_status") in ("ok", "failed") and pause_between_ai_calls > 0:
+            time.sleep(pause_between_ai_calls)   # после commit: запись не удерживается
 
     return stats

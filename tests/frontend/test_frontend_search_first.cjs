@@ -194,13 +194,15 @@ async function scenario(browser,{width,height,scheme}){
  assert.match(offersText,/по данным источника/);
  assert.match(await page.locator('#detailBadges').innerText(),/Не новые от 7 000/);
  assert.match(await page.locator('#detailBestPrice').innerText(),/за 0\.5 кг/);
- assert.equal(await page.locator('.history-series').count(),2,`${label}: линии не объединены`);
- const hist=await page.locator('#detailHistoryContent').innerText();
- assert.match(hist,/Магазин Один · Сайт · Новый · Алматы/);
- assert.match(hist,/Магазин Один · Kaspi · Вскрытая упаковка · Астана/);
- assert.match(hist,/минимум 6 000 ₸, максимум 8 000 ₸/);
- assert.match(hist,/-25\.0%/);
- assert.match(hist,/за 0\.5 кг/);
+ assert.equal(await page.locator('.history-series-card').count(),2,`${label}: линии не объединены`);
+ // Каждая линия — своя карточка: канал, продавец, город и состояние не смешиваются между линиями
+ const [siteCard,kaspiCard]=await page.locator('.history-series-card').allInnerTexts();
+ for(const re of [/Прямой сайт/,/Магазин Один/,/Алматы/,/Новый/,/от 6 000 ₸ до 8 000 ₸/,/Снижение 2 000 ₸ \(-25%\)/,/за 0\.5 кг/,/Наблюдений: 2/])
+  assert.match(siteCard,re,`${label}: линия сайта`);
+ for(const re of [/Kaspi/,/Магазин Один/,/Астана/,/Вскрытая упаковка/,/7 000 ₸/,/Первое наблюдение/,/Наблюдений: 1/])
+  assert.match(kaspiCard,re,`${label}: линия Kaspi`);
+ assert.doesNotMatch(siteCard,/Kaspi|Астана|Вскрытая/,`${label}: линии не смешаны`);
+ assert.doesNotMatch(kaspiCard,/Прямой сайт|Алматы|Б\/у/,`${label}: линии не смешаны`);
  assert.match(await page.locator('#historyObservationsBadge').innerText(),/3 наблюдения/);
 
  // Цена и переход к продавцу видны без горизонтальной прокрутки

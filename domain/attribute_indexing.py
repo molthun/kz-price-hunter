@@ -727,18 +727,27 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
     ])
 
     if is_pc_part:
-        # Видеокарты (GPU): VRAM и чипсет
-        is_gpu = bool(re.search(r'\b(видеокарт\w*|geforce|radeon\s+rx|rtx\s*\d{3,4}|gtx\s*\d{3,4}|arc\s*[ab]\d{3})\b', title, re.I))
+        # Видеокарты (GPU): VRAM и чипсет — только у самой видеокарты (A06, аудит 05.11.2026).
+        # У ноутбука, моноблока или системного блока «RTX 4060» — компонент, а первое «16GB» в
+        # названии — оперативная память: ни чипсет, ни видеопамять устройству не приписываем.
+        is_whole_device = bool(re.search(
+            r'(ноутбук\w*|laptop|notebook|macbook|ультрабук\w*|моноблок\w*|системн\w*\s+блок\w*|'
+            r'компьютер\w*|игров\w*\s+пк|\bпк\b|неттоп\w*|mini\s*pc|планшет\w*|консол\w*)', title, re.I))
+        is_gpu = not is_whole_device and bool(re.search(
+            r'\b(видеокарт\w*|geforce|radeon\s+rx|rtx\s*\d{3,4}|gtx\s*\d{3,4}|arc\s*[ab]\d{3})\b', title, re.I))
         if is_gpu:
-            m_vram = re.search(r'\b(\d{1,2})\s*(?:gb|гб|g)\b|\b(2048|4096|6144|8192)\s*(?:mb|мб)\b', title, re.I)
+            # Объём, привязанный к памяти карты (8GB GDDR6, GDDR6X 12GB, 16 ГБ видеопамяти) — надёжнее
+            # первого объёма в названии; иначе первый объём, если за ним не идёт DDR/SSD (это не видеопамять).
+            m_vram = (re.search(r'\b(\d{1,2})\s*(?:gb|гб|g)\s*(?:gddr\d\w*|hbm\w*|видеопам\w*|vram)', title, re.I)
+                      or re.search(r'\b(?:gddr\d\w*|hbm\w*)\s*(\d{1,2})\s*(?:gb|гб|g)\b', title, re.I)
+                      or re.search(r'\b(\d{1,2})\s*(?:gb|гб|g)\b(?!\s*(?:ddr|lpddr|ssd|hdd|emmc|ram|озу))', title, re.I))
+            m_vram_mb = re.search(r'\b(2048|4096|6144|8192)\s*(?:mb|мб)\b', title, re.I)
             if m_vram:
-                if m_vram.group(1):
-                    v_num = int(m_vram.group(1))
-                    if v_num in (1, 2, 3, 4, 6, 8, 10, 11, 12, 16, 20, 24, 32, 48):
-                        attrs['vram'] = f"{v_num} ГБ"
-                elif m_vram.group(2):
-                    v_mb = int(m_vram.group(2))
-                    attrs['vram'] = f"{v_mb // 1024} ГБ"
+                v_num = int(m_vram.group(1))
+                if v_num in (1, 2, 3, 4, 6, 8, 10, 11, 12, 16, 20, 24, 32, 48):
+                    attrs['vram'] = f"{v_num} ГБ"
+            elif m_vram_mb:
+                attrs['vram'] = f"{int(m_vram_mb.group(1)) // 1024} ГБ"
             norm_chip = normalize_attribute_value('chipset', title)
             if norm_chip:
                 attrs['chipset'] = norm_chip
@@ -795,12 +804,23 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
                 attrs['certificate'] = '80 PLUS Bronze'
             elif re.search(r'\b(80\s*plus|80\+)\b', title, re.I):
                 attrs['certificate'] = '80 PLUS Standard'
+            # «Gold/Silver/Titanium» у блока питания — уровень сертификата, а не цвет корпуса.
+            # Цвет оставляем, только если металл назван ещё раз вне сертификата.
+            if attrs.get('certificate') and attrs.get('color') in ('Золотистый', 'Серебристый', 'Титановый'):
+                rest = re.sub(r'(?i)\b(?:80\s*(?:plus|\+)\s*)?(?:titanium|platinum|gold|silver|bronze|'
+                              r'титан\w*|платин\w*|золот\w*|серебр\w*|бронз\w*)\b', ' ', title, count=1)
+                if not any(re.search(p, rest) for p, c in COLOR_PATTERNS if c == attrs['color']):
+                    attrs.pop('color')
 
         # SSD и накопители
         is_ssd = bool(re.search(r'\b(ssd|накопитель|nvme)\b', title, re.I))
         if is_ssd:
-            if re.search(r'\bm\.?2(?:\s*2280)?\b', title, re.I):
-                attrs['form_factor'] = 'M.2 2280'
+            # Типоразмер M.2 — только указанный в названии; «M.2» без размера не значит 2280 (A06).
+            m_m2 = re.search(r'\bm\.?2\b(?:\s*[-/(]?\s*(2230|2242|2260|2280|22110)\b)?', title, re.I)
+            m_m2_size = re.search(r'\b(2230|2242|2260|2280|22110)\b', title) if m_m2 else None
+            if m_m2:
+                size = m_m2.group(1) or (m_m2_size.group(1) if m_m2_size else None)
+                attrs['form_factor'] = f'M.2 {size}' if size else 'M.2'
             elif re.search(r'\b2\.5(?:"|\'\'|дюйм)?\b', title, re.I):
                 attrs['form_factor'] = '2.5"'
             if re.search(r'\b(pcie\s*5(?:\.0)?|pci-e\s*5|gen5)\b', title, re.I):
@@ -863,6 +883,69 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
     return attrs
 
 
+# Основание значения в product_search_attributes.evidence и его приоритет (A02, аудит 05.11.2026).
+# Факт источника (название характеристики продавца/карточки) главнее эвристики по названию и правил,
+# а те — главнее ответа модели. Значение с более низким приоритетом не заменяет уже записанное.
+EVIDENCE_TITLE = 'Название товара'
+EVIDENCE_RULES = 'Правила каталога (название/описание)'
+EVIDENCE_AI = 'Локальный ИИ (значение есть в тексте товара)'
+_DERIVED_EVIDENCE_RANK = {
+    EVIDENCE_TITLE: 1,
+    EVIDENCE_RULES: 1,
+    EVIDENCE_AI: 0,
+    'Локальный AI (qwen3-vl по описанию товара)': 0,   # записи v6.28.x до исправления
+}
+SOURCE_EVIDENCE_RANK = 2
+
+
+def evidence_rank(evidence: Optional[str]) -> int:
+    """Приоритет основания: 2 — факт источника, 1 — название/правила, 0 — локальный ИИ."""
+    return _DERIVED_EVIDENCE_RANK.get(evidence or '', SOURCE_EVIDENCE_RANK)
+
+
+def upsert_search_attributes(conn, product_id: str, items: Dict[str, Tuple[str, str]], source_title: str,
+                             now_iso: str, prune_evidence: Optional[str] = None) -> Dict[str, str]:
+    """Записывает значения с учётом приоритета основания; возвращает действующие значения ключей items.
+
+    Значение не заменяет записанное с более высоким приоритетом (подтверждённый факт источника
+    не перезаписывается эвристикой). prune_evidence удаляет строки с этим основанием, которых больше нет
+    в items, — так повторная индексация названия убирает значения, которые исправленные правила
+    больше не выводят (например, «видеопамять» ноутбука)."""
+    existing = {r[0]: (r[1], r[2]) for r in conn.execute(
+        'SELECT key, value, evidence FROM product_search_attributes WHERE product_id=?', (product_id,))}
+    effective: Dict[str, str] = {}
+    for k, (v, evidence) in items.items():
+        old = existing.get(k)
+        if old and evidence_rank(old[1]) > evidence_rank(evidence):
+            effective[k] = old[0]
+            continue
+        effective[k] = v
+        if old == (v, evidence):
+            continue
+        conn.execute('''
+            INSERT INTO product_search_attributes (product_id, key, value, evidence, source_title, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(product_id, key) DO UPDATE SET
+                value=excluded.value,
+                evidence=excluded.evidence,
+                source_title=excluded.source_title,
+                updated_at=excluded.updated_at
+        ''', (product_id, k, v, evidence, source_title, now_iso))
+    if prune_evidence:
+        stale = [k for k, (_, e) in existing.items() if e == prune_evidence and k not in items]
+        for k in stale:
+            conn.execute('DELETE FROM product_search_attributes WHERE product_id=? AND key=?', (product_id, k))
+        if stale:
+            try:
+                conn.execute(
+                    "UPDATE canonical_products SET attributes_json = json_remove(COALESCE(NULLIF(attributes_json, ''), '{}'), "
+                    + ", ".join("?" for _ in stale) + ") WHERE id = ?",
+                    [*(f'$."{k}"' for k in stale), product_id])
+            except Exception:
+                pass
+    return effective
+
+
 def index_product_facts(conn, product_id: str, facts: List[Dict[str, Any]], product_title: Optional[str] = None) -> int:
     """Индексирует подтверждённые факты товара в таблицу product_search_attributes."""
     if not product_id:
@@ -881,7 +964,7 @@ def index_product_facts(conn, product_id: str, facts: List[Dict[str, Any]], prod
     # 1. Из названия товара
     title_attrs = extract_title_attributes(product_title)
     for k, v in title_attrs.items():
-        merged[k] = (v, 'Название товара')
+        merged[k] = (v, EVIDENCE_TITLE)
 
     # 2. Факты из источников имеют высший приоритет
     if facts:
@@ -896,118 +979,92 @@ def index_product_facts(conn, product_id: str, facts: List[Dict[str, Any]], prod
             norm_val = normalize_attribute_value(key, f.get('value'))
             if not norm_val:
                 continue
-            merged[key] = (norm_val, f.get('name', key)[:160])
+            evidence = str(f.get('name') or key)[:160]
+            if evidence_rank(evidence) < SOURCE_EVIDENCE_RANK:
+                evidence = f'Источник: {evidence}'[:160]
+            merged[key] = (norm_val, evidence)
 
+    effective = upsert_search_attributes(conn, product_id, merged, product_title, now_iso,
+                                         prune_evidence=EVIDENCE_TITLE)
     if not merged:
         return 0
 
-    indexed_count = 0
-    for k, (v, evidence) in merged.items():
-        conn.execute('''
-            INSERT INTO product_search_attributes (product_id, key, value, evidence, source_title, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(product_id, key) DO UPDATE SET
-                value=excluded.value,
-                evidence=excluded.evidence,
-                source_title=excluded.source_title,
-                updated_at=excluded.updated_at
-        ''', (product_id, k, v, evidence, product_title, now_iso))
-        indexed_count += 1
-
     # Также синхронизируем в canonical_products.attributes_json для отображения в карточке товара
     try:
-        simple_attrs = {k: v for k, (v, _) in merged.items()}
         conn.execute(
             "UPDATE canonical_products SET attributes_json = json_patch(COALESCE(NULLIF(attributes_json, ''), '{}'), ?) WHERE id = ?",
-            (json.dumps(simple_attrs), product_id)
+            (json.dumps(effective), product_id)
         )
     except Exception:
         pass
 
-    return indexed_count
+    return len(merged)
+
+
+_SYNC_TITLE_SCOPE = '''
+    p.category IN ('Подгузники и гигиена', 'diapers_hygiene', 'Бытовая техника', 'appliances', 'refrigerators',
+                   'washing_machines', 'vacuums', 'Мониторы', 'Комплектующие для ПК', 'Видеокарты', 'monitors',
+                   'pc_parts', 'gpus')
+    OR p.title LIKE '%подгуз%' OR p.title LIKE '%трусик%' OR p.title LIKE '%памперс%'
+    OR p.title LIKE '%холодильн%' OR p.title LIKE '%стиральн%' OR p.title LIKE '%пылесос%'
+    OR p.title LIKE '%монитор%' OR p.title LIKE '%видеокарт%' OR p.title LIKE '%geforce%'
+    OR p.title LIKE '%radeon%' OR p.title LIKE '%материнск%' OR p.title LIKE '%блок питания%'
+    OR p.title LIKE '%ssd%' OR p.title LIKE '%оперативн%памят%' OR p.title LIKE '%ddr5%'
+    OR p.title LIKE '%ddr4%'
+'''
 
 
 def sync_all_source_attributes(conn, limit: int = 50000) -> int:
-    """Индексирует характеристики товаров из product_source_evidence и названий canonical_products."""
-    total_indexed = 0
+    """Индексирует характеристики товаров из product_source_evidence и названий canonical_products.
 
-    # 1. Из evidence
+    Каждый товар индексируется один раз — сразу с фактами источника и названием, поэтому повторный
+    проход «по названию» больше не затирает подтверждённое значение (A02). Повторный запуск
+    даёт тот же результат."""
+    facts_by_product: Dict[str, List[Dict[str, Any]]] = {}
+    titles: Dict[str, str] = {}
+
+    # 1. Товары с фактами источника
     try:
-        cursor = conn.execute('''
+        rows = conn.execute('''
             SELECT e.product_id, p.title, e.facts_json
             FROM product_source_evidence e
             JOIN canonical_products p ON p.id = e.product_id
             WHERE e.status = 'ready' AND e.facts_json != '[]'
             LIMIT ?
-        ''', (limit,))
-        rows = cursor.fetchall()
-
-        for pid, title, facts_json in rows:
-            try:
-                facts = json.loads(facts_json)
-                if isinstance(facts, list) and facts:
-                    total_indexed += index_product_facts(conn, pid, facts, title)
-            except Exception:
-                continue
+        ''', (limit,)).fetchall()
     except Exception:
-        pass
+        rows = []
+    for pid, title, facts_json in rows:
+        try:
+            facts = json.loads(facts_json)
+        except Exception:
+            continue
+        if isinstance(facts, list) and facts:
+            facts_by_product[pid] = facts
+            titles[pid] = title
 
-    # 2. Для товаров, у которых еще нет атрибутов, индексируем из названия
-    try:
-        cursor = conn.execute('''
-            SELECT p.id, p.title
-            FROM canonical_products p
-            LEFT JOIN product_search_attributes pa ON pa.product_id = p.id
-            WHERE pa.product_id IS NULL AND p.title IS NOT NULL AND p.title != ''
-            LIMIT ?
-        ''', (limit,))
-        rows = cursor.fetchall()
-        for pid, title in rows:
-            total_indexed += index_product_facts(conn, pid, [], title)
-    except Exception:
-        pass
+    # 2. Товары без атрибутов и 3. разделы, где атрибуты берутся из названия
+    for sql in (
+        '''SELECT p.id, p.title FROM canonical_products p
+             LEFT JOIN product_search_attributes pa ON pa.product_id = p.id
+             WHERE pa.product_id IS NULL AND p.title IS NOT NULL AND p.title != '' LIMIT ?''',
+        f'''SELECT p.id, p.title FROM canonical_products p
+             WHERE p.title IS NOT NULL AND p.title != '' AND ({_SYNC_TITLE_SCOPE}) LIMIT ?''',
+    ):
+        try:
+            for pid, title in conn.execute(sql, (limit,)).fetchall():
+                titles.setdefault(pid, title)
+        except Exception:
+            continue
 
-    # 3. Для детских товаров и бытовой техники обновляем атрибуты из названия
-    try:
-        cursor = conn.execute('''
-            SELECT p.id, p.title
-            FROM canonical_products p
-            WHERE p.title IS NOT NULL AND p.title != ''
-              AND (
-                p.category IN ('Подгузники и гигиена', 'diapers_hygiene', 'Бытовая техника', 'appliances', 'refrigerators', 'washing_machines', 'vacuums')
-                OR p.title LIKE '%подгуз%' OR p.title LIKE '%трусик%' OR p.title LIKE '%памперс%'
-                OR p.title LIKE '%холодильн%' OR p.title LIKE '%стиральн%' OR p.title LIKE '%пылесос%'
-              )
-            LIMIT ?
-        ''', (limit,))
-        rows = cursor.fetchall()
-        for pid, title in rows:
-            total_indexed += index_product_facts(conn, pid, [], title)
-    except Exception:
-        pass
+    total_indexed = 0
+    for pid, title in titles.items():
+        try:
+            total_indexed += index_product_facts(conn, pid, facts_by_product.get(pid, []), title)
+        except Exception:
+            continue
 
-    # 4. Для мониторов и комплектующих ПК обновляем атрибуты из названия
-    try:
-        cursor = conn.execute('''
-            SELECT p.id, p.title
-            FROM canonical_products p
-            WHERE p.title IS NOT NULL AND p.title != ''
-              AND (
-                p.category IN ('Мониторы', 'Комплектующие для ПК', 'Видеокарты', 'monitors', 'pc_parts', 'gpus')
-                OR p.title LIKE '%монитор%' OR p.title LIKE '%видеокарт%' OR p.title LIKE '%geforce%'
-                OR p.title LIKE '%radeon%' OR p.title LIKE '%материнск%' OR p.title LIKE '%блок питания%'
-                OR p.title LIKE '%ssd%' OR p.title LIKE '%оперативн%памят%' OR p.title LIKE '%ddr5%'
-                OR p.title LIKE '%ddr4%'
-              )
-            LIMIT ?
-        ''', (limit,))
-        rows = cursor.fetchall()
-        for pid, title in rows:
-            total_indexed += index_product_facts(conn, pid, [], title)
-    except Exception:
-        pass
-
-    if total_indexed > 0 and hasattr(conn, 'commit'):
+    if hasattr(conn, 'commit'):
         conn.commit()
 
     return total_indexed
