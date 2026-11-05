@@ -2,6 +2,41 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## STAND_DEPLOYED → Владелец: Исправление классификации ноутбуков, держателей и плат видеозахвата v6.27.3 (2026-11-05)
+
+- Прямое поручение владельца: «А что он в видеокартах делает?» (со скриншотом `ASUS ROG Strix SCAR 18 18" / Intel Core Ultra 9 275HX / 64 Гб / SSD 1024 Гб / GeForce RTX 5080 / Win 11 ...`, попавшего в категорию `Видеокарты` с чипсетом `Intel Core Ultra 9 275HX`).
+- Исполнитель: Antigravity (основной разработчик).
+- Дата и время: 2026-11-05 15:45 (Asia/Almaty).
+- Срез: ветка `codex/local-ai-catalog-growth`, коммит `119997c`.
+- Область файлов: `catalog_classifier.py`, `domain/storage_types.py`, `domain/attribute_indexing.py`, `scripts/fix_misclassified_laptops.py`, `scripts/migrate_pc_components.py`, `version.py`, `CHANGELOG.md`, `docs/AGENT_HANDOFF.md`.
+- Реализовано:
+  1. `catalog_classifier.py`:
+     - Расширен классификатор `laptops`: определяются ноутбуки без слова «ноутбук» по диагонали экрана (`11.6"`-`18"`), сочетаниям мобильных платформ (`Core Ultra`, `Ryzen`, `HX/HS/H`), операционным системам (`Win 11`, `DOS`, `без ОС`) и модельным линейкам (`ROG Strix`, `TUF Gaming`, `Legion`, `Predator`, `Nitro`, `Victus`, `Omen`, `Stealth`, `Katana` и др.).
+     - Защита `gpus`: видеокарты исключают товары с диагоналями дисплеев и ноутбучными ОС.
+     - В `_ACCESSORY_CONSUMABLE_RULES` добавлены:
+       - Держатели и кронштейны видеокарт (`pc_cases`, `accessory`).
+       - Платы и устройства видеозахвата (`pc_components`, `device`).
+  2. `domain/storage_types.py`:
+     - В `_DEVICE` добавлены экраны и ноутбучные линейки, исключив попадание ноутбуков со строкой `SSD 512 Гб` в категорию «SSD накопители».
+  3. `domain/attribute_indexing.py`:
+     - В `normalize_attribute_value` для `chipset`: запрещены CPU процессоры (`Intel Core`, `Core Ultra`, `Ryzen`, `275HX`). Поддерживаются только GPU (GeForce RTX/GTX, Radeon RX, Intel Arc) и чипсеты матплат.
+     - Добавлена нормализация `clock_speed` (МГц/ГГц) и `interface` (PCIe, HDMI, DisplayPort).
+  4. Скрипт очистки `scripts/fix_misclassified_laptops.py`:
+     - 72 ноутбука перенесены из `Видеокарты` и `SSD накопители` в категорию `Ноутбуки` (`laptops`).
+     - 3 держателя видеокарт перенесены в `Корпуса`.
+     - 2 платы видеозахвата перенесены в `Комплектующие для ПК`.
+     - Очищены искажённые GPU-атрибуты (`chipset`, `vram`, `interface`, `clock_speed`).
+  5. Тестирование и стенд:
+     - Все 295 тестов поиска и классификации пройдены (`295 passed, 33 warnings in 10.63s`).
+     - Контейнер на стенде обновлён до `v6.27.3`.
+     - Снят контрольный скриншот Playwright: `docs/audit_evidence/stand_gpus_clean_after_laptops_fix.png`.
+       - В разделе «Видеокарты» отсутствуют ноутбуки, держатели и платы захвата.
+       - Из «Чипсетов» удалены `Intel Core Ultra 9 275HX` и `Ryzen AI 9 HX 370`.
+       - Из «Объёма видеопамяти» удалено ложное значение `64 ГБ`.
+- Следующий шаг в очереди дорожной карты: Продолжение плановых задач из `docs/DEVELOPMENT_PLAN.md` (полировка мобильной ленты `/deals` или адаптивный поисковый ассистент).
+
+---
+
 ## STAND_DEPLOYED → Владелец: Дедупликация и нормализация параметров в боковых фильтрах поиска v6.27.2 (2026-11-05)
 
 - Прямое поручение владельца: «Почему много одинаковых параметров в фильтре?» (со скриншотом `shdev.molthun.ru/search?city=Астана&cat=Видеокарты`, где обведены дубликаты `16 ГБ (11)`, `16 GB (3)`, `16 Гб (1)`, `16GB (1)`, `8 ГБ`, `8 Gb`, `8GB`, `8 Гб` в «Объем видеопамяти» и `GeForce RTX 5080 (29)`, `RTX 5080 (14)`, `NVIDIA (2)`, `AMD` в «Чипсет»).
