@@ -274,6 +274,25 @@ class TestCatalogClassifier(unittest.TestCase):
                 self.assertEqual(res.brand, exp_brand, f"Бренд не совпал для '{title}': got {res.brand}, exp {exp_brand}")
                 self.assertEqual(res.model, exp_model, f"Модель не совпала для '{title}': got {res.model}, exp {exp_model}")
 
+    def test_telephony_and_office_phones(self):
+        """Проверяет классификацию IP-телефонов, радиотелефонов и стационарных телефонов в категорию telephony."""
+        cases = [
+            ("IP-телефон Grandstream GRP2604P", "Телефоны", "telephony", "Grandstream", "GRP2604P"),
+            ("Телефон Panasonic KX-TS2350RU, White", "Телефоны", "telephony", "Panasonic", "KX TS2350RU"),
+            ("Радио-телефон Panasonic KX-TG1711CAB, Black", "Телефоны", "telephony", "Panasonic", "KX TG1711CAB"),
+            ("IP-телефон Yealink SIP-T31P", "IP-телефоны", "telephony", "Yealink", "SIP T31P"),
+            ("Радиотелефон Gigaset A170 Black", "Радиотелефоны", "telephony", "Gigaset", "A170"),
+            ("Смартфон Apple iPhone 16 Pro 256Gb", "Смартфоны", "phones", "Apple", "iPhone 16 Pro"),
+        ]
+        for title, raw_cat, exp_cat, exp_brand, exp_model in cases:
+            with self.subTest(title=title):
+                res = self.classifier.classify_rules(title, raw_category=raw_cat)
+                self.assertIsNotNone(res, f"Не удалось классифицировать '{title}'")
+                self.assertEqual(res.category_id, exp_cat, f"Категория не совпала для '{title}': got {res.category_id}, exp {exp_cat}")
+                self.assertEqual(res.brand, exp_brand, f"Бренд не совпал для '{title}': got {res.brand}, exp {exp_brand}")
+                if exp_model:
+                    self.assertEqual(res.model, exp_model, f"Модель не совпала для '{title}': got {res.model}, exp {exp_model}")
+
 
 if __name__ == "__main__":
     unittest.main()

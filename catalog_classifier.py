@@ -180,6 +180,14 @@ KNOWN_BRANDS: Dict[str, str] = {
     "hisense": "Hisense",
     "haier": "Haier",
     "panasonic": "Panasonic",
+    # Telephony & Communications
+    "grandstream": "Grandstream",
+    "yealink": "Yealink",
+    "gigaset": "Gigaset",
+    "texet": "teXet",
+    "fanvil": "Fanvil",
+    "cisco": "Cisco",
+    "avaya": "Avaya",
     "yasin": "Yasin",
     "kivi": "KIVI",
     "skyworth": "Skyworth",
@@ -393,7 +401,8 @@ _TITLE_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
     (re.compile(r"\b(клавиатур(?:а|ы)|keyboard|компьютерн(?:ая|ые)\s+мыш(?:ь|и)|мышь\s+беспроводная|magic\s+keyboard|magic\s+mouse|magic\s+trackpad|тачпад|геймпад|apple\s+pencil|стилус|stylus)\b", re.I), "peripherals"),
 
     # Phones & Tablets
-    (re.compile(r"\b(смартфон|айфон|iphone|сотовый\s+телефон)\b", re.I), "phones"),
+    (re.compile(r"\b(ip-телефон(?:ы|а|у|ом)?|ip\s+телефон(?:ы|а|у|ом)?|sip-телефон(?:ы|а|у|ом)?|sip\s+телефон(?:ы|а|у|ом)?|voip-телефон(?:ы|а|у|ом)?|радио-?телефон(?:ы|а|у|ом)?|dect-телефон(?:ы|а|у|ом)?|стационарн(?:ый|ые|ого)\s+телефон(?:а|ы)?|проводн(?:ой|ые|ого)\s+телефон(?:а|ы)?|базов(?:ая|ые)\s+станци(?:я|и)\s+dect)\b", re.I), "telephony"),
+    (re.compile(r"\b(смартфон|айфон|iphone|сотовый\s+телефон|мобильный\s+телефон)\b", re.I), "phones"),
     (re.compile(r"\b(планшет|таблет)\b|\bipad\b", re.I), "tablets"),
     (re.compile(r"\b(смарт-час(?:ы|а)|умные\s+часы|фитнес-браслет|(?:apple\s+)?watch\s*(?:nike\s+)?series|apple\s+watch|galaxy\s+watch)\b", re.I), "smartwatches"),
 
@@ -905,7 +914,7 @@ KNOWN_MODEL_FAMILIES: List[Tuple[re.Pattern, str]] = [
 # Patterns stripped from title when constructing fallback clean model
 _MODEL_STRIP_PATTERNS = [
     # Category words
-    r"\b(смартфон|сотовый телефон|мобильный телефон|ноутбук|ультрабук|планшет|пылесос|беспроводн(?:ой|ые|ая)|вертикальный|робот-пылесос|телевизор|видеокарта|наушники|смарт-часы|умные часы|монитор|холодильник|стиральная машина|кондиционер|кастрюл(?:я|и)|сковород(?:а|ы)|набор\s+(?:лиф|майк\w*)\s+и\s+трусик\w*|детск\w*\s+трусы|трусы\s+детск\w*|детск(?:ий|ие|ая|ое)|для\s+девочек|для\s+мальчиков)\b",
+    r"\b(ip-телефон|ip\s+телефон|sip-телефон|sip\s+телефон|радио-?телефон|стационарный\s+телефон|проводной\s+телефон|телефон|смартфон|сотовый телефон|мобильный телефон|ноутбук|ультрабук|планшет|пылесос|беспроводн(?:ой|ые|ая)|вертикальный|робот-пылесос|телевизор|видеокарта|наушники|смарт-часы|умные часы|монитор|холодильник|стиральная машина|кондиционер|кастрюл(?:я|и)|сковород(?:а|ы)|набор\s+(?:лиф|майк\w*)\s+и\s+трусик\w*|детск\w*\s+трусы|трусы\s+детск\w*|детск(?:ий|ие|ая|ое)|для\s+девочек|для\s+мальчиков)\b",
     # Compatibility clauses
     r"\b(?:для|for|на)\s+.*$",
     # Memory, storage, specs
