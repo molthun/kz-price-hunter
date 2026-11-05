@@ -816,6 +816,74 @@ MASTER_TAXONOMY: List[Category] = [
         search_priority=53,
         aliases=["корм для собак", "поводки", "ошейники", "лакомства для собак"],
     ),
+
+    # 11. Книги, музыка и хобби (L1)
+    Category(
+        id="books_media",
+        name="Книги, музыка и хобби",
+        icon="📚",
+        search_priority=58,
+        aliases=[
+            "книги, музыка и хобби", "книги и музыка", "музыка", "книги", "винил", "хобби",
+            "развлечения", "media", "books", "книги и развлечения",
+        ],
+    ),
+    Category(
+        id="vinyl",
+        parent_id="books_media",
+        name="Виниловые пластинки",
+        icon="💿",
+        search_priority=57,
+        aliases=[
+            "винил", "виниловые пластинки", "виниловая пластинка", "винил lp", "грампластинки",
+            "грампластинка", "пластинки", "пластинка", "музыка и винил", "музыка и cd / винил",
+            "винил и музыка", "vinyl", "lp", "2lp", "винил / lp",
+        ],
+        attributes_schema={
+            "artist": {"label": "Исполнитель", "type": "string"},
+            "format": {"label": "Формат", "type": "string"},
+            "genre": {"label": "Жанр", "type": "string"},
+            "release_year": {"label": "Год издания", "type": "int"},
+        },
+    ),
+    Category(
+        id="music_cd",
+        parent_id="books_media",
+        name="CD и аудиодиски",
+        icon="🎵",
+        search_priority=56,
+        aliases=[
+            "музыка и cd", "музыка на cd", "cd диски", "cd диск", "аудиодиски", "компакт диски",
+            "музыкальные диски", "audio cd",
+        ],
+    ),
+    Category(
+        id="books",
+        parent_id="books_media",
+        name="Книги",
+        icon="📖",
+        search_priority=57,
+        aliases=[
+            "книги", "книги и канцелярия", "художественная литература", "литература",
+            "books", "книга", "нонфикшн", "деловая литература",
+        ],
+        attributes_schema={
+            "author": {"label": "Автор", "type": "string"},
+            "publisher": {"label": "Издательство", "type": "string"},
+            "cover_type": {"label": "Переплет", "type": "string"},
+        },
+    ),
+    Category(
+        id="board_games",
+        parent_id="books_media",
+        name="Настольные игры",
+        icon="🎲",
+        search_priority=55,
+        aliases=[
+            "настольные игры", "настольная игра", "настолки", "board games",
+            "игры для компании", "игры настольные",
+        ],
+    ),
 ]
 
 

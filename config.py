@@ -1426,15 +1426,15 @@ INTERTOP_CATEGORIES = [
 ]
 
 MARWIN_CATEGORIES = [
-    {"name": "Меломан: 📚 Книги", "url": "https://www.marwin.kz/books/", "master": "household", "max_pages": 10},
+    {"name": "Меломан: 📚 Книги", "url": "https://www.marwin.kz/books/", "master": "books", "max_pages": 10},
     {"name": "Меломан: 🎮 Видеоигры и консоли", "url": "https://www.marwin.kz/videogames/", "master": "consoles", "max_pages": 10},
-    {"name": "Меломан: 🧸 Игрушки и развлечения", "url": "https://www.marwin.kz/toys-and-entertainment/", "master": "household", "max_pages": 10},
-    {"name": "Меломан: 🧱 Конструкторы LEGO", "url": "https://www.marwin.kz/toys-and-entertainment/lego/", "master": "household", "max_pages": 10},
-    {"name": "Меломан: 🎲 Настольные игры", "url": "https://www.marwin.kz/toys-and-entertainment/nastol-nye-igry/", "master": "household", "max_pages": 10},
-    {"name": "Меломан: 🎨 Творчество и хобби", "url": "https://www.marwin.kz/tvorchestvo-19692/", "master": "household", "max_pages": 10},
-    {"name": "Меломан: ✏️ Школа и канцелярия", "url": "https://www.marwin.kz/shkola-kancelyariya-19236/", "master": "office_network", "max_pages": 10},
-    {"name": "Меломан: 🎵 Музыка и винил", "url": "https://www.marwin.kz/music/", "master": "audio", "max_pages": 10},
-    {"name": "Меломан: 🍬 Сладости и подарки", "url": "https://www.marwin.kz/food-items/", "master": "grocery", "max_pages": 10},
+    {"name": "Меломан: 🧸 Игрушки и развлечения", "url": "https://www.marwin.kz/toys-and-entertainment/", "master": "kids", "max_pages": 10},
+    {"name": "Меломан: 🧱 Конструкторы LEGO", "url": "https://www.marwin.kz/toys-and-entertainment/lego/", "master": "kids", "max_pages": 10},
+    {"name": "Меломан: 🎲 Настольные игры", "url": "https://www.marwin.kz/toys-and-entertainment/nastol-nye-igry/", "master": "board_games", "max_pages": 10},
+    {"name": "Меломан: 🎨 Творчество и хобби", "url": "https://www.marwin.kz/tvorchestvo-19692/", "master": "books_media", "max_pages": 10},
+    {"name": "Меломан: ✏️ Школа и канцелярия", "url": "https://www.marwin.kz/shkola-kancelyariya-19236/", "master": "books", "max_pages": 10},
+    {"name": "Меломан: 🎵 Музыка и винил", "url": "https://www.marwin.kz/music/", "master": "vinyl", "max_pages": 10},
+    {"name": "Меломан: 🍬 Сладости и подарки", "url": "https://www.marwin.kz/food-items/", "master": "food", "max_pages": 10},
 ]
 
 ITEKA_CATEGORIES = [

@@ -293,6 +293,31 @@ class TestCatalogClassifier(unittest.TestCase):
                 if exp_model:
                     self.assertEqual(res.model, exp_model, f"Модель не совпала для '{title}': got {res.model}, exp {exp_model}")
 
+    def test_vinyl_and_source_category_fallback(self):
+        """Проверяет классификацию винила, музыкальных носителей и fallback на категорию источника."""
+        # 1. Винил и музыка
+        res1 = self.classifier.classify_rules("Beatles Abbey Road LP", raw_category="Меломан: 🎵 Музыка и винил")
+        self.assertIsNotNone(res1)
+        self.assertEqual(res1.category_id, "vinyl")
+        self.assertEqual(res1.brand, "Beatles")
+        self.assertEqual(res1.model, "Abbey Road")
+
+        res2 = self.classifier.classify_rules("Pink Floyd The Wall 2LP")
+        self.assertIsNotNone(res2)
+        self.assertEqual(res2.category_id, "vinyl")
+        self.assertEqual(res2.brand, "Pink Floyd")
+        self.assertEqual(res2.model, "The Wall")
+
+        # 2. Книги
+        res3 = self.classifier.classify_rules("All You Need Is Love. The Beatles: устами очевидцев", raw_category="Меломан: 📚 Книги")
+        self.assertIsNotNone(res3)
+        self.assertEqual(res3.category_id, "books")
+
+        # 3. Fallback на категорию источника (если категории нет в таксономии - берем категорию источника, а не electronics)
+        res4 = self.classifier.classify("Сувенирный магнит Астана", raw_category="Сувениры и подарки")
+        self.assertEqual(res4.category_name, "Сувениры и подарки")
+        self.assertNotEqual(res4.category_id, "electronics")
+
 
 if __name__ == "__main__":
     unittest.main()

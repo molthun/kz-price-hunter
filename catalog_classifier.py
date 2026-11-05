@@ -346,6 +346,31 @@ KNOWN_BRANDS: Dict[str, str] = {
     "britax": "Britax Romer",
     "tiny love": "Tiny Love",
     "fisher-price": "Fisher-Price",
+
+    # Музыкальные группы, исполнители и авторы
+    "the beatles": "The Beatles",
+    "beatles": "Beatles",
+    "pink floyd": "Pink Floyd",
+    "queen": "Queen",
+    "nirvana": "Nirvana",
+    "metallica": "Metallica",
+    "michael jackson": "Michael Jackson",
+    "led zeppelin": "Led Zeppelin",
+    "ac/dc": "AC/DC",
+    "acdc": "AC/DC",
+    "rolling stones": "Rolling Stones",
+    "the rolling stones": "The Rolling Stones",
+    "david bowie": "David Bowie",
+    "abba": "ABBA",
+    "rammstein": "Rammstein",
+    "taylor swift": "Taylor Swift",
+    "billie eilish": "Billie Eilish",
+    "кино": "Кино",
+    "сплин": "Сплин",
+    "би-2": "Би-2",
+    "земфира": "Земфира",
+    "король и шут": "Король и Шут",
+    "ария": "Ария",
 }
 
 # Regex word boundary match pattern for brands (sorted by length desc to match multi-word first)
@@ -357,6 +382,12 @@ _BRAND_PATTERN = re.compile(
 
 # Product Type keyword rules: Title keywords -> Category ID
 _TITLE_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
+    # Виниловые пластинки, музыка и книги
+    (re.compile(r"\b(?:винил(?:овая\s+пластинка|\s+lp)?|виниловые\s+пластинки|грампластинк\w*|\b\d?lp\b)\b", re.I), "vinyl"),
+    (re.compile(r"\b(?:cd[- ]диск\w*|аудиодиск\w*|музыка\s+на\s+cd)\b", re.I), "music_cd"),
+    (re.compile(r"\b(?:книга|книги|роман|повесть|энциклопедия|биография|учебник|пособие)\b", re.I), "books"),
+    (re.compile(r"\b(?:настольная\s+игра|настольные\s+игры|настолк\w*|монополия|дженга|имаджинариум)\b", re.I), "board_games"),
+
     # Женская гигиена и белье (защита от ложного захвата детскими подгузниками)
     (re.compile(r"\b(менструальн(?:ые|ый|ую)\s+трусик(?:и)?|прокладк(?:и|ек|а))\b", re.I), "beauty"),
     (re.compile(r"\b(набор\s+(?:лиф|майк\w*)\s+и\s+трусик\w*|детск\w*\s+трусы|трусы\s+детск\w*|трусы-боксеры)\b", re.I), "shoes"),
@@ -914,7 +945,7 @@ KNOWN_MODEL_FAMILIES: List[Tuple[re.Pattern, str]] = [
 # Patterns stripped from title when constructing fallback clean model
 _MODEL_STRIP_PATTERNS = [
     # Category words
-    r"\b(ip-телефон|ip\s+телефон|sip-телефон|sip\s+телефон|радио-?телефон|стационарный\s+телефон|проводной\s+телефон|телефон|смартфон|сотовый телефон|мобильный телефон|ноутбук|ультрабук|планшет|пылесос|беспроводн(?:ой|ые|ая)|вертикальный|робот-пылесос|телевизор|видеокарта|наушники|смарт-часы|умные часы|монитор|холодильник|стиральная машина|кондиционер|кастрюл(?:я|и)|сковород(?:а|ы)|набор\s+(?:лиф|майк\w*)\s+и\s+трусик\w*|детск\w*\s+трусы|трусы\s+детск\w*|детск(?:ий|ие|ая|ое)|для\s+девочек|для\s+мальчиков)\b",
+    r"\b(ip-телефон|ip\s+телефон|sip-телефон|sip\s+телефон|радио-?телефон|стационарный\s+телефон|проводной\s+телефон|телефон|смартфон|сотовый телефон|мобильный телефон|ноутбук|ультрабук|планшет|пылесос|беспроводн(?:ой|ые|ая)|вертикальный|робот-пылесос|телевизор|видеокарта|наушники|смарт-часы|умные часы|монитор|холодильник|стиральная машина|кондиционер|кастрюл(?:я|и)|сковород(?:а|ы)|набор\s+(?:лиф|майк\w*)\s+и\s+трусик\w*|детск\w*\s+трусы|трусы\s+детск\w*|детск(?:ий|ие|ая|ое)|для\s+девочек|для\s+мальчиков|винилов(?:ая|ые)\s+пластинк(?:а|и)|грампластинк\w*|пластинк\w*|винил|\b\d?lp\b)\b",
     # Compatibility clauses
     r"\b(?:для|for|на)\s+.*$",
     # Memory, storage, specs
@@ -1320,6 +1351,28 @@ class CatalogClassifier:
                     item_kind="device",
                 )
 
+            # 3b. Source category fallback: если категории нет в мастер-таксономии, берем категорию источника
+            clean_source = re.sub(r"^[^:]+:\s*", "", raw_category)
+            clean_source = re.sub(r"[\U00010000-\U0010ffff\u2600-\u26ff\u2700-\u27bf]", "", clean_source).strip()
+            if ">" in clean_source:
+                clean_source = clean_source.split(">")[-1].strip()
+            elif "/" in clean_source:
+                clean_source = clean_source.split("/")[-1].strip()
+            if clean_source and len(clean_source) >= 3:
+                clean_model = self.extract_clean_model(title, brand=brand, category=clean_source, item_kind="device")
+                slug_id = re.sub(r"[^\w]+", "_", clean_source.lower()).strip("_")[:32]
+                return ClassificationResult(
+                    category_id=slug_id,
+                    category_name=clean_source[:64],
+                    category_parent_id=None,
+                    category_icon="🏷️",
+                    brand=brand,
+                    confidence=0.80,
+                    source="source_category_fallback",
+                    model=clean_model,
+                    item_kind="device",
+                )
+
         # 4. Если известен только бренд
         if brand:
             clean_model = self.extract_clean_model(title, brand=brand, item_kind="device")
@@ -1457,6 +1510,29 @@ class CatalogClassifier:
 
         brand = self.extract_brand(title)
         clean_model = self.extract_clean_model(title, brand=brand, item_kind="device")
+
+        # Source category fallback: если магазин дал категорию, берем ее вместо слепого дефолта в электронику
+        if raw_category:
+            clean_source = re.sub(r"^[^:]+:\s*", "", raw_category)
+            clean_source = re.sub(r"[\U00010000-\U0010ffff\u2600-\u26ff\u2700-\u27bf]", "", clean_source).strip()
+            if ">" in clean_source:
+                clean_source = clean_source.split(">")[-1].strip()
+            elif "/" in clean_source:
+                clean_source = clean_source.split("/")[-1].strip()
+            if clean_source and len(clean_source) >= 3:
+                slug_id = re.sub(r"[^\w]+", "_", clean_source.lower()).strip("_")[:32]
+                return ClassificationResult(
+                    category_id=slug_id,
+                    category_name=clean_source[:64],
+                    category_parent_id=None,
+                    category_icon="🏷️",
+                    brand=brand,
+                    confidence=0.75,
+                    source="source_category_fallback",
+                    model=clean_model,
+                    item_kind="device",
+                )
+
         return ClassificationResult(
             category_id="electronics",
             category_name="Электроника",

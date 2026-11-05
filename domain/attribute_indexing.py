@@ -55,9 +55,34 @@ ATTRIBUTE_LABELS: Dict[str, str] = {
     'dust_collector_type': 'Тип пылесборника',
     'power': 'Мощность',
     'type': 'Тип устройства',
+    # Музыка, винил и книги
+    'artist': 'Исполнитель',
+    'format': 'Формат',
+    'genre': 'Жанр',
+    'release_year': 'Год издания',
+    'author': 'Автор',
+    'publisher': 'Издательство',
+    'cover_type': 'Переплет',
 }
 
 FACT_KEY_MAP: Dict[str, Tuple[str, str]] = {
+    # Музыка и винил
+    'исполнитель': ('artist', 'Исполнитель'),
+    'музыкант': ('artist', 'Исполнитель'),
+    'группа': ('artist', 'Исполнитель'),
+    'автор/исполнитель': ('artist', 'Исполнитель'),
+    'формат': ('format', 'Формат'),
+    'носитель': ('format', 'Формат'),
+    'жанр': ('genre', 'Жанр'),
+    'музыкальный жанр': ('genre', 'Жанр'),
+    'год издания': ('release_year', 'Год издания'),
+    'год': ('release_year', 'Год издания'),
+    'год выпуска': ('release_year', 'Год издания'),
+    # Книги
+    'автор': ('author', 'Автор'),
+    'издательство': ('publisher', 'Издательство'),
+    'переплет': ('cover_type', 'Переплет'),
+    'тип обложки': ('cover_type', 'Переплет'),
     # Бытовая техника
     'класс энергопотребления': ('energy_class', 'Класс энергопотребления'),
     'энергопотребление': ('energy_class', 'Класс энергопотребления'),
@@ -480,6 +505,13 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
             attrs['type'] = 'Вертикальный'
         elif 'моющий' in title_lower:
             attrs['cleaning_type'] = 'Влажная'
+
+    # 8. Винил и музыкальные носители
+    if re.search(r'\b(винил(?:овая\s+пластинка|\s+lp)?|виниловые\s+пластинки|грампластинк\w*|\b\d?lp\b)\b', title, re.I):
+        if re.search(r'\b2lp\b', title, re.I):
+            attrs['format'] = '2LP'
+        elif re.search(r'\blp\b|винил', title, re.I):
+            attrs['format'] = 'LP'
 
     return attrs
 
