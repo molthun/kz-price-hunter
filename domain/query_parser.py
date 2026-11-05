@@ -176,6 +176,77 @@ BRAND_MAPPINGS: Dict[str, str] = {
     "майкрософт": "Microsoft",
     "nintendo": "Nintendo",
     "нинтендо": "Nintendo",
+    # Детские бренды (подгузники и гигиена)
+    "huggies": "Huggies",
+    "хаггис": "Huggies",
+    "pampers": "Pampers",
+    "памперс": "Pampers",
+    "памперсы": "Pampers",
+    "joonies": "Joonies",
+    "джунис": "Joonies",
+    "yokosun": "YokoSun",
+    "йокосан": "YokoSun",
+    "йокосун": "YokoSun",
+    "manu": "MANU",
+    "ману": "MANU",
+    "merries": "Merries",
+    "меррис": "Merries",
+    "мерриес": "Merries",
+    "sachiko": "Sachiko",
+    "сачико": "Sachiko",
+    "emiko": "Emiko",
+    "эмико": "Emiko",
+    "lovular": "Lovular",
+    "ловулар": "Lovular",
+    "moony": "Moony",
+    "муни": "Moony",
+    "momi": "Momi",
+    "моми": "Momi",
+    "tanoshi": "Tanoshi",
+    "таноши": "Tanoshi",
+    "senso": "Senso Baby",
+    "senso baby": "Senso Baby",
+    "мама знает": "Мама Знает",
+    "offspring": "Offspring",
+    "kenshi": "Kenshi",
+    "goo.n": "Goo.N",
+    "goon": "Goo.N",
+    "libero": "Libero",
+    "либеро": "Libero",
+    # Бытовая техника
+    "beko": "Beko",
+    "беко": "Beko",
+    "haier": "Haier",
+    "хаер": "Haier",
+    "хайер": "Haier",
+    "midea": "Midea",
+    "мидея": "Midea",
+    "tefal": "Tefal",
+    "тефаль": "Tefal",
+    "braun": "Braun",
+    "браун": "Braun",
+    "delonghi": "DeLonghi",
+    "делонги": "DeLonghi",
+    "electrolux": "Electrolux",
+    "электролюкс": "Electrolux",
+    "gorenje": "Gorenje",
+    "горенье": "Gorenje",
+    "indesit": "Indesit",
+    "индезит": "Indesit",
+    "hansa": "Hansa",
+    "ханса": "Hansa",
+    "candy": "Candy",
+    "канди": "Candy",
+    "polaris": "Polaris",
+    "поларис": "Polaris",
+    "redmond": "Redmond",
+    "редмонд": "Redmond",
+    "kitfort": "Kitfort",
+    "китфорт": "Kitfort",
+    "dreame": "Dreame",
+    "дриим": "Dreame",
+    "roborock": "Roborock",
+    "роборок": "Roborock",
 }
 
 
@@ -302,6 +373,45 @@ class QueryParser:
                 attributes["storage"] = f"{gb_val}gb"
             elif tb_val:
                 attributes["storage"] = f"{tb_val}tb"
+
+        # 4c. Подгузники и детская гигиена (Тип и Размер)
+        is_diaper = bool(re.search(
+            r"\b(подгузник\w*|трусик\w*|памперс\w*|пеленк\w*|joonies|yokosun|huggies|merries|sachiko|emiko|manu|lovular|moony|momi|tanoshi|мама\s+знает)\b",
+            text,
+            re.IGNORECASE,
+        )) and not bool(re.search(r"\b(менструальн|прокладк|набор\s+(?:лиф|майк)|трусы\s+детск)\b", text, re.IGNORECASE))
+
+        if is_diaper:
+            # Тип
+            if re.search(r"\b(ночные\s+трусики|magic\s+night)\b", text, re.IGNORECASE):
+                attributes["diaper_type"] = "Ночные трусики"
+            elif re.search(r"\b(для\s+плавания|swimming|aqua)\b", text, re.IGNORECASE):
+                attributes["diaper_type"] = "Трусики для плавания"
+            elif re.search(r"\b(подгузники[- ]трусики|трусики[- ]подгузники|трусики|трусиков)\b", text, re.IGNORECASE):
+                attributes["diaper_type"] = "Подгузники-трусики"
+            elif re.search(r"\b(пеленк\w*)\b", text, re.IGNORECASE):
+                attributes["diaper_type"] = "Одноразовые пеленки"
+            elif re.search(r"\b(подгузник\w*|памперс\w*)\b", text, re.IGNORECASE):
+                attributes["diaper_type"] = "Подгузники"
+
+            # Размер
+            sz_norm_map = {
+                "0": "0 (NB)", "nb": "0 (NB)", "newborn": "0 (NB)",
+                "1": "1",
+                "2": "2 (S)", "s": "2 (S)",
+                "3": "3 (M)", "m": "3 (M)",
+                "4": "4 (L)", "l": "4 (L)",
+                "5": "5 (XL)", "xl": "5 (XL)",
+                "6": "6 (XXL)", "xxl": "6 (XXL)", "2xl": "6 (XXL)",
+                "7": "7 (XXXL)", "xxxl": "7 (XXXL)", "3xl": "7 (XXXL)",
+            }
+            m_sz = re.search(r"(?i)\b(?:размер\s*|размера\s*|р[-.]?\s*)([0-7]|nb|newborn|xxxl|3xl|xxl|2xl|xl|[sml])\b", text)
+            if not m_sz:
+                m_sz = re.search(r"(?i)\b([0-7]|nb|newborn|xxxl|3xl|xxl|2xl|xl|[sml])\b", text)
+            if m_sz:
+                raw_token = m_sz.group(1).lower()
+                if raw_token in sz_norm_map:
+                    attributes["diaper_size"] = sz_norm_map[raw_token]
 
         # 5. City extraction & Preposition cleanup
         words = re.findall(r"[\w\-]+", text)

@@ -7601,7 +7601,7 @@
         const selected = AppState.attributes[field.key] || (data.selected_attributes || {})[field.key] || '';
         const vals = field.values || [];
 
-        if (vals.length > 0 && vals.length <= 8) {
+        if (vals.length > 0 && vals.length <= 25) {
           const listWrap = document.createElement('div');
           listWrap.id = 'filterAttrList_' + field.key;
           const rows = vals.map(v => ({ value: v.value, name: v.value, count: v.count }));
@@ -7609,7 +7609,7 @@
           window[handlerName] = function(v) {
             onDynamicAttrFacetSelected(field.key, v);
           };
-          renderFacetGroup(listWrap, 'facetAttr_' + field.key, handlerName, selected, rows, 8, 'Нет данных');
+          renderFacetGroup(listWrap, 'facetAttr_' + field.key, handlerName, selected, rows, 6, 'Нет данных');
           group.appendChild(listWrap);
         } else {
           const select = document.createElement('select');
@@ -7821,8 +7821,9 @@
 
       // 4. Модель / Серия
       const modelGroup = document.getElementById('filterModelGroup');
-      const isDiapers = (AppState.category === 'diapers_hygiene') || (data.category_facets || []).some(c => c.category === 'diapers_hygiene' && c.count > 0);
+      const isDiapers = (AppState.category === 'diapers_hygiene') || (data.category_facets || []).some(c => (c.category === 'diapers_hygiene' || c.id === 'diapers_hygiene') && c.count > 0);
       const mFacets = (data.model_facets || []).filter(m => m && m.model);
+      const dynAttr = document.getElementById('dynamicAttributeFilters');
       if (modelGroup) {
         const titleEl = modelGroup.querySelector('.filter-title');
         if (titleEl) {
@@ -7832,6 +7833,11 @@
           modelGroup.style.display = 'none';
         } else {
           modelGroup.style.display = '';
+          if (dynAttr && isDiapers) {
+            dynAttr.after(modelGroup);
+          } else if (dynAttr && !isDiapers) {
+            dynAttr.before(modelGroup);
+          }
         }
       }
       if (modelList) {

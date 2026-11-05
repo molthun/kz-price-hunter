@@ -41,9 +41,49 @@ ATTRIBUTE_LABELS: Dict[str, str] = {
     'diaper_size': 'Размер',
     'weight_range': 'Вес ребенка',
     'pieces_count': 'Количество в упаковке',
+    # Бытовая техника и электроника
+    'total_volume': 'Общий объем',
+    'defrost_system': 'Система разморозки',
+    'refrigeration_defrost': 'Разморозка',
+    'energy_class': 'Класс энергопотребления',
+    'noise_level': 'Уровень шума',
+    'load_capacity': 'Максимальная загрузка',
+    'spin_speed': 'Скорость отжима',
+    'program_count': 'Количество программ',
+    'installation_type': 'Тип установки',
+    'cleaning_type': 'Тип уборки',
+    'dust_collector_type': 'Тип пылесборника',
+    'power': 'Мощность',
+    'type': 'Тип устройства',
 }
 
 FACT_KEY_MAP: Dict[str, Tuple[str, str]] = {
+    # Бытовая техника
+    'класс энергопотребления': ('energy_class', 'Класс энергопотребления'),
+    'энергопотребление': ('energy_class', 'Класс энергопотребления'),
+    'уровень шума': ('noise_level', 'Уровень шума'),
+    'максимальная загрузка': ('load_capacity', 'Максимальная загрузка'),
+    'загрузка': ('load_capacity', 'Максимальная загрузка'),
+    'загрузка белья': ('load_capacity', 'Максимальная загрузка'),
+    'скорость отжима': ('spin_speed', 'Скорость отжима'),
+    'максимальная скорость отжима': ('spin_speed', 'Скорость отжима'),
+    'количество программ': ('program_count', 'Количество программ'),
+    'число программ': ('program_count', 'Количество программ'),
+    'тип установки': ('installation_type', 'Тип установки'),
+    'установка': ('installation_type', 'Тип установки'),
+    'тип уборки': ('cleaning_type', 'Тип уборки'),
+    'тип пылесборника': ('dust_collector_type', 'Тип пылесборника'),
+    'пылесборник': ('dust_collector_type', 'Тип пылесборника'),
+    'мощность': ('power', 'Мощность'),
+    'потребляемая мощность': ('power', 'Мощность'),
+    'мощность всасывания': ('power', 'Мощность'),
+    'система разморозки': ('refrigeration_defrost', 'Разморозка'),
+    'размораживание': ('refrigeration_defrost', 'Разморозка'),
+    'тип размораживания': ('refrigeration_defrost', 'Разморозка'),
+    'размораживание морозильной камеры': ('refrigeration_defrost', 'Разморозка'),
+    'размораживание холодильной камеры': ('refrigeration_defrost', 'Разморозка'),
+    'общий объем': ('capacity', 'Объем'),
+    'полезный объем': ('capacity', 'Объем'),
     # Подгузники и гигиена для малышей
     'тип': ('diaper_type', 'Тип'),
     'тип подгузников': ('diaper_type', 'Тип'),
@@ -224,6 +264,60 @@ def normalize_attribute_value(key: str, raw_value: Any) -> Optional[str]:
         if m_pc:
             return f"{m_pc.group(1)} шт."
 
+    # Бытовая техника
+    if key == 'energy_class':
+        m_ec = re.search(r'(?i)\b(A\+{1,3}|[A-G])\b', val)
+        if m_ec:
+            return m_ec.group(1).upper()
+
+    if key == 'spin_speed':
+        m_sp = re.search(r'(\d{3,4})\s*(?:об/?мин|rpm)?', val, re.IGNORECASE)
+        if m_sp:
+            return f"{m_sp.group(1)} об/мин"
+
+    if key == 'load_capacity':
+        m_lc = re.search(r'(\d+(?:[.,]\d+)?)\s*(?:кг|kg)?', val, re.IGNORECASE)
+        if m_lc:
+            num = m_lc.group(1).replace(',', '.')
+            return f"{num} кг"
+
+    if key == 'noise_level':
+        m_nl = re.search(r'(\d+)\s*(?:д[бб]|db)?', val, re.IGNORECASE)
+        if m_nl:
+            return f"{m_nl.group(1)} дБ"
+
+    if key == 'refrigeration_defrost':
+        low = val.casefold()
+        if 'no frost' in low or 'total no frost' in low or 'но фрост' in low:
+            return 'No Frost'
+        if 'капельн' in low:
+            return 'Капельная'
+        if 'ручн' in low:
+            return 'Ручная'
+
+    if key == 'cleaning_type':
+        low = val.casefold()
+        if 'сухая' in low and 'влажная' in low:
+            return 'Сухая и влажная'
+        if 'сухая' in low:
+            return 'Сухая'
+        if 'влажная' in low or 'моющий' in low:
+            return 'Влажная'
+
+    if key == 'dust_collector_type':
+        low = val.casefold()
+        if 'мешок' in low:
+            return 'Мешок'
+        if 'контейнер' in low or 'циклон' in low:
+            return 'Контейнер'
+        if 'аква' in low:
+            return 'Аквафильтр'
+
+    if key == 'power':
+        m_pw = re.search(r'(\d+)\s*(?:вт|w)?', val, re.IGNORECASE)
+        if m_pw:
+            return f"{m_pw.group(1)} Вт"
+
     return val[:80]
 
 
@@ -351,6 +445,42 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
             if val_pc:
                 attrs['pieces_count'] = f"{val_pc} шт."
 
+    # 7. Бытовая техника: холодильники, стиральные машины, пылесосы
+    title_lower = title.casefold()
+
+    # Холодильники
+    if 'холодильник' in title_lower or 'морозильник' in title_lower:
+        if 'no frost' in title_lower or 'total no frost' in title_lower or 'full no frost' in title_lower:
+            attrs['refrigeration_defrost'] = 'No Frost'
+        elif 'капельн' in title_lower:
+            attrs['refrigeration_defrost'] = 'Капельная'
+
+    # Стиральные машины
+    if 'стиральн' in title_lower:
+        m_load = re.search(r'\b(4|5|5\.5|6|6\.5|7|7\.5|8|8\.5|9|10|10\.5|12)\s*кг\b', title_lower)
+        if m_load:
+            attrs['load_capacity'] = f"{m_load.group(1)} кг"
+        m_spin = re.search(r'\b(800|1000|1200|1400|1600)\s*(?:об/?мин|об)?\b', title_lower)
+        if m_spin:
+            attrs['spin_speed'] = f"{m_spin.group(1)} об/мин"
+        if 'встраиваемая' in title_lower:
+            attrs['installation_type'] = 'Встраиваемая'
+        elif 'отдельностоящая' in title_lower:
+            attrs['installation_type'] = 'Отдельностоящая'
+
+    # Пылесосы
+    if 'пылесос' in title_lower:
+        if 'робот' in title_lower:
+            if 'влажн' in title_lower or 'моющий' in title_lower:
+                attrs['cleaning_type'] = 'Сухая и влажная'
+            else:
+                attrs['cleaning_type'] = 'Сухая'
+            attrs['type'] = 'Робот-пылесос'
+        elif 'вертикальн' in title_lower or 'беспроводн' in title_lower:
+            attrs['type'] = 'Вертикальный'
+        elif 'моющий' in title_lower:
+            attrs['cleaning_type'] = 'Влажная'
+
     return attrs
 
 
@@ -440,6 +570,25 @@ def sync_all_source_attributes(conn, limit: int = 50000) -> int:
             FROM canonical_products p
             LEFT JOIN product_search_attributes pa ON pa.product_id = p.id
             WHERE pa.product_id IS NULL AND p.title IS NOT NULL AND p.title != ''
+            LIMIT ?
+        ''', (limit,))
+        rows = cursor.fetchall()
+        for pid, title in rows:
+            total_indexed += index_product_facts(conn, pid, [], title)
+    except Exception:
+        pass
+
+    # 3. Для детских товаров и бытовой техники обновляем атрибуты из названия
+    try:
+        cursor = conn.execute('''
+            SELECT p.id, p.title
+            FROM canonical_products p
+            WHERE p.title IS NOT NULL AND p.title != ''
+              AND (
+                p.category IN ('Подгузники и гигиена', 'diapers_hygiene', 'Бытовая техника', 'appliances', 'refrigerators', 'washing_machines', 'vacuums')
+                OR p.title LIKE '%подгуз%' OR p.title LIKE '%трусик%' OR p.title LIKE '%памперс%'
+                OR p.title LIKE '%холодильн%' OR p.title LIKE '%стиральн%' OR p.title LIKE '%пылесос%'
+              )
             LIMIT ?
         ''', (limit,))
         rows = cursor.fetchall()

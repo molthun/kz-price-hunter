@@ -336,6 +336,13 @@ MASTER_TAXONOMY: List[Category] = [
         icon="❄️",
         search_priority=85,
         aliases=["холодильники", "морозильники", "refrigerators", "freezers"],
+        attributes_schema={
+            "refrigeration_defrost": {"label": "Разморозка", "type": "string"},
+            "energy_class": {"label": "Класс энергопотребления", "type": "string"},
+            "capacity": {"label": "Объем", "type": "int"},
+            "noise_level": {"label": "Уровень шума", "type": "int"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="washing_machines",
@@ -344,6 +351,14 @@ MASTER_TAXONOMY: List[Category] = [
         icon="🧺",
         search_priority=85,
         aliases=["стиральные машины", "сушильные машины", "стиралки", "washing machines"],
+        attributes_schema={
+            "load_capacity": {"label": "Максимальная загрузка", "type": "float"},
+            "spin_speed": {"label": "Скорость отжима", "type": "int"},
+            "energy_class": {"label": "Класс энергопотребления", "type": "string"},
+            "program_count": {"label": "Количество программ", "type": "int"},
+            "installation_type": {"label": "Тип установки", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="vacuums",
@@ -352,6 +367,13 @@ MASTER_TAXONOMY: List[Category] = [
         icon="🧹",
         search_priority=84,
         aliases=["пылесосы", "роботы-пылесосы", "робот пылесос", "vacuum cleaners", "dyson"],
+        attributes_schema={
+            "type": {"label": "Тип устройства", "type": "string"},
+            "cleaning_type": {"label": "Тип уборки", "type": "string"},
+            "dust_collector_type": {"label": "Тип пылесборника", "type": "string"},
+            "power": {"label": "Мощность", "type": "int"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="vacuum_parts",
@@ -381,6 +403,12 @@ MASTER_TAXONOMY: List[Category] = [
             "соковыжималки", "мультиварки", "тостеры", "хлебопечки", "хлебопечи", "миксеры",
             "йогуртницы", "кухонные комбайны",
         ],
+        attributes_schema={
+            "type": {"label": "Тип устройства", "type": "string"},
+            "power": {"label": "Мощность", "type": "int"},
+            "capacity": {"label": "Объем", "type": "float"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
 
     # 3. Одежда и обувь (L1)
@@ -625,6 +653,12 @@ MASTER_TAXONOMY: List[Category] = [
             "одноразовые пеленки", "горшки", "детский горшок", "подгузники трусики",
             "пеленальные пеленки", "утилизатор подгузников", "pampers", "huggies", "yokosun", "merries", "moony"
         ],
+        attributes_schema={
+            "diaper_type": {"label": "Тип", "type": "list"},
+            "diaper_size": {"label": "Размер", "type": "list"},
+            "weight_range": {"label": "Вес ребенка", "type": "list"},
+            "pieces_count": {"label": "Количество в упаковке", "type": "list"},
+        },
     ),
     Category(
         id="baby_food",

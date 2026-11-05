@@ -2,6 +2,37 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## STAND_DEPLOYED → Владелец: Умная фильтрация и AI-поиск по характеристикам детских товаров (подгузники / трусики) и бытовой техники v6.26.0 (2026-11-05)
+
+- Прямое поручение владельца: «Давай дальше разработка» (Пакет 2 / KZPH-G5-05: Интеграция AI-фильтров по характеристикам и брендовым линейкам (детские товары: подгузники/трусики, бытовая техника) в поисковую выдачу, устранение путаницы «Модель» с сырыми названиями, естественный поиск).
+- Исполнитель: Antigravity (основной разработчик).
+- Срез: ветка `codex/local-ai-catalog-growth`.
+- Область файлов: `domain/category.py`, `domain/query_parser.py`, `domain/attribute_indexing.py`, `repositories/search_repo.py`, `web/templates/search_first.html`, `tests/domain/test_diaper_attributes.py`, `version.py`, `CHANGELOG.md`, `docs/AGENT_HANDOFF.md`.
+- Реализовано:
+  1. `domain/category.py`:
+     - Добавлена `attributes_schema` для категории `diapers_hygiene` («Подгузники и гигиена»): `diaper_type` (Тип), `diaper_size` (Размер), `weight_range` (Вес ребенка), `pieces_count` (Количество в упаковке).
+     - Добавлена `attributes_schema` для категорий бытовой техники: `refrigerators` (разморозка No Frost, класс энергопотребления, объем, уровень шума), `washing_machines` (загрузка в кг, отжим, программы, тип установки), `vacuums` (тип устройства, сухая/влажная уборка, тип пылесборника), `kitchen_appliances`.
+  2. `domain/query_parser.py`:
+     - В `BRAND_MAPPINGS` добавлены ключевые детские бренды Казахстана (Huggies, Pampers, Joonies, YokoSun, MANU, Sachiko, Merries, Emiko, Lovular, Momi, Moony, Tanoshi, Senso Baby, Мама Знает) и бренды бытовой техники (Beko, Haier, Midea, Tefal, Braun, DeLonghi, Electrolux, Gorenje, Indesit, Hansa, Candy, Polaris, Redmond, Kitfort, Dreame, Roborock).
+     - Добавлено извлечение типа (`diaper_type`: Подгузники, Подгузники-трусики, Ночные трусики, Трусики для плавания, Одноразовые пеленки) и сквозного нормализованного размера (`diaper_size`: `0 (NB)`, `1`, `2 (S)`, `3 (M)`, `4 (L)`, `5 (XL)`, `6 (XXL)`, `7 (XXXL)`) из естественных поисковых фраз (например, `подгузники трусики 4`, `трусики хаггис 5 алматы`, `подгузники pampers размер 3`).
+  3. `domain/attribute_indexing.py`:
+     - В `ATTRIBUTE_LABELS` и `FACT_KEY_MAP` добавлены характеристики бытовой техники (`energy_class`, `spin_speed`, `load_capacity`, `noise_level`, `refrigeration_defrost`, `cleaning_type`, `dust_collector_type`, `power`).
+     - В `extract_title_attributes` добавлено автоматическое извлечение характеристик стиральных машин, холодильников и пылесосов прямо из названий товаров.
+     - В `sync_all_source_attributes` внедрено регулярное обновление характеристик канонических товаров детской гигиены и бытовой техники.
+  4. `repositories/search_repo.py`:
+     - В `attribute_facets` добавлена строгая валидация по `ATTRIBUTE_LABELS` (исключающая попадание некурированных сырых ключей вида `size`, `pack_count`, `suitable_age` в интерфейс).
+     - Реализован приоритетный порядок фасетов (`priority_orders`) для детских товаров (`diaper_type`, `diaper_size`, `weight_range`, `pieces_count`), телефонов, ноутбуков и бытовой техники.
+  5. `web/templates/search_first.html`:
+     - Исправлено определение категории подгузников в `renderFacets` (`c.id === 'diapers_hygiene'`).
+     - Блок «Линейка / Серия» при просмотре подгузников автоматически перемещается ниже динамических фильтров характеристик, выстраивая интуитивную цепочку: `Бренд → Тип → Размер → Вес → Серия → Количество`.
+     - Радио-фасеты с подсчётом предложений теперь комфортно раскрываются кнопкой «Показать ещё» до 25 значений вместо неудобного выпадающего списка.
+  6. Тестирование:
+     - Расширен тестовый набор `tests/domain/test_diaper_attributes.py` тестами `test_query_parser_diaper_and_appliances`, `test_appliances_title_attribute_extraction`, `test_category_attributes_schema` (все 5 тестов / 12 подтестов PASS).
+     - Полный регрессионный прогон 886 тестов проекта (`tests/core/`, `tests/search/`, `tests/web/`, `tests/domain/`) — 886 PASSED, 0 FAILED.
+- Следующий шаг в очереди дорожной карты: Пакет 3 / KZPH-G5-06: Автоматическое обогащение канонических товаров характеристиками через локальный AI (Ollama qwen2.5 / llama3.2-vision) при первичном импорте и фоновом сканировании.
+
+---
+
 ## STAND_DEPLOYED → Владелец: Выделение категории «Стационарные и IP-телефоны» и устранение ложной классификации в «Смартфоны» v6.25.3 (2026-11-05)
 
 - Прямое поручение владельца: «А почему такой товар в категории Смартфоны?» + скриншот товара «IP-телефон Grandstream GRP2604» в хлебных крошках `Главная > Электроника > Смартфоны` -> «Делай».

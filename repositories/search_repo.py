@@ -860,10 +860,35 @@ class SearchRepository(BaseRepository):
                 ''', base_values)
                 for r in top_keys:
                     k = r['key']
-                    if k not in full_schema and r['p_count'] >= 1:
+                    if k in ATTRIBUTE_LABELS and k not in full_schema and r['p_count'] >= 1:
                         full_schema[k] = {'label': ATTRIBUTE_LABELS.get(k, k)}
             except Exception:
                 pass
+
+        # Приоритетный порядок фасетов для ключевых категорий
+        cat_key = arguments.get('category') or ''
+        priority_orders = {
+            'diapers_hygiene': ['diaper_type', 'diaper_size', 'weight_range', 'pieces_count'],
+            'phones': ['storage', 'ram', 'color', 'screen_size', '5g', 'nfc'],
+            'laptops': ['cpu', 'ram', 'storage', 'screen_size', 'gpu'],
+            'refrigerators': ['refrigeration_defrost', 'energy_class', 'capacity', 'noise_level', 'color'],
+            'washing_machines': ['load_capacity', 'spin_speed', 'energy_class', 'program_count', 'installation_type', 'color'],
+            'vacuums': ['type', 'cleaning_type', 'dust_collector_type', 'power', 'color'],
+            'kitchen_appliances': ['type', 'power', 'capacity', 'color'],
+        }
+        order = priority_orders.get(cat_key, [])
+        if not order and parsed.attributes.get('diaper_type'):
+            order = priority_orders['diapers_hygiene']
+
+        if order:
+            ordered_schema = {}
+            for k in order:
+                if k in full_schema:
+                    ordered_schema[k] = full_schema[k]
+            for k, v in full_schema.items():
+                if k not in ordered_schema:
+                    ordered_schema[k] = v
+            full_schema = ordered_schema
 
         facets = []
         try:

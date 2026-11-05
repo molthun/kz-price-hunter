@@ -157,6 +157,86 @@ class TestDiaperAttributes(unittest.TestCase):
         self.assertEqual(facts_by_name["Вес ребенка"], "6-11 кг")
         self.assertEqual(facts_by_name["Количество в упаковке"], "58 шт.")
 
+    def test_query_parser_diaper_and_appliances(self):
+        from domain.query_parser import QueryParser
+
+        q1 = QueryParser.parse("подгузники трусики 4")
+        self.assertEqual(q1.attributes.get("diaper_type"), "Подгузники-трусики")
+        self.assertEqual(q1.attributes.get("diaper_size"), "4 (L)")
+
+        q2 = QueryParser.parse("трусики хаггис 5 в алматы")
+        self.assertEqual(q2.detected_brand, "Huggies")
+        self.assertEqual(q2.detected_city, "Алматы")
+        self.assertEqual(q2.attributes.get("diaper_type"), "Подгузники-трусики")
+        self.assertEqual(q2.attributes.get("diaper_size"), "5 (XL)")
+
+        q3 = QueryParser.parse("подгузники pampers размер 3")
+        self.assertEqual(q3.detected_brand, "Pampers")
+        self.assertEqual(q3.attributes.get("diaper_type"), "Подгузники")
+        self.assertEqual(q3.attributes.get("diaper_size"), "3 (M)")
+
+        q4 = QueryParser.parse("ночные трусики joonies l")
+        self.assertEqual(q4.detected_brand, "Joonies")
+        self.assertEqual(q4.attributes.get("diaper_type"), "Ночные трусики")
+        self.assertEqual(q4.attributes.get("diaper_size"), "4 (L)")
+
+        q5 = QueryParser.parse("робот-пылесос dreame")
+        self.assertEqual(q5.detected_brand, "Dreame")
+
+        q6 = QueryParser.parse("холодильник beko в астане")
+        self.assertEqual(q6.detected_brand, "Beko")
+        self.assertEqual(q6.detected_city, "Астана")
+
+    def test_appliances_title_attribute_extraction(self):
+        cases = [
+            (
+                "Холодильник Beko RCNK356E20S Total No Frost Серебристый",
+                {
+                    "refrigeration_defrost": "No Frost",
+                    "color": "Серебристый",
+                }
+            ),
+            (
+                "Стиральная машина LG F2V5HS9B 7 кг 1200 об/мин Белый",
+                {
+                    "load_capacity": "7 кг",
+                    "spin_speed": "1200 об/мин",
+                    "color": "Белый",
+                }
+            ),
+            (
+                "Робот-пылесос Dreame D9 Max сухая и влажная уборка Черный",
+                {
+                    "cleaning_type": "Сухая и влажная",
+                    "type": "Робот-пылесос",
+                    "color": "Черный",
+                }
+            ),
+        ]
+        for title, expected in cases:
+            with self.subTest(title=title):
+                attrs = extract_title_attributes(title)
+                for k, v in expected.items():
+                    self.assertIn(k, attrs, f"Key {k} not found in {attrs} for '{title}'")
+                    self.assertEqual(attrs[k], v, f"Mismatch for {k} in '{title}': got {attrs[k]}, expected {v}")
+
+    def test_category_attributes_schema(self):
+        from domain.category import MASTER_TAXONOMY
+        cats = {c.id: c for c in MASTER_TAXONOMY}
+
+        self.assertIn("diapers_hygiene", cats)
+        self.assertIn("diaper_type", cats["diapers_hygiene"].attributes_schema)
+        self.assertIn("diaper_size", cats["diapers_hygiene"].attributes_schema)
+
+        self.assertIn("refrigerators", cats)
+        self.assertIn("refrigeration_defrost", cats["refrigerators"].attributes_schema)
+
+        self.assertIn("washing_machines", cats)
+        self.assertIn("load_capacity", cats["washing_machines"].attributes_schema)
+
+        self.assertIn("vacuums", cats)
+        self.assertIn("cleaning_type", cats["vacuums"].attributes_schema)
+
 
 if __name__ == "__main__":
     unittest.main()
