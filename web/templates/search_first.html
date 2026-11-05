@@ -2406,15 +2406,17 @@
     }
 
     /* ============================================================= */
-    /* FAVORITES VIEW (KZPH-G5-01)                                   */
+    /* FAVORITES VIEW (KZPH-G5-01, G5-04)                            */
     /* ============================================================= */
     .favorites-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
       padding-bottom: 12px;
       border-bottom: 1px solid var(--border-color);
+      flex-wrap: wrap;
+      gap: 10px;
     }
 
     .favorites-title {
@@ -2433,6 +2435,7 @@
       padding: 6px 14px;
       border-radius: var(--radius-full);
       font-size: 0.82rem;
+      font-weight: 600;
       cursor: pointer;
       transition: all 0.2s ease;
     }
@@ -2440,11 +2443,96 @@
     .favorites-clear-btn:hover {
       border-color: #ef4444;
       color: #ef4444;
+      background: rgba(239, 68, 68, 0.06);
+    }
+
+    .favorites-sync-btn {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 6px 14px;
+      border-radius: var(--radius-full);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.2s ease;
+    }
+
+    .favorites-sync-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: var(--bg-card);
+    }
+
+    /* Favorites Tabs (UI_CONCEPT.png Screen 5) */
+    .fav-tabs-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      padding-bottom: 4px;
+      overflow-x: auto;
+    }
+
+    .fav-tab-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 8px 16px;
+      border-radius: var(--radius-full);
+      font-size: 0.88rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .fav-tab-btn:hover {
+      border-color: var(--primary);
+      color: var(--text-main);
+      background: var(--bg-subtle);
+    }
+
+    .fav-tab-btn.active {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+    }
+
+    .fav-tab-badge {
+      background: var(--bg-subtle);
+      color: var(--text-muted);
+      font-size: 0.74rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: var(--radius-full);
+      transition: all 0.2s ease;
+    }
+
+    .fav-tab-btn.active .fav-tab-badge {
+      background: rgba(255, 255, 255, 0.25);
+      color: #ffffff;
+    }
+
+    .fav-tab-badge-highlight {
+      background: #10b981;
+      color: #ffffff !important;
+    }
+
+    .fav-tab-btn.active .fav-tab-badge-highlight {
+      background: #ffffff;
+      color: #059669 !important;
     }
 
     .favorites-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
       gap: 16px;
     }
 
@@ -2452,19 +2540,44 @@
       position: relative;
       background: var(--bg-card);
       border: 1px solid var(--border-color);
-      border-radius: var(--radius-md);
+      border-radius: var(--radius-lg);
       padding: 16px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       gap: 12px;
       box-shadow: var(--shadow-sm);
-      transition: box-shadow 0.2s ease, border-color 0.2s ease;
+      transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
     }
 
     .fav-card:hover {
       box-shadow: var(--shadow-md);
-      border-color: var(--border-focus);
+      border-color: var(--primary);
+      transform: translateY(-2px);
+    }
+
+    .fav-card-price-drop {
+      border-color: rgba(16, 185, 129, 0.4);
+      background: linear-gradient(180deg, rgba(16, 185, 129, 0.03) 0%, var(--bg-card) 60px);
+    }
+
+    .fav-price-drop-pill {
+      background: #ecfdf5;
+      color: #059669;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      font-size: 0.74rem;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: var(--radius-full);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    [data-theme="dark"] .fav-price-drop-pill {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border-color: rgba(16, 185, 129, 0.4);
     }
 
     .fav-card-remove-btn {
@@ -2483,12 +2596,42 @@
       font-size: 0.85rem;
       cursor: pointer;
       transition: all 0.2s ease;
+      z-index: 2;
     }
 
     .fav-card-remove-btn:hover {
       color: #ef4444;
       border-color: #ef4444;
       background: rgba(239, 68, 68, 0.1);
+    }
+
+    .fav-card-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .fav-action-icon-btn {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 0.88rem;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+    }
+
+    .fav-action-icon-btn:hover {
+      background: var(--bg-card);
+      border-color: var(--primary);
+      color: var(--primary);
     }
 
     .nav-count-badge {
@@ -4803,7 +4946,7 @@
     </section>
 
     <!-- ============================================================= -->
-    <!-- VIEW: 5. FAVORITES (KZPH-G5-01)                               -->
+    <!-- VIEW: 5. FAVORITES (KZPH-G5-01, G5-04)                        -->
     <!-- ============================================================= -->
     <section id="viewFavorites" class="view-section">
       <div class="favorites-header">
@@ -4812,7 +4955,38 @@
           <span>Избранные товары</span>
           <span id="favHeaderCount" style="font-size: 0.95rem; font-weight: normal; color: var(--text-muted);">(0)</span>
         </h1>
-        <button id="favClearBtn" class="favorites-clear-btn" onclick="clearAllFavorites()">Очистить всё</button>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button id="favSyncBtn" class="favorites-sync-btn" onclick="Favorites.syncWithServer(true)" title="Синхронизировать с аккаунтом" style="display: none;">
+            🔄 Синхронизировать
+          </button>
+          <button id="favClearBtn" class="favorites-clear-btn" onclick="clearAllFavorites()">Очистить всё</button>
+        </div>
+      </div>
+
+      <!-- Tabs: Товары / Снижение цены (UI_CONCEPT.png Screen 5) -->
+      <div class="fav-tabs-bar" role="tablist" aria-label="Вкладки избранного">
+        <button
+          type="button"
+          class="fav-tab-btn active"
+          id="favTabAll"
+          role="tab"
+          aria-selected="true"
+          onclick="setFavoritesTab('all')"
+        >
+          <span>Товары</span>
+          <span class="fav-tab-badge" id="favTabCountAll">0</span>
+        </button>
+        <button
+          type="button"
+          class="fav-tab-btn"
+          id="favTabPriceDrop"
+          role="tab"
+          aria-selected="false"
+          onclick="setFavoritesTab('price_drop')"
+        >
+          <span>📉 Снижение цены</span>
+          <span class="fav-tab-badge fav-tab-badge-highlight" id="favTabCountDrop" style="display: none;">0</span>
+        </button>
       </div>
 
       <div id="favoritesListContainer">
@@ -8486,6 +8660,8 @@
     // =============================================================
     const Favorites = {
       KEY: 'kzph_favorites_v1',
+      currentTab: 'all', // 'all' | 'price_drop'
+      serverSynced: false,
       getAll() {
         try {
           const raw = localStorage.getItem(this.KEY);
@@ -8498,6 +8674,84 @@
         if (!id) return false;
         return this.getAll().some(item => String(item.id) === String(id));
       },
+      async syncWithServer(showNotice = false) {
+        try {
+          const localItems = this.getAll();
+          const resp = await fetch('/api/me/favorites');
+          const syncBtn = document.getElementById('favSyncBtn');
+          if (resp.status === 401) {
+            if (syncBtn) syncBtn.style.display = 'none';
+            return;
+          }
+          if (!resp.ok) return;
+          const data = await resp.json();
+          const serverItems = Array.isArray(data.favorites) ? data.favorites : [];
+          if (syncBtn) syncBtn.style.display = 'inline-flex';
+
+          const serverIds = new Set(serverItems.map(x => String(x.item_id || x.id)));
+          const toUpload = localItems.filter(x => !serverIds.has(String(x.id)));
+
+          let merged = serverItems.map(s => ({
+            id: String(s.item_id || s.id),
+            canonical_product_id: s.canonical_product_id || null,
+            title: s.title || 'Товар',
+            shop: s.shop || '',
+            city: s.city || '',
+            new_price: s.current_price || s.saved_price || null,
+            saved_price: s.saved_price || null,
+            old_price: s.saved_price || null,
+            discount_pct: s.discount_pct || 0,
+            has_price_drop: Boolean(s.has_price_drop),
+            price_drop_amount: s.price_drop_amount || 0,
+            price_drop_pct: s.price_drop_pct || 0,
+            price_basis: s.price_basis || '',
+            image_url: s.image_url || '',
+            url: s.url || '',
+            saved_at: s.saved_at || new Date().toISOString()
+          }));
+
+          if (toUpload.length > 0) {
+            const pushResp = await fetch('/api/me/favorites', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({ items: toUpload })
+            });
+            if (pushResp.ok) {
+              const pushData = await pushResp.json();
+              if (Array.isArray(pushData.favorites)) {
+                merged = pushData.favorites.map(s => ({
+                  id: String(s.item_id || s.id),
+                  canonical_product_id: s.canonical_product_id || null,
+                  title: s.title || 'Товар',
+                  shop: s.shop || '',
+                  city: s.city || '',
+                  new_price: s.current_price || s.saved_price || null,
+                  saved_price: s.saved_price || null,
+                  old_price: s.saved_price || null,
+                  discount_pct: s.discount_pct || 0,
+                  has_price_drop: Boolean(s.has_price_drop),
+                  price_drop_amount: s.price_drop_amount || 0,
+                  price_drop_pct: s.price_drop_pct || 0,
+                  price_basis: s.price_basis || '',
+                  image_url: s.image_url || '',
+                  url: s.url || '',
+                  saved_at: s.saved_at || new Date().toISOString()
+                }));
+              }
+            }
+          }
+
+          localStorage.setItem(this.KEY, JSON.stringify(merged));
+          this.serverSynced = true;
+          this.updateBadges();
+          if (document.getElementById('viewFavorites').classList.contains('active')) {
+            renderFavorites();
+          }
+          if (showNotice) showToast('Избранное синхронизировано с аккаунтом ✓');
+        } catch (e) {
+          console.warn('[Favorites] sync failed', e);
+        }
+      },
       toggle(item) {
         if (!item || !item.id) return false;
         let list = this.getAll();
@@ -8508,8 +8762,9 @@
           list.splice(idx, 1);
           added = false;
           showToast('Удалено из избранного');
+          fetch('/api/me/favorites/' + encodeURIComponent(strId), { method: 'DELETE' }).catch(() => {});
         } else {
-          list.unshift({
+          const entry = {
             id: strId,
             canonical_product_id: item.canonical_product_id || null,
             legacy_product_id: item.canonical_product_id ? null : (item.product_id || null),
@@ -8517,15 +8772,25 @@
             shop: item.shop || '',
             city: item.city || '',
             new_price: item.new_price > 0 ? item.new_price : null,
+            saved_price: item.new_price > 0 ? item.new_price : null,
             old_price: item.old_price > 0 ? item.old_price : null,
             discount_pct: item.discount_pct || 0,
+            has_price_drop: false,
+            price_drop_amount: 0,
+            price_drop_pct: 0,
             price_basis: item.price_basis || '',
             image_url: item.image_url || '',
             url: item.url || '',
             saved_at: new Date().toISOString()
-          });
+          };
+          list.unshift(entry);
           added = true;
           showToast('Добавлено в избранное ♡');
+          fetch('/api/me/favorites', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(entry)
+          }).catch(() => {});
         }
         try {
           localStorage.setItem(this.KEY, JSON.stringify(list));
@@ -8539,6 +8804,7 @@
           localStorage.setItem(this.KEY, JSON.stringify(list));
         } catch (e) {}
         this.updateBadges();
+        fetch('/api/me/favorites/' + encodeURIComponent(String(id)), { method: 'DELETE' }).catch(() => {});
         renderFavorites();
         showToast('Удалено из избранного');
       },
@@ -8546,11 +8812,13 @@
         if (!confirm('Очистить весь список избранного?')) return;
         localStorage.removeItem(this.KEY);
         this.updateBadges();
+        fetch('/api/me/favorites', { method: 'DELETE' }).catch(() => {});
         renderFavorites();
         showToast('Избранное очищено');
       },
       updateBadges() {
-        const count = this.getAll().length;
+        const items = this.getAll();
+        const count = items.length;
         const countText = count > 0 ? String(count) : '';
         const hBadge = document.getElementById('favCountHeader');
         if (hBadge) {
@@ -8561,6 +8829,15 @@
         if (mBadge) {
           mBadge.textContent = countText;
           mBadge.style.display = count > 0 ? 'inline-block' : 'none';
+        }
+        const countAllEl = document.getElementById('favTabCountAll');
+        if (countAllEl) countAllEl.textContent = String(count);
+
+        const dropCount = items.filter(x => x.has_price_drop || (x.saved_price > 0 && x.new_price > 0 && x.new_price < x.saved_price)).length;
+        const countDropEl = document.getElementById('favTabCountDrop');
+        if (countDropEl) {
+          countDropEl.textContent = String(dropCount);
+          countDropEl.style.display = dropCount > 0 ? 'inline-flex' : 'none';
         }
       }
     };
@@ -8928,39 +9205,89 @@
     }
 
     // =============================================================
-    // FAVORITES VIEW (KZPH-G5-01)
+    // FAVORITES VIEW (KZPH-G5-01, G5-04)
     // =============================================================
+    function setFavoritesTab(tab) {
+      Favorites.currentTab = tab === 'price_drop' ? 'price_drop' : 'all';
+      const tabAll = document.getElementById('favTabAll');
+      const tabDrop = document.getElementById('favTabPriceDrop');
+      if (tabAll) {
+        const isActive = Favorites.currentTab === 'all';
+        tabAll.classList.toggle('active', isActive);
+        tabAll.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      }
+      if (tabDrop) {
+        const isActive = Favorites.currentTab === 'price_drop';
+        tabDrop.classList.toggle('active', isActive);
+        tabDrop.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      }
+      renderFavorites();
+    }
+
     function renderFavorites() {
       const container = document.getElementById('favoritesListContainer');
       const countEl = document.getElementById('favHeaderCount');
       if (!container) return;
 
-      const items = Favorites.getAll();
-      if (countEl) countEl.textContent = `(${items.length})`;
+      const allItems = Favorites.getAll();
+      Favorites.updateBadges();
+
+      const dropItems = allItems.filter(item => {
+        if (item.has_price_drop) return true;
+        const cur = Number(item.new_price || 0);
+        const saved = Number(item.saved_price || item.old_price || 0);
+        return (saved > 0 && cur > 0 && cur < saved);
+      });
+
+      if (countEl) countEl.textContent = `(${allItems.length})`;
+
+      const isDropTab = Favorites.currentTab === 'price_drop';
+      const items = isDropTab ? dropItems : allItems;
 
       if (!items.length) {
-        container.innerHTML = `
-          <div class="state-box" style="margin: 40px auto; max-width: 480px;">
-            <div class="state-icon">♡</div>
-            <div class="state-title">В избранном пока ничего нет</div>
-            <div class="state-desc">Сохраняйте понравившиеся товары и скидки нажатием на сердечко ♡ в ленте скидок или в результатах поиска.</div>
-            <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
-              <button class="btn-primary" onclick="navigateTo(null, '/deals')">🏷 Смотреть скидки</button>
-              <button class="btn-secondary" onclick="navigateTo(null, '/')">🔍 Искать товары</button>
-            </div>
-          </div>`;
+        if (isDropTab) {
+          container.innerHTML = `
+            <div class="state-box" style="margin: 40px auto; max-width: 480px;">
+              <div class="state-icon">📉</div>
+              <div class="state-title">Пока нет товаров со снижением цены</div>
+              <div class="state-desc">Когда цена на сохраненные товары в каталоге снизится, они автоматически появятся на этой вкладке.</div>
+              <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 16px;">
+                <button class="btn-primary" onclick="setFavoritesTab('all')">Все избранные товары (${allItems.length})</button>
+              </div>
+            </div>`;
+        } else {
+          container.innerHTML = `
+            <div class="state-box" style="margin: 40px auto; max-width: 480px;">
+              <div class="state-icon">♡</div>
+              <div class="state-title">В избранном пока ничего нет</div>
+              <div class="state-desc">Сохраняйте понравившиеся товары и скидки нажатием на сердечко ♡ в ленте скидок или в результатах поиска.</div>
+              <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 16px;">
+                <button class="btn-primary" onclick="navigateTo(null, '/deals')">🏷 Смотреть скидки</button>
+                <button class="btn-secondary" onclick="navigateTo(null, '/')">🔍 Искать товары</button>
+              </div>
+            </div>`;
+        }
         return;
       }
 
       container.innerHTML = `
         <div class="favorites-grid">
-          ${items.map((item, idx) => {
+          ${items.map((item) => {
             const safeUrl = safeHttpUrl(item.url);
             const imgSrc = escapeHtml(upgradeImageUrl(item.image_url) || getSvgPlaceholder());
-            const discountBadge = item.discount_pct > 0 ? `<span class="deal-discount-badge-large" style="font-size:0.75rem; padding: 2px 6px;">-${Number(item.discount_pct)}%</span>` : '';
+            const hasDrop = Boolean(item.has_price_drop || (item.saved_price > 0 && item.new_price > 0 && item.new_price < item.saved_price));
+            let dropAmount = Number(item.price_drop_amount || 0);
+            let dropPct = Number(item.price_drop_pct || 0);
+            if (!dropAmount && hasDrop && item.saved_price && item.new_price) {
+              dropAmount = item.saved_price - item.new_price;
+              dropPct = Math.round((dropAmount / item.saved_price) * 100);
+            }
+
+            const currentPrice = item.new_price > 0 ? item.new_price : item.saved_price;
+            const originalPrice = (hasDrop && item.saved_price) ? item.saved_price : (item.old_price > currentPrice ? item.old_price : null);
 
             return `
-              <div class="fav-card" data-index="${idx}">
+              <div class="fav-card ${hasDrop ? 'fav-card-price-drop' : ''}" data-item-id="${escapeHtml(item.id)}">
                 <button
                   class="fav-card-remove-btn"
                   onclick="favoriteAction(this, 'remove')"
@@ -8968,38 +9295,69 @@
                   aria-label="Удалить из избранного"
                 >✕</button>
 
-                <div style="display:flex; gap: 12px; align-items: center;">
-                  <img
-                    src="${imgSrc}"
-                    alt="${escapeHtml(item.title)}"
-                    style="width: 72px; height: 72px; object-fit: contain; background: var(--bg-subtle); border-radius: var(--radius-sm); padding: 4px;"
-                    onerror="this.onerror=null; this.src=getSvgPlaceholder();"
-                  />
-                  <div style="flex: 1; min-width: 0;">
-                    <div style="font-size: 0.78rem; color: var(--text-muted); display:flex; gap:6px; align-items:center;">
-                      <span>🏪 ${escapeHtml(item.shop || 'Магазин')}</span>
-                      ${discountBadge}
+                <div>
+                  ${hasDrop ? `
+                    <div style="margin-bottom: 8px;">
+                      <span class="fav-price-drop-pill">📉 Подешевел на ${formatPrice(dropAmount)} (-${dropPct}%)</span>
                     </div>
-                    <div
-                      style="font-size: 0.92rem; font-weight: 700; color: var(--text-main); margin-top: 4px; cursor: pointer; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;"
+                  ` : (item.discount_pct > 0 ? `
+                    <div style="margin-bottom: 8px;">
+                      <span class="deal-discount-badge-large" style="font-size:0.75rem; padding: 2px 6px;">-${Number(item.discount_pct)}%</span>
+                    </div>
+                  ` : '')}
+
+                  <div style="display:flex; gap: 12px; align-items: flex-start;">
+                    <img
+                      src="${imgSrc}"
+                      alt="${escapeHtml(item.title)}"
+                      style="width: 76px; height: 76px; object-fit: contain; background: var(--bg-subtle); border-radius: var(--radius-sm); padding: 4px; flex-shrink: 0; cursor: pointer;"
                       onclick="favoriteAction(this, 'open')"
-                    >
-                      ${escapeHtml(item.title)}
+                      onerror="this.onerror=null; this.src=getSvgPlaceholder();"
+                    />
+                    <div style="flex: 1; min-width: 0; padding-right: 28px;">
+                      <div style="font-size: 0.78rem; color: var(--text-muted); display:flex; gap:6px; align-items:center; flex-wrap: wrap;">
+                        <span>🏪 ${escapeHtml(item.shop || 'Магазин')}</span>
+                        ${item.city ? `<span style="font-size:0.72rem; opacity:0.8;">📍 ${escapeHtml(item.city)}</span>` : ''}
+                      </div>
+                      <div
+                        style="font-size: 0.92rem; font-weight: 700; color: var(--text-main); margin-top: 4px; cursor: pointer; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3;"
+                        onclick="favoriteAction(this, 'open')"
+                        title="${escapeHtml(item.title)}"
+                      >
+                        ${escapeHtml(item.title)}
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <div style="display: flex; align-items: baseline; justify-content: space-between; border-top: 1px solid var(--border-color); padding-top: 8px;">
-                  <div>
-                    <span style="font-size: 1.15rem; font-weight: 800; color: var(--primary);">${item.new_price > 0 ? formatPrice(item.new_price) : 'Цена не указана'}</span>
-                    ${item.price_basis ? `<span style="font-size: 0.8rem; color: var(--text-muted);">${escapeHtml(item.price_basis)}</span>` : ''}
-                    ${item.new_price > 0 && item.old_price > item.new_price ? `<span style="font-size: 0.85rem; color: var(--text-light); text-decoration: line-through; margin-left: 6px;">${formatPrice(item.old_price)}</span>` : ''}
+                <div style="border-top: 1px solid var(--border-color); padding-top: 10px; margin-top: 8px;">
+                  <div style="display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px; margin-bottom: 8px;">
+                    <div>
+                      <span style="font-size: 1.18rem; font-weight: 800; color: ${hasDrop ? '#059669' : 'var(--primary)'};">
+                        ${currentPrice > 0 ? formatPrice(currentPrice) : 'Цена не указана'}
+                      </span>
+                      ${originalPrice ? `<span style="font-size: 0.85rem; color: var(--text-light); text-decoration: line-through; margin-left: 6px;">${formatPrice(originalPrice)}</span>` : ''}
+                      ${item.price_basis ? `<span style="font-size: 0.78rem; color: var(--text-muted); display: block;">${escapeHtml(item.price_basis)}</span>` : ''}
+                    </div>
                   </div>
-                  ${safeUrl ? `
-                    <a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer" class="btn-to-seller" style="padding: 6px 12px; font-size: 0.82rem;">
-                      К продавцу ↗
-                    </a>
-                  ` : ''}
+
+                  <div class="fav-card-actions">
+                    ${safeUrl ? `
+                      <a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer" class="btn-to-seller" style="padding: 6px 14px; font-size: 0.82rem; flex: 1; text-align: center; text-decoration: none;">
+                        К продавцу ↗
+                      </a>
+                    ` : `
+                      <button class="btn-to-seller" style="padding: 6px 14px; font-size: 0.82rem; flex: 1;" onclick="favoriteAction(this, 'open')">
+                        В каталог →
+                      </button>
+                    `}
+                    <button class="fav-action-icon-btn" onclick="favoriteAction(this, 'watch')" title="Следить за ценой" aria-label="Следить за ценой">
+                      🔔
+                    </button>
+                    <button class="fav-action-icon-btn" onclick="favoriteAction(this, 'open')" title="Сравнить цены в каталоге" aria-label="Сравнить цены в каталоге">
+                      🔍
+                    </button>
+                  </div>
                 </div>
               </div>
             `;
@@ -9008,12 +9366,35 @@
       `;
     }
 
+    function openWatchModalFromFavorite(item) {
+      if (!item) return;
+      const target = favoriteCanonicalId(item) || item.legacy_product_id || item.id;
+      if (!target) {
+        showToast('Для этого товара наблюдение недоступно');
+        return;
+      }
+      openWatchModal({
+        target: String(target),
+        title: item.title,
+        price: item.new_price || item.saved_price,
+        image_url: item.image_url
+      });
+    }
+
     function favoriteAction(el, action) {
       const card = el.closest('.fav-card');
-      const item = card ? Favorites.getAll()[Number(card.dataset.index)] : null;
+      if (!card) return;
+      const itemId = card.dataset.itemId;
+      const item = Favorites.getAll().find(x => String(x.id) === String(itemId));
       if (!item) return;
       if (action === 'remove') Favorites.remove(item.id);
-      else if (action === 'open') openCatalogItem(favoriteCanonicalId(item), item.title);
+      else if (action === 'open') {
+        const cid = favoriteCanonicalId(item);
+        if (cid) openCatalogItem(cid, item.title);
+        else openSearchFromQuery(item.title);
+      } else if (action === 'watch') {
+        openWatchModalFromFavorite(item);
+      }
     }
 
     function clearAllFavorites() {
@@ -9980,6 +10361,9 @@
         if (loggedIn) {
           await checkAuth();
         }
+      }
+      if (currentUser) {
+        Favorites.syncWithServer();
       }
       handleRoute();
     });

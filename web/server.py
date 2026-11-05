@@ -3242,6 +3242,75 @@ async def delete_watch_handler(request):
     return web.json_response({"status": "ok"})
 
 
+# =====================================================================
+# USER FAVORITES API (KZPH-G5-04)
+# =====================================================================
+
+@routes.get("/api/me/favorites")
+@require_login
+async def my_favorites_handler(request):
+    """Избранные товары текущего пользователя с динамикой цен (KZPH-G5-04)."""
+    from database import list_user_favorites
+    user_id = request["user"]["id"]
+    favs = await asyncio.to_thread(list_user_favorites, user_id)
+    return web.json_response({
+        "status": "ok",
+        "favorites": favs,
+        "count": len(favs),
+        "price_drops_count": sum(1 for f in favs if f.get("has_price_drop")),
+    }, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+
+@routes.post("/api/me/favorites")
+@require_login
+async def save_favorite_handler(request):
+    """Сохраняет товар в избранном или выполняет пакетное слияние при входе."""
+    from database import save_user_favorite, sync_user_favorites_batch
+    try:
+        body = await request.json()
+    except Exception:
+        return web.json_response({"status": "error", "message": "Некорректный запрос"}, status=400)
+
+    user_id = request["user"]["id"]
+    if isinstance(body, dict) and "items" in body:
+        # Пакетное слияние (при логине гостя со списком из localStorage)
+        items = body.get("items") or []
+        favs = await asyncio.to_thread(sync_user_favorites_batch, user_id, items)
+        return web.json_response({
+            "status": "ok",
+            "favorites": favs,
+            "count": len(favs),
+            "price_drops_count": sum(1 for f in favs if f.get("has_price_drop")),
+        }, dumps=lambda o: json.dumps(o, ensure_ascii=False, default=str))
+
+    try:
+        saved = await asyncio.to_thread(save_user_favorite, user_id, body)
+    except ValueError as e:
+        return web.json_response({"status": "error", "message": str(e)}, status=400)
+    return web.json_response({"status": "ok", "favorite": saved})
+
+
+@routes.delete("/api/me/favorites/{item_id}")
+@require_login
+async def delete_favorite_item_handler(request):
+    """Удаляет товар из избранного пользователя."""
+    from database import remove_user_favorite
+    user_id = request["user"]["id"]
+    item_id = request.match_info["item_id"]
+    removed = await asyncio.to_thread(remove_user_favorite, user_id, item_id)
+    return web.json_response({"status": "ok", "removed": removed})
+
+
+@routes.delete("/api/me/favorites")
+@require_login
+async def clear_favorites_handler(request):
+    """Очищает всё избранное пользователя."""
+    from database import clear_user_favorites
+    user_id = request["user"]["id"]
+    count = await asyncio.to_thread(clear_user_favorites, user_id)
+    return web.json_response({"status": "ok", "cleared_count": count})
+
+
 @routes.post("/api/me/settings/reset")
 @require_login
 async def reset_my_settings_handler(request):

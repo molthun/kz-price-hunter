@@ -1477,6 +1477,27 @@ def _create_schema(cursor) -> None:
     """)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_watch_events_watch ON watch_events(watch_id, status)")
 
+    # Избранные товары пользователя (KZPH-G5-04): синхронизация между устройствами
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user_favorites (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            item_id TEXT NOT NULL,
+            canonical_product_id TEXT,
+            title TEXT NOT NULL,
+            shop TEXT,
+            city TEXT,
+            saved_price INTEGER,
+            discount_pct REAL DEFAULT 0,
+            price_basis TEXT,
+            image_url TEXT,
+            url TEXT,
+            saved_at TEXT NOT NULL,
+            UNIQUE(user_id, item_id)
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_user_favorites_user ON user_favorites(user_id, saved_at DESC)")
+
     # Пульс фоновых работников (P14): «сайт отвечает» ещё не значит, что обходы идут.
     # Таблица добавляется, schema_version не меняется.
     # Результаты самопроверки копий (P15): копия, которую никто не открывал, ничего не гарантирует
@@ -4178,6 +4199,8 @@ def export_user_data(user_id: int) -> Optional[Dict[str, Any]]:
         # Наблюдения принадлежат человеку и входят в его выгрузку (P07)
         "watches": watches,
         "watch_events": events,
+        # Избранное пользователя (KZPH-G5-04)
+        "favorites": list_user_favorites(user_id),
     }
 
 
@@ -4195,10 +4218,156 @@ def delete_user_account(user_id: int) -> Dict[str, int]:
             "sessions": conn.execute("DELETE FROM sessions WHERE user_id = ?", (int(user_id),)).rowcount,
             "notifications": conn.execute("DELETE FROM notification_outbox WHERE user_id = ?", (int(user_id),)).rowcount,
             "watches": conn.execute("DELETE FROM watches WHERE user_id = ?", (int(user_id),)).rowcount,
+            "favorites": conn.execute("DELETE FROM user_favorites WHERE user_id = ?", (int(user_id),)).rowcount,
             "users": conn.execute("DELETE FROM users WHERE id = ?", (int(user_id),)).rowcount,
         }
         conn.commit()
     return counts
+
+
+# =====================================================================
+# USER FAVORITES SYSTEM (KZPH-G5-04)
+# =====================================================================
+
+def list_user_favorites(user_id: int) -> List[Dict[str, Any]]:
+    """Возвращает избранные товары пользователя с вычислением динамики цен.
+    
+    Если текущая цена в каталоге снизилась относительно момента добавления (saved_price),
+    вычисляется дельта экономии для вкладки 'Снижение цены'.
+    """
+    with get_connection() as conn:
+        rows = conn.execute("""
+            SELECT id, item_id, canonical_product_id, title, shop, city,
+                   saved_price, discount_pct, price_basis, image_url, url, saved_at
+            FROM user_favorites
+            WHERE user_id = ?
+            ORDER BY id DESC
+        """, (int(user_id),)).fetchall()
+        
+        has_offers = _has_table(conn, "offers")
+        has_products = _has_table(conn, "products")
+
+        result = []
+        for r in rows:
+            item = dict(r)
+            saved_price = item.get("saved_price") or 0
+            current_price = saved_price
+
+            # 1. Актуальная цена в offers (V2)
+            c_price = None
+            if has_offers:
+                if item.get("canonical_product_id"):
+                    row = conn.execute(
+                        "SELECT MIN(price) AS p FROM offers WHERE product_id = ? AND price > 0",
+                        (item["canonical_product_id"],)
+                    ).fetchone()
+                    if row and row["p"]:
+                        c_price = int(row["p"])
+                if c_price is None and item.get("item_id"):
+                    row = conn.execute(
+                        "SELECT price AS p FROM offers WHERE id = ? AND price > 0 LIMIT 1",
+                        (item["item_id"],)
+                    ).fetchone()
+                    if row and row["p"]:
+                        c_price = int(row["p"])
+
+            # 2. Если в offers не найдено, проверяем products
+            if c_price is None and has_products and item.get("item_id"):
+                row = conn.execute(
+                    "SELECT current_price FROM products WHERE id = ? LIMIT 1",
+                    (item["item_id"],)
+                ).fetchone()
+                if row and row["current_price"]:
+                    c_price = int(row["current_price"])
+
+            if c_price is not None and c_price > 0:
+                current_price = c_price
+
+            has_drop = bool(saved_price > 0 and current_price > 0 and current_price < saved_price)
+            drop_amount = max(0, saved_price - current_price) if has_drop else 0
+            drop_pct = round((drop_amount / saved_price) * 100, 1) if (has_drop and saved_price > 0) else 0.0
+
+            item["current_price"] = current_price
+            item["has_price_drop"] = has_drop
+            item["price_drop_amount"] = drop_amount
+            item["price_drop_pct"] = drop_pct
+            result.append(item)
+            
+        return result
+
+
+def save_user_favorite(user_id: int, item: Dict[str, Any]) -> Dict[str, Any]:
+    """Сохраняет или обновляет товар в избранном пользователя."""
+    item_id = str(item.get("id") or item.get("item_id") or "").strip()
+    if not item_id:
+        raise ValueError("item_id required")
+    title = str(item.get("title") or "Товар").strip()
+    canonical_id = item.get("canonical_product_id") or None
+    shop = item.get("shop") or ""
+    city = item.get("city") or ""
+    saved_price = int(item.get("new_price") or item.get("saved_price") or item.get("price") or 0)
+    discount_pct = float(item.get("discount_pct") or 0)
+    price_basis = item.get("price_basis") or ""
+    image_url = item.get("image_url") or ""
+    url = item.get("url") or ""
+    saved_at = item.get("saved_at") or datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+    with get_connection() as conn:
+        conn.execute("""
+            INSERT INTO user_favorites (
+                user_id, item_id, canonical_product_id, title, shop, city,
+                saved_price, discount_pct, price_basis, image_url, url, saved_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(user_id, item_id) DO UPDATE SET
+                title = excluded.title,
+                shop = excluded.shop,
+                city = excluded.city,
+                saved_price = CASE WHEN excluded.saved_price > 0 THEN excluded.saved_price ELSE user_favorites.saved_price END,
+                discount_pct = excluded.discount_pct,
+                price_basis = excluded.price_basis,
+                image_url = CASE WHEN excluded.image_url != '' THEN excluded.image_url ELSE user_favorites.image_url END,
+                url = CASE WHEN excluded.url != '' THEN excluded.url ELSE user_favorites.url END
+        """, (
+            int(user_id), item_id, canonical_id, title, shop, city,
+            saved_price, discount_pct, price_basis, image_url, url, saved_at
+        ))
+        conn.commit()
+    return {
+        "id": item_id, "item_id": item_id, "canonical_product_id": canonical_id, "title": title,
+        "shop": shop, "city": city, "saved_price": saved_price,
+        "discount_pct": discount_pct, "image_url": image_url, "url": url,
+        "saved_at": saved_at
+    }
+
+
+def remove_user_favorite(user_id: int, item_id: str) -> bool:
+    """Удаляет товар из избранного пользователя."""
+    with get_connection() as conn:
+        res = conn.execute(
+            "DELETE FROM user_favorites WHERE user_id = ? AND item_id = ?",
+            (int(user_id), str(item_id))
+        )
+        conn.commit()
+        return res.rowcount > 0
+
+
+def clear_user_favorites(user_id: int) -> int:
+    """Очищает всё избранное пользователя."""
+    with get_connection() as conn:
+        res = conn.execute("DELETE FROM user_favorites WHERE user_id = ?", (int(user_id),))
+        conn.commit()
+        return res.rowcount
+
+
+def sync_user_favorites_batch(user_id: int, client_items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Пакетное слияние локального избранного клиента и серверного избранного."""
+    for item in client_items:
+        if isinstance(item, dict) and (item.get("id") or item.get("item_id")):
+            try:
+                save_user_favorite(user_id, item)
+            except Exception:
+                pass
+    return list_user_favorites(user_id)
 
 
 def prune_notification_outbox(days: int = NOTIFICATION_RETENTION_DAYS) -> int:
