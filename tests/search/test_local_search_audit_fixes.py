@@ -228,3 +228,52 @@ class ReviewSerializationTests(unittest.TestCase):
             thread.join(4)
             self.assertFalse(thread.is_alive());self.assertEqual(errors,[]);self.assertEqual(claims,[None])
             self.assertEqual(repo.get(task['id'])['status'],'rejected');conn.close()
+
+
+class CategoryListShapedAnswerTests(unittest.TestCase):
+    """Стенд 06.11.2026 (аудит Codex v6.28.9, P2): с полным каталогом в промпте модель отвечала
+    {"id": …, "name": …}; план отбрасывался, и помощник писал «временно недоступен» на каждый запрос."""
+    CATS = [dict(id='gpus', name='Видеокарты', parent_id='electronics', fields=[]),
+            dict(id='coffee', name='Кофемашины', parent_id='home', fields=[]),
+            dict(id='electronics', name='Электроника', parent_id=None, fields=[]),
+            dict(id='home', name='Дом', parent_id=None, fields=[])]
+
+    def test_list_shaped_answer_maps_to_existing_category(self):
+        plan = local_search.clean_plan({'id': 'graphics_cards', 'name': 'Видеокарты', 'parent_id': 'electronics'},
+                                       'видеокарта', self.CATS)
+        self.assertEqual((plan['category_id'], plan['category_name'], plan['search_query']),
+                         ('gpus', 'Видеокарты', 'видеокарта'))
+        plan = local_search.clean_plan({'id': 'coffee', 'name': 'Кофемашины', 'fields': {}}, 'кофемашина', self.CATS)
+        self.assertEqual(plan['category_id'], 'coffee')
+
+    def test_category_subcategory_shape_uses_only_existing_ids(self):
+        plan = local_search.clean_plan({'category': 'electronics', 'subcategory': 'gpus', 'filters': {}},
+                                       'видеокарта', self.CATS)
+        self.assertEqual(plan['category_id'], 'gpus')                       # более узкая
+        plan = local_search.clean_plan({'category': 'home', 'subcategory': 'robot_vacuums'}, 'пылесос', self.CATS)
+        self.assertEqual(plan['category_id'], 'home')                       # неизвестная узкая — не создаём
+        self.assertIsNone(local_search.clean_plan({'category': 'new_stuff', 'subcategory': 'x'}, 'x', self.CATS))
+
+    def test_explicit_keys_win_and_garbage_is_still_rejected(self):
+        plan = local_search.clean_plan({'category_id': 'coffee', 'id': 'gpus', 'name': 'Видеокарты'}, 'кофе', self.CATS)
+        self.assertEqual(plan['category_id'], 'coffee')
+        self.assertIsNone(local_search.clean_plan({'id': '', 'name': ''}, 'x', self.CATS))
+        self.assertIsNone(local_search.clean_plan({'id': 'Bad Id!', 'name': '<script>'}, 'x', self.CATS))
+
+    def test_one_unreadable_answer_does_not_disable_the_helper(self):
+        cfg = {'ai_search_enabled': True, 'local_api_base': 'http://ai.test/v1', 'local_model': 'm'}
+        answers = [{'unexpected': True}, {'id': 'gpus', 'name': 'Видеокарты'}]
+
+        async def run():
+            with patch.object(local_search, 'enabled', return_value=True), \
+                 patch('config.get_ai_config', return_value=cfg), \
+                 patch('local_ai.pause_reason', return_value=None), \
+                 patch('ai_service.call_local_api', new=AsyncMock(side_effect=answers + [None] * 4)):
+                first = await local_search.understand('кофемашина xyz', self.CATS)
+                second = await local_search.understand('видеокарта xyz', self.CATS)
+            return first, second
+
+        first, second = asyncio.run(run())
+        self.assertEqual(first['status'], 'unavailable')
+        self.assertEqual(second['status'], 'ok')
+        self.assertEqual(second['plan']['category_id'], 'gpus')

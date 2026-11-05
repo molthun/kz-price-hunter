@@ -32,8 +32,15 @@ def clean_plan(answer, query, categories):
     if not isinstance(answer, dict):
         return None
     by_id = {c['id']: c for c in categories}
-    cid = str(answer.get('category_id') or '')
-    name = str(answer.get('category_name') or '').strip()[:80]
+    # С полным списком категорий в промпте модель иногда копирует его структуру и отвечает
+    # {"id": …, "name": …} вместо category_id/category_name (стенд 06.11.2026): принимаем и такой вид,
+    # идентификатор по-прежнему проверяется по каталогу или сопоставляется по названию.
+    cid = str(answer.get('category_id') or answer.get('id') or '')
+    name = str(answer.get('category_name') or answer.get('name') or '').strip()[:80]
+    if not cid and not name:
+        # Ещё одна форма: {"category": "electronics", "subcategory": "phones"}. Из этих ключей берём
+        # только существующий идентификатор каталога, сначала более узкий; новую категорию не создаём.
+        cid = next((str(answer.get(k)) for k in ('subcategory', 'category') if str(answer.get(k) or '') in by_id), '')
     if cid not in by_id:
         same_name = next((c for c in categories if c['name'].casefold() == name.casefold()), None)
         if same_name:
@@ -170,6 +177,7 @@ fields: от 3 до 8 основных фильтров ВСЕЙ категор�
 Сезон/размер/память и другие явные признаки ОБЯЗАТЕЛЬНО сохрани также в search_query:
 до заполнения характеристик каталога текстовый поиск должен соблюдать ограничения.
 Для склоняемых русских прилагательных используй общий префикс (зимн, летн, беспроводн).
+Ключи ответа строго category_id и category_name (не id и name из списка категорий).
 Пример: зимняя резина => category_id=tires, search_query="зимн", attributes={"season":"Зимние"},
 fields=[{"key":"season","label":"Сезон"},{"key":"width","label":"Ширина"},
 {"key":"profile","label":"Профиль"},{"key":"diameter","label":"Диаметр"},{"key":"studs","label":"Шипы"}].
@@ -181,7 +189,11 @@ fields=[{"key":"season","label":"Сезон"},{"key":"width","label":"Ширин
             raw = await call_local_api(prompt, base, model, cfg.get('local_api_key') or '', timeout=18.0)
             plan = clean_plan(raw, query, categories)
             if plan is None:
-                _failures[(base, model)] = True
+                # Модель не ответила (таймаут, ошибка, занятая очередь) — предохранитель на 15 секунд.
+                # Ответ был, но неразборчив для этого запроса — не отказ модели: помощник не выключаем
+                # для всех остальных запросов.
+                if raw is None:
+                    _failures[(base, model)] = True
                 return {'status': 'unavailable'}
             if len(plan['fields']) < 3 and time.monotonic() - started < 10:
                 try:
