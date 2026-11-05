@@ -2,6 +2,22 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## IN_PROGRESS: Antigravity — Интеграция и доведение до ума SearXNG (v6.28.0)
+
+- Прямое поручение владельца: «У нас еще контейнер есть searxng его тоже нужно использовать. Довести до ума его использование.»
+- Исполнитель: Antigravity (основной разработчик).
+- Дата и время взятия: 2026-11-05 17:05 (Asia/Almaty).
+- Срез: ветка `codex/local-ai-catalog-growth`, коммит `83aa810`.
+- Область файлов: `product_verify.py`, `config.py`, `web/server.py`, `web/templates/search_first.html`, `deploy/prod-host/ai-stack/searxng.settings.example.yml`, `tests/ai/test_product_verify.py`, `tests/search/test_web_search.py`, `version.py`, `CHANGELOG.md`, `docs/AGENT_HANDOFF.md`.
+- План шагов:
+  1. Оптимизация конфигурации SearXNG: отключение неработающих движков (`brave`, `google cse`, `google`, `wikidata`), фиксация надежного набора (`duckduckgo`, `startpage`, `mojeek`).
+  2. Доработка `product_verify.py`: передача надежных `engines`, снижение интервала между запросами до безопасных 3-5с вместо 90с при наличии кэша `web_search_cache`, улучшенная обработка таймаутов.
+  3. Реализация эндпоинта живого веб-поиска `/api/v2/web-search` по проверенным доменам казахстанских магазинов (`kaspi.kz`, `shop.kz`, `mechta.kz`, `sulpak.kz`, `technodom.kz`, `marwin.kz`).
+  4. Интеграция в интерфейс поиска (`search_first.html`): кнопка и блок живого поиска в магазинах Казахстана при нулевой выдаче или по запросу пользователя.
+  5. Модульные тесты, сборка git bundle `kzph-v6.28.0.bundle`, развертывание на стенде и проверка Playwright.
+
+---
+
 ## STAND_DEPLOYED → Владелец: Устойчивость локального ИИ в поиске и контекстные подсказки при пустой выдаче v6.27.5 (2026-11-05)
 
 - Прямое поручение владельца: «Продолжаем разработку дальше» -> Локальный ИИ в каждом поисковом запросе ([LOCAL_AI_SEARCH_REQUIREMENTS.md](LOCAL_AI_SEARCH_REQUIREMENTS.md)): разбор смысла, атрибутов и помощь при нулевой выдаче.

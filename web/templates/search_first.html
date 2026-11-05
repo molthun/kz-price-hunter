@@ -4652,6 +4652,130 @@
       color: var(--text-main);
       border-bottom: 1px solid var(--border-color);
     }
+
+    /* Web Search (SearXNG) Integration */
+    .web-search-box {
+      margin-top: 24px;
+      padding: 20px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .web-search-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .web-search-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .web-search-badge-source {
+      font-size: 0.75rem;
+      padding: 3px 8px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .web-search-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 14px;
+    }
+    .web-card {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 14px;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      background: var(--bg-subtle);
+      transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+    }
+    .web-card:hover {
+      border-color: var(--primary);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    .web-card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .web-card-shop {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 5px;
+      color: #fff;
+    }
+    .web-card-domain {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    .web-card-title {
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: var(--text-main);
+      line-height: 1.35;
+      margin-bottom: 6px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .web-card-snippet {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+      margin-bottom: 12px;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      flex: 1;
+    }
+    .web-card-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 10px;
+      border-top: 1px solid var(--border-color);
+      margin-top: auto;
+    }
+    .web-card-price {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: var(--accent, #10b981);
+    }
+    .web-card-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border-radius: 6px;
+      background: var(--primary);
+      color: #fff;
+      text-decoration: none;
+      transition: filter 0.15s;
+    }
+    .web-card-btn:hover {
+      filter: brightness(1.1);
+    }
   </style>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
@@ -4975,8 +5099,9 @@
         <!-- Right Content: Products List -->
         <div class="results-content">
           <div class="results-top-meta">
-            <div class="results-count-title" id="resultsCountTitle">
-              <span id="resultsCountText">Результаты поиска</span> <span id="resultsCountSubtitle"></span>
+            <div class="results-count-title" id="resultsCountTitle" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <div><span id="resultsCountText">Результаты поиска</span> <span id="resultsCountSubtitle"></span></div>
+              <button id="resultsHeaderWebSearchBtn" type="button" onclick="triggerLiveWebSearch()" style="display:none; align-items:center; gap:4px; font-size:0.75rem; font-weight:600; padding:3px 10px; border-radius:12px; background:var(--bg-subtle); border:1px solid var(--border-color); color:var(--text-muted); cursor:pointer; transition:all 0.15s;">🌐 Искать в магазинах (SearXNG)</button>
             </div>
             <div style="display:flex; align-items:center; gap:8px;">
               <button class="mobile-filter-btn" type="button" aria-expanded="false" aria-controls="filtersSidebar" onclick="openMobileFilters()">
@@ -5009,7 +5134,11 @@
             <div class="state-icon">🔍</div>
             <div class="state-title">Ничего не найдено</div>
             <div class="state-desc">Попробуйте изменить запрос, проверить опечатки или сбросить фильтры.</div>
-            <button class="btn-apply-filters" id="resultsEmptyAction" type="button" style="display:inline-block; width:auto; padding:8px 20px;">Сбросить фильтры</button>
+            <div class="empty-actions-wrap" style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:16px;">
+              <button class="btn-apply-filters" id="resultsEmptyAction" type="button" style="display:inline-block; width:auto; padding:8px 20px;">Сбросить фильтры</button>
+              <button class="btn-live-web-search" id="resultsLiveWebSearchBtn" type="button" onclick="triggerLiveWebSearch()" style="display:inline-flex; align-items:center; gap:8px; background:linear-gradient(135deg, #0284c7, #2563eb); color:#fff; border:none; border-radius:8px; font-weight:600; cursor:pointer; width:auto; padding:8px 20px; box-shadow:0 2px 6px rgba(37,99,235,0.25);">🌐 Проверить магазины Казахстана (SearXNG)</button>
+            </div>
+            <div id="resultsLiveWebSearchContainer" style="margin-top:28px; text-align:left; display:none;"></div>
           </div>
 
           <!-- Product Cards Container -->
@@ -7330,6 +7459,11 @@
       document.getElementById('resultsCountText').textContent = AppState.query ? '«' + AppState.query + '»' : 'Каталог товаров';
       document.getElementById('resultsCountSubtitle').textContent =
         total === null ? '' : '— найдено ' + total + ' ' + pluralizeProducts(total);
+
+      const headerWebBtn = document.getElementById('resultsHeaderWebSearchBtn');
+      if (headerWebBtn) {
+        headerWebBtn.style.display = AppState.query ? 'inline-flex' : 'none';
+      }
     }
 
     // Каждое состояние задаёт весь свой текст и действие: прошлое состояние DOM не наследуется
@@ -7345,6 +7479,112 @@
 
     function showResultsError(title, desc) {
       showResultsMessage(title, desc, 'Повторить', () => executeSearch());
+    }
+
+    async function triggerLiveWebSearch(overrideQuery) {
+      const q = (overrideQuery || AppState.query || '').trim();
+      const container = document.getElementById('resultsLiveWebSearchContainer');
+      const btn = document.getElementById('resultsLiveWebSearchBtn');
+      const emptyEl = document.getElementById('resultsEmpty');
+
+      if (!container) return;
+      if (emptyEl) emptyEl.style.display = 'block';
+      container.style.display = 'block';
+
+      if (!q) {
+        container.innerHTML = '<div style="color:var(--text-muted); font-size:0.9rem; text-align:center; padding:16px;">Введите поисковый запрос для проверки магазинов.</div>';
+        return;
+      }
+
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Опрашиваем SearXNG...';
+      }
+
+      container.innerHTML = `
+        <div class="web-search-box" style="text-align:center; padding:28px;">
+          <div style="font-size:1.6rem; margin-bottom:8px;">🔎</div>
+          <div style="font-weight:700; color:var(--text-main); font-size:0.95rem;">Ищем предложения в магазинах Казахстана через SearXNG...</div>
+          <div style="font-size:0.82rem; color:var(--text-muted); margin-top:4px;">Kaspi, Белый Ветер, Мечта, Technodom, Sulpak, Marwin, DNS</div>
+        </div>
+      `;
+
+      try {
+        const city = AppState.city && AppState.city !== 'Все' ? AppState.city : '';
+        const params = new URLSearchParams({ q: q, limit: '12' });
+        if (city) params.set('city', city);
+
+        const resp = await fetch('/api/v2/web-search?' + params.toString());
+        const data = await resp.json();
+
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '🔄 Обновить опрос магазинов (SearXNG)';
+        }
+
+        if (!data.ok || !data.results || data.results.length === 0) {
+          container.innerHTML = `
+            <div class="web-search-box" style="text-align:center; padding:24px;">
+              <div style="font-size:1.5rem; margin-bottom:8px;">🏪</div>
+              <div style="font-weight:700; color:var(--text-main);">Магазины не вернули прямых совпадений по «${escapeHtml(q)}»</div>
+              <div style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;">Попробуйте сократить запрос или указать общее название категории.</div>
+            </div>
+          `;
+          return;
+        }
+
+        const cardsHtml = data.results.map(item => {
+          const priceHtml = item.price
+            ? `<div class="web-card-price">${formatPrice(item.price)}</div>`
+            : `<div class="web-card-price" style="font-size:0.85rem; color:var(--text-muted); font-weight:500;">Уточняйте на сайте</div>`;
+
+          return `
+            <div class="web-card">
+              <div>
+                <div class="web-card-top">
+                  <span class="web-card-shop" style="background:${escapeHtml(item.color || '#2563eb')}">${escapeHtml(item.badge || item.shop_name)}</span>
+                  <span class="web-card-domain">${escapeHtml(item.domain)}</span>
+                </div>
+                <div class="web-card-title" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</div>
+                <div class="web-card-snippet">${escapeHtml(item.snippet || '')}</div>
+              </div>
+              <div class="web-card-bottom">
+                ${priceHtml}
+                <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="web-card-btn">
+                  В магазин ↗
+                </a>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        container.innerHTML = `
+          <div class="web-search-box">
+            <div class="web-search-header">
+              <div class="web-search-title">
+                <span>🌐</span>
+                <span>Предложения в интернет-магазинах Казахстана</span>
+                <span class="badge" style="background:var(--bg-subtle); color:var(--text-muted); font-size:0.8rem; padding:2px 8px; border-radius:12px;">найдено ${data.total}</span>
+              </div>
+              <div class="web-search-badge-source">Источник: SearXNG ${data.from_cache ? '(кэш)' : '(живой опрос)'}</div>
+            </div>
+            <div class="web-search-cards">
+              ${cardsHtml}
+            </div>
+          </div>
+        `;
+      } catch (err) {
+        console.error('[WebSearch] Ошибка:', err);
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '🌐 Проверить магазины Казахстана (SearXNG)';
+        }
+        container.innerHTML = `
+          <div class="web-search-box" style="text-align:center; padding:20px; color:var(--text-muted);">
+            Не удалось связаться с поисковым узлом SearXNG. Попробуйте повторить попытку позже.
+          </div>
+        `;
+      }
     }
 
     async function executeSearch() {
@@ -7366,6 +7606,17 @@
       const help = document.getElementById('localSearchHelp');
       help.replaceChildren();
       help.style.display = 'none';
+
+      const webContainer = document.getElementById('resultsLiveWebSearchContainer');
+      if (webContainer) {
+        webContainer.style.display = 'none';
+        webContainer.innerHTML = '';
+      }
+      const webBtn = document.getElementById('resultsLiveWebSearchBtn');
+      if (webBtn) {
+        webBtn.disabled = false;
+        webBtn.innerHTML = '🌐 Проверить магазины Казахстана (SearXNG)';
+      }
 
       const p = new URLSearchParams();
       if (Object.keys(AppState.attributes).length) p.set('attributes', JSON.stringify(AppState.attributes));

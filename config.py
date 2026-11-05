@@ -321,7 +321,7 @@ SYSTEM_DEFAULTS = {
     # извлекает поля, ключ собирает product_key.py. Переключается только вместе с переводом базы ключей (C4):
     # старые и новые ключи между собой не совпадают, поэтому общим сохранением настроек не меняется.
     "ai_key_standard": "v1",
-    # Третий источник истины для спорных пар товаров (P17-C7): свой SearXNG, например http://192.168.28.25:8888.
+    # Третий источник истины для спорных пар товаров и живой поиск (SearXNG, http://192.168.28.25:8888).
     # Пустой адрес — проверка выключена. Предел — поисков в сутки (кэш по запросу их не тратит)
     "search_api_base": "",
     "search_daily_limit": 300,
@@ -580,7 +580,7 @@ def get_ai_config():
         "has_local": has_local,
         "local_normalize_enabled": bool(sys_settings.get("local_normalize_enabled", False)),
         "ai_key_standard": str(sys_settings.get("ai_key_standard") or "v1"),
-        "search_api_base": str(sys_settings.get("search_api_base", "") or "").strip(),
+        "search_api_base": str(sys_settings.get("search_api_base", "") or os.environ.get("SEARCH_API_BASE", "") or "").strip(),
         "search_daily_limit": int(sys_settings.get("search_daily_limit", 300) or 0),
         "search_interval_seconds": int(sys_settings.get("search_interval_seconds", 90) or 90),
         "ai_search_enabled": ai_enabled,

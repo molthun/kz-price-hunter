@@ -21,12 +21,11 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional
 
 SEARCH_TIMEOUT = 15.0
 RESULTS_PER_QUERY = 6
-# Поисковики за SearXNG приостанавливают выдачу при частых запросах: на замере C7 после ~80 запросов
-# за 4 минуты DuckDuckGo, Brave и Google CSE отвечали «too many requests» и 3 минуты не искали, а DuckDuckGo
-# стал требовать капчу. Поэтому запросы идут не чаще одного в SEARCH_MIN_INTERVAL секунд из процесса.
-# Решение владельца 29.10.2026: «только SearXNG с таймаутом» — пауза задаётся настройкой search_interval_seconds
-# (по умолчанию 90 с, до 960 поисков в сутки), это значение — для вызовов без настройки.
-SEARCH_MIN_INTERVAL = 90.0
+# Безопасный интервал между запросами к SearXNG. Ранее (29.10.2026) стояло 90с из-за сбоев
+# Brave и Google CSE. После исключения нестабильных движков и фиксации надежного пула
+# (DuckDuckGo, Startpage, Mojeek) интервал снижен до безопасных 3.0 с.
+SEARCH_MIN_INTERVAL = 3.0
+DEFAULT_ENGINES = "duckduckgo,startpage,mojeek"
 # None — поиска ещё не было: monotonic отсчитывается от загрузки машины, и 0.0 сразу после неё дал бы лишнюю паузу
 _last_search = None
 _search_lock = None
@@ -77,7 +76,8 @@ def queries_for(fields_a: Dict[str, Any], fields_b: Dict[str, Any]) -> List[str]
 
 
 async def searxng_search(base: str, query: str, limit: int = RESULTS_PER_QUERY,
-                         min_interval: Optional[float] = None) -> Optional[List[Dict[str, str]]]:
+                         min_interval: Optional[float] = None,
+                         engines: Optional[str] = None) -> Optional[List[Dict[str, str]]]:
     """Выдача SearXNG в JSON: [{title, url, content}] или None при недоступности поиска.
 
     Пустая выдача, когда поисковики приостановили ответы (unresponsive_engines), — тоже None: это «поиск
@@ -95,14 +95,16 @@ async def searxng_search(base: str, query: str, limit: int = RESULTS_PER_QUERY,
         if wait > 0:
             await asyncio.sleep(wait)
         _last_search = time.monotonic()
-        return await _searxng_request(url, query, limit, aiohttp, urlparse)
+        return await _searxng_request(url, query, limit, aiohttp, urlparse, engines)
 
 
-async def _searxng_request(url, query, limit, aiohttp, urlparse):
+async def _searxng_request(url, query, limit, aiohttp, urlparse, engines=None):
     try:
         timeout = aiohttp.ClientTimeout(total=SEARCH_TIMEOUT, connect=5.0)
+        params = {"q": query, "format": "json", "engines": engines or DEFAULT_ENGINES}
+        headers = {"User-Agent": "KZPriceHunter-Verify/1.0"}
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(url, params={"q": query, "format": "json"}) as resp:
+            async with session.get(url, params=params, headers=headers) as resp:
                 if resp.status != 200:
                     print(f"[Verify] Поиск ответил HTTP {resp.status}")
                     return None

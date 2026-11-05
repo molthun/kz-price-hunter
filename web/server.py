@@ -1320,6 +1320,32 @@ async def search_v2_handler(request):
         return web.json_response({"error": "Ошибка поиска v2, попробуйте позже"}, status=500)
 
 
+@routes.get("/api/v2/web-search")
+async def web_search_handler(request):
+    """Живой веб-поиск по магазинам Казахстана через локальный узел SearXNG (KZPH-SearXNG)."""
+    query = request.query.get("q", "").strip()
+    if not query:
+        return web.json_response({"ok": True, "query": "", "total": 0, "results": []})
+    if len(query) > 200:
+        return web.json_response({"error": "Запрос слишком длинный (до 200 символов)"}, status=400)
+
+    city = request.query.get("city", "").strip() or None
+    mode = request.query.get("mode", "kz_shops").strip()
+    if mode not in ("kz_shops", "kz_general", "all"):
+        mode = "kz_shops"
+
+    limit = _int_param(request, "limit", 10, minimum=1, maximum=30)
+
+    try:
+        import domain.web_search as ws
+        data = await ws.search_web(query, city=city, mode=mode, limit=limit)
+        return web.json_response(data, status=200 if data.get("ok", True) else 503)
+    except Exception as e:
+        print(f"[API web-search] Ошибка: {e}")
+        return web.json_response({"ok": False, "error": "Ошибка веб-поиска", "results": []}, status=500)
+
+
+
 @routes.get('/api/admin/classification')
 @require_admin
 async def classification_list_handler(request):

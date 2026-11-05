@@ -16,15 +16,26 @@ server:
   public_instance: false
 ui:
   static_use_hash: true
-# Поисковики общего поиска (P17-C7, 29.10.2026): bing через SearXNG отдаёт мусор (рецепты на запрос артикула),
-# yandex не разбирается, qwant отказывает — выключены; mojeek и startpage — в помощь основным
+# Поисковики общего поиска (обновлено 05.11.2026):
+# выключены те, что требуют платных ключей, возвращают капчу или блокируют IP (brave, google, google cse, wikidata)
+# включены проверенные стабильные движки: duckduckgo, startpage, mojeek
 engines:
-  - name: bing
-    disabled: true
-  - name: mojeek
+  - name: duckduckgo
     disabled: false
   - name: startpage
     disabled: false
+  - name: mojeek
+    disabled: false
+  - name: brave
+    disabled: true
+  - name: google
+    disabled: true
+  - name: google cse
+    disabled: true
+  - name: wikidata
+    disabled: true
+  - name: bing
+    disabled: true
   - name: yandex
     disabled: true
   - name: qwant
