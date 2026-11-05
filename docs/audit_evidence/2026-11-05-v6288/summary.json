@@ -1,0 +1,47 @@
+{
+  "audit_started_date": "2026-11-05",
+  "audit_completed_date": "2026-11-06",
+  "timezone": "Asia/Almaty",
+  "head": "46cf0220507c7dd7761fa4406e8f447ab7cd9864",
+  "version": "6.28.8",
+  "decision": "RETURN_FOR_FIXES",
+  "findings": {
+    "P1": 1,
+    "P2": 1
+  },
+  "G1": "symlink DB path bypasses real WAL report protection; dry-run replaces active WAL with JSON",
+  "G2": "resume with same report loses first 200 rows undo history",
+  "original_F1": "direct path cases fixed; side-file alias case remains",
+  "original_F2": "fixed",
+  "original_F3": "tested derived chipset case fixed",
+  "pytest": {
+    "passed": 2810,
+    "subtests_passed": 1198,
+    "warnings": 128,
+    "seconds": 182.99
+  },
+  "unittest": {
+    "passed": 2747,
+    "seconds": 178.58
+  },
+  "frontend": {
+    "passed": 37,
+    "total": 37
+  },
+  "secret_findings": 0,
+  "dependencies": {
+    "count": 25,
+    "vulnerabilities": 0,
+    "skipped": 0
+  },
+  "inherited_gpu_matrix_rows": 144,
+  "stand_readonly": {
+    "head": "ffcb572f4b953138084469eaa8d2d24bb80553df",
+    "version": "6.28.6",
+    "tracked_clean": true,
+    "healthy": true
+  },
+  "candidate_deployed_by_auditor": false,
+  "production_verified": false,
+  "live_ai_calls": 0
+}

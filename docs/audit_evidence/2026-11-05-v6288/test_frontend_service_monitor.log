@@ -1,0 +1,4 @@
+PASS service overview 390/light: isolated failure/no false zeros/local diagnosis/late AI ignored/read-only/XSS safe/navigation/recovery
+PASS service overview 390/dark: isolated failure/no false zeros/local diagnosis/late AI ignored/read-only/XSS safe/navigation/recovery
+PASS service overview 1366/light: isolated failure/no false zeros/local diagnosis/late AI ignored/read-only/XSS safe/navigation/recovery
+PASS service overview 1366/dark: isolated failure/no false zeros/local diagnosis/late AI ignored/read-only/XSS safe/navigation/recovery

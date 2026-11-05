@@ -657,6 +657,41 @@ class RecomputeCliSafetyTests(unittest.TestCase):
         self.assertEqual(self._sha(), before)
         self.assertEqual(self._quick_check(), "ok")
 
+    def test_symlinked_database_protects_its_real_side_files(self):
+        # G1: --db — ссылка на настоящую базу в WAL с живым WAL-файлом; отчёт на её -wal/-shm/-journal
+        live = sqlite3.connect(self.db, isolation_level=None)
+        self.addCleanup(live.close)
+        live.execute("PRAGMA journal_mode=WAL")
+        live.execute("PRAGMA wal_autocheckpoint=0")
+        live.execute("UPDATE canonical_products SET updated_at='live' WHERE id='g000'")
+        wal = self.db + "-wal"
+        self.assertTrue(os.path.getsize(wal) > 0)
+        alias = os.path.join(self.dir, "alias.db")
+        os.symlink(self.db, alias)
+        link_dir = os.path.join(self.dir, "linkdir")
+        os.symlink(self.dir, link_dir)
+        before = {f: open(f, "rb").read() for f in (self.db, wal, self.db + "-shm")}
+        targets = [wal, self.db + "-shm", self.db + "-journal", self.db,
+                   os.path.join(link_dir, "prices.db-wal")]
+        for db_arg in (alias, os.path.join(link_dir, "prices.db")):
+            for target in targets:
+                for extra in ([], ["--apply"]):
+                    self.assertEqual(self.mod.main(["--db", db_arg, "--report", target, *extra]), 2,
+                                     (db_arg, target, extra))
+        self.assertEqual({f: open(f, "rb").read() for f in before}, before)
+        self.assertFalse(os.path.exists(self.db + "-journal"))
+        self.assertEqual(live.execute("PRAGMA quick_check").fetchone()[0], "ok")
+
+    def test_existing_report_is_never_overwritten(self):
+        report = os.path.join(self.dir, "plan.json")
+        with open(report, "w", encoding="utf-8") as fh:
+            fh.write("previous")
+        before = self._sha()
+        for extra in ([], ["--apply"]):
+            self.assertEqual(self.mod.main(["--db", self.db, "--report", report, *extra]), 2)
+        self.assertEqual(open(report, encoding="utf-8").read(), "previous")
+        self.assertEqual(self._sha(), before)
+
     def test_unwritable_report_leaves_database_unchanged(self):
         before = self._sha()
         missing = os.path.join(self.dir, "no-such-dir", "plan.json")
@@ -698,9 +733,19 @@ class RecomputeCliSafetyTests(unittest.TestCase):
         self.assertEqual(len(data["applied"]["models"]), 200)          # первая пачка зафиксирована
         self.assertEqual(self._models(), {"Radeon RX 9070 GRE": 200, "Radeon RX 9070": 250})
         self.assertEqual(len(data["models"]), 450)                      # план со старыми значениями целиком
-        # повторный запуск дорабатывает остаток
-        self.assertEqual(self.mod.main(["--db", self.db, "--report", report, "--apply"]), 0)
+        # G2: тот же отчёт не перезаписывается — он единственная копия старых значений первой пачки
+        self.assertEqual(self.mod.main(["--db", self.db, "--report", report, "--apply"]), 2)
+        self.assertEqual(json.load(open(report, encoding="utf-8")), data)
+        # продолжение — в новый отчёт; вместе оба хранят старые значения и результаты всех 450 строк
+        report2 = os.path.join(self.dir, "partial-continue.json")
+        self.assertEqual(self.mod.main(["--db", self.db, "--report", report2, "--apply"]), 0)
         self.assertEqual(self._models(), {"Radeon RX 9070 GRE": 450})
+        data2 = json.load(open(report2, encoding="utf-8"))
+        old_values = {r["id"]: r["old"] for r in data["models"]} | {r["id"]: r["old"] for r in data2["models"]}
+        self.assertEqual(len(old_values), 450)
+        self.assertTrue(all(v == "Radeon RX 9070" for v in old_values.values()))
+        applied = set(data["applied"]["models"]) | set(data2["applied"]["models"])
+        self.assertEqual(len(applied), 450)
 
     def test_compact_and_spaced_ti_super_never_raise(self):
         from catalog_classifier import canonical_gpu_model

@@ -5,7 +5,10 @@
 Безопасность (аудиты v6.28.6 и v6.28.7, 05.11.2026):
 - по умолчанию только отчёт (dry-run); запись — с флагом --apply и только на копии/стенде по протоколу;
 - путь отчёта не может указывать на базу или её служебные файлы (-wal, -shm, -journal), в том числе
-  через эквивалентный путь, symlink или жёсткую ссылку — проверка до любого открытия на запись;
+  через эквивалентный путь, symlink или жёсткую ссылку, и с учётом symlink в пути самой базы —
+  проверка до любого открытия на запись;
+- существующий отчёт не перезаписывается: после partial повторный запуск пишет новый отчёт, и вместе
+  они хранят старые значения всех строк;
 - план со старыми значениями записывается в отчёт атомарно ДО первого изменения базы: если отчёт
   записать нельзя, база не меняется; после записи отчёт дополняется фактически выполненными
   изменениями, а при ошибке на середине — статусом partial и списком применённого;
@@ -45,22 +48,36 @@ class ReportPathError(ValueError):
     pass
 
 
+def _database_files(db: str) -> List[str]:
+    """Файлы, которые SQLite использует для базы: по пути из аргумента И по фактическому пути
+    после разрешения symlink (именно его открывает соединение) — с -wal/-shm/-journal (G1)."""
+    names = []
+    for base in (db, os.path.realpath(db)):
+        for side in DB_SIDE_FILES:
+            names.append(base + side)
+    return list(dict.fromkeys(names))
+
+
 def check_report_path(db: str, report: str) -> None:
-    """Отчёт не должен совпадать с базой или её служебными файлами ни по пути, ни по файлу."""
+    """Отчёт не должен совпадать с базой или её служебными файлами ни по пути, ни по файлу,
+    и не должен уже существовать: прежний отчёт — единственная копия старых значений (G2)."""
     report_path = Path(report)
-    if report_path.exists() and report_path.is_dir():
+    if report_path.is_dir():
         raise ReportPathError(f"Путь отчёта — каталог: {report}")
     report_real = os.path.realpath(report)
-    for side in DB_SIDE_FILES:
-        target = db + side
+    for target in _database_files(db):
         if os.path.realpath(target) == report_real:
             raise ReportPathError(f"Отчёт совпадает с файлом базы: {target}")
         if report_path.exists() and os.path.exists(target) and os.path.samefile(report, target):
             raise ReportPathError(f"Отчёт — тот же файл, что {target} (ссылка)")
+    if report_path.exists() or report_path.is_symlink():
+        raise ReportPathError(f"Отчёт {report} уже существует: прежние значения в нём не перезаписываются, "
+                              "укажите новый путь")
 
 
-def write_report(path: str, data: Dict[str, Any]) -> None:
-    """Атомарная запись: временный файл в том же каталоге и os.replace. Ошибка — исключение."""
+def write_report(path: str, data: Dict[str, Any], create: bool = False) -> None:
+    """Атомарная запись через временный файл в том же каталоге. create=True — только если файла
+    ещё нет (os.link не заменяет существующий файл), иначе os.replace своего же отчёта."""
     directory = os.path.dirname(os.path.abspath(path))
     fd, tmp = tempfile.mkstemp(prefix=".recompute-", suffix=".json", dir=directory)
     try:
@@ -68,11 +85,14 @@ def write_report(path: str, data: Dict[str, Any]) -> None:
             json.dump(data, fh, ensure_ascii=False, indent=1)
             fh.flush()
             os.fsync(fh.fileno())
-        os.replace(tmp, path)
-    except BaseException:
-        if os.path.exists(tmp):
+        if create:
+            os.link(tmp, path)          # FileExistsError, если отчёт появился после проверки
+        else:
+            os.replace(tmp, path)
+            tmp = None
+    finally:
+        if tmp and os.path.exists(tmp):
             os.unlink(tmp)
-        raise
 
 
 def plan_changes(conn: sqlite3.Connection) -> Dict[str, List[Dict[str, Any]]]:
@@ -155,13 +175,13 @@ def main(argv: List[str] | None = None) -> int:
         print(str(exc), file=sys.stderr)
         return 2
 
-    conn = sqlite3.connect(f"file:{Path(args.db).resolve()}?mode={'rw' if args.apply else 'ro'}", uri=True, timeout=30)
+    conn = sqlite3.connect(f"file:{os.path.realpath(args.db)}?mode={'rw' if args.apply else 'ro'}", uri=True, timeout=30)
     try:
         plan = plan_changes(conn)
         report = {"db": args.db, "apply": args.apply, "status": "planned",
                   "counts": {k: len(v) for k, v in plan.items()}, **plan}
         try:
-            write_report(args.report, report)       # до первого изменения базы
+            write_report(args.report, report, create=True)       # до первого изменения базы
         except OSError as exc:
             print(f"Отчёт не записан, база не изменялась: {exc}", file=sys.stderr)
             return 3
