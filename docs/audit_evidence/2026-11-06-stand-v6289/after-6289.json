@@ -1,0 +1,82 @@
+{
+ "db": "/app/data/prices.db",
+ "apply": false,
+ "status": "planned",
+ "counts": {
+  "models": 0,
+  "chipsets": 0,
+  "skipped": 11,
+  "conflicts": 0
+ },
+ "models": [],
+ "chipsets": [],
+ "skipped": [
+  {
+   "id": "prod_9930be959eeb428c",
+   "title": "Корпус Thermaltake AH T600, Black",
+   "model": "Корпус AH T600",
+   "parsed": "NVIDIA T600"
+  },
+  {
+   "id": "prod_0d49c7e85f025dbb",
+   "title": "Корпус Thermaltake AH T600 Snow, White",
+   "model": "Корпус AH T600 Snow",
+   "parsed": "NVIDIA T600"
+  },
+  {
+   "id": "prod_f5c818fa9d5eeca3",
+   "title": "Компьютерный корпус Thermaltake AH T600 Snow без Б/П (CA-1Q4-00M6WN-00)",
+   "model": "Компьютерный корпус AH T600",
+   "parsed": "NVIDIA T600"
+  },
+  {
+   "id": "prod_d5c5b55c98823169",
+   "title": "Компьютерный корпус Thermaltake AH T600 без Б/П (CA-1Q4-00M1WN-00)",
+   "model": "Компьютерный корпус AH T600",
+   "parsed": "NVIDIA T600"
+  },
+  {
+   "id": "prod_e1aa0be6b55ca519",
+   "title": "Lenovo LOQ 24Gb|512Gb|15.6|RTX5060 8Gb|i7-13645HX|Win11",
+   "model": "LOQ ||15 6|RTX5060 |i7",
+   "parsed": "GeForce RTX 5060"
+  },
+  {
+   "id": "prod_e436b143c7cec932",
+   "title": "Lenovo LOQ 16Gb|512Gb|15.6|RTX5050 8Gb|Ryzen 5-150|Win11",
+   "model": "LOQ ||15 6|RTX5050 |Ryzen",
+   "parsed": "GeForce RTX 5050"
+  },
+  {
+   "id": "prod_17e1f683c8dd9d21",
+   "title": "ASUS TUF Gaming F16 16Gb|1b|16|RTX5070 8Gb|i5-14450HX|DOS Тёмно-серый",
+   "model": "TUF Gaming F16 |1b|16|RTX5070",
+   "parsed": "GeForce RTX 5070"
+  },
+  {
+   "id": "prod_4b4a62c6dc6be8ff",
+   "title": "Lenovo LOQ 16Gb|1Tb|15.6|RTX5060 8Gb|i7-13645HX|DOS Серый",
+   "model": "LOQ ||15 6|RTX5060 |i7",
+   "parsed": "GeForce RTX 5060"
+  },
+  {
+   "id": "prod_cb1585420f1c36b2",
+   "title": "ASUS TUF Gaming F16 16Gb|1TB|16|RTX5070-8Gb|i7|DOS Чёрный",
+   "model": "TUF Gaming F16 ||16|RTX5070",
+   "parsed": "GeForce RTX 5070"
+  },
+  {
+   "id": "prod_3632669b86d83efe",
+   "title": "Видеокарта MSI GeForce RTX 3050 LP E 6G OC [6 ГБ, GDDR6, 96 бит, HDMI (2 шт), DisplayPort]",
+   "model": "GeForce RTX 3050 E",
+   "parsed": "GeForce RTX 3050"
+  },
+  {
+   "id": "prod_dcafc644aae94c93",
+   "title": "AFOX (LORD)Видеокарта AFOX GT240 1GB D3 LP Single Fan (AF240-1024D3L2-V2) 1 Гб",
+   "model": "AFOX AFOX GT240 D3",
+   "parsed": "GeForce GT 240"
+  }
+ ],
+ "conflicts": []
+}

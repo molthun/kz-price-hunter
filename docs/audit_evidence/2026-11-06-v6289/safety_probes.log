@@ -1,0 +1,5 @@
+ORIGINAL_F1_DIRECT_PATHS_FIXED
+ORIGINAL_F2_FIXED
+DERIVED_CHIPSET_RECOMPUTED
+G1_FIXED 20 CLI refusals; DB/WAL/SHM bytes preserved
+G2_FIXED partial 200 + continuation 250; first report unchanged; old values and applied IDs 450/450; model rollback verified

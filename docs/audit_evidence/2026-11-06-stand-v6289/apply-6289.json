@@ -1,0 +1,1539 @@
+{
+ "db": "/app/data/prices.db",
+ "apply": true,
+ "status": "applied",
+ "counts": {
+  "models": 10,
+  "chipsets": 197,
+  "skipped": 11,
+  "conflicts": 0
+ },
+ "models": [
+  {
+   "id": "prod_dd5040b980e261c2",
+   "title": "Видеокарта GPU AMD,12 GB, Gigabyte RX 9070 GRE Gaming OC, 2HDMI/2DP, GDDR6/192bit (GV-R907GREGAMING OC-12GD)",
+   "old": "Radeon RX 9070",
+   "new": "Radeon RX 9070 GRE"
+  },
+  {
+   "id": "prod_c8324d3a44b0109f",
+   "title": "Видеокарта Gigabyte Radeon RX 9070 GRE GAMING OC 12G (GV-R907GREGAMING OC-12GD) [12 ГБ, GDDR6, 192 бит, HDMI (2 шт), DisplayPort (2 шт)]",
+   "old": "Radeon RX 9070",
+   "new": "Radeon RX 9070 GRE"
+  },
+  {
+   "id": "prod_ba0cf277d8041d6d",
+   "title": "SAPPHIRE PULSE AMD RADEON RX 9070 GRE GAMING OC 12GB DUAL HDMI / DUAL DP",
+   "old": "Radeon RX 9070",
+   "new": "Radeon RX 9070 GRE"
+  },
+  {
+   "id": "prod_8e07df8183a81d27",
+   "title": "ASUS Prime Radeon RX 9070 GRE EVO OC Edition 12GB GDDR6 12 Гб",
+   "old": "Radeon RX 9070",
+   "new": "Radeon RX 9070 GRE"
+  },
+  {
+   "id": "prod_7a1a299aa713e664",
+   "title": "GIGABYTE Radeon RX 9070 GRE GAMING OC 12G 12 Гб",
+   "old": "Radeon RX 9070",
+   "new": "Radeon RX 9070 GRE"
+  },
+  {
+   "id": "prod_3c94116718379496",
+   "title": "Sapphire PULSE AMD Radeon RX 9070 GRE OC GPU 12 Гб",
+   "old": "Radeon RX 9070",
+   "new": "Radeon RX 9070 GRE"
+  },
+  {
+   "id": "prod_83577ba6d16c37b3",
+   "title": "Видеокарта Sapphire PULSE AMD Radeon RX 9070 GRE OC (11354-01-20G)",
+   "old": "Radeon RX 9070",
+   "new": "Radeon RX 9070 GRE"
+  },
+  {
+   "id": "prod_e540ae4f6bf48c1c",
+   "title": "Видеокарта Sapphire PULSE AMD RADEON RX 9070 GRE GAMING OC 12GB DUAL (11354-01-20G) [12 ГБ, GDDR6, 192 бит, HDMI (2 шт), DisplayPort (2 шт)]",
+   "old": "Radeon RX 9070",
+   "new": "Radeon RX 9070 GRE"
+  },
+  {
+   "id": "prod_3bf1eeb6d6909c91",
+   "title": "Видеокарта XFX Swift AMD Radeon RX 9070 GRE Triple 90mm Fan Gaming (RX-97GRE29B7) [12 ГБ, GDDR6, 192 бит, HDMI, DisplayPort (3 шт)]",
+   "old": "Radeon RX 9070",
+   "new": "Radeon RX 9070 GRE"
+  },
+  {
+   "id": "prod_566a05b45ced6e3a",
+   "title": "XFX Swift RX 9070 GRE Triple Fan Gaming Edition (RX-97GRE29B7) 12 Гб",
+   "old": "Radeon RX 9070",
+   "new": "Radeon RX 9070 GRE"
+  }
+ ],
+ "chipsets": [
+  {
+   "id": "prod_0d2ce12e90f4f8f3",
+   "old": "GeForce GTX 1050 TI",
+   "new": "GeForce GTX 1050 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_21ffdad8ebfad956",
+   "old": "GeForce GTX 1050 TI",
+   "new": "GeForce GTX 1050 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_42b1270c43fc3e7c",
+   "old": "GeForce GTX 1050 TI",
+   "new": "GeForce GTX 1050 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_461f1d244611a04f",
+   "old": "GeForce GTX 1050 TI",
+   "new": "GeForce GTX 1050 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_0b0968178db96dda",
+   "old": "GeForce GTX 1050TI",
+   "new": "GeForce GTX 1050 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_557423cd1b972f4e",
+   "old": "GeForce GTX 1050TI",
+   "new": "GeForce GTX 1050 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_58dbc043236604eb",
+   "old": "GeForce GTX 1050TI",
+   "new": "GeForce GTX 1050 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_5db177a010daea8c",
+   "old": "GeForce GTX 1050TI",
+   "new": "GeForce GTX 1050 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_685ccae13331ecee",
+   "old": "GeForce GTX 1050TI",
+   "new": "GeForce GTX 1050 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_865d448c0f4448fd",
+   "old": "GeForce GTX 1050TI",
+   "new": "GeForce GTX 1050 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_bed882e3111a226f",
+   "old": "GeForce GTX 1050TI",
+   "new": "GeForce GTX 1050 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_34468294da169120",
+   "old": "GeForce GTX 1650",
+   "new": "GeForce GTX 1650 Super",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_445a74133f3a77bf",
+   "old": "GeForce GTX 1650",
+   "new": "GeForce GTX 1650 Super",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_a7c4f0e6fb3a5d13",
+   "old": "GeForce GTX 1650",
+   "new": "GeForce GTX 1650 Super",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_c61a4dbadb2e3e4c",
+   "old": "GeForce GTX 1650",
+   "new": "GeForce GTX 1650 Super",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_08114c07322d23a6",
+   "old": "GeForce GTX 1660",
+   "new": "GeForce GTX 1660 Super",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_6ad0d1fe453c6755",
+   "old": "GeForce GTX 1660",
+   "new": "GeForce GTX 1660 Super",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_86a573d71be4d685",
+   "old": "GeForce GTX 1660",
+   "new": "GeForce GTX 1660 Super",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_892e5dbecde8b581",
+   "old": "GeForce GTX 1660",
+   "new": "GeForce GTX 1660 Super",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_a5b582eca875904a",
+   "old": "GeForce GTX 1660",
+   "new": "GeForce GTX 1660 Super",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_c6985f020c2e36e5",
+   "old": "GeForce GTX 1660",
+   "new": "GeForce GTX 1660 Super",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_e6d3a69b82512bfb",
+   "old": "GeForce GTX 1660 TI",
+   "new": "GeForce GTX 1660 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_0dc054e16631a452",
+   "old": "GeForce GTX 1660TI",
+   "new": "GeForce GTX 1660 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_4361882a231bedd9",
+   "old": "GeForce GTX 750 TI",
+   "new": "GeForce GTX 750 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_4e6b877290cc4e5b",
+   "old": "GeForce GTX 750 TI",
+   "new": "GeForce GTX 750 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_d01750ba6d6baf50",
+   "old": "GeForce GTX 750 TI",
+   "new": "GeForce GTX 750 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_43eb59b16a487891",
+   "old": "GeForce RTX 2060 SUPER",
+   "new": "GeForce RTX 2060 Super",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_5b80708f9b2e4657",
+   "old": "GeForce RTX 2060 SUPER",
+   "new": "GeForce RTX 2060 Super",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_7315517bc03a6463",
+   "old": "GeForce RTX 2060 SUPER",
+   "new": "GeForce RTX 2060 Super",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_539b63fd05b4a68f",
+   "old": "GeForce RTX 3060 TI",
+   "new": "GeForce RTX 3060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_8121e2458134b43f",
+   "old": "GeForce RTX 3060 TI",
+   "new": "GeForce RTX 3060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_8db51ac1f7b2c82d",
+   "old": "GeForce RTX 3060 TI",
+   "new": "GeForce RTX 3060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_b98b00875af04e2f",
+   "old": "GeForce RTX 3080 TI",
+   "new": "GeForce RTX 3080 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_f7a31abef4318fd8",
+   "old": "GeForce RTX 3080 TI",
+   "new": "GeForce RTX 3080 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_3d74eb7f378c526c",
+   "old": "GeForce RTX 4000",
+   "new": "RTX 4000 Ada",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_1e307b03b8e2daa2",
+   "old": "GeForce RTX 4060 TI",
+   "new": "GeForce RTX 4060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_339ed410e4937e5c",
+   "old": "GeForce RTX 4060 TI",
+   "new": "GeForce RTX 4060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_44bfa2e7b709ff58",
+   "old": "GeForce RTX 4060 TI",
+   "new": "GeForce RTX 4060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_6ee6b46a9265847c",
+   "old": "GeForce RTX 4060 TI",
+   "new": "GeForce RTX 4060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_766588898c603514",
+   "old": "GeForce RTX 4060 TI",
+   "new": "GeForce RTX 4060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_7bbdd59f8a3b796b",
+   "old": "GeForce RTX 4060 TI",
+   "new": "GeForce RTX 4060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_8c16ac9aa7966b4c",
+   "old": "GeForce RTX 4060 TI",
+   "new": "GeForce RTX 4060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_966c1ad11b3113d2",
+   "old": "GeForce RTX 4060 TI",
+   "new": "GeForce RTX 4060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_f3f8b33a89c4c981",
+   "old": "GeForce RTX 4060 TI",
+   "new": "GeForce RTX 4060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_f42a5500d14be9e3",
+   "old": "GeForce RTX 4060 TI",
+   "new": "GeForce RTX 4060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_fa988c46601d7e50",
+   "old": "GeForce RTX 4060 TI",
+   "new": "GeForce RTX 4060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_5069e9fbafaf4a6c",
+   "old": "GeForce RTX 4070 TI",
+   "new": "GeForce RTX 4070 Ti Super",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_7eb9e3f741994815",
+   "old": "GeForce RTX 4070 TI",
+   "new": "GeForce RTX 4070 Ti Super",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_63ba7a97a7e751fe",
+   "old": "GeForce RTX 4070TI",
+   "new": "GeForce RTX 4070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_d18450bd1e87e844",
+   "old": "GeForce RTX 4070TI",
+   "new": "GeForce RTX 4070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_053e6693d17c5b1e",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_05783d4eecddc3d9",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_0912a1fa0b607e28",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_0a95e18de972cc99",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_1127d7b1c6463c4c",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_14efed0b63000105",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_189b86699a420747",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_1d296e96f795e3f2",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_1f6f0e3109ac87c3",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_21ac8281311ac21e",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_21ddf86376ff6dfb",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_26f0992af20b783c",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_2744d57d4fd1ab9b",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_29dc43527300f0bb",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_2edca2e2bcb0b720",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_307e4938228260a8",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_334abe2758ddbfda",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_3d60841a418716d8",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_41b7a63e82202f6e",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_447984cd895a39c3",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_483a1507dc39a9d8",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_488720388065defb",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_4a4608847e5f785d",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_4b091d7938f1f261",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_4e8b81e07c3266f9",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_5001eca8a940e022",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_553ef2abbd61948c",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_580a3aab96cef67e",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_5a43d75563fd0cdc",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_5a9b87ec5b9761cb",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_604537f5ab80330d",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_60a9dae38ca6e2a0",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_62a037b22f566eff",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_67624bf0d32cfaa9",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_6c30faa57dc18914",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_6cd38ffb04571161",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_720fe7bbf20e5383",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_73cb0a0e4fbdbeb5",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_73ecb0ba506d6ed7",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_7eef7ae2a08a10ce",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_7f370d4ac5be20f3",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_8467b07d354dfd7a",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_86c70f8d50d315fb",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_86d486bdedc8fa16",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_86ddfaa61e25c10a",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_8b3c7f9cdf105842",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_8bcfd50ab5a4bf19",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_8c2e0b68c7fbb744",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_91d4150b02a210b9",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_99bfc8182ad7ba4d",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_9aca43dee04e5e5c",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_9af7512dd3a94fef",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_9b56a989da66856b",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_9bc2a89553a87c0e",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_a1054e5311acf67a",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_a39676b2b779794f",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_a691ead8c74219f2",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_aacd0f0a16e03af9",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_ab8ea07ee3366f0c",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_ad50d46c2a90a7c8",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_b06687edfc10ee4f",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_b35fa179d8054d08",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_b38f467e6eb8bcf7",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_b3e836402241bad6",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_be9ea40ceafd472c",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_bf43cbe3b7e53fa7",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_c3389b37f2586e7d",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_c4f061f19813db53",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_ccda1738a92233a4",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_d7f1d1913efa1929",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_dbef608a199ae6e5",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_e398565673032344",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_e72c86fde39358cd",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_e8513c790dfdbcc0",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_e8e569102fc06cbb",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_eaa57f78f3098807",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_eab8d5dd96b974d5",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_ed5119af8a4c2446",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_f1ad354590fc04b9",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_f4bf7a3c48b73425",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_f63d3f38ca4bdae4",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_f6bcb6559f16c68a",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_f992c39c403f092e",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_fa21b3fe326398fc",
+   "old": "GeForce RTX 5060 TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_42c6aa6ae2881e3e",
+   "old": "GeForce RTX 5060TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_4a675ee0b30b984d",
+   "old": "GeForce RTX 5060TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_91e23c4502029406",
+   "old": "GeForce RTX 5060TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_926d491f2e11f294",
+   "old": "GeForce RTX 5060TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_9e17f60a65c0cecc",
+   "old": "GeForce RTX 5060TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_a4ce0629b377db58",
+   "old": "GeForce RTX 5060TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_c20d74cb87370337",
+   "old": "GeForce RTX 5060TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_c4fde5a714d91093",
+   "old": "GeForce RTX 5060TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_de156f7415e0b4bb",
+   "old": "GeForce RTX 5060TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_eec69ef550742954",
+   "old": "GeForce RTX 5060TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_f5d87d0ecba6ad66",
+   "old": "GeForce RTX 5060TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_f745e29c3fbdb1d0",
+   "old": "GeForce RTX 5060TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_fc7f1c34553cf240",
+   "old": "GeForce RTX 5060TI",
+   "new": "GeForce RTX 5060 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_011588858f1bfb68",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_0ca5e5616c5437fd",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_1401a78367395713",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_15952159ca46a0ac",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_1781996b0544b2aa",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_1cd6baef33db320e",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_1d5dac5c5fd4022c",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_227c8cef38b47bfe",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_2789e37421050dab",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_2cbab142d79e6b95",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_2ed13ccef19dcb54",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_2f6daa759765ce1e",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_3027d738e8b54c5c",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_473a1022370a43b1",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_4eb08cefc3510b51",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_51523f40cd644678",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_51df3b76d5edebee",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_531d5a9481de846b",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_566ed7090bf4538d",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_6f0284119c91bda4",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_7329f98ce04052d5",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_76f9fa19d8887f23",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_864a7d82a0fa1f81",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_87daf8fc5b673f87",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_87ecf7c54680dce0",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_8b44dc46c8f26912",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_9a5aa61042c617e5",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_a7f1fd0edb3358d1",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_aaea0a2d430562b7",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_b28d86d1051370f6",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_c2ca3a0fd43f89c8",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_c59143b3adf6fdb0",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_cf250f67331356e7",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_d6520b39b4e6798d",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_d7c9bb3b6d4d15aa",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_dac373daf9e25d6a",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_ddae2eefd9b5b288",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_ecd78bc520432643",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_f0ec70361053302b",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_f7df49bedbe6ce8d",
+   "old": "GeForce RTX 5070 TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_14b8ffd35208fab9",
+   "old": "GeForce RTX 5070TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_a365ba7e9cd0b019",
+   "old": "GeForce RTX 5070TI",
+   "new": "GeForce RTX 5070 Ti",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_f85385f1a0140f2e",
+   "old": "Radeon RX 6600XT",
+   "new": "Radeon RX 6600 XT",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_0a5343ed061751f5",
+   "old": "Radeon RX 9070XT",
+   "new": "Radeon RX 9070 XT",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_47ad2b75ce86a4a8",
+   "old": "Radeon RX 9070XT",
+   "new": "Radeon RX 9070 XT",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_494122fe30d78d1d",
+   "old": "Radeon RX 9070XT",
+   "new": "Radeon RX 9070 XT",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_69d105e3838609a8",
+   "old": "Radeon RX 9070XT",
+   "new": "Radeon RX 9070 XT",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_6aa92fec9eca459f",
+   "old": "Radeon RX 9070XT",
+   "new": "Radeon RX 9070 XT",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_79fbafe8d8e1e721",
+   "old": "Radeon RX 9070XT",
+   "new": "Radeon RX 9070 XT",
+   "evidence": "Название товара"
+  },
+  {
+   "id": "prod_cff24f547c39d877",
+   "old": "Radeon RX 9070XT",
+   "new": "Radeon RX 9070 XT",
+   "evidence": "Название товара"
+  }
+ ],
+ "skipped": [
+  {
+   "id": "prod_9930be959eeb428c",
+   "title": "Корпус Thermaltake AH T600, Black",
+   "model": "Корпус AH T600",
+   "parsed": "NVIDIA T600"
+  },
+  {
+   "id": "prod_0d49c7e85f025dbb",
+   "title": "Корпус Thermaltake AH T600 Snow, White",
+   "model": "Корпус AH T600 Snow",
+   "parsed": "NVIDIA T600"
+  },
+  {
+   "id": "prod_f5c818fa9d5eeca3",
+   "title": "Компьютерный корпус Thermaltake AH T600 Snow без Б/П (CA-1Q4-00M6WN-00)",
+   "model": "Компьютерный корпус AH T600",
+   "parsed": "NVIDIA T600"
+  },
+  {
+   "id": "prod_d5c5b55c98823169",
+   "title": "Компьютерный корпус Thermaltake AH T600 без Б/П (CA-1Q4-00M1WN-00)",
+   "model": "Компьютерный корпус AH T600",
+   "parsed": "NVIDIA T600"
+  },
+  {
+   "id": "prod_e1aa0be6b55ca519",
+   "title": "Lenovo LOQ 24Gb|512Gb|15.6|RTX5060 8Gb|i7-13645HX|Win11",
+   "model": "LOQ ||15 6|RTX5060 |i7",
+   "parsed": "GeForce RTX 5060"
+  },
+  {
+   "id": "prod_e436b143c7cec932",
+   "title": "Lenovo LOQ 16Gb|512Gb|15.6|RTX5050 8Gb|Ryzen 5-150|Win11",
+   "model": "LOQ ||15 6|RTX5050 |Ryzen",
+   "parsed": "GeForce RTX 5050"
+  },
+  {
+   "id": "prod_17e1f683c8dd9d21",
+   "title": "ASUS TUF Gaming F16 16Gb|1b|16|RTX5070 8Gb|i5-14450HX|DOS Тёмно-серый",
+   "model": "TUF Gaming F16 |1b|16|RTX5070",
+   "parsed": "GeForce RTX 5070"
+  },
+  {
+   "id": "prod_4b4a62c6dc6be8ff",
+   "title": "Lenovo LOQ 16Gb|1Tb|15.6|RTX5060 8Gb|i7-13645HX|DOS Серый",
+   "model": "LOQ ||15 6|RTX5060 |i7",
+   "parsed": "GeForce RTX 5060"
+  },
+  {
+   "id": "prod_cb1585420f1c36b2",
+   "title": "ASUS TUF Gaming F16 16Gb|1TB|16|RTX5070-8Gb|i7|DOS Чёрный",
+   "model": "TUF Gaming F16 ||16|RTX5070",
+   "parsed": "GeForce RTX 5070"
+  },
+  {
+   "id": "prod_3632669b86d83efe",
+   "title": "Видеокарта MSI GeForce RTX 3050 LP E 6G OC [6 ГБ, GDDR6, 96 бит, HDMI (2 шт), DisplayPort]",
+   "model": "GeForce RTX 3050 E",
+   "parsed": "GeForce RTX 3050"
+  },
+  {
+   "id": "prod_dcafc644aae94c93",
+   "title": "AFOX (LORD)Видеокарта AFOX GT240 1GB D3 LP Single Fan (AF240-1024D3L2-V2) 1 Гб",
+   "model": "AFOX AFOX GT240 D3",
+   "parsed": "GeForce GT 240"
+  }
+ ],
+ "conflicts": [],
+ "applied": {
+  "models": [
+   "prod_dd5040b980e261c2",
+   "prod_c8324d3a44b0109f",
+   "prod_ba0cf277d8041d6d",
+   "prod_8e07df8183a81d27",
+   "prod_7a1a299aa713e664",
+   "prod_3c94116718379496",
+   "prod_83577ba6d16c37b3",
+   "prod_e540ae4f6bf48c1c",
+   "prod_3bf1eeb6d6909c91",
+   "prod_566a05b45ced6e3a"
+  ],
+  "chipsets": [
+   "prod_0d2ce12e90f4f8f3",
+   "prod_21ffdad8ebfad956",
+   "prod_42b1270c43fc3e7c",
+   "prod_461f1d244611a04f",
+   "prod_0b0968178db96dda",
+   "prod_557423cd1b972f4e",
+   "prod_58dbc043236604eb",
+   "prod_5db177a010daea8c",
+   "prod_685ccae13331ecee",
+   "prod_865d448c0f4448fd",
+   "prod_bed882e3111a226f",
+   "prod_34468294da169120",
+   "prod_445a74133f3a77bf",
+   "prod_a7c4f0e6fb3a5d13",
+   "prod_c61a4dbadb2e3e4c",
+   "prod_08114c07322d23a6",
+   "prod_6ad0d1fe453c6755",
+   "prod_86a573d71be4d685",
+   "prod_892e5dbecde8b581",
+   "prod_a5b582eca875904a",
+   "prod_c6985f020c2e36e5",
+   "prod_e6d3a69b82512bfb",
+   "prod_0dc054e16631a452",
+   "prod_4361882a231bedd9",
+   "prod_4e6b877290cc4e5b",
+   "prod_d01750ba6d6baf50",
+   "prod_43eb59b16a487891",
+   "prod_5b80708f9b2e4657",
+   "prod_7315517bc03a6463",
+   "prod_539b63fd05b4a68f",
+   "prod_8121e2458134b43f",
+   "prod_8db51ac1f7b2c82d",
+   "prod_b98b00875af04e2f",
+   "prod_f7a31abef4318fd8",
+   "prod_3d74eb7f378c526c",
+   "prod_1e307b03b8e2daa2",
+   "prod_339ed410e4937e5c",
+   "prod_44bfa2e7b709ff58",
+   "prod_6ee6b46a9265847c",
+   "prod_766588898c603514",
+   "prod_7bbdd59f8a3b796b",
+   "prod_8c16ac9aa7966b4c",
+   "prod_966c1ad11b3113d2",
+   "prod_f3f8b33a89c4c981",
+   "prod_f42a5500d14be9e3",
+   "prod_fa988c46601d7e50",
+   "prod_5069e9fbafaf4a6c",
+   "prod_7eb9e3f741994815",
+   "prod_63ba7a97a7e751fe",
+   "prod_d18450bd1e87e844",
+   "prod_053e6693d17c5b1e",
+   "prod_05783d4eecddc3d9",
+   "prod_0912a1fa0b607e28",
+   "prod_0a95e18de972cc99",
+   "prod_1127d7b1c6463c4c",
+   "prod_14efed0b63000105",
+   "prod_189b86699a420747",
+   "prod_1d296e96f795e3f2",
+   "prod_1f6f0e3109ac87c3",
+   "prod_21ac8281311ac21e",
+   "prod_21ddf86376ff6dfb",
+   "prod_26f0992af20b783c",
+   "prod_2744d57d4fd1ab9b",
+   "prod_29dc43527300f0bb",
+   "prod_2edca2e2bcb0b720",
+   "prod_307e4938228260a8",
+   "prod_334abe2758ddbfda",
+   "prod_3d60841a418716d8",
+   "prod_41b7a63e82202f6e",
+   "prod_447984cd895a39c3",
+   "prod_483a1507dc39a9d8",
+   "prod_488720388065defb",
+   "prod_4a4608847e5f785d",
+   "prod_4b091d7938f1f261",
+   "prod_4e8b81e07c3266f9",
+   "prod_5001eca8a940e022",
+   "prod_553ef2abbd61948c",
+   "prod_580a3aab96cef67e",
+   "prod_5a43d75563fd0cdc",
+   "prod_5a9b87ec5b9761cb",
+   "prod_604537f5ab80330d",
+   "prod_60a9dae38ca6e2a0",
+   "prod_62a037b22f566eff",
+   "prod_67624bf0d32cfaa9",
+   "prod_6c30faa57dc18914",
+   "prod_6cd38ffb04571161",
+   "prod_720fe7bbf20e5383",
+   "prod_73cb0a0e4fbdbeb5",
+   "prod_73ecb0ba506d6ed7",
+   "prod_7eef7ae2a08a10ce",
+   "prod_7f370d4ac5be20f3",
+   "prod_8467b07d354dfd7a",
+   "prod_86c70f8d50d315fb",
+   "prod_86d486bdedc8fa16",
+   "prod_86ddfaa61e25c10a",
+   "prod_8b3c7f9cdf105842",
+   "prod_8bcfd50ab5a4bf19",
+   "prod_8c2e0b68c7fbb744",
+   "prod_91d4150b02a210b9",
+   "prod_99bfc8182ad7ba4d",
+   "prod_9aca43dee04e5e5c",
+   "prod_9af7512dd3a94fef",
+   "prod_9b56a989da66856b",
+   "prod_9bc2a89553a87c0e",
+   "prod_a1054e5311acf67a",
+   "prod_a39676b2b779794f",
+   "prod_a691ead8c74219f2",
+   "prod_aacd0f0a16e03af9",
+   "prod_ab8ea07ee3366f0c",
+   "prod_ad50d46c2a90a7c8",
+   "prod_b06687edfc10ee4f",
+   "prod_b35fa179d8054d08",
+   "prod_b38f467e6eb8bcf7",
+   "prod_b3e836402241bad6",
+   "prod_be9ea40ceafd472c",
+   "prod_bf43cbe3b7e53fa7",
+   "prod_c3389b37f2586e7d",
+   "prod_c4f061f19813db53",
+   "prod_ccda1738a92233a4",
+   "prod_d7f1d1913efa1929",
+   "prod_dbef608a199ae6e5",
+   "prod_e398565673032344",
+   "prod_e72c86fde39358cd",
+   "prod_e8513c790dfdbcc0",
+   "prod_e8e569102fc06cbb",
+   "prod_eaa57f78f3098807",
+   "prod_eab8d5dd96b974d5",
+   "prod_ed5119af8a4c2446",
+   "prod_f1ad354590fc04b9",
+   "prod_f4bf7a3c48b73425",
+   "prod_f63d3f38ca4bdae4",
+   "prod_f6bcb6559f16c68a",
+   "prod_f992c39c403f092e",
+   "prod_fa21b3fe326398fc",
+   "prod_42c6aa6ae2881e3e",
+   "prod_4a675ee0b30b984d",
+   "prod_91e23c4502029406",
+   "prod_926d491f2e11f294",
+   "prod_9e17f60a65c0cecc",
+   "prod_a4ce0629b377db58",
+   "prod_c20d74cb87370337",
+   "prod_c4fde5a714d91093",
+   "prod_de156f7415e0b4bb",
+   "prod_eec69ef550742954",
+   "prod_f5d87d0ecba6ad66",
+   "prod_f745e29c3fbdb1d0",
+   "prod_fc7f1c34553cf240",
+   "prod_011588858f1bfb68",
+   "prod_0ca5e5616c5437fd",
+   "prod_1401a78367395713",
+   "prod_15952159ca46a0ac",
+   "prod_1781996b0544b2aa",
+   "prod_1cd6baef33db320e",
+   "prod_1d5dac5c5fd4022c",
+   "prod_227c8cef38b47bfe",
+   "prod_2789e37421050dab",
+   "prod_2cbab142d79e6b95",
+   "prod_2ed13ccef19dcb54",
+   "prod_2f6daa759765ce1e",
+   "prod_3027d738e8b54c5c",
+   "prod_473a1022370a43b1",
+   "prod_4eb08cefc3510b51",
+   "prod_51523f40cd644678",
+   "prod_51df3b76d5edebee",
+   "prod_531d5a9481de846b",
+   "prod_566ed7090bf4538d",
+   "prod_6f0284119c91bda4",
+   "prod_7329f98ce04052d5",
+   "prod_76f9fa19d8887f23",
+   "prod_864a7d82a0fa1f81",
+   "prod_87daf8fc5b673f87",
+   "prod_87ecf7c54680dce0",
+   "prod_8b44dc46c8f26912",
+   "prod_9a5aa61042c617e5",
+   "prod_a7f1fd0edb3358d1",
+   "prod_aaea0a2d430562b7",
+   "prod_b28d86d1051370f6",
+   "prod_c2ca3a0fd43f89c8",
+   "prod_c59143b3adf6fdb0",
+   "prod_cf250f67331356e7",
+   "prod_d6520b39b4e6798d",
+   "prod_d7c9bb3b6d4d15aa",
+   "prod_dac373daf9e25d6a",
+   "prod_ddae2eefd9b5b288",
+   "prod_ecd78bc520432643",
+   "prod_f0ec70361053302b",
+   "prod_f7df49bedbe6ce8d",
+   "prod_14b8ffd35208fab9",
+   "prod_a365ba7e9cd0b019",
+   "prod_f85385f1a0140f2e",
+   "prod_0a5343ed061751f5",
+   "prod_47ad2b75ce86a4a8",
+   "prod_494122fe30d78d1d",
+   "prod_69d105e3838609a8",
+   "prod_6aa92fec9eca459f",
+   "prod_79fbafe8d8e1e721",
+   "prod_cff24f547c39d877"
+  ]
+ }
+}

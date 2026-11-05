@@ -1,0 +1,187 @@
+[
+  {
+    "suite": "test_frontend.cjs",
+    "exit_code": 0,
+    "seconds": 1.1
+  },
+  {
+    "suite": "test_frontend_admin_navigation.cjs",
+    "exit_code": 0,
+    "seconds": 3.4
+  },
+  {
+    "suite": "test_frontend_admin_sellers.cjs",
+    "exit_code": 0,
+    "seconds": 3.5
+  },
+  {
+    "suite": "test_frontend_admin_shops.cjs",
+    "exit_code": 0,
+    "seconds": 2.3
+  },
+  {
+    "suite": "test_frontend_ai_models.cjs",
+    "exit_code": 0,
+    "seconds": 1.1
+  },
+  {
+    "suite": "test_frontend_auth.cjs",
+    "exit_code": 0,
+    "seconds": 1.5
+  },
+  {
+    "suite": "test_frontend_changelog.cjs",
+    "exit_code": 0,
+    "seconds": 1.2
+  },
+  {
+    "suite": "test_frontend_classification_tags.cjs",
+    "exit_code": 0,
+    "seconds": 23.8
+  },
+  {
+    "suite": "test_frontend_closed_gate.cjs",
+    "exit_code": 0,
+    "seconds": 1.5
+  },
+  {
+    "suite": "test_frontend_closed_gate_auth.cjs",
+    "exit_code": 0,
+    "seconds": 1.4
+  },
+  {
+    "suite": "test_frontend_deals_watches.cjs",
+    "exit_code": 0,
+    "seconds": 14.1
+  },
+  {
+    "suite": "test_frontend_discovery.cjs",
+    "exit_code": 0,
+    "seconds": 1.4
+  },
+  {
+    "suite": "test_frontend_expansion_delete.cjs",
+    "exit_code": 0,
+    "seconds": 4.5
+  },
+  {
+    "suite": "test_frontend_format.cjs",
+    "exit_code": 0,
+    "seconds": 0.0
+  },
+  {
+    "suite": "test_frontend_local_catalog_growth.cjs",
+    "exit_code": 0,
+    "seconds": 35.3
+  },
+  {
+    "suite": "test_frontend_local_connection.cjs",
+    "exit_code": 0,
+    "seconds": 3.6
+  },
+  {
+    "suite": "test_frontend_matching_moderation.cjs",
+    "exit_code": 0,
+    "seconds": 1.0
+  },
+  {
+    "suite": "test_frontend_modal_image.cjs",
+    "exit_code": 0,
+    "seconds": 0.8
+  },
+  {
+    "suite": "test_frontend_notices.cjs",
+    "exit_code": 0,
+    "seconds": 0.8
+  },
+  {
+    "suite": "test_frontend_offer_details.cjs",
+    "exit_code": 0,
+    "seconds": 4.5
+  },
+  {
+    "suite": "test_frontend_p04.cjs",
+    "exit_code": 0,
+    "seconds": 1.6
+  },
+  {
+    "suite": "test_frontend_p05.cjs",
+    "exit_code": 0,
+    "seconds": 2.3
+  },
+  {
+    "suite": "test_frontend_p06.cjs",
+    "exit_code": 0,
+    "seconds": 0.8
+  },
+  {
+    "suite": "test_frontend_p07.cjs",
+    "exit_code": 0,
+    "seconds": 1.7
+  },
+  {
+    "suite": "test_frontend_p07_v2.cjs",
+    "exit_code": 0,
+    "seconds": 1.5
+  },
+  {
+    "suite": "test_frontend_p09_ai.cjs",
+    "exit_code": 0,
+    "seconds": 1.2
+  },
+  {
+    "suite": "test_frontend_p10.cjs",
+    "exit_code": 0,
+    "seconds": 0.9
+  },
+  {
+    "suite": "test_frontend_p12.cjs",
+    "exit_code": 0,
+    "seconds": 1.4
+  },
+  {
+    "suite": "test_frontend_p13.cjs",
+    "exit_code": 0,
+    "seconds": 1.2
+  },
+  {
+    "suite": "test_frontend_product_evidence.cjs",
+    "exit_code": 0,
+    "seconds": 5.8
+  },
+  {
+    "suite": "test_frontend_scan_settings.cjs",
+    "exit_code": 0,
+    "seconds": 3.2
+  },
+  {
+    "suite": "test_frontend_search_first.cjs",
+    "exit_code": 0,
+    "seconds": 12.7
+  },
+  {
+    "suite": "test_frontend_security.cjs",
+    "exit_code": 0,
+    "seconds": 1.2
+  },
+  {
+    "suite": "test_frontend_seller_modal.cjs",
+    "exit_code": 0,
+    "seconds": 1.3
+  },
+  {
+    "suite": "test_frontend_service_monitor.cjs",
+    "exit_code": 0,
+    "seconds": 2.8
+  },
+  {
+    "suite": "test_frontend_social_no_permalink.cjs",
+    "exit_code": 0,
+    "seconds": 1.1
+  },
+  {
+    "suite": "test_frontend_telegram_admin.cjs",
+    "exit_code": 0,
+    "seconds": 5.7
+  }
+]

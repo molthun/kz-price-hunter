@@ -1,0 +1,40 @@
+{
+  "date": "2026-11-06",
+  "timezone": "Asia/Almaty",
+  "head": "35ac87179ccde8053fb23a33116a36ba8b4f1f1b",
+  "version": "6.28.9",
+  "decision": "LOCAL_ACCEPTED",
+  "new_findings_in_patch": 0,
+  "G1": "closed; 20 independent CLI refusals; DB/WAL/SHM bytes unchanged",
+  "G2": "closed; first report immutable, continuation in new report; old/applied IDs 450/450; model rollback verified",
+  "pytest": {
+    "passed": 2812,
+    "subtests_passed": 1198,
+    "warnings": 128,
+    "seconds": 193.46
+  },
+  "unittest": {
+    "passed": 2749,
+    "seconds": 189.334
+  },
+  "frontend": {
+    "passed": 37,
+    "total": 37
+  },
+  "secret_findings": 0,
+  "dependencies": {
+    "count": 25,
+    "vulnerabilities": 0,
+    "skipped": 0
+  },
+  "inherited_gpu_matrix_rows": 144,
+  "stand_readonly": {
+    "head": "ffcb572f4b953138084469eaa8d2d24bb80553df",
+    "version": "6.28.6",
+    "tracked_clean": true,
+    "healthy": true
+  },
+  "candidate_verified_on_stand": false,
+  "production_verified": false,
+  "live_ai_calls": 0
+}
