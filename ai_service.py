@@ -704,14 +704,69 @@ async def _call_openai_api(prompt: str, api_key: str, api_base: str,
 LOCAL_MAX_ACTIVE = 1
 # Первый запрос после простоя заново загружает модель в видеопамять — это несколько секунд сверх ответа
 LOCAL_MIN_TIMEOUT_SECONDS = 20.0
-_local_slots: Dict[int, asyncio.Semaphore] = {}
 
 
-def _local_slot() -> asyncio.Semaphore:
+class PriorityLocalSlot:
+    """Очередь к локальной модели с приоритетом для интерактивных пользовательских запросов (scan=False).
+    Пользовательские поисковые запросы не должны простаивать в таймаутах позади пачек фоновой
+    нормализации каталога. Фоновые задачи (scan=True) уступают очередь активному пользователю.
+    """
+    def __init__(self, limit: int = 1):
+        self._limit = limit
+        self._active = 0
+        self._high_waiters: List[asyncio.Future] = []
+        self._low_waiters: List[asyncio.Future] = []
+
+    @property
+    def _waiters(self):
+        return self._high_waiters + self._low_waiters
+
+    async def acquire(self, is_high_priority: bool = True):
+        loop = asyncio.get_running_loop()
+        if self._active < self._limit and not self._high_waiters:
+            self._active += 1
+            return True
+        fut = loop.create_future()
+        if is_high_priority:
+            self._high_waiters.append(fut)
+        else:
+            self._low_waiters.append(fut)
+        try:
+            await fut
+            return True
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            if fut.done() and not fut.cancelled():
+                self.release()
+            else:
+                if is_high_priority and fut in self._high_waiters:
+                    self._high_waiters.remove(fut)
+                elif not is_high_priority and fut in self._low_waiters:
+                    self._low_waiters.remove(fut)
+            raise
+
+    def release(self):
+        while self._high_waiters:
+            fut = self._high_waiters.pop(0)
+            if not fut.done():
+                fut.set_result(True)
+                return
+        while self._low_waiters:
+            fut = self._low_waiters.pop(0)
+            if not fut.done():
+                fut.set_result(True)
+                return
+        if self._active > 0:
+            self._active -= 1
+
+
+_local_slots: Dict[int, PriorityLocalSlot] = {}
+
+
+def _local_slot() -> PriorityLocalSlot:
     loop = asyncio.get_running_loop()
     slot = _local_slots.get(id(loop))
     if slot is None:
-        slot = _local_slots[id(loop)] = asyncio.Semaphore(LOCAL_MAX_ACTIVE)
+        slot = _local_slots[id(loop)] = PriorityLocalSlot(LOCAL_MAX_ACTIVE)
     return slot
 
 
@@ -735,7 +790,7 @@ async def call_local_api(prompt: str, api_base: str, model: str, api_key: str = 
     try:
         slot = _local_slot()
         try:
-            await asyncio.wait_for(slot.acquire(), timeout=budget)
+            await asyncio.wait_for(slot.acquire(not scan), timeout=budget)
         except asyncio.TimeoutError:
             info["failure"] = "busy"   # GPU занят другим запросом всё время ожидания — пусть решит запасной
             return None

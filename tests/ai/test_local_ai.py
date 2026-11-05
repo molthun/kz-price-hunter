@@ -787,5 +787,63 @@ class AdminEndpointsTest(_DbCase):
         self.assertEqual(bad, 400)
 
 
+class PriorityLocalSlotTests(unittest.TestCase):
+    """Приоритетная очередь слота к локальной модели (P17-A):
+    пользовательские запросы (is_high_priority=True) обслуживаются раньше фоновых (scan=True).
+    """
+
+    def test_user_query_supersedes_queued_background_tasks(self):
+        from ai_service import PriorityLocalSlot
+
+        async def run():
+            slot = PriorityLocalSlot(limit=1)
+            order = []
+
+            async def worker(name, high, hold_time):
+                await slot.acquire(high)
+                order.append(name)
+                await asyncio.sleep(hold_time)
+                slot.release()
+
+            # bg1 занимает слот
+            t1 = asyncio.create_task(worker("bg1", False, 0.05))
+            await asyncio.sleep(0.01)
+            # bg2 встает в очередь
+            t2 = asyncio.create_task(worker("bg2", False, 0.05))
+            await asyncio.sleep(0.01)
+            # user приходит позже, но имеет приоритет
+            t3 = asyncio.create_task(worker("user", True, 0.02))
+            await asyncio.sleep(0.01)
+            # bg3 встает в очередь
+            t4 = asyncio.create_task(worker("bg3", False, 0.05))
+
+            await asyncio.gather(t1, t2, t3, t4)
+            return order
+
+        order = asyncio.run(run())
+        self.assertEqual(order, ["bg1", "user", "bg2", "bg3"])
+
+    def test_slot_cancellation_releases_properly(self):
+        from ai_service import PriorityLocalSlot
+
+        async def run():
+            slot = PriorityLocalSlot(limit=1)
+            await slot.acquire(True)
+
+            async def wait_timeout():
+                try:
+                    await asyncio.wait_for(slot.acquire(True), timeout=0.02)
+                except asyncio.TimeoutError:
+                    pass
+
+            t = asyncio.create_task(wait_timeout())
+            await asyncio.sleep(0.05)
+            self.assertEqual(len(slot._waiters), 0)
+            slot.release()
+            self.assertEqual(slot._active, 0)
+
+        asyncio.run(run())
+
+
 if __name__ == "__main__":
     unittest.main()
