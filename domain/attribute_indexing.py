@@ -288,6 +288,15 @@ def normalize_attribute_value(key: str, raw_value: Any) -> Optional[str]:
         # Исключаем процессоры (CPU), случайно попавшие в поле чипсета
         if re.search(r'\b(?:intel|amd\s+ryzen|core\s+ultra|core\s+i[3579]|ryzen|\d{4,5}[hux]\b|celeron|pentium|xeon)\b', c_low):
             return None
+        # Один разбор модели видеокарты с фасетом/фильтром модели: catalog_classifier.canonical_gpu_model
+        # (суффиксы Ti/Super/Ti Super/XT/XTX/GRE и регистр совпадают с фильтром). Ниже — запасной разбор.
+        try:
+            from catalog_classifier import canonical_gpu_model
+            canon = canonical_gpu_model(val)
+        except Exception:
+            canon = None
+        if canon:
+            return canon
         # NVIDIA GeForce RTX / GTX
         m_rtx = re.search(r'\b(?:geforce\s+)?rtx\s*(\d{3,4}(?:\s*ti|\s*super)?)\b', val, re.I)
         if m_rtx:

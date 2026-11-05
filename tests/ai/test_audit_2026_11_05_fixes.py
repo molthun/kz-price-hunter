@@ -501,3 +501,91 @@ class WebSearchQuotaTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GpuSuffixVariantTests(unittest.TestCase):
+    """Аудит v6.28.6: RX 9070 GRE не должна становиться RX 9070 — ни в model, ни в фасете, ни в фильтре."""
+
+    def test_variant_suffix_is_never_dropped(self):
+        from catalog_classifier import canonical_gpu_model
+        cases = {
+            "Видеокарта Sapphire PULSE AMD Radeon RX 9070 GRE OC": "Radeon RX 9070 GRE",
+            "Gigabyte RX 9070 GRE Gaming OC 12GB": "Radeon RX 9070 GRE",
+            "Видеокарта RX 9070 16GB": "Radeon RX 9070",
+            "Видеокарта RX 9070XT 16GB": "Radeon RX 9070 XT",
+            "Видеокарта RX 7900 GRE 16GB": "Radeon RX 7900 GRE",
+            "Видеокарта RX 7900 XT 20GB": "Radeon RX 7900 XT",
+            "Видеокарта RX 7900 XTX 24GB": "Radeon RX 7900 XTX",
+            "Видеокарта RTX 4070 Ti Super 16GB": "GeForce RTX 4070 Ti Super",
+            "Видеокарта RTX 4070  SUPER 12GB": "GeForce RTX 4070 Super",
+            "Видеокарта GTX 1650 Super 4GB": "GeForce GTX 1650 Super",
+            "Видеокарта RTX 4060 Tiny 8GB": "GeForce RTX 4060",        # «Tiny» — не суффикс Ti
+        }
+        for title, model in cases.items():
+            self.assertEqual(canonical_gpu_model(title), model, title)
+
+    def test_no_family_loses_a_trailing_suffix(self):
+        from catalog_classifier import CANONICAL_GPU_FAMILIES, canonical_gpu_model
+        for _, family in CANONICAL_GPU_FAMILIES:
+            for suffix in ("Ti", "Super", "XT", "XTX", "GRE"):
+                if family.endswith(suffix):
+                    continue
+                parsed = canonical_gpu_model(f"Видеокарта {family} {suffix} 8GB") or ""
+                self.assertTrue(parsed.endswith(suffix), (family, suffix, parsed))
+
+    def test_chipset_attribute_uses_the_same_parse(self):
+        from catalog_classifier import canonical_gpu_model
+        from domain.attribute_indexing import normalize_attribute_value
+        for title in ("RX 9070 GRE", "RTX 4070 Ti Super", "RTX 4060Ti", "RX 7900 XTX", "RTX 4070 SUPER"):
+            self.assertEqual(normalize_attribute_value("chipset", title), canonical_gpu_model(title), title)
+
+    def _catalog(self):
+        c = _db()
+        self.addCleanup(c.close)
+        rows = [("gre1", "Видеокарта Sapphire PULSE AMD Radeon RX 9070 GRE OC", "Radeon RX 9070"),
+                ("gre2", "Gigabyte RX 9070 GRE Gaming OC 12GB", "Radeon RX 9070"),
+                ("base", "Видеокарта PowerColor RX 9070 Hellhound 16GB", "Radeon RX 9070"),
+                ("xt", "Видеокарта RX 9070 XT 16GB", "Radeon RX 9070 XT"),
+                ("other", "Видеокарта RX 9070 GRE 12GB", "Radeon RX 7600"),        # не уточнение — пропуск
+                ("manual", "Видеокарта Radeon RX 9070 GRE", "Своя модель")]          # не GPU-модель — не трогаем
+        for pid, title, model in rows:
+            _add(c, pid, title, model=model)
+        c.execute("INSERT INTO product_search_attributes VALUES('gre1','chipset','Radeon RX 9070','Чип','t','t')")
+        c.execute("INSERT INTO product_search_attributes VALUES('xt','chipset','GeForce RTX 4070 SUPER','Название товара','t','t')")
+        c.commit()
+        return c
+
+    def test_recompute_plan_and_apply(self):
+        import importlib.util, pathlib
+        path = pathlib.Path(__file__).resolve().parents[2] / "scripts" / "recompute_gpu_models.py"
+        spec = importlib.util.spec_from_file_location("recompute_gpu_models", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        c = self._catalog()
+        before = {r[0]: r[1:] for r in c.execute("SELECT id, title, category, canonical_key, created_at FROM canonical_products")}
+        plan = mod.plan_changes(c)
+        self.assertEqual(sorted(r["id"] for r in plan["models"]), ["gre1", "gre2"])
+        self.assertEqual([r["id"] for r in plan["skipped"]], ["other"])
+        self.assertEqual({(r["id"], r["new"]) for r in plan["chipsets"]},
+                         {("xt", "GeForce RTX 4070 Super")})    # «Radeon RX 9070» у gre1 — уже канонический вид
+        mod.apply_changes(c, plan)
+        models = dict(c.execute("SELECT id, model FROM canonical_products"))
+        self.assertEqual(models, {"gre1": "Radeon RX 9070 GRE", "gre2": "Radeon RX 9070 GRE", "base": "Radeon RX 9070",
+                                  "xt": "Radeon RX 9070 XT", "other": "Radeon RX 7600", "manual": "Своя модель"})
+        after = {r[0]: r[1:] for r in c.execute("SELECT id, title, category, canonical_key, created_at FROM canonical_products")}
+        self.assertEqual(before, after)                          # ID и прочие поля не меняются
+        self.assertEqual(mod.plan_changes(c)["models"], [])      # повторный запуск — нечего менять
+
+        def ids(model):
+            sql, args = SearchRepository._model_filter(model)
+            return sorted(r[0] for r in c.execute("SELECT p.id FROM canonical_products p WHERE 1=1 " + sql, args))
+        self.assertEqual(ids("Radeon RX 9070"), ["base"])
+        # «manual»: model не похож на видеокарту, поэтому фильтр по замыслу A07 ищет по названию (там GRE)
+        self.assertEqual(ids("Radeon RX 9070 GRE"), ["gre1", "gre2", "manual"])
+        self.assertEqual(ids("Radeon RX 9070 XT"), ["xt"])
+        facets = SearchRepository._build_model_facets(
+            [{"value": m, "count": 1} for (m,) in c.execute("SELECT model FROM canonical_products WHERE id != 'manual'")],
+            category="gpus")
+        counts = {f["model"]: f["count"] for f in facets}
+        self.assertEqual(counts.get("Radeon RX 9070 GRE"), 2)
+        self.assertEqual(counts.get("Radeon RX 9070"), 1)

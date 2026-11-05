@@ -1033,9 +1033,27 @@ def canonical_gpu_model(title: str) -> Optional[str]:
     if not title:
         return None
     for pat, fam in CANONICAL_GPU_FAMILIES:
-        if pat.search(title):
-            return fam
+        m = pat.search(title)
+        if m:
+            return _with_trailing_suffix(fam, title[m.end():])
     return None
+
+
+# Суффиксы, которые делают видеокарту другой моделью. Если сразу после найденной модели стоит такой
+# суффикс, а правила для варианта нет (RX 9070 GRE при правиле RX 9070), суффикс не теряется:
+# иначе вариант записывается в model базовой модели и попадает в её фасет и фильтр.
+_GPU_TRAILING_SUFFIX = re.compile(r"^[\s\u00a0\u202f-]*(ti\s*super|super|ti|xtx|xt|gre)(?![a-z0-9])", re.I)
+_GPU_SUFFIX_NAMES = {"ti super": "Ti Super", "super": "Super", "ti": "Ti", "xtx": "XTX", "xt": "XT", "gre": "GRE"}
+
+
+def _with_trailing_suffix(family: str, rest: str) -> str:
+    m = _GPU_TRAILING_SUFFIX.match(rest or "")
+    if not m:
+        return family
+    suffix = _GPU_SUFFIX_NAMES[re.sub(r"\s+", " ", m.group(1).lower())]
+    if family.lower().endswith(suffix.lower()):
+        return family
+    return f"{family} {suffix}"
 
 
 # Canonical Model Line Rules (Top Consumer Electronics Models)
