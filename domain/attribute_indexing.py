@@ -343,6 +343,20 @@ def normalize_attribute_value(key: str, raw_value: Any) -> Optional[str]:
         if m_pw:
             return f"{m_pw.group(1)} Вт"
 
+    if key in ('total_volume', 'capacity'):
+        m_vol = re.search(r'(\d+(?:[.,]\d+)?)\s*(?:л|l|литр\w*)?', val, re.IGNORECASE)
+        if m_vol:
+            num = m_vol.group(1).replace(',', '.')
+            return f"{num} л"
+
+    if key == 'format':
+        if re.search(r'\b2lp\b', val, re.IGNORECASE):
+            return '2LP'
+        if re.search(r'\blp\b|винил', val, re.IGNORECASE):
+            return 'LP'
+        if re.search(r'\bcd\b', val, re.IGNORECASE):
+            return 'CD'
+
     return val[:80]
 
 
