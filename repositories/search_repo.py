@@ -164,6 +164,7 @@ class SearchRepository(BaseRepository):
         delivery: Optional[str] = None,
         min_price: Optional[float] = None,
         max_price: Optional[float] = None,
+        now: Optional[datetime.datetime] = None,
     ) -> tuple[List[str], list]:
         """Условия к предложению (алиасы o, s, c) — единые для выдачи, счётчика и фасетов."""
         conditions = [
@@ -207,7 +208,7 @@ class SearchRepository(BaseRepository):
         if in_stock:
             # То же правило, что у «Нет в наличии» на карточке: у устаревшей цены availability остаётся in_stock
             from domain.purchasability import sql_purchasable_conditions
-            purchasable, purchasable_params = sql_purchasable_conditions(channel="c")
+            purchasable, purchasable_params = sql_purchasable_conditions(now=now, channel="c")
             conditions.extend(purchasable)
             params.extend(purchasable_params)
 
@@ -443,7 +444,7 @@ class SearchRepository(BaseRepository):
         exists_conditions, exists_params = self._offer_filter(
             city=city, condition=condition, channel_type=channel_type, seller_type=seller_type,
             seller_id=seller_id, installment=installment, gift=gift, in_stock=in_stock, delivery=delivery,
-            min_price=min_price, max_price=max_price,
+            min_price=min_price, max_price=max_price, now=now,
         )
 
         exists_sql = f"""
