@@ -1947,7 +1947,17 @@
       display: flex;
       gap: 8px;
       overflow-x: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      -webkit-overflow-scrolling: touch;
       padding-bottom: 2px;
+    }
+
+    .deals-type-pills::-webkit-scrollbar,
+    .deals-filter-bar::-webkit-scrollbar {
+      display: none !important;
+      width: 0 !important;
+      height: 0 !important;
     }
 
     .deal-type-pill {
@@ -1976,33 +1986,101 @@
       box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
     }
 
+    #dealsCategorySelect {
+      padding: 7px 14px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--border-color);
+      background: var(--bg-card);
+      color: var(--text-main);
+      font-size: 0.84rem;
+      font-weight: 600;
+      cursor: pointer;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    #dealsCategorySelect:hover,
+    #dealsCategorySelect:focus {
+      border-color: var(--primary);
+    }
+
     .deals-reels-wrapper {
       position: relative;
       width: 100%;
       margin: 0 auto;
     }
 
-    /* Mobile Reels mode (<600px) */
+    /* Mobile Reels mode (<600px): immersive Instagram/TikTok social shopping feed */
     @media (max-width: 599px) {
+      .deals-page-layout {
+        padding: 0 10px;
+        gap: 6px;
+        max-width: 100%;
+      }
+
+      .deals-filter-bar {
+        background: transparent;
+        border: none;
+        box-shadow: none;
+        padding: 2px 0 6px 0;
+        margin: 0;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+      }
+
+      .deals-type-pills {
+        display: flex;
+        gap: 6px;
+        flex-shrink: 0;
+        overflow-x: visible;
+        padding-bottom: 0;
+      }
+
+      .deal-type-pill {
+        padding: 6px 12px;
+        font-size: 0.78rem;
+        flex-shrink: 0;
+      }
+
+      #dealsCategorySelect {
+        flex-shrink: 0;
+        height: 31px;
+        padding: 4px 10px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        border-radius: var(--radius-full);
+      }
+
       .deals-reels-wrapper {
-        max-width: 480px;
+        width: 100%;
+        max-width: 440px;
         display: flex;
         justify-content: center;
       }
 
       .deals-reels-container {
         width: 100%;
-        height: min(720px, calc(100vh - 165px));
+        height: min(740px, calc(100dvh - 150px));
         overflow-y: scroll;
         scroll-snap-type: y mandatory;
         scroll-behavior: smooth;
-        border-radius: var(--radius-lg);
+        -webkit-overflow-scrolling: touch;
+        border-radius: 20px;
         scrollbar-width: none;
         -ms-overflow-style: none;
       }
 
       .deals-reels-container::-webkit-scrollbar {
         display: none;
+        width: 0;
+        height: 0;
       }
 
       .deal-reel-card {
@@ -2010,11 +2088,111 @@
         scroll-snap-align: start;
         scroll-snap-stop: always;
         margin-bottom: 12px;
+        border-radius: 20px;
+        border: 1px solid var(--border-color);
+        background: var(--bg-card);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
       }
 
       .deal-reel-media {
-        flex: 1 1 50%;
-        min-height: 200px;
+        flex: 1 1 54%;
+        min-height: 0;
+        margin: 10px 10px 0 10px;
+        border-radius: 16px;
+        background: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        position: relative;
+        cursor: pointer;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+
+      .deal-reel-img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+      }
+
+      .deal-reel-content {
+        flex: 0 0 auto;
+        padding: 10px 14px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        background: var(--bg-card);
+      }
+
+      .deal-reel-shop-row {
+        font-size: 0.78rem;
+      }
+
+      .deal-reel-title {
+        font-size: 0.95rem;
+        line-height: 1.32;
+        min-height: auto;
+        max-height: 2.64em;
+        margin: 0;
+      }
+
+      .deal-evidence {
+        font-size: 0.76rem;
+        min-height: auto;
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      .deal-reel-price-row {
+        gap: 6px;
+        align-items: baseline;
+        margin-top: 2px;
+      }
+
+      .deal-price-current {
+        font-size: 1.38rem;
+        font-weight: 900;
+      }
+
+      .deal-price-old {
+        font-size: 0.9rem;
+      }
+
+      .deal-savings-badge {
+        font-size: 0.72rem;
+        padding: 2px 7px;
+      }
+
+      .deal-provenance-text {
+        font-size: 0.72rem;
+        min-height: auto;
+      }
+
+      .deal-actions-row {
+        margin-top: 4px;
+        padding-top: 4px;
+        gap: 6px;
+      }
+
+      .btn-deal-buy {
+        height: 42px;
+        font-size: 0.88rem;
+        border-radius: var(--radius-md);
+      }
+
+      .btn-deal-action {
+        width: 42px;
+        height: 42px;
+        flex: 0 0 42px;
+        font-size: 0.95rem;
+        border-radius: var(--radius-md);
       }
     }
 
@@ -2038,7 +2216,7 @@
       border-color: var(--primary);
     }
 
-    /* Product Display Canvas (inset frame, eliminates white box clash in dark mode) */
+    /* Product Display Canvas */
     .deal-reel-media {
       position: relative;
       margin: 12px 12px 0 12px;
@@ -2067,6 +2245,26 @@
 
     .deal-reel-card:hover .deal-reel-img {
       transform: scale(1.04);
+    }
+
+    /* Heart Burst Animation (Social Media double-tap like) */
+    @keyframes heartBurstAnim {
+      0% { transform: translate(-50%, -50%) scale(0.2); opacity: 0; }
+      40% { transform: translate(-50%, -50%) scale(1.4); opacity: 1; }
+      70% { transform: translate(-50%, -50%) scale(1.1); opacity: 0.9; }
+      100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+    }
+
+    .heart-burst-pop {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 4rem;
+      pointer-events: none;
+      z-index: 10;
+      animation: heartBurstAnim 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      filter: drop-shadow(0 4px 12px rgba(239, 68, 68, 0.4));
     }
 
     /* Floating Badges */
@@ -2114,10 +2312,10 @@
       position: absolute;
       top: 8px;
       right: 8px;
-      width: 34px;
-      height: 34px;
+      width: 36px;
+      height: 36px;
       border-radius: var(--radius-full);
-      background: rgba(255, 255, 255, 0.9);
+      background: rgba(255, 255, 255, 0.92);
       backdrop-filter: blur(4px);
       -webkit-backdrop-filter: blur(4px);
       border: 1px solid rgba(0, 0, 0, 0.08);
@@ -2125,7 +2323,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1rem;
+      font-size: 1.05rem;
       cursor: pointer;
       transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
@@ -2267,7 +2465,7 @@
       text-overflow: ellipsis;
     }
 
-    /* Actions Row - All actions on ONE line with margin-top: auto for vertical alignment */
+    /* Actions Row */
     .deal-actions-row {
       display: flex;
       gap: 8px;
@@ -2382,27 +2580,9 @@
       }
     }
 
+    .desktop-reel-nav,
     .reel-nav-btn {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      color: var(--text-main);
-      width: 42px;
-      height: 42px;
-      border-radius: var(--radius-full);
-      box-shadow: var(--shadow-md);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.1rem;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .reel-nav-btn:hover {
-      background: var(--primary);
-      color: #ffffff;
-      border-color: var(--primary);
-      transform: scale(1.05);
+      display: none !important;
     }
 
     /* ============================================================= */
@@ -4922,24 +5102,19 @@
             <button class="deal-type-pill" data-type="super" onclick="setDealsType(this, 'super')">⚡ Супер 30%+</button>
             <button class="deal-type-pill" data-type="arbitrage" onclick="setDealsType(this, 'arbitrage')">⚖️ Арбитраж</button>
           </div>
-          <select id="dealsCategorySelect" onchange="onDealsCategoryChanged(this.value)" style="padding: 6px 12px; border-radius: var(--radius-full); border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 0.82rem;">
-            <option value="Все">Все категории</option>
+          <select id="dealsCategorySelect" onchange="onDealsCategoryChanged(this.value)">
+            <option value="Все">🏷️ Все категории</option>
             <option value="Смартфоны">Смартфоны</option>
             <option value="Ноутбуки">Ноутбуки</option>
             <option value="Наушники">Наушники</option>
             <option value="Телевизоры">Телевизоры</option>
+            <option value="Детские товары">Детские товары</option>
           </select>
         </div>
 
         <div class="deals-reels-wrapper">
           <div id="dealsReelsContainer" class="deals-reels-container" onscroll="onDealsReelScroll(this)">
             <!-- Cards rendered here by JS -->
-          </div>
-
-          <!-- Desktop Navigation Buttons -->
-          <div class="desktop-reel-nav" aria-label="Навигация по ленте">
-            <button class="reel-nav-btn" onclick="scrollReel(-1)" aria-label="Предыдущая карточка" title="Предыдущая карточка (Вверх)">▲</button>
-            <button class="reel-nav-btn" onclick="scrollReel(1)" aria-label="Следующая карточка" title="Следующая карточка (Вниз)">▼</button>
           </div>
         </div>
       </div>
@@ -8983,7 +9158,7 @@
 
         return `
           <div class="deal-reel-card" data-index="${idx}" data-deal-id="${escapeHtml(deal.id)}">
-            <div class="deal-reel-media">
+            <div class="deal-reel-media" ondblclick="onMediaDoubleTap(this)" ontouchend="onMediaTouchEnd(this)">
               <img
                 src="${imgSrc}"
                 alt="${escapeHtml(deal.title)}"
@@ -9143,6 +9318,41 @@
       return window.matchMedia('(min-width: 600px), (max-height: 500px)').matches;
     }
 
+    let lastMediaTapTime = 0;
+    function onMediaTouchEnd(mediaEl) {
+      const now = Date.now();
+      if (now - lastMediaTapTime < 320 && now - lastMediaTapTime > 0) {
+        onMediaDoubleTap(mediaEl);
+        lastMediaTapTime = 0;
+      } else {
+        lastMediaTapTime = now;
+      }
+    }
+
+    function onMediaDoubleTap(mediaEl) {
+      const card = mediaEl.closest('.deal-reel-card');
+      if (!card) return;
+      const deal = DealsFeedState.items[Number(card.dataset.index)];
+      if (!deal) return;
+      const favBtn = card.querySelector('.btn-deal-fav-floating');
+      const added = Favorites.toggle(deal);
+      if (favBtn) {
+        favBtn.classList.toggle('fav-active', added);
+        favBtn.innerHTML = added ? '❤️' : '♡';
+      }
+      if (added) {
+        showHeartBurst(mediaEl);
+      }
+    }
+
+    function showHeartBurst(container) {
+      const heart = document.createElement('div');
+      heart.className = 'heart-burst-pop';
+      heart.innerHTML = '❤️';
+      container.appendChild(heart);
+      setTimeout(() => heart.remove(), 700);
+    }
+
     // Лента занимает ровно место между фильтрами и нижним меню, иначе кнопку покупки закрывает меню
     function fitDealsFeed() {
       const box = document.getElementById('dealsReelsContainer');
@@ -9153,8 +9363,9 @@
       }
       const nav = document.querySelector('.mobile-bottom-nav');
       const navTop = nav ? nav.getBoundingClientRect().top : window.innerHeight;
-      const free = navTop - (box.getBoundingClientRect().top + window.scrollY) - 8;
-      box.style.height = Math.min(720, Math.max(340, Math.round(free))) + 'px';
+      const boxRect = box.getBoundingClientRect();
+      const free = navTop - boxRect.top - 8;
+      box.style.height = Math.max(340, Math.round(free)) + 'px';
     }
     window.addEventListener('resize', fitDealsFeed);
 
