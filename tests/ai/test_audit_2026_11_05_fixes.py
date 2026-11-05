@@ -6,6 +6,7 @@
 from tests import test_support  # noqa: F401  isolates DATA_DIR; must precede project imports
 import asyncio
 import json
+import os
 import sqlite3
 import tempfile
 import unittest
@@ -566,8 +567,10 @@ class GpuSuffixVariantTests(unittest.TestCase):
         plan = mod.plan_changes(c)
         self.assertEqual(sorted(r["id"] for r in plan["models"]), ["gre1", "gre2"])
         self.assertEqual([r["id"] for r in plan["skipped"]], ["other"])
-        self.assertEqual({(r["id"], r["new"]) for r in plan["chipsets"]},
-                         {("xt", "GeForce RTX 4070 Super")})    # «Radeon RX 9070» у gre1 — уже канонический вид
+        # chipset «из названия» пересчитывается по названию; факт источника (gre1, «Чип») не меняется —
+        # его противоречие модели попадает в конфликты (F3 аудита v6.28.7)
+        self.assertEqual({(r["id"], r["new"]) for r in plan["chipsets"]}, {("xt", "Radeon RX 9070 XT")})
+        self.assertEqual([(r["id"], r["parsed"]) for r in plan["conflicts"]], [("gre1", "Radeon RX 9070 GRE")])
         mod.apply_changes(c, plan)
         models = dict(c.execute("SELECT id, model FROM canonical_products"))
         self.assertEqual(models, {"gre1": "Radeon RX 9070 GRE", "gre2": "Radeon RX 9070 GRE", "base": "Radeon RX 9070",
@@ -589,3 +592,122 @@ class GpuSuffixVariantTests(unittest.TestCase):
         counts = {f["model"]: f["count"] for f in facets}
         self.assertEqual(counts.get("Radeon RX 9070 GRE"), 2)
         self.assertEqual(counts.get("Radeon RX 9070"), 1)
+
+
+class RecomputeCliSafetyTests(unittest.TestCase):
+    """Аудит v6.28.7 F1/F2: утилита не портит базу ни при каких путях отчёта; TiSuper не роняет разбор."""
+
+    def setUp(self):
+        import importlib.util, pathlib
+        path = pathlib.Path(__file__).resolve().parents[2] / "scripts" / "recompute_gpu_models.py"
+        spec = importlib.util.spec_from_file_location("recompute_gpu_models_cli", path)
+        self.mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.mod)
+        self.dir = tempfile.mkdtemp(prefix="kzph-recompute-")
+        self.db = os.path.join(self.dir, "prices.db")
+        c = sqlite3.connect(self.db)
+        init_schema_v2(c)
+        c.executescript(cea.DDL_ATTRIBUTES)
+        for i in range(450):            # больше двух пачек по 200
+            c.execute("INSERT INTO canonical_products(id,canonical_key,title,category,model,created_at,updated_at) "
+                      "VALUES(?,?,?,?,?,?,?)", (f"g{i:03}", f"g{i:03}", f"Видеокарта RX 9070 GRE OC #{i}", "gpus",
+                                              "Radeon RX 9070", "t", "t"))
+        c.commit()
+        c.close()
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def _sha(self):
+        import hashlib
+        return hashlib.sha256(open(self.db, "rb").read()).hexdigest()
+
+    def _quick_check(self):
+        c = sqlite3.connect(self.db)
+        try:
+            return c.execute("PRAGMA quick_check").fetchone()[0]
+        finally:
+            c.close()
+
+    def _models(self):
+        c = sqlite3.connect(self.db)
+        try:
+            return dict(c.execute("SELECT model, count(*) FROM canonical_products GROUP BY model"))
+        finally:
+            c.close()
+
+    def test_dry_run_does_not_change_the_database(self):
+        before = self._sha()
+        report = os.path.join(self.dir, "plan.json")
+        self.assertEqual(self.mod.main(["--db", self.db, "--report", report]), 0)
+        self.assertEqual(self._sha(), before)
+        data = json.load(open(report, encoding="utf-8"))
+        self.assertEqual((data["status"], data["counts"]["models"]), ("planned", 450))
+
+    def test_report_path_aliases_of_the_database_are_refused(self):
+        before = self._sha()
+        os.symlink(self.db, os.path.join(self.dir, "link.db"))
+        os.link(self.db, os.path.join(self.dir, "hard.db"))
+        aliases = [self.db, os.path.join(self.dir, ".", "prices.db"), os.path.join(self.dir, "link.db"),
+                   os.path.join(self.dir, "hard.db"), self.db + "-wal", self.db + "-journal", self.dir]
+        for alias in aliases:
+            for extra in ([], ["--apply"]):
+                self.assertEqual(self.mod.main(["--db", self.db, "--report", alias, *extra]), 2, (alias, extra))
+        self.assertEqual(self._sha(), before)
+        self.assertEqual(self._quick_check(), "ok")
+
+    def test_unwritable_report_leaves_database_unchanged(self):
+        before = self._sha()
+        missing = os.path.join(self.dir, "no-such-dir", "plan.json")
+        self.assertEqual(self.mod.main(["--db", self.db, "--report", missing, "--apply"]), 3)
+        self.assertEqual(self._sha(), before)
+        self.assertEqual(self._models(), {"Radeon RX 9070": 450})
+
+    def test_apply_records_old_values_and_what_was_done(self):
+        report = os.path.join(self.dir, "apply.json")
+        self.assertEqual(self.mod.main(["--db", self.db, "--report", report, "--apply"]), 0)
+        data = json.load(open(report, encoding="utf-8"))
+        self.assertEqual(data["status"], "applied")
+        self.assertEqual(len(data["applied"]["models"]), 450)
+        self.assertTrue(all(r["old"] == "Radeon RX 9070" for r in data["models"]))
+        self.assertEqual(self._models(), {"Radeon RX 9070 GRE": 450})
+        again = os.path.join(self.dir, "again.json")
+        self.assertEqual(self.mod.main(["--db", self.db, "--report", again]), 0)
+        self.assertEqual(json.load(open(again, encoding="utf-8"))["counts"]["models"], 0)
+
+    def test_failure_after_some_batches_is_reported_as_partial(self):
+        report = os.path.join(self.dir, "partial.json")
+        real_connect = sqlite3.connect
+
+        class Flaky(sqlite3.Connection):
+            calls = 0
+
+            def execute(self, sql, *args):
+                if sql.startswith("UPDATE canonical_products"):
+                    Flaky.calls += 1
+                    if Flaky.calls == 250:          # во второй пачке
+                        raise sqlite3.OperationalError("disk I/O error")
+                return super().execute(sql, *args)
+
+        with patch.object(self.mod.sqlite3, "connect", side_effect=lambda *a, **k: real_connect(*a, factory=Flaky, **k)):
+            self.assertEqual(self.mod.main(["--db", self.db, "--report", report, "--apply"]), 4)
+        data = json.load(open(report, encoding="utf-8"))
+        self.assertEqual(data["status"], "partial")
+        self.assertIn("disk I/O error", data["error"])
+        self.assertEqual(len(data["applied"]["models"]), 200)          # первая пачка зафиксирована
+        self.assertEqual(self._models(), {"Radeon RX 9070 GRE": 200, "Radeon RX 9070": 250})
+        self.assertEqual(len(data["models"]), 450)                      # план со старыми значениями целиком
+        # повторный запуск дорабатывает остаток
+        self.assertEqual(self.mod.main(["--db", self.db, "--report", report, "--apply"]), 0)
+        self.assertEqual(self._models(), {"Radeon RX 9070 GRE": 450})
+
+    def test_compact_and_spaced_ti_super_never_raise(self):
+        from catalog_classifier import canonical_gpu_model
+        for title in ("RX 9070 TiSuper", "RTX 4060 TiSuper", "GTX 1650 TiSuper", "RTX 4060 Ti  Super",
+                      "RTX 4060 Ti\tSuper", "RTX 4060 Ti\u00a0Super", "RTX 4070 TiSuper"):
+            got = canonical_gpu_model(title)
+            self.assertTrue(got and got.endswith("Ti Super"), (title, got))
+        self.assertEqual(canonical_gpu_model("RTX 4070 Ti Super"), "GeForce RTX 4070 Ti Super")
+        self.assertEqual(canonical_gpu_model("RX 9070 GRE"), "Radeon RX 9070 GRE")
+        self.assertEqual(canonical_gpu_model("RX 7900 XTX"), "Radeon RX 7900 XTX")

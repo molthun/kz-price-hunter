@@ -1042,15 +1042,19 @@ def canonical_gpu_model(title: str) -> Optional[str]:
 # Суффиксы, которые делают видеокарту другой моделью. Если сразу после найденной модели стоит такой
 # суффикс, а правила для варианта нет (RX 9070 GRE при правиле RX 9070), суффикс не теряется:
 # иначе вариант записывается в model базовой модели и попадает в её фасет и фильтр.
-_GPU_TRAILING_SUFFIX = re.compile(r"^[\s\u00a0\u202f-]*(ti\s*super|super|ti|xtx|xt|gre)(?![a-z0-9])", re.I)
-_GPU_SUFFIX_NAMES = {"ti super": "Ti Super", "super": "Super", "ti": "Ti", "xtx": "XTX", "xt": "XT", "gre": "GRE"}
+_GPU_TRAILING_SUFFIX = re.compile(r"^[\s\u00a0\u202f-]*(ti[\s\u00a0\u202f]*super|super|ti|xtx|xt|gre)(?![a-z0-9])", re.I)
+# Ключ — суффикс без пробельных символов и в нижнем регистре: «Ti Super», «TiSuper», «Ti\tSuper» → tisuper
+_GPU_SUFFIX_NAMES = {"tisuper": "Ti Super", "super": "Super", "ti": "Ti", "xtx": "XTX", "xt": "XT", "gre": "GRE"}
 
 
 def _with_trailing_suffix(family: str, rest: str) -> str:
     m = _GPU_TRAILING_SUFFIX.match(rest or "")
     if not m:
         return family
-    suffix = _GPU_SUFFIX_NAMES[re.sub(r"\s+", " ", m.group(1).lower())]
+    key = re.sub(r"[\s\u00a0\u202f]+", "", m.group(1).lower())
+    suffix = _GPU_SUFFIX_NAMES.get(key)
+    if suffix is None:              # недоверенная строка: не падаем и не сводим к базовой модели
+        suffix = " ".join(part.capitalize() for part in m.group(1).split())
     if family.lower().endswith(suffix.lower()):
         return family
     return f"{family} {suffix}"

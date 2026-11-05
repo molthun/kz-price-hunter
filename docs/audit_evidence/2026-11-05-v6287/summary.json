@@ -1,0 +1,43 @@
+{
+  "head": "c39fb535015317739cb475a15d440ce1a3e29a59",
+  "version": "6.28.7",
+  "decision": "RETURN_FOR_FIXES",
+  "findings": {
+    "P1": 1,
+    "P2": 1
+  },
+  "F1": "report destination can overwrite database in dry-run; report failure is detected after apply commits",
+  "F2": "TiSuper raises KeyError tisuper",
+  "F3": "conditional old-chipset state; not counted as blocking finding, live prevalence unverified",
+  "pytest": {
+    "passed": 2804,
+    "subtests_passed": 1198,
+    "warnings": 128,
+    "seconds": 185.21
+  },
+  "unittest": {
+    "passed": 2741,
+    "seconds": 180.978
+  },
+  "frontend": {
+    "passed": 37,
+    "total": 37
+  },
+  "secret_findings": 0,
+  "dependencies": {
+    "count": 25,
+    "vulnerabilities": 0,
+    "skipped": 0
+  },
+  "inherited_gpu_matrix_rows": 144,
+  "stand_readonly": {
+    "head": "ffcb572f4b953138084469eaa8d2d24bb80553df",
+    "version": "6.28.6",
+    "tracked_clean": true,
+    "healthy": true,
+    "target_filter_hash_matches_commit": true
+  },
+  "candidate_deployed_by_auditor": false,
+  "production_verified": false,
+  "live_ai_calls": 0
+}
