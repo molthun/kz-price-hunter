@@ -2,19 +2,46 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## IN_PROGRESS: Antigravity — Интеграция и доведение до ума SearXNG (v6.28.0)
+## STAND_DEPLOYED → Владелец: Интеграция живого веб-поиска по магазинам Казахстана и стабилизация SearXNG v6.28.0 (2026-11-05)
 
 - Прямое поручение владельца: «У нас еще контейнер есть searxng его тоже нужно использовать. Довести до ума его использование.»
 - Исполнитель: Antigravity (основной разработчик).
-- Дата и время взятия: 2026-11-05 17:05 (Asia/Almaty).
-- Срез: ветка `codex/local-ai-catalog-growth`, коммит `83aa810`.
-- Область файлов: `product_verify.py`, `config.py`, `web/server.py`, `web/templates/search_first.html`, `deploy/prod-host/ai-stack/searxng.settings.example.yml`, `tests/ai/test_product_verify.py`, `tests/search/test_web_search.py`, `version.py`, `CHANGELOG.md`, `docs/AGENT_HANDOFF.md`.
-- План шагов:
-  1. Оптимизация конфигурации SearXNG: отключение неработающих движков (`brave`, `google cse`, `google`, `wikidata`), фиксация надежного набора (`duckduckgo`, `startpage`, `mojeek`).
-  2. Доработка `product_verify.py`: передача надежных `engines`, снижение интервала между запросами до безопасных 3-5с вместо 90с при наличии кэша `web_search_cache`, улучшенная обработка таймаутов.
-  3. Реализация эндпоинта живого веб-поиска `/api/v2/web-search` по проверенным доменам казахстанских магазинов (`kaspi.kz`, `shop.kz`, `mechta.kz`, `sulpak.kz`, `technodom.kz`, `marwin.kz`).
-  4. Интеграция в интерфейс поиска (`search_first.html`): кнопка и блок живого поиска в магазинах Казахстана при нулевой выдаче или по запросу пользователя.
-  5. Модульные тесты, сборка git bundle `kzph-v6.28.0.bundle`, развертывание на стенде и проверка Playwright.
+- Дата и время: 2026-11-05 17:30 (Asia/Almaty).
+- Срез: ветка `codex/local-ai-catalog-growth`, коммит `4724e50`.
+- Область файлов: `domain/web_search.py`, `web/server.py`, `web/templates/search_first.html`, `product_verify.py`, `config.py`, `deploy/prod-host/ai-stack/searxng.settings.example.yml`, `tests/search/test_web_search.py`, `version.py`, `CHANGELOG.md`, `docs/AGENT_HANDOFF.md`.
+- Реализовано:
+  1. Оптимизация и стабилизация SearXNG на сервере:
+     - В `/etc/searxng/settings.yml` (и в эталоне репозитория `searxng.settings.example.yml`) отключены сбойные движки (`brave`, `google cse`, `google`, `wikidata`), вызывавшие таймауты и ошибки `Suspended: too many requests` / `access denied`.
+     - Зафиксировано быстрое ядро движков: `duckduckgo`, `startpage`, `mojeek` (время отклика снизилось до < 0.8с, `unresponsive_engines: []`).
+  2. Модуль `domain/web_search.py`:
+     - Реестр казахстанских магазинов `KNOWN_KZ_SHOPS` с фирменными цветами и бейджами (Kaspi, Mechta, Sulpak, Белый Ветер, Technodom, Marwin, DNS, Flip, Satu, Kolesa, OLX, TurboTyres и др.).
+     - Умный конструктор запроса `build_search_query`: добавляет гео-привязку (`город/Казахстан купить`), исключает дублирование, если в запросе уже присутствуют поисковые операторы.
+     - Надежный парсер цен в тенге (`parse_price`): распознает `159 990 ₸`, `29900 тг`, `1 250 000 тенге`, `KZT`.
+     - Интеграция с базой данных `database.py`: кэширование результатов в таблице `web_search_cache` на 7 дней, резервирование суточных попыток `reserve_web_search`.
+  3. API эндпоинт `/api/v2/web-search`:
+     - Принимает `q`, `city`, `mode` (`kz_shops`, `kz_general`), `limit`.
+     - Валидирует параметры, защищен обработкой таймаутов и изоляцией ошибок.
+  4. Обновление `product_verify.py`:
+     - Минимальный интервал `SEARCH_MIN_INTERVAL` снижен с 90.0 до 3.0 секунд (с защитой кэша).
+     - Добавлена явная передача списка проверенных движков `DEFAULT_ENGINES = "duckduckgo,startpage,mojeek"`.
+  5. Интерфейс поиска `web/templates/search_first.html`:
+     - В блоке пустой выдачи добавлена кнопка «🌐 Проверить магазины Казахстана (SearXNG)».
+     - В верхней панели выдачи добавлена быстрая кнопка «🌐 Искать в магазинах (SearXNG)».
+     - Разработан адаптивный контейнер `.web-search-box` с карточками предложений `.web-card`:
+       - Цветной бейдж магазина и чистый домен.
+       - Заголовок и выжимка описания.
+       - Крупная цена в тенге (`от 165 000 ₸`) или подсказка «Уточняйте на сайте».
+       - Прямая кнопка «В магазин ↗» для перехода к продавцу в новой вкладке.
+       - Полная поддержка светлой и тёмной тем.
+  6. Проверки и стенд:
+     - Все 8 тестов `tests/search/test_web_search.py` и 30 тестов `tests/ai/test_product_verify.py` успешно пройдены.
+     - Полный сьют `tests/search/` (288 тестов) пройден без единой ошибки.
+     - Пакет `kzph-v6.28.0.bundle` развернут на стенде `http://192.168.28.25:35539`.
+     - Контрольная проверка через Playwright (запрос `maxi-cosi titan` с 0 товаров в локальной базе):
+       - Пустая выдача с кнопкой вызова SearXNG: `docs/audit_evidence/stand_searxng_web_search_empty.png`.
+       - Выдача 10 живых предложений интернет-магазинов (Kaspi, Мечта, Marwin, Satu, E-katalog): `docs/audit_evidence/stand_searxng_web_search_loaded.png`.
+       - Проверка тёмной темы: `docs/audit_evidence/stand_searxng_web_search_dark.png`.
+- Следующий шаг в очереди дорожной карты: Мобильная лента скидок `/deals` и фоновый сервис обогащения характеристик товаров на локальной модели (Ollama).
 
 ---
 
