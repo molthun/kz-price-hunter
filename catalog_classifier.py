@@ -87,6 +87,19 @@ KNOWN_BRANDS: Dict[str, str] = {
     "sapphire": "Sapphire",
     "powercolor": "PowerColor",
     "xfx": "XFX",
+    "pny": "PNY",
+    "afox": "AFOX",
+    "udore": "UDORE",
+    "dicasver": "Dicasver",
+    "sinotex": "Sinotex",
+    "peladn": "Peladn",
+    "maxsun": "Maxsun",
+    "yeston": "Yeston",
+    "soyo": "SOYO",
+    "manli": "Manli",
+    "kfa2": "KFA2",
+    "galax": "Galax",
+    "evga": "EVGA",
     "kingston": "Kingston",
     "fury": "Kingston",
     "crucial": "Crucial",
@@ -442,9 +455,9 @@ _TITLE_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
         re.compile(
             r"\b(ноутбук|ультрабук|macbook|лэптоп)\b|"
             r"\bNB\s+(?:asus|lenovo|hp|acer|msi|dell|apple|huawei|honor)\b|"
-            r"(?<!видеокарт\w\s)(?<!кулер\w\s)(?<!чехол\w\s)(?<!сумк\w\s)(?<!рюкзак\w\s)\b(?:11\.6|12\.5|13\.3|13\.4|13\.5|13\.6|14|14\.1|14\.2|14\.5|15\.3|15\.6|16|16\.1|16\.2|17\.3|18)\s*(?:[\"”]|дюйм|-дюйм|inch)\b.*"
+            r"(?<!видеокарт\w\s)(?<!кулер\w\s)(?<!чехол\w\s)(?<!сумк\w\s)(?<!рюкзак\w\s)\b(?:11\.6|12\.5|13\.3|13\.4|13\.5|13\.6|14|14\.1|14\.2|14\.5|15\.3|15\.6|16|16\.1|16\.2|17\.3|18)\s*(?:[\"”]|дюйм\w*|-дюйм\w*|\binch(?:es)?\b).*"
             r"\b(?:intel|core|ultra\s+\d|ryzen|celeron|pentium|ssd|озу|ram|win\s*11|win\s*10|windows|dos|без\s+ос|no\s+os|ips|oled|fhd|wqxga|wuxga)\b|"
-            r"(?<!видеокарт\w\s)(?<!кулер\w\s)\b(?:rog\s+strix\s+scar|rog\s+strix\s+g\d+|tuf\s+gaming\s+[af]\d+|legion\s+(?:pro\s+)?[3579]|predator\s+helios|acer\s+nitro\s+[5-9v]|victus\s+\d+|omen\s+(?:max\s+)?\d+|msi\s+(?:stealth|raider|titan|katana|cyborg|pulse|sword|thin|vector)|dream\s+machines)\b.*"
+            r"(?<!видеокарт\w\s)(?<!кулер\w\s)\b(?:rog\s+strix\s+scar|rog\s+strix\s+g\d+|tuf\s+gaming\s+[af]\d+|legion\s+(?:pro\s+)?[3579]|loq\s+(?:\d|series|\w+)|predator\s+helios|acer\s+nitro\s+[5-9v]|victus\s+\d+|omen\s+(?:max\s+)?\d+|msi\s+(?:stealth|raider|titan|katana|cyborg|pulse|sword|thin|vector)|dream\s+machines)\b.*"
             r"\b(?:intel|core|ryzen|ssd|win\s*11|dos|без\s+ос|\d+\s*(?:гб|gb))\b",
             re.I
         ),
@@ -459,7 +472,16 @@ _TITLE_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
     (re.compile(r"\b(кулер|систем[аы]\s+(?:водяного\s+)?охлаждения|сжо|сво|вентилятор\s+для\s+корпуса|термопаста|cpu\s+cooler)\b", re.I), "cooling"),
     (re.compile(r"\b(маршрутизатор|роутер|mesh-систем\w*|точка\s+доступа|коммутатор)\b", re.I), "network"),
     (re.compile(r"\b(мфу|принтер|плоттер)\b", re.I), "printers"),
-    (re.compile(r"^(?!.*(?:\b(?:13\.3|14|15\.6|16|17\.3|18)\s*[\"”]|без\s+ос|win\s*11|windows\s*11|dos\b))\b(видеокарт(?:а|ы)|geforce\s+rtx|radeon\s+rx|графический\s+процессор)\b", re.I), "gpus"),
+    (
+        re.compile(
+            r"^(?!.*(?:\b(?:11\.6|12\.5|13\.3|14|14\.1|15\.3|15\.6|16|16\.1|17\.3|18)\s*(?:[\"”]|дюйм\w*|-дюйм\w*|\binch(?:es)?\b)|без\s+ос|win\s*11|windows\s*11|dos\b))"
+            r"\b(видеокарт\w*|графическ\w*\s+карт\w*|графический\s+процессор|"
+            r"geforce\s+(?:rtx|gtx|gt)|(?:rtx|gtx|gt)\s*\d{3,4}|"
+            r"radeon\s+(?:rx|pro)|rx\s*\d{3,4}|quadro\s+[tp]\d{3,4}|arc\s+[ab]\d{3})\b",
+            re.I,
+        ),
+        "gpus",
+    ),
     (re.compile(r"^(?!.*(?:\b(?:13\.3|14|15\.6|16|17\.3|18)\s*[\"”]|без\s+ос|win\s*11|windows\s*11|dos\b))\b(процессор|intel\s+core|amd\s+ryzen)\b", re.I), "cpus"),
     (re.compile(r"\b(материнск(?:ая|ие)\s+плат(?:а|ы)|motherboard)\b", re.I), "motherboards"),
     (re.compile(r"\b(комплектующие\s+для\s+пк|райзер|термопрокладк\w*)\b", re.I), "pc_components"),
@@ -856,6 +878,166 @@ def extract_apple_canonical_model(text: str) -> Optional[str]:
     )
 
 
+# Canonical GPU Model Families
+CANONICAL_GPU_FAMILIES: List[Tuple[re.Pattern, str]] = [
+    # NVIDIA RTX 50 series
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*5090\s*d\b", re.I), "GeForce RTX 5090 D"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*5090\b", re.I), "GeForce RTX 5090"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*5080\b", re.I), "GeForce RTX 5080"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*5070\s*ti\b", re.I), "GeForce RTX 5070 Ti"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*5070\b", re.I), "GeForce RTX 5070"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*5060\s*ti\b", re.I), "GeForce RTX 5060 Ti"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*5060\b", re.I), "GeForce RTX 5060"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*5050\b", re.I), "GeForce RTX 5050"),
+
+    # NVIDIA RTX 40 series
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*4090\s*d\b", re.I), "GeForce RTX 4090 D"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*4090\b", re.I), "GeForce RTX 4090"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*4080\s*super\b", re.I), "GeForce RTX 4080 Super"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*4080\b", re.I), "GeForce RTX 4080"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*4070\s*ti\s*super\b", re.I), "GeForce RTX 4070 Ti Super"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*4070\s*ti\b", re.I), "GeForce RTX 4070 Ti"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*4070\s*super\b", re.I), "GeForce RTX 4070 Super"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*4070\b", re.I), "GeForce RTX 4070"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*4060\s*ti\b", re.I), "GeForce RTX 4060 Ti"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*4060\b", re.I), "GeForce RTX 4060"),
+
+    # NVIDIA RTX 30 series
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*3090\s*ti\b", re.I), "GeForce RTX 3090 Ti"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*3090\b", re.I), "GeForce RTX 3090"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*3080\s*ti\b", re.I), "GeForce RTX 3080 Ti"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*3080\b", re.I), "GeForce RTX 3080"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*3070\s*ti\b", re.I), "GeForce RTX 3070 Ti"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*3070\b", re.I), "GeForce RTX 3070"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*3060\s*ti\b", re.I), "GeForce RTX 3060 Ti"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*3060\b", re.I), "GeForce RTX 3060"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*3050\b", re.I), "GeForce RTX 3050"),
+
+    # NVIDIA RTX 20 series
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*2080\s*ti\b", re.I), "GeForce RTX 2080 Ti"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*2080\s*super\b", re.I), "GeForce RTX 2080 Super"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*2080\b", re.I), "GeForce RTX 2080"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*2070\s*super\b", re.I), "GeForce RTX 2070 Super"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*2070\b", re.I), "GeForce RTX 2070"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*2060\s*super\b", re.I), "GeForce RTX 2060 Super"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*2060\b", re.I), "GeForce RTX 2060"),
+
+    # NVIDIA GTX 16 series
+    (re.compile(r"\b(?:geforce\s+)?gtx\s*1660\s*ti\b", re.I), "GeForce GTX 1660 Ti"),
+    (re.compile(r"\b(?:geforce\s+)?gtx\s*1660\s*super\b", re.I), "GeForce GTX 1660 Super"),
+    (re.compile(r"\b(?:geforce\s+)?gtx\s*1660\b", re.I), "GeForce GTX 1660"),
+    (re.compile(r"\b(?:geforce\s+)?gtx\s*1650\s*super\b", re.I), "GeForce GTX 1650 Super"),
+    (re.compile(r"\b(?:geforce\s+)?gtx\s*1650\b", re.I), "GeForce GTX 1650"),
+    (re.compile(r"\b(?:geforce\s+)?gtx\s*1630\b", re.I), "GeForce GTX 1630"),
+
+    # NVIDIA GTX 10 series & GT series
+    (re.compile(r"\b(?:geforce\s+)?gtx\s*1080\s*ti\b", re.I), "GeForce GTX 1080 Ti"),
+    (re.compile(r"\b(?:geforce\s+)?gtx\s*1080\b", re.I), "GeForce GTX 1080"),
+    (re.compile(r"\b(?:geforce\s+)?gtx\s*1070\s*ti\b", re.I), "GeForce GTX 1070 Ti"),
+    (re.compile(r"\b(?:geforce\s+)?gtx\s*1070\b", re.I), "GeForce GTX 1070"),
+    (re.compile(r"\b(?:geforce\s+)?gtx\s*1060\b", re.I), "GeForce GTX 1060"),
+    (re.compile(r"\b(?:geforce\s+)?gtx\s*1050\s*ti\b", re.I), "GeForce GTX 1050 Ti"),
+    (re.compile(r"\b(?:geforce\s+)?gtx\s*1050\b", re.I), "GeForce GTX 1050"),
+    (re.compile(r"\b(?:geforce\s+)?gt\s*1030\b", re.I), "GeForce GT 1030"),
+    (re.compile(r"\b(?:geforce\s+)?gtx\s*980\s*ti\b", re.I), "GeForce GTX 980 Ti"),
+    (re.compile(r"\b(?:geforce\s+)?gtx\s*980\b", re.I), "GeForce GTX 980"),
+    (re.compile(r"\b(?:geforce\s+)?gtx\s*970\b", re.I), "GeForce GTX 970"),
+    (re.compile(r"\b(?:geforce\s+)?gtx\s*960\b", re.I), "GeForce GTX 960"),
+    (re.compile(r"\b(?:geforce\s+)?gtx\s*750\s*ti\b", re.I), "GeForce GTX 750 Ti"),
+    (re.compile(r"\b(?:geforce\s+)?gtx\s*750\b", re.I), "GeForce GTX 750"),
+    (re.compile(r"\b(?:geforce\s+)?gt\s*740\b", re.I), "GeForce GT 740"),
+    (re.compile(r"\b(?:geforce\s+)?gt\s*730\b", re.I), "GeForce GT 730"),
+    (re.compile(r"\b(?:geforce\s+)?gt\s*710\b", re.I), "GeForce GT 710"),
+    (re.compile(r"\b(?:geforce\s+)?gt\s*610\b", re.I), "GeForce GT 610"),
+    (re.compile(r"\b(?:geforce\s+)?gt\s*240\b", re.I), "GeForce GT 240"),
+    (re.compile(r"\b(?:geforce\s+)?gt\s*220\b", re.I), "GeForce GT 220"),
+    (re.compile(r"\b(?:geforce\s+)?gt\s*210\b", re.I), "GeForce GT 210"),
+
+    # NVIDIA Workstation / Quadro / RTX A series
+    (re.compile(r"\brtx\s*a\s*6000\b", re.I), "RTX A6000"),
+    (re.compile(r"\brtx\s*a\s*5000\b", re.I), "RTX A5000"),
+    (re.compile(r"\brtx\s*a\s*4500\b", re.I), "RTX A4500"),
+    (re.compile(r"\brtx\s*a\s*4000\b", re.I), "RTX A4000"),
+    (re.compile(r"\brtx\s*a\s*2000\b", re.I), "RTX A2000"),
+    (re.compile(r"\brtx\s*6000\s*ada\b", re.I), "RTX 6000 Ada"),
+    (re.compile(r"\brtx\s*5000\s*ada\b", re.I), "RTX 5000 Ada"),
+    (re.compile(r"\brtx\s*4500\s*ada\b", re.I), "RTX 4500 Ada"),
+    (re.compile(r"\brtx\s*4000\s*ada\b", re.I), "RTX 4000 Ada"),
+    (re.compile(r"\bquadro\s*t1000\b", re.I), "Quadro T1000"),
+    (re.compile(r"\bquadro\s*t600\b", re.I), "Quadro T600"),
+    (re.compile(r"\bquadro\s*t400\b", re.I), "Quadro T400"),
+    (re.compile(r"\bquadro\s*p1000\b", re.I), "Quadro P1000"),
+    (re.compile(r"\bquadro\s*p620\b", re.I), "Quadro P620"),
+    (re.compile(r"\bquadro\s*p400\b", re.I), "Quadro P400"),
+    (re.compile(r"\bt1000\b", re.I), "NVIDIA T1000"),
+    (re.compile(r"\bt600\b", re.I), "NVIDIA T600"),
+    (re.compile(r"\bt400\b", re.I), "NVIDIA T400"),
+
+    # AMD Radeon RX 9000 series
+    (re.compile(r"\b(?:radeon\s+)?rx\s*9070\s*xt\b", re.I), "Radeon RX 9070 XT"),
+    (re.compile(r"\b(?:radeon\s+)?rx\s*9070\b", re.I), "Radeon RX 9070"),
+    (re.compile(r"\b(?:radeon\s+)?(?:rx\s*)?9060\s*xt\b", re.I), "Radeon RX 9060 XT"),
+
+    # AMD Radeon RX 7000 series
+    (re.compile(r"\b(?:radeon\s+)?rx\s*7900\s*xtx\b", re.I), "Radeon RX 7900 XTX"),
+    (re.compile(r"\b(?:radeon\s+)?rx\s*7900\s*xt\b", re.I), "Radeon RX 7900 XT"),
+    (re.compile(r"\b(?:radeon\s+)?rx\s*7900\s*gre\b", re.I), "Radeon RX 7900 GRE"),
+    (re.compile(r"\b(?:radeon\s+)?rx\s*7800\s*xt\b", re.I), "Radeon RX 7800 XT"),
+    (re.compile(r"\b(?:radeon\s+)?rx\s*7700\s*xt\b", re.I), "Radeon RX 7700 XT"),
+    (re.compile(r"\b(?:radeon\s+)?rx\s*7600\s*xt\b", re.I), "Radeon RX 7600 XT"),
+    (re.compile(r"\b(?:radeon\s+)?rx\s*7600\b", re.I), "Radeon RX 7600"),
+
+    # AMD Radeon RX 6000 series
+    (re.compile(r"\b(?:radeon\s+)?rx\s*6950\s*xt\b", re.I), "Radeon RX 6950 XT"),
+    (re.compile(r"\b(?:radeon\s+)?rx\s*6900\s*xt\b", re.I), "Radeon RX 6900 XT"),
+    (re.compile(r"\b(?:radeon\s+)?rx\s*6800\s*xt\b", re.I), "Radeon RX 6800 XT"),
+    (re.compile(r"\b(?:radeon\s+)?rx\s*6800\b", re.I), "Radeon RX 6800"),
+    (re.compile(r"\b(?:radeon\s+)?rx\s*6750\s*xt\b", re.I), "Radeon RX 6750 XT"),
+    (re.compile(r"\b(?:radeon\s+)?rx\s*6750\s*gre\b", re.I), "Radeon RX 6750 GRE"),
+    (re.compile(r"\b(?:radeon\s+)?rx\s*6700\s*xt\b", re.I), "Radeon RX 6700 XT"),
+    (re.compile(r"\b(?:radeon\s+)?rx\s*6700\b", re.I), "Radeon RX 6700"),
+    (re.compile(r"\b(?:radeon\s+)?rx\s*6650\s*xt\b", re.I), "Radeon RX 6650 XT"),
+    (re.compile(r"\b(?:radeon\s+)?rx\s*6600\s*xt\b", re.I), "Radeon RX 6600 XT"),
+    (re.compile(r"\b(?:radeon\s+)?rx\s*6600\b", re.I), "Radeon RX 6600"),
+    (re.compile(r"\b(?:radeon\s+)?rx\s*6500\s*xt\b", re.I), "Radeon RX 6500 XT"),
+    (re.compile(r"\b(?:radeon\s+)?rx\s*6400\b", re.I), "Radeon RX 6400"),
+
+    # AMD Radeon RX 5000 / 500 series
+    (re.compile(r"\b(?:radeon\s+)?rx\s*5700\s*xt\b", re.I), "Radeon RX 5700 XT"),
+    (re.compile(r"\b(?:radeon\s+)?rx\s*5700\b", re.I), "Radeon RX 5700"),
+    (re.compile(r"\b(?:radeon\s+)?rx\s*5600\s*xt\b", re.I), "Radeon RX 5600 XT"),
+    (re.compile(r"\b(?:radeon\s+)?rx\s*5500\s*xt\b", re.I), "Radeon RX 5500 XT"),
+    (re.compile(r"\b(?:radeon\s+)?rx\s*590\b", re.I), "Radeon RX 590"),
+    (re.compile(r"\b(?:radeon\s+)?rx\s*580\b", re.I), "Radeon RX 580"),
+    (re.compile(r"\b(?:radeon\s+)?rx\s*570\b", re.I), "Radeon RX 570"),
+    (re.compile(r"\b(?:radeon\s+)?rx\s*560\b", re.I), "Radeon RX 560"),
+    (re.compile(r"\b(?:radeon\s+)?rx\s*550\b", re.I), "Radeon RX 550"),
+
+    # Intel Arc series
+    (re.compile(r"\b(?:intel\s+)?arc\s*b580\b", re.I), "Arc B580"),
+    (re.compile(r"\b(?:intel\s+)?arc\s*b570\b", re.I), "Arc B570"),
+    (re.compile(r"\b(?:intel\s+)?arc\s*a770\b", re.I), "Arc A770"),
+    (re.compile(r"\b(?:intel\s+)?arc\s*a750\b", re.I), "Arc A750"),
+    (re.compile(r"\b(?:intel\s+)?arc\s*a580\b", re.I), "Arc A580"),
+    (re.compile(r"\b(?:intel\s+)?arc\s*a380\b", re.I), "Arc A380"),
+    (re.compile(r"\b(?:intel\s+)?arc\s*a310\b", re.I), "Arc A310"),
+]
+
+
+def canonical_gpu_model(title: str) -> Optional[str]:
+    """
+    Возвращает стандартизированное каноническое наименование чипсета/модели видеокарты
+    (например, 'GeForce RTX 5060 Ti', 'Radeon RX 7600', 'Arc B580'), исключая вендорные
+    названия партнёров (ASUS, MSI, Gigabyte, Palit и др.) и маркетинговый шум.
+    """
+    if not title:
+        return None
+    for pat, fam in CANONICAL_GPU_FAMILIES:
+        if pat.search(title):
+            return fam
+    return None
+
+
 # Canonical Model Line Rules (Top Consumer Electronics Models)
 KNOWN_MODEL_FAMILIES: List[Tuple[re.Pattern, str]] = [
     # Apple iPad & Mac
@@ -1001,7 +1183,24 @@ _MODEL_STRIP_PATTERNS = [
     # Marketing and regional markers
     r"\b(global\s+version|global|рст|оригинал|original|новинка|new|eu|ru|kz)\b",
     r"\b(с\s+кейсом|case|aluminum|stainless\s+steel)\b",
+    # Hardware/GPU/PC fluff
+    r"\b(gaming|dual|tuf|rog|strix|pulse|swift|eagle|windforce|ventus|mech|suprim|trio|phantom|gamerock|jetstream|verve|twin\s+edge|amp|trinity|ice\s+storm|fighter|fighting|overclocked|oc|v2|v3|lhr|non-lhr|white\s+edition|black\s+edition|midnight\s+void|speedster|merc|qick|swft)\b",
+    r"\b(gddr\d+x?|ddr\d+|pci-?e(?:\s*\d+(?:\.\d+)?)?|bit|бит)\b",
+    r"\b(triple\s+fan|dual\s+fan|single\s+fan|active\s+fan)\b",
+    r"\b(видеокарт\w*|видеоадаптер\w*|видеоплата\w*|графическ\w*\s+карт\w*|gpu|graphics\s+card|graphics|card|vga)\b",
 ]
+
+_HARDWARE_VENDORS = {
+    "amd", "nvidia", "intel", "asus", "msi", "gigabyte", "palit", "inno3d",
+    "sapphire", "powercolor", "xfx", "zotac", "pny", "afox", "udore",
+    "sinotex", "peladn", "maxsun", "yeston", "soyo", "manli", "kfa2",
+    "galax", "evga", "gainward", "colorful", "leadtek", "arktek", "dicasver",
+    "deepcool", "ocypus", "id-cooling", "thermalright", "be quiet!", "zalman",
+    "corsair", "montech", "1stplayer", "cougar", "aerocool", "darkflash",
+}
+_ALL_BRANDS_LOWER = set(_HARDWARE_VENDORS)
+
+
 
 DIAPER_SERIES_FAMILIES: List[Tuple[re.Pattern, str]] = [
     # Joonies & General Series
@@ -1116,6 +1315,12 @@ def extract_clean_model(
     if category in ("diapers_hygiene", "baby_care", "Подгузники и гигиена", "Товары для малышей") or re.search(r"\b(подгузник\w*|трусик\w*|памперс\w*|пеленк\w*)\b", main_title, re.I):
         return extract_diaper_series(main_title, brand=brand)
 
+    # Видеокарты: каноническая модель чипсета/карты (GeForce RTX 5080, Radeon RX 7600 XT, Arc B580 и др.)
+    if category in ("gpus", "Видеокарты") or re.search(r"\b(?:geforce|radeon|rtx|gtx|gt|quadro|arc|rx)(?:\b|\d)", main_title, re.I):
+        gpu_mod = canonical_gpu_model(main_title)
+        if gpu_mod:
+            return gpu_mod
+
     # 1. Поиск по известным семействам моделей
     for pat, fam in KNOWN_MODEL_FAMILIES:
         if pat.search(main_title):
@@ -1124,9 +1329,20 @@ def extract_clean_model(
     # 2. Очистка по регулярным выражениям
     res = main_title
     if brand:
-        res = re.sub(r"\b" + re.escape(brand) + r"\b", "", res, flags=re.I)
+        res = re.sub(r"\b" + re.escape(brand) + r"\b", " ", res, flags=re.I)
+
+    # Для комплектующих ПК и видеокарт удаляем названия вендоров и чипмейкеров
+    is_hardware = (
+        category in ("gpus", "pc_components", "motherboards", "coolers", "psu", "cases", "ram", "storage", "Видеокарты", "Комплектующие для ПК")
+        or re.search(r"\b(?:geforce|radeon|rtx|gtx|quadro|arc|ryzen|intel|amd|nvidia|материнск|видеокарт|кулер|блок\s+питания)\b", main_title, re.I)
+    )
+    if is_hardware:
+        for b_name in _HARDWARE_VENDORS:
+            if len(b_name) >= 3:
+                res = re.sub(r"\b" + re.escape(b_name) + r"\b", " ", res, flags=re.I)
+
     for pat in _MODEL_STRIP_PATTERNS:
-        res = re.sub(pat, "", res, flags=re.I)
+        res = re.sub(pat, " ", res, flags=re.I)
 
     res = re.sub(r"[/\\,\-\+\:\;\s\.]+", " ", res).strip()
     words = res.split()
@@ -1135,9 +1351,18 @@ def extract_clean_model(
 
     # Берём от 1 до 4 первых смысловых слов модели
     model_name = " ".join(words[:4]).strip()
-    if len(model_name) < 2 or model_name.isdigit():
+    if (
+        len(model_name) < 2
+        or model_name.isdigit()
+        or model_name.lower() in _ALL_BRANDS_LOWER
+        or model_name.lower() in (
+            "v8", "11350 04", "pc", "pro", "mini", "plus", "max", "ultra",
+            "gaming", "stand", "holder", "oc", "dual", "tuf", "rog"
+        )
+    ):
         return None
     return model_name
+
 
 
 @dataclass

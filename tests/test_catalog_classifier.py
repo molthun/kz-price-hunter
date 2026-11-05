@@ -355,6 +355,38 @@ class TestCatalogClassifier(unittest.TestCase):
         aio_attrs = extract_title_attributes("Система водяного охлаждения Deepcool LS720 ARGB")
         self.assertEqual(aio_attrs.get("type"), "СЖО (водяное)")
 
+    def test_gpu_canonical_model_extraction(self):
+        """Проверяет канонизацию моделей видеокарт: отсутствие производителей и вендоров в названии модели."""
+        from catalog_classifier import canonical_gpu_model
+
+        test_cases = [
+            ("MSI GeForce RTX 5070 World of Warcraft MIDNIGHT VOID EDITION OC 12 Гб", "MSI", "GeForce RTX 5070"),
+            ("Sapphire PULSE AMD Radeon RX 7600 Gaming OC 8GB", "Sapphire", "Radeon RX 7600"),
+            ("PowerColor AMD Radeon RX 6600 Fighter AXRX 6600 8GBD6-3DH 8 ГБ", "PowerColor", "Radeon RX 6600"),
+            ("Видеокарта ASUS RX 6900 XT TUF Gaming OC, 16GB, Radeon RX 6900 XT", "ASUS", "Radeon RX 6900 XT"),
+            ("AFOX GeForce GTX 1650 AF1650-4096D6H4-V2 4 ГБ", "AFOX", "GeForce GTX 1650"),
+            ("UDORE GTX1050TI-4GD5", "UDORE", "GeForce GTX 1050 Ti"),
+            ("Видеокарта Afox GT 730 GeForce GT 730 4GB", "AFOX", "GeForce GT 730"),
+            ("PNY GeForce RTX 5070 12GB Overclocked Triple Fan", "PNY", "GeForce RTX 5070"),
+            ("Intel Arc B580 12GB Steel Legend OC", "Intel", "Arc B580"),
+            ("ASUS ROG Astral GeForce RTX 5080 White OC Edition 16 Гб", "ASUS", "GeForce RTX 5080"),
+            ("Видеокарта Palit GeForce RTX 5060 Ti Dual 16GB", "Palit", "GeForce RTX 5060 Ti"),
+        ]
+
+        forbidden_manufacturers = {"amd", "nvidia", "intel", "asus", "msi", "palit", "gigabyte", "udore", "afox", "pny", "sapphire"}
+
+        for title, expected_brand, expected_model in test_cases:
+            with self.subTest(title=title):
+                res = self.classifier.classify_rules(title)
+                self.assertIsNotNone(res)
+                self.assertEqual(res.brand, expected_brand, f"Brand mismatch for {title}: got {res.brand}, expected {expected_brand}")
+                self.assertEqual(res.model, expected_model, f"Model mismatch for {title}: got {res.model}, expected {expected_model}")
+
+                # Убеждаемся, что в модели нет производителя
+                for bad_vendor in forbidden_manufacturers:
+                    self.assertNotIn(bad_vendor, res.model.lower().split(), f"Model {res.model} should not contain vendor {bad_vendor}")
+
+
 
 if __name__ == "__main__":
     unittest.main()

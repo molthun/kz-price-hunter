@@ -114,3 +114,36 @@ def test_sync_all_source_attributes():
     assert len(rows) == 2
     assert rows[0]['key'] == 'ram' and rows[0]['value'] == '12 ГБ'
     assert rows[1]['key'] == 'storage' and rows[1]['value'] == '512 ГБ'
+
+
+def test_search_repo_build_model_facets_aggregation():
+    """Проверяет агрегацию моделей видеокарт и исключение мусора/производителей из фасетов."""
+    raw = [
+        {"value": "GeForce RTX 5060 Ti", "count": 39},
+        {"value": "RTX 5060 Ti Dual", "count": 4},
+        {"value": "RTX 5060 Ti OC", "count": 4},
+        {"value": "Palit", "count": 12},  # Производитель — должен быть исключен
+        {"value": "Inno3D", "count": 8},  # Производитель — должен быть исключен
+        {"value": "V8", "count": 6},  # Мусор — должен быть исключен
+        {"value": "GeForce RTX 5070", "count": 25},
+        {"value": "Radeon RX 7600", "count": 10},
+        {"value": "PULSE AMD Radeon RX 7600", "count": 5},
+    ]
+
+    res = SearchRepository._build_model_facets(raw, category="Видеокарты")
+    models_dict = {f["model"]: f["count"] for f in res}
+
+    # RTX 5060 Ti должен объединить (39 + 4 + 4 = 47)
+    assert models_dict.get("GeForce RTX 5060 Ti") == 47
+
+    # Radeon RX 7600 должен объединить (10 + 5 = 15)
+    assert models_dict.get("Radeon RX 7600") == 15
+
+    # GeForce RTX 5070
+    assert models_dict.get("GeForce RTX 5070") == 25
+
+    # Производители и мусор не должны попасть в список моделей
+    assert "Palit" not in models_dict
+    assert "Inno3D" not in models_dict
+    assert "V8" not in models_dict
+

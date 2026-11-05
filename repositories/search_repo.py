@@ -344,6 +344,15 @@ class SearchRepository(BaseRepository):
         if not (model and model.strip()) or model in ("Все", "Любая", "Все модели"):
             return "", []
         raw_m = model.strip()
+        from catalog_classifier import canonical_gpu_model
+        canon_gpu = canonical_gpu_model(raw_m)
+        if canon_gpu:
+            short_m = canon_gpu.replace("GeForce ", "").replace("Radeon ", "")
+            return (
+                "AND (p.model = ? OR LOWER(COALESCE(p.model, '')) = ? OR p.model = ? "
+                "OR (p.category IN ('gpus', 'Видеокарты') AND (p.title LIKE ? OR p.title LIKE ?)))",
+                [canon_gpu, canon_gpu.lower(), short_m, f"%{canon_gpu}%", f"%{short_m}%"],
+            )
         return (
             "AND (p.model = ? OR LOWER(COALESCE(p.model, '')) = ?)",
             [raw_m, raw_m.lower()],
@@ -358,6 +367,37 @@ class SearchRepository(BaseRepository):
         if raw_k in ("device", "accessory", "consumable"):
             return "AND p.item_kind = ?", [raw_k]
         return "", []
+
+    @staticmethod
+    def _build_model_facets(raw_facets: List[Any], category: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Нормализует фасеты моделей: исключает бренды/мусор и агрегирует видеокарты по каноническим названиям."""
+        from catalog_classifier import canonical_gpu_model, _ALL_BRANDS_LOWER
+
+        is_gpu_cat = category in ("gpus", "Видеокарты") if category else False
+        model_counts: Dict[str, int] = {}
+
+        for r in raw_facets:
+            val = (r["value"] or "").strip()
+            if not val:
+                continue
+            v_low = val.lower()
+            if v_low in _ALL_BRANDS_LOWER or v_low in {
+                "v8", "11350 04", "pc", "pro", "mini", "plus", "max", "ultra",
+                "gaming", "stand", "holder", "oc", "dual", "tuf", "rog"
+            }:
+                continue
+
+            if is_gpu_cat or any(k in v_low for k in ("rtx", "gtx", "radeon", "geforce", "arc")):
+                canon = canonical_gpu_model(val)
+                if canon:
+                    val = canon
+                elif any(v_low.startswith(b) for b in ("amd", "nvidia", "intel", "asus", "msi", "palit", "gigabyte")):
+                    continue
+
+            model_counts[val] = model_counts.get(val, 0) + int(r["count"])
+
+        sorted_models = sorted(model_counts.items(), key=lambda x: (-x[1], x[0]))[:40]
+        return [{"model": k, "count": v} for k, v in sorted_models]
 
     @staticmethod
     def _like_clauses(search_text: str) -> tuple[List[str], list]:
@@ -817,10 +857,10 @@ class SearchRepository(BaseRepository):
                 {"brand": r["value"], "count": int(r["count"])}
                 for r in product_facet("brand", facet_brand=None, facet_category=category, facet_model=model, facet_kind=kind)
             ],
-            "model_facets": [
-                {"model": r["value"], "count": int(r["count"])}
-                for r in product_facet("model", facet_brand=brand, facet_category=category, facet_model=None, facet_kind=kind, limit=40)
-            ],
+            "model_facets": self._build_model_facets(
+                product_facet("model", facet_brand=brand, facet_category=category, facet_model=None, facet_kind=kind, limit=100),
+                category=category,
+            ),
             "kind_facets": [
                 {"kind": r["value"], "count": int(r["count"])}
                 for r in product_facet("item_kind", facet_brand=brand, facet_category=category, facet_model=model, facet_kind=None, limit=10)
