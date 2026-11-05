@@ -386,11 +386,16 @@ class SearchRepository(BaseRepository):
                 "(COALESCE(p.model, '') = '' OR (UPPER(p.model) NOT LIKE '%RTX%' AND UPPER(p.model) NOT LIKE '%GTX%' "
                 "AND UPPER(p.model) NOT LIKE '%RX_%' AND UPPER(p.model) NOT LIKE '%ARC %'))"
             )
+            # Дешёвое предусловие перед REPLACE по каждой строке: номер модели («4060») есть в поле model.
+            # Без него сравнение без пробелов по всему каталогу медленнее в разы (стенд 05.11.2026).
+            number = re.search(r"\d+", key)
+            model_guard = "p.model LIKE ? AND " if number else ""
+            guard_args = [f"%{number.group()}%"] if number else []
             return (
-                f"AND ({model_sql} IN (?, ?) "
+                f"AND (({model_guard}{model_sql} IN (?, ?)) "
                 f"OR (p.category IN ('gpus', 'Видеокарты') AND {no_gpu_model} "
                 f"AND {title_sql} LIKE ?{not_like}))",
-                [_gpu_compact(canon_gpu), key, f"%{key}%", *excluded],
+                [*guard_args, _gpu_compact(canon_gpu), key, f"%{key}%", *excluded],
             )
         return (
             "AND (p.model = ? OR LOWER(COALESCE(p.model, '')) = ?)",

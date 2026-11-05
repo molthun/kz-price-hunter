@@ -1,0 +1,32 @@
+{
+  "head": "ac9286afd12f11153113870df8830af690717dd2",
+  "version": "6.28.5",
+  "decision": "LOCAL_ACCEPTED",
+  "pytest": {
+    "passed": 2800,
+    "subtests_passed": 1198,
+    "warnings": 128,
+    "seconds": 199.32
+  },
+  "unittest": {
+    "passed": 2737,
+    "seconds": 195.45
+  },
+  "frontend": {
+    "passed": 37,
+    "total": 37
+  },
+  "secret_findings": 0,
+  "dependencies": {
+    "count": 25,
+    "vulnerabilities": 0,
+    "skipped": 0
+  },
+  "R03": "closed",
+  "independent_gpu_matrix_rows": 144,
+  "new_findings_in_patch": 0,
+  "known_separate_issue": "desktop RAM/storage rule remains",
+  "live_ai_calls": 0,
+  "stand_verified": false,
+  "production_verified": false
+}

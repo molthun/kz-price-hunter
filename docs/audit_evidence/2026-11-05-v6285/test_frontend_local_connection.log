@@ -1,0 +1,4 @@
+PASS local connection 390/light: scope/check/save/secret preservation/409/draft navigation/reload
+PASS local connection 390/dark: scope/check/save/secret preservation/409/draft navigation/reload
+PASS local connection 1366/light: scope/check/save/secret preservation/409/draft navigation/reload
+PASS local connection 1366/dark: scope/check/save/secret preservation/409/draft navigation/reload
