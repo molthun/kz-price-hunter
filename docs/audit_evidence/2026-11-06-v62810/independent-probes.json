@@ -1,0 +1,116 @@
+{
+  "parser_cases": [
+    {
+      "input": {
+        "id": "gpus",
+        "name": "Видеокарты"
+      },
+      "expected": "gpus",
+      "actual": "gpus",
+      "old_accepts": false
+    },
+    {
+      "input": {
+        "id": "graphics_cards",
+        "name": "Видеокарты"
+      },
+      "expected": "gpus",
+      "actual": "gpus",
+      "old_accepts": false
+    },
+    {
+      "input": {
+        "category": "electronics",
+        "subcategory": "gpus"
+      },
+      "expected": "gpus",
+      "actual": "gpus",
+      "old_accepts": false
+    },
+    {
+      "input": {
+        "category": "electronics",
+        "subcategory": "does_not_exist"
+      },
+      "expected": "electronics",
+      "actual": "electronics",
+      "old_accepts": false
+    },
+    {
+      "input": {
+        "category": "no_such",
+        "subcategory": "gpus"
+      },
+      "expected": "gpus",
+      "actual": "gpus",
+      "old_accepts": false
+    },
+    {
+      "input": {
+        "category": "new_stuff",
+        "subcategory": "no_such"
+      },
+      "expected": null,
+      "actual": null,
+      "old_accepts": false
+    },
+    {
+      "input": {
+        "category_id": "phones",
+        "category_name": "Смартфоны",
+        "id": "gpus",
+        "name": "Видеокарты"
+      },
+      "expected": "phones",
+      "actual": "phones",
+      "old_accepts": true
+    },
+    {
+      "input": {
+        "id": "invalid id",
+        "name": "<script>"
+      },
+      "expected": null,
+      "actual": null,
+      "old_accepts": false
+    },
+    {
+      "input": {
+        "unexpected": true
+      },
+      "expected": null,
+      "actual": null,
+      "old_accepts": false
+    },
+    {
+      "input": [],
+      "expected": null,
+      "actual": null,
+      "old_accepts": false
+    },
+    {
+      "input": null,
+      "expected": null,
+      "actual": null,
+      "old_accepts": false
+    }
+  ],
+  "canonical_compatibility_cases": 3,
+  "circuit_cases": [
+    {
+      "first_raw": {
+        "unexpected": true
+      },
+      "first_status": "unavailable",
+      "second_status": "ok",
+      "provider_calls": 2
+    },
+    {
+      "first_raw": null,
+      "first_status": "unavailable",
+      "second_status": "unavailable",
+      "provider_calls": 1
+    }
+  ],
+  "result": "PASS"
+}

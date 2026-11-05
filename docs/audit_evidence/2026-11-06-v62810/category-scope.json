@@ -1,0 +1,20 @@
+[
+  {
+    "category": null,
+    "category_name": null,
+    "total_products": 7,
+    "outcome": "FOUND"
+  },
+  {
+    "category": "gpus",
+    "category_name": "Видеокарты",
+    "total_products": 7,
+    "outcome": "FOUND"
+  },
+  {
+    "category": "ai_706f8863ee306bd0",
+    "category_name": "Геодезическое оборудование",
+    "total_products": 0,
+    "outcome": "NOT_FOUND"
+  }
+]

@@ -1,0 +1,65 @@
+{
+  "head": "b4eaa26b4fbb96d3ae2382938b7a44a89e778fc5",
+  "version": "6.28.10",
+  "decision": "NOT_ACCEPTED",
+  "findings": [
+    {
+      "id": "F1",
+      "priority": "P2",
+      "file": "local_search.py",
+      "line": 38,
+      "summary": "Unknown alias-only id/name object accepted as a new category; real GPU query refined to unrelated existing geodesy category at confidence .95"
+    }
+  ],
+  "pytest": {
+    "passed": 2816,
+    "subtests": 1198,
+    "warnings": 128,
+    "seconds": 170.37
+  },
+  "focused": {
+    "passed": 50,
+    "subtests": 4,
+    "warnings": 1,
+    "seconds": 5.09
+  },
+  "frontend": {
+    "suites": 1,
+    "configurations_passed": 4,
+    "all_37_suites_rerun": false
+  },
+  "independent_probes": "PASS; 11 parser + 3 canonical compatibility + 2 circuit cases",
+  "live_model": "qwen3-vl:8b-instruct",
+  "live_model_context_categories": 89,
+  "live_matrix_status_ok": 8,
+  "live_matrix_semantic_all_correct": false,
+  "live_provider_calls": 14,
+  "gpu_repeat_confidence": 0.95,
+  "gpu_category_scope_counts": [
+    {
+      "category": null,
+      "category_name": null,
+      "total_products": 7,
+      "outcome": "FOUND"
+    },
+    {
+      "category": "gpus",
+      "category_name": "Видеокарты",
+      "total_products": 7,
+      "outcome": "FOUND"
+    },
+    {
+      "category": "ai_706f8863ee306bd0",
+      "category_name": "Геодезическое оборудование",
+      "total_products": 0,
+      "outcome": "NOT_FOUND"
+    }
+  ],
+  "candidate_hash_verified": true,
+  "settings_unchanged": true,
+  "candidate_deployed": false,
+  "stand_version": "6.28.9",
+  "stand_head": "35ac87179ccde8053fb23a33116a36ba8b4f1f1b",
+  "production_verified": false,
+  "application_code_or_live_data_modified": false
+}

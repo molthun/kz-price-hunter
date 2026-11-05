@@ -8091,6 +8091,7 @@
       const line = document.createElement('div');
       const category = info.category_name;
       line.textContent = data.local_ai.cached_plan ? 'Используем сохранённую проверку запроса и актуальные предложения каталога.' : data.local_ai.status === 'unavailable' ? 'Помощник временно недоступен. Показываем результаты каталога.' :
+        data.local_ai.status === 'unclear' ? 'Помощник не определил раздел для этого запроса. Показываем результаты каталога.' :
         (category ? 'Ищем: ' + category + '.' : 'Запрос обработан помощником.');
       box.append(line);
       if (info.clarification) {

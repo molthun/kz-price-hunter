@@ -1,0 +1,38 @@
+{
+  "stand_version": "6.28.9",
+  "candidate_sha256": "d67a6d315a3b466df14fb0622a00508355831e9be82643bcc2f43eda80af3eba",
+  "model": "qwen3-vl:8b-instruct",
+  "category_count": 89,
+  "results": [
+    {
+      "query": "RX 9070 GRE",
+      "status": "ok",
+      "seconds": 8.905,
+      "category_id": "ai_706f8863ee306bd0",
+      "category_name": "Геодезическое оборудование",
+      "search_query": "RX 9070 GRE",
+      "attributes": {},
+      "confidence": 0.95,
+      "calls": [
+        {
+          "raw_type": "dict",
+          "category_keys": {
+            "id": "rx_9070_gre",
+            "name": "RX 9070 GRE",
+            "parent_id": "electronics"
+          },
+          "old_parser_accepts_same_raw": false
+        },
+        {
+          "raw_type": "dict",
+          "category_keys": {
+            "new_category_name": "Геодезическое оборудование",
+            "parent_id": "ai_706f8863ee306bd0"
+          },
+          "old_parser_accepts_same_raw": false
+        }
+      ]
+    }
+  ],
+  "settings_sha256_unchanged": true
+}

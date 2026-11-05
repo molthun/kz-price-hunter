@@ -1,0 +1,9 @@
+..................................................                   [100%]
+=============================== warnings summary ===============================
+tests/search/test_local_catalog_growth.py::GrowthHttpTests::test_http_filters_and_admin_permissions
+  /Users/molthun/Documents/kz-price-hunter/tests/search/test_local_catalog_growth.py:215: NotAppKeyWarning: It is recommended to use web.RequestKey instances for keys.
+  https://docs.aiohttp.org/en/stable/web_advanced.html#request-s-storage
+    request['user']={'id':1,'is_admin':request.headers['X-Test-Role']=='admin'}
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+50 passed, 1 warning, 4 subtests passed in 5.09s

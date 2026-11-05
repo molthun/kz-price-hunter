@@ -1,0 +1,39 @@
+{
+  "primary": {
+    "id": "rx_9070_gre",
+    "name": "RX 9070 GRE"
+  },
+  "secondary_synthetic": {
+    "new_category_name": "Геодезическое оборудование",
+    "parent_id": "electronics",
+    "fields": []
+  },
+  "old": {
+    "status": "unavailable"
+  },
+  "candidate": {
+    "status": "ok",
+    "model": "m",
+    "cached": false,
+    "plan": {
+      "search_query": "RX 9070 GRE",
+      "category_id": "ai_706f8863ee306bd0",
+      "category_name": "Геодезическое оборудование",
+      "parent_id": "electronics",
+      "fields": [],
+      "attributes": {},
+      "confidence": 0.95,
+      "clarification": ""
+    }
+  },
+  "alias_only_primary_plan": {
+    "search_query": "RX 9070 GRE",
+    "category_id": "ai_24221d61a9757ef3",
+    "category_name": "RX 9070 GRE",
+    "parent_id": null,
+    "fields": [],
+    "attributes": {},
+    "confidence": 0.7,
+    "clarification": ""
+  }
+}

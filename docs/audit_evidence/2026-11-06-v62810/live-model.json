@@ -1,0 +1,183 @@
+{
+  "stand_version": "6.28.9",
+  "candidate_sha256": "d67a6d315a3b466df14fb0622a00508355831e9be82643bcc2f43eda80af3eba",
+  "model": "qwen3-vl:8b-instruct",
+  "category_count": 89,
+  "results": [
+    {
+      "query": "RX 9070 GRE",
+      "status": "ok",
+      "seconds": 7.069,
+      "category_id": "ai_706f8863ee306bd0",
+      "category_name": "Геодезическое оборудование",
+      "search_query": "RX 9070 GRE",
+      "attributes": {},
+      "calls": [
+        {
+          "raw_type": "dict",
+          "category_keys": {
+            "id": "rx_9070_gre",
+            "name": "RX 9070 GRE"
+          },
+          "old_parser_accepts_same_raw": false
+        },
+        {
+          "raw_type": "dict",
+          "category_keys": {},
+          "old_parser_accepts_same_raw": false
+        }
+      ]
+    },
+    {
+      "query": "зимние шины 205/55 R16",
+      "status": "ok",
+      "seconds": 3.059,
+      "category_id": "tires",
+      "category_name": "Шины и диски",
+      "search_query": "зимние шины 205/55 R16",
+      "attributes": {},
+      "calls": [
+        {
+          "raw_type": "dict",
+          "category_keys": {
+            "category_id": "tires",
+            "category_name": "Шины и диски"
+          },
+          "old_parser_accepts_same_raw": true
+        }
+      ]
+    },
+    {
+      "query": "iphone 15 pro 256",
+      "status": "ok",
+      "seconds": 1.413,
+      "category_id": "phones",
+      "category_name": "Смартфоны",
+      "search_query": "iphone 15 pro 256",
+      "attributes": {},
+      "calls": [
+        {
+          "raw_type": "dict",
+          "category_keys": {
+            "category": "electronics",
+            "subcategory": "phones"
+          },
+          "old_parser_accepts_same_raw": false
+        }
+      ]
+    },
+    {
+      "query": "ноутбук rtx 4060",
+      "status": "ok",
+      "seconds": 2.067,
+      "category_id": "laptops",
+      "category_name": "Ноутбуки",
+      "search_query": "ноутбук rtx 4060",
+      "attributes": {
+        "gpu": "RTX 4060"
+      },
+      "calls": [
+        {
+          "raw_type": "dict",
+          "category_keys": {
+            "category": "electronics",
+            "subcategory": "laptops"
+          },
+          "old_parser_accepts_same_raw": false
+        }
+      ]
+    },
+    {
+      "query": "подгузники 4",
+      "status": "ok",
+      "seconds": 4.593,
+      "category_id": "diapers_hygiene",
+      "category_name": "Подгузники и гигиена",
+      "search_query": "подгузники 4",
+      "attributes": {},
+      "calls": [
+        {
+          "raw_type": "dict",
+          "category_keys": {
+            "category_id": "diapers_hygiene",
+            "category_name": "Подгузники и гигиена"
+          },
+          "old_parser_accepts_same_raw": true
+        },
+        {
+          "raw_type": "dict",
+          "category_keys": {},
+          "old_parser_accepts_same_raw": false
+        }
+      ]
+    },
+    {
+      "query": "кофемашина",
+      "status": "ok",
+      "seconds": 5.188,
+      "category_id": "ai_aab109c4eac9fe98",
+      "category_name": "Кофемашины",
+      "search_query": "кофемашина",
+      "attributes": {},
+      "calls": [
+        {
+          "raw_type": "dict",
+          "category_keys": {
+            "id": "coffee_machines",
+            "name": "Кофемашины"
+          },
+          "old_parser_accepts_same_raw": false
+        },
+        {
+          "raw_type": "dict",
+          "category_keys": {},
+          "old_parser_accepts_same_raw": false
+        }
+      ]
+    },
+    {
+      "query": "тахеометр",
+      "status": "ok",
+      "seconds": 5.201,
+      "category_id": "ai_706f8863ee306bd0",
+      "category_name": "Геодезическое оборудование",
+      "search_query": "тахеометр",
+      "attributes": {},
+      "calls": [
+        {
+          "raw_type": "dict",
+          "category_keys": {
+            "id": "ai_706f8863ee306bd0",
+            "name": "Геодезическое оборудование"
+          },
+          "old_parser_accepts_same_raw": false
+        }
+      ]
+    },
+    {
+      "query": "робот пылесос",
+      "status": "ok",
+      "seconds": 5.001,
+      "category_id": "vacuum_parts",
+      "category_name": "Расходники для пылесосов",
+      "search_query": "робот пылесос",
+      "attributes": {},
+      "calls": [
+        {
+          "raw_type": "dict",
+          "category_keys": {
+            "id": "vacuum_parts",
+            "name": "Расходники для пылесосов"
+          },
+          "old_parser_accepts_same_raw": false
+        },
+        {
+          "raw_type": "dict",
+          "category_keys": {},
+          "old_parser_accepts_same_raw": false
+        }
+      ]
+    }
+  ],
+  "settings_sha256_unchanged": true
+}

@@ -32,19 +32,29 @@ def clean_plan(answer, query, categories):
     if not isinstance(answer, dict):
         return None
     by_id = {c['id']: c for c in categories}
-    # С полным списком категорий в промпте модель иногда копирует его структуру и отвечает
-    # {"id": …, "name": …} вместо category_id/category_name (стенд 06.11.2026): принимаем и такой вид,
-    # идентификатор по-прежнему проверяется по каталогу или сопоставляется по названию.
-    cid = str(answer.get('category_id') or answer.get('id') or '')
-    name = str(answer.get('category_name') or answer.get('name') or '').strip()[:80]
-    if not cid and not name:
-        # Ещё одна форма: {"category": "electronics", "subcategory": "phones"}. Из этих ключей берём
-        # только существующий идентификатор каталога, сначала более узкий; новую категорию не создаём.
-        cid = next((str(answer.get(k)) for k in ('subcategory', 'category') if str(answer.get(k) or '') in by_id), '')
-    if cid not in by_id:
-        same_name = next((c for c in categories if c['name'].casefold() == name.casefold()), None)
-        if same_name:
-            cid = same_name['id']
+    # Явный контракт плана — category_id/category_name: только он может предложить новый раздел.
+    # С полным списком категорий в промпте модель иногда отвечает в форме его элемента {"id","name"}
+    # или {"category","subcategory"} (стенд 06.11.2026). Такие ответы принимаются ТОЛЬКО как уже
+    # существующий раздел — по ID или точному названию; неизвестная пара (например, модель товара
+    # {"id":"rx_9070_gre","name":"RX 9070 GRE"}) не становится новой категорией (аудит v6.28.10, F1).
+    if answer.get('category_id') or answer.get('category_name'):
+        cid = str(answer.get('category_id') or '')
+        name = str(answer.get('category_name') or '').strip()[:80]
+        if cid not in by_id:
+            same_name = next((c for c in categories if c['name'].casefold() == name.casefold()), None)
+            if same_name:
+                cid = same_name['id']
+    else:
+        alias_id = str(answer.get('id') or '')
+        alias_name = str(answer.get('name') or '').strip().casefold()
+        cid = alias_id if alias_id in by_id else next(
+            (c['id'] for c in categories if alias_name and c['name'].casefold() == alias_name), '')
+        if not cid:
+            cid = next((str(answer.get(k)) for k in ('subcategory', 'category')
+                        if str(answer.get(k) or '') in by_id), '')
+        if not cid:
+            return None
+        name = ''
     if cid in by_id:
         name = by_id[cid]['name']
     elif not KEY.fullmatch(cid) or not re.fullmatch(r'[\w\s()/–—-]{2,80}', name):
@@ -133,6 +143,17 @@ def clean_plan(answer, query, categories):
                 clarification=clarification)
 
 
+def _narrows(refined, plan, categories):
+    """Вспомогательный ответ схемы может только уточнить раздел основного плана: оставить его или
+    выбрать его подраздел (новый или существующий). Увести запрос в посторонний раздел — нет:
+    иначе уверенное ограничение категорией обнуляет выдачу (аудит v6.28.10, F1)."""
+    if refined['category_id'] == plan['category_id']:
+        return True
+    by_id = {c['id']: c for c in categories}
+    parent = by_id[refined['category_id']].get('parent_id') if refined['category_id'] in by_id else refined.get('parent_id')
+    return bool(parent) and parent == plan['category_id']
+
+
 async def understand(query, categories):
     import config
     from ai_service import call_local_api
@@ -194,7 +215,9 @@ fields=[{"key":"season","label":"Сезон"},{"key":"width","label":"Ширин
                 # для всех остальных запросов.
                 if raw is None:
                     _failures[(base, model)] = True
-                return {'status': 'unavailable'}
+                    return {'status': 'unavailable'}
+                # Модель ответила, но раздел однозначно не определён: честно сообщаем это, ищем буквально.
+                return {'status': 'unclear'}
             if len(plan['fields']) < 3 and time.monotonic() - started < 10:
                 try:
                     # A short second task prevents a broad existing bucket from hiding a new product type.
@@ -221,7 +244,7 @@ fields=[{"key":"season","label":"Сезон"},{"key":"width","label":"Ширин
                             merged.update(category_id='new', category_name=schema['new_category_name'],
                                           parent_id=schema.get('parent_id') or plan['category_id'])
                         refined = clean_plan(merged, query, categories)
-                        if refined:
+                        if refined and _narrows(refined, plan, categories):
                             plan = refined
                 except Exception:
                     pass

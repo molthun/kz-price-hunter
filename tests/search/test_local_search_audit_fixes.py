@@ -274,6 +274,81 @@ class CategoryListShapedAnswerTests(unittest.TestCase):
             return first, second
 
         first, second = asyncio.run(run())
-        self.assertEqual(first['status'], 'unavailable')
+        self.assertEqual(first['status'], 'unclear')          # ответ был, но неразборчив — не «недоступен»
         self.assertEqual(second['status'], 'ok')
         self.assertEqual(second['plan']['category_id'], 'gpus')
+
+
+class UnknownAliasAndForeignRefinementTests(unittest.TestCase):
+    """Аудит v6.28.10, F1: живая модель ответила {"id":"rx_9070_gre","name":"RX 9070 GRE"}, это стало новым
+    разделом, а ответ схемы увёл запрос в «Геодезическое оборудование» с уверенностью 0,95 — выдача 7 → 0."""
+    CATS = [dict(id='electronics', name='Электроника', parent_id=None, fields=[]),
+            dict(id='gpus', name='Видеокарты', parent_id='electronics', fields=[]),
+            dict(id='tools_repair', name='Инструменты и ремонт', parent_id=None, fields=[]),
+            dict(id='ai_706f8863ee306bd0', name='Геодезическое оборудование', parent_id='tools_repair', fields=[])]
+    CFG = {'ai_search_enabled': True, 'local_api_base': 'http://ai.test/v1', 'local_model': 'm'}
+
+    def _understand(self, query, answers):
+        async def run():
+            with patch.object(local_search, 'enabled', return_value=True), \
+                 patch('config.get_ai_config', return_value=self.CFG), \
+                 patch('local_ai.pause_reason', return_value=None), \
+                 patch('ai_service.call_local_api', new=AsyncMock(side_effect=answers)):
+                return await local_search.understand(query, self.CATS)
+        return asyncio.run(run())
+
+    def test_unknown_alias_pair_is_not_a_new_category(self):
+        for answer in ({'id': 'rx_9070_gre', 'name': 'RX 9070 GRE', 'parent_id': 'electronics'},
+                       {'id': 'iphone_15_pro', 'name': 'iPhone 15 Pro'}, {'name': 'Новый вид'}):
+            self.assertIsNone(local_search.clean_plan(answer, 'x', self.CATS), answer)
+        # явный контракт по-прежнему может предложить новый раздел
+        plan = local_search.clean_plan({'category_id': 'new', 'category_name': 'Нивелиры', 'parent_id': 'tools_repair'},
+                                       'нивелир', self.CATS)
+        self.assertTrue(plan['category_id'].startswith('ai_'))
+
+    def test_recorded_live_scenario_keeps_literal_search(self):
+        first = {'id': 'rx_9070_gre', 'name': 'RX 9070 GRE', 'parent_id': 'electronics'}
+        schema = {'new_category_name': 'Геодезическое оборудование', 'parent_id': 'ai_706f8863ee306bd0', 'fields': []}
+        result = self._understand('RX 9070 GRE для теста 1', [first, schema])
+        self.assertEqual(result['status'], 'unclear')          # без категории — буквальный поиск
+
+    def test_schema_cannot_move_query_to_a_foreign_category(self):
+        first = {'id': 'gpus', 'name': 'Видеокарты'}
+        schema = {'new_category_name': 'Геодезическое оборудование', 'parent_id': 'ai_706f8863ee306bd0',
+                  'search_query': 'RX 9070 GRE', 'fields': [{'key': 'accuracy', 'label': 'Точность'}]}
+        result = self._understand('RX 9070 GRE для теста 2', [first, schema])
+        self.assertEqual((result['status'], result['plan']['category_id']), ('ok', 'gpus'))
+        self.assertNotIn('accuracy', [f['key'] for f in result['plan']['fields']])
+
+    def test_schema_may_narrow_to_new_or_existing_subcategory(self):
+        first = {'category_id': 'tools_repair', 'category_name': 'Инструменты и ремонт', 'search_query': 'тахеометр'}
+        schema = {'new_category_name': 'Геодезическое оборудование', 'parent_id': 'tools_repair',
+                  'fields': [{'key': 'accuracy', 'label': 'Точность'}]}
+        result = self._understand('тахеометр для теста 3', [first, schema])
+        self.assertEqual(result['plan']['category_id'], 'ai_706f8863ee306bd0')     # существующий подраздел
+        schema_new = {'new_category_name': 'Нивелиры', 'parent_id': 'tools_repair', 'fields': []}
+        result = self._understand('нивелир для теста 4', [dict(first, search_query='нивелир'), schema_new])
+        self.assertTrue(result['plan']['category_id'].startswith('ai_'))
+        self.assertEqual(result['plan']['parent_id'], 'tools_repair')
+
+
+
+class UnclearStatusTests(unittest.TestCase):
+    """«Модель ответила, но раздел не определён» — буквальный поиск и честный текст, не «временно недоступен»."""
+
+    def setUp(self):
+        self.fixture = _ConfirmedShortNameTests('test_short_and_full_query_include_same_confirmed_models')
+        self.fixture.setUp()
+        self.addCleanup(self.fixture.tearDown)
+
+    def test_unclear_keeps_literal_search_results(self):
+        args = dict(query='геодезический тахеометр', city='Астана', limit=20)
+        unclear = local_search.search_sync(args, {'status': 'unclear'}, {})
+        unavailable = local_search.search_sync(args, {'status': 'unavailable'}, {})
+        self.assertEqual(unclear['total_products'], unavailable['total_products'])
+        self.assertEqual(unclear['local_ai']['status'], 'unclear')
+
+    def test_interface_has_distinct_text(self):
+        import pathlib
+        html = (pathlib.Path(__file__).resolve().parents[2] / 'web' / 'templates' / 'search_first.html').read_text(encoding='utf-8')
+        self.assertIn("status === 'unclear' ? 'Помощник не определил раздел для этого запроса.", html)
