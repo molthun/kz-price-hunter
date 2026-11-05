@@ -1,0 +1,37 @@
+{
+  "head": "2d8e3714c69011d5581338175d86e0481c6c77b0",
+  "version": "6.28.4",
+  "pytest": {
+    "passed": 2799,
+    "subtests_passed": 1198,
+    "warnings": 128,
+    "seconds": 196.99
+  },
+  "unittest": {
+    "passed": 2736,
+    "seconds": 193.572
+  },
+  "frontend": {
+    "passed": 37,
+    "total": 37
+  },
+  "secrets": {
+    "findings": 0
+  },
+  "dependencies": {
+    "count": 25,
+    "vulnerabilities": 0,
+    "skipped": 0
+  },
+  "remaining_findings": {
+    "P1": 0,
+    "P2": 1
+  },
+  "R01": "closed_locally",
+  "R02": "closed_locally",
+  "R03": "partial_double_space_suffix",
+  "R04": "closed_locally",
+  "live_ai_calls": 0,
+  "stand_verified": false,
+  "production_verified": false
+}

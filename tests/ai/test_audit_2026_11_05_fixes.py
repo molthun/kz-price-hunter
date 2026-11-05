@@ -425,6 +425,29 @@ class GpuModelFilterTests(unittest.TestCase):
         self.assertEqual(self._ids("GeForce RTX 4070 Ti Super"), ["tis", "tis_c"])
         self.assertEqual(self._ids("GeForce RTX 4070 Ti"), ["t70"])
 
+    def test_any_whitespace_between_parts(self):
+        # R03 (повторный аудит v6.28.4): несколько пробелов, табуляция и неразрывные пробелы не смешивают
+        # базовую модель с Super/Ti и не прячут вариант от его фильтра — и при пустом, и при заполненном model
+        c = _db()
+        self.addCleanup(c.close)
+        _add(c, "b", "Видеокарта RTX 4070 12GB")
+        _add(c, "s2", "Видеокарта RTX 4070  SUPER 12GB")              # два пробела
+        _add(c, "s_tab", "Видеокарта RTX\t4070\tSuper 12GB")        # табуляция
+        _add(c, "s_nbsp", "Видеокарта RTX\u00a04070\u00a0Super 12GB")  # неразрывный пробел
+        _add(c, "s_c", "Видеокарта RTX4070SUPER 12GB")
+        _add(c, "t_nnbsp", "Видеокарта RTX 4070\u202fTi 12GB")        # узкий неразрывный
+        _add(c, "b_m", "Видеокарта Palit Dual 12GB", model="GeForce  RTX  4070")
+        _add(c, "s_m", "Видеокарта Palit Dual 12GB", model="RTX 4070  Super")
+        _add(c, "b3", "Видеокарта RTX   4070   12GB")                  # базовая с несколькими пробелами
+
+        def ids(model):
+            sql, args = SearchRepository._model_filter(model)
+            return sorted(r[0] for r in c.execute("SELECT p.id FROM canonical_products p WHERE 1=1 " + sql, args))
+
+        self.assertEqual(ids("GeForce RTX 4070"), ["b", "b3", "b_m"])
+        self.assertEqual(ids("GeForce RTX 4070 Super"), ["s2", "s_c", "s_m", "s_nbsp", "s_tab"])
+        self.assertEqual(ids("GeForce RTX 4070 Ti"), ["t_nnbsp"])
+
     def test_pairs_are_separated(self):
         self.assertEqual(self._ids("GeForce RTX 4060"), ["base", "base_t"])
         self.assertEqual(self._ids("GeForce RTX 4060 Ti"), ["ti", "ti_ns", "ti_t"])   # R03: слитное 4060Ti

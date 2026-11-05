@@ -1,0 +1,4 @@
+PASS admin navigation 390/light: panels/history/preserved fields/settings deep link/no mutations
+PASS admin navigation 390/dark: panels/history/preserved fields/settings deep link/no mutations
+PASS admin navigation 1366/light: panels/history/preserved fields/settings deep link/no mutations
+PASS admin navigation 1366/dark: panels/history/preserved fields/settings deep link/no mutations

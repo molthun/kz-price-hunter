@@ -1,0 +1,6 @@
+R01_ORIGINAL_CASES_FIXED {"ram": "16 ГБ", "storage": "512 ГБ"}
+R02_FIXED 1
+R03_ORIGINAL_COMPACT_CASE_FIXED
+R04_ORIGINAL_CASE_FIXED {"storage": "512 ГБ", "screen_size": "15.6\""}
+R03_REMAINS_DOUBLE_SPACE {"base_filter": ["base", "super"], "super_filter": []}
+KNOWN_DESKTOP_MEMORY_UNCHANGED {"ram": "8 ГБ", "storage": "16 ГБ"}

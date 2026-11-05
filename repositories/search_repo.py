@@ -99,13 +99,23 @@ def _attribute_value_variants(key: str, value: str) -> list[str]:
 GPU_MODEL_SUFFIXES = ("Ti Super", "Ti", "Super", "XTX", "XT", "GRE")
 
 
-def _gpu_spacing_variants(model: str) -> List[str]:
-    """«RTX 4060 Ti» → все варианты пробелов между частями: RTX 4060 Ti, RTX 4060Ti, RTX4060 Ti, RTX4060Ti (R03)."""
-    parts = model.split()
-    variants = [parts[0]] if parts else []
-    for part in parts[1:]:
-        variants = [v + sep + part for v in variants for sep in (" ", "")]
-    return variants
+# Пробельные символы, которые не различают модели видеокарт: пробел, табуляция, переводы строки,
+# неразрывный и узкий неразрывный пробелы (R03)
+_GPU_SPACE_CODES = (32, 9, 10, 13, 160, 8239)
+
+
+def _gpu_compact(model: str) -> str:
+    """Модель видеокарты без пробельных символов и регистра: «RTX 4070  SUPER» → «rtx4070super»."""
+    return "".join(ch for ch in (model or "").lower() if ord(ch) not in _GPU_SPACE_CODES)
+
+
+def _sql_compact(expr: str) -> str:
+    """Тот же вид в SQL: LOWER и удаление тех же пробельных символов."""
+    out = f"LOWER({expr})"
+    for code in _GPU_SPACE_CODES:
+        out = f"REPLACE({out}, char({code}), '')"
+    return out
+
 
 class SearchRepository(BaseRepository):
     """
@@ -361,31 +371,26 @@ class SearchRepository(BaseRepository):
         canon_gpu = canonical_gpu_model(raw_m)
         if canon_gpu:
             short_m = canon_gpu.replace("GeForce ", "").replace("Radeon ", "")
-            # A07/R03 (аудиты 05.11.2026): «RTX 4060» не захватывает 4060 Ti/Super, а 4060 Ti находит и
-            # слитное «4060Ti». Модель сравнивается без пробелов; по названию ищем только товары без своей
-            # GPU-модели — во всех вариантах пробелов между частями и без значимого суффикса после неё.
-            variants = _gpu_spacing_variants(short_m)
-            included = [f"%{v}%" for v in variants]
-            excluded = []
-            for v in variants:
-                for suffix in GPU_MODEL_SUFFIXES:
-                    for sep in (" ", ""):
-                        excluded.append(f"%{v}{sep}{suffix}%")
-                if v.upper().endswith("XT"):
-                    excluded.append(f"%{v}X%")
-            excluded = list(dict.fromkeys(excluded))
-            like_any = " OR ".join("p.title LIKE ?" for _ in included)
-            not_like = "".join(" AND p.title NOT LIKE ?" for _ in excluded)
+            # A07/R03 (аудиты 05.11.2026): «RTX 4060» не захватывает 4060 Ti/Super, а фильтр варианта находит
+            # его при любом написании. Модель и название сравниваются в одном виде — без пробельных символов
+            # (пробелы, табуляция, неразрывные): «RTX 4070  SUPER», «RTX4070 Super» и «RTX 4070 Super» совпадают.
+            # По названию ищем только товары без своей GPU-модели и без значимого суффикса после искомой.
+            key = _gpu_compact(short_m)
+            excluded = [f"%{key}{_gpu_compact(suffix)}%" for suffix in GPU_MODEL_SUFFIXES]
+            if key.endswith("xt"):
+                excluded.append(f"%{key}x%")
+            title_sql = _sql_compact("p.title")
+            model_sql = _sql_compact("COALESCE(p.model, '')")
+            not_like = "".join(f" AND {title_sql} NOT LIKE ?" for _ in excluded)
             no_gpu_model = (
                 "(COALESCE(p.model, '') = '' OR (UPPER(p.model) NOT LIKE '%RTX%' AND UPPER(p.model) NOT LIKE '%GTX%' "
                 "AND UPPER(p.model) NOT LIKE '%RX_%' AND UPPER(p.model) NOT LIKE '%ARC %'))"
             )
-            compact = lambda m: m.lower().replace(" ", "")
             return (
-                "AND (REPLACE(LOWER(COALESCE(p.model, '')), ' ', '') IN (?, ?) "
+                f"AND ({model_sql} IN (?, ?) "
                 f"OR (p.category IN ('gpus', 'Видеокарты') AND {no_gpu_model} "
-                f"AND ({like_any}){not_like}))",
-                [compact(canon_gpu), compact(short_m), *included, *excluded],
+                f"AND {title_sql} LIKE ?{not_like}))",
+                [_gpu_compact(canon_gpu), key, f"%{key}%", *excluded],
             )
         return (
             "AND (p.model = ? OR LOWER(COALESCE(p.model, '')) = ?)",
