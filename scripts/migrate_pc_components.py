@@ -6,6 +6,7 @@
 - 'Охлаждение и кулеры' (cooling)
 - 'Видеокарты' (gpus)
 - 'Процессоры' (cpus)
+Синхронизирует product_category_tags (с учетом триггера classification_category_guard).
 Удаляет ошибочный атрибут format: LP для кулеров/железа и индексирует мощность, форм-фактор и тип охлаждения.
 """
 from __future__ import annotations
@@ -61,21 +62,23 @@ def migrate(db_path: str = "/app/data/prices.db") -> None:
         title = p["title"]
         tl = title.lower()
 
-        target_cat = None
+        target_info = None  # (name, id)
         if 'блок питания' in tl or re.search(r'\bбп\s+\d+', tl) or 'power supply' in tl:
-            target_cat = 'Блоки питания'
-        elif any(k in tl for k in ['компьютерный корпус', 'корпус для пк', 'корпус пк']) or tl.startswith('корпус'):
-            target_cat = 'Корпуса'
+            target_info = ('Блоки питания', 'psu')
+        elif any(k in tl for k in ['компьютерный корпус', 'корпус для пк', 'корпус пк', 'корпус']) or tl.startswith('корпус'):
+            target_info = ('Корпуса', 'pc_cases')
         elif any(k in tl for k in ['кулер', 'охлаждени', 'вентилятор', 'сжо', 'сво', 'термопаст', 'cpu cooler']):
-            target_cat = 'Охлаждение и кулеры'
+            target_info = ('Охлаждение и кулеры', 'cooling')
         elif 'видеокарт' in tl or 'geforce' in tl or 'radeon' in tl:
-            target_cat = 'Видеокарты'
+            target_info = ('Видеокарты', 'gpus')
         elif 'процессор' in tl or 'intel core' in tl or 'amd ryzen' in tl:
-            target_cat = 'Процессоры'
+            target_info = ('Процессоры', 'cpus')
 
-        if target_cat:
-            counts[target_cat] += 1
-            cursor.execute("UPDATE canonical_products SET category = ? WHERE id = ?", (target_cat, pid))
+        if target_info:
+            cat_name, cat_id = target_info
+            counts[cat_name] += 1
+            cursor.execute("UPDATE product_category_tags SET category_id = ? WHERE product_id = ?", (cat_id, pid))
+            cursor.execute("UPDATE canonical_products SET category = ? WHERE id = ?", (cat_name, pid))
             updated_ids.append((pid, title))
         else:
             counts['Осталось в Комплектующие для ПК'] += 1
@@ -87,7 +90,6 @@ def migrate(db_path: str = "/app/data/prices.db") -> None:
     print("3. Indexing attributes (power, form_factor, cooling type, socket)...")
     indexed_facts = 0
     for pid, title in updated_ids:
-        # Извлекаем характеристики из названия
         attrs = extract_title_attributes(title)
         facts = [{'key': k, 'value': v, 'source_title': title} for k, v in attrs.items()]
         if facts:

@@ -86,7 +86,7 @@ class StorageMigrationTests(unittest.TestCase):
         self.assertEqual(repair_storage_categories(self.conn),[])
         apply_section_categories(self.conn,CatalogClassifier())
         apply_feed_categories(self.conn)
-        self.assertEqual(ProductRepository(self.conn).get_by_id('case').category,'Комплектующие для ПК')
+        self.assertEqual(ProductRepository(self.conn).get_by_id('case').category,'Корпуса')
         repo=SearchRepository(self.conn)
         for category,pid in [('ram','ram'),('hdd','hdd'),('removable_storage','flash')]:
             data=SearchCore(repo).search('',category=category,city='Астана')

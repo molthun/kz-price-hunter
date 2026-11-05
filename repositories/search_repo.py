@@ -68,6 +68,32 @@ PRIVATE_SELLER_TYPES = {"private", "private_seller", "classifieds"}
 BUSINESS_SELLER_TYPES = {"business", "company", "retail"}
 
 
+def _attribute_value_variants(key: str, value: str) -> list[str]:
+    """Возвращает список возможных вариантов написания одного нормализованного значения для поиска."""
+    variants = [value]
+    if key in ('storage', 'ram', 'vram'):
+        m = re.match(r'^(\d+)\s*([ГТМ]Б)$', value)
+        if m:
+            num, unit = m.group(1), m.group(2)
+            en_unit = 'TB' if unit == 'ТБ' else 'GB' if unit == 'ГБ' else 'MB'
+            variants.extend([
+                f"{num} {unit.lower()}", f"{num} {unit.capitalize()}",
+                f"{num} {en_unit}", f"{num} {en_unit.lower()}", f"{num} {en_unit.capitalize()}",
+                f"{num}{unit}", f"{num}{unit.lower()}", f"{num}{en_unit}", f"{num}{en_unit.lower()}",
+                f"{num}G", f"{num}g", f"{num}GD", f"{num}gd"
+            ])
+            if unit == 'ТБ':
+                gb_eq = int(num) * 1000
+                gb_eq_bin = int(num) * 1024
+                variants.extend([str(gb_eq), str(gb_eq_bin), f"{gb_eq} ГБ", f"{gb_eq_bin} ГБ", f"{gb_eq} GB", f"{gb_eq_bin} GB"])
+    elif key == 'chipset':
+        variants.extend([
+            re.sub(r'^(?:GeForce|Radeon)\s+', '', value),
+            f"NVIDIA {value}", f"AMD {value}"
+        ])
+    return list(dict.fromkeys(v for v in variants if v))
+
+
 class SearchRepository(BaseRepository):
     """
     Coordinates FTS5 index searches over Canonical Products and collects active offers.
@@ -232,9 +258,17 @@ class SearchRepository(BaseRepository):
     def _category_filter(self, category: Optional[str]) -> tuple[str, list]:
         sql, params = self._category_filter_only(category)
         for key, value in getattr(self, 'attribute_filters', {}).items():
-            sql += (" AND EXISTS (SELECT 1 FROM product_search_attributes pa WHERE pa.product_id=p.id"
-                    " AND pa.key=? AND pa.value=? AND pa.source_title=p.title)")
-            params.extend([key, value])
+            variants = _attribute_value_variants(key, value)
+            if len(variants) > 1:
+                placeholders = ",".join(["?"] * len(variants))
+                sql += (f" AND EXISTS (SELECT 1 FROM product_search_attributes pa WHERE pa.product_id=p.id"
+                        f" AND pa.key=? AND pa.value IN ({placeholders}) AND pa.source_title=p.title)")
+                params.append(key)
+                params.extend(variants)
+            else:
+                sql += (" AND EXISTS (SELECT 1 FROM product_search_attributes pa WHERE pa.product_id=p.id"
+                        " AND pa.key=? AND pa.value=? AND pa.source_title=p.title)")
+                params.extend([key, value])
         for key, value in getattr(self, 'inferred_attribute_filters', {}).items():
             sql += (" AND (p.id IN (SELECT value FROM json_each(?)) OR EXISTS ("
                     "SELECT 1 FROM product_search_attributes pa WHERE pa.product_id=p.id"
@@ -940,9 +974,28 @@ class SearchRepository(BaseRepository):
                     WHERE pa.key=? AND pa.source_title=p.title AND p.id IN ({sql}) GROUP BY pa.value ORDER BY count DESC,value LIMIT 80''',
                     [key] + values)
                 if rows or key in chosen:
+                    from domain.attribute_indexing import normalize_attribute_value
+                    # Схлопываем одинаковые варианты (16 GB / 16 Гб / 16GB) в единое каноническое значение
+                    norm_groups: Dict[str, int] = {}
+                    for r in rows:
+                        raw_v = r['value']
+                        n_v = normalize_attribute_value(key, raw_v) or raw_v
+                        if n_v and n_v.casefold() not in ('да', 'нет', 'true', 'false', 'unknown'):
+                            norm_groups[n_v] = norm_groups.get(n_v, 0) + int(r['count'])
+
+                    def _facet_sort_key(item):
+                        val_str, count_val = item
+                        if key in ('storage', 'ram', 'vram'):
+                            m_num = re.search(r'^(\d+)\s*([ГТМ]Б)$', val_str)
+                            if m_num:
+                                mult = 1024 * 1024 if m_num.group(2) == 'ТБ' else 1024 if m_num.group(2) == 'ГБ' else 1
+                                return (-int(m_num.group(1)) * mult, -count_val)
+                        return (-count_val, val_str)
+
+                    merged_rows = [{'value': k, 'count': v} for k, v in sorted(norm_groups.items(), key=_facet_sort_key)]
                     raw_label = field.get('label') if isinstance(field, dict) else None
                     display_label = raw_label or ATTRIBUTE_LABELS.get(key, key)
-                    facets.append({'key': key, 'label': display_label, 'values': rows})
+                    facets.append({'key': key, 'label': display_label, 'values': merged_rows})
         finally:
             self.attribute_filters = chosen
         return facets

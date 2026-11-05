@@ -352,6 +352,11 @@ class CatalogExpansionRepository:
             if isinstance(value, bool):
                 value = 'Да' if value else 'Нет'
             value = str(value).strip()[:80]
+            from domain.attribute_indexing import normalize_attribute_value
+            norm_val = normalize_attribute_value(key, value)
+            if not norm_val:
+                continue
+            value = norm_val
             if key == 'season':
                 # A marketing model name (Arctic, Ice...) is not explicit season evidence.
                 text = evidence.casefold()

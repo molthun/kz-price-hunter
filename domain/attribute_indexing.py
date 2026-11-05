@@ -194,29 +194,67 @@ def normalize_attribute_value(key: str, raw_value: Any) -> Optional[str]:
 
     # Булевы значения
     if val.casefold() in ('да', 'true', 'есть'):
-        return 'Да'
+        return 'Да' if key in ('5g', 'nfc', 'studs', 'installment_available', 'credit_available', 'pickup_available', 'is_active', 'has_gift') else None
     if val.casefold() in ('нет', 'false'):
-        return 'Нет'
+        return 'Нет' if key in ('5g', 'nfc', 'studs', 'installment_available', 'credit_available', 'pickup_available', 'is_active', 'has_gift') else None
     if val in ('1', '0') and key in ('5g', 'nfc', 'studs', 'installment_available', 'credit_available', 'pickup_available', 'is_active', 'has_gift'):
         return 'Да' if val == '1' else 'Нет'
 
-    # Память (ГБ, ТБ)
+    # Память (ГБ, ТБ): storage, ram, vram
     if key in ('storage', 'ram', 'vram'):
+        # Исключаем ложные булевы и текстовые значения
+        if val.casefold() in ('да', 'нет', 'true', 'false', 'unknown', 'none', 'null', 'ddr3', 'ddr4', 'ddr5'):
+            return None
+        # Чистые числа
         if val.isdigit():
             n = int(val)
-            if n in (1, 2) and key == 'storage':
-                return f"{n} ТБ"
-            if n in (4, 6, 8, 12, 16, 24, 32, 64, 128, 256, 512, 1024):
+            if key == 'storage':
+                if n in (1, 2, 4, 8):
+                    return f"{n} ТБ"
+                if n in (1000, 1024):
+                    return "1 ТБ"
+                if n in (2000, 2048):
+                    return "2 ТБ"
+                if n in (4000, 4096):
+                    return "4 ТБ"
+                if n in (120, 128, 240, 250, 256, 480, 500, 512, 960):
+                    return f"{n} ГБ"
+            if n in (1, 2, 3, 4, 6, 8, 12, 16, 20, 24, 32, 48, 64, 96, 128, 256, 512, 1024):
                 return f"{n} ГБ" if n < 1024 else "1 ТБ"
-        m_tb = re.search(r'(?i)\b(\d+)\s*(?:tb|тб)\b', val)
+            if n in (1000, 1024):
+                return "1 ТБ"
+            if n in (2000, 2048):
+                return "2 ТБ"
+
+        # 1. ТБ
+        m_tb = re.search(r'\b(\d+(?:[.,]\d+)?)\s*(?:tb|тб|тбайт)\b', val, re.I)
         if m_tb:
-            return f"{m_tb.group(1)} ТБ"
-        m_gb = re.search(r'(?i)\b(\d+)\s*(?:gb|гб|гбайт)\b', val)
+            tb_num = int(float(m_tb.group(1).replace(',', '.')))
+            return f"{tb_num} ТБ"
+
+        # 2. 1000/1024/2000/2048 ГБ -> ТБ
+        m_big_gb = re.search(r'\b(1000|1024|2000|2048)\s*(?:gb|гб|гбайт|g|gd)\b', val, re.I)
+        if m_big_gb:
+            n_big = int(m_big_gb.group(1))
+            return "1 ТБ" if n_big <= 1024 else "2 ТБ"
+
+        # 3. ГБ (16 Гб, 16 GB, 16G, 16GD, 16Gb, 16GB, 8 ГВ, 1Г6)
+        m_gb = re.search(r'\b(\d+)\s*(?:gb|гб|гбайт|гв|g|gd)\b|\b(\d+)(?:gb|гб|g)\b', val, re.I)
         if m_gb:
-            return f"{m_gb.group(1)} ГБ"
-        m_mb = re.search(r'(?i)\b(\d+)\s*(?:mb|мб)\b', val)
+            gb_num = int(m_gb.group(1) or m_gb.group(2))
+            if gb_num in (1, 2) and key == 'storage' and 'гб' not in val.lower() and 'gb' not in val.lower():
+                return f"{gb_num} ТБ"
+            return f"{gb_num} ГБ"
+
+        # 4. МБ
+        m_mb = re.search(r'\b(\d+)\s*(?:mb|мб)\b', val, re.I)
         if m_mb:
-            return f"{m_mb.group(1)} МБ"
+            mb_num = int(m_mb.group(1))
+            if mb_num >= 1024 and mb_num % 1024 == 0:
+                return f"{mb_num // 1024} ГБ"
+            return f"{mb_num} МБ"
+
+        return None
 
     # Цвет: с заглавной буквы
     if key == 'color':
@@ -237,9 +275,37 @@ def normalize_attribute_value(key: str, raw_value: Any) -> Optional[str]:
         if m_hz:
             return f"{m_hz.group(1)} Гц"
 
-    # Чипсет / сокет: нормализация пробелов и регистра
-    if key in ('chipset', 'socket'):
-        return ' '.join(val.split())
+    # Чипсет: нормализация графических чипов и чипсетов материнских плат
+    if key == 'chipset':
+        c_low = val.lower().strip()
+        # Исключаем голые бренды без модели чипсета
+        if c_low in ('nvidia', 'amd', 'intel', 'geforce', 'radeon'):
+            return None
+        # NVIDIA GeForce RTX / GTX
+        m_rtx = re.search(r'\b(?:geforce\s+)?rtx\s*(\d{3,4}(?:\s*ti|\s*super)?)\b', val, re.I)
+        if m_rtx:
+            suffix = m_rtx.group(1).upper()
+            return f"GeForce RTX {suffix}"
+        m_gtx = re.search(r'\b(?:geforce\s+)?gtx\s*(\d{3,4}(?:\s*ti)?)\b', val, re.I)
+        if m_gtx:
+            suffix = m_gtx.group(1).upper()
+            return f"GeForce GTX {suffix}"
+        # AMD Radeon RX
+        m_rx = re.search(r'\b(?:radeon\s+)?rx\s*(\d{4}(?:\s*xt|\s*xtx|\s*gre)?)\b', val, re.I)
+        if m_rx:
+            suffix = m_rx.group(1).upper()
+            return f"Radeon RX {suffix}"
+        # Материнские платы (чипсеты B650, B760, Z790, X670, H610, H61, B450, B550 и т.д.)
+        m_mb = re.search(r'\b(z[678]\d0|b[4567]\d0|x[56]70|a[356]20|h[34567]\d0|h\d{2}|c6\d{2})\b', val, re.I)
+        if m_mb:
+            return m_mb.group(1).upper()
+        # Чистим от двойных префиксов NVIDIA / AMD
+        cleaned = re.sub(r'^(?:nvidia|amd)\s+', '', val, flags=re.I).strip()
+        return ' '.join(cleaned.split())
+
+    # Сокет
+    if key == 'socket':
+        return ' '.join(val.split()).upper()
 
     # Подгузники и гигиена для малышей
     if key == 'diaper_type':
