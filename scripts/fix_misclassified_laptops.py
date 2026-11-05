@@ -69,7 +69,11 @@ def fix_catalog(db_path: str = "/app/data/prices.db") -> None:
             # 1. Обновляем product_category_tags (с учетом триггера classification_category_guard)
             cursor.execute("UPDATE product_category_tags SET category_id = ? WHERE product_id = ?", (target_cat_id, pid))
             if cursor.rowcount == 0:
-                cursor.execute("INSERT OR REPLACE INTO product_category_tags (product_id, category_id) VALUES (?, ?)", (pid, target_cat_id))
+                cursor.execute("""
+                    INSERT OR REPLACE INTO product_category_tags
+                    (product_id, category_id, source, source_signature, updated_at)
+                    VALUES (?, ?, 'rules', 'fix_laptops', strftime('%s','now'))
+                """, (pid, target_cat_id))
 
             # 2. Обновляем canonical_products
             cursor.execute("UPDATE canonical_products SET category = ? WHERE id = ?", (target_cat_name, pid))
