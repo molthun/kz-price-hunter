@@ -53,13 +53,15 @@ class TestWebSearchDomain(unittest.TestCase):
 
     def test_build_search_query_kz_shops(self):
         q = build_search_query("iPhone 15", city="Астана", mode="kz_shops")
-        self.assertIn("iPhone 15", q)
-        self.assertIn("site:kaspi.kz", q)
-        self.assertIn("site:shop.kz", q)
+        self.assertEqual(q, "iPhone 15 Астана купить")
 
         # Если уже содержит site:, не добавляем второй раз
         q2 = build_search_query("iPhone 15 site:kaspi.kz", mode="kz_shops")
         self.assertEqual(q2, "iPhone 15 site:kaspi.kz")
+
+        # Если уже содержит город или купить
+        q3 = build_search_query("iPhone 15 купить в Алматы", mode="kz_shops")
+        self.assertEqual(q3, "iPhone 15 купить в Алматы")
 
     def test_build_search_query_kz_general(self):
         q = build_search_query("детская коляска", city="Алматы", mode="kz_general")

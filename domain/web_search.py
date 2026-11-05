@@ -45,12 +45,10 @@ KNOWN_KZ_SHOPS: Dict[str, Dict[str, Any]] = {
     "monamie.kz": {"name": "Mon Amie", "badge": "Mon Amie", "color": "#8e44ad"},
     "beautymania.kz": {"name": "Французский Дом", "badge": "Французский Дом", "color": "#2c3e50"},
     "olx.kz": {"name": "OLX Казахстан", "badge": "OLX", "color": "#002f34"},
+    "satu.kz": {"name": "Satu.kz", "badge": "Satu", "color": "#27ae60"},
+    "kolesa.kz": {"name": "Колёса KZ", "badge": "Колёса", "color": "#f39c12"},
+    "turbotyres.kz": {"name": "TurboTyres", "badge": "TurboTyres", "color": "#e74c3c"},
 }
-
-DEFAULT_KZ_DOMAINS = [
-    "kaspi.kz", "shop.kz", "mechta.kz", "sulpak.kz",
-    "technodom.kz", "marwin.kz", "flip.kz", "dns-shop.kz"
-]
 
 DEFAULT_SEARCH_ENGINES = "duckduckgo,startpage,mojeek"
 SEARCH_TIMEOUT_SECONDS = 12.0
@@ -116,17 +114,13 @@ def build_search_query(raw_query: str, city: Optional[str] = None, mode: str = "
     if not clean:
         return ""
 
-    if mode == "kz_shops":
-        # Если пользователь уже сам написал операторы site: или OR, не дублируем
-        if "site:" in clean.lower():
-            return clean
-        domains_filter = " OR ".join(f"site:{d}" for d in DEFAULT_KZ_DOMAINS)
-        return f"{clean} ({domains_filter})"
+    low = clean.lower()
+    # Если в запросе уже есть операторы поиска или явные гео-слова, используем как есть
+    if any(k in low for k in ("site:", "казахстан", "алматы", "астана", "шымкент", "купить", "kaspi")):
+        return clean
 
-    if mode == "kz_general":
-        # Общий поиск с гео-привязкой к Казахстану
-        geo = city.strip() if city and city != "Все" else "Казахстан"
-        return f"{clean} {geo} купить"
+    geo = city.strip() if city and city != "Все" else "Казахстан"
+    return f"{clean} {geo} купить"
 
     return clean
 
