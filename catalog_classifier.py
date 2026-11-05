@@ -382,8 +382,8 @@ _BRAND_PATTERN = re.compile(
 
 # Product Type keyword rules: Title keywords -> Category ID
 _TITLE_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
-    # Виниловые пластинки, музыка и книги
-    (re.compile(r"\b(?:винил(?:овая\s+пластинка|\s+lp)?|виниловые\s+пластинки|грампластинк\w*|\b\d?lp\b)\b", re.I), "vinyl"),
+    # Виниловые пластинки, музыка и книги (комплектующие ПК с суффиксом LP / Low Profile исключаются)
+    (re.compile(r"^(?!.*\b(?:кулер|cooler|вентилятор|охлаждени|блок\s+питания|корпус|видеокарт|geforce|radeon|процессор|материнск|пк)\b).*\b(?:винил(?:овая\s+пластинка|\s+lp)?|виниловые\s+пластинки|грампластинк\w*|\b2lp\b|\b\d?lp(?=\s*(?:диск|пластинк|альбом|repress|remaster|edition|soundtrack|vinyl|\(|$)))\b", re.I), "vinyl"),
     (re.compile(r"\b(?:cd[- ]диск\w*|аудиодиск\w*|музыка\s+на\s+cd)\b", re.I), "music_cd"),
     (re.compile(r"\b(?:книга|книги|роман|повесть|энциклопедия|биография|учебник|пособие)\b", re.I), "books"),
     (re.compile(r"\b(?:настольная\s+игра|настольные\s+игры|настолк\w*|монополия|дженга|имаджинариум)\b", re.I), "board_games"),
@@ -443,12 +443,15 @@ _TITLE_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
     (re.compile(r"\b(монитор|дисплей|studio\s+display|pro\s+display\s+xdr)\b", re.I), "monitors"),
 
     # Hardware Components
-    (re.compile(r"^\W*(?:компьютерный\s+)?корпус\b|\bблок\s+питания\s+(?:пк|для\s+пк|atx)\b|\bкулер\s+для\s+процессора\b", re.I), "pc_components"),
+    (re.compile(r"\b(блок\s+питания|бп\s+\d+|power\s+supply|источник\s+питания)\b", re.I), "psu"),
+    (re.compile(r"\b(компьютерный\s+корпус|корпус\s+для\s+пк|корпус\s+пк|системный\s+блок\s+без\s+бп)\b|^\W*корпус\b", re.I), "pc_cases"),
+    (re.compile(r"\b(кулер|систем[аы]\s+(?:водяного\s+)?охлаждения|сжо|сво|вентилятор\s+для\s+корпуса|термопаста|cpu\s+cooler)\b", re.I), "cooling"),
     (re.compile(r"\b(маршрутизатор|роутер|mesh-систем\w*|точка\s+доступа|коммутатор)\b", re.I), "network"),
     (re.compile(r"\b(мфу|принтер|плоттер)\b", re.I), "printers"),
     (re.compile(r"\b(видеокарт(?:а|ы)|geforce\s+rtx|radeon\s+rx|графический\s+процессор)\b", re.I), "gpus"),
     (re.compile(r"\b(процессор|intel\s+core|amd\s+ryzen)\b", re.I), "cpus"),
     (re.compile(r"\b(материнск(?:ая|ие)\s+плат(?:а|ы)|motherboard)\b", re.I), "motherboards"),
+    (re.compile(r"\b(комплектующие\s+для\s+пк|райзер|термопрокладк\w*)\b", re.I), "pc_components"),
 
 
     # Appliances & Home

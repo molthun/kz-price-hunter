@@ -163,8 +163,17 @@ MASTER_TAXONOMY: List[Category] = [
         aliases=["игровые приставки", "консоли", "playstation", "ps5", "ps4", "xbox", "nintendo switch"],
     ),
     Category(
-        id="gpus",
+        id="pc_components",
         parent_id="electronics",
+        name="Комплектующие для ПК",
+        icon="🧩",
+        search_priority=85,
+        aliases=["комплектующие для пк", "комплектующие", "запчасти для пк", "комплектующие пк", "pc components", "pc parts"],
+        attributes_schema={"power": "string", "form_factor": "string", "socket": "string", "chipset": "string", "vram": "string", "ram": "string", "storage": "string", "color": "string"},
+    ),
+    Category(
+        id="gpus",
+        parent_id="pc_components",
         name="Видеокарты",
         icon="🎮",
         search_priority=84,
@@ -173,7 +182,7 @@ MASTER_TAXONOMY: List[Category] = [
     ),
     Category(
         id="cpus",
-        parent_id="electronics",
+        parent_id="pc_components",
         name="Процессоры",
         icon="⚙️",
         search_priority=83,
@@ -182,11 +191,66 @@ MASTER_TAXONOMY: List[Category] = [
     ),
     Category(
         id="motherboards",
-        parent_id="electronics",
+        parent_id="pc_components",
         name="Материнские платы",
         icon="🔌",
         search_priority=80,
         aliases=["материнские платы", "материнки", "motherboards", "mainboards"],
+        attributes_schema={"socket": "string", "chipset": "string", "form_factor": "string"},
+    ),
+    Category(
+        id="psu",
+        parent_id="pc_components",
+        name="Блоки питания",
+        icon="🔌",
+        search_priority=82,
+        aliases=["блоки питания", "блок питания", "бп", "power supply", "psu", "блок питания для пк", "источники питания"],
+        attributes_schema={"power": "string", "form_factor": "string", "color": "string"},
+    ),
+    Category(
+        id="pc_cases",
+        parent_id="pc_components",
+        name="Корпуса",
+        icon="🖥",
+        search_priority=82,
+        aliases=["корпуса", "корпус", "компьютерный корпус", "корпус для пк", "системный блок", "pc cases", "case", "cases"],
+        attributes_schema={"form_factor": "string", "color": "string", "material": "string"},
+    ),
+    Category(
+        id="cooling",
+        parent_id="pc_components",
+        name="Охлаждение и кулеры",
+        icon="❄️",
+        search_priority=81,
+        aliases=["кулеры", "кулер", "охлаждение", "системы охлаждения", "кулеры для процессора", "вентиляторы для корпуса", "сжо", "сво", "водяное охлаждение", "термопаста", "cpu cooler", "cooling"],
+        attributes_schema={"socket": "string", "type": "string", "power": "string", "color": "string"},
+    ),
+    Category(
+        id="ram",
+        parent_id="pc_components",
+        name="Оперативная память",
+        icon="🧠",
+        search_priority=82,
+        aliases=["оперативная память", "модули памяти", "ram", "dimm", "sodimm", "udimm"],
+        attributes_schema={"ram": "string", "memory_type": "string", "frequency": "string"},
+    ),
+    Category(
+        id="storage",
+        parent_id="pc_components",
+        name="SSD накопители",
+        icon="💾",
+        search_priority=78,
+        aliases=["ssd диски", "ssd", "ssd накопители", "твердотельные накопители"],
+        attributes_schema={"storage": "string", "form_factor": "string"},
+    ),
+    Category(
+        id="hdd",
+        parent_id="pc_components",
+        name="Жесткие диски HDD",
+        icon="💽",
+        search_priority=77,
+        aliases=["hdd", "жесткие диски", "жёсткие диски", "жесткий диск", "жёсткий диск", "винчестеры"],
+        attributes_schema={"storage": "string", "form_factor": "string"},
     ),
     Category(
         id="monitors",
@@ -195,19 +259,6 @@ MASTER_TAXONOMY: List[Category] = [
         icon="🖥",
         search_priority=82,
         aliases=["мониторы", "дисплеи", "компьютерные мониторы", "monitors"],
-    ),
-    Category(
-        id="storage",
-        parent_id="electronics",
-        name="SSD накопители",
-        icon="💾",
-        search_priority=78,
-        aliases=["ssd диски", "ssd", "ssd накопители", "твердотельные накопители"],
-    ),
-    Category(
-        id="hdd", parent_id="electronics", name="Жесткие диски HDD", icon="💽",
-        search_priority=77,
-        aliases=["hdd", "жесткие диски", "жёсткие диски", "жесткий диск", "жёсткий диск", "винчестеры"],
     ),
     Category(
         id="removable_storage", parent_id="electronics", name="Флешки и карты памяти", icon="💾",
@@ -223,22 +274,6 @@ MASTER_TAXONOMY: List[Category] = [
         aliases=[
             "клавиатуры", "мыши", "компьютерные мыши", "клавиатуры и мыши", "периферия",
         ],
-    ),
-    Category(
-        id="pc_components",
-        parent_id="electronics",
-        name="Комплектующие для ПК",
-        icon="🧩",
-        search_priority=82,
-        aliases=["корпуса", "корпус", "блоки питания", "блок питания", "кулеры", "кулеры для процессора", "охлаждение", "системы охлаждения"],
-    ),
-    Category(
-        id="ram",
-        parent_id="electronics",
-        name="Оперативная память",
-        icon="🧠",
-        search_priority=82,
-        aliases=["оперативная память", "модули памяти", "ram", "dimm", "sodimm", "udimm"],
     ),
     Category(
         id="network",
@@ -991,6 +1026,13 @@ class TaxonomyMapper:
             return self._categories.get(best_cat_id)
 
         return None
+
+    def get_children(self, category_id: str) -> List[Category]:
+        """
+        Возвращает список активных прямых дочерних категорий.
+        """
+        child_ids = self._children_map.get(category_id, [])
+        return [self._categories[cid] for cid in child_ids if cid in self._categories and self._categories[cid].is_active]
 
     def get_subtree_ids(self, category_id: str) -> Set[str]:
         """

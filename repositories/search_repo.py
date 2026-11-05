@@ -764,7 +764,13 @@ class SearchRepository(BaseRepository):
                 m = CategoryRepository(self.conn).get_mapper()
                 t_cat = m.map_category(raw_c) or m.get_by_id(raw_c)
                 if t_cat:
-                    facet_cat_for_group = t_cat.parent_id if t_cat.parent_id else t_cat.id
+                    children = m.get_children(t_cat.id)
+                    if children:
+                        # Если у категории есть дочерние подкатегории, фасеты строим по ней (показываем детей)
+                        facet_cat_for_group = t_cat.id
+                    else:
+                        # Если категория листовая, показываем сестринские подкатегории под тем же родителем
+                        facet_cat_for_group = t_cat.parent_id if t_cat.parent_id else t_cat.id
             except Exception:
                 facet_cat_for_group = None
 
@@ -858,9 +864,29 @@ class SearchRepository(BaseRepository):
                     ORDER BY p_count DESC
                     LIMIT 10
                 ''', base_values)
+                cat_id_for_suppression = None
+                if arguments.get('category'):
+                    try:
+                        from repositories.category_repo import CategoryRepository
+                        m_sup = CategoryRepository(self.conn).get_mapper()
+                        c_obj = m_sup.map_category(arguments['category']) or m_sup.get_by_id(arguments['category'])
+                        if c_obj:
+                            cat_id_for_suppression = c_obj.id
+                    except Exception:
+                        cat_id_for_suppression = None
+
+                incompatible_keys: Set[str] = set()
+                if cat_id_for_suppression:
+                    # Музыка/книги атрибуты не должны появляться в электронике и комплектующих
+                    if cat_id_for_suppression in ('electronics', 'pc_components', 'psu', 'pc_cases', 'cooling', 'gpus', 'cpus', 'motherboards', 'ram', 'storage', 'hdd', 'phones', 'laptops', 'tablets', 'monitors', 'tv'):
+                        incompatible_keys.update({'format', 'artist', 'genre', 'author', 'publisher', 'cover_type', 'diaper_type', 'diaper_size', 'weight_range', 'pieces_count'})
+                    # Детские товары атрибуты не должны появляться в электронике
+                    if cat_id_for_suppression in ('electronics', 'pc_components', 'psu', 'pc_cases', 'cooling', 'gpus', 'cpus', 'motherboards'):
+                        incompatible_keys.update({'cleaning_type', 'dust_collector_type', 'refrigeration_defrost', 'defrost_system', 'load_capacity', 'spin_speed'})
+
                 for r in top_keys:
                     k = r['key']
-                    if k in ATTRIBUTE_LABELS and k not in full_schema and r['p_count'] >= 1:
+                    if k in ATTRIBUTE_LABELS and k not in full_schema and r['p_count'] >= 1 and k not in incompatible_keys:
                         full_schema[k] = {'label': ATTRIBUTE_LABELS.get(k, k)}
             except Exception:
                 pass
@@ -875,6 +901,18 @@ class SearchRepository(BaseRepository):
             'washing_machines': ['load_capacity', 'spin_speed', 'energy_class', 'program_count', 'installation_type', 'color'],
             'vacuums': ['type', 'cleaning_type', 'dust_collector_type', 'power', 'color'],
             'kitchen_appliances': ['type', 'power', 'capacity', 'color'],
+            'psu': ['power', 'form_factor', 'color'],
+            'pc_cases': ['form_factor', 'color', 'material'],
+            'cooling': ['type', 'socket', 'power', 'color'],
+            'gpus': ['vram', 'chipset', 'interface'],
+            'cpus': ['socket', 'cores', 'frequency'],
+            'motherboards': ['socket', 'chipset', 'form_factor'],
+            'ram': ['ram', 'memory_type', 'frequency'],
+            'storage': ['storage', 'form_factor'],
+            'hdd': ['storage', 'form_factor'],
+            'pc_components': ['power', 'form_factor', 'socket', 'chipset', 'vram', 'ram', 'storage', 'color'],
+            'vinyl': ['artist', 'format', 'genre', 'release_year'],
+            'books': ['author', 'genre', 'publisher', 'cover_type', 'release_year'],
         }
         order = priority_orders.get(cat_key, [])
         if not order and parsed.attributes.get('diaper_type'):

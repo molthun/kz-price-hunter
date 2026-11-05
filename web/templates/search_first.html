@@ -6677,18 +6677,21 @@
             title: 'Комплектующие для ПК',
             icon: '⚙️',
             items: [
+              { id: 'pc_components', name: 'Комплектующие для ПК', icon: '🧩' },
+              { id: 'psu', name: 'Блоки питания', icon: '🔌' },
+              { id: 'pc_cases', name: 'Корпуса', icon: '🖥' },
+              { id: 'cooling', name: 'Охлаждение и кулеры', icon: '❄️' },
               { id: 'gpus', name: 'Видеокарты', icon: '🎮' },
               { id: 'cpus', name: 'Процессоры', icon: '⚙️' },
               { id: 'motherboards', name: 'Материнские платы', icon: '🔌' },
-              { id: 'pc_components', name: 'Комплектующие для ПК', icon: '🧩' },
               { id: 'ram', name: 'Оперативная память', icon: '🧠' },
+              { id: 'storage', name: 'SSD накопители', icon: '💾' },
+              { id: 'hdd', name: 'Жесткие диски HDD', icon: '💽' },
+              { id: 'removable_storage', name: 'Флешки и карты памяти', icon: '💾' },
               { id: 'network', name: 'Сетевое оборудование', icon: '📡' },
               { id: 'printers', name: 'Принтеры и МФУ', icon: '🖨' },
               { id: 'power', name: 'ИБП и питание', icon: '🔋' },
-              { id: 'software', name: 'Программы', icon: '💿' },
-              { id: 'storage', name: 'SSD накопители', icon: '💾' },
-              { id: 'hdd', name: 'Жесткие диски HDD', icon: '💽' },
-              { id: 'removable_storage', name: 'Флешки и карты памяти', icon: '💾' }
+              { id: 'software', name: 'Программы', icon: '💿' }
             ]
           },
           {
@@ -7569,11 +7572,28 @@
       if (CATALOG_STRUCTURE[value]) return CATALOG_STRUCTURE[value].name;
       for (const root of Object.values(CATALOG_STRUCTURE)) {
         for (const group of root.groups) {
-          const item = group.items.find(i => i.id === value);
+          const item = group.items.find(i => i.id === value || i.name === value);
           if (item) return item.name;
         }
       }
       return value;
+    }
+
+    function categoryParentGroup(value) {
+      if (!value) return null;
+      for (const root of Object.values(CATALOG_STRUCTURE)) {
+        for (const group of root.groups) {
+          const item = group.items.find(i => i.id === value || i.name === value);
+          if (item) {
+            return {
+              groupTitle: group.title,
+              isDirectGroup: item.name === group.title || item.id === 'pc_components',
+              rootName: root.name
+            };
+          }
+        }
+      }
+      return null;
     }
 
     function renderCategoryFacetGroup(listEl, categoryFacets) {
@@ -7581,16 +7601,27 @@
       const current = AppState.category ? categoryDisplayName(AppState.category) : '';
       const isRoot = Boolean(CATALOG_STRUCTURE[AppState.category]) ||
         Object.values(CATALOG_STRUCTURE).some(root => root.name === current);
+      const isParentGroup = isRoot || (AppState.category === 'pc_components' || current === 'Комплектующие для ПК');
       // Товары, лежащие прямо в выбранном разделе, не повторяют его название строкой ниже
       const items = (categoryFacets || [])
         .map(f => ({ value: f.name || f.id, name: f.name || f.id, count: f.count }))
-        .filter(f => !(isRoot && f.name === current));
+        .filter(f => !(isParentGroup && f.name === current));
 
       const selected = items.some(f => f.value === AppState.category) ? AppState.category : current;
-      let html = current && isRoot ? `<div class="filter-cat-current">${escapeHtml(current)}</div>` : '';
+      let html = '';
+      if (current && isParentGroup) {
+        html += `<div class="filter-cat-current">${escapeHtml(current)}</div>`;
+      } else if (current && !isRoot) {
+        const parentInfo = categoryParentGroup(AppState.category);
+        if (parentInfo && parentInfo.groupTitle && parentInfo.groupTitle !== current) {
+          html += `<div style="margin-bottom:6px;"><a href="javascript:void(0)" onclick="onCategoryFacetSelected('${escapeHtml(parentInfo.groupTitle)}')" style="color:var(--primary); font-size:0.82rem; text-decoration:none; font-weight:500;">← ${escapeHtml(parentInfo.groupTitle)}</a></div>`;
+        }
+        html += `<div class="filter-cat-current">${escapeHtml(current)}</div>`;
+      }
+
       if (items.length) {
         html += facetRowHtml('facetCategory', 'onCategoryFacetSelected', selected, '', 'Все категории', null)
-          + facetRowsHtml('facetCategory', 'onCategoryFacetSelected', selected, items, 10);
+          + facetRowsHtml('facetCategory', 'onCategoryFacetSelected', selected, items, 15);
       } else if (current) {
         html += facetRowHtml('facetCategory', 'onCategoryFacetSelected', selected, '', 'Все категории', null);
       } else {

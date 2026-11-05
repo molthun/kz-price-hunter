@@ -318,6 +318,43 @@ class TestCatalogClassifier(unittest.TestCase):
         self.assertEqual(res4.category_name, "Сувениры и подарки")
         self.assertNotEqual(res4.category_id, "electronics")
 
+    def test_pc_components_classification_and_attributes(self):
+        """Проверяет точную классификацию БП, корпусов, охлаждения и исключение ложного винила LP."""
+        from domain.attribute_indexing import extract_title_attributes
+
+        # 1. Блоки питания
+        psu = self.classifier.classify_rules("Блок питания ATX 850W Asus ROG-THOR-850P")
+        self.assertIsNotNone(psu)
+        self.assertEqual(psu.category_id, "psu")
+        self.assertEqual(psu.brand, "ASUS")
+        psu_attrs = extract_title_attributes("Блок питания ATX 850W Asus ROG-THOR-850P")
+        self.assertEqual(psu_attrs.get("power"), "850 Вт")
+        self.assertEqual(psu_attrs.get("form_factor"), "ATX")
+        self.assertNotIn("format", psu_attrs)
+
+        # 2. Корпуса
+        pc_case = self.classifier.classify_rules("Корпус Lian Li Lancool 216 RGB Black")
+        self.assertIsNotNone(pc_case)
+        self.assertEqual(pc_case.category_id, "pc_cases")
+        self.assertEqual(pc_case.brand, "Lian Li")
+
+        # 3. Охлаждение: кулер с суффиксом LP (Low Profile) не должен определяться как винил LP!
+        cooler = self.classifier.classify_rules("Кулер be quiet! Shadow Rock LP")
+        self.assertIsNotNone(cooler)
+        self.assertEqual(cooler.category_id, "cooling")
+        self.assertEqual(cooler.brand, "be quiet!")
+        cooler_attrs = extract_title_attributes("Кулер be quiet! Shadow Rock LP")
+        self.assertEqual(cooler_attrs.get("type"), "Воздушный кулер")
+        self.assertNotIn("format", cooler_attrs)
+
+        # 4. СЖО
+        aio = self.classifier.classify_rules("Система водяного охлаждения Deepcool LS720 ARGB")
+        self.assertIsNotNone(aio)
+        self.assertEqual(aio.category_id, "cooling")
+        self.assertEqual(aio.brand, "DeepCool")
+        aio_attrs = extract_title_attributes("Система водяного охлаждения Deepcool LS720 ARGB")
+        self.assertEqual(aio_attrs.get("type"), "СЖО (водяное)")
+
 
 if __name__ == "__main__":
     unittest.main()

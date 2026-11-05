@@ -522,8 +522,57 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
         elif 'моющий' in title_lower:
             attrs['cleaning_type'] = 'Влажная'
 
-    # 8. Винил и музыкальные носители
-    if re.search(r'\b(винил(?:овая\s+пластинка|\s+lp)?|виниловые\s+пластинки|грампластинк\w*|\b\d?lp\b)\b', title, re.I):
+    # 8. Комплектующие для ПК (БП, корпуса, охлаждение)
+    is_pc_part = any(k in title_lower for k in [
+        'кулер', 'охлаждени', 'cooler', 'вентилятор', 'блок питания', 'бп ', 'корпус',
+        'видеокарт', 'geforce', 'rtx', 'radeon', 'материнск', 'процессор', 'socket',
+        'lga', 'am4', 'am5', 'ddr4', 'ddr5', 'b650', 'b760', 'z790'
+    ])
+
+    if is_pc_part:
+        # Мощность БП (ватты)
+        m_power = re.search(r'\b(\d{3,4})\s*(?:w|вт|watt)\b', title, re.I)
+        if m_power:
+            w_val = int(m_power.group(1))
+            if 150 <= w_val <= 3000:
+                attrs['power'] = f"{w_val} Вт"
+
+        # Форм-фактор корпуса / матплаты / БП
+        m_ff = re.search(r'\b(mid-?tower|mini-?tower|full-?tower|micro-?atx|matx|mini-?itx|mitx|e-?atx|atx|sfx-l|sfx)\b', title, re.I)
+        if m_ff:
+            ff_raw = m_ff.group(1).lower().replace('-', '')
+            ff_map = {
+                'midtower': 'Mid-Tower',
+                'minitower': 'Mini-Tower',
+                'fulltower': 'Full-Tower',
+                'microatx': 'Micro-ATX',
+                'matx': 'Micro-ATX',
+                'miniitx': 'Mini-ITX',
+                'mitx': 'Mini-ITX',
+                'eatx': 'E-ATX',
+                'atx': 'ATX',
+                'sfxl': 'SFX-L',
+                'sfx': 'SFX',
+            }
+            if ff_raw in ff_map:
+                attrs['form_factor'] = ff_map[ff_raw]
+
+        # Тип охлаждения
+        if any(k in title_lower for k in ['сжо', 'сво', 'водяного охлаждения', 'жидкостн']):
+            attrs['type'] = 'СЖО (водяное)'
+        elif 'кулер' in title_lower:
+            attrs['type'] = 'Воздушный кулер'
+        elif 'вентилятор для корпуса' in title_lower or 'корпусный вентилятор' in title_lower:
+            attrs['type'] = 'Вентилятор для корпуса'
+
+        # Сокет
+        m_sock = re.search(r'\b(lga\s*\d{4}|am[45]|str5|tr4)\b', title, re.I)
+        if m_sock:
+            sock_val = m_sock.group(1).upper()
+            attrs['socket'] = sock_val.replace('LGA', 'LGA ')
+
+    # 9. Винил и музыкальные носители (только если не комплектующие ПК)
+    if not is_pc_part and re.search(r'\b(?:винил(?:овая\s+пластинка|\s+lp)?|виниловые\s+пластинки|грампластинк\w*|\b2lp\b|\b\d?lp(?=\s*(?:диск|пластинк|альбом|repress|remaster|edition|soundtrack|vinyl|\(|$)))\b', title, re.I):
         if re.search(r'\b2lp\b', title, re.I):
             attrs['format'] = '2LP'
         elif re.search(r'\blp\b|винил', title, re.I):
