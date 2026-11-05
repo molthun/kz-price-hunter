@@ -120,6 +120,12 @@ class StoreDealsDbTest(unittest.TestCase):
         res_super = database.get_store_deals(deal_type="super")
         self.assertEqual(res_super["total"], 2)
 
+        # 'observed' -> p2 и p3 (подтверждено наблюдениями)
+        res_obs = database.get_store_deals(deal_type="observed")
+        self.assertEqual(res_obs["total"], 2)
+        obs_ids = {d["id"] for d in res_obs["deals"]}
+        self.assertEqual(obs_ids, {"p_p2", "p_p3"})
+
     def test_get_store_deals_sort_by(self):
         # savings_desc: алерт 1 (50000) > p2 (30000) > p3 (15000)
         res_sav = database.get_store_deals(sort_by="savings_desc")

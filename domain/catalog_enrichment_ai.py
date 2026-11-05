@@ -383,6 +383,9 @@ def batch_enrich_catalog(
     ollama_model: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Пакетное обогащение товаров каталога с паузами и контролем нагрузки."""
+    if hasattr(conn, "executescript"):
+        conn.executescript(DDL_ATTRIBUTES)
+
     cur = conn.cursor()
 
     where_clauses = []

@@ -4070,6 +4070,43 @@ async def category_ai_sort_background_worker(app):
             await asyncio.sleep(60.0)
 
 
+async def catalog_enrichment_background_worker(app):
+    """Фоновое обогащение характеристик товаров каталога (правила + Ollama).
+    Работает небольшими пачками по 15 товаров с паузами, контролируя нагрузку на сервер.
+    """
+    from domain.catalog_enrichment_ai import batch_enrich_catalog, can_use_local_ai
+    from database import get_connection
+
+    # Пауза при старте приложения для стабилизации фоновых процессов
+    await asyncio.sleep(45.0)
+
+    while True:
+        try:
+            can_run_ai, _ = can_use_local_ai()
+
+            def _step():
+                with get_connection() as conn:
+                    return batch_enrich_catalog(
+                        conn,
+                        limit=15,
+                        use_ai=can_run_ai,
+                        pause_between_ai_calls=0.5,
+                        force=False,
+                    )
+
+            stats = await asyncio.to_thread(_step)
+            if stats.get("enriched", 0) > 0:
+                print(f"[CatalogEnrichmentAI] Обогащено товаров: {stats['enriched']}/{stats['processed']} (правила: {stats['by_rule']}, ИИ: {stats['by_ai']})")
+                await asyncio.sleep(30.0)
+            else:
+                await asyncio.sleep(180.0)
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            print(f"[CatalogEnrichmentAI] Ошибка фонового обогащения: {type(e).__name__}")
+            await asyncio.sleep(120.0)
+
+
 def get_categories_overview():
     """Возвращает информацию обо всех мастер-категориях: количество товаров в базе, статус волн, магазины."""
     from database import get_connection
@@ -6026,6 +6063,7 @@ async def background_tasks(app):
         asyncio.create_task(disputed_pairs_background_worker(app)),
         asyncio.create_task(category_ai_sort_background_worker(app)),
         asyncio.create_task(product_evidence_background_worker()),
+        asyncio.create_task(catalog_enrichment_background_worker(app)),
         asyncio.create_task(family_refresh_background_worker(app)),
         asyncio.create_task(freshness_reaper_background_worker(app)),
         asyncio.create_task(notification_worker()),

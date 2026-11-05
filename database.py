@@ -4988,6 +4988,7 @@ def get_store_deals(
             dedup[k] = d
 
     all_deals = list(dedup.values())
+    _annotate_deals(all_deals)
 
     # Подсчёт магазинов ДО фильтрации по конкретному магазину (чтобы пользователь видел счётчики всех сетей)
     from collections import Counter
@@ -5020,18 +5021,24 @@ def get_store_deals(
     def _is_arbitrage(d):
         return d["alert_type"] in ("MARKET_ARBITRAGE", "ARBITRAGE")
 
+    def _is_observed(d):
+        return d.get("price_basis") == DEAL_BASIS_OBSERVED
+
     # Разбивка по типам — по тому же набору после склейки и тех же фильтрах списка (город, магазин, категория,
     # поиск), но до выбора вкладки и страницы (P04 E01): счётчик вкладки равен её же total при тех же фильтрах
     type_totals = {
         "all": len(filtered),
         "super": sum(1 for d in filtered if _is_super(d)),
         "arbitrage": sum(1 for d in filtered if _is_arbitrage(d)),
+        "observed": sum(1 for d in filtered if _is_observed(d)),
     }
 
     if deal_type == "super":
         filtered = [d for d in filtered if _is_super(d)]
     elif deal_type == "arbitrage":
         filtered = [d for d in filtered if _is_arbitrage(d)]
+    elif deal_type == "observed":
+        filtered = [d for d in filtered if _is_observed(d)]
 
     # Сортировка
     if sort_by == "random":
@@ -5047,7 +5054,6 @@ def get_store_deals(
 
     total_count = len(filtered)
     page_items = filtered[offset : offset + limit]
-    _annotate_deals(page_items)
 
     return {
         "deals": page_items,

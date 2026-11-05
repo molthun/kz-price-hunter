@@ -1999,7 +1999,13 @@
       box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
     }
 
-    #dealsCategorySelect {
+    .deals-selectors-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .deals-select {
       padding: 7px 14px;
       border-radius: var(--radius-full);
       border: 1px solid var(--border-color);
@@ -2010,10 +2016,11 @@
       cursor: pointer;
       outline: none;
       transition: all 0.2s ease;
+      white-space: nowrap;
     }
 
-    #dealsCategorySelect:hover,
-    #dealsCategorySelect:focus {
+    .deals-select:hover,
+    .deals-select:focus {
       border-color: var(--primary);
     }
 
@@ -2039,21 +2046,20 @@
         margin: 0;
         width: 100%;
         display: flex;
-        align-items: center;
-        gap: 6px;
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
-        -ms-overflow-style: none;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
       }
 
       .deals-type-pills {
         display: flex;
         gap: 6px;
-        flex-shrink: 0;
-        overflow-x: visible;
-        padding-bottom: 0;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        padding-bottom: 2px;
+        width: 100%;
       }
 
       .deal-type-pill {
@@ -2062,13 +2068,22 @@
         flex-shrink: 0;
       }
 
-      #dealsCategorySelect {
-        flex-shrink: 0;
-        height: 31px;
-        padding: 4px 10px;
+      .deals-selectors-group {
+        display: flex;
+        gap: 6px;
+        width: 100%;
+        align-items: center;
+      }
+
+      .deals-select {
+        flex: 1 1 50%;
+        min-width: 0;
+        height: 32px;
+        padding: 4px 8px;
         font-size: 0.78rem;
         font-weight: 600;
         border-radius: var(--radius-full);
+        text-overflow: ellipsis;
       }
 
       .deals-reels-wrapper {
@@ -5260,19 +5275,34 @@
     <section id="viewDeals" class="view-section">
       <div class="deals-page-layout">
         <div class="deals-filter-bar">
-          <div class="deals-type-pills">
-            <button class="deal-type-pill active" data-type="all" onclick="setDealsType(this, 'all')">🔥 Все скидки</button>
-            <button class="deal-type-pill" data-type="super" onclick="setDealsType(this, 'super')">⚡ Супер 30%+</button>
-            <button class="deal-type-pill" data-type="arbitrage" onclick="setDealsType(this, 'arbitrage')">⚖️ Арбитраж</button>
+          <div class="deals-type-pills" id="dealsTypePills">
+            <button class="deal-type-pill active" data-type="all" data-min-discount="0" onclick="setDealsType(this, 'all', 0)">🔥 Все</button>
+            <button class="deal-type-pill" data-type="all" data-min-discount="20" onclick="setDealsType(this, 'all', 20)">⚡ 20%+</button>
+            <button class="deal-type-pill" data-type="super" data-min-discount="30" onclick="setDealsType(this, 'super', 30)">⚡ 30%+</button>
+            <button class="deal-type-pill" data-type="all" data-min-discount="50" onclick="setDealsType(this, 'all', 50)">💥 50%+</button>
+            <button class="deal-type-pill" data-type="arbitrage" data-min-discount="0" onclick="setDealsType(this, 'arbitrage', 0)">⚖️ Арбитраж</button>
+            <button class="deal-type-pill" data-type="observed" data-min-discount="0" onclick="setDealsType(this, 'observed', 0)">✓ Проверенные</button>
           </div>
-          <select id="dealsCategorySelect" onchange="onDealsCategoryChanged(this.value)">
-            <option value="Все">🏷️ Все категории</option>
-            <option value="Смартфоны">Смартфоны</option>
-            <option value="Ноутбуки">Ноутбуки</option>
-            <option value="Наушники">Наушники</option>
-            <option value="Телевизоры">Телевизоры</option>
-            <option value="Детские товары">Детские товары</option>
-          </select>
+          <div class="deals-selectors-group">
+            <select id="dealsSortSelect" class="deals-select" onchange="onDealsSortChanged(this.value)" aria-label="Сортировка скидок">
+              <option value="random">🎲 Случайно</option>
+              <option value="discount_desc">📉 По скидке %</option>
+              <option value="savings_desc">💰 По выгоде ₸</option>
+              <option value="price_asc">🏷️ Сначала дешевле</option>
+            </select>
+            <select id="dealsCategorySelect" class="deals-select" onchange="onDealsCategoryChanged(this.value)" aria-label="Категория скидок">
+              <option value="Все">🏷️ Все категории</option>
+              <option value="Смартфоны">📱 Смартфоны</option>
+              <option value="Ноутбуки">💻 Ноутбуки</option>
+              <option value="Комплектующие для ПК">🖥️ Комплектующие для ПК</option>
+              <option value="Видеокарты">🎮 Видеокарты</option>
+              <option value="Наушники">🎧 Наушники</option>
+              <option value="Телевизоры">📺 Телевизоры</option>
+              <option value="Бытовая техника">🍳 Бытовая техника</option>
+              <option value="Детские товары">👶 Детские товары</option>
+              <option value="Автотовары">🛞 Автотовары</option>
+            </select>
+          </div>
         </div>
 
         <div class="deals-reels-wrapper">
@@ -9409,6 +9439,8 @@
     const DealsFeedState = {
       seed: 0,
       type: 'all',
+      minDiscount: 0,
+      sort: 'random',
       category: 'Все',
       items: [],
       offset: 0,
@@ -9425,6 +9457,8 @@
       const ctrl = new AbortController();
       DealsFeedState.abortCtrl = ctrl;
       const isCurrent = () => DealsFeedState.abortCtrl === ctrl;
+
+      populateDealsCategories();
 
       if (reset) {
         // Каждое открытие — новый порядок; внутри одного просмотра он не меняется
@@ -9450,8 +9484,11 @@
         if (AppState.city && AppState.city !== 'Все') params.set('city', AppState.city);
         if (DealsFeedState.category && DealsFeedState.category !== 'Все') params.set('category', DealsFeedState.category);
         if (DealsFeedState.type && DealsFeedState.type !== 'all') params.set('type', DealsFeedState.type);
-        params.set('sort', 'random');
-        params.set('seed', DealsFeedState.seed);
+        if (DealsFeedState.minDiscount && DealsFeedState.minDiscount > 0) params.set('min_discount', DealsFeedState.minDiscount);
+        params.set('sort', DealsFeedState.sort || 'random');
+        if (DealsFeedState.sort === 'random') {
+          params.set('seed', DealsFeedState.seed);
+        }
         params.set('limit', DealsFeedState.limit);
         params.set('offset', DealsFeedState.offset);
 
@@ -9751,10 +9788,16 @@
       }
     }
 
-    function setDealsType(btn, type) {
+    function setDealsType(btn, type, minDiscount = 0) {
       document.querySelectorAll('.deal-type-pill').forEach(el => el.classList.remove('active'));
       if (btn) btn.classList.add('active');
       DealsFeedState.type = type;
+      DealsFeedState.minDiscount = Number(minDiscount) || 0;
+      loadDealsFeed(true);
+    }
+
+    function onDealsSortChanged(sort) {
+      DealsFeedState.sort = sort || 'random';
       loadDealsFeed(true);
     }
 
@@ -9763,13 +9806,52 @@
       loadDealsFeed(true);
     }
 
+    function populateDealsCategories() {
+      const select = document.getElementById('dealsCategorySelect');
+      if (!select || select.dataset.populated === 'true') return;
+      if (typeof CATALOG_STRUCTURE === 'undefined') return;
+
+      const seen = new Set();
+      const options = [{ name: 'Все', label: '🏷️ Все категории' }];
+
+      for (const [rId, root] of Object.entries(CATALOG_STRUCTURE)) {
+        if (!seen.has(root.name)) {
+          seen.add(root.name);
+          options.push({ name: root.name, label: `${root.icon || '📁'} ${root.name}` });
+        }
+        if (root.groups) {
+          for (const g of root.groups) {
+            if (g.items) {
+              for (const it of g.items) {
+                if (!seen.has(it.name)) {
+                  seen.add(it.name);
+                  options.push({ name: it.name, label: `   ${it.name}` });
+                }
+              }
+            }
+          }
+        }
+      }
+
+      select.innerHTML = options.map(o => `<option value="${escapeHtml(o.name)}">${escapeHtml(o.label)}</option>`).join('');
+      select.dataset.populated = 'true';
+      if (DealsFeedState.category) {
+        select.value = DealsFeedState.category;
+      }
+    }
+
     function resetDealsFilters() {
       DealsFeedState.type = 'all';
+      DealsFeedState.minDiscount = 0;
+      DealsFeedState.sort = 'random';
       DealsFeedState.category = 'Все';
       const catSelect = document.getElementById('dealsCategorySelect');
       if (catSelect) catSelect.value = 'Все';
+      const sortSelect = document.getElementById('dealsSortSelect');
+      if (sortSelect) sortSelect.value = 'random';
       document.querySelectorAll('.deal-type-pill').forEach(el => {
-        el.classList.toggle('active', el.getAttribute('data-type') === 'all');
+        const isAll = el.getAttribute('data-type') === 'all' && (Number(el.getAttribute('data-min-discount')) || 0) === 0;
+        el.classList.toggle('active', isAll);
       });
       loadDealsFeed(true);
     }
