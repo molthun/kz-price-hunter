@@ -193,10 +193,12 @@ def normalize_attribute_value(key: str, raw_value: Any) -> Optional[str]:
         return None
 
     # Булевы значения
-    if val.casefold() in ('да', 'true', '1', 'есть'):
+    if val.casefold() in ('да', 'true', 'есть'):
         return 'Да'
-    if val.casefold() in ('нет', 'false', '0'):
+    if val.casefold() in ('нет', 'false'):
         return 'Нет'
+    if val in ('1', '0') and key in ('5g', 'nfc', 'studs', 'installment_available', 'credit_available', 'pickup_available', 'is_active', 'has_gift'):
+        return 'Да' if val == '1' else 'Нет'
 
     # Память (ГБ, ТБ)
     if key in ('storage', 'ram', 'vram'):
