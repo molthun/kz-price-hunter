@@ -60,10 +60,10 @@ def run_migration(db_path: str):
         if clf_res and clf_res.category_id == "laptops":
             logger.info(f"Перемещение ноутбука в 'Ноутбуки': [{pid}] {title}")
             c.execute("UPDATE canonical_products SET category = 'Ноутбуки', updated_at = strftime('%s','now') WHERE id = ?", (pid,))
-            c.execute("DELETE FROM product_category_tags WHERE product_id = ?", (pid,))
             c.execute("""
-                INSERT INTO product_category_tags (product_id, category_id, is_primary, confidence, source, created_at)
-                VALUES (?, 'laptops', 1, 1.0, 'fix_catalog_models', strftime('%s','now'))
+                INSERT OR REPLACE INTO product_category_tags
+                (product_id, category_id, source, source_signature, updated_at)
+                VALUES (?, 'laptops', 'rules', 'fix_catalog_models', strftime('%s','now'))
             """, (pid,))
             c.execute("DELETE FROM product_search_attributes WHERE product_id = ? AND key IN ('vram_gb', 'chipset', 'clock_speed', 'interface')", (pid,))
             laptops_moved += 1
@@ -72,10 +72,10 @@ def run_migration(db_path: str):
         if clf_res and clf_res.category_id in ("coolers", "cooling"):
             logger.info(f"Перемещение кулера в 'Охлаждение и кулеры': [{pid}] {title}")
             c.execute("UPDATE canonical_products SET category = 'Охлаждение и кулеры', updated_at = strftime('%s','now') WHERE id = ?", (pid,))
-            c.execute("DELETE FROM product_category_tags WHERE product_id = ?", (pid,))
             c.execute("""
-                INSERT INTO product_category_tags (product_id, category_id, is_primary, confidence, source, created_at)
-                VALUES (?, 'cooling', 1, 1.0, 'fix_catalog_models', strftime('%s','now'))
+                INSERT OR REPLACE INTO product_category_tags
+                (product_id, category_id, source, source_signature, updated_at)
+                VALUES (?, 'cooling', 'rules', 'fix_catalog_models', strftime('%s','now'))
             """, (pid,))
             c.execute("DELETE FROM product_search_attributes WHERE product_id = ? AND key IN ('vram_gb', 'chipset', 'clock_speed', 'interface')", (pid,))
             coolers_moved += 1

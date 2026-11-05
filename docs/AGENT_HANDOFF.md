@@ -2,6 +2,46 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## STAND_DEPLOYED → Владелец: Канонизация моделей видеокарт и удаление производителей из фильтра модели v6.27.4 (2026-11-05)
+
+- Прямое поручение владельца: «Модель в фильтре поправить. туда даже производители попали.» (со скриншотом бокового фильтра «Модель» в разделе `Видеокарты`, где присутствуют `AMD Radeon RX 6600`, `PULSE AMD Radeon RX`, `Swift AMD Radeon RX`, `UDORE GTX1050TI-4GD5`, `Afox GT730`, `V8`, `11350 04`, `LOQ 15ARP9 15 6"` и др.).
+- Исполнитель: Antigravity (основной разработчик).
+- Дата и время: 2026-11-05 16:20 (Asia/Almaty).
+- Срез: ветка `codex/local-ai-catalog-growth`, коммит `591c388`.
+- Область файлов: `catalog_classifier.py`, `domain/storage_types.py`, `repositories/search_repo.py`, `scripts/fix_catalog_models.py`, `tests/test_catalog_classifier.py`, `tests/search/test_attribute_facets_filter.py`, `version.py`, `CHANGELOG.md`, `docs/AGENT_HANDOFF.md`.
+- Реализовано:
+  1. `catalog_classifier.py`:
+     - Добавлена база канонических моделей GPU `CANONICAL_GPU_FAMILIES` (NVIDIA RTX 50/40/30/20, GTX 16/10/900/700/600, GT, Quadro/RTX Ada, AMD Radeon RX 9000/7000/6000/5000/500, Intel Arc).
+     - Реализована функция `canonical_gpu_model(title: str) -> Optional[str]`.
+     - В `extract_clean_model`:
+       - Для видеокарт и запросов с GPU-маркерами извлекается чистая каноническая модель без вендоров (`ASUS`, `MSI`, `Palit`, `Gigabyte`, `UDORE`, `AFOX` и др.).
+       - В очистке `_MODEL_STRIP_PATTERNS` удаляются аппаратные вендоры `_HARDWARE_VENDORS` и серии охлаждения/маркировки (`Dual`, `Ventus`, `OC`, `Windforce`, `Gaming`, `Pulse`, `Eagle`, `GDDR7` и др.).
+       - Отсекаются одиночные имена брендов и технический мусор (`V8`, `11350 04`, `gaming`, `stand`, `holder`).
+     - Исправлен баг границы слова диагоналей дисплея `["”]\b` на `(?:["”]|дюйм\w*|-дюйм\w*|\binch(?:es)?\b)`, благодаря чему ноутбуки (Lenovo LOQ, ThundeRobot, Vivobook, HYDRA) больше не просачиваются в видеокарты.
+     - В `KNOWN_BRANDS` добавлены недостающие бренды GPU: `PNY`, `AFOX`, `UDORE`, `Dicasver`, `Sinotex`, `Peladn`, `Maxsun`, `Yeston`, `SOYO`, `Manli`, `KFA2`, `Galax`, `EVGA`.
+  2. `repositories/search_repo.py`:
+     - Добавлен метод `_build_model_facets`:
+       - Агрегирует модели видеокарт под каноническими названиями (например, `GeForce RTX 5060 Ti` объединяет карточки `RTX 5060 Ti Dual`, `RTX 5060 Ti OC`, `RTX 5060 Ti White OC` и суммирует счетчик товаров).
+       - Полностью исключает производителей (`Palit`, `Inno3D`, `ASUS`, `AMD`, `NVIDIA`) и мусор (`V8`, `11350 04`) из фильтра «Модель».
+     - Расширен `_model_filter`:
+       - При фильтрации по канонической модели (например, `GeForce RTX 5060 Ti`) запрос в базе проверяет `p.model = ? OR p.title LIKE ?`, гарантируя нахождение всех релевантных видеокарт независимо от формата названия у продавца.
+  3. Миграционный скрипт `scripts/fix_catalog_models.py`:
+     - Выполнен на боевой стендовой базе `/app/data/prices.db`:
+       - Перемещено в `Ноутбуки`: 62 товара (`Lenovo LOQ`, `HYDRA`, `ThundeRobot`, `ASUS TUF 15.6"` и др.).
+       - Перемещено в `Охлаждение и кулеры`: 2 товара (`DeepCool AG620`, `Ocypus Delta`).
+       - Канонизировано моделей GPU: 842 товара.
+       - Очищено ошибочных моделей-производителей по всей БД: 6 записей.
+  4. Проверки и верификация на стенде:
+     - Все 293 модульных и интеграционных теста успешно пройдены (`293 passed in 9.84s`).
+     - Контейнер `kzph-stand:local` пересобран и перезапущен на `http://192.168.28.25:35539`.
+     - Сняты контрольные скриншоты Playwright:
+       - `docs/audit_evidence/stand_models_clean_focused.png` — фильтр «Модель» чист: содержит только канонические названия чипов (`GeForce RTX 5060 Ti (88)`, `GeForce RTX 5070 (65)`, `GeForce RTX 5060 (55)`, `GeForce RTX 5080 (49)`, `Radeon RX 9070 XT (29)`), производители отсутствуют, ноутбуков нет.
+       - `docs/audit_evidence/stand_rtx5060ti_filter_result.png` — при клике на `GeForce RTX 5060 Ti` выдача находит все исполнения от Palit, Gigabyte, Zotac, Inno3D, ASUS, MSI.
+- Следующий шаг в очереди дорожной карты: Продолжение плановых задач из `docs/DEVELOPMENT_PLAN.md` (полировка мобильной ленты `/deals` или адаптивный поисковый ассистент).
+
+---
+
+
 ## STAND_DEPLOYED → Владелец: Исправление классификации ноутбуков, держателей и плат видеозахвата v6.27.3 (2026-11-05)
 
 - Прямое поручение владельца: «А что он в видеокартах делает?» (со скриншотом `ASUS ROG Strix SCAR 18 18" / Intel Core Ultra 9 275HX / 64 Гб / SSD 1024 Гб / GeForce RTX 5080 / Win 11 ...`, попавшего в категорию `Видеокарты` с чипсетом `Intel Core Ultra 9 275HX`).
