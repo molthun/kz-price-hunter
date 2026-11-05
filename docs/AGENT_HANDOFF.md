@@ -2,19 +2,31 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## IN_PROGRESS: Пакет 3 (KZPH-G5-06): Автоматическое обогащение канонических товаров характеристиками через локальный AI (Ollama) (2026-11-05)
+## STAND_DEPLOYED → Владелец: Автоматическое обогащение канонических товаров характеристиками через локальный AI (Ollama) v6.27.0 (2026-11-05)
 
 - Прямое поручение владельца: «Давай дальнейшая разработка» -> Выбран вариант «(Recommended) Пакет 3 (KZPH-G5-06): Обогащение характеристик товаров через локальный AI (Ollama) — фоновое извлечение параметров (память, диагональ, цвет, процессор, объем) для фильтров выдачи».
 - Исполнитель: Antigravity (основной разработчик).
-- Дата и время: 2026-11-05 13:44 (Asia/Almaty).
+- Дата и время: 2026-11-05 13:55 (Asia/Almaty).
 - Срез: ветка `codex/local-ai-catalog-growth`.
-- Область файлов: `domain/attribute_indexing.py`, `domain/catalog_enrichment_ai.py`, `scripts/enrich_catalog_ai.py`, `catalog_classifier.py`, `tests/ai/test_catalog_ai_enrichment.py`, `docs/AGENT_HANDOFF.md`.
-- Цель:
-  1. Реализовать модуль обогащения `domain/catalog_enrichment_ai.py`, который извлекает подтверждённые характеристики товаров (память, RAM, экран, процессор, цвет, мощность, объем и т.д.) через локальный AI (Ollama `qwen3-vl:8b-instruct`) с детерминированным fallback на правила и валидацией ключей по `ATTRIBUTE_LABELS`.
-  2. Поддержать политику локального ИИ (`local_ai.mode()` и `gpu_state()`): не нагружать GPU, если запущена игра или AI выключен.
-  3. Сохранять подтверждённые атрибуты в `product_search_attributes` и обновлять `canonical_products.attributes_json`.
-  4. Создать CLI-утилиту `scripts/enrich_catalog_ai.py` для фонового и пакетного обогащения каталога.
-  5. Покрыть тестами `tests/ai/test_catalog_ai_enrichment.py` и провести валидацию на тестовом стенде.
+- Область файлов: `domain/attribute_indexing.py`, `domain/catalog_enrichment_ai.py`, `scripts/enrich_catalog_ai.py`, `version.py`, `CHANGELOG.md`, `tests/ai/test_catalog_ai_enrichment.py`, `docs/AGENT_HANDOFF.md`.
+- Реализовано:
+  1. `domain/catalog_enrichment_ai.py`:
+     - Детерминированные правила (`extract_attributes_from_rules`): мгновенное извлечение характеристик из названий и текстовых описаний.
+     - Локальный AI-анализатор (`extract_attributes_with_local_ai`): вызов Ollama (`qwen3-vl:8b-instruct`) со строгим JSON-промптом для неструктурированных описаний.
+     - Безопасность ресурсов GPU: строгая проверка `can_use_local_ai` (`local_ai.mode()` и `local_ai.gpu_state()`), предотвращающая нагрузку на видеокарту при запущенных играх или отключенном режиме.
+     - Двойное сохранение: запись в `product_search_attributes` (для фасетных фильтров поиска) и обновление `canonical_products.attributes_json` (для отображения характеристик в карточке товара).
+  2. `domain/attribute_indexing.py`:
+     - Расширена нормализация `normalize_attribute_value` для объемов (`total_volume`, `capacity`), форматов винила (`format`).
+     - Исправлено приведение числовых значений (например, `1TB`, размер подгузника `1`): исключено ложное преобразование в булево `'Да'`.
+  3. `scripts/enrich_catalog_ai.py`:
+     - Создана CLI-утилита для пакетного обогащения товаров (`--limit`, `--category`, `--no-ai`, `--force`, `--pause`).
+  4. Тестирование и стенд:
+     - Разработан набор модульных тестов `tests/ai/test_catalog_ai_enrichment.py` (все 7 тестов PASS).
+     - Полный регрессионный прогон 772 тестов проекта (`tests/search/`, `tests/domain/`, `tests/ai/`) — 772 PASSED, 0 FAILED.
+     - Собрано и развернуто на стенде `kzph-stand:local` (`http://192.168.28.25:35539`).
+     - Проведено пробное пакетное обогащение товаров на стендовой БД через `scripts/enrich_catalog_ai.py`: 80 товаров успешно обогащены характеристиками (память, цвет, диагональ, загрузка, No Frost).
+     - Проверена карточка товара на стенде (`/product/prod_01c40cfc4b29ad6e`): блок характеристик корректно отображает «Цвет: Золотистый», «Оперативная память: 12 ГБ», «Встроенная память: 1 ТБ». Скриншот: `docs/audit_evidence/stand_product_enriched_specs.png`.
+- Следующий шаг в очереди дорожной карты: Полировка мобильной ленты скидок (`/deals`) или AI-поисковый консультант по сложным запросам.
 
 ---
 
