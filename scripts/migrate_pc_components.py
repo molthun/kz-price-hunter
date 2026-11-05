@@ -63,7 +63,15 @@ def migrate(db_path: str = "/app/data/prices.db") -> None:
         tl = title.lower()
 
         target_info = None  # (name, id)
-        if 'блок питания' in tl or re.search(r'\bбп\s+\d+', tl) or 'power supply' in tl:
+        # 1. Защита: проверяем, не ноутбук ли это
+        clf_res = CatalogClassifier().classify_rules(title)
+        if clf_res and clf_res.category_id == 'laptops':
+            target_info = ('Ноутбуки', 'laptops')
+        elif any(k in tl for k in ['держатель', 'подставка для видеокарт', 'кронштейн', 'gpu stand']):
+            target_info = ('Корпуса', 'pc_cases')
+        elif any(k in tl for k in ['видеозахват', 'avermedia']):
+            target_info = ('Комплектующие для ПК', 'pc_components')
+        elif 'блок питания' in tl or re.search(r'\bбп\s+\d+', tl) or 'power supply' in tl:
             target_info = ('Блоки питания', 'psu')
         elif any(k in tl for k in ['компьютерный корпус', 'корпус для пк', 'корпус пк', 'корпус']) or tl.startswith('корпус'):
             target_info = ('Корпуса', 'pc_cases')

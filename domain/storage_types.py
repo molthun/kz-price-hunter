@@ -6,7 +6,14 @@ _RAM = re.compile(r'^\W*(?:(?:комплект|набор)\s+)?(?:операти
 _SSD = re.compile(r'\bssd\b|\bтвердотельный\s+накопитель\b', re.I)
 _HDD = re.compile(r'\bhdd\b|\bж[её]стк(?:ий|ие)\s+диск\w*\b|\bвинчестер\b', re.I)
 _REMOVABLE = re.compile(_PREFIX + r'(?:(?:usb[ -]+)?фл[еэ]ш(?:ка|ки|[ -]?(?:накопитель|память|диск))|карта\s+памяти|(?:usb[ -]+)?flash[ -]+(?:drive|memory|карта)|(?:micro\s*sd|sdhc|sdxc)\b)', re.I)
-_DEVICE = re.compile(r'\b(?:ноутбук\w*|laptop|macbook|компьютер\w*|моноблок\w*|системный\s+блок|видеокарт\w*|материнск\w*|motherboard|процессор\w*|радиатор\w*|кулер\w*|адаптер\w*|переходник\w*|корпус\w*|кабел\w*|кабель|бокс\w*|контроллер\w*|док[- ]станци\w*)\b', re.I)
+_DEVICE = re.compile(
+    r'\b(?:ноутбук\w*|laptop|macbook|компьютер\w*|моноблок\w*|системный\s+блок|'
+    r'видеокарт\w*|материнск\w*|motherboard|процессор\w*|радиатор\w*|кулер\w*|'
+    r'адаптер\w*|переходник\w*|корпус\w*|кабел\w*|кабель|бокс\w*|контроллер\w*|док[- ]станци\w*|'
+    r'rog\s+strix|tuf\s+gaming|legion|predator|nitro\s+[5-9v]|victus|omen|thinkpad|ideapad|thinkbook|matebook|magicbook|dream\s+machines)\b|'
+    r'\b(?:11\.6|12\.5|13\.3|13\.4|13\.5|13\.6|14|14\.1|14\.2|14\.5|15\.3|15\.6|16|16\.1|16\.2|17\.3|18)\s*(?:["”]|дюйм|-дюйм|inch)\b',
+    re.I
+)
 _DIMM = re.compile(r'\b(?:[ur]?dimm|so[ -]?dimm)\b', re.I)
 _DDR = re.compile(r'\bddr\s*[345]\b', re.I)
 

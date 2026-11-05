@@ -438,7 +438,18 @@ _TITLE_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
     (re.compile(r"\b(смарт-час(?:ы|а)|умные\s+часы|фитнес-браслет|(?:apple\s+)?watch\s*(?:nike\s+)?series|apple\s+watch|galaxy\s+watch)\b", re.I), "smartwatches"),
 
     # Laptops & Computers
-    (re.compile(r"\b(ноутбук|ультрабук|macbook|лэптоп)\b", re.I), "laptops"),
+    (
+        re.compile(
+            r"\b(ноутбук|ультрабук|macbook|лэптоп)\b|"
+            r"\bNB\s+(?:asus|lenovo|hp|acer|msi|dell|apple|huawei|honor)\b|"
+            r"(?<!видеокарт\w\s)(?<!кулер\w\s)(?<!чехол\w\s)(?<!сумк\w\s)(?<!рюкзак\w\s)\b(?:11\.6|12\.5|13\.3|13\.4|13\.5|13\.6|14|14\.1|14\.2|14\.5|15\.3|15\.6|16|16\.1|16\.2|17\.3|18)\s*(?:[\"”]|дюйм|-дюйм|inch)\b.*"
+            r"\b(?:intel|core|ultra\s+\d|ryzen|celeron|pentium|ssd|озу|ram|win\s*11|win\s*10|windows|dos|без\s+ос|no\s+os|ips|oled|fhd|wqxga|wuxga)\b|"
+            r"(?<!видеокарт\w\s)(?<!кулер\w\s)\b(?:rog\s+strix\s+scar|rog\s+strix\s+g\d+|tuf\s+gaming\s+[af]\d+|legion\s+(?:pro\s+)?[3579]|predator\s+helios|acer\s+nitro\s+[5-9v]|victus\s+\d+|omen\s+(?:max\s+)?\d+|msi\s+(?:stealth|raider|titan|katana|cyborg|pulse|sword|thin|vector)|dream\s+machines)\b.*"
+            r"\b(?:intel|core|ryzen|ssd|win\s*11|dos|без\s+ос|\d+\s*(?:гб|gb))\b",
+            re.I
+        ),
+        "laptops"
+    ),
     (re.compile(r"\b(системный\s+блок|компьютер|моноблок|неттоп|desktop\s+pc|imac|mac\s+mini|mac\s+studio|mac\s+pro)\b", re.I), "pc_desktops"),
     (re.compile(r"\b(монитор|дисплей|studio\s+display|pro\s+display\s+xdr)\b", re.I), "monitors"),
 
@@ -448,8 +459,8 @@ _TITLE_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
     (re.compile(r"\b(кулер|систем[аы]\s+(?:водяного\s+)?охлаждения|сжо|сво|вентилятор\s+для\s+корпуса|термопаста|cpu\s+cooler)\b", re.I), "cooling"),
     (re.compile(r"\b(маршрутизатор|роутер|mesh-систем\w*|точка\s+доступа|коммутатор)\b", re.I), "network"),
     (re.compile(r"\b(мфу|принтер|плоттер)\b", re.I), "printers"),
-    (re.compile(r"\b(видеокарт(?:а|ы)|geforce\s+rtx|radeon\s+rx|графический\s+процессор)\b", re.I), "gpus"),
-    (re.compile(r"\b(процессор|intel\s+core|amd\s+ryzen)\b", re.I), "cpus"),
+    (re.compile(r"^(?!.*(?:\b(?:13\.3|14|15\.6|16|17\.3|18)\s*[\"”]|без\s+ос|win\s*11|windows\s*11|dos\b))\b(видеокарт(?:а|ы)|geforce\s+rtx|radeon\s+rx|графический\s+процессор)\b", re.I), "gpus"),
+    (re.compile(r"^(?!.*(?:\b(?:13\.3|14|15\.6|16|17\.3|18)\s*[\"”]|без\s+ос|win\s*11|windows\s*11|dos\b))\b(процессор|intel\s+core|amd\s+ryzen)\b", re.I), "cpus"),
     (re.compile(r"\b(материнск(?:ая|ие)\s+плат(?:а|ы)|motherboard)\b", re.I), "motherboards"),
     (re.compile(r"\b(комплектующие\s+для\s+пк|райзер|термопрокладк\w*)\b", re.I), "pc_components"),
 
@@ -517,6 +528,28 @@ _ACCESSORY_CONSUMABLE_RULES: List[Tuple[re.Pattern, str, str]] = [
         re.compile(r"\b(картридж[и]?|тонер[ы]?|чернил[а]?\s+для|краска\s+для\s+принтера)\b", re.I),
         "printer_ink",
         "consumable",
+    ),
+    # GPU accessories (Holders, stands, brackets, risers)
+    (
+        re.compile(
+            r"\b(держатель\s+(?:для\s+)?видеокарт\w*|подставка\s+(?:для\s+)?видеокарт\w*|"
+            r"кронштейн\s+(?:для\s+)?видеокарт\w*|стойка\s+(?:для\s+)?видеокарт\w*|"
+            r"graphics\s+card\s+stand|gpu\s+(?:holder|stand|bracket|brace)|"
+            r"вертикальный\s+держатель\s+видеокарт\w*)\b",
+            re.I,
+        ),
+        "pc_cases",
+        "accessory",
+    ),
+    # Video capture devices (Elgato, AVerMedia, USB capture cards)
+    (
+        re.compile(
+            r"\b(плата\s+видеозахвата|устройство\s+видеозахвата|карта\s+видеозахвата|"
+            r"видеозахват\w*|game\s+capture|cam\s+link)\b",
+            re.I,
+        ),
+        "pc_components",
+        "device",
     ),
 ]
 

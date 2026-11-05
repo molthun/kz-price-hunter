@@ -281,6 +281,9 @@ def normalize_attribute_value(key: str, raw_value: Any) -> Optional[str]:
         # Исключаем голые бренды без модели чипсета
         if c_low in ('nvidia', 'amd', 'intel', 'geforce', 'radeon'):
             return None
+        # Исключаем процессоры (CPU), случайно попавшие в поле чипсета
+        if re.search(r'\b(?:intel|amd\s+ryzen|core\s+ultra|core\s+i[3579]|ryzen|\d{4,5}[hux]\b|celeron|pentium|xeon)\b', c_low):
+            return None
         # NVIDIA GeForce RTX / GTX
         m_rtx = re.search(r'\b(?:geforce\s+)?rtx\s*(\d{3,4}(?:\s*ti|\s*super)?)\b', val, re.I)
         if m_rtx:
@@ -295,13 +298,40 @@ def normalize_attribute_value(key: str, raw_value: Any) -> Optional[str]:
         if m_rx:
             suffix = m_rx.group(1).upper()
             return f"Radeon RX {suffix}"
+        # Intel Arc
+        m_arc = re.search(r'\b(?:intel\s+)?arc\s*([ab]\d{3})\b', val, re.I)
+        if m_arc:
+            return f"Intel Arc {m_arc.group(1).upper()}"
         # Материнские платы (чипсеты B650, B760, Z790, X670, H610, H61, B450, B550 и т.д.)
         m_mb = re.search(r'\b(z[678]\d0|b[4567]\d0|x[56]70|a[356]20|h[34567]\d0|h\d{2}|c6\d{2})\b', val, re.I)
         if m_mb:
             return m_mb.group(1).upper()
-        # Чистим от двойных префиксов NVIDIA / AMD
-        cleaned = re.sub(r'^(?:nvidia|amd)\s+', '', val, flags=re.I).strip()
-        return ' '.join(cleaned.split())
+        return None
+
+    # Частота GPU / процессора
+    if key == 'clock_speed':
+        m_ghz = re.search(r'\b(\d+(?:[.,]\d+)?)\s*(?:ghz|ггц)\b', val, re.I)
+        if m_ghz:
+            return f"{m_ghz.group(1).replace(',', '.')} ГГц"
+        m_mhz = re.search(r'\b(\d+)\s*(?:mhz|мгц)\b', val, re.I)
+        if m_mhz:
+            return f"{m_mhz.group(1)} МГц"
+        return None
+
+    # Интерфейс
+    if key == 'interface':
+        i_low = val.lower().strip()
+        if 'pci' in i_low or 'pcie' in i_low:
+            return 'PCIe'
+        if 'hdmi' in i_low and ('dp' in i_low or 'displayport' in i_low):
+            return 'HDMI / DisplayPort'
+        if 'hdmi' in i_low:
+            return 'HDMI'
+        if 'displayport' in i_low or 'dp' in i_low:
+            return 'DisplayPort'
+        if 'usb' in i_low or 'type-c' in i_low:
+            return 'USB'
+        return None
 
     # Сокет
     if key == 'socket':
