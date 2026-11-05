@@ -1,8 +1,6 @@
 """
 Unit and integration tests for domain.web_search and SearXNG integration.
 """
-from __future__ import annotations
-
 from tests import test_support  # noqa: F401
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch

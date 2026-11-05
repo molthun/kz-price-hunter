@@ -233,10 +233,6 @@ def stored(conn,pid):
     row=conn.execute('SELECT signature,facts_json,images_json,sources_json,status,checked_at,next_attempt FROM product_source_evidence WHERE product_id=?',(pid,)).fetchone()
     current=conn.execute(f'SELECT {SOURCE_SIGNATURE}, title FROM canonical_products p WHERE id=?',(pid,)).fetchone()
     if not row or not current or row[0]!=current[0]:
-        if current and current[1]:
-            synth_facts = enrich_facts_with_canonical_attributes(conn, pid, [], current[1])
-            if synth_facts:
-                return dict(facts=sanitize_facts(synth_facts),images=[],sources=[],status='ready',checked_at=time.time(),next_attempt=time.time()+86400)
         return None
     raw_facts=json.loads(row[1]) if row[1] else []
     clean_facts=enrich_facts_with_canonical_attributes(conn, pid, raw_facts, current[1] if current else '')

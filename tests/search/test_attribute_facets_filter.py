@@ -42,6 +42,50 @@ def test_normalize_attribute_value():
     assert normalize_attribute_value('refresh_rate', '120 hz') == '120 Гц'
     assert normalize_attribute_value('5g', 'Да') == 'Да'
     assert normalize_attribute_value('nfc', 'true') == 'Да'
+    assert normalize_attribute_value('panel_type', 'ips') == 'IPS'
+    assert normalize_attribute_value('resolution', 'fhd') == '1920x1080 (Full HD)'
+    assert normalize_attribute_value('certificate', 'gold') == '80 PLUS Gold'
+
+
+def test_extract_title_attributes_pc_hardware_and_monitors():
+    from domain.attribute_indexing import extract_title_attributes
+
+    # GPU
+    gpu_attrs = extract_title_attributes('Видеокарта ASUS Dual GeForce RTX 4060 V2 OC 8GB')
+    assert gpu_attrs.get('vram') == '8 ГБ'
+    assert gpu_attrs.get('chipset') == 'GeForce RTX 4060'
+
+    # Monitor
+    mon_attrs = extract_title_attributes('Монитор 27" LG UltraGear 27GN60R-B 144Hz IPS FHD')
+    assert mon_attrs.get('screen_size') == '27"'
+    assert mon_attrs.get('refresh_rate') == '144 Гц'
+    assert mon_attrs.get('panel_type') == 'IPS'
+    assert mon_attrs.get('resolution') == '1920x1080 (Full HD)'
+
+    # RAM
+    ram_attrs = extract_title_attributes('Оперативная память Kingston FURY Beast Black DDR5 6000MHz 32GB (2x16GB)')
+    assert ram_attrs.get('ram') == '32 ГБ'
+    assert ram_attrs.get('memory_type') == 'DDR5'
+    assert ram_attrs.get('clock_speed') == '6000 МГц'
+
+    # Motherboard
+    mb_attrs = extract_title_attributes('Материнская плата MSI MAG B650 TOMAHAWK WIFI AM5 DDR5 ATX')
+    assert mb_attrs.get('chipset') == 'B650'
+    assert mb_attrs.get('socket') == 'AM5'
+    assert mb_attrs.get('memory_type') == 'DDR5'
+    assert mb_attrs.get('form_factor') == 'ATX'
+
+    # SSD
+    ssd_attrs = extract_title_attributes('SSD накопитель 1TB Samsung 990 PRO M.2 2280 PCIe 4.0 NVMe')
+    assert ssd_attrs.get('storage') == '1 ТБ'
+    assert ssd_attrs.get('form_factor') == 'M.2 2280'
+    assert ssd_attrs.get('interface') == 'PCIe 4.0'
+
+    # PSU
+    psu_attrs = extract_title_attributes('Блок питания ATX 850W ASUS ROG Thor Platinum')
+    assert psu_attrs.get('power') == '850 Вт'
+    assert psu_attrs.get('certificate') == '80 PLUS Platinum'
+    assert psu_attrs.get('form_factor') == 'ATX'
 
 
 def test_index_and_search_attributes():

@@ -54,6 +54,10 @@ ATTRIBUTE_LABELS: Dict[str, str] = {
     'cleaning_type': 'Тип уборки',
     'dust_collector_type': 'Тип пылесборника',
     'power': 'Мощность',
+    'certificate': 'Сертификат 80 PLUS',
+    'panel_type': 'Тип матрицы',
+    'curved': 'Изогнутый экран',
+    'interface': 'Интерфейс',
     'type': 'Тип устройства',
     # Музыка, винил и книги
     'artist': 'Исполнитель',
@@ -335,7 +339,75 @@ def normalize_attribute_value(key: str, raw_value: Any) -> Optional[str]:
 
     # Сокет
     if key == 'socket':
-        return ' '.join(val.split()).upper()
+        return ' '.join(val.split()).upper().replace('LGA', 'LGA ')
+
+    # Тип памяти (RAM / VRAM)
+    if key == 'memory_type':
+        m_mt = re.search(r'\b(gddr[567]x?|ddr[345]|lpddr[45]x?)\b', val, re.I)
+        if m_mt:
+            return m_mt.group(1).upper()
+        return val.strip().upper()
+
+    # Тип матрицы (мониторы)
+    if key == 'panel_type':
+        p_low = val.lower().strip()
+        if 'fast ips' in p_low:
+            return 'Fast IPS'
+        if 'qd-oled' in p_low:
+            return 'QD-OLED'
+        if 'mini-led' in p_low or 'miniled' in p_low:
+            return 'Mini-LED'
+        if 'oled' in p_low:
+            return 'OLED'
+        if 'ips' in p_low:
+            return 'IPS'
+        if 'va' in p_low:
+            return 'VA'
+        if 'tn' in p_low:
+            return 'TN'
+        return val.strip()
+
+    # Разрешение экрана
+    if key == 'resolution':
+        r_low = val.lower().strip()
+        if '3840' in r_low or '4k' in r_low or 'uhd' in r_low:
+            return '3840x2160 (4K UHD)'
+        if '2560' in r_low or '2k' in r_low or 'qhd' in r_low or 'wqhd' in r_low:
+            return '2560x1440 (2K QHD)'
+        if '3440' in r_low or 'uwqhd' in r_low:
+            return '3440x1440 (UWQHD)'
+        if '1920' in r_low or 'fhd' in r_low or 'full hd' in r_low:
+            return '1920x1080 (Full HD)'
+        m_res = re.search(r'\b(\d{3,4}\s*[xх]\s*\d{3,4})\b', val, re.I)
+        if m_res:
+            return m_res.group(1).replace('х', 'x').replace(' ', '')
+        return val.strip()
+
+    # Сертификат 80 PLUS (блоки питания)
+    if key == 'certificate':
+        c_low = val.lower().strip()
+        if 'titanium' in c_low or 'титан' in c_low:
+            return '80 PLUS Titanium'
+        if 'platinum' in c_low or 'платин' in c_low:
+            return '80 PLUS Platinum'
+        if 'gold' in c_low or 'золот' in c_low:
+            return '80 PLUS Gold'
+        if 'silver' in c_low or 'серебр' in c_low:
+            return '80 PLUS Silver'
+        if 'bronze' in c_low or 'бронз' in c_low:
+            return '80 PLUS Bronze'
+        if 'standard' in c_low or 'white' in c_low or '80 plus' in c_low:
+            return '80 PLUS Standard'
+        return val.strip()
+
+    # Изогнутый экран
+    if key == 'curved':
+        c_low = val.lower().strip()
+        if any(w in c_low for w in ('да', 'yes', 'true', '1', 'изогнут', 'curved')):
+            return 'Да'
+        if any(w in c_low for w in ('нет', 'no', 'false', '0', 'плоск')):
+            return 'Нет'
+        return 'Да'
 
     # Подгузники и гигиена для малышей
     if key == 'diaper_type':
@@ -618,40 +690,153 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
         elif 'моющий' in title_lower:
             attrs['cleaning_type'] = 'Влажная'
 
-    # 8. Комплектующие для ПК (БП, корпуса, охлаждение)
+    # 8. Мониторы
+    is_monitor = bool(re.search(r'\b(монитор\w*|monitor\w*)\b', title, re.I))
+    if is_monitor:
+        # Диагональ экрана (23.8", 24", 24.5", 27", 31.5", 32", 34", 49")
+        m_msz = re.search(r'\b(1[5-9]\.[0-9]|2[1-9]\.[0-9]|2[1-9]|3[1-4]\.[0-9]|3[1-4]|4[3-9])\s*(?:"|\'\'|дюйм|\binch\b|\b(?=\s*(?:fhd|qhd|uhd|2k|4k|ips|va|oled|gaming|игров|144|165|240|hz|гц)))', title, re.I)
+        if m_msz:
+            attrs['screen_size'] = f'{m_msz.group(1)}"'
+        # Частота обновления (60 Гц, 75 Гц, 100 Гц, 144 Гц, 165 Гц, 180 Гц, 240 Гц, 360 Гц)
+        m_mhz = re.search(r'\b(60|75|100|120|144|165|170|180|200|240|280|360|540)\s*(?:hz|гц)\b', title, re.I)
+        if m_mhz:
+            attrs['refresh_rate'] = f"{m_mhz.group(1)} Гц"
+        # Тип матрицы (IPS, Fast IPS, VA, OLED, Mini-LED, TN)
+        m_mpt = re.search(r'\b(fast\s+ips|qd-oled|mini-led|oled|ips|va|tn)\b', title, re.I)
+        if m_mpt:
+            attrs['panel_type'] = normalize_attribute_value('panel_type', m_mpt.group(1))
+        # Разрешение экрана
+        if re.search(r'\b(3840\s*[xх]\s*2160|4k|uhd)\b', title, re.I):
+            attrs['resolution'] = '3840x2160 (4K UHD)'
+        elif re.search(r'\b(2560\s*[xх]\s*1440|2k|qhd|wqhd)\b', title, re.I):
+            attrs['resolution'] = '2560x1440 (2K QHD)'
+        elif re.search(r'\b(3440\s*[xх]\s*1440|uwqhd)\b', title, re.I):
+            attrs['resolution'] = '3440x1440 (UWQHD)'
+        elif re.search(r'\b(1920\s*[xх]\s*1080|fhd|full\s*hd)\b', title, re.I):
+            attrs['resolution'] = '1920x1080 (Full HD)'
+        # Изогнутый экран
+        if re.search(r'\b(изогнут\w*|curved|1000r|1500r|1800r)\b', title, re.I):
+            attrs['curved'] = 'Да'
+
+    # 9. Комплектующие для ПК (Видеокарты, БП, матплаты, ОЗУ, SSD, корпуса, охлаждение)
     is_pc_part = any(k in title_lower for k in [
         'кулер', 'охлаждени', 'cooler', 'вентилятор', 'блок питания', 'бп ', 'корпус',
         'видеокарт', 'geforce', 'rtx', 'radeon', 'материнск', 'процессор', 'socket',
-        'lga', 'am4', 'am5', 'ddr4', 'ddr5', 'b650', 'b760', 'z790'
+        'lga', 'am4', 'am5', 'ddr3', 'ddr4', 'ddr5', 'b650', 'b760', 'z790', 'ssd',
+        'накопитель', 'оперативн', 'dimm'
     ])
 
     if is_pc_part:
-        # Мощность БП (ватты)
-        m_power = re.search(r'\b(\d{3,4})\s*(?:w|вт|watt)\b', title, re.I)
-        if m_power:
-            w_val = int(m_power.group(1))
-            if 150 <= w_val <= 3000:
-                attrs['power'] = f"{w_val} Вт"
+        # Видеокарты (GPU): VRAM и чипсет
+        is_gpu = bool(re.search(r'\b(видеокарт\w*|geforce|radeon\s+rx|rtx\s*\d{3,4}|gtx\s*\d{3,4}|arc\s*[ab]\d{3})\b', title, re.I))
+        if is_gpu:
+            m_vram = re.search(r'\b(\d{1,2})\s*(?:gb|гб|g)\b|\b(2048|4096|6144|8192)\s*(?:mb|мб)\b', title, re.I)
+            if m_vram:
+                if m_vram.group(1):
+                    v_num = int(m_vram.group(1))
+                    if v_num in (1, 2, 3, 4, 6, 8, 10, 11, 12, 16, 20, 24, 32, 48):
+                        attrs['vram'] = f"{v_num} ГБ"
+                elif m_vram.group(2):
+                    v_mb = int(m_vram.group(2))
+                    attrs['vram'] = f"{v_mb // 1024} ГБ"
+            norm_chip = normalize_attribute_value('chipset', title)
+            if norm_chip:
+                attrs['chipset'] = norm_chip
+            if re.search(r'\b(?:lp|low\s+profile)\b', title, re.I):
+                attrs['form_factor'] = 'Low Profile'
 
-        # Форм-фактор корпуса / матплаты / БП
-        m_ff = re.search(r'\b(mid-?tower|mini-?tower|full-?tower|micro-?atx|matx|mini-?itx|mitx|e-?atx|atx|sfx-l|sfx)\b', title, re.I)
-        if m_ff:
-            ff_raw = m_ff.group(1).lower().replace('-', '')
-            ff_map = {
-                'midtower': 'Mid-Tower',
-                'minitower': 'Mini-Tower',
-                'fulltower': 'Full-Tower',
-                'microatx': 'Micro-ATX',
-                'matx': 'Micro-ATX',
-                'miniitx': 'Mini-ITX',
-                'mitx': 'Mini-ITX',
-                'eatx': 'E-ATX',
-                'atx': 'ATX',
-                'sfxl': 'SFX-L',
-                'sfx': 'SFX',
-            }
-            if ff_raw in ff_map:
-                attrs['form_factor'] = ff_map[ff_raw]
+        # Оперативная память (RAM)
+        is_ram = bool(re.search(r'\b(оперативн\w*\s+памят\w*|модул\w*\s+памят\w*|so-dimm|dimm|\bddr[345]\b)\b', title, re.I)) and not is_gpu
+        if is_ram:
+            m_ram_sz = re.search(r'\b(4|8|16|24|32|48|64|96|128)\s*(?:gb|гб)\b', title, re.I)
+            if m_ram_sz:
+                attrs['ram'] = f"{m_ram_sz.group(1)} ГБ"
+            m_mem_t = re.search(r'\b(ddr[345])\b', title, re.I)
+            if m_mem_t:
+                attrs['memory_type'] = m_mem_t.group(1).upper()
+            m_ram_sp = re.search(r'\b(2133|2400|2666|3000|3200|3600|4800|5200|5600|6000|6400|7200)\s*(?:mhz|мгц)?\b', title, re.I)
+            if m_ram_sp:
+                attrs['clock_speed'] = f"{m_ram_sp.group(1)} МГц"
+            if re.search(r'\bso-dimm\b', title, re.I):
+                attrs['form_factor'] = 'SO-DIMM'
+
+        # Материнские платы (Motherboards)
+        is_mb = bool(re.search(r'\b(материнск\w*\s+плат\w*|матплат\w*|mainboard|motherboard)\b', title, re.I))
+        if is_mb:
+            m_mb_ch = re.search(r'\b(z[678]\d0|b[45678]\d0[e]?|x[568]70[e]?|a[356]20|h[34567]\d0|h\d{2})\b', title, re.I)
+            if m_mb_ch:
+                attrs['chipset'] = m_mb_ch.group(1).upper()
+            m_mb_sk = re.search(r'\b(am[45]|lga\s*\d{4}|str5|tr4)\b', title, re.I)
+            if m_mb_sk:
+                attrs['socket'] = m_mb_sk.group(1).upper().replace('LGA', 'LGA ')
+            if re.search(r'\b(?:ddr5|d5)\b', title, re.I):
+                attrs['memory_type'] = 'DDR5'
+            elif re.search(r'\b(?:ddr4|d4)\b', title, re.I):
+                attrs['memory_type'] = 'DDR4'
+
+        # Блоки питания (PSU)
+        is_psu = bool(re.search(r'\b(блок\s+питания|бп\s+|power\s+supply)\b', title, re.I))
+        if is_psu:
+            m_power = re.search(r'\b(\d{3,4})\s*(?:w|вт|watt)\b', title, re.I)
+            if m_power:
+                w_val = int(m_power.group(1))
+                if 150 <= w_val <= 3000:
+                    attrs['power'] = f"{w_val} Вт"
+            # Сертификат 80 PLUS
+            if re.search(r'\b(titanium|титан)\b', title, re.I):
+                attrs['certificate'] = '80 PLUS Titanium'
+            elif re.search(r'\b(platinum|платин)\b', title, re.I):
+                attrs['certificate'] = '80 PLUS Platinum'
+            elif re.search(r'\b(gold|золот)\b', title, re.I):
+                attrs['certificate'] = '80 PLUS Gold'
+            elif re.search(r'\b(silver|серебр)\b', title, re.I):
+                attrs['certificate'] = '80 PLUS Silver'
+            elif re.search(r'\b(bronze|бронз)\b', title, re.I):
+                attrs['certificate'] = '80 PLUS Bronze'
+            elif re.search(r'\b(80\s*plus|80\+)\b', title, re.I):
+                attrs['certificate'] = '80 PLUS Standard'
+
+        # SSD и накопители
+        is_ssd = bool(re.search(r'\b(ssd|накопитель|nvme)\b', title, re.I))
+        if is_ssd:
+            if re.search(r'\bm\.?2(?:\s*2280)?\b', title, re.I):
+                attrs['form_factor'] = 'M.2 2280'
+            elif re.search(r'\b2\.5(?:"|\'\'|дюйм)?\b', title, re.I):
+                attrs['form_factor'] = '2.5"'
+            if re.search(r'\b(pcie\s*5(?:\.0)?|pci-e\s*5|gen5)\b', title, re.I):
+                attrs['interface'] = 'PCIe 5.0'
+            elif re.search(r'\b(pcie\s*4(?:\.0)?|pci-e\s*4|gen4)\b', title, re.I):
+                attrs['interface'] = 'PCIe 4.0'
+            elif re.search(r'\b(pcie\s*3(?:\.0)?|pci-e\s*3|gen3)\b', title, re.I):
+                attrs['interface'] = 'PCIe 3.0'
+            elif re.search(r'\bsata\s*(?:3|iii)?\b', title, re.I):
+                attrs['interface'] = 'SATA III'
+            m_ssd_sz = re.search(r'\b(120|128|240|250|256|480|500|512|960|1000|1024|2000|2048|4000)\s*(?:gb|гб)\b|\b(1|2|4)\s*(?:tb|тб)\b', title, re.I)
+            if m_ssd_sz:
+                norm_ssd = normalize_attribute_value('storage', m_ssd_sz.group(0))
+                if norm_ssd:
+                    attrs['storage'] = norm_ssd
+
+        # Форм-фактор корпуса / матплаты / БП (если еще не определен)
+        if 'form_factor' not in attrs:
+            m_ff = re.search(r'\b(mid-?tower|mini-?tower|full-?tower|micro-?atx|matx|mini-?itx|mitx|e-?atx|atx|sfx-l|sfx)\b', title, re.I)
+            if m_ff:
+                ff_raw = m_ff.group(1).lower().replace('-', '')
+                ff_map = {
+                    'midtower': 'Mid-Tower',
+                    'minitower': 'Mini-Tower',
+                    'fulltower': 'Full-Tower',
+                    'microatx': 'Micro-ATX',
+                    'matx': 'Micro-ATX',
+                    'miniitx': 'Mini-ITX',
+                    'mitx': 'Mini-ITX',
+                    'eatx': 'E-ATX',
+                    'atx': 'ATX',
+                    'sfxl': 'SFX-L',
+                    'sfx': 'SFX',
+                }
+                if ff_raw in ff_map:
+                    attrs['form_factor'] = ff_map[ff_raw]
 
         # Тип охлаждения
         if any(k in title_lower for k in ['сжо', 'сво', 'водяного охлаждения', 'жидкостн']):
@@ -661,11 +846,12 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
         elif 'вентилятор для корпуса' in title_lower or 'корпусный вентилятор' in title_lower:
             attrs['type'] = 'Вентилятор для корпуса'
 
-        # Сокет
-        m_sock = re.search(r'\b(lga\s*\d{4}|am[45]|str5|tr4)\b', title, re.I)
-        if m_sock:
-            sock_val = m_sock.group(1).upper()
-            attrs['socket'] = sock_val.replace('LGA', 'LGA ')
+        # Сокет (если еще не определен)
+        if 'socket' not in attrs:
+            m_sock = re.search(r'\b(lga\s*\d{4}|am[45]|str5|tr4)\b', title, re.I)
+            if m_sock:
+                sock_val = m_sock.group(1).upper()
+                attrs['socket'] = sock_val.replace('LGA', 'LGA ')
 
     # 9. Винил и музыкальные носители (только если не комплектующие ПК)
     if not is_pc_part and re.search(r'\b(?:винил(?:овая\s+пластинка|\s+lp)?|виниловые\s+пластинки|грампластинк\w*|\b2lp\b|\b\d?lp(?=\s*(?:диск|пластинк|альбом|repress|remaster|edition|soundtrack|vinyl|\(|$)))\b', title, re.I):
@@ -728,6 +914,16 @@ def index_product_facts(conn, product_id: str, facts: List[Dict[str, Any]], prod
         ''', (product_id, k, v, evidence, product_title, now_iso))
         indexed_count += 1
 
+    # Также синхронизируем в canonical_products.attributes_json для отображения в карточке товара
+    try:
+        simple_attrs = {k: v for k, (v, _) in merged.items()}
+        conn.execute(
+            "UPDATE canonical_products SET attributes_json = json_patch(COALESCE(NULLIF(attributes_json, ''), '{}'), ?) WHERE id = ?",
+            (json.dumps(simple_attrs), product_id)
+        )
+    except Exception:
+        pass
+
     return indexed_count
 
 
@@ -781,6 +977,27 @@ def sync_all_source_attributes(conn, limit: int = 50000) -> int:
                 p.category IN ('Подгузники и гигиена', 'diapers_hygiene', 'Бытовая техника', 'appliances', 'refrigerators', 'washing_machines', 'vacuums')
                 OR p.title LIKE '%подгуз%' OR p.title LIKE '%трусик%' OR p.title LIKE '%памперс%'
                 OR p.title LIKE '%холодильн%' OR p.title LIKE '%стиральн%' OR p.title LIKE '%пылесос%'
+              )
+            LIMIT ?
+        ''', (limit,))
+        rows = cursor.fetchall()
+        for pid, title in rows:
+            total_indexed += index_product_facts(conn, pid, [], title)
+    except Exception:
+        pass
+
+    # 4. Для мониторов и комплектующих ПК обновляем атрибуты из названия
+    try:
+        cursor = conn.execute('''
+            SELECT p.id, p.title
+            FROM canonical_products p
+            WHERE p.title IS NOT NULL AND p.title != ''
+              AND (
+                p.category IN ('Мониторы', 'Комплектующие для ПК', 'Видеокарты', 'monitors', 'pc_parts', 'gpus')
+                OR p.title LIKE '%монитор%' OR p.title LIKE '%видеокарт%' OR p.title LIKE '%geforce%'
+                OR p.title LIKE '%radeon%' OR p.title LIKE '%материнск%' OR p.title LIKE '%блок питания%'
+                OR p.title LIKE '%ssd%' OR p.title LIKE '%оперативн%памят%' OR p.title LIKE '%ddr5%'
+                OR p.title LIKE '%ddr4%'
               )
             LIMIT ?
         ''', (limit,))

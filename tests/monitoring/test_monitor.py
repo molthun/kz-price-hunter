@@ -1649,11 +1649,13 @@ class TestReliability(unittest.IsolatedAsyncioTestCase):
 
         # Проверяем все 17 магазинов: каждая категория должна иметь "master"
         from web.server import SHOP_REGISTRY
+        from domain.category import MASTER_TAXONOMY
+        all_valid_categories = set(config.MASTER_CATEGORIES.keys()) | {cat.id for cat in MASTER_TAXONOMY}
         for shop_key, (scraper_cls, categories, shop_name) in SHOP_REGISTRY.items():
             for c in categories:
                 self.assertIn("master", c, f"Магазин {shop_key}, категория {c.get('name')} не имеет поля 'master'")
                 m = c["master"]
-                self.assertTrue(m == "all" or m in config.MASTER_CATEGORIES,
+                self.assertTrue(m == "all" or m in all_valid_categories,
                                 f"Некорректный master '{m}' в магазине {shop_key}, категория {c.get('name')}")
 
     def test_wave_plan_rotation_and_modes(self):
@@ -2320,10 +2322,12 @@ class TestForteMarketScraper(unittest.TestCase):
         self.assertEqual(name, "Меломан")
         self.assertEqual(cats, MARWIN_CATEGORIES)
         self.assertEqual(SHOP_KEYS.get("marwin"), "Меломан")
+        from domain.category import MASTER_TAXONOMY
+        all_valid_categories = set(config.MASTER_CATEGORIES.keys()) | {cat.id for cat in MASTER_TAXONOMY}
         for c in MARWIN_CATEGORIES:
             self.assertIn("master", c)
             self.assertIn("url", c)
-            self.assertTrue(c["master"] in config.MASTER_CATEGORIES)
+            self.assertTrue(c["master"] in all_valid_categories)
 
     def test_registry_contains_iteka(self):
         from web.server import SHOP_REGISTRY

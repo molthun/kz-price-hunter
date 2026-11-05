@@ -2,6 +2,34 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## STAND_DEPLOYED → Владелец: Умные фасетные фильтры для комплектующих ПК и мониторов v6.28.2 (2026-11-05)
+
+- Прямое поручение владельца: «Давай дальше» -> реализация фасетных фильтров для оборудования ПК (мониторы, видеокарты, память, материнские платы, SSD, БП), устранение пропущенных атрибутов и синхронизация характеристик.
+- Исполнитель: Antigravity (основной разработчик).
+- Дата и время: 2026-11-05 21:15 (Asia/Almaty).
+- Срез: ветка `codex/local-ai-catalog-growth`.
+- Область файлов: `domain/attribute_indexing.py`, `product_evidence.py`, `scripts/sync_pc_attributes.py`, `tests/search/test_attribute_facets_filter.py`, `tests/search/test_web_search.py`, `tests/monitoring/test_monitor.py`, `version.py`, `CHANGELOG.md`, `docs/AGENT_HANDOFF.md`.
+- Реализовано:
+  1. `domain/attribute_indexing.py`:
+     - Добавлено извлечение и нормализация ключевых атрибутов из названий товаров:
+       - **Мониторы**: `screen_size` (диагональ), `refresh_rate` (частота Гц), `panel_type` (Fast IPS, IPS, VA, OLED, Mini-LED), `resolution` (Full HD, 2K QHD, 4K UHD, UWQHD), `curved` (изогнутый/плоский).
+       - **Видеокарты**: `vram` (2-24 ГБ), `chipset` (GeForce RTX 4060, RTX 5070, RX 6600...), `form_factor` (Low Profile).
+       - **Оперативная память**: `ram` (емкость), `memory_type` (DDR5, DDR4), `clock_speed` (3200 МГц, 6000 МГц...), `form_factor` (SO-DIMM).
+       - **Материнские платы**: `chipset` (B650, B760, Z790...), `socket` (AM5, AM4, LGA 1700...), `memory_type`, `form_factor` (ATX, Micro-ATX, Mini-ITX).
+       - **SSD накопители**: `storage` (емкость 500 ГБ, 1 ТБ, 2 ТБ...), `form_factor` (M.2 2280, 2.5"), `interface` (PCIe 4.0, PCIe 3.0, SATA III).
+       - **Блоки питания**: `power` (мощность Вт), `certificate` (80 PLUS Gold/Platinum/Bronze...), `form_factor` (ATX, SFX).
+     - Двойная синхронизация: данные пишутся в таблицу поиска фасетов `product_search_attributes` и в `canonical_products.attributes_json` через SQLite `json_patch`.
+  2. `product_evidence.py`:
+     - Исправлен метод `stored(conn, pid)`: исключена ложная генерация синтетических фактов при отсутствии записей в `product_source_evidence`. Это устранило ложное срабатывание AI-классификатора и сохранило надежную работу быстрого правила (`fast path`) по заголовкам.
+  3. `scripts/sync_pc_attributes.py`:
+     - Создана утилита для массовой переиндексации характеристик ПК и мониторов на существующей БД `prices.db`.
+  4. Тесты:
+     - Все 882 теста поискового и ИИ-модулей, тесты изоляции и мониторинга пройдены успешно (`882 passed in 38.99s`).
+- Развертывание:
+  - Собрать бандл `kzph-v6.28.2.bundle`, развернуть на стенд `192.168.28.25:2222` (`/home/molthun/kzph-stand`), пересобрать контейнер, выполнить `sync_pc_attributes.py` и верифицировать фильтры в интерфейсе через Playwright.
+
+---
+
 ## STAND_DEPLOYED → Владелец: Улучшенная лента скидок /deals и фоновый воркер обогащения каталога v6.28.1 (2026-11-05)
 
 - Прямое поручение владельца: «Дальше продолжаем разработку» -> реализация шагов дорожной карты: мобильная лента скидок `/deals` и фоновый сервис обогащения характеристик товаров на локальной модели (Ollama).
