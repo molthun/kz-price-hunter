@@ -1523,7 +1523,7 @@ def _run_search_v2_sync(
                     latency_ms=resp.latency_ms,
                 )
             )
-            if query and resp.total_products < 5 and getattr(resp, "outcome", "") != "ERROR":
+            if query and getattr(resp, "outcome", "") != "ERROR" and len(query.strip()) >= 2:
                 try:
                     from repositories.catalog_expansion_repo import CatalogExpansionRepository
                     plan = {
@@ -1534,7 +1534,7 @@ def _run_search_v2_sync(
                         "fields": [],
                         "attributes": {}
                     }
-                    CatalogExpansionRepository(conn).propose(query, resolved_city, plan, auto_approve=True)
+                    CatalogExpansionRepository(conn).propose(query, resolved_city, plan, auto_approve=(resp.total_products < 15))
                 except Exception:
                     pass
         except Exception as ex:

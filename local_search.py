@@ -412,9 +412,13 @@ def search_sync(arguments, understanding, selected_attributes):
             data['search_help']['watch_conditions'] = ([res.parsed_query.condition.lower()]
                 if res.parsed_query.condition and res.parsed_query.condition.lower() in ('new','used','refurbished') else [])
         # Capture scarce or missing assortment into demand queue for crawler polling (не теряя поиск)
-        is_scarce = res.total_products < 5
-        missing_fields = bool(plan and any(f['key'] not in (cat.attributes_schema if cat else {}) for f in plan.get('fields', [])))
-        if res.outcome != 'ERROR' and original and (is_scarce or (plan and plan.get('confidence', 0) >= 0.85 and missing_fields)):
+        # Фиксация поискового спроса в расширении каталога:
+        # - Запросы без достаточного числа товаров (<15) или с новыми фильтрами автоматически одобряются для обхода (auto_approve=True).
+        # - Остальные запросы регистрируются со статусом 'proposed' и накоплением demand, чтобы администратор видел весь реальный спрос в /admin.
+        if res.outcome != 'ERROR' and original and len(original.strip()) >= 2:
+            is_scarce = res.total_products < 15
+            missing_fields = bool(plan and any(f['key'] not in (cat.attributes_schema if cat else {}) for f in plan.get('fields', [])))
+            auto_approve = is_scarce or bool(plan and plan.get('confidence', 0) >= 0.85 and missing_fields)
             eff_plan = plan or {
                 'category_id': inferred_category or (cat.id if cat else 'appliances'),
                 'category_name': cat.name if cat else (inferred_category or 'Каталог'),
@@ -424,7 +428,7 @@ def search_sync(arguments, understanding, selected_attributes):
                 'attributes': {}
             }
             request = CatalogExpansionRepository(conn).propose(
-                original, res.parsed_query.detected_city, eff_plan, auto_approve=True
+                original, res.parsed_query.detected_city, eff_plan, auto_approve=auto_approve
             )
             if request:
                 data['search_help']['expansion'] = {k: request[k] for k in ('id', 'status', 'message')}
