@@ -57,6 +57,7 @@ def clean_plan(answer, query, categories):
     else:
         return None
     # Защитные правила маршрутизации: приборы целиком vs расходники и общие категории
+    orig_cid = cid
     q_low = query.casefold()
     if ('пылесос' in q_low or 'vacuum' in q_low) and not any(p in q_low for p in ('мешок', 'мешки', 'фильтр', 'насадк', 'салфетк', 'щетк', 'аксессуар', 'расходник', 'запчаст', 'трубк', 'шланг')):
         if cid in ('vacuum_parts', 'appliances', '') and 'vacuums' in by_id:
@@ -170,7 +171,7 @@ def clean_plan(answer, query, categories):
             confidence = 0.95 if cid in by_id else 0.7
     except (ValueError, TypeError):
         confidence = 0.95 if cid in by_id else 0.5
-    clarification = str(answer.get('clarification') or '').strip()[:220]
+    clarification = '' if (orig_cid and cid != orig_cid) else str(answer.get('clarification') or '').strip()[:220]
     if not clarification:
         if cid == 'tires':
             clarification = 'Укажите размер, например 205/55 R16, — это поможет точнее подобрать варианты.'
