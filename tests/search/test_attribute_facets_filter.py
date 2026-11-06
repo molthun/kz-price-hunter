@@ -157,6 +157,33 @@ class AttributeFacetsFilterTests(unittest.TestCase):
         assert rows[0]['key'] == 'ram' and rows[0]['value'] == '12 ГБ'
         assert rows[1]['key'] == 'storage' and rows[1]['value'] == '512 ГБ'
 
+    def test_sync_all_source_attributes_batch_commits(self):
+        """Проверяет, что при массовой синхронизации коммиты выполняются короткими пачками (BATCH_SIZE=200)."""
+        conn = create_test_db()
+        for i in range(250):
+            conn.execute(
+                "INSERT INTO canonical_products (id, canonical_key, title, category, brand, created_at, updated_at) "
+                "VALUES (?, ?, ?, 'Смартфоны', 'Xiaomi', '2026-01-01', '2026-01-01')",
+                (f"p_{i}", f"k_{i}", f"Смартфон Xiaomi {i} 128GB Black")
+            )
+        conn.commit()
+
+        class TrackingConn:
+            def __init__(self, real):
+                self._real = real
+                self.commits = 0
+            def commit(self):
+                self.commits += 1
+                return self._real.commit()
+            def __getattr__(self, item):
+                return getattr(self._real, item)
+
+        tracker = TrackingConn(conn)
+        indexed = sync_all_source_attributes(tracker, limit=500)
+        assert indexed > 0
+        # Должен быть минимум 1 промежуточный коммит на 200 товарах + 1 финальный
+        assert tracker.commits >= 2
+
     def test_search_repo_build_model_facets_aggregation(self):
         """Проверяет агрегацию моделей видеокарт и исключение мусора/производителей из фасетов."""
         raw = [

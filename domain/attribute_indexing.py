@@ -597,33 +597,83 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
             attrs['color'] = color_name
             break
 
-    # 2. RAM + Storage combo: 8GB/256GB, 16/512 ГБ
-    m_combo = re.search(r'(?i)\b(\d+)\s*(?:gb|гб)?\s*[/,\+]\s*(\d+)\s*(?:gb|гб|tb|тб)\b', title)
-    if m_combo:
-        r_val = int(m_combo.group(1))
-        if r_val in (4, 6, 8, 12, 16, 24, 32, 64, 128):
+    # 2. ПК / Ноутбук с связкой GPU VRAM и системной RAM: RTX 4060 8GB / 16GB
+    m_gpu_ram = re.search(
+        r'(?i)\b(?:rtx|gtx|radeon\s+rx|rx)\s*\d{3,4}(?:\s*(?:ti|super|gre|xtx|xt))?\s*(\d{1,2})\s*(?:gb|гб|g)?\s*[/]\s*(\d{1,2})\s*(?:gb|гб)\b',
+        title
+    )
+    if m_gpu_ram:
+        r_val = int(m_gpu_ram.group(2))
+        if r_val in (4, 6, 8, 12, 16, 24, 32, 48, 64, 128):
             attrs['ram'] = f"{r_val} ГБ"
-        norm_s = normalize_attribute_value('storage', m_combo.group(2))
-        if norm_s:
-            attrs['storage'] = norm_s
 
-    # 3. Storage (standalone: 128GB, 256 ГБ, 512GB, 1TB)
+    # 3. RAM + Storage combo: 8GB/256GB, 16/512 ГБ, 16/1TB
     if 'storage' not in attrs:
-        m_s = re.search(r'(?i)\b(64|128|256|512)\s*(?:gb|гб)\b|\b(1|2)\s*(?:tb|тб)\b', title)
+        m_combo = re.search(r'(?i)\b(\d+)\s*(?:gb|гб)?\s*[/+]\s*(\d+\s*(?:gb|гб|tb|тб))\b', title)
+        if m_combo:
+            prefix = title[:m_combo.start()].lower()
+            if not re.search(r'\b(?:rtx|gtx|rx|radeon|arc)\s*\d{3,4}\s*$', prefix):
+                r_cand = int(m_combo.group(1))
+                s_cand = m_combo.group(2)
+                norm_s = normalize_attribute_value('storage', s_cand)
+                s_num = int(re.match(r'\d+', s_cand).group(0)) if re.match(r'\d+', s_cand) else 0
+                is_tb = 'tb' in s_cand.lower() or 'тб' in s_cand.lower()
+                # В комбо емкость накопителя всегда >= 64 ГБ
+                if r_cand in (2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64) and (is_tb or s_num >= 64):
+                    if 'ram' not in attrs:
+                        attrs['ram'] = f"{r_cand} ГБ"
+                    if norm_s:
+                        attrs['storage'] = norm_s
+
+    # 4. Явный накопитель с маркером (SSD, M.2, HDD, NVMe, накопитель)
+    if 'storage' not in attrs:
+        m_s_exp = re.search(
+            r'(?i)(?:ssd|hdd|m\.2|nvme|накопител\w*)\s*(\d+\s*(?:gb|гб|tb|тб))|\b(\d+\s*(?:gb|гб|tb|тб))\s*(?:ssd|hdd|m\.2|nvme|накопител\w*)',
+            title
+        )
+        if m_s_exp:
+            s_val = m_s_exp.group(1) or m_s_exp.group(2)
+            norm_s = normalize_attribute_value('storage', s_val)
+            if norm_s:
+                attrs['storage'] = norm_s
+
+    # 5. Явная оперативная память с маркером (DDR4/5, D4/5, RAM, ОЗУ, памяти)
+    if 'ram' not in attrs:
+        m_r_exp = re.search(
+            r'(?i)\b(4|6|8|12|16|24|32|48|64|96|128)\s*(?:gb|гб)?\s*(?:ddr[345]|d[45]|ram|озу|памяти|so-dimm|dimm)\b|\b(?:ddr[345]|d[45]|so-dimm|dimm)\s*(4|6|8|12|16|24|32|48|64|96|128)\s*(?:gb|гб)\b',
+            title
+        )
+        if m_r_exp:
+            r_val = int(m_r_exp.group(1) or m_r_exp.group(2))
+            attrs['ram'] = f"{r_val} ГБ"
+
+    # 6. Standalone Storage (128GB, 256 ГБ, 512GB, 1TB, 1024 Гб)
+    if 'storage' not in attrs:
+        m_s = re.search(r'(?i)\b(64|128|256|512|1024|2048)\s*(?:gb|гб)\b|\b([124])\s*(?:tb|тб)\b', title)
         if m_s:
             raw_s = m_s.group(0)
             norm_s = normalize_attribute_value('storage', raw_s)
             if norm_s:
                 attrs['storage'] = norm_s
 
-    # 4. RAM (standalone: 8GB RAM, 16 ГБ ОЗУ)
-    if 'ram' not in attrs:
+    # 7. Для целых устройств: если накопитель уже известен, оставшееся круглое число ГБ — это ОЗУ
+    if 'ram' not in attrs and 'storage' in attrs and _is_whole_device(title):
+        for m in re.finditer(r'(?i)\b(4|6|8|12|16|24|32|48|64)\s*(?:gb|гб)\b', title):
+            val_str = f"{m.group(1)} ГБ"
+            if val_str != attrs['storage']:
+                prefix = title[:m.start()].lower()
+                if not re.search(r'\b(?:rtx|gtx|rx|radeon|geforce|arc)\s*\d{3,4}\s*$', prefix):
+                    attrs['ram'] = val_str
+                    break
+
+    # 8. Standalone RAM (4GB, 8GB, 16GB, 32GB)
+    if 'ram' not in attrs and not re.search(r'\b(видеокарт\w*|geforce|radeon\s+rx|rtx\s*\d{3,4}|gtx\s*\d{3,4})\b', title, re.I):
         m_r = re.search(r'(?i)\b(4|6|8|12|16|24|32|64)\s*(?:gb|гб)\s*(?:ram|озу|памяти)\b', title)
         if m_r:
             attrs['ram'] = f"{m_r.group(1)} ГБ"
 
-    # 5. Screen size (15.6", 27", 24", 6.1", 6.7")
-    m_scr = re.search(r'\b(5\.[4-9]|6\.[1-9]|7\.[0-9]|1[1-7]\.[0-9]|2[4-9]|3[2-4])\s*(?:"|\'\'|дюйм)', title)
+    # 5. Screen size (15.6", 14", 27", 24", 6.1", 6.7")
+    m_scr = re.search(r'\b(5\.[4-9]|6\.[1-9]|7\.[0-9]|1[1-7](?:\.[0-9])?|2[4-9]|3[2-4])\s*(?:"|\'\'|дюйм)', title)
     if m_scr:
         attrs['screen_size'] = f'{m_scr.group(1)}"'
 
@@ -1099,9 +1149,12 @@ def sync_all_source_attributes(conn, limit: int = 50000) -> int:
             continue
 
     total_indexed = 0
-    for pid, title in titles.items():
+    batch_size = 200
+    for idx, (pid, title) in enumerate(titles.items(), start=1):
         try:
             total_indexed += index_product_facts(conn, pid, facts_by_product.get(pid, []), title)
+            if idx % batch_size == 0 and hasattr(conn, 'commit'):
+                conn.commit()
         except Exception:
             continue
 

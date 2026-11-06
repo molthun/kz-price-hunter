@@ -394,6 +394,34 @@ class HardwareRulesTests(unittest.TestCase):
     def test_psu_certificate_is_not_a_color(self):
         self.assertNotIn("color", extract_title_attributes("Блок питания ATX 850W 80 PLUS Gold"))
 
+    def test_desktop_gpu_vram_and_system_ram_separation(self):
+        # Разрешение известного дефекта RAM/storage ПК: RTX 4060 8GB / 16GB
+        got = extract_title_attributes("Игровой компьютер RTX 4060 8GB / 16GB")
+        self.assertEqual(got.get("ram"), "16 ГБ")
+        self.assertNotIn("storage", got)
+
+    def test_laptop_complex_combo_and_m2_storage(self):
+        title = 'ASUS Zenbook 14 UM3406KA 14" / AMD Ryzen AI 7 350 / 16 Гб / M.2 1024 Гб / Radeon Graphics / Без ОС'
+        got = extract_title_attributes(title)
+        self.assertEqual(got.get("ram"), "16 ГБ")
+        self.assertEqual(got.get("storage"), "1 ТБ")
+        self.assertEqual(got.get("screen_size"), '14"')
+
+    def test_legacy_and_vendor_prefixed_gpu_models(self):
+        from catalog_classifier import canonical_gpu_model
+        cases = {
+            "Видеокарта AFOX Radeon 5450 2GB (AF5450-2048D3L5)": "Radeon HD 5450",
+            "Видеокарта Afox R5 230 2 GB (AFR5230-2048D3L5-V2)": "Radeon R5 230",
+            "Видеокарта AFOX R5 220 2GB (AFR5220-2048D3L5)": "Radeon R5 220",
+            "AFOX GeForce 210 AF210-1024D3L5-V2 1GB": "GeForce GT 210",
+            "KFA2 GeForce 210 21GGF4HI00NK": "GeForce GT 210",
+            "AFOX AF1050TI-4096D5H2": "GeForce GTX 1050 Ti",
+            "AFOX AF1660S-6144D6H7-V2 6 Гб": "GeForce GTX 1660 Super",
+            "AFOX AFRX570-8192D5H5-V2 8 Гб": "Radeon RX 570",
+        }
+        for title, expected in cases.items():
+            self.assertEqual(canonical_gpu_model(title), expected, title)
+
 
 class GpuModelFilterTests(unittest.TestCase):
     """A07: фильтр базовой модели не захватывает Ti/Super/XTX."""

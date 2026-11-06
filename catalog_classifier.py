@@ -951,7 +951,17 @@ CANONICAL_GPU_FAMILIES: List[Tuple[re.Pattern, str]] = [
     (re.compile(r"\b(?:geforce\s+)?gt\s*610\b", re.I), "GeForce GT 610"),
     (re.compile(r"\b(?:geforce\s+)?gt\s*240\b", re.I), "GeForce GT 240"),
     (re.compile(r"\b(?:geforce\s+)?gt\s*220\b", re.I), "GeForce GT 220"),
-    (re.compile(r"\b(?:geforce\s+)?gt\s*210\b", re.I), "GeForce GT 210"),
+    (re.compile(r"\b(?:geforce\s+(?:gt\s*)?210|gt\s*210)\b", re.I), "GeForce GT 210"),
+
+    # AFOX SKU patterns for GeForce cards
+    (re.compile(r"\baf(?:ox)?\s*1050\s*ti\b", re.I), "GeForce GTX 1050 Ti"),
+    (re.compile(r"\baf(?:ox)?\s*1050\b", re.I), "GeForce GTX 1050"),
+    (re.compile(r"\baf(?:ox)?\s*1660\s*s(?:uper)?\b", re.I), "GeForce GTX 1660 Super"),
+    (re.compile(r"\baf(?:ox)?\s*1650\s*s(?:uper)?\b", re.I), "GeForce GTX 1650 Super"),
+    (re.compile(r"\baf(?:ox)?\s*740\b", re.I), "GeForce GT 740"),
+    (re.compile(r"\baf(?:ox)?\s*730\b", re.I), "GeForce GT 730"),
+    (re.compile(r"\baf(?:ox)?\s*710\b", re.I), "GeForce GT 710"),
+    (re.compile(r"\baf(?:ox)?\s*610\b", re.I), "GeForce GT 610"),
 
     # NVIDIA Workstation / Quadro / RTX A series
     (re.compile(r"\brtx\s*a\s*6000\b", re.I), "RTX A6000"),
@@ -1012,6 +1022,11 @@ CANONICAL_GPU_FAMILIES: List[Tuple[re.Pattern, str]] = [
     (re.compile(r"\b(?:radeon\s+)?rx\s*570\b", re.I), "Radeon RX 570"),
     (re.compile(r"\b(?:radeon\s+)?rx\s*560\b", re.I), "Radeon RX 560"),
     (re.compile(r"\b(?:radeon\s+)?rx\s*550\b", re.I), "Radeon RX 550"),
+    (re.compile(r"\bafrx\s*570\b", re.I), "Radeon RX 570"),
+    (re.compile(r"\b(?:radeon\s+)?r7\s*240\b", re.I), "Radeon R7 240"),
+    (re.compile(r"\b(?:radeon\s+)?r5\s*230\b", re.I), "Radeon R5 230"),
+    (re.compile(r"\b(?:radeon\s+)?r5\s*220\b", re.I), "Radeon R5 220"),
+    (re.compile(r"\b(?:radeon\s+)?(?:hd\s*)?5450\b", re.I), "Radeon HD 5450"),
 
     # Intel Arc series
     (re.compile(r"\b(?:intel\s+)?arc\s*b580\b", re.I), "Arc B580"),

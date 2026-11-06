@@ -102,12 +102,15 @@ def plan_changes(conn: sqlite3.Connection) -> Dict[str, List[Dict[str, Any]]]:
     for pid, title, model in conn.execute(
             "SELECT id, title, model FROM canonical_products WHERE COALESCE(model, '') != '' AND title IS NOT NULL"):
         current = model.strip()
-        if canonical_gpu_model(current) is None:
+        current_canon = canonical_gpu_model(current)
+        if current_canon is None:
             continue                              # не модель видеокарты
         new = canonical_gpu_model(title)
         if not new or new == current:
             continue
-        if new.lower().startswith(current.lower() + " "):
+        is_suffix_extension = new.lower().startswith(current.lower() + " ")
+        is_vendor_cleanup = current.lower().startswith(("afox ", "kfa2 ")) and (new == current_canon)
+        if is_suffix_extension or is_vendor_cleanup:
             models.append({"id": pid, "title": title, "old": model, "new": new})
         else:
             skipped.append({"id": pid, "title": title, "model": model, "parsed": new})
