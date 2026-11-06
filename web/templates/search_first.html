@@ -2636,6 +2636,22 @@
       display: none !important;
     }
 
+    .deals-bottom-controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    @media (max-width: 599px) and (min-height: 501px) {
+      .deals-bottom-controls,
+      #dealsSentinel {
+        display: none !important;
+      }
+    }
+
     /* ============================================================= */
     /* FAVORITES VIEW (KZPH-G5-01, G5-04)                            */
     /* ============================================================= */
@@ -5320,6 +5336,16 @@
             <!-- Cards rendered here by JS -->
           </div>
         </div>
+
+        <div id="dealsBottomControls" class="deals-bottom-controls" style="display: none; padding: 24px 0 40px; text-align: center; width: 100%;">
+          <button id="dealsLoadMoreBtn" type="button" class="btn-primary" onclick="loadDealsFeed(false)" style="padding: 12px 32px; border-radius: 9999px; font-weight: 600; font-size: 0.95rem; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.08); transition: transform 0.15s, opacity 0.15s;">
+            Показать ещё скидки ⬇
+          </button>
+          <div id="dealsAllLoadedText" style="display: none; color: var(--text-muted); font-size: 0.95rem; padding: 12px 0;">
+            🎉 Вы посмотрели все актуальные предложения
+          </div>
+        </div>
+        <div id="dealsSentinel" style="height: 20px; width: 100%; pointer-events: none;"></div>
       </div>
     </section>
 
@@ -9593,6 +9619,17 @@
     // =============================================================
     // DEALS REELS FEED (KZPH-G4-01)
     // =============================================================
+    function getDealsPageLimit() {
+      if (!isDealsShowcase()) return 16;
+      const width = window.innerWidth || document.documentElement.clientWidth || 1200;
+      if (width >= 2200) return 35; // 7 колонок * 5 строк
+      if (width >= 1800) return 30; // 6 колонок * 5 строк
+      if (width >= 1440) return 25; // 5 колонок * 5 строк
+      if (width >= 1100) return 24; // 4 колонки * 6 строк
+      if (width >= 768) return 21;  // 3 колонки * 7 строк
+      return 20;
+    }
+
     const DealsFeedState = {
       seed: 0,
       type: 'all',
@@ -9601,7 +9638,7 @@
       category: 'Все',
       items: [],
       offset: 0,
-      limit: 15,
+      limit: 20,
       hasMore: true,
       loading: false,
       abortCtrl: null
@@ -9634,7 +9671,9 @@
         }
       }
 
+      DealsFeedState.limit = getDealsPageLimit();
       DealsFeedState.loading = true;
+      updateDealsControls();
 
       try {
         const params = new URLSearchParams();
@@ -9672,7 +9711,10 @@
             </div>`;
         }
       } finally {
-        if (isCurrent()) DealsFeedState.loading = false;
+        if (isCurrent()) {
+          DealsFeedState.loading = false;
+          updateDealsControls();
+        }
       }
     }
 
@@ -9797,6 +9839,9 @@
         `;
       }).join('');
       observeDealEvidence();
+      updateDealsControls();
+      setupDealsSentinelObserver();
+      checkAndFillDealsViewport();
     }
     let dealEvidenceObserver;
     function observeDealEvidence(){
@@ -9813,6 +9858,77 @@
         });
       },{rootMargin:'0px',threshold:0.1});
       document.querySelectorAll('.deal-evidence').forEach(el=>dealEvidenceObserver.observe(el));
+    }
+
+    function updateDealsControls() {
+      const controls = document.getElementById('dealsBottomControls');
+      const btn = document.getElementById('dealsLoadMoreBtn');
+      const allLoaded = document.getElementById('dealsAllLoadedText');
+      if (!controls) return;
+
+      if (!isDealsShowcase() || !DealsFeedState.items.length) {
+        controls.style.display = 'none';
+        return;
+      }
+
+      controls.style.display = 'block';
+      if (btn) {
+        if (DealsFeedState.hasMore) {
+          btn.style.display = 'inline-block';
+          btn.textContent = DealsFeedState.loading ? '⏳ Загрузка скидок...' : 'Показать ещё скидки ⬇';
+          btn.disabled = !!DealsFeedState.loading;
+          btn.style.opacity = DealsFeedState.loading ? '0.7' : '1';
+        } else {
+          btn.style.display = 'none';
+        }
+      }
+      if (allLoaded) {
+        allLoaded.style.display = (!DealsFeedState.hasMore && DealsFeedState.items.length > 0) ? 'block' : 'none';
+      }
+    }
+
+    let dealsSentinelObserver = null;
+    function setupDealsSentinelObserver() {
+      if (!('IntersectionObserver' in window)) return;
+      if (dealsSentinelObserver) {
+        dealsSentinelObserver.disconnect();
+        dealsSentinelObserver = null;
+      }
+      const sentinel = document.getElementById('dealsSentinel');
+      if (!sentinel) return;
+
+      dealsSentinelObserver = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            if (isDealsShowcase() && DealsFeedState.hasMore && !DealsFeedState.loading) {
+              const vDeals = document.getElementById('viewDeals');
+              if (vDeals && vDeals.classList.contains('active')) {
+                loadDealsFeed(false);
+              }
+            }
+          }
+        }
+      }, {
+        rootMargin: '700px 0px 700px 0px'
+      });
+      dealsSentinelObserver.observe(sentinel);
+    }
+
+    function checkAndFillDealsViewport() {
+      if (!isDealsShowcase()) return;
+      const vDeals = document.getElementById('viewDeals');
+      if (!vDeals || !vDeals.classList.contains('active')) return;
+      if (!DealsFeedState.hasMore || DealsFeedState.loading) return;
+
+      setTimeout(() => {
+        if (!DealsFeedState.hasMore || DealsFeedState.loading) return;
+        const curDeals = document.getElementById('viewDeals');
+        if (!curDeals || !curDeals.classList.contains('active')) return;
+        const scrollRemaining = document.documentElement.scrollHeight - (window.innerHeight + window.scrollY);
+        if (scrollRemaining < 350 || document.documentElement.scrollHeight <= window.innerHeight + 150) {
+          loadDealsFeed(false);
+        }
+      }, 120);
     }
 
     // В разметке только индекс: данные каталога не попадают в код обработчиков (CA-01)
@@ -9922,12 +10038,24 @@
     }
     window.addEventListener('resize', fitDealsFeed);
 
-    // В витрине прокручивается страница, а не лента: подгрузка идёт по прокрутке окна
-    window.addEventListener('scroll', () => {
+    // В витрине подгрузка идёт по прокрутке окна или колесу мыши, если лента приближается к низу
+    function handleDealsWindowScrollOrWheel() {
       if (!isDealsShowcase()) return;
-      if (!document.getElementById('viewDeals').classList.contains('active')) return;
-      if (window.scrollY + window.innerHeight < document.documentElement.scrollHeight - 400) return;
-      if (DealsFeedState.hasMore && !DealsFeedState.loading) loadDealsFeed(false);
+      const vDeals = document.getElementById('viewDeals');
+      if (!vDeals || !vDeals.classList.contains('active')) return;
+      if (!DealsFeedState.hasMore || DealsFeedState.loading) return;
+
+      const scrollRemaining = document.documentElement.scrollHeight - (window.scrollY + window.innerHeight);
+      if (scrollRemaining < 700) {
+        loadDealsFeed(false);
+      }
+    }
+
+    window.addEventListener('scroll', handleDealsWindowScrollOrWheel, { passive: true });
+    window.addEventListener('wheel', (e) => {
+      if (e.deltaY > 0) {
+        handleDealsWindowScrollOrWheel();
+      }
     }, { passive: true });
 
     function scrollReel(dir) {
@@ -10613,10 +10741,18 @@
       if (dealsView && dealsView.classList.contains('active')) {
         if (e.key === 'ArrowDown') {
           e.preventDefault();
-          scrollReel(1);
+          if (isDealsShowcase()) {
+            window.scrollBy({ top: 350, behavior: 'smooth' });
+          } else {
+            scrollReel(1);
+          }
         } else if (e.key === 'ArrowUp') {
           e.preventDefault();
-          scrollReel(-1);
+          if (isDealsShowcase()) {
+            window.scrollBy({ top: -350, behavior: 'smooth' });
+          } else {
+            scrollReel(-1);
+          }
         }
       }
     });
