@@ -7,7 +7,8 @@
 - Поручение владельца: «Продолжай все по очереди и что еще у нас там в плане». Прод не трогаем — работа только локально и на стенде.
 - Исполнитель: Antigravity (основной разработчик).
 - Дата и время: 2026-11-06 13:50 (Asia/Almaty).
-- Срез: ветка `codex/local-ai-catalog-growth`, версия `6.28.19`.
+- Срез: ветка `codex/local-ai-catalog-growth`, коммит `c438184`, версия `6.28.19`.
+- Стенд: `https://shdev.molthun.ru` (контейнер `kzph-stand` обновлен бандлом `kzph-v6.28.19.bundle`, статус healthy).
 - Область файлов:
   - `repositories/catalog_expansion_repo.py`
   - `web/server.py`
@@ -19,7 +20,7 @@
   - `version.py`, `CHANGELOG.md`, `docs/AGENT_HANDOFF.md`
 - Реализовано:
   1. `repositories/catalog_expansion_repo.py`:
-     - Расширен `claim_batch_for_crawl`: теперь опрашивает не только `status='approved'`, но и `status='needs_source'` с непроверенными источниками (`source_health='{}'`). Это устранило краевой случай, когда быстрый локальный ИИ успевал перевести запрос в `needs_source` до первого прохода краулера.
+     - Расширен `claim_batch_for_crawl`: теперь опрашивает не только `status='approved'`, но и `status='needs_source'` с непроверенными источниками (`source_health NOT LIKE '%crawled%'`). Это устранило краевой случай, когда быстрый локальный ИИ успевал перевести запрос в `needs_source` до первого прохода краулера.
      - `finish_crawl_poll`: теперь корректно обновляет `source_health`, сохраняя информацию о выполненном опросе.
   2. `web/server.py`:
      - В `review_catalog_expansion_handler` добавлена моментальная постановка фоновой задачи опроса магазинов `_poll_pending_demand_queries(max_queries=1)` при одобрении или перезапуске администратором в панели `/admin`.
@@ -31,12 +32,16 @@
      - Поддержка фирменных цветов Apple, включая Dark Night / Midnight (`темная ночь` → «Черный»).
      - Расширен `_SYNC_TITLE_SCOPE` для всех четырех категорий.
      - Настроен `priority_orders` в `repositories/search_repo.py`.
-  4. Тесты:
+  4. Тесты и верификация:
      - `tests/search/test_demand_crawler_poll.py`: тест `test_claim_batch_includes_needs_source`.
      - `tests/search/test_attribute_facets_filter.py`: тесты извлечения характеристик и приоритизации фасетов для TV, кондиционеров, наушников и смарт-часов.
      - Полный suite: 2840 passed, 0 failed (100% pass rate).
+     - Проверено на стенде `https://shdev.molthun.ru`:
+       - Опрос спроса «Посудомоечная машина»: опрошены подключенные магазины, добавлено 30 товаров в каталог `prices.db`, каталог расширился (Nexme, Hofmann, Whirlpool, MAUNFELD, Candy).
+       - Телевизоры: выводятся фасеты по диагонали экрана (`32"`, `43"`, `55"`, `65"` и др.).
+       - Скриншоты подтверждения: `stand_v62819_search_dishwashers_crawled.png`, `stand_v62819_search_tv_facets.png`, `stand_v62819_admin_expansions_indexed.png`.
 - Следующий шаг:
-  - Выкатка бандла `kzph-v6.28.19.bundle` на стенд `shdev.molthun.ru`, проверка и фиксация свидетельств.
+  - Аудит владельца / Codex. Прод `shop.molthun.ru` не затрагивался.
 
 ---
 
