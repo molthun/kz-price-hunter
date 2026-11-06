@@ -425,6 +425,22 @@ class TestCatalogClassifier(unittest.TestCase):
                 for bad_vendor in forbidden_manufacturers:
                     self.assertNotIn(bad_vendor, res.model.lower().split(), f"Model {res.model} should not contain vendor {bad_vendor}")
 
+    def test_wave2_disambiguation_rules(self):
+        cases = [
+            ("Планшет Huawei MatePad 12 X PaperMatte 256 Гб, 12 Гб зеленый + клавиатура", "tablets"),
+            ("Планшет Huawei MatePad 11.5\" TXZ-W09CK Wi-Fi 8/128GB Keyboard Gray", "tablets"),
+            ("10.9\" Планшет Samsung Galaxy Tab S10 FE 5G 128 ГБ серебристый + стилус", "tablets"),
+            ("kari Детская игрушка Блендер, свет/звук 6003N", "toys"),
+            ("Электрический рубанок Ставр РЭ-110/1500СТ", "tools_repair"),
+            ("Бумага для печати 100 листов, A4, 80 г/м²", "books"),
+            ("Контроллер PCI to 4xSATA", "pc_components"),
+            ("Адаптер ASUS Hyper M.2 x16 Card V2", "pc_components"),
+        ]
+        for title, expected_cat_id in cases:
+            with self.subTest(title=title):
+                res = self.classifier.classify_rules(title)
+                self.assertIsNotNone(res, f"Expected rule match for {title}")
+                self.assertEqual(res.category_id, expected_cat_id, f"Expected {expected_cat_id} for {title}, got {res.category_id}")
 
 
 if __name__ == "__main__":

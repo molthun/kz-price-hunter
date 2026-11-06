@@ -1108,14 +1108,30 @@ class SearchRepository(BaseRepository):
 
         # Приоритетный порядок фасетов для ключевых категорий
         cat_key = arguments.get('category') or ''
+        if cat_key:
+            try:
+                from repositories.category_repo import CategoryRepository
+                m_prio = CategoryRepository(self.conn).get_mapper()
+                c_prio = m_prio.map_category(cat_key) or m_prio.get_by_id(cat_key)
+                if c_prio:
+                    cat_key = c_prio.id
+            except Exception:
+                pass
         priority_orders = {
             'diapers_hygiene': ['diaper_type', 'diaper_size', 'weight_range', 'pieces_count'],
             'tv': ['screen_diagonal', 'resolution', 'screen_tech', 'smart_tv', 'refresh_rate', 'color'],
+            'monitors': ['screen_size', 'refresh_rate', 'panel_type', 'resolution', 'aspect_ratio', 'curved', 'color'],
             'air_conditioners': ['type', 'power_btu', 'area_sqm', 'inverter', 'color'],
             'headphones': ['type', 'wireless', 'anc', 'color'],
+            'audio': ['type', 'wireless', 'power', 'color'],
             'smartwatches': ['case_size', 'screen_tech', 'cellular', 'color'],
             'phones': ['storage', 'ram', 'color', 'screen_size', '5g', 'nfc'],
+            'tablets': ['screen_size', 'storage', 'ram', 'cellular', 'color'],
             'laptops': ['cpu', 'ram', 'storage', 'screen_size', 'gpu'],
+            'peripherals': ['type', 'connection_type', 'keyboard_type', 'sensor_dpi', 'color'],
+            'network': ['type', 'wifi_standard', 'ports_count', 'lan_speed', 'poe'],
+            'printers': ['type', 'print_tech', 'print_color', 'paper_format', 'connectivity'],
+            'removable_storage': ['storage', 'interface', 'type'],
             'refrigerators': ['refrigeration_defrost', 'doors_type', 'height_cm', 'compressor_type', 'freezer_location', 'color'],
             'washing_machines': ['load_capacity', 'drying', 'spin_speed', 'depth_type', 'motor_type', 'installation_type', 'color'],
             'dishwashers': ['installation_type', 'capacity_sets', 'width_cm', 'color', 'water_consumption'],

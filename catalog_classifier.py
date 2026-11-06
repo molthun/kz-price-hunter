@@ -440,7 +440,11 @@ _TITLE_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
     (re.compile(r"^(?!.*\b(?:кулер|cooler|вентилятор|охлаждени|блок\s+питания|корпус|видеокарт|geforce|radeon|процессор|материнск|пк)\b).*\b(?:винил(?:овая\s+пластинка|\s+lp)?|виниловые\s+пластинки|грампластинк\w*|\b2lp\b|\b\d?lp(?=\s*(?:диск|пластинк|альбом|repress|remaster|edition|soundtrack|vinyl|\(|$)))\b", re.I), "vinyl"),
     (re.compile(r"\b(?:cd[- ]диск\w*|аудиодиск\w*|музыка\s+на\s+cd)\b", re.I), "music_cd"),
     (re.compile(r"\b(?:книга|книги|роман|повесть|энциклопедия|биография|учебник|пособие)\b", re.I), "books"),
+    (re.compile(r"\b(?:бумага\s+для\s+(?:печати|принтера|офисной\s+техники)|бумага\s+офисная|бумага\s+а4\b)\b", re.I), "books"),
     (re.compile(r"\b(?:настольная\s+игра|настольные\s+игры|настолк\w*|монополия|дженга|имаджинариум)\b", re.I), "board_games"),
+    (re.compile(r"\b(?:детск\w*\s+игрушк\w*|игрушк\w*\s+детск\w*|игрушечн\w*\s+(?:блендер|чайник|пылесос|миксер|тостер|кофеварк\w*|стиральн\w*|утюг|кухн\w*|набор|оружие|автомат|пистолет|машинк\w*))\b", re.I), "toys"),
+    (re.compile(r"\b(?:электрический\s+рубанок|электрорубанок|рубанок\s+[а-яa-z0-9-]+|перфоратор|шуруповерт|дрель-шуруповерт|ударная\s+дрель|угловая\s+шлифмашина|болгарка|\bушм\b|электролобзик|сварочный\s+аппарат|строительный\s+фен|краскопульт|отбойный\s+молоток|торцовочная\s+пила|циркулярная\s+пила|дисковая\s+пила)\b", re.I), "tools_repair"),
+    (re.compile(r"\b(?:контроллер\s+pci|плата\s+расширения\s+pci|адаптер\s+(?:asus\s+)?hyper\s+m\.2|переходник\s+pci-?e)\b", re.I), "pc_components"),
 
     # Женская гигиена и белье (защита от ложного захвата детскими подгузниками)
     (re.compile(r"\b(менструальн(?:ые|ый|ую)\s+трусик(?:и)?|прокладк(?:и|ек|а))\b", re.I), "beauty"),
@@ -649,7 +653,7 @@ _COMPATIBILITY_PATTERN = re.compile(
 
 # Подарочные бандлы и комплекты ("Смартфон Apple iPhone 17 Pro Max + Наушники AirPods 4 + Адаптер...")
 _BUNDLE_GIFT_SPLIT_PAT = re.compile(
-    r"\s+\+\s+(?:наушники|наушник|адаптер|подарок|подарки|чехол|стекло|ремешок|powerbank|повербанк|зарядное|блок\s+питания|кабель)\b",
+    r"\s+\+\s+(?:наушники|наушник|адаптер|подарок|подарки|чехол|стекло|ремешок|powerbank|повербанк|зарядное|блок\s+питания|кабель|клавиатур\w*|стилус|stylus|мышь|мышк\w*)\b",
     re.I,
 )
 
@@ -1636,7 +1640,16 @@ class CatalogClassifier:
         # чтобы аксессуары ("Aluminium Case", "Чехол для...", "Стилус", "Зарядное для Watch") не меняли тип основного устройства
         is_watch = bool(re.search(r"\b(смарт-час(?:ы|а)|умные\s+часы|(?:apple\s+)?watch\s*(?:nike\s+)?series|apple\s+watch|galaxy\s+watch)\b", main_part, re.I)) and not bool(re.search(r"\b(ремешок|браслет|сменный\s+ремешок|зарядн(?:ое|ый|ая)|кабель|док-станция|подставка|переходник|адаптер)\b|^ремешок\b|^браслет\b|\b(?:для|for)\s+(?:apple\s+)?watch\b", main_part, re.I))
         is_phone = bool(re.search(r"\b(смартфон|айфон|сотовый\s+телефон)\b", main_part, re.I)) and not bool(re.search(r"\b(чехол|стекло|пленка|ремешок|кабель|держатель|подставка|наушники|гарнитур|адаптер|зарядк|переходник)\b", main_part, re.I))
-        is_tablet = bool(re.search(r"\b(планшет|ipad|tablet)\b", main_part, re.I)) and not bool(re.search(r"\b(клавиатур[аы]|keyboard|стилус|stylus|чехол|стекло|пленка|ремешок|кабель|адаптер|держатель|подставка)\b", main_part, re.I))
+        is_tablet = (
+            (
+                bool(re.search(r"^\s*(?:(?:\d+(?:\.\d+)?\s*[\"”']?\s*)?планшет|комплект\s+планшет)\b", main_part, re.I))
+                and not bool(re.search(r"\b(графическ\w*\s+планшет|чехол|стекло|пленка|ремешок|кабель|держатель|подставка)\b", main_part, re.I))
+            )
+            or (
+                bool(re.search(r"\b(планшет|ipad|tablet)\b", main_part, re.I))
+                and not bool(re.search(r"\b(графическ\w*\s+планшет|клавиатур[аы]|keyboard|стилус|stylus|чехол|стекло|пленка|ремешок|кабель|адаптер|держатель|подставка)\b", main_part, re.I))
+            )
+        )
         is_laptop = (
             bool(re.search(r"\b(ноутбук|macbook|laptop|ультрабук|mechrevo|thunderobot)\b", main_part, re.I))
             or bool(re.search(r"(?<!видеокарт\w\s)(?<!кулер\w\s)\b(?:rog\s+strix\s+scar|rog\s+strix\s+g\d+|tuf\s+gaming\s+[af]\d+|legion\s+(?:pro\s+)?[3579]|loq\s+(?:\d|series|\w+)|predator\s+helios|acer\s+nitro\s+[5-9v]|victus\s+\d+|omen\s+(?:max\s+)?\d+|msi\s+(?:stealth|raider|titan|katana|cyborg|pulse|sword|thin|vector)|dream\s+machines|gaming\s+a16)\b.*\b(?:intel|core|ryzen|ssd|win\s*11|dos|без\s+ос|\d+\s*(?:гб|gb))\b", main_part, re.I))

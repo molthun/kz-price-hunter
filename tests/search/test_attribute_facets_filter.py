@@ -321,12 +321,65 @@ class AttributeFacetsFilterTests(unittest.TestCase):
         self.assertIsNone(not_tire.get('diameter'))
         self.assertIsNone(not_tire.get('tire_size'))
 
+        # 9. Мониторы (Monitors)
+        mon1 = extract_title_attributes('Монитор 34" Xiaomi Curved Gaming Monitor G34WQi 3440x1440 180 Гц VA черный')
+        self.assertEqual(mon1.get('screen_size'), '34"')
+        self.assertEqual(mon1.get('resolution'), '3440x1440 (UWQHD)')
+        self.assertEqual(mon1.get('aspect_ratio'), '21:9 (UltraWide)')
+        self.assertEqual(mon1.get('refresh_rate'), '180 Гц')
+        self.assertEqual(mon1.get('panel_type'), 'VA')
+        self.assertEqual(mon1.get('curved'), 'Да')
+
+        # 10. Клавиатуры и мыши (Peripherals)
+        kb1 = extract_title_attributes('Клавиатура механическая беспроводная Keychron K2 Pro Bluetooth Черный')
+        self.assertEqual(kb1.get('type'), 'Клавиатура')
+        self.assertEqual(kb1.get('keyboard_type'), 'Механическая')
+        self.assertEqual(kb1.get('connection_type'), 'Беспроводное')
+
+        ms1 = extract_title_attributes('Мышь проводная Logitech G102 Lightsync 8000 DPI белый')
+        self.assertEqual(ms1.get('type'), 'Мышь')
+        self.assertEqual(ms1.get('connection_type'), 'Проводное')
+        self.assertEqual(ms1.get('sensor_dpi'), '8000 DPI')
+
+        # 11. Техника для кухни (Kitchen Appliances)
+        ka1 = extract_title_attributes('Кофемашина DeLonghi Magnifica Start ECAM 220.22.GB 1450 Вт 1.8 л черный')
+        self.assertEqual(ka1.get('type'), 'Кофемашина')
+        self.assertEqual(ka1.get('power'), '1450 Вт')
+        self.assertEqual(ka1.get('capacity'), '1.8 л')
+
+        # 12. Сетевое оборудование (Network)
+        net1 = extract_title_attributes('Маршрутизатор TP-Link Archer AX55 Wi-Fi 6 AX3000 Гигабитный')
+        self.assertEqual(net1.get('type'), 'Wi-Fi роутер')
+        self.assertEqual(net1.get('wifi_standard'), 'Wi-Fi 6 (802.11ax)')
+        self.assertEqual(net1.get('lan_speed'), '1 Гбит/с')
+
+        net2 = extract_title_attributes('Коммутатор TP-Link TL-SG1008P 8-портовый гигабитный с PoE')
+        self.assertEqual(net2.get('type'), 'Коммутатор (Switch)')
+        self.assertEqual(net2.get('ports_count'), '8 портов')
+        self.assertEqual(net2.get('lan_speed'), '1 Гбит/с')
+        self.assertEqual(net2.get('poe'), 'С поддержкой PoE')
+
+        # 13. Принтеры и МФУ (Printers)
+        pr1 = extract_title_attributes('МФУ Epson EcoTank L3250 СНПЧ цветной A4 Wi-Fi черный')
+        self.assertEqual(pr1.get('type'), 'МФУ (принтер-сканер-копир)')
+        self.assertEqual(pr1.get('print_tech'), 'Струйная с СНПЧ')
+        self.assertEqual(pr1.get('print_color'), 'Цветная')
+        self.assertEqual(pr1.get('paper_format'), 'A4')
+        self.assertEqual(pr1.get('connectivity'), 'Wi-Fi')
+
+        # 14. Защита от утечки diaper_type на не-детские товары
+        from domain.attribute_indexing import normalize_attribute_value, FACT_KEY_MAP
+        self.assertEqual(FACT_KEY_MAP.get('тип'), ('type', 'Тип устройства'))
+        self.assertIsNone(normalize_attribute_value('diaper_type', 'Настенная сплит-система'))
+
     def test_category_schema_and_search_priority_orders(self):
         from domain.category import MASTER_TAXONOMY
         from repositories.category_repo import CategoryRepository
 
         cats = {c.id: c for c in MASTER_TAXONOMY}
-        for cat_id in ('tv', 'headphones', 'air_conditioners', 'smartwatches', 'refrigerators', 'washing_machines', 'vacuums', 'tires'):
+        for cat_id in ('tv', 'headphones', 'air_conditioners', 'smartwatches', 'refrigerators',
+                       'washing_machines', 'vacuums', 'tires', 'monitors', 'peripherals',
+                       'kitchen_appliances', 'network', 'printers', 'tablets', 'removable_storage'):
             self.assertIn(cat_id, cats)
             self.assertGreater(len(cats[cat_id].attributes_schema), 0)
 

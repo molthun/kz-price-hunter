@@ -68,14 +68,38 @@ ATTRIBUTE_LABELS: Dict[str, str] = {
     'certificate': 'Сертификат 80 PLUS',
     'panel_type': 'Тип матрицы',
     'curved': 'Изогнутый экран',
+    'aspect_ratio': 'Соотношение сторон',
     'interface': 'Интерфейс',
     'type': 'Тип устройства',
+    'keyboard_type': 'Тип клавиатуры',
+    'sensor_dpi': 'Разрешение сенсора',
+    'wifi_standard': 'Стандарт Wi-Fi',
+    'ports_count': 'Количество портов',
+    'lan_speed': 'Скорость портов',
+    'poe': 'Поддержка PoE',
+    'print_tech': 'Технология печати',
+    'print_color': 'Цветность печати',
+    'paper_format': 'Формат бумаги',
+    'connectivity': 'Интерфейсы',
+    'power_btu': 'Мощность (BTU)',
+    'area_sqm': 'Площадь помещения',
+    'inverter': 'Инвертор',
+    'screen_diagonal': 'Диагональ экрана',
+    'screen_tech': 'Технология экрана',
+    'smart_tv': 'Smart TV',
+    'wireless': 'Беспроводные',
+    'anc': 'Шумоподавление (ANC)',
+    'case_size': 'Размер корпуса',
+    'cellular': 'Связь (LTE / eSIM)',
+    'width_cm': 'Ширина',
+    'capacity_sets': 'Вместимость (комплектов)',
     # Музыка, винил и книги
     'artist': 'Исполнитель',
     'format': 'Формат',
     'genre': 'Жанр',
     'release_year': 'Год издания',
     'author': 'Автор',
+    'издательство': 'Издательство',
     'publisher': 'Издательство',
     'cover_type': 'Переплет',
 }
@@ -116,7 +140,7 @@ FACT_KEY_MAP: Dict[str, Tuple[str, str]] = {
     'пылесборник': ('dust_collector_type', 'Тип пылесборника'),
     'мощность': ('power', 'Мощность'),
     'потребляемая мощность': ('power', 'Мощность'),
-    'мощность всасывания': ('power', 'Мощность'),
+    'мощность всасывания': ('suction_power', 'Мощность всасывания'),
     'система разморозки': ('refrigeration_defrost', 'Разморозка'),
     'размораживание': ('refrigeration_defrost', 'Разморозка'),
     'тип размораживания': ('refrigeration_defrost', 'Разморозка'),
@@ -124,11 +148,18 @@ FACT_KEY_MAP: Dict[str, Tuple[str, str]] = {
     'размораживание холодильной камеры': ('refrigeration_defrost', 'Разморозка'),
     'общий объем': ('capacity', 'Объем'),
     'полезный объем': ('capacity', 'Объем'),
+    'объем': ('capacity', 'Объем'),
+    'объём': ('capacity', 'Объем'),
+    'площадь помещения': ('area_sqm', 'Площадь помещения'),
+    'обслуживаемая площадь': ('area_sqm', 'Площадь помещения'),
+    'инвертор': ('inverter', 'Инвертор'),
+    'инверторный компрессор': ('inverter', 'Инвертор'),
+    # Общий тип устройства
+    'тип': ('type', 'Тип устройства'),
+    'тип устройства': ('type', 'Тип устройства'),
     # Подгузники и гигиена для малышей
-    'тип': ('diaper_type', 'Тип'),
     'тип подгузников': ('diaper_type', 'Тип'),
     'вид подгузников': ('diaper_type', 'Тип'),
-    'размер': ('diaper_size', 'Размер'),
     'размер подгузников': ('diaper_size', 'Размер'),
     'размер подгузника': ('diaper_size', 'Размер'),
     'вес ребенка': ('weight_range', 'Вес ребенка'),
@@ -137,7 +168,28 @@ FACT_KEY_MAP: Dict[str, Tuple[str, str]] = {
     'максимальный вес ребенка': ('weight_range', 'Вес ребенка'),
     'количество в упаковке': ('pieces_count', 'Количество в упаковке'),
     'количество штук в упаковке': ('pieces_count', 'Количество в упаковке'),
-    'количество': ('pieces_count', 'Количество в упаковке'),
+    # Мониторы, периферия, сеть, принтеры
+    'тип матрицы': ('panel_type', 'Тип матрицы'),
+    'матрица': ('panel_type', 'Тип матрицы'),
+    'изогнутый экран': ('curved', 'Изогнутый экран'),
+    'соотношение сторон': ('aspect_ratio', 'Соотношение сторон'),
+    'тип подключения': ('connection_type', 'Тип подключения'),
+    'подключение': ('connection_type', 'Тип подключения'),
+    'тип клавиатуры': ('keyboard_type', 'Тип клавиатуры'),
+    'конструкция клавиатуры': ('keyboard_type', 'Тип клавиатуры'),
+    'разрешение оптического сенсора': ('sensor_dpi', 'Разрешение сенсора'),
+    'разрешение сенсора': ('sensor_dpi', 'Разрешение сенсора'),
+    'стандарт wi-fi': ('wifi_standard', 'Стандарт Wi-Fi'),
+    'стандарт беспроводной связи': ('wifi_standard', 'Стандарт Wi-Fi'),
+    'количество портов lan': ('ports_count', 'Количество портов'),
+    'количество портов': ('ports_count', 'Количество портов'),
+    'скорость портов': ('lan_speed', 'Скорость портов'),
+    'базовая скорость передачи данных': ('lan_speed', 'Скорость портов'),
+    'поддержка poe': ('poe', 'Поддержка PoE'),
+    'технология печати': ('print_tech', 'Технология печати'),
+    'тип печати': ('print_tech', 'Технология печати'),
+    'цветность печати': ('print_color', 'Цветность печати'),
+    'максимальный формат': ('paper_format', 'Формат бумаги'),
 
     # Память и накопители
     'размер встроенной памяти': ('storage', 'Встроенная память'),
@@ -451,6 +503,7 @@ def normalize_attribute_value(key: str, raw_value: Any) -> Optional[str]:
             return 'Одноразовые пеленки'
         if 'подгузн' in low or 'памперс' in low:
             return 'Подгузники'
+        return None
 
     if key == 'diaper_size':
         low = val.strip()
@@ -470,6 +523,124 @@ def normalize_attribute_value(key: str, raw_value: Any) -> Optional[str]:
             return '6 (XXL)'
         if re.search(r'(?i)\b(?:7|xxxl|3xl)\b', low):
             return '7 (XXXL)'
+        return None
+
+    if key == 'aspect_ratio':
+        low = val.casefold()
+        if '32:9' in low:
+            return '32:9 (Super UltraWide)'
+        if '21:9' in low:
+            return '21:9 (UltraWide)'
+        if '16:10' in low:
+            return '16:10'
+        if '16:9' in low:
+            return '16:9'
+        return val[:40]
+
+    if key == 'keyboard_type':
+        low = val.casefold()
+        if 'механич' in low or 'mechanical' in low:
+            return 'Механическая'
+        if 'мембран' in low or 'membrane' in low:
+            return 'Мембранная'
+        if 'оптико' in low or 'оптическ' in low:
+            return 'Оптико-механическая'
+        if 'ножнич' in low:
+            return 'Ножничная'
+        return val[:40]
+
+    if key == 'connection_type':
+        low = val.casefold()
+        if ('беспровод' in low or 'wireless' in low or 'bluetooth' in low or 'радио' in low) and ('провод' in low or 'usb' in low):
+            return 'Комбинированное'
+        if 'беспровод' in low or 'wireless' in low or 'bluetooth' in low or 'радиоканал' in low:
+            return 'Беспроводное'
+        if 'провод' in low or 'wired' in low:
+            return 'Проводное'
+        return val[:40]
+
+    if key == 'sensor_dpi':
+        m_dpi = re.search(r'\b(\d{3,5})\s*(?:dpi|cpi)?\b', val, re.I)
+        if m_dpi:
+            return f"{m_dpi.group(1)} DPI"
+        return None
+
+    if key == 'wifi_standard':
+        low = val.casefold()
+        if 'wi-fi 7' in low or 'wifi 7' in low or '802.11be' in low:
+            return 'Wi-Fi 7 (802.11be)'
+        if 'wi-fi 6e' in low or 'wifi 6e' in low:
+            return 'Wi-Fi 6E'
+        if 'wi-fi 6' in low or 'wifi 6' in low or '802.11ax' in low or '\bax' in low:
+            return 'Wi-Fi 6 (802.11ax)'
+        if 'wi-fi 5' in low or 'wifi 5' in low or '802.11ac' in low or '\bac' in low:
+            return 'Wi-Fi 5 (802.11ac)'
+        if 'wi-fi 4' in low or 'wifi 4' in low or '802.11n' in low:
+            return 'Wi-Fi 4 (802.11n)'
+        return val[:40]
+
+    if key == 'ports_count':
+        m_p = re.search(r'\b(\d{1,2})\b', val)
+        if m_p:
+            n_p = int(m_p.group(1))
+            if n_p == 1:
+                return '1 порт'
+            if n_p in (2, 3, 4):
+                return f'{n_p} порта'
+            if 5 <= n_p <= 52:
+                return f'{n_p} портов'
+        return None
+
+    if key == 'lan_speed':
+        low = val.casefold()
+        if '10 гбит' in low or '10g' in low or '10000' in low:
+            return '10 Гбит/с'
+        if '2.5 гбит' in low or '2.5g' in low or '2500' in low:
+            return '2.5 Гбит/с'
+        if '1 гбит' in low or '1000' in low or 'гигабит' in low or 'gigabit' in low or 'gbe' in low:
+            return '1 Гбит/с'
+        if '100 мбит' in low or '10/100' in low or 'fast ethernet' in low:
+            return '100 Мбит/с'
+        return val[:40]
+
+    if key == 'poe':
+        low = val.casefold()
+        if any(w in low for w in ('да', 'есть', 'poe+', 'poe', 'true')):
+            return 'С поддержкой PoE'
+        if any(w in low for w in ('нет', 'false', 'без poe')):
+            return 'Без PoE'
+        return None
+
+    if key == 'print_tech':
+        low = val.casefold()
+        if 'снпч' in low:
+            return 'Струйная с СНПЧ'
+        if 'лазерн' in low or 'светодиодн' in low or 'laser' in low:
+            return 'Лазерная'
+        if 'струйн' in low or 'inkjet' in low:
+            return 'Струйная'
+        if 'термо' in low or 'thermal' in low:
+            return 'Термопечать'
+        if 'матричн' in low:
+            return 'Матричная'
+        return val[:40]
+
+    if key == 'print_color':
+        low = val.casefold()
+        if 'цветн' in low or 'color' in low:
+            return 'Цветная'
+        if 'черно-бел' in low or 'ч/б' in low or 'монохром' in low or 'mono' in low:
+            return 'Черно-белая'
+        return val[:40]
+
+    if key == 'paper_format':
+        if re.search(r'\ba3\+?\b|\bа3\+?\b', val, re.I):
+            return 'A3'
+        if re.search(r'\ba4\b|\bа4\b', val, re.I):
+            return 'A4'
+        if re.search(r'\ba1\b|\bа1\b|\ba0\b|\bа0\b', val, re.I):
+            return 'Широкоформатный (A1/A0)'
+        return val[:40]
 
     if key == 'weight_range':
         m_range = re.search(r'(\d+(?:\.\d+)?)\s*[-–]\s*(\d+(?:\.\d+)?)\s*кг', val, re.IGNORECASE)
@@ -856,26 +1027,36 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
     is_monitor = bool(re.search(r'\b(монитор\w*|monitor\w*)\b', title, re.I))
     if is_monitor:
         # Диагональ экрана (23.8", 24", 24.5", 27", 31.5", 32", 34", 49")
-        m_msz = re.search(r'\b(1[5-9]\.[0-9]|2[1-9]\.[0-9]|2[1-9]|3[1-4]\.[0-9]|3[1-4]|4[3-9])\s*(?:"|\'\'|дюйм|\binch\b|\b(?=\s*(?:fhd|qhd|uhd|2k|4k|ips|va|oled|gaming|игров|144|165|240|hz|гц)))', title, re.I)
+        m_msz = re.search(r'\b(1[5-9]\.[0-9]|2[1-9]\.[0-9]|2[1-9]|3[1-9]\.[0-9]|3[1-9]|4[0-9])\s*(?:"|\'\'|дюйм|\binch\b|\b(?=\s*(?:fhd|qhd|uhd|2k|4k|ips|va|oled|gaming|игров|144|165|180|240|hz|гц)))', title, re.I)
         if m_msz:
             attrs['screen_size'] = f'{m_msz.group(1)}"'
         # Частота обновления (60 Гц, 75 Гц, 100 Гц, 144 Гц, 165 Гц, 180 Гц, 240 Гц, 360 Гц)
-        m_mhz = re.search(r'\b(60|75|100|120|144|165|170|180|200|240|280|360|540)\s*(?:hz|гц)\b', title, re.I)
+        m_mhz = re.search(r'\b(60|75|100|120|144|160|165|170|175|180|200|240|280|360|480|540)\s*(?:hz|гц)\b', title, re.I)
         if m_mhz:
             attrs['refresh_rate'] = f"{m_mhz.group(1)} Гц"
         # Тип матрицы (IPS, Fast IPS, VA, OLED, Mini-LED, TN)
-        m_mpt = re.search(r'\b(fast\s+ips|qd-oled|mini-led|oled|ips|va|tn)\b', title, re.I)
+        m_mpt = re.search(r'\b(fast\s+ips|rapid\s+ips|nano\s+ips|qd-oled|mini-led|oled|ips|va|tn)\b', title, re.I)
         if m_mpt:
             attrs['panel_type'] = normalize_attribute_value('panel_type', m_mpt.group(1))
-        # Разрешение экрана
-        if re.search(r'\b(3840\s*[xх]\s*2160|4k|uhd)\b', title, re.I):
+        # Разрешение экрана и соотношение сторон
+        if re.search(r'\b(5120\s*[xх]\s*1440|dqhd|32:9)\b', title, re.I):
+            attrs['resolution'] = '5120x1440 (DQHD)'
+            attrs['aspect_ratio'] = '32:9 (Super UltraWide)'
+        elif re.search(r'\b(3840\s*[xх]\s*2160|4k|uhd)\b', title, re.I):
             attrs['resolution'] = '3840x2160 (4K UHD)'
-        elif re.search(r'\b(2560\s*[xх]\s*1440|2k|qhd|wqhd)\b', title, re.I):
-            attrs['resolution'] = '2560x1440 (2K QHD)'
+            attrs['aspect_ratio'] = '16:9'
         elif re.search(r'\b(3440\s*[xх]\s*1440|uwqhd)\b', title, re.I):
             attrs['resolution'] = '3440x1440 (UWQHD)'
+            attrs['aspect_ratio'] = '21:9 (UltraWide)'
+        elif re.search(r'\b(2560\s*[xх]\s*1080|uwfhd|wfhd|ultrawide)\b', title, re.I):
+            attrs['resolution'] = '2560x1080 (UWFHD)'
+            attrs['aspect_ratio'] = '21:9 (UltraWide)'
+        elif re.search(r'\b(2560\s*[xх]\s*1440|2k|qhd|wqhd)\b', title, re.I):
+            attrs['resolution'] = '2560x1440 (2K QHD)'
+            attrs['aspect_ratio'] = '16:9'
         elif re.search(r'\b(1920\s*[xх]\s*1080|fhd|full\s*hd)\b', title, re.I):
             attrs['resolution'] = '1920x1080 (Full HD)'
+            attrs['aspect_ratio'] = '16:9'
         # Изогнутый экран
         if re.search(r'\b(изогнут\w*|curved|1000r|1500r|1800r)\b', title, re.I):
             attrs['curved'] = 'Да'
@@ -1116,16 +1297,27 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
     if is_ac:
         if re.search(r'\bмобильн\w*\b', title, re.I):
             attrs['type'] = 'Мобильный'
-        elif re.search(r'\bсплит[- ]систем\w*\b', title, re.I):
+        elif re.search(r'\bколонн\w*\b', title, re.I):
+            attrs['type'] = 'Колонный'
+        elif re.search(r'\bкассетн\w*\b', title, re.I):
+            attrs['type'] = 'Кассетный'
+        elif re.search(r'\b(сплит[- ]систем\w*|настенн\w*|кондиционер)\b', title, re.I):
             attrs['type'] = 'Сплит-система'
-        if re.search(r'\b(инвертор\w*|inverter)\b', title, re.I):
+        if re.search(r'\b(инвертор\w*|inverter|inv\b|dc[- ]inverter|[a-z]+-\d{2}hrfn|[a-z]+\d{2}hrfn)\b', title, re.I):
             attrs['inverter'] = 'Да'
-        elif re.search(r'\b(on[- ]off|неинвертор\w*)\b', title, re.I):
+        elif re.search(r'\b(on[- /]off|неинвертор\w*|[a-z]+-\d{2}hrn|[a-z]+\d{2}hrn)\b', title, re.I):
             attrs['inverter'] = 'Нет'
-        # Мощность BTU и площадь
-        m_btu = re.search(r'\b(07|09|12|18|24)\b|\b(7000|9000|12000|18000|24000)\s*(?:btu|бте)?\b|\b(7|9|12|18|24)\s*k\b', title, re.I)
+        # Мощность BTU и площадь (включая модельные коды AR09, FM-09, MSAG-24, TCL-12, HWH09, ACS-09 и т.д.)
+        m_btu = (
+            re.search(r'\b(07|09|12|18|24|30|36)\b', title, re.I)
+            or re.search(r'\b(7000|9000|12000|18000|24000)\s*(?:btu|бте)?\b', title, re.I)
+            or re.search(r'\b(7|9|12|18|24)\s*k\b', title, re.I)
+            or re.search(r'(?:[a-z]{2,6}[-/ ]?)(07|09|12|18|24)(?:[a-z0-9]|$)', title, re.I)
+        )
         if m_btu:
-            raw_btu = m_btu.group(1) or m_btu.group(3) or str(int(m_btu.group(2)) // 1000)
+            raw_btu = m_btu.group(1)
+            if len(raw_btu) >= 4:
+                raw_btu = str(int(raw_btu) // 1000)
             btu_map = {
                 '7': ('07 (до 20 м²)', 'до 20 м²'),
                 '07': ('07 (до 20 м²)', 'до 20 м²'),
@@ -1134,6 +1326,8 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
                 '12': ('12 (до 35 м²)', 'до 35 м²'),
                 '18': ('18 (до 50 м²)', 'до 50 м²'),
                 '24': ('24 (до 70 м²)', 'до 70 м²'),
+                '30': ('30 (до 85 м²)', 'до 85 м²'),
+                '36': ('36 (до 100 м²)', 'до 100 м²'),
             }
             if raw_btu in btu_map:
                 attrs['power_btu'] = btu_map[raw_btu][0]
@@ -1293,6 +1487,202 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
         elif re.search(r'\b(зимн\w*|winter)\b', title, re.I):
             attrs['season'] = 'Зимние'
 
+    # 19. Клавиатуры, мыши и периферия
+    is_not_periph_device = bool(re.search(r'^\s*(?:(?:\d+(?:\.\d+)?\s*"?\s*)?планшет|ноутбук|моноблок|смартфон)\b', title, re.I))
+    is_periph = not is_not_periph_device and bool(re.search(
+        r'\b(клавиатур\w*|мышь|мышк\w*|комплект\s+клавиатур\w*|коврик\s+для\s+мыш\w*|игров\w*\s+поверхност\w*|графическ\w*\s+планшет\w*|геймпад\w*|джойстик\w*|руль\s+игров\w*)\b',
+        title, re.I
+    ))
+    if is_periph:
+        if re.search(r'\b(комплект|набор)\b.*\b(клавиатур\w*|мышь|мышк\w*)\b|\bклавиатур\w*\s*\+\s*мышь\b', title, re.I):
+            attrs['type'] = 'Комплект (клавиатура + мышь)'
+        elif re.search(r'\b(коврик\s+для\s+мыш\w*|игров\w*\s+поверхност\w*|mousepad|mouse\s+pad)\b', title, re.I):
+            attrs['type'] = 'Коврик для мыши'
+        elif re.search(r'\b(графическ\w*\s+планшет\w*)\b', title, re.I):
+            attrs['type'] = 'Графический планшет'
+        elif re.search(r'\b(геймпад\w*|джойстик\w*|gamepad|dualshock|dualsense)\b', title, re.I):
+            attrs['type'] = 'Геймпад / Джойстик'
+        elif re.search(r'\b(клавиатур\w*|keyboard)\b', title, re.I):
+            attrs['type'] = 'Клавиатура'
+        elif re.search(r'\b(мышь|мышк\w*|mouse)\b', title, re.I):
+            attrs['type'] = 'Мышь'
+
+        if re.search(r'\b(беспроводн\w*|wireless|bluetooth|bt\b|радиоканал|2\.4\s*ghz|lightspeed)\b', title, re.I):
+            attrs['connection_type'] = 'Беспроводное'
+        elif re.search(r'\b(проводн\w*|wired|usb)\b', title, re.I):
+            attrs['connection_type'] = 'Проводное'
+
+        if re.search(r'\b(механическ\w*|mechanical|cherry\s+mx|gateron|kailh|outemu|red\s+switch|blue\s+switch|brown\s+switch)\b', title, re.I):
+            attrs['keyboard_type'] = 'Механическая'
+        elif re.search(r'\b(мембранн\w*|membrane)\b', title, re.I):
+            attrs['keyboard_type'] = 'Мембранная'
+        elif re.search(r'\b(оптико[- ]механическ\w*|optical\s+switch)\b', title, re.I):
+            attrs['keyboard_type'] = 'Оптико-механическая'
+
+        m_dpi = re.search(r'\b(800|1000|1200|1600|2400|3200|4000|6400|8000|10000|12000|16000|18000|20000|25600|26000|30000)\s*(?:dpi|cpi)\b', title, re.I)
+        if m_dpi:
+            attrs['sensor_dpi'] = f"{m_dpi.group(1)} DPI"
+
+    # 20. Техника для кухни
+    is_kitchen = not bool(re.search(r'\b(детск\w*\s+игрушк\w*|игрушк\w*|игрушечн\w*)\b', title, re.I)) and bool(re.search(
+        r'\b(кофемашин\w*|кофеварк\w*|кофемолк\w*|чайник\w*|электрочайник\w*|термопот\w*|'
+        r'микроволнов\w*|свч[- ]печ\w*|блендер\w*|миксер\w*|мясорубк\w*|комбайн\w*|'
+        r'мультиварк\w*|скороварк\w*|пароварк\w*|аэрогрил\w*|электрогрил\w*|грил\w*\s+электрическ\w*|'
+        r'тостер\w*|бутербродниц\w*|вафельниц\w*|соковыжималк\w*|хлебопеч\w*|сушилк\w*\s+для\s+овощ\w*|'
+        r'дегидратор\w*|фритюрниц\w*|вакууматор\w*|льдогенератор\w*|электроплит\w*|варочн\w*\s+панел\w*|духов\w*\s+шкаф\w*|вытяжк\w*)\b',
+        title, re.I
+    ))
+    if is_kitchen:
+        if re.search(r'\bкофемашин\w*\b', title, re.I):
+            attrs['type'] = 'Кофемашина'
+        elif re.search(r'\bкофеварк\w*\b', title, re.I):
+            attrs['type'] = 'Кофеварка'
+        elif re.search(r'\bкофемолк\w*\b', title, re.I):
+            attrs['type'] = 'Кофемолка'
+        elif re.search(r'\b(термопот\w*)\b', title, re.I):
+            attrs['type'] = 'Термопот'
+        elif re.search(r'\b(электрочайник\w*|чайник\w*\s+электрическ\w*|чайник\w*)\b', title, re.I):
+            attrs['type'] = 'Электрочайник'
+        elif re.search(r'\b(микроволнов\w*|свч)\b', title, re.I):
+            attrs['type'] = 'Микроволновая печь'
+        elif re.search(r'\bблендер\w*\b', title, re.I):
+            attrs['type'] = 'Блендер'
+        elif re.search(r'\b(планетарн\w*\s+миксер\w*|миксер\w*)\b', title, re.I):
+            attrs['type'] = 'Миксер'
+        elif re.search(r'\bмясорубк\w*\b', title, re.I):
+            attrs['type'] = 'Мясорубка'
+        elif re.search(r'\b(кухонн\w*\s+комбайн\w*|кухонн\w*\s+машин\w*)\b', title, re.I):
+            attrs['type'] = 'Кухонный комбайн'
+        elif re.search(r'\b(мультиварк\w*|скороварк\w*)\b', title, re.I):
+            attrs['type'] = 'Мультиварка'
+        elif re.search(r'\b(аэрогрил\w*|фритюрниц\w*)\b', title, re.I):
+            attrs['type'] = 'Аэрогриль / Фритюрница'
+        elif re.search(r'\b(электрогрил\w*|грил\w*)\b', title, re.I):
+            attrs['type'] = 'Электрогриль'
+        elif re.search(r'\bтостер\w*\b', title, re.I):
+            attrs['type'] = 'Тостер'
+        elif re.search(r'\bсоковыжималк\w*\b', title, re.I):
+            attrs['type'] = 'Соковыжималка'
+        elif re.search(r'\bхлебопеч\w*\b', title, re.I):
+            attrs['type'] = 'Хлебопечь'
+        elif re.search(r'\b(варочн\w*\s+панел\w*|варочн\w*\s+поверхност\w*)\b', title, re.I):
+            attrs['type'] = 'Варочная панель'
+        elif re.search(r'\bдухов\w*\s+шкаф\w*\b', title, re.I):
+            attrs['type'] = 'Духовой шкаф'
+        elif re.search(r'\bвытяжк\w*\b', title, re.I):
+            attrs['type'] = 'Вытяжка'
+        elif re.search(r'\bвакууматор\w*\b', title, re.I):
+            attrs['type'] = 'Вакууматор'
+        elif re.search(r'\bльдогенератор\w*\b', title, re.I):
+            attrs['type'] = 'Льдогенератор'
+
+        m_kw = re.search(r'\b([1-9]\d{2}|[12]\d{3}|3000)\s*(?:вт|w)\b', title, re.I)
+        if m_kw:
+            attrs['power'] = f"{m_kw.group(1)} Вт"
+
+        m_kl = re.search(r'\b([0-9]+(?:[.,][0-9]+)?)\s*(?:л|l|литр\w*)\b', title, re.I)
+        if m_kl:
+            v_num = float(m_kl.group(1).replace(',', '.'))
+            if 0.3 <= v_num <= 70:
+                num_str = str(v_num).rstrip('0').rstrip('.') if '.' in str(v_num) else str(int(v_num))
+                attrs['capacity'] = f"{num_str} л"
+
+    # 21. Сетевое оборудование
+    is_net = bool(re.search(
+        r'\b(маршрутизатор\w*|роутер\w*|router|коммутатор\w*|свитч|switch|точк\w*\s+доступ\w*|access\s+point|'
+        r'mesh[- ]систем\w*|репитер\w*|ретранслятор\w*|усилител\w*\s+(?:беспроводн\w*\s+)?сигнал\w*|'
+        r'сетев\w*\s+адаптер\w*|wi[- ]?fi\s+адаптер\w*|модем\w*|poe[- ]инжектор\w*|медиаконвертер\w*)\b',
+        title, re.I
+    )) and not bool(re.search(r'\b(nintendo\s+switch|переключател\w*\s+для\s+клавиатур)\b', title, re.I))
+    if is_net:
+        if re.search(r'\b(mesh[- ]систем\w*|deco\s+[a-z0-9]+|zenwifi|orbi|halo\s+h)\b', title, re.I):
+            attrs['type'] = 'Mesh-система'
+        elif re.search(r'\b(маршрутизатор\w*|роутер\w*|router|archer|keenetic|mikrotik\s+hap|mikrotik\s+rb)\b', title, re.I):
+            attrs['type'] = 'Wi-Fi роутер'
+        elif re.search(r'\b(коммутатор\w*|свитч|switch)\b', title, re.I):
+            attrs['type'] = 'Коммутатор (Switch)'
+        elif re.search(r'\b(точк\w*\s+доступ\w*|access\s+point|unifi|omada\s+eap|cap\s+ac|wap\s+ac)\b', title, re.I):
+            attrs['type'] = 'Точка доступа'
+        elif re.search(r'\b(репитер\w*|ретранслятор\w*|усилител\w*\s+(?:беспроводн\w*\s+)?сигнал\w*|extender|repeater)\b', title, re.I):
+            attrs['type'] = 'Усилитель сигнала (Репитер)'
+        elif re.search(r'\b(wi[- ]?fi\s+адаптер\w*|сетев\w*\s+адаптер\w*|сетев\w*\s+карт\w*)\b', title, re.I):
+            attrs['type'] = 'Сетевой / Wi-Fi адаптер'
+        elif re.search(r'\b(модем\w*|4g\s+роутер|lte\s+роутер)\b', title, re.I):
+            attrs['type'] = '4G/5G модем'
+
+        if re.search(r'\b(wi[- ]?fi\s*7|802\.11be|\bbe\d{3,5}\b)\b', title, re.I):
+            attrs['wifi_standard'] = 'Wi-Fi 7 (802.11be)'
+        elif re.search(r'\b(wi[- ]?fi\s*6e)\b', title, re.I):
+            attrs['wifi_standard'] = 'Wi-Fi 6E'
+        elif re.search(r'\b(wi[- ]?fi\s*6|802\.11ax|\bax\d{2,4}\b|ax1500|ax1800|ax3000|ax5400|ax6000)\b', title, re.I):
+            attrs['wifi_standard'] = 'Wi-Fi 6 (802.11ax)'
+        elif re.search(r'\b(wi[- ]?fi\s*5|802\.11ac|\bac\d{3,4}\b|ac750|ac1200|ac1300|ac1750|ac1900|ac2600)\b', title, re.I):
+            attrs['wifi_standard'] = 'Wi-Fi 5 (802.11ac)'
+        elif re.search(r'\b(wi[- ]?fi\s*4|802\.11n|\bn300\b|\bn150\b|\bn450\b|300\s*мбит)\b', title, re.I):
+            attrs['wifi_standard'] = 'Wi-Fi 4 (802.11n)'
+
+        m_ports = re.search(r'\b(4|5|8|10|16|24|28|48|52)[-\s]*порт\w*\b|\b(4|5|8|16|24|48)\s*x\s*(?:100|1000|ge|fe|rj45|lan|poe)\b|\b(?:tl-sf|tl-sg|ls|des-|dgs-)(?:10)?(05|08|16|24|48)\b', title, re.I)
+        if m_ports:
+            p_raw = m_ports.group(1) or m_ports.group(2) or m_ports.group(3)
+            norm_p = normalize_attribute_value('ports_count', str(int(p_raw)))
+            if norm_p:
+                attrs['ports_count'] = norm_p
+
+        if re.search(r'\b(10g|10\s*гбит|10\s*gbps|sfp\+)\b', title, re.I):
+            attrs['lan_speed'] = '10 Гбит/с'
+        elif re.search(r'\b(2\.5g|2\.5\s*гбит|2\.5\s*gbps)\b', title, re.I):
+            attrs['lan_speed'] = '2.5 Гбит/с'
+        elif re.search(r'\b(гигабит\w*|gigabit|1000\s*мбит|1000\s*mbps|10/100/1000|gbe|tl-sg|dgs-|ls100[58]g)\b', title, re.I):
+            attrs['lan_speed'] = '1 Гбит/с'
+        elif re.search(r'\b(100\s*мбит|100\s*mbps|10/100\b|fast\s+ethernet|tl-sf|des-|ls100[58](?!g))\b', title, re.I):
+            attrs['lan_speed'] = '100 Мбит/с'
+
+        if re.search(r'\b(poe\+?|с\s+poe)\b', title, re.I):
+            attrs['poe'] = 'С поддержкой PoE'
+
+    # 22. Принтеры, МФУ и плоттеры
+    is_printer = not bool(re.search(r'\b(бумага\s+для|картридж|тонер|чернила|фотобарабан|термопленк)\b', title, re.I)) and bool(re.search(
+        r'\b(принтер\w*|мфу|многофункциональн\w*\s+устройств\w*|плоттер\w*|сканер\w*)\b',
+        title, re.I
+    ))
+    if is_printer:
+        if re.search(r'\b(мфу|многофункциональн\w*\s+устройств\w*|3\s*в\s*1|3-in-1|laserjet\s+mfp|pixma\s+g[234]\d{2}|ecotank\s+l[3456]\d{3})\b', title, re.I):
+            attrs['type'] = 'МФУ (принтер-сканер-копир)'
+        elif re.search(r'\b(плоттер\w*|широкоформатн\w*\s+принтер\w*|designjet|imageprograf|surecolor)\b', title, re.I):
+            attrs['type'] = 'Плоттер'
+        elif re.search(r'\b(принтер\w*\s+(?:чеков|этикеток)|термопринтер\w*|термотрансферн\w*)\b', title, re.I):
+            attrs['type'] = 'Принтер этикеток / чеков'
+        elif re.search(r'\b(сканер\w*)\b', title, re.I) and not re.search(r'\b(принтер\w*|мфу)\b', title, re.I):
+            attrs['type'] = 'Сканер'
+        elif re.search(r'\bпринтер\w*\b', title, re.I):
+            attrs['type'] = 'Принтер'
+
+        if re.search(r'\b(снпч|ecotank|ink\s+tank|smart\s+tank|pixma\s+g\d{3,4}|l32\d{2}|l12\d{2}|l8050)\b', title, re.I):
+            attrs['print_tech'] = 'Струйная с СНПЧ'
+        elif re.search(r'\b(лазерн\w*|laser|laserjet|i-sensys|pantum|phaser|ecosys|dcp-l|hl-l|mfc-l)\b', title, re.I):
+            attrs['print_tech'] = 'Лазерная'
+        elif re.search(r'\b(струйн\w*|inkjet|pixma|deskjet|officejet)\b', title, re.I):
+            attrs['print_tech'] = 'Струйная'
+        elif re.search(r'\b(термопринтер\w*|термотрансферн\w*|термопечат\w*)\b', title, re.I):
+            attrs['print_tech'] = 'Термопечать'
+
+        if re.search(r'\b(цветн\w*|color|colour|pixma|ecotank|smart\s+tank|l32\d{2}|l8050|clx-|clp-|m255|m183|m283|mf65\d)\b', title, re.I):
+            attrs['print_color'] = 'Цветная'
+        elif re.search(r'\b(черно[- ]бел\w*|ч/б|монохромн\w*|mono|m111|m141|m211|m236|p2500|m6500|mf3010|lbp6030|hl-l23|dcp-l25)\b', title, re.I):
+            attrs['print_color'] = 'Черно-белая'
+
+        if re.search(r'\b(a3\+?|а3\+?)\b', title, re.I):
+            attrs['paper_format'] = 'A3'
+        elif re.search(r'\b(a1|а1|a0|а0|24"|36"|44")\b', title, re.I):
+            attrs['paper_format'] = 'Широкоформатный (A1/A0)'
+        elif re.search(r'\b(a4|а4)\b', title, re.I):
+            attrs['paper_format'] = 'A4'
+
+        if re.search(r'\b(wi[- ]?fi|wireless|w\b)\b', title, re.I):
+            attrs['connectivity'] = 'Wi-Fi'
+        elif re.search(r'\b(ethernet|lan|сетев\w*)\b', title, re.I):
+            attrs['connectivity'] = 'Ethernet (LAN)'
+
     return attrs
 
 
@@ -1423,7 +1813,9 @@ _SYNC_TITLE_SCOPE = '''
     p.category IN ('Подгузники и гигиена', 'diapers_hygiene', 'Бытовая техника', 'appliances', 'refrigerators', 'Холодильники',
                    'washing_machines', 'Стиральные машины', 'dishwashers', 'Посудомоечные машины', 'vacuums', 'Пылесосы',
                    'tires', 'Шины и диски', 'Мониторы', 'Комплектующие для ПК', 'Видеокарты', 'monitors',
-                   'pc_parts', 'gpus', 'tv', 'Телевизоры', 'headphones', 'Наушники', 'air_conditioners', 'Кондиционеры', 'smartwatches', 'Смарт-часы')
+                   'pc_parts', 'gpus', 'tv', 'Телевизоры', 'headphones', 'Наушники', 'air_conditioners', 'Кондиционеры', 'smartwatches', 'Смарт-часы',
+                   'peripherals', 'Клавиатуры и мыши', 'kitchen_appliances', 'Техника для кухни', 'network', 'Сетевое оборудование',
+                   'printers', 'Принтеры и МФУ', 'tablets', 'Планшеты', 'removable_storage', 'Флешки и карты памяти', 'audio', 'Аудиотехника')
     OR p.title LIKE '%подгуз%' OR p.title LIKE '%трусик%' OR p.title LIKE '%памперс%'
     OR p.title LIKE '%холодильн%' OR p.title LIKE '%стиральн%' OR p.title LIKE '%посудомо%' OR p.title LIKE '%пылесос%'
     OR p.title LIKE '%автошин%' OR p.title LIKE '%зимн%шин%' OR p.title LIKE '%летн%шин%' OR p.title LIKE '% R1%' OR p.title LIKE '% R2%'
@@ -1432,6 +1824,10 @@ _SYNC_TITLE_SCOPE = '''
     OR p.title LIKE '%ssd%' OR p.title LIKE '%оперативн%памят%' OR p.title LIKE '%ddr5%'
     OR p.title LIKE '%ddr4%' OR p.title LIKE '%телевизор%' OR p.title LIKE '%наушник%'
     OR p.title LIKE '%кондиционер%' OR p.title LIKE '%сплит-систем%' OR p.title LIKE '%смарт-час%'
+    OR p.title LIKE '%клавиатур%' OR p.title LIKE '%мышь%' OR p.title LIKE '%мышк%'
+    OR p.title LIKE '%кофемашин%' OR p.title LIKE '%чайник%' OR p.title LIKE '%микроволнов%' OR p.title LIKE '%блендер%'
+    OR p.title LIKE '%роутер%' OR p.title LIKE '%маршрутизатор%' OR p.title LIKE '%коммутатор%'
+    OR p.title LIKE '%принтер%' OR p.title LIKE '%мфу%' OR p.title LIKE '%плоттер%' OR p.title LIKE '%планшет%'
 '''
 
 

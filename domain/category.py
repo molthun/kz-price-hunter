@@ -279,11 +279,25 @@ MASTER_TAXONOMY: List[Category] = [
         icon="🖥",
         search_priority=82,
         aliases=["мониторы", "дисплеи", "компьютерные мониторы", "monitors"],
+        attributes_schema={
+            "screen_size": {"label": "Диагональ экрана", "type": "string"},
+            "resolution": {"label": "Разрешение экрана", "type": "string"},
+            "refresh_rate": {"label": "Частота обновления", "type": "string"},
+            "panel_type": {"label": "Тип матрицы", "type": "string"},
+            "curved": {"label": "Изогнутый экран", "type": "string"},
+            "aspect_ratio": {"label": "Соотношение сторон", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="removable_storage", parent_id="electronics", name="Флешки и карты памяти", icon="💾",
         search_priority=76,
         aliases=["флешки", "флеш накопители", "карты памяти", "карта памяти", "microsd", "sdhc", "sdxc"],
+        attributes_schema={
+            "storage": {"label": "Объем памяти", "type": "string"},
+            "type": {"label": "Тип носителя", "type": "string"},
+            "interface": {"label": "Интерфейс", "type": "string"},
+        },
     ),
     Category(
         id="peripherals",
@@ -293,7 +307,15 @@ MASTER_TAXONOMY: List[Category] = [
         search_priority=75,
         aliases=[
             "клавиатуры", "мыши", "компьютерные мыши", "клавиатуры и мыши", "периферия",
+            "игровая мышь", "механическая клавиатура", "коврик для мыши",
         ],
+        attributes_schema={
+            "type": {"label": "Тип устройства", "type": "string"},
+            "connection_type": {"label": "Тип подключения", "type": "string"},
+            "keyboard_type": {"label": "Тип клавиатуры", "type": "string"},
+            "sensor_dpi": {"label": "Разрешение сенсора (DPI)", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="network",
@@ -301,7 +323,14 @@ MASTER_TAXONOMY: List[Category] = [
         name="Сетевое оборудование",
         icon="📡",
         search_priority=79,
-        aliases=["роутеры", "роутер", "wi-fi роутеры", "коммутаторы", "точки доступа", "сетевое оборудование"],
+        aliases=["роутеры", "роутер", "wi-fi роутеры", "маршрутизаторы", "коммутаторы", "точки доступа", "сетевое оборудование", "mesh система", "свитч"],
+        attributes_schema={
+            "type": {"label": "Тип устройства", "type": "string"},
+            "wifi_standard": {"label": "Стандарт Wi-Fi", "type": "string"},
+            "ports_count": {"label": "Количество портов", "type": "string"},
+            "lan_speed": {"label": "Скорость портов", "type": "string"},
+            "poe": {"label": "Поддержка PoE", "type": "string"},
+        },
     ),
     Category(
         id="printers",
@@ -310,6 +339,13 @@ MASTER_TAXONOMY: List[Category] = [
         icon="🖨",
         search_priority=79,
         aliases=["принтеры", "принтер", "мфу", "сканеры", "плоттеры"],
+        attributes_schema={
+            "type": {"label": "Тип устройства", "type": "string"},
+            "print_tech": {"label": "Технология печати", "type": "string"},
+            "print_color": {"label": "Цветность печати", "type": "string"},
+            "paper_format": {"label": "Формат бумаги", "type": "string"},
+            "connectivity": {"label": "Интерфейсы и функции", "type": "string"},
+        },
     ),
     Category(
         id="power",
@@ -341,7 +377,13 @@ MASTER_TAXONOMY: List[Category] = [
         name="Аудиотехника",
         icon="🔊",
         search_priority=80,
-        aliases=["аудиотехника", "колонки", "акустика", "саундбары", "микрофоны", "портативная акустика"],
+        aliases=["аудиотехника", "колонки", "акустика", "саундбары", "микрофоны", "портативная акустика", "яндекс станция", "умная колонка"],
+        attributes_schema={
+            "type": {"label": "Тип аудиотехники", "type": "string"},
+            "power": {"label": "Мощность", "type": "string"},
+            "wireless": {"label": "Беспроводные интерфейсы", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="phone_cases",

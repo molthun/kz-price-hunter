@@ -72,6 +72,28 @@ def clean_plan(answer, query, categories):
     elif ('шина' in q_low or 'шины' in q_low or 'резина' in q_low or 'tires' in q_low or 'tire' in q_low) and not any(p in q_low for p in ('бензопил', 'электропил', 'пилы', 'пил', 'цепь')):
         if cid in ('auto', 'auto_goods', ''):
             cid = 'tires'
+    elif ('монитор' in q_low or 'monitor' in q_low) and not any(p in q_low for p in ('кронштейн', 'креплен', 'подставк', 'салфетк', 'кабель')):
+        if cid in ('computers', 'electronics', 'tv', 'pc_components', ''):
+            cid = 'monitors'
+    elif any(w in q_low for w in ('клавиатур', 'keyboard', 'мышь', 'мышка', 'мыши', 'геймпад', 'коврик для мыши')) and not any(p in q_low for p in ('планшет', 'ноутбук', 'моноблок', 'наклейк', 'кейкап')):
+        if cid in ('computers', 'electronics', 'accessories', 'pc_components', ''):
+            cid = 'peripherals'
+    elif any(w in q_low for w in ('роутер', 'маршрутизатор', 'router', 'коммутатор', 'свитч', 'mesh-систем', 'точка доступа')) and not any(p in q_low for p in ('кабель', 'патч-корд', 'разъем', 'коннектор', 'фрезер')):
+        if cid in ('computers', 'electronics', 'pc_components', ''):
+            cid = 'network'
+    elif any(w in q_low for w in ('принтер', 'мфу', 'плоттер')) and not any(p in q_low for p in ('картридж', 'тонер', 'чернил', 'бумага', 'краска', 'фотобарабан', 'кабель')):
+        if cid in ('computers', 'electronics', 'printer_ink', ''):
+            cid = 'printers'
+    elif any(w in q_low for w in ('кофемашин', 'кофеварк', 'электрочайник', 'чайник электрич', 'микроволнов', 'блендер', 'миксер', 'мясорубк', 'мультиварк', 'аэрогрил', 'электрогрил', 'тостер', 'соковыжималк', 'хлебопеч')) and not any(p in q_low for p in ('игрушк', 'детск', 'кружк', 'стакан', 'чашк', 'фильтр', 'таблетк', 'средств')):
+        if cid in ('appliances', 'kitchenware', 'home', 'new', '') or not cid.startswith(('kitchen_appliances',)):
+            if cid not in by_id or cid in ('appliances', 'kitchenware', 'home'):
+                cid = 'kitchen_appliances'
+    elif ('кондиционер' in q_low or 'сплит-систем' in q_low or 'сплит систем' in q_low) and not any(p in q_low for p in ('бель', 'волос', 'стирк', 'кронштейн', 'пульт', 'фреон', 'труб')):
+        if cid in ('appliances', 'climate', 'home', ''):
+            cid = 'air_conditioners'
+    elif ('планшет' in q_low or 'ipad' in q_low or 'matepad' in q_low or 'galaxy tab' in q_low) and not any(p in q_low for p in ('чехол', 'стекло', 'пленк', 'держател', 'подставк', 'сумк', 'графическ')):
+        if cid in ('electronics', 'computers', 'phones', 'peripherals', ''):
+            cid = 'tablets'
 
     if cid in by_id:
         name = by_id[cid]['name']
