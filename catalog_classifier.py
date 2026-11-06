@@ -254,6 +254,11 @@ KNOWN_BRANDS: Dict[str, str] = {
     "insta360": "Insta360",
 
     # Household, Gardening & Others
+    "finish": "Finish",
+    "fairy": "Fairy",
+    "somat": "Somat",
+    "synergetic": "Synergetic",
+    "biomio": "BioMio",
     "green apple": "Green Apple",
     "lara": "Lara",
     "trolli": "Trolli",
@@ -490,6 +495,7 @@ _TITLE_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
 
 
     # Appliances & Home
+    (re.compile(r"\b(посудомоечн(?:ая|ые|ую|ой)\s+машин(?:а|ы|у|ой)|посудомойк(?:а|и|у|ой)|посудомоечная\s+машинка|настольная\s+посудомоечная|встраиваемая\s+посудомоечная|отдельностоящая\s+посудомоечная|dishwasher)\b", re.I), "dishwashers"),
     (re.compile(r"\b(стиральн(?:ая|ые|ую)\s+машин(?:а|ы|у)|стиралка)\b", re.I), "washing_machines"),
     (re.compile(r"\b(холодильник|морозильник|морозильн(?:ая|ые)\s+камер(?:а|ы))\b", re.I), "refrigerators"),
     (re.compile(r"\b(пылесос|робот-пылесос|вертикальный\s+пылесос)\b", re.I), "vacuums"),
@@ -503,6 +509,15 @@ _TITLE_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
 
 # Accessory & Consumable detection rules: Title keyword regex -> (category_id, item_kind)
 _ACCESSORY_CONSUMABLE_RULES: List[Tuple[re.Pattern, str, str]] = [
+    # Dishwasher consumables (tablets, capsules, salt, rinse aid)
+    (
+        re.compile(
+            r"\b(таблетк\w*\s+для\s+посудомоечн\w*|капсул\w*\s+для\s+посудомоечн\w*|соль\s+для\s+посудомоечн\w*|ополаскивател\w*\s+для\s+посудомоечн\w*|средств\w*\s+для\s+посудомоечн\w*|очистител\w*\s+для\s+посудомоечн\w*|гель\s+для\s+посудомоечн\w*|таблетк\w*\s+для\s+посудомо\w*|finish\s+(?:power|quantum|all\s+in|classic)|fairy\s+(?:platinum|all\s+in)|somat\s+(?:all\s+in|gold|excellence))\b",
+            re.I,
+        ),
+        "household_chem",
+        "consumable",
+    ),
     # Phone Cases (исключаем корпус часов/ПК: aluminium case, titanium case, pc case)
     (
         re.compile(
@@ -1784,6 +1799,7 @@ class CatalogClassifier:
 - removable_storage (Флешки и карты памяти)
 - peripherals (Клавиатуры и мыши)
 - consoles (Игровые приставки)
+- dishwashers (Посудомоечные машины)
 - washing_machines (Стиральные машины)
 - refrigerators (Холодильники)
 - vacuums (Пылесосы)

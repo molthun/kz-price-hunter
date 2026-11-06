@@ -1017,6 +1017,7 @@ class SearchRepository(BaseRepository):
             'laptops': ['cpu', 'ram', 'storage', 'screen_size', 'gpu'],
             'refrigerators': ['refrigeration_defrost', 'energy_class', 'capacity', 'noise_level', 'color'],
             'washing_machines': ['load_capacity', 'spin_speed', 'energy_class', 'program_count', 'installation_type', 'color'],
+            'dishwashers': ['installation_type', 'capacity_sets', 'width_cm', 'color', 'water_consumption'],
             'vacuums': ['type', 'cleaning_type', 'dust_collector_type', 'power', 'color'],
             'kitchen_appliances': ['type', 'power', 'capacity', 'color'],
             'psu': ['power', 'form_factor', 'color'],

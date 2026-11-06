@@ -87,6 +87,18 @@ class TestCatalogClassifier(unittest.TestCase):
                 "monitors",
                 "ASUS"
             ),
+            (
+                "Настольная посудомоечная машина Candy CP 6F51LS-08",
+                "Sulpak: 🔥 Распродажа",
+                "dishwashers",
+                "Candy"
+            ),
+            (
+                "Встраиваемая посудомоечная машина Bosch SMV25AX00E",
+                "Halyk: Бытовая техника",
+                "dishwashers",
+                "Bosch"
+            ),
         ]
         for title, raw_cat, expected_cat, expected_brand in cases:
             with self.subTest(title=title):
@@ -115,6 +127,9 @@ class TestCatalogClassifier(unittest.TestCase):
             ("Кабель Baseus Type-C to Lightning 20W 1m", "cables_chargers", "accessory", "Baseus"),
             ("HEPA фильтр Filtero для пылесоса Dyson V15 Detect", "vacuum_parts", "consumable", "Filtero"),
             ("Картридж Cactus CS-CF217A для HP LaserJet Pro M102", "printer_ink", "consumable", "Cactus"),
+            ("Капсулы для посудомоечных машин FAIRY Platinum Plus All in 1, лимон 48 шт", "household_chem", "consumable", "Fairy"),
+            ("Таблетки для посудомоечной машины Finish Power 100 шт", "household_chem", "consumable", "Finish"),
+            ("Соль для посудомоечных машин Finish 3 кг", "household_chem", "consumable", "Finish"),
             # Generic accessory with target brand in title must NOT be attributed to device manufacturer
             ("Чехол для Apple iPhone 15 силиконовый прозрачный", "phone_cases", "accessory", None),
         ]

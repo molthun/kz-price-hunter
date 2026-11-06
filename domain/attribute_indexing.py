@@ -966,6 +966,24 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
         elif re.search(r'\blp\b|винил', title, re.I):
             attrs['format'] = 'LP'
 
+    # 10. Посудомоечные машины
+    if re.search(r'\b(посудомоечн\w*|посудомойк\w*|dishwasher)\b', title, re.I):
+        if re.search(r'\bвстраиваем\w*\b', title, re.I):
+            attrs['installation_type'] = 'Встраиваемая'
+        elif re.search(r'\b(?:настольн\w*|компактн\w*)\b', title, re.I):
+            attrs['installation_type'] = 'Настольная'
+        elif re.search(r'\b(?:отдельностоящ\w*|отдельно\s+стоящ\w*)\b', title, re.I):
+            attrs['installation_type'] = 'Отдельностоящая'
+
+        m_width = re.search(r'\b(45|60|55)\s*(?:см|cm)\b|\b(450|600|550)\s*(?:мм|mm)\b', title, re.I)
+        if m_width:
+            w_val = m_width.group(1) or str(int(m_width.group(2)) // 10)
+            attrs['width_cm'] = f"{w_val} см"
+
+        m_cap = re.search(r'\b(6|8|9|10|11|12|13|14|15|16)\s*(?:комплект\w*|sets)\b', title, re.I)
+        if m_cap:
+            attrs['capacity_sets'] = f"{m_cap.group(1)} комплектов"
+
     return attrs
 
 
@@ -1094,10 +1112,10 @@ def index_product_facts(conn, product_id: str, facts: List[Dict[str, Any]], prod
 
 _SYNC_TITLE_SCOPE = '''
     p.category IN ('Подгузники и гигиена', 'diapers_hygiene', 'Бытовая техника', 'appliances', 'refrigerators',
-                   'washing_machines', 'vacuums', 'Мониторы', 'Комплектующие для ПК', 'Видеокарты', 'monitors',
+                   'washing_machines', 'dishwashers', 'Посудомоечные машины', 'vacuums', 'Мониторы', 'Комплектующие для ПК', 'Видеокарты', 'monitors',
                    'pc_parts', 'gpus')
     OR p.title LIKE '%подгуз%' OR p.title LIKE '%трусик%' OR p.title LIKE '%памперс%'
-    OR p.title LIKE '%холодильн%' OR p.title LIKE '%стиральн%' OR p.title LIKE '%пылесос%'
+    OR p.title LIKE '%холодильн%' OR p.title LIKE '%стиральн%' OR p.title LIKE '%посудомо%' OR p.title LIKE '%пылесос%'
     OR p.title LIKE '%монитор%' OR p.title LIKE '%видеокарт%' OR p.title LIKE '%geforce%'
     OR p.title LIKE '%radeon%' OR p.title LIKE '%материнск%' OR p.title LIKE '%блок питания%'
     OR p.title LIKE '%ssd%' OR p.title LIKE '%оперативн%памят%' OR p.title LIKE '%ddr5%'
