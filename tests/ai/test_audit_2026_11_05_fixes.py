@@ -783,4 +783,52 @@ class RecomputeCliSafetyTests(unittest.TestCase):
             self.assertTrue(got and got.endswith("Ti Super"), (title, got))
         self.assertEqual(canonical_gpu_model("RTX 4070 Ti Super"), "GeForce RTX 4070 Ti Super")
         self.assertEqual(canonical_gpu_model("RX 9070 GRE"), "Radeon RX 9070 GRE")
-        self.assertEqual(canonical_gpu_model("RX 7900 XTX"), "Radeon RX 7900 XTX")
+        self.assertEqual(canonical_gpu_model("RX 7900 XTX"), "Radeon RX 9070 XTX" if False else "Radeon RX 7900 XTX")
+
+    def test_laptop_and_hardware_misclassification_and_gpu_skus(self):
+        from catalog_classifier import CatalogClassifier, canonical_gpu_model
+        clf = CatalogClassifier()
+
+        # 1. Ноутбуки без явного слова "ноутбук" не должны классифицироваться как видеокарты
+        laptop_titles = [
+            'ASUS ROG Strix SCAR 18 18" / Intel Core Ultra 9 275HX / 64 ГБ / SSD 1024 ГБ / GeForce RTX 5080 / Win 11 / G835LW-SA115W черный',
+            'MECHREVO KuangShi X Pro 16" / Intel Core i9-14900HX / 32 Гб / M.2 1000 Гб / GeForce RTX 5070 Ti / Win 11 Pro / JTZ63546GTZR66T белый',
+            'ThundeRobot Hunter Blade S 16" / Intel Core i7-13650HX / 16 Гб / M.2 1000 Гб / GeForce RTX 5060 / Win 11 Pro темно-серый',
+            'GIGABYTE GAMING A16 CVHI3KZ894SD 16" / Intel Core i7-13620H / 16 Гб / M.2 1000 Гб / GeForce RTX 5060 / Без ОС черный',
+            'MECHREVO JAOLONG I5K 15.6" / AMD Ryzen 7 7735H / 16 Гб / M.2 512 Гб / GeForce RTX 3050 / Win 11 Pro темно-серый',
+        ]
+        for t in laptop_titles:
+            res = clf.classify_rules(t)
+            self.assertIsNotNone(res, f"Не классифицирован: {t}")
+            self.assertEqual(res.category_id, "laptops", f"Ожидался laptops, получено {res.category_id} для {t}")
+
+        # 2. Кулеры и LED-карты
+        self.assertEqual(clf.classify_rules("Кулер DeepCool AG620 G2 ARGB").category_id, "cooling")
+        self.assertEqual(clf.classify_rules("Кулер Ocypus Delta A62 BK ARGB").category_id, "cooling")
+        self.assertEqual(clf.classify_rules("NOVASTAR DH7512-S 4 Гб").category_id, "pc_components")
+        self.assertEqual(clf.classify_rules("Huidu Huidu HD-712 4 Гб").category_id, "pc_components")
+        self.assertEqual(clf.classify_rules("Внешняя USB видеокарта Wavlink WL-UG35D6").category_id, "pc_components")
+
+        # 3. Распознавание артикулов и SKU видеокарт в канонические семейства GPU
+        sku_cases = [
+            ("GIGABYTE GV-N5080WF3OCV2-16GD 16 Гб", "GeForce RTX 5080"),
+            ("GIGABYTE GV-N5070EAGLEOC ICE-12GD 12 Гб", "GeForce RTX 5070"),
+            ("GIGABYTE GV-N506TGAMING OC-16GD 16 Гб", "GeForce RTX 5060 Ti"),
+            ("Palit NE75060V19P1-GB2063L 8 Гб", "GeForce RTX 5060"),
+            ("Palit NE63050018JE-1072F 6 Гб", "GeForce RTX 3050"),
+            ("XFX RX-97TSWF3BC 16 Гб", "Radeon RX 9070 XT"),
+            ("Видеокарта Sapphire PULSE AMD Radeon RX 9060 OC 8GB (11351-14-10G)", "Radeon RX 9060"),
+            ("Видеокарта PNY RTX 4500 PRO Blackwell (VCNRTXPRO4500-SB)", "RTX PRO 4500"),
+            ("Видеокарта PNY NVIDIA RTX PRO 5000 Blackwell GPU (VCNRTXPRO5000-SB)", "RTX PRO 5000"),
+            ("Видеокарта Dell NVIDIA RTX 2000 Ada Generation 16 GB", "RTX 2000 Ada"),
+            ("Видеокарта NVIDIA A1000 8GB (VCNRTXA1000-SB)", "RTX A1000"),
+            ("Видеокарта PNY NVIDIA A400 4GB (VCNRTXA400-SB)", "RTX A400"),
+            ("Inno3D 5090D 24 Гб", "GeForce RTX 5090 D"),
+            ("AFOX GeForce GT 630 1 ГБ", "GeForce GT 630"),
+            ("Wanyinli R5 230 2G 2 Гб", "Radeon R5 230"),
+            ("OCPC RX 5500 8 Гб", "Radeon RX 5500"),
+            ("OCPC RX 6500 4 Гб", "Radeon RX 6500"),
+        ]
+        for title, expected in sku_cases:
+            got = canonical_gpu_model(title)
+            self.assertEqual(got, expected, f"Для {title} ожидалось {expected}, получено {got}")

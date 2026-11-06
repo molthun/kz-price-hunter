@@ -457,7 +457,7 @@ _TITLE_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
             r"\bNB\s+(?:asus|lenovo|hp|acer|msi|dell|apple|huawei|honor)\b|"
             r"(?<!видеокарт\w\s)(?<!кулер\w\s)(?<!чехол\w\s)(?<!сумк\w\s)(?<!рюкзак\w\s)\b(?:11\.6|12\.5|13\.3|13\.4|13\.5|13\.6|14|14\.1|14\.2|14\.5|15\.3|15\.6|16|16\.1|16\.2|17\.3|18)\s*(?:[\"”]|дюйм\w*|-дюйм\w*|\binch(?:es)?\b).*"
             r"\b(?:intel|core|ultra\s+\d|ryzen|celeron|pentium|ssd|озу|ram|win\s*11|win\s*10|windows|dos|без\s+ос|no\s+os|ips|oled|fhd|wqxga|wuxga)\b|"
-            r"(?<!видеокарт\w\s)(?<!кулер\w\s)\b(?:rog\s+strix\s+scar|rog\s+strix\s+g\d+|tuf\s+gaming\s+[af]\d+|legion\s+(?:pro\s+)?[3579]|loq\s+(?:\d|series|\w+)|predator\s+helios|acer\s+nitro\s+[5-9v]|victus\s+\d+|omen\s+(?:max\s+)?\d+|msi\s+(?:stealth|raider|titan|katana|cyborg|pulse|sword|thin|vector)|dream\s+machines)\b.*"
+            r"(?<!видеокарт\w\s)(?<!кулер\w\s)\b(?:rog\s+strix\s+scar|rog\s+strix\s+g\d+|tuf\s+gaming\s+[af]\d+|legion\s+(?:pro\s+)?[3579]|loq\s+(?:\d|series|\w+)|predator\s+helios|acer\s+nitro\s+[5-9v]|victus\s+\d+|omen\s+(?:max\s+)?\d+|msi\s+(?:stealth|raider|titan|katana|cyborg|pulse|sword|thin|vector)|dream\s+machines|mechrevo|thunderobot|gaming\s+a16)\b.*"
             r"\b(?:intel|core|ryzen|ssd|win\s*11|dos|без\s+ос|\d+\s*(?:гб|gb))\b",
             re.I
         ),
@@ -472,6 +472,8 @@ _TITLE_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
     (re.compile(r"\b(кулер|систем[аы]\s+(?:водяного\s+)?охлаждения|сжо|сво|вентилятор\s+для\s+корпуса|термопаста|cpu\s+cooler)\b", re.I), "cooling"),
     (re.compile(r"\b(маршрутизатор|роутер|mesh-систем\w*|точка\s+доступа|коммутатор)\b", re.I), "network"),
     (re.compile(r"\b(мфу|принтер|плоттер)\b", re.I), "printers"),
+    (re.compile(r"\b(novastar|huidu|приемная\s+карта|передающая\s+карта)\b", re.I), "pc_components"),
+    (re.compile(r"\bвнешняя\s+usb\s+видеокарта\b", re.I), "pc_components"),
     (
         re.compile(
             r"^(?!.*(?:\b(?:11\.6|12\.5|13\.3|14|14\.1|15\.3|15\.6|16|16\.1|17\.3|18)\s*(?:[\"”]|дюйм\w*|-дюйм\w*|\binch(?:es)?\b)|без\s+ос|win\s*11|windows\s*11|dos\b))"
@@ -881,10 +883,10 @@ def extract_apple_canonical_model(text: str) -> Optional[str]:
 # Canonical GPU Model Families
 CANONICAL_GPU_FAMILIES: List[Tuple[re.Pattern, str]] = [
     # NVIDIA RTX 50 series
-    (re.compile(r"\b(?:geforce\s+)?rtx\s*5090\s*d\b", re.I), "GeForce RTX 5090 D"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*5090\s*d\b|\b5090\s*d\b", re.I), "GeForce RTX 5090 D"),
     (re.compile(r"\b(?:geforce\s+)?rtx\s*5090\b", re.I), "GeForce RTX 5090"),
     (re.compile(r"\b(?:geforce\s+)?rtx\s*5080\b", re.I), "GeForce RTX 5080"),
-    (re.compile(r"\b(?:geforce\s+)?rtx\s*5070\s*ti\b", re.I), "GeForce RTX 5070 Ti"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*5070\s*ti\b|\b5070\s*ti\b", re.I), "GeForce RTX 5070 Ti"),
     (re.compile(r"\b(?:geforce\s+)?rtx\s*5070\b", re.I), "GeForce RTX 5070"),
     (re.compile(r"\b(?:geforce\s+)?rtx\s*5060\s*ti\b", re.I), "GeForce RTX 5060 Ti"),
     (re.compile(r"\b(?:geforce\s+)?rtx\s*5060\b", re.I), "GeForce RTX 5060"),
@@ -948,6 +950,7 @@ CANONICAL_GPU_FAMILIES: List[Tuple[re.Pattern, str]] = [
     (re.compile(r"\b(?:geforce\s+)?gt\s*740\b", re.I), "GeForce GT 740"),
     (re.compile(r"\b(?:geforce\s+)?gt\s*730\b", re.I), "GeForce GT 730"),
     (re.compile(r"\b(?:geforce\s+)?gt\s*710\b", re.I), "GeForce GT 710"),
+    (re.compile(r"\b(?:geforce\s+)?gt\s*630\b", re.I), "GeForce GT 630"),
     (re.compile(r"\b(?:geforce\s+)?gt\s*610\b", re.I), "GeForce GT 610"),
     (re.compile(r"\b(?:geforce\s+)?gt\s*240\b", re.I), "GeForce GT 240"),
     (re.compile(r"\b(?:geforce\s+)?gt\s*220\b", re.I), "GeForce GT 220"),
@@ -963,7 +966,53 @@ CANONICAL_GPU_FAMILIES: List[Tuple[re.Pattern, str]] = [
     (re.compile(r"\baf(?:ox)?\s*710\b", re.I), "GeForce GT 710"),
     (re.compile(r"\baf(?:ox)?\s*610\b", re.I), "GeForce GT 610"),
 
-    # NVIDIA Workstation / Quadro / RTX A series
+    # Gigabyte GPU SKU patterns
+    (re.compile(r"\bgv-n5090\w*", re.I), "GeForce RTX 5090"),
+    (re.compile(r"\bgv-n5080\w*", re.I), "GeForce RTX 5080"),
+    (re.compile(r"\bgv-n507t\w*", re.I), "GeForce RTX 5070 Ti"),
+    (re.compile(r"\bgv-n5070\w*", re.I), "GeForce RTX 5070"),
+    (re.compile(r"\bgv-n506t\w*", re.I), "GeForce RTX 5060 Ti"),
+    (re.compile(r"\bgv-n5060\w*", re.I), "GeForce RTX 5060"),
+    (re.compile(r"\bgv-n3060\w*", re.I), "GeForce RTX 3060"),
+    (re.compile(r"\bgv-n3050\w*", re.I), "GeForce RTX 3050"),
+    (re.compile(r"\bgv-n166s\w*", re.I), "GeForce GTX 1660 Super"),
+    (re.compile(r"\bgv-n1650\w*", re.I), "GeForce GTX 1650"),
+    (re.compile(r"\bgv-r9070xt\w*", re.I), "Radeon RX 9070 XT"),
+    (re.compile(r"\bgv-r9700\w*", re.I), "Radeon AI PRO R9700"),
+
+    # Palit GPU SKU patterns
+    (re.compile(r"\bne7507t\w*", re.I), "GeForce RTX 5070 Ti"),
+    (re.compile(r"\bne75070\w*", re.I), "GeForce RTX 5070"),
+    (re.compile(r"\bne7506t\w*", re.I), "GeForce RTX 5060 Ti"),
+    (re.compile(r"\bne75060\w*", re.I), "GeForce RTX 5060"),
+    (re.compile(r"\bne63060\w*", re.I), "GeForce RTX 3060"),
+    (re.compile(r"\bne63050\w*", re.I), "GeForce RTX 3050"),
+
+    # XFX GPU SKU patterns
+    (re.compile(r"\brx-97tswf\w*", re.I), "Radeon RX 9070 XT"),
+    (re.compile(r"\brx-97trgb\w*", re.I), "Radeon RX 9070 XT"),
+    (re.compile(r"\brx-96swft\w*", re.I), "Radeon RX 9060"),
+
+    # OCPC GPU SKU patterns
+    (re.compile(r"\bocvarx6500\w*", re.I), "Radeon RX 6500 XT"),
+    (re.compile(r"\bocvarx5500xt\w*", re.I), "Radeon RX 5500 XT"),
+    (re.compile(r"\bocvarx5500\w*", re.I), "Radeon RX 5500"),
+    (re.compile(r"\bocvarx580\w*", re.I), "Radeon RX 580"),
+    (re.compile(r"\bocvngt1030\w*", re.I), "GeForce GT 1030"),
+    (re.compile(r"\bocvngt730\w*", re.I), "GeForce GT 730"),
+    (re.compile(r"\bocvngt610\w*", re.I), "GeForce GT 610"),
+
+    # Sapphire GPU SKU patterns
+    (re.compile(r"\b11354-01\w*", re.I), "Radeon RX 9070"),
+    (re.compile(r"\b11351-14\w*", re.I), "Radeon RX 9060"),
+    (re.compile(r"\b11350-04\w*", re.I), "Radeon RX 9060"),
+    (re.compile(r"\b32358-01\w*", re.I), "Radeon AI PRO R9700"),
+
+    # NVIDIA Workstation / Quadro / RTX A / Blackwell series
+    (re.compile(r"\b(?:rtx\s*pro\s*5000|rtx\s*5000\s*pro|vcnrtxpro5000\w*)\b", re.I), "RTX PRO 5000"),
+    (re.compile(r"\b(?:rtx\s*pro\s*4500|rtx\s*4500\s*pro|vcnrtxpro4500\w*|tcsrtxpro4500\w*)\b", re.I), "RTX PRO 4500"),
+    (re.compile(r"\b(?:rtx\s*pro\s*4000|rtx\s*4000\s*pro|vcnrtxpro4000\w*)\b", re.I), "RTX PRO 4000"),
+    (re.compile(r"\b(?:rtx\s*pro\s*2000|rtx\s*2000\s*pro|vcnrtxpro2000\w*)\b", re.I), "RTX PRO 2000"),
     (re.compile(r"\brtx\s*a\s*6000\b", re.I), "RTX A6000"),
     (re.compile(r"\brtx\s*a\s*5000\b", re.I), "RTX A5000"),
     (re.compile(r"\brtx\s*a\s*4500\b", re.I), "RTX A4500"),
@@ -973,6 +1022,10 @@ CANONICAL_GPU_FAMILIES: List[Tuple[re.Pattern, str]] = [
     (re.compile(r"\brtx\s*5000\s*ada\b", re.I), "RTX 5000 Ada"),
     (re.compile(r"\brtx\s*4500\s*ada\b", re.I), "RTX 4500 Ada"),
     (re.compile(r"\brtx\s*4000\s*ada\b", re.I), "RTX 4000 Ada"),
+    (re.compile(r"\brtx\s*2000\s*ada\b", re.I), "RTX 2000 Ada"),
+    (re.compile(r"\b(?:rtx\s*)?a1000\b|\bvcnrtxa1000\w*", re.I), "RTX A1000"),
+    (re.compile(r"\b(?:rtx\s*)?a400\b|\bvcnrtxa400\w*", re.I), "RTX A400"),
+    (re.compile(r"\btesla\s*t4\b", re.I), "Tesla T4"),
     (re.compile(r"\bquadro\s*t1000\b", re.I), "Quadro T1000"),
     (re.compile(r"\bquadro\s*t600\b", re.I), "Quadro T600"),
     (re.compile(r"\bquadro\s*t400\b", re.I), "Quadro T400"),
@@ -983,10 +1036,12 @@ CANONICAL_GPU_FAMILIES: List[Tuple[re.Pattern, str]] = [
     (re.compile(r"\bt600\b", re.I), "NVIDIA T600"),
     (re.compile(r"\bt400\b", re.I), "NVIDIA T400"),
 
-    # AMD Radeon RX 9000 series
+    # AMD Radeon RX 9000 & AI series
     (re.compile(r"\b(?:radeon\s+)?rx\s*9070\s*xt\b", re.I), "Radeon RX 9070 XT"),
     (re.compile(r"\b(?:radeon\s+)?rx\s*9070\b", re.I), "Radeon RX 9070"),
     (re.compile(r"\b(?:radeon\s+)?(?:rx\s*)?9060\s*xt\b", re.I), "Radeon RX 9060 XT"),
+    (re.compile(r"\b(?:radeon\s+)?rx\s*9060\b", re.I), "Radeon RX 9060"),
+    (re.compile(r"\b(?:radeon\s+)?ai\s*pro\s*r9700\b", re.I), "Radeon AI PRO R9700"),
 
     # AMD Radeon RX 7000 series
     (re.compile(r"\b(?:radeon\s+)?rx\s*7900\s*xtx\b", re.I), "Radeon RX 7900 XTX"),
@@ -1010,6 +1065,7 @@ CANONICAL_GPU_FAMILIES: List[Tuple[re.Pattern, str]] = [
     (re.compile(r"\b(?:radeon\s+)?rx\s*6600\s*xt\b", re.I), "Radeon RX 6600 XT"),
     (re.compile(r"\b(?:radeon\s+)?rx\s*6600\b", re.I), "Radeon RX 6600"),
     (re.compile(r"\b(?:radeon\s+)?rx\s*6500\s*xt\b", re.I), "Radeon RX 6500 XT"),
+    (re.compile(r"\b(?:radeon\s+)?rx\s*6500\b", re.I), "Radeon RX 6500"),
     (re.compile(r"\b(?:radeon\s+)?rx\s*6400\b", re.I), "Radeon RX 6400"),
 
     # AMD Radeon RX 5000 / 500 series
@@ -1017,6 +1073,7 @@ CANONICAL_GPU_FAMILIES: List[Tuple[re.Pattern, str]] = [
     (re.compile(r"\b(?:radeon\s+)?rx\s*5700\b", re.I), "Radeon RX 5700"),
     (re.compile(r"\b(?:radeon\s+)?rx\s*5600\s*xt\b", re.I), "Radeon RX 5600 XT"),
     (re.compile(r"\b(?:radeon\s+)?rx\s*5500\s*xt\b", re.I), "Radeon RX 5500 XT"),
+    (re.compile(r"\b(?:radeon\s+)?rx\s*5500\b", re.I), "Radeon RX 5500"),
     (re.compile(r"\b(?:radeon\s+)?rx\s*590\b", re.I), "Radeon RX 590"),
     (re.compile(r"\b(?:radeon\s+)?rx\s*580\b", re.I), "Radeon RX 580"),
     (re.compile(r"\b(?:radeon\s+)?rx\s*570\b", re.I), "Radeon RX 570"),
@@ -1515,7 +1572,11 @@ class CatalogClassifier:
         is_watch = bool(re.search(r"\b(смарт-час(?:ы|а)|умные\s+часы|(?:apple\s+)?watch\s*(?:nike\s+)?series|apple\s+watch|galaxy\s+watch)\b", main_part, re.I)) and not bool(re.search(r"\b(ремешок|браслет|сменный\s+ремешок|зарядн(?:ое|ый|ая)|кабель|док-станция|подставка|переходник|адаптер)\b|^ремешок\b|^браслет\b|\b(?:для|for)\s+(?:apple\s+)?watch\b", main_part, re.I))
         is_phone = bool(re.search(r"\b(смартфон|айфон|сотовый\s+телефон)\b", main_part, re.I)) and not bool(re.search(r"\b(чехол|стекло|пленка|ремешок|кабель|держатель|подставка|наушники|гарнитур|адаптер|зарядк|переходник)\b", main_part, re.I))
         is_tablet = bool(re.search(r"\b(планшет|ipad|tablet)\b", main_part, re.I)) and not bool(re.search(r"\b(клавиатур[аы]|keyboard|стилус|stylus|чехол|стекло|пленка|ремешок|кабель|адаптер|держатель|подставка)\b", main_part, re.I))
-        is_laptop = bool(re.search(r"\b(ноутбук|macbook|laptop|ультрабук)\b", main_part, re.I)) and not bool(re.search(r"\b(чехол|сумка|рюкзак|накладка|пленка|клавиатур|зарядное|адаптер|блок\s+питания)\b", main_part, re.I))
+        is_laptop = (
+            bool(re.search(r"\b(ноутбук|macbook|laptop|ультрабук|mechrevo|thunderobot)\b", main_part, re.I))
+            or bool(re.search(r"(?<!видеокарт\w\s)(?<!кулер\w\s)\b(?:rog\s+strix\s+scar|rog\s+strix\s+g\d+|tuf\s+gaming\s+[af]\d+|legion\s+(?:pro\s+)?[3579]|loq\s+(?:\d|series|\w+)|predator\s+helios|acer\s+nitro\s+[5-9v]|victus\s+\d+|omen\s+(?:max\s+)?\d+|msi\s+(?:stealth|raider|titan|katana|cyborg|pulse|sword|thin|vector)|dream\s+machines|gaming\s+a16)\b.*\b(?:intel|core|ryzen|ssd|win\s*11|dos|без\s+ос|\d+\s*(?:гб|gb))\b", main_part, re.I))
+            or bool(re.search(r"\b(?:11\.6|12\.5|13\.3|14|14\.1|15\.3|15\.6|16|16\.1|17\.3|18)\s*(?:[\"”]|дюйм\w*|-дюйм\w*|\binch(?:es)?\b).*\b(?:intel|amd|core|ryzen).*\b(?:гб|gb)\b.*\b(?:ssd|m\.2|hdd)\b", main_part, re.I))
+        ) and not bool(re.search(r"\b(чехол|сумка|рюкзак|накладка|пленка|клавиатур|зарядное|адаптер|блок\s+питания)\b", main_part, re.I))
 
         item_kind = "device"
         compat_target = None
