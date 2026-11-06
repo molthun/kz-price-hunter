@@ -2,37 +2,47 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-## READY_FOR_DEPLOY → Владелец: Выделение категории «Посудомоечные машины» и классификация расходников v6.28.17 (2026-11-06)
+## READY_FOR_AUDIT → Владелец / Codex: Выделение категории «Посудомоечные машины», фильтры и классификация расходников v6.28.17 (2026-11-06)
 
 - Поручение владельца: «Ищу Посудомоечная машина но результатов мало как он расширяет каталог по поиску», «У меня только две нашел», «Делай.» Прод не трогаем — работа только локально и на стенде.
 - Исполнитель: Antigravity (основной разработчик).
-- Дата и время: 2026-11-06 12:07 (Asia/Almaty).
-- Срез: ветка `codex/local-ai-catalog-growth`, версия `6.28.17`.
+- Дата и время: 2026-11-06 12:15 (Asia/Almaty).
+- Срез: ветка `codex/local-ai-catalog-growth`, коммит `a7efee7`, версия `6.28.17`.
+- Стенд: `https://shdev.molthun.ru` (контейнер `kzph-stand` обновлен бандлом `kzph-v6.28.17.bundle`, статус healthy).
 - Область файлов: `domain/category.py`, `catalog_classifier.py`, `domain/attribute_indexing.py`, `domain/feed_categories.py`, `repositories/search_repo.py`, `web/templates/search_first.html`, `scripts/migrate_dishwashers.py`, `tests/test_catalog_classifier.py`, `version.py`, `CHANGELOG.md`, `docs/AGENT_HANDOFF.md`.
 - Реализовано:
   1. `domain/category.py`:
-     - Добавлена мастер-категория `dishwashers` («Посудомоечные машины», родитель `appliances`) с схемой атрибутов: `installation_type`, `capacity_sets`, `width_cm`, `color`, `water_consumption`.
-     - Из синонимов общей `kitchen_appliances` удалены «посудомоечные машины», чтобы исключить ложный захват.
-     - В `household_chem` добавлены синонимы таблеток, капсул, соли и ополаскивателей.
+     - Добавлена самостоятельная мастер-категория `dishwashers` («Посудомоечные машины», родитель `appliances`, icon `🍽️`, `search_priority: 82`) со схемой атрибутов: `installation_type` (Тип установки), `capacity_sets` (Вместимость комплектов), `width_cm` (Ширина), `color` (Цвет), `water_consumption` (Расход воды).
+     - Из синонимов общей категории `kitchen_appliances` удалены «посудомоечные машины», исключив ложный захват запроса обобщённым разделом.
+     - В `household_chem` добавлены синонимы таблеток, капсул, соли и ополаскивателей для посудомоечных машин.
   2. `catalog_classifier.py`:
-     - В `_TITLE_TYPE_RULES` добавлено правило для посудомоечных машин (`dishwashers`).
+     - В `_TITLE_TYPE_RULES` добавлено правило для посудомоечных машин (`dishwashers`, `device`).
      - В `_ACCESSORY_CONSUMABLE_RULES` добавлено правило для таблеток/капсул/соли/ополаскивателей (`household_chem`, `consumable`).
      - В список категорий промпта LLM-классификатора добавлено `- dishwashers (Посудомоечные машины)`.
      - В `KNOWN_BRANDS` добавлены бренды бытовой химии (*Finish*, *Fairy*, *Somat*, *Synergetic*, *BioMio*).
   3. `domain/attribute_indexing.py`:
-     - Добавлено извлечение специфичных атрибутов посудомоек: тип установки (*Встраиваемая*, *Настольная*, *Отдельностоящая*), ширина (*45 см*, *60 см*, *55 см*), вместимость комплектов.
-     - `_SYNC_TITLE_SCOPE` расширен посудомоечными машинами.
+     - Добавлено извлечение специфичных характеристик посудомоечных машин: тип установки (*Встраиваемая*, *Настольная*, *Отдельностоящая*), ширина (*45 см*, *55 см*, *60 см*), вместимость комплектов.
+     - `_SYNC_TITLE_SCOPE` расширен для `dishwashers` и `Посудомоечные машины`.
   4. `repositories/search_repo.py`:
-     - Настроен приоритет фасетов боковой панели: `['installation_type', 'capacity_sets', 'width_cm', 'color', 'water_consumption']`.
+     - Настроен приоритет фасетов боковой панели для `dishwashers`: `['installation_type', 'capacity_sets', 'width_cm', 'color', 'water_consumption']`.
   5. `web/templates/search_first.html`:
      - В мега-каталог `CATALOG_STRUCTURE` добавлен пункт `Посудомоечные машины` (🍽️) в «Крупную бытовую технику».
   6. `scripts/migrate_dishwashers.py`:
-     - Скрипт миграции каталога для стенда: синхронизирует мастер-таксономию, обновляет `product_category_tags` (с соблюдением триггера `classification_category_guard`), переносит посудомойки в `Посудомоечные машины`, а моющие средства — в `Бытовая химия и хозтовары`, и переиндексирует характеристики.
+     - Скрипт миграции каталога для стенда и прода: синхронизирует мастер-таксономию, обновляет `product_category_tags` (с соблюдением триггера `classification_category_guard`), переносит посудомойки в `Посудомоечные машины`, а моющие средства — в `Бытовая химия и хозтовары`, и переиндексирует характеристики.
   7. Тесты:
      - В `tests/test_catalog_classifier.py` добавлены тесты классификации устройств и расходников.
-     - Набор тестов (829 passed) пройден успешно.
+     - Полный набор тестов (829 passed, 683 subtests passed) успешно пройден.
+- Проверка на стенде:
+  - Миграция `migrate_dishwashers.py` выполнена на `/app/data/prices.db`.
+  - Запрос `https://shdev.molthun.ru/api/v2/search?q=Посудомоечная%20машина&city=Астана`:
+    - `search_help.category_id`: `"dishwashers"`
+    - `search_help.category_name`: `"Посудомоечные машины"`
+    - `attribute_facets`: `[{'key': 'installation_type', 'label': 'Тип установки', 'values': [{'value': 'Настольная', 'count': 2}]}]`
+    - Баннер «Помощник не определил раздел...» больше **не показывается**, так как категория распознана корректно.
+  - Веб-поиск через SearXNG (`Искать в магазинах (SearXNG)`) находит 20+ предложений ритейлеров (Kaspi, Mechta, Technodom, Sulpak, Alser) с ценами в тенге.
+  - Артефакты скриншотов со стенда сохранены: `stand_v62817_dishwashers_astana.png`, `stand_v62817_dishwashers_searxng_expanded.png`.
 - Следующий шаг:
-  - Собрать бандл `kzph-v6.28.17.bundle`, развернуть на стенде, применить `migrate_dishwashers.py` и проверить выдачу на стенде.
+  - Аудит владельца / Codex. При необходимости наполнить локальный каталог посудомоечных машин через crawler/expand_one по прямому поручению.
 
 ---
 
