@@ -24,43 +24,43 @@ import database
 
 logger = logging.getLogger("web_search")
 
-# Реестр известных казахстанских магазинов
+# Реестр известных казахстанских магазинов и досок объявлений
 KNOWN_KZ_SHOPS: Dict[str, Dict[str, Any]] = {
-    "kaspi.kz": {"name": "Kaspi Магазин", "badge": "Kaspi", "color": "#f14635"},
-    "obyavleniya.kaspi.kz": {"name": "Kaspi Объявления", "badge": "Kaspi", "color": "#e11d48"},
-    "shop.kz": {"name": "Белый Ветер", "badge": "Белый Ветер", "color": "#0072bc"},
-    "bely-veter.kz": {"name": "Белый Ветер", "badge": "Белый Ветер", "color": "#0072bc"},
-    "mechta.kz": {"name": "Мечта", "badge": "Мечта", "color": "#ff0033"},
-    "sulpak.kz": {"name": "Sulpak", "badge": "Sulpak", "color": "#e30613"},
-    "technodom.kz": {"name": "Technodom", "badge": "Technodom", "color": "#ff6600"},
-    "marwin.kz": {"name": "Marwin / Меломан", "badge": "Marwin", "color": "#009ee2"},
-    "meloman.kz": {"name": "Меломан", "badge": "Меломан", "color": "#009ee2"},
-    "flip.kz": {"name": "Flip.kz", "badge": "Flip", "color": "#28a745"},
-    "dns-shop.kz": {"name": "DNS Казахстан", "badge": "DNS", "color": "#ea5a00"},
-    "alser.kz": {"name": "Alser", "badge": "Alser", "color": "#e4002b"},
-    "evrika.com": {"name": "Evrika", "badge": "Evrika", "color": "#1e88e5"},
-    "lemanapro.kz": {"name": "Лемана ПРО", "badge": "Лемана ПРО", "color": "#53b754"},
-    "arbuz.kz": {"name": "Арбуз", "badge": "Арбуз", "color": "#00a651"},
-    "magnum.kz": {"name": "Magnum", "badge": "Magnum", "color": "#dc3545"},
-    "intertop.kz": {"name": "Intertop", "badge": "Intertop", "color": "#111827"},
-    "detmir.kz": {"name": "Детский мир", "badge": "Детский мир", "color": "#0071bc"},
-    "12mesyacev.kz": {"name": "12 Месяцев", "badge": "12 Месяцев", "color": "#e67e22"},
-    "monamie.kz": {"name": "Mon Amie", "badge": "Mon Amie", "color": "#8e44ad"},
-    "beautymania.kz": {"name": "Французский Дом", "badge": "Французский Дом", "color": "#2c3e50"},
-    "olx.kz": {"name": "OLX Казахстан", "badge": "OLX", "color": "#002f34"},
-    "satu.kz": {"name": "Satu.kz", "badge": "Satu", "color": "#27ae60"},
-    "kolesa.kz": {"name": "Колёса KZ", "badge": "Колёса", "color": "#f39c12"},
-    "turbotyres.kz": {"name": "TurboTyres", "badge": "TurboTyres", "color": "#e74c3c"},
-    "ozon.kz": {"name": "Ozon Казахстан", "badge": "Ozon", "color": "#005bff"},
-    "forcecom.kz": {"name": "Forcecom", "badge": "Forcecom", "color": "#2563eb"},
-    "moon.kz": {"name": "Moon.kz", "badge": "Moon", "color": "#7c3aed"},
-    "alfa.kz": {"name": "Alfa.kz", "badge": "Alfa", "color": "#ea580c"},
-    "kompy.kz": {"name": "Kompy.kz", "badge": "Kompy", "color": "#059669"},
-    "fora.kz": {"name": "Fora", "badge": "Fora", "color": "#dc2626"},
-    "itmag.kz": {"name": "IT-Mag", "badge": "IT-Mag", "color": "#0284c7"},
-    "pulser.kz": {"name": "Pulser", "badge": "Pulser", "color": "#d97706"},
-    "ispace.kz": {"name": "iSpace", "badge": "iSpace", "color": "#111827"},
-    "e-katalog.kz": {"name": "E-Katalog KZ", "badge": "E-Katalog", "color": "#0284c7"},
+    "kaspi.kz": {"name": "Kaspi Магазин", "badge": "Kaspi", "color": "#f14635", "channel_type": "store"},
+    "obyavleniya.kaspi.kz": {"name": "Kaspi Объявления", "badge": "Kaspi", "color": "#e11d48", "channel_type": "classifieds"},
+    "shop.kz": {"name": "Белый Ветер", "badge": "Белый Ветер", "color": "#0072bc", "channel_type": "store"},
+    "bely-veter.kz": {"name": "Белый Ветер", "badge": "Белый Ветер", "color": "#0072bc", "channel_type": "store"},
+    "mechta.kz": {"name": "Мечта", "badge": "Мечта", "color": "#ff0033", "channel_type": "store"},
+    "sulpak.kz": {"name": "Sulpak", "badge": "Sulpak", "color": "#e30613", "channel_type": "store"},
+    "technodom.kz": {"name": "Technodom", "badge": "Technodom", "color": "#ff6600", "channel_type": "store"},
+    "marwin.kz": {"name": "Marwin / Меломан", "badge": "Marwin", "color": "#009ee2", "channel_type": "store"},
+    "meloman.kz": {"name": "Меломан", "badge": "Меломан", "color": "#009ee2", "channel_type": "store"},
+    "flip.kz": {"name": "Flip.kz", "badge": "Flip", "color": "#28a745", "channel_type": "store"},
+    "dns-shop.kz": {"name": "DNS Казахстан", "badge": "DNS", "color": "#ea5a00", "channel_type": "store"},
+    "alser.kz": {"name": "Alser", "badge": "Alser", "color": "#e4002b", "channel_type": "store"},
+    "evrika.com": {"name": "Evrika", "badge": "Evrika", "color": "#1e88e5", "channel_type": "store"},
+    "lemanapro.kz": {"name": "Лемана ПРО", "badge": "Лемана ПРО", "color": "#53b754", "channel_type": "store"},
+    "arbuz.kz": {"name": "Арбуз", "badge": "Арбуз", "color": "#00a651", "channel_type": "store"},
+    "magnum.kz": {"name": "Magnum", "badge": "Magnum", "color": "#dc3545", "channel_type": "store"},
+    "intertop.kz": {"name": "Intertop", "badge": "Intertop", "color": "#111827", "channel_type": "store"},
+    "detmir.kz": {"name": "Детский мир", "badge": "Детский мир", "color": "#0071bc", "channel_type": "store"},
+    "12mesyacev.kz": {"name": "12 Месяцев", "badge": "12 Месяцев", "color": "#e67e22", "channel_type": "store"},
+    "monamie.kz": {"name": "Mon Amie", "badge": "Mon Amie", "color": "#8e44ad", "channel_type": "store"},
+    "beautymania.kz": {"name": "Французский Дом", "badge": "Французский Дом", "color": "#2c3e50", "channel_type": "store"},
+    "olx.kz": {"name": "OLX Казахстан", "badge": "OLX", "color": "#002f34", "channel_type": "classifieds"},
+    "satu.kz": {"name": "Satu.kz", "badge": "Satu", "color": "#27ae60", "channel_type": "store"},
+    "kolesa.kz": {"name": "Колёса KZ", "badge": "Колёса", "color": "#f39c12", "channel_type": "classifieds"},
+    "turbotyres.kz": {"name": "TurboTyres", "badge": "TurboTyres", "color": "#e74c3c", "channel_type": "store"},
+    "ozon.kz": {"name": "Ozon Казахстан", "badge": "Ozon", "color": "#005bff", "channel_type": "store"},
+    "forcecom.kz": {"name": "Forcecom", "badge": "Forcecom", "color": "#2563eb", "channel_type": "store"},
+    "moon.kz": {"name": "Moon.kz", "badge": "Moon", "color": "#7c3aed", "channel_type": "store"},
+    "alfa.kz": {"name": "Alfa.kz", "badge": "Alfa", "color": "#ea580c", "channel_type": "store"},
+    "kompy.kz": {"name": "Kompy.kz", "badge": "Kompy", "color": "#059669", "channel_type": "store"},
+    "fora.kz": {"name": "Fora", "badge": "Fora", "color": "#dc2626", "channel_type": "store"},
+    "itmag.kz": {"name": "IT-Mag", "badge": "IT-Mag", "color": "#0284c7", "channel_type": "store"},
+    "pulser.kz": {"name": "Pulser", "badge": "Pulser", "color": "#d97706", "channel_type": "store"},
+    "ispace.kz": {"name": "iSpace", "badge": "iSpace", "color": "#111827", "channel_type": "store"},
+    "e-katalog.kz": {"name": "E-Katalog KZ", "badge": "E-Katalog", "color": "#0284c7", "channel_type": "store"},
 }
 
 DEFAULT_SEARCH_ENGINES = "duckduckgo,startpage,mojeek,bing"
@@ -83,23 +83,44 @@ def get_shop_info(url_or_domain: str) -> Dict[str, Any]:
     except Exception:
         domain = url_or_domain.lower()
 
-    for shop_domain, meta in KNOWN_KZ_SHOPS.items():
-        if domain == shop_domain or domain.endswith("." + shop_domain):
+    # 1. Точное совпадение домена
+    if domain in KNOWN_KZ_SHOPS:
+        meta = KNOWN_KZ_SHOPS[domain]
+        channel_type = meta.get("channel_type", "store")
+        return {
+            "domain": domain,
+            "shop_name": meta["name"],
+            "badge": meta["badge"],
+            "color": meta["color"],
+            "is_known_partner": True,
+            "channel_type": channel_type,
+            "is_classifieds": channel_type == "classifieds",
+        }
+
+    # 2. Совпадение поддомена (более длинные/специфичные проверяются первыми)
+    for shop_domain, meta in sorted(KNOWN_KZ_SHOPS.items(), key=lambda x: len(x[0]), reverse=True):
+        if domain.endswith("." + shop_domain):
+            channel_type = meta.get("channel_type", "store")
             return {
                 "domain": domain,
                 "shop_name": meta["name"],
                 "badge": meta["badge"],
                 "color": meta["color"],
-                "is_known_partner": True
+                "is_known_partner": True,
+                "channel_type": channel_type,
+                "is_classifieds": channel_type == "classifieds",
             }
 
     # Неизвестный сайт
+    is_classif = any(w in domain for w in ("olx", "avito", "market", "baraholka"))
     return {
         "domain": domain,
         "shop_name": domain,
         "badge": domain.split(".")[0].capitalize(),
         "color": "#64748b",
-        "is_known_partner": False
+        "is_known_partner": False,
+        "channel_type": "classifieds" if is_classif else "unknown",
+        "is_classifieds": is_classif,
     }
 
 
@@ -291,25 +312,35 @@ async def search_web(
             "currency": "₸" if price else None,
             "engine": str(item.get("engine") or "searxng"),
             "is_known_partner": shop.get("is_known_partner", False),
+            "channel_type": shop.get("channel_type", "store"),
+            "is_classifieds": shop.get("is_classifieds", False),
         })
         seen_urls.add(link)
 
     # Приоритезация магазинов Казахстана в режиме kz_shops:
-    # 1. Известные профильные магазины и маркетплейсы Казахстана (Kaspi, Mechta, Sulpak, DNS, Белый Ветер и др.)
+    # 1. Официальные розничные магазины (Kaspi, Mechta, Sulpak, DNS, Белый Ветер, iSpace, Forcecom и др.)
     # 2. Товары с четко определенной ценой в тенге
     # 3. Казахстанские домены (.kz)
+    # 4. Доски частных объявлений (OLX, Колёса, Kaspi Объявления) — полезны как вторичный рынок, но не заменяют магазины
     if mode == "kz_shops":
         def _rank_score(it: Dict[str, Any]) -> int:
             score = 0
-            if it.get("is_known_partner"):
-                score += 100
+            if it.get("is_classifieds"):
+                # Частные объявления вторичного рынка
+                score += 35
+            elif it.get("is_known_partner"):
+                # Официальные розничные магазины и проверенные ритейлеры
+                score += 120
+            else:
+                score += 20
+
             if it.get("price") is not None:
-                score += 30
+                score += 25
             domain = str(it.get("domain", "")).lower()
             if domain.endswith(".kz"):
-                score += 20
+                score += 15
             elif any(c in domain for c in ("ru", "by", "ua", "cn")):
-                score -= 40
+                score -= 60
             return score
 
         cleaned_results.sort(key=_rank_score, reverse=True)

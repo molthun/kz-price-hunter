@@ -235,5 +235,90 @@ class TestWebSearchAsync(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(res["results"][2]["domain"], "techblog.ru")
 
 
+    def test_olx_and_classifieds_metadata(self):
+        info = get_shop_info("https://www.olx.kz/d/obyavlenie/iphone-16-pro-ID123.html")
+        self.assertEqual(info["shop_name"], "OLX Казахстан")
+        self.assertEqual(info["badge"], "OLX")
+        self.assertEqual(info["channel_type"], "classifieds")
+        self.assertTrue(info["is_classifieds"])
+
+        kaspi_adv = get_shop_info("https://obyavleniya.kaspi.kz/item/123")
+        self.assertEqual(kaspi_adv["channel_type"], "classifieds")
+        self.assertTrue(kaspi_adv["is_classifieds"])
+
+        # Обычный магазин
+        mechta = get_shop_info("https://www.mechta.kz/product/123")
+        self.assertEqual(mechta["channel_type"], "store")
+        self.assertFalse(mechta["is_classifieds"])
+
+    async def test_retail_stores_outrank_olx_classifieds(self):
+        # Проверяем, что даже если у OLX есть цена, а у официального магазина в сниппете её нет,
+        # официальный магазин (Kaspi, DNS, iSpace) ранжируется выше объявлений OLX
+        mock_searxng_resp = {
+            "results": [
+                {
+                    "title": "iPhone 16 Pro на OLX за 590 000 ₸",
+                    "url": "https://www.olx.kz/d/obyavlenie/iphone-16-pro-ID1.html",
+                    "content": "Продам б/у телефон в идеальном состоянии",
+                    "engine": "duckduckgo",
+                },
+                {
+                    "title": "Смартфон Apple iPhone 16 Pro в интернет-магазине DNS",
+                    "url": "https://dns-shop.kz/product/iphone16pro/",
+                    "content": "Официальная гарантия 1 год, доставка в Алматы",
+                    "engine": "duckduckgo",
+                },
+                {
+                    "title": "Купить Apple iPhone 16 Pro в рассрочку в Kaspi Магазине",
+                    "url": "https://kaspi.kz/shop/p/apple-iphone-16-pro-128gb-123789/",
+                    "content": "Kaspi Red, рассрочка 0-0-24, бесплатная доставка",
+                    "engine": "duckduckgo",
+                },
+            ]
+        }
+
+        class MockResponse:
+            status = 200
+
+            async def json(self, content_type=None):
+                return mock_searxng_resp
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                pass
+
+        class MockSession:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            def get(self, *args, **kwargs):
+                return MockResponse()
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                pass
+
+        with patch.object(database, "get_web_search", return_value=None), \
+             patch.object(database, "reserve_web_search", return_value=True), \
+             patch.object(database, "save_web_search"), \
+             patch("aiohttp.ClientSession", MockSession):
+
+            res = await search_web("iPhone 16 Pro", mode="kz_shops", limit=5)
+            self.assertTrue(res["ok"])
+            self.assertEqual(res["total"], 3)
+            # Официальные магазины (DNS и Kaspi) должны идти первыми
+            first_two_shops = [r["shop_name"] for r in res["results"][:2]]
+            self.assertIn("DNS Казахстан", first_two_shops)
+            self.assertIn("Kaspi Магазин", first_two_shops)
+            # OLX должен идти после розничных магазинов и иметь флаг is_classifieds
+            last_item = res["results"][2]
+            self.assertEqual(last_item["shop_name"], "OLX Казахстан")
+            self.assertTrue(last_item["is_classifieds"])
+
+
 if __name__ == "__main__":
     unittest.main()
