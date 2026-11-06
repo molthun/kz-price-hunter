@@ -6,6 +6,7 @@ Migration and enrichment script for Refrigerators, Washing Machines, Vacuums and
 """
 import sys
 import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import json
 import sqlite3
 from typing import Optional

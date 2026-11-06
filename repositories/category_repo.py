@@ -124,13 +124,15 @@ class CategoryRepository:
         synced = 0
         for cat in MASTER_TAXONOMY:
             old = stored.get(cat.id)
-            if old and old.aliases == cat.aliases and old.name == cat.name and old.parent_id == cat.parent_id:
+            if (old and old.aliases == cat.aliases and old.name == cat.name
+                    and old.parent_id == cat.parent_id
+                    and old.attributes_schema == cat.attributes_schema):
                 continue
             if old:
-                # Preserve reviewed dynamic filter definitions across taxonomy sync/restarts.
+                # Preserve reviewed dynamic filter definitions across taxonomy sync/restarts, while taking new schema updates.
                 import copy
                 cat = copy.deepcopy(cat)
-                cat.attributes_schema = {**cat.attributes_schema, **old.attributes_schema}
+                cat.attributes_schema = {**old.attributes_schema, **cat.attributes_schema}
             self.save(cat)
             synced += 1
         return synced
