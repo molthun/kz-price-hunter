@@ -343,6 +343,23 @@ def search_sync(arguments, understanding, selected_attributes):
         verified_ids = set(verified)
         if any(item.product.id in verified_ids and item.has_purchasable_offers for item in res.items):
             res.outcome = SearchOutcome.FOUND
+
+        # Интеллектуальный категориальный Fallback для неявных / описательных запросов (KZPH-G6)
+        # Применяется только для запросов общего вида (без конкретных кодов/номеров моделей),
+        # в известных утверждённых разделах каталога (не ai_*).
+        fallback_applied = False
+        fallback_args = None
+        has_specific_model_code = bool(re.search(r'\b[A-Za-z0-9]*\d+[A-Za-z0-9]*\b', original))
+        is_known_standard_category = bool(inferred_category and not inferred_category.startswith('ai_') and cats.get_by_id(inferred_category))
+        if res.total_products == 0 and is_known_standard_category and not selected_category and not has_specific_model_code:
+            fallback_args = dict(search_args)
+            fallback_args['query'] = ''
+            fallback_args['category'] = inferred_category
+            fallback_res = SearchCore(repo).search(**fallback_args)
+            if fallback_res.total_products > 0:
+                res = fallback_res
+                fallback_applied = True
+
         data = res.to_dict()
         data['query'] = original
         data['parsed_query']['raw_query'] = original
@@ -352,13 +369,18 @@ def search_sync(arguments, understanding, selected_attributes):
         schema = dict(cat.attributes_schema) if cat else {}
         if plan and inferred_category:
             schema.update({f['key']: f for f in plan['fields']})
-        data['attribute_facets'] = repo.attribute_facets(search_args, schema)
+        active_args = fallback_args if fallback_applied else search_args
+        data['attribute_facets'] = repo.attribute_facets(active_args, schema)
         data['selected_attributes'] = {**inferred_attrs, **attrs}
         data['local_ai'] = {k: v for k, v in understanding.items() if k != 'plan'}
         data['local_ai']['cached_plan'] = cached_plan
+        clarification_msg = (plan or {}).get('clarification', '')
+        if fallback_applied:
+            clarification_msg = f'По запросу «{original}» точных совпадений в каталоге не найдено. Показаны товары из раздела «{cat.name if cat else inferred_category}».'
         data['search_help'] = {
             'category_id': inferred_category, 'category_name': cat.name if cat else (plan or {}).get('category_name'),
-            'clarification': (plan or {}).get('clarification', ''), 'expansion': None,
+            'clarification': clarification_msg, 'expansion': None,
+            'is_fallback': fallback_applied,
         }
         if original and res.outcome != 'ERROR':
             spec = dict(query=search_args['query'], original_query=original, category=search_args.get('category'),

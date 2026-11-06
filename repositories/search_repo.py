@@ -19,6 +19,7 @@ from repositories.base import BaseRepository
 logger = logging.getLogger("kz_price_hunter.repositories.search")
 
 TOKEN_SYNONYMS: Dict[str, List[str]] = {
+    # Бренды и линейки
     "айфон": ["iphone"],
     "iphone": ["айфон"],
     "про": ["pro"],
@@ -47,6 +48,82 @@ TOKEN_SYNONYMS: Dict[str, List[str]] = {
     "ipad": ["айпад"],
     "сони": ["sony"],
     "sony": ["сони"],
+
+    # Мониторы и экраны (KZPH-G6)
+    "wide": ["ultrawide", "21:9", "ультраширокий", "широкоформатный", "вайд"],
+    "ultrawide": ["wide", "21:9", "ультраширокий", "широкоформатный"],
+    "ультраширокий": ["ultrawide", "wide", "21:9", "широкоформатный"],
+    "широкоформатный": ["ultrawide", "wide", "21:9", "ультраширокий"],
+    "monitor": ["монитор", "дисплей", "display"],
+    "монитор": ["monitor", "дисплей", "display"],
+    "display": ["дисплей", "монитор", "monitor"],
+    "дисплей": ["display", "монитор", "monitor"],
+    "curved": ["изогнутый"],
+    "изогнутый": ["curved"],
+    "gaming": ["игровой", "геймерский"],
+    "игровой": ["gaming", "геймерский"],
+
+    # Телевизоры
+    "tv": ["телевизор", "телик", "television"],
+    "телевизор": ["tv", "телик"],
+    "телик": ["телевизор", "tv"],
+    "smart": ["смарт"],
+    "смарт": ["smart"],
+
+    # Смартфоны и гаджеты
+    "phone": ["телефон", "смартфон", "smartphone"],
+    "smartphone": ["смартфон", "телефон", "phone"],
+    "телефон": ["phone", "смартфон", "smartphone"],
+    "смартфон": ["smartphone", "phone", "телефон"],
+    "watch": ["часы", "smartwatch", "смарт-часы"],
+    "smartwatch": ["смарт-часы", "часы", "watch"],
+    "часы": ["watch", "smartwatch", "смарт-часы"],
+    "headphones": ["наушники", "earphones", "гарнитура", "headset"],
+    "earphones": ["наушники", "гарнитура"],
+    "headset": ["гарнитура", "наушники"],
+    "наушники": ["headphones", "earphones", "headset", "гарнитура"],
+    "гарнитура": ["headset", "headphones", "наушники"],
+    "wireless": ["беспроводной", "беспроводные", "tws", "bluetooth"],
+    "беспроводной": ["wireless", "bluetooth", "tws"],
+    "беспроводные": ["wireless", "bluetooth", "tws"],
+
+    # Компьютеры и ноутбуки
+    "laptop": ["ноутбук", "ноут", "notebook"],
+    "ноутбук": ["laptop", "ноут", "notebook"],
+    "ноут": ["ноутбук", "laptop"],
+    "notebook": ["ноутбук", "laptop"],
+    "tablet": ["планшет", "ipad"],
+    "планшет": ["tablet", "ipad"],
+    "keyboard": ["клавиатура", "клава"],
+    "клавиатура": ["keyboard"],
+    "mouse": ["мышь", "мышка"],
+    "мышь": ["mouse", "мышка"],
+    "мышка": ["мышь", "mouse"],
+
+    # Бытовая техника
+    "fridge": ["холодильник", "refrigerator"],
+    "refrigerator": ["холодильник", "fridge"],
+    "холодильник": ["fridge", "refrigerator"],
+    "washer": ["стиралка", "стиральная"],
+    "washing": ["стиральная", "стиралка"],
+    "стиралка": ["стиральная", "washer", "washing"],
+    "стиральная": ["стиралка", "washer", "washing"],
+    "dishwasher": ["посудомойка", "посудомоечная"],
+    "посудомойка": ["посудомоечная", "dishwasher"],
+    "посудомоечная": ["посудомойка", "dishwasher"],
+    "vacuum": ["пылесос", "cleaner"],
+    "cleaner": ["пылесос", "vacuum"],
+    "пылесос": ["vacuum", "cleaner"],
+    "conditioner": ["кондиционер", "сплит"],
+    "кондиционер": ["conditioner", "сплит"],
+    "сплит": ["кондиционер", "conditioner"],
+
+    # Автотовары
+    "tires": ["шины", "резина", "колеса", "автошины"],
+    "tire": ["шина", "резина", "колесо", "автошина"],
+    "шины": ["tires", "резина", "колеса", "автошины"],
+    "резина": ["шины", "tires", "колеса"],
+    "колеса": ["шины", "резина", "tires"],
 }
 
 STORAGE_TOKENS = {"64", "128", "256", "512", "1024"}
@@ -151,10 +228,11 @@ class SearchRepository(BaseRepository):
         return result
 
     @classmethod
-    def _build_fts_query(cls, text: str) -> str:
+    def _build_fts_query(cls, text: str, operator: str = "AND") -> str:
         """
         Builds a safe, robust FTS5 expression from input text with synonym expansion.
         Numbers are quoted strictly without wildcard; words use prefix matching.
+        Operator can be 'AND' (strict conjunct) or 'OR' (soft broad match).
         """
         clean = re.sub(r'[^\w\-\s]', ' ', text).strip()
         tokens = [t.strip().lower() for t in clean.split() if t.strip()]
@@ -180,25 +258,44 @@ class SearchRepository(BaseRepository):
             else:
                 parts.append(f'"{t}"')
 
-        return " AND ".join(parts)
+        join_op = f" {operator.strip()} "
+        return join_op.join(parts)
 
     @staticmethod
     def _russian_word_alts(word: str) -> List[str]:
         """
         Формы слова для префиксного поиска: "мясорубки" находит "мясорубка" и "электромясорубка",
         множественное число "плиты", "бритвы" находит "плита", "бритва".
+        Окончания прилагательных отсекаются: "широкий" находит "широкоформатный", "широкая", "широкие".
         Окончание у коротких слов единственного числа сохраняется: "машина" не должна находить "машинка".
         """
-        if len(word) >= 5 and word[-1] in "ыи":
-            stem = word[:-1]
-        elif len(word) >= 7 and word[-1] in "аяыиуюеоь":
-            stem = word[:-1]
-        else:
-            stem = word
+        stem = word
+        # Стемминг прилагательных (3- и 2-буквенные окончания)
+        if len(word) >= 5:
+            adj_3 = ("ого", "его", "ому", "ему", "ыми", "ими")
+            adj_2 = ("ый", "ий", "ой", "ая", "яя", "ое", "ее", "ые", "ие", "ую", "юю", "ых", "их", "ым", "им", "ом", "ем")
+            for end in adj_3:
+                if word.endswith(end) and len(word) - len(end) >= 3:
+                    stem = word[:-len(end)]
+                    break
+            else:
+                for end in adj_2:
+                    if word.endswith(end) and len(word) - len(end) >= 3:
+                        stem = word[:-len(end)]
+                        break
+
+        if stem == word:
+            if len(word) >= 5 and word[-1] in "ыи":
+                stem = word[:-1]
+            elif len(word) >= 7 and word[-1] in "аяыиуюеоь":
+                stem = word[:-1]
+
         alts = [stem]
+        if stem != word:
+            alts.append(word)
         if not stem.startswith("электро"):
             alts.append(f"электро{stem}")
-        return alts
+        return list(dict.fromkeys(alts))
 
     @staticmethod
     def _offer_filter(
