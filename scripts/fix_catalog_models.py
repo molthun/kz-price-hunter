@@ -65,12 +65,12 @@ def run_migration(db_path: str):
         )
         if is_laptop:
             logger.info(f"Перемещение ноутбука в 'Ноутбуки': [{pid}] {title}")
-            c.execute("UPDATE canonical_products SET category = 'Ноутбуки', updated_at = strftime('%s','now') WHERE id = ?", (pid,))
             c.execute("""
                 INSERT OR REPLACE INTO product_category_tags
                 (product_id, category_id, source, source_signature, updated_at)
                 VALUES (?, 'laptops', 'rules', 'fix_catalog_models', strftime('%s','now'))
             """, (pid,))
+            c.execute("UPDATE canonical_products SET category = 'Ноутбуки', updated_at = strftime('%s','now') WHERE id = ?", (pid,))
             c.execute("DELETE FROM product_search_attributes WHERE product_id = ? AND key IN ('vram', 'vram_gb', 'chipset', 'clock_speed', 'interface')", (pid,))
             laptops_moved += 1
             continue
@@ -81,12 +81,12 @@ def run_migration(db_path: str):
         )
         if is_cooler:
             logger.info(f"Перемещение кулера в 'Охлаждение и кулеры': [{pid}] {title}")
-            c.execute("UPDATE canonical_products SET category = 'Охлаждение и кулеры', updated_at = strftime('%s','now') WHERE id = ?", (pid,))
             c.execute("""
                 INSERT OR REPLACE INTO product_category_tags
                 (product_id, category_id, source, source_signature, updated_at)
                 VALUES (?, 'cooling', 'rules', 'fix_catalog_models', strftime('%s','now'))
             """, (pid,))
+            c.execute("UPDATE canonical_products SET category = 'Охлаждение и кулеры', updated_at = strftime('%s','now') WHERE id = ?", (pid,))
             c.execute("DELETE FROM product_search_attributes WHERE product_id = ? AND key IN ('vram', 'vram_gb', 'chipset', 'clock_speed', 'interface')", (pid,))
             coolers_moved += 1
             continue
@@ -95,12 +95,12 @@ def run_migration(db_path: str):
         is_component = bool(re.search(r"\b(novastar|huidu|приемная\s+карта|передающая\s+карта|wavlink\s+wl-)\b", title, re.I))
         if is_component:
             logger.info(f"Перемещение комплектующего в 'Комплектующие для ПК': [{pid}] {title}")
-            c.execute("UPDATE canonical_products SET category = 'Комплектующие для ПК', updated_at = strftime('%s','now') WHERE id = ?", (pid,))
             c.execute("""
                 INSERT OR REPLACE INTO product_category_tags
                 (product_id, category_id, source, source_signature, updated_at)
                 VALUES (?, 'pc_components', 'rules', 'fix_catalog_models', strftime('%s','now'))
             """, (pid,))
+            c.execute("UPDATE canonical_products SET category = 'Комплектующие для ПК', updated_at = strftime('%s','now') WHERE id = ?", (pid,))
             c.execute("DELETE FROM product_search_attributes WHERE product_id = ? AND key IN ('vram', 'vram_gb', 'chipset', 'clock_speed', 'interface')", (pid,))
             components_moved += 1
             continue

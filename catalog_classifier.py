@@ -917,18 +917,18 @@ CANONICAL_GPU_FAMILIES: List[Tuple[re.Pattern, str]] = [
 
     # NVIDIA RTX 20 series
     (re.compile(r"\b(?:geforce\s+)?rtx\s*2080\s*ti\b", re.I), "GeForce RTX 2080 Ti"),
-    (re.compile(r"\b(?:geforce\s+)?rtx\s*2080\s*super\b", re.I), "GeForce RTX 2080 Super"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*2080\s*s(?:uper)?\b", re.I), "GeForce RTX 2080 Super"),
     (re.compile(r"\b(?:geforce\s+)?rtx\s*2080\b", re.I), "GeForce RTX 2080"),
-    (re.compile(r"\b(?:geforce\s+)?rtx\s*2070\s*super\b", re.I), "GeForce RTX 2070 Super"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*2070\s*s(?:uper)?\b", re.I), "GeForce RTX 2070 Super"),
     (re.compile(r"\b(?:geforce\s+)?rtx\s*2070\b", re.I), "GeForce RTX 2070"),
-    (re.compile(r"\b(?:geforce\s+)?rtx\s*2060\s*super\b", re.I), "GeForce RTX 2060 Super"),
+    (re.compile(r"\b(?:geforce\s+)?rtx\s*2060\s*s(?:uper)?\b", re.I), "GeForce RTX 2060 Super"),
     (re.compile(r"\b(?:geforce\s+)?rtx\s*2060\b", re.I), "GeForce RTX 2060"),
 
     # NVIDIA GTX 16 series
     (re.compile(r"\b(?:geforce\s+)?gtx\s*1660\s*ti\b", re.I), "GeForce GTX 1660 Ti"),
-    (re.compile(r"\b(?:geforce\s+)?gtx\s*1660\s*super\b", re.I), "GeForce GTX 1660 Super"),
+    (re.compile(r"\b(?:geforce\s+)?gtx\s*1660\s*s(?:uper)?\b", re.I), "GeForce GTX 1660 Super"),
     (re.compile(r"\b(?:geforce\s+)?gtx\s*1660\b", re.I), "GeForce GTX 1660"),
-    (re.compile(r"\b(?:geforce\s+)?gtx\s*1650\s*super\b", re.I), "GeForce GTX 1650 Super"),
+    (re.compile(r"\b(?:geforce\s+)?gtx\s*1650\s*s(?:uper)?\b", re.I), "GeForce GTX 1650 Super"),
     (re.compile(r"\b(?:geforce\s+)?gtx\s*1650\b", re.I), "GeForce GTX 1650"),
     (re.compile(r"\b(?:geforce\s+)?gtx\s*1630\b", re.I), "GeForce GTX 1630"),
 
@@ -991,6 +991,7 @@ CANONICAL_GPU_FAMILIES: List[Tuple[re.Pattern, str]] = [
     # XFX GPU SKU patterns
     (re.compile(r"\brx-97tswf\w*", re.I), "Radeon RX 9070 XT"),
     (re.compile(r"\brx-97trgb\w*", re.I), "Radeon RX 9070 XT"),
+    (re.compile(r"\brx-96tsw\w*", re.I), "Radeon RX 9060 XT"),
     (re.compile(r"\brx-96swft\w*", re.I), "Radeon RX 9060"),
 
     # OCPC GPU SKU patterns
@@ -1037,8 +1038,8 @@ CANONICAL_GPU_FAMILIES: List[Tuple[re.Pattern, str]] = [
     (re.compile(r"\bt400\b", re.I), "NVIDIA T400"),
 
     # AMD Radeon RX 9000 & AI series
-    (re.compile(r"\b(?:radeon\s+)?rx\s*9070\s*xt\b", re.I), "Radeon RX 9070 XT"),
-    (re.compile(r"\b(?:radeon\s+)?rx\s*9070\b", re.I), "Radeon RX 9070"),
+    (re.compile(r"\b(?:amd\s+)?(?:radeon\s+)?(?:rx\s*)?9070\s*xt\b", re.I), "Radeon RX 9070 XT"),
+    (re.compile(r"\b(?:amd\s+)?(?:radeon\s+)?rx\s*9070\b", re.I), "Radeon RX 9070"),
     (re.compile(r"\b(?:radeon\s+)?(?:rx\s*)?9060\s*xt\b", re.I), "Radeon RX 9060 XT"),
     (re.compile(r"\b(?:radeon\s+)?rx\s*9060\b", re.I), "Radeon RX 9060"),
     (re.compile(r"\b(?:radeon\s+)?ai\s*pro\s*r9700\b", re.I), "Radeon AI PRO R9700"),
