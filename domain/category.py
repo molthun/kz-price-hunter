@@ -180,7 +180,14 @@ MASTER_TAXONOMY: List[Category] = [
         name="Игровые приставки",
         icon="🕹",
         search_priority=85,
-        aliases=["игровые приставки", "консоли", "playstation", "ps5", "ps4", "xbox", "nintendo switch"],
+        aliases=["игровые приставки", "консоли", "playstation", "ps5", "ps4", "xbox", "nintendo switch", "steam deck"],
+        attributes_schema={
+            "type": {"label": "Тип устройства", "type": "string"},
+            "platform": {"label": "Платформа", "type": "string"},
+            "storage": {"label": "Объем памяти", "type": "string"},
+            "disc_drive": {"label": "Дисковод", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="pc_components",
@@ -207,7 +214,13 @@ MASTER_TAXONOMY: List[Category] = [
         icon="⚙️",
         search_priority=83,
         aliases=["процессоры", "cpu", "центральные процессоры", "intel core", "amd ryzen"],
-        attributes_schema={"socket": "string", "cores": "int", "frequency": "float"},
+        attributes_schema={
+            "cpu_family": {"label": "Серия процессора", "type": "string"},
+            "socket": {"label": "Сокет", "type": "string"},
+            "delivery_type": {"label": "Комплектация", "type": "string"},
+            "cores": {"label": "Количество ядер", "type": "int"},
+            "frequency": {"label": "Тактовая частота", "type": "float"},
+        },
     ),
     Category(
         id="motherboards",
@@ -225,7 +238,7 @@ MASTER_TAXONOMY: List[Category] = [
         icon="🔌",
         search_priority=82,
         aliases=["блоки питания", "блок питания", "бп", "power supply", "psu", "блок питания для пк", "источники питания"],
-        attributes_schema={"power": "string", "form_factor": "string", "color": "string"},
+        attributes_schema={"power": "string", "form_factor": "string", "certificate": "string", "color": "string"},
     ),
     Category(
         id="pc_cases",
@@ -234,7 +247,13 @@ MASTER_TAXONOMY: List[Category] = [
         icon="🖥",
         search_priority=82,
         aliases=["корпуса", "корпус", "компьютерный корпус", "корпус для пк", "системный блок", "pc cases", "case", "cases"],
-        attributes_schema={"form_factor": "string", "color": "string", "material": "string"},
+        attributes_schema={
+            "form_factor": {"label": "Форм-фактор", "type": "string"},
+            "side_window": {"label": "Боковое окно", "type": "string"},
+            "backlight": {"label": "Подсветка", "type": "string"},
+            "psu_included": {"label": "Блок питания", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="cooling",
@@ -261,7 +280,7 @@ MASTER_TAXONOMY: List[Category] = [
         icon="💾",
         search_priority=78,
         aliases=["ssd диски", "ssd", "ssd накопители", "твердотельные накопители"],
-        attributes_schema={"storage": "string", "form_factor": "string"},
+        attributes_schema={"storage": "string", "form_factor": "string", "interface": "string"},
     ),
     Category(
         id="hdd",
@@ -353,7 +372,14 @@ MASTER_TAXONOMY: List[Category] = [
         name="ИБП и питание",
         icon="🔋",
         search_priority=78,
-        aliases=["ибп", "стабилизаторы", "инверторы"],
+        aliases=["ибп", "стабилизаторы", "инверторы", "ups", "бесперебойник", "бесперебойники"],
+        attributes_schema={
+            "type": {"label": "Тип устройства", "type": "string"},
+            "power_va": {"label": "Полная мощность (ВА)", "type": "string"},
+            "power": {"label": "Активная мощность (Вт)", "type": "string"},
+            "certificate": {"label": "Сертификат 80 PLUS", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="photo_video",
@@ -407,7 +433,14 @@ MASTER_TAXONOMY: List[Category] = [
         name="Кабели и зарядные устройства",
         icon="🔌",
         search_priority=63,
-        aliases=["кабели", "зарядные устройства", "адаптеры", "кабель usb", "блок питания", "зарядка", "повербанки", "powerbank", "cable", "charger"],
+        aliases=["кабели", "зарядные устройства", "адаптеры", "кабель usb", "блок питания", "зарядка", "повербанки", "powerbank", "cable", "charger", "внешний аккумулятор"],
+        attributes_schema={
+            "type": {"label": "Тип аксессуара", "type": "string"},
+            "battery": {"label": "Емкость аккумулятора", "type": "string"},
+            "power": {"label": "Мощность зарядки", "type": "string"},
+            "connector": {"label": "Разъем", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="printer_ink",
@@ -546,6 +579,13 @@ MASTER_TAXONOMY: List[Category] = [
         icon="👕",
         search_priority=75,
         aliases=["одежда", "обувь", "одежда и обувь", "clothing", "shoes", "fashion"],
+        attributes_schema={
+            "type": {"label": "Вид изделия", "type": "string"},
+            "gender": {"label": "Пол и возраст", "type": "string"},
+            "season": {"label": "Сезон", "type": "string"},
+            "apparel_size": {"label": "Размер", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="men_clothing",
@@ -554,6 +594,12 @@ MASTER_TAXONOMY: List[Category] = [
         icon="👔",
         search_priority=70,
         aliases=["мужская одежда", "куртки мужские", "костюмы", "футболки мужские"],
+        attributes_schema={
+            "type": {"label": "Вид одежды", "type": "string"},
+            "season": {"label": "Сезон", "type": "string"},
+            "apparel_size": {"label": "Размер", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="women_clothing",
@@ -562,6 +608,12 @@ MASTER_TAXONOMY: List[Category] = [
         icon="👗",
         search_priority=70,
         aliases=["женская одежда", "платья", "юбки", "блузки", "куртки женские"],
+        attributes_schema={
+            "type": {"label": "Вид одежды", "type": "string"},
+            "season": {"label": "Сезон", "type": "string"},
+            "apparel_size": {"label": "Размер", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="shoes",
@@ -569,7 +621,13 @@ MASTER_TAXONOMY: List[Category] = [
         name="Обувь",
         icon="👟",
         search_priority=72,
-        aliases=["обувь", "кроссовки", "ботинки", "туфли", "кеды", "shoes", "sneakers"],
+        aliases=["обувь", "кроссовки", "ботинки", "туфли", "кеды", "сапоги", "босоножки", "сандалии", "shoes", "sneakers"],
+        attributes_schema={
+            "type": {"label": "Тип обуви", "type": "string"},
+            "gender": {"label": "Пол и возраст", "type": "string"},
+            "season": {"label": "Сезон", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
 
     # 4. Продукты питания (L1)
@@ -626,7 +684,13 @@ MASTER_TAXONOMY: List[Category] = [
         name="Мебель",
         icon="🛋",
         search_priority=63,
-        aliases=["мебель", "шкафы", "столы", "диваны", "стулья", "кровати", "тумбы", "комоды"],
+        aliases=["мебель", "шкафы", "столы", "диваны", "стулья", "кровати", "тумбы", "комоды", "матрасы", "матрас", "кресло игровое", "компьютерное кресло"],
+        attributes_schema={
+            "type": {"label": "Тип мебели", "type": "string"},
+            "bed_size": {"label": "Размер (спальное место)", "type": "string"},
+            "material": {"label": "Материал / Обивка", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="home_textile",
@@ -670,7 +734,13 @@ MASTER_TAXONOMY: List[Category] = [
         name="Инструменты и ремонт",
         icon="🔨",
         search_priority=61,
-        aliases=["инструменты", "дрели", "шуруповерты", "сантехника", "электроинструмент", "шлифовальные машины"],
+        aliases=["инструменты", "дрели", "шуруповерты", "сантехника", "электроинструмент", "шлифовальные машины", "перфораторы", "болгарки", "сварочные аппараты"],
+        attributes_schema={
+            "type": {"label": "Тип товара", "type": "string"},
+            "power_supply": {"label": "Тип питания", "type": "string"},
+            "voltage": {"label": "Напряжение АКБ", "type": "string"},
+            "power": {"label": "Мощность", "type": "string"},
+        },
     ),
 
     # 6. Автотовары (L1)
@@ -727,6 +797,11 @@ MASTER_TAXONOMY: List[Category] = [
             "макияж", "уход за лицом", "уход за телом", "уход за волосами", "лекарственные средства",
             "дермакосметика",
         ],
+        attributes_schema={
+            "type": {"label": "Категория средства / прибора", "type": "string"},
+            "volume_ml": {"label": "Объем", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="perfume",
@@ -734,7 +809,12 @@ MASTER_TAXONOMY: List[Category] = [
         name="Парфюмерия",
         icon="🌸",
         search_priority=59,
-        aliases=["парфюмерия", "духи", "туалетная вода", "парфюм"],
+        aliases=["парфюмерия", "духи", "туалетная вода", "парфюм", "парфюмерная вода"],
+        attributes_schema={
+            "type": {"label": "Концентрация / Тип", "type": "string"},
+            "gender": {"label": "Для кого", "type": "string"},
+            "volume_ml": {"label": "Объем флакона", "type": "string"},
+        },
     ),
     Category(
         id="skincare",
@@ -887,7 +967,12 @@ MASTER_TAXONOMY: List[Category] = [
         name="Игрушки и конструкторы",
         icon="🧸",
         search_priority=51,
-        aliases=["игрушки", "lego", "конструкторы", "настольные игры", "куклы", "машинки"],
+        aliases=["игрушки", "lego", "конструкторы", "настольные игры", "куклы", "машинки", "лего"],
+        attributes_schema={
+            "type": {"label": "Тип игрушки", "type": "string"},
+            "lego_series": {"label": "Серия конструктора", "type": "string"},
+            "pieces_count": {"label": "Количество деталей", "type": "string"},
+        },
     ),
     Category(
         id="books_stationery",

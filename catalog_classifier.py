@@ -474,11 +474,12 @@ _TITLE_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
     (re.compile(r"\b(коляск(?:а|и)|детск(?:ая|ие)\s+коляск(?:а|и)|коляска-трость|коляска\s+2\s+в\s+1|коляска\s+3\s+в\s+1|прогулочн(?:ая|ую)\s+коляск(?:а|у)|автокресл(?:о|а)\s+детск(?:ое|ие)|автолюльк(?:а|и)|бустер\s+детский|слинг|рюкзак-кенгуру|эргорюкзак)\b", re.I), "strollers"),
     (re.compile(r"\b(погремушк(?:а|и)|прорезывател(?:ь|и)|грызун(?:ок|ки)|развивающ(?:ий|ие)\s+коврик(?:и)?|мобил(?:ь|и)\s+в\s+кроватку|дуг(?:а|и)\s+с\s+игрушками|детск(?:ий|ие)\s+сортер(?:ы)?|бизиборд(?:ы)?)\b", re.I), "baby_toys"),
 
-    # Footwear & Apparel (защита от ложного захвата обуви IMAC)
-    (re.compile(r"\b(обувь|ботинки|туфли|кроссовки|сапоги|кеды|сандали|балетки|полуботинки|шлепанцы|ботильоны)\b", re.I), "shoes"),
+    # Footwear & Apparel (защита от ложного захвата обуви IMAC и полный охват обуви)
+    (re.compile(r"\b(обувь|ботинки|туфли|кроссовки|сапоги|полусапоги|кеды|сандали\w*|босоножки|балетки|полуботинки|шлепанцы|ботильоны|бoтильоны|челси|лоферы|слипоны|слингбэки|мокасины|тапочки|сабо|дутики|угги)\b", re.I), "shoes"),
 
-    # Cosmetics & Beauty (защита от ложного захвата косметики MAC Studio / Apple)
-    (re.compile(r"\b(консилер|пудра|праймер|тональн(?:ая|ый|ое)|палетк[аи]|помад[аы]|тушь|тени|блеск\s+для\s+губ|румян[аы]|хайлайтер|парфюм|духи|мыло|крем\b|шампунь|гель\b|гель-душ)\b", re.I), "beauty"),
+    # Perfume & Cosmetics (защита от ложного захвата косметики MAC Studio / Apple)
+    (re.compile(r"\b(парфюмерн(?:ая|ой)\s+вод(?:а|ы)|туалетн(?:ая|ой)\s+вод(?:а|ы)|одеколон|парфюм|духи|eau\s+de\s+(?:parfum|toilette))\b", re.I), "perfume"),
+    (re.compile(r"\b(консилер|пудра|праймер|тональн(?:ая|ый|ое)|палетк[аи]|помад[аы]|тушь|тени|блеск\s+для\s+губ|румян[аы]|хайлайтер|мыло|крем\b|шампунь|гель\b|гель-душ)\b", re.I), "beauty"),
 
     # Audio & TV (проверяем наушники раньше телефонов, но адаптеры для наушников относим к аксессуарам)
     (re.compile(r"\b(?:переходник|адаптер)\s+(?:для\s+)?наушников\b", re.I), "cables_chargers"),
@@ -512,10 +513,11 @@ _TITLE_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
     (re.compile(r"\b(монитор|(?:коммерческий|интерактивный|профессиональный|информационный)\s+дисплей|дисплей\s+(?:lg|samsung|viewsonic|philips|benq|sony|iiyama|dell|asus|acer|hp|lenovo|xiaomi|apple)|studio\s+display|pro\s+display\s+xdr)\b", re.I), "monitors"),
 
     # Hardware Components
+    (re.compile(r"\b(\bups\b|ибп\b|источник\s+бесперебойного\s+питания|бесперебойник|стабилизатор\s+напряжения)\b", re.I), "power"),
     (re.compile(r"\b(блок\s+питания|бп\s+\d+|power\s+supply|источник\s+питания)\b", re.I), "psu"),
     (re.compile(r"\b(компьютерный\s+корпус|корпус\s+для\s+пк|корпус\s+пк|системный\s+блок\s+без\s+бп)\b|^\W*корпус\b", re.I), "pc_cases"),
     (re.compile(r"\b(кулер|систем[аы]\s+(?:водяного\s+)?охлаждения|сжо|сво|вентилятор\s+для\s+корпуса|термопаста|cpu\s+cooler)\b", re.I), "cooling"),
-    (re.compile(r"\b(маршрутизатор|роутер|mesh-систем\w*|точка\s+доступа|коммутатор)\b", re.I), "network"),
+    (re.compile(r"\b(маршрутизатор|роутер|mesh-систем\w*|точка\s+доступа|коммутатор|starlink)\b", re.I), "network"),
     (re.compile(r"\b(мфу|принтер|плоттер)\b", re.I), "printers"),
     (re.compile(r"\b(novastar|huidu|приемная\s+карта|передающая\s+карта)\b", re.I), "pc_components"),
     (re.compile(r"\bвнешняя\s+usb\s+видеокарта\b", re.I), "pc_components"),
@@ -562,10 +564,13 @@ _TITLE_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
 
 # Accessory & Consumable detection rules: Title keyword regex -> (category_id, item_kind)
 _ACCESSORY_CONSUMABLE_RULES: List[Tuple[re.Pattern, str, str]] = [
-    # Dishwasher consumables (tablets, capsules, salt, rinse aid)
+    # Dishwasher & Laundry consumables (tablets, capsules, salt, rinse aid, fabric softeners)
     (
         re.compile(
-            r"\b(таблетк\w*\s+для\s+посудомоечн\w*|капсул\w*\s+для\s+посудомоечн\w*|соль\s+для\s+посудомоечн\w*|ополаскивател\w*\s+для\s+посудомоечн\w*|средств\w*\s+для\s+посудомоечн\w*|очистител\w*\s+для\s+посудомоечн\w*|гель\s+для\s+посудомоечн\w*|таблетк\w*\s+для\s+посудомо\w*|finish\s+(?:power|quantum|all\s+in|classic)|fairy\s+(?:platinum|all\s+in)|somat\s+(?:all\s+in|gold|excellence))\b",
+            r"\b(таблетк\w*\s+для\s+посудомоечн\w*|капсул\w*\s+для\s+посудомоечн\w*|соль\s+для\s+посудомоечн\w*|ополаскивател\w*\s+для\s+посудомоечн\w*|средств\w*\s+для\s+посудомоечн\w*|очистител\w*\s+для\s+посудомоечн\w*|гель\s+для\s+посудомоечн\w*|таблетк\w*\s+для\s+посудомо\w*|"
+            r"кондиционер\w*\s+для\s+(?:белья|ткани|стирки)|смягчител\w*\s+(?:для\s+белья|ткани)|порошок\s+стиральн\w*|гель\s+для\s+стирки|капсул\w*\s+для\s+стирки|vernel\b|lenor\b|"
+            r"мусорн\w*\s+бак|ведро\s+для\s+мусора|"
+            r"finish\s+(?:power|quantum|all\s+in|classic)|fairy\s+(?:platinum|all\s+in)|somat\s+(?:all\s+in|gold|excellence))\b",
             re.I,
         ),
         "household_chem",

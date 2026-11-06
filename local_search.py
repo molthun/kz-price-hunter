@@ -95,6 +95,36 @@ def clean_plan(answer, query, categories):
     elif ('планшет' in q_low or 'ipad' in q_low or 'matepad' in q_low or 'galaxy tab' in q_low) and not any(p in q_low for p in ('чехол', 'стекло', 'пленк', 'держател', 'подставк', 'сумк', 'графическ')):
         if 'tablets' in by_id:
             cid = 'tablets'
+    elif any(w in q_low for w in ('процессор', 'ryzen', 'intel core', 'core i5', 'core i7', 'core i9', 'core i3')) and not any(p in q_low for p in ('ноутбук', 'компьютер', 'моноблок', 'кулер', 'вентилятор', 'смартфон', 'планшет')):
+        if 'cpus' in by_id:
+            cid = 'cpus'
+    elif any(w in q_low for w in ('корпус для пк', 'компьютерный корпус', 'корпус пк', 'корпуса для пк')) or (q_low.strip() in ('корпус', 'корпуса')):
+        if 'pc_cases' in by_id:
+            cid = 'pc_cases'
+    elif any(w in q_low for w in ('playstation', 'ps5', 'ps4', 'xbox', 'nintendo switch', 'steam deck', 'игровая приставка', 'игровые приставки', 'консоль', 'meta quest')) and not any(p in q_low for p in ('кресло', 'стол', 'монитор', 'телевизор')):
+        if 'consoles' in by_id:
+            cid = 'consoles'
+    elif any(w in q_low for w in ('повербанк', 'пауэрбанк', 'power bank', 'powerbank', 'внешний аккумулятор', 'мобильный аккумулятор', 'зарядное устройство', 'зарядка для телефона', 'кабель usb', 'кабель type-c', 'кабель lightning')) and not any(p in q_low for p in ('автомобильн', 'для аккумулятора авто', 'для ибп')):
+        if 'cables_chargers' in by_id:
+            cid = 'cables_chargers'
+    elif any(w in q_low for w in ('ибп', 'бесперебойник', 'источник бесперебойного питания', 'ups', 'стабилизатор напряжения')):
+        if 'power' in by_id:
+            cid = 'power'
+    elif any(w in q_low for w in ('кроссовк', 'ботинк', 'полуботинк', 'сапог', 'полусапог', 'туфл', 'кеды', 'босоножк', 'сандали', 'слипон', 'лофер', 'челси', 'ботильон', 'обувь')) and not any(p in q_low for p in ('сушилк', 'крем для обуви', 'губка для обуви', 'полка для обуви', 'тумба для обуви', 'рожок для обуви')):
+        if 'shoes' in by_id:
+            cid = 'shoes'
+    elif any(w in q_low for w in ('шуруповерт', 'перфоратор', 'болгарк', 'ушм', 'электролобзик', 'сварочный аппарат', 'сварочный полуавтомат', 'бензопила', 'стремянка', 'паяльник', 'мультиметр')) and not any(p in q_low for p in ('игруш', 'детск')):
+        if 'tools_repair' in by_id:
+            cid = 'tools_repair'
+    elif any(w in q_low for w in ('парфюм', 'туалетная вода', 'парфюмерная вода', 'духи', 'одеколон')):
+        if 'perfume' in by_id:
+            cid = 'perfume'
+    elif any(w in q_low for w in ('lego', 'лего', 'конструктор', 'мягкая игрушка', 'кукла', 'машинка на радиоуправлении', 'квадрокоптер детский')) and not any(p in q_low for p in ('кресло', 'стол', 'одежда')):
+        if 'toys' in by_id:
+            cid = 'toys'
+    elif any(w in q_low for w in ('матрас', 'игровое кресло', 'геймерское кресло', 'компьютерное кресло', 'офисное кресло', 'диван', 'кровать', 'шкаф', 'комод')) and not any(p in q_low for p in ('надувной', 'детская кроватка', 'в кроватку', 'чехол', 'покрывало', 'простын')):
+        if 'furniture' in by_id:
+            cid = 'furniture'
 
     if not cid and not has_explicit_contract:
         return None

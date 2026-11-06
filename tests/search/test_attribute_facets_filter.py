@@ -372,6 +372,55 @@ class AttributeFacetsFilterTests(unittest.TestCase):
         self.assertEqual(FACT_KEY_MAP.get('тип'), ('type', 'Тип устройства'))
         self.assertIsNone(normalize_attribute_value('diaper_type', 'Настенная сплит-система'))
 
+        # 15. Волна 3: Процессоры, Корпуса, Приставки, Power Bank, ИБП, Обувь, Одежда, Мебель, Инструменты, Парфюм, Игрушки
+        cpu1 = extract_title_attributes('Процессор Intel Core i5 10500, LGA1200, OEM')
+        self.assertEqual(cpu1.get('cpu_family'), 'Intel Core i5')
+        self.assertEqual(cpu1.get('socket'), 'LGA 1200')
+        self.assertEqual(cpu1.get('delivery_type'), 'OEM / Tray')
+
+        case1 = extract_title_attributes('Корпус Thermaltake View 21 TG RGB Plus, Black')
+        self.assertEqual(case1.get('side_window'), 'Закаленное стекло (TG)')
+        self.assertEqual(case1.get('backlight'), 'RGB')
+
+        con1 = extract_title_attributes('Игровая приставка PS 5 Slim 1TB Digital Edition')
+        self.assertEqual(con1.get('type'), 'Стационарная консоль')
+        self.assertEqual(con1.get('platform'), 'PlayStation 5')
+        self.assertEqual(con1.get('storage'), '1 ТБ')
+        self.assertEqual(con1.get('disc_drive'), 'Digital Edition (без дисковода)')
+
+        pb1 = extract_title_attributes('Мобильный аккумулятор Xiaomi 33W Pocket Edition Pro 10000 (PB1030ZM), Blue')
+        self.assertEqual(pb1.get('type'), 'Внешний аккумулятор (Power Bank)')
+        self.assertEqual(pb1.get('battery'), '10000 мАч')
+        self.assertEqual(pb1.get('power'), '33 Вт')
+
+        ups1 = extract_title_attributes('UPS SVC V1500-F-LCD')
+        self.assertEqual(ups1.get('type'), 'ИБП (UPS)')
+        self.assertEqual(ups1.get('power_va'), '1500 ВА')
+
+        sh1 = extract_title_attributes('T.TACCARDI Ботинки мужские зимние для активного отдыха K2394-35B')
+        self.assertEqual(sh1.get('type'), 'Ботинки')
+        self.assertEqual(sh1.get('gender'), 'Мужские')
+        self.assertEqual(sh1.get('season'), 'Зимние')
+
+        fur1 = extract_title_attributes('Кровать Стелла 4-160x200 Велюр Белый')
+        self.assertEqual(fur1.get('bed_size'), '160x200 см')
+        self.assertEqual(fur1.get('material'), 'Велюр')
+
+        tl1 = extract_title_attributes('Батарея аккумуляторная Makita BL1830B')
+        self.assertEqual(tl1.get('type'), 'Аккумуляторы для инструмента')
+        self.assertEqual(tl1.get('power_supply'), 'Аккумуляторный')
+        self.assertEqual(tl1.get('voltage'), '18 В')
+
+        pf1 = extract_title_attributes('L\'EAU KENZO POUR FEMME GLACEE Туалетная вода 50 мл')
+        self.assertEqual(pf1.get('type'), 'Туалетная вода (EDT)')
+        self.assertEqual(pf1.get('gender'), 'Женский')
+        self.assertEqual(pf1.get('volume_ml'), '50 мл')
+
+        toy1 = extract_title_attributes('LEGO: Инерционный Digatron Monster Jam Technic 42199 218 дет.')
+        self.assertEqual(toy1.get('type'), 'Конструктор')
+        self.assertEqual(toy1.get('lego_series'), 'LEGO Technic')
+        self.assertEqual(toy1.get('pieces_count'), '218 дет.')
+
     def test_category_schema_and_search_priority_orders(self):
         from domain.category import MASTER_TAXONOMY
         from repositories.category_repo import CategoryRepository
@@ -379,7 +428,9 @@ class AttributeFacetsFilterTests(unittest.TestCase):
         cats = {c.id: c for c in MASTER_TAXONOMY}
         for cat_id in ('tv', 'headphones', 'air_conditioners', 'smartwatches', 'refrigerators',
                        'washing_machines', 'vacuums', 'tires', 'monitors', 'peripherals',
-                       'kitchen_appliances', 'network', 'printers', 'tablets', 'removable_storage'):
+                       'kitchen_appliances', 'network', 'printers', 'tablets', 'removable_storage',
+                       'consoles', 'cpus', 'pc_cases', 'power', 'cables_chargers', 'shoes',
+                       'clothing', 'furniture', 'tools_repair', 'perfume', 'beauty', 'toys'):
             self.assertIn(cat_id, cats)
             self.assertGreater(len(cats[cat_id].attributes_schema), 0)
 

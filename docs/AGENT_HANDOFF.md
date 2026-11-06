@@ -2,6 +2,31 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## IN_PROGRESS → Antigravity: Глубокие характеристики и умные фасеты для Волны 3 (Обувь, Одежда, Игрушки и LEGO, Инструменты, Мебель, Парфюмерия, Красота, Приставки, Зарядки и АКБ, ИБП, Процессоры и Корпуса) v6.28.26 (2026-11-06)
+
+- Поручение владельца: «Продолжаем дальше» — планомерное обогащение следующих крупнейших разделов каталога (свыше 57 000 товаров суммарно), настройка боковых фасетов, нормализация атрибутов и устранение ошибок классификации. Прод не трогаем — работа только локально и на стенде.
+- Исполнитель: Antigravity (основной разработчик).
+- Дата и время начала: 2026-11-06 17:33 (Asia/Almaty).
+- Срез: ветка `codex/local-ai-catalog-growth`, целевая версия `6.28.26`.
+- Стенд: `https://shdev.molthun.ru` (контейнер `kzph-stand`).
+- Область файлов:
+  - `domain/category.py`
+  - `domain/attribute_indexing.py`
+  - `repositories/search_repo.py`
+  - `catalog_classifier.py`
+  - `local_search.py`
+  - `scripts/enrich_wave3_categories.py`
+  - `tests/search/test_attribute_facets_filter.py`
+  - `tests/test_catalog_classifier.py`
+  - `version.py`, `CHANGELOG.md`, `docs/AGENT_HANDOFF.md`
+- План шагов:
+  1. Расширить `MASTER_TAXONOMY` в `domain/category.py` и `priority_orders` в `repositories/search_repo.py` для разделов: `shoes`, `clothing`, `women_clothing`, `men_clothing`, `toys`, `tools_repair`, `furniture`, `perfume`, `beauty`, `consoles`, `cables_chargers`, `power`, `cpus`, `pc_cases`.
+  2. Реализовать извлечение и нормализацию атрибутов в `domain/attribute_indexing.py` (`extract_title_attributes`, `normalize_attribute_value`, `ATTRIBUTE_LABELS`, `_SYNC_TITLE_SCOPE`).
+  3. Уточнить классификатор `catalog_classifier.py` и защитные правила в `local_search.py` (например, `Starlink` -> `network`, весы напольные -> `beauty`, блоки питания ПК vs ИБП и др.).
+  4. Написать тесты, выполнить миграцию и переиндексацию на стенде `https://shdev.molthun.ru` и проверить UI.
+
+---
+
 ## READY_FOR_AUDIT → Владелец / Codex: Глубокие характеристики, фасеты и чистота классификации для Мониторов, Периферии, Планшетов, Техники для кухни, Сети, Принтеров и Кондиционеров v6.28.25 (2026-11-06)
 
 - Поручение владельца: «Продолжай разработку» / «двигаемся по порядку» — планомерное обогащение следующей волны крупных разделов каталога, настройка боковых фасетов и устранение ошибок классификации/индексации. Прод не трогаем — работа только локально и на стенде.
