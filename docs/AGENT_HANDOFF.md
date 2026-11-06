@@ -2,6 +2,47 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## READY_FOR_REAUDIT → Codex: Очистка фасета «Модель» GPU, переклассификация ноутбуков/кулеров и чипсетов v6.28.14 (2026-11-06)
+
+- Поручение владельца: «А что он в видеокартах делает? (ASUS ROG Strix SCAR 18)» и «Модель в фильтре поправить. туда даже производители попали.» Стенд развернут, прод не трогаем.
+- Исполнитель: Antigravity (основной разработчик).
+- Дата и время: 2026-11-06 09:27 (Asia/Almaty).
+- Срез: ветка `codex/local-ai-catalog-growth`, коммит `1b00eff`, тег `v6.28.14`.
+- Область файлов: `catalog_classifier.py`, `scripts/fix_catalog_models.py`, `tests/ai/test_audit_2026_11_05_fixes.py`, `version.py`, `CHANGELOG.md`, `docs/AGENT_HANDOFF.md`.
+- Реализовано:
+  1. `catalog_classifier.py`:
+     - **Классификация ноутбуков (`_TITLE_TYPE_RULES` и `classify_rules`)**: добавлены отрицательные опережающие проверки (negative lookaheads) и правила классификации игровых ноутбуков без явного ключевого слова «ноутбук» (комбинации `ROG Strix SCAR`, `MECHREVO`, `ThundeRobot`, `GAMING A16` со спецификациями экранов `14"`, `15.6"`, `16"`, `17.3"`, `18"`, CPU, RAM, SSD и Win 11/Dos).
+     - **Классификация комплектующих и кулеров**: добавлены явные правила для кулеров (`AG620`, `Delta A62` -> `cooling`), приемных карт LED-экранов (`Novastar`, `Huidu` -> `pc_components`) и внешних USB-видеоадаптеров (`Wavlink WL-UG35D6` -> `pc_components`).
+     - **Расширение таксономии `CANONICAL_GPU_FAMILIES`**: покрыты артикулы и нереференсные семейства GPU:
+       - Gigabyte (`GV-N5090`, `GV-N5080`, `GV-N507T`, `GV-N5070`, `GV-N506T`, `GV-N5060`, `GV-N3060`, `GV-N3050`, `GV-N166S`, `GV-N1650`, `GV-R9070XT`, `GV-R9700`).
+       - Palit (`NE7507T`, `NE75070`, `NE7506T`, `NE75060`, `NE63060`, `NE63050`).
+       - XFX (`RX-97TSWF`, `RX-97TRGB`, `RX-96TSW`, `RX-96SWFT`).
+       - OCPC (`OCVARX6500`, `OCVARX5500XT`, `OCVARX5500`, `OCVARX580`, `OCVNGT1030`, `OCVNGT730`, `OCVNGT610`).
+       - Sapphire (`11354-01`, `11351-14`, `11350-04`, `32358-01`).
+       - Профессиональные, серверные и Ada/Blackwell GPU (`RTX PRO 5000/4500/4000/2000`, `RTX 2000/4000 Ada`, `RTX A1000/A400`, `Tesla T4`, `Radeon AI PRO R9700`).
+       - Специфические модификации: `RTX 2080S/2070S/2060S`, `GTX 1660S/1650S`, `Radeon RX 9060` (без XT), `GeForce GT 630`, `GeForce GT 220`, `GeForce RTX 5090 D`.
+  2. `scripts/fix_catalog_models.py`:
+     - Решена специфика SQLite-триггера `classification_category_guard`: таблица `product_category_tags` обновляется перед `canonical_products`, исключая подавление обновления триггером.
+     - Очищаются GPU-специфичные атрибуты (`vram`, `chipset`, `clock_speed`, `interface`) при переносе товаров в не-GPU категории.
+     - Сбрасываются в `NULL` вендорные названия и фрагменты названий линеек вендоров в `canonical_products.model`.
+     - Из `product_search_attributes` удалены процессоры и названия брендов по ключу `chipset`.
+  3. Тесты:
+     - Пройден полный тестовый набор `pytest tests/`: **2,829 passed, 0 failures, 0 errors** (168.41с).
+     - Добавлен специализированный регрессионный тест `test_laptop_and_hardware_misclassification_and_gpu_skus` в `tests/ai/test_audit_2026_11_05_fixes.py`.
+  4. Развертывание и валидация на стенде (192.168.28.25):
+     - Доставлен бандл `kzph-v6.28.14.bundle`, пересобран и перезапущен контейнер `kzph-stand` (v6.28.14).
+     - Создан снимок БД стенда `/app/data/backups/before-v62814-migration.db` (1.36 ГБ).
+     - Выполнены миграции `fix_catalog_models.py` и `normalize_attributes_db.py --apply`.
+     - Результат в БД стенда: число уникальных моделей в `canonical_products WHERE category = 'Видеокарты'` снизилось с 162 до 79 — строго эталонные чипы (GeForce RTX/GTX/GT, Radeon RX/PRO/HD, Tesla, Ada). Ошибочных CPU-чипсетов: 0.
+     - Проверено в браузере Playwright на `https://shdev.molthun.ru`:
+       - Фасет «Модель» в UI отображает чистые названия (`GeForce RTX 5060 Ti`, `RTX 5060`, `RTX 5070`, `RTX 5080`, `GT 730`, `RTX 3050` и т.д.) без мусора вендоров (`Dual`, `Phantom Gaming`, `SWFT`, `Inno3D`, `TUF` и т.д.).
+       - Поиск `SCAR 18` в `gpus`: **0 товаров** (устранен). В `laptops`: **20 товаров**.
+       - Скриншоты зафиксированы: `docs/audit_evidence/stand_v62814_videocards_live.png`, `stand_v62814_sidebar_facets.png`, `stand_v62814_scar_in_gpus.png`, `stand_v62814_scar_in_laptops.png`.
+- Следующий шаг:
+  - Codex: аудит и приёмка v6.28.14. Прод не трогаем до указания владельца.
+
+---
+
 ## READY_FOR_DEPLOY → Владелец: Устранение дефекта RAM/Storage ПК, пачечный sync атрибутов и чистка моделей GPU v6.28.13 (2026-11-06)
 
 - Поручение владельца: «Дальше разработка прод не трогаем» -> устранение ранее раскрытых открытых задач аудита (RAM/storage игрового ПК, пачечные коммиты sync атрибутов, чистка остаточных вендорных префиксов моделей видеокарт). Прод не трогаем — работа только локально и на стенде.
