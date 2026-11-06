@@ -112,6 +112,16 @@ ATTRIBUTE_LABELS: Dict[str, str] = {
     'voltage': 'Напряжение АКБ',
     'volume_ml': 'Объем',
     'lego_series': 'Серия конструктора',
+    # Волна 4: Наушники, смарт-часы, кулеры, дом, посуда, зоотовары
+    'microphone': 'Микрофон',
+    'strap_material': 'Материал ремешка',
+    'fan_size': 'Размер вентилятора',
+    'lamp_base': 'Цоколь лампы',
+    'color_temp': 'Цветовая температура',
+    'diameter_cm': 'Диаметр',
+    'pet_type': 'Вид питомца',
+    'pet_age': 'Возраст и назначение',
+    'pack_weight': 'Вес упаковки',
     # Музыка, винил и книги
     'artist': 'Исполнитель',
     'format': 'Формат',
@@ -752,7 +762,8 @@ def normalize_attribute_value(key: str, raw_value: Any) -> Optional[str]:
 
     if key in ('platform', 'disc_drive', 'cpu_family', 'delivery_type', 'side_window', 'backlight',
                'psu_included', 'power_va', 'connector', 'gender', 'apparel_size', 'bed_size',
-               'power_supply', 'voltage', 'volume_ml', 'lego_series'):
+               'power_supply', 'voltage', 'volume_ml', 'lego_series', 'microphone', 'strap_material',
+               'fan_size', 'lamp_base', 'color_temp', 'diameter_cm', 'pet_type', 'pet_age', 'pack_weight'):
         return val.strip()[:60] if val.strip() else None
 
     if key == 'drying':
@@ -1214,9 +1225,21 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
         # Материнские платы (Motherboards)
         is_mb = bool(re.search(r'\b(материнск\w*\s+плат\w*|матплат\w*|mainboard|motherboard)\b', title, re.I))
         if is_mb:
-            m_mb_ch = re.search(r'\b(z[678]\d0|b[45678]\d0[e]?|x[568]70[e]?|a[356]20|h[34567]\d0|h\d{2})\b', title, re.I)
+            m_mb_ch = re.search(r'\b(z[345678]\d0|b[345678]\d0[e]?|x[4568]70[e]?|a[356]20|h[345678]\d0|h\d{2})\b|\b(z[345678]\d0|b[345678]\d0[e]?|x[4568]70[e]?|a[356]20|h[345678]\d0)(?=[mi-]\b|[mi][-\s])', title, re.I)
             if m_mb_ch:
-                attrs['chipset'] = m_mb_ch.group(1).upper()
+                ch_val = (m_mb_ch.group(1) or m_mb_ch.group(2)).upper()
+                attrs['chipset'] = ch_val
+                if 'socket' not in attrs:
+                    if re.match(r'^(B650|B850|X670|X870|A620)', ch_val):
+                        attrs['socket'] = 'AM5'
+                    elif re.match(r'^(B450|B550|X470|X570|A320|A520)', ch_val):
+                        attrs['socket'] = 'AM4'
+                    elif re.match(r'^(Z890|B860|H810)', ch_val):
+                        attrs['socket'] = 'LGA 1851'
+                    elif re.match(r'^(Z690|Z790|B660|B760|H610|H670|H770)', ch_val):
+                        attrs['socket'] = 'LGA 1700'
+                    elif re.match(r'^(Z490|Z590|B460|B560|H410|H510)', ch_val):
+                        attrs['socket'] = 'LGA 1200'
             m_mb_sk = re.search(r'\b(am[45]|lga\s*\d{4}|str5|tr4)\b', title, re.I)
             if m_mb_sk:
                 attrs['socket'] = re.sub(r'^LGA\s*', 'LGA ', m_mb_sk.group(1).upper())
@@ -1224,6 +1247,13 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
                 attrs['memory_type'] = 'DDR5'
             elif re.search(r'\b(?:ddr4|d4)\b', title, re.I):
                 attrs['memory_type'] = 'DDR4'
+            if 'form_factor' not in attrs:
+                if re.search(r'\b(?:z|b|x|a|h)\d{2,3}e?i\b|\bmini[- ]?itx\b', title, re.I):
+                    attrs['form_factor'] = 'Mini-ITX'
+                elif re.search(r'\b(?:z|b|x|a|h)\d{2,3}e?m\b|\bmicro[- ]?atx\b|\bmatx\b', title, re.I):
+                    attrs['form_factor'] = 'Micro-ATX'
+                else:
+                    attrs['form_factor'] = 'ATX'
 
         # Блоки питания (PSU)
         is_psu = bool(re.search(r'\b(блок\s+питания|бп\s+|power\s+supply)\b', title, re.I))
@@ -1302,13 +1332,40 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
                 if ff_raw in ff_map:
                     attrs['form_factor'] = ff_map[ff_raw]
 
-        # Тип охлаждения
-        if any(k in title_lower for k in ['сжо', 'сво', 'водяного охлаждения', 'жидкостн']):
-            attrs['type'] = 'СЖО (водяное)'
-        elif 'кулер' in title_lower:
-            attrs['type'] = 'Воздушный кулер'
-        elif 'вентилятор для корпуса' in title_lower or 'корпусный вентилятор' in title_lower:
-            attrs['type'] = 'Вентилятор для корпуса'
+        # Тип охлаждения и кулеров
+        is_cooling_item = bool(re.search(r'\b(кулер\w*|сжо|сво|водян\w*\s+охлажден\w*|жидкостн\w*\s+охлажден\w*|вентилятор\w*\s+для\s+корпуса|корпусн\w*\s+вентилятор\w*|термопаст\w*|термопрокладк\w*|охлажден\w*\s+для\s+(?:процессора|пк|ssd))\b', title, re.I))
+        if is_cooling_item:
+            if any(k in title_lower for k in ['сжо', 'сво', 'водяного охлаждения', 'жидкостн']) or re.search(r'\b(240|280|360|420)\s*(?:mm|мм)?\b.*\b(liquid|water|aio|ls[57]20|le[57]20|lt[57]20|lq[57]20|mystique|arctic\s+liquid)\b', title, re.I):
+                attrs['type'] = 'СЖО (водяное)'
+            elif re.search(r'\b(термопаст\w*|термопрокладк\w*|жидкий\s+металл)\b', title, re.I):
+                attrs['type'] = 'Термопаста / Термоинтерфейс'
+            elif 'вентилятор для корпуса' in title_lower or 'корпусный вентилятор' in title_lower or re.search(r'^\s*вентилятор\b', title, re.I):
+                attrs['type'] = 'Вентилятор для корпуса'
+            else:
+                attrs['type'] = 'Воздушный кулер'
+
+            m_fan = re.search(r'\b(80|92|120|140|200|240|280|360|420)\s*(?:mm|мм)\b|\b(?:le|ls|lt|lq|ag|ak)(?:300|400|500|620|520|720)\b', title, re.I)
+            if m_fan:
+                if m_fan.group(1):
+                    attrs['fan_size'] = f"{m_fan.group(1)} мм"
+                elif '520' in m_fan.group(0):
+                    attrs['fan_size'] = '240 мм'
+                elif '720' in m_fan.group(0):
+                    attrs['fan_size'] = '360 мм'
+                elif '92' in title or '300' in m_fan.group(0):
+                    attrs['fan_size'] = '92 мм'
+                else:
+                    attrs['fan_size'] = '120 мм'
+
+            if 'backlight' not in attrs:
+                if re.search(r'\bargb\b', title, re.I):
+                    attrs['backlight'] = 'ARGB'
+                elif re.search(r'\bfrgb\b', title, re.I):
+                    attrs['backlight'] = 'FRGB'
+                elif re.search(r'\brgb\b', title, re.I):
+                    attrs['backlight'] = 'RGB'
+                elif re.search(r'\bled\b', title, re.I):
+                    attrs['backlight'] = 'LED'
 
         # Сокет (если еще не определен)
         if 'socket' not in attrs:
@@ -1379,19 +1436,46 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
             attrs['refresh_rate'] = f"{m_hz.group(1)} Гц"
 
     # 12. Наушники
-    is_hp = bool(re.search(r'\b(наушник\w*|гарнитур\w*|airpods|earbuds|headphones|tws)\b', title, re.I))
+    is_hp = bool(re.search(
+        r'\b(наушник\w*|гарнитур\w*|airpods|earbuds|galaxy\s+buds|redmi\s+buds|freebuds|enco\s+(?:air|buds|free|x)|'
+        r'soundcore\s+(?:life|liberty|space|sport)|marshall\s+(?:major|minor|monitor|motif)|'
+        r'wh-1000xm|wf-1000xm|linkbuds|nothing\s+ear|headphones|headset|\btws\b)\b',
+        title, re.I
+    ))
     if is_hp:
-        if re.search(r'\b(беспроводн\w*|bluetooth|tws|true\s+wireless)\b', title, re.I):
+        if re.search(r'\b(беспроводн\w*|bluetooth|\bbt\b|tws|true\s+wireless|airpods|galaxy\s+buds|redmi\s+buds|freebuds|enco\s+|wh-1000|wf-1000|linkbuds|nothing\s+ear|lightspeed|wireless)\b', title, re.I):
             attrs['wireless'] = 'Да'
-        elif re.search(r'\b(проводн\w*)\b', title, re.I):
+            attrs['interface'] = 'Bluetooth'
+        else:
             attrs['wireless'] = 'Нет'
-        if re.search(r'\b(tws|внутриканальн\w*|вкладыш\w*|затычки)\b', title, re.I):
+
+        if re.search(r'\b(3\.5\s*(?:мм|mm)|mini[- ]?jack|\baux\b)\b', title, re.I):
+            attrs['interface'] = '3.5 мм (Mini-Jack)'
+        elif re.search(r'\b(type[- ]?c|usb[- ]?c)\b', title, re.I) and attrs.get('wireless') != 'Да':
+            attrs['interface'] = 'USB Type-C'
+        elif re.search(r'\blightning\b', title, re.I) and attrs.get('wireless') != 'Да':
+            attrs['interface'] = 'Lightning'
+        elif re.search(r'\busb\b', title, re.I) and attrs.get('wireless') != 'Да':
+            attrs['interface'] = 'USB'
+        elif re.search(r'\b(2\.4\s*ghz|радиоканал|lightspeed)\b', title, re.I):
+            attrs['interface'] = 'Радиоканал 2.4 ГГц'
+            attrs['wireless'] = 'Да'
+
+        if re.search(r'\b(гарнитур\w*|headset|с\s+микрофоном|airpods|galaxy\s+buds|redmi\s+buds|freebuds|tws)\b', title, re.I):
+            attrs['microphone'] = 'Со встроенным микрофоном'
+
+        if re.search(r'\b(tws|true\s+wireless|airpods(?!\s+max)|galaxy\s+buds|redmi\s+buds|freebuds|enco|wf-1000|nothing\s+ear|earbuds|внутриканальн\w*|вкладыш\w*|затычки)\b', title, re.I):
             attrs['type'] = 'Внутриканальные / TWS'
-        elif re.search(r'\b(полноразмерн\w*|охватывающ\w*|over[- ]ear)\b', title, re.I):
+        elif re.search(r'\b(полноразмерн\w*|охватывающ\w*|over[- ]ear|airpods\s+max|wh-1000|cloud\s+(?:ii|alpha|stinger|iii)|kraken|blackshark|barracuda|arctis|g\s*pro\s*x|g435|g733)\b', title, re.I):
             attrs['type'] = 'Полноразмерные'
-        elif re.search(r'\b(накладн\w*|on[- ]ear)\b', title, re.I):
+        elif re.search(r'\b(накладн\w*|on[- ]ear|major\s+(?:iv|v|iii)|ch520|ch510|t510bt|t520bt|tune\s+[567]\d{2})\b', title, re.I):
             attrs['type'] = 'Накладные'
-        if re.search(r'\b(anc|шумоподавлен\w*|active\s+noise)\b', title, re.I):
+        elif re.search(r'\bгарнитур\w*\b', title, re.I):
+            attrs['type'] = 'Гарнитура (с микрофоном)'
+        else:
+            attrs['type'] = 'Классические наушники'
+
+        if re.search(r'\b(anc|шумоподавлен\w*|active\s+noise|airpods\s+pro|airpods\s+max|wh-1000|wf-1000|freebuds\s+pro|buds\s*\d*\s*pro)\b', title, re.I):
             attrs['anc'] = 'Да'
 
     # 13. Кондиционеры
@@ -1439,13 +1523,29 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
                 attrs['power_btu'] = btu_map[raw_btu][0]
                 attrs['area_sqm'] = btu_map[raw_btu][1]
 
-    # 14. Смарт-часы
-    is_sw = bool(re.search(r'\b(смарт[- ]час\w*|умные\s+часы|apple\s+watch|galaxy\s+watch|watch\s*(?:\d|se|ultra)|фитнес[- ]браслет\w*)\b', title, re.I))
+    # 14. Смарт-часы и фитнес-браслеты
+    is_sw = bool(re.search(
+        r'\b(смарт[- ]час\w*|умные\s+часы|детские\s+часы|часы[- ]телефон|apple\s+watch|galaxy\s+watch|watch\s*(?:\d|se|ultra|fit|gt|pro)|'
+        r'фитнес[- ]браслет\w*|smart\s+band|mi\s+band|amazfit|garmin\s+(?:fenix|forerunner|venu|instinct|epix|vivoactive)|'
+        r'ремешок\s+для\s+(?:часов|apple\s+watch|galaxy\s+watch|mi\s+band|xiaomi|smart\s+watch))\b',
+        title, re.I
+    ))
     if is_sw:
+        if re.search(r'\b(ремешок|браслет\s+для\s+часов|защитн\w*\s+(?:стекло|пленка|чехол|бампер)\s+для\s+(?:часов|apple\s+watch))\b', title, re.I):
+            attrs['type'] = 'Ремешок / Аксессуар для часов'
+        elif re.search(r'\b(фитнес[- ]браслет\w*|smart\s+band|mi\s+band|band\s+[789])\b', title, re.I):
+            attrs['type'] = 'Фитнес-браслет'
+        elif re.search(r'\b(детск\w*|baby\s+watch|kid\w*|aimoto|elari|geozon|jet\s+kid)\b', title, re.I):
+            attrs['type'] = 'Детские умные часы'
+        elif re.search(r'\b(garmin|suunto|coros|polar|amazfit\s+t-rex)\b', title, re.I):
+            attrs['type'] = 'Спортивные / Туристические часы'
+        else:
+            attrs['type'] = 'Смарт-часы'
+
         m_cs = re.search(r'\b(38|40|41|42|44|45|46|47|49)\s*(?:mm|мм)\b', title, re.I)
         if m_cs:
             attrs['case_size'] = f"{m_cs.group(1)} мм"
-        if re.search(r'\b(cellular|lte|esim|4g)\b', title, re.I):
+        if re.search(r'\b(cellular|lte|esim|4g|sim)\b', title, re.I):
             attrs['cellular'] = 'Да'
         if re.search(r'\bamoled\b', title, re.I):
             attrs['screen_tech'] = 'AMOLED'
@@ -1454,14 +1554,42 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
         elif re.search(r'\bips\b', title, re.I):
             attrs['screen_tech'] = 'IPS'
 
-    # 15. Холодильники
-    is_fridge = bool(re.search(r'\b(холодильник\w*|морозильник\w*|refrigerator\w*|freezer\w*)\b', title, re.I))
+        if re.search(r'\b(силикон\w*|silicone|sport\s+band|fluoroelastomer)\b', title, re.I):
+            attrs['strap_material'] = 'Силикон'
+        elif re.search(r'\b(кожан\w*|leather)\b', title, re.I):
+            attrs['strap_material'] = 'Кожа'
+        elif re.search(r'\b(миланск\w*|milanese|металл\w*|стальн\w*|stainless|titanium\s+band)\b', title, re.I):
+            attrs['strap_material'] = 'Металл / Миланская петля'
+        elif re.search(r'\b(нейлон\w*|тканев\w*|nylon|sport\s+loop|trail\s+loop|alpine\s+loop)\b', title, re.I):
+            attrs['strap_material'] = 'Нейлон / Ткань'
+
+    # 15. Холодильники и морозильники
+    is_fridge = bool(re.search(r'\b(холодильник\w*|морозильник\w*|морозильн\w*\s+(?:камер\w*|лар\w*)|винн\w*\s+шкаф\w*|refrigerator\w*|freezer\w*)\b', title, re.I))
     if is_fridge:
-        if re.search(r'\b(?:total\s+no\s+frost|full\s+no\s+frost|no\s*frost|ноу\s*фрост)\b', title, re.I):
+        if re.search(r'\bдля\s+косметики\b', title, re.I):
+            attrs['type'] = 'Холодильник для косметики'
+        elif re.search(r'\b(автомобильн\w*|автохолодильник\w*)\b', title, re.I):
+            attrs['type'] = 'Автохолодильник'
+        elif re.search(r'\bвинн\w*\s+шкаф\w*\b', title, re.I):
+            attrs['type'] = 'Винный шкаф'
+        elif re.search(r'\b(морозильн\w*\s+лар\w*)\b', title, re.I):
+            attrs['type'] = 'Морозильный ларь'
+        elif re.search(r'\b(морозильник\w*|морозильн\w*\s+камер\w*)\b', title, re.I):
+            attrs['type'] = 'Морозильная камера'
+        elif re.search(r'\b(встраиваем\w*|\bnrki\d+|\bbrb\d+|\bkiv\d+)\b', title, re.I):
+            attrs['type'] = 'Встраиваемый холодильник'
+        elif re.search(r'\b(side[- ]by[- ]side|сайд[- ]бай[- ]сайд|french\s+door|многодверн\w*)\b', title, re.I):
+            attrs['type'] = 'Side-by-Side / Многодверный'
+        elif re.search(r'\b(однокамерн\w*|мини[- ]холодильник\w*|компактный\s+холодильник\w*)\b', title, re.I):
+            attrs['type'] = 'Однокамерный / Мини-холодильник'
+        else:
+            attrs['type'] = 'Двухкамерный холодильник'
+
+        if re.search(r'\b(?:total\s+no\s+frost|full\s+no\s+frost|no\s*frost|ноу\s*фрост|nf\b|-nd\b|\bnrk\d+|\brb3\d+|\bga-b\d+|\bgn-b\d+|\bcef\d+)\b', title, re.I):
             attrs['refrigeration_defrost'] = 'No Frost'
         elif re.search(r'\b(?:low\s*frost|лоу\s*фрост)\b', title, re.I):
             attrs['refrigeration_defrost'] = 'Low Frost'
-        elif re.search(r'\b(?:капельн\w*|статическ\w*)\b', title, re.I):
+        elif re.search(r'\b(?:капельн\w*|статическ\w*|\bхм[- ]\d{4}(?!.*-nd))\b', title, re.I):
             attrs['refrigeration_defrost'] = 'Капельная'
 
         if re.search(r'\b(?:side[- ]by[- ]side|сайд[- ]бай[- ]сайд)\b', title, re.I):
@@ -1471,7 +1599,7 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
             attrs['doors_type'] = 'Многодверный (French Door)'
         elif re.search(r'\b(?:однокамерн\w*|мини[- ]холодильник\w*|компактный\s+холодильник\w*)\b', title, re.I):
             attrs['doors_type'] = 'Однокамерный'
-        elif re.search(r'\b(?:двухкамерн\w*)\b', title, re.I):
+        elif re.search(r'\b(?:двухкамерн\w*|\bхм[- ]?\d{4}|\bxm[- ]?\d{4}|\bnrki?\d+|\brk\d+|\brb3\d+|\bga-b\d+|\bsj-)\b', title, re.I):
             attrs['doors_type'] = 'Двухкамерный'
 
         if 'freezer_location' not in attrs:
@@ -1522,27 +1650,37 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
                 attrs['installation_type'] = 'Отдельностоящая'
 
     # 17. Пылесосы
-    is_vacuum = bool(re.search(r'\b(пылесос\w*|vacuum|roborock|dreame\s+bot)\b', title, re.I))
+    is_vacuum = bool(re.search(r'\b(пылесос\w*|vacuum|roborock|dreame\s+bot|робот\s+для\s+мытья\s+(?:пола|окон)|паров\w*\s+швабр\w*|электрошвабр\w*)\b', title, re.I))
     if is_vacuum:
-        if re.search(r'\b(робот[- ]пылесос\w*|robot\s+vacuum|roborock|dreame\s+bot)\b', title, re.I):
+        if re.search(r'\b(для\s+пылесос\w*|сменн\w*\s+(?:фильтр|мешок|мешки|салфетк|щетк|насадк)|мешк\w*[- ]пылесборник\w*)\b', title, re.I):
+            attrs['type'] = 'Аксессуары для пылесоса'
+        elif re.search(r'\b(робот[- ]пылесос\w*|робот\s+для\s+мытья|робот[- ]мойщик|robot\s+vacuum|roborock|dreame\s+bot|x10\+|x20\+|s10\+|l10s|q\s*revo)\b', title, re.I):
             attrs['type'] = 'Робот-пылесос'
-        elif re.search(r'\b(вертикальн\w*|ручн\w*|беспроводн\w*|аккумуляторн\w*|cordless|stick|dyson)\b', title, re.I):
+        elif re.search(r'\b(автомобильн\w*\s+пылесос|пылесос\s+автомобильн\w*)\b', title, re.I):
+            attrs['type'] = 'Автомобильный пылесос'
+        elif re.search(r'\b(паров\w*\s+швабр\w*|электрошвабр\w*)\b', title, re.I):
+            attrs['type'] = 'Паровая / Электрошвабра'
+        elif re.search(r'\b(строительн\w*|хозяйственн\w*|промышленн\w*|karcher\s+(?:wd|nt|kwd))\b', title, re.I):
+            attrs['type'] = 'Строительный / Хозяйственный'
+        elif re.search(r'\b(вертикальн\w*|ручн\w*|беспроводн\w*|аккумуляторн\w*|cordless|stick|dyson\s+v\d+|deerma\s+(?:dx|vc)|kitfort\s+кт-5\d{2,3}|dreame\s+(?:v|t|r|h)\d+)\b', title, re.I):
             attrs['type'] = 'Вертикальный беспроводной'
-        elif re.search(r'\b(моющий\s+пылесос|с\s+аквафильтром)\b', title, re.I):
+        elif re.search(r'\b(моющий\s+пылесос|с\s+аквафильтром|thomas\s+(?:twin|aqua|drybox))\b', title, re.I):
             attrs['type'] = 'Моющий'
         elif re.search(r'\b(циклон\w*|с\s+контейнером|без\s+мешка)\b', title, re.I):
             attrs['type'] = 'Обычный (циклон)'
         elif re.search(r'\b(с\s+мешком|мешков\w*)\b', title, re.I):
             attrs['type'] = 'Обычный (с мешком)'
+        else:
+            attrs['type'] = 'Классический напольный'
 
-        if re.search(r'\b(?:сухая\s+и\s+влажная|влажн\w*|vacuum[- ]mop|mop\b)\b', title, re.I):
+        if re.search(r'\b(?:сухая\s+и\s+влажная|влажн\w*|vacuum[- ]mop|mop\b|моющий|робот\s+для\s+мытья)\b', title, re.I):
             attrs['cleaning_type'] = 'Сухая и влажная'
-        elif re.search(r'\bсухая\b', title, re.I):
+        elif re.search(r'\bсухая\b', title, re.I) or attrs.get('type') in ('Обычный (циклон)', 'Обычный (с мешком)', 'Классический напольный'):
             attrs['cleaning_type'] = 'Только сухая'
 
         if re.search(r'\b(аквафильтр\w*|водный\s+фильтр\w*)\b', title, re.I):
             attrs['dust_collector_type'] = 'Аквафильтр'
-        elif re.search(r'\b(контейнер\w*|циклон\w*)\b', title, re.I):
+        elif re.search(r'\b(контейнер\w*|циклон\w*|tw\d{4}|vc\d{2}k|sc\d{2}|vk\d{2}|vcea)\b', title, re.I):
             attrs['dust_collector_type'] = 'Контейнер (циклон)'
         elif re.search(r'\b(мешок|мешки|мешков\w*)\b', title, re.I):
             attrs['dust_collector_type'] = 'Мешок'
@@ -1795,7 +1933,7 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
             attrs['connectivity'] = 'Ethernet (LAN)'
 
     # 23. Игровые приставки, VR и аксессуары
-    is_console_item = bool(re.search(
+    is_console_item = not is_hp and bool(re.search(
         r'\b(игров\w*\s+приставк\w*|игров\w*\s+консол\w*|playstation\s*[45]|ps\s*[45]|xbox\s+series|nintendo\s+switch|steam\s+deck|legion\s+go|rog\s+ally|meta\s+quest|очки\s+виртуальной\s+реальности|dualsense|dualshock)\b',
         title, re.I
     ))
@@ -2005,50 +2143,65 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
 
     # 27. Мебель и матрасы
     is_furniture = bool(re.search(
-        r'\b(кресл\w*\s+(?:геймерск\w*|игров\w*|компьютерн\w*|офисн\w*)|матрас\w*\s+анатомическ\w*|\bматрас\b|'
-        r'шкаф\s+(?:двухдверн\w*|трехдверн\w*|четырехдверн\w*|распашн\w*|купе)|кроват\w*\s+|диван\w*\s+|комод\w*\s+|стол\s+(?:компьютерн\w*|письменн\w*|обеденн\w*|игров\w*))\b',
+        r'\b(кресл\w*\s+(?:геймерск\w*|игров\w*|компьютерн\w*|офисн\w*|детск\w*|качалк\w*|мешок|кроват\w*|мягк\w*|садов\w*)|'
+        r'матрас\w*\s+анатомическ\w*|\bматрас\b|шкаф\w*|кроват\w*|диван\w*|комод\w*|тумб\w*|стеллаж\w*|полк\w*\s+(?:настенн\w*|навесн\w*|углов\w*|обувн\w*|для\s+книг)|'
+        r'стол\w*\s+(?:компьютерн\w*|письменн\w*|обеденн\w*|игров\w*|для\s+геймеров|регулируем\w*|журнальн\w*|приставн\w*|кухонн\w*|складн\w*|туалетн\w*)|'
+        r'журнальн\w*\s+столик\w*|приставн\w*\s+столик\w*|столешниц\w*|стул\w*\s+(?:кухонн\w*|обеденн\w*|барн\w*|складн\w*|офисн\w*|детск\w*|садов\w*)|^\s*стул\b|'
+        r'табурет\w*|пуф\w*|банкетк\w*|кухонн\w*\s+гарнитур\w*|обеденн\w*\s+групп\w*|прихож\w*|обувниц\w*|'
+        r'монблан\s+\d|торвалль\s+\d|эльси\s+\d)\b',
         title, re.I
     )) or bool(re.search(r'\b(80|90|120|140|160|180|200)\s*[xх]\s*(190|195|200|205)\b', title, re.I) and not is_monitor)
     if is_furniture:
-        if re.search(r'\bкресл\w*\s+(?:геймерск\w*|игров\w*|компьютерн\w*)\b', title, re.I):
+        if re.search(r'\b(кресл\w*\s+(?:геймерск\w*|игров\w*|компьютерн\w*)|gaming\s+chair)\b', title, re.I):
             attrs['type'] = 'Игровое / Компьютерное кресло'
-        elif re.search(r'\b(кресл\w*\s+офисн\w*|стул\w*)\b', title, re.I):
+        elif re.search(r'\b(кресл\w*\s+офисн\w*|стул\w*|табурет\w*|пуф\w*|банкетк\w*)\b', title, re.I):
             attrs['type'] = 'Офисное кресло / Стул'
         elif re.search(r'\bматрас\w*\b', title, re.I):
             attrs['type'] = 'Матрас'
-        elif re.search(r'\bшкаф\w*|комод\w*|тумб\w*\b', title, re.I):
+        elif re.search(r'\b(шкаф\w*|комод\w*|тумб\w*|стеллаж\w*|полк\w*|обувниц\w*|монблан|торвалль|эльси)\b', title, re.I):
             attrs['type'] = 'Шкаф / Комод / Тумба'
-        elif re.search(r'\bдиван\w*\b', title, re.I):
+        elif re.search(r'\b(диван\w*|кресл\w*)\b', title, re.I):
             attrs['type'] = 'Диван'
-        elif re.search(r'\bстол\w*\b', title, re.I):
+        elif re.search(r'\b(стол\w*|столик\w*|столешниц\w*)\b', title, re.I):
             attrs['type'] = 'Стол'
-        elif re.search(r'\b(80|90|120|140|160|180|200)\s*[xх]\s*(190|195|200|205)\b', title, re.I):
+        elif re.search(r'\b(кроват\w*|(?:80|90|120|140|160|180|200)\s*[xх]\s*(?:190|195|200|205))\b', title, re.I):
             attrs['type'] = 'Кровать / Матрас'
+        else:
+            attrs['type'] = 'Мебель и гарнитуры'
 
         m_bed = re.search(r'\b(80|90|120|140|160|180|200)\s*[xх]\s*(190|195|200|205)\b', title, re.I)
         if m_bed:
             attrs['bed_size'] = f"{m_bed.group(1)}x{m_bed.group(2)} см"
+        else:
+            m_fdim = re.search(r'\b(\d{2,3})\s*[xх]\s*(\d{2,3})(?:\s*[xх]\s*(\d{2,3}))?\s*(?:см|cm)?\b', title, re.I)
+            if m_fdim and not is_monitor:
+                attrs['bed_size'] = f"{m_fdim.group(1)}x{m_fdim.group(2)} см"
 
         if re.search(r'\bвелюр\w*\b', title, re.I):
             attrs['material'] = 'Велюр'
-        elif re.search(r'\b(экокож\w*| искусственн\w*\s+кож\w*)\b', title, re.I):
+        elif re.search(r'\b(экокож\w*|искусственн\w*\s+кож\w*)\b', title, re.I):
             attrs['material'] = 'Экокожа'
         elif re.search(r'\bтрикотаж\w*\b', title, re.I):
             attrs['material'] = 'Трикотаж'
         elif re.search(r'\bротанг\w*\b', title, re.I):
             attrs['material'] = 'Ротанг'
-        elif re.search(r'\b(дуб|берез\w*|сосн\w*|лдсп|мдф|массив)\b', title, re.I):
+        elif re.search(r'\b(дуб|берез\w*|сосн\w*|ясен\w*|лдсп|мдф|массив|дерев\w*)\b', title, re.I):
             attrs['material'] = 'ЛДСП / Дерево'
+        elif re.search(r'\b(металл\w*|сталь\w*)\b', title, re.I):
+            attrs['material'] = 'Металл'
 
     # 28. Инструменты и ремонт
     is_tool = bool(re.search(
-        r'\b(шуруповерт\w*|дрель|перфоратор\w*|отбойн\w*\s+молот\w*|ушм|болгарк\w*|углошлифовальн\w*|'
-        r'электролобзик\w*|лобзик\w*|циркулярн\w*\s+пил\w*|цепн\w*\s+пил\w*|бензопил\w*|сабельн\w*\s+пил\w*|'
-        r'сварочн\w*\s+(?:аппарат\w*|полуавтомат\w*|инвертор\w*)|паяльник\w*|паяльн\w*\s+станц\w*|'
-        r'тестер\s+сети|мультиметр\w*|измерительн\w*\s+провод\w*|лазерн\w*\s+уровен\w*|дальномер\w*|'
-        r'стремянк\w*|лестниц\w*|косилк\w*|триммер\s+(?:бензинов\w*|электрическ\w*|аккумуляторн\w*|садов\w*)|газонокосилк\w*|мойк\w*\s+высокого\s+давления|'
+        r'\b(шуруповерт\w*|дрель|гайковерт\w*|перфоратор\w*|отбойн\w*\s+молот\w*|ушм|болгарк\w*|углошлифовальн\w*|угловая\s+шлифовальн\w*|шлифовальн\w*\s+машин\w*|шлифмашин\w*|полировальн\w*\s+машин\w*|фрезер\w*|рубанок|электрорубанок|'
+        r'электролобзик\w*|лобзик\w*|циркулярн\w*\s+пил\w*|дисков\w*\s+пил\w*|торцовочн\w*\s+пил\w*|цепн\w*\s+(?:мини\s+)?пил\w*|бензопил\w*|сабельн\w*\s+пил\w*|ножовк\w*|'
+        r'сварочн\w*\s+(?:аппарат\w*|полуавтомат\w*|инвертор\w*|электрод\w*)|электрод\w*\s+сварочн\w*|паяльник\w*|паяльн\w*\s+станц\w*|строительн\w*\s+фен|термовоздуходувк\w*|клеев\w*\s+пистолет\w*|краскопульт\w*|'
+        r'тестер\s+сети|мультиметр\w*|токов\w*\s+клещ\w*|измерительн\w*\s+провод\w*|лазерн\w*\s+уровен\w*|нивелир\w*|дальномер\w*|рулетк\w*|штангенциркул\w*|уровень\s+строительн\w*|'
+        r'стремянк\w*|лестниц\w*|косилк\w*|триммер\s+(?:бензинов\w*|электрическ\w*|аккумуляторн\w*|садов\w*|травокосилк\w*)|мотокос\w*|бензокос\w*|газонокосилк\w*|мойк\w*\s+высокого\s+давления|минимойк\w*|воздуходувк\w*|кусторез\w*|мотоблок\w*|культиватор\w*|снегоубор\w*|компрессор\w*|генератор\s+(?:бензинов\w*|дизельн\w*|инверторн\w*)|мотопомп\w*|насос\s+(?:дренажн\w*|погружн\w*|скважинн\w*|циркуляционн\w*|поверхностн\w*|вибрационн\w*)|'
         r'батарея\s+аккумуляторная\s+(?:makita|greenworks|bosch|dewalt|metabo|интерскол|вихрь|зубр|alteco)|'
-        r'клей\s+для\s+керамогранита|краска\s+моющаяся|звукоизоляция|душевая\s+кабина)\b',
+        r'набор\s+инструментов|отвертк\w*|ключ\s+(?:гаечн\w*|разводн\w*|комбинированн\w*|динамометрическ\w*|трубн\w*|трещоточн\w*|имбусов\w*|шестигранн\w*)|набор\s+ключей|плоскогубц\w*|пассатиж\w*|бокорез\w*|кусачк\w*|клещи\s+|молоток\s+(?:слесарн\w*|плотницк\w*|резинов\w*|киянка)|топор\b|стамеск\w*|тиски\b|струбцин\w*|степлер\s+строительн\w*|заклепочник\w*|'
+        r'сверл\w*\s+(?:по\s+металлу|по\s+бетону|по\s+дереву|ступенчат\w*|корончат\w*)|набор\s+сверл|бур\s+по\s+бетону|диск\s+(?:отрезн\w*|пильн\w*|алмазн\w*|шлифовальн\w*|лепестков\w*)|набор\s+бит|биты\s+для|'
+        r'клей\s+(?:для\s+керамогранита|плиточн\w*|монтажн\w*|обойн\w*|пва)|краска\s+(?:моющаяся|водоэмульсионн\w*|акрилов\w*\s+для\s+стен|фасадн\w*|интерьерн\w*|эмаль)|грунтовк\w*|шпатлевк\w*|шпаклевк\w*|штукатурк\w*|затирк\w*|герметик\w*|пена\s+монтажная|звукоизоляция|панел\w*\s+(?:самоклеющ\w*|пвх|мдф|стенов\w*)|плитк\w*\s+(?:керамическ\w*|кафельн\w*|напольн\w*|настенн\w*)|керамогранит\w*|ламинат\w*|линолеум\w*|плинтус\w*|обои\s+(?:винилов\w*|флизелинов\w*|бумажн\w*|под\s+покраску)|'
+        r'душев\w*\s+(?:кабин\w*|огражден\w*|систем\w*|угол\w*|стойк\w*|гарнитур\w*|лейк\w*|поддон\w*)|смесител\w*\s+для|раковин\w*|умывальник\w*|мойк\w*\s+для\s+кухни|унитаз\w*|инсталляц\w*\s+для|сидень\w*\s+для\s+унитаза|ванн\w*\s+(?:акрилов\w*|стальн\w*|чугунн\w*)|полотенцесушител\w*)\b',
         title, re.I
     ))
     if is_tool:
@@ -2056,33 +2209,39 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
             attrs['type'] = 'Дрель / Шуруповерт'
         elif re.search(r'\b(перфоратор\w*|отбойн\w*\s+молот\w*)\b', title, re.I):
             attrs['type'] = 'Перфоратор / Отбойный молоток'
-        elif re.search(r'\b(ушм|болгарк\w*|углошлифовальн\w*|шлифмашин\w*|рубанок)\b', title, re.I):
+        elif re.search(r'\b(ушм|болгарк\w*|углошлифовальн\w*|угловая\s+шлифовальн\w*|шлифовальн\w*\s+машин\w*|шлифмашин\w*|полировальн\w*|фрезер\w*|рубанок|электрорубанок)\b', title, re.I):
             attrs['type'] = 'УШМ и шлифмашины'
-        elif re.search(r'\b(электролобзик\w*|лобзик\w*|циркулярн\w*\s+пил\w*|цепн\w*\s+пил\w*|бензопил\w*|сабельн\w*\s+пил\w*|торцовочн\w*)\b', title, re.I):
+        elif re.search(r'\b(электролобзик\w*|лобзик\w*|циркулярн\w*\s+пил\w*|дисков\w*\s+пил\w*|цепн\w*\s+(?:мини\s+)?пил\w*|бензопил\w*|сабельн\w*\s+пил\w*|торцовочн\w*|ножовк\w*)\b', title, re.I):
             attrs['type'] = 'Пилы и электролобзики'
-        elif re.search(r'\b(сварочн\w*)\b', title, re.I):
+        elif re.search(r'\b(сварочн\w*|электрод\w*\s+сварочн\w*)\b', title, re.I):
             attrs['type'] = 'Сварочное оборудование'
-        elif re.search(r'\b(тестер\s+сети|мультиметр\w*|измерительн\w*|лазерн\w*\s+уровен\w*|дальномер\w*)\b', title, re.I):
+        elif re.search(r'\b(тестер\s+сети|мультиметр\w*|токов\w*\s+клещ\w*|измерительн\w*|лазерн\w*\s+уровен\w*|нивелир\w*|дальномер\w*|рулетк\w*|штангенциркул\w*|уровень\s+строительн\w*)\b', title, re.I):
             attrs['type'] = 'Измерительный инструмент и тестеры'
-        elif re.search(r'\b(паяльник\w*|паяльн\w*)\b', title, re.I):
-            attrs['type'] = 'Паяльное оборудование'
-        elif re.search(r'\b(косилк\w*|газонокосилк\w*|мойк\w*\s+высокого\s+давления|воздуходувк\w*)\b', title, re.I):
-            attrs['type'] = 'Садовая и уборочная техника'
+        elif re.search(r'\b(паяльник\w*|паяльн\w*|строительн\w*\s+фен|термовоздуходувк\w*|клеев\w*\s+пистолет\w*|краскопульт\w*)\b', title, re.I):
+            attrs['type'] = 'Паяльное и тепловое оборудование'
+        elif re.search(r'\b(косилк\w*|газонокосилк\w*|триммер|мотокос\w*|бензокос\w*|мойк\w*\s+высокого\s+давления|минимойк\w*|воздуходувк\w*|кусторез\w*|мотоблок\w*|культиватор\w*|снегоубор\w*|компрессор\w*|генератор|мотопомп\w*|насос)\b', title, re.I):
+            attrs['type'] = 'Садовая и силовая техника'
         elif re.search(r'\b(батарея\s+аккумуляторная|аккумулятор\s+для\s+инструмента)\b', title, re.I):
             attrs['type'] = 'Аккумуляторы для инструмента'
         elif re.search(r'\b(стремянк\w*|лестниц\w*)\b', title, re.I):
             attrs['type'] = 'Стремянки и лестницы'
-        elif re.search(r'\b(клей\s+для|краска\s+|пропитка\s+|звукоизоляция|герметик|пена\s+монтажная)\b', title, re.I):
-            attrs['type'] = 'Строительные смеси и ЛКМ'
-        elif re.search(r'\b(душевая\s+кабина|смеситель|раковина|унитаз)\b', title, re.I):
+        elif re.search(r'\b(набор\s+инструментов|отвертк\w*|ключ\s+|набор\s+ключей|плоскогубц\w*|пассатиж\w*|бокорез\w*|кусачк\w*|клещи|молоток|топор|стамеск\w*|тиски|струбцин\w*|степлер\s+строительн\w*|заклепочник\w*)\b', title, re.I):
+            attrs['type'] = 'Ручной инструмент и наборы'
+        elif re.search(r'\b(сверл\w*|набор\s+сверл|бур\s+по|диск\s+(?:отрезн|пильн|алмазн|шлифовальн|лепестков)|набор\s+бит|биты\s+для)\b', title, re.I):
+            attrs['type'] = 'Оснастка и расходники'
+        elif re.search(r'\b(клей\s+|краска\s+|грунтовк\w*|шпатлевк\w*|шпаклевк\w*|штукатурк\w*|затирк\w*|пропитка\s+|звукоизоляция|герметик\w*|пена\s+монтажная|панел\w*\s+самоклеющ\w*|плитк\w*|керамогранит\w*|ламинат\w*|линолеум\w*|плинтус\w*|обои)\b', title, re.I):
+            attrs['type'] = 'Строительные смеси, ЛКМ и отделка'
+        elif re.search(r'\b(душев\w*|смесител\w*|раковин\w*|умывальник\w*|мойк\w*\s+для\s+кухни|унитаз\w*|инсталляц\w*|сидень\w*\s+для\s+унитаза|ванн\w*|полотенцесушител\w*)\b', title, re.I):
             attrs['type'] = 'Сантехника'
 
         if re.search(r'\b(аккумуляторн\w*|батарея\s+аккумуляторная|li-ion)\b', title, re.I):
             attrs['power_supply'] = 'Аккумуляторный'
-        elif re.search(r'\b(бензинов\w*|бензопил\w*)\b', title, re.I):
+        elif re.search(r'\b(бензинов\w*|бензопил\w*|бензокос\w*|мотокос\w*|мотоблок\w*|мотопомп\w*)\b', title, re.I):
             attrs['power_supply'] = 'Бензиновый'
         elif re.search(r'\b(сетев\w*|220\s*в|\d{3,4}\s*(?:w|вт))\b', title, re.I):
             attrs['power_supply'] = 'Сетевой (220 В)'
+        elif attrs.get('type') == 'Ручной инструмент и наборы':
+            attrs['power_supply'] = 'Ручной'
 
         m_volt = (
             re.search(r'\b(10\.8|12|14\.4|18|20|24|36|40|80)\s*(?:v|в)\b', title, re.I)
@@ -2193,6 +2352,271 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
         m_det = re.search(r'\b(\d{2,4})\s*дет\.?\b', title, re.I)
         if m_det:
             attrs['pieces_count'] = f"{m_det.group(1)} дет."
+
+    # 31. Компьютеры, системные блоки, моноблоки и неттопы
+    is_desktop_pc = bool(re.search(
+        r'\b(моноблок\w*|all[- ]in[- ]one|\baio\b|\bimac\b|системн\w*\s+блок\w*|игров\w*\s+пк|\bпк\s+[a-zа-я0-9]|'
+        r'компьютер\s+(?:игров\w*|офисн\w*|настольн\w*|персональн\w*|x-game|iru|hyperpc|ardor|delux)|'
+        r'неттоп\w*|мини[- ]пк|mini\s*pc|mac\s+mini|mac\s+studio|mac\s+pro|тонкий\s+клиент)\b',
+        title, re.I
+    )) and not bool(re.search(r'\b(корпус\s+для|блок\s+питания|стол\s+для|кресло|монитор|держатель|кронштейн|чехол|сумка)\b', title, re.I))
+    if is_desktop_pc:
+        if re.search(r'\b(моноблок\w*|all[- ]in[- ]one|\baio\b|\bimac\b)\b', title, re.I):
+            attrs['type'] = 'Моноблок (All-in-One)'
+            if 'screen_size' not in attrs:
+                m_aio_sz = (
+                    re.search(r'\b(21\.5|23\.8|24|27|31\.5|32|34)\s*(?:"|”|\'\'|дюйм\w*)', title, re.I)
+                    or re.search(r'\b(?:aio\s*\d*\s*|all-in-one\s+|c|v|a3|a5|m|cr|cb|df|dd|dp|imac\s+)(21\.5|23\.8|24|27)(?=[-a-z0-9]|\b)', title, re.I)
+                )
+                if m_aio_sz:
+                    attrs['screen_size'] = f'{m_aio_sz.group(1)}"'
+                elif re.search(r'\b(?:optiplex\s+[57]4\d{2}|a3402|24itl|24iap|24irh|24arr)', title, re.I):
+                    attrs['screen_size'] = '23.8"'
+                elif re.search(r'\b(?:v30a)', title, re.I):
+                    attrs['screen_size'] = '21.5"'
+        elif re.search(r'\b(неттоп\w*|мини[- ]пк|mini\s*pc|mac\s+mini|mac\s+studio|тонкий\s+клиент|nuc\b)\b', title, re.I):
+            attrs['type'] = 'Мини-ПК / Неттоп'
+        else:
+            attrs['type'] = 'Системный блок (ПК)'
+
+        if 'cpu' not in attrs:
+            if re.search(r'\bcore\s+ultra\s*[579]\b', title, re.I):
+                attrs['cpu'] = 'Intel Core Ultra'
+            elif re.search(r'\bcore\s*i9\b', title, re.I):
+                attrs['cpu'] = 'Intel Core i9'
+            elif re.search(r'\bcore\s*i7\b', title, re.I):
+                attrs['cpu'] = 'Intel Core i7'
+            elif re.search(r'\bcore\s*i5\b', title, re.I):
+                attrs['cpu'] = 'Intel Core i5'
+            elif re.search(r'\bcore\s*i3\b', title, re.I):
+                attrs['cpu'] = 'Intel Core i3'
+            elif re.search(r'\bryzen\s*9\b', title, re.I):
+                attrs['cpu'] = 'AMD Ryzen 9'
+            elif re.search(r'\bryzen\s*7\b', title, re.I):
+                attrs['cpu'] = 'AMD Ryzen 7'
+            elif re.search(r'\bryzen\s*5\b', title, re.I):
+                attrs['cpu'] = 'AMD Ryzen 5'
+            elif re.search(r'\bryzen\s*3\b', title, re.I):
+                attrs['cpu'] = 'AMD Ryzen 3'
+            elif re.search(r'\bapple\s+m[1234]\b|\bm[1234]\s+(?:pro|max|ultra)\b', title, re.I):
+                attrs['cpu'] = 'Apple M-Series'
+            elif re.search(r'\b(pentium|celeron|intel\s+n\d{3})\b', title, re.I):
+                attrs['cpu'] = 'Intel Pentium / Celeron'
+
+        if 'os' not in attrs:
+            if re.search(r'\b(win(?:dows)?\s*11\s*pro|w11p)\b', title, re.I):
+                attrs['os'] = 'Windows 11 Pro'
+            elif re.search(r'\b(win(?:dows)?\s*11|w11)\b', title, re.I):
+                attrs['os'] = 'Windows 11'
+            elif re.search(r'\b(win(?:dows)?\s*10|w10)\b', title, re.I):
+                attrs['os'] = 'Windows 10'
+            elif re.search(r'\b(macos|imac|mac\s+mini|mac\s+studio)\b', title, re.I):
+                attrs['os'] = 'macOS'
+            elif re.search(r'\b(freedos|dos\b|без\s+ос|no\s*os)\b', title, re.I):
+                attrs['os'] = 'Без ОС'
+            elif re.search(r'\b(ubuntu|linux)\b', title, re.I):
+                attrs['os'] = 'Linux'
+
+    # 32. Аудиотехника (микрофоны, колонки, саундбары, акустика)
+    is_audio_equip = bool(re.search(
+        r'\b(микрофон\w*|радиосистем\w*|петличн\w*\s+микрофон|колонка\s+|портативн\w*\s+(?:акустик\w*|колонк\w*)|'
+        r'умн\w*\s+колонк\w*|яндекс\s+станц\w*|саундбар\w*|soundbar|акустическ\w*\s+систем\w*|'
+        r'компьютерн\w*\s+колонк\w*|колонк\w*\s+для\s+пк|музыкальн\w*\s+центр\w*|магнитол\w*|радиоприемник\w*|'
+        r'проигрывател\w*\s+винил\w*|винилов\w*\s+проигрывател\w*|диктофон\w*|ресивер\w*\s+av|усилител\w*\s+для\s+наушников|микшерн\w*\s+пульт)\b',
+        title, re.I
+    )) and not is_hp
+    if is_audio_equip:
+        if re.search(r'\b(микрофон\w*|радиосистем\w*)\b', title, re.I):
+            attrs['type'] = 'Микрофон / Радиосистема'
+        elif re.search(r'\b(умн\w*\s+колонк\w*|яндекс\s+станц\w*|vk\s+капсул\w*|homepod|echo\s+dot)\b', title, re.I):
+            attrs['type'] = 'Умная колонка'
+        elif re.search(r'\b(саундбар\w*|soundbar|домашн\w*\s+кинотеатр)\b', title, re.I):
+            attrs['type'] = 'Саундбар / Домашний кинотеатр'
+        elif re.search(r'\b(портативн\w*\s+(?:акустик\w*|колонк\w*)|bluetooth[- ]колонк\w*|jbl\s+(?:flip|charge|pulse|xtreme|boombox|go|clip|partybox))\b', title, re.I):
+            attrs['type'] = 'Портативная / Вечериночная акустика'
+        elif re.search(r'\b(проигрывател\w*\s+винил\w*|винилов\w*\s+проигрывател\w*)\b', title, re.I):
+            attrs['type'] = 'Виниловый проигрыватель'
+        elif re.search(r'\b(магнитол\w*|радиоприемник\w*|музыкальн\w*\s+центр\w*)\b', title, re.I):
+            attrs['type'] = 'Магнитола / Музыкальный центр'
+        elif re.search(r'\b(диктофон\w*)\b', title, re.I):
+            attrs['type'] = 'Диктофон'
+        else:
+            attrs['type'] = 'Стационарная / Компьютерная акустика'
+
+        if re.search(r'\b(беспроводн\w*|bluetooth|\bbt\b|wi-?fi|яндекс\s+станц\w*)\b', title, re.I):
+            attrs['wireless'] = 'Да'
+        elif re.search(r'\b(проводн\w*|\busb\b|\bxlr\b|3\.5\s*(?:мм|mm))\b', title, re.I):
+            attrs['wireless'] = 'Нет'
+
+    # 33. Книги и канцелярия
+    is_books_stat = bool(re.search(
+        r'\b(книга\b|роман\b|энциклопеди\w*|учебник\w*|комикс\w*|манга\b|раскраск\w*|пропис\w*|'
+        r'бумага\s+(?:lomond|epson|офисная|для\s+печати|для\s+принтера|фотобумага|цветная|для\s+акварели|для\s+черчения)|фотобумаг\w*|'
+        r'тетрад\w*\s+(?:общая|школьная|предметная|в\s+клетку|в\s+линейку|на\s+спирали|\d+\s*л)|блокнот\w*|скетчбук\w*|ежедневник\w*|альбом\s+для\s+рисования|дневник\s+школьн\w*|'
+        r'текстовыделител\w*|набор\s+текстовыделител\w*|маркер\w*\s+(?:перманентн|для\s+доски|для\s+скетчинга|набор)|фломастер\w*|карандаш\w*\s+(?:цветн|чернографитн|механическ|прост|набор)|ручк\w*\s+(?:шариков|гелев|роллер|перьевая|набор)|'
+        r'краск\w*\s+(?:акрилов\w*|акварельн\w*|гуашь|маслян\w*|пальчиков\w*)|гуашь\b|акварель\b|пластилин\w*|тесто\s+для\s+лепки|глина\s+полимерная|картин\w*\s+по\s+номерам|алмазн\w*\s+мозаик\w*|холст\s+на|'
+        r'папк\w*\s+(?:для\s+бумаг|с\s+файлами|регистратор|на\s+молнии|скоросшиватель)|пенал\w*\s+школьн\w*|глобус\w*|калькулятор\w*|ламинатор\w*|уничтожител\w*\s+бумаг|шредер\w*|переплетчик\w*)\b',
+        title, re.I
+    )) and not is_printer
+    if is_books_stat:
+        if re.search(r'\b(бумага\s+|фотобумаг\w*)\b', title, re.I):
+            attrs['type'] = 'Бумага и фотобумага'
+        elif re.search(r'\b(тетрад\w*|блокнот\w*|скетчбук\w*|ежедневник\w*|альбом\s+для|дневник)\b', title, re.I):
+            attrs['type'] = 'Тетради, блокноты и альбомы'
+        elif re.search(r'\b(текстовыделител\w*|маркер\w*|фломастер\w*|карандаш\w*|ручк\w*\s+(?:шариков|гелев|роллер|перьевая|набор))\b', title, re.I):
+            attrs['type'] = 'Письменные принадлежности'
+        elif re.search(r'\b(краск\w*|гуашь|акварель|пластилин\w*|тесто\s+для\s+лепки|глина|картин\w*\s+по\s+номерам|алмазн\w*\s+мозаик\w*|холст|раскраск\w*)\b', title, re.I):
+            attrs['type'] = 'Товары для творчества и рисования'
+        elif re.search(r'\b(книга|роман|энциклопеди\w*|учебник\w*|комикс\w*|манга|пропис\w*)\b', title, re.I):
+            attrs['type'] = 'Книги и учебная литература'
+        else:
+            attrs['type'] = 'Офисная и школьная канцелярия'
+
+        m_pfmt = re.search(r'\b(a3|а3|a4|а4|a5|а5|a6|а6|10\s*[xх]\s*15)\b', title, re.I)
+        if m_pfmt:
+            f_raw = m_pfmt.group(1).upper().replace('А', 'A')
+            attrs['paper_format'] = 'A6 (10x15)' if ('A6' in f_raw or '10' in f_raw) else f_raw
+
+        m_sheets = re.search(r'\b(\d{1,3})\s*(?:лист\w*\b|л\.|\bл\b|шт\.?)', title, re.I)
+        if m_sheets and 'pieces_count' not in attrs:
+            attrs['pieces_count'] = f"{m_sheets.group(1)} шт."
+
+    # 34. Зоотовары (кошки, собаки и другие питомцы)
+    is_pet_item = bool(re.search(
+        r'\b(корм\s+(?:для\s+)?(?:кошек|котят|собак|щенков|грызунов|птиц|рыб|kitten|adult|junior|sterilised)|'
+        r'сухой\s+корм|влажный\s+корм|корм\s+«?(?:felix|kitekat|whiskas|sheba|gourmet|purina|pro\s+plan|royal\s+canin|happy\s+cat|happy\s+dog|carny|animonda|monge|acana|orijen|brit|grandorf|pedigree|chappi|perfect\s+fit)»?|'
+        r'наполнитель\s+для\s+кошачьего|когтеточк\w*|лежанк\w*\s+для|переноск\w*\s+для\s+(?:кошек|собак|животных)|ошейник\w*\s+для|поводок\s+для|шлейк\w*\s+для|лакомств\w*\s+для\s+(?:кошек|собак))\b',
+        title, re.I
+    ))
+    if is_pet_item:
+        if re.search(r'\b(наполнитель\w*|лоток\s+для|пеленк\w*\s+для\s+животных)\b', title, re.I):
+            attrs['type'] = 'Наполнитель и гигиена'
+        elif re.search(r'\b(лакомств\w*|витамин\w*|кости\s+жевательн\w*)\b', title, re.I):
+            attrs['type'] = 'Лакомства и витамины'
+        elif re.search(r'\b(когтеточк\w*|лежанк\w*|переноск\w*|ошейник\w*|поводок|шлейк\w*|миск\w*)\b', title, re.I):
+            attrs['type'] = 'Аксессуары и уход'
+        elif re.search(r'\b(влажн\w*\s+корм|пауч\w*|консерв\w*|желе|соус\w*|\b(?:75|80|85|100|400)\s*(?:г|гр)\b)\b', title, re.I) and not re.search(r'\bсухой\b', title, re.I):
+            attrs['type'] = 'Влажный корм / Паучи'
+        else:
+            attrs['type'] = 'Сухой корм'
+
+        if re.search(r'\b(кошек|котят|кошк\w*|котов|kitten|happy\s+cat|felix|kitekat|whiskas|sheba|gourmet|carny)\b', title, re.I):
+            attrs['pet_type'] = 'Для кошек'
+        elif re.search(r'\b(собак|щенк\w*|puppy|happy\s+dog|pedigree|chappi)\b', title, re.I):
+            attrs['pet_type'] = 'Для собак'
+
+        if re.search(r'\b(котят|щенк\w*|kitten|junior|puppy|до\s+12\s+мес|4-12\s+мес)\b', title, re.I):
+            attrs['pet_age'] = 'Для котят / щенков (Junior)'
+        elif re.search(r'\b(стерилизованн\w*|кастрированн\w*|sterilised|neutered)\b', title, re.I):
+            attrs['pet_age'] = 'Для стерилизованных (Sterilised)'
+        elif re.search(r'\b(\bvet\b|ветеринарн\w*|hepatic|renal|gastrointestinal|urinary|hypersensitivity|sensible)\b', title, re.I):
+            attrs['pet_age'] = 'Чувствительное пищеварение / Диета'
+        elif re.search(r'\b(взросл\w*|adult)\b', title, re.I):
+            attrs['pet_age'] = 'Для взрослых (Adult)'
+
+        m_pw_kg = re.search(r'\b(\d+(?:[.,]\d+)?)\s*(?:кг|kg)\b', title, re.I)
+        m_pw_g = re.search(r'\b(\d{2,4})\s*(?:г|гр|g)\b', title, re.I)
+        if m_pw_kg:
+            attrs['pack_weight'] = f"{m_pw_kg.group(1).replace(',', '.')} кг"
+        elif m_pw_g:
+            g_val = int(m_pw_g.group(1))
+            if g_val >= 1000 and g_val % 100 == 0:
+                attrs['pack_weight'] = f"{g_val / 1000:g} кг"
+            else:
+                attrs['pack_weight'] = f"{g_val} г"
+
+    # 35. Дом и сад, освещение, текстиль и посуда
+    is_home_kitchen = bool(re.search(
+        r'\b(led\s+ламп\w*|светодиодн\w*\s+ламп\w*|ламп\w*\s+(?:светодиодн\w*|филаментн\w*|накаливания|энергосберегающ\w*)|'
+        r'настольн\w*\s+(?:led\s+)?ламп\w*|светильник\w*|люстр\w*|ночник\w*|ночной\s+светильник|'
+        r'сковород\w*|кастрюл\w*|ковш\s+|казан\w*|сотейник\w*|вок\b|wok\b|набор\s+посуды|термос\w*|термокружк\w*|бутылк\w*\s+для\s+воды|френч[- ]пресс|чайник\s+заварочн\w*|нож\s+кухонн\w*|набор\s+ножей|разделочн\w*\s+доск\w*|тарелк\w*|кружк\w*|бокал\w*|стакан\w*|форма\s+для\s+(?:выпечки|запекания)|контейнер\s+для\s+(?:пищевых|еды|хранения)|'
+        r'постельн\w*\s+бель\w*|комплект\s+постельного|одеял\w*|подушк\w*(?!\s+безопасности)|плед\w*|покрывал\w*|простын\w*|наволочк\w*|полотенц\w*|штор\w*|занавеск\w*|ковер\b|коврик\s+(?:придверн|для\s+ванной|влаговпитывающ)|'
+        r'вешалк\w*\s+(?:гардеробн\w*|для\s+одежды|напольн\w*|плечики)|корзин\w*\s+для\s+(?:белья|хранения)|коробк\w*\s+для\s+хранения|органайзер\w*|ролик\s+для\s+чистки\s+одежды|'
+        r'ароматическ\w*\s+(?:диффузор|свеч\w*|саше)|подарочн\w*\s+(?:пакет|коробк\w*|набор)|'
+        r'шланг\s+поливочн\w*|секатор\w*|лопат\w*\s+(?:совков|штыков|снегоуборочн|садов)|грабли\b|лейк\w*\s+садов|опрыскивател\w*|семена\s+|удобрен\w*|грунт\s+для|горшок\s+для\s+цветов|кашпо\b)\b',
+        title, re.I
+    )) and not is_kitchen and not is_tool and not is_furniture
+    if is_home_kitchen:
+        if re.search(r'\b(led\s+ламп\w*|светодиодн\w*\s+ламп\w*|ламп\w*\s+(?:светодиодн\w*|филаментн\w*|накаливания)|светильник\w*|люстр\w*|ночник\w*|настольн\w*\s+(?:led\s+)?ламп\w*)\b', title, re.I):
+            if re.search(r'\b(светильник\w*|люстр\w*|ночник\w*|настольн\w*\s+(?:led\s+)?ламп\w*)\b', title, re.I):
+                attrs['type'] = 'Светильники, люстры и настольные лампы'
+            else:
+                attrs['type'] = 'Светодиодные лампочки (LED)'
+            m_base = re.search(r'\b(e27|e14|gu10|gu5\.3|g4|g9|g13|gx53)\b', title, re.I)
+            if m_base:
+                attrs['lamp_base'] = m_base.group(1).upper()
+            m_kelv = re.search(r'\b([2-6]\d00)\s*[kк]\b', title, re.I)
+            if m_kelv:
+                k_int = int(m_kelv.group(1))
+                if k_int <= 3300:
+                    attrs['color_temp'] = f"Теплый свет ({k_int}K)"
+                elif k_int <= 4700:
+                    attrs['color_temp'] = f"Нейтральный свет ({k_int}K)"
+                else:
+                    attrs['color_temp'] = f"Холодный свет ({k_int}K)"
+            m_lw = re.search(r'\b(\d{1,2}(?:[.,]\d)?)\s*(?:вт|w)\b', title, re.I)
+            if m_lw and 'power' not in attrs:
+                attrs['power'] = f"{m_lw.group(1).replace(',', '.')} Вт"
+        elif re.search(r'\b(сковород\w*|вок\b|wok\b|сотейник\w*)\b', title, re.I):
+            attrs['type'] = 'Сковороды, воки и сотейники'
+        elif re.search(r'\b(кастрюл\w*|ковш|казан\w*|набор\s+посуды)\b', title, re.I):
+            attrs['type'] = 'Кастрюли, ковши и наборы посуды'
+        elif re.search(r'\b(термос\w*|термокружк\w*|бутылк\w*\s+для\s+воды|френч[- ]пресс|чайник\s+заварочн\w*)\b', title, re.I):
+            attrs['type'] = 'Термосы, бутылки и заварники'
+        elif re.search(r'\b(нож\s+кухонн\w*|набор\s+ножей|разделочн\w*\s+доск\w*|тарелк\w*|кружк\w*|бокал\w*|стакан\w*|форма\s+для|контейнер\s+для)\b', title, re.I):
+            attrs['type'] = 'Кухонная утварь и сервировка'
+        elif re.search(r'\b(постельн\w*\s+бель\w*|комплект\s+постельного|одеял\w*|подушк\w*|плед\w*|покрывал\w*|простын\w*|наволочк\w*|полотенц\w*|штор\w*|занавеск\w*|ковер|коврик)\b', title, re.I):
+            attrs['type'] = 'Постельное белье, текстиль и ковры'
+        elif re.search(r'\b(шланг\s+поливочн\w*|секатор\w*|лопат\w*|грабли|лейк\w*|опрыскивател\w*|семена|удобрен\w*|грунт|горшок\s+для\s+цветов|кашпо)\b', title, re.I):
+            attrs['type'] = 'Садовый инвентарь, полив и растения'
+        else:
+            attrs['type'] = 'Хранение, декор и хозтовары'
+
+        m_dcm = re.search(r'\b(14|16|18|20|22|24|26|28|30|32)\s*(?:см|cm)\b', title, re.I)
+        if m_dcm:
+            attrs['diameter_cm'] = f"{m_dcm.group(1)} см"
+
+        if 'material' not in attrs:
+            if re.search(r'\bчугун\w*\b', title, re.I):
+                attrs['material'] = 'Чугун'
+            elif re.search(r'\b(нержавеющ\w*|сталь\w*)\b', title, re.I):
+                attrs['material'] = 'Нержавеющая сталь'
+            elif re.search(r'\bалюмин\w*\b', title, re.I):
+                attrs['material'] = 'Алюминий'
+            elif re.search(r'\b(стекл\w*|хрустал\w*)\b', title, re.I):
+                attrs['material'] = 'Стекло'
+            elif re.search(r'\b(керамик\w*|фарфор\w*)\b', title, re.I):
+                attrs['material'] = 'Керамика / Фарфор'
+            elif re.search(r'\b(хлопок|сатин|бязь|поплин|перкаль)\b', title, re.I):
+                attrs['material'] = 'Хлопок / Сатин'
+
+    # 36. Бытовая техника для дома, климата и ухода за одеждой
+    is_home_appliance = bool(re.search(
+        r'\b(утюг\w*|отпаривател\w*|парогенератор\w*|гладильн\w*\s+(?:доск\w*|систем\w*)|машинк\w*\s+для\s+удаления\s+катышков|'
+        r'увлажнител\w*\s+воздуха|очистител\w*\s+воздуха|мойк\w*\s+воздуха|осушител\w*\s+воздуха|'
+        r'водонагревател\w*|бойлер\w*|обогревател\w*|конвектор\w*|тепловентилятор\w*|маслян\w*\s+радиатор\w*|теплов\w*\s+пушк\w*|'
+        r'вентилятор\s+(?:напольн\w*|настольн\w*|колонн\w*)|швейн\w*\s+машин\w*|оверлок\w*)\b',
+        title, re.I
+    ))
+    if is_home_appliance:
+        if re.search(r'\bутюг\w*\b', title, re.I):
+            attrs['type'] = 'Утюг'
+        elif re.search(r'\b(отпаривател\w*|парогенератор\w*)\b', title, re.I):
+            attrs['type'] = 'Отпариватель / Парогенератор'
+        elif re.search(r'\b(гладильн\w*\s+доск\w*|машинк\w*\s+для\s+удаления\s+катышков)\b', title, re.I):
+            attrs['type'] = 'Уход за одеждой и глажка'
+        elif re.search(r'\b(увлажнител\w*|очистител\w*\s+воздуха|мойк\w*\s+воздуха|осушител\w*)\b', title, re.I):
+            attrs['type'] = 'Увлажнитель / Очиститель воздуха'
+        elif re.search(r'\b(водонагревател\w*|бойлер\w*)\b', title, re.I):
+            attrs['type'] = 'Водонагреватель (Бойлер)'
+        elif re.search(r'\b(обогревател\w*|конвектор\w*|тепловентилятор\w*|маслян\w*\s+радиатор\w*|теплов\w*\s+пушк\w*|вентилятор)\b', title, re.I):
+            attrs['type'] = 'Обогреватель / Вентилятор'
+        elif re.search(r'\b(швейн\w*\s+машин\w*|оверлок\w*)\b', title, re.I):
+            attrs['type'] = 'Швейная машина / Оверлок'
+
+        m_hap_w = re.search(r'\b([1-3]\d{2,3})\s*(?:вт|w)\b', title, re.I)
+        if m_hap_w and 'power' not in attrs:
+            attrs['power'] = f"{m_hap_w.group(1)} Вт"
 
     return attrs
 
@@ -2331,7 +2755,12 @@ _SYNC_TITLE_SCOPE = '''
                    'power', 'ИБП и питание', 'cables_chargers', 'Кабели и зарядные устройства',
                    'shoes', 'Обувь', 'clothing', 'Одежда и обувь', 'women_clothing', 'Женская одежда', 'men_clothing', 'Мужская одежда',
                    'furniture', 'Мебель', 'tools_repair', 'Инструменты и ремонт', 'perfume', 'Парфюмерия', 'beauty', 'Красота и здоровье',
-                   'toys', 'Игрушки и конструкторы')
+                   'toys', 'Игрушки и конструкторы', 'pc_desktops', 'Компьютеры и ПК', 'motherboards', 'Материнские платы',
+                   'cooling', 'Охлаждение и кулеры', 'hdd', 'Жесткие диски HDD', 'ram', 'Оперативная память',
+                   'books_stationery', 'Книги и канцелярия', 'books', 'Книги', 'pets', 'Зоотовары',
+                   'cat_food', 'Товары для кошек', 'dog_food', 'Товары для собак',
+                   'home', 'Дом и сад', 'home_textile', 'Текстиль и декор', 'garden', 'Сад и огород',
+                   'kitchenware', 'Посуда и кухня', 'household_chem', 'Бытовая химия и хозтовары')
     OR p.title LIKE '%подгуз%' OR p.title LIKE '%трусик%' OR p.title LIKE '%памперс%'
     OR p.title LIKE '%холодильн%' OR p.title LIKE '%стиральн%' OR p.title LIKE '%посудомо%' OR p.title LIKE '%пылесос%'
     OR p.title LIKE '%автошин%' OR p.title LIKE '%зимн%шин%' OR p.title LIKE '%летн%шин%' OR p.title LIKE '% R1%' OR p.title LIKE '% R2%'

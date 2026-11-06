@@ -125,6 +125,36 @@ def clean_plan(answer, query, categories):
     elif any(w in q_low for w in ('матрас', 'игровое кресло', 'геймерское кресло', 'компьютерное кресло', 'офисное кресло', 'диван', 'кровать', 'шкаф', 'комод')) and not any(p in q_low for p in ('надувной', 'детская кроватка', 'в кроватку', 'чехол', 'покрывало', 'простын')):
         if 'furniture' in by_id:
             cid = 'furniture'
+    elif any(w in q_low for w in ('наушники', 'наушник', 'гарнитура', 'airpods', 'earpods', 'tws')) and not any(p in q_low for p in ('чехол', 'футляр', 'амбушюр', 'кабель', 'переходник', 'подставк', 'держател')):
+        if 'headphones' in by_id:
+            cid = 'headphones'
+    elif any(w in q_low for w in ('смарт-часы', 'смарт часы', 'умные часы', 'фитнес-браслет', 'фитнес браслет', 'apple watch', 'galaxy watch', 'детские часы')) and not any(p in q_low for p in ('ремешок', 'браслет для', 'стекло', 'пленк', 'чехол', 'бампер', 'зарядк')):
+        if 'smartwatches' in by_id:
+            cid = 'smartwatches'
+    elif any(w in q_low for w in ('моноблок', 'системный блок', 'неттоп', 'мини-пк', 'мини пк', 'imac', 'mac mini', 'mac studio')) and not any(p in q_low for p in ('корпус', 'блок питания', 'кронштейн', 'сумк', 'подставк')):
+        if 'pc_desktops' in by_id:
+            cid = 'pc_desktops'
+    elif any(w in q_low for w in ('материнская плата', 'материнские платы', 'мат плата', 'motherboard')) and not any(p in q_low for p in ('кабель', 'стойк', 'винт')):
+        if 'motherboards' in by_id:
+            cid = 'motherboards'
+    elif any(w in q_low for w in ('кулер для процессора', 'кулер для пк', 'водяное охлаждение', 'сжо', 'термопаста', 'вентилятор для корпуса')) and not any(p in q_low for p in ('для воды', 'напольный', 'настольный')):
+        if 'cooling' in by_id:
+            cid = 'cooling'
+    elif any(w in q_low for w in ('микрофон', 'саундбар', 'soundbar', 'умная колонка', 'яндекс станция', 'портативная колонка', 'bluetooth колонка')) and not any(p in q_low for p in ('наушник', 'гарнитур', 'стойка для', 'пантограф', 'ветрозащит', 'чехол')):
+        if 'audio' in by_id:
+            cid = 'audio'
+    elif any(w in q_low for w in ('корм для кошек', 'корм для котят', 'наполнитель для кошачьего', 'когтеточка')):
+        if 'cat_food' in by_id:
+            cid = 'cat_food'
+    elif any(w in q_low for w in ('корм для собак', 'корм для щенков')):
+        if 'dog_food' in by_id:
+            cid = 'dog_food'
+    elif any(w in q_low for w in ('сковорода', 'кастрюля', 'сотейник', 'казан', 'набор посуды', 'термос', 'термокружка', 'френч-пресс')) and not any(p in q_low for p in ('игруш', 'детск', 'таблетк', 'средств', 'губк')):
+        if 'kitchenware' in by_id:
+            cid = 'kitchenware'
+    elif any(w in q_low for w in ('утюг', 'отпариватель', 'парогенератор', 'увлажнитель воздуха', 'очиститель воздуха', 'водонагреватель', 'обогреватель', 'тепловентилятор')) and not any(p in q_low for p in ('игруш', 'детск', 'фильтр для', 'картридж для', 'вода для')):
+        if 'appliances' in by_id:
+            cid = 'appliances'
 
     if not cid and not has_explicit_contract:
         return None

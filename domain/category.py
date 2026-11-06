@@ -129,9 +129,11 @@ MASTER_TAXONOMY: List[Category] = [
         search_priority=89,
         aliases=["смарт-часы", "умные часы", "фитнес-браслеты", "смарт часы", "smart watch", "apple watch"],
         attributes_schema={
+            "type": {"label": "Тип устройства", "type": "string"},
             "case_size": {"label": "Размер корпуса", "type": "string"},
             "screen_tech": {"label": "Тип дисплея", "type": "string"},
             "cellular": {"label": "Поддержка eSIM / 4G", "type": "string"},
+            "strap_material": {"label": "Материал ремешка", "type": "string"},
             "color": {"label": "Цвет", "type": "string"},
         },
     ),
@@ -145,7 +147,9 @@ MASTER_TAXONOMY: List[Category] = [
         attributes_schema={
             "type": {"label": "Тип конструкции", "type": "string"},
             "wireless": {"label": "Беспроводные", "type": "string"},
+            "interface": {"label": "Интерфейс подключения", "type": "string"},
             "anc": {"label": "Шумоподавление (ANC)", "type": "string"},
+            "microphone": {"label": "Микрофон", "type": "string"},
             "color": {"label": "Цвет", "type": "string"},
         },
     ),
@@ -156,7 +160,14 @@ MASTER_TAXONOMY: List[Category] = [
         icon="🖥",
         search_priority=87,
         aliases=["моноблоки", "моноблок", "компьютеры", "пк", "системные блоки", "персональные компьютеры", "персональный компьютер", "desktops", "pc"],
-        attributes_schema={"cpu": "string", "ram": "list", "gpu": "string", "storage": "list"},
+        attributes_schema={
+            "type": {"label": "Тип компьютера", "type": "string"},
+            "screen_size": {"label": "Диагональ экрана", "type": "string"},
+            "cpu": {"label": "Процессор", "type": "string"},
+            "ram": {"label": "Оперативная память", "type": "list"},
+            "storage": {"label": "Накопитель SSD/HDD", "type": "list"},
+            "gpu": {"label": "Видеокарта", "type": "string"},
+        },
     ),
     Category(
         id="tv",
@@ -229,7 +240,12 @@ MASTER_TAXONOMY: List[Category] = [
         icon="🔌",
         search_priority=80,
         aliases=["материнские платы", "материнки", "motherboards", "mainboards"],
-        attributes_schema={"socket": "string", "chipset": "string", "form_factor": "string"},
+        attributes_schema={
+            "socket": {"label": "Сокет", "type": "string"},
+            "chipset": {"label": "Чипсет", "type": "string"},
+            "memory_type": {"label": "Тип памяти", "type": "string"},
+            "form_factor": {"label": "Форм-фактор", "type": "string"},
+        },
     ),
     Category(
         id="psu",
@@ -262,7 +278,13 @@ MASTER_TAXONOMY: List[Category] = [
         icon="❄️",
         search_priority=81,
         aliases=["кулеры", "кулер", "охлаждение", "системы охлаждения", "кулеры для процессора", "вентиляторы для корпуса", "сжо", "сво", "водяное охлаждение", "термопаста", "cpu cooler", "cooling"],
-        attributes_schema={"socket": "string", "type": "string", "power": "string", "color": "string"},
+        attributes_schema={
+            "type": {"label": "Тип охлаждения", "type": "string"},
+            "fan_size": {"label": "Размер вентилятора / радиатора", "type": "string"},
+            "backlight": {"label": "Подсветка", "type": "string"},
+            "socket": {"label": "Сокет", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="ram",
@@ -457,7 +479,13 @@ MASTER_TAXONOMY: List[Category] = [
         name="Бытовая техника",
         icon="🧊",
         search_priority=90,
-        aliases=["бытовая техника", "техника для дома", "appliances", "home appliances"],
+        aliases=["бытовая техника", "техника для дома", "appliances", "home appliances", "утюги", "отпариватели", "увлажнители воздуха", "водонагреватели", "обогреватели"],
+        attributes_schema={
+            "type": {"label": "Тип прибора", "type": "string"},
+            "power": {"label": "Мощность", "type": "string"},
+            "capacity": {"label": "Объем", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="refrigerators",
@@ -467,6 +495,7 @@ MASTER_TAXONOMY: List[Category] = [
         search_priority=85,
         aliases=["холодильники", "морозильники", "refrigerators", "freezers"],
         attributes_schema={
+            "type": {"label": "Тип устройства", "type": "string"},
             "refrigeration_defrost": {"label": "Разморозка", "type": "string"},
             "doors_type": {"label": "Тип конструкции", "type": "string"},
             "height_cm": {"label": "Высота", "type": "string"},
@@ -675,8 +704,15 @@ MASTER_TAXONOMY: List[Category] = [
         aliases=[
             "дом и сад", "товары для дома", "мебель", "текстиль", "посуда", "home",
             "шкафы", "стеллажи", "кровати", "комоды", "тумбы", "диваны", "кресла", "столы", "стулья", "автоматика для ворот",
-            "строительство", "ремонт", "инструменты", "сантехника", "бытовая химия"
+            "строительство", "ремонт", "инструменты", "сантехника", "бытовая химия", "освещение", "лампочки", "светильники"
         ],
+        attributes_schema={
+            "type": {"label": "Категория товара", "type": "string"},
+            "lamp_base": {"label": "Цоколь лампы", "type": "string"},
+            "color_temp": {"label": "Свет / Цветовая температура", "type": "string"},
+            "power": {"label": "Мощность", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="furniture",
@@ -687,7 +723,7 @@ MASTER_TAXONOMY: List[Category] = [
         aliases=["мебель", "шкафы", "столы", "диваны", "стулья", "кровати", "тумбы", "комоды", "матрасы", "матрас", "кресло игровое", "компьютерное кресло"],
         attributes_schema={
             "type": {"label": "Тип мебели", "type": "string"},
-            "bed_size": {"label": "Размер (спальное место)", "type": "string"},
+            "bed_size": {"label": "Размер (спальное место / габариты)", "type": "string"},
             "material": {"label": "Материал / Обивка", "type": "string"},
             "color": {"label": "Цвет", "type": "string"},
         },
@@ -699,6 +735,12 @@ MASTER_TAXONOMY: List[Category] = [
         icon="🛏",
         search_priority=62,
         aliases=["текстиль", "постельное белье", "шторы", "подушки", "пледы", "ковры"],
+        attributes_schema={
+            "type": {"label": "Вид текстиля и декора", "type": "string"},
+            "bed_size": {"label": "Размер", "type": "string"},
+            "material": {"label": "Материал", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="garden",
@@ -707,6 +749,11 @@ MASTER_TAXONOMY: List[Category] = [
         icon="🌱",
         search_priority=61,
         aliases=["товары для сада и огорода", "товары для сада", "сад и огород", "огород", "садовая техника", "бассейны"],
+        attributes_schema={
+            "type": {"label": "Категория садового товара", "type": "string"},
+            "power_supply": {"label": "Тип питания", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="household_chem",
@@ -719,6 +766,11 @@ MASTER_TAXONOMY: List[Category] = [
             "салфетки и туалетная бумага", "таблетки для посудомоечных машин", "капсулы для посудомоечных машин",
             "соль для посудомоечных машин", "ополаскиватель для посудомоечных машин", "средство для посудомоечных машин",
         ],
+        attributes_schema={
+            "type": {"label": "Назначение средства / инвентаря", "type": "string"},
+            "volume_ml": {"label": "Объем / Вес", "type": "string"},
+            "pieces_count": {"label": "Количество в упаковке", "type": "string"},
+        },
     ),
     Category(
         id="kitchenware",
@@ -726,7 +778,14 @@ MASTER_TAXONOMY: List[Category] = [
         name="Посуда и кухня",
         icon="🍳",
         search_priority=62,
-        aliases=["посуда", "сковороды", "кастрюли", "ножи", "бокалы", "тарелки"],
+        aliases=["посуда", "сковороды", "кастрюли", "ножи", "бокалы", "тарелки", "термосы"],
+        attributes_schema={
+            "type": {"label": "Предмет посуды", "type": "string"},
+            "diameter_cm": {"label": "Диаметр", "type": "string"},
+            "capacity": {"label": "Объем", "type": "string"},
+            "material": {"label": "Материал", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="tools_repair",
@@ -981,6 +1040,12 @@ MASTER_TAXONOMY: List[Category] = [
         icon="📚",
         search_priority=50,
         aliases=["книги", "канцелярия", "канцтовары", "для рисования", "товары для творчества"],
+        attributes_schema={
+            "type": {"label": "Вид товара", "type": "string"},
+            "paper_format": {"label": "Формат бумаги", "type": "string"},
+            "pieces_count": {"label": "Количество листов / предметов", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
 
     # 9. Спорт и отдых (L1)
@@ -1023,6 +1088,12 @@ MASTER_TAXONOMY: List[Category] = [
         icon="🐾",
         search_priority=55,
         aliases=["зоотовары", "товары для животных", "корм для кошек", "корм для собак", "pets"],
+        attributes_schema={
+            "type": {"label": "Тип зоотовара", "type": "string"},
+            "pet_type": {"label": "Вид питомца", "type": "string"},
+            "pet_age": {"label": "Возраст и назначение", "type": "string"},
+            "pack_weight": {"label": "Вес упаковки", "type": "string"},
+        },
     ),
     Category(
         id="cat_food",
@@ -1031,6 +1102,11 @@ MASTER_TAXONOMY: List[Category] = [
         icon="🐱",
         search_priority=54,
         aliases=["корм для кошек", "наполнители", "когтеточки", "кошачий корм"],
+        attributes_schema={
+            "type": {"label": "Тип товара", "type": "string"},
+            "pet_age": {"label": "Возраст и особенности", "type": "string"},
+            "pack_weight": {"label": "Вес упаковки", "type": "string"},
+        },
     ),
     Category(
         id="dog_food",
@@ -1039,6 +1115,11 @@ MASTER_TAXONOMY: List[Category] = [
         icon="🐶",
         search_priority=53,
         aliases=["корм для собак", "поводки", "ошейники", "лакомства для собак"],
+        attributes_schema={
+            "type": {"label": "Тип товара", "type": "string"},
+            "pet_age": {"label": "Возраст и порода", "type": "string"},
+            "pack_weight": {"label": "Вес упаковки", "type": "string"},
+        },
     ),
 
     # 11. Книги, музыка и хобби (L1)
@@ -1092,6 +1173,8 @@ MASTER_TAXONOMY: List[Category] = [
             "books", "книга", "нонфикшн", "деловая литература",
         ],
         attributes_schema={
+            "type": {"label": "Вид товара", "type": "string"},
+            "paper_format": {"label": "Формат бумаги", "type": "string"},
             "author": {"label": "Автор", "type": "string"},
             "publisher": {"label": "Издательство", "type": "string"},
             "cover_type": {"label": "Переплет", "type": "string"},

@@ -421,6 +421,58 @@ class AttributeFacetsFilterTests(unittest.TestCase):
         self.assertEqual(toy1.get('lego_series'), 'LEGO Technic')
         self.assertEqual(toy1.get('pieces_count'), '218 дет.')
 
+        # 16. Волна 4: Наушники, Смарт-часы, Компьютеры, Материнские платы, Охлаждение, Аудио, Книги и канцелярия, Зоотовары, Посуда, Бытовая техника
+        hp1 = extract_title_attributes('Гарнитура A4Tech HS-28, серый-черный')
+        self.assertEqual(hp1.get('type'), 'Гарнитура (с микрофоном)')
+        self.assertEqual(hp1.get('microphone'), 'Со встроенным микрофоном')
+        self.assertEqual(hp1.get('wireless'), 'Нет')
+
+        sw1 = extract_title_attributes('Смарт-часы Apple Watch Series 8 GPS 45mm Aluminum Case with Sport Band')
+        self.assertEqual(sw1.get('type'), 'Смарт-часы')
+        self.assertEqual(sw1.get('case_size'), '45 мм')
+        self.assertEqual(sw1.get('strap_material'), 'Силикон')
+
+        pc1 = extract_title_attributes('Моноблок 23.8" Asus A3402WBAK, Core i5 1235U, 8ГБ, 512ГБ SSD, FreeDOS')
+        self.assertEqual(pc1.get('type'), 'Моноблок (All-in-One)')
+        self.assertEqual(pc1.get('screen_size'), '23.8"')
+        self.assertEqual(pc1.get('cpu'), 'Intel Core i5')
+        self.assertEqual(pc1.get('ram'), '8 ГБ')
+        self.assertEqual(pc1.get('storage'), '512 ГБ')
+        self.assertEqual(pc1.get('os'), 'Без ОС')
+
+        mb1 = extract_title_attributes('Материнская плата Asus PRIME B550M-K')
+        self.assertEqual(mb1.get('chipset'), 'B550')
+        self.assertEqual(mb1.get('socket'), 'AM4')
+        self.assertEqual(mb1.get('form_factor'), 'Micro-ATX')
+
+        cool1 = extract_title_attributes('Вентилятор для корпуса Deepcool RF120 FS, 120мм, 3-color LED')
+        self.assertEqual(cool1.get('type'), 'Вентилятор для корпуса')
+        self.assertEqual(cool1.get('fan_size'), '120 мм')
+        self.assertEqual(cool1.get('backlight'), 'LED')
+
+        aud1 = extract_title_attributes('Микрофон Thronmax M20 Streaming Kit USB')
+        self.assertEqual(aud1.get('type'), 'Микрофон / Радиосистема')
+        self.assertEqual(aud1.get('wireless'), 'Нет')
+
+        bk1 = extract_title_attributes('Фотобумага Lomond глянцевая 230г/м2, A4, 50л.')
+        self.assertEqual(bk1.get('type'), 'Бумага и фотобумага')
+        self.assertEqual(bk1.get('paper_format'), 'A4')
+        self.assertEqual(bk1.get('pieces_count'), '50 шт.')
+
+        pet1 = extract_title_attributes('Корм для кошек с лососем в желе «Felix Аппетитные кусочки», 75 г')
+        self.assertEqual(pet1.get('type'), 'Влажный корм / Паучи')
+        self.assertEqual(pet1.get('pet_type'), 'Для кошек')
+        self.assertEqual(pet1.get('pack_weight'), '75 г')
+
+        kw1 = extract_title_attributes('Сковорода Tefal Традиция, 24 см, чугун, черный')
+        self.assertEqual(kw1.get('type'), 'Сковороды, воки и сотейники')
+        self.assertEqual(kw1.get('diameter_cm'), '24 см')
+        self.assertEqual(kw1.get('material'), 'Чугун')
+
+        ap1 = extract_title_attributes('Утюг Tefal Express Steam FV2837E0 2400 Вт')
+        self.assertEqual(ap1.get('type'), 'Утюг')
+        self.assertEqual(ap1.get('power'), '2400 Вт')
+
     def test_category_schema_and_search_priority_orders(self):
         from domain.category import MASTER_TAXONOMY
         from repositories.category_repo import CategoryRepository
@@ -430,7 +482,10 @@ class AttributeFacetsFilterTests(unittest.TestCase):
                        'washing_machines', 'vacuums', 'tires', 'monitors', 'peripherals',
                        'kitchen_appliances', 'network', 'printers', 'tablets', 'removable_storage',
                        'consoles', 'cpus', 'pc_cases', 'power', 'cables_chargers', 'shoes',
-                       'clothing', 'furniture', 'tools_repair', 'perfume', 'beauty', 'toys'):
+                       'clothing', 'furniture', 'tools_repair', 'perfume', 'beauty', 'toys',
+                       'pc_desktops', 'motherboards', 'cooling', 'audio', 'books_stationery',
+                       'books', 'pets', 'cat_food', 'dog_food', 'kitchenware', 'appliances',
+                       'home', 'home_textile', 'garden'):
             self.assertIn(cat_id, cats)
             self.assertGreater(len(cats[cat_id].attributes_schema), 0)
 

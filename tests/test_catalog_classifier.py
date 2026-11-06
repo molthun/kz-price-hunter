@@ -435,6 +435,13 @@ class TestCatalogClassifier(unittest.TestCase):
             ("Бумага для печати 100 листов, A4, 80 г/м²", "books"),
             ("Контроллер PCI to 4xSATA", "pc_components"),
             ("Адаптер ASUS Hyper M.2 x16 Card V2", "pc_components"),
+            ("Весы Tefal Premiss PP1400V0, белый", "beauty"),
+            ("Турка электрическая Centek CT-1097SS сталь", "kitchen_appliances"),
+            ("Минимойка высокого давления KARCHER K 3 Power Control", "tools_repair"),
+            ("Микрофон Thronmax M20 Streaming Kit", "audio"),
+            ("Корм для кошек с лососем в желе «Felix Аппетитные кусочки», 75 г", "cat_food"),
+            ("HD Корм для собак сух.Sensible Франция (утка) 300гр", "dog_food"),
+            ("Утюг Tefal Express Steam FV2837E0", "appliances"),
         ]
         for title, expected_cat_id in cases:
             with self.subTest(title=title):
