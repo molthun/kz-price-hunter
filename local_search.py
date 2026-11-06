@@ -55,6 +55,24 @@ def clean_plan(answer, query, categories):
         if not cid:
             return None
         name = ''
+    # Защитные правила маршрутизации: приборы целиком vs расходники и общие категории
+    q_low = query.casefold()
+    if ('пылесос' in q_low or 'vacuum' in q_low) and not any(p in q_low for p in ('мешок', 'мешки', 'фильтр', 'насадк', 'салфетк', 'щетк', 'аксессуар', 'расходник', 'запчаст', 'трубк', 'шланг')):
+        if cid in ('vacuum_parts', 'appliances', ''):
+            cid = 'vacuums'
+    elif ('посудомоечн' in q_low or 'посудомойк' in q_low or 'dishwasher' in q_low) and not any(p in q_low for p in ('таблетк', 'соль', 'ополаскивател', 'порошок', 'корзин', 'фасад')):
+        if cid in ('appliances', 'kitchen_appliances', ''):
+            cid = 'dishwashers'
+    elif ('холодильник' in q_low or 'fridge' in q_low or 'refrigerator' in q_low) and not any(p in q_low for p in ('магнит', 'полк', 'ручк', 'уплотнител', 'термостат', 'реле')):
+        if cid in ('appliances', ''):
+            cid = 'refrigerators'
+    elif ('стиральн' in q_low or 'стиралк' in q_low or 'washer' in q_low) and not any(p in q_low for p in ('порошок', 'капсул', 'гель', 'шланг', 'ремень', 'манжет', 'подшипник')):
+        if cid in ('appliances', ''):
+            cid = 'washing_machines'
+    elif ('шина' in q_low or 'шины' in q_low or 'резина' in q_low or 'tires' in q_low or 'tire' in q_low) and not any(p in q_low for p in ('бензопил', 'электропил', 'пилы', 'пил', 'цепь')):
+        if cid in ('auto', 'auto_goods', ''):
+            cid = 'tires'
+
     if cid in by_id:
         name = by_id[cid]['name']
     elif not KEY.fullmatch(cid) or not re.fullmatch(r'[\w\s()/–—-]{2,80}', name):
