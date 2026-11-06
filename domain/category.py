@@ -128,6 +128,12 @@ MASTER_TAXONOMY: List[Category] = [
         icon="⌚️",
         search_priority=89,
         aliases=["смарт-часы", "умные часы", "фитнес-браслеты", "смарт часы", "smart watch", "apple watch"],
+        attributes_schema={
+            "case_size": {"label": "Размер корпуса", "type": "string"},
+            "screen_tech": {"label": "Тип дисплея", "type": "string"},
+            "cellular": {"label": "Поддержка eSIM / 4G", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="headphones",
@@ -136,6 +142,12 @@ MASTER_TAXONOMY: List[Category] = [
         icon="🎧",
         search_priority=88,
         aliases=["наушники", "гарнитуры", "беспроводные наушники", "tws", "airpods", "headphones"],
+        attributes_schema={
+            "type": {"label": "Тип конструкции", "type": "string"},
+            "wireless": {"label": "Беспроводные", "type": "string"},
+            "anc": {"label": "Шумоподавление (ANC)", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="pc_desktops",
@@ -153,6 +165,14 @@ MASTER_TAXONOMY: List[Category] = [
         icon="📺",
         search_priority=87,
         aliases=["телевизоры", "тв", "smart tv", "televisions", "oled", "qled", "проекторы", "проектор"],
+        attributes_schema={
+            "screen_diagonal": {"label": "Диагональ экрана", "type": "string"},
+            "resolution": {"label": "Разрешение", "type": "string"},
+            "screen_tech": {"label": "Технология экрана", "type": "string"},
+            "smart_tv": {"label": "Smart TV", "type": "string"},
+            "refresh_rate": {"label": "Частота обновления", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="consoles",
@@ -425,6 +445,13 @@ MASTER_TAXONOMY: List[Category] = [
         icon="🌬",
         search_priority=80,
         aliases=["кондиционеры", "сплит-системы", "климатическая техника", "air conditioners"],
+        attributes_schema={
+            "type": {"label": "Тип", "type": "string"},
+            "power_btu": {"label": "Мощность (BTU)", "type": "string"},
+            "area_sqm": {"label": "Рекомендуемая площадь", "type": "string"},
+            "inverter": {"label": "Инверторный компрессор", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="dishwashers",

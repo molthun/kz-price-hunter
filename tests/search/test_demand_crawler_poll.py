@@ -119,6 +119,20 @@ class SearchDemandCrawlerPollTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(items[0]["found"], 2)
         self.assertIn("найдено 2 товаров", items[0]["message"])
 
+    def test_claim_batch_includes_needs_source(self):
+        plan = {"category_id": "appliances", "category_name": "Бытовая техника", "fields": []}
+        item = self.repo.propose("посудомоечная машина", "Астана", plan, auto_approve=True)
+        # Simulate local_search worker setting it to needs_source after checking 0 items in local db
+        self.repo.finish(item["id"], status="needs_source", found=0, message="В подключённых источниках подходящий ассортимент не подтверждён.")
+        row = self.repo.get(item["id"])
+        self.assertEqual(row["status"], "needs_source")
+
+        # Crawler batch should pick it up because it needs store sources!
+        batch = self.repo.claim_batch_for_crawl(limit=5)
+        self.assertEqual(len(batch), 1)
+        self.assertEqual(batch[0]["id"], item["id"])
+        self.assertEqual(batch[0]["status"], "checking")
+
     def test_local_search_scarce_results_registers_demand(self):
         """Simulate search_sync with < 5 results registering demand into CatalogExpansionRepository."""
         import local_search

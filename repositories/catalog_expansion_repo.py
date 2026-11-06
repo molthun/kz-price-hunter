@@ -216,24 +216,26 @@ class CatalogExpansionRepository:
         return self.get(row[0]) if row else None
 
     def claim_batch_for_crawl(self, limit: int = 5):
-        """Claims top approved expansion tasks for polling during crawler cycle.
+        """Claims top approved or source-seeking expansion tasks for polling during crawler cycle.
         Tasks with higher demand get prioritized.
         """
         cutoff = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
+        retry_cutoff = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
         self.conn.execute("UPDATE catalog_expansions SET status='approved' WHERE status='checking' AND updated_at<?", (cutoff,))
         cur = self.conn.execute("""
             SELECT id FROM catalog_expansions
             WHERE status='approved'
+               OR (status='needs_source' AND (source_health='{}' OR checked_at IS NULL OR checked_at < ?))
             ORDER BY demand DESC, updated_at ASC
             LIMIT ?
-        """, (limit,))
+        """, (retry_cutoff, limit))
         rows = cur.fetchall()
         tasks = []
         for (ident,) in rows:
             cur_upd = self.conn.execute("""
                 UPDATE catalog_expansions
                 SET status='checking', generation=generation+1, attempts=attempts+1, updated_at=?
-                WHERE id=? AND status='approved'
+                WHERE id=? AND status IN ('approved', 'needs_source')
                 RETURNING id
             """, (now(), ident))
             r = cur_upd.fetchone()
@@ -242,13 +244,14 @@ class CatalogExpansionRepository:
         self._commit()
         return tasks
 
-    def finish_crawl_poll(self, ident: str, found: int, message: str, status: str = 'indexed'):
+    def finish_crawl_poll(self, ident: str, found: int, message: str, status: str = 'indexed', source_health: str = None):
         stamp = now()
+        health = source_health or json.dumps({"crawled": True, "found": found})
         self.conn.execute("""
             UPDATE catalog_expansions
-            SET status=?, found=?, message=?, checked_at=?, updated_at=?
+            SET status=?, found=?, message=?, source_health=?, checked_at=?, updated_at=?
             WHERE id=? AND status NOT IN ('rejected', 'deleted')
-        """, (status, found, message, stamp, stamp, ident))
+        """, (status, found, message, health, stamp, stamp, ident))
         self._commit()
 
     def finish(self, ident, status, found, message, scan_offset=0, failures=0, generation=None):

@@ -1013,6 +1013,10 @@ class SearchRepository(BaseRepository):
         cat_key = arguments.get('category') or ''
         priority_orders = {
             'diapers_hygiene': ['diaper_type', 'diaper_size', 'weight_range', 'pieces_count'],
+            'tv': ['screen_diagonal', 'resolution', 'screen_tech', 'smart_tv', 'refresh_rate', 'color'],
+            'air_conditioners': ['type', 'power_btu', 'area_sqm', 'inverter', 'color'],
+            'headphones': ['type', 'wireless', 'anc', 'color'],
+            'smartwatches': ['case_size', 'screen_tech', 'cellular', 'color'],
             'phones': ['storage', 'ram', 'color', 'screen_size', '5g', 'nfc'],
             'laptops': ['cpu', 'ram', 'storage', 'screen_size', 'gpu'],
             'refrigerators': ['refrigeration_defrost', 'energy_class', 'capacity', 'noise_level', 'color'],

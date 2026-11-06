@@ -215,6 +215,79 @@ class AttributeFacetsFilterTests(unittest.TestCase):
         assert "Inno3D" not in models_dict
         assert "V8" not in models_dict
 
+    def test_extract_title_attributes_tv_ac_headphones_smartwatches(self):
+        from domain.attribute_indexing import extract_title_attributes
+
+        # 1. Телевизор (TV)
+        tv1 = extract_title_attributes('Телевизор LG OLED55C3RLA 55" 4K UHD Smart TV 120Hz')
+        self.assertEqual(tv1.get('screen_diagonal'), '55"')
+        self.assertEqual(tv1.get('resolution'), '4K UHD')
+        self.assertEqual(tv1.get('screen_tech'), 'OLED')
+        self.assertEqual(tv1.get('smart_tv'), 'Да')
+        self.assertEqual(tv1.get('refresh_rate'), '120 Гц')
+
+        tv2 = extract_title_attributes('Телевизор Samsung 65" QLED 4K Smart TV черный')
+        self.assertEqual(tv2.get('screen_diagonal'), '65"')
+        self.assertEqual(tv2.get('screen_tech'), 'QLED')
+        self.assertEqual(tv2.get('color'), 'Черный')
+
+        # 2. Наушники (Headphones)
+        hp1 = extract_title_attributes('Беспроводные наушники Apple AirPods Pro 2 TWS с ANC белый')
+        self.assertEqual(hp1.get('wireless'), 'Да')
+        self.assertEqual(hp1.get('type'), 'Внутриканальные / TWS')
+        self.assertEqual(hp1.get('anc'), 'Да')
+        self.assertEqual(hp1.get('color'), 'Белый')
+
+        hp2 = extract_title_attributes('Проводные полноразмерные наушники Sony MDR-7506 черный')
+        self.assertEqual(hp2.get('wireless'), 'Нет')
+        self.assertEqual(hp2.get('type'), 'Полноразмерные')
+
+        # 3. Кондиционеры (Air Conditioners)
+        ac1 = extract_title_attributes('Сплит-система инверторный кондиционер Midea 09 (до 25 м²) белый')
+        self.assertEqual(ac1.get('type'), 'Сплит-система')
+        self.assertEqual(ac1.get('inverter'), 'Да')
+        self.assertEqual(ac1.get('power_btu'), '09 (до 25 м²)')
+        self.assertEqual(ac1.get('area_sqm'), 'до 25 м²')
+
+        ac2 = extract_title_attributes('Мобильный кондиционер Zanussi 12 BTU белый')
+        self.assertEqual(ac2.get('type'), 'Мобильный')
+        self.assertEqual(ac2.get('power_btu'), '12 (до 35 м²)')
+
+        # 4. Смарт-часы (Smartwatches)
+        sw1 = extract_title_attributes('Смарт-часы Apple Watch Series 9 45mm Cellular темная ночь')
+        self.assertEqual(sw1.get('case_size'), '45 мм')
+        self.assertEqual(sw1.get('cellular'), 'Да')
+        self.assertEqual(sw1.get('color'), 'Черный')
+
+        sw2 = extract_title_attributes('Умные часы Samsung Galaxy Watch 6 40mm AMOLED серебристый')
+        self.assertEqual(sw2.get('case_size'), '40 мм')
+        self.assertEqual(sw2.get('screen_tech'), 'AMOLED')
+        self.assertEqual(sw2.get('color'), 'Серебристый')
+
+    def test_category_schema_and_search_priority_orders(self):
+        from domain.category import MASTER_TAXONOMY
+        from repositories.category_repo import CategoryRepository
+
+        cats = {c.id: c for c in MASTER_TAXONOMY}
+        for cat_id in ('tv', 'headphones', 'air_conditioners', 'smartwatches'):
+            self.assertIn(cat_id, cats)
+            self.assertGreater(len(cats[cat_id].attributes_schema), 0)
+
+        conn = create_test_db()
+        repo = CategoryRepository(conn)
+        repo.sync_master_taxonomy()
+
+        tv_cat = repo.get_by_id('tv')
+        self.assertIsNotNone(tv_cat)
+        self.assertIn('screen_diagonal', tv_cat.attributes_schema)
+        self.assertIn('resolution', tv_cat.attributes_schema)
+        self.assertIn('screen_tech', tv_cat.attributes_schema)
+
+        ac_cat = repo.get_by_id('air_conditioners')
+        self.assertIsNotNone(ac_cat)
+        self.assertIn('power_btu', ac_cat.attributes_schema)
+        self.assertIn('inverter', ac_cat.attributes_schema)
+
 
 if __name__ == "__main__":
     unittest.main()

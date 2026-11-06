@@ -197,12 +197,21 @@ def normalize_attribute_value(key: str, raw_value: Any) -> Optional[str]:
         return None
 
     # Булевы значения
+    _BOOLEAN_KEYS = ('5g', 'nfc', 'studs', 'installment_available', 'credit_available', 'pickup_available', 'is_active', 'has_gift',
+                     'smart_tv', 'inverter', 'wireless', 'anc', 'cellular')
     if val.casefold() in ('да', 'true', 'есть'):
-        return 'Да' if key in ('5g', 'nfc', 'studs', 'installment_available', 'credit_available', 'pickup_available', 'is_active', 'has_gift') else None
+        return 'Да' if key in _BOOLEAN_KEYS else None
     if val.casefold() in ('нет', 'false'):
-        return 'Нет' if key in ('5g', 'nfc', 'studs', 'installment_available', 'credit_available', 'pickup_available', 'is_active', 'has_gift') else None
-    if val in ('1', '0') and key in ('5g', 'nfc', 'studs', 'installment_available', 'credit_available', 'pickup_available', 'is_active', 'has_gift'):
+        return 'Нет' if key in _BOOLEAN_KEYS else None
+    if val in ('1', '0') and key in _BOOLEAN_KEYS:
         return 'Да' if val == '1' else 'Нет'
+
+    # Диагональ экрана (screen_diagonal, screen_size)
+    if key in ('screen_diagonal', 'screen_size'):
+        m_diag = re.search(r'\b(\d+(?:\.\d+)?)\s*(?:"|\'\'|дюйм\w*)|\b(\d{2,3})\b', val, re.I)
+        if m_diag:
+            d_num = m_diag.group(1) or m_diag.group(2)
+            return f'{d_num}"'
 
     # Память (ГБ, ТБ): storage, ram, vram
     if key in ('storage', 'ram', 'vram'):
@@ -540,10 +549,10 @@ def normalize_attribute_value(key: str, raw_value: Any) -> Optional[str]:
 
 
 COLOR_PATTERNS = [
-    (r'(?i)\b(?:черн(?:ый|ая|ое|ые|ую|ом|ого)|black)\b', 'Черный'),
+    (r'(?i)\b(?:черн(?:ый|ая|ое|ые|ую|ом|ого)|black|midnight|темная\s+ночь)\b', 'Черный'),
     (r'(?i)\b(?:бел(?:ый|ая|ое|ые|ую|ом|ого)|white)\b', 'Белый'),
     (r'(?i)\b(?:син(?:ий|яя|ее|ие|юю|ем|его)|blue)\b', 'Синий'),
-    (r'(?i)\b(?:сер(?:ый|ая|ое|ые|ую|ом|ого)|gray|grey)\b', 'Серый'),
+    (r'(?i)\b(?:сер(?:ый|ая|ое|ые|ую|ом|ого)|gray|grey|space\s+gray)\b', 'Серый'),
     (r'(?i)\b(?:серебр(?:истый|истая|истое|истые|истую|истом)|silver)\b', 'Серебристый'),
     (r'(?i)\b(?:золот(?:ой|ая|ое|ые|ую|ом|ого|истый|истая|истое)|gold)\b', 'Золотистый'),
     (r'(?i)\b(?:зелен(?:ый|ая|ое|ые|ую|ом|ого)|green)\b', 'Зеленый'),
@@ -552,7 +561,7 @@ COLOR_PATTERNS = [
     (r'(?i)\b(?:розов(?:ый|ая|ое|ые|ую|ом|ого)|pink)\b', 'Розовый'),
     (r'(?i)\b(?:желт(?:ый|ая|ое|ые|ую|ом|ого)|yellow)\b', 'Желтый'),
     (r'(?i)\b(?:оранжев(?:ый|ая|ое|ые|ую|ом|ого)|orange)\b', 'Оранжевый'),
-    (r'(?i)\b(?:бежев(?:ый|ая|ое|ые|ую|ом|ого)|beige)\b', 'Бежевый'),
+    (r'(?i)\b(?:бежев(?:ый|ая|ое|ые|ую|ом|ого)|beige|starlight|сияющая\s+звезда)\b', 'Бежевый'),
     (r'(?i)\b(?:титан(?:овый|овая|овое|овые|овую|овом)|titanium)\b', 'Титановый'),
 ]
 
@@ -984,6 +993,101 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
         if m_cap:
             attrs['capacity_sets'] = f"{m_cap.group(1)} комплектов"
 
+    # 11. Телевизоры
+    is_tv = bool(re.search(r'\b(телевизор\w*|\btv\b|oled|qled|led\s+тв|smart\s+tv)\b', title, re.I))
+    if is_tv:
+        # Диагональ
+        m_diag = re.search(r'\b(24|32|40|42|43|50|55|58|65|70|75|77|85|86|98|100)\s*(?:"|\'\'|дюйм\w*)|\b(24|32|40|42|43|50|55|58|65|70|75|77|85|86|98|100)\b(?=\s*(?:[A-Za-z0-9_-]+\s*)?(?:oled|qled|uhd|4k|smart|led|fhd))', title, re.I)
+        if m_diag:
+            d_val = m_diag.group(1) or m_diag.group(2)
+            attrs['screen_diagonal'] = f'{d_val}"'
+        # Разрешение
+        if re.search(r'\b(4k|uhd|ultra\s*hd|3840\s*[xх]\s*2160)\b', title, re.I):
+            attrs['resolution'] = '4K UHD'
+        elif re.search(r'\b(8k|7680\s*[xх]\s*4320)\b', title, re.I):
+            attrs['resolution'] = '8K'
+        elif re.search(r'\b(full\s*hd|fhd|1080p|1920\s*[xх]\s*1080)\b', title, re.I):
+            attrs['resolution'] = 'Full HD'
+        elif re.search(r'\b(hd\s*ready|\bhd\b)\b', title, re.I):
+            attrs['resolution'] = 'HD'
+        # Технология экрана
+        if re.search(r'\bmini[- ]?led\b', title, re.I):
+            attrs['screen_tech'] = 'Mini LED'
+        elif re.search(r'\boled(?:\d|\b)', title, re.I):
+            attrs['screen_tech'] = 'OLED'
+        elif re.search(r'\b(?:neo\s+)?qled(?:\d|\b)', title, re.I):
+            attrs['screen_tech'] = 'QLED'
+        elif re.search(r'\bnanocell\b', title, re.I):
+            attrs['screen_tech'] = 'NanoCell'
+        elif re.search(r'\bled\b', title, re.I):
+            attrs['screen_tech'] = 'LED'
+        # Smart TV
+        if re.search(r'\b(smart\s*tv|смарт\s*тв|android\s*tv|google\s*tv|webos|tizen|салют\s*тв|яндекс\s*тв|vidaa)\b', title, re.I):
+            attrs['smart_tv'] = 'Да'
+        # Частота обновления
+        m_hz = re.search(r'\b(60|120|144)\s*(?:гц|hz)\b', title, re.I)
+        if m_hz:
+            attrs['refresh_rate'] = f"{m_hz.group(1)} Гц"
+
+    # 12. Наушники
+    is_hp = bool(re.search(r'\b(наушник\w*|гарнитур\w*|airpods|earbuds|headphones|tws)\b', title, re.I))
+    if is_hp:
+        if re.search(r'\b(беспроводн\w*|bluetooth|tws|true\s+wireless)\b', title, re.I):
+            attrs['wireless'] = 'Да'
+        elif re.search(r'\b(проводн\w*)\b', title, re.I):
+            attrs['wireless'] = 'Нет'
+        if re.search(r'\b(tws|внутриканальн\w*|вкладыш\w*|затычки)\b', title, re.I):
+            attrs['type'] = 'Внутриканальные / TWS'
+        elif re.search(r'\b(полноразмерн\w*|охватывающ\w*|over[- ]ear)\b', title, re.I):
+            attrs['type'] = 'Полноразмерные'
+        elif re.search(r'\b(накладн\w*|on[- ]ear)\b', title, re.I):
+            attrs['type'] = 'Накладные'
+        if re.search(r'\b(anc|шумоподавлен\w*|active\s+noise)\b', title, re.I):
+            attrs['anc'] = 'Да'
+
+    # 13. Кондиционеры
+    is_ac = bool(re.search(r'\b(кондиционер\w*|сплит[- ]систем\w*|климатическ\w*)\b', title, re.I))
+    if is_ac:
+        if re.search(r'\bмобильн\w*\b', title, re.I):
+            attrs['type'] = 'Мобильный'
+        elif re.search(r'\bсплит[- ]систем\w*\b', title, re.I):
+            attrs['type'] = 'Сплит-система'
+        if re.search(r'\b(инвертор\w*|inverter)\b', title, re.I):
+            attrs['inverter'] = 'Да'
+        elif re.search(r'\b(on[- ]off|неинвертор\w*)\b', title, re.I):
+            attrs['inverter'] = 'Нет'
+        # Мощность BTU и площадь
+        m_btu = re.search(r'\b(07|09|12|18|24)\b|\b(7000|9000|12000|18000|24000)\s*(?:btu|бте)?\b|\b(7|9|12|18|24)\s*k\b', title, re.I)
+        if m_btu:
+            raw_btu = m_btu.group(1) or m_btu.group(3) or str(int(m_btu.group(2)) // 1000)
+            btu_map = {
+                '7': ('07 (до 20 м²)', 'до 20 м²'),
+                '07': ('07 (до 20 м²)', 'до 20 м²'),
+                '9': ('09 (до 25 м²)', 'до 25 м²'),
+                '09': ('09 (до 25 м²)', 'до 25 м²'),
+                '12': ('12 (до 35 м²)', 'до 35 м²'),
+                '18': ('18 (до 50 м²)', 'до 50 м²'),
+                '24': ('24 (до 70 м²)', 'до 70 м²'),
+            }
+            if raw_btu in btu_map:
+                attrs['power_btu'] = btu_map[raw_btu][0]
+                attrs['area_sqm'] = btu_map[raw_btu][1]
+
+    # 14. Смарт-часы
+    is_sw = bool(re.search(r'\b(смарт[- ]час\w*|умные\s+часы|apple\s+watch|galaxy\s+watch|watch\s*(?:\d|se|ultra)|фитнес[- ]браслет\w*)\b', title, re.I))
+    if is_sw:
+        m_cs = re.search(r'\b(38|40|41|42|44|45|46|47|49)\s*(?:mm|мм)\b', title, re.I)
+        if m_cs:
+            attrs['case_size'] = f"{m_cs.group(1)} мм"
+        if re.search(r'\b(cellular|lte|esim|4g)\b', title, re.I):
+            attrs['cellular'] = 'Да'
+        if re.search(r'\bamoled\b', title, re.I):
+            attrs['screen_tech'] = 'AMOLED'
+        elif re.search(r'\boled\b', title, re.I):
+            attrs['screen_tech'] = 'OLED'
+        elif re.search(r'\bips\b', title, re.I):
+            attrs['screen_tech'] = 'IPS'
+
     return attrs
 
 
@@ -1113,13 +1217,14 @@ def index_product_facts(conn, product_id: str, facts: List[Dict[str, Any]], prod
 _SYNC_TITLE_SCOPE = '''
     p.category IN ('Подгузники и гигиена', 'diapers_hygiene', 'Бытовая техника', 'appliances', 'refrigerators',
                    'washing_machines', 'dishwashers', 'Посудомоечные машины', 'vacuums', 'Мониторы', 'Комплектующие для ПК', 'Видеокарты', 'monitors',
-                   'pc_parts', 'gpus')
+                   'pc_parts', 'gpus', 'tv', 'Телевизоры', 'headphones', 'Наушники', 'air_conditioners', 'Кондиционеры', 'smartwatches', 'Смарт-часы')
     OR p.title LIKE '%подгуз%' OR p.title LIKE '%трусик%' OR p.title LIKE '%памперс%'
     OR p.title LIKE '%холодильн%' OR p.title LIKE '%стиральн%' OR p.title LIKE '%посудомо%' OR p.title LIKE '%пылесос%'
     OR p.title LIKE '%монитор%' OR p.title LIKE '%видеокарт%' OR p.title LIKE '%geforce%'
     OR p.title LIKE '%radeon%' OR p.title LIKE '%материнск%' OR p.title LIKE '%блок питания%'
     OR p.title LIKE '%ssd%' OR p.title LIKE '%оперативн%памят%' OR p.title LIKE '%ddr5%'
-    OR p.title LIKE '%ddr4%'
+    OR p.title LIKE '%ddr4%' OR p.title LIKE '%телевизор%' OR p.title LIKE '%наушник%'
+    OR p.title LIKE '%кондиционер%' OR p.title LIKE '%сплит-систем%' OR p.title LIKE '%смарт-час%'
 '''
 
 

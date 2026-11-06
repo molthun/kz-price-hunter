@@ -1446,7 +1446,10 @@ async def review_catalog_expansion_handler(request):
                 return CatalogExpansionRepository(conn).review(request.match_info['id'], body['decision'] == 'approve')
             finally:
                 conn.close()
-        return web.json_response({'ok': True, 'item': await asyncio.to_thread(_review)})
+        reviewed_item = await asyncio.to_thread(_review)
+        if body.get('decision') == 'approve':
+            asyncio.create_task(_poll_pending_demand_queries(max_queries=1))
+        return web.json_response({'ok': True, 'item': reviewed_item})
     except (ValueError, TypeError) as exc:
         return web.json_response({'ok': False, 'error': str(exc)}, status=400)
 

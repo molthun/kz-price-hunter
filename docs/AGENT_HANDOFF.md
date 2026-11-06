@@ -2,6 +2,44 @@
 
 Общие правила: [AGENTS.md](../AGENTS.md). Требования и проверки: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
+## READY_FOR_AUDIT → Владелец / Codex: Богатые характеристики и фасеты для TV, кондиционеров, наушников и смарт-часов, бесперебойный опрос дефицитного спроса v6.28.19 (2026-11-06)
+
+- Поручение владельца: «Продолжай все по очереди и что еще у нас там в плане». Прод не трогаем — работа только локально и на стенде.
+- Исполнитель: Antigravity (основной разработчик).
+- Дата и время: 2026-11-06 13:50 (Asia/Almaty).
+- Срез: ветка `codex/local-ai-catalog-growth`, версия `6.28.19`.
+- Область файлов:
+  - `repositories/catalog_expansion_repo.py`
+  - `web/server.py`
+  - `domain/category.py`
+  - `domain/attribute_indexing.py`
+  - `repositories/search_repo.py`
+  - `tests/search/test_demand_crawler_poll.py`
+  - `tests/search/test_attribute_facets_filter.py`
+  - `version.py`, `CHANGELOG.md`, `docs/AGENT_HANDOFF.md`
+- Реализовано:
+  1. `repositories/catalog_expansion_repo.py`:
+     - Расширен `claim_batch_for_crawl`: теперь опрашивает не только `status='approved'`, но и `status='needs_source'` с непроверенными источниками (`source_health='{}'`). Это устранило краевой случай, когда быстрый локальный ИИ успевал перевести запрос в `needs_source` до первого прохода краулера.
+     - `finish_crawl_poll`: теперь корректно обновляет `source_health`, сохраняя информацию о выполненном опросе.
+  2. `web/server.py`:
+     - В `review_catalog_expansion_handler` добавлена моментальная постановка фоновой задачи опроса магазинов `_poll_pending_demand_queries(max_queries=1)` при одобрении или перезапуске администратором в панели `/admin`.
+  3. Таксономия и схемы атрибутов (`domain/category.py`, `domain/attribute_indexing.py`, `repositories/search_repo.py`):
+     - **Телевизоры (`tv`)**: диагональ экрана (`screen_diagonal`: `32"`, `43"`, `50"`, `55"`, `65"`, `75"`, `85"`), разрешение (`resolution`: `4K UHD`, `Full HD`, `HD`, `8K`), технология матрицы (`screen_tech`: `OLED`, `QLED`, `LED`, `Mini LED`, `NanoCell`), `smart_tv` (`Да`/`Нет`), частота обновления (`refresh_rate`: `60 Гц`, `120 Гц`, `144 Гц`).
+     - **Кондиционеры (`air_conditioners`)**: тип (`Сплит-система`, `Мобильный`), мощность BTU (`07`, `09`, `12`, `18`, `24`), площадь (`до 20 м²`, `до 25 м²`, `до 35 м²`, `до 50 м²`, `до 70 м²`), инвертор (`Да`/`Нет`).
+     - **Наушники (`headphones`)**: тип конструкции (`Внутриканальные / TWS`, `Полноразмерные`, `Накладные`), беспроводные (`Да`/`Нет`), ANC (`Да`/`Нет`).
+     - **Смарт-часы (`smartwatches`)**: размер корпуса (`40 мм`, `41 мм`, `44 мм`, `45 мм`, `49 мм`), тип экрана (`AMOLED`, `OLED`, `IPS`), cellular / eSIM (`Да`/`Нет`).
+     - Поддержка фирменных цветов Apple, включая Dark Night / Midnight (`темная ночь` → «Черный»).
+     - Расширен `_SYNC_TITLE_SCOPE` для всех четырех категорий.
+     - Настроен `priority_orders` в `repositories/search_repo.py`.
+  4. Тесты:
+     - `tests/search/test_demand_crawler_poll.py`: тест `test_claim_batch_includes_needs_source`.
+     - `tests/search/test_attribute_facets_filter.py`: тесты извлечения характеристик и приоритизации фасетов для TV, кондиционеров, наушников и смарт-часов.
+     - Полный suite: 2840 passed, 0 failed (100% pass rate).
+- Следующий шаг:
+  - Выкатка бандла `kzph-v6.28.19.bundle` на стенд `shdev.molthun.ru`, проверка и фиксация свидетельств.
+
+---
+
 ## READY_FOR_AUDIT → Владелец / Codex: Автоматический опрос поискового спроса при обходе (не теряя поиск) v6.28.18 (2026-11-06)
 
 - Поручение владельца: «То что ищут нужно опрашивать чтоб не терялся поиск. не сразу а хотя бы при следующем обходе.», «пока администратор вручную не одобрял расширение каталога в /admin. не все запросы там были. Посудомоечная машина не падала туда», «Делай». Прод не трогаем — работа только локально и на стенде.
