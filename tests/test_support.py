@@ -16,7 +16,10 @@ REPO_DIR = Path(__file__).resolve().parents[1]
 
 
 def _is_repo_dir(value):
-    return not value or Path(value).resolve() == REPO_DIR
+    if not value:
+        return True
+    resolved = Path(value).resolve()
+    return resolved == REPO_DIR or resolved == REPO_DIR / "data" or str(resolved) == "/app/data"
 
 
 if _is_repo_dir(os.environ.get("DATA_DIR")):

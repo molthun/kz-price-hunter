@@ -473,6 +473,42 @@ class AttributeFacetsFilterTests(unittest.TestCase):
         self.assertEqual(ap1.get('type'), 'Утюг')
         self.assertEqual(ap1.get('power'), '2400 Вт')
 
+        # 17. Волна 5: Продукты, Напитки, Молочные продукты, Лекарства, Косметика, Детские товары, Авто, Картриджи, Фото/Видео
+        fmcg1 = extract_title_attributes('СЫР «ПРЕЗИДЕНТ» 45% КАМАМБЕР С БЕЛОЙ ПЛЕСЕНЬЮ 125 ГР')
+        self.assertEqual(fmcg1.get('type'), 'Сыр')
+        self.assertEqual(fmcg1.get('fat_content'), '45%')
+        self.assertEqual(fmcg1.get('pack_weight'), '125 г')
+
+        dr1 = extract_title_attributes('НАПИТОК ГАЗИРОВАННЫЙ «COCA-COLA» 1,5 Л')
+        self.assertEqual(dr1.get('type'), 'Газированные и энергетические напитки')
+        self.assertEqual(dr1.get('volume_ml'), '1.5 л')
+
+        ph1 = extract_title_attributes('Кетонал ДУО 150мг № 30 капс')
+        self.assertEqual(ph1.get('type'), 'Капсулы')
+        self.assertEqual(ph1.get('dosage'), '150 мг')
+        self.assertEqual(ph1.get('pieces_count'), '30 шт.')
+
+        bb1 = extract_title_attributes('Молочко NAN 3 Optipro 1050г с 12месяцев')
+        self.assertEqual(bb1.get('type'), 'Молочные смеси')
+        self.assertEqual(bb1.get('pack_weight'), '1050 г')
+        self.assertEqual(bb1.get('age_from'), 'с 12 мес.')
+
+        hc1 = extract_title_attributes('Электробритва Panasonic ES-SL41-S520')
+        self.assertEqual(hc1.get('type'), 'Бритвы, триммеры и эпиляторы')
+
+        sk1 = extract_title_attributes('Крем для лица MIXIT солнцезащитный SPF50, 50 мл')
+        self.assertEqual(sk1.get('type'), 'Уход за лицом и губами')
+        self.assertEqual(sk1.get('spf'), 'SPF 50+')
+        self.assertEqual(sk1.get('volume_ml'), '50 мл')
+
+        ink1 = extract_title_attributes('Картридж HP C3906A - Black')
+        self.assertEqual(ink1.get('type'), 'Картридж для принтера')
+        self.assertEqual(ink1.get('print_color'), 'Черный (Black)')
+
+        pv1 = extract_title_attributes('Web-камера Logitech HD C922 Pro Stream Full HD 1080p')
+        self.assertEqual(pv1.get('type'), 'Веб-камера / Стриминг')
+        self.assertEqual(pv1.get('resolution'), 'Full HD 1080p')
+
     def test_category_schema_and_search_priority_orders(self):
         from domain.category import MASTER_TAXONOMY
         from repositories.category_repo import CategoryRepository
@@ -485,7 +521,10 @@ class AttributeFacetsFilterTests(unittest.TestCase):
                        'clothing', 'furniture', 'tools_repair', 'perfume', 'beauty', 'toys',
                        'pc_desktops', 'motherboards', 'cooling', 'audio', 'books_stationery',
                        'books', 'pets', 'cat_food', 'dog_food', 'kitchenware', 'appliances',
-                       'home', 'home_textile', 'garden'):
+                       'home', 'home_textile', 'garden', 'food', 'drinks', 'dairy', 'meat_poultry',
+                       'medicine', 'household_chem', 'kids', 'baby_care', 'baby_food', 'strollers',
+                       'makeup', 'haircare', 'skincare', 'auto', 'phone_cases', 'printer_ink',
+                       'tourism', 'board_games', 'photo_video'):
             self.assertIn(cat_id, cats)
             self.assertGreater(len(cats[cat_id].attributes_schema), 0)
 

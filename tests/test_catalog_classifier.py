@@ -442,6 +442,14 @@ class TestCatalogClassifier(unittest.TestCase):
             ("Корм для кошек с лососем в желе «Felix Аппетитные кусочки», 75 г", "cat_food"),
             ("HD Корм для собак сух.Sensible Франция (утка) 300гр", "dog_food"),
             ("Утюг Tefal Express Steam FV2837E0", "appliances"),
+            ("Коляска 3 в 1 для кукол Demi Star 9662G", "toys"),
+            ("Коляска прогулочная Cybex Balios S Lux", "strollers"),
+            ("ВОДА «БОРЖОМИ» МИНЕРАЛЬНАЯ ГАЗ 750 МЛ ПЭТ", "drinks"),
+            ("ПАСТА ЗУБНАЯ «SPLAT» АКТИВ 100 МЛ", "beauty"),
+            ("Электробритва Panasonic ES-SL41-S520", "haircare"),
+            ("Сумка для ноутбука Tucano 15.6\"", "phone_cases"),
+            ("Web-камера Logitech HD C922 Pro Stream", "photo_video"),
+            ("Часы настенные 3D Жемчуг d=120 см", "home_textile"),
         ]
         for title, expected_cat_id in cases:
             with self.subTest(title=title):

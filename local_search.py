@@ -155,6 +155,30 @@ def clean_plan(answer, query, categories):
     elif any(w in q_low for w in ('утюг', 'отпариватель', 'парогенератор', 'увлажнитель воздуха', 'очиститель воздуха', 'водонагреватель', 'обогреватель', 'тепловентилятор')) and not any(p in q_low for p in ('игруш', 'детск', 'фильтр для', 'картридж для', 'вода для')):
         if 'appliances' in by_id:
             cid = 'appliances'
+    elif any(w in q_low for w in ('коляска для кук', 'игрушечная коляска')):
+        if 'toys' in by_id:
+            cid = 'toys'
+    elif any(w in q_low for w in ('детская коляска', 'прогулочная коляска', 'коляска 2 в 1', 'коляска 3 в 1', 'автокресло', 'автолюлька')) and 'для кук' not in q_low:
+        if 'strollers' in by_id:
+            cid = 'strollers'
+    elif any(w in q_low for w in ('картридж для принтера', 'тонер-картридж', 'чернила для принтера', 'фотобарабан')):
+        if 'printer_ink' in by_id:
+            cid = 'printer_ink'
+    elif any(w in q_low for w in ('веб-камера', 'web-камера', 'экшн-камера', 'фотоаппарат', 'видеокамера', 'штатив для камеры')) and not any(p in q_low for p in ('игруш', 'детск')):
+        if 'photo_video' in by_id:
+            cid = 'photo_video'
+    elif any(w in q_low for w in ('видеорегистратор', 'радар-детектор', 'автомагнитола', 'автокомпрессор', 'пуско-зарядное', 'моторное масло', 'антифриз')) and not any(p in q_low for p in ('игруш', 'детск')):
+        if 'auto' in by_id:
+            cid = 'auto'
+    elif any(w in q_low for w in ('электробритва', 'эпилятор', 'триммер для бороды', 'машинка для стрижки', 'фен для волос', 'выпрямитель для волос', 'шампунь для волос', 'краска для волос')) and not any(p in q_low for p in ('для животных', 'для собак', 'для кошек', 'садов', 'бензин', 'газон')):
+        if 'haircare' in by_id:
+            cid = 'haircare'
+    elif any(w in q_low for w in ('тушь для ресниц', 'губная помада', 'помада для губ', 'тональный крем', 'палетка теней', 'пудра для лица', 'блеск для губ', 'консилер')):
+        if 'makeup' in by_id:
+            cid = 'makeup'
+    elif any(w in q_low for w in ('крем для лица', 'сыворотка для лица', 'маска для лица', 'пенка для умывания', 'мицеллярная вода', 'патчи для глаз', 'гидрофильное масло')):
+        if 'skincare' in by_id:
+            cid = 'skincare'
 
     if not cid and not has_explicit_contract:
         return None

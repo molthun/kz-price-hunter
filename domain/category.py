@@ -410,6 +410,11 @@ MASTER_TAXONOMY: List[Category] = [
         icon="📷",
         search_priority=78,
         aliases=["фотоаппараты", "экшн камеры", "веб камеры", "видеонаблюдение"],
+        attributes_schema={
+            "type": {"label": "Тип устройства", "type": "string"},
+            "resolution": {"label": "Разрешение видео", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="software",
@@ -440,6 +445,12 @@ MASTER_TAXONOMY: List[Category] = [
         icon="📱",
         search_priority=65,
         aliases=["чехлы", "чехол", "чехол-накладка", "чехол-книжка", "бампер", "case", "cover"],
+        attributes_schema={
+            "type": {"label": "Тип чехла / сумки", "type": "string"},
+            "screen_size": {"label": "Диагональ устройства", "type": "string"},
+            "material": {"label": "Материал", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="phone_glass",
@@ -448,6 +459,10 @@ MASTER_TAXONOMY: List[Category] = [
         icon="🛡",
         search_priority=64,
         aliases=["защитные стекла", "защитная пленка", "защитное стекло", "бронестекло", "glass", "screen protector"],
+        attributes_schema={
+            "type": {"label": "Тип защиты", "type": "string"},
+            "color": {"label": "Цвет рамки", "type": "string"},
+        },
     ),
     Category(
         id="cables_chargers",
@@ -471,6 +486,10 @@ MASTER_TAXONOMY: List[Category] = [
         icon="🖨",
         search_priority=60,
         aliases=["картриджи", "картридж", "тонер", "тонеры", "чернила", "cartridge", "toner"],
+        attributes_schema={
+            "type": {"label": "Тип расходника", "type": "string"},
+            "print_color": {"label": "Цвет печати", "type": "string"},
+        },
     ),
 
     # 2. Бытовая техника (L1)
@@ -669,6 +688,12 @@ MASTER_TAXONOMY: List[Category] = [
             "продукты", "продукты питания", "еда", "супермаркет", "food", "grocery",
             "бакалея", "кондитерские изделия", "сладости", "шоколад", "сыр", "молоко", "яйца"
         ],
+        attributes_schema={
+            "type": {"label": "Категория продукта", "type": "string"},
+            "pack_weight": {"label": "Вес упаковки", "type": "string"},
+            "volume_ml": {"label": "Объем", "type": "string"},
+            "pieces_count": {"label": "Количество в упаковке", "type": "string"},
+        },
     ),
     Category(
         id="meat_poultry",
@@ -677,6 +702,10 @@ MASTER_TAXONOMY: List[Category] = [
         icon="🥩",
         search_priority=65,
         aliases=["мясо", "птица", "говядина", "конина", "баранина", "курица", "фарш"],
+        attributes_schema={
+            "type": {"label": "Вид продукции", "type": "string"},
+            "pack_weight": {"label": "Вес упаковки", "type": "string"},
+        },
     ),
     Category(
         id="dairy",
@@ -685,6 +714,12 @@ MASTER_TAXONOMY: List[Category] = [
         icon="🧀",
         search_priority=65,
         aliases=["молочные продукты", "молоко", "сыр", "творог", "масло сливочное", "йогурт"],
+        attributes_schema={
+            "type": {"label": "Вид продукта", "type": "string"},
+            "fat_content": {"label": "Жирность", "type": "string"},
+            "pack_weight": {"label": "Вес упаковки", "type": "string"},
+            "volume_ml": {"label": "Объем", "type": "string"},
+        },
     ),
     Category(
         id="drinks",
@@ -693,6 +728,12 @@ MASTER_TAXONOMY: List[Category] = [
         icon="🧃",
         search_priority=60,
         aliases=["напитки", "соки", "вода", "газировка", "чай", "кофе"],
+        attributes_schema={
+            "type": {"label": "Тип напитка", "type": "string"},
+            "volume_ml": {"label": "Объем", "type": "string"},
+            "pack_weight": {"label": "Вес упаковки", "type": "string"},
+            "pieces_count": {"label": "Количество пакетиков / капсул", "type": "string"},
+        },
     ),
 
     # 5. Дом и сад (L1)
@@ -768,7 +809,8 @@ MASTER_TAXONOMY: List[Category] = [
         ],
         attributes_schema={
             "type": {"label": "Назначение средства / инвентаря", "type": "string"},
-            "volume_ml": {"label": "Объем / Вес", "type": "string"},
+            "volume_ml": {"label": "Объем", "type": "string"},
+            "pack_weight": {"label": "Вес упаковки", "type": "string"},
             "pieces_count": {"label": "Количество в упаковке", "type": "string"},
         },
     ),
@@ -812,6 +854,13 @@ MASTER_TAXONOMY: List[Category] = [
             "автотовары", "запчасти", "автомасла", "авто", "автомобильные",
             "автокомпрессоры", "автодержатели",
         ],
+        attributes_schema={
+            "type": {"label": "Категория автотовара", "type": "string"},
+            "power": {"label": "Мощность", "type": "string"},
+            "voltage": {"label": "Напряжение", "type": "string"},
+            "volume_ml": {"label": "Объем", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="tires",
@@ -835,6 +884,11 @@ MASTER_TAXONOMY: List[Category] = [
         icon="📹",
         search_priority=63,
         aliases=["видеорегистраторы", "радар-детекторы", "автомагнитолы", "навигаторы", "парктроники"],
+        attributes_schema={
+            "type": {"label": "Тип устройства", "type": "string"},
+            "resolution": {"label": "Разрешение видео", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="car_oils",
@@ -843,6 +897,10 @@ MASTER_TAXONOMY: List[Category] = [
         icon="🛢",
         search_priority=62,
         aliases=["моторные масла", "автомасла", "антифриз", "омыватель", "автохимия"],
+        attributes_schema={
+            "type": {"label": "Тип средства", "type": "string"},
+            "volume_ml": {"label": "Объем", "type": "string"},
+        },
     ),
 
     # 7. Красота и здоровье (L1)
@@ -859,6 +917,7 @@ MASTER_TAXONOMY: List[Category] = [
         attributes_schema={
             "type": {"label": "Категория средства / прибора", "type": "string"},
             "volume_ml": {"label": "Объем", "type": "string"},
+            "pack_weight": {"label": "Вес упаковки", "type": "string"},
             "color": {"label": "Цвет", "type": "string"},
         },
     ),
@@ -882,6 +941,11 @@ MASTER_TAXONOMY: List[Category] = [
         icon="🧴",
         search_priority=58,
         aliases=["уход за лицом", "уход за кожей", "кремы", "сыворотки", "маски для лица"],
+        attributes_schema={
+            "type": {"label": "Тип средства", "type": "string"},
+            "volume_ml": {"label": "Объем", "type": "string"},
+            "spf": {"label": "Защита SPF", "type": "string"},
+        },
     ),
     Category(
         id="haircare",
@@ -890,6 +954,12 @@ MASTER_TAXONOMY: List[Category] = [
         icon="💇",
         search_priority=58,
         aliases=["уход за волосами", "шампуни", "бальзамы", "фены", "стайлеры", "машинки для стрижки"],
+        attributes_schema={
+            "type": {"label": "Категория средства / прибора", "type": "string"},
+            "volume_ml": {"label": "Объем", "type": "string"},
+            "power": {"label": "Мощность", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="makeup",
@@ -898,6 +968,11 @@ MASTER_TAXONOMY: List[Category] = [
         icon="💄",
         search_priority=57,
         aliases=["косметика", "макияж", "помада", "тушь", "тональный крем", "тени"],
+        attributes_schema={
+            "type": {"label": "Тип косметики", "type": "string"},
+            "volume_ml": {"label": "Объем", "type": "string"},
+            "color": {"label": "Оттенок / Цвет", "type": "string"},
+        },
     ),
 
     Category(
@@ -907,6 +982,12 @@ MASTER_TAXONOMY: List[Category] = [
         icon="💊",
         search_priority=56,
         aliases=["лекарства", "витамины", "аптека", "обезболивающие", "лекарственные средства", "бады"],
+        attributes_schema={
+            "type": {"label": "Форма выпуска", "type": "string"},
+            "dosage": {"label": "Дозировка", "type": "string"},
+            "pieces_count": {"label": "Количество в упаковке", "type": "string"},
+            "volume_ml": {"label": "Объем", "type": "string"},
+        },
     ),
 
     # 8. Детские товары (L1)
@@ -919,6 +1000,12 @@ MASTER_TAXONOMY: List[Category] = [
             "детские товары", "игрушки", "товары для детей", "коляски", "kids", "детский транспорт",
             "lego", "конструкторы", "детское питание", "подгузники", "канцелярия", "школа", "книги"
         ],
+        attributes_schema={
+            "type": {"label": "Категория детского товара", "type": "string"},
+            "age_from": {"label": "Возраст", "type": "string"},
+            "bed_size": {"label": "Размер", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="diapers_hygiene",
@@ -949,6 +1036,12 @@ MASTER_TAXONOMY: List[Category] = [
             "детское пюре", "пюре детское", "детские соки", "детская вода", "детское печенье",
             "детский чай", "friso", "nan", "nestle", "hipp", "nutrilon", "фрутоняня", "агуша", "тема", "gerber", "малютка"
         ],
+        attributes_schema={
+            "type": {"label": "Вид детского питания", "type": "string"},
+            "age_from": {"label": "Возраст", "type": "string"},
+            "pack_weight": {"label": "Вес упаковки", "type": "string"},
+            "volume_ml": {"label": "Объем", "type": "string"},
+        },
     ),
     Category(
         id="baby_feeding",
@@ -961,6 +1054,12 @@ MASTER_TAXONOMY: List[Category] = [
             "нагрудники", "слюнявчики", "молокоотсосы", "подогреватель бутылочек", "стерилизатор",
             "стульчик для кормления", "пакеты для грудного молока", "avent", "philips avent", "chicco", "canpol", "pigeon"
         ],
+        attributes_schema={
+            "type": {"label": "Предмет для кормления", "type": "string"},
+            "volume_ml": {"label": "Объем", "type": "string"},
+            "age_from": {"label": "Возраст", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="baby_bath_care",
@@ -974,6 +1073,11 @@ MASTER_TAXONOMY: List[Category] = [
             "детский аспиратор", "круг для плавания", "уход за малышом", "детская косметика",
             "weleda", "mustela", "bubchen", "бюбхен"
         ],
+        attributes_schema={
+            "type": {"label": "Тип товара", "type": "string"},
+            "volume_ml": {"label": "Объем", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="nursery_sleep",
@@ -987,6 +1091,11 @@ MASTER_TAXONOMY: List[Category] = [
             "детский шезлонг", "детские качели", "мобиль в кроватку", "радионяня",
             "видеоняня", "кокон для новорожденных", "бортики в кроватку"
         ],
+        attributes_schema={
+            "type": {"label": "Предмет детской комнаты", "type": "string"},
+            "bed_size": {"label": "Размер", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="strollers",
@@ -999,6 +1108,11 @@ MASTER_TAXONOMY: List[Category] = [
             "коляска 2 в 1", "коляска 3 в 1", "коляска трость", "автолюлька", "бустер",
             "слинг", "рюкзак кенгуру", "эргорюкзак", "cybex", "anex", "britax"
         ],
+        attributes_schema={
+            "type": {"label": "Тип коляски / автокресла", "type": "string"},
+            "weight_range": {"label": "Весовая группа", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="baby_toys",
@@ -1011,6 +1125,11 @@ MASTER_TAXONOMY: List[Category] = [
             "дуга с игрушками", "мобиль", "пирамидка", "сортер", "бизиборд", "игрушки для ванной",
             "tiny love", "fisher-price"
         ],
+        attributes_schema={
+            "type": {"label": "Вид игрушки", "type": "string"},
+            "age_from": {"label": "Возраст", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="baby_care",
@@ -1019,6 +1138,14 @@ MASTER_TAXONOMY: List[Category] = [
         icon="🍼",
         search_priority=52,
         aliases=["подгузники", "детское питание", "бутылочки", "соски", "пеленание", "товары для малышей", "мать и дитя", "товары для новорожденных", "для малышей"],
+        attributes_schema={
+            "type": {"label": "Категория товара", "type": "string"},
+            "age_from": {"label": "Возраст", "type": "string"},
+            "pack_weight": {"label": "Вес упаковки", "type": "string"},
+            "volume_ml": {"label": "Объем", "type": "string"},
+            "pieces_count": {"label": "Количество в упаковке", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
     Category(
         id="toys",
@@ -1079,6 +1206,11 @@ MASTER_TAXONOMY: List[Category] = [
         icon="⛺",
         search_priority=52,
         aliases=["палатки", "спальные мешки", "рюкзаки туристические", "термосы", "кемпинг"],
+        attributes_schema={
+            "type": {"label": "Снаряжение и инвентарь", "type": "string"},
+            "capacity": {"label": "Объем", "type": "string"},
+            "color": {"label": "Цвет", "type": "string"},
+        },
     ),
 
     # 10. Зоотовары (L1)
@@ -1190,6 +1322,11 @@ MASTER_TAXONOMY: List[Category] = [
             "настольные игры", "настольная игра", "настолки", "board games",
             "игры для компании", "игры настольные",
         ],
+        attributes_schema={
+            "type": {"label": "Вид игры / пазла", "type": "string"},
+            "pieces_count": {"label": "Количество элементов", "type": "string"},
+            "age_from": {"label": "Возраст", "type": "string"},
+        },
     ),
 ]
 
