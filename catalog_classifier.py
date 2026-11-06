@@ -442,7 +442,7 @@ _TITLE_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
     (re.compile(r"\b(?:книга|книги|роман|повесть|энциклопедия|биография|учебник|пособие)\b", re.I), "books"),
     (re.compile(r"\b(?:бумага\s+для\s+(?:печати|принтера|офисной\s+техники)|бумага\s+офисная|бумага\s+а4\b)\b", re.I), "books"),
     (re.compile(r"\b(?:настольная\s+игра|настольные\s+игры|настолк\w*|монополия|дженга|имаджинариум)\b", re.I), "board_games"),
-    (re.compile(r"\b(?:детск\w*\s+игрушк\w*|игрушк\w*\s+детск\w*|игрушечн\w*\s+(?:блендер|чайник|пылесос|миксер|тостер|кофеварк\w*|стиральн\w*|утюг|кухн\w*|набор|оружие|автомат|пистолет|машинк\w*))\b", re.I), "toys"),
+    (re.compile(r"\b(?:детск\w*\s+игрушк\w*|игрушк\w*\s+детск\w*|игрушечн\w*\s+(?:блендер|чайник|пылесос|миксер|тостер|кофеварк\w*|стиральн\w*|утюг|кухн\w*|набор|оружие|автомат|пистолет|машинк\w*)|\blego\b|конструктор\s+детск\w*)\b", re.I), "toys"),
     (re.compile(r"\b(?:электрический\s+рубанок|электрорубанок|рубанок\s+[а-яa-z0-9-]+|перфоратор|шуруповерт|дрель-шуруповерт|ударная\s+дрель|угловая\s+шлифмашина|болгарка|\bушм\b|электролобзик|сварочный\s+аппарат|строительный\s+фен|краскопульт|отбойный\s+молоток|торцовочная\s+пила|циркулярная\s+пила|дисковая\s+пила)\b", re.I), "tools_repair"),
     (re.compile(r"\b(?:контроллер\s+pci|плата\s+расширения\s+pci|адаптер\s+(?:asus\s+)?hyper\s+m\.2|переходник\s+pci-?e)\b", re.I), "pc_components"),
 
@@ -509,7 +509,7 @@ _TITLE_TYPE_RULES: List[Tuple[re.Pattern, str]] = [
         "laptops"
     ),
     (re.compile(r"\b(системный\s+блок|компьютер|моноблок|неттоп|desktop\s+pc|imac|mac\s+mini|mac\s+studio|mac\s+pro)\b", re.I), "pc_desktops"),
-    (re.compile(r"\b(монитор|дисплей|studio\s+display|pro\s+display\s+xdr)\b", re.I), "monitors"),
+    (re.compile(r"\b(монитор|(?:коммерческий|интерактивный|профессиональный|информационный)\s+дисплей|дисплей\s+(?:lg|samsung|viewsonic|philips|benq|sony|iiyama|dell|asus|acer|hp|lenovo|xiaomi|apple)|studio\s+display|pro\s+display\s+xdr)\b", re.I), "monitors"),
 
     # Hardware Components
     (re.compile(r"\b(блок\s+питания|бп\s+\d+|power\s+supply|источник\s+питания)\b", re.I), "psu"),

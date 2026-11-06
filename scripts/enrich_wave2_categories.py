@@ -26,10 +26,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def _move_product(conn: sqlite3.Connection, pid: str, cat_id: str, cat_name: str, item_kind: str = "device") -> None:
     conn.execute(
-        "UPDATE product_category_tags SET category_id = ?, item_kind = ? WHERE product_id = ?",
-        (cat_id, item_kind, pid),
+        "UPDATE product_category_tags SET category_id = ? WHERE product_id = ?",
+        (cat_id, pid),
     )
-    conn.execute("UPDATE canonical_products SET category = ? WHERE id = ?", (cat_name, pid))
+    conn.execute(
+        "UPDATE canonical_products SET category = ?, item_kind = ? WHERE id = ?",
+        (cat_name, item_kind, pid),
+    )
 
 
 def run_enrichment(db_path: str = "/app/data/prices.db") -> int:
@@ -135,6 +138,25 @@ def run_enrichment(db_path: str = "/app/data/prices.db") -> int:
             _move_product(conn, pid, "pc_components", "Комплектующие для ПК", "device")
             moved_pci += 1
     print(f"   Moved {moved_pci} PCI/M.2 controller items from 'Сетевое оборудование' to 'Комплектующие для ПК'.")
+
+    # 3e. Конструкторы LEGO в «Мониторы» (из-за слова «Дисплей») -> «Игрушки»
+    mon_rows = conn.execute(
+        "SELECT id, title FROM canonical_products WHERE category IN ('Мониторы', 'monitors') AND (title LIKE '%LEGO%' OR title LIKE '%конструктор%')"
+    ).fetchall()
+    for r in mon_rows:
+        _move_product(conn, r["id"], "toys", "Игрушки", "device")
+    if mon_rows:
+        print(f"   Moved {len(mon_rows)} LEGO/constructor items from 'Мониторы' to 'Игрушки'.")
+
+    # 3f. Очистка ложных type='Сплит-система' у кондиционеров для волос/белья и type='Кофемашина' у капсульного кофе
+    conn.execute(
+        """DELETE FROM product_search_attributes
+           WHERE key IN ('type', 'power_btu', 'area_sqm', 'inverter')
+             AND product_id IN (
+                 SELECT id FROM canonical_products
+                 WHERE category IN ('Уход за волосами', 'Бытовая химия и хозтовары', 'Декоративная косметика', 'Красота и здоровье', 'Напитки и соки')
+             )"""
+    )
 
     # 4. Clear stale local_search_intents for Wave 2 queries so fresh schemas take effect
     try:

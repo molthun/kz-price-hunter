@@ -1293,7 +1293,11 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
             attrs['anc'] = 'Да'
 
     # 13. Кондиционеры
-    is_ac = bool(re.search(r'\b(кондиционер\w*|сплит[- ]систем\w*|климатическ\w*)\b', title, re.I))
+    is_not_ac = bool(re.search(
+        r'\b(для\s+(?:волос|белья|ткани|стирки|кожи|тела|авто|шин|аквариум\w*|пруд\w*|воды)|бальзам|шампунь|ополаскивател\w*|conditioner\b|\d+\s*(?:мл|ml|г|гр)\b)\b',
+        title, re.I
+    ))
+    is_ac = not is_not_ac and bool(re.search(r'\b(кондиционер\w*|сплит[- ]систем\w*|климатическ\w*)\b', title, re.I))
     if is_ac:
         if re.search(r'\bмобильн\w*\b', title, re.I):
             attrs['type'] = 'Мобильный'
@@ -1524,7 +1528,12 @@ def extract_title_attributes(title: str) -> Dict[str, str]:
             attrs['sensor_dpi'] = f"{m_dpi.group(1)} DPI"
 
     # 20. Техника для кухни
-    is_kitchen = not bool(re.search(r'\b(детск\w*\s+игрушк\w*|игрушк\w*|игрушечн\w*)\b', title, re.I)) and bool(re.search(
+    is_not_kitchen = bool(re.search(
+        r'\b(детск\w*\s+игрушк\w*|игрушк\w*|игрушечн\w*|для\s+(?:кофемашин\w*|кофеварк\w*|блендер\w*|мясорубк\w*|мультиварк\w*|чайник\w*|микроволнов\w*|тостер\w*)|'
+        r'кофе\s+(?:в\s+зернах|зерновой|молотый|капсульный|растворимый)|капсул\w*\s+для|таблетк\w*\s+для|средств\w*\s+для|фильтр\w*\s+для|чистящ\w*|декальцинац\w*)\b',
+        title, re.I
+    ))
+    is_kitchen = not is_not_kitchen and bool(re.search(
         r'\b(кофемашин\w*|кофеварк\w*|кофемолк\w*|чайник\w*|электрочайник\w*|термопот\w*|'
         r'микроволнов\w*|свч[- ]печ\w*|блендер\w*|миксер\w*|мясорубк\w*|комбайн\w*|'
         r'мультиварк\w*|скороварк\w*|пароварк\w*|аэрогрил\w*|электрогрил\w*|грил\w*\s+электрическ\w*|'
