@@ -5144,6 +5144,9 @@
             <div class="state-title">Ищем лучшие предложения...</div>
           </div>
 
+          <!-- Live Web Search Container (SearXNG) -->
+          <div id="resultsLiveWebSearchContainer" style="margin-bottom:24px; text-align:left; display:none;"></div>
+
           <!-- Empty State -->
           <div id="resultsEmpty" class="state-box" style="display:none;">
             <div class="state-icon">🔍</div>
@@ -5153,7 +5156,6 @@
               <button class="btn-apply-filters" id="resultsEmptyAction" type="button" style="display:inline-block; width:auto; padding:8px 20px;">Сбросить фильтры</button>
               <button class="btn-live-web-search" id="resultsLiveWebSearchBtn" type="button" onclick="triggerLiveWebSearch()" style="display:inline-flex; align-items:center; gap:8px; background:linear-gradient(135deg, #0284c7, #2563eb); color:#fff; border:none; border-radius:8px; font-weight:600; cursor:pointer; width:auto; padding:8px 20px; box-shadow:0 2px 6px rgba(37,99,235,0.25);">🌐 Проверить магазины Казахстана (SearXNG)</button>
             </div>
-            <div id="resultsLiveWebSearchContainer" style="margin-top:28px; text-align:left; display:none;"></div>
           </div>
 
           <!-- Product Cards Container -->
@@ -5238,6 +5240,12 @@
             <tbody id="offersTableBody"></tbody>
           </table>
         </div>
+        <div id="detailWebOffersWrap" style="margin-top:16px; display:flex; justify-content:center;">
+          <button type="button" id="detailWebOffersBtn" onclick="triggerDetailWebSearch()" style="display:inline-flex; align-items:center; gap:6px; background:var(--bg-subtle); border:1px solid var(--border-color); color:var(--text-main); border-radius:8px; padding:8px 18px; font-size:0.85rem; font-weight:600; cursor:pointer; transition:all 0.15s;">
+            🌐 Найти в других магазинах Казахстана (SearXNG)
+          </button>
+        </div>
+        <div id="detailWebOffersContainer" style="margin-top:20px; display:none;"></div>
       </div>
 
       <!-- Specifications Section -->
@@ -7511,14 +7519,38 @@
       showResultsMessage(title, desc, 'Повторить', () => executeSearch());
     }
 
+    function closeLiveWebSearch() {
+      const container = document.getElementById('resultsLiveWebSearchContainer');
+      if (container) {
+        container.style.display = 'none';
+        container.innerHTML = '';
+      }
+      const btn = document.getElementById('resultsLiveWebSearchBtn');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '🌐 Проверить магазины Казахстана (SearXNG)';
+      }
+    }
+
+    function closeDetailWebSearch() {
+      const container = document.getElementById('detailWebOffersContainer');
+      if (container) {
+        container.style.display = 'none';
+        container.innerHTML = '';
+      }
+      const btn = document.getElementById('detailWebOffersBtn');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '🌐 Найти в других магазинах Казахстана (SearXNG)';
+      }
+    }
+
     async function triggerLiveWebSearch(overrideQuery) {
       const q = (overrideQuery || AppState.query || '').trim();
       const container = document.getElementById('resultsLiveWebSearchContainer');
       const btn = document.getElementById('resultsLiveWebSearchBtn');
-      const emptyEl = document.getElementById('resultsEmpty');
 
       if (!container) return;
-      if (emptyEl) emptyEl.style.display = 'block';
       container.style.display = 'block';
 
       if (!q) {
@@ -7558,6 +7590,9 @@
               <div style="font-size:1.5rem; margin-bottom:8px;">🏪</div>
               <div style="font-weight:700; color:var(--text-main);">Магазины не вернули прямых совпадений по «${escapeHtml(q)}»</div>
               <div style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;">Попробуйте сократить запрос или указать общее название категории.</div>
+              <div style="margin-top:12px;">
+                <button type="button" onclick="closeLiveWebSearch()" style="background:var(--bg-subtle); border:1px solid var(--border-color); color:var(--text-muted); border-radius:6px; padding:4px 12px; font-size:0.8rem; cursor:pointer;">Закрыть</button>
+              </div>
             </div>
           `;
           return;
@@ -7590,13 +7625,16 @@
 
         container.innerHTML = `
           <div class="web-search-box">
-            <div class="web-search-header">
+            <div class="web-search-header" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
               <div class="web-search-title">
                 <span>🌐</span>
                 <span>Предложения в интернет-магазинах Казахстана</span>
                 <span class="badge" style="background:var(--bg-subtle); color:var(--text-muted); font-size:0.8rem; padding:2px 8px; border-radius:12px;">найдено ${data.total}</span>
               </div>
-              <div class="web-search-badge-source">Источник: SearXNG ${data.from_cache ? '(кэш)' : '(живой опрос)'}</div>
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span class="web-search-badge-source">Источник: SearXNG ${data.from_cache ? '(кэш)' : '(живой опрос)'}</span>
+                <button type="button" onclick="closeLiveWebSearch()" style="background:none; border:none; color:var(--text-muted); font-size:1.1rem; cursor:pointer; padding:2px 6px; border-radius:4px; line-height:1;" title="Скрыть результаты">✕</button>
+              </div>
             </div>
             <div class="web-search-cards">
               ${cardsHtml}
@@ -7612,6 +7650,117 @@
         container.innerHTML = `
           <div class="web-search-box" style="text-align:center; padding:20px; color:var(--text-muted);">
             Не удалось связаться с поисковым узлом SearXNG. Попробуйте повторить попытку позже.
+            <div style="margin-top:10px;">
+              <button type="button" onclick="closeLiveWebSearch()" style="background:var(--bg-subtle); border:1px solid var(--border-color); color:var(--text-muted); border-radius:6px; padding:4px 12px; font-size:0.8rem; cursor:pointer;">Закрыть</button>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    async function triggerDetailWebSearch() {
+      const prod = AppState.currentProduct && AppState.currentProduct.product;
+      if (!prod) return;
+      const q = (prod.title || prod.model || '').trim();
+      const container = document.getElementById('detailWebOffersContainer');
+      const btn = document.getElementById('detailWebOffersBtn');
+      if (!container || !q) return;
+
+      container.style.display = 'block';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Опрашиваем SearXNG...';
+      }
+
+      container.innerHTML = `
+        <div class="web-search-box" style="text-align:center; padding:24px;">
+          <div style="font-size:1.5rem; margin-bottom:8px;">🔎</div>
+          <div style="font-weight:700; color:var(--text-main); font-size:0.95rem;">Ищем предложения «${escapeHtml(q)}» в магазинах Казахстана...</div>
+          <div style="font-size:0.82rem; color:var(--text-muted); margin-top:4px;">Kaspi, Белый Ветер, Мечта, Technodom, Sulpak, DNS</div>
+        </div>
+      `;
+
+      try {
+        const city = AppState.city && AppState.city !== 'Все' ? AppState.city : '';
+        const params = new URLSearchParams({ q: q, limit: '8' });
+        if (city) params.set('city', city);
+
+        const resp = await fetch('/api/v2/web-search?' + params.toString());
+        const data = await resp.json();
+
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '🔄 Обновить поиск (SearXNG)';
+        }
+
+        if (!data.ok || !data.results || data.results.length === 0) {
+          container.innerHTML = `
+            <div class="web-search-box" style="text-align:center; padding:20px;">
+              <div style="font-size:1.3rem; margin-bottom:6px;">🏪</div>
+              <div style="font-weight:700; color:var(--text-main);">В других магазинах прямых предложений не найдено</div>
+              <div style="margin-top:10px;">
+                <button type="button" onclick="closeDetailWebSearch()" style="background:var(--bg-subtle); border:1px solid var(--border-color); color:var(--text-muted); border-radius:6px; padding:4px 12px; font-size:0.8rem; cursor:pointer;">Закрыть</button>
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        const cardsHtml = data.results.map(item => {
+          const priceHtml = item.price
+            ? `<div class="web-card-price">${formatPrice(item.price)}</div>`
+            : `<div class="web-card-price" style="font-size:0.85rem; color:var(--text-muted); font-weight:500;">Уточняйте на сайте</div>`;
+
+          return `
+            <div class="web-card">
+              <div>
+                <div class="web-card-top">
+                  <span class="web-card-shop" style="background:${escapeHtml(item.color || '#2563eb')}">${escapeHtml(item.badge || item.shop_name)}</span>
+                  <span class="web-card-domain">${escapeHtml(item.domain)}</span>
+                </div>
+                <div class="web-card-title" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</div>
+                <div class="web-card-snippet">${escapeHtml(item.snippet || '')}</div>
+              </div>
+              <div class="web-card-bottom">
+                ${priceHtml}
+                <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="web-card-btn">
+                  В магазин ↗
+                </a>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        container.innerHTML = `
+          <div class="web-search-box">
+            <div class="web-search-header" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+              <div class="web-search-title">
+                <span>🌐</span>
+                <span>Предложения в других магазинах Казахстана</span>
+                <span class="badge" style="background:var(--bg-subtle); color:var(--text-muted); font-size:0.8rem; padding:2px 8px; border-radius:12px;">найдено ${data.total}</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span class="web-search-badge-source">SearXNG ${data.from_cache ? '(кэш)' : '(живой)'}</span>
+                <button type="button" onclick="closeDetailWebSearch()" style="background:none; border:none; color:var(--text-muted); font-size:1.1rem; cursor:pointer; padding:2px 6px; border-radius:4px; line-height:1;" title="Скрыть результаты">✕</button>
+              </div>
+            </div>
+            <div class="web-search-cards">
+              ${cardsHtml}
+            </div>
+          </div>
+        `;
+      } catch (err) {
+        console.error('[DetailWebSearch] Ошибка:', err);
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '🌐 Найти в других магазинах Казахстана (SearXNG)';
+        }
+        container.innerHTML = `
+          <div class="web-search-box" style="text-align:center; padding:18px; color:var(--text-muted);">
+            Не удалось связаться с поисковым узлом SearXNG.
+            <div style="margin-top:10px;">
+              <button type="button" onclick="closeDetailWebSearch()" style="background:var(--bg-subtle); border:1px solid var(--border-color); color:var(--text-muted); border-radius:6px; padding:4px 12px; font-size:0.8rem; cursor:pointer;">Закрыть</button>
+            </div>
           </div>
         `;
       }
@@ -8455,6 +8604,13 @@
       document.getElementById('detailBestPrice').textContent = bestPrice ? formatPrice(bestPrice) + (bestBasis ? ' ' + bestBasis : '') : 'Нет в наличии';
       document.getElementById('detailSellersCountBadge').textContent = selected?[selected.seller_name,selected.city].filter(Boolean).join(' · '):'Доступно у ' + sellers.length + ' ' + pluralizeSellers(sellers.length);
       document.getElementById('offersCountBadge').textContent = offers.length > 0 ? '(' + offers.length + ' ' + pluralizeOffers(offers.length) + ')' : '';
+      closeDetailWebSearch();
+      const webBtn = document.getElementById('detailWebOffersBtn');
+      if (webBtn) {
+        webBtn.style.display = 'inline-flex';
+        webBtn.disabled = false;
+        webBtn.innerHTML = offers.length === 0 ? '🌐 Найти предложения в магазинах Казахстана (SearXNG)' : '🌐 Найти в других магазинах Казахстана (SearXNG)';
+      }
 
       // Badges
       let badgesHtml = '';

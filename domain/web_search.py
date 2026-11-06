@@ -27,11 +27,14 @@ logger = logging.getLogger("web_search")
 # Реестр известных казахстанских магазинов
 KNOWN_KZ_SHOPS: Dict[str, Dict[str, Any]] = {
     "kaspi.kz": {"name": "Kaspi Магазин", "badge": "Kaspi", "color": "#f14635"},
+    "obyavleniya.kaspi.kz": {"name": "Kaspi Объявления", "badge": "Kaspi", "color": "#e11d48"},
     "shop.kz": {"name": "Белый Ветер", "badge": "Белый Ветер", "color": "#0072bc"},
+    "bely-veter.kz": {"name": "Белый Ветер", "badge": "Белый Ветер", "color": "#0072bc"},
     "mechta.kz": {"name": "Мечта", "badge": "Мечта", "color": "#ff0033"},
     "sulpak.kz": {"name": "Sulpak", "badge": "Sulpak", "color": "#e30613"},
     "technodom.kz": {"name": "Technodom", "badge": "Technodom", "color": "#ff6600"},
     "marwin.kz": {"name": "Marwin / Меломан", "badge": "Marwin", "color": "#009ee2"},
+    "meloman.kz": {"name": "Меломан", "badge": "Меломан", "color": "#009ee2"},
     "flip.kz": {"name": "Flip.kz", "badge": "Flip", "color": "#28a745"},
     "dns-shop.kz": {"name": "DNS Казахстан", "badge": "DNS", "color": "#ea5a00"},
     "alser.kz": {"name": "Alser", "badge": "Alser", "color": "#e4002b"},
@@ -48,9 +51,19 @@ KNOWN_KZ_SHOPS: Dict[str, Dict[str, Any]] = {
     "satu.kz": {"name": "Satu.kz", "badge": "Satu", "color": "#27ae60"},
     "kolesa.kz": {"name": "Колёса KZ", "badge": "Колёса", "color": "#f39c12"},
     "turbotyres.kz": {"name": "TurboTyres", "badge": "TurboTyres", "color": "#e74c3c"},
+    "ozon.kz": {"name": "Ozon Казахстан", "badge": "Ozon", "color": "#005bff"},
+    "forcecom.kz": {"name": "Forcecom", "badge": "Forcecom", "color": "#2563eb"},
+    "moon.kz": {"name": "Moon.kz", "badge": "Moon", "color": "#7c3aed"},
+    "alfa.kz": {"name": "Alfa.kz", "badge": "Alfa", "color": "#ea580c"},
+    "kompy.kz": {"name": "Kompy.kz", "badge": "Kompy", "color": "#059669"},
+    "fora.kz": {"name": "Fora", "badge": "Fora", "color": "#dc2626"},
+    "itmag.kz": {"name": "IT-Mag", "badge": "IT-Mag", "color": "#0284c7"},
+    "pulser.kz": {"name": "Pulser", "badge": "Pulser", "color": "#d97706"},
+    "ispace.kz": {"name": "iSpace", "badge": "iSpace", "color": "#111827"},
+    "e-katalog.kz": {"name": "E-Katalog KZ", "badge": "E-Katalog", "color": "#0284c7"},
 }
 
-DEFAULT_SEARCH_ENGINES = "duckduckgo,startpage,mojeek"
+DEFAULT_SEARCH_ENGINES = "duckduckgo,startpage,mojeek,bing"
 SEARCH_TIMEOUT_SECONDS = 12.0
 MAX_QUERY_LENGTH = 200
 
@@ -121,8 +134,6 @@ def build_search_query(raw_query: str, city: Optional[str] = None, mode: str = "
 
     geo = city.strip() if city and city != "Все" else "Казахстан"
     return f"{clean} {geo} купить"
-
-    return clean
 
 
 DEFAULT_DAILY_LIMIT = 300
@@ -279,10 +290,31 @@ async def search_web(
             "price": price,
             "currency": "₸" if price else None,
             "engine": str(item.get("engine") or "searxng"),
+            "is_known_partner": shop.get("is_known_partner", False),
         })
         seen_urls.add(link)
-        if len(cleaned_results) >= limit:
-            break
+
+    # Приоритезация магазинов Казахстана в режиме kz_shops:
+    # 1. Известные профильные магазины и маркетплейсы Казахстана (Kaspi, Mechta, Sulpak, DNS, Белый Ветер и др.)
+    # 2. Товары с четко определенной ценой в тенге
+    # 3. Казахстанские домены (.kz)
+    if mode == "kz_shops":
+        def _rank_score(it: Dict[str, Any]) -> int:
+            score = 0
+            if it.get("is_known_partner"):
+                score += 100
+            if it.get("price") is not None:
+                score += 30
+            domain = str(it.get("domain", "")).lower()
+            if domain.endswith(".kz"):
+                score += 20
+            elif any(c in domain for c in ("ru", "by", "ua", "cn")):
+                score -= 40
+            return score
+
+        cleaned_results.sort(key=_rank_score, reverse=True)
+
+    cleaned_results = cleaned_results[:limit]
 
     # 6. Сохраняем в кэш SQLite
     if cleaned_results:

@@ -169,5 +169,71 @@ class TestWebSearchAsync(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(res["results"], [])
 
 
+    async def test_search_web_partner_priority_ranking(self):
+        # Проверяем, что в режиме kz_shops известные магазины и товары с ценой идут первыми
+        mock_searxng_resp = {
+            "results": [
+                {
+                    "title": "Случайный зарубежный блог о технике",
+                    "url": "https://techblog.ru/article/123",
+                    "content": "Обзор видеокарты без цен",
+                    "engine": "duckduckgo",
+                },
+                {
+                    "title": "Видеокарта RTX 4070 за 350 000 ₸",
+                    "url": "https://forcecom.kz/catalog/rtx4070",
+                    "content": "Купить с доставкой по Алматы",
+                    "engine": "duckduckgo",
+                },
+                {
+                    "title": "Видеокарта в магазине Мечта за 360 000 ₸",
+                    "url": "https://www.mechta.kz/product/rtx4070",
+                    "content": "Официальная гарантия в Казахстане",
+                    "engine": "duckduckgo",
+                },
+            ]
+        }
+
+        class MockResponse:
+            status = 200
+
+            async def json(self, content_type=None):
+                return mock_searxng_resp
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                pass
+
+        class MockSession:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            def get(self, *args, **kwargs):
+                return MockResponse()
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                pass
+
+        with patch.object(database, "get_web_search", return_value=None), \
+             patch.object(database, "reserve_web_search", return_value=True), \
+             patch.object(database, "save_web_search"), \
+             patch("aiohttp.ClientSession", MockSession):
+
+            res = await search_web("RTX 4070", mode="kz_shops", limit=5)
+            self.assertTrue(res["ok"])
+            self.assertEqual(res["total"], 3)
+            # Первые два должны быть известными магазинами (Мечта и Forcecom)
+            first_two = [r["shop_name"] for r in res["results"][:2]]
+            self.assertIn("Мечта", first_two)
+            self.assertIn("Forcecom", first_two)
+            # Последним должен идти чужой блог
+            self.assertEqual(res["results"][2]["domain"], "techblog.ru")
+
+
 if __name__ == "__main__":
     unittest.main()
