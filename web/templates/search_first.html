@@ -2496,7 +2496,7 @@
     /* Actions Row */
     .deal-actions-row {
       display: flex;
-      gap: 8px;
+      gap: 6px;
       align-items: center;
       margin-top: auto;
       padding-top: 6px;
@@ -2506,19 +2506,21 @@
     .btn-deal-buy {
       flex: 1;
       min-width: 0;
-      height: 40px;
-      padding: 0 14px;
+      height: 38px;
+      padding: 0 8px;
       background: var(--primary);
       color: #ffffff;
       border-radius: var(--radius-md);
-      font-size: 0.88rem;
+      font-size: 0.84rem;
       font-weight: 700;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 6px;
+      gap: 4px;
       text-decoration: none;
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
       transition: all 0.2s ease;
       box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2);
     }
@@ -2530,9 +2532,9 @@
     }
 
     .btn-deal-action {
-      flex: 0 0 40px;
-      width: 40px;
-      height: 40px;
+      flex: 0 0 36px;
+      width: 36px;
+      height: 38px;
       background: var(--bg-subtle);
       border: 1px solid var(--border-color);
       color: var(--text-main);
@@ -2540,7 +2542,7 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      font-size: 1rem;
+      font-size: 0.9rem;
       cursor: pointer;
       transition: all 0.2s ease;
     }
@@ -9755,12 +9757,12 @@
 
               <div class="deal-actions-row">
                 ${safeUrl ? `
-                  <a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer" class="btn-deal-buy" title="Перейти на страницу товара у продавца">
-                    <span>Купить у продавца</span>
-                    <span>↗</span>
+                  <a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer" class="btn-deal-buy" title="${deal.shop ? 'Купить в ' + escapeHtml(deal.shop) : 'Перейти на страницу товара у продавца'}">
+                    <span>Купить</span>
+                    <span style="font-size: 0.75rem;">↗</span>
                   </a>
                 ` : `
-                  <button class="btn-deal-buy" disabled style="opacity: 0.5;">Ссылка недоступна</button>
+                  <button class="btn-deal-buy" disabled style="opacity: 0.5;">Купить</button>
                 `}
 
                 <button
